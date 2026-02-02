@@ -39,3 +39,26 @@ yarn-error.log*
 # typescript
 *.tsbuildinfo
 next-env.d.ts
+
+# tool caches
+.eslintcache
+.stylelintcache
+.npm
+.cache
+.parcel-cache
+
+# test coverage extras
+.nyc_output
+*.lcov
+
+# runtime/process
+pids
+*.pid
+*.pid.lock
+
+# packaging artifacts
+*.tgz
+
+# node repl history
+.node_repl_history
+
