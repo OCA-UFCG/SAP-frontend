@@ -12,7 +12,7 @@ HOST_PORT_PROD=3000
 CONTAINER_NAME_PROD=sap-frontend-app
 
 #BETA Env
-HOST_PORT_BETA=6000
+HOST_PORT_BETA=3000
 CONTAINER_NAME_BETA=sap-frontend-app-beta
 
 run-dev:
@@ -26,9 +26,6 @@ docker-build-dev:
 	docker build -t $(IMAGE_NAME) .
 
 docker-run-dev:
-	docker run -p 3000:$(CONTAINER_PORT) --name $(IMAGE_NAME) -v node_modules -v $(PWD):/app --user $(id -u):$(id -g) $(IMAGE_NAME)
-
-docker-run-dev-mac:
 	docker run -p 3000:$(CONTAINER_PORT) --name $(IMAGE_NAME) -v /app/node_modules -v $(PWD):/app -w /app --user $(id -u):$(id -g) $(IMAGE_NAME)
 
 docker-build-prod:
