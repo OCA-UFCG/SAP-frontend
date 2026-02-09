@@ -1,4 +1,4 @@
-name: CI/CD SAP-AMFE
+name: CI/CD SAP-Frontend
 
 on:
   push:
