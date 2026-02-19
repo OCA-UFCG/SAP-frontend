@@ -1,19 +1,13 @@
-export const GET_SOBRE_NOS_HOMEPAGE = `
-  query GetSobreNosHomePage {
-    aboutCollection(limit: 1) {
+export const MAIN_BANNER_QUERY = `
+  query($preview: Boolean) {
+    mainBannerCollection(limit: 1, preview: $preview) {
       items {
-        sys {
-          id
-        }
         title
-        text {
-          json
-        }
+        subtitle
+        buttonUrl
+        buttonLabel
         image {
           url
-          title
-          width
-          height
         }
       }
     }
