@@ -3,7 +3,7 @@ import Image from "next/image";
 export function PartnersSection() {
   return (
     <section className="w-full bg-[#F6F7F6]">
-      <div className="max-w-[1440px] mx-auto px-6 md:px-20 py-12 flex flex-col md:min-h-[328px]">
+      <div className="max-w-360 mx-auto px-6 md:px-20 py-12 flex flex-col md:min-h-82">
 
         {/* Texto */}
         <div className="flex flex-col gap-6 w-full max-w-5xl text-center md:text-left items-center md:items-start">
@@ -18,11 +18,11 @@ export function PartnersSection() {
 
         {/* Logos */}
         <div className="flex flex-wrap justify-center md:justify-start items-center gap-6 mt-8 md:mt-10 lg:mt-12">
-          <img src="/partners/oca.png" className="h-[78px] w-auto object-contain" />
-          <img src="/partners/insa.png" className="h-[79px] w-auto object-contain" />
-          <img src="/partners/mma.png" className="h-[78px] w-auto object-contain" />
-          <img src="/partners/bndes.png" className="h-[78px] w-auto object-contain" />
-          <img src="/partners/ufcg.png" className="h-[78px] w-auto object-contain" />
+          <img src="/partners/oca.png" className="h-19.5 w-auto object-contain" />
+          <img src="/partners/insa.png" className="h-19.75 w-auto object-contain" />
+          <img src="/partners/mma.png" className="h-19.5 w-auto object-contain" />
+          <img src="/partners/bndes.png" className="h-19.5 w-auto object-contain" />
+          <img src="/partners/ufcg.png" className="h-19.5 w-auto object-contain" />
         </div>
 
       </div>
