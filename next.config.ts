@@ -1,6 +1,5 @@
 /** @type {import('next').NextConfig} */
 const nextConfig = {
-  //this makes the Next.js know what domain it could trust!!
   images: {
     remotePatterns: [
       {
