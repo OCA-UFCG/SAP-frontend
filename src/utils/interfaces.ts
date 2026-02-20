@@ -1,17 +1,10 @@
-import { Document } from "@contentful/rich-text-types";
 
-export interface AboutSectionI {
-  sys: {
-    id: string;
-  };
+export interface IMainBanner {
   title: string;
-  text: {
-    json: Document;
-  };
+  subtitle: string;
+  buttonLabel: string;
+  buttonUrl: string;
   image: {
     url: string;
-    title: string;
-    width: number;
-    height: number;
   };
 }
