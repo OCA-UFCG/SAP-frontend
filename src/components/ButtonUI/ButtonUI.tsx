@@ -1,6 +1,7 @@
 import { cn } from '@/lib/utils';
+import { ButtonHTMLAttributes } from 'react';
 
-export interface ButtonProps {
+export interface ButtonProps extends ButtonHTMLAttributes<HTMLButtonElement> {
   label: string;
   styles: string;
   onClick?: () => void;
