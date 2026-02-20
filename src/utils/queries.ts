@@ -1,5 +1,5 @@
-export const GET_SOBRE_NOS_HOMEPAGE = `
-  query GetSobreNosHomePage {
+export const GET_HOME_PAGE = `
+  query GetHomePage {
     aboutCollection(limit: 1) {
       items {
         sys {
