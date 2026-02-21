@@ -1,7 +1,7 @@
 import type { NextConfig } from "next";
 
 const nextConfig: NextConfig = {
-  //explicitar quais domínios de imagens são aceitos 
+  //explicitar quais domínios de imagens são aceitos
   images: {
     remotePatterns: [
       {
@@ -11,6 +11,15 @@ const nextConfig: NextConfig = {
     ],
   },
   reactCompiler: true,
+
+  images: {
+    remotePatterns: [
+      {
+        protocol: "https",
+        hostname: "images.ctfassets.net",
+      },
+    ],
+  },
 };
 
 export default nextConfig;
