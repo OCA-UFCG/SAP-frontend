@@ -14,15 +14,15 @@ export const PartnersSection = ({
   className = "",
 }: Props) => {
   return (
-    <section className={`w-full bg-[#F6F7F6] ${className}`}>
-      <div className="max-w-360 mx-auto px-6 md:px-20 py-12 flex flex-col">
+    <section className={`w-full min-h-82 bg-[#F6F7F6] ${className}`}>
+      <div className="max-w-360 mx-auto px-6 sm:px-10 md:px-20 py-12 flex flex-col">
 
         <div className="flex flex-col gap-6 max-w-5xl text-center md:text-left items-center md:items-start">
           <h2 className="text-2xl md:text-3xl font-semibold text-[#292829]">
             {header.title}
           </h2>
 
-          <p className="text-base leading-relaxed text-[#292829] max-w-5xl whitespace-pre-line">
+          <p className="text-base font-medium leading-relaxed text-[#292829] max-w-5xl whitespace-pre-line">
             {header.description}
           </p>
         </div>
@@ -35,7 +35,7 @@ export const PartnersSection = ({
               alt={partner.image.title || partner.name}
               width={partner.image.width ?? 300}
               height={partner.image.height ?? 100}
-              className="h-19.5 w-auto object-contain"
+              className="h-15.5 w-auto object-contain"
             />
           ))}
         </div>
