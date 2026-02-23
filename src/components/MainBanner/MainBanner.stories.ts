@@ -11,7 +11,7 @@ const meta: Meta<typeof MainBanner> = {
       buttonLabel: "Explorar Mapa",
       buttonUrl: "#",
       image: {
-        url: "/banner.png"
+        url: "https://images.ctfassets.net/ltku4sobsen2/5F33iWSe0kcsJi4loCAGNq/aa417ec6735744009d57de04017a740f/297efe92c527cd9c7d5dec693cc5a887347e39ec.jpg"
       }
     }
   }
