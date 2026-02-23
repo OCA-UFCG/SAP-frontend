@@ -2,7 +2,7 @@ name: CD SAP-Multicriterial Front-end Beta
 
 on:
   push:
-    branches: ["main", "CD-setup"]
+    branches: ["main", "deploy/CD-setup"]
 
 jobs:
   build-image:
