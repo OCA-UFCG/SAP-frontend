@@ -1,0 +1,7 @@
+__tests__
+.github
+.husky
+.storybook
+node_modules
+eslint.config
+README
