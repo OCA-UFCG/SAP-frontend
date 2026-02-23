@@ -1,11 +1,12 @@
 import type { Meta, StoryObj } from '@storybook/nextjs-vite';
 import { Header } from './NavigationMenu';
+import { ISections } from '@/utils/interfaces';
 
 const meta: Meta<typeof Header> = {
   title: 'Layout/Header',
   component: Header,
   tags: ['autodocs'],
-  
+
   parameters: {
     layout: 'fullscreen', // Remove o padding padrão do Storybook para ocupar a tela toda
     nextjs: {
@@ -15,46 +16,40 @@ const meta: Meta<typeof Header> = {
       },
     },
   },
-  
 };
 
+const content: ISections = {
+  'home-section': {
+    id: '1',
+    name: 'Home',
+    path: '/',
+    appears: true,
+  },
+  'map-section': {
+    id: '2',
+    name: 'Mapa',
+    path: '/mock',
+    appears: true,
+  },
+  'about-section': {
+    id: '3',
+    name: 'Sobre o Sap',
+    path: '/mock',
+    appears: true,
+  },
+  'contact-section': {
+    id: '4',
+    name: 'Contatos',
+    path: '/mock',
+    appears: true,
+  },
+};
 
 export default meta;
 type Story = StoryObj<typeof Header>;
 
-// 1. Estado na Home (Link 'Home' ativo)
-export const HomePage: Story = {
-  parameters: {
-    nextjs: {
-      navigation: {
-        pathname: '/',
-      },
-    },
+export const HeaderView: Story = {
+  args: {
+    content: Object.values(content),
   },
 };
-
-// 2. Estado na página de Produtos (Link 'Produtos' ativo)
-export const ProductsPage: Story = {
-  parameters: {
-    nextjs: {
-      navigation: {
-        pathname: '/products',
-      },
-    },
-  },
-};
-
-// 3. Visualização Mobile
-// Útil para testar se os links desktop somem e o ícone de hambúrguer aparece
-export const MobileView: Story = {
-  parameters: {
-    viewport: {
-      defaultViewport: 'mobile1',
-    },
-    nextjs: {
-      navigation: {
-        pathname: '/',
-      },
-    },
-  },
-};  
