@@ -1,8 +1,26 @@
 This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
 
+## Prerequisites
+
+- Use **Node.js LTS**
+
+If you use **nvm**, run:
+
+```bash
+nvm install --lts
+nvm use --lts
+```
+
 ## Getting Started
 
-First, run the development server:
+First, install dependencies and the Playwright browsers:
+
+```bash
+npm install
+npx playwright install --with-deps
+```
+
+Then, run the development server:
 
 ```bash
 npm run dev
