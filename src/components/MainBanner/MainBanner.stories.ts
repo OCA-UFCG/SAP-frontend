@@ -1,5 +1,5 @@
 import type { Meta, StoryObj } from '@storybook/nextjs'; 
-import { MainBanner } from '../components/MainBanner/MainBanner';
+import { MainBanner } from './MainBanner';
 
 const meta: Meta<typeof MainBanner> = {
   title: 'Components/MainBanner',
