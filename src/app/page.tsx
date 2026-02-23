@@ -1,16 +1,16 @@
 import { getContent } from "../utils/contentful";
 import { GET_HOME_PAGE } from "../utils/queries";
 import { AboutSectionI } from "../utils/interfaces";
-import { AboutSection } from "../components/AboutSection/AboutSection"
+import { AboutSection } from "../components/AboutSection/AboutSection";
 
-interface AboutContent {
+interface HomeContent {
   aboutCollection: { items: AboutSectionI[] };
 }
 
-const getHomePageContent = async (): Promise<AboutSectionI | null> => {
+const getHomePageContent = async (): Promise<HomeContent | null> => {
   try {
-    const { aboutCollection } = await getContent<AboutContent>(GET_HOME_PAGE);
-    return aboutCollection.items[0] ?? null;
+    const response = await getContent<HomeContent>(GET_HOME_PAGE);
+    return response;
   } catch (error) {
     console.error("Erro ao buscar dados do Contentful:", error);
     return null;
@@ -18,14 +18,24 @@ const getHomePageContent = async (): Promise<AboutSectionI | null> => {
 };
 
 export default async function Home() {
-  const content = await getHomePageContent();
+  const data = await getHomePageContent();
+
+  // early return pra garantir que data não seja null
+  if (!data?.aboutCollection?.items?.length) {
+    return (
+      <div className="flex min-h-screen flex-col">
+        <p>Conteúdo não encontrado.</p>
+      </div>
+    );
+  }
+
+  const { aboutCollection } = data;
+  const content = aboutCollection.items[0];
 
   return (
     <div className="flex min-h-screen flex-col">
-      {content ? (
+      {aboutCollection?.items && (
         <AboutSection content={content} />
-      ) : (
-        <p>Conteúdo não encontrado.</p>
       )}
     </div>
   );
