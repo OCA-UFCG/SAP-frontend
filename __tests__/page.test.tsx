@@ -5,7 +5,7 @@ import Home from "../src/app/page";
 // Mock do next/image
 vi.mock("next/image", () => ({
   default: (props: React.ImgHTMLAttributes<HTMLImageElement>) => (
-    <img {...props} />
+    <img alt="" {...props} />
   ),
 }));
 
