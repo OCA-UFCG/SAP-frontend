@@ -1,4 +1,4 @@
-name: CD SAP-Multicriterial Front-end Beta
+name: CD SAP-Home frontend Beta
 
 on:
   push:
