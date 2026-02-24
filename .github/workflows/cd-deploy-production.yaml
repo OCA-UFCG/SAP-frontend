@@ -1,7 +1,8 @@
-name: CD SAP-Home frontend Beta
+name: CD SAP-Home frontend
 
 on:
   push:
+    tags: ["*"]
     branches: ["main", "deploy/CD-setup"]
 
 jobs:
@@ -11,12 +12,13 @@ jobs:
       - uses: actions/checkout@v4
 
       - name: Debug environment variables
-        run: echo "Image is ${{ vars.DOCKER_IMAGE_BETA }}"
+        run: echo "Image is ${{ vars.DOCKER_IMAGE_PROD}}"
+
       - name: Update Docker Container metadata
         uses: docker/metadata-action@v4
         id: meta
         with:
-          images: ${{ vars.DOCKER_IMAGE_BETA }}
+          images: ${{ vars.DOCKER_IMAGE_PROD}}
 
       - name: Setup Docker Buildx
         uses: docker/setup-buildx-action@v2
@@ -32,17 +34,20 @@ jobs:
         with:
           context: .
           push: true
-          file: Dockerfile.beta
+          file: Dockerfile.production
           labels: ${{ steps.meta.outputs.labels }}
           tags: |
-            ${{ vars.DOCKER_IMAGE_BETA }}:latest
+            ${{ vars.DOCKER_IMAGE_PROD}}:latest
             ${{ steps.meta.outputs.tags }}
+          platforms: linux/amd64,linux/arm64
+
   push-beta:
     needs: build-image
     runs-on: self-hosted
+
     steps:
       - name: Debug environment (Runner)
-        run: echo "Image is ${{ vars.DOCKER_IMAGE_BETA }}"
+        run: echo "Image is ${{ vars.DOCKER_IMAGE_PROD}}"
 
       - name: Ensure docker network exists
         run: |
@@ -53,17 +58,18 @@ jobs:
           else
             echo "Network already exists: $DOCKER_NETWORK_NAME"
           fi
-      - name: Pull the latest beta image
-        run: sudo docker pull ${{ vars.DOCKER_IMAGE_BETA }}:latest
+
+      - name: Pull the latest production image
+        run: sudo docker pull ${{ vars.DOCKER_IMAGE_PROD}}:latest
 
       - name: Stop existing container
-        run: sudo docker rm -f ${{ vars.CONTAINER_NAME_BETA }} || true
+        run: sudo docker rm -f ${{ vars.CONTAINER_NAME_PROD}} || true
 
-      - name: Run the new Beta container
-        run: sudo docker run --name ${{ vars.CONTAINER_NAME_BETA }} --restart unless-stopped -p ${{ vars.HOST_PORT_BETA }}:${{ vars.CONTAINER_PORT }} -d ${{ vars.DOCKER_IMAGE_BETA }}:latest
+      - name: Run the new production container
+        run: sudo docker run --name ${{ vars.CONTAINER_NAME_PROD}} --restart unless-stopped -p ${{ vars.HOST_PORT_PROD}}:${{ vars.CONTAINER_PORT }} -d ${{ vars.DOCKER_IMAGE_PROD}}:latest
 
-      - name: Connect to the Beta container network
-        run: sudo docker network connect ${{ vars.NETWORK_NAME }} ${{ vars.CONTAINER_NAME_BETA }}
+      - name: Connect to the SAP network
+        run: sudo docker network connect ${{ vars.NETWORK_NAME }} ${{ vars.CONTAINER_NAME_PROD}}
 
       - name: Prune unused Docker images
         run: sudo docker system prune -f
