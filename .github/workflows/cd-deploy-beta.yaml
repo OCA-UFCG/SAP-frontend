@@ -1,4 +1,4 @@
-name: CD SAP-Home frontend Beta
+name: CD SAP-Home frontend BETA
 
 on:
   push:
