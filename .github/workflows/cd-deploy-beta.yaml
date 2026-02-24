@@ -2,8 +2,7 @@ name: CD SAP-Home frontend BETA
 
 on:
   push:
-    branches: ["main", "deploy/CD-setup"]
-
+    branches: ["main"]
 jobs:
   build-image:
     runs-on: ubuntu-latest
