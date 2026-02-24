@@ -3,7 +3,6 @@ name: CD SAP-Home frontend PRODUCTION
 on:
   push:
     tags: ["*"]
-    branches: ["main", "deploy/CD-setup"]
 
 jobs:
   build-image:
