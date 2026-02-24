@@ -8,7 +8,7 @@ WORKDIR /app
 COPY package*.json ./
 
 # Install dependencies
-RUN npm install 
+RUN npm ci
 
 # Copy the rest of the application code
 COPY . .
@@ -20,4 +20,4 @@ EXPOSE 3000
 RUN npm run build
 
 # Start the Next.js project in development mode
-CMD ["npm", "start"]
+CMD ["npm","run","start","--","-H","0.0.0.0","-p","3000"]
