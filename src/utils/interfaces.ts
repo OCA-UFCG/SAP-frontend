@@ -1,5 +1,10 @@
-export interface IDemonstrationContent {
+
+export interface ISectionHeader {
   title: string;
   description: string;
-  videoUrl: string; 
+}
+
+
+export interface IDemonstrationVideo {
+  videoUrl: string;
 }

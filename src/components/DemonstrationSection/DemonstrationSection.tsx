@@ -1,11 +1,12 @@
 import Image from "next/image";
-import { IDemonstrationContent } from "@/utils/interfaces";
+import { ISectionHeader, IDemonstrationVideo } from "@/utils/interfaces";
 
 interface DemonstrationSectionProps {
-  content: IDemonstrationContent; 
+  header: ISectionHeader; 
+  video: IDemonstrationVideo;
 }
 
-const DemonstrationSection = ({ content }: DemonstrationSectionProps) => {
+const DemonstrationSection = ({ header, video }: DemonstrationSectionProps) => {
   return (
     <section className="w-full bg-[#3F4324] relative overflow-hidden flex justify-center">
 
@@ -32,18 +33,18 @@ const DemonstrationSection = ({ content }: DemonstrationSectionProps) => {
       <div className="relative z-10 flex flex-col items-start w-full max-w-[1440px] px-6 md:px-20 py-12 gap-6">
         
         <h2 className="text-white font-inter font-semibold text-[30px] leading-tight">
-          {content.title}
+          {header.title}
         </h2>
 
         <p className="text-white font-inter font-medium text-[16px] max-w-[800px]">
-          {content.description}
+          {header.description}
         </p>
         
         <div className="w-full flex justify-center mt-2"> 
           <div className="w-full max-w-[954px] aspect-video min-h-[200px]">
             <iframe
               className="w-full h-full rounded-[15px] shadow-2xl bg-[#D9D9D9]"
-              src={content.videoUrl}
+              src={video.videoUrl}
               title="SAP Demonstration Video"
               allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
               allowFullScreen
