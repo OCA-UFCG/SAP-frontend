@@ -1,5 +1,16 @@
 import { Document } from "@contentful/rich-text-types";
 
+export interface IMainBanner {
+  title: string;
+  subtitle: string;
+  buttonLabel: string;
+  buttonUrl: string;
+  image: {
+    url: string;
+  };
+}
+
+
 export interface AboutSectionI {
   sys: {
     id: string;
