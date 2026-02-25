@@ -1,12 +1,12 @@
-import { AboutSection } from "../components/AboutSection/AboutSection";
-import { PartnersSection } from "../components/PartnersSection/PartnersSection";
-import { getContent } from "../utils/contentful";
+import { AboutSection } from "@/components/AboutSection/AboutSection";
+import { PartnersSection } from "@/components/PartnersSection/PartnersSection";
+import { getContent } from "@/utils/contentful";
 import type {
   AboutSectionI,
   PartnerI,
   SectionHeaderI,
-} from "../utils/interfaces";
-import { GET_HOME_PAGE } from "../utils/queries";
+} from "@/utils/interfaces";
+import { GET_HOME_PAGE } from "@/utils/queries";
 
 export const revalidate = 3600;
 
