@@ -1,6 +1,6 @@
-import { PartnersSection } from "@/components/PartnersSection/PartnersSection";
+import { PartnersSection } from "../components/PartnersSection/PartnersSection";
 import type { Meta, StoryObj } from "@storybook/nextjs-vite";
-import type { SectionHeaderI, PartnerI } from "@/utils/interfaces";
+import type { SectionHeaderI, PartnerI } from "../utils/interfaces";
 
 const meta = {
   title: "Components/PartnersSection",
