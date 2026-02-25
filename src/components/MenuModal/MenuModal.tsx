@@ -18,7 +18,7 @@ export const MenuModal = ({ content }: { content: ISection[] }) => {
 
       <div
         className={cn(
-          'fixed top-16 right-0 h-50% w-[min(350px,100%)] bg-[#F6F3F0] py-10 shadow-2xl z-50',
+          'fixed top-[66px] right-0 h-50% w-[min(350px,100%)] bg-[#F6F3F0] py-10 shadow-2xl z-50',
           'transform transition-transform duration-500 ease-in-out',
           isOpen ? 'translate-x-0' : 'translate-x-full',
         )}
