@@ -1,6 +1,6 @@
 import Image from "next/image";
 import { documentToReactComponents } from "@contentful/rich-text-react-renderer";
-import { AboutSectionI } from "../../utils/interfaces";
+import { AboutSectionI } from "@/utils/interfaces";
 
 type Props = {
   content: AboutSectionI;
