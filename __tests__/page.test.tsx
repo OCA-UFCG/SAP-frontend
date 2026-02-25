@@ -5,6 +5,7 @@ import Home from "../src/app/page";
 // Mock do next/image
 vi.mock("next/image", () => ({
   default: (props: React.ImgHTMLAttributes<HTMLImageElement>) => (
+    // eslint-disable-next-line @next/next/no-img-element
     <img alt="" {...props} />
   ),
 }));
