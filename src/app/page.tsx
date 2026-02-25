@@ -34,36 +34,11 @@ export default async function Home() {
   const { aboutCollection } = data;
   const content = aboutCollection.items[0];
 
-  const headerContent: ISections = {
-    'home-section': {
-      id: '1',
-      name: 'Home',
-      path: '/',
-      appears: true,
-    },
-    'map-section': {
-      id: '2',
-      name: 'Mapa',
-      path: '/mock',
-      appears: true,
-    },
-    'about-section': {
-      id: '3',
-      name: 'Sobre o SAP',
-      path: '/mock',
-      appears: true,
-    },
-    'contact-section': {
-      id: '4',
-      name: 'Contatos',
-      path: '/mock',
-      appears: true,
-    },
-  };
+
   return (
     <div className="flex min-h-screen flex-col w-full h-full bg-white">
       <main className="flex min-h-screen w-full flex-col items-center justify-center bg-grey sm:items-start">
-        <Header content={Object.values(headerContent)}></Header>
+        
         {aboutCollection?.items && <AboutSection content={content} />}
       </main>
     </div>
