@@ -3,7 +3,7 @@ import { Icon } from "@/components/Icon/Icon";
 import { channels } from "@/utils/constants";
 import { sortContentByDesiredOrder } from "@/utils/functions";
 
-const Footer = ({ content }: { content: FooterI[] }) => {
+export const Footer = ({ content }: { content: FooterI[] }) => {
   const mainPages = sortContentByDesiredOrder<FooterI>(content, [
     "home",
     "map",
