@@ -16,8 +16,7 @@ const getHomePageContent = async (): Promise<HomeContent | null> => {
     return null;
   }
 };
-import { Header } from '@/components/Header/Header';
-import { ISections } from '@/utils/interfaces';
+
 
 export default async function Home() {
   const data = await getHomePageContent();
