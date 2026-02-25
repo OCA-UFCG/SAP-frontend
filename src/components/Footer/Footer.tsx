@@ -12,7 +12,7 @@ export const Footer = ({ content }: { content: FooterI[] }) => {
   ]).filter((item) => item.appears);
 
   const macroThemes = content
-    .filter((item) => !item.appears)
+    .filter((item) => item.appears && !mainPages.some((page) => page.id === item.id))
     .sort((a, b) => a.name.localeCompare(b.name));
 
   const splitColumns = <T,>(array: T[], itemsPerColumn: number) => {

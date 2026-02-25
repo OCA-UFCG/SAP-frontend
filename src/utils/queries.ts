@@ -17,5 +17,14 @@ export const GET_HOME_PAGE = `
         }
       }
     }
+    
+    footerCollection{
+      items {
+        id
+        name
+        path
+        appears
+      }
+    }
   }
 `;
