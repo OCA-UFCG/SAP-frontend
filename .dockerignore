@@ -11,7 +11,4 @@ node_modules
 __tests__/
 .storybook/
 .husky/
-.env
-.env.local
-.env.*.local
 .vscode
