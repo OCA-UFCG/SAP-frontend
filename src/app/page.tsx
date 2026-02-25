@@ -41,7 +41,7 @@ export default async function Home() {
         <div className="bg-white-700 mx-auto my-5 h-[690px] w-[60%] flex z-10 my-20 ">
           <MapComponent
             center={[-7.22, -35.88]}
-            zoom={10}
+            zoom={5}
           />
         </div>
         {aboutCollection?.items && <AboutSection content={content} />}
