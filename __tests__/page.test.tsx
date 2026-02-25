@@ -15,7 +15,26 @@ vi.mock("@/utils/contentful", () => ({
       items: [
         {
           title: "Sobre Nós",
-          text: { json: {} },
+          text: {
+            json: {
+              nodeType: "document",
+              data: {},
+              content: [
+                {
+                  nodeType: "paragraph",
+                  data: {},
+                  content: [
+                    {
+                      nodeType: "text",
+                      value: "Test content",
+                      marks: [],
+                      data: {},
+                    },
+                  ],
+                },
+              ],
+            },
+          },
           image: { url: "https://example.com/image.png" },
         },
       ],
