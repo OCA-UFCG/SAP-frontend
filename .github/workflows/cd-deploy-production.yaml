@@ -1,4 +1,4 @@
-name: CD SAP-Home frontend PRODUCTION
+name: CD SAP-Home frontend PRODUCTION on AWS
 
 on:
   push:
@@ -46,7 +46,7 @@ jobs:
             NEXT_PUBLIC_CONTENTFUL_SPACE_ID=${{ secrets.NEXT_PUBLIC_CONTENTFUL_SPACE_ID }}
   push-beta:
     needs: build-image
-    runs-on: self-hosted
+    runs-on: prod-runner
 
     steps:
       - name: Debug environment (Runner)
