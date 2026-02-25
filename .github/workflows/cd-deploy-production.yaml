@@ -1,4 +1,4 @@
-name: CD SAP-Home frontend PRODUCTION
+name: CD SAP-Home frontend PRODUCTION on AWS
 
 on:
   push:
