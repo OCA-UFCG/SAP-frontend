@@ -6,6 +6,7 @@ import { Footer} from "@/components/Footer/Footer"
 import { FooterI } from "../utils/interfaces";
 interface HomeContent {
   aboutCollection: { items: AboutSectionI[] };
+  footerCollection: { items: FooterI[] };
 }
 
 const getHomePageContent = async (): Promise<HomeContent | null> => {
@@ -30,14 +31,19 @@ export default async function Home() {
     );
   }
 
-  const { aboutCollection } = data;
+  const { aboutCollection, footerCollection } = data;
   const content = aboutCollection.items[0];
+  const footerContent = footerCollection.items || [];
 
   return (
     <div className="flex min-h-screen flex-col">
       {aboutCollection?.items && (
         <AboutSection content={content} />
       )}
+      {footerCollection?.items && (
+        <Footer content={footerContent} />
+      )}
+      
     </div>
   );
 }
