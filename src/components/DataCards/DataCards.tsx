@@ -12,7 +12,7 @@ const DataCards = ({
     <>
       <div className="w-full max-w-3xl rounded-2xl overflow-hidden shadow-sm bg[#F6F7F6]">
         <div className="flex items-center">
-          <div className="bg-[#F0F0D7] w-28 h-28 flex items-center justify-center">
+          <div className="bg-[#F0F0D7] w-full h-10 flex items-center justify-center">
             <DoneSvg />
           </div>
 
