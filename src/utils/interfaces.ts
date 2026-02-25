@@ -10,7 +10,6 @@ export interface IMainBanner {
   };
 }
 
-
 export interface AboutSectionI {
   sys: {
     id: string;
@@ -24,5 +23,34 @@ export interface AboutSectionI {
     title: string;
     width: number;
     height: number;
+  };
+}
+
+export interface SectionHeaderI {
+  sys: {
+    id: string;
+  };
+  title: string;
+  description: string;
+}
+export interface PartnerI {
+  sys: {
+    id: string;
+  };
+  name: string;
+  image: {
+    url: string;
+    title?: string;
+    width?: number;
+    height?: number;
+  };
+}
+
+export interface PartnersSectionQuery {
+  cabealhoSeesCollection: {
+    items: SectionHeaderI[];
+  };
+  partnersCollection: {
+    items: PartnerI[];
   };
 }
