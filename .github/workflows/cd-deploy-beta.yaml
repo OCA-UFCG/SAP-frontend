@@ -36,6 +36,7 @@ jobs:
           tags: |
             ${{ vars.DOCKER_IMAGE_BETA }}:latest
             ${{ steps.meta.outputs.tags }}
+          platforms: linux/amd64,linux/arm64
           build-args: |
             NEXT_PUBLIC_CONTENTFUL_ACCESS_TOKEN=${{ secrets.NEXT_PUBLIC_CONTENTFUL_ACCESS_TOKEN }}
             NEXT_PUBLIC_CONTENTFUL_PREVIEW=${{ secrets.NEXT_PUBLIC_CONTENTFUL_PREVIEW }}
