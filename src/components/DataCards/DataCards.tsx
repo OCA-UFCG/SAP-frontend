@@ -10,18 +10,18 @@ const DataCards = ({
 }: DataCardsValueProps) => {
   return (
     <>
-      <div className="w-full max-w-3xl rounded-2xl overflow-hidden shadow-sm bg[#F6F7F6]">
-        <div className="flex items-center">
-          <div className="bg-[#F0F0D7] w-full h-10 flex items-center justify-center">
+      <div className="w-full max-w-3xl rounded overflow-hidden shadow-sm bg[#F6F7F6]">
+       <div className="flex items-stretch h-28 rounded-2xl overflow-hidden">
+          <div className="bg-[#F0F0D7] w-20 flex items-center justify-center">
             <DoneSvg />
           </div>
 
-          <div className="flex-1 px-8 py-6 bg-neutral-200">
+          <div className="flex-1 px-8 py-6 bg-neutral-200 flex flex-col justify-center">
             <p className="text-xl font-medium text-neutral-800">
               Região majoritariamente Sem seca
             </p>
 
-            <p className="text-4xl font-bold text-lime-800 mt-2">
+           <p className="text-4xl font-bold text-[#5B612A] mt-2">
               {noDroughtAreaValue}%
             </p>
           </div>
