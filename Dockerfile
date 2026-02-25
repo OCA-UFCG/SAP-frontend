@@ -2,11 +2,11 @@ FROM node:20.12.2
 
 WORKDIR /app
 
-COPY --chown=node:node . .
+COPY package*.json ./
 
 RUN npm install
 
-USER node
+COPY . .
 
 EXPOSE 3000
 
