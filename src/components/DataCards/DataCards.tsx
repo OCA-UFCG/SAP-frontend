@@ -10,8 +10,9 @@ const DataCards = ({
 }: DataCardsValueProps) => {
   return (
     <>
-      <div className="w-full max-w-3xl rounded overflow-hidden shadow-sm bg[#F6F7F6]">
-       <div className="flex items-stretch h-28 rounded-2xl overflow-hidden">
+    <div className="flex flex-col gap-3">
+      <div className="w-full flex max-w-3xl rounded-lg overflow-hidden shadow-sm bg[#F6F7F6] ">
+       <div className="flex items-stretch overflow-hidden">
           <div className="bg-[#F0F0D7] w-20 flex items-center justify-center">
             <DoneSvg />
           </div>
@@ -21,7 +22,7 @@ const DataCards = ({
               Região majoritariamente Sem seca
             </p>
 
-           <p className="text-4xl font-bold text-[#5B612A] mt-2">
+           <p className="text-3xl font-bold text-[#5B612A] mt-2 self-center">
               {noDroughtAreaValue}%
             </p>
           </div>
@@ -30,13 +31,13 @@ const DataCards = ({
 
       <div className="w-full max-w-3xl rounded-lg shadow-sm bg-[#FEE6C7] overflow-hidden">
         <div className="flex items-center gap-4">
-          <div className="w-10 h-10 flex items-center justify-center bg-[#FECB89] rounded-full border border-black-500">
+          <div className="w-10 h-10 flex items-center justify-center bg-[#FECB89] rounded-lg border-2 border-black">
             <InfoSvg />
           </div>
 
           <div>
             <p className="text-lg font-medium text-neutral-800">
-              Em observação {watchAreaValue}%
+              {watchAreaValue}% em observação
             </p> 
           </div>
         </div>
@@ -44,17 +45,18 @@ const DataCards = ({
 
       <div className="w-full max-w-3xl rounded-lg shadow-sm bg-[#E1E2B4] overflow-hidden">
         <div className="flex items-center gap-4">
-          <div className="w-10 h-10 flex items-center justify-center bg-[#B4BA61] rounded-full border border-black-500">
+          <div className="w-10 h-10 flex items-center justify-center bg-[#B4BA61] rounded-lg border-2 border-black">
             <LeafSvg />
           </div>
 
           <div>
             <p className="text-lg font-medium text-neutral-800">
-              Em recuperação     {recoveryAreaValue}%
+               {recoveryAreaValue}% em recuperação
             </p>
           </div>
         </div>
       </div>
+    </div>
     </>
   );
 };
