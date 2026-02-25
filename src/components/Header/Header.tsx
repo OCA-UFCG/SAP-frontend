@@ -7,7 +7,7 @@ import { ISection } from '@/utils/interfaces';
 
 export const Header = ({ content }: { content: ISection[] }) => {
   return (
-    <nav className="fixed top-0 z-50 w-full h-16.5 bg-[#F6F3F0]  border-b-2 border-[#777E32]">
+    <nav className="sticky top-0 z-50 w-full h-16.5 bg-[#F6F3F0]  border-b-2 border-[#777E32]">
       <div className='relative mx-auto max-w-360 h-full'>
         <div className="absolute flex items-center justify-center top-0 left-0 z-1001 h-20.5 bg-[#989F43] w-44">
           <Link href="/" className="relative z-10">
