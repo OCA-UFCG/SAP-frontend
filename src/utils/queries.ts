@@ -28,5 +28,30 @@ export const GET_HOME_PAGE = `
         }
       }
     }
+
+    cabealhoSeesCollection(limit: 1) {
+      items {
+        sys {
+          id
+        }
+        title
+        description
+      }
+    }
+
+    partnersCollection {
+      items {
+        sys {
+          id
+        }
+        name
+        image {
+          url
+          title
+          width
+          height
+        }
+      }
+    }
   }
 `;
