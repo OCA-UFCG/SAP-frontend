@@ -38,21 +38,24 @@ const Map = ({center=[51.505, -0.09], zoom=13, className='h-full w-full'} : (Map
       layer.bindPopup(feature.properties.info.nome);
       layer.on({
         mouseover: (e) => {
+          const l = e.target;
           e.target.setStyle({
             weight: 5,
-            color: '#666',
+            color: '#3388ff',
             dashArray: '',
-            fillOpacity: 0.5
+            fillOpacity: 0.7
           });
+          l.openPopup();
         },
         mouseout: (e) => {
-         
+          const l = e.target;
           e.target.setStyle({
             weight: 3,
             color: '#3388ff',
             dashArray: '3',
-            fillOpacity: 0
+            fillOpacity: 0.2
           });
+          l.closePopup()
         }
       });
     }
@@ -69,7 +72,7 @@ const Map = ({center=[51.505, -0.09], zoom=13, className='h-full w-full'} : (Map
           attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
           url="https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png"
         />
-        <GeoJSON data={geo as FeatureCollection} onEachFeature={onEachFeature}/>
+        <GeoJSON data={geo as FeatureCollection} onEachFeature={onEachFeature} key={`${geo}`}/>
         <Marker position={center}>
           <Popup>
             PopUp. 
