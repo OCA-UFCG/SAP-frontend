@@ -1,4 +1,4 @@
-import { AboutSection } from "@/components/AboutSection/AboutSection";
+import { AboutSection } from "../../components/AboutSection/AboutSection";
 import type { Meta, StoryObj } from '@storybook/nextjs-vite';
 import { Document } from "@contentful/rich-text-types";
 import { BLOCKS } from "@contentful/rich-text-types";
