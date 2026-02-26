@@ -30,3 +30,15 @@ export interface AboutSectionI {
     height: number;
   };
 }
+export interface CitySearchItem {
+  id: string;
+  type: string;
+  city: string;
+  state: string;
+  label: string;
+}
+
+export interface SearchResultProps {
+  id: string;
+  label: string;
+}
