@@ -30,7 +30,7 @@ const DataCards = ({
       <div className="w-full max-w-3xl rounded-lg shadow-sm bg-[#FEE6C7] overflow-hidden">
         <div className="flex items-center gap-4">
           <div className="w-10 h-10 flex items-center justify-center bg-[#FECB89] rounded-lg border-2 border-black">
-            <Icon id="observation" size={20}/>
+            <Icon id="info" size={20}/>
           </div>
 
           <div>
