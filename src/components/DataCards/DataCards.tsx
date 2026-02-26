@@ -1,7 +1,5 @@
 import { DataCardsValueProps } from "@/utils/interfaces";
-import DoneSvg from "../../../public/Done";
-import InfoSvg from "../../../public/Info";
-import LeafSvg from "../../../public/Leaf";
+import { Icon } from "../Icon/Icon";
 
 const DataCards = ({
   noDroughtAreaValue,
@@ -14,7 +12,7 @@ const DataCards = ({
       <div className="w-full flex max-w-3xl rounded-lg overflow-hidden shadow-sm bg[#F6F7F6] ">
        <div className="flex items-stretch overflow-hidden">
           <div className="bg-[#F0F0D7] w-20 flex items-center justify-center">
-            <DoneSvg />
+            <Icon id="check" size={52}/>
           </div>
 
           <div className="flex-1 px-8 py-6 bg-neutral-200 flex flex-col justify-center">
@@ -32,7 +30,7 @@ const DataCards = ({
       <div className="w-full max-w-3xl rounded-lg shadow-sm bg-[#FEE6C7] overflow-hidden">
         <div className="flex items-center gap-4">
           <div className="w-10 h-10 flex items-center justify-center bg-[#FECB89] rounded-lg border-2 border-black">
-            <InfoSvg />
+            <Icon id="observation" size={20}/>
           </div>
 
           <div>
@@ -46,7 +44,7 @@ const DataCards = ({
       <div className="w-full max-w-3xl rounded-lg shadow-sm bg-[#E1E2B4] overflow-hidden">
         <div className="flex items-center gap-4">
           <div className="w-10 h-10 flex items-center justify-center bg-[#B4BA61] rounded-lg border-2 border-black">
-            <LeafSvg />
+            <Icon id="leaf" size={20}/>
           </div>
 
           <div>
