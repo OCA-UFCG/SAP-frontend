@@ -30,15 +30,12 @@ export interface AboutSectionI {
     height: number;
   };
 }
-export interface CitySearchItem {
-  id: string;
-  type: string;
-  city: string;
-  state: string;
-  label: string;
+export interface BrazilianState {
+  name: string;
+  uf: string;
 }
 
 export interface SearchResultProps {
-  id: string;
+  key: string;
   label: string;
 }

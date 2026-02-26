@@ -1,8 +1,8 @@
 import { SearchResultProps } from "@/utils/interfaces"
 
-const SearchResult = ({ id, label }: SearchResultProps) => {
+const SearchResult = ({ key, label }: SearchResultProps) => {
   return (
-    <option id={id} value={label}>
+    <option key={key} value={label}>
       {label}
     </option>
   )
