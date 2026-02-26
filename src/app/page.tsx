@@ -33,26 +33,19 @@ export default async function Home() {
     );
   }
 
-  const { aboutCollection, footerCollection } = data;
-  const content = aboutCollection.items[0];
+  const { footerCollection } = data;
   const footerContent = footerCollection.items || [];
-
-  return (
-    <div className="flex min-h-screen flex-col">
-      {aboutCollection?.items && (
-        <AboutSection content={content} />
-      )}
-      {footerCollection?.items && (
-        <Footer content={footerContent} />
-      )}
-      
   const mainBannerData = data.bannerCollection?.items[0];
   const aboutData = data.aboutCollection?.items[0];
 
   return (
     <div className="flex min-h-screen flex-col">
-      {mainBannerData && <MainBanner data={mainBannerData} />}
-      {aboutData && <AboutSection content={aboutData} />}
+      <main className="grow">
+        {mainBannerData && <MainBanner data={mainBannerData} />}
+        {aboutData && <AboutSection content={aboutData} />}
+      </main>
+      {footerCollection?.items && <Footer content={footerContent} />}
+
     </div>
   );
 }
