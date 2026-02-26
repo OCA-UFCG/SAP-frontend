@@ -1,49 +1,36 @@
-import { AboutSection } from "@/components/AboutSection/AboutSection";
-import { PartnersSection } from "@/components/PartnersSection/PartnersSection";
-import { getContent } from "@/utils/contentful";
-import type {
+import { getContent } from "../utils/contentful";
+import { GET_HOME_PAGE } from "../utils/queries";
+import {
   AboutSectionI,
+  IMainBanner,
   PartnerI,
   SectionHeaderI,
-} from "@/utils/interfaces";
-import { GET_HOME_PAGE } from "@/utils/queries";
+} from "../utils/interfaces";
+import { AboutSection } from "../components/AboutSection/AboutSection";
+import { MainBanner } from "../components/MainBanner/MainBanner";
+import { PartnersSection } from "../components/PartnersSection/PartnersSection";
 
-export const revalidate = 3600;
-
-interface IHomeContent {
+interface HomeContent {
+  bannerCollection: { items: IMainBanner[] };
   aboutCollection: { items: AboutSectionI[] };
   cabealhoSeesCollection: { items: SectionHeaderI[] };
   partnersCollection: { items: PartnerI[] };
 }
 
+const getHomePageContent = async (): Promise<HomeContent | null> => {
+  try {
+    const response = await getContent<HomeContent>(GET_HOME_PAGE);
+    return response;
+  } catch (error) {
+    console.error("Erro ao buscar dados do Contentful:", error);
+    return null;
+  }
+};
+
 export default async function Home() {
-  const {
-    aboutCollection: { items: about },
-    bannerCollection: { items: banner },
-    cabealhoSeesCollection: { items: headers },
-    partnersCollection: { items: partners },
-  }: IHomeContent = await getContent<IHomeContent>(GET_HOME_PAGE);
+  const data = await getHomePageContent();
 
-  return (
-    <div className="flex min-h-screen flex-col">
-      {banner && <MainBanner data={banner[0]} />}
-      {about && <AboutSection content={about[0]} />}
-      <PartnersSection
-        header={headers.filter((header) => header.id === "parceiros")[0]}
-        partners={partners}
-      />
-    </div>
-  );
-}
-
-
-  const {
-    aboutCollection,
-    cabealhoSeesCollection,
-    partnersCollection,
-  }: IHomeContent = await getContent<IHomeContent>(GET_HOME_PAGE);
-
-  if (!aboutCollection?.items?.length) {
+  if (!data) {
     return (
       <div className="flex min-h-screen flex-col">
         <p>Conteúdo não encontrado.</p>
@@ -51,16 +38,17 @@ export default async function Home() {
     );
   }
 
-  const content = aboutCollection.items[0];
-  const partnersHeader = cabealhoSeesCollection?.items?.[0];
-  const partners = partnersCollection?.items ?? [];
+  const mainBannerData = data.bannerCollection?.items[0];
+  const aboutData = data.aboutCollection?.items[0];
+  const partnersHeaderData = data.cabealhoSeesCollection?.items[0];
+  const partnersData = data.partnersCollection?.items ?? [];
 
   return (
     <div className="flex min-h-screen flex-col">
-      <AboutSection content={content} />
-
-      {partnersHeader && (
-        <PartnersSection header={partnersHeader} partners={partners} />
+      {mainBannerData && <MainBanner data={mainBannerData} />}
+      {aboutData && <AboutSection content={aboutData} />}
+      {partnersHeaderData && (
+        <PartnersSection header={partnersHeaderData} partners={partnersData} />
       )}
     </div>
   );
