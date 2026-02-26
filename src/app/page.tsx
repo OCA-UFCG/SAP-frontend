@@ -18,6 +18,26 @@ interface IHomeContent {
 
 export default async function Home() {
   const {
+    aboutCollection: { items: about },
+    bannerCollection: { items: banner },
+    cabealhoSeesCollection: { items: headers },
+    partnersCollection: { items: partners },
+  }: IHomeContent = await getContent<IHomeContent>(GET_HOME_PAGE);
+
+  return (
+    <div className="flex min-h-screen flex-col">
+      {banner && <MainBanner data={banner[0]} />}
+      {about && <AboutSection content={about[0]} />}
+      <PartnersSection
+        header={headers.filter((header) => header.id === "parceiros")[0]}
+        partners={partners}
+      />
+    </div>
+  );
+}
+
+
+  const {
     aboutCollection,
     cabealhoSeesCollection,
     partnersCollection,
