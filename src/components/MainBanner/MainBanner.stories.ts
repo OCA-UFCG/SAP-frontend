@@ -8,8 +8,8 @@ const meta: Meta<typeof MainBanner> = {
     data: {
       title: "Sistema de Alerta Precoce",
       subtitle: "Monitoramento de seca e desertificação.",
-      buttonLabel: "Explorar Mapa",
-      buttonUrl: "#",
+      linkText: "Explorar Mapa",
+      link: "#",
       image: {
         url: "https://images.ctfassets.net/ltku4sobsen2/5F33iWSe0kcsJi4loCAGNq/aa417ec6735744009d57de04017a740f/297efe92c527cd9c7d5dec693cc5a887347e39ec.jpg"
       }

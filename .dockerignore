@@ -1,0 +1,14 @@
+__tests__
+.husky
+.storybook
+node_modules
+eslint.config
+README
+.github
+.git
+node_modules
+.next
+__tests__/
+.storybook/
+.husky/
+.vscode

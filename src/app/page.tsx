@@ -1,9 +1,11 @@
-import { getContent } from '../utils/contentful';
-import { GET_HOME_PAGE } from '../utils/queries';
-import { AboutSectionI } from '../utils/interfaces';
-import { AboutSection } from '../components/AboutSection/AboutSection';
+import { getContent } from "../utils/contentful";
+import { GET_HOME_PAGE } from "../utils/queries";
+import { AboutSectionI, IMainBanner } from "../utils/interfaces";
+import { AboutSection } from "../components/AboutSection/AboutSection";
+import { MainBanner } from "../components/MainBanner/MainBanner";
 
 interface HomeContent {
+  bannerCollection: { items: IMainBanner[] };
   aboutCollection: { items: AboutSectionI[] };
 }
 
@@ -21,8 +23,7 @@ const getHomePageContent = async (): Promise<HomeContent | null> => {
 export default async function Home() {
   const data = await getHomePageContent();
 
-  // early return pra garantir que data não seja null
-  if (!data?.aboutCollection?.items?.length) {
+  if (!data) {
     return (
       <div className="flex min-h-screen flex-col">
         <p>Conteúdo não encontrado.</p>
@@ -30,16 +31,13 @@ export default async function Home() {
     );
   }
 
-  const { aboutCollection } = data;
-  const content = aboutCollection.items[0];
-
+  const mainBannerData = data.bannerCollection?.items[0];
+  const aboutData = data.aboutCollection?.items[0];
 
   return (
-    <div className="flex min-h-screen flex-col w-full h-full bg-white">
-      <main className="flex min-h-screen w-full flex-col items-center justify-center bg-grey sm:items-start">
-        
-        {aboutCollection?.items && <AboutSection content={content} />}
-      </main>
+    <div className="flex min-h-screen flex-col">
+      {mainBannerData && <MainBanner data={mainBannerData} />}
+      {aboutData && <AboutSection content={aboutData} />}
     </div>
   );
 }
