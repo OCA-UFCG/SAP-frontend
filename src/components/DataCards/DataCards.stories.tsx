@@ -1,6 +1,5 @@
-// DataCards.stories.tsx
-import type { Meta, StoryObj } from "@storybook/react";
-import DataCards from "./DataCards"; // ajuste o path se necessário
+import type { Meta, StoryObj } from '@storybook/nextjs-vite'; 
+import DataCards from "./DataCards"; 
 
 const meta: Meta<typeof DataCards> = {
   title: "Dashboard/DataCards",
