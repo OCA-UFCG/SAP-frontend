@@ -1,0 +1,30 @@
+name: CI SAP-Home Frontend
+
+on:
+  push:
+    branches: ["*"]
+    tags: ["*"]
+
+  pull_request:
+    branches: ["main"]
+
+  workflow_dispatch:
+
+jobs:
+  quality-check:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20.12
+          cache: "npm"
+
+      - name: Install Dependencies
+        run: npm ci
+
+      - name: Run Linter
+        run: npm run lint
