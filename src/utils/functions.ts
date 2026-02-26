@@ -1,18 +1,19 @@
 export function normalizeContentfulImage(url: string) {
-  // Se já começa com http ou https → retorna direto
-  if (url.startsWith("http://") || url.startsWith("https://")) {
-    return url;
-  }
+  switch (true) {
+    // Se já começa com http ou https → retorna direto
+    case url.startsWith("http://"):
+    case url.startsWith("https://"):
+      return url;
 
-  // Se começa com // (Contentful padrão)
-  if (url.startsWith("//")) {
-    return `https:${url}`;
-  }
+    // Se começa com // (Contentful padrão)
+    case url.startsWith("//"):
+      return `https:${url}`;
 
-  // Se for imagem local (storybook/mock)
-  if (url.startsWith("/")) {
-    return url;
-  }
+    // Se for imagem local (storybook/mock)
+    case url.startsWith("/"):
+      return url;
 
-  return url;
+    default:
+      return url;
+  }
 }
