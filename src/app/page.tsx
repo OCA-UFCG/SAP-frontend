@@ -1,10 +1,12 @@
 import { getContent } from "../utils/contentful";
 import { GET_HOME_PAGE } from "../utils/queries";
-import { AboutSectionI, StatusItemI } from "../utils/interfaces";
+import { AboutSectionI, StatusItemI, IMainBanner } from "../utils/interfaces";
 import { AboutSection } from "../components/AboutSection/AboutSection";
 import { AlertTiers } from "../components/AlertTiers/AlertTiers";
+import { MainBanner } from "../components/MainBanner/MainBanner";
 
 interface HomeContent {
+  bannerCollection: { items: IMainBanner[] };
   aboutCollection: { items: AboutSectionI[] };
 }
 
@@ -21,8 +23,7 @@ const getHomePageContent = async (): Promise<HomeContent | null> => {
 export default async function Home() {
   const data = await getHomePageContent();
 
-  // early return pra garantir que data não seja null
-  if (!data?.aboutCollection?.items?.length) {
+  if (!data) {
     return (
       <div className="flex min-h-screen flex-col">
         <p>Conteúdo não encontrado.</p>
@@ -30,8 +31,8 @@ export default async function Home() {
     );
   }
 
-  const { aboutCollection } = data;
-  const content = aboutCollection.items[0];
+  const mainBannerData = data.bannerCollection?.items[0];
+  const aboutData = data.aboutCollection?.items[0];
 
   const items: StatusItemI[] = [
     {
@@ -84,9 +85,8 @@ export default async function Home() {
 
   return (
     <div className="flex min-h-screen flex-col">
-      {aboutCollection?.items && (
-        <AboutSection content={content} />
-      )}
+      {mainBannerData && <MainBanner data={mainBannerData} />}
+      {aboutData && <AboutSection content={aboutData} />}
 
       <AlertTiers items={items}></AlertTiers>
     </div>

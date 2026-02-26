@@ -12,8 +12,8 @@ export interface StatusItemI {
 export interface IMainBanner {
   title: string;
   subtitle: string;
-  buttonLabel: string;
-  buttonUrl: string;
+  linkText: string;
+  link: string;
   image: {
     url: string;
   };
