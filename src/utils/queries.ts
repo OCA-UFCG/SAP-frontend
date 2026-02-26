@@ -34,6 +34,7 @@ export const GET_HOME_PAGE = `
         sys {
           id
         }
+     id
         title
         description
       }
