@@ -21,7 +21,7 @@ export const Header = ({ content }: { content: ISection[] }) => {
           <use href="./sprites.svg#icon-triangle" />
         </svg>
 
-        <div className="w-full flex h-full items-center justify-end pr-20">
+        <div className="w-full flex h-full items-center justify-end pr-4 xl:pr-20">
           <div className="hidden xl:block">
             <NavItems
               className="flex gap-x-[24px]"
