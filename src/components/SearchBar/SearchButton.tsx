@@ -10,7 +10,9 @@ const SearchButton = ({ onClick, children }: SearchButtonProps) => {
       className="
         bg-[#989F43]
         text-white
-        px-5 py-2
+        w-full
+        min-w-30
+        h-14
         rounded-xl
         hover:brightness-110
         active:brightness-95
