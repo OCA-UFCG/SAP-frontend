@@ -11,6 +11,21 @@ export const GET_HOME_PAGE = `
         }
       }
     }
+
+    secaoSobreCollection {
+      items {
+        title
+        text {
+          json
+        }
+        image {
+          url
+          title
+        }
+        includeInAboutSap
+      }
+    }
+
     aboutCollection(limit: 1) {
       items {
         sys {
