@@ -32,34 +32,9 @@ type Props = {
   className?: string;
 };
 
-/* ── Mock data (será substituído por dados do Contentful) ── */
-
-const MOCK_HERO: HeroContent = {
-  title: "Sobre nós",
-  description:
-    "Lorem ipsum dolor sit amet, consectetur adipiscing elit, sed do eiusmod tempor incididunt ut labore et dolore magna aliqua. Ut enim ad minim veniam, quis nostrud exercitation ullamco laboris nisi ut aliquip ex ea commodo consequat. Duis aute irure dolor in reprehenderit in voluptate velit esse cillum dolore eu fugiat nulla pariatur. Excepteur sint occaecat cupidatat non proident, sunt in culpa qui officia deserunt mollit anim id est laborum. Lorem ipsum dolor sit amet, consectetur adipiscing elit, sed do eiusmod tempor incididunt ut labore et dolore magna aliqua. Ut enim ad minim veniam, quis nostrud exercitation ullamco laboris nisi ut aliquip ex ea commodo consequat.",
-};
-
-const MOCK_ABOUT_SECTIONS: AboutContentSection[] = [
-  {
-    title: "Sobre seca",
-    text: "Lorem ipsum dolor sit amet, consectetur adipiscing elit, sed do eiusmod tempor incididunt ut labore et dolore magna aliqua. Ut enim ad minim veniam, quis nostrud exercitation ullamco laboris nisi ut aliquip ex ea commodo consequat. Duis aute irure dolor in reprehenderit in voluptate velit esse cillum dolore eu fugiat nulla pariatur. Excepteur sint occaecat cupidatat non proident, sunt in culpa qui officia deserunt mollit anim id est laborum. Lorem ipsum dolor sit amet, consectetur adipiscing elit, sed do eiusmod tempor incididunt ut labore et dolore magna aliqua. Ut enim ad minim veniam, quis nostrud exercitation ullamco laboris nisi ut aliquip ex ea commodo consequat.",
-    imageUrl: "https://picsum.photos/seed/seca/594/470",
-    imageAlt: "Imagem sobre seca",
-  },
-  {
-    title: "Sobre Desertificação",
-    text: "Lorem ipsum dolor sit amet, consectetur adipiscing elit, sed do eiusmod tempor incididunt ut labore et dolore magna aliqua. Ut enim ad minim veniam, quis nostrud exercitation ullamco laboris nisi ut aliquip ex ea commodo consequat. Duis aute irure dolor in reprehenderit in voluptate velit esse cillum dolore eu fugiat nulla pariatur. Excepteur sint occaecat cupidatat non proident, sunt in culpa qui officia deserunt mollit anim id est laborum. Lorem ipsum dolor sit amet, consectetur adipiscing elit, sed do eiusmod tempor incididunt ut labore et dolore magna aliqua. Ut enim ad minim veniam, quis nostrud exercitation ullamco laboris nisi ut aliquip ex ea commodo consequat.",
-    imageUrl: "https://picsum.photos/seed/desert/594/470",
-    imageAlt: "Imagem sobre desertificação",
-  },
-];
-
-/* ── Component ── */
-
 export const AboutPartnersTabs = ({
-  hero = MOCK_HERO,
-  aboutSections = MOCK_ABOUT_SECTIONS,
+  hero,
+  aboutSections = [],
   partnersHeader,
   partners,
   defaultTab = "about",
@@ -75,14 +50,16 @@ export const AboutPartnersTabs = ({
   );
 
   const [activeTab, setActiveTab] = useState<TabId>(defaultTab);
+  const heroTitle = hero?.title ?? "";
+  const heroDescription = hero?.description ?? "";
+  const heroImageUrl = hero?.imageUrl;
 
   return (
     <section className={cn("w-full flex flex-col", className)}>
-      {/* ── Hero Banner ── */}
       <div
         className="w-full flex justify-center items-center px-6 sm:px-10 lg:px-[80px] py-16 lg:py-[96px]"
         style={{
-          backgroundImage: `linear-gradient(96.47deg, rgba(0, 0, 0, 0) 45.64%, rgba(0, 0, 0, 0.56) 93.72%), linear-gradient(93.7deg, rgba(0, 0, 0, 0.9) 29.73%, rgba(152, 159, 67, 0) 117.14%)${hero.imageUrl ? `, url(${hero.imageUrl})` : ""}`,
+          backgroundImage: `linear-gradient(96.47deg, rgba(0, 0, 0, 0) 45.64%, rgba(0, 0, 0, 0.56) 93.72%), linear-gradient(93.7deg, rgba(0, 0, 0, 0.9) 29.73%, rgba(152, 159, 67, 0) 117.14%)${heroImageUrl ? `, url(${heroImageUrl})` : ""}`,
           backgroundSize: "cover, cover, 65% auto",
           backgroundPosition: "center, center, 100% 60%",
           backgroundRepeat: "no-repeat",
@@ -90,17 +67,16 @@ export const AboutPartnersTabs = ({
       >
         <div className="w-full max-w-[1280px] flex flex-col gap-[16px]">
           <h1 className="font-bold text-3xl md:text-[48px] md:leading-[68px] text-white">
-            {hero.title}
+            {heroTitle}
           </h1>
           <div className="text-base leading-[24px] text-white max-w-[891px]">
-            {typeof hero.description === "string"
-              ? hero.description
-              : documentToReactComponents(hero.description)}
+            {typeof heroDescription === "string"
+              ? heroDescription
+              : documentToReactComponents(heroDescription)}
           </div>
         </div>
       </div>
 
-      {/* ── Tab Bar ── */}
       <div className="w-full max-w-[1440px] mx-auto px-6 sm:px-10 lg:px-20 -mt-[44px] relative z-10">
         <div className="flex gap-6">
           {tabs.map((tab) => {
@@ -126,7 +102,6 @@ export const AboutPartnersTabs = ({
         </div>
       </div>
 
-      {/* ── Tab Content ── */}
       {activeTab === "about" ? (
         <div className="w-full flex flex-col">
           {aboutSections.map((section, index) => {
@@ -138,7 +113,6 @@ export const AboutPartnersTabs = ({
                 key={section.title}
                 className="w-full bg-[#F8F7ED] relative isolate"
               >
-                {/* Green accent strip */}
                 <div
                   className={cn(
                     "absolute inset-x-0 top-0 bg-[#E1E2B4] z-0",
@@ -148,7 +122,6 @@ export const AboutPartnersTabs = ({
                   )}
                 />
 
-                {/* Content */}
                 <div className="relative z-[1] w-full max-w-[1440px] mx-auto px-6 sm:px-10 lg:px-[80px] py-[48px]">
                   <div
                     className={cn(
@@ -156,9 +129,7 @@ export const AboutPartnersTabs = ({
                       imageFirst ? "lg:flex-row" : "lg:flex-row-reverse",
                     )}
                   >
-                    {/* Image */}
                     <div className="w-full lg:w-auto shrink-0">
-                      {/* eslint-disable-next-line @next/next/no-img-element */}
                       <img
                         src={section.imageUrl}
                         alt={section.imageAlt ?? section.title}
@@ -168,7 +139,6 @@ export const AboutPartnersTabs = ({
                       />
                     </div>
 
-                    {/* Text */}
                     <div className="w-full flex flex-col justify-center items-end gap-[64px] lg:w-[628px] lg:h-[470px] lg:pt-[18px]">
                       <div className="flex items-center w-full lg:w-[628px] lg:h-[95px]">
                         <h3 className="w-full lg:w-[624px] text-[36px] md:text-[48px] lg:text-[64px] leading-[49px] font-light text-[#3F4324]">
