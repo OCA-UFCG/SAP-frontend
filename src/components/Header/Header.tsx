@@ -3,6 +3,7 @@ import Link from 'next/link';
 import { NavItems } from '../NavItems/NavItems';
 import { MenuModal } from '../MenuModal/MenuModal';
 import { ISection } from '@/utils/interfaces';
+import { Icon } from '../Icon/Icon';
 import Image from 'next/image';
 
 export const Header = ({ content }: { content: ISection[] }) => {
@@ -15,12 +16,10 @@ export const Header = ({ content }: { content: ISection[] }) => {
           </Link>
         </div>
 
-        <svg
+        <Icon
+          id="icon-triangle"
           className="absolute top-[66px] left-[163px] z-1000 w-[26px] h-[19px] fill-[#21240F] rotate-180"
-        >
-          <use href="./sprites.svg#icon-triangle" />
-        </svg>
-
+        />
         <div className="w-full flex h-full items-center justify-end pr-4 xl:pr-20">
           <div className="hidden xl:block">
             <NavItems
