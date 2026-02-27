@@ -1,9 +1,9 @@
 // components/layout/Header.tsx
 import Link from 'next/link';
-import { Icon } from '../Icon/Icon';
 import { NavItems } from '../NavItems/NavItems';
 import { MenuModal } from '../MenuModal/MenuModal';
 import { ISection } from '@/utils/interfaces';
+import Image from 'next/image';
 
 export const Header = ({ content }: { content: ISection[] }) => {
   return (
@@ -11,7 +11,7 @@ export const Header = ({ content }: { content: ISection[] }) => {
       <div className='relative mx-auto max-w-360 h-full'>
         <div className="absolute flex items-center justify-center top-0 left-0 z-1001 h-20.5 bg-[#989F43] w-44">
           <Link href="/" className="relative z-10">
-            <Icon id="logo" width={128} height={72} />
+            <Image alt="" src="/logo-sap.png" width={128} height={72} className='h-12 w-auto'/>
           </Link>
         </div>
 
