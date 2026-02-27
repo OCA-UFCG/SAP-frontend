@@ -3,13 +3,12 @@ import { Icon } from "../Icon/Icon"
 
 const SocialChannels = ({ channels, size, displayName=false }: SocialChannelsI) => {
     return (
-        <div className={`flex flex-wrap flex-row items-center gap-[${displayName ? "44px" : "14px"}]`}>
+        <div className={`flex flex-wrap flex-row items-center ${displayName ? "gap-[44px]" : "gap-[16px]"}`}>
             {channels.map(({ href, icon, name}, index) => (
             <a target="_blank" href={href} key={index} className="flex items-center gap-3">
                 <Icon
                     id={icon}
                     size={size}
-                    key={index}
                     className="text-grey-900"
                 />
                 {displayName && (
