@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { documentToReactComponents } from "@contentful/rich-text-react-renderer";
 import type { Document } from "@contentful/rich-text-types";
 
@@ -50,18 +50,45 @@ export const AboutPartnersTabs = ({
   );
 
   const [activeTab, setActiveTab] = useState<TabId>(defaultTab);
+  const [isDesktop, setIsDesktop] = useState(false);
   const heroTitle = hero?.title ?? "";
   const heroDescription = hero?.description ?? "";
   const heroImageUrl = hero?.imageUrl;
+  const heroSideGradient = isDesktop
+    ? "linear-gradient(93.7deg, #000000 29.73%, rgba(152, 159, 67, 0) 117.14%)"
+    : "linear-gradient(93.7deg, rgba(0, 0, 0, 0.9) 29.73%, rgba(152, 159, 67, 0) 117.14%)";
+
+  useEffect(() => {
+    const mediaQuery = window.matchMedia("(min-width: 1024px)");
+    const handleMediaChange = () => {
+      setIsDesktop(mediaQuery.matches);
+    };
+
+    handleMediaChange();
+
+    if (typeof mediaQuery.addEventListener === "function") {
+      mediaQuery.addEventListener("change", handleMediaChange);
+      return () => {
+        mediaQuery.removeEventListener("change", handleMediaChange);
+      };
+    }
+
+    mediaQuery.addListener(handleMediaChange);
+    return () => {
+      mediaQuery.removeListener(handleMediaChange);
+    };
+  }, []);
 
   return (
     <section className={cn("w-full flex flex-col", className)}>
       <div
         className="w-full flex justify-center items-center px-6 sm:px-10 lg:px-[80px] py-16 lg:py-[96px]"
         style={{
-          backgroundImage: `linear-gradient(96.47deg, rgba(0, 0, 0, 0) 45.64%, rgba(0, 0, 0, 0.56) 93.72%), linear-gradient(93.7deg, rgba(0, 0, 0, 0.9) 29.73%, rgba(152, 159, 67, 0) 117.14%)${heroImageUrl ? `, url(${heroImageUrl})` : ""}`,
-          backgroundSize: "cover, cover, 65% auto",
-          backgroundPosition: "center, center, 100% 60%",
+          backgroundImage: `linear-gradient(96.47deg, rgba(0, 0, 0, 0) 45.64%, rgba(0, 0, 0, 0.56) 93.72%), ${heroSideGradient}${heroImageUrl ? `, url(${heroImageUrl})` : ""}`,
+          backgroundSize: isDesktop ? "cover, cover, 65% auto" : "cover, cover, 150% auto",
+          backgroundPosition: isDesktop
+            ? "center, center, 100% 60%"
+            : "center, center, 72% 40%",
           backgroundRepeat: "no-repeat",
         }}
       >
