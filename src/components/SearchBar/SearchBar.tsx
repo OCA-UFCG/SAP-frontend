@@ -36,7 +36,7 @@ const mockStates = [
 
 const SearchBar = () => {
     const [search, setSearch] = useState("")
-    const [stateResults, setStateResults] = useState<BrazilianState[] | []>([])
+    const [stateResults, setStateResults] = useState<BrazilianState[] >([])
     const [searchResults, setSearchResults] = useState<BrazilianState[] | null>(null)
 
     const hasResultError = searchResults !== null && searchResults.length === 0
@@ -47,7 +47,6 @@ const SearchBar = () => {
         })
     }
 
-    
     const handleChange = (value: string) => {
         setSearch(value)
         const dataSearched = searchData(value)
