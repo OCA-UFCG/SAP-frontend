@@ -1,6 +1,6 @@
-import { SearchButtonProps } from "@/utils/interfaces";
+import { SearchButtonI } from "@/utils/interfaces";
 
-const SearchButton = ({ onClick, children }: SearchButtonProps) => {
+const SearchButton = ({ onClick, children }: SearchButtonI) => {
   return (
     <button
       onClick={onClick}

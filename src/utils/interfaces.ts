@@ -49,12 +49,12 @@ export interface BrazilianState {
   uf: string;
 }
 
-export interface SearchResultProps {
+export interface SearchResultI {
   key: string;
   label: string;
 }
 
-export interface SearchButtonProps {
+export interface SearchButtonI {
   onClick: () => void
   children: React.ReactNode
 }
