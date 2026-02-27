@@ -37,7 +37,9 @@ const mockStates = [
 const SearchBar = () => {
     const [search, setSearch] = useState("")
     const [stateResults, setStateResults] = useState<BrazilianState[] | []>([])
-    const [searchResults, setSearchResults] = useState<BrazilianState[] | []>([])
+    const [searchResults, setSearchResults] = useState<BrazilianState[] | null>(null)
+
+    const hasResultError = searchResults !== null && searchResults.length === 0
 
     const searchData = (value: string) => {
         return mockStates.filter((state) => {
@@ -61,11 +63,15 @@ const SearchBar = () => {
     }
 
     return (
-        <div className="w-full flex justify-between gap-5">
-            <div className="w-full flex flex-col"> 
+        <div className="w-full flex justify-between gap-5 items-start">
+            <div className="flex-1 flex flex-col"> 
             <div 
-                className="min-w-85 w-full p-4 flex items-center text-lg ml-4 rounded-xl shadow-sm bg-[#E4E5E2] overflow-hidden t  transition hover:border-neutral-400
-                focus-within:border-neutral-600 focus-within:ring-2 focus-within:ring-neutral-600"
+                className={`min-w-85 w-full p-4 flex items-center text-lg rounded-xl shadow-sm bg-[#E4E5E2] overflow-hidden 
+                    ${
+                        hasResultError ? "border-red-500 ring-2 ring-red-500" : 
+                        "transition hover:border-neutral-400 border-transparent bg-[#E4E5E2] hover:border-neutral-400 focus-within:border-neutral-600 focus-within:ring-2 focus-within:ring-neutral-600"
+                    }
+                `}
             >
                 <Icon 
                     id="loupe" 
@@ -78,7 +84,7 @@ const SearchBar = () => {
                         value={search} 
                         onChange={(e) => handleChange(e.target.value)} 
                         list="result"
-                        className="w-full text-[#292829] bg-transparent border-none outline-none ring-0" placeholder="Pesquise uma cidade ou estado"
+                        className="w-full text-[#292829] bg-transparent border-none outline-none ring-0" placeholder="Pesquise uma cidade ou estado" 
                     />
                     
              
@@ -88,7 +94,7 @@ const SearchBar = () => {
                     })}
                 </datalist>
             </div>
-                { searchResults.length == 0 && (<p className="text-sm text-red-600 mt-1"> Estado não identificado.</p>)}
+                {hasResultError && (<p className="text-sm text-red-600 mt-1"> Estado não identificado.</p>)}
             </div>
             <SearchButton onClick={() => onSubmit(search)}>Pesquisar</SearchButton>
         </div>
