@@ -85,8 +85,7 @@ const SearchBar = () => {
                         list="result"
                         className="w-full text-[#292829] bg-transparent border-none outline-none ring-0" placeholder="Pesquise uma cidade ou estado" 
                     />
-                    
-             
+                
                 <datalist id="result">
                     {stateResults.map((result) => {
                         return <SearchResult key={result.uf} label={result.name} />

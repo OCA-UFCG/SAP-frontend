@@ -1,6 +1,6 @@
-import { SearchResultProps } from "@/utils/interfaces"
+import { SearchResultI } from "@/utils/interfaces"
 
-const SearchResult = ({ key, label }: SearchResultProps) => {
+const SearchResult = ({ key, label }: SearchResultI) => {
   return (
     <option key={key} value={label}>
       {label}
