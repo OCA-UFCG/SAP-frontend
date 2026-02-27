@@ -1,8 +1,8 @@
 import { FooterI } from "@/utils/interfaces"
-import { Icon } from "@/components/Icon/Icon";
-import { channels } from "@/utils/constants";
+import { channels, sapEmail } from "@/utils/constants";
 import { sortContentByDesiredOrder } from "@/utils/functions";
 import Image from "next/image"
+import SocialChannels from "../ContactSection/SocialChannels";
 
 export const Footer = ({ content }: { content: FooterI[] }) => {
   const mainPages = sortContentByDesiredOrder<FooterI>(content, [
@@ -41,20 +41,11 @@ export const Footer = ({ content }: { content: FooterI[] }) => {
 
         <div className="flex flex-col justify-between lg:items-start lg:ml-auto w-full lg:w-auto gap-4">
           <div className="flex flex-col lg:items-start gap-4">
-            <div className="flex flex-wrap justify-center lg:justify-end gap-4">
-              {channels.map(({ href, icon, size }, index) => (
-                <a target="_blank" href={href} key={index}>
-                  <Icon
-                    id={icon}
-                    size={size}
-                    key={index}
-                    className="text-grey-900"
-                  />
-                </a>
-              ))}
+            <div className="flex flex-wrap justify-center lg:justify-end">
+              <SocialChannels channels={channels} size={32} />
             </div>
             <p className="text-white font-medium text-sm text-center">
-              sap.ufcg@gmail.com
+              {sapEmail}
             </p>
           </div>
         </div>

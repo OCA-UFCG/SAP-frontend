@@ -1,9 +1,9 @@
-import { SapChannelI, SocialChannelsI } from "@/utils/interfaces"
+import { SocialChannelsI } from "@/utils/interfaces"
 import { Icon } from "../Icon/Icon"
 
 const SocialChannels = ({ channels, size, displayName=false }: SocialChannelsI) => {
     return (
-        <div className="flex flex-wrap flex-row items-center gap-[44px]">
+        <div className={`flex flex-wrap flex-row items-center gap-[${displayName ? "44px" : "14px"}]`}>
             {channels.map(({ href, icon, name}, index) => (
             <a target="_blank" href={href} key={index} className="flex items-center gap-3">
                 <Icon
