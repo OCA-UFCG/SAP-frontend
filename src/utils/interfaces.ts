@@ -29,6 +29,18 @@ export interface IMainBanner {
   };
 }
 
+export interface TabsSectionI {
+  title: string;
+  text: {
+    json: Document;
+  };
+  image: {
+    url: string;
+    title?: string;
+  };
+  includeInAboutSap: boolean;
+}
+
 export interface AboutSectionI {
   sys: {
     id: string;
