@@ -7,6 +7,10 @@ import { storybookTest } from "@storybook/addon-vitest/vitest-plugin";
 
 import { playwright } from "@vitest/browser-playwright";
 
+import tsconfigPaths from 'vite-tsconfig-paths'
+
+import react from '@vitejs/plugin-react'
+
 const dirname =
   typeof __dirname !== "undefined"
     ? __dirname
@@ -19,6 +23,9 @@ export default defineConfig({
       "@": path.resolve(dirname, "./src"),
     },
   },
+  plugins: [tsconfigPaths(), react()],
+  // Adição do publicDir para garantir que assets como sprite.svg sejam encontrados
+  publicDir: path.join(dirname, 'public'), 
   test: {
     projects: [
       {
@@ -26,15 +33,14 @@ export default defineConfig({
         test: {
           name: "unit",
           environment: "jsdom",
+          setupFiles: ['./src/vitest.setup.ts'],
           include: ["**/__tests__/**/*.test.{ts,tsx,js,jsx}"],
         },
       },
       {
         extends: true,
         plugins: [
-          // The plugin will run tests for the stories defined in your Storybook config
-          // See options at: https://storybook.js.org/docs/next/writing-tests/integrations/vitest-addon#storybooktest
-          storybookTest({ configDir: path.join(dirname, ".storybook") }),
+          storybookTest({ configDir: path.join(dirname, '.storybook') }),
         ],
         test: {
           name: "storybook",
