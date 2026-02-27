@@ -17,10 +17,11 @@ const getHomePageContent = async (): Promise<HomeContent | null> => {
     const response = await getContent<HomeContent>(GET_HOME_PAGE);
     return response;
   } catch (error) {
-    console.error("Erro ao buscar dados do Contentful:", error);
+    console.error('Erro ao buscar dados do Contentful:', error);
     return null;
   }
 };
+
 
 export default async function Home() {
   const data = await getHomePageContent();
@@ -34,7 +35,7 @@ export default async function Home() {
   }
 
   const { footerCollection } = data;
-  const footerContent = footerCollection.items || [];
+  const footerContent = footerCollection?.items || [];
   const mainBannerData = data.bannerCollection?.items[0];
   const aboutData = data.aboutCollection?.items[0];
 

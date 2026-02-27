@@ -1,3 +1,4 @@
+import { Document } from "@contentful/rich-text-types";
 export interface FooterI {
   name: string;
   id: string;
@@ -12,7 +13,6 @@ export interface SapChannelI {
   icon: string;
   size?: number;
 }
-import { Document } from "@contentful/rich-text-types";
 
 export interface IMainBanner {
   title: string;
@@ -23,7 +23,6 @@ export interface IMainBanner {
     url: string;
   };
 }
-
 
 export interface AboutSectionI {
   sys: {
@@ -39,4 +38,15 @@ export interface AboutSectionI {
     width: number;
     height: number;
   };
+}
+export interface ISection {
+  name: string;
+  id: string;
+  path: string;
+  appears: boolean;
+  childrenCollection?: { items: ISection[] };
+}
+
+export interface ISections {
+  [key: string]: ISection;
 }
