@@ -1,16 +1,17 @@
-import { getContent } from "../utils/contentful";
-import { GET_HOME_PAGE } from "../utils/queries";
+import { getContent } from '../utils/contentful';
+import { GET_HOME_PAGE } from '../utils/queries';
 import {
   AboutSectionI,
   IMainBanner,
   PartnerI,
   SectionHeaderI,
-} from "../utils/interfaces";
-import { AboutSection } from "../components/AboutSection/AboutSection";
-import { Footer} from "@/components/Footer/Footer"
-import { FooterI } from "../utils/interfaces";
-import { MainBanner } from "../components/MainBanner/MainBanner";
-import { PartnersSection } from "../components/PartnersSection/PartnersSection";
+} from '../utils/interfaces';
+import { AboutSection } from '../components/AboutSection/AboutSection';
+import { Footer } from '@/components/Footer/Footer';
+import { FooterI } from '../utils/interfaces';
+import { MainBanner } from '../components/MainBanner/MainBanner';
+import { PartnersSection } from '../components/PartnersSection/PartnersSection';
+import MapSection from '@/components/MapSection/MapSection';
 
 interface HomeContent {
   bannerCollection: { items: IMainBanner[] };
@@ -29,7 +30,6 @@ const getHomePageContent = async (): Promise<HomeContent | null> => {
     return null;
   }
 };
-
 
 export default async function Home() {
   const data = await getHomePageContent();
@@ -53,9 +53,15 @@ export default async function Home() {
     <div className="flex min-h-screen flex-col">
       <main className="grow">
         {mainBannerData && <MainBanner data={mainBannerData} />}
+
+        <MapSection />
+
         {aboutData && <AboutSection content={aboutData} />}
         {partnersHeaderData && (
-          <PartnersSection header={partnersHeaderData} partners={partnersData} />
+          <PartnersSection
+            header={partnersHeaderData}
+            partners={partnersData}
+          />
         )}
       </main>
       {footerCollection?.items && <Footer content={footerContent} />}
