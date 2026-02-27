@@ -1,38 +1,10 @@
 import Image from 'next/image';
-import { Header } from '@/components/Header/Header';
-import { ISections } from '@/utils/interfaces';
 
 export default function Mock() {
-  const content: ISections = {
-    'home-section': {
-      id: '1',
-      name: 'Home',
-      path: '/',
-      appears: true,
-    },
-    'map-section': {
-      id: '2',
-      name: 'Mapa',
-      path: '/mock',
-      appears: true,
-    },
-    'about-section': {
-      id: '3',
-      name: 'Sobre o Sap',
-      path: '/mock',
-      appears: true,
-    },
-    'contact-section': {
-      id: '4',
-      name: 'Contatos',
-      path: '/mock',
-      appears: true,
-    },
-  };
+
   return (
     <div className="flex min-h-screen items-center justify-center  font-sans">
       <main className="flex min-h-screen w-full flex-col items-center justify-between py-1 bg-grey sm:items-start">
-        <Header content={Object.values(content)}></Header>
 
         <div className="flex flex-col items-center gap-6 text-center bg-black sm:items-start sm:text-left">
           <h1 className="max-w-xs text-3xl font-semibold leading-10 tracking-tight text-black dark:text-zinc-50">

@@ -1,11 +1,24 @@
 import { getContent } from '../utils/contentful';
 import { GET_HOME_PAGE } from '../utils/queries';
-import { AboutSectionI } from '../utils/interfaces';
+import {
+  AboutSectionI,
+  IMainBanner,
+  PartnerI,
+  SectionHeaderI,
+} from '../utils/interfaces';
 import { AboutSection } from '../components/AboutSection/AboutSection';
-import MapComponent from '@/components/Map/MapComponent';
+import { Footer } from '@/components/Footer/Footer';
+import { FooterI } from '../utils/interfaces';
+import { MainBanner } from '../components/MainBanner/MainBanner';
+import { PartnersSection } from '../components/PartnersSection/PartnersSection';
+import MapSection from '@/components/MapSection/MapSection';
 
 interface HomeContent {
+  bannerCollection: { items: IMainBanner[] };
   aboutCollection: { items: AboutSectionI[] };
+  cabealhoSeesCollection: { items: SectionHeaderI[] };
+  partnersCollection: { items: PartnerI[] };
+  footerCollection: { items: FooterI[] };
 }
 
 const getHomePageContent = async (): Promise<HomeContent | null> => {
@@ -18,12 +31,10 @@ const getHomePageContent = async (): Promise<HomeContent | null> => {
   }
 };
 
-
 export default async function Home() {
   const data = await getHomePageContent();
 
-  // early return pra garantir que data não seja null
-  if (!data?.aboutCollection?.items?.length) {
+  if (!data) {
     return (
       <div className="flex min-h-screen flex-col">
         <p>Conteúdo não encontrado.</p>
@@ -31,21 +42,29 @@ export default async function Home() {
     );
   }
 
-  const { aboutCollection } = data;
-  const content = aboutCollection.items[0];
-
+  const { footerCollection } = data;
+  const footerContent = footerCollection?.items || [];
+  const mainBannerData = data.bannerCollection?.items[0];
+  const aboutData = data.aboutCollection?.items[0];
+  const partnersHeaderData = data.cabealhoSeesCollection?.items[0];
+  const partnersData = data.partnersCollection?.items ?? [];
 
   return (
-    <div className="flex min-h-screen flex-col w-full h-full bg-white">
-      <main className="flex min-h-screen w-full flex-col items-center justify-center bg-grey sm:items-start">
-        <div className="bg-white-700 mx-auto my-5 h-[690px] w-[60%] flex z-10 my-20 ">
-          <MapComponent
-            center={[-15.749997, -47.9499962]}
-            zoom={4}
+    <div className="flex min-h-screen flex-col">
+      <main className="grow">
+        {mainBannerData && <MainBanner data={mainBannerData} />}
+
+        <MapSection />
+
+        {aboutData && <AboutSection content={aboutData} />}
+        {partnersHeaderData && (
+          <PartnersSection
+            header={partnersHeaderData}
+            partners={partnersData}
           />
-        </div>
-        {aboutCollection?.items && <AboutSection content={content} />}
+        )}
       </main>
+      {footerCollection?.items && <Footer content={footerContent} />}
     </div>
   );
 }
