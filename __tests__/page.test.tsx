@@ -5,6 +5,7 @@ import Home from "../src/app/page";
 // Mock do next/image
 vi.mock("next/image", () => ({
   default: (props: React.ImgHTMLAttributes<HTMLImageElement>) => (
+    // eslint-disable-next-line @next/next/no-img-element
     <img alt="" {...props} />
   ),
 }));
@@ -15,7 +16,9 @@ vi.mock("@/utils/contentful", () => ({
       items: [
         {
           title: "Sobre Nós",
-          text: { json: {} },
+          text: { json: {
+            content: []
+          } },
           image: { url: "https://example.com/image.png" },
         },
       ],

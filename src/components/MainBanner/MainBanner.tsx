@@ -39,7 +39,7 @@ export function MainBanner({ data }: MainBannerProps) {
         />
       </div>
 
-      <div className="relative z-20 w-full h-full flex items-center">
+      <div className="relative z-20 w-full max-w-[1440px] mx-auto h-full flex items-center">
         <div className="w-full">
           <div className="flex flex-col gap-[24px] max-w-[800px] items-start text-left">
             <h1 className="font-open font-[700] text-white text-3xl md:text-5xl lg:text-[64px] leading-tight drop-shadow-sm">
