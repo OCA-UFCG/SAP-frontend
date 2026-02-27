@@ -66,7 +66,7 @@ const SearchBar = () => {
         <div className="w-full flex justify-between gap-5 items-start">
             <div className="flex-1 flex flex-col"> 
             <div 
-                className={`min-w-85 w-full p-4 flex items-center text-lg rounded-xl shadow-sm bg-[#E4E5E2] overflow-hidden 
+                className={`min-w-90 w-full p-4 flex items-center text-lg rounded-xl shadow-sm bg-[#E4E5E2] overflow-hidden 
                     ${
                         hasResultError ? "border-red-500 ring-2 ring-red-500" : 
                         "transition hover:border-neutral-400 border-transparent bg-[#E4E5E2] hover:border-neutral-400 focus-within:border-neutral-600 focus-within:ring-2 focus-within:ring-neutral-600"
