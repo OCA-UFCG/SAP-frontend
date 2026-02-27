@@ -45,7 +45,7 @@ jobs:
 
   push-beta:
     needs: build-image
-    runs-on: self-hosted
+    runs-on: beta-runner
     steps:
       - name: Debug environment (Runner)
         run: echo "Image is ${{ vars.DOCKER_IMAGE_BETA }}"

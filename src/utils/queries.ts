@@ -52,6 +52,15 @@ export const GET_HOME_PAGE = `
           width
           height
         }
+      } 
+    } 
+    
+    footerCollection{
+      items {
+        id
+        name
+        path
+        appears
       }
     }
   }
