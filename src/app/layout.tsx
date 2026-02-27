@@ -40,7 +40,7 @@ export default function RootLayout({
     'about-section': {
       id: '3',
       name: 'Sobre o SAP',
-      path: '/mock',
+      path: '/sobre-o-sap',
       appears: true,
     },
     'contact-section': {

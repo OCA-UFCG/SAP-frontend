@@ -1,8 +1,8 @@
 import { Document } from "@contentful/rich-text-types";
-export interface DataCardsI{
-    noDroughtAreaValue: number 
-    watchAreaValue: number
-    recoveryAreaValue: number
+export interface DataCardsI {
+  noDroughtAreaValue: number;
+  watchAreaValue: number;
+  recoveryAreaValue: number;
 }
 export interface FooterI {
   name: string;
@@ -66,6 +66,34 @@ export interface PartnerI {
 }
 
 export interface PartnersSectionQuery {
+  cabealhoSeesCollection: {
+    items: SectionHeaderI[];
+  };
+  partnersCollection: {
+    items: PartnerI[];
+  };
+}
+
+export interface SecaoSobreI {
+  sys: {
+    id: string;
+  };
+  title: string;
+  text: {
+    json: Document;
+  };
+  image: {
+    url: string;
+    title?: string;
+    width?: number;
+    height?: number;
+  };
+}
+
+export interface AboutPageQuery {
+  secaoSobreCollection: {
+    items: SecaoSobreI[];
+  };
   cabealhoSeesCollection: {
     items: SectionHeaderI[];
   };
