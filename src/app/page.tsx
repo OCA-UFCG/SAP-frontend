@@ -2,7 +2,7 @@ import { getContent } from "../utils/contentful";
 import { GET_HOME_PAGE } from "../utils/queries";
 import { AboutSectionI, IMainBanner } from "../utils/interfaces";
 import { AboutSection } from "../components/AboutSection/AboutSection";
-import { Footer} from "@/components/Footer/Footer"
+import { Footer} from "../components/Footer/Footer"
 import { FooterI } from "../utils/interfaces";
 import { MainBanner } from "../components/MainBanner/MainBanner";
 

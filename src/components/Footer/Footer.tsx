@@ -1,7 +1,7 @@
-import { FooterI } from "@/utils/interfaces"
-import { Icon } from "@/components/Icon/Icon";
-import { channels } from "@/utils/constants";
-import { sortContentByDesiredOrder } from "@/utils/functions";
+import { FooterI } from "../../utils/interfaces"
+import { Icon } from "../Icon/Icon";
+import { channels } from "../../utils/constants";
+import { sortContentByDesiredOrder } from "../../utils/functions";
 import Image from "next/image"
 
 export const Footer = ({ content }: { content: FooterI[] }) => {
