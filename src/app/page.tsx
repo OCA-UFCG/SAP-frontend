@@ -40,8 +40,8 @@ export default async function Home() {
       <main className="flex min-h-screen w-full flex-col items-center justify-center bg-grey sm:items-start">
         <div className="bg-white-700 mx-auto my-5 h-[690px] w-[60%] flex z-10 my-20 ">
           <MapComponent
-            center={[-7.22, -35.88]}
-            zoom={5}
+            center={[-15.749997, -47.9499962]}
+            zoom={4}
           />
         </div>
         {aboutCollection?.items && <AboutSection content={content} />}
