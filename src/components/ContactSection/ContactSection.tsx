@@ -1,6 +1,7 @@
-import { SapChannelI } from "../../utils/interfaces"
+import { channels, sapEmail } from "@/utils/constants"
+import SocialChannels from "./SocialChannels"
 
-const ContactSection = ({channels}: SapChannelI) => {
+const ContactSection = () => {
     return (
         <section className="w-full max-w-[1440px] min-h-[303px] bg-white">
             <div className="
@@ -33,32 +34,17 @@ const ContactSection = ({channels}: SapChannelI) => {
                     text-[24px]
                     font-normal
                     text-[#292829]">
-                        sap.ufcg@gmail.com
+                        Email: {sapEmail}
                     </p>
-                    <div className="flex flex-col gap-[16px]">
+                    <div className="flex flex-col gap-[32px]">
                         <p className="
                             font-['Open_Sans']
                             text-[24px]
                             font-semibold
                             text-[#292829]">
-                            Nos acompanhe nas redes sociais
+                            Nos acompanhe nas redes sociais!
                         </p>
-
-                        <div className="flex flex-wrap items-center gap-[44px]">
-                             {channels.map(({ href, icon, size }, index) => (
-                                            <a target="_blank" href={href} key={index}>
-                                              <Icon
-                                                id={icon}
-                                                size={size}
-                                                key={index}
-                                                className="text-grey-900"
-                                              />
-                                            </a>
-                                          ))}
-                        </div>
-
-                        
-
+                        <SocialChannels channels={channels} size={32} displayName={true}/>
                     </div>
             </div>
         </section>

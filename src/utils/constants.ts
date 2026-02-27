@@ -29,3 +29,5 @@ export const channels: SapChannelI[] = [
     size: 32,
   },
 ];
+
+export const sapEmail = "sap.ufcg@gmail.com"
