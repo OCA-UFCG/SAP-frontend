@@ -85,7 +85,9 @@ export const AboutPartnersTabs = ({
         className="w-full flex justify-center items-center px-6 sm:px-10 lg:px-[80px] py-16 lg:py-[96px]"
         style={{
           backgroundImage: `linear-gradient(96.47deg, rgba(0, 0, 0, 0) 45.64%, rgba(0, 0, 0, 0.56) 93.72%), ${heroSideGradient}${heroImageUrl ? `, url(${heroImageUrl})` : ""}`,
-          backgroundSize: isDesktop ? "cover, cover, 65% auto" : "cover, cover, 150% auto",
+          backgroundSize: isDesktop
+            ? "cover, cover, 65% auto"
+            : "cover, cover, 150% auto",
           backgroundPosition: isDesktop
             ? "center, center, 100% 60%"
             : "center, center, 72% 40%",
@@ -115,11 +117,11 @@ export const AboutPartnersTabs = ({
                 onClick={() => setActiveTab(tab.id)}
                 aria-pressed={isActive}
                 className={cn(
-                  "h-[44px] px-8 rounded-t-[8px] flex items-center justify-center transition-colors cursor-pointer",
-                  tab.id === "about" && "pt-1",
+                  "h-[44px] px-4 md:px-8 rounded-t-[8px] flex items-center justify-center transition-colors cursor-pointer",
+                  tab.id === "about" && "pt-1 mb-[2px] md:mb-0",
                   isActive
-                    ? "bg-[#989F43] text-[#F8F7F8] text-[18px] leading-[28px] font-semibold"
-                    : "bg-[#E4E5E2] text-[#292829] text-[20px] leading-[28px] font-normal tracking-[-0.005em]",
+                    ? "bg-[#989F43] text-[#F8F7F8] text-[15px] md:text-[18px] leading-[20px] md:leading-[28px] font-semibold"
+                    : "bg-[#E4E5E2] text-[#292829] text-[16px] md:text-[20px] leading-[20px] md:leading-[28px] font-normal tracking-[-0.005em]",
                 )}
               >
                 {tab.label}
