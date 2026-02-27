@@ -1,25 +1,14 @@
-import type { NextConfig } from "next";
-
-const nextConfig: NextConfig = {
-  //explicitar quais domínios de imagens são aceitos 
+const nextConfig = {
   images: {
     remotePatterns: [
       {
-        protocol: "https",
-        hostname: "images.ctfassets.net",
+        protocol: 'https',
+        hostname: 'images.ctfassets.net',
+        port: '',
+        pathname: '/**',
       },
     ],
   },
-  reactCompiler: true,
-  async redirects() {
-    return [
-      {
-        source: '/about',
-        destination: '/quem-somos',
-        permanent: true, 
-      },
-    ];
-  },
 };
 
-export default nextConfig;
+module.exports = nextConfig;

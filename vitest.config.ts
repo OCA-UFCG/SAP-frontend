@@ -17,6 +17,8 @@ const dirname =
 // More info at: https://storybook.js.org/docs/next/writing-tests/integrations/vitest-addon
 export default defineConfig({
   plugins: [tsconfigPaths(), react()],
+  // Adição do publicDir para garantir que assets como sprite.svg sejam encontrados
+  publicDir: path.join(dirname, 'public'), 
   test: {
     projects: [
       {
@@ -31,8 +33,6 @@ export default defineConfig({
       {
         extends: true,
         plugins: [
-          // The plugin will run tests for the stories defined in your Storybook config
-          // See options at: https://storybook.js.org/docs/next/writing-tests/integrations/vitest-addon#storybooktest
           storybookTest({ configDir: path.join(dirname, '.storybook') }),
         ],
         test: {
