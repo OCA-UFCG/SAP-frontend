@@ -1,11 +1,11 @@
-import { DataCardsValueProps } from "@/utils/interfaces";
+import { DataCardsI } from "@/utils/interfaces";
 import { Icon } from "../Icon/Icon";
 
 const DataCards = ({
   noDroughtAreaValue,
   watchAreaValue,
   recoveryAreaValue,
-}: DataCardsValueProps) => {
+}: DataCardsI) => {
   return (
     <>
     <div className="flex flex-col gap-3">

@@ -1,5 +1,5 @@
 import { Document } from "@contentful/rich-text-types";
-export interface DataCardsValueProps {
+export interface DataCardsI{
     noDroughtAreaValue: number 
     watchAreaValue: number
     recoveryAreaValue: number
