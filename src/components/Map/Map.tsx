@@ -2,14 +2,14 @@
 
 import { MapContainer, TileLayer, GeoJSON, useMap } from 'react-leaflet';
 import { Layer, LatLngBoundsExpression } from 'leaflet';
-import { useMemo, useState, useEffect } from 'react';
+import { useMemo, useEffect } from 'react';
 import bbox from '@turf/bbox';
 import 'leaflet/dist/leaflet.css';
 import 'leaflet-defaulticon-compatibility/dist/leaflet-defaulticon-compatibility.css';
 import 'leaflet-defaulticon-compatibility';
 import { FeatureCollection, Feature, Geometry } from 'geojson';
 import geometria from '../../data/geometria.json';
-import geodata from '../../data/CDI_Janeiro_2024_Vetores.json';
+import { CDIVectorData, CDIFeatureProperties } from '../MapSection/MapSection';
 
 interface ChangeViewProps {
   bounds: LatLngBoundsExpression;
@@ -20,6 +20,8 @@ interface MapProps {
   zoom?: number;
   markers?: Array<{ position: [number, number]; label: string }>;
   className?: string;
+  dadosCDI: CDIVectorData; 
+  estadoSelecionado: string; 
 }
 
 interface FeatureProperties {
@@ -34,11 +36,6 @@ interface FeatureProperties {
       nome: string;
     };
   };
-}
-
-interface CDIFeatureProperties {
-  classe_cdi: string | number;
-  [key: string]: unknown;
 }
 
 interface EstadoProperties {
@@ -72,9 +69,9 @@ const Map = ({
   center = [51.505, -0.09],
   zoom = 13,
   className = 'h-full w-full',
+  dadosCDI,
+  estadoSelecionado,
 }: MapProps) => {
-  const [estadoSelecionado, setEstadoSelecionado] = useState<string>('Brasil');
-
   const geoBrasil = geometria as unknown as FeatureCollection<
     Geometry,
     EstadoProperties
@@ -178,23 +175,7 @@ const Map = ({
 
   return (
     <>
-      <div className="flex flex-col w-full">
-        <div className="p-4 bg-white shadow-md z-[1001]">
-          <select
-            onChange={(e) => setEstadoSelecionado(e.target.value)}
-            className="p-2 border rounded text-black"
-          >
-            <option value="Brasil">Brasil Inteiro</option>
-            {geoBrasil?.features?.map((f) => (
-              <option
-                key={f.properties?.info.id}
-                value={f.properties?.info.nome}
-              >
-                {f.properties?.info.nome}
-              </option>
-            ))}
-          </select>
-        </div>
+      <div className="w-full ">
         <MapContainer
           center={center}
           zoom={zoom}
@@ -208,7 +189,7 @@ const Map = ({
             attribution="&copy; Esri &mdash; Source: Esri, i-cubed, USDA, USGS, AEX, GeoEye, Getmapping, Aerogrid, IGN, IGP, UPR-EGP, and the GIS User Community"
           />
           <GeoJSON
-            data={geodata as FeatureCollection}
+            data={dadosCDI as FeatureCollection}
             key={`cdi-layer`}
             style={vectorStyle}
           />
