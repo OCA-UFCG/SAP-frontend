@@ -14,7 +14,6 @@ export interface IMainBanner {
   };
 }
 
-
 export interface AboutSectionI {
   sys: {
     id: string;
@@ -38,4 +37,9 @@ export interface BrazilianState {
 export interface SearchResultProps {
   key: string;
   label: string;
+}
+
+export interface SearchButtonProps {
+  onClick: () => void
+  children: React.ReactNode
 }

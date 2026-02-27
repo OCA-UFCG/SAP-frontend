@@ -1,7 +1,4 @@
-interface SearchButtonProps {
-  onClick: () => void
-  children: React.ReactNode
-}
+import { SearchButtonProps } from "@/utils/interfaces";
 
 const SearchButton = ({ onClick, children }: SearchButtonProps) => {
   return (
