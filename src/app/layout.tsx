@@ -3,8 +3,7 @@ import { Geist, Geist_Mono } from "next/font/google";
 import { cache } from "react";
 import { Header } from "@/components/Header/Header";
 import { Footer } from "@/components/Footer/Footer";
-import { ISections } from "@/utils/interfaces";
-import { FooterI } from "@/utils/interfaces";
+import { FooterI, ISections } from "@/utils/interfaces";
 import { getContent } from "@/utils/contentful";
 import { GET_FOOTER_PAGE } from "@/utils/queries";
 import "./globals.css";
@@ -63,7 +62,7 @@ export default async function RootLayout({
     "contact-section": {
       id: "4",
       name: "Contatos",
-      path: "/contatos",
+      path: "/contact",
       appears: true,
     },
   };
