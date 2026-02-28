@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
+import Image from "next/image";
 import { documentToReactComponents } from "@contentful/rich-text-react-renderer";
 import type { Document } from "@contentful/rich-text-types";
 
@@ -159,7 +160,7 @@ export const AboutPartnersTabs = ({
                     )}
                   >
                     <div className="w-full lg:w-auto shrink-0">
-                      <img
+                      <Image
                         src={section.imageUrl}
                         alt={section.imageAlt ?? section.title}
                         width={594}
