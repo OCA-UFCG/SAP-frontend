@@ -81,25 +81,23 @@ export default async function RootLayout({
     try {
       const data = await getContent<FooterContent>(GET_FOOTER_PAGE);
 
-      return (
-        data?.footerCollection?.items.map(mapFooterItem) ?? []
-      );
+      return data?.footerCollection?.items.map(mapFooterItem) ?? [];
     } catch (error) {
       console.error("Erro ao buscar footer:", error);
       return [];
     }
   });
 
-  const footerContent = await getFooterContent()
-  
+  const footerContent = await getFooterContent();
+
   return (
     <html lang="en">
       <meta name="apple-mobile-web-app-title" content="Portal SAP" />
       <body
-        className={`${geistSans.variable} ${geistMono.variable} antialiased`}
+        className={`${geistSans.variable} ${geistMono.variable} antialiased min-h-screen flex flex-col`}
       >
         <Header content={Object.values(headerContent)}></Header>
-        {children}
+        <main className="flex-1 w-full">{children}</main>
         {footerContent.length > 0 && <Footer content={footerContent} />}
       </body>
     </html>
