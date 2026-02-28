@@ -3,7 +3,7 @@ import SocialChannels from "./SocialChannels";
 
 const ContactSection = () => {
   return (
-    <section id="contact" className="w-full min-h-screen bg-white">
+    <section id="contact" className="w-full bg-white">
       <div className="w-full bg-[#E1E2B4]">
         <div className="w-full max-w-[1440px] mx-auto">
           <div className="bg-[#E1E2B4] h-[117px] px-6 sm:px-10 lg:px-[80px] flex items-center">
