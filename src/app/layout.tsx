@@ -1,8 +1,13 @@
 import type { Metadata } from 'next';
 import { Geist, Geist_Mono } from 'next/font/google';
+import { cache } from "react";
 import { Header } from '@/components/Header/Header';
 import { ISections } from '@/utils/interfaces';
 import './globals.css';
+import { Footer} from "../components/Footer/Footer"
+import { FooterI } from "../utils/interfaces";
+import { getContent } from "../utils/contentful";
+import { GET_FOOTER_PAGE } from "../utils/queries";
 
 const geistSans = Geist({
   variable: '--font-geist-sans',
@@ -14,12 +19,24 @@ const geistMono = Geist_Mono({
   subsets: ['latin'],
 });
 
+interface FooterContent {
+  footerCollection: {
+    items: FooterEntry[];
+  };
+}
+
+interface FooterEntry {
+  sys: { id: string };
+  name: string;
+  path: string;
+  appears: boolean;
+}
 export const metadata: Metadata = {
   title: 'Portal SAP',
   description: 'Portal SAP criado por OCA',  
 };
 
-export default function RootLayout({
+export default async function RootLayout({
   children,
 }: {
   children: React.ReactNode;
@@ -50,6 +67,31 @@ export default function RootLayout({
       appears: true,
     },
   };
+
+  function mapFooterItem(item: FooterEntry): FooterI {
+    return {
+      id: item.sys.id,
+      name: item.name,
+      path: item.path,
+      appears: item.appears,
+    };
+  }
+
+  const getFooterContent = cache(async (): Promise<FooterI[]> => {
+    try {
+      const data = await getContent<FooterContent>(GET_FOOTER_PAGE);
+
+      return (
+        data?.footerCollection?.items.map(mapFooterItem) ?? []
+      );
+    } catch (error) {
+      console.error("Erro ao buscar footer:", error);
+      return [];
+    }
+  });
+
+  const footerContent = await getFooterContent()
+  
   return (
     <html lang="en">
       <meta name="apple-mobile-web-app-title" content="Portal SAP" />
@@ -58,6 +100,7 @@ export default function RootLayout({
       >
         <Header content={Object.values(headerContent)}></Header>
         {children}
+        {footerContent.length > 0 && <Footer content={footerContent} />}
       </body>
     </html>
   );

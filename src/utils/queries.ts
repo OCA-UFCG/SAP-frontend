@@ -55,9 +55,16 @@ export const GET_HOME_PAGE = `
       } 
     } 
     
-    footerCollection{
+  }
+`;
+
+export const GET_FOOTER_PAGE = `
+  query GetFooterPage {
+    footerCollection {
       items {
-        id
+        sys {
+          id
+        }
         name
         path
         appears
