@@ -7,7 +7,7 @@ import {
   SectionHeaderI,
 } from "../utils/interfaces";
 import { AboutSection } from "../components/AboutSection/AboutSection";
-import { Footer} from "@/components/Footer/Footer"
+import { Footer } from "@/components/Footer/Footer";
 import { FooterI } from "../utils/interfaces";
 import { MainBanner } from "../components/MainBanner/MainBanner";
 import { PartnersSection } from "../components/PartnersSection/PartnersSection";
@@ -25,11 +25,10 @@ const getHomePageContent = async (): Promise<HomeContent | null> => {
     const response = await getContent<HomeContent>(GET_HOME_PAGE);
     return response;
   } catch (error) {
-    console.error('Erro ao buscar dados do Contentful:', error);
+    console.error("Erro ao buscar dados do Contentful:", error);
     return null;
   }
 };
-
 
 export default async function Home() {
   const data = await getHomePageContent();
@@ -55,7 +54,10 @@ export default async function Home() {
         {mainBannerData && <MainBanner data={mainBannerData} />}
         {aboutData && <AboutSection content={aboutData} />}
         {partnersHeaderData && (
-          <PartnersSection header={partnersHeaderData} partners={partnersData} />
+          <PartnersSection
+            header={partnersHeaderData}
+            partners={partnersData}
+          />
         )}
       </main>
       {footerCollection?.items && <Footer content={footerContent} />}
