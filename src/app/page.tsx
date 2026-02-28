@@ -7,8 +7,6 @@ import {
   SectionHeaderI,
 } from "../utils/interfaces";
 import { AboutSection } from "../components/AboutSection/AboutSection";
-import { Footer} from "../components/Footer/Footer"
-import { FooterI } from "../utils/interfaces";
 import { MainBanner } from "../components/MainBanner/MainBanner";
 import { PartnersSection } from "../components/PartnersSection/PartnersSection";
 
@@ -17,7 +15,7 @@ interface HomeContent {
   aboutCollection: { items: AboutSectionI[] };
   cabealhoSeesCollection: { items: SectionHeaderI[] };
   partnersCollection: { items: PartnerI[] };
-  footerCollection: { items: FooterI[] };
+
 }
 
 const getHomePageContent = async (): Promise<HomeContent | null> => {
@@ -42,8 +40,7 @@ export default async function Home() {
     );
   }
 
-  const { footerCollection } = data;
-  const footerContent = footerCollection?.items || [];
+ 
   const mainBannerData = data.bannerCollection?.items[0];
   const aboutData = data.aboutCollection?.items[0];
   const partnersHeaderData = data.cabealhoSeesCollection?.items[0];
@@ -58,7 +55,6 @@ export default async function Home() {
           <PartnersSection header={partnersHeaderData} partners={partnersData} />
         )}
       </main>
-      {footerCollection?.items && <Footer content={footerContent} />}
     </div>
   );
 }
