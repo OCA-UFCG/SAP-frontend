@@ -1,7 +1,8 @@
 "use client";
 
-import { useState, ReactNode } from "react"; // Adicione ReactNode
-import { documentToReactComponents, Options } from "@contentful/rich-text-react-renderer"; // Adicione Options
+import { useState, ReactNode } from "react";
+import Image from "next/image";
+import { documentToReactComponents, Options } from "@contentful/rich-text-react-renderer";
 import { BLOCKS } from "@contentful/rich-text-types";
 import { TabsSectionI } from "@/utils/interfaces";
 
@@ -22,7 +23,6 @@ const TabsSection = ({ contentData }: TabsSectionProps) => {
 
   const currentTab = contentData[activeTab];
 
-  // Tipagem correta para as opções do Rich Text
   const richTextOptions: Options = {
     renderNode: {
       [BLOCKS.PARAGRAPH]: (node, children: ReactNode) => <p>{children}</p>,
@@ -57,23 +57,31 @@ const TabsSection = ({ contentData }: TabsSectionProps) => {
         </div>
       </div>
 
-      <div 
-        className="w-full min-h-[550px] relative border-y-[4px] border-[#989F43] overflow-hidden flex flex-col justify-center"
-        style={{
-          backgroundImage: `url(${currentTab.image?.url})`,
-          backgroundSize: 'cover',
-          backgroundPosition: 'center'
-        }}
-      >
+      {/* MUDANÇA AQUI: Trocamos 'border-y-[4px]' por 'border-[4px]' e adicionamos 'rounded-[8px]' */}
+      <div className="w-full min-h-[550px] relative border-[4px] border-[#989F43] rounded-[8px] bg-black overflow-hidden flex flex-col justify-center">
+        
+        <div className="absolute top-0 left-0 w-full md:w-[50%] lg:w-[45%] h-full z-0 flex items-center justify-center">
+          {currentTab.image?.url && (
+            <Image 
+              src={currentTab.image.url}
+              alt={currentTab.image.title || currentTab.title}
+              fill
+              className="object-cover object-center"
+              priority={activeTab === 0}
+            />
+          )}
+        </div>
+
         <div 
-          className="absolute inset-0 z-0"
+          className="absolute inset-0 z-10"
           style={{
             background: 'linear-gradient(90deg, rgba(0, 0, 0, 0) 18.96%, #000000 41.39%)',
           }}
         />
 
-        <div className="relative z-10 w-full max-w-[1440px] mx-auto px-6 md:px-10 lg:px-[78px] py-[48px] flex flex-row justify-end items-center">
-          <div className="w-full lg:w-[795px] flex flex-col gap-[24px] text-left">
+        <div className="relative z-20 w-full max-w-[1440px] mx-auto px-6 md:px-10 lg:px-[78px] py-[48px] flex flex-row justify-end items-center">
+          
+          <div className="w-[60%] max-w-[795px] flex flex-col gap-[24px] text-left">
             <h3 className="text-[#989F43] font-['Open_Sans'] font-semibold text-[20px] md:text-[24px] leading-[32px] tracking-[-0.006em]">
               {currentTab.title}
             </h3>

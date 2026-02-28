@@ -54,8 +54,6 @@ export default async function Home() {
   
   const tabsData = data.secaoSobreCollection?.items ?? [];
 
-  console.log("DADOS DAS ABAS:", tabsData);
-
   return (
     <div className="flex min-h-screen flex-col">
       <main className="grow">
