@@ -40,7 +40,7 @@ const content: ISections = {
   "contact-section": {
     id: "4",
     name: "Contatos",
-    path: "/contatos",
+    path: "/contact",
     appears: true,
   },
 };

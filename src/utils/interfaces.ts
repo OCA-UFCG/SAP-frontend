@@ -105,3 +105,9 @@ export interface ISection {
 export interface ISections {
   [key: string]: ISection;
 }
+
+export interface SocialChannelsI {
+  channels: SapChannelI[]
+  size: number 
+  displayName?: boolean
+}
