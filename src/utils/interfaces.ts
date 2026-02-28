@@ -52,7 +52,20 @@ export interface AboutSectionI {
     height: number;
   };
 }
+export interface BrazilianState {
+  name: string;
+  uf: string;
+}
 
+export interface SearchResultI {
+  key: string;
+  label: string;
+}
+
+export interface SearchButtonI {
+  onClick: () => void
+  children: React.ReactNode
+}
 export interface SectionHeaderI {
   sys: {
     id: string;
