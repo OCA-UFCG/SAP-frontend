@@ -1,7 +1,11 @@
 import type { Metadata } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
+import { cache } from "react";
 import { Header } from "@/components/Header/Header";
-import { ISections } from "@/utils/interfaces";
+import { Footer } from "@/components/Footer/Footer";
+import { FooterI, ISections } from "@/utils/interfaces";
+import { getContent } from "@/utils/contentful";
+import { GET_FOOTER_PAGE } from "@/utils/queries";
 import "./globals.css";
 
 const geistSans = Geist({
@@ -14,12 +18,24 @@ const geistMono = Geist_Mono({
   subsets: ["latin"],
 });
 
+interface FooterContent {
+  footerCollection: {
+    items: FooterEntry[];
+  };
+}
+
+interface FooterEntry {
+  sys: { id: string };
+  name: string;
+  path: string;
+  appears: boolean;
+}
 export const metadata: Metadata = {
   title: "Portal SAP",
   description: "Portal SAP criado por OCA",
 };
 
-export default function RootLayout({
+export default async function RootLayout({
   children,
 }: {
   children: React.ReactNode;
@@ -34,13 +50,13 @@ export default function RootLayout({
     "map-section": {
       id: "2",
       name: "Mapa",
-      path: "/mock",
+      path: "/mapa",
       appears: true,
     },
     "about-section": {
       id: "3",
       name: "Sobre o SAP",
-      path: "/mock",
+      path: "/sobre-o-sap",
       appears: true,
     },
     "contact-section": {
@@ -50,14 +66,38 @@ export default function RootLayout({
       appears: true,
     },
   };
+
+  function mapFooterItem(item: FooterEntry): FooterI {
+    return {
+      id: item.sys.id,
+      name: item.name,
+      path: item.path,
+      appears: item.appears,
+    };
+  }
+
+  const getFooterContent = cache(async (): Promise<FooterI[]> => {
+    try {
+      const data = await getContent<FooterContent>(GET_FOOTER_PAGE);
+
+      return data?.footerCollection?.items.map(mapFooterItem) ?? [];
+    } catch (error) {
+      console.error("Erro ao buscar footer:", error);
+      return [];
+    }
+  });
+
+  const footerContent = await getFooterContent();
+
   return (
     <html lang="en">
       <meta name="apple-mobile-web-app-title" content="Portal SAP" />
       <body
-        className={`${geistSans.variable} ${geistMono.variable} antialiased`}
+        className={`${geistSans.variable} ${geistMono.variable} antialiased min-h-screen flex flex-col`}
       >
         <Header content={Object.values(headerContent)}></Header>
-        {children}
+        <main className="flex-1 w-full">{children}</main>
+        {footerContent.length > 0 && <Footer content={footerContent} />}
       </body>
     </html>
   );
