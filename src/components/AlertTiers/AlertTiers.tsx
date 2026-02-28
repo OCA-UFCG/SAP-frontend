@@ -1,12 +1,12 @@
 'use client';
 
-import { Pie, PieChart, Sector } from 'recharts';
+import { Pie, PieChart, Sector, Tooltip } from 'recharts';
 import { StatusItemI } from "../../utils/interfaces";
 import { StatusRow } from "../StatusRow/StatusRow";
 
 type Props = {
   items: StatusItemI[];
-  //onToggle: (id: string, checked: boolean) => void;
+  onToggle: (id: string, checked: boolean) => void;
 };
 
 type PieShapeProps = {
@@ -19,18 +19,17 @@ type PieShapeProps = {
   index: number;
 };
 
-export const AlertTiers = ({ items }: Props) => {
+export const AlertTiers = ({ items, onToggle }: Props) => {
   return (
-    <div className="w-[793px] p-4 bg-[#F6F7F6] border border-[#E4E5E2] rounded-[8px] flex flex-col gap-6">
+    <div className="w-full p-4 bg-[#F6F7F6] border border-[#E4E5E2] rounded-lg flex flex-col gap-6">
       
-      <h1 className="text-[18px] font-bold leading-[18px] tracking-[-0.006em] text-[#292829] font-['Open_Sans']">
-        CDI
+      <h1 className="text-xl font-bold ">
+        Monitoramento de Seca na região
       </h1>
 
-      <div className="flex flex-row justify-between items-start gap-[50px]">
+      <div className="flex flex-col md:flex-row justify-between items-center gap-12">
 
-        {/* Gráfico */}
-        <PieChart width={279} height={279}>
+        <PieChart width={279} height={279} >
           <Pie
             data={items}
             dataKey="value"
@@ -38,6 +37,7 @@ export const AlertTiers = ({ items }: Props) => {
             cy="50%"
             outerRadius={139}
             strokeWidth={0}
+            isAnimationActive
             shape={(props: PieShapeProps) => {
               const { cx, cy, innerRadius, outerRadius, startAngle, endAngle, index } = props;
               return (
@@ -53,12 +53,15 @@ export const AlertTiers = ({ items }: Props) => {
               );
             }}
           />
+          <Tooltip
+            formatter={(value, name) => `${items.find((item) => item.id == name )?.label} - ${value}%`}
+            contentStyle={{ borderRadius: 8 }}
+          />
         </PieChart>
 
-        {/* Lista */}
-        <div className="flex flex-col gap-2 w-[432px]">
+        <div className="flex flex-col gap-2 w-full">
           {items.map((item) => (
-            <StatusRow key={item.id} item={item} />
+            <StatusRow key={item.id} item={item} onToggle={onToggle}/>
           ))}
         </div>
 

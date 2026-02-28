@@ -4,49 +4,43 @@ import { StatusItemI } from "../../utils/interfaces";
 
   const baseItems: StatusItemI[] = [
     {
-      id: "1",
+      id: "0",
       label: "Sem seca",
       value: 43.3,
-      color: "#F0F0D7",
-      textColor: "#292829"
+      color: "#F0F0D7"
+    },
+    {
+      id: "1",
+      label: "Observação (Watch)",
+      value: 24.5,
+      color: "#FECB89"
+
     },
     {
       id: "2",
-      label: "Observação (Watch)",
-      value: 24.5,
-      color: "#FECB89",
-      textColor: "#292829"
-
+      label: "Atenção (Warning)",
+      value: 6,
+      color: "#FC8F23"
     },
     {
       id: "3",
-      label: "Atenção (Warning)",
-      value: 6,
-      color: "#FC8F23",
-      textColor: "#292829"
-    },
-    {
-      id: "4",
       label: "Alerta (Alert)",
       value: 13.2,
       color: "#B52C08",
-      textColor: "#F8F7F8"
 
     },
     {
-      id: "6",
+      id: "4",
       label: "Recuperação Total (Full Recovery)",
       value: 13,
       color: "#B4BA61",
-      textColor: "#F8F7F8"
 
     },
-        {
-      id: "7",
+    {
+      id: "5",
       label: "Recuperação Parcial (Partial Recovery)",
       value: 13,
       color: "#5B612A",
-      textColor: "#F8F7F8"
 
     },
   ];
@@ -65,6 +59,7 @@ type Story = StoryObj<typeof meta>;
 export const Default: Story = {
   args: {
     items: baseItems,
+    onToggle: () => {}
   },
 };
 
@@ -76,6 +71,7 @@ export const EqualValues: Story = {
       ...item,
       value: 25,
     })),
+    onToggle: () => {}
   },
 };
 
@@ -87,6 +83,7 @@ export const ZeroValues: Story = {
       ...item,
       value: 0,
     })),
+    onToggle: () => {}
   },
 };
 
@@ -101,9 +98,9 @@ export const SingleItem: Story = {
         value: 100,
         color: "#F0F0D7",
         checked: false,
-        textColor: "#292829"
       },
     ],
+    onToggle: () => {}
   },
 };
 
@@ -117,5 +114,6 @@ export const LongLabels: Story = {
         item.label +
         " - Texto adicional muito longo para validar quebra de layout",
     })),
+    onToggle: () => {}
   },
 };

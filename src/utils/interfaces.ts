@@ -20,12 +20,11 @@ export interface SapChannelI {
 }
 
 export interface StatusItemI {
-    id: string;
-    label: string;
-    value: number; 
-    color: `#${string}`; //HEX's format needed in the graphic 
-    textColor: `#${string}`;
-    checked?: boolean;
+  id: string;
+  label: string;
+  value: number; 
+  color: string;
+  checked?: boolean;
 }
 
 export interface IMainBanner {
