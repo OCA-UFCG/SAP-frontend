@@ -18,13 +18,15 @@ export function normalizeContentfulImage(url: string) {
   }
 }
 
-export const sortContentByDesiredOrder = <T extends { id: string }>(
+export const sortContentByDesiredOrder = <T extends { path: string }>(
   content: T[],
   desiredOrder: string[],
 ): T[] => {
   return [...content]
-    .filter((item) => desiredOrder.includes(item.id)) // ← filtra antes
-    .sort((a, b) => desiredOrder.indexOf(a.id) - desiredOrder.indexOf(b.id));
+    .filter((item) => desiredOrder.includes(item.path)) // ← filtra antes
+    .sort(
+      (a, b) => desiredOrder.indexOf(a.path) - desiredOrder.indexOf(b.path),
+    );
 };
 
 /**
@@ -75,6 +77,3 @@ export const normalize = (str: string) =>
     .toLowerCase()
     .normalize("NFD")
     .replace(/[\u0300-\u036f]/g, ""); // removes accents
-
-
-    
