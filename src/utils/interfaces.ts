@@ -1,4 +1,9 @@
 import { Document } from "@contentful/rich-text-types";
+export interface DataCardsI{
+    noDroughtAreaValue: number 
+    watchAreaValue: number
+    recoveryAreaValue: number
+}
 export interface FooterI {
   name: string;
   id: string;
@@ -12,6 +17,14 @@ export interface SapChannelI {
   href: string;
   icon: string;
   size?: number;
+}
+
+export interface StatusItemI {
+  id: string;
+  label: string;
+  value: number; 
+  color: string;
+  checked?: boolean;
 }
 
 export interface IMainBanner {
