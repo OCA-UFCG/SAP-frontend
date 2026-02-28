@@ -26,13 +26,13 @@ const content: ISections = {
   "map-section": {
     id: "2",
     name: "Mapa",
-    path: "/mock",
+    path: "/mapa",
     appears: true,
   },
   "about-section": {
     id: "3",
     name: "Sobre o Sap",
-    path: "/mock",
+    path: "/sobre-o-sap",
     appears: true,
   },
   "contact-section": {

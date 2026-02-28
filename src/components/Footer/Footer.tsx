@@ -6,10 +6,10 @@ import SocialChannels from "../ContactSection/SocialChannels";
 
 export const Footer = ({ content }: { content: FooterI[] }) => {
   const mainPages = sortContentByDesiredOrder<FooterI>(content, [
-    "home",
-    "map",
-    "about",
-    "contact",
+    "/",
+    "/map",
+    "/about",
+    "/contact",
   ]).filter((item) => item.appears);
 
   return (
