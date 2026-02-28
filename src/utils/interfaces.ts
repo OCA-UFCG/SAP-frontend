@@ -5,11 +5,10 @@ export interface DataCardsI {
   recoveryAreaValue: number;
 }
 export interface FooterI {
-  name: string;
   id: string;
+  name: string;
   path: string;
   appears: boolean;
-  childrenCollection?: { items: FooterI[] };
 }
 
 export interface SapChannelI {
@@ -133,4 +132,10 @@ export interface ISection {
 
 export interface ISections {
   [key: string]: ISection;
+}
+
+export interface SocialChannelsI {
+  channels: SapChannelI[]
+  size: number 
+  displayName?: boolean
 }
