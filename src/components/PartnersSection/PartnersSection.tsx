@@ -1,3 +1,5 @@
+"use client";
+
 import Image from "next/image";
 import { SectionHeaderI, PartnerI } from "@/utils/interfaces";
 import { normalizeContentfulImage } from "@/utils/functions";
