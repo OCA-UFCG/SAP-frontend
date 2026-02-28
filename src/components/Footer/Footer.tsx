@@ -1,5 +1,5 @@
 import { FooterI } from "@/utils/interfaces";
-import { channels, sapEmail } from "@/utils/constants";
+import { channels } from "@/utils/constants";
 import { sortContentByDesiredOrder } from "@/utils/functions";
 import Image from "next/image";
 import SocialChannels from "../ContactSection/SocialChannels";
@@ -14,7 +14,7 @@ export const Footer = ({ content }: { content: FooterI[] }) => {
 
   return (
     <footer className="flex justify-center w-full bg-[#989F43]">
-      <div className="flex flex-col lg:flex-row justify-between max-w-360 box-border items-top px-14 py-14 gap-4 w-full">
+      <div className="w-full max-w-[1440px] mx-auto px-6 py-12 md:px-10 md:py-16 lg:px-[78px] lg:py-[85px] flex flex-col lg:flex-row justify-between box-border items-top gap-4">
         <div className="flex justify-center w-full lg:w-auto">
           <Image
             width="400"
