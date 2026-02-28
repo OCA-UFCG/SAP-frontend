@@ -1,7 +1,7 @@
-import { FooterI } from "@/utils/interfaces"
+import { FooterI } from "@/utils/interfaces";
 import { channels, sapEmail } from "@/utils/constants";
 import { sortContentByDesiredOrder } from "@/utils/functions";
-import Image from "next/image"
+import Image from "next/image";
 import SocialChannels from "../ContactSection/SocialChannels";
 
 export const Footer = ({ content }: { content: FooterI[] }) => {
@@ -13,12 +13,11 @@ export const Footer = ({ content }: { content: FooterI[] }) => {
   ]).filter((item) => item.appears);
 
   return (
-
     <footer className="flex justify-center w-full bg-[#989F43]">
       <div className="flex flex-col lg:flex-row justify-between max-w-360 box-border items-top px-14 py-14 gap-4 w-full">
         <div className="flex justify-center w-full lg:w-auto">
           <Image
-            width= "400"
+            width="400"
             height="400"
             src="/logo-sap.png"
             alt="SAP"
@@ -45,7 +44,7 @@ export const Footer = ({ content }: { content: FooterI[] }) => {
               <SocialChannels channels={channels} size={32} />
             </div>
             <p className="text-white font-medium text-sm text-center">
-              {sapEmail}
+              {/* {sapEmail} */}
             </p>
           </div>
         </div>

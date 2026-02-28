@@ -17,8 +17,8 @@ export const channels: SapChannelI[] = [
   // },
 
   {
-    name: "@mmeioambiente",
-    href: "https://www.instagram.com/mmeioambiente/",
+    name: "@observatorio.caatinga",
+    href: "https://www.instagram.com/observatorio.caatinga/",
     icon: "instagram",
     size: 32,
   },
