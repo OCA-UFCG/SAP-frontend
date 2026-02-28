@@ -41,7 +41,7 @@ export function MainBanner({ data }: MainBannerProps) {
       </div>
 
       <div className="relative z-20 w-full flex justify-center">
-        <div className="w-full max-w-[1440px] mx-auto px-6 py-12 md:px-10 md:py-16 lg:px-[78px] lg:py-[85px] flex items-center min-h-[492px]">
+        <div className="w-full max-w-[1440px] mx-auto px-4 py-12 md:px-10 md:py-16 lg:px-[78px] lg:py-[85px] flex items-center min-h-[492px]">
           <div className="w-full">
             <div className="flex flex-col gap-[24px] max-w-[800px] items-start text-left">
               <h1 className="font-open font-[700] text-white text-3xl md:text-5xl lg:text-[64px] leading-tight drop-shadow-sm">
