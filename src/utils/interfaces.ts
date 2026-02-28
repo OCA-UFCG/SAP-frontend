@@ -18,6 +18,14 @@ export interface SapChannelI {
   size?: number;
 }
 
+export interface StatusItemI {
+  id: string;
+  label: string;
+  value: number; 
+  color: string;
+  checked?: boolean;
+}
+
 export interface IMainBanner {
   title: string;
   subtitle: string;
@@ -43,7 +51,20 @@ export interface AboutSectionI {
     height: number;
   };
 }
+export interface BrazilianState {
+  name: string;
+  uf: string;
+}
 
+export interface SearchResultI {
+  key: string;
+  label: string;
+}
+
+export interface SearchButtonI {
+  onClick: () => void
+  children: React.ReactNode
+}
 export interface SectionHeaderI {
   sys: {
     id: string;
