@@ -23,17 +23,15 @@ export const channels: SapChannelI[] = [
     size: 32,
   },
 
-  {
-    name: "@mmeioambiente",
-    href: "https://www.linkedin.com/company/ministério-do-meio-ambiente/?originalSubdomain=br",
-    icon: "linkedin",
-    size: 32,
-  },
+  // {
+  //   name: "@mmeioambiente",
+  //   href: "https://www.linkedin.com/company/ministério-do-meio-ambiente/?originalSubdomain=br",
+  //   icon: "linkedin",
+  //   size: 32,
+  // },
 ];
 
 export const sapEmail = "sap.ufcg@gmail.com";
-
-
 
 export const statesObj = {
   ac: "acre",
