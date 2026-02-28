@@ -15,7 +15,7 @@ export const AboutSection = ({ content, onClick, className = "" }: Props) => {
     <section
       className={`w-full bg-white flex flex-col items-center ${className}`}
     >
-      <div className="w-full max-w-[1440px] mx-auto px-6 py-12 md:px-10 md:py-16 lg:px-[78px] lg:py-[85px] flex flex-col gap-[33px]">
+      <div className="w-full max-w-[1440px] mx-auto px-4 py-12 md:px-10 md:py-16 lg:px-[78px] lg:py-[85px] flex flex-col gap-[33px]">
         <h2 className="text-[24px] md:text-[28px] lg:text-[30px] leading-[28px] md:leading-[32px] lg:leading-[36px] tracking-[-0.0075em] text-[#292829] font-semibold text-center lg:text-left">
           {content.title}
         </h2>
