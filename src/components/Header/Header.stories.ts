@@ -1,46 +1,46 @@
-import type { Meta, StoryObj } from '@storybook/nextjs-vite';
-import { Header } from './Header';
-import { ISections } from '@/utils/interfaces';
+import type { Meta, StoryObj } from "@storybook/nextjs-vite";
+import { Header } from "./Header";
+import { ISections } from "@/utils/interfaces";
 
 const meta: Meta<typeof Header> = {
-  title: 'Layout/Header',
+  title: "Layout/Header",
   component: Header,
-  tags: ['autodocs'],
+  tags: ["autodocs"],
 
   parameters: {
-    layout: 'fullscreen', // Remove o padding padrão do Storybook para ocupar a tela toda
+    layout: "fullscreen", // Remove o padding padrão do Storybook para ocupar a tela toda
     nextjs: {
       appDirectory: true,
       navigation: {
-        pathname: '/',
+        pathname: "/",
       },
     },
   },
 };
 
 const content: ISections = {
-  'home-section': {
-    id: '1',
-    name: 'Home',
-    path: '/',
+  "home-section": {
+    id: "1",
+    name: "Home",
+    path: "/",
     appears: true,
   },
-  'map-section': {
-    id: '2',
-    name: 'Mapa',
-    path: '/mock',
+  "map-section": {
+    id: "2",
+    name: "Mapa",
+    path: "/mock",
     appears: true,
   },
-  'about-section': {
-    id: '3',
-    name: 'Sobre o Sap',
-    path: '/mock',
+  "about-section": {
+    id: "3",
+    name: "Sobre o Sap",
+    path: "/mock",
     appears: true,
   },
-  'contact-section': {
-    id: '4',
-    name: 'Contatos',
-    path: '/mock',
+  "contact-section": {
+    id: "4",
+    name: "Contatos",
+    path: "/contact",
     appears: true,
   },
 };
