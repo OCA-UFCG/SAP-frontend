@@ -23,7 +23,7 @@ export const sortContentByDesiredOrder = <T extends { id: string }>(
   desiredOrder: string[],
 ): T[] => {
   return [...content]
-    .filter((item) => desiredOrder.includes(item.id))  // ← filtra antes
+    .filter((item) => desiredOrder.includes(item.id)) // ← filtra antes
     .sort((a, b) => desiredOrder.indexOf(a.id) - desiredOrder.indexOf(b.id));
 };
 
@@ -46,9 +46,12 @@ function hexToRgb(hex: string) {
 
   const bigint = parseInt(
     cleaned.length === 3
-      ? cleaned.split("").map((c) => c + c).join("")
+      ? cleaned
+          .split("")
+          .map((c) => c + c)
+          .join("")
       : cleaned,
-    16
+    16,
   );
 
   return {
@@ -61,12 +64,17 @@ function hexToRgb(hex: string) {
 function getRelativeLuminance(r: number, g: number, b: number) {
   const srgb = [r, g, b].map((v) => {
     const c = v / 255;
-    return c <= 0.03928
-      ? c / 12.92
-      : Math.pow((c + 0.055) / 1.055, 2.4);
+    return c <= 0.03928 ? c / 12.92 : Math.pow((c + 0.055) / 1.055, 2.4);
   });
 
-  return 0.2126 * srgb[0] +
-         0.7152 * srgb[1] +
-         0.0722 * srgb[2];
+  return 0.2126 * srgb[0] + 0.7152 * srgb[1] + 0.0722 * srgb[2];
 }
+
+export const normalize = (str: string) =>
+  str
+    .toLowerCase()
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, ""); // removes accents
+
+
+    
