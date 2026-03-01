@@ -5,11 +5,9 @@ import {
   IMainBanner,
   PartnerI,
   SectionHeaderI,
-  TabsSectionI
+  TabsSectionI,
 } from "../utils/interfaces";
 import { AboutSection } from "../components/AboutSection/AboutSection";
-import { Footer} from "@/components/Footer/Footer"
-import { FooterI } from "../utils/interfaces";
 import { MainBanner } from "../components/MainBanner/MainBanner";
 import { PartnersSection } from "../components/PartnersSection/PartnersSection";
 import TabsSection from "../components/TabSection/TabSection";
@@ -19,8 +17,7 @@ interface HomeContent {
   aboutCollection: { items: AboutSectionI[] };
   cabealhoSeesCollection: { items: SectionHeaderI[] };
   partnersCollection: { items: PartnerI[] };
-  footerCollection: { items: FooterI[] };
-  secaoSobreCollection: { items: TabsSectionI[] }; 
+  secaoSobreCollection: { items: TabsSectionI[] };
 }
 
 const getHomePageContent = async (): Promise<HomeContent | null> => {
@@ -28,11 +25,10 @@ const getHomePageContent = async (): Promise<HomeContent | null> => {
     const response = await getContent<HomeContent>(GET_HOME_PAGE);
     return response;
   } catch (error) {
-    console.error('Erro ao buscar dados do Contentful:', error);
+    console.error("Erro ao buscar dados do Contentful:", error);
     return null;
   }
 };
-
 
 export default async function Home() {
   const data = await getHomePageContent();
@@ -45,13 +41,11 @@ export default async function Home() {
     );
   }
 
-  const { footerCollection } = data;
-  const footerContent = footerCollection?.items || [];
   const mainBannerData = data.bannerCollection?.items[0];
   const aboutData = data.aboutCollection?.items[0];
   const partnersHeaderData = data.cabealhoSeesCollection?.items[0];
   const partnersData = data.partnersCollection?.items ?? [];
-  
+
   const tabsData = data.secaoSobreCollection?.items ?? [];
 
   return (
@@ -61,10 +55,12 @@ export default async function Home() {
         {aboutData && <AboutSection content={aboutData} />}
         {tabsData.length > 0 && <TabsSection contentData={tabsData} />}
         {partnersHeaderData && (
-          <PartnersSection header={partnersHeaderData} partners={partnersData} />
+          <PartnersSection
+            header={partnersHeaderData}
+            partners={partnersData}
+          />
         )}
       </main>
-      {footerCollection?.items && <Footer content={footerContent} />}
     </div>
   );
 }

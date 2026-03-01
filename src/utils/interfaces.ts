@@ -1,15 +1,14 @@
 import { Document } from "@contentful/rich-text-types";
-export interface DataCardsI{
-    noDroughtAreaValue: number 
-    watchAreaValue: number
-    recoveryAreaValue: number
+export interface DataCardsI {
+  noDroughtAreaValue: number;
+  watchAreaValue: number;
+  recoveryAreaValue: number;
 }
 export interface FooterI {
-  name: string;
   id: string;
+  name: string;
   path: string;
   appears: boolean;
-  childrenCollection?: { items: FooterI[] };
 }
 
 export interface SapChannelI {
@@ -17,6 +16,14 @@ export interface SapChannelI {
   href: string;
   icon: string;
   size?: number;
+}
+
+export interface StatusItemI {
+  id: string;
+  label: string;
+  value: number; 
+  color: string;
+  checked?: boolean;
 }
 
 export interface IMainBanner {
@@ -56,7 +63,20 @@ export interface AboutSectionI {
     height: number;
   };
 }
+export interface BrazilianState {
+  name: string;
+  uf: string;
+}
 
+export interface SearchResultI {
+  key: string;
+  label: string;
+}
+
+export interface SearchButtonI {
+  onClick: () => void
+  children: React.ReactNode
+}
 export interface SectionHeaderI {
   sys: {
     id: string;
@@ -86,6 +106,34 @@ export interface PartnersSectionQuery {
   };
 }
 
+export interface SecaoSobreI {
+  sys: {
+    id: string;
+  };
+  title: string;
+  text: {
+    json: Document;
+  };
+  image: {
+    url: string;
+    title?: string;
+    width?: number;
+    height?: number;
+  };
+}
+
+export interface AboutPageQuery {
+  secaoSobreCollection: {
+    items: SecaoSobreI[];
+  };
+  cabealhoSeesCollection: {
+    items: SectionHeaderI[];
+  };
+  partnersCollection: {
+    items: PartnerI[];
+  };
+}
+
 export interface ISection {
   name: string;
   id: string;
@@ -96,4 +144,10 @@ export interface ISection {
 
 export interface ISections {
   [key: string]: ISection;
+}
+
+export interface SocialChannelsI {
+  channels: SapChannelI[]
+  size: number 
+  displayName?: boolean
 }
