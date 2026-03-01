@@ -22,6 +22,8 @@ interface MapProps {
   className?: string;
   dadosCDI: CDIVectorData; 
   estadoSelecionado: string; 
+  // 1. Add the callback prop
+  onStateClick?: (uf: string) => void;
 }
 
 interface FeatureProperties {
@@ -71,6 +73,7 @@ const Map = ({
   className = 'h-full w-full',
   dadosCDI,
   estadoSelecionado,
+  onStateClick, // 2. Destructure the prop
 }: MapProps) => {
   const geoBrasil = geometria as unknown as FeatureCollection<
     Geometry,
@@ -78,7 +81,7 @@ const Map = ({
   >;
 
   const currentBounds = useMemo((): LatLngBoundsExpression => {
-    if (estadoSelecionado === 'Brasil') {
+    if (estadoSelecionado === 'BR') {
       const [minLng, minLat, maxLng, maxLat] = bbox(geoBrasil);
       return [
         [minLat, minLng],
@@ -87,7 +90,7 @@ const Map = ({
     }
 
     const featureEstado = geoBrasil.features.find(
-      (f) => f.properties?.info.nome === estadoSelecionado,
+      (f) => f.properties?.info.sigla === estadoSelecionado,
     );
 
     if (featureEstado) {
@@ -138,7 +141,7 @@ const Map = ({
 
   const defaultStyle = {
     color: '#3388ff',
-    weight: 0.5,
+    weight: 1,
     opacity: 0.65,
     fillColor: '#000000',
     fillOpacity: 0,
@@ -146,8 +149,10 @@ const Map = ({
   };
 
   const onEachFeature = (feature: MyFeature, layer: Layer) => {
-    if (feature.properties && feature.properties?.info?.nome) {
-      layer.bindPopup(feature.properties.info.nome);
+    if (feature.properties && feature.properties?.info?.sigla) {
+      const uf = feature.properties.info.sigla;
+
+      layer.bindPopup(uf);
       layer.on({
         mouseover: (e) => {
           const l = e.target;
@@ -162,47 +167,52 @@ const Map = ({
         mouseout: (e) => {
           const l = e.target;
           e.target.setStyle({
-            weight: 0.5,
+            weight: 1,
             color: '#3388ff',
             dashArray: '',
             fillOpacity: 0,
           });
           l.closePopup();
         },
+        // 3. Add the click listener
+        click: () => {
+          if (onStateClick) {
+            onStateClick(uf);
+          }
+        }
       });
     }
   };
 
   return (
-    <>
-      <div className="w-full ">
-        <MapContainer
-          center={center}
-          zoom={zoom}
-          scrollWheelZoom={true}
-          className={className}
-          preferCanvas={true}
-        >
-          <ChangeView bounds={currentBounds} />
-          <TileLayer
-            url="https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}"
-            attribution="&copy; Esri &mdash; Source: Esri, i-cubed, USDA, USGS, AEX, GeoEye, Getmapping, Aerogrid, IGN, IGP, UPR-EGP, and the GIS User Community"
-          />
-          <GeoJSON
-            data={dadosCDI as FeatureCollection}
-            key={`cdi-layer`}
-            style={vectorStyle}
-          />
+    <div className="w-full">
+      <MapContainer
+        center={center}
+        zoom={zoom}
+        scrollWheelZoom={true}
+        className={className}
+        preferCanvas={true}
+      >
+        <ChangeView bounds={currentBounds} />
+        <TileLayer
+          url="https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}"
+          attribution="&copy; Esri"
+        />
+        <GeoJSON
+          data={dadosCDI as FeatureCollection}
+          key={`cdi-layer`}
+          style={vectorStyle}
+        />
 
-          <GeoJSON
-            data={geometria as FeatureCollection}
-            onEachFeature={onEachFeature}
-            key={`${geometria}`}
-            style={defaultStyle}
-          />
-        </MapContainer>
-      </div>
-    </>
+        <GeoJSON
+          data={geometria as FeatureCollection}
+          onEachFeature={onEachFeature}
+          // Note: key should be unique to re-render if geometry changes
+          key="brasil-states-layer" 
+          style={defaultStyle}
+        />
+      </MapContainer>
+    </div>
   );
 };
 
