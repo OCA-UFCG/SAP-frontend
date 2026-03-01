@@ -105,7 +105,7 @@ export default function DroughtSection() {
     <section className="max-w-7xl py-8 mx-auto text-[#292829] px-4 md:px-8">
       <h2 className="text-2xl font-bold mb-6">Entenda a seca na sua região</h2>
 
-      <div className="mb-8">
+      <div className="mb-8 w-full">
         <SearchBar onSearch={handleSearch} />
       </div>
 
@@ -125,7 +125,7 @@ export default function DroughtSection() {
 
         <div className="flex flex-col gap-8">
           <header className="flex flex-wrap justify-between items-start gap-4">
-            <div className="w-full flex gap-4 justify-between">
+            <div className="w-full flex flex-col md:flex-row gap-4 justify-between">
               <div className="flex flex-col gap-1">
                 <h1 className="text-4xl font-bold tracking-tight">
                   {currentState.nome}
