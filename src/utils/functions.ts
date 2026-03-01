@@ -1,3 +1,5 @@
+import { SecaData, SecaRootObject } from "./interfaces";
+
 export function normalizeContentfulImage(url: string) {
   switch (true) {
     // Se já começa com http ou https → retorna direto
@@ -77,3 +79,29 @@ export const normalize = (str: string) =>
     .toLowerCase()
     .normalize("NFD")
     .replace(/[\u0300-\u036f]/g, ""); // removes accents
+
+
+/**
+ * Busca os dados de seca a partir de uma chave (UF ou 'br')
+ * @param key - Sigla do estado em minúsculo (ex: 'mg', 'sp', 'br')
+ */
+export async function getSecaDataByKey(key: string): Promise<SecaData | null> {
+  try {
+    // No Next.js, arquivos em /public são acessados pela raiz '/'
+    const response = await fetch("/dados-seca.json");
+
+    if (!response.ok) {
+      throw new Error(`Erro ao carregar dados: ${response.statusText}`);
+    }
+
+    const fullData: SecaRootObject = await response.json();
+
+    // Normaliza a entrada para evitar erros de Case Sensitivity
+    const normalizedKey = key.toLowerCase();
+
+    return fullData[normalizedKey] || null;
+  } catch (error) {
+    console.error("Erro na busca de dados de seca:", error);
+    return null;
+  }
+}
