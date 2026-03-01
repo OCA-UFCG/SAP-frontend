@@ -18,8 +18,16 @@ ENV NEXT_PUBLIC_CONTENTFUL_PREVIEW_TOKEN=$NEXT_PUBLIC_CONTENTFUL_PREVIEW_TOKEN
 # Copy package.json and package-lock.json (if available)
 COPY package*.json ./
 
+# Reduce CI flakes during dependency install (buildx/arm64 often hits network/TLS resets)
+ENV NODE_OPTIONS=--dns-result-order=ipv4first \
+	NPM_CONFIG_FUND=false \
+	NPM_CONFIG_AUDIT=false \
+	NPM_CONFIG_FETCH_RETRIES=5 \
+	NPM_CONFIG_FETCH_RETRY_MINTIMEOUT=20000 \
+	NPM_CONFIG_FETCH_RETRY_MAXTIMEOUT=120000
+
 # Install dependencies
-RUN npm install
+RUN npm ci --no-audit --no-fund
 
 # Copy the rest of the application code
 COPY . .

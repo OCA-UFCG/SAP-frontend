@@ -1,24 +1,23 @@
-import { FooterI } from "@/utils/interfaces"
-import { Icon } from "@/components/Icon/Icon";
+import { FooterI } from "@/utils/interfaces";
 import { channels } from "@/utils/constants";
 import { sortContentByDesiredOrder } from "@/utils/functions";
-import Image from "next/image"
+import Image from "next/image";
+import SocialChannels from "../ContactSection/SocialChannels";
 
 export const Footer = ({ content }: { content: FooterI[] }) => {
   const mainPages = sortContentByDesiredOrder<FooterI>(content, [
-    "home",
-    "map",
-    "about",
-    "contact",
+    "/",
+    "/map",
+    "/about",
+    "/contact",
   ]).filter((item) => item.appears);
 
   return (
-
     <footer className="flex justify-center w-full bg-[#989F43]">
-      <div className="flex flex-col lg:flex-row justify-between max-w-360 box-border items-top px-14 py-14 gap-4 w-full">
+      <div className="w-full max-w-[1440px] mx-auto px-6 py-12 md:px-10 md:py-16 lg:px-[78px] lg:py-[85px] flex flex-col lg:flex-row justify-between box-border items-top gap-4">
         <div className="flex justify-center w-full lg:w-auto">
           <Image
-            width= "400"
+            width="400"
             height="400"
             src="/logo-sap.png"
             alt="SAP"
@@ -41,20 +40,11 @@ export const Footer = ({ content }: { content: FooterI[] }) => {
 
         <div className="flex flex-col justify-between lg:items-start lg:ml-auto w-full lg:w-auto gap-4">
           <div className="flex flex-col lg:items-start gap-4">
-            <div className="flex flex-wrap justify-center lg:justify-end gap-4">
-              {channels.map(({ href, icon, size }, index) => (
-                <a target="_blank" href={href} key={index}>
-                  <Icon
-                    id={icon}
-                    size={size}
-                    key={index}
-                    className="text-grey-900"
-                  />
-                </a>
-              ))}
+            <div className="flex flex-wrap justify-center lg:justify-end">
+              <SocialChannels channels={channels} size={32} />
             </div>
             <p className="text-white font-medium text-sm text-center">
-              sap.ufcg@gmail.com
+              {/* {sapEmail} */}
             </p>
           </div>
         </div>
