@@ -139,3 +139,22 @@ export interface SocialChannelsI {
   size: number 
   displayName?: boolean
 }
+
+export interface SecaStatus {
+  "sem-seca": number;
+  observacao: number;
+  atencao: number;
+  alerta: number;
+  "recuperacao-total": number;
+  "recuperacao-parcial": number;
+}
+
+export interface SecaData {
+  status: SecaStatus;
+  acontecendo: string;
+  impacto: string[];
+}
+
+export interface SecaRootObject {
+  [key: string]: SecaData;
+}
