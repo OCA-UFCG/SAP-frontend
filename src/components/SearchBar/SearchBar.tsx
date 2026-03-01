@@ -30,7 +30,6 @@ const SearchBar = ({ onSearch }: SearchBarProps) => {
     } catch {
       setHasError(true);
     } finally {
-
       onSearch(value);
     }
   };
@@ -54,7 +53,7 @@ const SearchBar = ({ onSearch }: SearchBarProps) => {
             onChange={() => setHasError(false)}
             list="result"
             className="w-full text-[#292829] bg-transparent border-none outline-none ring-0"
-            placeholder="Pesquise uma cidade ou estado"
+            placeholder="Pesquise um estado"
           />
 
           <datalist id="result">

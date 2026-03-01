@@ -28,12 +28,10 @@ describe("SearchBar", () => {
   it("renders input and button", () => {
     renderComponent();
 
-    expect(
-      screen.getByPlaceholderText("Pesquise uma cidade ou estado")
-    ).toBeInTheDocument();
+    expect(screen.getByRole("combobox")).toBeInTheDocument();
 
     expect(
-      screen.getByRole("button", { name: /pesquisar/i })
+      screen.getByRole("button", { name: /pesquisar/i }),
     ).toBeInTheDocument();
   });
 
@@ -41,9 +39,7 @@ describe("SearchBar", () => {
     const user = userEvent.setup();
     const { onSearch } = renderComponent();
 
-    const input = screen.getByPlaceholderText(
-      "Pesquise uma cidade ou estado"
-    );
+    const input = screen.getByRole("combobox");
     const button = screen.getByRole("button", { name: /pesquisar/i });
 
     await user.type(input, "sao paulo");
@@ -57,9 +53,7 @@ describe("SearchBar", () => {
     const user = userEvent.setup();
     const { onSearch } = renderComponent();
 
-    const input = screen.getByPlaceholderText(
-      "Pesquise uma cidade ou estado"
-    );
+    const input = screen.getByRole("combobox");
     const button = screen.getByRole("button", { name: /pesquisar/i });
 
     await user.type(input, "sp");
@@ -73,16 +67,12 @@ describe("SearchBar", () => {
     const user = userEvent.setup();
     renderComponent();
 
-    const input = screen.getByPlaceholderText(
-      "Pesquise uma cidade ou estado"
-    );
+    const input = screen.getByRole("combobox");
     const button = screen.getByRole("button", { name: /pesquisar/i });
 
     await user.type(input, "invalid");
     await user.click(button);
 
-    expect(
-      screen.getByText("Estado não identificado.")
-    ).toBeInTheDocument();
+    expect(screen.getByText("Estado não identificado.")).toBeInTheDocument();
   });
 });
