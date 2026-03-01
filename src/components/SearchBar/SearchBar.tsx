@@ -30,6 +30,7 @@ const SearchBar = ({ onSearch }: SearchBarProps) => {
     } catch {
       setHasError(true);
     } finally {
+
       onSearch(value);
     }
   };
@@ -74,7 +75,7 @@ const SearchBar = ({ onSearch }: SearchBarProps) => {
       </div>
       <ButtonUi
         // disabled={!search}
-        styles="bg-[#989F43] text-white w-full min-w-30 h-full rounded-xl hover:brightness-110 active:brightness-95 transition not:disabled:hover:opacity-90 disabled:hover:opacity-100 hover:bg-[#989F43]"
+        styles="bg-[#989F43] text-white min-w-30 h-full rounded-xl hover:brightness-110 active:brightness-95 transition not:disabled:hover:opacity-90 disabled:hover:opacity-100 hover:bg-[#989F43]"
         label={"Pesquisar"}
         onClick={() => onSubmit()}
       />

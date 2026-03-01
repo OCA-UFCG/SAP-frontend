@@ -9,6 +9,7 @@ import {
 import { AboutSection } from "../components/AboutSection/AboutSection";
 import { MainBanner } from "../components/MainBanner/MainBanner";
 import { PartnersSection } from "../components/PartnersSection/PartnersSection";
+import MapSection from "@/components/MapSection/MapSection";
 
 interface HomeContent {
   bannerCollection: { items: IMainBanner[] };
@@ -47,6 +48,9 @@ export default async function Home() {
     <div className="flex min-h-screen flex-col">
       <main className="grow">
         {mainBannerData && <MainBanner data={mainBannerData} />}
+
+        <MapSection />
+
         {aboutData && <AboutSection content={aboutData} />}
         {partnersHeaderData && (
           <PartnersSection
