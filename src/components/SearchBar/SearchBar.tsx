@@ -39,7 +39,7 @@ const SearchBar = ({ onSearch }: SearchBarProps) => {
     <div className="w-full flex justify-between gap-5 items-start h-14">
       <div className="relative flex-1 flex flex-col h-full">
         <div
-          className={`min-w-90 w-full p-4 flex items-center text-lg rounded-xl shadow-sm bg-[#E4E5E2] overflow-hidden transition
+          className={`min-w-40 w-full p-4 flex items-center text-lg rounded-xl shadow-sm bg-[#E4E5E2] overflow-hidden transition
                     ${
                       hasError
                         ? "border-red-500 ring-2 ring-red-500"
