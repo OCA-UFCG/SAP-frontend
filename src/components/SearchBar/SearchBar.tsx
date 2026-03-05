@@ -3,7 +3,6 @@
 import { useRef, useState } from "react";
 import { Icon } from "../Icon/Icon";
 import { ButtonUi } from "../ButtonUI/ButtonUI";
-import { normalize } from "@/utils/functions";
 import { states, ufs } from "@/utils/constants";
 
 interface SearchBarProps {
