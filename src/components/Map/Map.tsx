@@ -20,8 +20,8 @@ interface MapProps {
   zoom?: number;
   markers?: Array<{ position: [number, number]; label: string }>;
   className?: string;
-  dadosCDI: CDIVectorData; 
-  estadoSelecionado: string; 
+  dadosCDI: CDIVectorData;
+  estadoSelecionado: string;
   // 1. Add the callback prop
   onStateClick?: (uf: string) => void;
 }
@@ -139,13 +139,26 @@ const Map = ({
     };
   };
 
-  const defaultStyle = {
-    color: '#3388ff',
-    weight: 1,
-    opacity: 0.65,
-    fillColor: '#000000',
-    fillOpacity: 0,
-    dashArray: '0',
+  const defaultStyle = (feature: MyFeature | undefined) => {
+    if(!feature){
+      return {}
+    }
+    if (feature.properties && feature.properties?.info?.sigla.toUpperCase() == estadoSelecionado) {
+      return {
+        color: '#000000',
+        weight: 4,
+        dashArray: '',
+        fillOpacity: 0.1,
+      };
+    }
+    return {
+      color: '#3388ff',
+      weight: 1,
+      opacity: 0.65,
+      fillColor: '#000000',
+      fillOpacity: 0,
+      dashArray: '0',
+    };
   };
 
   const onEachFeature = (feature: MyFeature, layer: Layer) => {
@@ -166,12 +179,14 @@ const Map = ({
         },
         mouseout: (e) => {
           const l = e.target;
-          e.target.setStyle({
-            weight: 1,
-            color: '#3388ff',
-            dashArray: '',
-            fillOpacity: 0,
-          });
+          if(feature.properties?.info?.sigla.toUpperCase() != estadoSelecionado){
+            e.target.setStyle({
+              weight: 1,
+              color: '#3388ff',
+              dashArray: '',
+              fillOpacity: 0,
+            });
+          }
           l.closePopup();
         },
         // 3. Add the click listener
@@ -208,7 +223,7 @@ const Map = ({
           data={geometria as FeatureCollection}
           onEachFeature={onEachFeature}
           // Note: key should be unique to re-render if geometry changes
-          key="brasil-states-layer" 
+          key={`${estadoSelecionado}`}
           style={defaultStyle}
         />
       </MapContainer>
