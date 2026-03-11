@@ -1,0 +1,478 @@
+{
+  "br": {
+    "nome": "Brasil",
+    "status": {
+      "sem-seca": 0.187,
+      "observacao": 0.277,
+      "atencao": 0.349,
+      "alerta": 0.041,
+      "recuperacao-total": 0.117,
+      "recuperacao-parcial": 0.028
+    },
+    "acontecendo": "Atualmente, 18.7% do território de Brasil está sem seca, com índices de umidade estáveis. No entanto, 4.1% da região encontra-se em estado de Alerta (Seca Severa), exigindo atenção constante às reservas hídricas.",
+    "impacto": [
+      "Áreas estáveis (18.7%): Condições favoráveis para o desenvolvimento agrícola.",
+      "Estado de Alerta: Risco de quebra de safra em 4.1% da área produtiva.",
+      "Sinais de melhora: 14.5% do território apresenta sinais de recuperação hídrica."
+    ]
+  },
+  "ro": {
+    "nome": "Rondônia",
+    "status": {
+      "sem-seca": 0.0,
+      "observacao": 0.65,
+      "atencao": 0.251,
+      "alerta": 0.002,
+      "recuperacao-total": 0.096,
+      "recuperacao-parcial": 0.0
+    },
+    "acontecendo": "Atualmente, 0.0% do território de Rondônia está sem seca, com índices de umidade estáveis. No entanto, 0.2% da região encontra-se em estado de Alerta (Seca Severa), exigindo atenção constante às reservas hídricas.",
+    "impacto": [
+      "Áreas estáveis (0.0%): Condições favoráveis para o desenvolvimento agrícola.",
+      "Estado de Alerta: Risco de quebra de safra em 0.2% da área produtiva.",
+      "Sinais de melhora: 9.6% do território apresenta sinais de recuperação hídrica."
+    ]
+  },
+  "ac": {
+    "nome": "Acre",
+    "status": {
+      "sem-seca": 0.149,
+      "observacao": 0.383,
+      "atencao": 0.222,
+      "alerta": 0.095,
+      "recuperacao-total": 0.096,
+      "recuperacao-parcial": 0.055
+    },
+    "acontecendo": "Atualmente, 14.9% do território de Acre está sem seca, com índices de umidade estáveis. No entanto, 9.5% da região encontra-se em estado de Alerta (Seca Severa), exigindo atenção constante às reservas hídricas.",
+    "impacto": [
+      "Áreas estáveis (14.9%): Condições favoráveis para o desenvolvimento agrícola.",
+      "Estado de Alerta: Risco de quebra de safra em 9.5% da área produtiva.",
+      "Sinais de melhora: 15.1% do território apresenta sinais de recuperação hídrica."
+    ]
+  },
+  "am": {
+    "nome": "Amazonas",
+    "status": {
+      "sem-seca": 0.048,
+      "observacao": 0.206,
+      "atencao": 0.612,
+      "alerta": 0.02,
+      "recuperacao-total": 0.096,
+      "recuperacao-parcial": 0.018
+    },
+    "acontecendo": "Atualmente, 4.8% do território de Amazonas está sem seca, com índices de umidade estáveis. No entanto, 2.0% da região encontra-se em estado de Alerta (Seca Severa), exigindo atenção constante às reservas hídricas.",
+    "impacto": [
+      "Áreas estáveis (4.8%): Condições favoráveis para o desenvolvimento agrícola.",
+      "Estado de Alerta: Risco de quebra de safra em 2.0% da área produtiva.",
+      "Sinais de melhora: 11.4% do território apresenta sinais de recuperação hídrica."
+    ]
+  },
+  "rr": {
+    "nome": "Roraima",
+    "status": {
+      "sem-seca": 0.003,
+      "observacao": 0.08,
+      "atencao": 0.88,
+      "alerta": 0.037,
+      "recuperacao-total": 0.0,
+      "recuperacao-parcial": 0.0
+    },
+    "acontecendo": "Atualmente, 0.3% do território de Roraima está sem seca, com índices de umidade estáveis. No entanto, 3.7% da região encontra-se em estado de Alerta (Seca Severa), exigindo atenção constante às reservas hídricas.",
+    "impacto": [
+      "Áreas estáveis (0.3%): Condições favoráveis para o desenvolvimento agrícola.",
+      "Estado de Alerta: Risco de quebra de safra em 3.7% da área produtiva.",
+      "Sinais de melhora: 0.0% do território apresenta sinais de recuperação hídrica."
+    ]
+  },
+  "pa": {
+    "nome": "Pará",
+    "status": {
+      "sem-seca": 0.159,
+      "observacao": 0.439,
+      "atencao": 0.275,
+      "alerta": 0.056,
+      "recuperacao-total": 0.068,
+      "recuperacao-parcial": 0.003
+    },
+    "acontecendo": "Atualmente, 15.9% do território de Pará está sem seca, com índices de umidade estáveis. No entanto, 5.6% da região encontra-se em estado de Alerta (Seca Severa), exigindo atenção constante às reservas hídricas.",
+    "impacto": [
+      "Áreas estáveis (15.9%): Condições favoráveis para o desenvolvimento agrícola.",
+      "Estado de Alerta: Risco de quebra de safra em 5.6% da área produtiva.",
+      "Sinais de melhora: 7.1% do território apresenta sinais de recuperação hídrica."
+    ]
+  },
+  "ap": {
+    "nome": "Amapá",
+    "status": {
+      "sem-seca": 0.782,
+      "observacao": 0.037,
+      "atencao": 0.004,
+      "alerta": 0.001,
+      "recuperacao-total": 0.163,
+      "recuperacao-parcial": 0.014
+    },
+    "acontecendo": "Atualmente, 78.2% do território de Amapá está sem seca, com índices de umidade estáveis. No entanto, 0.1% da região encontra-se em estado de Alerta (Seca Severa), exigindo atenção constante às reservas hídricas.",
+    "impacto": [
+      "Áreas estáveis (78.2%): Condições favoráveis para o desenvolvimento agrícola.",
+      "Estado de Alerta: Risco de quebra de safra em 0.1% da área produtiva.",
+      "Sinais de melhora: 17.7% do território apresenta sinais de recuperação hídrica."
+    ]
+  },
+  "to": {
+    "nome": "Tocantins",
+    "status": {
+      "sem-seca": 0.0,
+      "observacao": 0.522,
+      "atencao": 0.253,
+      "alerta": 0.168,
+      "recuperacao-total": 0.035,
+      "recuperacao-parcial": 0.023
+    },
+    "acontecendo": "Atualmente, 0.0% do território de Tocantins está sem seca, com índices de umidade estáveis. No entanto, 16.8% da região encontra-se em estado de Alerta (Seca Severa), exigindo atenção constante às reservas hídricas.",
+    "impacto": [
+      "Áreas estáveis (0.0%): Condições favoráveis para o desenvolvimento agrícola.",
+      "Estado de Alerta: Risco de quebra de safra em 16.8% da área produtiva.",
+      "Sinais de melhora: 5.8% do território apresenta sinais de recuperação hídrica."
+    ]
+  },
+  "ma": {
+    "nome": "Maranhão",
+    "status": {
+      "sem-seca": 0.154,
+      "observacao": 0.16,
+      "atencao": 0.483,
+      "alerta": 0.167,
+      "recuperacao-total": 0.032,
+      "recuperacao-parcial": 0.003
+    },
+    "acontecendo": "Atualmente, 15.4% do território de Maranhão está sem seca, com índices de umidade estáveis. No entanto, 16.7% da região encontra-se em estado de Alerta (Seca Severa), exigindo atenção constante às reservas hídricas.",
+    "impacto": [
+      "Áreas estáveis (15.4%): Condições favoráveis para o desenvolvimento agrícola.",
+      "Estado de Alerta: Risco de quebra de safra em 16.7% da área produtiva.",
+      "Sinais de melhora: 3.5% do território apresenta sinais de recuperação hídrica."
+    ]
+  },
+  "pi": {
+    "nome": "Piauí",
+    "status": {
+      "sem-seca": 0.115,
+      "observacao": 0.324,
+      "atencao": 0.164,
+      "alerta": 0.015,
+      "recuperacao-total": 0.362,
+      "recuperacao-parcial": 0.02
+    },
+    "acontecendo": "Atualmente, 11.5% do território de Piauí está sem seca, com índices de umidade estáveis. No entanto, 1.5% da região encontra-se em estado de Alerta (Seca Severa), exigindo atenção constante às reservas hídricas.",
+    "impacto": [
+      "Áreas estáveis (11.5%): Condições favoráveis para o desenvolvimento agrícola.",
+      "Estado de Alerta: Risco de quebra de safra em 1.5% da área produtiva.",
+      "Sinais de melhora: 38.2% do território apresenta sinais de recuperação hídrica."
+    ]
+  },
+  "ce": {
+    "nome": "Ceará",
+    "status": {
+      "sem-seca": 0.805,
+      "observacao": 0.053,
+      "atencao": 0.123,
+      "alerta": 0.017,
+      "recuperacao-total": 0.002,
+      "recuperacao-parcial": 0.0
+    },
+    "acontecendo": "Atualmente, 80.5% do território de Ceará está sem seca, com índices de umidade estáveis. No entanto, 1.7% da região encontra-se em estado de Alerta (Seca Severa), exigindo atenção constante às reservas hídricas.",
+    "impacto": [
+      "Áreas estáveis (80.5%): Condições favoráveis para o desenvolvimento agrícola.",
+      "Estado de Alerta: Risco de quebra de safra em 1.7% da área produtiva.",
+      "Sinais de melhora: 0.2% do território apresenta sinais de recuperação hídrica."
+    ]
+  },
+  "rn": {
+    "nome": "Rio Grande do Norte",
+    "status": {
+      "sem-seca": 1.0,
+      "observacao": 0.0,
+      "atencao": 0.0,
+      "alerta": 0.0,
+      "recuperacao-total": 0.0,
+      "recuperacao-parcial": 0.0
+    },
+    "acontecendo": "Atualmente, 100.0% do território de Rio Grande do Norte está sem seca, com índices de umidade estáveis. No entanto, 0.0% da região encontra-se em estado de Alerta (Seca Severa), exigindo atenção constante às reservas hídricas.",
+    "impacto": [
+      "Áreas estáveis (100.0%): Condições favoráveis para o desenvolvimento agrícola.",
+      "Estado de Alerta: Risco de quebra de safra em 0.0% da área produtiva.",
+      "Sinais de melhora: 0.0% do território apresenta sinais de recuperação hídrica."
+    ]
+  },
+  "pb": {
+    "nome": "Paraíba",
+    "status": {
+      "sem-seca": 0.983,
+      "observacao": 0.002,
+      "atencao": 0.015,
+      "alerta": 0.0,
+      "recuperacao-total": 0.0,
+      "recuperacao-parcial": 0.0
+    },
+    "acontecendo": "Atualmente, 98.3% do território de Paraíba está sem seca, com índices de umidade estáveis. 0.0% da região encontra-se em estado de Alerta (Seca Severa), exigindo atenção constante às reservas hídricas.",
+    "impacto": [
+      "Áreas estáveis (98.3%): Condições favoráveis para o desenvolvimento agrícola.",
+      "Estado de Alerta: Risco de quebra de safra em 0.0% da área produtiva.",
+      "Sinais de melhora: 0.0% do território apresenta sinais de recuperação hídrica."
+    ]
+  },
+  "pe": {
+    "nome": "Pernambuco",
+    "status": {
+      "sem-seca": 0.718,
+      "observacao": 0.114,
+      "atencao": 0.005,
+      "alerta": 0.001,
+      "recuperacao-total": 0.161,
+      "recuperacao-parcial": 0.001
+    },
+    "acontecendo": "Atualmente, 71.8% do território de Pernambuco está sem seca, com índices de umidade estáveis. No entanto, 0.1% da região encontra-se em estado de Alerta (Seca Severa), exigindo atenção constante às reservas hídricas.",
+    "impacto": [
+      "Áreas estáveis (71.8%): Condições favoráveis para o desenvolvimento agrícola.",
+      "Estado de Alerta: Risco de quebra de safra em 0.1% da área produtiva.",
+      "Sinais de melhora: 16.2% do território apresenta sinais de recuperação hídrica."
+    ]
+  },
+  "al": {
+    "nome": "Alagoas",
+    "status": {
+      "sem-seca": 0.884,
+      "observacao": 0.06,
+      "atencao": 0.0,
+      "alerta": 0.0,
+      "recuperacao-total": 0.057,
+      "recuperacao-parcial": 0.0
+    },
+    "acontecendo": "Atualmente, 88.4% do território de Alagoas está sem seca, com índices de umidade estáveis. No entanto, 0.0% da região encontra-se em estado de Alerta (Seca Severa), exigindo atenção constante às reservas hídricas.",
+    "impacto": [
+      "Áreas estáveis (88.4%): Condições favoráveis para o desenvolvimento agrícola.",
+      "Estado de Alerta: Risco de quebra de safra em 0.0% da área produtiva.",
+      "Sinais de melhora: 5.7% do território apresenta sinais de recuperação hídrica."
+    ]
+  },
+  "se": {
+    "nome": "Sergipe",
+    "status": {
+      "sem-seca": 0.513,
+      "observacao": 0.0,
+      "atencao": 0.0,
+      "alerta": 0.0,
+      "recuperacao-total": 0.481,
+      "recuperacao-parcial": 0.006
+    },
+    "acontecendo": "Atualmente, 51.3% do território de Sergipe está sem seca, com índices de umidade estáveis. No entanto, 0.0% da região encontra-se em estado de Alerta (Seca Severa), exigindo atenção constante às reservas hídricas.",
+    "impacto": [
+      "Áreas estáveis (51.3%): Condições favoráveis para o desenvolvimento agrícola.",
+      "Estado de Alerta: Risco de quebra de safra em 0.0% da área produtiva.",
+      "Sinais de melhora: 48.7% do território apresenta sinais de recuperação hídrica."
+    ]
+  },
+  "ba": {
+    "nome": "Bahia",
+    "status": {
+      "sem-seca": 0.145,
+      "observacao": 0.073,
+      "atencao": 0.0,
+      "alerta": 0.017,
+      "recuperacao-total": 0.598,
+      "recuperacao-parcial": 0.166
+    },
+    "acontecendo": "Atualmente, 14.5% do território de Bahia está sem seca, com índices de umidade estáveis. No entanto, 1.7% da região encontra-se em estado de Alerta (Seca Severa), exigindo atenção constante às reservas hídricas.",
+    "impacto": [
+      "Áreas estáveis (14.5%): Condições favoráveis para o desenvolvimento agrícola.",
+      "Estado de Alerta: Risco de quebra de safra em 1.7% da área produtiva.",
+      "Sinais de melhora: 76.4% do território apresenta sinais de recuperação hídrica."
+    ]
+  },
+  "mg": {
+    "nome": "Minas Gerais",
+    "status": {
+      "sem-seca": 0.024,
+      "observacao": 0.451,
+      "atencao": 0.063,
+      "alerta": 0.073,
+      "recuperacao-total": 0.264,
+      "recuperacao-parcial": 0.125
+    },
+    "acontecendo": "Atualmente, 2.4% do território de Minas Gerais está sem seca, com índices de umidade estáveis. No entanto, 7.3% da região encontra-se em estado de Alerta (Seca Severa), exigindo atenção constante às reservas hídricas.",
+    "impacto": [
+      "Áreas estáveis (2.4%): Condições favoráveis para o desenvolvimento agrícola.",
+      "Estado de Alerta: Risco de quebra de safra in 7.3% da área produtiva.",
+      "Sinais de melhora: 38.9% do território apresenta sinais de recuperação hídrica."
+    ]
+  },
+  "es": {
+    "nome": "Espírito Santo",
+    "status": {
+      "sem-seca": 0.005,
+      "observacao": 0.334,
+      "atencao": 0.0,
+      "alerta": 0.2,
+      "recuperacao-total": 0.258,
+      "recuperacao-parcial": 0.202
+    },
+    "acontecendo": "Atualmente, 0.5% do território de Espírito Santo está sem seca, com índices de umidade estáveis. No entanto, 20.0% da região encontra-se em estado de Alerta (Seca Severa), exigindo atenção constante às reservas hídricas.",
+    "impacto": [
+      "Áreas estáveis (0.5%): Condições favoráveis para o desenvolvimento agrícola.",
+      "Estado de Alerta: Risco de quebra de safra em 20.0% da área produtiva.",
+      "Sinais de melhora: 46.0% do território apresenta sinais de recuperação hídrica."
+    ]
+  },
+  "rj": {
+    "nome": "Rio de Janeiro",
+    "status": {
+      "sem-seca": 0.223,
+      "observacao": 0.219,
+      "atencao": 0.0,
+      "alerta": 0.07,
+      "recuperacao-total": 0.383,
+      "recuperacao-parcial": 0.106
+    },
+    "acontecendo": "Atualmente, 22.3% do territory de Rio de Janeiro está sem seca, com índices de umidade estáveis. No entanto, 7.0% da região encontra-se em estado de Alerta (Seca Severa), exigindo atenção constante às reservas hídricas.",
+    "impacto": [
+      "Áreas estáveis (22.3%): Condições favoráveis para o desenvolvimento agrícola.",
+      "Estado de Alerta: Risco de quebra de safra em 7.0% da área produtiva.",
+      "Sinais de melhora: 48.9% do território apresenta sinais de recuperação hídrica."
+    ]
+  },
+  "sp": {
+    "nome": "São Paulo",
+    "status": {
+      "sem-seca": 0.162,
+      "observacao": 0.039,
+      "atencao": 0.722,
+      "alerta": 0.009,
+      "recuperacao-total": 0.068,
+      "recuperacao-parcial": 0.0
+    },
+    "acontecendo": "Atualmente, 16.2% do território de São Paulo está sem seca, com índices de umidade estáveis. No entanto, 0.9% da região encontra-se em estado de Alerta (Seca Severa), exigindo atenção constante às reservas hídricas.",
+    "impacto": [
+      "Áreas estáveis (16.2%): Condições favoráveis para o desenvolvimento agrícola.",
+      "Estado de Alerta: Risco de quebra de safra em 0.9% da área produtiva.",
+      "Sinais de melhora: 6.8% do território apresenta sinais de recuperação hídrica."
+    ]
+  },
+  "pr": {
+    "nome": "Paraná",
+    "status": {
+      "sem-seca": 0.902,
+      "observacao": 0.0,
+      "atencao": 0.092,
+      "alerta": 0.0,
+      "recuperacao-total": 0.005,
+      "recuperacao-parcial": 0.0
+    },
+    "acontecendo": "Atualmente, 90.2% do território de Paraná está sem seca, com índices de umidade estáveis. No entanto, 0.0% da região encontra-se em estado de Alerta (Seca Severa), exigindo atenção constante às reservas hídricas.",
+    "impacto": [
+      "Áreas estáveis (90.2%): Condições favoráveis para o desenvolvimento agrícola.",
+      "Estado de Alerta: Risco de quebra de safra em 0.0% da área produtiva.",
+      "Sinais de melhora: 0.5% do território apresenta sinais de recuperação hídrica."
+    ]
+  },
+  "sc": {
+    "nome": "Santa Catarina",
+    "status": {
+      "sem-seca": 1.0,
+      "observacao": 0.0,
+      "atencao": 0.0,
+      "alerta": 0.0,
+      "recuperacao-total": 0.0,
+      "recuperacao-parcial": 0.0
+    },
+    "acontecendo": "Atualmente, 100.0% do território de Santa Catarina está sem seca, com índices de umidade estáveis. No entanto, 0.0% da região encontra-se em estado de Alerta (Seca Severa), exigindo atenção constante às reservas hídricas.",
+    "impacto": [
+      "Áreas estáveis (100.0%): Condições favoráveis para o desenvolvimento agrícola.",
+      "Estado de Alerta: Risco de quebra de safra em 0.0% da área produtiva.",
+      "Sinais de melhora: 0.0% do território apresenta sinais de recuperação hídrica."
+    ]
+  },
+  "rs": {
+    "nome": "Rio Grande do Sul",
+    "status": {
+      "sem-seca": 1.0,
+      "observacao": 0.0,
+      "atencao": 0.0,
+      "alerta": 0.0,
+      "recuperacao-total": 0.0,
+      "recuperacao-parcial": 0.0
+    },
+    "acontecendo": "Atualmente, 100.0% do território de Rio Grande do Sul está sem seca, com índices de umidade estáveis. No entanto, 0.0% da região encontra-se em estado de Alerta (Seca Severa), exigindo atenção constante às reservas hídricas.",
+    "impacto": [
+      "Áreas estáveis (100.0%): Condições favoráveis para o desenvolvimento agrícola.",
+      "Estado de Alerta: Risco de quebra de safra em 0.0% da área produtiva.",
+      "Sinais de melhora: 0.0% do território apresenta sinais de recuperação hídrica."
+    ]
+  },
+  "ms": {
+    "nome": "Mato Grosso do Sul",
+    "status": {
+      "sem-seca": 0.066,
+      "observacao": 0.004,
+      "atencao": 0.923,
+      "alerta": 0.005,
+      "recuperacao-total": 0.001,
+      "recuperacao-parcial": 0.0
+    },
+    "acontecendo": "Atualmente, 6.6% do território de Mato Grosso do Sul está sem seca, com índices de umidade estáveis. No entanto, 0.5% da região encontra-se em estado de Alerta (Seca Severa), exigindo atenção constante às reservas hídricas.",
+    "impacto": [
+      "Áreas estáveis (6.6%): Condições favoráveis para o desenvolvimento agrícola.",
+      "Estado de Alerta: Risco de quebra de safra em 0.5% da área produtiva.",
+      "Sinais de melhora: 0.1% do território apresenta sinais de recuperação hídrica."
+    ]
+  },
+  "mt": {
+    "nome": "Mato Grosso",
+    "status": {
+      "sem-seca": 0.0,
+      "observacao": 0.471,
+      "atencao": 0.487,
+      "alerta": 0.042,
+      "recuperacao-total": 0.0,
+      "recuperacao-parcial": 0.0
+    },
+    "acontecendo": "Atualmente, 0.0% do território de Mato Grosso está sem seca, com índices de umidade estáveis. No entanto, 4.2% da região encontra-se em estado de Alerta (Seca Severa), exigindo atenção constante às reservas hídricas.",
+    "impacto": [
+      "Áreas estáveis (0.0%): Condições favoráveis para o desenvolvimento agrícola.",
+      "Estado de Alerta: Risco de quebra de safra em 4.2% da área produtiva.",
+      "Sinais de melhora: 0.0% do território apresenta sinais de recuperação hídrica."
+    ]
+  },
+  "go": {
+    "nome": "Goiás",
+    "status": {
+      "sem-seca": 0.0,
+      "observacao": 0.589,
+      "atencao": 0.298,
+      "alerta": 0.036,
+      "recuperacao-total": 0.069,
+      "recuperacao-parcial": 0.008
+    },
+    "acontecendo": "Atualmente, 0.0% do território de Goiás está sem seca, com índices de umidade estáveis. No entanto, 3.6% da região encontra-se em estado de Alerta (Seca Severa), exigindo atenção constante às reservas hídricas.",
+    "impacto": [
+      "Áreas estáveis (0.0%): Condições favoráveis para o desenvolvimento agrícola.",
+      "Estado de Alerta: Risco de quebra de safra em 3.6% da área produtiva.",
+      "Sinais de melhora: 7.7% do território apresenta sinais de recuperação hídrica."
+    ]
+  },
+  "df": {
+    "nome": "Distrito Federal",
+    "status": {
+      "sem-seca": 0.081,
+      "observacao": 0.158,
+      "atencao": 0.0,
+      "alerta": 0.01,
+      "recuperacao-total": 0.751,
+      "recuperacao-parcial": 0.0
+    },
+    "acontecendo": "Atualmente, 8.1% do território de Distrito Federal está sem seca, com índices de umidade estáveis. No entanto, 1.0% da região encontra-se em estado de Alerta (Seca Severa), exigindo atenção constante às reservas hídricas.",
+    "impacto": [
+      "Áreas estáveis (8.1%): Condições favoráveis para o desenvolvimento agrícola.",
+      "Estado de Alerta: Risco de quebra de safra em 1.0% da área produtiva.",
+      "Sinais de melhora: 75.1% do território apresenta sinais de recuperação hídrica."
+    ]
+  }
+}
