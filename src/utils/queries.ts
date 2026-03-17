@@ -5,6 +5,7 @@ export const GET_ABOUT_PAGE = `
         sys {
           id
         }
+        identifier
         title
         text {
           json
@@ -61,6 +62,7 @@ export const GET_HOME_PAGE = `
 
     secaoSobreCollection {
       items {
+        identifier
         title
         text {
           json

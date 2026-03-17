@@ -13,7 +13,8 @@ const mockRichText: Document = {
       content: [
         {
           nodeType: "text",
-          value: "Lorem ipsum dolor sit amet, consectetur adipiscing elit. Integer gravida mi ut vestibulum vestibulum.",
+          value:
+            "Lorem ipsum dolor sit amet, consectetur adipiscing elit. Integer gravida mi ut vestibulum vestibulum.",
           marks: [],
           data: {},
         },
@@ -30,7 +31,14 @@ const mockRichText: Document = {
             {
               nodeType: BLOCKS.PARAGRAPH,
               data: {},
-              content: [{ nodeType: "text", value: "Item de lista 01", marks: [], data: {} }],
+              content: [
+                {
+                  nodeType: "text",
+                  value: "Item de lista 01",
+                  marks: [],
+                  data: {},
+                },
+              ],
             },
           ],
         },
@@ -39,9 +47,9 @@ const mockRichText: Document = {
   ],
 };
 
-
 const mockTabsData: TabsSectionI[] = [
   {
+    identifier: "sociedade-e-comunidades",
     title: "Sociedade e comunidades",
     text: { json: mockRichText },
     image: {
@@ -51,6 +59,7 @@ const mockTabsData: TabsSectionI[] = [
     includeInAboutSap: false,
   },
   {
+    identifier: "tecnicos-e-pesquisadores",
     title: "Técnicos e pesquisadores",
     text: { json: mockRichText },
     image: {
@@ -60,6 +69,7 @@ const mockTabsData: TabsSectionI[] = [
     includeInAboutSap: false,
   },
   {
+    identifier: "gestao-publica",
     title: "Gestão pública",
     text: { json: mockRichText },
     image: {
@@ -83,13 +93,13 @@ type Story = StoryObj<typeof TabsSection>;
 
 export const Default: Story = {
   args: {
-    contentData: mockTabsData, 
+    contentData: mockTabsData,
   },
 };
 
 export const Mobile: Story = {
   args: {
-    contentData: mockTabsData, 
+    contentData: mockTabsData,
   },
   parameters: {
     viewport: {
