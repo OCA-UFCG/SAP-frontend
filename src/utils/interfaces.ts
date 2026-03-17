@@ -21,7 +21,7 @@ export interface SapChannelI {
 export interface StatusItemI {
   id: string;
   label: string;
-  value: number; 
+  value: number;
   color: string;
   checked?: boolean;
 }
@@ -34,6 +34,19 @@ export interface IMainBanner {
   image: {
     url: string;
   };
+}
+
+export interface TabsSectionI {
+  identifier: string;
+  title: string;
+  text: {
+    json: Document;
+  };
+  image: {
+    url: string;
+    title?: string;
+  };
+  includeInAboutSap: boolean;
 }
 
 export interface AboutSectionI {
@@ -62,8 +75,8 @@ export interface SearchResultI {
 }
 
 export interface SearchButtonI {
-  onClick: () => void
-  children: React.ReactNode
+  onClick: () => void;
+  children: React.ReactNode;
 }
 export interface SectionHeaderI {
   sys: {
@@ -98,6 +111,7 @@ export interface SecaoSobreI {
   sys: {
     id: string;
   };
+  identifier: string;
   title: string;
   text: {
     json: Document;
@@ -135,9 +149,9 @@ export interface ISections {
 }
 
 export interface SocialChannelsI {
-  channels: SapChannelI[]
-  size: number 
-  displayName?: boolean
+  channels: SapChannelI[];
+  size: number;
+  displayName?: boolean;
 }
 
 export interface SecaStatus {

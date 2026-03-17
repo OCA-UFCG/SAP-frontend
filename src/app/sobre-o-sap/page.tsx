@@ -4,6 +4,9 @@ import type { AboutPageQuery } from "@/utils/interfaces";
 import { GET_ABOUT_PAGE } from "@/utils/queries";
 import { normalizeContentfulImage } from "@/utils/functions";
 
+const ABOUT_HERO_IDENTIFIER = "sobre-nos";
+const ABOUT_SECTION_ORDER = ["sobre-seca", "sobre-desertificacao"] as const;
+
 const getPageContent = async (): Promise<AboutPageQuery | null> => {
   try {
     return await getContent<AboutPageQuery>(GET_ABOUT_PAGE);
@@ -21,13 +24,13 @@ export default async function SobreOSapPage() {
   }
 
   const allSections = data.secaoSobreCollection?.items ?? [];
-
-  // A primeira entry é o hero ("Página Sobre nós"), as demais são seções com imagem
-  const heroEntry = allSections.find((s) =>
-    s.title.toLowerCase().includes("sobre nós"),
+  const heroEntry = allSections.find(
+    (section) => section.identifier === ABOUT_HERO_IDENTIFIER,
   );
-  const aboutEntries = allSections.filter(
-    (s) => s.sys.id !== heroEntry?.sys.id,
+  const aboutEntries = ABOUT_SECTION_ORDER.map((identifier) =>
+    allSections.find((section) => section.identifier === identifier),
+  ).filter((section): section is NonNullable<typeof section> =>
+    Boolean(section),
   );
 
   const partnersHeader = data.cabealhoSeesCollection?.items?.[0];

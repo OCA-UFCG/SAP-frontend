@@ -5,17 +5,35 @@ import {
   IMainBanner,
   PartnerI,
   SectionHeaderI,
+  TabsSectionI,
 } from "../utils/interfaces";
 import { AboutSection } from "../components/AboutSection/AboutSection";
 import { MainBanner } from "../components/MainBanner/MainBanner";
 import { PartnersSection } from "../components/PartnersSection/PartnersSection";
+import TabsSection from "../components/TabSection/TabSection";
 import MapSection from "@/components/MapSection/MapSection";
+
+const HOME_TAB_ORDER = [
+  {
+    identifier: "sociedade-e-comunidades",
+    title: "Sociedade e comunidades",
+  },
+  {
+    identifier: "tecnicos-e-pesquisadores",
+    title: "Técnicos e pesquisadores",
+  },
+  {
+    identifier: "gestao-publica",
+    title: "Gestão pública",
+  },
+] as const;
 
 interface HomeContent {
   bannerCollection: { items: IMainBanner[] };
   aboutCollection: { items: AboutSectionI[] };
   cabealhoSeesCollection: { items: SectionHeaderI[] };
   partnersCollection: { items: PartnerI[] };
+  secaoSobreCollection: { items: TabsSectionI[] };
 }
 
 const getHomePageContent = async (): Promise<HomeContent | null> => {
@@ -44,6 +62,23 @@ export default async function Home() {
   const partnersHeaderData = data.cabealhoSeesCollection?.items[0];
   const partnersData = data.partnersCollection?.items ?? [];
 
+  const tabsData = HOME_TAB_ORDER.reduce<TabsSectionI[]>((acc, tabConfig) => {
+    const tab = data.secaoSobreCollection?.items.find(
+      (item) => item.identifier === tabConfig.identifier,
+    );
+
+    if (!tab) {
+      return acc;
+    }
+
+    acc.push({
+      ...tab,
+      title: tabConfig.title,
+    });
+
+    return acc;
+  }, []);
+
   return (
     <div className="flex min-h-screen flex-col">
       <main className="grow">
@@ -52,6 +87,7 @@ export default async function Home() {
         <MapSection />
 
         {aboutData && <AboutSection content={aboutData} />}
+        {tabsData.length > 0 && <TabsSection contentData={tabsData} />}
         {partnersHeaderData && (
           <PartnersSection
             header={partnersHeaderData}
