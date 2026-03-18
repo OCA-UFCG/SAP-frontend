@@ -5,6 +5,7 @@ export const GET_ABOUT_PAGE = `
         sys {
           id
         }
+        identifier
         title
         text {
           json
@@ -58,6 +59,22 @@ export const GET_HOME_PAGE = `
         }
       }
     }
+
+    secaoSobreCollection {
+      items {
+        identifier
+        title
+        text {
+          json
+        }
+        image {
+          url
+          title
+        }
+        includeInAboutSap
+      }
+    }
+
     aboutCollection(limit: 1) {
       items {
         sys {
