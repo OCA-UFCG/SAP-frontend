@@ -156,5 +156,17 @@
         <path d="M10.6225 378.509L8.64551 384.145H34.3883L32.3417 378.509H10.6225Z" fill="#ECEFF1"/>
     </symbol>
 
+    <symbol id="chevron-down" viewBox="0 0 16 16">
+    <path
+        d="M4 6L8 10L12 6"
+        stroke="#0F172A"
+        stroke-width="1.33333"
+        stroke-linecap="round"
+        stroke-linejoin="round"
+        fill="none"
+    />
+    </symbol>
+
+
 
 </svg>
