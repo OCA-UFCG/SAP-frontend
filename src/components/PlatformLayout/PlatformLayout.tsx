@@ -24,8 +24,8 @@ import { PlatformSidebar } from "@/components/PlatformSidebar/PlatformSidebar";
  */
 export function PlatformLayout() {
   return (
-    <div className="relative w-full min-h-[calc(100vh-64px)] bg-neutral-50">
-      {/* Main canvas (map is the background layer) */}
+    <div className="relative w-full h-[calc(100vh-64px)] bg-neutral-50">
+      {/* background layer */}
       <PlatformMap />
 
       {/* Left overlay (rail + panel) */}
