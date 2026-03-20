@@ -1,26 +1,24 @@
 "use client";
 
 import { useState } from "react";
-import type { PlatformSection } from "@/components/PlatformSideRail/PlatformSideRail";
-import { MonitoringCard } from "../MonitoringCard/MonitoringCard";
-import type { MonitoringCard as MonitoringCardType } from "../MonitoringCard/MonitoringCard"
-
-
-export interface AccordionContextProps {
-  activeSection: PlatformSection;
-}
+import { DroughtDataset, DROUGHT_DATASETS } from "../DroughtDataset/DroughtDataset";
+import type { IDroughtDataset } from "../DroughtDataset/DroughtDataset";
+import { PlatformSection } from "../PlatformSideRail/PlatformSideRail";
 
 interface AccordionItemData {
   id: number;
   label: string;
-  cards?: MonitoringCardType[];
+  datasets?: IDroughtDataset[];
+}
+export interface AccordionContextProps {
+  activeSection: PlatformSection;
 }
 
-//mock
 const MONITORING_ITEMS: AccordionItemData[] = [
   {
     id: 1,
     label: "Seca",
+    datasets: DROUGHT_DATASETS,
   },
   {
     id: 2,
@@ -29,26 +27,8 @@ const MONITORING_ITEMS: AccordionItemData[] = [
   {
     id: 3,
     label: "Categorias x",
-    cards: [
-      {
-        id: 1,
-        title: "Test",
-        description: "Description",
-      },
-      {
-        id: 2,
-        title: "Test",
-        description: "Description",
-      },
-      {
-        id: 3,
-        title: "Test",
-        description: "Description",
-      },
-    ],
   },
 ];
-
 
 function ContextHeader() {
   return (
@@ -57,7 +37,7 @@ function ContextHeader() {
         O que você deseja monitorar?
       </h2>
       <p className="mt-2 text-sm text-neutral-600">
-        Selecione que monitor você deseja analisar
+        Selecione que módulo você deseja analisar
       </p>
     </header>
   );
@@ -86,7 +66,7 @@ function AccordionItem({
   open: boolean;
   onToggle: () => void;
 }) {
-  const isOpen = open && Boolean(item.cards?.length);
+  const isOpen = open;
 
   return (
     <div
@@ -106,18 +86,20 @@ function AccordionItem({
       >
         <span
           className="flex-1 text-base font-medium text-[#0F172A]"
-          style={{ fontFamily: "Inter" }}
+          style={{ fontFamily: "Inter", fontStyle: "normal" }}
         >
           {item.label}
         </span>
-        <ChevronDown open={isOpen} />
+
+      <ChevronDown open={isOpen} />
+
       </button>
 
       {isOpen && (
         <>
           <hr className="w-full border-t border-[#EFEFEF]" />
-          {item.cards!.map((card) => (
-            <MonitoringCard key={card.id} card={card} />
+          {item.datasets!.map((dataset) => (
+            <DroughtDataset key={dataset.id} card={dataset} />
           ))}
         </>
       )}
@@ -125,7 +107,6 @@ function AccordionItem({
   );
 }
 
-// AccordionContext
 export function AccordionContext(_props: AccordionContextProps) {
   const [openId, setOpenId] = useState<number | null>(null);
 
@@ -136,7 +117,6 @@ export function AccordionContext(_props: AccordionContextProps) {
   return (
     <div className="h-full flex flex-col bg-[#F6F7F6]">
       <ContextHeader />
-
       <div className="flex-1 overflow-y-auto px-5 pb-8">
         <div className="flex flex-col gap-6">
           {MONITORING_ITEMS.map((item) => (

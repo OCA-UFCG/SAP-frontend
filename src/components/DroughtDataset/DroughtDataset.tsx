@@ -1,9 +1,31 @@
-export interface MonitoringCard {
+export interface IDroughtDataset {
   id: number;
   title: string;
   description: string;
   image?: string;
+  fileRef?: string;
 }
+
+export const DROUGHT_DATASETS: IDroughtDataset[] = [
+  {
+    id: 1,
+    title: "CDI",
+    description: "breve descrição do dataset",
+    fileRef: "data/CDI_Janeiro_2024_Vetores.json",
+  },
+  {
+    id: 2,
+    title: "Monitor de seca",
+    description: "breve descrição do dataset",
+    fileRef: "data/CDI_Janeiro_2024_Vetores.json",
+  },
+  {
+    id: 3,
+    title: "Monitor de seca",
+    description: "breve descrição do dataset",
+    fileRef: "data/CDI_Janeiro_2024_Vetores.json",
+  },
+];
 
 function InfoIcon() {
   return (
@@ -12,14 +34,14 @@ function InfoIcon() {
     </svg>
   );
 }
-export function MonitoringCard({ card }: { card: MonitoringCard }) {
+
+export function DroughtDataset({ card }: { card: IDroughtDataset }) {
   return (
     <div className="flex flex-row items-start w-full bg-white border border-[#EFEFEF] shadow-sm rounded-lg overflow-hidden shrink-0">
       <div className="flex flex-col items-start w-full">
 
         {/* card header */}
         <div className="flex flex-row items-center pr-4 gap-2 w-full" style={{ height: 126 }}>
-
           <div className="relative shrink-0" style={{ width: "115.51px", height: 126 }}>
             {card.image ? (
               <img
@@ -50,7 +72,6 @@ export function MonitoringCard({ card }: { card: MonitoringCard }) {
               </span>
             </div>
           </div>
-
         </div>
 
         {/* card footer */}
@@ -58,7 +79,6 @@ export function MonitoringCard({ card }: { card: MonitoringCard }) {
           className="flex flex-row items-center w-full p-4 gap-4 border-t border-[#EFEFEF]"
           style={{ height: 72 }}
         >
-        
           <button
             type="button"
             className="flex flex-row justify-center items-center px-4 py-2 gap-[10px] flex-1 h-10 bg-[#989F43] rounded-[6px]"
@@ -71,17 +91,14 @@ export function MonitoringCard({ card }: { card: MonitoringCard }) {
             </span>
           </button>
 
-          {/* button — Info */}
           <button
             type="button"
             className="box-border flex flex-row justify-center items-center p-2 gap-2 w-10 h-10 bg-white border border-slate-200 rounded-[6px] shrink-0"
-            aria-label="More info"
+            aria-label="Mais informações"
           >
             <InfoIcon />
           </button>
-
         </div>
-
       </div>
     </div>
   );
