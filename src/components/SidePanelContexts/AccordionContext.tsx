@@ -66,7 +66,8 @@ function AccordionItem({
   open: boolean;
   onToggle: () => void;
 }) {
-  const isOpen = open;
+  const hasDatasets = Boolean(item.datasets?.length);
+  const isOpen = open && hasDatasets;
 
   return (
     <div
