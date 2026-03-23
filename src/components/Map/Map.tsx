@@ -9,20 +9,27 @@ import 'leaflet-defaulticon-compatibility/dist/leaflet-defaulticon-compatibility
 import 'leaflet-defaulticon-compatibility';
 import { FeatureCollection, Feature, Geometry } from 'geojson';
 import geometria from '../../data/geometria.json';
-import { CDIVectorData, CDIFeatureProperties } from '../MapSection/MapSection';
 
 interface ChangeViewProps {
   bounds: LatLngBoundsExpression;
 }
 
+export interface CDIFeatureProperties {
+  classe_cdi: number;
+  first: number;
+  [key: string]: unknown;
+}
+
+export type CDIVectorData = FeatureCollection<Geometry, CDIFeatureProperties>;
+
 interface MapProps {
+  minZoom?: number;
   center: [number, number];
   zoom?: number;
   markers?: Array<{ position: [number, number]; label: string }>;
   className?: string;
   dadosCDI: CDIVectorData;
   estadoSelecionado: string;
-  // 1. Add the callback prop
   onStateClick?: (uf: string) => void;
 }
 
@@ -58,10 +65,9 @@ type MyFeature = Feature<Geometry, FeatureProperties>;
 
 function ChangeView({ bounds }: ChangeViewProps) {
   const map = useMap();
+
   useEffect(() => {
-    if (bounds) {
-      map.fitBounds(bounds, { padding: [20, 20], animate: true });
-    }
+    map.fitBounds(bounds, { padding: [20, 20], animate: true });
   }, [bounds, map]);
 
   return null;
@@ -70,23 +76,33 @@ function ChangeView({ bounds }: ChangeViewProps) {
 const Map = ({
   center = [51.505, -0.09],
   zoom = 13,
+  minZoom = 3,
   className = 'h-full w-full',
   dadosCDI,
   estadoSelecionado,
-  onStateClick, // 2. Destructure the prop
+  onStateClick,
 }: MapProps) => {
   const geoBrasil = geometria as unknown as FeatureCollection<
     Geometry,
     EstadoProperties
   >;
 
+  const brasilBounds = useMemo((): LatLngBoundsExpression => {
+    const [minLng, minLat, maxLng, maxLat] = bbox(geoBrasil);
+
+  // margem extra pra não ficar "preso" demais
+  const latPadding = 8;
+  const lngPadding = 12;
+
+  return [
+    [minLat - latPadding, minLng - lngPadding],
+    [maxLat + latPadding, maxLng + lngPadding],
+  ];
+}, [geoBrasil]);
+
   const currentBounds = useMemo((): LatLngBoundsExpression => {
     if (estadoSelecionado === 'BR') {
-      const [minLng, minLat, maxLng, maxLat] = bbox(geoBrasil);
-      return [
-        [minLat, minLng],
-        [maxLat, maxLng],
-      ];
+      return brasilBounds;
     }
 
     const featureEstado = geoBrasil.features.find(
@@ -101,12 +117,8 @@ const Map = ({
       ];
     }
 
-    const [minLng, minLat, maxLng, maxLat] = bbox(geoBrasil);
-    return [
-      [minLat, minLng],
-      [maxLat, maxLng],
-    ];
-  }, [estadoSelecionado]);
+    return brasilBounds;
+  }, [estadoSelecionado, geoBrasil, brasilBounds]);
 
   const vectorStyle = (
     feature: Feature<Geometry, CDIFeatureProperties> | undefined,
@@ -140,10 +152,9 @@ const Map = ({
   };
 
   const defaultStyle = (feature: MyFeature | undefined) => {
-    if(!feature){
-      return {}
-    }
-    if (feature.properties && feature.properties?.info?.sigla.toUpperCase() == estadoSelecionado) {
+    if (!feature) return {};
+
+    if (feature.properties?.info?.sigla.toUpperCase() === estadoSelecionado) {
       return {
         color: '#000000',
         weight: 4,
@@ -151,6 +162,7 @@ const Map = ({
         fillOpacity: 0.1,
       };
     }
+
     return {
       color: '#3388ff',
       weight: 1,
@@ -162,7 +174,7 @@ const Map = ({
   };
 
   const onEachFeature = (feature: MyFeature, layer: Layer) => {
-    if (feature.properties && feature.properties?.info?.sigla) {
+    if (feature.properties?.info?.sigla) {
       const uf = feature.properties.info.sigla;
 
       layer.bindPopup(uf);
@@ -179,7 +191,7 @@ const Map = ({
         },
         mouseout: (e) => {
           const l = e.target;
-          if(feature.properties?.info?.sigla.toUpperCase() != estadoSelecionado){
+          if (feature.properties?.info?.sigla.toUpperCase() !== estadoSelecionado) {
             e.target.setStyle({
               weight: 1,
               color: '#3388ff',
@@ -189,12 +201,9 @@ const Map = ({
           }
           l.closePopup();
         },
-        // 3. Add the click listener
         click: () => {
-          if (onStateClick) {
-            onStateClick(uf);
-          }
-        }
+          onStateClick?.(uf);
+        },
       });
     }
   };
@@ -204,26 +213,31 @@ const Map = ({
       <MapContainer
         center={center}
         zoom={zoom}
+        minZoom={minZoom}
         scrollWheelZoom={true}
         className={className}
         preferCanvas={true}
+        maxBounds={brasilBounds}
+        maxBoundsViscosity={0.35}
       >
         <ChangeView bounds={currentBounds} />
+
         <TileLayer
           url="https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}"
           attribution="&copy; Esri"
+          noWrap={true}
         />
+
         <GeoJSON
           data={dadosCDI as FeatureCollection}
-          key={`cdi-layer`}
+          key="cdi-layer"
           style={vectorStyle}
         />
 
         <GeoJSON
           data={geometria as FeatureCollection}
           onEachFeature={onEachFeature}
-          // Note: key should be unique to re-render if geometry changes
-          key={`${estadoSelecionado}`}
+          key={estadoSelecionado}
           style={defaultStyle}
         />
       </MapContainer>
