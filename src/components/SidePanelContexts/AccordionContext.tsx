@@ -1,10 +1,34 @@
 "use client";
 
-import type { PlatformSection } from "@/components/PlatformSideRail/PlatformSideRail";
+import { useState } from "react";
+import { DroughtDataset, DROUGHT_DATASETS } from "../DroughtDataset/DroughtDataset";
+import type { IDroughtDataset } from "../DroughtDataset/DroughtDataset";
+import { PlatformSection } from "../PlatformSideRail/PlatformSideRail";
 
+interface AccordionItemData {
+  id: number;
+  label: string;
+  datasets?: IDroughtDataset[];
+}
 export interface AccordionContextProps {
   activeSection: PlatformSection;
 }
+
+const MONITORING_ITEMS: AccordionItemData[] = [
+  {
+    id: 1,
+    label: "Seca",
+    datasets: DROUGHT_DATASETS,
+  },
+  {
+    id: 2,
+    label: "Desertificação",
+  },
+  {
+    id: 3,
+    label: "Categorias x",
+  },
+];
 
 function ContextHeader() {
   return (
@@ -13,48 +37,97 @@ function ContextHeader() {
         O que você deseja monitorar?
       </h2>
       <p className="mt-2 text-sm text-neutral-600">
-        Selecione que monitor você deseja analisar
+        Selecione que módulo você deseja analisar
       </p>
     </header>
   );
 }
 
-function SelectRow({ label }: { label: string }) {
+function ChevronDown({ open }: { open: boolean }) {
   return (
-    <button
-      type="button"
-      className="w-full rounded-lg border border-neutral-200 bg-white px-4 py-4 text-left shadow-sm flex items-center justify-between"
+    <svg
+      width="16"
+      height="16"
+      viewBox="0 0 16 16"
+      aria-hidden
+      className={`shrink-0 transition-transform duration-200 ${open ? "-rotate-180" : "rotate-0"}`}
     >
-      <span className="text-sm font-medium text-neutral-800">{label}</span>
-      <span className="text-neutral-500" aria-hidden>
-        ▾
-      </span>
-    </button>
+      <use href="/sprite.svg#chevron-down" />
+    </svg>
   );
 }
 
-/**
- * AccordionContext
- *
- * First "screen" for the side panel. It's meant to match the Figma intent:
- * header text + a stack of accordion/select controls.
- *
- * This is still a placeholder: it doesn't manage open/close state yet.
- */
-export function AccordionContext(_props: AccordionContextProps) {
+function AccordionItem({
+  item,
+  open,
+  onToggle,
+}: {
+  item: AccordionItemData;
+  open: boolean;
+  onToggle: () => void;
+}) {
+  const hasDatasets = Boolean(item.datasets?.length);
+  const isOpen = open && hasDatasets;
+
   return (
-    <div className="h-full flex flex-col">
+    <div
+      className={`
+        box-border flex flex-col items-start w-full
+        bg-white hover:bg-[#E4E5E2]
+        border border-[#EFEFEF] rounded-lg transition-colors duration-150
+        ${isOpen ? "px-4 pt-1 pb-4 gap-4" : "px-4 py-1 gap-[10px]"}
+      `}
+    >
+      <button
+        type="button"
+        onClick={onToggle}
+        className="flex flex-row items-center w-full py-4 gap-[18px] text-left bg-transparent"
+        style={{ height: 56 }}
+        aria-expanded={isOpen}
+      >
+        <span
+          className="flex-1 text-base font-medium text-[#0F172A]"
+          style={{ fontFamily: "Inter", fontStyle: "normal" }}
+        >
+          {item.label}
+        </span>
+
+      <ChevronDown open={isOpen} />
+
+      </button>
+
+      {isOpen && (
+        <>
+          <hr className="w-full border-t border-[#EFEFEF]" />
+          {item.datasets!.map((dataset) => (
+            <DroughtDataset key={dataset.id} card={dataset} />
+          ))}
+        </>
+      )}
+    </div>
+  );
+}
+
+export function AccordionContext(_props: AccordionContextProps) {
+  const [openId, setOpenId] = useState<number | null>(null);
+
+  function handleToggle(id: number) {
+    setOpenId((prev) => (prev === id ? null : id));
+  }
+
+  return (
+    <div className="h-full flex flex-col bg-[#F6F7F6]">
       <ContextHeader />
-
-      <div className="flex-1 overflow-y-auto px-4 pb-8">
-        <div className="space-y-4">
-          <SelectRow label="Seca" />
-          <SelectRow label="Desertificação" />
-          <SelectRow label="Categorias x" />
-        </div>
-
-        <div className="mt-6 rounded-lg border border-neutral-200 bg-white p-4 text-xs text-neutral-600">
-          Contexto atual: <span className="font-medium">accordion</span>
+      <div className="flex-1 overflow-y-auto px-5 pb-8">
+        <div className="flex flex-col gap-6">
+          {MONITORING_ITEMS.map((item) => (
+            <AccordionItem
+              key={item.id}
+              item={item}
+              open={openId === item.id}
+              onToggle={() => handleToggle(item.id)}
+            />
+          ))}
         </div>
       </div>
     </div>

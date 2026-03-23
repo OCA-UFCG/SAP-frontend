@@ -1,9 +1,7 @@
 "use client";
 
 import React from "react";
-
 import type { PlatformSection } from "@/components/PlatformSideRail/PlatformSideRail";
-
 import { AccordionContext } from "@/components/SidePanelContexts/AccordionContext";
 
 export type SidePanelContextComponent = React.ComponentType<{
