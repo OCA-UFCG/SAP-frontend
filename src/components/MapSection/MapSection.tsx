@@ -114,7 +114,6 @@ export default function DroughtSection() {
           <div className="relative flex w-full h-full min-h-[500px] z-10 rounded-2xl overflow-hidden border border-neutral-200 shadow-sm">
             <MapComponent
               center={[-15.749997, -47.9499962]}
-              zoom={4}
               dadosCDI={cdiData}
               estadoSelecionado={selectedState.toUpperCase()}
               className="w-full h-full"

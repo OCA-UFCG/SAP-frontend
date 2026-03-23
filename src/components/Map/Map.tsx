@@ -71,7 +71,7 @@ function ChangeView({ bounds }: ChangeViewProps) {
 const Map = ({
   center = [51.505, -0.09],
   zoom = 13,
-  minZoom = 10,
+  minZoom = 3,
   className = 'h-full w-full',
   dadosCDI,
   estadoSelecionado,
