@@ -16,6 +16,8 @@ export type CDIVectorData = FeatureCollection<Geometry, CDIFeatureProperties>;
 export function PlatformMap() {
   const [selectedState, setSelectedState] = useState("br");
 
+  const [showCDI, setShowCDI ] = useState(false);
+
   const handleSearch = (value: string) => {
     const searchLower = value.toLowerCase().trim();
     if (statesObj[searchLower as keyof typeof statesObj]) {
@@ -41,7 +43,8 @@ export function PlatformMap() {
           minZoom={3}
           center={[-15.749997, -47.9499962]}
           zoom={4}
-          dadosCDI={cdiData}
+          showStatesBorder={false}
+          dadosCDI={showCDI ? cdiData : undefined}
           estadoSelecionado={selectedState.toUpperCase()}
           className="w-full h-full"
           onStateClick={handleSearch}
