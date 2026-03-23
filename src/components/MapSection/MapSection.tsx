@@ -9,14 +9,8 @@ import SearchBar from "../SearchBar/SearchBar";
 import MapComponent from "../Map/MapComponent";
 import { AlertTiers } from "../AlertTiers/AlertTiers";
 import { statesObj } from "@/utils/constants";
+import { CDIVectorData} from '../Map/Map';
 
-export interface CDIFeatureProperties {
-  classe_cdi: number;
-  first: number;
-  [key: string]: unknown;
-}
-
-export type CDIVectorData = FeatureCollection<Geometry, CDIFeatureProperties>;
 
 const TIER_CONFIG = {
   "sem-seca": { label: "Sem seca", color: "#E4E5E2" },
@@ -114,7 +108,6 @@ export default function DroughtSection() {
           <div className="relative flex w-full h-full min-h-[500px] z-10 rounded-2xl overflow-hidden border border-neutral-200 shadow-sm">
             <MapComponent
               center={[-15.749997, -47.9499962]}
-              zoom={4}
               dadosCDI={cdiData}
               estadoSelecionado={selectedState.toUpperCase()}
               className="w-full h-full"
