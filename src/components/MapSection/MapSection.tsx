@@ -9,14 +9,8 @@ import SearchBar from "../SearchBar/SearchBar";
 import MapComponent from "../Map/MapComponent";
 import { AlertTiers } from "../AlertTiers/AlertTiers";
 import { statesObj } from "@/utils/constants";
+import { CDIVectorData} from '../Map/Map';
 
-export interface CDIFeatureProperties {
-  classe_cdi: number;
-  first: number;
-  [key: string]: unknown;
-}
-
-export type CDIVectorData = FeatureCollection<Geometry, CDIFeatureProperties>;
 
 const TIER_CONFIG = {
   "sem-seca": { label: "Sem seca", color: "#E4E5E2" },
