@@ -56,8 +56,8 @@ export default async function RootLayout({
     },
     "map-section": {
       id: "2",
-      name: "Mapa",
-      path: "/mapa",
+      name: "Plataforma",
+      path: "/platform",
       appears: true,
     },
     "about-section": {
