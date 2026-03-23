@@ -16,6 +16,7 @@ interface ChangeViewProps {
 }
 
 interface MapProps {
+  minZoom?: number; 
   center: [number, number];
   zoom?: number;
   markers?: Array<{ position: [number, number]; label: string }>;
