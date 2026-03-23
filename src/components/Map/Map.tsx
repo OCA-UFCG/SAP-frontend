@@ -28,7 +28,8 @@ interface MapProps {
   zoom?: number;
   markers?: Array<{ position: [number, number]; label: string }>;
   className?: string;
-  dadosCDI: CDIVectorData;
+  showStatesBorder?: boolean;
+  dadosCDI?: CDIVectorData;
   estadoSelecionado: string;
   onStateClick?: (uf: string) => void;
 }
@@ -79,6 +80,7 @@ const Map = ({
   minZoom = 3,
   className = 'h-full w-full',
   dadosCDI,
+  showStatesBorder,
   estadoSelecionado,
   onStateClick,
 }: MapProps) => {
@@ -233,13 +235,14 @@ const Map = ({
           key="cdi-layer"
           style={vectorStyle}
         />
-
+      { showStatesBorder && (
         <GeoJSON
           data={geometria as FeatureCollection}
           onEachFeature={onEachFeature}
           key={estadoSelecionado}
           style={defaultStyle}
         />
+      )}
       </MapContainer>
     </div>
   );
