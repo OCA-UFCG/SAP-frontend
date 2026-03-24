@@ -5,17 +5,17 @@ import clsx from "clsx";
 export type PlatformSection = "modules" | "analysis" | "forecast";
 
 export interface PlatformSideRailProps {
-/** Which section is currently active/selected. */
-activeSection: PlatformSection;
-/** Called when user selects a different section. */
-onSectionChange: (next: PlatformSection) => void;
+  /** Which section is currently active/selected. */
+  activeSection: PlatformSection;
+  /** Called when user selects a different section. */
+  onSectionChange: (next: PlatformSection) => void;
 
-/** Controlled state: whether the side panel is currently visible. */
-isPanelOpen: boolean;
-/** Called when user clicks the chevron toggle. */
-onTogglePanel: () => void;
+  /** Controlled state: whether the side panel is currently visible. */
+  isPanelOpen: boolean;
+  /** Called when user clicks the chevron toggle. */
+  onTogglePanel: () => void;
 
-className?: string;
+  className?: string;
 }
 
 /**
@@ -29,66 +29,77 @@ className?: string;
  * - The parent container (PlatformSidebar) decides whether to render the panel.
  */
 export function PlatformSideRail({
-    activeSection,
-    onSectionChange,
-    isPanelOpen,
-    onTogglePanel,
-    className,
-    }: PlatformSideRailProps) {
-        const items: Array<{ id: PlatformSection; label: string, icon: string }> = [
-            { id: "modules", label: "Módulos", icon: "eye" },
-            { id: "analysis", label: "Análise Multicritério", icon: "chart" },
-            { id: "forecast", label: "Previsão", icon: "calendar" },
-        ];
-
-    return (
-        <div className={clsx("relative h-full", className)}>
-        <nav className="h-full w-31 bg-white border-r border-neutral-200 px-4 py-8 flex flex-col gap-3">
-            {items.map((item, index) => {
-  const isActive = item.id === activeSection;
-  const nextIsActive = items[index + 1]?.id === activeSection;
-  const showSeparator = !isActive && !nextIsActive && index < items.length - 1;
+  activeSection,
+  onSectionChange,
+  isPanelOpen,
+  onTogglePanel,
+  className,
+}: PlatformSideRailProps) {
+    const items: Array<{ id: PlatformSection; label: string, icon: string }> = [
+      { id: "modules", label: "Módulos", icon: "eye" },
+      { id: "analysis", label: "Análise Multicritério", icon: "chart" },
+      { id: "forecast", label: "Previsão", icon: "calendar" },
+  ];
 
   return (
-    <div key={item.id}>
-      <button
-        type="button"
-        onClick={() => onSectionChange(item.id)}
-        aria-current={isActive ? "page" : undefined}
-        className={clsx(
-          "w-full rounded-xl px-2 py-5 text-center transition-colors",
-          isActive
-            ? "bg-[#E1E2B4] text-[#5B612A]"
-            : "bg-white text-neutral-400 hover:text-neutral-600",
-        )}
-      >
-        <div className="flex items-center justify-center">
-          <Icon id={item.icon} size={22} />
-        </div>
-        <div className="mt-2 text-xs font-medium text-center leading-tight break-words">
-          {item.label}
-        </div>
-      </button>
+    <div className={clsx("relative h-full", className)}>
+      <nav className="h-full w-[124px] bg-white border-r border-neutral-200 pt-[48px] pb-[18px] px-[16px] flex flex-col">
+        <div className="w-[92px] flex flex-col">
 
-      {showSeparator && <hr className="border-neutral-200 mx-2" />}
+          {items.map((item, index) => {
+            const isActive = item.id === activeSection;
+            return (
+            <div
+              key={item.id}
+              //clsx eh uma função pra montar classes CSS dinamicamente
+              className={clsx(
+                "w-full flex flex-col items-center",
+                index !== 0 && "border-t border-[#ECECEC] pt-[24px]",
+                index !== items.length - 1 && "pb-[24px]"
+              )}
+            >
+                <button
+                  type="button"
+                  onClick={() => onSectionChange(item.id)}
+                  aria-current={isActive ? "page" : undefined}
+                  className={clsx(
+                    "w-full h-[88px] flex flex-col items-center justify-center gap-[4px] px-[8px] rounded-lg transition-colors duration-150",
+                    isActive
+                      ? "bg-[#E1E2B4] text-[#5B612A]"
+                      : "text-neutral-400 hover:bg-[#F8F7F8] hover:text-neutral-600"
+                  )}
+                >
+                  <div
+                    className={clsx(
+                      "flex items-center justify-center",
+                      isActive ? "text-[#5B612A]" : "text-neutral-400"
+                    )}
+                  >
+                    <Icon id={item.icon} size={24} />
+                  </div>
+
+                  <div className="text-[12px] leading-[14px] font-medium text-center break-words w-[76px]">
+                    {item.label}
+                  </div>
+                </button>
+              </div>
+            );
+          })}
+        </div>
+      </nav>
+
+      {/* Panel toggle handle (chevron placeholder) */}
+      <div className="absolute top-1/2 -right-5 -translate-y-1/2">
+        <button
+          type="button"
+          onClick={onTogglePanel}
+          className="h-10 w-10 rounded-r-lg border border-neutral-200 bg-white shadow-sm flex items-center justify-center"
+        >
+          <span className="text-sm font-bold">
+            {isPanelOpen ? "<" : ">"}
+          </span>
+        </button>
+      </div>
     </div>
   );
-})}
-            </nav>
-
-            {/* Panel toggle handle (chevron placeholder) */}
-            <div className="absolute top-1/2 -right-5 -translate-y-1/2">
-                <button
-                type="button"
-                onClick={onTogglePanel}
-                aria-label={isPanelOpen ? "Collapse side panel" : "Expand side panel"}
-                className="h-10 w-10 rounded-r-lg border border-neutral-200 bg-white shadow-sm flex items-center justify-center"
-                >
-                <span className="text-sm font-bold">
-                    {isPanelOpen ? "<" : ">"}
-                </span>
-                </button>
-            </div>
-            </div>
-    );
 }
