@@ -77,10 +77,10 @@ function ChangeView({ bounds }: ChangeViewProps) {
 const Map = ({
   center = [51.505, -0.09],
   zoom = 13,
-  minZoom = 3,
+  minZoom = 4,
   className = 'h-full w-full',
   dadosCDI,
-  showStatesBorder,
+  showStatesBorder = true,
   estadoSelecionado,
   onStateClick,
 }: MapProps) => {
@@ -219,8 +219,8 @@ const Map = ({
         scrollWheelZoom={true}
         className={className}
         preferCanvas={true}
-        maxBounds={brasilBounds}
-        maxBoundsViscosity={0.35}
+        maxBounds={[[-90, -180], [90, 180]]}
+        maxBoundsViscosity={1}
       >
         <ChangeView bounds={currentBounds} />
 
