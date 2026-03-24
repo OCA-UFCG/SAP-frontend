@@ -25,8 +25,8 @@ const content: ISections = {
   },
   "map-section": {
     id: "2",
-    name: "Mapa",
-    path: "/mapa",
+    name: "Plataforma",
+    path: "/platform",
     appears: true,
   },
   "about-section": {
