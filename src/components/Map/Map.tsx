@@ -72,7 +72,7 @@ function ChangeView({ bounds }: ChangeViewProps) {
 const Map = ({
   center = [51.505, -0.09],
   zoom = 13,
-  minZoom = 4,
+  minZoom = 6,
   className = 'h-full w-full',
   dadosCDI,
   showStatesBorder = true,
@@ -208,6 +208,7 @@ const Map = ({
       <MapContainer
         center={center}
         zoom={zoom}
+        minZoom={minZoom}
         scrollWheelZoom={true}
         className={className}
         preferCanvas={true}
