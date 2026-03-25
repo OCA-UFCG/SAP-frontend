@@ -3,6 +3,11 @@ name: CD SAP-Home frontend BETA
 on:
   push:
     branches: ["main"]
+    
+concurrency:
+  group: sap-beta-deploy
+  cancel-in-progress: true
+  
 jobs:
   build-image:
     runs-on: ubuntu-latest
@@ -45,7 +50,7 @@ jobs:
 
   push-beta:
     needs: build-image
-    runs-on: beta-runner
+    runs-on: [self-hosted, sap-beta-runner]
     steps:
       - name: Debug environment (Runner)
         run: echo "Image is ${{ vars.DOCKER_IMAGE_BETA }}"
