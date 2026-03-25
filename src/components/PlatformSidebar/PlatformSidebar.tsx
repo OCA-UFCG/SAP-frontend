@@ -26,7 +26,7 @@ export function PlatformSidebar() {
     activeSection === "modules" ? undefined : ComingSoonContext;
 
   return (
-    <aside className="absolute left-0 top-0 h-full flex">
+    <aside className="absolute left-0 top-0 h-full flex z-20">
       <PlatformSideRail
         activeSection={activeSection}
         onSectionChange={setActiveSection}
