@@ -13,7 +13,18 @@ export interface CDIFeatureProperties {
 }
 export type CDIVectorData = FeatureCollection<Geometry, CDIFeatureProperties>;
 
+/**
+ * PlatformMap
+ *
+ * Placeholder for the real map implementation.
+ *
+ * In the final implementation this component will:
+ * - Render the base map (Leaflet/Mapbox/etc.)
+ * - Render thematic layers (e.g., drought/CDI polygons)
+ * - Emit selection events (e.g., UF click)
+ */
 export function PlatformMap() {
+
   const [selectedState, setSelectedState] = useState("br");
 
   const [showCDI, setShowCDI ] = useState(false);
@@ -50,6 +61,8 @@ export function PlatformMap() {
           onStateClick={handleSearch}
         />
       </div>
+
+      {/* Caption/legend overlay (bottom-right in the Figma) */}
       <PlatformMapCaption />
     </div>
   );
