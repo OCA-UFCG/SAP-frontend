@@ -65,14 +65,13 @@ export function PlatformSideRail({
                   className={clsx(
                     "w-full h-[88px] flex flex-col items-center justify-center gap-[4px] px-[8px] rounded-lg transition-colors duration-150",
                     isActive
-                      ? "bg-[#E1E2B4] text-[#5B612A]"
-                      : "text-neutral-400 hover:bg-[#F8F7F8] hover:text-neutral-600"
+                ? "bg-[#E1E2B4] text-[#5B612A]"
+                : "text-[#292829] hover:bg-[#F8F7F8]"
                   )}
                 >
                   <div
                     className={clsx(
                       "flex items-center justify-center",
-                      isActive ? "text-[#5B612A]" : "text-neutral-400"
                     )}
                   >
                     <Icon id={item.icon} size={24} />
