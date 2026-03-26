@@ -1,7 +1,7 @@
 "use client";
-
 import { PlatformMap } from "@/components/PlatformMap/PlatformMap";
 import { PlatformSidebar } from "@/components/PlatformSidebar/PlatformSidebar";
+import { MapLayerProvider } from "@/components/MapLayerContext/MapLayerContext";
 
 /**
  * PlatformLayout
@@ -24,12 +24,13 @@ import { PlatformSidebar } from "@/components/PlatformSidebar/PlatformSidebar";
  */
 export function PlatformLayout() {
   return (
-    <div className="relative w-full min-h-[calc(100vh-64px)] bg-neutral-50">
-      {/* Main canvas (map is the background layer) */}
-      <PlatformMap />
-
-      {/* Left overlay (rail + panel) */}
-      <PlatformSidebar />
-    </div>
+    <MapLayerProvider>
+      <div className="relative w-full min-h-[calc(100vh-64px)] bg-neutral-50">
+        {/* Main canvas (map is the background layer) */}
+        <PlatformMap />
+        {/* Left overlay (rail + panel) */}
+        <PlatformSidebar />
+      </div>
+    </MapLayerProvider>
   );
 }
