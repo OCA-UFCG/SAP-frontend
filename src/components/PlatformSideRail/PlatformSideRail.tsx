@@ -89,7 +89,8 @@ export function PlatformSideRail({
       </nav>
 
       {/* Panel toggle handle (chevron placeholder) */}
-      <div className="absolute top-1/2 -right-5 -translate-y-1/2">
+      <div className={`absolute top-1/2 -translate-y-1/2 transition-[right] duration-300 ease-in-out ${isPanelOpen ? "-right-[460px]" : "-right-[39px]"}`}>
+      
         <button
           type="button"
           onClick={onTogglePanel}
