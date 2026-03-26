@@ -1,4 +1,5 @@
 import { Document } from "@contentful/rich-text-types";
+
 export interface DataCardsI {
   noDroughtAreaValue: number;
   watchAreaValue: number;
@@ -171,4 +172,11 @@ export interface SecaData {
 
 export interface SecaRootObject {
   [key: string]: SecaData;
+}
+
+type Direction = "up" | "down" | "right" | "left"
+export interface ChevronI {
+  open: boolean, 
+  from: Direction,
+  to: Direction
 }

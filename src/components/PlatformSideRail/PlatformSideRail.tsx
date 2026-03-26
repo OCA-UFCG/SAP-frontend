@@ -1,4 +1,5 @@
 "use client";
+import { Chevron } from "../Chevron/Chevron";
 import { Icon } from "../Icon/Icon";
 import clsx from "clsx";
 
@@ -63,7 +64,7 @@ export function PlatformSideRail({
                   onClick={() => onSectionChange(item.id)}
                   aria-current={isActive ? "page" : undefined}
                   className={clsx(
-                    "w-full h-[88px] flex flex-col items-center justify-center gap-[4px] px-[8px] rounded-lg transition-colors duration-150",
+                    "cursor-pointer w-full h-[88px] flex flex-col items-center justify-center gap-[4px] px-[8px] rounded-lg transition-colors duration-150",
                     isActive
                 ? "bg-[#E1E2B4] text-[#5B612A]"
                 : "text-[#292829] hover:bg-[#F8F7F8]"
@@ -88,14 +89,15 @@ export function PlatformSideRail({
       </nav>
 
       {/* Panel toggle handle (chevron placeholder) */}
-      <div className="absolute top-1/2 -right-5 -translate-y-1/2">
+      <div className={`absolute top-1/2 -translate-y-1/2 transition-[right] duration-300 ease-in-out ${isPanelOpen ? "-right-[460px]" : "-right-[39px]"}`}>
+      
         <button
           type="button"
           onClick={onTogglePanel}
           className="h-10 w-10 rounded-r-lg border border-neutral-200 bg-white shadow-sm flex items-center justify-center"
         >
-          <span className="text-sm font-bold">
-            {isPanelOpen ? "<" : ">"}
+          <span className="cursor-pointer text-sm font-bold">
+            <Chevron open={isPanelOpen} from="right" to="left" />
           </span>
         </button>
       </div>
