@@ -1,4 +1,5 @@
 "use client";
+import { Chevron } from "../Chevron/Chevron";
 import { Icon } from "../Icon/Icon";
 import clsx from "clsx";
 
@@ -94,8 +95,8 @@ export function PlatformSideRail({
           onClick={onTogglePanel}
           className="h-10 w-10 rounded-r-lg border border-neutral-200 bg-white shadow-sm flex items-center justify-center"
         >
-          <span className="text-sm font-bold">
-            {isPanelOpen ? "<" : ">"}
+          <span className="cursor-pointer text-sm font-bold">
+            <Chevron open={isPanelOpen} from="right" to="left" />
           </span>
         </button>
       </div>
