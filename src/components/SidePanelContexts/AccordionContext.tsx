@@ -4,6 +4,7 @@ import { useState } from "react";
 import { DroughtDataset, DROUGHT_DATASETS } from "../DroughtDataset/DroughtDataset";
 import type { IDroughtDataset } from "../DroughtDataset/DroughtDataset";
 import { PlatformSection } from "../PlatformSideRail/PlatformSideRail";
+import { Chevron } from "../Chevron/Chevron";
 
 interface AccordionItemData {
   id: number;
@@ -43,20 +44,6 @@ function ContextHeader() {
   );
 }
 
-function ChevronDown({ open }: { open: boolean }) {
-  return (
-    <svg
-      width="16"
-      height="16"
-      viewBox="0 0 16 16"
-      aria-hidden
-      className={`shrink-0 transition-transform duration-200 ${open ? "-rotate-180" : "rotate-0"}`}
-    >
-      <use href="/sprite.svg#chevron-down" />
-    </svg>
-  );
-}
-
 function AccordionItem({
   item,
   open,
@@ -81,7 +68,7 @@ function AccordionItem({
       <button
         type="button"
         onClick={onToggle}
-        className="flex flex-row items-center w-full py-4 gap-[18px] text-left bg-transparent"
+        className="cursor-pointer flex flex-row items-center w-full py-4 gap-[18px] text-left bg-transparent"
         style={{ height: 56 }}
         aria-expanded={isOpen}
       >
@@ -92,7 +79,7 @@ function AccordionItem({
           {item.label}
         </span>
 
-      <ChevronDown open={isOpen} />
+      <Chevron open={isOpen} from={"down"} to={"up"}/>
 
       </button>
 
