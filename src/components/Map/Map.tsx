@@ -21,7 +21,8 @@ interface MapProps {
   zoom?: number;
   markers?: Array<{ position: [number, number]; label: string }>;
   className?: string;
-  dadosCDI: CDIVectorData;
+  showStatesBorder?: boolean;
+  dadosCDI?: CDIVectorData;
   estadoSelecionado: string;
   // 1. Add the callback prop
   onStateClick?: (uf: string) => void;
@@ -71,8 +72,10 @@ function ChangeView({ bounds }: ChangeViewProps) {
 const Map = ({
   center = [51.505, -0.09],
   zoom = 13,
+  minZoom = 6,
   className = 'h-full w-full',
   dadosCDI,
+  showStatesBorder = true,
   estadoSelecionado,
   onStateClick, // 2. Destructure the prop
 }: MapProps) => {
@@ -205,9 +208,12 @@ const Map = ({
       <MapContainer
         center={center}
         zoom={zoom}
+        minZoom={minZoom}
         scrollWheelZoom={true}
         className={className}
         preferCanvas={true}
+        maxBounds={[[-90, -180], [90, 180]]}
+        maxBoundsViscosity={1}
       >
         <ChangeView bounds={currentBounds} />
         <TileLayer
@@ -219,7 +225,7 @@ const Map = ({
           key={`cdi-layer`}
           style={vectorStyle}
         />
-
+      { showStatesBorder && (
         <GeoJSON
           data={geometria as FeatureCollection}
           onEachFeature={onEachFeature}
@@ -227,6 +233,7 @@ const Map = ({
           key={`${estadoSelecionado}`}
           style={defaultStyle}
         />
+      )}
       </MapContainer>
     </div>
   );
