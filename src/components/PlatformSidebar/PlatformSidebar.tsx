@@ -39,7 +39,7 @@ export function PlatformSidebar() {
         className={`
         relative h-full overflow-hidden
           transition-[width] duration-300 ease-in-out
-          ${isPanelOpen ? "w-[422px]" : "w-0"}
+          ${isPanelOpen ? "w-[420px]" : "w-0"}
         `}
       >
         <div
