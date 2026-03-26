@@ -19,7 +19,8 @@ import { ComingSoonContext } from "@/components/SidePanelContexts/ComingSoonCont
  * The panel UI is rendered conditionally based on this state.
  */
 export function PlatformSidebar() {
-  const [activeSection, setActiveSection] = useState<PlatformSection>("modules");
+  const [activeSection, setActiveSection] =
+    useState<PlatformSection>("modules");
   const [isPanelOpen, setIsPanelOpen] = useState(true);
 
   const ContextComponent =
@@ -34,12 +35,26 @@ export function PlatformSidebar() {
         onTogglePanel={() => setIsPanelOpen((v) => !v)}
       />
 
-      {isPanelOpen && (
-        <PlatformSidePanel
-          activeSection={activeSection}
-          ContextComponent={ContextComponent}
-        />
-      )}
+      <div
+        className={`
+        relative h-full overflow-hidden
+          transition-[width] duration-300 ease-in-out
+          ${isPanelOpen ? "w-[420px]" : "w-0"}
+        `}
+      >
+        <div
+          className={`
+            absolute left-0 top-0 h-full w-full
+            transform transition-transform duration-300 ease-in-out
+            ${isPanelOpen ? "translate-x-0" : "-translate-x-full"}
+          `}
+        >
+          <PlatformSidePanel
+            activeSection={activeSection}
+            ContextComponent={ContextComponent}
+          />
+        </div>
+      </div>
     </aside>
   );
 }
