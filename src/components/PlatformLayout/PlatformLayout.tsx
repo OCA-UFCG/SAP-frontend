@@ -2,6 +2,7 @@
 
 import { PlatformMap } from "@/components/PlatformMap/PlatformMap";
 import { PlatformSidebar } from "@/components/PlatformSidebar/PlatformSidebar";
+import { PlatformMapCaption } from "../PlatformMapCaption/PlatformMapCaption";
 
 /**
  * PlatformLayout
