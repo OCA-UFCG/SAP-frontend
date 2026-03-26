@@ -136,3 +136,24 @@ export const GET_FOOTER_PAGE = `
     }
   }
 `;
+
+export const GET_PANEL_LAYER = `
+  query GetPanelLayer {
+    panelLayerCollection {
+      items {
+        sys {
+          id
+        }
+        id
+        description
+        category
+        previewMap {
+          url
+          title
+          width
+          height
+        }
+      } 
+    }
+}
+`;
