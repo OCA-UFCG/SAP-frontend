@@ -79,7 +79,7 @@ function AccordionItem({
           {item.label}
         </span>
 
-      <Chevron open={isOpen} from={"down"} to={"up"}/>
+      <Chevron open={isOpen} from="down" to="up"/>
 
       </button>
 

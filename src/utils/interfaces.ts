@@ -1,5 +1,5 @@
 import { Document } from "@contentful/rich-text-types";
-import { Direction } from "readline";
+
 export interface DataCardsI {
   noDroughtAreaValue: number;
   watchAreaValue: number;
