@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { Chevron } from "../Chevron/Chevron";
 import { useMapLayer } from "../MapLayerContext/MapLayerContext";
+import { MapLegendItem } from "@/utils/interfaces";
 
 /**
  * PlatformMapCaption
@@ -12,11 +13,13 @@ import { useMapLayer } from "../MapLayerContext/MapLayerContext";
  * This is intentionally minimal for now; the goal is to make the planned
  * component hierarchy explicit.
  */
-export function PlatformMapCaption() {
+export function PlatformMapCaption({ legend }: { legend: MapLegendItem[] }) {
   const [isOpen, setIsOpen] = useState(false);
   const { activeData } = useMapLayer();
+
+  console.log(activeData?.features);
   return (
-    <div className="z-[1000] absolute bottom-6 right-6 w-[280px] rounded-lg border border-neutral-200 bg-white/90 shadow-sm">
+    <div className="z-[1000] absolute bottom-6 right-6 w-[340px] rounded-lg border border-neutral-200 bg-white/90 shadow-sm">
       <div
         className={`
         ${isOpen ? "px-4 pt-1 pb-4 gap-4" : "px-4 py-3 gap-[10px]"}
@@ -30,20 +33,31 @@ export function PlatformMapCaption() {
           className="flex justify-between items-center w-full cursor-pointer text-left bg-transparent"
           aria-expanded={isOpen}
         >
-          <p className="text-xs font-semibold text-neutral-700">
-            Legenda
-          </p>
+          <h2 className="font-semibold text-lg text-neutral-700">Legendas</h2>
           <Chevron open={isOpen} from="down" to="up" />
         </button>
       </div>
       <div>
-        {isOpen && (
-          <>
-            <div className="mt-1 text-[11px] text-neutral-500">
-              Legenda
-            </div>
-          </>
-        )}
+    {isOpen && (
+        <div className="border-t border-neutral-300 px-4 py-4">
+          <div className="flex flex-col gap-3">
+            {legend.map((item) => (
+              <div
+                key={item.classification}
+                className="flex items-center gap-3"
+              >
+                <span
+                  className="h-6 w-6 shrink-0 rounded-full"
+                  style={{ backgroundColor: item.color }}
+                />
+                <span className="font-black leading-none text-[#333333]">
+                  {item.label}
+                </span>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
       </div>
     </div>
   );
