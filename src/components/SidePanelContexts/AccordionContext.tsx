@@ -1,35 +1,49 @@
 "use client";
 
 import { useState } from "react";
-import { DroughtDataset, DROUGHT_DATASETS } from "../DroughtDataset/DroughtDataset";
+import { DroughtDataset } from "../DroughtDataset/DroughtDataset";
 import type { IDroughtDataset } from "../DroughtDataset/DroughtDataset";
 import { PlatformSection } from "../PlatformSideRail/PlatformSideRail";
 import { Chevron } from "../Chevron/Chevron";
+import { PanelLayerI } from "@/utils/interfaces";
 
 interface AccordionItemData {
   id: number;
   label: string;
   datasets?: IDroughtDataset[];
 }
+
 export interface AccordionContextProps {
   activeSection: PlatformSection;
+  panelLayers?: PanelLayerI[];
 }
 
-const MONITORING_ITEMS: AccordionItemData[] = [
-  {
-    id: 1,
-    label: "Seca",
-    datasets: DROUGHT_DATASETS,
-  },
-  {
-    id: 2,
-    label: "Desertificação",
-  },
-  {
-    id: 3,
-    label: "Categorias x",
-  },
-];
+const CATEGORY_ORDER = ["Seca", "Desertificação"];
+
+function buildMonitoringItems(panelLayers: PanelLayerI[]): AccordionItemData[] {
+  const grouped = panelLayers.reduce<Record<string, IDroughtDataset[]>>(
+    (acc, layer, index) => {
+      const dataset: IDroughtDataset = {
+        id: index + 1,
+        title: layer.id,
+        description: layer.description,
+        image: layer.previewMap?.url,
+        fileRef: layer.id,
+      };
+
+      if (!acc[layer.category]) acc[layer.category] = [];
+      acc[layer.category].push(dataset);
+      return acc;
+    },
+    {},
+  );
+
+  return CATEGORY_ORDER.map((label, index) => ({
+    id: index + 1,
+    label,
+    datasets: grouped[label] ?? [],
+  }));
+}
 
 function ContextHeader() {
   return (
@@ -95,8 +109,10 @@ function AccordionItem({
   );
 }
 
-export function AccordionContext(_props: AccordionContextProps) {
+export function AccordionContext({ panelLayers = [] }: AccordionContextProps) {
   const [openId, setOpenId] = useState<number | null>(null);
+
+  const monitoringItems = buildMonitoringItems(panelLayers);
 
   function handleToggle(id: number) {
     setOpenId((prev) => (prev === id ? null : id));
@@ -107,7 +123,7 @@ export function AccordionContext(_props: AccordionContextProps) {
       <ContextHeader />
       <div className="flex-1 overflow-y-auto px-5 pb-8">
         <div className="flex flex-col gap-6">
-          {MONITORING_ITEMS.map((item) => (
+          {monitoringItems.map((item) => (
             <AccordionItem
               key={item.id}
               item={item}
