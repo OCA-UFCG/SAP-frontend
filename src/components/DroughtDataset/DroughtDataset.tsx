@@ -26,13 +26,13 @@ export const DROUGHT_DATASETS: IDroughtDataset[] = [
     id: 2,
     title: "Monitor de seca",
     description: "breve descrição do dataset",
-    fileRef: "data/CDI_Janeiro_2024_Vetores.json",
+    fileRef: undefined,
   },
   {
     id: 3,
     title: "Monitor de seca",
     description: "breve descrição do dataset",
-    fileRef: "data/CDI_Janeiro_2024_Vetores.json",
+    fileRef: undefined,
   },
 ];
 
