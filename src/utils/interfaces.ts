@@ -180,3 +180,9 @@ export interface ChevronI {
   from: Direction,
   to: Direction
 }
+
+export interface  MapLegendItem {
+  label: string
+  classification: string | number
+  color: string
+};
