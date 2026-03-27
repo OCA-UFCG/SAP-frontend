@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import { Chevron } from "../Chevron/Chevron";
+import { useMapLayer } from "../MapLayerContext/MapLayerContext";
 
 /**
  * PlatformMapCaption
@@ -13,9 +14,9 @@ import { Chevron } from "../Chevron/Chevron";
  */
 export function PlatformMapCaption() {
   const [isOpen, setIsOpen] = useState(false);
-
+  const { activeData } = useMapLayer();
   return (
-    <div className="absolute bottom-6 right-6 w-[280px] rounded-lg border border-neutral-200 bg-white/90 shadow-sm">
+    <div className="z-[1000] absolute bottom-6 right-6 w-[280px] rounded-lg border border-neutral-200 bg-white/90 shadow-sm">
       <div
         className={`
         ${isOpen ? "px-4 pt-1 pb-4 gap-4" : "px-4 py-3 gap-[10px]"}
@@ -30,7 +31,7 @@ export function PlatformMapCaption() {
           aria-expanded={isOpen}
         >
           <p className="text-xs font-semibold text-neutral-700">
-            PlatformMapCaption
+            Legenda
           </p>
           <Chevron open={isOpen} from="down" to="up" />
         </button>
@@ -39,7 +40,7 @@ export function PlatformMapCaption() {
         {isOpen && (
           <>
             <div className="mt-1 text-[11px] text-neutral-500">
-              Legend / caption overlay placeholder
+              Legenda
             </div>
           </>
         )}
