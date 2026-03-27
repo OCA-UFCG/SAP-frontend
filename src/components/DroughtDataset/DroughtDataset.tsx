@@ -12,7 +12,7 @@ export interface IDroughtDataset {
 }
 
 const DATASET_REGISTRY: Record<string, CDIVectorData> = {
-  "data/CDI_Janeiro_2024_Vetores.json": cdiData as unknown as CDIVectorData,
+  "CDI": cdiData as unknown as CDIVectorData,
 };
 
 export const DROUGHT_DATASETS: IDroughtDataset[] = [
@@ -45,14 +45,15 @@ function InfoIcon() {
 }
 
 export function DroughtDataset({ card }: { card: IDroughtDataset }) {
-  const { setActiveData } = useMapLayer();
+  const { activeData, setActiveData } = useMapLayer();
 
   const handleAnalyze = () => {
-    // in case the dataset is not found (who knows)
+    // in case the dataset is not found
     if (!card.fileRef) return;
     
     const data = DATASET_REGISTRY[card.fileRef];
     if (data) setActiveData(data);
+    setActiveData(activeData === data ? null : data);
   };
 
   return (
