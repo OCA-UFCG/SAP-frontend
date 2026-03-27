@@ -1,26 +1,20 @@
 "use client";
 
 import { useState } from "react";
-
 import {
   PlatformSection,
   PlatformSideRail,
 } from "@/components/PlatformSideRail/PlatformSideRail";
 import { PlatformSidePanel } from "@/components/PlatformSidePanel/PlatformSidePanel";
 import { ComingSoonContext } from "@/components/SidePanelContexts/ComingSoonContext";
+import { PanelLayerI } from "@/utils/interfaces";
 
-/**
- * PlatformSidebar
- *
- * Container that encapsulates the left rail + side panel.
- *
- * Important: the rail does NOT "open the panel" directly.
- * Instead, it toggles a boolean state (isPanelOpen) that this container owns.
- * The panel UI is rendered conditionally based on this state.
- */
-export function PlatformSidebar() {
-  const [activeSection, setActiveSection] =
-    useState<PlatformSection>("modules");
+interface PlatformSidebarProps {
+  panelLayers: PanelLayerI[];
+}
+
+export function PlatformSidebar({ panelLayers }: PlatformSidebarProps) {
+  const [activeSection, setActiveSection] = useState<PlatformSection>("modules");
   const [isPanelOpen, setIsPanelOpen] = useState(true);
 
   const ContextComponent =
@@ -51,7 +45,8 @@ export function PlatformSidebar() {
         >
           <PlatformSidePanel
             activeSection={activeSection}
-            ContextComponent={ContextComponent}
+            panelLayers={panelLayers}
+          ContextComponent={ContextComponent}
           />
         </div>
       </div>
