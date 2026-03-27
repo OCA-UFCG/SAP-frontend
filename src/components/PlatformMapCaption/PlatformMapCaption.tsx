@@ -22,7 +22,7 @@ export function PlatformMapCaption({ legend }: { legend: MapLegendItem[] }) {
     <div className="z-[1000] absolute bottom-6 right-6 w-[340px] rounded-lg border border-neutral-200 bg-white/90 shadow-sm">
       <div
         className={`
-        ${isOpen ? "px-4 pt-1 pb-4 gap-4" : "px-4 py-3 gap-[10px]"}
+        ${isOpen ? "px-4 py-3 gap-[10px]" : "px-4 py-3 gap-[10px]"}
         bg-white hover:bg-[#E4E5E2]
         border border-[#EFEFEF] rounded-lg transition-colors duration-150
       `}
@@ -30,11 +30,11 @@ export function PlatformMapCaption({ legend }: { legend: MapLegendItem[] }) {
         <button
           type="button"
           onClick={() => setIsOpen(!isOpen)}
-          className="flex justify-between items-center w-full cursor-pointer text-left bg-transparent"
+          className="flex w-full h-full justify-between items-center w-full cursor-pointer text-left bg-transparent"
           aria-expanded={isOpen}
         >
           <h2 className="font-semibold text-lg text-neutral-700">Legendas</h2>
-          <Chevron open={isOpen} from="down" to="up" />
+          <Chevron open={isOpen} from="down" to="up" size={30}/>
         </button>
       </div>
       <div>
@@ -47,7 +47,7 @@ export function PlatformMapCaption({ legend }: { legend: MapLegendItem[] }) {
                 className="flex items-center gap-3"
               >
                 <span
-                  className="h-6 w-6 shrink-0 rounded-full"
+                  className="h-4 w-4 shrink-0 rounded-full"
                   style={{ backgroundColor: item.color }}
                 />
                 <span className="font-black leading-none text-[#333333]">

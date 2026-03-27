@@ -178,7 +178,8 @@ type Direction = "up" | "down" | "right" | "left"
 export interface ChevronI {
   open: boolean, 
   from: Direction,
-  to: Direction
+  to: Direction,
+  size?: number
 }
 
 export interface  MapLegendItem {
