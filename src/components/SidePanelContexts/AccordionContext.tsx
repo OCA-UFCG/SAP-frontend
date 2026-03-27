@@ -18,7 +18,7 @@ export interface AccordionContextProps {
   panelLayers?: PanelLayerI[];
 }
 
-const CATEGORY_ORDER = ["Seca", "Desertificação", "Categorias x"];
+const CATEGORY_ORDER = ["Seca", "Desertificação"];
 
 function buildMonitoringItems(panelLayers: PanelLayerI[]): AccordionItemData[] {
   const grouped = panelLayers.reduce<Record<string, IDroughtDataset[]>>(
