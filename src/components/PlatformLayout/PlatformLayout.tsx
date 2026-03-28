@@ -1,3 +1,4 @@
+import { MapLayerProvider } from "@/components/MapLayerContext/MapLayerContext";
 import { PlatformMap } from "@/components/PlatformMap/PlatformMap";
 import { PlatformSidebar } from "@/components/PlatformSidebar/PlatformSidebar";
 import { getContent } from "@/utils/contentful";
@@ -17,9 +18,11 @@ export async function PlatformLayout() {
   const panelLayers = await getPanelLayers();
 
   return (
-    <div className="relative w-full min-h-[calc(100vh-64px)] bg-neutral-50">
-      <PlatformMap />
-      <PlatformSidebar panelLayers={panelLayers} />
-    </div>
+    <MapLayerProvider>
+      <div className="relative w-full min-h-[calc(100vh-64px)] bg-neutral-50">
+        <PlatformMap />
+        <PlatformSidebar panelLayers={panelLayers} />
+      </div>
+    </MapLayerProvider>
   );
 }

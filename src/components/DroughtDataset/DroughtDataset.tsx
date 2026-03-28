@@ -1,3 +1,8 @@
+'use client';
+import { useMapLayer } from "@/components/MapLayerContext/MapLayerContext";
+import { CDIVectorData } from "@/components/PlatformMap/PlatformMap";
+import cdiData from "../../data/CDI_Janeiro_2024_Vetores.json";
+
 export interface IDroughtDataset {
   id: number;
   title: string;
@@ -5,6 +10,10 @@ export interface IDroughtDataset {
   image?: string;
   fileRef?: string;
 }
+
+const DATASET_REGISTRY: Record<string, CDIVectorData> = {
+  "CDI": cdiData as unknown as CDIVectorData,
+};
 
 export const DROUGHT_DATASETS: IDroughtDataset[] = [
   {
@@ -17,13 +26,13 @@ export const DROUGHT_DATASETS: IDroughtDataset[] = [
     id: 2,
     title: "Monitor de seca",
     description: "breve descrição do dataset",
-    fileRef: "data/CDI_Janeiro_2024_Vetores.json",
+    fileRef: undefined,
   },
   {
     id: 3,
     title: "Monitor de seca",
     description: "breve descrição do dataset",
-    fileRef: "data/CDI_Janeiro_2024_Vetores.json",
+    fileRef: undefined,
   },
 ];
 
@@ -36,6 +45,17 @@ function InfoIcon() {
 }
 
 export function DroughtDataset({ card }: { card: IDroughtDataset }) {
+  const { activeData, setActiveData } = useMapLayer();
+
+  const handleAnalyze = () => {
+    // in case the dataset is not found
+    if (!card.fileRef) return;
+    
+    const data = DATASET_REGISTRY[card.fileRef];
+    if (data) setActiveData(data);
+    setActiveData(activeData === data ? null : data);
+  };
+
   return (
     <div className="flex flex-row items-start w-full bg-white border border-[#EFEFEF] shadow-sm rounded-lg overflow-hidden shrink-0">
       <div className="flex flex-col items-start w-full">
@@ -81,7 +101,8 @@ export function DroughtDataset({ card }: { card: IDroughtDataset }) {
         >
           <button
             type="button"
-            className="flex flex-row justify-center items-center px-4 py-2 gap-[10px] flex-1 h-10 bg-[#989F43] rounded-[6px]"
+            onClick={handleAnalyze}
+            className="flex flex-row justify-center items-center px-4 py-2 gap-[10px] flex-1 h-10 bg-[#989F43] rounded-[6px] cursor-pointer"
           >
             <span
               className="text-sm font-normal text-white"
