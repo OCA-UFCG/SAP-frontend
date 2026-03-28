@@ -72,7 +72,7 @@ function ChangeView({ bounds }: ChangeViewProps) {
 const Map = ({
   center = [51.505, -0.09],
   zoom = 13,
-  minZoom = 6,
+  minZoom = 3,
   className = 'h-full w-full',
   dadosCDI,
   showStatesBorder = true,
@@ -220,20 +220,22 @@ const Map = ({
           url="https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}"
           attribution="&copy; Esri"
         />
-        <GeoJSON
-          data={dadosCDI as FeatureCollection}
-          key={`cdi-layer`}
-          style={vectorStyle}
-        />
-      { showStatesBorder && (
-        <GeoJSON
-          data={geometria as FeatureCollection}
-          onEachFeature={onEachFeature}
-          // Note: key should be unique to re-render if geometry changes
-          key={`${estadoSelecionado}`}
-          style={defaultStyle}
-        />
-      )}
+        {dadosCDI && (
+          <GeoJSON
+            data={dadosCDI as FeatureCollection}
+            key={`cdi-layer-${!!dadosCDI}`}
+            style={vectorStyle}
+          />
+        )}
+        {showStatesBorder && (
+          <GeoJSON
+            data={geometria as FeatureCollection}
+            onEachFeature={onEachFeature}
+            // Note: key should be unique to re-render if geometry changes
+            key={`${estadoSelecionado}`}
+            style={defaultStyle}
+          />
+        )}
       </MapContainer>
     </div>
   );

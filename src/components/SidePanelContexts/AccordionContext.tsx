@@ -28,6 +28,7 @@ function buildMonitoringItems(panelLayers: PanelLayerI[]): AccordionItemData[] {
         title: layer.id,
         description: layer.description,
         image: layer.previewMap?.url,
+        fileRef: layer.id,
       };
 
       if (!acc[layer.category]) acc[layer.category] = [];
