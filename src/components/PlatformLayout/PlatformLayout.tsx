@@ -11,7 +11,7 @@ interface PanelLayerResponse {
 
 async function getPanelLayers(): Promise<PanelLayerI[]> {
   const data = await getContent<PanelLayerResponse>(GET_PANEL_LAYER);
-  return data.panelLayerCollection.items;
+  return data?.panelLayerCollection?.items;
 }
 
 export async function PlatformLayout() {
