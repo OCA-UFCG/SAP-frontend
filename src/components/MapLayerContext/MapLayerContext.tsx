@@ -4,7 +4,7 @@ import { CDIVectorData } from "@/components/PlatformMap/PlatformMap";
 
 interface MapLayerContextValue {
   activeData: CDIVectorData | null;
-  setActiveData: (data: CDIVectorData) => void;
+  setActiveData: (data: CDIVectorData | null) => void;
 }
 
 const MapLayerContext = createContext<MapLayerContextValue | null>(null);

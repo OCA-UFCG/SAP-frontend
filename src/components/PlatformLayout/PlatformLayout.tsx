@@ -1,35 +1,27 @@
-"use client";
+import { MapLayerProvider } from "@/components/MapLayerContext/MapLayerContext";
 import { PlatformMap } from "@/components/PlatformMap/PlatformMap";
 import { PlatformSidebar } from "@/components/PlatformSidebar/PlatformSidebar";
-import { MapLayerProvider } from "@/components/MapLayerContext/MapLayerContext";
+import { getContent } from "@/utils/contentful";
+import { PanelLayerI } from "@/utils/interfaces";
+import { GET_PANEL_LAYER } from "@/utils/queries";
 
-/**
- * PlatformLayout
- *
- * Encapsulates the Platform screen composition.
- *
- * Desired high-level hierarchy:
- *
- * PlatformLayout
- * ├─ PlatformMap
- * │  └─ PlatformMapCaption (legend / map caption overlay)
- * └─ PlatformSidebar
- *    ├─ PlatformSideRail
- *    └─ PlatformSidePanel
- *       ├─ SidePanelHeader
- *       └─ SidePanelBody
- *
- * This is currently a *skeleton* whose primary purpose is to clarify component
- * boundaries and responsibilities. The UI shown here is intentionally minimal.
- */
-export function PlatformLayout() {
+interface PanelLayerResponse {
+  panelLayerCollection: { items: PanelLayerI[] };
+}
+
+async function getPanelLayers(): Promise<PanelLayerI[]> {
+  const data = await getContent<PanelLayerResponse>(GET_PANEL_LAYER);
+  return data.panelLayerCollection.items;
+}
+
+export async function PlatformLayout() {
+  const panelLayers = await getPanelLayers();
+
   return (
     <MapLayerProvider>
       <div className="relative w-full min-h-[calc(100vh-64px)] bg-neutral-50">
-        {/* Main canvas (map is the background layer) */}
         <PlatformMap />
-        {/* Left overlay (rail + panel) */}
-        <PlatformSidebar />
+        <PlatformSidebar panelLayers={panelLayers} />
       </div>
     </MapLayerProvider>
   );
