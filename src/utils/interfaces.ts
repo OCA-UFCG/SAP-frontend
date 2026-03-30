@@ -187,3 +187,17 @@ export interface  MapLegendItem {
   classification: string | number
   color: string
 };
+export interface PanelLayerI {
+  sys: {
+    id: string;
+  };
+  id: string;
+  description: string;
+  category: string;
+  previewMap: {
+    url: string;
+    title?: string;
+    width?: number;
+    height?: number;
+  };
+}
