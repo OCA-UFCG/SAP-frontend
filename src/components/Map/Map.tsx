@@ -126,12 +126,12 @@ const Map = ({
     const classe = Number(feature.properties.classe_cdi);
 
     const colors = [
-      '#FFFFFF',
-      '#FFFF00',
-      '#FFA500',
-      '#FF0000',
-      '#00FF00',
-      '#8B4513',
+      '#E4E5E2',
+      '#FFCC80',
+      '#FB8C00',
+      '#BF360C',
+      '#A3B18A',
+      '#588157',
     ];
 
     return {
