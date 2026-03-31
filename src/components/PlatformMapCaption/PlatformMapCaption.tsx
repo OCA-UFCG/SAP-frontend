@@ -2,7 +2,6 @@
 
 import { useState } from "react";
 import { Chevron } from "../Chevron/Chevron";
-import { useMapLayer } from "../MapLayerContext/MapLayerContext";
 import { MapLegendItem } from "@/utils/interfaces";
 
 /**
@@ -15,9 +14,7 @@ import { MapLegendItem } from "@/utils/interfaces";
  */
 export function PlatformMapCaption({ legend }: { legend: MapLegendItem[] }) {
   const [isOpen, setIsOpen] = useState(false);
-  const { activeData } = useMapLayer();
 
-  console.log(activeData?.features);
   return (
     <div className="z-[1000] absolute bottom-6 right-6 w-[340px] rounded-lg border border-neutral-200 bg-white/90 shadow-sm">
       <div

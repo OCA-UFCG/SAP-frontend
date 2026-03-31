@@ -65,13 +65,14 @@ export const statesObj = {
 
 export const maps_legends = {
   cdi: [
-      {label: "Sem seca", classification: "0", color: '#FFFFFF'},
-      {label: "Observação", classification: "1", color: '#FFFF00'},
-      {label: "Atenção", classification: "2", color: '#FFA500'},
-      {label: "Seca severa", classification: "3", color: '#FF0000'},
-      {label: "Recuperação total", classification: "4", color: '#00FF00'},
-      {label: "Recuperação parcial", classification: "5", color: '#8B4513'},
+      {label: "Sem seca", classification: "0", color: '#E4E5E2'},
+      {label: "Observação", classification: "1", color: '#FFCC80'},
+      {label: "Atenção", classification: "2", color: '#FB8C00'},
+      {label: "Seca severa", classification: "3", color: '#BF360C'},
+      {label: "Recuperação total", classification: "4", color: '#A3B18A'},
+      {label: "Recuperação parcial", classification: "5", color: '#588157'},
     ],
 }
+
 export const states = new Set(Object.values(statesObj));
 export const ufs = new Set(Object.keys(statesObj));
