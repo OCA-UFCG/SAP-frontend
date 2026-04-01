@@ -16,7 +16,7 @@ export function PlatformMapCaption({ legend }: { legend: MapLegendItem[] }) {
   const [isOpen, setIsOpen] = useState(false);
 
   return (
-    <div className="z-[1000] absolute bottom-6 right-6 w-[340px] rounded-lg border border-neutral-200 bg-white/90 shadow-sm">
+    <div className={'z-[1000] absolute bottom-6 right-6 w-[340px] rounded-xl border-t border-neutral-200 bg-white/90 shadow-sm'}>
       <div
         className={`
         ${isOpen ? "px-4 py-3 gap-[10px]" : "px-4 py-3 gap-[10px]"}
@@ -30,13 +30,13 @@ export function PlatformMapCaption({ legend }: { legend: MapLegendItem[] }) {
           className="flex w-full h-full justify-between items-center w-full cursor-pointer text-left bg-transparent"
           aria-expanded={isOpen}
         >
-          <h2 className="font-semibold text-lg text-neutral-700">Legendas</h2>
+          <h2 className="font-semibold text-base text-neutral-600">Legendas</h2>
           <Chevron open={isOpen} from="down" to="up" size={30}/>
         </button>
       </div>
       <div>
     {isOpen && (
-        <div className="border-t border-neutral-300 px-4 py-4">
+        <div className="bg-white border-neutral-200 px-4 py-4 rounded-b-xl">
           <div className="flex flex-col gap-3">
             {legend.map((item) => (
               <div
