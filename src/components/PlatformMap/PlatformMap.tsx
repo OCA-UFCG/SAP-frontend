@@ -3,7 +3,7 @@ import { PlatformMapCaption } from "@/components/PlatformMapCaption/PlatformMapC
 import MapComponent from "../Map/MapComponent";
 import { useState } from "react";
 import { FeatureCollection, Geometry } from "geojson";
-import { statesObj } from "@/utils/constants";
+import { maps_legends, statesObj } from "@/utils/constants";
 import { useMapLayer } from "@/components/MapLayerContext/MapLayerContext";
 
 export interface CDIFeatureProperties {
@@ -60,7 +60,9 @@ export function PlatformMap() {
       </div>
 
       {/* Caption/legend overlay (bottom-right in the Figma) */}
-      <PlatformMapCaption />
+      
+      {activeData && <PlatformMapCaption legend={maps_legends.cdi}/>}
+      
     </div>
   );
 }
