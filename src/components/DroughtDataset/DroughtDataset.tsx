@@ -102,7 +102,7 @@ export function DroughtDataset({ card }: { card: IDroughtDataset }) {
           <button
             type="button"
             onClick={handleAnalyze}
-            className="flex flex-row justify-center items-center px-4 py-2 gap-[10px] flex-1 h-10 bg-[#989F43] rounded-[6px] cursor-pointer"
+            className="flex flex-row justify-center items-center px-4 py-2 gap-[10px] flex-1 h-10 bg-[#989F43] rounded-[6px] cursor-pointer active:scale-95 active:translate-y-1 duration-300"
           >
             <span
               className="text-sm font-normal text-white"
