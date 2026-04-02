@@ -11,7 +11,7 @@ const MapLayerContext = createContext<MapLayerContextValue | null>(null);
 
 export function MapLayerProvider({ children }: { children: React.ReactNode }) {
   const [activeData, setActiveData] = useState<CDIVectorData | null>(null);
-
+  
   return (
     <MapLayerContext.Provider value={{ activeData, setActiveData }}>
       {children}
@@ -22,5 +22,6 @@ export function MapLayerProvider({ children }: { children: React.ReactNode }) {
 export function useMapLayer() {
   const ctx = useContext(MapLayerContext);
   if (!ctx) throw new Error("useMapLayer must be used inside MapLayerProvider");
+  
   return ctx;
 }

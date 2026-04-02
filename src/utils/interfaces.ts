@@ -178,9 +178,15 @@ type Direction = "up" | "down" | "right" | "left"
 export interface ChevronI {
   open: boolean, 
   from: Direction,
-  to: Direction
+  to: Direction,
+  size?: number
 }
 
+export interface  MapLegendItem {
+  label: string
+  classification: string | number
+  color: string
+};
 export interface PanelLayerI {
   sys: {
     id: string;

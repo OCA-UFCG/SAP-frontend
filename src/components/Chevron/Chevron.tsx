@@ -2,7 +2,7 @@ import { ChevronI } from "@/utils/interfaces";
 import { Icon } from "../Icon/Icon";
 
 
-export function Chevron({ open, from, to }: ChevronI) {
+export function Chevron({ open, from, to, size=20 }: ChevronI) {
   const directions = {
     down: "rotate-180",
     up: "rotate-0",
@@ -11,14 +11,8 @@ export function Chevron({ open, from, to }: ChevronI) {
   }
 
   return (
-    <svg
-      width="16"
-      height="16"
-      viewBox="0 0 16 16"
-      aria-hidden
-      className={`shrink-0 transition-transform duration-200 ${open ? directions[from] : directions[to]}`}
-    >
-     <Icon id="chevron-down" />
-    </svg>
+
+     <Icon size={size} className={`shrink-0 transition-transform duration-200 ${open ? directions[from] : directions[to]}`} id="chevron-down" />
+ 
   );
 }
