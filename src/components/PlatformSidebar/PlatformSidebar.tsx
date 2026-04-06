@@ -17,17 +17,29 @@ interface PlatformSidebarProps {
 export function PlatformSidebar({ panelLayers }: PlatformSidebarProps) {
   const [activeSection, setActiveSection] =
     useState<PlatformSection>("modules");
+  const [panelSection, setPanelSection] = useState<PlatformSection>("modules");
   const [isPanelOpen, setIsPanelOpen] = useState(true);
 
   const ContextComponent =
-    activeSection === "analysis"
+    panelSection === "analysis"
       ? AnalysisContext
-      : activeSection === "modules"
+      : panelSection === "modules"
         ? undefined
         : ComingSoonContext;
 
   function handleSectionChange(next: PlatformSection) {
     setActiveSection(next);
+    setPanelSection(next);
+    setIsPanelOpen(true);
+  }
+
+  function handlePanelSectionChange(next: PlatformSection) {
+    setPanelSection(next);
+
+    if (next === "modules" && activeSection === "analysis") {
+      setActiveSection("modules");
+    }
+
     setIsPanelOpen(true);
   }
 
@@ -55,10 +67,10 @@ export function PlatformSidebar({ panelLayers }: PlatformSidebarProps) {
           `}
         >
           <PlatformSidePanel
-            activeSection={activeSection}
+            activeSection={panelSection}
             panelLayers={panelLayers}
             ContextComponent={ContextComponent}
-            onRequestSectionChange={handleSectionChange}
+            onRequestSectionChange={handlePanelSectionChange}
           />
         </div>
       </div>
