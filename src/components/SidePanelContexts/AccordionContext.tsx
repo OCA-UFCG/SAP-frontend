@@ -93,18 +93,25 @@ function AccordionItem({
           {item.label}
         </span>
 
-      <Chevron open={isOpen} from="down" to="up"/>
+        <Chevron open={isOpen} from="down" to="up"/>
 
       </button>
 
-      {isOpen && (
-        <>
-          <hr className="w-full border-t border-[#EFEFEF]" />
-          {item.datasets!.map((dataset) => (
-            <DroughtDataset key={dataset.id} card={dataset} />
-          ))}
-        </>
-      )}
+      <div
+        className="grid w-full overflow-hidden transition-[grid-template-rows] duration-300 ease-in-out"
+        style={{ gridTemplateRows: isOpen ? "1fr" : "0fr" }}
+      >
+        <div className="min-h-0 flex flex-col gap-4">
+          {hasDatasets && (
+            <>
+              <hr className="w-full border-t border-[#EFEFEF]" />
+              {item.datasets!.map((dataset) => (
+                <DroughtDataset key={dataset.id} card={dataset} />
+              ))}
+            </>
+          )}
+        </div>
+      </div>
     </div>
   );
 }
