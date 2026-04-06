@@ -1,7 +1,4 @@
-'use client';
-import { useMapLayer } from "@/components/MapLayerContext/MapLayerContext";
-import { CDIVectorData } from "@/components/PlatformMap/PlatformMap";
-import cdiData from "../../data/CDI_Janeiro_2024_Vetores.json";
+"use client";
 
 export interface IDroughtDataset {
   id: number;
@@ -10,10 +7,6 @@ export interface IDroughtDataset {
   image?: string;
   fileRef?: string;
 }
-
-const DATASET_REGISTRY: Record<string, CDIVectorData> = {
-  "CDI": cdiData as unknown as CDIVectorData,
-};
 
 export const DROUGHT_DATASETS: IDroughtDataset[] = [
   {
@@ -44,25 +37,29 @@ function InfoIcon() {
   );
 }
 
-export function DroughtDataset({ card }: { card: IDroughtDataset }) {
-  const { activeData, setActiveData } = useMapLayer();
-
+export function DroughtDataset({
+  card,
+  onAnalyze,
+}: {
+  card: IDroughtDataset;
+  onAnalyze?: (card: IDroughtDataset) => void;
+}) {
   const handleAnalyze = () => {
-    // in case the dataset is not found
-    if (!card.fileRef) return;
-    
-    const data = DATASET_REGISTRY[card.fileRef];
-    if (data) setActiveData(data);
-    setActiveData(activeData === data ? null : data);
+    onAnalyze?.(card);
   };
 
   return (
     <div className="flex flex-row items-start w-full bg-white border border-[#EFEFEF] shadow-sm rounded-lg overflow-hidden shrink-0">
       <div className="flex flex-col items-start w-full">
-
         {/* card header */}
-        <div className="flex flex-row items-center pr-4 gap-2 w-full" style={{ height: 126 }}>
-          <div className="relative shrink-0" style={{ width: "115.51px", height: 126 }}>
+        <div
+          className="flex flex-row items-center pr-4 gap-2 w-full"
+          style={{ height: 126 }}
+        >
+          <div
+            className="relative shrink-0"
+            style={{ width: "115.51px", height: 126 }}
+          >
             {card.image ? (
               <img
                 src={card.image}
@@ -74,7 +71,10 @@ export function DroughtDataset({ card }: { card: IDroughtDataset }) {
             )}
           </div>
 
-          <div className="flex flex-col items-start py-2 gap-[6px] flex-1" style={{ height: 126 }}>
+          <div
+            className="flex flex-col items-start py-2 gap-[6px] flex-1"
+            style={{ height: 126 }}
+          >
             <div className="flex items-center w-full" style={{ height: 24 }}>
               <span
                 className="w-full font-semibold text-base text-[#292829]"

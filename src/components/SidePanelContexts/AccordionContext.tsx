@@ -1,11 +1,14 @@
 "use client";
 
 import { useState } from "react";
+import { useMapLayer } from "@/components/MapLayerContext/MapLayerContext";
+import { CDIVectorData } from "@/components/PlatformMap/PlatformMap";
 import { DroughtDataset } from "../DroughtDataset/DroughtDataset";
 import type { IDroughtDataset } from "../DroughtDataset/DroughtDataset";
 import { PlatformSection } from "../PlatformSideRail/PlatformSideRail";
 import { Chevron } from "../Chevron/Chevron";
 import { PanelLayerI } from "@/utils/interfaces";
+import cdiData from "../../data/CDI_Janeiro_2024_Vetores.json";
 
 interface AccordionItemData {
   id: number;
@@ -16,9 +19,14 @@ interface AccordionItemData {
 export interface AccordionContextProps {
   activeSection: PlatformSection;
   panelLayers?: PanelLayerI[];
+  onRequestSectionChange?: (next: PlatformSection) => void;
 }
 
 const CATEGORY_ORDER = ["Seca", "Desertificação"];
+
+const DATASET_REGISTRY: Record<string, CDIVectorData> = {
+  CDI: cdiData as unknown as CDIVectorData,
+};
 
 function buildMonitoringItems(panelLayers: PanelLayerI[]): AccordionItemData[] {
   const grouped = panelLayers.reduce<Record<string, IDroughtDataset[]>>(
@@ -62,10 +70,12 @@ function AccordionItem({
   item,
   open,
   onToggle,
+  onAnalyze,
 }: {
   item: AccordionItemData;
   open: boolean;
   onToggle: () => void;
+  onAnalyze?: (dataset: IDroughtDataset) => void;
 }) {
   const hasDatasets = Boolean(item.datasets?.length);
   const isOpen = open && hasDatasets;
@@ -93,15 +103,18 @@ function AccordionItem({
           {item.label}
         </span>
 
-      <Chevron open={isOpen} from="down" to="up"/>
-
+        <Chevron open={isOpen} from="down" to="up" />
       </button>
 
       {isOpen && (
         <>
           <hr className="w-full border-t border-[#EFEFEF]" />
           {item.datasets!.map((dataset) => (
-            <DroughtDataset key={dataset.id} card={dataset} />
+            <DroughtDataset
+              key={dataset.id}
+              card={dataset}
+              onAnalyze={onAnalyze}
+            />
           ))}
         </>
       )}
@@ -109,13 +122,27 @@ function AccordionItem({
   );
 }
 
-export function AccordionContext({ panelLayers = [] }: AccordionContextProps) {
+export function AccordionContext({
+  panelLayers = [],
+  onRequestSectionChange,
+}: AccordionContextProps) {
   const [openId, setOpenId] = useState<number | null>(null);
+  const { activeData, setActiveData } = useMapLayer();
 
   const monitoringItems = buildMonitoringItems(panelLayers);
 
   function handleToggle(id: number) {
     setOpenId((prev) => (prev === id ? null : id));
+  }
+
+  function handleAnalyze(dataset: IDroughtDataset) {
+    if (!dataset.fileRef) return;
+
+    const data = DATASET_REGISTRY[dataset.fileRef];
+    if (!data) return;
+
+    setActiveData(activeData === data ? null : data);
+    onRequestSectionChange?.("analysis");
   }
 
   return (
@@ -129,6 +156,7 @@ export function AccordionContext({ panelLayers = [] }: AccordionContextProps) {
               item={item}
               open={openId === item.id}
               onToggle={() => handleToggle(item.id)}
+              onAnalyze={handleAnalyze}
             />
           ))}
         </div>
