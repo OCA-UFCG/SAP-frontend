@@ -76,7 +76,7 @@ function AccordionItem({
         box-border flex flex-col items-start w-full
         bg-white hover:bg-[#E4E5E2]
         border border-[#EFEFEF] rounded-lg transition-colors duration-150
-        ${isOpen ? "px-4 pt-1 pb-4 gap-4" : "px-4 py-1 gap-[10px]"}
+        ${isOpen ? "px-4 pt-1 pb-4 gap-4" : "px-4 py-1 gap-0"}
       `}
     >
       <button
