@@ -1,7 +1,6 @@
 "use client";
 import { PlatformMapCaption } from "@/components/PlatformMapCaption/PlatformMapCaption";
 import MapComponent from "../Map/MapComponent";
-import { useState } from "react";
 import { FeatureCollection, Geometry } from "geojson";
 import { maps_legends, statesObj } from "@/utils/constants";
 import { useMapLayer } from "@/components/MapLayerContext/MapLayerContext";
@@ -24,8 +23,7 @@ export type CDIVectorData = FeatureCollection<Geometry, CDIFeatureProperties>;
  * - Emit selection events (e.g., UF click)
  */
 export function PlatformMap() {
-  const { activeData } = useMapLayer();
-  const [selectedState, setSelectedState] = useState("br");
+  const { activeData, selectedState, setSelectedState } = useMapLayer();
 
   const handleSearch = (value: string) => {
     const searchLower = value.toLowerCase().trim();
