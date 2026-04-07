@@ -153,7 +153,7 @@ export function AnalysisContext({
 
             <div className="rounded-lg border border-[#EFEFEF] bg-white p-3 shadow-sm">
               <div className="flex h-10 w-full overflow-hidden rounded-md">
-                {statusItems.map((item) => (
+                {statusItems.filter((item) => item.value > 0).map((item) => (
                   <div
                     key={item.id}
                     style={{ 
