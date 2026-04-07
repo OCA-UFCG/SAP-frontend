@@ -48,6 +48,12 @@ const SearchBarPlatform = ({ onSearch }: SearchBarProps) => {
                     <input
                         ref={inputRef}
                         onChange={() => setHasError(false)}
+                        onKeyDown={(e) => {
+                            if (e.key === "Enter") {
+                                e.preventDefault();
+                                onSubmit();
+                            }
+                        }}
                         list="result"
                         className="w-full text-[#292829] text-sm bg-transparent border-none outline-none ring-0"
                         placeholder="Pesquise uma cidade ou estado"
