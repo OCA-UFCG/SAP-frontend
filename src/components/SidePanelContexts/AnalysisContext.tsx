@@ -4,10 +4,9 @@ import { useMapLayer } from "@/components/MapLayerContext/MapLayerContext";
 import { Chevron } from "@/components/Chevron/Chevron";
 import type { PlatformSection } from "@/components/PlatformSideRail/PlatformSideRail";
 import type { PanelLayerI } from "@/utils/interfaces";
-import SearchBar from "./SearchBarPlataform";
 import { statesObj } from "@/utils/constants";
-
 import SearchBarPlatform from "./SearchBarPlataform";
+import { resolveStateKeyFromSearch } from "@/utils/functions";
 
 export interface AnalysisContextProps {
   activeSection: PlatformSection;
@@ -36,25 +35,8 @@ export function AnalysisContext({
   }
 
   const handleSearch = (value: string) => {
-    const searchLower = value.toLowerCase().trim();
-
-    // Check if input is a UF (key in statesObj)
-    if (statesObj[searchLower as keyof typeof statesObj]) {
-      setSelectedState(searchLower);
-      return;
-    }
-
-    // Check if input is a Full Name (value in statesObj)
-    const foundUF = Object.entries(statesObj).find(
-      ([_, name]) => name.toLowerCase() === searchLower,
-    );
-
-    if (foundUF) {
-      setSelectedState(foundUF[0]);
-    } else {
-      // If not found, default to Brazil
-      setSelectedState("br");
-    }
+  const result = resolveStateKeyFromSearch(value, statesObj);
+  setSelectedState(result.key);
   };
 
   return (
