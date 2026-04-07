@@ -1,6 +1,6 @@
 'use client';
 
-import { MapContainer, TileLayer, GeoJSON, useMap } from 'react-leaflet';
+import { MapContainer, TileLayer, GeoJSON, ZoomControl, useMap } from 'react-leaflet';
 import { Layer, LatLngBoundsExpression } from 'leaflet';
 import { useMemo, useEffect } from 'react';
 import bbox from '@turf/bbox';
@@ -209,12 +209,14 @@ const Map = ({
         center={center}
         zoom={zoom}
         minZoom={minZoom}
+        zoomControl={false}
         scrollWheelZoom={true}
         className={className}
         preferCanvas={true}
         maxBounds={[[-90, -180], [90, 180]]}
         maxBoundsViscosity={1}
       >
+        <ZoomControl position="topright" />
         <ChangeView bounds={currentBounds} />
         <TileLayer
           url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
