@@ -5,7 +5,7 @@ import { Chevron } from "@/components/Chevron/Chevron";
 import type { PlatformSection } from "@/components/PlatformSideRail/PlatformSideRail";
 import type { PanelLayerI } from "@/utils/interfaces";
 import { statesObj } from "@/utils/constants";
-import SearchBarPlatform from "./SearchBarPlataform";
+import SearchBarPlatform from "./SearchBarPlatform";
 import { resolveStateKeyFromSearch } from "@/utils/functions";
 
 export interface AnalysisContextProps {
