@@ -24,8 +24,7 @@ export type CDIVectorData = FeatureCollection<Geometry, CDIFeatureProperties>;
  * - Emit selection events (e.g., UF click)
  */
 export function PlatformMap() {
-  const { activeData } = useMapLayer();
-  const [selectedState, setSelectedState] = useState("br");
+  const { activeData, selectedState, setSelectedState } = useMapLayer();
 
   const handleSearch = (value: string) => {
     const searchLower = value.toLowerCase().trim();
@@ -55,7 +54,7 @@ export function PlatformMap() {
           dadosCDI={activeData ?? undefined}
           estadoSelecionado={selectedState.toUpperCase()}
           className="w-full h-full"
-          onStateClick={handleSearch}
+          onStateClick={(uf) => setSelectedState(uf.toLowerCase())}
         />
       </div>
 
