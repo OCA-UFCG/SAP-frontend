@@ -34,9 +34,7 @@ const TIER_CONFIG = {
 export function AnalysisContext({
   onRequestSectionChange,
 }: AnalysisContextProps) {
-  const { setActiveData } = useMapLayer();
-
-  const [selectedState, setSelectedState] = useState("br");
+  const { setActiveData, selectedState } = useMapLayer();
 
   function handleGoBack() {
     setActiveData(null);
