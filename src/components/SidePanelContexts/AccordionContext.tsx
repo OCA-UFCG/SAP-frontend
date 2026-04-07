@@ -115,7 +115,7 @@ function AccordionItem({
             <>
               <hr className="w-full border-t border-[#EFEFEF]" />
               {item.datasets!.map((dataset) => (
-                <DroughtDataset key={dataset.id} card={dataset} />
+                <DroughtDataset key={dataset.id} card={dataset} onAnalyze={onAnalyze} />
               ))}
             </>
           )}
