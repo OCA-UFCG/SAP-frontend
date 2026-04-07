@@ -6,6 +6,7 @@ import {
   PlatformSideRail,
 } from "@/components/PlatformSideRail/PlatformSideRail";
 import { PlatformSidePanel } from "@/components/PlatformSidePanel/PlatformSidePanel";
+import { AnalysisContext } from "@/components/SidePanelContexts/AnalysisContext";
 import { ComingSoonContext } from "@/components/SidePanelContexts/ComingSoonContext";
 import { PanelLayerI } from "@/utils/interfaces";
 
@@ -14,17 +15,39 @@ interface PlatformSidebarProps {
 }
 
 export function PlatformSidebar({ panelLayers }: PlatformSidebarProps) {
-  const [activeSection, setActiveSection] = useState<PlatformSection>("modules");
+  const [activeSection, setActiveSection] =
+    useState<PlatformSection>("modules");
+  const [panelSection, setPanelSection] = useState<PlatformSection>("modules");
   const [isPanelOpen, setIsPanelOpen] = useState(true);
 
   const ContextComponent =
-    activeSection === "modules" ? undefined : ComingSoonContext;
+    panelSection === "analysis"
+      ? AnalysisContext
+      : panelSection === "modules"
+        ? undefined
+        : ComingSoonContext;
+
+  function handleSectionChange(next: PlatformSection) {
+    setActiveSection(next);
+    setPanelSection(next);
+    setIsPanelOpen(true);
+  }
+
+  function handlePanelSectionChange(next: PlatformSection) {
+    setPanelSection(next);
+
+    if (next === "modules" && activeSection === "analysis") {
+      setActiveSection("modules");
+    }
+
+    setIsPanelOpen(true);
+  }
 
   return (
     <aside className="absolute left-0 top-0 h-full flex z-20">
       <PlatformSideRail
         activeSection={activeSection}
-        onSectionChange={setActiveSection}
+        onSectionChange={handleSectionChange}
         isPanelOpen={isPanelOpen}
         onTogglePanel={() => setIsPanelOpen((v) => !v)}
       />
@@ -44,9 +67,10 @@ export function PlatformSidebar({ panelLayers }: PlatformSidebarProps) {
           `}
         >
           <PlatformSidePanel
-            activeSection={activeSection}
+            activeSection={panelSection}
             panelLayers={panelLayers}
-          ContextComponent={ContextComponent}
+            ContextComponent={ContextComponent}
+            onRequestSectionChange={handlePanelSectionChange}
           />
         </div>
       </div>
