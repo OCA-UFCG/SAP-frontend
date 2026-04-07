@@ -7,6 +7,8 @@ import type { PanelLayerI } from "@/utils/interfaces";
 import { statesObj } from "@/utils/constants";
 import SearchBarPlatform from "./SearchBarPlatform";
 import { resolveStateKeyFromSearch } from "@/utils/functions";
+import { classificationMeta } from "@/utils/constants";
+import type { ClassificationKey } from "@/utils/constants";
 
 export interface AnalysisContextProps {
   activeSection: PlatformSection;
@@ -23,8 +25,54 @@ const stateClassificationPlaceholders = [
   "Seca Severa",
 ];
 
+function getPredominantClassification(
+  status: Record<ClassificationKey, number>
+): ClassificationKey {
+  return (Object.entries(status) as [ClassificationKey, number][]).reduce(
+    (max, cur) => (cur[1] > max[1] ? cur : max)
+  )[0];
+}
+
+function getPredominantInfo(status: Record<ClassificationKey, number>) {
+  const key = getPredominantClassification(status);
+  const meta = classificationMeta[key];
+
+  return {
+    key,
+    ...meta,
+    text: `Região maioritariamente ${meta.label}`,
+  };
+}
+
+export interface LocationData {
+  nome: string;
+  status: Record<ClassificationKey, number>;
+  acontecendo: string;
+  impacto: string[];
+}
+
+export interface AnalysisContextProps {
+  activeSection: PlatformSection;
+  panelLayers?: PanelLayerI[];
+  onRequestSectionChange?: (next: PlatformSection) => void;
+  locationData?: LocationData;
+}
+
 export function AnalysisContext({
   onRequestSectionChange,
+  locationData = { //mockei os dados só pra testar
+    nome: "Localidade Exemplo",
+    status: {
+      "sem-seca": 0.387,
+      "observacao": 0.077,
+      "atencao": 0.049,
+      "alerta": 0.041,
+      "recuperacao-total": 0.117,
+      "recuperacao-parcial": 0.028,
+    },
+    acontecendo: "Texto de teste.",
+    impacto: [],
+  },
 }: AnalysisContextProps) {
   const { setActiveData, setSelectedState } = useMapLayer();
 
@@ -38,6 +86,10 @@ export function AnalysisContext({
   const result = resolveStateKeyFromSearch(value, statesObj);
   setSelectedState(result.key);
   };
+
+  const predominantInfo = locationData
+    ? getPredominantInfo(locationData.status)
+    : null;
 
   return (
     <div className="h-full overflow-y-auto bg-[#F6F7F6] px-4 pt-12 pb-6">
@@ -74,20 +126,55 @@ export function AnalysisContext({
           </div>
         </section>
 
-        <section className="flex flex-col gap-8">
-          <div className="h-6 w-[64px]">
-            {/* Aqui fica o identificador da localidade selecionada, por exemplo Brasil. */}
-          </div>
-
-          <div className="flex flex-col gap-2">
-            <div className="h-6 w-[170px]">
-              {/* Aqui fica o titulo da secao de informacoes gerais. */}
-            </div>
-
-            <div className="min-h-10 rounded-lg bg-white">
-              {/* Aqui fica o card de alerta com icone e resumo da classificacao predominante. (Região majoritariamente sem seca)*/}
+        <section className="flex flex-col gap-6">
+          {/*localidade*/}
+          <div className="flex flex-col mb-4">
+            <div
+              className="text-[18px] font-semibold leading-6"
+              style={{ color: predominantInfo?.color }}
+            >
+              {locationData?.nome}
             </div>
           </div>
+
+          <div className="w-full max-w-[392px] flex flex-col gap-2">
+            {/* info geral*/}
+            <div className="text-[18px] font-semibold leading-6 text-[#292829]">
+              Informações gerais
+            </div>
+
+            <div className="w-full min-h-[40px] flex items-center gap-4 pr-6 bg-white rounded-lg">
+              {predominantInfo && locationData ? (
+                <>
+                  <div
+                    className="w-10 h-10 p-2 flex items-center justify-center rounded-lg border shrink-0"
+                    style={{
+                      backgroundColor: predominantInfo.bg,
+                      borderColor: predominantInfo.border,
+                    }}
+                  >
+                  <svg className="w-5 h-5">
+                    <use
+                      xlinkHref="/sprite.svg#check"
+                      stroke={predominantInfo.color}
+                      strokeWidth="0.2"
+                      fill="none"
+                    />
+                  </svg>
+                  </div>
+
+                  <span className="text-[14px] leading-6 font-semibold text-[#292829] break-words">
+                    {predominantInfo.text}
+                  </span>
+                </>
+              ) : (
+                <span className="text-sm text-slate-400 italic">
+                  Selecione uma localidade para ver o resumo.
+                </span>
+              )}
+            </div>
+          </div>
+
 
           <div className="flex flex-col gap-2">
             <div className="h-6 w-[220px]">
