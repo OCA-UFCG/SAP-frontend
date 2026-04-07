@@ -1,10 +1,10 @@
 "use client";
 import { PlatformMapCaption } from "@/components/PlatformMapCaption/PlatformMapCaption";
 import MapComponent from "../Map/MapComponent";
-import { useState } from "react";
 import { FeatureCollection, Geometry } from "geojson";
 import { maps_legends, statesObj } from "@/utils/constants";
 import { useMapLayer } from "@/components/MapLayerContext/MapLayerContext";
+import { resolveStateKeyFromSearch } from "@/utils/functions";
 
 export interface CDIFeatureProperties {
   classe_cdi: number;
@@ -13,36 +13,13 @@ export interface CDIFeatureProperties {
 }
 export type CDIVectorData = FeatureCollection<Geometry, CDIFeatureProperties>;
 
-/**
- * PlatformMap
- *
- * Placeholder for the real map implementation.
- *
- * In the final implementation this component will:
- * - Render the base map (Leaflet/Mapbox/etc.)
- * - Render thematic layers (e.g., drought/CDI polygons)
- * - Emit selection events (e.g., UF click)
- */
 export function PlatformMap() {
-  const { activeData } = useMapLayer();
-  const [selectedState, setSelectedState] = useState("br");
+  const { activeData, selectedState, setSelectedState } = useMapLayer();
 
   const handleSearch = (value: string) => {
-    const searchLower = value.toLowerCase().trim();
-    if (statesObj[searchLower as keyof typeof statesObj]) {
-      setSelectedState(searchLower);
-      return;
-    }
-    const foundUF = Object.entries(statesObj).find(
-      ([_, name]) => name.toLowerCase() === searchLower,
-    );
-    if (foundUF) {
-      setSelectedState(foundUF[0]);
-    } else {
-      setSelectedState("br");
-    }
+  const result = resolveStateKeyFromSearch(value, statesObj);
+  setSelectedState(result.key);
   };
-
 
   return (
     <div className="absolute inset-0 [&_.leaflet-top.leaflet-left]:left-auto [&_.leaflet-top.leaflet-left]:right-4">

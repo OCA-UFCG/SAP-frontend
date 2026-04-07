@@ -80,6 +80,33 @@ export const normalize = (str: string) =>
     .normalize("NFD")
     .replace(/[\u0300-\u036f]/g, ""); // removes accents
 
+export type StateSearchResult =
+  | { type: "uf"; key: string }
+  | { type: "br"; key: "br" };
+
+export function resolveStateKeyFromSearch(
+  query: string,
+  statesObj: Record<string, string>,
+): StateSearchResult {
+  const searchLower = query.toLowerCase().trim();
+
+  // UF (key in statesObj)
+  if (statesObj[searchLower]) {
+    return { type: "uf", key: searchLower };
+  }
+
+  // Full name (value in statesObj)
+  const foundUF = Object.entries(statesObj).find(
+    ([_, name]) => name.toLowerCase() === searchLower,
+  );
+
+  if (foundUF) {
+    return { type: "uf", key: foundUF[0] };
+  }
+
+  return { type: "br", key: "br" };
+}
+
 
 /**
  * Busca os dados de seca a partir de uma chave (UF ou 'br')

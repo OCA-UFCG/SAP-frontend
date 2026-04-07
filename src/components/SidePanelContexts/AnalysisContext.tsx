@@ -4,6 +4,9 @@ import { useMapLayer } from "@/components/MapLayerContext/MapLayerContext";
 import { Chevron } from "@/components/Chevron/Chevron";
 import type { PlatformSection } from "@/components/PlatformSideRail/PlatformSideRail";
 import type { PanelLayerI } from "@/utils/interfaces";
+import { statesObj } from "@/utils/constants";
+import SearchBarPlatform from "./SearchBarPlatform";
+import { resolveStateKeyFromSearch } from "@/utils/functions";
 
 export interface AnalysisContextProps {
   activeSection: PlatformSection;
@@ -23,12 +26,18 @@ const stateClassificationPlaceholders = [
 export function AnalysisContext({
   onRequestSectionChange,
 }: AnalysisContextProps) {
-  const { setActiveData } = useMapLayer();
+  const { setActiveData, setSelectedState } = useMapLayer();
 
   function handleGoBack() {
     setActiveData(null);
+    setSelectedState("br");
     onRequestSectionChange?.("modules");
   }
+
+  const handleSearch = (value: string) => {
+  const result = resolveStateKeyFromSearch(value, statesObj);
+  setSelectedState(result.key);
+  };
 
   return (
     <div className="h-full overflow-y-auto bg-[#F6F7F6] px-4 pt-12 pb-6">
@@ -52,13 +61,7 @@ export function AnalysisContext({
 
         <section className="flex flex-col gap-4">
           <div className="flex gap-4">
-            <div className="min-h-10 flex-1 rounded-lg bg-[#E4E5E2]">
-              {/* Aqui fica a barra de pesquisa. (Pesquise por uma cidade ou estado) */}
-            </div>
-
-            <div className="h-10 w-24 rounded-md bg-[#989F43]">
-              {/* Aqui fica o botao de continuar a analise. (Pesquisar) */}
-            </div>
+            <SearchBarPlatform onSearch={handleSearch} />
           </div>
 
           <div className="flex flex-col gap-[6px]">
