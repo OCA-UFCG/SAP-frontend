@@ -58,7 +58,7 @@ export function AnalysisContext({
           </h1>
           {/* Aqui fica o texto de apoio orientando a busca por estado ou cidade. (Pesquise um estado ou cidade para iniciar a análise)*/}
           <p className="font-['Inter'] font-medium text-[16px] leading-[24px] tracking-[-0.015em]">
-            Pesquise um estado ou cidade para iniciar a análise
+            Pesquise um estado ou cidade para iniciar análise
           </p>
         </header>
         <section className="flex flex-col gap-4">
