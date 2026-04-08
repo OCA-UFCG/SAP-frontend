@@ -82,7 +82,7 @@ const SearchBarPlatform = ({ onSearch }: SearchBarProps) => {
                 )}
             </div>
             <ButtonUi
-                styles="bg-[#989F43] text-white text-sm px-3 h-full rounded-lg hover:brightness-110 active:brightness-95 transition shrink-0"
+                styles="bg-[#989F43] hover:bg-[#989F43] text-white text-sm px-3 h-full rounded-lg disabled:hover:* active:brightness-95 transition shrink-0"
                 label={"Pesquisar"}
                 onClick={() => onSubmit()}
             />
