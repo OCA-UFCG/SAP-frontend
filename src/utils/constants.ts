@@ -78,47 +78,47 @@ export const states = new Set(Object.values(statesObj));
 export const ufs = new Set(Object.keys(statesObj));
 
 export const classificationMeta = {
-"sem-seca": {
-  label: "Sem Seca",
-  color: "#5B612A",
-  bg: "#F0F0D7",
-  border: "#4A4F22", 
-},
+  "sem-seca": {
+    label: "Sem seca",
+    color: "#989F43",        
+    bg: "#F0F0D7",           
+    border: "#989F43",
+  },
 
-"observacao": {
-  label: "Observação",
-  color: "#FECB89",
-  bg: "#FFF4D6",
-  border: "#E6B874",
-},
+  "observacao": {
+    label: "Observação",
+    color: "#FFCC80",
+    bg: "#FFF3E0",
+    border: "#FFB74D",
+  },
 
-"atencao": {
-  label: "Atenção",
-  color: "#FC8F23",
-  bg: "#FFE5CC",
-  border: "#E07E1F",
-},
+  "atencao": {
+    label: "Atenção",
+    color: "#FB8C00",
+    bg: "#FFE0B2",
+    border: "#EF6C00",
+  },
 
-"alerta": {
-  label: "Seca Severa",
-  color: "#B52C08",
-  bg: "#FDE0DC",
-  border: "#922306",
-},
+  "alerta": {
+    label: "Seca severa",
+    color: "#BF360C",
+    bg: "#FDE0DC",
+    border: "#A9320A",
+  },
 
-"recuperacao-total": {
-  label: "Recuperação Total",
-  color: "#B4BA61",
-  bg: "#EAF5E1",
-  border: "#9AA14F",
-},
+  "recuperacao-total": {
+    label: "Recuperação total",
+    color: "#A3B18A",
+    bg: "#EEF2E6",
+    border: "#8A9A74",
+  },
 
-"recuperacao-parcial": {
-  label: "Recuperação Parcial",
-  color: "#5B612A",
-  bg: "#EEF2D9",
-  border: "#4A4F22",
-},
+  "recuperacao-parcial": {
+    label: "Recuperação parcial",
+    color: "#588157",
+    bg: "#E6EEE8",
+    border: "#4A6F4A",
+  },
 } as const;
 
 export type ClassificationKey = keyof typeof classificationMeta;

@@ -9,6 +9,8 @@ import SearchBarPlatform from "./SearchBarPlatform";
 import { resolveStateKeyFromSearch } from "@/utils/functions";
 import { classificationMeta } from "@/utils/constants";
 import type { ClassificationKey } from "@/utils/constants";
+import { useState } from "react";
+import locationDataJson from "../../../public/dados-seca.json"
 
 export interface AnalysisContextProps {
   activeSection: PlatformSection;
@@ -55,36 +57,29 @@ export interface AnalysisContextProps {
   activeSection: PlatformSection;
   panelLayers?: PanelLayerI[];
   onRequestSectionChange?: (next: PlatformSection) => void;
-  locationData?: LocationData;
 }
 
 export function AnalysisContext({
   onRequestSectionChange,
-  locationData = { //mockei os dados só pra testar
-    nome: "Localidade Exemplo",
-    status: {
-      "sem-seca": 0.387,
-      "observacao": 0.077,
-      "atencao": 0.049,
-      "alerta": 0.041,
-      "recuperacao-total": 0.117,
-      "recuperacao-parcial": 0.028,
-    },
-    acontecendo: "Texto de teste.",
-    impacto: [],
-  },
 }: AnalysisContextProps) {
   const { setActiveData, setSelectedState } = useMapLayer();
+
+  const [locationData, setLocationData] = useState<LocationData>(
+    locationDataJson["br"]
+  );
 
   function handleGoBack() {
     setActiveData(null);
     setSelectedState("br");
+    setLocationData(locationDataJson["br"]);
     onRequestSectionChange?.("modules");
   }
 
   const handleSearch = (value: string) => {
-  const result = resolveStateKeyFromSearch(value, statesObj);
-  setSelectedState(result.key);
+    const result = resolveStateKeyFromSearch(value, statesObj);
+    setSelectedState(result.key);
+    const data = locationDataJson[result.key as keyof typeof locationDataJson];
+    if (data) setLocationData(data);
   };
 
   const predominantInfo = locationData
@@ -126,7 +121,7 @@ export function AnalysisContext({
           </div>
         </section>
 
-        <section className="flex flex-col gap-6">
+        <section className="flex flex-col gap-4">
           {/*localidade*/}
           <div className="flex flex-col mb-4">
             <div
@@ -137,23 +132,21 @@ export function AnalysisContext({
             </div>
           </div>
 
-          <div className="w-full max-w-[392px] flex flex-col gap-2">
+          <div className="w-[392px] flex flex-col gap-2">            
             {/* info geral*/}
             <div className="text-[18px] font-semibold leading-6 text-[#292829]">
               Informações gerais
             </div>
-
-            <div className="w-full min-h-[40px] flex items-center gap-4 pr-6 bg-white rounded-lg">
-              {predominantInfo && locationData ? (
-                <>
-                  <div
-                    className="w-10 h-10 p-2 flex items-center justify-center rounded-lg border shrink-0"
-                    style={{
-                      backgroundColor: predominantInfo.bg,
-                      borderColor: predominantInfo.border,
-                    }}
-                  >
-                  <svg className="w-5 h-5">
+            {predominantInfo && locationData && (
+              <div className="w-full h-[40px] flex items-center gap-4 pr-6 bg-white rounded-lg">
+                <div
+                  className="w-10 h-10 p-2 flex items-center justify-center rounded-lg border shrink-0"
+                  style={{
+                    backgroundColor: predominantInfo.bg,
+                    borderColor: predominantInfo.border,
+                  }}
+                >
+                  <svg className="w-6 h-6">
                     <use
                       xlinkHref="/sprite.svg#check"
                       stroke={predominantInfo.color}
@@ -161,19 +154,14 @@ export function AnalysisContext({
                       fill="none"
                     />
                   </svg>
-                  </div>
+                </div>
 
-                  <span className="text-[14px] leading-6 font-semibold text-[#292829] break-words">
-                    {predominantInfo.text}
-                  </span>
-                </>
-              ) : (
-                <span className="text-sm text-slate-400 italic">
-                  Selecione uma localidade para ver o resumo.
+                <span className="w-fit text-[14px] leading-6 font-semibold text-[#292829] break-words">
+                  {predominantInfo.text}
                 </span>
-              )}
+              </div>
+            )}
             </div>
-          </div>
 
 
           <div className="flex flex-col gap-2">
