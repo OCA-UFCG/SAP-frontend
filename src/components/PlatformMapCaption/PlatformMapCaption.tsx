@@ -35,8 +35,14 @@ export function PlatformMapCaption({ legend }: { legend: MapLegendItem[] }) {
         </button>
       </div>
       <div>
-        {isOpen && (
-          <div className="bg-white border-neutral-200 px-4 py-4 rounded-b-xl">
+        <div
+          className={`
+            overflow-hidden rounded-b-xl
+            transition-all duration-400 ease-in-out
+            ${isOpen ? "max-h-96 opacity-100 translate-y-0" : "max-h-0 opacity-0 -translate-y-0"}
+          `}
+        >
+          <div className="bg-white border-neutral-200 px-4 py-4">
             <div className="flex flex-col gap-3">
               {legend.map((item) => (
                 <div
@@ -54,7 +60,7 @@ export function PlatformMapCaption({ legend }: { legend: MapLegendItem[] }) {
               ))}
             </div>
           </div>
-        )}
+        </div>
       </div>
     </div>
   );

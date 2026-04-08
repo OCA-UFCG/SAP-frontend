@@ -53,7 +53,7 @@ export function DroughtDataset({
       <div className="flex flex-col items-start w-full">
         {/* card header */}
         <div
-          className="flex flex-row items-center pr-4 gap-2 w-full"
+          className="flex flex-row items-start pr-4 gap-2 w-full"
           style={{ height: 126 }}
         >
           <div
@@ -72,7 +72,7 @@ export function DroughtDataset({
           </div>
 
           <div
-            className="flex flex-col items-start py-2 gap-[6px] flex-1"
+            className="flex flex-col items-start pt-6 gap-[6px] flex-1"
             style={{ height: 126 }}
           >
             <div className="flex items-center w-full" style={{ height: 24 }}>

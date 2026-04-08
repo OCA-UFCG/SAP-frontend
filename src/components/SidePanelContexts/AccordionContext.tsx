@@ -86,7 +86,7 @@ function AccordionItem({
         box-border flex flex-col items-start w-full
         bg-white hover:bg-[#E4E5E2]
         border border-[#EFEFEF] rounded-lg transition-colors duration-150
-        ${isOpen ? "px-4 pt-1 pb-4 gap-4" : "px-4 py-1 gap-[10px]"}
+        ${isOpen ? "px-4 pt-1 pb-4 gap-4" : "px-4 py-1 gap-0"}
       `}
     >
       <button
@@ -106,18 +106,21 @@ function AccordionItem({
         <Chevron open={isOpen} from="down" to="up" />
       </button>
 
-      {isOpen && (
-        <>
-          <hr className="w-full border-t border-[#EFEFEF]" />
-          {item.datasets!.map((dataset) => (
-            <DroughtDataset
-              key={dataset.id}
-              card={dataset}
-              onAnalyze={onAnalyze}
-            />
-          ))}
-        </>
-      )}
+      <div
+        className="grid w-full overflow-hidden transition-[grid-template-rows] duration-300 ease-in-out"
+        style={{ gridTemplateRows: isOpen ? "1fr" : "0fr" }}
+      >
+        <div className="min-h-0 flex flex-col gap-4">
+          {hasDatasets && (
+            <>
+              <hr className="w-full border-t border-[#EFEFEF]" />
+              {item.datasets!.map((dataset) => (
+                <DroughtDataset key={dataset.id} card={dataset} onAnalyze={onAnalyze} />
+              ))}
+            </>
+          )}
+        </div>
+      </div>
     </div>
   );
 }
