@@ -9,13 +9,19 @@ interface SearchBarProps {
     onSearch: (value: string) => void;
 }
 
+function capitalizeFirstLetter(str: string) {
+    if (!str) return str;
+    return str.charAt(0).toUpperCase() + str.slice(1).toLowerCase();
+}
+
 const SearchBarPlatform = ({ onSearch }: SearchBarProps) => {
     const inputRef = useRef<HTMLInputElement>(null);
     const [hasError, setHasError] = useState(false);
 
     const validateSearch = (value: string) => {
 
-        if (!(states.has(value.trim()) || ufs.has(value.trim()))) {
+        if (!(states.has(capitalizeFirstLetter(value.trim())) || ufs.has(capitalizeFirstLetter(value.trim())))) {
+            console.log("error")
             throw Error("Estado não identificado.");
         }
     };
