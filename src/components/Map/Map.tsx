@@ -216,7 +216,7 @@ const Map = ({
         maxBounds={[[-90, -180], [90, 180]]}
         maxBoundsViscosity={1}
       >
-        <ZoomControl position="topright" />
+        <ZoomControl position="topright" /> // align with Samuel's position
         <ChangeView bounds={currentBounds} />
         <TileLayer
           url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
