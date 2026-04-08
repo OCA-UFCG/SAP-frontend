@@ -53,12 +53,14 @@ export function AnalysisContext({
 
         <header className="flex flex-col gap-2">
           {/* Aqui fica o titulo principal da analise do modulo CDI. (Análise do módulo CDI)*/}
-          <div className="h-6 w-full" />
-
+          <h1 className="font-['Inter'] font-semibold text-[24px] leading-[24px] tracking-[-0.015em]">
+            Análise do módulo CDI
+          </h1>
           {/* Aqui fica o texto de apoio orientando a busca por estado ou cidade. (Pesquise um estado ou cidade para iniciar a análise)*/}
-          <div className="h-6 w-full" />
+          <p className="font-['Inter'] font-medium text-[16px] leading-[24px] tracking-[-0.015em]">
+            Pesquise um estado ou cidade para iniciar análise
+          </p>
         </header>
-
         <section className="flex flex-col gap-4">
           <div className="flex gap-4">
             <SearchBarPlatform onSearch={handleSearch} />
