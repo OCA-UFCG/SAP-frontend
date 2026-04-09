@@ -9,13 +9,21 @@ interface SearchBarProps {
     onSearch: (value: string) => void;
 }
 
+function normalize(str: string): string {
+    return str.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/\s+/g, "").trim();
+}
+
+const statesNormalized = new Set(Array.from(states).map(normalize));
+const ufsNormalized = new Set(Array.from(ufs).map(normalize));
+
 const SearchBarPlatform = ({ onSearch }: SearchBarProps) => {
     const inputRef = useRef<HTMLInputElement>(null);
     const [hasError, setHasError] = useState(false);
 
     const validateSearch = (value: string) => {
+        const input = normalize(value);
 
-        if (!(states.has(value.trim()) || ufs.has(value.trim()))) {
+        if (!(statesNormalized.has(input) || ufsNormalized.has(input))) {
             throw Error("Estado não identificado.");
         }
     };
@@ -76,7 +84,7 @@ const SearchBarPlatform = ({ onSearch }: SearchBarProps) => {
                 )}
             </div>
             <ButtonUi
-                styles="bg-[#989F43] text-white text-sm px-3 h-full rounded-lg hover:brightness-110 active:brightness-95 transition shrink-0"
+                styles="bg-[#989F43] hover:bg-[#989F43] text-white text-sm px-3 h-full rounded-lg disabled:hover:* active:brightness-95 transition shrink-0"
                 label={"Pesquisar"}
                 onClick={() => onSubmit()}
             />
