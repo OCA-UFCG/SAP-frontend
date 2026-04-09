@@ -14,6 +14,7 @@ const MapLayerContext = createContext<MapLayerContextValue | null>(null);
 export function MapLayerProvider({ children }: { children: React.ReactNode }) {
   const [activeData, setActiveData] = useState<CDIVectorData | null>(null);
   const [selectedState, setSelectedState] = useState("br");
+
   
   return (
     <MapLayerContext.Provider value={{ activeData, setActiveData, selectedState, setSelectedState }}>
