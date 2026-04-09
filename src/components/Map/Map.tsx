@@ -73,7 +73,7 @@ const CDI_FILL_EXPRESSION: ExpressionSpecification = [
 ];
 
 const DEFAULT_CENTER: [number, number] = [-15.749997, -47.9499962];
-const MAP_FIT_BOUNDS_PADDING = 20;
+const MAP_FIT_BOUNDS_PADDING = 200;
 const MAP_FOCUS_ANIMATION_DURATION = 1200;
 
 const smoothCameraEasing = (progress: number) =>
@@ -309,11 +309,21 @@ const Map = ({
       zoom,
       minZoom,
       scrollZoom: true,
+      attributionControl: false,
       maxPitch: 0,
     });
 
+    map.addControl(
+      new maplibregl.AttributionControl({
+        compact: true
+      }),
+      'top-right'
+    );
+
     map.addControl(new maplibregl.NavigationControl(), 'top-right');
+
     map.jumpTo({ center: initialCenter, zoom });
+
 
     map.on('load', () => {
       ensureMapLayers(map, showStatesBorder, Boolean(dadosCDI));

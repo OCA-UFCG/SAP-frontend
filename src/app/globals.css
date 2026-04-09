@@ -12,4 +12,7 @@ body {
   font-family: "Open Sans";
 }
 
-
+.maplibregl-ctrl-top-right {
+  margin-top: 50px;
+  justify-content: center;
+}
