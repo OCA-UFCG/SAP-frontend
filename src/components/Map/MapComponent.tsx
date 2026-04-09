@@ -2,7 +2,6 @@
 
 import dynamic from "next/dynamic";
 // eslint-disable-next-line @typescript-eslint/no-unused-vars
-import type Map from "./Map"
 
 const MapComponent = dynamic(() =>  import("./Map"), {
   loading: () => (
