@@ -40,7 +40,12 @@ interface FeatureProperties {
 }
 
 type EstadoProperties = FeatureProperties;
-type MyFeature = Feature<Geometry, FeatureProperties>;
+type SelectedStateProperties = EstadoProperties & {
+  isSelected: boolean;
+  stateName: string;
+  stateUf: string;
+};
+type MyFeature = Feature<Geometry, SelectedStateProperties>;
 
 const MAP_SOURCE_ID = 'osm-base';
 const STATES_SOURCE_ID = 'brazil-states';
@@ -98,11 +103,7 @@ const toSelectedStatesGeoJson = (
   estadoSelecionado: string,
 ): FeatureCollection<
   Geometry,
-  EstadoProperties & {
-    isSelected: boolean;
-    stateName: string;
-    stateUf: string;
-  }
+  SelectedStateProperties
 > => ({
   ...geoBrasil,
   features: geoBrasil.features.map((feature) => ({
