@@ -32,7 +32,7 @@ export function PlatformMap() {
           dadosCDI={activeData ?? undefined}
           estadoSelecionado={selectedState.toUpperCase()}
           className="w-full h-full"
-          onStateClick={handleSearch}
+          onStateClick={(uf) => setSelectedState(uf.toLowerCase())}
         />
       </div>
 
