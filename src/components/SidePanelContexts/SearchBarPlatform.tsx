@@ -9,19 +9,21 @@ interface SearchBarProps {
     onSearch: (value: string) => void;
 }
 
-function capitalizeFirstLetter(str: string) {
-    if (!str) return str;
-    return str.charAt(0).toUpperCase() + str.slice(1).toLowerCase();
+function normalize(str: string): string {
+    return str.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/\s+/g, "").trim();
 }
+
+const statesNormalized = new Set(Array.from(states).map(normalize));
+const ufsNormalized = new Set(Array.from(ufs).map(normalize));
 
 const SearchBarPlatform = ({ onSearch }: SearchBarProps) => {
     const inputRef = useRef<HTMLInputElement>(null);
     const [hasError, setHasError] = useState(false);
 
     const validateSearch = (value: string) => {
+        const input = normalize(value);
 
-        if (!(states.has(capitalizeFirstLetter(value.trim())) || ufs.has(capitalizeFirstLetter(value.trim())))) {
-            console.log("error")
+        if (!(statesNormalized.has(input) || ufsNormalized.has(input))) {
             throw Error("Estado não identificado.");
         }
     };
