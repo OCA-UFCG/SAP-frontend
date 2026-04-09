@@ -76,3 +76,49 @@ export const maps_legends = {
 
 export const states = new Set(Object.values(statesObj));
 export const ufs = new Set(Object.keys(statesObj));
+
+export const classificationMeta = {
+  "sem-seca": {
+    label: "Sem seca",
+    color: "#989F43",        
+    bg: "#F0F0D7",           
+    border: "#989F43",
+  },
+
+  "observacao": {
+    label: "Observação",
+    color: "#FFCC80",
+    bg: "#FFF3E0",
+    border: "#FFB74D",
+  },
+
+  "atencao": {
+    label: "Atenção",
+    color: "#FB8C00",
+    bg: "#FFE0B2",
+    border: "#EF6C00",
+  },
+
+  "alerta": {
+    label: "Seca severa",
+    color: "#BF360C",
+    bg: "#FDE0DC",
+    border: "#A9320A",
+  },
+
+  "recuperacao-total": {
+    label: "Recuperação total",
+    color: "#A3B18A",
+    bg: "#EEF2E6",
+    border: "#8A9A74",
+  },
+
+  "recuperacao-parcial": {
+    label: "Recuperação parcial",
+    color: "#588157",
+    bg: "#E6EEE8",
+    border: "#4A6F4A",
+  },
+} as const;
+
+export type ClassificationKey = keyof typeof classificationMeta;
