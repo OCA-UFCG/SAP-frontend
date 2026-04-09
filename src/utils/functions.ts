@@ -78,7 +78,8 @@ export const normalize = (str: string) =>
   str
     .toLowerCase()
     .normalize("NFD")
-    .replace(/[\u0300-\u036f]/g, ""); // removes accents
+    .replace(/[\u0300-\u036f]/g, "") // removes accents
+    .replace(/\s+/g, ""); // removes spaces
 
 export type StateSearchResult =
   | { type: "uf"; key: string }
@@ -88,16 +89,16 @@ export function resolveStateKeyFromSearch(
   query: string,
   statesObj: Record<string, string>,
 ): StateSearchResult {
-  const searchLower = query.toLowerCase().trim();
+  const searchNormalized = normalize(query.trim());
 
   // UF (key in statesObj)
-  if (statesObj[searchLower]) {
-    return { type: "uf", key: searchLower };
+  if (statesObj[searchNormalized]) {
+    return { type: "uf", key: searchNormalized };
   }
 
   // Full name (value in statesObj)
   const foundUF = Object.entries(statesObj).find(
-    ([_, name]) => name.toLowerCase() === searchLower,
+    ([_, name]) => normalize(name) === searchNormalized,
   );
 
   if (foundUF) {
