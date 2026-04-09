@@ -3,6 +3,7 @@
 import bbox from '@turf/bbox';
 import { Feature, FeatureCollection, Geometry } from 'geojson';
 import maplibregl, {
+  ExpressionSpecification,
   GeoJSONSource,
   LngLatBoundsLike,
   MapGeoJSONFeature,
@@ -48,7 +49,7 @@ const STATES_FILL_LAYER_ID = 'state-fills';
 const STATES_BORDER_LAYER_ID = 'state-borders';
 const CDI_LAYER_ID = 'cdi-layer';
 
-const CDI_FILL_EXPRESSION = [
+const CDI_FILL_EXPRESSION: ExpressionSpecification = [
   'match',
   ['to-number', ['get', 'classe_cdi']],
   0,
@@ -64,9 +65,14 @@ const CDI_FILL_EXPRESSION = [
   5,
   '#588157',
   'transparent',
-] as const;
+];
 
 const DEFAULT_CENTER: [number, number] = [-15.749997, -47.9499962];
+const MAP_FIT_BOUNDS_PADDING = 20;
+const MAP_FOCUS_ANIMATION_DURATION = 1200;
+
+const smoothCameraEasing = (progress: number) =>
+  1 - Math.pow(1 - progress, 3);
 
 const BASE_STYLE: maplibregl.StyleSpecification = {
   version: 8,
@@ -335,7 +341,7 @@ const Map = ({
         dadosCDI ? 'visible' : 'none',
       );
       map.fitBounds(currentBounds, {
-        padding: 20,
+        padding: MAP_FIT_BOUNDS_PADDING,
         animate: false,
       });
 
@@ -346,7 +352,6 @@ const Map = ({
         const hoveredStateId = hoveredFeature?.id;
         const info = JSON.parse(hoveredFeature?.properties?.info)
         const uf = info?.sigla
-        
         if (hoveredStateIdRef.current && hoveredStateIdRef.current !== hoveredStateId) {
           map.setFeatureState(
             { source: STATES_SOURCE_ID, id: hoveredStateIdRef.current },
@@ -389,9 +394,8 @@ const Map = ({
         const clickedFeature = event.features?.[0] as MyFeature | undefined;
         const uf = clickedFeature?.properties?.stateUf;
 
-        if (uf) {
-          onStateClickRef.current?.(uf);
-        }
+        if (uf) onStateClickRef.current?.(uf);
+        
       });
     });
 
@@ -455,8 +459,11 @@ const Map = ({
     }
 
     map.fitBounds(currentBounds, {
-      padding: 20,
+      padding: MAP_FIT_BOUNDS_PADDING,
       animate: true,
+      duration: MAP_FOCUS_ANIMATION_DURATION,
+      easing: smoothCameraEasing,
+      maxZoom: 7,
     });
   }, [currentBounds]);
 
