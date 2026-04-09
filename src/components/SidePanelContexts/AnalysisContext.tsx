@@ -9,6 +9,9 @@ import droughtData from "../../../public/dados-seca.json";
 import { statesObj } from "@/utils/constants";
 import SearchBarPlatform from "./SearchBarPlatform";
 import { resolveStateKeyFromSearch } from "@/utils/functions";
+import { classificationMeta } from "@/utils/constants";
+import type { ClassificationKey } from "@/utils/constants";
+import locationDataJson from "../../../public/dados-seca.json"
 
 export interface AnalysisContextProps {
   activeSection: PlatformSection;
@@ -34,14 +37,51 @@ const TIER_CONFIG = {
   "recuperacao-parcial": { label: "Recuperação Parcial", color: "#5B612A" },
 };
 
+function getPredominantClassification(
+  status: Record<ClassificationKey, number>
+): ClassificationKey {
+  return (Object.entries(status) as [ClassificationKey, number][]).reduce(
+    (max, cur) => (cur[1] > max[1] ? cur : max)
+  )[0];
+}
+
+function getPredominantInfo(status: Record<ClassificationKey, number>) {
+  const key = getPredominantClassification(status);
+  const meta = classificationMeta[key];
+
+  return {
+    key,
+    ...meta,
+    text: `Região maioritariamente ${meta.label}`,
+  };
+}
+
+export interface LocationData {
+  nome: string;
+  status: Record<ClassificationKey, number>;
+  acontecendo: string;
+  impacto: string[];
+}
+
+export interface AnalysisContextProps {
+  activeSection: PlatformSection;
+  panelLayers?: PanelLayerI[];
+  onRequestSectionChange?: (next: PlatformSection) => void;
+}
+
 export function AnalysisContext({
   onRequestSectionChange,
 }: AnalysisContextProps) {
   const { setActiveData, setSelectedState, selectedState } = useMapLayer();
 
+  const [locationData, setLocationData] = useState<LocationData>(
+    locationDataJson["br"]
+  );
+
   function handleGoBack() {
     setActiveData(null);
     setSelectedState("br");
+    setLocationData(locationDataJson["br"]);
     onRequestSectionChange?.("modules");
   }
 
@@ -81,9 +121,15 @@ export function AnalysisContext({
   };
 
   const handleSearch = (value: string) => {
-  const result = resolveStateKeyFromSearch(value, statesObj);
-  setSelectedState(result.key);
+    const result = resolveStateKeyFromSearch(value, statesObj);
+    setSelectedState(result.key);
+    const data = locationDataJson[result.key as keyof typeof locationDataJson];
+    if (data) setLocationData(data);
   };
+
+  const predominantInfo = locationData
+    ? getPredominantInfo(locationData.status)
+    : null;
 
   return (
     <div className="h-full overflow-y-auto bg-[#F6F7F6] px-4 pt-12 pb-6">
@@ -122,20 +168,48 @@ export function AnalysisContext({
           </div>
         </section>
 
-        <section className="flex flex-col gap-8">
-          <div className="h-6 w-[64px]">
-            {/* Aqui fica o identificador da localidade selecionada, por exemplo Brasil. */}
-          </div>
-
-          <div className="flex flex-col gap-2">
-            <div className="h-6 w-[170px]">
-              {/* Aqui fica o titulo da secao de informacoes gerais. */}
-            </div>
-
-            <div className="min-h-10 rounded-lg bg-white">
-              {/* Aqui fica o card de alerta com icone e resumo da classificacao predominante. (Região majoritariamente sem seca)*/}
+        <section className="flex flex-col gap-4">
+          {/*localidade*/}
+          <div className="flex flex-col mb-4">
+            <div
+              className="text-[18px] font-semibold leading-6"
+              style={{ color: predominantInfo?.color }}
+            >
+              {locationData?.nome}
             </div>
           </div>
+
+          <div className="w-[392px] flex flex-col gap-2">            
+            {/* info geral*/}
+            <div className="text-[18px] font-semibold leading-6 text-[#292829]">
+              Informações gerais
+            </div>
+            {predominantInfo && locationData && (
+              <div className="w-full h-[40px] flex items-center gap-4 pr-6 bg-white rounded-lg">
+                <div
+                  className="w-10 h-10 p-2 flex items-center justify-center rounded-lg border shrink-0"
+                  style={{
+                    backgroundColor: predominantInfo.bg,
+                    borderColor: predominantInfo.border,
+                  }}
+                >
+                  <svg className="w-6 h-6">
+                    <use
+                      xlinkHref="/sprite.svg#check"
+                      stroke={predominantInfo.color}
+                      strokeWidth="0.2"
+                      fill="none"
+                    />
+                  </svg>
+                </div>
+
+                <span className="w-fit text-[14px] leading-6 font-semibold text-[#292829] break-words">
+                  {predominantInfo.text}
+                </span>
+              </div>
+            )}
+            </div>
+
 
           <div className="flex flex-col gap-2">
             <h2 className="text-[18px] font-semibold leading-6 text-[#292829]">
