@@ -72,7 +72,7 @@ export function DroughtDataset({
           </div>
 
           <div
-            className="flex flex-col items-start pt-6 gap-[6px] flex-1"
+            className="flex flex-col items-start pt-6 flex-1"
             style={{ height: 126 }}
           >
             <div className="flex items-center w-full" style={{ height: 24 }}>
@@ -83,9 +83,9 @@ export function DroughtDataset({
                 {card.title}
               </span>
             </div>
-            <div className="flex items-center w-full" style={{ height: 20 }}>
+            <div className="flex items-start w-full mt-3">
               <span
-                className="w-full text-sm font-normal text-[#7E797B] line-clamp-1"
+                className="block w-full text-sm font-normal text-[#7E797B] line-clamp-1"
                 style={{ fontFamily: "Inter" }}
               >
                 {card.description}
