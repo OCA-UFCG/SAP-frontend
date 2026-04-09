@@ -3,7 +3,7 @@ import { Chevron } from "../Chevron/Chevron";
 import { Icon } from "../Icon/Icon";
 import clsx from "clsx";
 
-export type PlatformSection = "modules" | "analysis" | "forecast";
+export type PlatformSection = "modules" | "analysis" | "forecast" | "multicriteria";
 
 export interface PlatformSideRailProps {
   /** Which section is currently active/selected. */
@@ -38,7 +38,7 @@ export function PlatformSideRail({
 }: PlatformSideRailProps) {
     const items: Array<{ id: PlatformSection; label: string, icon: string }> = [
       { id: "modules", label: "Módulos", icon: "eye" },
-      { id: "analysis", label: "Análise Multicritério", icon: "chart" },
+      { id: "multicriteria", label: "Análise Multicritério", icon: "chart" },
       { id: "forecast", label: "Previsão", icon: "calendar" },
   ];
 
