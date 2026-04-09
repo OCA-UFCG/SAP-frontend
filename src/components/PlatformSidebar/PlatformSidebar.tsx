@@ -21,12 +21,14 @@ export function PlatformSidebar({ panelLayers }: PlatformSidebarProps) {
   const [isPanelOpen, setIsPanelOpen] = useState(true);
 
   const ContextComponent =
-    panelSection === "modules"
-      ? undefined // undefined pq em PlatformSidePanel esse valor é dado como default nos props
-      : panelSection === "analysis"
-        ? ComingSoonContext
-        : panelSection === "forecast"
-          ? ComingSoonContext 
+    panelSection === "modules"       
+    ? undefined          
+    : panelSection === "analysis"      
+      ? AnalysisContext    
+      : panelSection === "multicriteria" 
+        ? ComingSoonContext   
+        : panelSection === "forecast"      
+          ? ComingSoonContext   
           : undefined;
 
   function handleSectionChange(next: PlatformSection) {
