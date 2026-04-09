@@ -2,10 +2,9 @@
 
 import type { PlatformSection } from "@/components/PlatformSideRail/PlatformSideRail";
 
-const sectionLabel: Record<PlatformSection, string> = {
-	modules: "Módulos",
-	analysis: "Análise Multicritério",
-	forecast: "Previsão",
+const sectionLabel: Partial<Record<PlatformSection, string>> = {
+	multicriteria: "Análise Multicritério",
+	forecast: "Previsão"
 };
 
 export interface ComingSoonContextProps {

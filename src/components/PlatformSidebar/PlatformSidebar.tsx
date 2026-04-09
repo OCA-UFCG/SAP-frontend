@@ -21,11 +21,15 @@ export function PlatformSidebar({ panelLayers }: PlatformSidebarProps) {
   const [isPanelOpen, setIsPanelOpen] = useState(true);
 
   const ContextComponent =
-    panelSection === "analysis"
-      ? AnalysisContext
-      : panelSection === "modules"
-        ? undefined
-        : ComingSoonContext;
+    panelSection === "modules"       
+    ? undefined          
+    : panelSection === "analysis"      
+      ? AnalysisContext    
+      : panelSection === "multicriteria" 
+        ? ComingSoonContext   
+        : panelSection === "forecast"      
+          ? ComingSoonContext   
+          : undefined;
 
   function handleSectionChange(next: PlatformSection) {
     setActiveSection(next);
