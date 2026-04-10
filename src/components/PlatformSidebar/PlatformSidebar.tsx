@@ -9,12 +9,15 @@ import { PlatformSidePanel } from "@/components/PlatformSidePanel/PlatformSidePa
 import { AnalysisContext } from "@/components/SidePanelContexts/AnalysisContext";
 import { ComingSoonContext } from "@/components/SidePanelContexts/ComingSoonContext";
 import { PanelLayerI } from "@/utils/interfaces";
+import { useMapLayer } from "@/components/MapLayerContext/MapLayerContext";
 
 interface PlatformSidebarProps {
   panelLayers: PanelLayerI[];
 }
 
 export function PlatformSidebar({ panelLayers }: PlatformSidebarProps) {
+  const { setActiveData } = useMapLayer();
+
   const [activeSection, setActiveSection] =
     useState<PlatformSection>("modules");
   const [panelSection, setPanelSection] = useState<PlatformSection>("modules");
@@ -35,6 +38,10 @@ export function PlatformSidebar({ panelLayers }: PlatformSidebarProps) {
     setActiveSection(next);
     setPanelSection(next);
     setIsPanelOpen(true);
+
+    if (next !== "modules" && next !== "analysis") {
+      setActiveData(null);
+    }
   }
 
   function handlePanelSectionChange(next: PlatformSection) {
