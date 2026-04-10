@@ -74,18 +74,20 @@ export function AnalysisContext({
 }: AnalysisContextProps) {
   const { setActiveData, setSelectedState, selectedState } = useMapLayer();
 
-  const [locationData, setLocationData] = useState<LocationData>(
-    locationDataJson["br"]
-  );
+  const locationData = useMemo(() => {
+    return (
+      locationDataJson[selectedState as keyof typeof locationDataJson] ||
+      locationDataJson["br"]
+    );
+  }, [selectedState]);
 
   function handleGoBack() {
     setActiveData(null);
     setSelectedState("br");
-    setLocationData(locationDataJson["br"]);
     onRequestSectionChange?.("modules");
   }
 
-  const { statusItems, currentState } = useMemo(() => {
+    const { statusItems, currentState } = useMemo(() => {
     const stateData = droughtData[selectedState as keyof typeof droughtData] || droughtData.br;
 
     const items = Object.entries(stateData.status).map(([key, value]) => {
@@ -123,8 +125,6 @@ export function AnalysisContext({
   const handleSearch = (value: string) => {
     const result = resolveStateKeyFromSearch(value, statesObj);
     setSelectedState(result.key);
-    const data = locationDataJson[result.key as keyof typeof locationDataJson];
-    if (data) setLocationData(data);
   };
 
   const predominantInfo = locationData
