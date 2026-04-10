@@ -179,7 +179,7 @@ export function AnalysisContext({
             </div>
           </div>
 
-          <div className="w-[392px] flex flex-col gap-2">            
+          <div className="w-full max-w-[392px] flex flex-col gap-2">            
             {/* info geral*/}
             <div className="text-[18px] font-semibold leading-6 text-[#292829]">
               Informações gerais
