@@ -163,7 +163,7 @@ export function AnalysisContext({
             Pesquise um estado ou cidade para iniciar análise
           </p>
         </header>
-        <section className="flex flex-col gap-4">
+        <section className="flex flex-col gap-8">
           <div className="flex gap-4">
             <SearchBarPlatform onSearch={handleSearch} />
           </div>
