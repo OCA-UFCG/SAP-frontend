@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useMemo } from "react";
+import { useState, useMemo, useEffect} from "react";
 import { useMapLayer } from "@/components/MapLayerContext/MapLayerContext";
 import { Chevron } from "@/components/Chevron/Chevron";
 import type { PlatformSection } from "@/components/PlatformSideRail/PlatformSideRail";
@@ -71,12 +71,22 @@ export interface AnalysisContextProps {
 
 export function AnalysisContext({
   onRequestSectionChange,
+  panelLayers
 }: AnalysisContextProps) {
-  const { setActiveData, setSelectedState, selectedState } = useMapLayer();
+  const { setActiveData, setSelectedState, selectedState, activeLayerId } = useMapLayer();
+  // activeData eh o dado vetorial para o mapa renderizar (CDIVectorData)
+  // activeLayerId eh o identificador da layer selecionada ("CDI" e etc)
 
   const [locationData, setLocationData] = useState<LocationData>(
     locationDataJson["br"]
   );
+
+  const[selectedYear, setSelectedYear] = useState<string | null>(null);
+
+  const dataset = panelLayers?.find((p) => p.id === activeLayerId);
+  const years = dataset?.years ?? [];
+
+
 
   function handleGoBack() {
     setActiveData(null);
@@ -158,13 +168,23 @@ export function AnalysisContext({
             <SearchBarPlatform onSearch={handleSearch} />
           </div>
 
-          <div className="flex flex-col gap-[6px]">
-            {/* Aqui fica o rotulo da data da analise. (Data de análise)*/}
-            <div className="h-5 w-[120px]" />
+          {/*data da analise*/}
+          <div className="flex flex-col items-start gap-[6px] w-full max-w-[392px]">
+            <label className="text-[14px] leading-[20px] font-medium text-[#292829]">
+              Data da análise
+            </label>
 
-            <div className="min-h-10 rounded-md border border-[#DCDBDC] bg-white">
-              {/* Aqui fica o select da data da analise. (Selecione a data)*/}
-            </div>
+            <select
+              value={selectedYear || ""}
+              onChange={(e) => setSelectedYear(e.target.value)}
+              className="w-full h-[40px] min-h-[36px] px-3 py-2 text-[14px] leading-[24px] text-[#292829] bg-white border border-[#DCDBDC] rounded-md focus:outline-none"
+            >
+              {years.map((year) => (
+                <option key={year} value={year}>
+                  {year}
+                </option>
+              ))}
+            </select>
           </div>
         </section>
 

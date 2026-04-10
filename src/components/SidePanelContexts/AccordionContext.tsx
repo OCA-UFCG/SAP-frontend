@@ -130,13 +130,13 @@ export function AccordionContext({
   onRequestSectionChange,
 }: AccordionContextProps) {
   const [openId, setOpenId] = useState<number | null>(null);
-  const { activeData, setActiveData } = useMapLayer();
-
+  const { activeData, setActiveData, setActiveLayerId } = useMapLayer();
   const monitoringItems = buildMonitoringItems(panelLayers);
 
   function handleToggle(id: number) {
     setOpenId((prev) => (prev === id ? null : id));
   }
+
 
   function handleAnalyze(dataset: IDroughtDataset) {
     if (!dataset.fileRef) return;
@@ -144,9 +144,10 @@ export function AccordionContext({
     const data = DATASET_REGISTRY[dataset.fileRef];
     if (!data) return;
 
-    setActiveData(activeData === data ? null : data);
-    onRequestSectionChange?.("analysis");
-  }
+  setActiveData(activeData === data ? null : data);
+  setActiveLayerId(dataset.fileRef);
+  onRequestSectionChange?.("analysis");
+}
 
   return (
     <div className="h-full flex flex-col bg-[#F6F7F6]">

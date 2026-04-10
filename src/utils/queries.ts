@@ -153,6 +153,7 @@ export const GET_PANEL_LAYER = `
           width
           height
         }
+        years
       } 
     }
 }
