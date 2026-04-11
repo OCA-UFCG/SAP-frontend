@@ -22,7 +22,7 @@ export function PlatformMap() {
   };
 
   return (
-    <div className="absolute inset-0 [&_.leaflet-top.leaflet-left]:left-auto [&_.leaflet-top.leaflet-left]:right-4">
+    <div className="absolute inset-0">
       <div className="relative flex w-full h-full z-10">
         <MapComponent
           minZoom={3}
