@@ -8,13 +8,14 @@ import {
 import { PlatformSidePanel } from "@/components/PlatformSidePanel/PlatformSidePanel";
 import { AnalysisContext } from "@/components/SidePanelContexts/AnalysisContext";
 import { ComingSoonContext } from "@/components/SidePanelContexts/ComingSoonContext";
-import { PanelLayerI } from "@/utils/interfaces";
+import { PanelLayerI, IEEInfo } from "@/utils/interfaces";
 
 interface PlatformSidebarProps {
   panelLayers: PanelLayerI[];
+  eeConfigs: IEEInfo[];
 }
 
-export function PlatformSidebar({ panelLayers }: PlatformSidebarProps) {
+export function PlatformSidebar({ panelLayers, eeConfigs }: PlatformSidebarProps) {
   const [activeSection, setActiveSection] =
     useState<PlatformSection>("modules");
   const [panelSection, setPanelSection] = useState<PlatformSection>("modules");
@@ -69,6 +70,7 @@ export function PlatformSidebar({ panelLayers }: PlatformSidebarProps) {
           <PlatformSidePanel
             activeSection={panelSection}
             panelLayers={panelLayers}
+            eeConfigs={eeConfigs}
             ContextComponent={ContextComponent}
             onRequestSectionChange={handlePanelSectionChange}
           />

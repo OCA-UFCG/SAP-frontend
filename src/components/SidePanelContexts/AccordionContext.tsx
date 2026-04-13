@@ -7,7 +7,7 @@ import { DroughtDataset } from "../DroughtDataset/DroughtDataset";
 import type { IDroughtDataset } from "../DroughtDataset/DroughtDataset";
 import { PlatformSection } from "../PlatformSideRail/PlatformSideRail";
 import { Chevron } from "../Chevron/Chevron";
-import { PanelLayerI } from "@/utils/interfaces";
+import { PanelLayerI, IEEInfo } from "@/utils/interfaces";
 import cdiData from "../../data/CDI_Janeiro_2024_Vetores.json";
 
 interface AccordionItemData {
@@ -19,6 +19,7 @@ interface AccordionItemData {
 export interface AccordionContextProps {
   activeSection: PlatformSection;
   panelLayers?: PanelLayerI[];
+  eeConfigs?: IEEInfo[];
   onRequestSectionChange?: (next: PlatformSection) => void;
 }
 
@@ -127,10 +128,11 @@ function AccordionItem({
 
 export function AccordionContext({
   panelLayers = [],
+  eeConfigs = [],
   onRequestSectionChange,
 }: AccordionContextProps) {
   const [openId, setOpenId] = useState<number | null>(null);
-  const { activeData, setActiveData } = useMapLayer();
+  const { activeData, setActiveData, activeEEData, setActiveEEData } = useMapLayer();
 
   const monitoringItems = buildMonitoringItems(panelLayers);
 
@@ -141,10 +143,22 @@ export function AccordionContext({
   function handleAnalyze(dataset: IDroughtDataset) {
     if (!dataset.fileRef) return;
 
-    const data = DATASET_REGISTRY[dataset.fileRef];
-    if (!data) return;
+    // Check if it's a vector layer in the registry
+    const vectorData = DATASET_REGISTRY[dataset.fileRef];
+    
+    // Check if it's an EE config
+    const eeConfig = eeConfigs.find(config => config.id === dataset.fileRef);
 
-    setActiveData(activeData === data ? null : data);
+    if (!vectorData && !eeConfig) return;
+
+    if (vectorData) {
+      setActiveData(activeData === vectorData ? null : vectorData);
+      setActiveEEData(null);
+    } else if (eeConfig) {
+      setActiveEEData(activeEEData === eeConfig ? null : eeConfig);
+      setActiveData(null);
+    }
+
     onRequestSectionChange?.("analysis");
   }
 

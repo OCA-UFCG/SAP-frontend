@@ -1,4 +1,5 @@
 "use client";
+import { useEffect, useState } from "react";
 import { PlatformMapCaption } from "@/components/PlatformMapCaption/PlatformMapCaption";
 import MapComponent from "../Map/MapComponent";
 import { FeatureCollection, Geometry } from "geojson";
@@ -14,11 +15,45 @@ export interface CDIFeatureProperties {
 export type CDIVectorData = FeatureCollection<Geometry, CDIFeatureProperties>;
 
 export function PlatformMap() {
-  const { activeData, selectedState, setSelectedState } = useMapLayer();
+  const { activeData, activeEEData, selectedState, setSelectedState } = useMapLayer();
+  const [tileLayerUrl, setTileLayerUrl] = useState<string | undefined>(undefined);
+
+  useEffect(() => {
+    if (!activeEEData) {
+      setTileLayerUrl(undefined);
+      return;
+    }
+
+    const fetchGeeUrl = async () => {
+      try {
+        const years = Object.keys(activeEEData.imageData || {});
+        const defaultYear = years.includes("general") ? "general" : (years[0] || "general");
+        
+        const res = await fetch(`/api/ee?name=${activeEEData.id}&year=${defaultYear}`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(activeEEData),
+        });
+        
+        const data = await res.json();
+        if (data.url) {
+          setTileLayerUrl(data.url);
+        } else {
+          console.error("No GEE tile URL returned");
+          setTileLayerUrl(undefined);
+        }
+      } catch (err) {
+        console.error("Error fetching GEE tile layer:", err);
+        setTileLayerUrl(undefined);
+      }
+    };
+
+    fetchGeeUrl();
+  }, [activeEEData]);
 
   const handleSearch = (value: string) => {
-  const result = resolveStateKeyFromSearch(value, statesObj);
-  setSelectedState(result.key);
+    const result = resolveStateKeyFromSearch(value, statesObj);
+    setSelectedState(result.key);
   };
 
   return (
@@ -33,6 +68,7 @@ export function PlatformMap() {
           estadoSelecionado={selectedState.toUpperCase()}
           className="w-full h-full"
           onStateClick={handleSearch}
+          tileLayerUrl={tileLayerUrl}
         />
       </div>
 

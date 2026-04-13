@@ -23,6 +23,7 @@ interface MapProps {
   dadosCDI?: CDIVectorData;
   estadoSelecionado: string;
   onStateClick?: (uf: string) => void;
+  tileLayerUrl?: string | null;
 }
 
 interface FeatureProperties {
@@ -50,9 +51,11 @@ type MyFeature = Feature<Geometry, SelectedStateProperties>;
 const MAP_SOURCE_ID = 'osm-base';
 const STATES_SOURCE_ID = 'brazil-states';
 const CDI_SOURCE_ID = 'cdi-data';
+const GEE_SOURCE_ID = 'gee-tiles';
 const STATES_FILL_LAYER_ID = 'state-fills';
 const STATES_BORDER_LAYER_ID = 'state-borders';
 const CDI_LAYER_ID = 'cdi-layer';
+const GEE_LAYER_ID = 'gee-layer';
 
 const CDI_FILL_EXPRESSION: ExpressionSpecification = [
   'match',
@@ -139,6 +142,7 @@ const ensureMapLayers = (
   map: maplibregl.Map,
   showStatesBorder: boolean,
   hasCdiData: boolean,
+  tileLayerUrl?: string | null,
 ) => {
   if (!map.getSource(CDI_SOURCE_ID)) {
     map.addSource(CDI_SOURCE_ID, {
@@ -160,6 +164,45 @@ const ensureMapLayers = (
         visibility: hasCdiData ? 'visible' : 'none',
       },
     });
+  }
+
+  // ── GEE raster tile layer ──
+  if (tileLayerUrl) {
+    if (!map.getSource(GEE_SOURCE_ID)) {
+      map.addSource(GEE_SOURCE_ID, {
+        type: 'raster',
+        tiles: [tileLayerUrl],
+        tileSize: 256,
+      });
+    } else {
+      // Update tiles URL if it changed
+      map.removeLayer(GEE_LAYER_ID);
+      map.removeSource(GEE_SOURCE_ID);
+      map.addSource(GEE_SOURCE_ID, {
+        type: 'raster',
+        tiles: [tileLayerUrl],
+        tileSize: 256,
+      });
+    }
+
+    if (!map.getLayer(GEE_LAYER_ID)) {
+      map.addLayer(
+        {
+          id: GEE_LAYER_ID,
+          type: 'raster',
+          source: GEE_SOURCE_ID,
+          paint: {
+            'raster-opacity': 0.85,
+          },
+        },
+        // Insert before state fills so states remain interactive on top
+        map.getLayer(STATES_FILL_LAYER_ID) ? STATES_FILL_LAYER_ID : undefined,
+      );
+    }
+  } else {
+    // Remove GEE layer if URL was cleared
+    if (map.getLayer(GEE_LAYER_ID)) map.removeLayer(GEE_LAYER_ID);
+    if (map.getSource(GEE_SOURCE_ID)) map.removeSource(GEE_SOURCE_ID);
   }
 
   if (!map.getSource(STATES_SOURCE_ID)) {
@@ -233,6 +276,7 @@ const Map = ({
   showStatesBorder = true,
   estadoSelecionado,
   onStateClick,
+  tileLayerUrl,
 }: MapProps) => {
   const geoBrasil = geometria as unknown as FeatureCollection<
     Geometry,
@@ -251,6 +295,7 @@ const Map = ({
   const markersRef = useRef<maplibregl.Marker[]>([]);
   const selectedStateRef = useRef(estadoSelecionado);
   const onStateClickRef = useRef(onStateClick);
+  const tileLayerUrlRef = useRef(tileLayerUrl);
   const normalizedCenter = isValidLatLngTuple(center) ? center : DEFAULT_CENTER;
 
   const currentBounds = useMemo((): LngLatBoundsLike => {
@@ -291,7 +336,8 @@ const Map = ({
   useEffect(() => {
     selectedStateRef.current = estadoSelecionado;
     onStateClickRef.current = onStateClick;
-  }, [estadoSelecionado, onStateClick]);
+    tileLayerUrlRef.current = tileLayerUrl;
+  }, [estadoSelecionado, onStateClick, tileLayerUrl]);
 
   useEffect(() => {
     if (!mapContainerRef.current || mapRef.current) {
@@ -326,7 +372,7 @@ const Map = ({
 
 
     map.on('load', () => {
-      ensureMapLayers(map, showStatesBorder, Boolean(dadosCDI));
+      ensureMapLayers(map, showStatesBorder, Boolean(dadosCDI), tileLayerUrlRef.current);
 
       const statesSource = map.getSource(STATES_SOURCE_ID) as
         | GeoJSONSource
@@ -437,7 +483,7 @@ const Map = ({
       return;
     }
 
-    ensureMapLayers(map, showStatesBorder, Boolean(dadosCDI));
+    ensureMapLayers(map, showStatesBorder, Boolean(dadosCDI), tileLayerUrl);
 
     const statesSource = map.getSource(STATES_SOURCE_ID) as GeoJSONSource | undefined;
     statesSource?.setData(statesGeoJson);
@@ -460,7 +506,7 @@ const Map = ({
       'visibility',
       dadosCDI ? 'visible' : 'none',
     );
-  }, [cdiGeoJson, dadosCDI, showStatesBorder, statesGeoJson]);
+  }, [cdiGeoJson, dadosCDI, showStatesBorder, statesGeoJson, tileLayerUrl]);
 
   useEffect(() => {
     const map = mapRef.current;
@@ -497,7 +543,7 @@ const Map = ({
   }, [markers]);
 
   return (
-    <div className="w-full">
+    <div className="w-full h-full">
       <div className={className} ref={mapContainerRef} />
     </div>
   );

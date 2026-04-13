@@ -3,7 +3,7 @@
 import { useMapLayer } from "@/components/MapLayerContext/MapLayerContext";
 import { Chevron } from "@/components/Chevron/Chevron";
 import type { PlatformSection } from "@/components/PlatformSideRail/PlatformSideRail";
-import type { PanelLayerI } from "@/utils/interfaces";
+import type { PanelLayerI, IEEInfo } from "@/utils/interfaces";
 import { statesObj } from "@/utils/constants";
 import SearchBarPlatform from "./SearchBarPlatform";
 import { resolveStateKeyFromSearch } from "@/utils/functions";
@@ -11,6 +11,7 @@ import { resolveStateKeyFromSearch } from "@/utils/functions";
 export interface AnalysisContextProps {
   activeSection: PlatformSection;
   panelLayers?: PanelLayerI[];
+  eeConfigs?: IEEInfo[];
   onRequestSectionChange?: (next: PlatformSection) => void;
 }
 
@@ -26,10 +27,11 @@ const stateClassificationPlaceholders = [
 export function AnalysisContext({
   onRequestSectionChange,
 }: AnalysisContextProps) {
-  const { setActiveData, setSelectedState } = useMapLayer();
+  const { setActiveData, setActiveEEData, setSelectedState } = useMapLayer();
 
   function handleGoBack() {
     setActiveData(null);
+    setActiveEEData(null);
     setSelectedState("br");
     onRequestSectionChange?.("modules");
   }
