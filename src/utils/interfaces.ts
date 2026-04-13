@@ -200,4 +200,5 @@ export interface PanelLayerI {
     width?: number;
     height?: number;
   };
+  years: string[];
 }
