@@ -28,42 +28,6 @@ const DATASET_REGISTRY: Record<string, CDIVectorData> = {
   CDI: cdiData as unknown as CDIVectorData,
 };
 
-const EE_DATASET_REGISTRY: Record<string, IEEInfo> = {
-  "Dinâmica da Degradação da Terra - ODS 15.3.1": {
-    id: "ods",
-    name: "Dinâmica da Degradação da Terra - ODS 15.3.1",
-    description:
-      "O Objetivo do Desenvolvimento Sustentável 15.3, visa o progresso em direção a um mundo neutro de degradação da terra sendo avaliado pelo indicador 15.3.1 que expressa a dinâmica da degradação da terra, a partir de informaçoes de cobertura da terra, carbono orgânico do solo e produtividade do solo.",
-    measurementUnit: "classes",
-    type: "Ambiental",
-    minScale: 1,
-    maxScale: 3,
-    poster: "",
-    imageData: {
-      general: {
-        default: true,
-        imageId: "projects/ee-ocaufcg/assets/ODS_15_3_1",
-        imageParams: [
-          {
-            color: "#9b2779",
-            label: "Degradando",
-            pixelLimit: 9,
-          },
-          {
-            color: "#ffffe0",
-            label: "Estável",
-            pixelLimit: 10,
-          },
-          {
-            color: "#006500",
-            label: "Melhorando",
-          },
-        ],
-      },
-    },
-  },
-};
-
 function buildMonitoringItems(panelLayers: PanelLayerI[]): AccordionItemData[] {
   const grouped = panelLayers.reduce<Record<string, IDroughtDataset[]>>(
     (acc, layer, index) => {
@@ -177,19 +141,23 @@ export function AccordionContext({
   function handleAnalyze(dataset: IDroughtDataset) {
     if (!dataset.fileRef) return;
 
+    // Find Contentful Layer
+    const panelLayer = panelLayers.find(layer => layer.id === dataset.fileRef);
+    const hasEEData = panelLayer && panelLayer.imageData;
+
     // Check if it's a vector layer in the registry
     const vectorData = DATASET_REGISTRY[dataset.fileRef];
     
-    // Check if it's an EE config
-    const eeConfig = EE_DATASET_REGISTRY[dataset.fileRef];
-
-    if (!vectorData && !eeConfig) return;
+    if (!vectorData && !hasEEData) return;
 
     if (vectorData) {
       setActiveData(activeData === vectorData ? null : vectorData);
       setActiveEEData(null);
-    } else if (eeConfig) {
-      setActiveEEData(activeEEData === eeConfig ? null : eeConfig);
+    } else if (hasEEData) {
+      const eeConfig = panelLayer as unknown as IEEInfo;
+      // Compare by id to trigger correctly when same config reference but different object
+      const isActive = activeEEData?.id === eeConfig.id;
+      setActiveEEData(isActive ? null : eeConfig);
       setActiveData(null);
     }
 

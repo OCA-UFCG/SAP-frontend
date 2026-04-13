@@ -227,9 +227,9 @@ export const addUrlToCache = (key: string, url: string | null) => {
  * Runs recursively every 12 hours to keep the cache updated.
  */
 export const cacheMapData = async () => {
-    const { tiffInfo } = await getContent(["tiffInfo"]);
+    const { panelLayer } = await getContent(["panelLayer"]);
 
-    for (const data of tiffInfo) {
+    for (const data of panelLayer) {
         const id = data.id;
         const imageData = data.imageData;
         const minScale = data.minScale;

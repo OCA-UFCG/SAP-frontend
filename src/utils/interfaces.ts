@@ -200,6 +200,9 @@ export interface PanelLayerI {
     width?: number;
     height?: number;
   };
+  imageData?: any;
+  minScale?: number;
+  maxScale?: number;
 }
 export interface IImageParam {
   color: string;
