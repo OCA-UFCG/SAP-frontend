@@ -15,27 +15,14 @@ async function getPanelLayers(): Promise<PanelLayerI[]> {
   return data?.panelLayerCollection?.items;
 }
 
-async function getEEConfigs(): Promise<IEEInfo[]> {
-  try {
-    const { tiffInfo } = await getRestContent(["tiffInfo"]);
-    return tiffInfo || [];
-  } catch (e) {
-    console.error("Failed to fetch tiffInfo", e);
-    return [];
-  }
-}
-
 export async function PlatformLayout() {
-  const [panelLayers, eeConfigs] = await Promise.all([
-    getPanelLayers(),
-    getEEConfigs(),
-  ]);
+  const panelLayers = await getPanelLayers();
 
   return (
     <MapLayerProvider>
       <div className="relative w-full min-h-[calc(100vh-64px)] bg-neutral-50">
         <PlatformMap />
-        <PlatformSidebar panelLayers={panelLayers} eeConfigs={eeConfigs} />
+        <PlatformSidebar panelLayers={panelLayers} />
       </div>
     </MapLayerProvider>
   );

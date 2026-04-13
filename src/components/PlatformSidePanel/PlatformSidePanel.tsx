@@ -8,14 +8,12 @@ import { PanelLayerI, IEEInfo } from "@/utils/interfaces";
 export type SidePanelContextComponent = React.ComponentType<{
   activeSection: PlatformSection;
   panelLayers?: PanelLayerI[];
-  eeConfigs?: IEEInfo[];
   onRequestSectionChange?: (next: PlatformSection) => void;
 }>;
 
 export interface PlatformSidePanelProps {
   activeSection: PlatformSection;
   panelLayers?: PanelLayerI[];
-  eeConfigs?: IEEInfo[];
   ContextComponent?: SidePanelContextComponent;
   onRequestSectionChange?: (next: PlatformSection) => void;
 }
@@ -23,7 +21,6 @@ export interface PlatformSidePanelProps {
 export function PlatformSidePanel({
   activeSection,
   panelLayers,
-  eeConfigs,
   ContextComponent = AccordionContext,
   onRequestSectionChange,
 }: PlatformSidePanelProps) {
@@ -32,7 +29,6 @@ export function PlatformSidePanel({
       <ContextComponent
         activeSection={activeSection}
         panelLayers={panelLayers}
-        eeConfigs={eeConfigs}
         onRequestSectionChange={onRequestSectionChange}
       />
     </section>

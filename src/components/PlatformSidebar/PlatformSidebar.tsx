@@ -12,10 +12,9 @@ import { PanelLayerI, IEEInfo } from "@/utils/interfaces";
 
 interface PlatformSidebarProps {
   panelLayers: PanelLayerI[];
-  eeConfigs: IEEInfo[];
 }
 
-export function PlatformSidebar({ panelLayers, eeConfigs }: PlatformSidebarProps) {
+export function PlatformSidebar({ panelLayers }: PlatformSidebarProps) {
   const [activeSection, setActiveSection] =
     useState<PlatformSection>("modules");
   const [panelSection, setPanelSection] = useState<PlatformSection>("modules");
@@ -70,7 +69,6 @@ export function PlatformSidebar({ panelLayers, eeConfigs }: PlatformSidebarProps
           <PlatformSidePanel
             activeSection={panelSection}
             panelLayers={panelLayers}
-            eeConfigs={eeConfigs}
             ContextComponent={ContextComponent}
             onRequestSectionChange={handlePanelSectionChange}
           />
