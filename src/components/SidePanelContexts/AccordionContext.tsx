@@ -147,7 +147,7 @@ export function AccordionContext({
 
     // Check if it's a vector layer in the registry
     const vectorData = DATASET_REGISTRY[dataset.fileRef];
-    
+
     if (!vectorData && !hasEEData) return;
 
     if (vectorData) {
