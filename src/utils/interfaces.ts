@@ -182,7 +182,7 @@ export interface ChevronI {
   size?: number
 }
 
-export interface MapLegendItem {
+export interface  MapLegendItem {
   label: string
   classification: string | number
   color: string
@@ -204,6 +204,7 @@ export interface PanelLayerI {
   imageData?: any;
   minScale?: number;
   maxScale?: number;
+  years: string[];
 }
 export interface IImageParam {
   color: string;

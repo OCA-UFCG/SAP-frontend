@@ -157,6 +157,7 @@ export const GET_PANEL_LAYER = `
         imageData
         minScale
         maxScale
+        years
       } 
     }
 }

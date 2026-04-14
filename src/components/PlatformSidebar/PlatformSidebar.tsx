@@ -9,28 +9,39 @@ import { PlatformSidePanel } from "@/components/PlatformSidePanel/PlatformSidePa
 import { AnalysisContext } from "@/components/SidePanelContexts/AnalysisContext";
 import { ComingSoonContext } from "@/components/SidePanelContexts/ComingSoonContext";
 import { PanelLayerI, IEEInfo } from "@/utils/interfaces";
+import { useMapLayer } from "@/components/MapLayerContext/MapLayerContext";
 
 interface PlatformSidebarProps {
   panelLayers: PanelLayerI[];
 }
 
 export function PlatformSidebar({ panelLayers }: PlatformSidebarProps) {
+  const { setActiveData } = useMapLayer();
+
   const [activeSection, setActiveSection] =
     useState<PlatformSection>("modules");
   const [panelSection, setPanelSection] = useState<PlatformSection>("modules");
   const [isPanelOpen, setIsPanelOpen] = useState(true);
 
   const ContextComponent =
-    panelSection === "analysis"
-      ? AnalysisContext
-      : panelSection === "modules"
-        ? undefined
-        : ComingSoonContext;
+    panelSection === "modules"       
+    ? undefined          
+    : panelSection === "analysis"      
+      ? AnalysisContext    
+      : panelSection === "multicriteria" 
+        ? ComingSoonContext   
+        : panelSection === "forecast"      
+          ? ComingSoonContext   
+          : undefined;
 
   function handleSectionChange(next: PlatformSection) {
     setActiveSection(next);
     setPanelSection(next);
     setIsPanelOpen(true);
+
+    if (next !== "modules" && next !== "analysis") {
+      setActiveData(null);
+    }
   }
 
   function handlePanelSectionChange(next: PlatformSection) {

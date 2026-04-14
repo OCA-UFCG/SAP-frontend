@@ -5,6 +5,7 @@ import type { PlatformSection } from "@/components/PlatformSideRail/PlatformSide
 const sectionLabel: Record<PlatformSection, string> = {
 	modules: "Módulos",
 	analysis: "Análise Multicritério",
+	multicriteria: "Análise Multicritério",
 	forecast: "Previsão",
 };
 

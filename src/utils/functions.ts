@@ -68,9 +68,9 @@ function hexToRgb(hex: string) {
   const bigint = parseInt(
     cleaned.length === 3
       ? cleaned
-        .split("")
-        .map((c) => c + c)
-        .join("")
+          .split("")
+          .map((c) => c + c)
+          .join("")
       : cleaned,
     16,
   );
@@ -95,7 +95,8 @@ export const normalize = (str: string) =>
   str
     .toLowerCase()
     .normalize("NFD")
-    .replace(/[\u0300-\u036f]/g, ""); // removes accents
+    .replace(/[\u0300-\u036f]/g, "") // removes accents
+    .replace(/\s+/g, ""); // removes spaces
 
 export type StateSearchResult =
   | { type: "uf"; key: string }
