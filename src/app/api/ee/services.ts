@@ -101,11 +101,12 @@ const getImageScale = (
 
     const palette = imageParams.map((imageParam: any) => imageParam.color);
 
-    const visParams = {
-        min: minScale ?? 0,
-        max: maxScale ?? 1,
-        palette,
-    };
+    // After categorization, pixel values are always 1..N (one integer per category).
+    // Using Contentful's minScale/maxScale would cause all values to be clamped to
+    // one palette extreme. Only use them for non-categorical (continuous) images.
+    const visParams = hasPixelLimits
+        ? { min: 1, max: imageParams.length, palette }
+        : { min: minScale ?? 0, max: maxScale ?? 1, palette };
 
     return { categorizedImage, visParams };
 };

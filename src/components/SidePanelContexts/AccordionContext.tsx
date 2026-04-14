@@ -143,7 +143,9 @@ export function AccordionContext({
 
     // Find Contentful Layer
     const panelLayer = panelLayers.find(layer => layer.id === dataset.fileRef);
+    console.log(panelLayer)
     const hasEEData = panelLayer && panelLayer.imageData;
+    console.log(hasEEData)
 
     // Check if it's a vector layer in the registry
     const vectorData = DATASET_REGISTRY[dataset.fileRef];
