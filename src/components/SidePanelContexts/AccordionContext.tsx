@@ -33,7 +33,7 @@ function buildMonitoringItems(panelLayers: PanelLayerI[]): AccordionItemData[] {
     (acc, layer, index) => {
       const dataset: IDroughtDataset = {
         id: index + 1,
-        title: layer.id,
+        title: layer.name,
         description: layer.description,
         image: layer.previewMap?.url,
         fileRef: layer.id,

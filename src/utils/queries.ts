@@ -144,6 +144,7 @@ export const GET_PANEL_LAYER = `
         sys {
           id
         }
+        name
         id
         description
         category

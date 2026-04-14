@@ -191,6 +191,7 @@ export interface PanelLayerI {
   sys: {
     id: string;
   };
+  name: string;
   id: string;
   description: string;
   category: string;
