@@ -122,3 +122,12 @@ export const classificationMeta = {
 } as const;
 
 export type ClassificationKey = keyof typeof classificationMeta;
+
+export const TIER_CONFIG = {
+  "sem-seca": { label: "Sem seca", color: "#F0F0D7" },
+  observacao: { label: "Observação", color: "#FECB89" },
+  atencao: { label: "Atenção", color: "#FC8F23" },
+  alerta: { label: "Seca severa", color: "#B52C08" },
+  "recuperacao-total": { label: "Recuperação Total", color: "#B4BA61" },
+  "recuperacao-parcial": { label: "Recuperação Parcial", color: "#5B612A" },
+};

@@ -1,17 +1,17 @@
 "use client";
 
-import { useState, useMemo, useEffect} from "react";
+import { useState, useMemo} from "react";
 import { useMapLayer } from "@/components/MapLayerContext/MapLayerContext";
 import { Chevron } from "@/components/Chevron/Chevron";
 import type { PlatformSection } from "@/components/PlatformSideRail/PlatformSideRail";
 import type { PanelLayerI } from "@/utils/interfaces";
 import droughtData from "../../../public/dados-seca.json";
-import { statesObj } from "@/utils/constants";
+import { statesObj, TIER_CONFIG } from "@/utils/constants";
 import SearchBarPlatform from "./SearchBarPlatform";
 import { resolveStateKeyFromSearch } from "@/utils/functions";
 import { classificationMeta } from "@/utils/constants";
 import type { ClassificationKey } from "@/utils/constants";
-import locationDataJson from "../../../public/dados-seca.json"
+import { ClassificationCard } from "../ClassificationCard/ClassificationCard";
 
 export interface AnalysisContextProps {
   activeSection: PlatformSection;
@@ -19,23 +19,15 @@ export interface AnalysisContextProps {
   onRequestSectionChange?: (next: PlatformSection) => void;
 }
 
-const stateClassificationPlaceholders = [
-  "Sem seca",
-  "Recuperacao total",
-  "Recuperacao parcial",
-  "Observação",
-  "Atenção",
-  "Seca Severa",
+const CLASSIFICATION_KEYS: ClassificationKey[] = [
+  "sem-seca",
+  "recuperacao-total",
+  "recuperacao-parcial",
+  "observacao",
+  "atencao",
+  "alerta",
 ];
 
-const TIER_CONFIG = {
-  "sem-seca": { label: "Sem seca", color: "#F0F0D7" },
-  observacao: { label: "Observação", color: "#FECB89" },
-  atencao: { label: "Atenção", color: "#FC8F23" },
-  alerta: { label: "Seca severa", color: "#B52C08" },
-  "recuperacao-total": { label: "Recuperação Total", color: "#B4BA61" },
-  "recuperacao-parcial": { label: "Recuperação Parcial", color: "#5B612A" },
-};
 
 function getPredominantClassification(
   status: Record<ClassificationKey, number>
@@ -79,8 +71,8 @@ export function AnalysisContext({
 
   const locationData = useMemo(() => {
     return (
-      locationDataJson[selectedState as keyof typeof locationDataJson] ||
-      locationDataJson["br"]
+      droughtData[selectedState as keyof typeof droughtData] ||
+      droughtData["br"]
     );
   }, [selectedState]);
 
@@ -281,20 +273,15 @@ export function AnalysisContext({
           </div>
 
           <div className="flex flex-col gap-2">
-            <div className="h-6 w-[215px]">
-              {/* Aqui fica o titulo da secao de estados por classificacao. */}
-            </div>
+            <h2 className="text-[18px] font-semibold leading-6 text-[#292829]">
+              Estados por classificação
+            </h2>
+          </div>
 
             <div className="flex flex-col gap-2">
-              {stateClassificationPlaceholders.map((label) => (
-                <div
-                  key={label}
-                  className="min-h-[84px] rounded-lg border border-[#EFEFEF] bg-white"
-                >
-                  {/* Aqui fica um card expansivel por classificacao, com total de estados e lista detalhada. */}
-                </div>
+              {CLASSIFICATION_KEYS.map((key) => (
+                <ClassificationCard key={key} classificationKey={key} />
               ))}
-            </div>
           </div>
 
           <div className="flex flex-col gap-2">
