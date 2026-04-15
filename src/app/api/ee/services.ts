@@ -30,7 +30,7 @@ const initializeGee = async () => {
  * @returns {Promise<string>} - The formatted URL for the image.
  */
 export const getEarthEngineUrl = async (
-    imageId: any,
+    imageId: any, // ex: 'projects/ee-ulissesalencar17/assets/ic_cdi_v1_ajustes'
     imageParams: any,
     minScale: any,
     maxScale: any,
@@ -39,12 +39,29 @@ export const getEarthEngineUrl = async (
         await initializeGee();
         console.log(new Date().toISOString(), " - GEE Initialized successfully");
 
-        const GEEImage = ee
-            .Image(imageId)
-            .selfMask()
-            .reduceResolution(ee.Reducer.mode(), true, 128);
+        const assetType = await getAssetType(imageId);
+        console.log(new Date().toISOString(), ` - Asset type for '${imageId}': ${assetType}`);
+
+        const GEEImage =
+            assetType === "ImageCollection"
+                ? ee.ImageCollection(imageId).mosaic()
+                : ee.Image(imageId);
+
+        let processedImage = GEEImage.selfMask();
+
+        // CORREÇÃO AQUI: 
+        // Como o GEE não aceita paleta em imagens de múltiplas bandas,
+        // nós forçamos a seleção da primeira banda (índice 0).
+        processedImage = processedImage.select([4]);
+
+        // Opcional: Se você quiser descobrir o nome da banda por curiosidade, 
+        // descomente a linha abaixo (pode deixar o código um pouquinho mais lento por ser getInfo)
+        // console.log("Bandas da imagem:", processedImage.bandNames().getInfo());
+
+        const bandNames = await GEEImage.bandNames().getInfo();
+        console.log("BANDAS NO GEE:", bandNames);
         const { categorizedImage, visParams } = getImageScale(
-            GEEImage,
+            processedImage,
             imageParams,
             minScale,
             maxScale,
@@ -122,6 +139,24 @@ function getMapId(image: any, visParams?: any) {
         image.getMapId(visParams, (obj: any, error: any) =>
             error ? reject(new Error(error)) : resolve(obj),
         );
+    });
+}
+
+/**
+ * Resolves the GEE asset type for a given asset ID.
+ * Returns a string such as "IMAGE" or "IMAGE_COLLECTION".
+ * @param {string} assetId - The fully-qualified GEE asset ID.
+ * @returns {Promise<string>} - The asset type string.
+ */
+function getAssetType(assetId: string): Promise<string> {
+    return new Promise((resolve, reject) => {
+        ee.data.getAsset(assetId, (asset: any, error: any) => {
+            if (error) {
+                reject(new Error(error));
+            } else {
+                resolve(asset.type as string);
+            }
+        });
     });
 }
 
@@ -235,6 +270,11 @@ export const cacheMapData = async () => {
         const imageData = data.imageData;
         const minScale = data.minScale;
         const maxScale = data.maxScale;
+
+        if (!imageData) {
+            console.warn(`Skipping layer '${id}': no imageData in Contentful.`);
+            continue;
+        }
 
         for (const year of Object.keys(imageData)) {
             const { imageId, imageParams } = imageData[year];

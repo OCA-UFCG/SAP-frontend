@@ -143,24 +143,19 @@ export function AccordionContext({
 
     // Find Contentful Layer
     const panelLayer = panelLayers.find(layer => layer.id === dataset.fileRef);
-    console.log(panelLayer)
     const hasEEData = panelLayer && panelLayer.imageData;
-    console.log(hasEEData)
 
-    // Check if it's a vector layer in the registry
-    const vectorData = DATASET_REGISTRY[dataset.fileRef];
-
-    if (!vectorData && !hasEEData) return;
-
-    if (vectorData) {
-      setActiveData(activeData === vectorData ? null : vectorData);
-      setActiveEEData(null);
-    } else if (hasEEData) {
+    // Prefer GEE (EE) data when available; only fall back to local vector if not
+    if (hasEEData) {
       const eeConfig = panelLayer as unknown as IEEInfo;
-      // Compare by id to trigger correctly when same config reference but different object
       const isActive = activeEEData?.id === eeConfig.id;
       setActiveEEData(isActive ? null : eeConfig);
       setActiveData(null);
+    } else {
+      const vectorData = DATASET_REGISTRY[dataset.fileRef];
+      if (!vectorData) return;
+      setActiveData(activeData === vectorData ? null : vectorData);
+      setActiveEEData(null);
     }
 
     onRequestSectionChange?.("analysis");
