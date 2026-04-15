@@ -15,8 +15,11 @@ export interface CDIFeatureProperties {
 export type CDIVectorData = FeatureCollection<Geometry, CDIFeatureProperties>;
 
 export function PlatformMap() {
-  const { activeData, activeEEData, selectedState, setSelectedState } = useMapLayer();
-  const [tileLayerUrl, setTileLayerUrl] = useState<string | undefined>(undefined);
+  const { activeData, activeEEData, selectedState, setSelectedState } =
+    useMapLayer();
+  const [tileLayerUrl, setTileLayerUrl] = useState<string | undefined>(
+    undefined,
+  );
 
   useEffect(() => {
     if (!activeEEData) {
@@ -27,14 +30,19 @@ export function PlatformMap() {
     const fetchGeeUrl = async () => {
       try {
         const years = Object.keys(activeEEData.imageData || {});
-        const defaultYear = years.includes("general") ? "general" : (years[0] || "general");
-        
-        const res = await fetch(`/api/ee?name=${activeEEData.id}&year=${defaultYear}`, {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify(activeEEData),
-        });
-        
+        const defaultYear = years.includes("general")
+          ? "general"
+          : years[0] || "general";
+
+        const res = await fetch(
+          `/api/ee?name=${activeEEData.id}&year=${defaultYear}`,
+          {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify(activeEEData),
+          },
+        );
+
         const data = await res.json();
         if (data.url) {
           setTileLayerUrl(data.url);
@@ -63,7 +71,7 @@ export function PlatformMap() {
           minZoom={3}
           center={[-15.749997, -47.9499962]}
           zoom={4}
-          showStatesBorder={!!activeData}
+          showStatesBorder
           dadosCDI={activeData ?? undefined}
           estadoSelecionado={selectedState.toUpperCase()}
           className="w-full h-full"
@@ -73,9 +81,8 @@ export function PlatformMap() {
       </div>
 
       {/* Caption/legend overlay (bottom-right in the Figma) */}
-      
-      {activeData && <PlatformMapCaption legend={maps_legends.cdi}/>}
-      
+
+      {activeData && <PlatformMapCaption legend={maps_legends.cdi} />}
     </div>
   );
 }
