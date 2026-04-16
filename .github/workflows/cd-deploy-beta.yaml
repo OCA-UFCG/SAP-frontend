@@ -3,11 +3,11 @@ name: CD SAP-Home frontend BETA
 on:
   push:
     branches: ["main"]
-    
+
 concurrency:
   group: sap-beta-deploy
   cancel-in-progress: true
-  
+
 jobs:
   build-image:
     runs-on: ubuntu-latest
@@ -48,7 +48,6 @@ jobs:
             NEXT_PUBLIC_CONTENTFUL_PREVIEW_TOKEN=${{ secrets.NEXT_PUBLIC_CONTENTFUL_PREVIEW_TOKEN }}
             NEXT_PUBLIC_CONTENTFUL_SPACE_ID=${{ secrets.NEXT_PUBLIC_CONTENTFUL_SPACE_ID }}
             NEXT_PUBLIC_HOST_URL=${{ vars.NEXT_PUBLIC_HOST_URL }}
-            GEE_PRIVATE_KEY=${{ secrets.GEE_PRIVATE_KEY }}
 
   push-beta:
     needs: build-image
@@ -73,7 +72,10 @@ jobs:
         run: sudo docker rm -f ${{ vars.CONTAINER_NAME_BETA }} || true
 
       - name: Run the new Beta container
-        run: sudo docker run --name ${{ vars.CONTAINER_NAME_BETA }} --restart unless-stopped -p ${{ vars.HOST_PORT_BETA }}:${{ vars.CONTAINER_PORT }} -d ${{ vars.DOCKER_IMAGE_BETA }}:latest
+        env:
+          GEE_PRIVATE_KEY: ${{ secrets.GEE_PRIVATE_KEY }}
+          NEXT_PUBLIC_HOST_URL: ${{ vars.NEXT_PUBLIC_HOST_URL }}
+        run: sudo --preserve-env=GEE_PRIVATE_KEY,NEXT_PUBLIC_HOST_URL docker run --name ${{ vars.CONTAINER_NAME_BETA }} --restart unless-stopped -p ${{ vars.HOST_PORT_BETA }}:${{ vars.CONTAINER_PORT }} -e GEE_PRIVATE_KEY -e NEXT_PUBLIC_HOST_URL -d ${{ vars.DOCKER_IMAGE_BETA }}:latest
 
       - name: Connect to the Beta container network
         run: sudo docker network connect ${{ vars.NETWORK_NAME }} ${{ vars.CONTAINER_NAME_BETA }}
