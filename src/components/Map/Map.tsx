@@ -22,7 +22,6 @@ interface MapProps {
   showStatesBorder?: boolean;
   dadosCDI?: CDIVectorData;
   estadoSelecionado: string;
-  onStateClick?: (uf: string) => void;
   tileLayerUrl?: string | null;
 }
 
@@ -263,7 +262,6 @@ const Map = ({
   dadosCDI,
   showStatesBorder = true,
   estadoSelecionado,
-  onStateClick,
   tileLayerUrl,
 }: MapProps) => {
   const geoBrasil = geometria as unknown as FeatureCollection<
@@ -283,7 +281,6 @@ const Map = ({
   const selectedStateIdRef = useRef<string | number | null>(null);
   const markersRef = useRef<maplibregl.Marker[]>([]);
   const selectedStateRef = useRef(estadoSelecionado);
-  const onStateClickRef = useRef(onStateClick);
   const tileLayerUrlRef = useRef(tileLayerUrl);
   const normalizedCenter = isValidLatLngTuple(center) ? center : DEFAULT_CENTER;
 
@@ -319,9 +316,8 @@ const Map = ({
 
   useEffect(() => {
     selectedStateRef.current = estadoSelecionado;
-    onStateClickRef.current = onStateClick;
     tileLayerUrlRef.current = tileLayerUrl;
-  }, [estadoSelecionado, onStateClick, tileLayerUrl]);
+  }, [estadoSelecionado, tileLayerUrl]);
 
   useEffect(() => {
     if (!mapContainerRef.current || mapRef.current) {
@@ -441,7 +437,7 @@ const Map = ({
           );
         }
 
-        map.getCanvas().style.cursor = "pointer";
+        map.getCanvas().style.cursor = "default";
 
         if (uf || name) {
           popup
@@ -466,20 +462,6 @@ const Map = ({
         hoveredStateIdRef.current = null;
         map.getCanvas().style.cursor = "";
         popup.remove();
-      });
-
-      map.on("click", STATES_FILL_LAYER_ID, (event) => {
-        const clickedFeature = event.features?.[0] as
-          | MapGeoJSONFeature
-          | undefined;
-        const uf =
-          (clickedFeature?.properties?.SIGLA_UF as string | undefined) ??
-          (clickedFeature?.properties?.uf as string | undefined);
-        const name = clickedFeature?.properties?.NM_UF as string | undefined;
-
-        // Prefer UF abbreviation (stable key). Fall back to name if needed.
-        if (uf) onStateClickRef.current?.(uf);
-        else if (name) onStateClickRef.current?.(name);
       });
     });
 

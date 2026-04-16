@@ -20,12 +20,14 @@ export function PlatformMap() {
   const [tileLayerUrl, setTileLayerUrl] = useState<string | undefined>(
     undefined,
   );
+  const visibleTileLayerUrl = activeEEData ? tileLayerUrl : undefined;
 
   useEffect(() => {
     if (!activeEEData) {
-      setTileLayerUrl(undefined);
       return;
     }
+
+    let cancelled = false;
 
     const fetchGeeUrl = async () => {
       try {
@@ -44,6 +46,10 @@ export function PlatformMap() {
         );
 
         const data = await res.json();
+        if (cancelled) {
+          return;
+        }
+
         if (data.url) {
           setTileLayerUrl(data.url);
         } else {
@@ -51,12 +57,20 @@ export function PlatformMap() {
           setTileLayerUrl(undefined);
         }
       } catch (err) {
+        if (cancelled) {
+          return;
+        }
+
         console.error("Error fetching GEE tile layer:", err);
         setTileLayerUrl(undefined);
       }
     };
 
     fetchGeeUrl();
+
+    return () => {
+      cancelled = true;
+    };
   }, [activeEEData]);
 
   const handleSearch = (value: string) => {
@@ -75,8 +89,7 @@ export function PlatformMap() {
           dadosCDI={activeData ?? undefined}
           estadoSelecionado={selectedState.toUpperCase()}
           className="w-full h-full"
-          onStateClick={handleSearch}
-          tileLayerUrl={tileLayerUrl}
+          tileLayerUrl={visibleTileLayerUrl}
         />
       </div>
 
