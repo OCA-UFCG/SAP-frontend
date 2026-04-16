@@ -131,3 +131,48 @@ export const TIER_CONFIG = {
   "recuperacao-total": { label: "Recuperação Total", color: "#B4BA61" },
   "recuperacao-parcial": { label: "Recuperação Parcial", color: "#5B612A" },
 };
+
+export const rankingMeta = {
+  "sem-seca": {
+    label: "Sem seca",
+    bg: "#F0F0D7",
+    text: "#21240F",
+    badgeBg: "#21240F",
+    badgeText: "#FFFFFF",
+  },
+  "recuperacao-total": {
+    label: "Recuperação total",
+    bg: "#B4BA61",
+    text: "#21240F",
+    badgeBg: "#21240F",
+    badgeText: "#FFFFFF",
+  },
+  "recuperacao-parcial": {
+    label: "Recuperação parcial",
+    bg: "#5B612A",
+    text: "#FFFFFF",
+    badgeBg: "#21240F",
+    badgeText: "#FFFFFF",
+  },
+  observacao: {
+    label: "Observação",
+    bg: "#FECB89", // ✅ FALTAVA ISSO
+    text: "#21240F",
+    badgeBg: "#21240F",
+    badgeText: "#FFFFFF",
+  },
+  atencao: {
+    label: "Atenção",
+    bg: "#FC8F23",
+    text: "#21240F",
+    badgeBg: "#21240F",
+    badgeText: "#FFFFFF",
+  },
+  alerta: {
+    label: "Seca severa", // (melhor manter consistente com resto do sistema)
+    bg: "#B52C08",
+    text: "#FFFFFF",
+    badgeBg: "#21240F",
+    badgeText: "#FFFFFF",
+  },
+} as const;
