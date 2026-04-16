@@ -1,5 +1,7 @@
 "use client";
 
+import clsx from "clsx";
+
 export interface IDroughtDataset {
   id: number;
   title: string;
@@ -7,27 +9,6 @@ export interface IDroughtDataset {
   image?: string;
   fileRef?: string;
 }
-
-export const DROUGHT_DATASETS: IDroughtDataset[] = [
-  {
-    id: 1,
-    title: "CDI",
-    description: "breve descrição do dataset",
-    fileRef: "data/CDI_Janeiro_2024_Vetores.json",
-  },
-  {
-    id: 2,
-    title: "Monitor de seca",
-    description: "breve descrição do dataset",
-    fileRef: undefined,
-  },
-  {
-    id: 3,
-    title: "Monitor de seca",
-    description: "breve descrição do dataset",
-    fileRef: undefined,
-  },
-];
 
 function InfoIcon() {
   return (
@@ -39,21 +20,23 @@ function InfoIcon() {
 
 export function DroughtDataset({
   card,
-  onAnalyze,
+  active = false,
+  disabled = false,
+  onToggle,
+  onDetails,
 }: {
   card: IDroughtDataset;
-  onAnalyze?: (card: IDroughtDataset) => void;
+  active?: boolean;
+  disabled?: boolean;
+  onToggle?: () => void;
+  onDetails?: () => void;
 }) {
-  const handleAnalyze = () => {
-    onAnalyze?.(card);
-  };
-
   return (
     <div className="flex flex-row items-start w-full bg-white border border-[#EFEFEF] shadow-sm rounded-lg overflow-hidden shrink-0">
       <div className="flex flex-col items-start w-full">
         {/* card header */}
         <div
-          className="flex flex-row items-start pr-4 gap-2 w-full"
+          className="flex flex-row items-center pr-4 gap-2 w-full"
           style={{ height: 126 }}
         >
           <div
@@ -72,22 +55,16 @@ export function DroughtDataset({
           </div>
 
           <div
-            className="flex flex-col items-start pt-6 gap-[6px] flex-1"
+            className="flex flex-col items-start py-2 gap-[6px] flex-1"
             style={{ height: 126 }}
           >
             <div className="flex items-center w-full" style={{ height: 24 }}>
-              <span
-                className="w-full font-semibold text-base text-[#292829]"
-                style={{ fontFamily: "Inter", letterSpacing: "-0.015em" }}
-              >
+              <span className="w-full font-['Inter'] font-semibold text-[16px] leading-[24px] tracking-[-0.015em] text-[#292829] line-clamp-1">
                 {card.title}
               </span>
             </div>
             <div className="flex items-center w-full" style={{ height: 20 }}>
-              <span
-                className="w-full text-sm font-normal text-[#7E797B] line-clamp-1"
-                style={{ fontFamily: "Inter" }}
-              >
+              <span className="w-full font-['Inter'] font-normal text-[14px] leading-[20px] text-[#7E797B] line-clamp-1">
                 {card.description}
               </span>
             </div>
@@ -99,23 +76,58 @@ export function DroughtDataset({
           className="flex flex-row items-center w-full p-4 gap-4 border-t border-[#EFEFEF]"
           style={{ height: 72 }}
         >
+          {/* Toggle (apply/unapply layer) */}
+          <div className="flex flex-row justify-center items-center p-2 gap-2 w-[60px] h-10">
+            <button
+              type="button"
+              role="switch"
+              aria-checked={active}
+              aria-label={
+                active
+                  ? `Desativar camada ${card.title}`
+                  : `Ativar camada ${card.title}`
+              }
+              onClick={onToggle}
+              disabled={disabled}
+              className={clsx(
+                "relative w-11 h-6 rounded-full transition-colors",
+                active ? "bg-[#989F43]" : "bg-[#E4E5E2]",
+                disabled ? "cursor-not-allowed opacity-70" : "cursor-pointer",
+                "focus:outline-none focus-visible:ring-2 focus-visible:ring-[#989F43] focus-visible:ring-offset-2",
+              )}
+            >
+              <span
+                className={clsx(
+                  "absolute top-0.5 left-0.5 h-5 w-5 rounded-full bg-white transition-transform duration-200",
+                  active ? "translate-x-5" : "translate-x-0",
+                )}
+              />
+            </button>
+          </div>
+
+          {/* Detalhamento (open analysis context) */}
           <button
             type="button"
-            onClick={handleAnalyze}
-            className="flex flex-row justify-center items-center px-4 py-2 gap-[10px] flex-1 h-10 bg-[#989F43] rounded-[6px] cursor-pointer"
+            onClick={onDetails}
+            disabled={disabled}
+            className={clsx(
+              "flex flex-row justify-center items-center px-4 py-2 gap-[10px] flex-1 h-10 bg-[#989F43] rounded-[6px]",
+              disabled ? "cursor-not-allowed opacity-60" : "cursor-pointer",
+            )}
           >
-            <span
-              className="text-sm font-normal text-white"
-              style={{ fontFamily: "'Open Sans', sans-serif" }}
-            >
-              Analisar
+            <span className="font-['Open_Sans'] text-[14px] leading-[24px] font-normal text-white">
+              Detalhamento
             </span>
           </button>
 
           <button
             type="button"
-            className="box-border flex flex-row justify-center items-center p-2 gap-2 w-10 h-10 bg-white border border-slate-200 rounded-[6px] shrink-0"
+            className={clsx(
+              "box-border flex flex-row justify-center items-center p-2 gap-2 w-10 h-10 bg-white border border-[#E4E5E2] rounded-[6px] shrink-0",
+              disabled ? "cursor-not-allowed opacity-60" : "cursor-pointer",
+            )}
             aria-label="Mais informações"
+            disabled={disabled}
           >
             <InfoIcon />
           </button>
