@@ -156,7 +156,7 @@ export const rankingMeta = {
   },
   observacao: {
     label: "Observação",
-    bg: "#FECB89", // ✅ FALTAVA ISSO
+    bg: "#FECB89",
     text: "#21240F",
     badgeBg: "#21240F",
     badgeText: "#FFFFFF",
@@ -169,7 +169,7 @@ export const rankingMeta = {
     badgeText: "#FFFFFF",
   },
   alerta: {
-    label: "Seca severa", // (melhor manter consistente com resto do sistema)
+    label: "Seca severa",
     bg: "#B52C08",
     text: "#FFFFFF",
     badgeBg: "#21240F",
