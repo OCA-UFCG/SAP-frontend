@@ -3,7 +3,7 @@ import { useEffect, useState } from "react";
 import { PlatformMapCaption } from "@/components/PlatformMapCaption/PlatformMapCaption";
 import MapComponent from "../Map/MapComponent";
 import { FeatureCollection, Geometry } from "geojson";
-import { maps_legends, statesObj } from "@/utils/constants";
+import { statesObj } from "@/utils/constants";
 import { useMapLayer } from "@/components/MapLayerContext/MapLayerContext";
 import { resolveStateKeyFromSearch } from "@/utils/functions";
 
@@ -15,7 +15,7 @@ export interface CDIFeatureProperties {
 export type CDIVectorData = FeatureCollection<Geometry, CDIFeatureProperties>;
 
 export function PlatformMap() {
-  const { activeData, activeEEData, selectedState, setSelectedState } =
+  const { activeData, activeEEData, activeLegend, selectedState, setSelectedState } =
     useMapLayer();
   const [tileLayerUrl, setTileLayerUrl] = useState<string | undefined>(
     undefined,
@@ -95,7 +95,7 @@ export function PlatformMap() {
 
       {/* Caption/legend overlay (bottom-right in the Figma) */}
 
-      {activeData && <PlatformMapCaption legend={maps_legends.cdi} />}
+      {activeLegend && activeLegend.length > 0 && ( <PlatformMapCaption legend={activeLegend} />)}
     </div>
   );
 }

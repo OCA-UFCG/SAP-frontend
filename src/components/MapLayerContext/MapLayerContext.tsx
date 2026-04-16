@@ -1,10 +1,12 @@
 "use client";
 import { createContext, useContext, useState } from "react";
 import { CDIVectorData } from "@/components/PlatformMap/PlatformMap";
-import { IEEInfo } from "@/utils/interfaces";
+import { IEEInfo, IImageParam } from "@/utils/interfaces";
 
 interface MapLayerContextValue {
   activeData: CDIVectorData | null;
+  activeLegend: IImageParam[] | null;
+  setActiveLegend: (legend: IImageParam[] | null) => void;
   setActiveData: (data: CDIVectorData | null) => void;
   activeEEData: IEEInfo | null;
   setActiveEEData: (data: IEEInfo | null) => void;
@@ -21,10 +23,12 @@ export function MapLayerProvider({ children }: { children: React.ReactNode }) {
   const [activeEEData, setActiveEEData] = useState<IEEInfo | null>(null);
   const [selectedState, setSelectedState] = useState("br");
   const [activeLayerId, setActiveLayerId] = useState<string | null>(null);
+  const [activeLegend, setActiveLegend] = useState<IImageParam[] | null>(null);
 
   return (
     <MapLayerContext.Provider value={{
-      activeData, setActiveData,
+      activeData, activeLegend, 
+      setActiveLegend, setActiveData,
       activeEEData, setActiveEEData,
       selectedState, setSelectedState,
       activeLayerId, setActiveLayerId,

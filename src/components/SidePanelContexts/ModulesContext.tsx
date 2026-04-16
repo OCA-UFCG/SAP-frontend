@@ -55,14 +55,22 @@ export function ModulesContext({
     activeData,
     setActiveData,
     activeEEData,
+    activeLegend,
     setActiveEEData,
     setActiveLayerId,
+    setActiveLegend
   } = useMapLayer();
 
   const datasets = useMemo(
     () => buildLayerDatasets(panelLayers),
     [panelLayers],
   );
+
+  const getCaption = (layer: PanelLayerI) => {
+      const entries = Object.entries(layer.imageData || {});
+      const defaultEntry = entries.find(([, val]) => val.default) ?? entries[0];
+      return defaultEntry?.[1]?.imageParams ?? null;
+    };
 
   function handleToggle(dataset: LayerDataset) {
     if (!dataset.fileRef) return;
@@ -77,6 +85,13 @@ export function ModulesContext({
       setActiveData(isActive ? null : vectorData);
       setActiveEEData(null);
       setActiveLayerId(isActive ? null : dataset.fileRef);
+
+      if (isActive) {
+        setActiveLegend(null); 
+      } else {
+        setActiveLegend(getCaption(dataset.layer));
+      }
+      
       return;
     }
 
@@ -86,6 +101,12 @@ export function ModulesContext({
       setActiveEEData(isActive ? null : eeConfig);
       setActiveData(null);
       setActiveLayerId(isActive ? null : eeConfig.id);
+
+      if (isActive) {
+        setActiveLegend(null); 
+      } else {
+        setActiveLegend(getCaption(dataset.layer));
+      }
     }
   }
 
