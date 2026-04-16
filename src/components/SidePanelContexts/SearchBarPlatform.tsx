@@ -21,9 +21,8 @@ const SearchBarPlatform = ({ onSearch }: SearchBarProps) => {
     const [hasError, setHasError] = useState(false);
 
     const validateSearch = (value: string) => {
-        const input = normalize(value);
 
-        if (!(statesNormalized.has(input) || ufsNormalized.has(input))) {
+        if (!(states.has(value.trim()) || ufs.has(value.trim()))) {
             throw Error("Estado não identificado.");
         }
     };

@@ -6,6 +6,8 @@ PWD=$(shell pwd)
 NODE_IMAGE=node:20.12.2
 IMAGE_NAME=sap-frontend
 CONTAINER_PORT=3000
+NODE_MODULES_VOLUME=$(IMAGE_NAME)-node_modules
+NEXT_CACHE_VOLUME=$(IMAGE_NAME)-next_cache
 
 # PROD Env
 HOST_PORT_PROD=3000
@@ -26,7 +28,21 @@ docker-build-dev:
 	docker build -t $(IMAGE_NAME) .
 
 docker-run-dev:
-	docker run -p 3000:$(CONTAINER_PORT) --name $(IMAGE_NAME) -v /app/node_modules -v $(PWD):/app -w /app --user $(id -u):$(id -g) $(IMAGE_NAME)
+	# Ensure the node_modules volume exists and is writable by the host user
+	docker volume create $(NODE_MODULES_VOLUME) >/dev/null
+	docker run --rm -v $(NODE_MODULES_VOLUME):/app/node_modules $(NODE_IMAGE) sh -lc "chown -R $(shell id -u):$(shell id -g) /app/node_modules || true"
+	# Ensure the .next cache volume exists and is writable (Turbopack lockfile lives here)
+	docker volume create $(NEXT_CACHE_VOLUME) >/dev/null
+	docker run --rm -v $(NEXT_CACHE_VOLUME):/app/.next $(NODE_IMAGE) sh -lc "chown -R $(shell id -u):$(shell id -g) /app/.next || true"
+	# Recreate container if it already exists
+	docker rm -f $(IMAGE_NAME) >/dev/null 2>&1 || true
+	docker run -p 3000:$(CONTAINER_PORT) --name $(IMAGE_NAME) \
+		-v $(NODE_MODULES_VOLUME):/app/node_modules \
+		-v $(NEXT_CACHE_VOLUME):/app/.next \
+		-v $(PWD):/app \
+		-w /app \
+		--user $(shell id -u):$(shell id -g) \
+		$(IMAGE_NAME)
 
 docker-build-prod:
 	docker build -t $(IMAGE_NAME) -f Dockerfile.production .

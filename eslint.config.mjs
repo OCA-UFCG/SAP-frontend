@@ -16,7 +16,21 @@ const eslintConfig = defineConfig([
     "build/**",
     "next-env.d.ts",
   ]),
-  ...storybook.configs["flat/recommended"]
+  ...storybook.configs["flat/recommended"],
+
+  // Keep lint strict for the app, but relax a few rules for server/API glue code
+  // and integration layers where `any` is sometimes unavoidable.
+  {
+    files: [
+      "src/app/api/**/*.ts",
+      "src/services/**/*.ts",
+      "src/utils/functions.ts",
+      "src/utils/interfaces.ts",
+    ],
+    rules: {
+      "@typescript-eslint/no-explicit-any": "off",
+    },
+  },
 ]);
 
 export default eslintConfig;

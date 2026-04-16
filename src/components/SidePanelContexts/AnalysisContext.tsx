@@ -1,21 +1,22 @@
 "use client";
 
-import { useState, useMemo, useEffect} from "react";
 import { useMapLayer } from "@/components/MapLayerContext/MapLayerContext";
 import { Chevron } from "@/components/Chevron/Chevron";
 import type { PlatformSection } from "@/components/PlatformSideRail/PlatformSideRail";
-import type { PanelLayerI } from "@/utils/interfaces";
-import droughtData from "../../../public/dados-seca.json";
+import type { PanelLayerI, IEEInfo } from "@/utils/interfaces";
 import { statesObj } from "@/utils/constants";
 import SearchBarPlatform from "./SearchBarPlatform";
 import { resolveStateKeyFromSearch } from "@/utils/functions";
+import { useState, useMemo, useEffect } from "react";
+import droughtData from "../../../public/dados-seca.json";
 import { classificationMeta } from "@/utils/constants";
 import type { ClassificationKey } from "@/utils/constants";
-import locationDataJson from "../../../public/dados-seca.json"
+import locationDataJson from "../../../public/dados-seca.json";
 
 export interface AnalysisContextProps {
   activeSection: PlatformSection;
   panelLayers?: PanelLayerI[];
+  eeConfigs?: IEEInfo[];
   onRequestSectionChange?: (next: PlatformSection) => void;
 }
 
@@ -38,10 +39,10 @@ const TIER_CONFIG = {
 };
 
 function getPredominantClassification(
-  status: Record<ClassificationKey, number>
+  status: Record<ClassificationKey, number>,
 ): ClassificationKey {
   return (Object.entries(status) as [ClassificationKey, number][]).reduce(
-    (max, cur) => (cur[1] > max[1] ? cur : max)
+    (max, cur) => (cur[1] > max[1] ? cur : max),
   )[0];
 }
 
@@ -71,10 +72,9 @@ export interface AnalysisContextProps {
 
 export function AnalysisContext({
   onRequestSectionChange,
-  panelLayers
+  panelLayers,
 }: AnalysisContextProps) {
-  const { setActiveData, setSelectedState, selectedState, activeLayerId } = useMapLayer();
-  // activeData eh o dado vetorial para o mapa renderizar (CDIVectorData)
+  const { setSelectedState, selectedState, activeLayerId } = useMapLayer();
   // activeLayerId eh o identificador da layer selecionada ("CDI" e etc)
 
   const locationData = useMemo(() => {
@@ -84,21 +84,20 @@ export function AnalysisContext({
     );
   }, [selectedState]);
 
-  const[selectedYear, setSelectedYear] = useState<string | null>(null);
+  const [selectedYear, setSelectedYear] = useState<string | null>(null);
 
-  const dataset = panelLayers?.find((p) => p.id === activeLayerId);
+  const dataset =
+    panelLayers?.find((p) => p.id === activeLayerId) ?? panelLayers?.[0];
   const years = dataset?.years ?? [];
 
-
-
   function handleGoBack() {
-    setActiveData(null);
     setSelectedState("br");
     onRequestSectionChange?.("modules");
   }
 
-    const { statusItems, currentState } = useMemo(() => {
-    const stateData = droughtData[selectedState as keyof typeof droughtData] || droughtData.br;
+  const { statusItems, currentState } = useMemo(() => {
+    const stateData =
+      droughtData[selectedState as keyof typeof droughtData] || droughtData.br;
 
     const items = Object.entries(stateData.status).map(([key, value]) => {
       const percentage = (value as number) * 100;
@@ -128,7 +127,7 @@ export function AnalysisContext({
         </strong>
       ) : (
         part
-      )
+      ),
     );
   };
 
@@ -199,7 +198,7 @@ export function AnalysisContext({
             </div>
           </div>
 
-          <div className="w-full max-w-[392px] flex flex-col gap-2">            
+          <div className="w-full max-w-[392px] flex flex-col gap-2">
             {/* info geral*/}
             <div className="text-[18px] font-semibold leading-6 text-[#292829]">
               Informações gerais
@@ -228,8 +227,7 @@ export function AnalysisContext({
                 </span>
               </div>
             )}
-            </div>
-
+          </div>
 
           <div className="flex flex-col gap-2">
             <h2 className="text-[18px] font-semibold leading-6 text-[#292829]">
@@ -249,30 +247,33 @@ export function AnalysisContext({
 
             <div className="rounded-lg border border-[#EFEFEF] bg-white p-3 shadow-sm">
               <div className="flex h-10 w-full overflow-hidden rounded-md">
-                {statusItems.filter((item) => item.value > 0).map((item) => (
-                  <div
-                    key={item.id}
-                    style={{ 
-                      width: `${item.value}%`, 
-                      backgroundColor: item.color 
-                    }}
-                    className="flex items-center justify-center text-[12px] font-bold text-[#292829] border-r border-white/20 last:border-0 transition-all duration-500"
-                    title={`${item.label}: ${item.value}%`}
-                  >
-                    {item.value > 10 && `${item.value}%`}
-                  </div>
-                ))}
+                {statusItems
+                  .filter((item) => item.value > 0)
+                  .map((item) => (
+                    <div
+                      key={item.id}
+                      style={{
+                        width: `${item.value}%`,
+                        backgroundColor: item.color,
+                      }}
+                      className="flex items-center justify-center text-[12px] font-bold text-[#292829] border-r border-white/20 last:border-0 transition-all duration-500"
+                      title={`${item.label}: ${item.value}%`}
+                    >
+                      {item.value > 10 && `${item.value}%`}
+                    </div>
+                  ))}
               </div>
 
               <div className="mt-4 grid grid-cols-2 gap-x-4 gap-y-2">
                 {statusItems.map((item) => (
                   <div key={item.id} className="flex items-center gap-2">
-                    <div 
-                      className="h-3 w-3 rounded-full shrink-0" 
-                      style={{ backgroundColor: item.color }} 
+                    <div
+                      className="h-3 w-3 rounded-full shrink-0"
+                      style={{ backgroundColor: item.color }}
                     />
                     <span className="text-[12px] text-neutral-600 truncate">
-                      {item.label}: <span className="font-bold">{item.value}%</span>
+                      {item.label}:{" "}
+                      <span className="font-bold">{item.value}%</span>
                     </span>
                   </div>
                 ))}

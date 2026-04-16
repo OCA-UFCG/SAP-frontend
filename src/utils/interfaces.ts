@@ -176,7 +176,7 @@ export interface SecaRootObject {
 
 type Direction = "up" | "down" | "right" | "left"
 export interface ChevronI {
-  open: boolean, 
+  open: boolean,
   from: Direction,
   to: Direction,
   size?: number
@@ -191,6 +191,7 @@ export interface PanelLayerI {
   sys: {
     id: string;
   };
+  name: string;
   id: string;
   description: string;
   category: string;
@@ -200,5 +201,40 @@ export interface PanelLayerI {
     width?: number;
     height?: number;
   };
+  imageData?: any;
+  minScale?: number;
+  maxScale?: number;
   years: string[];
+}
+export interface IImageParam {
+  color: string;
+  pixelLimit?: number;
+  label: string;
+}
+
+export interface IEEInfo {
+  id: string;
+  name: string;
+  description: string;
+  extraInfo?: string[];
+  checked?: boolean;
+  measurementUnit: string;
+  poster: { fields: { file: { url: string } } } | string;
+  minScale?: number;
+  maxScale?: number;
+  graphLegendTitle?: string;
+  imageData: {
+    [year: string]: {
+      default: boolean;
+      imageId: string;
+      imageParams: IImageParam[];
+    };
+  };
+  type: string;
+}
+
+export interface IMapId {
+  mapid: string;
+  token: string;
+  urlFormat: string;
 }

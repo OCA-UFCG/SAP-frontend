@@ -118,7 +118,6 @@ export default function DroughtSection() {
               dadosCDI={cdiData}
               estadoSelecionado={selectedState.toUpperCase()}
               className="w-full h-full"
-              onStateClick={handleSearch}
             />
           </div>
         </div>

@@ -1,4 +1,5 @@
 "use client";
+import { useEffect, useState } from "react";
 import { PlatformMapCaption } from "@/components/PlatformMapCaption/PlatformMapCaption";
 import MapComponent from "../Map/MapComponent";
 import { FeatureCollection, Geometry } from "geojson";
@@ -14,11 +15,67 @@ export interface CDIFeatureProperties {
 export type CDIVectorData = FeatureCollection<Geometry, CDIFeatureProperties>;
 
 export function PlatformMap() {
-  const { activeData, selectedState, setSelectedState } = useMapLayer();
+  const { activeData, activeEEData, selectedState, setSelectedState } =
+    useMapLayer();
+  const [tileLayerUrl, setTileLayerUrl] = useState<string | undefined>(
+    undefined,
+  );
+  const visibleTileLayerUrl = activeEEData ? tileLayerUrl : undefined;
+
+  useEffect(() => {
+    if (!activeEEData) {
+      return;
+    }
+
+    let cancelled = false;
+
+    const fetchGeeUrl = async () => {
+      try {
+        const years = Object.keys(activeEEData.imageData || {});
+        const defaultYear = years.includes("general")
+          ? "general"
+          : years[0] || "general";
+
+        const res = await fetch(
+          `/api/ee?name=${activeEEData.id}&year=${defaultYear}`,
+          {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify(activeEEData),
+          },
+        );
+
+        const data = await res.json();
+        if (cancelled) {
+          return;
+        }
+
+        if (data.url) {
+          setTileLayerUrl(data.url);
+        } else {
+          console.error("No GEE tile URL returned");
+          setTileLayerUrl(undefined);
+        }
+      } catch (err) {
+        if (cancelled) {
+          return;
+        }
+
+        console.error("Error fetching GEE tile layer:", err);
+        setTileLayerUrl(undefined);
+      }
+    };
+
+    fetchGeeUrl();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [activeEEData]);
 
   const handleSearch = (value: string) => {
-  const result = resolveStateKeyFromSearch(value, statesObj);
-  setSelectedState(result.key);
+    const result = resolveStateKeyFromSearch(value, statesObj);
+    setSelectedState(result.key);
   };
 
   return (
@@ -28,18 +85,17 @@ export function PlatformMap() {
           minZoom={3}
           center={[-15.749997, -47.9499962]}
           zoom={4}
-          showStatesBorder={!!activeData}
+          showStatesBorder
           dadosCDI={activeData ?? undefined}
           estadoSelecionado={selectedState.toUpperCase()}
           className="w-full h-full"
-          onStateClick={(uf) => setSelectedState(uf.toLowerCase())}
+          tileLayerUrl={visibleTileLayerUrl}
         />
       </div>
 
       {/* Caption/legend overlay (bottom-right in the Figma) */}
-      
-      {activeData && <PlatformMapCaption legend={maps_legends.cdi}/>}
-      
+
+      {activeData && <PlatformMapCaption legend={maps_legends.cdi} />}
     </div>
   );
 }
