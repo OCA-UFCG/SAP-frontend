@@ -2,7 +2,6 @@ import {
   ClassificationKey,
   classificationMeta,
   rankingMeta,
-  TIER_CONFIG,
 } from "@/utils/constants";
 import droughtData from "../../../public/dados-seca.json";
 import { useState } from "react";
