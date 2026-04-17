@@ -7,11 +7,10 @@ import type { PanelLayerI, IEEInfo } from "@/utils/interfaces";
 import { statesObj } from "@/utils/constants";
 import SearchBarPlatform from "./SearchBarPlatform";
 import { resolveStateKeyFromSearch } from "@/utils/functions";
-import { useState, useMemo, useEffect } from "react";
+import { useMemo, useEffect } from "react";
 import droughtData from "../../../public/dados-seca.json";
 import { classificationMeta } from "@/utils/constants";
 import type { ClassificationKey } from "@/utils/constants";
-import locationDataJson from "../../../public/dados-seca.json";
 
 export interface AnalysisContextProps {
   activeSection: PlatformSection;
@@ -64,40 +63,54 @@ export interface LocationData {
   impacto: string[];
 }
 
-export interface AnalysisContextProps {
-  activeSection: PlatformSection;
-  panelLayers?: PanelLayerI[];
-  onRequestSectionChange?: (next: PlatformSection) => void;
-}
-
 export function AnalysisContext({
   onRequestSectionChange,
   panelLayers,
 }: AnalysisContextProps) {
-  const { setActiveData, setSelectedState, setActiveLayerId, setActiveEEData, selectedState, setActiveLegend, activeLayerId } = useMapLayer();
+  const {
+    setActiveData,
+    setSelectedState,
+    setActiveLayerId,
+    setActiveEEData,
+    setActiveLegend,
+    selectedState,
+    activeLayerId,
+    activeYear,
+    setActiveYear,
+  } = useMapLayer();
   // activeData eh o dado vetorial para o mapa renderizar (CDIVectorData)
   // activeLayerId eh o identificador da layer selecionada ("CDI" e etc)
-
-  const [selectedYear, setSelectedYear] = useState<string | null>(null);
 
   const dataset = useMemo(() => {
     return panelLayers?.find((p) => p.id === activeLayerId) ?? panelLayers?.[0];
   }, [panelLayers, activeLayerId]);
 
-  const years = useMemo(() => dataset?.years ?? [], [dataset]);
+  const years = useMemo(() => {
+    const keys = Object.keys(dataset?.imageData ?? {});
+    const yearKeys = keys.filter((k) => k !== "general");
+
+    yearKeys.sort((a, b) => {
+      const aNum = Number(a);
+      const bNum = Number(b);
+      const bothNumeric = Number.isFinite(aNum) && Number.isFinite(bNum);
+      return bothNumeric ? aNum - bNum : a.localeCompare(b);
+    });
+
+    return keys.includes("general") ? ["general", ...yearKeys] : yearKeys;
+  }, [dataset]);
 
   const locationData = useMemo(() => {
     return (
-      locationDataJson[selectedState as keyof typeof locationDataJson] ||
-      locationDataJson["br"]
+      droughtData[selectedState as keyof typeof droughtData] ||
+      droughtData["br"]
     );
   }, [selectedState]);
-
   function handleGoBack() {
     setActiveLayerId(null);
     setActiveEEData(null);
     setActiveData(null);
     setActiveLegend(null);
+    setActiveYear("general");
     setSelectedState("br");
     onRequestSectionChange?.("modules");
   }
@@ -147,22 +160,24 @@ export function AnalysisContext({
     ? getPredominantInfo(locationData.status)
     : null;
 
-    const currentYear = useMemo(() => {
-    if (selectedYear) return selectedYear;
+  const effectiveYear = useMemo(() => {
     if (!dataset?.imageData) return null;
+    if (activeYear && dataset.imageData[activeYear]) return activeYear;
+
     const entries = Object.entries(dataset.imageData);
     const defaultEntry = entries.find(([, val]) => val.default) ?? entries[0];
-    return defaultEntry?.[0];
-  }, [dataset, selectedYear]);
-    
-    useEffect(() => {
-    if (dataset?.imageData && currentYear) {
-      const yearConfig = dataset.imageData[currentYear];
-      if (yearConfig?.imageParams) {
-        setActiveLegend(yearConfig.imageParams);
-      }
+    return defaultEntry?.[0] ?? null;
+  }, [dataset, activeYear]);
+
+  useEffect(() => {
+    if (!dataset?.imageData || !effectiveYear) {
+      setActiveLegend(null);
+      return;
     }
-  }, [dataset, currentYear, setActiveLegend]);
+
+    const yearConfig = dataset.imageData[effectiveYear];
+    setActiveLegend(yearConfig?.imageParams ?? null);
+  }, [dataset, effectiveYear, setActiveLegend]);
 
   return (
     <div className="h-full overflow-y-auto bg-[#F6F7F6] px-4 pt-12 pb-6">
@@ -198,13 +213,13 @@ export function AnalysisContext({
             </label>
 
             <select
-              value={selectedYear || ""}
-              onChange={(e) => setSelectedYear(e.target.value)}
+              value={effectiveYear || ""}
+              onChange={(e) => setActiveYear(e.target.value)}
               className="w-full h-[40px] min-h-[36px] px-3 py-2 text-[14px] leading-[24px] text-[#292829] bg-white border border-[#DCDBDC] rounded-md focus:outline-none"
             >
               {years.map((year) => (
                 <option key={year} value={year}>
-                  {year}
+                  {year === "general" ? "Padrão" : year}
                 </option>
               ))}
             </select>
