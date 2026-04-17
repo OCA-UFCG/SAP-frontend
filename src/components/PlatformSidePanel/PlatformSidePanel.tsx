@@ -2,8 +2,8 @@
 
 import React from "react";
 import type { PlatformSection } from "@/components/PlatformSideRail/PlatformSideRail";
-import { AccordionContext } from "@/components/SidePanelContexts/AccordionContext";
-import { PanelLayerI } from "@/utils/interfaces";
+import { ModulesContext } from "@/components/SidePanelContexts/ModulesContext";
+import type { PanelLayerI } from "@/utils/interfaces";
 
 export type SidePanelContextComponent = React.ComponentType<{
   activeSection: PlatformSection;
@@ -21,7 +21,7 @@ export interface PlatformSidePanelProps {
 export function PlatformSidePanel({
   activeSection,
   panelLayers,
-  ContextComponent = AccordionContext,
+  ContextComponent = ModulesContext,
   onRequestSectionChange,
 }: PlatformSidePanelProps) {
   return (

@@ -44,6 +44,7 @@ jobs:
             NEXT_PUBLIC_CONTENTFUL_PREVIEW=${{ secrets.NEXT_PUBLIC_CONTENTFUL_PREVIEW }}
             NEXT_PUBLIC_CONTENTFUL_PREVIEW_TOKEN=${{ secrets.NEXT_PUBLIC_CONTENTFUL_PREVIEW_TOKEN }}
             NEXT_PUBLIC_CONTENTFUL_SPACE_ID=${{ secrets.NEXT_PUBLIC_CONTENTFUL_SPACE_ID }}
+            NEXT_PUBLIC_HOST_URL=${{ vars.NEXT_PUBLIC_HOST_URL }}
   push-beta:
     needs: build-image
     runs-on: [self-hosted, sap-prod-runner]
@@ -69,7 +70,10 @@ jobs:
         run: sudo docker rm -f ${{ vars.CONTAINER_NAME_PROD}} || true
 
       - name: Run the new production container
-        run: sudo docker run --name ${{ vars.CONTAINER_NAME_PROD}} --restart unless-stopped -p ${{ vars.HOST_PORT_PROD}}:${{ vars.CONTAINER_PORT }} -d ${{ vars.DOCKER_IMAGE_PROD}}:latest
+        env:
+          GEE_PRIVATE_KEY: ${{ secrets.GEE_PRIVATE_KEY }}
+          NEXT_PUBLIC_HOST_URL: ${{ vars.NEXT_PUBLIC_HOST_URL }}
+        run: sudo --preserve-env=GEE_PRIVATE_KEY,NEXT_PUBLIC_HOST_URL docker run --name ${{ vars.CONTAINER_NAME_PROD}} --restart unless-stopped -p ${{ vars.HOST_PORT_PROD}}:${{ vars.CONTAINER_PORT }} -e GEE_PRIVATE_KEY -e NEXT_PUBLIC_HOST_URL -d ${{ vars.DOCKER_IMAGE_PROD}}:latest
 
       - name: Connect to the SAP network
         run: sudo docker network connect ${{ vars.NETWORK_NAME }} ${{ vars.CONTAINER_NAME_PROD}}

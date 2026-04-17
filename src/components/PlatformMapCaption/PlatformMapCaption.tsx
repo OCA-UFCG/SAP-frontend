@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import { Chevron } from "../Chevron/Chevron";
-import { MapLegendItem } from "@/utils/interfaces";
+import { IImageParam } from "@/utils/interfaces";
 
 /**
  * PlatformMapCaption
@@ -12,7 +12,7 @@ import { MapLegendItem } from "@/utils/interfaces";
  * This is intentionally minimal for now; the goal is to make the planned
  * component hierarchy explicit.
  */
-export function PlatformMapCaption({ legend }: { legend: MapLegendItem[] }) {
+export function PlatformMapCaption({ legend }: { legend: IImageParam[] }) {
   const [isOpen, setIsOpen] = useState(true);
 
   return (
@@ -46,7 +46,7 @@ export function PlatformMapCaption({ legend }: { legend: MapLegendItem[] }) {
             <div className="flex flex-col gap-3">
               {legend.map((item) => (
                 <div
-                  key={item.classification}
+                  key={item.label}
                   className="flex items-center gap-3"
                 >
                   <span

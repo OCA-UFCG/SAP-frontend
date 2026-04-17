@@ -8,7 +8,7 @@ import {
 import { PlatformSidePanel } from "@/components/PlatformSidePanel/PlatformSidePanel";
 import { AnalysisContext } from "@/components/SidePanelContexts/AnalysisContext";
 import { ComingSoonContext } from "@/components/SidePanelContexts/ComingSoonContext";
-import { PanelLayerI } from "@/utils/interfaces";
+import { PanelLayerI, IEEInfo } from "@/utils/interfaces";
 import { useMapLayer } from "@/components/MapLayerContext/MapLayerContext";
 
 interface PlatformSidebarProps {
