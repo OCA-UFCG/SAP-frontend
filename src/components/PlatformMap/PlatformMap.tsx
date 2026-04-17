@@ -3,9 +3,7 @@ import { useEffect, useState } from "react";
 import { PlatformMapCaption } from "@/components/PlatformMapCaption/PlatformMapCaption";
 import MapComponent from "../Map/MapComponent";
 import { FeatureCollection, Geometry } from "geojson";
-import { maps_legends, statesObj } from "@/utils/constants";
 import { useMapLayer } from "@/components/MapLayerContext/MapLayerContext";
-import { resolveStateKeyFromSearch } from "@/utils/functions";
 
 export interface CDIFeatureProperties {
   classe_cdi: number;
@@ -15,11 +13,17 @@ export interface CDIFeatureProperties {
 export type CDIVectorData = FeatureCollection<Geometry, CDIFeatureProperties>;
 
 export function PlatformMap() {
-  const { activeData, activeEEData, selectedState, setSelectedState } =
-    useMapLayer();
+  const {
+    activeData,
+    activeEEData,
+    activeLegend,
+    selectedState,
+    activeYear,
+  } = useMapLayer();
   const [tileLayerUrl, setTileLayerUrl] = useState<string | undefined>(
     undefined,
   );
+
   const visibleTileLayerUrl = activeEEData ? tileLayerUrl : undefined;
 
   useEffect(() => {
@@ -30,14 +34,14 @@ export function PlatformMap() {
     let cancelled = false;
 
     const fetchGeeUrl = async () => {
-      try {
-        const years = Object.keys(activeEEData.imageData || {});
-        const defaultYear = years.includes("general")
-          ? "general"
-          : years[0] || "general";
+      const availableYears = Object.keys(activeEEData.imageData || {});
+      if (availableYears.length > 0 && !availableYears.includes(activeYear)) {
+        return; // Wait for activeYear to be updated by MapLayerContext
+      }
 
+      try {
         const res = await fetch(
-          `/api/ee?name=${activeEEData.id}&year=${defaultYear}`,
+          `/api/ee?name=${activeEEData.id}&year=${activeYear}`,
           {
             method: "POST",
             headers: { "Content-Type": "application/json" },
@@ -71,12 +75,7 @@ export function PlatformMap() {
     return () => {
       cancelled = true;
     };
-  }, [activeEEData]);
-
-  const handleSearch = (value: string) => {
-    const result = resolveStateKeyFromSearch(value, statesObj);
-    setSelectedState(result.key);
-  };
+  }, [activeEEData, activeYear]);
 
   return (
     <div className="absolute inset-0">
@@ -95,7 +94,9 @@ export function PlatformMap() {
 
       {/* Caption/legend overlay (bottom-right in the Figma) */}
 
-      {activeData && <PlatformMapCaption legend={maps_legends.cdi} />}
+      {activeLegend && activeLegend.length > 0 && (
+        <PlatformMapCaption legend={activeLegend} />
+      )}
     </div>
   );
 }

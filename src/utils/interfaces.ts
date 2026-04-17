@@ -201,7 +201,13 @@ export interface PanelLayerI {
     width?: number;
     height?: number;
   };
-  imageData?: any;
+  imageData: {
+    [year: string]: {
+      default: boolean;
+      imageId: string;
+      imageParams: IImageParam[];
+    };
+  };
   minScale?: number;
   maxScale?: number;
   years: string[];
