@@ -1,5 +1,5 @@
 "use client";
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { PlatformMapCaption } from "@/components/PlatformMapCaption/PlatformMapCaption";
 import MapComponent from "../Map/MapComponent";
 import { FeatureCollection, Geometry } from "geojson";
@@ -13,25 +13,30 @@ export interface CDIFeatureProperties {
 export type CDIVectorData = FeatureCollection<Geometry, CDIFeatureProperties>;
 
 export function PlatformMap() {
-  const {
-    activeData,
-    activeEEData,
-    activeLegend,
-    selectedState,
-    activeYear,
-  } = useMapLayer();
-  const [tileLayerUrl, setTileLayerUrl] = useState<string | undefined>(
-    undefined,
-  );
+  const { activeData, activeEEData, activeLegend, selectedState, activeYear } =
+    useMapLayer();
+  const [tileLayer, setTileLayer] = useState<{
+    key: string;
+    url: string;
+  } | null>(null);
+  const latestRequestKeyRef = useRef<string | null>(null);
 
-  const visibleTileLayerUrl = activeEEData ? tileLayerUrl : undefined;
+  const activeEeKey = useMemo(() => {
+    if (!activeEEData) return null;
+    return `${activeEEData.id}:${activeYear}`;
+  }, [activeEEData, activeYear]);
+
+  // Only show tiles when they correspond to the currently selected EE layer + year.
+  const visibleTileLayerUrl =
+    activeEeKey && tileLayer?.key === activeEeKey ? tileLayer.url : undefined;
 
   useEffect(() => {
-    if (!activeEEData) {
-      return;
-    }
+    if (!activeEEData) return;
 
-    let cancelled = false;
+    const requestKey = `${activeEEData.id}:${activeYear}`;
+    latestRequestKeyRef.current = requestKey;
+
+    const controller = new AbortController();
 
     const fetchGeeUrl = async () => {
       const availableYears = Object.keys(activeEEData.imageData || {});
@@ -46,34 +51,32 @@ export function PlatformMap() {
             method: "POST",
             headers: { "Content-Type": "application/json" },
             body: JSON.stringify(activeEEData),
+            signal: controller.signal,
           },
         );
 
         const data = await res.json();
-        if (cancelled) {
-          return;
-        }
+        if (latestRequestKeyRef.current !== requestKey) return;
 
         if (data.url) {
-          setTileLayerUrl(data.url);
+          setTileLayer({ key: requestKey, url: data.url });
         } else {
           console.error("No GEE tile URL returned");
-          setTileLayerUrl(undefined);
+          setTileLayer(null);
         }
       } catch (err) {
-        if (cancelled) {
-          return;
-        }
+        if (controller.signal.aborted) return;
+        if (latestRequestKeyRef.current !== requestKey) return;
 
         console.error("Error fetching GEE tile layer:", err);
-        setTileLayerUrl(undefined);
+        setTileLayer(null);
       }
     };
 
     fetchGeeUrl();
 
     return () => {
-      cancelled = true;
+      controller.abort();
     };
   }, [activeEEData, activeYear]);
 
