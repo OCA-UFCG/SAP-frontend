@@ -153,9 +153,9 @@ export function AnalysisContext({
         </button>
 
         <header className="flex flex-col gap-2">
-          {/* Aqui fica o titulo principal da analise do modulo CDI. (Análise do módulo CDI)*/}
+          {/* Aqui fica o titulo principal da analise do modulo analisado. */}
           <h1 className="font-['Inter'] font-semibold text-[24px] leading-[24px] tracking-[-0.015em]">
-            Análise do módulo CDI
+            Análise do módulo {dataset?.name}
           </h1>
           {/* Aqui fica o texto de apoio orientando a busca por estado ou cidade. (Pesquise um estado ou cidade para iniciar a análise)*/}
           <p className="font-['Inter'] font-medium text-[16px] leading-[24px] tracking-[-0.015em]">
