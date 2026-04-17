@@ -23,6 +23,7 @@ interface MapProps {
   dadosCDI?: CDIVectorData;
   estadoSelecionado: string;
   tileLayerUrl?: string | null;
+  onStateSelect?: (uf: string) => void;
 }
 
 interface FeatureProperties {
@@ -270,7 +271,9 @@ const Map = ({
   showStatesBorder = true,
   estadoSelecionado,
   tileLayerUrl,
+  onStateSelect,
 }: MapProps) => {
+  const debugEnabled = process.env.NODE_ENV !== "production";
   const geoBrasil = geometria as unknown as FeatureCollection<
     Geometry,
     EstadoProperties
@@ -284,10 +287,12 @@ const Map = ({
       offset: 12,
     }),
   );
+  const mapDebugIdRef = useRef<string>(Math.random().toString(36).slice(2, 8));
   const hoveredStateIdRef = useRef<string | number | null>(null);
   const selectedStateIdRef = useRef<string | number | null>(null);
   const markersRef = useRef<maplibregl.Marker[]>([]);
   const selectedStateRef = useRef<string>(estadoSelecionado);
+  const onStateSelectRef = useRef<MapProps["onStateSelect"]>(onStateSelect);
   const tileLayerUrlRef = useRef<string | null | undefined>(tileLayerUrl);
   const showStatesBorderRef = useRef<boolean>(showStatesBorder);
   const hasCdiDataRef = useRef<boolean>(Boolean(dadosCDI));
@@ -333,9 +338,158 @@ const Map = ({
   const cdiGeoJson = useMemo(() => buildCdiGeoJson(dadosCDI), [dadosCDI]);
 
   const pendingStyleSyncRef = useRef(false);
+  const pendingSelectedSyncRef = useRef(false);
+
+  const log = useCallback(
+    (...args: unknown[]) => {
+      if (!debugEnabled) return;
+       
+      console.log(`[SAP Map ${mapDebugIdRef.current}]`, ...args);
+    },
+    [debugEnabled],
+  );
+
+  const warn = useCallback(
+    (...args: unknown[]) => {
+      if (!debugEnabled) return;
+       
+      console.warn(`[SAP Map ${mapDebugIdRef.current}]`, ...args);
+    },
+    [debugEnabled],
+  );
+
+  const safeGetFeatureState = useCallback(
+    (map: maplibregl.Map, id: string | number) => {
+      try {
+        return map.getFeatureState({
+          source: STATES_SOURCE_ID,
+          sourceLayer: STATES_SOURCE_LAYER,
+          id,
+        });
+      } catch {
+        return null;
+      }
+    },
+    [],
+  );
+
+  const applySelectedFeatureState = useCallback(
+    (map: maplibregl.Map, next: string) => {
+      const prev = selectedStateIdRef.current;
+
+      log("applySelectedFeatureState", {
+        prev,
+        next,
+        styleLoaded: map.isStyleLoaded(),
+        hasStatesSource: Boolean(map.getSource(STATES_SOURCE_ID)),
+      });
+
+      if (prev && prev !== next) {
+        try {
+          map.setFeatureState(
+            {
+              source: STATES_SOURCE_ID,
+              sourceLayer: STATES_SOURCE_LAYER,
+              id: prev,
+            },
+            // Clear both `selected` and `hover` to avoid stuck outlines when
+            // mouse events don't fire during camera animations/style reloads.
+            { selected: false, hover: false },
+          );
+          log("cleared prev selected", {
+            prev,
+            prevFeatureState: safeGetFeatureState(map, prev),
+          });
+          selectedStateIdRef.current = null;
+        } catch (err) {
+          warn("failed clearing prev selected", { prev, err });
+          throw err;
+        }
+      }
+
+      if (next && next !== "BR") {
+        try {
+          selectedStateIdRef.current = next;
+          map.setFeatureState(
+            {
+              source: STATES_SOURCE_ID,
+              sourceLayer: STATES_SOURCE_LAYER,
+              id: next,
+            },
+            { selected: true },
+          );
+          log("set next selected", {
+            next,
+            nextFeatureState: safeGetFeatureState(map, next),
+          });
+        } catch (err) {
+          warn("failed setting next selected", { next, err });
+          throw err;
+        }
+      }
+    },
+    [log, safeGetFeatureState, warn],
+  );
+
+  const scheduleSelectedStateSync = useCallback(
+    (reason: string) => {
+      const map = mapRef.current;
+      if (!map) return;
+      if (pendingSelectedSyncRef.current) return;
+
+      log("scheduleSelectedStateSync", {
+        reason,
+        styleLoaded: map.isStyleLoaded(),
+        hasStatesSource: Boolean(map.getSource(STATES_SOURCE_ID)),
+        selectedStateRef: selectedStateRef.current,
+        selectedStateIdRef: selectedStateIdRef.current,
+      });
+
+      pendingSelectedSyncRef.current = true;
+      let didRun = false;
+      const run = (trigger: "styledata" | "idle") => {
+        if (didRun) return;
+        didRun = true;
+
+        pendingSelectedSyncRef.current = false;
+
+        // If the map instance was replaced/unmounted, bail.
+        if (mapRef.current !== map) return;
+
+        const next = selectedStateRef.current;
+        log("selectedStateSync fired", {
+          trigger,
+          reason,
+          next,
+          styleLoaded: map.isStyleLoaded(),
+          hasStatesSource: Boolean(map.getSource(STATES_SOURCE_ID)),
+        });
+        try {
+          if (!map.getSource(STATES_SOURCE_ID)) {
+            scheduleSelectedStateSync("retry: states source missing");
+            return;
+          }
+          applySelectedFeatureState(map, next);
+        } catch (err) {
+          // Best-effort: schedule one more attempt on the next styledata.
+          warn("selectedStateSync apply failed", { reason, trigger, err });
+          scheduleSelectedStateSync("retry: setFeatureState threw");
+        }
+
+        void reason;
+      };
+
+      // Depending on MapLibre internals, `isStyleLoaded()` can remain false
+      // while sources/tiles are loading; `idle` is a more reliable point.
+      map.once("styledata", () => run("styledata"));
+      map.once("idle", () => run("idle"));
+    },
+    [applySelectedFeatureState, log, warn],
+  );
 
   useEffect(() => {
     selectedStateRef.current = estadoSelecionado;
+    onStateSelectRef.current = onStateSelect;
     tileLayerUrlRef.current = tileLayerUrl;
     showStatesBorderRef.current = showStatesBorder;
     hasCdiDataRef.current = Boolean(dadosCDI);
@@ -343,6 +497,7 @@ const Map = ({
     currentBoundsRef.current = currentBounds;
   }, [
     estadoSelecionado,
+    onStateSelect,
     tileLayerUrl,
     showStatesBorder,
     dadosCDI,
@@ -350,57 +505,85 @@ const Map = ({
     currentBounds,
   ]);
 
-  const syncMapLayers = useCallback(function syncMapLayersImpl() {
-    const map = mapRef.current;
-    if (!map) return;
+  const syncMapLayers = useCallback(
+    function syncMapLayersImpl() {
+      const map = mapRef.current;
+      if (!map) return;
 
-    // IMPORTANT: `map.isStyleLoaded()` can be false while tiles are loading.
-    // Toggle-off should still remove the raster layer immediately.
-    if (!tileLayerUrlRef.current) {
-      try {
-        if (map.getLayer(GEE_LAYER_ID)) map.removeLayer(GEE_LAYER_ID);
-        if (map.getSource(GEE_SOURCE_ID)) map.removeSource(GEE_SOURCE_ID);
-      } catch {
-        // Best-effort cleanup; if style isn't ready, we'll retry below.
+      // IMPORTANT: `map.isStyleLoaded()` can be false while tiles are loading.
+      // Toggle-off should still remove the raster layer immediately.
+      if (!tileLayerUrlRef.current) {
+        try {
+          if (map.getLayer(GEE_LAYER_ID)) map.removeLayer(GEE_LAYER_ID);
+          if (map.getSource(GEE_SOURCE_ID)) map.removeSource(GEE_SOURCE_ID);
+        } catch {
+          // Best-effort cleanup; if style isn't ready, we'll retry below.
+        }
       }
-    }
 
-    if (!map.isStyleLoaded()) {
-      if (pendingStyleSyncRef.current) return;
-      pendingStyleSyncRef.current = true;
+      if (!map.isStyleLoaded()) {
+        if (pendingStyleSyncRef.current) return;
+        pendingStyleSyncRef.current = true;
 
-      const retry = () => {
-        pendingStyleSyncRef.current = false;
-        syncMapLayersImpl();
-      };
+        let didRetry = false;
+        const retry = (trigger: "styledata" | "idle") => {
+          if (didRetry) return;
+          didRetry = true;
+          pendingStyleSyncRef.current = false;
+          log("syncMapLayers retry", { trigger });
+          syncMapLayersImpl();
+        };
 
-      // When the style finishes (re)loading, re-apply the latest refs.
-      map.once("styledata", retry);
-      return;
-    }
+        // When the style finishes (re)loading, re-apply the latest refs.
+        map.once("styledata", () => retry("styledata"));
+        map.once("idle", () => retry("idle"));
+        return;
+      }
 
-    ensureMapLayers(
-      map,
-      showStatesBorderRef.current,
-      hasCdiDataRef.current,
-      tileLayerUrlRef.current,
-    );
+      log("syncMapLayers", {
+        styleLoaded: map.isStyleLoaded(),
+        hasStatesSource: Boolean(map.getSource(STATES_SOURCE_ID)),
+        tileLayerUrl: tileLayerUrlRef.current,
+        showStatesBorder: showStatesBorderRef.current,
+        hasCdiData: hasCdiDataRef.current,
+      });
 
-    const cdiSource = map.getSource(CDI_SOURCE_ID) as GeoJSONSource | undefined;
-    cdiSource?.setData(cdiGeoJsonRef.current);
+      ensureMapLayers(
+        map,
+        showStatesBorderRef.current,
+        hasCdiDataRef.current,
+        tileLayerUrlRef.current,
+      );
 
-    map.setLayoutProperty(STATES_FILL_LAYER_ID, "visibility", "visible");
-    map.setLayoutProperty(
-      STATES_BORDER_LAYER_ID,
-      "visibility",
-      showStatesBorderRef.current ? "visible" : "none",
-    );
-    map.setLayoutProperty(
-      CDI_LAYER_ID,
-      "visibility",
-      hasCdiDataRef.current ? "visible" : "none",
-    );
-  }, []);
+      // Re-apply the currently selected state after (re)creating layers/sources.
+      try {
+        if (map.getSource(STATES_SOURCE_ID)) {
+          applySelectedFeatureState(map, selectedStateRef.current);
+        }
+      } catch (err) {
+        warn("syncMapLayers applySelectedFeatureState failed", { err });
+        scheduleSelectedStateSync("syncMapLayers");
+      }
+
+      const cdiSource = map.getSource(CDI_SOURCE_ID) as
+        | GeoJSONSource
+        | undefined;
+      cdiSource?.setData(cdiGeoJsonRef.current);
+
+      map.setLayoutProperty(STATES_FILL_LAYER_ID, "visibility", "visible");
+      map.setLayoutProperty(
+        STATES_BORDER_LAYER_ID,
+        "visibility",
+        showStatesBorderRef.current ? "visible" : "none",
+      );
+      map.setLayoutProperty(
+        CDI_LAYER_ID,
+        "visibility",
+        hasCdiDataRef.current ? "visible" : "none",
+      );
+    },
+    [applySelectedFeatureState, scheduleSelectedStateSync, log, warn],
+  );
 
   useEffect(() => {
     syncMapLayers();
@@ -439,6 +622,7 @@ const Map = ({
     map.jumpTo({ center: initialCenter, zoom: initialView.zoom });
 
     map.on("load", () => {
+      log("map load");
       syncMapLayers();
 
       const boundsToFit = currentBoundsRef.current;
@@ -533,6 +717,47 @@ const Map = ({
         map.getCanvas().style.cursor = "";
         popup.remove();
       });
+
+      map.on("click", STATES_FILL_LAYER_ID, (event) => {
+        const clickedFeature = event.features?.[0] as
+          | MapGeoJSONFeature
+          | undefined;
+
+        const uf =
+          (clickedFeature?.properties?.SIGLA_UF as string | undefined) ??
+          (clickedFeature?.properties?.uf as string | undefined) ??
+          (clickedFeature?.properties?.sigla as string | undefined) ??
+          (typeof clickedFeature?.id === "string"
+            ? clickedFeature.id
+            : undefined);
+
+        if (!uf) return;
+
+        log("state click", {
+          uf,
+          featureId: clickedFeature?.id,
+          propertiesUF: clickedFeature?.properties?.SIGLA_UF,
+          selectedStateRef: selectedStateRef.current,
+          selectedStateIdRef: selectedStateIdRef.current,
+          styleLoaded: map.isStyleLoaded(),
+        });
+
+        // Optimistically update the map selection immediately, so the outline
+        // doesn't lag when `isStyleLoaded()` temporarily flips to false during
+        // source/tile loading.
+        try {
+          if (map.getSource(STATES_SOURCE_ID)) {
+            applySelectedFeatureState(map, uf);
+          } else {
+            scheduleSelectedStateSync("click: states source missing");
+          }
+        } catch (err) {
+          warn("click optimistic apply failed", { uf, err });
+          scheduleSelectedStateSync("click: setFeatureState threw");
+        }
+
+        onStateSelectRef.current?.(uf);
+      });
     });
 
     mapRef.current = map;
@@ -544,40 +769,45 @@ const Map = ({
       map.remove();
       mapRef.current = null;
     };
-  }, [syncMapLayers]);
+  }, [
+    syncMapLayers,
+    applySelectedFeatureState,
+    scheduleSelectedStateSync,
+    log,
+    warn,
+  ]);
 
   useEffect(() => {
     const map = mapRef.current;
     if (!map) return;
-    if (!map.isStyleLoaded()) return;
 
     const next = estadoSelecionado;
-    const prev = selectedStateIdRef.current;
 
-    if (prev && prev !== next) {
-      map.setFeatureState(
-        {
-          source: STATES_SOURCE_ID,
-          sourceLayer: STATES_SOURCE_LAYER,
-          id: prev,
-        },
-        { selected: false },
-      );
-      selectedStateIdRef.current = null;
-    }
+    log("estadoSelecionado effect", {
+      next,
+      styleLoaded: map.isStyleLoaded(),
+      hasStatesSource: Boolean(map.getSource(STATES_SOURCE_ID)),
+      selectedStateIdRef: selectedStateIdRef.current,
+    });
 
-    if (next && next !== "BR") {
-      selectedStateIdRef.current = next;
-      map.setFeatureState(
-        {
-          source: STATES_SOURCE_ID,
-          sourceLayer: STATES_SOURCE_LAYER,
-          id: next,
-        },
-        { selected: true },
-      );
+    try {
+      if (!map.getSource(STATES_SOURCE_ID)) {
+        scheduleSelectedStateSync("estadoSelecionado: states source missing");
+        return;
+      }
+
+      applySelectedFeatureState(map, next);
+    } catch (err) {
+      warn("estadoSelecionado effect apply failed", { err });
+      scheduleSelectedStateSync("setFeatureState failed");
     }
-  }, [estadoSelecionado]);
+  }, [
+    estadoSelecionado,
+    applySelectedFeatureState,
+    scheduleSelectedStateSync,
+    log,
+    warn,
+  ]);
 
   useEffect(() => {
     const map = mapRef.current;

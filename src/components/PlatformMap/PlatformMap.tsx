@@ -13,8 +13,14 @@ export interface CDIFeatureProperties {
 export type CDIVectorData = FeatureCollection<Geometry, CDIFeatureProperties>;
 
 export function PlatformMap() {
-  const { activeData, activeEEData, activeLegend, selectedState, activeYear } =
-    useMapLayer();
+  const {
+    activeData,
+    activeEEData,
+    activeLegend,
+    selectedState,
+    activeYear,
+    setSelectedState,
+  } = useMapLayer();
   const [tileLayer, setTileLayer] = useState<{
     key: string;
     url: string;
@@ -92,6 +98,7 @@ export function PlatformMap() {
           estadoSelecionado={selectedState.toUpperCase()}
           className="w-full h-full"
           tileLayerUrl={visibleTileLayerUrl}
+          onStateSelect={(uf: string) => setSelectedState(uf.toLowerCase())}
         />
       </div>
 
