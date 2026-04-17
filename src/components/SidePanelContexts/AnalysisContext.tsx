@@ -74,8 +74,17 @@ export function AnalysisContext({
   onRequestSectionChange,
   panelLayers,
 }: AnalysisContextProps) {
-  const { setSelectedState, selectedState, activeLayerId } = useMapLayer();
+  const { setActiveData, setSelectedState, setActiveLayerId, setActiveEEData, selectedState, setActiveLegend, activeLayerId } = useMapLayer();
+  // activeData eh o dado vetorial para o mapa renderizar (CDIVectorData)
   // activeLayerId eh o identificador da layer selecionada ("CDI" e etc)
+
+  const [selectedYear, setSelectedYear] = useState<string | null>(null);
+
+  const dataset = useMemo(() => {
+    return panelLayers?.find((p) => p.id === activeLayerId) ?? panelLayers?.[0];
+  }, [panelLayers, activeLayerId]);
+
+  const years = useMemo(() => dataset?.years ?? [], [dataset]);
 
   const locationData = useMemo(() => {
     return (
@@ -84,13 +93,11 @@ export function AnalysisContext({
     );
   }, [selectedState]);
 
-  const [selectedYear, setSelectedYear] = useState<string | null>(null);
-
-  const dataset =
-    panelLayers?.find((p) => p.id === activeLayerId) ?? panelLayers?.[0];
-  const years = dataset?.years ?? [];
-
   function handleGoBack() {
+    setActiveLayerId(null);
+    setActiveEEData(null);
+    setActiveData(null);
+    setActiveLegend(null);
     setSelectedState("br");
     onRequestSectionChange?.("modules");
   }
@@ -139,6 +146,23 @@ export function AnalysisContext({
   const predominantInfo = locationData
     ? getPredominantInfo(locationData.status)
     : null;
+
+    const currentYear = useMemo(() => {
+    if (selectedYear) return selectedYear;
+    if (!dataset?.imageData) return null;
+    const entries = Object.entries(dataset.imageData);
+    const defaultEntry = entries.find(([, val]) => val.default) ?? entries[0];
+    return defaultEntry?.[0];
+  }, [dataset, selectedYear]);
+    
+    useEffect(() => {
+    if (dataset?.imageData && currentYear) {
+      const yearConfig = dataset.imageData[currentYear];
+      if (yearConfig?.imageParams) {
+        setActiveLegend(yearConfig.imageParams);
+      }
+    }
+  }, [dataset, currentYear, setActiveLegend]);
 
   return (
     <div className="h-full overflow-y-auto bg-[#F6F7F6] px-4 pt-12 pb-6">
