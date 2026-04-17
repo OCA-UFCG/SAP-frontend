@@ -63,8 +63,8 @@ export function DroughtDataset({
                 {card.title}
               </span>
             </div>
-            <div className="flex items-center w-full" style={{ height: 20 }}>
-              <span className="w-full font-['Inter'] font-normal text-[14px] leading-[20px] text-[#7E797B] line-clamp-1">
+            <div className="flex items-start w-full flex-1">
+              <span className="w-full font-['Inter'] font-normal text-[14px] leading-[20px] text-[#7E797B] line-clamp-3 break-words">
                 {card.description}
               </span>
             </div>
