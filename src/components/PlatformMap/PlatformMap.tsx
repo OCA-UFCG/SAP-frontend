@@ -15,11 +15,12 @@ export interface CDIFeatureProperties {
 export type CDIVectorData = FeatureCollection<Geometry, CDIFeatureProperties>;
 
 export function PlatformMap() {
-  const { activeData, activeEEData, selectedState, setSelectedState } =
+  const { activeData, activeEEData, selectedState, activeYear, setSelectedState } =
     useMapLayer();
   const [tileLayerUrl, setTileLayerUrl] = useState<string | undefined>(
     undefined,
   );
+
   const visibleTileLayerUrl = activeEEData ? tileLayerUrl : undefined;
 
   useEffect(() => {
@@ -30,14 +31,14 @@ export function PlatformMap() {
     let cancelled = false;
 
     const fetchGeeUrl = async () => {
-      try {
-        const years = Object.keys(activeEEData.imageData || {});
-        const defaultYear = years.includes("general")
-          ? "general"
-          : years[0] || "general";
+      const availableYears = Object.keys(activeEEData.imageData || {});
+      if (availableYears.length > 0 && !availableYears.includes(activeYear)) {
+        return; // Wait for activeYear to be updated by MapLayerContext
+      }
 
+      try {
         const res = await fetch(
-          `/api/ee?name=${activeEEData.id}&year=${defaultYear}`,
+          `/api/ee?name=${activeEEData.id}&year=${activeYear}`,
           {
             method: "POST",
             headers: { "Content-Type": "application/json" },
@@ -71,7 +72,7 @@ export function PlatformMap() {
     return () => {
       cancelled = true;
     };
-  }, [activeEEData]);
+  }, [activeEEData, activeYear]);
 
   const handleSearch = (value: string) => {
     const result = resolveStateKeyFromSearch(value, statesObj);

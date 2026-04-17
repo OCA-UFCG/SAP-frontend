@@ -74,7 +74,7 @@ export function AnalysisContext({
   onRequestSectionChange,
   panelLayers,
 }: AnalysisContextProps) {
-  const { setSelectedState, selectedState, activeLayerId } = useMapLayer();
+  const { setSelectedState, selectedState, activeLayerId, setActiveYear, activeYear } = useMapLayer();
   // activeLayerId eh o identificador da layer selecionada ("CDI" e etc)
 
   const locationData = useMemo(() => {
@@ -84,11 +84,11 @@ export function AnalysisContext({
     );
   }, [selectedState]);
 
-  const [selectedYear, setSelectedYear] = useState<string | null>(null);
+
 
   const dataset =
     panelLayers?.find((p) => p.id === activeLayerId) ?? panelLayers?.[0];
-  const years = dataset?.years ?? [];
+  const years = Object.keys(dataset?.imageData || {});
 
   function handleGoBack() {
     setSelectedState("br");
@@ -174,13 +174,13 @@ export function AnalysisContext({
             </label>
 
             <select
-              value={selectedYear || ""}
-              onChange={(e) => setSelectedYear(e.target.value)}
+              value={activeYear || ""}
+              onChange={(e) => setActiveYear(e.target.value)}
               className="w-full h-[40px] min-h-[36px] px-3 py-2 text-[14px] leading-[24px] text-[#292829] bg-white border border-[#DCDBDC] rounded-md focus:outline-none"
             >
               {years.map((year) => (
                 <option key={year} value={year}>
-                  {year}
+                  {year === "general" ? "Padrão" : year}
                 </option>
               ))}
             </select>
