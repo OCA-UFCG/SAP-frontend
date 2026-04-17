@@ -147,15 +147,15 @@ export function AnalysisContext({
     ? getPredominantInfo(locationData.status)
     : null;
 
-    const currentYear = useMemo(() => {
+  const currentYear = useMemo(() => {
     if (selectedYear) return selectedYear;
     if (!dataset?.imageData) return null;
     const entries = Object.entries(dataset.imageData);
     const defaultEntry = entries.find(([, val]) => val.default) ?? entries[0];
     return defaultEntry?.[0];
   }, [dataset, selectedYear]);
-    
-    useEffect(() => {
+
+  useEffect(() => {
     if (dataset?.imageData && currentYear) {
       const yearConfig = dataset.imageData[currentYear];
       if (yearConfig?.imageParams) {
@@ -177,9 +177,9 @@ export function AnalysisContext({
         </button>
 
         <header className="flex flex-col gap-2">
-          {/* Aqui fica o titulo principal da analise do modulo CDI. (Análise do módulo CDI)*/}
+          {/* Aqui fica o titulo principal da analise do modulo selecionado. */}
           <h1 className="font-['Inter'] font-semibold text-[24px] leading-[24px] tracking-[-0.015em]">
-            Análise do módulo CDI
+            Análise do módulo {dataset?.name}
           </h1>
           {/* Aqui fica o texto de apoio orientando a busca por estado ou cidade. (Pesquise um estado ou cidade para iniciar a análise)*/}
           <p className="font-['Inter'] font-medium text-[16px] leading-[24px] tracking-[-0.015em]">
