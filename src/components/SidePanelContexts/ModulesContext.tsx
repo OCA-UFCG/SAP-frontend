@@ -80,7 +80,21 @@ export function ModulesContext({
 
     if (!vectorData && !hasEEData) return;
 
-    if (vectorData) {
+    if (hasEEData) {
+      console.log(`🟢 [Map Trigger] Module ${dataset.fileRef} is loading via: Google Earth Engine (Raster API)`);
+      const eeConfig = dataset.layer as unknown as IEEInfo;
+      const isActive = activeEEData?.id === eeConfig.id;
+      setActiveEEData(isActive ? null : eeConfig);
+      setActiveData(null);
+      setActiveLayerId(isActive ? null : eeConfig.id);
+
+      if (isActive) {
+        setActiveLegend(null); 
+      } else {
+        setActiveLegend(getCaption(dataset.layer));
+      }
+    } else if (vectorData) {
+      console.log(`🟡 [Map Trigger] Module ${dataset.fileRef} is loading via: Local GeoJSON (Fallback)`);
       const isActive = activeData === vectorData;
       setActiveData(isActive ? null : vectorData);
       setActiveEEData(null);
@@ -94,20 +108,6 @@ export function ModulesContext({
       
       return;
     }
-
-    if (hasEEData) {
-      const eeConfig = dataset.layer as unknown as IEEInfo;
-      const isActive = activeEEData?.id === eeConfig.id;
-      setActiveEEData(isActive ? null : eeConfig);
-      setActiveData(null);
-      setActiveLayerId(isActive ? null : eeConfig.id);
-
-      if (isActive) {
-        setActiveLegend(null); 
-      } else {
-        setActiveLegend(getCaption(dataset.layer));
-      }
-    }
   }
 
   function handleDetails(dataset: LayerDataset) {
@@ -119,15 +119,17 @@ export function ModulesContext({
     if (!vectorData && !hasEEData) return;
 
     // Ensure the chosen layer is active before opening the detailing view.
-    if (vectorData) {
-      setActiveData(vectorData);
-      setActiveEEData(null);
-      setActiveLayerId(dataset.fileRef);
-    } else if (hasEEData) {
+    if (hasEEData) {
+      console.log(`🟢 [Map Trigger] Module details ${dataset.fileRef} is loading via: Google Earth Engine (Raster API)`);
       const eeConfig = dataset.layer as unknown as IEEInfo;
       setActiveEEData(eeConfig);
       setActiveData(null);
       setActiveLayerId(eeConfig.id);
+    } else if (vectorData) {
+      console.log(`🟡 [Map Trigger] Module details ${dataset.fileRef} is loading via: Local GeoJSON (Fallback)`);
+      setActiveData(vectorData);
+      setActiveEEData(null);
+      setActiveLayerId(dataset.fileRef);
     }
 
     onRequestSectionChange?.("analysis");
@@ -145,10 +147,10 @@ export function ModulesContext({
             const hasEEData = Boolean(dataset.layer.imageData);
             const canApply = Boolean(vectorData) || hasEEData;
 
-            const isActive = vectorData
-              ? activeData === vectorData
-              : hasEEData
-                ? activeEEData?.id === fileRef
+            const isActive = hasEEData
+              ? activeEEData?.id === fileRef
+              : vectorData
+                ? activeData === vectorData
                 : false;
 
             return (

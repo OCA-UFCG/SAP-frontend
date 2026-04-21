@@ -9,7 +9,7 @@ import maplibregl, {
   MapGeoJSONFeature,
 } from "maplibre-gl";
 import "maplibre-gl/dist/maplibre-gl.css";
-import { useCallback, useEffect, useMemo, useRef } from "react";
+import { useEffect, useMemo, useRef } from "react";
 import geometria from "../../data/geometria.json";
 import { CDIFeatureProperties, CDIVectorData } from "../MapSection/MapSection";
 
@@ -150,21 +150,14 @@ const ensureMapLayers = (
         tileSize: 256,
       });
     } else {
-      // Only rebuild the raster source when the tiles URL actually changed.
-      const existingSourceSpec = map.getStyle()?.sources?.[GEE_SOURCE_ID] as
-        | { tiles?: string[] }
-        | undefined;
-      const existingTileUrl = existingSourceSpec?.tiles?.[0];
-
-      if (existingTileUrl !== tileLayerUrl) {
-        if (map.getLayer(GEE_LAYER_ID)) map.removeLayer(GEE_LAYER_ID);
-        if (map.getSource(GEE_SOURCE_ID)) map.removeSource(GEE_SOURCE_ID);
-        map.addSource(GEE_SOURCE_ID, {
-          type: "raster",
-          tiles: [tileLayerUrl],
-          tileSize: 256,
-        });
-      }
+      // Update tiles URL if it changed
+      map.removeLayer(GEE_LAYER_ID);
+      map.removeSource(GEE_SOURCE_ID);
+      map.addSource(GEE_SOURCE_ID, {
+        type: "raster",
+        tiles: [tileLayerUrl],
+        tileSize: 256,
+      });
     }
 
     if (!map.getLayer(GEE_LAYER_ID)) {
@@ -287,20 +280,9 @@ const Map = ({
   const hoveredStateIdRef = useRef<string | number | null>(null);
   const selectedStateIdRef = useRef<string | number | null>(null);
   const markersRef = useRef<maplibregl.Marker[]>([]);
-  const selectedStateRef = useRef<string>(estadoSelecionado);
-  const tileLayerUrlRef = useRef<string | null | undefined>(tileLayerUrl);
-  const showStatesBorderRef = useRef<boolean>(showStatesBorder);
-  const hasCdiDataRef = useRef<boolean>(Boolean(dadosCDI));
-  const cdiGeoJsonRef = useRef<
-    FeatureCollection<Geometry, CDIFeatureProperties>
-  >(buildCdiGeoJson(dadosCDI));
-  const currentBoundsRef = useRef<LngLatBoundsLike | null>(null);
+  const selectedStateRef = useRef(estadoSelecionado);
+  const tileLayerUrlRef = useRef(tileLayerUrl);
   const normalizedCenter = isValidLatLngTuple(center) ? center : DEFAULT_CENTER;
-  const initialViewRef = useRef({
-    center: normalizedCenter,
-    zoom,
-    minZoom,
-  });
 
   const currentBounds = useMemo((): LngLatBoundsLike => {
     if (estadoSelecionado === "BR") {
@@ -332,79 +314,10 @@ const Map = ({
 
   const cdiGeoJson = useMemo(() => buildCdiGeoJson(dadosCDI), [dadosCDI]);
 
-  const pendingStyleSyncRef = useRef(false);
-
   useEffect(() => {
     selectedStateRef.current = estadoSelecionado;
     tileLayerUrlRef.current = tileLayerUrl;
-    showStatesBorderRef.current = showStatesBorder;
-    hasCdiDataRef.current = Boolean(dadosCDI);
-    cdiGeoJsonRef.current = cdiGeoJson;
-    currentBoundsRef.current = currentBounds;
-  }, [
-    estadoSelecionado,
-    tileLayerUrl,
-    showStatesBorder,
-    dadosCDI,
-    cdiGeoJson,
-    currentBounds,
-  ]);
-
-  const syncMapLayers = useCallback(function syncMapLayersImpl() {
-    const map = mapRef.current;
-    if (!map) return;
-
-    // IMPORTANT: `map.isStyleLoaded()` can be false while tiles are loading.
-    // Toggle-off should still remove the raster layer immediately.
-    if (!tileLayerUrlRef.current) {
-      try {
-        if (map.getLayer(GEE_LAYER_ID)) map.removeLayer(GEE_LAYER_ID);
-        if (map.getSource(GEE_SOURCE_ID)) map.removeSource(GEE_SOURCE_ID);
-      } catch {
-        // Best-effort cleanup; if style isn't ready, we'll retry below.
-      }
-    }
-
-    if (!map.isStyleLoaded()) {
-      if (pendingStyleSyncRef.current) return;
-      pendingStyleSyncRef.current = true;
-
-      const retry = () => {
-        pendingStyleSyncRef.current = false;
-        syncMapLayersImpl();
-      };
-
-      // When the style finishes (re)loading, re-apply the latest refs.
-      map.once("styledata", retry);
-      return;
-    }
-
-    ensureMapLayers(
-      map,
-      showStatesBorderRef.current,
-      hasCdiDataRef.current,
-      tileLayerUrlRef.current,
-    );
-
-    const cdiSource = map.getSource(CDI_SOURCE_ID) as GeoJSONSource | undefined;
-    cdiSource?.setData(cdiGeoJsonRef.current);
-
-    map.setLayoutProperty(STATES_FILL_LAYER_ID, "visibility", "visible");
-    map.setLayoutProperty(
-      STATES_BORDER_LAYER_ID,
-      "visibility",
-      showStatesBorderRef.current ? "visible" : "none",
-    );
-    map.setLayoutProperty(
-      CDI_LAYER_ID,
-      "visibility",
-      hasCdiDataRef.current ? "visible" : "none",
-    );
-  }, []);
-
-  useEffect(() => {
-    syncMapLayers();
-  }, [syncMapLayers, cdiGeoJson, dadosCDI, showStatesBorder, tileLayerUrl]);
+  }, [estadoSelecionado, tileLayerUrl]);
 
   useEffect(() => {
     if (!mapContainerRef.current || mapRef.current) {
@@ -412,16 +325,15 @@ const Map = ({
     }
 
     const popup = popupRef.current;
-    const initialView = initialViewRef.current;
     const initialCenter: [number, number] = [
-      initialView.center[1],
-      initialView.center[0],
+      normalizedCenter[1],
+      normalizedCenter[0],
     ];
     const map = new maplibregl.Map({
       container: mapContainerRef.current,
       style: BASE_STYLE,
-      zoom: initialView.zoom,
-      minZoom: initialView.minZoom,
+      zoom,
+      minZoom,
       scrollZoom: true,
       attributionControl: false,
       maxPitch: 0,
@@ -436,18 +348,36 @@ const Map = ({
 
     map.addControl(new maplibregl.NavigationControl(), "top-right");
 
-    map.jumpTo({ center: initialCenter, zoom: initialView.zoom });
+    map.jumpTo({ center: initialCenter, zoom });
 
     map.on("load", () => {
-      syncMapLayers();
+      ensureMapLayers(
+        map,
+        showStatesBorder,
+        Boolean(dadosCDI),
+        tileLayerUrlRef.current,
+      );
 
-      const boundsToFit = currentBoundsRef.current;
-      if (boundsToFit) {
-        map.fitBounds(boundsToFit, {
-          padding: MAP_FIT_BOUNDS_PADDING,
-          animate: false,
-        });
-      }
+      const cdiSource = map.getSource(CDI_SOURCE_ID) as
+        | GeoJSONSource
+        | undefined;
+      cdiSource?.setData(cdiGeoJson);
+
+      map.setLayoutProperty(STATES_FILL_LAYER_ID, "visibility", "visible");
+      map.setLayoutProperty(
+        STATES_BORDER_LAYER_ID,
+        "visibility",
+        showStatesBorder ? "visible" : "none",
+      );
+      map.setLayoutProperty(
+        CDI_LAYER_ID,
+        "visibility",
+        dadosCDI ? "visible" : "none",
+      );
+      map.fitBounds(currentBounds, {
+        padding: MAP_FIT_BOUNDS_PADDING,
+        animate: false,
+      });
 
       // Apply initial selected state via feature-state (works with vector tiles).
       if (selectedStateRef.current && selectedStateRef.current !== "BR") {
@@ -544,7 +474,40 @@ const Map = ({
       map.remove();
       mapRef.current = null;
     };
-  }, [syncMapLayers]);
+  }, [
+    cdiGeoJson,
+    currentBounds,
+    dadosCDI,
+    minZoom,
+    normalizedCenter,
+    showStatesBorder,
+    zoom,
+  ]);
+
+  useEffect(() => {
+    const map = mapRef.current;
+
+    if (!map || !map.isStyleLoaded()) {
+      return;
+    }
+
+    ensureMapLayers(map, showStatesBorder, Boolean(dadosCDI), tileLayerUrl);
+
+    const cdiSource = map.getSource(CDI_SOURCE_ID) as GeoJSONSource | undefined;
+    cdiSource?.setData(cdiGeoJson);
+
+    map.setLayoutProperty(STATES_FILL_LAYER_ID, "visibility", "visible");
+    map.setLayoutProperty(
+      STATES_BORDER_LAYER_ID,
+      "visibility",
+      showStatesBorder ? "visible" : "none",
+    );
+    map.setLayoutProperty(
+      CDI_LAYER_ID,
+      "visibility",
+      dadosCDI ? "visible" : "none",
+    );
+  }, [cdiGeoJson, dadosCDI, showStatesBorder, tileLayerUrl]);
 
   useEffect(() => {
     const map = mapRef.current;
