@@ -8,10 +8,11 @@ import { statesObj, TIER_CONFIG } from "@/utils/constants";
 import SearchBarPlatform from "./SearchBarPlatform";
 import { resolveStateKeyFromSearch } from "@/utils/functions";
 import { useMemo, useEffect } from "react";
-import droughtData from "../../../public/dados-seca.json";
+import droughtStates from "../../../public/dados-seca.json";
+import droughtCities from "../../../public/dados-seca-cidades.json"
 import { classificationMeta } from "@/utils/constants";
 import type { ClassificationKey } from "@/utils/constants";
-import { ClassificationCard } from "../ClassificationCard/ClassificationCard";
+import { ClassificationCard, State } from "../ClassificationCard/ClassificationCard";
 
 export interface AnalysisContextProps {
   activeSection: PlatformSection;
@@ -94,10 +95,12 @@ export function AnalysisContext({
 
   const locationData = useMemo(() => {
     return (
-      droughtData[selectedState as keyof typeof droughtData] ||
-      droughtData["br"]
+      droughtStates[selectedState as keyof typeof droughtStates] ||
+      droughtStates["br"]
     );
   }, [selectedState]);
+
+  
   function handleGoBack() {
     setActiveLayerId(null);
     setActiveEEData(null);
@@ -110,7 +113,7 @@ export function AnalysisContext({
 
   const { statusItems, currentState } = useMemo(() => {
     const stateData =
-      droughtData[selectedState as keyof typeof droughtData] || droughtData.br;
+      droughtStates[selectedState as keyof typeof droughtStates] || droughtStates.br;
 
     const items = Object.entries(stateData.status).map(([key, value]) => {
       const percentage = (value as number) * 100;
@@ -315,13 +318,22 @@ export function AnalysisContext({
 
           <div className="flex flex-col gap-2">
             <h2 className="text-[18px] font-semibold leading-6 text-[#292829]">
-              Estados por classificação
+              {selectedState === "br" ? "Estados por classificação" : "Cidades por classificação"}
             </h2>
           </div>
 
             <div className="flex flex-col gap-2">
               {CLASSIFICATION_KEYS.map((key) => (
-                <ClassificationCard key={key} classificationKey={key} />
+                <ClassificationCard
+                  key={key}
+                  classificationKey={key}
+                  data={
+                    selectedState === "br"
+                      ? droughtStates
+                      : (droughtCities as Record<string, Record<string, State>>)[selectedState]
+                  }
+                  mode={selectedState === "br" ? "estados" : "cidades"}
+                />              
               ))}
           </div>
 

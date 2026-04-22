@@ -1,0 +1,122 @@
+{
+  "pb": {
+    "cg": {
+      "nome": "Campina Grande",
+      "status": {
+        "sem-seca": 0.92,
+        "observacao": 0.03,
+        "atencao": 0.04,
+        "alerta": 0.0,
+        "recuperacao-total": 0.01,
+        "recuperacao-parcial": 0.0
+      },
+      "acontecendo": "Atualmente, 92.0% do território de Campina Grande está sem seca.",
+      "impacto": [
+        "Alta estabilidade hídrica.",
+        "Baixo risco agrícola.",
+        "Recuperação leve em áreas isoladas."
+      ]
+    },
+    "jp": {
+      "nome": "João Pessoa",
+      "status": {
+        "sem-seca": 0.98,
+        "observacao": 0.01,
+        "atencao": 0.01,
+        "alerta": 0.0,
+        "recuperacao-total": 0.0,
+        "recuperacao-parcial": 0.0
+      },
+      "acontecendo": "98.0% do território de João Pessoa está sem seca.",
+      "impacto": [
+        "Condições ideais.",
+        "Sem riscos relevantes.",
+        "Sem necessidade de intervenção."
+      ]
+    },
+    "patos": {
+      "nome": "Patos",
+      "status": {
+        "sem-seca": 0.65,
+        "observacao": 0.15,
+        "atencao": 0.15,
+        "alerta": 0.03,
+        "recuperacao-total": 0.01,
+        "recuperacao-parcial": 0.01
+      },
+      "acontecendo": "65.0% do território está sem seca, com 3.0% em alerta.",
+      "impacto": [
+        "Produção moderada.",
+        "Risco localizado.",
+        "Recuperação inicial."
+      ]
+    },
+    "sousa": {
+      "nome": "Sousa",
+      "status": {
+        "sem-seca": 0.58,
+        "observacao": 0.22,
+        "atencao": 0.12,
+        "alerta": 0.05,
+        "recuperacao-total": 0.02,
+        "recuperacao-parcial": 0.01
+      },
+      "acontecendo": "58.0% sem seca, com 5.0% em alerta.",
+      "impacto": [
+        "Condição intermediária.",
+        "Risco crescente.",
+        "Recuperação parcial."
+      ]
+    },
+    "cajazeiras": {
+      "nome": "Cajazeiras",
+      "status": {
+        "sem-seca": 0.61,
+        "observacao": 0.18,
+        "atencao": 0.14,
+        "alerta": 0.04,
+        "recuperacao-total": 0.02,
+        "recuperacao-parcial": 0.01
+      },
+      "acontecendo": "61.0% do território está sem seca.",
+      "impacto": [
+        "Boa condição geral.",
+        "Pequeno risco agrícola.",
+        "Recuperação gradual."
+      ]
+    }
+  },
+
+  "pe": {
+    "recife": {
+      "nome": "Recife",
+      "status": {
+        "sem-seca": 0.85,
+        "observacao": 0.1,
+        "atencao": 0.03,
+        "alerta": 0.0,
+        "recuperacao-total": 0.02,
+        "recuperacao-parcial": 0.0
+      },
+      "acontecendo": "85.0% do território está sem seca.",
+      "impacto": ["Boa estabilidade.", "Baixo risco.", "Recuperação leve."]
+    },
+    "caruaru": {
+      "nome": "Caruaru",
+      "status": {
+        "sem-seca": 0.55,
+        "observacao": 0.2,
+        "atencao": 0.18,
+        "alerta": 0.05,
+        "recuperacao-total": 0.01,
+        "recuperacao-parcial": 0.01
+      },
+      "acontecendo": "55.0% sem seca e 5.0% em alerta.",
+      "impacto": [
+        "Situação moderada.",
+        "Risco relevante.",
+        "Recuperação lenta."
+      ]
+    }
+  }
+}
