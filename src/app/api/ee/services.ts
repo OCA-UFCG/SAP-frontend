@@ -40,10 +40,58 @@ export const getEarthEngineUrl = async (
     await initializeGee();
     console.log(new Date().toISOString(), " - GEE Initialized successfully");
 
-    const GEEImage = ee
-      .Image(imageId)
-      .selfMask()
-      .reduceResolution(ee.Reducer.mode(), true, 128);
+    // 1. Fetch asset metadata dynamically to check if it's an Image or ImageCollection
+    const assetMeta: any = await new Promise((resolve) => {
+      ee.data.getAsset(
+        imageId,
+        (asset: any) => resolve(asset),
+        (err: any) => resolve(null), // Safe fallback
+      );
+    });
+
+    console.log(
+      `\n[GEE] Asset: ${imageId} | Type: ${assetMeta?.type || "Unknown"}`,
+    );
+
+    // 2. Instantiate correctly based on type
+    let GEEImage: any;
+
+    // GEE api might return "ImageCollection" or "IMAGE_COLLECTION" depending on the endpoint version
+    const assetType = assetMeta?.type
+      ? String(assetMeta.type).toUpperCase().replace("_", "")
+      : "";
+
+    if (assetType === "IMAGECOLLECTION") {
+      // Squash the collection into a single image dynamically
+      const collection = ee.ImageCollection(imageId);
+      // Mosaicking a collection drops native projection info (since images inside could vary).
+      // We must explicitly re-assign the projection from its first image so reduceResolution() doesn't crash.
+      const proj = collection.first().projection();
+      GEEImage = collection.mosaic().setDefaultProjection(proj);
+    } else {
+      // Default behavior
+      GEEImage = ee.Image(imageId);
+    }
+
+    // 3. Fetch list of available bands and print them, then automatically select the first one
+    try {
+      const bandNames = await new Promise((resolve, reject) => {
+        GEEImage.bandNames().evaluate(
+          (bands: any) => resolve(bands),
+          (err: any) => reject(err),
+        );
+      });
+      console.log(`[GEE] -> Bands available:`, bandNames);
+
+      // Explicitly select the first band so we don't accidentally try to render all of them
+      if (bandNames && Array.isArray(bandNames) && bandNames.length > 0) {
+        GEEImage = GEEImage.select(bandNames[bandNames.length - 1]);
+      }
+    } catch (bandErr) {
+      console.error(`[GEE] -> Failed to fetch bands for ${imageId}:`, bandErr);
+    }
+
+    GEEImage = GEEImage.selfMask();
     const { categorizedImage, visParams } = getImageScale(
       GEEImage,
       imageParams,
@@ -165,6 +213,7 @@ async function authenticateAndInitialize(): Promise<void> {
 
 // ====== Cache ======
 const TTL = 1000 * 60 * 30; // 0.5 hour in milliseconds
+const CACHE_KEY_VERSION = "v2";
 
 interface CacheEntry {
   url: string;
@@ -173,6 +222,9 @@ interface CacheEntry {
 
 let cached = false;
 const cacheUrls = new Map<string, CacheEntry>();
+
+export const buildCacheKey = (name: string, year: string) =>
+  `${CACHE_KEY_VERSION}:${name}:${year}`;
 
 /**
  * Checks if a given key exists in cache.
