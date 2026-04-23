@@ -45,19 +45,21 @@ export const getEarthEngineUrl = async (
       ee.data.getAsset(
         imageId,
         (asset: any) => resolve(asset),
-        (err: any) => resolve(null) // Safe fallback
+        (err: any) => resolve(null), // Safe fallback
       );
     });
 
     console.log(
-      `\n[GEE] Asset: ${imageId} | Type: ${assetMeta?.type || "Unknown"}`
+      `\n[GEE] Asset: ${imageId} | Type: ${assetMeta?.type || "Unknown"}`,
     );
 
     // 2. Instantiate correctly based on type
     let GEEImage: any;
 
     // GEE api might return "ImageCollection" or "IMAGE_COLLECTION" depending on the endpoint version
-    const assetType = assetMeta?.type ? String(assetMeta.type).toUpperCase().replace("_", "") : "";
+    const assetType = assetMeta?.type
+      ? String(assetMeta.type).toUpperCase().replace("_", "")
+      : "";
 
     if (assetType === "IMAGECOLLECTION") {
       // Squash the collection into a single image dynamically
@@ -76,7 +78,7 @@ export const getEarthEngineUrl = async (
       const bandNames = await new Promise((resolve, reject) => {
         GEEImage.bandNames().evaluate(
           (bands: any) => resolve(bands),
-          (err: any) => reject(err)
+          (err: any) => reject(err),
         );
       });
       console.log(`[GEE] -> Bands available:`, bandNames);
@@ -89,11 +91,7 @@ export const getEarthEngineUrl = async (
       console.error(`[GEE] -> Failed to fetch bands for ${imageId}:`, bandErr);
     }
 
-    GEEImage = GEEImage.selfMask().reduceResolution(
-      ee.Reducer.mode(),
-      true,
-      128
-    );
+    GEEImage = GEEImage.selfMask();
     const { categorizedImage, visParams } = getImageScale(
       GEEImage,
       imageParams,
@@ -215,6 +213,7 @@ async function authenticateAndInitialize(): Promise<void> {
 
 // ====== Cache ======
 const TTL = 1000 * 60 * 30; // 0.5 hour in milliseconds
+const CACHE_KEY_VERSION = "v2";
 
 interface CacheEntry {
   url: string;
@@ -223,6 +222,9 @@ interface CacheEntry {
 
 let cached = false;
 const cacheUrls = new Map<string, CacheEntry>();
+
+export const buildCacheKey = (name: string, year: string) =>
+  `${CACHE_KEY_VERSION}:${name}:${year}`;
 
 /**
  * Checks if a given key exists in cache.

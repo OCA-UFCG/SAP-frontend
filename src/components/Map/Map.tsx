@@ -176,6 +176,7 @@ const ensureMapLayers = (
           source: GEE_SOURCE_ID,
           paint: {
             "raster-opacity": 0.85,
+            "raster-resampling": "nearest",
           },
         },
         // Insert before state fills so states remain interactive on top
@@ -343,7 +344,7 @@ const Map = ({
   const log = useCallback(
     (...args: unknown[]) => {
       if (!debugEnabled) return;
-       
+
       console.log(`[SAP Map ${mapDebugIdRef.current}]`, ...args);
     },
     [debugEnabled],
@@ -352,7 +353,7 @@ const Map = ({
   const warn = useCallback(
     (...args: unknown[]) => {
       if (!debugEnabled) return;
-       
+
       console.warn(`[SAP Map ${mapDebugIdRef.current}]`, ...args);
     },
     [debugEnabled],
