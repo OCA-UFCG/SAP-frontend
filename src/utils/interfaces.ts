@@ -1,4 +1,5 @@
 import { Document } from "@contentful/rich-text-types";
+import type { LayerAnalysisConfig } from "@/utils/analysis";
 
 export interface DataCardsI {
   noDroughtAreaValue: number;
@@ -204,8 +205,10 @@ export interface PanelLayerI {
   imageData: {
     [year: string]: {
       default: boolean;
+      year?: string;
       imageId: string;
       imageParams: IImageParam[];
+      analysis?: LayerAnalysisConfig;
     };
   };
   minScale?: number;
@@ -232,8 +235,10 @@ export interface IEEInfo {
   imageData: {
     [year: string]: {
       default: boolean;
+      year?: string;
       imageId: string;
       imageParams: IImageParam[];
+      analysis?: LayerAnalysisConfig;
     };
   };
   type: string;
