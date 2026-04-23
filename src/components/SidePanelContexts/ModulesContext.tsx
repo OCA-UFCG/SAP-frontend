@@ -7,6 +7,7 @@ import { DroughtDataset } from "@/components/DroughtDataset/DroughtDataset";
 import type { IDroughtDataset } from "@/components/DroughtDataset/DroughtDataset";
 import type { PlatformSection } from "@/components/PlatformSideRail/PlatformSideRail";
 import type { IEEInfo, PanelLayerI } from "@/utils/interfaces";
+import { getImageDataLegend } from "@/utils/imageData";
 import cdiData from "../../data/CDI_Janeiro_2024_Vetores.json";
 
 export interface ModulesContextProps {
@@ -58,7 +59,7 @@ export function ModulesContext({
     activeLegend,
     setActiveEEData,
     setActiveLayerId,
-    setActiveLegend
+    setActiveLegend,
   } = useMapLayer();
 
   const datasets = useMemo(
@@ -67,10 +68,8 @@ export function ModulesContext({
   );
 
   const getCaption = (layer: PanelLayerI) => {
-      const entries = Object.entries(layer.imageData || {});
-      const defaultEntry = entries.find(([, val]) => val.default) ?? entries[0];
-      return defaultEntry?.[1]?.imageParams ?? null;
-    };
+    return getImageDataLegend(layer.imageData);
+  };
 
   function handleToggle(dataset: LayerDataset) {
     if (!dataset.fileRef) return;
@@ -87,11 +86,11 @@ export function ModulesContext({
       setActiveLayerId(isActive ? null : dataset.fileRef);
 
       if (isActive) {
-        setActiveLegend(null); 
+        setActiveLegend(null);
       } else {
         setActiveLegend(getCaption(dataset.layer));
       }
-      
+
       return;
     }
 
@@ -103,7 +102,7 @@ export function ModulesContext({
       setActiveLayerId(isActive ? null : eeConfig.id);
 
       if (isActive) {
-        setActiveLegend(null); 
+        setActiveLegend(null);
       } else {
         setActiveLegend(getCaption(dataset.layer));
       }

@@ -4,6 +4,7 @@ import { PlatformMapCaption } from "@/components/PlatformMapCaption/PlatformMapC
 import MapComponent from "../Map/MapComponent";
 import { FeatureCollection, Geometry } from "geojson";
 import { useMapLayer } from "@/components/MapLayerContext/MapLayerContext";
+import { getImageDataYearKeys } from "@/utils/imageData";
 
 export interface CDIFeatureProperties {
   classe_cdi: number;
@@ -45,7 +46,7 @@ export function PlatformMap() {
     const controller = new AbortController();
 
     const fetchGeeUrl = async () => {
-      const availableYears = Object.keys(activeEEData.imageData || {});
+      const availableYears = getImageDataYearKeys(activeEEData.imageData);
       if (availableYears.length > 0 && !availableYears.includes(activeYear)) {
         return; // Wait for activeYear to be updated by MapLayerContext
       }

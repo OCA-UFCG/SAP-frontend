@@ -6,7 +6,6 @@ import SearchBarPlatform from "@/components/SidePanelContexts/SearchBarPlatform"
 import type {
   AnalysisDistributionItem,
   AnalysisRankingGroup,
-  AnalysisTemporalSection,
   AnalysisYearOption,
   TerritorialAnalysisViewModel,
 } from "@/utils/analysis";
@@ -37,10 +36,18 @@ function renderFormattedText(text: string) {
   );
 }
 
-function EmptySection({ title, description }: { title: string; description: string }) {
+function EmptySection({
+  title,
+  description,
+}: {
+  title: string;
+  description: string;
+}) {
   return (
     <div className="flex flex-col gap-2">
-      <h2 className="text-[14px] font-semibold leading-6 text-[#292829]">{title}</h2>
+      <h2 className="text-[14px] font-semibold leading-6 text-[#292829]">
+        {title}
+      </h2>
       <div className="rounded-lg border border-[#EFEFEF] bg-white p-4 text-[12px] leading-5 text-neutral-600 shadow-sm">
         {description}
       </div>
@@ -103,7 +110,9 @@ function RankingSection({
   if (fallback) {
     return (
       <div className="flex flex-col gap-2">
-        <h2 className="text-[18px] font-semibold leading-6 text-[#292829]">{title}</h2>
+        <h2 className="text-[18px] font-semibold leading-6 text-[#292829]">
+          {title}
+        </h2>
         {fallback}
       </div>
     );
@@ -120,12 +129,19 @@ function RankingSection({
 
   return (
     <div className="flex flex-col gap-2">
-      <h2 className="text-[14px] font-semibold leading-6 text-[#292829]">{title}</h2>
+      <h2 className="text-[14px] font-semibold leading-6 text-[#292829]">
+        {title}
+      </h2>
       <div className="flex flex-col gap-3">
         {groups.map((group) => (
-          <div key={group.id} className="overflow-hidden rounded-lg border border-[#EFEFEF] bg-white shadow-sm">
+          <div
+            key={group.id}
+            className="overflow-hidden rounded-lg border border-[#EFEFEF] bg-white shadow-sm"
+          >
             <div className="flex items-center justify-between bg-[#F0F0D7] px-4 py-3">
-              <span className="text-[16px] font-semibold text-[#292829]">{group.label}</span>
+              <span className="text-[16px] font-semibold text-[#292829]">
+                {group.label}
+              </span>
               <span className="rounded-md bg-[#2D3215] px-3 py-2 text-[12px] font-semibold text-white">
                 {group.total} {group.totalLabel}
               </span>
@@ -141,7 +157,9 @@ function RankingSection({
                 >
                   <span>{item.label}</span>
                   {item.trailingLabel ? (
-                    <span className="text-[12px] text-neutral-500">{item.trailingLabel}</span>
+                    <span className="text-[12px] text-neutral-500">
+                      {item.trailingLabel}
+                    </span>
                   ) : null}
                 </button>
               ))}
@@ -149,61 +167,6 @@ function RankingSection({
           </div>
         ))}
       </div>
-    </div>
-  );
-}
-
-function TemporalSection({ sections }: { sections: AnalysisTemporalSection[] }) {
-  if (sections.length === 0) {
-    return (
-      <EmptySection
-        title="Visão temporal"
-        description="As séries temporais desta camada ainda não estão disponíveis na análise."
-      />
-    );
-  }
-
-  return (
-    <div className="flex flex-col gap-3">
-      {sections.map((section) => (
-        <div key={section.id} className="flex flex-col gap-2">
-          <h2 className="text-[14px] font-semibold leading-6 text-[#292829]">{section.title}</h2>
-          {section.description ? (
-            <p className="text-[12px] leading-5 text-neutral-600">{section.description}</p>
-          ) : null}
-
-          <div className="rounded-lg border border-[#EFEFEF] bg-white p-3 shadow-sm">
-            <div className="flex flex-wrap gap-2">
-              {section.points.map((point) => (
-                <div key={point.id} className="flex flex-col items-center gap-2">
-                  <div
-                    className="h-8 w-8 rounded-[10px]"
-                    style={{ backgroundColor: point.color }}
-                    title={point.label}
-                  />
-                  <span className="text-[10px] text-neutral-600">
-                    {point.shortLabel ?? point.label}
-                  </span>
-                </div>
-              ))}
-            </div>
-
-            {section.legend?.length ? (
-              <div className="mt-4 flex flex-wrap gap-x-3 gap-y-2">
-                {section.legend.map((item) => (
-                  <div key={item.id} className="flex items-center gap-2">
-                    <div
-                      className="h-3 w-3 rounded-full"
-                      style={{ backgroundColor: item.color }}
-                    />
-                    <span className="text-[12px] text-neutral-600">{item.label}</span>
-                  </div>
-                ))}
-              </div>
-            ) : null}
-          </div>
-        </div>
-      ))}
     </div>
   );
 }
@@ -324,7 +287,6 @@ export function AnalysisPanel({
               fallback={rankingFallback}
               onItemSelect={onRankingItemSelect}
             />
-            <TemporalSection sections={model.temporalSections} />
           </section>
         ) : (
           <EmptySection

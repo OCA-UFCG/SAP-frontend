@@ -36,19 +36,30 @@ export interface AnalysisRankingGroup {
   items: AnalysisRankingEntry[];
 }
 
-export interface AnalysisTemporalPoint {
+export interface CompactAnalysisClass {
   id: string;
   label: string;
-  shortLabel?: string;
   color: string;
+  tone?: AnalysisTone;
+  pixelLimit?: number;
 }
 
-export interface AnalysisTemporalSection {
-  id: string;
-  title: string;
-  description?: string;
-  points: AnalysisTemporalPoint[];
-  legend?: Array<Pick<AnalysisDistributionItem, "id" | "label" | "color">>;
+export interface CompactAnalysisTemplates {
+  country?: string;
+  state?: string;
+  highlight?: string;
+}
+
+export interface CompactAnalysisRankingConfig {
+  title?: string;
+  totalLabel?: string;
+}
+
+export interface CompactAnalysisYearData {
+  imageId: string;
+  year?: string;
+  valuesScale?: number;
+  values: Record<string, number[]>;
 }
 
 export interface TerritorialAnalysisLocationData {
@@ -59,14 +70,28 @@ export interface TerritorialAnalysisLocationData {
   distribution?: AnalysisDistributionItem[];
   rankingTitle?: string;
   rankingGroups?: AnalysisRankingGroup[];
-  temporalSections?: AnalysisTemporalSection[];
 }
 
-export interface TerritorialAnalysisDataset {
+export interface LegacyTerritorialAnalysisDataset {
   schemaVersion: number;
   type: "territorial";
   locations: Record<string, TerritorialAnalysisLocationData>;
 }
+
+export interface CompactTerritorialAnalysisDataset {
+  schemaVersion: number;
+  type: "territorial-compact";
+  defaultYear?: string;
+  classes: CompactAnalysisClass[];
+  locations?: Record<string, string>;
+  templates?: CompactAnalysisTemplates;
+  ranking?: CompactAnalysisRankingConfig;
+  years: Record<string, CompactAnalysisYearData>;
+}
+
+export type TerritorialAnalysisDataset =
+  | LegacyTerritorialAnalysisDataset
+  | CompactTerritorialAnalysisDataset;
 
 export interface LayerAnalysisConfig {
   type: "territorial" | string;
@@ -83,5 +108,4 @@ export interface TerritorialAnalysisViewModel {
   distribution: AnalysisDistributionItem[];
   rankingTitle?: string;
   rankingGroups: AnalysisRankingGroup[];
-  temporalSections: AnalysisTemporalSection[];
 }

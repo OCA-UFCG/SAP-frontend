@@ -5,7 +5,7 @@ import { AnalysisPanel } from "@/components/analysis/AnalysisPanel";
 import {
   buildEmbeddedTerritorialAnalysisViewModel,
   buildLegacyTerritorialAnalysisViewModel,
-  getAnalysisConfig,
+  getAnalysisLegend,
   getAnalysisYearOptions,
   getEffectiveAnalysisYear,
 } from "@/components/analysis/analysis.mappers";
@@ -92,18 +92,22 @@ export function AnalysisContext({
     [dataset, activeYear],
   );
 
-  const activeAnalysisYear = effectiveYear ?? yearOptions[0]?.value ?? "general";
+  const activeAnalysisYear =
+    effectiveYear ?? yearOptions[0]?.value ?? "general";
 
   const embeddedModel = useMemo(
-    () => buildEmbeddedTerritorialAnalysisViewModel(
-      getAnalysisConfig(dataset, effectiveYear),
-      selectedState,
-    ),
+    () =>
+      buildEmbeddedTerritorialAnalysisViewModel(
+        dataset,
+        effectiveYear,
+        selectedState,
+      ),
     [dataset, effectiveYear, selectedState],
   );
 
   const analysisModel = useMemo(
-    () => embeddedModel ?? buildLegacyTerritorialAnalysisViewModel(locationData),
+    () =>
+      embeddedModel ?? buildLegacyTerritorialAnalysisViewModel(locationData),
     [embeddedModel, locationData],
   );
 
@@ -121,8 +125,7 @@ export function AnalysisContext({
       return;
     }
 
-    const yearConfig = dataset.imageData[effectiveYear];
-    setActiveLegend(yearConfig?.imageParams ?? null);
+    setActiveLegend(getAnalysisLegend(dataset, effectiveYear));
   }, [dataset, effectiveYear, setActiveLegend]);
 
   return (
@@ -139,4 +142,3 @@ export function AnalysisContext({
     />
   );
 }
-

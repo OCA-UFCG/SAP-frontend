@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import type { NextRequest } from "next/server";
 import { IEEInfo } from "@/utils/interfaces";
+import { resolveImageYearEntry } from "@/utils/imageData";
 import {
   addUrlToCache,
   buildCacheKey,
@@ -23,12 +24,20 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ url }, { status: 200 });
     } else {
       const imageInfo: IEEInfo = await req.json();
+      const yearConfig = resolveImageYearEntry(imageInfo.imageData, year);
+
+      if (!yearConfig) {
+        return NextResponse.json(
+          { error: `Year ${year} not found for layer ${name}` },
+          { status: 400 },
+        );
+      }
 
       console.log(new Date().toISOString(), " - Starting URL queries");
 
       const url = await getEarthEngineUrl(
-        imageInfo.imageData[year].imageId,
-        imageInfo.imageData[year].imageParams,
+        yearConfig.imageId,
+        yearConfig.imageParams,
         imageInfo.minScale,
         imageInfo.maxScale,
       );

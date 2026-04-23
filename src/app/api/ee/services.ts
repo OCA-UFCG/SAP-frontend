@@ -1,6 +1,7 @@
 import ee from "@google/earthengine";
 import { IMapId, IEEInfo, PanelLayerI } from "@/utils/interfaces";
 import { getContent } from "@/utils/contentful";
+import { getImageDataYearKeys, resolveImageYearEntry } from "@/utils/imageData";
 import { GET_PANEL_LAYER } from "@/utils/queries";
 
 // ====== GEE Singleton for Authentication and Initialization ======
@@ -299,8 +300,8 @@ export const cacheMapData = async () => {
       const minScale = layer.minScale;
       const maxScale = layer.maxScale;
 
-      for (const year of Object.keys(imageData)) {
-        const yearConfig = imageData[year];
+      for (const year of getImageDataYearKeys(imageData)) {
+        const yearConfig = resolveImageYearEntry(imageData, year);
         if (!yearConfig) continue;
 
         const url = await getEarthEngineUrl(
