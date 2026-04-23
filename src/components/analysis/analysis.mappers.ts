@@ -108,6 +108,9 @@ export function buildEmbeddedTerritorialAnalysisViewModel(
     return null;
   }
 
+  const colorById = Object.fromEntries(
+    (location.distribution ?? []).map((d) => [d.id, d.color]),
+  );
   return {
     kind: "territorial",
     name: location.name,
@@ -117,7 +120,10 @@ export function buildEmbeddedTerritorialAnalysisViewModel(
     happening: location.happening ?? "",
     distribution: location.distribution ?? [],
     rankingTitle: location.rankingTitle,
-    rankingGroups: location.rankingGroups ?? [],
+    rankingGroups: (location.rankingGroups ?? []).map((group) => ({
+      ...group,
+      color: colorById[group.id] ?? null,
+    })),
     temporalSections: location.temporalSections ?? [],
   };
 }

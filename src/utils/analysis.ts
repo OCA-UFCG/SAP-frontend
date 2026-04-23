@@ -34,6 +34,7 @@ export interface AnalysisRankingGroup {
   total: number;
   totalLabel: string;
   items: AnalysisRankingEntry[];
+  color?: string | null;
 }
 
 export interface AnalysisTemporalPoint {

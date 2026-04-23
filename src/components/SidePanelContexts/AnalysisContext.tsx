@@ -25,15 +25,6 @@ export interface AnalysisContextProps {
   onRequestSectionChange?: (next: PlatformSection) => void;
 }
 
-const CLASSIFICATION_KEYS: ClassificationKey[] = [
-  "sem-seca",
-  "recuperacao-total",
-  "recuperacao-parcial",
-  "observacao",
-  "atencao",
-  "alerta",
-];
-
 export interface LocationData {
   nome: string;
   status: Record<ClassificationKey, number>;
@@ -94,6 +85,7 @@ export function AnalysisContext({
 
   const activeAnalysisYear = effectiveYear ?? yearOptions[0]?.value ?? "general";
 
+  // modelo para exibição geral (nome, happening etc.), varia com selectedState
   const embeddedModel = useMemo(
     () => buildEmbeddedTerritorialAnalysisViewModel(
       getAnalysisConfig(dataset, effectiveYear),
@@ -102,18 +94,35 @@ export function AnalysisContext({
     [dataset, effectiveYear, selectedState],
   );
 
-  const analysisModel = useMemo(
-    () => embeddedModel ?? buildLegacyTerritorialAnalysisViewModel(locationData),
-    [embeddedModel, locationData],
+  // ranking sempre fixo na localização base, não some ao selecionar estado!!
+  const baseEmbeddedModel = useMemo(
+    () => buildEmbeddedTerritorialAnalysisViewModel(
+      getAnalysisConfig(dataset, effectiveYear),
+      "br",
+    ),
+    [dataset, effectiveYear],
   );
 
-  const rankingFallback = embeddedModel ? null : (
+  const analysisModel = useMemo(() => {
+    const model = embeddedModel ?? buildLegacyTerritorialAnalysisViewModel(locationData);
+    return {
+      ...model,
+      temporalSections: baseEmbeddedModel?.temporalSections ?? model.temporalSections,
+      rankingGroups: baseEmbeddedModel?.rankingGroups ?? model.rankingGroups,
+    };
+  }, [embeddedModel, baseEmbeddedModel, locationData]);
+
+  const rankingFallback = baseEmbeddedModel?.rankingGroups.length ? (
     <div className="flex flex-col gap-2">
-      {CLASSIFICATION_KEYS.map((key) => (
-        <ClassificationCard key={key} classificationKey={key} />
+      {baseEmbeddedModel.rankingGroups.map((group) => (
+        <ClassificationCard
+          key={group.id}
+          group={group}
+          onItemSelect={setSelectedState}
+        />
       ))}
     </div>
-  );
+  ) : null;
 
   useEffect(() => {
     if (!dataset?.imageData || !effectiveYear) {

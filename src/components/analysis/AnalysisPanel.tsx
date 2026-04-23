@@ -124,12 +124,18 @@ function RankingSection({
       <div className="flex flex-col gap-3">
         {groups.map((group) => (
           <div key={group.id} className="overflow-hidden rounded-lg border border-[#EFEFEF] bg-white shadow-sm">
-            <div className="flex items-center justify-between bg-[#F0F0D7] px-4 py-3">
-              <span className="text-[16px] font-semibold text-[#292829]">{group.label}</span>
-              <span className="rounded-md bg-[#2D3215] px-3 py-2 text-[12px] font-semibold text-white">
-                {group.total} {group.totalLabel}
-              </span>
-            </div>
+        <div
+          className="flex items-center justify-between px-4 py-3"
+          style={{ backgroundColor: group.color ? `${group.color}22` : "#F0F0D7" }}
+        >
+          <span className="text-[16px] font-semibold text-[#292829]">{group.label}</span>
+          <span
+            className="rounded-md px-3 py-2 text-[12px] font-semibold text-white"
+            style={{ backgroundColor: group.color ?? "#2D3215" }}
+          >
+            {group.total} {group.totalLabel}
+          </span>
+        </div>
 
             <div className="flex flex-col gap-2 p-3">
               {group.items.map((item) => (
