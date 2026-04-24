@@ -8,9 +8,11 @@ import {
 } from "@/app/api/ee/cache";
 import { IEEInfo } from "@/utils/interfaces";
 import { resolveImageYearEntry } from "@/utils/imageData";
-import { getEarthEngineUrl } from "@/app/api/ee/services";
+import { ensureEeCacheWarmupStarted, getEarthEngineUrl } from "@/app/api/ee/services";
 
 export async function POST(req: NextRequest) {
+  ensureEeCacheWarmupStarted();
+
   try {
     const name = req.nextUrl.searchParams.get("name") || "";
     const year = req.nextUrl.searchParams.get("year") || "";

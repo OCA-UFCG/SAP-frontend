@@ -32,7 +32,12 @@ interface PanelLayerResponse {
 }
 
 export async function getPanelLayers(): Promise<PanelLayerI[]> {
-  const data = await getContent<PanelLayerResponse>(GET_PANEL_LAYER);
+  try {
+    const data = await getContent<PanelLayerResponse>(GET_PANEL_LAYER);
 
-  return data.panelLayerCollection?.items ?? [];
+    return data.panelLayerCollection?.items ?? [];
+  } catch (error) {
+    console.error("Erro ao buscar camadas da plataforma no Contentful:", error);
+    return [];
+  }
 }

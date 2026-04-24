@@ -213,6 +213,7 @@ async function authenticateAndInitialize(): Promise<void> {
 }
 
 let cached = false;
+let warmupStarted = false;
 /**
  * Fetches and caches map data from Contentful/GEE API sources.
  * Runs recursively every 12 hours to keep the cache updated.
@@ -254,7 +255,13 @@ export const cacheMapData = async () => {
   }
 };
 
-if (!cached) {
-  cacheMapData();
+export function ensureEeCacheWarmupStarted() {
+  if (warmupStarted) {
+    return;
+  }
+
+  warmupStarted = true;
+
+  void cacheMapData();
   setInterval(cacheMapData, 1000 * 60 * 60 * 12);
 }
