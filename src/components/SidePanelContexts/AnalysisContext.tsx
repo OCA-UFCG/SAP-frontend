@@ -12,6 +12,7 @@ import {
 import { useMapLayer } from "@/components/MapLayerContext/MapLayerContext";
 import type { PlatformSection } from "@/components/PlatformSideRail/PlatformSideRail";
 import type { PanelLayerI, IEEInfo } from "@/utils/interfaces";
+import type { CompactTerritorialAnalysisDataset } from "@/utils/analysis";
 import { statesObj } from "@/utils/constants";
 import { resolveStateKeyFromSearch } from "@/utils/functions";
 
@@ -92,9 +93,18 @@ export function AnalysisContext({
       setActiveLegend(null);
       return;
     }
-
     setActiveLegend(getAnalysisLegend(dataset, effectiveYear));
   }, [dataset, effectiveYear, setActiveLegend]);
+  console.log("DATASET", dataset?.imageData)
+
+  // Extract years and classes only when imageData is CompactTerritorialAnalysisDataset
+  const temporalYears = dataset?.imageData && "years" in dataset.imageData
+    ? (dataset.imageData as CompactTerritorialAnalysisDataset).years
+    : undefined;
+
+  const temporalClasses = dataset?.imageData && "classes" in dataset.imageData
+    ? (dataset.imageData as CompactTerritorialAnalysisDataset).classes
+    : undefined;
 
   return (
     <AnalysisPanel
@@ -106,6 +116,9 @@ export function AnalysisContext({
       onYearChange={setActiveYear}
       onRankingItemSelect={setSelectedState}
       model={embeddedModel}
+      years={temporalYears}
+      classes={temporalClasses}
+      selectedState={selectedState}
       emptyStateTitle={`Análise indisponível para ${unavailableLocationName}`}
       emptyStateDescription={`Os dados de análise para ${unavailableLocationName} ainda não estão disponíveis neste módulo.`}
     />

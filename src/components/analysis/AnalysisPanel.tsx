@@ -2,10 +2,13 @@
 
 import { Chevron } from "@/components/Chevron/Chevron";
 import SearchBarPlatform from "@/components/SidePanelContexts/SearchBarPlatform";
+import { TemporalVision } from "@/components/TemporalVision/TemporalVision";
 import type {
   AnalysisDistributionItem,
   AnalysisRankingGroup,
   AnalysisYearOption,
+  CompactAnalysisClass,
+  CompactAnalysisYearData,
   TerritorialAnalysisViewModel,
 } from "@/utils/analysis";
 
@@ -18,6 +21,9 @@ interface AnalysisPanelProps {
   onYearChange: (year: string) => void;
   onRankingItemSelect?: (locationKey: string) => void;
   model: TerritorialAnalysisViewModel | null;
+  years?: Record<string, CompactAnalysisYearData>;
+  classes?: CompactAnalysisClass[];
+  selectedState?: string;
   emptyStateTitle?: string;
   emptyStateDescription?: string;
 }
@@ -167,6 +173,9 @@ export function AnalysisPanel({
   onYearChange,
   onRankingItemSelect,
   model,
+  years,
+  classes,
+  selectedState,
   emptyStateTitle,
   emptyStateDescription,
 }: AnalysisPanelProps) {
@@ -274,6 +283,7 @@ export function AnalysisPanel({
               groups={model.rankingGroups}
               onItemSelect={onRankingItemSelect}
             />
+            <TemporalVision years={years} classes={classes} selectedState={selectedState} />
           </section>
         ) : (
           <EmptySection
