@@ -3,8 +3,8 @@ import { Geist, Geist_Mono, Inter } from "next/font/google";
 import { cache } from "react";
 import { Header } from "@/components/Header/Header";
 import { Footer } from "@/components/Footer/Footer";
+import { getContent } from "@/infrastructure/contentful/client";
 import { FooterI, ISections } from "@/utils/interfaces";
-import { getContent } from "@/utils/contentful";
 import { GET_FOOTER_PAGE } from "@/utils/queries";
 import "./globals.css";
 

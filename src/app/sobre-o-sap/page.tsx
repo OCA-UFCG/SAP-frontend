@@ -1,5 +1,5 @@
 import { AboutPartnersTabs } from "@/components/AboutPartnersTabs/AboutPartnersTabs";
-import { getContent } from "@/utils/contentful";
+import { getContent } from "@/infrastructure/contentful/client";
 import type { AboutPageQuery } from "@/utils/interfaces";
 import { GET_ABOUT_PAGE } from "@/utils/queries";
 import { normalizeContentfulImage } from "@/utils/functions";

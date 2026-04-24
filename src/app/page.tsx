@@ -1,4 +1,4 @@
-import { getContent } from "../utils/contentful";
+import { getContent } from "@/infrastructure/contentful/client";
 import { GET_HOME_PAGE } from "../utils/queries";
 import {
   AboutSectionI,

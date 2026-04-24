@@ -10,7 +10,7 @@ vi.mock("next/image", () => ({
   ),
 }));
 
-vi.mock("@/utils/contentful", () => ({
+vi.mock("@/infrastructure/contentful/client", () => ({
   getContent: vi.fn().mockResolvedValue({
     aboutCollection: {
       items: [
