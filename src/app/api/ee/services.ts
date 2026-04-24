@@ -1,9 +1,8 @@
 import ee from "@google/earthengine";
 import { addUrlToCache, buildCacheKey } from "@/app/api/ee/cache";
-import { getContent } from "@/infrastructure/contentful/client";
-import { IMapId, IEEInfo, PanelLayerI } from "@/utils/interfaces";
+import { getPanelLayers } from "@/repositories/platform/panelLayerRepository";
+import { IMapId, IEEInfo } from "@/utils/interfaces";
 import { getImageDataYearKeys, resolveImageYearEntry } from "@/utils/imageData";
-import { GET_PANEL_LAYER } from "@/utils/queries";
 
 // ====== GEE Singleton for Authentication and Initialization ======
 
@@ -220,11 +219,7 @@ let cached = false;
  */
 export const cacheMapData = async () => {
   try {
-    type PanelLayerResponse = {
-      panelLayerCollection: { items: PanelLayerI[] };
-    };
-    const data = await getContent<PanelLayerResponse>(GET_PANEL_LAYER);
-    const panelLayers = data?.panelLayerCollection?.items ?? [];
+    const panelLayers = await getPanelLayers();
 
     for (const layer of panelLayers) {
       const id = layer.id;
