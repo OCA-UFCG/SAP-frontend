@@ -4,8 +4,8 @@ import { useEffect, useMemo } from "react";
 import { AnalysisPanel } from "@/components/analysis/AnalysisPanel";
 import {
   buildEmbeddedTerritorialAnalysisViewModel,
-  buildLegacyTerritorialAnalysisViewModel,
   getAnalysisLegend,
+  getAnalysisLocationName,
   getAnalysisYearOptions,
   getEffectiveAnalysisYear,
 } from "@/components/analysis/analysis.mappers";
@@ -14,31 +14,12 @@ import type { PlatformSection } from "@/components/PlatformSideRail/PlatformSide
 import type { PanelLayerI, IEEInfo } from "@/utils/interfaces";
 import { statesObj } from "@/utils/constants";
 import { resolveStateKeyFromSearch } from "@/utils/functions";
-import droughtData from "../../../public/dados-seca.json";
-import type { ClassificationKey } from "@/utils/constants";
-import { ClassificationCard } from "../ClassificationCard/ClassificationCard";
 
 export interface AnalysisContextProps {
   activeSection: PlatformSection;
   panelLayers?: PanelLayerI[];
   eeConfigs?: IEEInfo[];
   onRequestSectionChange?: (next: PlatformSection) => void;
-}
-
-const CLASSIFICATION_KEYS: ClassificationKey[] = [
-  "sem-seca",
-  "recuperacao-total",
-  "recuperacao-parcial",
-  "observacao",
-  "atencao",
-  "alerta",
-];
-
-export interface LocationData {
-  nome: string;
-  status: Record<ClassificationKey, number>;
-  acontecendo: string;
-  impacto: string[];
 }
 
 export function AnalysisContext({
@@ -64,13 +45,6 @@ export function AnalysisContext({
   }, [panelLayers, activeLayerId]);
 
   const yearOptions = useMemo(() => getAnalysisYearOptions(dataset), [dataset]);
-
-  const locationData = useMemo(() => {
-    return (
-      droughtData[selectedState as keyof typeof droughtData] ||
-      droughtData["br"]
-    );
-  }, [selectedState]);
 
   function handleGoBack() {
     setActiveLayerId(null);
@@ -105,18 +79,12 @@ export function AnalysisContext({
     [dataset, effectiveYear, selectedState],
   );
 
-  const analysisModel = useMemo(
+  const unavailableLocationName = useMemo(
     () =>
-      embeddedModel ?? buildLegacyTerritorialAnalysisViewModel(locationData),
-    [embeddedModel, locationData],
-  );
-
-  const rankingFallback = embeddedModel ? null : (
-    <div className="flex flex-col gap-2">
-      {CLASSIFICATION_KEYS.map((key) => (
-        <ClassificationCard key={key} classificationKey={key} />
-      ))}
-    </div>
+      getAnalysisLocationName(dataset, effectiveYear, selectedState) ??
+      statesObj[selectedState as keyof typeof statesObj] ??
+      (selectedState === "br" ? "Brasil" : selectedState.toUpperCase()),
+    [dataset, effectiveYear, selectedState],
   );
 
   useEffect(() => {
@@ -137,8 +105,9 @@ export function AnalysisContext({
       onSearch={handleSearch}
       onYearChange={setActiveYear}
       onRankingItemSelect={setSelectedState}
-      model={analysisModel}
-      rankingFallback={rankingFallback}
+      model={embeddedModel}
+      emptyStateTitle={`Análise indisponível para ${unavailableLocationName}`}
+      emptyStateDescription={`Os dados de análise para ${unavailableLocationName} ainda não estão disponíveis neste módulo.`}
     />
   );
 }

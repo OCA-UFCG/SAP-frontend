@@ -185,12 +185,6 @@ export interface ChevronI {
   to: Direction;
   size?: number;
 }
-
-export interface MapLegendItem {
-  label: string;
-  classification: string | number;
-  color: string;
-}
 export interface IImageParam {
   color: string;
   pixelLimit?: number;
@@ -241,7 +235,6 @@ export interface IEEInfo {
   poster: { fields: { file: { url: string } } } | string;
   minScale?: number;
   maxScale?: number;
-  graphLegendTitle?: string;
   imageData: ImageDataConfig;
   type: string;
 }

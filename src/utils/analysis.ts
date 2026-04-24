@@ -62,22 +62,6 @@ export interface CompactAnalysisYearData {
   values: Record<string, number[]>;
 }
 
-export interface TerritorialAnalysisLocationData {
-  name: string;
-  accentColor?: string;
-  highlight?: AnalysisHighlight;
-  happening?: string;
-  distribution?: AnalysisDistributionItem[];
-  rankingTitle?: string;
-  rankingGroups?: AnalysisRankingGroup[];
-}
-
-export interface LegacyTerritorialAnalysisDataset {
-  schemaVersion: number;
-  type: "territorial";
-  locations: Record<string, TerritorialAnalysisLocationData>;
-}
-
 export interface CompactTerritorialAnalysisDataset {
   schemaVersion: number;
   type: "territorial-compact";
@@ -89,14 +73,10 @@ export interface CompactTerritorialAnalysisDataset {
   years: Record<string, CompactAnalysisYearData>;
 }
 
-export type TerritorialAnalysisDataset =
-  | LegacyTerritorialAnalysisDataset
-  | CompactTerritorialAnalysisDataset;
-
 export interface LayerAnalysisConfig {
   type: "territorial" | string;
   source?: string;
-  data?: TerritorialAnalysisDataset;
+  data?: CompactTerritorialAnalysisDataset;
 }
 
 export interface TerritorialAnalysisViewModel {

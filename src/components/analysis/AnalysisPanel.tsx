@@ -1,6 +1,5 @@
 "use client";
 
-import type { ReactNode } from "react";
 import { Chevron } from "@/components/Chevron/Chevron";
 import SearchBarPlatform from "@/components/SidePanelContexts/SearchBarPlatform";
 import type {
@@ -19,7 +18,8 @@ interface AnalysisPanelProps {
   onYearChange: (year: string) => void;
   onRankingItemSelect?: (locationKey: string) => void;
   model: TerritorialAnalysisViewModel | null;
-  rankingFallback?: ReactNode;
+  emptyStateTitle?: string;
+  emptyStateDescription?: string;
 }
 
 function renderFormattedText(text: string) {
@@ -99,25 +99,12 @@ function DistributionSection({ items }: { items: AnalysisDistributionItem[] }) {
 function RankingSection({
   title,
   groups,
-  fallback,
   onItemSelect,
 }: {
   title: string;
   groups: AnalysisRankingGroup[];
-  fallback?: ReactNode;
   onItemSelect?: (locationKey: string) => void;
 }) {
-  if (fallback) {
-    return (
-      <div className="flex flex-col gap-2">
-        <h2 className="text-[18px] font-semibold leading-6 text-[#292829]">
-          {title}
-        </h2>
-        {fallback}
-      </div>
-    );
-  }
-
   if (groups.length === 0) {
     return (
       <EmptySection
@@ -180,7 +167,8 @@ export function AnalysisPanel({
   onYearChange,
   onRankingItemSelect,
   model,
-  rankingFallback,
+  emptyStateTitle,
+  emptyStateDescription,
 }: AnalysisPanelProps) {
   return (
     <div className="h-full overflow-y-auto bg-[#F6F7F6] px-4 pt-12 pb-6">
@@ -284,14 +272,16 @@ export function AnalysisPanel({
             <RankingSection
               title={model.rankingTitle ?? "Territórios por classificação"}
               groups={model.rankingGroups}
-              fallback={rankingFallback}
               onItemSelect={onRankingItemSelect}
             />
           </section>
         ) : (
           <EmptySection
-            title="Análise indisponível"
-            description="Esta camada ainda não possui um payload de análise associado."
+            title={emptyStateTitle ?? "Análise indisponível"}
+            description={
+              emptyStateDescription ??
+              "Os dados de análise ainda não estão disponíveis para este local neste módulo."
+            }
           />
         )}
       </div>

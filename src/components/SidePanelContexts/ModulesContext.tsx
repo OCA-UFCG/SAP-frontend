@@ -56,7 +56,6 @@ export function ModulesContext({
     activeData,
     setActiveData,
     activeEEData,
-    activeLegend,
     setActiveEEData,
     setActiveLayerId,
     setActiveLegend,

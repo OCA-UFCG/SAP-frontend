@@ -214,7 +214,7 @@ async function authenticateAndInitialize(): Promise<void> {
 
 // ====== Cache ======
 const TTL = 1000 * 60 * 30; // 0.5 hour in milliseconds
-const CACHE_KEY_VERSION = "v2";
+const CACHE_KEY_VERSION = "v3";
 
 interface CacheEntry {
   url: string;
@@ -224,8 +224,34 @@ interface CacheEntry {
 let cached = false;
 const cacheUrls = new Map<string, CacheEntry>();
 
-export const buildCacheKey = (name: string, year: string) =>
-  `${CACHE_KEY_VERSION}:${name}:${year}`;
+function buildVisualizationSignature(
+  imageId: string,
+  imageParams: Array<any>,
+  minScale?: number,
+  maxScale?: number,
+) {
+  return JSON.stringify({
+    imageId,
+    imageParams,
+    minScale: minScale ?? null,
+    maxScale: maxScale ?? null,
+  });
+}
+
+export const buildCacheKey = (
+  name: string,
+  year: string,
+  imageId: string,
+  imageParams: Array<any>,
+  minScale?: number,
+  maxScale?: number,
+) =>
+  `${CACHE_KEY_VERSION}:${name}:${year}:${buildVisualizationSignature(
+    imageId,
+    imageParams,
+    minScale,
+    maxScale,
+  )}`;
 
 /**
  * Checks if a given key exists in cache.
@@ -304,13 +330,22 @@ export const cacheMapData = async () => {
         const yearConfig = resolveImageYearEntry(imageData, year);
         if (!yearConfig) continue;
 
+        const cacheKey = buildCacheKey(
+          id,
+          year,
+          yearConfig.imageId,
+          yearConfig.imageParams,
+          minScale,
+          maxScale,
+        );
+
         const url = await getEarthEngineUrl(
           yearConfig.imageId,
           yearConfig.imageParams,
           minScale,
           maxScale,
         );
-        addUrlToCache(id + year, url);
+        addUrlToCache(cacheKey, url);
       }
     }
 
