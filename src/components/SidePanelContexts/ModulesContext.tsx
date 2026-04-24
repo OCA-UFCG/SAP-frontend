@@ -38,10 +38,10 @@ function buildLayerDatasets(panelLayers: PanelLayerI[]): LayerDataset[] {
 function ContextHeader() {
   return (
     <header className="flex flex-col gap-2">
-      <h2 className="font-['Inter'] font-semibold text-[24px] leading-[24px] tracking-[-0.015em] text-[#292829]">
+      <h2 className="font-inter font-semibold text-[24px] leading-[24px] tracking-[-0.015em] text-[#292829]">
         O que você deseja monitorar?
       </h2>
-      <p className="font-['Inter'] font-medium text-[16px] leading-[24px] tracking-[-0.015em] text-[#292829]">
+      <p className="font-inter font-medium text-[16px] leading-[24px] tracking-[-0.015em] text-[#292829]">
         Selecione que monitor você deseja analisar
       </p>
     </header>

@@ -63,12 +63,12 @@ export function DroughtDataset({
             style={{ height: 126 }}
           >
             <div className="flex items-center w-full" style={{ height: 24 }}>
-              <span className="w-full font-['Inter'] font-semibold text-[16px] leading-[24px] tracking-[-0.015em] text-[#292829] line-clamp-1">
+              <span className="w-full font-inter font-semibold text-[16px] leading-[24px] tracking-[-0.015em] text-[#292829] line-clamp-1">
                 {card.title}
               </span>
             </div>
             <div className="flex items-start w-full flex-1">
-              <span className="w-full font-['Inter'] font-normal text-[14px] leading-[20px] text-[#7E797B] line-clamp-3 break-words">
+              <span className="w-full font-inter font-normal text-[14px] leading-[20px] text-[#7E797B] line-clamp-3 break-words">
                 {card.description}
               </span>
             </div>
@@ -119,7 +119,7 @@ export function DroughtDataset({
               disabled ? "cursor-not-allowed opacity-60" : "cursor-pointer",
             )}
           >
-            <span className="font-['Open_Sans'] text-[14px] leading-[24px] font-normal text-white">
+            <span className="font-open-sans text-[14px] leading-[24px] font-normal text-white">
               Detalhamento
             </span>
           </button>

@@ -183,10 +183,10 @@ export function AnalysisPanel({
         </button>
 
         <header className="flex flex-col gap-2">
-          <h1 className="font-['Inter'] text-[24px] font-semibold leading-[24px] tracking-[-0.015em]">
+          <h1 className="font-inter text-[24px] font-semibold leading-[24px] tracking-[-0.015em]">
             Análise do módulo {moduleName}
           </h1>
-          <p className="font-['Inter'] text-[16px] font-medium leading-[24px] tracking-[-0.015em]">
+          <p className="font-inter text-[16px] font-medium leading-[24px] tracking-[-0.015em]">
             Pesquise um estado ou cidade para iniciar análise
           </p>
         </header>

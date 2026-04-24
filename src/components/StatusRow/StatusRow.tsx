@@ -17,7 +17,7 @@ export const StatusRow = ({ item }: Props) => {
           backgroundColor: item.color,
           color: getContrastTextColor(item.color),
         }}
-        className="flex items-center justify-center min-w-17 min-h-10 rounded-lg text-[16px] font-semibold font-['Open_Sans']"
+        className="font-open-sans flex items-center justify-center min-w-17 min-h-10 rounded-lg text-[16px] font-semibold"
       >
         {item.value}%
       </div>
