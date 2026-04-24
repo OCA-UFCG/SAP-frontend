@@ -167,7 +167,7 @@ const ABOUT_SECTION_ORDER = ["sobre-seca", "sobre-desertificacao"] as const;
 
 interface FooterContentResponse {
   footerCollection: {
-    items: FooterEntry[];
+    items: Array<FooterEntry | null>;
   };
 }
 
@@ -179,11 +179,11 @@ interface FooterEntry {
 }
 
 interface HomeContentResponse {
-  bannerCollection: { items: IMainBanner[] };
-  aboutCollection: { items: AboutSectionI[] };
-  cabealhoSeesCollection: { items: SectionHeaderI[] };
-  partnersCollection: { items: PartnerI[] };
-  secaoSobreCollection: { items: TabsSectionI[] };
+  bannerCollection: { items: Array<IMainBanner | null> };
+  aboutCollection: { items: Array<AboutSectionI | null> };
+  cabealhoSeesCollection: { items: Array<SectionHeaderI | null> };
+  partnersCollection: { items: Array<PartnerI | null> };
+  secaoSobreCollection: { items: Array<TabsSectionI | null> };
 }
 
 interface ContentfulAboutSectionEntry {
@@ -205,14 +205,18 @@ interface ContentfulAboutSectionEntry {
 
 interface AboutPageResponse {
   secaoSobreCollection: {
-    items: ContentfulAboutSectionEntry[];
+    items: Array<ContentfulAboutSectionEntry | null>;
   };
   cabealhoSeesCollection: {
-    items: SectionHeaderI[];
+    items: Array<SectionHeaderI | null>;
   };
   partnersCollection: {
-    items: PartnerI[];
+    items: Array<PartnerI | null>;
   };
+}
+
+function isDefined<T>(value: T | null | undefined): value is T {
+  return value != null;
 }
 
 export interface HomePageContent {
@@ -252,7 +256,9 @@ export async function getFooterContent(): Promise<FooterI[]> {
   try {
     const data = await getContent<FooterContentResponse>(GET_FOOTER_PAGE);
 
-    return data.footerCollection?.items.map(mapFooterItem) ?? [];
+    return (
+      data.footerCollection?.items.filter(isDefined).map(mapFooterItem) ?? []
+    );
   } catch (error) {
     console.error("Erro ao buscar footer no Contentful:", error);
     return [];
@@ -262,14 +268,21 @@ export async function getFooterContent(): Promise<FooterI[]> {
 export async function getHomePageContent(): Promise<HomePageContent | null> {
   try {
     const data = await getContent<HomeContentResponse>(GET_HOME_PAGE);
+    const bannerItems = data.bannerCollection?.items?.filter(isDefined) ?? [];
+    const aboutItems = data.aboutCollection?.items?.filter(isDefined) ?? [];
+    const headerItems =
+      data.cabealhoSeesCollection?.items?.filter(isDefined) ?? [];
+    const partnerItems =
+      data.partnersCollection?.items?.filter(isDefined) ?? [];
+    const tabsItems = data.secaoSobreCollection?.items?.filter(isDefined) ?? [];
 
     return {
-      mainBanner: data.bannerCollection?.items[0],
-      aboutSection: data.aboutCollection?.items[0],
-      partnersHeader: data.cabealhoSeesCollection?.items[0],
-      partners: data.partnersCollection?.items ?? [],
+      mainBanner: bannerItems[0],
+      aboutSection: aboutItems[0],
+      partnersHeader: headerItems[0],
+      partners: partnerItems,
       tabs: HOME_TAB_ORDER.reduce<TabsSectionI[]>((acc, tabConfig) => {
-        const tab = data.secaoSobreCollection?.items.find(
+        const tab = tabsItems.find(
           (item) => item.identifier === tabConfig.identifier,
         );
 
@@ -294,7 +307,8 @@ export async function getHomePageContent(): Promise<HomePageContent | null> {
 export async function getAboutPageContent(): Promise<AboutPageContent | null> {
   try {
     const data = await getContent<AboutPageResponse>(GET_ABOUT_PAGE);
-    const allSections = data.secaoSobreCollection?.items ?? [];
+    const allSections =
+      data.secaoSobreCollection?.items?.filter(isDefined) ?? [];
     const heroEntry = allSections.find(
       (section) => section.identifier === ABOUT_HERO_IDENTIFIER,
     );
@@ -304,8 +318,9 @@ export async function getAboutPageContent(): Promise<AboutPageContent | null> {
       Boolean(section),
     );
 
-    const partnersHeader = data.cabealhoSeesCollection?.items?.[0];
-    const partners = data.partnersCollection?.items ?? [];
+    const partnersHeader =
+      data.cabealhoSeesCollection?.items?.filter(isDefined)?.[0] ?? null;
+    const partners = data.partnersCollection?.items?.filter(isDefined) ?? [];
 
     if (!partnersHeader) {
       return null;

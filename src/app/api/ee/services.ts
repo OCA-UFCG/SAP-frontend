@@ -212,7 +212,6 @@ async function authenticateAndInitialize(): Promise<void> {
   });
 }
 
-let cached = false;
 let warmupStarted = false;
 /**
  * Fetches and caches map data from Contentful/GEE API sources.
@@ -237,7 +236,14 @@ export const cacheMapData = async () => {
         const yearConfig = resolveImageYearEntry(imageData, year);
         if (!yearConfig) continue;
 
-        const cacheKey = buildCacheKey(id, year);
+        const cacheKey = buildCacheKey(
+          id,
+          year,
+          yearConfig.imageId,
+          yearConfig.imageParams,
+          minScale,
+          maxScale,
+        );
         const url = await getEarthEngineUrl(
           yearConfig.imageId,
           yearConfig.imageParams,
@@ -247,8 +253,6 @@ export const cacheMapData = async () => {
         addUrlToCache(cacheKey, url);
       }
     }
-
-    cached = true;
   } catch (error) {
     // Don’t crash the server on startup if Contentful/GEE is misconfigured.
     console.error("Error caching EE map data:", error);

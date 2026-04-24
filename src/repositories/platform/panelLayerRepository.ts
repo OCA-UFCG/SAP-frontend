@@ -28,14 +28,18 @@ const GET_PANEL_LAYER = `
 `;
 
 interface PanelLayerResponse {
-  panelLayerCollection: { items: PanelLayerI[] };
+  panelLayerCollection: { items: Array<PanelLayerI | null> };
+}
+
+function isDefined<T>(value: T | null | undefined): value is T {
+  return value != null;
 }
 
 export async function getPanelLayers(): Promise<PanelLayerI[]> {
   try {
     const data = await getContent<PanelLayerResponse>(GET_PANEL_LAYER);
 
-    return data.panelLayerCollection?.items ?? [];
+    return data.panelLayerCollection?.items?.filter(isDefined) ?? [];
   } catch (error) {
     console.error("Erro ao buscar camadas da plataforma no Contentful:", error);
     return [];

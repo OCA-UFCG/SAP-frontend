@@ -15,11 +15,20 @@ describe("ee cache", () => {
   });
 
   it("uses the versioned key format consistently", () => {
-    expect(buildCacheKey("layer-a", "2024")).toBe("v2:layer-a:2024");
+    expect(buildCacheKey("layer-a", "2024")).toBe(
+      'v3:layer-a:2024:{"imageId":null,"imageParams":null,"minScale":null,"maxScale":null}',
+    );
   });
 
   it("stores and retrieves cached urls by the generated key", () => {
-    const cacheKey = buildCacheKey("layer-a", "2024");
+    const cacheKey = buildCacheKey(
+      "layer-a",
+      "2024",
+      "projects/example/image",
+      [{ color: "#111111", label: "Legend" }],
+      0,
+      1,
+    );
 
     addUrlToCache(cacheKey, "https://tiles.example/layer-a/2024");
 
@@ -32,7 +41,14 @@ describe("ee cache", () => {
   it("expires entries after the configured ttl", () => {
     vi.useFakeTimers();
 
-    const cacheKey = buildCacheKey("layer-b", "2023");
+    const cacheKey = buildCacheKey(
+      "layer-b",
+      "2023",
+      "projects/example/image",
+      [{ color: "#222222", label: "Legend" }],
+      5,
+      15,
+    );
     addUrlToCache(cacheKey, "https://tiles.example/layer-b/2023");
 
     vi.advanceTimersByTime(CACHE_TTL_MS + 1);
