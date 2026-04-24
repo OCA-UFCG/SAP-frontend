@@ -1,10 +1,8 @@
 "use client";
-import { useEffect, useMemo, useRef, useState } from "react";
 import { PlatformMapCaption } from "@/components/PlatformMapCaption/PlatformMapCaption";
-import type { CDIVectorData } from "@/components/MapLayerContext/mapLayerState";
+import { useEarthEngineTileLayer } from "./useEarthEngineTileLayer";
 import MapComponent from "../Map/MapComponent";
 import { useMapLayer } from "@/components/MapLayerContext/MapLayerContext";
-import { getImageDataYearKeys } from "@/utils/imageData";
 
 export function PlatformMap() {
   const {
@@ -15,70 +13,7 @@ export function PlatformMap() {
     activeYear,
     setSelectedState,
   } = useMapLayer();
-  const [tileLayer, setTileLayer] = useState<{
-    key: string;
-    url: string;
-  } | null>(null);
-  const latestRequestKeyRef = useRef<string | null>(null);
-
-  const activeEeKey = useMemo(() => {
-    if (!activeEEData) return null;
-    return `${activeEEData.id}:${activeYear}`;
-  }, [activeEEData, activeYear]);
-
-  // Only show tiles when they correspond to the currently selected EE layer + year.
-  const visibleTileLayerUrl =
-    activeEeKey && tileLayer?.key === activeEeKey ? tileLayer.url : undefined;
-
-  useEffect(() => {
-    if (!activeEEData) return;
-
-    const requestKey = `${activeEEData.id}:${activeYear}`;
-    latestRequestKeyRef.current = requestKey;
-
-    const controller = new AbortController();
-
-    const fetchGeeUrl = async () => {
-      const availableYears = getImageDataYearKeys(activeEEData.imageData);
-      if (availableYears.length > 0 && !availableYears.includes(activeYear)) {
-        return; // Wait for activeYear to be updated by MapLayerContext
-      }
-
-      try {
-        const res = await fetch(
-          `/api/ee?name=${activeEEData.id}&year=${activeYear}`,
-          {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify(activeEEData),
-            signal: controller.signal,
-          },
-        );
-
-        const data = await res.json();
-        if (latestRequestKeyRef.current !== requestKey) return;
-
-        if (data.url) {
-          setTileLayer({ key: requestKey, url: data.url });
-        } else {
-          console.error("No GEE tile URL returned");
-          setTileLayer(null);
-        }
-      } catch (err) {
-        if (controller.signal.aborted) return;
-        if (latestRequestKeyRef.current !== requestKey) return;
-
-        console.error("Error fetching GEE tile layer:", err);
-        setTileLayer(null);
-      }
-    };
-
-    fetchGeeUrl();
-
-    return () => {
-      controller.abort();
-    };
-  }, [activeEEData, activeYear]);
+  const visibleTileLayerUrl = useEarthEngineTileLayer(activeEEData, activeYear);
 
   return (
     <div className="absolute inset-0">
