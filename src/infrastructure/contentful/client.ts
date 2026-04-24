@@ -5,8 +5,14 @@ interface ContentfulGraphQLResponse<T> {
   errors?: Array<{ message?: string }>;
 }
 
-function getEnvValue(primaryKey: string, fallbackKey?: string): string | undefined {
-  return process.env[primaryKey] ?? (fallbackKey ? process.env[fallbackKey] : undefined);
+function getEnvValue(
+  primaryKey: string,
+  fallbackKey?: string,
+): string | undefined {
+  return (
+    process.env[primaryKey] ??
+    (fallbackKey ? process.env[fallbackKey] : undefined)
+  );
 }
 
 function getRequiredEnvValue(primaryKey: string, fallbackKey?: string): string {
@@ -22,12 +28,27 @@ function getRequiredEnvValue(primaryKey: string, fallbackKey?: string): string {
 }
 
 function getContentfulConfig() {
-  const usePreview = getEnvValue("CONTENTFUL_PREVIEW", "NEXT_PUBLIC_CONTENTFUL_PREVIEW") === "true";
-  const spaceId = getRequiredEnvValue("CONTENTFUL_SPACE_ID", "NEXT_PUBLIC_CONTENTFUL_SPACE_ID");
-  const environment = getEnvValue("CONTENTFUL_ENVIRONMENT", "NEXT_PUBLIC_CONTENTFUL_ENVIRONMENT") ?? "master";
+  const usePreview =
+    getEnvValue("CONTENTFUL_PREVIEW", "NEXT_PUBLIC_CONTENTFUL_PREVIEW") ===
+    "true";
+  const spaceId = getRequiredEnvValue(
+    "CONTENTFUL_SPACE_ID",
+    "NEXT_PUBLIC_CONTENTFUL_SPACE_ID",
+  );
+  const environment =
+    getEnvValue(
+      "CONTENTFUL_ENVIRONMENT",
+      "NEXT_PUBLIC_CONTENTFUL_ENVIRONMENT",
+    ) ?? "master";
   const accessToken = usePreview
-    ? getRequiredEnvValue("CONTENTFUL_PREVIEW_TOKEN", "NEXT_PUBLIC_CONTENTFUL_PREVIEW_TOKEN")
-    : getRequiredEnvValue("CONTENTFUL_ACCESS_TOKEN", "NEXT_PUBLIC_CONTENTFUL_ACCESS_TOKEN");
+    ? getRequiredEnvValue(
+        "CONTENTFUL_PREVIEW_TOKEN",
+        "NEXT_PUBLIC_CONTENTFUL_PREVIEW_TOKEN",
+      )
+    : getRequiredEnvValue(
+        "CONTENTFUL_ACCESS_TOKEN",
+        "NEXT_PUBLIC_CONTENTFUL_ACCESS_TOKEN",
+      );
 
   return {
     accessToken,

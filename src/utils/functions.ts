@@ -108,7 +108,6 @@ export function resolveStateKeyFromSearch(
   return { type: "br", key: "br" };
 }
 
-
 /**
  * Busca os dados de seca a partir de uma chave (UF ou 'br')
  * @param key - Sigla do estado em minúsculo (ex: 'mg', 'sp', 'br')

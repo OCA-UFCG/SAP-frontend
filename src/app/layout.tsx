@@ -24,7 +24,6 @@ const inter = Inter({
   weight: ["400", "500", "600"],
 });
 
-
 interface FooterContent {
   footerCollection: {
     items: FooterEntry[];

@@ -1,37 +1,20 @@
 import { NextResponse } from "next/server";
 import type { NextRequest } from "next/server";
-import { IEEInfo } from "@/utils/interfaces";
-import { resolveImageYearEntry } from "@/utils/imageData";
 import {
   addUrlToCache,
   buildCacheKey,
-  getEarthEngineUrl,
-  hasKey,
   getCachedUrl,
-} from "@/app/api/ee/services";
+  hasKey,
+} from "@/app/api/ee/cache";
+import { IEEInfo } from "@/utils/interfaces";
+import { resolveImageYearEntry } from "@/utils/imageData";
+import { getEarthEngineUrl } from "@/app/api/ee/services";
 
 export async function POST(req: NextRequest) {
   try {
     const name = req.nextUrl.searchParams.get("name") || "";
     const year = req.nextUrl.searchParams.get("year") || "";
-    const imageInfo: IEEInfo = await req.json();
-    const yearConfig = resolveImageYearEntry(imageInfo.imageData, year);
-
-    if (!yearConfig) {
-      return NextResponse.json(
-        { error: `Year ${year} not found for layer ${name}` },
-        { status: 400 },
-      );
-    }
-
-    const cacheKey = buildCacheKey(
-      name,
-      year,
-      yearConfig.imageId,
-      yearConfig.imageParams,
-      imageInfo.minScale,
-      imageInfo.maxScale,
-    );
+    const cacheKey = buildCacheKey(name, year);
 
     if (hasKey(cacheKey)) {
       console.log(new Date().toISOString(), " - Getting URL on cache");
@@ -40,6 +23,16 @@ export async function POST(req: NextRequest) {
 
       return NextResponse.json({ url }, { status: 200 });
     } else {
+      const imageInfo: IEEInfo = await req.json();
+      const yearConfig = resolveImageYearEntry(imageInfo.imageData, year);
+
+      if (!yearConfig) {
+        return NextResponse.json(
+          { error: `Year ${year} not found for layer ${name}` },
+          { status: 400 },
+        );
+      }
+
       console.log(new Date().toISOString(), " - Starting URL queries");
 
       const url = await getEarthEngineUrl(

@@ -16,9 +16,11 @@ vi.mock("@/infrastructure/contentful/client", () => ({
       items: [
         {
           title: "Sobre Nós",
-          text: { json: {
-            content: []
-          } },
+          text: {
+            json: {
+              content: [],
+            },
+          },
           image: { url: "https://example.com/image.png" },
         },
       ],

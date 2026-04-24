@@ -1,4 +1,5 @@
 import ee from "@google/earthengine";
+import { addUrlToCache, buildCacheKey } from "@/app/api/ee/cache";
 import { getContent } from "@/infrastructure/contentful/client";
 import { IMapId, IEEInfo, PanelLayerI } from "@/utils/interfaces";
 import { getImageDataYearKeys, resolveImageYearEntry } from "@/utils/imageData";
@@ -212,71 +213,7 @@ async function authenticateAndInitialize(): Promise<void> {
   });
 }
 
-// ====== Cache ======
-const TTL = 1000 * 60 * 30; // 0.5 hour in milliseconds
-const CACHE_KEY_VERSION = "v2";
-
-interface CacheEntry {
-  url: string;
-  timestamp: number;
-}
-
 let cached = false;
-const cacheUrls = new Map<string, CacheEntry>();
-
-export const buildCacheKey = (name: string, year: string) =>
-  `${CACHE_KEY_VERSION}:${name}:${year}`;
-
-/**
- * Checks if a given key exists in cache.
- * @param {string} key - The unique key to be search in the cache.
- * @returns {boolean} - True if the key exists, false otherwise.
- */
-export const hasKey = (key: string) => {
-  const entry = cacheUrls.get(key);
-  if (!entry) {
-    return false;
-  }
-
-  // Check if the entry has expired
-  const expired = Date.now() - entry.timestamp > TTL;
-  if (expired) {
-    cacheUrls.delete(key); // Clean up expired entry
-  }
-
-  return !expired;
-};
-
-/**
- * Retrieves the caches URL for a given key.
- * @param {string} key - The unique key that refers to the URL to be returned.
- * @return {string | undefined} - The cached URL or undefined if the url is not present or has expired.
- */
-export const getCachedUrl = (key: string) => {
-  // The hasKey function also handles expiration checks and cleanup
-  return cacheUrls.get(key)?.url || undefined;
-};
-
-/**
- * Removes a URL from the cache for a given key.
- * @param {string} key - The unique key that refers to the URL to be removed.
- */
-export const removeCacheUrl = (key: string) => cacheUrls.delete(key);
-
-/**
- * Adds a url to the cache, based on a key composed by the name and year of the map visualization.
- * @param {string} key - The unique key that refers to the URL to be returned.
- * @param {string} url - The URL to cache.
- */
-export const addUrlToCache = (key: string, url: string | null) => {
-  if (url) {
-    const entry: CacheEntry = { url, timestamp: Date.now() };
-    cacheUrls.set(key, entry);
-  } else {
-    cacheUrls.delete(key);
-  }
-};
-
 /**
  * Fetches and caches map data from Contentful/GEE API sources.
  * Runs recursively every 12 hours to keep the cache updated.
@@ -304,13 +241,14 @@ export const cacheMapData = async () => {
         const yearConfig = resolveImageYearEntry(imageData, year);
         if (!yearConfig) continue;
 
+        const cacheKey = buildCacheKey(id, year);
         const url = await getEarthEngineUrl(
           yearConfig.imageId,
           yearConfig.imageParams,
           minScale,
           maxScale,
         );
-        addUrlToCache(id + year, url);
+        addUrlToCache(cacheKey, url);
       }
     }
 
