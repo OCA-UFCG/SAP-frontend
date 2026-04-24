@@ -1,17 +1,24 @@
-import { classificationMeta } from "@/utils/constants";
-import type { ClassificationKey } from "@/utils/constants";
-import type { SecaData, PanelLayerI } from "@/utils/interfaces";
+import type { PanelLayerI } from "@/utils/interfaces";
 import type {
   AnalysisDistributionItem,
+  AnalysisHighlight,
+  AnalysisRankingEntry,
+  AnalysisRankingGroup,
   AnalysisYearOption,
-  LayerAnalysisConfig,
+  CompactTerritorialAnalysisDataset,
   TerritorialAnalysisViewModel,
 } from "@/utils/analysis";
+import {
+  getImageDataDefaultYear,
+  getImageDataLegend,
+  getImageDataYearKeys,
+  isCompactImageData,
+  resolveImageYearEntry,
+} from "@/utils/imageData";
 
-function getImageDataYearLabel(
-  key: string,
-  entry?: PanelLayerI["imageData"][string],
-): string {
+function getImageDataYearLabel(key: string, dataset?: PanelLayerI): string {
+  const entry = resolveImageYearEntry(dataset?.imageData, key);
+
   if (entry?.year?.trim()) {
     return entry.year.trim();
   }
@@ -19,55 +26,249 @@ function getImageDataYearLabel(
   return key === "general" ? "Padrão" : key;
 }
 
-const LEGACY_DISTRIBUTION_CONFIG: Record<ClassificationKey, { label: string; color: string }> = {
-  "sem-seca": { label: "Sem seca", color: "#F0F0D7" },
-  observacao: { label: "Observação", color: "#FECB89" },
-  atencao: { label: "Atenção", color: "#FC8F23" },
-  alerta: { label: "Seca severa", color: "#B52C08" },
-  "recuperacao-total": { label: "Recuperação Total", color: "#B4BA61" },
-  "recuperacao-parcial": { label: "Recuperação Parcial", color: "#5B612A" },
+const DEFAULT_HAPPENING_TEMPLATES = {
+  country:
+    "No Brasil, predomina a classe {label} com {value}% da área analisada.",
+  state:
+    "Em {name}, predomina a classe {label} com {value}% da área analisada.",
+  highlight: "Região maioritariamente {label}",
 };
 
-function getPredominantClassification(
-  status: Record<ClassificationKey, number>,
-): ClassificationKey {
-  return (Object.entries(status) as [ClassificationKey, number][]).reduce(
-    (max, cur) => (cur[1] > max[1] ? cur : max),
-  )[0];
+const DEFAULT_RANKING_TITLE = "Estados por classe predominante";
+const DEFAULT_RANKING_TOTAL_LABEL = "Estados";
+
+function formatTemplate(
+  template: string,
+  replacements: Record<string, string>,
+): string {
+  return template.replace(/\{(\w+)\}/g, (_, token: string) => {
+    return replacements[token] ?? "";
+  });
 }
 
-function buildLegacyDistributionItems(
-  status: Record<ClassificationKey, number>,
+function buildCompactDistributionItems(
+  data: CompactTerritorialAnalysisDataset,
+  locationKey: string,
+  yearKey: string,
 ): AnalysisDistributionItem[] {
-  return Object.entries(status).map(([key, rawValue]) => {
-    const config = LEGACY_DISTRIBUTION_CONFIG[key as ClassificationKey];
+  const yearData = data.years[yearKey];
+  const values = yearData?.values[locationKey];
 
-    return {
-      id: key,
-      label: config.label,
-      value: Number(((rawValue as number) * 100).toFixed(1)),
-      color: config.color,
-    };
-  });
+  if (!yearData || !values) {
+    return [];
+  }
+
+  const scale = yearData.valuesScale ?? 1;
+
+  return data.classes.map((item, index) => ({
+    id: item.id,
+    label: item.label,
+    color: item.color,
+    value: Number((((values[index] ?? 0) as number) / scale).toFixed(1)),
+  }));
 }
 
-export function getAnalysisYearOptions(dataset?: PanelLayerI): AnalysisYearOption[] {
-  const keys = Object.keys(dataset?.imageData ?? {});
-  const yearKeys = keys.filter((key) => key !== "general");
+function getDominantDistributionItem(
+  items: AnalysisDistributionItem[],
+): AnalysisDistributionItem | null {
+  if (items.length === 0) {
+    return null;
+  }
 
-  yearKeys.sort((left, right) => {
-    const leftNumber = Number(left);
-    const rightNumber = Number(right);
-    const bothNumeric = Number.isFinite(leftNumber) && Number.isFinite(rightNumber);
+  return items.reduce((max, current) =>
+    current.value > max.value ? current : max,
+  );
+}
 
-    return bothNumeric ? leftNumber - rightNumber : left.localeCompare(right);
-  });
+function getCompactLocationName(
+  data: CompactTerritorialAnalysisDataset,
+  locationKey: string,
+): string {
+  return (
+    data.locations?.[locationKey] ??
+    (locationKey === "br" ? "Brasil" : locationKey)
+  );
+}
 
-  const ordered = keys.includes("general") ? ["general", ...yearKeys] : yearKeys;
+function getCompactAnalysisDataset(
+  dataset: PanelLayerI | undefined,
+  effectiveYear: string | null,
+): CompactTerritorialAnalysisDataset | null {
+  if (!dataset?.imageData || !effectiveYear) {
+    return null;
+  }
+
+  if (isCompactImageData(dataset.imageData)) {
+    return dataset.imageData;
+  }
+
+  const analysis = resolveImageYearEntry(
+    dataset.imageData,
+    effectiveYear,
+  )?.analysis;
+
+  if (
+    !analysis ||
+    analysis.type !== "territorial" ||
+    !analysis.data ||
+    analysis.data.type !== "territorial-compact"
+  ) {
+    return null;
+  }
+
+  return analysis.data;
+}
+
+function buildCompactHighlight(
+  data: CompactTerritorialAnalysisDataset,
+  dominant: AnalysisDistributionItem | null,
+): AnalysisHighlight | null {
+  if (!dominant) {
+    return null;
+  }
+
+  const compactClass = data.classes.find((item) => item.id === dominant.id);
+
+  if (!compactClass) {
+    return null;
+  }
+
+  return {
+    label: compactClass.label,
+    text: formatTemplate(
+      data.templates?.highlight ?? DEFAULT_HAPPENING_TEMPLATES.highlight,
+      { label: compactClass.label },
+    ),
+    tone: compactClass.tone ?? {
+      bg: "#F5F5F5",
+      color: compactClass.color,
+      border: compactClass.color,
+    },
+  };
+}
+
+function buildCompactRankingGroups(
+  data: CompactTerritorialAnalysisDataset,
+  yearKey: string,
+  locationKey: string,
+): AnalysisRankingGroup[] {
+  if (locationKey !== "br") {
+    return [];
+  }
+
+  const yearData = data.years[yearKey];
+
+  if (!yearData) {
+    return [];
+  }
+
+  const groups = new Map<string, AnalysisRankingEntry[]>();
+
+  for (const [entryKey] of Object.entries(yearData.values)) {
+    if (entryKey === "br") {
+      continue;
+    }
+
+    const distribution = buildCompactDistributionItems(data, entryKey, yearKey);
+    const dominant = getDominantDistributionItem(distribution);
+
+    if (!dominant) {
+      continue;
+    }
+
+    const items = groups.get(dominant.id) ?? [];
+    items.push({
+      id: entryKey,
+      label: getCompactLocationName(data, entryKey),
+      trailingLabel: String(dominant.value),
+    });
+    groups.set(dominant.id, items);
+  }
+
+  const rankingGroups: AnalysisRankingGroup[] = [];
+
+  for (const item of data.classes) {
+    const entries = groups.get(item.id);
+
+    if (!entries || entries.length === 0) {
+      continue;
+    }
+
+    entries.sort((left, right) => {
+      return Number(right.trailingLabel ?? 0) - Number(left.trailingLabel ?? 0);
+    });
+
+    rankingGroups.push({
+      id: item.id,
+      label: item.label,
+      total: entries.length,
+      totalLabel: data.ranking?.totalLabel ?? DEFAULT_RANKING_TOTAL_LABEL,
+      items: entries.map((entry) => ({
+        ...entry,
+        trailingLabel: `${Number(entry.trailingLabel ?? 0).toFixed(1)}%`,
+      })),
+    });
+  }
+
+  return rankingGroups;
+}
+
+function buildCompactTerritorialAnalysisViewModel(
+  data: CompactTerritorialAnalysisDataset,
+  yearKey: string,
+  locationKey: string,
+): TerritorialAnalysisViewModel | null {
+  if (!data.years[yearKey]?.values[locationKey]) {
+    return null;
+  }
+
+  const resolvedLocationKey = locationKey;
+  const distribution = buildCompactDistributionItems(
+    data,
+    resolvedLocationKey,
+    yearKey,
+  );
+  const dominant = getDominantDistributionItem(distribution);
+  const highlight = buildCompactHighlight(data, dominant);
+  const name = getCompactLocationName(data, resolvedLocationKey);
+  const happeningTemplate =
+    resolvedLocationKey === "br"
+      ? (data.templates?.country ?? DEFAULT_HAPPENING_TEMPLATES.country)
+      : (data.templates?.state ?? DEFAULT_HAPPENING_TEMPLATES.state);
+
+  return {
+    kind: "territorial",
+    name,
+    accentColor: dominant?.color ?? "#292829",
+    highlight,
+    happening: dominant
+      ? formatTemplate(happeningTemplate, {
+          name,
+          label: dominant.label,
+          value: dominant.value.toFixed(1),
+        })
+      : "",
+    distribution,
+    rankingTitle:
+      resolvedLocationKey === "br"
+        ? (data.ranking?.title ?? DEFAULT_RANKING_TITLE)
+        : undefined,
+    rankingGroups: buildCompactRankingGroups(
+      data,
+      yearKey,
+      resolvedLocationKey,
+    ),
+  };
+}
+
+export function getAnalysisYearOptions(
+  dataset?: PanelLayerI,
+): AnalysisYearOption[] {
+  const ordered = getImageDataYearKeys(dataset?.imageData);
 
   return ordered.map((value) => ({
     value,
-    label: getImageDataYearLabel(value, dataset?.imageData?.[value]),
+    label: getImageDataYearLabel(value, dataset),
   }));
 }
 
@@ -76,75 +277,54 @@ export function getEffectiveAnalysisYear(
   activeYear: string,
 ): string | null {
   if (!dataset?.imageData) return null;
-  if (activeYear && dataset.imageData[activeYear]) return activeYear;
+  const years = getImageDataYearKeys(dataset.imageData);
 
-  const entries = Object.entries(dataset.imageData);
-  const defaultEntry = entries.find(([, value]) => value.default) ?? entries[0];
+  if (activeYear && years.includes(activeYear)) {
+    return activeYear;
+  }
 
-  return defaultEntry?.[0] ?? null;
+  return getImageDataDefaultYear(dataset.imageData);
 }
 
-export function getAnalysisConfig(
+export function getAnalysisLegend(
   dataset: PanelLayerI | undefined,
   effectiveYear: string | null,
-): LayerAnalysisConfig | undefined {
-  if (!dataset?.imageData || !effectiveYear) return undefined;
+) {
+  if (!dataset?.imageData) {
+    return null;
+  }
 
-  return dataset.imageData[effectiveYear]?.analysis;
+  return getImageDataLegend(dataset.imageData, effectiveYear);
 }
 
 export function buildEmbeddedTerritorialAnalysisViewModel(
-  config: LayerAnalysisConfig | undefined,
+  dataset: PanelLayerI | undefined,
+  effectiveYear: string | null,
   locationKey: string,
 ): TerritorialAnalysisViewModel | null {
-  if (!config || config.type !== "territorial" || !config.data) {
+  const compactAnalysis = getCompactAnalysisDataset(dataset, effectiveYear);
+
+  if (!compactAnalysis || !effectiveYear) {
     return null;
   }
 
-  const location =
-    config.data.locations[locationKey] ?? config.data.locations.br ?? null;
-
-  if (!location) {
-    return null;
-  }
-
-  return {
-    kind: "territorial",
-    name: location.name,
-    accentColor:
-      location.accentColor ?? location.highlight?.tone.color ?? "#292829",
-    highlight: location.highlight ?? null,
-    happening: location.happening ?? "",
-    distribution: location.distribution ?? [],
-    rankingTitle: location.rankingTitle,
-    rankingGroups: location.rankingGroups ?? [],
-    temporalSections: location.temporalSections ?? [],
-  };
+  return buildCompactTerritorialAnalysisViewModel(
+    compactAnalysis,
+    effectiveYear,
+    locationKey,
+  );
 }
 
-export function buildLegacyTerritorialAnalysisViewModel(
-  locationData: SecaData & { nome: string },
-): TerritorialAnalysisViewModel {
-  const predominantKey = getPredominantClassification(locationData.status);
-  const predominantMeta = classificationMeta[predominantKey];
+export function getAnalysisLocationName(
+  dataset: PanelLayerI | undefined,
+  effectiveYear: string | null,
+  locationKey: string,
+): string | null {
+  const compactAnalysis = getCompactAnalysisDataset(dataset, effectiveYear);
 
-  return {
-    kind: "territorial",
-    name: locationData.nome,
-    accentColor: predominantMeta.color,
-    highlight: {
-      label: predominantMeta.label,
-      text: `Região maioritariamente ${predominantMeta.label}`,
-      tone: {
-        color: predominantMeta.color,
-        bg: predominantMeta.bg,
-        border: predominantMeta.border,
-      },
-    },
-    happening: locationData.acontecendo,
-    distribution: buildLegacyDistributionItems(locationData.status),
-    rankingTitle: "Estados por classificação",
-    rankingGroups: [],
-    temporalSections: [],
-  };
+  if (!compactAnalysis) {
+    return null;
+  }
+
+  return getCompactLocationName(compactAnalysis, locationKey);
 }

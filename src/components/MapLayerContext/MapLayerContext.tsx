@@ -2,6 +2,7 @@
 import { createContext, useContext, useState } from "react";
 import { CDIVectorData } from "@/components/PlatformMap/PlatformMap";
 import { IEEInfo, IImageParam } from "@/utils/interfaces";
+import { getImageDataDefaultYear } from "@/utils/imageData";
 
 interface MapLayerContextValue {
   activeData: CDIVectorData | null;
@@ -36,16 +37,12 @@ export function MapLayerProvider({ children }: { children: React.ReactNode }) {
       return;
     }
 
-    const imageData = data.imageData || {};
-    const years = Object.keys(imageData);
-    if (years.length === 0) {
+    const defaultYear = getImageDataDefaultYear(data.imageData);
+
+    if (!defaultYear) {
       setActiveYear("general");
       return;
     }
-
-    const defaultFromFlag = years.find((year) => imageData[year]?.default);
-    const defaultYear =
-      defaultFromFlag ?? (years.includes("general") ? "general" : years[0]);
 
     setActiveYear(defaultYear);
   };

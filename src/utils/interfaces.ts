@@ -1,5 +1,8 @@
 import { Document } from "@contentful/rich-text-types";
-import type { LayerAnalysisConfig } from "@/utils/analysis";
+import type {
+  CompactTerritorialAnalysisDataset,
+  LayerAnalysisConfig,
+} from "@/utils/analysis";
 
 export interface DataCardsI {
   noDroughtAreaValue: number;
@@ -175,19 +178,33 @@ export interface SecaRootObject {
   [key: string]: SecaData;
 }
 
-type Direction = "up" | "down" | "right" | "left"
+type Direction = "up" | "down" | "right" | "left";
 export interface ChevronI {
-  open: boolean,
-  from: Direction,
-  to: Direction,
-  size?: number
+  open: boolean;
+  from: Direction;
+  to: Direction;
+  size?: number;
+}
+export interface IImageParam {
+  color: string;
+  pixelLimit?: number;
+  label: string;
 }
 
-export interface  MapLegendItem {
-  label: string
-  classification: string | number
-  color: string
-};
+export interface LegacyImageDataEntry {
+  default: boolean;
+  year?: string;
+  imageId: string;
+  imageParams: IImageParam[];
+  analysis?: LayerAnalysisConfig;
+}
+
+export type LegacyImageDataMap = Record<string, LegacyImageDataEntry>;
+
+export type ImageDataConfig =
+  | LegacyImageDataMap
+  | CompactTerritorialAnalysisDataset;
+
 export interface PanelLayerI {
   sys: {
     id: string;
@@ -202,23 +219,10 @@ export interface PanelLayerI {
     width?: number;
     height?: number;
   };
-  imageData: {
-    [year: string]: {
-      default: boolean;
-      year?: string;
-      imageId: string;
-      imageParams: IImageParam[];
-      analysis?: LayerAnalysisConfig;
-    };
-  };
+  imageData: ImageDataConfig;
   minScale?: number;
   maxScale?: number;
   years: string[];
-}
-export interface IImageParam {
-  color: string;
-  pixelLimit?: number;
-  label: string;
 }
 
 export interface IEEInfo {
@@ -231,16 +235,7 @@ export interface IEEInfo {
   poster: { fields: { file: { url: string } } } | string;
   minScale?: number;
   maxScale?: number;
-  graphLegendTitle?: string;
-  imageData: {
-    [year: string]: {
-      default: boolean;
-      year?: string;
-      imageId: string;
-      imageParams: IImageParam[];
-      analysis?: LayerAnalysisConfig;
-    };
-  };
+  imageData: ImageDataConfig;
   type: string;
 }
 

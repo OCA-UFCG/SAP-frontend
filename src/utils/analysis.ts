@@ -36,42 +36,47 @@ export interface AnalysisRankingGroup {
   items: AnalysisRankingEntry[];
 }
 
-export interface AnalysisTemporalPoint {
+export interface CompactAnalysisClass {
   id: string;
   label: string;
-  shortLabel?: string;
   color: string;
+  tone?: AnalysisTone;
+  pixelLimit?: number;
 }
 
-export interface AnalysisTemporalSection {
-  id: string;
-  title: string;
-  description?: string;
-  points: AnalysisTemporalPoint[];
-  legend?: Array<Pick<AnalysisDistributionItem, "id" | "label" | "color">>;
+export interface CompactAnalysisTemplates {
+  country?: string;
+  state?: string;
+  highlight?: string;
 }
 
-export interface TerritorialAnalysisLocationData {
-  name: string;
-  accentColor?: string;
-  highlight?: AnalysisHighlight;
-  happening?: string;
-  distribution?: AnalysisDistributionItem[];
-  rankingTitle?: string;
-  rankingGroups?: AnalysisRankingGroup[];
-  temporalSections?: AnalysisTemporalSection[];
+export interface CompactAnalysisRankingConfig {
+  title?: string;
+  totalLabel?: string;
 }
 
-export interface TerritorialAnalysisDataset {
+export interface CompactAnalysisYearData {
+  imageId: string;
+  year?: string;
+  valuesScale?: number;
+  values: Record<string, number[]>;
+}
+
+export interface CompactTerritorialAnalysisDataset {
   schemaVersion: number;
-  type: "territorial";
-  locations: Record<string, TerritorialAnalysisLocationData>;
+  type: "territorial-compact";
+  defaultYear?: string;
+  classes: CompactAnalysisClass[];
+  locations?: Record<string, string>;
+  templates?: CompactAnalysisTemplates;
+  ranking?: CompactAnalysisRankingConfig;
+  years: Record<string, CompactAnalysisYearData>;
 }
 
 export interface LayerAnalysisConfig {
   type: "territorial" | string;
   source?: string;
-  data?: TerritorialAnalysisDataset;
+  data?: CompactTerritorialAnalysisDataset;
 }
 
 export interface TerritorialAnalysisViewModel {
@@ -83,5 +88,4 @@ export interface TerritorialAnalysisViewModel {
   distribution: AnalysisDistributionItem[];
   rankingTitle?: string;
   rankingGroups: AnalysisRankingGroup[];
-  temporalSections: AnalysisTemporalSection[];
 }

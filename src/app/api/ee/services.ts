@@ -1,6 +1,7 @@
 import ee from "@google/earthengine";
 import { IMapId, IEEInfo, PanelLayerI } from "@/utils/interfaces";
 import { getContent } from "@/utils/contentful";
+import { getImageDataYearKeys, resolveImageYearEntry } from "@/utils/imageData";
 import { GET_PANEL_LAYER } from "@/utils/queries";
 
 // ====== GEE Singleton for Authentication and Initialization ======
@@ -213,7 +214,7 @@ async function authenticateAndInitialize(): Promise<void> {
 
 // ====== Cache ======
 const TTL = 1000 * 60 * 30; // 0.5 hour in milliseconds
-const CACHE_KEY_VERSION = "v2";
+const CACHE_KEY_VERSION = "v3";
 
 interface CacheEntry {
   url: string;
@@ -223,8 +224,34 @@ interface CacheEntry {
 let cached = false;
 const cacheUrls = new Map<string, CacheEntry>();
 
-export const buildCacheKey = (name: string, year: string) =>
-  `${CACHE_KEY_VERSION}:${name}:${year}`;
+function buildVisualizationSignature(
+  imageId: string,
+  imageParams: Array<any>,
+  minScale?: number,
+  maxScale?: number,
+) {
+  return JSON.stringify({
+    imageId,
+    imageParams,
+    minScale: minScale ?? null,
+    maxScale: maxScale ?? null,
+  });
+}
+
+export const buildCacheKey = (
+  name: string,
+  year: string,
+  imageId: string,
+  imageParams: Array<any>,
+  minScale?: number,
+  maxScale?: number,
+) =>
+  `${CACHE_KEY_VERSION}:${name}:${year}:${buildVisualizationSignature(
+    imageId,
+    imageParams,
+    minScale,
+    maxScale,
+  )}`;
 
 /**
  * Checks if a given key exists in cache.
@@ -299,9 +326,18 @@ export const cacheMapData = async () => {
       const minScale = layer.minScale;
       const maxScale = layer.maxScale;
 
-      for (const year of Object.keys(imageData)) {
-        const yearConfig = imageData[year];
+      for (const year of getImageDataYearKeys(imageData)) {
+        const yearConfig = resolveImageYearEntry(imageData, year);
         if (!yearConfig) continue;
+
+        const cacheKey = buildCacheKey(
+          id,
+          year,
+          yearConfig.imageId,
+          yearConfig.imageParams,
+          minScale,
+          maxScale,
+        );
 
         const url = await getEarthEngineUrl(
           yearConfig.imageId,
@@ -309,7 +345,7 @@ export const cacheMapData = async () => {
           minScale,
           maxScale,
         );
-        addUrlToCache(id + year, url);
+        addUrlToCache(cacheKey, url);
       }
     }
 
