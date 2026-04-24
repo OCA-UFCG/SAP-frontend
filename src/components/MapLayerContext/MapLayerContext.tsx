@@ -10,7 +10,6 @@ import { IEEInfo, IImageParam } from "@/utils/interfaces";
 import {
   activateEeLayerState,
   activateVectorLayerState,
-  CDIVectorData,
   clearActiveLayerState,
   createInitialMapLayerState,
   MapLayerState,
@@ -19,6 +18,7 @@ import {
   setActiveYearValue,
   setSelectedStateValue,
 } from "@/components/MapLayerContext/mapLayerState";
+import type { CDIVectorData } from "@/lib/geo";
 
 interface MapLayerContextValue extends MapLayerState {
   setActiveLegend: (legend: IImageParam[] | null) => void;

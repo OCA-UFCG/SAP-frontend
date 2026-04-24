@@ -10,10 +10,10 @@ import {
   getEffectiveAnalysisYear,
 } from "@/components/analysis/analysis.mappers";
 import { useMapLayer } from "@/components/MapLayerContext/MapLayerContext";
+import { resolveStateKeyFromSearch } from "@/lib/geo";
 import type { PlatformSection } from "@/components/PlatformSideRail/PlatformSideRail";
 import type { PanelLayerI, IEEInfo } from "@/utils/interfaces";
 import { statesObj } from "@/utils/constants";
-import { resolveStateKeyFromSearch } from "@/utils/functions";
 
 export interface AnalysisContextProps {
   activeSection: PlatformSection;

@@ -1,14 +1,6 @@
-import type { FeatureCollection, Geometry } from "geojson";
 import { getImageDataDefaultYear } from "@/utils/imageData";
+import type { CDIVectorData } from "@/lib/geo";
 import type { IEEInfo, IImageParam } from "@/utils/interfaces";
-
-export interface CDIFeatureProperties {
-  classe_cdi: number;
-  first: number;
-  [key: string]: unknown;
-}
-
-export type CDIVectorData = FeatureCollection<Geometry, CDIFeatureProperties>;
 
 export interface MapLayerState {
   activeData: CDIVectorData | null;

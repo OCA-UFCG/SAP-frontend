@@ -2,10 +2,10 @@
 
 import { useMemo } from "react";
 import { useMapLayer } from "@/components/MapLayerContext/MapLayerContext";
-import type { CDIVectorData } from "@/components/MapLayerContext/mapLayerState";
 import { DroughtDataset } from "@/components/DroughtDataset/DroughtDataset";
 import type { IDroughtDataset } from "@/components/DroughtDataset/DroughtDataset";
 import type { PlatformSection } from "@/components/PlatformSideRail/PlatformSideRail";
+import type { CDIVectorData } from "@/lib/geo";
 import type { IEEInfo, PanelLayerI } from "@/utils/interfaces";
 import { getImageDataLegend } from "@/utils/imageData";
 import cdiData from "../../data/CDI_Janeiro_2024_Vetores.json";
