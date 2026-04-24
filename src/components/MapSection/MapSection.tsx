@@ -153,10 +153,7 @@ export default function DroughtSection() {
           </article>
 
           {/* Pie Chart Component */}
-          <AlertTiers
-            items={statusItems}
-            onToggle={(id, checked) => console.log(`Toggled ${id}: ${checked}`)}
-          />
+          <AlertTiers items={statusItems} />
         </div>
       </div>
     </section>

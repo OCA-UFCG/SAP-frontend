@@ -70,7 +70,7 @@ describe("siteContentRepository", () => {
           },
         ],
       },
-    } as any);
+    });
 
     const footer = await getFooterContent();
 
@@ -156,7 +156,7 @@ describe("siteContentRepository", () => {
           },
         ],
       },
-    } as any);
+    });
 
     const content = await getHomePageContent();
 
@@ -193,7 +193,7 @@ describe("siteContentRepository", () => {
         ],
       },
       partnersCollection: { items: [] },
-    } as any);
+    });
 
     const about = await getAboutPageContent();
 

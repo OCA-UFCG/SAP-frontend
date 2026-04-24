@@ -1,9 +1,8 @@
 "use client";
 
 import dynamic from "next/dynamic";
-// eslint-disable-next-line @typescript-eslint/no-unused-vars
 
-const MapComponent = dynamic(() =>  import("./Map"), {
+const MapComponent = dynamic(() => import("./Map"), {
   loading: () => (
     <div>
       <p>A map is loading</p>
@@ -12,4 +11,4 @@ const MapComponent = dynamic(() =>  import("./Map"), {
   ssr: false,
 });
 
-export default MapComponent
+export default MapComponent;

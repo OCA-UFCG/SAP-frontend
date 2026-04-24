@@ -46,7 +46,7 @@ export const getEarthEngineUrl = async (
       ee.data.getAsset(
         imageId,
         (asset: any) => resolve(asset),
-        (err: any) => resolve(null), // Safe fallback
+        () => resolve(null), // Safe fallback
       );
     });
 
