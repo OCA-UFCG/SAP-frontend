@@ -1,20 +1,151 @@
 import { getContent } from "@/infrastructure/contentful/client";
+import type { Document } from "@contentful/rich-text-types";
 import {
-  AboutPageQuery,
   AboutSectionI,
   FooterI,
   IMainBanner,
   PartnerI,
-  SecaoSobreI,
   SectionHeaderI,
   TabsSectionI,
 } from "@/utils/interfaces";
-import {
-  GET_ABOUT_PAGE,
-  GET_FOOTER_PAGE,
-  GET_HOME_PAGE,
-} from "@/utils/queries";
 import { normalizeContentfulImage } from "@/utils/functions";
+
+const GET_FOOTER_PAGE = `
+  query GetFooterPage {
+    footerCollection {
+      items {
+        sys {
+          id
+        }
+        name
+        path
+        appears
+      }
+    }
+  }
+`;
+
+const GET_HOME_PAGE = `
+  query GetHomePage {
+    bannerCollection(limit: 1) {
+      items {
+        title
+        subtitle
+        linkText
+        link
+        image {
+          url
+        }
+      }
+    }
+
+    secaoSobreCollection {
+      items {
+        identifier
+        title
+        text {
+          json
+        }
+        image {
+          url
+          title
+        }
+        includeInAboutSap
+      }
+    }
+
+    aboutCollection(limit: 1) {
+      items {
+        sys {
+          id
+        }
+        title
+        text {
+          json
+        }
+        image {
+          url
+          title
+          width
+          height
+        }
+      }
+    }
+
+    cabealhoSeesCollection(limit: 1) {
+      items {
+        sys {
+          id
+        }
+        title
+        description
+      }
+    }
+
+    partnersCollection {
+      items {
+        sys {
+          id
+        }
+        name
+        image {
+          url
+          title
+          width
+          height
+        }
+      }
+    }
+  }
+`;
+
+const GET_ABOUT_PAGE = `
+  query GetAboutPage {
+    secaoSobreCollection(where: { includeInAboutSap: true }) {
+      items {
+        sys {
+          id
+        }
+        identifier
+        title
+        text {
+          json
+        }
+        image {
+          url
+          title
+          width
+          height
+        }
+      }
+    }
+
+    cabealhoSeesCollection(limit: 1) {
+      items {
+        sys {
+          id
+        }
+        title
+        description
+      }
+    }
+
+    partnersCollection {
+      items {
+        sys {
+          id
+        }
+        name
+        image {
+          url
+          title
+          width
+          height
+        }
+      }
+    }
+  }
+`;
 
 const HOME_TAB_ORDER = [
   {
@@ -55,6 +186,35 @@ interface HomeContentResponse {
   secaoSobreCollection: { items: TabsSectionI[] };
 }
 
+interface ContentfulAboutSectionEntry {
+  sys: {
+    id: string;
+  };
+  identifier: string;
+  title: string;
+  text: {
+    json: Document;
+  };
+  image: {
+    url: string;
+    title?: string;
+    width?: number;
+    height?: number;
+  };
+}
+
+interface AboutPageResponse {
+  secaoSobreCollection: {
+    items: ContentfulAboutSectionEntry[];
+  };
+  cabealhoSeesCollection: {
+    items: SectionHeaderI[];
+  };
+  partnersCollection: {
+    items: PartnerI[];
+  };
+}
+
 export interface HomePageContent {
   mainBanner?: IMainBanner;
   aboutSection?: AboutSectionI;
@@ -66,12 +226,12 @@ export interface HomePageContent {
 export interface AboutPageContent {
   hero?: {
     title: string;
-    description: SecaoSobreI["text"]["json"];
+    description: Document;
     imageUrl: string;
   };
   aboutSections: Array<{
     title: string;
-    text: SecaoSobreI["text"]["json"];
+    text: Document;
     imageUrl: string;
     imageAlt: string;
   }>;
@@ -133,7 +293,7 @@ export async function getHomePageContent(): Promise<HomePageContent | null> {
 
 export async function getAboutPageContent(): Promise<AboutPageContent | null> {
   try {
-    const data = await getContent<AboutPageQuery>(GET_ABOUT_PAGE);
+    const data = await getContent<AboutPageResponse>(GET_ABOUT_PAGE);
     const allSections = data.secaoSobreCollection?.items ?? [];
     const heroEntry = allSections.find(
       (section) => section.identifier === ABOUT_HERO_IDENTIFIER,

@@ -1,6 +1,31 @@
 import { getContent } from "@/infrastructure/contentful/client";
 import { PanelLayerI } from "@/utils/interfaces";
-import { GET_PANEL_LAYER } from "@/utils/queries";
+
+const GET_PANEL_LAYER = `
+  query GetPanelLayer {
+    panelLayerCollection {
+      items {
+        sys {
+          id
+        }
+        name
+        id
+        description
+        category
+        previewMap {
+          url
+          title
+          width
+          height
+        }
+        imageData
+        minScale
+        maxScale
+        years
+      }
+    }
+  }
+`;
 
 interface PanelLayerResponse {
   panelLayerCollection: { items: PanelLayerI[] };
