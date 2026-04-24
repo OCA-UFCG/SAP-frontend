@@ -1,17 +1,10 @@
 "use client";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { PlatformMapCaption } from "@/components/PlatformMapCaption/PlatformMapCaption";
+import type { CDIVectorData } from "@/components/MapLayerContext/mapLayerState";
 import MapComponent from "../Map/MapComponent";
-import { FeatureCollection, Geometry } from "geojson";
 import { useMapLayer } from "@/components/MapLayerContext/MapLayerContext";
 import { getImageDataYearKeys } from "@/utils/imageData";
-
-export interface CDIFeatureProperties {
-  classe_cdi: number;
-  first: number;
-  [key: string]: unknown;
-}
-export type CDIVectorData = FeatureCollection<Geometry, CDIFeatureProperties>;
 
 export function PlatformMap() {
   const {

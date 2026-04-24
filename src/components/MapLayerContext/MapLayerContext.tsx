@@ -1,69 +1,109 @@
 "use client";
-import { createContext, useContext, useState } from "react";
-import { CDIVectorData } from "@/components/PlatformMap/PlatformMap";
+import {
+  createContext,
+  useCallback,
+  useContext,
+  useMemo,
+  useState,
+} from "react";
 import { IEEInfo, IImageParam } from "@/utils/interfaces";
-import { getImageDataDefaultYear } from "@/utils/imageData";
+import {
+  activateEeLayerState,
+  activateVectorLayerState,
+  CDIVectorData,
+  clearActiveLayerState,
+  createInitialMapLayerState,
+  MapLayerState,
+  resetPlatformState as resetPlatformStateValue,
+  setActiveLegendValue,
+  setActiveYearValue,
+  setSelectedStateValue,
+} from "@/components/MapLayerContext/mapLayerState";
 
-interface MapLayerContextValue {
-  activeData: CDIVectorData | null;
-  activeLegend: IImageParam[] | null;
+interface MapLayerContextValue extends MapLayerState {
   setActiveLegend: (legend: IImageParam[] | null) => void;
-  setActiveData: (data: CDIVectorData | null) => void;
-  activeEEData: IEEInfo | null;
-  setActiveEEData: (data: IEEInfo | null) => void;
-  selectedState: string;
   setSelectedState: (state: string) => void;
-  activeLayerId: string | null;
-  setActiveLayerId: (id: string | null) => void;
-  activeYear: string;
   setActiveYear: (year: string) => void;
+  activateVectorLayer: (
+    layerId: string,
+    data: CDIVectorData,
+    legend: IImageParam[] | null,
+  ) => void;
+  activateEeLayer: (data: IEEInfo, legend: IImageParam[] | null) => void;
+  clearActiveLayer: () => void;
+  resetPlatformState: () => void;
 }
 
 const MapLayerContext = createContext<MapLayerContextValue | null>(null);
 
 export function MapLayerProvider({ children }: { children: React.ReactNode }) {
-  const [activeData, setActiveData] = useState<CDIVectorData | null>(null);
-  const [activeEEData, _setActiveEEData] = useState<IEEInfo | null>(null);
-  const [selectedState, setSelectedState] = useState("br");
-  const [activeLayerId, setActiveLayerId] = useState<string | null>(null);
-  const [activeLegend, setActiveLegend] = useState<IImageParam[] | null>(null);
-  const [activeYear, setActiveYear] = useState<string>("general");
+  const [state, setState] = useState<MapLayerState>(createInitialMapLayerState);
 
-  const setActiveEEData = (data: IEEInfo | null) => {
-    _setActiveEEData(data);
+  const setActiveLegend = useCallback((legend: IImageParam[] | null) => {
+    setState((currentState) => setActiveLegendValue(currentState, legend));
+  }, []);
 
-    if (!data) {
-      setActiveYear("general");
-      return;
-    }
+  const setSelectedState = useCallback((selectedState: string) => {
+    setState((currentState) =>
+      setSelectedStateValue(currentState, selectedState),
+    );
+  }, []);
 
-    const defaultYear = getImageDataDefaultYear(data.imageData);
+  const setActiveYear = useCallback((activeYear: string) => {
+    setState((currentState) => setActiveYearValue(currentState, activeYear));
+  }, []);
 
-    if (!defaultYear) {
-      setActiveYear("general");
-      return;
-    }
+  const activateVectorLayer = useCallback(
+    (layerId: string, data: CDIVectorData, legend: IImageParam[] | null) => {
+      setState((currentState) =>
+        activateVectorLayerState(currentState, layerId, data, legend),
+      );
+    },
+    [],
+  );
 
-    setActiveYear(defaultYear);
-  };
+  const activateEeLayer = useCallback(
+    (data: IEEInfo, legend: IImageParam[] | null) => {
+      setState((currentState) =>
+        activateEeLayerState(currentState, data, legend),
+      );
+    },
+    [],
+  );
+
+  const clearActiveLayer = useCallback(() => {
+    setState((currentState) => clearActiveLayerState(currentState));
+  }, []);
+
+  const resetPlatformState = useCallback(() => {
+    setState((currentState) => resetPlatformStateValue(currentState));
+  }, []);
+
+  const value = useMemo(
+    () => ({
+      ...state,
+      setActiveLegend,
+      setSelectedState,
+      setActiveYear,
+      activateVectorLayer,
+      activateEeLayer,
+      clearActiveLayer,
+      resetPlatformState,
+    }),
+    [
+      state,
+      setActiveLegend,
+      setSelectedState,
+      setActiveYear,
+      activateVectorLayer,
+      activateEeLayer,
+      clearActiveLayer,
+      resetPlatformState,
+    ],
+  );
 
   return (
-    <MapLayerContext.Provider
-      value={{
-        activeData,
-        activeLegend,
-        setActiveLegend,
-        setActiveData,
-        activeEEData,
-        setActiveEEData,
-        selectedState,
-        setSelectedState,
-        activeLayerId,
-        setActiveLayerId,
-        activeYear,
-        setActiveYear,
-      }}
-    >
+    <MapLayerContext.Provider value={value}>
       {children}
     </MapLayerContext.Provider>
   );
