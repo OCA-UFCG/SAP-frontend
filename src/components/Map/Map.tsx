@@ -11,7 +11,7 @@ import maplibregl, {
 import "maplibre-gl/dist/maplibre-gl.css";
 import { useCallback, useEffect, useMemo, useRef } from "react";
 import geometria from "../../data/geometria.json";
-import { CDIFeatureProperties, CDIVectorData } from "../MapSection/MapSection";
+import type { CDIFeatureProperties, CDIVectorData } from "@/lib/geo";
 
 interface MapProps {
   minZoom?: number;

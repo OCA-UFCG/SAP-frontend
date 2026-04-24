@@ -10,15 +10,17 @@ vi.mock("next/image", () => ({
   ),
 }));
 
-vi.mock("@/utils/contentful", () => ({
+vi.mock("@/infrastructure/contentful/client", () => ({
   getContent: vi.fn().mockResolvedValue({
     aboutCollection: {
       items: [
         {
           title: "Sobre Nós",
-          text: { json: {
-            content: []
-          } },
+          text: {
+            json: {
+              content: [],
+            },
+          },
           image: { url: "https://example.com/image.png" },
         },
       ],

@@ -2,48 +2,44 @@ import { AlertTiers } from "./AlertTiers";
 import type { Meta, StoryObj } from "@storybook/nextjs-vite";
 import { StatusItemI } from "../../utils/interfaces";
 
-  const baseItems: StatusItemI[] = [
-    {
-      id: "0",
-      label: "Sem seca",
-      value: 43.3,
-      color: "#F0F0D7"
-    },
-    {
-      id: "1",
-      label: "Observação (Watch)",
-      value: 24.5,
-      color: "#FECB89"
-
-    },
-    {
-      id: "2",
-      label: "Atenção (Warning)",
-      value: 6,
-      color: "#FC8F23"
-    },
-    {
-      id: "3",
-      label: "Alerta (Alert)",
-      value: 13.2,
-      color: "#B52C08",
-
-    },
-    {
-      id: "4",
-      label: "Recuperação Total (Full Recovery)",
-      value: 13,
-      color: "#B4BA61",
-
-    },
-    {
-      id: "5",
-      label: "Recuperação Parcial (Partial Recovery)",
-      value: 13,
-      color: "#5B612A",
-
-    },
-  ];
+const baseItems: StatusItemI[] = [
+  {
+    id: "0",
+    label: "Sem seca",
+    value: 43.3,
+    color: "#F0F0D7",
+  },
+  {
+    id: "1",
+    label: "Observação (Watch)",
+    value: 24.5,
+    color: "#FECB89",
+  },
+  {
+    id: "2",
+    label: "Atenção (Warning)",
+    value: 6,
+    color: "#FC8F23",
+  },
+  {
+    id: "3",
+    label: "Alerta (Alert)",
+    value: 13.2,
+    color: "#B52C08",
+  },
+  {
+    id: "4",
+    label: "Recuperação Total (Full Recovery)",
+    value: 13,
+    color: "#B4BA61",
+  },
+  {
+    id: "5",
+    label: "Recuperação Parcial (Partial Recovery)",
+    value: 13,
+    color: "#5B612A",
+  },
+];
 
 const meta = {
   title: "Components/AlertTiers",
@@ -54,15 +50,12 @@ const meta = {
 export default meta;
 type Story = StoryObj<typeof meta>;
 
-
 // Story padrão
 export const Default: Story = {
   args: {
     items: baseItems,
-    onToggle: () => {}
   },
 };
-
 
 // Todos valores iguais (teste visual do gráfico)
 export const EqualValues: Story = {
@@ -71,10 +64,8 @@ export const EqualValues: Story = {
       ...item,
       value: 25,
     })),
-    onToggle: () => {}
   },
 };
-
 
 // Valores zero
 export const ZeroValues: Story = {
@@ -83,10 +74,8 @@ export const ZeroValues: Story = {
       ...item,
       value: 0,
     })),
-    onToggle: () => {}
   },
 };
-
 
 // Apenas um item
 export const SingleItem: Story = {
@@ -100,10 +89,8 @@ export const SingleItem: Story = {
         checked: false,
       },
     ],
-    onToggle: () => {}
   },
 };
-
 
 // Labels longas (teste de layout)
 export const LongLabels: Story = {
@@ -114,6 +101,5 @@ export const LongLabels: Story = {
         item.label +
         " - Texto adicional muito longo para validar quebra de layout",
     })),
-    onToggle: () => {}
   },
 };

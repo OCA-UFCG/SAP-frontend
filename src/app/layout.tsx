@@ -3,9 +3,8 @@ import { Geist, Geist_Mono, Inter } from "next/font/google";
 import { cache } from "react";
 import { Header } from "@/components/Header/Header";
 import { Footer } from "@/components/Footer/Footer";
-import { FooterI, ISections } from "@/utils/interfaces";
-import { getContent } from "@/utils/contentful";
-import { GET_FOOTER_PAGE } from "@/utils/queries";
+import { getFooterContent } from "@/repositories/content/siteContentRepository";
+import { ISections } from "@/utils/interfaces";
 import "./globals.css";
 
 const geistSans = Geist({
@@ -24,23 +23,12 @@ const inter = Inter({
   weight: ["400", "500", "600"],
 });
 
-
-interface FooterContent {
-  footerCollection: {
-    items: FooterEntry[];
-  };
-}
-
-interface FooterEntry {
-  sys: { id: string };
-  name: string;
-  path: string;
-  appears: boolean;
-}
 export const metadata: Metadata = {
   title: "Portal SAP",
   description: "Portal SAP criado por OCA",
 };
+
+const getCachedFooterContent = cache(getFooterContent);
 
 export default async function RootLayout({
   children,
@@ -74,27 +62,7 @@ export default async function RootLayout({
     },
   };
 
-  function mapFooterItem(item: FooterEntry): FooterI {
-    return {
-      id: item.sys.id,
-      name: item.name,
-      path: item.path,
-      appears: item.appears,
-    };
-  }
-
-  const getFooterContent = cache(async (): Promise<FooterI[]> => {
-    try {
-      const data = await getContent<FooterContent>(GET_FOOTER_PAGE);
-
-      return data?.footerCollection?.items.map(mapFooterItem) ?? [];
-    } catch (error) {
-      console.error("Erro ao buscar footer:", error);
-      return [];
-    }
-  });
-
-  const footerContent = await getFooterContent();
+  const footerContent = await getCachedFooterContent();
 
   return (
     <html lang="en">

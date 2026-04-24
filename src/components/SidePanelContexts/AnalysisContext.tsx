@@ -10,10 +10,10 @@ import {
   getEffectiveAnalysisYear,
 } from "@/components/analysis/analysis.mappers";
 import { useMapLayer } from "@/components/MapLayerContext/MapLayerContext";
+import { resolveStateKeyFromSearch } from "@/lib/geo";
 import type { PlatformSection } from "@/components/PlatformSideRail/PlatformSideRail";
 import type { PanelLayerI, IEEInfo } from "@/utils/interfaces";
 import { statesObj } from "@/utils/constants";
-import { resolveStateKeyFromSearch } from "@/utils/functions";
 
 export interface AnalysisContextProps {
   activeSection: PlatformSection;
@@ -27,18 +27,14 @@ export function AnalysisContext({
   panelLayers,
 }: AnalysisContextProps) {
   const {
-    setActiveData,
     setSelectedState,
-    setActiveLayerId,
-    setActiveEEData,
     setActiveLegend,
     selectedState,
     activeLayerId,
     activeYear,
     setActiveYear,
+    resetPlatformState,
   } = useMapLayer();
-  // activeData eh o dado vetorial para o mapa renderizar (CDIVectorData)
-  // activeLayerId eh o identificador da layer selecionada ("CDI" e etc)
 
   const dataset = useMemo(() => {
     return panelLayers?.find((p) => p.id === activeLayerId) ?? panelLayers?.[0];
@@ -47,12 +43,7 @@ export function AnalysisContext({
   const yearOptions = useMemo(() => getAnalysisYearOptions(dataset), [dataset]);
 
   function handleGoBack() {
-    setActiveLayerId(null);
-    setActiveEEData(null);
-    setActiveData(null);
-    setActiveLegend(null);
-    setActiveYear("general");
-    setSelectedState("br");
+    resetPlatformState();
     onRequestSectionChange?.("modules");
   }
 
