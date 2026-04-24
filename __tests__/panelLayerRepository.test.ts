@@ -31,7 +31,7 @@ describe("panelLayerRepository", () => {
           },
         ],
       },
-    } as any);
+    });
 
     const layers = await getPanelLayers();
 

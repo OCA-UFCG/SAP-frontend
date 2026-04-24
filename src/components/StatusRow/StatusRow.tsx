@@ -1,19 +1,11 @@
-import { ChangeEvent } from "react";
 import { StatusItemI } from "../../utils/interfaces";
 import { getContrastTextColor } from "@/utils/functions";
 
 type Props = {
   item: StatusItemI;
-  onToggle?: (id: string, checked: boolean) => void;
 };
 
-export const StatusRow = ({ item, onToggle }: Props) => {
-  const handleToggle = (e: ChangeEvent<HTMLInputElement, HTMLInputElement>) => {
-    if (onToggle) {
-      onToggle(item.id, e.target.checked);
-    }
-  };
-
+export const StatusRow = ({ item }: Props) => {
   return (
     <div className="flex justify-between items-center min-h-10 pl-2 pr-0 bg-white rounded-lg gap-4 w-full">
       <div className="flex items-center gap-2">

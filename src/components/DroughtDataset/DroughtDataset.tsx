@@ -1,6 +1,8 @@
 "use client";
 
 import clsx from "clsx";
+import Image from "next/image";
+import { normalizeContentfulImage } from "@/utils/functions";
 
 export interface IDroughtDataset {
   id: number;
@@ -44,10 +46,12 @@ export function DroughtDataset({
             style={{ width: "115.51px", height: 126 }}
           >
             {card.image ? (
-              <img
-                src={card.image}
+              <Image
+                src={normalizeContentfulImage(card.image)}
                 alt={card.title}
-                className="absolute inset-0 w-full h-full object-cover"
+                fill
+                sizes="116px"
+                className="object-cover"
               />
             ) : (
               <div className="absolute inset-0 bg-[#E4E5E2]" />
