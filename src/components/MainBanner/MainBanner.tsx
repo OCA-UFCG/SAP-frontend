@@ -44,11 +44,11 @@ export function MainBanner({ data }: MainBannerProps) {
         <div className="w-full max-w-[1440px] mx-auto px-4 py-12 md:px-10 md:py-16 lg:px-[78px] lg:py-[85px] flex items-center min-h-[492px]">
           <div className="w-full">
             <div className="flex flex-col gap-[24px] max-w-[800px] items-start text-left">
-              <h1 className="font-open font-[700] text-white text-3xl md:text-5xl lg:text-[64px] leading-tight drop-shadow-sm">
+              <h1 className="font-[700] text-white text-3xl md:text-5xl lg:text-[64px] leading-tight drop-shadow-sm">
                 {title}
               </h1>
 
-              <p className="font-open font-[400] text-white text-base md:text-[16px] leading-relaxed max-w-[600px]">
+              <p className="font-[400] text-white text-base md:text-[16px] leading-relaxed max-w-[600px]">
                 {subtitle}
               </p>
 
@@ -56,7 +56,7 @@ export function MainBanner({ data }: MainBannerProps) {
                 href={link}
                 className="mt-4 flex items-center justify-center w-full md:w-[302px] h-[40px] px-4 py-2 rounded-[8px] bg-[#989F43] hover:bg-[#5B612A] text-white transition-all duration-200 shadow-md"
               >
-                <span className="font-open text-[14px] font-[500] leading-[24px] tracking-normal">
+                <span className="text-[14px] font-[500] leading-[24px] tracking-normal">
                   {linkText}
                 </span>
               </a>
