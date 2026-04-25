@@ -195,9 +195,14 @@ export function TemporalVision({ years, classes, selectedState = "br" }: Tempora
 
         // Legend below chart
         const legend = chart.children.push(am5.Legend.new(root, {
-            centerX: am5.percent(50),
-            x: am5.percent(50),
+            x: am5.percent(0),
+            centerX: am5.percent(0),
             paddingTop: 15,
+            width: am5.percent(100),
+            layout: am5.GridLayout.new(root, {
+                maxColumns: 2,
+                fixedWidthGrid: false,
+            }),
         }));
 
         legend.itemContainers.template.events.on("pointerover", (e) => {
@@ -237,10 +242,6 @@ export function TemporalVision({ years, classes, selectedState = "br" }: Tempora
                 <h2 className="text-[18px] font-semibold leading-6 text-[#292829]">
                     Visão temporal
                 </h2>
-            </div>
-
-            <div className="min-h-[54px] rounded-lg">
-                <p>Atualmente, 43,3% da região está sem seca, com chuvas e umidade do solo em níveis normais. No entanto, 24,5% do território já entrou em Observação devido a chuvas abaixo da média</p>
             </div>
 
             <div id="chartdiv" className="min-h-[500px] rounded-lg bg-white">
