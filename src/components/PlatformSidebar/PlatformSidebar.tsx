@@ -19,18 +19,19 @@ export function PlatformSidebar({ panelLayers }: PlatformSidebarProps) {
   const { clearActiveLayer } = useMapLayer();
 
   const [activeSection, setActiveSection] =
-    useState<PlatformSection>("modules");
-  const [panelSection, setPanelSection] = useState<PlatformSection>("modules");
+    useState<PlatformSection>("monitoring");
+  const [panelSection, setPanelSection] =
+    useState<PlatformSection>("monitoring");
   const [isPanelOpen, setIsPanelOpen] = useState(true);
 
   const ContextComponent =
-    panelSection === "modules"
+    panelSection === "monitoring"
       ? undefined
-      : panelSection === "analysis"
+      : panelSection === "analysis-detail"
         ? AnalysisContext
-        : panelSection === "multicriteria"
+        : panelSection === "analysis"
           ? ComingSoonContext
-          : panelSection === "forecast"
+          : panelSection === "communication"
             ? ComingSoonContext
             : undefined;
 
@@ -39,7 +40,7 @@ export function PlatformSidebar({ panelLayers }: PlatformSidebarProps) {
     setPanelSection(next);
     setIsPanelOpen(true);
 
-    if (next !== "modules" && next !== "analysis") {
+    if (next !== "monitoring" && next !== "analysis-detail") {
       clearActiveLayer();
     }
   }
@@ -47,8 +48,8 @@ export function PlatformSidebar({ panelLayers }: PlatformSidebarProps) {
   function handlePanelSectionChange(next: PlatformSection) {
     setPanelSection(next);
 
-    if (next === "modules" && activeSection === "analysis") {
-      setActiveSection("modules");
+    if (next === "monitoring" && activeSection === "analysis-detail") {
+      setActiveSection("monitoring");
     }
 
     setIsPanelOpen(true);
