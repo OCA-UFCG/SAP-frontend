@@ -77,6 +77,7 @@ const CDI_FILL_EXPRESSION: ExpressionSpecification = [
 const DEFAULT_CENTER: [number, number] = [-15.749997, -47.9499962];
 const MAP_FIT_BOUNDS_PADDING = 200;
 const MAP_FOCUS_ANIMATION_DURATION = 1200;
+const MAP_STATE_FOCUS_MAX_ZOOM = 4.5;
 
 const smoothCameraEasing = (progress: number) => 1 - Math.pow(1 - progress, 3);
 
@@ -822,7 +823,7 @@ const Map = ({
       animate: true,
       duration: MAP_FOCUS_ANIMATION_DURATION,
       easing: smoothCameraEasing,
-      maxZoom: 7,
+      maxZoom: MAP_STATE_FOCUS_MAX_ZOOM,
     });
   }, [currentBounds]);
 
