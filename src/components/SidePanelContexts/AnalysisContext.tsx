@@ -95,7 +95,7 @@ export function AnalysisContext({
     }
     setActiveLegend(getAnalysisLegend(dataset, effectiveYear));
   }, [dataset, effectiveYear, setActiveLegend]);
-  console.log("DATASET", dataset?.imageData)
+  console.log("DATASET", dataset)
 
   // Extract years and classes only when imageData is CompactTerritorialAnalysisDataset
   const temporalYears = dataset?.imageData && "years" in dataset.imageData

@@ -92,7 +92,9 @@ export const getEarthEngineUrl = async (
       console.error(`[GEE] -> Failed to fetch bands for ${imageId}:`, bandErr);
     }
 
-    GEEImage = GEEImage.selfMask();
+    // Replace selfMask() with an explicit no-data mask
+    GEEImage = GEEImage.updateMask(GEEImage.mask());
+
     const { categorizedImage, visParams } = getImageScale(
       GEEImage,
       imageParams,

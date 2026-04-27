@@ -292,7 +292,7 @@ function TemporalVision({ years, classes, selectedState = "br" }: TemporalVision
         series.bullets.push(() =>
           am5.Bullet.new(root, {
             sprite: am5.Circle.new(root, {
-              radius: 2.5,
+              radius: 2.0,
               fill: am5.color(cls.color),
             }),
           })
