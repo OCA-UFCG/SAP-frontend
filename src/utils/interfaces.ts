@@ -183,7 +183,6 @@ export interface PanelLayerI {
   imageData: ImageDataConfig;
   minScale?: number;
   maxScale?: number;
-  years: string[];
 }
 
 export interface IEEInfo {
