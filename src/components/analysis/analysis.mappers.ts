@@ -4,7 +4,9 @@ import type {
   AnalysisHighlight,
   AnalysisRankingEntry,
   AnalysisRankingGroup,
+  AnalysisTone,
   AnalysisYearOption,
+  CompactAnalysisClass,
   CompactTerritorialAnalysisDataset,
   TerritorialAnalysisViewModel,
 } from "@/utils/analysis";
@@ -34,8 +36,53 @@ const DEFAULT_HAPPENING_TEMPLATES = {
   highlight: "Região maioritariamente {label}",
 };
 
-const DEFAULT_RANKING_TITLE = "Estados por classe predominante";
+const DEFAULT_RANKING_TITLE = "Estados por classificação";
 const DEFAULT_RANKING_TOTAL_LABEL = "Estados";
+const MAX_RANKING_ITEMS = 5;
+
+function parseHexColor(color: string) {
+  const normalized = color.trim().replace("#", "");
+
+  if (!/^(?:[\da-fA-F]{3}|[\da-fA-F]{6})$/.test(normalized)) {
+    return null;
+  }
+
+  const expanded =
+    normalized.length === 3
+      ? normalized
+          .split("")
+          .map((character) => character + character)
+          .join("")
+      : normalized;
+
+  return {
+    r: Number.parseInt(expanded.slice(0, 2), 16),
+    g: Number.parseInt(expanded.slice(2, 4), 16),
+    b: Number.parseInt(expanded.slice(4, 6), 16),
+  };
+}
+
+function buildDefaultAnalysisTone(color: string): AnalysisTone {
+  const rgb = parseHexColor(color);
+
+  if (!rgb) {
+    return {
+      bg: "#F5F5F5",
+      color,
+      border: color,
+    };
+  }
+
+  return {
+    bg: `rgba(${rgb.r}, ${rgb.g}, ${rgb.b}, 0.16)`,
+    color,
+    border: `rgba(${rgb.r}, ${rgb.g}, ${rgb.b}, 0.4)`,
+  };
+}
+
+function getCompactClassTone(compactClass: CompactAnalysisClass): AnalysisTone {
+  return compactClass.tone ?? buildDefaultAnalysisTone(compactClass.color);
+}
 
 function formatTemplate(
   template: string,
@@ -139,11 +186,7 @@ function buildCompactHighlight(
       data.templates?.highlight ?? DEFAULT_HAPPENING_TEMPLATES.highlight,
       { label: compactClass.label },
     ),
-    tone: compactClass.tone ?? {
-      bg: "#F5F5F5",
-      color: compactClass.color,
-      border: compactClass.color,
-    },
+    tone: getCompactClassTone(compactClass),
   };
 }
 
@@ -162,48 +205,52 @@ function buildCompactRankingGroups(
     return [];
   }
 
-  const groups = new Map<string, AnalysisRankingEntry[]>();
+  const scale = yearData.valuesScale ?? 1;
+  const dominantCounts = new Map<string, number>();
 
   for (const [entryKey] of Object.entries(yearData.values)) {
     if (entryKey === "br") {
       continue;
     }
 
-    const distribution = buildCompactDistributionItems(data, entryKey, yearKey);
-    const dominant = getDominantDistributionItem(distribution);
+    const dominant = getDominantDistributionItem(
+      buildCompactDistributionItems(data, entryKey, yearKey),
+    );
 
     if (!dominant) {
       continue;
     }
 
-    const items = groups.get(dominant.id) ?? [];
-    items.push({
-      id: entryKey,
-      label: getCompactLocationName(data, entryKey),
-      trailingLabel: String(dominant.value),
-    });
-    groups.set(dominant.id, items);
+    dominantCounts.set(dominant.id, (dominantCounts.get(dominant.id) ?? 0) + 1);
   }
 
   const rankingGroups: AnalysisRankingGroup[] = [];
 
-  for (const item of data.classes) {
-    const entries = groups.get(item.id);
-
-    if (!entries || entries.length === 0) {
-      continue;
-    }
+  for (const [classIndex, item] of data.classes.entries()) {
+    const entries = Object.entries(yearData.values)
+      .filter(([entryKey]) => entryKey !== "br")
+      .map(([entryKey, values]) => ({
+        id: entryKey,
+        label: getCompactLocationName(data, entryKey),
+        trailingLabel: String(
+          Number((((values[classIndex] ?? 0) as number) / scale).toFixed(1)),
+        ),
+      }))
+      .filter((entry) => Number(entry.trailingLabel ?? 0) > 0);
 
     entries.sort((left, right) => {
       return Number(right.trailingLabel ?? 0) - Number(left.trailingLabel ?? 0);
     });
 
+    const topEntries = entries.slice(0, MAX_RANKING_ITEMS);
+
     rankingGroups.push({
       id: item.id,
       label: item.label,
-      total: entries.length,
+      tone: getCompactClassTone(item),
+      total: dominantCounts.get(item.id) ?? 0,
       totalLabel: data.ranking?.totalLabel ?? DEFAULT_RANKING_TOTAL_LABEL,
-      items: entries.map((entry) => ({
+      items: topEntries.map((entry) => ({
         ...entry,
         trailingLabel: `${Number(entry.trailingLabel ?? 0).toFixed(1)}%`,
       })),
