@@ -55,7 +55,10 @@ export function PlatformSidebar({ panelLayers }: PlatformSidebarProps) {
   }
 
   return (
-    <aside className="absolute left-0 top-0 h-full flex z-20">
+    <aside
+      className="absolute left-0 top-0 z-20 flex h-full"
+      data-platform-sidebar-overlay
+    >
       <PlatformSideRail
         activeSection={activeSection}
         onSectionChange={handleSectionChange}
