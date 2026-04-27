@@ -1,5 +1,6 @@
 "use client";
 
+import { useEffect, useRef, useState } from "react";
 import { Chevron } from "@/components/Chevron/Chevron";
 import SearchBarPlatform from "@/components/SidePanelContexts/SearchBarPlatform";
 import type {
@@ -20,6 +21,12 @@ interface AnalysisPanelProps {
   model: TerritorialAnalysisViewModel | null;
   emptyStateTitle?: string;
   emptyStateDescription?: string;
+}
+
+interface AnalysisYearSelectProps {
+  activeYear: string;
+  yearOptions: AnalysisYearOption[];
+  onYearChange: (year: string) => void;
 }
 
 function renderFormattedText(text: string) {
@@ -51,6 +58,91 @@ function EmptySection({
       <div className="rounded-lg border border-[#EFEFEF] bg-white p-4 text-[12px] leading-5 text-neutral-600 shadow-sm">
         {description}
       </div>
+    </div>
+  );
+}
+
+function AnalysisYearSelect({
+  activeYear,
+  yearOptions,
+  onYearChange,
+}: AnalysisYearSelectProps) {
+  const containerRef = useRef<HTMLDivElement>(null);
+  const [isOptionsOpen, setIsOptionsOpen] = useState(false);
+
+  const activeOption =
+    yearOptions.find((option) => option.value === activeYear) ?? yearOptions[0];
+
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      if (!containerRef.current?.contains(event.target as Node)) {
+        setIsOptionsOpen(false);
+      }
+    };
+
+    document.addEventListener("mousedown", handleClickOutside);
+
+    return () => {
+      document.removeEventListener("mousedown", handleClickOutside);
+    };
+  }, []);
+
+  return (
+    <div ref={containerRef} className="relative w-full">
+      <button
+        type="button"
+        onClick={() => setIsOptionsOpen((current) => !current)}
+        className="flex h-10 w-full items-center justify-between rounded-lg border border-transparent bg-[#E4E5E2] px-3 py-3 text-left shadow-sm transition hover:border-neutral-400 focus-visible:border-neutral-600 focus-visible:ring-2 focus-visible:ring-neutral-600 focus-visible:outline-none"
+        aria-haspopup="listbox"
+        aria-expanded={isOptionsOpen}
+        aria-controls="analysis-year-options"
+      >
+        <span className="truncate text-sm text-[#292829]">
+          {activeOption?.label ?? activeYear}
+        </span>
+
+        <svg
+          width="16"
+          height="16"
+          viewBox="0 0 20 20"
+          fill="none"
+          xmlns="http://www.w3.org/2000/svg"
+          className={`ml-2 shrink-0 text-[#898989] transition-transform ${isOptionsOpen ? "rotate-180" : ""}`}
+          aria-hidden="true"
+        >
+          <path
+            d="M5 7.5L10 12.5L15 7.5"
+            stroke="currentColor"
+            strokeWidth="1.8"
+            strokeLinecap="round"
+            strokeLinejoin="round"
+          />
+        </svg>
+      </button>
+
+      {isOptionsOpen && (
+        <div
+          id="analysis-year-options"
+          role="listbox"
+          className="absolute top-[calc(100%+8px)] z-20 max-h-64 w-full overflow-y-auto rounded-xl border border-neutral-200 bg-white p-2 shadow-lg"
+        >
+          {yearOptions.map((option) => (
+            <button
+              key={option.value}
+              type="button"
+              role="option"
+              aria-selected={activeYear === option.value}
+              onClick={() => {
+                setIsOptionsOpen(false);
+                onYearChange(option.value);
+              }}
+              className="flex w-full rounded-lg px-3 py-2 text-left text-sm text-[#292829] transition hover:bg-[#F6F7F6]"
+            >
+              {option.label}
+            </button>
+          ))}
+        </div>
+      )}
     </div>
   );
 }
@@ -201,17 +293,11 @@ export function AnalysisPanel({
               Data da análise
             </label>
 
-            <select
-              value={activeYear}
-              onChange={(event) => onYearChange(event.target.value)}
-              className="h-[40px] min-h-[36px] w-full rounded-md border border-[#DCDBDC] bg-white px-3 py-2 text-[14px] leading-[24px] text-[#292829] focus:outline-none"
-            >
-              {yearOptions.map((year) => (
-                <option key={year.value} value={year.value}>
-                  {year.label}
-                </option>
-              ))}
-            </select>
+            <AnalysisYearSelect
+              activeYear={activeYear}
+              yearOptions={yearOptions}
+              onYearChange={onYearChange}
+            />
           </div>
         </section>
 
