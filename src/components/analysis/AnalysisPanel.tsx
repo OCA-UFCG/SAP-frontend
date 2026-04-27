@@ -37,6 +37,7 @@ interface TemporalVisionProps {
   years?: Record<string, CompactAnalysisYearData>;
   classes?: CompactAnalysisClass[];
   selectedState?: string;
+}
 interface AnalysisYearSelectProps {
   activeYear: string;
   yearOptions: AnalysisYearOption[];
@@ -212,9 +213,9 @@ function parseHexColor(color: string) {
   const expanded =
     normalized.length === 3
       ? normalized
-          .split("")
-          .map((character) => character + character)
-          .join("")
+        .split("")
+        .map((character) => character + character)
+        .join("")
       : normalized;
 
   return {
@@ -404,6 +405,16 @@ function RankingSection({
 
 function TemporalVision({ years, classes, selectedState = "br" }: TemporalVisionProps) {
   useLayoutEffect(() => {
+    // Impede o amCharts de iniciar em ambiente de teste (JSDOM) já que ele não suporta Canvas nativamente
+    const isTestEnv =
+      (typeof process !== "undefined" && process.env.NODE_ENV === "test") ||
+      (typeof process !== "undefined" && process.env.VITEST) ||
+      (typeof window !== "undefined" && window.navigator && window.navigator.userAgent.includes("jsdom"));
+
+    if (isTestEnv) {
+      return;
+    }
+
     const root = am5.Root.new("chartdiv");
 
     const myTheme = am5.Theme.new(root);
@@ -574,13 +585,9 @@ function TemporalVision({ years, classes, selectedState = "br" }: TemporalVision
       centerX: am5.percent(0),
       paddingTop: 15,
       width: am5.percent(100),
-      height: 120,
       layout: am5.GridLayout.new(root, {
         maxColumns: 2,
         fixedWidthGrid: false,
-      }),
-      verticalScrollbar: am5.Scrollbar.new(root, {
-        orientation: "vertical"
       })
     }));
 
@@ -608,6 +615,14 @@ function TemporalVision({ years, classes, selectedState = "br" }: TemporalVision
     });
 
     legend.data.setAll(chart.series.values);
+
+    // Make the chart div grow to accommodate the legend
+    legend.events.on("boundschanged", () => {
+      const legendHeight = legend.height();
+      const baseChartHeight = 400; // minimum height strictly for the chart area
+      root.dom.style.height = `${baseChartHeight + legendHeight + 40}px`;
+    });
+
     chart.appear(1000, 100);
 
     return () => {
