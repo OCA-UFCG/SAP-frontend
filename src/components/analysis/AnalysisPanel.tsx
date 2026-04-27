@@ -259,10 +259,14 @@ function TemporalVision({ years, classes, selectedState = "br" }: TemporalVision
           categoryXField: "year",
           stroke: am5.color(cls.color),
           fill: am5.color(cls.color),
-          tooltip: am5.Tooltip.new(root, {
-            pointerOrientation: "horizontal",
-            labelText: "{valueY}%",
-          }),
+          tooltip: (() => {
+            const tt = am5.Tooltip.new(root, {
+              pointerOrientation: "horizontal",
+              labelText: "{valueY}%",
+            });
+            tt.label.setAll({ fontSize: 12 });
+            return tt;
+          })(),
         }));
 
         // For each year, get the value at [classIndex] for the selected state
@@ -329,27 +333,6 @@ function TemporalVision({ years, classes, selectedState = "br" }: TemporalVision
       height: 30,
     }));
 
-    // Mirror a simplified overview series in the scrollbar
-    const sbxAxis = scrollbar.chart.xAxes.push(am5xy.CategoryAxis.new(root, {
-      categoryField: "year",
-      renderer: am5xy.AxisRendererX.new(root, {}),
-    }));
-    const sbyAxis = scrollbar.chart.yAxes.push(am5xy.ValueAxis.new(root, {
-      renderer: am5xy.AxisRendererY.new(root, {}),
-    }));
-
-    if (hasData && chart.series.length > 0) {
-      const firstSeries = chart.series.getIndex(0) as am5xy.LineSeries;
-      const sbSeries = scrollbar.chart.series.push(am5xy.LineSeries.new(root, {
-        xAxis: sbxAxis,
-        yAxis: sbyAxis,
-        valueYField: "value",
-        categoryXField: "year",
-      }));
-      sbSeries.data.setAll(firstSeries.data.values);
-      sbxAxis.data.setAll(firstSeries.data.values);
-    }
-
     // Cursor (only X line)
     const cursor = chart.set("cursor", am5xy.XYCursor.new(root, {
       behavior: "none",
@@ -362,10 +345,14 @@ function TemporalVision({ years, classes, selectedState = "br" }: TemporalVision
       centerX: am5.percent(0),
       paddingTop: 15,
       width: am5.percent(100),
+      height: 120,
       layout: am5.GridLayout.new(root, {
         maxColumns: 2,
         fixedWidthGrid: false,
       }),
+      verticalScrollbar: am5.Scrollbar.new(root, {
+        orientation: "vertical"
+      })
     }));
 
     legend.itemContainers.template.events.on("pointerover", (e) => {
