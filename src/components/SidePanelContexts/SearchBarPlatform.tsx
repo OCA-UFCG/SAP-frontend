@@ -3,7 +3,7 @@
 import { useEffect, useRef, useState } from "react";
 import { Icon } from "../Icon/Icon";
 import { ButtonUi } from "../ButtonUI/ButtonUI";
-import { states, ufs } from "@/utils/constants";
+import { states, statesObj, ufs } from "@/utils/constants";
 import { normalize } from "@/utils/functions";
 
 interface SearchBarProps {
@@ -14,7 +14,18 @@ const BRAZIL_OPTION = "Brasil";
 const statesNormalized = new Set(Array.from(states).map(normalize));
 const ufsNormalized = new Set(Array.from(ufs).map(normalize));
 const brazilNormalized = normalize(BRAZIL_OPTION);
-const stateOptions = [BRAZIL_OPTION, ...Array.from(states)];
+const stateOptionsMetadata = [
+  {
+    label: BRAZIL_OPTION,
+    normalizedLabel: brazilNormalized,
+    normalizedUf: "br",
+  },
+  ...Object.entries(statesObj).map(([uf, label]) => ({
+    label,
+    normalizedLabel: normalize(label),
+    normalizedUf: normalize(uf),
+  })),
+];
 
 const SearchBarPlatform = ({ onSearch }: SearchBarProps) => {
   const containerRef = useRef<HTMLDivElement>(null);
@@ -22,6 +33,20 @@ const SearchBarPlatform = ({ onSearch }: SearchBarProps) => {
   const [hasError, setHasError] = useState(false);
   const [isOptionsOpen, setIsOptionsOpen] = useState(false);
   const [value, setValue] = useState("");
+
+  const normalizedValue = normalize(value.trim());
+  const filteredStateOptions = stateOptionsMetadata
+    .filter((option) => {
+      if (!normalizedValue) {
+        return true;
+      }
+
+      return (
+        option.normalizedLabel.includes(normalizedValue) ||
+        option.normalizedUf.includes(normalizedValue)
+      );
+    })
+    .map((option) => option.label);
 
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
@@ -71,7 +96,8 @@ const SearchBarPlatform = ({ onSearch }: SearchBarProps) => {
   };
 
   const handleOptionSelect = (option: string) => {
-    setValue(option);
+    onSearch(option);
+    setValue("");
     setHasError(false);
     setIsOptionsOpen(false);
     inputRef.current?.focus();
@@ -95,8 +121,11 @@ const SearchBarPlatform = ({ onSearch }: SearchBarProps) => {
             ref={inputRef}
             value={value}
             onChange={(event) => {
-              setValue(event.target.value);
+              const nextValue = event.target.value;
+
+              setValue(nextValue);
               setHasError(false);
+              setIsOptionsOpen(nextValue.trim().length > 0);
             }}
             onKeyDown={(e) => {
               if (e.key === "Enter") {
@@ -105,7 +134,7 @@ const SearchBarPlatform = ({ onSearch }: SearchBarProps) => {
               }
             }}
             role="combobox"
-            aria-autocomplete="none"
+            aria-autocomplete="list"
             aria-controls="platform-searchbar-state-options"
             aria-expanded={isOptionsOpen}
             aria-haspopup="listbox"
@@ -144,18 +173,24 @@ const SearchBarPlatform = ({ onSearch }: SearchBarProps) => {
             role="listbox"
             className="absolute top-[calc(100%+8px)] z-20 max-h-64 w-full overflow-y-auto rounded-xl border border-neutral-200 bg-white p-2 shadow-lg"
           >
-            {stateOptions.map((option) => (
-              <button
-                key={option}
-                type="button"
-                role="option"
-                aria-selected={value === option}
-                onClick={() => handleOptionSelect(option)}
-                className="flex w-full rounded-lg px-3 py-2 text-left text-sm text-[#292829] transition hover:bg-[#F6F7F6]"
-              >
-                {option}
-              </button>
-            ))}
+            {filteredStateOptions.length > 0 ? (
+              filteredStateOptions.map((option) => (
+                <button
+                  key={option}
+                  type="button"
+                  role="option"
+                  aria-selected={value === option}
+                  onClick={() => handleOptionSelect(option)}
+                  className="flex w-full rounded-lg px-3 py-2 text-left text-sm text-[#292829] transition hover:bg-[#F6F7F6]"
+                >
+                  {option}
+                </button>
+              ))
+            ) : (
+              <div className="px-3 py-2 text-sm text-neutral-500">
+                Nenhum estado encontrado.
+              </div>
+            )}
           </div>
         )}
         {hasError && (
