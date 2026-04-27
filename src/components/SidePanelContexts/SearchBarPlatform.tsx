@@ -10,9 +10,11 @@ interface SearchBarProps {
   onSearch: (value: string) => void;
 }
 
+const BRAZIL_OPTION = "Brasil";
 const statesNormalized = new Set(Array.from(states).map(normalize));
 const ufsNormalized = new Set(Array.from(ufs).map(normalize));
-const stateOptions = Array.from(states);
+const brazilNormalized = normalize(BRAZIL_OPTION);
+const stateOptions = [BRAZIL_OPTION, ...Array.from(states)];
 
 const SearchBarPlatform = ({ onSearch }: SearchBarProps) => {
   const containerRef = useRef<HTMLDivElement>(null);
@@ -40,6 +42,7 @@ const SearchBarPlatform = ({ onSearch }: SearchBarProps) => {
 
     if (
       !(
+        normalizedValue === brazilNormalized ||
         statesNormalized.has(normalizedValue) ||
         ufsNormalized.has(normalizedValue)
       )

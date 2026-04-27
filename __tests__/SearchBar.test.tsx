@@ -91,4 +91,17 @@ describe("SearchBar", () => {
       screen.getByRole("option", { name: "rio de janeiro" }),
     ).toBeVisible();
   });
+
+  it("shows Brasil as the first option in the dropdown", async () => {
+    const user = userEvent.setup();
+    renderComponent();
+
+    const toggle = screen.getByRole("button", { name: /mostrar estados/i });
+
+    await user.click(toggle);
+
+    const options = screen.getAllByRole("option");
+
+    expect(options[0]).toHaveTextContent("Brasil");
+  });
 });

@@ -4,12 +4,17 @@ import { useEffect, useRef, useState } from "react";
 import { Icon } from "../Icon/Icon";
 import { ButtonUi } from "../ButtonUI/ButtonUI";
 import { states, ufs } from "@/utils/constants";
+import { normalize } from "@/utils/functions";
 
 interface SearchBarProps {
   onSearch: (value: string) => void;
 }
 
-const stateOptions = Array.from(states);
+const BRAZIL_OPTION = "Brasil";
+const statesNormalized = new Set(Array.from(states).map(normalize));
+const ufsNormalized = new Set(Array.from(ufs).map(normalize));
+const brazilNormalized = normalize(BRAZIL_OPTION);
+const stateOptions = [BRAZIL_OPTION, ...Array.from(states)];
 
 const SearchBar = ({ onSearch }: SearchBarProps) => {
   const containerRef = useRef<HTMLDivElement>(null);
@@ -33,9 +38,15 @@ const SearchBar = ({ onSearch }: SearchBarProps) => {
   }, []);
 
   const validateSearch = (value: string) => {
-    //const normalizedValue = normalize(value.trim());
+    const normalizedValue = normalize(value.trim());
 
-    if (!(states.has(value.trim()) || ufs.has(value.trim()))) {
+    if (
+      !(
+        normalizedValue === brazilNormalized ||
+        statesNormalized.has(normalizedValue) ||
+        ufsNormalized.has(normalizedValue)
+      )
+    ) {
       throw Error("Estado não identificado.");
     }
   };
