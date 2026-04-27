@@ -174,6 +174,7 @@ export interface PanelLayerI {
   name: string;
   id: string;
   description: string;
+  panelPosition?: number | null;
   previewMap: {
     url: string;
     title?: string;
