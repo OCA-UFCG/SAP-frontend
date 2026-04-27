@@ -11,7 +11,6 @@ const GET_PANEL_LAYER = `
         name
         id
         description
-        category
         previewMap {
           url
           title
