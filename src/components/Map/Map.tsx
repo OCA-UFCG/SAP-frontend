@@ -9,9 +9,13 @@ import maplibregl, {
   MapGeoJSONFeature,
 } from "maplibre-gl";
 import "maplibre-gl/dist/maplibre-gl.css";
-import { useCallback, useEffect, useMemo, useRef } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import geometria from "../../data/geometria.json";
-import { CDIFeatureProperties, CDIVectorData } from "../MapSection/MapSection";
+import type { CDIFeatureProperties, CDIVectorData } from "@/lib/geo";
+import {
+  buildOverlayAwareFitBoundsPadding,
+  MAP_FIT_BOUNDS_BASE_PADDING,
+} from "./mapViewport";
 
 interface MapProps {
   minZoom?: number;
@@ -55,6 +59,7 @@ const STATES_FILL_LAYER_ID = "state-fills";
 const STATES_BORDER_LAYER_ID = "state-borders";
 const CDI_LAYER_ID = "cdi-layer";
 const GEE_LAYER_ID = "gee-layer";
+const PLATFORM_SIDEBAR_OVERLAY_SELECTOR = "[data-platform-sidebar-overlay]";
 
 const CDI_FILL_EXPRESSION: ExpressionSpecification = [
   "match",
@@ -75,8 +80,13 @@ const CDI_FILL_EXPRESSION: ExpressionSpecification = [
 ];
 
 const DEFAULT_CENTER: [number, number] = [-15.749997, -47.9499962];
-const MAP_FIT_BOUNDS_PADDING = 200;
 const MAP_FOCUS_ANIMATION_DURATION = 1200;
+const MAP_OVERLAY_ADJUST_DURATION = 0;
+const MAP_STATE_FOCUS_MAX_ZOOM = 4.5;
+
+type MapFitBoundsOptions = NonNullable<
+  Parameters<maplibregl.Map["fitBounds"]>[1]
+>;
 
 const smoothCameraEasing = (progress: number) => 1 - Math.pow(1 - progress, 3);
 
@@ -301,12 +311,14 @@ const Map = ({
     FeatureCollection<Geometry, CDIFeatureProperties>
   >(buildCdiGeoJson(dadosCDI));
   const currentBoundsRef = useRef<LngLatBoundsLike | null>(null);
+  const leftOverlayWidthRef = useRef(0);
   const normalizedCenter = isValidLatLngTuple(center) ? center : DEFAULT_CENTER;
   const initialViewRef = useRef({
     center: normalizedCenter,
     zoom,
     minZoom,
   });
+  const [leftOverlayWidth, setLeftOverlayWidth] = useState(0);
 
   const currentBounds = useMemo((): LngLatBoundsLike => {
     if (estadoSelecionado === "BR") {
@@ -340,6 +352,24 @@ const Map = ({
 
   const pendingStyleSyncRef = useRef(false);
   const pendingSelectedSyncRef = useRef(false);
+
+  const fitMapToBounds = useCallback(
+    (
+      map: maplibregl.Map,
+      bounds: LngLatBoundsLike,
+      options: Omit<MapFitBoundsOptions, "padding"> = {},
+    ) => {
+      map.fitBounds(bounds, {
+        ...options,
+        padding: buildOverlayAwareFitBoundsPadding({
+          basePadding: MAP_FIT_BOUNDS_BASE_PADDING,
+          containerWidth: map.getContainer().clientWidth,
+          leftOverlayWidth: leftOverlayWidthRef.current,
+        }),
+      });
+    },
+    [],
+  );
 
   const log = useCallback(
     (...args: unknown[]) => {
@@ -506,6 +536,49 @@ const Map = ({
     currentBounds,
   ]);
 
+  useEffect(() => {
+    leftOverlayWidthRef.current = leftOverlayWidth;
+  }, [leftOverlayWidth]);
+
+  useEffect(() => {
+    if (typeof document === "undefined") {
+      return;
+    }
+
+    const overlay = document.querySelector<HTMLElement>(
+      PLATFORM_SIDEBAR_OVERLAY_SELECTOR,
+    );
+
+    if (!overlay) {
+      setLeftOverlayWidth(0);
+      return;
+    }
+
+    const updateOverlayWidth = () => {
+      const nextWidth = Math.round(overlay.getBoundingClientRect().width);
+      setLeftOverlayWidth((current) =>
+        current === nextWidth ? current : nextWidth,
+      );
+    };
+
+    updateOverlayWidth();
+    window.addEventListener("resize", updateOverlayWidth);
+
+    if (typeof ResizeObserver === "undefined") {
+      return () => {
+        window.removeEventListener("resize", updateOverlayWidth);
+      };
+    }
+
+    const observer = new ResizeObserver(updateOverlayWidth);
+    observer.observe(overlay);
+
+    return () => {
+      observer.disconnect();
+      window.removeEventListener("resize", updateOverlayWidth);
+    };
+  }, []);
+
   const syncMapLayers = useCallback(
     function syncMapLayersImpl() {
       const map = mapRef.current;
@@ -628,8 +701,7 @@ const Map = ({
 
       const boundsToFit = currentBoundsRef.current;
       if (boundsToFit) {
-        map.fitBounds(boundsToFit, {
-          padding: MAP_FIT_BOUNDS_PADDING,
+        fitMapToBounds(map, boundsToFit, {
           animate: false,
         });
       }
@@ -774,6 +846,7 @@ const Map = ({
     syncMapLayers,
     applySelectedFeatureState,
     scheduleSelectedStateSync,
+    fitMapToBounds,
     log,
     warn,
   ]);
@@ -817,14 +890,28 @@ const Map = ({
       return;
     }
 
-    map.fitBounds(currentBounds, {
-      padding: MAP_FIT_BOUNDS_PADDING,
+    fitMapToBounds(map, currentBounds, {
       animate: true,
       duration: MAP_FOCUS_ANIMATION_DURATION,
       easing: smoothCameraEasing,
-      maxZoom: 7,
+      maxZoom: MAP_STATE_FOCUS_MAX_ZOOM,
     });
-  }, [currentBounds]);
+  }, [currentBounds, fitMapToBounds]);
+
+  useEffect(() => {
+    const map = mapRef.current;
+    const boundsToFit = currentBoundsRef.current;
+
+    if (!map || !boundsToFit) {
+      return;
+    }
+
+    fitMapToBounds(map, boundsToFit, {
+      animate: false,
+      duration: MAP_OVERLAY_ADJUST_DURATION,
+      maxZoom: MAP_STATE_FOCUS_MAX_ZOOM,
+    });
+  }, [leftOverlayWidth, fitMapToBounds]);
 
   useEffect(() => {
     const map = mapRef.current;

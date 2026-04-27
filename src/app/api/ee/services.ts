@@ -1,8 +1,8 @@
 import ee from "@google/earthengine";
-import { IMapId, IEEInfo, PanelLayerI } from "@/utils/interfaces";
-import { getContent } from "@/utils/contentful";
+import { addUrlToCache, buildCacheKey } from "@/app/api/ee/cache";
+import { getPanelLayers } from "@/repositories/platform/panelLayerRepository";
+import { IMapId, IEEInfo } from "@/utils/interfaces";
 import { getImageDataYearKeys, resolveImageYearEntry } from "@/utils/imageData";
-import { GET_PANEL_LAYER } from "@/utils/queries";
 
 // ====== GEE Singleton for Authentication and Initialization ======
 
@@ -46,7 +46,7 @@ export const getEarthEngineUrl = async (
       ee.data.getAsset(
         imageId,
         (asset: any) => resolve(asset),
-        (err: any) => resolve(null), // Safe fallback
+        () => resolve(null), // Safe fallback
       );
     });
 
@@ -212,108 +212,14 @@ async function authenticateAndInitialize(): Promise<void> {
   });
 }
 
-// ====== Cache ======
-const TTL = 1000 * 60 * 30; // 0.5 hour in milliseconds
-const CACHE_KEY_VERSION = "v3";
-
-interface CacheEntry {
-  url: string;
-  timestamp: number;
-}
-
-let cached = false;
-const cacheUrls = new Map<string, CacheEntry>();
-
-function buildVisualizationSignature(
-  imageId: string,
-  imageParams: Array<any>,
-  minScale?: number,
-  maxScale?: number,
-) {
-  return JSON.stringify({
-    imageId,
-    imageParams,
-    minScale: minScale ?? null,
-    maxScale: maxScale ?? null,
-  });
-}
-
-export const buildCacheKey = (
-  name: string,
-  year: string,
-  imageId: string,
-  imageParams: Array<any>,
-  minScale?: number,
-  maxScale?: number,
-) =>
-  `${CACHE_KEY_VERSION}:${name}:${year}:${buildVisualizationSignature(
-    imageId,
-    imageParams,
-    minScale,
-    maxScale,
-  )}`;
-
-/**
- * Checks if a given key exists in cache.
- * @param {string} key - The unique key to be search in the cache.
- * @returns {boolean} - True if the key exists, false otherwise.
- */
-export const hasKey = (key: string) => {
-  const entry = cacheUrls.get(key);
-  if (!entry) {
-    return false;
-  }
-
-  // Check if the entry has expired
-  const expired = Date.now() - entry.timestamp > TTL;
-  if (expired) {
-    cacheUrls.delete(key); // Clean up expired entry
-  }
-
-  return !expired;
-};
-
-/**
- * Retrieves the caches URL for a given key.
- * @param {string} key - The unique key that refers to the URL to be returned.
- * @return {string | undefined} - The cached URL or undefined if the url is not present or has expired.
- */
-export const getCachedUrl = (key: string) => {
-  // The hasKey function also handles expiration checks and cleanup
-  return cacheUrls.get(key)?.url || undefined;
-};
-
-/**
- * Removes a URL from the cache for a given key.
- * @param {string} key - The unique key that refers to the URL to be removed.
- */
-export const removeCacheUrl = (key: string) => cacheUrls.delete(key);
-
-/**
- * Adds a url to the cache, based on a key composed by the name and year of the map visualization.
- * @param {string} key - The unique key that refers to the URL to be returned.
- * @param {string} url - The URL to cache.
- */
-export const addUrlToCache = (key: string, url: string | null) => {
-  if (url) {
-    const entry: CacheEntry = { url, timestamp: Date.now() };
-    cacheUrls.set(key, entry);
-  } else {
-    cacheUrls.delete(key);
-  }
-};
-
+let warmupStarted = false;
 /**
  * Fetches and caches map data from Contentful/GEE API sources.
  * Runs recursively every 12 hours to keep the cache updated.
  */
 export const cacheMapData = async () => {
   try {
-    type PanelLayerResponse = {
-      panelLayerCollection: { items: PanelLayerI[] };
-    };
-    const data = await getContent<PanelLayerResponse>(GET_PANEL_LAYER);
-    const panelLayers = data?.panelLayerCollection?.items ?? [];
+    const panelLayers = await getPanelLayers();
 
     for (const layer of panelLayers) {
       const id = layer.id;
@@ -338,7 +244,6 @@ export const cacheMapData = async () => {
           minScale,
           maxScale,
         );
-
         const url = await getEarthEngineUrl(
           yearConfig.imageId,
           yearConfig.imageParams,
@@ -348,15 +253,19 @@ export const cacheMapData = async () => {
         addUrlToCache(cacheKey, url);
       }
     }
-
-    cached = true;
   } catch (error) {
     // Don’t crash the server on startup if Contentful/GEE is misconfigured.
     console.error("Error caching EE map data:", error);
   }
 };
 
-if (!cached) {
-  cacheMapData();
+export function ensureEeCacheWarmupStarted() {
+  if (warmupStarted) {
+    return;
+  }
+
+  warmupStarted = true;
+
+  void cacheMapData();
   setInterval(cacheMapData, 1000 * 60 * 60 * 12);
 }

@@ -1,6 +1,8 @@
 "use client";
 
 import clsx from "clsx";
+import Image from "next/image";
+import { normalizeContentfulImage } from "@/utils/functions";
 
 export interface IDroughtDataset {
   id: number;
@@ -44,10 +46,12 @@ export function DroughtDataset({
             style={{ width: "115.51px", height: 126 }}
           >
             {card.image ? (
-              <img
-                src={card.image}
+              <Image
+                src={normalizeContentfulImage(card.image)}
                 alt={card.title}
-                className="absolute inset-0 w-full h-full object-cover"
+                fill
+                sizes="116px"
+                className="object-cover"
               />
             ) : (
               <div className="absolute inset-0 bg-[#E4E5E2]" />
@@ -59,12 +63,12 @@ export function DroughtDataset({
             style={{ height: 126 }}
           >
             <div className="flex items-center w-full" style={{ height: 24 }}>
-              <span className="w-full font-['Inter'] font-semibold text-[16px] leading-[24px] tracking-[-0.015em] text-[#292829] line-clamp-1">
+              <span className="w-full font-inter font-semibold text-[16px] leading-[24px] tracking-[-0.015em] text-[#292829] line-clamp-1">
                 {card.title}
               </span>
             </div>
             <div className="flex items-start w-full flex-1">
-              <span className="w-full font-['Inter'] font-normal text-[14px] leading-[20px] text-[#7E797B] line-clamp-3 break-words">
+              <span className="w-full font-inter font-normal text-[14px] leading-[20px] text-[#7E797B] line-clamp-3 break-words">
                 {card.description}
               </span>
             </div>
@@ -115,7 +119,7 @@ export function DroughtDataset({
               disabled ? "cursor-not-allowed opacity-60" : "cursor-pointer",
             )}
           >
-            <span className="font-['Open_Sans'] text-[14px] leading-[24px] font-normal text-white">
+            <span className="font-open-sans text-[14px] leading-[24px] font-normal text-white">
               Detalhamento
             </span>
           </button>

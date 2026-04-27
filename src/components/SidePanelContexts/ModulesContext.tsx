@@ -2,10 +2,10 @@
 
 import { useMemo } from "react";
 import { useMapLayer } from "@/components/MapLayerContext/MapLayerContext";
-import type { CDIVectorData } from "@/components/PlatformMap/PlatformMap";
 import { DroughtDataset } from "@/components/DroughtDataset/DroughtDataset";
 import type { IDroughtDataset } from "@/components/DroughtDataset/DroughtDataset";
 import type { PlatformSection } from "@/components/PlatformSideRail/PlatformSideRail";
+import type { CDIVectorData } from "@/lib/geo";
 import type { IEEInfo, PanelLayerI } from "@/utils/interfaces";
 import { getImageDataLegend } from "@/utils/imageData";
 import cdiData from "../../data/CDI_Janeiro_2024_Vetores.json";
@@ -38,10 +38,10 @@ function buildLayerDatasets(panelLayers: PanelLayerI[]): LayerDataset[] {
 function ContextHeader() {
   return (
     <header className="flex flex-col gap-2">
-      <h2 className="font-['Inter'] font-semibold text-[24px] leading-[24px] tracking-[-0.015em] text-[#292829]">
+      <h2 className="font-inter font-semibold text-[24px] leading-[24px] tracking-[-0.015em] text-[#292829]">
         O que você deseja monitorar?
       </h2>
-      <p className="font-['Inter'] font-medium text-[16px] leading-[24px] tracking-[-0.015em] text-[#292829]">
+      <p className="font-inter font-medium text-[16px] leading-[24px] tracking-[-0.015em] text-[#292829]">
         Selecione que monitor você deseja analisar
       </p>
     </header>
@@ -54,11 +54,10 @@ export function ModulesContext({
 }: ModulesContextProps) {
   const {
     activeData,
-    setActiveData,
     activeEEData,
-    setActiveEEData,
-    setActiveLayerId,
-    setActiveLegend,
+    activateVectorLayer,
+    activateEeLayer,
+    clearActiveLayer,
   } = useMapLayer();
 
   const datasets = useMemo(
@@ -80,14 +79,14 @@ export function ModulesContext({
 
     if (vectorData) {
       const isActive = activeData === vectorData;
-      setActiveData(isActive ? null : vectorData);
-      setActiveEEData(null);
-      setActiveLayerId(isActive ? null : dataset.fileRef);
-
       if (isActive) {
-        setActiveLegend(null);
+        clearActiveLayer();
       } else {
-        setActiveLegend(getCaption(dataset.layer));
+        activateVectorLayer(
+          dataset.fileRef,
+          vectorData,
+          getCaption(dataset.layer),
+        );
       }
 
       return;
@@ -96,14 +95,10 @@ export function ModulesContext({
     if (hasEEData) {
       const eeConfig = dataset.layer as unknown as IEEInfo;
       const isActive = activeEEData?.id === eeConfig.id;
-      setActiveEEData(isActive ? null : eeConfig);
-      setActiveData(null);
-      setActiveLayerId(isActive ? null : eeConfig.id);
-
       if (isActive) {
-        setActiveLegend(null);
+        clearActiveLayer();
       } else {
-        setActiveLegend(getCaption(dataset.layer));
+        activateEeLayer(eeConfig, getCaption(dataset.layer));
       }
     }
   }
@@ -118,17 +113,17 @@ export function ModulesContext({
 
     // Ensure the chosen layer is active before opening the detailing view.
     if (vectorData) {
-      setActiveData(vectorData);
-      setActiveEEData(null);
-      setActiveLayerId(dataset.fileRef);
+      activateVectorLayer(
+        dataset.fileRef,
+        vectorData,
+        getCaption(dataset.layer),
+      );
     } else if (hasEEData) {
       const eeConfig = dataset.layer as unknown as IEEInfo;
-      setActiveEEData(eeConfig);
-      setActiveData(null);
-      setActiveLayerId(eeConfig.id);
+      activateEeLayer(eeConfig, getCaption(dataset.layer));
     }
 
-    onRequestSectionChange?.("analysis");
+    onRequestSectionChange?.("analysis-detail");
   }
 
   return (

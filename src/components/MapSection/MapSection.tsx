@@ -1,22 +1,15 @@
 "use client";
 
 import { useState, useMemo } from "react";
-import { FeatureCollection, Geometry } from "geojson";
 
 import geodata from "../../data/CDI_Janeiro_2024_Vetores.json";
 import droughtData from "../../../public/dados-seca.json";
 import SearchBar from "../SearchBar/SearchBar";
 import MapComponent from "../Map/MapComponent";
 import { AlertTiers } from "../AlertTiers/AlertTiers";
+import type { CDIVectorData } from "@/lib/geo";
+import { resolveStateKeyFromSearch } from "@/lib/geo";
 import { statesObj } from "@/utils/constants";
-
-export interface CDIFeatureProperties {
-  classe_cdi: number;
-  first: number;
-  [key: string]: unknown;
-}
-
-export type CDIVectorData = FeatureCollection<Geometry, CDIFeatureProperties>;
 
 const TIER_CONFIG = {
   "sem-seca": { label: "Sem seca", color: "#E4E5E2" },
@@ -30,30 +23,9 @@ const TIER_CONFIG = {
 export default function DroughtSection() {
   const [selectedState, setSelectedState] = useState("br");
 
-  /**
-   * 3. Search Mapping Logic
-   * Maps full names (e.g., "acre") or abbreviations ("AC") to the JSON keys.
-   */
   const handleSearch = (value: string) => {
-    const searchLower = value.toLowerCase().trim();
-
-    // Check if input is a UF (key in statesObj)
-    if (statesObj[searchLower as keyof typeof statesObj]) {
-      setSelectedState(searchLower);
-      return;
-    }
-
-    // Check if input is a Full Name (value in statesObj)
-    const foundUF = Object.entries(statesObj).find(
-      ([_, name]) => name.toLowerCase() === searchLower,
-    );
-
-    if (foundUF) {
-      setSelectedState(foundUF[0]);
-    } else {
-      // If not found, you can default to Brazil or keep current
-      setSelectedState("br");
-    }
+    const result = resolveStateKeyFromSearch(value, statesObj);
+    setSelectedState(result.key);
   };
 
   /**
@@ -181,10 +153,7 @@ export default function DroughtSection() {
           </article>
 
           {/* Pie Chart Component */}
-          <AlertTiers
-            items={statusItems}
-            onToggle={(id, checked) => console.log(`Toggled ${id}: ${checked}`)}
-          />
+          <AlertTiers items={statusItems} />
         </div>
       </div>
     </section>

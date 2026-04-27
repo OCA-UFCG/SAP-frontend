@@ -23,6 +23,7 @@
 # misc
 .DS_Store
 *.pem
+/scripts/gee/
 
 # debug
 npm-debug.log*

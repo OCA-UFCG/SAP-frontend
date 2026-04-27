@@ -12,7 +12,6 @@ type TooltipPayloadShape = {
 
 type Props = {
   items: StatusItemI[];
-  onToggle: (id: string, checked: boolean) => void;
 };
 
 type PieShapeProps = {
@@ -25,7 +24,7 @@ type PieShapeProps = {
   index: number;
 };
 
-export const AlertTiers = ({ items, onToggle }: Props) => {
+export const AlertTiers = ({ items }: Props) => {
   return (
     <div className="w-full p-4 bg-[#F6F7F6] border border-[#E4E5E2] rounded-lg flex flex-col gap-6">
       <h1 className="text-xl font-bold ">Monitoramento de Seca na região</h1>
@@ -76,7 +75,7 @@ export const AlertTiers = ({ items, onToggle }: Props) => {
 
         <div className="flex flex-col gap-2 w-full">
           {items.map((item) => (
-            <StatusRow key={item.id} item={item} onToggle={onToggle} />
+            <StatusRow key={item.id} item={item} />
           ))}
         </div>
       </div>

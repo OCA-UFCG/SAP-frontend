@@ -31,6 +31,7 @@ export interface AnalysisRankingEntry {
 export interface AnalysisRankingGroup {
   id: string;
   label: string;
+  tone: AnalysisTone;
   total: number;
   totalLabel: string;
   items: AnalysisRankingEntry[];

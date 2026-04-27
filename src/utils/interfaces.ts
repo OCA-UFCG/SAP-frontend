@@ -103,44 +103,6 @@ export interface PartnerI {
   };
 }
 
-export interface PartnersSectionQuery {
-  cabealhoSeesCollection: {
-    items: SectionHeaderI[];
-  };
-  partnersCollection: {
-    items: PartnerI[];
-  };
-}
-
-export interface SecaoSobreI {
-  sys: {
-    id: string;
-  };
-  identifier: string;
-  title: string;
-  text: {
-    json: Document;
-  };
-  image: {
-    url: string;
-    title?: string;
-    width?: number;
-    height?: number;
-  };
-}
-
-export interface AboutPageQuery {
-  secaoSobreCollection: {
-    items: SecaoSobreI[];
-  };
-  cabealhoSeesCollection: {
-    items: SectionHeaderI[];
-  };
-  partnersCollection: {
-    items: PartnerI[];
-  };
-}
-
 export interface ISection {
   name: string;
   id: string;
@@ -212,7 +174,7 @@ export interface PanelLayerI {
   name: string;
   id: string;
   description: string;
-  category: string;
+  panelPosition?: number | null;
   previewMap: {
     url: string;
     title?: string;
@@ -222,7 +184,6 @@ export interface PanelLayerI {
   imageData: ImageDataConfig;
   minScale?: number;
   maxScale?: number;
-  years: string[];
 }
 
 export interface IEEInfo {

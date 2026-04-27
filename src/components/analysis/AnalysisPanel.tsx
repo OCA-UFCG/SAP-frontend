@@ -1,11 +1,13 @@
 "use client";
 
+import { useEffect, useRef, useState } from "react";
 import { Chevron } from "@/components/Chevron/Chevron";
 import SearchBarPlatform from "@/components/SidePanelContexts/SearchBarPlatform";
 import { useLayoutEffect } from "react";
 import * as am5 from "@amcharts/amcharts5";
 import * as am5xy from "@amcharts/amcharts5/xy";
 import am5themes_Animated from "@amcharts/amcharts5/themes/Animated";
+import { getContrastTextColor } from "@/utils/functions";
 import type {
   AnalysisDistributionItem,
   AnalysisRankingGroup,
@@ -35,6 +37,10 @@ interface TemporalVisionProps {
   years?: Record<string, CompactAnalysisYearData>;
   classes?: CompactAnalysisClass[];
   selectedState?: string;
+interface AnalysisYearSelectProps {
+  activeYear: string;
+  yearOptions: AnalysisYearOption[];
+  onYearChange: (year: string) => void;
 }
 
 function renderFormattedText(text: string) {
@@ -66,6 +72,91 @@ function EmptySection({
       <div className="rounded-lg border border-[#EFEFEF] bg-white p-4 text-[12px] leading-5 text-neutral-600 shadow-sm">
         {description}
       </div>
+    </div>
+  );
+}
+
+function AnalysisYearSelect({
+  activeYear,
+  yearOptions,
+  onYearChange,
+}: AnalysisYearSelectProps) {
+  const containerRef = useRef<HTMLDivElement>(null);
+  const [isOptionsOpen, setIsOptionsOpen] = useState(false);
+
+  const activeOption =
+    yearOptions.find((option) => option.value === activeYear) ?? yearOptions[0];
+
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      if (!containerRef.current?.contains(event.target as Node)) {
+        setIsOptionsOpen(false);
+      }
+    };
+
+    document.addEventListener("mousedown", handleClickOutside);
+
+    return () => {
+      document.removeEventListener("mousedown", handleClickOutside);
+    };
+  }, []);
+
+  return (
+    <div ref={containerRef} className="relative w-full">
+      <button
+        type="button"
+        onClick={() => setIsOptionsOpen((current) => !current)}
+        className="flex h-10 w-full items-center justify-between rounded-lg border border-transparent bg-[#E4E5E2] px-3 py-3 text-left shadow-sm transition hover:border-neutral-400 focus-visible:border-neutral-600 focus-visible:ring-2 focus-visible:ring-neutral-600 focus-visible:outline-none"
+        aria-haspopup="listbox"
+        aria-expanded={isOptionsOpen}
+        aria-controls="analysis-year-options"
+      >
+        <span className="truncate text-sm text-[#292829]">
+          {activeOption?.label ?? activeYear}
+        </span>
+
+        <svg
+          width="16"
+          height="16"
+          viewBox="0 0 20 20"
+          fill="none"
+          xmlns="http://www.w3.org/2000/svg"
+          className={`ml-2 shrink-0 text-[#898989] transition-transform ${isOptionsOpen ? "rotate-180" : ""}`}
+          aria-hidden="true"
+        >
+          <path
+            d="M5 7.5L10 12.5L15 7.5"
+            stroke="currentColor"
+            strokeWidth="1.8"
+            strokeLinecap="round"
+            strokeLinejoin="round"
+          />
+        </svg>
+      </button>
+
+      {isOptionsOpen && (
+        <div
+          id="analysis-year-options"
+          role="listbox"
+          className="absolute top-[calc(100%+8px)] z-20 max-h-64 w-full overflow-y-auto rounded-xl border border-neutral-200 bg-white p-2 shadow-lg"
+        >
+          {yearOptions.map((option) => (
+            <button
+              key={option.value}
+              type="button"
+              role="option"
+              aria-selected={activeYear === option.value}
+              onClick={() => {
+                setIsOptionsOpen(false);
+                onYearChange(option.value);
+              }}
+              className="flex w-full rounded-lg px-3 py-2 text-left text-sm text-[#292829] transition hover:bg-[#F6F7F6]"
+            >
+              {option.label}
+            </button>
+          ))}
+        </div>
+      )}
     </div>
   );
 }
@@ -111,6 +202,167 @@ function DistributionSection({ items }: { items: AnalysisDistributionItem[] }) {
   );
 }
 
+function parseHexColor(color: string) {
+  const normalized = color.trim().replace("#", "");
+
+  if (!/^(?:[\da-fA-F]{3}|[\da-fA-F]{6})$/.test(normalized)) {
+    return null;
+  }
+
+  const expanded =
+    normalized.length === 3
+      ? normalized
+          .split("")
+          .map((character) => character + character)
+          .join("")
+      : normalized;
+
+  return {
+    r: Number.parseInt(expanded.slice(0, 2), 16),
+    g: Number.parseInt(expanded.slice(2, 4), 16),
+    b: Number.parseInt(expanded.slice(4, 6), 16),
+  };
+}
+
+function buildRankingBadgeColor(color: string) {
+  const rgb = parseHexColor(color);
+
+  if (!rgb) {
+    return "#21240F";
+  }
+
+  return `rgb(${Math.round(rgb.r * 0.18)}, ${Math.round(rgb.g * 0.18)}, ${Math.round(rgb.b * 0.18)})`;
+}
+
+function getDefaultExpandedGroups(groups: AnalysisRankingGroup[]) {
+  return Object.fromEntries(groups.map((group) => [group.id, true]));
+}
+
+function RankingSectionContent({
+  groups,
+  onItemSelect,
+}: {
+  groups: AnalysisRankingGroup[];
+  onItemSelect?: (locationKey: string) => void;
+}) {
+  const [expandedGroups, setExpandedGroups] = useState<Record<string, boolean>>(
+    () => getDefaultExpandedGroups(groups),
+  );
+
+  return (
+    <div className="flex flex-col gap-2">
+      {groups.map((group) => {
+        const isExpanded = expandedGroups[group.id] ?? true;
+        const hasItems = group.items.length > 0;
+        const headerTextColor = getContrastTextColor(group.tone.color);
+        const badgeBackgroundColor = buildRankingBadgeColor(group.tone.color);
+        const badgeTextColor = getContrastTextColor(badgeBackgroundColor);
+        const toggleLabel = hasItems
+          ? isExpanded
+            ? "Ocultar lista"
+            : `Ver top ${group.items.length}`
+          : "Sem estados com valor";
+
+        return (
+          <div
+            key={group.id}
+            className="overflow-hidden rounded-lg border border-[#EFEFEF] bg-white"
+          >
+            <div
+              className="flex min-h-14 items-stretch justify-between pl-3"
+              style={{ backgroundColor: group.tone.color }}
+            >
+              <span
+                className="flex items-center pr-4 text-[16px] font-semibold leading-[22px] tracking-[-0.03em]"
+                style={{ color: headerTextColor }}
+              >
+                {group.label}
+              </span>
+
+              <div
+                className="flex min-h-14 min-w-[97px] shrink-0 flex-col items-center justify-center px-2"
+                style={{
+                  backgroundColor: badgeBackgroundColor,
+                  color: badgeTextColor,
+                }}
+              >
+                <span className="text-[24px] font-semibold leading-5 tracking-[-0.03em]">
+                  {group.total}
+                </span>
+                <span className="text-[12px] font-semibold leading-6">
+                  {group.totalLabel}
+                </span>
+              </div>
+            </div>
+
+            {isExpanded && hasItems ? (
+              <div className="flex flex-col gap-2 bg-white p-2">
+                {group.items.map((item) => (
+                  <button
+                    key={item.id}
+                    type="button"
+                    onClick={() => onItemSelect?.(item.id)}
+                    title={
+                      item.trailingLabel
+                        ? `${item.label}: ${item.trailingLabel}`
+                        : item.label
+                    }
+                    aria-label={
+                      item.trailingLabel
+                        ? `${item.label}: ${item.trailingLabel}`
+                        : item.label
+                    }
+                    className="flex min-h-8 items-center justify-between gap-2 rounded-lg bg-[#E4E5E2] px-2 py-1.5 text-left transition-colors duration-150 hover:bg-[#D7D9D4]"
+                  >
+                    <span className="flex min-w-0 flex-1 items-center justify-between gap-3">
+                      <span className="truncate text-[14px] leading-5 text-[#292829]">
+                        {item.label}
+                      </span>
+                      {item.trailingLabel ? (
+                        <span className="shrink-0 text-[12px] font-medium leading-5 text-[#292829]">
+                          {item.trailingLabel}
+                        </span>
+                      ) : null}
+                    </span>
+                    <Chevron open from="right" to="right" size={16} />
+                  </button>
+                ))}
+              </div>
+            ) : null}
+
+            <button
+              type="button"
+              disabled={!hasItems}
+              aria-expanded={hasItems ? isExpanded : undefined}
+              aria-label={
+                hasItems
+                  ? `${isExpanded ? "Ocultar" : "Mostrar"} ${group.label}`
+                  : undefined
+              }
+              onClick={() => {
+                if (!hasItems) {
+                  return;
+                }
+
+                setExpandedGroups((current) => ({
+                  ...current,
+                  [group.id]: !isExpanded,
+                }));
+              }}
+              className="flex min-h-7 w-full items-center justify-center gap-2 bg-[#C8CAC5] px-2 py-1 text-[12px] font-medium leading-5 text-[#292829] transition-colors duration-150 enabled:cursor-pointer enabled:hover:bg-[#BFC2BC] disabled:cursor-default"
+            >
+              <span className="font-inter">{toggleLabel}</span>
+              {hasItems ? (
+                <Chevron open={isExpanded} from="up" to="down" size={16} />
+              ) : null}
+            </button>
+          </div>
+        );
+      })}
+    </div>
+  );
+}
+
 function RankingSection({
   title,
   groups,
@@ -129,46 +381,23 @@ function RankingSection({
     );
   }
 
+  const rankingGroupsKey = groups
+    .map(
+      (group) =>
+        `${group.id}:${group.total}:${group.items.map((item) => item.id).join(",")}`,
+    )
+    .join("|");
+
   return (
     <div className="flex flex-col gap-2">
-      <h2 className="text-[14px] font-semibold leading-6 text-[#292829]">
+      <h2 className="text-[18px] font-semibold leading-6 text-[#292829]">
         {title}
       </h2>
-      <div className="flex flex-col gap-3">
-        {groups.map((group) => (
-          <div
-            key={group.id}
-            className="overflow-hidden rounded-lg border border-[#EFEFEF] bg-white shadow-sm"
-          >
-            <div className="flex items-center justify-between bg-[#F0F0D7] px-4 py-3">
-              <span className="text-[16px] font-semibold text-[#292829]">
-                {group.label}
-              </span>
-              <span className="rounded-md bg-[#2D3215] px-3 py-2 text-[12px] font-semibold text-white">
-                {group.total} {group.totalLabel}
-              </span>
-            </div>
-
-            <div className="flex flex-col gap-2 p-3">
-              {group.items.map((item) => (
-                <button
-                  key={item.id}
-                  type="button"
-                  onClick={() => onItemSelect?.(item.id)}
-                  className="flex items-center justify-between rounded-md bg-[#F7F7F7] px-3 py-2 text-left text-[13px] text-[#292829] transition-colors duration-150 hover:bg-[#EFEFEF]"
-                >
-                  <span>{item.label}</span>
-                  {item.trailingLabel ? (
-                    <span className="text-[12px] text-neutral-500">
-                      {item.trailingLabel}
-                    </span>
-                  ) : null}
-                </button>
-              ))}
-            </div>
-          </div>
-        ))}
-      </div>
+      <RankingSectionContent
+        key={rankingGroupsKey}
+        groups={groups}
+        onItemSelect={onItemSelect}
+      />
     </div>
   );
 }
@@ -429,10 +658,10 @@ export function AnalysisPanel({
         </button>
 
         <header className="flex flex-col gap-2">
-          <h1 className="font-['Inter'] text-[24px] font-semibold leading-[24px] tracking-[-0.015em]">
+          <h1 className="font-inter text-[24px] font-semibold leading-[24px] tracking-[-0.015em]">
             Análise do módulo {moduleName}
           </h1>
-          <p className="font-['Inter'] text-[16px] font-medium leading-[24px] tracking-[-0.015em]">
+          <p className="font-inter text-[16px] font-medium leading-[24px] tracking-[-0.015em]">
             Pesquise um estado ou cidade para iniciar análise
           </p>
         </header>
@@ -447,17 +676,11 @@ export function AnalysisPanel({
               Data da análise
             </label>
 
-            <select
-              value={activeYear}
-              onChange={(event) => onYearChange(event.target.value)}
-              className="h-[40px] min-h-[36px] w-full rounded-md border border-[#DCDBDC] bg-white px-3 py-2 text-[14px] leading-[24px] text-[#292829] focus:outline-none"
-            >
-              {yearOptions.map((year) => (
-                <option key={year.value} value={year.value}>
-                  {year.label}
-                </option>
-              ))}
-            </select>
+            <AnalysisYearSelect
+              activeYear={activeYear}
+              yearOptions={yearOptions}
+              onYearChange={onYearChange}
+            />
           </div>
         </section>
 

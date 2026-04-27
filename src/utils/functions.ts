@@ -1,21 +1,4 @@
 import { SecaData, SecaRootObject } from "./interfaces";
-import { createClient } from "contentful";
-
-export const getContent = async (contentTypes: string[]) => {
-  const client = createClient({
-    accessToken: process.env.NEXT_PUBLIC_CONTENTFUL_ACCESS_TOKEN || "",
-    space: process.env.NEXT_PUBLIC_CONTENTFUL_SPACE_ID || "",
-  });
-  const content: any = {};
-
-  for (const type of contentTypes) {
-    const res = await client.getEntries({ content_type: type });
-    content[type] = res.items;
-  }
-
-  return content;
-};
-
 
 export function normalizeContentfulImage(url: string) {
   switch (true) {
@@ -97,34 +80,6 @@ export const normalize = (str: string) =>
     .normalize("NFD")
     .replace(/[\u0300-\u036f]/g, "") // removes accents
     .replace(/\s+/g, ""); // removes spaces
-
-export type StateSearchResult =
-  | { type: "uf"; key: string }
-  | { type: "br"; key: "br" };
-
-export function resolveStateKeyFromSearch(
-  query: string,
-  statesObj: Record<string, string>,
-): StateSearchResult {
-  const searchLower = query.toLowerCase().trim();
-
-  // UF (key in statesObj)
-  if (statesObj[searchLower]) {
-    return { type: "uf", key: searchLower };
-  }
-
-  // Full name (value in statesObj)
-  const foundUF = Object.entries(statesObj).find(
-    ([_, name]) => name.toLowerCase() === searchLower,
-  );
-
-  if (foundUF) {
-    return { type: "uf", key: foundUF[0] };
-  }
-
-  return { type: "br", key: "br" };
-}
-
 
 /**
  * Busca os dados de seca a partir de uma chave (UF ou 'br')

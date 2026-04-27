@@ -8,7 +8,7 @@ import {
 import { PlatformSidePanel } from "@/components/PlatformSidePanel/PlatformSidePanel";
 import { AnalysisContext } from "@/components/SidePanelContexts/AnalysisContext";
 import { ComingSoonContext } from "@/components/SidePanelContexts/ComingSoonContext";
-import { PanelLayerI, IEEInfo } from "@/utils/interfaces";
+import { PanelLayerI } from "@/utils/interfaces";
 import { useMapLayer } from "@/components/MapLayerContext/MapLayerContext";
 
 interface PlatformSidebarProps {
@@ -16,46 +16,50 @@ interface PlatformSidebarProps {
 }
 
 export function PlatformSidebar({ panelLayers }: PlatformSidebarProps) {
-  const { setActiveData } = useMapLayer();
+  const { clearActiveLayer } = useMapLayer();
 
   const [activeSection, setActiveSection] =
-    useState<PlatformSection>("modules");
-  const [panelSection, setPanelSection] = useState<PlatformSection>("modules");
+    useState<PlatformSection>("monitoring");
+  const [panelSection, setPanelSection] =
+    useState<PlatformSection>("monitoring");
   const [isPanelOpen, setIsPanelOpen] = useState(true);
 
   const ContextComponent =
-    panelSection === "modules"       
-    ? undefined          
-    : panelSection === "analysis"      
-      ? AnalysisContext    
-      : panelSection === "multicriteria" 
-        ? ComingSoonContext   
-        : panelSection === "forecast"      
-          ? ComingSoonContext   
-          : undefined;
+    panelSection === "monitoring"
+      ? undefined
+      : panelSection === "analysis-detail"
+        ? AnalysisContext
+        : panelSection === "analysis"
+          ? ComingSoonContext
+          : panelSection === "communication"
+            ? ComingSoonContext
+            : undefined;
 
   function handleSectionChange(next: PlatformSection) {
     setActiveSection(next);
     setPanelSection(next);
     setIsPanelOpen(true);
 
-    if (next !== "modules" && next !== "analysis") {
-      setActiveData(null);
+    if (next !== "monitoring" && next !== "analysis-detail") {
+      clearActiveLayer();
     }
   }
 
   function handlePanelSectionChange(next: PlatformSection) {
     setPanelSection(next);
 
-    if (next === "modules" && activeSection === "analysis") {
-      setActiveSection("modules");
+    if (next === "monitoring" && activeSection === "analysis-detail") {
+      setActiveSection("monitoring");
     }
 
     setIsPanelOpen(true);
   }
 
   return (
-    <aside className="absolute left-0 top-0 h-full flex z-20">
+    <aside
+      className="absolute left-0 top-0 z-20 flex h-full"
+      data-platform-sidebar-overlay
+    >
       <PlatformSideRail
         activeSection={activeSection}
         onSectionChange={handleSectionChange}
