@@ -44,7 +44,7 @@ export function AnalysisContext({
 
   function handleGoBack() {
     resetPlatformState();
-    onRequestSectionChange?.("modules");
+    onRequestSectionChange?.("monitoring");
   }
 
   const handleSearch = (value: string) => {

@@ -123,7 +123,7 @@ export function ModulesContext({
       activateEeLayer(eeConfig, getCaption(dataset.layer));
     }
 
-    onRequestSectionChange?.("analysis");
+    onRequestSectionChange?.("analysis-detail");
   }
 
   return (
