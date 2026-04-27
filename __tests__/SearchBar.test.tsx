@@ -75,4 +75,20 @@ describe("SearchBar", () => {
 
     expect(screen.getByText("Estado não identificado.")).toBeInTheDocument();
   });
+
+  it("shows all states when opening options after typing", async () => {
+    const user = userEvent.setup();
+    renderComponent();
+
+    const input = screen.getByRole("combobox");
+    const toggle = screen.getByRole("button", { name: /mostrar estados/i });
+
+    await user.type(input, "sao");
+    await user.click(toggle);
+
+    expect(screen.getByRole("option", { name: "sao paulo" })).toBeVisible();
+    expect(
+      screen.getByRole("option", { name: "rio de janeiro" }),
+    ).toBeVisible();
+  });
 });
