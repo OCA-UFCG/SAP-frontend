@@ -16,6 +16,10 @@ import {
   buildOverlayAwareFitBoundsPadding,
   MAP_FIT_BOUNDS_BASE_PADDING,
 } from "./mapViewport";
+import {
+  BRAZIL_TERRITORY_CODE,
+  resolveNextSelectedState,
+} from "./stateSelection";
 
 interface MapProps {
   minZoom?: number;
@@ -321,7 +325,7 @@ const Map = ({
   const [leftOverlayWidth, setLeftOverlayWidth] = useState(0);
 
   const currentBounds = useMemo((): LngLatBoundsLike => {
-    if (estadoSelecionado === "BR") {
+    if (estadoSelecionado === BRAZIL_TERRITORY_CODE) {
       const [minLng, minLat, maxLng, maxLat] = bbox(geoBrasil);
       return [
         [minLng, minLat],
@@ -438,7 +442,7 @@ const Map = ({
         }
       }
 
-      if (next && next !== "BR") {
+      if (next && next !== BRAZIL_TERRITORY_CODE) {
         try {
           selectedStateIdRef.current = next;
           map.setFeatureState(
@@ -707,7 +711,10 @@ const Map = ({
       }
 
       // Apply initial selected state via feature-state (works with vector tiles).
-      if (selectedStateRef.current && selectedStateRef.current !== "BR") {
+      if (
+        selectedStateRef.current &&
+        selectedStateRef.current !== BRAZIL_TERRITORY_CODE
+      ) {
         selectedStateIdRef.current = selectedStateRef.current;
         map.setFeatureState(
           {
@@ -806,8 +813,14 @@ const Map = ({
 
         if (!uf) return;
 
+        const nextSelectedState = resolveNextSelectedState(
+          selectedStateRef.current,
+          uf,
+        );
+
         log("state click", {
           uf,
+          nextSelectedState,
           featureId: clickedFeature?.id,
           propertiesUF: clickedFeature?.properties?.SIGLA_UF,
           selectedStateRef: selectedStateRef.current,
@@ -820,16 +833,20 @@ const Map = ({
         // source/tile loading.
         try {
           if (map.getSource(STATES_SOURCE_ID)) {
-            applySelectedFeatureState(map, uf);
+            applySelectedFeatureState(map, nextSelectedState);
           } else {
             scheduleSelectedStateSync("click: states source missing");
           }
         } catch (err) {
-          warn("click optimistic apply failed", { uf, err });
+          warn("click optimistic apply failed", {
+            uf,
+            nextSelectedState,
+            err,
+          });
           scheduleSelectedStateSync("click: setFeatureState threw");
         }
 
-        onStateSelectRef.current?.(uf);
+        onStateSelectRef.current?.(nextSelectedState);
       });
     });
 
