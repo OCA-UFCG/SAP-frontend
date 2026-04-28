@@ -47,7 +47,7 @@ export function PlatformSideRail({
   ];
 
   return (
-    <div className={clsx("relative h-full", className)}>
+    <div className={clsx("relative h-full", className)} data-platform-side-rail>
       <nav className="h-full w-[140px] bg-white border-r border-neutral-200 pt-[48px] pb-[18px] px-[16px] flex flex-col">
         <div className="w-[114px] flex flex-col">
           {items.map((item, index) => {

@@ -15,12 +15,21 @@ import geometria from "../../data/geometria.json";
 import type { CDIFeatureProperties, CDIVectorData } from "@/lib/geo";
 import {
   buildOverlayAwareFitBoundsPadding,
+  buildOverlayAwareMapPadding,
   MAP_FIT_BOUNDS_BASE_PADDING,
+  PLATFORM_SIDE_PANEL_SELECTOR,
+  PLATFORM_SIDE_RAIL_SELECTOR,
+  PLATFORM_SIDEBAR_OVERLAY_SELECTOR,
+  resolvePlatformSidebarOverlayWidth,
 } from "./mapViewport";
 import {
   BRAZIL_TERRITORY_CODE,
   resolveNextSelectedState,
 } from "./stateSelection";
+import {
+  getSelectionAwareScrollZoomOptions,
+  syncSelectionAwareScrollZoom,
+} from "./selectionAwareZoom";
 import { isTileLayerReadyEvent } from "./tileLayerLoading";
 
 interface MapProps {
@@ -67,7 +76,6 @@ const STATES_FILL_LAYER_ID = "state-fills";
 const STATES_BORDER_LAYER_ID = "state-borders";
 const CDI_LAYER_ID = "cdi-layer";
 const GEE_LAYER_ID = "gee-layer";
-const PLATFORM_SIDEBAR_OVERLAY_SELECTOR = "[data-platform-sidebar-overlay]";
 
 const CDI_FILL_EXPRESSION: ExpressionSpecification = [
   "match",
@@ -389,6 +397,16 @@ const Map = ({
     [],
   );
 
+  const syncMapPadding = useCallback((map: maplibregl.Map) => {
+    map.setPadding(
+      buildOverlayAwareMapPadding({
+        basePadding: MAP_FIT_BOUNDS_BASE_PADDING,
+        containerWidth: map.getContainer().clientWidth,
+        leftOverlayWidth: leftOverlayWidthRef.current,
+      }),
+    );
+  }, []);
+
   const log = useCallback(
     (...args: unknown[]) => {
       if (!debugEnabled) return;
@@ -579,14 +597,20 @@ const Map = ({
     const overlay = document.querySelector<HTMLElement>(
       PLATFORM_SIDEBAR_OVERLAY_SELECTOR,
     );
+    const sideRail = document.querySelector<HTMLElement>(
+      PLATFORM_SIDE_RAIL_SELECTOR,
+    );
+    const sidePanel = document.querySelector<HTMLElement>(
+      PLATFORM_SIDE_PANEL_SELECTOR,
+    );
 
-    if (!overlay) {
+    if (!overlay && !sideRail && !sidePanel) {
       setLeftOverlayWidth(0);
       return;
     }
 
     const updateOverlayWidth = () => {
-      const nextWidth = Math.round(overlay.getBoundingClientRect().width);
+      const nextWidth = resolvePlatformSidebarOverlayWidth(document);
       setLeftOverlayWidth((current) =>
         current === nextWidth ? current : nextWidth,
       );
@@ -602,7 +626,11 @@ const Map = ({
     }
 
     const observer = new ResizeObserver(updateOverlayWidth);
-    observer.observe(overlay);
+    [overlay, sideRail, sidePanel].forEach((element) => {
+      if (element) {
+        observer.observe(element);
+      }
+    });
 
     return () => {
       observer.disconnect();
@@ -710,7 +738,7 @@ const Map = ({
       style: BASE_STYLE,
       zoom: initialView.zoom,
       minZoom: initialView.minZoom,
-      scrollZoom: true,
+      scrollZoom: getSelectionAwareScrollZoomOptions(selectedStateRef.current),
       attributionControl: false,
       maxPitch: 0,
     });
@@ -751,6 +779,7 @@ const Map = ({
     map.on("load", () => {
       log("map load");
       syncMapLayers();
+      syncMapPadding(map);
 
       const boundsToFit = currentBoundsRef.current;
       if (boundsToFit) {
@@ -910,6 +939,7 @@ const Map = ({
     };
   }, [
     syncMapLayers,
+    syncMapPadding,
     applySelectedFeatureState,
     scheduleSelectedStateSync,
     fitMapToBounds,
@@ -948,6 +978,26 @@ const Map = ({
     log,
     warn,
   ]);
+
+  useEffect(() => {
+    const map = mapRef.current;
+
+    if (!map) {
+      return;
+    }
+
+    syncSelectionAwareScrollZoom(map.scrollZoom, estadoSelecionado);
+  }, [estadoSelecionado]);
+
+  useEffect(() => {
+    const map = mapRef.current;
+
+    if (!map) {
+      return;
+    }
+
+    syncMapPadding(map);
+  }, [leftOverlayWidth, syncMapPadding]);
 
   useEffect(() => {
     const map = mapRef.current;

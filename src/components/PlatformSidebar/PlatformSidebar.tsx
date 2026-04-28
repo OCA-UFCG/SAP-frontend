@@ -68,6 +68,7 @@ export function PlatformSidebar({ panelLayers }: PlatformSidebarProps) {
       />
 
       <div
+        data-platform-side-panel
         className={`
         relative h-full overflow-hidden
           transition-[width] duration-300 ease-in-out
