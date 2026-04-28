@@ -435,8 +435,30 @@ export function AnalysisPanel({
     years && classes && Object.keys(years).length > 0 && classes.length > 0,
   );
 
+  const panelRef = useRef<HTMLDivElement | null>(null);
+
+  const handleRankingItemSelect = (locationKey: string) => {
+    const el = panelRef.current;
+    if (el) {
+      if (typeof el.scrollTo === "function") {
+        try {
+          el.scrollTo({ top: 0, behavior: "smooth" });
+        } catch {
+          el.scrollTop = 0;
+        }
+      } else {
+        el.scrollTop = 0;
+      }
+    }
+
+    onRankingItemSelect?.(locationKey);
+  };
+
   return (
-    <div className="h-full overflow-y-auto bg-[#F6F7F6] px-4 pb-6">
+    <div
+      ref={panelRef}
+      className="h-full overflow-y-auto bg-[#F6F7F6] px-4 pb-6"
+    >
       <div className="flex flex-col gap-6">
         <div
           className="sticky top-0 z-10 -mx-4 bg-[#F6F7F6] px-4 pb-2 pt-12"
@@ -535,7 +557,7 @@ export function AnalysisPanel({
             <RankingSection
               title={model.rankingTitle ?? "Territórios por classificação"}
               groups={model.rankingGroups}
-              onItemSelect={onRankingItemSelect}
+              onItemSelect={handleRankingItemSelect}
             />
             {hasTemporalData ? (
               <LazyTemporalVision
