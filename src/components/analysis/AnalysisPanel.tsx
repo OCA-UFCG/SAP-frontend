@@ -500,25 +500,20 @@ export function AnalysisPanel({
               </div>
 
               {model.highlight ? (
-                <div className="flex h-[40px] w-full items-center gap-4 rounded-lg bg-white pr-6">
-                  <div
-                    className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg border p-2"
-                    style={{
-                      backgroundColor: model.highlight.tone.bg,
-                      borderColor: model.highlight.tone.border,
-                    }}
-                  >
-                    <svg className="h-6 w-6">
-                      <use
-                        xlinkHref="/sprite.svg#check"
-                        stroke={model.highlight.tone.color}
-                        strokeWidth="0.2"
-                        fill="none"
-                      />
-                    </svg>
-                  </div>
-
-                  <span className="w-fit break-words text-[14px] font-semibold leading-6 text-[#292829]">
+                <div
+                  className="flex h-[40px] w-full items-center px-4 rounded-lg"
+                  style={{
+                    backgroundColor:
+                      model.highlight.tone?.bg ??
+                      model.highlight.tone?.color ??
+                      model.accentColor ??
+                      "#F5F5F5",
+                    border: `1px solid ${
+                      model.highlight.tone?.border ?? "#F0F0D7"
+                    }`,
+                  }}
+                >
+                  <span className="font-semibold text-[14px] leading-6 text-[#292829]">
                     {model.highlight.text}
                   </span>
                 </div>
