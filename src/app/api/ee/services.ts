@@ -133,6 +133,24 @@ const getImageScale = (
   let categorizedImage = image;
 
   if (hasPixelLimits) {
+    const palette = imageParams.map((imageParam: any) => imageParam.color);
+
+    // If the layer author provided explicit minScale/maxScale that exactly
+    // match the number of classes (e.g. min=2,max=5 for 4 classes), assume the
+    // GEE image already contains categorical values in that range and do not
+    // attempt to re-categorize — just use the provided range for visualization.
+    if (
+      typeof minScale === "number" &&
+      typeof maxScale === "number" &&
+      maxScale - minScale + 1 === imageParams.length
+    ) {
+      const visParams = { min: minScale, max: maxScale, palette };
+
+      return { categorizedImage: image, visParams };
+    }
+
+    // Otherwise, re-categorize continuous values into 1..N according to
+    // class pixel limits (legacy behavior).
     for (let index = 0; index < imageParams.length; index++) {
       const lowerLimit =
         index > 0 ? imageParams[index - 1].pixelLimit : Number.MIN_SAFE_INTEGER;
@@ -147,16 +165,15 @@ const getImageScale = (
         index + 1,
       );
     }
+
+    const visParams = { min: 1, max: imageParams.length, palette };
+
+    return { categorizedImage, visParams };
   }
 
   const palette = imageParams.map((imageParam: any) => imageParam.color);
 
-  // After categorization, pixel values are always 1..N (one integer per category).
-  // Using Contentful's minScale/maxScale would cause all values to be clamped to
-  // one palette extreme. Only use them for non-categorical (continuous) images.
-  const visParams = hasPixelLimits
-    ? { min: 1, max: imageParams.length, palette }
-    : { min: minScale ?? 0, max: maxScale ?? 1, palette };
+  const visParams = { min: minScale ?? 0, max: maxScale ?? 1, palette };
 
   return { categorizedImage, visParams };
 };
