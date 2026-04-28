@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useRef, useState, useMemo } from "react";
 import dynamic from "next/dynamic";
 import { Chevron } from "@/components/Chevron/Chevron";
 import SearchBarPlatform from "@/components/SidePanelContexts/SearchBarPlatform";
@@ -71,6 +71,42 @@ function renderFormattedText(text: string) {
   );
 }
 
+function formatAnalysisYearLabel(text: string) {
+  if (!text) return text;
+
+  // matches formats like "2001-07", "2001-07-01", or "2001/07"
+  const match = text.match(/^(\d{4})[\/-](\d{2})(?:[\/-]\d{2})?$/);
+  if (match) {
+    const year = match[1];
+    const month = Number(match[2]);
+    if (!Number.isNaN(month) && month >= 1 && month <= 12) {
+      const months = [
+        "janeiro",
+        "fevereiro",
+        "março",
+        "abril",
+        "maio",
+        "junho",
+        "julho",
+        "agosto",
+        "setembro",
+        "outubro",
+        "novembro",
+        "dezembro",
+      ];
+      const name = months[month - 1];
+      return `${name.charAt(0).toUpperCase()}${name.slice(1)} de ${year}`;
+    }
+  }
+
+  // if it's just a year like "2001", keep as-is
+  if (/^\d{4}$/.test(text)) {
+    return text;
+  }
+
+  return text;
+}
+
 function EmptySection({
   title,
   description,
@@ -98,8 +134,22 @@ function AnalysisYearSelect({
   const containerRef = useRef<HTMLDivElement>(null);
   const [isOptionsOpen, setIsOptionsOpen] = useState(false);
 
+  const formattedLabelMap = useMemo(() => {
+    const map = new Map<string, string>();
+    yearOptions.forEach((opt) => {
+      const raw = opt.label ?? opt.value;
+      map.set(opt.value, formatAnalysisYearLabel(raw));
+    });
+    return map;
+  }, [yearOptions]);
+
   const activeOption =
     yearOptions.find((option) => option.value === activeYear) ?? yearOptions[0];
+
+  const activeDisplayLabel =
+    formattedLabelMap.get(activeOption?.value ?? activeYear) ??
+    activeOption?.label ??
+    activeYear;
 
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
@@ -126,7 +176,7 @@ function AnalysisYearSelect({
         aria-controls="analysis-year-options"
       >
         <span className="truncate text-sm text-[#292829]">
-          {activeOption?.label ?? activeYear}
+          {activeDisplayLabel}
         </span>
 
         <svg
@@ -166,7 +216,7 @@ function AnalysisYearSelect({
               }}
               className="flex w-full rounded-lg px-3 py-2 text-left text-sm text-[#292829] transition hover:bg-[#F6F7F6]"
             >
-              {option.label}
+              {formattedLabelMap.get(option.value) ?? option.label}
             </button>
           ))}
         </div>
