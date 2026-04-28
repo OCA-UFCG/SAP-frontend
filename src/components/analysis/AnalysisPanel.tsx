@@ -511,7 +511,7 @@ export function AnalysisPanel({
     >
       <div className="flex flex-col gap-6">
         <div
-          className="sticky top-0 z-10 -mx-4 bg-[#F0F0D7] px-4 pb-2 pt-6 border-b border-[#EFEFEF] transition-colors duration-150 hover:bg-[#E6E9C7]"
+          className="group sticky top-0 z-10 -mx-4 bg-[#F0F0D7] px-4 pb-2 pt-6 border-b border-[#EFEFEF] transition-colors duration-150 hover:bg-[#E6E9C7]"
           data-testid="analysis-panel-back-header"
         >
           <button
@@ -524,7 +524,7 @@ export function AnalysisPanel({
           </button>
           <div
             aria-hidden="true"
-            className="pointer-events-none absolute inset-x-0 -bottom-4 h-4 bg-gradient-to-b from-[#F0F0D7] to-transparent"
+            className="pointer-events-none absolute inset-x-0 -bottom-3 h-3 bg-gradient-to-b from-[#F0F0D7]/40 to-transparent group-hover:from-[#E6E9C7]/40 transition-colors duration-150"
           />
         </div>
 
