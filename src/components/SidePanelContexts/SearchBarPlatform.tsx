@@ -139,7 +139,7 @@ const SearchBarPlatform = ({ onSearch }: SearchBarProps) => {
             aria-expanded={isOptionsOpen}
             aria-haspopup="listbox"
             className="w-full text-[#292829] text-sm bg-transparent border-none outline-none ring-0"
-            placeholder="Pesquise uma cidade ou estado"
+            placeholder="Pesquise um estado"
           />
 
           <button
