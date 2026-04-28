@@ -34,7 +34,7 @@ export function DroughtDataset({
   onDetails?: () => void;
 }) {
   return (
-    <div className="flex flex-row items-start w-full bg-white border border-[#EFEFEF] shadow-sm rounded-lg overflow-hidden shrink-0">
+    <div className="flex flex-row items-start w-[392px] h-[198px] bg-white border border-[#EFEFEF] shadow-sm rounded-lg overflow-hidden shrink-0">
       <div className="flex flex-col items-start w-full">
         {/* card header */}
         <div
@@ -115,7 +115,7 @@ export function DroughtDataset({
             onClick={onDetails}
             disabled={disabled}
             className={clsx(
-              "flex flex-row justify-center items-center px-4 py-2 gap-[10px] flex-1 h-10 bg-[#989F43] rounded-[6px]",
+              "flex flex-row justify-center items-center px-4 py-2 gap-[10px] w-[284px] h-10 bg-[#989F43] rounded-[6px]",
               disabled ? "cursor-not-allowed opacity-60" : "cursor-pointer",
             )}
           >
@@ -123,6 +123,10 @@ export function DroughtDataset({
               Detalhamento
             </span>
           </button>
+
+          {/*
+            Botão de "Mais informações" removido no novo design.
+            Mantido aqui comentado caso seja necessário reativar no futuro.
 
           <button
             type="button"
@@ -135,6 +139,7 @@ export function DroughtDataset({
           >
             <InfoIcon />
           </button>
+          */}
         </div>
       </div>
     </div>
