@@ -470,7 +470,7 @@ export function AnalysisPanel({
             className="flex w-fit cursor-pointer items-center gap-2 rounded-lg border border-[#EFEFEF] bg-white px-2 py-1.5 text-sm font-medium text-slate-700 transition-colors duration-150 hover:bg-[#F8F7F8]"
           >
             <Chevron open from="right" to="left" size={16} />
-            <span>Voltar para módulos</span>
+            <span>Voltar para listagem</span>
           </button>
           <div
             aria-hidden="true"

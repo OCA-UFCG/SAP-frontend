@@ -73,7 +73,7 @@ describe("AnalysisPanel", () => {
       "z-10",
     );
     expect(
-      screen.getByRole("button", { name: "Voltar para módulos" }),
+      screen.getByRole("button", { name: "Voltar para listagem" }),
     ).toBeVisible();
   });
 
