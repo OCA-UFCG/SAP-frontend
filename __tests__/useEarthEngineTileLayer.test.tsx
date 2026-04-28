@@ -41,9 +41,18 @@ function Probe({
   activeEEData: IEEInfo | null;
   activeYear: string;
 }) {
-  const tileLayerUrl = useEarthEngineTileLayer(activeEEData, activeYear);
+  const { requestKey, status, tileLayerUrl } = useEarthEngineTileLayer(
+    activeEEData,
+    activeYear,
+  );
 
-  return <div>{tileLayerUrl ?? "no-url"}</div>;
+  return (
+    <div>
+      <div>{requestKey ?? "no-request"}</div>
+      <div>{status}</div>
+      <div>{tileLayerUrl ?? "no-url"}</div>
+    </div>
+  );
 }
 
 describe("useEarthEngineTileLayer", () => {
@@ -61,6 +70,7 @@ describe("useEarthEngineTileLayer", () => {
     render(<Probe activeEEData={eeLayer} activeYear="2024" />);
 
     await waitFor(() => {
+      expect(screen.getByText("ready")).toBeInTheDocument();
       expect(
         screen.getByText("https://tiles.example/2024"),
       ).toBeInTheDocument();
@@ -95,7 +105,34 @@ describe("useEarthEngineTileLayer", () => {
     rerender(<Probe activeEEData={null} activeYear="general" />);
 
     await waitFor(() => {
+      expect(screen.getByText("idle")).toBeInTheDocument();
       expect(screen.getByText("no-url")).toBeInTheDocument();
+    });
+  });
+
+  it("reports loading before the tile url resolves", async () => {
+    let resolveFetch!: (value: string | null) => void;
+    const pendingFetch = new Promise<string | null>((resolve) => {
+      resolveFetch = resolve;
+    });
+
+    mockedFetchMapURL.mockImplementationOnce(() => pendingFetch);
+
+    render(<Probe activeEEData={eeLayer} activeYear="2024" />);
+
+    await waitFor(() => {
+      expect(screen.getByText("ee-layer:2024")).toBeInTheDocument();
+      expect(screen.getByText("loading")).toBeInTheDocument();
+      expect(screen.getByText("no-url")).toBeInTheDocument();
+    });
+
+    resolveFetch("https://tiles.example/2024");
+
+    await waitFor(() => {
+      expect(screen.getByText("ready")).toBeInTheDocument();
+      expect(
+        screen.getByText("https://tiles.example/2024"),
+      ).toBeInTheDocument();
     });
   });
 
@@ -103,6 +140,7 @@ describe("useEarthEngineTileLayer", () => {
     render(<Probe activeEEData={eeLayer} activeYear="2023" />);
 
     await waitFor(() => {
+      expect(screen.getByText("idle")).toBeInTheDocument();
       expect(screen.getByText("no-url")).toBeInTheDocument();
     });
 
@@ -113,6 +151,8 @@ describe("useEarthEngineTileLayer", () => {
     render(<Probe activeEEData={null} activeYear="general" />);
 
     await waitFor(() => {
+      expect(screen.getByText("no-request")).toBeInTheDocument();
+      expect(screen.getByText("idle")).toBeInTheDocument();
       expect(screen.getByText("no-url")).toBeInTheDocument();
     });
 

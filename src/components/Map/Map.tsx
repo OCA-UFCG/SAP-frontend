@@ -6,6 +6,7 @@ import maplibregl, {
   ExpressionSpecification,
   GeoJSONSource,
   LngLatBoundsLike,
+  MapSourceDataEvent,
   MapGeoJSONFeature,
 } from "maplibre-gl";
 import "maplibre-gl/dist/maplibre-gl.css";
@@ -20,6 +21,7 @@ import {
   BRAZIL_TERRITORY_CODE,
   resolveNextSelectedState,
 } from "./stateSelection";
+import { isTileLayerReadyEvent } from "./tileLayerLoading";
 
 interface MapProps {
   minZoom?: number;
@@ -31,7 +33,9 @@ interface MapProps {
   dadosCDI?: CDIVectorData;
   estadoSelecionado: string;
   tileLayerUrl?: string | null;
+  tileLayerRequestKey?: string | null;
   onStateSelect?: (uf: string) => void;
+  onTileLayerReady?: (requestKey: string) => void;
 }
 
 interface FeatureProperties {
@@ -286,7 +290,9 @@ const Map = ({
   showStatesBorder = true,
   estadoSelecionado,
   tileLayerUrl,
+  tileLayerRequestKey,
   onStateSelect,
+  onTileLayerReady,
 }: MapProps) => {
   const debugEnabled = process.env.NODE_ENV !== "production";
   const geoBrasil = geometria as unknown as FeatureCollection<
@@ -308,7 +314,15 @@ const Map = ({
   const markersRef = useRef<maplibregl.Marker[]>([]);
   const selectedStateRef = useRef<string>(estadoSelecionado);
   const onStateSelectRef = useRef<MapProps["onStateSelect"]>(onStateSelect);
+  const onTileLayerReadyRef =
+    useRef<MapProps["onTileLayerReady"]>(onTileLayerReady);
   const tileLayerUrlRef = useRef<string | null | undefined>(tileLayerUrl);
+  const tileLayerRequestKeyRef = useRef<string | null | undefined>(
+    tileLayerRequestKey,
+  );
+  const pendingTileLayerReadyKeyRef = useRef<string | null>(
+    tileLayerUrl && tileLayerRequestKey ? tileLayerRequestKey : null,
+  );
   const showStatesBorderRef = useRef<boolean>(showStatesBorder);
   const hasCdiDataRef = useRef<boolean>(Boolean(dadosCDI));
   const cdiGeoJsonRef = useRef<
@@ -525,7 +539,9 @@ const Map = ({
   useEffect(() => {
     selectedStateRef.current = estadoSelecionado;
     onStateSelectRef.current = onStateSelect;
+    onTileLayerReadyRef.current = onTileLayerReady;
     tileLayerUrlRef.current = tileLayerUrl;
+    tileLayerRequestKeyRef.current = tileLayerRequestKey;
     showStatesBorderRef.current = showStatesBorder;
     hasCdiDataRef.current = Boolean(dadosCDI);
     cdiGeoJsonRef.current = cdiGeoJson;
@@ -533,12 +549,23 @@ const Map = ({
   }, [
     estadoSelecionado,
     onStateSelect,
+    onTileLayerReady,
     tileLayerUrl,
+    tileLayerRequestKey,
     showStatesBorder,
     dadosCDI,
     cdiGeoJson,
     currentBounds,
   ]);
+
+  useEffect(() => {
+    if (!tileLayerUrl || !tileLayerRequestKey) {
+      pendingTileLayerReadyKeyRef.current = null;
+      return;
+    }
+
+    pendingTileLayerReadyKeyRef.current = tileLayerRequestKey;
+  }, [tileLayerUrl, tileLayerRequestKey]);
 
   useEffect(() => {
     leftOverlayWidthRef.current = leftOverlayWidth;
@@ -698,6 +725,28 @@ const Map = ({
     map.addControl(new maplibregl.NavigationControl(), "top-right");
 
     map.jumpTo({ center: initialCenter, zoom: initialView.zoom });
+
+    map.on("sourcedata", (event: MapSourceDataEvent) => {
+      if (event.sourceId !== GEE_SOURCE_ID) return;
+
+      const pendingRequestKey = pendingTileLayerReadyKeyRef.current;
+      const currentRequestKey = tileLayerRequestKeyRef.current;
+
+      if (!pendingRequestKey || !currentRequestKey) return;
+      if (pendingRequestKey !== currentRequestKey) return;
+      if (!tileLayerUrlRef.current) return;
+
+      if (!isTileLayerReadyEvent(event, GEE_SOURCE_ID)) return;
+
+      pendingTileLayerReadyKeyRef.current = null;
+      log("gee layer ready", {
+        requestKey: pendingRequestKey,
+        sourceDataType: event.sourceDataType,
+        hasTile: Boolean(event.tile),
+        isSourceLoaded: event.isSourceLoaded,
+      });
+      onTileLayerReadyRef.current?.(pendingRequestKey);
+    });
 
     map.on("load", () => {
       log("map load");

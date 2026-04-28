@@ -28,6 +28,10 @@ vi.mock("@/infrastructure/contentful/client", () => ({
   }),
 }));
 
+vi.mock("@/components/MapSection/MapSection", () => ({
+  default: () => <div data-testid="map-section" />,
+}));
+
 test("Home", async () => {
   const HomeResolved = await Home();
   render(HomeResolved);

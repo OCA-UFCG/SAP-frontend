@@ -5,78 +5,132 @@ import { fetchMapURL } from "@/services/mapServices";
 import { getImageDataYearKeys, resolveImageYearEntry } from "@/utils/imageData";
 import type { IEEInfo } from "@/utils/interfaces";
 
-interface TileLayerState {
-  key: string;
-  url: string;
+export type EarthEngineTileLayerStatus = "idle" | "loading" | "ready" | "error";
+
+interface EarthEngineTileLayerResult {
+  requestKey: string | null;
+  status: EarthEngineTileLayerStatus;
+  tileLayerUrl: string | undefined;
+}
+
+interface ResolvedTileLayerState {
+  key: string | null;
+  status: Exclude<EarthEngineTileLayerStatus, "idle" | "loading">;
+  url: string | undefined;
 }
 
 export function useEarthEngineTileLayer(
   activeEEData: IEEInfo | null,
   activeYear: string,
-) {
-  const [tileLayer, setTileLayer] = useState<TileLayerState | null>(null);
+): EarthEngineTileLayerResult {
+  const [resolvedTileLayer, setResolvedTileLayer] =
+    useState<ResolvedTileLayerState>({
+      key: null,
+      status: "error",
+      url: undefined,
+    });
   const latestRequestKeyRef = useRef<string | null>(null);
 
-  const activeEeKey = useMemo(() => {
-    if (!activeEEData) return null;
-    return `${activeEEData.id}:${activeYear}`;
+  const requestConfig = useMemo(() => {
+    if (!activeEEData) {
+      return null;
+    }
+
+    const availableYears = getImageDataYearKeys(activeEEData.imageData);
+    if (availableYears.length > 0 && !availableYears.includes(activeYear)) {
+      return null;
+    }
+
+    const yearConfig = resolveImageYearEntry(
+      activeEEData.imageData,
+      activeYear,
+    );
+    if (!yearConfig) {
+      return null;
+    }
+
+    return {
+      requestKey: `${activeEEData.id}:${activeYear}`,
+      layerId: activeEEData.id,
+      year: activeYear,
+      imageId: yearConfig.imageId,
+      imageParams: yearConfig.imageParams,
+      minScale: activeEEData.minScale,
+      maxScale: activeEEData.maxScale,
+    };
   }, [activeEEData, activeYear]);
 
+  const requestKey = requestConfig?.requestKey ?? null;
+
+  const status = useMemo((): EarthEngineTileLayerStatus => {
+    if (!requestConfig) {
+      return "idle";
+    }
+
+    if (resolvedTileLayer.key !== requestConfig.requestKey) {
+      return "loading";
+    }
+
+    return resolvedTileLayer.status;
+  }, [requestConfig, resolvedTileLayer.key, resolvedTileLayer.status]);
+
   const visibleTileLayerUrl =
-    activeEeKey && tileLayer?.key === activeEeKey ? tileLayer.url : undefined;
+    requestConfig &&
+    resolvedTileLayer.key === requestConfig.requestKey &&
+    resolvedTileLayer.status === "ready"
+      ? resolvedTileLayer.url
+      : undefined;
 
   useEffect(() => {
-    if (!activeEEData) {
+    if (!requestConfig) {
       latestRequestKeyRef.current = null;
       return;
     }
 
-    const requestKey = `${activeEEData.id}:${activeYear}`;
-    latestRequestKeyRef.current = requestKey;
+    latestRequestKeyRef.current = requestConfig.requestKey;
 
     const controller = new AbortController();
 
     const fetchGeeUrl = async () => {
-      const availableYears = getImageDataYearKeys(activeEEData.imageData);
-      if (availableYears.length > 0 && !availableYears.includes(activeYear)) {
-        return;
-      }
-
-      const yearConfig = resolveImageYearEntry(
-        activeEEData.imageData,
-        activeYear,
-      );
-      if (!yearConfig) {
-        return;
-      }
-
       try {
         const url = await fetchMapURL(
-          activeEEData.id,
-          activeYear,
+          requestConfig.layerId,
+          requestConfig.year,
           {
-            imageId: yearConfig.imageId,
-            imageParams: yearConfig.imageParams,
-            minScale: activeEEData.minScale,
-            maxScale: activeEEData.maxScale,
+            imageId: requestConfig.imageId,
+            imageParams: requestConfig.imageParams,
+            minScale: requestConfig.minScale,
+            maxScale: requestConfig.maxScale,
           },
           controller.signal,
         );
 
-        if (latestRequestKeyRef.current !== requestKey) return;
+        if (latestRequestKeyRef.current !== requestConfig.requestKey) return;
 
         if (url) {
-          setTileLayer({ key: requestKey, url });
+          setResolvedTileLayer({
+            key: requestConfig.requestKey,
+            status: "ready",
+            url,
+          });
         } else {
           console.error("No GEE tile URL returned");
-          setTileLayer(null);
+          setResolvedTileLayer({
+            key: requestConfig.requestKey,
+            status: "error",
+            url: undefined,
+          });
         }
       } catch (err) {
         if (controller.signal.aborted) return;
-        if (latestRequestKeyRef.current !== requestKey) return;
+        if (latestRequestKeyRef.current !== requestConfig.requestKey) return;
 
         console.error("Error fetching GEE tile layer:", err);
-        setTileLayer(null);
+        setResolvedTileLayer({
+          key: requestConfig.requestKey,
+          status: "error",
+          url: undefined,
+        });
       }
     };
 
@@ -85,7 +139,11 @@ export function useEarthEngineTileLayer(
     return () => {
       controller.abort();
     };
-  }, [activeEEData, activeYear]);
+  }, [requestConfig]);
 
-  return visibleTileLayerUrl;
+  return {
+    requestKey,
+    status,
+    tileLayerUrl: visibleTileLayerUrl,
+  };
 }
