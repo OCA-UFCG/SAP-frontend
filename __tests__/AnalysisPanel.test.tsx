@@ -1,6 +1,6 @@
-import { render, screen } from "@testing-library/react";
+import { cleanup, render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
-import { describe, expect, it, vi } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
 
 import { AnalysisPanel } from "@/components/analysis/AnalysisPanel";
 import type { TerritorialAnalysisViewModel } from "@/utils/analysis";
@@ -8,6 +8,10 @@ import type { TerritorialAnalysisViewModel } from "@/utils/analysis";
 vi.mock("@/components/SidePanelContexts/SearchBarPlatform", () => ({
   default: () => <div data-testid="search-bar-platform" />,
 }));
+
+afterEach(() => {
+  cleanup();
+});
 
 const model: TerritorialAnalysisViewModel = {
   kind: "territorial",
@@ -49,6 +53,30 @@ const model: TerritorialAnalysisViewModel = {
 };
 
 describe("AnalysisPanel", () => {
+  it("keeps the back action pinned at the top of the scrollable panel", () => {
+    render(
+      <AnalysisPanel
+        moduleName="Teste"
+        yearOptions={[{ value: "2024", label: "2024" }]}
+        activeYear="2024"
+        onBack={vi.fn()}
+        onSearch={vi.fn()}
+        onYearChange={vi.fn()}
+        onRankingItemSelect={vi.fn()}
+        model={model}
+      />,
+    );
+
+    expect(screen.getByTestId("analysis-panel-back-header")).toHaveClass(
+      "sticky",
+      "top-0",
+      "z-10",
+    );
+    expect(
+      screen.getByRole("button", { name: "Voltar para módulos" }),
+    ).toBeVisible();
+  });
+
   it("starts with all ranking cards expanded and allows closing them independently", async () => {
     const user = userEvent.setup();
     const onBack = vi.fn();

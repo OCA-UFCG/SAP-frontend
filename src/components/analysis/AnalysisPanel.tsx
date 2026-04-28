@@ -213,9 +213,9 @@ function parseHexColor(color: string) {
   const expanded =
     normalized.length === 3
       ? normalized
-        .split("")
-        .map((character) => character + character)
-        .join("")
+          .split("")
+          .map((character) => character + character)
+          .join("")
       : normalized;
 
   return {
@@ -403,13 +403,19 @@ function RankingSection({
   );
 }
 
-function TemporalVision({ years, classes, selectedState = "br" }: TemporalVisionProps) {
+function TemporalVision({
+  years,
+  classes,
+  selectedState = "br",
+}: TemporalVisionProps) {
   useLayoutEffect(() => {
     // Impede o amCharts de iniciar em ambiente de teste (JSDOM) já que ele não suporta Canvas nativamente
     const isTestEnv =
       (typeof process !== "undefined" && process.env.NODE_ENV === "test") ||
       (typeof process !== "undefined" && process.env.VITEST) ||
-      (typeof window !== "undefined" && window.navigator && window.navigator.userAgent.includes("jsdom"));
+      (typeof window !== "undefined" &&
+        window.navigator &&
+        window.navigator.userAgent.includes("jsdom"));
 
     if (isTestEnv) {
       return;
@@ -424,14 +430,16 @@ function TemporalVision({ years, classes, selectedState = "br" }: TemporalVision
 
     root.setThemes([am5themes_Animated.new(root), myTheme]);
 
-    const chart = root.container.children.push(am5xy.XYChart.new(root, {
-      panX: true,
-      panY: false,
-      wheelX: "panX",
-      wheelY: "none",
-      pinchZoomX: true,
-      layout: root.verticalLayout,
-    }));
+    const chart = root.container.children.push(
+      am5xy.XYChart.new(root, {
+        panX: true,
+        panY: false,
+        wheelX: "panX",
+        wheelY: "none",
+        pinchZoomX: true,
+        layout: root.verticalLayout,
+      }),
+    );
 
     // X axis: year categories
     const xRenderer = am5xy.AxisRendererX.new(root, {
@@ -440,41 +448,54 @@ function TemporalVision({ years, classes, selectedState = "br" }: TemporalVision
     xRenderer.labels.template.setAll({
       paddingTop: 12,
     });
-    const xAxis = chart.xAxes.push(am5xy.CategoryAxis.new(root, {
-      categoryField: "year",
-      renderer: xRenderer,
-      tooltip: am5.Tooltip.new(root, {}),
-    }));
+    const xAxis = chart.xAxes.push(
+      am5xy.CategoryAxis.new(root, {
+        categoryField: "year",
+        renderer: xRenderer,
+        tooltip: am5.Tooltip.new(root, {}),
+      }),
+    );
 
     // Limit initial view to 8 years; user can pan to see the rest
     const MAX_VISIBLE = 8;
 
     // Y axis: percentage 0–100 with fixed ticks every 20
     const yAxisRenderer = am5xy.AxisRendererY.new(root, {});
-    const yAxis = chart.yAxes.push(am5xy.ValueAxis.new(root, {
-      min: 0,
-      max: 100,
-      strictMinMax: true,
-      renderer: yAxisRenderer,
-    }));
+    const yAxis = chart.yAxes.push(
+      am5xy.ValueAxis.new(root, {
+        min: 0,
+        max: 100,
+        strictMinMax: true,
+        renderer: yAxisRenderer,
+      }),
+    );
     // Force grid lines and labels at 0, 20, 40, 60, 80, 100
-    yAxis.get("renderer").labels.template.adapters.add("text", (_text, target) => {
-      const value = target.dataItem?.get("value" as never) as number | undefined;
-      if (value === undefined) return _text;
-      return value % 20 === 0 ? `${value}%` : "";
-    });
-    yAxis.get("renderer").grid.template.adapters.add("strokeOpacity", (_opacity, target) => {
-      const value = target.dataItem?.get("value" as never) as number | undefined;
-      if (value === undefined) return 0;
-      return value % 20 === 0 ? 0.15 : 0;
-    });
+    yAxis
+      .get("renderer")
+      .labels.template.adapters.add("text", (_text, target) => {
+        const value = target.dataItem?.get("value" as never) as
+          | number
+          | undefined;
+        if (value === undefined) return _text;
+        return value % 20 === 0 ? `${value}%` : "";
+      });
+    yAxis
+      .get("renderer")
+      .grid.template.adapters.add("strokeOpacity", (_opacity, target) => {
+        const value = target.dataItem?.get("value" as never) as
+          | number
+          | undefined;
+        if (value === undefined) return 0;
+        return value % 20 === 0 ? 0.15 : 0;
+      });
 
-    const hasData = years && classes && Object.keys(years).length > 0 && classes.length > 0;
+    const hasData =
+      years && classes && Object.keys(years).length > 0 && classes.length > 0;
 
     if (hasData) {
       // Sort year entries by key so the X axis reads chronologically
       const sortedYearEntries = Object.entries(years!).sort(([a], [b]) =>
-        a.localeCompare(b)
+        a.localeCompare(b),
       );
 
       // X axis categories: one per year
@@ -491,31 +512,31 @@ function TemporalVision({ years, classes, selectedState = "br" }: TemporalVision
 
       // One series per classification class
       classes!.forEach((cls, classIndex) => {
-        const series = chart.series.push(am5xy.LineSeries.new(root, {
-          name: cls.label,
-          xAxis,
-          yAxis,
-          valueYField: "value",
-          categoryXField: "year",
-          stroke: am5.color(cls.color),
-          fill: am5.color(cls.color),
-          tooltip: (() => {
-            const tt = am5.Tooltip.new(root, {
-              pointerOrientation: "horizontal",
-              labelText: "{valueY}%",
-            });
-            tt.label.setAll({ fontSize: 12 });
-            return tt;
-          })(),
-        }));
+        const series = chart.series.push(
+          am5xy.LineSeries.new(root, {
+            name: cls.label,
+            xAxis,
+            yAxis,
+            valueYField: "value",
+            categoryXField: "year",
+            stroke: am5.color(cls.color),
+            fill: am5.color(cls.color),
+            tooltip: (() => {
+              const tt = am5.Tooltip.new(root, {
+                pointerOrientation: "horizontal",
+                labelText: "{valueY}%",
+              });
+              tt.label.setAll({ fontSize: 12 });
+              return tt;
+            })(),
+          }),
+        );
 
         // For each year, get the value at [classIndex] for the selected state
         const seriesData = sortedYearEntries.map(([yearKey, yearData]) => {
           // Try the selectedState first, then fallback to "br"
           const locationValues =
-            yearData.values[selectedState] ??
-            yearData.values["br"] ??
-            [];
+            yearData.values[selectedState] ?? yearData.values["br"] ?? [];
 
           // valuesScale is a DIVISOR — same logic as analysis.mappers.ts line 67:
           // value = raw / scale (values are stored multiplied by scale)
@@ -539,57 +560,71 @@ function TemporalVision({ years, classes, selectedState = "br" }: TemporalVision
               radius: 2.0,
               fill: am5.color(cls.color),
             }),
-          })
+          }),
         );
-
       });
     } else {
       // Fallback demo when no real data
       const xCategories = [
-        { year: "2019" }, { year: "2020" }, { year: "2021" },
-        { year: "2022" }, { year: "2023" },
+        { year: "2019" },
+        { year: "2020" },
+        { year: "2021" },
+        { year: "2022" },
+        { year: "2023" },
       ];
       xAxis.data.setAll(xCategories);
 
-      const demoSeries = chart.series.push(am5xy.LineSeries.new(root, {
-        name: "Demo",
-        xAxis,
-        yAxis,
-        valueYField: "value",
-        categoryXField: "year",
-        tooltip: am5.Tooltip.new(root, { labelText: "{valueY}%" }),
-      }));
+      const demoSeries = chart.series.push(
+        am5xy.LineSeries.new(root, {
+          name: "Demo",
+          xAxis,
+          yAxis,
+          valueYField: "value",
+          categoryXField: "year",
+          tooltip: am5.Tooltip.new(root, { labelText: "{valueY}%" }),
+        }),
+      );
       demoSeries.data.setAll([
-        { year: "2019", value: 40 }, { year: "2020", value: 55 },
-        { year: "2021", value: 48 }, { year: "2022", value: 62 },
+        { year: "2019", value: 40 },
+        { year: "2020", value: 55 },
+        { year: "2021", value: 48 },
+        { year: "2022", value: 62 },
         { year: "2023", value: 43 },
       ]);
       demoSeries.appear();
     }
 
     // Scrollbar X — lets user pan when there are many years
-    const scrollbar = chart.set("scrollbarX", am5xy.XYChartScrollbar.new(root, {
-      orientation: "horizontal",
-      height: 30,
-    }));
+    const scrollbar = chart.set(
+      "scrollbarX",
+      am5xy.XYChartScrollbar.new(root, {
+        orientation: "horizontal",
+        height: 30,
+      }),
+    );
 
     // Cursor (only X line)
-    const cursor = chart.set("cursor", am5xy.XYCursor.new(root, {
-      behavior: "none",
-    }));
+    const cursor = chart.set(
+      "cursor",
+      am5xy.XYCursor.new(root, {
+        behavior: "none",
+      }),
+    );
     cursor.lineY.set("visible", false);
 
     // Legend below chart
-    const legend = chart.children.push(am5.Legend.new(root, {
-      x: am5.percent(0),
-      centerX: am5.percent(0),
-      paddingTop: 15,
-      width: am5.percent(100),
-      layout: am5.GridLayout.new(root, {
-        maxColumns: 2,
-        fixedWidthGrid: false,
-      })
-    }));
+    const legend = chart.children.push(
+      am5.Legend.new(root, {
+        x: am5.percent(0),
+        centerX: am5.percent(0),
+        paddingTop: 15,
+        width: am5.percent(100),
+        layout: am5.GridLayout.new(root, {
+          maxColumns: 2,
+          fixedWidthGrid: false,
+        }),
+      }),
+    );
 
     legend.itemContainers.template.events.on("pointerover", (e) => {
       const itemContainer = e.target;
@@ -661,16 +696,25 @@ export function AnalysisPanel({
   emptyStateDescription,
 }: AnalysisPanelProps) {
   return (
-    <div className="h-full overflow-y-auto bg-[#F6F7F6] px-4 pt-12 pb-6">
+    <div className="h-full overflow-y-auto bg-[#F6F7F6] px-4 pb-6">
       <div className="flex flex-col gap-6">
-        <button
-          type="button"
-          onClick={onBack}
-          className="flex w-fit cursor-pointer items-center gap-2 rounded-lg border border-[#EFEFEF] bg-white px-2 py-1.5 text-sm font-medium text-slate-700 transition-colors duration-150 hover:bg-[#F8F7F8]"
+        <div
+          className="sticky top-0 z-10 -mx-4 bg-[#F6F7F6] px-4 pb-2 pt-12"
+          data-testid="analysis-panel-back-header"
         >
-          <Chevron open from="right" to="left" size={16} />
-          <span>Voltar para módulos</span>
-        </button>
+          <button
+            type="button"
+            onClick={onBack}
+            className="flex w-fit cursor-pointer items-center gap-2 rounded-lg border border-[#EFEFEF] bg-white px-2 py-1.5 text-sm font-medium text-slate-700 transition-colors duration-150 hover:bg-[#F8F7F8]"
+          >
+            <Chevron open from="right" to="left" size={16} />
+            <span>Voltar para módulos</span>
+          </button>
+          <div
+            aria-hidden="true"
+            className="pointer-events-none absolute inset-x-0 -bottom-4 h-4 bg-gradient-to-b from-[#F6F7F6] to-transparent"
+          />
+        </div>
 
         <header className="flex flex-col gap-2">
           <h1 className="font-inter text-[24px] font-semibold leading-[24px] tracking-[-0.015em]">
@@ -758,7 +802,11 @@ export function AnalysisPanel({
               groups={model.rankingGroups}
               onItemSelect={onRankingItemSelect}
             />
-            <TemporalVision years={years} classes={classes} selectedState={selectedState} />
+            <TemporalVision
+              years={years}
+              classes={classes}
+              selectedState={selectedState}
+            />
           </section>
         ) : (
           <EmptySection
