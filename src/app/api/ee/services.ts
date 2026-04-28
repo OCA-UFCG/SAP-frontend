@@ -126,38 +126,66 @@ const getImageScale = (
   minScale: number,
   maxScale: number,
 ) => {
+  // Consider pixel limits present when any imageParam defines a numeric pixelLimit
   const hasPixelLimits = imageParams.some(
-    (imageParam: any) => imageParam.pixelLimit,
+    (imageParam: any) => typeof imageParam.pixelLimit === "number",
   );
 
   let categorizedImage = image;
 
   if (hasPixelLimits) {
-    const palette = imageParams.map((imageParam: any) => imageParam.color);
+    // If classes carry the actual raster pixel value (pixelLimit), we must
+    // order parameters by that numeric value so the resulting palette maps
+    // correctly to the raster codes.
+    const paramsWithPixel = imageParams.map((p: any, i: number) => ({
+      color: p.color,
+      pixelLimit:
+        typeof p.pixelLimit === "number" ? Number(p.pixelLimit) : Number(i),
+    }));
 
-    // If the layer author provided explicit minScale/maxScale that exactly
-    // match the number of classes (e.g. min=2,max=5 for 4 classes), assume the
-    // GEE image already contains categorical values in that range and do not
-    // attempt to re-categorize — just use the provided range for visualization.
+    paramsWithPixel.sort((a, b) => a.pixelLimit - b.pixelLimit);
+
+    const orderedPalette = paramsWithPixel.map((p) => p.color);
+
+    // If the layer provided explicit minScale/maxScale that exactly match the
+    // number of classes, build a palette aligned with that numeric range
+    // (filling missing entries with the closest defined color if necessary).
     if (
       typeof minScale === "number" &&
       typeof maxScale === "number" &&
       maxScale - minScale + 1 === imageParams.length
     ) {
-      const visParams = { min: minScale, max: maxScale, palette };
+      const length = maxScale - minScale + 1;
+      const paletteByValue = new Array(length).fill(null);
+
+      for (const p of imageParams) {
+        if (typeof p.pixelLimit === "number") {
+          const idx = Number(p.pixelLimit) - minScale;
+          if (idx >= 0 && idx < length) {
+            paletteByValue[idx] = p.color;
+          }
+        }
+      }
+
+      // Fill any gaps with orderedPalette values as fallback
+      for (let i = 0; i < length; i++) {
+        if (!paletteByValue[i]) paletteByValue[i] = orderedPalette[i] ?? "#000000";
+      }
+
+      const visParams = { min: minScale, max: maxScale, palette: paletteByValue };
 
       return { categorizedImage: image, visParams };
     }
 
-    // Otherwise, re-categorize continuous values into 1..N according to
-    // class pixel limits (legacy behavior).
-    for (let index = 0; index < imageParams.length; index++) {
+    // Otherwise, re-categorize continuous values into 1..N according to the
+    // numeric pixelLimit ordering (legacy behavior).
+    for (let index = 0; index < paramsWithPixel.length; index++) {
       const lowerLimit =
-        index > 0 ? imageParams[index - 1].pixelLimit : Number.MIN_SAFE_INTEGER;
+        index > 0 ? paramsWithPixel[index - 1].pixelLimit : Number.MIN_SAFE_INTEGER;
 
       const upperLimit =
-        index < imageParams.length - 1
-          ? imageParams[index].pixelLimit
+        index < paramsWithPixel.length - 1
+          ? paramsWithPixel[index].pixelLimit
           : Number.MAX_SAFE_INTEGER;
 
       categorizedImage = categorizedImage.where(
@@ -166,7 +194,7 @@ const getImageScale = (
       );
     }
 
-    const visParams = { min: 1, max: imageParams.length, palette };
+    const visParams = { min: 1, max: imageParams.length, palette: orderedPalette };
 
     return { categorizedImage, visParams };
   }
