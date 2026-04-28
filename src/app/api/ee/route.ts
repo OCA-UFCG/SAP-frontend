@@ -6,12 +6,11 @@ import {
   getCachedUrl,
   hasKey,
 } from "@/app/api/ee/cache";
-import { IEEInfo } from "@/utils/interfaces";
-import { resolveImageYearEntry } from "@/utils/imageData";
 import {
   ensureEeCacheWarmupStarted,
   getEarthEngineUrl,
 } from "@/app/api/ee/services";
+import type { EarthEngineTileRequest } from "@/services/mapServices";
 
 export async function POST(req: NextRequest) {
   ensureEeCacheWarmupStarted();
@@ -19,12 +18,13 @@ export async function POST(req: NextRequest) {
   try {
     const name = req.nextUrl.searchParams.get("name") || "";
     const year = req.nextUrl.searchParams.get("year") || "";
-    const imageInfo: IEEInfo = await req.json();
-    const yearConfig = resolveImageYearEntry(imageInfo.imageData, year);
+    const request = (await req.json()) as EarthEngineTileRequest;
 
-    if (!yearConfig) {
+    if (!request.imageId || !Array.isArray(request.imageParams)) {
       return NextResponse.json(
-        { error: `Year ${year} not found for layer ${name}` },
+        {
+          error: `Missing Earth Engine payload for layer ${name} and year ${year}`,
+        },
         { status: 400 },
       );
     }
@@ -32,10 +32,10 @@ export async function POST(req: NextRequest) {
     const cacheKey = buildCacheKey(
       name,
       year,
-      yearConfig.imageId,
-      yearConfig.imageParams,
-      imageInfo.minScale,
-      imageInfo.maxScale,
+      request.imageId,
+      request.imageParams,
+      request.minScale,
+      request.maxScale,
     );
 
     const urlOnCache = getCachedUrl(cacheKey);
@@ -48,10 +48,10 @@ export async function POST(req: NextRequest) {
     console.log(new Date().toISOString(), " - Starting URL queries");
 
     const url = await getEarthEngineUrl(
-      yearConfig.imageId,
-      yearConfig.imageParams,
-      imageInfo.minScale,
-      imageInfo.maxScale,
+      request.imageId,
+      request.imageParams,
+      request.minScale,
+      request.maxScale,
     );
 
     console.log(new Date().toISOString(), " - Saving URL to cache");

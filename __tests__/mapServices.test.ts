@@ -15,14 +15,40 @@ describe("mapServices.fetchMapURL", () => {
 
     await expect(
       fetchMapURL("layer-a", "2024", {
-        id: "layer-a",
-        name: "Layer A",
-        description: "Layer A",
-        measurementUnit: "%",
-        poster: "/poster.png",
-        imageData: {},
-        type: "raster",
+        imageId: "projects/demo/assets/layer-a",
+        imageParams: [],
       }),
     ).rejects.toThrow("Erro ao buscar fontes de mapa.");
+  });
+
+  it("posts only the resolved Earth Engine payload", async () => {
+    const fetchSpy = vi.spyOn(global, "fetch").mockResolvedValue({
+      ok: true,
+      json: vi
+        .fn()
+        .mockResolvedValue({ url: "https://tiles.example/{z}/{x}/{y}" }),
+    } as unknown as Response);
+
+    await fetchMapURL("layer-a", "2024", {
+      imageId: "projects/demo/assets/layer-a",
+      imageParams: [{ color: "#111111", label: "Classe A", pixelLimit: 10 }],
+      minScale: 0,
+      maxScale: 100,
+    });
+
+    expect(fetchSpy).toHaveBeenCalledWith(
+      expect.stringContaining("/api/ee?name=layer-a&year=2024"),
+      expect.objectContaining({
+        method: "POST",
+        body: JSON.stringify({
+          imageId: "projects/demo/assets/layer-a",
+          imageParams: [
+            { color: "#111111", label: "Classe A", pixelLimit: 10 },
+          ],
+          minScale: 0,
+          maxScale: 100,
+        }),
+      }),
+    );
   });
 });

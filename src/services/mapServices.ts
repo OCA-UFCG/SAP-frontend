@@ -1,10 +1,17 @@
-import type { IEEInfo } from "@/utils/interfaces";
+import type { IImageParam } from "@/utils/interfaces";
 
 const API_BASE_URL = process.env.NEXT_PUBLIC_HOST_URL ?? "";
 
 interface EarthEngineUrlResponse {
   error?: string;
   url?: string;
+}
+
+export interface EarthEngineTileRequest {
+  imageId: string;
+  imageParams: IImageParam[];
+  minScale?: number;
+  maxScale?: number;
 }
 
 async function parseEarthEngineResponse(
@@ -20,7 +27,7 @@ async function parseEarthEngineResponse(
 export async function fetchMapURL(
   id: string,
   year: string,
-  panelLayer: IEEInfo,
+  request: EarthEngineTileRequest,
   signal?: AbortSignal,
 ): Promise<string | null> {
   const response = await fetch(
@@ -30,7 +37,7 @@ export async function fetchMapURL(
       headers: {
         "Content-Type": "application/json",
       },
-      body: JSON.stringify(panelLayer),
+      body: JSON.stringify(request),
       signal,
     },
   );

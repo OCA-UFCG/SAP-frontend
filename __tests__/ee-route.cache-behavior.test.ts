@@ -9,6 +9,7 @@ vi.mock("@/app/api/ee/services", () => ({
 import { POST } from "@/app/api/ee/route";
 import { getEarthEngineUrl } from "@/app/api/ee/services";
 import { buildCacheKey, removeCacheUrl } from "@/app/api/ee/cache";
+import type { EarthEngineTileRequest } from "@/services/mapServices";
 
 const mockedGetEarthEngineUrl = vi.mocked(getEarthEngineUrl);
 
@@ -19,33 +20,16 @@ function createMockRequest(url: string, body: unknown): NextRequest {
   } as unknown as NextRequest;
 }
 
-const layerV1 = {
-  id: "layer-a",
-  name: "Layer A",
-  description: "Layer A",
-  measurementUnit: "%",
-  poster: "/poster.png",
-  imageData: {
-    "2024": {
-      default: true,
-      imageId: "projects/example/image-v1",
-      imageParams: [{ color: "#111111", label: "old" }],
-    },
-  },
+const requestV1: EarthEngineTileRequest = {
+  imageId: "projects/example/image-v1",
+  imageParams: [{ color: "#111111", label: "old" }],
   minScale: 0,
   maxScale: 1,
-  type: "raster",
 };
 
-const layerV2 = {
-  ...layerV1,
-  imageData: {
-    "2024": {
-      default: true,
-      imageId: "projects/example/image-v2",
-      imageParams: [{ color: "#EEEEEE", label: "new" }],
-    },
-  },
+const requestV2: EarthEngineTileRequest = {
+  imageId: "projects/example/image-v2",
+  imageParams: [{ color: "#EEEEEE", label: "new" }],
   minScale: 10,
   maxScale: 100,
 };
@@ -86,14 +70,14 @@ describe("POST /api/ee cache behavior", () => {
 
     const firstReq = createMockRequest(
       "https://example.test/api/ee?name=layer-a&year=2024",
-      layerV1,
+      requestV1,
     );
     const firstRes = await POST(firstReq);
     const firstBody = (await firstRes.json()) as { url?: string };
 
     const secondReq = createMockRequest(
       "https://example.test/api/ee?name=layer-a&year=2024",
-      layerV2,
+      requestV2,
     );
     const secondRes = await POST(secondReq);
     const secondBody = (await secondRes.json()) as { url?: string };
@@ -113,21 +97,15 @@ describe("POST /api/ee cache behavior", () => {
 
     const warmReq = createMockRequest(
       "https://example.test/api/ee?name=layer-a&year=2024",
-      layerV1,
+      requestV1,
     );
     await POST(warmReq);
 
     const invalidPayloadReq = createMockRequest(
       "https://example.test/api/ee?name=layer-a&year=2024",
       {
-        ...layerV1,
-        imageData: {
-          "2023": {
-            default: true,
-            imageId: "projects/example/other-year",
-            imageParams: [{ color: "#000000", label: "invalid" }],
-          },
-        },
+        imageId: "",
+        imageParams: [{ color: "#000000", label: "invalid" }],
       },
     );
 
@@ -135,6 +113,8 @@ describe("POST /api/ee cache behavior", () => {
     const body = (await res.json()) as { error?: string };
 
     expect(res.status).toBe(400);
-    expect(body.error).toContain("Year 2024 not found");
+    expect(body.error).toContain(
+      "Missing Earth Engine payload for layer layer-a and year 2024",
+    );
   });
 });

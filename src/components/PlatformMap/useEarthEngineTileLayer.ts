@@ -2,7 +2,7 @@
 
 import { useEffect, useMemo, useRef, useState } from "react";
 import { fetchMapURL } from "@/services/mapServices";
-import { getImageDataYearKeys } from "@/utils/imageData";
+import { getImageDataYearKeys, resolveImageYearEntry } from "@/utils/imageData";
 import type { IEEInfo } from "@/utils/interfaces";
 
 interface TileLayerState {
@@ -42,11 +42,24 @@ export function useEarthEngineTileLayer(
         return;
       }
 
+      const yearConfig = resolveImageYearEntry(
+        activeEEData.imageData,
+        activeYear,
+      );
+      if (!yearConfig) {
+        return;
+      }
+
       try {
         const url = await fetchMapURL(
           activeEEData.id,
           activeYear,
-          activeEEData,
+          {
+            imageId: yearConfig.imageId,
+            imageParams: yearConfig.imageParams,
+            minScale: activeEEData.minScale,
+            maxScale: activeEEData.maxScale,
+          },
           controller.signal,
         );
 
