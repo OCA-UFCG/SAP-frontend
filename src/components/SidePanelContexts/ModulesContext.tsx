@@ -1,7 +1,10 @@
 "use client";
 
-import { useMemo } from "react";
-import { useMapLayer } from "@/components/MapLayerContext/MapLayerContext";
+import { memo, useCallback, useMemo } from "react";
+import {
+  useMapLayerActions,
+  useMapLayerActiveState,
+} from "@/components/MapLayerContext/MapLayerContext";
 import { DroughtDataset } from "@/components/DroughtDataset/DroughtDataset";
 import type { IDroughtDataset } from "@/components/DroughtDataset/DroughtDataset";
 import type { PlatformSection } from "@/components/PlatformSideRail/PlatformSideRail";
@@ -16,9 +19,7 @@ export interface ModulesContextProps {
   onRequestSectionChange?: (next: PlatformSection) => void;
 }
 
-type LayerDataset = IDroughtDataset & {
-  layer: PanelLayerI;
-};
+type LayerDataset = IDroughtDataset;
 
 const DATASET_REGISTRY: Record<string, CDIVectorData> = {
   CDI: cdiData as unknown as CDIVectorData,
@@ -31,9 +32,46 @@ function buildLayerDatasets(panelLayers: PanelLayerI[]): LayerDataset[] {
     description: layer.description,
     image: layer.previewMap?.url,
     fileRef: layer.id,
-    layer,
   }));
 }
+
+interface LayerDatasetCardProps {
+  dataset: LayerDataset;
+  active: boolean;
+  disabled: boolean;
+  onToggleLayer: (layerId: string) => void;
+  onOpenDetails: (layerId: string) => void;
+}
+
+const LayerDatasetCard = memo(function LayerDatasetCard({
+  dataset,
+  active,
+  disabled,
+  onToggleLayer,
+  onOpenDetails,
+}: LayerDatasetCardProps) {
+  const fileRef = dataset.fileRef ?? "";
+
+  const handleToggle = useCallback(() => {
+    if (!fileRef) return;
+    onToggleLayer(fileRef);
+  }, [fileRef, onToggleLayer]);
+
+  const handleDetails = useCallback(() => {
+    if (!fileRef) return;
+    onOpenDetails(fileRef);
+  }, [fileRef, onOpenDetails]);
+
+  return (
+    <DroughtDataset
+      card={dataset}
+      active={active}
+      disabled={disabled}
+      onToggle={handleToggle}
+      onDetails={handleDetails}
+    />
+  );
+});
 
 function ContextHeader() {
   return (
@@ -52,79 +90,93 @@ export function ModulesContext({
   panelLayers = [],
   onRequestSectionChange,
 }: ModulesContextProps) {
-  const {
-    activeData,
-    activeEEData,
-    activateVectorLayer,
-    activateEeLayer,
-    clearActiveLayer,
-  } = useMapLayer();
+  const { activeData, activeEEData } = useMapLayerActiveState();
+  const { activateVectorLayer, activateEeLayer, clearActiveLayer } =
+    useMapLayerActions();
 
   const datasets = useMemo(
     () => buildLayerDatasets(panelLayers),
     [panelLayers],
   );
 
-  const getCaption = (layer: PanelLayerI) => {
+  const layerById = useMemo(() => {
+    return new Map(panelLayers.map((layer) => [layer.id, layer]));
+  }, [panelLayers]);
+
+  const getCaption = useCallback((layer: PanelLayerI) => {
     return getImageDataLegend(layer.imageData);
-  };
+  }, []);
 
-  function handleToggle(dataset: LayerDataset) {
-    if (!dataset.fileRef) return;
+  const handleToggle = useCallback(
+    (layerId: string) => {
+      const layer = layerById.get(layerId);
+      if (!layer) return;
 
-    const vectorData = DATASET_REGISTRY[dataset.fileRef];
-    const hasEEData = Boolean(dataset.layer.imageData);
+      const vectorData = DATASET_REGISTRY[layerId];
+      const hasEEData = Boolean(layer.imageData);
 
-    if (!vectorData && !hasEEData) return;
+      if (!vectorData && !hasEEData) return;
 
-    if (vectorData) {
-      const isActive = activeData === vectorData;
-      if (isActive) {
-        clearActiveLayer();
-      } else {
-        activateVectorLayer(
-          dataset.fileRef,
-          vectorData,
-          getCaption(dataset.layer),
-        );
+      if (vectorData) {
+        const isActive = activeData === vectorData;
+        if (isActive) {
+          clearActiveLayer();
+        } else {
+          activateVectorLayer(layerId, vectorData, getCaption(layer));
+        }
+
+        return;
       }
 
-      return;
-    }
-
-    if (hasEEData) {
-      const eeConfig = dataset.layer as unknown as IEEInfo;
-      const isActive = activeEEData?.id === eeConfig.id;
-      if (isActive) {
-        clearActiveLayer();
-      } else {
-        activateEeLayer(eeConfig, getCaption(dataset.layer));
+      if (hasEEData) {
+        const eeConfig = layer as unknown as IEEInfo;
+        const isActive = activeEEData?.id === eeConfig.id;
+        if (isActive) {
+          clearActiveLayer();
+        } else {
+          activateEeLayer(eeConfig, getCaption(layer));
+        }
       }
-    }
-  }
+    },
+    [
+      activeData,
+      activeEEData,
+      activateEeLayer,
+      activateVectorLayer,
+      clearActiveLayer,
+      getCaption,
+      layerById,
+    ],
+  );
 
-  function handleDetails(dataset: LayerDataset) {
-    if (!dataset.fileRef) return;
+  const handleDetails = useCallback(
+    (layerId: string) => {
+      const layer = layerById.get(layerId);
+      if (!layer) return;
 
-    const vectorData = DATASET_REGISTRY[dataset.fileRef];
-    const hasEEData = Boolean(dataset.layer.imageData);
+      const vectorData = DATASET_REGISTRY[layerId];
+      const hasEEData = Boolean(layer.imageData);
 
-    if (!vectorData && !hasEEData) return;
+      if (!vectorData && !hasEEData) return;
 
-    // Ensure the chosen layer is active before opening the detailing view.
-    if (vectorData) {
-      activateVectorLayer(
-        dataset.fileRef,
-        vectorData,
-        getCaption(dataset.layer),
-      );
-    } else if (hasEEData) {
-      const eeConfig = dataset.layer as unknown as IEEInfo;
-      activateEeLayer(eeConfig, getCaption(dataset.layer));
-    }
+      // Ensure the chosen layer is active before opening the detailing view.
+      if (vectorData) {
+        activateVectorLayer(layerId, vectorData, getCaption(layer));
+      } else if (hasEEData) {
+        const eeConfig = layer as unknown as IEEInfo;
+        activateEeLayer(eeConfig, getCaption(layer));
+      }
 
-    onRequestSectionChange?.("analysis-detail");
-  }
+      onRequestSectionChange?.("analysis-detail");
+    },
+    [
+      activateEeLayer,
+      activateVectorLayer,
+      getCaption,
+      layerById,
+      onRequestSectionChange,
+    ],
+  );
 
   return (
     <div className="h-full overflow-y-auto bg-[#F6F7F6] px-4 pt-12 pb-6">
@@ -135,7 +187,9 @@ export function ModulesContext({
           {datasets.map((dataset) => {
             const fileRef = dataset.fileRef ?? "";
             const vectorData = fileRef ? DATASET_REGISTRY[fileRef] : undefined;
-            const hasEEData = Boolean(dataset.layer.imageData);
+            const hasEEData = Boolean(
+              fileRef && layerById.get(fileRef)?.imageData,
+            );
             const canApply = Boolean(vectorData) || hasEEData;
 
             const isActive = vectorData
@@ -145,13 +199,13 @@ export function ModulesContext({
                 : false;
 
             return (
-              <DroughtDataset
+              <LayerDatasetCard
                 key={fileRef || dataset.id}
-                card={dataset}
+                dataset={dataset}
                 active={isActive}
                 disabled={!canApply}
-                onToggle={() => handleToggle(dataset)}
-                onDetails={() => handleDetails(dataset)}
+                onToggleLayer={handleToggle}
+                onOpenDetails={handleDetails}
               />
             );
           })}

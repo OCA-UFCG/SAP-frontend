@@ -2,17 +2,16 @@
 import { PlatformMapCaption } from "@/components/PlatformMapCaption/PlatformMapCaption";
 import { useEarthEngineTileLayer } from "./useEarthEngineTileLayer";
 import MapComponent from "../Map/MapComponent";
-import { useMapLayer } from "@/components/MapLayerContext/MapLayerContext";
+import {
+  useMapLayerActions,
+  useMapLayerActiveState,
+  useMapLayerViewState,
+} from "@/components/MapLayerContext/MapLayerContext";
 
 export function PlatformMap() {
-  const {
-    activeData,
-    activeEEData,
-    activeLegend,
-    selectedState,
-    activeYear,
-    setSelectedState,
-  } = useMapLayer();
+  const { activeData, activeEEData } = useMapLayerActiveState();
+  const { activeLegend, selectedState, activeYear } = useMapLayerViewState();
+  const { setSelectedState } = useMapLayerActions();
   const visibleTileLayerUrl = useEarthEngineTileLayer(activeEEData, activeYear);
 
   return (

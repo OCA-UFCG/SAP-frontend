@@ -207,57 +207,74 @@ function buildCompactRankingGroups(
 
   const scale = yearData.valuesScale ?? 1;
   const dominantCounts = new Map<string, number>();
+  const entriesByClass = data.classes.map(
+    () => [] as Array<AnalysisRankingEntry & { numericValue: number }>,
+  );
 
-  for (const [entryKey] of Object.entries(yearData.values)) {
+  for (const [entryKey, values] of Object.entries(yearData.values)) {
     if (entryKey === "br") {
       continue;
     }
 
-    const dominant = getDominantDistributionItem(
-      buildCompactDistributionItems(data, entryKey, yearKey),
-    );
+    const label = getCompactLocationName(data, entryKey);
+    let dominantIndex = -1;
+    let dominantValue = Number.NEGATIVE_INFINITY;
 
-    if (!dominant) {
+    for (
+      let classIndex = 0;
+      classIndex < data.classes.length;
+      classIndex += 1
+    ) {
+      const numericValue = Number(
+        (((values[classIndex] ?? 0) as number) / scale).toFixed(1),
+      );
+
+      if (numericValue > dominantValue) {
+        dominantValue = numericValue;
+        dominantIndex = classIndex;
+      }
+
+      if (numericValue <= 0) {
+        continue;
+      }
+
+      entriesByClass[classIndex]?.push({
+        id: entryKey,
+        label,
+        numericValue,
+      });
+    }
+
+    const dominantClass =
+      dominantIndex >= 0 ? data.classes[dominantIndex] : undefined;
+
+    if (!dominantClass) {
       continue;
     }
 
-    dominantCounts.set(dominant.id, (dominantCounts.get(dominant.id) ?? 0) + 1);
+    dominantCounts.set(
+      dominantClass.id,
+      (dominantCounts.get(dominantClass.id) ?? 0) + 1,
+    );
   }
 
-  const rankingGroups: AnalysisRankingGroup[] = [];
+  return data.classes.map((item, classIndex) => {
+    const topEntries = (entriesByClass[classIndex] ?? [])
+      .sort((left, right) => right.numericValue - left.numericValue)
+      .slice(0, MAX_RANKING_ITEMS);
 
-  for (const [classIndex, item] of data.classes.entries()) {
-    const entries = Object.entries(yearData.values)
-      .filter(([entryKey]) => entryKey !== "br")
-      .map(([entryKey, values]) => ({
-        id: entryKey,
-        label: getCompactLocationName(data, entryKey),
-        trailingLabel: String(
-          Number((((values[classIndex] ?? 0) as number) / scale).toFixed(1)),
-        ),
-      }))
-      .filter((entry) => Number(entry.trailingLabel ?? 0) > 0);
-
-    entries.sort((left, right) => {
-      return Number(right.trailingLabel ?? 0) - Number(left.trailingLabel ?? 0);
-    });
-
-    const topEntries = entries.slice(0, MAX_RANKING_ITEMS);
-
-    rankingGroups.push({
+    return {
       id: item.id,
       label: item.label,
       tone: getCompactClassTone(item),
       total: dominantCounts.get(item.id) ?? 0,
       totalLabel: data.ranking?.totalLabel ?? DEFAULT_RANKING_TOTAL_LABEL,
-      items: topEntries.map((entry) => ({
+      items: topEntries.map(({ numericValue, ...entry }) => ({
         ...entry,
-        trailingLabel: `${Number(entry.trailingLabel ?? 0).toFixed(1)}%`,
+        trailingLabel: `${numericValue.toFixed(1)}%`,
       })),
-    });
-  }
-
-  return rankingGroups;
+    };
+  });
 }
 
 function buildCompactTerritorialAnalysisViewModel(

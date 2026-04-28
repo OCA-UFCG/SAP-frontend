@@ -9,7 +9,11 @@ import {
   getAnalysisYearOptions,
   getEffectiveAnalysisYear,
 } from "@/components/analysis/analysis.mappers";
-import { useMapLayer } from "@/components/MapLayerContext/MapLayerContext";
+import {
+  useMapLayerActions,
+  useMapLayerActiveState,
+  useMapLayerViewState,
+} from "@/components/MapLayerContext/MapLayerContext";
 import { resolveStateKeyFromSearch } from "@/lib/geo";
 import type { PlatformSection } from "@/components/PlatformSideRail/PlatformSideRail";
 import type { PanelLayerI, IEEInfo } from "@/utils/interfaces";
@@ -27,15 +31,14 @@ export function AnalysisContext({
   onRequestSectionChange,
   panelLayers,
 }: AnalysisContextProps) {
+  const { activeLayerId } = useMapLayerActiveState();
   const {
     setSelectedState,
     setActiveLegend,
-    selectedState,
-    activeLayerId,
-    activeYear,
     setActiveYear,
     resetPlatformState,
-  } = useMapLayer();
+  } = useMapLayerActions();
+  const { selectedState, activeYear } = useMapLayerViewState();
 
   const dataset = useMemo(() => {
     return panelLayers?.find((p) => p.id === activeLayerId) ?? panelLayers?.[0];

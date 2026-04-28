@@ -9,14 +9,14 @@ import { PlatformSidePanel } from "@/components/PlatformSidePanel/PlatformSidePa
 import { AnalysisContext } from "@/components/SidePanelContexts/AnalysisContext";
 import { ComingSoonContext } from "@/components/SidePanelContexts/ComingSoonContext";
 import { PanelLayerI } from "@/utils/interfaces";
-import { useMapLayer } from "@/components/MapLayerContext/MapLayerContext";
+import { useMapLayerActions } from "@/components/MapLayerContext/MapLayerContext";
 
 interface PlatformSidebarProps {
   panelLayers: PanelLayerI[];
 }
 
 export function PlatformSidebar({ panelLayers }: PlatformSidebarProps) {
-  const { clearActiveLayer } = useMapLayer();
+  const { clearActiveLayer } = useMapLayerActions();
 
   const [activeSection, setActiveSection] =
     useState<PlatformSection>("monitoring");

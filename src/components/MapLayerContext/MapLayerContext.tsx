@@ -20,7 +20,7 @@ import {
 } from "@/components/MapLayerContext/mapLayerState";
 import type { CDIVectorData } from "@/lib/geo";
 
-interface MapLayerContextValue extends MapLayerState {
+interface MapLayerActions {
   setActiveLegend: (legend: IImageParam[] | null) => void;
   setSelectedState: (state: string) => void;
   setActiveYear: (year: string) => void;
@@ -34,7 +34,37 @@ interface MapLayerContextValue extends MapLayerState {
   resetPlatformState: () => void;
 }
 
-const MapLayerContext = createContext<MapLayerContextValue | null>(null);
+type MapLayerActiveState = Pick<
+  MapLayerState,
+  "activeData" | "activeEEData" | "activeLayerId"
+>;
+
+type MapLayerViewState = Pick<
+  MapLayerState,
+  "activeLegend" | "selectedState" | "activeYear"
+>;
+
+interface MapLayerContextValue
+  extends MapLayerActiveState, MapLayerViewState, MapLayerActions {}
+
+const MapLayerActiveStateContext = createContext<MapLayerActiveState | null>(
+  null,
+);
+const MapLayerViewStateContext = createContext<MapLayerViewState | null>(null);
+const MapLayerActionsContext = createContext<MapLayerActions | null>(null);
+
+function useRequiredContext<T>(
+  context: React.Context<T | null>,
+  hookName: string,
+): T {
+  const value = useContext(context);
+
+  if (!value) {
+    throw new Error(`${hookName} must be used inside MapLayerProvider`);
+  }
+
+  return value;
+}
 
 export function MapLayerProvider({ children }: { children: React.ReactNode }) {
   const [state, setState] = useState<MapLayerState>(createInitialMapLayerState);
@@ -79,9 +109,26 @@ export function MapLayerProvider({ children }: { children: React.ReactNode }) {
     setState((currentState) => resetPlatformStateValue(currentState));
   }, []);
 
-  const value = useMemo(
+  const activeState = useMemo<MapLayerActiveState>(
     () => ({
-      ...state,
+      activeData: state.activeData,
+      activeEEData: state.activeEEData,
+      activeLayerId: state.activeLayerId,
+    }),
+    [state.activeData, state.activeEEData, state.activeLayerId],
+  );
+
+  const viewState = useMemo<MapLayerViewState>(
+    () => ({
+      activeLegend: state.activeLegend,
+      selectedState: state.selectedState,
+      activeYear: state.activeYear,
+    }),
+    [state.activeLegend, state.selectedState, state.activeYear],
+  );
+
+  const actions = useMemo<MapLayerActions>(
+    () => ({
       setActiveLegend,
       setSelectedState,
       setActiveYear,
@@ -91,7 +138,6 @@ export function MapLayerProvider({ children }: { children: React.ReactNode }) {
       resetPlatformState,
     }),
     [
-      state,
       setActiveLegend,
       setSelectedState,
       setActiveYear,
@@ -103,15 +149,42 @@ export function MapLayerProvider({ children }: { children: React.ReactNode }) {
   );
 
   return (
-    <MapLayerContext.Provider value={value}>
-      {children}
-    </MapLayerContext.Provider>
+    <MapLayerActionsContext.Provider value={actions}>
+      <MapLayerActiveStateContext.Provider value={activeState}>
+        <MapLayerViewStateContext.Provider value={viewState}>
+          {children}
+        </MapLayerViewStateContext.Provider>
+      </MapLayerActiveStateContext.Provider>
+    </MapLayerActionsContext.Provider>
   );
 }
 
-export function useMapLayer() {
-  const ctx = useContext(MapLayerContext);
-  if (!ctx) throw new Error("useMapLayer must be used inside MapLayerProvider");
+export function useMapLayerActions() {
+  return useRequiredContext(MapLayerActionsContext, "useMapLayerActions");
+}
 
-  return ctx;
+export function useMapLayerActiveState() {
+  return useRequiredContext(
+    MapLayerActiveStateContext,
+    "useMapLayerActiveState",
+  );
+}
+
+export function useMapLayerViewState() {
+  return useRequiredContext(MapLayerViewStateContext, "useMapLayerViewState");
+}
+
+export function useMapLayer() {
+  const activeState = useMapLayerActiveState();
+  const viewState = useMapLayerViewState();
+  const actions = useMapLayerActions();
+
+  return useMemo<MapLayerContextValue>(
+    () => ({
+      ...activeState,
+      ...viewState,
+      ...actions,
+    }),
+    [activeState, viewState, actions],
+  );
 }
