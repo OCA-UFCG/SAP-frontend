@@ -461,13 +461,13 @@ export function AnalysisPanel({
     >
       <div className="flex flex-col gap-6">
         <div
-          className="sticky top-0 z-10 -mx-4 bg-[#F0F0D7] px-4 pb-2 pt-6 border-b border-[#EFEFEF]"
+          className="sticky top-0 z-10 -mx-4 bg-[#F0F0D7] px-4 pb-2 pt-6 border-b border-[#EFEFEF] transition-colors duration-150 hover:bg-[#E6E9C7]"
           data-testid="analysis-panel-back-header"
         >
           <button
             type="button"
             onClick={onBack}
-            className="flex w-[194px] h-8 cursor-pointer items-center gap-2 rounded-[8px] bg-[#F0F0D7] px-2 py-1.5 text-[14px] font-medium text-[#21240F] transition-colors duration-150 hover:bg-[#E6E9C7]"
+            className="flex w-[194px] h-8 cursor-pointer items-center gap-2 rounded-[8px] bg-transparent px-2 py-1.5 text-[14px] font-medium text-[#21240F] transition-colors duration-150 focus-visible:ring-2 focus-visible:ring-neutral-600 focus-visible:outline-none"
           >
             <Chevron open={false} from="right" to="left" size={16} />
             <span>Voltar para listagem</span>
