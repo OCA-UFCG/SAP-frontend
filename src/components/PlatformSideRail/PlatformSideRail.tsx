@@ -97,7 +97,7 @@ export function PlatformSideRail({
           className="h-10 w-10 rounded-r-lg border border-neutral-200 bg-white shadow-sm flex items-center justify-center"
         >
           <span className="cursor-pointer text-sm font-bold">
-            <Chevron open={isPanelOpen} from="right" to="left" />
+            <Chevron open={isPanelOpen} from="left" to="right" />
           </span>
         </button>
       </div>
