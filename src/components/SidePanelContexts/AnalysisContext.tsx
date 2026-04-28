@@ -86,16 +86,17 @@ export function AnalysisContext({
     }
     setActiveLegend(getAnalysisLegend(dataset, effectiveYear));
   }, [dataset, effectiveYear, setActiveLegend]);
-  console.log("DATASET", dataset)
 
   // Extract years and classes only when imageData is CompactTerritorialAnalysisDataset
-  const temporalYears = dataset?.imageData && "years" in dataset.imageData
-    ? (dataset.imageData as CompactTerritorialAnalysisDataset).years
-    : undefined;
+  const temporalYears =
+    dataset?.imageData && "years" in dataset.imageData
+      ? (dataset.imageData as CompactTerritorialAnalysisDataset).years
+      : undefined;
 
-  const temporalClasses = dataset?.imageData && "classes" in dataset.imageData
-    ? (dataset.imageData as CompactTerritorialAnalysisDataset).classes
-    : undefined;
+  const temporalClasses =
+    dataset?.imageData && "classes" in dataset.imageData
+      ? (dataset.imageData as CompactTerritorialAnalysisDataset).classes
+      : undefined;
 
   return (
     <AnalysisPanel
