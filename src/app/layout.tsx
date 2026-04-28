@@ -2,7 +2,7 @@ import type { Metadata } from "next";
 import { Geist, Geist_Mono, Inter, Open_Sans } from "next/font/google";
 import { cache } from "react";
 import { Header } from "@/components/Header/Header";
-import { Footer } from "@/components/Footer/Footer";
+import { FooterSlot } from "@/components/Footer/FooterSlot";
 import { getFooterContent } from "@/repositories/content/siteContentRepository";
 import { ISections } from "@/utils/interfaces";
 import "./globals.css";
@@ -78,7 +78,7 @@ export default async function RootLayout({
       >
         <Header content={Object.values(headerContent)}></Header>
         <main className="flex-1 w-full">{children}</main>
-        {footerContent.length > 0 && <Footer content={footerContent} />}
+        <FooterSlot content={footerContent} />
       </body>
     </html>
   );
