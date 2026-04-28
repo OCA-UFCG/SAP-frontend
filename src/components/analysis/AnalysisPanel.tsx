@@ -367,7 +367,7 @@ function RankingSectionContent({
             >
               <span className="font-inter">{toggleLabel}</span>
               {hasItems ? (
-                <Chevron open={isExpanded} from="up" to="down" size={16} />
+                <Chevron open={isExpanded} from="down" to="up" size={16} />
               ) : null}
             </button>
           </div>
