@@ -112,15 +112,6 @@ export default function DroughtSection() {
                   borderColor: `${highestStatusColor}30`,
                 }}
               >
-                <span
-                  className="rounded p-0.5 font-bold text-xs flex items-center justify-center w-5 h-5 shadow-sm transition-colors duration-500"
-                  style={{
-                    backgroundColor: highestStatusColor,
-                    color: isLightColor ? "#292829" : "white",
-                  }}
-                >
-                  ✓
-                </span>
                 <span className="text-sm font-bold">
                   Majoritariamente em: {highestStatus}
                 </span>
