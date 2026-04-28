@@ -488,7 +488,7 @@ export function AnalysisPanel({
             <div className="mb-4 flex flex-col">
               <div
                 className="text-[18px] font-semibold leading-6"
-                style={{ color: model.accentColor }}
+                style={{ color: "#989F43" }}
               >
                 {model.name}
               </div>
