@@ -36,6 +36,10 @@ export function PlatformSidebar({ panelLayers }: PlatformSidebarProps) {
             : undefined;
 
   function handleSectionChange(next: PlatformSection) {
+    if (next == "analysis"){
+      window.open("https://analise-multicriterial.oca-portal.com");
+      return;
+    }
     setActiveSection(next);
     setPanelSection(next);
     setIsPanelOpen(true);
