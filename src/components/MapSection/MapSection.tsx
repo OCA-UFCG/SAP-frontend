@@ -74,77 +74,83 @@ export default function DroughtSection() {
   const isLightColor = ["#E4E5E2", "#FFCC80"].includes(highestStatusColor);
 
   return (
-    <section className="max-w-7xl py-8 mx-auto text-[#292829] px-4 md:px-8">
-      <h2 className="text-2xl font-bold mb-6">Entenda a seca na sua região</h2>
+    <section className="w-full bg-white flex flex-col items-center text-[#292829]">
+      <div className="w-full max-w-[1440px] mx-auto px-4 py-12 md:px-10 lg:px-[80px]">
+        <h2 className="text-2xl font-bold mb-6">
+          Entenda a seca na sua região
+        </h2>
 
-      <div className="mb-8 w-full">
-        <SearchBar onSearch={handleSearch} />
-      </div>
-
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-12 items-start">
-        <div className="flex flex-col gap-4 h-full min-h-[500px]">
-          <div className="relative flex w-full h-full min-h-[500px] z-10 rounded-2xl overflow-hidden border border-neutral-200 shadow-sm">
-            <MapComponent
-              center={[-15.749997, -47.9499962]}
-              zoom={4}
-              dadosCDI={cdiData}
-              estadoSelecionado={selectedState.toUpperCase()}
-              className="w-full h-full"
-            />
-          </div>
+        <div className="mb-6 w-full">
+          <SearchBar onSearch={handleSearch} />
         </div>
 
-        <div className="flex flex-col gap-8">
-          <header className="flex flex-wrap justify-between items-start gap-4">
-            <div className="w-full flex flex-col md:flex-row gap-4 justify-between">
-              <div className="flex flex-col gap-1">
-                <h1 className="text-4xl font-bold tracking-tight">
-                  {currentState.nome}
-                </h1>
-                <div className="text-[10px] text-neutral-500 mt-2 uppercase font-semibold space-y-0.5">
-                  <p>Data da análise: 31/01/24</p>
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 items-start">
+          <div className="flex flex-col gap-4 h-full min-h-[500px]">
+            <div className="relative flex w-full h-full min-h-[500px] z-10 rounded-2xl overflow-hidden border border-neutral-200 shadow-sm">
+              <MapComponent
+                center={[-15.749997, -47.9499962]}
+                zoom={4}
+                dadosCDI={cdiData}
+                estadoSelecionado={selectedState.toUpperCase()}
+                className="w-full h-full"
+              />
+            </div>
+          </div>
+
+          <div className="flex flex-col gap-6">
+            <header className="flex flex-wrap justify-between items-start gap-4">
+              <div className="w-full flex flex-col md:flex-row gap-4 justify-between">
+                <div className="flex flex-col gap-1">
+                  <h1 className="text-4xl font-bold tracking-tight">
+                    {currentState.nome}
+                  </h1>
+                  <div className="text-[10px] text-neutral-500 mt-2 uppercase font-semibold space-y-0.5">
+                    <p>Data da análise: 31/01/24</p>
+                  </div>
+                </div>
+                <div
+                  className="flex items-center gap-3 px-4 py-2 rounded-xl border transition-all duration-500 h-fit"
+                  style={{
+                    backgroundColor: `${highestStatusColor}15`,
+                    borderColor: `${highestStatusColor}30`,
+                  }}
+                >
+                  <span className="text-sm font-bold">
+                    Majoritariamente em: {highestStatus}
+                  </span>
                 </div>
               </div>
-              <div
-                className="flex items-center gap-3 px-4 py-2 rounded-xl border transition-all duration-500 h-fit"
-                style={{
-                  backgroundColor: `${highestStatusColor}15`,
-                  borderColor: `${highestStatusColor}30`,
-                }}
-              >
-                <span className="text-sm font-bold">
-                  Majoritariamente em: {highestStatus}
-                </span>
-              </div>
-            </div>
 
-            {/* Dynamic Status Badge */}
-          </header>
+              {/* Dynamic Status Badge */}
+            </header>
 
-          <article>
-            <h3 className="text-xl font-bold mb-4">Informações gerais</h3>
-            <div className="space-y-5">
-              <div>
-                <h4 className="font-bold text-base">O que está acontecendo?</h4>
-                <p className="text-neutral-600 text-sm leading-relaxed mt-1">
-                  {currentState.acontecendo}
-                </p>
+            <article>
+              <h3 className="text-xl font-bold mb-4">Informações gerais</h3>
+              <div className="space-y-5">
+                <div>
+                  <h4 className="font-bold text-base">
+                    O que está acontecendo?
+                  </h4>
+                  <p className="text-neutral-600 text-sm leading-relaxed mt-1">
+                    {currentState.acontecendo}
+                  </p>
+                </div>
+                <div>
+                  <h4 className="font-bold text-base">Impacto na prática</h4>
+                  <ul className="list-disc ml-5 space-y-2 text-sm text-neutral-600 mt-2">
+                    {currentState.impacto.map((item, i) => (
+                      <li key={i} className="pl-1">
+                        {item}
+                      </li>
+                    ))}
+                  </ul>
+                </div>
               </div>
-              <div>
-                <h4 className="font-bold text-base">Impacto na prática</h4>
-                <ul className="list-disc ml-5 space-y-2 text-sm text-neutral-600 mt-2">
-                  {currentState.impacto.map((item, i) => (
-                    <li key={i} className="pl-1">
-                      {item}
-                    </li>
-                  ))}
-                </ul>
-              </div>
-            </div>
-          </article>
+            </article>
 
-          {/* Pie Chart Component */}
-          <AlertTiers items={statusItems} />
+            {/* Pie Chart Component */}
+            <AlertTiers items={statusItems} />
+          </div>
         </div>
       </div>
     </section>
