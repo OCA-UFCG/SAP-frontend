@@ -5,6 +5,7 @@ import { useState, useMemo } from "react";
 import geodata from "../../data/CDI_Janeiro_2024_Vetores.json";
 import droughtData from "../../../public/dados-seca.json";
 import SearchBar from "../SearchBar/SearchBar";
+import Link from "next/link";
 import MapComponent from "../Map/MapComponent";
 import { AlertTiers } from "../AlertTiers/AlertTiers";
 import type { CDIVectorData } from "@/lib/geo";
@@ -94,6 +95,32 @@ export default function DroughtSection() {
                 estadoSelecionado={selectedState.toUpperCase()}
                 className="w-full h-full"
               />
+
+              {/* Overlay button: Veja mais -> /platform */}
+              <div className="absolute bottom-6 left-6 z-30 w-full sm:w-auto flex justify-start">
+                <Link
+                  href="/platform"
+                  className="w-full sm:w-[582px] bg-[#989F43] text-white rounded-[6px] px-4 py-3 flex items-center justify-center gap-2 hover:opacity-90 transition"
+                >
+                  <span className="text-[14px] font-medium">Veja mais</span>
+
+                  <svg
+                    xmlns="http://www.w3.org/2000/svg"
+                    viewBox="0 0 16 16"
+                    className="h-4 w-4 text-white"
+                    aria-hidden="true"
+                  >
+                    <path
+                      d="M6 4L10 8L6 12"
+                      stroke="currentColor"
+                      strokeWidth="1.33333"
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      fill="none"
+                    />
+                  </svg>
+                </Link>
+              </div>
             </div>
           </div>
 
