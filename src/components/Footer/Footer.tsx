@@ -26,15 +26,24 @@ export const Footer = ({ content }: { content: FooterI[] }) => {
         </div>
         <div className="hidden w-full items-start lg:flex lg:min-h-8 lg:flex-1 lg:px-2">
           <div className="flex flex-row items-center gap-6 lg:min-h-8 lg:items-center">
-            {mainPages.map(({ id, path, name }) => (
-              <a
-                href={path}
-                key={id}
-                className="text-sm font-bold leading-5 text-white transition-opacity hover:opacity-60"
-              >
-                {name}
-              </a>
-            ))}
+            {mainPages.map(({ id, path, name }) => {
+              const href =
+                path === "/about"
+                  ? "/sobre-o-sap"
+                  : path === "/map"
+                  ? "/platform"
+                  : path;
+              const label = path === "/map" ? "Plataforma" : name;
+              return (
+                <a
+                  href={href}
+                  key={id}
+                  className="text-sm font-bold leading-5 text-white transition-opacity hover:opacity-60"
+                >
+                  {label}
+                </a>
+              );
+            })}
           </div>
         </div>
 
