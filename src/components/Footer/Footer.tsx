@@ -31,8 +31,8 @@ export const Footer = ({ content }: { content: FooterI[] }) => {
                 path === "/about"
                   ? "/sobre-o-sap"
                   : path === "/map"
-                  ? "/platform"
-                  : path;
+                    ? "/platform"
+                    : path;
               const label = path === "/map" ? "Plataforma" : name;
               return (
                 <a
