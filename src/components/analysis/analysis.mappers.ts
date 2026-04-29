@@ -259,20 +259,28 @@ function buildCompactRankingGroups(
   }
 
   return data.classes.map((item, classIndex) => {
-    const topEntries = (entriesByClass[classIndex] ?? [])
-      .sort((left, right) => right.numericValue - left.numericValue)
-      .slice(0, MAX_RANKING_ITEMS);
+    const sortedEntries = (entriesByClass[classIndex] ?? [])
+      .slice()
+      .sort((left, right) => right.numericValue - left.numericValue);
+
+    const topEntries = sortedEntries.slice(0, MAX_RANKING_ITEMS);
+
+    const allItems = sortedEntries.map(({ numericValue, ...entry }) => ({
+      ...entry,
+      trailingLabel: `${numericValue.toFixed(1)}%`,
+    }));
 
     return {
       id: item.id,
       label: item.label,
       tone: getCompactClassTone(item),
-      total: dominantCounts.get(item.id) ?? 0,
+      total: sortedEntries.length,
       totalLabel: data.ranking?.totalLabel ?? DEFAULT_RANKING_TOTAL_LABEL,
       items: topEntries.map(({ numericValue, ...entry }) => ({
         ...entry,
         trailingLabel: `${numericValue.toFixed(1)}%`,
       })),
+      allItems,
     };
   });
 }

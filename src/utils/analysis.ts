@@ -35,6 +35,7 @@ export interface AnalysisRankingGroup {
   total: number;
   totalLabel: string;
   items: AnalysisRankingEntry[];
+  allItems?: AnalysisRankingEntry[];
 }
 
 export interface CompactAnalysisClass {

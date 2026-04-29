@@ -77,7 +77,7 @@ describe("AnalysisPanel", () => {
     ).toBeVisible();
   });
 
-  it("starts with all ranking cards expanded and allows closing them independently", async () => {
+  it("shows top items initially, can open to show all, then close and reopen showing all", async () => {
     const user = userEvent.setup();
     const onBack = vi.fn();
     const onSearch = vi.fn();
@@ -97,20 +97,28 @@ describe("AnalysisPanel", () => {
       />,
     );
 
+    // top entries are visible initially
     expect(screen.getByRole("button", { name: "Acre: 55.0%" })).toBeVisible();
     expect(screen.getByText("55.0%")).toBeVisible();
     expect(
       screen.getByRole("button", { name: "Minas Gerais: 60.0%" }),
     ).toBeVisible();
 
+    // initial toggle is a "Mostrar" action (accessible name)
+    await user.click(screen.getByRole("button", { name: "Mostrar Classe A" }));
+
+    // after opening, the toggle becomes a close action
+    expect(
+      screen.getByRole("button", { name: "Ocultar Classe A" }),
+    ).toBeVisible();
+    expect(screen.getByRole("button", { name: "Acre: 55.0%" })).toBeVisible();
+
+    // click close to hide entries
     await user.click(screen.getByRole("button", { name: "Ocultar Classe A" }));
 
     expect(
       screen.queryByRole("button", { name: "Acre: 55.0%" }),
     ).not.toBeInTheDocument();
-    expect(
-      screen.getByRole("button", { name: "Minas Gerais: 60.0%" }),
-    ).toBeVisible();
     expect(
       screen.getByRole("button", { name: "Mostrar Classe A" }),
     ).toBeVisible();

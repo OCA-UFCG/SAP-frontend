@@ -299,7 +299,9 @@ function buildRankingBadgeColor(color: string) {
 }
 
 function getDefaultExpandedGroups(groups: AnalysisRankingGroup[]) {
-  return Object.fromEntries(groups.map((group) => [group.id, true]));
+  return Object.fromEntries(
+    groups.map((group) => [group.id, "initial"]),
+  ) as Record<string, "initial" | "all" | "closed">;
 }
 
 function RankingSectionContent({
@@ -309,23 +311,26 @@ function RankingSectionContent({
   groups: AnalysisRankingGroup[];
   onItemSelect?: (locationKey: string) => void;
 }) {
-  const [expandedGroups, setExpandedGroups] = useState<Record<string, boolean>>(
-    () => getDefaultExpandedGroups(groups),
-  );
+  const [groupStates, setGroupStates] = useState<
+    Record<string, "initial" | "all" | "closed">
+  >(() => getDefaultExpandedGroups(groups));
 
   return (
     <div className="flex flex-col gap-2">
       {groups.map((group) => {
-        const isExpanded = expandedGroups[group.id] ?? true;
-        const hasItems = group.items.length > 0;
+        const state = groupStates[group.id] ?? "initial";
+        const nonZeroCount = group.allItems?.length ?? group.items.length;
+        const hasItems = (nonZeroCount ?? 0) > 0;
         const headerTextColor = getContrastTextColor(group.tone.color);
         const badgeBackgroundColor = buildRankingBadgeColor(group.tone.color);
         const badgeTextColor = getContrastTextColor(badgeBackgroundColor);
-        const toggleLabel = hasItems
-          ? isExpanded
+        const toggleLabel = !hasItems
+          ? "Sem estados com valor"
+          : state === "all"
             ? "Ocultar lista"
-            : `Ver top ${group.items.length}`
-          : "Sem estados com valor";
+            : `Ver todos (${nonZeroCount})`;
+
+        const isOpen = state === "all";
 
         return (
           <div
@@ -351,7 +356,7 @@ function RankingSectionContent({
                 }}
               >
                 <span className="text-[24px] font-semibold leading-5 tracking-[-0.03em]">
-                  {group.total}
+                  {nonZeroCount}
                 </span>
                 <span className="text-[12px] font-semibold leading-6">
                   {group.totalLabel}
@@ -359,9 +364,12 @@ function RankingSectionContent({
               </div>
             </div>
 
-            {isExpanded && hasItems ? (
+            {hasItems && state !== "closed" ? (
               <div className="flex flex-col gap-2 bg-white p-2">
-                {group.items.map((item) => (
+                {(state === "initial"
+                  ? group.items
+                  : (group.allItems ?? group.items)
+                ).map((item) => (
                   <button
                     key={item.id}
                     type="button"
@@ -397,10 +405,10 @@ function RankingSectionContent({
             <button
               type="button"
               disabled={!hasItems}
-              aria-expanded={hasItems ? isExpanded : undefined}
+              aria-expanded={hasItems ? isOpen : undefined}
               aria-label={
                 hasItems
-                  ? `${isExpanded ? "Ocultar" : "Mostrar"} ${group.label}`
+                  ? `${isOpen ? "Ocultar" : "Mostrar"} ${group.label}`
                   : undefined
               }
               onClick={() => {
@@ -408,16 +416,25 @@ function RankingSectionContent({
                   return;
                 }
 
-                setExpandedGroups((current) => ({
-                  ...current,
-                  [group.id]: !isExpanded,
-                }));
+                setGroupStates((current) => {
+                  const cur = current[group.id] ?? "initial";
+                  const next =
+                    cur === "initial"
+                      ? "all"
+                      : cur === "all"
+                        ? "closed"
+                        : "all";
+                  return {
+                    ...current,
+                    [group.id]: next,
+                  };
+                });
               }}
               className="flex min-h-7 w-full items-center justify-center gap-2 bg-[#C8CAC5] px-2 py-1 text-[12px] font-medium leading-5 text-[#292829] transition-colors duration-150 enabled:cursor-pointer enabled:hover:bg-[#BFC2BC] disabled:cursor-default"
             >
               <span className="font-inter">{toggleLabel}</span>
               {hasItems ? (
-                <Chevron open={isExpanded} from="down" to="up" size={16} />
+                <Chevron open={isOpen} from="down" to="up" size={16} />
               ) : null}
             </button>
           </div>

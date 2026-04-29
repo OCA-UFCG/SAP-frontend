@@ -75,7 +75,7 @@ describe("analysis.mappers", () => {
       border: "rgba(17, 17, 17, 0.4)",
     });
 
-    expect(model?.rankingGroups[0]?.total).toBe(2);
+    expect(model?.rankingGroups[0]?.total).toBe(6);
     expect(model?.rankingGroups[0]?.items.map((item) => item.id)).toEqual([
       "se",
       "ac",
@@ -83,7 +83,7 @@ describe("analysis.mappers", () => {
       "ba",
       "rj",
     ]);
-    expect(model?.rankingGroups[1]?.total).toBe(4);
+    expect(model?.rankingGroups[1]?.total).toBe(6);
     expect(model?.rankingGroups[1]?.items.map((item) => item.id)).toEqual([
       "rj",
       "mg",
@@ -100,7 +100,7 @@ describe("analysis.mappers", () => {
       "sp",
       "rj",
     ]);
-    expect(model?.rankingGroups[4]?.total).toBe(0);
+    expect(model?.rankingGroups[4]?.total).toBe(2);
     expect(model?.rankingGroups[4]?.items.map((item) => item.id)).toEqual([
       "ac",
       "se",
