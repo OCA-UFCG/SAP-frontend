@@ -1,20 +1,20 @@
-import type { Meta, StoryObj } from '@storybook/nextjs-vite';
-import { MainBanner } from './MainBanner';
+import type { Meta, StoryObj } from "@storybook/nextjs-vite";
+import { MainBanner } from "./MainBanner";
 
 const meta: Meta<typeof MainBanner> = {
-  title: 'Components/MainBanner',
+  title: "Components/MainBanner",
   component: MainBanner,
   args: {
     data: {
       title: "Sistema de Alerta Precoce",
       subtitle: "Monitoramento de seca e desertificação.",
       linkText: "Explorar Mapa",
-      link: "#",
+      link: "/platform",
       image: {
-        url: "https://images.ctfassets.net/ltku4sobsen2/5F33iWSe0kcsJi4loCAGNq/aa417ec6735744009d57de04017a740f/297efe92c527cd9c7d5dec693cc5a887347e39ec.jpg"
-      }
-    }
-  }
+        url: "https://images.ctfassets.net/ltku4sobsen2/5F33iWSe0kcsJi4loCAGNq/aa417ec6735744009d57de04017a740f/297efe92c527cd9c7d5dec693cc5a887347e39ec.jpg",
+      },
+    },
+  },
 };
 
 export default meta;

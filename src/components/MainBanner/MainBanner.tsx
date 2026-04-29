@@ -1,5 +1,6 @@
 import { IMainBanner } from "@/utils/interfaces";
 import Image from "next/image";
+import Link from "next/link";
 
 interface MainBannerProps {
   data: IMainBanner;
@@ -52,14 +53,14 @@ export function MainBanner({ data }: MainBannerProps) {
                 {subtitle}
               </p>
 
-              <a
-                href={link}
+              <Link
+                href="/platform"
                 className="mt-4 flex items-center justify-center w-full md:w-[302px] h-[40px] px-4 py-2 rounded-[8px] bg-[#989F43] hover:bg-[#5B612A] text-white transition-all duration-200 shadow-md"
               >
                 <span className="text-[14px] font-[500] leading-[24px] tracking-normal">
                   {linkText}
                 </span>
-              </a>
+              </Link>
             </div>
           </div>
         </div>

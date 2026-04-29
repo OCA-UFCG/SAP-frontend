@@ -1,4 +1,5 @@
 import Image from "next/image";
+import Link from "next/link";
 import { documentToReactComponents } from "@contentful/rich-text-react-renderer";
 import { AboutSectionI } from "@/utils/interfaces";
 
@@ -36,12 +37,12 @@ export const AboutSection = ({ content, onClick, className = "" }: Props) => {
               {documentToReactComponents(content.text.json)}
             </div>
 
-            <button
-              onClick={onClick}
+            <Link
+              href="/contact"
               className="flex justify-center items-center px-4 py-2 h-[40px] w-full bg-[#989F43] rounded-[6px] text-[14px] leading-[24px] text-[#F8F7F8] transition hover:opacity-90"
             >
               Ver mais
-            </button>
+            </Link>
           </div>
         </div>
       </div>
