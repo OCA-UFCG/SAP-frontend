@@ -14,14 +14,14 @@ export const AboutSection = ({ content, onClick, className = "" }: Props) => {
 
   return (
     <section
-      className={`w-full bg-white flex flex-col items-center ${className}`}
+      className={`w-full bg-white flex flex-col items-start ${className}`}
     >
-      <div className="w-full max-w-[1440px] mx-auto px-4 py-12 md:px-10 md:py-16 lg:px-[78px] lg:py-[85px] flex flex-col gap-[33px]">
-        <h2 className="text-[24px] md:text-[28px] lg:text-[30px] leading-[28px] md:leading-[32px] lg:leading-[36px] tracking-[-0.0075em] text-[#292829] font-semibold text-center lg:text-left">
+      <div className="w-full max-w-[1440px] mx-auto px-4 py-12 md:px-10 lg:px-[80px] flex flex-col gap-[33px]">
+        <h2 className="text-[24px] md:text-[28px] lg:text-[30px] leading-[28px] md:leading-[32px] lg:leading-[36px] tracking-[-0.0075em] text-[#292829] font-semibold text-left">
           {content.title}
         </h2>
 
-        <div className="flex flex-col lg:flex-row items-center lg:items-center gap-[33px] w-full">
+        <div className="flex flex-col lg:flex-row items-start gap-[33px] w-full">
           <div className="shrink-0 mx-auto lg:mx-0">
             <Image
               src={imageSrc}
@@ -33,7 +33,7 @@ export const AboutSection = ({ content, onClick, className = "" }: Props) => {
           </div>
 
           <div className="flex flex-col gap-[33px] w-full lg:max-w-[621px] flex-1">
-            <div className="text-[15px] md:text-[16px] leading-[150%] text-[#292829] text-center lg:text-left">
+            <div className="text-[15px] md:text-[16px] leading-[150%] text-[#292829] text-left">
               {documentToReactComponents(content.text.json)}
             </div>
 
