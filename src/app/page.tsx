@@ -23,8 +23,8 @@ export default async function Home() {
 
         <MapSection />
 
-        {data.aboutSection && <AboutSection content={data.aboutSection} />}
         {data.tabs.length > 0 && <TabsSection contentData={data.tabs} />}
+        {data.aboutSection && <AboutSection content={data.aboutSection} />}
         {data.partnersHeader && (
           <PartnersSection
             header={data.partnersHeader}
