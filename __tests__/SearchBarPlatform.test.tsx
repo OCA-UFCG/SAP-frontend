@@ -58,4 +58,17 @@ describe("SearchBarPlatform", () => {
     expect(input).toHaveValue("");
     expect(screen.queryByRole("listbox")).not.toBeInTheDocument();
   });
+
+  it("shows error message when invalid value is submitted (Platform)", async () => {
+    const user = userEvent.setup();
+    renderComponent();
+
+    const input = screen.getByRole("combobox");
+    const button = screen.getByRole("button", { name: /pesquisar/i });
+
+    await user.type(input, "invalid");
+    await user.click(button);
+
+    expect(screen.getByText("Estado não identificado.")).toBeInTheDocument();
+  });
 });

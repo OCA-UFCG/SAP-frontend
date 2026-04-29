@@ -3,29 +3,15 @@
 import { useEffect, useRef, useState } from "react";
 import { Icon } from "../Icon/Icon";
 import { ButtonUi } from "../ButtonUI/ButtonUI";
-import { states, statesObj, ufs } from "@/utils/constants";
-import { normalize } from "@/utils/functions";
+import { statesObj } from "@/utils/constants";
+import {
+  filterStateOptions,
+  validateSearch,
+} from "@/components/SearchBar/searchBarUtils";
 
 interface SearchBarProps {
   onSearch: (value: string) => void;
 }
-
-const BRAZIL_OPTION = "Brasil";
-const statesNormalized = new Set(Array.from(states).map(normalize));
-const ufsNormalized = new Set(Array.from(ufs).map(normalize));
-const brazilNormalized = normalize(BRAZIL_OPTION);
-const stateOptionsMetadata = [
-  {
-    label: BRAZIL_OPTION,
-    normalizedLabel: brazilNormalized,
-    normalizedUf: "br",
-  },
-  ...Object.entries(statesObj).map(([uf, label]) => ({
-    label,
-    normalizedLabel: normalize(label),
-    normalizedUf: normalize(uf),
-  })),
-];
 
 const SearchBarPlatform = ({ onSearch }: SearchBarProps) => {
   const containerRef = useRef<HTMLDivElement>(null);
@@ -34,19 +20,7 @@ const SearchBarPlatform = ({ onSearch }: SearchBarProps) => {
   const [isOptionsOpen, setIsOptionsOpen] = useState(false);
   const [value, setValue] = useState("");
 
-  const normalizedValue = normalize(value.trim());
-  const filteredStateOptions = stateOptionsMetadata
-    .filter((option) => {
-      if (!normalizedValue) {
-        return true;
-      }
-
-      return (
-        option.normalizedLabel.includes(normalizedValue) ||
-        option.normalizedUf.includes(normalizedValue)
-      );
-    })
-    .map((option) => option.label);
+  const filteredStateOptions = filterStateOptions(value);
 
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
@@ -61,20 +35,6 @@ const SearchBarPlatform = ({ onSearch }: SearchBarProps) => {
       document.removeEventListener("mousedown", handleClickOutside);
     };
   }, []);
-
-  const validateSearch = (value: string) => {
-    const normalizedValue = normalize(value.trim());
-
-    if (
-      !(
-        normalizedValue === brazilNormalized ||
-        statesNormalized.has(normalizedValue) ||
-        ufsNormalized.has(normalizedValue)
-      )
-    ) {
-      throw Error("Estado não identificado.");
-    }
-  };
 
   const onSubmit = () => {
     const currentValue = value;
@@ -107,7 +67,7 @@ const SearchBarPlatform = ({ onSearch }: SearchBarProps) => {
     <div className="w-full flex gap-2 items-start h-10">
       <div ref={containerRef} className="relative flex-1 flex flex-col h-full">
         <div
-          className={`w-full px-3 py-3 flex items-center rounded-lg shadow-sm bg-[#E4E5E2] overflow-hidden transition
+          className={`w-full px-3 py-3 flex items-center rounded-lg shadow-sm bg-[#E4E5E2] overflow-hidden transition border
                     ${
                       hasError
                         ? "border-red-500 ring-2 ring-red-500"
@@ -130,7 +90,11 @@ const SearchBarPlatform = ({ onSearch }: SearchBarProps) => {
             onKeyDown={(e) => {
               if (e.key === "Enter") {
                 e.preventDefault();
-                onSubmit();
+                if (filteredStateOptions.length === 1) {
+                  handleOptionSelect(filteredStateOptions[0]);
+                } else {
+                  onSubmit();
+                }
               }
             }}
             role="combobox"

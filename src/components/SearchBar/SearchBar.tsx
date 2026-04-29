@@ -3,18 +3,15 @@
 import { useEffect, useRef, useState } from "react";
 import { Icon } from "../Icon/Icon";
 import { ButtonUi } from "../ButtonUI/ButtonUI";
-import { states, ufs } from "@/utils/constants";
-import { normalize } from "@/utils/functions";
+import {
+  stateOptions,
+  validateSearch,
+  filterStateOptions,
+} from "./searchBarUtils";
 
 interface SearchBarProps {
   onSearch: (value: string) => void;
 }
-
-const BRAZIL_OPTION = "Brasil";
-const statesNormalized = new Set(Array.from(states).map(normalize));
-const ufsNormalized = new Set(Array.from(ufs).map(normalize));
-const brazilNormalized = normalize(BRAZIL_OPTION);
-const stateOptions = [BRAZIL_OPTION, ...Array.from(states)];
 
 const SearchBar = ({ onSearch }: SearchBarProps) => {
   const containerRef = useRef<HTMLDivElement>(null);
@@ -22,6 +19,8 @@ const SearchBar = ({ onSearch }: SearchBarProps) => {
   const [hasError, setHasError] = useState(false);
   const [isOptionsOpen, setIsOptionsOpen] = useState(false);
   const [value, setValue] = useState("");
+
+  const filteredStateOptions = filterStateOptions(value);
 
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
@@ -37,31 +36,16 @@ const SearchBar = ({ onSearch }: SearchBarProps) => {
     };
   }, []);
 
-  const validateSearch = (value: string) => {
-    const normalizedValue = normalize(value.trim());
-
-    if (
-      !(
-        normalizedValue === brazilNormalized ||
-        statesNormalized.has(normalizedValue) ||
-        ufsNormalized.has(normalizedValue)
-      )
-    ) {
-      throw Error("Estado não identificado.");
-    }
-  };
-
   const onSubmit = () => {
     const currentValue = value;
 
     try {
       validateSearch(currentValue);
       setHasError(false);
-    } catch {
-      setHasError(true);
-    } finally {
       setIsOptionsOpen(false);
       onSearch(currentValue);
+    } catch {
+      setHasError(true);
     }
   };
 
@@ -72,7 +56,8 @@ const SearchBar = ({ onSearch }: SearchBarProps) => {
   };
 
   const handleOptionSelect = (option: string) => {
-    setValue(option);
+    onSearch(option);
+    setValue("");
     setHasError(false);
     setIsOptionsOpen(false);
     inputRef.current?.focus();
@@ -82,7 +67,7 @@ const SearchBar = ({ onSearch }: SearchBarProps) => {
     <div className="w-full flex justify-between gap-5 items-start h-14">
       <div ref={containerRef} className="relative flex-1 flex flex-col h-full">
         <div
-          className={`min-w-40 w-full p-4 flex items-center text-lg rounded-xl shadow-sm bg-[#E4E5E2] overflow-hidden transition
+          className={`min-w-40 w-full p-4 flex items-center text-lg rounded-xl shadow-sm bg-[#E4E5E2] overflow-hidden transition border
                     ${
                       hasError
                         ? "border-red-500 ring-2 ring-red-500"
@@ -96,14 +81,27 @@ const SearchBar = ({ onSearch }: SearchBarProps) => {
             ref={inputRef}
             value={value}
             onChange={(event) => {
-              setValue(event.target.value);
+              const nextValue = event.target.value;
+
+              setValue(nextValue);
               setHasError(false);
+              setIsOptionsOpen(nextValue.trim().length > 0);
             }}
             role="combobox"
-            aria-autocomplete="none"
+            aria-autocomplete="list"
             aria-controls="searchbar-state-options"
             aria-expanded={isOptionsOpen}
             aria-haspopup="listbox"
+            onKeyDown={(e) => {
+              if (e.key === "Enter") {
+                e.preventDefault();
+                if (filteredStateOptions.length === 1) {
+                  handleOptionSelect(filteredStateOptions[0]);
+                } else {
+                  onSubmit();
+                }
+              }
+            }}
             className="w-full text-[#292829] bg-transparent border-none outline-none ring-0"
             placeholder="Pesquise um estado"
           />
@@ -139,7 +137,7 @@ const SearchBar = ({ onSearch }: SearchBarProps) => {
             role="listbox"
             className="absolute top-[calc(100%+8px)] z-20 max-h-64 w-full overflow-y-auto rounded-xl border border-neutral-200 bg-white p-2 shadow-lg"
           >
-            {stateOptions.map((option) => (
+            {filteredStateOptions.map((option) => (
               <button
                 key={option}
                 type="button"
@@ -153,11 +151,7 @@ const SearchBar = ({ onSearch }: SearchBarProps) => {
             ))}
           </div>
         )}
-        {hasError && (
-          <p className="text-sm text-red-600 mt-1 absolute -bottom-6">
-            Estado não identificado.
-          </p>
-        )}
+        {/* Home: keep red border on error but do not show inline error message */}
       </div>
       <ButtonUi
         // disabled={!search}
