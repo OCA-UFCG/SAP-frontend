@@ -11,6 +11,10 @@ vi.mock("@/repositories/platform/panelLayerRepository", () => ({
 }));
 
 import { POST } from "@/app/api/ee/route";
+import {
+  clearEeRateLimit,
+  EE_RATE_LIMIT_MAX_REQUESTS,
+} from "../src/app/api/ee/rate-limit";
 import { getEarthEngineUrl } from "@/app/api/ee/services";
 import { buildCacheKey, removeCacheUrl } from "@/app/api/ee/cache";
 import { getPanelLayers } from "@/repositories/platform/panelLayerRepository";
@@ -18,9 +22,13 @@ import { getPanelLayers } from "@/repositories/platform/panelLayerRepository";
 const mockedGetEarthEngineUrl = vi.mocked(getEarthEngineUrl);
 const mockedGetPanelLayers = vi.mocked(getPanelLayers);
 
-function createMockRequest(url: string): NextRequest {
+function createMockRequest(
+  url: string,
+  forwardedFor = "203.0.113.10",
+): NextRequest {
   return {
     nextUrl: new URL(url),
+    headers: new Headers({ "x-forwarded-for": forwardedFor }),
   } as unknown as NextRequest;
 }
 
@@ -70,11 +78,13 @@ describe("POST /api/ee cache behavior", () => {
   beforeEach(() => {
     mockedGetEarthEngineUrl.mockReset();
     mockedGetPanelLayers.mockResolvedValue([createMockLayer()]);
+    clearEeRateLimit();
     removeCacheUrl(cacheKeyV1);
     removeCacheUrl(cacheKeyV2);
   });
 
   afterEach(() => {
+    clearEeRateLimit();
     removeCacheUrl(cacheKeyV1);
     removeCacheUrl(cacheKeyV2);
   });
@@ -147,6 +157,7 @@ describe("POST /api/ee cache behavior", () => {
 
     const request = {
       nextUrl: new URL("https://example.test/api/ee?name=layer-a&year=2024"),
+      headers: new Headers({ "x-forwarded-for": "203.0.113.10" }),
       json: vi.fn().mockResolvedValue({
         imageId: "projects/example/image-v2",
         imageParams: [{ color: "#000000", label: "ignored" }],
@@ -159,5 +170,51 @@ describe("POST /api/ee cache behavior", () => {
     expect(res.status).toBe(200);
     expect(body.url).toBe("https://tiles.example/layer-a/v1");
     expect(mockedGetEarthEngineUrl).toHaveBeenCalledTimes(1);
+  });
+
+  it("returns 429 after too many requests from the same client", async () => {
+    mockedGetEarthEngineUrl.mockResolvedValue(
+      "https://tiles.example/layer-a/v1",
+    );
+
+    const requestUrl = "https://example.test/api/ee?name=layer-a&year=2024";
+
+    for (let attempt = 0; attempt < EE_RATE_LIMIT_MAX_REQUESTS; attempt++) {
+      const res = await POST(createMockRequest(requestUrl, "198.51.100.7"));
+      expect(res.status).toBe(200);
+    }
+
+    const limitedRes = await POST(
+      createMockRequest(requestUrl, "198.51.100.7"),
+    );
+    const body = (await limitedRes.json()) as { error?: string };
+
+    expect(limitedRes.status).toBe(429);
+    expect(body.error).toBe("Too many Earth Engine requests. Try again later.");
+    expect(limitedRes.headers.get("Retry-After")).toBeTruthy();
+    expect(limitedRes.headers.get("X-RateLimit-Limit")).toBe(
+      String(EE_RATE_LIMIT_MAX_REQUESTS),
+    );
+    expect(mockedGetEarthEngineUrl).toHaveBeenCalledTimes(1);
+  });
+
+  it("tracks rate limits independently per client", async () => {
+    mockedGetEarthEngineUrl.mockResolvedValue(
+      "https://tiles.example/layer-a/v1",
+    );
+
+    const requestUrl = "https://example.test/api/ee?name=layer-a&year=2024";
+
+    for (let attempt = 0; attempt < EE_RATE_LIMIT_MAX_REQUESTS; attempt++) {
+      await POST(createMockRequest(requestUrl, "198.51.100.11"));
+    }
+
+    const otherClientRes = await POST(
+      createMockRequest(requestUrl, "198.51.100.12"),
+    );
+    const otherClientBody = (await otherClientRes.json()) as { url?: string };
+
+    expect(otherClientRes.status).toBe(200);
+    expect(otherClientBody.url).toBe("https://tiles.example/layer-a/v1");
   });
 });

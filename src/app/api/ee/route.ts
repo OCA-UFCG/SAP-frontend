@@ -10,11 +10,26 @@ import {
   ensureEeCacheWarmupStarted,
   getEarthEngineUrl,
 } from "@/app/api/ee/services";
+import { consumeEeRateLimit } from "./rate-limit";
 import { getPanelLayers } from "@/repositories/platform/panelLayerRepository";
 import { resolveImageYearEntry } from "@/utils/imageData";
 
 export async function POST(req: NextRequest) {
   ensureEeCacheWarmupStarted();
+
+  const rateLimit = consumeEeRateLimit(req.headers);
+  if (rateLimit.limited) {
+    return NextResponse.json(
+      { error: "Too many Earth Engine requests. Try again later." },
+      {
+        status: 429,
+        headers: {
+          ...rateLimit.headers,
+          "Retry-After": String(rateLimit.retryAfterSeconds),
+        },
+      },
+    );
+  }
 
   try {
     const name = req.nextUrl.searchParams.get("name")?.trim() || "";
