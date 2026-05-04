@@ -10,58 +10,74 @@ import {
   ensureEeCacheWarmupStarted,
   getEarthEngineUrl,
 } from "@/app/api/ee/services";
-import type { EarthEngineTileRequest } from "@/services/mapServices";
+import { getPanelLayers } from "@/repositories/platform/panelLayerRepository";
+import { resolveImageYearEntry } from "@/utils/imageData";
 
 export async function POST(req: NextRequest) {
   ensureEeCacheWarmupStarted();
 
   try {
-    const name = req.nextUrl.searchParams.get("name") || "";
-    const year = req.nextUrl.searchParams.get("year") || "";
-    const request = (await req.json()) as EarthEngineTileRequest;
+    const name = req.nextUrl.searchParams.get("name")?.trim() || "";
+    const year = req.nextUrl.searchParams.get("year")?.trim() || "";
 
-    if (!request.imageId || !Array.isArray(request.imageParams)) {
+    if (!name || !year) {
       return NextResponse.json(
-        {
-          error: `Missing Earth Engine payload for layer ${name} and year ${year}`,
-        },
+        { error: "Missing required query parameters: name and year." },
         { status: 400 },
+      );
+    }
+
+    const panelLayers = await getPanelLayers();
+    const layer = panelLayers.find((item) => item.id === name);
+
+    if (!layer) {
+      return NextResponse.json(
+        { error: `Layer ${name} not found.` },
+        { status: 404 },
+      );
+    }
+
+    const yearConfig = resolveImageYearEntry(layer.imageData, year);
+    if (!yearConfig) {
+      return NextResponse.json(
+        { error: `Year ${year} not available for layer ${name}.` },
+        { status: 404 },
       );
     }
 
     const cacheKey = buildCacheKey(
       name,
       year,
-      request.imageId,
-      request.imageParams,
-      request.minScale,
-      request.maxScale,
+      yearConfig.imageId,
+      yearConfig.imageParams,
+      layer.minScale,
+      layer.maxScale,
     );
 
     const urlOnCache = getCachedUrl(cacheKey);
     if (hasKey(cacheKey) && urlOnCache) {
       console.log(new Date().toISOString(), " - Getting URL on cache");
-
       return NextResponse.json({ url: urlOnCache }, { status: 200 });
     }
 
     console.log(new Date().toISOString(), " - Starting URL queries");
 
     const url = await getEarthEngineUrl(
-      request.imageId,
-      request.imageParams,
-      request.minScale,
-      request.maxScale,
+      yearConfig.imageId,
+      yearConfig.imageParams,
+      layer.minScale,
+      layer.maxScale,
     );
 
     console.log(new Date().toISOString(), " - Saving URL to cache");
-
     addUrlToCache(cacheKey, url);
-
     console.log(new Date().toISOString(), " - URL saved");
 
     return NextResponse.json({ url }, { status: 200 });
   } catch (error: any) {
-    return NextResponse.json({ error }, { status: 500 });
+    return NextResponse.json(
+      { error: error?.message ?? String(error) },
+      { status: 500 },
+    );
   }
 }

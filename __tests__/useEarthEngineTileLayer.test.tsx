@@ -79,12 +79,6 @@ describe("useEarthEngineTileLayer", () => {
     expect(mockedFetchMapURL).toHaveBeenCalledWith(
       "ee-layer",
       "2024",
-      {
-        imageId: "projects/example/image",
-        imageParams: legend,
-        minScale: undefined,
-        maxScale: undefined,
-      },
       expect.any(AbortSignal),
     );
   });

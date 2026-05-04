@@ -53,10 +53,6 @@ export function useEarthEngineTileLayer(
       requestKey: `${activeEEData.id}:${activeYear}`,
       layerId: activeEEData.id,
       year: activeYear,
-      imageId: yearConfig.imageId,
-      imageParams: yearConfig.imageParams,
-      minScale: activeEEData.minScale,
-      maxScale: activeEEData.maxScale,
     };
   }, [activeEEData, activeYear]);
 
@@ -96,12 +92,6 @@ export function useEarthEngineTileLayer(
         const url = await fetchMapURL(
           requestConfig.layerId,
           requestConfig.year,
-          {
-            imageId: requestConfig.imageId,
-            imageParams: requestConfig.imageParams,
-            minScale: requestConfig.minScale,
-            maxScale: requestConfig.maxScale,
-          },
           controller.signal,
         );
 
