@@ -16,7 +16,7 @@ interface PlatformSidebarProps {
 }
 
 export function PlatformSidebar({ panelLayers }: PlatformSidebarProps) {
-  const { clearActiveLayer } = useMapLayerActions();
+  const { clearActiveLayer, setActiveLegend } = useMapLayerActions();
 
   const [activeSection, setActiveSection] =
     useState<PlatformSection>("monitoring");
@@ -42,6 +42,7 @@ export function PlatformSidebar({ panelLayers }: PlatformSidebarProps) {
       setShowAnalysisFrame(true);
       setActiveSection(next);
       setIsPanelOpen(false); 
+      setActiveLegend(null);
       return;
     }
     setActiveSection(next);
