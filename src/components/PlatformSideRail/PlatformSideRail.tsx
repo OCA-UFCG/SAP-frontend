@@ -87,20 +87,21 @@ export function PlatformSideRail({
         </div>
       </nav>
 
-      {/* Panel toggle handle (chevron placeholder) */}
-      <div
-        className={`absolute top-1/2 -translate-y-1/2 transition-[right] duration-300 ease-in-out ${isPanelOpen ? "-right-[460px]" : "-right-[39px]"}`}
-      >
-        <button
-          type="button"
-          onClick={onTogglePanel}
-          className="h-10 w-10 rounded-r-lg border border-neutral-200 bg-white shadow-sm flex items-center justify-center"
+      {activeSection !== "analysis" && (
+        <div
+          className={`absolute top-1/2 -translate-y-1/2 transition-[right] duration-300 ease-in-out ${isPanelOpen ? "-right-[460px]" : "-right-[39px]"}`}
         >
-          <span className="cursor-pointer text-sm font-bold">
-            <Chevron open={isPanelOpen} from="left" to="right" />
-          </span>
-        </button>
-      </div>
+          <button
+            type="button"
+            onClick={onTogglePanel}
+            className="h-10 w-10 rounded-r-lg border border-neutral-200 bg-white shadow-sm flex items-center justify-center"
+          >
+            <span className="cursor-pointer text-sm font-bold">
+              <Chevron open={isPanelOpen} from="left" to="right" />
+            </span>
+          </button>
+        </div>
+      )}
     </div>
   );
 }
