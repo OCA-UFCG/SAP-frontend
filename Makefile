@@ -3,7 +3,7 @@ ifneq (,$(wildcard .env))
 endif
 
 PWD=$(shell pwd)
-NODE_IMAGE=node:22-alpine
+NODE_IMAGE=node:22
 IMAGE_NAME=sap-frontend
 CONTAINER_PORT=3000
 NODE_MODULES_VOLUME=$(IMAGE_NAME)-node_modules
