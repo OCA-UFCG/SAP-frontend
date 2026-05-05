@@ -23,6 +23,8 @@ export function PlatformSidebar({ panelLayers }: PlatformSidebarProps) {
   const [panelSection, setPanelSection] =
     useState<PlatformSection>("monitoring");
   const [isPanelOpen, setIsPanelOpen] = useState(true);
+  const [showAnalysisFrame, setShowAnalysisFrame] = useState(false);
+  const analysisFrameUrl = "https://analise-multicriterial.oca-portal.com";
 
   const ContextComponent =
     panelSection === "monitoring"
@@ -36,13 +38,16 @@ export function PlatformSidebar({ panelLayers }: PlatformSidebarProps) {
             : undefined;
 
   function handleSectionChange(next: PlatformSection) {
-    if (next == "analysis"){
-      window.open("https://analise-multicriterial.oca-portal.com");
+    if (next === "analysis"){
+      setShowAnalysisFrame(true);
+      setActiveSection(next);
+      setIsPanelOpen(false); 
       return;
     }
     setActiveSection(next);
     setPanelSection(next);
     setIsPanelOpen(true);
+    setShowAnalysisFrame(false);
 
     if (next !== "monitoring" && next !== "analysis-detail") {
       clearActiveLayer();
@@ -60,6 +65,7 @@ export function PlatformSidebar({ panelLayers }: PlatformSidebarProps) {
   }
 
   return (
+    <>
     <aside
       className="absolute left-0 top-0 z-20 flex h-full"
       data-platform-sidebar-overlay
@@ -95,5 +101,20 @@ export function PlatformSidebar({ panelLayers }: PlatformSidebarProps) {
         </div>
       </div>
     </aside>
+
+      {showAnalysisFrame && (
+        <div
+          className="absolute top-0 bottom-0 right-0 z-10 bg-neutral-50 transition-all duration-300 ease-in-out"
+          style={{ left: isPanelOpen ? "560px" : "140px" }}
+        >
+          <iframe
+            src={analysisFrameUrl}
+            title="Análise Multicriterial"
+            className="w-full h-full border-0"
+            allowFullScreen
+          />
+        </div>
+      )}
+    </>
   );
 }
