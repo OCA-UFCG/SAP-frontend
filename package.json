@@ -64,7 +64,7 @@
     "autoprefixer": "^10.4.24",
     "babel-plugin-react-compiler": "1.0.0",
     "eslint": "^9.39.3",
-    "eslint-config-next": "^16.1.6",
+    "eslint-config-next": "^16.2.6",
     "eslint-config-prettier": "^10.1.8",
     "eslint-plugin-jsx-a11y": "^6.10.2",
     "eslint-plugin-prettier": "^5.5.5",
