@@ -32,6 +32,7 @@ function buildLayerDatasets(panelLayers: PanelLayerI[]): LayerDataset[] {
     description: layer.description,
     image: layer.previewMap?.url,
     fileRef: layer.id,
+    imageData: layer.imageData,
   }));
 }
 
@@ -65,6 +66,7 @@ const LayerDatasetCard = memo(function LayerDatasetCard({
   return (
     <DroughtDataset
       card={dataset}
+      imageData={dataset.imageData}
       active={active}
       disabled={disabled}
       onToggle={handleToggle}
