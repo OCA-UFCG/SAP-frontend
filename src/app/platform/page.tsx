@@ -1,4 +1,5 @@
 import { PlatformLayout } from "@/components/PlatformLayout/PlatformLayout";
+import { ProtectedRoute } from "@/components/ProtectedRoute/ProtectedRoute";
 
 /**
  * Temporary sandbox page to validate the new Platform component hierarchy.
@@ -7,5 +8,9 @@ import { PlatformLayout } from "@/components/PlatformLayout/PlatformLayout";
  * is to make the intended composition obvious and easy to discuss/review.
  */
 export default function PlatformPage() {
-  return <PlatformLayout />;
+  return (
+    <ProtectedRoute>
+      <PlatformLayout />
+    </ProtectedRoute>
+  );
 }
