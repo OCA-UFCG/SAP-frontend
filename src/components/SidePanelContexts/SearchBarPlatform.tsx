@@ -105,7 +105,7 @@ const SearchBarPlatform = ({ onSearch }: SearchBarProps) => {
             aria-controls="platform-searchbar-state-options"
             aria-expanded={isOptionsOpen}
             aria-haspopup="listbox"
-            className="w-full text-[#292829] text-sm bg-transparent border-none outline-none ring-0"
+            className="w-full text-[#292829] text-[13px] placeholder:text-[13px] bg-transparent border-none outline-none ring-0"
             placeholder="Pesquise um estado ou município"
           />
 
