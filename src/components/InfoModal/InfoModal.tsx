@@ -55,7 +55,6 @@ export function InfoModal({
 }: IInfoModalProps) {
   const panelRef = useRef<HTMLDivElement>(null);
 
-  // lock body scroll
   useEffect(() => {
     document.body.style.overflow = open ? "hidden" : "";
     return () => {
@@ -63,7 +62,6 @@ export function InfoModal({
     };
   }, [open]);
 
-  // fecha com esc
   useEffect(() => {
     if (!open) return;
     const onKey = (e: KeyboardEvent) => {
@@ -73,7 +71,6 @@ export function InfoModal({
     return () => document.removeEventListener("keydown", onKey);
   }, [open, onClose]);
 
-  // isCompactImageData narrowing é usado para campos exclusivos do Compact
   const isCompact = isCompactImageData(imageData);
   const years = getImageDataYearKeys(imageData);
   const defaultYear = getImageDataDefaultYear(imageData);
@@ -84,8 +81,6 @@ export function InfoModal({
   }, [imageData, defaultYear]);
 
   const legend = getImageDataLegend(imageData);
-
-  // .classes e .type só existem em CompactTerritorialAnalysisDataset
   const type = isCompact ? imageData.type : "-";
 
   const palette = isCompact
@@ -96,7 +91,6 @@ export function InfoModal({
 
   if (typeof document === "undefined" || !open) return null;
 
-  //serve para renderizar fora da hierarquia do DOM
   return createPortal(
     <div
       className="fixed inset-0 z-[9999] flex items-center justify-center bg-black/40 px-4 backdrop-blur-[2px]"
@@ -113,7 +107,6 @@ export function InfoModal({
         ref={panelRef}
         className="flex max-h-[90vh] w-full max-w-[1000px] flex-col overflow-hidden rounded-[12px] bg-white shadow-2xl"
       >
-        {/* header fixo */}
         <div className="shrink-0 border-b border-[#B4BA61]">
           <div className="relative flex flex-col gap-4 bg-white px-10 py-4">
             <h3 className="font-inter text-[24px] font-semibold leading-6 tracking-[-0.015em] text-black">
@@ -130,7 +123,6 @@ export function InfoModal({
           </div>
         </div>
 
-        {/* scrollable body */}
         <div className="flex-1 overflow-y-auto">
           <div className="border-t border-[#B4BA61] bg-white px-10 py-4">
             <h3 className="mb-2 font-inter text-[20px] font-medium leading-6 tracking-[-0.015em] text-black">
@@ -141,7 +133,6 @@ export function InfoModal({
             </p>
           </div>
 
-          {/* tabela de metadados */}
           <table className="w-full border-collapse">
             <tbody>
               <TableRow label="Tipo">
@@ -185,7 +176,6 @@ export function InfoModal({
           </table>
         </div>
 
-        {/* footer */}
         {card.fileRef && (
           <div className="shrink-0 border-t border-[#B4BA61] px-10 py-4">
             <a
