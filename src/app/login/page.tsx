@@ -2,14 +2,13 @@
 
 import { useState, useEffect, Suspense } from "react";
 import { useAuth } from "@/contexts/AuthContext";
-import { useRouter, useSearchParams } from "next/navigation";
+import { useRouter } from "next/navigation";
 import Login, { type LoginFormValues } from "@/components/Login/Login";
 
 function LoginPageContent() {
   const { signIn, user, loading } = useAuth();
   const router = useRouter();
-  const searchParams = useSearchParams();
-  const redirect = searchParams.get("redirect") || "/platform";
+  const redirect = "/platform";
 
   const [error, setError] = useState("");
 
