@@ -3,7 +3,6 @@
 import { useEffect, useRef, useState } from "react";
 import { Icon } from "../Icon/Icon";
 import { ButtonUi } from "../ButtonUI/ButtonUI";
-import { statesObj } from "@/utils/constants";
 import {
   filterStateOptions,
   validateSearch,
@@ -20,7 +19,7 @@ const SearchBarPlatform = ({ onSearch }: SearchBarProps) => {
   const [isOptionsOpen, setIsOptionsOpen] = useState(false);
   const [value, setValue] = useState("");
 
-  const filteredStateOptions = filterStateOptions(value);
+  const filteredSearchOptions = filterStateOptions(value);
 
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
@@ -37,7 +36,11 @@ const SearchBarPlatform = ({ onSearch }: SearchBarProps) => {
   }, []);
 
   const onSubmit = () => {
-    const currentValue = value;
+    const trimmedValue = value.trim();
+    const currentValue =
+      trimmedValue.length > 0
+        ? trimmedValue
+        : (filteredSearchOptions[0] ?? value);
 
     try {
       validateSearch(currentValue);
@@ -90,8 +93,8 @@ const SearchBarPlatform = ({ onSearch }: SearchBarProps) => {
             onKeyDown={(e) => {
               if (e.key === "Enter") {
                 e.preventDefault();
-                if (filteredStateOptions.length === 1) {
-                  handleOptionSelect(filteredStateOptions[0]);
+                if (filteredSearchOptions.length > 0) {
+                  handleOptionSelect(filteredSearchOptions[0]);
                 } else {
                   onSubmit();
                 }
@@ -103,7 +106,7 @@ const SearchBarPlatform = ({ onSearch }: SearchBarProps) => {
             aria-expanded={isOptionsOpen}
             aria-haspopup="listbox"
             className="w-full text-[#292829] text-sm bg-transparent border-none outline-none ring-0"
-            placeholder="Pesquise um estado"
+            placeholder="Pesquise um estado ou município"
           />
 
           <button
@@ -137,8 +140,8 @@ const SearchBarPlatform = ({ onSearch }: SearchBarProps) => {
             role="listbox"
             className="absolute top-[calc(100%+8px)] z-20 max-h-64 w-full overflow-y-auto rounded-xl border border-neutral-200 bg-white p-2 shadow-lg"
           >
-            {filteredStateOptions.length > 0 ? (
-              filteredStateOptions.map((option) => (
+            {filteredSearchOptions.length > 0 ? (
+              filteredSearchOptions.map((option) => (
                 <button
                   key={option}
                   type="button"
@@ -152,14 +155,14 @@ const SearchBarPlatform = ({ onSearch }: SearchBarProps) => {
               ))
             ) : (
               <div className="px-3 py-2 text-sm text-neutral-500">
-                Nenhum estado encontrado.
+                Nenhum estado ou município encontrado.
               </div>
             )}
           </div>
         )}
         {hasError && (
           <p className="text-sm text-red-600 mt-1 absolute -bottom-6">
-            Estado não identificado.
+            Estado ou município não identificado.
           </p>
         )}
       </div>

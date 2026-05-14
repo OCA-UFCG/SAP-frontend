@@ -3,7 +3,17 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 
 const { mapInstances, MapConstructorMock } = vi.hoisted(() => ({
   mapInstances: [] as Array<{
+    addLayer: ReturnType<typeof vi.fn>;
+    addSource: ReturnType<typeof vi.fn>;
+    easeTo: ReturnType<typeof vi.fn>;
     fitBounds: ReturnType<typeof vi.fn>;
+    getLayer: ReturnType<typeof vi.fn>;
+    getSource: ReturnType<typeof vi.fn>;
+    getZoom: ReturnType<typeof vi.fn>;
+    querySourceFeatures: ReturnType<typeof vi.fn>;
+    handlers: Map<string, Array<(event: unknown) => void>>;
+    on: ReturnType<typeof vi.fn>;
+    once: ReturnType<typeof vi.fn>;
     remove: ReturnType<typeof vi.fn>;
     setPadding: ReturnType<typeof vi.fn>;
   }>,
@@ -18,6 +28,9 @@ function mockElementWidth(element: HTMLElement, width: number) {
 }
 
 vi.mock("maplibre-gl", () => {
+  type MapEventCallback = (event: unknown) => void;
+  type SourceStub = { setData: ReturnType<typeof vi.fn>; spec: unknown };
+
   const MockPopup = class {
     remove = vi.fn();
     setLngLat = vi.fn(() => this);
@@ -33,25 +46,61 @@ vi.mock("maplibre-gl", () => {
   };
 
   const MockMap = class {
+    handlers = new globalThis.Map<string, MapEventCallback[]>();
+    layers = new Set<string>();
+    sources = new globalThis.Map<string, SourceStub>();
+    sourceFeatures: Array<unknown> = [];
+
     addControl = vi.fn(() => this);
     jumpTo = vi.fn(() => this);
-    on = vi.fn(() => this);
-    once = vi.fn(() => this);
-    getSource = vi.fn((sourceId?: string) => {
-      if (sourceId === "brazil-states" || sourceId === "cdi-data") {
-        return {};
-      }
+    on = vi.fn(
+      (
+        eventName: string,
+        layerOrCallback: string | MapEventCallback,
+        callback?: MapEventCallback,
+      ) => {
+        const eventKey =
+          typeof layerOrCallback === "string"
+            ? `${eventName}:${layerOrCallback}`
+            : eventName;
+        const eventCallback =
+          typeof layerOrCallback === "string" ? callback : layerOrCallback;
 
-      return undefined;
+        if (eventCallback) {
+          const currentHandlers = this.handlers.get(eventKey) ?? [];
+          this.handlers.set(eventKey, [...currentHandlers, eventCallback]);
+        }
+
+        return this;
+      },
+    );
+    once = vi.fn((eventName: string, callback: MapEventCallback) => {
+      const currentHandlers = this.handlers.get(eventName) ?? [];
+      this.handlers.set(eventName, [...currentHandlers, callback]);
+      return this;
     });
-    getLayer = vi.fn(() => undefined);
+    getSource = vi.fn((sourceId?: string) =>
+      sourceId ? this.sources.get(sourceId) : undefined,
+    );
+    getLayer = vi.fn((layerId?: string) =>
+      layerId && this.layers.has(layerId) ? {} : undefined,
+    );
     getStyle = vi.fn(() => ({ sources: {} }));
-    addSource = vi.fn(() => this);
-    addLayer = vi.fn(() => this);
+    addSource = vi.fn((sourceId: string, spec: unknown) => {
+      this.sources.set(sourceId, { setData: vi.fn(), spec });
+      return this;
+    });
+    addLayer = vi.fn((layer: { id: string }) => {
+      this.layers.add(layer.id);
+      return this;
+    });
     removeLayer = vi.fn(() => this);
     removeSource = vi.fn(() => this);
     isStyleLoaded = vi.fn(() => true);
+    easeTo = vi.fn(() => this);
     fitBounds = vi.fn(() => this);
+    getZoom = vi.fn(() => 4.2);
+    querySourceFeatures = vi.fn(() => this.sourceFeatures);
     setPadding = vi.fn(() => this);
     setFeatureState = vi.fn(() => this);
     getFeatureState = vi.fn(() => ({}));
@@ -87,6 +136,12 @@ vi.mock("maplibre-gl", () => {
 });
 
 import Map from "@/components/Map/Map";
+import {
+  MUNICIPALITY_BORDER_LAYER_ID,
+  MUNICIPALITY_HOVER_LAYER_ID,
+  MUNICIPALITY_MIN_ZOOM,
+  MUNICIPALITY_SOURCE_ID,
+} from "@/components/Map/municipalityLayers";
 
 describe("Map lifecycle", () => {
   afterEach(() => {
@@ -114,6 +169,284 @@ describe("Map lifecycle", () => {
     unmount();
 
     expect(firstInstance.remove).toHaveBeenCalledTimes(1);
+  });
+
+  it("adds municipality vector source and layers from the state focus zoom", () => {
+    render(<Map center={[-15.749997, -47.9499962]} estadoSelecionado="BR" />);
+
+    const firstInstance = mapInstances[0];
+    firstInstance.handlers.get("load")?.[0]?.({});
+
+    expect(firstInstance.addSource).toHaveBeenCalledWith(
+      MUNICIPALITY_SOURCE_ID,
+      expect.objectContaining({
+        tiles: [expect.stringContaining("?tileset=cities")],
+      }),
+    );
+    expect(firstInstance.addLayer).toHaveBeenCalledWith(
+      expect.objectContaining({
+        id: MUNICIPALITY_BORDER_LAYER_ID,
+        minzoom: MUNICIPALITY_MIN_ZOOM,
+      }),
+      "state-borders",
+    );
+    expect(firstInstance.addLayer).toHaveBeenCalledWith(
+      expect.objectContaining({
+        id: MUNICIPALITY_HOVER_LAYER_ID,
+        minzoom: MUNICIPALITY_MIN_ZOOM,
+      }),
+      "state-borders",
+    );
+  });
+
+  it("registers municipality hover handlers", () => {
+    render(<Map center={[-15.749997, -47.9499962]} estadoSelecionado="BR" />);
+
+    const firstInstance = mapInstances[0];
+    firstInstance.handlers.get("load")?.[0]?.({});
+
+    expect(firstInstance.on).toHaveBeenCalledWith(
+      "mousemove",
+      MUNICIPALITY_HOVER_LAYER_ID,
+      expect.any(Function),
+    );
+    expect(firstInstance.on).toHaveBeenCalledWith(
+      "mouseleave",
+      MUNICIPALITY_HOVER_LAYER_ID,
+      expect.any(Function),
+    );
+  });
+
+  it("focuses and highlights a selected municipality", async () => {
+    render(
+      <Map
+        center={[-15.749997, -47.9499962]}
+        estadoSelecionado="SP"
+        selectedMunicipalityCode="3509502"
+      />,
+    );
+
+    const firstInstance = mapInstances[0];
+    firstInstance.sourceFeatures = [
+      {
+        type: "Feature",
+        geometry: {
+          type: "Polygon",
+          coordinates: [[
+            [-47.1, -23.9],
+            [-46.8, -23.9],
+            [-46.8, -23.6],
+            [-47.1, -23.6],
+            [-47.1, -23.9],
+          ]],
+        },
+        properties: { CD_MUN: "3509502" },
+      },
+    ];
+
+    firstInstance.handlers.get("load")?.[0]?.({});
+    firstInstance.handlers.get("idle")?.forEach((handler) => handler({}));
+
+    await waitFor(() => {
+      expect(firstInstance.querySourceFeatures).toHaveBeenCalledWith(
+        MUNICIPALITY_SOURCE_ID,
+        expect.objectContaining({
+          sourceLayer: "brazilcities",
+        }),
+      );
+      expect(firstInstance.setFeatureState).toHaveBeenCalledWith(
+        expect.objectContaining({
+          source: MUNICIPALITY_SOURCE_ID,
+          id: "3509502",
+        }),
+        { selected: true },
+      );
+      expect(firstInstance.fitBounds).toHaveBeenLastCalledWith(
+        expect.any(Array),
+        expect.objectContaining({
+          maxZoom: 11.5,
+        }),
+      );
+    });
+  });
+
+  it("refocuses to a new municipality in the same state without requiring manual zoom interaction", async () => {
+    const municipalityA = {
+      type: "Feature",
+      geometry: {
+        type: "Polygon",
+        coordinates: [[
+          [-47.1, -23.9],
+          [-46.8, -23.9],
+          [-46.8, -23.6],
+          [-47.1, -23.6],
+          [-47.1, -23.9],
+        ]],
+      },
+      properties: { CD_MUN: "3509502" },
+    };
+    const municipalityB = {
+      type: "Feature",
+      geometry: {
+        type: "Polygon",
+        coordinates: [[
+          [-49.3, -21.0],
+          [-48.9, -21.0],
+          [-48.9, -20.6],
+          [-49.3, -20.6],
+          [-49.3, -21.0],
+        ]],
+      },
+      properties: { CD_MUN: "3502804" },
+    };
+
+    const { rerender } = render(
+      <Map
+        center={[-15.749997, -47.9499962]}
+        estadoSelecionado="SP"
+        selectedMunicipalityCode="3509502"
+      />,
+    );
+
+    const firstInstance = mapInstances[0];
+    let stateWideTilesLoaded = false;
+
+    firstInstance.querySourceFeatures.mockImplementation(() =>
+      stateWideTilesLoaded ? [municipalityB] : [municipalityA],
+    );
+    firstInstance.fitBounds.mockImplementation((bounds, options) => {
+      if (options?.maxZoom === 5.5) {
+        stateWideTilesLoaded = true;
+      }
+
+      return firstInstance;
+    });
+
+    firstInstance.handlers.get("load")?.[0]?.({});
+    firstInstance.handlers.get("idle")?.forEach((handler) => handler({}));
+
+    await waitFor(() => {
+      expect(firstInstance.setFeatureState).toHaveBeenCalledWith(
+        expect.objectContaining({
+          source: MUNICIPALITY_SOURCE_ID,
+          id: "3509502",
+        }),
+        { selected: true },
+      );
+    });
+
+    rerender(
+      <Map
+        center={[-15.749997, -47.9499962]}
+        estadoSelecionado="SP"
+        selectedMunicipalityCode="3502804"
+      />,
+    );
+
+    await waitFor(() => {
+      expect(firstInstance.fitBounds).toHaveBeenCalledWith(
+        expect.any(Array),
+        expect.objectContaining({
+          maxZoom: 5.5,
+          animate: true,
+        }),
+      );
+    });
+
+    const moveendHandlers = firstInstance.handlers.get("moveend") ?? [];
+    moveendHandlers.forEach((handler) => handler({}));
+
+    await waitFor(() => {
+      expect(firstInstance.setFeatureState).toHaveBeenCalledWith(
+        expect.objectContaining({
+          source: MUNICIPALITY_SOURCE_ID,
+          id: "3509502",
+        }),
+        { selected: false, hover: false },
+      );
+      expect(firstInstance.setFeatureState).toHaveBeenCalledWith(
+        expect.objectContaining({
+          source: MUNICIPALITY_SOURCE_ID,
+          id: "3502804",
+        }),
+        { selected: true },
+      );
+      expect(firstInstance.fitBounds).toHaveBeenLastCalledWith(
+        expect.any(Array),
+        expect.objectContaining({
+          maxZoom: 11.5,
+        }),
+      );
+    });
+  });
+
+  it("clears the selected municipality when clicking anywhere on the map", async () => {
+    const onSelectedMunicipalityCodeChange = vi.fn();
+
+    render(
+      <Map
+        center={[-15.749997, -47.9499962]}
+        estadoSelecionado="SP"
+        selectedMunicipalityCode="3509502"
+        onSelectedMunicipalityCodeChange={onSelectedMunicipalityCodeChange}
+      />,
+    );
+
+    const firstInstance = mapInstances[0];
+    firstInstance.sourceFeatures = [
+      {
+        type: "Feature",
+        geometry: {
+          type: "Polygon",
+          coordinates: [[
+            [-47.1, -23.9],
+            [-46.8, -23.9],
+            [-46.8, -23.6],
+            [-47.1, -23.6],
+            [-47.1, -23.9],
+          ]],
+        },
+        properties: { CD_MUN: "3509502" },
+      },
+    ];
+
+    firstInstance.handlers.get("load")?.[0]?.({});
+
+    await waitFor(() => {
+      expect(firstInstance.setFeatureState).toHaveBeenCalledWith(
+        expect.objectContaining({
+          source: MUNICIPALITY_SOURCE_ID,
+          id: "3509502",
+        }),
+        { selected: true },
+      );
+    });
+
+    firstInstance.handlers.get("click")?.forEach((handler) => handler({}));
+
+    await waitFor(() => {
+      expect(firstInstance.setFeatureState).toHaveBeenCalledWith(
+        expect.objectContaining({
+          source: MUNICIPALITY_SOURCE_ID,
+          id: "3509502",
+        }),
+        { selected: false, hover: false },
+      );
+      expect(onSelectedMunicipalityCodeChange).toHaveBeenCalledWith(null);
+    });
+  });
+
+  it("enforces the municipality minimum zoom after fitting a selected state", () => {
+    render(<Map center={[-15.749997, -47.9499962]} estadoSelecionado="AM" />);
+
+    const firstInstance = mapInstances[0];
+    firstInstance.handlers.get("moveend")?.[0]?.({});
+
+    expect(firstInstance.easeTo).toHaveBeenCalledWith(
+      expect.objectContaining({
+        zoom: MUNICIPALITY_MIN_ZOOM,
+      }),
+    );
   });
 
   it("keeps map padding aligned with the sidebar so centered zoom stays on the selected state", async () => {

@@ -81,6 +81,7 @@ describe("mapLayerState", () => {
       activeLegend: legend,
       activeLayerId: "CDI",
       selectedState: "mg",
+      selectedMunicipalityCode: "3106200",
       activeYear: "2024",
     });
 
@@ -89,6 +90,7 @@ describe("mapLayerState", () => {
     expect(state.activeLayerId).toBeNull();
     expect(state.activeYear).toBe("general");
     expect(state.selectedState).toBe("mg");
+    expect(state.selectedMunicipalityCode).toBe("3106200");
   });
 
   it("fully resets the platform state when leaving analysis", () => {
@@ -98,6 +100,7 @@ describe("mapLayerState", () => {
       activeLegend: legend,
       activeLayerId: "ee-layer",
       selectedState: "ce",
+      selectedMunicipalityCode: "2304400",
       activeYear: "2024",
     });
 
@@ -105,6 +108,7 @@ describe("mapLayerState", () => {
     expect(state.activeLegend).toBeNull();
     expect(state.activeLayerId).toBeNull();
     expect(state.selectedState).toBe("br");
+    expect(state.selectedMunicipalityCode).toBeNull();
     expect(state.activeYear).toBe("general");
   });
 });

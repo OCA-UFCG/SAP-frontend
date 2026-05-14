@@ -16,6 +16,7 @@ import {
   resetPlatformState as resetPlatformStateValue,
   setActiveLegendValue,
   setActiveYearValue,
+  setSelectedMunicipalityCodeValue,
   setSelectedStateValue,
 } from "@/components/MapLayerContext/mapLayerState";
 import type { CDIVectorData } from "@/lib/geo";
@@ -23,6 +24,7 @@ import type { CDIVectorData } from "@/lib/geo";
 interface MapLayerActions {
   setActiveLegend: (legend: IImageParam[] | null) => void;
   setSelectedState: (state: string) => void;
+  setSelectedMunicipalityCode: (municipalityCode: string | null) => void;
   setActiveYear: (year: string) => void;
   activateVectorLayer: (
     layerId: string,
@@ -41,7 +43,7 @@ type MapLayerActiveState = Pick<
 
 type MapLayerViewState = Pick<
   MapLayerState,
-  "activeLegend" | "selectedState" | "activeYear"
+  "activeLegend" | "selectedState" | "selectedMunicipalityCode" | "activeYear"
 >;
 
 interface MapLayerContextValue
@@ -78,6 +80,18 @@ export function MapLayerProvider({ children }: { children: React.ReactNode }) {
       setSelectedStateValue(currentState, selectedState),
     );
   }, []);
+
+  const setSelectedMunicipalityCode = useCallback(
+    (selectedMunicipalityCode: string | null) => {
+      setState((currentState) =>
+        setSelectedMunicipalityCodeValue(
+          currentState,
+          selectedMunicipalityCode,
+        ),
+      );
+    },
+    [],
+  );
 
   const setActiveYear = useCallback((activeYear: string) => {
     setState((currentState) => setActiveYearValue(currentState, activeYear));
@@ -122,15 +136,22 @@ export function MapLayerProvider({ children }: { children: React.ReactNode }) {
     () => ({
       activeLegend: state.activeLegend,
       selectedState: state.selectedState,
+      selectedMunicipalityCode: state.selectedMunicipalityCode,
       activeYear: state.activeYear,
     }),
-    [state.activeLegend, state.selectedState, state.activeYear],
+    [
+      state.activeLegend,
+      state.selectedState,
+      state.selectedMunicipalityCode,
+      state.activeYear,
+    ],
   );
 
   const actions = useMemo<MapLayerActions>(
     () => ({
       setActiveLegend,
       setSelectedState,
+      setSelectedMunicipalityCode,
       setActiveYear,
       activateVectorLayer,
       activateEeLayer,
@@ -140,6 +161,7 @@ export function MapLayerProvider({ children }: { children: React.ReactNode }) {
     [
       setActiveLegend,
       setSelectedState,
+      setSelectedMunicipalityCode,
       setActiveYear,
       activateVectorLayer,
       activateEeLayer,

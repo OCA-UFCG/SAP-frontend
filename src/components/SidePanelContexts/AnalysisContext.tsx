@@ -34,6 +34,7 @@ export function AnalysisContext({
   const { activeLayerId } = useMapLayerActiveState();
   const {
     setSelectedState,
+    setSelectedMunicipalityCode,
     setActiveLegend,
     setActiveYear,
     resetPlatformState,
@@ -54,6 +55,13 @@ export function AnalysisContext({
   const handleSearch = (value: string) => {
     const result = resolveStateKeyFromSearch(value, statesObj);
     setSelectedState(result.key);
+
+    if (result.type === "city") {
+      setSelectedMunicipalityCode(result.city.code);
+      return;
+    }
+
+    setSelectedMunicipalityCode(null);
   };
 
   const effectiveYear = useMemo(

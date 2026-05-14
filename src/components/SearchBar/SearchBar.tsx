@@ -20,7 +20,7 @@ const SearchBar = ({ onSearch }: SearchBarProps) => {
   const [isOptionsOpen, setIsOptionsOpen] = useState(false);
   const [value, setValue] = useState("");
 
-  const filteredStateOptions = filterStateOptions(value);
+  const filteredSearchOptions = filterStateOptions(value);
 
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
@@ -37,7 +37,11 @@ const SearchBar = ({ onSearch }: SearchBarProps) => {
   }, []);
 
   const onSubmit = () => {
-    const currentValue = value;
+    const trimmedValue = value.trim();
+    const currentValue =
+      trimmedValue.length > 0
+        ? trimmedValue
+        : (filteredSearchOptions[0] ?? value);
 
     try {
       validateSearch(currentValue);
@@ -95,20 +99,20 @@ const SearchBar = ({ onSearch }: SearchBarProps) => {
             onKeyDown={(e) => {
               if (e.key === "Enter") {
                 e.preventDefault();
-                if (filteredStateOptions.length === 1) {
-                  handleOptionSelect(filteredStateOptions[0]);
+                if (filteredSearchOptions.length > 0) {
+                  handleOptionSelect(filteredSearchOptions[0]);
                 } else {
                   onSubmit();
                 }
               }
             }}
             className="w-full text-[#292829] bg-transparent border-none outline-none ring-0"
-            placeholder="Pesquise um estado"
+            placeholder="Pesquise um estado ou município"
           />
 
           <button
             type="button"
-            aria-label="Mostrar estados"
+            aria-label="Mostrar estados e municípios"
             onClick={toggleOptions}
             className="ml-3 shrink-0 text-[#292829] transition-transform"
           >
@@ -137,7 +141,7 @@ const SearchBar = ({ onSearch }: SearchBarProps) => {
             role="listbox"
             className="absolute top-[calc(100%+8px)] z-20 max-h-64 w-full overflow-y-auto rounded-xl border border-neutral-200 bg-white p-2 shadow-lg"
           >
-            {filteredStateOptions.map((option) => (
+            {filteredSearchOptions.map((option) => (
               <button
                 key={option}
                 type="button"
