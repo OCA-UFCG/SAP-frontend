@@ -19,6 +19,7 @@ import { auth } from "@/lib/firebase";
 interface AuthContextType {
   user: User | null;
   loading: boolean;
+  error?: string
   signIn: (email: string, password: string) => Promise<void>;
   signOut: () => Promise<void>;
 }
@@ -28,6 +29,7 @@ const AuthContext = createContext<AuthContextType | null>(null);
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<User | null>(null);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState("");
 
   useEffect(() => {
     const unsubscribe = onAuthStateChanged(auth, (firebaseUser) => {
@@ -38,8 +40,22 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }, []);
 
   const signIn = useCallback(async (email: string, password: string) => {
-    const result = await signInWithEmailAndPassword(auth, email, password);
-    setUser(result.user);
+    try {
+      const { user } = await signInWithEmailAndPassword(auth, email, password);
+      setUser(user);
+    } catch (err: unknown) {
+      const fbErr = err as { code?: string; message?: string };
+      const messages: Record<string, string> = {
+        "auth/too-many-requests":
+          "Muitas tentativas. Tente novamente mais tarde",
+      };
+
+      setError(
+        fbErr.code
+          ? messages[fbErr.code] || "Login ou senha inválidos"
+          : "Erro ao fazer login",
+      );
+    }
   }, []);
 
   const signOut = useCallback(async () => {
@@ -48,7 +64,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }, []);
 
   return (
-    <AuthContext.Provider value={{ user, loading, signIn, signOut }}>
+    <AuthContext.Provider value={{ user, loading, error, signIn, signOut }}>
       {children}
     </AuthContext.Provider>
   );
