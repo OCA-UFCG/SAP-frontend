@@ -7,9 +7,10 @@ export async function POST(req: Request) {
 
   response.cookies.set("token", token, {
     httpOnly: true,
-    sameSite: "lax",
+    sameSite: "strict",
     path: "/",
-    maxAge: 60 * 60 * 24 * 7,
+    maxAge: 60 * 60 * 24,
+    
   });
 
   return response;
