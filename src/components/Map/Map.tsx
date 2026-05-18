@@ -8,6 +8,7 @@ import maplibregl, {
   LngLatBoundsLike,
   MapSourceDataEvent,
   MapGeoJSONFeature,
+  setWorkerCount,
 } from "maplibre-gl";
 import "maplibre-gl/dist/maplibre-gl.css";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
@@ -121,6 +122,10 @@ const BASE_STYLE: maplibregl.StyleSpecification = {
       id: MAP_SOURCE_ID,
       type: "raster",
       source: MAP_SOURCE_ID,
+      paint: {
+        "raster-fade-duration": 0,
+        "raster-resampling": "nearest",
+      },
     },
   ],
 };
@@ -733,6 +738,8 @@ const Map = ({
       initialView.center[1],
       initialView.center[0],
     ];
+    setWorkerCount(4);
+
     const map = new maplibregl.Map({
       container: mapContainerRef.current,
       style: BASE_STYLE,
@@ -741,6 +748,11 @@ const Map = ({
       scrollZoom: getSelectionAwareScrollZoomOptions(selectedStateRef.current),
       attributionControl: false,
       maxPitch: 0,
+      cancelPendingTileRequestsWhileZooming: true,
+      fadeDuration: 0,
+      crossSourceCollisions: false,
+      renderWorldCopies: false,
+      maxCanvasSize: [8192, 8192],
     });
 
     map.addControl(

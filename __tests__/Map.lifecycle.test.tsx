@@ -83,6 +83,7 @@ vi.mock("maplibre-gl", () => {
     Marker: MockMarker,
     AttributionControl: class {},
     NavigationControl: class {},
+    setWorkerCount: vi.fn(),
   };
 });
 
