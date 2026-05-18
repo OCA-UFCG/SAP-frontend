@@ -22,6 +22,12 @@ export interface ModulesContextProps {
 
 type LayerDataset = IDroughtDataset & { category?: string };
 
+interface DatasetGroup {
+  key: string;
+  title: string;
+  datasets: LayerDataset[];
+}
+
 const DATASET_REGISTRY: Record<string, CDIVectorData> = {
   CDI: cdiData as unknown as CDIVectorData,
 };
@@ -43,12 +49,36 @@ const CATEGORY_ORDER = [
   "Dados Socioeconômicos",
 ];
 
-function getCategory(dataset: LayerDataset): string {
-  const cat = dataset.category?.toLowerCase() || "";
-  if (cat.includes("clima")) return CATEGORY_ORDER[0];
-  if (cat.includes("ambient")) return CATEGORY_ORDER[1];
-  if (cat.includes("socio") || cat.includes("sócio")) return CATEGORY_ORDER[2];
-  return CATEGORY_ORDER[0];
+const CATEGORY_ORDER_INDEX = new Map(
+  CATEGORY_ORDER.map((category, index) => [
+    category.toLocaleLowerCase("pt-BR"),
+    index,
+  ]),
+);
+
+function normalizeCategory(category?: string): string {
+  return category?.trim() || "Outros";
+}
+
+function compareCategoryTitles(left: string, right: string): number {
+  const leftIndex = CATEGORY_ORDER_INDEX.get(left.toLocaleLowerCase("pt-BR"));
+  const rightIndex = CATEGORY_ORDER_INDEX.get(
+    right.toLocaleLowerCase("pt-BR"),
+  );
+
+  if (leftIndex != null && rightIndex != null) {
+    return leftIndex - rightIndex;
+  }
+
+  if (leftIndex != null) {
+    return -1;
+  }
+
+  if (rightIndex != null) {
+    return 1;
+  }
+
+  return left.localeCompare(right, "pt-BR");
 }
 
 interface LayerDatasetCardProps {
@@ -115,21 +145,29 @@ export function ModulesContext({
     [panelLayers],
   );
 
-  const groupedDatasets = useMemo(() => {
-    const groups: Record<string, LayerDataset[]> = {
-      "Dados climáticos": [],
-      "Dados ambientais": [],
-      "Dados socioeconômicos": [],
-    };
-    datasets.forEach((ds) => {
-      const cat = getCategory(ds);
-      if (groups[cat]) {
-        groups[cat].push(ds);
-      } else {
-        groups[cat] = [ds];
+  const groupedDatasets = useMemo<DatasetGroup[]>(() => {
+    const groups = new Map<string, DatasetGroup>();
+
+    datasets.forEach((dataset) => {
+      const title = normalizeCategory(dataset.category);
+      const key = title.toLocaleLowerCase("pt-BR");
+      const existingGroup = groups.get(key);
+
+      if (existingGroup) {
+        existingGroup.datasets.push(dataset);
+        return;
       }
+
+      groups.set(key, {
+        key,
+        title,
+        datasets: [dataset],
+      });
     });
-    return groups;
+
+    return Array.from(groups.values()).sort((left, right) => {
+      return compareCategoryTitles(left.title, right.title);
+    });
   }, [datasets]);
 
   const layerById = useMemo(() => {
@@ -217,17 +255,14 @@ export function ModulesContext({
         <ContextHeader />
 
         <div className="flex flex-col gap-6">
-          {CATEGORY_ORDER.map((categoryTitle) => {
-            const categoryDatasets = groupedDatasets[categoryTitle];
-            if (!categoryDatasets || categoryDatasets.length === 0) return null;
-
+          {groupedDatasets.map((group, index) => {
             return (
               <LayerAccordion
-                key={categoryTitle}
-                title={categoryTitle}
-                defaultOpen={categoryTitle === CATEGORY_ORDER[0]}
+                key={group.key}
+                title={group.title}
+                defaultOpen={index === 0}
               >
-                {categoryDatasets.map((dataset) => {
+                {group.datasets.map((dataset) => {
                   const fileRef = dataset.fileRef ?? "";
                   const vectorData = fileRef
                     ? DATASET_REGISTRY[fileRef]
