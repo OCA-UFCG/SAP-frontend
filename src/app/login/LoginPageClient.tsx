@@ -9,16 +9,13 @@ type LoginPageClientProps = {
 };
 
 export function LoginPageClient({ backgroundImageUrl }: LoginPageClientProps) {
-  const { signIn, user, loading, error } = useAuth();
+  const { signIn, loading, error } = useAuth();
   const router = useRouter();
-  const redirect = "/platform";
 
-  if (!loading && user)
-      router.replace(redirect);
-  
   async function handleSubmit(values: LoginFormValues) {
     await signIn(values.login, values.password);
-    if(!error && !loading && user) router.push(redirect);
+    router.replace("/platform");
+    router.refresh();
   }
 
   return (

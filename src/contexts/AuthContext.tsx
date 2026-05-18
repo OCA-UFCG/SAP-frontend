@@ -19,7 +19,7 @@ import { auth } from "@/lib/firebase";
 interface AuthContextType {
   user: User | null;
   loading: boolean;
-  error?: string
+  error?: string;
   signIn: (email: string, password: string) => Promise<void>;
   signOut: () => Promise<void>;
 }
@@ -40,8 +40,24 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }, []);
 
   const signIn = useCallback(async (email: string, password: string) => {
+    setError("");
+
     try {
       const { user } = await signInWithEmailAndPassword(auth, email, password);
+
+      const token = await user.getIdToken();
+
+      const sessionResponse = await fetch("/api/session", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({ token }),
+      });
+
+      if (!sessionResponse.ok)
+        throw new Error("Erro ao criar sessão");
+
       setUser(user);
     } catch (err: unknown) {
       const fbErr = err as { code?: string; message?: string };
@@ -49,7 +65,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         "auth/too-many-requests":
           "Muitas tentativas. Tente novamente mais tarde",
       };
-
+      
       setError(
         fbErr.code
           ? messages[fbErr.code] || "Login ou senha inválidos"
