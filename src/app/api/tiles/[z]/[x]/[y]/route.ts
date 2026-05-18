@@ -1,7 +1,7 @@
 import fs from "node:fs";
 import path from "node:path";
+import { DatabaseSync } from "node:sqlite";
 import { gzipSync } from "node:zlib";
-import sqlite3 from "sqlite3";
 
 export const runtime = "nodejs";
 
@@ -14,7 +14,7 @@ const MBTILES_RELATIVE_PATH = path.join(
 const isGzip = (buf: Buffer) =>
   buf.length >= 2 && buf[0] === 0x1f && buf[1] === 0x8b;
 
-let db: sqlite3.Database | null = null;
+let db: DatabaseSync | null = null;
 
 const getDb = () => {
   if (db) return db;
@@ -25,8 +25,7 @@ const getDb = () => {
     return null;
   }
 
-  sqlite3.verbose();
-  db = new sqlite3.Database(mbtilesPath, sqlite3.OPEN_READONLY);
+  db = new DatabaseSync(mbtilesPath, { open: true, readOnly: true });
 
   // Best-effort cleanup for long-lived Node runtimes (docker / next start).
   process.once("SIGINT", () => {
@@ -60,20 +59,19 @@ async function getTile(
 
   const tmsY = xyzToTmsY(z, y);
 
-  return new Promise((resolve, reject) => {
-    database.get(
+  const row = database
+    .prepare(
       "SELECT tile_data as tileData FROM tiles WHERE zoom_level = ? AND tile_column = ? AND tile_row = ? LIMIT 1",
-      [z, x, tmsY],
-      (err, row: { tileData?: Buffer } | undefined) => {
-        if (err) {
-          reject(err);
-          return;
-        }
+    )
+    .get(z, x, tmsY) as { tileData?: Uint8Array<ArrayBufferLike> | Buffer } | undefined;
 
-        resolve(row?.tileData ?? null);
-      },
-    );
-  });
+  if (!row?.tileData) {
+    return null;
+  }
+
+  return Buffer.isBuffer(row.tileData)
+    ? row.tileData
+    : Buffer.from(row.tileData);
 }
 
 export async function GET(
