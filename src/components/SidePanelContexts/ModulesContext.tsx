@@ -41,6 +41,7 @@ function buildLayerDatasets(panelLayers: PanelLayerI[]): LayerDataset[] {
     fileRef: layer.id,
     category: layer.category,
     imageData: layer.imageData,
+    timeScale: layer.timeScale,
   }));
 }
 

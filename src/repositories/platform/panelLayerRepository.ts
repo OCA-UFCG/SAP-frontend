@@ -22,6 +22,7 @@ const GET_PANEL_LAYER = `
         minScale
         maxScale
         category
+        timeScale
       }
     }
   }

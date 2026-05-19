@@ -14,6 +14,7 @@ export interface IDroughtDataset {
   image?: string;
   fileRef?: string;
   imageData?: ImageDataConfig | null;
+  timeScale?: string;
 }
 
 function InfoIcon() {

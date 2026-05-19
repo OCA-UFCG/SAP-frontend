@@ -7,9 +7,6 @@ import type { ImageDataConfig } from "@/utils/interfaces";
 import {
   getImageDataLegend,
   getImageDataYearKeys,
-  getImageDataDefaultYear,
-  resolveImageYearEntry,
-  isCompactImageData,
 } from "@/utils/imageData";
 import { IDroughtDataset } from "../DroughtDataset/DroughtDataset";
 
@@ -133,7 +130,7 @@ export function InfoModal({
               </TableRow>
 
               <TableRow label={"Escala\ntemporal"}>
-                -
+                {card.timeScale ?? "-"}
               </TableRow>
 
               {legend && legend.length > 0 && (
