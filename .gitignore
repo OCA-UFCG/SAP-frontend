@@ -46,3 +46,7 @@ storybook-static
 .vscode/
 
 /BR_Municipios_2025
+
+# Generated/downloaded vector tile artifacts.
+/public/tiles/*.mbtiles
+!/public/tiles/.gitkeep
