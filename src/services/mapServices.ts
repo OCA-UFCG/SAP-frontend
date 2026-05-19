@@ -1,3 +1,5 @@
+import { auth } from "@/lib/firebase";
+
 const API_BASE_URL = process.env.NEXT_PUBLIC_HOST_URL ?? "";
 
 interface EarthEngineUrlResponse {
@@ -20,11 +22,18 @@ export async function fetchMapURL(
   year: string,
   signal?: AbortSignal,
 ): Promise<string | null> {
+  const token = await auth.currentUser?.getIdToken();
+  const headers: HeadersInit = {};
+  if (token) {
+    headers["Authorization"] = `Bearer ${token}`;
+  }
+
   const response = await fetch(
     `${API_BASE_URL}/api/ee?name=${encodeURIComponent(id)}&year=${encodeURIComponent(year)}`,
     {
       method: "POST",
       signal,
+      headers,
     },
   );
 
