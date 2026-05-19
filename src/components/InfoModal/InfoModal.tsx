@@ -71,25 +71,8 @@ export function InfoModal({
     return () => document.removeEventListener("keydown", onKey);
   }, [open, onClose]);
 
-  const isCompact = isCompactImageData(imageData);
   const years = getImageDataYearKeys(imageData);
-  const defaultYear = getImageDataDefaultYear(imageData);
-
-  const currentYearData = useMemo(() => {
-    if (!defaultYear) return null;
-    return resolveImageYearEntry(imageData, defaultYear);
-  }, [imageData, defaultYear]);
-
   const legend = getImageDataLegend(imageData);
-  const type = isCompact ? imageData.type : "-";
-
-  const palette = isCompact
-    ? `${imageData.classes
-        .map((item) => `'${item.color.replace("#", "")}'`)
-        .join(", ")}`
-    : null;
-
-  const maxValue = isCompact ? imageData.classes.length : 0;
 
   if (typeof document === "undefined" || !open) {
     return null;
@@ -141,10 +124,6 @@ export function InfoModal({
 
           <table className="w-full border-collapse">
             <tbody>
-              <TableRow label="Tipo">
-                {type}
-              </TableRow>
-
               <TableRow label="Período">
                 {years.length > 0
                   ? `Data início: ${years[0]}  Data fim: ${
@@ -155,18 +134,6 @@ export function InfoModal({
 
               <TableRow label={"Escala\ntemporal"}>
                 -
-              </TableRow>
-
-              <TableRow label="ID">
-                {currentYearData?.imageId ?? "-"}
-              </TableRow>
-
-              <TableRow label={"min\npalette\nband"}>
-                {`0,  max: ${maxValue},`}
-                {"\n"}
-                {palette ? `[ ${palette} ]` : "-"}
-                {"\n"}
-                {`'${card.title}'`}
               </TableRow>
 
               {legend && legend.length > 0 && (

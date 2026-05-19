@@ -44,7 +44,7 @@ export function DroughtDataset({
 
   return (
     <>
-      <div className="flex flex-row items-start w-[392px] h-[198px] bg-white border border-[#EFEFEF] shadow-sm rounded-lg overflow-hidden shrink-0">
+      <div className="flex flex-row items-start w-full h-[198px] bg-white border border-[#EFEFEF] shadow-sm rounded-lg overflow-hidden shrink-0">
         <div className="flex flex-col items-start w-full">
           {/* card header */}
           <div
