@@ -184,6 +184,7 @@ export interface PanelLayerI {
   imageData: ImageDataConfig;
   minScale?: number;
   maxScale?: number;
+  category?: string;
 }
 
 export interface IEEInfo {

@@ -1,4 +1,15 @@
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
+
+vi.mock("@/data/citiesIndex.json", () => ({
+  default: [
+    {
+      code: "2504009",
+      label: "Campina Grande - PB",
+      name: "Campina Grande",
+      uf: "pb",
+    },
+  ],
+}));
 
 import { resolveStateKeyFromSearch } from "@/lib/geo";
 
@@ -32,5 +43,20 @@ describe("geo shared module", () => {
       type: "br",
       key: "br",
     });
+  });
+
+  it("matches a municipality label to its state", () => {
+    expect(resolveStateKeyFromSearch("Campina Grande - PB", statesObj)).toEqual(
+      {
+        type: "city",
+        key: "pb",
+        city: {
+          code: "2504009",
+          label: "Campina Grande - PB",
+          name: "Campina Grande",
+          uf: "pb",
+        },
+      },
+    );
   });
 });
