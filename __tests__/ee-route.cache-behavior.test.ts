@@ -6,6 +6,12 @@ vi.mock("@/app/api/ee/services", () => ({
   getEarthEngineUrl: vi.fn(),
 }));
 
+vi.mock("@/lib/firebase-admin", () => ({
+  adminAuth: {
+    verifyIdToken: vi.fn().mockResolvedValue({ uid: "test-user-id" }),
+  },
+}));
+
 vi.mock("@/repositories/platform/panelLayerRepository", () => ({
   getPanelLayers: vi.fn(),
 }));
@@ -28,7 +34,10 @@ function createMockRequest(
 ): NextRequest {
   return {
     nextUrl: new URL(url),
-    headers: new Headers({ "x-forwarded-for": forwardedFor }),
+    headers: new Headers({
+      "x-forwarded-for": forwardedFor,
+      Authorization: "Bearer mock-valid-token",
+    }),
   } as unknown as NextRequest;
 }
 
@@ -157,7 +166,10 @@ describe("POST /api/ee cache behavior", () => {
 
     const request = {
       nextUrl: new URL("https://example.test/api/ee?name=layer-a&year=2024"),
-      headers: new Headers({ "x-forwarded-for": "203.0.113.10" }),
+      headers: new Headers({
+        "x-forwarded-for": "203.0.113.10",
+        "Authorization": "Bearer mock-valid-token"
+      }),
       json: vi.fn().mockResolvedValue({
         imageId: "projects/example/image-v2",
         imageParams: [{ color: "#000000", label: "ignored" }],
