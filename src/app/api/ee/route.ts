@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import type { NextRequest } from "next/server";
+import { adminAuth } from "@/lib/firebase-admin";
 import {
   addUrlToCache,
   buildCacheKey,
@@ -15,6 +16,24 @@ import { getPanelLayers } from "@/repositories/platform/panelLayerRepository";
 import { resolveImageYearEntry } from "@/utils/imageData";
 
 export async function POST(req: NextRequest) {
+  try {
+    const authHeader = req.headers.get("Authorization");
+    if (!authHeader?.startsWith("Bearer ")) {
+      return NextResponse.json(
+        { error: "Missing or invalid authorization token." },
+        { status: 401 }
+      );
+    }
+
+    const token = authHeader.split("Bearer ")[1];
+    await adminAuth.verifyIdToken(token);
+  } catch (error) {
+    return NextResponse.json(
+      { error: "Unauthorized access." },
+      { status: 401 }
+    );
+  }
+
   ensureEeCacheWarmupStarted();
 
   const rateLimit = consumeEeRateLimit(req.headers);
