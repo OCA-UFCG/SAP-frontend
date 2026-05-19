@@ -16,6 +16,17 @@ vi.mock("@/utils/constants", () => ({
   ufs: new Set(["sp", "rj"]),
 }));
 
+vi.mock("@/data/citiesIndex.json", () => ({
+  default: [
+    {
+      code: "2504009",
+      label: "Campina Grande - PB",
+      name: "Campina Grande",
+      uf: "pb",
+    },
+  ],
+}));
+
 describe("SearchBarPlatform", () => {
   beforeEach(() => {
     vi.clearAllMocks();
@@ -59,6 +70,19 @@ describe("SearchBarPlatform", () => {
     expect(screen.queryByRole("listbox")).not.toBeInTheDocument();
   });
 
+  it("selects the first suggestion when Enter is pressed", async () => {
+    const user = userEvent.setup();
+    const { onSearch } = renderComponent();
+
+    const input = screen.getByRole("combobox");
+
+    await user.type(input, "camp");
+    await user.keyboard("{Enter}");
+
+    expect(onSearch).toHaveBeenCalledWith("Campina Grande - PB");
+    expect(onSearch).toHaveBeenCalledTimes(1);
+  });
+
   it("shows error message when invalid value is submitted (Platform)", async () => {
     const user = userEvent.setup();
     renderComponent();
@@ -69,6 +93,8 @@ describe("SearchBarPlatform", () => {
     await user.type(input, "invalid");
     await user.click(button);
 
-    expect(screen.getByText("Estado não identificado.")).toBeInTheDocument();
+    expect(
+      screen.getByText("Estado ou município não identificado."),
+    ).toBeInTheDocument();
   });
 });

@@ -31,6 +31,14 @@ import {
   syncSelectionAwareScrollZoom,
 } from "./selectionAwareZoom";
 import { isTileLayerReadyEvent } from "./tileLayerLoading";
+import {
+  buildMunicipalityLabel,
+  ensureMunicipalityLayers,
+  MUNICIPALITY_HOVER_LAYER_ID,
+  MUNICIPALITY_MIN_ZOOM,
+  MUNICIPALITY_SOURCE_ID,
+  MUNICIPALITY_SOURCE_LAYER,
+} from "./municipalityLayers";
 
 interface MapProps {
   minZoom?: number;
@@ -41,9 +49,11 @@ interface MapProps {
   showStatesBorder?: boolean;
   dadosCDI?: CDIVectorData;
   estadoSelecionado: string;
+  selectedMunicipalityCode?: string | null;
   tileLayerUrl?: string | null;
   tileLayerRequestKey?: string | null;
   onStateSelect?: (uf: string) => void;
+  onSelectedMunicipalityCodeChange?: (municipalityCode: string | null) => void;
   onTileLayerReady?: (requestKey: string) => void;
 }
 
@@ -76,6 +86,9 @@ const STATES_FILL_LAYER_ID = "state-fills";
 const STATES_BORDER_LAYER_ID = "state-borders";
 const CDI_LAYER_ID = "cdi-layer";
 const GEE_LAYER_ID = "gee-layer";
+const MAP_STATE_FOCUS_MAX_ZOOM = 5.5;
+const MAP_MUNICIPALITY_FOCUS_MAX_ZOOM = 11.5;
+const MUNICIPALITY_ID_PROPERTY = "CD_MUN";
 
 const CDI_FILL_EXPRESSION: ExpressionSpecification = [
   "match",
@@ -98,13 +111,70 @@ const CDI_FILL_EXPRESSION: ExpressionSpecification = [
 const DEFAULT_CENTER: [number, number] = [-15.749997, -47.9499962];
 const MAP_FOCUS_ANIMATION_DURATION = 1200;
 const MAP_OVERLAY_ADJUST_DURATION = 0;
-const MAP_STATE_FOCUS_MAX_ZOOM = 4.5;
 
 type MapFitBoundsOptions = NonNullable<
   Parameters<maplibregl.Map["fitBounds"]>[1]
 >;
 
+interface MinimumZoomOptions {
+  duration?: number;
+  easing?: (progress: number) => number;
+}
+
 const smoothCameraEasing = (progress: number) => 1 - Math.pow(1 - progress, 3);
+
+const enforceMinimumMapZoom = (
+  map: maplibregl.Map,
+  minZoom: number,
+  options: MinimumZoomOptions = {},
+) => {
+  if (map.getZoom() >= minZoom) return;
+
+  map.easeTo({
+    duration: options.duration,
+    easing: options.easing,
+    zoom: minZoom,
+  });
+};
+
+const getFeatureBounds = (feature: MapGeoJSONFeature): LngLatBoundsLike | null => {
+  if (!feature.geometry) return null;
+
+  const [minLng, minLat, maxLng, maxLat] = bbox({
+    type: "Feature",
+    geometry: feature.geometry,
+    properties: {},
+  });
+
+  return [
+    [minLng, minLat],
+    [maxLng, maxLat],
+  ];
+};
+
+const resolveMunicipalitySelectionBounds = (
+  map: maplibregl.Map,
+  municipalityCode: string,
+) => {
+  const features = map.querySourceFeatures(MUNICIPALITY_SOURCE_ID, {
+    sourceLayer: MUNICIPALITY_SOURCE_LAYER,
+  }) as MapGeoJSONFeature[];
+
+  const feature = features.find((currentFeature) => {
+    if (String(currentFeature.id ?? "") === municipalityCode) {
+      return true;
+    }
+
+    const properties = currentFeature.properties as
+      | Record<string, unknown>
+      | undefined;
+    return properties?.[MUNICIPALITY_ID_PROPERTY] === municipalityCode;
+  });
+
+  if (!feature) return null;
+
+  return getFeatureBounds(feature);
+};
 
 const BASE_STYLE: maplibregl.StyleSpecification = {
   version: 8,
@@ -286,6 +356,8 @@ const ensureMapLayers = (
       },
     });
   }
+
+  ensureMunicipalityLayers(map, STATES_BORDER_LAYER_ID);
 };
 
 const Map = ({
@@ -297,9 +369,11 @@ const Map = ({
   dadosCDI,
   showStatesBorder = true,
   estadoSelecionado,
+  selectedMunicipalityCode,
   tileLayerUrl,
   tileLayerRequestKey,
   onStateSelect,
+  onSelectedMunicipalityCodeChange,
   onTileLayerReady,
 }: MapProps) => {
   const debugEnabled = process.env.NODE_ENV !== "production";
@@ -319,9 +393,17 @@ const Map = ({
   const mapDebugIdRef = useRef<string>(Math.random().toString(36).slice(2, 8));
   const hoveredStateIdRef = useRef<string | number | null>(null);
   const selectedStateIdRef = useRef<string | number | null>(null);
+  const selectedMunicipalityCodeRef = useRef<string | null>(
+    selectedMunicipalityCode ?? null,
+  );
+  const selectedMunicipalityIdRef = useRef<string | number | null>(null);
   const markersRef = useRef<maplibregl.Marker[]>([]);
   const selectedStateRef = useRef<string>(estadoSelecionado);
   const onStateSelectRef = useRef<MapProps["onStateSelect"]>(onStateSelect);
+  const onSelectedMunicipalityCodeChangeRef =
+    useRef<MapProps["onSelectedMunicipalityCodeChange"]>(
+      onSelectedMunicipalityCodeChange,
+    );
   const onTileLayerReadyRef =
     useRef<MapProps["onTileLayerReady"]>(onTileLayerReady);
   const tileLayerUrlRef = useRef<string | null | undefined>(tileLayerUrl);
@@ -337,6 +419,9 @@ const Map = ({
     FeatureCollection<Geometry, CDIFeatureProperties>
   >(buildCdiGeoJson(dadosCDI));
   const currentBoundsRef = useRef<LngLatBoundsLike | null>(null);
+  const selectedMunicipalityBoundsRef = useRef<LngLatBoundsLike | null>(null);
+  const pendingSelectedMunicipalitySyncRef = useRef(false);
+  const selectedMunicipalityRequestIdRef = useRef(0);
   const leftOverlayWidthRef = useRef(0);
   const normalizedCenter = isValidLatLngTuple(center) ? center : DEFAULT_CENTER;
   const initialViewRef = useRef({
@@ -395,6 +480,43 @@ const Map = ({
       });
     },
     [],
+  );
+
+  const fitSelectedStateToBounds = useCallback(
+    (
+      map: maplibregl.Map,
+      bounds: LngLatBoundsLike,
+      options: MapFitBoundsOptions,
+    ) => {
+      fitMapToBounds(map, bounds, options);
+      if (selectedStateRef.current === BRAZIL_TERRITORY_CODE) return;
+
+      const enforceMunicipalityZoom = () => {
+        enforceMinimumMapZoom(map, MUNICIPALITY_MIN_ZOOM, options);
+      };
+
+      if (options.animate) {
+        map.once("moveend", enforceMunicipalityZoom);
+        return;
+      }
+
+      enforceMunicipalityZoom();
+    },
+    [fitMapToBounds],
+  );
+
+  const fitSelectedMunicipalityToBounds = useCallback(
+    (
+      map: maplibregl.Map,
+      bounds: LngLatBoundsLike,
+      options: Omit<MapFitBoundsOptions, "maxZoom"> = {},
+    ) => {
+      fitMapToBounds(map, bounds, {
+        ...options,
+        maxZoom: MAP_MUNICIPALITY_FOCUS_MAX_ZOOM,
+      });
+    },
+    [fitMapToBounds],
   );
 
   const syncMapPadding = useCallback((map: maplibregl.Map) => {
@@ -554,9 +676,238 @@ const Map = ({
     [applySelectedFeatureState, log, warn],
   );
 
+  const applySelectedMunicipalityFeatureState = useCallback(
+    (map: maplibregl.Map, nextMunicipalityCode: string | null) => {
+      const prev = selectedMunicipalityIdRef.current;
+
+      log("applySelectedMunicipalityFeatureState", {
+        prev,
+        nextMunicipalityCode,
+        styleLoaded: map.isStyleLoaded(),
+        hasMunicipalitySource: Boolean(map.getSource(MUNICIPALITY_SOURCE_ID)),
+      });
+
+      if (prev && prev !== nextMunicipalityCode) {
+        try {
+          map.setFeatureState(
+            {
+              source: MUNICIPALITY_SOURCE_ID,
+              sourceLayer: MUNICIPALITY_SOURCE_LAYER,
+              id: prev,
+            },
+            { selected: false, hover: false },
+          );
+          selectedMunicipalityIdRef.current = null;
+        } catch (err) {
+          warn("failed clearing prev selected municipality", {
+            prev,
+            err,
+          });
+          throw err;
+        }
+      }
+
+      if (nextMunicipalityCode) {
+        try {
+          selectedMunicipalityIdRef.current = nextMunicipalityCode;
+          map.setFeatureState(
+            {
+              source: MUNICIPALITY_SOURCE_ID,
+              sourceLayer: MUNICIPALITY_SOURCE_LAYER,
+              id: nextMunicipalityCode,
+            },
+            { selected: true },
+          );
+        } catch (err) {
+          warn("failed setting next selected municipality", {
+            nextMunicipalityCode,
+            err,
+          });
+          throw err;
+        }
+      }
+
+      if (!nextMunicipalityCode) {
+        selectedMunicipalityIdRef.current = null;
+      }
+    },
+    [log, warn],
+  );
+
+  const clearSelectedMunicipalitySelection = useCallback(
+    (map: maplibregl.Map) => {
+      if (!selectedMunicipalityCodeRef.current) return;
+
+      selectedMunicipalityCodeRef.current = null;
+      selectedMunicipalityBoundsRef.current = null;
+      selectedMunicipalityRequestIdRef.current += 1;
+      pendingSelectedMunicipalitySyncRef.current = false;
+
+      try {
+        applySelectedMunicipalityFeatureState(map, null);
+      } catch (err) {
+        warn("failed clearing selected municipality", { err });
+      }
+
+      onSelectedMunicipalityCodeChangeRef.current?.(null);
+    },
+    [applySelectedMunicipalityFeatureState, warn],
+  );
+
+  const scheduleSelectedMunicipalitySync = useCallback(
+    (reason: string) => {
+      const map = mapRef.current;
+      if (!map) return;
+      const requestId = ++selectedMunicipalityRequestIdRef.current;
+      pendingSelectedMunicipalitySyncRef.current = true;
+
+      const municipalityCode = selectedMunicipalityCodeRef.current;
+      if (!municipalityCode) {
+        selectedMunicipalityBoundsRef.current = null;
+        pendingSelectedMunicipalitySyncRef.current = false;
+        return;
+      }
+
+      let retryCount = 0;
+      let didFallbackToStateBounds = false;
+      let isFinished = false;
+
+      const finishSync = () => {
+        isFinished = true;
+        pendingSelectedMunicipalitySyncRef.current = false;
+      };
+
+      const scheduleRetry = (retryTrigger: "idle" | "moveend" = "idle") => {
+        if (selectedMunicipalityRequestIdRef.current !== requestId) {
+          finishSync();
+          return;
+        }
+
+        if (retryCount >= 2) {
+          finishSync();
+          return;
+        }
+
+        retryCount += 1;
+        let didRunRetry = false;
+        const runRetry = (trigger: "idle" | "moveend") => {
+          if (didRunRetry) return;
+          didRunRetry = true;
+          tryResolveAndFit(trigger);
+        };
+
+        if (retryTrigger === "moveend") {
+          map.once("moveend", () => runRetry("moveend"));
+          map.once("idle", () => runRetry("idle"));
+          return;
+        }
+
+        map.once("idle", () => runRetry("idle"));
+      };
+
+      const tryResolveAndFit = (
+        trigger: "immediate" | "styledata" | "idle" | "moveend",
+      ) => {
+        if (isFinished) return;
+        if (selectedMunicipalityRequestIdRef.current !== requestId) return;
+        if (mapRef.current !== map) return;
+
+        const nextMunicipalityCode = selectedMunicipalityCodeRef.current;
+        if (!nextMunicipalityCode) {
+          selectedMunicipalityBoundsRef.current = null;
+          finishSync();
+          return;
+        }
+
+        log("selectedMunicipalitySync fired", {
+          trigger,
+          reason,
+          nextMunicipalityCode,
+          styleLoaded: map.isStyleLoaded(),
+          hasMunicipalitySource: Boolean(map.getSource(MUNICIPALITY_SOURCE_ID)),
+        });
+
+        if (!map.getSource(MUNICIPALITY_SOURCE_ID)) {
+          scheduleRetry();
+          return;
+        }
+
+        try {
+          applySelectedMunicipalityFeatureState(map, nextMunicipalityCode);
+        } catch (err) {
+          warn("selectedMunicipalitySync pre-apply failed", {
+            reason,
+            trigger,
+            err,
+          });
+        }
+
+        const bounds = resolveMunicipalitySelectionBounds(
+          map,
+          nextMunicipalityCode,
+        );
+
+        if (!bounds) {
+          if (!didFallbackToStateBounds && currentBoundsRef.current) {
+            didFallbackToStateBounds = true;
+            fitSelectedStateToBounds(map, currentBoundsRef.current, {
+              animate: true,
+              duration: Math.min(MAP_FOCUS_ANIMATION_DURATION, 350),
+              easing: smoothCameraEasing,
+              maxZoom: MAP_STATE_FOCUS_MAX_ZOOM,
+            });
+            scheduleRetry("moveend");
+            return;
+          }
+
+          scheduleRetry();
+          return;
+        }
+
+        selectedMunicipalityBoundsRef.current = bounds;
+        finishSync();
+
+        try {
+          fitSelectedMunicipalityToBounds(map, bounds, {
+            animate: true,
+            duration: MAP_FOCUS_ANIMATION_DURATION,
+            easing: smoothCameraEasing,
+          });
+        } catch (err) {
+          warn("selectedMunicipalitySync apply failed", {
+            reason,
+            trigger,
+            err,
+          });
+        }
+      };
+
+      tryResolveAndFit("immediate");
+      if (isFinished) {
+        return;
+      }
+
+      map.once("styledata", () => tryResolveAndFit("styledata"));
+      map.once("idle", () => tryResolveAndFit("idle"));
+    },
+    [
+      applySelectedMunicipalityFeatureState,
+      fitSelectedMunicipalityToBounds,
+      fitSelectedStateToBounds,
+      log,
+      warn,
+    ],
+  );
+
   useEffect(() => {
     selectedStateRef.current = estadoSelecionado;
+    selectedMunicipalityCodeRef.current = selectedMunicipalityCode ?? null;
+    if (!selectedMunicipalityCode) {
+      selectedMunicipalityBoundsRef.current = null;
+    }
     onStateSelectRef.current = onStateSelect;
+    onSelectedMunicipalityCodeChangeRef.current =
+      onSelectedMunicipalityCodeChange;
     onTileLayerReadyRef.current = onTileLayerReady;
     tileLayerUrlRef.current = tileLayerUrl;
     tileLayerRequestKeyRef.current = tileLayerRequestKey;
@@ -567,10 +918,12 @@ const Map = ({
   }, [
     estadoSelecionado,
     onStateSelect,
+    onSelectedMunicipalityCodeChange,
     onTileLayerReady,
     tileLayerUrl,
     tileLayerRequestKey,
     showStatesBorder,
+    selectedMunicipalityCode,
     dadosCDI,
     cdiGeoJson,
     currentBounds,
@@ -698,6 +1051,10 @@ const Map = ({
         scheduleSelectedStateSync("syncMapLayers");
       }
 
+      if (selectedMunicipalityCodeRef.current) {
+        scheduleSelectedMunicipalitySync("syncMapLayers");
+      }
+
       const cdiSource = map.getSource(CDI_SOURCE_ID) as
         | GeoJSONSource
         | undefined;
@@ -715,7 +1072,13 @@ const Map = ({
         hasCdiDataRef.current ? "visible" : "none",
       );
     },
-    [applySelectedFeatureState, scheduleSelectedStateSync, log, warn],
+    [
+      applySelectedFeatureState,
+      scheduleSelectedStateSync,
+      scheduleSelectedMunicipalitySync,
+      log,
+      warn,
+    ],
   );
 
   useEffect(() => {
@@ -802,6 +1165,10 @@ const Map = ({
           },
           { selected: true },
         );
+      }
+
+      if (selectedMunicipalityCodeRef.current) {
+        scheduleSelectedMunicipalitySync("map load");
       }
 
       map.on("mousemove", STATES_FILL_LAYER_ID, (event) => {
@@ -926,6 +1293,28 @@ const Map = ({
 
         onStateSelectRef.current?.(nextSelectedState);
       });
+
+      map.on("click", () => {
+        clearSelectedMunicipalitySelection(map);
+      });
+
+      map.on("mousemove", MUNICIPALITY_HOVER_LAYER_ID, (event) => {
+        const municipalityFeature = event.features?.[0] as
+          | MapGeoJSONFeature
+          | undefined;
+        const municipalityLabel = buildMunicipalityLabel(municipalityFeature);
+
+        map.getCanvas().style.cursor = "default";
+
+        if (municipalityLabel) {
+          popup.setLngLat(event.lngLat).setText(municipalityLabel).addTo(map);
+        }
+      });
+
+      map.on("mouseleave", MUNICIPALITY_HOVER_LAYER_ID, () => {
+        map.getCanvas().style.cursor = "";
+        popup.remove();
+      });
     });
 
     mapRef.current = map;
@@ -941,6 +1330,8 @@ const Map = ({
     syncMapLayers,
     syncMapPadding,
     applySelectedFeatureState,
+    clearSelectedMunicipalitySelection,
+    scheduleSelectedMunicipalitySync,
     scheduleSelectedStateSync,
     fitMapToBounds,
     log,
@@ -986,6 +1377,18 @@ const Map = ({
       return;
     }
 
+    selectedMunicipalityBoundsRef.current = null;
+
+    scheduleSelectedMunicipalitySync("selectedMunicipalityCode effect");
+  }, [selectedMunicipalityCode, scheduleSelectedMunicipalitySync]);
+
+  useEffect(() => {
+    const map = mapRef.current;
+
+    if (!map) {
+      return;
+    }
+
     syncSelectionAwareScrollZoom(map.scrollZoom, estadoSelecionado);
   }, [estadoSelecionado]);
 
@@ -1006,13 +1409,26 @@ const Map = ({
       return;
     }
 
-    fitMapToBounds(map, currentBounds, {
+    if (selectedMunicipalityCodeRef.current && selectedMunicipalityBoundsRef.current) {
+      fitSelectedMunicipalityToBounds(map, selectedMunicipalityBoundsRef.current, {
+        animate: true,
+        duration: MAP_FOCUS_ANIMATION_DURATION,
+        easing: smoothCameraEasing,
+      });
+      return;
+    }
+
+    fitSelectedStateToBounds(map, currentBounds, {
       animate: true,
       duration: MAP_FOCUS_ANIMATION_DURATION,
       easing: smoothCameraEasing,
       maxZoom: MAP_STATE_FOCUS_MAX_ZOOM,
     });
-  }, [currentBounds, fitMapToBounds]);
+  }, [
+    currentBounds,
+    fitSelectedStateToBounds,
+    fitSelectedMunicipalityToBounds,
+  ]);
 
   useEffect(() => {
     const map = mapRef.current;
@@ -1022,12 +1438,24 @@ const Map = ({
       return;
     }
 
-    fitMapToBounds(map, boundsToFit, {
+    if (selectedMunicipalityCodeRef.current && selectedMunicipalityBoundsRef.current) {
+      fitSelectedMunicipalityToBounds(map, selectedMunicipalityBoundsRef.current, {
+        animate: false,
+        duration: MAP_OVERLAY_ADJUST_DURATION,
+      });
+      return;
+    }
+
+    fitSelectedStateToBounds(map, boundsToFit, {
       animate: false,
       duration: MAP_OVERLAY_ADJUST_DURATION,
       maxZoom: MAP_STATE_FOCUS_MAX_ZOOM,
     });
-  }, [leftOverlayWidth, fitMapToBounds]);
+  }, [
+    leftOverlayWidth,
+    fitSelectedStateToBounds,
+    fitSelectedMunicipalityToBounds,
+  ]);
 
   useEffect(() => {
     const map = mapRef.current;

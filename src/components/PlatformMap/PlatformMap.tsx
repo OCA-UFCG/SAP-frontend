@@ -11,8 +11,14 @@ import {
 
 export function PlatformMap() {
   const { activeData, activeEEData } = useMapLayerActiveState();
-  const { activeLegend, selectedState, activeYear } = useMapLayerViewState();
-  const { setSelectedState } = useMapLayerActions();
+  const {
+    activeLegend,
+    selectedState,
+    selectedMunicipalityCode,
+    activeYear,
+  } = useMapLayerViewState();
+  const { setSelectedState, setSelectedMunicipalityCode } =
+    useMapLayerActions();
   const { requestKey, status, tileLayerUrl } = useEarthEngineTileLayer(
     activeEEData,
     activeYear,
@@ -43,10 +49,12 @@ export function PlatformMap() {
           showStatesBorder
           dadosCDI={activeData ?? undefined}
           estadoSelecionado={selectedState.toUpperCase()}
+          selectedMunicipalityCode={selectedMunicipalityCode}
           className="w-full h-full"
           tileLayerUrl={tileLayerUrl}
           tileLayerRequestKey={requestKey}
           onStateSelect={(uf: string) => setSelectedState(uf.toLowerCase())}
+          onSelectedMunicipalityCodeChange={setSelectedMunicipalityCode}
           onTileLayerReady={handleTileLayerReady}
         />
 

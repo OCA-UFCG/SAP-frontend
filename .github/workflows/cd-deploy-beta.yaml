@@ -31,6 +31,11 @@ jobs:
           username: ${{ vars.DOCKER_USERNAME }}
           password: ${{ secrets.DOCKER_PASSWORD }}
 
+      - name: Download vector tile artifacts
+        env:
+          TILES_RELEASE_TAG: tiles-2025
+        run: bash scripts/download-tiles.sh
+
       - name: Build and push Docker image
         uses: docker/build-push-action@v4
         with:

@@ -7,6 +7,7 @@ export interface MapLayerState {
   activeLegend: IImageParam[] | null;
   activeEEData: IEEInfo | null;
   selectedState: string;
+  selectedMunicipalityCode: string | null;
   activeLayerId: string | null;
   activeYear: string;
 }
@@ -20,6 +21,7 @@ export function createInitialMapLayerState(): MapLayerState {
     activeLegend: null,
     activeEEData: null,
     selectedState: DEFAULT_SELECTED_STATE,
+    selectedMunicipalityCode: null,
     activeLayerId: null,
     activeYear: DEFAULT_ACTIVE_YEAR,
   };
@@ -32,6 +34,17 @@ export function setSelectedStateValue(
   return {
     ...state,
     selectedState,
+    selectedMunicipalityCode: null,
+  };
+}
+
+export function setSelectedMunicipalityCodeValue(
+  state: MapLayerState,
+  selectedMunicipalityCode: string | null,
+): MapLayerState {
+  return {
+    ...state,
+    selectedMunicipalityCode,
   };
 }
 
@@ -102,5 +115,6 @@ export function resetPlatformState(state: MapLayerState): MapLayerState {
   return {
     ...clearActiveLayerState(state),
     selectedState: DEFAULT_SELECTED_STATE,
+    selectedMunicipalityCode: null,
   };
 }
