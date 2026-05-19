@@ -7,6 +7,7 @@ import {
 } from "@/components/MapLayerContext/MapLayerContext";
 import { DroughtDataset } from "@/components/DroughtDataset/DroughtDataset";
 import type { IDroughtDataset } from "@/components/DroughtDataset/DroughtDataset";
+import { LayerAccordion } from "@/components/LayerAccordion/LayerAccordion";
 import type { PlatformSection } from "@/components/PlatformSideRail/PlatformSideRail";
 import type { CDIVectorData } from "@/lib/geo";
 import type { IEEInfo, PanelLayerI } from "@/utils/interfaces";
@@ -19,7 +20,13 @@ export interface ModulesContextProps {
   onRequestSectionChange?: (next: PlatformSection) => void;
 }
 
-type LayerDataset = IDroughtDataset;
+type LayerDataset = IDroughtDataset & { category?: string };
+
+interface DatasetGroup {
+  key: string;
+  title: string;
+  datasets: LayerDataset[];
+}
 
 const DATASET_REGISTRY: Record<string, CDIVectorData> = {
   CDI: cdiData as unknown as CDIVectorData,
@@ -32,7 +39,46 @@ function buildLayerDatasets(panelLayers: PanelLayerI[]): LayerDataset[] {
     description: layer.description,
     image: layer.previewMap?.url,
     fileRef: layer.id,
+    category: layer.category,
   }));
+}
+
+const CATEGORY_ORDER = [
+  "Dados Climáticos",
+  "Dados Ambientais",
+  "Dados Socioeconômicos",
+];
+
+const CATEGORY_ORDER_INDEX = new Map(
+  CATEGORY_ORDER.map((category, index) => [
+    category.toLocaleLowerCase("pt-BR"),
+    index,
+  ]),
+);
+
+function normalizeCategory(category?: string): string {
+  return category?.trim() || "Outros";
+}
+
+function compareCategoryTitles(left: string, right: string): number {
+  const leftIndex = CATEGORY_ORDER_INDEX.get(left.toLocaleLowerCase("pt-BR"));
+  const rightIndex = CATEGORY_ORDER_INDEX.get(
+    right.toLocaleLowerCase("pt-BR"),
+  );
+
+  if (leftIndex != null && rightIndex != null) {
+    return leftIndex - rightIndex;
+  }
+
+  if (leftIndex != null) {
+    return -1;
+  }
+
+  if (rightIndex != null) {
+    return 1;
+  }
+
+  return left.localeCompare(right, "pt-BR");
 }
 
 interface LayerDatasetCardProps {
@@ -98,6 +144,31 @@ export function ModulesContext({
     () => buildLayerDatasets(panelLayers),
     [panelLayers],
   );
+
+  const groupedDatasets = useMemo<DatasetGroup[]>(() => {
+    const groups = new Map<string, DatasetGroup>();
+
+    datasets.forEach((dataset) => {
+      const title = normalizeCategory(dataset.category);
+      const key = title.toLocaleLowerCase("pt-BR");
+      const existingGroup = groups.get(key);
+
+      if (existingGroup) {
+        existingGroup.datasets.push(dataset);
+        return;
+      }
+
+      groups.set(key, {
+        key,
+        title,
+        datasets: [dataset],
+      });
+    });
+
+    return Array.from(groups.values()).sort((left, right) => {
+      return compareCategoryTitles(left.title, right.title);
+    });
+  }, [datasets]);
 
   const layerById = useMemo(() => {
     return new Map(panelLayers.map((layer) => [layer.id, layer]));
@@ -184,29 +255,41 @@ export function ModulesContext({
         <ContextHeader />
 
         <div className="flex flex-col gap-6">
-          {datasets.map((dataset) => {
-            const fileRef = dataset.fileRef ?? "";
-            const vectorData = fileRef ? DATASET_REGISTRY[fileRef] : undefined;
-            const hasEEData = Boolean(
-              fileRef && layerById.get(fileRef)?.imageData,
-            );
-            const canApply = Boolean(vectorData) || hasEEData;
-
-            const isActive = vectorData
-              ? activeData === vectorData
-              : hasEEData
-                ? activeEEData?.id === fileRef
-                : false;
-
+          {groupedDatasets.map((group, index) => {
             return (
-              <LayerDatasetCard
-                key={fileRef || dataset.id}
-                dataset={dataset}
-                active={isActive}
-                disabled={!canApply}
-                onToggleLayer={handleToggle}
-                onOpenDetails={handleDetails}
-              />
+              <LayerAccordion
+                key={group.key}
+                title={group.title}
+                defaultOpen={index === 0}
+              >
+                {group.datasets.map((dataset) => {
+                  const fileRef = dataset.fileRef ?? "";
+                  const vectorData = fileRef
+                    ? DATASET_REGISTRY[fileRef]
+                    : undefined;
+                  const hasEEData = Boolean(
+                    fileRef && layerById.get(fileRef)?.imageData,
+                  );
+                  const canApply = Boolean(vectorData) || hasEEData;
+
+                  const isActive = vectorData
+                    ? activeData === vectorData
+                    : hasEEData
+                      ? activeEEData?.id === fileRef
+                      : false;
+
+                  return (
+                    <LayerDatasetCard
+                      key={fileRef || dataset.id}
+                      dataset={dataset}
+                      active={isActive}
+                      disabled={!canApply}
+                      onToggleLayer={handleToggle}
+                      onOpenDetails={handleDetails}
+                    />
+                  );
+                })}
+              </LayerAccordion>
             );
           })}
         </div>
