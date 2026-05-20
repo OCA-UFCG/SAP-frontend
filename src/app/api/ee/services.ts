@@ -7,6 +7,7 @@ import { getImageDataYearKeys, resolveImageYearEntry } from "@/utils/imageData";
 // ====== GEE Singleton for Authentication and Initialization ======
 
 let geeInitialized: Promise<void> | null = null;
+let brazilBoundary: any | null = null;
 
 /**
  * Ensures that Google Earth Engine is authenticated and initialized, but only runs the process once.
@@ -20,6 +21,19 @@ const initializeGee = async () => {
 
   return geeInitialized;
 };
+
+const getBrazilBoundary = () => {
+  if (!brazilBoundary) {
+    brazilBoundary = ee
+      .FeatureCollection("USDOS/LSIB_SIMPLE/2017")
+      .filter(ee.Filter.eq("country_na", "Brazil"));
+  }
+
+  return brazilBoundary;
+};
+
+const clipImageToBrazil = (image: any) =>
+  image.clipToCollection(getBrazilBoundary());
 
 // ====== GEE ======
 
@@ -92,7 +106,7 @@ export const getEarthEngineUrl = async (
       console.error(`[GEE] -> Failed to fetch bands for ${imageId}:`, bandErr);
     }
 
-    GEEImage = GEEImage.selfMask();
+    GEEImage = clipImageToBrazil(GEEImage).selfMask();
     const { categorizedImage, visParams } = getImageScale(
       GEEImage,
       imageParams,

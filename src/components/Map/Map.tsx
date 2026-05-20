@@ -112,6 +112,17 @@ const DEFAULT_CENTER: [number, number] = [-15.749997, -47.9499962];
 const MAP_FOCUS_ANIMATION_DURATION = 1200;
 const MAP_OVERLAY_ADJUST_DURATION = 0;
 
+const geoBrasilSource = geometria as unknown as FeatureCollection<
+  Geometry,
+  EstadoProperties
+>;
+const BRAZIL_RASTER_BOUNDS = bbox(geoBrasilSource) as [
+  number,
+  number,
+  number,
+  number,
+];
+
 type MapFitBoundsOptions = NonNullable<
   Parameters<maplibregl.Map["fitBounds"]>[1]
 >;
@@ -245,6 +256,7 @@ const ensureMapLayers = (
         type: "raster",
         tiles: [tileLayerUrl],
         tileSize: 256,
+        bounds: BRAZIL_RASTER_BOUNDS,
       });
     } else {
       // Only rebuild the raster source when the tiles URL actually changed.
@@ -260,6 +272,7 @@ const ensureMapLayers = (
           type: "raster",
           tiles: [tileLayerUrl],
           tileSize: 256,
+          bounds: BRAZIL_RASTER_BOUNDS,
         });
       }
     }
@@ -377,10 +390,7 @@ const Map = ({
   onTileLayerReady,
 }: MapProps) => {
   const debugEnabled = process.env.NODE_ENV !== "production";
-  const geoBrasil = geometria as unknown as FeatureCollection<
-    Geometry,
-    EstadoProperties
-  >;
+  const geoBrasil = geoBrasilSource;
   const mapContainerRef = useRef<HTMLDivElement | null>(null);
   const mapRef = useRef<maplibregl.Map | null>(null);
   const popupRef = useRef(

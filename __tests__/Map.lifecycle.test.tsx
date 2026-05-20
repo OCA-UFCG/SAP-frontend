@@ -199,6 +199,37 @@ describe("Map lifecycle", () => {
     );
   });
 
+  it("limits Earth Engine raster tile requests to Brazil bounds", () => {
+    render(
+      <Map
+        center={[-15.749997, -47.9499962]}
+        estadoSelecionado="BR"
+        tileLayerUrl="https://tiles.example/{z}/{x}/{y}"
+      />,
+    );
+
+    const firstInstance = mapInstances[0];
+    firstInstance.handlers.get("load")?.[0]?.({});
+
+    expect(firstInstance.addSource).toHaveBeenCalledWith(
+      "gee-tiles",
+      expect.objectContaining({
+        type: "raster",
+        tiles: ["https://tiles.example/{z}/{x}/{y}"],
+        bounds: expect.arrayContaining([
+          expect.any(Number),
+          expect.any(Number),
+          expect.any(Number),
+          expect.any(Number),
+        ]),
+      }),
+    );
+    expect(firstInstance.addSource).not.toHaveBeenCalledWith(
+      "gee-brazil-mask",
+      expect.anything(),
+    );
+  });
+
   it("registers municipality hover handlers", () => {
     render(<Map center={[-15.749997, -47.9499962]} estadoSelecionado="BR" />);
 
