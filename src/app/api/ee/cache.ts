@@ -1,5 +1,5 @@
 const CACHE_TTL_MS = 1000 * 60 * 30;
-const CACHE_KEY_VERSION = "v4";
+const CACHE_KEY_VERSION = "v5";
 
 interface CacheEntry {
   url: string;
@@ -13,12 +13,14 @@ function buildVisualizationSignature(
   imageParams?: Array<unknown>,
   minScale?: number,
   maxScale?: number,
+  mapVisualization?: unknown,
 ) {
   return JSON.stringify({
     imageId: imageId ?? null,
     imageParams: imageParams ?? null,
     minScale: minScale ?? null,
     maxScale: maxScale ?? null,
+    mapVisualization: mapVisualization ?? null,
   });
 }
 
@@ -29,12 +31,14 @@ export const buildCacheKey = (
   imageParams?: Array<unknown>,
   minScale?: number,
   maxScale?: number,
+  mapVisualization?: unknown,
 ) =>
   `${CACHE_KEY_VERSION}:${name}:${year}:${buildVisualizationSignature(
     imageId,
     imageParams,
     minScale,
     maxScale,
+    mapVisualization,
   )}`;
 
 function getFreshEntry(key: string): CacheEntry | null {

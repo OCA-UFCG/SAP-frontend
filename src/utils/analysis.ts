@@ -57,6 +57,21 @@ export interface CompactAnalysisRankingConfig {
   totalLabel?: string;
 }
 
+export interface CompactMapVisualizationConfig {
+  min?: number;
+  max?: number;
+  palette?: string[];
+  band?: string;
+  sourceBand?: string;
+  thresholds?: number[];
+  sourceRange?: {
+    min?: number;
+    max?: number;
+    unit?: string;
+  };
+  valueMeaning?: Record<string, string>;
+}
+
 export interface CompactAnalysisYearData {
   imageId: string;
   year?: string;
@@ -72,6 +87,7 @@ export interface CompactTerritorialAnalysisDataset {
   locations?: Record<string, string>;
   templates?: CompactAnalysisTemplates;
   ranking?: CompactAnalysisRankingConfig;
+  mapVisualization?: CompactMapVisualizationConfig;
   years: Record<string, CompactAnalysisYearData>;
 }
 

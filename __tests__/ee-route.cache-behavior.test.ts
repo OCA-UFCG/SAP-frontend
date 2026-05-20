@@ -147,6 +147,59 @@ describe("POST /api/ee cache behavior", () => {
       [{ color: "#EEEEEE", label: "new" }],
       10,
       100,
+      undefined,
+    );
+  });
+
+  it("passes compact map visualization metadata to Earth Engine rendering", async () => {
+    const mapVisualization = {
+      min: 1,
+      max: 6,
+      palette: ["#111111", "#222222"],
+      band: "gpp_class",
+      sourceBand: "Gpp",
+      thresholds: [7000, 13000],
+    };
+
+    mockedGetPanelLayers.mockResolvedValueOnce([
+      {
+        ...createMockLayer(),
+        imageData: {
+          type: "territorial-compact",
+          schemaVersion: 1,
+          defaultYear: "2025",
+          classes: [
+            { id: "low", label: "Low", color: "#111111", pixelLimit: 1 },
+            { id: "high", label: "High", color: "#222222", pixelLimit: 2 },
+          ],
+          mapVisualization,
+          years: {
+            "2025": {
+              imageId: "MODIS/061/MOD17A3HGF/2025_01_01",
+              values: { br: [500, 500] },
+            },
+          },
+        },
+      },
+    ]);
+    mockedGetEarthEngineUrl.mockResolvedValueOnce(
+      "https://tiles.example/layer-a/gpp",
+    );
+
+    const res = await POST(
+      createMockRequest("https://example.test/api/ee?name=layer-a&year=2025"),
+    );
+
+    expect(res.status).toBe(200);
+    expect(mockedGetEarthEngineUrl).toHaveBeenCalledWith(
+      "MODIS/061/MOD17A3HGF/2025_01_01",
+      [
+        { color: "#111111", label: "Low", pixelLimit: 1 },
+        { color: "#222222", label: "High", pixelLimit: 2 },
+      ],
+      0,
+      1,
+      mapVisualization,
     );
   });
 

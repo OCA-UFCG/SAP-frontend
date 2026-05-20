@@ -1,8 +1,13 @@
 import ee from "@google/earthengine";
 import { addUrlToCache, buildCacheKey } from "@/app/api/ee/cache";
+import {
+  resolveMapVisualizationPlan,
+  type ThresholdClassificationPlan,
+} from "@/app/api/ee/mapVisualization";
 import { getPanelLayers } from "@/repositories/platform/panelLayerRepository";
-import { IMapId, IEEInfo } from "@/utils/interfaces";
+import { IMapId, IEEInfo, IImageParam } from "@/utils/interfaces";
 import { getImageDataYearKeys, resolveImageYearEntry } from "@/utils/imageData";
+import type { CompactMapVisualizationConfig } from "@/utils/analysis";
 
 // ====== GEE Singleton for Authentication and Initialization ======
 
@@ -35,6 +40,51 @@ const getBrazilBoundary = () => {
 const clipImageToBrazil = (image: any) =>
   image.clipToCollection(getBrazilBoundary());
 
+function applyThresholdClassification(
+  image: any,
+  classification: ThresholdClassificationPlan,
+) {
+  let classifiedImage = ee.Image(classification.startValue);
+
+  classification.thresholds.forEach((threshold, index) => {
+    classifiedImage = classifiedImage.where(
+      image.gte(threshold),
+      classification.startValue + index + 1,
+    );
+  });
+
+  if (classification.outputBand) {
+    classifiedImage = classifiedImage.rename(classification.outputBand);
+  }
+
+  return classifiedImage.updateMask(image.mask());
+}
+
+function applyMapVisualization(
+  image: any,
+  mapVisualization: CompactMapVisualizationConfig,
+  imageParams: IImageParam[],
+  minScale: number,
+  maxScale: number,
+) {
+  const plan = resolveMapVisualizationPlan(
+    mapVisualization,
+    imageParams,
+    minScale,
+    maxScale,
+  );
+  let selectedImage = plan.sourceBand ? image.select(plan.sourceBand) : image;
+
+  if (plan.thresholdClassification) {
+    selectedImage = applyThresholdClassification(
+      selectedImage,
+      plan.thresholdClassification,
+    );
+  }
+
+  return { image: selectedImage, visParams: plan.visParams };
+}
+
 // ====== GEE ======
 
 /**
@@ -50,6 +100,7 @@ export const getEarthEngineUrl = async (
   imageParams: any,
   minScale: any,
   maxScale: any,
+  mapVisualization?: CompactMapVisualizationConfig,
 ) => {
   try {
     await initializeGee();
@@ -88,31 +139,42 @@ export const getEarthEngineUrl = async (
       GEEImage = ee.Image(imageId);
     }
 
-    // 3. Fetch list of available bands and print them, then automatically select the first one
-    try {
-      const bandNames = await new Promise((resolve, reject) => {
-        GEEImage.bandNames().evaluate(
-          (bands: any) => resolve(bands),
-          (err: any) => reject(err),
-        );
-      });
-      console.log(`[GEE] -> Bands available:`, bandNames);
+    let configuredVisParams: any;
 
-      // Explicitly select the first band so we don't accidentally try to render all of them
-      if (bandNames && Array.isArray(bandNames) && bandNames.length > 0) {
-        GEEImage = GEEImage.select(bandNames[bandNames.length - 1]);
+    if (mapVisualization) {
+      const configuredImage = applyMapVisualization(
+        GEEImage,
+        mapVisualization,
+        imageParams,
+        minScale,
+        maxScale,
+      );
+
+      GEEImage = configuredImage.image;
+      configuredVisParams = configuredImage.visParams;
+    } else {
+      // 3. Fetch list of available bands and print them, then automatically select one
+      try {
+        const bandNames = await new Promise((resolve, reject) => {
+          GEEImage.bandNames().evaluate(
+            (bands: any) => resolve(bands),
+            (err: any) => reject(err),
+          );
+        });
+        console.log(`[GEE] -> Bands available:`, bandNames);
+
+        if (bandNames && Array.isArray(bandNames) && bandNames.length > 0) {
+          GEEImage = GEEImage.select(bandNames[bandNames.length - 1]);
+        }
+      } catch (bandErr) {
+        console.error(`[GEE] -> Failed to fetch bands for ${imageId}:`, bandErr);
       }
-    } catch (bandErr) {
-      console.error(`[GEE] -> Failed to fetch bands for ${imageId}:`, bandErr);
     }
 
     GEEImage = clipImageToBrazil(GEEImage).selfMask();
-    const { categorizedImage, visParams } = getImageScale(
-      GEEImage,
-      imageParams,
-      minScale,
-      maxScale,
-    );
+    const { categorizedImage, visParams } = configuredVisParams
+      ? { categorizedImage: GEEImage, visParams: configuredVisParams }
+      : getImageScale(GEEImage, imageParams, minScale, maxScale);
     const mapId = (await getMapId(categorizedImage, visParams)) as IMapId;
 
     return mapId.urlFormat;
@@ -325,12 +387,14 @@ export const cacheMapData = async () => {
           yearConfig.imageParams,
           minScale,
           maxScale,
+          yearConfig.mapVisualization,
         );
         const url = await getEarthEngineUrl(
           yearConfig.imageId,
           yearConfig.imageParams,
           minScale,
           maxScale,
+          yearConfig.mapVisualization,
         );
         addUrlToCache(cacheKey, url);
       }

@@ -1,4 +1,7 @@
-import type { CompactTerritorialAnalysisDataset } from "@/utils/analysis";
+import type {
+  CompactMapVisualizationConfig,
+  CompactTerritorialAnalysisDataset,
+} from "@/utils/analysis";
 import type {
   IImageParam,
   ImageDataConfig,
@@ -11,6 +14,7 @@ export interface ResolvedImageYearEntry {
   imageId: string;
   imageParams: IImageParam[];
   analysis?: LegacyImageDataEntry["analysis"];
+  mapVisualization?: CompactMapVisualizationConfig;
 }
 
 function sortYearKeys(keys: string[]): string[] {
@@ -113,6 +117,7 @@ export function resolveImageYearEntry(
       year: yearData.year ?? year,
       imageId: yearData.imageId,
       imageParams: buildCompactImageParams(imageData),
+      mapVisualization: imageData.mapVisualization,
     };
   }
 

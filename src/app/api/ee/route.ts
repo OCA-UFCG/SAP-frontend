@@ -67,6 +67,7 @@ export async function POST(req: NextRequest) {
       yearConfig.imageParams,
       layer.minScale,
       layer.maxScale,
+      yearConfig.mapVisualization,
     );
 
     const urlOnCache = getCachedUrl(cacheKey);
@@ -82,6 +83,7 @@ export async function POST(req: NextRequest) {
       yearConfig.imageParams,
       layer.minScale,
       layer.maxScale,
+      yearConfig.mapVisualization,
     );
 
     console.log(new Date().toISOString(), " - Saving URL to cache");
