@@ -34,7 +34,6 @@ import { isTileLayerReadyEvent } from "./tileLayerLoading";
 import {
   buildMunicipalityLabel,
   ensureMunicipalityLayers,
-  MUNICIPALITY_BORDER_LAYER_ID,
   MUNICIPALITY_HOVER_LAYER_ID,
   MUNICIPALITY_MIN_ZOOM,
   MUNICIPALITY_SOURCE_ID,
@@ -235,18 +234,9 @@ const removeSourceIfPresent = (map: maplibregl.Map, sourceId: string) => {
   if (map.getSource(sourceId)) map.removeSource(sourceId);
 };
 
-const removeProtectedMapLayers = (map: maplibregl.Map) => {
-  [
-    MUNICIPALITY_HOVER_LAYER_ID,
-    MUNICIPALITY_BORDER_LAYER_ID,
-    STATES_FILL_LAYER_ID,
-    STATES_BORDER_LAYER_ID,
-    GEE_LAYER_ID,
-  ].forEach((layerId) => removeLayerIfPresent(map, layerId));
-
-  [MUNICIPALITY_SOURCE_ID, STATES_SOURCE_ID, GEE_SOURCE_ID].forEach(
-    (sourceId) => removeSourceIfPresent(map, sourceId),
-  );
+const removeProtectedRasterLayer = (map: maplibregl.Map) => {
+  removeLayerIfPresent(map, GEE_LAYER_ID);
+  removeSourceIfPresent(map, GEE_SOURCE_ID);
 };
 
 const ensureMapLayers = (
@@ -278,13 +268,10 @@ const ensureMapLayers = (
     });
   }
 
-  if (mapMode === "demo") {
-    removeProtectedMapLayers(map);
-    return;
-  }
-
   // ── GEE raster tile layer ──
-  if (tileLayerUrl) {
+  if (mapMode === "demo") {
+    removeProtectedRasterLayer(map);
+  } else if (tileLayerUrl) {
     if (!map.getSource(GEE_SOURCE_ID)) {
       map.addSource(GEE_SOURCE_ID, {
         type: "raster",

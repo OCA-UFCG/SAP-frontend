@@ -199,6 +199,44 @@ describe("Map lifecycle", () => {
     );
   });
 
+  it("keeps public boundary vector layers available in demo mode", () => {
+    render(
+      <Map
+        center={[-15.749997, -47.9499962]}
+        estadoSelecionado="BR"
+        mapMode="demo"
+        tileLayerUrl="https://tiles.example/{z}/{x}/{y}"
+      />,
+    );
+
+    const firstInstance = mapInstances[0];
+    firstInstance.handlers.get("load")?.[0]?.({});
+
+    expect(firstInstance.addSource).toHaveBeenCalledWith(
+      "brazil-states",
+      expect.objectContaining({
+        tiles: [expect.stringContaining("/api/tiles/{z}/{x}/{y}")],
+      }),
+    );
+    expect(firstInstance.addSource).toHaveBeenCalledWith(
+      MUNICIPALITY_SOURCE_ID,
+      expect.objectContaining({
+        tiles: [expect.stringContaining("?tileset=cities")],
+      }),
+    );
+    expect(firstInstance.addLayer).toHaveBeenCalledWith(
+      expect.objectContaining({ id: "state-borders" }),
+    );
+    expect(firstInstance.addLayer).toHaveBeenCalledWith(
+      expect.objectContaining({ id: MUNICIPALITY_BORDER_LAYER_ID }),
+      "state-borders",
+    );
+    expect(firstInstance.addSource).not.toHaveBeenCalledWith(
+      "gee-tiles",
+      expect.anything(),
+    );
+  });
+
   it("limits Earth Engine raster tile requests to Brazil bounds", () => {
     render(
       <Map
