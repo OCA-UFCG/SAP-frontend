@@ -16,6 +16,13 @@ import {
 } from "firebase/auth";
 import { auth } from "@/lib/firebase";
 
+class SessionCreationError extends Error {
+  constructor() {
+    super("Erro ao criar sessão");
+    this.name = "SessionCreationError";
+  }
+}
+
 interface AuthContextType {
   user: User | null;
   loading: boolean;
@@ -41,9 +48,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   const signIn = useCallback(async (email: string, password: string) => {
     setError("");
+    let authenticatedUser: User | null = null;
 
     try {
       const { user } = await signInWithEmailAndPassword(auth, email, password);
+      authenticatedUser = user;
 
       const token = await user.getIdToken();
 
@@ -56,12 +65,20 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       });
 
       if (!sessionResponse.ok) {
-        throw new Error("Erro ao criar sessão");
+        throw new SessionCreationError();
       }
 
       setUser(user);
       return true;
     } catch (err: unknown) {
+      if (authenticatedUser) {
+        await fetch("/api/session", { method: "DELETE" }).catch(
+          () => undefined,
+        );
+        await firebaseSignOut(auth).catch(() => undefined);
+        setUser(null);
+      }
+
       const fbErr = err as { code?: string; message?: string };
       const messages: Record<string, string> = {
         "auth/too-many-requests":
@@ -69,7 +86,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       };
 
       setError(
-        fbErr.code
+        err instanceof SessionCreationError
+          ? "Login validado, mas não foi possível criar a sessão da plataforma."
+          : fbErr.code
           ? messages[fbErr.code] || "Login ou senha inválidos"
           : "Erro ao fazer login",
       );

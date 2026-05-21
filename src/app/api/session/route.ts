@@ -5,6 +5,16 @@ import {
   SESSION_COOKIE_NAME,
 } from "@/lib/server-session";
 
+function isFirebaseAdminConfigurationError(error: unknown) {
+  const message = error instanceof Error ? error.message : "";
+
+  return (
+    message.includes("Firebase Admin credentials are not set") ||
+    message.includes("Failed to parse private key") ||
+    message.includes("Invalid PEM formatted message")
+  );
+}
+
 export async function POST(req: Request) {
   try {
     const { token } = (await req.json()) as { token?: unknown };
@@ -28,7 +38,16 @@ export async function POST(req: Request) {
     });
 
     return response;
-  } catch {
+  } catch (error) {
+    console.error("Failed to create Firebase session cookie.", error);
+
+    if (isFirebaseAdminConfigurationError(error)) {
+      return NextResponse.json(
+        { error: "Session service unavailable." },
+        { status: 503 },
+      );
+    }
+
     return NextResponse.json(
       { error: "Unauthorized access." },
       { status: 401 },
