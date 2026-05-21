@@ -25,6 +25,23 @@ export async function verifyFirebaseSessionCookie(
   }
 }
 
+export async function getAuthenticatedUserId(request: Request) {
+  const sessionCookie = getSessionCookieFromRequest(request);
+
+  if (!sessionCookie) return null;
+
+  try {
+    const decodedToken = await adminAuth.verifySessionCookie(
+      sessionCookie,
+      true,
+    );
+
+    return decodedToken.uid;
+  } catch {
+    return null;
+  }
+}
+
 export function getCookieValue(
   cookieHeader: string | null,
   cookieName: string,

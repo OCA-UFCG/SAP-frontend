@@ -8,17 +8,8 @@ interface RateLimitEntry {
 
 const requestsByClient = new Map<string, RateLimitEntry>();
 
-function getClientKey(headers: Headers) {
-  const forwardedFor = headers.get("x-forwarded-for")?.split(",")[0]?.trim();
-  const realIp = headers.get("x-real-ip")?.trim();
-  const cfConnectingIp = headers.get("cf-connecting-ip")?.trim();
-
-  return forwardedFor || realIp || cfConnectingIp || "anonymous";
-}
-
-export function consumeEeRateLimit(headers: Headers) {
+export function consumeEeRateLimit(clientKey: string) {
   const now = Date.now();
-  const clientKey = getClientKey(headers);
   const currentEntry = requestsByClient.get(clientKey);
 
   const entry =

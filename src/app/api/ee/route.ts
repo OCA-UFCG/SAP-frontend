@@ -13,15 +13,17 @@ import {
 import { consumeEeRateLimit } from "./rate-limit";
 import { getPanelLayers } from "@/repositories/platform/panelLayerRepository";
 import { resolveImageYearEntry } from "@/utils/imageData";
-import { requireAuthenticatedRequest } from "@/lib/server-session";
+import { getAuthenticatedUserId } from "@/lib/server-session";
 
 export async function POST(req: NextRequest) {
-  const unauthorizedResponse = await requireAuthenticatedRequest(req);
-  if (unauthorizedResponse) return unauthorizedResponse;
+  const authenticatedUserId = await getAuthenticatedUserId(req);
+  if (!authenticatedUserId) {
+    return NextResponse.json({ error: "Unauthorized access." }, { status: 401 });
+  }
 
   ensureEeCacheWarmupStarted();
 
-  const rateLimit = consumeEeRateLimit(req.headers);
+  const rateLimit = consumeEeRateLimit(authenticatedUserId);
   if (rateLimit.limited) {
     return NextResponse.json(
       { error: "Too many Earth Engine requests. Try again later." },
@@ -87,7 +89,6 @@ export async function POST(req: NextRequest) {
       yearConfig.imageParams,
       layer.minScale,
       layer.maxScale,
-      yearConfig.mapVisualization,
     );
 
     console.log(new Date().toISOString(), " - Saving URL to cache");

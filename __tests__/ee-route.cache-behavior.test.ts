@@ -7,6 +7,7 @@ vi.mock("@/app/api/ee/services", () => ({
 }));
 
 vi.mock("@/lib/server-session", () => ({
+  getAuthenticatedUserId: vi.fn().mockResolvedValue("user-123"),
   requireAuthenticatedRequest: vi.fn().mockResolvedValue(null),
 }));
 
@@ -17,18 +18,17 @@ vi.mock("@/repositories/platform/panelLayerRepository", () => ({
 import { POST } from "@/app/api/ee/route";
 import {
   clearEeRateLimit,
+  consumeEeRateLimit,
   EE_RATE_LIMIT_MAX_REQUESTS,
 } from "../src/app/api/ee/rate-limit";
 import { getEarthEngineUrl } from "@/app/api/ee/services";
 import { buildCacheKey, removeCacheUrl } from "@/app/api/ee/cache";
 import { getPanelLayers } from "@/repositories/platform/panelLayerRepository";
-import { requireAuthenticatedRequest } from "@/lib/server-session";
+import { getAuthenticatedUserId } from "@/lib/server-session";
 
 const mockedGetEarthEngineUrl = vi.mocked(getEarthEngineUrl);
 const mockedGetPanelLayers = vi.mocked(getPanelLayers);
-const mockedRequireAuthenticatedRequest = vi.mocked(
-  requireAuthenticatedRequest,
-);
+const mockedGetAuthenticatedUserId = vi.mocked(getAuthenticatedUserId);
 
 function createMockRequest(
   url: string,
@@ -89,8 +89,8 @@ describe("POST /api/ee cache behavior", () => {
   beforeEach(() => {
     mockedGetEarthEngineUrl.mockReset();
     mockedGetPanelLayers.mockResolvedValue([createMockLayer()]);
-    mockedRequireAuthenticatedRequest.mockReset();
-    mockedRequireAuthenticatedRequest.mockResolvedValue(null);
+    mockedGetAuthenticatedUserId.mockReset();
+    mockedGetAuthenticatedUserId.mockResolvedValue("user-123");
     clearEeRateLimit();
     removeCacheUrl(cacheKeyV1);
     removeCacheUrl(cacheKeyV2);
@@ -103,9 +103,7 @@ describe("POST /api/ee cache behavior", () => {
   });
 
   it("returns 401 before processing layers when the session is invalid", async () => {
-    mockedRequireAuthenticatedRequest.mockResolvedValueOnce(
-      Response.json({ error: "Unauthorized access." }, { status: 401 }),
-    );
+    mockedGetAuthenticatedUserId.mockResolvedValueOnce(null);
 
     const request = createMockRequest(
       "https://example.test/api/ee?name=layer-a&year=2024",
@@ -118,6 +116,20 @@ describe("POST /api/ee cache behavior", () => {
     expect(body.error).toBe("Unauthorized access.");
     expect(mockedGetPanelLayers).not.toHaveBeenCalled();
     expect(mockedGetEarthEngineUrl).not.toHaveBeenCalled();
+  });
+
+  it("keys the rate limit by authenticated user instead of forwarded headers", () => {
+    const first = consumeEeRateLimit("user-123");
+    const second = consumeEeRateLimit("user-123");
+    const otherUser = consumeEeRateLimit("user-456");
+
+    expect(first.limited).toBe(false);
+    expect(second.headers["X-RateLimit-Remaining"]).toBe(
+      String(EE_RATE_LIMIT_MAX_REQUESTS - 2),
+    );
+    expect(otherUser.headers["X-RateLimit-Remaining"]).toBe(
+      String(EE_RATE_LIMIT_MAX_REQUESTS - 1),
+    );
   });
 
   it("caches the generated URL for the same layer and year", async () => {
@@ -178,7 +190,6 @@ describe("POST /api/ee cache behavior", () => {
       [{ color: "#EEEEEE", label: "new" }],
       10,
       100,
-      undefined,
     );
   });
 
@@ -230,7 +241,6 @@ describe("POST /api/ee cache behavior", () => {
       ],
       0,
       1,
-      mapVisualization,
     );
   });
 
@@ -293,9 +303,11 @@ describe("POST /api/ee cache behavior", () => {
     const requestUrl = "https://example.test/api/ee?name=layer-a&year=2024";
 
     for (let attempt = 0; attempt < EE_RATE_LIMIT_MAX_REQUESTS; attempt++) {
+      mockedGetAuthenticatedUserId.mockResolvedValueOnce("user-123");
       await POST(createMockRequest(requestUrl, "198.51.100.11"));
     }
 
+    mockedGetAuthenticatedUserId.mockResolvedValueOnce("user-456");
     const otherClientRes = await POST(
       createMockRequest(requestUrl, "198.51.100.12"),
     );
