@@ -45,6 +45,9 @@ next-env.d.ts
 storybook-static
 .vscode/
 
+# Local personal context notes. Do not commit.
+/my_contexts/
+
 /BR_Municipios_2025
 
 # Generated/downloaded vector tile artifacts.

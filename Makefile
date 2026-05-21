@@ -3,11 +3,12 @@ ifneq (,$(wildcard .env))
 endif
 
 PWD=$(shell pwd)
-NODE_IMAGE=node:22-bookworm
+NODE_IMAGE=node:24-bookworm
 IMAGE_NAME=sap-frontend
 CONTAINER_PORT=3000
 NODE_MODULES_VOLUME=$(IMAGE_NAME)-node_modules
 NEXT_CACHE_VOLUME=$(IMAGE_NAME)-next_cache
+DOCKER_ENV_FILE=$(if $(wildcard .env),--env-file .env,)
 
 # PROD Env
 HOST_PORT_PROD=3000
@@ -48,7 +49,7 @@ docker-build-prod:
 	docker build -t $(IMAGE_NAME) -f Dockerfile.production .
 
 docker-run-prod:
-	docker run --name $(CONTAINER_NAME_PROD) -p $(HOST_PORT_PROD):$(CONTAINER_PORT) -d --restart always $(IMAGE_NAME)
+	docker run --name $(CONTAINER_NAME_PROD) -p $(HOST_PORT_PROD):$(CONTAINER_PORT) $(DOCKER_ENV_FILE) -d --restart always $(IMAGE_NAME)
 
 docker-run-beta:
-	docker run --name $(CONTAINER_NAME_BETA) -p $(HOST_PORT_BETA):$(CONTAINER_PORT) -d --restart always $(IMAGE_NAME)
+	docker run --name $(CONTAINER_NAME_BETA) -p $(HOST_PORT_BETA):$(CONTAINER_PORT) $(DOCKER_ENV_FILE) -d --restart always $(IMAGE_NAME)

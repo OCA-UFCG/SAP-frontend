@@ -11,12 +11,8 @@ import {
 
 export function PlatformMap() {
   const { activeData, activeEEData } = useMapLayerActiveState();
-  const {
-    activeLegend,
-    selectedState,
-    selectedMunicipalityCode,
-    activeYear,
-  } = useMapLayerViewState();
+  const { activeLegend, selectedState, selectedMunicipalityCode, activeYear } =
+    useMapLayerViewState();
   const { setSelectedState, setSelectedMunicipalityCode } =
     useMapLayerActions();
   const { requestKey, status, tileLayerUrl } = useEarthEngineTileLayer(
@@ -43,6 +39,7 @@ export function PlatformMap() {
     <div className="absolute inset-0">
       <div className="relative flex w-full h-full z-10">
         <MapComponent
+          mapMode="platform"
           minZoom={3}
           center={[-15.749997, -47.9499962]}
           zoom={4}

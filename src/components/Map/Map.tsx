@@ -34,13 +34,17 @@ import { isTileLayerReadyEvent } from "./tileLayerLoading";
 import {
   buildMunicipalityLabel,
   ensureMunicipalityLayers,
+  MUNICIPALITY_BORDER_LAYER_ID,
   MUNICIPALITY_HOVER_LAYER_ID,
   MUNICIPALITY_MIN_ZOOM,
   MUNICIPALITY_SOURCE_ID,
   MUNICIPALITY_SOURCE_LAYER,
 } from "./municipalityLayers";
 
-interface MapProps {
+export type MapMode = "demo" | "platform";
+
+export interface MapProps {
+  mapMode?: MapMode;
   minZoom?: number;
   center: [number, number];
   zoom?: number;
@@ -137,7 +141,9 @@ const enforceMinimumMapZoom = (
   });
 };
 
-const getFeatureBounds = (feature: MapGeoJSONFeature): LngLatBoundsLike | null => {
+const getFeatureBounds = (
+  feature: MapGeoJSONFeature,
+): LngLatBoundsLike | null => {
   if (!feature.geometry) return null;
 
   const [minLng, minLat, maxLng, maxLat] = bbox({
@@ -210,8 +216,31 @@ const isValidLatLngTuple = (value: unknown): value is [number, number] =>
   typeof value[1] === "number" &&
   Number.isFinite(value[1]);
 
+const removeLayerIfPresent = (map: maplibregl.Map, layerId: string) => {
+  if (map.getLayer(layerId)) map.removeLayer(layerId);
+};
+
+const removeSourceIfPresent = (map: maplibregl.Map, sourceId: string) => {
+  if (map.getSource(sourceId)) map.removeSource(sourceId);
+};
+
+const removeProtectedMapLayers = (map: maplibregl.Map) => {
+  [
+    MUNICIPALITY_HOVER_LAYER_ID,
+    MUNICIPALITY_BORDER_LAYER_ID,
+    STATES_FILL_LAYER_ID,
+    STATES_BORDER_LAYER_ID,
+    GEE_LAYER_ID,
+  ].forEach((layerId) => removeLayerIfPresent(map, layerId));
+
+  [MUNICIPALITY_SOURCE_ID, STATES_SOURCE_ID, GEE_SOURCE_ID].forEach(
+    (sourceId) => removeSourceIfPresent(map, sourceId),
+  );
+};
+
 const ensureMapLayers = (
   map: maplibregl.Map,
+  mapMode: MapMode,
   showStatesBorder: boolean,
   hasCdiData: boolean,
   tileLayerUrl?: string | null,
@@ -236,6 +265,11 @@ const ensureMapLayers = (
         visibility: hasCdiData ? "visible" : "none",
       },
     });
+  }
+
+  if (mapMode === "demo") {
+    removeProtectedMapLayers(map);
+    return;
   }
 
   // ── GEE raster tile layer ──
@@ -361,6 +395,7 @@ const ensureMapLayers = (
 };
 
 const Map = ({
+  mapMode = "platform",
   center = [51.505, -0.09],
   zoom = 13,
   minZoom = 3,
@@ -400,10 +435,9 @@ const Map = ({
   const markersRef = useRef<maplibregl.Marker[]>([]);
   const selectedStateRef = useRef<string>(estadoSelecionado);
   const onStateSelectRef = useRef<MapProps["onStateSelect"]>(onStateSelect);
-  const onSelectedMunicipalityCodeChangeRef =
-    useRef<MapProps["onSelectedMunicipalityCodeChange"]>(
-      onSelectedMunicipalityCodeChange,
-    );
+  const onSelectedMunicipalityCodeChangeRef = useRef<
+    MapProps["onSelectedMunicipalityCodeChange"]
+  >(onSelectedMunicipalityCodeChange);
   const onTileLayerReadyRef =
     useRef<MapProps["onTileLayerReady"]>(onTileLayerReady);
   const tileLayerUrlRef = useRef<string | null | undefined>(tileLayerUrl);
@@ -413,6 +447,7 @@ const Map = ({
   const pendingTileLayerReadyKeyRef = useRef<string | null>(
     tileLayerUrl && tileLayerRequestKey ? tileLayerRequestKey : null,
   );
+  const mapModeRef = useRef<MapMode>(mapMode);
   const showStatesBorderRef = useRef<boolean>(showStatesBorder);
   const hasCdiDataRef = useRef<boolean>(Boolean(dadosCDI));
   const cdiGeoJsonRef = useRef<
@@ -900,6 +935,7 @@ const Map = ({
   );
 
   useEffect(() => {
+    mapModeRef.current = mapMode;
     selectedStateRef.current = estadoSelecionado;
     selectedMunicipalityCodeRef.current = selectedMunicipalityCode ?? null;
     if (!selectedMunicipalityCode) {
@@ -916,6 +952,7 @@ const Map = ({
     cdiGeoJsonRef.current = cdiGeoJson;
     currentBoundsRef.current = currentBounds;
   }, [
+    mapMode,
     estadoSelecionado,
     onStateSelect,
     onSelectedMunicipalityCodeChange,
@@ -1036,23 +1073,26 @@ const Map = ({
 
       ensureMapLayers(
         map,
+        mapModeRef.current,
         showStatesBorderRef.current,
         hasCdiDataRef.current,
         tileLayerUrlRef.current,
       );
 
       // Re-apply the currently selected state after (re)creating layers/sources.
-      try {
-        if (map.getSource(STATES_SOURCE_ID)) {
-          applySelectedFeatureState(map, selectedStateRef.current);
+      if (mapModeRef.current === "platform") {
+        try {
+          if (map.getSource(STATES_SOURCE_ID)) {
+            applySelectedFeatureState(map, selectedStateRef.current);
+          }
+        } catch (err) {
+          warn("syncMapLayers applySelectedFeatureState failed", { err });
+          scheduleSelectedStateSync("syncMapLayers");
         }
-      } catch (err) {
-        warn("syncMapLayers applySelectedFeatureState failed", { err });
-        scheduleSelectedStateSync("syncMapLayers");
-      }
 
-      if (selectedMunicipalityCodeRef.current) {
-        scheduleSelectedMunicipalitySync("syncMapLayers");
+        if (selectedMunicipalityCodeRef.current) {
+          scheduleSelectedMunicipalitySync("syncMapLayers");
+        }
       }
 
       const cdiSource = map.getSource(CDI_SOURCE_ID) as
@@ -1060,12 +1100,15 @@ const Map = ({
         | undefined;
       cdiSource?.setData(cdiGeoJsonRef.current);
 
-      map.setLayoutProperty(STATES_FILL_LAYER_ID, "visibility", "visible");
-      map.setLayoutProperty(
-        STATES_BORDER_LAYER_ID,
-        "visibility",
-        showStatesBorderRef.current ? "visible" : "none",
-      );
+      if (mapModeRef.current === "platform") {
+        map.setLayoutProperty(STATES_FILL_LAYER_ID, "visibility", "visible");
+        map.setLayoutProperty(
+          STATES_BORDER_LAYER_ID,
+          "visibility",
+          showStatesBorderRef.current ? "visible" : "none",
+        );
+      }
+
       map.setLayoutProperty(
         CDI_LAYER_ID,
         "visibility",
@@ -1083,7 +1126,14 @@ const Map = ({
 
   useEffect(() => {
     syncMapLayers();
-  }, [syncMapLayers, cdiGeoJson, dadosCDI, showStatesBorder, tileLayerUrl]);
+  }, [
+    syncMapLayers,
+    cdiGeoJson,
+    dadosCDI,
+    mapMode,
+    showStatesBorder,
+    tileLayerUrl,
+  ]);
 
   useEffect(() => {
     if (!mapContainerRef.current || mapRef.current) {
@@ -1153,6 +1203,7 @@ const Map = ({
 
       // Apply initial selected state via feature-state (works with vector tiles).
       if (
+        mapModeRef.current === "platform" &&
         selectedStateRef.current &&
         selectedStateRef.current !== BRAZIL_TERRITORY_CODE
       ) {
@@ -1167,8 +1218,15 @@ const Map = ({
         );
       }
 
-      if (selectedMunicipalityCodeRef.current) {
+      if (
+        mapModeRef.current === "platform" &&
+        selectedMunicipalityCodeRef.current
+      ) {
         scheduleSelectedMunicipalitySync("map load");
+      }
+
+      if (mapModeRef.current !== "platform") {
+        return;
       }
 
       map.on("mousemove", STATES_FILL_LAYER_ID, (event) => {
@@ -1340,7 +1398,7 @@ const Map = ({
 
   useEffect(() => {
     const map = mapRef.current;
-    if (!map) return;
+    if (!map || mapMode !== "platform") return;
 
     const next = estadoSelecionado;
 
@@ -1364,6 +1422,7 @@ const Map = ({
     }
   }, [
     estadoSelecionado,
+    mapMode,
     applySelectedFeatureState,
     scheduleSelectedStateSync,
     log,
@@ -1373,14 +1432,14 @@ const Map = ({
   useEffect(() => {
     const map = mapRef.current;
 
-    if (!map) {
+    if (!map || mapMode !== "platform") {
       return;
     }
 
     selectedMunicipalityBoundsRef.current = null;
 
     scheduleSelectedMunicipalitySync("selectedMunicipalityCode effect");
-  }, [selectedMunicipalityCode, scheduleSelectedMunicipalitySync]);
+  }, [mapMode, selectedMunicipalityCode, scheduleSelectedMunicipalitySync]);
 
   useEffect(() => {
     const map = mapRef.current;
@@ -1409,12 +1468,19 @@ const Map = ({
       return;
     }
 
-    if (selectedMunicipalityCodeRef.current && selectedMunicipalityBoundsRef.current) {
-      fitSelectedMunicipalityToBounds(map, selectedMunicipalityBoundsRef.current, {
-        animate: true,
-        duration: MAP_FOCUS_ANIMATION_DURATION,
-        easing: smoothCameraEasing,
-      });
+    if (
+      selectedMunicipalityCodeRef.current &&
+      selectedMunicipalityBoundsRef.current
+    ) {
+      fitSelectedMunicipalityToBounds(
+        map,
+        selectedMunicipalityBoundsRef.current,
+        {
+          animate: true,
+          duration: MAP_FOCUS_ANIMATION_DURATION,
+          easing: smoothCameraEasing,
+        },
+      );
       return;
     }
 
@@ -1438,11 +1504,18 @@ const Map = ({
       return;
     }
 
-    if (selectedMunicipalityCodeRef.current && selectedMunicipalityBoundsRef.current) {
-      fitSelectedMunicipalityToBounds(map, selectedMunicipalityBoundsRef.current, {
-        animate: false,
-        duration: MAP_OVERLAY_ADJUST_DURATION,
-      });
+    if (
+      selectedMunicipalityCodeRef.current &&
+      selectedMunicipalityBoundsRef.current
+    ) {
+      fitSelectedMunicipalityToBounds(
+        map,
+        selectedMunicipalityBoundsRef.current,
+        {
+          animate: false,
+          duration: MAP_OVERLAY_ADJUST_DURATION,
+        },
+      );
       return;
     }
 

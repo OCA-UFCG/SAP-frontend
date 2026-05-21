@@ -20,7 +20,7 @@ interface AuthContextType {
   user: User | null;
   loading: boolean;
   error?: string;
-  signIn: (email: string, password: string) => Promise<void>;
+  signIn: (email: string, password: string) => Promise<boolean>;
   signOut: () => Promise<void>;
 }
 
@@ -55,26 +55,30 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         body: JSON.stringify({ token }),
       });
 
-      if (!sessionResponse.ok)
+      if (!sessionResponse.ok) {
         throw new Error("Erro ao criar sessão");
+      }
 
       setUser(user);
+      return true;
     } catch (err: unknown) {
       const fbErr = err as { code?: string; message?: string };
       const messages: Record<string, string> = {
         "auth/too-many-requests":
           "Muitas tentativas. Tente novamente mais tarde",
       };
-      
+
       setError(
         fbErr.code
           ? messages[fbErr.code] || "Login ou senha inválidos"
           : "Erro ao fazer login",
       );
+      return false;
     }
   }, []);
 
   const signOut = useCallback(async () => {
+    await fetch("/api/session", { method: "DELETE" }).catch(() => undefined);
     await firebaseSignOut(auth);
     setUser(null);
   }, []);

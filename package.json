@@ -13,7 +13,7 @@
     "test": "vitest",
     "test:unit": "vitest --project unit",
     "test:storybook": "vitest --project storybook",
-    "precommit": "lint-staged",
+    "precommit": "lint-staged --no-stash",
     "format": "prettier --write ."
   },
   "overrides": {

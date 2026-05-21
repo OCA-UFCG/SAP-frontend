@@ -6,10 +6,8 @@ vi.mock("@/app/api/ee/services", () => ({
   getEarthEngineUrl: vi.fn(),
 }));
 
-vi.mock("@/lib/firebase-admin", () => ({
-  adminAuth: {
-    verifyIdToken: vi.fn().mockResolvedValue({ uid: "test-user-id" }),
-  },
+vi.mock("@/lib/server-session", () => ({
+  requireAuthenticatedRequest: vi.fn().mockResolvedValue(null),
 }));
 
 vi.mock("@/repositories/platform/panelLayerRepository", () => ({
@@ -24,9 +22,13 @@ import {
 import { getEarthEngineUrl } from "@/app/api/ee/services";
 import { buildCacheKey, removeCacheUrl } from "@/app/api/ee/cache";
 import { getPanelLayers } from "@/repositories/platform/panelLayerRepository";
+import { requireAuthenticatedRequest } from "@/lib/server-session";
 
 const mockedGetEarthEngineUrl = vi.mocked(getEarthEngineUrl);
 const mockedGetPanelLayers = vi.mocked(getPanelLayers);
+const mockedRequireAuthenticatedRequest = vi.mocked(
+  requireAuthenticatedRequest,
+);
 
 function createMockRequest(
   url: string,
@@ -36,7 +38,7 @@ function createMockRequest(
     nextUrl: new URL(url),
     headers: new Headers({
       "x-forwarded-for": forwardedFor,
-      Authorization: "Bearer mock-valid-token",
+      Cookie: "session=mock-session-cookie",
     }),
   } as unknown as NextRequest;
 }
@@ -87,6 +89,8 @@ describe("POST /api/ee cache behavior", () => {
   beforeEach(() => {
     mockedGetEarthEngineUrl.mockReset();
     mockedGetPanelLayers.mockResolvedValue([createMockLayer()]);
+    mockedRequireAuthenticatedRequest.mockReset();
+    mockedRequireAuthenticatedRequest.mockResolvedValue(null);
     clearEeRateLimit();
     removeCacheUrl(cacheKeyV1);
     removeCacheUrl(cacheKeyV2);
@@ -96,6 +100,24 @@ describe("POST /api/ee cache behavior", () => {
     clearEeRateLimit();
     removeCacheUrl(cacheKeyV1);
     removeCacheUrl(cacheKeyV2);
+  });
+
+  it("returns 401 before processing layers when the session is invalid", async () => {
+    mockedRequireAuthenticatedRequest.mockResolvedValueOnce(
+      Response.json({ error: "Unauthorized access." }, { status: 401 }),
+    );
+
+    const request = createMockRequest(
+      "https://example.test/api/ee?name=layer-a&year=2024",
+    );
+
+    const res = await POST(request);
+    const body = (await res.json()) as { error?: string };
+
+    expect(res.status).toBe(401);
+    expect(body.error).toBe("Unauthorized access.");
+    expect(mockedGetPanelLayers).not.toHaveBeenCalled();
+    expect(mockedGetEarthEngineUrl).not.toHaveBeenCalled();
   });
 
   it("caches the generated URL for the same layer and year", async () => {
@@ -168,7 +190,7 @@ describe("POST /api/ee cache behavior", () => {
       nextUrl: new URL("https://example.test/api/ee?name=layer-a&year=2024"),
       headers: new Headers({
         "x-forwarded-for": "203.0.113.10",
-        "Authorization": "Bearer mock-valid-token"
+        Cookie: "session=mock-session-cookie",
       }),
       json: vi.fn().mockResolvedValue({
         imageId: "projects/example/image-v2",
