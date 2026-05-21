@@ -55,6 +55,7 @@ Open `http://localhost:3000` in the browser.
 
 - `npm run dev`: start the development server.
 - `npm run build`: build the app with the current webpack-based Next.js configuration.
+- `npm run ci:verify`: run the blocking validation contract used by CI/CD (`lint`, unit tests, and webpack build).
 - `npm run start`: start the production server.
 - `npm run lint`: run ESLint.
 - `npm run test`: run all Vitest projects.
@@ -82,6 +83,7 @@ These files are living documents. If a prompt or code change affects architectur
 - `panelLayer.imageData` is a high-impact contract. Changes to it can affect Contentful mapping, map rendering, legend generation, analysis behavior, and EE cache behavior.
 - The main platform flow currently centers on Contentful `panelLayers`, client-side map state in `MapLayerContext`, and server-side EE URL resolution through `/api/ee`.
 - The repository contains both application tests and Storybook coverage; prefer the narrowest relevant test command for the slice you change.
+- CI/CD blocks merges and releases on `npm run ci:verify`; broader Storybook/browser coverage remains a separate, non-blocking path.
 
 ## Repository Structure
 
