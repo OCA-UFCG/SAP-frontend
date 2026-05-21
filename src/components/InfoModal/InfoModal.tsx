@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useRef } from "react";
+import { useEffect, useRef } from "react";
 import { createPortal } from "react-dom";
 import clsx from "clsx";
 import type { ImageDataConfig } from "@/utils/interfaces";
@@ -68,12 +68,12 @@ export function InfoModal({
     return () => document.removeEventListener("keydown", onKey);
   }, [open, onClose]);
 
-  const years = getImageDataYearKeys(imageData);
-  const legend = getImageDataLegend(imageData);
-
   if (typeof document === "undefined" || !open) {
     return null;
   }
+
+  const years = getImageDataYearKeys(imageData);
+  const legend = getImageDataLegend(imageData);
 
   return createPortal(
     <div
