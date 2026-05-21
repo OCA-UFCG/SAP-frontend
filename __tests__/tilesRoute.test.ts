@@ -10,7 +10,16 @@ vi.mock("@/app/api/tiles/tileDatabase", () => ({
   tileSetFileExists: tileSetFileExistsMock,
 }));
 
+vi.mock("@/lib/server-session", () => ({
+  requireAuthenticatedRequest: vi.fn().mockResolvedValue(null),
+}));
+
 import { GET } from "@/app/api/tiles/[z]/[x]/[y]/route";
+import { requireAuthenticatedRequest } from "@/lib/server-session";
+
+const mockedRequireAuthenticatedRequest = vi.mocked(
+  requireAuthenticatedRequest,
+);
 
 const callTilesRoute = (url: string) =>
   GET(new Request(url), {
@@ -21,8 +30,23 @@ describe("tiles route", () => {
   beforeEach(() => {
     readVectorTileMock.mockReset();
     tileSetFileExistsMock.mockReset();
+    mockedRequireAuthenticatedRequest.mockReset();
+    mockedRequireAuthenticatedRequest.mockResolvedValue(null);
     tileSetFileExistsMock.mockReturnValue(true);
     readVectorTileMock.mockResolvedValue(Buffer.from([1, 2, 3]));
+  });
+
+  it("rejects requests without a valid session before reading tiles", async () => {
+    mockedRequireAuthenticatedRequest.mockResolvedValueOnce(
+      Response.json({ error: "Unauthorized access." }, { status: 401 }),
+    );
+
+    const response = await callTilesRoute(
+      "https://example.test/api/tiles/0/0/0",
+    );
+
+    expect(response.status).toBe(401);
+    expect(readVectorTileMock).not.toHaveBeenCalled();
   });
 
   it("uses states as the default tileset", async () => {
@@ -31,6 +55,7 @@ describe("tiles route", () => {
     );
 
     expect(response.status).toBe(200);
+    expect(response.headers.get("Cache-Control")).toBe("private, no-store");
     expect(readVectorTileMock).toHaveBeenCalledWith(
       expect.objectContaining({ id: "states" }),
       { x: 0, y: 0, z: 0 },

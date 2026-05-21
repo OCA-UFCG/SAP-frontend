@@ -13,8 +13,12 @@ import {
 import { consumeEeRateLimit } from "./rate-limit";
 import { getPanelLayers } from "@/repositories/platform/panelLayerRepository";
 import { resolveImageYearEntry } from "@/utils/imageData";
+import { requireAuthenticatedRequest } from "@/lib/server-session";
 
 export async function POST(req: NextRequest) {
+  const unauthorizedResponse = await requireAuthenticatedRequest(req);
+  if (unauthorizedResponse) return unauthorizedResponse;
+
   ensureEeCacheWarmupStarted();
 
   const rateLimit = consumeEeRateLimit(req.headers);

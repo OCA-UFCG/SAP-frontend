@@ -25,6 +25,7 @@ export async function fetchMapURL(
     {
       method: "POST",
       signal,
+      credentials: "include",
     },
   );
 

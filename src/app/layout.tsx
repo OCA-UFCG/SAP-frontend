@@ -5,6 +5,7 @@ import { Header } from "@/components/Header/Header";
 import { FooterSlot } from "@/components/Footer/FooterSlot";
 import { getFooterContent } from "@/repositories/content/siteContentRepository";
 import { ISections } from "@/utils/interfaces";
+import { AuthProvider } from "@/contexts/AuthContext";
 import "./globals.css";
 
 const geistSans = Geist({
@@ -76,9 +77,11 @@ export default async function RootLayout({
       <body
         className={`${geistSans.variable} ${geistMono.variable} ${inter.variable} ${openSans.variable} antialiased min-h-screen flex flex-col`}
       >
-        <Header content={Object.values(headerContent)}></Header>
-        <main className="flex-1 w-full">{children}</main>
-        <FooterSlot content={footerContent} />
+        <AuthProvider>
+          <Header content={Object.values(headerContent)}></Header>
+          <main className="flex-1 w-full">{children}</main>
+          <FooterSlot content={footerContent} />
+        </AuthProvider>
       </body>
     </html>
   );

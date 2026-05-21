@@ -89,6 +89,7 @@ export default function DroughtSection() {
           <div className="flex flex-col gap-4 h-full min-h-[500px]">
             <div className="relative flex w-full h-full min-h-[500px] z-10 rounded-2xl overflow-hidden border border-neutral-200 shadow-sm">
               <MapComponent
+                mapMode="demo"
                 center={[-15.749997, -47.9499962]}
                 zoom={4}
                 dadosCDI={cdiData}
