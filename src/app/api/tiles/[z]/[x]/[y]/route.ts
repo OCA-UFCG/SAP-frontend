@@ -2,7 +2,6 @@ import { gzipSync } from "node:zlib";
 import { parseTileCoordinates } from "../../../tileCoordinates";
 import { readVectorTile, tileSetFileExists } from "../../../tileDatabase";
 import { resolveTileSet } from "../../../tileSets";
-import { requireAuthenticatedRequest } from "@/lib/server-session";
 
 export const runtime = "nodejs";
 
@@ -15,7 +14,7 @@ const buildTileResponse = (tileData: Buffer) => {
   return new Response(new Uint8Array(body), {
     status: 200,
     headers: {
-      "Cache-Control": "private, no-store",
+      "Cache-Control": "public, max-age=86400, stale-while-revalidate=604800",
       "Content-Encoding": "gzip",
       "Content-Type": "application/vnd.mapbox-vector-tile",
     },
@@ -26,9 +25,6 @@ export async function GET(
   request: Request,
   { params }: { params: Promise<{ z: string; x: string; y: string }> },
 ) {
-  const unauthorizedResponse = await requireAuthenticatedRequest(request);
-  if (unauthorizedResponse) return unauthorizedResponse;
-
   const { z: zRaw, x: xRaw, y: yRaw } = await params;
   const tileSetParam = new URL(request.url).searchParams.get("tileset");
   const tileSetResult = resolveTileSet(tileSetParam);
