@@ -185,6 +185,7 @@ export interface PanelLayerI {
   minScale?: number;
   maxScale?: number;
   category?: string;
+  timeScale?: string;
 }
 
 export interface IEEInfo {

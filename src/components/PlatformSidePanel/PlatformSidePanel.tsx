@@ -25,7 +25,7 @@ export function PlatformSidePanel({
   onRequestSectionChange,
 }: PlatformSidePanelProps) {
   return (
-    <section className="h-full w-[424px] bg-[#F6F7F6] border-r border-neutral-200">
+    <section className="h-full w-full max-w-[424px] bg-[#F6F7F6] border-r border-neutral-200">
       <ContextComponent
         activeSection={activeSection}
         panelLayers={panelLayers}
