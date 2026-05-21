@@ -71,9 +71,6 @@ export default function DroughtSection() {
 
   const cdiData = geodata as unknown as CDIVectorData;
 
-  // Helper to determine text color for the checkmark icon based on background brightness
-  const isLightColor = ["#E4E5E2", "#FFCC80"].includes(highestStatusColor);
-
   return (
     <section className="w-full bg-white flex flex-col items-center text-[#292829]">
       <div className="w-full max-w-[1440px] mx-auto px-4 py-12 md:px-10 lg:px-[80px]">
@@ -94,6 +91,7 @@ export default function DroughtSection() {
                 zoom={4}
                 dadosCDI={cdiData}
                 estadoSelecionado={selectedState.toUpperCase()}
+                onStateSelect={(uf: string) => setSelectedState(uf.toLowerCase())}
                 className="w-full h-full"
               />
 

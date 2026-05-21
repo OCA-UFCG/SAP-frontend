@@ -1222,10 +1222,6 @@ const Map = ({
         scheduleSelectedMunicipalitySync("map load");
       }
 
-      if (mapModeRef.current !== "platform") {
-        return;
-      }
-
       map.on("mousemove", STATES_FILL_LAYER_ID, (event) => {
         const hoveredFeature = event.features?.[0] as
           | MapGeoJSONFeature
@@ -1271,7 +1267,7 @@ const Map = ({
           );
         }
 
-        map.getCanvas().style.cursor = "default";
+        map.getCanvas().style.cursor = "pointer";
 
         if (uf || name) {
           popup
@@ -1349,27 +1345,29 @@ const Map = ({
         onStateSelectRef.current?.(nextSelectedState);
       });
 
-      map.on("click", () => {
-        clearSelectedMunicipalitySelection(map);
-      });
+      if (mapModeRef.current === "platform") {
+        map.on("click", () => {
+          clearSelectedMunicipalitySelection(map);
+        });
 
-      map.on("mousemove", MUNICIPALITY_HOVER_LAYER_ID, (event) => {
-        const municipalityFeature = event.features?.[0] as
-          | MapGeoJSONFeature
-          | undefined;
-        const municipalityLabel = buildMunicipalityLabel(municipalityFeature);
+        map.on("mousemove", MUNICIPALITY_HOVER_LAYER_ID, (event) => {
+          const municipalityFeature = event.features?.[0] as
+            | MapGeoJSONFeature
+            | undefined;
+          const municipalityLabel = buildMunicipalityLabel(municipalityFeature);
 
-        map.getCanvas().style.cursor = "default";
+          map.getCanvas().style.cursor = "pointer";
 
-        if (municipalityLabel) {
-          popup.setLngLat(event.lngLat).setText(municipalityLabel).addTo(map);
-        }
-      });
+          if (municipalityLabel) {
+            popup.setLngLat(event.lngLat).setText(municipalityLabel).addTo(map);
+          }
+        });
 
-      map.on("mouseleave", MUNICIPALITY_HOVER_LAYER_ID, () => {
-        map.getCanvas().style.cursor = "";
-        popup.remove();
-      });
+        map.on("mouseleave", MUNICIPALITY_HOVER_LAYER_ID, () => {
+          map.getCanvas().style.cursor = "";
+          popup.remove();
+        });
+      }
     });
 
     mapRef.current = map;

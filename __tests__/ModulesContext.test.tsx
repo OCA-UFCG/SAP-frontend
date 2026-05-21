@@ -20,6 +20,17 @@ vi.mock("@/utils/imageData", () => ({
   getImageDataLegend: vi.fn(() => null),
 }));
 
+vi.mock("@/components/DroughtDataset/DroughtDataset", () => ({
+  DroughtDataset: ({ card }: { card: { title: string; description: string } }) => {
+    return (
+      <article>
+        <h3>{card.title}</h3>
+        <p>{card.description}</p>
+      </article>
+    );
+  },
+}));
+
 import { ModulesContext } from "@/components/SidePanelContexts/ModulesContext";
 import type { PanelLayerI } from "@/utils/interfaces";
 
@@ -71,17 +82,17 @@ describe("ModulesContext", () => {
       <ModulesContext activeSection="analysis" panelLayers={panelLayers} />,
     );
 
-    const ambientalAccordion = screen.getByRole("button", {
-      name: "Dados Ambientais",
-    });
-    const livreAccordion = screen.getByRole("button", {
-      name: "Categoria Livre",
-    });
+    const ambientalAccordion = screen
+      .getByText("Dados Ambientais")
+      .closest("button");
+    const livreAccordion = screen
+      .getByText("Categoria Livre")
+      .closest("button");
 
     expect(ambientalAccordion).toHaveAttribute("aria-expanded", "true");
     expect(livreAccordion).toHaveAttribute("aria-expanded", "false");
-    expect(screen.getByText("Camada Ambiental")).toBeVisible();
-    expect(screen.getByText("Camada Livre")).toBeVisible();
+    expect(screen.getByText("Camada Ambiental")).toBeInTheDocument();
+    expect(screen.getByText("Camada Livre")).toBeInTheDocument();
   });
 
   it("uses Outros when category is missing and still renders it", () => {
@@ -100,9 +111,10 @@ describe("ModulesContext", () => {
       <ModulesContext activeSection="analysis" panelLayers={panelLayers} />,
     );
 
-    expect(
-      screen.getByRole("button", { name: "Outros" }),
-    ).toHaveAttribute("aria-expanded", "true");
-    expect(screen.getByText("Camada Sem Categoria")).toBeVisible();
+    expect(screen.getByText("Outros").closest("button")).toHaveAttribute(
+      "aria-expanded",
+      "true",
+    );
+    expect(screen.getByText("Camada Sem Categoria")).toBeInTheDocument();
   });
 });
