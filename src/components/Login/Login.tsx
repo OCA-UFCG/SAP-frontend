@@ -43,10 +43,10 @@ export const Login = ({ onSubmit, backgroundImageUrl, error }: LoginProps) => {
       <div className="relative z-10 flex w-full max-w-[462px] flex-col gap-8 rounded-lg border border-white/45 bg-white/24 p-6 shadow-2xl shadow-black/25 backdrop-blur-xl sm:p-8">
         <header className="flex flex-col gap-2">
           <h1 className="font-inter text-[24px] font-semibold leading-8 text-white drop-shadow-sm">
-            Acesso ao SAP
+            Faça login
           </h1>
           <p className="text-[14px] leading-5 text-white/82">
-            Entre com suas credenciais para acessar a plataforma.
+            Digite suas credenciais para acessar a plataforma.
           </p>
         </header>
 
@@ -58,19 +58,14 @@ export const Login = ({ onSubmit, backgroundImageUrl, error }: LoginProps) => {
 
         <form className="flex flex-col gap-5" onSubmit={submitLogin} noValidate>
           <div className="flex flex-col gap-2">
-            <label
-              className="text-[14px] font-medium leading-5 text-white"
-              htmlFor="login"
-            >
-              Login
-            </label>
             <input
               id="login"
               type="text"
               autoComplete="username"
+              aria-label="Login"
               aria-invalid={Boolean(errors.login)}
               className="h-10 w-full rounded-lg border border-white/30 bg-white/82 px-3 py-3 text-sm text-[#292829] shadow-sm outline-none transition placeholder:text-[#6D6D6D] hover:border-white/70 focus:border-white focus:ring-2 focus:ring-white/35"
-              placeholder="Digite seu login"
+              placeholder="Email"
               {...register("login", {
                 required: "Informe o login.",
               })}
@@ -83,19 +78,14 @@ export const Login = ({ onSubmit, backgroundImageUrl, error }: LoginProps) => {
           </div>
 
           <div className="flex flex-col gap-2">
-            <label
-              className="text-[14px] font-medium leading-5 text-white"
-              htmlFor="password"
-            >
-              Password
-            </label>
             <input
               id="password"
               type="password"
               autoComplete="current-password"
+              aria-label="Senha"
               aria-invalid={Boolean(errors.password)}
               className="h-10 w-full rounded-lg border border-white/30 bg-white/82 px-3 py-3 text-sm text-[#292829] shadow-sm outline-none transition placeholder:text-[#6D6D6D] hover:border-white/70 focus:border-white focus:ring-2 focus:ring-white/35"
-              placeholder="Digite sua senha"
+              placeholder="Senha"
               {...register("password", {
                 required: "Informe a senha.",
               })}
