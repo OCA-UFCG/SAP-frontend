@@ -141,11 +141,18 @@ function getCompactLocationName(
   data: CompactTerritorialAnalysisDataset,
   locationKey: string,
 ): string {
-  return data.locations?.[locationKey] ?? getFallbackAnalysisLocationName(locationKey);
+  return (
+    data.locations?.[locationKey] ??
+    getFallbackAnalysisLocationName(locationKey)
+  );
 }
 
 function isMunicipalityLocationKey(locationKey: string): boolean {
   return /^\d{7}$/.test(locationKey);
+}
+
+function isStateLocationKey(locationKey: string): boolean {
+  return statesByKey.has(locationKey.toLowerCase());
 }
 
 export function getFallbackAnalysisLocationName(locationKey: string): string {
@@ -235,7 +242,7 @@ function buildCompactRankingGroups(
   );
 
   for (const [entryKey, values] of Object.entries(yearData.values)) {
-    if (entryKey === "br") {
+    if (entryKey === "br" || !isStateLocationKey(entryKey)) {
       continue;
     }
 
@@ -330,9 +337,9 @@ function buildCompactTerritorialAnalysisViewModel(
     resolvedLocationKey === "br"
       ? (data.templates?.country ?? DEFAULT_HAPPENING_TEMPLATES.country)
       : isMunicipalityLocationKey(resolvedLocationKey)
-        ? ((data.templates?.municipality ??
-            data.templates?.state ??
-            DEFAULT_HAPPENING_TEMPLATES.municipality))
+        ? (data.templates?.municipality ??
+          data.templates?.state ??
+          DEFAULT_HAPPENING_TEMPLATES.municipality)
         : (data.templates?.state ?? DEFAULT_HAPPENING_TEMPLATES.state);
 
   return {

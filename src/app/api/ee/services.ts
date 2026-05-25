@@ -41,7 +41,9 @@ const clipImageToBrazil = (image: any) =>
   image.clipToCollection(getBrazilBoundary());
 
 function rangeIncludesZero(min?: number | null, max?: number | null) {
-  return typeof min === "number" && typeof max === "number" && min <= 0 && max >= 0;
+  return (
+    typeof min === "number" && typeof max === "number" && min <= 0 && max >= 0
+  );
 }
 
 export function shouldApplySelfMask({

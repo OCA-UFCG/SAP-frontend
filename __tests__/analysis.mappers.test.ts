@@ -155,4 +155,78 @@ describe("analysis.mappers", () => {
     expect(model?.rankingTitle).toBeUndefined();
     expect(model?.rankingGroups).toEqual([]);
   });
+
+  it("counts only states in Brazil ranking when municipal analysis data is merged", () => {
+    const layer = buildLayer({
+      schemaVersion: 1,
+      type: "territorial-compact",
+      defaultYear: "2024",
+      classes: [
+        { id: "a", label: "Classe A", color: "#111111" },
+        { id: "b", label: "Classe B", color: "#222222" },
+      ],
+      locations: {
+        br: "Brasil",
+        go: "Goiás",
+        df: "Distrito Federal",
+        "5200050": "Abadia de Goiás - GO",
+        "5300108": "Brasília - DF",
+      },
+      years: {
+        "2024": {
+          imageId: "img-2024",
+          valuesScale: 1,
+          values: {
+            br: [45, 55],
+            go: [80, 20],
+            df: [25, 75],
+            "5200050": [95, 5],
+            "5300108": [10, 90],
+          },
+        },
+      },
+    });
+
+    const model = buildEmbeddedTerritorialAnalysisViewModel(
+      layer,
+      "2024",
+      "br",
+    );
+
+    expect(model).not.toBeNull();
+    expect(model?.rankingGroups[0]).toMatchObject({
+      total: 2,
+      totalLabel: "Estados",
+      items: [
+        { id: "go", label: "Goiás", trailingLabel: "80.0%" },
+        { id: "df", label: "Distrito Federal", trailingLabel: "25.0%" },
+      ],
+    });
+    expect(model?.rankingGroups[0]?.allItems).toEqual([
+      { id: "go", label: "Goiás", trailingLabel: "80.0%" },
+      { id: "df", label: "Distrito Federal", trailingLabel: "25.0%" },
+    ]);
+    expect(model?.rankingGroups[1]).toMatchObject({
+      total: 2,
+      totalLabel: "Estados",
+      items: [
+        { id: "df", label: "Distrito Federal", trailingLabel: "75.0%" },
+        { id: "go", label: "Goiás", trailingLabel: "20.0%" },
+      ],
+    });
+    expect(model?.rankingGroups[1]?.allItems).toEqual([
+      { id: "df", label: "Distrito Federal", trailingLabel: "75.0%" },
+      { id: "go", label: "Goiás", trailingLabel: "20.0%" },
+    ]);
+    expect(
+      model?.rankingGroups.flatMap((group) =>
+        (group.allItems ?? group.items).map((item) => item.id),
+      ),
+    ).not.toContain("5200050");
+    expect(
+      model?.rankingGroups.flatMap((group) =>
+        (group.allItems ?? group.items).map((item) => item.id),
+      ),
+    ).not.toContain("5300108");
+  });
 });
