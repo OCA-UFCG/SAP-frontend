@@ -150,14 +150,35 @@ function mergeAnalysisYear(
   patchYear: CompactAnalysisYearPatch | undefined,
   yearKey: string,
 ): CompactAnalysisYearData | null {
+  const normalizationScale = baseYear
+    ? (baseYear.valuesScale ?? 1)
+    : (patchYear?.valuesScale ?? 1);
+  const normalizedPatchValues = Object.fromEntries(
+    Object.entries(patchYear?.values ?? {}).map(([locationKey, values]) => {
+      const patchScale = patchYear?.valuesScale ?? 1;
+
+      if (patchScale === normalizationScale) {
+        return [locationKey, values];
+      }
+
+      return [
+        locationKey,
+        values.map((value) =>
+          Number(((value * normalizationScale) / patchScale).toFixed(4)),
+        ),
+      ];
+    }),
+  );
   const mergedValues = {
     ...(baseYear?.values ?? {}),
-    ...(patchYear?.values ?? {}),
+    ...normalizedPatchValues,
   };
 
   if (Object.keys(mergedValues).length === 0) {
     return null;
   }
+
+  const mergedValuesScale = baseYear?.valuesScale ?? patchYear?.valuesScale;
 
   return {
     imageId:
@@ -167,8 +188,8 @@ function mergeAnalysisYear(
     ...(patchYear?.year ?? baseYear?.year
       ? { year: patchYear?.year ?? baseYear?.year }
       : {}),
-    ...(typeof (patchYear?.valuesScale ?? baseYear?.valuesScale) === "number"
-      ? { valuesScale: patchYear?.valuesScale ?? baseYear?.valuesScale }
+    ...(typeof mergedValuesScale === "number"
+      ? { valuesScale: mergedValuesScale }
       : {}),
     values: mergedValues,
   };

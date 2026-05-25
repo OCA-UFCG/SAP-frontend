@@ -112,6 +112,7 @@ describe("panelLayerRepository", () => {
               },
               years: {
                 "2026-02": {
+                  valuesScale: 1,
                   values: {
                     "2914802": [80, 20],
                   },
@@ -146,10 +147,10 @@ describe("panelLayerRepository", () => {
             years: {
               "2026-02": {
                 imageId: "img-2026-02",
-                valuesScale: 1,
+                valuesScale: 10,
                 values: {
-                  br: [45, 55],
-                  ba: [35, 65],
+                  br: [450, 550],
+                  ba: [350, 650],
                 },
               },
             },
@@ -161,12 +162,13 @@ describe("panelLayerRepository", () => {
     const [layer] = await getPanelLayers();
     const imageData = layer?.imageData as {
       locations: Record<string, string>;
-      years: Record<string, { values: Record<string, number[]> }>;
+      years: Record<string, { valuesScale?: number; values: Record<string, number[]> }>;
       templates?: { municipality?: string };
     };
 
     expect(imageData.locations["2914802"]).toBe("Itabuna - BA");
-    expect(imageData.years["2026-02"]?.values["2914802"]).toEqual([80, 20]);
+    expect(imageData.years["2026-02"]?.valuesScale).toBe(10);
+    expect(imageData.years["2026-02"]?.values["2914802"]).toEqual([800, 200]);
     expect(imageData.templates?.municipality).toContain("No município de");
   });
 });
