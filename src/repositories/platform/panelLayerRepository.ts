@@ -1,4 +1,5 @@
 import { getContent } from "@/infrastructure/contentful/client";
+import { attachMunicipalAnalysisToPanelLayers } from "@/repositories/platform/municipalAnalysisRepository";
 import { PanelLayerI } from "@/utils/interfaces";
 
 const GET_PANEL_LAYER = `
@@ -61,11 +62,12 @@ export async function getPanelLayers(): Promise<PanelLayerI[]> {
   try {
     const data = await getContent<PanelLayerResponse>(GET_PANEL_LAYER);
 
-    return (
+    const panelLayers =
       data.panelLayerCollection?.items
         ?.filter(isDefined)
-        .sort(comparePanelLayers) ?? []
-    );
+        .sort(comparePanelLayers) ?? [];
+
+    return await attachMunicipalAnalysisToPanelLayers(panelLayers);
   } catch (error) {
     console.error("Erro ao buscar camadas da plataforma no Contentful:", error);
     return [];

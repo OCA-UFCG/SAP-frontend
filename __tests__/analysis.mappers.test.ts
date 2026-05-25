@@ -109,4 +109,50 @@ describe("analysis.mappers", () => {
       model?.rankingGroups[4]?.items.map((item) => item.trailingLabel),
     ).toEqual(["5.0%", "1.0%"]);
   });
+
+  it("uses municipality data and municipality template when a municipal location is selected", () => {
+    const layer = buildLayer({
+      schemaVersion: 1,
+      type: "territorial-compact",
+      defaultYear: "2024",
+      classes: [
+        { id: "a", label: "Classe A", color: "#111111" },
+        { id: "b", label: "Classe B", color: "#222222" },
+      ],
+      templates: {
+        municipality:
+          "No município de {name}, predomina a classe {label} com {value}% da área analisada.",
+      },
+      locations: {
+        br: "Brasil",
+        go: "Goiás",
+        "5200050": "Abadia de Goiás - GO",
+      },
+      years: {
+        "2024": {
+          imageId: "img-2024",
+          valuesScale: 1,
+          values: {
+            br: [45, 55],
+            go: [35, 65],
+            "5200050": [80, 20],
+          },
+        },
+      },
+    });
+
+    const model = buildEmbeddedTerritorialAnalysisViewModel(
+      layer,
+      "2024",
+      "5200050",
+    );
+
+    expect(model).not.toBeNull();
+    expect(model?.name).toBe("Abadia de Goiás - GO");
+    expect(model?.happening).toBe(
+      "No município de Abadia de Goiás - GO, predomina a classe Classe A com 80.0% da área analisada.",
+    );
+    expect(model?.rankingTitle).toBeUndefined();
+    expect(model?.rankingGroups).toEqual([]);
+  });
 });

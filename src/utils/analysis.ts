@@ -49,6 +49,7 @@ export interface CompactAnalysisClass {
 export interface CompactAnalysisTemplates {
   country?: string;
   state?: string;
+  municipality?: string;
   highlight?: string;
 }
 

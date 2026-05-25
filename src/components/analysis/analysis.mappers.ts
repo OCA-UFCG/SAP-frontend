@@ -1,3 +1,5 @@
+import citiesIndex from "@/data/citiesIndex.json";
+import { statesObj } from "@/utils/constants";
 import type { PanelLayerI } from "@/utils/interfaces";
 import type {
   AnalysisDistributionItem,
@@ -33,12 +35,20 @@ const DEFAULT_HAPPENING_TEMPLATES = {
     "No Brasil, predomina a classe {label} com {value}% da área analisada.",
   state:
     "Em {name}, predomina a classe {label} com {value}% da área analisada.",
+  municipality:
+    "Em {name}, predomina a classe {label} com {value}% da área analisada.",
   highlight: "Região maioritariamente {label}",
 };
 
 const DEFAULT_RANKING_TITLE = "Estados por classificação";
 const DEFAULT_RANKING_TOTAL_LABEL = "Estados";
 const MAX_RANKING_ITEMS = 5;
+const municipalitiesByCode = new Map(
+  citiesIndex.map((city) => [city.code, city.label]),
+);
+const statesByKey = new Map(
+  Object.entries(statesObj).map(([uf, name]) => [uf.toLowerCase(), name]),
+);
 
 function parseHexColor(color: string) {
   const normalized = color.trim().replace("#", "");
@@ -131,10 +141,23 @@ function getCompactLocationName(
   data: CompactTerritorialAnalysisDataset,
   locationKey: string,
 ): string {
-  return (
-    data.locations?.[locationKey] ??
-    (locationKey === "br" ? "Brasil" : locationKey)
-  );
+  return data.locations?.[locationKey] ?? getFallbackAnalysisLocationName(locationKey);
+}
+
+function isMunicipalityLocationKey(locationKey: string): boolean {
+  return /^\d{7}$/.test(locationKey);
+}
+
+export function getFallbackAnalysisLocationName(locationKey: string): string {
+  if (locationKey === "br") {
+    return "Brasil";
+  }
+
+  if (isMunicipalityLocationKey(locationKey)) {
+    return municipalitiesByCode.get(locationKey) ?? locationKey;
+  }
+
+  return statesByKey.get(locationKey.toLowerCase()) ?? locationKey;
 }
 
 function getCompactAnalysisDataset(
@@ -306,7 +329,11 @@ function buildCompactTerritorialAnalysisViewModel(
   const happeningTemplate =
     resolvedLocationKey === "br"
       ? (data.templates?.country ?? DEFAULT_HAPPENING_TEMPLATES.country)
-      : (data.templates?.state ?? DEFAULT_HAPPENING_TEMPLATES.state);
+      : isMunicipalityLocationKey(resolvedLocationKey)
+        ? ((data.templates?.municipality ??
+            data.templates?.state ??
+            DEFAULT_HAPPENING_TEMPLATES.municipality))
+        : (data.templates?.state ?? DEFAULT_HAPPENING_TEMPLATES.state);
 
   return {
     kind: "territorial",

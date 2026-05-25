@@ -4,6 +4,7 @@ import { useEffect, useMemo } from "react";
 import { AnalysisPanel } from "@/components/analysis/AnalysisPanel";
 import {
   buildEmbeddedTerritorialAnalysisViewModel,
+  getFallbackAnalysisLocationName,
   getAnalysisLegend,
   getAnalysisLocationName,
   getAnalysisYearOptions,
@@ -39,7 +40,8 @@ export function AnalysisContext({
     setActiveYear,
     resetPlatformState,
   } = useMapLayerActions();
-  const { selectedState, activeYear } = useMapLayerViewState();
+  const { selectedState, selectedMunicipalityCode, activeYear } =
+    useMapLayerViewState();
 
   const dataset = useMemo(() => {
     return panelLayers?.find((p) => p.id === activeLayerId) ?? panelLayers?.[0];
@@ -72,22 +74,23 @@ export function AnalysisContext({
   const activeAnalysisYear =
     effectiveYear ?? yearOptions[0]?.value ?? "general";
 
+  const selectedLocationKey = selectedMunicipalityCode ?? selectedState;
+
   const embeddedModel = useMemo(
     () =>
       buildEmbeddedTerritorialAnalysisViewModel(
         dataset,
         effectiveYear,
-        selectedState,
+        selectedLocationKey,
       ),
-    [dataset, effectiveYear, selectedState],
+    [dataset, effectiveYear, selectedLocationKey],
   );
 
   const unavailableLocationName = useMemo(
     () =>
-      getAnalysisLocationName(dataset, effectiveYear, selectedState) ??
-      statesObj[selectedState as keyof typeof statesObj] ??
-      (selectedState === "br" ? "Brasil" : selectedState.toUpperCase()),
-    [dataset, effectiveYear, selectedState],
+      getAnalysisLocationName(dataset, effectiveYear, selectedLocationKey) ??
+      getFallbackAnalysisLocationName(selectedLocationKey),
+    [dataset, effectiveYear, selectedLocationKey],
   );
 
   useEffect(() => {
@@ -121,7 +124,7 @@ export function AnalysisContext({
       model={embeddedModel}
       years={temporalYears}
       classes={temporalClasses}
-      selectedState={selectedState}
+      selectedState={selectedLocationKey}
       emptyStateTitle={`Análise indisponível para ${unavailableLocationName}`}
       emptyStateDescription={`Os dados de análise para ${unavailableLocationName} ainda não estão disponíveis neste módulo.`}
     />
