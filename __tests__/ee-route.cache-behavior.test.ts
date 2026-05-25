@@ -190,6 +190,7 @@ describe("POST /api/ee cache behavior", () => {
       [{ color: "#EEEEEE", label: "new" }],
       10,
       100,
+      { mapVisualization: undefined },
     );
   });
 
@@ -241,6 +242,7 @@ describe("POST /api/ee cache behavior", () => {
       ],
       0,
       1,
+      { mapVisualization },
     );
   });
 

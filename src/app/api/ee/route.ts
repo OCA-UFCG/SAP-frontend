@@ -18,7 +18,10 @@ import { getAuthenticatedUserId } from "@/lib/server-session";
 export async function POST(req: NextRequest) {
   const authenticatedUserId = await getAuthenticatedUserId(req);
   if (!authenticatedUserId) {
-    return NextResponse.json({ error: "Unauthorized access." }, { status: 401 });
+    return NextResponse.json(
+      { error: "Unauthorized access." },
+      { status: 401 },
+    );
   }
 
   ensureEeCacheWarmupStarted();
@@ -89,6 +92,7 @@ export async function POST(req: NextRequest) {
       yearConfig.imageParams,
       layer.minScale,
       layer.maxScale,
+      { mapVisualization: yearConfig.mapVisualization },
     );
 
     console.log(new Date().toISOString(), " - Saving URL to cache");

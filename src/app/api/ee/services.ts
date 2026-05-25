@@ -40,6 +40,42 @@ const getBrazilBoundary = () => {
 const clipImageToBrazil = (image: any) =>
   image.clipToCollection(getBrazilBoundary());
 
+function rangeIncludesZero(min?: number | null, max?: number | null) {
+  return typeof min === "number" && typeof max === "number" && min <= 0 && max >= 0;
+}
+
+export function shouldApplySelfMask({
+  imageParams,
+  minScale,
+  maxScale,
+  mapVisualization,
+}: {
+  imageParams?: IImageParam[] | null;
+  minScale?: number | null;
+  maxScale?: number | null;
+  mapVisualization?: CompactMapVisualizationConfig | null;
+}) {
+  const hasZeroPixelLimit = Array.isArray(imageParams)
+    ? imageParams.some((imageParam) => imageParam.pixelLimit === 0)
+    : false;
+
+  const layerScaleIncludesZero = rangeIncludesZero(minScale, maxScale);
+  const mapVisualizationIncludesZero = rangeIncludesZero(
+    mapVisualization?.min,
+    mapVisualization?.max,
+  );
+
+  return !(
+    hasZeroPixelLimit ||
+    layerScaleIncludesZero ||
+    mapVisualizationIncludesZero
+  );
+}
+
+interface GetEarthEngineUrlOptions {
+  mapVisualization?: CompactMapVisualizationConfig;
+}
+
 function applyThresholdClassification(
   image: any,
   classification: ThresholdClassificationPlan,
@@ -100,9 +136,11 @@ export const getEarthEngineUrl = async (
   imageParams: any,
   minScale: any,
   maxScale: any,
-  mapVisualization?: CompactMapVisualizationConfig,
+  options?: GetEarthEngineUrlOptions,
 ) => {
   try {
+    const { mapVisualization } = options ?? {};
+
     await initializeGee();
     console.log(new Date().toISOString(), " - GEE Initialized successfully");
 
@@ -167,11 +205,26 @@ export const getEarthEngineUrl = async (
           GEEImage = GEEImage.select(bandNames[bandNames.length - 1]);
         }
       } catch (bandErr) {
-        console.error(`[GEE] -> Failed to fetch bands for ${imageId}:`, bandErr);
+        console.error(
+          `[GEE] -> Failed to fetch bands for ${imageId}:`,
+          bandErr,
+        );
       }
     }
 
-    GEEImage = clipImageToBrazil(GEEImage).selfMask();
+    GEEImage = clipImageToBrazil(GEEImage);
+
+    if (
+      shouldApplySelfMask({
+        imageParams,
+        minScale,
+        maxScale,
+        mapVisualization,
+      })
+    ) {
+      GEEImage = GEEImage.selfMask();
+    }
+
     const { categorizedImage, visParams } = configuredVisParams
       ? { categorizedImage: GEEImage, visParams: configuredVisParams }
       : getImageScale(GEEImage, imageParams, minScale, maxScale);
@@ -394,7 +447,9 @@ export const cacheMapData = async () => {
           yearConfig.imageParams,
           minScale,
           maxScale,
-          yearConfig.mapVisualization,
+          {
+            mapVisualization: yearConfig.mapVisualization,
+          },
         );
         addUrlToCache(cacheKey, url);
       }

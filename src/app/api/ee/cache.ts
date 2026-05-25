@@ -1,5 +1,5 @@
 const CACHE_TTL_MS = 1000 * 60 * 30;
-const CACHE_KEY_VERSION = "v5";
+const CACHE_KEY_VERSION = "v6";
 
 interface CacheEntry {
   url: string;
