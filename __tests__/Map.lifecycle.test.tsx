@@ -1,4 +1,4 @@
-import { cleanup, render, waitFor } from "@testing-library/react";
+import { act, cleanup, render, waitFor } from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
 const { mapInstances, MapConstructorMock } = vi.hoisted(() => ({
@@ -7,6 +7,7 @@ const { mapInstances, MapConstructorMock } = vi.hoisted(() => ({
     addSource: ReturnType<typeof vi.fn>;
     easeTo: ReturnType<typeof vi.fn>;
     fitBounds: ReturnType<typeof vi.fn>;
+    getFeatureState: ReturnType<typeof vi.fn>;
     getLayer: ReturnType<typeof vi.fn>;
     getSource: ReturnType<typeof vi.fn>;
     getZoom: ReturnType<typeof vi.fn>;
@@ -15,7 +16,10 @@ const { mapInstances, MapConstructorMock } = vi.hoisted(() => ({
     on: ReturnType<typeof vi.fn>;
     once: ReturnType<typeof vi.fn>;
     remove: ReturnType<typeof vi.fn>;
+    setFeatureState: ReturnType<typeof vi.fn>;
+    setLayoutProperty: ReturnType<typeof vi.fn>;
     setPadding: ReturnType<typeof vi.fn>;
+    sourceFeatures: Array<unknown>;
   }>,
   MapConstructorMock: vi.fn(),
 }));
@@ -148,6 +152,8 @@ import {
 describe("Map lifecycle", () => {
   afterEach(() => {
     cleanup();
+    vi.clearAllTimers();
+    vi.useRealTimers();
     document.body.innerHTML = "";
     mapInstances.length = 0;
     MapConstructorMock.mockClear();
@@ -307,7 +313,9 @@ describe("Map lifecycle", () => {
     );
   });
 
-  it("focuses and highlights a selected municipality", async () => {
+  it("focuses and highlights a selected municipality", () => {
+    vi.useFakeTimers();
+
     render(
       <Map
         center={[-15.749997, -47.9499962]}
@@ -337,32 +345,55 @@ describe("Map lifecycle", () => {
     ];
 
     firstInstance.handlers.get("load")?.[0]?.({});
-    firstInstance.handlers.get("idle")?.forEach((handler) => handler({}));
 
-    await waitFor(() => {
-      expect(firstInstance.querySourceFeatures).toHaveBeenCalledWith(
-        MUNICIPALITY_SOURCE_ID,
-        expect.objectContaining({
-          sourceLayer: "brazilcities",
-        }),
-      );
-      expect(firstInstance.setFeatureState).toHaveBeenCalledWith(
-        expect.objectContaining({
-          source: MUNICIPALITY_SOURCE_ID,
-          id: "3509502",
-        }),
-        { selected: true },
-      );
-      expect(firstInstance.fitBounds).toHaveBeenLastCalledWith(
-        expect.any(Array),
-        expect.objectContaining({
-          maxZoom: 11.5,
-        }),
-      );
+    expect(firstInstance.fitBounds).toHaveBeenCalledWith(
+      expect.any(Array),
+      expect.objectContaining({
+        maxZoom: 5.5,
+        animate: true,
+        duration: 350,
+      }),
+    );
+
+    act(() => {
+      vi.advanceTimersByTime(1349);
     });
+
+    expect(firstInstance.fitBounds).not.toHaveBeenCalledWith(
+      expect.any(Array),
+      expect.objectContaining({
+        maxZoom: 11.5,
+      }),
+    );
+
+    act(() => {
+      vi.advanceTimersByTime(1);
+    });
+
+    expect(firstInstance.querySourceFeatures).toHaveBeenCalledWith(
+      MUNICIPALITY_SOURCE_ID,
+      expect.objectContaining({
+        sourceLayer: "brazilcities",
+      }),
+    );
+    expect(firstInstance.setFeatureState).toHaveBeenCalledWith(
+      expect.objectContaining({
+        source: MUNICIPALITY_SOURCE_ID,
+        id: "3509502",
+      }),
+      { selected: true },
+    );
+    expect(firstInstance.fitBounds).toHaveBeenLastCalledWith(
+      expect.any(Array),
+      expect.objectContaining({
+        maxZoom: 11.5,
+      }),
+    );
   });
 
-  it("refocuses to a new municipality in the same state without requiring manual zoom interaction", async () => {
+  it("refocuses to a new municipality in the same state without requiring manual zoom interaction", () => {
+    vi.useFakeTimers();
+
     const municipalityA = {
       type: "Feature",
       geometry: {
@@ -405,31 +436,27 @@ describe("Map lifecycle", () => {
     );
 
     const firstInstance = mapInstances[0];
-    let stateWideTilesLoaded = false;
-
-    firstInstance.querySourceFeatures.mockImplementation(() =>
-      stateWideTilesLoaded ? [municipalityB] : [municipalityA],
-    );
-    firstInstance.fitBounds.mockImplementation((bounds, options) => {
-      if (options?.maxZoom === 5.5) {
-        stateWideTilesLoaded = true;
-      }
-
-      return firstInstance;
-    });
+    firstInstance.querySourceFeatures.mockImplementation(() => [municipalityA]);
 
     firstInstance.handlers.get("load")?.[0]?.({});
-    firstInstance.handlers.get("idle")?.forEach((handler) => handler({}));
 
-    await waitFor(() => {
-      expect(firstInstance.setFeatureState).toHaveBeenCalledWith(
-        expect.objectContaining({
-          source: MUNICIPALITY_SOURCE_ID,
-          id: "3509502",
-        }),
-        { selected: true },
-      );
+    act(() => {
+      vi.advanceTimersByTime(1350);
     });
+
+    expect(firstInstance.setFeatureState).toHaveBeenCalledWith(
+      expect.objectContaining({
+        source: MUNICIPALITY_SOURCE_ID,
+        id: "3509502",
+      }),
+      { selected: true },
+    );
+
+    firstInstance.fitBounds.mockClear();
+    let municipalityBReady = false;
+    firstInstance.querySourceFeatures.mockImplementation(() =>
+      municipalityBReady ? [municipalityB] : [],
+    );
 
     rerender(
       <Map
@@ -439,41 +466,52 @@ describe("Map lifecycle", () => {
       />,
     );
 
-    await waitFor(() => {
-      expect(firstInstance.fitBounds).toHaveBeenCalledWith(
-        expect.any(Array),
-        expect.objectContaining({
-          maxZoom: 5.5,
-          animate: true,
-        }),
-      );
+    expect(firstInstance.fitBounds).toHaveBeenCalledWith(
+      expect.any(Array),
+      expect.objectContaining({
+        maxZoom: 5.5,
+        animate: true,
+        duration: 350,
+      }),
+    );
+
+    act(() => {
+      vi.advanceTimersByTime(1349);
     });
 
-    const moveendHandlers = firstInstance.handlers.get("moveend") ?? [];
-    moveendHandlers.forEach((handler) => handler({}));
+    expect(firstInstance.fitBounds).not.toHaveBeenCalledWith(
+      expect.any(Array),
+      expect.objectContaining({
+        maxZoom: 11.5,
+      }),
+    );
 
-    await waitFor(() => {
-      expect(firstInstance.setFeatureState).toHaveBeenCalledWith(
-        expect.objectContaining({
-          source: MUNICIPALITY_SOURCE_ID,
-          id: "3509502",
-        }),
-        { selected: false, hover: false },
-      );
-      expect(firstInstance.setFeatureState).toHaveBeenCalledWith(
-        expect.objectContaining({
-          source: MUNICIPALITY_SOURCE_ID,
-          id: "3502804",
-        }),
-        { selected: true },
-      );
-      expect(firstInstance.fitBounds).toHaveBeenLastCalledWith(
-        expect.any(Array),
-        expect.objectContaining({
-          maxZoom: 11.5,
-        }),
-      );
+    municipalityBReady = true;
+
+    act(() => {
+      vi.advanceTimersByTime(151);
     });
+
+    expect(firstInstance.setFeatureState).toHaveBeenCalledWith(
+      expect.objectContaining({
+        source: MUNICIPALITY_SOURCE_ID,
+        id: "3509502",
+      }),
+      { selected: false, hover: false },
+    );
+    expect(firstInstance.setFeatureState).toHaveBeenCalledWith(
+      expect.objectContaining({
+        source: MUNICIPALITY_SOURCE_ID,
+        id: "3502804",
+      }),
+      { selected: true },
+    );
+    expect(firstInstance.fitBounds).toHaveBeenLastCalledWith(
+      expect.any(Array),
+      expect.objectContaining({
+        maxZoom: 11.5,
+      }),
+    );
   });
 
   it("clears the selected municipality when clicking anywhere on the map", async () => {

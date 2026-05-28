@@ -114,6 +114,10 @@ const CDI_FILL_EXPRESSION: ExpressionSpecification = [
 const DEFAULT_CENTER: [number, number] = [-15.749997, -47.9499962];
 const MAP_FOCUS_ANIMATION_DURATION = 1200;
 const MAP_OVERLAY_ADJUST_DURATION = 0;
+const MUNICIPALITY_STATE_FOCUS_DURATION = 350;
+const MUNICIPALITY_FOCUS_DELAY_MS = 1000;
+const MUNICIPALITY_FOCUS_RETRY_INTERVAL_MS = 150;
+const MUNICIPALITY_FOCUS_MAX_RETRIES = 10;
 
 const geoBrasilSource = geometria as unknown as FeatureCollection<
   Geometry,
@@ -454,6 +458,9 @@ const Map = ({
   const selectedMunicipalityBoundsRef = useRef<LngLatBoundsLike | null>(null);
   const pendingSelectedMunicipalitySyncRef = useRef(false);
   const selectedMunicipalityRequestIdRef = useRef(0);
+  const selectedMunicipalityFocusTimeoutRef = useRef<ReturnType<
+    typeof setTimeout
+  > | null>(null);
   const leftOverlayWidthRef = useRef(0);
   const normalizedCenter = isValidLatLngTuple(center) ? center : DEFAULT_CENTER;
   const initialViewRef = useRef({
@@ -550,6 +557,13 @@ const Map = ({
     },
     [fitMapToBounds],
   );
+
+  const clearSelectedMunicipalityFocusTimeout = useCallback(() => {
+    if (selectedMunicipalityFocusTimeoutRef.current === null) return;
+
+    clearTimeout(selectedMunicipalityFocusTimeoutRef.current);
+    selectedMunicipalityFocusTimeoutRef.current = null;
+  }, []);
 
   const syncMapPadding = useCallback((map: maplibregl.Map) => {
     map.setPadding(
@@ -774,6 +788,7 @@ const Map = ({
       selectedMunicipalityBoundsRef.current = null;
       selectedMunicipalityRequestIdRef.current += 1;
       pendingSelectedMunicipalitySyncRef.current = false;
+      clearSelectedMunicipalityFocusTimeout();
 
       try {
         applySelectedMunicipalityFeatureState(map, null);
@@ -783,13 +798,20 @@ const Map = ({
 
       onSelectedMunicipalityCodeChangeRef.current?.(null);
     },
-    [applySelectedMunicipalityFeatureState, warn],
+    [
+      applySelectedMunicipalityFeatureState,
+      clearSelectedMunicipalityFocusTimeout,
+      warn,
+    ],
   );
 
   const scheduleSelectedMunicipalitySync = useCallback(
     (reason: string) => {
       const map = mapRef.current;
       if (!map) return;
+
+      clearSelectedMunicipalityFocusTimeout();
+
       const requestId = ++selectedMunicipalityRequestIdRef.current;
       pendingSelectedMunicipalitySyncRef.current = true;
 
@@ -800,46 +822,35 @@ const Map = ({
         return;
       }
 
-      let retryCount = 0;
-      let didFallbackToStateBounds = false;
       let isFinished = false;
+      let retryCount = 0;
 
       const finishSync = () => {
         isFinished = true;
         pendingSelectedMunicipalitySyncRef.current = false;
+        clearSelectedMunicipalityFocusTimeout();
       };
 
-      const scheduleRetry = (retryTrigger: "idle" | "moveend" = "idle") => {
+      const scheduleRetry = () => {
+        if (isFinished) return;
         if (selectedMunicipalityRequestIdRef.current !== requestId) {
           finishSync();
           return;
         }
 
-        if (retryCount >= 2) {
+        if (retryCount >= MUNICIPALITY_FOCUS_MAX_RETRIES) {
           finishSync();
           return;
         }
 
         retryCount += 1;
-        let didRunRetry = false;
-        const runRetry = (trigger: "idle" | "moveend") => {
-          if (didRunRetry) return;
-          didRunRetry = true;
-          tryResolveAndFit(trigger);
-        };
-
-        if (retryTrigger === "moveend") {
-          map.once("moveend", () => runRetry("moveend"));
-          map.once("idle", () => runRetry("idle"));
-          return;
-        }
-
-        map.once("idle", () => runRetry("idle"));
+        selectedMunicipalityFocusTimeoutRef.current = setTimeout(() => {
+          selectedMunicipalityFocusTimeoutRef.current = null;
+          tryResolveAndFit("retry");
+        }, MUNICIPALITY_FOCUS_RETRY_INTERVAL_MS);
       };
 
-      const tryResolveAndFit = (
-        trigger: "immediate" | "styledata" | "idle" | "moveend",
-      ) => {
+      const tryResolveAndFit = (trigger: "delayed" | "retry") => {
         if (isFinished) return;
         if (selectedMunicipalityRequestIdRef.current !== requestId) return;
         if (mapRef.current !== map) return;
@@ -880,18 +891,6 @@ const Map = ({
         );
 
         if (!bounds) {
-          if (!didFallbackToStateBounds && currentBoundsRef.current) {
-            didFallbackToStateBounds = true;
-            fitSelectedStateToBounds(map, currentBoundsRef.current, {
-              animate: true,
-              duration: Math.min(MAP_FOCUS_ANIMATION_DURATION, 350),
-              easing: smoothCameraEasing,
-              maxZoom: MAP_STATE_FOCUS_MAX_ZOOM,
-            });
-            scheduleRetry("moveend");
-            return;
-          }
-
           scheduleRetry();
           return;
         }
@@ -914,21 +913,49 @@ const Map = ({
         }
       };
 
-      tryResolveAndFit("immediate");
-      if (isFinished) {
-        return;
+      try {
+        if (map.getSource(MUNICIPALITY_SOURCE_ID)) {
+          applySelectedMunicipalityFeatureState(map, municipalityCode);
+        }
+      } catch (err) {
+        warn("selectedMunicipalitySync pre-apply failed", {
+          reason,
+          trigger: "schedule",
+          err,
+        });
       }
 
-      map.once("styledata", () => tryResolveAndFit("styledata"));
-      map.once("idle", () => tryResolveAndFit("idle"));
+      const delayMs =
+        (currentBoundsRef.current ? MUNICIPALITY_STATE_FOCUS_DURATION : 0) +
+        MUNICIPALITY_FOCUS_DELAY_MS;
+
+      if (currentBoundsRef.current) {
+        fitMapToBounds(map, currentBoundsRef.current, {
+          animate: true,
+          duration: MUNICIPALITY_STATE_FOCUS_DURATION,
+          easing: smoothCameraEasing,
+          maxZoom: MAP_STATE_FOCUS_MAX_ZOOM,
+        });
+      }
+
+      selectedMunicipalityFocusTimeoutRef.current = setTimeout(() => {
+        selectedMunicipalityFocusTimeoutRef.current = null;
+        tryResolveAndFit("delayed");
+      }, delayMs);
     },
     [
       applySelectedMunicipalityFeatureState,
+      clearSelectedMunicipalityFocusTimeout,
+      fitMapToBounds,
       fitSelectedMunicipalityToBounds,
-      fitSelectedStateToBounds,
       log,
       warn,
     ],
+  );
+
+  useEffect(
+    () => clearSelectedMunicipalityFocusTimeout,
+    [clearSelectedMunicipalityFocusTimeout],
   );
 
   useEffect(() => {
@@ -1219,7 +1246,7 @@ const Map = ({
         mapModeRef.current === "platform" &&
         selectedMunicipalityCodeRef.current
       ) {
-        scheduleSelectedMunicipalitySync("map load");
+        // syncMapLayers already schedules municipality focus when needed.
       }
 
       map.on("mousemove", STATES_FILL_LAYER_ID, (event) => {
@@ -1431,6 +1458,10 @@ const Map = ({
       return;
     }
 
+    if (!map.getSource(MUNICIPALITY_SOURCE_ID)) {
+      return;
+    }
+
     selectedMunicipalityBoundsRef.current = null;
 
     scheduleSelectedMunicipalitySync("selectedMunicipalityCode effect");
@@ -1460,6 +1491,13 @@ const Map = ({
     const map = mapRef.current;
 
     if (!map) {
+      return;
+    }
+
+    if (
+      selectedMunicipalityCodeRef.current &&
+      !selectedMunicipalityBoundsRef.current
+    ) {
       return;
     }
 
@@ -1496,6 +1534,13 @@ const Map = ({
     const boundsToFit = currentBoundsRef.current;
 
     if (!map || !boundsToFit) {
+      return;
+    }
+
+    if (
+      selectedMunicipalityCodeRef.current &&
+      !selectedMunicipalityBoundsRef.current
+    ) {
       return;
     }
 
