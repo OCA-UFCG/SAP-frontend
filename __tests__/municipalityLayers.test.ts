@@ -2,7 +2,9 @@ import { describe, expect, it, vi } from "vitest";
 import {
   buildMunicipalityLabel,
   ensureMunicipalityLayers,
+  MUNICIPALITY_BORDER_MIN_ZOOM,
   MUNICIPALITY_BORDER_LAYER_ID,
+  MUNICIPALITY_SELECTED_BORDER_MIN_ZOOM,
   MUNICIPALITY_SOURCE_ID,
 } from "@/components/Map/municipalityLayers";
 
@@ -48,12 +50,30 @@ describe("municipalityLayers", () => {
     expect(addLayer).toHaveBeenCalledWith(
       expect.objectContaining({
         id: MUNICIPALITY_BORDER_LAYER_ID,
+        minzoom: MUNICIPALITY_SELECTED_BORDER_MIN_ZOOM,
         paint: expect.objectContaining({
           "line-color": [
             "case",
             ["boolean", ["feature-state", "selected"], false],
             "#000000",
             "#6B7280",
+          ],
+          "line-opacity": [
+            "step",
+            ["zoom"],
+            [
+              "case",
+              ["boolean", ["feature-state", "selected"], false],
+              0.95,
+              0,
+            ],
+            MUNICIPALITY_BORDER_MIN_ZOOM,
+            [
+              "case",
+              ["boolean", ["feature-state", "selected"], false],
+              0.95,
+              0.25,
+            ],
           ],
         }),
       }),

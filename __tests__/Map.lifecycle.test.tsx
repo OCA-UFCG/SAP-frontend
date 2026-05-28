@@ -137,9 +137,11 @@ vi.mock("maplibre-gl", () => {
 
 import Map from "@/components/Map/Map";
 import {
+  MUNICIPALITY_BORDER_MIN_ZOOM,
   MUNICIPALITY_BORDER_LAYER_ID,
   MUNICIPALITY_HOVER_LAYER_ID,
   MUNICIPALITY_MIN_ZOOM,
+  MUNICIPALITY_SELECTED_BORDER_MIN_ZOOM,
   MUNICIPALITY_SOURCE_ID,
 } from "@/components/Map/municipalityLayers";
 
@@ -186,7 +188,26 @@ describe("Map lifecycle", () => {
     expect(firstInstance.addLayer).toHaveBeenCalledWith(
       expect.objectContaining({
         id: MUNICIPALITY_BORDER_LAYER_ID,
-        minzoom: MUNICIPALITY_MIN_ZOOM,
+        minzoom: MUNICIPALITY_SELECTED_BORDER_MIN_ZOOM,
+        paint: expect.objectContaining({
+          "line-opacity": [
+            "step",
+            ["zoom"],
+            [
+              "case",
+              ["boolean", ["feature-state", "selected"], false],
+              0.95,
+              0,
+            ],
+            MUNICIPALITY_BORDER_MIN_ZOOM,
+            [
+              "case",
+              ["boolean", ["feature-state", "selected"], false],
+              0.95,
+              0.25,
+            ],
+          ],
+        }),
       }),
       "state-borders",
     );
@@ -301,13 +322,15 @@ describe("Map lifecycle", () => {
         type: "Feature",
         geometry: {
           type: "Polygon",
-          coordinates: [[
-            [-47.1, -23.9],
-            [-46.8, -23.9],
-            [-46.8, -23.6],
-            [-47.1, -23.6],
-            [-47.1, -23.9],
-          ]],
+          coordinates: [
+            [
+              [-47.1, -23.9],
+              [-46.8, -23.9],
+              [-46.8, -23.6],
+              [-47.1, -23.6],
+              [-47.1, -23.9],
+            ],
+          ],
         },
         properties: { CD_MUN: "3509502" },
       },
@@ -344,13 +367,15 @@ describe("Map lifecycle", () => {
       type: "Feature",
       geometry: {
         type: "Polygon",
-        coordinates: [[
-          [-47.1, -23.9],
-          [-46.8, -23.9],
-          [-46.8, -23.6],
-          [-47.1, -23.6],
-          [-47.1, -23.9],
-        ]],
+        coordinates: [
+          [
+            [-47.1, -23.9],
+            [-46.8, -23.9],
+            [-46.8, -23.6],
+            [-47.1, -23.6],
+            [-47.1, -23.9],
+          ],
+        ],
       },
       properties: { CD_MUN: "3509502" },
     };
@@ -358,13 +383,15 @@ describe("Map lifecycle", () => {
       type: "Feature",
       geometry: {
         type: "Polygon",
-        coordinates: [[
-          [-49.3, -21.0],
-          [-48.9, -21.0],
-          [-48.9, -20.6],
-          [-49.3, -20.6],
-          [-49.3, -21.0],
-        ]],
+        coordinates: [
+          [
+            [-49.3, -21.0],
+            [-48.9, -21.0],
+            [-48.9, -20.6],
+            [-49.3, -20.6],
+            [-49.3, -21.0],
+          ],
+        ],
       },
       properties: { CD_MUN: "3502804" },
     };
@@ -467,13 +494,15 @@ describe("Map lifecycle", () => {
         type: "Feature",
         geometry: {
           type: "Polygon",
-          coordinates: [[
-            [-47.1, -23.9],
-            [-46.8, -23.9],
-            [-46.8, -23.6],
-            [-47.1, -23.6],
-            [-47.1, -23.9],
-          ]],
+          coordinates: [
+            [
+              [-47.1, -23.9],
+              [-46.8, -23.9],
+              [-46.8, -23.6],
+              [-47.1, -23.6],
+              [-47.1, -23.9],
+            ],
+          ],
         },
         properties: { CD_MUN: "3509502" },
       },
