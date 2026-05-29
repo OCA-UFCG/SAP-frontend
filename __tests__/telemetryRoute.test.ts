@@ -5,13 +5,13 @@ vi.mock("@/lib/server-session", () => ({
 }));
 
 vi.mock("@/app/api/logs/rate-limit", () => ({
-  LOGS_RATE_LIMIT_MAX_ANONYMOUS_EVENTS: 120,
-  LOGS_RATE_LIMIT_MAX_AUTHENTICATED_EVENTS: 240,
+  LOGS_RATE_LIMIT_MAX_ANONYMOUS_EVENTS: 60,
+  LOGS_RATE_LIMIT_MAX_AUTHENTICATED_EVENTS: 120,
   consumeLogsRateLimit: vi.fn(() => ({
     limited: false,
     headers: {
-      "X-RateLimit-Limit": "240",
-      "X-RateLimit-Remaining": "239",
+      "X-RateLimit-Limit": "120",
+      "X-RateLimit-Remaining": "119",
       "X-RateLimit-Reset": "9999999999",
     },
     retryAfterSeconds: 60,
@@ -49,8 +49,8 @@ describe("/api/logs", () => {
     mockedConsumeLogsRateLimit.mockReturnValue({
       limited: false,
       headers: {
-        "X-RateLimit-Limit": "240",
-        "X-RateLimit-Remaining": "239",
+        "X-RateLimit-Limit": "120",
+        "X-RateLimit-Remaining": "119",
         "X-RateLimit-Reset": "9999999999",
       },
       retryAfterSeconds: 60,
@@ -149,7 +149,7 @@ describe("/api/logs", () => {
     mockedConsumeLogsRateLimit.mockReturnValueOnce({
       limited: true,
       headers: {
-        "X-RateLimit-Limit": "120",
+        "X-RateLimit-Limit": "60",
         "X-RateLimit-Remaining": "0",
         "X-RateLimit-Reset": "9999999999",
       },
