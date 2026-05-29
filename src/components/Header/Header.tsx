@@ -4,6 +4,7 @@ import { MenuModal } from '../MenuModal/MenuModal';
 import { ISection } from '@/utils/interfaces';
 import { Icon } from '../Icon/Icon';
 import Image from 'next/image';
+import { UserAuth } from '../UserAuth/UserAuth';
 
 export const Header = ({ content }: { content: ISection[] }) => {
   return (
@@ -25,14 +26,16 @@ export const Header = ({ content }: { content: ISection[] }) => {
           id="icon-triangle"
           className="absolute top-[66px] left-[163px] z-[45] w-[26px] h-[19px] fill-[#21240F] rotate-180 pointer-events-none"
         />
-          <div className="hidden xl:block">
+          <div className="hidden xl:flex items-center gap-6">
             <NavItems
               className="flex gap-6"
               content={content}
             ></NavItems>
+            <UserAuth />
           </div>
 
-          <div className="block xl:hidden">
+          <div className="flex items-center gap-4 xl:hidden">
+            <UserAuth />
             <MenuModal content={content}></MenuModal>
           </div>
         </div>
