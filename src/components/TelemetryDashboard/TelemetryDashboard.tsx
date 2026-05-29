@@ -278,13 +278,12 @@ export function TelemetryDashboard({ data }: { data: TelemetryDashboardData }) {
             Logs da plataforma
           </p>
           <h1 className="mt-3 text-3xl font-semibold tracking-tight text-[#292829] md:text-4xl">
-            Busca por local e uso de layers
+            Monitoramento da barra de pesquisa e do uso dos layers
           </h1>
           <p className="mt-3 max-w-3xl text-sm leading-6 text-[#5F5A5C] md:text-base">
-            Painel operacional sobre os logs recentes gravados no Firestore.
-            Esta tela usa uma amostra recente para destacar termos buscados,
-            consultas sem resultado e os layers com mais ativações e aberturas
-            de detalhamento.
+            Painel sobre os logs recentes gravados no Firestore. Esta tela
+            destaca os termos buscados, consultas sem resultado e os layers com
+            mais ativações e aberturas de detalhamento.
           </p>
         </header>
 

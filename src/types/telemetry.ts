@@ -14,6 +14,12 @@ export const SEARCH_SELECTION_METHODS = [
 export const RESOLVED_LOCATION_TYPES = ["uf", "city", "br"] as const;
 export const LAYER_KINDS = ["vector", "ee"] as const;
 export const LAYER_ACTIONS = ["activated", "deactivated"] as const;
+export const PLATFORM_SECTIONS = [
+  "monitoring",
+  "analysis",
+  "analysis-detail",
+  "communication",
+] as const;
 export const TELEMETRY_BATCH_MAX_EVENTS = 20;
 
 export type TelemetryEventName = (typeof TELEMETRY_EVENT_NAMES)[number];
@@ -22,6 +28,7 @@ export type SearchSelectionMethod = (typeof SEARCH_SELECTION_METHODS)[number];
 export type ResolvedLocationType = (typeof RESOLVED_LOCATION_TYPES)[number];
 export type LayerKind = (typeof LAYER_KINDS)[number];
 export type LayerAction = (typeof LAYER_ACTIONS)[number];
+export type TelemetryPlatformSection = (typeof PLATFORM_SECTIONS)[number];
 
 export interface TelemetryEventInput {
   eventName: TelemetryEventName;
@@ -98,6 +105,18 @@ function parseRequiredEnum<T extends readonly string[]>(
   return value as T[number];
 }
 
+function parseOptionalEnum<T extends readonly string[]>(
+  value: unknown,
+  allowedValues: T,
+  fieldName: string,
+) {
+  if (value == null) {
+    return undefined;
+  }
+
+  return parseRequiredEnum(value, allowedValues, fieldName);
+}
+
 function parseOptionalString(value: unknown, fieldName: string) {
   if (value == null) {
     return undefined;
@@ -171,30 +190,22 @@ export function parseTelemetryEventInput(value: unknown): TelemetryEventInput {
     value.activeDateLabel,
     "activeDateLabel",
   );
-  const selectionMethod =
-    value.selectionMethod == null
-      ? undefined
-      : parseRequiredEnum(
-          value.selectionMethod,
-          SEARCH_SELECTION_METHODS,
-          "selectionMethod",
-        );
-  const resolvedLocationType =
-    value.resolvedLocationType == null
-      ? undefined
-      : parseRequiredEnum(
-          value.resolvedLocationType,
-          RESOLVED_LOCATION_TYPES,
-          "resolvedLocationType",
-        );
-  const layerKind =
-    value.layerKind == null
-      ? undefined
-      : parseRequiredEnum(value.layerKind, LAYER_KINDS, "layerKind");
-  const action =
-    value.action == null
-      ? undefined
-      : parseRequiredEnum(value.action, LAYER_ACTIONS, "action");
+  const selectionMethod = parseOptionalEnum(
+    value.selectionMethod,
+    SEARCH_SELECTION_METHODS,
+    "selectionMethod",
+  );
+  const resolvedLocationType = parseOptionalEnum(
+    value.resolvedLocationType,
+    RESOLVED_LOCATION_TYPES,
+    "resolvedLocationType",
+  );
+  const layerKind = parseOptionalEnum(
+    value.layerKind,
+    LAYER_KINDS,
+    "layerKind",
+  );
+  const action = parseOptionalEnum(value.action, LAYER_ACTIONS, "action");
 
   if (
     (eventName === "search_found" || eventName === "search_not_found") &&
@@ -248,7 +259,11 @@ export function parseTelemetryEventInput(value: unknown): TelemetryEventInput {
     activeDateLabel,
     layerKind,
     action,
-    activeSection: parseOptionalString(value.activeSection, "activeSection"),
+    activeSection: parseOptionalEnum(
+      value.activeSection,
+      PLATFORM_SECTIONS,
+      "activeSection",
+    ),
   };
 }
 

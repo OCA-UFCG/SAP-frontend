@@ -1,3 +1,5 @@
+import { getAnalysisYearOptions } from "@/components/analysis/analysis.mappers";
+import { getPanelLayers } from "@/repositories/platform/panelLayerRepository";
 import {
   getRecentTelemetryEvents,
   saveTelemetryEvents,
@@ -5,10 +7,13 @@ import {
 import {
   buildPersistedTelemetryEvent,
   parseTelemetryIngestRequest,
+  TelemetryValidationError,
+  type TelemetryEventInput,
   type PersistedTelemetryEvent,
   type TelemetryCountEntry,
   type TelemetryDashboardData,
 } from "@/types/telemetry";
+import type { PanelLayerI } from "@/utils/interfaces";
 
 interface IngestTelemetryEventsOptions {
   uid?: string | null;
@@ -16,8 +21,122 @@ interface IngestTelemetryEventsOptions {
   now?: Date;
 }
 
+const HOME_TELEMETRY_LAYER = {
+  id: "CDI",
+  name: "CDI Janeiro 2024",
+  activeDateLabel: "31/01/24",
+} as const;
+const TELEMETRY_LAYER_CATALOG_TTL_MS = 1000 * 60 * 5;
+
+let cachedAnalysisLayersById = new Map<string, PanelLayerI>();
+let cachedAnalysisLayersExpiresAt = 0;
+
 function buildAnonymousSessionId() {
   return `server-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 10)}`;
+}
+
+async function getTrustedAnalysisLayersById() {
+  const now = Date.now();
+
+  if (
+    cachedAnalysisLayersById.size > 0 &&
+    now < cachedAnalysisLayersExpiresAt
+  ) {
+    return cachedAnalysisLayersById;
+  }
+
+  const panelLayers = await getPanelLayers();
+
+  if (panelLayers.length > 0) {
+    cachedAnalysisLayersById = new Map(
+      panelLayers.map((layer) => [layer.id, layer]),
+    );
+    cachedAnalysisLayersExpiresAt = now + TELEMETRY_LAYER_CATALOG_TTL_MS;
+  }
+
+  return cachedAnalysisLayersById;
+}
+
+function buildAllowedAnalysisDateLabels(layer: PanelLayerI) {
+  const allowedLabels = new Set<string>();
+
+  getAnalysisYearOptions(layer).forEach((option) => {
+    allowedLabels.add(option.value);
+    allowedLabels.add(option.label);
+  });
+
+  return allowedLabels;
+}
+
+function sanitizeHomeTelemetryEvent(
+  event: TelemetryEventInput,
+): TelemetryEventInput {
+  if (event.activeLayerId && event.activeLayerId !== HOME_TELEMETRY_LAYER.id) {
+    throw new TelemetryValidationError(
+      "Invalid telemetry field: activeLayerId.",
+    );
+  }
+
+  return {
+    ...event,
+    activeLayerId: HOME_TELEMETRY_LAYER.id,
+    activeLayerName: HOME_TELEMETRY_LAYER.name,
+    activeDateLabel: HOME_TELEMETRY_LAYER.activeDateLabel,
+  };
+}
+
+function sanitizeAnalysisPanelTelemetryEvent(
+  event: TelemetryEventInput,
+  analysisLayersById: Map<string, PanelLayerI>,
+): TelemetryEventInput {
+  if (!event.activeLayerId) {
+    return event;
+  }
+
+  if (analysisLayersById.size === 0) {
+    return {
+      ...event,
+      activeLayerName: undefined,
+    };
+  }
+
+  const layer = analysisLayersById.get(event.activeLayerId);
+
+  if (!layer) {
+    throw new TelemetryValidationError(
+      "Invalid telemetry field: activeLayerId.",
+    );
+  }
+
+  if (event.activeDateLabel) {
+    const allowedDateLabels = buildAllowedAnalysisDateLabels(layer);
+
+    if (
+      allowedDateLabels.size > 0 &&
+      !allowedDateLabels.has(event.activeDateLabel)
+    ) {
+      throw new TelemetryValidationError(
+        "Invalid telemetry field: activeDateLabel.",
+      );
+    }
+  }
+
+  return {
+    ...event,
+    activeLayerName: layer.name,
+  };
+}
+
+async function sanitizeTelemetryEvents(events: TelemetryEventInput[]) {
+  const analysisLayersById = await getTrustedAnalysisLayersById();
+
+  return events.map((event) => {
+    if (event.surface === "home") {
+      return sanitizeHomeTelemetryEvent(event);
+    }
+
+    return sanitizeAnalysisPanelTelemetryEvent(event, analysisLayersById);
+  });
 }
 
 export async function ingestTelemetryEvents(
@@ -27,13 +146,14 @@ export async function ingestTelemetryEvents(
   const request = parseTelemetryIngestRequest(payload);
   const now = options.now ?? new Date();
   const receivedAt = now.toISOString();
+  const sanitizedEvents = await sanitizeTelemetryEvents(request.events);
 
-  const events = request.events.map((event, index) => {
+  const events = sanitizedEvents.map((event, index) => {
     return buildPersistedTelemetryEvent(event, {
       anonymousSessionId:
         event.anonymousSessionId ??
         `${buildAnonymousSessionId()}-${index.toString(36)}`,
-      occurredAt: event.occurredAt ?? receivedAt,
+      occurredAt: receivedAt,
       receivedAt,
       uid: options.uid ?? null,
       userEmail: options.userEmail ?? null,
@@ -162,4 +282,9 @@ export async function getTelemetryDashboardData(
 ): Promise<TelemetryDashboardData> {
   const recentEvents = await getRecentTelemetryEvents(sampleSize);
   return buildTelemetryDashboardData(recentEvents);
+}
+
+export function clearTelemetryIngestValidationCache() {
+  cachedAnalysisLayersById.clear();
+  cachedAnalysisLayersExpiresAt = 0;
 }
