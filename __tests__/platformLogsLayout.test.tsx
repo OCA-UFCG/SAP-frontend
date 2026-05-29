@@ -1,69 +1,42 @@
-import { beforeEach, describe, expect, it, vi } from "vitest";
-import { render, screen } from "@testing-library/react";
+import { describe, expect, it, vi } from "vitest";
 
-const { cookiesMock, redirectMock, notFoundMock, resolveLogsViewerAccessMock } =
-  vi.hoisted(() => ({
-    cookiesMock: vi.fn(),
-    redirectMock: vi.fn((path: string) => {
-      throw new Error(`redirect:${path}`);
-    }),
-    notFoundMock: vi.fn(() => {
-      throw new Error("notFound");
-    }),
-    resolveLogsViewerAccessMock: vi.fn(),
-  }));
-
-vi.mock("next/headers", () => ({
-  cookies: cookiesMock,
+const { redirectMock } = vi.hoisted(() => ({
+  redirectMock: vi.fn((path: string) => {
+    throw new Error(`redirect:${path}`);
+  }),
 }));
 
 vi.mock("next/navigation", () => ({
   redirect: redirectMock,
-  notFound: notFoundMock,
-}));
-
-vi.mock("@/lib/logs-access", () => ({
-  resolveLogsViewerAccess: resolveLogsViewerAccessMock,
 }));
 
 import PlatformLogsLayout from "@/app/platform/logs/layout";
+import PlatformLogsPage from "@/app/platform/logs/page";
+import PlatformTelemetryPage from "@/app/platform/telemetry/page";
 
-describe("PlatformLogsLayout", () => {
-  beforeEach(() => {
-    cookiesMock.mockReset();
+describe("legacy platform logs routes", () => {
+  it("redirects /platform/logs to the canonical logs view", async () => {
     redirectMock.mockClear();
-    notFoundMock.mockClear();
-    resolveLogsViewerAccessMock.mockReset();
-
-    cookiesMock.mockResolvedValue({
-      get: vi.fn().mockReturnValue({ value: "session-cookie" }),
-    });
-  });
-
-  it("redirects to login when the viewer is not authenticated", async () => {
-    resolveLogsViewerAccessMock.mockResolvedValueOnce("unauthenticated");
 
     await expect(
       PlatformLogsLayout({ children: <div>Logs</div> }),
-    ).rejects.toThrow("redirect:/login");
-    expect(redirectMock).toHaveBeenCalledWith("/login");
+    ).rejects.toThrow("redirect:/platform?view=logs");
+    expect(redirectMock).toHaveBeenCalledWith("/platform?view=logs");
   });
 
-  it("returns not found when the authenticated email is outside the allowlist", async () => {
-    resolveLogsViewerAccessMock.mockResolvedValueOnce("forbidden");
+  it("redirects /platform/logs/page to the canonical logs view", () => {
+    redirectMock.mockClear();
 
-    await expect(
-      PlatformLogsLayout({ children: <div>Logs</div> }),
-    ).rejects.toThrow("notFound");
-    expect(notFoundMock).toHaveBeenCalledTimes(1);
+    expect(() => PlatformLogsPage()).toThrow("redirect:/platform?view=logs");
+    expect(redirectMock).toHaveBeenCalledWith("/platform?view=logs");
   });
 
-  it("renders the dashboard subtree for an allowlisted viewer", async () => {
-    resolveLogsViewerAccessMock.mockResolvedValueOnce("allowed");
+  it("redirects /platform/telemetry to the canonical logs view", () => {
+    redirectMock.mockClear();
 
-    const result = await PlatformLogsLayout({ children: <div>Logs</div> });
-    render(result);
-
-    expect(screen.getByText("Logs")).toBeInTheDocument();
+    expect(() => PlatformTelemetryPage()).toThrow(
+      "redirect:/platform?view=logs",
+    );
+    expect(redirectMock).toHaveBeenCalledWith("/platform?view=logs");
   });
 });

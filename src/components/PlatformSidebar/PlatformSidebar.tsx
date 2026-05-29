@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { useRouter } from "next/navigation";
 import {
   PlatformSection,
   PlatformSideRail,
@@ -11,23 +12,81 @@ import { ComingSoonContext } from "@/components/SidePanelContexts/ComingSoonCont
 import { PanelLayerI } from "@/utils/interfaces";
 import { useMapLayerActions } from "@/components/MapLayerContext/MapLayerContext";
 
+export type PlatformSidebarInitialSection =
+  | "monitoring"
+  | "analysis"
+  | "communication";
+
+export type PlatformSidebarViewMode = "default" | "logs";
+
+function buildSidebarState(
+  viewMode: PlatformSidebarViewMode,
+  initialSection: PlatformSidebarInitialSection,
+) {
+  if (viewMode === "logs") {
+    return {
+      activeSection: "logs" as const,
+      panelSection: "monitoring" as const,
+      isPanelOpen: false,
+      showAnalysisFrame: false,
+    };
+  }
+
+  if (initialSection === "analysis") {
+    return {
+      activeSection: "analysis" as const,
+      panelSection: "monitoring" as const,
+      isPanelOpen: false,
+      showAnalysisFrame: true,
+    };
+  }
+
+  return {
+    activeSection: initialSection,
+    panelSection: initialSection,
+    isPanelOpen: true,
+    showAnalysisFrame: false,
+  };
+}
+
+function buildPlatformHref(section: PlatformSidebarInitialSection) {
+  if (section === "monitoring") {
+    return "/platform";
+  }
+
+  return `/platform?section=${section}`;
+}
+
 interface PlatformSidebarProps {
   panelLayers: PanelLayerI[];
   showAuditLink?: boolean;
+  initialSection?: PlatformSidebarInitialSection;
+  viewMode?: PlatformSidebarViewMode;
 }
 
 export function PlatformSidebar({
   panelLayers,
   showAuditLink = false,
+  initialSection = "monitoring",
+  viewMode = "default",
 }: PlatformSidebarProps) {
+  const router = useRouter();
   const { clearActiveLayer, setActiveLegend } = useMapLayerActions();
+  const initialSidebarState = buildSidebarState(viewMode, initialSection);
+  const isLogsView = viewMode === "logs";
 
-  const [activeSection, setActiveSection] =
-    useState<PlatformSection>("monitoring");
-  const [panelSection, setPanelSection] =
-    useState<PlatformSection>("monitoring");
-  const [isPanelOpen, setIsPanelOpen] = useState(true);
-  const [showAnalysisFrame, setShowAnalysisFrame] = useState(false);
+  const [activeSection, setActiveSection] = useState<PlatformSection>(
+    initialSidebarState.activeSection,
+  );
+  const [panelSection, setPanelSection] = useState<PlatformSection>(
+    initialSidebarState.panelSection,
+  );
+  const [isPanelOpen, setIsPanelOpen] = useState(
+    initialSidebarState.isPanelOpen,
+  );
+  const [showAnalysisFrame, setShowAnalysisFrame] = useState(
+    initialSidebarState.showAnalysisFrame,
+  );
   const analysisFrameUrl = "https://analise-multicriterial.oca-portal.com";
 
   const ContextComponent =
@@ -42,6 +101,16 @@ export function PlatformSidebar({
             : undefined;
 
   function handleSectionChange(next: PlatformSection) {
+    if (isLogsView) {
+      if (next === "analysis" || next === "communication") {
+        router.push(buildPlatformHref(next));
+        return;
+      }
+
+      router.push(buildPlatformHref("monitoring"));
+      return;
+    }
+
     if (next === "analysis") {
       setShowAnalysisFrame(true);
       setActiveSection(next);
@@ -83,32 +152,34 @@ export function PlatformSidebar({
           showAuditLink={showAuditLink}
         />
 
-        <div
-          data-platform-side-panel
-          className={`
+        {!isLogsView && (
+          <div
+            data-platform-side-panel
+            className={`
         relative h-full overflow-hidden
           transition-[width] duration-300 ease-in-out
           ${isPanelOpen ? "w-[420px]" : "w-0"}
         `}
-        >
-          <div
-            className={`
+          >
+            <div
+              className={`
             absolute left-0 top-0 h-full w-full
             transform transition-transform duration-300 ease-in-out
             ${isPanelOpen ? "translate-x-0" : "-translate-x-full"}
           `}
-          >
-            <PlatformSidePanel
-              activeSection={panelSection}
-              panelLayers={panelLayers}
-              ContextComponent={ContextComponent}
-              onRequestSectionChange={handlePanelSectionChange}
-            />
+            >
+              <PlatformSidePanel
+                activeSection={panelSection}
+                panelLayers={panelLayers}
+                ContextComponent={ContextComponent}
+                onRequestSectionChange={handlePanelSectionChange}
+              />
+            </div>
           </div>
-        </div>
+        )}
       </aside>
 
-      {showAnalysisFrame && (
+      {showAnalysisFrame && !isLogsView && (
         <div
           className="absolute top-0 bottom-0 right-0 z-10 bg-neutral-50 transition-all duration-300 ease-in-out"
           style={{ left: isPanelOpen ? "560px" : "140px" }}

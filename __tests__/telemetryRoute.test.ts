@@ -144,6 +144,88 @@ describe("/api/logs", () => {
     expect(mockedIngestTelemetryEvents).not.toHaveBeenCalled();
   });
 
+  it("accepts requests routed through a reverse proxy when forwarded headers match the public origin", async () => {
+    mockedGetAuthenticatedUserSession.mockResolvedValueOnce(null);
+    mockedIngestTelemetryEvents.mockResolvedValueOnce({ accepted: 1 });
+
+    const payload = {
+      events: [
+        {
+          eventName: "search_not_found",
+          surface: "home",
+          query: "cidade inexistente",
+          selectionMethod: "button",
+          anonymousSessionId: "anon-1",
+          activeLayerId: "CDI",
+          activeLayerName: "CDI Janeiro 2024",
+          activeDateLabel: "31/01/24",
+        },
+      ],
+    };
+
+    const response = await POST(
+      new Request("http://127.0.0.1:3000/api/logs", {
+        method: "POST",
+        headers: {
+          ...createSameOriginHeaders(),
+          host: "127.0.0.1:3000",
+          origin: "https://beta.example.test",
+          referer: "https://beta.example.test/plataforma",
+          "x-forwarded-host": "beta.example.test",
+          "x-forwarded-proto": "https",
+        },
+        body: JSON.stringify(payload),
+      }),
+    );
+
+    expect(response.status).toBe(202);
+    expect(mockedIngestTelemetryEvents).toHaveBeenCalledWith(payload, {
+      uid: null,
+      userEmail: null,
+    });
+  });
+
+  it("accepts reverse proxy requests when the forwarded host includes the default https port", async () => {
+    mockedGetAuthenticatedUserSession.mockResolvedValueOnce(null);
+    mockedIngestTelemetryEvents.mockResolvedValueOnce({ accepted: 1 });
+
+    const payload = {
+      events: [
+        {
+          eventName: "search_not_found",
+          surface: "home",
+          query: "cidade inexistente",
+          selectionMethod: "button",
+          anonymousSessionId: "anon-1",
+          activeLayerId: "CDI",
+          activeLayerName: "CDI Janeiro 2024",
+          activeDateLabel: "31/01/24",
+        },
+      ],
+    };
+
+    const response = await POST(
+      new Request("http://127.0.0.1:3000/api/logs", {
+        method: "POST",
+        headers: {
+          ...createSameOriginHeaders(),
+          host: "127.0.0.1:3000",
+          origin: "https://beta.example.test",
+          referer: "https://beta.example.test/plataforma",
+          "x-forwarded-host": "beta.example.test:443",
+          "x-forwarded-proto": "https",
+        },
+        body: JSON.stringify(payload),
+      }),
+    );
+
+    expect(response.status).toBe(202);
+    expect(mockedIngestTelemetryEvents).toHaveBeenCalledWith(payload, {
+      uid: null,
+      userEmail: null,
+    });
+  });
+
   it("returns 429 when the logs rate limit is exceeded", async () => {
     mockedGetAuthenticatedUserSession.mockResolvedValueOnce(null);
     mockedConsumeLogsRateLimit.mockReturnValueOnce({

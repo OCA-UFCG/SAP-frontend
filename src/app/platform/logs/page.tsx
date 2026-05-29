@@ -1,8 +1,5 @@
-import { TelemetryDashboard } from "@/components/TelemetryDashboard/TelemetryDashboard";
-import { getTelemetryDashboardData } from "@/services/telemetry/telemetryService";
+import { redirect } from "next/navigation";
 
-export default async function PlatformLogsPage() {
-  const data = await getTelemetryDashboardData();
-
-  return <TelemetryDashboard data={data} />;
+export default function PlatformLogsPage() {
+  redirect("/platform?view=logs");
 }
