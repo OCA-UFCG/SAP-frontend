@@ -2,8 +2,15 @@ import type { DocumentData } from "firebase-admin/firestore";
 import { adminDb } from "@/lib/firebase-admin";
 import type { PersistedTelemetryEvent } from "@/types/telemetry";
 
-const TELEMETRY_COLLECTION_NAME =
-  process.env.FIREBASE_TELEMETRY_COLLECTION?.trim() || "telemetryEvents";
+export const DEFAULT_TELEMETRY_COLLECTION_NAME = "telemetry-events-local";
+
+export function resolveTelemetryCollectionName(
+  value = process.env.FIREBASE_TELEMETRY_COLLECTION,
+) {
+  return value?.trim() || DEFAULT_TELEMETRY_COLLECTION_NAME;
+}
+
+const TELEMETRY_COLLECTION_NAME = resolveTelemetryCollectionName();
 
 function stripUndefinedFields<T extends object>(value: T): DocumentData {
   return Object.fromEntries(
