@@ -41,6 +41,58 @@ function getConfiguredPublicOrigin() {
   return parseOrigin(process.env.NEXT_PUBLIC_HOST_URL);
 }
 
+function getTrustedRequestHosts(req: Request) {
+  const trustedHosts = new Set<string>();
+  const requestUrl = new URL(req.url);
+  const forwardedHost = getForwardedHeaderValue(
+    req.headers.get("x-forwarded-host"),
+  );
+  const host = getForwardedHeaderValue(req.headers.get("host"));
+  const configuredPublicOrigin = getConfiguredPublicOrigin();
+
+  trustedHosts.add(requestUrl.host);
+
+  if (configuredPublicOrigin) {
+    trustedHosts.add(new URL(configuredPublicOrigin).host);
+  }
+
+  if (forwardedHost) {
+    trustedHosts.add(forwardedHost);
+  }
+
+  if (host) {
+    trustedHosts.add(host);
+  }
+
+  return trustedHosts;
+}
+
+function matchesTrustedRequestOrigin(
+  value: string,
+  trustedOrigins: Set<string>,
+  trustedHosts: Set<string>,
+) {
+  const parsedOrigin = parseOrigin(value);
+
+  if (!parsedOrigin) {
+    return false;
+  }
+
+  if (trustedOrigins.has(parsedOrigin)) {
+    return true;
+  }
+
+  const protocol = new URL(parsedOrigin).protocol.replace(/:$/, "");
+
+  for (const trustedHost of trustedHosts) {
+    if (buildOrigin(protocol, trustedHost) === parsedOrigin) {
+      return true;
+    }
+  }
+
+  return false;
+}
+
 function getTrustedRequestOrigins(req: Request) {
   const trustedOrigins = new Set<string>();
   const requestUrl = new URL(req.url);
@@ -78,6 +130,7 @@ function getTrustedRequestOrigins(req: Request) {
 
 function hasTrustedTelemetryOrigin(req: Request) {
   const trustedOrigins = getTrustedRequestOrigins(req);
+  const trustedHosts = getTrustedRequestHosts(req);
   const origin = req.headers.get("origin")?.trim();
   const referer = req.headers.get("referer")?.trim();
   const fetchSite = req.headers.get("sec-fetch-site")?.trim().toLowerCase();
@@ -87,17 +140,13 @@ function hasTrustedTelemetryOrigin(req: Request) {
   }
 
   if (origin) {
-    const parsedOrigin = parseOrigin(origin);
-
-    if (!parsedOrigin || !trustedOrigins.has(parsedOrigin)) {
+    if (!matchesTrustedRequestOrigin(origin, trustedOrigins, trustedHosts)) {
       return false;
     }
   }
 
   if (referer) {
-    const refererOrigin = parseOrigin(referer);
-
-    if (!refererOrigin || !trustedOrigins.has(refererOrigin)) {
+    if (!matchesTrustedRequestOrigin(referer, trustedOrigins, trustedHosts)) {
       return false;
     }
   }
