@@ -7,6 +7,7 @@ const sectionLabel: Record<PlatformSection, string> = {
   analysis: "Análise",
   "analysis-detail": "Análise",
   communication: "Comunicação",
+  logs: "Auditoria",
 };
 
 export interface ComingSoonContextProps {

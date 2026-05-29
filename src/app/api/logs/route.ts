@@ -13,8 +13,61 @@ import {
 
 const TRUSTED_SEC_FETCH_SITES = new Set(["same-origin", "none"]);
 
+function parseOrigin(value?: string | null) {
+  if (!value) {
+    return null;
+  }
+
+  try {
+    return new URL(value).origin;
+  } catch {
+    return null;
+  }
+}
+
+function getForwardedHeaderValue(value?: string | null) {
+  return value?.split(",")[0]?.trim().replace(/\/$/, "");
+}
+
+function buildOrigin(protocol: string, host?: string | null) {
+  if (!host) {
+    return null;
+  }
+
+  return parseOrigin(`${protocol}://${host}`);
+}
+
+function getTrustedRequestOrigins(req: Request) {
+  const trustedOrigins = new Set<string>();
+  const requestUrl = new URL(req.url);
+  const forwardedHost = getForwardedHeaderValue(
+    req.headers.get("x-forwarded-host"),
+  );
+  const host = getForwardedHeaderValue(req.headers.get("host"));
+  const forwardedProto = getForwardedHeaderValue(
+    req.headers.get("x-forwarded-proto"),
+  );
+  const protocol = forwardedProto || requestUrl.protocol.replace(/:$/, "");
+
+  trustedOrigins.add(requestUrl.origin);
+
+  const forwardedOrigin = buildOrigin(protocol, forwardedHost);
+
+  if (forwardedOrigin) {
+    trustedOrigins.add(forwardedOrigin);
+  }
+
+  const hostOrigin = buildOrigin(protocol, host);
+
+  if (hostOrigin) {
+    trustedOrigins.add(hostOrigin);
+  }
+
+  return trustedOrigins;
+}
+
 function hasTrustedTelemetryOrigin(req: Request) {
-  const requestOrigin = new URL(req.url).origin;
+  const trustedOrigins = getTrustedRequestOrigins(req);
   const origin = req.headers.get("origin")?.trim();
   const referer = req.headers.get("referer")?.trim();
   const fetchSite = req.headers.get("sec-fetch-site")?.trim().toLowerCase();
@@ -23,16 +76,18 @@ function hasTrustedTelemetryOrigin(req: Request) {
     return false;
   }
 
-  if (origin && origin !== requestOrigin) {
-    return false;
+  if (origin) {
+    const parsedOrigin = parseOrigin(origin);
+
+    if (!parsedOrigin || !trustedOrigins.has(parsedOrigin)) {
+      return false;
+    }
   }
 
   if (referer) {
-    try {
-      if (new URL(referer).origin !== requestOrigin) {
-        return false;
-      }
-    } catch {
+    const refererOrigin = parseOrigin(referer);
+
+    if (!refererOrigin || !trustedOrigins.has(refererOrigin)) {
       return false;
     }
   }

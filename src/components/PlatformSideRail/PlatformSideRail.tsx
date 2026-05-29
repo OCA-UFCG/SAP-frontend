@@ -8,7 +8,8 @@ export type PlatformSection =
   | "monitoring"
   | "analysis"
   | "analysis-detail"
-  | "communication";
+  | "communication"
+  | "logs";
 
 export interface PlatformSideRailProps {
   /** Which section is currently active/selected. */
@@ -73,7 +74,7 @@ export function PlatformSideRail({
   if (showAuditLink) {
     items.push({
       kind: "link",
-      href: "/platform/logs",
+      href: "/platform?view=logs",
       label: "Auditoria",
       icon: "info",
     });
@@ -85,7 +86,9 @@ export function PlatformSideRail({
         <div className="w-[114px] flex flex-col">
           {items.map((item, index) => {
             const isActive =
-              item.kind === "section" && item.id === activeSection;
+              item.kind === "section"
+                ? item.id === activeSection
+                : activeSection === "logs";
 
             const itemContent = (
               <>
@@ -126,7 +129,13 @@ export function PlatformSideRail({
                 ) : (
                   <Link
                     href={item.href}
-                    className="w-full h-[88px] flex flex-col items-center justify-center gap-[4px] px-[8px] rounded-lg text-[#292829] transition-colors duration-150 hover:bg-[#F8F7F8]"
+                    aria-current={isActive ? "page" : undefined}
+                    className={clsx(
+                      "w-full h-[88px] flex flex-col items-center justify-center gap-[4px] px-[8px] rounded-lg transition-colors duration-150",
+                      isActive
+                        ? "bg-[#E1E2B4] text-[#5B612A]"
+                        : "text-[#292829] hover:bg-[#F8F7F8]",
+                    )}
                   >
                     {itemContent}
                   </Link>
@@ -137,7 +146,7 @@ export function PlatformSideRail({
         </div>
       </nav>
 
-      {activeSection !== "analysis" && (
+      {activeSection !== "analysis" && activeSection !== "logs" && (
         <div
           className={`absolute top-1/2 -translate-y-1/2 transition-[right] duration-300 ease-in-out ${isPanelOpen ? "-right-[460px]" : "-right-[39px]"}`}
         >
