@@ -19,14 +19,12 @@ const SURFACE_LABELS: Record<string, string> = {
 };
 
 const EVENT_BADGE_STYLES: Record<string, string> = {
-  search_found:
-    "bg-[#E7F6EC] text-[#1F7A39] ring-[#B7E0C4] border-[#B7E0C4]",
+  search_found: "bg-[#E7F6EC] text-[#1F7A39] ring-[#B7E0C4] border-[#B7E0C4]",
   search_not_found:
     "bg-[#FDECEC] text-[#B42318] ring-[#F5C2C0] border-[#F5C2C0]",
   layer_details_opened:
     "bg-[#FFF4E5] text-[#B54708] ring-[#F8D3A8] border-[#F8D3A8]",
-  layer_toggled:
-    "bg-[#EAF2FF] text-[#1D4ED8] ring-[#BFDBFE] border-[#BFDBFE]",
+  layer_toggled: "bg-[#EAF2FF] text-[#1D4ED8] ring-[#BFDBFE] border-[#BFDBFE]",
 };
 
 const EVENT_ROW_STYLES: Record<string, string> = {
@@ -159,9 +157,9 @@ function RankedList({
   renderEntryLabel?: (entry: TelemetryCountEntry) => ReactNode;
   getItemClassName?: (entry: TelemetryCountEntry) => string;
 }) {
-  const renderLabel = renderEntryLabel ?? ((entry: TelemetryCountEntry) => entry.label);
-  const resolveItemClassName =
-    getItemClassName ?? (() => "bg-[#F6F7F6]");
+  const renderLabel =
+    renderEntryLabel ?? ((entry: TelemetryCountEntry) => entry.label);
+  const resolveItemClassName = getItemClassName ?? (() => "bg-[#F6F7F6]");
 
   return (
     <section className="rounded-2xl border border-[#E4E5E2] bg-white p-5 shadow-sm">

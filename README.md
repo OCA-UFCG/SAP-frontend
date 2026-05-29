@@ -87,7 +87,9 @@ These files are living documents. If a prompt or code change affects architectur
 - `search_found` e `search_not_found` carregam sempre `activeLayerId` e `activeDateLabel`, para distinguir a mesma consulta entre camadas e datas diferentes.
 - Anonymous traffic is tagged with a browser-local session id; authenticated traffic also carries the Firebase session `uid` resolved on the server.
 - Set `FIREBASE_TELEMETRY_COLLECTION` only if the default Firestore collection name `telemetryEvents` must be overridden.
-- A protected inspection page is available at `/platform/logs`; it reads a recent sample from Firestore and summarizes top searches, `search_not_found`, layer activations, layer detail openings, and recent raw events.
+- Set `LOGS_ALLOWED_EMAILS` to a comma-separated list of normalized emails allowed to view `/platform/logs`.
+- The inspection page at `/platform/logs` is protected server-side: unauthenticated users are redirected to `/login`, and authenticated users outside `LOGS_ALLOWED_EMAILS` do not receive the dashboard response.
+- `/api/logs` remains the canonical append-only ingestion endpoint for log events.
 - The repository contains both application tests and Storybook coverage; prefer the narrowest relevant test command for the slice you change.
 - CI/CD blocks merges and releases on `npm run ci:verify`; broader Storybook/browser coverage remains a separate, non-blocking path.
 

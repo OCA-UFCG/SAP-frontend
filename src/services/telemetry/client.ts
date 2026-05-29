@@ -21,9 +21,7 @@ function createAnonymousSessionId() {
 
 function getAnonymousSessionId() {
   try {
-    const storedSessionId = window.localStorage.getItem(
-      SESSION_STORAGE_KEY,
-    );
+    const storedSessionId = window.localStorage.getItem(SESSION_STORAGE_KEY);
 
     if (storedSessionId) {
       return storedSessionId;

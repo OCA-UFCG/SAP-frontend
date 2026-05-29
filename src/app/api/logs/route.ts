@@ -41,6 +41,9 @@ export async function POST(req: Request) {
 
     console.error("Failed to record log event.", error);
 
-    return NextResponse.json({ error: "Failed to record logs." }, { status: 500 });
+    return NextResponse.json(
+      { error: "Failed to record logs." },
+      { status: 500 },
+    );
   }
 }
