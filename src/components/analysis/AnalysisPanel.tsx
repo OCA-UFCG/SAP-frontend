@@ -4,6 +4,10 @@ import { useEffect, useRef, useState, useMemo } from "react";
 import dynamic from "next/dynamic";
 import { Chevron } from "@/components/Chevron/Chevron";
 import SearchBarPlatform from "@/components/SidePanelContexts/SearchBarPlatform";
+import type {
+  SearchSubmissionMetadata,
+  SearchTelemetryContext,
+} from "@/components/SearchBar/types";
 import { getContrastTextColor } from "@/utils/functions";
 import type {
   AnalysisDistributionItem,
@@ -19,7 +23,8 @@ interface AnalysisPanelProps {
   yearOptions: AnalysisYearOption[];
   activeYear: string;
   onBack: () => void;
-  onSearch: (value: string) => void;
+  onSearch: (value: string, metadata: SearchSubmissionMetadata) => void;
+  searchTelemetryContext: SearchTelemetryContext;
   onYearChange: (year: string) => void;
   onRankingItemSelect?: (locationKey: string) => void;
   model: TerritorialAnalysisViewModel | null;
@@ -489,6 +494,7 @@ export function AnalysisPanel({
   activeYear,
   onBack,
   onSearch,
+  searchTelemetryContext,
   onYearChange,
   onRankingItemSelect,
   model,
@@ -556,7 +562,10 @@ export function AnalysisPanel({
 
         <section className="flex flex-col gap-8">
           <div className="flex gap-4">
-            <SearchBarPlatform onSearch={onSearch} />
+            <SearchBarPlatform
+              onSearch={onSearch}
+              searchTelemetryContext={searchTelemetryContext}
+            />
           </div>
 
           <div className="flex w-full max-w-[392px] flex-col items-start gap-[6px]">

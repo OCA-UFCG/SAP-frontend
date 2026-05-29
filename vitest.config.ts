@@ -36,6 +36,9 @@ export default defineConfig({
           setupFiles: ['./src/vitest.setup.ts'],
           include: ["**/__tests__/**/*.test.{ts,tsx,js,jsx}"],
           maxWorkers: 2,
+          sequence: {
+            groupOrder: 0,
+          },
         },
       },
       {
@@ -45,6 +48,9 @@ export default defineConfig({
         ],
         test: {
           name: "storybook",
+          sequence: {
+            groupOrder: 1,
+          },
           browser: {
             enabled: true,
             headless: true,

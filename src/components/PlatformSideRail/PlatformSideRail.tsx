@@ -1,4 +1,5 @@
 "use client";
+import Link from "next/link";
 import { Chevron } from "../Chevron/Chevron";
 import { Icon } from "../Icon/Icon";
 import clsx from "clsx";
@@ -20,8 +21,25 @@ export interface PlatformSideRailProps {
   /** Called when user clicks the chevron toggle. */
   onTogglePanel: () => void;
 
+  /** Whether the authenticated viewer can access the logs dashboard. */
+  showAuditLink?: boolean;
+
   className?: string;
 }
+
+type PlatformRailItem =
+  | {
+      kind: "section";
+      id: PlatformSection;
+      label: string;
+      icon: string;
+    }
+  | {
+      kind: "link";
+      href: string;
+      label: string;
+      icon: string;
+    };
 
 /**
  * PlatformSideRail
@@ -38,23 +56,52 @@ export function PlatformSideRail({
   onSectionChange,
   isPanelOpen,
   onTogglePanel,
+  showAuditLink = false,
   className,
 }: PlatformSideRailProps) {
-  const items: Array<{ id: PlatformSection; label: string; icon: string }> = [
-    { id: "monitoring", label: "Monitoramento", icon: "eye" },
-    { id: "analysis", label: "Análise", icon: "chart" },
-    { id: "communication", label: "Comunicação", icon: "calendar" },
+  const items: PlatformRailItem[] = [
+    { kind: "section", id: "monitoring", label: "Monitoramento", icon: "eye" },
+    { kind: "section", id: "analysis", label: "Análise", icon: "chart" },
+    {
+      kind: "section",
+      id: "communication",
+      label: "Comunicação",
+      icon: "calendar",
+    },
   ];
+
+  if (showAuditLink) {
+    items.push({
+      kind: "link",
+      href: "/platform/logs",
+      label: "Auditoria",
+      icon: "info",
+    });
+  }
 
   return (
     <div className={clsx("relative h-full", className)} data-platform-side-rail>
       <nav className="h-full w-[140px] bg-white border-r border-neutral-200 pt-[48px] pb-[18px] px-[16px] flex flex-col">
         <div className="w-[114px] flex flex-col">
           {items.map((item, index) => {
-            const isActive = item.id === activeSection;
+            const isActive =
+              item.kind === "section" && item.id === activeSection;
+
+            const itemContent = (
+              <>
+                <div className={clsx("flex items-center justify-center")}>
+                  <Icon id={item.icon} size={24} />
+                </div>
+
+                <div className="text-[12px] leading-[14px] font-medium text-center break-words w-full px-1">
+                  {item.label}
+                </div>
+              </>
+            );
+
             return (
               <div
-                key={item.id}
+                key={item.kind === "section" ? item.id : item.href}
                 //clsx eh uma função pra montar classes CSS dinamicamente
                 className={clsx(
                   "w-full flex flex-col items-center",
@@ -62,25 +109,28 @@ export function PlatformSideRail({
                   index !== items.length - 1 && "pb-[24px]",
                 )}
               >
-                <button
-                  type="button"
-                  onClick={() => onSectionChange(item.id)}
-                  aria-current={isActive ? "page" : undefined}
-                  className={clsx(
-                    "cursor-pointer w-full h-[88px] flex flex-col items-center justify-center gap-[4px] px-[8px] rounded-lg transition-colors duration-150",
-                    isActive
-                      ? "bg-[#E1E2B4] text-[#5B612A]"
-                      : "text-[#292829] hover:bg-[#F8F7F8]",
-                  )}
-                >
-                  <div className={clsx("flex items-center justify-center")}>
-                    <Icon id={item.icon} size={24} />
-                  </div>
-
-                  <div className="text-[12px] leading-[14px] font-medium text-center break-words w-full px-1">
-                    {item.label}
-                  </div>
-                </button>
+                {item.kind === "section" ? (
+                  <button
+                    type="button"
+                    onClick={() => onSectionChange(item.id)}
+                    aria-current={isActive ? "page" : undefined}
+                    className={clsx(
+                      "cursor-pointer w-full h-[88px] flex flex-col items-center justify-center gap-[4px] px-[8px] rounded-lg transition-colors duration-150",
+                      isActive
+                        ? "bg-[#E1E2B4] text-[#5B612A]"
+                        : "text-[#292829] hover:bg-[#F8F7F8]",
+                    )}
+                  >
+                    {itemContent}
+                  </button>
+                ) : (
+                  <Link
+                    href={item.href}
+                    className="w-full h-[88px] flex flex-col items-center justify-center gap-[4px] px-[8px] rounded-lg text-[#292829] transition-colors duration-150 hover:bg-[#F8F7F8]"
+                  >
+                    {itemContent}
+                  </Link>
+                )}
               </div>
             );
           })}

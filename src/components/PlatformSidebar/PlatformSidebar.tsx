@@ -13,9 +13,13 @@ import { useMapLayerActions } from "@/components/MapLayerContext/MapLayerContext
 
 interface PlatformSidebarProps {
   panelLayers: PanelLayerI[];
+  showAuditLink?: boolean;
 }
 
-export function PlatformSidebar({ panelLayers }: PlatformSidebarProps) {
+export function PlatformSidebar({
+  panelLayers,
+  showAuditLink = false,
+}: PlatformSidebarProps) {
   const { clearActiveLayer, setActiveLegend } = useMapLayerActions();
 
   const [activeSection, setActiveSection] =
@@ -38,10 +42,10 @@ export function PlatformSidebar({ panelLayers }: PlatformSidebarProps) {
             : undefined;
 
   function handleSectionChange(next: PlatformSection) {
-    if (next === "analysis"){
+    if (next === "analysis") {
       setShowAnalysisFrame(true);
       setActiveSection(next);
-      setIsPanelOpen(false); 
+      setIsPanelOpen(false);
       setActiveLegend(null);
       return;
     }
@@ -67,41 +71,42 @@ export function PlatformSidebar({ panelLayers }: PlatformSidebarProps) {
 
   return (
     <>
-    <aside
-      className="absolute left-0 top-0 z-20 flex h-full"
-      data-platform-sidebar-overlay
-    >
-      <PlatformSideRail
-        activeSection={activeSection}
-        onSectionChange={handleSectionChange}
-        isPanelOpen={isPanelOpen}
-        onTogglePanel={() => setIsPanelOpen((v) => !v)}
-      />
+      <aside
+        className="absolute left-0 top-0 z-20 flex h-full"
+        data-platform-sidebar-overlay
+      >
+        <PlatformSideRail
+          activeSection={activeSection}
+          onSectionChange={handleSectionChange}
+          isPanelOpen={isPanelOpen}
+          onTogglePanel={() => setIsPanelOpen((v) => !v)}
+          showAuditLink={showAuditLink}
+        />
 
-      <div
-        data-platform-side-panel
-        className={`
+        <div
+          data-platform-side-panel
+          className={`
         relative h-full overflow-hidden
           transition-[width] duration-300 ease-in-out
           ${isPanelOpen ? "w-[420px]" : "w-0"}
         `}
-      >
-        <div
-          className={`
+        >
+          <div
+            className={`
             absolute left-0 top-0 h-full w-full
             transform transition-transform duration-300 ease-in-out
             ${isPanelOpen ? "translate-x-0" : "-translate-x-full"}
           `}
-        >
-          <PlatformSidePanel
-            activeSection={panelSection}
-            panelLayers={panelLayers}
-            ContextComponent={ContextComponent}
-            onRequestSectionChange={handlePanelSectionChange}
-          />
+          >
+            <PlatformSidePanel
+              activeSection={panelSection}
+              panelLayers={panelLayers}
+              ContextComponent={ContextComponent}
+              onRequestSectionChange={handlePanelSectionChange}
+            />
+          </div>
         </div>
-      </div>
-    </aside>
+      </aside>
 
       {showAnalysisFrame && (
         <div

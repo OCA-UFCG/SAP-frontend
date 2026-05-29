@@ -10,6 +10,7 @@ import type { IDroughtDataset } from "@/components/DroughtDataset/DroughtDataset
 import { LayerAccordion } from "@/components/LayerAccordion/LayerAccordion";
 import type { PlatformSection } from "@/components/PlatformSideRail/PlatformSideRail";
 import type { CDIVectorData } from "@/lib/geo";
+import { trackUiEvent } from "@/services/telemetry/client";
 import type { IEEInfo, PanelLayerI } from "@/utils/interfaces";
 import { getImageDataLegend } from "@/utils/imageData";
 import cdiData from "../../data/CDI_Janeiro_2024_Vetores.json";
@@ -64,9 +65,7 @@ function normalizeCategory(category?: string): string {
 
 function compareCategoryTitles(left: string, right: string): number {
   const leftIndex = CATEGORY_ORDER_INDEX.get(left.toLocaleLowerCase("pt-BR"));
-  const rightIndex = CATEGORY_ORDER_INDEX.get(
-    right.toLocaleLowerCase("pt-BR"),
-  );
+  const rightIndex = CATEGORY_ORDER_INDEX.get(right.toLocaleLowerCase("pt-BR"));
 
   if (leftIndex != null && rightIndex != null) {
     return leftIndex - rightIndex;
@@ -136,6 +135,7 @@ function ContextHeader() {
 }
 
 export function ModulesContext({
+  activeSection,
   panelLayers = [],
   onRequestSectionChange,
 }: ModulesContextProps) {
@@ -195,8 +195,26 @@ export function ModulesContext({
         const isActive = activeData === vectorData;
         if (isActive) {
           clearActiveLayer();
+          trackUiEvent({
+            eventName: "layer_toggled",
+            surface: "analysis-panel",
+            activeLayerId: layer.id,
+            activeLayerName: layer.name,
+            layerKind: "vector",
+            action: "deactivated",
+            activeSection,
+          });
         } else {
           activateVectorLayer(layerId, vectorData, getCaption(layer));
+          trackUiEvent({
+            eventName: "layer_toggled",
+            surface: "analysis-panel",
+            activeLayerId: layer.id,
+            activeLayerName: layer.name,
+            layerKind: "vector",
+            action: "activated",
+            activeSection,
+          });
         }
 
         return;
@@ -210,9 +228,20 @@ export function ModulesContext({
         } else {
           activateEeLayer(eeConfig, getCaption(layer));
         }
+
+        trackUiEvent({
+          eventName: "layer_toggled",
+          surface: "analysis-panel",
+          activeLayerId: layer.id,
+          activeLayerName: layer.name,
+          layerKind: "ee",
+          action: isActive ? "deactivated" : "activated",
+          activeSection,
+        });
       }
     },
     [
+      activeSection,
       activeData,
       activeEEData,
       activateEeLayer,
@@ -241,9 +270,19 @@ export function ModulesContext({
         activateEeLayer(eeConfig, getCaption(layer));
       }
 
+      trackUiEvent({
+        eventName: "layer_details_opened",
+        surface: "analysis-panel",
+        activeLayerId: layer.id,
+        activeLayerName: layer.name,
+        layerKind: vectorData ? "vector" : "ee",
+        activeSection,
+      });
+
       onRequestSectionChange?.("analysis-detail");
     },
     [
+      activeSection,
       activateEeLayer,
       activateVectorLayer,
       getCaption,

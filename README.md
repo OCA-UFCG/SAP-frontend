@@ -32,7 +32,7 @@ Use `env.sample.txt` as the starting point for local Contentful variables.
 cp env.sample.txt .env.local
 ```
 
-For map features backed by Google Earth Engine, server-side credentials must also be configured in the runtime environment. Do not commit secrets to the repository.
+For map features backed by Google Earth Engine and for server-side telemetry ingestion, Firebase Admin credentials must also be configured in the runtime environment. Do not commit secrets to the repository.
 
 ## Getting Started
 
@@ -82,8 +82,25 @@ These files are living documents. If a prompt or code change affects architectur
 
 - `panelLayer.imageData` is a high-impact contract. Changes to it can affect Contentful mapping, map rendering, legend generation, analysis behavior, and EE cache behavior.
 - The main platform flow currently centers on Contentful `panelLayers`, client-side map state in `MapLayerContext`, and server-side EE URL resolution through `/api/ee`.
+- UI logs for municipality/state search and layer usage are ingested through `/api/logs` and stored in Firestore via `firebase-admin`. The route accepts append-only event batches for `search_found`, `search_not_found`, `layer_toggled`, and `layer_details_opened`.
+- Search telemetry is recorded for the home search bar and the analysis panel search bar. Layer telemetry is recorded from `ModulesContext` when a layer is toggled or when the detail view is opened.
+- `search_found` e `search_not_found` carregam sempre `activeLayerId` e `activeDateLabel`, para distinguir a mesma consulta entre camadas e datas diferentes.
+- Anonymous traffic is tagged with a browser-local session id; authenticated traffic also carries the Firebase session `uid` resolved on the server.
+- Set `FIREBASE_TELEMETRY_COLLECTION` only if the default Firestore collection name `telemetryEvents` must be overridden.
+- Set `LOGS_ALLOWED_EMAILS` to a comma-separated list of normalized emails allowed to view `/platform/logs`.
+- The inspection page at `/platform/logs` is protected server-side: unauthenticated users are redirected to `/login`, and authenticated users outside `LOGS_ALLOWED_EMAILS` do not receive the dashboard response.
+- `/api/logs` remains the canonical append-only ingestion endpoint for log events.
 - The repository contains both application tests and Storybook coverage; prefer the narrowest relevant test command for the slice you change.
 - CI/CD blocks merges and releases on `npm run ci:verify`; broader Storybook/browser coverage remains a separate, non-blocking path.
+
+## Telemetry Validation
+
+Use the focused unit tests below when touching the telemetry slice:
+
+- `npm run test:unit -- --run __tests__/telemetryRoute.test.ts`
+- `npm run test:unit -- --run __tests__/SearchBar.test.tsx __tests__/SearchBarPlatform.test.tsx __tests__/AnalysisContext.test.tsx __tests__/ModulesContext.test.tsx`
+
+With Firebase Admin credentials configured, manual verification should confirm that `/api/logs` receives events from the home search, analysis search, layer toggles, and layer detail openings, and that documents are written to the configured Firestore collection.
 
 ## Repository Structure
 

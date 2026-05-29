@@ -8,9 +8,17 @@ import SearchBar from "../SearchBar/SearchBar";
 import Link from "next/link";
 import MapComponent from "../Map/MapComponent";
 import { AlertTiers } from "../AlertTiers/AlertTiers";
+import type { SearchSubmissionMetadata } from "@/components/SearchBar/types";
 import type { CDIVectorData } from "@/lib/geo";
 import { resolveStateKeyFromSearch } from "@/lib/geo";
+import { trackUiEvent } from "@/services/telemetry/client";
 import { statesObj } from "@/utils/constants";
+
+const HOME_TELEMETRY_CONTEXT = {
+  activeLayerId: "CDI",
+  activeLayerName: "CDI Janeiro 2024",
+  activeDateLabel: "31/01/24",
+} as const;
 
 const TIER_CONFIG = {
   "sem-seca": { label: "Sem seca", color: "#E4E5E2" },
@@ -24,9 +32,36 @@ const TIER_CONFIG = {
 export default function DroughtSection() {
   const [selectedState, setSelectedState] = useState("br");
 
-  const handleSearch = (value: string) => {
+  const handleSearch = (value: string, metadata: SearchSubmissionMetadata) => {
     const result = resolveStateKeyFromSearch(value, statesObj);
+
+    if (result.type === "city") {
+      trackUiEvent({
+        eventName: "search_not_found",
+        surface: "home",
+        query: value,
+        selectionMethod: metadata.selectionMethod,
+        visibleOptionCount: metadata.visibleOptionCount,
+        resolvedLocationType: result.type,
+        resolvedStateKey: result.key,
+        resolvedMunicipalityCode: result.city.code,
+        ...HOME_TELEMETRY_CONTEXT,
+      });
+      return;
+    }
+
     setSelectedState(result.key);
+
+    trackUiEvent({
+      eventName: "search_found",
+      surface: "home",
+      query: value,
+      selectionMethod: metadata.selectionMethod,
+      visibleOptionCount: metadata.visibleOptionCount,
+      resolvedLocationType: result.type,
+      resolvedStateKey: result.key,
+      ...HOME_TELEMETRY_CONTEXT,
+    });
   };
 
   /**
@@ -79,7 +114,10 @@ export default function DroughtSection() {
         </h2>
 
         <div className="mb-6 w-full">
-          <SearchBar onSearch={handleSearch} />
+          <SearchBar
+            onSearch={handleSearch}
+            searchTelemetryContext={HOME_TELEMETRY_CONTEXT}
+          />
         </div>
 
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 items-start">
@@ -91,7 +129,9 @@ export default function DroughtSection() {
                 zoom={4}
                 dadosCDI={cdiData}
                 estadoSelecionado={selectedState.toUpperCase()}
-                onStateSelect={(uf: string) => setSelectedState(uf.toLowerCase())}
+                onStateSelect={(uf: string) =>
+                  setSelectedState(uf.toLowerCase())
+                }
                 className="w-full h-full"
               />
 

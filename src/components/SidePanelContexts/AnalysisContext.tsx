@@ -2,6 +2,7 @@
 
 import { useEffect, useMemo } from "react";
 import { AnalysisPanel } from "@/components/analysis/AnalysisPanel";
+import type { SearchSubmissionMetadata } from "@/components/SearchBar/types";
 import {
   buildEmbeddedTerritorialAnalysisViewModel,
   getFallbackAnalysisLocationName,
@@ -16,6 +17,7 @@ import {
   useMapLayerViewState,
 } from "@/components/MapLayerContext/MapLayerContext";
 import { resolveStateKeyFromSearch } from "@/lib/geo";
+import { trackUiEvent } from "@/services/telemetry/client";
 import type { PlatformSection } from "@/components/PlatformSideRail/PlatformSideRail";
 import type { PanelLayerI, IEEInfo } from "@/utils/interfaces";
 import type { CompactTerritorialAnalysisDataset } from "@/utils/analysis";
@@ -29,6 +31,7 @@ export interface AnalysisContextProps {
 }
 
 export function AnalysisContext({
+  activeSection,
   onRequestSectionChange,
   panelLayers,
 }: AnalysisContextProps) {
@@ -54,18 +57,6 @@ export function AnalysisContext({
     onRequestSectionChange?.("monitoring");
   }
 
-  const handleSearch = (value: string) => {
-    const result = resolveStateKeyFromSearch(value, statesObj);
-    setSelectedState(result.key);
-
-    if (result.type === "city") {
-      setSelectedMunicipalityCode(result.city.code);
-      return;
-    }
-
-    setSelectedMunicipalityCode(null);
-  };
-
   const effectiveYear = useMemo(
     () => getEffectiveAnalysisYear(dataset, activeYear),
     [dataset, activeYear],
@@ -73,6 +64,62 @@ export function AnalysisContext({
 
   const activeAnalysisYear =
     effectiveYear ?? yearOptions[0]?.value ?? "general";
+
+  const activeDateLabel =
+    yearOptions.find((option) => option.value === activeAnalysisYear)?.label ??
+    activeAnalysisYear;
+
+  const handleSearch = (value: string, metadata: SearchSubmissionMetadata) => {
+    const result = resolveStateKeyFromSearch(value, statesObj);
+    const nextMunicipalityCode =
+      result.type === "city" ? result.city.code : null;
+    const selectedLocationKey = nextMunicipalityCode ?? result.key;
+
+    setSelectedState(result.key);
+
+    if (nextMunicipalityCode) {
+      setSelectedMunicipalityCode(nextMunicipalityCode);
+    } else {
+      setSelectedMunicipalityCode(null);
+    }
+
+    const baseSearchEvent = {
+      surface: "analysis-panel" as const,
+      query: value,
+      selectionMethod: metadata.selectionMethod,
+      visibleOptionCount: metadata.visibleOptionCount,
+      resolvedLocationType: result.type,
+      resolvedStateKey: result.key,
+      resolvedMunicipalityCode: nextMunicipalityCode ?? undefined,
+      activeLayerId: dataset?.id,
+      activeLayerName: dataset?.name,
+      activeDateLabel,
+      activeSection,
+    };
+
+    const hasLayerData = Boolean(
+      dataset &&
+      effectiveYear &&
+      buildEmbeddedTerritorialAnalysisViewModel(
+        dataset,
+        effectiveYear,
+        selectedLocationKey,
+      ),
+    );
+
+    if (hasLayerData) {
+      trackUiEvent({
+        eventName: "search_found",
+        ...baseSearchEvent,
+      });
+      return;
+    }
+
+    trackUiEvent({
+      eventName: "search_not_found",
+      ...baseSearchEvent,
+    });
+  };
 
   const selectedLocationKey = selectedMunicipalityCode ?? selectedState;
 
@@ -119,6 +166,11 @@ export function AnalysisContext({
       activeYear={activeAnalysisYear}
       onBack={handleGoBack}
       onSearch={handleSearch}
+      searchTelemetryContext={{
+        activeLayerId: dataset?.id ?? "unknown-layer",
+        activeLayerName: dataset?.name ?? "Camada desconhecida",
+        activeDateLabel,
+      }}
       onYearChange={setActiveYear}
       onRankingItemSelect={setSelectedState}
       model={embeddedModel}

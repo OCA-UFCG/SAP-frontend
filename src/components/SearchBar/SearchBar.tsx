@@ -3,24 +3,30 @@
 import { useEffect, useRef, useState } from "react";
 import { Icon } from "../Icon/Icon";
 import { ButtonUi } from "../ButtonUI/ButtonUI";
+import { trackUiEvent } from "@/services/telemetry/client";
+import type {
+  SearchSubmissionMetadata,
+  SearchTelemetryContext,
+} from "@/components/SearchBar/types";
+import type { SearchSelectionMethod } from "@/types/telemetry";
 import {
-  stateOptions,
-  validateSearch,
-  filterStateOptions,
+  filterStateOnlyOptions,
+  validateStateOnlySearch,
 } from "./searchBarUtils";
 
 interface SearchBarProps {
-  onSearch: (value: string) => void;
+  onSearch: (value: string, metadata: SearchSubmissionMetadata) => void;
+  searchTelemetryContext: SearchTelemetryContext;
 }
 
-const SearchBar = ({ onSearch }: SearchBarProps) => {
+const SearchBar = ({ onSearch, searchTelemetryContext }: SearchBarProps) => {
   const containerRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
   const [hasError, setHasError] = useState(false);
   const [isOptionsOpen, setIsOptionsOpen] = useState(false);
   const [value, setValue] = useState("");
 
-  const filteredSearchOptions = filterStateOptions(value);
+  const filteredSearchOptions = filterStateOnlyOptions(value);
 
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
@@ -36,20 +42,32 @@ const SearchBar = ({ onSearch }: SearchBarProps) => {
     };
   }, []);
 
-  const onSubmit = () => {
+  const onSubmit = (selectionMethod: SearchSelectionMethod) => {
     const trimmedValue = value.trim();
     const currentValue =
       trimmedValue.length > 0
         ? trimmedValue
         : (filteredSearchOptions[0] ?? value);
+    const visibleOptionCount = filteredSearchOptions.length;
 
     try {
-      validateSearch(currentValue);
+      validateStateOnlySearch(currentValue);
       setHasError(false);
       setIsOptionsOpen(false);
-      onSearch(currentValue);
+      onSearch(currentValue, {
+        selectionMethod,
+        visibleOptionCount,
+      });
     } catch {
       setHasError(true);
+      trackUiEvent({
+        eventName: "search_not_found",
+        surface: "home",
+        query: currentValue,
+        selectionMethod,
+        visibleOptionCount,
+        ...searchTelemetryContext,
+      });
     }
   };
 
@@ -59,8 +77,14 @@ const SearchBar = ({ onSearch }: SearchBarProps) => {
     inputRef.current?.focus();
   };
 
-  const handleOptionSelect = (option: string) => {
-    onSearch(option);
+  const handleOptionSelect = (
+    option: string,
+    selectionMethod: SearchSelectionMethod,
+  ) => {
+    onSearch(option, {
+      selectionMethod,
+      visibleOptionCount: filteredSearchOptions.length,
+    });
     setValue("");
     setHasError(false);
     setIsOptionsOpen(false);
@@ -100,19 +124,19 @@ const SearchBar = ({ onSearch }: SearchBarProps) => {
               if (e.key === "Enter") {
                 e.preventDefault();
                 if (filteredSearchOptions.length > 0) {
-                  handleOptionSelect(filteredSearchOptions[0]);
+                  handleOptionSelect(filteredSearchOptions[0], "enter");
                 } else {
-                  onSubmit();
+                  onSubmit("enter");
                 }
               }
             }}
             className="w-full text-[#292829] bg-transparent border-none outline-none ring-0"
-            placeholder="Pesquise um estado ou município"
+            placeholder="Pesquise um estado"
           />
 
           <button
             type="button"
-            aria-label="Mostrar estados e municípios"
+            aria-label="Mostrar estados"
             onClick={toggleOptions}
             className="ml-3 shrink-0 text-[#292829] transition-transform"
           >
@@ -147,7 +171,7 @@ const SearchBar = ({ onSearch }: SearchBarProps) => {
                 type="button"
                 role="option"
                 aria-selected={value === option}
-                onClick={() => handleOptionSelect(option)}
+                onClick={() => handleOptionSelect(option, "option-click")}
                 className="flex w-full rounded-lg px-3 py-2 text-left text-sm text-[#292829] transition hover:bg-[#F6F7F6]"
               >
                 {option}
@@ -161,7 +185,7 @@ const SearchBar = ({ onSearch }: SearchBarProps) => {
         // disabled={!search}
         styles="bg-[#989F43] text-white min-w-30 h-full rounded-xl hover:brightness-110 active:brightness-95 transition not:disabled:hover:opacity-90 disabled:hover:opacity-100 hover:bg-[#989F43]"
         label={"Pesquisar"}
-        onClick={() => onSubmit()}
+        onClick={() => onSubmit("button")}
       />
     </div>
   );
