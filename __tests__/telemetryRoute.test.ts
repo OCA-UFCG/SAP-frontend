@@ -1,4 +1,4 @@
-import { beforeEach, describe, expect, it, vi } from "vitest";
+import { afterAll, beforeEach, describe, expect, it, vi } from "vitest";
 
 vi.mock("@/lib/server-session", () => ({
   getAuthenticatedUserSession: vi.fn(),
@@ -33,6 +33,7 @@ const mockedGetAuthenticatedUserSession = vi.mocked(
 );
 const mockedConsumeLogsRateLimit = vi.mocked(consumeLogsRateLimit);
 const mockedIngestTelemetryEvents = vi.mocked(ingestTelemetryEvents);
+const originalHostUrl = process.env.NEXT_PUBLIC_HOST_URL;
 
 function createSameOriginHeaders() {
   return {
@@ -43,6 +44,7 @@ function createSameOriginHeaders() {
 
 describe("/api/logs", () => {
   beforeEach(() => {
+    delete process.env.NEXT_PUBLIC_HOST_URL;
     mockedGetAuthenticatedUserSession.mockReset();
     mockedConsumeLogsRateLimit.mockReset();
     mockedIngestTelemetryEvents.mockReset();
@@ -55,6 +57,15 @@ describe("/api/logs", () => {
       },
       retryAfterSeconds: 60,
     });
+  });
+
+  afterAll(() => {
+    if (originalHostUrl) {
+      process.env.NEXT_PUBLIC_HOST_URL = originalHostUrl;
+      return;
+    }
+
+    delete process.env.NEXT_PUBLIC_HOST_URL;
   });
 
   it("accepts valid telemetry payloads and forwards the authenticated identity", async () => {
@@ -214,6 +225,46 @@ describe("/api/logs", () => {
           referer: "https://beta.example.test/plataforma",
           "x-forwarded-host": "beta.example.test:443",
           "x-forwarded-proto": "https",
+        },
+        body: JSON.stringify(payload),
+      }),
+    );
+
+    expect(response.status).toBe(202);
+    expect(mockedIngestTelemetryEvents).toHaveBeenCalledWith(payload, {
+      uid: null,
+      userEmail: null,
+    });
+  });
+
+  it("accepts reverse proxy requests when the public app origin is configured at runtime", async () => {
+    process.env.NEXT_PUBLIC_HOST_URL = "https://beta.example.test/plataforma";
+    mockedGetAuthenticatedUserSession.mockResolvedValueOnce(null);
+    mockedIngestTelemetryEvents.mockResolvedValueOnce({ accepted: 1 });
+
+    const payload = {
+      events: [
+        {
+          eventName: "search_not_found",
+          surface: "home",
+          query: "cidade inexistente",
+          selectionMethod: "button",
+          anonymousSessionId: "anon-1",
+          activeLayerId: "CDI",
+          activeLayerName: "CDI Janeiro 2024",
+          activeDateLabel: "31/01/24",
+        },
+      ],
+    };
+
+    const response = await POST(
+      new Request("http://127.0.0.1:3000/api/logs", {
+        method: "POST",
+        headers: {
+          ...createSameOriginHeaders(),
+          host: "127.0.0.1:3000",
+          origin: "https://beta.example.test",
+          referer: "https://beta.example.test/plataforma",
         },
         body: JSON.stringify(payload),
       }),
