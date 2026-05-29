@@ -1,13 +1,14 @@
+import type { DocumentData } from "firebase-admin/firestore";
 import { adminDb } from "@/lib/firebase-admin";
 import type { PersistedTelemetryEvent } from "@/types/telemetry";
 
 const TELEMETRY_COLLECTION_NAME =
   process.env.FIREBASE_TELEMETRY_COLLECTION?.trim() || "telemetryEvents";
 
-function stripUndefinedFields<T extends Record<string, unknown>>(value: T): T {
+function stripUndefinedFields<T extends object>(value: T): DocumentData {
   return Object.fromEntries(
     Object.entries(value).filter(([, entryValue]) => entryValue !== undefined),
-  ) as T;
+  );
 }
 
 export async function saveTelemetryEvents(
