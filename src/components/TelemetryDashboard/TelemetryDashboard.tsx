@@ -215,6 +215,7 @@ function EventTable({ events }: { events: PersistedTelemetryEvent[] }) {
               <th className="px-5 py-3 font-medium">Recebido</th>
               <th className="px-5 py-3 font-medium">Evento</th>
               <th className="px-5 py-3 font-medium">Superfície</th>
+              <th className="px-5 py-3 font-medium">Usuário</th>
               <th className="px-5 py-3 font-medium">Consulta</th>
               <th className="px-5 py-3 font-medium">Layer</th>
               <th className="px-5 py-3 font-medium">Data</th>
@@ -236,6 +237,9 @@ function EventTable({ events }: { events: PersistedTelemetryEvent[] }) {
                 </td>
                 <td className="px-5 py-3 text-[#292829]">
                   {formatSurfaceLabel(event.surface)}
+                </td>
+                <td className="px-5 py-3 text-[#292829]">
+                  {event.userEmail ?? "-"}
                 </td>
                 <td className="px-5 py-3 text-[#292829]">
                   {event.query ?? "-"}

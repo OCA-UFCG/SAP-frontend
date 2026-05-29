@@ -8,11 +8,16 @@ vi.mock("@/repositories/telemetry/telemetryRepository", () => ({
 import {
   buildTelemetryDashboardData,
   getTelemetryDashboardData,
+  ingestTelemetryEvents,
 } from "@/services/telemetry/telemetryService";
-import { getRecentTelemetryEvents } from "@/repositories/telemetry/telemetryRepository";
+import {
+  getRecentTelemetryEvents,
+  saveTelemetryEvents,
+} from "@/repositories/telemetry/telemetryRepository";
 import type { PersistedTelemetryEvent } from "@/types/telemetry";
 
 const mockedGetRecentTelemetryEvents = vi.mocked(getRecentTelemetryEvents);
+const mockedSaveTelemetryEvents = vi.mocked(saveTelemetryEvents);
 
 function createEvent(
   overrides: Partial<PersistedTelemetryEvent>,
@@ -37,6 +42,43 @@ function createEvent(
 describe("telemetryService", () => {
   beforeEach(() => {
     mockedGetRecentTelemetryEvents.mockReset();
+    mockedSaveTelemetryEvents.mockReset();
+  });
+
+  it("persists the authenticated user email with ingested events", async () => {
+    mockedSaveTelemetryEvents.mockResolvedValueOnce();
+
+    const result = await ingestTelemetryEvents(
+      {
+        events: [
+          {
+            eventName: "layer_toggled",
+            surface: "home",
+            anonymousSessionId: "anon-1",
+            activeLayerId: "CDI",
+            activeLayerName: "CDI Janeiro 2024",
+            layerKind: "vector",
+            action: "activated",
+          },
+        ],
+      },
+      {
+        uid: "user-123",
+        userEmail: "oca@gmail.com",
+        now: new Date("2026-05-29T12:00:01.000Z"),
+      },
+    );
+
+    expect(result).toEqual({ accepted: 1 });
+    expect(mockedSaveTelemetryEvents).toHaveBeenCalledWith([
+      expect.objectContaining({
+        uid: "user-123",
+        userEmail: "oca@gmail.com",
+        anonymousSessionId: "anon-1",
+        receivedAt: "2026-05-29T12:00:01.000Z",
+        receivedDay: "2026-05-29",
+      }),
+    ]);
   });
 
   it("builds dashboard aggregates from recent telemetry events", () => {

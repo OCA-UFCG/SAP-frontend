@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { getAuthenticatedUserId } from "@/lib/server-session";
+import { getAuthenticatedUserSession } from "@/lib/server-session";
 import { ingestTelemetryEvents } from "@/services/telemetry/telemetryService";
 import { TelemetryValidationError } from "@/types/telemetry";
 
@@ -23,8 +23,11 @@ export async function POST(req: Request) {
   }
 
   try {
-    const uid = await getAuthenticatedUserId(req);
-    const result = await ingestTelemetryEvents(payload, { uid });
+    const authenticatedUser = await getAuthenticatedUserSession(req);
+    const result = await ingestTelemetryEvents(payload, {
+      uid: authenticatedUser?.uid ?? null,
+      userEmail: authenticatedUser?.email ?? null,
+    });
 
     return NextResponse.json(result, { status: 202 });
   } catch (error) {

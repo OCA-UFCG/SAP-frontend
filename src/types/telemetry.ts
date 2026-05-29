@@ -52,6 +52,7 @@ export interface PersistedTelemetryEvent extends TelemetryEventInput {
   receivedAt: string;
   receivedDay: string;
   uid: string | null;
+  userEmail?: string | null;
 }
 
 export interface TelemetryCountEntry {
@@ -281,11 +282,13 @@ export function buildPersistedTelemetryEvent(
     occurredAt,
     receivedAt,
     uid,
+    userEmail,
   }: {
     anonymousSessionId: string;
     occurredAt: string;
     receivedAt: string;
     uid: string | null;
+    userEmail: string | null;
   },
 ): PersistedTelemetryEvent {
   return {
@@ -295,5 +298,6 @@ export function buildPersistedTelemetryEvent(
     receivedAt,
     receivedDay: receivedAt.slice(0, 10),
     uid,
+    userEmail,
   };
 }

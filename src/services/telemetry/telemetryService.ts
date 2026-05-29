@@ -12,6 +12,7 @@ import {
 
 interface IngestTelemetryEventsOptions {
   uid?: string | null;
+  userEmail?: string | null;
   now?: Date;
 }
 
@@ -35,6 +36,7 @@ export async function ingestTelemetryEvents(
       occurredAt: event.occurredAt ?? receivedAt,
       receivedAt,
       uid: options.uid ?? null,
+      userEmail: options.userEmail ?? null,
     });
   });
 

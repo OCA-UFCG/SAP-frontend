@@ -4,6 +4,20 @@ export const SESSION_COOKIE_NAME = "session";
 export const SESSION_COOKIE_MAX_AGE_SECONDS = 60 * 60 * 24;
 export const SESSION_COOKIE_MAX_AGE_MS = SESSION_COOKIE_MAX_AGE_SECONDS * 1000;
 
+export interface AuthenticatedUserSession {
+  uid: string;
+  email: string | null;
+}
+
+function normalizeSessionEmail(email: unknown) {
+  if (typeof email !== "string") {
+    return null;
+  }
+
+  const normalizedEmail = email.trim().toLowerCase();
+  return normalizedEmail || null;
+}
+
 export async function createFirebaseSessionCookie(token: string) {
   await adminAuth.verifyIdToken(token);
 
@@ -25,7 +39,9 @@ export async function verifyFirebaseSessionCookie(
   }
 }
 
-export async function getAuthenticatedUserId(request: Request) {
+export async function getAuthenticatedUserSession(
+  request: Request,
+): Promise<AuthenticatedUserSession | null> {
   const sessionCookie = getSessionCookieFromRequest(request);
 
   if (!sessionCookie) return null;
@@ -36,10 +52,18 @@ export async function getAuthenticatedUserId(request: Request) {
       true,
     );
 
-    return decodedToken.uid;
+    return {
+      uid: decodedToken.uid,
+      email: normalizeSessionEmail(decodedToken.email),
+    };
   } catch {
     return null;
   }
+}
+
+export async function getAuthenticatedUserId(request: Request) {
+  const session = await getAuthenticatedUserSession(request);
+  return session?.uid ?? null;
 }
 
 export function getCookieValue(

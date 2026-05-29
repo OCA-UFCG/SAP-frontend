@@ -1,7 +1,7 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 vi.mock("@/lib/server-session", () => ({
-  getAuthenticatedUserId: vi.fn(),
+  getAuthenticatedUserSession: vi.fn(),
 }));
 
 vi.mock("@/services/telemetry/telemetryService", () => ({
@@ -9,21 +9,26 @@ vi.mock("@/services/telemetry/telemetryService", () => ({
 }));
 
 import { POST } from "@/app/api/logs/route";
-import { getAuthenticatedUserId } from "@/lib/server-session";
+import { getAuthenticatedUserSession } from "@/lib/server-session";
 import { ingestTelemetryEvents } from "@/services/telemetry/telemetryService";
 import { TelemetryValidationError } from "@/types/telemetry";
 
-const mockedGetAuthenticatedUserId = vi.mocked(getAuthenticatedUserId);
+const mockedGetAuthenticatedUserSession = vi.mocked(
+  getAuthenticatedUserSession,
+);
 const mockedIngestTelemetryEvents = vi.mocked(ingestTelemetryEvents);
 
 describe("/api/logs", () => {
   beforeEach(() => {
-    mockedGetAuthenticatedUserId.mockReset();
+    mockedGetAuthenticatedUserSession.mockReset();
     mockedIngestTelemetryEvents.mockReset();
   });
 
-  it("accepts valid telemetry payloads and forwards the authenticated uid", async () => {
-    mockedGetAuthenticatedUserId.mockResolvedValueOnce("user-123");
+  it("accepts valid telemetry payloads and forwards the authenticated identity", async () => {
+    mockedGetAuthenticatedUserSession.mockResolvedValueOnce({
+      uid: "user-123",
+      email: "oca@gmail.com",
+    });
     mockedIngestTelemetryEvents.mockResolvedValueOnce({ accepted: 1 });
 
     const payload = {
@@ -49,9 +54,10 @@ describe("/api/logs", () => {
     );
 
     expect(response.status).toBe(202);
-    expect(mockedGetAuthenticatedUserId).toHaveBeenCalledTimes(1);
+    expect(mockedGetAuthenticatedUserSession).toHaveBeenCalledTimes(1);
     expect(mockedIngestTelemetryEvents).toHaveBeenCalledWith(payload, {
       uid: "user-123",
+      userEmail: "oca@gmail.com",
     });
   });
 
@@ -68,7 +74,7 @@ describe("/api/logs", () => {
   });
 
   it("returns 400 when telemetry validation fails", async () => {
-    mockedGetAuthenticatedUserId.mockResolvedValueOnce(null);
+    mockedGetAuthenticatedUserSession.mockResolvedValueOnce(null);
     mockedIngestTelemetryEvents.mockRejectedValueOnce(
       new TelemetryValidationError("Telemetry payload must include events."),
     );
