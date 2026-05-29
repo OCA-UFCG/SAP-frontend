@@ -19,6 +19,7 @@ const { mapInstances, MapConstructorMock } = vi.hoisted(() => ({
     setFeatureState: ReturnType<typeof vi.fn>;
     setLayoutProperty: ReturnType<typeof vi.fn>;
     setPadding: ReturnType<typeof vi.fn>;
+    sources: Map<string, unknown>;
     sourceFeatures: Array<unknown>;
   }>,
   MapConstructorMock: vi.fn(),
@@ -508,6 +509,96 @@ describe("Map lifecycle", () => {
     );
     expect(firstInstance.fitBounds).toHaveBeenLastCalledWith(
       expect.any(Array),
+      expect.objectContaining({
+        maxZoom: 11.5,
+      }),
+    );
+  });
+
+  it("keeps the municipality zoom flow pending when the municipality source is not ready yet", () => {
+    vi.useFakeTimers();
+
+    const municipality = {
+      type: "Feature",
+      geometry: {
+        type: "Polygon",
+        coordinates: [
+          [
+            [-47.1, -23.9],
+            [-46.8, -23.9],
+            [-46.8, -23.6],
+            [-47.1, -23.6],
+            [-47.1, -23.9],
+          ],
+        ],
+      },
+      properties: { CD_MUN: "3509502" },
+    };
+
+    const { rerender } = render(
+      <Map center={[-15.749997, -47.9499962]} estadoSelecionado="SP" />,
+    );
+
+    const firstInstance = mapInstances[0];
+    firstInstance.handlers.get("load")?.[0]?.({});
+
+    const municipalitySource = firstInstance.sources.get(
+      MUNICIPALITY_SOURCE_ID,
+    );
+    expect(municipalitySource).toBeDefined();
+
+    firstInstance.fitBounds.mockClear();
+    firstInstance.sources.delete(MUNICIPALITY_SOURCE_ID);
+
+    rerender(
+      <Map
+        center={[-15.749997, -47.9499962]}
+        estadoSelecionado="SP"
+        selectedMunicipalityCode="3509502"
+      />,
+    );
+
+    firstInstance.sourceFeatures = [municipality];
+    firstInstance.sources.set(MUNICIPALITY_SOURCE_ID, municipalitySource!);
+
+    act(() => {
+      vi.advanceTimersByTime(1350);
+    });
+
+    expect(firstInstance.fitBounds).toHaveBeenLastCalledWith(
+      expect.any(Array),
+      expect.objectContaining({
+        maxZoom: 11.5,
+      }),
+    );
+  });
+
+  it("falls back to local municipality bounds when queryable vector tiles are not ready yet", () => {
+    vi.useFakeTimers();
+
+    render(
+      <Map
+        center={[-15.749997, -47.9499962]}
+        estadoSelecionado="BA"
+        selectedMunicipalityCode="2914802"
+      />,
+    );
+
+    const firstInstance = mapInstances[0];
+    firstInstance.querySourceFeatures.mockReturnValue([]);
+    firstInstance.handlers.get("load")?.[0]?.({});
+
+    act(() => {
+      vi.advanceTimersByTime(1350);
+    });
+
+    const [bounds, options] = firstInstance.fitBounds.mock.lastCall ?? [];
+
+    expect(bounds).toEqual([
+      [-39.418926, -15.033229],
+      [-39.190238, -14.690567],
+    ]);
+    expect(options).toEqual(
       expect.objectContaining({
         maxZoom: 11.5,
       }),
