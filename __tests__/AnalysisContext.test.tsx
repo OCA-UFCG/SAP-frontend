@@ -1,8 +1,13 @@
 import { cleanup, render } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
+vi.mock("@/services/telemetry/client", () => ({
+  trackUiEvent: vi.fn(),
+}));
+
 import citiesIndex from "@/data/citiesIndex.json";
 import { AnalysisContext } from "@/components/SidePanelContexts/AnalysisContext";
+import { trackUiEvent } from "@/services/telemetry/client";
 import type { PanelLayerI } from "@/utils/interfaces";
 
 const useMapLayerActiveStateMock = vi.fn();
@@ -79,6 +84,8 @@ describe("AnalysisContext", () => {
       setActiveYear: vi.fn(),
       resetPlatformState: vi.fn(),
     });
+
+    vi.mocked(trackUiEvent).mockReset();
   });
 
   afterEach(() => {
@@ -132,5 +139,93 @@ describe("AnalysisContext", () => {
     expect(props.selectedState).toBe(municipality.code);
     expect(props.model).toBeNull();
     expect(props.emptyStateTitle).toContain(municipality.label);
+  });
+
+  it("tracks resolved municipality searches for the active layer", () => {
+    render(
+      <AnalysisContext
+        activeSection="analysis-detail"
+        panelLayers={[
+          buildPanelLayer({
+            br: [45, 55],
+            [municipality.uf]: [35, 65],
+            [municipality.code]: [80, 20],
+          }),
+        ]}
+      />,
+    );
+
+    const props = analysisPanelMock.mock.calls.at(-1)?.[0] as {
+      onSearch: (
+        value: string,
+        metadata: { selectionMethod: "option-click"; visibleOptionCount: 1 },
+      ) => void;
+    };
+
+    props.onSearch(municipality.label, {
+      selectionMethod: "option-click",
+      visibleOptionCount: 1,
+    });
+
+    const actions = useMapLayerActionsMock.mock.results.at(-1)?.value as {
+      setSelectedState: ReturnType<typeof vi.fn>;
+      setSelectedMunicipalityCode: ReturnType<typeof vi.fn>;
+    };
+
+    expect(actions.setSelectedState).toHaveBeenCalledWith(municipality.uf);
+    expect(actions.setSelectedMunicipalityCode).toHaveBeenCalledWith(
+      municipality.code,
+    );
+    expect(trackUiEvent).toHaveBeenCalledWith(
+      expect.objectContaining({
+        eventName: "search_found",
+        surface: "analysis-panel",
+        query: municipality.label,
+        resolvedLocationType: "city",
+        resolvedStateKey: municipality.uf,
+        resolvedMunicipalityCode: municipality.code,
+        activeLayerId: "layer-1",
+        activeDateLabel: "2024",
+      }),
+    );
+  });
+
+  it("tracks municipality searches as not found when the active layer has no municipal data", () => {
+    render(
+      <AnalysisContext
+        activeSection="analysis-detail"
+        panelLayers={[
+          buildPanelLayer({
+            br: [45, 55],
+            [municipality.uf]: [35, 65],
+          }),
+        ]}
+      />,
+    );
+
+    const props = analysisPanelMock.mock.calls.at(-1)?.[0] as {
+      onSearch: (
+        value: string,
+        metadata: { selectionMethod: "button"; visibleOptionCount: 0 },
+      ) => void;
+    };
+
+    props.onSearch(municipality.label, {
+      selectionMethod: "button",
+      visibleOptionCount: 0,
+    });
+
+    expect(trackUiEvent).toHaveBeenCalledTimes(1);
+    expect(trackUiEvent).toHaveBeenCalledWith(
+      expect.objectContaining({
+        eventName: "search_not_found",
+        surface: "analysis-panel",
+        query: municipality.label,
+        resolvedLocationType: "city",
+        resolvedMunicipalityCode: municipality.code,
+        activeLayerId: "layer-1",
+        activeDateLabel: "2024",
+      }),
+    );
   });
 });

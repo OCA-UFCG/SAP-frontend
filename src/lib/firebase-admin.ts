@@ -1,6 +1,9 @@
 import * as admin from "firebase-admin";
+import { getFirestore, type Firestore } from "firebase-admin/firestore";
 
 let authInstance: admin.auth.Auth | null = null;
+let appInstance: admin.app.App | null = null;
+let firestoreInstance: Firestore | null = null;
 
 function normalizePrivateKey() {
   const encodedPrivateKey = process.env.FIREBASE_PRIVATE_KEY_BASE64
@@ -24,8 +27,10 @@ function normalizePrivateKey() {
   return unquotedPrivateKey.replace(/\\n/g, "\n");
 }
 
-function getAdminAuth(): admin.auth.Auth {
-  if (authInstance) return authInstance;
+function getAdminApp(): admin.app.App {
+  if (appInstance) {
+    return appInstance;
+  }
 
   if (!admin.apps.length) {
     const projectId =
@@ -36,21 +41,40 @@ function getAdminAuth(): admin.auth.Auth {
 
     if (!projectId || !clientEmail || !privateKey) {
       throw new Error(
-        "Firebase Admin credentials are not set. Please check FIREBASE_PROJECT_ID, NEXT_PUBLIC_FIREBASE_PROJECT_ID, FIREBASE_CLIENT_EMAIL, FIREBASE_PRIVATE_KEY, or FIREBASE_PRIVATE_KEY_BASE64."
+        "Firebase Admin credentials are not set. Please check FIREBASE_PROJECT_ID, NEXT_PUBLIC_FIREBASE_PROJECT_ID, FIREBASE_CLIENT_EMAIL, FIREBASE_PRIVATE_KEY, or FIREBASE_PRIVATE_KEY_BASE64.",
       );
     }
 
-    admin.initializeApp({
+    appInstance = admin.initializeApp({
       credential: admin.credential.cert({
         projectId,
         clientEmail,
         privateKey,
       }),
     });
+  } else {
+    appInstance = admin.app();
   }
+
+  return appInstance;
+}
+
+function getAdminAuth(): admin.auth.Auth {
+  if (authInstance) return authInstance;
+
+  getAdminApp();
 
   authInstance = admin.auth();
   return authInstance;
+}
+
+function getAdminDb(): Firestore {
+  if (firestoreInstance) {
+    return firestoreInstance;
+  }
+
+  firestoreInstance = getFirestore(getAdminApp());
+  return firestoreInstance;
 }
 
 export const adminAuth = new Proxy({} as admin.auth.Auth, {
@@ -59,6 +83,17 @@ export const adminAuth = new Proxy({} as admin.auth.Auth, {
     const value = Reflect.get(auth, prop, receiver);
     if (typeof value === "function") {
       return value.bind(auth);
+    }
+    return value;
+  },
+});
+
+export const adminDb = new Proxy({} as Firestore, {
+  get(target, prop, receiver) {
+    const db = getAdminDb();
+    const value = Reflect.get(db, prop, receiver);
+    if (typeof value === "function") {
+      return value.bind(db);
     }
     return value;
   },

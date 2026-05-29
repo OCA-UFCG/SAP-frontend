@@ -56,10 +56,10 @@ export const searchOptionsMetadata = [
   ...cityOptionsMetadata,
 ];
 
-export function filterSearchOptions(value: string) {
+function filterOptions(options: SearchOptionMetadata[], value: string) {
   const normalizedValue = normalize(value.trim());
 
-  return searchOptionsMetadata
+  return options
     .filter((option) => {
       if (!normalizedValue) return true;
 
@@ -70,6 +70,14 @@ export function filterSearchOptions(value: string) {
       );
     })
     .map((option) => option.label);
+}
+
+export function filterSearchOptions(value: string) {
+  return filterOptions(searchOptionsMetadata, value);
+}
+
+export function filterStateOnlyOptions(value: string) {
+  return filterOptions(stateOptionsMetadata, value);
 }
 
 export const filterStateOptions = filterSearchOptions;
@@ -87,5 +95,19 @@ export function validateSearch(value: string) {
     )
   ) {
     throw new Error("Estado ou município não identificado.");
+  }
+}
+
+export function validateStateOnlySearch(value: string) {
+  const normalizedValue = normalize(value.trim());
+
+  if (
+    !(
+      normalizedValue === brazilNormalized ||
+      statesNormalized.has(normalizedValue) ||
+      ufsNormalized.has(normalizedValue)
+    )
+  ) {
+    throw new Error("Estado não identificado.");
   }
 }

@@ -3,16 +3,26 @@
 import { useEffect, useRef, useState } from "react";
 import { Icon } from "../Icon/Icon";
 import { ButtonUi } from "../ButtonUI/ButtonUI";
+import { trackUiEvent } from "@/services/telemetry/client";
+import type {
+  SearchSubmissionMetadata,
+  SearchTelemetryContext,
+} from "@/components/SearchBar/types";
+import type { SearchSelectionMethod } from "@/types/telemetry";
 import {
   filterStateOptions,
   validateSearch,
 } from "@/components/SearchBar/searchBarUtils";
 
 interface SearchBarProps {
-  onSearch: (value: string) => void;
+  onSearch: (value: string, metadata: SearchSubmissionMetadata) => void;
+  searchTelemetryContext: SearchTelemetryContext;
 }
 
-const SearchBarPlatform = ({ onSearch }: SearchBarProps) => {
+const SearchBarPlatform = ({
+  onSearch,
+  searchTelemetryContext,
+}: SearchBarProps) => {
   const containerRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
   const [hasError, setHasError] = useState(false);
@@ -35,20 +45,32 @@ const SearchBarPlatform = ({ onSearch }: SearchBarProps) => {
     };
   }, []);
 
-  const onSubmit = () => {
+  const onSubmit = (selectionMethod: SearchSelectionMethod) => {
     const trimmedValue = value.trim();
     const currentValue =
       trimmedValue.length > 0
         ? trimmedValue
         : (filteredSearchOptions[0] ?? value);
+    const visibleOptionCount = filteredSearchOptions.length;
 
     try {
       validateSearch(currentValue);
       setHasError(false);
       setIsOptionsOpen(false);
-      onSearch(currentValue);
+      onSearch(currentValue, {
+        selectionMethod,
+        visibleOptionCount,
+      });
     } catch {
       setHasError(true);
+      trackUiEvent({
+        eventName: "search_not_found",
+        surface: "analysis-panel",
+        query: currentValue,
+        selectionMethod,
+        visibleOptionCount,
+        ...searchTelemetryContext,
+      });
     }
   };
 
@@ -58,8 +80,14 @@ const SearchBarPlatform = ({ onSearch }: SearchBarProps) => {
     inputRef.current?.focus();
   };
 
-  const handleOptionSelect = (option: string) => {
-    onSearch(option);
+  const handleOptionSelect = (
+    option: string,
+    selectionMethod: SearchSelectionMethod,
+  ) => {
+    onSearch(option, {
+      selectionMethod,
+      visibleOptionCount: filteredSearchOptions.length,
+    });
     setValue("");
     setHasError(false);
     setIsOptionsOpen(false);
@@ -94,9 +122,9 @@ const SearchBarPlatform = ({ onSearch }: SearchBarProps) => {
               if (e.key === "Enter") {
                 e.preventDefault();
                 if (filteredSearchOptions.length > 0) {
-                  handleOptionSelect(filteredSearchOptions[0]);
+                  handleOptionSelect(filteredSearchOptions[0], "enter");
                 } else {
-                  onSubmit();
+                  onSubmit("enter");
                 }
               }
             }}
@@ -147,7 +175,7 @@ const SearchBarPlatform = ({ onSearch }: SearchBarProps) => {
                   type="button"
                   role="option"
                   aria-selected={value === option}
-                  onClick={() => handleOptionSelect(option)}
+                  onClick={() => handleOptionSelect(option, "option-click")}
                   className="flex w-full rounded-lg px-3 py-2 text-left text-sm text-[#292829] transition hover:bg-[#F6F7F6]"
                 >
                   {option}
@@ -169,7 +197,7 @@ const SearchBarPlatform = ({ onSearch }: SearchBarProps) => {
       <ButtonUi
         styles="bg-[#989F43] hover:bg-[#989F43] text-white text-sm px-3 h-full rounded-lg disabled:hover:* active:brightness-95 transition shrink-0"
         label={"Pesquisar"}
-        onClick={() => onSubmit()}
+        onClick={() => onSubmit("button")}
       />
     </div>
   );

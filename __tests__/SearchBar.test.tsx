@@ -1,7 +1,13 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
 import { render, screen, cleanup } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
+
+vi.mock("@/services/telemetry/client", () => ({
+  trackUiEvent: vi.fn(),
+}));
+
 import SearchBar from "@/components/SearchBar/SearchBar";
+import { trackUiEvent } from "@/services/telemetry/client";
 
 // --- Mock dependencies ---
 vi.mock("@/utils/functions", () => ({
@@ -31,9 +37,20 @@ describe("SearchBar", () => {
     cleanup(); // ensures DOM reset
   });
 
+  const mockedTrackUiEvent = vi.mocked(trackUiEvent);
+
   const renderComponent = () => {
     const onSearch = vi.fn();
-    render(<SearchBar onSearch={onSearch} />);
+    render(
+      <SearchBar
+        onSearch={onSearch}
+        searchTelemetryContext={{
+          activeLayerId: "CDI",
+          activeLayerName: "CDI Janeiro 2024",
+          activeDateLabel: "31/01/24",
+        }}
+      />,
+    );
     return { onSearch };
   };
 
@@ -57,7 +74,12 @@ describe("SearchBar", () => {
     await user.type(input, "sao paulo");
     await user.click(button);
 
-    expect(onSearch).toHaveBeenCalledWith("sao paulo");
+    expect(onSearch).toHaveBeenCalledWith(
+      "sao paulo",
+      expect.objectContaining({
+        selectionMethod: "button",
+      }),
+    );
     expect(onSearch).toHaveBeenCalledTimes(1);
   });
 
@@ -71,7 +93,12 @@ describe("SearchBar", () => {
     await user.type(input, "sp");
     await user.click(button);
 
-    expect(onSearch).toHaveBeenCalledWith("sp");
+    expect(onSearch).toHaveBeenCalledWith(
+      "sp",
+      expect.objectContaining({
+        selectionMethod: "button",
+      }),
+    );
     expect(onSearch).toHaveBeenCalledTimes(1);
   });
 
@@ -88,6 +115,16 @@ describe("SearchBar", () => {
     expect(
       screen.queryByText("Estado não identificado."),
     ).not.toBeInTheDocument();
+    expect(mockedTrackUiEvent).toHaveBeenCalledWith(
+      expect.objectContaining({
+        eventName: "search_not_found",
+        surface: "home",
+        query: "invalid",
+        selectionMethod: "button",
+        activeLayerId: "CDI",
+        activeDateLabel: "31/01/24",
+      }),
+    );
   });
 
   it("filters dropdown options while typing", async () => {
@@ -104,17 +141,30 @@ describe("SearchBar", () => {
     ).not.toBeInTheDocument();
   });
 
-  it("shows municipality options while typing", async () => {
+  it("tracks municipality queries as not found on home", async () => {
     const user = userEvent.setup();
-    renderComponent();
+    const { onSearch } = renderComponent();
 
     const input = screen.getByRole("combobox");
+    const button = screen.getByRole("button", { name: /pesquisar/i });
 
     await user.type(input, "campina");
+    await user.click(button);
 
+    expect(onSearch).not.toHaveBeenCalled();
     expect(
-      screen.getByRole("option", { name: "Campina Grande - PB" }),
-    ).toBeVisible();
+      screen.queryByRole("option", { name: "Campina Grande - PB" }),
+    ).not.toBeInTheDocument();
+    expect(mockedTrackUiEvent).toHaveBeenCalledWith(
+      expect.objectContaining({
+        eventName: "search_not_found",
+        surface: "home",
+        query: "campina",
+        selectionMethod: "button",
+        activeLayerId: "CDI",
+        activeDateLabel: "31/01/24",
+      }),
+    );
   });
 
   it("selects the first suggestion when Enter is pressed", async () => {
@@ -123,10 +173,15 @@ describe("SearchBar", () => {
 
     const input = screen.getByRole("combobox");
 
-    await user.type(input, "camp");
+    await user.type(input, "sao");
     await user.keyboard("{Enter}");
 
-    expect(onSearch).toHaveBeenCalledWith("Campina Grande - PB");
+    expect(onSearch).toHaveBeenCalledWith(
+      "sao paulo",
+      expect.objectContaining({
+        selectionMethod: "enter",
+      }),
+    );
     expect(onSearch).toHaveBeenCalledTimes(1);
   });
 
