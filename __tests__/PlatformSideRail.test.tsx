@@ -73,4 +73,23 @@ describe("PlatformSideRail", () => {
       "page",
     );
   });
+
+  it("pins the rail to the viewport instead of stretching with long pages", () => {
+    render(
+      <PlatformSideRail
+        activeSection="logs"
+        onSectionChange={vi.fn()}
+        isPanelOpen={false}
+        onTogglePanel={vi.fn()}
+        showAuditLink
+      />,
+    );
+
+    const rail = screen.getByRole("navigation").parentElement;
+
+    expect(rail).toHaveClass("sticky");
+    expect(rail).toHaveClass("top-16");
+    expect(rail).toHaveClass("h-[calc(100vh-64px)]");
+    expect(rail).toHaveClass("w-[140px]");
+  });
 });

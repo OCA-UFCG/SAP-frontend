@@ -1,6 +1,5 @@
 import { cleanup, render, screen } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import type { TelemetryDashboardData } from "@/types/telemetry";
 
 const {
   cookiesMock,
@@ -8,7 +7,6 @@ const {
   notFoundMock,
   resolveLogsViewerAccessMock,
   getPanelLayersMock,
-  getTelemetryDashboardDataMock,
   platformLayoutMock,
 } = vi.hoisted(() => ({
   cookiesMock: vi.fn(),
@@ -20,7 +18,6 @@ const {
   }),
   resolveLogsViewerAccessMock: vi.fn(),
   getPanelLayersMock: vi.fn(),
-  getTelemetryDashboardDataMock: vi.fn(),
   platformLayoutMock: vi.fn(),
 }));
 
@@ -41,10 +38,6 @@ vi.mock("@/repositories/platform/panelLayerRepository", () => ({
   getPanelLayers: getPanelLayersMock,
 }));
 
-vi.mock("@/services/telemetry/telemetryService", () => ({
-  getTelemetryDashboardData: getTelemetryDashboardDataMock,
-}));
-
 vi.mock("@/components/PlatformLayout/PlatformLayout", () => ({
   PlatformLayout: (props: Record<string, unknown>) => {
     platformLayoutMock(props);
@@ -53,19 +46,6 @@ vi.mock("@/components/PlatformLayout/PlatformLayout", () => ({
 }));
 
 import PlatformPage from "@/app/platform/page";
-
-const dashboardData: TelemetryDashboardData = {
-  sampledEventCount: 4,
-  sampledWindowLabel: "Janela recente",
-  lastReceivedAt: "2026-05-29T12:00:00.000Z",
-  eventCounts: [],
-  surfaceCounts: [],
-  topSearchQueries: [],
-  topNotFoundQueries: [],
-  topActivatedLayers: [],
-  topDetailedLayers: [],
-  recentEvents: [],
-};
 
 afterEach(() => {
   cleanup();
@@ -78,14 +58,12 @@ describe("PlatformPage", () => {
     notFoundMock.mockClear();
     resolveLogsViewerAccessMock.mockReset();
     getPanelLayersMock.mockReset();
-    getTelemetryDashboardDataMock.mockReset();
     platformLayoutMock.mockReset();
 
     cookiesMock.mockResolvedValue({
       get: vi.fn().mockReturnValue({ value: "session-cookie" }),
     });
     getPanelLayersMock.mockResolvedValue([]);
-    getTelemetryDashboardDataMock.mockResolvedValue(dashboardData);
   });
 
   it("renders the default platform shell and forwards the audit entry state", async () => {
@@ -105,10 +83,9 @@ describe("PlatformPage", () => {
       }),
     );
     expect(getPanelLayersMock).toHaveBeenCalledTimes(1);
-    expect(getTelemetryDashboardDataMock).not.toHaveBeenCalled();
   });
 
-  it("renders the logs mode inside /platform for allowlisted viewers", async () => {
+  it("renders the logs mode shell inside /platform for allowlisted viewers", async () => {
     resolveLogsViewerAccessMock.mockResolvedValueOnce("allowed");
 
     const result = await PlatformPage({
@@ -118,13 +95,15 @@ describe("PlatformPage", () => {
 
     expect(screen.getByTestId("platform-layout-probe")).toBeInTheDocument();
     expect(getPanelLayersMock).not.toHaveBeenCalled();
-    expect(getTelemetryDashboardDataMock).toHaveBeenCalledTimes(1);
     expect(platformLayoutMock.mock.calls[0]?.[0]).toEqual(
       expect.objectContaining({
         showAuditLink: true,
         viewMode: "logs",
-        telemetryDashboardData: dashboardData,
+        telemetryDashboard: expect.any(Object),
       }),
+    );
+    expect(platformLayoutMock.mock.calls[0]?.[0]).not.toHaveProperty(
+      "telemetryDashboardData",
     );
   });
 
@@ -150,6 +129,5 @@ describe("PlatformPage", () => {
       }),
     ).rejects.toThrow("notFound");
     expect(notFoundMock).toHaveBeenCalledTimes(1);
-    expect(getTelemetryDashboardDataMock).not.toHaveBeenCalled();
   });
 });

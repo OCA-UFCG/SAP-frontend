@@ -1,11 +1,13 @@
+import { Suspense } from "react";
 import { cookies } from "next/headers";
 import { notFound, redirect } from "next/navigation";
 import { PlatformLayout } from "@/components/PlatformLayout/PlatformLayout";
+import { TelemetryDashboardLoading } from "@/components/TelemetryDashboard/TelemetryDashboardLoading";
+import { TelemetryDashboardServer } from "@/components/TelemetryDashboard/TelemetryDashboardServer";
 import type { PlatformSidebarInitialSection } from "@/components/PlatformSidebar/PlatformSidebar";
 import { resolveLogsViewerAccess } from "@/lib/logs-access";
 import { SESSION_COOKIE_NAME } from "@/lib/server-session";
 import { getPanelLayers } from "@/repositories/platform/panelLayerRepository";
-import { getTelemetryDashboardData } from "@/services/telemetry/telemetryService";
 
 interface PlatformPageSearchParams {
   view?: string | string[];
@@ -58,14 +60,16 @@ export default async function PlatformPage({
       notFound();
     }
 
-    const telemetryDashboardData = await getTelemetryDashboardData();
-
     return (
       <PlatformLayout
         showAuditLink
         viewMode="logs"
         initialSection={initialSection}
-        telemetryDashboardData={telemetryDashboardData}
+        telemetryDashboard={
+          <Suspense fallback={<TelemetryDashboardLoading />}>
+            <TelemetryDashboardServer />
+          </Suspense>
+        }
       />
     );
   }
