@@ -86,7 +86,8 @@ These files are living documents. If a prompt or code change affects architectur
 - Search telemetry is recorded for the home search bar and the analysis panel search bar. Layer telemetry is recorded from `ModulesContext` when a layer is toggled or when the detail view is opened.
 - `search_found` e `search_not_found` carregam sempre `activeLayerId` e `activeDateLabel`, para distinguir a mesma consulta entre camadas e datas diferentes.
 - Anonymous traffic is tagged with a browser-local session id; authenticated traffic also carries the Firebase session `uid` resolved on the server.
-- Set `FIREBASE_TELEMETRY_COLLECTION` only if the default Firestore collection name `telemetryEvents` must be overridden.
+- `FIREBASE_TELEMETRY_COLLECTION` defaults to `telemetry-events-local`; set explicit non-local values such as `telemetry-events-beta` and `telemetry-events-prod` to avoid mixing logs across environments.
+- This repository's deploy workflows read `FIREBASE_TELEMETRY_COLLECTION_BETA` and `FIREBASE_TELEMETRY_COLLECTION_PROD` GitHub variables for the runtime container env.
 - Set `LOGS_ALLOWED_EMAILS` to a comma-separated list of normalized emails allowed to view `/platform/logs`.
 - The inspection page at `/platform/logs` is protected server-side: unauthenticated users are redirected to `/login`, and authenticated users outside `LOGS_ALLOWED_EMAILS` do not receive the dashboard response.
 - `/api/logs` remains the canonical append-only ingestion endpoint for log events.
