@@ -37,6 +37,10 @@ function buildOrigin(protocol: string, host?: string | null) {
   return parseOrigin(`${protocol}://${host}`);
 }
 
+function getConfiguredPublicOrigin() {
+  return parseOrigin(process.env.NEXT_PUBLIC_HOST_URL);
+}
+
 function getTrustedRequestOrigins(req: Request) {
   const trustedOrigins = new Set<string>();
   const requestUrl = new URL(req.url);
@@ -50,6 +54,12 @@ function getTrustedRequestOrigins(req: Request) {
   const protocol = forwardedProto || requestUrl.protocol.replace(/:$/, "");
 
   trustedOrigins.add(requestUrl.origin);
+
+  const configuredPublicOrigin = getConfiguredPublicOrigin();
+
+  if (configuredPublicOrigin) {
+    trustedOrigins.add(configuredPublicOrigin);
+  }
 
   const forwardedOrigin = buildOrigin(protocol, forwardedHost);
 

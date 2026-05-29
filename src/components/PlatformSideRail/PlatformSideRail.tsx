@@ -81,8 +81,14 @@ export function PlatformSideRail({
   }
 
   return (
-    <div className={clsx("relative h-full", className)} data-platform-side-rail>
-      <nav className="h-full w-[140px] bg-white border-r border-neutral-200 pt-[48px] pb-[18px] px-[16px] flex flex-col">
+    <div
+      className={clsx(
+        "sticky top-16 relative h-[calc(100vh-64px)] w-[140px] shrink-0 self-start",
+        className,
+      )}
+      data-platform-side-rail
+    >
+      <nav className="flex h-full w-full flex-col border-r border-neutral-200 bg-white px-[16px] pb-[18px] pt-[48px]">
         <div className="w-[114px] flex flex-col">
           {items.map((item, index) => {
             const isActive =
