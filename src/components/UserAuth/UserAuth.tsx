@@ -31,9 +31,7 @@ export const UserAuth = () => {
     if (!user) return;
 
     await signOut();
-    if (pathname.startsWith("/platform")) {
-      router.push("/");
-    }
+    router.push("/login");
   };
 
   const handleLogin = () => {
