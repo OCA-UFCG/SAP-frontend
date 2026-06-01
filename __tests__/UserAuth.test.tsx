@@ -93,7 +93,7 @@ describe("UserAuth", () => {
     fireEvent.click(screen.getByRole("button", { name: /sair/i }));
 
     await waitFor(() => expect(signOutMock).toHaveBeenCalledTimes(1));
-    expect(pushMock).toHaveBeenCalledWith("/");
+    expect(pushMock).toHaveBeenCalledWith("/login");
   });
 
   it("closes the dropdown when the pathname changes", async () => {
