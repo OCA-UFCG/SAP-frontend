@@ -48,6 +48,9 @@ storybook-static
 # Local personal context notes. Do not commit.
 /my_contexts/
 
+# Generated Google Drive CSV downloads and transformed Contentful JSON outputs.
+/data/contentful-pipeline/
+
 /BR_Municipios_2025
 
 # Generated/downloaded vector tile artifacts.

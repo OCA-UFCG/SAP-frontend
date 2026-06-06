@@ -148,11 +148,12 @@ function toDatasetPatch(value: unknown): CompactTerritorialAnalysisDatasetPatch 
 function mergeAnalysisYear(
   baseYear: CompactAnalysisYearData | undefined,
   patchYear: CompactAnalysisYearPatch | undefined,
-  yearKey: string,
 ): CompactAnalysisYearData | null {
-  const normalizationScale = baseYear
-    ? (baseYear.valuesScale ?? 1)
-    : (patchYear?.valuesScale ?? 1);
+  if (!baseYear) {
+    return null;
+  }
+
+  const normalizationScale = baseYear.valuesScale ?? 1;
   const normalizedPatchValues = Object.fromEntries(
     Object.entries(patchYear?.values ?? {}).map(([locationKey, values]) => {
       const patchScale = patchYear?.valuesScale ?? 1;
@@ -181,13 +182,8 @@ function mergeAnalysisYear(
   const mergedValuesScale = baseYear?.valuesScale ?? patchYear?.valuesScale;
 
   return {
-    imageId:
-      patchYear?.imageId?.trim() ||
-      baseYear?.imageId ||
-      `municipal-analysis://${yearKey}`,
-    ...(patchYear?.year ?? baseYear?.year
-      ? { year: patchYear?.year ?? baseYear?.year }
-      : {}),
+    imageId: baseYear.imageId,
+    ...(baseYear.year ? { year: baseYear.year } : {}),
     ...(typeof mergedValuesScale === "number"
       ? { valuesScale: mergedValuesScale }
       : {}),
@@ -195,21 +191,71 @@ function mergeAnalysisYear(
   };
 }
 
+function getCalendarYear(yearKey: string) {
+  return yearKey.match(/^(\d{4})(?:-\d{2})?$/u)?.[1] ?? null;
+}
+
+function groupPatchYearsByBaseYear(
+  baseYears: Record<string, CompactAnalysisYearData>,
+  patchYears: Record<string, CompactAnalysisYearPatch> | undefined,
+) {
+  const patchesByBaseYear = new Map<string, CompactAnalysisYearPatch[]>();
+
+  if (!patchYears) {
+    return patchesByBaseYear;
+  }
+
+  const baseYearKeys = Object.keys(baseYears);
+  const baseYearKeysByCalendarYear = baseYearKeys.reduce(
+    (lookup, baseYearKey) => {
+      const calendarYear = getCalendarYear(baseYearKey);
+
+      if (!calendarYear) {
+        return lookup;
+      }
+
+      lookup.set(calendarYear, [...(lookup.get(calendarYear) ?? []), baseYearKey]);
+
+      return lookup;
+    },
+    new Map<string, string[]>(),
+  );
+
+  for (const [patchYearKey, patchYear] of Object.entries(patchYears)) {
+    const exactBaseYear = baseYears[patchYearKey] ? patchYearKey : null;
+    const calendarYear = getCalendarYear(patchYearKey);
+    const matchingCalendarBaseYears = calendarYear
+      ? (baseYearKeysByCalendarYear.get(calendarYear) ?? [])
+      : [];
+    const targetBaseYear =
+      exactBaseYear ??
+      (matchingCalendarBaseYears.length === 1 ? matchingCalendarBaseYears[0] : null);
+
+    if (!targetBaseYear) {
+      continue;
+    }
+
+    patchesByBaseYear.set(targetBaseYear, [
+      ...(patchesByBaseYear.get(targetBaseYear) ?? []),
+      patchYear,
+    ]);
+  }
+
+  return patchesByBaseYear;
+}
+
 function mergeCompactDataset(
   base: CompactTerritorialAnalysisDataset,
   patch: CompactTerritorialAnalysisDatasetPatch,
 ): CompactTerritorialAnalysisDataset {
-  const yearKeys = new Set([
-    ...Object.keys(base.years),
-    ...Object.keys(patch.years ?? {}),
-  ]);
+  const patchYearsByBaseYear = groupPatchYearsByBaseYear(base.years, patch.years);
 
   const years = Object.fromEntries(
-    Array.from(yearKeys).flatMap((yearKey) => {
-      const mergedYear = mergeAnalysisYear(
-        base.years[yearKey],
-        patch.years?.[yearKey],
-        yearKey,
+    Object.entries(base.years).flatMap(([yearKey, baseYear]) => {
+      const mergedYear = (patchYearsByBaseYear.get(yearKey) ?? []).reduce(
+        (currentYear, patchYear) =>
+          mergeAnalysisYear(currentYear, patchYear) ?? currentYear,
+        baseYear,
       );
 
       return mergedYear ? [[yearKey, mergedYear]] : [];
@@ -222,11 +268,8 @@ function mergeCompactDataset(
       ? { schemaVersion: patch.schemaVersion }
       : {}),
     type: "territorial-compact",
-    ...(patch.defaultYear ? { defaultYear: patch.defaultYear } : {}),
-    classes:
-      Array.isArray(patch.classes) && patch.classes.length > 0
-        ? patch.classes
-        : base.classes,
+    ...(base.defaultYear ? { defaultYear: base.defaultYear } : {}),
+    classes: base.classes,
     locations: {
       ...(base.locations ?? {}),
       ...(patch.locations ?? {}),
@@ -245,13 +288,7 @@ function mergeCompactDataset(
             ...(patch.ranking ?? {}),
           }
         : undefined,
-    mapVisualization:
-      patch.mapVisualization || base.mapVisualization
-        ? {
-            ...(base.mapVisualization ?? {}),
-            ...(patch.mapVisualization ?? {}),
-          }
-        : undefined,
+    mapVisualization: base.mapVisualization,
     years,
   };
 }
@@ -260,21 +297,24 @@ async function getMunicipalAnalysisPatches() {
   try {
     const data = await getContent<MunicipalAnalysisResponse>(GET_MUNICIPAL_ANALYSIS);
 
-    return new Map(
-      (data.municipalAnalysisCollection?.items ?? [])
-        .flatMap((entry) => {
-          if (!entry?.panelLayerId?.trim()) {
-            return [];
-          }
+    return (data.municipalAnalysisCollection?.items ?? []).reduce(
+      (patchesByPanelLayer, entry) => {
+        if (!entry?.panelLayerId?.trim()) {
+          return patchesByPanelLayer;
+        }
 
-          const patch = toDatasetPatch(entry.imageData);
+        const patch = toDatasetPatch(entry.imageData);
 
-          if (!patch) {
-            return [];
-          }
+        if (!patch) {
+          return patchesByPanelLayer;
+        }
 
-          return [[entry.panelLayerId, patch] as const];
-        }),
+        const currentPatches = patchesByPanelLayer.get(entry.panelLayerId) ?? [];
+        patchesByPanelLayer.set(entry.panelLayerId, [...currentPatches, patch]);
+
+        return patchesByPanelLayer;
+      },
+      new Map<string, CompactTerritorialAnalysisDatasetPatch[]>(),
     );
   } catch (error) {
     console.warn(
@@ -292,22 +332,25 @@ export async function attachMunicipalAnalysisToPanelLayers(
     return panelLayers;
   }
 
-  const municipalAnalysisPatches = await getMunicipalAnalysisPatches();
+  const municipalAnalysisPatchesByPanelLayer = await getMunicipalAnalysisPatches();
 
-  if (municipalAnalysisPatches.size === 0) {
+  if (municipalAnalysisPatchesByPanelLayer.size === 0) {
     return panelLayers;
   }
 
   return panelLayers.map((layer) => {
-    const patch = municipalAnalysisPatches.get(layer.id);
+    const patches = municipalAnalysisPatchesByPanelLayer.get(layer.id);
 
-    if (!patch || !isCompactImageData(layer.imageData)) {
+    if (!patches?.length || !isCompactImageData(layer.imageData)) {
       return layer;
     }
 
     return {
       ...layer,
-      imageData: mergeCompactDataset(layer.imageData, patch),
+      imageData: patches.reduce(
+        (imageData, patch) => mergeCompactDataset(imageData, patch),
+        layer.imageData,
+      ),
     };
   });
 }

@@ -110,7 +110,7 @@ describe("analysis.mappers", () => {
     ).toEqual(["5.0%", "1.0%"]);
   });
 
-  it("uses municipality data and municipality template when a municipal location is selected", () => {
+  it("uses shared municipality labels when compact analysis has no locations map", () => {
     const layer = buildLayer({
       schemaVersion: 1,
       type: "territorial-compact",
@@ -122,11 +122,6 @@ describe("analysis.mappers", () => {
       templates: {
         municipality:
           "No município de {name}, predomina a classe {label} com {value}% da área analisada.",
-      },
-      locations: {
-        br: "Brasil",
-        go: "Goiás",
-        "5200050": "Abadia de Goiás - GO",
       },
       years: {
         "2024": {

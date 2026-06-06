@@ -7,6 +7,8 @@
     "build": "next build --webpack",
     "start": "next start",
     "lint": "eslint",
+    "pipeline:drive-csv-json": "node --max-old-space-size=4096 tools/drive-contentful-pipeline/drive-csv-to-json.mjs",
+    "pipeline:contentful-municipal-analysis": "node --max-old-space-size=4096 tools/drive-contentful-pipeline/contentful-update-municipal-analysis.mjs",
     "ci:verify": "npm run lint && npm run test:unit -- --run && npm run build",
     "storybook": "storybook dev -p 6006",
     "build-storybook": "storybook build",
