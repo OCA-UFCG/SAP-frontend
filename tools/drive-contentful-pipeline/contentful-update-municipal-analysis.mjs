@@ -7,6 +7,9 @@ const DEFAULT_JSON_DIR = "data/contentful-pipeline/json";
 const DEFAULT_PANEL_LAYER_ID = "CDI_Test";
 const DEFAULT_LOCALE = "en-US";
 const MUNICIPAL_ANALYSIS_CONTENT_TYPE_ID = "municipalAnalysis";
+const RETRYABLE_STATUS_CODES = new Set([429, 500, 502, 503, 504]);
+const CONTENTFUL_WRITE_DELAY_MS = 150;
+const STALE_PANEL_LAYER_SUFFIX = "_legacy_disabled";
 
 function parseArgs(argv) {
   const options = {
@@ -16,6 +19,7 @@ function parseArgs(argv) {
     publish: false,
     dryRun: false,
     syncPartitions: false,
+    allPanelLayers: false,
   };
 
   for (let index = 0; index < argv.length; index += 1) {
@@ -43,6 +47,8 @@ function parseArgs(argv) {
       options.dryRun = true;
     } else if (argument === "--sync-partitions") {
       options.syncPartitions = true;
+    } else if (argument === "--all-panel-layers") {
+      options.allPanelLayers = true;
     } else if (argument === "--help" || argument === "-h") {
       printHelp();
       process.exit(0);
@@ -62,7 +68,8 @@ Opções:
   --panel-layer-id <id>       panelLayerId do municipalAnalysis. Padrão: CDI_Test
   --json-dir <path>           Pasta com municipal-analysis-manifest.json.
   --image-data-path <path>    Caminho direto do imageData JSON.
-  --sync-partitions           Sincroniza uma entry por partição anual do manifesto.
+  --sync-partitions           Sincroniza uma entry por partição do manifesto.
+  --all-panel-layers          Com --sync-partitions, sincroniza todos os panelLayerId do manifesto.
   --dry-run                   Localiza entry e valida payload sem atualizar.
   --publish                   Publica a entry depois de atualizar.
 
@@ -152,13 +159,22 @@ async function readJson(filePath) {
   return JSON.parse(await readFile(filePath, "utf8"));
 }
 
+async function readManifest(jsonDir) {
+  return readJson(path.join(jsonDir, "municipal-analysis-manifest.json"));
+}
+
+function sleep(ms) {
+  return new Promise((resolve) => {
+    setTimeout(resolve, ms);
+  });
+}
+
 async function resolveImageDataPath(options) {
   if (options.imageDataPath) {
     return options.imageDataPath;
   }
 
-  const manifestPath = path.join(options.jsonDir, "municipal-analysis-manifest.json");
-  const manifest = await readJson(manifestPath);
+  const manifest = await readManifest(options.jsonDir);
   const entry = manifest.mapped.find(
     (item) => item.panelLayerId === options.panelLayerId,
   );
@@ -173,11 +189,12 @@ async function resolveImageDataPath(options) {
 }
 
 async function resolvePartitionEntries(options) {
-  const manifestPath = path.join(options.jsonDir, "municipal-analysis-manifest.json");
-  const manifest = await readJson(manifestPath);
+  const manifest = await readManifest(options.jsonDir);
   const partitions = (manifest.partitions ?? [])
     .filter((item) => item.panelLayerId === options.panelLayerId)
-    .sort((left, right) => left.calendarYear.localeCompare(right.calendarYear));
+    .sort((left, right) =>
+      getPartitionKey(left).localeCompare(getPartitionKey(right)),
+    );
 
   if (partitions.length === 0) {
     throw new Error(
@@ -188,15 +205,43 @@ async function resolvePartitionEntries(options) {
   return partitions;
 }
 
-function buildPartitionTitle(panelLayerId, calendarYear) {
-  return `Municipal Analysis ${panelLayerId} ${calendarYear}`;
+async function resolveAllPanelLayerIds(options) {
+  const manifest = await readManifest(options.jsonDir);
+  const panelLayerIds = new Set();
+
+  for (const partition of manifest.partitions ?? []) {
+    if (partition.panelLayerId) {
+      panelLayerIds.add(partition.panelLayerId);
+    }
+  }
+
+  return [...panelLayerIds].sort((left, right) => left.localeCompare(right));
 }
 
-async function contentfulFetch(url, init, context) {
+function getPartitionKey(partition) {
+  return partition.partitionKey ?? partition.calendarYear;
+}
+
+function buildPartitionTitle(panelLayerId, partition) {
+  return `Municipal Analysis ${panelLayerId} ${getPartitionKey(partition)}`;
+}
+
+async function contentfulFetch(url, init, context, attempt = 1) {
   const response = await fetch(url, init);
   const text = await response.text();
 
   if (!response.ok) {
+    if (RETRYABLE_STATUS_CODES.has(response.status) && attempt < 5) {
+      const retryAfter = Number(response.headers.get("x-contentful-ratelimit-reset"));
+      const delayMs = Number.isFinite(retryAfter)
+        ? Math.max(retryAfter * 1000, 1000)
+        : 1000 * attempt;
+
+      await sleep(delayMs);
+
+      return contentfulFetch(url, init, context, attempt + 1);
+    }
+
     throw new Error(
       `${context} falhou com status ${response.status}: ${text.slice(0, 2000)}`,
     );
@@ -349,34 +394,61 @@ async function listManagementEntriesByPanelLayerId(config, panelLayerId, locale)
     throw new Error("CONTENTFUL_MANAGEMENT_TOKEN ausente; listagem não executada.");
   }
 
-  const url = new URL(
-    `https://api.contentful.com/spaces/${config.spaceId}/environments/${config.environment}/entries`,
-  );
-  url.searchParams.set("content_type", MUNICIPAL_ANALYSIS_CONTENT_TYPE_ID);
-  url.searchParams.set(`fields.panelLayerId.${locale}`, panelLayerId);
-  url.searchParams.set("limit", "1000");
+  const entries = [];
+  const limit = 100;
 
-  const data = await contentfulFetch(
-    url,
-    {
-      headers: {
-        Authorization: `Bearer ${config.managementToken}`,
+  for (let skip = 0; ; skip += limit) {
+    const url = new URL(
+      `https://api.contentful.com/spaces/${config.spaceId}/environments/${config.environment}/entries`,
+    );
+    url.searchParams.set("content_type", MUNICIPAL_ANALYSIS_CONTENT_TYPE_ID);
+    url.searchParams.set(`fields.panelLayerId.${locale}`, panelLayerId);
+    url.searchParams.set("select", "sys,fields.title,fields.panelLayerId");
+    url.searchParams.set("limit", String(limit));
+    url.searchParams.set("skip", String(skip));
+
+    const data = await contentfulFetch(
+      url,
+      {
+        headers: {
+          Authorization: `Bearer ${config.managementToken}`,
+        },
       },
-    },
-    "Listagem de entries via Management API",
-  );
+      "Listagem de entries via Management API",
+    );
 
-  return data.items ?? [];
+    entries.push(...(data.items ?? []));
+
+    if (entries.length >= (data.total ?? entries.length) || (data.items ?? []).length === 0) {
+      return entries;
+    }
+  }
 }
 
 function getLocalizedField(entry, fieldId, locale) {
   return entry.fields?.[fieldId]?.[locale];
 }
 
-async function patchEntryFields(config, entry, fields, locale, publish) {
+async function patchEntryFields(
+  config,
+  entry,
+  fields,
+  locale,
+  publish,
+  operationContext = entry.sys.id,
+) {
   const entryUrl = `https://api.contentful.com/spaces/${config.spaceId}/environments/${config.environment}/entries/${entry.sys.id}`;
+  const currentEntry = await contentfulFetch(
+    entryUrl,
+    {
+      headers: {
+        Authorization: `Bearer ${config.managementToken}`,
+      },
+    },
+    `Busca da entry ${entry.sys.id} (${operationContext}) via Management API`,
+  );
   const operations = Object.entries(fields).map(([fieldId, value]) => ({
-    op: entry.fields?.[fieldId]?.[locale] === undefined ? "add" : "replace",
+    op: currentEntry.fields?.[fieldId]?.[locale] === undefined ? "add" : "replace",
     path: `/fields/${fieldId}/${locale}`,
     value,
   }));
@@ -387,11 +459,11 @@ async function patchEntryFields(config, entry, fields, locale, publish) {
       headers: {
         Authorization: `Bearer ${config.managementToken}`,
         "Content-Type": "application/json-patch+json",
-        "X-Contentful-Version": String(entry.sys.version),
+        "X-Contentful-Version": String(currentEntry.sys.version),
       },
       body: JSON.stringify(operations),
     },
-    `Atualização da entry ${entry.sys.id} via Management API JSON Patch`,
+    `Atualização da entry ${entry.sys.id} (${operationContext}) via Management API JSON Patch`,
   );
 
   if (!publish) {
@@ -407,11 +479,11 @@ async function patchEntryFields(config, entry, fields, locale, publish) {
         "X-Contentful-Version": String(updatedEntry.sys.version),
       },
     },
-    `Publicação da entry ${entry.sys.id} via Management API`,
+    `Publicação da entry ${entry.sys.id} (${operationContext}) via Management API`,
   );
 }
 
-async function createEntry(config, fields, locale, publish) {
+async function createEntry(config, fields, locale, publish, operationContext = "") {
   const url = `https://api.contentful.com/spaces/${config.spaceId}/environments/${config.environment}/entries`;
   const createdEntry = await contentfulFetch(
     url,
@@ -431,7 +503,7 @@ async function createEntry(config, fields, locale, publish) {
         ),
       }),
     },
-    "Criação de entry via Management API",
+    `Criação de entry (${operationContext}) via Management API`,
   );
 
   if (!publish) {
@@ -447,7 +519,7 @@ async function createEntry(config, fields, locale, publish) {
         "X-Contentful-Version": String(createdEntry.sys.version),
       },
     },
-    `Publicação da entry ${createdEntry.sys.id} via Management API`,
+    `Publicação da entry ${createdEntry.sys.id} (${operationContext}) via Management API`,
   );
 }
 
@@ -461,35 +533,48 @@ async function syncPartitionEntries(config, options, locale) {
   const existingByTitle = new Map(
     existingEntries.map((entry) => [getLocalizedField(entry, "title", locale), entry]),
   );
+  const latestPartition = partitions.at(-1);
+  const expectedTitles = new Set(
+    partitions.map((partition) => buildPartitionTitle(options.panelLayerId, partition)),
+  );
   const reusableEntry = existingEntries.find(
     (entry) =>
-      !existingByTitle.has(
-        buildPartitionTitle(options.panelLayerId, partitions.at(-1).calendarYear),
-      ) &&
+      !existingByTitle.has(buildPartitionTitle(options.panelLayerId, latestPartition)) &&
       !partitions.some(
         (partition) =>
-          buildPartitionTitle(options.panelLayerId, partition.calendarYear) ===
+          buildPartitionTitle(options.panelLayerId, partition) ===
           getLocalizedField(entry, "title", locale),
       ),
   );
-  const latestCalendarYear = partitions.at(-1).calendarYear;
+  const staleEntries = existingEntries.filter(
+    (entry) =>
+      !expectedTitles.has(getLocalizedField(entry, "title", locale)) &&
+      entry.sys.id !== reusableEntry?.sys.id,
+  );
+  const latestPartitionKey = getPartitionKey(latestPartition);
   const actions = [];
 
   for (const partition of partitions) {
-    const title = buildPartitionTitle(options.panelLayerId, partition.calendarYear);
+    const partitionKey = getPartitionKey(partition);
+    const title = buildPartitionTitle(options.panelLayerId, partition);
     const imageData = await readJson(partition.imageDataPath);
+    const operationContext = `${title} (${partition.imageDataPath})`;
     const targetEntry =
       existingByTitle.get(title) ??
-      (partition.calendarYear === latestCalendarYear ? reusableEntry : null);
+      (partitionKey === latestPartitionKey ? reusableEntry : null);
     const action = targetEntry ? "update" : "create";
     const summary = {
       action,
       title,
       panelLayerId: options.panelLayerId,
+      partitionKey,
       calendarYear: partition.calendarYear,
       entryId: targetEntry?.sys.id ?? null,
       imageDataPath: partition.imageDataPath,
       imageDataBytes: Buffer.byteLength(JSON.stringify(imageData)),
+      encoding: imageData.encoding ?? "identity",
+      rawBytes: imageData.rawBytes,
+      compressedBytes: imageData.compressedBytes,
       years: Object.keys(imageData.years ?? {}).length,
       locations: Object.keys(imageData.locations ?? {}).length,
     };
@@ -501,15 +586,57 @@ async function syncPartitionEntries(config, options, locale) {
         imageData,
       };
       const updatedEntry = targetEntry
-        ? await patchEntryFields(config, targetEntry, fields, locale, options.publish)
-        : await createEntry(config, fields, locale, options.publish);
+        ? await patchEntryFields(
+            config,
+            targetEntry,
+            fields,
+            locale,
+            options.publish,
+            operationContext,
+          )
+        : await createEntry(config, fields, locale, options.publish, operationContext);
 
       summary.entryId = updatedEntry.sys.id;
       summary.version = updatedEntry.sys.version;
       summary.publishedAt = updatedEntry.sys.publishedAt;
+
+      await sleep(CONTENTFUL_WRITE_DELAY_MS);
     }
 
     actions.push(summary);
+  }
+
+  const staleEntryActions = [];
+
+  for (const staleEntry of staleEntries) {
+    const staleSummary = {
+      action: "disable-stale",
+      entryId: staleEntry.sys.id,
+      title: getLocalizedField(staleEntry, "title", locale),
+      fromPanelLayerId: options.panelLayerId,
+      toPanelLayerId: `${options.panelLayerId}${STALE_PANEL_LAYER_SUFFIX}`,
+      publishedAt: staleEntry.sys.publishedAt,
+    };
+
+    if (!options.dryRun) {
+      const updatedEntry = await patchEntryFields(
+        config,
+        staleEntry,
+        {
+          panelLayerId: staleSummary.toPanelLayerId,
+        },
+        locale,
+        options.publish,
+        `desativação de entry antiga ${staleEntry.sys.id}`,
+      );
+
+      staleSummary.version = updatedEntry.sys.version;
+      staleSummary.publishedAt = updatedEntry.sys.publishedAt;
+
+      await sleep(CONTENTFUL_WRITE_DELAY_MS);
+    }
+
+    staleEntryActions.push(staleSummary);
   }
 
   return {
@@ -523,6 +650,25 @@ async function syncPartitionEntries(config, options, locale) {
       publishedAt: entry.sys.publishedAt,
     })),
     actions,
+    staleEntryActions,
+  };
+}
+
+function summarizePartitionSyncResult(result) {
+  const actionCounts = result.actions.reduce(
+    (counts, action) => ({
+      ...counts,
+      [action.action]: (counts[action.action] ?? 0) + 1,
+    }),
+    {},
+  );
+
+  return {
+    panelLayerId: result.panelLayerId,
+    partitions: result.actions.length,
+    existingEntries: result.existingEntries.length,
+    staleEntries: result.staleEntryActions.length,
+    actions: actionCounts,
   };
 }
 
@@ -550,6 +696,41 @@ async function main() {
             dryRun: true,
             hasManagementToken: Boolean(config.managementToken),
             publish: options.publish,
+          },
+          null,
+          2,
+        ),
+      );
+      return;
+    }
+
+    if (options.allPanelLayers) {
+      const panelLayerIds = await resolveAllPanelLayerIds(options);
+      const results = [];
+
+      for (const panelLayerId of panelLayerIds) {
+        const result = await syncPartitionEntries(
+          config,
+          {
+            ...options,
+            panelLayerId,
+          },
+          locale,
+        );
+
+        results.push(summarizePartitionSyncResult(result));
+      }
+
+      console.log(
+        JSON.stringify(
+          {
+            allPanelLayers: true,
+            panelLayerCount: panelLayerIds.length,
+            locale,
+            dryRun: options.dryRun,
+            publish: options.publish,
+            writeDelayMs: CONTENTFUL_WRITE_DELAY_MS,
+            results,
           },
           null,
           2,

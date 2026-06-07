@@ -4,10 +4,13 @@ import { mkdir, open, readFile, readdir, rm, unlink, writeFile } from "node:fs/p
 import { execFile } from "node:child_process";
 import path from "node:path";
 import { promisify } from "node:util";
+import { gzipSync } from "node:zlib";
 
 const DEFAULT_FOLDER_ID = "1otPt3-bhLAIaIG15cFUp5wzFdt1ALNOr";
 const DEFAULT_CSV_DIR = "data/contentful-pipeline/csv";
 const DEFAULT_JSON_DIR = "data/contentful-pipeline/json";
+const DEFAULT_MAX_CONTENTFUL_JSON_BYTES = 450_000;
+const COMPRESSED_DATA_CHUNK_SIZE = 30_000;
 const DRIVE_API_BASE_URL = "https://www.googleapis.com/drive/v3";
 const execFileAsync = promisify(execFile);
 const MUNICIPALITY_TEMPLATE =
@@ -110,6 +113,8 @@ function parseArgs(argv) {
     skipDownload: false,
     fileNamePattern: "\\.csv$",
     writeAggregates: false,
+    writeRawPartitions: false,
+    maxContentfulJsonBytes: DEFAULT_MAX_CONTENTFUL_JSON_BYTES,
   };
 
   for (let index = 0; index < argv.length; index += 1) {
@@ -143,12 +148,23 @@ function parseArgs(argv) {
       options.skipDownload = true;
     } else if (argument === "--write-aggregates") {
       options.writeAggregates = true;
+    } else if (argument === "--write-raw-partitions") {
+      options.writeRawPartitions = true;
+    } else if (argument === "--max-contentful-json-bytes") {
+      options.maxContentfulJsonBytes = Number(nextValue());
     } else if (argument === "--help" || argument === "-h") {
       printHelp();
       process.exit(0);
     } else {
       throw new Error(`Argumento desconhecido: ${argument}`);
     }
+  }
+
+  if (
+    !Number.isFinite(options.maxContentfulJsonBytes) ||
+    options.maxContentfulJsonBytes <= 0
+  ) {
+    throw new Error("--max-contentful-json-bytes deve ser um número positivo.");
   }
 
   return options;
@@ -165,6 +181,9 @@ Opções:
   --json-dir <path>             Pasta destino dos JSONs convertidos.
   --skip-download               Converte os CSVs já existentes em --csv-dir.
   --write-aggregates            Também escreve JSONs agregados grandes por panelLayerId.
+  --write-raw-partitions        Escreve partições sem gzip/base64 para depuração local.
+  --max-contentful-json-bytes <n>
+                                Limite por JSON gerado. Padrão: ${DEFAULT_MAX_CONTENTFUL_JSON_BYTES}.
   --file-name-pattern <regex>   Filtra nomes de arquivos do Drive. Padrão: \\.csv$
   --access-token <token>        OAuth token do Google Drive.
   --api-key <key>               API key para arquivos/pastas públicos.
@@ -668,15 +687,119 @@ function getCalendarYear(yearKey) {
   return match[1];
 }
 
-function getPartitionOutputFileName(group, territory, calendarYear) {
+function encodeImageDataPayload(imageData, options) {
+  if (options.writeRawPartitions) {
+    return imageData;
+  }
+
+  const rawJson = JSON.stringify(imageData);
+  const compressed = gzipSync(Buffer.from(rawJson, "utf8"), { level: 9 });
+  const encoded = compressed.toString("base64");
+  const chunks = [];
+
+  for (let index = 0; index < encoded.length; index += COMPRESSED_DATA_CHUNK_SIZE) {
+    chunks.push(encoded.slice(index, index + COMPRESSED_DATA_CHUNK_SIZE));
+  }
+
+  return {
+    schemaVersion: 1,
+    type: "territorial-compact-compressed",
+    encoding: "gzip+base64",
+    mediaType: "application/vnd.sap.territorial-analysis+json",
+    rawBytes: Buffer.byteLength(rawJson),
+    compressedBytes: compressed.byteLength,
+    chunkSize: COMPRESSED_DATA_CHUNK_SIZE,
+    data: chunks,
+  };
+}
+
+function getPartitionOutputFileName(group, territory, partitionKey) {
   const baseName = group.panelLayerId
     ? `municipal-analysis.${slugifyFileName(group.panelLayerId)}`
     : `${slugifyFileName(group.sourceCsvPaths[0])}.unmapped`;
 
-  return `${baseName}.${calendarYear}.${territory}.imageData.json`;
+  return `${baseName}.${partitionKey}.${territory}.imageData.json`;
 }
 
-async function writeAnnualPartitions(conversion, group, partitionDir, writtenPartitions) {
+function buildPartitionPayload(conversion, years, options) {
+  const imageData = {
+    templates: conversion.imageData.templates,
+    years,
+  };
+  const outputPayload = encodeImageDataPayload(imageData, options);
+
+  return {
+    outputPayload,
+    rawBytes: Buffer.byteLength(JSON.stringify(imageData)),
+    outputBytes: Buffer.byteLength(JSON.stringify(outputPayload)),
+  };
+}
+
+async function writePartitionFile({
+  conversion,
+  group,
+  partitionDir,
+  writtenPartitions,
+  partitionKey,
+  calendarYear,
+  years,
+  splitReason,
+  options,
+}) {
+  const uniquePartitionKey = `${group.panelLayerId ?? group.sourceCsvPaths[0]}::${conversion.territory}::${partitionKey}`;
+
+  if (writtenPartitions.has(uniquePartitionKey)) {
+    throw new Error(
+      `Partição duplicada para ${uniquePartitionKey} ao processar ${conversion.inputPath}.`,
+    );
+  }
+
+  writtenPartitions.add(uniquePartitionKey);
+
+  const { outputPayload, rawBytes, outputBytes } = buildPartitionPayload(
+    conversion,
+    years,
+    options,
+  );
+
+  if (outputBytes > options.maxContentfulJsonBytes) {
+    throw new Error(
+      `Partição ${partitionKey} de ${conversion.inputPath} gerou ${outputBytes} bytes, acima do limite ${options.maxContentfulJsonBytes}.`,
+    );
+  }
+
+  const outputPath = path.join(
+    partitionDir,
+    getPartitionOutputFileName(group, conversion.territory, partitionKey),
+  );
+
+  await writeFile(outputPath, `${JSON.stringify(outputPayload)}\n`, "utf8");
+
+  return {
+    panelLayerId: group.panelLayerId,
+    layerKey: group.layerKey,
+    layerLabel: group.layerLabel,
+    territory: conversion.territory,
+    partitionKey,
+    calendarYear,
+    outputPath: path.relative(process.cwd(), outputPath),
+    sourceCsvPath: conversion.inputPath,
+    locationCount: conversion.locationCount,
+    yearKeys: Object.keys(years).sort(),
+    encoding: outputPayload.encoding ?? "identity",
+    rawBytes,
+    outputBytes,
+    ...(splitReason ? { splitReason } : {}),
+  };
+}
+
+async function writeAnnualPartitions(
+  conversion,
+  group,
+  partitionDir,
+  writtenPartitions,
+  options,
+) {
   const yearsByCalendarYear = new Map();
 
   for (const [yearKey, yearEntry] of Object.entries(conversion.imageData.years)) {
@@ -692,38 +815,41 @@ async function writeAnnualPartitions(conversion, group, partitionDir, writtenPar
   const partitionFiles = [];
 
   for (const [calendarYear, years] of yearsByCalendarYear) {
-    const partitionKey = `${group.panelLayerId ?? group.sourceCsvPaths[0]}::${conversion.territory}::${calendarYear}`;
+    const annualPayload = buildPartitionPayload(conversion, years, options);
 
-    if (writtenPartitions.has(partitionKey)) {
-      throw new Error(
-        `Partição anual duplicada para ${partitionKey} ao processar ${conversion.inputPath}.`,
+    if (annualPayload.outputBytes <= options.maxContentfulJsonBytes) {
+      partitionFiles.push(
+        await writePartitionFile({
+          conversion,
+          group,
+          partitionDir,
+          writtenPartitions,
+          partitionKey: calendarYear,
+          calendarYear,
+          years,
+          options,
+        }),
       );
+      continue;
     }
 
-    writtenPartitions.add(partitionKey);
-
-    const imageData = {
-      templates: conversion.imageData.templates,
-      years,
-    };
-    const outputPath = path.join(
-      partitionDir,
-      getPartitionOutputFileName(group, conversion.territory, calendarYear),
-    );
-
-    await writeFile(outputPath, `${JSON.stringify(imageData, null, 2)}\n`, "utf8");
-
-    partitionFiles.push({
-      panelLayerId: group.panelLayerId,
-      layerKey: group.layerKey,
-      layerLabel: group.layerLabel,
-      territory: conversion.territory,
-      calendarYear,
-      outputPath: path.relative(process.cwd(), outputPath),
-      sourceCsvPath: conversion.inputPath,
-      locationCount: conversion.locationCount,
-      yearKeys: Object.keys(years).sort(),
-    });
+    for (const [yearKey, yearEntry] of Object.entries(years).sort(([left], [right]) =>
+      left.localeCompare(right),
+    )) {
+      partitionFiles.push(
+        await writePartitionFile({
+          conversion,
+          group,
+          partitionDir,
+          writtenPartitions,
+          partitionKey: yearKey,
+          calendarYear,
+          years: { [yearKey]: yearEntry },
+          splitReason: `annual partition exceeded ${options.maxContentfulJsonBytes} bytes`,
+          options,
+        }),
+      );
+    }
   }
 
   return partitionFiles;
@@ -856,7 +982,13 @@ async function writeAggregatedGroup(group, jsonDir, partitionDir, options) {
         classColumns: conversion.classColumns,
       });
       partitionFiles.push(
-        ...(await writeAnnualPartitions(conversion, group, partitionDir, writtenPartitions)),
+        ...(await writeAnnualPartitions(
+          conversion,
+          group,
+          partitionDir,
+          writtenPartitions,
+          options,
+        )),
       );
     }
 
@@ -934,21 +1066,31 @@ function buildMunicipalAnalysisManifest(aggregatedFiles, partitionFiles) {
         layerKey: partition.layerKey,
         layerLabel: partition.layerLabel,
         territory: partition.territory,
+        partitionKey: partition.partitionKey,
         calendarYear: partition.calendarYear,
         imageDataPath: partition.outputPath,
         sourceCsvPath: partition.sourceCsvPath,
         yearKeys: partition.yearKeys,
         locationCount: partition.locationCount,
+        encoding: partition.encoding,
+        rawBytes: partition.rawBytes,
+        outputBytes: partition.outputBytes,
+        ...(partition.splitReason ? { splitReason: partition.splitReason } : {}),
       })),
     unmappedPartitions: partitionFiles
       .filter((partition) => !partition.panelLayerId)
       .map((partition) => ({
         territory: partition.territory,
+        partitionKey: partition.partitionKey,
         calendarYear: partition.calendarYear,
         imageDataPath: partition.outputPath,
         sourceCsvPath: partition.sourceCsvPath,
         yearKeys: partition.yearKeys,
         locationCount: partition.locationCount,
+        encoding: partition.encoding,
+        rawBytes: partition.rawBytes,
+        outputBytes: partition.outputBytes,
+        ...(partition.splitReason ? { splitReason: partition.splitReason } : {}),
       })),
   };
 }

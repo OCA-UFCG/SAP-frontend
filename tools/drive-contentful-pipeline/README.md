@@ -3,7 +3,7 @@
 Primeira etapa da pipeline Google Drive -> Contentful.
 
 Ela baixa CSVs de uma pasta do Google Drive para uma pasta local, converte os
-dados para `imageData` e grava particoes anuais por `panelLayerId` no formato
+dados para `imageData` e grava particoes por `panelLayerId` no formato
 consumido pelos objetos territoriais do Contentful, como `municipalAnalysis`.
 
 ## Uso com Google Drive
@@ -49,7 +49,7 @@ npm run pipeline:drive-csv-json -- \
 ## Saidas
 
 - CSVs baixados: `data/contentful-pipeline/csv`
-- JSONs particionados por ano: `data/contentful-pipeline/json/partitions`
+- JSONs particionados: `data/contentful-pipeline/json/partitions`
 - Relatorio: `data/contentful-pipeline/json/conversion-report.json`
 - Manifesto para a proxima etapa: `data/contentful-pipeline/json/municipal-analysis-manifest.json`
 
@@ -58,6 +58,24 @@ Versione apenas o codigo da pipeline e gere novamente os dados quando precisar.
 Os nomes de municipios nao sao repetidos nos JSONs gerados: o frontend usa
 `src/data/citiesIndex.json`, ja versionado, para resolver labels municipais, e
 `statesObj` para labels estaduais.
+
+As particoes sao gravadas comprimidas por padrao, em um envelope JSON com
+`type: "territorial-compact-compressed"` e `encoding: "gzip+base64"`. A
+compressao e sem perda; o frontend decodifica o conteudo antes de mesclar com
+o `panelLayer`. O script tenta escrever uma particao por ano calendario, mas se
+o arquivo comprimido passar do limite configurado ele divide automaticamente em
+particoes menores por chave temporal, por exemplo `2021-01`.
+
+O limite padrao por arquivo e `450000` bytes, deixando margem pratica para o
+limite de 1 MB do Contentful e para falhas do Management API com objetos muito
+proximos do limite:
+
+```bash
+npm run pipeline:drive-csv-json -- --max-contentful-json-bytes 450000
+```
+
+Se precisar inspecionar o JSON sem compressao durante depuracao local, use
+`--write-raw-partitions`.
 
 O fluxo padrao nao escreve JSONs agregados grandes. Se precisar gerar um
 agregado para depuracao local, use `--write-aggregates`.
@@ -106,8 +124,8 @@ O update usa JSON Patch no campo `imageData`. Use `--publish` para publicar a
 entry depois da atualizacao.
 
 Para payloads grandes, use o modo particionado. Ele cria/atualiza uma entry por
-ano calendario, todas com o mesmo `panelLayerId`; o frontend mescla essas
-entries em tempo de leitura:
+particao do manifesto, todas com o mesmo `panelLayerId`; o frontend mescla
+essas entries em tempo de leitura:
 
 ```bash
 npm run pipeline:contentful-municipal-analysis -- \
@@ -124,6 +142,26 @@ npm run pipeline:contentful-municipal-analysis -- \
   --sync-partitions \
   --publish
 ```
+
+Para revisar todas as camadas mapeadas no manifesto sem alterar o Contentful:
+
+```bash
+npm run pipeline:contentful-municipal-analysis:dry-run-all
+```
+
+Para publicar todas as camadas mapeadas no manifesto:
+
+```bash
+npm run pipeline:contentful-municipal-analysis:publish-all
+```
+
+Esse comando cria ou atualiza uma entry por particao e publica cada uma. Entre
+os writes ele faz uma pausa curta e tambem tenta novamente respostas
+temporarias do Contentful, como `429`, `500`, `502`, `503` e `504`.
+Entries antigas com o mesmo `panelLayerId` que nao correspondem mais a uma
+particao do manifesto nao sao apagadas; elas tem o `panelLayerId` alterado para
+`<panelLayerId>_legacy_disabled`, evitando que o frontend mescle dados antigos
+com os dados particionados atuais.
 
 ## Contrato esperado do CSV
 

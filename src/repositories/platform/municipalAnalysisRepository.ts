@@ -1,4 +1,5 @@
 import { getContent } from "@/infrastructure/contentful/client";
+import { gunzipSync } from "node:zlib";
 import type {
   CompactAnalysisClass,
   CompactAnalysisRankingConfig,
@@ -11,8 +12,9 @@ import type { PanelLayerI } from "@/utils/interfaces";
 import { isCompactImageData } from "@/utils/imageData";
 
 const GET_MUNICIPAL_ANALYSIS = `
-  query GetMunicipalAnalysis {
-    municipalAnalysisCollection {
+  query GetMunicipalAnalysis($limit: Int!, $skip: Int!) {
+    municipalAnalysisCollection(limit: $limit, skip: $skip) {
+      total
       items {
         sys {
           id
@@ -36,9 +38,12 @@ interface MunicipalAnalysisEntry {
 
 interface MunicipalAnalysisResponse {
   municipalAnalysisCollection?: {
+    total?: number;
     items: Array<MunicipalAnalysisEntry | null>;
   };
 }
+
+const MUNICIPAL_ANALYSIS_PAGE_SIZE = 100;
 
 type CompactAnalysisYearPatch = Partial<CompactAnalysisYearData> & {
   values?: Record<string, number[]>;
@@ -54,6 +59,17 @@ interface CompactTerritorialAnalysisDatasetPatch {
   ranking?: CompactAnalysisRankingConfig;
   mapVisualization?: CompactMapVisualizationConfig;
   years?: Record<string, CompactAnalysisYearPatch>;
+}
+
+interface CompressedTerritorialAnalysisPayload {
+  schemaVersion?: number;
+  type: "territorial-compact-compressed";
+  encoding: "gzip+base64";
+  mediaType?: string;
+  rawBytes?: number;
+  compressedBytes?: number;
+  chunkSize?: number;
+  data: string | string[];
 }
 
 function isRecord(value: unknown): value is Record<string, unknown> {
@@ -73,7 +89,42 @@ function isNumericArrayRecord(value: unknown): value is Record<string, number[]>
   );
 }
 
+function isCompressedTerritorialAnalysisPayload(
+  value: unknown,
+): value is CompressedTerritorialAnalysisPayload {
+  return (
+    isRecord(value) &&
+    value.type === "territorial-compact-compressed" &&
+    value.encoding === "gzip+base64" &&
+    (typeof value.data === "string" ||
+      (Array.isArray(value.data) &&
+        value.data.every((chunk) => typeof chunk === "string")))
+  );
+}
+
+function decodeMunicipalAnalysisImageData(value: unknown): unknown {
+  if (!isCompressedTerritorialAnalysisPayload(value)) {
+    return value;
+  }
+
+  try {
+    const encoded = Array.isArray(value.data) ? value.data.join("") : value.data;
+
+    return JSON.parse(
+      gunzipSync(Buffer.from(encoded, "base64")).toString("utf8"),
+    );
+  } catch (error) {
+    console.warn(
+      "municipalAnalysis comprimido inválido; entrada ignorada.",
+      error,
+    );
+    return null;
+  }
+}
+
 function toDatasetPatch(value: unknown): CompactTerritorialAnalysisDatasetPatch | null {
+  value = decodeMunicipalAnalysisImageData(value);
+
   if (!isRecord(value)) {
     return null;
   }
@@ -252,7 +303,7 @@ function mergeCompactDataset(
 
   const years = Object.fromEntries(
     Object.entries(base.years).flatMap(([yearKey, baseYear]) => {
-      const mergedYear = (patchYearsByBaseYear.get(yearKey) ?? []).reduce(
+      const mergedYear = (patchYearsByBaseYear.get(yearKey) ?? []).reduce<CompactAnalysisYearData>(
         (currentYear, patchYear) =>
           mergeAnalysisYear(currentYear, patchYear) ?? currentYear,
         baseYear,
@@ -293,11 +344,30 @@ function mergeCompactDataset(
   };
 }
 
-async function getMunicipalAnalysisPatches() {
+async function getMunicipalAnalysisPatches(): Promise<
+  Map<string, CompactTerritorialAnalysisDatasetPatch[]>
+> {
   try {
-    const data = await getContent<MunicipalAnalysisResponse>(GET_MUNICIPAL_ANALYSIS);
+    const items: Array<MunicipalAnalysisEntry | null> = [];
 
-    return (data.municipalAnalysisCollection?.items ?? []).reduce(
+    for (let skip = 0; ; skip += MUNICIPAL_ANALYSIS_PAGE_SIZE) {
+      const data = await getContent<MunicipalAnalysisResponse>(GET_MUNICIPAL_ANALYSIS, {
+        limit: MUNICIPAL_ANALYSIS_PAGE_SIZE,
+        skip,
+      }, { cache: "no-store" });
+      const pageItems = data.municipalAnalysisCollection?.items ?? [];
+      const total = data.municipalAnalysisCollection?.total ?? pageItems.length;
+
+      items.push(...pageItems);
+
+      if (items.length >= total || pageItems.length === 0) {
+        break;
+      }
+    }
+
+    return items.reduce<
+      Map<string, CompactTerritorialAnalysisDatasetPatch[]>
+    >(
       (patchesByPanelLayer, entry) => {
         if (!entry?.panelLayerId?.trim()) {
           return patchesByPanelLayer;
@@ -321,7 +391,7 @@ async function getMunicipalAnalysisPatches() {
       "Coleção municipalAnalysis indisponível ou inválida no Contentful; mantendo apenas os dados base das camadas.",
       error,
     );
-    return new Map<string, CompactTerritorialAnalysisDatasetPatch>();
+    return new Map<string, CompactTerritorialAnalysisDatasetPatch[]>();
   }
 }
 
@@ -347,7 +417,7 @@ export async function attachMunicipalAnalysisToPanelLayers(
 
     return {
       ...layer,
-      imageData: patches.reduce(
+      imageData: patches.reduce<CompactTerritorialAnalysisDataset>(
         (imageData, patch) => mergeCompactDataset(imageData, patch),
         layer.imageData,
       ),

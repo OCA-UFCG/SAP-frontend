@@ -5,6 +5,11 @@ interface ContentfulGraphQLResponse<T> {
   errors?: Array<{ message?: string }>;
 }
 
+interface ContentfulRequestOptions {
+  cache?: RequestCache;
+  next?: NextFetchRequestConfig;
+}
+
 function getEnvValue(
   primaryKey: string,
   fallbackKey?: string,
@@ -59,8 +64,13 @@ function getContentfulConfig() {
 export async function getContent<T>(
   query: string,
   variables?: Record<string, unknown>,
+  options: ContentfulRequestOptions = {},
 ): Promise<T> {
   const { endpoint, accessToken } = getContentfulConfig();
+  const cacheOptions =
+    options.cache === "no-store"
+      ? { cache: options.cache }
+      : { next: options.next ?? { revalidate: 3600 } };
 
   const response = await fetch(endpoint, {
     method: "POST",
@@ -69,7 +79,7 @@ export async function getContent<T>(
       Authorization: `Bearer ${accessToken}`,
     },
     body: JSON.stringify({ query, variables }),
-    next: { revalidate: 3600 },
+    ...cacheOptions,
   });
 
   if (!response.ok) {
