@@ -1,0 +1,98 @@
+import { describe, expect, it } from "vitest";
+import {
+  validateMunicipalAnalysisImageData,
+  validateMunicipalAnalysisManifest,
+} from "../tools/drive-contentful-pipeline/contentful-update-municipal-analysis.mjs";
+
+const validCompressedImageData = {
+  type: "territorial-compact-compressed",
+  encoding: "gzip+base64",
+  data: ["H4sI"],
+};
+
+const validPlainImageData = {
+  type: "territorial-compact",
+  years: {},
+};
+
+describe("municipal analysis pipeline validation", () => {
+  it("accepts compressed and plain municipal analysis imageData payloads", () => {
+    expect(validateMunicipalAnalysisImageData(validCompressedImageData)).toEqual(
+      [],
+    );
+    expect(validateMunicipalAnalysisImageData(validPlainImageData)).toEqual([]);
+  });
+
+  it("rejects imageData payloads without the expected contract", () => {
+    expect(validateMunicipalAnalysisImageData({ type: "unexpected" })).toEqual([
+      "imageData deve ser territorial-compact ou envelope gzip+base64 territorial-compact-compressed.",
+    ]);
+  });
+
+  it("validates manifest partitions, duplicate keys, files and payload shape", async () => {
+    const readJsonFile = async (filePath: string) => {
+      if (filePath.endsWith("invalid.json")) {
+        return { type: "unexpected" };
+      }
+
+      if (filePath.endsWith("valid.json")) {
+        return validCompressedImageData;
+      }
+
+      throw new Error("missing file");
+    };
+    const manifest = {
+      partitions: [
+        {
+          panelLayerId: "CDI_Test",
+          partitionKey: "2026",
+          calendarYear: "2026",
+          territory: "municipality",
+          imageDataPath: "valid.json",
+          yearKeys: ["2026"],
+        },
+        {
+          panelLayerId: "CDI_Test",
+          partitionKey: "2026",
+          calendarYear: "2026",
+          territory: "municipality",
+          imageDataPath: "invalid.json",
+          yearKeys: ["2026"],
+        },
+        {
+          panelLayerId: "terraibge",
+          partitionKey: "2025",
+          calendarYear: "2025",
+          territory: "municipality",
+          imageDataPath: "missing.json",
+          yearKeys: ["2025"],
+        },
+        {
+          panelLayerId: "ods",
+          partitionKey: "",
+          calendarYear: "2024",
+          territory: "municipality",
+          imageDataPath: "valid.json",
+          yearKeys: [],
+        },
+      ],
+    };
+
+    const validation = await validateMunicipalAnalysisManifest(
+      manifest,
+      "data/contentful-pipeline/json",
+      readJsonFile,
+    );
+
+    expect(validation.ok).toBe(false);
+    expect(validation.errors).toEqual(
+      expect.arrayContaining([
+        "partitions[1]: partição duplicada para CDI_Test::2026::municipality.",
+        "partitions[1].imageData: imageData deve ser territorial-compact ou envelope gzip+base64 territorial-compact-compressed.",
+        "partitions[2].imageDataPath: não foi possível ler missing.json: missing file",
+        "partitions[3].partitionKey: campo obrigatório ausente.",
+        "partitions[3].yearKeys: deve ser uma lista não vazia de strings.",
+      ]),
+    );
+  });
+});

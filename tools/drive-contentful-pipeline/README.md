@@ -172,7 +172,8 @@ CONTENTFUL_ACCESS_TOKEN
 ```
 
 As variaveis `NEXT_PUBLIC_CONTENTFUL_*` tambem sao aceitas como fallback local
-quando ja existem no projeto.
+para leitura, quando ja existem no projeto. Para escrita via Management API,
+use apenas `CONTENTFUL_MANAGEMENT_TOKEN`.
 
 ## Como os arquivos sao mapeados para camadas
 
@@ -269,6 +270,11 @@ O script tambem consulta o `panelLayer` correspondente e reporta
 `panelLayer.imageData` ainda nao tem asset/ano compativel. Nesse caso, a entry
 pode ser publicada, mas a aplicacao nao conseguira exibir aquele periodo ate o
 `panelLayer` ser atualizado.
+
+Antes de sincronizar particoes, o script valida o manifesto contra duplicidades,
+campos obrigatorios, arquivos ausentes e formato basico do `imageData`. Essas
+validacoes bloqueiam a publicacao quando indicam que a estrutura enviada ao
+Contentful esta inconsistente.
 
 ## Contrato esperado do CSV
 

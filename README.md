@@ -103,6 +103,9 @@ cache for 10 minutes by default. The route still supports requests without
 requests.
 Set `MUNICIPAL_ANALYSIS_CACHE_TTL_SECONDS` or
 `MUNICIPAL_ANALYSIS_CACHE_MAX_ENTRIES` to tune that behavior.
+The endpoint is protected server-side and returns private HTTP cache headers;
+only the server-side in-memory cache is shared across authenticated requests in
+the same Node process.
 
 ## Agent Context Docs
 

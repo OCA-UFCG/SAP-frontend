@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { requireAuthenticatedRequest } from "@/lib/server-session";
 import {
   getCachedMunicipalAnalysisImageData,
   getMunicipalAnalysisCacheControlHeader,
@@ -10,28 +11,67 @@ interface MunicipalAnalysisRouteContext {
   }>;
 }
 
+const PANEL_LAYER_ID_PATTERN = /^[A-Za-z0-9_-]{1,80}$/u;
+const YEAR_KEY_PATTERN = /^(\d{4})(?:-(0[1-9]|1[0-2]))?$/u;
+
+function isValidPanelLayerId(value: string) {
+  return PANEL_LAYER_ID_PATTERN.test(value);
+}
+
+function isValidYearKey(value: string) {
+  return YEAR_KEY_PATTERN.test(value);
+}
+
+function jsonError(message: string, status: number) {
+  return NextResponse.json(
+    { error: message },
+    {
+      status,
+      headers: {
+        "Cache-Control": "no-store",
+      },
+    },
+  );
+}
+
 export async function GET(
-  _request: Request,
+  request: Request,
   context: MunicipalAnalysisRouteContext,
 ) {
+  const unauthorizedResponse = await requireAuthenticatedRequest(request);
+
+  if (unauthorizedResponse) {
+    unauthorizedResponse.headers.set("Cache-Control", "no-store");
+    return unauthorizedResponse;
+  }
+
   const { panelLayerId } = await context.params;
-  const url = new URL(_request.url);
+  const decodedPanelLayerId = decodeURIComponent(panelLayerId).trim();
+  const url = new URL(request.url);
   const yearKey = url.searchParams.get("year")?.trim() || undefined;
-  const result = await getCachedMunicipalAnalysisImageData(
-    decodeURIComponent(panelLayerId),
-    yearKey,
-  );
+
+  if (!isValidPanelLayerId(decodedPanelLayerId)) {
+    return jsonError("Invalid panel layer id.", 400);
+  }
+
+  if (yearKey && !isValidYearKey(yearKey)) {
+    return jsonError("Invalid year.", 400);
+  }
+
+  let result;
+
+  try {
+    result = await getCachedMunicipalAnalysisImageData(
+      decodedPanelLayerId,
+      yearKey,
+    );
+  } catch (error) {
+    console.error("Erro ao carregar municipalAnalysis:", error);
+    return jsonError("Unable to load municipal analysis.", 502);
+  }
 
   if (!result.found) {
-    return NextResponse.json(
-      { error: "Panel layer not found." },
-      {
-        status: 404,
-        headers: {
-          "Cache-Control": "no-store",
-        },
-      },
-    );
+    return jsonError("Panel layer not found.", 404);
   }
 
   return NextResponse.json(

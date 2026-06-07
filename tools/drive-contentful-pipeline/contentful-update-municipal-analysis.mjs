@@ -2,6 +2,7 @@
 
 import { readFile } from "node:fs/promises";
 import path from "node:path";
+import { pathToFileURL } from "node:url";
 
 const DEFAULT_JSON_DIR = "data/contentful-pipeline/json";
 const DEFAULT_PANEL_LAYER_ID = "CDI_Test";
@@ -95,7 +96,6 @@ Ambiente:
   CONTENTFUL_ENVIRONMENT ou NEXT_PUBLIC_CONTENTFUL_ENVIRONMENT
   NEXT_PUBLIC_CONTENTFUL_ACCESS_TOKEN ou CONTENTFUL_ACCESS_TOKEN
   CONTENTFUL_MANAGEMENT_TOKEN para atualizar via Management API
-  NEXT_PUBLIC_CONTENTFUL_MANAGEMENT_TOKEN tambem e aceito como fallback local
 `);
 }
 
@@ -179,10 +179,7 @@ function getContentfulConfig() {
           "CONTENTFUL_ACCESS_TOKEN",
           "NEXT_PUBLIC_CONTENTFUL_ACCESS_TOKEN",
         ),
-    managementToken: getEnv(
-      "CONTENTFUL_MANAGEMENT_TOKEN",
-      "NEXT_PUBLIC_CONTENTFUL_MANAGEMENT_TOKEN",
-    ),
+    managementToken: getEnv("CONTENTFUL_MANAGEMENT_TOKEN"),
     usePreview,
   };
 }
@@ -193,6 +190,147 @@ async function readJson(filePath) {
 
 async function readManifest(jsonDir) {
   return readJson(path.join(jsonDir, "municipal-analysis-manifest.json"));
+}
+
+function isRecord(value) {
+  return typeof value === "object" && value !== null && !Array.isArray(value);
+}
+
+function isCompressedMunicipalAnalysisImageData(value) {
+  return (
+    isRecord(value) &&
+    value.type === "territorial-compact-compressed" &&
+    value.encoding === "gzip+base64" &&
+    (typeof value.data === "string" ||
+      (Array.isArray(value.data) &&
+        value.data.every((chunk) => typeof chunk === "string")))
+  );
+}
+
+function isPlainMunicipalAnalysisImageData(value) {
+  return isRecord(value) && value.type === "territorial-compact";
+}
+
+export function validateMunicipalAnalysisImageData(imageData, context = "") {
+  if (
+    isCompressedMunicipalAnalysisImageData(imageData) ||
+    isPlainMunicipalAnalysisImageData(imageData)
+  ) {
+    return [];
+  }
+
+  return [
+    `${context ? `${context}: ` : ""}imageData deve ser territorial-compact ou envelope gzip+base64 territorial-compact-compressed.`,
+  ];
+}
+
+function validatePartitionManifestEntry(partition, index) {
+  const errors = [];
+  const label = `partitions[${index}]`;
+
+  if (!isRecord(partition)) {
+    return [`${label}: partição inválida.`];
+  }
+
+  for (const field of [
+    "panelLayerId",
+    "partitionKey",
+    "calendarYear",
+    "territory",
+    "imageDataPath",
+  ]) {
+    if (typeof partition[field] !== "string" || !partition[field].trim()) {
+      errors.push(`${label}.${field}: campo obrigatório ausente.`);
+    }
+  }
+
+  if (
+    !Array.isArray(partition.yearKeys) ||
+    partition.yearKeys.length === 0 ||
+    !partition.yearKeys.every((yearKey) => typeof yearKey === "string")
+  ) {
+    errors.push(`${label}.yearKeys: deve ser uma lista não vazia de strings.`);
+  }
+
+  return errors;
+}
+
+export async function validateMunicipalAnalysisManifest(
+  manifest,
+  _jsonDir,
+  readJsonFile = readJson,
+) {
+  const errors = [];
+  const warnings = [];
+
+  if (!isRecord(manifest)) {
+    return {
+      ok: false,
+      errors: ["Manifesto inválido."],
+      warnings,
+    };
+  }
+
+  const partitions = Array.isArray(manifest.partitions)
+    ? manifest.partitions
+    : [];
+  const partitionKeys = new Set();
+
+  if (partitions.length === 0) {
+    warnings.push("Manifesto sem partições mapeadas.");
+  }
+
+  for (const [index, partition] of partitions.entries()) {
+    errors.push(...validatePartitionManifestEntry(partition, index));
+
+    if (!isRecord(partition)) {
+      continue;
+    }
+
+    const duplicateKey = [
+      partition.panelLayerId,
+      partition.partitionKey,
+      partition.territory,
+    ].join("::");
+
+    if (partitionKeys.has(duplicateKey)) {
+      errors.push(
+        `partitions[${index}]: partição duplicada para ${duplicateKey}.`,
+      );
+    } else {
+      partitionKeys.add(duplicateKey);
+    }
+
+    if (typeof partition.imageDataPath !== "string") {
+      continue;
+    }
+
+    const imageDataPath = path.isAbsolute(partition.imageDataPath)
+      ? partition.imageDataPath
+      : path.resolve(process.cwd(), partition.imageDataPath);
+
+    try {
+      const imageData = await readJsonFile(imageDataPath);
+      errors.push(
+        ...validateMunicipalAnalysisImageData(
+          imageData,
+          `partitions[${index}].imageData`,
+        ),
+      );
+    } catch (error) {
+      errors.push(
+        `partitions[${index}].imageDataPath: não foi possível ler ${partition.imageDataPath}: ${
+          error instanceof Error ? error.message : String(error)
+        }`,
+      );
+    }
+  }
+
+  return {
+    ok: errors.length === 0,
+    errors,
+    warnings,
+  };
 }
 
 function sleep(ms) {
@@ -762,6 +900,21 @@ async function syncPartitionEntries(config, options, locale) {
       }
     : await ensureMunicipalAnalysisPartitionFields(config);
   const partitions = await resolvePartitionEntries(options);
+  const manifestValidation = await validateMunicipalAnalysisManifest(
+    await readManifest(options.jsonDir),
+    options.jsonDir,
+  );
+
+  if (!manifestValidation.ok) {
+    throw new Error(
+      `Validação do manifesto municipalAnalysis falhou: ${JSON.stringify(
+        manifestValidation,
+        null,
+        2,
+      )}`,
+    );
+  }
+
   const validation = await validatePartitionsAgainstPanelLayer(
     config,
     options.panelLayerId,
@@ -903,6 +1056,7 @@ async function syncPartitionEntries(config, options, locale) {
     dryRun: options.dryRun,
     publish: options.publish,
     contentModelUpdate,
+    manifestValidation,
     validation,
     existingEntries: existingEntries.map((entry) => ({
       entryId: entry.sys.id,
@@ -929,6 +1083,10 @@ function summarizePartitionSyncResult(result) {
     existingEntries: result.existingEntries.length,
     staleEntries: result.staleEntryActions.length,
     missingPanelLayerYears: result.validation.missingPanelLayerYears.length,
+    warnings:
+      result.validation.missingPanelLayerYears.length +
+      result.manifestValidation.warnings.length,
+    blockingValidationErrors: result.manifestValidation.errors.length,
     actions: actionCounts,
   };
 }
@@ -1007,6 +1165,21 @@ async function main() {
 
   const imageDataPath = await resolveImageDataPath(options);
   const imageData = await readJson(imageDataPath);
+  const imageDataValidationErrors = validateMunicipalAnalysisImageData(
+    imageData,
+    imageDataPath,
+  );
+
+  if (imageDataValidationErrors.length > 0) {
+    throw new Error(
+      `Validação do imageData municipalAnalysis falhou: ${JSON.stringify(
+        imageDataValidationErrors,
+        null,
+        2,
+      )}`,
+    );
+  }
+
   const imageDataBytes = Buffer.byteLength(JSON.stringify(imageData));
   const currentEntry = await findMunicipalAnalysisEntry(
     config,
@@ -1075,7 +1248,9 @@ async function main() {
   );
 }
 
-main().catch((error) => {
-  console.error(error instanceof Error ? error.message : error);
-  process.exitCode = 1;
-});
+if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href) {
+  main().catch((error) => {
+    console.error(error instanceof Error ? error.message : error);
+    process.exitCode = 1;
+  });
+}

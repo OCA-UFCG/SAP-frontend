@@ -55,7 +55,7 @@ function getMunicipalAnalysisCacheMaxEntries(): number {
 export function getMunicipalAnalysisCacheControlHeader(): string {
   const ttlSeconds = getMunicipalAnalysisCacheTtlSeconds();
 
-  return `public, max-age=${ttlSeconds}, stale-while-revalidate=${STALE_WHILE_REVALIDATE_SECONDS}`;
+  return `private, max-age=${ttlSeconds}, stale-while-revalidate=${STALE_WHILE_REVALIDATE_SECONDS}`;
 }
 
 function logCacheEvent(

@@ -249,7 +249,7 @@ describe("municipalAnalysisCache", () => {
     process.env.MUNICIPAL_ANALYSIS_CACHE_TTL_SECONDS = "120";
 
     expect(getMunicipalAnalysisCacheControlHeader()).toBe(
-      "public, max-age=120, stale-while-revalidate=3600",
+      "private, max-age=120, stale-while-revalidate=3600",
     );
   });
 });
