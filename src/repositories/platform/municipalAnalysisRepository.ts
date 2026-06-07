@@ -1,4 +1,5 @@
 import { getContent } from "@/infrastructure/contentful/client";
+import { gunzipSync } from "node:zlib";
 import type {
   CompactAnalysisClass,
   CompactAnalysisRankingConfig,
@@ -11,8 +12,29 @@ import type { PanelLayerI } from "@/utils/interfaces";
 import { isCompactImageData } from "@/utils/imageData";
 
 const GET_MUNICIPAL_ANALYSIS = `
-  query GetMunicipalAnalysis {
-    municipalAnalysisCollection {
+  query GetMunicipalAnalysis($limit: Int!, $skip: Int!) {
+    municipalAnalysisCollection(limit: $limit, skip: $skip) {
+      total
+      items {
+        sys {
+          id
+        }
+        title
+        panelLayerId
+        imageData
+      }
+    }
+  }
+`;
+
+const GET_MUNICIPAL_ANALYSIS_BY_PANEL_LAYER = `
+  query GetMunicipalAnalysisByPanelLayer($limit: Int!, $skip: Int!, $panelLayerId: String!) {
+    municipalAnalysisCollection(
+      limit: $limit
+      skip: $skip
+      where: { panelLayerId: $panelLayerId }
+    ) {
+      total
       items {
         sys {
           id
@@ -36,9 +58,12 @@ interface MunicipalAnalysisEntry {
 
 interface MunicipalAnalysisResponse {
   municipalAnalysisCollection?: {
+    total?: number;
     items: Array<MunicipalAnalysisEntry | null>;
   };
 }
+
+const MUNICIPAL_ANALYSIS_PAGE_SIZE = 100;
 
 type CompactAnalysisYearPatch = Partial<CompactAnalysisYearData> & {
   values?: Record<string, number[]>;
@@ -54,6 +79,17 @@ interface CompactTerritorialAnalysisDatasetPatch {
   ranking?: CompactAnalysisRankingConfig;
   mapVisualization?: CompactMapVisualizationConfig;
   years?: Record<string, CompactAnalysisYearPatch>;
+}
+
+interface CompressedTerritorialAnalysisPayload {
+  schemaVersion?: number;
+  type: "territorial-compact-compressed";
+  encoding: "gzip+base64";
+  mediaType?: string;
+  rawBytes?: number;
+  compressedBytes?: number;
+  chunkSize?: number;
+  data: string | string[];
 }
 
 function isRecord(value: unknown): value is Record<string, unknown> {
@@ -73,7 +109,42 @@ function isNumericArrayRecord(value: unknown): value is Record<string, number[]>
   );
 }
 
+function isCompressedTerritorialAnalysisPayload(
+  value: unknown,
+): value is CompressedTerritorialAnalysisPayload {
+  return (
+    isRecord(value) &&
+    value.type === "territorial-compact-compressed" &&
+    value.encoding === "gzip+base64" &&
+    (typeof value.data === "string" ||
+      (Array.isArray(value.data) &&
+        value.data.every((chunk) => typeof chunk === "string")))
+  );
+}
+
+function decodeMunicipalAnalysisImageData(value: unknown): unknown {
+  if (!isCompressedTerritorialAnalysisPayload(value)) {
+    return value;
+  }
+
+  try {
+    const encoded = Array.isArray(value.data) ? value.data.join("") : value.data;
+
+    return JSON.parse(
+      gunzipSync(Buffer.from(encoded, "base64")).toString("utf8"),
+    );
+  } catch (error) {
+    console.warn(
+      "municipalAnalysis comprimido inválido; entrada ignorada.",
+      error,
+    );
+    return null;
+  }
+}
+
 function toDatasetPatch(value: unknown): CompactTerritorialAnalysisDatasetPatch | null {
+  value = decodeMunicipalAnalysisImageData(value);
+
   if (!isRecord(value)) {
     return null;
   }
@@ -148,11 +219,12 @@ function toDatasetPatch(value: unknown): CompactTerritorialAnalysisDatasetPatch 
 function mergeAnalysisYear(
   baseYear: CompactAnalysisYearData | undefined,
   patchYear: CompactAnalysisYearPatch | undefined,
-  yearKey: string,
 ): CompactAnalysisYearData | null {
-  const normalizationScale = baseYear
-    ? (baseYear.valuesScale ?? 1)
-    : (patchYear?.valuesScale ?? 1);
+  if (!baseYear) {
+    return null;
+  }
+
+  const normalizationScale = baseYear.valuesScale ?? 1;
   const normalizedPatchValues = Object.fromEntries(
     Object.entries(patchYear?.values ?? {}).map(([locationKey, values]) => {
       const patchScale = patchYear?.valuesScale ?? 1;
@@ -181,13 +253,8 @@ function mergeAnalysisYear(
   const mergedValuesScale = baseYear?.valuesScale ?? patchYear?.valuesScale;
 
   return {
-    imageId:
-      patchYear?.imageId?.trim() ||
-      baseYear?.imageId ||
-      `municipal-analysis://${yearKey}`,
-    ...(patchYear?.year ?? baseYear?.year
-      ? { year: patchYear?.year ?? baseYear?.year }
-      : {}),
+    imageId: baseYear.imageId,
+    ...(baseYear.year ? { year: baseYear.year } : {}),
     ...(typeof mergedValuesScale === "number"
       ? { valuesScale: mergedValuesScale }
       : {}),
@@ -195,21 +262,71 @@ function mergeAnalysisYear(
   };
 }
 
+function getCalendarYear(yearKey: string) {
+  return yearKey.match(/^(\d{4})(?:-\d{2})?$/u)?.[1] ?? null;
+}
+
+function groupPatchYearsByBaseYear(
+  baseYears: Record<string, CompactAnalysisYearData>,
+  patchYears: Record<string, CompactAnalysisYearPatch> | undefined,
+) {
+  const patchesByBaseYear = new Map<string, CompactAnalysisYearPatch[]>();
+
+  if (!patchYears) {
+    return patchesByBaseYear;
+  }
+
+  const baseYearKeys = Object.keys(baseYears);
+  const baseYearKeysByCalendarYear = baseYearKeys.reduce(
+    (lookup, baseYearKey) => {
+      const calendarYear = getCalendarYear(baseYearKey);
+
+      if (!calendarYear) {
+        return lookup;
+      }
+
+      lookup.set(calendarYear, [...(lookup.get(calendarYear) ?? []), baseYearKey]);
+
+      return lookup;
+    },
+    new Map<string, string[]>(),
+  );
+
+  for (const [patchYearKey, patchYear] of Object.entries(patchYears)) {
+    const exactBaseYear = baseYears[patchYearKey] ? patchYearKey : null;
+    const calendarYear = getCalendarYear(patchYearKey);
+    const matchingCalendarBaseYears = calendarYear
+      ? (baseYearKeysByCalendarYear.get(calendarYear) ?? [])
+      : [];
+    const targetBaseYear =
+      exactBaseYear ??
+      (matchingCalendarBaseYears.length === 1 ? matchingCalendarBaseYears[0] : null);
+
+    if (!targetBaseYear) {
+      continue;
+    }
+
+    patchesByBaseYear.set(targetBaseYear, [
+      ...(patchesByBaseYear.get(targetBaseYear) ?? []),
+      patchYear,
+    ]);
+  }
+
+  return patchesByBaseYear;
+}
+
 function mergeCompactDataset(
   base: CompactTerritorialAnalysisDataset,
   patch: CompactTerritorialAnalysisDatasetPatch,
 ): CompactTerritorialAnalysisDataset {
-  const yearKeys = new Set([
-    ...Object.keys(base.years),
-    ...Object.keys(patch.years ?? {}),
-  ]);
+  const patchYearsByBaseYear = groupPatchYearsByBaseYear(base.years, patch.years);
 
   const years = Object.fromEntries(
-    Array.from(yearKeys).flatMap((yearKey) => {
-      const mergedYear = mergeAnalysisYear(
-        base.years[yearKey],
-        patch.years?.[yearKey],
-        yearKey,
+    Object.entries(base.years).flatMap(([yearKey, baseYear]) => {
+      const mergedYear = (patchYearsByBaseYear.get(yearKey) ?? []).reduce<CompactAnalysisYearData>(
+        (currentYear, patchYear) =>
+          mergeAnalysisYear(currentYear, patchYear) ?? currentYear,
+        baseYear,
       );
 
       return mergedYear ? [[yearKey, mergedYear]] : [];
@@ -222,11 +339,8 @@ function mergeCompactDataset(
       ? { schemaVersion: patch.schemaVersion }
       : {}),
     type: "territorial-compact",
-    ...(patch.defaultYear ? { defaultYear: patch.defaultYear } : {}),
-    classes:
-      Array.isArray(patch.classes) && patch.classes.length > 0
-        ? patch.classes
-        : base.classes,
+    ...(base.defaultYear ? { defaultYear: base.defaultYear } : {}),
+    classes: base.classes,
     locations: {
       ...(base.locations ?? {}),
       ...(patch.locations ?? {}),
@@ -245,43 +359,67 @@ function mergeCompactDataset(
             ...(patch.ranking ?? {}),
           }
         : undefined,
-    mapVisualization:
-      patch.mapVisualization || base.mapVisualization
-        ? {
-            ...(base.mapVisualization ?? {}),
-            ...(patch.mapVisualization ?? {}),
-          }
-        : undefined,
+    mapVisualization: base.mapVisualization,
     years,
   };
 }
 
-async function getMunicipalAnalysisPatches() {
+async function getMunicipalAnalysisPatches(panelLayerId?: string): Promise<
+  Map<string, CompactTerritorialAnalysisDatasetPatch[]>
+> {
   try {
-    const data = await getContent<MunicipalAnalysisResponse>(GET_MUNICIPAL_ANALYSIS);
+    const items: Array<MunicipalAnalysisEntry | null> = [];
+    const query = panelLayerId
+      ? GET_MUNICIPAL_ANALYSIS_BY_PANEL_LAYER
+      : GET_MUNICIPAL_ANALYSIS;
 
-    return new Map(
-      (data.municipalAnalysisCollection?.items ?? [])
-        .flatMap((entry) => {
-          if (!entry?.panelLayerId?.trim()) {
-            return [];
-          }
+    for (let skip = 0; ; skip += MUNICIPAL_ANALYSIS_PAGE_SIZE) {
+      const data = await getContent<MunicipalAnalysisResponse>(
+        query,
+        {
+          limit: MUNICIPAL_ANALYSIS_PAGE_SIZE,
+          skip,
+          ...(panelLayerId ? { panelLayerId } : {}),
+        },
+        { cache: "no-store" },
+      );
+      const pageItems = data.municipalAnalysisCollection?.items ?? [];
+      const total = data.municipalAnalysisCollection?.total ?? pageItems.length;
 
-          const patch = toDatasetPatch(entry.imageData);
+      items.push(...pageItems);
 
-          if (!patch) {
-            return [];
-          }
+      if (items.length >= total || pageItems.length === 0) {
+        break;
+      }
+    }
 
-          return [[entry.panelLayerId, patch] as const];
-        }),
+    return items.reduce<
+      Map<string, CompactTerritorialAnalysisDatasetPatch[]>
+    >(
+      (patchesByPanelLayer, entry) => {
+        if (!entry?.panelLayerId?.trim()) {
+          return patchesByPanelLayer;
+        }
+
+        const patch = toDatasetPatch(entry.imageData);
+
+        if (!patch) {
+          return patchesByPanelLayer;
+        }
+
+        const currentPatches = patchesByPanelLayer.get(entry.panelLayerId) ?? [];
+        patchesByPanelLayer.set(entry.panelLayerId, [...currentPatches, patch]);
+
+        return patchesByPanelLayer;
+      },
+      new Map<string, CompactTerritorialAnalysisDatasetPatch[]>(),
     );
   } catch (error) {
     console.warn(
       "Coleção municipalAnalysis indisponível ou inválida no Contentful; mantendo apenas os dados base das camadas.",
       error,
     );
-    return new Map<string, CompactTerritorialAnalysisDatasetPatch>();
+    return new Map<string, CompactTerritorialAnalysisDatasetPatch[]>();
   }
 }
 
@@ -292,22 +430,45 @@ export async function attachMunicipalAnalysisToPanelLayers(
     return panelLayers;
   }
 
-  const municipalAnalysisPatches = await getMunicipalAnalysisPatches();
+  const municipalAnalysisPatchesByPanelLayer = await getMunicipalAnalysisPatches();
 
-  if (municipalAnalysisPatches.size === 0) {
+  if (municipalAnalysisPatchesByPanelLayer.size === 0) {
     return panelLayers;
   }
 
   return panelLayers.map((layer) => {
-    const patch = municipalAnalysisPatches.get(layer.id);
+    const patches = municipalAnalysisPatchesByPanelLayer.get(layer.id);
 
-    if (!patch || !isCompactImageData(layer.imageData)) {
+    if (!patches?.length || !isCompactImageData(layer.imageData)) {
       return layer;
     }
 
     return {
       ...layer,
-      imageData: mergeCompactDataset(layer.imageData, patch),
+      imageData: patches.reduce<CompactTerritorialAnalysisDataset>(
+        (imageData, patch) => mergeCompactDataset(imageData, patch),
+        layer.imageData,
+      ),
     };
   });
+}
+
+export async function attachMunicipalAnalysisToPanelLayer(
+  panelLayer: PanelLayerI,
+): Promise<PanelLayerI> {
+  const municipalAnalysisPatchesByPanelLayer =
+    await getMunicipalAnalysisPatches(panelLayer.id);
+  const patches = municipalAnalysisPatchesByPanelLayer.get(panelLayer.id);
+
+  if (!patches?.length || !isCompactImageData(panelLayer.imageData)) {
+    return panelLayer;
+  }
+
+  return {
+    ...panelLayer,
+    imageData: patches.reduce<CompactTerritorialAnalysisDataset>(
+      (imageData, patch) => mergeCompactDataset(imageData, patch),
+      panelLayer.imageData,
+    ),
+  };
 }

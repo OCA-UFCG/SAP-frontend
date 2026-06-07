@@ -1,5 +1,8 @@
 import { getContent } from "@/infrastructure/contentful/client";
-import { attachMunicipalAnalysisToPanelLayers } from "@/repositories/platform/municipalAnalysisRepository";
+import {
+  attachMunicipalAnalysisToPanelLayer,
+  attachMunicipalAnalysisToPanelLayers,
+} from "@/repositories/platform/municipalAnalysisRepository";
 import { PanelLayerI } from "@/utils/interfaces";
 
 const GET_PANEL_LAYER = `
@@ -33,6 +36,10 @@ interface PanelLayerResponse {
   panelLayerCollection: { items: Array<PanelLayerI | null> };
 }
 
+interface GetPanelLayersOptions {
+  includeMunicipalAnalysis?: boolean;
+}
+
 function isDefined<T>(value: T | null | undefined): value is T {
   return value != null;
 }
@@ -58,7 +65,9 @@ function comparePanelLayers(left: PanelLayerI, right: PanelLayerI): number {
   return leftPosition - rightPosition;
 }
 
-export async function getPanelLayers(): Promise<PanelLayerI[]> {
+export async function getPanelLayers(
+  options: GetPanelLayersOptions = {},
+): Promise<PanelLayerI[]> {
   try {
     const data = await getContent<PanelLayerResponse>(GET_PANEL_LAYER);
 
@@ -67,9 +76,26 @@ export async function getPanelLayers(): Promise<PanelLayerI[]> {
         ?.filter(isDefined)
         .sort(comparePanelLayers) ?? [];
 
+    if (!options.includeMunicipalAnalysis) {
+      return panelLayers;
+    }
+
     return await attachMunicipalAnalysisToPanelLayers(panelLayers);
   } catch (error) {
     console.error("Erro ao buscar camadas da plataforma no Contentful:", error);
     return [];
   }
+}
+
+export async function getPanelLayerWithMunicipalAnalysis(
+  panelLayerId: string,
+): Promise<PanelLayerI | null> {
+  const panelLayers = await getPanelLayers();
+  const panelLayer = panelLayers.find((layer) => layer.id === panelLayerId);
+
+  if (!panelLayer) {
+    return null;
+  }
+
+  return attachMunicipalAnalysisToPanelLayer(panelLayer);
 }

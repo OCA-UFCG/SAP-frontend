@@ -1,4 +1,5 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
+import { gzipSync } from "node:zlib";
 
 vi.mock("@/infrastructure/contentful/client", () => ({
   getContent: vi.fn(),
@@ -22,6 +23,21 @@ function buildMunicipalAnalysisResponse(items: unknown[]) {
     municipalAnalysisCollection: {
       items,
     },
+  };
+}
+
+function compressImageData(imageData: unknown) {
+  const rawJson = JSON.stringify(imageData);
+  const compressed = gzipSync(Buffer.from(rawJson, "utf8"), { level: 9 });
+
+  return {
+    schemaVersion: 1,
+    type: "territorial-compact-compressed",
+    encoding: "gzip+base64",
+    mediaType: "application/vnd.sap.territorial-analysis+json",
+    rawBytes: Buffer.byteLength(rawJson),
+    compressedBytes: compressed.byteLength,
+    data: compressed.toString("base64"),
   };
 }
 
@@ -159,7 +175,7 @@ describe("panelLayerRepository", () => {
       ]);
     });
 
-    const [layer] = await getPanelLayers();
+    const [layer] = await getPanelLayers({ includeMunicipalAnalysis: true });
     const imageData = layer?.imageData as {
       locations: Record<string, string>;
       years: Record<string, { valuesScale?: number; values: Record<string, number[]> }>;
@@ -170,5 +186,334 @@ describe("panelLayerRepository", () => {
     expect(imageData.years["2026-02"]?.valuesScale).toBe(10);
     expect(imageData.years["2026-02"]?.values["2914802"]).toEqual([800, 200]);
     expect(imageData.templates?.municipality).toContain("No município de");
+  });
+
+  it("merges multiple municipal analysis entries for the same panel layer", async () => {
+    mockedGetContent.mockImplementation(async (query: string) => {
+      if (query.includes("municipalAnalysisCollection")) {
+        return buildMunicipalAnalysisResponse([
+          {
+            sys: { id: "municipal-1" },
+            panelLayerId: "layer-1",
+            imageData: {
+              locations: {
+                "2914802": "Itabuna - BA",
+              },
+              years: {
+                "2026-01": {
+                  valuesScale: 1,
+                  values: {
+                    "2914802": [70, 30],
+                  },
+                },
+              },
+            },
+          },
+          {
+            sys: { id: "municipal-2" },
+            panelLayerId: "layer-1",
+            imageData: {
+              locations: {
+                "2927408": "Salvador - BA",
+              },
+              years: {
+                "2026-02": {
+                  valuesScale: 1,
+                  values: {
+                    "2927408": [40, 60],
+                  },
+                },
+              },
+            },
+          },
+        ]);
+      }
+
+      return buildPanelLayerResponse([
+        {
+          sys: { id: "sys-1" },
+          id: "layer-1",
+          name: "Layer 1",
+          description: "Layer 1",
+          category: "Dados Climáticos",
+          panelPosition: 1,
+          previewMap: { url: "https://example.com/map-1.png" },
+          imageData: {
+            schemaVersion: 1,
+            type: "territorial-compact",
+            defaultYear: "2026-01",
+            classes: [
+              { id: "a", label: "Classe A", color: "#111111" },
+              { id: "b", label: "Classe B", color: "#222222" },
+            ],
+            years: {
+              "2026-01": {
+                imageId: "img-2026-01",
+                values: {},
+              },
+              "2026-02": {
+                imageId: "img-2026-02",
+                values: {},
+              },
+            },
+          },
+        },
+      ]);
+    });
+
+    const [layer] = await getPanelLayers({ includeMunicipalAnalysis: true });
+    const imageData = layer?.imageData as {
+      locations: Record<string, string>;
+      years: Record<string, { values: Record<string, number[]> }>;
+    };
+
+    expect(imageData.locations["2914802"]).toBe("Itabuna - BA");
+    expect(imageData.locations["2927408"]).toBe("Salvador - BA");
+    expect(imageData.years["2026-01"]?.values["2914802"]).toEqual([70, 30]);
+    expect(imageData.years["2026-02"]?.values["2927408"]).toEqual([40, 60]);
+  });
+
+  it("decodes compressed municipal analysis imageData before merging", async () => {
+    mockedGetContent.mockImplementation(async (query: string) => {
+      if (query.includes("municipalAnalysisCollection")) {
+        return buildMunicipalAnalysisResponse([
+          {
+            sys: { id: "municipal-1" },
+            panelLayerId: "layer-1",
+            imageData: compressImageData({
+              templates: {
+                municipality:
+                  "No município de {name}, predomina a classe {label} com {value}% da área analisada.",
+              },
+              years: {
+                "2026-01": {
+                  valuesScale: 1,
+                  values: {
+                    "2914802": [12, 88],
+                  },
+                },
+              },
+            }),
+          },
+        ]);
+      }
+
+      return buildPanelLayerResponse([
+        {
+          sys: { id: "sys-1" },
+          id: "layer-1",
+          name: "Layer 1",
+          description: "Layer 1",
+          category: "Dados Climáticos",
+          panelPosition: 1,
+          previewMap: { url: "https://example.com/map-1.png" },
+          imageData: {
+            schemaVersion: 1,
+            type: "territorial-compact",
+            defaultYear: "2026-01",
+            classes: [
+              { id: "a", label: "Classe A", color: "#111111" },
+              { id: "b", label: "Classe B", color: "#222222" },
+            ],
+            years: {
+              "2026-01": {
+                imageId: "img-2026-01",
+                values: {},
+              },
+            },
+          },
+        },
+      ]);
+    });
+
+    const [layer] = await getPanelLayers({ includeMunicipalAnalysis: true });
+    const imageData = layer?.imageData as {
+      years: Record<string, { values: Record<string, number[]> }>;
+      templates?: { municipality?: string };
+    };
+
+    expect(imageData.years["2026-01"]?.values["2914802"]).toEqual([12, 88]);
+    expect(imageData.templates?.municipality).toContain("No município de");
+  });
+
+  it("paginates municipal analysis entries from Contentful", async () => {
+    mockedGetContent.mockImplementation(async (query: string, variables?: unknown) => {
+      if (query.includes("municipalAnalysisCollection")) {
+        const skip =
+          typeof variables === "object" && variables && "skip" in variables
+            ? Number((variables as { skip?: number }).skip)
+            : 0;
+
+        if (skip === 0) {
+          return {
+            municipalAnalysisCollection: {
+              total: 101,
+              items: Array.from({ length: 100 }, (_, index) => ({
+                sys: { id: `municipal-new-${index}` },
+                panelLayerId: "other-layer",
+                imageData: {
+                  years: {
+                    "2026-01": {
+                      values: {
+                        "2914802": [1, 99],
+                      },
+                    },
+                  },
+                },
+              })),
+            },
+          };
+        }
+
+        return {
+          municipalAnalysisCollection: {
+            total: 101,
+            items: [
+              {
+                sys: { id: "municipal-old" },
+                panelLayerId: "layer-1",
+                imageData: {
+                  years: {
+                    "2017-10": {
+                      values: {
+                        "2914802": [33, 67],
+                      },
+                    },
+                  },
+                },
+              },
+            ],
+          },
+        };
+      }
+
+      return buildPanelLayerResponse([
+        {
+          sys: { id: "sys-1" },
+          id: "layer-1",
+          name: "Layer 1",
+          description: "Layer 1",
+          category: "Dados Climáticos",
+          panelPosition: 1,
+          previewMap: { url: "https://example.com/map-1.png" },
+          imageData: {
+            schemaVersion: 1,
+            type: "territorial-compact",
+            defaultYear: "2017-10",
+            classes: [
+              { id: "a", label: "Classe A", color: "#111111" },
+              { id: "b", label: "Classe B", color: "#222222" },
+            ],
+            years: {
+              "2017-10": {
+                imageId: "img-2017-10",
+                values: {},
+              },
+            },
+          },
+        },
+      ]);
+    });
+
+    const [layer] = await getPanelLayers({ includeMunicipalAnalysis: true });
+    const imageData = layer?.imageData as {
+      years: Record<string, { values: Record<string, number[]> }>;
+    };
+
+    expect(imageData.years["2017-10"]?.values["2914802"]).toEqual([33, 67]);
+    expect(mockedGetContent).toHaveBeenCalledWith(
+      expect.stringContaining("municipalAnalysisCollection"),
+      { limit: 100, skip: 0 },
+      { cache: "no-store" },
+    );
+    expect(mockedGetContent).toHaveBeenCalledWith(
+      expect.stringContaining("municipalAnalysisCollection"),
+      { limit: 100, skip: 100 },
+      { cache: "no-store" },
+    );
+  });
+
+  it("merges monthly municipal analysis values into an annual panel layer year", async () => {
+    mockedGetContent.mockImplementation(async (query: string) => {
+      if (query.includes("municipalAnalysisCollection")) {
+        return buildMunicipalAnalysisResponse([
+          {
+            sys: { id: "municipal-1" },
+            panelLayerId: "layer-1",
+            imageData: {
+              classes: [
+                { id: "patch-a", label: "Patch A", color: "#aaaaaa" },
+              ],
+              mapVisualization: {
+                min: 0,
+                max: 1,
+              },
+              locations: {
+                "2914802": "Itabuna - BA",
+              },
+              years: {
+                "2020-01": {
+                  imageId: "municipal-analysis-2020",
+                  year: "Janeiro de 2020",
+                  valuesScale: 1,
+                  values: {
+                    "2914802": [65, 35],
+                  },
+                },
+              },
+            },
+          },
+        ]);
+      }
+
+      return buildPanelLayerResponse([
+        {
+          sys: { id: "sys-1" },
+          id: "layer-1",
+          name: "Layer 1",
+          description: "Layer 1",
+          category: "Dados Climáticos",
+          panelPosition: 1,
+          previewMap: { url: "https://example.com/map-1.png" },
+          imageData: {
+            schemaVersion: 1,
+            type: "territorial-compact",
+            defaultYear: "2020",
+            classes: [
+              { id: "a", label: "Classe A", color: "#111111" },
+              { id: "b", label: "Classe B", color: "#222222" },
+            ],
+            years: {
+              "2020": {
+                imageId: "gee-carbono-2020",
+                valuesScale: 10,
+                values: {},
+              },
+            },
+          },
+        },
+      ]);
+    });
+
+    const [layer] = await getPanelLayers({ includeMunicipalAnalysis: true });
+    const imageData = layer?.imageData as {
+      defaultYear?: string;
+      classes: Array<{ id: string }>;
+      mapVisualization?: { min?: number; max?: number };
+      years: Record<
+        string,
+        { imageId: string; year?: string; valuesScale?: number; values: Record<string, number[]> }
+      >;
+    };
+
+    expect(Object.keys(imageData.years)).toEqual(["2020"]);
+    expect(imageData.defaultYear).toBe("2020");
+    expect(imageData.classes.map((item) => item.id)).toEqual(["a", "b"]);
+    expect(imageData.mapVisualization).toBeUndefined();
+    expect(imageData.years["2020"]?.imageId).toBe("gee-carbono-2020");
+    expect(imageData.years["2020"]?.year).toBeUndefined();
+    expect(imageData.years["2020"]?.valuesScale).toBe(10);
+    expect(imageData.years["2020"]?.values["2914802"]).toEqual([650, 350]);
+    expect(imageData.years["2020-01"]).toBeUndefined();
   });
 });
