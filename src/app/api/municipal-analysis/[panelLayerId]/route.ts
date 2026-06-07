@@ -1,5 +1,8 @@
 import { NextResponse } from "next/server";
-import { getPanelLayerWithMunicipalAnalysis } from "@/repositories/platform/panelLayerRepository";
+import {
+  getCachedMunicipalAnalysisImageData,
+  getMunicipalAnalysisCacheControlHeader,
+} from "@/repositories/platform/municipalAnalysisCache";
 
 interface MunicipalAnalysisRouteContext {
   params: Promise<{
@@ -9,11 +12,11 @@ interface MunicipalAnalysisRouteContext {
 
 export async function GET(_request: Request, context: MunicipalAnalysisRouteContext) {
   const { panelLayerId } = await context.params;
-  const layer = await getPanelLayerWithMunicipalAnalysis(
+  const result = await getCachedMunicipalAnalysisImageData(
     decodeURIComponent(panelLayerId),
   );
 
-  if (!layer) {
+  if (!result.found) {
     return NextResponse.json(
       { error: "Panel layer not found." },
       {
@@ -27,11 +30,11 @@ export async function GET(_request: Request, context: MunicipalAnalysisRouteCont
 
   return NextResponse.json(
     {
-      imageData: layer.imageData ?? null,
+      imageData: result.imageData,
     },
     {
       headers: {
-        "Cache-Control": "no-store",
+        "Cache-Control": getMunicipalAnalysisCacheControlHeader(),
       },
     },
   );

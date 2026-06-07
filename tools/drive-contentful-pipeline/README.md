@@ -178,17 +178,17 @@ quando ja existem no projeto.
 
 O script identifica a camada a partir de palavras-chave no nome do CSV.
 
-| Palavra no nome do arquivo | `panelLayerId` |
-| --- | --- |
-| `Carbono` | `carbonoembrapa` |
-| `CDI` | `CDI_Test` |
-| `CobTerra` ou `CoberturaTerra` | `terraibge` |
-| `GPP` | `prodprimariabruta` |
-| `IA` | `indicearidez` |
-| `IDT` | `deg` |
-| `ODS` | `ods` |
-| `cemaden` | `cemadenseca` |
-| `ANA` | `anaseca` |
+| Palavra no nome do arquivo     | `panelLayerId`      |
+| ------------------------------ | ------------------- |
+| `Carbono`                      | `carbonoembrapa`    |
+| `CDI`                          | `CDI_Test`          |
+| `CobTerra` ou `CoberturaTerra` | `terraibge`         |
+| `GPP`                          | `prodprimariabruta` |
+| `IA`                           | `indicearidez`      |
+| `IDT`                          | `deg`               |
+| `ODS`                          | `ods`               |
+| `cemaden`                      | `cemadenseca`       |
+| `ANA`                          | `anaseca`           |
 
 Arquivos que nao casam com essas regras entram como `unmapped` no manifesto e
 nao sao publicados pelos comandos `dry-run-all` e `publish-all`.
@@ -272,3 +272,41 @@ Para estados:
 
 Os arrays em `years[*].values` seguem a ordem numerica das colunas
 `perc_classe_N` ou `area_ha_classe_N`.
+
+## Como o frontend consome esses dados
+
+A pipeline apenas gera e publica entries `municipalAnalysis`. O frontend nao
+carrega todas essas entries quando o usuario abre `/platform`.
+
+O fluxo atual e lazy:
+
+1. `/platform` carrega os `panelLayer` base.
+2. Quando o usuario abre a analise de uma camada, o client chama
+   `/api/municipal-analysis/<panelLayerId>`.
+3. Essa rota roda no servidor Next.js, busca no Contentful apenas os
+   `municipalAnalysis` daquele `panelLayerId`, descomprime os payloads
+   `gzip+base64`, faz merge com o `imageData` do `panelLayer` e devolve o
+   resultado ao client.
+
+Para reduzir chamadas ao Contentful e evitar descompressao repetida, a rota usa
+cache em memoria no servidor por `panelLayerId`.
+
+Comportamento padrao:
+
+- TTL: `600` segundos.
+- Limite: `20` camadas em cache por processo Node.
+- Requests concorrentes para a mesma camada compartilham a mesma busca.
+- Erros de busca/descompressao nao ficam cacheados.
+- Cada replica do servidor tem seu proprio cache em memoria.
+
+Variaveis para ajuste:
+
+```bash
+MUNICIPAL_ANALYSIS_CACHE_TTL_SECONDS=600
+MUNICIPAL_ANALYSIS_CACHE_MAX_ENTRIES=20
+```
+
+Depois de publicar novos dados no Contentful, a aplicacao pode levar ate o TTL
+do cache para refletir a atualizacao em uma instancia que ja tinha aquela camada
+em memoria. Reiniciar o servidor ou reduzir temporariamente o TTL acelera a
+validacao manual.

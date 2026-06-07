@@ -63,7 +63,43 @@ Open `http://localhost:3000` in the browser.
 - `npm run test:storybook`: run the Storybook test project only.
 - `npm run storybook`: start Storybook locally.
 - `npm run build-storybook`: build the Storybook bundle.
+- `npm run pipeline:drive-csv-json`: download Google Drive CSVs and convert them to partitioned municipal analysis JSON files.
+- `npm run pipeline:contentful-municipal-analysis:dry-run-all`: validate what municipal analysis entries would be created or updated in Contentful.
+- `npm run pipeline:contentful-municipal-analysis:publish-all`: publish all mapped municipal analysis partitions to Contentful.
 - `npm run format`: run Prettier across the repository.
+
+## Municipal Analysis Pipeline
+
+The CSV-to-Contentful pipeline lives in `tools/drive-contentful-pipeline`.
+It is used to move Google Earth Engine CSV exports into Contentful
+`municipalAnalysis` entries consumed by the platform detail view.
+
+The generated files under `data/contentful-pipeline` are local pipeline output
+and must not be committed. The source-controlled part is the tooling and the
+shared municipality index used by the app.
+
+Typical flow:
+
+```bash
+npm run pipeline:drive-csv-json
+npm run pipeline:contentful-municipal-analysis:dry-run-all
+npm run pipeline:contentful-municipal-analysis:publish-all
+```
+
+Use `npm run pipeline:drive-csv-json -- --skip-download` when the CSVs already
+exist locally and only the partitioned JSONs need to be regenerated.
+
+See `tools/drive-contentful-pipeline/README.md` for the full command contract,
+environment variables, mapping rules, partitioning behavior, and Contentful
+publication details.
+
+At runtime, `/platform` does not load every `municipalAnalysis` entry upfront.
+The analysis panel lazy-loads one layer through
+`/api/municipal-analysis/[panelLayerId]`. That server route fetches the needed
+Contentful data, decompresses and merges it with the matching `panelLayer`, and
+keeps the result in a per-process in-memory cache for 10 minutes by default.
+Set `MUNICIPAL_ANALYSIS_CACHE_TTL_SECONDS` or
+`MUNICIPAL_ANALYSIS_CACHE_MAX_ENTRIES` to tune that behavior.
 
 ## Agent Context Docs
 

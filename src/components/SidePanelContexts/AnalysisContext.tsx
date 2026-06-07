@@ -66,7 +66,6 @@ export function AnalysisContext({
 
     fetch(`/api/municipal-analysis/${encodeURIComponent(dataset.id)}`, {
       signal: controller.signal,
-      cache: "no-store",
     })
       .then(async (response) => {
         if (!response.ok) {

@@ -6,7 +6,10 @@ vi.mock("@/infrastructure/contentful/client", () => ({
 }));
 
 import { getContent } from "@/infrastructure/contentful/client";
-import { getPanelLayers } from "@/repositories/platform/panelLayerRepository";
+import {
+  getPanelLayers,
+  getPanelLayerWithMunicipalAnalysis,
+} from "@/repositories/platform/panelLayerRepository";
 
 const mockedGetContent = vi.mocked(getContent);
 
@@ -515,5 +518,44 @@ describe("panelLayerRepository", () => {
     expect(imageData.years["2020"]?.valuesScale).toBe(10);
     expect(imageData.years["2020"]?.values["2914802"]).toEqual([650, 350]);
     expect(imageData.years["2020-01"]).toBeUndefined();
+  });
+
+  it("fetches a single panel layer by id before attaching municipal analysis", async () => {
+    mockedGetContent.mockImplementation(async (query: string) => {
+      if (query.includes("municipalAnalysisCollection")) {
+        return buildMunicipalAnalysisResponse([]);
+      }
+
+      return buildPanelLayerResponse([
+        {
+          sys: { id: "sys-1" },
+          id: "CDI_Test",
+          name: "CDI",
+          description: "",
+          category: "Dados Climáticos",
+          panelPosition: 1,
+          previewMap: { url: "https://example.com/map.png" },
+          imageData: {
+            schemaVersion: 1,
+            type: "territorial-compact",
+            classes: [],
+            years: {},
+          },
+        },
+      ]);
+    });
+
+    const layer = await getPanelLayerWithMunicipalAnalysis("CDI_Test");
+
+    expect(layer?.id).toBe("CDI_Test");
+    expect(mockedGetContent).toHaveBeenCalledWith(
+      expect.stringContaining("GetPanelLayerById"),
+      { id: "CDI_Test" },
+    );
+    expect(mockedGetContent).toHaveBeenCalledWith(
+      expect.stringContaining("municipalAnalysisCollection"),
+      { limit: 100, skip: 0, panelLayerId: "CDI_Test" },
+      { cache: "no-store" },
+    );
   });
 });

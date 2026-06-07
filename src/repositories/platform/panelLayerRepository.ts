@@ -32,6 +32,33 @@ const GET_PANEL_LAYER = `
   }
 `;
 
+const GET_PANEL_LAYER_BY_ID = `
+  query GetPanelLayerById($id: String!) {
+    panelLayerCollection(limit: 1, where: { id: $id }) {
+      items {
+        sys {
+          id
+        }
+        name
+        id
+        description
+        panelPosition
+        previewMap {
+          url
+          title
+          width
+          height
+        }
+        imageData
+        minScale
+        maxScale
+        category
+        timeScale
+      }
+    }
+  }
+`;
+
 interface PanelLayerResponse {
   panelLayerCollection: { items: Array<PanelLayerI | null> };
 }
@@ -90,12 +117,24 @@ export async function getPanelLayers(
 export async function getPanelLayerWithMunicipalAnalysis(
   panelLayerId: string,
 ): Promise<PanelLayerI | null> {
-  const panelLayers = await getPanelLayers();
-  const panelLayer = panelLayers.find((layer) => layer.id === panelLayerId);
+  const panelLayer = await getPanelLayerById(panelLayerId);
 
   if (!panelLayer) {
     return null;
   }
 
   return attachMunicipalAnalysisToPanelLayer(panelLayer);
+}
+
+async function getPanelLayerById(panelLayerId: string): Promise<PanelLayerI | null> {
+  try {
+    const data = await getContent<PanelLayerResponse>(GET_PANEL_LAYER_BY_ID, {
+      id: panelLayerId,
+    });
+
+    return data.panelLayerCollection?.items?.find(isDefined) ?? null;
+  } catch (error) {
+    console.error("Erro ao buscar camada da plataforma no Contentful:", error);
+    return null;
+  }
 }
