@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { AnalysisPanel } from "@/components/analysis/AnalysisPanel";
 import type { SearchSubmissionMetadata } from "@/components/SearchBar/types";
 import {
@@ -22,6 +22,10 @@ import type { PlatformSection } from "@/components/PlatformSideRail/PlatformSide
 import type { PanelLayerI, IEEInfo } from "@/utils/interfaces";
 import type { CompactTerritorialAnalysisDataset } from "@/utils/analysis";
 import { statesObj } from "@/utils/constants";
+
+interface MunicipalAnalysisApiResponse {
+  imageData?: PanelLayerI["imageData"] | null;
+}
 
 export interface AnalysisContextProps {
   activeSection: PlatformSection;
@@ -49,8 +53,73 @@ export function AnalysisContext({
   const dataset = useMemo(() => {
     return panelLayers?.find((p) => p.id === activeLayerId) ?? panelLayers?.[0];
   }, [panelLayers, activeLayerId]);
+  const [analysisImageDataByLayerId, setAnalysisImageDataByLayerId] = useState<
+    Record<string, PanelLayerI["imageData"] | null>
+  >({});
 
-  const yearOptions = useMemo(() => getAnalysisYearOptions(dataset), [dataset]);
+  useEffect(() => {
+    if (!dataset?.id || analysisImageDataByLayerId[dataset.id] !== undefined) {
+      return;
+    }
+
+    const controller = new AbortController();
+
+    fetch(`/api/municipal-analysis/${encodeURIComponent(dataset.id)}`, {
+      signal: controller.signal,
+      cache: "no-store",
+    })
+      .then(async (response) => {
+        if (!response.ok) {
+          throw new Error(
+            `Municipal analysis request failed with status ${response.status}`,
+          );
+        }
+
+        return (await response.json()) as MunicipalAnalysisApiResponse;
+      })
+      .then((data) => {
+        setAnalysisImageDataByLayerId((current) => ({
+          ...current,
+          [dataset.id]: data.imageData ?? null,
+        }));
+      })
+      .catch((error) => {
+        if (controller.signal.aborted) {
+          return;
+        }
+
+        console.warn("Falha ao carregar municipalAnalysis sob demanda.", error);
+        setAnalysisImageDataByLayerId((current) => ({
+          ...current,
+          [dataset.id]: null,
+        }));
+      })
+    return () => {
+      controller.abort();
+    };
+  }, [analysisImageDataByLayerId, dataset?.id]);
+
+  const enrichedDataset = useMemo(() => {
+    if (!dataset?.id) {
+      return dataset;
+    }
+
+    const imageData = analysisImageDataByLayerId[dataset.id];
+
+    if (!imageData) {
+      return dataset;
+    }
+
+    return {
+      ...dataset,
+      imageData,
+    };
+  }, [analysisImageDataByLayerId, dataset]);
+
+  const yearOptions = useMemo(
+    () => getAnalysisYearOptions(enrichedDataset),
+    [enrichedDataset],
+  );
 
   function handleGoBack() {
     resetPlatformState();
@@ -58,8 +127,8 @@ export function AnalysisContext({
   }
 
   const effectiveYear = useMemo(
-    () => getEffectiveAnalysisYear(dataset, activeYear),
-    [dataset, activeYear],
+    () => getEffectiveAnalysisYear(enrichedDataset, activeYear),
+    [enrichedDataset, activeYear],
   );
 
   const activeAnalysisYear =
@@ -101,7 +170,7 @@ export function AnalysisContext({
       dataset &&
       effectiveYear &&
       buildEmbeddedTerritorialAnalysisViewModel(
-        dataset,
+        enrichedDataset,
         effectiveYear,
         selectedLocationKey,
       ),
@@ -126,38 +195,41 @@ export function AnalysisContext({
   const embeddedModel = useMemo(
     () =>
       buildEmbeddedTerritorialAnalysisViewModel(
-        dataset,
+        enrichedDataset,
         effectiveYear,
         selectedLocationKey,
       ),
-    [dataset, effectiveYear, selectedLocationKey],
+    [enrichedDataset, effectiveYear, selectedLocationKey],
   );
 
   const unavailableLocationName = useMemo(
     () =>
-      getAnalysisLocationName(dataset, effectiveYear, selectedLocationKey) ??
+      getAnalysisLocationName(enrichedDataset, effectiveYear, selectedLocationKey) ??
       getFallbackAnalysisLocationName(selectedLocationKey),
-    [dataset, effectiveYear, selectedLocationKey],
+    [enrichedDataset, effectiveYear, selectedLocationKey],
   );
 
   useEffect(() => {
-    if (!dataset?.imageData || !effectiveYear) {
+    if (!enrichedDataset?.imageData || !effectiveYear) {
       setActiveLegend(null);
       return;
     }
-    setActiveLegend(getAnalysisLegend(dataset, effectiveYear));
-  }, [dataset, effectiveYear, setActiveLegend]);
+    setActiveLegend(getAnalysisLegend(enrichedDataset, effectiveYear));
+  }, [enrichedDataset, effectiveYear, setActiveLegend]);
 
   // Extract years and classes only when imageData is CompactTerritorialAnalysisDataset
   const temporalYears =
-    dataset?.imageData && "years" in dataset.imageData
-      ? (dataset.imageData as CompactTerritorialAnalysisDataset).years
+    enrichedDataset?.imageData && "years" in enrichedDataset.imageData
+      ? (enrichedDataset.imageData as CompactTerritorialAnalysisDataset).years
       : undefined;
 
   const temporalClasses =
-    dataset?.imageData && "classes" in dataset.imageData
-      ? (dataset.imageData as CompactTerritorialAnalysisDataset).classes
+    enrichedDataset?.imageData && "classes" in enrichedDataset.imageData
+      ? (enrichedDataset.imageData as CompactTerritorialAnalysisDataset).classes
       : undefined;
+  const isMunicipalAnalysisLoading = Boolean(
+    dataset?.id && analysisImageDataByLayerId[dataset.id] === undefined,
+  );
 
   return (
     <AnalysisPanel
@@ -177,8 +249,14 @@ export function AnalysisContext({
       years={temporalYears}
       classes={temporalClasses}
       selectedState={selectedLocationKey}
-      emptyStateTitle={`Análise indisponível para ${unavailableLocationName}`}
-      emptyStateDescription={`Os dados de análise para ${unavailableLocationName} ainda não estão disponíveis neste módulo.`}
+      emptyStateTitle={
+        `Análise indisponível para ${unavailableLocationName}`
+      }
+      emptyStateDescription={
+        isMunicipalAnalysisLoading
+          ? "Os dados municipais desta camada estão sendo carregados sob demanda."
+          : `Os dados de análise para ${unavailableLocationName} ainda não estão disponíveis neste módulo.`
+      }
     />
   );
 }

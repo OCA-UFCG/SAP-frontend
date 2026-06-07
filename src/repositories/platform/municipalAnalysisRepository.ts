@@ -27,6 +27,26 @@ const GET_MUNICIPAL_ANALYSIS = `
   }
 `;
 
+const GET_MUNICIPAL_ANALYSIS_BY_PANEL_LAYER = `
+  query GetMunicipalAnalysisByPanelLayer($limit: Int!, $skip: Int!, $panelLayerId: String!) {
+    municipalAnalysisCollection(
+      limit: $limit
+      skip: $skip
+      where: { panelLayerId: $panelLayerId }
+    ) {
+      total
+      items {
+        sys {
+          id
+        }
+        title
+        panelLayerId
+        imageData
+      }
+    }
+  }
+`;
+
 interface MunicipalAnalysisEntry {
   sys: {
     id: string;
@@ -344,17 +364,25 @@ function mergeCompactDataset(
   };
 }
 
-async function getMunicipalAnalysisPatches(): Promise<
+async function getMunicipalAnalysisPatches(panelLayerId?: string): Promise<
   Map<string, CompactTerritorialAnalysisDatasetPatch[]>
 > {
   try {
     const items: Array<MunicipalAnalysisEntry | null> = [];
+    const query = panelLayerId
+      ? GET_MUNICIPAL_ANALYSIS_BY_PANEL_LAYER
+      : GET_MUNICIPAL_ANALYSIS;
 
     for (let skip = 0; ; skip += MUNICIPAL_ANALYSIS_PAGE_SIZE) {
-      const data = await getContent<MunicipalAnalysisResponse>(GET_MUNICIPAL_ANALYSIS, {
-        limit: MUNICIPAL_ANALYSIS_PAGE_SIZE,
-        skip,
-      }, { cache: "no-store" });
+      const data = await getContent<MunicipalAnalysisResponse>(
+        query,
+        {
+          limit: MUNICIPAL_ANALYSIS_PAGE_SIZE,
+          skip,
+          ...(panelLayerId ? { panelLayerId } : {}),
+        },
+        { cache: "no-store" },
+      );
       const pageItems = data.municipalAnalysisCollection?.items ?? [];
       const total = data.municipalAnalysisCollection?.total ?? pageItems.length;
 
@@ -423,4 +451,24 @@ export async function attachMunicipalAnalysisToPanelLayers(
       ),
     };
   });
+}
+
+export async function attachMunicipalAnalysisToPanelLayer(
+  panelLayer: PanelLayerI,
+): Promise<PanelLayerI> {
+  const municipalAnalysisPatchesByPanelLayer =
+    await getMunicipalAnalysisPatches(panelLayer.id);
+  const patches = municipalAnalysisPatchesByPanelLayer.get(panelLayer.id);
+
+  if (!patches?.length || !isCompactImageData(panelLayer.imageData)) {
+    return panelLayer;
+  }
+
+  return {
+    ...panelLayer,
+    imageData: patches.reduce<CompactTerritorialAnalysisDataset>(
+      (imageData, patch) => mergeCompactDataset(imageData, patch),
+      panelLayer.imageData,
+    ),
+  };
 }

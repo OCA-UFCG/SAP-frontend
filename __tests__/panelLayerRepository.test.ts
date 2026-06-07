@@ -175,7 +175,7 @@ describe("panelLayerRepository", () => {
       ]);
     });
 
-    const [layer] = await getPanelLayers();
+    const [layer] = await getPanelLayers({ includeMunicipalAnalysis: true });
     const imageData = layer?.imageData as {
       locations: Record<string, string>;
       years: Record<string, { valuesScale?: number; values: Record<string, number[]> }>;
@@ -261,7 +261,7 @@ describe("panelLayerRepository", () => {
       ]);
     });
 
-    const [layer] = await getPanelLayers();
+    const [layer] = await getPanelLayers({ includeMunicipalAnalysis: true });
     const imageData = layer?.imageData as {
       locations: Record<string, string>;
       years: Record<string, { values: Record<string, number[]> }>;
@@ -326,7 +326,7 @@ describe("panelLayerRepository", () => {
       ]);
     });
 
-    const [layer] = await getPanelLayers();
+    const [layer] = await getPanelLayers({ includeMunicipalAnalysis: true });
     const imageData = layer?.imageData as {
       years: Record<string, { values: Record<string, number[]> }>;
       templates?: { municipality?: string };
@@ -415,7 +415,7 @@ describe("panelLayerRepository", () => {
       ]);
     });
 
-    const [layer] = await getPanelLayers();
+    const [layer] = await getPanelLayers({ includeMunicipalAnalysis: true });
     const imageData = layer?.imageData as {
       years: Record<string, { values: Record<string, number[]> }>;
     };
@@ -495,7 +495,7 @@ describe("panelLayerRepository", () => {
       ]);
     });
 
-    const [layer] = await getPanelLayers();
+    const [layer] = await getPanelLayers({ includeMunicipalAnalysis: true });
     const imageData = layer?.imageData as {
       defaultYear?: string;
       classes: Array<{ id: string }>;
