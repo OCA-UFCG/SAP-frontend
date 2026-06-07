@@ -1,4 +1,4 @@
-import { cleanup, render } from "@testing-library/react";
+import { cleanup, render, waitFor } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 vi.mock("@/services/telemetry/client", () => ({
@@ -61,6 +61,8 @@ function buildPanelLayer(values: Record<string, number[]>): PanelLayerI {
 }
 
 describe("AnalysisContext", () => {
+  const originalFetch = global.fetch;
+
   beforeEach(() => {
     analysisPanelMock.mockReset();
     useMapLayerActiveStateMock.mockReset();
@@ -86,10 +88,15 @@ describe("AnalysisContext", () => {
     });
 
     vi.mocked(trackUiEvent).mockReset();
+    global.fetch = vi.fn().mockResolvedValue({
+      ok: true,
+      json: async () => ({ imageData: null }),
+    } as Response);
   });
 
   afterEach(() => {
     cleanup();
+    global.fetch = originalFetch;
   });
 
   it("passes the selected municipality code through to the analysis panel", () => {
@@ -227,5 +234,28 @@ describe("AnalysisContext", () => {
         activeDateLabel: "2024",
       }),
     );
+  });
+
+  it("fetches municipal analysis for the active layer and year only", async () => {
+    render(
+      <AnalysisContext
+        activeSection="analysis-detail"
+        panelLayers={[
+          buildPanelLayer({
+            br: [45, 55],
+            [municipality.uf]: [35, 65],
+          }),
+        ]}
+      />,
+    );
+
+    await waitFor(() => {
+      expect(global.fetch).toHaveBeenCalledWith(
+        "http://localhost:3000/api/municipal-analysis/layer-1?year=2024",
+        expect.objectContaining({
+          signal: expect.any(AbortSignal),
+        }),
+      );
+    });
   });
 });

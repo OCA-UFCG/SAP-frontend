@@ -10,6 +10,23 @@ const MUNICIPAL_ANALYSIS_CONTENT_TYPE_ID = "municipalAnalysis";
 const RETRYABLE_STATUS_CODES = new Set([429, 500, 502, 503, 504]);
 const CONTENTFUL_WRITE_DELAY_MS = 150;
 const STALE_PANEL_LAYER_SUFFIX = "_legacy_disabled";
+const MUNICIPAL_ANALYSIS_PARTITION_FIELDS = [
+  {
+    id: "partitionKey",
+    name: "Partition Key",
+    type: "Symbol",
+  },
+  {
+    id: "calendarYear",
+    name: "Calendar Year",
+    type: "Symbol",
+  },
+  {
+    id: "territory",
+    name: "Territory",
+    type: "Symbol",
+  },
+];
 
 function parseArgs(argv) {
   const options = {
@@ -96,7 +113,9 @@ async function loadDotEnv(filePath = ".env") {
   }
 
   for (const line of text.split(/\n/u)) {
-    const match = line.match(/^\s*(?:export\s+)?([A-Za-z_][A-Za-z0-9_]*)=(.*)$/u);
+    const match = line.match(
+      /^\s*(?:export\s+)?([A-Za-z_][A-Za-z0-9_]*)=(.*)$/u,
+    );
 
     if (!match) {
       continue;
@@ -122,7 +141,9 @@ async function loadDotEnv(filePath = ".env") {
 }
 
 function getEnv(primaryKey, fallbackKey) {
-  return process.env[primaryKey] ?? (fallbackKey ? process.env[fallbackKey] : "");
+  return (
+    process.env[primaryKey] ?? (fallbackKey ? process.env[fallbackKey] : "")
+  );
 }
 
 function getRequiredEnv(primaryKey, fallbackKey) {
@@ -142,11 +163,22 @@ function getContentfulConfig() {
     getEnv("CONTENTFUL_PREVIEW", "NEXT_PUBLIC_CONTENTFUL_PREVIEW") === "true";
 
   return {
-    spaceId: getRequiredEnv("CONTENTFUL_SPACE_ID", "NEXT_PUBLIC_CONTENTFUL_SPACE_ID"),
-    environment: getEnv("CONTENTFUL_ENVIRONMENT", "NEXT_PUBLIC_CONTENTFUL_ENVIRONMENT") || "master",
+    spaceId: getRequiredEnv(
+      "CONTENTFUL_SPACE_ID",
+      "NEXT_PUBLIC_CONTENTFUL_SPACE_ID",
+    ),
+    environment:
+      getEnv("CONTENTFUL_ENVIRONMENT", "NEXT_PUBLIC_CONTENTFUL_ENVIRONMENT") ||
+      "master",
     deliveryToken: usePreview
-      ? getRequiredEnv("CONTENTFUL_PREVIEW_TOKEN", "NEXT_PUBLIC_CONTENTFUL_PREVIEW_TOKEN")
-      : getRequiredEnv("CONTENTFUL_ACCESS_TOKEN", "NEXT_PUBLIC_CONTENTFUL_ACCESS_TOKEN"),
+      ? getRequiredEnv(
+          "CONTENTFUL_PREVIEW_TOKEN",
+          "NEXT_PUBLIC_CONTENTFUL_PREVIEW_TOKEN",
+        )
+      : getRequiredEnv(
+          "CONTENTFUL_ACCESS_TOKEN",
+          "NEXT_PUBLIC_CONTENTFUL_ACCESS_TOKEN",
+        ),
     managementToken: getEnv(
       "CONTENTFUL_MANAGEMENT_TOKEN",
       "NEXT_PUBLIC_CONTENTFUL_MANAGEMENT_TOKEN",
@@ -232,7 +264,9 @@ async function contentfulFetch(url, init, context, attempt = 1) {
 
   if (!response.ok) {
     if (RETRYABLE_STATUS_CODES.has(response.status) && attempt < 5) {
-      const retryAfter = Number(response.headers.get("x-contentful-ratelimit-reset"));
+      const retryAfter = Number(
+        response.headers.get("x-contentful-ratelimit-reset"),
+      );
       const delayMs = Number.isFinite(retryAfter)
         ? Math.max(retryAfter * 1000, 1000)
         : 1000 * attempt;
@@ -336,9 +370,81 @@ async function getDefaultLocale(config, required = true) {
   }
 }
 
+async function ensureMunicipalAnalysisPartitionFields(config) {
+  const contentTypeUrl = `https://api.contentful.com/spaces/${config.spaceId}/environments/${config.environment}/content_types/${MUNICIPAL_ANALYSIS_CONTENT_TYPE_ID}`;
+  const contentType = await contentfulFetch(
+    contentTypeUrl,
+    {
+      headers: {
+        Authorization: `Bearer ${config.managementToken}`,
+      },
+    },
+    "Busca do content type municipalAnalysis via Management API",
+  );
+  const existingFieldIds = new Set(
+    (contentType.fields ?? []).map((field) => field.id),
+  );
+  const missingFields = MUNICIPAL_ANALYSIS_PARTITION_FIELDS.filter(
+    (field) => !existingFieldIds.has(field.id),
+  );
+
+  if (missingFields.length === 0) {
+    return {
+      changed: false,
+      fields: MUNICIPAL_ANALYSIS_PARTITION_FIELDS.map((field) => field.id),
+    };
+  }
+
+  const updatedContentType = await contentfulFetch(
+    contentTypeUrl,
+    {
+      method: "PUT",
+      headers: {
+        Authorization: `Bearer ${config.managementToken}`,
+        "Content-Type": "application/vnd.contentful.management.v1+json",
+        "X-Contentful-Version": String(contentType.sys.version),
+      },
+      body: JSON.stringify({
+        ...contentType,
+        fields: [
+          ...(contentType.fields ?? []),
+          ...missingFields.map((field) => ({
+            ...field,
+            localized: false,
+            required: false,
+            validations: [],
+            disabled: false,
+            omitted: false,
+          })),
+        ],
+      }),
+    },
+    "Atualização do content type municipalAnalysis via Management API",
+  );
+
+  await contentfulFetch(
+    `${contentTypeUrl}/published`,
+    {
+      method: "PUT",
+      headers: {
+        Authorization: `Bearer ${config.managementToken}`,
+        "X-Contentful-Version": String(updatedContentType.sys.version),
+      },
+    },
+    "Publicação do content type municipalAnalysis via Management API",
+  );
+
+  return {
+    changed: true,
+    fields: missingFields.map((field) => field.id),
+  };
+}
+
 async function updateEntry(config, entryId, imageData, locale, publish) {
   if (!config.managementToken) {
-    throw new Error("CONTENTFUL_MANAGEMENT_TOKEN ausente; atualização não executada.");
+    throw new Error(
+      "CONTENTFUL_MANAGEMENT_TOKEN ausente; atualização não executada.",
+    );
   }
 
   const entryUrl = `https://api.contentful.com/spaces/${config.spaceId}/environments/${config.environment}/entries/${entryId}`;
@@ -363,7 +469,8 @@ async function updateEntry(config, entryId, imageData, locale, publish) {
       },
       body: JSON.stringify([
         {
-          op: entry.fields.imageData?.[locale] === undefined ? "add" : "replace",
+          op:
+            entry.fields.imageData?.[locale] === undefined ? "add" : "replace",
           path: `/fields/imageData/${locale}`,
           value: imageData,
         },
@@ -389,9 +496,15 @@ async function updateEntry(config, entryId, imageData, locale, publish) {
   );
 }
 
-async function listManagementEntriesByPanelLayerId(config, panelLayerId, locale) {
+async function listManagementEntriesByPanelLayerId(
+  config,
+  panelLayerId,
+  locale,
+) {
   if (!config.managementToken) {
-    throw new Error("CONTENTFUL_MANAGEMENT_TOKEN ausente; listagem não executada.");
+    throw new Error(
+      "CONTENTFUL_MANAGEMENT_TOKEN ausente; listagem não executada.",
+    );
   }
 
   const entries = [];
@@ -419,7 +532,10 @@ async function listManagementEntriesByPanelLayerId(config, panelLayerId, locale)
 
     entries.push(...(data.items ?? []));
 
-    if (entries.length >= (data.total ?? entries.length) || (data.items ?? []).length === 0) {
+    if (
+      entries.length >= (data.total ?? entries.length) ||
+      (data.items ?? []).length === 0
+    ) {
       return entries;
     }
   }
@@ -427,6 +543,101 @@ async function listManagementEntriesByPanelLayerId(config, panelLayerId, locale)
 
 function getLocalizedField(entry, fieldId, locale) {
   return entry.fields?.[fieldId]?.[locale];
+}
+
+async function getPanelLayerYearKeys(config, panelLayerId) {
+  const endpoint = `https://graphql.contentful.com/content/v1/spaces/${config.spaceId}/environments/${config.environment}`;
+  const query = `
+    query GetPanelLayerYears($preview: Boolean!, $panelLayerId: String!) {
+      panelLayerCollection(limit: 1, preview: $preview, where: { id: $panelLayerId }) {
+        items {
+          id
+          imageData
+        }
+      }
+    }
+  `;
+  const data = await contentfulFetch(
+    endpoint,
+    {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${config.deliveryToken}`,
+      },
+      body: JSON.stringify({
+        query,
+        variables: { preview: config.usePreview, panelLayerId },
+      }),
+    },
+    `Consulta do panelLayer ${panelLayerId} para validação de anos`,
+  );
+
+  if (data.errors?.length) {
+    throw new Error(JSON.stringify(data.errors, null, 2));
+  }
+
+  const imageData = data.data?.panelLayerCollection?.items?.[0]?.imageData;
+
+  if (!imageData || typeof imageData !== "object") {
+    return [];
+  }
+
+  if (
+    imageData.type === "territorial-compact" &&
+    imageData.years &&
+    typeof imageData.years === "object"
+  ) {
+    return Object.keys(imageData.years);
+  }
+
+  return Object.keys(imageData);
+}
+
+function getCalendarYear(value) {
+  return String(value).match(/^(\d{4})(?:-\d{2})?$/u)?.[1] ?? null;
+}
+
+function findMatchingPanelLayerYear(panelLayerYearKeys, municipalYearKey) {
+  if (panelLayerYearKeys.includes(municipalYearKey)) {
+    return municipalYearKey;
+  }
+
+  const calendarYear = getCalendarYear(municipalYearKey);
+
+  if (!calendarYear) {
+    return null;
+  }
+
+  const matches = panelLayerYearKeys.filter(
+    (panelLayerYearKey) => getCalendarYear(panelLayerYearKey) === calendarYear,
+  );
+
+  return matches.length === 1 ? matches[0] : null;
+}
+
+async function validatePartitionsAgainstPanelLayer(
+  config,
+  panelLayerId,
+  partitions,
+) {
+  const panelLayerYearKeys = await getPanelLayerYearKeys(config, panelLayerId);
+
+  return {
+    panelLayerYearKeys,
+    missingPanelLayerYears: partitions.flatMap((partition) =>
+      partition.yearKeys
+        .filter(
+          (yearKey) => !findMatchingPanelLayerYear(panelLayerYearKeys, yearKey),
+        )
+        .map((yearKey) => ({
+          panelLayerId,
+          partitionKey: getPartitionKey(partition),
+          yearKey,
+          imageDataPath: partition.imageDataPath,
+        })),
+    ),
+  };
 }
 
 async function patchEntryFields(
@@ -447,11 +658,24 @@ async function patchEntryFields(
     },
     `Busca da entry ${entry.sys.id} (${operationContext}) via Management API`,
   );
-  const operations = Object.entries(fields).map(([fieldId, value]) => ({
-    op: currentEntry.fields?.[fieldId]?.[locale] === undefined ? "add" : "replace",
-    path: `/fields/${fieldId}/${locale}`,
-    value,
-  }));
+  const operations = Object.entries(fields).map(([fieldId, value]) => {
+    if (currentEntry.fields?.[fieldId] === undefined) {
+      return {
+        op: "add",
+        path: `/fields/${fieldId}`,
+        value: { [locale]: value },
+      };
+    }
+
+    return {
+      op:
+        currentEntry.fields[fieldId]?.[locale] === undefined
+          ? "add"
+          : "replace",
+      path: `/fields/${fieldId}/${locale}`,
+      value,
+    };
+  });
   const updatedEntry = await contentfulFetch(
     entryUrl,
     {
@@ -483,7 +707,13 @@ async function patchEntryFields(
   );
 }
 
-async function createEntry(config, fields, locale, publish, operationContext = "") {
+async function createEntry(
+  config,
+  fields,
+  locale,
+  publish,
+  operationContext = "",
+) {
   const url = `https://api.contentful.com/spaces/${config.spaceId}/environments/${config.environment}/entries`;
   const createdEntry = await contentfulFetch(
     url,
@@ -524,22 +754,41 @@ async function createEntry(config, fields, locale, publish, operationContext = "
 }
 
 async function syncPartitionEntries(config, options, locale) {
+  const contentModelUpdate = options.dryRun
+    ? {
+        changed: false,
+        fields: MUNICIPAL_ANALYSIS_PARTITION_FIELDS.map((field) => field.id),
+        dryRun: true,
+      }
+    : await ensureMunicipalAnalysisPartitionFields(config);
   const partitions = await resolvePartitionEntries(options);
+  const validation = await validatePartitionsAgainstPanelLayer(
+    config,
+    options.panelLayerId,
+    partitions,
+  );
   const existingEntries = await listManagementEntriesByPanelLayerId(
     config,
     options.panelLayerId,
     locale,
   );
   const existingByTitle = new Map(
-    existingEntries.map((entry) => [getLocalizedField(entry, "title", locale), entry]),
+    existingEntries.map((entry) => [
+      getLocalizedField(entry, "title", locale),
+      entry,
+    ]),
   );
   const latestPartition = partitions.at(-1);
   const expectedTitles = new Set(
-    partitions.map((partition) => buildPartitionTitle(options.panelLayerId, partition)),
+    partitions.map((partition) =>
+      buildPartitionTitle(options.panelLayerId, partition),
+    ),
   );
   const reusableEntry = existingEntries.find(
     (entry) =>
-      !existingByTitle.has(buildPartitionTitle(options.panelLayerId, latestPartition)) &&
+      !existingByTitle.has(
+        buildPartitionTitle(options.panelLayerId, latestPartition),
+      ) &&
       !partitions.some(
         (partition) =>
           buildPartitionTitle(options.panelLayerId, partition) ===
@@ -575,14 +824,17 @@ async function syncPartitionEntries(config, options, locale) {
       encoding: imageData.encoding ?? "identity",
       rawBytes: imageData.rawBytes,
       compressedBytes: imageData.compressedBytes,
-      years: Object.keys(imageData.years ?? {}).length,
-      locations: Object.keys(imageData.locations ?? {}).length,
+      years: partition.yearKeys.length,
+      locations: partition.locationCount,
     };
 
     if (!options.dryRun) {
       const fields = {
         title,
         panelLayerId: options.panelLayerId,
+        partitionKey,
+        calendarYear: partition.calendarYear,
+        territory: partition.territory,
         imageData,
       };
       const updatedEntry = targetEntry
@@ -594,7 +846,13 @@ async function syncPartitionEntries(config, options, locale) {
             options.publish,
             operationContext,
           )
-        : await createEntry(config, fields, locale, options.publish, operationContext);
+        : await createEntry(
+            config,
+            fields,
+            locale,
+            options.publish,
+            operationContext,
+          );
 
       summary.entryId = updatedEntry.sys.id;
       summary.version = updatedEntry.sys.version;
@@ -644,6 +902,8 @@ async function syncPartitionEntries(config, options, locale) {
     locale,
     dryRun: options.dryRun,
     publish: options.publish,
+    contentModelUpdate,
+    validation,
     existingEntries: existingEntries.map((entry) => ({
       entryId: entry.sys.id,
       title: getLocalizedField(entry, "title", locale),
@@ -668,6 +928,7 @@ function summarizePartitionSyncResult(result) {
     partitions: result.actions.length,
     existingEntries: result.existingEntries.length,
     staleEntries: result.staleEntryActions.length,
+    missingPanelLayerYears: result.validation.missingPanelLayerYears.length,
     actions: actionCounts,
   };
 }
@@ -757,7 +1018,9 @@ async function main() {
     title: currentEntry.title,
     current: {
       publishedAt: currentEntry.sys.publishedAt,
-      imageDataBytes: Buffer.byteLength(JSON.stringify(currentEntry.imageData ?? {})),
+      imageDataBytes: Buffer.byteLength(
+        JSON.stringify(currentEntry.imageData ?? {}),
+      ),
       years: Object.keys(currentEntry.imageData?.years ?? {}).length,
       locations: Object.keys(currentEntry.imageData?.locations ?? {}).length,
     },

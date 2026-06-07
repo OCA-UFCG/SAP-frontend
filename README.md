@@ -94,10 +94,13 @@ environment variables, mapping rules, partitioning behavior, and Contentful
 publication details.
 
 At runtime, `/platform` does not load every `municipalAnalysis` entry upfront.
-The analysis panel lazy-loads one layer through
-`/api/municipal-analysis/[panelLayerId]`. That server route fetches the needed
-Contentful data, decompresses and merges it with the matching `panelLayer`, and
-keeps the result in a per-process in-memory cache for 10 minutes by default.
+The analysis panel lazy-loads municipal data by layer and selected period
+through `/api/municipal-analysis/[panelLayerId]?year=<yearKey>`. That server
+route fetches the needed Contentful partition, decompresses and merges it with
+the matching `panelLayer` year, and keeps the result in a per-process in-memory
+cache for 10 minutes by default. The route still supports requests without
+`year` as a compatibility fallback, but the client should use period-scoped
+requests.
 Set `MUNICIPAL_ANALYSIS_CACHE_TTL_SECONDS` or
 `MUNICIPAL_ANALYSIS_CACHE_MAX_ENTRIES` to tune that behavior.
 

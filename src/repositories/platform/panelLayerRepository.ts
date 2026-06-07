@@ -2,6 +2,7 @@ import { getContent } from "@/infrastructure/contentful/client";
 import {
   attachMunicipalAnalysisToPanelLayer,
   attachMunicipalAnalysisToPanelLayers,
+  attachMunicipalAnalysisYearToPanelLayer,
 } from "@/repositories/platform/municipalAnalysisRepository";
 import { PanelLayerI } from "@/utils/interfaces";
 
@@ -126,7 +127,22 @@ export async function getPanelLayerWithMunicipalAnalysis(
   return attachMunicipalAnalysisToPanelLayer(panelLayer);
 }
 
-async function getPanelLayerById(panelLayerId: string): Promise<PanelLayerI | null> {
+export async function getPanelLayerWithMunicipalAnalysisYear(
+  panelLayerId: string,
+  yearKey: string,
+): Promise<PanelLayerI | null> {
+  const panelLayer = await getPanelLayerById(panelLayerId);
+
+  if (!panelLayer) {
+    return null;
+  }
+
+  return attachMunicipalAnalysisYearToPanelLayer(panelLayer, yearKey);
+}
+
+async function getPanelLayerById(
+  panelLayerId: string,
+): Promise<PanelLayerI | null> {
   try {
     const data = await getContent<PanelLayerResponse>(GET_PANEL_LAYER_BY_ID, {
       id: panelLayerId,

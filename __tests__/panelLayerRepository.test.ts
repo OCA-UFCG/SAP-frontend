@@ -9,6 +9,7 @@ import { getContent } from "@/infrastructure/contentful/client";
 import {
   getPanelLayers,
   getPanelLayerWithMunicipalAnalysis,
+  getPanelLayerWithMunicipalAnalysisYear,
 } from "@/repositories/platform/panelLayerRepository";
 
 const mockedGetContent = vi.mocked(getContent);
@@ -65,9 +66,7 @@ describe("panelLayerRepository", () => {
         },
       ]),
     );
-    mockedGetContent.mockResolvedValueOnce(
-      buildMunicipalAnalysisResponse([]),
-    );
+    mockedGetContent.mockResolvedValueOnce(buildMunicipalAnalysisResponse([]));
 
     const layers = await getPanelLayers();
 
@@ -101,9 +100,7 @@ describe("panelLayerRepository", () => {
         },
       ]),
     );
-    mockedGetContent.mockResolvedValueOnce(
-      buildMunicipalAnalysisResponse([]),
-    );
+    mockedGetContent.mockResolvedValueOnce(buildMunicipalAnalysisResponse([]));
 
     const layers = await getPanelLayers();
 
@@ -112,6 +109,31 @@ describe("panelLayerRepository", () => {
       "Dados Climáticos",
       "Categoria Livre",
     ]);
+  });
+
+  it("does not fetch municipal analysis for the default panel layers request", async () => {
+    mockedGetContent.mockResolvedValueOnce(
+      buildPanelLayerResponse([
+        {
+          sys: { id: "sys-1" },
+          id: "layer-1",
+          name: "Layer 1",
+          description: "Layer 1",
+          panelPosition: 1,
+          previewMap: { url: "https://example.com/map-1.png" },
+          imageData: {},
+        },
+      ]),
+    );
+
+    await getPanelLayers();
+
+    expect(mockedGetContent).toHaveBeenCalledTimes(1);
+    expect(mockedGetContent).not.toHaveBeenCalledWith(
+      expect.stringContaining("municipalAnalysisCollection"),
+      expect.anything(),
+      expect.anything(),
+    );
   });
 
   it("merges municipal analysis data from Contentful into the matching panel layer", async () => {
@@ -181,7 +203,10 @@ describe("panelLayerRepository", () => {
     const [layer] = await getPanelLayers({ includeMunicipalAnalysis: true });
     const imageData = layer?.imageData as {
       locations: Record<string, string>;
-      years: Record<string, { valuesScale?: number; values: Record<string, number[]> }>;
+      years: Record<
+        string,
+        { valuesScale?: number; values: Record<string, number[]> }
+      >;
       templates?: { municipality?: string };
     };
 
@@ -340,83 +365,85 @@ describe("panelLayerRepository", () => {
   });
 
   it("paginates municipal analysis entries from Contentful", async () => {
-    mockedGetContent.mockImplementation(async (query: string, variables?: unknown) => {
-      if (query.includes("municipalAnalysisCollection")) {
-        const skip =
-          typeof variables === "object" && variables && "skip" in variables
-            ? Number((variables as { skip?: number }).skip)
-            : 0;
+    mockedGetContent.mockImplementation(
+      async (query: string, variables?: unknown) => {
+        if (query.includes("municipalAnalysisCollection")) {
+          const skip =
+            typeof variables === "object" && variables && "skip" in variables
+              ? Number((variables as { skip?: number }).skip)
+              : 0;
 
-        if (skip === 0) {
+          if (skip === 0) {
+            return {
+              municipalAnalysisCollection: {
+                total: 101,
+                items: Array.from({ length: 100 }, (_, index) => ({
+                  sys: { id: `municipal-new-${index}` },
+                  panelLayerId: "other-layer",
+                  imageData: {
+                    years: {
+                      "2026-01": {
+                        values: {
+                          "2914802": [1, 99],
+                        },
+                      },
+                    },
+                  },
+                })),
+              },
+            };
+          }
+
           return {
             municipalAnalysisCollection: {
               total: 101,
-              items: Array.from({ length: 100 }, (_, index) => ({
-                sys: { id: `municipal-new-${index}` },
-                panelLayerId: "other-layer",
-                imageData: {
-                  years: {
-                    "2026-01": {
-                      values: {
-                        "2914802": [1, 99],
+              items: [
+                {
+                  sys: { id: "municipal-old" },
+                  panelLayerId: "layer-1",
+                  imageData: {
+                    years: {
+                      "2017-10": {
+                        values: {
+                          "2914802": [33, 67],
+                        },
                       },
                     },
                   },
                 },
-              })),
+              ],
             },
           };
         }
 
-        return {
-          municipalAnalysisCollection: {
-            total: 101,
-            items: [
-              {
-                sys: { id: "municipal-old" },
-                panelLayerId: "layer-1",
-                imageData: {
-                  years: {
-                    "2017-10": {
-                      values: {
-                        "2914802": [33, 67],
-                      },
-                    },
-                  },
+        return buildPanelLayerResponse([
+          {
+            sys: { id: "sys-1" },
+            id: "layer-1",
+            name: "Layer 1",
+            description: "Layer 1",
+            category: "Dados Climáticos",
+            panelPosition: 1,
+            previewMap: { url: "https://example.com/map-1.png" },
+            imageData: {
+              schemaVersion: 1,
+              type: "territorial-compact",
+              defaultYear: "2017-10",
+              classes: [
+                { id: "a", label: "Classe A", color: "#111111" },
+                { id: "b", label: "Classe B", color: "#222222" },
+              ],
+              years: {
+                "2017-10": {
+                  imageId: "img-2017-10",
+                  values: {},
                 },
-              },
-            ],
-          },
-        };
-      }
-
-      return buildPanelLayerResponse([
-        {
-          sys: { id: "sys-1" },
-          id: "layer-1",
-          name: "Layer 1",
-          description: "Layer 1",
-          category: "Dados Climáticos",
-          panelPosition: 1,
-          previewMap: { url: "https://example.com/map-1.png" },
-          imageData: {
-            schemaVersion: 1,
-            type: "territorial-compact",
-            defaultYear: "2017-10",
-            classes: [
-              { id: "a", label: "Classe A", color: "#111111" },
-              { id: "b", label: "Classe B", color: "#222222" },
-            ],
-            years: {
-              "2017-10": {
-                imageId: "img-2017-10",
-                values: {},
               },
             },
           },
-        },
-      ]);
-    });
+        ]);
+      },
+    );
 
     const [layer] = await getPanelLayers({ includeMunicipalAnalysis: true });
     const imageData = layer?.imageData as {
@@ -444,9 +471,7 @@ describe("panelLayerRepository", () => {
             sys: { id: "municipal-1" },
             panelLayerId: "layer-1",
             imageData: {
-              classes: [
-                { id: "patch-a", label: "Patch A", color: "#aaaaaa" },
-              ],
+              classes: [{ id: "patch-a", label: "Patch A", color: "#aaaaaa" }],
               mapVisualization: {
                 min: 0,
                 max: 1,
@@ -505,7 +530,12 @@ describe("panelLayerRepository", () => {
       mapVisualization?: { min?: number; max?: number };
       years: Record<
         string,
-        { imageId: string; year?: string; valuesScale?: number; values: Record<string, number[]> }
+        {
+          imageId: string;
+          year?: string;
+          valuesScale?: number;
+          values: Record<string, number[]>;
+        }
       >;
     };
 
@@ -557,5 +587,167 @@ describe("panelLayerRepository", () => {
       { limit: 100, skip: 0, panelLayerId: "CDI_Test" },
       { cache: "no-store" },
     );
+  });
+
+  it("fetches and merges only the requested municipal analysis year partition", async () => {
+    mockedGetContent.mockImplementation(async (query: string) => {
+      if (query.includes("GetMunicipalAnalysisByPanelLayerAndPartition")) {
+        return buildMunicipalAnalysisResponse([
+          {
+            sys: { id: "municipal-2026-02" },
+            title: "Municipal Analysis CDI_Test 2026-02",
+            panelLayerId: "CDI_Test",
+            partitionKey: "2026-02",
+            imageData: {
+              years: {
+                "2026-02": {
+                  values: {
+                    "2914802": [90, 10],
+                  },
+                },
+              },
+            },
+          },
+        ]);
+      }
+
+      return buildPanelLayerResponse([
+        {
+          sys: { id: "sys-1" },
+          id: "CDI_Test",
+          name: "CDI",
+          description: "",
+          category: "Dados Climáticos",
+          panelPosition: 1,
+          previewMap: { url: "https://example.com/map.png" },
+          imageData: {
+            schemaVersion: 1,
+            type: "territorial-compact",
+            defaultYear: "2026-01",
+            classes: [
+              { id: "a", label: "Classe A", color: "#111111" },
+              { id: "b", label: "Classe B", color: "#222222" },
+            ],
+            years: {
+              "2026-01": {
+                imageId: "img-2026-01",
+                values: {},
+              },
+              "2026-02": {
+                imageId: "img-2026-02",
+                values: {},
+              },
+            },
+          },
+        },
+      ]);
+    });
+
+    const layer = await getPanelLayerWithMunicipalAnalysisYear(
+      "CDI_Test",
+      "2026-02",
+    );
+    const imageData = layer?.imageData as {
+      years: Record<
+        string,
+        { imageId: string; values: Record<string, number[]> }
+      >;
+    };
+
+    expect(Object.keys(imageData.years)).toEqual(["2026-02"]);
+    expect(imageData.years["2026-02"]?.imageId).toBe("img-2026-02");
+    expect(imageData.years["2026-02"]?.values["2914802"]).toEqual([90, 10]);
+    expect(mockedGetContent).toHaveBeenCalledWith(
+      expect.stringContaining("GetMunicipalAnalysisByPanelLayerAndPartition"),
+      {
+        limit: 100,
+        skip: 0,
+        panelLayerId: "CDI_Test",
+        partitionKey: "2026-02",
+      },
+      { cache: "no-store" },
+    );
+  });
+
+  it("falls back to partition titles when Contentful metadata fields are unavailable", async () => {
+    mockedGetContent.mockImplementation(async (query: string) => {
+      if (query.includes("GetMunicipalAnalysisByPanelLayerAndPartition")) {
+        throw new Error("Cannot query field partitionKey");
+      }
+
+      if (query.includes("municipalAnalysisCollection")) {
+        return buildMunicipalAnalysisResponse([
+          {
+            sys: { id: "municipal-2026-01" },
+            title: "Municipal Analysis CDI_Test 2026-01",
+            panelLayerId: "CDI_Test",
+            imageData: {
+              years: {
+                "2026-01": {
+                  values: {
+                    "2914802": [10, 90],
+                  },
+                },
+              },
+            },
+          },
+          {
+            sys: { id: "municipal-2026-02" },
+            title: "Municipal Analysis CDI_Test 2026-02",
+            panelLayerId: "CDI_Test",
+            imageData: {
+              years: {
+                "2026-02": {
+                  values: {
+                    "2914802": [90, 10],
+                  },
+                },
+              },
+            },
+          },
+        ]);
+      }
+
+      return buildPanelLayerResponse([
+        {
+          sys: { id: "sys-1" },
+          id: "CDI_Test",
+          name: "CDI",
+          description: "",
+          category: "Dados Climáticos",
+          panelPosition: 1,
+          previewMap: { url: "https://example.com/map.png" },
+          imageData: {
+            schemaVersion: 1,
+            type: "territorial-compact",
+            classes: [
+              { id: "a", label: "Classe A", color: "#111111" },
+              { id: "b", label: "Classe B", color: "#222222" },
+            ],
+            years: {
+              "2026-01": {
+                imageId: "img-2026-01",
+                values: {},
+              },
+              "2026-02": {
+                imageId: "img-2026-02",
+                values: {},
+              },
+            },
+          },
+        },
+      ]);
+    });
+
+    const layer = await getPanelLayerWithMunicipalAnalysisYear(
+      "CDI_Test",
+      "2026-02",
+    );
+    const imageData = layer?.imageData as {
+      years: Record<string, { values: Record<string, number[]> }>;
+    };
+
+    expect(Object.keys(imageData.years)).toEqual(["2026-02"]);
+    expect(imageData.years["2026-02"]?.values["2914802"]).toEqual([90, 10]);
   });
 });

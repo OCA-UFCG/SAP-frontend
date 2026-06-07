@@ -22,9 +22,56 @@ import type { PlatformSection } from "@/components/PlatformSideRail/PlatformSide
 import type { PanelLayerI, IEEInfo } from "@/utils/interfaces";
 import type { CompactTerritorialAnalysisDataset } from "@/utils/analysis";
 import { statesObj } from "@/utils/constants";
+import { isCompactImageData } from "@/utils/imageData";
 
 interface MunicipalAnalysisApiResponse {
   imageData?: PanelLayerI["imageData"] | null;
+}
+
+function getMunicipalAnalysisRequestKey(layerId: string, yearKey: string) {
+  return `${layerId}::${yearKey}`;
+}
+
+function mergePartialMunicipalImageData(
+  baseImageData: PanelLayerI["imageData"],
+  partialImageData: PanelLayerI["imageData"] | null,
+): PanelLayerI["imageData"] {
+  if (!partialImageData) {
+    return baseImageData;
+  }
+
+  if (
+    !isCompactImageData(baseImageData) ||
+    !isCompactImageData(partialImageData)
+  ) {
+    return partialImageData;
+  }
+
+  return {
+    ...baseImageData,
+    locations: {
+      ...(baseImageData.locations ?? {}),
+      ...(partialImageData.locations ?? {}),
+    },
+    templates:
+      baseImageData.templates || partialImageData.templates
+        ? {
+            ...(baseImageData.templates ?? {}),
+            ...(partialImageData.templates ?? {}),
+          }
+        : undefined,
+    ranking:
+      baseImageData.ranking || partialImageData.ranking
+        ? {
+            ...(baseImageData.ranking ?? {}),
+            ...(partialImageData.ranking ?? {}),
+          }
+        : undefined,
+    years: {
+      ...baseImageData.years,
+      ...partialImageData.years,
+    },
+  };
 }
 
 export interface AnalysisContextProps {
@@ -53,18 +100,40 @@ export function AnalysisContext({
   const dataset = useMemo(() => {
     return panelLayers?.find((p) => p.id === activeLayerId) ?? panelLayers?.[0];
   }, [panelLayers, activeLayerId]);
-  const [analysisImageDataByLayerId, setAnalysisImageDataByLayerId] = useState<
-    Record<string, PanelLayerI["imageData"] | null>
-  >({});
+  const [analysisImageDataByRequestKey, setAnalysisImageDataByRequestKey] =
+    useState<Record<string, PanelLayerI["imageData"] | null>>({});
+
+  const yearOptions = useMemo(() => getAnalysisYearOptions(dataset), [dataset]);
+
+  const effectiveYear = useMemo(
+    () => getEffectiveAnalysisYear(dataset, activeYear),
+    [dataset, activeYear],
+  );
+
+  const activeAnalysisYear =
+    effectiveYear ?? yearOptions[0]?.value ?? "general";
+
+  const municipalAnalysisRequestKey = dataset?.id
+    ? getMunicipalAnalysisRequestKey(dataset.id, activeAnalysisYear)
+    : null;
 
   useEffect(() => {
-    if (!dataset?.id || analysisImageDataByLayerId[dataset.id] !== undefined) {
+    if (
+      !dataset?.id ||
+      !municipalAnalysisRequestKey ||
+      analysisImageDataByRequestKey[municipalAnalysisRequestKey] !== undefined
+    ) {
       return;
     }
 
     const controller = new AbortController();
+    const requestUrl = new URL(
+      `/api/municipal-analysis/${encodeURIComponent(dataset.id)}`,
+      window.location.origin,
+    );
+    requestUrl.searchParams.set("year", activeAnalysisYear);
 
-    fetch(`/api/municipal-analysis/${encodeURIComponent(dataset.id)}`, {
+    fetch(requestUrl.toString(), {
       signal: controller.signal,
     })
       .then(async (response) => {
@@ -77,9 +146,9 @@ export function AnalysisContext({
         return (await response.json()) as MunicipalAnalysisApiResponse;
       })
       .then((data) => {
-        setAnalysisImageDataByLayerId((current) => ({
+        setAnalysisImageDataByRequestKey((current) => ({
           ...current,
-          [dataset.id]: data.imageData ?? null,
+          [municipalAnalysisRequestKey]: data.imageData ?? null,
         }));
       })
       .catch((error) => {
@@ -88,50 +157,47 @@ export function AnalysisContext({
         }
 
         console.warn("Falha ao carregar municipalAnalysis sob demanda.", error);
-        setAnalysisImageDataByLayerId((current) => ({
+        setAnalysisImageDataByRequestKey((current) => ({
           ...current,
-          [dataset.id]: null,
+          [municipalAnalysisRequestKey]: null,
         }));
-      })
+      });
     return () => {
       controller.abort();
     };
-  }, [analysisImageDataByLayerId, dataset?.id]);
+  }, [
+    activeAnalysisYear,
+    analysisImageDataByRequestKey,
+    dataset?.id,
+    municipalAnalysisRequestKey,
+  ]);
 
   const enrichedDataset = useMemo(() => {
     if (!dataset?.id) {
       return dataset;
     }
 
-    const imageData = analysisImageDataByLayerId[dataset.id];
+    const partialImageData = municipalAnalysisRequestKey
+      ? analysisImageDataByRequestKey[municipalAnalysisRequestKey]
+      : null;
 
-    if (!imageData) {
+    if (!partialImageData) {
       return dataset;
     }
 
     return {
       ...dataset,
-      imageData,
+      imageData: mergePartialMunicipalImageData(
+        dataset.imageData,
+        partialImageData,
+      ),
     };
-  }, [analysisImageDataByLayerId, dataset]);
-
-  const yearOptions = useMemo(
-    () => getAnalysisYearOptions(enrichedDataset),
-    [enrichedDataset],
-  );
+  }, [analysisImageDataByRequestKey, dataset, municipalAnalysisRequestKey]);
 
   function handleGoBack() {
     resetPlatformState();
     onRequestSectionChange?.("monitoring");
   }
-
-  const effectiveYear = useMemo(
-    () => getEffectiveAnalysisYear(enrichedDataset, activeYear),
-    [enrichedDataset, activeYear],
-  );
-
-  const activeAnalysisYear =
-    effectiveYear ?? yearOptions[0]?.value ?? "general";
 
   const activeDateLabel =
     yearOptions.find((option) => option.value === activeAnalysisYear)?.label ??
@@ -203,8 +269,11 @@ export function AnalysisContext({
 
   const unavailableLocationName = useMemo(
     () =>
-      getAnalysisLocationName(enrichedDataset, effectiveYear, selectedLocationKey) ??
-      getFallbackAnalysisLocationName(selectedLocationKey),
+      getAnalysisLocationName(
+        enrichedDataset,
+        effectiveYear,
+        selectedLocationKey,
+      ) ?? getFallbackAnalysisLocationName(selectedLocationKey),
     [enrichedDataset, effectiveYear, selectedLocationKey],
   );
 
@@ -227,7 +296,8 @@ export function AnalysisContext({
       ? (enrichedDataset.imageData as CompactTerritorialAnalysisDataset).classes
       : undefined;
   const isMunicipalAnalysisLoading = Boolean(
-    dataset?.id && analysisImageDataByLayerId[dataset.id] === undefined,
+    municipalAnalysisRequestKey &&
+    analysisImageDataByRequestKey[municipalAnalysisRequestKey] === undefined,
   );
 
   return (
@@ -248,9 +318,7 @@ export function AnalysisContext({
       years={temporalYears}
       classes={temporalClasses}
       selectedState={selectedLocationKey}
-      emptyStateTitle={
-        `Análise indisponível para ${unavailableLocationName}`
-      }
+      emptyStateTitle={`Análise indisponível para ${unavailableLocationName}`}
       emptyStateDescription={
         isMunicipalAnalysisLoading
           ? "Os dados municipais desta camada estão sendo carregados sob demanda."

@@ -10,10 +10,16 @@ interface MunicipalAnalysisRouteContext {
   }>;
 }
 
-export async function GET(_request: Request, context: MunicipalAnalysisRouteContext) {
+export async function GET(
+  _request: Request,
+  context: MunicipalAnalysisRouteContext,
+) {
   const { panelLayerId } = await context.params;
+  const url = new URL(_request.url);
+  const yearKey = url.searchParams.get("year")?.trim() || undefined;
   const result = await getCachedMunicipalAnalysisImageData(
     decodeURIComponent(panelLayerId),
+    yearKey,
   );
 
   if (!result.found) {

@@ -47,12 +47,38 @@ const GET_MUNICIPAL_ANALYSIS_BY_PANEL_LAYER = `
   }
 `;
 
+const GET_MUNICIPAL_ANALYSIS_BY_PANEL_LAYER_AND_PARTITION = `
+  query GetMunicipalAnalysisByPanelLayerAndPartition($limit: Int!, $skip: Int!, $panelLayerId: String!, $partitionKey: String!) {
+    municipalAnalysisCollection(
+      limit: $limit
+      skip: $skip
+      where: { panelLayerId: $panelLayerId, partitionKey: $partitionKey }
+    ) {
+      total
+      items {
+        sys {
+          id
+        }
+        title
+        panelLayerId
+        partitionKey
+        calendarYear
+        territory
+        imageData
+      }
+    }
+  }
+`;
+
 interface MunicipalAnalysisEntry {
   sys: {
     id: string;
   };
   title?: string | null;
   panelLayerId?: string | null;
+  partitionKey?: string | null;
+  calendarYear?: string | null;
+  territory?: string | null;
   imageData?: unknown;
 }
 
@@ -97,14 +123,20 @@ function isRecord(value: unknown): value is Record<string, unknown> {
 }
 
 function isStringRecord(value: unknown): value is Record<string, string> {
-  return isRecord(value) && Object.values(value).every((entry) => typeof entry === "string");
+  return (
+    isRecord(value) &&
+    Object.values(value).every((entry) => typeof entry === "string")
+  );
 }
 
-function isNumericArrayRecord(value: unknown): value is Record<string, number[]> {
+function isNumericArrayRecord(
+  value: unknown,
+): value is Record<string, number[]> {
   return (
     isRecord(value) &&
     Object.values(value).every(
-      (entry) => Array.isArray(entry) && entry.every((item) => typeof item === "number"),
+      (entry) =>
+        Array.isArray(entry) && entry.every((item) => typeof item === "number"),
     )
   );
 }
@@ -128,7 +160,9 @@ function decodeMunicipalAnalysisImageData(value: unknown): unknown {
   }
 
   try {
-    const encoded = Array.isArray(value.data) ? value.data.join("") : value.data;
+    const encoded = Array.isArray(value.data)
+      ? value.data.join("")
+      : value.data;
 
     return JSON.parse(
       gunzipSync(Buffer.from(encoded, "base64")).toString("utf8"),
@@ -142,7 +176,9 @@ function decodeMunicipalAnalysisImageData(value: unknown): unknown {
   }
 }
 
-function toDatasetPatch(value: unknown): CompactTerritorialAnalysisDatasetPatch | null {
+function toDatasetPatch(
+  value: unknown,
+): CompactTerritorialAnalysisDatasetPatch | null {
   value = decodeMunicipalAnalysisImageData(value);
 
   if (!isRecord(value)) {
@@ -180,7 +216,8 @@ function toDatasetPatch(value: unknown): CompactTerritorialAnalysisDatasetPatch 
   }
 
   if (isRecord(value.mapVisualization)) {
-    patch.mapVisualization = value.mapVisualization as CompactMapVisualizationConfig;
+    patch.mapVisualization =
+      value.mapVisualization as CompactMapVisualizationConfig;
   }
 
   if (isRecord(value.years)) {
@@ -266,6 +303,43 @@ function getCalendarYear(yearKey: string) {
   return yearKey.match(/^(\d{4})(?:-\d{2})?$/u)?.[1] ?? null;
 }
 
+function buildPartitionTitle(
+  panelLayerId: string,
+  partitionKey: string,
+): string {
+  return `Municipal Analysis ${panelLayerId} ${partitionKey}`;
+}
+
+function getPartitionKeyForYear(
+  baseYears: Record<string, CompactAnalysisYearData>,
+  yearKey: string,
+): string {
+  const calendarYear = getCalendarYear(yearKey);
+  const baseYearKeysForCalendarYear = Object.keys(baseYears).filter(
+    (baseYearKey) => getCalendarYear(baseYearKey) === calendarYear,
+  );
+
+  if (
+    calendarYear &&
+    baseYearKeysForCalendarYear.length === 1 &&
+    baseYearKeysForCalendarYear[0] === calendarYear
+  ) {
+    return calendarYear;
+  }
+
+  return yearKey;
+}
+
+function hasPatchForYear(
+  baseYears: Record<string, CompactAnalysisYearData>,
+  patchYears: Record<string, CompactAnalysisYearPatch> | undefined,
+  yearKey: string,
+): boolean {
+  return Boolean(
+    groupPatchYearsByBaseYear(baseYears, patchYears).get(yearKey)?.length,
+  );
+}
+
 function groupPatchYearsByBaseYear(
   baseYears: Record<string, CompactAnalysisYearData>,
   patchYears: Record<string, CompactAnalysisYearPatch> | undefined,
@@ -285,7 +359,10 @@ function groupPatchYearsByBaseYear(
         return lookup;
       }
 
-      lookup.set(calendarYear, [...(lookup.get(calendarYear) ?? []), baseYearKey]);
+      lookup.set(calendarYear, [
+        ...(lookup.get(calendarYear) ?? []),
+        baseYearKey,
+      ]);
 
       return lookup;
     },
@@ -300,7 +377,9 @@ function groupPatchYearsByBaseYear(
       : [];
     const targetBaseYear =
       exactBaseYear ??
-      (matchingCalendarBaseYears.length === 1 ? matchingCalendarBaseYears[0] : null);
+      (matchingCalendarBaseYears.length === 1
+        ? matchingCalendarBaseYears[0]
+        : null);
 
     if (!targetBaseYear) {
       continue;
@@ -319,11 +398,16 @@ function mergeCompactDataset(
   base: CompactTerritorialAnalysisDataset,
   patch: CompactTerritorialAnalysisDatasetPatch,
 ): CompactTerritorialAnalysisDataset {
-  const patchYearsByBaseYear = groupPatchYearsByBaseYear(base.years, patch.years);
+  const patchYearsByBaseYear = groupPatchYearsByBaseYear(
+    base.years,
+    patch.years,
+  );
 
   const years = Object.fromEntries(
     Object.entries(base.years).flatMap(([yearKey, baseYear]) => {
-      const mergedYear = (patchYearsByBaseYear.get(yearKey) ?? []).reduce<CompactAnalysisYearData>(
+      const mergedYear = (
+        patchYearsByBaseYear.get(yearKey) ?? []
+      ).reduce<CompactAnalysisYearData>(
         (currentYear, patchYear) =>
           mergeAnalysisYear(currentYear, patchYear) ?? currentYear,
         baseYear,
@@ -364,38 +448,92 @@ function mergeCompactDataset(
   };
 }
 
-async function getMunicipalAnalysisPatches(panelLayerId?: string): Promise<
-  Map<string, CompactTerritorialAnalysisDatasetPatch[]>
-> {
+function mergeCompactDatasetYear(
+  base: CompactTerritorialAnalysisDataset,
+  patches: CompactTerritorialAnalysisDatasetPatch[],
+  yearKey: string,
+): CompactTerritorialAnalysisDataset {
+  const selectedBaseYear = base.years[yearKey];
+
+  if (!selectedBaseYear) {
+    return {
+      ...base,
+      years: {},
+    };
+  }
+
+  const baseWithSelectedYear = {
+    ...base,
+    years: {
+      [yearKey]: selectedBaseYear,
+    },
+  };
+
+  return patches
+    .filter((patch) => hasPatchForYear(base.years, patch.years, yearKey))
+    .reduce<CompactTerritorialAnalysisDataset>(
+      (imageData, patch) => mergeCompactDataset(imageData, patch),
+      baseWithSelectedYear,
+    );
+}
+
+async function getMunicipalAnalysisEntries(
+  query: string,
+  variables: Record<string, unknown>,
+): Promise<Array<MunicipalAnalysisEntry | null>> {
+  const items: Array<MunicipalAnalysisEntry | null> = [];
+
+  for (let skip = 0; ; skip += MUNICIPAL_ANALYSIS_PAGE_SIZE) {
+    const data = await getContent<MunicipalAnalysisResponse>(
+      query,
+      {
+        limit: MUNICIPAL_ANALYSIS_PAGE_SIZE,
+        skip,
+        ...variables,
+      },
+      { cache: "no-store" },
+    );
+    const pageItems = data.municipalAnalysisCollection?.items ?? [];
+    const total = data.municipalAnalysisCollection?.total ?? pageItems.length;
+
+    items.push(...pageItems);
+
+    if (items.length >= total || pageItems.length === 0) {
+      break;
+    }
+  }
+
+  return items;
+}
+
+function entryMatchesPartition(
+  entry: MunicipalAnalysisEntry | null,
+  panelLayerId: string,
+  partitionKey: string,
+): boolean {
+  if (!entry || entry.panelLayerId !== panelLayerId) {
+    return false;
+  }
+
+  return (
+    entry.partitionKey === partitionKey ||
+    entry.title === buildPartitionTitle(panelLayerId, partitionKey)
+  );
+}
+
+async function getMunicipalAnalysisPatches(
+  panelLayerId?: string,
+): Promise<Map<string, CompactTerritorialAnalysisDatasetPatch[]>> {
   try {
-    const items: Array<MunicipalAnalysisEntry | null> = [];
     const query = panelLayerId
       ? GET_MUNICIPAL_ANALYSIS_BY_PANEL_LAYER
       : GET_MUNICIPAL_ANALYSIS;
+    const items = await getMunicipalAnalysisEntries(
+      query,
+      panelLayerId ? { panelLayerId } : {},
+    );
 
-    for (let skip = 0; ; skip += MUNICIPAL_ANALYSIS_PAGE_SIZE) {
-      const data = await getContent<MunicipalAnalysisResponse>(
-        query,
-        {
-          limit: MUNICIPAL_ANALYSIS_PAGE_SIZE,
-          skip,
-          ...(panelLayerId ? { panelLayerId } : {}),
-        },
-        { cache: "no-store" },
-      );
-      const pageItems = data.municipalAnalysisCollection?.items ?? [];
-      const total = data.municipalAnalysisCollection?.total ?? pageItems.length;
-
-      items.push(...pageItems);
-
-      if (items.length >= total || pageItems.length === 0) {
-        break;
-      }
-    }
-
-    return items.reduce<
-      Map<string, CompactTerritorialAnalysisDatasetPatch[]>
-    >(
+    return items.reduce<Map<string, CompactTerritorialAnalysisDatasetPatch[]>>(
       (patchesByPanelLayer, entry) => {
         if (!entry?.panelLayerId?.trim()) {
           return patchesByPanelLayer;
@@ -407,7 +545,8 @@ async function getMunicipalAnalysisPatches(panelLayerId?: string): Promise<
           return patchesByPanelLayer;
         }
 
-        const currentPatches = patchesByPanelLayer.get(entry.panelLayerId) ?? [];
+        const currentPatches =
+          patchesByPanelLayer.get(entry.panelLayerId) ?? [];
         patchesByPanelLayer.set(entry.panelLayerId, [...currentPatches, patch]);
 
         return patchesByPanelLayer;
@@ -423,6 +562,57 @@ async function getMunicipalAnalysisPatches(panelLayerId?: string): Promise<
   }
 }
 
+async function getMunicipalAnalysisPatchesForPartition(
+  panelLayerId: string,
+  partitionKey: string,
+  baseYears: Record<string, CompactAnalysisYearData>,
+  yearKey: string,
+): Promise<CompactTerritorialAnalysisDatasetPatch[]> {
+  try {
+    const entries = await getMunicipalAnalysisEntries(
+      GET_MUNICIPAL_ANALYSIS_BY_PANEL_LAYER_AND_PARTITION,
+      { panelLayerId, partitionKey },
+    );
+    const patches = entries
+      .filter((entry) => entry?.panelLayerId === panelLayerId)
+      .flatMap((entry) => {
+        const patch = toDatasetPatch(entry?.imageData);
+
+        return patch ? [patch] : [];
+      });
+
+    if (patches.length > 0) {
+      return patches;
+    }
+  } catch {
+    // Environments published before partition metadata exists fall back to
+    // matching by the standardized entry title below.
+  }
+
+  const entries = await getMunicipalAnalysisEntries(
+    GET_MUNICIPAL_ANALYSIS_BY_PANEL_LAYER,
+    { panelLayerId },
+  );
+  const partitionMatches = entries.filter((entry) =>
+    entryMatchesPartition(entry, panelLayerId, partitionKey),
+  );
+  const candidates = partitionMatches.length > 0 ? partitionMatches : entries;
+
+  return candidates.flatMap((entry) => {
+    if (entry?.panelLayerId !== panelLayerId) {
+      return [];
+    }
+
+    const patch = toDatasetPatch(entry.imageData);
+
+    if (!patch || !hasPatchForYear(baseYears, patch.years, yearKey)) {
+      return [];
+    }
+
+    return [patch];
+  });
+}
+
 export async function attachMunicipalAnalysisToPanelLayers(
   panelLayers: PanelLayerI[],
 ): Promise<PanelLayerI[]> {
@@ -430,7 +620,8 @@ export async function attachMunicipalAnalysisToPanelLayers(
     return panelLayers;
   }
 
-  const municipalAnalysisPatchesByPanelLayer = await getMunicipalAnalysisPatches();
+  const municipalAnalysisPatchesByPanelLayer =
+    await getMunicipalAnalysisPatches();
 
   if (municipalAnalysisPatchesByPanelLayer.size === 0) {
     return panelLayers;
@@ -470,5 +661,40 @@ export async function attachMunicipalAnalysisToPanelLayer(
       (imageData, patch) => mergeCompactDataset(imageData, patch),
       panelLayer.imageData,
     ),
+  };
+}
+
+export async function attachMunicipalAnalysisYearToPanelLayer(
+  panelLayer: PanelLayerI,
+  yearKey: string,
+): Promise<PanelLayerI> {
+  if (!isCompactImageData(panelLayer.imageData)) {
+    return panelLayer;
+  }
+
+  if (!panelLayer.imageData.years[yearKey]) {
+    return {
+      ...panelLayer,
+      imageData: {
+        ...panelLayer.imageData,
+        years: {},
+      },
+    };
+  }
+
+  const partitionKey = getPartitionKeyForYear(
+    panelLayer.imageData.years,
+    yearKey,
+  );
+  const patches = await getMunicipalAnalysisPatchesForPartition(
+    panelLayer.id,
+    partitionKey,
+    panelLayer.imageData.years,
+    yearKey,
+  );
+
+  return {
+    ...panelLayer,
+    imageData: mergeCompactDatasetYear(panelLayer.imageData, patches, yearKey),
   };
 }

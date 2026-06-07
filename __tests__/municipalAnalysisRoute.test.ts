@@ -16,9 +16,11 @@ vi.mock("@/repositories/platform/municipalAnalysisCache", () => ({
 
 import { GET } from "@/app/api/municipal-analysis/[panelLayerId]/route";
 
-const callMunicipalAnalysisRoute = (panelLayerId: string) =>
+const callMunicipalAnalysisRoute = (panelLayerId: string, yearKey?: string) =>
   GET(
-    new Request(`https://example.test/api/municipal-analysis/${panelLayerId}`),
+    new Request(
+      `https://example.test/api/municipal-analysis/${panelLayerId}${yearKey ? `?year=${yearKey}` : ""}`,
+    ),
     {
       params: Promise.resolve({ panelLayerId }),
     },
@@ -40,7 +42,7 @@ describe("municipal analysis route", () => {
       status: "hit",
     });
 
-    const response = await callMunicipalAnalysisRoute("CDI_Test");
+    const response = await callMunicipalAnalysisRoute("CDI_Test", "2026");
 
     expect(response.status).toBe(200);
     expect(response.headers.get("Cache-Control")).toBe(
@@ -51,6 +53,23 @@ describe("municipal analysis route", () => {
     });
     expect(getCachedMunicipalAnalysisImageDataMock).toHaveBeenCalledWith(
       "CDI_Test",
+      "2026",
+    );
+  });
+
+  it("keeps the legacy full-layer request when year is omitted", async () => {
+    getCachedMunicipalAnalysisImageDataMock.mockResolvedValue({
+      found: true,
+      imageData: { type: "territorial-compact" },
+      status: "miss",
+    });
+
+    const response = await callMunicipalAnalysisRoute("CDI_Test");
+
+    expect(response.status).toBe(200);
+    expect(getCachedMunicipalAnalysisImageDataMock).toHaveBeenCalledWith(
+      "CDI_Test",
+      undefined,
     );
   });
 

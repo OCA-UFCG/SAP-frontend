@@ -251,6 +251,25 @@ O script altera o `panelLayerId` dessas entries para:
 Isso evita que o frontend misture dados antigos com os dados particionados
 atuais.
 
+## Metadados das particoes
+
+Ao publicar particoes, o script garante que o content type `municipalAnalysis`
+tenha os campos:
+
+- `partitionKey`
+- `calendarYear`
+- `territory`
+
+Esses campos permitem que o frontend busque somente a particao necessaria para
+o periodo selecionado. Em `--dry-run`, o script nao altera o content model; ele
+apenas valida o que seria publicado.
+
+O script tambem consulta o `panelLayer` correspondente e reporta
+`missingPanelLayerYears` quando existe dado municipal para um `yearKey`, mas o
+`panelLayer.imageData` ainda nao tem asset/ano compativel. Nesse caso, a entry
+pode ser publicada, mas a aplicacao nao conseguira exibir aquele periodo ate o
+`panelLayer` ser atualizado.
+
 ## Contrato esperado do CSV
 
 Para municipios:
@@ -281,21 +300,26 @@ carrega todas essas entries quando o usuario abre `/platform`.
 O fluxo atual e lazy:
 
 1. `/platform` carrega os `panelLayer` base.
-2. Quando o usuario abre a analise de uma camada, o client chama
-   `/api/municipal-analysis/<panelLayerId>`.
-3. Essa rota roda no servidor Next.js, busca no Contentful apenas os
-   `municipalAnalysis` daquele `panelLayerId`, descomprime os payloads
-   `gzip+base64`, faz merge com o `imageData` do `panelLayer` e devolve o
-   resultado ao client.
+2. Quando o usuario abre a analise de uma camada ou troca o periodo, o client
+   chama `/api/municipal-analysis/<panelLayerId>?year=<yearKey>`.
+3. Essa rota roda no servidor Next.js, busca no Contentful a particao daquele
+   periodo, descomprime o payload `gzip+base64`, faz merge com o ano
+   correspondente do `panelLayer` e devolve ao client apenas aquele recorte de
+   `imageData`.
+
+A rota ainda aceita `/api/municipal-analysis/<panelLayerId>` sem `year` como
+fallback de compatibilidade, mas o fluxo normal da aplicacao usa a chamada por
+periodo para evitar payload grande no primeiro acesso de uma camada.
 
 Para reduzir chamadas ao Contentful e evitar descompressao repetida, a rota usa
-cache em memoria no servidor por `panelLayerId`.
+cache em memoria no servidor por `panelLayerId + yearKey`.
 
 Comportamento padrao:
 
 - TTL: `600` segundos.
-- Limite: `20` camadas em cache por processo Node.
-- Requests concorrentes para a mesma camada compartilham a mesma busca.
+- Limite: `20` recortes camada/periodo em cache por processo Node.
+- Requests concorrentes para a mesma camada e periodo compartilham a mesma
+  busca.
 - Erros de busca/descompressao nao ficam cacheados.
 - Cada replica do servidor tem seu proprio cache em memoria.
 
@@ -307,6 +331,6 @@ MUNICIPAL_ANALYSIS_CACHE_MAX_ENTRIES=20
 ```
 
 Depois de publicar novos dados no Contentful, a aplicacao pode levar ate o TTL
-do cache para refletir a atualizacao em uma instancia que ja tinha aquela camada
-em memoria. Reiniciar o servidor ou reduzir temporariamente o TTL acelera a
-validacao manual.
+do cache para refletir a atualizacao em uma instancia que ja tinha aquele
+recorte em memoria. Reiniciar o servidor ou reduzir temporariamente o TTL
+acelera a validacao manual.

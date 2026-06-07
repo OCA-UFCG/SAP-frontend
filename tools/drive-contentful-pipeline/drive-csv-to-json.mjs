@@ -1,6 +1,14 @@
 #!/usr/bin/env node
 
-import { mkdir, open, readFile, readdir, rm, unlink, writeFile } from "node:fs/promises";
+import {
+  mkdir,
+  open,
+  readFile,
+  readdir,
+  rm,
+  unlink,
+  writeFile,
+} from "node:fs/promises";
 import { execFile } from "node:child_process";
 import path from "node:path";
 import { promisify } from "node:util";
@@ -423,7 +431,9 @@ function toRows(csvText) {
       );
     }
 
-    return Object.fromEntries(header.map((column, index) => [column, cells[index]]));
+    return Object.fromEntries(
+      header.map((column, index) => [column, cells[index]]),
+    );
   });
 }
 
@@ -483,7 +493,9 @@ function getLocation(row, territory) {
 
   const uf = String(row.SIGLA_UF).trim().toLowerCase();
   const stateName =
-    String(row.NM_UF ?? row.NOME_UF ?? "").trim() || STATE_NAMES[uf] || uf.toUpperCase();
+    String(row.NM_UF ?? row.NOME_UF ?? "").trim() ||
+    STATE_NAMES[uf] ||
+    uf.toUpperCase();
 
   return {
     key: uf,
@@ -528,7 +540,10 @@ function getClassValues(row, classColumns, locationKey, yearKey) {
     );
   }
 
-  const totalArea = toNumber(row.area_total_ha, `${locationKey}/${yearKey}/area_total_ha`);
+  const totalArea = toNumber(
+    row.area_total_ha,
+    `${locationKey}/${yearKey}/area_total_ha`,
+  );
 
   if (totalArea <= 0) {
     return classColumns.columns.map(() => 0);
@@ -536,7 +551,11 @@ function getClassValues(row, classColumns, locationKey, yearKey) {
 
   return classColumns.columns.map((column) =>
     Number(
-      ((toNumber(row[column], `${locationKey}/${yearKey}/${column}`) / totalArea) * 100).toFixed(10),
+      (
+        (toNumber(row[column], `${locationKey}/${yearKey}/${column}`) /
+          totalArea) *
+        100
+      ).toFixed(10),
     ),
   );
 }
@@ -580,7 +599,9 @@ function inferPanelLayerMapping(fileName) {
     layerLabel: matchedRule.label,
     panelLayerId: matchedRule.panelLayerId,
     mappingStatus: "mapped",
-    mappingRule: matchedRule.patterns.map((pattern) => pattern.source).join("|"),
+    mappingRule: matchedRule.patterns
+      .map((pattern) => pattern.source)
+      .join("|"),
   };
 }
 
@@ -654,17 +675,21 @@ function getAggregatedOutputFileName(group) {
 }
 
 async function cleanGeneratedImageDataFiles(jsonDir) {
-  const entries = await readdir(jsonDir, { withFileTypes: true }).catch((error) => {
-    if (error?.code === "ENOENT") {
-      return [];
-    }
+  const entries = await readdir(jsonDir, { withFileTypes: true }).catch(
+    (error) => {
+      if (error?.code === "ENOENT") {
+        return [];
+      }
 
-    throw error;
-  });
+      throw error;
+    },
+  );
 
   await Promise.all(
     entries
-      .filter((entry) => entry.isFile() && entry.name.endsWith(".imageData.json"))
+      .filter(
+        (entry) => entry.isFile() && entry.name.endsWith(".imageData.json"),
+      )
       .map((entry) => unlink(path.join(jsonDir, entry.name))),
   );
 }
@@ -681,7 +706,9 @@ function getCalendarYear(yearKey) {
   const match = String(yearKey).match(/^(\d{4})(?:-\d{2})?$/u);
 
   if (!match) {
-    throw new Error(`Chave temporal inválida para particionar por ano: ${yearKey}`);
+    throw new Error(
+      `Chave temporal inválida para particionar por ano: ${yearKey}`,
+    );
   }
 
   return match[1];
@@ -697,7 +724,11 @@ function encodeImageDataPayload(imageData, options) {
   const encoded = compressed.toString("base64");
   const chunks = [];
 
-  for (let index = 0; index < encoded.length; index += COMPRESSED_DATA_CHUNK_SIZE) {
+  for (
+    let index = 0;
+    index < encoded.length;
+    index += COMPRESSED_DATA_CHUNK_SIZE
+  ) {
     chunks.push(encoded.slice(index, index + COMPRESSED_DATA_CHUNK_SIZE));
   }
 
@@ -802,7 +833,9 @@ async function writeAnnualPartitions(
 ) {
   const yearsByCalendarYear = new Map();
 
-  for (const [yearKey, yearEntry] of Object.entries(conversion.imageData.years)) {
+  for (const [yearKey, yearEntry] of Object.entries(
+    conversion.imageData.years,
+  )) {
     const calendarYear = getCalendarYear(yearKey);
 
     if (!yearsByCalendarYear.has(calendarYear)) {
@@ -833,8 +866,8 @@ async function writeAnnualPartitions(
       continue;
     }
 
-    for (const [yearKey, yearEntry] of Object.entries(years).sort(([left], [right]) =>
-      left.localeCompare(right),
+    for (const [yearKey, yearEntry] of Object.entries(years).sort(
+      ([left], [right]) => left.localeCompare(right),
     )) {
       partitionFiles.push(
         await writePartitionFile({
@@ -954,11 +987,18 @@ async function writeAggregatedGroup(group, jsonDir, partitionDir, options) {
           );
         }
 
-        assertSameRecord(baseTemplates, sortedTemplates, "templates", conversion.inputPath);
+        assertSameRecord(
+          baseTemplates,
+          sortedTemplates,
+          "templates",
+          conversion.inputPath,
+        );
       }
 
       if (options.writeAggregates && fileHandle) {
-        for (const [yearKey, yearEntry] of Object.entries(conversion.imageData.years)) {
+        for (const [yearKey, yearEntry] of Object.entries(
+          conversion.imageData.years,
+        )) {
           if (yearKeys.has(yearKey)) {
             throw new Error(
               `Ano/referência duplicado ao agregar ${conversion.inputPath}: ${yearKey}`,
@@ -1075,7 +1115,9 @@ function buildMunicipalAnalysisManifest(aggregatedFiles, partitionFiles) {
         encoding: partition.encoding,
         rawBytes: partition.rawBytes,
         outputBytes: partition.outputBytes,
-        ...(partition.splitReason ? { splitReason: partition.splitReason } : {}),
+        ...(partition.splitReason
+          ? { splitReason: partition.splitReason }
+          : {}),
       })),
     unmappedPartitions: partitionFiles
       .filter((partition) => !partition.panelLayerId)
@@ -1090,7 +1132,9 @@ function buildMunicipalAnalysisManifest(aggregatedFiles, partitionFiles) {
         encoding: partition.encoding,
         rawBytes: partition.rawBytes,
         outputBytes: partition.outputBytes,
-        ...(partition.splitReason ? { splitReason: partition.splitReason } : {}),
+        ...(partition.splitReason
+          ? { splitReason: partition.splitReason }
+          : {}),
       })),
   };
 }
@@ -1102,6 +1146,36 @@ function toReportConversion(conversion) {
   return reportConversion;
 }
 
+function buildPipelineValidation(conversions, partitionFiles, options) {
+  const mappedConversions = conversions.filter(
+    (conversion) => conversion.panelLayerId,
+  );
+  const partitionSourcePaths = new Set(
+    partitionFiles.map((partition) => partition.sourceCsvPath),
+  );
+  const mappedSourcesWithoutPartitions = mappedConversions
+    .filter((conversion) => !partitionSourcePaths.has(conversion.inputPath))
+    .map((conversion) => conversion.inputPath);
+  const oversizedPartitions = partitionFiles
+    .filter(
+      (partition) => partition.outputBytes > options.maxContentfulJsonBytes,
+    )
+    .map((partition) => ({
+      imageDataPath: partition.outputPath,
+      outputBytes: partition.outputBytes,
+      maxContentfulJsonBytes: options.maxContentfulJsonBytes,
+    }));
+
+  return {
+    ok:
+      mappedSourcesWithoutPartitions.length === 0 &&
+      oversizedPartitions.length === 0,
+    maxContentfulJsonBytes: options.maxContentfulJsonBytes,
+    mappedSourcesWithoutPartitions,
+    oversizedPartitions,
+  };
+}
+
 async function convertCsvDirectory(options) {
   const csvDir = resolveWorkspacePath(options.csvDir);
   const jsonDir = resolveWorkspacePath(options.jsonDir);
@@ -1109,12 +1183,16 @@ async function convertCsvDirectory(options) {
 
   const entries = await readdir(csvDir, { withFileTypes: true });
   const csvPaths = entries
-    .filter((entry) => entry.isFile() && entry.name.toLowerCase().endsWith(".csv"))
+    .filter(
+      (entry) => entry.isFile() && entry.name.toLowerCase().endsWith(".csv"),
+    )
     .map((entry) => path.join(csvDir, entry.name))
     .sort((left, right) => left.localeCompare(right));
 
   if (csvPaths.length === 0) {
-    throw new Error(`Nenhum CSV encontrado em ${path.relative(process.cwd(), csvDir)}.`);
+    throw new Error(
+      `Nenhum CSV encontrado em ${path.relative(process.cwd(), csvDir)}.`,
+    );
   }
 
   const conversions = [];
@@ -1127,7 +1205,12 @@ async function convertCsvDirectory(options) {
 
   for (const group of groupCsvPaths(csvPaths)) {
     try {
-      const result = await writeAggregatedGroup(group, jsonDir, partitionDir, options);
+      const result = await writeAggregatedGroup(
+        group,
+        jsonDir,
+        partitionDir,
+        options,
+      );
       conversions.push(...result.conversions);
       skipped.push(...result.skipped);
       partitionFiles.push(...result.partitionFiles);
@@ -1157,14 +1240,23 @@ async function main() {
     aggregatedFiles,
     partitionFiles,
   );
+  const validation = buildPipelineValidation(
+    conversions,
+    partitionFiles,
+    options,
+  );
   const report = {
     csvDir: options.csvDir,
     jsonDir: options.jsonDir,
     downloadedFiles: downloads.length,
     convertedFiles: conversions.length,
     skippedFiles: skipped.length,
-    mappedSourceFiles: conversions.filter((conversion) => conversion.panelLayerId).length,
-    unmappedSourceFiles: conversions.filter((conversion) => !conversion.panelLayerId).length,
+    mappedSourceFiles: conversions.filter(
+      (conversion) => conversion.panelLayerId,
+    ).length,
+    unmappedSourceFiles: conversions.filter(
+      (conversion) => !conversion.panelLayerId,
+    ).length,
     aggregatedFiles: aggregatedFiles.length,
     mappedAggregatedFiles: municipalAnalysisManifest.mapped.length,
     unmappedAggregatedFiles: municipalAnalysisManifest.unmapped.length,
@@ -1176,11 +1268,15 @@ async function main() {
     aggregatedFilesDetails: aggregatedFiles,
     partitionFilesDetails: partitionFiles,
     skipped,
+    validation,
   };
 
   await mkdir(resolveWorkspacePath(options.jsonDir), { recursive: true });
   await writeFile(
-    path.join(resolveWorkspacePath(options.jsonDir), "municipal-analysis-manifest.json"),
+    path.join(
+      resolveWorkspacePath(options.jsonDir),
+      "municipal-analysis-manifest.json",
+    ),
     `${JSON.stringify(municipalAnalysisManifest, null, 2)}\n`,
     "utf8",
   );
@@ -1191,6 +1287,12 @@ async function main() {
   );
 
   console.log(JSON.stringify(report, null, 2));
+
+  if (!validation.ok) {
+    throw new Error(
+      `Validação da pipeline falhou: ${JSON.stringify(validation, null, 2)}`,
+    );
+  }
 }
 
 main().catch((error) => {

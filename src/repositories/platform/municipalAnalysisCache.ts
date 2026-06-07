@@ -1,6 +1,9 @@
 import "server-only";
 
-import { getPanelLayerWithMunicipalAnalysis } from "@/repositories/platform/panelLayerRepository";
+import {
+  getPanelLayerWithMunicipalAnalysis,
+  getPanelLayerWithMunicipalAnalysisYear,
+} from "@/repositories/platform/panelLayerRepository";
 import type { PanelLayerI } from "@/utils/interfaces";
 
 const DEFAULT_CACHE_TTL_SECONDS = 600;
@@ -55,12 +58,15 @@ export function getMunicipalAnalysisCacheControlHeader(): string {
   return `public, max-age=${ttlSeconds}, stale-while-revalidate=${STALE_WHILE_REVALIDATE_SECONDS}`;
 }
 
-function logCacheEvent(event: MunicipalAnalysisCacheResult["status"], panelLayerId: string) {
+function logCacheEvent(
+  event: MunicipalAnalysisCacheResult["status"],
+  cacheKey: string,
+) {
   if (process.env.NODE_ENV !== "development" || process.env.VITEST === "true") {
     return;
   }
 
-  console.info(`[municipalAnalysis] cache ${event}: ${panelLayerId}`);
+  console.info(`[municipalAnalysis] cache ${event}: ${cacheKey}`);
 }
 
 function enforceCacheLimit() {
@@ -81,8 +87,11 @@ function enforceCacheLimit() {
 
 async function loadMunicipalAnalysis(
   panelLayerId: string,
+  yearKey?: string,
 ): Promise<MunicipalAnalysisCacheValue> {
-  const layer = await getPanelLayerWithMunicipalAnalysis(panelLayerId);
+  const layer = yearKey
+    ? await getPanelLayerWithMunicipalAnalysisYear(panelLayerId, yearKey)
+    : await getPanelLayerWithMunicipalAnalysis(panelLayerId);
 
   return {
     found: Boolean(layer),
@@ -90,18 +99,21 @@ async function loadMunicipalAnalysis(
   };
 }
 
+function getCacheKey(panelLayerId: string, yearKey?: string): string {
+  return yearKey ? `${panelLayerId}::${yearKey}` : panelLayerId;
+}
+
 export async function getCachedMunicipalAnalysisImageData(
   panelLayerId: string,
+  yearKey?: string,
 ): Promise<MunicipalAnalysisCacheResult> {
   const now = Date.now();
-  const currentEntry = cache.get(panelLayerId);
+  const cacheKey = getCacheKey(panelLayerId, yearKey);
+  const currentEntry = cache.get(cacheKey);
 
-  if (
-    currentEntry?.value &&
-    currentEntry.expiresAt > now
-  ) {
+  if (currentEntry?.value && currentEntry.expiresAt > now) {
     currentEntry.lastAccessedAt = now;
-    logCacheEvent("hit", panelLayerId);
+    logCacheEvent("hit", cacheKey);
 
     return {
       ...currentEntry.value,
@@ -111,7 +123,7 @@ export async function getCachedMunicipalAnalysisImageData(
 
   if (currentEntry?.pending) {
     currentEntry.lastAccessedAt = now;
-    logCacheEvent("deduped", panelLayerId);
+    logCacheEvent("deduped", cacheKey);
 
     return {
       ...(await currentEntry.pending),
@@ -119,22 +131,22 @@ export async function getCachedMunicipalAnalysisImageData(
     };
   }
 
-  logCacheEvent("miss", panelLayerId);
+  logCacheEvent("miss", cacheKey);
 
-  const pending = loadMunicipalAnalysis(panelLayerId);
+  const pending = loadMunicipalAnalysis(panelLayerId, yearKey);
   const entry: MunicipalAnalysisCacheEntry = {
     expiresAt: now + getMunicipalAnalysisCacheTtlSeconds() * 1000,
     lastAccessedAt: now,
     pending,
   };
-  cache.set(panelLayerId, entry);
+  cache.set(cacheKey, entry);
   enforceCacheLimit();
 
   try {
     const value = await pending;
     const completedAt = Date.now();
 
-    cache.set(panelLayerId, {
+    cache.set(cacheKey, {
       expiresAt: completedAt + getMunicipalAnalysisCacheTtlSeconds() * 1000,
       lastAccessedAt: completedAt,
       value,
@@ -146,13 +158,13 @@ export async function getCachedMunicipalAnalysisImageData(
       status: "miss",
     };
   } catch (error) {
-    cache.delete(panelLayerId);
+    cache.delete(cacheKey);
 
-    if (process.env.NODE_ENV === "development" && process.env.VITEST !== "true") {
-      console.warn(
-        `[municipalAnalysis] cache load failed: ${panelLayerId}`,
-        error,
-      );
+    if (
+      process.env.NODE_ENV === "development" &&
+      process.env.VITEST !== "true"
+    ) {
+      console.warn(`[municipalAnalysis] cache load failed: ${cacheKey}`, error);
     }
 
     throw error;
