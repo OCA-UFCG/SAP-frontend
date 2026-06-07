@@ -1,43 +1,64 @@
-# Drive CSV to Contentful JSON
+# Drive CSV -> JSON -> Contentful
 
-Primeira etapa da pipeline Google Drive -> Contentful.
+Esta pasta contem os scripts da pipeline que leva os CSVs gerados no Google
+Earth Engine para entries `municipalAnalysis` no Contentful.
 
-Ela baixa CSVs de uma pasta do Google Drive para uma pasta local, converte os
-dados para `imageData` e grava particoes por `panelLayerId` no formato
-consumido pelos objetos territoriais do Contentful, como `municipalAnalysis`.
+O fluxo tem tres etapas:
 
-## Uso com Google Drive
+1. Baixar os CSVs do Google Drive para uma pasta local.
+2. Converter os CSVs locais em JSONs particionados por `panelLayerId`.
+3. Testar e publicar esses JSONs no Contentful.
+
+Os arquivos gerados pela pipeline ficam em `data/contentful-pipeline` e nao
+devem ser versionados. Eles sao saida local da pipeline.
+
+## Comandos principais
+
+### 1. Baixar do Drive e converter para JSON
 
 ```bash
 npm run pipeline:drive-csv-json
 ```
 
-Se `GOOGLE_DRIVE_ACCESS_TOKEN` e `GOOGLE_DRIVE_API_KEY` nao forem informados, o
-script tenta obter um token com `gcloud auth print-access-token`.
+Esse comando faz duas coisas em sequencia:
 
-Se o `gcloud` responder `invalid_scope` ou `ACCESS_TOKEN_SCOPE_INSUFFICIENT`,
-refaca o login autorizando acesso ao Drive:
+- baixa os CSVs da pasta configurada do Google Drive para
+  `data/contentful-pipeline/csv`;
+- converte os CSVs baixados para JSONs particionados em
+  `data/contentful-pipeline/json/partitions`.
 
-```bash
-gcloud auth login --enable-gdrive-access --force
-```
+Use este comando quando quiser atualizar tudo a partir do Drive.
 
-Por padrao, a pasta do Drive usada e:
+Por padrao, ele usa a pasta:
 
 ```text
 1otPt3-bhLAIaIG15cFUp5wzFdt1ALNOr
 ```
 
-Tambem e possivel informar outra pasta:
+Para usar outra pasta:
 
 ```bash
-npm run pipeline:drive-csv-json -- --folder-url "https://drive.google.com/drive/folders/..."
+npm run pipeline:drive-csv-json -- \
+  --folder-url "https://drive.google.com/drive/folders/..."
 ```
 
-Para pastas publicas, `GOOGLE_DRIVE_API_KEY` tambem pode ser usado no lugar do
-token OAuth.
+### 2. Converter CSV local para JSON particionado
 
-## Uso com CSV local
+```bash
+npm run pipeline:drive-csv-json -- --skip-download
+```
+
+Esse comando nao acessa o Google Drive. Ele usa os CSVs que ja existem em
+`data/contentful-pipeline/csv` e regrava os JSONs particionados em
+`data/contentful-pipeline/json/partitions`.
+
+Use este comando quando:
+
+- os CSVs ja foram baixados antes;
+- voce editou ou adicionou CSVs manualmente na pasta local;
+- quer regenerar os JSONs sem depender do Drive.
+
+Tambem e possivel informar pastas explicitamente:
 
 ```bash
 npm run pipeline:drive-csv-json -- \
@@ -46,86 +67,21 @@ npm run pipeline:drive-csv-json -- \
   --json-dir data/contentful-pipeline/json
 ```
 
-## Saidas
+### 3. Testar a publicacao no Contentful
 
-- CSVs baixados: `data/contentful-pipeline/csv`
-- JSONs particionados: `data/contentful-pipeline/json/partitions`
-- Relatorio: `data/contentful-pipeline/json/conversion-report.json`
-- Manifesto para a proxima etapa: `data/contentful-pipeline/json/municipal-analysis-manifest.json`
-
-Esses arquivos sao gerados localmente e ficam fora do Git via `.gitignore`.
-Versione apenas o codigo da pipeline e gere novamente os dados quando precisar.
-Os nomes de municipios nao sao repetidos nos JSONs gerados: o frontend usa
-`src/data/citiesIndex.json`, ja versionado, para resolver labels municipais, e
-`statesObj` para labels estaduais.
-
-As particoes sao gravadas comprimidas por padrao, em um envelope JSON com
-`type: "territorial-compact-compressed"` e `encoding: "gzip+base64"`. A
-compressao e sem perda; o frontend decodifica o conteudo antes de mesclar com
-o `panelLayer`. O script tenta escrever uma particao por ano calendario, mas se
-o arquivo comprimido passar do limite configurado ele divide automaticamente em
-particoes menores por chave temporal, por exemplo `2021-01`.
-
-O limite padrao por arquivo e `450000` bytes, deixando margem pratica para o
-limite de 1 MB do Contentful e para falhas do Management API com objetos muito
-proximos do limite:
+Para testar todas as camadas sem alterar o Contentful:
 
 ```bash
-npm run pipeline:drive-csv-json -- --max-contentful-json-bytes 450000
+npm run pipeline:contentful-municipal-analysis:dry-run-all
 ```
 
-Se precisar inspecionar o JSON sem compressao durante depuracao local, use
-`--write-raw-partitions`.
+Esse comando le o manifesto gerado em
+`data/contentful-pipeline/json/municipal-analysis-manifest.json` e mostra o que
+seria criado ou atualizado no Contentful.
 
-O fluxo padrao nao escreve JSONs agregados grandes. Se precisar gerar um
-agregado para depuracao local, use `--write-aggregates`.
+Ele nao publica nada.
 
-Arquivos baixados que nao sejam municipio ou estado sao pulados e registrados
-em `skipped` no relatorio. Isso evita que um CSV regional interrompa a
-conversao dos dados municipais.
-
-## Mapeamento para panelLayer
-
-O script tambem gera um manifesto ligando cada JSON convertido ao
-`panelLayerId` que deve receber o `municipalAnalysis` no Contentful. A regra
-inicial usa palavras-chave no nome do CSV:
-
-- `CDI` -> `CDI_Test`
-- `GPP` -> `prodprimariabruta`
-- `CobTerra` ou `CoberturaTerra` -> `terraibge`
-- `Carbono` -> `carbonoembrapa`
-- `IA` -> `indicearidez`
-- `IDT` -> `deg`
-- `ODS` -> `ods`
-- `cemaden` -> `cemadenseca`
-- `ANA` -> `anaseca`
-
-Arquivos que nao casam com essas regras entram em `unmapped` no manifesto.
-
-## Teste/update no Contentful
-
-Para localizar o `municipalAnalysis` existente e validar o payload gerado sem
-alterar o Contentful:
-
-```bash
-npm run pipeline:contentful-municipal-analysis -- --panel-layer-id CDI_Test --dry-run
-```
-
-O modo antigo de atualizar um unico `imageData` agregado continua disponivel
-apenas quando um caminho for informado manualmente ou quando a geracao for feita
-com `--write-aggregates`. Defina `CONTENTFUL_MANAGEMENT_TOKEN` no ambiente e
-rode sem `--dry-run`:
-
-```bash
-npm run pipeline:contentful-municipal-analysis -- --panel-layer-id CDI_Test
-```
-
-O update usa JSON Patch no campo `imageData`. Use `--publish` para publicar a
-entry depois da atualizacao.
-
-Para payloads grandes, use o modo particionado. Ele cria/atualiza uma entry por
-particao do manifesto, todas com o mesmo `panelLayerId`; o frontend mescla
-essas entries em tempo de leitura:
+Para testar apenas uma camada:
 
 ```bash
 npm run pipeline:contentful-municipal-analysis -- \
@@ -134,7 +90,24 @@ npm run pipeline:contentful-municipal-analysis -- \
   --dry-run
 ```
 
-Para gravar e publicar as particoes:
+### 4. Publicar no Contentful
+
+Para publicar todas as camadas mapeadas no manifesto:
+
+```bash
+npm run pipeline:contentful-municipal-analysis:publish-all
+```
+
+Esse comando:
+
+- le os JSONs particionados gerados na etapa anterior;
+- cria ou atualiza uma entry `municipalAnalysis` por particao;
+- publica cada entry;
+- espera um pequeno intervalo entre escritas para reduzir erros do Contentful;
+- tenta novamente automaticamente respostas temporarias como `429`, `500`,
+  `502`, `503` e `504`.
+
+Para publicar apenas uma camada:
 
 ```bash
 npm run pipeline:contentful-municipal-analysis -- \
@@ -143,25 +116,140 @@ npm run pipeline:contentful-municipal-analysis -- \
   --publish
 ```
 
-Para revisar todas as camadas mapeadas no manifesto sem alterar o Contentful:
+## Arquivos gerados
 
-```bash
-npm run pipeline:contentful-municipal-analysis:dry-run-all
+Depois da conversao, a estrutura principal fica assim:
+
+```text
+data/contentful-pipeline/
+  csv/
+    arquivos baixados do Drive
+  json/
+    conversion-report.json
+    municipal-analysis-manifest.json
+    partitions/
+      municipal-analysis.<panelLayerId>.<particao>.municipality.imageData.json
 ```
 
-Para publicar todas as camadas mapeadas no manifesto:
+Arquivos importantes:
+
+- `csv/`: CSVs baixados do Google Drive ou colocados localmente.
+- `json/partitions/`: JSONs que serao enviados ao Contentful.
+- `json/conversion-report.json`: relatorio detalhado da conversao.
+- `json/municipal-analysis-manifest.json`: lista as particoes geradas e o
+  `panelLayerId` de destino de cada uma.
+
+## Variaveis de ambiente
+
+Para baixar arquivos do Drive:
 
 ```bash
-npm run pipeline:contentful-municipal-analysis:publish-all
+GOOGLE_DRIVE_ACCESS_TOKEN
+GOOGLE_DRIVE_API_KEY
+GOOGLE_DRIVE_FOLDER_ID
 ```
 
-Esse comando cria ou atualiza uma entry por particao e publica cada uma. Entre
-os writes ele faz uma pausa curta e tambem tenta novamente respostas
-temporarias do Contentful, como `429`, `500`, `502`, `503` e `504`.
-Entries antigas com o mesmo `panelLayerId` que nao correspondem mais a uma
-particao do manifesto nao sao apagadas; elas tem o `panelLayerId` alterado para
-`<panelLayerId>_legacy_disabled`, evitando que o frontend mescle dados antigos
-com os dados particionados atuais.
+Normalmente basta `GOOGLE_DRIVE_ACCESS_TOKEN`. Se token e API key nao forem
+informados, o script tenta obter um token com:
+
+```bash
+gcloud auth print-access-token
+```
+
+Se o token nao tiver permissao de Drive, refaca o login:
+
+```bash
+gcloud auth login --enable-gdrive-access --force
+```
+
+Para publicar no Contentful:
+
+```bash
+CONTENTFUL_MANAGEMENT_TOKEN
+CONTENTFUL_SPACE_ID
+CONTENTFUL_ENVIRONMENT
+CONTENTFUL_ACCESS_TOKEN
+```
+
+As variaveis `NEXT_PUBLIC_CONTENTFUL_*` tambem sao aceitas como fallback local
+quando ja existem no projeto.
+
+## Como os arquivos sao mapeados para camadas
+
+O script identifica a camada a partir de palavras-chave no nome do CSV.
+
+| Palavra no nome do arquivo | `panelLayerId` |
+| --- | --- |
+| `Carbono` | `carbonoembrapa` |
+| `CDI` | `CDI_Test` |
+| `CobTerra` ou `CoberturaTerra` | `terraibge` |
+| `GPP` | `prodprimariabruta` |
+| `IA` | `indicearidez` |
+| `IDT` | `deg` |
+| `ODS` | `ods` |
+| `cemaden` | `cemadenseca` |
+| `ANA` | `anaseca` |
+
+Arquivos que nao casam com essas regras entram como `unmapped` no manifesto e
+nao sao publicados pelos comandos `dry-run-all` e `publish-all`.
+
+## Como os JSONs sao particionados
+
+O Contentful nao aceita objetos JSON muito grandes. Por isso, a pipeline nao
+gera um unico JSON gigante por camada.
+
+Ela gera particoes menores:
+
+- normalmente uma particao por ano;
+- se o ano ainda ficar grande demais, uma particao por chave temporal, como
+  `2021-01`.
+
+Cada particao e comprimida sem perda em um envelope:
+
+```json
+{
+  "type": "territorial-compact-compressed",
+  "encoding": "gzip+base64"
+}
+```
+
+O limite padrao por JSON gerado e `450000` bytes:
+
+```bash
+npm run pipeline:drive-csv-json -- --max-contentful-json-bytes 450000
+```
+
+Para depuracao local, e possivel gravar particoes sem compressao:
+
+```bash
+npm run pipeline:drive-csv-json -- --skip-download --write-raw-partitions
+```
+
+## Relacao com `panelLayer`
+
+`municipalAnalysis` guarda os dados municipais ou estaduais usados no
+detalhamento.
+
+O asset do Google Earth Engine usado para visualizar a camada no mapa continua
+vindo do `panelLayer`.
+
+Por isso, se existir dado municipal para `2026-03`, mas o `panelLayer` da camada
+so tiver asset ate `2026-02`, a aplicacao so exibira ate `2026-02`. A pipeline
+de `municipalAnalysis` nao cria assets no `panelLayer`.
+
+## Entries antigas no Contentful
+
+Quando o modo particionado encontra entries antigas com o mesmo `panelLayerId`
+que nao correspondem mais ao manifesto atual, elas nao sao apagadas.
+
+O script altera o `panelLayerId` dessas entries para:
+
+```text
+<panelLayerId>_legacy_disabled
+```
+
+Isso evita que o frontend misture dados antigos com os dados particionados
+atuais.
 
 ## Contrato esperado do CSV
 
