@@ -93,14 +93,20 @@ See `tools/drive-contentful-pipeline/README.md` for the full command contract,
 environment variables, mapping rules, partitioning behavior, and Contentful
 publication details.
 
+The publish dry-run is the required safety check before writing to Contentful.
+It validates the manifest, rejects ambiguous partitions that the runtime route
+could not distinguish by `panelLayerId` and `year`, and verifies that compressed
+`imageData` payloads can be decompressed back to `territorial-compact` data.
+
 At runtime, `/platform` does not load every `municipalAnalysis` entry upfront.
 The analysis panel lazy-loads municipal data by layer and selected period
 through `/api/municipal-analysis/[panelLayerId]?year=<yearKey>`. That server
 route fetches the needed Contentful partition, decompresses and merges it with
 the matching `panelLayer` year, and keeps the result in a per-process in-memory
-cache for 10 minutes by default. The route still supports requests without
-`year` as a compatibility fallback, but the client should use period-scoped
-requests.
+cache for 10 minutes by default. If a refresh fails after the TTL, the cache can
+serve the expired value for that key while the next request tries Contentful
+again. The route still supports requests without `year` as a compatibility
+fallback, but the client should use period-scoped requests.
 Set `MUNICIPAL_ANALYSIS_CACHE_TTL_SECONDS` or
 `MUNICIPAL_ANALYSIS_CACHE_MAX_ENTRIES` to tune that behavior.
 The endpoint is protected server-side and returns private HTTP cache headers;

@@ -22,7 +22,7 @@ import type { PlatformSection } from "@/components/PlatformSideRail/PlatformSide
 import type { PanelLayerI, IEEInfo } from "@/utils/interfaces";
 import type { CompactTerritorialAnalysisDataset } from "@/utils/analysis";
 import { statesObj } from "@/utils/constants";
-import { isCompactImageData } from "@/utils/imageData";
+import { mergePartialMunicipalImageData } from "@/utils/municipalAnalysisMerge";
 
 interface MunicipalAnalysisApiResponse {
   imageData?: PanelLayerI["imageData"] | null;
@@ -30,48 +30,6 @@ interface MunicipalAnalysisApiResponse {
 
 function getMunicipalAnalysisRequestKey(layerId: string, yearKey: string) {
   return `${layerId}::${yearKey}`;
-}
-
-function mergePartialMunicipalImageData(
-  baseImageData: PanelLayerI["imageData"],
-  partialImageData: PanelLayerI["imageData"] | null,
-): PanelLayerI["imageData"] {
-  if (!partialImageData) {
-    return baseImageData;
-  }
-
-  if (
-    !isCompactImageData(baseImageData) ||
-    !isCompactImageData(partialImageData)
-  ) {
-    return partialImageData;
-  }
-
-  return {
-    ...baseImageData,
-    locations: {
-      ...(baseImageData.locations ?? {}),
-      ...(partialImageData.locations ?? {}),
-    },
-    templates:
-      baseImageData.templates || partialImageData.templates
-        ? {
-            ...(baseImageData.templates ?? {}),
-            ...(partialImageData.templates ?? {}),
-          }
-        : undefined,
-    ranking:
-      baseImageData.ranking || partialImageData.ranking
-        ? {
-            ...(baseImageData.ranking ?? {}),
-            ...(partialImageData.ranking ?? {}),
-          }
-        : undefined,
-    years: {
-      ...baseImageData.years,
-      ...partialImageData.years,
-    },
-  };
 }
 
 export interface AnalysisContextProps {

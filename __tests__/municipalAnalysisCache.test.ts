@@ -231,6 +231,26 @@ describe("municipalAnalysisCache", () => {
     );
   });
 
+  it("serves stale municipal analysis when refresh fails after TTL", async () => {
+    vi.useFakeTimers();
+    process.env.MUNICIPAL_ANALYSIS_CACHE_TTL_SECONDS = "1";
+    mockedGetPanelLayerWithMunicipalAnalysisYear
+      .mockResolvedValueOnce(buildLayer("CDI_Test", { br: [10, 90] }))
+      .mockRejectedValueOnce(new Error("Contentful unavailable"));
+
+    const first = await getCachedMunicipalAnalysisImageData("CDI_Test", "2026");
+    vi.advanceTimersByTime(1001);
+    const stale = await getCachedMunicipalAnalysisImageData("CDI_Test", "2026");
+
+    expect(first.status).toBe("miss");
+    expect(stale.status).toBe("stale");
+    expect(stale.found).toBe(true);
+    expect(stale.imageData).toBe(first.imageData);
+    expect(mockedGetPanelLayerWithMunicipalAnalysisYear).toHaveBeenCalledTimes(
+      2,
+    );
+  });
+
   it("keeps the legacy full-layer loader when no year is provided", async () => {
     mockedGetPanelLayerWithMunicipalAnalysis.mockResolvedValue(
       buildLayer("CDI_Test"),

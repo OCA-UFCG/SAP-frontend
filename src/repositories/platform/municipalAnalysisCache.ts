@@ -23,7 +23,7 @@ interface MunicipalAnalysisCacheEntry {
 }
 
 interface MunicipalAnalysisCacheResult extends MunicipalAnalysisCacheValue {
-  status: "hit" | "miss" | "deduped";
+  status: "hit" | "miss" | "deduped" | "stale";
 }
 
 const cache = new Map<string, MunicipalAnalysisCacheEntry>();
@@ -158,6 +158,31 @@ export async function getCachedMunicipalAnalysisImageData(
       status: "miss",
     };
   } catch (error) {
+    if (currentEntry?.value) {
+      const failedAt = Date.now();
+
+      cache.set(cacheKey, {
+        expiresAt: failedAt,
+        lastAccessedAt: failedAt,
+        value: currentEntry.value,
+      });
+
+      if (
+        process.env.NODE_ENV === "development" &&
+        process.env.VITEST !== "true"
+      ) {
+        console.warn(
+          `[municipalAnalysis] cache refresh failed; serving stale value: ${cacheKey}`,
+          error,
+        );
+      }
+
+      return {
+        ...currentEntry.value,
+        status: "stale",
+      };
+    }
+
     cache.delete(cacheKey);
 
     if (

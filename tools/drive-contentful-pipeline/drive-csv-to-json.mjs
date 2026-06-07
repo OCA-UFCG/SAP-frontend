@@ -778,6 +778,7 @@ async function writePartitionFile({
   options,
 }) {
   const uniquePartitionKey = `${group.panelLayerId ?? group.sourceCsvPaths[0]}::${conversion.territory}::${partitionKey}`;
+  const routePartitionKey = `${group.panelLayerId ?? group.sourceCsvPaths[0]}::${partitionKey}`;
 
   if (writtenPartitions.has(uniquePartitionKey)) {
     throw new Error(
@@ -786,6 +787,14 @@ async function writePartitionFile({
   }
 
   writtenPartitions.add(uniquePartitionKey);
+
+  if (writtenPartitions.has(routePartitionKey)) {
+    throw new Error(
+      `Partição ambígua para rota ${routePartitionKey} ao processar ${conversion.inputPath}. Use partitionKey exclusivo por panelLayerId.`,
+    );
+  }
+
+  writtenPartitions.add(routePartitionKey);
 
   const { outputPayload, rawBytes, outputBytes } = buildPartitionPayload(
     conversion,
@@ -1056,7 +1065,7 @@ async function writeAggregatedGroup(group, jsonDir, partitionDir, options) {
         outputPath: path.relative(process.cwd(), outputPath),
         sourceCsvPaths: conversions.map((conversion) => conversion.inputPath),
         classColumnsBySource,
-        locationCount: Object.keys(baseLocations).length,
+        locationCount: conversions[0]?.locationCount ?? 0,
         yearKeys: Array.from(yearKeys).sort(),
       },
     };
@@ -1146,7 +1155,12 @@ function toReportConversion(conversion) {
   return reportConversion;
 }
 
-function buildPipelineValidation(conversions, partitionFiles, options) {
+function buildPipelineValidation(
+  conversions,
+  partitionFiles,
+  skipped,
+  options,
+) {
   const mappedConversions = conversions.filter(
     (conversion) => conversion.panelLayerId,
   );
@@ -1165,14 +1179,20 @@ function buildPipelineValidation(conversions, partitionFiles, options) {
       outputBytes: partition.outputBytes,
       maxContentfulJsonBytes: options.maxContentfulJsonBytes,
     }));
+  const skippedCsvs = skipped.map((item) => ({
+    inputPath: item.inputPath,
+    reason: item.reason,
+  }));
 
   return {
     ok:
       mappedSourcesWithoutPartitions.length === 0 &&
-      oversizedPartitions.length === 0,
+      oversizedPartitions.length === 0 &&
+      skippedCsvs.length === 0,
     maxContentfulJsonBytes: options.maxContentfulJsonBytes,
     mappedSourcesWithoutPartitions,
     oversizedPartitions,
+    skippedCsvs,
   };
 }
 
@@ -1243,6 +1263,7 @@ async function main() {
   const validation = buildPipelineValidation(
     conversions,
     partitionFiles,
+    skipped,
     options,
   );
   const report = {

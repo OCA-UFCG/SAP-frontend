@@ -272,9 +272,12 @@ pode ser publicada, mas a aplicacao nao conseguira exibir aquele periodo ate o
 `panelLayer` ser atualizado.
 
 Antes de sincronizar particoes, o script valida o manifesto contra duplicidades,
-campos obrigatorios, arquivos ausentes e formato basico do `imageData`. Essas
-validacoes bloqueiam a publicacao quando indicam que a estrutura enviada ao
-Contentful esta inconsistente.
+particoes ambiguas para a rota (`panelLayerId + partitionKey`), campos
+obrigatorios, arquivos ausentes e formato do `imageData`. Envelopes
+`gzip+base64` tambem sao descomprimidos no dry-run para confirmar que carregam
+um payload `territorial-compact` com `years`. Essas validacoes bloqueiam a
+publicacao quando indicam que a estrutura enviada ao Contentful esta
+inconsistente.
 
 ## Contrato esperado do CSV
 
@@ -326,7 +329,10 @@ Comportamento padrao:
 - Limite: `20` recortes camada/periodo em cache por processo Node.
 - Requests concorrentes para a mesma camada e periodo compartilham a mesma
   busca.
-- Erros de busca/descompressao nao ficam cacheados.
+- Erros de busca/descompressao nao ficam cacheados quando nao ha valor anterior.
+- Se uma recarga falhar depois do TTL e ja existir valor antigo para a chave, a
+  rota pode servir esse valor expirado como fallback enquanto a proxima chamada
+  tenta carregar novamente.
 - Cada replica do servidor tem seu proprio cache em memoria.
 
 Variaveis para ajuste:

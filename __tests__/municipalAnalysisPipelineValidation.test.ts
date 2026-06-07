@@ -1,13 +1,25 @@
 import { describe, expect, it } from "vitest";
+import { gzipSync } from "node:zlib";
 import {
   validateMunicipalAnalysisImageData,
   validateMunicipalAnalysisManifest,
 } from "../tools/drive-contentful-pipeline/contentful-update-municipal-analysis.mjs";
 
+function compressImageData(imageData: unknown) {
+  const compressed = gzipSync(Buffer.from(JSON.stringify(imageData), "utf8"));
+
+  return compressed.toString("base64");
+}
+
 const validCompressedImageData = {
   type: "territorial-compact-compressed",
   encoding: "gzip+base64",
-  data: ["H4sI"],
+  data: [
+    compressImageData({
+      type: "territorial-compact",
+      years: {},
+    }),
+  ],
 };
 
 const validPlainImageData = {
@@ -17,9 +29,9 @@ const validPlainImageData = {
 
 describe("municipal analysis pipeline validation", () => {
   it("accepts compressed and plain municipal analysis imageData payloads", () => {
-    expect(validateMunicipalAnalysisImageData(validCompressedImageData)).toEqual(
-      [],
-    );
+    expect(
+      validateMunicipalAnalysisImageData(validCompressedImageData),
+    ).toEqual([]);
     expect(validateMunicipalAnalysisImageData(validPlainImageData)).toEqual([]);
   });
 
@@ -27,6 +39,16 @@ describe("municipal analysis pipeline validation", () => {
     expect(validateMunicipalAnalysisImageData({ type: "unexpected" })).toEqual([
       "imageData deve ser territorial-compact ou envelope gzip+base64 territorial-compact-compressed.",
     ]);
+  });
+
+  it("rejects compressed imageData payloads that cannot be decoded", () => {
+    expect(
+      validateMunicipalAnalysisImageData({
+        type: "territorial-compact-compressed",
+        encoding: "gzip+base64",
+        data: ["H4sI"],
+      }),
+    ).toEqual([expect.stringContaining("payload gzip+base64 inválido:")]);
   });
 
   it("validates manifest partitions, duplicate keys, files and payload shape", async () => {
@@ -55,7 +77,7 @@ describe("municipal analysis pipeline validation", () => {
           panelLayerId: "CDI_Test",
           partitionKey: "2026",
           calendarYear: "2026",
-          territory: "municipality",
+          territory: "state",
           imageDataPath: "invalid.json",
           yearKeys: ["2026"],
         },
@@ -87,7 +109,7 @@ describe("municipal analysis pipeline validation", () => {
     expect(validation.ok).toBe(false);
     expect(validation.errors).toEqual(
       expect.arrayContaining([
-        "partitions[1]: partição duplicada para CDI_Test::2026::municipality.",
+        "partitions[1]: partição ambígua para rota CDI_Test::2026; use partitionKey exclusivo por panelLayerId.",
         "partitions[1].imageData: imageData deve ser territorial-compact ou envelope gzip+base64 territorial-compact-compressed.",
         "partitions[2].imageDataPath: não foi possível ler missing.json: missing file",
         "partitions[3].partitionKey: campo obrigatório ausente.",

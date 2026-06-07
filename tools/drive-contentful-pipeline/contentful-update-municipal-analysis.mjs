@@ -3,6 +3,7 @@
 import { readFile } from "node:fs/promises";
 import path from "node:path";
 import { pathToFileURL } from "node:url";
+import { gunzipSync } from "node:zlib";
 
 const DEFAULT_JSON_DIR = "data/contentful-pipeline/json";
 const DEFAULT_PANEL_LAYER_ID = "CDI_Test";
@@ -208,19 +209,52 @@ function isCompressedMunicipalAnalysisImageData(value) {
 }
 
 function isPlainMunicipalAnalysisImageData(value) {
-  return isRecord(value) && value.type === "territorial-compact";
+  return (
+    isRecord(value) &&
+    value.type === "territorial-compact" &&
+    isRecord(value.years)
+  );
+}
+
+function decodeCompressedMunicipalAnalysisImageData(imageData) {
+  const encoded = Array.isArray(imageData.data)
+    ? imageData.data.join("")
+    : imageData.data;
+
+  return JSON.parse(
+    gunzipSync(Buffer.from(encoded, "base64")).toString("utf8"),
+  );
 }
 
 export function validateMunicipalAnalysisImageData(imageData, context = "") {
-  if (
-    isCompressedMunicipalAnalysisImageData(imageData) ||
-    isPlainMunicipalAnalysisImageData(imageData)
-  ) {
+  const prefix = context ? `${context}: ` : "";
+
+  if (isPlainMunicipalAnalysisImageData(imageData)) {
     return [];
   }
 
+  if (isCompressedMunicipalAnalysisImageData(imageData)) {
+    try {
+      const decoded = decodeCompressedMunicipalAnalysisImageData(imageData);
+
+      if (isPlainMunicipalAnalysisImageData(decoded)) {
+        return [];
+      }
+
+      return [
+        `${prefix}payload gzip+base64 deve descomprimir para territorial-compact com years.`,
+      ];
+    } catch (error) {
+      return [
+        `${prefix}payload gzip+base64 inválido: ${
+          error instanceof Error ? error.message : String(error)
+        }`,
+      ];
+    }
+  }
+
   return [
-    `${context ? `${context}: ` : ""}imageData deve ser territorial-compact ou envelope gzip+base64 territorial-compact-compressed.`,
+    `${prefix}imageData deve ser territorial-compact ou envelope gzip+base64 territorial-compact-compressed.`,
   ];
 }
 
@@ -275,6 +309,7 @@ export async function validateMunicipalAnalysisManifest(
     ? manifest.partitions
     : [];
   const partitionKeys = new Set();
+  const routePartitionKeys = new Set();
 
   if (partitions.length === 0) {
     warnings.push("Manifesto sem partições mapeadas.");
@@ -292,6 +327,10 @@ export async function validateMunicipalAnalysisManifest(
       partition.partitionKey,
       partition.territory,
     ].join("::");
+    const routePartitionKey = [
+      partition.panelLayerId,
+      partition.partitionKey,
+    ].join("::");
 
     if (partitionKeys.has(duplicateKey)) {
       errors.push(
@@ -299,6 +338,14 @@ export async function validateMunicipalAnalysisManifest(
       );
     } else {
       partitionKeys.add(duplicateKey);
+    }
+
+    if (routePartitionKeys.has(routePartitionKey)) {
+      errors.push(
+        `partitions[${index}]: partição ambígua para rota ${routePartitionKey}; use partitionKey exclusivo por panelLayerId.`,
+      );
+    } else {
+      routePartitionKeys.add(routePartitionKey);
     }
 
     if (typeof partition.imageDataPath !== "string") {
@@ -1248,7 +1295,10 @@ async function main() {
   );
 }
 
-if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href) {
+if (
+  process.argv[1] &&
+  import.meta.url === pathToFileURL(process.argv[1]).href
+) {
   main().catch((error) => {
     console.error(error instanceof Error ? error.message : error);
     process.exitCode = 1;
