@@ -1,12 +1,13 @@
 # Drive CSV -> JSON -> Contentful
 
 Esta pasta contem os scripts da pipeline que leva os CSVs gerados no Google
-Earth Engine para entries `municipalAnalysis` no Contentful.
+Earth Engine para entries `panelLayer` e `municipalAnalysis` no Contentful.
 
 O fluxo tem tres etapas:
 
 1. Baixar os CSVs do Google Drive para uma pasta local.
-2. Converter os CSVs locais em JSONs particionados por `panelLayerId`.
+2. Converter os CSVs locais em JSONs de `panelLayer.imageData` e particoes de
+   `municipalAnalysis`.
 3. Testar e publicar esses JSONs no Contentful.
 
 Os arquivos gerados pela pipeline ficam em `data/contentful-pipeline` e nao
@@ -24,7 +25,9 @@ Esse comando faz duas coisas em sequencia:
 
 - baixa os CSVs da pasta configurada do Google Drive para
   `data/contentful-pipeline/csv`;
-- converte os CSVs baixados para JSONs particionados em
+- converte os CSVs baixados para JSONs de `panelLayer.imageData` em
+  `data/contentful-pipeline/json/panel-layers`;
+- converte os CSVs municipais/estaduais para JSONs particionados em
   `data/contentful-pipeline/json/partitions`.
 
 Use este comando quando quiser atualizar tudo a partir do Drive.
@@ -67,7 +70,42 @@ npm run pipeline:drive-csv-json -- \
   --json-dir data/contentful-pipeline/json
 ```
 
-### 3. Testar a publicacao no Contentful
+### 3. Testar a publicacao dos `panelLayer`
+
+Para testar todos os `panelLayer.imageData` gerados sem alterar o Contentful:
+
+```bash
+npm run pipeline:contentful-panel-layer:dry-run-all
+```
+
+Para testar apenas uma camada:
+
+```bash
+npm run pipeline:contentful-panel-layer -- \
+  --panel-layer-id pob_total \
+  --dry-run
+```
+
+### 4. Publicar os `panelLayer`
+
+Para publicar todos os `panelLayer.imageData` gerados:
+
+```bash
+npm run pipeline:contentful-panel-layer:publish-all
+```
+
+Para publicar apenas uma camada:
+
+```bash
+npm run pipeline:contentful-panel-layer -- \
+  --panel-layer-id pob_total \
+  --publish
+```
+
+Esse comando atualiza o campo `imageData` da entry `panelLayer` cujo campo `id`
+bate com `--panel-layer-id`.
+
+### 5. Testar a publicacao das particoes `municipalAnalysis`
 
 Para testar todas as camadas sem alterar o Contentful:
 
@@ -90,7 +128,7 @@ npm run pipeline:contentful-municipal-analysis -- \
   --dry-run
 ```
 
-### 4. Publicar no Contentful
+### 6. Publicar as particoes `municipalAnalysis`
 
 Para publicar todas as camadas mapeadas no manifesto:
 
@@ -127,6 +165,9 @@ data/contentful-pipeline/
   json/
     conversion-report.json
     municipal-analysis-manifest.json
+    panel-layer-imageData-manifest.json
+    panel-layers/
+      panel-layer.<panelLayerId>.imageData.json
     partitions/
       municipal-analysis.<panelLayerId>.<particao>.municipality.imageData.json
 ```
@@ -134,10 +175,14 @@ data/contentful-pipeline/
 Arquivos importantes:
 
 - `csv/`: CSVs baixados do Google Drive ou colocados localmente.
-- `json/partitions/`: JSONs que serao enviados ao Contentful.
+- `json/panel-layers/`: JSONs que serao enviados ao campo `imageData` de
+  `panelLayer`.
+- `json/partitions/`: JSONs que serao enviados a entries `municipalAnalysis`.
 - `json/conversion-report.json`: relatorio detalhado da conversao.
 - `json/municipal-analysis-manifest.json`: lista as particoes geradas e o
   `panelLayerId` de destino de cada uma.
+- `json/panel-layer-imageData-manifest.json`: lista os JSONs gerados para
+  atualizar `panelLayer.imageData`.
 
 ## Variaveis de ambiente
 
@@ -190,9 +235,21 @@ O script identifica a camada a partir de palavras-chave no nome do CSV.
 | `ODS`                          | `ods`               |
 | `cemaden`                      | `cemadenseca`       |
 | `ANA`                          | `anaseca`           |
+| `pob` ou `populacao`           | `pob_total`         |
 
-Arquivos que nao casam com essas regras entram como `unmapped` no manifesto e
-nao sao publicados pelos comandos `dry-run-all` e `publish-all`.
+Arquivos municipais/estaduais que nao casam com essas regras entram como
+`unmapped` no manifesto e nao sao publicados pelos comandos `dry-run-all` e
+`publish-all`.
+
+CSVs de `panelLayer` usam outro contrato: precisam ter `location_key`,
+`location_name`, `ano` e `valor_classe_N`. Para `pob_total`, a pipeline tambem
+valida que `valor_classe_N` esteja no intervalo `0..100`, porque o asset do GEE
+visualizado no mapa usa essa escala. Nessa camada, o valor representa o
+percentual de familias inscritas no CadUnico que se encontram em situacao de
+pobreza, nao o percentual de todas as familias do territorio. Se o CSV tiver
+valores somados por estado, a conversao falha antes de gerar um JSON publicavel.
+A legenda publicada para `pob_total` usa apenas faixas dentro dessa escala:
+`0-20`, `20-40`, `40-60`, `60-80` e `80-100`.
 
 ## Como os JSONs sao particionados
 
@@ -233,6 +290,10 @@ detalhamento.
 
 O asset do Google Earth Engine usado para visualizar a camada no mapa continua
 vindo do `panelLayer`.
+
+Quando houver CSV de `panelLayer`, publique primeiro o `panelLayer.imageData` e
+depois as particoes `municipalAnalysis`. Assim a validacao de anos das
+particoes encontra os anos recem-publicados no `panelLayer`.
 
 Por isso, se existir dado municipal para `2026-03`, mas o `panelLayer` da camada
 so tiver asset ate `2026-02`, a aplicacao so exibira ate `2026-02`. A pipeline
@@ -287,19 +348,21 @@ Para municipios:
 - `NM_MUN`
 - `SIGLA_UF`
 - `data_img` no formato `YYYY-MM-DD`
-- `perc_classe_0`, `perc_classe_1`, ... ou `area_ha_classe_N` com
-  `area_total_ha`
+- `perc_classe_0`, `perc_classe_1`, ... para percentuais; ou
+  `valor_classe_0`, `valor_classe_1`, ... para valores absolutos; ou
+  `area_ha_classe_N` com `area_total_ha`
 
 Para estados:
 
 - `SIGLA_UF`
 - `NM_UF` ou `NOME_UF`
 - `data_img` no formato `YYYY-MM-DD`
-- `perc_classe_0`, `perc_classe_1`, ... ou `area_ha_classe_N` com
-  `area_total_ha`
+- `perc_classe_0`, `perc_classe_1`, ... para percentuais; ou
+  `valor_classe_0`, `valor_classe_1`, ... para valores absolutos; ou
+  `area_ha_classe_N` com `area_total_ha`
 
 Os arrays em `years[*].values` seguem a ordem numerica das colunas
-`perc_classe_N` ou `area_ha_classe_N`.
+`perc_classe_N`, `valor_classe_N` ou `area_ha_classe_N`.
 
 ## Como o frontend consome esses dados
 

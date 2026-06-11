@@ -27,17 +27,40 @@ const validPlainImageData = {
   years: {},
 };
 
+const validCompressedPatchImageData = {
+  type: "territorial-compact-compressed",
+  encoding: "gzip+base64",
+  data: [
+    compressImageData({
+      templates: {
+        municipality: "template",
+      },
+      years: {
+        "2025": {
+          valuesScale: 1,
+          values: {
+            "2507507": [1],
+          },
+        },
+      },
+    }),
+  ],
+};
+
 describe("municipal analysis pipeline validation", () => {
-  it("accepts compressed and plain municipal analysis imageData payloads", () => {
+  it("accepts compressed, plain and partition patch municipal analysis payloads", () => {
     expect(
       validateMunicipalAnalysisImageData(validCompressedImageData),
     ).toEqual([]);
     expect(validateMunicipalAnalysisImageData(validPlainImageData)).toEqual([]);
+    expect(
+      validateMunicipalAnalysisImageData(validCompressedPatchImageData),
+    ).toEqual([]);
   });
 
   it("rejects imageData payloads without the expected contract", () => {
     expect(validateMunicipalAnalysisImageData({ type: "unexpected" })).toEqual([
-      "imageData deve ser territorial-compact ou envelope gzip+base64 territorial-compact-compressed.",
+      "imageData deve ter years ou ser envelope gzip+base64 territorial-compact-compressed.",
     ]);
   });
 
@@ -110,7 +133,7 @@ describe("municipal analysis pipeline validation", () => {
     expect(validation.errors).toEqual(
       expect.arrayContaining([
         "partitions[1]: partição ambígua para rota CDI_Test::2026; use partitionKey exclusivo por panelLayerId.",
-        "partitions[1].imageData: imageData deve ser territorial-compact ou envelope gzip+base64 territorial-compact-compressed.",
+        "partitions[1].imageData: imageData deve ter years ou ser envelope gzip+base64 territorial-compact-compressed.",
         "partitions[2].imageDataPath: não foi possível ler missing.json: missing file",
         "partitions[3].partitionKey: campo obrigatório ausente.",
         "partitions[3].yearKeys: deve ser uma lista não vazia de strings.",

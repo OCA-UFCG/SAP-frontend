@@ -69,4 +69,36 @@ describe("Earth Engine map visualization planning", () => {
       },
     });
   });
+
+  it("keeps feature collection visualization metadata in the resolved plan", () => {
+    const plan = resolveMapVisualizationPlan(
+      {
+        sourceType: "featureCollection",
+        property: "2025",
+        min: 0,
+        max: 100,
+        palette: ["#ffffcc", "#bd0026"],
+        legend: [
+          { id: "low", label: "Baixo", color: "#ffffcc" },
+          { id: "high", label: "Alto", color: "#bd0026" },
+        ],
+        outline: { color: "#000000", width: 0.5, opacity: 1 },
+      },
+      [],
+      0,
+      100,
+    );
+
+    expect(plan).toEqual({
+      sourceType: "featureCollection",
+      property: "2025",
+      sourceBand: undefined,
+      outline: { color: "#000000", width: 0.5, opacity: 1 },
+      visParams: {
+        min: 0,
+        max: 100,
+        palette: ["#ffffcc", "#bd0026"],
+      },
+    });
+  });
 });

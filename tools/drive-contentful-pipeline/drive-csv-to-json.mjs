@@ -21,10 +21,61 @@ const DEFAULT_MAX_CONTENTFUL_JSON_BYTES = 450_000;
 const COMPRESSED_DATA_CHUNK_SIZE = 30_000;
 const DRIVE_API_BASE_URL = "https://www.googleapis.com/drive/v3";
 const execFileAsync = promisify(execFile);
+const POB_TOTAL_ASSET_ID = "projects/ee-ulissesalencar17/assets/pob_total";
 const MUNICIPALITY_TEMPLATE =
   "No município de {name}, predomina a classe {label} com {value}% da área analisada.";
 const STATE_TEMPLATE =
   "Em {name}, predomina a classe {label} com {value}% da área analisada.";
+const CADUNICO_POVERTY_LABEL =
+  "Famílias inscritas no CadÚnico em situação de pobreza";
+const CADUNICO_POVERTY_TEMPLATE =
+  "Percentual de famílias inscritas no CadÚnico em situação de pobreza em {name}: {value}%.";
+const POPULATION_PANEL_LAYER_CONFIG = {
+  classes: [
+    {
+      id: "familias-cadunico-pobreza",
+      label: CADUNICO_POVERTY_LABEL,
+      color: "#bd0026",
+    },
+  ],
+  templates: {
+    country: CADUNICO_POVERTY_TEMPLATE,
+    state: CADUNICO_POVERTY_TEMPLATE,
+    municipality: CADUNICO_POVERTY_TEMPLATE,
+    highlight: CADUNICO_POVERTY_LABEL,
+  },
+  ranking: {
+    title: "Estados por percentual de famílias CadÚnico em pobreza",
+    totalLabel: "Estados",
+  },
+  mapVisualization: {
+    sourceType: "featureCollection",
+    property: "{year}",
+    min: 0,
+    max: 100,
+    palette: ["#ffffcc", "#fed976", "#feb24c", "#fd8d3c", "#bd0026"],
+    legend: [
+      { id: "0-20", label: "0-20", color: "#ffffcc" },
+      { id: "20-40", label: "20-40", color: "#fed976" },
+      { id: "40-60", label: "40-60", color: "#feb24c" },
+      { id: "60-80", label: "60-80", color: "#fd8d3c" },
+      { id: "80-100", label: "80-100", color: "#bd0026" },
+    ],
+    outline: {
+      color: "#000000",
+      width: 0.5,
+      opacity: 1,
+    },
+  },
+  imageId: POB_TOTAL_ASSET_ID,
+  valueRange: {
+    min: 0,
+    max: 100,
+  },
+};
+const PANEL_LAYER_CONFIGS = {
+  pob_total: POPULATION_PANEL_LAYER_CONFIG,
+};
 const PANEL_LAYER_RULES = [
   {
     key: "carbono",
@@ -79,6 +130,12 @@ const PANEL_LAYER_RULES = [
     label: "Monitor de seca ANA",
     panelLayerId: "anaseca",
     patterns: [/ana/iu],
+  },
+  {
+    key: "pob",
+    label: CADUNICO_POVERTY_LABEL,
+    panelLayerId: "pob_total",
+    patterns: [/pob/iu, /populacao/iu, /popula[cç][aã]o/iu],
   },
 ];
 const STATE_NAMES = {
@@ -271,11 +328,11 @@ async function listDriveCsvFiles(options) {
     const data = await fetchJson(url, options);
 
     for (const file of data.files ?? []) {
-      if (
-        namePattern.test(file.name) ||
+      const isCsvLike =
         file.mimeType === "text/csv" ||
-        file.mimeType === "application/vnd.google-apps.spreadsheet"
-      ) {
+        file.mimeType === "application/vnd.google-apps.spreadsheet";
+
+      if (isCsvLike && namePattern.test(file.name)) {
         files.push(file);
       }
     }
@@ -447,6 +504,14 @@ function getClassColumns(rows) {
     return { type: "percent", columns: percentColumns };
   }
 
+  const valueColumns = columns
+    .filter((column) => /^valor_classe_\d+$/iu.test(column))
+    .sort(compareClassColumns);
+
+  if (valueColumns.length > 0) {
+    return { type: "value", columns: valueColumns };
+  }
+
   const areaColumns = columns
     .filter((column) => /^area_ha_classe_\d+$/iu.test(column))
     .sort(compareClassColumns);
@@ -456,7 +521,7 @@ function getClassColumns(rows) {
   }
 
   throw new Error(
-    "CSV sem colunas de classe. Esperado perc_classe_N ou area_ha_classe_N + area_total_ha.",
+    "CSV sem colunas de classe. Esperado perc_classe_N, valor_classe_N ou area_ha_classe_N + area_total_ha.",
   );
 }
 
@@ -503,6 +568,16 @@ function getLocation(row, territory) {
   };
 }
 
+function isPanelLayerCsv(rows) {
+  const columns = Object.keys(rows[0] ?? {});
+
+  return (
+    columns.includes("location_key") &&
+    columns.includes("location_name") &&
+    columns.some((column) => /^valor_classe_\d+$/iu.test(column))
+  );
+}
+
 function getYearKey(row) {
   const date = String(row.data_img ?? row.DATA_IMG ?? row.date ?? "").trim();
   const dateMatch = date.match(/^(\d{4})-(\d{2})-\d{2}$/u);
@@ -534,7 +609,7 @@ function toNumber(value, context) {
 }
 
 function getClassValues(row, classColumns, locationKey, yearKey) {
-  if (classColumns.type === "percent") {
+  if (classColumns.type === "percent" || classColumns.type === "value") {
     return classColumns.columns.map((column) =>
       toNumber(row[column], `${locationKey}/${yearKey}/${column}`),
     );
@@ -605,11 +680,153 @@ function inferPanelLayerMapping(fileName) {
   };
 }
 
+function getPanelLayerConfig(panelLayerId) {
+  return PANEL_LAYER_CONFIGS[panelLayerId] ?? null;
+}
+
+function getPanelLayerLocation(row) {
+  const key = String(row.location_key ?? "")
+    .trim()
+    .toLowerCase();
+  const providedLabel = String(row.location_name ?? "").trim();
+  const label =
+    key === "br"
+      ? "Brasil"
+      : STATE_NAMES[key] || providedLabel || key.toUpperCase();
+
+  if (!key) {
+    throw new Error(`Linha sem location_key: ${JSON.stringify(row)}`);
+  }
+
+  return { key, label };
+}
+
+function assertPanelLayerValuesInRange(values, panelLayerConfig, context) {
+  const range = panelLayerConfig.valueRange;
+
+  if (!range) {
+    return;
+  }
+
+  values.forEach((value, index) => {
+    if (typeof range.min === "number" && value < range.min) {
+      throw new Error(
+        `${context}/valor_classe_${index + 1}: valor ${value} abaixo do mínimo ${range.min}.`,
+      );
+    }
+
+    if (typeof range.max === "number" && value > range.max) {
+      throw new Error(
+        `${context}/valor_classe_${index + 1}: valor ${value} acima do máximo ${range.max}.`,
+      );
+    }
+  });
+}
+
+async function convertPanelLayerCsvFile(inputPath) {
+  const rows = toRows(await readFile(inputPath, "utf8"));
+  const panelLayerMapping = inferPanelLayerMapping(inputPath);
+
+  if (!panelLayerMapping.panelLayerId) {
+    throw new Error(
+      `CSV de panelLayer sem mapeamento de panelLayerId: ${path.basename(inputPath)}`,
+    );
+  }
+
+  const panelLayerConfig = getPanelLayerConfig(panelLayerMapping.panelLayerId);
+
+  if (!panelLayerConfig) {
+    throw new Error(
+      `CSV de panelLayer sem configuração para panelLayerId=${panelLayerMapping.panelLayerId}.`,
+    );
+  }
+
+  const classColumns = getClassColumns(rows);
+
+  if (classColumns.type !== "value") {
+    throw new Error(
+      "CSV de panelLayer deve usar valor_classe_N para valores absolutos.",
+    );
+  }
+
+  const locations = new Map();
+  const years = new Map();
+
+  for (const row of rows) {
+    const location = getPanelLayerLocation(row);
+    const yearKey = getYearKey(row);
+    const values = getClassValues(row, classColumns, location.key, yearKey);
+    assertPanelLayerValuesInRange(
+      values,
+      panelLayerConfig,
+      `${location.key}/${yearKey}`,
+    );
+
+    locations.set(location.key, location.label);
+
+    if (!years.has(yearKey)) {
+      years.set(yearKey, {
+        imageId: panelLayerConfig.imageId,
+        year: yearKey,
+        valuesScale: 1,
+        values: {},
+      });
+    }
+
+    const yearEntry = years.get(yearKey);
+
+    if (yearEntry.values[location.key]) {
+      throw new Error(
+        `Duplicidade detectada para localidade ${location.key} na referência ${yearKey}.`,
+      );
+    }
+
+    yearEntry.values[location.key] = values;
+  }
+
+  const yearKeys = Array.from(years.keys()).sort();
+  const imageData = {
+    schemaVersion: 1,
+    type: "territorial-compact",
+    defaultYear: yearKeys[yearKeys.length - 1],
+    classes: panelLayerConfig.classes,
+    locations: sortRecordEntries(Object.fromEntries(locations)),
+    templates: panelLayerConfig.templates,
+    ranking: panelLayerConfig.ranking,
+    mapVisualization: panelLayerConfig.mapVisualization,
+    years: Object.fromEntries(
+      Array.from(years.entries())
+        .sort(([leftKey], [rightKey]) => leftKey.localeCompare(rightKey))
+        .map(([yearKey, yearEntry]) => [
+          yearKey,
+          {
+            imageId: yearEntry.imageId,
+            year: yearEntry.year,
+            valuesScale: yearEntry.valuesScale,
+            values: sortRecordEntries(yearEntry.values),
+          },
+        ]),
+    ),
+  };
+
+  return {
+    inputPath: path.relative(process.cwd(), inputPath),
+    ...panelLayerMapping,
+    imageData,
+    locationCount: locations.size,
+    yearKeys,
+    classColumns: classColumns.columns,
+  };
+}
+
 async function convertCsvFile(inputPath) {
   const rows = toRows(await readFile(inputPath, "utf8"));
   const territory = inferTerritory(rows[0]);
   const classColumns = getClassColumns(rows);
   const panelLayerMapping = inferPanelLayerMapping(inputPath);
+  const panelLayerConfig = panelLayerMapping.panelLayerId
+    ? getPanelLayerConfig(panelLayerMapping.panelLayerId)
+    : null;
   const locations = new Map();
   const years = new Map();
 
@@ -640,9 +857,10 @@ async function convertCsvFile(inputPath) {
 
   const imageData = {
     templates:
-      territory === "municipality"
+      panelLayerConfig?.templates ??
+      (territory === "municipality"
         ? { municipality: MUNICIPALITY_TEMPLATE }
-        : { state: STATE_TEMPLATE },
+        : { state: STATE_TEMPLATE }),
     years: Object.fromEntries(
       Array.from(years.entries())
         .sort(([leftKey], [rightKey]) => leftKey.localeCompare(rightKey))
@@ -674,6 +892,10 @@ function getAggregatedOutputFileName(group) {
   return `municipal-analysis.${slugifyFileName(group.panelLayerId)}.${group.territory}.imageData.json`;
 }
 
+function getPanelLayerOutputFileName(conversion) {
+  return `panel-layer.${slugifyFileName(conversion.panelLayerId)}.imageData.json`;
+}
+
 async function cleanGeneratedImageDataFiles(jsonDir) {
   const entries = await readdir(jsonDir, { withFileTypes: true }).catch(
     (error) => {
@@ -700,6 +922,14 @@ async function cleanGeneratedPartitionFiles(jsonDir) {
   await mkdir(partitionDir, { recursive: true });
 
   return partitionDir;
+}
+
+async function cleanGeneratedPanelLayerFiles(jsonDir) {
+  const panelLayerDir = path.join(jsonDir, "panel-layers");
+  await rm(panelLayerDir, { recursive: true, force: true });
+  await mkdir(panelLayerDir, { recursive: true });
+
+  return panelLayerDir;
 }
 
 function getCalendarYear(yearKey) {
@@ -1148,6 +1378,22 @@ function buildMunicipalAnalysisManifest(aggregatedFiles, partitionFiles) {
   };
 }
 
+function buildPanelLayerImageDataManifest(panelLayerFiles) {
+  return {
+    generatedAt: new Date().toISOString(),
+    panelLayers: panelLayerFiles.map((file) => ({
+      panelLayerId: file.panelLayerId,
+      layerKey: file.layerKey,
+      layerLabel: file.layerLabel,
+      imageDataPath: file.outputPath,
+      sourceCsvPath: file.sourceCsvPath,
+      yearKeys: file.yearKeys,
+      locationCount: file.locationCount,
+      imageDataBytes: file.imageDataBytes,
+    })),
+  };
+}
+
 function toReportConversion(conversion) {
   const reportConversion = { ...conversion };
   delete reportConversion.imageData;
@@ -1196,15 +1442,62 @@ function buildPipelineValidation(
   };
 }
 
+async function writePanelLayerImageDataFile(conversion, panelLayerDir) {
+  const outputPath = path.join(
+    panelLayerDir,
+    getPanelLayerOutputFileName(conversion),
+  );
+  const json = JSON.stringify(conversion.imageData);
+
+  await writeFile(outputPath, `${json}\n`, "utf8");
+
+  return {
+    panelLayerId: conversion.panelLayerId,
+    layerKey: conversion.layerKey,
+    layerLabel: conversion.layerLabel,
+    outputPath: path.relative(process.cwd(), outputPath),
+    sourceCsvPath: conversion.inputPath,
+    locationCount: conversion.locationCount,
+    yearKeys: conversion.yearKeys,
+    classColumns: conversion.classColumns,
+    imageDataBytes: Buffer.byteLength(json),
+  };
+}
+
+async function writePanelLayerImageDataFiles(csvPaths, panelLayerDir) {
+  const files = [];
+  const conversions = [];
+  const skipped = [];
+
+  for (const csvPath of csvPaths) {
+    try {
+      const conversion = await convertPanelLayerCsvFile(csvPath);
+      conversions.push(toReportConversion(conversion));
+      files.push(await writePanelLayerImageDataFile(conversion, panelLayerDir));
+    } catch (error) {
+      skipped.push({
+        inputPath: path.relative(process.cwd(), csvPath),
+        reason: error instanceof Error ? error.message : String(error),
+      });
+    }
+  }
+
+  return { files, conversions, skipped };
+}
+
 async function convertCsvDirectory(options) {
   const csvDir = resolveWorkspacePath(options.csvDir);
   const jsonDir = resolveWorkspacePath(options.jsonDir);
+  const namePattern = new RegExp(options.fileNamePattern, "iu");
   await mkdir(jsonDir, { recursive: true });
 
   const entries = await readdir(csvDir, { withFileTypes: true });
   const csvPaths = entries
     .filter(
-      (entry) => entry.isFile() && entry.name.toLowerCase().endsWith(".csv"),
+      (entry) =>
+        entry.isFile() &&
+        entry.name.toLowerCase().endsWith(".csv") &&
+        namePattern.test(entry.name),
     )
     .map((entry) => path.join(csvDir, entry.name))
     .sort((left, right) => left.localeCompare(right));
@@ -1219,11 +1512,41 @@ async function convertCsvDirectory(options) {
   const skipped = [];
   const aggregatedFiles = [];
   const partitionFiles = [];
+  const panelLayerFiles = [];
+  const panelLayerConversions = [];
 
   await cleanGeneratedImageDataFiles(jsonDir);
   const partitionDir = await cleanGeneratedPartitionFiles(jsonDir);
+  const panelLayerDir = await cleanGeneratedPanelLayerFiles(jsonDir);
+  const panelLayerCsvPaths = [];
+  const municipalAnalysisCsvPaths = [];
 
-  for (const group of groupCsvPaths(csvPaths)) {
+  for (const csvPath of csvPaths) {
+    try {
+      const rows = toRows(await readFile(csvPath, "utf8"));
+
+      if (isPanelLayerCsv(rows)) {
+        panelLayerCsvPaths.push(csvPath);
+      } else {
+        municipalAnalysisCsvPaths.push(csvPath);
+      }
+    } catch (error) {
+      skipped.push({
+        inputPath: path.relative(process.cwd(), csvPath),
+        reason: error instanceof Error ? error.message : String(error),
+      });
+    }
+  }
+
+  const panelLayerResult = await writePanelLayerImageDataFiles(
+    panelLayerCsvPaths,
+    panelLayerDir,
+  );
+  panelLayerFiles.push(...panelLayerResult.files);
+  panelLayerConversions.push(...panelLayerResult.conversions);
+  skipped.push(...panelLayerResult.skipped);
+
+  for (const group of groupCsvPaths(municipalAnalysisCsvPaths)) {
     try {
       const result = await writeAggregatedGroup(
         group,
@@ -1248,18 +1571,33 @@ async function convertCsvDirectory(options) {
     }
   }
 
-  return { aggregatedFiles, conversions, partitionFiles, skipped };
+  return {
+    aggregatedFiles,
+    conversions,
+    panelLayerConversions,
+    partitionFiles,
+    panelLayerFiles,
+    skipped,
+  };
 }
 
 async function main() {
   const options = parseArgs(process.argv.slice(2));
   const downloads = options.skipDownload ? [] : await downloadCsvFiles(options);
-  const { aggregatedFiles, conversions, partitionFiles, skipped } =
-    await convertCsvDirectory(options);
+  const {
+    aggregatedFiles,
+    conversions,
+    panelLayerConversions,
+    partitionFiles,
+    panelLayerFiles,
+    skipped,
+  } = await convertCsvDirectory(options);
   const municipalAnalysisManifest = buildMunicipalAnalysisManifest(
     aggregatedFiles,
     partitionFiles,
   );
+  const panelLayerImageDataManifest =
+    buildPanelLayerImageDataManifest(panelLayerFiles);
   const validation = buildPipelineValidation(
     conversions,
     partitionFiles,
@@ -1271,6 +1609,7 @@ async function main() {
     jsonDir: options.jsonDir,
     downloadedFiles: downloads.length,
     convertedFiles: conversions.length,
+    convertedPanelLayerFiles: panelLayerConversions.length,
     skippedFiles: skipped.length,
     mappedSourceFiles: conversions.filter(
       (conversion) => conversion.panelLayerId,
@@ -1282,12 +1621,15 @@ async function main() {
     mappedAggregatedFiles: municipalAnalysisManifest.mapped.length,
     unmappedAggregatedFiles: municipalAnalysisManifest.unmapped.length,
     partitionFiles: partitionFiles.length,
+    panelLayerFiles: panelLayerFiles.length,
     mappedPartitionFiles: municipalAnalysisManifest.partitions.length,
     unmappedPartitionFiles: municipalAnalysisManifest.unmappedPartitions.length,
     downloads,
     conversions,
+    panelLayerConversions,
     aggregatedFilesDetails: aggregatedFiles,
     partitionFilesDetails: partitionFiles,
+    panelLayerFilesDetails: panelLayerFiles,
     skipped,
     validation,
   };
@@ -1299,6 +1641,14 @@ async function main() {
       "municipal-analysis-manifest.json",
     ),
     `${JSON.stringify(municipalAnalysisManifest, null, 2)}\n`,
+    "utf8",
+  );
+  await writeFile(
+    path.join(
+      resolveWorkspacePath(options.jsonDir),
+      "panel-layer-imageData-manifest.json",
+    ),
+    `${JSON.stringify(panelLayerImageDataManifest, null, 2)}\n`,
     "utf8",
   );
   await writeFile(

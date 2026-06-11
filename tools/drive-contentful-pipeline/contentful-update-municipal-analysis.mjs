@@ -216,6 +216,10 @@ function isPlainMunicipalAnalysisImageData(value) {
   );
 }
 
+function isMunicipalAnalysisPatchImageData(value) {
+  return isRecord(value) && isRecord(value.years);
+}
+
 function decodeCompressedMunicipalAnalysisImageData(imageData) {
   const encoded = Array.isArray(imageData.data)
     ? imageData.data.join("")
@@ -229,7 +233,10 @@ function decodeCompressedMunicipalAnalysisImageData(imageData) {
 export function validateMunicipalAnalysisImageData(imageData, context = "") {
   const prefix = context ? `${context}: ` : "";
 
-  if (isPlainMunicipalAnalysisImageData(imageData)) {
+  if (
+    isPlainMunicipalAnalysisImageData(imageData) ||
+    isMunicipalAnalysisPatchImageData(imageData)
+  ) {
     return [];
   }
 
@@ -237,12 +244,15 @@ export function validateMunicipalAnalysisImageData(imageData, context = "") {
     try {
       const decoded = decodeCompressedMunicipalAnalysisImageData(imageData);
 
-      if (isPlainMunicipalAnalysisImageData(decoded)) {
+      if (
+        isPlainMunicipalAnalysisImageData(decoded) ||
+        isMunicipalAnalysisPatchImageData(decoded)
+      ) {
         return [];
       }
 
       return [
-        `${prefix}payload gzip+base64 deve descomprimir para territorial-compact com years.`,
+        `${prefix}payload gzip+base64 deve descomprimir para imageData ou patch com years.`,
       ];
     } catch (error) {
       return [
@@ -254,7 +264,7 @@ export function validateMunicipalAnalysisImageData(imageData, context = "") {
   }
 
   return [
-    `${prefix}imageData deve ser territorial-compact ou envelope gzip+base64 territorial-compact-compressed.`,
+    `${prefix}imageData deve ter years ou ser envelope gzip+base64 territorial-compact-compressed.`,
   ];
 }
 
