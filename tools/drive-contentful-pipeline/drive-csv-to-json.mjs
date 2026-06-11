@@ -73,8 +73,83 @@ const POPULATION_PANEL_LAYER_CONFIG = {
     max: 100,
   },
 };
+const PRECIP_ANOMALY_PANEL_LAYER_CONFIG = {
+  classes: [
+    {
+      id: "muito-seco",
+      label: "< -90",
+      color: "#981c18",
+      pixelLimit: 0,
+    },
+    {
+      id: "seco",
+      label: "-90 a -30",
+      color: "#e46838",
+      pixelLimit: 1,
+    },
+    {
+      id: "levemente-seco",
+      label: "-30 a 0",
+      color: "#f5e795",
+      pixelLimit: 2,
+    },
+    {
+      id: "levemente-umido",
+      label: "0 a 30",
+      color: "#c3eff6",
+      pixelLimit: 3,
+    },
+    {
+      id: "umido",
+      label: "30 a 90",
+      color: "#70a6ea",
+      pixelLimit: 4,
+    },
+    {
+      id: "muito-umido",
+      label: "> 90",
+      color: "#4871c3",
+      pixelLimit: 5,
+    },
+  ],
+  templates: {
+    country:
+      "No Brasil, predomina a faixa {label} de anomalia de precipitação com {value}% da área analisada.",
+    state:
+      "Em {name}, predomina a faixa {label} de anomalia de precipitação com {value}% da área analisada.",
+    municipality:
+      "No município de {name}, predomina a faixa {label} de anomalia de precipitação com {value}% da área analisada.",
+    highlight: "Anomalia predominante {label}",
+  },
+  ranking: {
+    title: "Estados por faixa predominante de anomalia de precipitação",
+    totalLabel: "Estados",
+  },
+  mapVisualization: {
+    sourceType: "image",
+    min: 0,
+    max: 5,
+    thresholds: [-90, -30, 0, 30, 90],
+    palette: ["#981c18", "#e46838", "#f5e795", "#c3eff6", "#70a6ea", "#4871c3"],
+    legend: [
+      { id: "muito-seco", label: "< -90", color: "#981c18" },
+      { id: "seco", label: "-90 a -30", color: "#e46838" },
+      { id: "levemente-seco", label: "-30 a 0", color: "#f5e795" },
+      { id: "levemente-umido", label: "0 a 30", color: "#c3eff6" },
+      { id: "umido", label: "30 a 90", color: "#70a6ea" },
+      { id: "muito-umido", label: "> 90", color: "#4871c3" },
+    ],
+  },
+  imageIdByYear: {
+    "2026-05": "projects/ee-ulissesalencar17/assets/previsao_P_cal_20260401_01",
+    "2026-06": "projects/ee-ulissesalencar17/assets/previsao_P_cal_20260401_02",
+    "2026-07": "projects/ee-ulissesalencar17/assets/previsao_P_cal_20260401_03",
+    "2026-08": "projects/ee-ulissesalencar17/assets/previsao_P_cal_20260401_04",
+  },
+};
 const PANEL_LAYER_CONFIGS = {
   pob_total: POPULATION_PANEL_LAYER_CONFIG,
+  prev_anomalia_precipitacao: PRECIP_ANOMALY_PANEL_LAYER_CONFIG,
 };
 const PANEL_LAYER_RULES = [
   {
@@ -136,6 +211,12 @@ const PANEL_LAYER_RULES = [
     label: CADUNICO_POVERTY_LABEL,
     panelLayerId: "pob_total",
     patterns: [/pob/iu, /populacao/iu, /popula[cç][aã]o/iu],
+  },
+  {
+    key: "prev",
+    label: "Anomalia de precipitação prevista",
+    panelLayerId: "prev_anomalia_precipitacao",
+    patterns: [/(^|[-_\s])prev($|[-_\s])/iu, /previs[aã]o[-_\s]?p/iu],
   },
 ];
 const STATE_NAMES = {
@@ -588,12 +669,16 @@ function getYearKey(row) {
 
   const year = String(row.ano ?? row.ANO ?? row.year ?? "").trim();
 
+  if (/^\d{4}-\d{2}$/u.test(year)) {
+    return year;
+  }
+
   if (/^\d{4}$/u.test(year)) {
     return year;
   }
 
   throw new Error(
-    `Linha sem data_img YYYY-MM-DD ou ano YYYY reconhecido: ${JSON.stringify(row)}`,
+    `Linha sem data_img YYYY-MM-DD, ano YYYY-MM ou ano YYYY reconhecido: ${JSON.stringify(row)}`,
   );
 }
 
@@ -723,6 +808,17 @@ function assertPanelLayerValuesInRange(values, panelLayerConfig, context) {
   });
 }
 
+function getPanelLayerImageId(panelLayerConfig, yearKey) {
+  const imageId =
+    panelLayerConfig.imageIdByYear?.[yearKey] ?? panelLayerConfig.imageId;
+
+  if (!imageId) {
+    throw new Error(`Configuração sem imageId para referência ${yearKey}.`);
+  }
+
+  return imageId;
+}
+
 async function convertPanelLayerCsvFile(inputPath) {
   const rows = toRows(await readFile(inputPath, "utf8"));
   const panelLayerMapping = inferPanelLayerMapping(inputPath);
@@ -766,7 +862,7 @@ async function convertPanelLayerCsvFile(inputPath) {
 
     if (!years.has(yearKey)) {
       years.set(yearKey, {
-        imageId: panelLayerConfig.imageId,
+        imageId: getPanelLayerImageId(panelLayerConfig, yearKey),
         year: yearKey,
         valuesScale: 1,
         values: {},
@@ -1140,6 +1236,34 @@ function assertSameRecord(left, right, label, sourceCsvPath) {
   }
 }
 
+function getConversionYearKeys(conversion) {
+  return Object.keys(conversion.imageData.years).sort();
+}
+
+function isSubsetOf(left, right) {
+  return left.every((item) => right.includes(item));
+}
+
+function isSupersededConversion(conversion, conversions) {
+  const yearKeys = getConversionYearKeys(conversion);
+
+  return conversions.some((candidate) => {
+    if (
+      candidate === conversion ||
+      candidate.territory !== conversion.territory
+    ) {
+      return false;
+    }
+
+    const candidateYearKeys = getConversionYearKeys(candidate);
+
+    return (
+      candidateYearKeys.length > yearKeys.length &&
+      isSubsetOf(yearKeys, candidateYearKeys)
+    );
+  });
+}
+
 function groupCsvPaths(csvPaths) {
   const groups = new Map();
 
@@ -1180,6 +1304,7 @@ async function writeAggregatedGroup(group, jsonDir, partitionDir, options) {
   const partitionFiles = [];
   const writtenPartitions = new Set();
   const yearKeys = new Set();
+  const convertedEntries = [];
 
   try {
     for (const csvPath of group.sourceCsvPaths.sort((left, right) =>
@@ -1190,10 +1315,9 @@ async function writeAggregatedGroup(group, jsonDir, partitionDir, options) {
       try {
         conversion = await convertCsvFile(csvPath);
       } catch (error) {
-        skipped.push({
-          inputPath: path.relative(process.cwd(), csvPath),
-          reason: error instanceof Error ? error.message : String(error),
-        });
+        skipped.push(
+          toSkippedCsv(path.relative(process.cwd(), csvPath), error),
+        );
         continue;
       }
 
@@ -1203,22 +1327,6 @@ async function writeAggregatedGroup(group, jsonDir, partitionDir, options) {
         territory = conversion.territory;
         baseTemplates = sortedTemplates;
         initialized = true;
-
-        if (options.writeAggregates) {
-          outputPath = path.join(
-            jsonDir,
-            getAggregatedOutputFileName({
-              ...group,
-              territory,
-            }),
-          );
-          fileHandle = await open(outputPath, "w");
-          await fileHandle.write("{\n");
-          await fileHandle.write(
-            `  "templates": ${indentJson(JSON.stringify(baseTemplates, null, 2), 2)},\n`,
-          );
-          await fileHandle.write('  "years": {\n');
-        }
       } else {
         if (conversion.territory !== territory) {
           throw new Error(
@@ -1234,7 +1342,55 @@ async function writeAggregatedGroup(group, jsonDir, partitionDir, options) {
         );
       }
 
-      if (options.writeAggregates && fileHandle) {
+      convertedEntries.push({ conversion, csvPath });
+    }
+
+    const activeConvertedEntries = convertedEntries.filter(({ conversion }) => {
+      const superseded = isSupersededConversion(
+        conversion,
+        convertedEntries.map((entry) => entry.conversion),
+      );
+
+      if (superseded) {
+        skipped.push({
+          inputPath: conversion.inputPath,
+          reason:
+            "CSV substituído por outro arquivo da mesma camada/território com cobertura temporal mais completa.",
+          ignored: true,
+        });
+      }
+
+      return !superseded;
+    });
+
+    conversions.push(
+      ...activeConvertedEntries.map(({ conversion }) =>
+        toReportConversion(conversion),
+      ),
+    );
+    classColumnsBySource.push(
+      ...activeConvertedEntries.map(({ conversion }) => ({
+        sourceCsvPath: conversion.inputPath,
+        classColumns: conversion.classColumns,
+      })),
+    );
+
+    if (options.writeAggregates && activeConvertedEntries.length > 0) {
+      outputPath = path.join(
+        jsonDir,
+        getAggregatedOutputFileName({
+          ...group,
+          territory,
+        }),
+      );
+      fileHandle = await open(outputPath, "w");
+      await fileHandle.write("{\n");
+      await fileHandle.write(
+        `  "templates": ${indentJson(JSON.stringify(baseTemplates, null, 2), 2)},\n`,
+      );
+      await fileHandle.write('  "years": {\n');
+
+      for (const { conversion } of activeConvertedEntries) {
         for (const [yearKey, yearEntry] of Object.entries(
           conversion.imageData.years,
         )) {
@@ -1254,12 +1410,9 @@ async function writeAggregatedGroup(group, jsonDir, partitionDir, options) {
           hasYear = true;
         }
       }
+    }
 
-      conversions.push(toReportConversion(conversion));
-      classColumnsBySource.push({
-        sourceCsvPath: conversion.inputPath,
-        classColumns: conversion.classColumns,
-      });
+    for (const { conversion } of activeConvertedEntries) {
       partitionFiles.push(
         ...(await writeAnnualPartitions(
           conversion,
@@ -1425,10 +1578,18 @@ function buildPipelineValidation(
       outputBytes: partition.outputBytes,
       maxContentfulJsonBytes: options.maxContentfulJsonBytes,
     }));
-  const skippedCsvs = skipped.map((item) => ({
-    inputPath: item.inputPath,
-    reason: item.reason,
-  }));
+  const skippedCsvs = skipped
+    .filter((item) => !item.ignored)
+    .map((item) => ({
+      inputPath: item.inputPath,
+      reason: item.reason,
+    }));
+  const ignoredSkippedCsvs = skipped
+    .filter((item) => item.ignored)
+    .map((item) => ({
+      inputPath: item.inputPath,
+      reason: item.reason,
+    }));
 
   return {
     ok:
@@ -1439,6 +1600,26 @@ function buildPipelineValidation(
     mappedSourcesWithoutPartitions,
     oversizedPartitions,
     skippedCsvs,
+    ignoredSkippedCsvs,
+  };
+}
+
+function isIgnorableCsvError(inputPath, reason) {
+  const baseName = path.basename(inputPath);
+
+  return (
+    /^Estatisticas_RDs_/iu.test(baseName) &&
+    reason.includes("CSV sem colunas territoriais reconhecidas")
+  );
+}
+
+function toSkippedCsv(inputPath, error) {
+  const reason = error instanceof Error ? error.message : String(error);
+
+  return {
+    inputPath,
+    reason,
+    ...(isIgnorableCsvError(inputPath, reason) ? { ignored: true } : {}),
   };
 }
 
@@ -1475,10 +1656,7 @@ async function writePanelLayerImageDataFiles(csvPaths, panelLayerDir) {
       conversions.push(toReportConversion(conversion));
       files.push(await writePanelLayerImageDataFile(conversion, panelLayerDir));
     } catch (error) {
-      skipped.push({
-        inputPath: path.relative(process.cwd(), csvPath),
-        reason: error instanceof Error ? error.message : String(error),
-      });
+      skipped.push(toSkippedCsv(path.relative(process.cwd(), csvPath), error));
     }
   }
 
@@ -1531,10 +1709,7 @@ async function convertCsvDirectory(options) {
         municipalAnalysisCsvPaths.push(csvPath);
       }
     } catch (error) {
-      skipped.push({
-        inputPath: path.relative(process.cwd(), csvPath),
-        reason: error instanceof Error ? error.message : String(error),
-      });
+      skipped.push(toSkippedCsv(path.relative(process.cwd(), csvPath), error));
     }
   }
 
@@ -1562,12 +1737,14 @@ async function convertCsvDirectory(options) {
         aggregatedFiles.push(result.aggregatedFile);
       }
     } catch (error) {
-      skipped.push({
-        inputPath: group.sourceCsvPaths
-          .map((csvPath) => path.relative(process.cwd(), csvPath))
-          .join(", "),
-        reason: error instanceof Error ? error.message : String(error),
-      });
+      skipped.push(
+        toSkippedCsv(
+          group.sourceCsvPaths
+            .map((csvPath) => path.relative(process.cwd(), csvPath))
+            .join(", "),
+          error,
+        ),
+      );
     }
   }
 

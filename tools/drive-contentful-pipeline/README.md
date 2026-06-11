@@ -224,25 +224,31 @@ use apenas `CONTENTFUL_MANAGEMENT_TOKEN`.
 
 O script identifica a camada a partir de palavras-chave no nome do CSV.
 
-| Palavra no nome do arquivo     | `panelLayerId`      |
-| ------------------------------ | ------------------- |
-| `Carbono`                      | `carbonoembrapa`    |
-| `CDI`                          | `CDI_Test`          |
-| `CobTerra` ou `CoberturaTerra` | `terraibge`         |
-| `GPP`                          | `prodprimariabruta` |
-| `IA`                           | `indicearidez`      |
-| `IDT`                          | `deg`               |
-| `ODS`                          | `ods`               |
-| `cemaden`                      | `cemadenseca`       |
-| `ANA`                          | `anaseca`           |
-| `pob` ou `populacao`           | `pob_total`         |
+| Palavra no nome do arquivo     | `panelLayerId`               |
+| ------------------------------ | ---------------------------- |
+| `Carbono`                      | `carbonoembrapa`             |
+| `CDI`                          | `CDI_Test`                   |
+| `CobTerra` ou `CoberturaTerra` | `terraibge`                  |
+| `GPP`                          | `prodprimariabruta`          |
+| `IA`                           | `indicearidez`               |
+| `IDT`                          | `deg`                        |
+| `ODS`                          | `ods`                        |
+| `cemaden`                      | `cemadenseca`                |
+| `ANA`                          | `anaseca`                    |
+| `pob` ou `populacao`           | `pob_total`                  |
+| `Prev` ou `previsao_P`         | `prev_anomalia_precipitacao` |
 
 Arquivos municipais/estaduais que nao casam com essas regras entram como
 `unmapped` no manifesto e nao sao publicados pelos comandos `dry-run-all` e
 `publish-all`.
 
 CSVs de `panelLayer` usam outro contrato: precisam ter `location_key`,
-`location_name`, `ano` e `valor_classe_N`. Para `pob_total`, a pipeline tambem
+`location_name`, `ano` e `valor_classe_N`. A camada
+`prev_anomalia_precipitacao` usa `Prev` como identificador no nome do arquivo e
+o script `scripts/gee/anomalia-precip.js` gera o CSV de `panelLayer` com as
+faixas de anomalia de precipitacao prevista. A visualizacao no SAP usa os
+limiares `[-90, -30, 0, 30, 90]` para reclassificar o raster continuo em 6
+classes antes de aplicar a paleta. Para `pob_total`, a pipeline tambem
 valida que `valor_classe_N` esteja no intervalo `0..100`, porque o asset do GEE
 visualizado no mapa usa essa escala. Nessa camada, o valor representa o
 percentual de familias inscritas no CadUnico que se encontram em situacao de
