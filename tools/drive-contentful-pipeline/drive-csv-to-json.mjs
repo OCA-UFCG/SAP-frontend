@@ -51,8 +51,9 @@ const POPULATION_PANEL_LAYER_CONFIG = {
   mapVisualization: {
     sourceType: "featureCollection",
     property: "{year}",
-    min: 0,
-    max: 100,
+    min: 1,
+    max: 5,
+    thresholds: [20, 40, 60, 80],
     palette: ["#ffffcc", "#fed976", "#feb24c", "#fd8d3c", "#bd0026"],
     legend: [
       { id: "0-20", label: "0-20", color: "#ffffcc" },
