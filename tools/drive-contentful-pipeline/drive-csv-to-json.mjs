@@ -147,7 +147,105 @@ const PRECIP_ANOMALY_PANEL_LAYER_CONFIG = {
     "2026-08": "projects/ee-ulissesalencar17/assets/previsao_P_cal_20260401_04",
   },
 };
+const ANA_DROUGHT_PANEL_LAYER_CONFIG = {
+  classes: [
+    {
+      id: "sem-seca",
+      label: "Sem seca",
+      color: "#FFFFFF",
+      pixelLimit: 0,
+      tone: {
+        bg: "#FFFFFF",
+        color: "#6E6E6E",
+        border: "#D9D9D9",
+      },
+    },
+    {
+      id: "seca-fraca",
+      label: "Seca fraca",
+      color: "#FCFF50",
+      pixelLimit: 1,
+      tone: {
+        bg: "#FFFFE4",
+        color: "#757800",
+        border: "#E0E38E",
+      },
+    },
+    {
+      id: "seca-moderada",
+      label: "Seca moderada",
+      color: "#F4D48A",
+      pixelLimit: 2,
+      tone: {
+        bg: "#FFF8E7",
+        color: "#8D6A1B",
+        border: "#E8D3A1",
+      },
+    },
+    {
+      id: "seca-grave",
+      label: "Seca grave",
+      color: "#D0782A",
+      pixelLimit: 3,
+      tone: {
+        bg: "#FFF1E4",
+        color: "#9E5A1F",
+        border: "#E7C09C",
+      },
+    },
+    {
+      id: "seca-extrema",
+      label: "Seca extrema",
+      color: "#CA281B",
+      pixelLimit: 4,
+      tone: {
+        bg: "#FCE8E5",
+        color: "#A32016",
+        border: "#E6A39C",
+      },
+    },
+    {
+      id: "seca-excepcional",
+      label: "Seca excepcional",
+      color: "#640E08",
+      pixelLimit: 5,
+      tone: {
+        bg: "#F5E6E3",
+        color: "#640E08",
+        border: "#D8A39D",
+      },
+    },
+  ],
+  templates: {
+    country:
+      "No Brasil, predomina a classe {label} com {value}% da área analisada.",
+    state:
+      "Em {name}, predomina a classe {label} com {value}% da área analisada.",
+    municipality:
+      "No município de {name}, predomina a classe {label} com {value}% da área analisada.",
+    highlight: "Região maioritariamente {label}",
+  },
+  ranking: {
+    title: "Estados por classe predominante",
+    totalLabel: "Estados",
+  },
+  mapVisualization: {
+    sourceType: "image",
+    min: 0,
+    max: 5,
+    palette: ["#FFFFFF", "#FCFF50", "#F4D48A", "#D0782A", "#CA281B", "#640E08"],
+    legend: [
+      { id: "sem-seca", label: "Sem seca", color: "#FFFFFF" },
+      { id: "seca-fraca", label: "Seca fraca", color: "#FCFF50" },
+      { id: "seca-moderada", label: "Seca moderada", color: "#F4D48A" },
+      { id: "seca-grave", label: "Seca grave", color: "#D0782A" },
+      { id: "seca-extrema", label: "Seca extrema", color: "#CA281B" },
+      { id: "seca-excepcional", label: "Seca excepcional", color: "#640E08" },
+    ],
+  },
+};
 const PANEL_LAYER_CONFIGS = {
+  anaseca: ANA_DROUGHT_PANEL_LAYER_CONFIG,
   pob_total: POPULATION_PANEL_LAYER_CONFIG,
   prev_anomalia_precipitacao: PRECIP_ANOMALY_PANEL_LAYER_CONFIG,
 };
@@ -808,12 +906,16 @@ function assertPanelLayerValuesInRange(values, panelLayerConfig, context) {
   });
 }
 
-function getPanelLayerImageId(panelLayerConfig, yearKey) {
+function getPanelLayerImageId(panelLayerConfig, yearKey, row) {
   const imageId =
-    panelLayerConfig.imageIdByYear?.[yearKey] ?? panelLayerConfig.imageId;
+    String(row.image_id ?? row.imageId ?? row.IMAGE_ID ?? "").trim() ||
+    panelLayerConfig.imageIdByYear?.[yearKey] ||
+    panelLayerConfig.imageId;
 
   if (!imageId) {
-    throw new Error(`Configuração sem imageId para referência ${yearKey}.`);
+    throw new Error(
+      `Configuração sem imageId para referência ${yearKey}. Informe image_id no CSV de panelLayer ou imageId/imageIdByYear na configuração.`,
+    );
   }
 
   return imageId;
@@ -862,7 +964,7 @@ async function convertPanelLayerCsvFile(inputPath) {
 
     if (!years.has(yearKey)) {
       years.set(yearKey, {
-        imageId: getPanelLayerImageId(panelLayerConfig, yearKey),
+        imageId: getPanelLayerImageId(panelLayerConfig, yearKey, row),
         year: yearKey,
         valuesScale: 1,
         values: {},
