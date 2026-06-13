@@ -19,9 +19,9 @@ A configuracao versionada da pipeline fica em:
 tools/drive-contentful-pipeline/config/pipeline-config.json
 ```
 
-Esse arquivo define a pasta padrao do Drive, paths locais, limites de payload,
-regras de mapeamento dos nomes de CSV para `panelLayerId` e os perfis usados
-para gerar `panelLayer.imageData`.
+Esse arquivo define `schemaVersion`, a pasta padrao do Drive, paths locais,
+limites de payload, regras de mapeamento dos nomes de CSV para `panelLayerId` e
+os perfis usados para gerar `panelLayer.imageData`.
 
 ## Estrutura da pipeline
 
@@ -68,6 +68,28 @@ os entrypoints da raiz continuem pequenos para preservar a interface publica sem
 concentrar toda a pipeline em um arquivo unico.
 
 ## Comandos principais
+
+### 0. Verificar a pipeline inteira
+
+```bash
+npm run pipeline:verify
+```
+
+Esse comando e o gate operacional antes de publicar. Ele:
+
+- converte os CSVs locais de `data/contentful-pipeline/csv`;
+- regrava os manifestos e o `conversion-report.json`;
+- imprime uma tabela curta de cobertura por `panelLayerId`;
+- roda dry-run de todos os `panelLayer`;
+- roda dry-run de todas as particoes `municipalAnalysis`;
+- falha se a conversao local, os manifestos ou os dry-runs tiverem erros
+  bloqueantes.
+
+Para validar somente a conversao local, sem acessar o Contentful:
+
+```bash
+npm run pipeline:verify -- --local-only
+```
 
 ### 1. Baixar do Drive e converter para JSON
 
@@ -280,6 +302,10 @@ O script identifica a camada a partir de padrões declarados em
 `config/pipeline-config.json`. Para adicionar ou ajustar uma camada, altere
 `layerRules` e, quando a camada tambem gerar `panelLayer.imageData`, o perfil
 correspondente em `panelLayerProfiles`.
+
+O campo `schemaVersion` versiona esse contrato de configuracao. A pipeline
+rejeita versoes desconhecidas para evitar interpretar uma configuracao nova com
+codigo antigo.
 
 | Palavra no nome do arquivo     | `panelLayerId`               |
 | ------------------------------ | ---------------------------- |

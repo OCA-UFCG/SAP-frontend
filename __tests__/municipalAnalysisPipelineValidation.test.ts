@@ -18,6 +18,10 @@ import {
 } from "../tools/drive-contentful-pipeline/lib/csv/territory.mjs";
 import { writeAnnualPartitions } from "../tools/drive-contentful-pipeline/lib/conversion/partition-writer.mjs";
 import { patchEntryFields } from "../tools/drive-contentful-pipeline/lib/contentful/entries.mjs";
+import {
+  formatConversionSummary,
+  summarizeConversionCoverage,
+} from "../tools/drive-contentful-pipeline/lib/reporting/pipeline-summary.mjs";
 
 function compressImageData(imageData: unknown) {
   const compressed = gzipSync(Buffer.from(JSON.stringify(imageData), "utf8"));
@@ -62,6 +66,7 @@ const validCompressedPatchImageData = {
 };
 
 const minimalPipelineConfig = normalizePipelineConfig({
+  schemaVersion: 1,
   drive: { folderId: "folder" },
   paths: { csvDir: "csv", jsonDir: "json" },
   limits: { maxContentfulJsonBytes: 450000, compressedDataChunkSize: 20 },
@@ -143,6 +148,15 @@ describe("municipal analysis pipeline validation", () => {
         ],
       }),
     ).toThrow('layerRules[0].patterns[0] contém regex inválida "["');
+  });
+
+  it("rejects unknown pipeline config schema versions", () => {
+    expect(() =>
+      normalizePipelineConfig({
+        ...minimalPipelineConfig,
+        schemaVersion: 2,
+      }),
+    ).toThrow("schemaVersion deve ser 1; recebido 2.");
   });
 
   it("parses quoted CSV rows and validates row width", () => {
@@ -246,6 +260,38 @@ describe("municipal analysis pipeline validation", () => {
         value: { "en-US": { years: {} } },
       },
     ]);
+  });
+
+  it("formats concise conversion coverage summaries", () => {
+    const report = {
+      validation: { ok: true, ignoredSkippedCsvs: [] },
+      convertedFiles: 2,
+      panelLayerFiles: 1,
+      partitionFiles: 2,
+      partitionFilesDetails: [
+        {
+          panelLayerId: "CDI_Test",
+          yearKeys: ["2024-01"],
+          outputBytes: 1024,
+        },
+        {
+          panelLayerId: "CDI_Test",
+          yearKeys: ["2024-02"],
+          outputBytes: 2048,
+        },
+      ],
+    };
+
+    expect(summarizeConversionCoverage(report)).toEqual([
+      {
+        panelLayerId: "CDI_Test",
+        partitions: 2,
+        years: "2024-01..2024-02",
+        outputMb: 0,
+      },
+    ]);
+    expect(formatConversionSummary(report)).toContain("Conversion summary");
+    expect(formatConversionSummary(report)).toContain("CDI_Test");
   });
 
   it("rejects imageData payloads without the expected contract", () => {

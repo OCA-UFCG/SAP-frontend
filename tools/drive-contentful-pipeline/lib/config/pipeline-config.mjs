@@ -83,10 +83,20 @@ function normalizePipelineConfig(config) {
     throw new Error("pipeline-config.json deve conter um objeto JSON.");
   }
 
+  if (config.schemaVersion !== 1) {
+    throw new Error(
+      `schemaVersion deve ser 1; recebido ${JSON.stringify(config.schemaVersion)}.`,
+    );
+  }
+
   assertString(config.drive?.folderId, "drive.folderId");
   assertString(config.paths?.csvDir, "paths.csvDir");
   assertString(config.paths?.jsonDir, "paths.jsonDir");
   assertString(config.defaults?.fileNamePattern, "defaults.fileNamePattern");
+
+  if (!Array.isArray(config.layerRules) || config.layerRules.length === 0) {
+    throw new Error("layerRules deve ser lista não vazia.");
+  }
 
   if (!Number.isFinite(config.limits?.maxContentfulJsonBytes)) {
     throw new Error("limits.maxContentfulJsonBytes deve ser número finito.");

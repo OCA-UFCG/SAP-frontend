@@ -66,6 +66,7 @@ Open `http://localhost:3000` in the browser.
 - `npm run pipeline:drive-csv-json`: download Google Drive CSVs and convert them to partitioned municipal analysis JSON files.
 - `npm run pipeline:contentful-municipal-analysis:dry-run-all`: validate what municipal analysis entries would be created or updated in Contentful.
 - `npm run pipeline:contentful-municipal-analysis:publish-all`: publish all mapped municipal analysis partitions to Contentful.
+- `npm run pipeline:verify`: regenerate local JSON outputs and run concise Contentful dry-run checks.
 - `npm run format`: run Prettier across the repository.
 
 ## Municipal Analysis Pipeline
