@@ -13,6 +13,60 @@ O fluxo tem tres etapas:
 Os arquivos gerados pela pipeline ficam em `data/contentful-pipeline` e nao
 devem ser versionados. Eles sao saida local da pipeline.
 
+A configuracao versionada da pipeline fica em:
+
+```text
+tools/drive-contentful-pipeline/config/pipeline-config.json
+```
+
+Esse arquivo define a pasta padrao do Drive, paths locais, limites de payload,
+regras de mapeamento dos nomes de CSV para `panelLayerId` e os perfis usados
+para gerar `panelLayer.imageData`.
+
+## Estrutura da pipeline
+
+Os arquivos `.mjs` na raiz desta pasta sao apenas entrypoints de CLI. Eles
+mantem os comandos `npm run pipeline:*` estaveis e delegam o trabalho para
+modulos pequenos em `lib/`.
+
+```text
+tools/drive-contentful-pipeline/
+  config/
+    pipeline-config.json
+  lib/
+    cli/
+    config/
+    contentful/
+    conversion/
+    csv/
+    drive/
+    io/
+    shared/
+    validation/
+```
+
+Responsabilidades principais:
+
+- `config/`: configuracao versionada de origem, limites, mapeamentos e perfis
+  de camadas.
+- `lib/cli/`: parsing de flags e orquestracao dos comandos publicos.
+- `lib/config/`: leitura e validacao de `pipeline-config.json`, incluindo
+  compilacao dos padroes de nome de arquivo.
+- `lib/drive/`: listagem e download dos CSVs no Google Drive.
+- `lib/csv/`: parsing de CSV, deteccao de territorio, colunas de classe,
+  anos/referencias e mapeamento de arquivo para `panelLayerId`.
+- `lib/conversion/`: transformacao dos CSVs em `imageData`, escrita de
+  particoes, manifestos e relatorio de conversao.
+- `lib/contentful/`: cliente comum do Contentful, leitura de ambiente,
+  `PATCH`/create/publish de entries e sync de `panelLayer`/`municipalAnalysis`.
+- `lib/validation/`: validacao dos payloads e manifestos usados nos dry-runs e
+  nos testes.
+- `lib/shared/` e `lib/io/`: helpers pequenos de path, JSON e objetos.
+
+A ideia e que regra de negocio ou contrato reutilizavel fique em `lib/`, e que
+os entrypoints da raiz continuem pequenos para preservar a interface publica sem
+concentrar toda a pipeline em um arquivo unico.
+
 ## Comandos principais
 
 ### 1. Baixar do Drive e converter para JSON
@@ -222,7 +276,10 @@ use apenas `CONTENTFUL_MANAGEMENT_TOKEN`.
 
 ## Como os arquivos sao mapeados para camadas
 
-O script identifica a camada a partir de palavras-chave no nome do CSV.
+O script identifica a camada a partir de padrões declarados em
+`config/pipeline-config.json`. Para adicionar ou ajustar uma camada, altere
+`layerRules` e, quando a camada tambem gerar `panelLayer.imageData`, o perfil
+correspondente em `panelLayerProfiles`.
 
 | Palavra no nome do arquivo     | `panelLayerId`               |
 | ------------------------------ | ---------------------------- |

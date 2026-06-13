@@ -71,6 +71,8 @@ Open `http://localhost:3000` in the browser.
 ## Municipal Analysis Pipeline
 
 The CSV-to-Contentful pipeline lives in `tools/drive-contentful-pipeline`.
+Its versioned configuration lives in
+`tools/drive-contentful-pipeline/config/pipeline-config.json`.
 It is used to move Google Earth Engine CSV exports into Contentful
 `municipalAnalysis` entries consumed by the platform detail view.
 
