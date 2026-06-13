@@ -191,9 +191,6 @@ describe("municipalAnalysisMerge", () => {
 
   it("uses the same compact merge for client-side partial payloads", () => {
     const merged = mergePartialMunicipalImageData(buildBaseDataset(), {
-      schemaVersion: 1,
-      type: "territorial-compact",
-      classes: [],
       years: {
         "2026": {
           imageId: "ignored-by-merge",

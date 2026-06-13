@@ -1,5 +1,9 @@
 import path from "node:path";
 import { gunzipSync } from "node:zlib";
+import {
+  validateCompressedTerritorialEnvelope,
+  validateImageDataContract,
+} from "../../../../src/contracts/imageDataContract.mjs";
 import { isRecord } from "../shared/records.mjs";
 import { readJson } from "../io/json.mjs";
 
@@ -16,14 +20,14 @@ function isCompressedMunicipalAnalysisImageData(value) {
 
 function isPlainMunicipalAnalysisImageData(value) {
   return (
+    validateImageDataContract(value, { context: "runtimeRead" }).ok &&
     isRecord(value) &&
-    value.type === "territorial-compact" &&
-    isRecord(value.years)
+    value.type === "territorial-compact"
   );
 }
 
 function isMunicipalAnalysisPatchImageData(value) {
-  return isRecord(value) && isRecord(value.years);
+  return validateImageDataContract(value, { context: "municipalPatch" }).ok;
 }
 
 function decodeCompressedMunicipalAnalysisImageData(imageData) {
@@ -47,6 +51,12 @@ export function validateMunicipalAnalysisImageData(imageData, context = "") {
   }
 
   if (isCompressedMunicipalAnalysisImageData(imageData)) {
+    const envelopeValidation = validateCompressedTerritorialEnvelope(imageData);
+
+    if (!envelopeValidation.ok) {
+      return envelopeValidation.errors.map((error) => `${prefix}${error}`);
+    }
+
     try {
       const decoded = decodeCompressedMunicipalAnalysisImageData(imageData);
 
@@ -58,7 +68,7 @@ export function validateMunicipalAnalysisImageData(imageData, context = "") {
       }
 
       return [
-        `${prefix}payload gzip+base64 deve descomprimir para imageData ou patch com years.`,
+        `${prefix}payload gzip+base64 deve descomprimir para imageData territorial-compact ou patch municipal válido.`,
       ];
     } catch (error) {
       return [

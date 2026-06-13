@@ -7,6 +7,7 @@ import type {
   ImageDataConfig,
   LegacyImageDataEntry,
 } from "@/utils/interfaces";
+import { isCompactTerritorialImageData } from "@/contracts/imageDataContract.mjs";
 
 export interface ResolvedImageYearEntry {
   default: boolean;
@@ -52,12 +53,7 @@ function buildCompactImageParams(
 export function isCompactImageData(
   imageData: ImageDataConfig | null | undefined,
 ): imageData is CompactTerritorialAnalysisDataset {
-  return Boolean(
-    imageData &&
-    typeof imageData === "object" &&
-    "years" in imageData &&
-    "classes" in imageData,
-  );
+  return isCompactTerritorialImageData(imageData);
 }
 
 export function getImageDataYearKeys(

@@ -125,6 +125,7 @@ The repository includes a dedicated set of agent-oriented context files under `d
 - `docs/contentful-schema.md`: Contentful schema assumptions, risks, and change protocol.
 - `docs/gee-layers.md`: Earth Engine layer pipeline, visualization rules, cache behavior, and warmup behavior.
 - `docs/analysis-contract.md`: territorial analysis contract, semantic rules, and legacy compatibility.
+- `docs/image-data-contract.md`: executable `panelLayer.imageData` contract, including `territorial-compact` v1, municipal patches, compressed envelopes, and legacy read compatibility.
 - `docs/performance-notes.md`: known hotspots, guardrails, and regression signals.
 
 These files are living documents. If a prompt or code change affects architecture, contracts, schema, EE flow, performance, or other operational assumptions, the affected files in `docs/` must be updated in the same iteration.

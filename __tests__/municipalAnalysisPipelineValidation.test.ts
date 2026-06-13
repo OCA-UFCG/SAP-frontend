@@ -34,15 +34,25 @@ const validCompressedImageData = {
   encoding: "gzip+base64",
   data: [
     compressImageData({
-      type: "territorial-compact",
-      years: {},
+      years: {
+        "2025": {
+          values: {
+            "2507507": [1],
+          },
+        },
+      },
     }),
   ],
 };
 
 const validPlainImageData = {
-  type: "territorial-compact",
-  years: {},
+  years: {
+    "2025": {
+      values: {
+        "2507507": [1],
+      },
+    },
+  },
 };
 
 const validCompressedPatchImageData = {
