@@ -69,7 +69,51 @@ concentrar toda a pipeline em um arquivo unico.
 
 ## Comandos principais
 
-### 0. Verificar a pipeline inteira
+### 0. Fechar ciclo completo com relatório
+
+```bash
+npm run pipeline:full-cycle -- --skip-download
+```
+
+Esse comando orquestra o ciclo operacional completo:
+
+- baixa os CSVs do Drive, exceto quando `--skip-download` for usado;
+- converte CSVs em JSONs e manifestos;
+- sincroniza `panelLayer.imageData` em modo dry-run por padrão;
+- sincroniza partições `municipalAnalysis` em modo dry-run por padrão;
+- grava um relatório consumível em JSON e Markdown.
+
+Por padrão, o comando não escreve no Contentful. Para publicar:
+
+```bash
+npm run pipeline:full-cycle -- --skip-download --publish
+```
+
+O relatório padrão é gravado em:
+
+```text
+data/contentful-pipeline/json/pipeline-full-cycle-report.json
+data/contentful-pipeline/json/pipeline-full-cycle-report.md
+```
+
+Use `--report-path caminho/relatorio.json` para escolher outro destino.
+
+Para validar a rota publicada, informe a URL do runtime e um cookie de sessão,
+porque `/api/municipal-analysis/[panelLayerId]` é protegida:
+
+```bash
+npm run pipeline:full-cycle -- \
+  --skip-download \
+  --runtime-base-url https://seu-runtime.example \
+  --session-cookie-env SAP_RUNTIME_COOKIE \
+  --require-runtime-smoke
+```
+
+O smoke test chama amostras de
+`/api/municipal-analysis/<panelLayerId>?year=<yearKey>` usando o manifesto
+gerado. Use `--smoke-limit 10` para alterar a quantidade de rotas testadas.
+
+### 1. Verificar a pipeline inteira
 
 ```bash
 npm run pipeline:verify
@@ -91,7 +135,7 @@ Para validar somente a conversao local, sem acessar o Contentful:
 npm run pipeline:verify -- --local-only
 ```
 
-### 1. Baixar do Drive e converter para JSON
+### 2. Baixar do Drive e converter para JSON
 
 ```bash
 npm run pipeline:drive-csv-json
@@ -121,7 +165,7 @@ npm run pipeline:drive-csv-json -- \
   --folder-url "https://drive.google.com/drive/folders/..."
 ```
 
-### 2. Converter CSV local para JSON particionado
+### 3. Converter CSV local para JSON particionado
 
 ```bash
 npm run pipeline:drive-csv-json -- --skip-download
@@ -146,7 +190,7 @@ npm run pipeline:drive-csv-json -- \
   --json-dir data/contentful-pipeline/json
 ```
 
-### 3. Testar a publicacao dos `panelLayer`
+### 4. Testar a publicacao dos `panelLayer`
 
 Para testar todos os `panelLayer.imageData` gerados sem alterar o Contentful:
 
@@ -162,7 +206,7 @@ npm run pipeline:contentful-panel-layer -- \
   --dry-run
 ```
 
-### 4. Publicar os `panelLayer`
+### 5. Publicar os `panelLayer`
 
 Para publicar todos os `panelLayer.imageData` gerados:
 
@@ -181,7 +225,7 @@ npm run pipeline:contentful-panel-layer -- \
 Esse comando atualiza o campo `imageData` da entry `panelLayer` cujo campo `id`
 bate com `--panel-layer-id`.
 
-### 5. Testar a publicacao das particoes `municipalAnalysis`
+### 6. Testar a publicacao das particoes `municipalAnalysis`
 
 Para testar todas as camadas sem alterar o Contentful:
 
@@ -204,7 +248,7 @@ npm run pipeline:contentful-municipal-analysis -- \
   --dry-run
 ```
 
-### 6. Publicar as particoes `municipalAnalysis`
+### 7. Publicar as particoes `municipalAnalysis`
 
 Para publicar todas as camadas mapeadas no manifesto:
 

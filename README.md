@@ -66,6 +66,7 @@ Open `http://localhost:3000` in the browser.
 - `npm run pipeline:drive-csv-json`: download Google Drive CSVs and convert them to partitioned municipal analysis JSON files.
 - `npm run pipeline:contentful-municipal-analysis:dry-run-all`: validate what municipal analysis entries would be created or updated in Contentful.
 - `npm run pipeline:contentful-municipal-analysis:publish-all`: publish all mapped municipal analysis partitions to Contentful.
+- `npm run pipeline:full-cycle`: run the Drive/CSV conversion, Contentful dry-run or publish, report generation, and optional runtime smoke tests.
 - `npm run pipeline:verify`: regenerate local JSON outputs and run concise Contentful dry-run checks.
 - `npm run format`: run Prettier across the repository.
 
@@ -88,6 +89,16 @@ npm run pipeline:drive-csv-json
 npm run pipeline:contentful-municipal-analysis:dry-run-all
 npm run pipeline:contentful-municipal-analysis:publish-all
 ```
+
+For repeatable operational runs with a final JSON/Markdown report, use:
+
+```bash
+npm run pipeline:full-cycle -- --skip-download
+```
+
+Add `--publish` to write and publish to Contentful, and add
+`--runtime-base-url` plus `--session-cookie-env` to smoke-test published
+`/api/municipal-analysis/[panelLayerId]?year=<yearKey>` routes.
 
 Use `npm run pipeline:drive-csv-json -- --skip-download` when the CSVs already
 exist locally and only the partitioned JSONs need to be regenerated.
