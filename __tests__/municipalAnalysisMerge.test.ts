@@ -213,4 +213,28 @@ describe("municipalAnalysisMerge", () => {
       }),
     );
   });
+
+  it("keeps the compact base dataset when a client-side partial payload is invalid", () => {
+    const base = buildBaseDataset();
+    const merged = mergePartialMunicipalImageData(base, {
+      type: "unexpected",
+      years: "not-a-year-map",
+      classes: "not-a-class-list",
+      locations: [],
+      templates: [],
+      ranking: [],
+      mapVisualization: [],
+    });
+
+    expect(merged).toBe(base);
+    expect(
+      merged && "years" in merged ? merged.years["2026-02"] : null,
+    ).toEqual(
+      expect.objectContaining({
+        values: expect.objectContaining({
+          br: [400, 600],
+        }),
+      }),
+    );
+  });
 });

@@ -231,13 +231,16 @@ export function mergePartialMunicipalImageData(
     return baseImageData;
   }
 
+  if (!isCompactImageData(baseImageData)) {
+    return partialImageData;
+  }
+
   if (
-    !isCompactImageData(baseImageData) ||
     !validateImageDataContract(partialImageData, {
       context: "municipalPatch",
     }).ok
   ) {
-    return partialImageData;
+    return baseImageData;
   }
 
   return mergeCompactDataset(
