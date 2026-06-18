@@ -32,6 +32,12 @@ function getMunicipalAnalysisRequestKey(layerId: string, yearKey: string) {
   return `${layerId}::${yearKey}`;
 }
 
+function getMunicipalAnalysisRequestYear(
+  requestKey: string,
+): string | undefined {
+  return requestKey.split("::").at(1);
+}
+
 export interface AnalysisContextProps {
   activeSection: PlatformSection;
   panelLayers?: PanelLayerI[];
@@ -75,60 +81,95 @@ export function AnalysisContext({
     ? getMunicipalAnalysisRequestKey(dataset.id, activeAnalysisYear)
     : null;
 
+  const temporalMunicipalAnalysisRequestKeys = useMemo(() => {
+    if (!dataset?.id || !selectedMunicipalityCode) {
+      return [];
+    }
+
+    return yearOptions.map((option) =>
+      getMunicipalAnalysisRequestKey(dataset.id, option.value),
+    );
+  }, [dataset, selectedMunicipalityCode, yearOptions]);
+
   useEffect(() => {
-    if (
-      !dataset?.id ||
-      !municipalAnalysisRequestKey ||
-      analysisImageDataByRequestKey[municipalAnalysisRequestKey] !== undefined
-    ) {
+    if (!dataset?.id || !municipalAnalysisRequestKey) {
       return;
     }
 
-    const controller = new AbortController();
-    const requestUrl = new URL(
-      `/api/municipal-analysis/${encodeURIComponent(dataset.id)}`,
-      window.location.origin,
+    const requestKeys = [
+      municipalAnalysisRequestKey,
+      ...temporalMunicipalAnalysisRequestKeys,
+    ].filter(
+      (requestKey, index, allRequestKeys) =>
+        allRequestKeys.indexOf(requestKey) === index &&
+        analysisImageDataByRequestKey[requestKey] === undefined,
     );
-    requestUrl.searchParams.set("year", activeAnalysisYear);
 
-    fetch(requestUrl.toString(), {
-      credentials: "same-origin",
-      signal: controller.signal,
-    })
-      .then(async (response) => {
-        if (!response.ok) {
-          throw new Error(
-            `Municipal analysis request failed with status ${response.status}`,
+    if (requestKeys.length === 0) {
+      return;
+    }
+
+    const controllers = requestKeys.map(() => new AbortController());
+
+    requestKeys.forEach((requestKey, index) => {
+      const yearKey = getMunicipalAnalysisRequestYear(requestKey);
+      const controller = controllers[index];
+
+      if (!yearKey || !controller) {
+        return;
+      }
+
+      const requestUrl = new URL(
+        `/api/municipal-analysis/${encodeURIComponent(dataset.id)}`,
+        window.location.origin,
+      );
+      requestUrl.searchParams.set("year", yearKey);
+
+      fetch(requestUrl.toString(), {
+        credentials: "same-origin",
+        signal: controller.signal,
+      })
+        .then(async (response) => {
+          if (!response.ok) {
+            throw new Error(
+              `Municipal analysis request failed with status ${response.status}`,
+            );
+          }
+
+          return (await response.json()) as MunicipalAnalysisApiResponse;
+        })
+        .then((data) => {
+          setAnalysisImageDataByRequestKey((current) => ({
+            ...current,
+            [requestKey]: data.imageData ?? null,
+          }));
+        })
+        .catch((error) => {
+          if (controller.signal.aborted) {
+            return;
+          }
+
+          console.warn(
+            "Falha ao carregar municipalAnalysis sob demanda.",
+            error,
           );
-        }
+          setAnalysisImageDataByRequestKey((current) => ({
+            ...current,
+            [requestKey]: null,
+          }));
+        });
+    });
 
-        return (await response.json()) as MunicipalAnalysisApiResponse;
-      })
-      .then((data) => {
-        setAnalysisImageDataByRequestKey((current) => ({
-          ...current,
-          [municipalAnalysisRequestKey]: data.imageData ?? null,
-        }));
-      })
-      .catch((error) => {
-        if (controller.signal.aborted) {
-          return;
-        }
-
-        console.warn("Falha ao carregar municipalAnalysis sob demanda.", error);
-        setAnalysisImageDataByRequestKey((current) => ({
-          ...current,
-          [municipalAnalysisRequestKey]: null,
-        }));
-      });
     return () => {
-      controller.abort();
+      controllers.forEach((controller) => {
+        controller.abort();
+      });
     };
   }, [
-    activeAnalysisYear,
     analysisImageDataByRequestKey,
     dataset?.id,
     municipalAnalysisRequestKey,
+    temporalMunicipalAnalysisRequestKeys,
   ]);
 
   const enrichedDataset = useMemo(() => {
@@ -152,6 +193,36 @@ export function AnalysisContext({
       ),
     };
   }, [analysisImageDataByRequestKey, dataset, municipalAnalysisRequestKey]);
+
+  const temporalEnrichedDataset = useMemo(() => {
+    if (!dataset?.id || temporalMunicipalAnalysisRequestKeys.length === 0) {
+      return enrichedDataset;
+    }
+
+    return temporalMunicipalAnalysisRequestKeys.reduce<PanelLayerI | undefined>(
+      (currentDataset, requestKey) => {
+        const partialImageData = analysisImageDataByRequestKey[requestKey];
+
+        if (!currentDataset || !partialImageData) {
+          return currentDataset;
+        }
+
+        return {
+          ...currentDataset,
+          imageData: mergePartialMunicipalImageData(
+            currentDataset.imageData,
+            partialImageData,
+          ),
+        };
+      },
+      dataset,
+    );
+  }, [
+    analysisImageDataByRequestKey,
+    dataset,
+    enrichedDataset,
+    temporalMunicipalAnalysisRequestKeys,
+  ]);
 
   function handleGoBack() {
     resetPlatformState();
@@ -246,13 +317,17 @@ export function AnalysisContext({
 
   // Extract years and classes only when imageData is CompactTerritorialAnalysisDataset
   const temporalYears =
-    enrichedDataset?.imageData && "years" in enrichedDataset.imageData
-      ? (enrichedDataset.imageData as CompactTerritorialAnalysisDataset).years
+    temporalEnrichedDataset?.imageData &&
+    "years" in temporalEnrichedDataset.imageData
+      ? (temporalEnrichedDataset.imageData as CompactTerritorialAnalysisDataset)
+          .years
       : undefined;
 
   const temporalClasses =
-    enrichedDataset?.imageData && "classes" in enrichedDataset.imageData
-      ? (enrichedDataset.imageData as CompactTerritorialAnalysisDataset).classes
+    temporalEnrichedDataset?.imageData &&
+    "classes" in temporalEnrichedDataset.imageData
+      ? (temporalEnrichedDataset.imageData as CompactTerritorialAnalysisDataset)
+          .classes
       : undefined;
   const isMunicipalAnalysisLoading = Boolean(
     municipalAnalysisRequestKey &&

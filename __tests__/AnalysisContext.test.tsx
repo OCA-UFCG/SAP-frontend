@@ -8,6 +8,7 @@ vi.mock("@/services/telemetry/client", () => ({
 import citiesIndex from "@/data/citiesIndex.json";
 import { AnalysisContext } from "@/components/SidePanelContexts/AnalysisContext";
 import { trackUiEvent } from "@/services/telemetry/client";
+import type { CompactTerritorialAnalysisDataset } from "@/utils/analysis";
 import type { PanelLayerI } from "@/utils/interfaces";
 
 const useMapLayerActiveStateMock = vi.fn();
@@ -30,7 +31,16 @@ vi.mock("@/components/analysis/AnalysisPanel", () => ({
 
 const municipality = citiesIndex[0];
 
-function buildPanelLayer(values: Record<string, number[]>): PanelLayerI {
+function buildPanelLayer(
+  values: Record<string, number[]>,
+  years: CompactTerritorialAnalysisDataset["years"] = {
+    "2024": {
+      imageId: "img-2024",
+      valuesScale: 1,
+      values,
+    },
+  },
+): PanelLayerI {
   return {
     sys: { id: "sys-layer-1" },
     id: "layer-1",
@@ -49,13 +59,7 @@ function buildPanelLayer(values: Record<string, number[]>): PanelLayerI {
         br: "Brasil",
         [municipality.uf]: municipality.uf.toUpperCase(),
       },
-      years: {
-        "2024": {
-          imageId: "img-2024",
-          valuesScale: 1,
-          values,
-        },
-      },
+      years,
     },
   };
 }
@@ -257,6 +261,91 @@ describe("AnalysisContext", () => {
           signal: expect.any(AbortSignal),
         }),
       );
+    });
+  });
+
+  it("keeps temporal municipal values independent from the selected analysis year", async () => {
+    useMapLayerViewStateMock.mockReturnValue({
+      selectedState: municipality.uf,
+      selectedMunicipalityCode: municipality.code,
+      activeYear: "2010",
+    });
+
+    global.fetch = vi.fn().mockImplementation(async (url: string) => {
+      const requestUrl = new URL(url);
+      const year = requestUrl.searchParams.get("year");
+
+      return {
+        ok: true,
+        json: async () => ({
+          imageData: {
+            schemaVersion: 1,
+            type: "territorial-compact",
+            years: {
+              [year ?? ""]: {
+                valuesScale: 1,
+                values: {
+                  [municipality.code]:
+                    year === "2020" ? [72.6, 27.4] : [0.1, 99.9],
+                },
+              },
+            },
+          },
+        }),
+      } as Response;
+    });
+
+    render(
+      <AnalysisContext
+        activeSection="analysis-detail"
+        panelLayers={[
+          buildPanelLayer(
+            {
+              br: [45, 55],
+              [municipality.uf]: [35, 65],
+            },
+            {
+              "2010": {
+                imageId: "img-2010",
+                valuesScale: 1,
+                values: {
+                  br: [45, 55],
+                  [municipality.uf]: [35, 65],
+                },
+              },
+              "2020": {
+                imageId: "img-2020",
+                valuesScale: 1,
+                values: {
+                  br: [99.9, 0.1],
+                  [municipality.uf]: [25, 75],
+                },
+              },
+            },
+          ),
+        ]}
+      />,
+    );
+
+    await waitFor(() => {
+      const calls = vi.mocked(global.fetch).mock.calls.map(([url]) => {
+        return new URL(url as string).searchParams.get("year");
+      });
+
+      expect(calls).toEqual(expect.arrayContaining(["2010", "2020"]));
+    });
+
+    await waitFor(() => {
+      const props = analysisPanelMock.mock.calls.at(-1)?.[0] as {
+        model: { distribution: Array<{ id: string; value: number }> } | null;
+        years: Record<string, { values: Record<string, number[]> }>;
+      };
+
+      expect(props.model?.distribution[0]).toMatchObject({
+        id: "a",
+        value: 0.1,
+      });
+      expect(props.years["2020"].values[municipality.code][0]).toBe(72.6);
     });
   });
 });
