@@ -22,7 +22,13 @@ const initializeGee = async () => {
   if (geeInitialized) {
     return geeInitialized;
   }
-  geeInitialized = authenticateAndInitialize();
+
+  geeInitialized = authenticateAndInitialize().catch((error) => {
+    // Do not keep a rejected promise in the singleton. A transient
+    // authentication or initialization failure must be retryable.
+    geeInitialized = null;
+    throw error;
+  });
 
   return geeInitialized;
 };
@@ -345,8 +351,7 @@ export const getEarthEngineUrl = async (
     return mapId.urlFormat;
   } catch (error: any) {
     console.error("Error in getEarthEngineUrl:", error.message);
-
-    return null;
+    throw error;
   }
 };
 

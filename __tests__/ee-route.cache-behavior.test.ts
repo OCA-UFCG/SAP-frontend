@@ -154,6 +154,22 @@ describe("POST /api/ee cache behavior", () => {
     expect(mockedGetEarthEngineUrl).toHaveBeenCalledTimes(1);
   });
 
+  it("returns 500 when Earth Engine cannot generate a tile URL", async () => {
+    mockedGetEarthEngineUrl.mockRejectedValueOnce(
+      new Error("Earth Engine initialization failed"),
+    );
+
+    const request = createMockRequest(
+      "https://example.test/api/ee?name=layer-a&year=2024",
+    );
+
+    const res = await POST(request);
+    const body = (await res.json()) as { error?: string };
+
+    expect(res.status).toBe(500);
+    expect(body.error).toBe("Earth Engine initialization failed");
+  });
+
   it("recomputes the URL when the server-side layer config changes", async () => {
     mockedGetEarthEngineUrl
       .mockResolvedValueOnce("https://tiles.example/layer-a/v1")
