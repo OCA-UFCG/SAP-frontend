@@ -62,14 +62,14 @@ function slugify(text: string): string {
 }
 
 interface TranslateFunction {
-  (key: string, values?: Record<string, string | number | boolean>): string;
+  (key: string, values?: Record<string, string | number | Date>): string;
   has(key: string): boolean;
 }
 
 function translate(
   text: string,
   tCaption?: TranslateFunction,
-  values?: Record<string, string | number | boolean>,
+  values?: Record<string, string | number | Date>,
 ): string {
   if (!tCaption) return text;
   const slug = slugify(text);
