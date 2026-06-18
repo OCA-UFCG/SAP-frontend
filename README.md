@@ -66,11 +66,15 @@ Open `http://localhost:3000` in the browser.
 - `npm run pipeline:drive-csv-json`: download Google Drive CSVs and convert them to partitioned municipal analysis JSON files.
 - `npm run pipeline:contentful-municipal-analysis:dry-run-all`: validate what municipal analysis entries would be created or updated in Contentful.
 - `npm run pipeline:contentful-municipal-analysis:publish-all`: publish all mapped municipal analysis partitions to Contentful.
+- `npm run pipeline:full-cycle`: run the Drive/CSV conversion, Contentful dry-run or publish, report generation, and optional runtime smoke tests.
+- `npm run pipeline:verify`: regenerate local JSON outputs and run concise Contentful dry-run checks.
 - `npm run format`: run Prettier across the repository.
 
 ## Municipal Analysis Pipeline
 
 The CSV-to-Contentful pipeline lives in `tools/drive-contentful-pipeline`.
+Its versioned configuration lives in
+`tools/drive-contentful-pipeline/config/pipeline-config.json`.
 It is used to move Google Earth Engine CSV exports into Contentful
 `municipalAnalysis` entries consumed by the platform detail view.
 
@@ -85,6 +89,16 @@ npm run pipeline:drive-csv-json
 npm run pipeline:contentful-municipal-analysis:dry-run-all
 npm run pipeline:contentful-municipal-analysis:publish-all
 ```
+
+For repeatable operational runs with a final JSON/Markdown report, use:
+
+```bash
+npm run pipeline:full-cycle -- --skip-download
+```
+
+Add `--publish` to write and publish to Contentful, and add
+`--runtime-base-url` plus `--session-cookie-env` to smoke-test published
+`/api/municipal-analysis/[panelLayerId]?year=<yearKey>` routes.
 
 Use `npm run pipeline:drive-csv-json -- --skip-download` when the CSVs already
 exist locally and only the partitioned JSONs need to be regenerated.
@@ -122,6 +136,7 @@ The repository includes a dedicated set of agent-oriented context files under `d
 - `docs/contentful-schema.md`: Contentful schema assumptions, risks, and change protocol.
 - `docs/gee-layers.md`: Earth Engine layer pipeline, visualization rules, cache behavior, and warmup behavior.
 - `docs/analysis-contract.md`: territorial analysis contract, semantic rules, and legacy compatibility.
+- `docs/image-data-contract.md`: executable `panelLayer.imageData` contract, including `territorial-compact` v1, municipal patches, compressed envelopes, and legacy read compatibility.
 - `docs/performance-notes.md`: known hotspots, guardrails, and regression signals.
 
 These files are living documents. If a prompt or code change affects architecture, contracts, schema, EE flow, performance, or other operational assumptions, the affected files in `docs/` must be updated in the same iteration.

@@ -59,11 +59,19 @@ export interface CompactAnalysisRankingConfig {
 }
 
 export interface CompactMapVisualizationConfig {
+  sourceType?: "image" | "imageCollection" | "featureCollection";
   min?: number;
   max?: number;
   palette?: string[];
+  legend?: CompactAnalysisClass[];
   band?: string;
   sourceBand?: string;
+  property?: string;
+  outline?: {
+    color?: string;
+    width?: number;
+    opacity?: number;
+  };
   thresholds?: number[];
   sourceRange?: {
     min?: number;

@@ -1,20 +1,141 @@
 # Drive CSV -> JSON -> Contentful
 
 Esta pasta contem os scripts da pipeline que leva os CSVs gerados no Google
-Earth Engine para entries `municipalAnalysis` no Contentful.
+Earth Engine para entries `panelLayer` e `municipalAnalysis` no Contentful.
 
 O fluxo tem tres etapas:
 
 1. Baixar os CSVs do Google Drive para uma pasta local.
-2. Converter os CSVs locais em JSONs particionados por `panelLayerId`.
+2. Converter os CSVs locais em JSONs de `panelLayer.imageData` e particoes de
+   `municipalAnalysis`.
 3. Testar e publicar esses JSONs no Contentful.
 
 Os arquivos gerados pela pipeline ficam em `data/contentful-pipeline` e nao
 devem ser versionados. Eles sao saida local da pipeline.
 
+A configuracao versionada da pipeline fica em:
+
+```text
+tools/drive-contentful-pipeline/config/pipeline-config.json
+```
+
+Esse arquivo define `schemaVersion`, a pasta padrao do Drive, paths locais,
+limites de payload, regras de mapeamento dos nomes de CSV para `panelLayerId` e
+os perfis usados para gerar `panelLayer.imageData`.
+
+## Estrutura da pipeline
+
+Os arquivos `.mjs` na raiz desta pasta sao apenas entrypoints de CLI. Eles
+mantem os comandos `npm run pipeline:*` estaveis e delegam o trabalho para
+modulos pequenos em `lib/`.
+
+```text
+tools/drive-contentful-pipeline/
+  config/
+    pipeline-config.json
+  lib/
+    cli/
+    config/
+    contentful/
+    conversion/
+    csv/
+    drive/
+    io/
+    shared/
+    validation/
+```
+
+Responsabilidades principais:
+
+- `config/`: configuracao versionada de origem, limites, mapeamentos e perfis
+  de camadas.
+- `lib/cli/`: parsing de flags e orquestracao dos comandos publicos.
+- `lib/config/`: leitura e validacao de `pipeline-config.json`, incluindo
+  compilacao dos padroes de nome de arquivo.
+- `lib/drive/`: listagem e download dos CSVs no Google Drive.
+- `lib/csv/`: parsing de CSV, deteccao de territorio, colunas de classe,
+  anos/referencias e mapeamento de arquivo para `panelLayerId`.
+- `lib/conversion/`: transformacao dos CSVs em `imageData`, escrita de
+  particoes, manifestos e relatorio de conversao.
+- `lib/contentful/`: cliente comum do Contentful, leitura de ambiente,
+  `PATCH`/create/publish de entries e sync de `panelLayer`/`municipalAnalysis`.
+- `lib/validation/`: validacao dos payloads e manifestos usados nos dry-runs e
+  nos testes.
+- `lib/shared/` e `lib/io/`: helpers pequenos de path, JSON e objetos.
+
+A ideia e que regra de negocio ou contrato reutilizavel fique em `lib/`, e que
+os entrypoints da raiz continuem pequenos para preservar a interface publica sem
+concentrar toda a pipeline em um arquivo unico.
+
 ## Comandos principais
 
-### 1. Baixar do Drive e converter para JSON
+### 0. Fechar ciclo completo com relatório
+
+```bash
+npm run pipeline:full-cycle -- --skip-download
+```
+
+Esse comando orquestra o ciclo operacional completo:
+
+- baixa os CSVs do Drive, exceto quando `--skip-download` for usado;
+- converte CSVs em JSONs e manifestos;
+- sincroniza `panelLayer.imageData` em modo dry-run por padrão;
+- sincroniza partições `municipalAnalysis` em modo dry-run por padrão;
+- grava um relatório consumível em JSON e Markdown.
+
+Por padrão, o comando não escreve no Contentful. Para publicar:
+
+```bash
+npm run pipeline:full-cycle -- --skip-download --publish
+```
+
+O relatório padrão é gravado em:
+
+```text
+data/contentful-pipeline/json/pipeline-full-cycle-report.json
+data/contentful-pipeline/json/pipeline-full-cycle-report.md
+```
+
+Use `--report-path caminho/relatorio.json` para escolher outro destino.
+
+Para validar a rota publicada, informe a URL do runtime e um cookie de sessão,
+porque `/api/municipal-analysis/[panelLayerId]` é protegida:
+
+```bash
+npm run pipeline:full-cycle -- \
+  --skip-download \
+  --runtime-base-url https://seu-runtime.example \
+  --session-cookie-env SAP_RUNTIME_COOKIE \
+  --require-runtime-smoke
+```
+
+O smoke test chama amostras de
+`/api/municipal-analysis/<panelLayerId>?year=<yearKey>` usando o manifesto
+gerado. Use `--smoke-limit 10` para alterar a quantidade de rotas testadas.
+
+### 1. Verificar a pipeline inteira
+
+```bash
+npm run pipeline:verify
+```
+
+Esse comando e o gate operacional antes de publicar. Ele:
+
+- converte os CSVs locais de `data/contentful-pipeline/csv`;
+- regrava os manifestos e o `conversion-report.json`;
+- imprime uma tabela curta de cobertura por `panelLayerId`;
+- roda dry-run de todos os `panelLayer`;
+- roda dry-run de todas as particoes `municipalAnalysis`;
+- falha se a conversao local, os manifestos ou os dry-runs tiverem erros
+  bloqueantes.
+
+Para validar somente a conversao local, sem acessar o Contentful:
+
+```bash
+npm run pipeline:verify -- --local-only
+```
+
+### 2. Baixar do Drive e converter para JSON
 
 ```bash
 npm run pipeline:drive-csv-json
@@ -24,7 +145,9 @@ Esse comando faz duas coisas em sequencia:
 
 - baixa os CSVs da pasta configurada do Google Drive para
   `data/contentful-pipeline/csv`;
-- converte os CSVs baixados para JSONs particionados em
+- converte os CSVs baixados para JSONs de `panelLayer.imageData` em
+  `data/contentful-pipeline/json/panel-layers`;
+- converte os CSVs municipais/estaduais para JSONs particionados em
   `data/contentful-pipeline/json/partitions`.
 
 Use este comando quando quiser atualizar tudo a partir do Drive.
@@ -42,7 +165,7 @@ npm run pipeline:drive-csv-json -- \
   --folder-url "https://drive.google.com/drive/folders/..."
 ```
 
-### 2. Converter CSV local para JSON particionado
+### 3. Converter CSV local para JSON particionado
 
 ```bash
 npm run pipeline:drive-csv-json -- --skip-download
@@ -67,7 +190,42 @@ npm run pipeline:drive-csv-json -- \
   --json-dir data/contentful-pipeline/json
 ```
 
-### 3. Testar a publicacao no Contentful
+### 4. Testar a publicacao dos `panelLayer`
+
+Para testar todos os `panelLayer.imageData` gerados sem alterar o Contentful:
+
+```bash
+npm run pipeline:contentful-panel-layer:dry-run-all
+```
+
+Para testar apenas uma camada:
+
+```bash
+npm run pipeline:contentful-panel-layer -- \
+  --panel-layer-id pob_total \
+  --dry-run
+```
+
+### 5. Publicar os `panelLayer`
+
+Para publicar todos os `panelLayer.imageData` gerados:
+
+```bash
+npm run pipeline:contentful-panel-layer:publish-all
+```
+
+Para publicar apenas uma camada:
+
+```bash
+npm run pipeline:contentful-panel-layer -- \
+  --panel-layer-id pob_total \
+  --publish
+```
+
+Esse comando atualiza o campo `imageData` da entry `panelLayer` cujo campo `id`
+bate com `--panel-layer-id`.
+
+### 6. Testar a publicacao das particoes `municipalAnalysis`
 
 Para testar todas as camadas sem alterar o Contentful:
 
@@ -90,7 +248,7 @@ npm run pipeline:contentful-municipal-analysis -- \
   --dry-run
 ```
 
-### 4. Publicar no Contentful
+### 7. Publicar as particoes `municipalAnalysis`
 
 Para publicar todas as camadas mapeadas no manifesto:
 
@@ -127,6 +285,9 @@ data/contentful-pipeline/
   json/
     conversion-report.json
     municipal-analysis-manifest.json
+    panel-layer-imageData-manifest.json
+    panel-layers/
+      panel-layer.<panelLayerId>.imageData.json
     partitions/
       municipal-analysis.<panelLayerId>.<particao>.municipality.imageData.json
 ```
@@ -134,10 +295,14 @@ data/contentful-pipeline/
 Arquivos importantes:
 
 - `csv/`: CSVs baixados do Google Drive ou colocados localmente.
-- `json/partitions/`: JSONs que serao enviados ao Contentful.
+- `json/panel-layers/`: JSONs que serao enviados ao campo `imageData` de
+  `panelLayer`.
+- `json/partitions/`: JSONs que serao enviados a entries `municipalAnalysis`.
 - `json/conversion-report.json`: relatorio detalhado da conversao.
 - `json/municipal-analysis-manifest.json`: lista as particoes geradas e o
   `panelLayerId` de destino de cada uma.
+- `json/panel-layer-imageData-manifest.json`: lista os JSONs gerados para
+  atualizar `panelLayer.imageData`.
 
 ## Variaveis de ambiente
 
@@ -177,22 +342,47 @@ use apenas `CONTENTFUL_MANAGEMENT_TOKEN`.
 
 ## Como os arquivos sao mapeados para camadas
 
-O script identifica a camada a partir de palavras-chave no nome do CSV.
+O script identifica a camada a partir de padrões declarados em
+`config/pipeline-config.json`. Para adicionar ou ajustar uma camada, altere
+`layerRules` e, quando a camada tambem gerar `panelLayer.imageData`, o perfil
+correspondente em `panelLayerProfiles`.
 
-| Palavra no nome do arquivo     | `panelLayerId`      |
-| ------------------------------ | ------------------- |
-| `Carbono`                      | `carbonoembrapa`    |
-| `CDI`                          | `CDI_Test`          |
-| `CobTerra` ou `CoberturaTerra` | `terraibge`         |
-| `GPP`                          | `prodprimariabruta` |
-| `IA`                           | `indicearidez`      |
-| `IDT`                          | `deg`               |
-| `ODS`                          | `ods`               |
-| `cemaden`                      | `cemadenseca`       |
-| `ANA`                          | `anaseca`           |
+O campo `schemaVersion` versiona esse contrato de configuracao. A pipeline
+rejeita versoes desconhecidas para evitar interpretar uma configuracao nova com
+codigo antigo.
 
-Arquivos que nao casam com essas regras entram como `unmapped` no manifesto e
-nao sao publicados pelos comandos `dry-run-all` e `publish-all`.
+| Palavra no nome do arquivo     | `panelLayerId`               |
+| ------------------------------ | ---------------------------- |
+| `Carbono`                      | `carbonoembrapa`             |
+| `CDI`                          | `CDI_Test`                   |
+| `CobTerra` ou `CoberturaTerra` | `terraibge`                  |
+| `GPP`                          | `prodprimariabruta`          |
+| `IA`                           | `indicearidez`               |
+| `IDT`                          | `deg`                        |
+| `ODS`                          | `ods`                        |
+| `cemaden`                      | `cemadenseca`                |
+| `ANA`                          | `anaseca`                    |
+| `pob` ou `populacao`           | `pob_total`                  |
+| `Prev` ou `previsao_P`         | `prev_anomalia_precipitacao` |
+
+Arquivos municipais/estaduais que nao casam com essas regras entram como
+`unmapped` no manifesto e nao sao publicados pelos comandos `dry-run-all` e
+`publish-all`.
+
+CSVs de `panelLayer` usam outro contrato: precisam ter `location_key`,
+`location_name`, `ano` e `valor_classe_N`. A camada
+`prev_anomalia_precipitacao` usa `Prev` como identificador no nome do arquivo e
+o script `scripts/gee/anomalia-precip.js` gera o CSV de `panelLayer` com as
+faixas de anomalia de precipitacao prevista. A visualizacao no SAP usa os
+limiares `[-90, -30, 0, 30, 90]` para reclassificar o raster continuo em 6
+classes antes de aplicar a paleta. Para `pob_total`, a pipeline tambem
+valida que `valor_classe_N` esteja no intervalo `0..100`, porque o asset do GEE
+visualizado no mapa usa essa escala. Nessa camada, o valor representa o
+percentual de familias inscritas no CadUnico que se encontram em situacao de
+pobreza, nao o percentual de todas as familias do territorio. Se o CSV tiver
+valores somados por estado, a conversao falha antes de gerar um JSON publicavel.
+A legenda publicada para `pob_total` usa apenas faixas dentro dessa escala:
+`0-20`, `20-40`, `40-60`, `60-80` e `80-100`.
 
 ## Como os JSONs sao particionados
 
@@ -233,6 +423,10 @@ detalhamento.
 
 O asset do Google Earth Engine usado para visualizar a camada no mapa continua
 vindo do `panelLayer`.
+
+Quando houver CSV de `panelLayer`, publique primeiro o `panelLayer.imageData` e
+depois as particoes `municipalAnalysis`. Assim a validacao de anos das
+particoes encontra os anos recem-publicados no `panelLayer`.
 
 Por isso, se existir dado municipal para `2026-03`, mas o `panelLayer` da camada
 so tiver asset ate `2026-02`, a aplicacao so exibira ate `2026-02`. A pipeline
@@ -287,19 +481,21 @@ Para municipios:
 - `NM_MUN`
 - `SIGLA_UF`
 - `data_img` no formato `YYYY-MM-DD`
-- `perc_classe_0`, `perc_classe_1`, ... ou `area_ha_classe_N` com
-  `area_total_ha`
+- `perc_classe_0`, `perc_classe_1`, ... para percentuais; ou
+  `valor_classe_0`, `valor_classe_1`, ... para valores absolutos; ou
+  `area_ha_classe_N` com `area_total_ha`
 
 Para estados:
 
 - `SIGLA_UF`
 - `NM_UF` ou `NOME_UF`
 - `data_img` no formato `YYYY-MM-DD`
-- `perc_classe_0`, `perc_classe_1`, ... ou `area_ha_classe_N` com
-  `area_total_ha`
+- `perc_classe_0`, `perc_classe_1`, ... para percentuais; ou
+  `valor_classe_0`, `valor_classe_1`, ... para valores absolutos; ou
+  `area_ha_classe_N` com `area_total_ha`
 
 Os arrays em `years[*].values` seguem a ordem numerica das colunas
-`perc_classe_N` ou `area_ha_classe_N`.
+`perc_classe_N`, `valor_classe_N` ou `area_ha_classe_N`.
 
 ## Como o frontend consome esses dados
 

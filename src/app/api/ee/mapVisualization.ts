@@ -8,6 +8,9 @@ export interface ThresholdClassificationPlan {
 }
 
 export interface ResolvedMapVisualizationPlan {
+  sourceType?: CompactMapVisualizationConfig["sourceType"];
+  property?: string;
+  outline?: CompactMapVisualizationConfig["outline"];
   sourceBand?: string;
   thresholdClassification?: ThresholdClassificationPlan;
   visParams: {
@@ -65,6 +68,9 @@ export function resolveMapVisualizationPlan(
     : (mapVisualization.band ?? mapVisualization.sourceBand);
 
   return {
+    sourceType: mapVisualization.sourceType,
+    property: mapVisualization.property,
+    outline: mapVisualization.outline,
     sourceBand,
     visParams: { min, max, palette },
     ...(hasThresholds

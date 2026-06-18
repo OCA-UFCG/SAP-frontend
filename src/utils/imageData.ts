@@ -7,6 +7,7 @@ import type {
   ImageDataConfig,
   LegacyImageDataEntry,
 } from "@/utils/interfaces";
+import { isCompactTerritorialImageData } from "@/contracts/imageDataContract.mjs";
 
 export interface ResolvedImageYearEntry {
   default: boolean;
@@ -38,7 +39,9 @@ function sortYearKeys(keys: string[]): string[] {
 function buildCompactImageParams(
   imageData: CompactTerritorialAnalysisDataset,
 ): IImageParam[] {
-  return imageData.classes.map((item) => ({
+  const legend = imageData.mapVisualization?.legend ?? imageData.classes;
+
+  return legend.map((item) => ({
     color: item.color,
     label: item.label,
     ...(typeof item.pixelLimit === "number"
@@ -50,12 +53,7 @@ function buildCompactImageParams(
 export function isCompactImageData(
   imageData: ImageDataConfig | null | undefined,
 ): imageData is CompactTerritorialAnalysisDataset {
-  return Boolean(
-    imageData &&
-    typeof imageData === "object" &&
-    "years" in imageData &&
-    "classes" in imageData,
-  );
+  return isCompactTerritorialImageData(imageData);
 }
 
 export function getImageDataYearKeys(
@@ -112,12 +110,17 @@ export function resolveImageYearEntry(
       return null;
     }
 
+    const resolvedYear = yearData.year ?? year;
+
     return {
       default: year === getImageDataDefaultYear(imageData),
-      year: yearData.year ?? year,
+      year: resolvedYear,
       imageId: yearData.imageId,
       imageParams: buildCompactImageParams(imageData),
-      mapVisualization: imageData.mapVisualization,
+      mapVisualization: resolveMapVisualizationForYear(
+        imageData.mapVisualization,
+        resolvedYear,
+      ),
     };
   }
 
@@ -133,6 +136,26 @@ export function resolveImageYearEntry(
     imageId: yearData.imageId,
     imageParams: yearData.imageParams,
     analysis: yearData.analysis,
+  };
+}
+
+function replaceYearToken(value: string | undefined, year: string) {
+  return value?.replace(/\{year\}/gu, year);
+}
+
+function resolveMapVisualizationForYear(
+  mapVisualization: CompactMapVisualizationConfig | undefined,
+  year: string,
+): CompactMapVisualizationConfig | undefined {
+  if (!mapVisualization) {
+    return undefined;
+  }
+
+  return {
+    ...mapVisualization,
+    property: replaceYearToken(mapVisualization.property, year),
+    sourceBand: replaceYearToken(mapVisualization.sourceBand, year),
+    band: replaceYearToken(mapVisualization.band, year),
   };
 }
 

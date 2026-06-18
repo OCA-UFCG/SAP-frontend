@@ -7,6 +7,10 @@ import type {
 import type { PanelLayerI } from "@/utils/interfaces";
 import { isCompactImageData } from "@/utils/imageData";
 import {
+  validateCompressedTerritorialEnvelope,
+  validateImageDataContract,
+} from "@/contracts/imageDataContract.mjs";
+import {
   mergeCompactDataset,
   mergeCompactDatasetYear,
   hasPatchForYear,
@@ -131,14 +135,7 @@ function isNumericArrayRecord(
 function isCompressedTerritorialAnalysisPayload(
   value: unknown,
 ): value is CompressedTerritorialAnalysisPayload {
-  return (
-    isRecord(value) &&
-    value.type === "territorial-compact-compressed" &&
-    value.encoding === "gzip+base64" &&
-    (typeof value.data === "string" ||
-      (Array.isArray(value.data) &&
-        value.data.every((chunk) => typeof chunk === "string")))
-  );
+  return validateCompressedTerritorialEnvelope(value).ok;
 }
 
 export function decodeMunicipalAnalysisImageData(value: unknown): unknown {
@@ -151,9 +148,22 @@ export function decodeMunicipalAnalysisImageData(value: unknown): unknown {
       ? value.data.join("")
       : value.data;
 
-    return JSON.parse(
+    const decoded = JSON.parse(
       gunzipSync(Buffer.from(encoded, "base64")).toString("utf8"),
     );
+    const validation = validateImageDataContract(decoded, {
+      context: "municipalPatch",
+    });
+
+    if (!validation.ok) {
+      console.warn(
+        "municipalAnalysis comprimido não segue o contrato imageData; entrada ignorada.",
+        validation.errors,
+      );
+      return null;
+    }
+
+    return decoded;
   } catch (error) {
     console.warn(
       "municipalAnalysis comprimido inválido; entrada ignorada.",
@@ -169,6 +179,18 @@ export function toDatasetPatch(
   value = decodeMunicipalAnalysisImageData(value);
 
   if (!isRecord(value)) {
+    return null;
+  }
+
+  const validation = validateImageDataContract(value, {
+    context: "municipalPatch",
+  });
+
+  if (!validation.ok) {
+    console.warn(
+      "municipalAnalysis imageData não segue o contrato de patch; entrada ignorada.",
+      validation.errors,
+    );
     return null;
   }
 

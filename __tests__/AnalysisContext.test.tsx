@@ -253,6 +253,7 @@ describe("AnalysisContext", () => {
       expect(global.fetch).toHaveBeenCalledWith(
         "http://localhost:3000/api/municipal-analysis/layer-1?year=2024",
         expect.objectContaining({
+          credentials: "same-origin",
           signal: expect.any(AbortSignal),
         }),
       );

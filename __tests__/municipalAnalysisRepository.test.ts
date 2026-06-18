@@ -66,7 +66,7 @@ describe("municipalAnalysisRepository helpers", () => {
     warn.mockRestore();
   });
 
-  it("converts imageData into a sanitized dataset patch", () => {
+  it("converts valid imageData into a sanitized dataset patch", () => {
     expect(
       toDatasetPatch({
         schemaVersion: 1,
@@ -75,7 +75,6 @@ describe("municipalAnalysisRepository helpers", () => {
         classes: [{ id: "a", label: "A", color: "#111111" }],
         locations: {
           "2914802": "Itabuna - BA",
-          invalid: 10,
         },
         templates: {
           municipality: "Municipio {name}",
@@ -89,10 +88,8 @@ describe("municipalAnalysisRepository helpers", () => {
             valuesScale: 1,
             values: {
               "2914802": [80, 20],
-              bad: ["80", 20],
             },
           },
-          invalid: null,
         },
       }),
     ).toEqual({
@@ -100,6 +97,9 @@ describe("municipalAnalysisRepository helpers", () => {
       type: "territorial-compact",
       defaultYear: "2026",
       classes: [{ id: "a", label: "A", color: "#111111" }],
+      locations: {
+        "2914802": "Itabuna - BA",
+      },
       templates: {
         municipality: "Municipio {name}",
       },
@@ -110,9 +110,36 @@ describe("municipalAnalysisRepository helpers", () => {
         "2026": {
           imageId: "ignored",
           valuesScale: 1,
+          values: {
+            "2914802": [80, 20],
+          },
         },
       },
     });
+  });
+
+  it("drops invalid imageData patches before merge", () => {
+    const warn = vi.spyOn(console, "warn").mockImplementation(() => {});
+
+    expect(
+      toDatasetPatch({
+        years: {
+          "2026": {
+            values: {
+              bad: ["80", 20],
+            },
+          },
+        },
+      }),
+    ).toBeNull();
+    expect(warn).toHaveBeenCalledWith(
+      "municipalAnalysis imageData não segue o contrato de patch; entrada ignorada.",
+      expect.arrayContaining([
+        "years.2026.values: deve ser objeto de arrays numéricos.",
+      ]),
+    );
+
+    warn.mockRestore();
   });
 
   it("matches partitions by metadata or legacy standardized title", () => {

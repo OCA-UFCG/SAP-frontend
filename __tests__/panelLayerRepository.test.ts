@@ -136,6 +136,34 @@ describe("panelLayerRepository", () => {
     );
   });
 
+  it("keeps panel layers with invalid runtime imageData but logs diagnostics", async () => {
+    const warn = vi.spyOn(console, "warn").mockImplementation(() => {});
+    mockedGetContent.mockResolvedValueOnce(
+      buildPanelLayerResponse([
+        {
+          sys: { id: "sys-1" },
+          id: "layer-1",
+          name: "Layer 1",
+          description: "Layer 1",
+          panelPosition: 1,
+          previewMap: { url: "https://example.com/map-1.png" },
+          imageData: { type: "territorial-compact", years: {} },
+        },
+      ]),
+    );
+
+    const layers = await getPanelLayers();
+
+    expect(layers).toHaveLength(1);
+    expect(warn).toHaveBeenCalledWith(
+      expect.stringContaining(
+        "[panelLayerRepository] imageData inválido vindo do Contentful para panelLayer layer-1:",
+      ),
+    );
+
+    warn.mockRestore();
+  });
+
   it("merges municipal analysis data from Contentful into the matching panel layer", async () => {
     mockedGetContent.mockImplementation(async (query: string) => {
       if (query.includes("municipalAnalysisCollection")) {

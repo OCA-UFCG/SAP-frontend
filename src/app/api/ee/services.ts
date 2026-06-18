@@ -78,6 +78,28 @@ interface GetEarthEngineUrlOptions {
   mapVisualization?: CompactMapVisualizationConfig;
 }
 
+function normalizeGeeAssetType(type?: unknown) {
+  return type
+    ? String(type)
+        .toUpperCase()
+        .replace(/[_\s-]/g, "")
+    : "";
+}
+
+function isFeatureCollectionAsset({
+  assetType,
+  mapVisualization,
+}: {
+  assetType: string;
+  mapVisualization?: CompactMapVisualizationConfig;
+}) {
+  return (
+    mapVisualization?.sourceType === "featureCollection" ||
+    assetType === "TABLE" ||
+    assetType === "FEATURECOLLECTION"
+  );
+}
+
 function applyThresholdClassification(
   image: any,
   classification: ThresholdClassificationPlan,
@@ -123,6 +145,63 @@ function applyMapVisualization(
   return { image: selectedImage, visParams: plan.visParams };
 }
 
+function buildFeatureCollectionImage(
+  imageId: string,
+  mapVisualization: CompactMapVisualizationConfig,
+) {
+  const collection = ee.FeatureCollection(imageId);
+  const property =
+    mapVisualization.property ??
+    mapVisualization.sourceBand ??
+    mapVisualization.band;
+
+  if (!property) {
+    throw new Error(
+      `FeatureCollection layer ${imageId} requires mapVisualization.property.`,
+    );
+  }
+
+  let image = collection.reduceToImage({
+    properties: [property],
+    reducer: ee.Reducer.first(),
+  });
+
+  if (mapVisualization.band) {
+    image = image.rename(mapVisualization.band);
+  }
+
+  return { collection, image };
+}
+
+function renderFeatureCollectionMapImage({
+  collection,
+  image,
+  visParams,
+  mapVisualization,
+}: {
+  collection: any;
+  image: any;
+  visParams: { min: number; max: number; palette: string[] };
+  mapVisualization: CompactMapVisualizationConfig;
+}) {
+  const outline = mapVisualization.outline ?? {};
+  const outlineColor = (outline.color ?? "#000000").replace(/^#/, "");
+  const outlineWidth = typeof outline.width === "number" ? outline.width : 0.5;
+  const outlineOpacity =
+    typeof outline.opacity === "number" ? outline.opacity : 1;
+  const fillImage = image.visualize(visParams);
+  const outlineImage = ee
+    .Image()
+    .byte()
+    .paint(collection, 1, outlineWidth)
+    .visualize({
+      palette: [outlineColor],
+      opacity: outlineOpacity,
+    });
+
+  return fillImage.blend(outlineImage);
+}
+
 // ====== GEE ======
 
 /**
@@ -163,11 +242,27 @@ export const getEarthEngineUrl = async (
     let GEEImage: any;
 
     // GEE api might return "ImageCollection" or "IMAGE_COLLECTION" depending on the endpoint version
-    const assetType = assetMeta?.type
-      ? String(assetMeta.type).toUpperCase().replace("_", "")
-      : "";
+    const assetType = normalizeGeeAssetType(assetMeta?.type);
+    const shouldUseFeatureCollection = isFeatureCollectionAsset({
+      assetType,
+      mapVisualization,
+    });
+    let featureCollection: any | null = null;
 
-    if (assetType === "IMAGECOLLECTION") {
+    if (shouldUseFeatureCollection) {
+      if (!mapVisualization) {
+        throw new Error(
+          `FeatureCollection layer ${imageId} requires mapVisualization.`,
+        );
+      }
+
+      const featureCollectionImage = buildFeatureCollectionImage(
+        imageId,
+        mapVisualization,
+      );
+      featureCollection = featureCollectionImage.collection;
+      GEEImage = featureCollectionImage.image;
+    } else if (assetType === "IMAGECOLLECTION") {
       // Squash the collection into a single image dynamically
       const collection = ee.ImageCollection(imageId);
       // Mosaicking a collection drops native projection info (since images inside could vary).
@@ -214,9 +309,12 @@ export const getEarthEngineUrl = async (
       }
     }
 
-    GEEImage = clipImageToBrazil(GEEImage);
+    if (!shouldUseFeatureCollection) {
+      GEEImage = clipImageToBrazil(GEEImage);
+    }
 
     if (
+      !shouldUseFeatureCollection &&
       shouldApplySelfMask({
         imageParams,
         minScale,
@@ -230,7 +328,19 @@ export const getEarthEngineUrl = async (
     const { categorizedImage, visParams } = configuredVisParams
       ? { categorizedImage: GEEImage, visParams: configuredVisParams }
       : getImageScale(GEEImage, imageParams, minScale, maxScale);
-    const mapId = (await getMapId(categorizedImage, visParams)) as IMapId;
+    const mapImage =
+      shouldUseFeatureCollection && featureCollection && mapVisualization
+        ? renderFeatureCollectionMapImage({
+            collection: featureCollection,
+            image: categorizedImage,
+            visParams,
+            mapVisualization,
+          })
+        : categorizedImage;
+    const mapId = (await getMapId(
+      mapImage,
+      shouldUseFeatureCollection ? undefined : visParams,
+    )) as IMapId;
 
     return mapId.urlFormat;
   } catch (error: any) {

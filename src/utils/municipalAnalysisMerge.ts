@@ -8,6 +8,7 @@ import type {
 } from "@/utils/analysis";
 import type { PanelLayerI } from "@/utils/interfaces";
 import { isCompactImageData } from "@/utils/imageData";
+import { validateImageDataContract } from "@/contracts/imageDataContract.mjs";
 
 export type CompactAnalysisYearPatch = Partial<CompactAnalysisYearData> & {
   values?: Record<string, number[]>;
@@ -230,12 +231,20 @@ export function mergePartialMunicipalImageData(
     return baseImageData;
   }
 
-  if (
-    !isCompactImageData(baseImageData) ||
-    !isCompactImageData(partialImageData)
-  ) {
+  if (!isCompactImageData(baseImageData)) {
     return partialImageData;
   }
 
-  return mergeCompactDataset(baseImageData, partialImageData);
+  if (
+    !validateImageDataContract(partialImageData, {
+      context: "municipalPatch",
+    }).ok
+  ) {
+    return baseImageData;
+  }
+
+  return mergeCompactDataset(
+    baseImageData,
+    partialImageData as CompactTerritorialAnalysisDatasetPatch,
+  );
 }

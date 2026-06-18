@@ -191,9 +191,6 @@ describe("municipalAnalysisMerge", () => {
 
   it("uses the same compact merge for client-side partial payloads", () => {
     const merged = mergePartialMunicipalImageData(buildBaseDataset(), {
-      schemaVersion: 1,
-      type: "territorial-compact",
-      classes: [],
       years: {
         "2026": {
           imageId: "ignored-by-merge",
@@ -212,6 +209,30 @@ describe("municipalAnalysisMerge", () => {
         imageId: "img-2026-02",
         values: expect.objectContaining({
           "2914802": [800, 200],
+        }),
+      }),
+    );
+  });
+
+  it("keeps the compact base dataset when a client-side partial payload is invalid", () => {
+    const base = buildBaseDataset();
+    const merged = mergePartialMunicipalImageData(base, {
+      type: "unexpected",
+      years: "not-a-year-map",
+      classes: "not-a-class-list",
+      locations: [],
+      templates: [],
+      ranking: [],
+      mapVisualization: [],
+    });
+
+    expect(merged).toBe(base);
+    expect(
+      merged && "years" in merged ? merged.years["2026-02"] : null,
+    ).toEqual(
+      expect.objectContaining({
+        values: expect.objectContaining({
+          br: [400, 600],
         }),
       }),
     );

@@ -1,0 +1,289 @@
+{
+  "schemaVersion": 1,
+  "drive": {
+    "folderId": "1otPt3-bhLAIaIG15cFUp5wzFdt1ALNOr"
+  },
+  "paths": {
+    "csvDir": "data/contentful-pipeline/csv",
+    "jsonDir": "data/contentful-pipeline/json"
+  },
+  "limits": {
+    "maxContentfulJsonBytes": 450000,
+    "compressedDataChunkSize": 30000
+  },
+  "defaults": {
+    "fileNamePattern": "\\.csv$",
+    "municipalityTemplate": "No município de {name}, predomina a classe {label} com {value}% da área analisada.",
+    "stateTemplate": "Em {name}, predomina a classe {label} com {value}% da área analisada."
+  },
+  "layerRules": [
+    {
+      "key": "carbono",
+      "label": "Carbono",
+      "panelLayerId": "carbonoembrapa",
+      "patterns": ["carbono"]
+    },
+    {
+      "key": "cdi",
+      "label": "CDI",
+      "panelLayerId": "CDI_Test",
+      "patterns": ["cdi"]
+    },
+    {
+      "key": "gpp",
+      "label": "GPP",
+      "panelLayerId": "prodprimariabruta",
+      "patterns": ["gpp"]
+    },
+    {
+      "key": "cobterra",
+      "label": "Cobertura da terra",
+      "panelLayerId": "terraibge",
+      "patterns": ["cobterra", "cobertura[-_\\s]?terra"]
+    },
+    {
+      "key": "ia",
+      "label": "Indice de aridez",
+      "panelLayerId": "indicearidez",
+      "patterns": ["(^|[-_\\s])ia($|[-_\\s])"]
+    },
+    {
+      "key": "idt",
+      "label": "IDT",
+      "panelLayerId": "deg",
+      "patterns": ["idt"]
+    },
+    {
+      "key": "ods",
+      "label": "ODS",
+      "panelLayerId": "ods",
+      "patterns": ["ods"]
+    },
+    {
+      "key": "cemaden",
+      "label": "Cemaden seca",
+      "panelLayerId": "cemadenseca",
+      "patterns": ["cemaden"]
+    },
+    {
+      "key": "ana",
+      "label": "Monitor de seca ANA",
+      "panelLayerId": "anaseca",
+      "patterns": ["ana"]
+    },
+    {
+      "key": "pob",
+      "label": "Famílias inscritas no CadÚnico em situação de pobreza",
+      "panelLayerId": "pob_total",
+      "patterns": ["pob", "populacao", "popula[cç][aã]o"]
+    },
+    {
+      "key": "prev",
+      "label": "Anomalia de precipitação prevista",
+      "panelLayerId": "prev_anomalia_precipitacao",
+      "patterns": ["(^|[-_\\s])prev($|[-_\\s])", "previs[aã]o[-_\\s]?p"]
+    }
+  ],
+  "panelLayerProfiles": {
+    "anaseca": {
+      "classes": [
+        {
+          "id": "sem-seca",
+          "label": "Sem seca",
+          "color": "#FFFFFF",
+          "pixelLimit": 0,
+          "tone": { "bg": "#FFFFFF", "color": "#6E6E6E", "border": "#D9D9D9" }
+        },
+        {
+          "id": "seca-fraca",
+          "label": "Seca fraca",
+          "color": "#FCFF50",
+          "pixelLimit": 1,
+          "tone": { "bg": "#FFFFE4", "color": "#757800", "border": "#E0E38E" }
+        },
+        {
+          "id": "seca-moderada",
+          "label": "Seca moderada",
+          "color": "#F4D48A",
+          "pixelLimit": 2,
+          "tone": { "bg": "#FFF8E7", "color": "#8D6A1B", "border": "#E8D3A1" }
+        },
+        {
+          "id": "seca-grave",
+          "label": "Seca grave",
+          "color": "#D0782A",
+          "pixelLimit": 3,
+          "tone": { "bg": "#FFF1E4", "color": "#9E5A1F", "border": "#E7C09C" }
+        },
+        {
+          "id": "seca-extrema",
+          "label": "Seca extrema",
+          "color": "#CA281B",
+          "pixelLimit": 4,
+          "tone": { "bg": "#FCE8E5", "color": "#A32016", "border": "#E6A39C" }
+        },
+        {
+          "id": "seca-excepcional",
+          "label": "Seca excepcional",
+          "color": "#640E08",
+          "pixelLimit": 5,
+          "tone": { "bg": "#F5E6E3", "color": "#640E08", "border": "#D8A39D" }
+        }
+      ],
+      "templates": {
+        "country": "No Brasil, predomina a classe {label} com {value}% da área analisada.",
+        "state": "Em {name}, predomina a classe {label} com {value}% da área analisada.",
+        "municipality": "No município de {name}, predomina a classe {label} com {value}% da área analisada.",
+        "highlight": "Região maioritariamente {label}"
+      },
+      "ranking": {
+        "title": "Estados por classe predominante",
+        "totalLabel": "Estados"
+      },
+      "mapVisualization": {
+        "sourceType": "image",
+        "min": 0,
+        "max": 5,
+        "palette": [
+          "#FFFFFF",
+          "#FCFF50",
+          "#F4D48A",
+          "#D0782A",
+          "#CA281B",
+          "#640E08"
+        ],
+        "legend": [
+          { "id": "sem-seca", "label": "Sem seca", "color": "#FFFFFF" },
+          { "id": "seca-fraca", "label": "Seca fraca", "color": "#FCFF50" },
+          {
+            "id": "seca-moderada",
+            "label": "Seca moderada",
+            "color": "#F4D48A"
+          },
+          { "id": "seca-grave", "label": "Seca grave", "color": "#D0782A" },
+          { "id": "seca-extrema", "label": "Seca extrema", "color": "#CA281B" },
+          {
+            "id": "seca-excepcional",
+            "label": "Seca excepcional",
+            "color": "#640E08"
+          }
+        ]
+      }
+    },
+    "pob_total": {
+      "classes": [
+        {
+          "id": "familias-cadunico-pobreza",
+          "label": "Famílias inscritas no CadÚnico em situação de pobreza",
+          "color": "#bd0026"
+        }
+      ],
+      "templates": {
+        "country": "Percentual de famílias inscritas no CadÚnico em situação de pobreza em {name}: {value}%.",
+        "state": "Percentual de famílias inscritas no CadÚnico em situação de pobreza em {name}: {value}%.",
+        "municipality": "Percentual de famílias inscritas no CadÚnico em situação de pobreza em {name}: {value}%.",
+        "highlight": "Famílias inscritas no CadÚnico em situação de pobreza"
+      },
+      "ranking": {
+        "title": "Estados por percentual de famílias CadÚnico em pobreza",
+        "totalLabel": "Estados"
+      },
+      "mapVisualization": {
+        "sourceType": "featureCollection",
+        "property": "{year}",
+        "min": 1,
+        "max": 5,
+        "thresholds": [20, 40, 60, 80],
+        "palette": ["#ffffcc", "#fed976", "#feb24c", "#fd8d3c", "#bd0026"],
+        "legend": [
+          { "id": "0-20", "label": "0-20", "color": "#ffffcc" },
+          { "id": "20-40", "label": "20-40", "color": "#fed976" },
+          { "id": "40-60", "label": "40-60", "color": "#feb24c" },
+          { "id": "60-80", "label": "60-80", "color": "#fd8d3c" },
+          { "id": "80-100", "label": "80-100", "color": "#bd0026" }
+        ],
+        "outline": { "color": "#000000", "width": 0.5, "opacity": 1 }
+      },
+      "imageId": "projects/ee-ulissesalencar17/assets/pob_total",
+      "valueRange": { "min": 0, "max": 100 }
+    },
+    "prev_anomalia_precipitacao": {
+      "classes": [
+        {
+          "id": "muito-seco",
+          "label": "< -90",
+          "color": "#981c18",
+          "pixelLimit": 0
+        },
+        {
+          "id": "seco",
+          "label": "-90 a -30",
+          "color": "#e46838",
+          "pixelLimit": 1
+        },
+        {
+          "id": "levemente-seco",
+          "label": "-30 a 0",
+          "color": "#f5e795",
+          "pixelLimit": 2
+        },
+        {
+          "id": "levemente-umido",
+          "label": "0 a 30",
+          "color": "#c3eff6",
+          "pixelLimit": 3
+        },
+        {
+          "id": "umido",
+          "label": "30 a 90",
+          "color": "#70a6ea",
+          "pixelLimit": 4
+        },
+        {
+          "id": "muito-umido",
+          "label": "> 90",
+          "color": "#4871c3",
+          "pixelLimit": 5
+        }
+      ],
+      "templates": {
+        "country": "No Brasil, predomina a faixa {label} de anomalia de precipitação com {value}% da área analisada.",
+        "state": "Em {name}, predomina a faixa {label} de anomalia de precipitação com {value}% da área analisada.",
+        "municipality": "No município de {name}, predomina a faixa {label} de anomalia de precipitação com {value}% da área analisada.",
+        "highlight": "Anomalia predominante {label}"
+      },
+      "ranking": {
+        "title": "Estados por faixa predominante de anomalia de precipitação",
+        "totalLabel": "Estados"
+      },
+      "mapVisualization": {
+        "sourceType": "image",
+        "min": 0,
+        "max": 5,
+        "thresholds": [-90, -30, 0, 30, 90],
+        "palette": [
+          "#981c18",
+          "#e46838",
+          "#f5e795",
+          "#c3eff6",
+          "#70a6ea",
+          "#4871c3"
+        ],
+        "legend": [
+          { "id": "muito-seco", "label": "< -90", "color": "#981c18" },
+          { "id": "seco", "label": "-90 a -30", "color": "#e46838" },
+          { "id": "levemente-seco", "label": "-30 a 0", "color": "#f5e795" },
+          { "id": "levemente-umido", "label": "0 a 30", "color": "#c3eff6" },
+          { "id": "umido", "label": "30 a 90", "color": "#70a6ea" },
+          { "id": "muito-umido", "label": "> 90", "color": "#4871c3" }
+        ]
+      },
+      "imageIdByYear": {
+        "2026-05": "projects/ee-ulissesalencar17/assets/previsao_P_cal_20260401_01",
+        "2026-06": "projects/ee-ulissesalencar17/assets/previsao_P_cal_20260401_02",
+        "2026-07": "projects/ee-ulissesalencar17/assets/previsao_P_cal_20260401_03",
+        "2026-08": "projects/ee-ulissesalencar17/assets/previsao_P_cal_20260401_04"
+      }
+    }
+  }
+}

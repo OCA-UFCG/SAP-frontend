@@ -16,6 +16,7 @@ import { IImageParam } from "@/utils/interfaces";
 export function PlatformMapCaption({ legend }: { legend: IImageParam[] }) {
   const [isOpen, setIsOpen] = useState(true);
   const t = useTranslations("PlatformMapCaption");
+  const shouldScroll = legend.length > 6;
 
   return (
     <div
@@ -51,7 +52,9 @@ export function PlatformMapCaption({ legend }: { legend: IImageParam[] }) {
           `}
         >
           <div className="bg-white border-neutral-200 px-4 py-4">
-            <div className="flex flex-col gap-3">
+            <div
+              className={`flex flex-col gap-3 ${shouldScroll ? "max-h-[168px] overflow-y-auto pr-2" : ""}`}
+            >
               {legend.map((item) => {
                 const slug = item.label
                   .toLowerCase()

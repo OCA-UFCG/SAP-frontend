@@ -4,6 +4,7 @@ import {
   attachMunicipalAnalysisToPanelLayers,
   attachMunicipalAnalysisYearToPanelLayer,
 } from "@/repositories/platform/municipalAnalysisRepository";
+import { validateImageDataContract } from "@/contracts/imageDataContract.mjs";
 import { PanelLayerI } from "@/utils/interfaces";
 
 const GET_PANEL_LAYER = `
@@ -93,16 +94,36 @@ function comparePanelLayers(left: PanelLayerI, right: PanelLayerI): number {
   return leftPosition - rightPosition;
 }
 
+function logInvalidPanelLayerImageData(layer: PanelLayerI) {
+  const validation = validateImageDataContract(layer.imageData, {
+    context: "runtimeRead",
+  });
+
+  if (validation.ok) {
+    return;
+  }
+
+  console.warn(
+    `[panelLayerRepository] imageData inválido vindo do Contentful para panelLayer ${layer.id}: ${validation.errors.join("; ")}`,
+  );
+}
+
+function normalizePanelLayers(items: Array<PanelLayerI | null> = []) {
+  return items.filter(isDefined).map((layer) => {
+    logInvalidPanelLayerImageData(layer);
+    return layer;
+  });
+}
+
 export async function getPanelLayers(
   options: GetPanelLayersOptions = {},
 ): Promise<PanelLayerI[]> {
   try {
     const data = await getContent<PanelLayerResponse>(GET_PANEL_LAYER);
 
-    const panelLayers =
-      data.panelLayerCollection?.items
-        ?.filter(isDefined)
-        .sort(comparePanelLayers) ?? [];
+    const panelLayers = normalizePanelLayers(
+      data.panelLayerCollection?.items,
+    ).sort(comparePanelLayers);
 
     if (!options.includeMunicipalAnalysis) {
       return panelLayers;
@@ -148,7 +169,13 @@ async function getPanelLayerById(
       id: panelLayerId,
     });
 
-    return data.panelLayerCollection?.items?.find(isDefined) ?? null;
+    const panelLayer = data.panelLayerCollection?.items?.find(isDefined) ?? null;
+
+    if (panelLayer) {
+      logInvalidPanelLayerImageData(panelLayer);
+    }
+
+    return panelLayer;
   } catch (error) {
     console.error("Erro ao buscar camada da plataforma no Contentful:", error);
     return null;

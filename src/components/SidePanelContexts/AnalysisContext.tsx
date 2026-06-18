@@ -95,6 +95,7 @@ export function AnalysisContext({
     requestUrl.searchParams.set("year", activeAnalysisYear);
 
     fetch(requestUrl.toString(), {
+      credentials: "same-origin",
       signal: controller.signal,
     })
       .then(async (response) => {

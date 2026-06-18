@@ -69,4 +69,50 @@ describe("Earth Engine map visualization planning", () => {
       },
     });
   });
+
+  it("keeps feature collection visualization metadata in the resolved plan", () => {
+    const plan = resolveMapVisualizationPlan(
+      {
+        sourceType: "featureCollection",
+        property: "2025",
+        min: 1,
+        max: 5,
+        thresholds: [20, 40, 60, 80],
+        palette: ["#ffffcc", "#fed976", "#feb24c", "#fd8d3c", "#bd0026"],
+        legend: [
+          { id: "low", label: "Baixo", color: "#ffffcc" },
+          { id: "high", label: "Alto", color: "#bd0026" },
+        ],
+        outline: { color: "#000000", width: 0.5, opacity: 1 },
+      },
+      [],
+      0,
+      100,
+    );
+
+    expect(plan).toEqual({
+      sourceType: "featureCollection",
+      property: "2025",
+      sourceBand: undefined,
+      outline: { color: "#000000", width: 0.5, opacity: 1 },
+      visParams: {
+        min: 1,
+        max: 5,
+        palette: ["#ffffcc", "#fed976", "#feb24c", "#fd8d3c", "#bd0026"],
+      },
+      thresholdClassification: {
+        outputBand: undefined,
+        startValue: 1,
+        thresholds: [20, 40, 60, 80],
+      },
+    });
+
+    expect(
+      classifyValueByThresholds(
+        80.1,
+        plan.thresholdClassification?.thresholds ?? [],
+        plan.thresholdClassification?.startValue ?? 1,
+      ),
+    ).toBe(5);
+  });
 });
