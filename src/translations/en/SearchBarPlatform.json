@@ -1,0 +1,8 @@
+{
+  "SearchBarPlatform": {
+    "placeholder": "Search for a state or municipality",
+    "noResults": "No state or municipality found.",
+    "error": "Unidentified state or municipality.",
+    "button": "Search"
+  }
+}

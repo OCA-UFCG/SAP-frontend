@@ -1,0 +1,8 @@
+{
+  "DroughtDataset": {
+    "details": "Details",
+    "deactivateLayer": "Deactivate layer {title}",
+    "activateLayer": "Activate layer {title}",
+    "moreInformation": "More information about {title}"
+  }
+}

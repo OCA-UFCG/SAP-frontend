@@ -11,6 +11,7 @@ import { AnalysisContext } from "@/components/SidePanelContexts/AnalysisContext"
 import { ComingSoonContext } from "@/components/SidePanelContexts/ComingSoonContext";
 import { PanelLayerI } from "@/utils/interfaces";
 import { useMapLayerActions } from "@/components/MapLayerContext/MapLayerContext";
+import { useTranslations } from "next-intl";
 
 export type PlatformSidebarInitialSection =
   | "monitoring"
@@ -70,6 +71,7 @@ export function PlatformSidebar({
   initialSection = "monitoring",
   viewMode = "default",
 }: PlatformSidebarProps) {
+  const t = useTranslations("PlatformSidebar");
   const router = useRouter();
   const { clearActiveLayer, setActiveLegend } = useMapLayerActions();
   const initialSidebarState = buildSidebarState(viewMode, initialSection);
@@ -186,7 +188,7 @@ export function PlatformSidebar({
         >
           <iframe
             src={analysisFrameUrl}
-            title="Análise Multicriterial"
+            title={t("MulticriterialAnalysis")}
             className="w-full h-full border-0"
             allowFullScreen
           />

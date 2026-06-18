@@ -1,17 +1,24 @@
-import { AboutSection } from "../components/AboutSection/AboutSection";
-import { MainBanner } from "../components/MainBanner/MainBanner";
-import { PartnersSection } from "../components/PartnersSection/PartnersSection";
-import TabsSection from "../components/TabSection/TabSection";
+import { AboutSection } from "@/components/AboutSection/AboutSection";
+import { MainBanner } from "@/components/MainBanner/MainBanner";
+import { PartnersSection } from "@/components/PartnersSection/PartnersSection";
+import TabsSection from "@/components/TabSection/TabSection";
 import MapSection from "@/components/MapSection/MapSection";
 import { getHomePageContent } from "@/repositories/content/siteContentRepository";
+import { getTranslations } from "next-intl/server";
 
-export default async function Home() {
-  const data = await getHomePageContent();
+export default async function Home({
+  params,
+}: {
+  params: Promise<{ locale: string }>;
+}) {
+  const { locale } = await params;
+  const data = await getHomePageContent(locale);
+  const t = await getTranslations("HomePage");
 
   if (!data) {
     return (
       <div className="flex min-h-screen flex-col">
-        <p>Conteúdo não encontrado.</p>
+        <p>{t("contentNotFound")}</p>
       </div>
     );
   }

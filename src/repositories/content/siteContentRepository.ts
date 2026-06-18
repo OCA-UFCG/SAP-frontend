@@ -11,8 +11,8 @@ import {
 import { normalizeContentfulImage } from "@/utils/functions";
 
 const GET_FOOTER_PAGE = `
-  query GetFooterPage {
-    footerCollection {
+  query GetFooterPage($locale: String!) {
+    footerCollection(locale: $locale) {
       items {
         sys {
           id
@@ -26,8 +26,8 @@ const GET_FOOTER_PAGE = `
 `;
 
 const GET_HOME_PAGE = `
-  query GetHomePage {
-    bannerCollection(limit: 1) {
+  query GetHomePage($locale: String!) {
+    bannerCollection(limit: 1, locale: $locale) {
       items {
         title
         subtitle
@@ -39,7 +39,7 @@ const GET_HOME_PAGE = `
       }
     }
 
-    secaoSobreCollection {
+    secaoSobreCollection(locale: $locale) {
       items {
         identifier
         title
@@ -54,7 +54,7 @@ const GET_HOME_PAGE = `
       }
     }
 
-    aboutCollection(limit: 1) {
+    aboutCollection(limit: 1, locale: $locale) {
       items {
         sys {
           id
@@ -72,7 +72,7 @@ const GET_HOME_PAGE = `
       }
     }
 
-    cabealhoSeesCollection(limit: 1) {
+    cabealhoSeesCollection(limit: 1, locale: $locale) {
       items {
         sys {
           id
@@ -82,7 +82,7 @@ const GET_HOME_PAGE = `
       }
     }
 
-    partnersCollection {
+    partnersCollection(locale: $locale) {
       items {
         sys {
           id
@@ -100,8 +100,8 @@ const GET_HOME_PAGE = `
 `;
 
 const GET_ABOUT_PAGE = `
-  query GetAboutPage {
-    secaoSobreCollection(where: { includeInAboutSap: true }) {
+  query GetAboutPage($locale: String!) {
+    secaoSobreCollection(locale: $locale, where: { includeInAboutSap: true }) {
       items {
         sys {
           id
@@ -120,7 +120,7 @@ const GET_ABOUT_PAGE = `
       }
     }
 
-    cabealhoSeesCollection(limit: 1) {
+    cabealhoSeesCollection(limit: 1, locale: $locale) {
       items {
         sys {
           id
@@ -130,7 +130,7 @@ const GET_ABOUT_PAGE = `
       }
     }
 
-    partnersCollection {
+    partnersCollection(locale: $locale) {
       items {
         sys {
           id
@@ -243,6 +243,11 @@ export interface AboutPageContent {
   partners: PartnerI[];
 }
 
+// Function to map the app locale to Contentful. This may be useful in the future. Currently, all content is mapped to 'en-US' in Contentful.
+function mapLocaleToContentful(locale?: string): string {
+  return "en-US";
+}
+
 function mapFooterItem(item: FooterEntry): FooterI {
   return {
     id: item.sys.id,
@@ -252,9 +257,11 @@ function mapFooterItem(item: FooterEntry): FooterI {
   };
 }
 
-export async function getFooterContent(): Promise<FooterI[]> {
+export async function getFooterContent(locale?: string): Promise<FooterI[]> {
   try {
-    const data = await getContent<FooterContentResponse>(GET_FOOTER_PAGE);
+    const data = await getContent<FooterContentResponse>(GET_FOOTER_PAGE, {
+      locale: mapLocaleToContentful(locale),
+    });
 
     return (
       data.footerCollection?.items.filter(isDefined).map(mapFooterItem) ?? []
@@ -265,9 +272,11 @@ export async function getFooterContent(): Promise<FooterI[]> {
   }
 }
 
-export async function getHomePageContent(): Promise<HomePageContent | null> {
+export async function getHomePageContent(locale?: string): Promise<HomePageContent | null> {
   try {
-    const data = await getContent<HomeContentResponse>(GET_HOME_PAGE);
+    const data = await getContent<HomeContentResponse>(GET_HOME_PAGE, {
+      locale: mapLocaleToContentful(locale),
+    });
     const bannerItems = data.bannerCollection?.items?.filter(isDefined) ?? [];
     const aboutItems = data.aboutCollection?.items?.filter(isDefined) ?? [];
     const headerItems =
@@ -304,9 +313,11 @@ export async function getHomePageContent(): Promise<HomePageContent | null> {
   }
 }
 
-export async function getAboutPageContent(): Promise<AboutPageContent | null> {
+export async function getAboutPageContent(locale?: string): Promise<AboutPageContent | null> {
   try {
-    const data = await getContent<AboutPageResponse>(GET_ABOUT_PAGE);
+    const data = await getContent<AboutPageResponse>(GET_ABOUT_PAGE, {
+      locale: mapLocaleToContentful(locale),
+    });
     const allSections =
       data.secaoSobreCollection?.items?.filter(isDefined) ?? [];
     const heroEntry = allSections.find(

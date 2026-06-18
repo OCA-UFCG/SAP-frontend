@@ -5,7 +5,8 @@ import { useState, useMemo } from "react";
 import geodata from "../../data/CDI_Janeiro_2024_Vetores.json";
 import droughtData from "../../../public/dados-seca.json";
 import SearchBar from "../SearchBar/SearchBar";
-import Link from "next/link";
+import { Link } from "@/translations/routing";
+import { useTranslations } from "next-intl";
 import MapComponent from "../Map/MapComponent";
 import { AlertTiers } from "../AlertTiers/AlertTiers";
 import type { SearchSubmissionMetadata } from "@/components/SearchBar/types";
@@ -21,16 +22,17 @@ const HOME_TELEMETRY_CONTEXT = {
 } as const;
 
 const TIER_CONFIG = {
-  "sem-seca": { label: "Sem seca", color: "#E4E5E2" },
-  observacao: { label: "Observação", color: "#FFCC80" },
-  atencao: { label: "Atenção", color: "#FB8C00" },
-  alerta: { label: "Seca severa", color: "#BF360C" },
-  "recuperacao-total": { label: "Recuperação Total", color: "#A3B18A" },
-  "recuperacao-parcial": { label: "Recuperação Parcial", color: "#588157" },
+  "sem-seca": { color: "#E4E5E2" },
+  observacao: { color: "#FFCC80" },
+  atencao: { color: "#FB8C00" },
+  alerta: { color: "#BF360C" },
+  "recuperacao-total": { color: "#A3B18A" },
+  "recuperacao-parcial": { color: "#588157" },
 };
 
 export default function DroughtSection() {
   const [selectedState, setSelectedState] = useState("br");
+  const t = useTranslations("MapSection");
 
   const handleSearch = (value: string, metadata: SearchSubmissionMetadata) => {
     const result = resolveStateKeyFromSearch(value, statesObj);
@@ -87,22 +89,50 @@ export default function DroughtSection() {
 
         return {
           id: key,
-          // 1. One decimal place formatting
           value: Number(percentage.toFixed(1)),
-          label: TIER_CONFIG[key as keyof typeof TIER_CONFIG].label,
+          label: t(`tiers.${key}`),
           color: TIER_CONFIG[key as keyof typeof TIER_CONFIG].color,
         };
       });
 
       const dominantConfig = TIER_CONFIG[maxKey as keyof typeof TIER_CONFIG];
 
+      const stateName = t.has(`states.${selectedState}`)
+        ? t(`states.${selectedState}`)
+        : stateData.nome;
+
+      const semSecaPercent = (stateData.status["sem-seca"] * 100).toFixed(1);
+      const alertaPercent = (stateData.status["alerta"] * 100).toFixed(1);
+      const recuperacaoPercent = (
+        (stateData.status["recuperacao-total"] +
+          stateData.status["recuperacao-parcial"]) *
+        100
+      ).toFixed(1);
+
+      const acontecendoText = t("droughtData.acontecendo", {
+        semSeca: semSecaPercent,
+        nome: stateName,
+        alerta: alertaPercent,
+      });
+
+      const impactoList = [
+        t("droughtData.impacto.stable", { semSeca: semSecaPercent }),
+        t("droughtData.impacto.alert", { alerta: alertaPercent }),
+        t("droughtData.impacto.improvement", { recuperacao: recuperacaoPercent }),
+      ];
+
       return {
         statusItems: items,
-        highestStatus: dominantConfig.label,
+        highestStatus: t(`tiers.${maxKey}`),
         highestStatusColor: dominantConfig.color,
-        currentState: stateData,
+        currentState: {
+          ...stateData,
+          nome: stateName,
+          acontecendo: acontecendoText,
+          impacto: impactoList,
+        },
       };
-    }, [selectedState]);
+    }, [selectedState, t]);
 
   const cdiData = geodata as unknown as CDIVectorData;
 
@@ -110,7 +140,7 @@ export default function DroughtSection() {
     <section className="w-full bg-white flex flex-col items-center text-[#292829]">
       <div className="w-full max-w-[1440px] mx-auto px-4 py-12 md:px-10 lg:px-[80px]">
         <h2 className="text-2xl font-bold mb-6">
-          Entenda a seca na sua região
+          {t("understandDrought")}
         </h2>
 
         <div className="mb-6 w-full">
@@ -141,7 +171,7 @@ export default function DroughtSection() {
                   href="/platform"
                   className="w-full sm:w-[582px] bg-[#989F43] text-white rounded-[6px] px-4 py-3 flex items-center justify-center gap-2 hover:opacity-90 transition"
                 >
-                  <span className="text-[14px] font-medium">Veja mais</span>
+                  <span className="text-[14px] font-medium">{t("seeMore")}</span>
 
                   <svg
                     xmlns="http://www.w3.org/2000/svg"
@@ -171,7 +201,7 @@ export default function DroughtSection() {
                     {currentState.nome}
                   </h1>
                   <div className="text-[10px] text-neutral-500 mt-2 uppercase font-semibold space-y-0.5">
-                    <p>Data da análise: 31/01/24</p>
+                    <p>{t("analysisDate", { date: "31/01/24" })}</p>
                   </div>
                 </div>
                 <div
@@ -182,27 +212,25 @@ export default function DroughtSection() {
                   }}
                 >
                   <span className="text-sm font-bold">
-                    Majoritariamente em: {highestStatus}
+                    {t("mostlyIn", { status: highestStatus })}
                   </span>
                 </div>
               </div>
-
-              {/* Dynamic Status Badge */}
             </header>
 
             <article>
-              <h3 className="text-xl font-bold mb-4">Informações gerais</h3>
+              <h3 className="text-xl font-bold mb-4">{t("generalInfo")}</h3>
               <div className="space-y-5">
                 <div>
                   <h4 className="font-bold text-base">
-                    O que está acontecendo?
+                    {t("whatsHappening")}
                   </h4>
                   <p className="text-neutral-600 text-sm leading-relaxed mt-1">
                     {currentState.acontecendo}
                   </p>
                 </div>
                 <div>
-                  <h4 className="font-bold text-base">Impacto na prática</h4>
+                  <h4 className="font-bold text-base">{t("practicalImpact")}</h4>
                   <ul className="list-disc ml-5 space-y-2 text-sm text-neutral-600 mt-2">
                     {currentState.impacto.map((item, i) => (
                       <li key={i} className="pl-1">

@@ -1,0 +1,78 @@
+{
+  "Platform": {
+    "SideRail": {
+      "monitoring": "Monitoramento",
+      "analysis": "Análise",
+      "communication": "Comunicação",
+      "logs": "Auditoria"
+    },
+    "ComingSoon": {
+      "title": "Em construção",
+      "description": "Estamos trabalhando para disponibilizar este conteúdo em breve!"
+    },
+    "Modules": {
+      "title": "O que você deseja monitorar?",
+      "subtitle": "Selecione que monitor você deseja analisar",
+      "categories": {
+        "climate": "Dados Climáticos",
+        "environmental": "Dados Ambientais",
+        "socioeconomic": "Dados Socioeconômicos",
+        "others": "Outros"
+      },
+      "Layers": {
+        "monitor-de-seca-ana": {
+          "title": "{title}",
+          "description": "{description}"
+        },
+        "indice-integrado-de-secas": {
+          "title": "{title}",
+          "description": "{description}"
+        },
+        "cdi": {
+          "title": "{title}",
+          "description": "{description}"
+        },
+        "previsao-anomalia-precipitacao-cptec-inpe": {
+          "title": "{title}",
+          "description": "{description}"
+        }
+      }
+    },
+    "Dataset": {
+      "details": "Detalhamento",
+      "deactivateLayer": "Desativar camada {title}",
+      "activateLayer": "Ativar camada {title}",
+      "moreInformation": "Mais informações sobre {title}"
+    },
+    "InfoModal": {
+      "overview": "Visão Geral",
+      "period": "Período",
+      "startDate": "Data início",
+      "endDate": "Data fim",
+      "timeScale": "Escala\\ntemporal",
+      "legend": "Legenda",
+      "learnMore": "Saiba mais",
+      "ariaLabel": "Informações sobre {title}"
+    },
+    "Analysis": {
+      "unavailableTitle": "Análise indisponível para {location}",
+      "unavailableDescriptionLoading": "Os dados municipais desta camada estão sendo carregados sob demanda.",
+      "unavailableDescription": "Os dados de análise para {location} ainda não estão disponíveis neste módulo."
+    },
+    "SearchBar": {
+      "placeholder": "Pesquise um estado ou município",
+      "noResults": "Nenhum estado ou município encontrado.",
+      "error": "Estado ou município não identificado.",
+      "button": "Pesquisar"
+    },
+    "DataCards": {
+      "noDrought": "Região majoritariamente Sem seca",
+      "inObservation": "em observação",
+      "inRecovery": "em recuperação"
+    },
+    "AlertTiers": {
+      "title": "Monitoramento de Seca na região"
+    },
+    "MulticriterialAnalysis": "Análise Multicriterial"
+  }
+}

@@ -1,0 +1,7 @@
+{
+  "AnalysisContext": {
+    "unavailableTitle": "Analysis unavailable for {location}",
+    "unavailableDescriptionLoading": "Municipal data for this layer is being loaded on demand.",
+    "unavailableDescription": "Analysis data for {location} is not yet available in this module."
+  }
+}

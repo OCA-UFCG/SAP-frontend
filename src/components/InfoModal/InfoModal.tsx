@@ -3,6 +3,7 @@
 import { useEffect, useRef } from "react";
 import { createPortal } from "react-dom";
 import clsx from "clsx";
+import { useTranslations } from "next-intl";
 import type { ImageDataConfig } from "@/utils/interfaces";
 import {
   getImageDataLegend,
@@ -51,6 +52,19 @@ export function InfoModal({
   onClose,
 }: IInfoModalProps) {
   const panelRef = useRef<HTMLDivElement>(null);
+  const t = useTranslations("InfoModal");
+  const tModules = useTranslations("ModulesContext.Layers");
+  const tCaption = useTranslations("PlatformMapCaption");
+
+  const slug = card.title
+    .toLowerCase()
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .replace(/[^a-z0-9]+/g, "-")
+    .replace(/(^-|-$)+/g, "");
+
+  const displayTitle = tModules.has(`${slug}.title`) ? tModules(`${slug}.title`, { title: card.title }) : card.title;
+  const displayDescription = tModules.has(`${slug}.description`) ? tModules(`${slug}.description`, { description: card.description }) : card.description;
 
   useEffect(() => {
     document.body.style.overflow = open ? "hidden" : "";
@@ -80,7 +94,7 @@ export function InfoModal({
       className="fixed inset-0 z-[9999] flex items-center justify-center bg-black/40 px-4 backdrop-blur-[2px]"
       role="dialog"
       aria-modal="true"
-      aria-label={`Informações sobre ${card.title}`}
+      aria-label={t("ariaLabel", { title: displayTitle })}
       onClick={(e) => {
         if (e.target === e.currentTarget) {
           onClose();
@@ -94,7 +108,7 @@ export function InfoModal({
         <div className="shrink-0 border-b border-[#B4BA61]/40">
           <div className="relative flex flex-col gap-4 bg-white px-10 py-4">
             <h3 className="font-inter text-[24px] font-semibold leading-6 tracking-[-0.015em] text-black">
-              {card.title}
+              {displayTitle}
             </h3>
 
             <button
@@ -111,36 +125,49 @@ export function InfoModal({
         <div className="flex-1 overflow-y-auto">
           <div className="border-t border-[#B4BA61]/40 bg-white px-10 py-4">
             <h3 className="mb-2 font-inter text-[20px] font-medium leading-6 tracking-[-0.015em] text-black">
-              Visão Geral
+              {t("overview")}
             </h3>
 
             <p className="font-inter text-[16px] font-normal leading-6 tracking-[-0.015em] text-[#4A4E26]">
-              {card.description}
+              {displayDescription}
             </p>
           </div>
 
           <table className="w-full border-collapse">
             <tbody>
-              <TableRow label="Período">
+              <TableRow label={t("period")}>
                 {years.length > 0
-                  ? `Data início: ${years[0]}  Data fim: ${
+                  ? `${t("startDate")} ${years[0]}  ${t("endDate")} ${
                       years[years.length - 1]
                     }`
                   : "-"}
               </TableRow>
 
-              <TableRow label={"Escala\ntemporal"}>
+              <TableRow label={t("timeScale")}>
                 {card.timeScale ?? "-"}
               </TableRow>
 
               {legend && legend.length > 0 && (
-                <TableRow label="Legenda">
+                <TableRow label={t("legend")}>
                   <div className="flex flex-col">
-                    {legend.map((item, index) => (
-                      <span key={index}>
-                        {index}: {item.label}
-                      </span>
-                    ))}
+                    {legend.map((item, index) => {
+                      const labelSlug = item.label
+                        .toLowerCase()
+                        .normalize("NFD")
+                        .replace(/[\u0300-\u036f]/g, "")
+                        .replace(/</g, "menor-que")
+                        .replace(/>/g, "maior-que")
+                        .replace(/[^a-z0-9]+/g, "-")
+                        .replace(/(^-|-$)+/g, "");
+                      const displayLabel = tCaption.has(`labels.${labelSlug}`)
+                        ? tCaption(`labels.${labelSlug}`)
+                        : item.label;
+                      return (
+                        <span key={index}>
+                          {index}: {displayLabel}
+                        </span>
+                      );
+                    })}
                   </div>
                 </TableRow>
               )}
@@ -160,7 +187,7 @@ export function InfoModal({
                 "transition-colors hover:bg-[#7F8636]"
               )}
             >
-              Saiba mais
+              {t("learnMore")}
             </a>
           </div>
         )}

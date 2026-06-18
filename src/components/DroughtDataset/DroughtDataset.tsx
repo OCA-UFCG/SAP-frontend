@@ -4,6 +4,7 @@ import clsx from "clsx";
 import Image from "next/image";
 import { normalizeContentfulImage } from "@/utils/functions";
 import { useState } from "react";
+import { useTranslations } from "next-intl";
 import { InfoModal } from "../InfoModal/InfoModal";
 import type { ImageDataConfig } from "@/utils/interfaces";
 
@@ -41,7 +42,18 @@ export function DroughtDataset({
   onDetails?: () => void;
 }) {
   const [infoOpen, setInfoOpen] = useState(false);
+  const t = useTranslations("DroughtDataset");
+  const tModules = useTranslations("ModulesContext.Layers");
 
+  const slug = card.title
+    .toLowerCase()
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .replace(/[^a-z0-9]+/g, "-")
+    .replace(/(^-|-$)+/g, "");
+
+  const displayTitle = tModules.has(`${slug}.title`) ? tModules(`${slug}.title`, { title: card.title }) : card.title;
+  const displayDescription = tModules.has(`${slug}.description`) ? tModules(`${slug}.description`, { description: card.description }) : card.description;
 
   return (
     <>
@@ -59,7 +71,7 @@ export function DroughtDataset({
               {card.image ? (
                 <Image
                   src={normalizeContentfulImage(card.image)}
-                  alt={card.title}
+                  alt={displayTitle}
                   fill
                   sizes="116px"
                   className="object-cover"
@@ -74,13 +86,13 @@ export function DroughtDataset({
               style={{ height: 126 }}
             >
               <div className="flex items-center w-full" style={{ height: 24 }}>
-                <span className="w-full font-inter font-semibold text-[16px] leading-[24px] tracking-[-0.015em] text-[#292829] line-clamp-1">
-                  {card.title}
+                <span className="w-full font-inter font-semibold text-[16px] leading-[24px] tracking-[-0.015em] text-[#292829] line-clamp-1" title={displayTitle}>
+                  {displayTitle}
                 </span>
               </div>
               <div className="flex items-start w-full flex-1">
-                <span className="w-full font-inter font-normal text-[14px] leading-[20px] text-[#7E797B] line-clamp-3 break-words">
-                  {card.description}
+                <span className="w-full font-inter font-normal text-[14px] leading-[20px] text-[#7E797B] line-clamp-3 break-words" title={displayDescription}>
+                  {displayDescription}
                 </span>
               </div>
             </div>
@@ -99,8 +111,8 @@ export function DroughtDataset({
                 aria-checked={active}
                 aria-label={
                   active
-                    ? `Desativar camada ${card.title}`
-                    : `Ativar camada ${card.title}`
+                    ? t("deactivateLayer", { title: displayTitle })
+                    : t("activateLayer", { title: displayTitle })
                 }
                 onClick={onToggle}
                 disabled={disabled}
@@ -132,7 +144,7 @@ export function DroughtDataset({
               )}
             >
               <span className="font-open-sans text-[14px] leading-[24px] font-normal text-white">
-                Detalhamento
+                {t("details")}
               </span>
             </button>
 
@@ -141,7 +153,7 @@ export function DroughtDataset({
               type="button"
               onClick={() => setInfoOpen(true)}
               disabled={disabled}
-              aria-label={`Mais informações sobre ${card.title}`}
+              aria-label={t("moreInformation", { title: displayTitle })}
               className={clsx(
                 "box-border flex flex-row justify-center items-center p-2 gap-2 w-10 h-10 bg-white border border-[#E4E5E2] rounded-[6px] shrink-0",
                 disabled ? "cursor-not-allowed opacity-60" : "cursor-pointer hover:bg-[#F5F6EE] transition-colors",

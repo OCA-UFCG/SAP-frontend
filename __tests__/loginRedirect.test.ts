@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { getPlatformRedirectPath } from "@/app/login/LoginPageClient";
+import { getPlatformRedirectPath } from "@/app/[locale]/login/LoginPageClient";
 
 describe("getPlatformRedirectPath", () => {
   it("keeps platform redirects", () => {

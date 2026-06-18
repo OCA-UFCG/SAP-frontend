@@ -8,6 +8,7 @@ import {
 } from "@contentful/rich-text-react-renderer";
 import { BLOCKS } from "@contentful/rich-text-types";
 import { TabsSectionI } from "@/utils/interfaces";
+import { useTranslations } from "next-intl";
 
 interface TabsSectionProps {
   contentData: TabsSectionI[];
@@ -29,6 +30,7 @@ const IMAGE_STYLE_BY_IDENTIFIER: Record<
 };
 
 const TabsSection = ({ contentData }: TabsSectionProps) => {
+  const t = useTranslations("TabSection");
   const [activeTabIdentifier, setActiveTabIdentifier] = useState(
     contentData[0]?.identifier ?? "",
   );
@@ -51,27 +53,33 @@ const TabsSection = ({ contentData }: TabsSectionProps) => {
     },
   };
 
+  const sectionTitle = t("title");
+
   return (
     <section className="w-full bg-[#F6F7F6] flex flex-col items-center">
       <div className="w-full max-w-[1440px] mx-auto px-6 pt-8 md:px-10 md:pt-12 lg:px-[78px] lg:pt-[85px] flex flex-col items-start">
         <h2 className="text-[24px] md:text-[28px] lg:text-[30px] leading-[28px] md:leading-[32px] lg:leading-[36px] tracking-[-0.0075em] text-[#292829] font-semibold mb-6">
-          Para quem é o SAP?
+          {sectionTitle}
         </h2>
 
         <div className="flex flex-row gap-[24px] overflow-x-auto w-full no-scrollbar">
-          {contentData.map((tab) => (
-            <button
-              key={tab.identifier}
-              onClick={() => setActiveTabIdentifier(tab.identifier)}
-              className={`px-4 md:px-8 py-3 rounded-t-[8px] font-open-sans font-medium text-[13px] md:text-[14px] whitespace-nowrap transition-colors border-b-0 ${
-                activeTabIdentifier === tab.identifier
-                  ? "bg-[#989F43] text-white"
-                  : "bg-[#E4E5E2] text-[#3F4324] hover:bg-[#C8CAC5]"
-              }`}
-            >
-              {tab.title}
-            </button>
-          ))}
+          {contentData.map((tab) => {
+            const tabLabel = t(`tabs.${tab.identifier}`);
+
+            return (
+              <button
+                key={tab.identifier}
+                onClick={() => setActiveTabIdentifier(tab.identifier)}
+                className={`px-4 md:px-8 py-3 rounded-t-[8px] font-open-sans font-medium text-[13px] md:text-[14px] whitespace-nowrap transition-colors border-b-0 ${
+                  activeTabIdentifier === tab.identifier
+                    ? "bg-[#989F43] text-white"
+                    : "bg-[#E4E5E2] text-[#3F4324] hover:bg-[#C8CAC5]"
+                }`}
+              >
+                {tabLabel}
+              </button>
+            );
+          })}
         </div>
       </div>
 
@@ -80,7 +88,7 @@ const TabsSection = ({ contentData }: TabsSectionProps) => {
           {currentTab.image?.url && (
             <Image
               src={currentTab.image.url}
-              alt={currentTab.image.title || currentTab.title}
+              alt={currentTab.image.title || t(`tabs.${currentTab.identifier}`, { label: currentTab.title })}
               fill
               className="object-cover"
               style={{
@@ -111,13 +119,14 @@ const TabsSection = ({ contentData }: TabsSectionProps) => {
         <div className="relative z-20 w-full max-w-[1440px] mx-auto px-6 md:px-10 lg:px-[78px] py-[32px] md:py-[48px] flex flex-col items-center text-center md:flex-row md:justify-end md:items-center md:text-left">
           <div className="w-full max-w-[90%] md:w-[60%] md:max-w-[795px] flex flex-col gap-[16px] md:gap-[24px]">
             <h3 className="text-[#989F43] font-open-sans font-semibold text-[20px] md:text-[24px] leading-[32px] tracking-[-0.006em]">
-              {currentTab.title}
+              {t(`tabs.${currentTab.identifier}`)}
             </h3>
 
             <div className="flex flex-col gap-[16px] md:gap-[24px] text-[#F8F7F8] font-open-sans font-normal text-[14px] md:text-[16px] leading-[1.5]">
-              {documentToReactComponents(
-                currentTab.text?.json,
-                richTextOptions,
+              {t.has(`texts.${currentTab.identifier}`) ? (
+                t(`texts.${currentTab.identifier}`)
+              ) : (
+                documentToReactComponents(currentTab.text?.json, richTextOptions)
               )}
             </div>
           </div>

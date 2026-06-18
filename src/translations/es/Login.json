@@ -1,0 +1,12 @@
+{
+  "Login": {
+    "title": "Iniciar sesión",
+    "description": "Ingrese sus credenciales para acceder a la plataforma.",
+    "emailPlaceholder": "Correo electrónico",
+    "passwordPlaceholder": "Contraseña",
+    "emailRequired": "Ingrese su usuario.",
+    "passwordRequired": "Ingrese su contraseña.",
+    "submitting": "Entrando...",
+    "submit": "Entrar"
+  }
+}

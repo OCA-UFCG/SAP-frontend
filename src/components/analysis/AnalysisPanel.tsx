@@ -2,6 +2,7 @@
 
 import { useEffect, useRef, useState, useMemo } from "react";
 import dynamic from "next/dynamic";
+import { useTranslations } from "next-intl";
 import { Chevron } from "@/components/Chevron/Chevron";
 import SearchBarPlatform from "@/components/SidePanelContexts/SearchBarPlatform";
 import type {
@@ -76,7 +77,7 @@ function renderFormattedText(text: string) {
   );
 }
 
-function formatAnalysisYearLabel(text: string) {
+function formatAnalysisYearLabel(text: string, t?: (key: string) => string) {
   if (!text) return text;
 
   // matches formats like "2001-07", "2001-07-01", or "2001/07"
@@ -99,8 +100,8 @@ function formatAnalysisYearLabel(text: string) {
         "novembro",
         "dezembro",
       ];
-      const name = months[month - 1];
-      return `${name.charAt(0).toUpperCase()}${name.slice(1)} de ${year}`;
+      const name = t ? t(`months.${month}`) : months[month - 1];
+      return `${name.charAt(0).toUpperCase()}${name.slice(1)} ${t ? t("of") : "de"} ${year}`;
     }
   }
 
@@ -136,6 +137,7 @@ function AnalysisYearSelect({
   yearOptions,
   onYearChange,
 }: AnalysisYearSelectProps) {
+  const t = useTranslations("AnalysisPanel");
   const containerRef = useRef<HTMLDivElement>(null);
   const [isOptionsOpen, setIsOptionsOpen] = useState(false);
 
@@ -143,10 +145,10 @@ function AnalysisYearSelect({
     const map = new Map<string, string>();
     yearOptions.forEach((opt) => {
       const raw = opt.label ?? opt.value;
-      map.set(opt.value, formatAnalysisYearLabel(raw));
+      map.set(opt.value, formatAnalysisYearLabel(raw, t));
     });
     return map;
-  }, [yearOptions]);
+  }, [yearOptions, t]);
 
   const activeOption =
     yearOptions.find((option) => option.value === activeYear) ?? yearOptions[0];
@@ -231,10 +233,11 @@ function AnalysisYearSelect({
 }
 
 function DistributionSection({ items }: { items: AnalysisDistributionItem[] }) {
+  const t = useTranslations("AnalysisPanel");
   return (
     <div className="flex flex-col gap-2">
       <h2 className="text-[14px] font-semibold leading-6 text-[#292829]">
-        Porcentagem de área por classificação
+        {t("areaPercentageByClass")}
       </h2>
 
       <div className="rounded-lg border border-[#EFEFEF] bg-white p-3 shadow-sm">
@@ -316,6 +319,7 @@ function RankingSectionContent({
   groups: AnalysisRankingGroup[];
   onItemSelect?: (locationKey: string) => void;
 }) {
+  const t = useTranslations("AnalysisPanel");
   const [groupStates, setGroupStates] = useState<
     Record<string, "initial" | "all" | "closed">
   >(() => getDefaultExpandedGroups(groups));
@@ -330,10 +334,10 @@ function RankingSectionContent({
         const badgeBackgroundColor = buildRankingBadgeColor(group.tone.color);
         const badgeTextColor = getContrastTextColor(badgeBackgroundColor);
         const toggleLabel = !hasItems
-          ? "Sem estados com valor"
+          ? t("noStatesWithValue")
           : state === "all"
-            ? "Ocultar lista"
-            : `Ver todos (${nonZeroCount})`;
+            ? t("hideList")
+            : `${t("seeAll")} (${nonZeroCount})`;
 
         const isOpen = state === "all";
 
@@ -458,11 +462,12 @@ function RankingSection({
   groups: AnalysisRankingGroup[];
   onItemSelect?: (locationKey: string) => void;
 }) {
+  const t = useTranslations("AnalysisPanel");
   if (groups.length === 0) {
     return (
       <EmptySection
         title={title}
-        description="Os agrupamentos por classificação ainda não estão disponíveis para esta camada."
+        description={t("rankingsNotAvailable")}
       />
     );
   }
@@ -504,6 +509,7 @@ export function AnalysisPanel({
   emptyStateTitle,
   emptyStateDescription,
 }: AnalysisPanelProps) {
+  const t = useTranslations("AnalysisPanel");
   const hasTemporalData = Boolean(
     years && classes && Object.keys(years).length > 0 && classes.length > 0,
   );
@@ -543,7 +549,7 @@ export function AnalysisPanel({
             className="flex w-[194px] h-8 cursor-pointer items-center gap-2 rounded-[8px] bg-transparent px-2 py-1.5 text-[14px] font-medium text-[#21240F] transition-colors duration-150 focus-visible:ring-2 focus-visible:ring-neutral-600 focus-visible:outline-none"
           >
             <Chevron open={false} from="right" to="left" size={16} />
-            <span>Voltar para listagem</span>
+            <span>{t("backToList")}</span>
           </button>
           <div
             aria-hidden="true"
@@ -553,10 +559,10 @@ export function AnalysisPanel({
 
         <header className="flex flex-col gap-2">
           <h1 className="font-inter text-[24px] font-semibold leading-[24px] tracking-[-0.015em]">
-            Análise do módulo {moduleName}
+            {t("analysisOfModule")} {moduleName}
           </h1>
           <p className="font-inter text-[16px] font-medium leading-[24px] tracking-[-0.015em]">
-            Pesquise um estado ou cidade para iniciar análise
+            {t("searchStateOrCityToStart")}
           </p>
         </header>
 
@@ -570,7 +576,7 @@ export function AnalysisPanel({
 
           <div className="flex w-full max-w-[392px] flex-col items-start gap-[6px]">
             <label className="text-[14px] font-medium leading-[20px] text-[#292829]">
-              Data da análise
+              {t("analysisDate")}
             </label>
 
             <AnalysisYearSelect
@@ -594,7 +600,7 @@ export function AnalysisPanel({
 
             <div className="flex w-full max-w-[392px] flex-col gap-2">
               <div className="text-[18px] font-semibold leading-6 text-[#292829]">
-                Informações gerais
+                {t("generalInformation")}
               </div>
 
               {model.highlight ? (
@@ -620,7 +626,7 @@ export function AnalysisPanel({
 
             <div className="flex flex-col gap-2">
               <h2 className="text-[18px] font-semibold leading-6 text-[#292829]">
-                O que está acontecendo?
+                {t("whatIsHappening")}
               </h2>
               <div className="rounded-lg">
                 <p className="mt-1 text-[12px] text-sm leading-relaxed text-neutral-600">
@@ -631,7 +637,7 @@ export function AnalysisPanel({
 
             <DistributionSection items={model.distribution} />
             <RankingSection
-              title={model.rankingTitle ?? "Territórios por classificação"}
+              title={model.rankingTitle ?? t("territoriesByClassification")}
               groups={model.rankingGroups}
               onItemSelect={handleRankingItemSelect}
             />
@@ -645,10 +651,10 @@ export function AnalysisPanel({
           </section>
         ) : (
           <EmptySection
-            title={emptyStateTitle ?? "Análise indisponível"}
+            title={emptyStateTitle ?? t("analysisUnavailable")}
             description={
               emptyStateDescription ??
-              "Os dados de análise ainda não estão disponíveis para este local neste módulo."
+              t("analysisDataNotAvailable")
             }
           />
         )}

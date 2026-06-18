@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
+import { useTranslations } from "next-intl";
 import { Icon } from "../Icon/Icon";
 import { ButtonUi } from "../ButtonUI/ButtonUI";
 import { trackUiEvent } from "@/services/telemetry/client";
@@ -25,6 +26,7 @@ const SearchBar = ({ onSearch, searchTelemetryContext }: SearchBarProps) => {
   const [hasError, setHasError] = useState(false);
   const [isOptionsOpen, setIsOptionsOpen] = useState(false);
   const [value, setValue] = useState("");
+  const t = useTranslations("SearchBar");
 
   const filteredSearchOptions = filterStateOnlyOptions(value);
 
@@ -131,7 +133,7 @@ const SearchBar = ({ onSearch, searchTelemetryContext }: SearchBarProps) => {
               }
             }}
             className="w-full text-[#292829] bg-transparent border-none outline-none ring-0"
-            placeholder="Pesquise um estado"
+            placeholder={t("placeholder")}
           />
 
           <button
@@ -184,7 +186,7 @@ const SearchBar = ({ onSearch, searchTelemetryContext }: SearchBarProps) => {
       <ButtonUi
         // disabled={!search}
         styles="bg-[#989F43] text-white min-w-30 h-full rounded-xl hover:brightness-110 active:brightness-95 transition not:disabled:hover:opacity-90 disabled:hover:opacity-100 hover:bg-[#989F43]"
-        label={"Pesquisar"}
+        label={t("button")}
         onClick={() => onSubmit("button")}
       />
     </div>

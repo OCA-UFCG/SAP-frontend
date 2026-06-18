@@ -3,14 +3,24 @@ import { channels } from "@/utils/constants";
 import { sortContentByDesiredOrder } from "@/utils/functions";
 import Image from "next/image";
 import SocialChannels from "../ContactSection/SocialChannels";
+import { useTranslations } from "next-intl";
 
 export const Footer = ({ content }: { content: FooterI[] }) => {
+  const t = useTranslations("Footer");
+
   const mainPages = sortContentByDesiredOrder<FooterI>(content, [
     "/",
     "/map",
     "/about",
     "/contact",
   ]).filter((item) => item.appears);
+
+  const pathKeyMap: Record<string, string> = {
+    "/": "home",
+    "/map": "platform",
+    "/about": "about",
+    "/contact": "contact",
+  };
 
   return (
     <footer className="flex justify-center w-full bg-[#989F43]">
@@ -33,7 +43,14 @@ export const Footer = ({ content }: { content: FooterI[] }) => {
                   : path === "/map"
                     ? "/platform"
                     : path;
-              const label = path === "/map" ? "Plataforma" : name;
+
+              const translationKey = pathKeyMap[path];
+              const label = translationKey && t.has(translationKey)
+                ? t(translationKey)
+                : path === "/map"
+                  ? t("platform")
+                  : name;
+
               return (
                 <a
                   href={href}

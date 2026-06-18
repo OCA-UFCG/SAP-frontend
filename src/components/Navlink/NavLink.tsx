@@ -1,7 +1,6 @@
 'use client';
 
-import { usePathname } from 'next/navigation';
-import Link from 'next/link';
+import { Link, usePathname } from '@/translations/routing';
 import { ButtonUi } from '../ButtonUI/ButtonUI';
 
 export const NavLink = ({

@@ -1,0 +1,58 @@
+{
+  "ModulesContext": {
+    "title": "O que você deseja monitorar?",
+    "subtitle": "Selecione que monitor você deseja analisar",
+    "categories": {
+      "climate": "Dados Climáticos",
+      "environmental": "Dados Ambientais",
+      "socioeconomic": "Dados Socioeconômicos",
+      "others": "Outros"
+    },
+    "Layers": {
+      "monitor-de-seca-ana": {
+        "title": "Monitor de seca | ANA",
+        "description": "Acompanha a situação da seca no Brasil com base na classificação oficial mensal da ANA."
+      },
+      "indice-integrado-de-secas": {
+        "title": "Índice Integrado de Secas",
+        "description": "Indica a seca acumulada em 6 meses (IIS6) com base em indicadores integrados do CEMADEN."
+      },
+      "cdi": {
+        "title": "CDI",
+        "description": "Monitora mensalmente os estágios da seca com base no Índice Composto de Seca (CDI) implementado por OCA seguindo Cammalleri et al. 2021."
+      },
+      "previsao-anomalia-precipitacao-cptec-inpe": {
+        "title": "Previsão: Anomalia Precipitação | CPTEC INPE",
+        "description": "Anomalia Precipitação | CPTEC INPE"
+      },
+      "indice-de-degradacao": {
+        "title": "Índice de Degradação",
+        "description": "Mostra os níveis de degradação da terra no Brasil, de áreas conservadas a áreas mais degradadas."
+      },
+      "percentual-de-pobreza-cadunico": {
+        "title": "Percentual de pobreza - CadÚnico",
+        "description": "Percentual de famílias inscritas no CadÚnico que se encontram em situação de pobreza agregado por município."
+      },
+      "cobertura-da-terra-ibge": {
+        "title": "Cobertura da Terra | IBGE",
+        "description": "Apresenta a distribuição das classes de cobertura da terra no Brasil com base nos mapeamentos do IBGE."
+      },
+      "producao-primaria-bruta-modis": {
+        "title": "Produção Primária Bruta | MODIS",
+        "description": "Produção Primária Bruta | MODIS"
+      },
+      "indice-de-aridez": {
+        "title": "Índice de Aridez",
+        "description": "Indica as classes de aridez da região, implementado por OCA com dados de Xavier et al. 2021."
+      },
+      "carbono-organico-do-solo-embrapa": {
+        "title": "Carbono Orgânico do Solo | Embrapa",
+        "description": "Exibe a distribuição do carbono orgânico do solo no Brasil com base em dados da Embrapa."
+      },
+      "dinamica-da-degradacao-da-terra-ods-15-3-1": {
+        "title": "Dinâmica da Degradação da Terra - ODS 15.3.1",
+        "description": "Indica se a terra está em degradação, estável ou melhorando no território brasileiro."
+      }
+    }
+  }
+}

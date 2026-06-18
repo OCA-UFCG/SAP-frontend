@@ -1,0 +1,10 @@
+{
+  "TabSection": {
+    "title": "Para quem é o SAP?",
+    "tabs": {
+      "sociedade-e-comunidades": "Sociedade e comunidades",
+      "tecnicos-e-pesquisadores": "Técnicos e pesquisadores",
+      "gestao-publica": "Gestão pública"
+    }
+  }
+}

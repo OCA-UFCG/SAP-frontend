@@ -45,7 +45,7 @@ vi.mock("@/components/PlatformLayout/PlatformLayout", () => ({
   },
 }));
 
-import PlatformPage from "@/app/platform/page";
+import PlatformPage from "@/app/[locale]/platform/page";
 
 afterEach(() => {
   cleanup();

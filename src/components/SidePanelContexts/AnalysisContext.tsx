@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
+import { useTranslations } from "next-intl";
 import { AnalysisPanel } from "@/components/analysis/AnalysisPanel";
 import type { SearchSubmissionMetadata } from "@/components/SearchBar/types";
 import {
@@ -44,6 +45,8 @@ export function AnalysisContext({
   onRequestSectionChange,
   panelLayers,
 }: AnalysisContextProps) {
+  const t = useTranslations("AnalysisContext");
+  const tCaption = useTranslations("PlatformMapCaption");
   const { activeLayerId } = useMapLayerActiveState();
   const {
     setSelectedState,
@@ -221,8 +224,9 @@ export function AnalysisContext({
         enrichedDataset,
         effectiveYear,
         selectedLocationKey,
+        tCaption,
       ),
-    [enrichedDataset, effectiveYear, selectedLocationKey],
+    [enrichedDataset, effectiveYear, selectedLocationKey, tCaption],
   );
 
   const unavailableLocationName = useMemo(
@@ -276,11 +280,11 @@ export function AnalysisContext({
       years={temporalYears}
       classes={temporalClasses}
       selectedState={selectedLocationKey}
-      emptyStateTitle={`Análise indisponível para ${unavailableLocationName}`}
+      emptyStateTitle={t("unavailableTitle", { location: unavailableLocationName })}
       emptyStateDescription={
         isMunicipalAnalysisLoading
-          ? "Os dados municipais desta camada estão sendo carregados sob demanda."
-          : `Os dados de análise para ${unavailableLocationName} ainda não estão disponíveis neste módulo.`
+          ? t("unavailableDescriptionLoading")
+          : t("unavailableDescription", { location: unavailableLocationName })
       }
     />
   );

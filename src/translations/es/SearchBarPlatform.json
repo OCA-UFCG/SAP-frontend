@@ -1,0 +1,8 @@
+{
+  "SearchBarPlatform": {
+    "placeholder": "Busque un estado o municipio",
+    "noResults": "No se encontró ningún estado o municipio.",
+    "error": "Estado o municipio no identificado.",
+    "button": "Buscar"
+  }
+}

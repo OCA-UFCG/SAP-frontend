@@ -1,0 +1,7 @@
+{
+  "AnalysisContext": {
+    "unavailableTitle": "Análisis no disponible para {location}",
+    "unavailableDescriptionLoading": "Los datos municipales de esta capa se están cargando bajo demanda.",
+    "unavailableDescription": "Los datos de análisis para {location} aún no están disponibles en este módulo."
+  }
+}

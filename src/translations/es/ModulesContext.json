@@ -1,0 +1,58 @@
+{
+  "ModulesContext": {
+    "title": "¿Qué desea monitorear?",
+    "subtitle": "Seleccione qué monitor desea analizar",
+    "categories": {
+      "climate": "Datos Climáticos",
+      "environmental": "Datos Ambientales",
+      "socioeconomic": "Datos Socioeconómicos",
+      "others": "Otros"
+    },
+    "Layers": {
+      "monitor-de-seca-ana": {
+        "title": "Monitor de sequía | ANA",
+        "description": "Sigue la situación de la sequía en Brasil según la clasificación mensual oficial de ANA."
+      },
+      "indice-integrado-de-secas": {
+        "title": "Índice Integrado de Sequías",
+        "description": "Indica la sequía acumulada en 6 meses (IIS6) con base en indicadores integrados del CEMADEN."
+      },
+      "cdi": {
+        "title": "CDI",
+        "description": "Monitorea mensualmente las fases de la sequía según el Índice Compuesto de Sequía (CDI) implementado por OCA siguiendo a Cammalleri et al. 2021."
+      },
+      "previsao-anomalia-precipitacao-cptec-inpe": {
+        "title": "Pronóstico: Anomalía de Precipitación | CPTEC INPE",
+        "description": "Anomalía de Precipitación | CPTEC INPE"
+      },
+      "indice-de-degradacao": {
+        "title": "Índice de Degradación",
+        "description": "Muestra los niveles de degradación de la tierra en Brasil, desde áreas conservadas hasta las más degradadas."
+      },
+      "percentual-de-pobreza-cadunico": {
+        "title": "Porcentaje de Pobreza - CadÚnico",
+        "description": "Porcentaje de familias inscritas en CadÚnico en situación de pobreza agregado por municipio."
+      },
+      "cobertura-da-terra-ibge": {
+        "title": "Cobertura de la Tierra | IBGE",
+        "description": "Presenta la distribución de clases de cobertura de la tierra en Brasil según el mapeo del IBGE."
+      },
+      "producao-primaria-bruta-modis": {
+        "title": "Producción Primaria Bruta | MODIS",
+        "description": "Producción Primaria Bruta | MODIS"
+      },
+      "indice-de-aridez": {
+        "title": "Índice de Aridez",
+        "description": "Indica las clases de aridez de la región, implementado por OCA con datos de Xavier et al. 2021."
+      },
+      "carbono-organico-do-solo-embrapa": {
+        "title": "Carbono Orgánico del Suelo | Embrapa",
+        "description": "Muestra la distribución del carbono orgánico del suelo en Brasil según datos de Embrapa."
+      },
+      "dinamica-da-degradacao-da-terra-ods-15-3-1": {
+        "title": "Dinámica de Degradación de la Tierra - ODS 15.3.1",
+        "description": "Indica si la tierra se está degradando, estable o mejorando en el territorio brasileño."
+      }
+    }
+  }
+}

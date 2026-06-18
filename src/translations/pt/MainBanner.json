@@ -1,0 +1,8 @@
+{
+  "MainBanner": {
+    "imageAlt": "{imageAlt}",
+    "title": "{title}",
+    "subtitle": "{subtitle}",
+    "linkText": "{linkText}"
+  }
+}

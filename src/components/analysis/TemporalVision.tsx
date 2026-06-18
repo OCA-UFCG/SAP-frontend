@@ -4,6 +4,7 @@ import { useDeferredValue, useEffect, useLayoutEffect, useRef } from "react";
 import * as am5 from "@amcharts/amcharts5";
 import * as am5xy from "@amcharts/amcharts5/xy";
 import am5themes_Animated from "@amcharts/amcharts5/themes/Animated";
+import { useTranslations } from "next-intl";
 import type {
   CompactAnalysisClass,
   CompactAnalysisYearData,
@@ -64,6 +65,8 @@ export function TemporalVision({
   classes,
   selectedState = "br",
 }: TemporalVisionProps) {
+  const t = useTranslations("AnalysisPanel");
+  const tCaption = useTranslations("PlatformMapCaption");
   const containerRef = useRef<HTMLDivElement | null>(null);
   const rootRef = useRef<am5.Root | null>(null);
   const chartRef = useRef<am5xy.XYChart | null>(null);
@@ -257,6 +260,18 @@ export function TemporalVision({
     const activeSeriesKeys = new Set<string>();
 
     classes.forEach((cls, classIndex) => {
+      const labelSlug = cls.label
+        .toLowerCase()
+        .normalize("NFD")
+        .replace(/[\u0300-\u036f]/g, "")
+        .replace(/</g, "menor-que")
+        .replace(/>/g, "maior-que")
+        .replace(/[^a-z0-9]+/g, "-")
+        .replace(/(^-|-$)+/g, "");
+      const translatedLabel = tCaption.has(`labels.${labelSlug}`)
+        ? tCaption(`labels.${labelSlug}`)
+        : cls.label;
+
       const seriesKey = `${cls.id}:${cls.label}:${cls.color}`;
       activeSeriesKeys.add(seriesKey);
 
@@ -265,7 +280,7 @@ export function TemporalVision({
       if (!series) {
         series = chart.series.push(
           am5xy.LineSeries.new(root, {
-            name: cls.label,
+            name: translatedLabel,
             xAxis,
             yAxis,
             valueYField: "value",
@@ -317,7 +332,7 @@ export function TemporalVision({
     <div className="flex flex-col gap-2">
       <div className="h-6 w-[132px]">
         <h2 className="text-[18px] font-semibold leading-6 text-[#292829]">
-          Visão temporal
+          {t("temporalVision")}
         </h2>
       </div>
 

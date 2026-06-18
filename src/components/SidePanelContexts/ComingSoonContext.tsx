@@ -1,14 +1,7 @@
 "use client";
 
 import type { PlatformSection } from "@/components/PlatformSideRail/PlatformSideRail";
-
-const sectionLabel: Record<PlatformSection, string> = {
-  monitoring: "Monitoramento",
-  analysis: "Análise",
-  "analysis-detail": "Análise",
-  communication: "Comunicação",
-  logs: "Auditoria",
-};
+import { useTranslations } from "next-intl";
 
 export interface ComingSoonContextProps {
   activeSection: PlatformSection;
@@ -23,6 +16,17 @@ export interface ComingSoonContextProps {
  * to fit inside the Platform side panel.
  */
 export function ComingSoonContext({ activeSection }: ComingSoonContextProps) {
+  const tRail = useTranslations("PlatformSideRail");
+  const tSoon = useTranslations("ComingSoonContext");
+
+  const sectionLabel: Record<PlatformSection, string> = {
+    monitoring: tRail("monitoring"),
+    analysis: tRail("analysis"),
+    "analysis-detail": tRail("analysis"),
+    communication: tRail("communication"),
+    logs: tRail("logs"),
+  };
+
   return (
     <section className="w-full h-full bg-white flex flex-col">
       <div className="w-full flex-1 min-h-0 flex items-center justify-center px-6 py-10">
@@ -38,7 +42,7 @@ export function ComingSoonContext({ activeSection }: ComingSoonContextProps) {
               {sectionLabel[activeSection]}
             </div>
             <div className="mt-2 text-lg font-semibold text-neutral-800">
-              Em construção
+              {tSoon("title")}
             </div>
           </div>
         </div>
@@ -47,7 +51,7 @@ export function ComingSoonContext({ activeSection }: ComingSoonContextProps) {
       <div className="w-full bg-[#E1E2B4]">
         <div className="w-full flex items-center justify-center p-6 min-h-[120px]">
           <p className="max-w-[320px] text-center font-bold text-[18px] leading-[150%] text-[#777E32]">
-            Estamos trabalhando para disponibilizar este conteúdo em breve!
+            {tSoon("description")}
           </p>
         </div>
       </div>
