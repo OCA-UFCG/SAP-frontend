@@ -3,6 +3,10 @@ import type { NextRequest } from "next/server";
 
 vi.mock("@/app/api/ee/services", () => ({
   ensureEeCacheWarmupStarted: vi.fn(),
+  getGeeRuntimeDiagnostics: vi.fn(() => ({
+    phase: "authentication",
+    runtime: { node: "v22.0.0" },
+  })),
   getEarthEngineUrl: vi.fn(),
 }));
 
@@ -164,10 +168,25 @@ describe("POST /api/ee cache behavior", () => {
     );
 
     const res = await POST(request);
-    const body = (await res.json()) as { error?: string };
+    const body = (await res.json()) as {
+      diagnostics?: {
+        error?: { message?: string };
+        gee?: { phase?: string };
+        requestId?: string;
+      };
+      error?: string;
+    };
 
     expect(res.status).toBe(500);
     expect(body.error).toBe("Earth Engine initialization failed");
+    expect(body.diagnostics?.error?.message).toBe(
+      "Earth Engine initialization failed",
+    );
+    expect(body.diagnostics?.gee?.phase).toBe("authentication");
+    expect(body.diagnostics?.requestId).toBeTruthy();
+    expect(res.headers.get("X-EE-Request-ID")).toBe(
+      body.diagnostics?.requestId,
+    );
   });
 
   it("recomputes the URL when the server-side layer config changes", async () => {
