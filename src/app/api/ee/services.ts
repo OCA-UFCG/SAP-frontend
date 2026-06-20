@@ -15,22 +15,6 @@ import type { CompactMapVisualizationConfig } from "@/utils/analysis";
 let geeInitialized: Promise<void> | null = null;
 let brazilBoundary: any | null = null;
 
-type GeePhase =
-  | "idle"
-  | "authentication"
-  | "initialization"
-  | "ready"
-  | "asset-metadata"
-  | "rendering"
-  | "map-id"
-  | "failed";
-
-let geePhase: GeePhase = "idle";
-let geeInitializationAttempts = 0;
-let geeLastAttemptStartedAt: string | null = null;
-let geeLastFailureAt: string | null = null;
-let geeLastFailurePhase: GeePhase | null = null;
-
 const GOOGLE_OAUTH_TOKEN_URL = "https://oauth2.googleapis.com/token";
 const GEE_AUTH_SCOPES = [
   "https://www.googleapis.com/auth/earthengine",
@@ -48,65 +32,6 @@ interface GoogleOAuthToken {
   accessToken: string;
   expiresIn: number;
   tokenType: string;
-}
-
-export function getGeeRuntimeDiagnostics() {
-  const rawCredentials = process.env.GEE_PRIVATE_KEY;
-  let credentialsJsonValid = false;
-  let credentialFields: string[] = [];
-
-  if (rawCredentials) {
-    try {
-      const parsed = JSON.parse(rawCredentials) as Record<string, unknown>;
-      credentialsJsonValid = true;
-      credentialFields = [
-        "type",
-        "project_id",
-        "private_key_id",
-        "private_key",
-        "client_email",
-        "client_id",
-        "token_uri",
-      ].filter((field) => Boolean(parsed[field]));
-    } catch {
-      // Report validity only. Never return credential contents to the client.
-    }
-  }
-
-  return {
-    phase: geePhase,
-    initializationAttempts: geeInitializationAttempts,
-    initializationInFlight:
-      geeInitialized !== null &&
-      (geePhase === "authentication" || geePhase === "initialization"),
-    lastAttemptStartedAt: geeLastAttemptStartedAt,
-    lastFailureAt: geeLastFailureAt,
-    lastFailurePhase: geeLastFailurePhase,
-    runtime: {
-      node: process.version,
-      platform: process.platform,
-      arch: process.arch,
-      openssl: process.versions.openssl,
-    },
-    authTransport: "native-fetch-service-account-jwt",
-    credentials: {
-      configured: Boolean(rawCredentials),
-      jsonValid: credentialsJsonValid,
-      fieldsPresent: credentialFields,
-    },
-    network: {
-      httpProxyConfigured: Boolean(
-        process.env.HTTP_PROXY ?? process.env.http_proxy,
-      ),
-      httpsProxyConfigured: Boolean(
-        process.env.HTTPS_PROXY ?? process.env.https_proxy,
-      ),
-      noProxyConfigured: Boolean(process.env.NO_PROXY ?? process.env.no_proxy),
-      dnsResultOrderIpv4First:
-        process.env.NODE_OPTIONS?.includes("--dns-result-order=ipv4first") ??
-        false,
-    },
-  };
 }
 
 function encodeJwtPart(value: object) {
@@ -222,9 +147,6 @@ const initializeGee = async () => {
     // Do not keep a rejected promise in the singleton. A transient
     // authentication or initialization failure must be retryable.
     geeInitialized = null;
-    geeLastFailurePhase = geePhase;
-    geePhase = "failed";
-    geeLastFailureAt = new Date().toISOString();
     throw error;
   });
 
@@ -427,10 +349,8 @@ export const getEarthEngineUrl = async (
     const { mapVisualization } = options ?? {};
 
     await initializeGee();
-    console.log(new Date().toISOString(), " - GEE Initialized successfully");
 
     // 1. Fetch asset metadata dynamically to check if it's an Image or ImageCollection
-    geePhase = "asset-metadata";
     const assetMeta: any = await new Promise((resolve) => {
       ee.data.getAsset(
         imageId,
@@ -438,10 +358,6 @@ export const getEarthEngineUrl = async (
         () => resolve(null), // Safe fallback
       );
     });
-
-    console.log(
-      `\n[GEE] Asset: ${imageId} | Type: ${assetMeta?.type || "Unknown"}`,
-    );
 
     // 2. Instantiate correctly based on type
     let GEEImage: any;
@@ -479,7 +395,6 @@ export const getEarthEngineUrl = async (
       GEEImage = ee.Image(imageId);
     }
 
-    geePhase = "rendering";
     let configuredVisParams: any;
 
     if (mapVisualization) {
@@ -494,7 +409,7 @@ export const getEarthEngineUrl = async (
       GEEImage = configuredImage.image;
       configuredVisParams = configuredImage.visParams;
     } else {
-      // 3. Fetch list of available bands and print them, then automatically select one
+      // 3. Fetch the list of available bands and automatically select one.
       try {
         const bandNames = await new Promise((resolve, reject) => {
           GEEImage.bandNames().evaluate(
@@ -502,8 +417,6 @@ export const getEarthEngineUrl = async (
             (err: any) => reject(err),
           );
         });
-        console.log(`[GEE] -> Bands available:`, bandNames);
-
         if (bandNames && Array.isArray(bandNames) && bandNames.length > 0) {
           GEEImage = GEEImage.select(bandNames[bandNames.length - 1]);
         }
@@ -543,13 +456,10 @@ export const getEarthEngineUrl = async (
             mapVisualization,
           })
         : categorizedImage;
-    geePhase = "map-id";
     const mapId = (await getMapId(
       mapImage,
       shouldUseFeatureCollection ? undefined : visParams,
     )) as IMapId;
-
-    geePhase = "ready";
 
     return mapId.urlFormat;
   } catch (error: any) {
@@ -698,17 +608,12 @@ function getMapId(image: any, visParams?: any) {
  * @returns {Promise<void>} - Resolves when initialization is successful.
  */
 async function authenticateAndInitialize(): Promise<void> {
-  geeInitializationAttempts += 1;
-  geeLastAttemptStartedAt = new Date().toISOString();
-  geePhase = "authentication";
   const key = process.env.GEE_PRIVATE_KEY;
   if (!key) {
     throw new Error("GEE_PRIVATE_KEY environment variable not set.");
   }
 
   const credentials = parseGeeCredentials(key);
-
-  console.log(new Date().toISOString(), " - Starting GEE authentication...");
 
   const token = await fetchGoogleOAuthToken(credentials);
   ee.data.setAuthToken(
@@ -723,18 +628,9 @@ async function authenticateAndInitialize(): Promise<void> {
   );
   configureGeeTokenRefresh(credentials);
 
-  geePhase = "initialization";
-  console.log(
-    new Date().toISOString(),
-    " - GEE Authentication successful. Initializing...",
-  );
-
   await new Promise<void>((resolve, reject) => {
     ee.initialize(null, null, resolve, reject);
   });
-
-  geePhase = "ready";
-  console.log(new Date().toISOString(), " - GEE Initialized.");
 }
 
 let warmupStarted = false;
