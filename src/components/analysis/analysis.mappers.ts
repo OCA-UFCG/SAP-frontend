@@ -50,6 +50,32 @@ const statesByKey = new Map(
   Object.entries(statesObj).map(([uf, name]) => [uf.toLowerCase(), name]),
 );
 
+function slugify(text: string): string {
+  return text
+    .toLowerCase()
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .replace(/</g, "menor-que")
+    .replace(/>/g, "maior-que")
+    .replace(/[^a-z0-9]+/g, "-")
+    .replace(/(^-|-$)+/g, "");
+}
+
+interface TranslateFunction {
+  (key: string, values?: Record<string, string | number | Date>): string;
+  has(key: string): boolean;
+}
+
+function translate(
+  text: string,
+  tCaption?: TranslateFunction,
+  values?: Record<string, string | number | Date>,
+): string {
+  if (!tCaption) return text;
+  const slug = slugify(text);
+  return tCaption.has(`labels.${slug}`) ? tCaption(`labels.${slug}`, values) : text;
+}
+
 function parseHexColor(color: string) {
   const normalized = color.trim().replace("#", "");
 
@@ -107,6 +133,7 @@ function buildCompactDistributionItems(
   data: CompactTerritorialAnalysisDataset,
   locationKey: string,
   yearKey: string,
+  tCaption?: TranslateFunction,
 ): AnalysisDistributionItem[] {
   const yearData = data.years[yearKey];
   const values = yearData?.values[locationKey];
@@ -119,7 +146,7 @@ function buildCompactDistributionItems(
 
   return data.classes.map((item, index) => ({
     id: item.id,
-    label: item.label,
+    label: translate(item.label, tCaption),
     color: item.color,
     value: Number((((values[index] ?? 0) as number) / scale).toFixed(1)),
   }));
@@ -199,6 +226,7 @@ function getCompactAnalysisDataset(
 function buildCompactHighlight(
   data: CompactTerritorialAnalysisDataset,
   dominant: AnalysisDistributionItem | null,
+  tCaption?: TranslateFunction,
 ): AnalysisHighlight | null {
   if (!dominant) {
     return null;
@@ -210,11 +238,15 @@ function buildCompactHighlight(
     return null;
   }
 
+  const translatedLabel = translate(compactClass.label, tCaption);
+  const rawTemplate = data.templates?.highlight ?? DEFAULT_HAPPENING_TEMPLATES.highlight;
+  const translatedTemplate = translate(rawTemplate, tCaption, { label: translatedLabel });
+
   return {
-    label: compactClass.label,
+    label: translatedLabel,
     text: formatTemplate(
-      data.templates?.highlight ?? DEFAULT_HAPPENING_TEMPLATES.highlight,
-      { label: compactClass.label },
+      translatedTemplate,
+      { label: translatedLabel },
     ),
     tone: getCompactClassTone(compactClass),
   };
@@ -224,6 +256,7 @@ function buildCompactRankingGroups(
   data: CompactTerritorialAnalysisDataset,
   yearKey: string,
   locationKey: string,
+  tCaption?: TranslateFunction,
 ): AnalysisRankingGroup[] {
   if (locationKey !== "br") {
     return [];
@@ -302,10 +335,10 @@ function buildCompactRankingGroups(
 
     return {
       id: item.id,
-      label: item.label,
+      label: translate(item.label, tCaption),
       tone: getCompactClassTone(item),
       total: sortedEntries.length,
-      totalLabel: data.ranking?.totalLabel ?? DEFAULT_RANKING_TOTAL_LABEL,
+      totalLabel: translate(data.ranking?.totalLabel ?? DEFAULT_RANKING_TOTAL_LABEL, tCaption),
       items: topEntries.map(({ numericValue, ...entry }) => ({
         ...entry,
         trailingLabel: `${numericValue.toFixed(1)}%`,
@@ -319,6 +352,7 @@ function buildCompactTerritorialAnalysisViewModel(
   data: CompactTerritorialAnalysisDataset,
   yearKey: string,
   locationKey: string,
+  tCaption?: TranslateFunction,
 ): TerritorialAnalysisViewModel | null {
   if (!data.years[yearKey]?.values[locationKey]) {
     return null;
@@ -329,11 +363,12 @@ function buildCompactTerritorialAnalysisViewModel(
     data,
     resolvedLocationKey,
     yearKey,
+    tCaption,
   );
   const dominant = getDominantDistributionItem(distribution);
-  const highlight = buildCompactHighlight(data, dominant);
+  const highlight = buildCompactHighlight(data, dominant, tCaption);
   const name = getCompactLocationName(data, resolvedLocationKey);
-  const happeningTemplate =
+  const rawTemplate =
     resolvedLocationKey === "br"
       ? (data.templates?.country ?? DEFAULT_HAPPENING_TEMPLATES.country)
       : isMunicipalityLocationKey(resolvedLocationKey)
@@ -341,6 +376,14 @@ function buildCompactTerritorialAnalysisViewModel(
           data.templates?.state ??
           DEFAULT_HAPPENING_TEMPLATES.municipality)
         : (data.templates?.state ?? DEFAULT_HAPPENING_TEMPLATES.state);
+  const translatedTemplate = translate(rawTemplate, tCaption, dominant ? {
+    name,
+    label: dominant.label,
+    value: dominant.value.toFixed(1),
+  } : undefined);
+
+  const rawRankingTitle = data.ranking?.title ?? DEFAULT_RANKING_TITLE;
+  const translatedRankingTitle = translate(rawRankingTitle, tCaption);
 
   return {
     kind: "territorial",
@@ -348,7 +391,7 @@ function buildCompactTerritorialAnalysisViewModel(
     accentColor: dominant?.color ?? "#292829",
     highlight,
     happening: dominant
-      ? formatTemplate(happeningTemplate, {
+      ? formatTemplate(translatedTemplate, {
           name,
           label: dominant.label,
           value: dominant.value.toFixed(1),
@@ -357,12 +400,13 @@ function buildCompactTerritorialAnalysisViewModel(
     distribution,
     rankingTitle:
       resolvedLocationKey === "br"
-        ? (data.ranking?.title ?? DEFAULT_RANKING_TITLE)
+        ? translatedRankingTitle
         : undefined,
     rankingGroups: buildCompactRankingGroups(
       data,
       yearKey,
       resolvedLocationKey,
+      tCaption,
     ),
   };
 }
@@ -407,6 +451,7 @@ export function buildEmbeddedTerritorialAnalysisViewModel(
   dataset: PanelLayerI | undefined,
   effectiveYear: string | null,
   locationKey: string,
+  tCaption?: TranslateFunction,
 ): TerritorialAnalysisViewModel | null {
   const compactAnalysis = getCompactAnalysisDataset(dataset, effectiveYear);
 
@@ -418,6 +463,7 @@ export function buildEmbeddedTerritorialAnalysisViewModel(
     compactAnalysis,
     effectiveYear,
     locationKey,
+    tCaption,
   );
 }
 

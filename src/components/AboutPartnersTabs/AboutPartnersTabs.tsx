@@ -4,6 +4,7 @@ import { useEffect, useMemo, useState } from "react";
 import Image from "next/image";
 import { documentToReactComponents } from "@contentful/rich-text-react-renderer";
 import type { Document } from "@contentful/rich-text-types";
+import { useTranslations } from "next-intl";
 
 import { cn } from "@/lib/utils";
 import type { PartnerI, SectionHeaderI } from "@/utils/interfaces";
@@ -41,19 +42,29 @@ export const AboutPartnersTabs = ({
   defaultTab = "about",
   className = "",
 }: Props) => {
+  const t = useTranslations("AboutPartnersTabs.tabs");
+  const tContent = useTranslations("AboutPartnersTabs.content");
+
   const tabs = useMemo(
     () =>
       [
-        { id: "about" as const, label: "Sobre seca e desertificação" },
-        { id: "partners" as const, label: "Parceiros" },
+        { id: "about" as const, label: t("about") },
+        { id: "partners" as const, label: t("partners") },
       ] satisfies Array<{ id: TabId; label: string }>,
-    [],
+    [t],
   );
 
   const [activeTab, setActiveTab] = useState<TabId>(defaultTab);
   const [isDesktop, setIsDesktop] = useState(false);
+  
   const heroTitle = hero?.title ?? "";
   const heroDescription = hero?.description ?? "";
+  
+  const resolvedHeroTitle = tContent("hero.title", { title: heroTitle });
+  const resolvedHeroDescription = tContent.has("hero.description")
+    ? tContent("hero.description")
+    : (typeof heroDescription === "string" ? heroDescription : documentToReactComponents(heroDescription));
+
   const heroImageUrl = hero?.imageUrl;
   const heroSideGradient = isDesktop
     ? "linear-gradient(93.7deg, #000000 29.73%, rgba(152, 159, 67, 0) 117.14%)"
@@ -97,12 +108,10 @@ export const AboutPartnersTabs = ({
       >
         <div className="w-full max-w-[1280px] flex flex-col gap-[16px]">
           <h1 className="font-bold text-3xl md:text-[48px] md:leading-[68px] text-white">
-            {heroTitle}
+            {resolvedHeroTitle}
           </h1>
           <div className="text-base leading-[24px] text-white max-w-[891px]">
-            {typeof heroDescription === "string"
-              ? heroDescription
-              : documentToReactComponents(heroDescription)}
+            {resolvedHeroDescription}
           </div>
         </div>
       </div>
@@ -137,6 +146,11 @@ export const AboutPartnersTabs = ({
           {aboutSections.map((section, index) => {
             const imageFirst = index % 2 === 0;
             const hasBorderTop = index === 0;
+            
+            const resolvedSectionTitle = tContent(`sections.${index}.title`, { title: section.title });
+            const resolvedSectionText = tContent.has(`sections.${index}.text`)
+              ? tContent(`sections.${index}.text`)
+              : (typeof section.text === "string" ? section.text : documentToReactComponents(section.text));
 
             return (
               <section
@@ -172,14 +186,12 @@ export const AboutPartnersTabs = ({
                     <div className="w-full flex flex-col justify-center items-end gap-[64px] lg:w-[628px] lg:h-[470px] lg:pt-[18px]">
                       <div className="flex items-center w-full lg:w-[628px] lg:h-[95px]">
                         <h3 className="w-full lg:w-[624px] text-[36px] md:text-[48px] lg:text-[64px] leading-[49px] font-light text-[#3F4324]">
-                          {section.title}
+                          {resolvedSectionTitle}
                         </h3>
                       </div>
                       <div className="flex items-center w-full lg:w-[628px] lg:h-[246px]">
                         <div className="w-full lg:w-[624px] lg:h-[216px] text-[16px] leading-[24px] font-normal text-[#3F4324]">
-                          {typeof section.text === "string"
-                            ? section.text
-                            : documentToReactComponents(section.text)}
+                          {resolvedSectionText}
                         </div>
                       </div>
                     </div>

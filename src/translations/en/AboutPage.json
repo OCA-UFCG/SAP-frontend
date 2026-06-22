@@ -1,0 +1,25 @@
+{
+  "AboutPage": {
+    "notFound": "Content not found.",
+    "tabs": {
+      "about": "About drought and desertification",
+      "partners": "Partners"
+    },
+    "content": {
+      "hero": {
+        "title": "About us",
+        "description": "The Early Warning System for Drought and Desertification (SAP) is the instrument that materializes, at an operational level, the legal command to establish an integrated early warning information system for drought and desertification events. In Law No. 13.153/2015, this duty is assigned to public authorities under the National Policy to Combat Desertification and Mitigate the Effects of Drought (PNCD). SAP provides integrated and actionable information to plan, prioritize, and respond to risks. The system enables the core objectives of the PNCD, transforming observations and indicators into alerts and evidence for contingency decisions, adaptation, livelihood protection, and resource allocation."
+      },
+      "sections": {
+        "0": {
+          "title": "About drought",
+          "text": "It is understood as an abnormal condition of water scarcity, which may involve precipitation, soil moisture, river flow, reservoir levels or aquifers."
+        },
+        "1": {
+          "title": "About desertification",
+          "text": "It is the degradation of land in arid, semi-arid and dry sub-humid areas resulting from various factors, including climatic variations and human activities."
+        }
+      }
+    }
+  }
+}

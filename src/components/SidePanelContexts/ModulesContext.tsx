@@ -1,6 +1,7 @@
 "use client";
 
 import { memo, useCallback, useMemo } from "react";
+import { useTranslations } from "next-intl";
 import {
   useMapLayerActions,
   useMapLayerActiveState,
@@ -122,13 +123,14 @@ const LayerDatasetCard = memo(function LayerDatasetCard({
 });
 
 function ContextHeader() {
+  const t = useTranslations("ModulesContext");
   return (
     <header className="flex flex-col gap-2">
       <h2 className="font-inter font-semibold text-[24px] leading-[24px] tracking-[-0.015em] text-[#292829]">
-        O que você deseja monitorar?
+        {t("title")}
       </h2>
       <p className="font-inter font-medium text-[16px] leading-[24px] tracking-[-0.015em] text-[#292829]">
-        Selecione que monitor você deseja analisar
+        {t("subtitle")}
       </p>
     </header>
   );
@@ -139,6 +141,7 @@ export function ModulesContext({
   panelLayers = [],
   onRequestSectionChange,
 }: ModulesContextProps) {
+  const t = useTranslations("ModulesContext");
   const { activeData, activeEEData } = useMapLayerActiveState();
   const { activateVectorLayer, activateEeLayer, clearActiveLayer } =
     useMapLayerActions();
@@ -298,10 +301,17 @@ export function ModulesContext({
 
         <div className="flex flex-col gap-6">
           {groupedDatasets.map((group, index) => {
+            const categoryKeyMap: Record<string, string> = {
+              "dados climáticos": "climate",
+              "dados ambientais": "environmental",
+              "dados socioeconômicos": "socioeconomic",
+              "outros": "others"
+            };
+            
             return (
               <LayerAccordion
                 key={group.key}
-                title={group.title}
+                title={categoryKeyMap[group.key] ? t(`categories.${categoryKeyMap[group.key]}`) : group.title}
                 defaultOpen={index === 0}
               >
                 {group.datasets.map((dataset) => {

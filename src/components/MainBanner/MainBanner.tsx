@@ -1,21 +1,29 @@
 import { IMainBanner } from "@/utils/interfaces";
 import Image from "next/image";
-import Link from "next/link";
+import { Link } from "@/translations/routing";
+import { useTranslations } from "next-intl";
 
 interface MainBannerProps {
   data: IMainBanner;
 }
 
 export function MainBanner({ data }: MainBannerProps) {
-  if (!data) return null;
+  const t = useTranslations("MainBanner");
 
-  const { title, subtitle, linkText, link, image } = data;
+  if (!data) return null;
+  const { image } = data;
+
+  const title = t("title", { title: data.title });
+  const subtitle = t("subtitle", { subtitle: data.subtitle });
+  const linkText = t("linkText", { linkText: data.linkText });
+  const imageAlt = t("imageAlt", { imageAlt: (data.title || "") });
+
   return (
     <section className="relative w-full min-h-[492px] overflow-hidden">
       <div className="absolute inset-0 w-full h-full z-0 overflow-hidden">
         <Image
           src={image.url}
-          alt="Sistema de Alerta Precoce"
+          alt={imageAlt}
           fill
           priority
           unoptimized

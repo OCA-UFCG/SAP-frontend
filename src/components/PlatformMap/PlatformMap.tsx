@@ -1,5 +1,6 @@
 "use client";
 import { useCallback, useState } from "react";
+import { useTranslations } from "next-intl";
 import { PlatformMapCaption } from "@/components/PlatformMapCaption/PlatformMapCaption";
 import { useEarthEngineTileLayer } from "./useEarthEngineTileLayer";
 import MapComponent from "../Map/MapComponent";
@@ -10,6 +11,7 @@ import {
 } from "@/components/MapLayerContext/MapLayerContext";
 
 export function PlatformMap() {
+  const t = useTranslations("PlatformMap");
   const { activeData, activeEEData } = useMapLayerActiveState();
   const { activeLegend, selectedState, selectedMunicipalityCode, activeYear } =
     useMapLayerViewState();
@@ -59,7 +61,7 @@ export function PlatformMap() {
           <div className="pointer-events-none absolute inset-0 z-20 flex items-center justify-center px-6">
             <div
               aria-live="polite"
-              aria-label="Carregando camada do GEE"
+              aria-label={t("loadingGeeLayer")}
               className="flex items-center gap-3 rounded-full border border-white/25 bg-stone-950/78 px-5 py-3 text-sm font-medium text-white shadow-[0_18px_60px_rgba(0,0,0,0.35)] backdrop-blur-sm"
               role="status"
             >
@@ -67,7 +69,7 @@ export function PlatformMap() {
                 aria-hidden="true"
                 className="h-4 w-4 animate-spin rounded-full border-2 border-white/35 border-t-white"
               />
-              <span>Carregando camada do mapa</span>
+              <span>{t("loadingMapLayer")}</span>
             </div>
           </div>
         )}

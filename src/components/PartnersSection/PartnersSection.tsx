@@ -3,6 +3,7 @@
 import Image from "next/image";
 import { SectionHeaderI, PartnerI } from "@/utils/interfaces";
 import { normalizeContentfulImage } from "@/utils/functions";
+import { useTranslations } from "next-intl";
 
 type Props = {
   header: SectionHeaderI;
@@ -15,16 +16,21 @@ export const PartnersSection = ({
   partners,
   className = "",
 }: Props) => {
+  const t = useTranslations("PartnersSection");
+
+  const title = t("title", { title: header.title });
+  const description = t("description", { description: header.description });
+
   return (
     <section className={`w-full min-h-82 bg-[#F6F7F6] ${className}`}>
       <div className="max-w-[1440px] mx-auto px-4 sm:px-10 lg:px-20 py-12 flex flex-col gap-6">
         <div className="flex flex-col gap-6 text-center lg:text-left items-center lg:items-start">
           <h2 className="text-2xl md:text-[30px] leading-[36px] tracking-[-0.0075em] font-semibold text-[#292829]">
-            {header.title}
+            {title}
           </h2>
 
           <p className="text-base font-medium leading-relaxed text-[#292829] whitespace-pre-line">
-            {header.description}
+            {description}
           </p>
         </div>
 

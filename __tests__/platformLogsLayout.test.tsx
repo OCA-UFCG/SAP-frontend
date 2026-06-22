@@ -10,9 +10,9 @@ vi.mock("next/navigation", () => ({
   redirect: redirectMock,
 }));
 
-import PlatformLogsLayout from "@/app/platform/logs/layout";
-import PlatformLogsPage from "@/app/platform/logs/page";
-import PlatformTelemetryPage from "@/app/platform/telemetry/page";
+import PlatformLogsLayout from "@/app/[locale]/platform/logs/layout";
+import PlatformLogsPage from "@/app/[locale]/platform/logs/page";
+import PlatformTelemetryPage from "@/app/[locale]/platform/telemetry/page";
 
 describe("legacy platform logs routes", () => {
   it("redirects /platform/logs to the canonical logs view", async () => {

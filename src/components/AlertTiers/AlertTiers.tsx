@@ -3,6 +3,7 @@
 import { Pie, PieChart, Sector, Tooltip } from "recharts";
 import { StatusItemI } from "../../utils/interfaces";
 import { StatusRow } from "../StatusRow/StatusRow";
+import { useTranslations } from "next-intl";
 
 type TooltipPayloadShape = {
   payload?: {
@@ -25,9 +26,10 @@ type PieShapeProps = {
 };
 
 export const AlertTiers = ({ items }: Props) => {
+  const t = useTranslations("AlertTiers");
   return (
     <div className="w-full p-4 bg-[#F6F7F6] border border-[#E4E5E2] rounded-lg flex flex-col gap-6">
-      <h1 className="text-xl font-bold ">Monitoramento de Seca na região</h1>
+      <h1 className="text-xl font-bold ">{t("title")}</h1>
 
       <div className="flex flex-col md:flex-row justify-between items-center gap-12">
         <PieChart width={279} height={279}>

@@ -1,0 +1,58 @@
+{
+  "ModulesContext": {
+    "title": "What do you want to monitor?",
+    "subtitle": "Select which monitor you want to analyze",
+    "categories": {
+      "climate": "Climate Data",
+      "environmental": "Environmental Data",
+      "socioeconomic": "Socioeconomic Data",
+      "others": "Others"
+    },
+    "Layers": {
+      "monitor-de-seca-ana": {
+        "title": "Drought Monitor | ANA",
+        "description": "Monitors the drought situation in Brazil based on ANA's official monthly classification."
+      },
+      "indice-integrado-de-secas": {
+        "title": "Integrated Drought Index",
+        "description": "Indicates accumulated drought over 6 months (IIS6) based on integrated CEMADEN indicators."
+      },
+      "cdi": {
+        "title": "CDI",
+        "description": "Monthly monitors drought stages based on the Composite Drought Index (CDI) implemented by OCA following Cammalleri et al. 2021."
+      },
+      "previsao-anomalia-precipitacao-cptec-inpe": {
+        "title": "Forecast: Precipitation Anomaly | CPTEC INPE",
+        "description": "Precipitation Anomaly | CPTEC INPE"
+      },
+      "indice-de-degradacao": {
+        "title": "Degradation Index",
+        "description": "Shows the land degradation levels in Brazil, from conserved to more degraded areas."
+      },
+      "percentual-de-pobreza-cadunico": {
+        "title": "Poverty Percentage - CadÚnico",
+        "description": "Percentage of families registered in CadÚnico in poverty aggregated by municipality."
+      },
+      "cobertura-da-terra-ibge": {
+        "title": "Land Cover | IBGE",
+        "description": "Presents the distribution of land cover classes in Brazil based on IBGE mapping."
+      },
+      "producao-primaria-bruta-modis": {
+        "title": "Gross Primary Production | MODIS",
+        "description": "Gross Primary Production | MODIS"
+      },
+      "indice-de-aridez": {
+        "title": "Aridity Index",
+        "description": "Indicates the aridity classes of the region, implemented by OCA using data from Xavier et al. 2021."
+      },
+      "carbono-organico-do-solo-embrapa": {
+        "title": "Soil Organic Carbon | Embrapa",
+        "description": "Shows the distribution of soil organic carbon in Brazil based on Embrapa data."
+      },
+      "dinamica-da-degradacao-da-terra-ods-15-3-1": {
+        "title": "Land Degradation Dynamics - SDG 15.3.1",
+        "description": "Indicates whether land is degrading, stable, or improving in the Brazilian territory."
+      }
+    }
+  }
+}

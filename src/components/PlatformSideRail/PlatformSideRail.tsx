@@ -1,8 +1,9 @@
 "use client";
-import Link from "next/link";
+import { Link } from "@/translations/routing";
 import { Chevron } from "../Chevron/Chevron";
 import { Icon } from "../Icon/Icon";
 import clsx from "clsx";
+import { useTranslations } from "next-intl";
 
 export type PlatformSection =
   | "monitoring"
@@ -60,13 +61,15 @@ export function PlatformSideRail({
   showAuditLink = false,
   className,
 }: PlatformSideRailProps) {
+  const t = useTranslations("PlatformSideRail");
+
   const items: PlatformRailItem[] = [
-    { kind: "section", id: "monitoring", label: "Monitoramento", icon: "eye" },
-    { kind: "section", id: "analysis", label: "Análise", icon: "chart" },
+    { kind: "section", id: "monitoring", label: t("monitoring"), icon: "eye" },
+    { kind: "section", id: "analysis", label: t("analysis"), icon: "chart" },
     {
       kind: "section",
       id: "communication",
-      label: "Comunicação",
+      label: t("communication"),
       icon: "calendar",
     },
   ];
@@ -75,7 +78,7 @@ export function PlatformSideRail({
     items.push({
       kind: "link",
       href: "/platform?view=logs",
-      label: "Auditoria",
+      label: t("logs"),
       icon: "info",
     });
   }

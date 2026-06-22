@@ -1,0 +1,57 @@
+{
+  "MapSection": {
+    "understandDrought": "Understand the drought in your region",
+    "seeMore": "See more",
+    "generalInfo": "General information",
+    "whatsHappening": "What is happening?",
+    "practicalImpact": "Practical impact",
+    "analysisDate": "Analysis date: {date}",
+    "mostlyIn": "Mostly in: {status}",
+    "tiers": {
+      "sem-seca": "No drought",
+      "observacao": "Observation",
+      "atencao": "Attention",
+      "alerta": "Severe drought",
+      "recuperacao-total": "Total Recovery",
+      "recuperacao-parcial": "Partial Recovery"
+    },
+    "droughtData": {
+      "acontecendo": "Currently, {semSeca}% of {nome}'s territory is without drought, with stable humidity levels. However, {alerta}% of the region is in Alert state (Severe Drought), requiring constant attention to water reserves.",
+      "impacto": {
+        "stable": "Stable areas ({semSeca}%): Favorable conditions for agricultural development.",
+        "alert": "Alert State: Risk of crop failure in {alerta}% of the productive area.",
+        "improvement": "Signs of improvement: {recuperacao}% of the territory shows signs of water recovery."
+      }
+    },
+    "states": {
+      "br": "Brazil",
+      "ro": "Rondônia",
+      "ac": "Acre",
+      "am": "Amazonas",
+      "rr": "Roraima",
+      "pa": "Pará",
+      "ap": "Amapá",
+      "to": "Tocantins",
+      "ma": "Maranhão",
+      "pi": "Piauí",
+      "ce": "Ceará",
+      "rn": "Rio Grande do Norte",
+      "pb": "Paraíba",
+      "pe": "Pernambuco",
+      "al": "Alagoas",
+      "se": "Sergipe",
+      "ba": "Bahia",
+      "mg": "Minas Gerais",
+      "es": "Espírito Santo",
+      "rj": "Rio de Janeiro",
+      "sp": "São Paulo",
+      "pr": "Paraná",
+      "sc": "Santa Catarina",
+      "rs": "Rio Grande do Sul",
+      "ms": "Mato Grosso do Sul",
+      "mt": "Mato Grosso",
+      "go": "Goiás",
+      "df": "Federal District"
+    }
+  }
+}

@@ -1,0 +1,78 @@
+{
+  "Platform": {
+    "SideRail": {
+      "monitoring": "Monitoreo",
+      "analysis": "Análisis",
+      "communication": "Comunicación",
+      "logs": "Auditoría"
+    },
+    "ComingSoon": {
+      "title": "En construcción",
+      "description": "¡Estamos trabajando para que este contenido esté disponible pronto!"
+    },
+    "Modules": {
+      "title": "¿Qué desea monitorear?",
+      "subtitle": "Seleccione qué monitor desea analizar",
+      "categories": {
+        "climate": "Datos Climáticos",
+        "environmental": "Datos Ambientales",
+        "socioeconomic": "Datos Socioeconómicos",
+        "others": "Otros"
+      },
+      "Layers": {
+        "monitor-de-seca-ana": {
+          "title": "Monitor de Sequía | ANA",
+          "description": "Sigue la situación de la sequía en Brasil con base en la clasificación oficial mensual del Monitor de Sequías."
+        },
+        "indice-integrado-de-secas": {
+          "title": "Índice Integrado de Sequías",
+          "description": "Indica la sequía acumulada en 6 meses (IIS6) con base en indicadores integrados del clima y de la vegetación."
+        },
+        "cdi": {
+          "title": "CDI",
+          "description": "Monitorea mensualmente las etapas de la sequía con base en el Índice Compuesto de Sequía (CDI)."
+        },
+        "previsao-anomalia-precipitacao-cptec-inpe": {
+          "title": "Pronóstico: Anomalía de Precipitación | CPTEC INPE",
+          "description": "Anomalía de Precipitación | CPTEC INPE"
+        }
+      }
+    },
+    "Dataset": {
+      "details": "Detalles",
+      "deactivateLayer": "Desactivar capa {title}",
+      "activateLayer": "Activar capa {title}",
+      "moreInformation": "Más información sobre {title}"
+    },
+    "InfoModal": {
+      "overview": "Visión General",
+      "period": "Período",
+      "startDate": "Fecha de inicio",
+      "endDate": "Fecha de fin",
+      "timeScale": "Escala de tiempo",
+      "legend": "Leyenda",
+      "learnMore": "Saber más",
+      "ariaLabel": "Información sobre {title}"
+    },
+    "Analysis": {
+      "unavailableTitle": "Análisis no disponible para {location}",
+      "unavailableDescriptionLoading": "Los datos municipales de esta capa se están cargando bajo demanda.",
+      "unavailableDescription": "Los datos de análisis para {location} aún no están disponibles en este módulo."
+    },
+    "SearchBar": {
+      "placeholder": "Busque un estado o municipio",
+      "noResults": "No se encontró ningún estado o municipio.",
+      "error": "Estado o municipio no identificado.",
+      "button": "Buscar"
+    },
+    "DataCards": {
+      "noDrought": "Región mayormente sin sequía",
+      "inObservation": "en observación",
+      "inRecovery": "en recuperación"
+    },
+    "AlertTiers": {
+      "title": "Monitoreo de Sequía en la región"
+    },
+    "MulticriterialAnalysis": "Análisis Multicriterio"
+  }
+}

@@ -1,6 +1,7 @@
 "use client";
 
 import { useForm } from "react-hook-form";
+import { useTranslations } from "next-intl";
 
 export type LoginFormValues = {
   login: string;
@@ -14,6 +15,7 @@ type LoginProps = {
 };
 
 export const Login = ({ onSubmit, backgroundImageUrl, error }: LoginProps) => {
+  const t = useTranslations("Login");
   const {
     register,
     handleSubmit,
@@ -43,10 +45,10 @@ export const Login = ({ onSubmit, backgroundImageUrl, error }: LoginProps) => {
       <div className="relative z-10 flex w-full max-w-[462px] flex-col gap-8 rounded-lg border border-white/45 bg-white/24 p-6 shadow-2xl shadow-black/25 backdrop-blur-xl sm:p-8">
         <header className="flex flex-col gap-2">
           <h1 className="font-inter text-[24px] font-semibold leading-8 text-white drop-shadow-sm">
-            Faça login
+            {t("title")}
           </h1>
           <p className="text-[14px] leading-5 text-white/82">
-            Digite suas credenciais para acessar a plataforma.
+            {t("description")}
           </p>
         </header>
 
@@ -65,9 +67,9 @@ export const Login = ({ onSubmit, backgroundImageUrl, error }: LoginProps) => {
               aria-label="Login"
               aria-invalid={Boolean(errors.login)}
               className="h-10 w-full rounded-lg border border-white/30 bg-white/82 px-3 py-3 text-sm text-[#292829] shadow-sm outline-none transition placeholder:text-[#6D6D6D] hover:border-white/70 focus:border-white focus:ring-2 focus:ring-white/35"
-              placeholder="Email"
+              placeholder={t("emailPlaceholder")}
               {...register("login", {
-                required: "Informe o login.",
+                required: t("emailRequired"),
               })}
             />
             {errors.login ? (
@@ -85,9 +87,9 @@ export const Login = ({ onSubmit, backgroundImageUrl, error }: LoginProps) => {
               aria-label="Senha"
               aria-invalid={Boolean(errors.password)}
               className="h-10 w-full rounded-lg border border-white/30 bg-white/82 px-3 py-3 text-sm text-[#292829] shadow-sm outline-none transition placeholder:text-[#6D6D6D] hover:border-white/70 focus:border-white focus:ring-2 focus:ring-white/35"
-              placeholder="Senha"
+              placeholder={t("passwordPlaceholder")}
               {...register("password", {
-                required: "Informe a senha.",
+                required: t("passwordRequired"),
               })}
             />
             {errors.password ? (
@@ -102,7 +104,7 @@ export const Login = ({ onSubmit, backgroundImageUrl, error }: LoginProps) => {
             disabled={isSubmitting}
             className="mt-3 flex h-10 w-full cursor-pointer items-center justify-center rounded-lg bg-[#989F43] px-4 py-2 text-[14px] font-medium leading-6 text-white shadow-sm transition hover:bg-[#5B612A] focus:outline-none focus:ring-2 focus:ring-[#777E32] focus:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-70"
           >
-            {isSubmitting ? "Entrando..." : "Entrar"}
+            {isSubmitting ? t("submitting") : t("submit")}
           </button>
         </form>
       </div>

@@ -1,11 +1,13 @@
 import { DataCardsI } from "@/utils/interfaces";
 import { Icon } from "../Icon/Icon";
+import { useTranslations } from "next-intl";
 
 const DataCards = ({
   noDroughtAreaValue,
   watchAreaValue,
   recoveryAreaValue,
 }: DataCardsI) => {
+  const t = useTranslations("DataCards");
   return (
     <>
     <div className="flex flex-col gap-3">
@@ -17,7 +19,7 @@ const DataCards = ({
 
           <div className="flex-1 px-8 py-6 bg-neutral-200 flex flex-col justify-center">
             <p className="text-xl font-medium text-neutral-800">
-              Região majoritariamente Sem seca
+              {t("noDrought")}
             </p>
 
            <p className="text-3xl font-bold text-[#5B612A] mt-2 self-center">
@@ -35,7 +37,7 @@ const DataCards = ({
 
           <div>
             <p className="text-lg font-medium text-neutral-800">
-              {watchAreaValue}% em observação
+              {watchAreaValue}% {t("inObservation")}
             </p> 
           </div>
         </div>
@@ -49,7 +51,7 @@ const DataCards = ({
 
           <div>
             <p className="text-lg font-medium text-neutral-800">
-               {recoveryAreaValue}% em recuperação
+               {recoveryAreaValue}% {t("inRecovery")}
             </p>
           </div>
         </div>

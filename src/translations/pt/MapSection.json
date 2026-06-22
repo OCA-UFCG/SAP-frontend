@@ -1,0 +1,57 @@
+{
+  "MapSection": {
+    "understandDrought": "Entenda a seca na sua região",
+    "seeMore": "Veja mais",
+    "generalInfo": "Informações gerais",
+    "whatsHappening": "O que está acontecendo?",
+    "practicalImpact": "Impacto na prática",
+    "analysisDate": "Data da análise: {date}",
+    "mostlyIn": "Majoritariamente em: {status}",
+    "tiers": {
+      "sem-seca": "Sem seca",
+      "observacao": "Observação",
+      "atencao": "Atenção",
+      "alerta": "Seca severa",
+      "recuperacao-total": "Recuperação Total",
+      "recuperacao-parcial": "Recuperação Parcial"
+    },
+    "droughtData": {
+      "acontecendo": "Atualmente, {semSeca}% do território de {nome} está sem seca, com índices de umidade estáveis. No entanto, {alerta}% da região encontra-se em estado de Alerta (Seca Severa), exigindo atenção constante às reservas hídricas.",
+      "impacto": {
+        "stable": "Áreas estáveis ({semSeca}%): Condições favoráveis para o desenvolvimento agrícola.",
+        "alert": "Estado de Alerta: Risco de quebra de safra em {alerta}% da área produtiva.",
+        "improvement": "Sinais de melhora: {recuperacao}% do território apresenta sinais de recuperação hídrica."
+      }
+    },
+    "states": {
+      "br": "Brasil",
+      "ro": "Rondônia",
+      "ac": "Acre",
+      "am": "Amazonas",
+      "rr": "Roraima",
+      "pa": "Pará",
+      "ap": "Amapá",
+      "to": "Tocantins",
+      "ma": "Maranhão",
+      "pi": "Piauí",
+      "ce": "Ceará",
+      "rn": "Rio Grande do Norte",
+      "pb": "Paraíba",
+      "pe": "Pernambuco",
+      "al": "Alagoas",
+      "se": "Sergipe",
+      "ba": "Bahia",
+      "mg": "Minas Gerais",
+      "es": "Espírito Santo",
+      "rj": "Rio de Janeiro",
+      "sp": "São Paulo",
+      "pr": "Paraná",
+      "sc": "Santa Catarina",
+      "rs": "Rio Grande do Sul",
+      "ms": "Mato Grosso do Sul",
+      "mt": "Mato Grosso",
+      "go": "Goiás",
+      "df": "Distrito Federal"
+    }
+  }
+}

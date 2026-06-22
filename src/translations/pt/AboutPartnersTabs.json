@@ -1,0 +1,22 @@
+{
+  "AboutPartnersTabs": {
+    "notFound": "Conteúdo não encontrado.",
+    "tabs": {
+      "about": "Sobre seca e desertificação",
+      "partners": "Parceiros"
+    },
+    "content": {
+      "hero": {
+        "title": "{title}"
+      },
+      "sections": {
+        "0": {
+          "title": "{title}"
+        },
+        "1": {
+          "title": "{title}"
+        }
+      }
+    }
+  }
+}

@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
+import { useTranslations } from "next-intl";
 import { Icon } from "../Icon/Icon";
 import { ButtonUi } from "../ButtonUI/ButtonUI";
 import { trackUiEvent } from "@/services/telemetry/client";
@@ -28,6 +29,7 @@ const SearchBarPlatform = ({
   const [hasError, setHasError] = useState(false);
   const [isOptionsOpen, setIsOptionsOpen] = useState(false);
   const [value, setValue] = useState("");
+  const t = useTranslations("SearchBarPlatform");
 
   const filteredSearchOptions = filterStateOptions(value);
 
@@ -134,7 +136,7 @@ const SearchBarPlatform = ({
             aria-expanded={isOptionsOpen}
             aria-haspopup="listbox"
             className="w-full text-[#292829] text-[13px] placeholder:text-[13px] bg-transparent border-none outline-none ring-0"
-            placeholder="Pesquise um estado ou município"
+            placeholder={t("placeholder")}
           />
 
           <button
@@ -183,20 +185,20 @@ const SearchBarPlatform = ({
               ))
             ) : (
               <div className="px-3 py-2 text-sm text-neutral-500">
-                Nenhum estado ou município encontrado.
+                {t("noResults")}
               </div>
             )}
           </div>
         )}
         {hasError && (
           <p className="text-sm text-red-600 mt-1 absolute -bottom-6">
-            Estado ou município não identificado.
+            {t("error")}
           </p>
         )}
       </div>
       <ButtonUi
         styles="bg-[#989F43] hover:bg-[#989F43] text-white text-sm px-3 h-full rounded-lg disabled:hover:* active:brightness-95 transition shrink-0"
-        label={"Pesquisar"}
+        label={t("button")}
         onClick={() => onSubmit("button")}
       />
     </div>

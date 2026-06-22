@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { useTranslations } from "next-intl";
 import { Chevron } from "../Chevron/Chevron";
 import { IImageParam } from "@/utils/interfaces";
 
@@ -14,6 +15,7 @@ import { IImageParam } from "@/utils/interfaces";
  */
 export function PlatformMapCaption({ legend }: { legend: IImageParam[] }) {
   const [isOpen, setIsOpen] = useState(true);
+  const t = useTranslations("PlatformMapCaption");
   const shouldScroll = legend.length > 6;
 
   return (
@@ -36,7 +38,7 @@ export function PlatformMapCaption({ legend }: { legend: IImageParam[] }) {
           aria-expanded={isOpen}
         >
           <h2 className="font-semibold text-base text-neutral-600">
-            Legenda do mapa
+            {t("title")}
           </h2>
           <Chevron open={isOpen} from="down" to="up" size={30} />
         </button>
@@ -53,17 +55,32 @@ export function PlatformMapCaption({ legend }: { legend: IImageParam[] }) {
             <div
               className={`flex flex-col gap-3 ${shouldScroll ? "max-h-[168px] overflow-y-auto pr-2" : ""}`}
             >
-              {legend.map((item) => (
-                <div key={item.label} className="flex items-center gap-3">
-                  <span
-                    className="h-4 w-4 shrink-0 rounded-full"
-                    style={{ backgroundColor: item.color }}
-                  />
-                  <span className="font-black leading-none text-[#333333]">
-                    {item.label}
-                  </span>
-                </div>
-              ))}
+              {legend.map((item) => {
+                const slug = item.label
+                  .toLowerCase()
+                  .normalize("NFD")
+                  .replace(/[\u0300-\u036f]/g, "")
+                  .replace(/</g, "menor-que")
+                  .replace(/>/g, "maior-que")
+                  .replace(/[^a-z0-9]+/g, "-")
+                  .replace(/(^-|-$)+/g, "");
+                
+                const displayLabel = t.has(`labels.${slug}`) 
+                  ? t(`labels.${slug}`) 
+                  : item.label;
+
+                return (
+                  <div key={item.label} className="flex items-center gap-3">
+                    <span
+                      className="h-4 w-4 shrink-0 rounded-full"
+                      style={{ backgroundColor: item.color }}
+                    />
+                    <span className="font-black leading-none text-[#333333]">
+                      {displayLabel}
+                    </span>
+                  </div>
+                );
+              })}
             </div>
           </div>
         </div>

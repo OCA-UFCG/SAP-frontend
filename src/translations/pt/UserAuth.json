@@ -1,0 +1,11 @@
+{
+  "UserAuth": {
+    "connectedUser": "Usuário conectado",
+    "sessionStatus": "Status da sessão",
+    "disconnected": "Desconectado",
+    "logout": "Sair",
+    "login": "Entrar",
+    "menuLabel": "Menu do usuário",
+    "statusLabel": "Status do usuário"
+  }
+}

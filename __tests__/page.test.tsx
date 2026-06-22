@@ -1,6 +1,6 @@
 import { render, screen } from "@testing-library/react";
 import { vi, test, expect } from "vitest";
-import Home from "../src/app/page";
+import Home from "../src/app/[locale]/page";
 
 // Mock do next/image
 vi.mock("next/image", () => ({
@@ -33,7 +33,7 @@ vi.mock("@/components/MapSection/MapSection", () => ({
 }));
 
 test("Home", async () => {
-  const HomeResolved = await Home();
+  const HomeResolved = await Home({ params: Promise.resolve({ locale: "pt" }) });
   render(HomeResolved);
 
   expect(screen.getByText("Sobre Nós")).toBeDefined();

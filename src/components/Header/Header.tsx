@@ -1,4 +1,4 @@
-import Link from 'next/link';
+import { Link } from '@/translations/routing';
 import { NavItems } from '../NavItems/NavItems';
 import { MenuModal } from '../MenuModal/MenuModal';
 import { ISection } from '@/utils/interfaces';

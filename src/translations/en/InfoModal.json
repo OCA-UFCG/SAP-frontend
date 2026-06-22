@@ -1,0 +1,12 @@
+{
+  "InfoModal": {
+    "overview": "Overview",
+    "period": "Period",
+    "startDate": "Start date",
+    "endDate": "End date",
+    "timeScale": "Time\nscale",
+    "legend": "Legend",
+    "learnMore": "Learn more",
+    "ariaLabel": "Information about {title}"
+  }
+}

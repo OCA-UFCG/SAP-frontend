@@ -7,8 +7,13 @@ function normalizeImageUrl(url?: string) {
   return url.startsWith("//") ? `https:${url}` : url;
 }
 
-export default async function LoginPage() {
-  const data = await getHomePageContent();
+export default async function LoginPage({
+  params,
+}: {
+  params: Promise<{ locale: string }>;
+}) {
+  const { locale } = await params;
+  const data = await getHomePageContent(locale);
   const backgroundImageUrl = normalizeImageUrl(data?.mainBanner?.image?.url);
 
   return (

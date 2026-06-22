@@ -1,0 +1,12 @@
+{
+  "InfoModal": {
+    "overview": "Visão Geral",
+    "period": "Período",
+    "startDate": "Data início",
+    "endDate": "Data fim",
+    "timeScale": "Escala\\ntemporal",
+    "legend": "Legenda",
+    "learnMore": "Saiba mais",
+    "ariaLabel": "Informações sobre {title}"
+  }
+}

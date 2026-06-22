@@ -1,0 +1,57 @@
+{
+  "MapSection": {
+    "understandDrought": "Comprenda la sequía en su región",
+    "seeMore": "Ver más",
+    "generalInfo": "Información general",
+    "whatsHappening": "¿Qué está pasando?",
+    "practicalImpact": "Impacto en la prática",
+    "analysisDate": "Fecha del análisis: {date}",
+    "mostlyIn": "Mayormente en: {status}",
+    "tiers": {
+      "sem-seca": "Sin sequía",
+      "observacao": "Observación",
+      "atencao": "Atención",
+      "alerta": "Sequía severa",
+      "recuperacao-total": "Recuperación Total",
+      "recuperacao-parcial": "Recuperación Parcial"
+    },
+    "droughtData": {
+      "acontecendo": "Actualmente, el {semSeca}% del territorio de {nome} se encuentra sin sequía, con niveles de humedad estables. Sin embargo, el {alerta}% de la región se encuentra en estado de Alerta (Sequía Severa), requiriendo atención constante a las reservas de agua.",
+      "impacto": {
+        "stable": "Áreas estables ({semSeca}%): Condiciones favorables para el desarrollo agrícola.",
+        "alert": "Estado de Alerta: Riesgo de pérdida de cosechas en el {alerta}% del área productiva.",
+        "improvement": "Señales de mejora: El {recuperacao}% del territorio presenta señales de recuperación hídrica."
+      }
+    },
+    "states": {
+      "br": "Brasil",
+      "ro": "Rondônia",
+      "ac": "Acre",
+      "am": "Amazonas",
+      "rr": "Roraima",
+      "pa": "Pará",
+      "ap": "Amapá",
+      "to": "Tocantins",
+      "ma": "Maranhão",
+      "pi": "Piauí",
+      "ce": "Ceará",
+      "rn": "Río Grande del Norte",
+      "pb": "Paraíba",
+      "pe": "Pernambuco",
+      "al": "Alagoas",
+      "se": "Sergipe",
+      "ba": "Bahía",
+      "mg": "Minas Gerais",
+      "es": "Espírito Santo",
+      "rj": "Río de Janeiro",
+      "sp": "São Paulo",
+      "pr": "Paraná",
+      "sc": "Santa Catarina",
+      "rs": "Río Grande del Sur",
+      "ms": "Mato Grosso del Sur",
+      "mt": "Mato Grosso",
+      "go": "Goiás",
+      "df": "Distrito Federal"
+    }
+  }
+}
