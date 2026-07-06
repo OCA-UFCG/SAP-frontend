@@ -11,7 +11,7 @@ import { AnalysisContext } from "@/components/SidePanelContexts/AnalysisContext"
 import { ComingSoonContext } from "@/components/SidePanelContexts/ComingSoonContext";
 import { PanelLayerI } from "@/utils/interfaces";
 import { useMapLayerActions } from "@/components/MapLayerContext/MapLayerContext";
-import { useTranslations } from "next-intl";
+import { useTranslations, useLocale } from "next-intl";
 
 export type PlatformSidebarInitialSection =
   | "monitoring"
@@ -89,7 +89,8 @@ export function PlatformSidebar({
   const [showAnalysisFrame, setShowAnalysisFrame] = useState(
     initialSidebarState.showAnalysisFrame,
   );
-  const analysisFrameUrl = "https://analise-multicriterial.oca-portal.com";
+  const locale = useLocale();
+  const analysisFrameUrl = `https://analise-multicriterial.oca-portal.com/${locale}`;
 
   const ContextComponent =
     panelSection === "monitoring"
