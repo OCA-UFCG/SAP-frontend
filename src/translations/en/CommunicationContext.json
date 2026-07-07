@@ -1,0 +1,30 @@
+{
+  "CommunicationContext": {
+    "title": "Communication",
+    "subtitle": "Fill in the information below and then click “generate report”.",
+    "areaTitle": "Select the analysis area",
+    "areaDescription": "Search for a city or state.",
+    "selectedArea": "Selected area: {area}",
+    "modulesTitle": "Select monitoring modules",
+    "modulesDescription": "Choose the topics that will be included in the report.",
+    "reportDateLabel": "Report",
+    "generateReport": "Generate report",
+    "modules": {
+      "drought": {
+        "title": "Drought",
+        "items": {
+          "aridity": "Aridity Index",
+          "drought": "Drought Index",
+          "degradedArea": "Degraded Area",
+          "ruralPoverty": "Rural Poverty"
+        }
+      },
+      "desertification": {
+        "title": "Desertification"
+      },
+      "categories": {
+        "title": "Categories x"
+      }
+    }
+  }
+}

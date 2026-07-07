@@ -1,0 +1,30 @@
+{
+  "CommunicationContext": {
+    "title": "Comunicação",
+    "subtitle": "Preencha as informações abaixo e em seguida clique em “gerar relatório”.",
+    "areaTitle": "Selecione a área da análise",
+    "areaDescription": "Busque por uma cidade ou estado.",
+    "selectedArea": "Área selecionada: {area}",
+    "modulesTitle": "Selecione os módulos de monitoramento",
+    "modulesDescription": "Escolha os temas que farão parte do relatório.",
+    "reportDateLabel": "Relatório",
+    "generateReport": "Gerar relatório",
+    "modules": {
+      "drought": {
+        "title": "Seca",
+        "items": {
+          "aridity": "Índice de Aridez",
+          "drought": "Índice de Seca",
+          "degradedArea": "Área Degradada",
+          "ruralPoverty": "Pobreza Rural"
+        }
+      },
+      "desertification": {
+        "title": "Desertificação"
+      },
+      "categories": {
+        "title": "Categorias x"
+      }
+    }
+  }
+}

@@ -8,6 +8,7 @@ import {
 } from "@/components/PlatformSideRail/PlatformSideRail";
 import { PlatformSidePanel } from "@/components/PlatformSidePanel/PlatformSidePanel";
 import { AnalysisContext } from "@/components/SidePanelContexts/AnalysisContext";
+import { CommunicationContext } from "@/components/SidePanelContexts/CommunicationContext";
 import { ComingSoonContext } from "@/components/SidePanelContexts/ComingSoonContext";
 import { PanelLayerI } from "@/utils/interfaces";
 import { useMapLayerActions } from "@/components/MapLayerContext/MapLayerContext";
@@ -100,7 +101,7 @@ export function PlatformSidebar({
         : panelSection === "analysis"
           ? ComingSoonContext
           : panelSection === "communication"
-            ? ComingSoonContext
+            ? CommunicationContext
             : undefined;
 
   function handleSectionChange(next: PlatformSection) {
