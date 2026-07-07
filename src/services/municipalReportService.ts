@@ -4,16 +4,44 @@ import citiesIndex from "@/data/citiesIndex.json";
 import { MUNICIPAL_REPORT_LAYERS, type MunicipalReportLayerConfig } from "@/config/municipalReport";
 import type { MunicipalReportAnalysis, MunicipalReportData } from "@/contracts/municipalReport";
 import { getCachedMunicipalAnalysisImageData } from "@/repositories/platform/municipalAnalysisCache";
+import { getPanelLayers } from "@/repositories/platform/panelLayerRepository";
 import { isCompactImageData } from "@/utils/imageData";
 import { buildMunicipalReportTimeSeries, getMunicipalReportClasses, resolveMunicipalReportSnapshot } from "@/utils/municipalReport";
 
 export interface MunicipalReportServiceDependencies {
   layers?: readonly MunicipalReportLayerConfig[];
   loadImageData?: typeof getCachedMunicipalAnalysisImageData;
+  listPanelLayers?: typeof getPanelLayers;
   now?: () => Date;
 }
 
 export class MunicipalReportNotFoundError extends Error {}
+
+function stableAlias(value: string) {
+  return value
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, "_")
+    .replace(/^_+|_+$/g, "");
+}
+
+async function resolveReportLayers(dependencies: MunicipalReportServiceDependencies) {
+  if (dependencies.layers) return [...dependencies.layers];
+
+  const panelLayers = await (dependencies.listPanelLayers ?? getPanelLayers)();
+  const configured = new Map(MUNICIPAL_REPORT_LAYERS.map((layer) => [layer.panelLayerId, layer]));
+  return panelLayers.map((layer, index): MunicipalReportLayerConfig => {
+    const override = configured.get(layer.id);
+    return {
+      panelLayerId: layer.id,
+      alias: override?.alias ?? stableAlias(layer.id),
+      title: layer.name || override?.title || layer.id,
+      order: layer.panelPosition ?? override?.order ?? index,
+      presentation: override?.presentation,
+    };
+  });
+}
 
 function unavailable(config: MunicipalReportLayerConfig, period: string): MunicipalReportAnalysis {
   return { id: config.panelLayerId, alias: config.alias, title: config.title, unit: "%", status: "unavailable", requestedPeriod: period, effectivePeriod: null, classes: [], snapshot: null, timeSeries: [] };
@@ -28,7 +56,7 @@ export async function buildMunicipalReport(
   if (!municipality) throw new MunicipalReportNotFoundError("Municipality not found.");
 
   const loadImageData = dependencies.loadImageData ?? getCachedMunicipalAnalysisImageData;
-  const layers = [...(dependencies.layers ?? MUNICIPAL_REPORT_LAYERS)].sort((a, b) => a.order - b.order);
+  const layers = (await resolveReportLayers(dependencies)).sort((a, b) => a.order - b.order);
   const analyses = await Promise.all(layers.map(async (config): Promise<MunicipalReportAnalysis> => {
     try {
       const result = await loadImageData(config.panelLayerId);

@@ -3,7 +3,7 @@ export interface MunicipalReportLayerConfig {
   alias: string;
   title: string;
   order: number;
-  presentation: MunicipalReportPresentationConfig;
+  presentation?: MunicipalReportPresentationConfig;
 }
 
 export interface MunicipalReportClassPresentation {
@@ -73,4 +73,15 @@ export const MUNICIPAL_REPORT_LAYERS: readonly MunicipalReportLayerConfig[] = [
 
 export function getMunicipalReportLayerConfig(analysisId: string) {
   return MUNICIPAL_REPORT_LAYERS.find((layer) => layer.panelLayerId === analysisId);
+}
+
+const DEFAULT_REPORT_PRESENTATION: MunicipalReportPresentationConfig = {
+  sectionColor: "#176b39",
+  coverageContext: "classificada nessa categoria",
+  methodology: "Indicador territorial disponibilizado na plataforma SAP.",
+};
+
+export function getMunicipalReportPresentation(analysisId: string) {
+  return getMunicipalReportLayerConfig(analysisId)?.presentation
+    ?? DEFAULT_REPORT_PRESENTATION;
 }

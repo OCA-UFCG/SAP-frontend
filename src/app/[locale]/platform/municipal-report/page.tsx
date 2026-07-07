@@ -3,6 +3,7 @@ import { MunicipalReportPreview } from "@/components/MunicipalReport/MunicipalRe
 interface MunicipalReportPageParams {
   municipalityCode?: string | string[];
   period?: string | string[];
+  layers?: string | string[];
 }
 
 function single(value?: string | string[]) {
@@ -20,6 +21,7 @@ export default async function MunicipalReportPage({
     <MunicipalReportPreview
       municipalityCode={single(params.municipalityCode) ?? ""}
       period={single(params.period) ?? ""}
+      layerIds={(single(params.layers) ?? "").split(",").filter(Boolean)}
     />
   );
 }

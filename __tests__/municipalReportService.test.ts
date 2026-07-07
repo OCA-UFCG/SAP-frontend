@@ -10,6 +10,26 @@ const imageData: CompactTerritorialAnalysisDataset = {
 };
 
 describe("buildMunicipalReport", () => {
+  it("discovers every platform layer instead of limiting the report to the configured overrides", async () => {
+    const report = await buildMunicipalReport("5200050", "2024", {
+      listPanelLayers: async () => ([
+        { id: "indice-novo", name: "Índice Novo", panelPosition: 30 },
+        { id: "anaseca", name: "Monitor de Secas", panelPosition: 10 },
+        { id: "outra-camada", name: "Outra Camada", panelPosition: 20 },
+      ] as never),
+      loadImageData: async () => ({ found: true, imageData, status: "hit" }),
+    });
+
+    expect(report.analyses.map(({ id }) => id)).toEqual([
+      "anaseca", "outra-camada", "indice-novo",
+    ]);
+    expect(report.analyses.map(({ title }) => title)).toEqual([
+      "Monitor de Secas", "Outra Camada", "Índice Novo",
+    ]);
+    expect(report.templateVariables.classe_indice_novo).toBe("Seca");
+    expect(report.templateVariables.classe_outra_camada).toBe("Seca");
+  });
+
   it("keeps configured order, partial failures and stable template variables", async () => {
     const report = await buildMunicipalReport("5200050", "2024", {
       now: () => new Date("2026-01-01T00:00:00.000Z"),

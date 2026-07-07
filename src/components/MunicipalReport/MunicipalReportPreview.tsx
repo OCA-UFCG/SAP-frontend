@@ -7,7 +7,7 @@ import type {
   MunicipalReportAnalysis,
   MunicipalReportData,
 } from "@/contracts/municipalReport";
-import { getMunicipalReportLayerConfig } from "@/config/municipalReport";
+import { getMunicipalReportPresentation } from "@/config/municipalReport";
 import {
   buildHistoryNarrative,
   buildSituationNarrative,
@@ -17,6 +17,7 @@ import {
 interface MunicipalReportPreviewProps {
   municipalityCode: string;
   period: string;
+  layerIds?: string[];
 }
 
 function textColorForBackground(color: string) {
@@ -43,16 +44,13 @@ function AnalysisSection({
 }) {
   const t = useTranslations("MunicipalReport");
   const dominant = analysis.snapshot?.dominantClass;
-  const layerConfig = getMunicipalReportLayerConfig(analysis.id);
-  const presentation = layerConfig?.presentation;
-  const situationText = presentation
-    ? buildSituationNarrative(analysis, report, presentation, locale)
-    : null;
-  const sectionColor = presentation?.sectionColor ?? "#176b39";
+  const presentation = getMunicipalReportPresentation(analysis.id);
+  const situationText = buildSituationNarrative(analysis, report, presentation, locale);
+  const sectionColor = presentation.sectionColor;
   const effectivePeriod = analysis.effectivePeriod ?? analysis.snapshot?.period;
-  const historyNarrative = presentation
-    ? buildHistoryNarrative(analysis, report.municipality.name, presentation, locale)
-    : null;
+  const historyNarrative = buildHistoryNarrative(
+    analysis, report.municipality.name, presentation, locale,
+  );
 
   return (
     <section className="report-section">
@@ -164,10 +162,13 @@ function AnalysisSection({
   );
 }
 
-function ReportDocument({ report }: { report: MunicipalReportData }) {
+function ReportDocument({ report, layerIds = [] }: { report: MunicipalReportData; layerIds?: string[] }) {
   const locale = useLocale();
   const generatedAt = new Date(report.generatedAt).toLocaleDateString(locale);
-  const availableTitles = report.analyses.map((analysis) => analysis.title).join(" · ");
+  const selected = layerIds.length
+    ? report.analyses.filter(({ id }) => layerIds.includes(id))
+    : report.analyses;
+  const availableTitles = selected.map((analysis) => analysis.title).join(" · ");
 
   return (
     <article className="report-paper mt-6 bg-white text-[#202020] shadow-[0_8px_35px_rgba(0,0,0,0.12)]">
@@ -214,7 +215,7 @@ function ReportDocument({ report }: { report: MunicipalReportData }) {
       </header>
 
       <div className="mt-10 space-y-12">
-        {report.analyses.map((analysis, index) => (
+        {selected.map((analysis, index) => (
           <AnalysisSection
             key={analysis.id}
             analysis={analysis}
@@ -228,10 +229,9 @@ function ReportDocument({ report }: { report: MunicipalReportData }) {
       <section className="mt-12 border-t border-[#d9e0e3] pt-8">
         <h2 className="text-xl font-bold text-[#536e7b]">Notas Metodológicas e Fontes</h2>
         <div className="mt-5 space-y-2 text-sm leading-5 text-neutral-800">
-          {report.analyses.map((analysis) => {
-            const config = getMunicipalReportLayerConfig(analysis.id);
-            if (!config?.presentation.methodology) return null;
-            return <p key={analysis.id}><strong>{analysis.title}:</strong> {config.presentation.methodology}</p>;
+          {selected.map((analysis) => {
+            const presentation = getMunicipalReportPresentation(analysis.id);
+            return <p key={analysis.id}><strong>{analysis.title}:</strong> {presentation.methodology}</p>;
           })}
           <p><strong>Referência legal:</strong> Lei nº 13.153/2015 — Política Nacional de Combate à Desertificação e Mitigação dos Efeitos da Seca.</p>
         </div>
@@ -247,7 +247,7 @@ function ReportDocument({ report }: { report: MunicipalReportData }) {
   );
 }
 
-export function MunicipalReportPreview({ municipalityCode, period }: MunicipalReportPreviewProps) {
+export function MunicipalReportPreview({ municipalityCode, period, layerIds }: MunicipalReportPreviewProps) {
   const t = useTranslations("MunicipalReport");
   const locale = useLocale();
   const hasRequiredParameters = Boolean(municipalityCode && period);
@@ -297,7 +297,7 @@ export function MunicipalReportPreview({ municipalityCode, period }: MunicipalRe
             <p className="mt-2 text-sm text-red-700">{visibleError}</p>
           </div>
         )}
-        {report && !loading && <ReportDocument report={report} />}
+        {report && !loading && <ReportDocument report={report} layerIds={layerIds} />}
       </div>
     </div>
   );
