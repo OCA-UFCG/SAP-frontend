@@ -1,0 +1,58 @@
+{
+  "CommunicationContext": {
+    "title": "Communication",
+    "subtitle": "Fill in the information below and then click “generate report”.",
+    "areaTitle": "Select the analysis area",
+    "areaDescription": "Search for a city or state.",
+    "selectedArea": "Selected area: {area}",
+    "modulesTitle": "Select monitoring modules",
+    "modulesDescription": "Choose the topics that will be included in the report.",
+    "reportDateLabel": "Report",
+    "generateReport": "Generate report",
+    "modules": {
+      "drought": {
+        "title": "Drought",
+        "items": {
+          "aridity": "Aridity Index",
+          "drought": "Drought Index",
+          "degradedArea": "Degraded Area",
+          "ruralPoverty": "Rural Poverty"
+        }
+      },
+      "desertification": {
+        "title": "Desertification"
+      },
+      "categories": {
+        "title": "Categories x"
+      }
+    },
+    "viewer": {
+      "fileName": "Report-{area}.PDF",
+      "loading": "Generating PDF...",
+      "zoomIn": "Zoom in",
+      "zoomOut": "Zoom out",
+      "download": "Download PDF",
+      "reportTitle": "Analytical Report of the Drought and Desertification Early Warning System",
+      "reportSubtitle": "Law No. 13.153/2015 · National Policy to Combat Desertification",
+      "analysisArea": "Analysis area",
+      "scale": "Scale",
+      "selectedArea": "Selected area",
+      "generatedAt": "Generation date",
+      "reference": "Reference",
+      "currentMonth": "Current month",
+      "selectedVariables": "Selected variables",
+      "noVariables": "No variables selected",
+      "currentSituation": "Current situation",
+      "currentSituationBody": "For {area}, the selected indicators will be consolidated in the final report when PDF generation is connected to official data.",
+      "analysisCoverage": "of the analyzed area",
+      "droughtClasses": "Drought Monitor Classes",
+      "classDescriptions": {
+        "S0": "Normal moisture conditions",
+        "D1": "Possible short-term impacts",
+        "D2": "Crop and pasture losses",
+        "D3": "Widespread losses",
+        "D4": "Exceptional losses and water crisis"
+      }
+    }
+  }
+}

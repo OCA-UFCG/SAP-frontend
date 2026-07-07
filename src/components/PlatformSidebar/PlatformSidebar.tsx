@@ -7,7 +7,10 @@ import {
   PlatformSideRail,
 } from "@/components/PlatformSideRail/PlatformSideRail";
 import { PlatformSidePanel } from "@/components/PlatformSidePanel/PlatformSidePanel";
+import { CommunicationReportViewer } from "@/components/CommunicationReportViewer/CommunicationReportViewer";
 import { AnalysisContext } from "@/components/SidePanelContexts/AnalysisContext";
+import { CommunicationContext } from "@/components/SidePanelContexts/CommunicationContext";
+import type { CommunicationReportSelection } from "@/components/SidePanelContexts/CommunicationContext";
 import { ComingSoonContext } from "@/components/SidePanelContexts/ComingSoonContext";
 import { PanelLayerI } from "@/utils/interfaces";
 import { useMapLayerActions } from "@/components/MapLayerContext/MapLayerContext";
@@ -89,6 +92,8 @@ export function PlatformSidebar({
   const [showAnalysisFrame, setShowAnalysisFrame] = useState(
     initialSidebarState.showAnalysisFrame,
   );
+  const [communicationReport, setCommunicationReport] =
+    useState<CommunicationReportSelection | null>(null);
   const locale = useLocale();
   const analysisFrameUrl = `https://analise-multicriterial.oca-portal.com/${locale}`;
 
@@ -100,7 +105,7 @@ export function PlatformSidebar({
         : panelSection === "analysis"
           ? ComingSoonContext
           : panelSection === "communication"
-            ? ComingSoonContext
+            ? CommunicationContext
             : undefined;
 
   function handleSectionChange(next: PlatformSection) {
@@ -116,6 +121,7 @@ export function PlatformSidebar({
 
     if (next === "analysis") {
       setShowAnalysisFrame(true);
+      setCommunicationReport(null);
       setActiveSection(next);
       setIsPanelOpen(false);
       setActiveLegend(null);
@@ -125,6 +131,7 @@ export function PlatformSidebar({
     setPanelSection(next);
     setIsPanelOpen(true);
     setShowAnalysisFrame(false);
+    setCommunicationReport(null);
 
     if (next !== "monitoring" && next !== "analysis-detail") {
       clearActiveLayer();
@@ -133,12 +140,25 @@ export function PlatformSidebar({
 
   function handlePanelSectionChange(next: PlatformSection) {
     setPanelSection(next);
+    setCommunicationReport(null);
 
     if (next === "monitoring" && activeSection === "analysis-detail") {
       setActiveSection("monitoring");
     }
 
     setIsPanelOpen(true);
+  }
+
+  function handleGenerateCommunicationReport(
+    selection: CommunicationReportSelection,
+  ) {
+    setCommunicationReport(selection);
+    setShowAnalysisFrame(false);
+    setActiveSection("communication");
+    setPanelSection("communication");
+    setIsPanelOpen(true);
+    setActiveLegend(null);
+    clearActiveLayer();
   }
 
   return (
@@ -176,6 +196,7 @@ export function PlatformSidebar({
                 panelLayers={panelLayers}
                 ContextComponent={ContextComponent}
                 onRequestSectionChange={handlePanelSectionChange}
+                onGenerateReport={handleGenerateCommunicationReport}
               />
             </div>
           </div>
@@ -193,6 +214,15 @@ export function PlatformSidebar({
             className="w-full h-full border-0"
             allowFullScreen
           />
+        </div>
+      )}
+
+      {communicationReport && !isLogsView && (
+        <div
+          className="absolute top-0 bottom-0 right-0 z-10 bg-neutral-50 transition-all duration-300 ease-in-out"
+          style={{ left: isPanelOpen ? "560px" : "140px" }}
+        >
+          <CommunicationReportViewer selection={communicationReport} />
         </div>
       )}
     </>

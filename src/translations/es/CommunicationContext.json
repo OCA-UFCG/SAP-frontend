@@ -1,0 +1,58 @@
+{
+  "CommunicationContext": {
+    "title": "Comunicación",
+    "subtitle": "Complete la información a continuación y luego haga clic en “generar informe”.",
+    "areaTitle": "Seleccione el área del análisis",
+    "areaDescription": "Busque una ciudad o estado.",
+    "selectedArea": "Área seleccionada: {area}",
+    "modulesTitle": "Seleccione los módulos de monitoreo",
+    "modulesDescription": "Elija los temas que formarán parte del informe.",
+    "reportDateLabel": "Informe",
+    "generateReport": "Generar informe",
+    "modules": {
+      "drought": {
+        "title": "Sequía",
+        "items": {
+          "aridity": "Índice de Aridez",
+          "drought": "Índice de Sequía",
+          "degradedArea": "Área Degradada",
+          "ruralPoverty": "Pobreza Rural"
+        }
+      },
+      "desertification": {
+        "title": "Desertificación"
+      },
+      "categories": {
+        "title": "Categorías x"
+      }
+    },
+    "viewer": {
+      "fileName": "Informe-{area}.PDF",
+      "loading": "Generando PDF...",
+      "zoomIn": "Aumentar zoom",
+      "zoomOut": "Reducir zoom",
+      "download": "Descargar PDF",
+      "reportTitle": "Informe analítico del Sistema de Alerta Temprana de Sequía y Desertificación",
+      "reportSubtitle": "Ley nº 13.153/2015 · Política Nacional de Combate a la Desertificación",
+      "analysisArea": "Área de análisis",
+      "scale": "Escala",
+      "selectedArea": "Área seleccionada",
+      "generatedAt": "Fecha de generación",
+      "reference": "Referencia",
+      "currentMonth": "Mes actual",
+      "selectedVariables": "Variables seleccionadas",
+      "noVariables": "Ninguna variable seleccionada",
+      "currentSituation": "Situación actual",
+      "currentSituationBody": "En {area}, los indicadores seleccionados se consolidarán en el informe final cuando la generación del PDF esté conectada a los datos oficiales.",
+      "analysisCoverage": "del área analizada",
+      "droughtClasses": "Clases del Monitor de Sequías",
+      "classDescriptions": {
+        "S0": "Condiciones normales de humedad",
+        "D1": "Posibles impactos a corto plazo",
+        "D2": "Pérdidas en cultivos y pastos",
+        "D3": "Pérdidas generalizadas",
+        "D4": "Pérdidas excepcionales y crisis hídrica"
+      }
+    }
+  }
+}
