@@ -39,11 +39,15 @@ textarea {
 @media print {
   @page {
     size: A4;
-    margin: 14mm;
+    margin: 0;
   }
 
   .report-paper {
     box-shadow: none !important;
+    margin: 0 !important;
+    width: 210mm !important;
+    min-height: 297mm;
+    padding: 14mm 15mm !important;
   }
 
   .report-section {

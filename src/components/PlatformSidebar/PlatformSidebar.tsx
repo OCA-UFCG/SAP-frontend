@@ -13,6 +13,7 @@ import { MunicipalReportContext } from "@/components/SidePanelContexts/Municipal
 import { PanelLayerI } from "@/utils/interfaces";
 import { useMapLayerActions } from "@/components/MapLayerContext/MapLayerContext";
 import { useTranslations, useLocale } from "next-intl";
+import { MunicipalReportPreview } from "@/components/MunicipalReport/MunicipalReportPreview";
 
 export type PlatformSidebarInitialSection =
   | "monitoring"
@@ -64,6 +65,7 @@ interface PlatformSidebarProps {
   showAuditLink?: boolean;
   initialSection?: PlatformSidebarInitialSection;
   viewMode?: PlatformSidebarViewMode;
+  reportRequest?: { municipalityCode: string; period: string; layerIds: string[] };
 }
 
 export function PlatformSidebar({
@@ -71,6 +73,7 @@ export function PlatformSidebar({
   showAuditLink = false,
   initialSection = "monitoring",
   viewMode = "default",
+  reportRequest,
 }: PlatformSidebarProps) {
   const t = useTranslations("PlatformSidebar");
   const router = useRouter();
@@ -193,6 +196,20 @@ export function PlatformSidebar({
             title={t("MulticriterialAnalysis")}
             className="w-full h-full border-0"
             allowFullScreen
+          />
+        </div>
+      )}
+
+      {activeSection === "communication" && !isLogsView && (
+        <div
+          className="absolute inset-y-0 right-0 z-10 transition-[left] duration-300 ease-in-out"
+          style={{ left: isPanelOpen ? "560px" : "140px" }}
+        >
+          <MunicipalReportPreview
+            municipalityCode={reportRequest?.municipalityCode ?? ""}
+            period={reportRequest?.period ?? ""}
+            layerIds={reportRequest?.layerIds ?? []}
+            embedded
           />
         </div>
       )}

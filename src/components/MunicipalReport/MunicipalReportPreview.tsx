@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { useLocale, useTranslations } from "next-intl";
 import type {
@@ -13,11 +13,13 @@ import {
   buildSituationNarrative,
   formatReportPeriod,
 } from "@/utils/municipalReportNarrative";
+import citiesIndex from "@/data/citiesIndex.json";
 
 interface MunicipalReportPreviewProps {
   municipalityCode: string;
   period: string;
   layerIds?: string[];
+  embedded?: boolean;
 }
 
 function textColorForBackground(color: string) {
@@ -162,7 +164,7 @@ function AnalysisSection({
   );
 }
 
-function ReportDocument({ report, layerIds = [] }: { report: MunicipalReportData; layerIds?: string[] }) {
+function ReportDocument({ report, layerIds = [], documentRef }: { report: MunicipalReportData; layerIds?: string[]; documentRef?: React.Ref<HTMLElement> }) {
   const locale = useLocale();
   const generatedAt = new Date(report.generatedAt).toLocaleDateString(locale);
   const selected = layerIds.length
@@ -171,7 +173,7 @@ function ReportDocument({ report, layerIds = [] }: { report: MunicipalReportData
   const availableTitles = selected.map((analysis) => analysis.title).join(" · ");
 
   return (
-    <article className="report-paper mt-6 bg-white text-[#202020] shadow-[0_8px_35px_rgba(0,0,0,0.12)]">
+    <article ref={documentRef} className="report-paper mt-6 bg-white text-[#202020] shadow-[0_8px_35px_rgba(0,0,0,0.12)]">
       <header>
         <div className="flex flex-wrap items-start justify-between gap-4 text-xs text-[#0f5a2d]">
           <strong>SAP — Sistema de Alerta Precoce de Seca e Desertificação</strong>
@@ -247,13 +249,48 @@ function ReportDocument({ report, layerIds = [] }: { report: MunicipalReportData
   );
 }
 
-export function MunicipalReportPreview({ municipalityCode, period, layerIds }: MunicipalReportPreviewProps) {
+export function MunicipalReportPreview({ municipalityCode, period, layerIds, embedded = false }: MunicipalReportPreviewProps) {
   const t = useTranslations("MunicipalReport");
   const locale = useLocale();
   const hasRequiredParameters = Boolean(municipalityCode && period);
   const [report, setReport] = useState<MunicipalReportData | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(hasRequiredParameters);
+  const [exporting, setExporting] = useState(false);
+  const [zoom, setZoom] = useState(75);
+  const reportDocumentRef = useRef<HTMLElement>(null);
+
+  function printReport() {
+    if (!reportDocumentRef.current || exporting) return;
+
+    setExporting(true);
+    const printWindow = window.open("", "_blank", "popup,width=980,height=800");
+    if (!printWindow) {
+      setExporting(false);
+      setError(t("popupBlocked"));
+      return;
+    }
+
+    const styles = [...document.querySelectorAll('link[rel="stylesheet"], style')]
+      .map((element) => element.outerHTML)
+      .join("\n");
+    const baseUrl = `${window.location.origin}/`;
+    printWindow.document.open();
+    printWindow.document.write(`<!doctype html><html lang="${locale}"><head><meta charset="utf-8"><base href="${baseUrl}"><title>${t("reportLabel")}</title>${styles}<style>body{margin:0;background:#fff}.report-paper{margin:0!important;box-shadow:none!important}@media print{body{-webkit-print-color-adjust:exact;print-color-adjust:exact}}</style></head><body>${reportDocumentRef.current.outerHTML}</body></html>`);
+    printWindow.document.close();
+
+    const finish = () => {
+      printWindow.focus();
+      printWindow.print();
+      setExporting(false);
+    };
+    printWindow.addEventListener("afterprint", () => printWindow.close(), { once: true });
+    if (printWindow.document.readyState === "complete") {
+      window.setTimeout(finish, 300);
+    } else {
+      printWindow.addEventListener("load", () => window.setTimeout(finish, 300), { once: true });
+    }
+  }
 
   useEffect(() => {
     if (!hasRequiredParameters) return;
@@ -282,7 +319,37 @@ export function MunicipalReportPreview({ municipalityCode, period, layerIds }: M
     return () => controller.abort();
   }, [hasRequiredParameters, municipalityCode, period, t]);
 
-  const visibleError = hasRequiredParameters ? error : t("missingParameters");
+  const visibleError = hasRequiredParameters ? error : null;
+
+  if (embedded) {
+    const municipality = citiesIndex.find((item) => item.code === municipalityCode);
+    const filename = municipality
+      ? `Relatório-${municipality.name.replace(/\s+/g, "-")}-${period}.PDF`
+      : t("reportLabel");
+
+    return (
+      <div className="flex h-full min-w-0 flex-col bg-[#989D93]">
+        <div className="flex h-[72px] shrink-0 items-center justify-between gap-4 border-b border-[#EFEFEF] bg-[#E4E5E2] px-6">
+          <span className="min-w-0 flex-1 truncate font-inter text-base">{filename}</span>
+          <div className="flex shrink-0 items-center gap-2">
+            <button type="button" onClick={() => setZoom((value) => Math.min(125, value + 10))} className="h-10 w-10 rounded border border-[#EFEFEF] bg-white text-xl text-[#989F43]" aria-label={t("zoomIn")}>+</button>
+            <span className="flex h-10 min-w-[58px] items-center justify-center rounded-md border border-[#DCDBDC] bg-white px-2 text-[#7E797B]">{zoom}%</span>
+            <button type="button" onClick={() => setZoom((value) => Math.max(50, value - 10))} className="h-10 w-10 rounded border border-[#EFEFEF] bg-white text-xl text-[#989F43]" aria-label={t("zoomOut")}>−</button>
+          </div>
+          <button type="button" disabled={!report || exporting} onClick={printReport} className="flex h-10 shrink-0 items-center gap-2 rounded bg-[#989F43] px-4 font-inter text-sm font-medium text-white disabled:opacity-50">
+            {exporting ? <span aria-hidden="true" className="h-4 w-4 animate-spin rounded-full border-2 border-white/40 border-t-white" /> : <svg className="h-4 w-4" aria-hidden viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M12 3v12m0 0 4-4m-4 4-4-4"/><path d="M5 20h14"/></svg>}
+            {exporting ? t("preparingDownload") : t("download")}
+          </button>
+        </div>
+        <div className="min-h-0 flex-1 overflow-auto px-8 py-8">
+          {!hasRequiredParameters && <div className="flex h-full items-center justify-center"><div className="max-w-md rounded-lg bg-white/90 p-8 text-center shadow-sm"><h2 className="text-lg font-semibold text-[#292829]">{t("emptyPreviewTitle")}</h2><p className="mt-2 text-sm leading-6 text-[#7E797B]">{t("emptyPreviewDescription")}</p></div></div>}
+          {loading && <div className="mx-auto flex min-h-56 max-w-[749px] flex-col items-center justify-center gap-4 bg-white p-10 text-center text-neutral-600 shadow-sm"><span aria-hidden="true" className="h-9 w-9 animate-spin rounded-full border-4 border-[#989F43]/25 border-t-[#989F43]"/><strong className="text-base font-semibold text-[#536e7b]">{t("loading")}</strong><span className="text-sm">{t("loadingHint")}</span></div>}
+          {visibleError && !loading && <div className="mx-auto max-w-[749px] border border-red-200 bg-white p-8 shadow-sm"><h1 className="text-xl font-semibold">{t("loadError")}</h1><p className="mt-2 text-sm text-red-700">{visibleError}</p></div>}
+          {report && !loading && <div className="mx-auto origin-top transition-transform" style={{ width: "980px", transform: `scale(${zoom / 100})` }}><ReportDocument report={report} layerIds={layerIds} documentRef={reportDocumentRef} /></div>}
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-[calc(100vh-64px)] bg-[#e9ece9] px-4 py-8 sm:px-8 print:bg-white print:p-0">

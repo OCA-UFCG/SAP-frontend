@@ -1,6 +1,6 @@
 "use client";
 
-import { FormEvent, useEffect, useMemo, useState } from "react";
+import { FormEvent, useEffect, useMemo, useState, useTransition } from "react";
 import { useLocale, useTranslations } from "next-intl";
 import { useRouter } from "next/navigation";
 import { InfoModal } from "@/components/InfoModal/InfoModal";
@@ -41,6 +41,7 @@ export function MunicipalReportContext({ panelLayers = [] }: MunicipalReportCont
   const [availability, setAvailability] = useState<Map<string, boolean>>(new Map());
   const [availabilityState, setAvailabilityState] = useState<"idle" | "loading" | "ready" | "error">("idle");
   const [infoLayer, setInfoLayer] = useState<PanelLayerI | null>(null);
+  const [isGenerating, startGenerating] = useTransition();
 
   const municipalities = useMemo(
     () => [...citiesIndex].sort((left, right) => left.label.localeCompare(right.label, "pt-BR")),
@@ -119,7 +120,8 @@ export function MunicipalReportContext({ panelLayers = [] }: MunicipalReportCont
     event.preventDefault();
     if (!canSubmit) return;
     const params = new URLSearchParams({ municipalityCode, period, layers: [...selectedLayers].join(",") });
-    router.push(`/${locale}/platform/municipal-report?${params.toString()}`);
+    params.set("section", "communication");
+    startGenerating(() => router.push(`/${locale}/platform?${params.toString()}`));
   }
 
   return (
@@ -154,12 +156,20 @@ export function MunicipalReportContext({ panelLayers = [] }: MunicipalReportCont
               {availabilityState === "ready" && availableLayers.length > 0 && <button type="button" onClick={() => setSelectedLayers(allAvailableSelected ? new Set() : new Set(availableLayers.map((layer) => layer.id)))} className="text-xs font-semibold text-[#777E32] hover:underline">{allAvailableSelected ? t("clearAll") : t("selectAll")}</button>}
             </div>
             <p className="font-inter text-xs font-medium leading-[18px] tracking-[-0.015em]">{t("selectModulesHint")}</p>
-            <p className="min-h-[18px] font-inter text-xs leading-[18px] text-[#7E797B]" aria-live="polite">
+            <div className="flex min-h-[18px] items-center gap-2 font-inter text-xs leading-[18px] text-[#7E797B]" aria-live="polite">
               {availabilityState === "idle" && t("availabilityIdle")}
-              {availabilityState === "loading" && t("checkingAvailability")}
+              {availabilityState === "loading" && (
+                <>
+                  <span>{t("checkingAvailability")}</span>
+                  <span
+                    aria-hidden="true"
+                    className="h-3.5 w-3.5 shrink-0 animate-spin rounded-full border-2 border-[#989F43]/30 border-t-[#989F43]"
+                  />
+                </>
+              )}
               {availabilityState === "error" && t("availabilityError")}
               {availabilityState === "ready" && availableLayers.length === 0 && t("noModulesAvailable")}
-            </p>
+            </div>
           </div>
 
           <div className="space-y-4">
@@ -182,7 +192,7 @@ export function MunicipalReportContext({ panelLayers = [] }: MunicipalReportCont
           </div>
         </fieldset>
 
-        <button type="submit" disabled={!canSubmit} className="mt-auto h-10 w-full shrink-0 rounded bg-[#989F43] px-4 font-open-sans text-sm text-white hover:bg-[#858c39] disabled:cursor-not-allowed disabled:opacity-50">{t("generateReport")}</button>
+        <button type="submit" disabled={!canSubmit || isGenerating} className="mt-auto flex h-10 w-full shrink-0 items-center justify-center gap-2 rounded bg-[#989F43] px-4 font-open-sans text-sm text-white hover:bg-[#858c39] disabled:cursor-not-allowed disabled:opacity-70">{isGenerating && <span aria-hidden="true" className="h-4 w-4 animate-spin rounded-full border-2 border-white/40 border-t-white" />}{isGenerating ? t("generatingReport") : t("generateReport")}</button>
       </form>
       {infoLayer && <InfoModal card={{ id: 0, title: infoLayer.name, description: infoLayer.description, image: infoLayer.previewMap?.url, fileRef: infoLayer.id, imageData: infoLayer.imageData, timeScale: infoLayer.timeScale }} imageData={infoLayer.imageData} open onClose={() => setInfoLayer(null)} />}
     </section>

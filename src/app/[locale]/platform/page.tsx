@@ -12,6 +12,9 @@ import { getPanelLayers } from "@/repositories/platform/panelLayerRepository";
 interface PlatformPageSearchParams {
   view?: string | string[];
   section?: string | string[];
+  municipalityCode?: string | string[];
+  period?: string | string[];
+  layers?: string | string[];
 }
 
 function getSingleSearchParamValue(value?: string | string[]) {
@@ -42,6 +45,9 @@ export default async function PlatformPage({
   const resolvedSearchParams = searchParams ? await searchParams : {};
   const viewMode = normalizePlatformView(resolvedSearchParams.view);
   const initialSection = normalizePlatformSection(resolvedSearchParams.section);
+  const municipalityCode = getSingleSearchParamValue(resolvedSearchParams.municipalityCode) ?? "";
+  const period = getSingleSearchParamValue(resolvedSearchParams.period) ?? "";
+  const layerIds = (getSingleSearchParamValue(resolvedSearchParams.layers) ?? "").split(",").filter(Boolean);
   const sessionCookie =
     (await cookies()).get(SESSION_COOKIE_NAME)?.value ?? null;
 
@@ -86,6 +92,7 @@ export default async function PlatformPage({
       panelLayers={panelLayers}
       showAuditLink={logsViewerAccess === "allowed"}
       initialSection={initialSection}
+      reportRequest={municipalityCode && period ? { municipalityCode, period, layerIds } : undefined}
     />
   );
 }

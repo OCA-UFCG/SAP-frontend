@@ -11,6 +11,7 @@ type DefaultPlatformLayoutProps = {
   initialSection?: PlatformSidebarInitialSection;
   viewMode?: "default";
   telemetryDashboard?: never;
+  reportRequest?: { municipalityCode: string; period: string; layerIds: string[] };
 };
 
 type LogsPlatformLayoutProps = {
@@ -19,6 +20,7 @@ type LogsPlatformLayoutProps = {
   viewMode: "logs";
   telemetryDashboard: ReactNode;
   panelLayers?: never;
+  reportRequest?: never;
 };
 
 type PlatformLayoutProps = DefaultPlatformLayoutProps | LogsPlatformLayoutProps;
@@ -49,6 +51,7 @@ export function PlatformLayout({
           showAuditLink={showAuditLink}
           initialSection={initialSection}
           viewMode={viewMode}
+          reportRequest={props.viewMode === "logs" ? undefined : props.reportRequest}
         />
       </div>
     </MapLayerProvider>
