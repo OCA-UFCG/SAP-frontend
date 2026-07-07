@@ -12,6 +12,7 @@ import { trackUiEvent } from "@/services/telemetry/client";
 interface CommunicationContextProps {
   activeSection: PlatformSection;
   panelLayers?: PanelLayerI[];
+  onGenerateReport?: (selection: CommunicationReportSelection) => void;
 }
 
 interface ReportModule {
@@ -21,6 +22,11 @@ interface ReportModule {
     key: string;
     label: string;
   }>;
+}
+
+export interface CommunicationReportSelection {
+  area: string;
+  items: string[];
 }
 
 const DROUGHT_ITEM_KEYS = [
@@ -54,6 +60,7 @@ function buildReportModules(
 
 export function CommunicationContext({
   activeSection,
+  onGenerateReport,
 }: CommunicationContextProps) {
   const t = useTranslations("CommunicationContext");
   const [selectedArea, setSelectedArea] = useState("");
@@ -61,6 +68,14 @@ export function CommunicationContext({
     DEFAULT_SELECTED_ITEMS,
   );
   const reportModules = useMemo(() => buildReportModules(t), [t]);
+  const selectedReportItems = useMemo(
+    () =>
+      reportModules
+        .flatMap((module) => module.items)
+        .filter((item) => selectedItems.has(item.key))
+        .map((item) => item.label),
+    [reportModules, selectedItems],
+  );
 
   const handleSearch = (value: string, metadata: SearchSubmissionMetadata) => {
     setSelectedArea(value);
@@ -75,6 +90,11 @@ export function CommunicationContext({
 
   const handleGenerateReport = () => {
     if (!selectedArea || selectedItems.size === 0) return;
+
+    onGenerateReport?.({
+      area: selectedArea,
+      items: selectedReportItems,
+    });
   };
 
   const handleItemToggle = (itemKey: string) => {

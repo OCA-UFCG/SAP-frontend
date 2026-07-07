@@ -25,6 +25,34 @@
       "categories": {
         "title": "Categorias x"
       }
+    },
+    "viewer": {
+      "fileName": "Relatório-{area}.PDF",
+      "loading": "Gerando PDF...",
+      "zoomIn": "Aumentar zoom",
+      "zoomOut": "Diminuir zoom",
+      "download": "Baixar PDF",
+      "reportTitle": "Relatório analítico do Sistema de Alerta Precoce de Seca e Desertificação",
+      "reportSubtitle": "Lei nº 13.153/2015 · Política Nacional de Combate à Desertificação",
+      "analysisArea": "Área de análise",
+      "scale": "Escala",
+      "selectedArea": "Área selecionada",
+      "generatedAt": "Data de geração",
+      "reference": "Referência",
+      "currentMonth": "Mês atual",
+      "selectedVariables": "Variáveis selecionadas",
+      "noVariables": "Nenhuma variável selecionada",
+      "currentSituation": "Situação atual",
+      "currentSituationBody": "No município de {area}, os indicadores selecionados serão consolidados no relatório final quando a geração do PDF estiver conectada aos dados oficiais.",
+      "analysisCoverage": "da área analisada",
+      "droughtClasses": "Classes do Monitor de Secas",
+      "classDescriptions": {
+        "S0": "Condições normais de umidade",
+        "D1": "Impactos de curto prazo possíveis",
+        "D2": "Perdas em culturas e pastagens",
+        "D3": "Perdas generalizadas",
+        "D4": "Perdas excepcionais e crise hídrica"
+      }
     }
   }
 }

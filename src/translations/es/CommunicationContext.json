@@ -25,6 +25,34 @@
       "categories": {
         "title": "Categorías x"
       }
+    },
+    "viewer": {
+      "fileName": "Informe-{area}.PDF",
+      "loading": "Generando PDF...",
+      "zoomIn": "Aumentar zoom",
+      "zoomOut": "Reducir zoom",
+      "download": "Descargar PDF",
+      "reportTitle": "Informe analítico del Sistema de Alerta Temprana de Sequía y Desertificación",
+      "reportSubtitle": "Ley nº 13.153/2015 · Política Nacional de Combate a la Desertificación",
+      "analysisArea": "Área de análisis",
+      "scale": "Escala",
+      "selectedArea": "Área seleccionada",
+      "generatedAt": "Fecha de generación",
+      "reference": "Referencia",
+      "currentMonth": "Mes actual",
+      "selectedVariables": "Variables seleccionadas",
+      "noVariables": "Ninguna variable seleccionada",
+      "currentSituation": "Situación actual",
+      "currentSituationBody": "En {area}, los indicadores seleccionados se consolidarán en el informe final cuando la generación del PDF esté conectada a los datos oficiales.",
+      "analysisCoverage": "del área analizada",
+      "droughtClasses": "Clases del Monitor de Sequías",
+      "classDescriptions": {
+        "S0": "Condiciones normales de humedad",
+        "D1": "Posibles impactos a corto plazo",
+        "D2": "Pérdidas en cultivos y pastos",
+        "D3": "Pérdidas generalizadas",
+        "D4": "Pérdidas excepcionales y crisis hídrica"
+      }
     }
   }
 }
