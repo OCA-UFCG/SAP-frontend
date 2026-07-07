@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import type { CompactTerritorialAnalysisDataset } from "@/utils/analysis";
-import { buildMunicipalReportSnapshot, buildMunicipalReportTimeSeries } from "@/utils/municipalReport";
+import { buildMunicipalReportSnapshot, buildMunicipalReportTimeSeries, resolveMunicipalReportSnapshot } from "@/utils/municipalReport";
 
 const dataset: CompactTerritorialAnalysisDataset = {
   schemaVersion: 1, type: "territorial-compact", defaultYear: "2024",
@@ -10,6 +10,7 @@ const dataset: CompactTerritorialAnalysisDataset = {
   ],
   years: {
     "2024-01": { imageId: "monthly", year: "Janeiro de 2024", valuesScale: 10, values: { "5200050": [333, 667] } },
+    "2024-04": { imageId: "monthly", year: "Abril de 2024", valuesScale: 10, values: { "5200050": [700, 300] } },
     "2023": { imageId: "annual", valuesScale: 1, values: { "5200050": [50, 50] } },
     "2024": { imageId: "annual", valuesScale: 1, values: {} },
   },
@@ -26,6 +27,16 @@ describe("municipal report domain", () => {
   it("breaks dominance ties by class order and omits missing periods", () => {
     expect(buildMunicipalReportSnapshot(dataset, "5200050", "2023")?.dominantClass?.id).toBe("a");
     expect(buildMunicipalReportSnapshot(dataset, "5200050", "2024")).toBeNull();
-    expect(buildMunicipalReportTimeSeries(dataset, "5200050").map((item) => item.period)).toEqual(["2023", "2024-01"]);
+    expect(buildMunicipalReportTimeSeries(dataset, "5200050").map((item) => item.period)).toEqual(["2023", "2024-01", "2024-04"]);
+  });
+
+  it("resolves an annual request to the latest available month of that year", () => {
+    const timeSeries = buildMunicipalReportTimeSeries(dataset, "5200050");
+
+    expect(resolveMunicipalReportSnapshot(timeSeries, "2024")?.period).toBe(
+      "2024-04",
+    );
+    expect(resolveMunicipalReportSnapshot(timeSeries, "2022")).toBeNull();
+    expect(resolveMunicipalReportSnapshot(timeSeries, "2024-02")).toBeNull();
   });
 });

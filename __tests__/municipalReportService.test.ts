@@ -32,4 +32,26 @@ describe("buildMunicipalReport", () => {
     expect(report.analyses[0]).toMatchObject({ status: "period_not_found", effectivePeriod: null });
     expect(report.analyses[0]?.timeSeries).toHaveLength(1);
   });
+
+  it("uses the latest available month when an annual period is requested", async () => {
+    const monthlyImageData: CompactTerritorialAnalysisDataset = {
+      ...imageData,
+      years: {
+        "2026-01": { imageId: "jan", values: { "5200050": [90] } },
+        "2026-04": { imageId: "apr", values: { "5200050": [100] } },
+        "2025-12": { imageId: "dec", values: { "5200050": [100] } },
+      },
+    };
+    const report = await buildMunicipalReport("5200050", "2026", {
+      layers: [{ panelLayerId: "seca", alias: "seca", title: "Seca", order: 1 }],
+      loadImageData: async () => ({ found: true, imageData: monthlyImageData, status: "hit" }),
+    });
+
+    expect(report.analyses[0]).toMatchObject({
+      status: "available",
+      requestedPeriod: "2026",
+      effectivePeriod: "2026-04",
+    });
+    expect(report.templateVariables.periodo_seca).toBe("2026-04");
+  });
 });

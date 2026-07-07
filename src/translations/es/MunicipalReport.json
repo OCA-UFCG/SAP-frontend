@@ -1,0 +1,29 @@
+{
+  "MunicipalReport": {
+    "section": "Comunicación",
+    "title": "Informe municipal",
+    "description": "Consulte los datos consolidados disponibles para un municipio y período.",
+    "municipality": "Municipio",
+    "selectMunicipality": "Seleccione un municipio",
+    "period": "Período",
+    "periodHint": "Ingrese un año (2024) o mes (2024-01).",
+    "preview": "Ver informe",
+    "back": "Volver a Comunicación",
+    "loading": "Cargando datos del informe...",
+    "loadError": "No se pudo cargar el informe",
+    "missingParameters": "Municipio y período son obligatorios.",
+    "reportLabel": "Informe analítico municipal",
+    "ibgeCode": "Código IBGE",
+    "requestedPeriod": "Período solicitado",
+    "generatedAt": "Generado el",
+    "effectivePeriod": "Período efectivo",
+    "dominantClass": "Clase predominante",
+    "availablePeriods": "Períodos disponibles",
+    "futurePlaceholder": "Espacio reservado para mapas, gráficos, textos automáticos y síntesis integrada.",
+    "status": {
+      "available": "Disponible",
+      "unavailable": "No disponible",
+      "period_not_found": "Período no encontrado"
+    }
+  }
+}

@@ -5,7 +5,7 @@ import { MUNICIPAL_REPORT_LAYERS, type MunicipalReportLayerConfig } from "@/conf
 import type { MunicipalReportAnalysis, MunicipalReportData } from "@/contracts/municipalReport";
 import { getCachedMunicipalAnalysisImageData } from "@/repositories/platform/municipalAnalysisCache";
 import { isCompactImageData } from "@/utils/imageData";
-import { buildMunicipalReportSnapshot, buildMunicipalReportTimeSeries, getMunicipalReportClasses } from "@/utils/municipalReport";
+import { buildMunicipalReportTimeSeries, getMunicipalReportClasses, resolveMunicipalReportSnapshot } from "@/utils/municipalReport";
 
 export interface MunicipalReportServiceDependencies {
   layers?: readonly MunicipalReportLayerConfig[];
@@ -34,7 +34,7 @@ export async function buildMunicipalReport(
       const result = await loadImageData(config.panelLayerId);
       if (!result.found || !result.imageData || !isCompactImageData(result.imageData)) return unavailable(config, requestedPeriod);
       const timeSeries = buildMunicipalReportTimeSeries(result.imageData, municipalityCode);
-      const snapshot = buildMunicipalReportSnapshot(result.imageData, municipalityCode, requestedPeriod);
+      const snapshot = resolveMunicipalReportSnapshot(timeSeries, requestedPeriod);
       return {
         id: config.panelLayerId, alias: config.alias, title: config.title, unit: "%",
         status: snapshot ? "available" : "period_not_found",

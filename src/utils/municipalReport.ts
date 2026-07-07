@@ -48,6 +48,24 @@ export function buildMunicipalReportTimeSeries(
     });
 }
 
+export function resolveMunicipalReportSnapshot(
+  timeSeries: MunicipalReportPeriodSnapshot[],
+  requestedPeriod: string,
+): MunicipalReportPeriodSnapshot | null {
+  const exactPeriod = timeSeries.find(
+    (snapshot) => snapshot.period === requestedPeriod,
+  );
+  if (exactPeriod) return exactPeriod;
+
+  if (!/^\d{4}$/.test(requestedPeriod)) return null;
+
+  const monthlyPeriods = timeSeries.filter((snapshot) =>
+    new RegExp(`^${requestedPeriod}-(0[1-9]|1[0-2])$`).test(snapshot.period),
+  );
+
+  return monthlyPeriods.at(-1) ?? null;
+}
+
 export function getMunicipalReportClasses(
   dataset: CompactTerritorialAnalysisDataset,
 ): MunicipalReportClass[] {
