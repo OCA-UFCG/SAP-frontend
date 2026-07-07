@@ -30,3 +30,29 @@ textarea {
   margin-top: 50px;
   justify-content: center;
 }
+@media screen {
+  .report-paper {
+    padding: 42px 56px 36px;
+  }
+}
+
+@media print {
+  @page {
+    size: A4;
+    margin: 14mm;
+  }
+
+  .report-paper {
+    box-shadow: none !important;
+  }
+
+  .report-section {
+    break-inside: avoid;
+  }
+}
+
+@media (max-width: 640px) {
+  .report-paper {
+    padding: 24px 18px;
+  }
+}
