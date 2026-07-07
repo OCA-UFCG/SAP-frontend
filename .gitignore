@@ -56,3 +56,5 @@ storybook-static
 # Generated/downloaded vector tile artifacts.
 /public/tiles/*.mbtiles
 !/public/tiles/.gitkeep
+
+Molde_RelatorioAnalitico_SAP_v2_edit.pdf
