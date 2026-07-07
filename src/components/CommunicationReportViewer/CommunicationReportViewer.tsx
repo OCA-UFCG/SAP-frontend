@@ -1,6 +1,8 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
+import type { Ref } from "react";
+import { jsPDF } from "jspdf";
 import { useTranslations } from "next-intl";
 import type { CommunicationReportSelection } from "@/components/SidePanelContexts/CommunicationContext";
 
@@ -12,86 +14,270 @@ const ZOOM_STEP = 10;
 const MIN_ZOOM = 60;
 const MAX_ZOOM = 120;
 
-function sanitizePdfText(value: string) {
-  return value
-    .normalize("NFD")
-    .replace(/[\u0300-\u036f]/g, "")
-    .replace(/[^\x20-\x7E]/g, "")
-    .replace(/\\/g, "\\\\")
-    .replace(/\(/g, "\\(")
-    .replace(/\)/g, "\\)");
+function ReportHtmlTemplate({
+  htmlRef,
+  selection,
+}: {
+  htmlRef: Ref<HTMLElement>;
+  selection: CommunicationReportSelection;
+}) {
+  const t = useTranslations("CommunicationContext");
+  const generatedAt = useMemo(
+    () =>
+      new Intl.DateTimeFormat("pt-BR", {
+        day: "2-digit",
+        month: "2-digit",
+        year: "numeric",
+      }).format(new Date()),
+    [],
+  );
+
+  return (
+    <article
+      ref={htmlRef}
+      style={{
+        width: 794,
+        minHeight: 1120,
+        background: "#FFFFFF",
+        color: "#292829",
+        fontFamily: "Arial, Helvetica, sans-serif",
+        padding: "40px 56px",
+        boxSizing: "border-box",
+      }}
+    >
+      <header
+        style={{
+          background: "#155D2D",
+          color: "#FFFFFF",
+          padding: "20px 32px",
+          textAlign: "center",
+        }}
+      >
+        <h1
+          style={{
+            margin: 0,
+            fontSize: 20,
+            lineHeight: "28px",
+            fontWeight: 700,
+            textTransform: "uppercase",
+          }}
+        >
+          {t("viewer.reportTitle")}
+        </h1>
+        <p style={{ margin: "8px 0 0", fontSize: 11 }}>
+          {t("viewer.reportSubtitle")}
+        </p>
+      </header>
+
+      <table
+        style={{
+          width: "100%",
+          marginTop: 24,
+          borderCollapse: "collapse",
+          fontSize: 11,
+        }}
+      >
+        <tbody>
+          <tr>
+            <th style={headerCellStyle}>{t("viewer.analysisArea")}</th>
+            <td style={bodyCellStyle}>{selection.area}</td>
+            <th style={headerCellStyle}>{t("viewer.scale")}</th>
+            <td style={bodyCellStyle}>{t("viewer.selectedArea")}</td>
+          </tr>
+          <tr>
+            <th style={headerCellStyle}>{t("viewer.generatedAt")}</th>
+            <td style={bodyCellStyle}>{generatedAt}</td>
+            <th style={headerCellStyle}>{t("viewer.reference")}</th>
+            <td style={bodyCellStyle}>{t("viewer.currentMonth")}</td>
+          </tr>
+        </tbody>
+      </table>
+
+      <table
+        style={{
+          width: "100%",
+          marginTop: 20,
+          borderCollapse: "collapse",
+          fontSize: 11,
+        }}
+      >
+        <tbody>
+          <tr>
+            <th style={{ ...headerCellStyle, width: 180 }}>
+              {t("viewer.selectedVariables")}
+            </th>
+            <td style={bodyCellStyle}>
+              {selection.items.length > 0
+                ? selection.items.join(" · ")
+                : t("viewer.noVariables")}
+            </td>
+          </tr>
+        </tbody>
+      </table>
+
+      <section style={{ marginTop: 28 }}>
+        <h2
+          style={{
+            margin: 0,
+            background: "#197238",
+            color: "#FFFFFF",
+            padding: "12px 16px",
+            fontSize: 16,
+            fontWeight: 700,
+          }}
+        >
+          1. {t("modules.drought.title")}
+        </h2>
+
+        <div
+          style={{
+            display: "grid",
+            gridTemplateColumns: "2fr 1fr",
+            marginTop: 18,
+            border: "1px solid #D4D4D4",
+          }}
+        >
+          <div style={{ padding: 16, fontSize: 12, lineHeight: "20px" }}>
+            <p style={{ margin: 0, fontWeight: 700 }}>
+              {t("viewer.currentSituation")}
+            </p>
+            <p style={{ margin: "10px 0 0" }}>
+              {t("viewer.currentSituationBody", { area: selection.area })}
+            </p>
+          </div>
+          <div
+            style={{
+              display: "flex",
+              flexDirection: "column",
+              alignItems: "center",
+              justifyContent: "center",
+              background: "#D86F1B",
+              color: "#FFFFFF",
+              padding: 16,
+              textAlign: "center",
+            }}
+          >
+            <span style={{ fontSize: 13, fontWeight: 700 }}>
+              {t("modules.drought.title")}
+            </span>
+            <strong style={{ marginTop: 8, fontSize: 36 }}>XX%</strong>
+            <span style={{ marginTop: 4, fontSize: 11 }}>
+              {t("viewer.analysisCoverage")}
+            </span>
+          </div>
+        </div>
+      </section>
+
+      <section style={{ marginTop: 28 }}>
+        <h2
+          style={{
+            margin: "0 0 12px",
+            color: "#60737A",
+            fontSize: 13,
+            fontWeight: 700,
+          }}
+        >
+          {t("viewer.droughtClasses")}
+        </h2>
+        <table
+          style={{
+            width: "100%",
+            borderCollapse: "collapse",
+            fontSize: 11,
+          }}
+        >
+          <tbody>
+            {["S0", "D1", "D2", "D3", "D4"].map((code, index) => (
+              <tr
+                key={code}
+                style={
+                  index === 0
+                    ? { background: "#197238", color: "#FFFFFF" }
+                    : undefined
+                }
+              >
+                <td style={bodyCellStyle}>{code}</td>
+                <td style={bodyCellStyle}>
+                  {t(`viewer.classDescriptions.${code}`)}
+                </td>
+                <td style={{ ...bodyCellStyle, textAlign: "center" }}>--</td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </section>
+    </article>
+  );
 }
 
-function createPdfStreamLine(text: string, size = 12) {
-  return `/${size >= 18 ? "F2" : "F1"} ${size} Tf\n(${sanitizePdfText(text)}) Tj\n`;
-}
+const headerCellStyle = {
+  border: "1px solid #D4D4D4",
+  background: "#F2F2F2",
+  color: "#60737A",
+  padding: "10px 12px",
+  textAlign: "left" as const,
+  fontWeight: 700,
+};
 
-function createPlaceholderPdf(selection: CommunicationReportSelection) {
-  const selectedItems =
-    selection.items.length > 0
-      ? selection.items.join(", ")
-      : "Nenhum modulo selecionado";
-  const content = [
-    "BT",
-    "72 760 Td",
-    createPdfStreamLine("Construindo relatorio", 22),
-    "0 -36 Td",
-    createPdfStreamLine(`Area: ${selection.area}`),
-    "0 -22 Td",
-    createPdfStreamLine(`Modulos: ${selectedItems}`),
-    "0 -36 Td",
-    createPdfStreamLine(
-      "Este PDF temporario sera substituido pelo relatorio oficial.",
-    ),
-    "ET",
-  ].join("\n");
-  const contentLength = new TextEncoder().encode(content).length;
-  const objects = [
-    "<< /Type /Catalog /Pages 2 0 R >>",
-    "<< /Type /Pages /Kids [3 0 R] /Count 1 >>",
-    "<< /Type /Page /Parent 2 0 R /MediaBox [0 0 595 842] /Resources << /Font << /F1 4 0 R /F2 5 0 R >> >> /Contents 6 0 R >>",
-    "<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica >>",
-    "<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica-Bold >>",
-    `<< /Length ${contentLength} >>\nstream\n${content}\nendstream`,
-  ];
-  const encoder = new TextEncoder();
-  let pdf = "%PDF-1.4\n";
-  const offsets = [0];
-
-  objects.forEach((object, index) => {
-    offsets.push(encoder.encode(pdf).length);
-    pdf += `${index + 1} 0 obj\n${object}\nendobj\n`;
-  });
-
-  const xrefOffset = encoder.encode(pdf).length;
-  pdf += `xref\n0 ${objects.length + 1}\n`;
-  pdf += "0000000000 65535 f \n";
-  offsets.slice(1).forEach((offset) => {
-    pdf += `${offset.toString().padStart(10, "0")} 00000 n \n`;
-  });
-  pdf += `trailer\n<< /Size ${objects.length + 1} /Root 1 0 R >>\n`;
-  pdf += `startxref\n${xrefOffset}\n%%EOF`;
-
-  return new Blob([pdf], { type: "application/pdf" });
-}
+const bodyCellStyle = {
+  border: "1px solid #D4D4D4",
+  padding: "10px 12px",
+  textAlign: "left" as const,
+};
 
 export function CommunicationReportViewer({
   selection,
 }: CommunicationReportViewerProps) {
   const t = useTranslations("CommunicationContext");
+  const reportRef = useRef<HTMLElement>(null);
   const [zoom, setZoom] = useState(75);
+  const [pdfUrl, setPdfUrl] = useState("");
   const fileName = t("viewer.fileName", {
     area: selection.area.replace(/\s+/g, "-"),
   });
-  const pdfBlob = useMemo(() => createPlaceholderPdf(selection), [selection]);
-  const pdfUrl = useMemo(() => URL.createObjectURL(pdfBlob), [pdfBlob]);
   const viewerUrl = pdfUrl ? `${pdfUrl}#page=1&zoom=${zoom}` : "";
+  const reportSignature = `${selection.area}:${selection.items.join("|")}`;
 
   useEffect(() => {
+    let objectUrl = "";
+    let cancelled = false;
+
+    async function generatePdfFromHtml() {
+      const reportElement = reportRef.current;
+      if (!reportElement) return;
+
+      const pdf = new jsPDF({
+        unit: "px",
+        format: [794, 1120],
+        orientation: "portrait",
+      });
+
+      await pdf.html(reportElement, {
+        margin: 0,
+        width: 794,
+        windowWidth: 794,
+        html2canvas: {
+          scale: 1,
+          useCORS: true,
+          backgroundColor: "#FFFFFF",
+        },
+      });
+
+      if (cancelled) return;
+
+      objectUrl = URL.createObjectURL(pdf.output("blob"));
+      setPdfUrl(objectUrl);
+    }
+
+    void generatePdfFromHtml();
+
     return () => {
-      URL.revokeObjectURL(pdfUrl);
+      cancelled = true;
+      if (objectUrl) {
+        URL.revokeObjectURL(objectUrl);
+      }
     };
-  }, [pdfUrl]);
+  }, [reportSignature]);
 
   return (
     <section className="flex h-full flex-col bg-[#A1A89D]">
@@ -134,10 +320,18 @@ export function CommunicationReportViewer({
         <a
           href={pdfUrl || undefined}
           download={fileName}
-          className="flex h-9 items-center rounded-md bg-[#989F43] px-4 text-sm font-medium text-white transition hover:bg-[#858c35]"
+          aria-disabled={!pdfUrl}
+          className="flex h-9 items-center rounded-md bg-[#989F43] px-4 text-sm font-medium text-white transition hover:bg-[#858c35] aria-disabled:pointer-events-none aria-disabled:opacity-60"
         >
           {t("viewer.download")}
         </a>
+      </div>
+
+      <div
+        aria-hidden="true"
+        className="pointer-events-none fixed left-[-10000px] top-0 opacity-0"
+      >
+        <ReportHtmlTemplate htmlRef={reportRef} selection={selection} />
       </div>
 
       <div className="min-h-0 flex-1 p-6">
