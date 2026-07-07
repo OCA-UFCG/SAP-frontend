@@ -57,3 +57,54 @@ Cada análise pode ter estado `available`, `unavailable` ou `period_not_found`. 
 Quando o período solicitado não existe, a API ainda retorna `200` com
 `status: "period_not_found"` e os períodos existentes em `timeSeries`. O status
 `502` é reservado ao caso em que nenhuma camada configurada pôde ser carregada.
+
+---
+
+## Chart API (geração de imagem)
+
+`GET /api/municipal-report/{codigoIBGE}/chart?period=YYYY-MM&analysis=alias` exige sessão autenticada e retorna um **PNG** do gráfico de série temporal.
+
+### Parâmetros
+
+| Parâmetro  | Tipo  | Obrigatório | Descrição                                                                |
+| ---------- | ----- | ----------- | ------------------------------------------------------------------------ |
+| `period`   | query | sim         | Período no formato `YYYY` ou `YYYY-MM`                                   |
+| `analysis` | query | sim         | Um ou mais IDs/aliases separados por vírgula (ex: `seca`, `seca,aridez`) |
+
+### Comportamento
+
+Retorna sempre um objeto JSON contendo as informações do município, o período solicitado e um array com os gráficos gerados codificados em **base64**:
+
+```json
+{
+  "municipality": { "code": "2504009", "name": "Campina Grande", "uf": "PB" },
+  "requestedPeriod": "2024-01",
+  "charts": [
+    {
+      "analysisId": "anaseca",
+      "alias": "seca",
+      "title": "Monitor de Secas",
+      "period": "2024-01",
+      "contentType": "image/png",
+      "base64": "iVBORw0KGgo..."
+    }
+  ]
+}
+```
+
+### Exemplos
+
+```
+GET /api/municipal-report/2504009/chart?period=2024-01&analysis=seca
+GET /api/municipal-report/2504009/chart?period=2024&analysis=seca,aridez,degradacao
+
+```
+
+### Como compor uma imagem no html:
+
+```
+<img
+  src="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAA..."
+  alt="Monitor de Secas"
+/>
+```
