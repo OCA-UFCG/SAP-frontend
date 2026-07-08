@@ -1,10 +1,9 @@
-// app/api/google-docs-regex/route.ts
 import { NextRequest } from "next/server";
 
-const TARGET_REGEX = /seu-padrao/;
+const BLOCK_SEPARATOR_REGEX = /(?:\r?\n\s*){2,}/g;
 
 export async function GET(request: NextRequest) {
-  const docsUrl = process.env.GOOGLE_DOCS_URL
+  const docsUrl = process.env.GOOGLE_DOCS_URL;
 
   if (!docsUrl) {
     return Response.json({ error: "Invalid docs URL" }, { status: 400 });
@@ -22,8 +21,20 @@ export async function GET(request: NextRequest) {
     );
   }
 
-  const text = await response.text();
-  const matches = [...text.matchAll(TARGET_REGEX)].map((match) => match[0]);
+  try {
+    const text = await response.text();
+    const matches = text
+      .split(BLOCK_SEPARATOR_REGEX)
+      .map((block) => block.trim())
+      .filter(Boolean);
 
-  return Response.json({ matches });
+    return Response.json({ matches });
+  } catch (error) {
+    console.error(error);
+
+    return Response.json(
+      { error: "Error while processing the docs" },
+      { status: 500 }
+    );
+  }
 }
