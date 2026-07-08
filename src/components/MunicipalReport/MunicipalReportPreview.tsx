@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
 import { useLocale, useTranslations } from "next-intl";
 import type {
@@ -296,6 +296,7 @@ export function MunicipalReportPreview({ municipalityCode, period, layerIds, emb
   const [exporting, setExporting] = useState(false);
   const [zoom, setZoom] = useState(75);
   const reportDocumentRef = useRef<HTMLElement>(null);
+  const layerIdsKey = useMemo(() => layerIds?.join(",") ?? "", [layerIds]);
 
   function printReport() {
     if (!reportDocumentRef.current || exporting) return;
@@ -347,12 +348,18 @@ export function MunicipalReportPreview({ municipalityCode, period, layerIds, emb
 
         // Fetch charts for all available analyses
         const reportData = payload as MunicipalReportData;
-        const selectedAliases = (layerIds?.length
-          ? reportData.analyses.filter(({ id }) => layerIds.includes(id))
+        const selectedLayerIds = layerIdsKey ? new Set(layerIdsKey.split(",")) : null;
+        const selectedAliases = (selectedLayerIds
+          ? reportData.analyses.filter(({ id }) => selectedLayerIds.has(id))
           : reportData.analyses
         )
           .filter((a) => a.status === "available")
           .map((a) => a.alias);
+
+        if (selectedAliases.length === 0) {
+          setCharts(new Map());
+          return;
+        }
 
         if (selectedAliases.length > 0) {
           const chartResponse = await fetch(
@@ -378,7 +385,7 @@ export function MunicipalReportPreview({ municipalityCode, period, layerIds, emb
 
     loadReport();
     return () => controller.abort();
-  }, [hasRequiredParameters, municipalityCode, period, t]);
+  }, [hasRequiredParameters, layerIdsKey, municipalityCode, period, t]);
 
   const visibleError = hasRequiredParameters ? error : null;
 
