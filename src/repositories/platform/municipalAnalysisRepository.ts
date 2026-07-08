@@ -276,20 +276,10 @@ function buildPartitionTitle(
   return `Municipal Analysis ${panelLayerId} ${partitionKey}`;
 }
 
-function getPartitionKeyForYear(
-  baseYears: Record<string, CompactAnalysisYearData>,
-  yearKey: string,
-): string {
+function getPartitionKeyForYear(yearKey: string): string {
   const calendarYear = getCalendarYear(yearKey);
-  const baseYearKeysForCalendarYear = Object.keys(baseYears).filter(
-    (baseYearKey) => getCalendarYear(baseYearKey) === calendarYear,
-  );
 
-  if (
-    calendarYear &&
-    baseYearKeysForCalendarYear.length === 1 &&
-    baseYearKeysForCalendarYear[0] === calendarYear
-  ) {
+  if (calendarYear) {
     return calendarYear;
   }
 
@@ -512,10 +502,7 @@ export async function attachMunicipalAnalysisYearToPanelLayer(
     };
   }
 
-  const partitionKey = getPartitionKeyForYear(
-    panelLayer.imageData.years,
-    yearKey,
-  );
+  const partitionKey = getPartitionKeyForYear(yearKey);
   const patches = await getMunicipalAnalysisPatchesForPartition(
     panelLayer.id,
     partitionKey,
