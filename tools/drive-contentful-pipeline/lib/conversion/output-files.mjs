@@ -1,8 +1,12 @@
 import { mkdir, open, readdir, rm, unlink, writeFile } from "node:fs/promises";
 import path from "node:path";
 import { toRows } from "../csv/csv-parser.mjs";
-import { isPanelLayerCsv } from "../csv/layer-mapping.mjs";
+import {
+  inferPanelLayerMapping,
+  isPanelLayerCsv,
+} from "../csv/layer-mapping.mjs";
 import { groupCsvPaths } from "../csv/layer-mapping.mjs";
+import { isMultilevelTerritoryRow } from "../csv/territory.mjs";
 import { convertMunicipalAnalysisCsvFile } from "./municipal-analysis-converter.mjs";
 import { convertPanelLayerCsvFile } from "./panel-layer-converter.mjs";
 import { writeAnnualPartitions } from "./partition-writer.mjs";
@@ -62,6 +66,23 @@ function isSubsetOf(left, right) {
   return left.every((item) => right.includes(item));
 }
 
+function getSourceRank(inputPath) {
+  const calibrationMatch = inputPath.match(/Cal_(\d{8})/iu);
+
+  return calibrationMatch?.[1] ? Number(calibrationMatch[1]) : 0;
+}
+
+function shouldReplaceYearEntry(candidate, existing) {
+  const candidateLocations = Object.keys(candidate.yearEntry.values).length;
+  const existingLocations = Object.keys(existing.yearEntry.values).length;
+
+  return (
+    candidateLocations > existingLocations ||
+    (candidateLocations === existingLocations &&
+      candidate.sourceRank > existing.sourceRank)
+  );
+}
+
 function isSupersededConversion(conversion, conversions) {
   const yearKeys = Object.keys(conversion.imageData.years).sort();
 
@@ -87,6 +108,96 @@ function assertSameRecord(left, right, label, sourceCsvPath) {
   if (leftJson !== rightJson) {
     throw new Error(`${label} divergente ao agregar ${sourceCsvPath}.`);
   }
+}
+
+function selectDominantTerritory(conversions) {
+  if (conversions.some((conversion) => conversion.territory === "multilevel")) {
+    return "multilevel";
+  }
+
+  return conversions[0]?.territory;
+}
+
+function mergeYearsByBestSource(conversions, skipped) {
+  const mergedYears = {};
+
+  for (const conversion of conversions.sort((left, right) =>
+    left.inputPath.localeCompare(right.inputPath),
+  )) {
+    for (const [yearKey, yearEntry] of Object.entries(
+      conversion.imageData.years,
+    )) {
+      const candidate = {
+        inputPath: conversion.inputPath,
+        sourceRank: getSourceRank(conversion.inputPath),
+        yearEntry,
+      };
+      const existing = mergedYears[yearKey];
+
+      if (!existing) {
+        mergedYears[yearKey] = candidate;
+        continue;
+      }
+
+      if (shouldReplaceYearEntry(candidate, existing)) {
+        mergedYears[yearKey] = candidate;
+      }
+
+      skipped.push({
+        inputPath: conversion.inputPath,
+        reason: `Referência ${yearKey} substituída por CSV da mesma camada com mais localidades ou calibração mais recente.`,
+        ignored: true,
+      });
+    }
+  }
+
+  return Object.fromEntries(
+    Object.entries(mergedYears).map(([yearKey, entry]) => [
+      yearKey,
+      entry.yearEntry,
+    ]),
+  );
+}
+
+function mergeConversionEntries(convertedEntries, skipped) {
+  if (convertedEntries.length <= 1) return convertedEntries;
+
+  const dominantTerritory = selectDominantTerritory(
+    convertedEntries.map(({ conversion }) => conversion),
+  );
+  const baseEntry =
+    convertedEntries.find(
+      ({ conversion }) => conversion.territory === dominantTerritory,
+    ) ?? convertedEntries[0];
+  const mergedConversion = {
+    ...baseEntry.conversion,
+    inputPath: convertedEntries
+      .map(({ conversion }) => conversion.inputPath)
+      .join(", "),
+    territory: dominantTerritory,
+    locationCount: Math.max(
+      ...convertedEntries.map(({ conversion }) => conversion.locationCount),
+    ),
+    yearKeys: [],
+    classColumns: Array.from(
+      new Set(
+        convertedEntries.flatMap(({ conversion }) => conversion.classColumns),
+      ),
+    ),
+    imageData: {
+      templates: baseEntry.conversion.imageData.templates,
+      years: mergeYearsByBestSource(
+        convertedEntries.map(({ conversion }) => conversion),
+        skipped,
+      ),
+    },
+  };
+
+  mergedConversion.yearKeys = Object.keys(
+    mergedConversion.imageData.years,
+  ).sort();
+
+  return [{ conversion: mergedConversion, csvPath: baseEntry.csvPath }];
 }
 
 async function maybeWriteAggregate(fileState, group, jsonDir, conversion) {
@@ -164,7 +275,10 @@ async function writeAggregatedGroup(
         if (!fileState.territory) {
           fileState.territory = conversion.territory;
           fileState.baseTemplates = sortedTemplates;
-        } else if (conversion.territory !== fileState.territory) {
+        } else if (
+          conversion.territory !== fileState.territory &&
+          ![conversion.territory, fileState.territory].includes("multilevel")
+        ) {
           throw new Error(
             `Território divergente ao agregar ${conversion.inputPath}: ${conversion.territory} / ${fileState.territory}`,
           );
@@ -183,7 +297,10 @@ async function writeAggregatedGroup(
       }
     }
 
-    const activeEntries = filterSupersededEntries(convertedEntries, skipped);
+    const activeEntries = mergeConversionEntries(
+      filterSupersededEntries(convertedEntries, skipped),
+      skipped,
+    );
     const conversions = activeEntries.map(({ conversion }) =>
       toReportConversion(conversion),
     );
@@ -295,7 +412,7 @@ async function writePanelLayerImageDataFiles(
   pipelineConfig,
 ) {
   const files = [];
-  const conversions = [];
+  const conversionsByPanelLayerId = new Map();
   const skipped = [];
 
   for (const csvPath of csvPaths) {
@@ -304,17 +421,69 @@ async function writePanelLayerImageDataFiles(
         csvPath,
         pipelineConfig,
       );
-      conversions.push(toReportConversion(conversion));
-      files.push(await writePanelLayerImageDataFile(conversion, panelLayerDir));
+      if (!conversionsByPanelLayerId.has(conversion.panelLayerId)) {
+        conversionsByPanelLayerId.set(conversion.panelLayerId, []);
+      }
+
+      conversionsByPanelLayerId.get(conversion.panelLayerId).push(conversion);
     } catch (error) {
       skipped.push(toSkippedCsv(toWorkspaceRelativePath(csvPath), error));
     }
   }
 
+  const conversions = [];
+
+  for (const panelLayerConversions of conversionsByPanelLayerId.values()) {
+    const [baseConversion] = panelLayerConversions;
+    const mergedConversion = {
+      ...baseConversion,
+      inputPath: panelLayerConversions
+        .map((conversion) => conversion.inputPath)
+        .join(", "),
+      locationCount: Math.max(
+        ...panelLayerConversions.map((conversion) => conversion.locationCount),
+      ),
+      yearKeys: [],
+      classColumns: Array.from(
+        new Set(
+          panelLayerConversions.flatMap(
+            (conversion) => conversion.classColumns,
+          ),
+        ),
+      ),
+      imageData: {
+        ...baseConversion.imageData,
+        years: mergeYearsByBestSource(panelLayerConversions, skipped),
+      },
+    };
+    mergedConversion.yearKeys = Object.keys(
+      mergedConversion.imageData.years,
+    ).sort();
+    mergedConversion.imageData.defaultYear =
+      mergedConversion.yearKeys[mergedConversion.yearKeys.length - 1];
+
+    conversions.push(toReportConversion(mergedConversion));
+    files.push(
+      await writePanelLayerImageDataFile(mergedConversion, panelLayerDir),
+    );
+  }
+
   return { files, conversions, skipped };
 }
 
-async function classifyCsvPaths(csvPaths) {
+function isMultilevelPanelLayerCsv(rows, csvPath, pipelineConfig) {
+  const mapping = inferPanelLayerMapping(csvPath, pipelineConfig.layerRules);
+  const panelLayerConfig = mapping.panelLayerId
+    ? pipelineConfig.panelLayerProfiles[mapping.panelLayerId]
+    : null;
+
+  return (
+    isMultilevelTerritoryRow(rows[0]) &&
+    panelLayerConfig?.mapVisualization?.sourceType === "image"
+  );
+}
+
+async function classifyCsvPaths(csvPaths, pipelineConfig) {
   const panelLayerCsvPaths = [];
   const municipalAnalysisCsvPaths = [];
   const skipped = [];
@@ -322,8 +491,15 @@ async function classifyCsvPaths(csvPaths) {
   for (const csvPath of csvPaths) {
     try {
       const rows = toRows(await readFile(csvPath, "utf8"));
-      if (isPanelLayerCsv(rows)) panelLayerCsvPaths.push(csvPath);
-      else municipalAnalysisCsvPaths.push(csvPath);
+      if (isPanelLayerCsv(rows)) {
+        panelLayerCsvPaths.push(csvPath);
+      } else {
+        municipalAnalysisCsvPaths.push(csvPath);
+
+        if (isMultilevelPanelLayerCsv(rows, csvPath, pipelineConfig)) {
+          panelLayerCsvPaths.push(csvPath);
+        }
+      }
     } catch (error) {
       skipped.push(toSkippedCsv(toWorkspaceRelativePath(csvPath), error));
     }
@@ -354,7 +530,7 @@ export async function convertCsvDirectory(options, pipelineConfig) {
   await cleanGeneratedImageDataFiles(jsonDir);
   const partitionDir = await cleanGeneratedDirectory(jsonDir, "partitions");
   const panelLayerDir = await cleanGeneratedDirectory(jsonDir, "panel-layers");
-  const classified = await classifyCsvPaths(csvPaths);
+  const classified = await classifyCsvPaths(csvPaths, pipelineConfig);
   const panelLayerResult = await writePanelLayerImageDataFiles(
     classified.panelLayerCsvPaths,
     panelLayerDir,

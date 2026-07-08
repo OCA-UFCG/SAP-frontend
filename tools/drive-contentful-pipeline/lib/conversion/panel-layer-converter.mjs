@@ -2,7 +2,11 @@ import { readFile } from "node:fs/promises";
 import { toRows } from "../csv/csv-parser.mjs";
 import { getClassColumns, getClassValues } from "../csv/class-columns.mjs";
 import { inferPanelLayerMapping } from "../csv/layer-mapping.mjs";
-import { getPanelLayerLocation } from "../csv/territory.mjs";
+import {
+  getMultilevelPanelLayerLocation,
+  getPanelLayerLocation,
+  isMultilevelTerritoryRow,
+} from "../csv/territory.mjs";
 import { getYearKey } from "../csv/year.mjs";
 import { sortRecordEntries } from "../shared/records.mjs";
 import { toWorkspaceRelativePath } from "../shared/paths.mjs";
@@ -27,10 +31,40 @@ function assertPanelLayerValuesInRange(values, panelLayerConfig, context) {
   });
 }
 
-function getPanelLayerImageId(panelLayerConfig, yearKey, row) {
+function getForecastImageIdFromFileName(inputPath, yearKey, yearKeys) {
+  const calibrationMatch = inputPath.match(/Cal_(\d{8})/iu);
+
+  if (!calibrationMatch?.[1]) return "";
+
+  const sortedYearKeys = Array.from(yearKeys).sort();
+  const yearIndex = sortedYearKeys.indexOf(yearKey);
+
+  if (yearIndex < 0) return "";
+
+  const suffix = String(yearIndex + 1).padStart(2, "0");
+
+  return `projects/ee-ulissesalencar17/assets/previsao_P_cal_${calibrationMatch[1]}_${suffix}`;
+}
+
+function getPanelLayerImageId(
+  panelLayerConfig,
+  yearKey,
+  row,
+  inputPath,
+  yearKeys,
+) {
+  const inferredImageId = getForecastImageIdFromFileName(
+    inputPath,
+    yearKey,
+    yearKeys,
+  );
+  const configuredImageId = panelLayerConfig.imageIdByYear?.[yearKey];
+  const fallbackImageId = isMultilevelTerritoryRow(row)
+    ? inferredImageId || configuredImageId
+    : configuredImageId || inferredImageId;
   const imageId =
     String(row.image_id ?? row.imageId ?? row.IMAGE_ID ?? "").trim() ||
-    panelLayerConfig.imageIdByYear?.[yearKey] ||
+    fallbackImageId ||
     panelLayerConfig.imageId;
 
   if (!imageId) {
@@ -70,6 +104,14 @@ function toPanelLayerImageData(years, locations, panelLayerConfig) {
   };
 }
 
+function getPanelLayerCsvLocation(row) {
+  if (isMultilevelTerritoryRow(row)) {
+    return getMultilevelPanelLayerLocation(row);
+  }
+
+  return getPanelLayerLocation(row);
+}
+
 export async function convertPanelLayerCsvFile(inputPath, pipelineConfig) {
   const rows = toRows(await readFile(inputPath, "utf8"));
   const mapping = inferPanelLayerMapping(inputPath, pipelineConfig.layerRules);
@@ -90,8 +132,9 @@ export async function convertPanelLayerCsvFile(inputPath, pipelineConfig) {
   }
 
   const classColumns = getClassColumns(rows);
+  const usesMultilevelContract = isMultilevelTerritoryRow(rows[0]);
 
-  if (classColumns.type !== "value") {
+  if (classColumns.type !== "value" && !usesMultilevelContract) {
     throw new Error(
       "CSV de panelLayer deve usar valor_classe_N para valores absolutos.",
     );
@@ -99,9 +142,13 @@ export async function convertPanelLayerCsvFile(inputPath, pipelineConfig) {
 
   const locations = new Map();
   const years = new Map();
+  const yearKeys = new Set(rows.map(getYearKey));
 
   for (const row of rows) {
-    const location = getPanelLayerLocation(row);
+    const location = getPanelLayerCsvLocation(row);
+
+    if (!location) continue;
+
     const yearKey = getYearKey(row);
     const values = getClassValues(row, classColumns, location.key, yearKey);
     assertPanelLayerValuesInRange(
@@ -113,7 +160,13 @@ export async function convertPanelLayerCsvFile(inputPath, pipelineConfig) {
 
     if (!years.has(yearKey)) {
       years.set(yearKey, {
-        imageId: getPanelLayerImageId(panelLayerConfig, yearKey, row),
+        imageId: getPanelLayerImageId(
+          panelLayerConfig,
+          yearKey,
+          row,
+          inputPath,
+          yearKeys,
+        ),
         year: yearKey,
         valuesScale: 1,
         values: {},

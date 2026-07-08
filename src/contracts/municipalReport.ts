@@ -36,6 +36,48 @@ export interface MunicipalReportAnalysis {
 
 export type MunicipalReportTemplateValue = string | number | null;
 
+export type MunicipalReportTemplateVariableType =
+  | "string"
+  | "number"
+  | "percentage"
+  | "period";
+
+export interface MunicipalReportTemplateVariableDefinition {
+  name: string;
+  type: MunicipalReportTemplateVariableType;
+  description: string;
+  example: Exclude<MunicipalReportTemplateValue, null> | "indisponível";
+}
+
+export interface MunicipalReportTemplateDocument {
+  id: string;
+  version: string;
+  origin: "local" | "google-docs";
+  updatedAt: string;
+  text: string;
+}
+
+export interface MunicipalReportContentSection {
+  key: string;
+  scope: "report" | "analysis";
+  analysisAlias?: string;
+  slot: string;
+  originalText: string;
+  resolvedText: string | null;
+  errors: string[];
+}
+
+export interface MunicipalReportContent {
+  template: Omit<MunicipalReportTemplateDocument, "text">;
+  sections: MunicipalReportContentSection[];
+  errors: string[];
+}
+
+export interface MunicipalReportPackage {
+  report: MunicipalReportData;
+  content: MunicipalReportContent;
+}
+
 export interface MunicipalReportData {
   schemaVersion: 1;
   generatedAt: string;
