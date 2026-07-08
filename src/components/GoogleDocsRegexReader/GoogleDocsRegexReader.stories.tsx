@@ -9,4 +9,12 @@ const meta: Meta<typeof GoogleDocsRegexReader> = {
 export default meta;
 type Story = StoryObj<typeof GoogleDocsRegexReader>;
 
-export const Default: Story = {};
+export const Default: Story = {
+  args: {
+    themes: ["DROUGHT_MONITOR"],
+    city: "Campina Grande",
+    state: "PB",
+    month: "Janeiro",
+    year: 2024,
+  },
+};
