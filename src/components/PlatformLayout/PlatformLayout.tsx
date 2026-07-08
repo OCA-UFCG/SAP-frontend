@@ -32,6 +32,7 @@ export function PlatformLayout({
 }: PlatformLayoutProps) {
   const viewMode = props.viewMode ?? "default";
   const isLogsView = props.viewMode === "logs";
+  const isCommunicationView = !isLogsView && initialSection === "communication";
   const sidebarStateKey = `${viewMode}:${initialSection}`;
   const sidebarPanelLayers = props.viewMode === "logs" ? [] : props.panelLayers;
 
@@ -42,6 +43,8 @@ export function PlatformLayout({
           <div data-testid="platform-logs-shell" className="w-full">
             {props.telemetryDashboard}
           </div>
+        ) : isCommunicationView ? (
+          <div className="absolute inset-0 bg-[#F6F7F6]" aria-hidden="true" />
         ) : (
           <PlatformMap />
         )}

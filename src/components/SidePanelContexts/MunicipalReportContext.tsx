@@ -1,12 +1,17 @@
 "use client";
 
-import { FormEvent, useEffect, useMemo, useState, useTransition } from "react";
+import { FormEvent, useEffect, useMemo, useRef, useState, useTransition } from "react";
 import { useLocale, useTranslations } from "next-intl";
 import { useRouter } from "next/navigation";
 import { InfoModal } from "@/components/InfoModal/InfoModal";
 import { LayerAccordion } from "@/components/LayerAccordion/LayerAccordion";
 import citiesIndex from "@/data/citiesIndex.json";
-import type { MunicipalReportData } from "@/contracts/municipalReport";
+import municipalAvailabilityIndex from "@/data/municipalAvailabilityIndex.json";
+import {
+  getAvailablePeriods,
+  getAvailableReportLayers,
+  type MunicipalAvailabilityIndex,
+} from "@/utils/municipalAvailability";
 import type { PanelLayerI } from "@/utils/interfaces";
 
 interface MunicipalReportContextProps { panelLayers?: PanelLayerI[] }
@@ -35,11 +40,14 @@ export function MunicipalReportContext({ panelLayers = [] }: MunicipalReportCont
   const tModules = useTranslations("ModulesContext");
   const locale = useLocale();
   const router = useRouter();
+  const municipalityPickerRef = useRef<HTMLDivElement>(null);
+  const periodPickerRef = useRef<HTMLDivElement>(null);
   const [municipalityCode, setMunicipalityCode] = useState("");
+  const [municipalityQuery, setMunicipalityQuery] = useState("");
+  const [isMunicipalityOptionsOpen, setIsMunicipalityOptionsOpen] = useState(false);
   const [period, setPeriod] = useState(String(new Date().getFullYear()));
+  const [isPeriodOptionsOpen, setIsPeriodOptionsOpen] = useState(false);
   const [selectedLayers, setSelectedLayers] = useState<Set<string>>(new Set());
-  const [availability, setAvailability] = useState<Map<string, boolean>>(new Map());
-  const [availabilityState, setAvailabilityState] = useState<"idle" | "loading" | "ready" | "error">("idle");
   const [infoLayer, setInfoLayer] = useState<PanelLayerI | null>(null);
   const [isGenerating, startGenerating] = useTransition();
 
@@ -47,7 +55,39 @@ export function MunicipalReportContext({ panelLayers = [] }: MunicipalReportCont
     () => [...citiesIndex].sort((left, right) => left.label.localeCompare(right.label, "pt-BR")),
     [],
   );
+  const selectedMunicipality = useMemo(
+    () => municipalities.find((municipality) => municipality.code === municipalityCode),
+    [municipalities, municipalityCode],
+  );
+  const filteredMunicipalities = useMemo(() => {
+    const normalizedQuery = municipalityQuery.trim().toLocaleLowerCase("pt-BR");
+    const options = normalizedQuery
+      ? municipalities.filter((municipality) => municipality.label.toLocaleLowerCase("pt-BR").includes(normalizedQuery))
+      : municipalities;
+
+    return options.slice(0, 80);
+  }, [municipalities, municipalityQuery]);
   const validPeriod = /^\d{4}(-\d{2})?$/.test(period);
+  const periodOptions = useMemo(() => {
+    const years = new Set(
+      getAvailablePeriods(
+        municipalAvailabilityIndex as MunicipalAvailabilityIndex,
+        municipalityCode || undefined,
+      ),
+    );
+
+    const currentYear = new Date().getFullYear();
+    if (years.size === 0) {
+      for (let year = currentYear; year > currentYear - 10; year -= 1) {
+        years.add(String(year));
+      }
+    }
+
+    const activeYear = period.match(/^\d{4}/)?.[0];
+    if (activeYear) years.add(activeYear);
+
+    return [...years].sort((left, right) => right.localeCompare(left));
+  }, [municipalityCode, period]);
 
   const groups = useMemo(() => {
     const grouped = new Map<string, ReportLayerGroup>();
@@ -70,41 +110,74 @@ export function MunicipalReportContext({ panelLayers = [] }: MunicipalReportCont
     );
   }, [panelLayers, tModules]);
 
-  useEffect(() => {
-    if (!municipalityCode || !validPeriod) return;
-
-    const controller = new AbortController();
-    const timer = window.setTimeout(async () => {
-      setAvailabilityState("loading");
-      try {
-        const response = await fetch(`/api/municipal-report/${municipalityCode}?period=${encodeURIComponent(period)}`, {
-          credentials: "same-origin",
-          signal: controller.signal,
-        });
-        if (!response.ok) throw new Error(String(response.status));
-        const report = await response.json() as MunicipalReportData;
-        const nextAvailability = new Map(report.analyses.map((analysis) => [analysis.id, analysis.status === "available"]));
-        const availableIds = panelLayers.filter((layer) => nextAvailability.get(layer.id)).map((layer) => layer.id);
-        setAvailability(nextAvailability);
-        setSelectedLayers(new Set(availableIds));
-        setAvailabilityState("ready");
-      } catch {
-        if (controller.signal.aborted) return;
-        setAvailabilityState("error");
-      }
-    }, 350);
-
-    return () => { window.clearTimeout(timer); controller.abort(); };
+  const availableLayerIds = useMemo(() => {
+    if (!municipalityCode || !validPeriod) return new Set<string>();
+    const availableIds = new Set(
+      getAvailableReportLayers(
+        municipalAvailabilityIndex as MunicipalAvailabilityIndex,
+        municipalityCode,
+        period,
+      ),
+    );
+    return new Set(panelLayers.filter((layer) => availableIds.has(layer.id)).map((layer) => layer.id));
   }, [municipalityCode, panelLayers, period, validPeriod]);
+
+  const availability = useMemo(
+    () => new Map(panelLayers.map((layer) => [layer.id, availableLayerIds.has(layer.id)])),
+    [availableLayerIds, panelLayers],
+  );
+  const availabilityState = municipalityCode && validPeriod ? "ready" : "idle";
+
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      const target = event.target as Node;
+      if (!municipalityPickerRef.current?.contains(target)) {
+        setIsMunicipalityOptionsOpen(false);
+      }
+      if (!periodPickerRef.current?.contains(target)) {
+        setIsPeriodOptionsOpen(false);
+      }
+    };
+
+    document.addEventListener("mousedown", handleClickOutside);
+
+    return () => {
+      document.removeEventListener("mousedown", handleClickOutside);
+    };
+  }, []);
 
   const availableLayers = panelLayers.filter((layer) => availability.get(layer.id));
   const allAvailableSelected = availableLayers.length > 0 && availableLayers.every((layer) => selectedLayers.has(layer.id));
-  const canSubmit = availabilityState === "ready" && selectedLayers.size > 0;
+  const selectedAvailableLayers = [...selectedLayers].filter((layerId) => availability.get(layerId));
+  const canSubmit = availabilityState === "ready" && selectedAvailableLayers.length > 0;
 
   function resetAvailability() {
     setSelectedLayers(new Set());
-    setAvailability(new Map());
-    setAvailabilityState("idle");
+  }
+
+  function getDefaultSelectedLayers(code: string, selectedPeriod: string) {
+    if (!/^\d{4}(-\d{2})?$/.test(selectedPeriod)) return new Set<string>();
+    const availableIds = new Set(
+      getAvailableReportLayers(
+        municipalAvailabilityIndex as MunicipalAvailabilityIndex,
+        code,
+        selectedPeriod,
+      ),
+    );
+    return new Set(panelLayers.filter((layer) => availableIds.has(layer.id)).map((layer) => layer.id));
+  }
+
+  function selectMunicipality(code: string, label: string) {
+    setMunicipalityCode(code);
+    setMunicipalityQuery(label);
+    setIsMunicipalityOptionsOpen(false);
+    setSelectedLayers(getDefaultSelectedLayers(code, period));
+  }
+
+  function clearMunicipalityQuery() {
+    setMunicipalityCode("");
+    setMunicipalityQuery("");
+    resetAvailability();
   }
 
   function toggleLayer(layerId: string) {
@@ -119,32 +192,114 @@ export function MunicipalReportContext({ panelLayers = [] }: MunicipalReportCont
   function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     if (!canSubmit) return;
-    const params = new URLSearchParams({ municipalityCode, period, layers: [...selectedLayers].join(",") });
+    const params = new URLSearchParams({ municipalityCode, period, layers: selectedAvailableLayers.join(",") });
     params.set("section", "communication");
     startGenerating(() => router.push(`/${locale}/platform?${params.toString()}`));
   }
 
   return (
     <section className="h-full w-full overflow-y-auto bg-[#F6F7F6] px-4 py-12 text-[#292829]">
-      <form onSubmit={handleSubmit} className="flex min-h-full flex-col gap-6">
+      <form onSubmit={handleSubmit} className="mx-auto flex min-h-full w-full max-w-96 flex-col gap-6">
         <header className="space-y-2">
           <h2 className="font-inter text-2xl font-semibold leading-6 tracking-[-0.015em]">{t("section")}</h2>
           <p className="font-inter text-base font-medium leading-6 tracking-[-0.015em]">{t("selectionDescription")}</p>
         </header>
 
-        <fieldset className="space-y-2">
+        <fieldset className="space-y-3">
           <legend className="font-open-sans text-lg font-semibold leading-6">{t("selectArea")}</legend>
           <p className="font-inter text-xs font-medium leading-[18px] tracking-[-0.015em]">{t("selectAreaHint")}</p>
-          <div className="flex gap-4 pt-2">
-            <label className="relative min-w-0 flex-1">
+          <div className="space-y-6">
+            <div ref={municipalityPickerRef} className="relative min-w-0 flex-1">
               <span className="sr-only">{t("municipality")}</span>
-              <svg aria-hidden="true" viewBox="0 0 24 24" className="pointer-events-none absolute left-4 top-1/2 h-4 w-4 -translate-y-1/2 opacity-50" fill="none" stroke="currentColor" strokeWidth="2"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/></svg>
-              <select value={municipalityCode} onChange={(event) => { setMunicipalityCode(event.target.value); resetAvailability(); }} className="h-10 w-full appearance-none rounded-lg border-0 bg-[#E4E5E2] pl-10 pr-7 text-sm outline-none focus:ring-2 focus:ring-[#989F43]">
-                <option value="">{t("searchMunicipality")}</option>
-                {municipalities.map((municipality) => <option key={municipality.code} value={municipality.code}>{municipality.label}</option>)}
-              </select>
+              <div className="flex h-10 w-full items-center overflow-hidden rounded-lg border border-transparent bg-[#E4E5E2] px-3 py-3 shadow-sm transition hover:border-neutral-400 focus-within:border-neutral-600 focus-within:ring-2 focus-within:ring-neutral-600">
+                <svg aria-hidden="true" viewBox="0 0 24 24" className="mr-2 h-4 w-4 shrink-0 text-[#898989]" fill="none" stroke="currentColor" strokeWidth="2"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/></svg>
+                <input
+                  value={selectedMunicipality && municipalityQuery === "" ? selectedMunicipality.label : municipalityQuery}
+                  onChange={(event) => {
+                    setMunicipalityQuery(event.target.value);
+                    setMunicipalityCode("");
+                    setIsMunicipalityOptionsOpen(true);
+                    resetAvailability();
+                  }}
+                  onFocus={() => setIsMunicipalityOptionsOpen(true)}
+                  role="combobox"
+                  aria-autocomplete="list"
+                  aria-controls="municipal-report-municipality-options"
+                  aria-expanded={isMunicipalityOptionsOpen}
+                  aria-haspopup="listbox"
+                  className="min-w-0 flex-1 border-none bg-transparent p-0 text-[13px] leading-5 text-[#292829] outline-none ring-0 placeholder:text-[13px] placeholder:text-[#292829]"
+                  placeholder={t("searchMunicipality")}
+                />
+                {(municipalityQuery || municipalityCode) && (
+                  <button type="button" onClick={clearMunicipalityQuery} className="ml-2 shrink-0 rounded text-[#898989] hover:text-[#292829]" aria-label={t("selectMunicipality")}>
+                    ×
+                  </button>
+                )}
+                <button type="button" onClick={() => setIsMunicipalityOptionsOpen((current) => !current)} className="ml-2 shrink-0 text-[#898989]" aria-label={t("selectMunicipality")}>
+                  <svg width="16" height="16" viewBox="0 0 20 20" fill="none" xmlns="http://www.w3.org/2000/svg" className={`transition-transform ${isMunicipalityOptionsOpen ? "rotate-180" : ""}`} aria-hidden="true">
+                    <path d="M5 7.5L10 12.5L15 7.5" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" />
+                  </svg>
+                </button>
+              </div>
+              {isMunicipalityOptionsOpen && (
+                <div id="municipal-report-municipality-options" role="listbox" className="absolute top-[calc(100%+8px)] z-30 max-h-64 w-full overflow-y-auto rounded-xl border border-neutral-200 bg-white p-2 shadow-lg">
+                  {filteredMunicipalities.length > 0 ? filteredMunicipalities.map((municipality) => (
+                    <button
+                      key={municipality.code}
+                      type="button"
+                      role="option"
+                      aria-selected={municipalityCode === municipality.code}
+                      onClick={() => selectMunicipality(municipality.code, municipality.label)}
+                      className="flex w-full rounded-lg px-3 py-2 text-left text-sm text-[#292829] transition hover:bg-[#F6F7F6]"
+                    >
+                      {municipality.label}
+                    </button>
+                  )) : (
+                    <div className="px-3 py-2 text-sm text-neutral-500">{t("noMunicipalityResults")}</div>
+                  )}
+                </div>
+              )}
+            </div>
+            <label className="flex w-full max-w-[392px] flex-col items-start gap-[6px]">
+              <span className="text-[14px] font-medium leading-[20px] text-[#292829]">{t("analysisDate")}</span>
+              <span ref={periodPickerRef} className="relative w-full">
+                <button
+                  type="button"
+                  onClick={() => setIsPeriodOptionsOpen((current) => !current)}
+                  className="flex h-10 w-full items-center justify-between rounded-lg border border-transparent bg-[#E4E5E2] px-3 py-3 text-left shadow-sm transition hover:border-neutral-400 focus-visible:border-neutral-600 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-neutral-600"
+                  aria-haspopup="listbox"
+                  aria-expanded={isPeriodOptionsOpen}
+                  aria-controls="municipal-report-period-options"
+                >
+                  <span className="truncate text-sm text-[#292829]">{period}</span>
+                  <svg width="16" height="16" viewBox="0 0 20 20" fill="none" xmlns="http://www.w3.org/2000/svg" className={`ml-2 shrink-0 text-[#898989] transition-transform ${isPeriodOptionsOpen ? "rotate-180" : ""}`} aria-hidden="true">
+                    <path d="M5 7.5L10 12.5L15 7.5" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" />
+                  </svg>
+                </button>
+                {isPeriodOptionsOpen && (
+                  <div id="municipal-report-period-options" role="listbox" className="absolute top-[calc(100%+8px)] z-20 max-h-64 w-full overflow-y-auto rounded-xl border border-neutral-200 bg-white p-2 shadow-lg">
+                    {periodOptions.map((option) => (
+                      <button
+                        key={option}
+                        type="button"
+                        role="option"
+                        aria-selected={period === option}
+                        onClick={() => {
+                          setPeriod(option);
+                          setIsPeriodOptionsOpen(false);
+                          setSelectedLayers(
+                            municipalityCode ? getDefaultSelectedLayers(municipalityCode, option) : new Set(),
+                          );
+                        }}
+                        className="flex w-full rounded-lg px-3 py-2 text-left text-sm text-[#292829] transition hover:bg-[#F6F7F6]"
+                      >
+                        {option}
+                      </button>
+                    ))}
+                  </div>
+                )}
+              </span>
             </label>
-            <input aria-label={t("period")} value={period} onChange={(event) => { setPeriod(event.target.value); resetAvailability(); }} placeholder="2024" className="h-10 w-24 rounded-lg border-0 bg-[#E4E5E2] px-3 text-sm outline-none focus:ring-2 focus:ring-[#989F43]" />
           </div>
           {!validPeriod && <p className="text-xs text-red-700">{t("invalidPeriod")}</p>}
         </fieldset>

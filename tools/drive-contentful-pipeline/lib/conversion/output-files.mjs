@@ -10,6 +10,7 @@ import { isMultilevelTerritoryRow } from "../csv/territory.mjs";
 import { convertMunicipalAnalysisCsvFile } from "./municipal-analysis-converter.mjs";
 import { convertPanelLayerCsvFile } from "./panel-layer-converter.mjs";
 import { writeAnnualPartitions } from "./partition-writer.mjs";
+import { toAvailabilityEntry } from "./availability-index.mjs";
 import { readFile } from "node:fs/promises";
 import { indentJson, sortRecordEntries } from "../shared/records.mjs";
 import {
@@ -323,6 +324,9 @@ async function writeAggregatedGroup(
 
     return {
       conversions,
+      availabilityEntries: activeEntries
+        .map(({ conversion }) => toAvailabilityEntry(conversion))
+        .filter(Boolean),
       skipped,
       partitionFiles,
       aggregatedFile: buildAggregatedFile(group, fileState, conversions),
@@ -539,6 +543,7 @@ export async function convertCsvDirectory(options, pipelineConfig) {
   const result = {
     aggregatedFiles: [],
     conversions: [],
+    availabilityEntries: [],
     panelLayerConversions: panelLayerResult.conversions,
     partitionFiles: [],
     panelLayerFiles: panelLayerResult.files,
@@ -558,6 +563,7 @@ export async function convertCsvDirectory(options, pipelineConfig) {
         pipelineConfig,
       );
       result.conversions.push(...groupResult.conversions);
+      result.availabilityEntries.push(...groupResult.availabilityEntries);
       result.skipped.push(...groupResult.skipped);
       result.partitionFiles.push(...groupResult.partitionFiles);
       if (groupResult.aggregatedFile)

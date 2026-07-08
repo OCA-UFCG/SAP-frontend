@@ -3,6 +3,7 @@ import path from "node:path";
 import { pathToFileURL } from "node:url";
 import { loadPipelineConfig } from "../config/pipeline-config.mjs";
 import { convertCsvDirectory } from "../conversion/output-files.mjs";
+import { buildMunicipalAvailabilityIndex } from "../conversion/availability-index.mjs";
 import {
   buildConversionReport,
   buildMunicipalAnalysisManifest,
@@ -98,6 +99,10 @@ async function runLocalConversion(options, pipelineConfig) {
   const panelLayerImageDataManifest = buildPanelLayerImageDataManifest(
     conversionResult.panelLayerFiles,
   );
+  const municipalAvailabilityIndex = buildMunicipalAvailabilityIndex(
+    conversionResult.availabilityEntries,
+    conversionResult.panelLayerFiles,
+  );
   const validation = buildPipelineValidation(
     conversionResult.conversions,
     conversionResult.partitionFiles,
@@ -124,6 +129,11 @@ async function runLocalConversion(options, pipelineConfig) {
     panelLayerImageDataManifest,
   );
   await writeJsonFile(options.jsonDir, "conversion-report.json", report);
+  await writeJsonFile(
+    "src/data",
+    "municipalAvailabilityIndex.json",
+    municipalAvailabilityIndex,
+  );
 
   if (!validation.ok) {
     throw new Error(
