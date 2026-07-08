@@ -1,119 +1,78 @@
 import "server-only";
 
-import { ChartJSNodeCanvas } from "chartjs-node-canvas";
-import type {
-  MunicipalReportAnalysis,
-  MunicipalReportPeriodSnapshot,
-} from "@/contracts/municipalReport";
+import type { MunicipalReportAnalysis } from "@/contracts/municipalReport";
 
-const CHART_WIDTH = 900;
-const CHART_HEIGHT = 450;
-const BACKGROUND_COLOR = "#ffffff";
-
-const chartCanvas = new ChartJSNodeCanvas({
-  width: CHART_WIDTH,
-  height: CHART_HEIGHT,
-  backgroundColour: BACKGROUND_COLOR,
-});
-
-function hexToRgba(hex: string, alpha: number): string {
-  const cleaned = hex.replace("#", "");
-  const r = parseInt(cleaned.slice(0, 2), 16);
-  const g = parseInt(cleaned.slice(2, 4), 16);
-  const b = parseInt(cleaned.slice(4, 6), 16);
-  return `rgba(${r}, ${g}, ${b}, ${alpha})`;
+interface RenderMunicipalReportChartOptions {
+  highlightPeriod: string;
 }
 
-function buildDatasets(
-  timeSeries: MunicipalReportPeriodSnapshot[],
-  analysis: MunicipalReportAnalysis,
-) {
-  if (timeSeries.length === 0 || analysis.classes.length === 0) return [];
+function escapeSvgText(value: string) {
+  return value
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;");
+}
 
-  return analysis.classes.map((cls) => ({
-    label: cls.label,
-    borderColor: cls.color,
-    backgroundColor: hexToRgba(cls.color, 0.08),
-    pointBackgroundColor: cls.color,
-    pointBorderColor: cls.color,
-    pointRadius: 3,
-    pointHoverRadius: 5,
-    borderWidth: 2,
-    tension: 0.3,
-    fill: false,
-    data: timeSeries.map((snapshot) => {
-      const item = snapshot.distribution.find((d) => d.id === cls.id);
-      return item?.percentage ?? 0;
-    }),
-  }));
+function formatPercentage(value: number) {
+  return `${Math.round(value)}%`;
 }
 
 export async function renderMunicipalReportChart(
   analysis: MunicipalReportAnalysis,
-  options?: { highlightPeriod?: string },
-): Promise<Buffer> {
-  const timeSeries = analysis.timeSeries;
-  const labels = timeSeries.map((s) => s.label);
-  const datasets = buildDatasets(timeSeries, analysis);
+  { highlightPeriod }: RenderMunicipalReportChartOptions,
+) {
+  const width = 960;
+  const height = 540;
+  const paddingX = 72;
+  const chartTop = 136;
+  const chartBottom = 408;
+  const barWidth = 26;
+  const snapshots = analysis.timeSeries.slice(-24);
+  const maxItems = Math.max(snapshots.length, 1);
+  const step = maxItems > 1 ? (width - paddingX * 2) / (maxItems - 1) : 0;
 
+  const bars = snapshots
+    .map((snapshot, index) => {
+      const dominant = snapshot.dominantClass;
+      const percentage = dominant?.percentage ?? 0;
+      const barHeight = Math.max(2, (percentage / 100) * (chartBottom - chartTop));
+      const x = paddingX + index * step - barWidth / 2;
+      const y = chartBottom - barHeight;
+      const isHighlighted =
+        snapshot.period === highlightPeriod ||
+        snapshot.period === analysis.effectivePeriod;
 
-  const buffer = await chartCanvas.renderToBuffer({
-    type: "line",
-    data: { labels, datasets },
-    options: {
-      responsive: false,
-      layout: {
-        padding: { top: 16, right: 24, bottom: 8, left: 16 },
-      },
-      plugins: {
-        title: {
-          display: true,
-          text: `${analysis.title} — Série Temporal`,
-          font: { size: 16, weight: "bold" },
-          color: "#292829",
-          padding: { bottom: 16 },
-        },
-        legend: {
-          position: "bottom",
-          labels: {
-            usePointStyle: true,
-            pointStyle: "circle",
-            padding: 16,
-            font: { size: 11 },
-            color: "#555",
-          },
-        },
+      return `
+        <rect x="${x.toFixed(1)}" y="${y.toFixed(1)}" width="${barWidth}" height="${barHeight.toFixed(1)}" rx="4" fill="${dominant?.color ?? "#989F43"}" opacity="${isHighlighted ? "1" : "0.72"}" />
+        ${
+          isHighlighted
+            ? `<text x="${(x + barWidth / 2).toFixed(1)}" y="${(y - 10).toFixed(1)}" text-anchor="middle" font-family="Arial, sans-serif" font-size="18" font-weight="700" fill="#292829">${formatPercentage(percentage)}</text>`
+            : ""
+        }
+      `;
+    })
+    .join("");
 
-      },
-      scales: {
-        x: {
-          grid: { color: "rgba(0, 0, 0, 0.04)" },
-          ticks: {
-            font: { size: 10 },
-            color: "#666",
-            maxRotation: 45,
-            minRotation: 0,
-          },
-        },
-        y: {
-          min: 0,
-          max: 100,
-          ticks: {
-            stepSize: 20,
-            callback: (value: string | number) => `${value}%`,
-            font: { size: 11 },
-            color: "#666",
-          },
-          grid: {
-            color: (context: { tick: { value: number } }) =>
-              context.tick.value % 20 === 0
-                ? "rgba(0, 0, 0, 0.08)"
-                : "transparent",
-          },
-        },
-      },
-    },
-  });
+  const labels = snapshots
+    .filter((_, index) => index === 0 || index === snapshots.length - 1)
+    .map((snapshot, index, visibleSnapshots) => {
+      const sourceIndex = snapshots.indexOf(snapshot);
+      const x = paddingX + sourceIndex * step;
+      const anchor = index === 0 ? "start" : index === visibleSnapshots.length - 1 ? "end" : "middle";
+      return `<text x="${x.toFixed(1)}" y="448" text-anchor="${anchor}" font-family="Arial, sans-serif" font-size="18" fill="#6B6768">${escapeSvgText(snapshot.label)}</text>`;
+    })
+    .join("");
 
-  return buffer;
+  const svg = `<svg xmlns="http://www.w3.org/2000/svg" width="${width}" height="${height}" viewBox="0 0 ${width} ${height}">
+    <rect width="100%" height="100%" fill="#FFFFFF" />
+    <text x="72" y="68" font-family="Arial, sans-serif" font-size="30" font-weight="700" fill="#292829">${escapeSvgText(analysis.title)}</text>
+    <text x="72" y="104" font-family="Arial, sans-serif" font-size="18" fill="#6B6768">Periodo de referencia: ${escapeSvgText(analysis.effectivePeriod ?? analysis.requestedPeriod)}</text>
+    <line x1="72" y1="${chartBottom}" x2="${width - 72}" y2="${chartBottom}" stroke="#D8D9D4" stroke-width="2" />
+    <line x1="72" y1="${chartTop}" x2="72" y2="${chartBottom}" stroke="#D8D9D4" stroke-width="2" />
+    ${bars}
+    ${labels}
+  </svg>`;
+
+  return Buffer.from(svg);
 }

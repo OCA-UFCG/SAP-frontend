@@ -27,7 +27,7 @@ afterEach(() => {
 });
 
 describe("PlatformLayout", () => {
-  it("renders the map shell when the platform is in its default view", () => {
+  it("renders the sidebar without the map shell when communication opens first", () => {
     platformSidebarMock.mockReset();
 
     render(
@@ -38,7 +38,7 @@ describe("PlatformLayout", () => {
       />,
     );
 
-    expect(screen.getByTestId("platform-map-probe")).toBeInTheDocument();
+    expect(screen.queryByTestId("platform-map-probe")).not.toBeInTheDocument();
     expect(screen.getByTestId("platform-sidebar-probe")).toBeInTheDocument();
     expect(platformSidebarMock.mock.calls[0]?.[0]).toEqual(
       expect.objectContaining({

@@ -19,6 +19,11 @@ import {
 } from "@/components/MapLayerContext/MapLayerContext";
 import { resolveStateKeyFromSearch } from "@/lib/geo";
 import { trackUiEvent } from "@/services/telemetry/client";
+import municipalAvailabilityIndex from "@/data/municipalAvailabilityIndex.json";
+import {
+  hasMunicipalLayerPeriod,
+  type MunicipalAvailabilityIndex,
+} from "@/utils/municipalAvailability";
 import type { PlatformSection } from "@/components/PlatformSideRail/PlatformSideRail";
 import type { PanelLayerI, IEEInfo } from "@/utils/interfaces";
 import type { CompactTerritorialAnalysisDataset } from "@/utils/analysis";
@@ -99,14 +104,27 @@ export function AnalysisContext({
       return;
     }
 
+    const availabilityIndex =
+      municipalAvailabilityIndex as MunicipalAvailabilityIndex;
     const requestKeys = [
       municipalAnalysisRequestKey,
       ...temporalMunicipalAnalysisRequestKeys,
-    ].filter(
-      (requestKey, index, allRequestKeys) =>
+    ].filter((requestKey, index, allRequestKeys) => {
+      const yearKey = getMunicipalAnalysisRequestYear(requestKey);
+
+      return (
         allRequestKeys.indexOf(requestKey) === index &&
-        analysisImageDataByRequestKey[requestKey] === undefined,
-    );
+        analysisImageDataByRequestKey[requestKey] === undefined &&
+        (!selectedMunicipalityCode ||
+          !yearKey ||
+          hasMunicipalLayerPeriod(
+            availabilityIndex,
+            selectedMunicipalityCode,
+            dataset.id,
+            yearKey,
+          ))
+      );
+    });
 
     if (requestKeys.length === 0) {
       return;
@@ -172,6 +190,7 @@ export function AnalysisContext({
     analysisImageDataByRequestKey,
     dataset?.id,
     municipalAnalysisRequestKey,
+    selectedMunicipalityCode,
     temporalMunicipalAnalysisRequestKeys,
   ]);
 
@@ -333,8 +352,19 @@ export function AnalysisContext({
       ? (temporalEnrichedDataset.imageData as CompactTerritorialAnalysisDataset)
           .classes
       : undefined;
+  const activeMunicipalAnalysisKnownUnavailable = Boolean(
+    selectedMunicipalityCode &&
+      dataset?.id &&
+      !hasMunicipalLayerPeriod(
+        municipalAvailabilityIndex as MunicipalAvailabilityIndex,
+        selectedMunicipalityCode,
+        dataset.id,
+        activeAnalysisYear,
+      ),
+  );
   const isMunicipalAnalysisLoading = Boolean(
     municipalAnalysisRequestKey &&
+    !activeMunicipalAnalysisKnownUnavailable &&
     analysisImageDataByRequestKey[municipalAnalysisRequestKey] === undefined,
   );
 

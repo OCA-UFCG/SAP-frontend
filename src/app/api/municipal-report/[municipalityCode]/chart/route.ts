@@ -2,7 +2,10 @@ import { NextResponse } from "next/server";
 import { requireAuthenticatedRequest } from "@/lib/server-session";
 import { getMunicipalAnalysisCacheControlHeader } from "@/repositories/platform/municipalAnalysisCache";
 import { buildMunicipalReport, MunicipalReportNotFoundError } from "@/services/municipalReportService";
-import { renderMunicipalReportChart } from "@/services/municipalReportChartRenderer";
+import {
+  renderMunicipalReportCharts,
+  resolveMunicipalReportChartAnalyses,
+} from "@/services/municipalReportChartService";
 
 const MUNICIPALITY_CODE_PATTERN = /^\d{7}$/u;
 const PERIOD_PATTERN = /^(\d{4})(?:-(0[1-9]|1[0-2]))?$/u;
@@ -14,9 +17,7 @@ function error(message: string, status: number) {
 /**
  * GET /api/municipal-report/{municipalityCode}/chart?period=YYYY-MM&analysis=seca,aridez
  *
- * Returns a PNG image of the time-series chart for the requested analyses.
- * If multiple analysis IDs are provided, returns a multipart-like JSON with
- * base64-encoded images. If a single analysis is provided, returns the raw PNG.
+ * Returns base64-encoded SVG chart images for the requested analyses.
  */
 export async function GET(request: Request, context: { params: Promise<{ municipalityCode: string }> }) {
   const unauthorized = await requireAuthenticatedRequest(request);
@@ -41,39 +42,17 @@ export async function GET(request: Request, context: { params: Promise<{ municip
   try {
     const report = await buildMunicipalReport(code, period);
 
-    const matchedAnalyses = requestedIds.map((idOrAlias) => {
-      return report.analyses.find(
-        (a) => a.id.toLowerCase() === idOrAlias || a.alias.toLowerCase() === idOrAlias,
-      );
-    });
+    const { missingAnalyses, availableAnalyses } =
+      resolveMunicipalReportChartAnalyses(report, requestedIds);
 
-    const missingIds = requestedIds.filter((_, i) => !matchedAnalyses[i]);
-    if (missingIds.length === requestedIds.length) {
-      return error(`No matching analyses found for: ${missingIds.join(", ")}`, 404);
+    if (missingAnalyses.length === requestedIds.length) {
+      return error(`No matching analyses found for: ${missingAnalyses.join(", ")}`, 404);
     }
-
-    const availableAnalyses = matchedAnalyses.filter(
-      (a): a is NonNullable<typeof a> => a != null && a.status !== "unavailable" && a.timeSeries.length > 0,
-    );
-
     if (availableAnalyses.length === 0) {
       return error("No available time-series data for the requested analyses.", 404);
     }
 
-    // Return JSON with base64-encoded PNGs
-    const charts = await Promise.all(
-      availableAnalyses.map(async (analysis) => {
-        const png = await renderMunicipalReportChart(analysis, { highlightPeriod: period });
-        return {
-          analysisId: analysis.id,
-          alias: analysis.alias,
-          title: analysis.title,
-          period: analysis.effectivePeriod,
-          contentType: "image/png",
-          base64: png.toString("base64"),
-        };
-      }),
-    );
+    const charts = await renderMunicipalReportCharts(availableAnalyses, period);
 
     return NextResponse.json(
       { municipality: report.municipality, requestedPeriod: period, charts },
