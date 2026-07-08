@@ -7,8 +7,8 @@ export function GoogleDocsRegexReaderTestHarness() {
     <GoogleDocsRegexReader
       themes={TEST_THEMES}
       city="Campina Grande"
-      state="PB"
-      month="Janeiro"
+      state="Paraíba"
+      month="01"
       year={2024}
     />
   );
