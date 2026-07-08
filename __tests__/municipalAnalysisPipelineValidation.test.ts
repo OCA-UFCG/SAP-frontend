@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { gzipSync } from "node:zlib";
-import { mkdir, readFile, rm } from "node:fs/promises";
+import { mkdir, readFile, rm, writeFile } from "node:fs/promises";
 import path from "node:path";
 import {
   validateMunicipalAnalysisImageData,
@@ -17,6 +17,7 @@ import {
   inferTerritory,
 } from "../tools/drive-contentful-pipeline/lib/csv/territory.mjs";
 import { writeAnnualPartitions } from "../tools/drive-contentful-pipeline/lib/conversion/partition-writer.mjs";
+import { convertCsvDirectory } from "../tools/drive-contentful-pipeline/lib/conversion/output-files.mjs";
 import { patchEntryFields } from "../tools/drive-contentful-pipeline/lib/contentful/entries.mjs";
 import {
   formatConversionSummary,
@@ -194,6 +195,84 @@ describe("municipal analysis pipeline validation", () => {
       ),
     ).toEqual({ key: "2507507", label: "João Pessoa - PB" });
     expect(inferTerritory({ SIGLA_UF: "PB", NM_UF: "Paraíba" })).toBe("state");
+  });
+
+  it("infers multilevel forecast territory from NIVEL_AGRUPAMENTO rows", () => {
+    const row = {
+      NIVEL_AGRUPAMENTO: "7_Municipio",
+      NOME_LOCAL: "João Pessoa",
+      CD_MUN: "2507507",
+      NM_UF: "Paraíba",
+    };
+
+    expect(inferTerritory(row)).toBe("multilevel");
+    expect(getLocation(row, "multilevel")).toEqual({
+      key: "2507507",
+      label: "João Pessoa - PB",
+    });
+    expect(
+      getLocation(
+        { NIVEL_AGRUPAMENTO: "1_BR", NOME_LOCAL: "Brasil Total" },
+        "multilevel",
+      ),
+    ).toEqual({ key: "br", label: "Brasil" });
+  });
+
+  it("merges legacy and multilevel forecast CSVs into one annual partition", async () => {
+    const rootDir = path.join("/tmp", `sap-multilevel-${Date.now()}`);
+    const csvDir = path.join(rootDir, "csv");
+    const jsonDir = path.join(rootDir, "json");
+    await mkdir(csvDir, { recursive: true });
+
+    try {
+      await writeFile(
+        path.join(csvDir, "Estatisticas_SAP_Municipios_CDI_2026.csv"),
+        [
+          "CD_MUN,NM_MUN,SIGLA_UF,ano,data_img,perc_classe_0,perc_classe_1",
+          "2507507,João Pessoa,PB,2026,2026-01-01,10,90",
+          "2507507,João Pessoa,PB,2026,2026-02-01,20,80",
+        ].join("\n"),
+        "utf8",
+      );
+      await writeFile(
+        path.join(csvDir, "Estatisticas_SAP_Multinivel_CDI_2026.csv"),
+        [
+          "NIVEL_AGRUPAMENTO,NOME_LOCAL,CD_MUN,NM_UF,ano,mes,data_img,perc_classe_0,perc_classe_1",
+          "1_BR,Brasil Total,---,---,2026,2,2026-02-01,30,70",
+          "7_Municipio,João Pessoa,2507507,Paraíba,2026,2,2026-02-01,40,60",
+        ].join("\n"),
+        "utf8",
+      );
+
+      const result = await convertCsvDirectory(
+        {
+          csvDir,
+          jsonDir,
+          fileNamePattern: /\.csv$/iu,
+          writeAggregates: false,
+          writeRawPartitions: true,
+          maxContentfulJsonBytes: 450000,
+        },
+        minimalPipelineConfig,
+      );
+      const partition = result.partitionFiles.find(
+        (file) => file.panelLayerId === "CDI_Test",
+      );
+      const payload = JSON.parse(await readFile(partition.outputPath, "utf8"));
+
+      expect(result.partitionFiles).toHaveLength(1);
+      expect(partition).toMatchObject({
+        panelLayerId: "CDI_Test",
+        partitionKey: "2026",
+        territory: "multilevel",
+        yearKeys: ["2026-01", "2026-02"],
+      });
+      expect(payload.years["2026-01"].values["2507507"]).toEqual([10, 90]);
+      expect(payload.years["2026-02"].values.br).toEqual([30, 70]);
+      expect(payload.years["2026-02"].values["2507507"]).toEqual([40, 60]);
+    } finally {
+      await rm(rootDir, { recursive: true, force: true });
+    }
   });
 
   it("writes compressed annual partitions and blocks ambiguous route keys", async () => {

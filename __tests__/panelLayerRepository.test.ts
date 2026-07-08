@@ -617,15 +617,15 @@ describe("panelLayerRepository", () => {
     );
   });
 
-  it("fetches and merges only the requested municipal analysis year partition", async () => {
+  it("fetches annual municipal analysis partition for a requested monthly year", async () => {
     mockedGetContent.mockImplementation(async (query: string) => {
       if (query.includes("GetMunicipalAnalysisByPanelLayerAndPartition")) {
         return buildMunicipalAnalysisResponse([
           {
-            sys: { id: "municipal-2026-02" },
-            title: "Municipal Analysis CDI_Test 2026-02",
+            sys: { id: "municipal-2026" },
+            title: "Municipal Analysis CDI_Test 2026",
             panelLayerId: "CDI_Test",
-            partitionKey: "2026-02",
+            partitionKey: "2026",
             imageData: {
               years: {
                 "2026-02": {
@@ -691,10 +691,99 @@ describe("panelLayerRepository", () => {
         limit: 100,
         skip: 0,
         panelLayerId: "CDI_Test",
-        partitionKey: "2026-02",
+        partitionKey: "2026",
       },
       { cache: "no-store" },
     );
+  });
+
+  it("falls back to monthly municipal analysis partitions when annual partition is unavailable", async () => {
+    mockedGetContent.mockImplementation(
+      async (query: string, variables?: Record<string, unknown>) => {
+        if (query.includes("GetMunicipalAnalysisByPanelLayerAndPartition")) {
+          return buildMunicipalAnalysisResponse([]);
+        }
+
+        if (query.includes("municipalAnalysisCollection")) {
+          expect(variables).toMatchObject({ panelLayerId: "CDI_Test" });
+
+          return buildMunicipalAnalysisResponse([
+            {
+              sys: { id: "municipal-2026-01" },
+              title: "Municipal Analysis CDI_Test 2026-01",
+              panelLayerId: "CDI_Test",
+              partitionKey: "2026-01",
+              imageData: {
+                years: {
+                  "2026-01": {
+                    values: {
+                      "2914802": [10, 90],
+                    },
+                  },
+                },
+              },
+            },
+            {
+              sys: { id: "municipal-2026-02" },
+              title: "Municipal Analysis CDI_Test 2026-02",
+              panelLayerId: "CDI_Test",
+              partitionKey: "2026-02",
+              imageData: {
+                years: {
+                  "2026-02": {
+                    values: {
+                      "2914802": [90, 10],
+                    },
+                  },
+                },
+              },
+            },
+          ]);
+        }
+
+        return buildPanelLayerResponse([
+          {
+            sys: { id: "sys-1" },
+            id: "CDI_Test",
+            name: "CDI",
+            description: "",
+            category: "Dados Climáticos",
+            panelPosition: 1,
+            previewMap: { url: "https://example.com/map.png" },
+            imageData: {
+              schemaVersion: 1,
+              type: "territorial-compact",
+              defaultYear: "2026-01",
+              classes: [
+                { id: "a", label: "Classe A", color: "#111111" },
+                { id: "b", label: "Classe B", color: "#222222" },
+              ],
+              years: {
+                "2026-01": {
+                  imageId: "img-2026-01",
+                  values: {},
+                },
+                "2026-02": {
+                  imageId: "img-2026-02",
+                  values: {},
+                },
+              },
+            },
+          },
+        ]);
+      },
+    );
+
+    const layer = await getPanelLayerWithMunicipalAnalysisYear(
+      "CDI_Test",
+      "2026-02",
+    );
+    const imageData = layer?.imageData as {
+      years: Record<string, { values: Record<string, number[]> }>;
+    };
+
+    expect(Object.keys(imageData.years)).toEqual(["2026-02"]);
+    expect(imageData.years["2026-02"]?.values["2914802"]).toEqual([90, 10]);
   });
 
   it("falls back to partition titles when Contentful metadata fields are unavailable", async () => {

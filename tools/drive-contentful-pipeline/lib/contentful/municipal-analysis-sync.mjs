@@ -184,8 +184,11 @@ async function validatePartitionsAgainstPanelLayer(
   config,
   panelLayerId,
   partitions,
+  expectedPanelLayerYearKeys,
 ) {
-  const panelLayerYearKeys = await getPanelLayerYearKeys(config, panelLayerId);
+  const panelLayerYearKeys =
+    expectedPanelLayerYearKeys ??
+    (await getPanelLayerYearKeys(config, panelLayerId));
 
   return {
     panelLayerYearKeys,
@@ -225,6 +228,7 @@ export async function syncPartitionEntries(config, options, locale) {
     config,
     options.panelLayerId,
     partitions,
+    options.expectedPanelLayerYearKeys?.[options.panelLayerId],
   );
   const existingEntries = await listManagementEntries(
     config,
