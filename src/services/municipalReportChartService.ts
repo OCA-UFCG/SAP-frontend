@@ -50,15 +50,15 @@ export async function renderMunicipalReportCharts(
 ): Promise<MunicipalReportChartImage[]> {
   return Promise.all(
     analyses.map(async (analysis) => {
-      const png = await renderMunicipalReportChart(analysis, { highlightPeriod });
+      const image = await renderMunicipalReportChart(analysis, { highlightPeriod });
 
       return {
         analysisId: analysis.id,
         alias: analysis.alias,
         title: analysis.title,
         period: analysis.effectivePeriod,
-        contentType: "image/png",
-        base64: png.toString("base64"),
+        contentType: "image/svg+xml",
+        base64: image.toString("base64"),
       };
     }),
   );

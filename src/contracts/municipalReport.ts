@@ -78,6 +78,15 @@ export interface MunicipalReportPackage {
   content: MunicipalReportContent;
 }
 
+export interface MunicipalReportChartImage {
+  analysisId: string;
+  alias: string;
+  title: string;
+  period: string | null;
+  contentType: "image/svg+xml";
+  base64: string;
+}
+
 export interface MunicipalReportData {
   schemaVersion: 1;
   generatedAt: string;
