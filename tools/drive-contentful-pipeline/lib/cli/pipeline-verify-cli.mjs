@@ -27,6 +27,7 @@ import {
   formatConversionSummary,
 } from "../reporting/pipeline-summary.mjs";
 import { resolveWorkspacePath } from "../shared/paths.mjs";
+import { readJson } from "../io/json.mjs";
 
 function parseVerifyArgs(argv, pipelineConfig) {
   const options = {
@@ -157,6 +158,22 @@ async function runPanelLayerDryRun(config, jsonDir, locale) {
   };
 }
 
+async function getExpectedPanelLayerYearKeys(jsonDir) {
+  const manifest = await readJson(
+    path.join(
+      resolveWorkspacePath(jsonDir),
+      "panel-layer-imageData-manifest.json",
+    ),
+  );
+
+  return Object.fromEntries(
+    (manifest.panelLayers ?? []).map((entry) => [
+      entry.panelLayerId,
+      entry.yearKeys ?? [],
+    ]),
+  );
+}
+
 async function runMunicipalAnalysisDryRun(config, jsonDir, locale) {
   const baseOptions = {
     jsonDir,
@@ -164,6 +181,7 @@ async function runMunicipalAnalysisDryRun(config, jsonDir, locale) {
     publish: false,
     syncPartitions: true,
     allPanelLayers: true,
+    expectedPanelLayerYearKeys: await getExpectedPanelLayerYearKeys(jsonDir),
   };
   const panelLayerIds = await resolveAllPanelLayerIds(baseOptions);
   const results = [];
