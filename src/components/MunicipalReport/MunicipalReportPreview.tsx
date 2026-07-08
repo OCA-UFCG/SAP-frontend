@@ -145,7 +145,7 @@ function AnalysisSection({
           {chartSrc && (
             <>
               <h3 className="mt-8 text-lg font-bold text-[#536e7b]">
-                Distribuição espacial e variação temporal ({analysis.timeSeries[0]?.period?.slice(0, 4)}–{analysis.timeSeries.at(-1)?.period?.slice(0, 4)})
+                Série histórica completa por classe ({analysis.timeSeries[0]?.period?.slice(0, 4)}–{analysis.timeSeries.at(-1)?.period?.slice(0, 4)})
               </h3>
               <div className="mt-3 flex justify-center border border-[#d9e0e3] p-5">
                 <img src={chartSrc} alt={`Série temporal - ${analysis.title}`} className="max-w-full" />
