@@ -34,6 +34,18 @@ function textColorForBackground(color: string) {
     : "#ffffff";
 }
 
+function compactPeriodRange(
+  timeSeries: MunicipalReportAnalysis["timeSeries"],
+  fallback: string,
+  locale: string,
+) {
+  const firstPeriod = timeSeries[0]?.period ?? fallback;
+  const lastPeriod = timeSeries.at(-1)?.period ?? fallback;
+  const firstLabel = formatReportPeriod(firstPeriod, locale);
+  const lastLabel = formatReportPeriod(lastPeriod, locale);
+  return firstPeriod === lastPeriod ? firstLabel : `${firstLabel} a ${lastLabel}`;
+}
+
 function AnalysisSection({
   analysis,
   report,
@@ -59,6 +71,15 @@ function AnalysisSection({
   const situationText = buildSituationNarrative(analysis, report, presentation, locale);
   const sectionColor = presentation.sectionColor;
   const effectivePeriod = analysis.effectivePeriod ?? analysis.snapshot?.period;
+  const referencePeriod = effectivePeriod ?? analysis.snapshot?.period ?? analysis.requestedPeriod;
+  const requestedPeriodLabel = formatReportPeriod(analysis.requestedPeriod, locale);
+  const referencePeriodLabel = formatReportPeriod(referencePeriod, locale);
+  const snapshotPeriodLabel = analysis.snapshot?.label || referencePeriodLabel;
+  const periodResolution =
+    analysis.requestedPeriod !== referencePeriod
+      ? `Período solicitado: ${requestedPeriodLabel}; período disponível usado no relatório: ${referencePeriodLabel}.`
+      : `Período de referência usado no relatório: ${referencePeriodLabel}.`;
+  const historyRange = compactPeriodRange(analysis.timeSeries, referencePeriod, locale);
   const historyNarrative = buildHistoryNarrative(
     analysis, report.municipality.name, presentation, locale,
   );
@@ -82,6 +103,9 @@ function AnalysisSection({
               {t("availablePeriods")}: {analysis.timeSeries.map((item) => item.period).join(", ")}
             </p>
           )}
+          <p className="mt-2 text-sm leading-6 text-neutral-600">
+            Período solicitado para este indicador: {requestedPeriodLabel}.
+          </p>
         </div>
       ) : (
         <>
@@ -94,6 +118,20 @@ function AnalysisSection({
                 </span>
               </p>
               <p className="mt-2 text-justify">{situationText}</p>
+              <dl className="mt-4 grid gap-2 border-t border-[#d9e0e3] pt-3 text-sm sm:grid-cols-3">
+                <div>
+                  <dt className="font-bold text-[#536e7b]">Período solicitado</dt>
+                  <dd>{requestedPeriodLabel}</dd>
+                </div>
+                <div>
+                  <dt className="font-bold text-[#536e7b]">Período analisado</dt>
+                  <dd>{referencePeriodLabel}</dd>
+                </div>
+                <div>
+                  <dt className="font-bold text-[#536e7b]">Série disponível</dt>
+                  <dd>{historyRange}</dd>
+                </div>
+              </dl>
             </div>
             {dominant && (
               <div
@@ -156,21 +194,24 @@ function AnalysisSection({
             <div className="mt-3 grid overflow-hidden border border-[#c8ced1] bg-white md:grid-cols-2">
               <div className="flex flex-col border-b border-[#c8ced1] md:border-b-0 md:border-r">
                 <div className="border-b border-[#c8ced1] bg-[#f4f6f8] px-4 py-2.5 text-center text-sm font-semibold text-[#536e7b]">
-                  Distribuição espacial (mês de referência)
+                  Imagem espacial: {snapshotPeriodLabel}
                 </div>
                 <ReportMapPreview
                   municipalityCode={report.municipality.code}
                   layerId={analysis.id}
-                  period={effectivePeriod ?? analysis.snapshot.period}
+                  period={referencePeriod}
                   className="h-[230px] w-full"
                   active={mapActive}
                   imageSrc={mapSrc}
                   onCapture={onMapCapture}
                 />
+                <p className="border-t border-[#c8ced1] px-4 py-2 text-xs leading-5 text-neutral-600">
+                  Raster temático de {analysis.title} para {referencePeriodLabel}, recortado visualmente pelo contorno municipal de {report.municipality.name} — {report.municipality.uf}.
+                </p>
               </div>
               <div className="flex flex-col">
                 <div className="border-b border-[#c8ced1] bg-[#f4f6f8] px-4 py-2.5 text-center text-sm font-semibold text-[#536e7b]">
-                  Série histórica completa por classe ({analysis.timeSeries[0]?.period?.slice(0, 4)}–{analysis.timeSeries.at(-1)?.period?.slice(0, 4)})
+                  Série temporal por classe: {historyRange}
                 </div>
                 <div className="flex min-h-[230px] flex-1 items-center justify-center p-4">
                   {chartSrc ? (
@@ -179,6 +220,9 @@ function AnalysisSection({
                     <span className="text-sm text-neutral-500">Série temporal indisponível para exportação.</span>
                   )}
                 </div>
+                <p className="border-t border-[#c8ced1] px-4 py-2 text-xs leading-5 text-neutral-600">
+                  {periodResolution}
+                </p>
               </div>
             </div>
           </div>
@@ -192,12 +236,15 @@ function AnalysisSection({
               <p className="mt-3 text-justify text-neutral-800">
                 <strong>Contexto histórico:</strong> {historyNarrative.context}
               </p>
+              <p className="mt-3 text-justify text-neutral-800">
+                <strong>Referência da seção:</strong> {periodResolution}
+              </p>
             </div>
           ) : (
             <div className="mt-7 border border-[#d9e0e3] p-5 text-[15px] leading-6">
               <h3 className="font-bold text-[#536e7b]">Nota sobre a série histórica</h3>
               <p className="mt-1 text-justify text-neutral-800">
-                A série disponível para este indicador reúne {analysis.timeSeries.length} período(s), de {formatReportPeriod(analysis.timeSeries[0]?.period ?? effectivePeriod ?? analysis.snapshot.period, locale)} a {formatReportPeriod(analysis.timeSeries.at(-1)?.period ?? effectivePeriod ?? analysis.snapshot.period, locale)}. O período efetivamente utilizado nesta análise foi {formatReportPeriod(effectivePeriod ?? analysis.snapshot.period, locale)}.
+                A série disponível para este indicador reúne {analysis.timeSeries.length} período(s), cobrindo {historyRange}. {periodResolution}
               </p>
             </div>
           )}
@@ -230,6 +277,12 @@ function ReportDocument({
     ? report.analyses.filter(({ id }) => layerIds.includes(id))
     : report.analyses;
   const availableTitles = selected.map((analysis) => analysis.title).join(" · ");
+  const availableAnalyses = selected.filter((analysis) => analysis.status === "available" && analysis.snapshot);
+  const effectivePeriodSummary = availableAnalyses
+    .map((analysis) => analysis.effectivePeriod ?? analysis.snapshot?.period ?? report.requestedPeriod)
+    .filter((period, index, periods) => periods.indexOf(period) === index)
+    .map((period) => formatReportPeriod(period, locale))
+    .join(" · ");
 
   return (
     <article ref={documentRef} className="report-paper mt-6 bg-white text-[#202020] shadow-[0_8px_35px_rgba(0,0,0,0.12)]">
@@ -265,7 +318,7 @@ function ReportDocument({
             <strong className="bg-[#f1f2f2] px-3 py-2.5 text-[#536e7b]">Data de geração</strong>
             <span className="border-l border-[#c8ced1] px-3 py-2.5">{generatedAt}</span>
             <strong className="border-l border-[#c8ced1] bg-[#f1f2f2] px-3 py-2.5 text-center text-[#536e7b]">Referência</strong>
-            <span className="border-l border-[#c8ced1] px-3 py-2.5 text-center">{report.requestedPeriod}</span>
+            <span className="border-l border-[#c8ced1] px-3 py-2.5 text-center">{formatReportPeriod(report.requestedPeriod, locale)}</span>
           </div>
         </div>
 
@@ -273,6 +326,14 @@ function ReportDocument({
           <strong className="bg-[#f1f2f2] px-3 py-2.5 text-[#536e7b]">Variáveis selecionadas</strong>
           <span className="border-l border-[#c8ced1] px-3 py-2.5">{availableTitles}</span>
         </div>
+        {effectivePeriodSummary && (
+          <div className="mt-3 grid border border-[#c8ced1] text-sm sm:grid-cols-[175px_1fr]">
+            <strong className="bg-[#f1f2f2] px-3 py-2.5 text-[#536e7b]">Períodos analisados</strong>
+            <span className="border-l border-[#c8ced1] px-3 py-2.5">
+              {effectivePeriodSummary}
+            </span>
+          </div>
+        )}
       </header>
 
       <div className="mt-10 space-y-12">
