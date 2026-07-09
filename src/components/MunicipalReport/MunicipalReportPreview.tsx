@@ -14,6 +14,7 @@ import {
   formatReportPeriod,
 } from "@/utils/municipalReportNarrative";
 import citiesIndex from "@/data/citiesIndex.json";
+import { ReportMapPreview } from "./ReportMapPreview";
 
 interface MunicipalReportPreviewProps {
   municipalityCode: string;
@@ -138,6 +139,25 @@ function AnalysisSection({
                 ))}
               </tbody>
             </table>
+          </div>
+
+          <div className="mt-8">
+            <h3 className="text-lg font-bold text-[#536e7b]">
+              Distribuição espacial e série temporal
+            </h3>
+            <div className="mt-3 grid overflow-hidden border border-[#c8ced1] bg-white md:grid-cols-2">
+              <div className="flex flex-col border-b border-[#c8ced1] md:border-b-0 md:border-r">
+                <div className="border-b border-[#c8ced1] bg-[#f4f6f8] px-4 py-2.5 text-center text-sm font-semibold text-[#536e7b]">
+                  Distribuição espacial (mês de referência)
+                </div>
+                <ReportMapPreview
+                  municipalityCode={report.municipality.code}
+                  layerId={analysis.id}
+                  period={effectivePeriod ?? analysis.snapshot.period}
+                  className="h-[230px] w-full"
+                />
+              </div>
+            </div>
           </div>
 
           {historyNarrative ? (
