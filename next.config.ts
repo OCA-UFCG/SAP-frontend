@@ -5,6 +5,7 @@ import createNextIntlPlugin from "next-intl/plugin";
 const withNextIntl = createNextIntlPlugin("./src/translations/request.ts");
 
 const nextConfig: NextConfig = {
+  serverExternalPackages: ["chartjs-node-canvas", "canvas"],
   images: {
     remotePatterns: [
       {

@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
 import { useLocale, useTranslations } from "next-intl";
 import type {
@@ -38,11 +38,13 @@ function AnalysisSection({
   report,
   index,
   locale,
+  chartSrc,
 }: {
   analysis: MunicipalReportAnalysis;
   report: MunicipalReportData;
   index: number;
   locale: string;
+  chartSrc?: string;
 }) {
   const t = useTranslations("MunicipalReport");
   const dominant = analysis.snapshot?.dominantClass;
@@ -140,6 +142,17 @@ function AnalysisSection({
             </table>
           </div>
 
+          {chartSrc && (
+            <>
+              <h3 className="mt-8 text-lg font-bold text-[#536e7b]">
+                Série histórica completa por classe ({analysis.timeSeries[0]?.period?.slice(0, 4)}–{analysis.timeSeries.at(-1)?.period?.slice(0, 4)})
+              </h3>
+              <div className="mt-3 flex justify-center border border-[#d9e0e3] p-5">
+                <img src={chartSrc} alt={`Série temporal - ${analysis.title}`} className="max-w-full" />
+              </div>
+            </>
+          )}
+
           {historyNarrative ? (
             <div className="mt-7 border border-[#d9e0e3] p-5 text-[15px] leading-6">
               <h3 className="font-bold text-[#536e7b]">Análise da série histórica</h3>
@@ -164,7 +177,7 @@ function AnalysisSection({
   );
 }
 
-function ReportDocument({ report, layerIds = [], documentRef }: { report: MunicipalReportData; layerIds?: string[]; documentRef?: React.Ref<HTMLElement> }) {
+function ReportDocument({ report, layerIds = [], charts, documentRef }: { report: MunicipalReportData; layerIds?: string[]; charts: Map<string, string>; documentRef?: React.Ref<HTMLElement> }) {
   const locale = useLocale();
   const generatedAt = new Date(report.generatedAt).toLocaleDateString(locale);
   const selected = layerIds.length
@@ -224,6 +237,7 @@ function ReportDocument({ report, layerIds = [], documentRef }: { report: Munici
             report={report}
             index={index}
             locale={locale}
+            chartSrc={charts.get(analysis.alias)}
           />
         ))}
       </div>
@@ -276,11 +290,13 @@ export function MunicipalReportPreview({ municipalityCode, period, layerIds, emb
   const locale = useLocale();
   const hasRequiredParameters = Boolean(municipalityCode && period);
   const [report, setReport] = useState<MunicipalReportData | null>(null);
+  const [charts, setCharts] = useState<Map<string, string>>(new Map());
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(hasRequiredParameters);
   const [exporting, setExporting] = useState(false);
   const [zoom, setZoom] = useState(75);
   const reportDocumentRef = useRef<HTMLElement>(null);
+  const layerIdsKey = useMemo(() => layerIds?.join(",") ?? "", [layerIds]);
 
   function printReport() {
     if (!reportDocumentRef.current || exporting) return;
@@ -329,6 +345,36 @@ export function MunicipalReportPreview({ municipalityCode, period, layerIds, emb
         const payload = await response.json();
         if (!response.ok) throw new Error(payload.error ?? t("loadError"));
         setReport(payload as MunicipalReportData);
+
+        // Fetch charts for all available analyses
+        const reportData = payload as MunicipalReportData;
+        const selectedLayerIds = layerIdsKey ? new Set(layerIdsKey.split(",")) : null;
+        const selectedAliases = (selectedLayerIds
+          ? reportData.analyses.filter(({ id }) => selectedLayerIds.has(id))
+          : reportData.analyses
+        )
+          .filter((a) => a.status === "available")
+          .map((a) => a.alias);
+
+        if (selectedAliases.length === 0) {
+          setCharts(new Map());
+          return;
+        }
+
+        if (selectedAliases.length > 0) {
+          const chartResponse = await fetch(
+            `/api/municipal-report/${encodeURIComponent(municipalityCode)}/chart?period=${encodeURIComponent(period)}&analysis=${selectedAliases.join(",")}`,
+            { credentials: "same-origin", signal: controller.signal },
+          );
+          if (chartResponse.ok) {
+            const chartPayload = await chartResponse.json();
+            const nextCharts = new Map<string, string>();
+            for (const chart of chartPayload.charts) {
+              nextCharts.set(chart.alias, `data:${chart.contentType};base64,${chart.base64}`);
+            }
+            setCharts(nextCharts);
+          }
+        }
       } catch (reason) {
         if (reason instanceof DOMException && reason.name === "AbortError") return;
         setError(reason instanceof Error ? reason.message : t("loadError"));
@@ -339,7 +385,7 @@ export function MunicipalReportPreview({ municipalityCode, period, layerIds, emb
 
     loadReport();
     return () => controller.abort();
-  }, [hasRequiredParameters, municipalityCode, period, t]);
+  }, [hasRequiredParameters, layerIdsKey, municipalityCode, period, t]);
 
   const visibleError = hasRequiredParameters ? error : null;
 
@@ -378,7 +424,7 @@ export function MunicipalReportPreview({ municipalityCode, period, layerIds, emb
           {!hasRequiredParameters && <EmptyReportPreview />}
           {loading && <div className="mx-auto flex min-h-56 max-w-[749px] flex-col items-center justify-center gap-4 bg-white p-10 text-center text-neutral-600 shadow-sm"><span aria-hidden="true" className="h-9 w-9 animate-spin rounded-full border-4 border-[#989F43]/25 border-t-[#989F43]"/><strong className="text-base font-semibold text-[#536e7b]">{t("loading")}</strong><span className="text-sm">{t("loadingHint")}</span></div>}
           {visibleError && !loading && <div className="mx-auto max-w-[749px] border border-red-200 bg-white p-8 shadow-sm"><h1 className="text-xl font-semibold">{t("loadError")}</h1><p className="mt-2 text-sm text-red-700">{visibleError}</p></div>}
-          {report && !loading && <div className="mx-auto origin-top transition-transform" style={{ width: "980px", transform: `scale(${zoom / 100})` }}><ReportDocument report={report} layerIds={layerIds} documentRef={reportDocumentRef} /></div>}
+          {report && !loading && <div className="mx-auto origin-top transition-transform" style={{ width: "980px", transform: `scale(${zoom / 100})` }}><ReportDocument report={report} layerIds={layerIds} charts={charts} documentRef={reportDocumentRef} /></div>}
         </div>
       </div>
     );
@@ -397,7 +443,7 @@ export function MunicipalReportPreview({ municipalityCode, period, layerIds, emb
             <p className="mt-2 text-sm text-red-700">{visibleError}</p>
           </div>
         )}
-        {report && !loading && <ReportDocument report={report} layerIds={layerIds} />}
+        {report && !loading && <ReportDocument report={report} layerIds={layerIds} charts={charts} />}
       </div>
     </div>
   );
