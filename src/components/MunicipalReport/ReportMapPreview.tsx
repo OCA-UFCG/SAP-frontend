@@ -25,6 +25,9 @@ interface ReportMapPreviewProps {
   layerId: string;
   period: string;
   className?: string;
+  active?: boolean;
+  imageSrc?: string;
+  onCapture?: (src: string | null) => void;
 }
 
 export function ReportMapPreview({
@@ -32,10 +35,14 @@ export function ReportMapPreview({
   layerId,
   period,
   className,
+  active = true,
+  imageSrc: capturedImageSrc,
+  onCapture,
 }: ReportMapPreviewProps) {
   const containerRef = useRef<HTMLDivElement | null>(null);
   const mapRef = useRef<maplibregl.Map | null>(null);
   const [imageSrc, setImageSrc] = useState<string | null>(null);
+  const resolvedImageSrc = capturedImageSrc ?? imageSrc;
 
   useEffect(() => {
     let aborted = false;
@@ -122,14 +129,18 @@ export function ReportMapPreview({
           const dataUrl = map.getCanvas().toDataURL("image/png");
           if (dataUrl && dataUrl.length > 100) {
             setImageSrc(dataUrl);
+            onCapture?.(dataUrl);
           }
         } catch {
           setImageSrc(null);
+          onCapture?.(null);
         }
       });
     }
 
-    setupMapPreview();
+    if (active && !resolvedImageSrc) {
+      setupMapPreview();
+    }
 
     return () => {
       aborted = true;
@@ -138,22 +149,24 @@ export function ReportMapPreview({
         mapRef.current = null;
       }
     };
-  }, [layerId, municipalityCode, period]);
+  }, [active, layerId, municipalityCode, onCapture, period, resolvedImageSrc]);
 
   return (
     <div
       className={`relative w-full overflow-hidden bg-[#f8f9fa] ${className ?? "h-[240px]"}`}
     >
-      <div
-        ref={containerRef}
-        className={`h-full w-full ${imageSrc ? "pointer-events-none absolute inset-0 opacity-0" : ""}`}
-      />
-      {imageSrc && (
+      {!resolvedImageSrc && active && (
+        <div ref={containerRef} className="h-full w-full" />
+      )}
+      {resolvedImageSrc && (
         <img
-          src={imageSrc}
+          src={resolvedImageSrc}
           alt="Recorte do mapa do município"
           className="h-full w-full object-cover"
         />
+      )}
+      {!resolvedImageSrc && !active && (
+        <div className="h-full w-full bg-[#eef1f1]" aria-hidden="true" />
       )}
     </div>
   );

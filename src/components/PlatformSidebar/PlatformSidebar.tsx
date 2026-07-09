@@ -95,6 +95,8 @@ export function PlatformSidebar({
   );
   const locale = useLocale();
   const analysisFrameUrl = `https://analise-multicriterial.oca-portal.com/${locale}`;
+  const defaultPanelOpenOffset = "560px";
+  const sidePanelWidthClass = isPanelOpen ? "w-[420px]" : "w-0";
 
   const ContextComponent =
     panelSection === "monitoring"
@@ -165,7 +167,7 @@ export function PlatformSidebar({
             className={`
         relative h-full overflow-hidden
           transition-[width] duration-300 ease-in-out
-          ${isPanelOpen ? "w-[420px]" : "w-0"}
+          ${sidePanelWidthClass}
         `}
           >
             <div
@@ -189,7 +191,7 @@ export function PlatformSidebar({
       {showAnalysisFrame && !isLogsView && (
         <div
           className="absolute top-0 bottom-0 right-0 z-10 bg-neutral-50 transition-all duration-300 ease-in-out"
-          style={{ left: isPanelOpen ? "560px" : "140px" }}
+          style={{ left: isPanelOpen ? defaultPanelOpenOffset : "140px" }}
         >
           <iframe
             src={analysisFrameUrl}
@@ -201,17 +203,23 @@ export function PlatformSidebar({
       )}
 
       {activeSection === "communication" && !isLogsView && (
-        <div
-          className="absolute inset-y-0 right-0 z-10 transition-[left] duration-300 ease-in-out"
-          style={{ left: isPanelOpen ? "560px" : "140px" }}
-        >
-          <MunicipalReportPreview
-            municipalityCode={reportRequest?.municipalityCode ?? ""}
-            period={reportRequest?.period ?? ""}
-            layerIds={reportRequest?.layerIds ?? []}
-            embedded
+        <>
+          <div
+            className="absolute inset-0 z-[5] bg-[#F6F7F6]"
+            aria-hidden="true"
           />
-        </div>
+          <div
+            className="absolute inset-y-0 right-0 z-10 bg-[#F6F7F6] transition-[left] duration-300 ease-in-out"
+            style={{ left: isPanelOpen ? defaultPanelOpenOffset : "140px" }}
+          >
+            <MunicipalReportPreview
+              municipalityCode={reportRequest?.municipalityCode ?? ""}
+              period={reportRequest?.period ?? ""}
+              layerIds={reportRequest?.layerIds ?? []}
+              embedded
+            />
+          </div>
+        </>
       )}
     </>
   );

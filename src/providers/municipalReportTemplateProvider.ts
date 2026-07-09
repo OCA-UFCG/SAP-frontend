@@ -15,6 +15,7 @@ function analysisSections(report: MunicipalReportData) {
     ];
     if (`quantidade_periodos_recentes_${alias}` in report.templateVariables) {
       sections.push(
+        `[[analysis:${alias}:chart]]`,
         `[[analysis:${alias}:recent-history]]\nA série histórica de $titulo_${alias} registra que $municipio apresentou a condição analisada em $quantidade_periodos_com_fenomeno_${alias} dos últimos $quantidade_periodos_recentes_${alias} períodos ($inicio_periodo_recente_${alias} a $fim_periodo_recente_${alias}). No período de referência, predomina $classe_${alias}. A mudança em relação ao período anterior foi classificada como $mudanca_${alias}.`,
         `[[analysis:${alias}:historical-context]]\nNo período $inicio_historico_${alias}–$fim_historico_${alias}, a classe predominante mais frequente foi $classe_mais_frequente_${alias}, em $frequencia_classe_mais_frequente_${alias}% dos períodos. A condição neutra predominou em $frequencia_condicao_neutra_${alias}% do período. A maior severidade observada foi $classe_maior_severidade_${alias}, registrada em $periodo_maior_severidade_${alias}.`,
       );
