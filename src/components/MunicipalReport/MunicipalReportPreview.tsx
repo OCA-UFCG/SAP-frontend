@@ -46,6 +46,11 @@ function compactPeriodRange(
   return firstPeriod === lastPeriod ? firstLabel : `${firstLabel} a ${lastLabel}`;
 }
 
+function buildReportFilename(report: MunicipalReportData | null, period: string, fallback: string) {
+  if (!report) return fallback;
+  return `Relatório-${report.municipality.name.replace(/\s+/g, "-")}-${period}.PDF`;
+}
+
 function AnalysisSection({
   analysis,
   report,
@@ -94,7 +99,7 @@ function AnalysisSection({
       </h2>
 
       {analysis.status !== "available" || !analysis.snapshot ? (
-        <div className="mt-7 border border-[#d9e0e3] p-5">
+        <div className="report-block mt-7 border border-[#d9e0e3] p-5">
           <p className="font-bold text-[#536e7b]">
             {t(`status.${analysis.status}`)}
           </p>
@@ -109,7 +114,7 @@ function AnalysisSection({
         </div>
       ) : (
         <>
-          <div className="mt-7 grid border border-[#d9e0e3] md:grid-cols-[1fr_226px]">
+          <div className="report-block mt-7 grid border border-[#d9e0e3] md:grid-cols-[1fr_226px]">
             <div className="p-5 text-[15px] leading-6 text-neutral-800">
               <p className="font-bold">
                 Situação atual:{" "}
@@ -150,10 +155,10 @@ function AnalysisSection({
             )}
           </div>
 
-          <h3 className="mt-8 text-lg font-bold text-[#536e7b]">
+          <h3 className="report-heading mt-8 text-lg font-bold text-[#536e7b]">
             Classes do {analysis.title}
           </h3>
-          <div className="mt-3 overflow-hidden border border-[#c8ced1]">
+          <div className="report-block mt-3 overflow-hidden border border-[#c8ced1]">
             <table className="w-full border-collapse text-sm">
               <thead className="bg-[#176b39] text-white">
                 <tr>
@@ -187,12 +192,12 @@ function AnalysisSection({
             </table>
           </div>
 
-          <div className="mt-8">
-            <h3 className="text-lg font-bold text-[#536e7b]">
+          <div className="report-visual-block mt-8">
+            <h3 className="report-heading text-lg font-bold text-[#536e7b]">
               Distribuição espacial e série temporal
             </h3>
-            <div className="mt-3 grid overflow-hidden border border-[#c8ced1] bg-white md:grid-cols-2">
-              <div className="flex flex-col border-b border-[#c8ced1] md:border-b-0 md:border-r">
+            <div className="report-visual-grid mt-3 grid overflow-hidden border border-[#c8ced1] bg-white md:grid-cols-2">
+              <div className="report-visual-panel flex flex-col border-b border-[#c8ced1] md:border-b-0 md:border-r">
                 <div className="border-b border-[#c8ced1] bg-[#f4f6f8] px-4 py-2.5 text-center text-sm font-semibold text-[#536e7b]">
                   Imagem espacial: {snapshotPeriodLabel}
                 </div>
@@ -200,7 +205,7 @@ function AnalysisSection({
                   municipalityCode={report.municipality.code}
                   layerId={analysis.id}
                   period={referencePeriod}
-                  className="h-[230px] w-full"
+                  className="report-map-frame h-[230px] w-full"
                   active={mapActive}
                   imageSrc={mapSrc}
                   onCapture={onMapCapture}
@@ -209,11 +214,11 @@ function AnalysisSection({
                   Raster temático de {analysis.title} para {referencePeriodLabel}, recortado visualmente pelo contorno municipal de {report.municipality.name} — {report.municipality.uf}.
                 </p>
               </div>
-              <div className="flex flex-col">
+              <div className="report-visual-panel flex flex-col">
                 <div className="border-b border-[#c8ced1] bg-[#f4f6f8] px-4 py-2.5 text-center text-sm font-semibold text-[#536e7b]">
                   Série temporal por classe: {historyRange}
                 </div>
-                <div className="flex min-h-[230px] flex-1 items-center justify-center p-4">
+                <div className="report-chart-frame flex min-h-[230px] flex-1 items-center justify-center p-4">
                   {chartSrc ? (
                     <img src={chartSrc} alt={`Série temporal - ${analysis.title}`} className="max-h-[210px] max-w-full" />
                   ) : (
@@ -228,8 +233,8 @@ function AnalysisSection({
           </div>
 
           {historyNarrative ? (
-            <div className="mt-7 border border-[#d9e0e3] p-5 text-[15px] leading-6">
-              <h3 className="font-bold text-[#536e7b]">Análise da série histórica</h3>
+            <div className="report-block mt-7 border border-[#d9e0e3] p-5 text-[15px] leading-6">
+              <h3 className="report-heading font-bold text-[#536e7b]">Análise da série histórica</h3>
               <p className="mt-2 text-justify text-neutral-800">
                 <strong>Tendência recente:</strong> {historyNarrative.recent}
               </p>
@@ -241,8 +246,8 @@ function AnalysisSection({
               </p>
             </div>
           ) : (
-            <div className="mt-7 border border-[#d9e0e3] p-5 text-[15px] leading-6">
-              <h3 className="font-bold text-[#536e7b]">Nota sobre a série histórica</h3>
+            <div className="report-block mt-7 border border-[#d9e0e3] p-5 text-[15px] leading-6">
+              <h3 className="report-heading font-bold text-[#536e7b]">Nota sobre a série histórica</h3>
               <p className="mt-1 text-justify text-neutral-800">
                 A série disponível para este indicador reúne {analysis.timeSeries.length} período(s), cobrindo {historyRange}. {periodResolution}
               </p>
@@ -305,7 +310,7 @@ function ReportDocument({
           </p>
         </div>
 
-        <div className="mt-6 border border-[#c8ced1] text-sm">
+        <div className="report-block mt-6 border border-[#c8ced1] text-sm">
           <div className="grid grid-cols-[175px_1fr] border-b border-[#c8ced1] sm:grid-cols-[175px_1fr_105px_115px]">
             <strong className="bg-[#f1f2f2] px-3 py-2.5 text-[#536e7b]">Área de análise</strong>
             <span className="border-l border-[#c8ced1] px-3 py-2.5 font-bold">
@@ -322,12 +327,12 @@ function ReportDocument({
           </div>
         </div>
 
-        <div className="mt-5 grid border border-[#c8ced1] text-sm sm:grid-cols-[175px_1fr]">
+        <div className="report-block mt-5 grid border border-[#c8ced1] text-sm sm:grid-cols-[175px_1fr]">
           <strong className="bg-[#f1f2f2] px-3 py-2.5 text-[#536e7b]">Variáveis selecionadas</strong>
           <span className="border-l border-[#c8ced1] px-3 py-2.5">{availableTitles}</span>
         </div>
         {effectivePeriodSummary && (
-          <div className="mt-3 grid border border-[#c8ced1] text-sm sm:grid-cols-[175px_1fr]">
+          <div className="report-block mt-3 grid border border-[#c8ced1] text-sm sm:grid-cols-[175px_1fr]">
             <strong className="bg-[#f1f2f2] px-3 py-2.5 text-[#536e7b]">Períodos analisados</strong>
             <span className="border-l border-[#c8ced1] px-3 py-2.5">
               {effectivePeriodSummary}
@@ -352,8 +357,8 @@ function ReportDocument({
         ))}
       </div>
 
-      <section className="mt-12 border-t border-[#d9e0e3] pt-8">
-        <h2 className="text-xl font-bold text-[#536e7b]">Notas Metodológicas e Fontes</h2>
+      <section className="report-notes mt-12 border-t border-[#d9e0e3] pt-8">
+        <h2 className="report-heading text-xl font-bold text-[#536e7b]">Notas Metodológicas e Fontes</h2>
         <div className="mt-5 space-y-2 text-sm leading-5 text-neutral-800">
           {selected.map((analysis) => {
             const presentation = getMunicipalReportPresentation(analysis.id);
@@ -450,8 +455,34 @@ export function MunicipalReportPreview({ municipalityCode, period, layerIds, emb
       .map((element) => element.outerHTML)
       .join("\n");
     const baseUrl = `${window.location.origin}/`;
+    const filename = buildReportFilename(report, period, t("reportLabel"));
+    const printOverrides = `
+      <style>
+        html,body{margin:0;background:#fff}
+        .report-paper{box-sizing:border-box;margin:0!important;box-shadow:none!important}
+        .report-visual-grid{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr)}
+        .report-visual-panel{min-width:0}
+        .report-visual-panel:first-child{border-right:1px solid #c8ced1;border-bottom:0}
+        .report-map-frame{height:230px}
+        .report-chart-frame{min-height:230px}
+        @media print{
+          html,body{width:210mm;background:#fff}
+          body{-webkit-print-color-adjust:exact;print-color-adjust:exact}
+          .report-paper{box-sizing:border-box}
+          .report-visual-grid{display:grid!important;grid-template-columns:minmax(0,1fr) minmax(0,1fr)!important}
+          .report-visual-panel{display:flex!important;flex-direction:column!important;min-width:0}
+          .report-map-frame{height:230px!important}
+          .report-chart-frame{min-height:230px!important}
+          .report-paper img{break-inside:avoid;page-break-inside:avoid}
+          .report-paper table{break-inside:auto;page-break-inside:auto}
+          .report-paper tr,.report-block,.report-visual-panel{break-inside:avoid;page-break-inside:avoid}
+          .report-heading{break-after:avoid;page-break-after:avoid}
+          .report-section{break-inside:auto;page-break-inside:auto}
+          .report-visual-block,.report-notes{break-inside:avoid;page-break-inside:avoid}
+        }
+      </style>`;
     printWindow.document.open();
-    printWindow.document.write(`<!doctype html><html lang="${locale}"><head><meta charset="utf-8"><base href="${baseUrl}"><title>${t("reportLabel")}</title>${styles}<style>body{margin:0;background:#fff}.report-paper{margin:0!important;box-shadow:none!important}@media print{body{-webkit-print-color-adjust:exact;print-color-adjust:exact}}</style></head><body>${reportDocumentRef.current.outerHTML}</body></html>`);
+    printWindow.document.write(`<!doctype html><html lang="${locale}"><head><meta charset="utf-8"><base href="${baseUrl}"><title>${filename}</title>${styles}${printOverrides}</head><body>${reportDocumentRef.current.outerHTML}</body></html>`);
     printWindow.document.close();
 
     const finish = () => {
@@ -530,9 +561,11 @@ export function MunicipalReportPreview({ municipalityCode, period, layerIds, emb
 
   if (embedded) {
     const municipality = citiesIndex.find((item) => item.code === municipalityCode);
-    const filename = municipality
-      ? `Relatório-${municipality.name.replace(/\s+/g, "-")}-${period}.PDF`
-      : t("reportLabel");
+    const filename = buildReportFilename(
+      report,
+      period,
+      municipality ? `Relatório-${municipality.name.replace(/\s+/g, "-")}-${period}.PDF` : t("reportLabel"),
+    );
 
     return (
       <div className="flex h-full min-w-0 flex-col bg-[#F6F7F6]">
