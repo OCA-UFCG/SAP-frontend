@@ -5,13 +5,13 @@ import maplibregl from "maplibre-gl";
 import "maplibre-gl/dist/maplibre-gl.css";
 import { fetchMapURL } from "@/services/mapServices";
 import {
-  BASE_STYLE,
   GEE_LAYER_ID,
   GEE_SOURCE_ID,
 } from "@/components/Map/mapDefinitions";
 import {
+  BRAZIL_RASTER_BOUNDS,
+  getIndexedMunicipalityBounds,
   MAP_MUNICIPALITY_FOCUS_MAX_ZOOM,
-  resolveMunicipalitySelectionBounds,
 } from "@/components/Map/mapBounds";
 import {
   MUNICIPALITY_BORDER_LAYER_ID,
@@ -19,6 +19,26 @@ import {
   MUNICIPALITY_SOURCE_LAYER,
   ensureMunicipalityLayers,
 } from "@/components/Map/municipalityLayers";
+
+const REPORT_MAP_STYLE: maplibregl.StyleSpecification = {
+  version: 8,
+  sources: {},
+  layers: [],
+};
+
+const tileUrlCache = new Map<string, string | null>();
+
+async function resolveReportTileUrl(
+  layerId: string,
+  period: string,
+  signal: AbortSignal,
+) {
+  const key = `${layerId}:${period}`;
+  if (tileUrlCache.has(key)) return tileUrlCache.get(key) ?? null;
+  const tileUrl = await fetchMapURL(layerId, period, signal);
+  tileUrlCache.set(key, tileUrl);
+  return tileUrl;
+}
 
 interface ReportMapPreviewProps {
   municipalityCode: string;
@@ -41,14 +61,37 @@ export function ReportMapPreview({
 }: ReportMapPreviewProps) {
   const containerRef = useRef<HTMLDivElement | null>(null);
   const mapRef = useRef<maplibregl.Map | null>(null);
-  const [imageSrc, setImageSrc] = useState<string | null>(null);
-  const resolvedImageSrc = capturedImageSrc ?? imageSrc;
+  const captureCompletedRef = useRef(false);
+  const imageKey = `${municipalityCode}:${layerId}:${period}`;
+  const [image, setImage] = useState<{ key: string; src: string } | null>(null);
+  const [failedImageKey, setFailedImageKey] = useState<string | null>(null);
+  const localImageSrc = image?.key === imageKey ? image.src : null;
+  const resolvedImageSrc = capturedImageSrc ?? localImageSrc;
+  const captureFailed = failedImageKey === imageKey;
 
   useEffect(() => {
     let aborted = false;
+    const controller = new AbortController();
+
+    const finishCapture = (src: string | null) => {
+      if (aborted || captureCompletedRef.current) return;
+      captureCompletedRef.current = true;
+      if (src) {
+        setImage({ key: imageKey, src });
+        setFailedImageKey(null);
+      } else {
+        setFailedImageKey(imageKey);
+      }
+      onCapture?.(src);
+    };
 
     async function setupMapPreview() {
-      const tileUrl = await fetchMapURL(layerId, period);
+      captureCompletedRef.current = false;
+      const tileUrl = await resolveReportTileUrl(
+        layerId,
+        period,
+        controller.signal,
+      );
       if (aborted || !containerRef.current) return;
 
       if (mapRef.current) {
@@ -58,7 +101,7 @@ export function ReportMapPreview({
 
       const map = new maplibregl.Map({
         container: containerRef.current,
-        style: BASE_STYLE,
+        style: REPORT_MAP_STYLE,
         preserveDrawingBuffer: true,
         interactive: false,
         attributionControl: false,
@@ -76,6 +119,7 @@ export function ReportMapPreview({
             type: "raster",
             tiles: [tileUrl],
             tileSize: 256,
+            bounds: BRAZIL_RASTER_BOUNDS,
           });
 
           map.addLayer(
@@ -92,10 +136,7 @@ export function ReportMapPreview({
           );
         }
 
-        const bounds = resolveMunicipalitySelectionBounds(
-          map,
-          municipalityCode,
-        );
+        const bounds = getIndexedMunicipalityBounds(municipalityCode);
         if (bounds) {
           map.fitBounds(bounds, {
             padding: 36,
@@ -128,34 +169,49 @@ export function ReportMapPreview({
         try {
           const dataUrl = map.getCanvas().toDataURL("image/png");
           if (dataUrl && dataUrl.length > 100) {
-            setImageSrc(dataUrl);
-            onCapture?.(dataUrl);
+            finishCapture(dataUrl);
+          } else {
+            finishCapture(null);
           }
         } catch {
-          setImageSrc(null);
-          onCapture?.(null);
+          finishCapture(null);
         }
       });
     }
 
-    if (active && !resolvedImageSrc) {
-      setupMapPreview();
+    if (active && !resolvedImageSrc && !captureFailed) {
+      setupMapPreview().catch((reason) => {
+        if (reason instanceof DOMException && reason.name === "AbortError") {
+          return;
+        }
+        finishCapture(null);
+      });
     }
 
     return () => {
       aborted = true;
+      controller.abort();
       if (mapRef.current) {
         mapRef.current.remove();
         mapRef.current = null;
       }
     };
-  }, [active, layerId, municipalityCode, onCapture, period, resolvedImageSrc]);
+  }, [
+    active,
+    captureFailed,
+    imageKey,
+    layerId,
+    municipalityCode,
+    onCapture,
+    period,
+    resolvedImageSrc,
+  ]);
 
   return (
     <div
       className={`relative w-full overflow-hidden bg-[#f8f9fa] ${className ?? "h-[240px]"}`}
     >
-      {!resolvedImageSrc && active && (
+      {!resolvedImageSrc && active && !captureFailed && (
         <div ref={containerRef} className="h-full w-full" />
       )}
       {resolvedImageSrc && (
@@ -167,6 +223,11 @@ export function ReportMapPreview({
       )}
       {!resolvedImageSrc && !active && (
         <div className="h-full w-full bg-[#eef1f1]" aria-hidden="true" />
+      )}
+      {!resolvedImageSrc && active && captureFailed && (
+        <div className="flex h-full w-full items-center justify-center bg-[#eef1f1] px-4 text-center text-xs text-neutral-500">
+          Mapa indisponível para exportação.
+        </div>
       )}
     </div>
   );

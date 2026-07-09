@@ -219,7 +219,7 @@ function ReportDocument({
   report: MunicipalReportData;
   layerIds?: string[];
   charts: Map<string, string>;
-  mapImages: Map<string, string>;
+  mapImages: Map<string, string | null>;
   activeMapKey?: string;
   onMapCapture?: (key: string, src: string | null) => void;
   documentRef?: React.Ref<HTMLElement>;
@@ -284,7 +284,7 @@ function ReportDocument({
             index={index}
             locale={locale}
             chartSrc={charts.get(analysis.alias)}
-            mapSrc={mapImages.get(`${analysis.id}:${analysis.effectivePeriod ?? analysis.snapshot?.period ?? report.requestedPeriod}`)}
+            mapSrc={mapImages.get(`${analysis.id}:${analysis.effectivePeriod ?? analysis.snapshot?.period ?? report.requestedPeriod}`) ?? undefined}
             mapActive={activeMapKey === `${analysis.id}:${analysis.effectivePeriod ?? analysis.snapshot?.period ?? report.requestedPeriod}`}
             onMapCapture={(src) => onMapCapture?.(`${analysis.id}:${analysis.effectivePeriod ?? analysis.snapshot?.period ?? report.requestedPeriod}`, src)}
           />
@@ -340,7 +340,7 @@ export function MunicipalReportPreview({ municipalityCode, period, layerIds, emb
   const hasRequiredParameters = Boolean(municipalityCode && period);
   const [report, setReport] = useState<MunicipalReportData | null>(null);
   const [charts, setCharts] = useState<Map<string, string>>(new Map());
-  const [mapImages, setMapImages] = useState<Map<string, string>>(new Map());
+  const [mapImages, setMapImages] = useState<Map<string, string | null>>(new Map());
   const [mapRenderIndex, setMapRenderIndex] = useState(0);
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(hasRequiredParameters);
@@ -362,18 +362,17 @@ export function MunicipalReportPreview({ municipalityCode, period, layerIds, emb
   const mapsReady = reportMapKeys.every((key) => mapImages.has(key));
 
   const handleMapCapture = useCallback((key: string, src: string | null) => {
-    if (!src) {
-      setMapRenderIndex((index) => index + 1);
-      return;
-    }
     setMapImages((current) => {
       if (current.get(key) === src) return current;
       const next = new Map(current);
       next.set(key, src);
       return next;
     });
-    setMapRenderIndex((index) => index + 1);
-  }, []);
+    setMapRenderIndex((index) => {
+      if (reportMapKeys[index] !== key) return index;
+      return index + 1;
+    });
+  }, [reportMapKeys]);
 
   function printReport() {
     if (!reportDocumentRef.current || exporting || !mapsReady) return;
