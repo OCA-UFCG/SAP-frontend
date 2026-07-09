@@ -138,7 +138,7 @@ function configureGeeTokenRefresh(credentials: GeeServiceAccountCredentials) {
  * Ensures that Google Earth Engine is authenticated and initialized, but only runs the process once.
  * This is a singleton pattern to prevent re-authentication on every API call.
  */
-const initializeGee = async () => {
+export const initializeGee = async () => {
   if (geeInitialized) {
     return geeInitialized;
   }

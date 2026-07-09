@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
 import { useLocale, useTranslations } from "next-intl";
 import type {
@@ -14,6 +14,7 @@ import {
   formatReportPeriod,
 } from "@/utils/municipalReportNarrative";
 import citiesIndex from "@/data/citiesIndex.json";
+import { ReportMapPreview } from "./ReportMapPreview";
 
 interface MunicipalReportPreviewProps {
   municipalityCode: string;
@@ -33,18 +34,36 @@ function textColorForBackground(color: string) {
     : "#ffffff";
 }
 
+function compactPeriodRange(
+  timeSeries: MunicipalReportAnalysis["timeSeries"],
+  fallback: string,
+  locale: string,
+) {
+  const firstPeriod = timeSeries[0]?.period ?? fallback;
+  const lastPeriod = timeSeries.at(-1)?.period ?? fallback;
+  const firstLabel = formatReportPeriod(firstPeriod, locale);
+  const lastLabel = formatReportPeriod(lastPeriod, locale);
+  return firstPeriod === lastPeriod ? firstLabel : `${firstLabel} a ${lastLabel}`;
+}
+
 function AnalysisSection({
   analysis,
   report,
   index,
   locale,
   chartSrc,
+  mapSrc,
+  mapActive,
+  onMapCapture,
 }: {
   analysis: MunicipalReportAnalysis;
   report: MunicipalReportData;
   index: number;
   locale: string;
   chartSrc?: string;
+  mapSrc?: string;
+  mapActive?: boolean;
+  onMapCapture?: (src: string | null) => void;
 }) {
   const t = useTranslations("MunicipalReport");
   const dominant = analysis.snapshot?.dominantClass;
@@ -52,6 +71,15 @@ function AnalysisSection({
   const situationText = buildSituationNarrative(analysis, report, presentation, locale);
   const sectionColor = presentation.sectionColor;
   const effectivePeriod = analysis.effectivePeriod ?? analysis.snapshot?.period;
+  const referencePeriod = effectivePeriod ?? analysis.snapshot?.period ?? analysis.requestedPeriod;
+  const requestedPeriodLabel = formatReportPeriod(analysis.requestedPeriod, locale);
+  const referencePeriodLabel = formatReportPeriod(referencePeriod, locale);
+  const snapshotPeriodLabel = analysis.snapshot?.label || referencePeriodLabel;
+  const periodResolution =
+    analysis.requestedPeriod !== referencePeriod
+      ? `Período solicitado: ${requestedPeriodLabel}; período disponível usado no relatório: ${referencePeriodLabel}.`
+      : `Período de referência usado no relatório: ${referencePeriodLabel}.`;
+  const historyRange = compactPeriodRange(analysis.timeSeries, referencePeriod, locale);
   const historyNarrative = buildHistoryNarrative(
     analysis, report.municipality.name, presentation, locale,
   );
@@ -75,6 +103,9 @@ function AnalysisSection({
               {t("availablePeriods")}: {analysis.timeSeries.map((item) => item.period).join(", ")}
             </p>
           )}
+          <p className="mt-2 text-sm leading-6 text-neutral-600">
+            Período solicitado para este indicador: {requestedPeriodLabel}.
+          </p>
         </div>
       ) : (
         <>
@@ -87,6 +118,20 @@ function AnalysisSection({
                 </span>
               </p>
               <p className="mt-2 text-justify">{situationText}</p>
+              <dl className="mt-4 grid gap-2 border-t border-[#d9e0e3] pt-3 text-sm sm:grid-cols-3">
+                <div>
+                  <dt className="font-bold text-[#536e7b]">Período solicitado</dt>
+                  <dd>{requestedPeriodLabel}</dd>
+                </div>
+                <div>
+                  <dt className="font-bold text-[#536e7b]">Período analisado</dt>
+                  <dd>{referencePeriodLabel}</dd>
+                </div>
+                <div>
+                  <dt className="font-bold text-[#536e7b]">Série disponível</dt>
+                  <dd>{historyRange}</dd>
+                </div>
+              </dl>
             </div>
             {dominant && (
               <div
@@ -142,16 +187,45 @@ function AnalysisSection({
             </table>
           </div>
 
-          {chartSrc && (
-            <>
-              <h3 className="mt-8 text-lg font-bold text-[#536e7b]">
-                Série histórica completa por classe ({analysis.timeSeries[0]?.period?.slice(0, 4)}–{analysis.timeSeries.at(-1)?.period?.slice(0, 4)})
-              </h3>
-              <div className="mt-3 flex justify-center border border-[#d9e0e3] p-5">
-                <img src={chartSrc} alt={`Série temporal - ${analysis.title}`} className="max-w-full" />
+          <div className="mt-8">
+            <h3 className="text-lg font-bold text-[#536e7b]">
+              Distribuição espacial e série temporal
+            </h3>
+            <div className="mt-3 grid overflow-hidden border border-[#c8ced1] bg-white md:grid-cols-2">
+              <div className="flex flex-col border-b border-[#c8ced1] md:border-b-0 md:border-r">
+                <div className="border-b border-[#c8ced1] bg-[#f4f6f8] px-4 py-2.5 text-center text-sm font-semibold text-[#536e7b]">
+                  Imagem espacial: {snapshotPeriodLabel}
+                </div>
+                <ReportMapPreview
+                  municipalityCode={report.municipality.code}
+                  layerId={analysis.id}
+                  period={referencePeriod}
+                  className="h-[230px] w-full"
+                  active={mapActive}
+                  imageSrc={mapSrc}
+                  onCapture={onMapCapture}
+                />
+                <p className="border-t border-[#c8ced1] px-4 py-2 text-xs leading-5 text-neutral-600">
+                  Raster temático de {analysis.title} para {referencePeriodLabel}, recortado visualmente pelo contorno municipal de {report.municipality.name} — {report.municipality.uf}.
+                </p>
               </div>
-            </>
-          )}
+              <div className="flex flex-col">
+                <div className="border-b border-[#c8ced1] bg-[#f4f6f8] px-4 py-2.5 text-center text-sm font-semibold text-[#536e7b]">
+                  Série temporal por classe: {historyRange}
+                </div>
+                <div className="flex min-h-[230px] flex-1 items-center justify-center p-4">
+                  {chartSrc ? (
+                    <img src={chartSrc} alt={`Série temporal - ${analysis.title}`} className="max-h-[210px] max-w-full" />
+                  ) : (
+                    <span className="text-sm text-neutral-500">Série temporal indisponível para exportação.</span>
+                  )}
+                </div>
+                <p className="border-t border-[#c8ced1] px-4 py-2 text-xs leading-5 text-neutral-600">
+                  {periodResolution}
+                </p>
+              </div>
+            </div>
+          </div>
 
           {historyNarrative ? (
             <div className="mt-7 border border-[#d9e0e3] p-5 text-[15px] leading-6">
@@ -162,12 +236,15 @@ function AnalysisSection({
               <p className="mt-3 text-justify text-neutral-800">
                 <strong>Contexto histórico:</strong> {historyNarrative.context}
               </p>
+              <p className="mt-3 text-justify text-neutral-800">
+                <strong>Referência da seção:</strong> {periodResolution}
+              </p>
             </div>
           ) : (
             <div className="mt-7 border border-[#d9e0e3] p-5 text-[15px] leading-6">
               <h3 className="font-bold text-[#536e7b]">Nota sobre a série histórica</h3>
               <p className="mt-1 text-justify text-neutral-800">
-                A série disponível para este indicador reúne {analysis.timeSeries.length} período(s), de {formatReportPeriod(analysis.timeSeries[0]?.period ?? effectivePeriod ?? analysis.snapshot.period, locale)} a {formatReportPeriod(analysis.timeSeries.at(-1)?.period ?? effectivePeriod ?? analysis.snapshot.period, locale)}. O período efetivamente utilizado nesta análise foi {formatReportPeriod(effectivePeriod ?? analysis.snapshot.period, locale)}.
+                A série disponível para este indicador reúne {analysis.timeSeries.length} período(s), cobrindo {historyRange}. {periodResolution}
               </p>
             </div>
           )}
@@ -177,13 +254,35 @@ function AnalysisSection({
   );
 }
 
-function ReportDocument({ report, layerIds = [], charts, documentRef }: { report: MunicipalReportData; layerIds?: string[]; charts: Map<string, string>; documentRef?: React.Ref<HTMLElement> }) {
+function ReportDocument({
+  report,
+  layerIds = [],
+  charts,
+  mapImages,
+  activeMapKey,
+  onMapCapture,
+  documentRef,
+}: {
+  report: MunicipalReportData;
+  layerIds?: string[];
+  charts: Map<string, string>;
+  mapImages: Map<string, string | null>;
+  activeMapKey?: string;
+  onMapCapture?: (key: string, src: string | null) => void;
+  documentRef?: React.Ref<HTMLElement>;
+}) {
   const locale = useLocale();
   const generatedAt = new Date(report.generatedAt).toLocaleDateString(locale);
   const selected = layerIds.length
     ? report.analyses.filter(({ id }) => layerIds.includes(id))
     : report.analyses;
   const availableTitles = selected.map((analysis) => analysis.title).join(" · ");
+  const availableAnalyses = selected.filter((analysis) => analysis.status === "available" && analysis.snapshot);
+  const effectivePeriodSummary = availableAnalyses
+    .map((analysis) => analysis.effectivePeriod ?? analysis.snapshot?.period ?? report.requestedPeriod)
+    .filter((period, index, periods) => periods.indexOf(period) === index)
+    .map((period) => formatReportPeriod(period, locale))
+    .join(" · ");
 
   return (
     <article ref={documentRef} className="report-paper mt-6 bg-white text-[#202020] shadow-[0_8px_35px_rgba(0,0,0,0.12)]">
@@ -219,7 +318,7 @@ function ReportDocument({ report, layerIds = [], charts, documentRef }: { report
             <strong className="bg-[#f1f2f2] px-3 py-2.5 text-[#536e7b]">Data de geração</strong>
             <span className="border-l border-[#c8ced1] px-3 py-2.5">{generatedAt}</span>
             <strong className="border-l border-[#c8ced1] bg-[#f1f2f2] px-3 py-2.5 text-center text-[#536e7b]">Referência</strong>
-            <span className="border-l border-[#c8ced1] px-3 py-2.5 text-center">{report.requestedPeriod}</span>
+            <span className="border-l border-[#c8ced1] px-3 py-2.5 text-center">{formatReportPeriod(report.requestedPeriod, locale)}</span>
           </div>
         </div>
 
@@ -227,6 +326,14 @@ function ReportDocument({ report, layerIds = [], charts, documentRef }: { report
           <strong className="bg-[#f1f2f2] px-3 py-2.5 text-[#536e7b]">Variáveis selecionadas</strong>
           <span className="border-l border-[#c8ced1] px-3 py-2.5">{availableTitles}</span>
         </div>
+        {effectivePeriodSummary && (
+          <div className="mt-3 grid border border-[#c8ced1] text-sm sm:grid-cols-[175px_1fr]">
+            <strong className="bg-[#f1f2f2] px-3 py-2.5 text-[#536e7b]">Períodos analisados</strong>
+            <span className="border-l border-[#c8ced1] px-3 py-2.5">
+              {effectivePeriodSummary}
+            </span>
+          </div>
+        )}
       </header>
 
       <div className="mt-10 space-y-12">
@@ -238,6 +345,9 @@ function ReportDocument({ report, layerIds = [], charts, documentRef }: { report
             index={index}
             locale={locale}
             chartSrc={charts.get(analysis.alias)}
+            mapSrc={mapImages.get(`${analysis.id}:${analysis.effectivePeriod ?? analysis.snapshot?.period ?? report.requestedPeriod}`) ?? undefined}
+            mapActive={activeMapKey === `${analysis.id}:${analysis.effectivePeriod ?? analysis.snapshot?.period ?? report.requestedPeriod}`}
+            onMapCapture={(src) => onMapCapture?.(`${analysis.id}:${analysis.effectivePeriod ?? analysis.snapshot?.period ?? report.requestedPeriod}`, src)}
           />
         ))}
       </div>
@@ -291,15 +401,42 @@ export function MunicipalReportPreview({ municipalityCode, period, layerIds, emb
   const hasRequiredParameters = Boolean(municipalityCode && period);
   const [report, setReport] = useState<MunicipalReportData | null>(null);
   const [charts, setCharts] = useState<Map<string, string>>(new Map());
+  const [mapImages, setMapImages] = useState<Map<string, string | null>>(new Map());
+  const [mapRenderIndex, setMapRenderIndex] = useState(0);
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(hasRequiredParameters);
   const [exporting, setExporting] = useState(false);
   const [zoom, setZoom] = useState(75);
   const reportDocumentRef = useRef<HTMLElement>(null);
   const layerIdsKey = useMemo(() => layerIds?.join(",") ?? "", [layerIds]);
+  const reportMapKeys = useMemo(() => {
+    if (!report) return [];
+    const selectedLayerIds = layerIdsKey ? new Set(layerIdsKey.split(",")) : null;
+    return (selectedLayerIds
+      ? report.analyses.filter(({ id }) => selectedLayerIds.has(id))
+      : report.analyses
+    )
+      .filter((analysis) => analysis.status === "available" && analysis.snapshot)
+      .map((analysis) => `${analysis.id}:${analysis.effectivePeriod ?? analysis.snapshot?.period ?? report.requestedPeriod}`);
+  }, [layerIdsKey, report]);
+  const activeMapKey = reportMapKeys[mapRenderIndex];
+  const mapsReady = reportMapKeys.every((key) => mapImages.has(key));
+
+  const handleMapCapture = useCallback((key: string, src: string | null) => {
+    setMapImages((current) => {
+      if (current.get(key) === src) return current;
+      const next = new Map(current);
+      next.set(key, src);
+      return next;
+    });
+    setMapRenderIndex((index) => {
+      if (reportMapKeys[index] !== key) return index;
+      return index + 1;
+    });
+  }, [reportMapKeys]);
 
   function printReport() {
-    if (!reportDocumentRef.current || exporting) return;
+    if (!reportDocumentRef.current || exporting || !mapsReady) return;
 
     setExporting(true);
     const printWindow = window.open("", "_blank", "popup,width=980,height=800");
@@ -345,6 +482,8 @@ export function MunicipalReportPreview({ municipalityCode, period, layerIds, emb
         const payload = await response.json();
         if (!response.ok) throw new Error(payload.error ?? t("loadError"));
         setReport(payload as MunicipalReportData);
+        setMapImages(new Map());
+        setMapRenderIndex(0);
 
         // Fetch charts for all available analyses
         const reportData = payload as MunicipalReportData;
@@ -415,16 +554,16 @@ export function MunicipalReportPreview({ municipalityCode, period, layerIds, emb
               </button>
             </div>
           </div>
-          <button type="button" disabled={!report || exporting} onClick={printReport} className="flex h-10 shrink-0 items-center gap-2 rounded bg-[#989F43] px-4 font-inter text-sm font-medium text-white disabled:opacity-50">
+          <button type="button" disabled={!report || exporting || !mapsReady} onClick={printReport} className="flex h-10 shrink-0 items-center gap-2 rounded bg-[#989F43] px-4 font-inter text-sm font-medium text-white disabled:opacity-50">
             {exporting ? <span aria-hidden="true" className="h-4 w-4 animate-spin rounded-full border-2 border-white/40 border-t-white" /> : <svg className="h-4 w-4" aria-hidden viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M12 3v12m0 0 4-4m-4 4-4-4"/><path d="M5 20h14"/></svg>}
-            {exporting ? t("preparingDownload") : t("download")}
+            {exporting || (report && !mapsReady) ? t("preparingDownload") : t("download")}
           </button>
         </div>
         <div className="min-h-0 flex-1 overflow-auto bg-[#F6F7F6] px-8 py-8">
           {!hasRequiredParameters && <EmptyReportPreview />}
           {loading && <div className="mx-auto flex min-h-56 max-w-[749px] flex-col items-center justify-center gap-4 bg-white p-10 text-center text-neutral-600 shadow-sm"><span aria-hidden="true" className="h-9 w-9 animate-spin rounded-full border-4 border-[#989F43]/25 border-t-[#989F43]"/><strong className="text-base font-semibold text-[#536e7b]">{t("loading")}</strong><span className="text-sm">{t("loadingHint")}</span></div>}
           {visibleError && !loading && <div className="mx-auto max-w-[749px] border border-red-200 bg-white p-8 shadow-sm"><h1 className="text-xl font-semibold">{t("loadError")}</h1><p className="mt-2 text-sm text-red-700">{visibleError}</p></div>}
-          {report && !loading && <div className="mx-auto origin-top transition-transform" style={{ width: "980px", transform: `scale(${zoom / 100})` }}><ReportDocument report={report} layerIds={layerIds} charts={charts} documentRef={reportDocumentRef} /></div>}
+          {report && !loading && <div className="mx-auto origin-top transition-transform" style={{ width: "980px", transform: `scale(${zoom / 100})` }}><ReportDocument report={report} layerIds={layerIds} charts={charts} mapImages={mapImages} activeMapKey={activeMapKey} onMapCapture={handleMapCapture} documentRef={reportDocumentRef} /></div>}
         </div>
       </div>
     );
@@ -443,7 +582,7 @@ export function MunicipalReportPreview({ municipalityCode, period, layerIds, emb
             <p className="mt-2 text-sm text-red-700">{visibleError}</p>
           </div>
         )}
-        {report && !loading && <ReportDocument report={report} layerIds={layerIds} charts={charts} />}
+        {report && !loading && <ReportDocument report={report} layerIds={layerIds} charts={charts} mapImages={mapImages} activeMapKey={activeMapKey} onMapCapture={handleMapCapture} />}
       </div>
     </div>
   );
