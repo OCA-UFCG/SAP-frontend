@@ -87,7 +87,7 @@ export function PlatformMap() {
       {activeEEData && (
         <div className="absolute top-6 right-6 z-[1000] flex items-center gap-3 rounded-xl border border-neutral-200 bg-white/95 px-4 py-2.5 shadow-md backdrop-blur-sm">
           <span className="text-xs font-semibold text-neutral-700">
-            Transparência
+            {t("opacity")}
           </span>
           <input
             type="range"

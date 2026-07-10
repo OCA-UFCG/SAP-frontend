@@ -380,7 +380,6 @@ const Map = ({
         map.setPaintProperty(GEE_LAYER_ID, "raster-opacity", layerOpacity);
       }
     } catch {
-      // Ignora erro caso a camada ainda não tenha sido montada
     }
   }, [layerOpacity, mapRef, mapInstanceVersion]);
 
