@@ -32,7 +32,19 @@ textarea {
 }
 @media screen {
   .report-paper {
+    box-sizing: border-box;
+    width: 210mm;
+    max-width: 100%;
     padding: 42px 56px 36px;
+  }
+
+  .report-visual-grid {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+  }
+
+  .report-visual-panel {
+    min-width: 0;
   }
 }
 
@@ -43,6 +55,7 @@ textarea {
   }
 
   .report-paper {
+    box-sizing: border-box;
     box-shadow: none !important;
     margin: 0 !important;
     width: 210mm !important;
@@ -50,8 +63,75 @@ textarea {
     padding: 14mm 15mm !important;
   }
 
-  .report-section {
+  .report-visual-grid {
+    display: grid !important;
+    grid-template-columns: minmax(0, 1fr) minmax(0, 1fr) !important;
+  }
+
+  .report-visual-panel {
+    display: flex !important;
+    flex-direction: column !important;
+    min-width: 0;
+  }
+
+  .report-visual-panel:first-child {
+    border-right: 1px solid #c8ced1;
+    border-bottom: 0;
+  }
+
+  .report-map-frame {
+    height: 230px !important;
+  }
+
+  .report-chart-frame {
+    min-height: 230px !important;
+  }
+
+  .report-paper img {
     break-inside: avoid;
+    page-break-inside: avoid;
+  }
+
+  .report-paper table {
+    break-inside: auto;
+    page-break-inside: auto;
+  }
+
+  .report-paper tr,
+  .report-block,
+  .report-visual-panel {
+    break-inside: avoid;
+    page-break-inside: avoid;
+  }
+
+  .report-heading {
+    break-after: avoid;
+    page-break-after: avoid;
+  }
+
+  .report-section {
+    break-inside: auto;
+    page-break-inside: auto;
+  }
+
+  .report-section + .report-section {
+    margin-top: 8mm !important;
+  }
+
+  .report-visual-block,
+  .report-notes {
+    break-inside: avoid;
+    page-break-inside: avoid;
+  }
+
+  .report-paper .space-y-12 > :not([hidden]) ~ :not([hidden]) {
+    --tw-space-y-reverse: 0;
+    margin-top: calc(8mm * calc(1 - var(--tw-space-y-reverse))) !important;
+    margin-bottom: calc(8mm * var(--tw-space-y-reverse)) !important;
+  }
+
+  .report-paper footer {
+    margin-top: 10mm !important;
   }
 }
 

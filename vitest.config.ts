@@ -36,6 +36,7 @@ export default defineConfig({
           setupFiles: ['./src/vitest.setup.ts'],
           include: ["**/__tests__/**/*.test.{ts,tsx,js,jsx}"],
           maxWorkers: 2,
+          pool: "threads",
           sequence: {
             groupOrder: 0,
           },

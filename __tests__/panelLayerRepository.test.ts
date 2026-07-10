@@ -45,6 +45,21 @@ function compressImageData(imageData: unknown) {
   };
 }
 
+function buildValidImageData() {
+  return {
+    schemaVersion: 1,
+    type: "territorial-compact",
+    defaultYear: "2026",
+    classes: [{ id: "a", label: "Classe A", color: "#111111" }],
+    locations: { br: "Brasil" },
+    years: {
+      "2026": {
+        imageId: "img-2026",
+      },
+    },
+  };
+}
+
 describe("panelLayerRepository", () => {
   beforeEach(() => {
     mockedGetContent.mockReset();
@@ -61,7 +76,7 @@ describe("panelLayerRepository", () => {
           description: "Layer 1",
           category: "cat",
           previewMap: { url: "https://example.com/map.png" },
-          imageData: {},
+          imageData: buildValidImageData(),
           years: [],
         },
       ]),
@@ -86,7 +101,7 @@ describe("panelLayerRepository", () => {
           category: "Categoria Livre",
           panelPosition: 2,
           previewMap: { url: "https://example.com/map-2.png" },
-          imageData: {},
+          imageData: buildValidImageData(),
         },
         {
           sys: { id: "sys-1" },
@@ -96,7 +111,7 @@ describe("panelLayerRepository", () => {
           category: "Dados Climáticos",
           panelPosition: 1,
           previewMap: { url: "https://example.com/map-1.png" },
-          imageData: {},
+          imageData: buildValidImageData(),
         },
       ]),
     );
@@ -121,7 +136,7 @@ describe("panelLayerRepository", () => {
           description: "Layer 1",
           panelPosition: 1,
           previewMap: { url: "https://example.com/map-1.png" },
-          imageData: {},
+          imageData: buildValidImageData(),
         },
       ]),
     );
