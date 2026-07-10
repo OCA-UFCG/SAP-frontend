@@ -10,6 +10,7 @@ export interface MapLayerState {
   selectedMunicipalityCode: string | null;
   activeLayerId: string | null;
   activeYear: string;
+  layerOpacity: number;
 }
 
 export const DEFAULT_SELECTED_STATE = "br";
@@ -24,6 +25,7 @@ export function createInitialMapLayerState(): MapLayerState {
     selectedMunicipalityCode: null,
     activeLayerId: null,
     activeYear: DEFAULT_ACTIVE_YEAR,
+    layerOpacity: 0.85
   };
 }
 
@@ -35,6 +37,16 @@ export function setSelectedStateValue(
     ...state,
     selectedState,
     selectedMunicipalityCode: null,
+  };
+}
+
+export function setLayerOpacityValue(
+  state: MapLayerState,
+  layerOpacity: number,
+): MapLayerState {
+  return {
+    ...state,
+    layerOpacity,
   };
 }
 
