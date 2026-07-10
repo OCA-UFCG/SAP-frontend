@@ -1,26 +1,18 @@
-"use client";
+import "server-only";
 
-import { useState } from "react";
-
-type ThemeSection = {
+export type ThemeSection = {
   title: string;
   text: string;
 };
 
-type DocsContent = Record<string, ThemeSection[]>;
+export type DocsContent = Record<string, ThemeSection[]>;
 
-type GoogleDocsRegexReaderProps = {
-  themes?: string[];
-  thems?: string[];
+type GetDocTemplateInput = {
+  themes: string[];
   city?: string;
   state?: string;
   month?: string | number;
   year?: string | number;
-};
-
-type DocsThemeResponse = {
-  text?: string;
-  error?: string;
 };
 
 type ContentVariables = {
@@ -200,107 +192,62 @@ function parseAndInterpolateSections(
   };
 }
 
-function getSelectedThemes({ themes, thems }: GoogleDocsRegexReaderProps) {
-  return themes ?? thems ?? [];
+function getSelectedThemes({ themes }: GetDocTemplateInput) {
+  return themes ?? [];
 }
 
-function buildThemeRequestUrl(theme: string) {
-  return `/api/docs/${theme}`;
-}
+function getThemeDocsUrl(theme: string) {
+  const envKey = `DOCS_${theme}`;
+  const docsUrl = process.env[envKey];
 
-export function GoogleDocsRegexReader(props: GoogleDocsRegexReaderProps) {
-  const [content, setContent] = useState<DocsContent>({});
-  const [themeTitles, setThemeTitles] = useState<Record<string, string>>({});
-  const [loading, setLoading] = useState(false);
-  const [error, setError] = useState<string | null>(null);
-
-  async function handleSearch() {
-    const selectedThemes = getSelectedThemes(props);
-
-    setLoading(true);
-    setError(null);
-    setContent({});
-    setThemeTitles({});
-
-    try {
-      if (selectedThemes.length === 0) {
-        setError("Nenhum tema foi informado");
-        return;
-      }
-
-      const variables = {
-        city: props.city,
-        state: props.state,
-        month: props.month === undefined ? undefined : String(props.month),
-        year: props.year === undefined ? undefined : String(props.year),
-      };
-      const entries = await Promise.all(
-        selectedThemes.map(async (theme) => {
-          const response = await fetch(buildThemeRequestUrl(theme));
-          const contentType = response.headers.get("content-type");
-          const data: DocsThemeResponse | null = contentType?.includes(
-            "application/json",
-          )
-            ? await response.json()
-            : null;
-
-          if (!response.ok || !data?.text) {
-            const message =
-              data?.error ?? `Não foi possível buscar o documento: ${theme}`;
-            throw new Error(message);
-          }
-
-          const parsedTheme = parseAndInterpolateSections(
-            theme,
-            data.text,
-            variables,
-          );
-
-          return [theme, parsedTheme] as const;
-        }),
-      );
-
-      setContent(
-        Object.fromEntries(
-          entries.map(([theme, parsedTheme]) => [theme, parsedTheme.sections]),
-        ),
-      );
-      setThemeTitles(
-        Object.fromEntries(
-          entries.map(([theme, parsedTheme]) => [theme, parsedTheme.title]),
-        ),
-      );
-    } catch (error) {
-      const message =
-        error instanceof Error ? error.message : "Erro inesperado na busca";
-
-      setError(message);
-      console.error(error);
-    } finally {
-      setLoading(false);
-    }
+  if (!docsUrl) {
+    throw new Error(`Invalid docs URL for theme: ${theme}`);
   }
 
-  return (
-    <div>
-      <button onClick={handleSearch} disabled={loading}>
-        {loading ? "Buscando..." : "Buscar textos"}
-      </button>
+  return docsUrl
+}
 
-      {error && <p>{error}</p>}
+async function fetchThemeText(theme: string) {
+  const response = await fetch(getThemeDocsUrl(theme), {
+    cache: "no-store",
+  });
 
-      {Object.entries(content).map(([theme, sections]) => (
-        <section key={theme}>
-          <h2>{themeTitles[theme] ?? theme}</h2>
+  if (!response.ok) {
+    throw new Error(`Não foi possível carregar o documento: ${theme}`);
+  }
 
-          {sections.map((section) => (
-            <article key={`${theme}-${section.title}`}>
-              <h3>{section.title}</h3>
-              <p>{section.text}</p>
-            </article>
-          ))}
-        </section>
-      ))}
-    </div>
+  return response.text();
+}
+
+export async function getDocTemplate(
+  props: GetDocTemplateInput,
+): Promise<DocsContent> {
+  const selectedThemes = getSelectedThemes(props);
+
+  if (selectedThemes.length === 0) {
+    throw new Error("Nenhum tema foi informado");
+  }
+
+  const variables = {
+    city: props.city,
+    state: props.state,
+    month: props.month === undefined ? undefined : String(props.month),
+    year: props.year === undefined ? undefined : String(props.year),
+  };
+
+  const entries = await Promise.all(
+    selectedThemes.map(async (theme) => {
+      const text = await fetchThemeText(theme);
+
+      const parsedTheme = parseAndInterpolateSections(
+        theme,
+        text,
+        variables,
+      );
+
+      return [theme, parsedTheme.sections] as const;
+    }),
   );
+
+  return Object.fromEntries(entries);
 }

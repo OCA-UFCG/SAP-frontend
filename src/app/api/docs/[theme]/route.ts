@@ -7,7 +7,7 @@ type DocsThemeRouteContext = {
 
 export async function GET(request: Request, context: DocsThemeRouteContext) {
   const { theme } = await context.params;
-  const envKey = `GOOGLE_DOCS_${theme}`;
+  const envKey = `DOCS_${theme}`;
   const docsUrl = process.env[envKey];
 
   if (!docsUrl) {

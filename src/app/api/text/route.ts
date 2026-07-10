@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { requireAuthenticatedRequest } from "@/lib/server-session";
-import { gerarRelatorioMunicipal } from "@/services/reportTextGenerator";
+import { gerarRelatorioMunicipal } from "@/services/buildDoc/buildTemplateData";
 
 const MUNICIPALITY_CODE_PATTERN = /^\d{7}$/u;
 const PERIOD_PATTERN = /^(\d{4})(?:-(0[1-9]|1[0-2]))?$/u;

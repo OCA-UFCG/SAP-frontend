@@ -15,13 +15,6 @@ const SECA_ANALYSIS_ID = "anaseca";
 const ARIDEZ_ANALYSIS_ID = "indicearidez";
 const DEGRADACAO_ANALYSIS_ID = "deg";
 
-async function fetchPublicGoogleDoc(docId: string): Promise<string> {
-  const url = `https://docs.google.com/document/d/${docId}/export?format=txt`;
-  const response = await fetch(url);
-  if (!response.ok) throw new Error(`Erro Google Docs: ${response.status}`);
-  return await response.text();
-}
-
 function getAnalysisTimeSeries(report: MunicipalReportData, analysisId: string): MunicipalReportPeriodSnapshot[] {
   return report.analyses.find((analysis) => analysis.id === analysisId)?.timeSeries ?? [];
 }
@@ -258,24 +251,11 @@ export function prepareTemplateData(report: MunicipalReportData): TemplateData {
   };
 }
 
-export function populateTemplate(template: string, data: TemplateData): string {
-  const regex = /\[([^\]]+)\]/g;
 
-  return template.replace(regex, (match, key: string) => {
-    const cleanKey = key.trim();
-    const value = data[cleanKey];
-    if (value === undefined || value === null) return match;
-    return String(value);
-  });
-}
 
-export async function gerarRelatorioMunicipal(ibgeId: string, period: string): Promise<string> {
-  const docId = process.env.GOOGLE_DOC_ID;
-  if (!docId) throw new Error("GOOGLE_DOC_ID não definido no .env");
-
+export async function getTemplateData(ibgeId: string, period: string): Promise<TemplateData> {
   const report = await buildMunicipalReport(ibgeId, period);
   const templateData = prepareTemplateData(report);
-  const templateTexto = await fetchPublicGoogleDoc(docId);
 
-  return populateTemplate(templateTexto, templateData);
+  return templateData
 }
