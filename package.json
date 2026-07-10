@@ -2,6 +2,7 @@
   "name": "sap-frontend-app",
   "version": "0.1.0",
   "private": true,
+  "packageManager": "npm@11.8.0",
   "engines": {
     "node": "22.x"
   },
@@ -47,6 +48,7 @@
     "internmap": "^2.0.3",
     "leaflet": "^1.9.4",
     "leaflet-defaulticon-compatibility": "^0.1.2",
+    "lru-cache": "^11.5.2",
     "maplibre-gl": "^5.22.0",
     "next": "^16.1.6",
     "next-intl": "^4.13.0",

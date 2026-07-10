@@ -149,7 +149,7 @@ const getFeatureBounds = (
   ];
 };
 
-const getIndexedMunicipalityBounds = (
+export const getIndexedMunicipalityBounds = (
   municipalityCode: string,
 ): LngLatBoundsLike | null => {
   const bounds = municipalityBoundsIndex[municipalityCode];

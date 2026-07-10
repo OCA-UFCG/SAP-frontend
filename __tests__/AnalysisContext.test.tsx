@@ -5,6 +5,25 @@ vi.mock("@/services/telemetry/client", () => ({
   trackUiEvent: vi.fn(),
 }));
 
+vi.mock("@/data/municipalAvailabilityIndex.json", () => ({
+  default: {
+    schemaVersion: 1,
+    generatedAt: "2026-01-01T00:00:00.000Z",
+    layers: [
+      {
+        panelLayerId: "layer-1",
+        order: 0,
+        periods: ["2010", "2020", "2024"],
+      },
+    ],
+    byMunicipality: {
+      "5200050": {
+        "layer-1": "0-2",
+      },
+    },
+  },
+}));
+
 import citiesIndex from "@/data/citiesIndex.json";
 import { AnalysisContext } from "@/components/SidePanelContexts/AnalysisContext";
 import { trackUiEvent } from "@/services/telemetry/client";

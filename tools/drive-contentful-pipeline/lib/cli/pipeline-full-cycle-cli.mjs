@@ -14,6 +14,7 @@ import {
   syncPartitionEntries,
 } from "../contentful/municipal-analysis-sync.mjs";
 import { convertCsvDirectory } from "../conversion/output-files.mjs";
+import { buildMunicipalAvailabilityIndex } from "../conversion/availability-index.mjs";
 import {
   buildConversionReport,
   buildMunicipalAnalysisManifest,
@@ -168,6 +169,10 @@ async function runConversion(options, pipelineConfig) {
   const panelLayerImageDataManifest = buildPanelLayerImageDataManifest(
     conversionResult.panelLayerFiles,
   );
+  const municipalAvailabilityIndex = buildMunicipalAvailabilityIndex(
+    conversionResult.availabilityEntries,
+    conversionResult.panelLayerFiles,
+  );
   const validation = buildPipelineValidation(
     conversionResult.conversions,
     conversionResult.partitionFiles,
@@ -194,6 +199,11 @@ async function runConversion(options, pipelineConfig) {
     panelLayerImageDataManifest,
   );
   await writeJsonFile(options.jsonDir, "conversion-report.json", report);
+  await writeJsonFile(
+    "src/data",
+    "municipalAvailabilityIndex.json",
+    municipalAvailabilityIndex,
+  );
 
   if (!validation.ok) {
     throw new Error(
