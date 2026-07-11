@@ -127,6 +127,67 @@ The endpoint is protected server-side and returns private HTTP cache headers;
 only the server-side in-memory cache is shared across authenticated requests in
 the same Node process.
 
+## Google Docs Report Templates
+
+O interpretador de relatórios monta o conteúdo final do documento a partir de
+templates armazenados no Google Docs. A saída atual segue este formato:
+
+```ts
+[
+  {
+    theme: "DROUGHT_MONITOR",
+    paragraphs: [
+      {
+        title: "Situação atual",
+        paragraph:
+          "Campina Grande — Paraíba\nNo município de Campina Grande — Paraíba, predomina a classe Seca moderada, com 71.7% da área analisada enquadrada nesse nível de severidade, conforme o Monitor de Secas de 01/2024.",
+      },
+      {
+        title: "Tendência recente",
+        paragraph:
+          "A série histórica do Monitor de Secas registra que Campina Grande apresentou condições de seca em 12 dos últimos 12 meses analisados (período 2025-05 a 2026-04). No mês de referência (01/2024), o município encontra-se em Seca Moderada (D2), amenizando a situação em relação ao mês anterior, quando predominava a classe Seca grave.",
+      },
+      {
+        title: "Contexto histórico",
+        paragraph:
+          "No período 2024–2026, a classe mais frequente foi Seca fraca, registrada em 32.1% dos meses. O município esteve sem seca (S0) em apenas 21.4% do período. A maior severidade observada foi Seca extrema, registrada em 2025-12, 2026-01, 2026-02.",
+      },
+    ],
+  },
+];
+```
+
+Nesse formato, `theme` representa cada tema disponível para geração do
+documento. Para que um tema funcione, o `.env` deve conter uma variável com o
+prefixo `DOCS_` seguido do identificador do tema. Exemplo:
+
+```env
+DOCS_DROUGHT_MONITOR=
+```
+
+O valor dessa variável deve ser a URL do Google Docs usado como template para
+aquele tema.
+
+A partir desse documento, o interpretador lê o conteúdo, identifica cada seção
+marcada com `**` e converte cada seção em um item de `paragraphs`:
+
+```ts
+{
+  title: "Título da seção",
+  paragraph: "Texto da seção com os dados já preenchidos"
+}
+```
+
+O fluxo atual é:
+
+```txt
+theme -> variável no .env -> Google Docs template -> seções marcadas com ** -> paragraphs
+```
+
+Assim, cada tema pode ter seu próprio documento-base, e o interpretador
+transforma automaticamente as seções do template em blocos estruturados para uso
+na geração do documento final.
+
 ## Agent Context Docs
 
 The repository includes a dedicated set of agent-oriented context files under `docs/`:

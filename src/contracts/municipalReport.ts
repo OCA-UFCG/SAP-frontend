@@ -73,6 +73,13 @@ export interface MunicipalReportContent {
   errors: string[];
 }
 
+export interface MunicipalReportDocsSection {
+  title: string;
+  text: string;
+}
+
+export type MunicipalReportDocsContent = Record<string, MunicipalReportDocsSection[]>;
+
 export interface MunicipalReportPackage {
   report: MunicipalReportData;
   content: MunicipalReportContent;

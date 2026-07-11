@@ -1,11 +1,9 @@
 import "server-only";
 
-export type ThemeSection = {
-  title: string;
-  text: string;
-};
+import type { MunicipalReportDocsContent, MunicipalReportDocsSection } from "@/contracts/municipalReport";
 
-export type DocsContent = Record<string, ThemeSection[]>;
+export type ThemeSection = MunicipalReportDocsSection;
+export type DocsContent = MunicipalReportDocsContent;
 
 type GetDocTemplateInput = {
   themes: string[];

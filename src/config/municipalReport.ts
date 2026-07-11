@@ -3,6 +3,7 @@ export interface MunicipalReportLayerConfig {
   alias: string;
   title: string;
   order: number;
+  docsTheme?: string;
   presentation?: MunicipalReportPresentationConfig;
 }
 
@@ -28,7 +29,7 @@ export interface MunicipalReportPresentationConfig {
 
 export const MUNICIPAL_REPORT_LAYERS: readonly MunicipalReportLayerConfig[] = [
   {
-    panelLayerId: "anaseca", alias: "seca", title: "Monitor de Secas", order: 10,
+    panelLayerId: "anaseca", alias: "seca", title: "Monitor de Secas", order: 10, docsTheme: "DROUGHT_MONITOR",
     presentation: {
       sectionColor: "#176b39",
       coverageContext: "enquadrada nesse nível de severidade",
@@ -48,14 +49,14 @@ export const MUNICIPAL_REPORT_LAYERS: readonly MunicipalReportLayerConfig[] = [
     },
   },
   {
-    panelLayerId: "indicearidez", alias: "aridez", title: "Índice de Aridez", order: 20,
+    panelLayerId: "indicearidez", alias: "aridez", title: "Índice de Aridez", order: 20, docsTheme: "ARIDITY_INDEX",
     presentation: {
       sectionColor: "#795548", coverageContext: "enquadrada nessa zona climática",
       methodology: "Calculado pela razão entre precipitação anual e evapotranspiração potencial, com referências decenais disponíveis na plataforma.",
     },
   },
   {
-    panelLayerId: "deg", alias: "degradacao", title: "Índice de Degradação da Terra", order: 30,
+    panelLayerId: "deg", alias: "degradacao", title: "Índice de Degradação da Terra", order: 30, docsTheme: "DEGRADATION_INDEX",
     presentation: {
       sectionColor: "#2e7d32", coverageContext: "classificada nesse nível",
       methodology: "Indicador territorial produzido para caracterizar diferentes níveis de conservação e degradação do solo e da cobertura vegetal.",

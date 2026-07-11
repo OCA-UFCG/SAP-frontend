@@ -60,12 +60,36 @@ function populateDocContent(template: DocsContent, data: TemplateData): DocsCont
   return Object.fromEntries(
     Object.entries(template).map(([theme, sections]) => [
       theme,
-      sections.map((section) => ({
-        title: populateTemplate(section.title, data),
-        text: populateTemplate(section.text, data),
-      })),
+      sections.map((section) => {
+        const title = populateTemplate(section.title, data);
+        const textTemplate = getGeneratedSectionOverride(theme, title, data) ?? section.text;
+
+        return {
+          title,
+          text: populateTemplate(textTemplate, data),
+        };
+      }),
     ]),
   );
+}
+
+function getGeneratedSectionOverride(theme: string, title: string, data: TemplateData) {
+  if (theme !== "DROUGHT_MONITOR") return undefined;
+
+  const normalizedTitle = normalizeTemplateKey(title);
+  if (normalizedTitle.includes("tendencia_recente")) {
+    return typeof data.texto_tendencia_recente_seca === "string"
+      ? data.texto_tendencia_recente_seca
+      : undefined;
+  }
+
+  if (normalizedTitle.includes("contexto_historico")) {
+    return typeof data.texto_contexto_historico_seca === "string"
+      ? data.texto_contexto_historico_seca
+      : undefined;
+  }
+
+  return undefined;
 }
 
 function getAliasedTemplateValue(
