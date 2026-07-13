@@ -6,10 +6,11 @@ import { useLocale, useTranslations } from "next-intl";
 import type {
   MunicipalReportAnalysis,
   MunicipalReportData,
+  MunicipalReportDocsContent,
 } from "@/contracts/municipalReport";
 import { getMunicipalReportPresentation } from "@/config/municipalReport";
 import {
-  buildHistoryNarrative,
+  buildAnalysisNarrativeSections,
   buildSituationNarrative,
   formatReportPeriod,
 } from "@/utils/municipalReportNarrative";
@@ -60,6 +61,7 @@ function AnalysisSection({
   mapSrc,
   mapActive,
   onMapCapture,
+  docsContent,
 }: {
   analysis: MunicipalReportAnalysis;
   report: MunicipalReportData;
@@ -69,11 +71,12 @@ function AnalysisSection({
   mapSrc?: string;
   mapActive?: boolean;
   onMapCapture?: (src: string | null) => void;
+  docsContent: MunicipalReportDocsContent | null;
 }) {
   const t = useTranslations("MunicipalReport");
   const dominant = analysis.snapshot?.dominantClass;
   const presentation = getMunicipalReportPresentation(analysis.id);
-  const situationText = buildSituationNarrative(analysis, report, presentation, locale);
+  const situationText = buildSituationNarrative(analysis, docsContent, report, presentation, locale);
   const sectionColor = presentation.sectionColor;
   const effectivePeriod = analysis.effectivePeriod ?? analysis.snapshot?.period;
   const referencePeriod = effectivePeriod ?? analysis.snapshot?.period ?? analysis.requestedPeriod;
@@ -85,9 +88,7 @@ function AnalysisSection({
       ? `Período solicitado: ${requestedPeriodLabel}; período disponível usado no relatório: ${referencePeriodLabel}.`
       : `Período de referência usado no relatório: ${referencePeriodLabel}.`;
   const historyRange = compactPeriodRange(analysis.timeSeries, referencePeriod, locale);
-  const historyNarrative = buildHistoryNarrative(
-    analysis, report.municipality.name, presentation, locale,
-  );
+  const narrativeSections = buildAnalysisNarrativeSections(analysis, docsContent);
 
   return (
     <section className="report-section">
@@ -122,7 +123,7 @@ function AnalysisSection({
                   {report.municipality.name} — {report.municipality.uf}
                 </span>
               </p>
-              <p className="mt-2 text-justify">{situationText}</p>
+              {situationText && <p className="mt-2 whitespace-pre-line text-justify">{situationText}</p>}
               <dl className="mt-4 grid gap-2 border-t border-[#d9e0e3] pt-3 text-sm sm:grid-cols-3">
                 <div>
                   <dt className="font-bold text-[#536e7b]">Período solicitado</dt>
@@ -232,15 +233,14 @@ function AnalysisSection({
             </div>
           </div>
 
-          {historyNarrative ? (
+          {narrativeSections.length > 0 ? (
             <div className="report-block mt-7 border border-[#d9e0e3] p-5 text-[15px] leading-6">
               <h3 className="report-heading font-bold text-[#536e7b]">Análise da série histórica</h3>
-              <p className="mt-2 text-justify text-neutral-800">
-                <strong>Tendência recente:</strong> {historyNarrative.recent}
-              </p>
-              <p className="mt-3 text-justify text-neutral-800">
-                <strong>Contexto histórico:</strong> {historyNarrative.context}
-              </p>
+              {narrativeSections.map((section, sectionIndex) => (
+                <p key={`${section.title}:${sectionIndex}`} className="mt-3 whitespace-pre-line text-justify text-neutral-800">
+                  <strong>{section.title}:</strong> {section.text}
+                </p>
+              ))}
               <p className="mt-3 text-justify text-neutral-800">
                 <strong>Referência da seção:</strong> {periodResolution}
               </p>
@@ -267,6 +267,7 @@ function ReportDocument({
   activeMapKey,
   onMapCapture,
   documentRef,
+  docsContent,
 }: {
   report: MunicipalReportData;
   layerIds?: string[];
@@ -275,6 +276,7 @@ function ReportDocument({
   activeMapKey?: string;
   onMapCapture?: (key: string, src: string | null) => void;
   documentRef?: React.Ref<HTMLElement>;
+  docsContent: MunicipalReportDocsContent | null;
 }) {
   const locale = useLocale();
   const generatedAt = new Date(report.generatedAt).toLocaleDateString(locale);
@@ -353,6 +355,7 @@ function ReportDocument({
             mapSrc={mapImages.get(`${analysis.id}:${analysis.effectivePeriod ?? analysis.snapshot?.period ?? report.requestedPeriod}`) ?? undefined}
             mapActive={activeMapKey === `${analysis.id}:${analysis.effectivePeriod ?? analysis.snapshot?.period ?? report.requestedPeriod}`}
             onMapCapture={(src) => onMapCapture?.(`${analysis.id}:${analysis.effectivePeriod ?? analysis.snapshot?.period ?? report.requestedPeriod}`, src)}
+            docsContent={docsContent}
           />
         ))}
       </div>
@@ -405,6 +408,7 @@ export function MunicipalReportPreview({ municipalityCode, period, layerIds, emb
   const locale = useLocale();
   const hasRequiredParameters = Boolean(municipalityCode && period);
   const [report, setReport] = useState<MunicipalReportData | null>(null);
+  const [docsContent, setDocsContent] = useState<MunicipalReportDocsContent | null>(null);
   const [charts, setCharts] = useState<Map<string, string>>(new Map());
   const [mapImages, setMapImages] = useState<Map<string, string | null>>(new Map());
   const [mapRenderIndex, setMapRenderIndex] = useState(0);
@@ -513,6 +517,7 @@ export function MunicipalReportPreview({ municipalityCode, period, layerIds, emb
         const payload = await response.json();
         if (!response.ok) throw new Error(payload.error ?? t("loadError"));
         setReport(payload as MunicipalReportData);
+        setDocsContent(null);
         setMapImages(new Map());
         setMapRenderIndex(0);
 
@@ -525,6 +530,28 @@ export function MunicipalReportPreview({ municipalityCode, period, layerIds, emb
         )
           .filter((a) => a.status === "available")
           .map((a) => a.alias);
+        const selectedLayerIdsForDocs = (selectedLayerIds
+          ? reportData.analyses.filter(({ id }) => selectedLayerIds.has(id))
+          : reportData.analyses
+        )
+          .filter((a) => a.status === "available")
+          .map((a) => a.id);
+
+        if (selectedLayerIdsForDocs.length > 0) {
+          try {
+            const docsResponse = await fetch(
+              `/api/municipal-report/${encodeURIComponent(municipalityCode)}/docs?period=${encodeURIComponent(period)}&layers=${encodeURIComponent(selectedLayerIdsForDocs.join(","))}`,
+              { credentials: "same-origin", signal: controller.signal },
+            );
+            const docsPayload = await docsResponse.json();
+            if (!docsResponse.ok) throw new Error(docsPayload.error ?? t("loadError"));
+            setDocsContent(docsPayload.content as MunicipalReportDocsContent);
+          } catch (docsError) {
+            if (controller.signal.aborted) throw docsError;
+            console.warn("Não foi possível carregar os textos do relatório; mantendo os dados e gráficos disponíveis.", docsError);
+            setDocsContent(null);
+          }
+        }
 
         if (selectedAliases.length === 0) {
           setCharts(new Map());
@@ -596,7 +623,7 @@ export function MunicipalReportPreview({ municipalityCode, period, layerIds, emb
           {!hasRequiredParameters && <EmptyReportPreview />}
           {loading && <div className="mx-auto flex min-h-56 max-w-[749px] flex-col items-center justify-center gap-4 bg-white p-10 text-center text-neutral-600 shadow-sm"><span aria-hidden="true" className="h-9 w-9 animate-spin rounded-full border-4 border-[#989F43]/25 border-t-[#989F43]"/><strong className="text-base font-semibold text-[#536e7b]">{t("loading")}</strong><span className="text-sm">{t("loadingHint")}</span></div>}
           {visibleError && !loading && <div className="mx-auto max-w-[749px] border border-red-200 bg-white p-8 shadow-sm"><h1 className="text-xl font-semibold">{t("loadError")}</h1><p className="mt-2 text-sm text-red-700">{visibleError}</p></div>}
-          {report && !loading && <div className="mx-auto origin-top transition-transform" style={{ width: "980px", transform: `scale(${zoom / 100})` }}><ReportDocument report={report} layerIds={layerIds} charts={charts} mapImages={mapImages} activeMapKey={activeMapKey} onMapCapture={handleMapCapture} documentRef={reportDocumentRef} /></div>}
+          {report && !loading && <div className="mx-auto origin-top transition-transform" style={{ width: "980px", transform: `scale(${zoom / 100})` }}><ReportDocument report={report} layerIds={layerIds} charts={charts} mapImages={mapImages} activeMapKey={activeMapKey} onMapCapture={handleMapCapture} documentRef={reportDocumentRef} docsContent={docsContent} /></div>}
         </div>
       </div>
     );
@@ -615,7 +642,7 @@ export function MunicipalReportPreview({ municipalityCode, period, layerIds, emb
             <p className="mt-2 text-sm text-red-700">{visibleError}</p>
           </div>
         )}
-        {report && !loading && <ReportDocument report={report} layerIds={layerIds} charts={charts} mapImages={mapImages} activeMapKey={activeMapKey} onMapCapture={handleMapCapture} />}
+        {report && !loading && <ReportDocument report={report} layerIds={layerIds} charts={charts} mapImages={mapImages} activeMapKey={activeMapKey} onMapCapture={handleMapCapture} docsContent={docsContent} />}
       </div>
     </div>
   );
