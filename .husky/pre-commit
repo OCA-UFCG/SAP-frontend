@@ -1,3 +1,5 @@
+export PATH="$HOME/.local/share/mise/shims:$PATH"
+
 npm run test:unit -- --run
 npm run precommit
 npm run lint
