@@ -13,10 +13,18 @@ import {
   type MunicipalAvailabilityIndex,
 } from "@/utils/municipalAvailability";
 import type { PanelLayerI } from "@/utils/interfaces";
+import { slugifyTranslationKey } from "@/utils/translations";
 
 interface MunicipalReportContextProps { panelLayers?: PanelLayerI[] }
 
 const CATEGORY_ORDER = ["Dados Climáticos", "Dados Ambientais", "Dados Socioeconômicos"];
+
+const CATEGORY_TRANSLATION_KEYS: Record<string, string> = {
+  "dados climáticos": "climate",
+  "dados ambientais": "environmental",
+  "dados socioeconômicos": "socioeconomic",
+  outros: "others",
+};
 
 interface ReportLayerGroup {
   key: string;
@@ -127,6 +135,16 @@ export function MunicipalReportContext({ panelLayers = [] }: MunicipalReportCont
     [availableLayerIds, panelLayers],
   );
   const availabilityState = municipalityCode && validPeriod ? "ready" : "idle";
+
+  function translatedCategoryTitle(group: ReportLayerGroup) {
+    const translationKey = CATEGORY_TRANSLATION_KEYS[group.key];
+    return translationKey ? tModules(`categories.${translationKey}`) : group.title;
+  }
+
+  function translatedLayerTitle(layer: PanelLayerI) {
+    const translationKey = `Layers.${slugifyTranslationKey(layer.name)}.title`;
+    return tModules.has(translationKey) ? tModules(translationKey) : layer.name;
+  }
 
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
@@ -319,16 +337,17 @@ export function MunicipalReportContext({ panelLayers = [] }: MunicipalReportCont
 
           <div className="space-y-4">
             {groups.map((group, index) => (
-              <LayerAccordion key={group.key} title={group.title} defaultOpen={index === 0}>
+              <LayerAccordion key={group.key} title={translatedCategoryTitle(group)} defaultOpen={index === 0}>
                 <div className="flex flex-col gap-2">
                   {group.layers.map((layer) => {
                     const available = availabilityState === "ready" && availability.get(layer.id) === true;
+                    const layerTitle = translatedLayerTitle(layer);
                     return <div key={layer.id} className={`flex h-12 items-center rounded-lg border border-[#EFEFEF] bg-white ${available ? "" : "opacity-50"}`}>
                       <label className={`flex min-w-0 flex-1 items-center gap-1 py-1 pl-2 ${available ? "cursor-pointer" : "cursor-not-allowed"}`}>
                         <span className="flex h-10 w-[30px] items-center justify-center"><input type="checkbox" checked={selectedLayers.has(layer.id)} disabled={!available} onChange={() => toggleLayer(layer.id)} className="h-3.5 w-3.5 rounded-sm accent-[#989F43]" /></span>
-                        <span className="min-w-0 flex-1 truncate font-inter text-base font-semibold leading-6 tracking-[-0.015em]" title={layer.name}>{layer.name}</span>
+                        <span className="min-w-0 flex-1 truncate font-inter text-base font-semibold leading-6 tracking-[-0.015em]" title={layerTitle}>{layerTitle}</span>
                       </label>
-                      <button type="button" onClick={() => setInfoLayer(layer)} className="flex h-12 w-10 shrink-0 items-center justify-center border-l border-[#EFEFEF]" aria-label={t("moduleInformation", { title: layer.name })}><svg className="h-4 w-4" aria-hidden><use href="/sprite.svg#info"/></svg></button>
+                      <button type="button" onClick={() => setInfoLayer(layer)} className="flex h-12 w-10 shrink-0 items-center justify-center border-l border-[#EFEFEF]" aria-label={t("moduleInformation", { title: layerTitle })}><svg className="h-4 w-4" aria-hidden><use href="/sprite.svg#info"/></svg></button>
                     </div>;
                   })}
                 </div>
