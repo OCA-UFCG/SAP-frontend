@@ -16,12 +16,12 @@ export const channels: SapChannelI[] = [
   //   size: 32,
   // },
 
-  {
-    name: "@observatorio.caatinga",
-    href: "https://www.instagram.com/observatorio.caatinga/",
-    icon: "instagram",
-    size: 32,
-  },
+  // {
+  //   name: "@observatorio.caatinga",
+  //   href: "https://www.instagram.com/observatorio.caatinga/",
+  //   icon: "instagram",
+  //   size: 32,
+  // },
 
   // {
   //   name: "@mmeioambiente",

@@ -25,6 +25,7 @@
 *.pem
 /scripts
 /tmp
+mise.toml
 
 # debug
 npm-debug.log*

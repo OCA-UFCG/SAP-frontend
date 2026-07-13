@@ -1,6 +1,12 @@
 {
   "AboutSection": {
     "title": "{title}",
-    "seeMore": "Ver mais"
+    "text": "O desenvolvimento do SAP é coordenado tecnicamente pelo Observatório da Caatinga e Desertificação (OCA), iniciativa conjunta da Universidade Federal de Campina Grande (UFCG) e do Instituto Nacional do Semiárido (INSA), no âmbito do Termo de Execução Descentralizada nº 07/2024 SNPCT/MMA/UFCG, firmado com o Departamento de Combate à Desertificação e Mitigação dos Efeitos da Seca (DCDE/MMA).",
+    "infoRows": {
+      "ted": "nº 07/2024 SNPCT/MMA/UFCG",
+      "oca": "Execução técnica",
+      "ufcgInsa": "Instituições executoras",
+      "dcdeMma": "Coordenação institucional"
+    }
   }
 }

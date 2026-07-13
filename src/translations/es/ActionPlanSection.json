@@ -1,0 +1,14 @@
+{
+  "ActionPlanSection": {
+    "title": "El plan en que se inserta el SAP",
+    "text": "El SAP integra el Plan de Acción Brasileño de Combate a la Desertificación y Mitigación de los Efectos de la Sequía (PAB-Brasil), lanzado por el MMA en diciembre de 2025. Es el principal instrumento de implementación de la PNCD, con horizonte hasta 2045. El SAP corresponde al Objetivo 2.4 del plan, en el eje \"Investigación, innovación y gestión de la información\".",
+    "stats": {
+      "0": { "label": "objetivos estratégicos" },
+      "1": { "label": "acciones con indicadores" },
+      "2": { "label": "ejes temáticos" },
+      "3": { "label": "ministerios involucrados" },
+      "4": { "value": "1,6 mil+", "label": "municipios en ASD" },
+      "5": { "value": "39 M", "label": "personas beneficiadas" }
+    }
+  }
+}

@@ -69,6 +69,59 @@ export interface AboutSectionI {
     height: number;
   };
 }
+export interface StatCardI {
+  value: string;
+  label: string;
+}
+
+export interface ActionPlanSectionI {
+  title: string;
+  text: {
+    json: Document;
+  };
+  stats: StatCardI[];
+}
+
+export interface ThematicAxisI {
+  title: string;
+  executor: string;
+  executorActionsCount: number;
+  partners: string[];
+  actionsCount: number;
+  isSapAxis?: boolean;
+}
+
+export interface ThematicAxesSectionI {
+  title: string;
+  axes: ThematicAxisI[];
+}
+
+export interface TimelineMilestoneI {
+  date: string;
+  title: string;
+  description: string;
+  isCurrent?: boolean;
+}
+
+export interface WorkingGroupSectionI {
+  eyebrow: string;
+  title: string;
+  text: {
+    json: Document;
+  };
+  milestones: TimelineMilestoneI[];
+}
+
+export interface PlatformModuleI {
+  title: string;
+  description: string;
+}
+
+export interface PlatformModulesSectionI {
+  title: string;
+  modules: PlatformModuleI[];
+}
+
 export interface BrazilianState {
   name: string;
   uf: string;

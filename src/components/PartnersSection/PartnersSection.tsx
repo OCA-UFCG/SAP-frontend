@@ -34,16 +34,23 @@ export const PartnersSection = ({
           </p>
         </div>
 
-        <div className="flex flex-wrap justify-center lg:justify-start items-end gap-y-[37px] gap-x-6">
+        <div className="flex flex-wrap justify-center items-start gap-y-[37px] gap-x-6">
           {partners.map((partner) => (
-            <Image
+            <div
               key={partner.sys.id}
-              src={normalizeContentfulImage(partner.image.url)}
-              alt={partner.image.title || partner.name}
-              width={partner.image.width ?? 300}
-              height={partner.image.height ?? 100}
-              className="h-15.5 w-auto object-contain"
-            />
+              className="flex flex-col items-center gap-2"
+            >
+              <Image
+                src={normalizeContentfulImage(partner.image.url)}
+                alt={partner.image.title || partner.name}
+                width={partner.image.width ?? 300}
+                height={partner.image.height ?? 100}
+                className="h-15.5 w-auto object-contain"
+              />
+              <span className="text-sm text-center text-[#292829]">
+                {partner.name}
+              </span>
+            </div>
           ))}
         </div>
       </div>

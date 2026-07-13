@@ -177,9 +177,9 @@ export const AboutPartnersTabs = ({
                       <Image
                         src={section.imageUrl}
                         alt={section.imageAlt ?? section.title}
-                        width={594}
-                        height={470}
-                        className="w-full max-w-[594px] lg:h-[470px] h-auto rounded-[8px] object-cover"
+                        width={416}
+                        height={329}
+                        className="w-full max-w-[416px] lg:h-[329px] h-auto rounded-[8px] object-cover"
                       />
                     </div>
 

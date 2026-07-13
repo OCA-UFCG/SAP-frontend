@@ -3,6 +3,13 @@
     "home": "Home",
     "platform": "Plataforma",
     "about": "Sobre o SAP",
-    "contact": "Contatos"
+    "contact": "Contatos",
+    "aboutMenu": {
+      "planoDeAcaoBrasileiro": "Plano de Ação Brasileiro",
+      "grupoDeTrabalho": "Grupo de Trabalho",
+      "aPlataforma": "A Plataforma",
+      "usuarios": "Usuários",
+      "financiamento": "Financiamento"
+    }
   }
 }

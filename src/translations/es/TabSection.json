@@ -5,6 +5,11 @@
       "sociedade-e-comunidades": "Sociedad y comunidades",
       "tecnicos-e-pesquisadores": "Técnicos e investigadores",
       "gestao-publica": "Gestión pública"
+    },
+    "texts": {
+      "sociedade-e-comunidades": "El SAP acerca el conocimiento técnico a la realidad de las personas. Por medio de información climática, condiciones de la vegetación, producción y vulnerabilidades sociales, comunidades y organizaciones locales pueden comprender las transformaciones en sus territorios, reconocer situaciones de riesgo y fortalecer acciones de convivencia con la sequía, protección de los medios de vida y uso sostenible de los recursos naturales.",
+      "tecnicos-e-pesquisadores": "Para profesionales e investigadores, el SAP funciona como una fuente integrada de datos y evidencias para investigación y análisis territorial. Series climáticas, indicadores ambientales e información socioeconómica pueden combinarse para seguir tendencias, identificar patrones, evaluar impactos y delimitar áreas vulnerables. La plataforma también favorece el desarrollo de estudios, metodologías, diagnósticos y soluciones orientadas a la sequía y la desertificación.",
+      "gestao-publica": "Para los gestores públicos, el SAP constituye una herramienta de apoyo a la planificación y a la toma de decisiones. La información disponible permite reconocer municipios y poblaciones prioritarias, anticipar situaciones críticas y orientar políticas, inversiones y medidas de respuesta. El sistema puede respaldar acciones de seguridad hídrica, protección social, producción rural, recuperación ambiental y adaptación climática, promoviendo una actuación pública más coordinada y preventiva."
     }
   }
 }

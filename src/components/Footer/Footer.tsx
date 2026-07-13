@@ -10,9 +10,8 @@ export const Footer = ({ content }: { content: FooterI[] }) => {
 
   const mainPages = sortContentByDesiredOrder<FooterI>(content, [
     "/",
-    "/map",
     "/about",
-    "/contact",
+    "/map",
   ]).filter((item) => item.appears);
 
   const pathKeyMap: Record<string, string> = {
@@ -39,7 +38,7 @@ export const Footer = ({ content }: { content: FooterI[] }) => {
             {mainPages.map(({ id, path, name }) => {
               const href =
                 path === "/about"
-                  ? "/sobre-o-sap"
+                  ? "/"
                   : path === "/map"
                     ? "/platform"
                     : path;
@@ -64,8 +63,25 @@ export const Footer = ({ content }: { content: FooterI[] }) => {
           </div>
         </div>
 
-        <div className="flex w-full flex-col gap-3 lg:ml-auto lg:w-auto lg:items-start">
-          <div className="flex flex-col gap-3 lg:items-start">
+        <div className="flex w-full flex-col items-center gap-4 lg:ml-auto lg:w-auto lg:items-end">
+          <div className="flex flex-wrap items-center justify-center gap-6 lg:justify-end">
+            <Image
+              width="1423"
+              height="333"
+              src="/partners/mma.png"
+              alt="Ministério do Meio Ambiente e Mudança do Clima"
+              className="h-8 w-auto brightness-0 invert"
+            />
+            <Image
+              width="395"
+              height="194"
+              src="/partners/oca.png"
+              alt="Observatório da Caatinga e Desertificação"
+              className="h-10 w-auto"
+            />
+          </div>
+
+          <div className="flex flex-col gap-3 lg:items-end">
             <div className="flex flex-wrap justify-center lg:justify-end">
               <SocialChannels channels={channels} size={32} />
             </div>

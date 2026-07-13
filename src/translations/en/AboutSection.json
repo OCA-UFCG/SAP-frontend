@@ -1,7 +1,12 @@
 {
   "AboutSection": {
     "title": "About Us",
-    "text": "The Drought and Desertification Early Warning System (SAP) is the instrument that operationalizes the legal mandate to establish an integrated early warning information system for drought events and desertification processes. Under Law No. 13,153/2015, this duty is assigned to the public sector within the framework of the National Policy for Combating Desertification and Mitigating the Effects of Drought (PNCD). The SAP provides integrated and actionable information to plan, prioritize, and respond to risks. The system enables the core objectives of the PNCD, transforming observations and indicators into alerts and evidence for contingency decisions, adaptation, livelihood protection, and resource allocation.",
-    "seeMore": "See more"
+    "text": "SAP's development is technically coordinated by the Caatinga and Desertification Observatory (OCA), a joint initiative of the Federal University of Campina Grande (UFCG) and the National Semi-Arid Institute (INSA), under Decentralized Execution Agreement No. 07/2024 SNPCT/MMA/UFCG, signed with the Department for Combating Desertification and Mitigating the Effects of Drought (DCDE/MMA).",
+    "infoRows": {
+      "ted": "No. 07/2024 SNPCT/MMA/UFCG",
+      "oca": "Technical execution",
+      "ufcgInsa": "Executing institutions",
+      "dcdeMma": "Institutional coordination"
+    }
   }
 }
