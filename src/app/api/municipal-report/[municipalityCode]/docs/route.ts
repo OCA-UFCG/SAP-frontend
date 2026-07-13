@@ -1,6 +1,5 @@
 import { NextResponse } from "next/server";
 import citiesIndex from "@/data/citiesIndex.json";
-import { getMunicipalReportLayerConfig } from "@/config/municipalReport";
 import { requireAuthenticatedRequest } from "@/lib/server-session";
 import { buildDocContent } from "@/services/buildDoc/buildDocContent";
 
@@ -12,13 +11,7 @@ function error(message: string, status: number) {
 }
 
 function getSelectedThemes(layerIds: string[]) {
-  return [
-    ...new Set(
-      layerIds
-        .map((layerId) => getMunicipalReportLayerConfig(layerId)?.docsTheme)
-        .filter((theme): theme is string => Boolean(theme)),
-    ),
-  ];
+  return [...new Set(layerIds)];
 }
 
 function getPeriodParts(period: string) {

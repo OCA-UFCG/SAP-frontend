@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import type { MunicipalReportAnalysis, MunicipalReportDocsContent } from "@/contracts/municipalReport";
-import { buildHistoryNarrative, buildSituationNarrative } from "@/utils/municipalReportNarrative";
+import { buildAnalysisNarrativeSections, buildHistoryNarrative, buildSituationNarrative } from "@/utils/municipalReportNarrative";
 
 function analysis(id = "anaseca"): MunicipalReportAnalysis {
   return {
@@ -20,7 +20,7 @@ function analysis(id = "anaseca"): MunicipalReportAnalysis {
 describe("municipal report narrative", () => {
   it("uses generated Docs content for the situation narrative", () => {
     const docsContent: MunicipalReportDocsContent = {
-      DROUGHT_MONITOR: [
+      anaseca: [
         { title: "Situação atual", text: "Texto gerado para a situação atual." },
       ],
     };
@@ -32,7 +32,7 @@ describe("municipal report narrative", () => {
 
   it("uses generated Docs content for recent and historical narratives", () => {
     const docsContent: MunicipalReportDocsContent = {
-      DROUGHT_MONITOR: [
+      anaseca: [
         { title: "Tendencia recente", text: "Texto gerado para tendência." },
         { title: "Contexto histórico", text: "Texto gerado para contexto." },
       ],
@@ -46,9 +46,26 @@ describe("municipal report narrative", () => {
 
   it("returns null when there is no generated content for the analysis theme", () => {
     expect(buildHistoryNarrative(analysis("indicearidez"), {
-      DROUGHT_MONITOR: [
+      anaseca: [
         { title: "Tendência recente", text: "Texto de outro tema." },
       ],
     })).toBeNull();
+  });
+
+  it("returns every non-situation section for aridity and degradation layouts", () => {
+    const docsContent: MunicipalReportDocsContent = {
+      indicearidez: [
+        { title: "Situação atual", text: "Resumo." },
+        { title: "Situação atual", text: "Detalhamento histórico." },
+        { title: "Classificação climática", text: "Classificação." },
+        { title: "Evolução decenal", text: "Evolução." },
+      ],
+    };
+
+    expect(buildAnalysisNarrativeSections(analysis("indicearidez"), docsContent)).toEqual([
+      { title: "Situação atual", text: "Detalhamento histórico." },
+      { title: "Classificação climática", text: "Classificação." },
+      { title: "Evolução decenal", text: "Evolução." },
+    ]);
   });
 });

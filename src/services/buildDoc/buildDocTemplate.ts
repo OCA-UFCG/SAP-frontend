@@ -29,18 +29,55 @@ function normalizeLabel(label: string) {
     .trim();
 }
 
-const IGNORED_GROUP_HEADINGS = new Set(["analise da serie historica"]);
+const IGNORED_GROUP_HEADINGS = new Set([
+  "analise da serie historica",
+  "notas metodologicas e fontes",
+]);
+
+const PLAIN_SECTION_HEADINGS = [
+  "situacao atual",
+  "tendencia recente",
+  "contexto historico",
+  "classificacao climatica",
+  "evolucao decenal",
+  "leitura integrada dos indicadores",
+];
+
+const DOCS_CACHE_TTL_MS = 10 * 60 * 1000;
+
+type DocsCacheEntry = {
+  url: string;
+  text?: string;
+  expiresAt: number;
+  refresh?: Promise<string>;
+};
+
+const docsTextCache = new Map<string, DocsCacheEntry>();
 
 function parseSectionHeader(line: string) {
-  const headerMatch = line.trim().match(/^\*(.+?)\*\s*:?\s*(.*)$/);
+  const trimmed = line.trim();
+  const markedHeaderMatch = trimmed.match(/^(?:\*\*(.+?)\*\*|\*([^*]+)\*)\s*:?\s*(.*)$/);
 
-  if (!headerMatch) {
-    return null;
+  if (markedHeaderMatch) {
+    return {
+      title: (markedHeaderMatch[1] ?? markedHeaderMatch[2]).trim().replace(/:\s*$/u, ""),
+      text: markedHeaderMatch[3].trim(),
+    };
   }
 
+  const separatorIndex = trimmed.indexOf(":");
+  if (separatorIndex < 0) return null;
+
+  const title = trimmed.slice(0, separatorIndex).trim();
+  const normalizedTitle = normalizeLabel(title);
+  const isKnownPlainHeading = PLAIN_SECTION_HEADINGS.includes(normalizedTitle)
+    || normalizedTitle.startsWith("variacao ");
+
+  if (!isKnownPlainHeading) return null;
+
   return {
-    title: headerMatch[1].trim(),
-    text: headerMatch[2].trim(),
+    title,
+    text: trimmed.slice(separatorIndex + 1).trim(),
   };
 }
 
@@ -65,7 +102,12 @@ function parseThemeSections(text: string): ThemeSection[] {
       continue;
     }
 
-    if (!currentSection || IGNORED_GROUP_HEADINGS.has(normalizeLabel(line))) {
+    if (IGNORED_GROUP_HEADINGS.has(normalizeLabel(line))) {
+      currentSection = null;
+      continue;
+    }
+
+    if (!currentSection) {
       continue;
     }
 
@@ -96,14 +138,6 @@ function getDocumentTitle(text: string) {
   return null;
 }
 
-function getMonthYear(variables: ContentVariables) {
-  if (variables.month && variables.year) {
-    return `${variables.month}/${variables.year}`;
-  }
-
-  return variables.month ?? variables.year;
-}
-
 function getVariableValue(label: string, variables: ContentVariables) {
   const normalizedLabel = normalizeLabel(label);
   const replacements: Record<string, string | undefined> = {
@@ -115,8 +149,6 @@ function getVariableValue(label: string, variables: ContentVariables) {
     mes: variables.month,
     year: variables.year,
     ano: variables.year,
-    "month year": getMonthYear(variables),
-    "mes ano": getMonthYear(variables),
   };
 
   return replacements[normalizedLabel];
@@ -194,27 +226,95 @@ function getSelectedThemes({ themes }: GetDocTemplateInput) {
   return themes ?? [];
 }
 
-function getThemeDocsUrl(theme: string) {
-  const envKey = `DOCS_${theme}`;
-  const docsUrl = process.env[envKey];
+function getDefaultDocsUrl() {
+  const configuredUrl = process.env.DOCS_DEFAULT;
 
-  if (!docsUrl) {
-    throw new Error(`Invalid docs URL for theme: ${theme}`);
+  if (!configuredUrl) {
+    throw new Error("Invalid DOCS_DEFAULT URL");
   }
 
-  return docsUrl
+  const googleDocumentMatch = /^https:\/\/docs\.google\.com\/document\/d\/([^/?#]+)/u.exec(configuredUrl);
+  if (googleDocumentMatch) {
+    return `https://docs.google.com/document/d/${googleDocumentMatch[1]}/export?format=txt`;
+  }
+
+  return configuredUrl;
 }
 
-async function fetchThemeText(theme: string) {
-  const response = await fetch(getThemeDocsUrl(theme), {
-    cache: "no-store",
-  });
+async function fetchDefaultDocsText() {
+  const docsUrl = getDefaultDocsUrl();
+  const now = Date.now();
+  const cached = docsTextCache.get("DOCS_DEFAULT");
 
-  if (!response.ok) {
-    throw new Error(`Não foi possível carregar o documento: ${theme}`);
+  if (cached?.url === docsUrl && cached.text !== undefined && cached.expiresAt > now) {
+    return cached.text;
   }
 
-  return response.text();
+  if (cached?.url === docsUrl && cached.refresh) return cached.refresh;
+
+  const staleText = cached?.url === docsUrl ? cached.text : undefined;
+  const refresh = (async () => {
+    try {
+      const response = await fetch(docsUrl, { cache: "no-store" });
+
+      if (!response.ok) {
+        throw new Error("Não foi possível carregar DOCS_DEFAULT");
+      }
+
+      const text = await response.text();
+      docsTextCache.set("DOCS_DEFAULT", {
+        url: docsUrl,
+        text,
+        expiresAt: Date.now() + DOCS_CACHE_TTL_MS,
+      });
+      return text;
+    } catch (error) {
+      if (staleText !== undefined) {
+        docsTextCache.set("DOCS_DEFAULT", { url: docsUrl, text: staleText, expiresAt: 0 });
+        console.warn("[municipalReportDocs] Falha ao atualizar DOCS_DEFAULT; usando versão em cache.", error);
+        return staleText;
+      }
+      docsTextCache.delete("DOCS_DEFAULT");
+      throw error;
+    }
+  })();
+
+  docsTextCache.set("DOCS_DEFAULT", {
+    url: docsUrl,
+    text: staleText,
+    expiresAt: cached?.expiresAt ?? 0,
+    refresh,
+  });
+
+  return refresh;
+}
+
+function extractThemeText(text: string, theme: string) {
+  const lines: string[] = [];
+  let activeTheme: string | null = null;
+
+  const documentLines = text.split(/\r?\n/);
+
+  for (const [index, line] of documentLines.entries()) {
+    if (/^\s*\[layer:\s*[^\]]+\]\s*$/iu.test(documentLines[index + 1] ?? "")) {
+      continue;
+    }
+
+    const headingTheme = /^\s*\[layer:\s*([^\]]+)\]\s*$/iu.exec(line)?.[1].trim();
+
+    if (headingTheme) {
+      activeTheme = headingTheme;
+      continue;
+    }
+
+    if (activeTheme === theme) lines.push(line);
+  }
+
+  return lines.join("\n").trim();
+}
+
+export function clearDocTemplateCache() {
+  docsTextCache.clear();
 }
 
 export async function getDocTemplate(
@@ -233,19 +333,21 @@ export async function getDocTemplate(
     year: props.year === undefined ? undefined : String(props.year),
   };
 
-  const entries = await Promise.all(
-    selectedThemes.map(async (theme) => {
-      const text = await fetchThemeText(theme);
+  const documentText = await fetchDefaultDocsText();
+  const entries = selectedThemes.flatMap((theme) => {
+    const themeText = extractThemeText(documentText, theme);
+    if (!themeText) {
+      console.warn(`[municipalReportDocs] Seção ${theme} não encontrada em DOCS_DEFAULT.`);
+      return [];
+    }
 
-      const parsedTheme = parseAndInterpolateSections(
-        theme,
-        text,
-        variables,
-      );
+    const parsedTheme = parseAndInterpolateSections(theme, themeText, variables);
+    return [[theme, parsedTheme.sections] as const];
+  });
 
-      return [theme, parsedTheme.sections] as const;
-    }),
-  );
+  if (entries.length === 0) {
+    throw new Error("Nenhum template do Google Docs pôde ser carregado");
+  }
 
   return Object.fromEntries(entries);
 }

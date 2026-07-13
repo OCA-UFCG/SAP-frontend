@@ -48,7 +48,26 @@ function buildReport(timeSeries: MunicipalReportPeriodSnapshot[]): MunicipalRepo
 }
 
 describe("prepareTemplateData", () => {
-  it("builds the drought history narratives with report-ready formatting", () => {
+  it("does not use snapshots after the report effective period", () => {
+    const timeSeries = [
+      droughtSnapshot("2025-01", "sem-seca", "Sem seca"),
+      droughtSnapshot("2025-02", "seca-fraca", "Seca fraca"),
+      droughtSnapshot("2025-03", "seca-extrema", "Seca extrema"),
+    ];
+    const report = buildReport(timeSeries);
+    report.requestedPeriod = "2025-02";
+    report.analyses[0].requestedPeriod = "2025-02";
+    report.analyses[0].effectivePeriod = "2025-02";
+    report.analyses[0].snapshot = timeSeries[1];
+
+    const templateData = prepareTemplateData(report);
+
+    expect(templateData.periodo_seca).toBe("fevereiro de 2025");
+    expect(templateData.classe_seca).toBe("Seca fraca (D0)");
+    expect(templateData.periodos_seca_maxima).not.toContain("março de 2025");
+  });
+
+  it("only exposes values backed by the report data", () => {
     const timeSeries = [
       "2024-01", "2024-02", "2024-03", "2024-04", "2024-05", "2024-06",
     ].map((period) => droughtSnapshot(period, "sem-seca", "Sem seca"));
@@ -73,11 +92,8 @@ describe("prepareTemplateData", () => {
 
     const templateData = prepareTemplateData(buildReport(timeSeries));
 
-    expect(templateData.texto_tendencia_recente_seca).toBe(
-      "A série histórica de Monitor de seca | ANA registra que Campina Grande apresentou condição de seca em 12 dos últimos 12 períodos analisados (maio de 2025 a abril de 2026). No período de referência (abril de 2026), predomina Seca moderada (D1). Houve redução em relação ao mês anterior, quando predominava Seca grave (D2).",
-    );
-    expect(templateData.texto_contexto_historico_seca).toBe(
-      "No período janeiro de 2024–abril de 2026, a classe predominante mais frequente foi Seca fraca (D0), em 32,1% dos períodos. A condição sem seca predominou em 21,4% do período. A maior severidade observada foi Seca extrema (D3), registrada em dezembro de 2025.",
-    );
+    expect(templateData.valor_ia_medio).toBeUndefined();
+    expect(templateData.texto_tendencia_recente_seca).toBeUndefined();
+    expect(templateData.texto_contexto_historico_seca).toBeUndefined();
   });
 });

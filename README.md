@@ -133,60 +133,54 @@ O interpretador de relatórios monta o conteúdo final do documento a partir de
 templates armazenados no Google Docs. A saída atual segue este formato:
 
 ```ts
-[
-  {
-    theme: "DROUGHT_MONITOR",
-    paragraphs: [
-      {
-        title: "Situação atual",
-        paragraph:
-          "Campina Grande — Paraíba\nNo município de Campina Grande — Paraíba, predomina a classe Seca moderada, com 71.7% da área analisada enquadrada nesse nível de severidade, conforme o Monitor de Secas de 01/2024.",
-      },
-      {
-        title: "Tendência recente",
-        paragraph:
-          "A série histórica do Monitor de Secas registra que Campina Grande apresentou condições de seca em 12 dos últimos 12 meses analisados (período 2025-05 a 2026-04). No mês de referência (01/2024), o município encontra-se em Seca Moderada (D2), amenizando a situação em relação ao mês anterior, quando predominava a classe Seca grave.",
-      },
-      {
-        title: "Contexto histórico",
-        paragraph:
-          "No período 2024–2026, a classe mais frequente foi Seca fraca, registrada em 32.1% dos meses. O município esteve sem seca (S0) em apenas 21.4% do período. A maior severidade observada foi Seca extrema, registrada em 2025-12, 2026-01, 2026-02.",
-      },
-    ],
-  },
-];
+{
+  DROUGHT_MONITOR: [
+    { title: "Situação atual", text: "Texto preenchido da situação atual." },
+    { title: "Tendência recente", text: "Texto preenchido da tendência." },
+    { title: "Contexto histórico", text: "Texto preenchido do histórico." },
+  ],
+}
 ```
 
-Nesse formato, `theme` representa cada tema disponível para geração do
-documento. Para que um tema funcione, o `.env` deve conter uma variável com o
-prefixo `DOCS_` seguido do identificador do tema. Exemplo:
+Nesse formato, cada chave representa um tema disponível para geração do
+documento. Todos os temas são lidos de um único documento configurado no
+`.env`:
 
 ```env
-DOCS_DROUGHT_MONITOR=
+DOCS_DEFAULT=https://docs.google.com/document/d/.../export?format=txt
 ```
 
-O valor dessa variável deve ser a URL do Google Docs usado como template para
-aquele tema.
+O documento deve separar cada template pelo título do layer, por exemplo
+`◉ 1. Monitor de Secas`, `◈ 2. Índice de Aridez` e
+`◆ 3. Índice de Degradação da Terra`. O interpretador recorta cada bloco pelo
+título configurado para o tema e ignora as seções de notas metodológicas.
+
+O texto exportado de cada tema fica em cache na memória do processo por 10
+minutos. Depois desse prazo, a próxima geração tenta atualizar o conteúdo no
+Google Docs. Se a atualização falhar e já existir uma versão anterior, essa
+última versão é usada para que o relatório continue disponível. Em ambientes
+com mais de uma instância, cada processo mantém seu próprio cache.
 
 A partir desse documento, o interpretador lê o conteúdo, identifica cada seção
-marcada com `**` e converte cada seção em um item de `paragraphs`:
+marcada como `*Título*` ou `**Título**` e converte cada seção em um bloco:
 
 ```ts
 {
   title: "Título da seção",
-  paragraph: "Texto da seção com os dados já preenchidos"
+  text: "Texto da seção com os dados já preenchidos"
 }
 ```
 
 O fluxo atual é:
 
 ```txt
-theme -> variável no .env -> Google Docs template -> seções marcadas com ** -> paragraphs
+temas -> DOCS_DEFAULT -> cache -> seções por layer -> texto preenchido
 ```
 
-Assim, cada tema pode ter seu próprio documento-base, e o interpretador
-transforma automaticamente as seções do template em blocos estruturados para uso
-na geração do documento final.
+Assim, a equipe pode editar todos os textos em um só lugar, mantendo uma seção
+por layer. Para incluir um novo layer, adicione seu `docsTheme` na configuração
+do relatório e crie no documento uma seção cujo título corresponda ao título do
+layer.
 
 ## Agent Context Docs
 

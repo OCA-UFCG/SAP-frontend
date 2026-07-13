@@ -16,10 +16,16 @@ const SECA_ANALYSIS_ID = "anaseca";
 const ARIDEZ_ANALYSIS_ID = "indicearidez";
 const DEGRADACAO_ANALYSIS_ID = "deg";
 const REPORT_LOCALE = "pt-BR";
-const TITULO_SECA = "Monitor de seca | ANA";
+
+function getAnalysis(report: MunicipalReportData, analysisId: string) {
+  return report.analyses.find((analysis) => analysis.id === analysisId);
+}
 
 function getAnalysisTimeSeries(report: MunicipalReportData, analysisId: string): MunicipalReportPeriodSnapshot[] {
-  return report.analyses.find((analysis) => analysis.id === analysisId)?.timeSeries ?? [];
+  const analysis = getAnalysis(report, analysisId);
+  if (!analysis?.effectivePeriod) return [];
+
+  return analysis.timeSeries.filter((snapshot) => snapshot.period <= analysis.effectivePeriod!);
 }
 
 function getLatestSnapshot(timeSeries: MunicipalReportPeriodSnapshot[]): MunicipalReportPeriodSnapshot | undefined {
@@ -42,13 +48,6 @@ function formatPeriod(period: string) {
   }).format(new Date(Date.UTC(Number(match[1]), Number(match[2]) - 1, 1)));
 }
 
-function formatPercentage(value: number) {
-  return new Intl.NumberFormat(REPORT_LOCALE, {
-    minimumFractionDigits: 1,
-    maximumFractionDigits: 1,
-  }).format(value);
-}
-
 function formatClassLabel(label: string) {
   const normalized = label.trim();
   if (!normalized) return label;
@@ -64,49 +63,7 @@ function formatClass(id: string, label: string) {
   return code ? `${classLabel} (${code})` : classLabel;
 }
 
-function getClassRank(id: string) {
-  return getMunicipalReportPresentation(SECA_ANALYSIS_ID).history?.classes[id]?.rank;
-}
-
-function isNeutralDroughtClass(id: string) {
-  return getMunicipalReportPresentation(SECA_ANALYSIS_ID).history?.classes[id]?.isNeutral === true;
-}
-
-function buildDroughtComparison(
-  current: MunicipalReportDistributionItem,
-  previous: MunicipalReportDistributionItem | undefined,
-) {
-  if (!previous) {
-    return "Não há mês anterior disponível para comparação.";
-  }
-
-  if (current.id === previous.id) {
-    return `A classificação permaneceu estável em relação ao mês anterior, quando também predominava ${formatClass(previous.id, previous.label)}.`;
-  }
-
-  if (isNeutralDroughtClass(current.id)) {
-    return `Houve melhora em relação ao mês anterior, quando predominava ${formatClass(previous.id, previous.label)}; no período atual não predomina condição de seca.`;
-  }
-
-  if (isNeutralDroughtClass(previous.id)) {
-    return `Houve piora em relação ao mês anterior, quando predominava ${formatClass(previous.id, previous.label)}; no período atual passou a predominar ${formatClass(current.id, current.label)}.`;
-  }
-
-  const currentRank = getClassRank(current.id);
-  const previousRank = getClassRank(previous.id);
-  if (currentRank != null && previousRank != null) {
-    const direction = currentRank > previousRank ? "agravamento" : "redução";
-
-    return `Houve ${direction} em relação ao mês anterior, quando predominava ${formatClass(previous.id, previous.label)}.`;
-  }
-
-  return `No mês anterior predominava ${formatClass(previous.id, previous.label)}; as classes não possuem uma ordem configurada para qualificar essa mudança como melhora ou piora.`;
-}
-
-function computarVariaveisSeca(
-  timeSeries: MunicipalReportPeriodSnapshot[],
-  municipalityName: string,
-): Record<string, string | number> {
+function computarVariaveisSeca(timeSeries: MunicipalReportPeriodSnapshot[]): Record<string, string | number> {
   const series = timeSeries.filter((snapshot) => snapshot.dominantClass);
   if (series.length === 0) return {};
 
@@ -170,36 +127,22 @@ function computarVariaveisSeca(
   }
 
   const mesesSecaMaxima = series.filter((m) => m.dominantClass!.id === idClasseMaxima).map((m) => m.period);
-  const primeiroMesSecaMaxima = mesesSecaMaxima[0];
   const periodos_seca_maxima =
     mesesSecaMaxima.length > 0
       ? mesesSecaMaxima.slice(-3).map(formatPeriod).join(", ") + (mesesSecaMaxima.length > 3 ? " (entre outros)" : "")
       : "nenhum";
-  const texto_tendencia_recente_seca = [
-    `A série histórica de ${TITULO_SECA} registra que ${municipalityName} apresentou condição de seca em ${qtd_meses_com_seca} dos últimos ${ultimos12.length} períodos analisados (${formatPeriod(ultimos12[0].period)} a ${formatPeriod(ultimoMes.period)}).`,
-    `No período de referência (${formatPeriod(ultimoMes.period)}), predomina ${formatClass(ultimoMes.dominantClass!.id, ultimoMes.dominantClass!.label)}.`,
-    buildDroughtComparison(ultimoMes.dominantClass!, penultimoMes?.dominantClass ?? undefined),
-  ].join(" ");
-  const texto_contexto_historico_seca = `No período ${formatPeriod(series[0].period)}–${formatPeriod(ultimoMes.period)}, a classe predominante mais frequente foi ${formatClass(idClasseMaisFrequente, classeMaisFrequente)}, em ${formatPercentage((countMaisFrequente / totalMeses) * 100)}% dos períodos. A condição sem seca predominou em ${formatPercentage(((freqClasses["sem-seca"]?.count ?? 0) / totalMeses) * 100)}% do período. A maior severidade observada foi ${formatClass(idClasseMaxima, classeSecaMaxima)}, registrada em ${primeiroMesSecaMaxima ? formatPeriod(primeiroMesSecaMaxima) : "nenhum"}.`;
-
   return {
-    titulo_seca: TITULO_SECA,
     qtd_meses_com_seca,
-    qtd_periodos_recentes_seca: ultimos12.length,
     mes_ano_inicio_tendencia,
     status_tendencia_seca,
     classe_seca_anterior: penultimoMes ? formatClass(penultimoMes.dominantClass!.id, penultimoMes.dominantClass!.label) : "Sem dados",
     ano_inicio_historico,
     ano_fim_historico,
     classe_seca_mais_frequente: formatClass(idClasseMaisFrequente, classeMaisFrequente),
-    percentual_freq_seca: formatPercentage((countMaisFrequente / totalMeses) * 100),
-    percentual_sem_seca: formatPercentage(((freqClasses["sem-seca"]?.count ?? 0) / totalMeses) * 100),
+    percentual_freq_seca: Number(((countMaisFrequente / totalMeses) * 100).toFixed(1)),
+    percentual_sem_seca: Number((((freqClasses["sem-seca"]?.count ?? 0) / totalMeses) * 100).toFixed(1)),
     classe_seca_maxima: formatClass(idClasseMaxima, classeSecaMaxima),
     periodos_seca_maxima,
-    periodo_seca_maxima_principal: primeiroMesSecaMaxima ? formatPeriod(primeiroMesSecaMaxima) : "nenhum",
-    periodo_referencia_seca: formatPeriod(ultimoMes.period),
-    texto_tendencia_recente_seca,
-    texto_contexto_historico_seca,
   };
 }
 
@@ -228,7 +171,6 @@ function computarVariaveisAridez(timeSeries: MunicipalReportPeriodSnapshot[]): R
   }
 
   return {
-    valor_ia_medio: "< 0.65",
     periodo_aridez_inicial: primeira.period,
     percentual_aridez_inicial: primeira.dominantClass!.percentage,
     status_tendencia_aridez: tendencia,
@@ -299,11 +241,11 @@ export function prepareTemplateData(report: MunicipalReportData): TemplateData {
   const aridezSeries = getAnalysisTimeSeries(report, ARIDEZ_ANALYSIS_ID);
   const degSeries = getAnalysisTimeSeries(report, DEGRADACAO_ANALYSIS_ID);
 
-  const ultimoSeca = getLatestSnapshot(secaSeries);
-  const ultimoAridez = getLatestSnapshot(aridezSeries);
-  const ultimoDeg = getLatestSnapshot(degSeries);
+  const ultimoSeca = getAnalysis(report, SECA_ANALYSIS_ID)?.snapshot ?? getLatestSnapshot(secaSeries);
+  const ultimoAridez = getAnalysis(report, ARIDEZ_ANALYSIS_ID)?.snapshot ?? getLatestSnapshot(aridezSeries);
+  const ultimoDeg = getAnalysis(report, DEGRADACAO_ANALYSIS_ID)?.snapshot ?? getLatestSnapshot(degSeries);
 
-  const varsSeca = computarVariaveisSeca(secaSeries, report.municipality.name);
+  const varsSeca = computarVariaveisSeca(secaSeries);
   const varsAridez = computarVariaveisAridez(aridezSeries);
   const varsDeg = computarVariaveisDegradacao(degSeries);
 
@@ -350,5 +292,5 @@ export async function getTemplateData(ibgeId: string, period: string): Promise<T
   const report = await buildMunicipalReport(ibgeId, period);
   const templateData = prepareTemplateData(report);
 
-  return templateData
+  return { ...report.templateVariables, ...templateData };
 }

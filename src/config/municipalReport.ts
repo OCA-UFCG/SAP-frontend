@@ -3,7 +3,6 @@ export interface MunicipalReportLayerConfig {
   alias: string;
   title: string;
   order: number;
-  docsTheme?: string;
   presentation?: MunicipalReportPresentationConfig;
 }
 
@@ -29,7 +28,7 @@ export interface MunicipalReportPresentationConfig {
 
 export const MUNICIPAL_REPORT_LAYERS: readonly MunicipalReportLayerConfig[] = [
   {
-    panelLayerId: "anaseca", alias: "seca", title: "Monitor de Secas", order: 10, docsTheme: "DROUGHT_MONITOR",
+    panelLayerId: "anaseca", alias: "seca", title: "Monitor de Secas", order: 10,
     presentation: {
       sectionColor: "#176b39",
       coverageContext: "enquadrada nesse nível de severidade",
@@ -49,14 +48,14 @@ export const MUNICIPAL_REPORT_LAYERS: readonly MunicipalReportLayerConfig[] = [
     },
   },
   {
-    panelLayerId: "indicearidez", alias: "aridez", title: "Índice de Aridez", order: 20, docsTheme: "ARIDITY_INDEX",
+    panelLayerId: "indicearidez", alias: "aridez", title: "Índice de Aridez", order: 20,
     presentation: {
       sectionColor: "#795548", coverageContext: "enquadrada nessa zona climática",
       methodology: "Calculado pela razão entre precipitação anual e evapotranspiração potencial, com referências decenais disponíveis na plataforma.",
     },
   },
   {
-    panelLayerId: "deg", alias: "degradacao", title: "Índice de Degradação da Terra", order: 30, docsTheme: "DEGRADATION_INDEX",
+    panelLayerId: "deg", alias: "degradacao", title: "Índice de Degradação da Terra", order: 30,
     presentation: {
       sectionColor: "#2e7d32", coverageContext: "classificada nesse nível",
       methodology: "Indicador territorial produzido para caracterizar diferentes níveis de conservação e degradação do solo e da cobertura vegetal.",
@@ -70,6 +69,14 @@ export const MUNICIPAL_REPORT_LAYERS: readonly MunicipalReportLayerConfig[] = [
       },
     },
   },
+  { panelLayerId: "carbonoembrapa", alias: "carbono", title: "Carbono", order: 40 },
+  { panelLayerId: "prev_anomalia_precipitacao", alias: "anomalia_precipitacao", title: "Previsão: Anomalia de Precipitação", order: 50 },
+  { panelLayerId: "CDI_Test", alias: "cdi", title: "Índice Composto de Seca (CDI)", order: 60 },
+  { panelLayerId: "pob_total", alias: "pobreza", title: "Famílias em situação de pobreza", order: 70 },
+  { panelLayerId: "cemadenseca", alias: "cemaden_seca", title: "Cemaden: Seca", order: 80 },
+  { panelLayerId: "ods", alias: "ods", title: "Objetivos de Desenvolvimento Sustentável", order: 90 },
+  { panelLayerId: "prodprimariabruta", alias: "producao_primaria_bruta", title: "Produção Primária Bruta", order: 100 },
+  { panelLayerId: "terraibge", alias: "cobertura_terra", title: "Cobertura da Terra", order: 110 },
 ] as const;
 
 export function getMunicipalReportLayerConfig(analysisId: string) {

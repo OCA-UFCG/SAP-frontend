@@ -10,7 +10,7 @@ import type {
 } from "@/contracts/municipalReport";
 import { getMunicipalReportPresentation } from "@/config/municipalReport";
 import {
-  buildHistoryNarrative,
+  buildAnalysisNarrativeSections,
   buildSituationNarrative,
   formatReportPeriod,
 } from "@/utils/municipalReportNarrative";
@@ -76,7 +76,7 @@ function AnalysisSection({
   const t = useTranslations("MunicipalReport");
   const dominant = analysis.snapshot?.dominantClass;
   const presentation = getMunicipalReportPresentation(analysis.id);
-  const situationText = buildSituationNarrative(analysis, docsContent);
+  const situationText = buildSituationNarrative(analysis, docsContent, report, presentation, locale);
   const sectionColor = presentation.sectionColor;
   const effectivePeriod = analysis.effectivePeriod ?? analysis.snapshot?.period;
   const referencePeriod = effectivePeriod ?? analysis.snapshot?.period ?? analysis.requestedPeriod;
@@ -88,7 +88,7 @@ function AnalysisSection({
       ? `Período solicitado: ${requestedPeriodLabel}; período disponível usado no relatório: ${referencePeriodLabel}.`
       : `Período de referência usado no relatório: ${referencePeriodLabel}.`;
   const historyRange = compactPeriodRange(analysis.timeSeries, referencePeriod, locale);
-  const historyNarrative = buildHistoryNarrative(analysis, docsContent);
+  const narrativeSections = buildAnalysisNarrativeSections(analysis, docsContent);
 
   return (
     <section className="report-section">
@@ -233,19 +233,14 @@ function AnalysisSection({
             </div>
           </div>
 
-          {historyNarrative ? (
+          {narrativeSections.length > 0 ? (
             <div className="report-block mt-7 border border-[#d9e0e3] p-5 text-[15px] leading-6">
               <h3 className="report-heading font-bold text-[#536e7b]">Análise da série histórica</h3>
-              {historyNarrative.recent && (
-                <p className="mt-2 whitespace-pre-line text-justify text-neutral-800">
-                  <strong>Tendência recente:</strong> {historyNarrative.recent}
+              {narrativeSections.map((section, sectionIndex) => (
+                <p key={`${section.title}:${sectionIndex}`} className="mt-3 whitespace-pre-line text-justify text-neutral-800">
+                  <strong>{section.title}:</strong> {section.text}
                 </p>
-              )}
-              {historyNarrative.context && (
-                <p className="mt-3 whitespace-pre-line text-justify text-neutral-800">
-                  <strong>Contexto histórico:</strong> {historyNarrative.context}
-                </p>
-              )}
+              ))}
               <p className="mt-3 text-justify text-neutral-800">
                 <strong>Referência da seção:</strong> {periodResolution}
               </p>
@@ -543,13 +538,19 @@ export function MunicipalReportPreview({ municipalityCode, period, layerIds, emb
           .map((a) => a.id);
 
         if (selectedLayerIdsForDocs.length > 0) {
-          const docsResponse = await fetch(
-            `/api/municipal-report/${encodeURIComponent(municipalityCode)}/docs?period=${encodeURIComponent(period)}&layers=${encodeURIComponent(selectedLayerIdsForDocs.join(","))}`,
-            { credentials: "same-origin", signal: controller.signal },
-          );
-          const docsPayload = await docsResponse.json();
-          if (!docsResponse.ok) throw new Error(docsPayload.error ?? t("loadError"));
-          setDocsContent(docsPayload.content as MunicipalReportDocsContent);
+          try {
+            const docsResponse = await fetch(
+              `/api/municipal-report/${encodeURIComponent(municipalityCode)}/docs?period=${encodeURIComponent(period)}&layers=${encodeURIComponent(selectedLayerIdsForDocs.join(","))}`,
+              { credentials: "same-origin", signal: controller.signal },
+            );
+            const docsPayload = await docsResponse.json();
+            if (!docsResponse.ok) throw new Error(docsPayload.error ?? t("loadError"));
+            setDocsContent(docsPayload.content as MunicipalReportDocsContent);
+          } catch (docsError) {
+            if (controller.signal.aborted) throw docsError;
+            console.warn("Não foi possível carregar os textos do relatório; mantendo os dados e gráficos disponíveis.", docsError);
+            setDocsContent(null);
+          }
         }
 
         if (selectedAliases.length === 0) {

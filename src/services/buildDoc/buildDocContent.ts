@@ -35,7 +35,7 @@ export async function buildDocContent({
   return populateDocContent(baseTemplate, templateData);
 }
 
-function populateTemplate(template: string, data: TemplateData): string {
+function populateTemplate(theme: string, template: string, data: TemplateData): string {
   const regex = /\[([^\]]+)\]/g;
   const normalizedData = normalizeTemplateDataKeys(data);
   const placeholderCounters = new Map<string, number>();
@@ -46,7 +46,7 @@ function populateTemplate(template: string, data: TemplateData): string {
     const value =
       data[cleanKey] ??
       normalizedData[normalizedKey] ??
-      getAliasedTemplateValue(normalizedKey, normalizedData, placeholderCounters);
+      getAliasedTemplateValue(theme, normalizedKey, normalizedData, placeholderCounters);
 
     if (value === undefined || value === null) {
       return match;
@@ -56,65 +56,78 @@ function populateTemplate(template: string, data: TemplateData): string {
   });
 }
 
-function populateDocContent(template: DocsContent, data: TemplateData): DocsContent {
+export function populateDocContent(template: DocsContent, data: TemplateData): DocsContent {
   return Object.fromEntries(
     Object.entries(template).map(([theme, sections]) => [
       theme,
       sections.map((section) => {
-        const title = populateTemplate(section.title, data);
-        const textTemplate = getGeneratedSectionOverride(theme, title, data) ?? section.text;
+        const title = populateTemplate(theme, section.title, data);
 
         return {
           title,
-          text: populateTemplate(textTemplate, data),
+          text: populateTemplate(theme, section.text, data),
         };
       }),
     ]),
   );
 }
 
-function getGeneratedSectionOverride(theme: string, title: string, data: TemplateData) {
-  if (theme !== "DROUGHT_MONITOR") return undefined;
-
-  const normalizedTitle = normalizeTemplateKey(title);
-  if (normalizedTitle.includes("tendencia_recente")) {
-    return typeof data.texto_tendencia_recente_seca === "string"
-      ? data.texto_tendencia_recente_seca
-      : undefined;
-  }
-
-  if (normalizedTitle.includes("contexto_historico")) {
-    return typeof data.texto_contexto_historico_seca === "string"
-      ? data.texto_contexto_historico_seca
-      : undefined;
-  }
-
-  return undefined;
-}
-
 function getAliasedTemplateValue(
+  theme: string,
   normalizedKey: string,
   data: TemplateData,
   counters: Map<string, number>,
 ) {
-  const sequentialAliases: Record<string, string[]> = {
-    xx: ["percentual_freq_seca", "percentual_sem_seca"],
+  const aliasesByTheme: Record<string, Record<string, string>> = {
+    DROUGHT_MONITOR: {
+      seca_classe: "classe_seca",
+      percentual: "percentual_seca",
+      mes_ano: "periodo_seca",
+      mes_ano_inicio: "mes_ano_inicio_tendencia",
+      mes_ano_fim: "periodo_seca",
+      mantendo_agravando_amenizando: "status_tendencia_seca",
+      classe_anterior: "classe_seca_anterior",
+      ano_inicio: "ano_inicio_historico",
+      ano_fim: "ano_fim_historico",
+      classe_mais_frequente: "classe_seca_mais_frequente",
+      classe_maxima: "classe_seca_maxima",
+      mes_ano_mais_severo: "periodos_seca_maxima",
+    },
+    ARIDITY_INDEX: {
+      classe: "classe_aridez",
+      classe_de_aridez: "classe_aridez",
+      percentual: "percentual_aridez",
+      mes_ano: "periodo_aridez",
+      estabilidade_aridificacao_amenizacao: "status_tendencia_aridez",
+    },
+    DEGRADATION_INDEX: {
+      percentual: "percentual_degradacao",
+      mes_ano: "periodo_degradacao",
+      aumento_reducao_estabilidade: "status_tendencia_degradacao",
+      acrescimo_decrescimo: "acrescimo_decrescimo_deg",
+      e_nao_e: "compatibilidade_com_seca",
+    },
   };
-  const aliases: Record<string, string> = {
-    seca_classe: "classe_seca",
-    percentual: "percentual_seca",
-    x: "qtd_meses_com_seca",
-    mes_ano_inicio: "mes_ano_inicio_tendencia",
-    mes_ano_fim: "periodo_seca",
-    mantendo_agravando_amenizando: "status_tendencia_seca",
-    classe_anterior: "classe_seca_anterior",
-    ano_inicio: "ano_inicio_historico",
-    ano_fim: "ano_fim_historico",
-    classe_mais_frequente: "classe_seca_mais_frequente",
-    classe_maxima: "classe_seca_maxima",
-    mes_ano_mais_severo: "periodos_seca_maxima",
+  const sequentialAliasesByTheme: Record<string, Record<string, string[]>> = {
+    DROUGHT_MONITOR: {
+      x: ["qtd_meses_com_seca"],
+      xx: ["percentual_freq_seca", "percentual_sem_seca"],
+    },
+    DEGRADATION_INDEX: {
+      classe: ["classe_degradacao", "classe_maior_variacao_deg"],
+      x: [
+        "soma_percentual_deg_n3_n4_n5",
+        "percentual_deg_conservado",
+        "percentual_deg_n1",
+        "percentual_deg_n2",
+        "percentual_deg_n3",
+        "percentual_deg_n4",
+        "percentual_deg_n5",
+        "variacao_deg_pontos",
+      ],
+    },
   };
-  const sequence = sequentialAliases[normalizedKey];
+  const sequence = sequentialAliasesByTheme[theme]?.[normalizedKey];
 
   if (sequence) {
     const index = counters.get(normalizedKey) ?? 0;
@@ -123,7 +136,7 @@ function getAliasedTemplateValue(
     return data[sequence[index] ?? sequence[sequence.length - 1]];
   }
 
-  const alias = aliases[normalizedKey];
+  const alias = aliasesByTheme[theme]?.[normalizedKey];
 
   return alias ? data[alias] : undefined;
 }
