@@ -78,6 +78,8 @@ export interface MunicipalReportDocsSection {
   text: string;
 }
 
+export const MUNICIPAL_REPORT_DOCS_REPORT_KEY = "__report__";
+
 export type MunicipalReportDocsContent = Record<string, MunicipalReportDocsSection[]>;
 
 export interface MunicipalReportPackage {

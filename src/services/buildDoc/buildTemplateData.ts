@@ -260,6 +260,10 @@ export function prepareTemplateData(report: MunicipalReportData): TemplateData {
   return {
     municipio: report.municipality.name,
     uf: report.municipality.uf,
+    data_geracao: new Intl.DateTimeFormat("pt-BR", { timeZone: "UTC" }).format(
+      new Date(report.generatedAt),
+    ),
+    periodo_referencia: formatPeriod(report.requestedPeriod),
 
     classe_seca: ultimoSeca?.dominantClass ? formatClass(ultimoSeca.dominantClass.id, ultimoSeca.dominantClass.label) : "Sem dados",
     percentual_seca: ultimoSeca?.dominantClass?.percentage ?? 0,

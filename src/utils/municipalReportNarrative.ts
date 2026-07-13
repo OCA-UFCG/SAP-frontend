@@ -1,4 +1,9 @@
-import type { MunicipalReportAnalysis, MunicipalReportData, MunicipalReportDocsContent } from "@/contracts/municipalReport";
+import {
+  MUNICIPAL_REPORT_DOCS_REPORT_KEY,
+  type MunicipalReportAnalysis,
+  type MunicipalReportData,
+  type MunicipalReportDocsContent,
+} from "@/contracts/municipalReport";
 import { type MunicipalReportPresentationConfig } from "@/config/municipalReport";
 
 export function formatReportPeriod(period: string, locale: string) {
@@ -25,6 +30,19 @@ function sectionTitleMatches(sectionTitle: string, expectedTitles: Set<string>) 
     normalizedTitle.endsWith(` ${expectedTitle}`) ||
     normalizedTitle.includes(expectedTitle),
   );
+}
+
+export function getReportDocsText(
+  docsContent: MunicipalReportDocsContent | null,
+  sectionTitle: string,
+) {
+  const sections = docsContent?.[MUNICIPAL_REPORT_DOCS_REPORT_KEY];
+  if (!sections) return null;
+
+  const expectedTitles = new Set([normalizeSectionTitle(sectionTitle)]);
+  return sections.find((section) =>
+    sectionTitleMatches(section.title, expectedTitles),
+  )?.text.trim() || null;
 }
 
 function findGeneratedSectionText(

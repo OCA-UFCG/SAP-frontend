@@ -1,6 +1,10 @@
 import "server-only";
 
-import type { MunicipalReportDocsContent, MunicipalReportDocsSection } from "@/contracts/municipalReport";
+import {
+  MUNICIPAL_REPORT_DOCS_REPORT_KEY,
+  type MunicipalReportDocsContent,
+  type MunicipalReportDocsSection,
+} from "@/contracts/municipalReport";
 
 export type ThemeSection = MunicipalReportDocsSection;
 export type DocsContent = MunicipalReportDocsContent;
@@ -86,6 +90,11 @@ function parseThemeSections(text: string): ThemeSection[] {
   let currentSection: { title: string; lines: string[] } | null = null;
 
   for (const line of text.split(/\r?\n/)) {
+    if (/^\s*\[(?:grupo|ajuda):[^\]]+\]\s*$/iu.test(line)) {
+      currentSection = null;
+      continue;
+    }
+
     const sectionHeader = parseSectionHeader(line);
 
     if (sectionHeader) {
@@ -289,25 +298,28 @@ async function fetchDefaultDocsText() {
   return refresh;
 }
 
-function extractThemeText(text: string, theme: string) {
+function extractTemplateBlock(text: string, block: string) {
   const lines: string[] = [];
-  let activeTheme: string | null = null;
+  let activeBlock: string | null = null;
 
   const documentLines = text.split(/\r?\n/);
 
   for (const [index, line] of documentLines.entries()) {
-    if (/^\s*\[layer:\s*[^\]]+\]\s*$/iu.test(documentLines[index + 1] ?? "")) {
+    if (/^\s*(?:\[report\]|\[layer:\s*[^\]]+\])\s*$/iu.test(documentLines[index + 1] ?? "")) {
       continue;
     }
 
-    const headingTheme = /^\s*\[layer:\s*([^\]]+)\]\s*$/iu.exec(line)?.[1].trim();
+    const layerBlock = /^\s*\[layer:\s*([^\]]+)\]\s*$/iu.exec(line)?.[1].trim();
+    const headingBlock = /^\s*\[report\]\s*$/iu.test(line)
+      ? MUNICIPAL_REPORT_DOCS_REPORT_KEY
+      : layerBlock;
 
-    if (headingTheme) {
-      activeTheme = headingTheme;
+    if (headingBlock) {
+      activeBlock = headingBlock;
       continue;
     }
 
-    if (activeTheme === theme) lines.push(line);
+    if (activeBlock === block) lines.push(line);
   }
 
   return lines.join("\n").trim();
@@ -334,8 +346,12 @@ export async function getDocTemplate(
   };
 
   const documentText = await fetchDefaultDocsText();
+  const reportText = extractTemplateBlock(documentText, MUNICIPAL_REPORT_DOCS_REPORT_KEY);
+  const reportEntry = reportText
+    ? [[MUNICIPAL_REPORT_DOCS_REPORT_KEY, parseAndInterpolateSections(MUNICIPAL_REPORT_DOCS_REPORT_KEY, reportText, variables).sections] as const]
+    : [];
   const entries = selectedThemes.flatMap((theme) => {
-    const themeText = extractThemeText(documentText, theme);
+    const themeText = extractTemplateBlock(documentText, theme);
     if (!themeText) {
       console.warn(`[municipalReportDocs] Seção ${theme} não encontrada em DOCS_DEFAULT.`);
       return [];
@@ -349,5 +365,5 @@ export async function getDocTemplate(
     throw new Error("Nenhum template do Google Docs pôde ser carregado");
   }
 
-  return Object.fromEntries(entries);
+  return Object.fromEntries([...reportEntry, ...entries]);
 }

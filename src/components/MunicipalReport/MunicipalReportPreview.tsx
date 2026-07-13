@@ -13,6 +13,7 @@ import {
   buildAnalysisNarrativeSections,
   buildSituationNarrative,
   formatReportPeriod,
+  getReportDocsText,
 } from "@/utils/municipalReportNarrative";
 import citiesIndex from "@/data/citiesIndex.json";
 import { ReportMapPreview } from "./ReportMapPreview";
@@ -164,7 +165,6 @@ function AnalysisSection({
               <thead className="bg-[#176b39] text-white">
                 <tr>
                   <th className="border-r border-white/40 px-4 py-2.5 text-left">Classe</th>
-                  <th className="border-r border-white/40 px-4 py-2.5 text-left">Descrição</th>
                   <th className="w-36 px-4 py-2.5 text-right">Cobertura (%)</th>
                 </tr>
               </thead>
@@ -180,9 +180,6 @@ function AnalysisSection({
                         style={{ backgroundColor: item.color }}
                       />
                       {item.label}
-                    </td>
-                    <td className="border-r border-[#c8ced1] px-4 py-2.5 text-neutral-700">
-                      {presentation?.history?.classes[item.id]?.description ?? presentation?.classes?.[item.id]?.description ?? "—"}
                     </td>
                     <td className="px-4 py-2.5 text-right font-semibold">
                       {item.percentage.toFixed(1)}%
@@ -290,52 +287,54 @@ function ReportDocument({
     .filter((period, index, periods) => periods.indexOf(period) === index)
     .map((period) => formatReportPeriod(period, locale))
     .join(" · ");
+  const reportText = (section: string, fallback: string) =>
+    getReportDocsText(docsContent, section) ?? fallback;
 
   return (
     <article ref={documentRef} className="report-paper mt-6 bg-white text-[#202020] shadow-[0_8px_35px_rgba(0,0,0,0.12)]">
       <header>
         <div className="flex flex-wrap items-start justify-between gap-4 text-xs text-[#0f5a2d]">
-          <strong>SAP — Sistema de Alerta Precoce de Seca e Desertificação</strong>
-          <span className="text-[#536e7b]">Relatório Analítico Automatizado</span>
+          <strong>{reportText("Identificação do sistema", "SAP — Sistema de Alerta Precoce de Seca e Desertificação")}</strong>
+          <span className="text-[#536e7b]">{reportText("Tipo do relatório", "Relatório Analítico Automatizado")}</span>
           <div className="text-right">
-            <strong>OCA / UFCG / INSA</strong>
-            <div className="mt-1 text-[10px] font-normal text-[#536e7b]">beta-sap.lsd.ufcg.edu.br</div>
+            <strong>{reportText("Instituições", "OCA / UFCG / INSA")}</strong>
+            <div className="mt-1 text-[10px] font-normal text-[#536e7b]">{reportText("Site", "beta-sap.lsd.ufcg.edu.br")}</div>
           </div>
         </div>
 
         <div className="mt-6 bg-[#125c2d] px-6 py-3 text-center text-white">
           <h1 className="text-[22px] font-bold uppercase leading-tight">
-            Relatório Analítico do Sistema de Alerta Precoce de Seca e Desertificação
+            {reportText("Título principal", "Relatório Analítico do Sistema de Alerta Precoce de Seca e Desertificação")}
           </h1>
           <p className="mt-2 text-sm text-white/80">
-            Lei nº 13.153/2015 · Política Nacional de Combate à Desertificação
+            {reportText("Subtítulo", "Lei nº 13.153/2015 · Política Nacional de Combate à Desertificação")}
           </p>
         </div>
 
         <div className="report-block mt-6 border border-[#c8ced1] text-sm">
           <div className="grid grid-cols-[175px_1fr] border-b border-[#c8ced1] sm:grid-cols-[175px_1fr_105px_115px]">
-            <strong className="bg-[#f1f2f2] px-3 py-2.5 text-[#536e7b]">Área de análise</strong>
+            <strong className="bg-[#f1f2f2] px-3 py-2.5 text-[#536e7b]">{reportText("Rótulo área de análise", "Área de análise")}</strong>
             <span className="border-l border-[#c8ced1] px-3 py-2.5 font-bold">
               {report.municipality.name} — {report.municipality.uf}
             </span>
-            <strong className="border-l border-[#c8ced1] bg-[#f1f2f2] px-3 py-2.5 text-center text-[#536e7b]">Escala</strong>
+            <strong className="border-l border-[#c8ced1] bg-[#f1f2f2] px-3 py-2.5 text-center text-[#536e7b]">{reportText("Rótulo escala", "Escala")}</strong>
             <span className="border-l border-[#c8ced1] px-3 py-2.5 text-center">Municipal</span>
           </div>
           <div className="grid grid-cols-[175px_1fr] sm:grid-cols-[175px_1fr_105px_115px]">
-            <strong className="bg-[#f1f2f2] px-3 py-2.5 text-[#536e7b]">Data de geração</strong>
+            <strong className="bg-[#f1f2f2] px-3 py-2.5 text-[#536e7b]">{reportText("Rótulo data de geração", "Data de geração")}</strong>
             <span className="border-l border-[#c8ced1] px-3 py-2.5">{generatedAt}</span>
-            <strong className="border-l border-[#c8ced1] bg-[#f1f2f2] px-3 py-2.5 text-center text-[#536e7b]">Referência</strong>
+            <strong className="border-l border-[#c8ced1] bg-[#f1f2f2] px-3 py-2.5 text-center text-[#536e7b]">{reportText("Rótulo referência", "Referência")}</strong>
             <span className="border-l border-[#c8ced1] px-3 py-2.5 text-center">{formatReportPeriod(report.requestedPeriod, locale)}</span>
           </div>
         </div>
 
         <div className="report-block mt-5 grid border border-[#c8ced1] text-sm sm:grid-cols-[175px_1fr]">
-          <strong className="bg-[#f1f2f2] px-3 py-2.5 text-[#536e7b]">Variáveis selecionadas</strong>
+          <strong className="bg-[#f1f2f2] px-3 py-2.5 text-[#536e7b]">{reportText("Rótulo variáveis selecionadas", "Variáveis selecionadas")}</strong>
           <span className="border-l border-[#c8ced1] px-3 py-2.5">{availableTitles}</span>
         </div>
         {effectivePeriodSummary && (
           <div className="report-block mt-3 grid border border-[#c8ced1] text-sm sm:grid-cols-[175px_1fr]">
-            <strong className="bg-[#f1f2f2] px-3 py-2.5 text-[#536e7b]">Períodos analisados</strong>
+            <strong className="bg-[#f1f2f2] px-3 py-2.5 text-[#536e7b]">{reportText("Rótulo períodos analisados", "Períodos analisados")}</strong>
             <span className="border-l border-[#c8ced1] px-3 py-2.5">
               {effectivePeriodSummary}
             </span>
@@ -361,21 +360,26 @@ function ReportDocument({
       </div>
 
       <section className="report-notes mt-12 border-t border-[#d9e0e3] pt-8">
-        <h2 className="report-heading text-xl font-bold text-[#536e7b]">Notas Metodológicas e Fontes</h2>
+        <h2 className="report-heading text-xl font-bold text-[#536e7b]">{reportText("Título das notas", "Notas Metodológicas e Fontes")}</h2>
         <div className="mt-5 space-y-2 text-sm leading-5 text-neutral-800">
           {selected.map((analysis) => {
             const presentation = getMunicipalReportPresentation(analysis.id);
-            return <p key={analysis.id}><strong>{analysis.title}:</strong> {presentation.methodology}</p>;
+            return (
+              <p key={analysis.id} className="whitespace-pre-line">
+                <strong>{analysis.title}:</strong>{" "}
+                {getReportDocsText(docsContent, analysis.title) ?? presentation.methodology}
+              </p>
+            );
           })}
-          <p><strong>Referência legal:</strong> Lei nº 13.153/2015 — Política Nacional de Combate à Desertificação e Mitigação dos Efeitos da Seca.</p>
+          <p className="whitespace-pre-line"><strong>Referência legal:</strong> {reportText("Referência legal", "Lei nº 13.153/2015 — Política Nacional de Combate à Desertificação e Mitigação dos Efeitos da Seca.")}</p>
         </div>
         <p className="mt-8 text-sm leading-5 text-[#536e7b]">
-          Este relatório foi gerado automaticamente pelo Sistema de Alerta Precoce de Seca e Desertificação (SAP). Os valores apresentados são produzidos a partir dos dados disponíveis na plataforma.
+          {reportText("Aviso automático", "Este relatório foi gerado automaticamente pelo Sistema de Alerta Precoce de Seca e Desertificação (SAP). Os valores apresentados são produzidos a partir dos dados disponíveis na plataforma.")}
         </p>
       </section>
 
       <footer className="mt-16 border-t border-[#d9e0e3] pt-3 text-[11px] text-[#536e7b]">
-        SAP — Relatório Analítico | Gerado em: {generatedAt} | MMA/DCDE · OCA · UFCG · INSA
+        {reportText("Rodapé", `SAP — Relatório Analítico | Gerado em: ${generatedAt} | MMA/DCDE · OCA · UFCG · INSA`)}
       </footer>
     </article>
   );

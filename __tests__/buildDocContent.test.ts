@@ -40,4 +40,13 @@ describe("populateDocContent", () => {
 
     expect(content.DROUGHT_MONITOR[0].text).toBe("Monitor de Secas de abril de 2026.");
   });
+
+  it("populates report-wide sections with report template data", () => {
+    const content = populateDocContent(
+      { __report__: [{ title: "Rodapé", text: "Gerado em [data_geracao]." }] },
+      { data_geracao: "13/07/2026" },
+    );
+
+    expect(content.__report__[0].text).toBe("Gerado em 13/07/2026.");
+  });
 });

@@ -38,6 +38,24 @@ describe("Google Docs template loading", () => {
     });
   });
 
+  it("ignores editorial group markers used to explain the report layout", async () => {
+    vi.stubGlobal("fetch", vi.fn().mockResolvedValue(new Response([
+      "[layer: anaseca]",
+      "[grupo: RESUMO DO INDICADOR — aparece antes da tabela]",
+      "Situação atual: Texto do resumo.",
+      "[grupo: SÉRIE HISTÓRICA — aparece depois dos mapas e gráficos]",
+      "Tendência recente: Texto da série.",
+      "[ajuda: este texto não será exibido no relatório]",
+    ].join("\n"))));
+
+    await expect(getDocTemplate({ themes: [DROUGHT_THEME] })).resolves.toEqual({
+      [DROUGHT_THEME]: [
+        { title: "Situação atual", text: "Texto do resumo." },
+        { title: "Tendência recente", text: "Texto da série." },
+      ],
+    });
+  });
+
   it("reuses fresh text for ten minutes and serves stale text when refresh fails", async () => {
     const fetchMock = vi.fn()
       .mockResolvedValueOnce(new Response("[layer: anaseca]\nSituação atual: versão inicial"))
@@ -72,6 +90,32 @@ describe("Google Docs template loading", () => {
     });
 
     expect(fetchMock).toHaveBeenCalledTimes(1);
+  });
+
+  it("loads editable report-wide sections alongside the selected layers", async () => {
+    vi.stubGlobal("fetch", vi.fn().mockResolvedValue(new Response([
+      "Configuração global",
+      "[report]",
+      "**Título principal:** Relatório de [municipio].",
+      "**Rótulo área de análise:** Território analisado",
+      "**Rodapé:** Gerado em [data_geracao].",
+      "Monitor de Secas",
+      "[layer: anaseca]",
+      "Situação atual: Texto de seca.",
+      "Notas metodológicas",
+      "[report]",
+      "*Monitor de Secas:* Metodologia configurada.",
+    ].join("\n"))));
+
+    await expect(getDocTemplate({ themes: [DROUGHT_THEME], city: "Sousa" })).resolves.toEqual({
+      __report__: [
+        { title: "Título principal", text: "Relatório de Sousa." },
+        { title: "Rótulo área de análise", text: "Território analisado" },
+        { title: "Rodapé", text: "Gerado em [data_geracao]." },
+        { title: "Monitor de Secas", text: "Metodologia configurada." },
+      ],
+      [DROUGHT_THEME]: [{ title: "Situação atual", text: "Texto de seca." }],
+    });
   });
 
   it("uses the text export endpoint when DOCS_DEFAULT is a Google Docs edit URL", async () => {
