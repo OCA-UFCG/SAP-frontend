@@ -135,6 +135,10 @@ export function PlatformSidebar({
     if (next !== "monitoring" && next !== "analysis-detail") {
       clearActiveLayer();
     }
+
+    if (next === "monitoring") {
+      router.push(buildPlatformHref("monitoring"));
+    }
   }
 
   function handlePanelSectionChange(next: PlatformSection) {
