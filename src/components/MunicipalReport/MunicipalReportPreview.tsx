@@ -6,12 +6,14 @@ import { useLocale, useTranslations } from "next-intl";
 import type {
   MunicipalReportAnalysis,
   MunicipalReportData,
+  MunicipalReportDocsContent,
 } from "@/contracts/municipalReport";
 import { getMunicipalReportPresentation } from "@/config/municipalReport";
 import {
-  buildHistoryNarrative,
+  buildAnalysisNarrativeSections,
   buildSituationNarrative,
   formatReportPeriod,
+  getReportDocsText,
 } from "@/utils/municipalReportNarrative";
 import citiesIndex from "@/data/citiesIndex.json";
 import { ReportMapPreview } from "./ReportMapPreview";
@@ -60,6 +62,7 @@ function AnalysisSection({
   mapSrc,
   mapActive,
   onMapCapture,
+  docsContent,
 }: {
   analysis: MunicipalReportAnalysis;
   report: MunicipalReportData;
@@ -69,11 +72,12 @@ function AnalysisSection({
   mapSrc?: string;
   mapActive?: boolean;
   onMapCapture?: (src: string | null) => void;
+  docsContent: MunicipalReportDocsContent | null;
 }) {
   const t = useTranslations("MunicipalReport");
   const dominant = analysis.snapshot?.dominantClass;
   const presentation = getMunicipalReportPresentation(analysis.id);
-  const situationText = buildSituationNarrative(analysis, report, presentation, locale);
+  const situationText = buildSituationNarrative(analysis, docsContent, report, presentation, locale);
   const sectionColor = presentation.sectionColor;
   const effectivePeriod = analysis.effectivePeriod ?? analysis.snapshot?.period;
   const referencePeriod = effectivePeriod ?? analysis.snapshot?.period ?? analysis.requestedPeriod;
@@ -85,9 +89,7 @@ function AnalysisSection({
       ? `Período solicitado: ${requestedPeriodLabel}; período disponível usado no relatório: ${referencePeriodLabel}.`
       : `Período de referência usado no relatório: ${referencePeriodLabel}.`;
   const historyRange = compactPeriodRange(analysis.timeSeries, referencePeriod, locale);
-  const historyNarrative = buildHistoryNarrative(
-    analysis, report.municipality.name, presentation, locale,
-  );
+  const narrativeSections = buildAnalysisNarrativeSections(analysis, docsContent);
 
   return (
     <section className="report-section">
@@ -122,7 +124,7 @@ function AnalysisSection({
                   {report.municipality.name} — {report.municipality.uf}
                 </span>
               </p>
-              <p className="mt-2 text-justify">{situationText}</p>
+              {situationText && <p className="mt-2 whitespace-pre-line text-justify">{situationText}</p>}
               <dl className="mt-4 grid gap-2 border-t border-[#d9e0e3] pt-3 text-sm sm:grid-cols-3">
                 <div>
                   <dt className="font-bold text-[#536e7b]">Período solicitado</dt>
@@ -163,7 +165,6 @@ function AnalysisSection({
               <thead className="bg-[#176b39] text-white">
                 <tr>
                   <th className="border-r border-white/40 px-4 py-2.5 text-left">Classe</th>
-                  <th className="border-r border-white/40 px-4 py-2.5 text-left">Descrição</th>
                   <th className="w-36 px-4 py-2.5 text-right">Cobertura (%)</th>
                 </tr>
               </thead>
@@ -179,9 +180,6 @@ function AnalysisSection({
                         style={{ backgroundColor: item.color }}
                       />
                       {item.label}
-                    </td>
-                    <td className="border-r border-[#c8ced1] px-4 py-2.5 text-neutral-700">
-                      {presentation?.history?.classes[item.id]?.description ?? presentation?.classes?.[item.id]?.description ?? "—"}
                     </td>
                     <td className="px-4 py-2.5 text-right font-semibold">
                       {item.percentage.toFixed(1)}%
@@ -232,15 +230,14 @@ function AnalysisSection({
             </div>
           </div>
 
-          {historyNarrative ? (
+          {narrativeSections.length > 0 ? (
             <div className="report-block mt-7 border border-[#d9e0e3] p-5 text-[15px] leading-6">
               <h3 className="report-heading font-bold text-[#536e7b]">Análise da série histórica</h3>
-              <p className="mt-2 text-justify text-neutral-800">
-                <strong>Tendência recente:</strong> {historyNarrative.recent}
-              </p>
-              <p className="mt-3 text-justify text-neutral-800">
-                <strong>Contexto histórico:</strong> {historyNarrative.context}
-              </p>
+              {narrativeSections.map((section, sectionIndex) => (
+                <p key={`${section.title}:${sectionIndex}`} className="mt-3 whitespace-pre-line text-justify text-neutral-800">
+                  <strong>{section.title}:</strong> {section.text}
+                </p>
+              ))}
               <p className="mt-3 text-justify text-neutral-800">
                 <strong>Referência da seção:</strong> {periodResolution}
               </p>
@@ -267,6 +264,7 @@ function ReportDocument({
   activeMapKey,
   onMapCapture,
   documentRef,
+  docsContent,
 }: {
   report: MunicipalReportData;
   layerIds?: string[];
@@ -275,6 +273,7 @@ function ReportDocument({
   activeMapKey?: string;
   onMapCapture?: (key: string, src: string | null) => void;
   documentRef?: React.Ref<HTMLElement>;
+  docsContent: MunicipalReportDocsContent | null;
 }) {
   const locale = useLocale();
   const generatedAt = new Date(report.generatedAt).toLocaleDateString(locale);
@@ -288,52 +287,54 @@ function ReportDocument({
     .filter((period, index, periods) => periods.indexOf(period) === index)
     .map((period) => formatReportPeriod(period, locale))
     .join(" · ");
+  const reportText = (section: string, fallback: string) =>
+    getReportDocsText(docsContent, section) ?? fallback;
 
   return (
     <article ref={documentRef} className="report-paper mt-6 bg-white text-[#202020] shadow-[0_8px_35px_rgba(0,0,0,0.12)]">
       <header>
         <div className="flex flex-wrap items-start justify-between gap-4 text-xs text-[#0f5a2d]">
-          <strong>SAP — Sistema de Alerta Precoce de Seca e Desertificação</strong>
-          <span className="text-[#536e7b]">Relatório Analítico Automatizado</span>
+          <strong>{reportText("Identificação do sistema", "SAP — Sistema de Alerta Precoce de Seca e Desertificação")}</strong>
+          <span className="text-[#536e7b]">{reportText("Tipo do relatório", "Relatório Analítico Automatizado")}</span>
           <div className="text-right">
-            <strong>OCA / UFCG / INSA</strong>
-            <div className="mt-1 text-[10px] font-normal text-[#536e7b]">beta-sap.lsd.ufcg.edu.br</div>
+            <strong>{reportText("Instituições", "OCA / UFCG / INSA")}</strong>
+            <div className="mt-1 text-[10px] font-normal text-[#536e7b]">{reportText("Site", "beta-sap.lsd.ufcg.edu.br")}</div>
           </div>
         </div>
 
         <div className="mt-6 bg-[#125c2d] px-6 py-3 text-center text-white">
           <h1 className="text-[22px] font-bold uppercase leading-tight">
-            Relatório Analítico do Sistema de Alerta Precoce de Seca e Desertificação
+            {reportText("Título principal", "Relatório Analítico do Sistema de Alerta Precoce de Seca e Desertificação")}
           </h1>
           <p className="mt-2 text-sm text-white/80">
-            Lei nº 13.153/2015 · Política Nacional de Combate à Desertificação
+            {reportText("Subtítulo", "Lei nº 13.153/2015 · Política Nacional de Combate à Desertificação")}
           </p>
         </div>
 
         <div className="report-block mt-6 border border-[#c8ced1] text-sm">
           <div className="grid grid-cols-[175px_1fr] border-b border-[#c8ced1] sm:grid-cols-[175px_1fr_105px_115px]">
-            <strong className="bg-[#f1f2f2] px-3 py-2.5 text-[#536e7b]">Área de análise</strong>
+            <strong className="bg-[#f1f2f2] px-3 py-2.5 text-[#536e7b]">{reportText("Rótulo área de análise", "Área de análise")}</strong>
             <span className="border-l border-[#c8ced1] px-3 py-2.5 font-bold">
               {report.municipality.name} — {report.municipality.uf}
             </span>
-            <strong className="border-l border-[#c8ced1] bg-[#f1f2f2] px-3 py-2.5 text-center text-[#536e7b]">Escala</strong>
+            <strong className="border-l border-[#c8ced1] bg-[#f1f2f2] px-3 py-2.5 text-center text-[#536e7b]">{reportText("Rótulo escala", "Escala")}</strong>
             <span className="border-l border-[#c8ced1] px-3 py-2.5 text-center">Municipal</span>
           </div>
           <div className="grid grid-cols-[175px_1fr] sm:grid-cols-[175px_1fr_105px_115px]">
-            <strong className="bg-[#f1f2f2] px-3 py-2.5 text-[#536e7b]">Data de geração</strong>
+            <strong className="bg-[#f1f2f2] px-3 py-2.5 text-[#536e7b]">{reportText("Rótulo data de geração", "Data de geração")}</strong>
             <span className="border-l border-[#c8ced1] px-3 py-2.5">{generatedAt}</span>
-            <strong className="border-l border-[#c8ced1] bg-[#f1f2f2] px-3 py-2.5 text-center text-[#536e7b]">Referência</strong>
+            <strong className="border-l border-[#c8ced1] bg-[#f1f2f2] px-3 py-2.5 text-center text-[#536e7b]">{reportText("Rótulo referência", "Referência")}</strong>
             <span className="border-l border-[#c8ced1] px-3 py-2.5 text-center">{formatReportPeriod(report.requestedPeriod, locale)}</span>
           </div>
         </div>
 
         <div className="report-block mt-5 grid border border-[#c8ced1] text-sm sm:grid-cols-[175px_1fr]">
-          <strong className="bg-[#f1f2f2] px-3 py-2.5 text-[#536e7b]">Variáveis selecionadas</strong>
+          <strong className="bg-[#f1f2f2] px-3 py-2.5 text-[#536e7b]">{reportText("Rótulo variáveis selecionadas", "Variáveis selecionadas")}</strong>
           <span className="border-l border-[#c8ced1] px-3 py-2.5">{availableTitles}</span>
         </div>
         {effectivePeriodSummary && (
           <div className="report-block mt-3 grid border border-[#c8ced1] text-sm sm:grid-cols-[175px_1fr]">
-            <strong className="bg-[#f1f2f2] px-3 py-2.5 text-[#536e7b]">Períodos analisados</strong>
+            <strong className="bg-[#f1f2f2] px-3 py-2.5 text-[#536e7b]">{reportText("Rótulo períodos analisados", "Períodos analisados")}</strong>
             <span className="border-l border-[#c8ced1] px-3 py-2.5">
               {effectivePeriodSummary}
             </span>
@@ -353,26 +354,32 @@ function ReportDocument({
             mapSrc={mapImages.get(`${analysis.id}:${analysis.effectivePeriod ?? analysis.snapshot?.period ?? report.requestedPeriod}`) ?? undefined}
             mapActive={activeMapKey === `${analysis.id}:${analysis.effectivePeriod ?? analysis.snapshot?.period ?? report.requestedPeriod}`}
             onMapCapture={(src) => onMapCapture?.(`${analysis.id}:${analysis.effectivePeriod ?? analysis.snapshot?.period ?? report.requestedPeriod}`, src)}
+            docsContent={docsContent}
           />
         ))}
       </div>
 
       <section className="report-notes mt-12 border-t border-[#d9e0e3] pt-8">
-        <h2 className="report-heading text-xl font-bold text-[#536e7b]">Notas Metodológicas e Fontes</h2>
+        <h2 className="report-heading text-xl font-bold text-[#536e7b]">{reportText("Título das notas", "Notas Metodológicas e Fontes")}</h2>
         <div className="mt-5 space-y-2 text-sm leading-5 text-neutral-800">
           {selected.map((analysis) => {
             const presentation = getMunicipalReportPresentation(analysis.id);
-            return <p key={analysis.id}><strong>{analysis.title}:</strong> {presentation.methodology}</p>;
+            return (
+              <p key={analysis.id} className="whitespace-pre-line">
+                <strong>{analysis.title}:</strong>{" "}
+                {getReportDocsText(docsContent, analysis.title) ?? presentation.methodology}
+              </p>
+            );
           })}
-          <p><strong>Referência legal:</strong> Lei nº 13.153/2015 — Política Nacional de Combate à Desertificação e Mitigação dos Efeitos da Seca.</p>
+          <p className="whitespace-pre-line"><strong>Referência legal:</strong> {reportText("Referência legal", "Lei nº 13.153/2015 — Política Nacional de Combate à Desertificação e Mitigação dos Efeitos da Seca.")}</p>
         </div>
         <p className="mt-8 text-sm leading-5 text-[#536e7b]">
-          Este relatório foi gerado automaticamente pelo Sistema de Alerta Precoce de Seca e Desertificação (SAP). Os valores apresentados são produzidos a partir dos dados disponíveis na plataforma.
+          {reportText("Aviso automático", "Este relatório foi gerado automaticamente pelo Sistema de Alerta Precoce de Seca e Desertificação (SAP). Os valores apresentados são produzidos a partir dos dados disponíveis na plataforma.")}
         </p>
       </section>
 
       <footer className="mt-16 border-t border-[#d9e0e3] pt-3 text-[11px] text-[#536e7b]">
-        SAP — Relatório Analítico | Gerado em: {generatedAt} | MMA/DCDE · OCA · UFCG · INSA
+        {reportText("Rodapé", `SAP — Relatório Analítico | Gerado em: ${generatedAt} | MMA/DCDE · OCA · UFCG · INSA`)}
       </footer>
     </article>
   );
@@ -405,6 +412,7 @@ export function MunicipalReportPreview({ municipalityCode, period, layerIds, emb
   const locale = useLocale();
   const hasRequiredParameters = Boolean(municipalityCode && period);
   const [report, setReport] = useState<MunicipalReportData | null>(null);
+  const [docsContent, setDocsContent] = useState<MunicipalReportDocsContent | null>(null);
   const [charts, setCharts] = useState<Map<string, string>>(new Map());
   const [mapImages, setMapImages] = useState<Map<string, string | null>>(new Map());
   const [mapRenderIndex, setMapRenderIndex] = useState(0);
@@ -513,6 +521,7 @@ export function MunicipalReportPreview({ municipalityCode, period, layerIds, emb
         const payload = await response.json();
         if (!response.ok) throw new Error(payload.error ?? t("loadError"));
         setReport(payload as MunicipalReportData);
+        setDocsContent(null);
         setMapImages(new Map());
         setMapRenderIndex(0);
 
@@ -525,6 +534,28 @@ export function MunicipalReportPreview({ municipalityCode, period, layerIds, emb
         )
           .filter((a) => a.status === "available")
           .map((a) => a.alias);
+        const selectedLayerIdsForDocs = (selectedLayerIds
+          ? reportData.analyses.filter(({ id }) => selectedLayerIds.has(id))
+          : reportData.analyses
+        )
+          .filter((a) => a.status === "available")
+          .map((a) => a.id);
+
+        if (selectedLayerIdsForDocs.length > 0) {
+          try {
+            const docsResponse = await fetch(
+              `/api/municipal-report/${encodeURIComponent(municipalityCode)}/docs?period=${encodeURIComponent(period)}&layers=${encodeURIComponent(selectedLayerIdsForDocs.join(","))}`,
+              { credentials: "same-origin", signal: controller.signal },
+            );
+            const docsPayload = await docsResponse.json();
+            if (!docsResponse.ok) throw new Error(docsPayload.error ?? t("loadError"));
+            setDocsContent(docsPayload.content as MunicipalReportDocsContent);
+          } catch (docsError) {
+            if (controller.signal.aborted) throw docsError;
+            console.warn("Não foi possível carregar os textos do relatório; mantendo os dados e gráficos disponíveis.", docsError);
+            setDocsContent(null);
+          }
+        }
 
         if (selectedAliases.length === 0) {
           setCharts(new Map());
@@ -596,7 +627,7 @@ export function MunicipalReportPreview({ municipalityCode, period, layerIds, emb
           {!hasRequiredParameters && <EmptyReportPreview />}
           {loading && <div className="mx-auto flex min-h-56 max-w-[749px] flex-col items-center justify-center gap-4 bg-white p-10 text-center text-neutral-600 shadow-sm"><span aria-hidden="true" className="h-9 w-9 animate-spin rounded-full border-4 border-[#989F43]/25 border-t-[#989F43]"/><strong className="text-base font-semibold text-[#536e7b]">{t("loading")}</strong><span className="text-sm">{t("loadingHint")}</span></div>}
           {visibleError && !loading && <div className="mx-auto max-w-[749px] border border-red-200 bg-white p-8 shadow-sm"><h1 className="text-xl font-semibold">{t("loadError")}</h1><p className="mt-2 text-sm text-red-700">{visibleError}</p></div>}
-          {report && !loading && <div className="mx-auto origin-top transition-transform" style={{ width: "980px", transform: `scale(${zoom / 100})` }}><ReportDocument report={report} layerIds={layerIds} charts={charts} mapImages={mapImages} activeMapKey={activeMapKey} onMapCapture={handleMapCapture} documentRef={reportDocumentRef} /></div>}
+          {report && !loading && <div className="mx-auto origin-top transition-transform" style={{ width: "980px", transform: `scale(${zoom / 100})` }}><ReportDocument report={report} layerIds={layerIds} charts={charts} mapImages={mapImages} activeMapKey={activeMapKey} onMapCapture={handleMapCapture} documentRef={reportDocumentRef} docsContent={docsContent} /></div>}
         </div>
       </div>
     );
@@ -615,7 +646,7 @@ export function MunicipalReportPreview({ municipalityCode, period, layerIds, emb
             <p className="mt-2 text-sm text-red-700">{visibleError}</p>
           </div>
         )}
-        {report && !loading && <ReportDocument report={report} layerIds={layerIds} charts={charts} mapImages={mapImages} activeMapKey={activeMapKey} onMapCapture={handleMapCapture} />}
+        {report && !loading && <ReportDocument report={report} layerIds={layerIds} charts={charts} mapImages={mapImages} activeMapKey={activeMapKey} onMapCapture={handleMapCapture} docsContent={docsContent} />}
       </div>
     </div>
   );

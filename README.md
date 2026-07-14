@@ -127,6 +127,61 @@ The endpoint is protected server-side and returns private HTTP cache headers;
 only the server-side in-memory cache is shared across authenticated requests in
 the same Node process.
 
+## Google Docs Report Templates
+
+O interpretador de relatórios monta o conteúdo final do documento a partir de
+templates armazenados no Google Docs. A saída atual segue este formato:
+
+```ts
+{
+  DROUGHT_MONITOR: [
+    { title: "Situação atual", text: "Texto preenchido da situação atual." },
+    { title: "Tendência recente", text: "Texto preenchido da tendência." },
+    { title: "Contexto histórico", text: "Texto preenchido do histórico." },
+  ],
+}
+```
+
+Nesse formato, cada chave representa um tema disponível para geração do
+documento. Todos os temas são lidos de um único documento configurado no
+`.env`:
+
+```env
+DOCS_DEFAULT=https://docs.google.com/document/d/.../export?format=txt
+```
+
+O documento deve separar cada template pelo título do layer, por exemplo
+`◉ 1. Monitor de Secas`, `◈ 2. Índice de Aridez` e
+`◆ 3. Índice de Degradação da Terra`. O interpretador recorta cada bloco pelo
+título configurado para o tema e ignora as seções de notas metodológicas.
+
+O texto exportado de cada tema fica em cache na memória do processo por 10
+minutos. Depois desse prazo, a próxima geração tenta atualizar o conteúdo no
+Google Docs. Se a atualização falhar e já existir uma versão anterior, essa
+última versão é usada para que o relatório continue disponível. Em ambientes
+com mais de uma instância, cada processo mantém seu próprio cache.
+
+A partir desse documento, o interpretador lê o conteúdo, identifica cada seção
+marcada como `*Título*` ou `**Título**` e converte cada seção em um bloco:
+
+```ts
+{
+  title: "Título da seção",
+  text: "Texto da seção com os dados já preenchidos"
+}
+```
+
+O fluxo atual é:
+
+```txt
+temas -> DOCS_DEFAULT -> cache -> seções por layer -> texto preenchido
+```
+
+Assim, a equipe pode editar todos os textos em um só lugar, mantendo uma seção
+por layer. Para incluir um novo layer, adicione seu `docsTheme` na configuração
+do relatório e crie no documento uma seção cujo título corresponda ao título do
+layer.
+
 ## Agent Context Docs
 
 The repository includes a dedicated set of agent-oriented context files under `docs/`:
