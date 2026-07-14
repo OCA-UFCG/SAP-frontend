@@ -66,15 +66,15 @@ export const Footer = ({ content }: { content: FooterI[] }) => {
         <div className="flex w-full flex-col items-center gap-4 lg:ml-auto lg:w-auto lg:items-end">
           <div className="flex flex-wrap items-center justify-center gap-6 lg:justify-end">
             <Image
-              width="1423"
-              height="333"
+              width="2442"
+              height="524"
               src="/partners/mma.png"
               alt="Ministério do Meio Ambiente e Mudança do Clima"
               className="h-8 w-auto brightness-0 invert"
             />
             <Image
-              width="395"
-              height="194"
+              width="1485"
+              height="755"
               src="/partners/oca.png"
               alt="Observatório da Caatinga e Desertificação"
               className="h-10 w-auto"

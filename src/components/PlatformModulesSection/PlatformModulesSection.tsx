@@ -36,11 +36,18 @@ export const PlatformModulesSection = ({
             const description = t.has(`modules.${index}.description`)
               ? t(`modules.${index}.description`)
               : module.description;
+            const isLastOdd =
+              index === content.modules.length - 1 &&
+              content.modules.length % 2 === 1;
 
             return (
               <Card
                 key={`${module.title}-${index}`}
-                className="flex flex-col gap-4 p-6 text-left"
+                className={`flex flex-col gap-4 p-6 text-left ${
+                  isLastOdd
+                    ? "sm:col-span-2 sm:mx-auto sm:w-full sm:max-w-[calc(50%-0.5rem)] lg:col-span-1 lg:mx-0 lg:max-w-none"
+                    : ""
+                }`}
               >
                 <span
                   className="flex h-14 w-14 items-center justify-center rounded-full text-lg font-bold text-white"
