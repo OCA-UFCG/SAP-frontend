@@ -17,6 +17,7 @@ interface UseMapControllerEffectsArgs {
   selectedMunicipalityCode?: string | null;
   tileLayerUrl?: string | null;
   tileLayerRequestKey?: string | null;
+  layerOpacity: number;
   showStatesBorder: boolean;
   dadosCDI?: CDIVectorData;
   onStateSelect?: (uf: string) => void;
@@ -40,6 +41,7 @@ interface UseMapControllerEffectsArgs {
     ((requestKey: string) => void) | undefined
   >;
   tileLayerUrlRef: MutableRefObject<string | null | undefined>;
+  layerOpacityRef: MutableRefObject<number>;
   tileLayerRequestKeyRef: MutableRefObject<string | null | undefined>;
   pendingTileLayerReadyKeyRef: MutableRefObject<string | null>;
   showStatesBorderRef: MutableRefObject<boolean>;
@@ -82,6 +84,7 @@ export const useMapControllerEffects = ({
   selectedMunicipalityCode,
   tileLayerUrl,
   tileLayerRequestKey,
+  layerOpacity,
   showStatesBorder,
   dadosCDI,
   onStateSelect,
@@ -101,6 +104,7 @@ export const useMapControllerEffects = ({
   onSelectedMunicipalityCodeChangeRef,
   onTileLayerReadyRef,
   tileLayerUrlRef,
+  layerOpacityRef,
   tileLayerRequestKeyRef,
   pendingTileLayerReadyKeyRef,
   showStatesBorderRef,
@@ -136,6 +140,7 @@ export const useMapControllerEffects = ({
       onSelectedMunicipalityCodeChange;
     onTileLayerReadyRef.current = onTileLayerReady;
     tileLayerUrlRef.current = tileLayerUrl;
+    layerOpacityRef.current = layerOpacity;
     tileLayerRequestKeyRef.current = tileLayerRequestKey;
     showStatesBorderRef.current = showStatesBorder;
     hasCdiDataRef.current = Boolean(dadosCDI);
@@ -149,6 +154,7 @@ export const useMapControllerEffects = ({
     onTileLayerReady,
     tileLayerUrl,
     tileLayerRequestKey,
+    layerOpacity,
     showStatesBorder,
     selectedMunicipalityCode,
     dadosCDI,
@@ -162,6 +168,7 @@ export const useMapControllerEffects = ({
     onSelectedMunicipalityCodeChangeRef,
     onTileLayerReadyRef,
     tileLayerUrlRef,
+    layerOpacityRef,
     tileLayerRequestKeyRef,
     showStatesBorderRef,
     hasCdiDataRef,

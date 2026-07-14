@@ -5,6 +5,7 @@ import "maplibre-gl/dist/maplibre-gl.css";
 import { useEffect, useRef } from "react";
 import type { CDIVectorData } from "@/lib/geo";
 import {
+  GEE_LAYER_ID,
   GEE_SOURCE_ID,
   type MapMode,
   STATES_FILL_LAYER_ID,
@@ -39,6 +40,7 @@ export interface MapProps {
   onStateSelect?: (uf: string) => void;
   onSelectedMunicipalityCodeChange?: (municipalityCode: string | null) => void;
   onTileLayerReady?: (requestKey: string) => void;
+  layerOpacity?: number;
 }
 
 const Map = ({
@@ -57,6 +59,7 @@ const Map = ({
   onStateSelect,
   onSelectedMunicipalityCodeChange,
   onTileLayerReady,
+  layerOpacity = 0.85
 }: MapProps) => {
   const mapContainerRef = useRef<HTMLDivElement | null>(null);
   const {
@@ -97,6 +100,7 @@ const Map = ({
     showStatesBorder,
     tileLayerRequestKey,
     tileLayerUrl,
+    layerOpacity,
     zoom,
   });
   const { clearMarkers } = useMapMarkers(mapRef, markers, mapInstanceVersion);
@@ -367,6 +371,18 @@ const Map = ({
     clearMarkers,
     setMapInstance,
   ]);
+
+  useEffect(() => {
+    const map = mapRef.current;
+    if (!map) return;
+
+    try {
+      if (map.getLayer(GEE_LAYER_ID)) {
+        map.setPaintProperty(GEE_LAYER_ID, "raster-opacity", layerOpacity);
+      }
+    } catch {
+    }
+  }, [layerOpacity, mapRef, mapInstanceVersion]);
 
   return (
     <div className="w-full h-full">

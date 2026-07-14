@@ -55,9 +55,12 @@ describe("PlatformMap", () => {
       activeLegend: null,
       selectedState: "br",
       activeYear: "2024",
+      layerOpacity: 0.85,
     });
     useMapLayerActionsMock.mockReturnValue({
       setSelectedState: vi.fn(),
+      setSelectedMunicipalityCode: vi.fn(),
+      setLayerOpacity: vi.fn(),
     });
   });
 
@@ -99,5 +102,53 @@ describe("PlatformMap", () => {
         screen.queryByRole("status", { name: "Carregando camada do GEE" }),
       ).not.toBeInTheDocument();
     });
+  });
+
+  it("labels the opacity control for assistive technologies", () => {
+    useEarthEngineTileLayerMock.mockReturnValue({
+      requestKey: "ee-layer:2024",
+      status: "ready",
+      tileLayerUrl: "https://tiles.example/2024",
+    });
+
+    render(<PlatformMap />);
+
+    expect(
+      screen.getByRole("slider", { name: "Transparência" }),
+    ).toHaveValue("0.85");
+  });
+
+  it("hides monitoring overlays outside monitoring without changing opacity", () => {
+    useEarthEngineTileLayerMock.mockReturnValue({
+      requestKey: "ee-layer:2024",
+      status: "ready",
+      tileLayerUrl: "https://tiles.example/2024",
+    });
+
+    useMapLayerViewStateMock.mockReturnValue({
+      activeLegend: [{ label: "Seca", color: "#f00" }],
+      selectedState: "br",
+      activeYear: "2024",
+      layerOpacity: 0.85,
+    });
+
+    const { rerender } = render(<PlatformMap showMonitoringOverlays />);
+
+    expect(
+      screen.getByRole("slider", { name: "Transparência" }),
+    ).toHaveValue("0.85");
+    expect(
+      screen.getByRole("heading", { name: "Legenda do mapa" }),
+    ).toBeInTheDocument();
+
+    rerender(<PlatformMap showMonitoringOverlays={false} />);
+
+    expect(
+      screen.queryByRole("slider", { name: "Transparência" }),
+    ).not.toBeInTheDocument();
+    expect(
+      screen.queryByRole("heading", { name: "Legenda do mapa" }),
+    ).not.toBeInTheDocument();
+    expect(useMapLayerActionsMock().setLayerOpacity).not.toHaveBeenCalled();
   });
 });
