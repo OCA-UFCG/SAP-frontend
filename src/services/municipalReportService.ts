@@ -15,7 +15,7 @@ export interface MunicipalReportServiceDependencies {
   now?: () => Date;
 }
 
-export class MunicipalReportNotFoundError extends Error {}
+export class MunicipalReportNotFoundError extends Error { }
 
 function stableAlias(value: string) {
   return value
