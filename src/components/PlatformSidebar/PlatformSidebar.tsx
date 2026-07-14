@@ -136,6 +136,9 @@ export function PlatformSidebar({
     setIsPanelOpen(true);
     setShowAnalysisFrame(false);
 
+    if (next === "monitoring" && initialSection === "communication") {
+      router.push(buildPlatformHref("monitoring"));
+    }
   }
 
   function handlePanelSectionChange(next: PlatformSection) {

@@ -9,6 +9,7 @@ import {
   getImageDataLegend,
   getImageDataYearKeys,
 } from "@/utils/imageData";
+import { slugifyTranslationKey } from "@/utils/translations";
 import { IDroughtDataset } from "../DroughtDataset/DroughtDataset";
 
 export interface IInfoModalProps {
@@ -56,12 +57,7 @@ export function InfoModal({
   const tModules = useTranslations("ModulesContext.Layers");
   const tCaption = useTranslations("PlatformMapCaption");
 
-  const slug = card.title
-    .toLowerCase()
-    .normalize("NFD")
-    .replace(/[\u0300-\u036f]/g, "")
-    .replace(/[^a-z0-9]+/g, "-")
-    .replace(/(^-|-$)+/g, "");
+  const slug = slugifyTranslationKey(card.title);
 
   const displayTitle = tModules.has(`${slug}.title`) ? tModules(`${slug}.title`, { title: card.title }) : card.title;
   const displayDescription = tModules.has(`${slug}.description`) ? tModules(`${slug}.description`, { description: card.description }) : card.description;
