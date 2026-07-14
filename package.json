@@ -7,6 +7,8 @@
     "node": "22.x"
   },
   "scripts": {
+    "prebuild": "npm run generate:municipal-availability",
+    "generate:municipal-availability": "node tools/drive-contentful-pipeline/generate-municipal-availability-index.mjs",
     "dev": "next dev",
     "build": "next build --webpack",
     "start": "next start",

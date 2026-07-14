@@ -14,6 +14,8 @@ interface TemporalVisionProps {
   years?: Record<string, CompactAnalysisYearData>;
   classes?: CompactAnalysisClass[];
   selectedState?: string;
+  valueType?: "percentage" | "absolute";
+  valueUnit?: string;
 }
 
 const MAX_VISIBLE_YEARS = 8;
@@ -42,20 +44,22 @@ function buildYearCategories(
   }));
 }
 
-function buildSeriesData(
+export function buildSeriesData(
   sortedYearEntries: Array<[string, CompactAnalysisYearData]>,
   selectedState: string,
   classIndex: number,
 ) {
   return sortedYearEntries.map(([yearKey, yearData]) => {
-    const locationValues =
-      yearData.values[selectedState] ?? yearData.values["br"] ?? [];
+    const locationValues = yearData.values[selectedState];
     const scale = yearData.valuesScale ?? 1;
-    const rawValue = (locationValues[classIndex] ?? 0) as number;
+    const rawValue = locationValues?.[classIndex];
 
     return {
       year: yearData.year ?? yearKey,
-      value: Number((rawValue / scale).toFixed(1)),
+      value:
+        typeof rawValue === "number"
+          ? Number((rawValue / scale).toFixed(1))
+          : null,
     };
   });
 }
@@ -64,6 +68,8 @@ export function TemporalVision({
   years,
   classes,
   selectedState = "br",
+  valueType = "percentage",
+  valueUnit,
 }: TemporalVisionProps) {
   const t = useTranslations("AnalysisPanel");
   const tCaption = useTranslations("PlatformMapCaption");
@@ -116,8 +122,7 @@ export function TemporalVision({
     const yAxis = chart.yAxes.push(
       am5xy.ValueAxis.new(root, {
         min: 0,
-        max: 100,
-        strictMinMax: true,
+        ...(valueType === "percentage" ? { max: 100, strictMinMax: true } : {}),
         renderer: am5xy.AxisRendererY.new(root, {}),
       }),
     );
@@ -126,10 +131,13 @@ export function TemporalVision({
       .get("renderer")
       .labels.template.adapters.add("text", (text, target) => {
         const value = target.dataItem?.get("value" as never) as
-          | number
-          | undefined;
+          number | undefined;
 
         if (value === undefined) {
+          return text;
+        }
+
+        if (valueType === "absolute") {
           return text;
         }
 
@@ -140,14 +148,13 @@ export function TemporalVision({
       .get("renderer")
       .grid.template.adapters.add("strokeOpacity", (_opacity, target) => {
         const value = target.dataItem?.get("value" as never) as
-          | number
-          | undefined;
+          number | undefined;
 
         if (value === undefined) {
           return 0;
         }
 
-        return value % 20 === 0 ? 0.15 : 0;
+        return valueType === "absolute" || value % 20 === 0 ? 0.15 : 0;
       });
 
     chart.set(
@@ -231,7 +238,7 @@ export function TemporalVision({
       rootRef.current = null;
       root.dispose();
     };
-  }, []);
+  }, [valueType]);
 
   useEffect(() => {
     const root = rootRef.current;
@@ -290,7 +297,10 @@ export function TemporalVision({
             tooltip: (() => {
               const tooltip = am5.Tooltip.new(root, {
                 pointerOrientation: "horizontal",
-                labelText: "{valueY}%",
+                labelText:
+                  valueType === "absolute"
+                    ? `{valueY} ${valueUnit ?? ""}`.trim()
+                    : "{valueY}%",
               });
               tooltip.label.setAll({ fontSize: 12 });
               return tooltip;
@@ -326,7 +336,7 @@ export function TemporalVision({
     }
 
     legend.data.setAll(chart.series.values);
-  }, [years, classes, deferredSelectedState]);
+  }, [years, classes, deferredSelectedState, valueType, valueUnit]);
 
   return (
     <div className="flex flex-col gap-2">

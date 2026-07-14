@@ -389,9 +389,12 @@ A legenda publicada para `pob_total` usa apenas faixas dentro dessa escala:
 
 As camadas `pob_urb` e `pob_rural` usam o mesmo contrato percentual e o
 intervalo 2012-2025. A camada `s2id_secas_estiagens` usa a quantidade anual de
-registros municipais entre 2004 e 2025; o Detalhamento estadual e nacional
-exibe a media municipal, enquanto o mapa e o Detalhamento municipal preservam
-a contagem de cada municipio.
+registros municipais entre 2004 e 2025. O Detalhamento exibe contagens anuais
+absolutas; estados e Brasil usam a soma dos registros dos seus municipios. No
+mapa, a propriedade `suma` representa o total municipal acumulado e usa a
+escala continua de 0 a 30. Anos sem nenhum registro em todo o Brasil sao
+omitidos, pois representam lacunas da fonte e nao ocorrencias anuais iguais a
+zero.
 
 ## Como os JSONs sao particionados
 

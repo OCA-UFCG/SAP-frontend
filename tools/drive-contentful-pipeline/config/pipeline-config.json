@@ -300,6 +300,12 @@
       "valueRange": { "min": 0, "max": 100 }
     },
     "s2id_secas_estiagens": {
+      "valueConfig": {
+        "type": "absolute",
+        "unit": "registros",
+        "distributionTitle": "Quantidade de registros no ano"
+      },
+      "omitAllZeroYears": true,
       "classes": [
         {
           "id": "registros-secas-estiagens",
@@ -308,41 +314,32 @@
         }
       ],
       "templates": {
-        "country": "Media de registros de secas e estiagens por municipio em {name}: {value}.",
-        "state": "Media de registros de secas e estiagens por municipio em {name}: {value}.",
+        "country": "Total de registros de secas e estiagens em {name} no ano: {value}.",
+        "state": "Total de registros de secas e estiagens em {name} no ano: {value}.",
         "municipality": "Registros de secas e estiagens em {name}: {value}.",
         "highlight": "Registros de secas e estiagens"
       },
       "ranking": {
-        "title": "Estados por media de registros municipais",
+        "title": "Estados por total de registros",
         "totalLabel": "Estados"
       },
       "mapVisualization": {
         "sourceType": "featureCollection",
-        "property": "{year}",
+        "property": "suma",
         "min": 0,
-        "max": 4,
-        "thresholds": [1, 2, 3, 4],
-        "palette": ["#f7f7f7", "#fee6ce", "#fdae6b", "#e6550d", "#8c2d04"],
+        "max": 30,
+        "palette": ["#fee5d9", "#fcae91", "#fb6a4a", "#de2d26", "#a50f15"],
         "legend": [
-          { "id": "sem-registro", "label": "Sem registro", "color": "#f7f7f7" },
-          { "id": "um-registro", "label": "1 registro", "color": "#fee6ce" },
-          {
-            "id": "dois-registros",
-            "label": "2 registros",
-            "color": "#fdae6b"
-          },
-          {
-            "id": "tres-registros",
-            "label": "3 registros",
-            "color": "#e6550d"
-          },
-          { "id": "quatro-ou-mais", "label": "4 ou mais", "color": "#8c2d04" }
+          { "id": "0-6", "label": "0 a 6", "color": "#fee5d9" },
+          { "id": "6-12", "label": "> 6 a 12", "color": "#fcae91" },
+          { "id": "12-18", "label": "> 12 a 18", "color": "#fb6a4a" },
+          { "id": "18-24", "label": "> 18 a 24", "color": "#de2d26" },
+          { "id": "24-30", "label": "> 24 a 30", "color": "#a50f15" }
         ],
         "outline": { "color": "#000000", "width": 0.5, "opacity": 1 }
       },
       "imageId": "projects/ee-ulissesalencar17/assets/Municipios_S2ID_corrigido",
-      "valueRange": { "min": 0, "max": 50 }
+      "valueRange": { "min": 0 }
     },
     "prev_anomalia_precipitacao": {
       "classes": [

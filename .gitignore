@@ -26,10 +26,7 @@
 /scripts
 !/scripts/
 /scripts/*
-!/scripts/gee/
-/scripts/gee/*
-!/scripts/gee/pobreza-urbana-rural.js
-!/scripts/gee/s2id-secas-estiagens.js
+/scripts/gee/
 /tmp
 
 # debug
@@ -57,6 +54,9 @@ storybook-static
 
 # Generated Google Drive CSV downloads and transformed Contentful JSON outputs.
 /data/contentful-pipeline/
+
+# Generated from published Contentful municipal analysis during build.
+/src/data/municipalAvailabilityIndex.json
 
 /BR_Municipios_2025
 

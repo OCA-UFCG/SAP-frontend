@@ -16,6 +16,51 @@ function buildLayer(imageData: CompactTerritorialAnalysisDataset): PanelLayerI {
 }
 
 describe("analysis.mappers", () => {
+  it("keeps absolute S2ID values as counts instead of percentages", () => {
+    const layer = buildLayer({
+      schemaVersion: 1,
+      type: "territorial-compact",
+      defaultYear: "2025",
+      valueConfig: {
+        type: "absolute",
+        unit: "registros",
+        distributionTitle: "Quantidade de registros no ano",
+      },
+      classes: [
+        {
+          id: "registros-secas-estiagens",
+          label: "Registros de secas e estiagens",
+          color: "#a50f15",
+        },
+      ],
+      locations: { br: "Brasil", pe: "Pernambuco" },
+      templates: {
+        country: "Total de registros em {name} no ano: {value}.",
+      },
+      years: {
+        "2025": {
+          imageId: "s2id",
+          valuesScale: 1,
+          values: { br: [247], pe: [31] },
+        },
+      },
+    });
+
+    const model = buildEmbeddedTerritorialAnalysisViewModel(
+      layer,
+      "2025",
+      "br",
+    );
+
+    expect(model?.distribution[0]?.value).toBe(247);
+    expect(model?.happening).toBe("Total de registros em Brasil no ano: 247.");
+    expect(model?.valueType).toBe("absolute");
+    expect(model?.valueUnit).toBe("registros");
+    expect(model?.rankingGroups[0]?.items[0]?.trailingLabel).toBe(
+      "31 registros",
+    );
+  });
+
   it("shows all classes and ranks each one by its own top 5 positive states", () => {
     const layer = buildLayer({
       schemaVersion: 1,

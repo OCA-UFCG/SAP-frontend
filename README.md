@@ -79,8 +79,9 @@ It is used to move Google Earth Engine CSV exports into Contentful
 `municipalAnalysis` entries consumed by the platform detail view.
 
 The generated files under `data/contentful-pipeline` are local pipeline output
-and must not be committed. The source-controlled part is the tooling and the
-shared municipality index used by the app.
+and must not be committed. `src/data/municipalAvailabilityIndex.json` is also a
+generated artifact: `npm run build` recreates it from the municipal analyses
+published in Contentful before compiling the application.
 
 Typical flow:
 

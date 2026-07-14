@@ -73,7 +73,9 @@ function translate(
 ): string {
   if (!tCaption) return text;
   const slug = slugify(text);
-  return tCaption.has(`labels.${slug}`) ? tCaption(`labels.${slug}`, values) : text;
+  return tCaption.has(`labels.${slug}`)
+    ? tCaption(`labels.${slug}`, values)
+    : text;
 }
 
 function parseHexColor(color: string) {
@@ -127,6 +129,15 @@ function formatTemplate(
   return template.replace(/\{(\w+)\}/g, (_, token: string) => {
     return replacements[token] ?? "";
   });
+}
+
+function formatCompactValue(
+  data: CompactTerritorialAnalysisDataset,
+  value: number,
+): string {
+  return data.valueConfig?.type === "absolute"
+    ? value.toLocaleString("pt-BR")
+    : value.toFixed(1);
 }
 
 function buildCompactDistributionItems(
@@ -239,15 +250,15 @@ function buildCompactHighlight(
   }
 
   const translatedLabel = translate(compactClass.label, tCaption);
-  const rawTemplate = data.templates?.highlight ?? DEFAULT_HAPPENING_TEMPLATES.highlight;
-  const translatedTemplate = translate(rawTemplate, tCaption, { label: translatedLabel });
+  const rawTemplate =
+    data.templates?.highlight ?? DEFAULT_HAPPENING_TEMPLATES.highlight;
+  const translatedTemplate = translate(rawTemplate, tCaption, {
+    label: translatedLabel,
+  });
 
   return {
     label: translatedLabel,
-    text: formatTemplate(
-      translatedTemplate,
-      { label: translatedLabel },
-    ),
+    text: formatTemplate(translatedTemplate, { label: translatedLabel }),
     tone: getCompactClassTone(compactClass),
   };
 }
@@ -269,6 +280,7 @@ function buildCompactRankingGroups(
   }
 
   const scale = yearData.valuesScale ?? 1;
+  const isAbsolute = data.valueConfig?.type === "absolute";
   const dominantCounts = new Map<string, number>();
   const entriesByClass = data.classes.map(
     () => [] as Array<AnalysisRankingEntry & { numericValue: number }>,
@@ -330,7 +342,9 @@ function buildCompactRankingGroups(
 
     const allItems = sortedEntries.map(({ numericValue, ...entry }) => ({
       ...entry,
-      trailingLabel: `${numericValue.toFixed(1)}%`,
+      trailingLabel: isAbsolute
+        ? `${numericValue.toLocaleString("pt-BR")} ${data.valueConfig?.unit ?? ""}`.trim()
+        : `${numericValue.toFixed(1)}%`,
     }));
 
     return {
@@ -338,10 +352,15 @@ function buildCompactRankingGroups(
       label: translate(item.label, tCaption),
       tone: getCompactClassTone(item),
       total: sortedEntries.length,
-      totalLabel: translate(data.ranking?.totalLabel ?? DEFAULT_RANKING_TOTAL_LABEL, tCaption),
+      totalLabel: translate(
+        data.ranking?.totalLabel ?? DEFAULT_RANKING_TOTAL_LABEL,
+        tCaption,
+      ),
       items: topEntries.map(({ numericValue, ...entry }) => ({
         ...entry,
-        trailingLabel: `${numericValue.toFixed(1)}%`,
+        trailingLabel: isAbsolute
+          ? `${numericValue.toLocaleString("pt-BR")} ${data.valueConfig?.unit ?? ""}`.trim()
+          : `${numericValue.toFixed(1)}%`,
       })),
       allItems,
     };
@@ -376,11 +395,17 @@ function buildCompactTerritorialAnalysisViewModel(
           data.templates?.state ??
           DEFAULT_HAPPENING_TEMPLATES.municipality)
         : (data.templates?.state ?? DEFAULT_HAPPENING_TEMPLATES.state);
-  const translatedTemplate = translate(rawTemplate, tCaption, dominant ? {
-    name,
-    label: dominant.label,
-    value: dominant.value.toFixed(1),
-  } : undefined);
+  const translatedTemplate = translate(
+    rawTemplate,
+    tCaption,
+    dominant
+      ? {
+          name,
+          label: dominant.label,
+          value: formatCompactValue(data, dominant.value),
+        }
+      : undefined,
+  );
 
   const rawRankingTitle = data.ranking?.title ?? DEFAULT_RANKING_TITLE;
   const translatedRankingTitle = translate(rawRankingTitle, tCaption);
@@ -394,20 +419,21 @@ function buildCompactTerritorialAnalysisViewModel(
       ? formatTemplate(translatedTemplate, {
           name,
           label: dominant.label,
-          value: dominant.value.toFixed(1),
+          value: formatCompactValue(data, dominant.value),
         })
       : "",
     distribution,
     rankingTitle:
-      resolvedLocationKey === "br"
-        ? translatedRankingTitle
-        : undefined,
+      resolvedLocationKey === "br" ? translatedRankingTitle : undefined,
     rankingGroups: buildCompactRankingGroups(
       data,
       yearKey,
       resolvedLocationKey,
       tCaption,
     ),
+    valueType: data.valueConfig?.type ?? "percentage",
+    valueUnit: data.valueConfig?.unit,
+    distributionTitle: data.valueConfig?.distributionTitle,
   };
 }
 
