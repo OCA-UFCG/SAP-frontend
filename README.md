@@ -1,6 +1,6 @@
-# SAP Frontend
+# SEDES Frontend
 
-Frontend application for the SAP platform, built with Next.js. The project combines institutional content from Contentful, platform layer metadata, Earth Engine-backed map rendering, and a detail view for territorial analysis.
+Frontend application for the SEDES platform, built with Next.js. The project combines institutional content from Contentful, platform layer metadata, Earth Engine-backed map rendering, and a detail view for territorial analysis.
 
 ## Stack Overview
 

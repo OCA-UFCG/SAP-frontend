@@ -82,12 +82,13 @@ const GET_HOME_PAGE = `
       }
     }
 
-    partnersCollection(locale: $locale) {
+    partnersCollection(locale: $locale, order: order_ASC) {
       items {
         sys {
           id
         }
         name
+        description
         image {
           url
           title
@@ -130,18 +131,33 @@ const GET_ABOUT_PAGE = `
       }
     }
 
-    partnersCollection(locale: $locale) {
+    partnersCollection(locale: $locale, order: order_ASC) {
       items {
         sys {
           id
         }
         name
+        description
         image {
           url
           title
           width
           height
         }
+      }
+    }
+  }
+`;
+
+const GET_GLOSSARY_PAGE = `
+  query GetGlossaryPage($locale: String!) {
+    glossaryCollection(locale: $locale, order: term_ASC) {
+      items {
+        sys {
+          id
+        }
+        term
+        definition
       }
     }
   }
@@ -217,6 +233,24 @@ interface AboutPageResponse {
 
 function isDefined<T>(value: T | null | undefined): value is T {
   return value != null;
+}
+
+interface GlossaryEntry {
+  sys: { id: string };
+  term: string;
+  definition: string;
+}
+
+interface GlossaryPageResponse {
+  glossaryCollection: {
+    items: Array<GlossaryEntry | null>;
+  };
+}
+
+export interface GlossaryTermI {
+  id: string;
+  term: string;
+  definition: string;
 }
 
 export interface HomePageContent {
@@ -355,7 +389,26 @@ export async function getAboutPageContent(locale?: string): Promise<AboutPageCon
       partners,
     };
   } catch (error) {
-    console.error("Erro ao buscar dados da página Sobre o SAP:", error);
+    console.error("Erro ao buscar dados da página Sobre o SEDES:", error);
     return null;
+  }
+}
+
+export async function getGlossaryTerms(locale?: string): Promise<GlossaryTermI[]> {
+  try {
+    const data = await getContent<GlossaryPageResponse>(GET_GLOSSARY_PAGE, {
+      locale: mapLocaleToContentful(locale),
+    });
+
+    return (
+      data.glossaryCollection?.items?.filter(isDefined).map((item) => ({
+        id: item.sys.id,
+        term: item.term,
+        definition: item.definition,
+      })) ?? []
+    );
+  } catch (error) {
+    console.error("Erro ao buscar termos do glossário no Contentful:", error);
+    return [];
   }
 }

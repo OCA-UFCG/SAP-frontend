@@ -6,7 +6,7 @@ import type {
 } from "@/types/telemetry";
 
 const LOGS_ENDPOINT = "/api/logs";
-const SESSION_STORAGE_KEY = "sap.telemetry.sessionId";
+const SESSION_STORAGE_KEY = "sedes.telemetry.sessionId";
 
 function createAnonymousSessionId() {
   if (

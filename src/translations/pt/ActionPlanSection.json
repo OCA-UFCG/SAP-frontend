@@ -1,5 +1,12 @@
 {
   "ActionPlanSection": {
-    "title": "{title}"
+    "title": "{title}",
+    "axesSection": {
+      "title": "{title}",
+      "executorLabel": "Executor",
+      "partnersLabel": "Parceiros",
+      "actionsSuffix": "ações",
+      "sedesHere": "O SEDES atua neste eixo"
+    }
   }
 }

@@ -31,6 +31,7 @@ const IMAGE_STYLE_BY_IDENTIFIER: Record<
 
 const TabsSection = ({ contentData }: TabsSectionProps) => {
   const t = useTranslations("TabSection");
+  const footerT = useTranslations("Footer");
   const [activeTabIdentifier, setActiveTabIdentifier] = useState(
     contentData[0]?.identifier ?? "",
   );
@@ -58,6 +59,9 @@ const TabsSection = ({ contentData }: TabsSectionProps) => {
   return (
     <section className="w-full bg-[#F6F7F6] flex flex-col items-center">
       <div className="w-full max-w-[1440px] mx-auto px-6 pt-8 md:px-10 md:pt-12 lg:px-[78px] lg:pt-[85px] flex flex-col items-start">
+        <p className="mb-1 text-xs font-bold uppercase tracking-wide text-[#989F43] md:text-sm">
+          {footerT("aboutMenu.usuarios")}
+        </p>
         <h2 className="text-[24px] md:text-[28px] lg:text-[30px] leading-[28px] md:leading-[32px] lg:leading-[36px] tracking-[-0.0075em] text-[#292829] font-semibold mb-6">
           {sectionTitle}
         </h2>

@@ -135,7 +135,7 @@ describe("municipal analysis pipeline validation", () => {
     expect(minimalPipelineConfig.fileNamePattern.test("input.csv")).toBe(true);
     expect(
       inferPanelLayerMapping(
-        "Estatisticas_SAP_Municipios_CDI_2026.csv",
+        "Estatisticas_SEDES_Municipios_CDI_2026.csv",
         minimalPipelineConfig.layerRules,
       ),
     ).toMatchObject({
@@ -219,14 +219,14 @@ describe("municipal analysis pipeline validation", () => {
   });
 
   it("merges legacy and multilevel forecast CSVs into one annual partition", async () => {
-    const rootDir = path.join("/tmp", `sap-multilevel-${Date.now()}`);
+    const rootDir = path.join("/tmp", `sedes-multilevel-${Date.now()}`);
     const csvDir = path.join(rootDir, "csv");
     const jsonDir = path.join(rootDir, "json");
     await mkdir(csvDir, { recursive: true });
 
     try {
       await writeFile(
-        path.join(csvDir, "Estatisticas_SAP_Municipios_CDI_2026.csv"),
+        path.join(csvDir, "Estatisticas_SEDES_Municipios_CDI_2026.csv"),
         [
           "CD_MUN,NM_MUN,SIGLA_UF,ano,data_img,perc_classe_0,perc_classe_1",
           "2507507,João Pessoa,PB,2026,2026-01-01,10,90",
@@ -235,7 +235,7 @@ describe("municipal analysis pipeline validation", () => {
         "utf8",
       );
       await writeFile(
-        path.join(csvDir, "Estatisticas_SAP_Multinivel_CDI_2026.csv"),
+        path.join(csvDir, "Estatisticas_SEDES_Multinivel_CDI_2026.csv"),
         [
           "NIVEL_AGRUPAMENTO,NOME_LOCAL,CD_MUN,NM_UF,ano,mes,data_img,perc_classe_0,perc_classe_1",
           "1_BR,Brasil Total,---,---,2026,2,2026-02-01,30,70",
@@ -276,7 +276,7 @@ describe("municipal analysis pipeline validation", () => {
   });
 
   it("writes compressed annual partitions and blocks ambiguous route keys", async () => {
-    const partitionDir = path.join("/tmp", `sap-partitions-${Date.now()}`);
+    const partitionDir = path.join("/tmp", `sedes-partitions-${Date.now()}`);
     await mkdir(partitionDir, { recursive: true });
 
     try {

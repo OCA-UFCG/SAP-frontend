@@ -2,14 +2,15 @@
   "Footer": {
     "home": "Home",
     "platform": "Plataforma",
-    "about": "Sobre o SAP",
+    "about": "Sobre o SEDES",
+    "glossary": "Glossário",
     "contact": "Contatos",
     "aboutMenu": {
       "planoDeAcaoBrasileiro": "Plano de Ação Brasileiro",
       "grupoDeTrabalho": "Grupo de Trabalho",
       "aPlataforma": "A Plataforma",
       "usuarios": "Usuários",
-      "financiamento": "Financiamento"
+      "financiamento": "Financiamento e Execução"
     }
   }
 }

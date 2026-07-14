@@ -25,15 +25,9 @@ const content: ISections = {
     path: "/",
     appears: true,
   },
-  "map-section": {
-    id: "2",
-    name: "Plataforma",
-    path: "/platform",
-    appears: true,
-  },
   "about-section": {
     id: "3",
-    name: "Sobre o Sap",
+    name: "Sobre o SEDES",
     path: "#",
     appears: true,
     childrenCollection: {
@@ -45,6 +39,18 @@ const content: ISections = {
         { id: "3-5", name: "Financiamento", path: "/#financiamento", appears: true },
       ],
     },
+  },
+  "glossary-section": {
+    id: "5",
+    name: "Glossário",
+    path: "/glossary",
+    appears: true,
+  },
+  "map-section": {
+    id: "2",
+    name: "Plataforma",
+    path: "/platform",
+    appears: true,
   },
   "contact-section": {
     id: "4",

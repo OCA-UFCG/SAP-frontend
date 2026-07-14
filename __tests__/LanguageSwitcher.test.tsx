@@ -21,7 +21,7 @@ describe("LanguageSwitcher", () => {
   beforeEach(() => {
     replaceMock.mockReset();
     usePathnameMock.mockReset();
-    usePathnameMock.mockReturnValue("/sobre-o-sap");
+    usePathnameMock.mockReturnValue("/sobre-o-sedes");
   });
 
   afterEach(() => {
@@ -57,7 +57,7 @@ describe("LanguageSwitcher", () => {
     const enOption = screen.getByText("English");
     fireEvent.click(enOption);
 
-    expect(replaceMock).toHaveBeenCalledWith("/sobre-o-sap", { locale: "en" });
+    expect(replaceMock).toHaveBeenCalledWith("/sobre-o-sedes", { locale: "en" });
   });
 
   it("closes the dropdown when clicked outside", () => {

@@ -24,7 +24,7 @@ export const useStateFeatureSelection = ({
     (...args: unknown[]) => {
       if (!debugEnabled) return;
 
-      console.log(`[SAP Map ${mapDebugIdRef.current}]`, ...args);
+      console.log(`[SEDES Map ${mapDebugIdRef.current}]`, ...args);
     },
     [debugEnabled, mapDebugIdRef],
   );
@@ -33,7 +33,7 @@ export const useStateFeatureSelection = ({
     (...args: unknown[]) => {
       if (!debugEnabled) return;
 
-      console.warn(`[SAP Map ${mapDebugIdRef.current}]`, ...args);
+      console.warn(`[SEDES Map ${mapDebugIdRef.current}]`, ...args);
     },
     [debugEnabled, mapDebugIdRef],
   );

@@ -38,8 +38,11 @@ export const PartnersSection = ({
           {partners.map((partner) => (
             <div
               key={partner.sys.id}
-              className="flex flex-col items-center gap-2"
+              className="flex w-55 flex-col items-center gap-2"
             >
+              <span className="text-sm font-bold text-center text-[#292829]">
+                {partner.name}
+              </span>
               <Image
                 src={normalizeContentfulImage(partner.image.url)}
                 alt={partner.image.title || partner.name}
@@ -48,7 +51,7 @@ export const PartnersSection = ({
                 className="h-15.5 w-auto object-contain"
               />
               <span className="text-sm text-center text-[#292829]">
-                {partner.name}
+                {partner.description}
               </span>
             </div>
           ))}

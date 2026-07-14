@@ -15,6 +15,7 @@ export const WorkingGroupSection = ({
   className = "bg-white",
 }: Props) => {
   const t = useTranslations("WorkingGroupSection");
+  const footerT = useTranslations("Footer");
 
   const title = t("title", { title: content.title });
   const text = t.has("text")
@@ -27,9 +28,14 @@ export const WorkingGroupSection = ({
       className={`w-full scroll-mt-16.5 flex flex-col items-center ${className}`}
     >
       <div className="w-full max-w-[1440px] mx-auto px-4 py-16 md:px-10 lg:px-[80px] flex flex-col gap-6">
-        <h2 className="text-[28px] md:text-[36px] lg:text-[42px] leading-tight font-bold text-[#21240F]">
-          {title}
-        </h2>
+        <div>
+          <p className="mb-1 text-xs font-bold uppercase tracking-wide text-[#989F43] md:text-sm">
+            {footerT("aboutMenu.grupoDeTrabalho")}
+          </p>
+          <h2 className="text-[28px] md:text-[36px] lg:text-[42px] leading-tight font-bold text-[#21240F]">
+            {title}
+          </h2>
+        </div>
 
         <div className="text-[15px] md:text-[16px] leading-[150%] text-[#292829]">
           {text}

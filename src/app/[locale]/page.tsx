@@ -4,7 +4,6 @@ import { PartnersSection } from "@/components/PartnersSection/PartnersSection";
 import TabsSection from "@/components/TabSection/TabSection";
 import MapSection from "@/components/MapSection/MapSection";
 import { ActionPlanSection } from "@/components/ActionPlanSection/ActionPlanSection";
-import { ThematicAxesSection } from "@/components/ThematicAxesSection/ThematicAxesSection";
 import { WorkingGroupSection } from "@/components/WorkingGroupSection/WorkingGroupSection";
 import { PlatformModulesSection } from "@/components/PlatformModulesSection/PlatformModulesSection";
 import { getHomePageContent } from "@/repositories/content/siteContentRepository";
@@ -12,7 +11,6 @@ import { getTranslations } from "next-intl/server";
 import {
   MOCK_ACTION_PLAN_CONTENT,
   MOCK_PLATFORM_MODULES_CONTENT,
-  MOCK_THEMATIC_AXES_CONTENT,
   MOCK_WORKING_GROUP_CONTENT,
 } from "./homePage.mocks";
 
@@ -46,7 +44,6 @@ export default async function Home({
           id="plano-de-acao-brasileiro"
           content={MOCK_ACTION_PLAN_CONTENT}
         />
-        <ThematicAxesSection content={MOCK_THEMATIC_AXES_CONTENT} />
         <WorkingGroupSection
           id="grupo-de-trabalho"
           content={MOCK_WORKING_GROUP_CONTENT}

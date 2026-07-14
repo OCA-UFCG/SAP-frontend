@@ -6,7 +6,7 @@ const meta: Meta<typeof MainBanner> = {
   component: MainBanner,
   args: {
     data: {
-      title: "Sistema de Alerta Precoce",
+      title: "Sistema Estratégico Sobre Desertificação",
       subtitle: "Monitoramento de seca e desertificação.",
       linkText: "Explorar Mapa",
       link: "/platform",

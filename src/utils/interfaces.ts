@@ -16,7 +16,7 @@ export interface FooterI {
   appears: boolean;
 }
 
-export interface SapChannelI {
+export interface SedesChannelI {
   name: string;
   href: string;
   icon: string;
@@ -74,25 +74,22 @@ export interface StatCardI {
   label: string;
 }
 
-export interface ActionPlanSectionI {
-  title: string;
-  text: {
-    json: Document;
-  };
-  stats: StatCardI[];
-}
-
 export interface ThematicAxisI {
   title: string;
   executor: string;
   executorActionsCount: number;
   partners: string[];
   actionsCount: number;
-  isSapAxis?: boolean;
+  isSedesAxis?: boolean;
 }
 
-export interface ThematicAxesSectionI {
+export interface ActionPlanSectionI {
   title: string;
+  text: {
+    json: Document;
+  };
+  stats: StatCardI[];
+  axesTitle: string;
   axes: ThematicAxisI[];
 }
 
@@ -147,6 +144,7 @@ export interface PartnerI {
     id: string;
   };
   name: string;
+  description?: string;
   image: {
     url: string;
     title?: string;
@@ -168,7 +166,7 @@ export interface ISections {
 }
 
 export interface SocialChannelsI {
-  channels: SapChannelI[];
+  channels: SedesChannelI[];
   size: number;
   displayName?: boolean;
 }

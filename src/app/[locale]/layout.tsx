@@ -33,8 +33,8 @@ const openSans = Open_Sans({
 });
 
 export const metadata: Metadata = {
-  title: "Portal SAP",
-  description: "Portal SAP criado por OCA",
+  title: "Portal SEDES",
+  description: "Portal SEDES criado por OCA",
 };
 
 const getCachedFooterContent = cache(getFooterContent);
@@ -97,6 +97,12 @@ export default async function RootLayout({
         ],
       },
     },
+    "glossary-section": {
+      id: "5",
+      name: t("glossary"),
+      path: "/glossary",
+      appears: true,
+    },
     "map-section": {
       id: "2",
       name: t("platform"),
@@ -115,7 +121,7 @@ export default async function RootLayout({
 
   return (
     <html lang={locale}>
-      <meta name="apple-mobile-web-app-title" content="Portal SAP" />
+      <meta name="apple-mobile-web-app-title" content="Portal SEDES" />
       <body
         className={`${geistSans.variable} ${geistMono.variable} ${inter.variable} ${openSans.variable} antialiased min-h-screen flex flex-col`}
       >

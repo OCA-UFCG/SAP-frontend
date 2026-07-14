@@ -1,7 +1,7 @@
 {
   "WorkingGroupSection": {
-    "title": "Origin of the working group",
-    "text": "On May 12-13, 2026, the National Commission to Combat Desertification (CNCD), through its PAB-Brazil Implementation Technical Chamber, resolved to create the GT-SAP, in response to Objective 3.4 of the PAB. The group's goal was to collaboratively build each institution's contribution to the three SAP modules and draft a Technical Cooperation Protocol.",
+    "title": "Origin of the Working Group",
+    "text": "On May 12-13, 2026, the National Commission to Combat Desertification (CNCD), through its PAB-Brazil Implementation Technical Chamber, resolved to create the GT-SEDES, in response to Objective 3.4 of the PAB. The group's goal was to collaboratively build each institution's contribution to the three SEDES modules and draft a Technical Cooperation Protocol.",
     "milestones": {
       "0": {
         "title": "Interinstitutional workshop",
@@ -9,10 +9,10 @@
       },
       "1": {
         "title": "CNCD deliberation",
-        "description": "Creation of the GT-SAP approved in plenary, in response to Objective 3.4 of the PAB."
+        "description": "Creation of the GT-SEDES approved in plenary, in response to Objective 3.4 of the PAB."
       },
       "2": {
-        "title": "1st GT-SAP meeting",
+        "title": "1st GT-SEDES meeting",
         "description": "Held at CECAD (Brasília/DF), the formal start of the group's work."
       }
     }

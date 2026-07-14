@@ -14,8 +14,8 @@ export const Header = ({ content }: { content: ISection[] }) => {
           <div className="absolute flex items-center justify-center top-0 left-0 z-50 h-20.5 bg-[#989F43] w-44">
             <Link href="/" className="relative z-10">
               <Image
-                alt="SAP Logo"
-                src="/logo-sap.png"
+                alt="SEDES Logo"
+                src="/logo-sedes.png"
                 width={128}
                 height={72}
                 className="h-12 w-auto"
