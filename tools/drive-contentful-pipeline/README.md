@@ -362,6 +362,9 @@ codigo antigo.
 | `ODS`                          | `ods`                        |
 | `cemaden`                      | `cemadenseca`                |
 | `ANA`                          | `anaseca`                    |
+| `pob_urb` ou `pobreza urbana`  | `pob_urb`                    |
+| `pob_rural` ou `pobreza rural` | `pob_rural`                  |
+| `S2ID` ou `secas estiagens`    | `s2id_secas_estiagens`       |
 | `pob` ou `populacao`           | `pob_total`                  |
 | `Prev` ou `previsao_P`         | `prev_anomalia_precipitacao` |
 
@@ -383,6 +386,12 @@ pobreza, nao o percentual de todas as familias do territorio. Se o CSV tiver
 valores somados por estado, a conversao falha antes de gerar um JSON publicavel.
 A legenda publicada para `pob_total` usa apenas faixas dentro dessa escala:
 `0-20`, `20-40`, `40-60`, `60-80` e `80-100`.
+
+As camadas `pob_urb` e `pob_rural` usam o mesmo contrato percentual e o
+intervalo 2012-2025. A camada `s2id_secas_estiagens` usa a quantidade anual de
+registros municipais entre 2004 e 2025; o Detalhamento estadual e nacional
+exibe a media municipal, enquanto o mapa e o Detalhamento municipal preservam
+a contagem de cada municipio.
 
 ## Como os JSONs sao particionados
 

@@ -24,6 +24,12 @@
 .DS_Store
 *.pem
 /scripts
+!/scripts/
+/scripts/*
+!/scripts/gee/
+/scripts/gee/*
+!/scripts/gee/pobreza-urbana-rural.js
+!/scripts/gee/s2id-secas-estiagens.js
 /tmp
 
 # debug
