@@ -1,9 +1,5 @@
 import { redirect } from "next/navigation";
 
-export default async function PlatformLogsLayout({
-  children: _children,
-}: {
-  children: React.ReactNode;
-}) {
+export default async function PlatformLogsLayout() {
   redirect("/platform?view=logs");
 }
