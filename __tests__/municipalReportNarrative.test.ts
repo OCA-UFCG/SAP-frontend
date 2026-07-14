@@ -1,6 +1,13 @@
 import { describe, expect, it } from "vitest";
-import type { MunicipalReportAnalysis, MunicipalReportDocsContent } from "@/contracts/municipalReport";
-import { buildAnalysisNarrativeSections, buildHistoryNarrative, buildSituationNarrative } from "@/utils/municipalReportNarrative";
+import type {
+  MunicipalReportAnalysis,
+  MunicipalReportDocsContent,
+} from "@/contracts/municipalReport";
+import {
+  buildAnalysisNarrativeSections,
+  buildHistoryNarrative,
+  buildSituationNarrative,
+} from "@/utils/municipalReportNarrative";
 
 function analysis(id = "anaseca"): MunicipalReportAnalysis {
   return {
@@ -8,6 +15,7 @@ function analysis(id = "anaseca"): MunicipalReportAnalysis {
     alias: "seca",
     title: "Monitor de Secas",
     unit: "%",
+    valueType: "percentage",
     status: "available",
     requestedPeriod: "2026",
     effectivePeriod: "2026-02",
@@ -21,7 +29,10 @@ describe("municipal report narrative", () => {
   it("uses generated Docs content for the situation narrative", () => {
     const docsContent: MunicipalReportDocsContent = {
       anaseca: [
-        { title: "Situação atual", text: "Texto gerado para a situação atual." },
+        {
+          title: "Situação atual",
+          text: "Texto gerado para a situação atual.",
+        },
       ],
     };
 
@@ -45,11 +56,11 @@ describe("municipal report narrative", () => {
   });
 
   it("returns null when there is no generated content for the analysis theme", () => {
-    expect(buildHistoryNarrative(analysis("indicearidez"), {
-      anaseca: [
-        { title: "Tendência recente", text: "Texto de outro tema." },
-      ],
-    })).toBeNull();
+    expect(
+      buildHistoryNarrative(analysis("indicearidez"), {
+        anaseca: [{ title: "Tendência recente", text: "Texto de outro tema." }],
+      }),
+    ).toBeNull();
   });
 
   it("returns every non-situation section for aridity and degradation layouts", () => {
@@ -62,7 +73,9 @@ describe("municipal report narrative", () => {
       ],
     };
 
-    expect(buildAnalysisNarrativeSections(analysis("indicearidez"), docsContent)).toEqual([
+    expect(
+      buildAnalysisNarrativeSections(analysis("indicearidez"), docsContent),
+    ).toEqual([
       { title: "Situação atual", text: "Detalhamento histórico." },
       { title: "Classificação climática", text: "Classificação." },
       { title: "Evolução decenal", text: "Evolução." },

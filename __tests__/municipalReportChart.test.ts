@@ -10,6 +10,7 @@ const analysis: MunicipalReportAnalysis = {
   alias: "seca",
   title: "Seca & Aridez <Teste>",
   unit: "%",
+  valueType: "percentage",
   status: "available",
   requestedPeriod: "2024-03",
   effectivePeriod: "2024-03",
@@ -62,27 +63,27 @@ describe("municipal report chart", () => {
       "2024-03",
     ]);
     expect(chartData.referencePeriod).toBe("2024-03");
-    expect(chartData.categories.map((category) => category.highlighted)).toEqual([
-      false,
-      false,
-      true,
-    ]);
+    expect(
+      chartData.categories.map((category) => category.highlighted),
+    ).toEqual([false, false, true]);
     expect(chartData.series.map((series) => series.id)).toEqual([
       "neutral",
       "moderate",
       "severe",
     ]);
     expect(
-      chartData.series.find((series) => series.id === "severe")?.points.map(
-        (point) => point.value,
-      ),
+      chartData.series
+        .find((series) => series.id === "severe")
+        ?.points.map((point) => point.value),
     ).toEqual([0, 20, 45]);
   });
 
   it("renders an escaped SVG line chart with every class and full history", async () => {
-    const svg = (await renderMunicipalReportChart(analysis, {
-      highlightPeriod: "2024-03",
-    })).toString("utf8");
+    const svg = (
+      await renderMunicipalReportChart(analysis, {
+        highlightPeriod: "2024-03",
+      })
+    ).toString("utf8");
 
     expect(svg).toContain("<polyline");
     expect(svg.match(/<polyline/g)).toHaveLength(3);
@@ -94,5 +95,35 @@ describe("municipal report chart", () => {
     expect(svg).toContain("Seca &amp; Aridez &lt;Teste&gt;");
     expect(svg).toContain("stroke-dasharray");
     expect(svg).not.toContain("<rect x=");
+  });
+
+  it("uses the observed range and absolute unit instead of a percentage axis", async () => {
+    const absoluteAnalysis: MunicipalReportAnalysis = {
+      ...analysis,
+      title: "Registros de seca e estiagem",
+      unit: "registros",
+      valueType: "absolute",
+      timeSeries: analysis.timeSeries.map((snapshot, index) => ({
+        ...snapshot,
+        distribution: [
+          {
+            id: "neutral",
+            label: "Registros",
+            color: "#687076",
+            percentage: [120, 260, 410][index]!,
+          },
+        ],
+      })),
+      classes: [{ id: "neutral", label: "Registros", color: "#687076" }],
+    };
+
+    const svg = (
+      await renderMunicipalReportChart(absoluteAnalysis, {
+        highlightPeriod: "2024-03",
+      })
+    ).toString("utf8");
+
+    expect(svg).toContain(">410</text>");
+    expect(svg).not.toContain(">100%</text>");
   });
 });

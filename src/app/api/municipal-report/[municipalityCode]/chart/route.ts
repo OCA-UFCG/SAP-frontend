@@ -1,7 +1,10 @@
 import { NextResponse } from "next/server";
 import { requireAuthenticatedRequest } from "@/lib/server-session";
 import { getMunicipalAnalysisCacheControlHeader } from "@/repositories/platform/municipalAnalysisCache";
-import { buildMunicipalReport, MunicipalReportNotFoundError } from "@/services/municipalReportService";
+import {
+  buildMunicipalReport,
+  MunicipalReportNotFoundError,
+} from "@/services/municipalReportService";
 import {
   renderMunicipalReportCharts,
   resolveMunicipalReportChartAnalyses,
@@ -13,7 +16,9 @@ const CHART_CACHE_TTL_MS = 10 * 60 * 1000;
 const CHART_CACHE_MAX_ITEMS = 80;
 
 interface MunicipalReportChartResponse {
-  municipality: Awaited<ReturnType<typeof buildMunicipalReport>>["municipality"];
+  municipality: Awaited<
+    ReturnType<typeof buildMunicipalReport>
+  >["municipality"];
   requestedPeriod: string;
   charts: Awaited<ReturnType<typeof renderMunicipalReportCharts>>;
 }
@@ -24,10 +29,17 @@ const chartCache = new Map<
 >();
 
 function error(message: string, status: number) {
-  return NextResponse.json({ error: message }, { status, headers: { "Cache-Control": "no-store" } });
+  return NextResponse.json(
+    { error: message },
+    { status, headers: { "Cache-Control": "no-store" } },
+  );
 }
 
-function getChartCacheKey(code: string, period: string, requestedIds: string[]) {
+function getChartCacheKey(
+  code: string,
+  period: string,
+  requestedIds: string[],
+) {
   return [code, period, [...requestedIds].sort().join(",")].join(":");
 }
 
@@ -58,7 +70,10 @@ function writeChartCache(key: string, payload: MunicipalReportChartResponse) {
  *
  * Returns base64-encoded SVG chart images for the requested analyses.
  */
-export async function GET(request: Request, context: { params: Promise<{ municipalityCode: string }> }) {
+export async function GET(
+  request: Request,
+  context: { params: Promise<{ municipalityCode: string }> },
+) {
   const unauthorized = await requireAuthenticatedRequest(request);
   if (unauthorized) {
     unauthorized.headers.set("Cache-Control", "no-store");
@@ -71,12 +86,22 @@ export async function GET(request: Request, context: { params: Promise<{ municip
   const period = url.searchParams.get("period")?.trim();
   const analysisParam = url.searchParams.get("analysis")?.trim();
 
-  if (!MUNICIPALITY_CODE_PATTERN.test(code)) return error("Invalid municipality code.", 400);
-  if (!period || !PERIOD_PATTERN.test(period)) return error("Invalid or missing period.", 400);
-  if (!analysisParam) return error("Missing 'analysis' query parameter. Provide one or more analysis IDs or aliases separated by commas.", 400);
+  if (!MUNICIPALITY_CODE_PATTERN.test(code))
+    return error("Invalid municipality code.", 400);
+  if (!period || !PERIOD_PATTERN.test(period))
+    return error("Invalid or missing period.", 400);
+  if (!analysisParam)
+    return error(
+      "Missing 'analysis' query parameter. Provide one or more analysis IDs or aliases separated by commas.",
+      400,
+    );
 
-  const requestedIds = analysisParam.split(",").map((id) => id.trim().toLowerCase()).filter(Boolean);
-  if (requestedIds.length === 0) return error("No valid analysis IDs provided.", 400);
+  const requestedIds = analysisParam
+    .split(",")
+    .map((id) => id.trim().toLowerCase())
+    .filter(Boolean);
+  if (requestedIds.length === 0)
+    return error("No valid analysis IDs provided.", 400);
 
   try {
     const cacheKey = getChartCacheKey(code, period, requestedIds);
@@ -87,16 +112,26 @@ export async function GET(request: Request, context: { params: Promise<{ municip
       });
     }
 
-    const report = await buildMunicipalReport(code, period);
+    // Avoid rebuilding every report layer for a chart request that only needs
+    // the explicitly selected analyses.
+    const report = await buildMunicipalReport(code, period, {
+      analysisIds: requestedIds,
+    });
 
     const { missingAnalyses, availableAnalyses } =
       resolveMunicipalReportChartAnalyses(report, requestedIds);
 
     if (missingAnalyses.length === requestedIds.length) {
-      return error(`No matching analyses found for: ${missingAnalyses.join(", ")}`, 404);
+      return error(
+        `No matching analyses found for: ${missingAnalyses.join(", ")}`,
+        404,
+      );
     }
     if (availableAnalyses.length === 0) {
-      return error("No available time-series data for the requested analyses.", 404);
+      return error(
+        "No available time-series data for the requested analyses.",
+        404,
+      );
     }
 
     const charts = await renderMunicipalReportCharts(availableAnalyses, period);
@@ -107,12 +142,12 @@ export async function GET(request: Request, context: { params: Promise<{ municip
     };
     writeChartCache(cacheKey, payload);
 
-    return NextResponse.json(
-      payload,
-      { headers: { "Cache-Control": getMunicipalAnalysisCacheControlHeader() } },
-    );
+    return NextResponse.json(payload, {
+      headers: { "Cache-Control": getMunicipalAnalysisCacheControlHeader() },
+    });
   } catch (cause) {
-    if (cause instanceof MunicipalReportNotFoundError) return error(cause.message, 404);
+    if (cause instanceof MunicipalReportNotFoundError)
+      return error(cause.message, 404);
     console.error("Erro ao gerar gráfico do relatório municipal:", cause);
     return error("Unable to generate municipal report chart.", 502);
   }

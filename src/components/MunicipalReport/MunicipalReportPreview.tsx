@@ -514,8 +514,10 @@ export function MunicipalReportPreview({ municipalityCode, period, layerIds, emb
       setLoading(true);
       setError(null);
       try {
+        const reportParams = new URLSearchParams({ period });
+        if (layerIdsKey) reportParams.set("layers", layerIdsKey);
         const response = await fetch(
-          `/api/municipal-report/${encodeURIComponent(municipalityCode)}?period=${encodeURIComponent(period)}`,
+          `/api/municipal-report/${encodeURIComponent(municipalityCode)}?${reportParams.toString()}`,
           { credentials: "same-origin", signal: controller.signal },
         );
         const payload = await response.json();
@@ -541,7 +543,8 @@ export function MunicipalReportPreview({ municipalityCode, period, layerIds, emb
           .filter((a) => a.status === "available")
           .map((a) => a.id);
 
-        if (selectedLayerIdsForDocs.length > 0) {
+        const docsTask = async () => {
+          if (selectedLayerIdsForDocs.length === 0) return;
           try {
             const docsResponse = await fetch(
               `/api/municipal-report/${encodeURIComponent(municipalityCode)}/docs?period=${encodeURIComponent(period)}&layers=${encodeURIComponent(selectedLayerIdsForDocs.join(","))}`,
@@ -555,14 +558,13 @@ export function MunicipalReportPreview({ municipalityCode, period, layerIds, emb
             console.warn("Não foi possível carregar os textos do relatório; mantendo os dados e gráficos disponíveis.", docsError);
             setDocsContent(null);
           }
-        }
+        };
 
-        if (selectedAliases.length === 0) {
-          setCharts(new Map());
-          return;
-        }
-
-        if (selectedAliases.length > 0) {
+        const chartsTask = async () => {
+          if (selectedAliases.length === 0) {
+            setCharts(new Map());
+            return;
+          }
           const chartResponse = await fetch(
             `/api/municipal-report/${encodeURIComponent(municipalityCode)}/chart?period=${encodeURIComponent(period)}&analysis=${selectedAliases.join(",")}`,
             { credentials: "same-origin", signal: controller.signal },
@@ -575,7 +577,11 @@ export function MunicipalReportPreview({ municipalityCode, period, layerIds, emb
             }
             setCharts(nextCharts);
           }
-        }
+        };
+
+        // Text resolution and SVG rendering are independent. Starting them
+        // together prevents the chart from waiting behind the Docs request.
+        await Promise.all([docsTask(), chartsTask()]);
       } catch (reason) {
         if (reason instanceof DOMException && reason.name === "AbortError") return;
         setError(reason instanceof Error ? reason.message : t("loadError"));

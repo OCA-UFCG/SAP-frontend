@@ -1,15 +1,27 @@
 import "server-only";
 
 import citiesIndex from "@/data/citiesIndex.json";
-import { MUNICIPAL_REPORT_LAYERS, type MunicipalReportLayerConfig } from "@/config/municipalReport";
-import type { MunicipalReportAnalysis, MunicipalReportData } from "@/contracts/municipalReport";
+import {
+  MUNICIPAL_REPORT_LAYERS,
+  type MunicipalReportLayerConfig,
+} from "@/config/municipalReport";
+import type {
+  MunicipalReportAnalysis,
+  MunicipalReportData,
+} from "@/contracts/municipalReport";
 import { getCachedMunicipalAnalysisImageData } from "@/repositories/platform/municipalAnalysisCache";
 import { getPanelLayers } from "@/repositories/platform/panelLayerRepository";
 import { isCompactImageData } from "@/utils/imageData";
-import { buildMunicipalReportTimeSeries, getMunicipalReportClasses, resolveMunicipalReportSnapshot } from "@/utils/municipalReport";
+import {
+  buildMunicipalReportSnapshot,
+  buildMunicipalReportTimeSeries,
+  getMunicipalReportClasses,
+  resolveMunicipalReportSnapshot,
+} from "@/utils/municipalReport";
 
 export interface MunicipalReportServiceDependencies {
   layers?: readonly MunicipalReportLayerConfig[];
+  analysisIds?: readonly string[];
   loadImageData?: typeof getCachedMunicipalAnalysisImageData;
   listPanelLayers?: typeof getPanelLayers;
   now?: () => Date;
@@ -26,11 +38,15 @@ function stableAlias(value: string) {
     .replace(/^_+|_+$/g, "");
 }
 
-async function resolveReportLayers(dependencies: MunicipalReportServiceDependencies) {
+async function resolveReportLayers(
+  dependencies: MunicipalReportServiceDependencies,
+) {
   if (dependencies.layers) return [...dependencies.layers];
 
   const panelLayers = await (dependencies.listPanelLayers ?? getPanelLayers)();
-  const configured = new Map(MUNICIPAL_REPORT_LAYERS.map((layer) => [layer.panelLayerId, layer]));
+  const configured = new Map(
+    MUNICIPAL_REPORT_LAYERS.map((layer) => [layer.panelLayerId, layer]),
+  );
   return panelLayers.map((layer, index): MunicipalReportLayerConfig => {
     const override = configured.get(layer.id);
     return {
@@ -38,13 +54,89 @@ async function resolveReportLayers(dependencies: MunicipalReportServiceDependenc
       alias: override?.alias ?? stableAlias(layer.id),
       title: layer.name || override?.title || layer.id,
       order: layer.panelPosition ?? override?.order ?? index,
+      periods: isCompactImageData(layer.imageData)
+        ? Object.keys(layer.imageData.years)
+        : undefined,
+      timeSeriesLocationKey: override?.timeSeriesLocationKey,
       presentation: override?.presentation,
     };
   });
 }
 
-function unavailable(config: MunicipalReportLayerConfig, period: string): MunicipalReportAnalysis {
-  return { id: config.panelLayerId, alias: config.alias, title: config.title, unit: "%", status: "unavailable", requestedPeriod: period, effectivePeriod: null, classes: [], snapshot: null, timeSeries: [] };
+function unavailable(
+  config: MunicipalReportLayerConfig,
+  period: string,
+): MunicipalReportAnalysis {
+  return {
+    id: config.panelLayerId,
+    alias: config.alias,
+    title: config.title,
+    unit: "%",
+    valueType: "percentage",
+    status: "unavailable",
+    requestedPeriod: period,
+    effectivePeriod: null,
+    classes: [],
+    snapshot: null,
+    timeSeries: [],
+  };
+}
+
+async function loadMunicipalTimeSeries(
+  panelLayerId: string,
+  municipalityCode: string,
+  requestedPeriod: string,
+  availablePeriods: readonly string[] | undefined,
+  timeSeriesLocationKey: string,
+  loadImageData: typeof getCachedMunicipalAnalysisImageData,
+) {
+  const seed = await loadImageData(panelLayerId, requestedPeriod);
+
+  // Annual/monthly partition requests are the same path used by Monitoramento.
+  // Each response contains the lightweight dataset metadata plus municipal
+  // values for one period, avoiding the full-layer Contentful aggregation.
+  if (seed.found && seed.imageData && isCompactImageData(seed.imageData)) {
+    const periodKeys = [...(availablePeriods?.length
+      ? availablePeriods
+      : Object.keys(seed.imageData.years))].sort((left, right) =>
+        left.localeCompare(right),
+      );
+
+    if (periodKeys.length > 0) {
+      const datasets = await Promise.all(
+        periodKeys.map(async (period) => {
+          if (period === requestedPeriod) return seed.imageData;
+          const result = await loadImageData(panelLayerId, period);
+          return result.found && result.imageData && isCompactImageData(result.imageData)
+            ? result.imageData
+            : null;
+        }),
+      );
+      const timeSeries = datasets.flatMap((dataset, index) => {
+        const period = periodKeys[index];
+        if (!dataset || !period || !isCompactImageData(dataset)) return [];
+        const snapshot = buildMunicipalReportSnapshot(
+          dataset,
+          timeSeriesLocationKey,
+          period,
+        );
+        return snapshot ? [snapshot] : [];
+      });
+
+      return { dataset: seed.imageData, timeSeries };
+    }
+  }
+
+  // Compatibility fallback for an annual request against a monthly dataset
+  // or environments that have not published partition metadata yet.
+  const complete = await loadImageData(panelLayerId);
+  if (!complete.found || !complete.imageData || !isCompactImageData(complete.imageData)) {
+    return null;
+  }
+  return {
+    dataset: complete.imageData,
+    timeSeries: buildMunicipalReportTimeSeries(complete.imageData, timeSeriesLocationKey),
+  };
 }
 
 export async function buildMunicipalReport(
@@ -52,28 +144,66 @@ export async function buildMunicipalReport(
   requestedPeriod: string,
   dependencies: MunicipalReportServiceDependencies = {},
 ): Promise<MunicipalReportData> {
-  const municipality = citiesIndex.find((city) => city.code === municipalityCode);
-  if (!municipality) throw new MunicipalReportNotFoundError("Municipality not found.");
+  const municipality = citiesIndex.find(
+    (city) => city.code === municipalityCode,
+  );
+  if (!municipality)
+    throw new MunicipalReportNotFoundError("Municipality not found.");
 
-  const loadImageData = dependencies.loadImageData ?? getCachedMunicipalAnalysisImageData;
-  const layers = (await resolveReportLayers(dependencies)).sort((a, b) => a.order - b.order);
-  const analyses = await Promise.all(layers.map(async (config): Promise<MunicipalReportAnalysis> => {
-    try {
-      const result = await loadImageData(config.panelLayerId);
-      if (!result.found || !result.imageData || !isCompactImageData(result.imageData)) return unavailable(config, requestedPeriod);
-      const timeSeries = buildMunicipalReportTimeSeries(result.imageData, municipalityCode);
-      const snapshot = resolveMunicipalReportSnapshot(timeSeries, requestedPeriod);
-      return {
-        id: config.panelLayerId, alias: config.alias, title: config.title, unit: "%",
-        status: snapshot ? "available" : "period_not_found",
-        requestedPeriod, effectivePeriod: snapshot?.period ?? null,
-        classes: getMunicipalReportClasses(result.imageData), snapshot, timeSeries,
-      };
-    } catch (error) {
-      console.error(`[municipalReport] Falha ao carregar ${config.panelLayerId}:`, error);
-      return unavailable(config, requestedPeriod);
-    }
-  }));
+  const loadImageData =
+    dependencies.loadImageData ?? getCachedMunicipalAnalysisImageData;
+  const requestedAnalysisIds = dependencies.analysisIds
+    ? new Set(dependencies.analysisIds.map((id) => id.trim().toLowerCase()))
+    : null;
+  const layers = (await resolveReportLayers(dependencies))
+    .filter(
+      (layer) =>
+        !requestedAnalysisIds ||
+        requestedAnalysisIds.has(layer.panelLayerId.toLowerCase()) ||
+        requestedAnalysisIds.has(layer.alias.toLowerCase()),
+    )
+    .sort((a, b) => a.order - b.order);
+  const analyses = await Promise.all(
+    layers.map(async (config): Promise<MunicipalReportAnalysis> => {
+      try {
+      const temporalData = await loadMunicipalTimeSeries(
+        config.panelLayerId,
+        municipalityCode,
+        requestedPeriod,
+        config.periods,
+        config.timeSeriesLocationKey ?? municipalityCode,
+        loadImageData,
+      );
+      if (!temporalData)
+        return unavailable(config, requestedPeriod);
+      const { dataset, timeSeries } = temporalData;
+      const snapshot = config.timeSeriesLocationKey
+        ? buildMunicipalReportSnapshot(dataset, municipalityCode, requestedPeriod)
+        : resolveMunicipalReportSnapshot(timeSeries, requestedPeriod);
+        return {
+          id: config.panelLayerId,
+          alias: config.alias,
+          title: config.title,
+          unit:
+          dataset.valueConfig?.unit ??
+          (dataset.valueConfig?.type === "absolute" ? "" : "%"),
+        valueType: dataset.valueConfig?.type ?? "percentage",
+          status: snapshot ? "available" : "period_not_found",
+          requestedPeriod,
+          effectivePeriod: snapshot?.period ?? null,
+        classes: getMunicipalReportClasses(dataset),
+          snapshot,
+          timeSeries,
+        };
+      } catch (error) {
+        console.error(
+          `[municipalReport] Falha ao carregar ${config.panelLayerId}:`,
+          error,
+        );
+        return unavailable(config, requestedPeriod);
+      }
+    }),
+  );
 
   const templateVariables: MunicipalReportData["templateVariables"] = {
     municipio: municipality.name,
@@ -81,8 +211,10 @@ export async function buildMunicipalReport(
     codigoMunicipio: municipality.code,
   };
   for (const analysis of analyses) {
-    templateVariables[`classe_${analysis.alias}`] = analysis.snapshot?.dominantClass?.label ?? null;
-    templateVariables[`percentual_${analysis.alias}`] = analysis.snapshot?.dominantClass?.percentage ?? null;
+    templateVariables[`classe_${analysis.alias}`] =
+      analysis.snapshot?.dominantClass?.label ?? null;
+    templateVariables[`percentual_${analysis.alias}`] =
+      analysis.snapshot?.dominantClass?.percentage ?? null;
     templateVariables[`periodo_${analysis.alias}`] = analysis.effectivePeriod;
   }
 
@@ -90,7 +222,11 @@ export async function buildMunicipalReport(
     schemaVersion: 1,
     generatedAt: (dependencies.now ?? (() => new Date()))().toISOString(),
     requestedPeriod,
-    municipality: { code: municipality.code, name: municipality.name, uf: municipality.uf.toUpperCase() },
+    municipality: {
+      code: municipality.code,
+      name: municipality.name,
+      uf: municipality.uf.toUpperCase(),
+    },
     analyses,
     templateVariables,
   };
