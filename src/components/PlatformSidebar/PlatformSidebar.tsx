@@ -66,6 +66,7 @@ interface PlatformSidebarProps {
   initialSection?: PlatformSidebarInitialSection;
   viewMode?: PlatformSidebarViewMode;
   reportRequest?: { municipalityCode: string; period: string; layerIds: string[] };
+  onActiveSectionChange?: (section: PlatformSection) => void;
 }
 
 export function PlatformSidebar({
@@ -74,6 +75,7 @@ export function PlatformSidebar({
   initialSection = "monitoring",
   viewMode = "default",
   reportRequest,
+  onActiveSectionChange,
 }: PlatformSidebarProps) {
   const t = useTranslations("PlatformSidebar");
   const router = useRouter();
@@ -123,11 +125,13 @@ export function PlatformSidebar({
     if (next === "analysis") {
       setShowAnalysisFrame(true);
       setActiveSection(next);
+      onActiveSectionChange?.(next);
       setIsPanelOpen(false);
       setActiveLegend(null);
       return;
     }
     setActiveSection(next);
+    onActiveSectionChange?.(next);
     setPanelSection(next);
     setIsPanelOpen(true);
     setShowAnalysisFrame(false);
@@ -139,6 +143,7 @@ export function PlatformSidebar({
 
     if (next === "monitoring" && activeSection === "analysis-detail") {
       setActiveSection("monitoring");
+      onActiveSectionChange?.("monitoring");
     }
 
     setIsPanelOpen(true);

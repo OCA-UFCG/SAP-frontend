@@ -1,8 +1,12 @@
+"use client";
+
 import type { ReactNode } from "react";
+import { useState } from "react";
 import { MapLayerProvider } from "@/components/MapLayerContext/MapLayerContext";
 import { PlatformMap } from "@/components/PlatformMap/PlatformMap";
 import { PlatformSidebar } from "@/components/PlatformSidebar/PlatformSidebar";
 import type { PlatformSidebarInitialSection } from "@/components/PlatformSidebar/PlatformSidebar";
+import type { PlatformSection } from "@/components/PlatformSideRail/PlatformSideRail";
 import type { PanelLayerI } from "@/utils/interfaces";
 
 type DefaultPlatformLayoutProps = {
@@ -35,6 +39,8 @@ export function PlatformLayout({
   const isCommunicationView = !isLogsView && initialSection === "communication";
   const sidebarStateKey = `${viewMode}:${initialSection}`;
   const sidebarPanelLayers = props.viewMode === "logs" ? [] : props.panelLayers;
+  const [activeSection, setActiveSection] =
+    useState<PlatformSection>(initialSection);
 
   return (
     <MapLayerProvider>
@@ -46,7 +52,9 @@ export function PlatformLayout({
         ) : isCommunicationView ? (
           <div className="absolute inset-0 bg-[#F6F7F6]" aria-hidden="true" />
         ) : (
-          <PlatformMap />
+          <PlatformMap
+            showMonitoringOverlays={activeSection === "monitoring"}
+          />
         )}
         <PlatformSidebar
           key={sidebarStateKey}
@@ -55,6 +63,7 @@ export function PlatformLayout({
           initialSection={initialSection}
           viewMode={viewMode}
           reportRequest={props.viewMode === "logs" ? undefined : props.reportRequest}
+          onActiveSectionChange={setActiveSection}
         />
       </div>
     </MapLayerProvider>
