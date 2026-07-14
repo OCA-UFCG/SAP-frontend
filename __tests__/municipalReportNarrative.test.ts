@@ -81,4 +81,54 @@ describe("municipal report narrative", () => {
       { title: "Evolução decenal", text: "Evolução." },
     ]);
   });
+
+  it("describes absolute indicators as raw municipal totals", () => {
+    const absoluteAnalysis: MunicipalReportAnalysis = {
+      ...analysis("s2id_secas_estiagens"),
+      alias: "s2id_secas_estiagens",
+      title: "Registros de Secas e Estiagens (2004-2025)",
+      unit: "registros",
+      valueType: "absolute",
+      effectivePeriod: "2025",
+      snapshot: {
+        period: "2025",
+        label: "2025",
+        distribution: [
+          {
+            id: "registros",
+            label: "Registros de secas e estiagens",
+            color: "#8c2d04",
+            percentage: 7,
+          },
+        ],
+        dominantClass: {
+          id: "registros",
+          label: "Registros de secas e estiagens",
+          color: "#8c2d04",
+          percentage: 7,
+        },
+      },
+    };
+
+    expect(
+      buildSituationNarrative(
+        absoluteAnalysis,
+        null,
+        {
+          schemaVersion: 1,
+          generatedAt: "2026-07-14T00:00:00.000Z",
+          requestedPeriod: "2025",
+          municipality: { code: "3100609", name: "Abaeté", uf: "MG" },
+          analyses: [absoluteAnalysis],
+          templateVariables: {},
+        },
+        {
+          sectionColor: "#176b39",
+          coverageContext: "classificada nessa categoria",
+          methodology: "Fonte S2ID.",
+        },
+        "pt-BR",
+      ),
+    ).toContain("o valor de Registros de secas e estiagens é 7 registros");
+  });
 });

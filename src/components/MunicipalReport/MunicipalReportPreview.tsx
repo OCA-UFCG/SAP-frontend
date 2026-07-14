@@ -21,6 +21,10 @@ import {
   recordMunicipalReportNavigation,
   startMunicipalReportStage,
 } from "@/utils/municipalReportMetrics";
+import {
+  formatMunicipalReportValue,
+  getMunicipalReportValueLabels,
+} from "@/utils/municipalReportValue";
 import { ReportMapPreview } from "./ReportMapPreview";
 
 interface MunicipalReportPreviewProps {
@@ -95,6 +99,7 @@ function AnalysisSection({
       : `Período de referência usado no relatório: ${referencePeriodLabel}.`;
   const historyRange = compactPeriodRange(analysis.timeSeries, referencePeriod, locale);
   const narrativeSections = buildAnalysisNarrativeSections(analysis, docsContent);
+  const valueLabels = getMunicipalReportValueLabels(analysis);
 
   return (
     <section className="report-section">
@@ -155,22 +160,22 @@ function AnalysisSection({
               >
                 <strong className="text-lg">{dominant.label}</strong>
                 <span className="mt-1 text-3xl font-bold">
-                  {dominant.percentage.toFixed(1)}%
+                  {formatMunicipalReportValue(dominant.percentage, analysis, locale)}
                 </span>
-                <span className="mt-2 text-xs">da área analisada</span>
+                <span className="mt-2 text-xs">{valueLabels.cardContext}</span>
               </div>
             )}
           </div>
 
           <h3 className="report-heading mt-8 text-lg font-bold text-[#536e7b]">
-            Classes do {analysis.title}
+            {valueLabels.sectionTitle} de {analysis.title}
           </h3>
           <div className="report-block mt-3 overflow-hidden border border-[#c8ced1]">
             <table className="w-full border-collapse text-sm">
               <thead className="bg-[#176b39] text-white">
                 <tr>
                   <th className="border-r border-white/40 px-4 py-2.5 text-left">Classe</th>
-                  <th className="w-36 px-4 py-2.5 text-right">Cobertura (%)</th>
+                  <th className="w-36 px-4 py-2.5 text-right">{valueLabels.tableValue}</th>
                 </tr>
               </thead>
               <tbody>
@@ -187,7 +192,7 @@ function AnalysisSection({
                       {item.label}
                     </td>
                     <td className="px-4 py-2.5 text-right font-semibold">
-                      {item.percentage.toFixed(1)}%
+                      {formatMunicipalReportValue(item.percentage, analysis, locale)}
                     </td>
                   </tr>
                 ))}
@@ -219,7 +224,7 @@ function AnalysisSection({
               </div>
               <div className="report-visual-panel flex flex-col">
                 <div className="border-b border-[#c8ced1] bg-[#f4f6f8] px-4 py-2.5 text-center text-sm font-semibold text-[#536e7b]">
-                  Série temporal por classe: {historyRange}
+                  {valueLabels.chartSeries}: {historyRange}
                 </div>
                 <div className="report-chart-frame flex min-h-[230px] flex-1 items-center justify-center p-4">
                   {chartSrc ? (

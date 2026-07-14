@@ -157,10 +157,14 @@ export async function renderMunicipalReportChart(
       ? ""
       : `<line x1="${highlightedX.toFixed(1)}" y1="${CHART_TOP}" x2="${highlightedX.toFixed(1)}" y2="${CHART_BOTTOM}" stroke="#292829" stroke-width="2" stroke-dasharray="6 6" opacity="0.42" />`;
 
+  const chartUnit = analysis.valueType === "absolute" && analysis.unit.trim()
+    ? ` (${analysis.unit.trim()})`
+    : "";
+
   const svg = `<svg xmlns="http://www.w3.org/2000/svg" width="${WIDTH}" height="${HEIGHT}" viewBox="0 0 ${WIDTH} ${HEIGHT}">
     <rect width="100%" height="100%" fill="#FFFFFF" />
     <text x="72" y="58" font-family="Arial, sans-serif" font-size="30" font-weight="700" fill="#292829">${escapeSvgText(analysis.title)}</text>
-    <text x="72" y="94" font-family="Arial, sans-serif" font-size="18" fill="#6B6768">Serie historica completa por classe - referencia: ${escapeSvgText(formatReferencePeriod(chartData.referencePeriod))}</text>
+    <text x="72" y="94" font-family="Arial, sans-serif" font-size="18" fill="#6B6768">Serie historica completa por classe${escapeSvgText(chartUnit)} - referencia: ${escapeSvgText(formatReferencePeriod(chartData.referencePeriod))}</text>
     ${gridLines}
     <line x1="${PADDING_LEFT}" y1="${CHART_TOP}" x2="${PADDING_LEFT}" y2="${CHART_BOTTOM}" stroke="#D8D9D4" stroke-width="2" />
     <line x1="${PADDING_LEFT}" y1="${CHART_BOTTOM}" x2="${WIDTH - PADDING_RIGHT}" y2="${CHART_BOTTOM}" stroke="#D8D9D4" stroke-width="2" />

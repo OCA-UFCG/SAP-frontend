@@ -227,10 +227,16 @@ export async function buildMunicipalReport(
     codigoMunicipio: municipality.code,
   };
   for (const analysis of analyses) {
+    const dominantValue = analysis.snapshot?.dominantClass?.percentage ?? null;
     templateVariables[`classe_${analysis.alias}`] =
       analysis.snapshot?.dominantClass?.label ?? null;
     templateVariables[`percentual_${analysis.alias}`] =
-      analysis.snapshot?.dominantClass?.percentage ?? null;
+      dominantValue;
+    templateVariables[`valor_${analysis.alias}`] = dominantValue;
+    templateVariables[`unidade_${analysis.alias}`] = analysis.unit || null;
+    templateVariables[`valor_com_unidade_${analysis.alias}`] = dominantValue == null
+      ? null
+      : `${dominantValue.toLocaleString("pt-BR", { maximumFractionDigits: 1 })}${analysis.unit ? ` ${analysis.unit}` : ""}`;
     templateVariables[`periodo_${analysis.alias}`] = analysis.effectivePeriod;
   }
 

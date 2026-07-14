@@ -124,6 +124,7 @@ describe("municipal report chart", () => {
     ).toString("utf8");
 
     expect(svg).toContain(">410</text>");
+    expect(svg).toContain("por classe (registros) - referencia");
     expect(svg).not.toContain(">100%</text>");
   });
 });

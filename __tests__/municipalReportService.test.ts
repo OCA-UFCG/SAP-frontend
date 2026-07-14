@@ -111,6 +111,11 @@ describe("buildMunicipalReport", () => {
       valueType: "absolute",
       unit: "registros",
     });
+    expect(report.templateVariables).toMatchObject({
+      valor_registros: 100,
+      unidade_registros: "registros",
+      valor_com_unidade_registros: "100 registros",
+    });
   });
 
   it("builds the published S2ID series from annual partitions like Monitoramento", async () => {
