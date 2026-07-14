@@ -4,6 +4,23 @@
     "executorLabel": "Ejecutor",
     "partnersLabel": "Socios",
     "actionsSuffix": "acciones",
-    "sapHere": "SAP aquí"
+    "sapHere": "SAP aquí",
+    "axes": {
+      "0": {
+        "title": "Gestión sostenible y neutralidad de la degradación de la tierra"
+      },
+      "1": {
+        "title": "Adaptación climática y mitigación de los efectos de la sequía"
+      },
+      "2": {
+        "title": "Investigación, innovación y gestión de la información"
+      },
+      "3": {
+        "title": "Mejora de las condiciones de vida de la población"
+      },
+      "4": {
+        "title": "Gobernanza y fortalecimiento institucional"
+      }
+    }
   }
 }
