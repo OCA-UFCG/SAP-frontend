@@ -9,6 +9,7 @@ import {
   renderMunicipalReportCharts,
   resolveMunicipalReportChartAnalyses,
 } from "@/services/municipalReportChartService";
+import { createServerTiming } from "@/utils/serverTiming";
 
 const MUNICIPALITY_CODE_PATTERN = /^\d{7}$/u;
 const PERIOD_PATTERN = /^(\d{4})(?:-(0[1-9]|1[0-2]))?$/u;
@@ -74,9 +75,13 @@ export async function GET(
   request: Request,
   context: { params: Promise<{ municipalityCode: string }> },
 ) {
+  const timing = createServerTiming();
+  const finishAuth = timing.start();
   const unauthorized = await requireAuthenticatedRequest(request);
+  finishAuth("auth", "Autenticação");
   if (unauthorized) {
     unauthorized.headers.set("Cache-Control", "no-store");
+    unauthorized.headers.set("Server-Timing", timing.header());
     return unauthorized;
   }
 
@@ -104,19 +109,27 @@ export async function GET(
     return error("No valid analysis IDs provided.", 400);
 
   try {
+    const finishCacheLookup = timing.start();
     const cacheKey = getChartCacheKey(code, period, requestedIds);
     const cached = readChartCache(cacheKey);
+    finishCacheLookup("cache_lookup", cached ? "Cache de gráficos: hit" : "Cache de gráficos: miss");
     if (cached) {
       return NextResponse.json(cached, {
-        headers: { "Cache-Control": getMunicipalAnalysisCacheControlHeader() },
+        headers: {
+          "Cache-Control": getMunicipalAnalysisCacheControlHeader(),
+          "Server-Timing": timing.header(),
+        },
       });
     }
 
     // Avoid rebuilding every report layer for a chart request that only needs
     // the explicitly selected analyses.
+    const finishBuild = timing.start();
     const report = await buildMunicipalReport(code, period, {
       analysisIds: requestedIds,
+      onTiming: timing.record,
     });
+    finishBuild("build_report", "Montagem dos dados dos gráficos");
 
     const { missingAnalyses, availableAnalyses } =
       resolveMunicipalReportChartAnalyses(report, requestedIds);
@@ -134,7 +147,9 @@ export async function GET(
       );
     }
 
+    const finishRender = timing.start();
     const charts = await renderMunicipalReportCharts(availableAnalyses, period);
+    finishRender("render_charts", "Renderização dos SVGs");
     const payload = {
       municipality: report.municipality,
       requestedPeriod: period,
@@ -143,7 +158,10 @@ export async function GET(
     writeChartCache(cacheKey, payload);
 
     return NextResponse.json(payload, {
-      headers: { "Cache-Control": getMunicipalAnalysisCacheControlHeader() },
+      headers: {
+        "Cache-Control": getMunicipalAnalysisCacheControlHeader(),
+        "Server-Timing": timing.header(),
+      },
     });
   } catch (cause) {
     if (cause instanceof MunicipalReportNotFoundError)

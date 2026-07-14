@@ -14,9 +14,13 @@ import { consumeEeRateLimit } from "./rate-limit";
 import { getPanelLayers } from "@/repositories/platform/panelLayerRepository";
 import { resolveImageYearEntry } from "@/utils/imageData";
 import { getAuthenticatedUserId } from "@/lib/server-session";
+import { createServerTiming } from "@/utils/serverTiming";
 
 export async function POST(req: NextRequest) {
+  const timing = createServerTiming();
+  const finishAuth = timing.start();
   const authenticatedUserId = await getAuthenticatedUserId(req);
+  finishAuth("auth", "Autenticação");
   if (!authenticatedUserId) {
     return NextResponse.json(
       { error: "Unauthorized access." },
@@ -51,7 +55,9 @@ export async function POST(req: NextRequest) {
       );
     }
 
+    const finishLayers = timing.start();
     const panelLayers = await getPanelLayers();
+    finishLayers("resolve_layer", "Resolução da camada e configuração GEE");
     const layer = panelLayers.find((item) => item.id === name);
 
     if (!layer) {
@@ -79,11 +85,17 @@ export async function POST(req: NextRequest) {
       yearConfig.mapVisualization,
     );
 
+    const finishCache = timing.start();
     const urlOnCache = getCachedUrl(cacheKey);
+    finishCache("cache_lookup", urlOnCache ? "Cache de URL GEE: hit" : "Cache de URL GEE: miss");
     if (hasKey(cacheKey) && urlOnCache) {
-      return NextResponse.json({ url: urlOnCache }, { status: 200 });
+      return NextResponse.json({ url: urlOnCache }, {
+        status: 200,
+        headers: { "Server-Timing": timing.header() },
+      });
     }
 
+    const finishEarthEngine = timing.start();
     const url = await getEarthEngineUrl(
       yearConfig.imageId,
       yearConfig.imageParams,
@@ -91,10 +103,14 @@ export async function POST(req: NextRequest) {
       layer.maxScale,
       { mapVisualization: yearConfig.mapVisualization },
     );
+    finishEarthEngine("earth_engine", "Geração da URL de tiles no Earth Engine");
 
     addUrlToCache(cacheKey, url);
 
-    return NextResponse.json({ url }, { status: 200 });
+    return NextResponse.json({ url }, {
+      status: 200,
+      headers: { "Server-Timing": timing.header() },
+    });
   } catch (error: any) {
     return NextResponse.json(
       { error: error?.message ?? String(error) },

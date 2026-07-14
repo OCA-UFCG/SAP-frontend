@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { requireAuthenticatedRequest } from "@/lib/server-session";
 import { getMunicipalAnalysisCacheControlHeader } from "@/repositories/platform/municipalAnalysisCache";
 import { buildMunicipalReport, MunicipalReportNotFoundError } from "@/services/municipalReportService";
+import { createServerTiming } from "@/utils/serverTiming";
 
 const MUNICIPALITY_CODE_PATTERN = /^\d{7}$/u;
 const PERIOD_PATTERN = /^(\d{4})(?:-(0[1-9]|1[0-2]))?$/u;
@@ -12,9 +13,13 @@ function error(message: string, status: number) {
 }
 
 export async function GET(request: Request, context: { params: Promise<{ municipalityCode: string }> }) {
+  const timing = createServerTiming();
+  const finishAuth = timing.start();
   const unauthorized = await requireAuthenticatedRequest(request);
+  finishAuth("auth", "Autenticação");
   if (unauthorized) {
     unauthorized.headers.set("Cache-Control", "no-store");
+    unauthorized.headers.set("Server-Timing", timing.header());
     return unauthorized;
   }
   const { municipalityCode } = await context.params;
@@ -29,15 +34,21 @@ export async function GET(request: Request, context: { params: Promise<{ municip
   if (!period || !PERIOD_PATTERN.test(period)) return error("Invalid or missing period.", 400);
 
   try {
+    const finishBuild = timing.start();
     const report = await buildMunicipalReport(code, period, {
       ...(layers?.length ? { analysisIds: layers } : {}),
+      onTiming: timing.record,
     });
+    finishBuild("build_report", "Montagem completa do relatório-base");
     if (
       !report.analyses.some((analysis) => analysis.status !== "unavailable")
     ) {
       return error("Unable to build any municipal report analysis.", 502);
     }
-    return NextResponse.json(report, { headers: { "Cache-Control": getMunicipalAnalysisCacheControlHeader() } });
+    return NextResponse.json(report, { headers: {
+      "Cache-Control": getMunicipalAnalysisCacheControlHeader(),
+      "Server-Timing": timing.header(),
+    } });
   } catch (cause) {
     if (cause instanceof MunicipalReportNotFoundError) return error(cause.message, 404);
     console.error("Erro ao montar relatório municipal:", cause);

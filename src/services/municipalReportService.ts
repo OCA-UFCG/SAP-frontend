@@ -18,6 +18,7 @@ import {
   getMunicipalReportClasses,
   resolveMunicipalReportSnapshot,
 } from "@/utils/municipalReport";
+import type { TimingObserver } from "@/utils/serverTiming";
 
 export interface MunicipalReportServiceDependencies {
   layers?: readonly MunicipalReportLayerConfig[];
@@ -25,6 +26,7 @@ export interface MunicipalReportServiceDependencies {
   loadImageData?: typeof getCachedMunicipalAnalysisImageData;
   listPanelLayers?: typeof getPanelLayers;
   now?: () => Date;
+  onTiming?: TimingObserver;
 }
 
 export class MunicipalReportNotFoundError extends Error {}
@@ -155,7 +157,14 @@ export async function buildMunicipalReport(
   const requestedAnalysisIds = dependencies.analysisIds
     ? new Set(dependencies.analysisIds.map((id) => id.trim().toLowerCase()))
     : null;
-  const layers = (await resolveReportLayers(dependencies))
+  const layersStartedAt = performance.now();
+  const resolvedLayers = await resolveReportLayers(dependencies);
+  dependencies.onTiming?.(
+    "resolve_layers",
+    performance.now() - layersStartedAt,
+    "Listagem e resolução das camadas",
+  );
+  const layers = resolvedLayers
     .filter(
       (layer) =>
         !requestedAnalysisIds ||
@@ -165,6 +174,7 @@ export async function buildMunicipalReport(
     .sort((a, b) => a.order - b.order);
   const analyses = await Promise.all(
     layers.map(async (config): Promise<MunicipalReportAnalysis> => {
+      const analysisStartedAt = performance.now();
       try {
       const temporalData = await loadMunicipalTimeSeries(
         config.panelLayerId,
@@ -201,6 +211,12 @@ export async function buildMunicipalReport(
           error,
         );
         return unavailable(config, requestedPeriod);
+      } finally {
+        dependencies.onTiming?.(
+          `analysis_${stableAlias(config.panelLayerId)}`,
+          performance.now() - analysisStartedAt,
+          config.title,
+        );
       }
     }),
   );

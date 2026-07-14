@@ -13,6 +13,7 @@ import {
   type MunicipalAvailabilityIndex,
 } from "@/utils/municipalAvailability";
 import type { PanelLayerI } from "@/utils/interfaces";
+import { startMunicipalReportMetrics } from "@/utils/municipalReportMetrics";
 import { slugifyTranslationKey } from "@/utils/translations";
 
 interface MunicipalReportContextProps { panelLayers?: PanelLayerI[] }
@@ -210,6 +211,11 @@ export function MunicipalReportContext({ panelLayers = [] }: MunicipalReportCont
   function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     if (!canSubmit) return;
+    startMunicipalReportMetrics({
+      municipio: municipalityCode,
+      periodo: period,
+      camadas: selectedAvailableLayers.join(","),
+    });
     const params = new URLSearchParams({ municipalityCode, period, layers: selectedAvailableLayers.join(",") });
     params.set("section", "communication");
     startGenerating(() => router.push(`/${locale}/platform?${params.toString()}`));
