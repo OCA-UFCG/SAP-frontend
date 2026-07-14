@@ -104,7 +104,6 @@ export interface TimelineMilestoneI {
 }
 
 export interface WorkingGroupSectionI {
-  eyebrow: string;
   title: string;
   text: {
     json: Document;

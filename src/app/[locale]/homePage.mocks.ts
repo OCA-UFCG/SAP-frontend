@@ -82,7 +82,6 @@ export const MOCK_THEMATIC_AXES_CONTENT: ThematicAxesSectionI = {
 };
 
 export const MOCK_WORKING_GROUP_CONTENT: WorkingGroupSectionI = {
-  eyebrow: "Grupo de Trabalho",
   title: "Origem do grupo de trabalho",
   text: {
     json: {

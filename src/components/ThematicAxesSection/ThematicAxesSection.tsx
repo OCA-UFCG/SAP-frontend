@@ -1,5 +1,6 @@
 import { ThematicAxesSectionI } from "@/utils/interfaces";
 import { Card } from "@/components/Card/Card";
+import { getOddItemCenteringClassName } from "@/utils/functions";
 import { useTranslations } from "next-intl";
 
 const SHOW_SAP_HERE_BADGE = false;
@@ -32,19 +33,12 @@ export const ThematicAxesSection = ({
               ? t(`axes.${index}.executor`)
               : axis.executor;
             const partners = axis.partners.join(" · ");
-            const isLastOdd =
-              index === content.axes.length - 1 &&
-              content.axes.length % 2 === 1;
 
             return (
               <Card
                 key={`${axis.title}-${index}`}
                 highlighted={axis.isSapAxis}
-                className={`flex flex-col p-5 text-left ${
-                  isLastOdd
-                    ? "sm:col-span-2 sm:mx-auto sm:w-full sm:max-w-[calc(50%-0.5rem)] lg:col-span-1 lg:mx-0 lg:max-w-none"
-                    : ""
-                }`}
+                className={`flex flex-col p-5 text-left ${getOddItemCenteringClassName(index, content.axes.length)}`}
               >
                 <h4 className="min-h-11 text-[15px] font-bold leading-snug text-[#21240F]">
                   {axisTitle}

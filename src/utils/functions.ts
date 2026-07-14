@@ -74,6 +74,21 @@ function getRelativeLuminance(r: number, g: number, b: number) {
   return 0.2126 * srgb[0] + 0.7152 * srgb[1] + 0.0722 * srgb[2];
 }
 
+// Centers a grid's lone last item when the count is odd, only at the sm
+// breakpoint (2 columns) - reverts once the grid reaches enough columns to
+// fit everything in one row. The 0.5rem in the calc is half of gap-4 (1rem),
+// the gap class every current caller's grid uses at the sm breakpoint.
+const ODD_ITEM_CENTERING_CLASSNAME =
+  "sm:col-span-2 sm:mx-auto sm:w-full sm:max-w-[calc(50%-0.5rem)] lg:col-span-1 lg:mx-0 lg:max-w-none";
+
+export function getOddItemCenteringClassName(
+  index: number,
+  total: number,
+): string {
+  const isLastOdd = total % 2 === 1 && index === total - 1;
+  return isLastOdd ? ODD_ITEM_CENTERING_CLASSNAME : "";
+}
+
 export const normalize = (str: string) =>
   str
     .toLowerCase()
