@@ -4,6 +4,7 @@ import { useEffect, useRef, useState } from "react";
 import maplibregl from "maplibre-gl";
 import "maplibre-gl/dist/maplibre-gl.css";
 import { fetchMapURL } from "@/services/mapServices";
+import { startMunicipalReportStage } from "@/utils/municipalReportMetrics";
 import {
   GEE_LAYER_ID,
   GEE_SOURCE_ID,
@@ -34,10 +35,12 @@ async function resolveReportTileUrl(
   signal: AbortSignal,
 ) {
   const key = `${layerId}:${period}`;
-  if (tileUrlCache.has(key)) return tileUrlCache.get(key) ?? null;
+  if (tileUrlCache.has(key)) {
+    return { tileUrl: tileUrlCache.get(key) ?? null, cacheHit: true };
+  }
   const tileUrl = await fetchMapURL(layerId, period, signal);
   tileUrlCache.set(key, tileUrl);
-  return tileUrl;
+  return { tileUrl, cacheHit: false };
 }
 
 interface ReportMapPreviewProps {
@@ -71,6 +74,7 @@ export function ReportMapPreview({
 
   useEffect(() => {
     let aborted = false;
+    let finishMap: ReturnType<typeof startMunicipalReportStage> | null = null;
     const controller = new AbortController();
 
     const finishCapture = (src: string | null) => {
@@ -82,16 +86,26 @@ export function ReportMapPreview({
       } else {
         setFailedImageKey(imageKey);
       }
+      finishMap?.(`Mapa ${layerId} (${period})`, {
+        detalhes: src
+          ? "URL do Earth Engine, tiles, renderização e captura PNG"
+          : "Mapa indisponível ou falha na captura",
+      });
       onCapture?.(src);
     };
 
     async function setupMapPreview() {
       captureCompletedRef.current = false;
-      const tileUrl = await resolveReportTileUrl(
+      finishMap = startMunicipalReportStage();
+      const finishTileUrl = startMunicipalReportStage();
+      const { tileUrl, cacheHit } = await resolveReportTileUrl(
         layerId,
         period,
         controller.signal,
       );
+      finishTileUrl(`Mapa ${layerId}: URL do Earth Engine`, {
+        detalhes: cacheHit ? "Cache local do navegador" : "Requisição POST /api/ee",
+      });
       if (aborted || !containerRef.current) return;
 
       if (mapRef.current) {

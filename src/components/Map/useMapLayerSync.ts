@@ -20,6 +20,7 @@ interface UseMapLayerSyncArgs {
   hasCdiDataRef: MutableRefObject<boolean>;
   cdiGeoJsonRef: MutableRefObject<ReturnType<typeof buildCdiGeoJson>>;
   tileLayerUrlRef: MutableRefObject<string | null | undefined>;
+  layerOpacityRef: MutableRefObject<number>;
   pendingStyleSyncRef: MutableRefObject<boolean>;
   selectedStateRef: MutableRefObject<string>;
   selectedMunicipalityCodeRef: MutableRefObject<string | null>;
@@ -37,6 +38,7 @@ export const useMapLayerSync = ({
   hasCdiDataRef,
   cdiGeoJsonRef,
   tileLayerUrlRef,
+  layerOpacityRef,
   pendingStyleSyncRef,
   selectedStateRef,
   selectedMunicipalityCodeRef,
@@ -92,6 +94,7 @@ export const useMapLayerSync = ({
         showStatesBorderRef.current,
         hasCdiDataRef.current,
         tileLayerUrlRef.current,
+        layerOpacityRef.current,
       );
 
       if (mapModeRef.current === "platform") {
@@ -133,6 +136,7 @@ export const useMapLayerSync = ({
       applySelectedFeatureState,
       cdiGeoJsonRef,
       hasCdiDataRef,
+      layerOpacityRef,
       log,
       mapModeRef,
       mapRef,

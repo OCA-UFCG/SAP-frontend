@@ -46,6 +46,7 @@ docker-run-dev:
 		$(IMAGE_NAME)
 
 docker-build-prod:
+	@npm run generate:municipal-availability
 	docker build -t $(IMAGE_NAME) -f Dockerfile.production .
 
 docker-run-prod:

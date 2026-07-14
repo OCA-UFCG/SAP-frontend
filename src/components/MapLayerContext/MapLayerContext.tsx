@@ -16,6 +16,7 @@ import {
   resetPlatformState as resetPlatformStateValue,
   setActiveLegendValue,
   setActiveYearValue,
+  setLayerOpacityValue,
   setSelectedMunicipalityCodeValue,
   setSelectedStateValue,
 } from "@/components/MapLayerContext/mapLayerState";
@@ -34,6 +35,7 @@ interface MapLayerActions {
   activateEeLayer: (data: IEEInfo, legend: IImageParam[] | null) => void;
   clearActiveLayer: () => void;
   resetPlatformState: () => void;
+  setLayerOpacity: (opacity: number) => void;
 }
 
 type MapLayerActiveState = Pick<
@@ -43,7 +45,7 @@ type MapLayerActiveState = Pick<
 
 type MapLayerViewState = Pick<
   MapLayerState,
-  "activeLegend" | "selectedState" | "selectedMunicipalityCode" | "activeYear"
+  "activeLegend" | "selectedState" | "selectedMunicipalityCode" | "activeYear" | "layerOpacity"
 >;
 
 interface MapLayerContextValue
@@ -74,6 +76,10 @@ export function MapLayerProvider({ children }: { children: React.ReactNode }) {
   const setActiveLegend = useCallback((legend: IImageParam[] | null) => {
     setState((currentState) => setActiveLegendValue(currentState, legend));
   }, []);
+
+  const setLayerOpacity = useCallback((opacity: number) => {
+  setState((current) => setLayerOpacityValue(current, opacity));
+}, []);
 
   const setSelectedState = useCallback((selectedState: string) => {
     setState((currentState) =>
@@ -138,12 +144,14 @@ export function MapLayerProvider({ children }: { children: React.ReactNode }) {
       selectedState: state.selectedState,
       selectedMunicipalityCode: state.selectedMunicipalityCode,
       activeYear: state.activeYear,
+      layerOpacity: state.layerOpacity,
     }),
     [
       state.activeLegend,
       state.selectedState,
       state.selectedMunicipalityCode,
       state.activeYear,
+      state.layerOpacity,
     ],
   );
 
@@ -157,6 +165,7 @@ export function MapLayerProvider({ children }: { children: React.ReactNode }) {
       activateEeLayer,
       clearActiveLayer,
       resetPlatformState,
+      setLayerOpacity,
     }),
     [
       setActiveLegend,
@@ -167,6 +176,7 @@ export function MapLayerProvider({ children }: { children: React.ReactNode }) {
       activateEeLayer,
       clearActiveLayer,
       resetPlatformState,
+      setLayerOpacity,
     ],
   );
 

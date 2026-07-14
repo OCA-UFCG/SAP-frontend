@@ -5,6 +5,7 @@ import {
   type MunicipalReportDocsContent,
 } from "@/contracts/municipalReport";
 import { type MunicipalReportPresentationConfig } from "@/config/municipalReport";
+import { formatMunicipalReportValueWithUnit } from "@/utils/municipalReportValue";
 
 export function formatReportPeriod(period: string, locale: string) {
   const match = /^(\d{4})-(\d{2})$/.exec(period);
@@ -98,6 +99,14 @@ export function buildSituationNarrative(
   const place = `${report.municipality.name} — ${report.municipality.uf}`;
   const code = config.history?.classes[dominant.id]?.code ?? config.classes?.[dominant.id]?.code;
   const className = code ? `${dominant.label} (${code})` : dominant.label;
+  if (analysis.valueType === "absolute") {
+    const value = formatMunicipalReportValueWithUnit(
+      dominant.percentage,
+      analysis,
+      locale,
+    );
+    return `No município de ${place}, o valor de ${className} é ${value}, conforme os dados de ${analysis.title} para o período de ${formatReportPeriod(analysis.effectivePeriod, locale)}.`;
+  }
   return `No município de ${place}, predomina a classe ${className}, com ${dominant.percentage.toFixed(1)}% da área analisada ${config.coverageContext}, conforme os dados de ${analysis.title} para o período de ${formatReportPeriod(analysis.effectivePeriod, locale)}.`;
 }
 

@@ -2,6 +2,7 @@ import { getDocTemplate } from "./buildDocTemplate";
 import { getTemplateData } from "./buildTemplateData";
 import type { DocsContent } from "./buildDocTemplate";
 import type { TemplateData } from "./buildTemplateData";
+import type { TimingObserver } from "@/utils/serverTiming";
 
 type BuildDocContentInput = {
   themes: string[];
@@ -11,6 +12,7 @@ type BuildDocContentInput = {
   year: string | number;
   ibgeId: string;
   period: string;
+  onTiming?: TimingObserver;
 };
 
 export async function buildDocContent({
@@ -21,7 +23,9 @@ export async function buildDocContent({
   year,
   ibgeId,
   period,
+  onTiming,
 }: BuildDocContentInput) {
+  const templateStartedAt = performance.now();
   const baseTemplate = await getDocTemplate({
     themes,
     city,
@@ -29,10 +33,16 @@ export async function buildDocContent({
     month,
     year,
   });
+  onTiming?.("docs_template", performance.now() - templateStartedAt, "Leitura do template no Google Docs");
 
-  const templateData = await getTemplateData(ibgeId, period);
+  const dataStartedAt = performance.now();
+  const templateData = await getTemplateData(ibgeId, period, onTiming);
+  onTiming?.("docs_data", performance.now() - dataStartedAt, "Montagem dos dados do template");
 
-  return populateDocContent(baseTemplate, templateData);
+  const populateStartedAt = performance.now();
+  const content = populateDocContent(baseTemplate, templateData);
+  onTiming?.("docs_populate", performance.now() - populateStartedAt, "Substituição das variáveis do template");
+  return content;
 }
 
 function populateTemplate(theme: string, template: string, data: TemplateData): string {

@@ -296,6 +296,30 @@ describe("Map lifecycle", () => {
     );
   });
 
+  it("creates an Earth Engine raster with the selected opacity", () => {
+    render(
+      <Map
+        center={[-15.749997, -47.9499962]}
+        estadoSelecionado="BR"
+        layerOpacity={0.3}
+        tileLayerUrl="https://tiles.example/{z}/{x}/{y}"
+      />,
+    );
+
+    const firstInstance = mapInstances[0];
+    firstInstance.handlers.get("load")?.[0]?.({});
+
+    const geeLayer = firstInstance.addLayer.mock.calls
+      .map(([layer]) => layer)
+      .find((layer) => layer.id === "gee-layer");
+
+    expect(geeLayer).toEqual(
+      expect.objectContaining({
+        paint: expect.objectContaining({ "raster-opacity": 0.3 }),
+      }),
+    );
+  });
+
   it("registers municipality hover handlers", () => {
     render(<Map center={[-15.749997, -47.9499962]} estadoSelecionado="BR" />);
 

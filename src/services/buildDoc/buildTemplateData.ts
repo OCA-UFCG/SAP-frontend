@@ -7,6 +7,7 @@ import type {
   MunicipalReportDistributionItem,
   MunicipalReportPeriodSnapshot,
 } from "@/contracts/municipalReport";
+import type { TimingObserver } from "@/utils/serverTiming";
 
 export interface TemplateData {
   [key: string]: string | number | null | undefined;
@@ -292,8 +293,12 @@ export function prepareTemplateData(report: MunicipalReportData): TemplateData {
 
 
 
-export async function getTemplateData(ibgeId: string, period: string): Promise<TemplateData> {
-  const report = await buildMunicipalReport(ibgeId, period);
+export async function getTemplateData(
+  ibgeId: string,
+  period: string,
+  onTiming?: TimingObserver,
+): Promise<TemplateData> {
+  const report = await buildMunicipalReport(ibgeId, period, { onTiming });
   const templateData = prepareTemplateData(report);
 
   return { ...report.templateVariables, ...templateData };

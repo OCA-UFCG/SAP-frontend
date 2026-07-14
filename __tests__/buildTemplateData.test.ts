@@ -7,7 +7,11 @@ import type {
   MunicipalReportPeriodSnapshot,
 } from "@/contracts/municipalReport";
 
-function droughtSnapshot(period: string, id: string, label: string): MunicipalReportPeriodSnapshot {
+function droughtSnapshot(
+  period: string,
+  id: string,
+  label: string,
+): MunicipalReportPeriodSnapshot {
   const dominantClass: MunicipalReportDistributionItem = {
     id,
     label,
@@ -23,7 +27,9 @@ function droughtSnapshot(period: string, id: string, label: string): MunicipalRe
   };
 }
 
-function buildReport(timeSeries: MunicipalReportPeriodSnapshot[]): MunicipalReportData {
+function buildReport(
+  timeSeries: MunicipalReportPeriodSnapshot[],
+): MunicipalReportData {
   return {
     schemaVersion: 1,
     generatedAt: "2026-07-11T00:00:00.000Z",
@@ -35,6 +41,7 @@ function buildReport(timeSeries: MunicipalReportPeriodSnapshot[]): MunicipalRepo
         alias: "seca",
         title: "Monitor de Secas",
         unit: "%",
+        valueType: "percentage",
         status: "available",
         requestedPeriod: "2026",
         effectivePeriod: "2026-04",
@@ -69,26 +76,48 @@ describe("prepareTemplateData", () => {
 
   it("only exposes values backed by the report data", () => {
     const timeSeries = [
-      "2024-01", "2024-02", "2024-03", "2024-04", "2024-05", "2024-06",
+      "2024-01",
+      "2024-02",
+      "2024-03",
+      "2024-04",
+      "2024-05",
+      "2024-06",
     ].map((period) => droughtSnapshot(period, "sem-seca", "Sem seca"));
 
-    timeSeries.push(...[
-      "2024-07", "2024-08", "2024-09", "2024-10", "2024-11", "2024-12",
-      "2025-01", "2025-02", "2025-03",
-    ].map((period) => droughtSnapshot(period, "seca-fraca", "Seca fraca")));
+    timeSeries.push(
+      ...[
+        "2024-07",
+        "2024-08",
+        "2024-09",
+        "2024-10",
+        "2024-11",
+        "2024-12",
+        "2025-01",
+        "2025-02",
+        "2025-03",
+      ].map((period) => droughtSnapshot(period, "seca-fraca", "Seca fraca")),
+    );
 
-    timeSeries.push(droughtSnapshot("2025-04", "seca-moderada", "Seca moderada"));
-    timeSeries.push(...[
-      "2025-05", "2025-06",
-    ].map((period) => droughtSnapshot(period, "seca-moderada", "Seca moderada")));
-    timeSeries.push(...[
-      "2025-07", "2025-08", "2025-09", "2025-10", "2025-11",
-    ].map((period) => droughtSnapshot(period, "seca-grave", "Seca grave")));
+    timeSeries.push(
+      droughtSnapshot("2025-04", "seca-moderada", "Seca moderada"),
+    );
+    timeSeries.push(
+      ...["2025-05", "2025-06"].map((period) =>
+        droughtSnapshot(period, "seca-moderada", "Seca moderada"),
+      ),
+    );
+    timeSeries.push(
+      ...["2025-07", "2025-08", "2025-09", "2025-10", "2025-11"].map((period) =>
+        droughtSnapshot(period, "seca-grave", "Seca grave"),
+      ),
+    );
     timeSeries.push(droughtSnapshot("2025-12", "seca-extrema", "Seca extrema"));
     timeSeries.push(droughtSnapshot("2026-01", "seca-grave", "Seca grave"));
     timeSeries.push(droughtSnapshot("2026-02", "seca-grave", "Seca grave"));
     timeSeries.push(droughtSnapshot("2026-03", "seca-grave", "Seca grave"));
-    timeSeries.push(droughtSnapshot("2026-04", "seca-moderada", "Seca moderada"));
+    timeSeries.push(
+      droughtSnapshot("2026-04", "seca-moderada", "Seca moderada"),
+    );
 
     const templateData = prepareTemplateData(buildReport(timeSeries));
 

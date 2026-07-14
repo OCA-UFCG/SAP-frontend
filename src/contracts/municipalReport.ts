@@ -1,7 +1,5 @@
 export type MunicipalReportAnalysisStatus =
-  | "available"
-  | "unavailable"
-  | "period_not_found";
+  "available" | "unavailable" | "period_not_found";
 
 export interface MunicipalReportClass {
   id: string;
@@ -25,7 +23,8 @@ export interface MunicipalReportAnalysis {
   id: string;
   alias: string;
   title: string;
-  unit: "%";
+  unit: string;
+  valueType: "percentage" | "absolute";
   status: MunicipalReportAnalysisStatus;
   requestedPeriod: string;
   effectivePeriod: string | null;
@@ -37,10 +36,7 @@ export interface MunicipalReportAnalysis {
 export type MunicipalReportTemplateValue = string | number | null;
 
 export type MunicipalReportTemplateVariableType =
-  | "string"
-  | "number"
-  | "percentage"
-  | "period";
+  "string" | "number" | "percentage" | "period";
 
 export interface MunicipalReportTemplateVariableDefinition {
   name: string;
@@ -80,7 +76,10 @@ export interface MunicipalReportDocsSection {
 
 export const MUNICIPAL_REPORT_DOCS_REPORT_KEY = "__report__";
 
-export type MunicipalReportDocsContent = Record<string, MunicipalReportDocsSection[]>;
+export type MunicipalReportDocsContent = Record<
+  string,
+  MunicipalReportDocsSection[]
+>;
 
 export interface MunicipalReportPackage {
   report: MunicipalReportData;
