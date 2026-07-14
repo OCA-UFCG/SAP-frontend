@@ -100,6 +100,7 @@ const Map = ({
     showStatesBorder,
     tileLayerRequestKey,
     tileLayerUrl,
+    layerOpacity,
     zoom,
   });
   const { clearMarkers } = useMapMarkers(mapRef, markers, mapInstanceVersion);

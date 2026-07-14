@@ -70,6 +70,7 @@ export const ensureMapLayers = (
   showStatesBorder: boolean,
   hasCdiData: boolean,
   tileLayerUrl?: string | null,
+  layerOpacity = 0.85,
 ) => {
   if (!map.getSource(CDI_SOURCE_ID)) {
     map.addSource(CDI_SOURCE_ID, {
@@ -128,7 +129,7 @@ export const ensureMapLayers = (
           type: "raster",
           source: GEE_SOURCE_ID,
           paint: {
-            "raster-opacity": 0.85,
+            "raster-opacity": layerOpacity,
             "raster-resampling": "nearest",
           },
         },

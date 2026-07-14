@@ -77,7 +77,7 @@ export function PlatformSidebar({
 }: PlatformSidebarProps) {
   const t = useTranslations("PlatformSidebar");
   const router = useRouter();
-  const { clearActiveLayer, setActiveLegend } = useMapLayerActions();
+  const { setActiveLegend } = useMapLayerActions();
   const initialSidebarState = buildSidebarState(viewMode, initialSection);
   const isLogsView = viewMode === "logs";
 
@@ -132,9 +132,6 @@ export function PlatformSidebar({
     setIsPanelOpen(true);
     setShowAnalysisFrame(false);
 
-    if (next !== "monitoring" && next !== "analysis-detail") {
-      clearActiveLayer();
-    }
   }
 
   function handlePanelSectionChange(next: PlatformSection) {

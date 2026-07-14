@@ -95,6 +95,7 @@ export function PlatformMap() {
             max={1}
             step={0.05}
             value={layerOpacity ?? 0.85}
+            aria-label={t("opacity")}
             onChange={(e) => setLayerOpacity(parseFloat(e.target.value))}
             className="h-1.5 w-28 cursor-pointer appearance-none rounded-lg bg-neutral-300 accent-emerald-600"
           />

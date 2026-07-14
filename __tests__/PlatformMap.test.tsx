@@ -55,9 +55,12 @@ describe("PlatformMap", () => {
       activeLegend: null,
       selectedState: "br",
       activeYear: "2024",
+      layerOpacity: 0.85,
     });
     useMapLayerActionsMock.mockReturnValue({
       setSelectedState: vi.fn(),
+      setSelectedMunicipalityCode: vi.fn(),
+      setLayerOpacity: vi.fn(),
     });
   });
 
@@ -99,5 +102,19 @@ describe("PlatformMap", () => {
         screen.queryByRole("status", { name: "Carregando camada do GEE" }),
       ).not.toBeInTheDocument();
     });
+  });
+
+  it("labels the opacity control for assistive technologies", () => {
+    useEarthEngineTileLayerMock.mockReturnValue({
+      requestKey: "ee-layer:2024",
+      status: "ready",
+      tileLayerUrl: "https://tiles.example/2024",
+    });
+
+    render(<PlatformMap />);
+
+    expect(
+      screen.getByRole("slider", { name: "Transparência" }),
+    ).toHaveValue("0.85");
   });
 });
