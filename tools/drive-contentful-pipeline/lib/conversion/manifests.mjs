@@ -76,6 +76,23 @@ export function buildPanelLayerImageDataManifest(panelLayerFiles) {
   };
 }
 
+export function buildMunicipalReportSeriesManifest(reportSeries) {
+  const keys = new Set();
+  for (const layer of reportSeries) {
+    for (const shard of layer.shards) {
+      const key = `${layer.panelLayerId}::${layer.datasetVersion}::${shard.shardKey}`;
+      if (keys.has(key)) throw new Error(`Shard municipalReportSeries duplicado: ${key}.`);
+      keys.add(key);
+    }
+  }
+
+  return {
+    schemaVersion: 1,
+    generatedAt: new Date().toISOString(),
+    layers: reportSeries,
+  };
+}
+
 export function buildPipelineValidation(
   conversions,
   partitionFiles,
@@ -146,6 +163,11 @@ export function buildConversionReport(
       manifests.municipalAnalysisManifest.unmapped.length,
     partitionFiles: conversionResult.partitionFiles.length,
     panelLayerFiles: conversionResult.panelLayerFiles.length,
+    reportSeriesLayers: conversionResult.reportSeries.length,
+    reportSeriesShards: conversionResult.reportSeries.reduce(
+      (total, layer) => total + layer.shards.length,
+      0,
+    ),
     mappedPartitionFiles: manifests.municipalAnalysisManifest.partitions.length,
     unmappedPartitionFiles:
       manifests.municipalAnalysisManifest.unmappedPartitions.length,

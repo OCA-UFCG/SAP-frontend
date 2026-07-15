@@ -579,12 +579,6 @@ export function MunicipalReportPreview({ municipalityCode, period, layerIds, emb
         // Fetch charts for all available analyses
         const reportData = payload as MunicipalReportData;
         const selectedLayerIds = layerIdsKey ? new Set(layerIdsKey.split(",")) : null;
-        const selectedAliases = (selectedLayerIds
-          ? reportData.analyses.filter(({ id }) => selectedLayerIds.has(id))
-          : reportData.analyses
-        )
-          .filter((a) => a.status === "available")
-          .map((a) => a.alias);
         const selectedLayerIdsForDocs = (selectedLayerIds
           ? reportData.analyses.filter(({ id }) => selectedLayerIds.has(id))
           : reportData.analyses
@@ -619,19 +613,19 @@ export function MunicipalReportPreview({ municipalityCode, period, layerIds, emb
         };
 
         const chartsTask = async () => {
-          if (selectedAliases.length === 0) {
+          if (selectedLayerIdsForDocs.length === 0) {
             setCharts(new Map());
             return;
           }
           const finishCharts = startMunicipalReportStage();
           const chartResponse = await fetch(
-            `/api/municipal-report/${encodeURIComponent(municipalityCode)}/chart?period=${encodeURIComponent(period)}&analysis=${selectedAliases.join(",")}`,
+            `/api/municipal-report/${encodeURIComponent(municipalityCode)}/chart?period=${encodeURIComponent(period)}&analysis=${selectedLayerIdsForDocs.join(",")}`,
             { credentials: "same-origin", signal: controller.signal },
           );
           const chartPayload = await chartResponse.json();
           finishCharts("Gráficos SVG", {
             response: chartResponse,
-            detalhes: `${selectedAliases.length} gráfico(s) solicitado(s)`,
+            detalhes: `${selectedLayerIdsForDocs.length} gráfico(s) solicitado(s)`,
           });
           if (chartResponse.ok) {
             const nextCharts = new Map<string, string>();

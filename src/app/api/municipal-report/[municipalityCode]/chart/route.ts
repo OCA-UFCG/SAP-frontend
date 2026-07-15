@@ -2,9 +2,9 @@ import { NextResponse } from "next/server";
 import { requireAuthenticatedRequest } from "@/lib/server-session";
 import { getMunicipalAnalysisCacheControlHeader } from "@/repositories/platform/municipalAnalysisCache";
 import {
-  buildMunicipalReport,
   MunicipalReportNotFoundError,
 } from "@/services/municipalReportService";
+import { buildCachedMunicipalReport } from "@/services/municipalReportCache";
 import {
   renderMunicipalReportCharts,
   resolveMunicipalReportChartAnalyses,
@@ -18,7 +18,7 @@ const CHART_CACHE_MAX_ITEMS = 80;
 
 interface MunicipalReportChartResponse {
   municipality: Awaited<
-    ReturnType<typeof buildMunicipalReport>
+    ReturnType<typeof buildCachedMunicipalReport>
   >["municipality"];
   requestedPeriod: string;
   charts: Awaited<ReturnType<typeof renderMunicipalReportCharts>>;
@@ -125,7 +125,7 @@ export async function GET(
     // Avoid rebuilding every report layer for a chart request that only needs
     // the explicitly selected analyses.
     const finishBuild = timing.start();
-    const report = await buildMunicipalReport(code, period, {
+    const report = await buildCachedMunicipalReport(code, period, {
       analysisIds: requestedIds,
       onTiming: timing.record,
     });

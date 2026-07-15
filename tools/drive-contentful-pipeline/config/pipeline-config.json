@@ -300,6 +300,7 @@
       "valueRange": { "min": 0, "max": 100 }
     },
     "s2id_secas_estiagens": {
+      "reportSeriesAggregate": "sum",
       "valueConfig": {
         "type": "absolute",
         "unit": "registros",

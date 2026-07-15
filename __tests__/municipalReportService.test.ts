@@ -11,6 +11,45 @@ const imageData: CompactTerritorialAnalysisDataset = {
 };
 
 describe("buildMunicipalReport", () => {
+  it("uses one municipality-series shard and never enters the temporal partition fallback", async () => {
+    const loadImageData = vi.fn();
+    const loadReportSeries = vi.fn(async () => ({
+      municipality: {
+        "2024-01": { values: [10] },
+        "2024-03": { values: [30] },
+      },
+      aggregate: null,
+    }));
+    const report = await buildMunicipalReport("5200050", "2024-02", {
+      layers: [{
+        panelLayerId: "cdi",
+        alias: "cdi",
+        title: "CDI",
+        order: 1,
+        reportSeriesConfig: {
+          schemaVersion: 1,
+          datasetVersion: "v1",
+          shardCount: 64,
+          shardStrategy: "ibge-modulo",
+          firstPeriod: "2024-01",
+          lastPeriod: "2024-03",
+        },
+        baseImageData: imageData,
+      }],
+      loadImageData,
+      loadReportSeries,
+    });
+
+    expect(loadReportSeries).toHaveBeenCalledTimes(1);
+    expect(loadImageData).not.toHaveBeenCalled();
+    expect(report.analyses[0]).toMatchObject({
+      status: "available",
+      requestedPeriod: "2024-02",
+      effectivePeriod: "2024-01",
+    });
+    expect(report.analyses[0]?.timeSeries).toHaveLength(2);
+  });
+
   it("discovers every platform layer instead of limiting the report to the configured overrides", async () => {
     const report = await buildMunicipalReport("5200050", "2024", {
       listPanelLayers: async () =>

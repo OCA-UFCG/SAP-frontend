@@ -12,6 +12,10 @@ import type {
 } from "@/contracts/municipalReport";
 import { getCachedMunicipalAnalysisImageData } from "@/repositories/platform/municipalAnalysisCache";
 import { getPanelLayers } from "@/repositories/platform/panelLayerRepository";
+import {
+  getMunicipalReportSeries,
+  type MunicipalReportLocationSeries,
+} from "@/repositories/platform/municipalReportSeriesRepository";
 import { isCompactImageData } from "@/utils/imageData";
 import {
   resolveMunicipalLayerPeriod,
@@ -33,6 +37,7 @@ export interface MunicipalReportServiceDependencies {
   now?: () => Date;
   onTiming?: TimingObserver;
   availabilityIndex?: MunicipalAvailabilityIndex;
+  loadReportSeries?: typeof getMunicipalReportSeries;
 }
 
 export class MunicipalReportNotFoundError extends Error {}
@@ -67,8 +72,82 @@ async function resolveReportLayers(
         : undefined,
       timeSeriesLocationKey: override?.timeSeriesLocationKey,
       presentation: override?.presentation,
+      reportSeriesConfig: layer.reportSeriesConfig,
+      baseImageData: isCompactImageData(layer.imageData)
+        ? layer.imageData
+        : undefined,
     };
   });
+}
+
+function createLimiter(maxConcurrent: number) {
+  let active = 0;
+  const queue: Array<() => void> = [];
+  return async <T>(operation: () => Promise<T>): Promise<T> => {
+    if (active >= maxConcurrent) await new Promise<void>((resolve) => queue.push(resolve));
+    active += 1;
+    try {
+      return await operation();
+    } finally {
+      active -= 1;
+      queue.shift()?.();
+    }
+  };
+}
+
+const limitFallbackLoad = createLimiter(4);
+
+function buildSeriesDataset(
+  base: NonNullable<MunicipalReportLayerConfig["baseImageData"]>,
+  municipalityCode: string,
+  series: MunicipalReportLocationSeries,
+) {
+  return {
+    ...base,
+    years: Object.fromEntries(
+      Object.entries(series).map(([period, entry]) => [
+        period,
+        {
+          imageId: base.years[period]?.imageId ?? "",
+          year: base.years[period]?.year ?? period,
+          ...(typeof entry.valuesScale === "number"
+            ? { valuesScale: entry.valuesScale }
+            : {}),
+          values: { [municipalityCode]: entry.values },
+        },
+      ]),
+    ),
+  };
+}
+
+async function loadReportSeriesData(
+  config: MunicipalReportLayerConfig,
+  municipalityCode: string,
+  loadReportSeries: typeof getMunicipalReportSeries,
+) {
+  if (!config.reportSeriesConfig || !config.baseImageData) return null;
+  const result = await loadReportSeries(
+    config.panelLayerId,
+    municipalityCode,
+    config.reportSeriesConfig,
+    Boolean(config.timeSeriesLocationKey),
+  );
+  if (!result.municipality) return null;
+  const dataset = buildSeriesDataset(
+    config.baseImageData,
+    municipalityCode,
+    result.municipality,
+  );
+  const timeSeriesDataset = config.timeSeriesLocationKey && result.aggregate
+    ? buildSeriesDataset(config.baseImageData, "br", result.aggregate)
+    : dataset;
+  return {
+    dataset,
+    timeSeries: buildMunicipalReportTimeSeries(
+      timeSeriesDataset,
+      config.timeSeriesLocationKey ?? municipalityCode,
+    ),
+  };
 }
 
 function unavailable(
@@ -98,7 +177,7 @@ async function loadMunicipalTimeSeries(
   timeSeriesLocationKey: string,
   loadImageData: typeof getCachedMunicipalAnalysisImageData,
 ) {
-  const seed = await loadImageData(panelLayerId, effectivePeriod);
+  const seed = await limitFallbackLoad(() => loadImageData(panelLayerId, effectivePeriod));
 
   // Annual/monthly partition requests are the same path used by Monitoramento.
   // Each response contains the lightweight dataset metadata plus municipal
@@ -114,7 +193,7 @@ async function loadMunicipalTimeSeries(
       const datasets = await Promise.all(
         periodKeys.map(async (period) => {
           if (period === effectivePeriod) return seed.imageData;
-          const result = await loadImageData(panelLayerId, period);
+          const result = await limitFallbackLoad(() => loadImageData(panelLayerId, period));
           return result.found && result.imageData && isCompactImageData(result.imageData)
             ? result.imageData
             : null;
@@ -137,7 +216,7 @@ async function loadMunicipalTimeSeries(
 
   // Compatibility fallback for an annual request against a monthly dataset
   // or environments that have not published partition metadata yet.
-  const complete = await loadImageData(panelLayerId);
+  const complete = await limitFallbackLoad(() => loadImageData(panelLayerId));
   if (!complete.found || !complete.imageData || !isCompactImageData(complete.imageData)) {
     return null;
   }
@@ -160,6 +239,7 @@ export async function buildMunicipalReport(
 
   const loadImageData =
     dependencies.loadImageData ?? getCachedMunicipalAnalysisImageData;
+  const loadReportSeries = dependencies.loadReportSeries ?? getMunicipalReportSeries;
   const availabilityIndex =
     dependencies.availabilityIndex ??
     (municipalAvailabilityIndex as MunicipalAvailabilityIndex);
@@ -194,11 +274,24 @@ export async function buildMunicipalReport(
           config.panelLayerId,
           requestedPeriod,
         );
-        if (isIndexedLayer && !indexedPeriod) {
+        if (isIndexedLayer && !indexedPeriod && !config.reportSeriesConfig) {
           return unavailable(config, requestedPeriod);
         }
         const effectivePeriod = indexedPeriod ?? requestedPeriod;
-        const temporalData = await loadMunicipalTimeSeries(
+        let seriesData = null;
+        try {
+          seriesData = await loadReportSeriesData(
+            config,
+            municipalityCode,
+            loadReportSeries,
+          );
+        } catch (error) {
+          console.warn(
+            `[municipalReport] Shard indisponível para ${config.panelLayerId}; usando municipalAnalysis.`,
+            error,
+          );
+        }
+        const temporalData = seriesData ?? await loadMunicipalTimeSeries(
           config.panelLayerId,
           municipalityCode,
           effectivePeriod,
@@ -208,13 +301,18 @@ export async function buildMunicipalReport(
         );
         if (!temporalData) return unavailable(config, requestedPeriod);
         const { dataset, timeSeries } = temporalData;
-        const snapshot = config.timeSeriesLocationKey
-          ? buildMunicipalReportSnapshot(
-              dataset,
-              municipalityCode,
-              effectivePeriod,
+        const snapshot = seriesData
+          ? resolveMunicipalReportSnapshot(
+              buildMunicipalReportTimeSeries(dataset, municipalityCode),
+              requestedPeriod,
             )
-          : resolveMunicipalReportSnapshot(timeSeries, requestedPeriod);
+          : config.timeSeriesLocationKey
+            ? buildMunicipalReportSnapshot(
+                dataset,
+                municipalityCode,
+                effectivePeriod,
+              )
+            : resolveMunicipalReportSnapshot(timeSeries, requestedPeriod);
         return {
           id: config.panelLayerId,
           alias: config.alias,
