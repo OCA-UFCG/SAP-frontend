@@ -40,6 +40,8 @@ interface TemporalVisionProps {
   years?: Record<string, CompactAnalysisYearData>;
   classes?: CompactAnalysisClass[];
   selectedState?: string;
+  valueType?: "percentage" | "absolute";
+  valueUnit?: string;
 }
 
 const LazyTemporalVision = dynamic<TemporalVisionProps>(
@@ -232,29 +234,49 @@ function AnalysisYearSelect({
   );
 }
 
-function DistributionSection({ items }: { items: AnalysisDistributionItem[] }) {
+function DistributionSection({
+  items,
+  valueType,
+  valueUnit,
+  title,
+}: {
+  items: AnalysisDistributionItem[];
+  valueType?: "percentage" | "absolute";
+  valueUnit?: string;
+  title?: string;
+}) {
   const t = useTranslations("AnalysisPanel");
+  const absolute = valueType === "absolute";
+  const formatValue = (value: number) =>
+    absolute
+      ? `${value.toLocaleString("pt-BR")} ${valueUnit ?? ""}`.trim()
+      : `${value}%`;
   return (
     <div className="flex flex-col gap-2">
       <h2 className="text-[14px] font-semibold leading-6 text-[#292829]">
-        {t("areaPercentageByClass")}
+        {title ?? t("areaPercentageByClass")}
       </h2>
 
       <div className="rounded-lg border border-[#EFEFEF] bg-white p-3 shadow-sm">
-        <div className="flex h-10 w-full overflow-hidden rounded-md">
-          {items
-            .filter((item) => item.value > 0)
-            .map((item) => (
-              <div
-                key={item.id}
-                style={{ width: `${item.value}%`, backgroundColor: item.color }}
-                className="flex items-center justify-center border-r border-white/20 text-[12px] font-bold text-[#292829] transition-all duration-500 last:border-0"
-                title={`${item.label}: ${item.value}%`}
-              >
-                {item.value > 10 && `${item.value}%`}
-              </div>
-            ))}
-        </div>
+        {!absolute ? (
+          <div className="flex h-10 w-full overflow-hidden rounded-md">
+            {items
+              .filter((item) => item.value > 0)
+              .map((item) => (
+                <div
+                  key={item.id}
+                  style={{
+                    width: `${item.value}%`,
+                    backgroundColor: item.color,
+                  }}
+                  className="flex items-center justify-center border-r border-white/20 text-[12px] font-bold text-[#292829] transition-all duration-500 last:border-0"
+                  title={`${item.label}: ${item.value}%`}
+                >
+                  {item.value > 10 && `${item.value}%`}
+                </div>
+              ))}
+          </div>
+        ) : null}
 
         <div className="mt-4 grid grid-cols-2 gap-x-4 gap-y-2">
           {items.map((item) => (
@@ -264,7 +286,8 @@ function DistributionSection({ items }: { items: AnalysisDistributionItem[] }) {
                 style={{ backgroundColor: item.color }}
               />
               <span className="truncate text-[12px] text-neutral-600">
-                {item.label}: <span className="font-bold">{item.value}%</span>
+                {item.label}:{" "}
+                <span className="font-bold">{formatValue(item.value)}</span>
               </span>
             </div>
           ))}
@@ -465,10 +488,7 @@ function RankingSection({
   const t = useTranslations("AnalysisPanel");
   if (groups.length === 0) {
     return (
-      <EmptySection
-        title={title}
-        description={t("rankingsNotAvailable")}
-      />
+      <EmptySection title={title} description={t("rankingsNotAvailable")} />
     );
   }
 
@@ -635,7 +655,12 @@ export function AnalysisPanel({
               </div>
             </div>
 
-            <DistributionSection items={model.distribution} />
+            <DistributionSection
+              items={model.distribution}
+              valueType={model.valueType}
+              valueUnit={model.valueUnit}
+              title={model.distributionTitle}
+            />
             <RankingSection
               title={model.rankingTitle ?? t("territoriesByClassification")}
               groups={model.rankingGroups}
@@ -646,16 +671,15 @@ export function AnalysisPanel({
                 years={years}
                 classes={classes}
                 selectedState={selectedState}
+                valueType={model.valueType}
+                valueUnit={model.valueUnit}
               />
             ) : null}
           </section>
         ) : (
           <EmptySection
             title={emptyStateTitle ?? t("analysisUnavailable")}
-            description={
-              emptyStateDescription ??
-              t("analysisDataNotAvailable")
-            }
+            description={emptyStateDescription ?? t("analysisDataNotAvailable")}
           />
         )}
       </div>

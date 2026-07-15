@@ -34,6 +34,7 @@ interface UseMapControllerArgs {
   selectedMunicipalityCode?: string | null;
   tileLayerUrl?: string | null;
   tileLayerRequestKey?: string | null;
+  layerOpacity: number;
   onStateSelect?: (uf: string) => void;
   onSelectedMunicipalityCodeChange?: (municipalityCode: string | null) => void;
   onTileLayerReady?: (requestKey: string) => void;
@@ -50,6 +51,7 @@ export const useMapController = ({
   selectedMunicipalityCode,
   tileLayerUrl,
   tileLayerRequestKey,
+  layerOpacity,
   onStateSelect,
   onSelectedMunicipalityCodeChange,
   onTileLayerReady,
@@ -79,6 +81,7 @@ export const useMapController = ({
   );
   const onTileLayerReadyRef = useRef(onTileLayerReady);
   const tileLayerUrlRef = useRef<string | null | undefined>(tileLayerUrl);
+  const layerOpacityRef = useRef(layerOpacity);
   const tileLayerRequestKeyRef = useRef<string | null | undefined>(
     tileLayerRequestKey,
   );
@@ -217,6 +220,7 @@ export const useMapController = ({
     selectedStateRef,
     showStatesBorderRef,
     tileLayerUrlRef,
+    layerOpacityRef,
   });
 
   useMapControllerEffects({
@@ -260,6 +264,8 @@ export const useMapController = ({
     tileLayerRequestKeyRef,
     tileLayerUrl,
     tileLayerUrlRef,
+    layerOpacity,
+    layerOpacityRef,
     warn,
   });
 

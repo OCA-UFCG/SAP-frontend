@@ -58,6 +58,12 @@ export interface CompactAnalysisRankingConfig {
   totalLabel?: string;
 }
 
+export interface CompactAnalysisValueConfig {
+  type?: "percentage" | "absolute";
+  unit?: string;
+  distributionTitle?: string;
+}
+
 export interface CompactMapVisualizationConfig {
   sourceType?: "image" | "imageCollection" | "featureCollection";
   min?: number;
@@ -96,6 +102,7 @@ export interface CompactTerritorialAnalysisDataset {
   locations?: Record<string, string>;
   templates?: CompactAnalysisTemplates;
   ranking?: CompactAnalysisRankingConfig;
+  valueConfig?: CompactAnalysisValueConfig;
   mapVisualization?: CompactMapVisualizationConfig;
   years: Record<string, CompactAnalysisYearData>;
 }
@@ -115,4 +122,7 @@ export interface TerritorialAnalysisViewModel {
   distribution: AnalysisDistributionItem[];
   rankingTitle?: string;
   rankingGroups: AnalysisRankingGroup[];
+  valueType?: "percentage" | "absolute";
+  valueUnit?: string;
+  distributionTitle?: string;
 }

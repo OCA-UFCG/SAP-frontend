@@ -29,6 +29,7 @@ interface UseMapSelectionRuntimeArgs {
   cdiGeoJsonRef: MutableRefObject<ReturnType<typeof buildCdiGeoJson>>;
   currentBoundsRef: MutableRefObject<LngLatBoundsLike | null>;
   tileLayerUrlRef: MutableRefObject<string | null | undefined>;
+  layerOpacityRef: MutableRefObject<number>;
   pendingStyleSyncRef: MutableRefObject<boolean>;
   pendingSelectedSyncRef: MutableRefObject<boolean>;
   fitMapToBounds: (
@@ -71,6 +72,7 @@ export const useMapSelectionRuntime = ({
   cdiGeoJsonRef,
   currentBoundsRef,
   tileLayerUrlRef,
+  layerOpacityRef,
   pendingStyleSyncRef,
   pendingSelectedSyncRef,
   fitMapToBounds,
@@ -110,6 +112,7 @@ export const useMapSelectionRuntime = ({
     applySelectedFeatureState,
     cdiGeoJsonRef,
     hasCdiDataRef,
+    layerOpacityRef,
     log,
     mapModeRef,
     mapRef,

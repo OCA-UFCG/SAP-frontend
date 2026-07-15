@@ -77,7 +77,15 @@ function getPanelLayerImageId(
 }
 
 function toPanelLayerImageData(years, locations, panelLayerConfig) {
-  const yearKeys = Array.from(years.keys()).sort();
+  const yearKeys = Array.from(years.keys())
+    .filter((yearKey) => {
+      if (!panelLayerConfig.omitAllZeroYears) return true;
+
+      return Object.values(years.get(yearKey).values).some((values) =>
+        values.some((value) => value !== 0),
+      );
+    })
+    .sort();
 
   return {
     schemaVersion: 1,
@@ -87,11 +95,13 @@ function toPanelLayerImageData(years, locations, panelLayerConfig) {
     locations: sortRecordEntries(Object.fromEntries(locations)),
     templates: panelLayerConfig.templates,
     ranking: panelLayerConfig.ranking,
+    valueConfig: panelLayerConfig.valueConfig,
     mapVisualization: panelLayerConfig.mapVisualization,
     years: Object.fromEntries(
-      Array.from(years.entries())
-        .sort(([leftKey], [rightKey]) => leftKey.localeCompare(rightKey))
-        .map(([yearKey, yearEntry]) => [
+      yearKeys.map((yearKey) => {
+        const yearEntry = years.get(yearKey);
+
+        return [
           yearKey,
           {
             imageId: yearEntry.imageId,
@@ -99,7 +109,8 @@ function toPanelLayerImageData(years, locations, panelLayerConfig) {
             valuesScale: yearEntry.valuesScale,
             values: sortRecordEntries(yearEntry.values),
           },
-        ]),
+        ];
+      }),
     ),
   };
 }
@@ -184,12 +195,14 @@ export async function convertPanelLayerCsvFile(inputPath, pipelineConfig) {
     yearEntry.values[location.key] = values;
   }
 
+  const imageData = toPanelLayerImageData(years, locations, panelLayerConfig);
+
   return {
     inputPath: toWorkspaceRelativePath(inputPath),
     ...mapping,
-    imageData: toPanelLayerImageData(years, locations, panelLayerConfig),
+    imageData,
     locationCount: locations.size,
-    yearKeys: Array.from(years.keys()).sort(),
+    yearKeys: Object.keys(imageData.years).sort(),
     classColumns: classColumns.columns,
   };
 }

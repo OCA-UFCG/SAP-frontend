@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import citiesIndex from "@/data/citiesIndex.json";
 import { requireAuthenticatedRequest } from "@/lib/server-session";
 import { buildDocContent } from "@/services/buildDoc/buildDocContent";
+import { createServerTiming } from "@/utils/serverTiming";
 
 const MUNICIPALITY_CODE_PATTERN = /^\d{7}$/u;
 const PERIOD_PATTERN = /^(\d{4})(?:-(0[1-9]|1[0-2]))?$/u;
@@ -21,9 +22,13 @@ function getPeriodParts(period: string) {
 }
 
 export async function GET(request: Request, context: { params: Promise<{ municipalityCode: string }> }) {
+  const timing = createServerTiming();
+  const finishAuth = timing.start();
   const unauthorized = await requireAuthenticatedRequest(request);
+  finishAuth("auth", "Autenticação");
   if (unauthorized) {
     unauthorized.headers.set("Cache-Control", "no-store");
+    unauthorized.headers.set("Server-Timing", timing.header());
     return unauthorized;
   }
 
@@ -49,6 +54,7 @@ export async function GET(request: Request, context: { params: Promise<{ municip
   const { month, year } = getPeriodParts(period);
 
   try {
+    const finishDocs = timing.start();
     const content = await buildDocContent({
       themes,
       city: municipality.name,
@@ -57,9 +63,14 @@ export async function GET(request: Request, context: { params: Promise<{ municip
       year,
       ibgeId: code,
       period,
+      onTiming: timing.record,
     });
+    finishDocs("build_docs", "Montagem completa dos textos");
 
-    return NextResponse.json({ content }, { headers: { "Cache-Control": "no-store" } });
+    return NextResponse.json({ content }, { headers: {
+      "Cache-Control": "no-store",
+      "Server-Timing": timing.header(),
+    } });
   } catch (cause) {
     console.error("Erro ao montar textos do relatório municipal:", cause);
     return error("Unable to build municipal report docs content.", 502);

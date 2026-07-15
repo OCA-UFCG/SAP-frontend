@@ -24,6 +24,9 @@
 .DS_Store
 *.pem
 /scripts
+!/scripts/
+/scripts/*
+/scripts/gee/
 /tmp
 mise.toml
 
@@ -52,6 +55,9 @@ storybook-static
 
 # Generated Google Drive CSV downloads and transformed Contentful JSON outputs.
 /data/contentful-pipeline/
+
+# Generated from published Contentful municipal analysis during build.
+/src/data/municipalAvailabilityIndex.json
 
 /BR_Municipios_2025
 

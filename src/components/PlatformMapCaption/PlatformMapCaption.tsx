@@ -21,7 +21,7 @@ export function PlatformMapCaption({ legend }: { legend: IImageParam[] }) {
   return (
     <div
       className={
-        "z-[1000] absolute bottom-6 right-6 w-[340px] rounded-xl border-t border-neutral-200 bg-white/90 shadow-sm"
+        "w-full rounded-xl border-t border-neutral-200 bg-white/90 shadow-sm"
       }
     >
       <div

@@ -33,16 +33,16 @@ function xForIndex(index: number, count: number) {
   return PADDING_LEFT + (index / (count - 1)) * CHART_WIDTH;
 }
 
-function yForValue(value: number) {
-  const clamped = Math.max(0, Math.min(100, value));
-  return CHART_BOTTOM - (clamped / 100) * (CHART_BOTTOM - CHART_TOP);
+function yForValue(value: number, maxValue: number) {
+  const clamped = Math.max(0, Math.min(maxValue, value));
+  return CHART_BOTTOM - (clamped / maxValue) * (CHART_BOTTOM - CHART_TOP);
 }
 
-function buildPolyline(points: Array<{ value: number }>) {
+function buildPolyline(points: Array<{ value: number }>, maxValue: number) {
   return points
     .map((point, index) => {
       const x = xForIndex(index, points.length);
-      const y = yForValue(point.value);
+      const y = yForValue(point.value, maxValue);
       return `${x.toFixed(1)},${y.toFixed(1)}`;
     })
     .join(" ");
@@ -59,6 +59,20 @@ export async function renderMunicipalReportChart(
   { highlightPeriod }: RenderMunicipalReportChartOptions,
 ) {
   const chartData = buildMunicipalReportChartData(analysis, highlightPeriod);
+  const observedMax = Math.max(
+    0,
+    ...chartData.series.flatMap((series) =>
+      series.points.map((point) => point.value),
+    ),
+  );
+  const axisMax =
+    analysis.valueType === "absolute"
+      ? Math.max(1, Math.ceil(observedMax / 5) * 5)
+      : 100;
+  const tickValues = Array.from(
+    { length: 6 },
+    (_, index) => (axisMax / 5) * index,
+  );
   const categoryCount = Math.max(chartData.categories.length, 1);
   const highlightedIndex = chartData.categories.findIndex(
     (category) => category.highlighted,
@@ -66,19 +80,23 @@ export async function renderMunicipalReportChart(
   const highlightedX =
     highlightedIndex >= 0 ? xForIndex(highlightedIndex, categoryCount) : null;
 
-  const gridLines = [0, 20, 40, 60, 80, 100]
+  const gridLines = tickValues
     .map((value) => {
-      const y = yForValue(value);
+      const y = yForValue(value, axisMax);
+      const label =
+        analysis.valueType === "absolute"
+          ? Number(value.toFixed(1)).toLocaleString("pt-BR")
+          : `${value}%`;
       return `
         <line x1="${PADDING_LEFT}" y1="${y.toFixed(1)}" x2="${WIDTH - PADDING_RIGHT}" y2="${y.toFixed(1)}" stroke="#D8D9D4" stroke-width="1" opacity="${value === 0 ? "1" : "0.7"}" />
-        <text x="${PADDING_LEFT - 14}" y="${(y + 5).toFixed(1)}" text-anchor="end" font-family="Arial, sans-serif" font-size="15" fill="#6B6768">${value}%</text>
+        <text x="${PADDING_LEFT - 14}" y="${(y + 5).toFixed(1)}" text-anchor="end" font-family="Arial, sans-serif" font-size="15" fill="#6B6768">${escapeSvgText(label)}</text>
       `;
     })
     .join("");
 
   const lines = chartData.series
     .map((series) => {
-      const polyline = buildPolyline(series.points);
+      const polyline = buildPolyline(series.points, axisMax);
       const markers = series.points
         .map((point, index) => {
           if (
@@ -88,7 +106,7 @@ export async function renderMunicipalReportChart(
           }
 
           const x = xForIndex(index, series.points.length);
-          const y = yForValue(point.value);
+          const y = yForValue(point.value, axisMax);
           return `<circle cx="${x.toFixed(1)}" cy="${y.toFixed(1)}" r="${point.highlighted ? "4.5" : "2.4"}" fill="#FFFFFF" stroke="${series.color}" stroke-width="${point.highlighted ? "3" : "2"}" />`;
         })
         .join("");
@@ -139,10 +157,14 @@ export async function renderMunicipalReportChart(
       ? ""
       : `<line x1="${highlightedX.toFixed(1)}" y1="${CHART_TOP}" x2="${highlightedX.toFixed(1)}" y2="${CHART_BOTTOM}" stroke="#292829" stroke-width="2" stroke-dasharray="6 6" opacity="0.42" />`;
 
+  const chartUnit = analysis.valueType === "absolute" && analysis.unit.trim()
+    ? ` (${analysis.unit.trim()})`
+    : "";
+
   const svg = `<svg xmlns="http://www.w3.org/2000/svg" width="${WIDTH}" height="${HEIGHT}" viewBox="0 0 ${WIDTH} ${HEIGHT}">
     <rect width="100%" height="100%" fill="#FFFFFF" />
     <text x="72" y="58" font-family="Arial, sans-serif" font-size="30" font-weight="700" fill="#292829">${escapeSvgText(analysis.title)}</text>
-    <text x="72" y="94" font-family="Arial, sans-serif" font-size="18" fill="#6B6768">Serie historica completa por classe - referencia: ${escapeSvgText(formatReferencePeriod(chartData.referencePeriod))}</text>
+    <text x="72" y="94" font-family="Arial, sans-serif" font-size="18" fill="#6B6768">Serie historica completa por classe${escapeSvgText(chartUnit)} - referencia: ${escapeSvgText(formatReferencePeriod(chartData.referencePeriod))}</text>
     ${gridLines}
     <line x1="${PADDING_LEFT}" y1="${CHART_TOP}" x2="${PADDING_LEFT}" y2="${CHART_BOTTOM}" stroke="#D8D9D4" stroke-width="2" />
     <line x1="${PADDING_LEFT}" y1="${CHART_BOTTOM}" x2="${WIDTH - PADDING_RIGHT}" y2="${CHART_BOTTOM}" stroke="#D8D9D4" stroke-width="2" />

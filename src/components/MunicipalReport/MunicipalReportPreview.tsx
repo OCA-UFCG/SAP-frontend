@@ -16,6 +16,15 @@ import {
   getReportDocsText,
 } from "@/utils/municipalReportNarrative";
 import citiesIndex from "@/data/citiesIndex.json";
+import {
+  finishMunicipalReportMetrics,
+  recordMunicipalReportNavigation,
+  startMunicipalReportStage,
+} from "@/utils/municipalReportMetrics";
+import {
+  formatMunicipalReportValue,
+  getMunicipalReportValueLabels,
+} from "@/utils/municipalReportValue";
 import { ReportMapPreview } from "./ReportMapPreview";
 
 interface MunicipalReportPreviewProps {
@@ -90,6 +99,7 @@ function AnalysisSection({
       : `Período de referência usado no relatório: ${referencePeriodLabel}.`;
   const historyRange = compactPeriodRange(analysis.timeSeries, referencePeriod, locale);
   const narrativeSections = buildAnalysisNarrativeSections(analysis, docsContent);
+  const valueLabels = getMunicipalReportValueLabels(analysis);
 
   return (
     <section className="report-section">
@@ -150,22 +160,22 @@ function AnalysisSection({
               >
                 <strong className="text-lg">{dominant.label}</strong>
                 <span className="mt-1 text-3xl font-bold">
-                  {dominant.percentage.toFixed(1)}%
+                  {formatMunicipalReportValue(dominant.percentage, analysis, locale)}
                 </span>
-                <span className="mt-2 text-xs">da área analisada</span>
+                <span className="mt-2 text-xs">{valueLabels.cardContext}</span>
               </div>
             )}
           </div>
 
           <h3 className="report-heading mt-8 text-lg font-bold text-[#536e7b]">
-            Classes do {analysis.title}
+            {valueLabels.sectionTitle} de {analysis.title}
           </h3>
           <div className="report-block mt-3 overflow-hidden border border-[#c8ced1]">
             <table className="w-full border-collapse text-sm">
               <thead className="bg-[#176b39] text-white">
                 <tr>
                   <th className="border-r border-white/40 px-4 py-2.5 text-left">Classe</th>
-                  <th className="w-36 px-4 py-2.5 text-right">Cobertura (%)</th>
+                  <th className="w-36 px-4 py-2.5 text-right">{valueLabels.tableValue}</th>
                 </tr>
               </thead>
               <tbody>
@@ -182,7 +192,7 @@ function AnalysisSection({
                       {item.label}
                     </td>
                     <td className="px-4 py-2.5 text-right font-semibold">
-                      {item.percentage.toFixed(1)}%
+                      {formatMunicipalReportValue(item.percentage, analysis, locale)}
                     </td>
                   </tr>
                 ))}
@@ -214,7 +224,7 @@ function AnalysisSection({
               </div>
               <div className="report-visual-panel flex flex-col">
                 <div className="border-b border-[#c8ced1] bg-[#f4f6f8] px-4 py-2.5 text-center text-sm font-semibold text-[#536e7b]">
-                  Série temporal por classe: {historyRange}
+                  {valueLabels.chartSeries}: {historyRange}
                 </div>
                 <div className="report-chart-frame flex min-h-[230px] flex-1 items-center justify-center p-4">
                   {chartSrc ? (
@@ -421,6 +431,9 @@ export function MunicipalReportPreview({ municipalityCode, period, layerIds, emb
   const [exporting, setExporting] = useState(false);
   const [zoom, setZoom] = useState(75);
   const reportDocumentRef = useRef<HTMLElement>(null);
+  const navigationMeasuredRef = useRef(false);
+  const previewMeasuredRef = useRef(false);
+  const summaryMeasuredRef = useRef(false);
   const layerIdsKey = useMemo(() => layerIds?.join(",") ?? "", [layerIds]);
   const reportMapKeys = useMemo(() => {
     if (!report) return [];
@@ -434,6 +447,35 @@ export function MunicipalReportPreview({ municipalityCode, period, layerIds, emb
   }, [layerIdsKey, report]);
   const activeMapKey = reportMapKeys[mapRenderIndex];
   const mapsReady = reportMapKeys.every((key) => mapImages.has(key));
+
+  useEffect(() => {
+    if (!hasRequiredParameters || navigationMeasuredRef.current) return;
+    navigationMeasuredRef.current = true;
+    recordMunicipalReportNavigation();
+  }, [hasRequiredParameters]);
+
+  useEffect(() => {
+    if (!report || loading || previewMeasuredRef.current) return;
+    previewMeasuredRef.current = true;
+    const finishRender = startMunicipalReportStage();
+    const frame = window.requestAnimationFrame(() => {
+      finishRender("Renderização da prévia", {
+        detalhes: `${report.analyses.length} análise(s) no documento`,
+      });
+    });
+    return () => window.cancelAnimationFrame(frame);
+  }, [loading, report]);
+
+  useEffect(() => {
+    if (!report || loading || !mapsReady || summaryMeasuredRef.current) return;
+    summaryMeasuredRef.current = true;
+    const frame = window.requestAnimationFrame(() => {
+      finishMunicipalReportMetrics(
+        `${reportMapKeys.length} mapa(s) capturado(s); botão de download liberado.`,
+      );
+    });
+    return () => window.cancelAnimationFrame(frame);
+  }, [loading, mapsReady, report, reportMapKeys.length]);
 
   const handleMapCapture = useCallback((key: string, src: string | null) => {
     setMapImages((current) => {
@@ -511,14 +553,23 @@ export function MunicipalReportPreview({ municipalityCode, period, layerIds, emb
     const controller = new AbortController();
 
     async function loadReport() {
+      previewMeasuredRef.current = false;
+      summaryMeasuredRef.current = false;
       setLoading(true);
       setError(null);
       try {
+        const finishBaseReport = startMunicipalReportStage();
+        const reportParams = new URLSearchParams({ period });
+        if (layerIdsKey) reportParams.set("layers", layerIdsKey);
         const response = await fetch(
-          `/api/municipal-report/${encodeURIComponent(municipalityCode)}?period=${encodeURIComponent(period)}`,
+          `/api/municipal-report/${encodeURIComponent(municipalityCode)}?${reportParams.toString()}`,
           { credentials: "same-origin", signal: controller.signal },
         );
         const payload = await response.json();
+        finishBaseReport("Relatório-base", {
+          response,
+          detalhes: `${layerIdsKey ? layerIdsKey.split(",").length : "todas"} camada(s) solicitada(s)`,
+        });
         if (!response.ok) throw new Error(payload.error ?? t("loadError"));
         setReport(payload as MunicipalReportData);
         setDocsContent(null);
@@ -541,41 +592,63 @@ export function MunicipalReportPreview({ municipalityCode, period, layerIds, emb
           .filter((a) => a.status === "available")
           .map((a) => a.id);
 
-        if (selectedLayerIdsForDocs.length > 0) {
+        const docsTask = async () => {
+          if (selectedLayerIdsForDocs.length === 0) return;
+          const finishDocs = startMunicipalReportStage();
+          let docsResponse: Response | undefined;
           try {
-            const docsResponse = await fetch(
+            docsResponse = await fetch(
               `/api/municipal-report/${encodeURIComponent(municipalityCode)}/docs?period=${encodeURIComponent(period)}&layers=${encodeURIComponent(selectedLayerIdsForDocs.join(","))}`,
               { credentials: "same-origin", signal: controller.signal },
             );
             const docsPayload = await docsResponse.json();
+            finishDocs("Textos do Google Docs", {
+              response: docsResponse,
+              detalhes: `${selectedLayerIdsForDocs.length} tema(s)`,
+            });
             if (!docsResponse.ok) throw new Error(docsPayload.error ?? t("loadError"));
             setDocsContent(docsPayload.content as MunicipalReportDocsContent);
           } catch (docsError) {
+            if (!docsResponse) {
+              finishDocs("Textos do Google Docs", { detalhes: "Falha antes de receber a resposta" });
+            }
             if (controller.signal.aborted) throw docsError;
             console.warn("Não foi possível carregar os textos do relatório; mantendo os dados e gráficos disponíveis.", docsError);
             setDocsContent(null);
           }
-        }
+        };
 
-        if (selectedAliases.length === 0) {
-          setCharts(new Map());
-          return;
-        }
-
-        if (selectedAliases.length > 0) {
+        const chartsTask = async () => {
+          if (selectedAliases.length === 0) {
+            setCharts(new Map());
+            return;
+          }
+          const finishCharts = startMunicipalReportStage();
           const chartResponse = await fetch(
             `/api/municipal-report/${encodeURIComponent(municipalityCode)}/chart?period=${encodeURIComponent(period)}&analysis=${selectedAliases.join(",")}`,
             { credentials: "same-origin", signal: controller.signal },
           );
+          const chartPayload = await chartResponse.json();
+          finishCharts("Gráficos SVG", {
+            response: chartResponse,
+            detalhes: `${selectedAliases.length} gráfico(s) solicitado(s)`,
+          });
           if (chartResponse.ok) {
-            const chartPayload = await chartResponse.json();
             const nextCharts = new Map<string, string>();
             for (const chart of chartPayload.charts) {
               nextCharts.set(chart.alias, `data:${chart.contentType};base64,${chart.base64}`);
             }
             setCharts(nextCharts);
           }
-        }
+        };
+
+        // Text resolution and SVG rendering are independent. Starting them
+        // together prevents the chart from waiting behind the Docs request.
+        const finishParallelAssets = startMunicipalReportStage();
+        await Promise.all([docsTask(), chartsTask()]);
+        finishParallelAssets("Janela paralela: textos + gráficos", {
+          detalhes: "Duração do mais lento entre as duas requisições paralelas",
+        });
       } catch (reason) {
         if (reason instanceof DOMException && reason.name === "AbortError") return;
         setError(reason instanceof Error ? reason.message : t("loadError"));

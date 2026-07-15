@@ -9,8 +9,11 @@ export interface MunicipalReportTemplateProvider {
 function analysisSections(report: MunicipalReportData) {
   return report.analyses.flatMap((analysis) => {
     const alias = analysis.alias;
+    const situation = analysis.valueType === "absolute"
+      ? `No município de $municipio — $uf, o valor de $classe_${alias} é $valor_com_unidade_${alias}, conforme os dados de $titulo_${alias} para o período de $periodo_${alias}.`
+      : `No município de $municipio — $uf, predomina a classe $classe_${alias}, com $percentual_${alias}% da área analisada $contexto_cobertura_${alias}, conforme os dados de $titulo_${alias} para o período de $periodo_${alias}.`;
     const sections = [
-      `[[analysis:${alias}:situation]]\nNo município de $municipio — $uf, predomina a classe $classe_${alias}, com $percentual_${alias}% da área analisada $contexto_cobertura_${alias}, conforme os dados de $titulo_${alias} para o período de $periodo_${alias}.`,
+      `[[analysis:${alias}:situation]]\n${situation}`,
       `[[analysis:${alias}:methodology]]\n$metodologia_${alias}`,
     ];
     if (`quantidade_periodos_recentes_${alias}` in report.templateVariables) {

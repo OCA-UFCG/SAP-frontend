@@ -66,6 +66,7 @@ interface PlatformSidebarProps {
   initialSection?: PlatformSidebarInitialSection;
   viewMode?: PlatformSidebarViewMode;
   reportRequest?: { municipalityCode: string; period: string; layerIds: string[] };
+  onActiveSectionChange?: (section: PlatformSection) => void;
 }
 
 export function PlatformSidebar({
@@ -74,10 +75,11 @@ export function PlatformSidebar({
   initialSection = "monitoring",
   viewMode = "default",
   reportRequest,
+  onActiveSectionChange,
 }: PlatformSidebarProps) {
   const t = useTranslations("PlatformSidebar");
   const router = useRouter();
-  const { clearActiveLayer, setActiveLegend } = useMapLayerActions();
+  const { setActiveLegend } = useMapLayerActions();
   const initialSidebarState = buildSidebarState(viewMode, initialSection);
   const isLogsView = viewMode === "logs";
 
@@ -123,17 +125,19 @@ export function PlatformSidebar({
     if (next === "analysis") {
       setShowAnalysisFrame(true);
       setActiveSection(next);
+      onActiveSectionChange?.(next);
       setIsPanelOpen(false);
       setActiveLegend(null);
       return;
     }
     setActiveSection(next);
+    onActiveSectionChange?.(next);
     setPanelSection(next);
     setIsPanelOpen(true);
     setShowAnalysisFrame(false);
 
-    if (next !== "monitoring" && next !== "analysis-detail") {
-      clearActiveLayer();
+    if (next === "monitoring" && initialSection === "communication") {
+      router.push(buildPlatformHref("monitoring"));
     }
   }
 
@@ -142,6 +146,7 @@ export function PlatformSidebar({
 
     if (next === "monitoring" && activeSection === "analysis-detail") {
       setActiveSection("monitoring");
+      onActiveSectionChange?.("monitoring");
     }
 
     setIsPanelOpen(true);

@@ -10,12 +10,21 @@ import {
   useMapLayerViewState,
 } from "@/components/MapLayerContext/MapLayerContext";
 
-export function PlatformMap() {
+interface PlatformMapProps {
+  showMonitoringOverlays?: boolean;
+}
+
+export function PlatformMap({ showMonitoringOverlays = true }: PlatformMapProps) {
   const t = useTranslations("PlatformMap");
   const { activeData, activeEEData } = useMapLayerActiveState();
-  const { activeLegend, selectedState, selectedMunicipalityCode, activeYear } =
-    useMapLayerViewState();
-  const { setSelectedState, setSelectedMunicipalityCode } =
+  const {
+    activeLegend,
+    selectedState,
+    selectedMunicipalityCode,
+    activeYear,
+    layerOpacity,
+  } = useMapLayerViewState();
+  const { setSelectedState, setSelectedMunicipalityCode, setLayerOpacity } =
     useMapLayerActions();
   const { requestKey, status, tileLayerUrl } = useEarthEngineTileLayer(
     activeEEData,
@@ -52,6 +61,7 @@ export function PlatformMap() {
           className="w-full h-full"
           tileLayerUrl={tileLayerUrl}
           tileLayerRequestKey={requestKey}
+          layerOpacity={layerOpacity}
           onStateSelect={(uf: string) => setSelectedState(uf.toLowerCase())}
           onSelectedMunicipalityCodeChange={setSelectedMunicipalityCode}
           onTileLayerReady={handleTileLayerReady}
@@ -75,11 +85,32 @@ export function PlatformMap() {
         )}
       </div>
 
-      {/* Caption/legend overlay (bottom-right in the Figma) */}
+      <div className="absolute bottom-6 right-6 z-[1000] flex w-[340px] flex-col gap-2">
+        {showMonitoringOverlays && activeEEData && (
+          <div className="flex w-full items-center gap-3 rounded-xl border border-neutral-200 bg-white/95 px-4 py-2.5 shadow-md backdrop-blur-sm">
+            <span className="text-xs font-semibold text-neutral-700">
+              {t("opacity")}
+            </span>
+            <input
+              type="range"
+              min={0}
+              max={1}
+              step={0.05}
+              value={layerOpacity ?? 0.85}
+              aria-label={t("opacity")}
+              onChange={(e) => setLayerOpacity(parseFloat(e.target.value))}
+              className="h-1.5 min-w-0 flex-1 cursor-pointer appearance-none rounded-lg bg-neutral-300 accent-emerald-600"
+            />
+            <span className="w-9 text-right font-mono text-xs text-neutral-600">
+              {Math.round((layerOpacity ?? 0.85) * 100)}%
+            </span>
+          </div>
+        )}
 
-      {activeLegend && activeLegend.length > 0 && (
-        <PlatformMapCaption legend={activeLegend} />
-      )}
+        {showMonitoringOverlays && activeLegend && activeLegend.length > 0 && (
+          <PlatformMapCaption legend={activeLegend} />
+        )}
+      </div>
     </div>
   );
 }

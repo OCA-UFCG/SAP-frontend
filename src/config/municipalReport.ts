@@ -3,6 +3,8 @@ export interface MunicipalReportLayerConfig {
   alias: string;
   title: string;
   order: number;
+  periods?: string[];
+  timeSeriesLocationKey?: "br";
   presentation?: MunicipalReportPresentationConfig;
 }
 
@@ -77,6 +79,13 @@ export const MUNICIPAL_REPORT_LAYERS: readonly MunicipalReportLayerConfig[] = [
   { panelLayerId: "ods", alias: "ods", title: "Objetivos de Desenvolvimento Sustentável", order: 90 },
   { panelLayerId: "prodprimariabruta", alias: "producao_primaria_bruta", title: "Produção Primária Bruta", order: 100 },
   { panelLayerId: "terraibge", alias: "cobertura_terra", title: "Cobertura da Terra", order: 110 },
+  {
+    panelLayerId: "s2id_secas_estiagens",
+    alias: "s2id_secas_estiagens",
+    title: "Registros de Secas e Estiagens (2004-2025)",
+    order: 120,
+    timeSeriesLocationKey: "br",
+  },
 ] as const;
 
 export function getMunicipalReportLayerConfig(analysisId: string) {

@@ -72,6 +72,24 @@
       "patterns": ["ana"]
     },
     {
+      "key": "pob_urb",
+      "label": "Pobreza urbana",
+      "panelLayerId": "pob_urb",
+      "patterns": ["pob[-_\\s]?urb", "pobreza[-_\\s]?urbana"]
+    },
+    {
+      "key": "pob_rural",
+      "label": "Pobreza rural",
+      "panelLayerId": "pob_rural",
+      "patterns": ["pob[-_\\s]?rural", "pobreza[-_\\s]?rural"]
+    },
+    {
+      "key": "s2id",
+      "label": "Registros de secas e estiagens",
+      "panelLayerId": "s2id_secas_estiagens",
+      "patterns": ["s2id", "secas?[-_\\s]?(e[-_\\s]?)?estiagens?"]
+    },
+    {
       "key": "pob",
       "label": "Famílias inscritas no CadÚnico em situação de pobreza",
       "panelLayerId": "pob_total",
@@ -206,6 +224,122 @@
       },
       "imageId": "projects/ee-ulissesalencar17/assets/pob_total",
       "valueRange": { "min": 0, "max": 100 }
+    },
+    "pob_urb": {
+      "classes": [
+        {
+          "id": "pobreza-urbana",
+          "label": "Pobreza urbana",
+          "color": "#bd0026"
+        }
+      ],
+      "templates": {
+        "country": "Percentual de pobreza urbana em {name}: {value}%.",
+        "state": "Percentual de pobreza urbana em {name}: {value}%.",
+        "municipality": "Percentual de pobreza urbana em {name}: {value}%.",
+        "highlight": "Pobreza urbana"
+      },
+      "ranking": {
+        "title": "Estados por percentual de pobreza urbana",
+        "totalLabel": "Estados"
+      },
+      "mapVisualization": {
+        "sourceType": "featureCollection",
+        "property": "{year}",
+        "min": 1,
+        "max": 5,
+        "thresholds": [20, 40, 60, 80],
+        "palette": ["#ffffcc", "#fed976", "#feb24c", "#fd8d3c", "#bd0026"],
+        "legend": [
+          { "id": "0-20", "label": "0-20%", "color": "#ffffcc" },
+          { "id": "20-40", "label": "20-40%", "color": "#fed976" },
+          { "id": "40-60", "label": "40-60%", "color": "#feb24c" },
+          { "id": "60-80", "label": "60-80%", "color": "#fd8d3c" },
+          { "id": "80-100", "label": "80-100%", "color": "#bd0026" }
+        ],
+        "outline": { "color": "#000000", "width": 0.5, "opacity": 1 }
+      },
+      "imageId": "projects/ee-ulissesalencar17/assets/pob_urb",
+      "valueRange": { "min": 0, "max": 100 }
+    },
+    "pob_rural": {
+      "classes": [
+        {
+          "id": "pobreza-rural",
+          "label": "Pobreza rural",
+          "color": "#7f0000"
+        }
+      ],
+      "templates": {
+        "country": "Percentual de pobreza rural em {name}: {value}%.",
+        "state": "Percentual de pobreza rural em {name}: {value}%.",
+        "municipality": "Percentual de pobreza rural em {name}: {value}%.",
+        "highlight": "Pobreza rural"
+      },
+      "ranking": {
+        "title": "Estados por percentual de pobreza rural",
+        "totalLabel": "Estados"
+      },
+      "mapVisualization": {
+        "sourceType": "featureCollection",
+        "property": "{year}",
+        "min": 1,
+        "max": 5,
+        "thresholds": [20, 40, 60, 80],
+        "palette": ["#fff5eb", "#fdd0a2", "#fdae6b", "#e6550d", "#7f0000"],
+        "legend": [
+          { "id": "0-20", "label": "0-20%", "color": "#fff5eb" },
+          { "id": "20-40", "label": "20-40%", "color": "#fdd0a2" },
+          { "id": "40-60", "label": "40-60%", "color": "#fdae6b" },
+          { "id": "60-80", "label": "60-80%", "color": "#e6550d" },
+          { "id": "80-100", "label": "80-100%", "color": "#7f0000" }
+        ],
+        "outline": { "color": "#000000", "width": 0.5, "opacity": 1 }
+      },
+      "imageId": "projects/ee-ulissesalencar17/assets/pob_rural",
+      "valueRange": { "min": 0, "max": 100 }
+    },
+    "s2id_secas_estiagens": {
+      "valueConfig": {
+        "type": "absolute",
+        "unit": "registros",
+        "distributionTitle": "Quantidade de registros no ano"
+      },
+      "omitAllZeroYears": true,
+      "classes": [
+        {
+          "id": "registros-secas-estiagens",
+          "label": "Registros de secas e estiagens",
+          "color": "#8c2d04"
+        }
+      ],
+      "templates": {
+        "country": "Total de registros de secas e estiagens em {name} no ano: {value}.",
+        "state": "Total de registros de secas e estiagens em {name} no ano: {value}.",
+        "municipality": "Registros de secas e estiagens em {name}: {value}.",
+        "highlight": "Registros de secas e estiagens"
+      },
+      "ranking": {
+        "title": "Estados por total de registros",
+        "totalLabel": "Estados"
+      },
+      "mapVisualization": {
+        "sourceType": "featureCollection",
+        "property": "suma",
+        "min": 0,
+        "max": 30,
+        "palette": ["#fee5d9", "#fcae91", "#fb6a4a", "#de2d26", "#a50f15"],
+        "legend": [
+          { "id": "0-6", "label": "0 a 6", "color": "#fee5d9" },
+          { "id": "6-12", "label": "> 6 a 12", "color": "#fcae91" },
+          { "id": "12-18", "label": "> 12 a 18", "color": "#fb6a4a" },
+          { "id": "18-24", "label": "> 18 a 24", "color": "#de2d26" },
+          { "id": "24-30", "label": "> 24 a 30", "color": "#a50f15" }
+        ],
+        "outline": { "color": "#000000", "width": 0.5, "opacity": 1 }
+      },
+      "imageId": "projects/ee-ulissesalencar17/assets/Municipios_S2ID_corrigido",
+      "valueRange": { "min": 0 }
     },
     "prev_anomalia_precipitacao": {
       "classes": [

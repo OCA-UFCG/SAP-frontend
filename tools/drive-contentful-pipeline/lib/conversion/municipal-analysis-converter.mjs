@@ -29,10 +29,21 @@ function toMunicipalAnalysisImageData(
   mapping,
   pipelineConfig,
 ) {
+  const panelLayerConfig = mapping.panelLayerId
+    ? pipelineConfig.panelLayerProfiles[mapping.panelLayerId]
+    : null;
+  const filteredYears = Array.from(years.entries()).filter(
+    ([, yearEntry]) =>
+      !panelLayerConfig?.omitAllZeroYears ||
+      Object.values(yearEntry.values).some((values) =>
+        values.some((value) => value !== 0),
+      ),
+  );
+
   return {
     templates: getTemplates(territory, mapping, pipelineConfig),
     years: Object.fromEntries(
-      Array.from(years.entries())
+      filteredYears
         .sort(([leftKey], [rightKey]) => leftKey.localeCompare(rightKey))
         .map(([yearKey, yearEntry]) => [
           yearKey,
@@ -89,7 +100,10 @@ export async function convertMunicipalAnalysisCsvFile(
       pipelineConfig,
     ),
     locationCount: locations.size,
-    yearKeys: Array.from(years.keys()).sort(),
+    yearKeys: Object.keys(
+      toMunicipalAnalysisImageData(years, territory, mapping, pipelineConfig)
+        .years,
+    ).sort(),
     classColumns: classColumns.columns,
   };
 }
