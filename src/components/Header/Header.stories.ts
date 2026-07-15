@@ -25,16 +25,31 @@ const content: ISections = {
     path: "/",
     appears: true,
   },
+  "about-section": {
+    id: "3",
+    name: "Sobre o SEDES",
+    path: "#",
+    appears: true,
+    childrenCollection: {
+      items: [
+        { id: "3-1", name: "Plano de Ação Brasileiro", path: "/#plano-de-acao-brasileiro", appears: true },
+        { id: "3-2", name: "Grupo de Trabalho", path: "/#grupo-de-trabalho", appears: true },
+        { id: "3-3", name: "A Plataforma", path: "/#a-plataforma", appears: true },
+        { id: "3-4", name: "Usuários", path: "/#usuarios", appears: true },
+        { id: "3-5", name: "Financiamento", path: "/#financiamento", appears: true },
+      ],
+    },
+  },
+  "glossary-section": {
+    id: "5",
+    name: "Glossário",
+    path: "/glossary",
+    appears: true,
+  },
   "map-section": {
     id: "2",
     name: "Plataforma",
     path: "/platform",
-    appears: true,
-  },
-  "about-section": {
-    id: "3",
-    name: "Sobre o Sap",
-    path: "/sobre-o-sap",
     appears: true,
   },
   "contact-section": {

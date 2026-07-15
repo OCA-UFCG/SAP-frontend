@@ -16,7 +16,7 @@ export interface FooterI {
   appears: boolean;
 }
 
-export interface SapChannelI {
+export interface SedesChannelI {
   name: string;
   href: string;
   icon: string;
@@ -69,6 +69,55 @@ export interface AboutSectionI {
     height: number;
   };
 }
+export interface StatCardI {
+  value: string;
+  label: string;
+}
+
+export interface ThematicAxisI {
+  title: string;
+  executor: string;
+  executorActionsCount: number;
+  partners: string[];
+  actionsCount: number;
+  isSedesAxis?: boolean;
+}
+
+export interface ActionPlanSectionI {
+  title: string;
+  text: {
+    json: Document;
+  };
+  stats: StatCardI[];
+  axesTitle: string;
+  axes: ThematicAxisI[];
+}
+
+export interface TimelineMilestoneI {
+  date: string;
+  title: string;
+  description: string;
+  isCurrent?: boolean;
+}
+
+export interface WorkingGroupSectionI {
+  title: string;
+  text: {
+    json: Document;
+  };
+  milestones: TimelineMilestoneI[];
+}
+
+export interface PlatformModuleI {
+  title: string;
+  description: string;
+}
+
+export interface PlatformModulesSectionI {
+  title: string;
+  modules: PlatformModuleI[];
+}
+
 export interface BrazilianState {
   name: string;
   uf: string;
@@ -95,6 +144,7 @@ export interface PartnerI {
     id: string;
   };
   name: string;
+  description?: string;
   image: {
     url: string;
     title?: string;
@@ -116,7 +166,7 @@ export interface ISections {
 }
 
 export interface SocialChannelsI {
-  channels: SapChannelI[];
+  channels: SedesChannelI[];
   size: number;
   displayName?: boolean;
 }

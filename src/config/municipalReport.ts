@@ -95,7 +95,7 @@ export function getMunicipalReportLayerConfig(analysisId: string) {
 const DEFAULT_REPORT_PRESENTATION: MunicipalReportPresentationConfig = {
   sectionColor: "#176b39",
   coverageContext: "classificada nessa categoria",
-  methodology: "Indicador territorial disponibilizado na plataforma SAP.",
+  methodology: "Indicador territorial disponibilizado na plataforma SEDES.",
 };
 
 export function getMunicipalReportPresentation(analysisId: string) {

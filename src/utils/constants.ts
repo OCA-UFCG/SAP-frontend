@@ -1,6 +1,6 @@
-import { SapChannelI } from "./interfaces";
+import { SedesChannelI } from "./interfaces";
 
-export const channels: SapChannelI[] = [
+export const channels: SedesChannelI[] = [
   // Para reativar outras redes, descomente os blocos abaixo.
   // {
   //   name: "@mmeioambiente",
@@ -16,12 +16,12 @@ export const channels: SapChannelI[] = [
   //   size: 32,
   // },
 
-  {
-    name: "@observatorio.caatinga",
-    href: "https://www.instagram.com/observatorio.caatinga/",
-    icon: "instagram",
-    size: 32,
-  },
+  // {
+  //   name: "@observatorio.caatinga",
+  //   href: "https://www.instagram.com/observatorio.caatinga/",
+  //   icon: "instagram",
+  //   size: 32,
+  // },
 
   // {
   //   name: "@mmeioambiente",
@@ -31,7 +31,7 @@ export const channels: SapChannelI[] = [
   // },
 ];
 
-export const sapEmail = "sap.ufcg@gmail.com";
+export const sedesEmail = "sap.ufcg@gmail.com";
 
 export const statesObj = {
   ac: "Acre",

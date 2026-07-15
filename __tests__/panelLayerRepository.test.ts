@@ -38,7 +38,7 @@ function compressImageData(imageData: unknown) {
     schemaVersion: 1,
     type: "territorial-compact-compressed",
     encoding: "gzip+base64",
-    mediaType: "application/vnd.sap.territorial-analysis+json",
+    mediaType: "application/vnd.sedes.territorial-analysis+json",
     rawBytes: Buffer.byteLength(rawJson),
     compressedBytes: compressed.byteLength,
     data: compressed.toString("base64"),

@@ -304,7 +304,7 @@ function ReportDocument({
     <article ref={documentRef} className="report-paper mt-6 bg-white text-[#202020] shadow-[0_8px_35px_rgba(0,0,0,0.12)]">
       <header>
         <div className="flex flex-wrap items-start justify-between gap-4 text-xs text-[#0f5a2d]">
-          <strong>{reportText("Identificação do sistema", "SAP — Sistema de Alerta Precoce de Seca e Desertificação")}</strong>
+          <strong>{reportText("Identificação do sistema", "SEDES — Sistema Estratégico Sobre Desertificação")}</strong>
           <span className="text-[#536e7b]">{reportText("Tipo do relatório", "Relatório Analítico Automatizado")}</span>
           <div className="text-right">
             <strong>{reportText("Instituições", "OCA / UFCG / INSA")}</strong>
@@ -314,7 +314,7 @@ function ReportDocument({
 
         <div className="mt-6 bg-[#125c2d] px-6 py-3 text-center text-white">
           <h1 className="text-[22px] font-bold uppercase leading-tight">
-            {reportText("Título principal", "Relatório Analítico do Sistema de Alerta Precoce de Seca e Desertificação")}
+            {reportText("Título principal", "Relatório Analítico do Sistema Estratégico Sobre Desertificação")}
           </h1>
           <p className="mt-2 text-sm text-white/80">
             {reportText("Subtítulo", "Lei nº 13.153/2015 · Política Nacional de Combate à Desertificação")}
@@ -384,12 +384,12 @@ function ReportDocument({
           <p className="whitespace-pre-line"><strong>Referência legal:</strong> {reportText("Referência legal", "Lei nº 13.153/2015 — Política Nacional de Combate à Desertificação e Mitigação dos Efeitos da Seca.")}</p>
         </div>
         <p className="mt-8 text-sm leading-5 text-[#536e7b]">
-          {reportText("Aviso automático", "Este relatório foi gerado automaticamente pelo Sistema de Alerta Precoce de Seca e Desertificação (SAP). Os valores apresentados são produzidos a partir dos dados disponíveis na plataforma.")}
+          {reportText("Aviso automático", "Este relatório foi gerado automaticamente pelo Sistema Estratégico Sobre Desertificação (SEDES). Os valores apresentados são produzidos a partir dos dados disponíveis na plataforma.")}
         </p>
       </section>
 
       <footer className="mt-16 border-t border-[#d9e0e3] pt-3 text-[11px] text-[#536e7b]">
-        {reportText("Rodapé", `SAP — Relatório Analítico | Gerado em: ${generatedAt} | MMA/DCDE · OCA · UFCG · INSA`)}
+        {reportText("Rodapé", `SEDES — Relatório Analítico | Gerado em: ${generatedAt} | MMA/DCDE · OCA · UFCG · INSA`)}
       </footer>
     </article>
   );

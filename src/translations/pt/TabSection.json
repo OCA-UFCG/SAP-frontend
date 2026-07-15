@@ -1,10 +1,15 @@
 {
   "TabSection": {
-    "title": "Para quem é o SAP?",
+    "title": "Para quem é o SEDES?",
     "tabs": {
       "sociedade-e-comunidades": "Sociedade e comunidades",
       "tecnicos-e-pesquisadores": "Técnicos e pesquisadores",
       "gestao-publica": "Gestão pública"
+    },
+    "texts": {
+      "sociedade-e-comunidades": "O SEDES aproxima o conhecimento técnico da realidade das pessoas. Por meio de informações climáticas, condições da vegetação, produção e vulnerabilidades sociais, comunidades e organizações locais podem compreender as transformações em seus territórios, reconhecer situações de risco e fortalecer ações de convivência com a seca, proteção dos meios de vida e uso sustentável dos recursos naturais.",
+      "tecnicos-e-pesquisadores": "Para profissionais e pesquisadores, o SEDES funciona como uma fonte integrada de dados e evidências para investigação e análise territorial. Séries climáticas, indicadores ambientais e informações socioeconômicas podem ser combinadas para acompanhar tendências, identificar padrões, avaliar impactos e delimitar áreas vulneráveis. A plataforma também favorece o desenvolvimento de estudos, metodologias, diagnósticos e soluções voltadas à seca e à desertificação.",
+      "gestao-publica": "Para os gestores públicos, o SEDES constitui uma ferramenta de apoio ao planejamento e à tomada de decisão. As informações disponibilizadas permitem reconhecer municípios e populações prioritárias, antecipar situações críticas e direcionar políticas, investimentos e medidas de resposta. O sistema pode subsidiar ações de segurança hídrica, proteção social, produção rural, recuperação ambiental e adaptação climática, promovendo uma atuação pública mais coordenada e preventiva."
     }
   }
 }

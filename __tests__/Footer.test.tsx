@@ -26,8 +26,8 @@ const footerContent: FooterI[] = [
   { id: "platform", name: "Plataforma", path: "/platform", appears: true },
   {
     id: "about",
-    name: "Sobre o SAP",
-    path: "/sobre-o-sap",
+    name: "Sobre o SEDES",
+    path: "/sobre-o-sedes",
     appears: true,
   },
   { id: "contact", name: "Contato", path: "/contact", appears: true },
@@ -45,7 +45,7 @@ describe("Footer", () => {
 
     const outer = container.querySelector("footer");
     const inner = outer?.firstElementChild;
-    const logo = screen.getByAltText("SAP");
+    const logo = screen.getByAltText("SEDES");
 
     expect(outer).toBeInTheDocument();
     expect(inner?.className).toContain("lg:px-20");
@@ -65,7 +65,7 @@ describe("Footer", () => {
   it("renders on non-platform routes", () => {
     render(<FooterSlot content={footerContent} />);
 
-    expect(screen.getByAltText("SAP")).toBeInTheDocument();
+    expect(screen.getByAltText("SEDES")).toBeInTheDocument();
     expect(screen.getByTestId("social-channels")).toBeInTheDocument();
   });
 });

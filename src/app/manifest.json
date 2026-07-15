@@ -1,6 +1,6 @@
 {
-  "name": "Portal SAP",
-  "short_name": "SAP",
+  "name": "Portal SEDES",
+  "short_name": "SEDES",
   "icons": [
     {
       "src": "/https://sap.oca-portal.com/web-app-manifest-192x192.png",

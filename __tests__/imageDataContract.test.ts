@@ -144,7 +144,7 @@ describe("imageData contract", () => {
         schemaVersion: 1,
         type: "territorial-compact-compressed",
         encoding: "gzip+base64",
-        mediaType: "application/vnd.sap.territorial-analysis+json",
+        mediaType: "application/vnd.sedes.territorial-analysis+json",
         rawBytes: 10,
         compressedBytes: 8,
         chunkSize: 100,

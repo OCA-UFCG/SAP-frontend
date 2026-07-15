@@ -1,0 +1,19 @@
+{
+  "PlatformModulesSection": {
+    "title": "Modules",
+    "modules": {
+      "0": {
+        "title": "Monitoring",
+        "description": "Official data layers, integrated from the working group's institutions (ANA, CEMADEN, OCA, IBGE, INPE, Embrapa, CPTEC/INPE). Data on drought, climate, environment and socioeconomics."
+      },
+      "1": {
+        "title": "Analysis",
+        "description": "Multi-criteria model with configurable weights, aimed at prioritizing actions across the territory. Weights are collectively agreed upon by the GT-SEDES."
+      },
+      "2": {
+        "title": "Communication",
+        "description": "Two automated PDF products: the Analytical Report, customizable by variable and scale (Brazil, state or municipality), and the Official Bulletin, with institutional validation."
+      }
+    }
+  }
+}

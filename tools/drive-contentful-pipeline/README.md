@@ -105,7 +105,7 @@ porque `/api/municipal-analysis/[panelLayerId]` é protegida:
 npm run pipeline:full-cycle -- \
   --skip-download \
   --runtime-base-url https://seu-runtime.example \
-  --session-cookie-env SAP_RUNTIME_COOKIE \
+  --session-cookie-env SEDES_RUNTIME_COOKIE \
   --require-runtime-smoke
 ```
 
@@ -376,7 +376,7 @@ CSVs de `panelLayer` usam outro contrato: precisam ter `location_key`,
 `location_name`, `ano` e `valor_classe_N`. A camada
 `prev_anomalia_precipitacao` usa `Prev` como identificador no nome do arquivo e
 o script `scripts/gee/anomalia-precip.js` gera o CSV de `panelLayer` com as
-faixas de anomalia de precipitacao prevista. A visualizacao no SAP usa os
+faixas de anomalia de precipitacao prevista. A visualizacao no SEDES usa os
 limiares `[-90, -30, 0, 30, 90]` para reclassificar o raster continuo em 6
 classes antes de aplicar a paleta. Para `pob_total`, a pipeline tambem
 valida que `valor_classe_N` esteja no intervalo `0..100`, porque o asset do GEE

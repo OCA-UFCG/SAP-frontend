@@ -94,7 +94,7 @@ describe("pipeline full-cycle report", () => {
   });
 
   it("builds and writes consumable JSON and Markdown reports", async () => {
-    const tempDir = await mkdtemp(path.join(os.tmpdir(), "sap-full-cycle-"));
+    const tempDir = await mkdtemp(path.join(os.tmpdir(), "sedes-full-cycle-"));
     const report = buildFullCycleReport(buildReportInput());
 
     expect(report.mode).toBe("dry-run");
@@ -138,7 +138,7 @@ describe("pipeline full-cycle report", () => {
   });
 
   it("smoke-tests published municipal analysis routes with a session cookie", async () => {
-    const tempDir = await mkdtemp(path.join(os.tmpdir(), "sap-smoke-"));
+    const tempDir = await mkdtemp(path.join(os.tmpdir(), "sedes-smoke-"));
     await writeFile(
       path.join(tempDir, "municipal-analysis-manifest.json"),
       JSON.stringify({

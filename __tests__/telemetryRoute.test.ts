@@ -26,7 +26,6 @@ import { POST } from "@/app/api/logs/route";
 import { consumeLogsRateLimit } from "@/app/api/logs/rate-limit";
 import { getAuthenticatedUserSession } from "@/lib/server-session";
 import { ingestTelemetryEvents } from "@/services/telemetry/telemetryService";
-import { TelemetryValidationError } from "@/types/telemetry";
 
 const mockedGetAuthenticatedUserSession = vi.mocked(
   getAuthenticatedUserSession,

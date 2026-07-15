@@ -1,0 +1,19 @@
+{
+  "PlatformModulesSection": {
+    "title": "Módulos",
+    "modules": {
+      "0": {
+        "title": "Monitoreo",
+        "description": "Capas oficiales de datos, integradas a partir de instituciones del GT (ANA, CEMADEN, OCA, IBGE, INPE, Embrapa, CPTEC/INPE). Datos sobre sequía, clima, medio ambiente y socioeconómicos."
+      },
+      "1": {
+        "title": "Análisis",
+        "description": "Modelo multicriterio con pesos configurables, con el objetivo de priorizar acciones en el territorio. Los pesos son pactados colectivamente por el GT-SEDES."
+      },
+      "2": {
+        "title": "Comunicación",
+        "description": "Dos productos automatizados en PDF: el Informe Analítico, personalizable por variable y escala (Brasil, estado o municipio), y el Boletín Oficial, con validación institucional."
+      }
+    }
+  }
+}

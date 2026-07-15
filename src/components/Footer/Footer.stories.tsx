@@ -6,7 +6,7 @@ const mockContent: FooterI[] = [
   // main pages (appears = true)
   { id: 'home', name: 'Home', path: '/', appears: true },
   { id: 'map', name: 'Mapas', path: '/platform', appears: true },
-  { id: 'about', name: 'Sobre o SAP', path: '/about', appears: true },
+  { id: 'about', name: 'Sobre o SEDES', path: '/about', appears: true },
   { id: 'contact', name: 'Contatos', path: '/contact', appears: true },
 
   // macro themes

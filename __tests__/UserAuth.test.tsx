@@ -107,7 +107,7 @@ describe("UserAuth", () => {
 
     expect(screen.getByText("user@test.com")).toBeInTheDocument();
 
-    usePathnameMock.mockReturnValue("/sobre-o-sap");
+    usePathnameMock.mockReturnValue("/sobre-o-sedes");
     rerender(<UserAuth />);
 
     await waitFor(() => {

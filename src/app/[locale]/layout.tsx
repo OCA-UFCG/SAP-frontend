@@ -33,8 +33,8 @@ const openSans = Open_Sans({
 });
 
 export const metadata: Metadata = {
-  title: "Portal SAP",
-  description: "Portal SAP criado por OCA",
+  title: "Portal SEDES",
+  description: "Portal SEDES criado por OCA",
 };
 
 const getCachedFooterContent = cache(getFooterContent);
@@ -57,23 +57,63 @@ export default async function RootLayout({
       path: "/",
       appears: true,
     },
+    "about-section": {
+      id: "3",
+      name: t("about"),
+      path: "#",
+      appears: true,
+      childrenCollection: {
+        items: [
+          {
+            id: "3-1",
+            name: t("aboutMenu.planoDeAcaoBrasileiro"),
+            path: "/#plano-de-acao-brasileiro",
+            appears: true,
+          },
+          {
+            id: "3-2",
+            name: t("aboutMenu.grupoDeTrabalho"),
+            path: "/#grupo-de-trabalho",
+            appears: true,
+          },
+          {
+            id: "3-3",
+            name: t("aboutMenu.aPlataforma"),
+            path: "/#a-plataforma",
+            appears: true,
+          },
+          {
+            id: "3-4",
+            name: t("aboutMenu.usuarios"),
+            path: "/#usuarios",
+            appears: true,
+          },
+          {
+            id: "3-5",
+            name: t("aboutMenu.financiamento"),
+            path: "/#financiamento",
+            appears: true,
+          },
+        ],
+      },
+    },
+    "glossary-section": {
+      id: "5",
+      name: t("glossary"),
+      path: "/glossary",
+      appears: true,
+    },
     "map-section": {
       id: "2",
       name: t("platform"),
       path: "/platform",
       appears: true,
     },
-    "about-section": {
-      id: "3",
-      name: t("about"),
-      path: "/sobre-o-sap",
-      appears: true,
-    },
     "contact-section": {
       id: "4",
       name: t("contact"),
       path: "/contact",
-      appears: true,
+      appears: false,
     },
   };
 
@@ -81,13 +121,17 @@ export default async function RootLayout({
 
   return (
     <html lang={locale}>
-      <meta name="apple-mobile-web-app-title" content="Portal SAP" />
+      <meta name="apple-mobile-web-app-title" content="Portal SEDES" />
       <body
         className={`${geistSans.variable} ${geistMono.variable} ${inter.variable} ${openSans.variable} antialiased min-h-screen flex flex-col`}
       >
         <NextIntlClientProvider messages={messages}>
           <AuthProvider>
-            <Header content={Object.values(headerContent)}></Header>
+            <Header
+              content={Object.values(headerContent).filter(
+                (item) => item.appears,
+              )}
+            ></Header>
             <main className="flex-1 w-full">{children}</main>
             <FooterSlot content={footerContent} />
           </AuthProvider>

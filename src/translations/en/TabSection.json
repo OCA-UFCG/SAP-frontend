@@ -1,10 +1,15 @@
 {
   "TabSection": {
-    "title": "Who is SAP for?",
+    "title": "Who is SEDES for?",
     "tabs": {
       "sociedade-e-comunidades": "Society and communities",
       "tecnicos-e-pesquisadores": "Technicians and researchers",
       "gestao-publica": "Public management"
+    },
+    "texts": {
+      "sociedade-e-comunidades": "SEDES brings technical knowledge closer to people's reality. Through climate information, vegetation conditions, production data and social vulnerabilities, communities and local organizations can understand the changes taking place in their territories, recognize situations of risk, and strengthen actions for coexisting with drought, protecting livelihoods, and using natural resources sustainably.",
+      "tecnicos-e-pesquisadores": "For professionals and researchers, SEDES works as an integrated source of data and evidence for research and territorial analysis. Climate series, environmental indicators, and socioeconomic information can be combined to track trends, identify patterns, assess impacts, and delimit vulnerable areas. The platform also supports the development of studies, methodologies, diagnostics, and solutions focused on drought and desertification.",
+      "gestao-publica": "For public managers, SEDES is a tool that supports planning and decision-making. The information provided makes it possible to identify priority municipalities and populations, anticipate critical situations, and direct policies, investments, and response measures. The system can support actions related to water security, social protection, rural production, environmental recovery, and climate adaptation, fostering more coordinated and preventive public action."
     }
   }
 }

@@ -35,7 +35,7 @@ export class LocalMunicipalReportTemplateProvider implements MunicipalReportTemp
       origin: "local",
       updatedAt: "2026-07-07T00:00:00.000Z",
       text: [
-        "[[report:introduction]]\nEste relatório foi gerado automaticamente pelo Sistema de Alerta Precoce de Seca e Desertificação (SAP). Os valores apresentados são produzidos a partir dos dados disponíveis na plataforma.",
+        "[[report:introduction]]\nEste relatório foi gerado automaticamente pelo Sistema Estratégico Sobre Desertificação (SEDES). Os valores apresentados são produzidos a partir dos dados disponíveis na plataforma.",
         ...analysisSections(report),
         "[[report:legal-reference]]\nLei nº 13.153/2015 — Política Nacional de Combate à Desertificação e Mitigação dos Efeitos da Seca.",
       ].join("\n\n"),
