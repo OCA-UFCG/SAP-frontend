@@ -174,7 +174,7 @@ describe("buildMunicipalReport", () => {
     expect(loadImageData).not.toHaveBeenCalledWith("s2id_secas_estiagens");
   });
 
-  it("marks a missing requested period while retaining history", async () => {
+  it("uses the nearest future snapshot when no previous period exists", async () => {
     const report = await buildMunicipalReport("5200050", "2023", {
       layers: [
         { panelLayerId: "seca", alias: "seca", title: "Seca", order: 1 },
@@ -182,10 +182,40 @@ describe("buildMunicipalReport", () => {
       loadImageData: async () => ({ found: true, imageData, status: "hit" }),
     });
     expect(report.analyses[0]).toMatchObject({
-      status: "period_not_found",
-      effectivePeriod: null,
+      status: "available",
+      requestedPeriod: "2023",
+      effectivePeriod: "2024",
     });
     expect(report.analyses[0]?.timeSeries).toHaveLength(1);
+  });
+
+  it("uses the nearest previous indexed period while preserving the requested period", async () => {
+    const loadImageData = vi.fn(async () => ({
+      found: true,
+      imageData,
+      status: "hit" as const,
+    }));
+    const report = await buildMunicipalReport("5200050", "2025", {
+      layers: [
+        { panelLayerId: "seca", alias: "seca", title: "Seca", order: 1 },
+      ],
+      availabilityIndex: {
+        schemaVersion: 1,
+        generatedAt: "2026-01-01T00:00:00.000Z",
+        layers: [{ panelLayerId: "seca", order: 0, periods: ["2024"] }],
+        byMunicipality: { "5200050": { seca: "0" } },
+      },
+      loadImageData,
+    });
+
+    expect(loadImageData).toHaveBeenCalledWith("seca", "2024");
+    expect(report.requestedPeriod).toBe("2025");
+    expect(report.analyses[0]).toMatchObject({
+      status: "available",
+      requestedPeriod: "2025",
+      effectivePeriod: "2024",
+    });
+    expect(report.templateVariables.periodo_seca).toBe("2024");
   });
 
   it("uses the latest available month when an annual period is requested", async () => {
