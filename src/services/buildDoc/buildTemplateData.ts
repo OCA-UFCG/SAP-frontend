@@ -297,8 +297,9 @@ export async function getTemplateData(
   ibgeId: string,
   period: string,
   onTiming?: TimingObserver,
+  existingReport?: import("@/contracts/municipalReport").MunicipalReportData,
 ): Promise<TemplateData> {
-  const report = await buildMunicipalReport(ibgeId, period, { onTiming });
+  const report = existingReport ?? await buildMunicipalReport(ibgeId, period, { onTiming });
   const templateData = prepareTemplateData(report);
 
   return { ...report.templateVariables, ...templateData };

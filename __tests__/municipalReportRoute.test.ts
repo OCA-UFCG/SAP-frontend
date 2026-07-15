@@ -2,8 +2,10 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 
 vi.mock("@/lib/server-session", () => ({ requireAuthenticatedRequest: vi.fn() }));
 vi.mock("@/services/municipalReportService", () => ({
-  buildMunicipalReport: vi.fn(),
   MunicipalReportNotFoundError: class MunicipalReportNotFoundError extends Error {},
+}));
+vi.mock("@/services/municipalReportCache", () => ({
+  buildCachedMunicipalReport: vi.fn(),
 }));
 vi.mock("@/repositories/platform/municipalAnalysisCache", () => ({
   getMunicipalAnalysisCacheControlHeader: () => "private, max-age=600",
@@ -11,10 +13,11 @@ vi.mock("@/repositories/platform/municipalAnalysisCache", () => ({
 
 import { GET } from "@/app/api/municipal-report/[municipalityCode]/route";
 import { requireAuthenticatedRequest } from "@/lib/server-session";
-import { buildMunicipalReport, MunicipalReportNotFoundError } from "@/services/municipalReportService";
+import { MunicipalReportNotFoundError } from "@/services/municipalReportService";
+import { buildCachedMunicipalReport } from "@/services/municipalReportCache";
 
 const auth = vi.mocked(requireAuthenticatedRequest);
-const build = vi.mocked(buildMunicipalReport);
+const build = vi.mocked(buildCachedMunicipalReport);
 const context = (code: string) => ({ params: Promise.resolve({ municipalityCode: code }) });
 
 describe("GET /api/municipal-report/[municipalityCode]", () => {

@@ -217,6 +217,15 @@ export type ImageDataConfig =
   | LegacyImageDataMap
   | CompactTerritorialAnalysisDataset;
 
+export interface MunicipalReportSeriesConfig {
+  schemaVersion: 1;
+  datasetVersion: string;
+  shardCount: number;
+  shardStrategy: "ibge-modulo";
+  firstPeriod: string;
+  lastPeriod: string;
+}
+
 export interface PanelLayerI {
   sys: {
     id: string;
@@ -236,6 +245,7 @@ export interface PanelLayerI {
   maxScale?: number;
   category?: string;
   timeScale?: string;
+  reportSeriesConfig?: MunicipalReportSeriesConfig | null;
 }
 
 export interface IEEInfo {

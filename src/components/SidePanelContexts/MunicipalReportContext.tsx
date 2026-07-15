@@ -9,7 +9,7 @@ import citiesIndex from "@/data/citiesIndex.json";
 import municipalAvailabilityIndex from "@/data/municipalAvailabilityIndex.json";
 import {
   getAvailablePeriods,
-  getAvailableReportLayers,
+  getResolvableReportLayers,
   type MunicipalAvailabilityIndex,
 } from "@/utils/municipalAvailability";
 import type { PanelLayerI } from "@/utils/interfaces";
@@ -56,7 +56,9 @@ export function MunicipalReportContext({ panelLayers = [] }: MunicipalReportCont
   const [isMunicipalityOptionsOpen, setIsMunicipalityOptionsOpen] = useState(false);
   const [period, setPeriod] = useState(String(new Date().getFullYear()));
   const [isPeriodOptionsOpen, setIsPeriodOptionsOpen] = useState(false);
-  const [selectedLayers, setSelectedLayers] = useState<Set<string>>(new Set());
+  const [selectedLayers, setSelectedLayers] = useState<Set<string>>(
+    () => new Set(panelLayers.map((layer) => layer.id)),
+  );
   const [infoLayer, setInfoLayer] = useState<PanelLayerI | null>(null);
   const [isGenerating, startGenerating] = useTransition();
 
@@ -122,7 +124,7 @@ export function MunicipalReportContext({ panelLayers = [] }: MunicipalReportCont
   const availableLayerIds = useMemo(() => {
     if (!municipalityCode || !validPeriod) return new Set<string>();
     const availableIds = new Set(
-      getAvailableReportLayers(
+      getResolvableReportLayers(
         municipalAvailabilityIndex as MunicipalAvailabilityIndex,
         municipalityCode,
         period,
@@ -177,7 +179,7 @@ export function MunicipalReportContext({ panelLayers = [] }: MunicipalReportCont
   function getDefaultSelectedLayers(code: string, selectedPeriod: string) {
     if (!/^\d{4}(-\d{2})?$/.test(selectedPeriod)) return new Set<string>();
     const availableIds = new Set(
-      getAvailableReportLayers(
+      getResolvableReportLayers(
         municipalAvailabilityIndex as MunicipalAvailabilityIndex,
         code,
         selectedPeriod,

@@ -30,13 +30,13 @@ describe("municipal report domain", () => {
     expect(buildMunicipalReportTimeSeries(dataset, "5200050").map((item) => item.period)).toEqual(["2023", "2024-01", "2024-04"]);
   });
 
-  it("resolves an annual request to the latest available month of that year", () => {
+  it("resolves annual, previous and future fallback periods", () => {
     const timeSeries = buildMunicipalReportTimeSeries(dataset, "5200050");
 
     expect(resolveMunicipalReportSnapshot(timeSeries, "2024")?.period).toBe(
       "2024-04",
     );
-    expect(resolveMunicipalReportSnapshot(timeSeries, "2022")).toBeNull();
-    expect(resolveMunicipalReportSnapshot(timeSeries, "2024-02")).toBeNull();
+    expect(resolveMunicipalReportSnapshot(timeSeries, "2022")?.period).toBe("2023");
+    expect(resolveMunicipalReportSnapshot(timeSeries, "2024-02")?.period).toBe("2024-01");
   });
 });

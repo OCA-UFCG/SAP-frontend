@@ -7,6 +7,7 @@ import {
   buildConversionReport,
   buildMunicipalAnalysisManifest,
   buildPanelLayerImageDataManifest,
+  buildMunicipalReportSeriesManifest,
   buildPipelineValidation,
 } from "../conversion/manifests.mjs";
 import { downloadCsvFiles } from "../drive/drive-client.mjs";
@@ -124,6 +125,9 @@ export async function runDriveCsvJsonCli(argv = process.argv.slice(2)) {
   const panelLayerImageDataManifest = buildPanelLayerImageDataManifest(
     conversionResult.panelLayerFiles,
   );
+  const municipalReportSeriesManifest = buildMunicipalReportSeriesManifest(
+    conversionResult.reportSeries,
+  );
   const validation = buildPipelineValidation(
     conversionResult.conversions,
     conversionResult.partitionFiles,
@@ -138,6 +142,7 @@ export async function runDriveCsvJsonCli(argv = process.argv.slice(2)) {
     {
       municipalAnalysisManifest,
       panelLayerImageDataManifest,
+      municipalReportSeriesManifest,
     },
   );
 
@@ -146,6 +151,11 @@ export async function runDriveCsvJsonCli(argv = process.argv.slice(2)) {
     options.jsonDir,
     "municipal-analysis-manifest.json",
     municipalAnalysisManifest,
+  );
+  await writeJsonFile(
+    options.jsonDir,
+    "municipal-report-series-manifest.json",
+    municipalReportSeriesManifest,
   );
   await writeJsonFile(
     options.jsonDir,

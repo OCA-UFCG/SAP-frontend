@@ -70,6 +70,63 @@ function getAvailableLayerPeriods(
   });
 }
 
+export function resolveNearestReportPeriod(
+  availablePeriods: readonly string[],
+  requestedPeriod: string,
+): string | null {
+  const periods = [...new Set(availablePeriods)]
+    .filter((period) => /^\d{4}(?:-(?:0[1-9]|1[0-2]))?$/u.test(period))
+    .sort((left, right) => left.localeCompare(right));
+
+  if (periods.includes(requestedPeriod)) return requestedPeriod;
+
+  if (/^\d{4}$/u.test(requestedPeriod)) {
+    const periodsInRequestedYear = periods.filter(
+      (period) => getPeriodYear(period) === requestedPeriod,
+    );
+    if (periodsInRequestedYear.length > 0) {
+      return periodsInRequestedYear.at(-1) ?? null;
+    }
+  }
+
+  const previousPeriod = periods
+    .filter((period) => period < requestedPeriod)
+    .at(-1);
+  if (previousPeriod) return previousPeriod;
+
+  return periods.find((period) => period > requestedPeriod) ?? null;
+}
+
+export function resolveMunicipalLayerPeriod(
+  index: MunicipalAvailabilityIndex,
+  municipalityCode: string,
+  panelLayerId: string,
+  requestedPeriod: string,
+): string | null {
+  return resolveNearestReportPeriod(
+    getAvailableLayerPeriods(index, municipalityCode, panelLayerId),
+    requestedPeriod,
+  );
+}
+
+export function getResolvableReportLayers(
+  index: MunicipalAvailabilityIndex,
+  municipalityCode: string,
+  requestedPeriod: string,
+): string[] {
+  const layerAvailability = index.byMunicipality[municipalityCode] ?? {};
+
+  return Object.keys(layerAvailability).filter(
+    (panelLayerId) =>
+      resolveMunicipalLayerPeriod(
+        index,
+        municipalityCode,
+        panelLayerId,
+        requestedPeriod,
+      ) !== null,
+  );
+}
+
 export function hasMunicipalLayerPeriod(
   index: MunicipalAvailabilityIndex,
   municipalityCode: string,

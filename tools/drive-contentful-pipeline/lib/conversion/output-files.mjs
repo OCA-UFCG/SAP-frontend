@@ -10,6 +10,7 @@ import { isMultilevelTerritoryRow } from "../csv/territory.mjs";
 import { convertMunicipalAnalysisCsvFile } from "./municipal-analysis-converter.mjs";
 import { convertPanelLayerCsvFile } from "./panel-layer-converter.mjs";
 import { writeAnnualPartitions } from "./partition-writer.mjs";
+import { writeMunicipalReportSeries } from "./municipal-report-series-writer.mjs";
 import { toAvailabilityEntry } from "./availability-index.mjs";
 import { readFile } from "node:fs/promises";
 import { indentJson, sortRecordEntries } from "../shared/records.mjs";
@@ -248,6 +249,7 @@ async function writeAggregatedGroup(
   partitionDir,
   options,
   pipelineConfig,
+  reportSeriesDir,
 ) {
   const skipped = [];
   const partitionFiles = [];
@@ -320,6 +322,16 @@ async function writeAggregatedGroup(
       );
     }
 
+    const reportSeries = activeEntries[0]?.conversion && group.panelLayerId
+      ? await writeMunicipalReportSeries(
+          activeEntries[0].conversion,
+          group,
+          reportSeriesDir,
+          pipelineConfig,
+          { maxImageDataBytes: options.maxContentfulJsonBytes },
+        )
+      : null;
+
     await closeAggregateFile(fileState);
 
     return {
@@ -330,6 +342,7 @@ async function writeAggregatedGroup(
       skipped,
       partitionFiles,
       aggregatedFile: buildAggregatedFile(group, fileState, conversions),
+      reportSeries,
     };
   } catch (error) {
     if (fileState.handle) await fileState.handle.close();
@@ -431,7 +444,11 @@ async function writePanelLayerImageDataFiles(
 
       conversionsByPanelLayerId.get(conversion.panelLayerId).push(conversion);
     } catch (error) {
-      skipped.push(toSkippedCsv(toWorkspaceRelativePath(csvPath), error));
+      skipped.push({
+        ...toSkippedCsv(toWorkspaceRelativePath(csvPath), error),
+        panelLayerId: inferPanelLayerMapping(csvPath, pipelineConfig.layerRules)
+          .panelLayerId,
+      });
     }
   }
 
@@ -472,7 +489,22 @@ async function writePanelLayerImageDataFiles(
     );
   }
 
-  return { files, conversions, skipped };
+  const successfulPanelLayerIds = new Set(
+    conversions.map((conversion) => conversion.panelLayerId),
+  );
+  const normalizedSkipped = skipped.map((item) =>
+    item.panelLayerId &&
+    successfulPanelLayerIds.has(item.panelLayerId) &&
+    item.reason.includes("Configuração sem imageId")
+      ? {
+          ...item,
+          reason: `${item.reason} Fonte canônica de panelLayer encontrada para ${item.panelLayerId}; arquivo estatístico alternativo ignorado.`,
+          ignored: true,
+        }
+      : item,
+  );
+
+  return { files, conversions, skipped: normalizedSkipped };
 }
 
 function isMultilevelPanelLayerCsv(rows, csvPath, pipelineConfig) {
@@ -534,6 +566,7 @@ export async function convertCsvDirectory(options, pipelineConfig) {
   await cleanGeneratedImageDataFiles(jsonDir);
   const partitionDir = await cleanGeneratedDirectory(jsonDir, "partitions");
   const panelLayerDir = await cleanGeneratedDirectory(jsonDir, "panel-layers");
+  const reportSeriesDir = await cleanGeneratedDirectory(jsonDir, "report-series");
   const classified = await classifyCsvPaths(csvPaths, pipelineConfig);
   const panelLayerResult = await writePanelLayerImageDataFiles(
     classified.panelLayerCsvPaths,
@@ -547,6 +580,7 @@ export async function convertCsvDirectory(options, pipelineConfig) {
     panelLayerConversions: panelLayerResult.conversions,
     partitionFiles: [],
     panelLayerFiles: panelLayerResult.files,
+    reportSeries: [],
     skipped: [...classified.skipped, ...panelLayerResult.skipped],
   };
 
@@ -561,6 +595,7 @@ export async function convertCsvDirectory(options, pipelineConfig) {
         partitionDir,
         options,
         pipelineConfig,
+        reportSeriesDir,
       );
       result.conversions.push(...groupResult.conversions);
       result.availabilityEntries.push(...groupResult.availabilityEntries);
@@ -568,6 +603,7 @@ export async function convertCsvDirectory(options, pipelineConfig) {
       result.partitionFiles.push(...groupResult.partitionFiles);
       if (groupResult.aggregatedFile)
         result.aggregatedFiles.push(groupResult.aggregatedFile);
+      if (groupResult.reportSeries) result.reportSeries.push(groupResult.reportSeries);
     } catch (error) {
       result.skipped.push(
         toSkippedCsv(
