@@ -18,7 +18,7 @@ const baseHeader: SectionHeaderI = {
   sys: { id: "header-1" },
   title: "Parceiros",
   description:
-    "Conheça nossos parceiros aos quais em colaboração conosco nos apoiam no desenvolvimento do Sistema de Alerta Precoce.",
+    "Conheça nossos parceiros aos quais em colaboração conosco nos apoiam no desenvolvimento do Sistema Estratégico Sobre Desertificação E Seca.",
 };
 
 /* ---------------- MOCK PARTNERS ---------------- */
