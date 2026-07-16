@@ -116,6 +116,6 @@ describe("MunicipalReportContext", () => {
     const destination = pushMock.mock.calls[0]?.[0] as string;
     const params = new URL(destination, "https://example.test").searchParams;
     expect(params.get("period")).toBe("2026");
-    expect(params.get("layers")?.split(",").sort()).toEqual(["futuro", "seca"]);
+    expect(params.get("layers")?.split(",")).toEqual(["seca", "futuro"]);
   });
 });

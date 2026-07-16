@@ -44,4 +44,15 @@ describe("municipal report cache", () => {
     await buildCachedMunicipalReport("5200050", "2024", { analysisIds: ["seca"] });
     expect(buildMunicipalReport).toHaveBeenCalledTimes(2);
   });
+
+  it("does not share entries between different checkbox orders", async () => {
+    await buildCachedMunicipalReport("5200050", "2024", {
+      analysisIds: ["cdi", "seca"],
+    });
+    await buildCachedMunicipalReport("5200050", "2024", {
+      analysisIds: ["seca", "cdi"],
+    });
+
+    expect(buildMunicipalReport).toHaveBeenCalledTimes(2);
+  });
 });
