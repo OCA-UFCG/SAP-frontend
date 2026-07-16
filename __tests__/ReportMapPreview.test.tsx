@@ -1,7 +1,7 @@
 import { act, cleanup, render, waitFor } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
-const { mapInstances, MapConstructorMock } = vi.hoisted(() => ({
+const { mapInstances, MapConstructorMock, prewarmMock } = vi.hoisted(() => ({
   mapInstances: [] as Array<{
     addLayer: ReturnType<typeof vi.fn>;
     addSource: ReturnType<typeof vi.fn>;
@@ -15,6 +15,7 @@ const { mapInstances, MapConstructorMock } = vi.hoisted(() => ({
     setFeatureState: ReturnType<typeof vi.fn>;
   }>,
   MapConstructorMock: vi.fn(),
+  prewarmMock: vi.fn(),
 }));
 
 vi.mock("maplibre-gl", () => {
@@ -58,8 +59,9 @@ vi.mock("maplibre-gl", () => {
   }
 
   return {
-    default: { Map: MockMap },
+    default: { Map: MockMap, prewarm: prewarmMock },
     Map: MockMap,
+    prewarm: prewarmMock,
   };
 });
 
@@ -105,6 +107,7 @@ describe("ReportMapPreview", () => {
   beforeEach(() => {
     mapInstances.length = 0;
     MapConstructorMock.mockClear();
+    prewarmMock.mockClear();
     mockedFetchMapURL.mockReset();
     mockedFetchMapURL.mockResolvedValue("https://tiles.example/{z}/{x}/{y}");
   });
@@ -143,6 +146,24 @@ describe("ReportMapPreview", () => {
         expect.any(AbortSignal),
       );
     });
+  });
+
+  it("aborts pending work and removes MapLibre when unmounted", async () => {
+    const { unmount } = render(
+      <ReportMapPreview
+        municipalityCode="5200050"
+        layerId="cancel-test-layer"
+        period="2024-01"
+      />,
+    );
+
+    await waitFor(() => expect(mapInstances).toHaveLength(1));
+    const signal = mockedFetchMapURL.mock.calls[0][2];
+
+    unmount();
+
+    expect(signal?.aborted).toBe(true);
+    expect(mapInstances[0].remove).toHaveBeenCalledTimes(1);
   });
 
   it("captures only once when MapLibre emits idle more than once", async () => {
@@ -185,6 +206,39 @@ describe("ReportMapPreview", () => {
     );
   });
 
+  it("does not restart an active map when the capture callback changes", async () => {
+    const firstCapture = vi.fn();
+    const secondCapture = vi.fn();
+    const { rerender } = render(
+      <ReportMapPreview
+        municipalityCode="5200050"
+        layerId="anaseca"
+        period="2024-01"
+        onCapture={firstCapture}
+      />,
+    );
+
+    await waitFor(() => expect(mapInstances).toHaveLength(1));
+
+    rerender(
+      <ReportMapPreview
+        municipalityCode="5200050"
+        layerId="anaseca"
+        period="2024-01"
+        onCapture={secondCapture}
+      />,
+    );
+
+    expect(mapInstances).toHaveLength(1);
+    expect(mapInstances[0].remove).not.toHaveBeenCalled();
+
+    emit(0, "load");
+    emit(0, "idle");
+
+    await waitFor(() => expect(secondCapture).toHaveBeenCalledTimes(1));
+    expect(firstCapture).not.toHaveBeenCalled();
+  });
+
   it("reports a null capture when canvas export fails", async () => {
     const onCapture = vi.fn();
 
@@ -211,5 +265,41 @@ describe("ReportMapPreview", () => {
       expect(onCapture).toHaveBeenCalledTimes(1);
       expect(onCapture).toHaveBeenCalledWith(null);
     });
+  });
+
+  it("creates a fresh map when a serial retry attempt is requested", async () => {
+    const onCapture = vi.fn();
+    const { rerender } = render(
+      <ReportMapPreview
+        municipalityCode="5200050"
+        layerId="anaseca"
+        period="2024-01"
+        attempt={0}
+        onCapture={onCapture}
+      />,
+    );
+
+    await waitFor(() => expect(mapInstances).toHaveLength(1));
+    mapInstances[0].getCanvas.mockReturnValueOnce({
+      toDataURL: vi.fn(() => {
+        throw new Error("context lost");
+      }),
+    });
+    emit(0, "load");
+    emit(0, "idle");
+    await waitFor(() => expect(onCapture).toHaveBeenCalledWith(null));
+
+    rerender(
+      <ReportMapPreview
+        municipalityCode="5200050"
+        layerId="anaseca"
+        period="2024-01"
+        attempt={1}
+        onCapture={onCapture}
+      />,
+    );
+
+    await waitFor(() => expect(mapInstances).toHaveLength(2));
+    expect(mapInstances[0].remove).toHaveBeenCalledTimes(1);
   });
 });

@@ -41,7 +41,6 @@
     "missingParameters": "Municipality and period are required.",
     "reportLabel": "Municipal analytical report",
     "ibgeCode": "IBGE code",
-    "requestedPeriod": "Requested period",
     "generatedAt": "Generated at",
     "effectivePeriod": "Effective period",
     "dominantClass": "Dominant class",

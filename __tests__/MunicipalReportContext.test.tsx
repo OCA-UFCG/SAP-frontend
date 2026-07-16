@@ -94,6 +94,7 @@ describe("MunicipalReportContext", () => {
 
     render(<MunicipalReportContext panelLayers={panelLayers} />);
 
+    expect(screen.queryByText("Data da análise")).not.toBeInTheDocument();
     expect(screen.getByRole("checkbox", { name: "Monitor de Secas" })).toBeChecked();
     expect(screen.getByRole("checkbox", { name: "Índice futuro" })).toBeChecked();
     expect(screen.getByRole("checkbox", { name: "Sem dados" })).toBeChecked();
@@ -114,6 +115,7 @@ describe("MunicipalReportContext", () => {
     expect(pushMock).toHaveBeenCalledOnce();
     const destination = pushMock.mock.calls[0]?.[0] as string;
     const params = new URL(destination, "https://example.test").searchParams;
+    expect(params.get("period")).toBe("2026");
     expect(params.get("layers")?.split(",").sort()).toEqual(["futuro", "seca"]);
   });
 });
