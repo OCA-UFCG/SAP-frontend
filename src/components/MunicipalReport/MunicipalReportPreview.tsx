@@ -95,13 +95,9 @@ function AnalysisSection({
   const sectionColor = presentation.sectionColor;
   const effectivePeriod = analysis.effectivePeriod ?? analysis.snapshot?.period;
   const referencePeriod = effectivePeriod ?? analysis.snapshot?.period ?? analysis.requestedPeriod;
-  const requestedPeriodLabel = formatReportPeriod(analysis.requestedPeriod, locale);
   const referencePeriodLabel = formatReportPeriod(referencePeriod, locale);
   const snapshotPeriodLabel = analysis.snapshot?.label || referencePeriodLabel;
-  const periodResolution =
-    analysis.requestedPeriod !== referencePeriod
-      ? `Período solicitado: ${requestedPeriodLabel}; período disponível usado no relatório: ${referencePeriodLabel}.`
-      : `Período de referência usado no relatório: ${referencePeriodLabel}.`;
+  const periodResolution = `Período analisado: ${referencePeriodLabel}.`;
   const historyRange = compactPeriodRange(analysis.timeSeries, referencePeriod, locale);
   const narrativeSections = buildAnalysisNarrativeSections(analysis, docsContent);
   const valueLabels = getMunicipalReportValueLabels(analysis);
@@ -125,9 +121,6 @@ function AnalysisSection({
               {t("availablePeriods")}: {analysis.timeSeries.map((item) => item.period).join(", ")}
             </p>
           )}
-          <p className="mt-2 text-sm leading-6 text-neutral-600">
-            Período solicitado para este indicador: {requestedPeriodLabel}.
-          </p>
         </div>
       ) : (
         <>
@@ -140,11 +133,7 @@ function AnalysisSection({
                 </span>
               </p>
               {situationText && <p className="mt-2 whitespace-pre-line text-justify">{situationText}</p>}
-              <dl className="mt-4 grid gap-2 border-t border-[#d9e0e3] pt-3 text-sm sm:grid-cols-3">
-                <div>
-                  <dt className="font-bold text-[#536e7b]">Período solicitado</dt>
-                  <dd>{requestedPeriodLabel}</dd>
-                </div>
+              <dl className="mt-4 grid gap-2 border-t border-[#d9e0e3] pt-3 text-sm sm:grid-cols-2">
                 <div>
                   <dt className="font-bold text-[#536e7b]">Período analisado</dt>
                   <dd>{referencePeriodLabel}</dd>

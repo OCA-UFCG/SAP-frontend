@@ -8,7 +8,6 @@ import { LayerAccordion } from "@/components/LayerAccordion/LayerAccordion";
 import citiesIndex from "@/data/citiesIndex.json";
 import municipalAvailabilityIndex from "@/data/municipalAvailabilityIndex.json";
 import {
-  getAvailablePeriods,
   getResolvableReportLayers,
   type MunicipalAvailabilityIndex,
 } from "@/utils/municipalAvailability";
@@ -19,6 +18,7 @@ import { slugifyTranslationKey } from "@/utils/translations";
 interface MunicipalReportContextProps { panelLayers?: PanelLayerI[] }
 
 const CATEGORY_ORDER = ["Dados Climáticos", "Dados Ambientais", "Dados Socioeconômicos"];
+const REPORT_DEFAULT_PERIOD = "2026";
 
 const CATEGORY_TRANSLATION_KEYS: Record<string, string> = {
   "dados climáticos": "climate",
@@ -50,12 +50,10 @@ export function MunicipalReportContext({ panelLayers = [] }: MunicipalReportCont
   const locale = useLocale();
   const router = useRouter();
   const municipalityPickerRef = useRef<HTMLDivElement>(null);
-  const periodPickerRef = useRef<HTMLDivElement>(null);
   const [municipalityCode, setMunicipalityCode] = useState("");
   const [municipalityQuery, setMunicipalityQuery] = useState("");
   const [isMunicipalityOptionsOpen, setIsMunicipalityOptionsOpen] = useState(false);
-  const [period, setPeriod] = useState(String(new Date().getFullYear()));
-  const [isPeriodOptionsOpen, setIsPeriodOptionsOpen] = useState(false);
+  const period = REPORT_DEFAULT_PERIOD;
   const [selectedLayers, setSelectedLayers] = useState<Set<string>>(
     () => new Set(panelLayers.map((layer) => layer.id)),
   );
@@ -79,26 +77,6 @@ export function MunicipalReportContext({ panelLayers = [] }: MunicipalReportCont
     return options.slice(0, 80);
   }, [municipalities, municipalityQuery]);
   const validPeriod = /^\d{4}(-\d{2})?$/.test(period);
-  const periodOptions = useMemo(() => {
-    const years = new Set(
-      getAvailablePeriods(
-        municipalAvailabilityIndex as MunicipalAvailabilityIndex,
-        municipalityCode || undefined,
-      ),
-    );
-
-    const currentYear = new Date().getFullYear();
-    if (years.size === 0) {
-      for (let year = currentYear; year > currentYear - 10; year -= 1) {
-        years.add(String(year));
-      }
-    }
-
-    const activeYear = period.match(/^\d{4}/)?.[0];
-    if (activeYear) years.add(activeYear);
-
-    return [...years].sort((left, right) => right.localeCompare(left));
-  }, [municipalityCode, period]);
 
   const groups = useMemo(() => {
     const grouped = new Map<string, ReportLayerGroup>();
@@ -154,9 +132,6 @@ export function MunicipalReportContext({ panelLayers = [] }: MunicipalReportCont
       const target = event.target as Node;
       if (!municipalityPickerRef.current?.contains(target)) {
         setIsMunicipalityOptionsOpen(false);
-      }
-      if (!periodPickerRef.current?.contains(target)) {
-        setIsPeriodOptionsOpen(false);
       }
     };
 
@@ -286,6 +261,7 @@ export function MunicipalReportContext({ panelLayers = [] }: MunicipalReportCont
                 </div>
               )}
             </div>
+            {/* Seletor de data temporariamente desativado. O período padrão do relatório é 2026.
             <label className="flex w-full max-w-[392px] flex-col items-start gap-[6px]">
               <span className="text-[14px] font-medium leading-[20px] text-[#292829]">{t("analysisDate")}</span>
               <span ref={periodPickerRef} className="relative w-full">
@@ -326,6 +302,7 @@ export function MunicipalReportContext({ panelLayers = [] }: MunicipalReportCont
                 )}
               </span>
             </label>
+            */}
           </div>
           {!validPeriod && <p className="text-xs text-red-700">{t("invalidPeriod")}</p>}
         </fieldset>
