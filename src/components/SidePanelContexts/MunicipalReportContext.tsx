@@ -99,6 +99,14 @@ export function MunicipalReportContext({ panelLayers = [] }: MunicipalReportCont
     );
   }, [panelLayers, tModules]);
 
+  // This is the exact visual order used by the module checkboxes. Keep the
+  // generated report request in the same sequence, independently of the order
+  // in which a checkbox was toggled.
+  const orderedPanelLayers = useMemo(
+    () => groups.flatMap((group) => group.layers),
+    [groups],
+  );
+
   const availableLayerIds = useMemo(() => {
     if (!municipalityCode || !validPeriod) return new Set<string>();
     const availableIds = new Set(
@@ -142,9 +150,11 @@ export function MunicipalReportContext({ panelLayers = [] }: MunicipalReportCont
     };
   }, []);
 
-  const availableLayers = panelLayers.filter((layer) => availability.get(layer.id));
+  const availableLayers = orderedPanelLayers.filter((layer) => availability.get(layer.id));
   const allAvailableSelected = availableLayers.length > 0 && availableLayers.every((layer) => selectedLayers.has(layer.id));
-  const selectedAvailableLayers = [...selectedLayers].filter((layerId) => availability.get(layerId));
+  const selectedAvailableLayers = orderedPanelLayers
+    .filter((layer) => availability.get(layer.id) && selectedLayers.has(layer.id))
+    .map((layer) => layer.id);
   const canSubmit = availabilityState === "ready" && selectedAvailableLayers.length > 0;
 
   function resetAvailability() {

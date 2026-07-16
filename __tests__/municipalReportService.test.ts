@@ -126,6 +126,24 @@ describe("buildMunicipalReport", () => {
     expect(loadImageData).toHaveBeenCalledWith("seca", "2024");
   });
 
+  it("keeps selected analyses in the checkbox request order", async () => {
+    const report = await buildMunicipalReport("5200050", "2024", {
+      layers: [
+        { panelLayerId: "seca", alias: "seca", title: "Seca", order: 10 },
+        { panelLayerId: "aridez", alias: "aridez", title: "Aridez", order: 20 },
+        { panelLayerId: "pobreza", alias: "pobreza", title: "Pobreza", order: 30 },
+      ],
+      analysisIds: ["pobreza", "seca", "aridez"],
+      loadImageData: async () => ({ found: true, imageData, status: "hit" }),
+    });
+
+    expect(report.analyses.map(({ id }) => id)).toEqual([
+      "pobreza",
+      "seca",
+      "aridez",
+    ]);
+  });
+
   it("preserves absolute value semantics from the monitoring dataset", async () => {
     const report = await buildMunicipalReport("5200050", "2024", {
       layers: [

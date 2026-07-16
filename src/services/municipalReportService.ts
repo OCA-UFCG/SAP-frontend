@@ -310,6 +310,14 @@ export async function buildMunicipalReport(
   const requestedAnalysisIds = dependencies.analysisIds
     ? new Set(dependencies.analysisIds.map((id) => id.trim().toLowerCase()))
     : null;
+  const requestedAnalysisOrder = dependencies.analysisIds
+    ? new Map(
+        dependencies.analysisIds.map((id, index) => [
+          id.trim().toLowerCase(),
+          index,
+        ]),
+      )
+    : null;
   const layersStartedAt = performance.now();
   const resolvedLayers = await resolveReportLayers(dependencies);
   dependencies.onTiming?.(
@@ -324,7 +332,20 @@ export async function buildMunicipalReport(
         requestedAnalysisIds.has(layer.panelLayerId.toLowerCase()) ||
         requestedAnalysisIds.has(layer.alias.toLowerCase()),
     )
-    .sort((a, b) => a.order - b.order);
+    .sort((a, b) => {
+      if (requestedAnalysisOrder) {
+        const leftOrder = requestedAnalysisOrder.get(a.panelLayerId.toLowerCase())
+          ?? requestedAnalysisOrder.get(a.alias.toLowerCase());
+        const rightOrder = requestedAnalysisOrder.get(b.panelLayerId.toLowerCase())
+          ?? requestedAnalysisOrder.get(b.alias.toLowerCase());
+
+        if (leftOrder != null && rightOrder != null) {
+          return leftOrder - rightOrder;
+        }
+      }
+
+      return a.order - b.order;
+    });
   const analyses = await Promise.all(
     layers.map(async (config): Promise<MunicipalReportAnalysis> => {
       const analysisStartedAt = performance.now();

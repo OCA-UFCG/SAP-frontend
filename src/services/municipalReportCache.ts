@@ -44,7 +44,6 @@ export async function buildCachedMunicipalReport(
     .sort();
   const requestedIds = [...(dependencies.analysisIds ?? [])]
     .map((id) => id.toLowerCase())
-    .sort()
     .join(",");
   const key = [municipalityCode, requestedPeriod, requestedIds, versions.join(",")].join("::");
   const now = Date.now();
