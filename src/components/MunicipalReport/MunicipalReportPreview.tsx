@@ -429,7 +429,6 @@ export function MunicipalReportPreview({ municipalityCode, period, layerIds, emb
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(hasRequiredParameters);
   const [exporting, setExporting] = useState(false);
-  const [zoom, setZoom] = useState(75);
   const reportDocumentRef = useRef<HTMLElement>(null);
   const navigationMeasuredRef = useRef(false);
   const previewMeasuredRef = useRef(false);
@@ -447,6 +446,7 @@ export function MunicipalReportPreview({ municipalityCode, period, layerIds, emb
   }, [layerIdsKey, report]);
   const activeMapKey = reportMapKeys[mapRenderIndex];
   const mapsReady = reportMapKeys.every((key) => mapImages.has(key));
+  const loadErrorMessage = t("loadError");
 
   useEffect(() => {
     if (!hasRequiredParameters || navigationMeasuredRef.current) return;
@@ -570,7 +570,7 @@ export function MunicipalReportPreview({ municipalityCode, period, layerIds, emb
           response,
           detalhes: `${layerIdsKey ? layerIdsKey.split(",").length : "todas"} camada(s) solicitada(s)`,
         });
-        if (!response.ok) throw new Error(payload.error ?? t("loadError"));
+        if (!response.ok) throw new Error(payload.error ?? loadErrorMessage);
         setReport(payload as MunicipalReportData);
         setDocsContent(null);
         setMapImages(new Map());
@@ -606,7 +606,7 @@ export function MunicipalReportPreview({ municipalityCode, period, layerIds, emb
               response: docsResponse,
               detalhes: `${selectedLayerIdsForDocs.length} tema(s)`,
             });
-            if (!docsResponse.ok) throw new Error(docsPayload.error ?? t("loadError"));
+            if (!docsResponse.ok) throw new Error(docsPayload.error ?? loadErrorMessage);
             setDocsContent(docsPayload.content as MunicipalReportDocsContent);
           } catch (docsError) {
             if (!docsResponse) {
@@ -651,7 +651,7 @@ export function MunicipalReportPreview({ municipalityCode, period, layerIds, emb
         });
       } catch (reason) {
         if (reason instanceof DOMException && reason.name === "AbortError") return;
-        setError(reason instanceof Error ? reason.message : t("loadError"));
+        setError(reason instanceof Error ? reason.message : loadErrorMessage);
       } finally {
         if (!controller.signal.aborted) setLoading(false);
       }
@@ -659,7 +659,7 @@ export function MunicipalReportPreview({ municipalityCode, period, layerIds, emb
 
     loadReport();
     return () => controller.abort();
-  }, [hasRequiredParameters, layerIdsKey, municipalityCode, period, t]);
+  }, [hasRequiredParameters, layerIdsKey, loadErrorMessage, municipalityCode, period]);
 
   const visibleError = hasRequiredParameters ? error : null;
 
@@ -673,34 +673,27 @@ export function MunicipalReportPreview({ municipalityCode, period, layerIds, emb
 
     return (
       <div className="flex h-full min-w-0 flex-col bg-[#F6F7F6]">
-        <div className="flex h-[72px] shrink-0 items-center justify-between gap-4 border-b border-[#EFEFEF] bg-[#E4E5E2] px-6">
-          <span className="min-w-0 flex-1 truncate font-inter text-base">{filename}</span>
-          <div className="flex shrink-0 items-center justify-center gap-6">
-            <div className="flex h-10 items-center gap-2 font-inter text-base">
-              <span className="flex h-10 w-[33px] items-center justify-center rounded-md border border-[#DCDBDC] bg-white text-[#7E797B]">1</span>
-              <span className="text-[#292829]">/</span>
-              <span className="text-[#292829]">--</span>
+        <div className="shrink-0 border-b border-[#D9E0E3] bg-white px-4 py-4 sm:px-6">
+          <div className="mx-auto flex w-full max-w-[980px] flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+            <div className="min-w-0">
+              <p className="font-inter text-xs font-semibold uppercase tracking-[0.08em] text-[#536E7B]">
+                {t("preview")}
+              </p>
+              <h1 className="mt-1 truncate font-inter text-base font-semibold text-[#292829]">
+                {filename}
+              </h1>
             </div>
-            <div className="flex shrink-0 items-center gap-2">
-              <button type="button" onClick={() => setZoom((value) => Math.min(125, value + 10))} className="flex h-10 w-10 items-center justify-center rounded border border-[#EFEFEF] bg-white text-[#989F43]" aria-label={t("zoomIn")}>
-                <svg className="h-6 w-6" aria-hidden viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><circle cx="11" cy="11" r="7"/><path d="M11 8v6M8 11h6M20 20l-3.5-3.5"/></svg>
-              </button>
-              <span className="flex h-10 w-[52px] items-center justify-center rounded-md border border-[#DCDBDC] bg-white px-2 font-inter text-base text-[#7E797B]">{zoom}%</span>
-              <button type="button" onClick={() => setZoom((value) => Math.max(50, value - 10))} className="flex h-10 w-10 items-center justify-center rounded border border-[#EFEFEF] bg-white text-[#989F43]" aria-label={t("zoomOut")}>
-                <svg className="h-6 w-6" aria-hidden viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><circle cx="11" cy="11" r="7"/><path d="M8 11h6M20 20l-3.5-3.5"/></svg>
-              </button>
-            </div>
+            <button type="button" disabled={!report || exporting || !mapsReady} onClick={printReport} className="flex h-10 shrink-0 items-center justify-center gap-2 rounded bg-[#989F43] px-4 font-inter text-sm font-medium text-white disabled:opacity-50">
+              {exporting ? <span aria-hidden="true" className="h-4 w-4 animate-spin rounded-full border-2 border-white/40 border-t-white" /> : <svg className="h-4 w-4" aria-hidden viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M12 3v12m0 0 4-4m-4 4-4-4"/><path d="M5 20h14"/></svg>}
+              {exporting || (report && !mapsReady) ? t("preparingDownload") : t("download")}
+            </button>
           </div>
-          <button type="button" disabled={!report || exporting || !mapsReady} onClick={printReport} className="flex h-10 shrink-0 items-center gap-2 rounded bg-[#989F43] px-4 font-inter text-sm font-medium text-white disabled:opacity-50">
-            {exporting ? <span aria-hidden="true" className="h-4 w-4 animate-spin rounded-full border-2 border-white/40 border-t-white" /> : <svg className="h-4 w-4" aria-hidden viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M12 3v12m0 0 4-4m-4 4-4-4"/><path d="M5 20h14"/></svg>}
-            {exporting || (report && !mapsReady) ? t("preparingDownload") : t("download")}
-          </button>
         </div>
-        <div className="min-h-0 flex-1 overflow-auto bg-[#F6F7F6] px-8 py-8">
+        <div className="min-h-0 flex-1 overflow-auto bg-[#F6F7F6] px-4 py-6 sm:px-8 sm:py-8">
           {!hasRequiredParameters && <EmptyReportPreview />}
           {loading && <div className="mx-auto flex min-h-56 max-w-[749px] flex-col items-center justify-center gap-4 bg-white p-10 text-center text-neutral-600 shadow-sm"><span aria-hidden="true" className="h-9 w-9 animate-spin rounded-full border-4 border-[#989F43]/25 border-t-[#989F43]"/><strong className="text-base font-semibold text-[#536e7b]">{t("loading")}</strong><span className="text-sm">{t("loadingHint")}</span></div>}
           {visibleError && !loading && <div className="mx-auto max-w-[749px] border border-red-200 bg-white p-8 shadow-sm"><h1 className="text-xl font-semibold">{t("loadError")}</h1><p className="mt-2 text-sm text-red-700">{visibleError}</p></div>}
-          {report && !loading && <div className="mx-auto origin-top transition-transform" style={{ width: "980px", transform: `scale(${zoom / 100})` }}><ReportDocument report={report} layerIds={layerIds} charts={charts} mapImages={mapImages} activeMapKey={activeMapKey} onMapCapture={handleMapCapture} documentRef={reportDocumentRef} docsContent={docsContent} /></div>}
+          {report && !loading && <div className="mx-auto w-full max-w-[980px]"><ReportDocument report={report} layerIds={layerIds} charts={charts} mapImages={mapImages} activeMapKey={activeMapKey} onMapCapture={handleMapCapture} documentRef={reportDocumentRef} docsContent={docsContent} /></div>}
         </div>
       </div>
     );

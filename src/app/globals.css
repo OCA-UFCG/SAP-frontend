@@ -40,15 +40,26 @@ textarea {
     width: 210mm;
     max-width: 100%;
     padding: 42px 56px 36px;
+    overflow-wrap: anywhere;
   }
 
   .report-visual-grid {
     display: grid;
-    grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+    grid-template-columns: minmax(0, 1fr);
   }
 
   .report-visual-panel {
     min-width: 0;
+  }
+
+  .report-paper table {
+    min-width: 100%;
+  }
+}
+
+@media screen and (min-width: 768px) {
+  .report-visual-grid {
+    grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
   }
 }
 
