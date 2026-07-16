@@ -1,0 +1,127 @@
+name: CD SAP-Home frontend GAMMA
+
+on:
+  push:
+    branches: ["gamma"]
+
+concurrency:
+  group: sap-beta-deploy
+  cancel-in-progress: true
+
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: "npm"
+
+      - name: Setup npm
+        run: npm install -g npm@11.8.0
+
+      - name: Install Dependencies
+        run: npm ci
+
+      - name: Run CI verification
+        env:
+          NEXT_PUBLIC_CONTENTFUL_ACCESS_TOKEN: ${{ secrets.NEXT_PUBLIC_CONTENTFUL_ACCESS_TOKEN }}
+          NEXT_PUBLIC_CONTENTFUL_PREVIEW: ${{ secrets.NEXT_PUBLIC_CONTENTFUL_PREVIEW }}
+          NEXT_PUBLIC_CONTENTFUL_PREVIEW_TOKEN: ${{ secrets.NEXT_PUBLIC_CONTENTFUL_PREVIEW_TOKEN }}
+          NEXT_PUBLIC_CONTENTFUL_SPACE_ID: ${{ secrets.NEXT_PUBLIC_CONTENTFUL_SPACE_ID }}
+        run: npm run ci:verify
+
+  build-image:
+    needs: verify
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+
+      - name: Debug environment variables
+        run: echo "Image is ${{ vars.DOCKER_IMAGE_BETA }}"
+      - name: Update Docker Container metadata
+        uses: docker/metadata-action@v6
+        id: meta
+        with:
+          images: ${{ vars.DOCKER_IMAGE_BETA }}
+
+      - name: Setup Docker Buildx
+        uses: docker/setup-buildx-action@v4
+
+      - name: Login to OCA's Docker Hub
+        uses: docker/login-action@v4
+        with:
+          username: ${{ vars.DOCKER_USERNAME }}
+          password: ${{ secrets.DOCKER_PASSWORD }}
+
+      - name: Download vector tile artifacts
+        env:
+          TILES_RELEASE_TAG: tiles-2025
+        run: bash scripts/download-tiles.sh
+
+      - name: Build and push Docker image
+        uses: docker/build-push-action@v7
+        with:
+          context: .
+          push: true
+          file: Dockerfile.production
+          labels: ${{ steps.meta.outputs.labels }}
+          tags: |
+            ${{ vars.DOCKER_IMAGE_BETA }}:latest
+            ${{ steps.meta.outputs.tags }}
+          platforms: linux/amd64
+          build-args: |
+            NEXT_PUBLIC_CONTENTFUL_ACCESS_TOKEN=${{ secrets.NEXT_PUBLIC_CONTENTFUL_ACCESS_TOKEN }}
+            NEXT_PUBLIC_CONTENTFUL_PREVIEW=${{ secrets.NEXT_PUBLIC_CONTENTFUL_PREVIEW }}
+            NEXT_PUBLIC_CONTENTFUL_PREVIEW_TOKEN=${{ secrets.NEXT_PUBLIC_CONTENTFUL_PREVIEW_TOKEN }}
+            NEXT_PUBLIC_CONTENTFUL_SPACE_ID=${{ secrets.NEXT_PUBLIC_CONTENTFUL_SPACE_ID }}
+            NEXT_PUBLIC_HOST_URL=${{ vars.NEXT_PUBLIC_HOST_URL }}
+            NEXT_PUBLIC_FIREBASE_API_KEY=${{ secrets.NEXT_PUBLIC_FIREBASE_API_KEY }}
+            NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN=${{ secrets.NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN }}
+            NEXT_PUBLIC_FIREBASE_PROJECT_ID=${{ secrets.NEXT_PUBLIC_FIREBASE_PROJECT_ID }}
+            NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET=${{ secrets.NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET }}
+            NEXT_PUBLIC_FIREBASE_MESSAGING_SENDER_ID=${{ secrets.NEXT_PUBLIC_FIREBASE_MESSAGING_SENDER_ID }}
+            NEXT_PUBLIC_FIREBASE_APP_ID=${{ secrets.NEXT_PUBLIC_FIREBASE_APP_ID }}
+
+  push-beta:
+    needs: build-image
+    runs-on: [self-hosted, sap-beta-runner]
+    steps:
+      - name: Debug environment (Runner)
+        run: echo "Image is ${{ vars.DOCKER_IMAGE_BETA }}"
+
+      - name: Ensure docker network exists
+        run: |
+          DOCKER_NETWORK_NAME="${{ vars.NETWORK_NAME }}"
+          if ! sudo docker network inspect "$DOCKER_NETWORK_NAME" >/dev/null 2>&1; then
+            sudo docker network create "$DOCKER_NETWORK_NAME"
+            echo "Created network: $DOCKER_NETWORK_NAME"
+          else
+            echo "Network already exists: $DOCKER_NETWORK_NAME"
+          fi
+      - name: Pull the latest beta image
+        run: sudo docker pull ${{ vars.DOCKER_IMAGE_BETA }}:latest
+
+      - name: Stop existing container
+        run: sudo docker rm -f ${{ vars.CONTAINER_NAME_BETA }} || true
+
+      - name: Run the new Beta container
+        env:
+          GEE_PRIVATE_KEY: ${{ secrets.GEE_PRIVATE_KEY }}
+          FIREBASE_PROJECT_ID: ${{ secrets.FIREBASE_PROJECT_ID }}
+          FIREBASE_CLIENT_EMAIL: ${{ secrets.FIREBASE_CLIENT_EMAIL }}
+          FIREBASE_PRIVATE_KEY_BASE64: ${{ secrets.FIREBASE_PRIVATE_KEY_BASE64 }}
+          FIREBASE_TELEMETRY_COLLECTION: ${{ vars.FIREBASE_TELEMETRY_COLLECTION_BETA }}
+          LOGS_ALLOWED_EMAILS: ${{ vars.LOGS_ALLOWED_EMAILS }}
+          DOCS_DEFAULT: ${{ vars.DOCS_DEFAULT }}
+          NEXT_PUBLIC_HOST_URL: ${{ vars.NEXT_PUBLIC_HOST_URL }}
+        run: sudo --preserve-env=GEE_PRIVATE_KEY,FIREBASE_PROJECT_ID,FIREBASE_CLIENT_EMAIL,FIREBASE_PRIVATE_KEY_BASE64,FIREBASE_TELEMETRY_COLLECTION,LOGS_ALLOWED_EMAILS,DOCS_DEFAULT,NEXT_PUBLIC_HOST_URL docker run --name ${{ vars.CONTAINER_NAME_BETA }} --restart unless-stopped -p ${{ vars.HOST_PORT_BETA }}:${{ vars.CONTAINER_PORT }} -e GEE_PRIVATE_KEY -e FIREBASE_PROJECT_ID -e FIREBASE_CLIENT_EMAIL -e FIREBASE_PRIVATE_KEY_BASE64 -e FIREBASE_TELEMETRY_COLLECTION -e LOGS_ALLOWED_EMAILS -e DOCS_DEFAULT -e NEXT_PUBLIC_HOST_URL -d ${{ vars.DOCKER_IMAGE_BETA }}:latest
+
+      - name: Connect to the Beta container network
+        run: sudo docker network connect ${{ vars.NETWORK_NAME }} ${{ vars.CONTAINER_NAME_BETA }}
+
+      - name: Prune unused Docker images
+        run: sudo docker system prune -f
