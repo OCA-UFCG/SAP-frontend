@@ -128,8 +128,9 @@ function translateAnalysisMethodology(
   tReportHas: (key: string) => boolean,
   tModules: (key: string) => string,
   tModulesHas: (key: string) => boolean,
+  locale?: string,
 ) {
-  const docsText = getReportDocsText(docsContent, analysis.title);
+  const docsText = getReportDocsText(docsContent, analysis.title, locale);
   if (docsText) return docsText;
 
   if (tReportHas(`indicators.${analysis.id}.methodology`)) {
@@ -207,7 +208,7 @@ function AnalysisSection({
     locale,
     (key, values) => t(key, values),
   );
-  const narrativeSections = buildAnalysisNarrativeSections(analysis, docsContent);
+  const narrativeSections = buildAnalysisNarrativeSections(analysis, docsContent, locale);
   const valueLabels = getMunicipalReportValueLabels(analysis, (key, values) =>
     t(key, values),
   );
@@ -427,7 +428,7 @@ function ReportDocument({
     .map((period) => formatReportPeriod(period, locale))
     .join(" · ");
   const reportText = (section: string, fallback: string) =>
-    getReportDocsText(docsContent, section) ?? fallback;
+    getReportDocsText(docsContent, section, locale) ?? fallback;
 
   return (
     <article ref={documentRef} className="report-paper mt-6 bg-white text-[#202020] shadow-[0_8px_35px_rgba(0,0,0,0.12)]">
@@ -512,6 +513,7 @@ function ReportDocument({
               tHas,
               tModules,
               tModulesHas,
+              locale,
             );
             return (
               <p key={analysis.id} className="whitespace-pre-line">

@@ -36,7 +36,9 @@ function sectionTitleMatches(sectionTitle: string, expectedTitles: Set<string>) 
 export function getReportDocsText(
   docsContent: MunicipalReportDocsContent | null,
   sectionTitle: string,
+  locale?: string,
 ) {
+  if (locale && locale !== "pt") return null;
   const sections = docsContent?.[MUNICIPAL_REPORT_DOCS_REPORT_KEY];
   if (!sections) return null;
 
@@ -50,7 +52,9 @@ function findGeneratedSectionText(
   analysis: MunicipalReportAnalysis,
   docsContent: MunicipalReportDocsContent | null,
   sectionTitles: string[],
+  locale?: string,
 ) {
+  if (locale && locale !== "pt") return null;
   const theme = analysis.id;
   if (!theme || !docsContent?.[theme]) return null;
 
@@ -63,7 +67,9 @@ function findGeneratedSectionText(
 export function buildAnalysisNarrativeSections(
   analysis: MunicipalReportAnalysis,
   docsContent: MunicipalReportDocsContent | null,
+  locale?: string,
 ) {
+  if (locale && locale !== "pt") return [];
   const theme = analysis.id;
   if (!theme || !docsContent?.[theme]) return [];
 
@@ -101,7 +107,7 @@ export function buildSituationNarrative(
     "Situación actual",
     "Situacion actual",
     "Current situation",
-  ]);
+  ], locale);
   if (docsText) return docsText;
   if (!report || !config || !locale) return null;
 
@@ -204,12 +210,12 @@ export function buildHistoryNarrative(
     "Tendencia recente",
     "Tendencia reciente",
     "Recent trend",
-  ]);
+  ], locale);
   const context = findGeneratedSectionText(analysis, docsContent, [
     "Contexto histórico",
     "Contexto historico",
     "Historical context",
-  ]);
+  ], locale);
 
   if (recent || context) return { recent, context };
   if (!municipalityName || !config?.history || !locale) return null;
