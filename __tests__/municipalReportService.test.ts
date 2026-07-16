@@ -284,4 +284,140 @@ describe("buildMunicipalReport", () => {
     });
     expect(report.templateVariables.periodo_seca).toBe("2026-04");
   });
+
+  it.each([
+    {
+      title: "Cobertura da Terra",
+      panelLayerId: "terraibge-test",
+      alias: "cobertura_terra",
+      sourcePeriod: "2020-01",
+      spatialPeriod: "2020",
+    },
+    {
+      title: "Produção Primária Bruta",
+      panelLayerId: "prodprimariabruta-test",
+      alias: "producao_primaria_bruta",
+      sourcePeriod: "2025-01",
+      spatialPeriod: "2025",
+    },
+  ])("normalizes $title to its matching spatial year", async ({
+    title,
+    panelLayerId,
+    alias,
+    sourcePeriod,
+    spatialPeriod,
+  }) => {
+    const annualMapData: CompactTerritorialAnalysisDataset = {
+      ...imageData,
+      years: {
+        [spatialPeriod]: { imageId: "annual-map", values: {} },
+      },
+    };
+    const report = await buildMunicipalReport("5200050", "2026", {
+      layers: [{
+        panelLayerId,
+        alias,
+        title,
+        order: 1,
+        reportSeriesConfig: {
+          schemaVersion: 1,
+          datasetVersion: "v1",
+          shardCount: 64,
+          shardStrategy: "ibge-modulo",
+          firstPeriod: sourcePeriod,
+          lastPeriod: sourcePeriod,
+        },
+        baseImageData: annualMapData,
+      }],
+      loadReportSeries: async () => ({
+        municipality: { [sourcePeriod]: { values: [100] } },
+        aggregate: null,
+      }),
+    });
+
+    expect(report.analyses[0]).toMatchObject({
+      status: "available",
+      requestedPeriod: "2026",
+      effectivePeriod: spatialPeriod,
+      snapshot: { period: spatialPeriod, label: spatialPeriod },
+    });
+    expect(report.analyses[0]?.timeSeries.map(({ period }) => period)).toEqual([
+      spatialPeriod,
+    ]);
+    expect(report.templateVariables[`periodo_${alias}`]).toBe(spatialPeriod);
+  });
+
+  it("preserves annual periods that already match the spatial layer", async () => {
+    const annualMapData: CompactTerritorialAnalysisDataset = {
+      ...imageData,
+      years: {
+        "2025": { imageId: "annual-map", values: {} },
+      },
+    };
+    const report = await buildMunicipalReport("5200050", "2026", {
+      layers: [{
+        panelLayerId: "pob_urb-test",
+        alias: "pobreza_urbana",
+        title: "Pobreza urbana",
+        order: 1,
+        reportSeriesConfig: {
+          schemaVersion: 1,
+          datasetVersion: "v1",
+          shardCount: 64,
+          shardStrategy: "ibge-modulo",
+          firstPeriod: "2025",
+          lastPeriod: "2025",
+        },
+        baseImageData: annualMapData,
+      }],
+      loadReportSeries: async () => ({
+        municipality: { "2025": { values: [100] } },
+        aggregate: null,
+      }),
+    });
+
+    expect(report.analyses[0]).toMatchObject({
+      effectivePeriod: "2025",
+      snapshot: { period: "2025", label: "2025" },
+    });
+    expect(report.analyses[0]?.timeSeries.map(({ period }) => period)).toEqual([
+      "2025",
+    ]);
+  });
+
+  it("does not guess a spatial period when a calendar year is ambiguous", async () => {
+    const ambiguousMapData: CompactTerritorialAnalysisDataset = {
+      ...imageData,
+      years: {
+        "2020-01": { imageId: "jan", values: {} },
+        "2020-12": { imageId: "dec", values: {} },
+      },
+    };
+    const report = await buildMunicipalReport("5200050", "2020", {
+      layers: [{
+        panelLayerId: "ambiguous-test",
+        alias: "ambiguous",
+        title: "Ambiguous",
+        order: 1,
+        reportSeriesConfig: {
+          schemaVersion: 1,
+          datasetVersion: "v1",
+          shardCount: 64,
+          shardStrategy: "ibge-modulo",
+          firstPeriod: "2020",
+          lastPeriod: "2020",
+        },
+        baseImageData: ambiguousMapData,
+      }],
+      loadReportSeries: async () => ({
+        municipality: { "2020": { values: [100] } },
+        aggregate: null,
+      }),
+    });
+
+    expect(report.analyses[0]).toMatchObject({
+      effectivePeriod: "2020",
+      snapshot: { period: "2020", label: "2020" },
+    });
+  });
 });

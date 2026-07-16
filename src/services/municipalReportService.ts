@@ -9,6 +9,7 @@ import {
 import type {
   MunicipalReportAnalysis,
   MunicipalReportData,
+  MunicipalReportPeriodSnapshot,
 } from "@/contracts/municipalReport";
 import { getCachedMunicipalAnalysisImageData } from "@/repositories/platform/municipalAnalysisCache";
 import { getPanelLayers } from "@/repositories/platform/panelLayerRepository";
@@ -96,6 +97,69 @@ function createLimiter(maxConcurrent: number) {
 }
 
 const limitFallbackLoad = createLimiter(4);
+
+function getCalendarYear(period: string) {
+  return period.match(/^(\d{4})(?:-\d{2})?$/u)?.[1] ?? null;
+}
+
+function resolveCanonicalReportPeriod(
+  period: string,
+  sourcePeriods: readonly string[],
+  spatialPeriods: readonly string[],
+) {
+  if (spatialPeriods.includes(period)) return period;
+
+  const calendarYear = getCalendarYear(period);
+  if (!calendarYear) return period;
+
+  const sourceMatches = sourcePeriods.filter(
+    (candidate) => getCalendarYear(candidate) === calendarYear,
+  );
+  const spatialMatches = spatialPeriods.filter(
+    (candidate) => getCalendarYear(candidate) === calendarYear,
+  );
+
+  return sourceMatches.length === 1 && spatialMatches.length === 1
+    ? spatialMatches[0]
+    : period;
+}
+
+function normalizeReportSnapshotPeriods(
+  snapshots: readonly MunicipalReportPeriodSnapshot[],
+  spatialPeriods: readonly string[],
+) {
+  const sourcePeriods = snapshots.map(({ period }) => period);
+
+  return snapshots.map((snapshot) => {
+    const period = resolveCanonicalReportPeriod(
+      snapshot.period,
+      sourcePeriods,
+      spatialPeriods,
+    );
+
+    return period === snapshot.period
+      ? snapshot
+      : { ...snapshot, period, label: period };
+  });
+}
+
+function normalizeReportSnapshotPeriod(
+  snapshot: MunicipalReportPeriodSnapshot | null,
+  sourcePeriods: readonly string[],
+  spatialPeriods: readonly string[],
+) {
+  if (!snapshot) return null;
+
+  const period = resolveCanonicalReportPeriod(
+    snapshot.period,
+    sourcePeriods,
+    spatialPeriods,
+  );
+
+  return period === snapshot.period
+    ? snapshot
+    : { ...snapshot, period, label: period };
+}
 
 function buildSeriesDataset(
   base: NonNullable<MunicipalReportLayerConfig["baseImageData"]>,
@@ -300,8 +364,8 @@ export async function buildMunicipalReport(
           loadImageData,
         );
         if (!temporalData) return unavailable(config, requestedPeriod);
-        const { dataset, timeSeries } = temporalData;
-        const snapshot = seriesData
+        const { dataset, timeSeries: sourceTimeSeries } = temporalData;
+        const sourceSnapshot = seriesData
           ? resolveMunicipalReportSnapshot(
               buildMunicipalReportTimeSeries(dataset, municipalityCode),
               requestedPeriod,
@@ -312,7 +376,20 @@ export async function buildMunicipalReport(
                 municipalityCode,
                 effectivePeriod,
               )
-            : resolveMunicipalReportSnapshot(timeSeries, requestedPeriod);
+            : resolveMunicipalReportSnapshot(sourceTimeSeries, requestedPeriod);
+        const spatialPeriods = config.baseImageData
+          ? Object.keys(config.baseImageData.years)
+          : (config.periods ?? []);
+        const sourcePeriods = sourceTimeSeries.map(({ period }) => period);
+        const timeSeries = normalizeReportSnapshotPeriods(
+          sourceTimeSeries,
+          spatialPeriods,
+        );
+        const snapshot = normalizeReportSnapshotPeriod(
+          sourceSnapshot,
+          sourcePeriods,
+          spatialPeriods,
+        );
         return {
           id: config.panelLayerId,
           alias: config.alias,
