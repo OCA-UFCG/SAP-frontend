@@ -5,10 +5,7 @@ import maplibregl from "maplibre-gl";
 import "maplibre-gl/dist/maplibre-gl.css";
 import { fetchMapURL } from "@/services/mapServices";
 import { startMunicipalReportStage } from "@/utils/municipalReportMetrics";
-import {
-  GEE_LAYER_ID,
-  GEE_SOURCE_ID,
-} from "@/components/Map/mapDefinitions";
+import { GEE_LAYER_ID, GEE_SOURCE_ID } from "@/components/Map/mapDefinitions";
 import {
   BRAZIL_RASTER_BOUNDS,
   getIndexedMunicipalityBounds,
@@ -28,6 +25,13 @@ const REPORT_MAP_STYLE: maplibregl.StyleSpecification = {
 };
 
 const tileUrlCache = new Map<string, string | null>();
+let reportMapResourcesPrewarmed = false;
+
+function prewarmReportMapResources() {
+  if (reportMapResourcesPrewarmed) return;
+  reportMapResourcesPrewarmed = true;
+  maplibregl.prewarm();
+}
 
 async function resolveReportTileUrl(
   layerId: string,
@@ -49,7 +53,9 @@ interface ReportMapPreviewProps {
   period: string;
   className?: string;
   active?: boolean;
+  attempt?: number;
   imageSrc?: string;
+  queuedAt?: number | null;
   onCapture?: (src: string | null) => void;
 }
 
@@ -59,18 +65,27 @@ export function ReportMapPreview({
   period,
   className,
   active = true,
+  attempt = 0,
   imageSrc: capturedImageSrc,
+  queuedAt,
   onCapture,
 }: ReportMapPreviewProps) {
   const containerRef = useRef<HTMLDivElement | null>(null);
   const mapRef = useRef<maplibregl.Map | null>(null);
   const captureCompletedRef = useRef(false);
+  const onCaptureRef = useRef(onCapture);
+  const queueWaitRecordedKeyRef = useRef<string | null>(null);
   const imageKey = `${municipalityCode}:${layerId}:${period}`;
+  const captureKey = `${imageKey}:${attempt}`;
   const [image, setImage] = useState<{ key: string; src: string } | null>(null);
   const [failedImageKey, setFailedImageKey] = useState<string | null>(null);
   const localImageSrc = image?.key === imageKey ? image.src : null;
   const resolvedImageSrc = capturedImageSrc ?? localImageSrc;
-  const captureFailed = failedImageKey === imageKey;
+  const captureFailed = failedImageKey === captureKey;
+
+  useEffect(() => {
+    onCaptureRef.current = onCapture;
+  }, [onCapture]);
 
   useEffect(() => {
     let aborted = false;
@@ -84,27 +99,51 @@ export function ReportMapPreview({
         setImage({ key: imageKey, src });
         setFailedImageKey(null);
       } else {
-        setFailedImageKey(imageKey);
+        setFailedImageKey(captureKey);
       }
       finishMap?.(`Mapa ${layerId} (${period})`, {
         detalhes: src
           ? "URL do Earth Engine, tiles, renderização e captura PNG"
           : "Mapa indisponível ou falha na captura",
       });
-      onCapture?.(src);
+      onCaptureRef.current?.(src);
     };
 
     async function setupMapPreview() {
       captureCompletedRef.current = false;
       finishMap = startMunicipalReportStage();
+      if (
+        queuedAt !== null &&
+        queuedAt !== undefined &&
+        queueWaitRecordedKeyRef.current !== imageKey
+      ) {
+        queueWaitRecordedKeyRef.current = imageKey;
+        const finishQueueWait = startMunicipalReportStage(queuedAt);
+        finishQueueWait(`Mapa ${layerId}: espera na fila`, {
+          detalhes: `Ativado no lote de captura com concorrência limitada`,
+        });
+      }
+
+      prewarmReportMapResources();
       const finishTileUrl = startMunicipalReportStage();
-      const { tileUrl, cacheHit } = await resolveReportTileUrl(
-        layerId,
-        period,
-        controller.signal,
-      );
+      let tileUrl: string | null;
+      let cacheHit: boolean;
+      try {
+        ({ tileUrl, cacheHit } = await resolveReportTileUrl(
+          layerId,
+          period,
+          controller.signal,
+        ));
+      } catch (reason) {
+        finishTileUrl(`Mapa ${layerId}: URL do Earth Engine`, {
+          detalhes: "Falha na requisição POST /api/ee",
+        });
+        throw reason;
+      }
       finishTileUrl(`Mapa ${layerId}: URL do Earth Engine`, {
-        detalhes: cacheHit ? "Cache local do navegador" : "Requisição POST /api/ee",
+        detalhes: cacheHit
+          ? "Cache local do navegador"
+          : "Requisição POST /api/ee",
       });
       if (aborted || !containerRef.current) return;
 
@@ -113,6 +152,7 @@ export function ReportMapPreview({
         mapRef.current = null;
       }
 
+      const finishMapCreation = startMunicipalReportStage();
       const map = new maplibregl.Map({
         container: containerRef.current,
         style: REPORT_MAP_STYLE,
@@ -120,11 +160,22 @@ export function ReportMapPreview({
         interactive: false,
         attributionControl: false,
       } as maplibregl.MapOptions);
+      finishMapCreation(`Mapa ${layerId}: criação MapLibre`, {
+        detalhes: "Construção da instância e do contexto WebGL",
+      });
 
       mapRef.current = map;
+      const finishMapLoad = startMunicipalReportStage();
+      let finishTilesAndRender: ReturnType<
+        typeof startMunicipalReportStage
+      > | null = null;
 
       map.on("load", () => {
         if (aborted) return;
+        finishMapLoad(`Mapa ${layerId}: inicialização MapLibre`, {
+          detalhes: "Da criação da instância até o evento load",
+        });
+        finishTilesAndRender = startMunicipalReportStage();
 
         ensureMunicipalityLayers(map);
 
@@ -178,16 +229,30 @@ export function ReportMapPreview({
         );
       });
 
+      map.on("webglcontextlost", () => {
+        finishCapture(null);
+      });
+
       map.on("idle", () => {
-        if (aborted) return;
+        if (aborted || captureCompletedRef.current) return;
+        finishTilesAndRender?.(`Mapa ${layerId}: tiles e renderização`, {
+          detalhes: "Do evento load até o primeiro idle",
+        });
+        const finishPng = startMunicipalReportStage();
         try {
           const dataUrl = map.getCanvas().toDataURL("image/png");
+          finishPng(`Mapa ${layerId}: codificação PNG`, {
+            detalhes: "canvas.toDataURL(image/png)",
+          });
           if (dataUrl && dataUrl.length > 100) {
             finishCapture(dataUrl);
           } else {
             finishCapture(null);
           }
         } catch {
+          finishPng(`Mapa ${layerId}: codificação PNG`, {
+            detalhes: "Falha em canvas.toDataURL(image/png)",
+          });
           finishCapture(null);
         }
       });
@@ -213,11 +278,13 @@ export function ReportMapPreview({
   }, [
     active,
     captureFailed,
+    captureKey,
+    attempt,
     imageKey,
     layerId,
     municipalityCode,
-    onCapture,
     period,
+    queuedAt,
     resolvedImageSrc,
   ]);
 
