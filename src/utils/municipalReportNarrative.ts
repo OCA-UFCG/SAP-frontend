@@ -67,7 +67,11 @@ export function buildAnalysisNarrativeSections(
   const theme = analysis.id;
   if (!theme || !docsContent?.[theme]) return [];
 
-  const situationTitles = new Set(["situacao atual"]);
+  const situationTitles = new Set([
+    "situacao atual",
+    "situacion actual",
+    "current situation",
+  ]);
   let skippedPrimarySituation = false;
 
   return docsContent[theme].filter((section) => {
@@ -86,10 +90,17 @@ export function buildSituationNarrative(
   report?: MunicipalReportData,
   config?: MunicipalReportPresentationConfig,
   locale?: string,
+  t?: (key: string, values?: Record<string, string>) => string,
+  translateClass?: (label: string) => string,
+  translateTitle?: (title: string, id: string) => string,
+  tHas?: (key: string) => boolean,
 ) {
   const docsText = findGeneratedSectionText(analysis, docsContent, [
     "Situação atual",
     "Situacao atual",
+    "Situación actual",
+    "Situacion actual",
+    "Current situation",
   ]);
   if (docsText) return docsText;
   if (!report || !config || !locale) return null;
@@ -97,17 +108,84 @@ export function buildSituationNarrative(
   const dominant = analysis.snapshot?.dominantClass;
   if (!dominant || !analysis.effectivePeriod) return null;
   const place = `${report.municipality.name} — ${report.municipality.uf}`;
+  const translatedLabel = translateClass ? translateClass(dominant.label) : dominant.label;
+  const translatedTitle = translateTitle ? translateTitle(analysis.title, analysis.id) : analysis.title;
   const code = config.history?.classes[dominant.id]?.code ?? config.classes?.[dominant.id]?.code;
-  const className = code ? `${dominant.label} (${code})` : dominant.label;
+  const className = code ? `${translatedLabel} (${code})` : translatedLabel;
   if (analysis.valueType === "absolute") {
     const value = formatMunicipalReportValueWithUnit(
       dominant.percentage,
       analysis,
       locale,
     );
-    return `No município de ${place}, o valor de ${className} é ${value}, conforme os dados de ${analysis.title} para o período de ${formatReportPeriod(analysis.effectivePeriod, locale)}.`;
+    if (t) {
+      return t("narrative.absoluteFallback", {
+        place,
+        className,
+        value,
+        title: translatedTitle,
+        period: formatReportPeriod(analysis.effectivePeriod, locale),
+      });
+    }
+    return `No município de ${place}, o valor de ${className} é ${value}, conforme os dados de ${translatedTitle} para o período de ${formatReportPeriod(analysis.effectivePeriod, locale)}.`;
   }
-  return `No município de ${place}, predomina a classe ${className}, com ${dominant.percentage.toFixed(1)}% da área analisada ${config.coverageContext}, conforme os dados de ${analysis.title} para o período de ${formatReportPeriod(analysis.effectivePeriod, locale)}.`;
+
+  let coverageContext = config.coverageContext;
+  if (t) {
+    const slug = config.coverageContext
+      .toLowerCase()
+      .normalize("NFD")
+      .replace(/[\u0300-\u036f]/g, "")
+      .replace(/[^a-z0-9]+/g, "-")
+      .replace(/(^-|-$)+/g, "");
+    if (tHas) {
+      if (tHas(`coverageContexts.${analysis.id}`)) {
+        try {
+          const byId = t(`coverageContexts.${analysis.id}`);
+          if (byId && !byId.startsWith("coverageContexts.")) {
+            coverageContext = byId;
+          }
+        } catch {
+          // fallback
+        }
+      } else if (tHas(`coverageContexts.${slug}`)) {
+        try {
+          const bySlug = t(`coverageContexts.${slug}`);
+          if (bySlug && !bySlug.startsWith("coverageContexts.")) {
+            coverageContext = bySlug;
+          }
+        } catch {
+          // fallback
+        }
+      }
+    } else {
+      try {
+        const byId = t(`coverageContexts.${analysis.id}`);
+        if (byId && !byId.startsWith("coverageContexts.")) {
+          coverageContext = byId;
+        } else {
+          const bySlug = t(`coverageContexts.${slug}`);
+          if (bySlug && !bySlug.startsWith("coverageContexts.")) {
+            coverageContext = bySlug;
+          }
+        }
+      } catch {
+        // fallback to original config.coverageContext
+      }
+    }
+  }
+
+  if (t) {
+    return t("narrative.percentageFallback", {
+      place,
+      className,
+      percentage: dominant.percentage.toFixed(1),
+      coverageContext,
+      title: translatedTitle,
+      period: formatReportPeriod(analysis.effectivePeriod, locale),
+    });
+  }
+  return `No município de ${place}, predomina a classe ${className}, com ${dominant.percentage.toFixed(1)}% da área analisada ${coverageContext}, conforme os dados de ${translatedTitle} para o período de ${formatReportPeriod(analysis.effectivePeriod, locale)}.`;
 }
 
 export function buildHistoryNarrative(
@@ -116,14 +194,21 @@ export function buildHistoryNarrative(
   municipalityName?: string,
   config?: MunicipalReportPresentationConfig,
   locale?: string,
+  translateClass?: (label: string) => string,
+  translateTitle?: (title: string, id: string) => string,
+  t?: (key: string, values?: Record<string, string>) => string,
+  tHas?: (key: string) => boolean,
 ) {
   const recent = findGeneratedSectionText(analysis, docsContent, [
     "Tendência recente",
     "Tendencia recente",
+    "Tendencia reciente",
+    "Recent trend",
   ]);
   const context = findGeneratedSectionText(analysis, docsContent, [
     "Contexto histórico",
     "Contexto historico",
+    "Historical context",
   ]);
 
   if (recent || context) return { recent, context };
@@ -137,20 +222,73 @@ export function buildHistoryNarrative(
   const recentHistory = history.slice(-12);
   const classRule = (id: string) => config.history!.classes[id];
   const formatClass = (id: string, label: string) => {
+    const translatedLabel = translateClass ? translateClass(label) : label;
     const code = classRule(id)?.code ?? config.classes?.[id]?.code;
-    return code ? `${label} (${code})` : label;
+    return code ? `${translatedLabel} (${code})` : translatedLabel;
   };
+  const translatedTitle = translateTitle ? translateTitle(analysis.title, analysis.id) : analysis.title;
   const affected = recentHistory.filter(({ dominantClass }) => dominantClass && !classRule(dominantClass.id)?.isNeutral).length;
   const previous = recentHistory.at(-2)?.dominantClass;
-  let comparison = "Não há mês anterior disponível para comparação.";
+
+  const resolveHistoryTerm = (group: "phenomenon" | "neutralState" | "severityTerm", fallback: string) => {
+    if (!t) return fallback;
+    if (tHas) {
+      if (tHas(`historyTerms.${group}.${analysis.id}`)) {
+        try {
+          const byId = t(`historyTerms.${group}.${analysis.id}`);
+          if (byId && !byId.startsWith("historyTerms.")) return byId;
+        } catch {
+          // fallback
+        }
+      }
+      if (tHas(`historyTerms.${group}.default`)) {
+        try {
+          const byDefault = t(`historyTerms.${group}.default`);
+          if (byDefault && !byDefault.startsWith("historyTerms.")) return byDefault;
+        } catch {
+          // fallback
+        }
+      }
+      return fallback;
+    }
+    try {
+      const byId = t(`historyTerms.${group}.${analysis.id}`);
+      if (byId && !byId.startsWith("historyTerms.")) return byId;
+      const byDefault = t(`historyTerms.${group}.default`);
+      if (byDefault && !byDefault.startsWith("historyTerms.")) return byDefault;
+    } catch {
+      // fallback
+    }
+    return fallback;
+  };
+
+  const phenomenon = resolveHistoryTerm("phenomenon", config.history.phenomenon);
+  const neutralState = resolveHistoryTerm("neutralState", config.history.neutralState);
+  const severityTerm = resolveHistoryTerm("severityTerm", config.history.severityTerm);
+
+  let comparison = t ? t("historyNarrative.noPrevious") : "Não há mês anterior disponível para comparação.";
   if (previous && current.dominantClass.id === previous.id) {
-    comparison = `A classificação permaneceu estável em relação ao mês anterior, quando também predominava ${formatClass(previous.id, previous.label)}.`;
+    const prevClass = formatClass(previous.id, previous.label);
+    comparison = t
+      ? t("historyNarrative.stable", { prevClass })
+      : `A classificação permaneceu estável em relação ao mês anterior, quando também predominava ${prevClass}.`;
   } else if (previous && classRule(current.dominantClass.id)?.isNeutral) {
-    comparison = `Houve melhora em relação ao mês anterior, quando predominava ${formatClass(previous.id, previous.label)}; no período atual não predomina condição de ${config.history.phenomenon}.`;
+    const prevClass = formatClass(previous.id, previous.label);
+    comparison = t
+      ? t("historyNarrative.improvement", { prevClass, phenomenon })
+      : `Houve melhora em relação ao mês anterior, quando predominava ${prevClass}; no período atual não predomina condição de ${config.history.phenomenon}.`;
   } else if (previous && classRule(previous.id)?.isNeutral) {
-    comparison = `Houve piora em relação ao mês anterior, quando predominava ${formatClass(previous.id, previous.label)}; no período atual passou a predominar ${formatClass(current.dominantClass.id, current.dominantClass.label)}.`;
+    const prevClass = formatClass(previous.id, previous.label);
+    const currClass = formatClass(current.dominantClass.id, current.dominantClass.label);
+    comparison = t
+      ? t("historyNarrative.worsening", { prevClass, currClass })
+      : `Houve piora em relação ao mês anterior, quando predominava ${prevClass}; no período atual passou a predominar ${currClass}.`;
   } else if (previous && classRule(current.dominantClass.id)?.rank != null && classRule(previous.id)?.rank != null) {
-    comparison = `Houve ${classRule(current.dominantClass.id)!.rank! > classRule(previous.id)!.rank! ? "agravamento" : "redução"} em relação ao mês anterior, quando predominava ${formatClass(previous.id, previous.label)}.`;
+    const prevClass = formatClass(previous.id, previous.label);
+    const isWorsening = classRule(current.dominantClass.id)!.rank! > classRule(previous.id)!.rank!;
+    comparison = t
+      ? t(isWorsening ? "historyNarrative.worseningRank" : "historyNarrative.improvementRank", { prevClass })
+      : `Houve ${isWorsening ? "agravamento" : "redução"} em relação ao mês anterior, quando predominava ${prevClass}.`;
   }
 
   const frequencies = new Map<string, { count: number; label: string }>();
@@ -163,11 +301,49 @@ export function buildHistoryNarrative(
   const mostFrequent = entries.sort(([aId, a], [bId, b]) => b.count - a.count || (classRule(bId)?.rank ?? -1) - (classRule(aId)?.rank ?? -1))[0];
   const neutralCount = entries.reduce((sum, [id, item]) => sum + (classRule(id)?.isNeutral ? item.count : 0), 0);
   const maximum = history.reduce((selected, snapshot) => (classRule(snapshot.dominantClass!.id)?.rank ?? -1) > (classRule(selected.dominantClass!.id)?.rank ?? -1) ? snapshot : selected);
-  const maximumText = `${formatClass(maximum.dominantClass!.id, maximum.dominantClass!.label)}, registrada em ${formatReportPeriod(maximum.period, locale)}`;
+  const maxClass = formatClass(maximum.dominantClass!.id, maximum.dominantClass!.label);
+  const maxPeriod = formatReportPeriod(maximum.period, locale);
+  const maximumText = t
+    ? t("historyNarrative.maximumText", { maxClass, maxPeriod })
+    : `${maxClass}, registrada em ${maxPeriod}`;
   const percentage = (count: number) => new Intl.NumberFormat(locale, { minimumFractionDigits: 1, maximumFractionDigits: 1 }).format((count / history.length) * 100);
 
+  const firstPeriod = formatReportPeriod(history[0].period, locale);
+  const recentFirstPeriod = formatReportPeriod(recentHistory[0].period, locale);
+  const currentPeriod = formatReportPeriod(current.period, locale);
+  const currClass = formatClass(current.dominantClass.id, current.dominantClass.label);
+  const mostFreqClass = formatClass(mostFrequent[0], mostFrequent[1].label);
+  const mostFreqPerc = percentage(mostFrequent[1].count);
+  const neutralPerc = percentage(neutralCount);
+
+  if (t) {
+    return {
+      recent: t("historyNarrative.recent", {
+        title: translatedTitle,
+        place: municipalityName,
+        phenomenon,
+        affected: String(affected),
+        total: String(recentHistory.length),
+        firstPeriod: recentFirstPeriod,
+        currentPeriod,
+        currClass,
+        comparison,
+      }),
+      context: t("historyNarrative.context", {
+        firstPeriod,
+        currentPeriod,
+        mostFreqClass,
+        mostFreqPerc,
+        neutralState,
+        neutralPerc,
+        severityTerm,
+        maximumText,
+      }),
+    };
+  }
+
   return {
-    recent: `A série histórica de ${analysis.title} registra que ${municipalityName} apresentou condição de ${config.history.phenomenon} em ${affected} dos últimos ${recentHistory.length} períodos analisados (${formatReportPeriod(recentHistory[0].period, locale)} a ${formatReportPeriod(current.period, locale)}). No período de referência (${formatReportPeriod(current.period, locale)}), predomina ${formatClass(current.dominantClass.id, current.dominantClass.label)}. ${comparison}`,
-    context: `No período ${formatReportPeriod(history[0].period, locale)}–${formatReportPeriod(current.period, locale)}, a classe predominante mais frequente foi ${formatClass(mostFrequent[0], mostFrequent[1].label)}, em ${percentage(mostFrequent[1].count)}% dos períodos. A condição ${config.history.neutralState} predominou em ${percentage(neutralCount)}% do período. A maior ${config.history.severityTerm} observada foi ${maximumText}.`,
+    recent: `A série histórica de ${translatedTitle} registra que ${municipalityName} apresentou condição de ${config.history.phenomenon} em ${affected} dos últimos ${recentHistory.length} períodos analisados (${recentFirstPeriod} a ${currentPeriod}). No período de referência (${currentPeriod}), predomina ${currClass}. ${comparison}`,
+    context: `No período ${firstPeriod}–${currentPeriod}, a classe predominante mais frequente foi ${mostFreqClass}, em ${mostFreqPerc}% dos períodos. A condição ${config.history.neutralState} predominou em ${neutralPerc}% do período. A maior ${config.history.severityTerm} observada foi ${maximumText}.`,
   };
 }

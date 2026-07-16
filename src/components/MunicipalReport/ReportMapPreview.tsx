@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
+import { useTranslations } from "next-intl";
 import maplibregl from "maplibre-gl";
 import "maplibre-gl/dist/maplibre-gl.css";
 import { fetchMapURL } from "@/services/mapServices";
@@ -62,6 +63,7 @@ export function ReportMapPreview({
   imageSrc: capturedImageSrc,
   onCapture,
 }: ReportMapPreviewProps) {
+  const t = useTranslations("MunicipalReport");
   const containerRef = useRef<HTMLDivElement | null>(null);
   const mapRef = useRef<maplibregl.Map | null>(null);
   const captureCompletedRef = useRef(false);
@@ -231,7 +233,7 @@ export function ReportMapPreview({
       {resolvedImageSrc && (
         <img
           src={resolvedImageSrc}
-          alt="Recorte do mapa do município"
+          alt={t("mapCropAlt")}
           className="h-full w-full object-cover"
         />
       )}
@@ -240,7 +242,7 @@ export function ReportMapPreview({
       )}
       {!resolvedImageSrc && active && captureFailed && (
         <div className="flex h-full w-full items-center justify-center bg-[#eef1f1] px-4 text-center text-xs text-neutral-500">
-          Mapa indisponível para exportação.
+          {t("mapUnavailableExport")}
         </div>
       )}
     </div>

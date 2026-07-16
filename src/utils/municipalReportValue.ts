@@ -35,21 +35,43 @@ export function formatMunicipalReportValueWithUnit(
 
 export function getMunicipalReportValueLabels(
   analysis: MunicipalReportValueSemantics,
+  t?: (key: string, values?: Record<string, string>) => string,
 ) {
   if (analysis.valueType === "percentage") {
     return {
-      cardContext: "da área analisada",
-      sectionTitle: "Classes",
-      tableValue: "Cobertura (%)",
-      chartSeries: "Série temporal por classe",
+      cardContext: t
+        ? t("valueLabels.percentageCardContext")
+        : "da área analisada",
+      sectionTitle: t
+        ? t("valueLabels.percentageSectionTitle")
+        : "Classes",
+      tableValue: t
+        ? t("valueLabels.percentageTableValue")
+        : "Cobertura (%)",
+      chartSeries: t
+        ? t("valueLabels.percentageChartSeries")
+        : "Série temporal por classe",
     };
   }
 
   const unit = normalizedUnit(analysis);
+  if (!t) {
+    return {
+      cardContext: unit ? `${unit} no município` : "valor total no município",
+      sectionTitle: "Valores",
+      tableValue: unit ? `Total (${unit})` : "Valor total",
+      chartSeries: "Série temporal de valores",
+    };
+  }
+
   return {
-    cardContext: unit ? `${unit} no município` : "valor total no município",
-    sectionTitle: "Valores",
-    tableValue: unit ? `Total (${unit})` : "Valor total",
-    chartSeries: "Série temporal de valores",
+    cardContext: unit
+      ? t("valueLabels.absoluteCardContextUnit", { unit })
+      : t("valueLabels.absoluteCardContextNoUnit"),
+    sectionTitle: t("valueLabels.absoluteSectionTitle"),
+    tableValue: unit
+      ? t("valueLabels.absoluteTableValueUnit", { unit })
+      : t("valueLabels.absoluteTableValueNoUnit"),
+    chartSeries: t("valueLabels.absoluteChartSeries"),
   };
 }

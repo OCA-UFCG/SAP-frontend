@@ -47,10 +47,244 @@
     "dominantClass": "Clase predominante",
     "availablePeriods": "Períodos disponibles",
     "futurePlaceholder": "Espacio reservado para mapas, gráficos, textos automáticos y síntesis integrada.",
+    "document": {
+      "systemIdentification": "SEDES — Sistema Estratégico Sobre Desertificação",
+      "reportType": "Informe Analítico Automatizado",
+      "institutions": "OCA / UFCG / INSA",
+      "website": "beta-sap.lsd.ufcg.edu.br",
+      "mainTitle": "Informe Analítico del Sistema Estratégico sobre Desertificación",
+      "subtitle": "Ley Nº 13.153/2015 · Política Nacional de Lucha contra la Desertificación",
+      "analysisAreaLabel": "Área de análisis",
+      "scaleLabel": "Escala",
+      "scaleValue": "Municipal",
+      "generationDateLabel": "Fecha de generación",
+      "referenceLabel": "Referencia",
+      "selectedVariablesLabel": "Variables seleccionadas",
+      "analyzedPeriodsLabel": "Períodos analizados",
+      "notesTitle": "Notas Metodológicas y Fuentes",
+      "legalReferenceLabel": "Referencia legal",
+      "legalReferenceValue": "Ley Nº 13.153/2015 — Política Nacional de Lucha contra la Desertificación y Mitigación de los Efectos de la Sequía.",
+      "automatedNotice": "Este informe fue generado automáticamente por el Sistema Estratégico sobre Desertificación (SEDES). Los valores presentados son producidos a partir de los datos disponibles en la plataforma.",
+      "footer": "SEDES — Informe Analítico | Generado el: {generatedAt} | MMA/DCDE · OCA · UFCG · INSA"
+    },
+    "valueLabels": {
+      "percentageCardContext": "del área analizada",
+      "percentageSectionTitle": "Clases",
+      "percentageTableValue": "Cobertura (%)",
+      "percentageChartSeries": "Serie temporal por clase",
+      "absoluteCardContextUnit": "{unit} en el municipio",
+      "absoluteCardContextNoUnit": "valor total en el municipio",
+      "absoluteSectionTitle": "Valores",
+      "absoluteTableValueUnit": "Total ({unit})",
+      "absoluteTableValueNoUnit": "Valor total",
+      "absoluteChartSeries": "Serie temporal de valores"
+    },
+    "narrative": {
+      "absoluteFallback": "En el municipio de {place}, el valor de {className} es {value}, según los datos de {title} para el período de {period}.",
+      "percentageFallback": "En el municipio de {place}, predomina la clase {className}, con {percentage}% del área analizada {coverageContext}, según los datos de {title} para el período de {period}."
+    },
+    "coverageContexts": {
+      "anaseca": "clasificada en este nivel de severidad",
+      "indicearidez": "clasificada en esta zona climática",
+      "deg": "clasificada en este nivel",
+      "default": "clasificada en esta categoría",
+      "enquadrada-nesse-nivel-de-severidade": "clasificada en este nivel de severidad",
+      "enquadrada-nessa-zona-climatica": "clasificada en esta zona climática",
+      "classificada-nesse-nivel": "clasificada en este nivel",
+      "classificada-nessa-categoria": "clasificada en esta categoría"
+    },
+    "historyTerms": {
+      "phenomenon": {
+        "anaseca": "sequía",
+        "default": "condición analizada"
+      },
+      "neutralState": {
+        "anaseca": "sin sequía",
+        "default": "condición normal"
+      },
+      "severityTerm": {
+        "anaseca": "severidad",
+        "default": "intensidad"
+      }
+    },
+    "historyNarrative": {
+      "noPrevious": "No hay mes anterior disponible para comparación.",
+      "stable": "La clasificación permaneció estable en relación con el mes anterior, cuando también predominaba {prevClass}.",
+      "improvement": "Hubo una mejora con respecto al mes anterior, cuando predominaba {prevClass}; en el período actual no predomina la condición de {phenomenon}.",
+      "worsening": "Hubo un empeoramiento con respecto al mes anterior, cuando predominaba {prevClass}; en el período actual pasó a predominar {currClass}.",
+      "worseningRank": "Hubo un agravamiento en relación con el mes anterior, cuando predominaba {prevClass}.",
+      "improvementRank": "Hubo una reducción en relación con el mes anterior, cuando predominaba {prevClass}.",
+      "recent": "La serie histórica de {title} registra que {place} presentó condición de {phenomenon} en {affected} de los últimos {total} períodos analizados ({firstPeriod} a {currentPeriod}). En el período de referencia ({currentPeriod}), predomina {currClass}. {comparison}",
+      "context": "En el período {firstPeriod}–{currentPeriod}, la clase predominante más frecuente fue {mostFreqClass}, en el {mostFreqPerc}% de los períodos. La condición {neutralState} predominó en el {neutralPerc}% del período. La mayor {severityTerm} observada fue {maximumText}.",
+      "maximumText": "{maxClass}, registrada en {maxPeriod}"
+    },
+    "currentSituation": "Situación actual:",
+    "requestedPeriodForIndicator": "Período solicitado para este indicador: {period}.",
+    "analyzedPeriod": "Período analizado",
+    "availableSeries": "Serie disponible",
+    "periodResolutionDiff": "Período solicitado: {requested}; período disponible utilizado en el informe: {available}.",
+    "periodResolutionSame": "Período de referencia utilizado en el informe: {available}.",
+    "sectionTitleOf": "{sectionTitle} de {title}",
+    "tableClass": "Clase",
+    "spatialAndTimeSeries": "Distribución espacial y serie temporal",
+    "spatialImage": "Imagen espacial: {period}",
+    "rasterDescription": "Mosaico temático de {title} para {period}, recortado visualmente por el contorno municipal de {municipality} — {uf}.",
+    "timeSeriesAlt": "Serie temporal — {title}",
+    "timeSeriesUnavailable": "Serie temporal no disponible para exportación.",
+    "historicalAnalysisTitle": "Análisis de la serie histórica",
+    "sectionReferenceLabel": "Referencia de la sección:",
+    "historicalNoteTitle": "Nota sobre la serie histórica",
+    "historicalNoteText": "La serie disponible para este indicador reúne {count} período(s), cubriendo {range}. {resolution}",
+    "mapCropAlt": "Recorte del mapa del municipio",
+    "mapUnavailableExport": "Mapa no disponible para exportación.",
+    "periodRange": "{first} a {last}",
+    "reportFilenamePrefix": "Informe",
     "status": {
       "available": "Disponible",
       "unavailable": "No disponible",
       "period_not_found": "Período no encontrado"
+    },
+    "indicators": {
+      "anaseca": {
+        "title": "Monitor de Sequías",
+        "methodology": "Producido por la Agencia Nacional de Aguas y Saneamiento Básico (ANA), con disponibilidad mensual y clasificación de la severidad de la sequía."
+      },
+      "monitor-de-secas": {
+        "title": "Monitor de Sequías",
+        "methodology": "Producido por la Agencia Nacional de Aguas y Saneamiento Básico (ANA), con disponibilidad mensual y clasificación de la severidad de la sequía."
+      },
+      "monitor-de-seca-ana": {
+        "title": "Monitor de Sequía | ANA",
+        "methodology": "Sigue la situación de la sequía en Brasil según la clasificación mensual oficial de ANA."
+      },
+      "indicearidez": {
+        "title": "Índice de Aridez",
+        "methodology": "Calculado por la razón entre precipitación anual y evapotranspiración potencial, con referencias decenales disponibles en la plataforma."
+      },
+      "indice-de-aridez": {
+        "title": "Índice de Aridez",
+        "methodology": "Calculado por la razón entre precipitación anual y evapotranspiración potencial, con referencias decenales disponibles en la plataforma."
+      },
+      "deg": {
+        "title": "Índice de Degradación de la Tierra",
+        "methodology": "Indicador territorial producido para caracterizar diferentes niveles de conservación y degradación del suelo y de la cobertura vegetal."
+      },
+      "indice-de-degradacao-da-terra": {
+        "title": "Índice de Degradación de la Tierra",
+        "methodology": "Indicador territorial producido para caracterizar diferentes niveles de conservación y degradación del suelo y de la cobertura vegetal."
+      },
+      "indice-de-degradacao": {
+        "title": "Índice de Degradación",
+        "methodology": "Muestra los niveles de degradación de la tierra en Brasil, desde áreas conservadas hasta las más degradadas."
+      },
+      "carbonoembrapa": {
+        "title": "Carbono Orgánico del Suelo | Embrapa",
+        "methodology": "Muestra la distribución del carbono orgánico del suelo en Brasil según datos de Embrapa."
+      },
+      "carbono": {
+        "title": "Carbono",
+        "methodology": "Muestra la distribución del carbono orgánico del suelo en Brasil según datos de Embrapa."
+      },
+      "prev_anomalia_precipitacao": {
+        "title": "Pronóstico: Anomalía de Precipitación",
+        "methodology": "Pronóstico de anomalía de precipitación elaborado con base en datos climáticos del CPTEC/INPE."
+      },
+      "previsao-anomalia-de-precipitacao": {
+        "title": "Pronóstico: Anomalía de Precipitación",
+        "methodology": "Pronóstico de anomalía de precipitación elaborado con base en datos climáticos del CPTEC/INPE."
+      },
+      "CDI_Test": {
+        "title": "Índice Compuesto de Sequía (CDI)",
+        "methodology": "Monitorea mensualmente las fases de la sequía según el Índice Compuesto de Sequía (CDI) implementado por OCA siguiendo a Cammalleri et al. 2021."
+      },
+      "cdi": {
+        "title": "Índice Compuesto de Sequía (CDI)",
+        "methodology": "Monitorea mensualmente las fases de la sequía según el Índice Compuesto de Sequía (CDI) implementado por OCA siguiendo a Cammalleri et al. 2021."
+      },
+      "pob_total": {
+        "title": "Familias en situación de pobreza",
+        "methodology": "Porcentaje de familias inscritas en CadÚnico en situación de pobreza agregado por municipio."
+      },
+      "familias-em-situacao-de-pobreza": {
+        "title": "Familias en situación de pobreza",
+        "methodology": "Porcentaje de familias inscritas en CadÚnico en situación de pobreza agregado por municipio."
+      },
+      "cemadenseca": {
+        "title": "Cemaden: Sequía",
+        "methodology": "Índice de sequía elaborado a partir del monitoreo y datos observacionales del Cemaden."
+      },
+      "cemaden-seca": {
+        "title": "Cemaden: Sequía",
+        "methodology": "Índice de sequía elaborado a partir del monitoreo y datos observacionales del Cemaden."
+      },
+      "ods": {
+        "title": "Objetivos de Desarrollo Sostenible (ODS 15.3.1)",
+        "methodology": "Indica si la tierra se está degradando, estable o mejorando en el territorio brasileño según la metodología del ODS 15.3.1."
+      },
+      "objetivos-de-desenvolvimento-sustentavel": {
+        "title": "Objetivos de Desarrollo Sostenible (ODS 15.3.1)",
+        "methodology": "Indica si la tierra se está degradando, estable o mejorando en el territorio brasileño según la metodología del ODS 15.3.1."
+      },
+      "prodprimariabruta": {
+        "title": "Producción Primaria Bruta | MODIS",
+        "methodology": "Indicador de productividad vegetal y biomasa derivado de teledetección MODIS."
+      },
+      "producao-primaria-bruta": {
+        "title": "Producción Primaria Bruta | MODIS",
+        "methodology": "Indicador de productividad vegetal y biomasa derivado de teledetección MODIS."
+      },
+      "terraibge": {
+        "title": "Cobertura de la Tierra | IBGE",
+        "methodology": "Presenta la distribución de las clases de cobertura y uso de la tierra según mapeos oficiales del IBGE."
+      },
+      "cobertura-da-terra": {
+        "title": "Cobertura de la Tierra | IBGE",
+        "methodology": "Presenta la distribución de las clases de cobertura y uso de la tierra según mapeos oficiales del IBGE."
+      },
+      "s2id_secas_estiagens": {
+        "title": "Registros de Sequías y Estiajes (2004-2025)",
+        "methodology": "Compilación oficial de registros y decretos de situación de emergencia o calamidad por sequías y estiajes del S2ID."
+      },
+      "registros-de-secas-e-estiagens-2004-2025": {
+        "title": "Registros de Sequías y Estiajes (2004-2025)",
+        "methodology": "Compilación oficial de registros y decretos de situación de emergencia o calamidad por sequías y estiajes del S2ID."
+      },
+      "defaultMethodology": "Indicador territorial disponible en la plataforma SEDES."
+    },
+    "classes": {
+      "condicoes-normais": "Condiciones normales",
+      "sem-seca": "Sin sequía",
+      "seca-fraca": "Sequía débil",
+      "seca-moderada": "Sequía moderada",
+      "seca-severa": "Sequía severa",
+      "seca-grave": "Sequía grave",
+      "seca-extrema": "Sequía extrema",
+      "seca-excepcional": "Sequía excepcional",
+      "conservado": "Conservado",
+      "nivel-1": "Nivel 1",
+      "nivel-2": "Nivel 2",
+      "nivel-3": "Nivel 3",
+      "nivel-4": "Nivel 4",
+      "nivel-5": "Nivel 5",
+      "arido": "Árido",
+      "semiarido": "Semiárido",
+      "subumido-seco": "Subhúmedo Seco",
+      "umido": "Húmedo",
+      "degradando": "Degradándose",
+      "estavel": "Estable",
+      "melhorando": "Mejorando",
+      "area-artificial": "Área artificial",
+      "area-agricola": "Área agrícola",
+      "pastagem-com-manejo": "Pastizal manejado",
+      "mosaico-florestal": "Mosaico forestal",
+      "silvicultura": "Silvicultura",
+      "vegetacao-florestal": "Vegetación forestal",
+      "area-umida": "Humedal",
+      "vegetacao-campestre": "Vegetación herbácea",
+      "mosaico-campestre": "Mosaico herbáceo",
+      "corpo-d-agua-continental": "Cuerpo de agua continental",
+      "corpo-d-agua-costeiro": "Cuerpo de agua costero",
+      "area-descoberta": "Área descubierta"
     }
   }
 }
