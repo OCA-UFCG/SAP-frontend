@@ -96,7 +96,7 @@ export function PlatformSidebar({
     initialSidebarState.showAnalysisFrame,
   );
   const locale = useLocale();
-  const analysisFrameUrl = `https://analise-multicriterial.oca-portal.com/${locale}`;
+  const analysisFrameUrl = `https://gamma-analise-multicriterial.oca-portal.com/${locale}`;
   const defaultPanelOpenOffset = "560px";
   const sidePanelWidthClass = isPanelOpen ? "w-[420px]" : "w-0";
 
