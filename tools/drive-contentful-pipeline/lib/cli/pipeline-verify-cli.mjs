@@ -8,6 +8,7 @@ import {
   buildConversionReport,
   buildMunicipalAnalysisManifest,
   buildPanelLayerImageDataManifest,
+  buildMunicipalReportSeriesManifest,
   buildPipelineValidation,
 } from "../conversion/manifests.mjs";
 import { getDefaultLocale } from "../contentful/client.mjs";
@@ -29,6 +30,7 @@ import {
 } from "../reporting/pipeline-summary.mjs";
 import { resolveWorkspacePath } from "../shared/paths.mjs";
 import { readJson } from "../io/json.mjs";
+import { syncMunicipalReportSeries } from "../contentful/municipal-report-series-sync.mjs";
 
 function parseVerifyArgs(argv, pipelineConfig) {
   const options = {
@@ -99,6 +101,9 @@ async function runLocalConversion(options, pipelineConfig) {
   const panelLayerImageDataManifest = buildPanelLayerImageDataManifest(
     conversionResult.panelLayerFiles,
   );
+  const municipalReportSeriesManifest = buildMunicipalReportSeriesManifest(
+    conversionResult.reportSeries,
+  );
   const municipalAvailabilityIndex = buildMunicipalAvailabilityIndex(
     conversionResult.availabilityEntries,
     conversionResult.panelLayerFiles,
@@ -114,7 +119,7 @@ async function runLocalConversion(options, pipelineConfig) {
     [],
     validation,
     options,
-    { municipalAnalysisManifest, panelLayerImageDataManifest },
+    { municipalAnalysisManifest, panelLayerImageDataManifest, municipalReportSeriesManifest },
   );
 
   await mkdir(resolveWorkspacePath(options.jsonDir), { recursive: true });
@@ -122,6 +127,11 @@ async function runLocalConversion(options, pipelineConfig) {
     options.jsonDir,
     "municipal-analysis-manifest.json",
     municipalAnalysisManifest,
+  );
+  await writeJsonFile(
+    options.jsonDir,
+    "municipal-report-series-manifest.json",
+    municipalReportSeriesManifest,
   );
   await writeJsonFile(
     options.jsonDir,
@@ -242,9 +252,15 @@ export async function runPipelineVerifyCli(argv = process.argv.slice(2)) {
     options.jsonDir,
     localeCheck.locale,
   );
+  const reportSeriesResult = await syncMunicipalReportSeries(
+    config,
+    { jsonDir: options.jsonDir, dryRun: true, publish: false, activate: true },
+    localeCheck.locale,
+  );
 
   console.log(`\n${formatContentfulPanelLayerSummary(panelLayerResult)}`);
   console.log(`\n${formatContentfulMunicipalSummary(municipalResult)}`);
+  console.log(`\nmunicipalReportSeries: ${reportSeriesResult.actions.length} shards validados.`);
   assertContentfulDryRunOk(panelLayerResult, municipalResult);
 }
 

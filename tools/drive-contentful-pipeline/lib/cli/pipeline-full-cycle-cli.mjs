@@ -13,12 +13,14 @@ import {
   summarizePartitionSyncResult,
   syncPartitionEntries,
 } from "../contentful/municipal-analysis-sync.mjs";
+import { syncMunicipalReportSeries } from "../contentful/municipal-report-series-sync.mjs";
 import { convertCsvDirectory } from "../conversion/output-files.mjs";
 import { buildMunicipalAvailabilityIndex } from "../conversion/availability-index.mjs";
 import {
   buildConversionReport,
   buildMunicipalAnalysisManifest,
   buildPanelLayerImageDataManifest,
+  buildMunicipalReportSeriesManifest,
   buildPipelineValidation,
 } from "../conversion/manifests.mjs";
 import { downloadCsvFiles } from "../drive/drive-client.mjs";
@@ -65,6 +67,7 @@ function parseFullCycleArgs(argv, pipelineConfig) {
     sessionCookieEnv: "",
     smokeLimit: 5,
     requireRuntimeSmoke: false,
+    activateReportSeries: false,
     reportPath: path.join(
       pipelineConfig.paths.jsonDir,
       "pipeline-full-cycle-report.json",
@@ -106,6 +109,8 @@ function parseFullCycleArgs(argv, pipelineConfig) {
       options.smokeLimit = Number(nextValue());
     else if (argument === "--require-runtime-smoke")
       options.requireRuntimeSmoke = true;
+    else if (argument === "--activate-report-series")
+      options.activateReportSeries = true;
     else if (argument === "--report-path") options.reportPath = nextValue();
     else if (argument === "--help" || argument === "-h")
       return { ...options, help: true };
@@ -146,6 +151,7 @@ Opções:
   --session-cookie-env <name>  Nome da variável de ambiente com o cookie.
   --smoke-limit <n>            Número máximo de rotas a testar. Padrão: 5.
   --require-runtime-smoke      Falha se smoke for pulado ou tiver falhas.
+  --activate-report-series     Ativa reportSeriesConfig após publicar os shards.
   --report-path <path>         Caminho do relatório JSON. Também gera .md.
 `);
 }
@@ -169,6 +175,9 @@ async function runConversion(options, pipelineConfig) {
   const panelLayerImageDataManifest = buildPanelLayerImageDataManifest(
     conversionResult.panelLayerFiles,
   );
+  const municipalReportSeriesManifest = buildMunicipalReportSeriesManifest(
+    conversionResult.reportSeries,
+  );
   const municipalAvailabilityIndex = buildMunicipalAvailabilityIndex(
     conversionResult.availabilityEntries,
     conversionResult.panelLayerFiles,
@@ -184,7 +193,7 @@ async function runConversion(options, pipelineConfig) {
     downloads,
     validation,
     options,
-    { municipalAnalysisManifest, panelLayerImageDataManifest },
+    { municipalAnalysisManifest, panelLayerImageDataManifest, municipalReportSeriesManifest },
   );
 
   await mkdir(resolveWorkspacePath(options.jsonDir), { recursive: true });
@@ -192,6 +201,11 @@ async function runConversion(options, pipelineConfig) {
     options.jsonDir,
     "municipal-analysis-manifest.json",
     municipalAnalysisManifest,
+  );
+  await writeJsonFile(
+    options.jsonDir,
+    "municipal-report-series-manifest.json",
+    municipalReportSeriesManifest,
   );
   await writeJsonFile(
     options.jsonDir,
@@ -306,9 +320,20 @@ export async function runPipelineFullCycleCli(argv = process.argv.slice(2)) {
     options,
     localeCheck.locale,
   );
+  const reportSeriesResult = await syncMunicipalReportSeries(
+    config,
+    {
+      jsonDir: options.jsonDir,
+      dryRun: !options.publish,
+      publish: options.publish,
+      activate: options.activateReportSeries,
+    },
+    localeCheck.locale,
+  );
 
   console.log(`\n${formatContentfulPanelLayerSummary(panelLayerResult)}`);
   console.log(`\n${formatContentfulMunicipalSummary(municipalResult)}`);
+  console.log(`\nmunicipalReportSeries: ${reportSeriesResult.actions.length} shards; ${reportSeriesResult.activations.length} ativações.`);
 
   if (!options.publish) {
     assertContentfulDryRunOk(panelLayerResult, municipalResult);
@@ -322,6 +347,7 @@ export async function runPipelineFullCycleCli(argv = process.argv.slice(2)) {
     conversionReport,
     panelLayerResult,
     municipalResult,
+    reportSeriesResult,
     runtimeSmoke,
   });
   const reportPaths = await writeFullCycleReports(

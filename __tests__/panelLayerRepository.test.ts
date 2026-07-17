@@ -716,44 +716,35 @@ describe("panelLayerRepository", () => {
     mockedGetContent.mockImplementation(
       async (query: string, variables?: Record<string, unknown>) => {
         if (query.includes("GetMunicipalAnalysisByPanelLayerAndPartition")) {
+          if (variables?.partitionKey === "2026") {
+            return buildMunicipalAnalysisResponse([]);
+          }
+
+          if (variables?.partitionKey === "2026-02") {
+            return buildMunicipalAnalysisResponse([
+              {
+                sys: { id: "municipal-2026-02" },
+                title: "Municipal Analysis CDI_Test 2026-02",
+                panelLayerId: "CDI_Test",
+                partitionKey: "2026-02",
+                imageData: {
+                  years: {
+                    "2026-02": {
+                      values: {
+                        "2914802": [90, 10],
+                      },
+                    },
+                  },
+                },
+              },
+            ]);
+          }
+
           return buildMunicipalAnalysisResponse([]);
         }
 
         if (query.includes("municipalAnalysisCollection")) {
-          expect(variables).toMatchObject({ panelLayerId: "CDI_Test" });
-
-          return buildMunicipalAnalysisResponse([
-            {
-              sys: { id: "municipal-2026-01" },
-              title: "Municipal Analysis CDI_Test 2026-01",
-              panelLayerId: "CDI_Test",
-              partitionKey: "2026-01",
-              imageData: {
-                years: {
-                  "2026-01": {
-                    values: {
-                      "2914802": [10, 90],
-                    },
-                  },
-                },
-              },
-            },
-            {
-              sys: { id: "municipal-2026-02" },
-              title: "Municipal Analysis CDI_Test 2026-02",
-              panelLayerId: "CDI_Test",
-              partitionKey: "2026-02",
-              imageData: {
-                years: {
-                  "2026-02": {
-                    values: {
-                      "2914802": [90, 10],
-                    },
-                  },
-                },
-              },
-            },
-          ]);
+          throw new Error("A coleção municipalAnalysis não deve ser varrida quando os metadados de partição existem.");
         }
 
         return buildPanelLayerResponse([
@@ -799,6 +790,16 @@ describe("panelLayerRepository", () => {
 
     expect(Object.keys(imageData.years)).toEqual(["2026-02"]);
     expect(imageData.years["2026-02"]?.values["2914802"]).toEqual([90, 10]);
+    expect(mockedGetContent).toHaveBeenCalledWith(
+      expect.stringContaining("GetMunicipalAnalysisByPanelLayerAndPartition"),
+      {
+        limit: 100,
+        skip: 0,
+        panelLayerId: "CDI_Test",
+        partitionKey: "2026-02",
+      },
+      { cache: "no-store" },
+    );
   });
 
   it("falls back to partition titles when Contentful metadata fields are unavailable", async () => {

@@ -1,7 +1,8 @@
 import { NextResponse } from "next/server";
 import { requireAuthenticatedRequest } from "@/lib/server-session";
 import { getMunicipalAnalysisCacheControlHeader } from "@/repositories/platform/municipalAnalysisCache";
-import { buildMunicipalReport, MunicipalReportNotFoundError } from "@/services/municipalReportService";
+import { MunicipalReportNotFoundError } from "@/services/municipalReportService";
+import { buildCachedMunicipalReport } from "@/services/municipalReportCache";
 import { createServerTiming } from "@/utils/serverTiming";
 
 const MUNICIPALITY_CODE_PATTERN = /^\d{7}$/u;
@@ -35,7 +36,7 @@ export async function GET(request: Request, context: { params: Promise<{ municip
 
   try {
     const finishBuild = timing.start();
-    const report = await buildMunicipalReport(code, period, {
+    const report = await buildCachedMunicipalReport(code, period, {
       ...(layers?.length ? { analysisIds: layers } : {}),
       onTiming: timing.record,
     });

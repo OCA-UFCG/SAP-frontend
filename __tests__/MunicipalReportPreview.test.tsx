@@ -1,4 +1,5 @@
 import { cleanup, render, screen, waitFor } from "@testing-library/react";
+import userEvent from "@testing-library/user-event";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { useEffect, useRef } from "react";
 import type { ComponentProps } from "react";
@@ -136,7 +137,9 @@ describe("MunicipalReportPreview", () => {
     global.fetch = originalFetch;
   });
 
-  it("renders the embedded report as responsive HTML without PDF viewer controls", async () => {
+  it("renders the embedded report as HTML by default and keeps a modified-format toggle without PDF viewer controls", async () => {
+    const user = userEvent.setup();
+
     render(
       <MunicipalReportPreview
         municipalityCode="5200050"
@@ -149,6 +152,8 @@ describe("MunicipalReportPreview", () => {
     expect(await screen.findByRole("article")).toBeInTheDocument();
     expect(screen.getByText("Monitor de Secas")).toBeInTheDocument();
     expect(screen.getByText("Distribuição espacial e série temporal")).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "HTML" })).toHaveAttribute("aria-pressed", "true");
+    expect(screen.getByRole("button", { name: "Formato modificado" })).toHaveAttribute("aria-pressed", "false");
     expect(screen.queryByLabelText("Aumentar zoom")).not.toBeInTheDocument();
     expect(screen.queryByLabelText("Diminuir zoom")).not.toBeInTheDocument();
     expect(screen.queryByText("75%")).not.toBeInTheDocument();
@@ -157,5 +162,11 @@ describe("MunicipalReportPreview", () => {
     await waitFor(() => {
       expect(screen.getByRole("button", { name: "Download" })).toBeEnabled();
     });
+
+    await user.click(screen.getByRole("button", { name: "Formato modificado" }));
+
+    expect(screen.getByRole("button", { name: "HTML" })).toHaveAttribute("aria-pressed", "false");
+    expect(screen.getByRole("button", { name: "Formato modificado" })).toHaveAttribute("aria-pressed", "true");
+    expect(screen.queryByLabelText("Aumentar zoom")).not.toBeInTheDocument();
   });
 });

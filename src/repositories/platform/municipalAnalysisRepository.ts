@@ -388,6 +388,7 @@ async function getMunicipalAnalysisPatchesForPartition(
   baseYears: Record<string, CompactAnalysisYearData>,
   yearKey: string,
 ): Promise<CompactTerritorialAnalysisDatasetPatch[]> {
+  let partitionMetadataUnavailable = false;
   try {
     const entries = await getMunicipalAnalysisEntries(
       GET_MUNICIPAL_ANALYSIS_BY_PANEL_LAYER_AND_PARTITION,
@@ -405,8 +406,35 @@ async function getMunicipalAnalysisPatchesForPartition(
       return patches;
     }
   } catch {
+    partitionMetadataUnavailable = true;
     // Environments published before partition metadata exists fall back to
     // matching by the standardized entry title below.
+  }
+
+  // CDI and other dense monthly layers can split an oversized annual payload
+  // into monthly partitions. Try that exact key before any legacy collection
+  // scan so a report request never needs to download/decompress the full layer.
+  if (partitionKey !== yearKey) {
+    try {
+      const monthlyEntries = await getMunicipalAnalysisEntries(
+        GET_MUNICIPAL_ANALYSIS_BY_PANEL_LAYER_AND_PARTITION,
+        { panelLayerId, partitionKey: yearKey },
+      );
+      const monthlyPatches = monthlyEntries.flatMap((entry) => {
+        const patch = toDatasetPatch(entry?.imageData);
+        return patch && hasPatchForYear(baseYears, patch.years, yearKey)
+          ? [patch]
+          : [];
+      });
+      if (monthlyPatches.length > 0) return monthlyPatches;
+    } catch {
+      partitionMetadataUnavailable = true;
+      // Only old environments without partition fields need the final legacy scan.
+    }
+  }
+
+  if (!partitionMetadataUnavailable) {
+    return [];
   }
 
   const entries = await getMunicipalAnalysisEntries(

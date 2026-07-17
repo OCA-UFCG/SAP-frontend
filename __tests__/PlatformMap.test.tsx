@@ -138,7 +138,7 @@ describe("PlatformMap", () => {
       screen.getByRole("slider", { name: "Transparência" }),
     ).toHaveValue("0.85");
     expect(
-      screen.getByRole("heading", { name: "Legenda do mapa" }),
+      screen.getByRole("heading", { name: "Legendas" }),
     ).toBeInTheDocument();
 
     rerender(<PlatformMap showMonitoringOverlays={false} />);

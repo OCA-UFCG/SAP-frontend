@@ -1,6 +1,7 @@
 import "server-only";
 
 import citiesIndex from "@/data/citiesIndex.json";
+import municipalAvailabilityIndex from "@/data/municipalAvailabilityIndex.json";
 import {
   MUNICIPAL_REPORT_LAYERS,
   type MunicipalReportLayerConfig,
@@ -8,10 +9,19 @@ import {
 import type {
   MunicipalReportAnalysis,
   MunicipalReportData,
+  MunicipalReportPeriodSnapshot,
 } from "@/contracts/municipalReport";
 import { getCachedMunicipalAnalysisImageData } from "@/repositories/platform/municipalAnalysisCache";
 import { getPanelLayers } from "@/repositories/platform/panelLayerRepository";
+import {
+  getMunicipalReportSeries,
+  type MunicipalReportLocationSeries,
+} from "@/repositories/platform/municipalReportSeriesRepository";
 import { isCompactImageData } from "@/utils/imageData";
+import {
+  resolveMunicipalLayerPeriod,
+  type MunicipalAvailabilityIndex,
+} from "@/utils/municipalAvailability";
 import {
   buildMunicipalReportSnapshot,
   buildMunicipalReportTimeSeries,
@@ -27,6 +37,8 @@ export interface MunicipalReportServiceDependencies {
   listPanelLayers?: typeof getPanelLayers;
   now?: () => Date;
   onTiming?: TimingObserver;
+  availabilityIndex?: MunicipalAvailabilityIndex;
+  loadReportSeries?: typeof getMunicipalReportSeries;
 }
 
 export class MunicipalReportNotFoundError extends Error {}
@@ -61,8 +73,145 @@ async function resolveReportLayers(
         : undefined,
       timeSeriesLocationKey: override?.timeSeriesLocationKey,
       presentation: override?.presentation,
+      reportSeriesConfig: layer.reportSeriesConfig,
+      baseImageData: isCompactImageData(layer.imageData)
+        ? layer.imageData
+        : undefined,
     };
   });
+}
+
+function createLimiter(maxConcurrent: number) {
+  let active = 0;
+  const queue: Array<() => void> = [];
+  return async <T>(operation: () => Promise<T>): Promise<T> => {
+    if (active >= maxConcurrent) await new Promise<void>((resolve) => queue.push(resolve));
+    active += 1;
+    try {
+      return await operation();
+    } finally {
+      active -= 1;
+      queue.shift()?.();
+    }
+  };
+}
+
+const limitFallbackLoad = createLimiter(4);
+
+function getCalendarYear(period: string) {
+  return period.match(/^(\d{4})(?:-\d{2})?$/u)?.[1] ?? null;
+}
+
+function resolveCanonicalReportPeriod(
+  period: string,
+  sourcePeriods: readonly string[],
+  spatialPeriods: readonly string[],
+) {
+  if (spatialPeriods.includes(period)) return period;
+
+  const calendarYear = getCalendarYear(period);
+  if (!calendarYear) return period;
+
+  const sourceMatches = sourcePeriods.filter(
+    (candidate) => getCalendarYear(candidate) === calendarYear,
+  );
+  const spatialMatches = spatialPeriods.filter(
+    (candidate) => getCalendarYear(candidate) === calendarYear,
+  );
+
+  return sourceMatches.length === 1 && spatialMatches.length === 1
+    ? spatialMatches[0]
+    : period;
+}
+
+function normalizeReportSnapshotPeriods(
+  snapshots: readonly MunicipalReportPeriodSnapshot[],
+  spatialPeriods: readonly string[],
+) {
+  const sourcePeriods = snapshots.map(({ period }) => period);
+
+  return snapshots.map((snapshot) => {
+    const period = resolveCanonicalReportPeriod(
+      snapshot.period,
+      sourcePeriods,
+      spatialPeriods,
+    );
+
+    return period === snapshot.period
+      ? snapshot
+      : { ...snapshot, period, label: period };
+  });
+}
+
+function normalizeReportSnapshotPeriod(
+  snapshot: MunicipalReportPeriodSnapshot | null,
+  sourcePeriods: readonly string[],
+  spatialPeriods: readonly string[],
+) {
+  if (!snapshot) return null;
+
+  const period = resolveCanonicalReportPeriod(
+    snapshot.period,
+    sourcePeriods,
+    spatialPeriods,
+  );
+
+  return period === snapshot.period
+    ? snapshot
+    : { ...snapshot, period, label: period };
+}
+
+function buildSeriesDataset(
+  base: NonNullable<MunicipalReportLayerConfig["baseImageData"]>,
+  municipalityCode: string,
+  series: MunicipalReportLocationSeries,
+) {
+  return {
+    ...base,
+    years: Object.fromEntries(
+      Object.entries(series).map(([period, entry]) => [
+        period,
+        {
+          imageId: base.years[period]?.imageId ?? "",
+          year: base.years[period]?.year ?? period,
+          ...(typeof entry.valuesScale === "number"
+            ? { valuesScale: entry.valuesScale }
+            : {}),
+          values: { [municipalityCode]: entry.values },
+        },
+      ]),
+    ),
+  };
+}
+
+async function loadReportSeriesData(
+  config: MunicipalReportLayerConfig,
+  municipalityCode: string,
+  loadReportSeries: typeof getMunicipalReportSeries,
+) {
+  if (!config.reportSeriesConfig || !config.baseImageData) return null;
+  const result = await loadReportSeries(
+    config.panelLayerId,
+    municipalityCode,
+    config.reportSeriesConfig,
+    Boolean(config.timeSeriesLocationKey),
+  );
+  if (!result.municipality) return null;
+  const dataset = buildSeriesDataset(
+    config.baseImageData,
+    municipalityCode,
+    result.municipality,
+  );
+  const timeSeriesDataset = config.timeSeriesLocationKey && result.aggregate
+    ? buildSeriesDataset(config.baseImageData, "br", result.aggregate)
+    : dataset;
+  return {
+    dataset,
+    timeSeries: buildMunicipalReportTimeSeries(
+      timeSeriesDataset,
+      config.timeSeriesLocationKey ?? municipalityCode,
+    ),
+  };
 }
 
 function unavailable(
@@ -87,12 +236,12 @@ function unavailable(
 async function loadMunicipalTimeSeries(
   panelLayerId: string,
   municipalityCode: string,
-  requestedPeriod: string,
+  effectivePeriod: string,
   availablePeriods: readonly string[] | undefined,
   timeSeriesLocationKey: string,
   loadImageData: typeof getCachedMunicipalAnalysisImageData,
 ) {
-  const seed = await loadImageData(panelLayerId, requestedPeriod);
+  const seed = await limitFallbackLoad(() => loadImageData(panelLayerId, effectivePeriod));
 
   // Annual/monthly partition requests are the same path used by Monitoramento.
   // Each response contains the lightweight dataset metadata plus municipal
@@ -107,8 +256,8 @@ async function loadMunicipalTimeSeries(
     if (periodKeys.length > 0) {
       const datasets = await Promise.all(
         periodKeys.map(async (period) => {
-          if (period === requestedPeriod) return seed.imageData;
-          const result = await loadImageData(panelLayerId, period);
+          if (period === effectivePeriod) return seed.imageData;
+          const result = await limitFallbackLoad(() => loadImageData(panelLayerId, period));
           return result.found && result.imageData && isCompactImageData(result.imageData)
             ? result.imageData
             : null;
@@ -131,7 +280,7 @@ async function loadMunicipalTimeSeries(
 
   // Compatibility fallback for an annual request against a monthly dataset
   // or environments that have not published partition metadata yet.
-  const complete = await loadImageData(panelLayerId);
+  const complete = await limitFallbackLoad(() => loadImageData(panelLayerId));
   if (!complete.found || !complete.imageData || !isCompactImageData(complete.imageData)) {
     return null;
   }
@@ -154,8 +303,20 @@ export async function buildMunicipalReport(
 
   const loadImageData =
     dependencies.loadImageData ?? getCachedMunicipalAnalysisImageData;
+  const loadReportSeries = dependencies.loadReportSeries ?? getMunicipalReportSeries;
+  const availabilityIndex =
+    dependencies.availabilityIndex ??
+    (municipalAvailabilityIndex as MunicipalAvailabilityIndex);
   const requestedAnalysisIds = dependencies.analysisIds
     ? new Set(dependencies.analysisIds.map((id) => id.trim().toLowerCase()))
+    : null;
+  const requestedAnalysisOrder = dependencies.analysisIds
+    ? new Map(
+        dependencies.analysisIds.map((id, index) => [
+          id.trim().toLowerCase(),
+          index,
+        ]),
+      )
     : null;
   const layersStartedAt = performance.now();
   const resolvedLayers = await resolveReportLayers(dependencies);
@@ -171,37 +332,97 @@ export async function buildMunicipalReport(
         requestedAnalysisIds.has(layer.panelLayerId.toLowerCase()) ||
         requestedAnalysisIds.has(layer.alias.toLowerCase()),
     )
-    .sort((a, b) => a.order - b.order);
+    .sort((a, b) => {
+      if (requestedAnalysisOrder) {
+        const leftOrder = requestedAnalysisOrder.get(a.panelLayerId.toLowerCase())
+          ?? requestedAnalysisOrder.get(a.alias.toLowerCase());
+        const rightOrder = requestedAnalysisOrder.get(b.panelLayerId.toLowerCase())
+          ?? requestedAnalysisOrder.get(b.alias.toLowerCase());
+
+        if (leftOrder != null && rightOrder != null) {
+          return leftOrder - rightOrder;
+        }
+      }
+
+      return a.order - b.order;
+    });
   const analyses = await Promise.all(
     layers.map(async (config): Promise<MunicipalReportAnalysis> => {
       const analysisStartedAt = performance.now();
       try {
-      const temporalData = await loadMunicipalTimeSeries(
-        config.panelLayerId,
-        municipalityCode,
-        requestedPeriod,
-        config.periods,
-        config.timeSeriesLocationKey ?? municipalityCode,
-        loadImageData,
-      );
-      if (!temporalData)
-        return unavailable(config, requestedPeriod);
-      const { dataset, timeSeries } = temporalData;
-      const snapshot = config.timeSeriesLocationKey
-        ? buildMunicipalReportSnapshot(dataset, municipalityCode, requestedPeriod)
-        : resolveMunicipalReportSnapshot(timeSeries, requestedPeriod);
+        const isIndexedLayer = availabilityIndex.layers.some(
+          (layer) => layer.panelLayerId === config.panelLayerId,
+        );
+        const indexedPeriod = resolveMunicipalLayerPeriod(
+          availabilityIndex,
+          municipalityCode,
+          config.panelLayerId,
+          requestedPeriod,
+        );
+        if (isIndexedLayer && !indexedPeriod && !config.reportSeriesConfig) {
+          return unavailable(config, requestedPeriod);
+        }
+        const effectivePeriod = indexedPeriod ?? requestedPeriod;
+        let seriesData = null;
+        try {
+          seriesData = await loadReportSeriesData(
+            config,
+            municipalityCode,
+            loadReportSeries,
+          );
+        } catch (error) {
+          console.warn(
+            `[municipalReport] Shard indisponível para ${config.panelLayerId}; usando municipalAnalysis.`,
+            error,
+          );
+        }
+        const temporalData = seriesData ?? await loadMunicipalTimeSeries(
+          config.panelLayerId,
+          municipalityCode,
+          effectivePeriod,
+          config.periods,
+          config.timeSeriesLocationKey ?? municipalityCode,
+          loadImageData,
+        );
+        if (!temporalData) return unavailable(config, requestedPeriod);
+        const { dataset, timeSeries: sourceTimeSeries } = temporalData;
+        const sourceSnapshot = seriesData
+          ? resolveMunicipalReportSnapshot(
+              buildMunicipalReportTimeSeries(dataset, municipalityCode),
+              requestedPeriod,
+            )
+          : config.timeSeriesLocationKey
+            ? buildMunicipalReportSnapshot(
+                dataset,
+                municipalityCode,
+                effectivePeriod,
+              )
+            : resolveMunicipalReportSnapshot(sourceTimeSeries, requestedPeriod);
+        const spatialPeriods = config.baseImageData
+          ? Object.keys(config.baseImageData.years)
+          : (config.periods ?? []);
+        const sourcePeriods = sourceTimeSeries.map(({ period }) => period);
+        const timeSeries = normalizeReportSnapshotPeriods(
+          sourceTimeSeries,
+          spatialPeriods,
+        );
+        const snapshot = normalizeReportSnapshotPeriod(
+          sourceSnapshot,
+          sourcePeriods,
+          spatialPeriods,
+        );
         return {
           id: config.panelLayerId,
           alias: config.alias,
           title: config.title,
           unit:
-          dataset.valueConfig?.unit ??
-          (dataset.valueConfig?.type === "absolute" ? "" : "%"),
-        valueType: dataset.valueConfig?.type ?? "percentage",
+            dataset.valueConfig?.unit ??
+            (dataset.valueConfig?.type === "absolute" ? "" : "%"),
+          valueType: dataset.valueConfig?.type ?? "percentage",
           status: snapshot ? "available" : "period_not_found",
           requestedPeriod,
           effectivePeriod: snapshot?.period ?? null,
-        classes: getMunicipalReportClasses(dataset),
+          classes: getMunicipalReportClasses(dataset),
           snapshot,
           timeSeries,
         };

@@ -43,6 +43,16 @@ textarea {
     overflow-wrap: anywhere;
   }
 
+  .report-paper.report-paper-html {
+    width: 100%;
+    margin-top: 0;
+    box-shadow: none;
+  }
+
+  .report-paper.report-paper-modified {
+    width: 210mm;
+  }
+
   .report-visual-grid {
     display: grid;
     grid-template-columns: minmax(0, 1fr);

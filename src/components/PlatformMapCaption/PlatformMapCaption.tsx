@@ -14,33 +14,25 @@ import { IImageParam } from "@/utils/interfaces";
  * component hierarchy explicit.
  */
 export function PlatformMapCaption({ legend }: { legend: IImageParam[] }) {
-  const [isOpen, setIsOpen] = useState(true);
+  const [isOpen, setIsOpen] = useState(false);
   const t = useTranslations("PlatformMapCaption");
   const shouldScroll = legend.length > 6;
 
   return (
-    <div
-      className={
-        "w-full rounded-xl border-t border-neutral-200 bg-white/90 shadow-sm"
-      }
-    >
-      <div
-        className={`
-        ${isOpen ? "px-4 py-3 gap-[10px]" : "px-4 py-3 gap-[10px]"}
-        bg-white hover:bg-[#E4E5E2]
-        border border-[#EFEFEF] rounded-lg transition-colors duration-150
-      `}
-      >
+    <div className="w-[302px] overflow-hidden rounded-lg border border-[#EFEFEF] bg-white">
+      <div className="box-border flex h-10 w-full flex-col items-start justify-center gap-1.5 border-b border-[#E5E5E5] bg-[#F8F7F8] px-3 py-2">
         <button
           type="button"
           onClick={() => setIsOpen(!isOpen)}
-          className="flex w-full h-full justify-between items-center w-full cursor-pointer text-left bg-transparent"
+          className="flex h-6 w-full cursor-pointer items-center gap-1.5 bg-transparent text-left"
           aria-expanded={isOpen}
         >
-          <h2 className="font-semibold text-base text-neutral-600">
+          <h2 className="h-5 min-w-0 flex-1 font-inter text-xs font-medium leading-5 tracking-[-0.03em] text-[#292829]">
             {t("title")}
           </h2>
-          <Chevron open={isOpen} from="down" to="up" size={30} />
+          <span className="flex h-6 w-6 shrink-0 items-center justify-center text-black">
+            <Chevron open={isOpen} from="down" to="up" size={24} />
+          </span>
         </button>
       </div>
       <div>
