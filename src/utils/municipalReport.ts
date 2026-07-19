@@ -1,5 +1,6 @@
 import type { MunicipalReportClass, MunicipalReportPeriodSnapshot } from "@/contracts/municipalReport";
 import type { CompactTerritorialAnalysisDataset } from "@/utils/analysis";
+import { resolveNearestReportPeriod } from "@/utils/municipalAvailability";
 
 export function roundReportPercentage(value: number): number {
   return Number(value.toFixed(1));
@@ -52,18 +53,14 @@ export function resolveMunicipalReportSnapshot(
   timeSeries: MunicipalReportPeriodSnapshot[],
   requestedPeriod: string,
 ): MunicipalReportPeriodSnapshot | null {
-  const exactPeriod = timeSeries.find(
-    (snapshot) => snapshot.period === requestedPeriod,
-  );
-  if (exactPeriod) return exactPeriod;
-
-  if (!/^\d{4}$/.test(requestedPeriod)) return null;
-
-  const monthlyPeriods = timeSeries.filter((snapshot) =>
-    new RegExp(`^${requestedPeriod}-(0[1-9]|1[0-2])$`).test(snapshot.period),
+  const resolvedPeriod = resolveNearestReportPeriod(
+    timeSeries.map((snapshot) => snapshot.period),
+    requestedPeriod,
   );
 
-  return monthlyPeriods.at(-1) ?? null;
+  return resolvedPeriod
+    ? timeSeries.find((snapshot) => snapshot.period === resolvedPeriod) ?? null
+    : null;
 }
 
 export function getMunicipalReportClasses(

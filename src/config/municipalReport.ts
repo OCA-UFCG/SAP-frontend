@@ -6,6 +6,8 @@ export interface MunicipalReportLayerConfig {
   periods?: string[];
   timeSeriesLocationKey?: "br";
   presentation?: MunicipalReportPresentationConfig;
+  reportSeriesConfig?: import("@/utils/interfaces").MunicipalReportSeriesConfig | null;
+  baseImageData?: import("@/utils/analysis").CompactTerritorialAnalysisDataset;
 }
 
 export interface MunicipalReportClassPresentation {

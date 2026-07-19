@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import citiesIndex from "@/data/citiesIndex.json";
 import { requireAuthenticatedRequest } from "@/lib/server-session";
 import { buildDocContent } from "@/services/buildDoc/buildDocContent";
+import { buildCachedMunicipalReport } from "@/services/municipalReportCache";
 import { createServerTiming } from "@/utils/serverTiming";
 
 const MUNICIPALITY_CODE_PATTERN = /^\d{7}$/u;
@@ -54,6 +55,10 @@ export async function GET(request: Request, context: { params: Promise<{ municip
   const { month, year } = getPeriodParts(period);
 
   try {
+    const report = await buildCachedMunicipalReport(code, period, {
+      analysisIds: layerIds,
+      onTiming: timing.record,
+    });
     const finishDocs = timing.start();
     const content = await buildDocContent({
       themes,
@@ -64,6 +69,7 @@ export async function GET(request: Request, context: { params: Promise<{ municip
       ibgeId: code,
       period,
       onTiming: timing.record,
+      report,
     });
     finishDocs("build_docs", "Montagem completa dos textos");
 

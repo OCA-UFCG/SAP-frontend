@@ -41,7 +41,6 @@
     "missingParameters": "Município e período são obrigatórios.",
     "reportLabel": "Relatório analítico municipal",
     "ibgeCode": "Código IBGE",
-    "requestedPeriod": "Período solicitado",
     "generatedAt": "Gerado em",
     "effectivePeriod": "Período efetivo",
     "dominantClass": "Classe predominante",

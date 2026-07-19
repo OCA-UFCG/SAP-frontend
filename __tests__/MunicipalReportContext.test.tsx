@@ -19,12 +19,25 @@ vi.mock("@/data/municipalAvailabilityIndex.json", () => ({
         panelLayerId: "seca",
         label: "Seca",
         order: 0,
-        periods: ["2026-01"],
+        periods: ["2024"],
+      },
+      {
+        panelLayerId: "futuro",
+        label: "Índice futuro",
+        order: 1,
+        periods: ["2028"],
+      },
+      {
+        panelLayerId: "sem-dados",
+        label: "Sem dados",
+        order: 2,
+        periods: ["2026"],
       },
     ],
     byMunicipality: {
       "5200050": {
         seca: "0",
+        futuro: "0",
       },
     },
   },
@@ -38,6 +51,26 @@ const panelLayers: PanelLayerI[] = [
     description: "Descricao",
     category: "Dados Climáticos",
     panelPosition: 1,
+    previewMap: { url: "/preview.png" },
+    imageData: {},
+  },
+  {
+    sys: { id: "sys-futuro" },
+    id: "futuro",
+    name: "Índice futuro",
+    description: "Descricao",
+    category: "Dados Climáticos",
+    panelPosition: 2,
+    previewMap: { url: "/preview.png" },
+    imageData: {},
+  },
+  {
+    sys: { id: "sys-sem-dados" },
+    id: "sem-dados",
+    name: "Sem dados",
+    description: "Descricao",
+    category: "Dados Climáticos",
+    panelPosition: 3,
     previewMap: { url: "/preview.png" },
     imageData: {},
   },
@@ -56,19 +89,33 @@ describe("MunicipalReportContext", () => {
     global.fetch = originalFetch;
   });
 
-  it("checks module availability from the local index without calling the report API", async () => {
+  it("starts checked and keeps every resolvable module selected without calling the report API", async () => {
     const user = userEvent.setup();
 
     render(<MunicipalReportContext panelLayers={panelLayers} />);
+
+    expect(screen.queryByText("Data da análise")).not.toBeInTheDocument();
+    expect(screen.getByRole("checkbox", { name: "Monitor de Secas" })).toBeChecked();
+    expect(screen.getByRole("checkbox", { name: "Índice futuro" })).toBeChecked();
+    expect(screen.getByRole("checkbox", { name: "Sem dados" })).toBeChecked();
 
     await user.click(screen.getByRole("combobox"));
     await user.type(screen.getByRole("combobox"), "Abadia");
     await user.click(screen.getByRole("option", { name: "Abadia de Goiás - GO" }));
 
     await waitFor(() => {
-      expect(screen.getByRole("checkbox")).toBeChecked();
+      expect(screen.getByRole("checkbox", { name: "Monitor de Secas" })).toBeChecked();
     });
-    expect(screen.getByText("Monitor de Secas")).toBeInTheDocument();
+    expect(screen.getByRole("checkbox", { name: "Índice futuro" })).toBeChecked();
+    expect(screen.getByRole("checkbox", { name: "Sem dados" })).not.toBeChecked();
+    expect(screen.getByRole("checkbox", { name: "Sem dados" })).toBeDisabled();
     expect(global.fetch).not.toHaveBeenCalled();
+
+    await user.click(screen.getByRole("button", { name: "Gerar relatório" }));
+    expect(pushMock).toHaveBeenCalledOnce();
+    const destination = pushMock.mock.calls[0]?.[0] as string;
+    const params = new URL(destination, "https://example.test").searchParams;
+    expect(params.get("period")).toBe("2026");
+    expect(params.get("layers")?.split(",")).toEqual(["seca", "futuro"]);
   });
 });

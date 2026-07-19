@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
 import { useLocale, useTranslations } from "next-intl";
 import type {
@@ -27,6 +27,7 @@ import {
 } from "@/utils/municipalReportValue";
 import { slugifyTranslationKey } from "@/utils/translations";
 import { ReportMapPreview } from "./ReportMapPreview";
+import { useReportMapCaptureQueue } from "./useReportMapCaptureQueue";
 
 interface MunicipalReportPreviewProps {
   municipalityCode: string;
@@ -155,6 +156,8 @@ function AnalysisSection({
   chartSrc,
   mapSrc,
   mapActive,
+  mapAttempt,
+  mapQueuedAt,
   onMapCapture,
   docsContent,
 }: {
@@ -165,6 +168,8 @@ function AnalysisSection({
   chartSrc?: string;
   mapSrc?: string;
   mapActive?: boolean;
+  mapAttempt?: number;
+  mapQueuedAt?: number | null;
   onMapCapture?: (src: string | null) => void;
   docsContent: MunicipalReportDocsContent | null;
 }) {
@@ -192,16 +197,9 @@ function AnalysisSection({
   const sectionColor = presentation.sectionColor;
   const effectivePeriod = analysis.effectivePeriod ?? analysis.snapshot?.period;
   const referencePeriod = effectivePeriod ?? analysis.snapshot?.period ?? analysis.requestedPeriod;
-  const requestedPeriodLabel = formatReportPeriod(analysis.requestedPeriod, locale);
   const referencePeriodLabel = formatReportPeriod(referencePeriod, locale);
   const snapshotPeriodLabel = analysis.snapshot?.label || referencePeriodLabel;
-  const periodResolution =
-    analysis.requestedPeriod !== referencePeriod
-      ? t("periodResolutionDiff", {
-          requested: requestedPeriodLabel,
-          available: referencePeriodLabel,
-        })
-      : t("periodResolutionSame", { available: referencePeriodLabel });
+  const periodResolution = `${t("analyzedPeriod")}: ${referencePeriodLabel}.`;
   const historyRange = compactPeriodRange(
     analysis.timeSeries,
     referencePeriod,
@@ -232,9 +230,7 @@ function AnalysisSection({
               {t("availablePeriods")}: {analysis.timeSeries.map((item) => item.period).join(", ")}
             </p>
           )}
-          <p className="mt-2 text-sm leading-6 text-neutral-600">
-            {t("requestedPeriodForIndicator", { period: requestedPeriodLabel })}
-          </p>
+
         </div>
       ) : (
         <>
@@ -247,11 +243,7 @@ function AnalysisSection({
                 </span>
               </p>
               {situationText && <p className="mt-2 whitespace-pre-line text-justify">{situationText}</p>}
-              <dl className="mt-4 grid gap-2 border-t border-[#d9e0e3] pt-3 text-sm sm:grid-cols-3">
-                <div>
-                  <dt className="font-bold text-[#536e7b]">{t("requestedPeriod")}</dt>
-                  <dd>{requestedPeriodLabel}</dd>
-                </div>
+              <dl className="mt-4 grid gap-2 border-t border-[#d9e0e3] pt-3 text-sm sm:grid-cols-2">
                 <div>
                   <dt className="font-bold text-[#536e7b]">{t("analyzedPeriod")}</dt>
                   <dd>{referencePeriodLabel}</dd>
@@ -330,7 +322,9 @@ function AnalysisSection({
                   period={referencePeriod}
                   className="report-map-frame h-[230px] w-full"
                   active={mapActive}
+                  attempt={mapAttempt}
                   imageSrc={mapSrc}
+                  queuedAt={mapQueuedAt}
                   onCapture={onMapCapture}
                 />
                 <p className="border-t border-[#c8ced1] px-4 py-2 text-xs leading-5 text-neutral-600">
@@ -395,7 +389,9 @@ function ReportDocument({
   layerIds = [],
   charts,
   mapImages,
-  activeMapKey,
+  activeMapKeys,
+  mapQueueStartedAt,
+  retryAttemptFor,
   onMapCapture,
   documentRef,
   docsContent,
@@ -404,7 +400,9 @@ function ReportDocument({
   layerIds?: string[];
   charts: Map<string, string>;
   mapImages: Map<string, string | null>;
-  activeMapKey?: string;
+  activeMapKeys: ReadonlySet<string>;
+  mapQueueStartedAt: number | null;
+  retryAttemptFor: (key: string) => number;
   onMapCapture?: (key: string, src: string | null) => void;
   documentRef?: React.Ref<HTMLElement>;
   docsContent: MunicipalReportDocsContent | null;
@@ -483,20 +481,25 @@ function ReportDocument({
       </header>
 
       <div className="mt-10 space-y-12">
-        {selected.map((analysis, index) => (
-          <AnalysisSection
-            key={analysis.id}
-            analysis={analysis}
-            report={report}
-            index={index}
-            locale={locale}
-            chartSrc={charts.get(analysis.alias)}
-            mapSrc={mapImages.get(`${analysis.id}:${analysis.effectivePeriod ?? analysis.snapshot?.period ?? report.requestedPeriod}`) ?? undefined}
-            mapActive={activeMapKey === `${analysis.id}:${analysis.effectivePeriod ?? analysis.snapshot?.period ?? report.requestedPeriod}`}
-            onMapCapture={(src) => onMapCapture?.(`${analysis.id}:${analysis.effectivePeriod ?? analysis.snapshot?.period ?? report.requestedPeriod}`, src)}
-            docsContent={docsContent}
-          />
-        ))}
+        {selected.map((analysis, index) => {
+          const mapKey = `${analysis.id}:${analysis.effectivePeriod ?? analysis.snapshot?.period ?? report.requestedPeriod}`;
+          return (
+            <AnalysisSection
+              key={analysis.id}
+              analysis={analysis}
+              report={report}
+              index={index}
+              locale={locale}
+              chartSrc={charts.get(analysis.alias)}
+              mapSrc={mapImages.get(mapKey) ?? undefined}
+              mapActive={activeMapKeys.has(mapKey)}
+              mapAttempt={retryAttemptFor(mapKey)}
+              mapQueuedAt={mapQueueStartedAt}
+              onMapCapture={(src) => onMapCapture?.(mapKey, src)}
+              docsContent={docsContent}
+            />
+          );
+        })}
       </div>
 
       <section className="report-notes mt-12 border-t border-[#d9e0e3] pt-8">
@@ -565,8 +568,7 @@ export function MunicipalReportPreview({ municipalityCode, period, layerIds, emb
   const [report, setReport] = useState<MunicipalReportData | null>(null);
   const [docsContent, setDocsContent] = useState<MunicipalReportDocsContent | null>(null);
   const [charts, setCharts] = useState<Map<string, string>>(new Map());
-  const [mapImages, setMapImages] = useState<Map<string, string | null>>(new Map());
-  const [mapRenderIndex, setMapRenderIndex] = useState(0);
+  const [mapQueueStartedAt, setMapQueueStartedAt] = useState<number | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(hasRequiredParameters);
   const [exporting, setExporting] = useState(false);
@@ -575,6 +577,8 @@ export function MunicipalReportPreview({ municipalityCode, period, layerIds, emb
   const navigationMeasuredRef = useRef(false);
   const previewMeasuredRef = useRef(false);
   const summaryMeasuredRef = useRef(false);
+  const mapQueueMeasuredRef = useRef(false);
+  const mapQueuePeakConcurrencyRef = useRef(0);
   const layerIdsKey = useMemo(() => layerIds?.join(",") ?? "", [layerIds]);
   const reportMapKeys = useMemo(() => {
     if (!report) return [];
@@ -586,8 +590,14 @@ export function MunicipalReportPreview({ municipalityCode, period, layerIds, emb
       .filter((analysis) => analysis.status === "available" && analysis.snapshot)
       .map((analysis) => `${analysis.id}:${analysis.effectivePeriod ?? analysis.snapshot?.period ?? report.requestedPeriod}`);
   }, [layerIdsKey, report]);
-  const activeMapKey = reportMapKeys[mapRenderIndex];
-  const mapsReady = reportMapKeys.every((key) => mapImages.has(key));
+  const {
+    activeMapKeys,
+    handleMapCapture,
+    mapImages,
+    mapsReady,
+    resetMapCaptureQueue,
+    retryAttemptFor,
+  } = useReportMapCaptureQueue(reportMapKeys);
 
   useEffect(() => {
     if (!hasRequiredParameters || navigationMeasuredRef.current) return;
@@ -608,6 +618,33 @@ export function MunicipalReportPreview({ municipalityCode, period, layerIds, emb
   }, [loading, report]);
 
   useEffect(() => {
+    mapQueueMeasuredRef.current = false;
+    mapQueuePeakConcurrencyRef.current = 0;
+  }, [mapQueueStartedAt]);
+
+  useEffect(() => {
+    mapQueuePeakConcurrencyRef.current = Math.max(
+      mapQueuePeakConcurrencyRef.current,
+      activeMapKeys.size,
+    );
+  }, [activeMapKeys, mapQueueStartedAt]);
+
+  useEffect(() => {
+    if (
+      !report ||
+      loading ||
+      !mapsReady ||
+      mapQueueStartedAt === null ||
+      mapQueueMeasuredRef.current
+    ) return;
+    mapQueueMeasuredRef.current = true;
+    const finishQueue = startMunicipalReportStage(mapQueueStartedAt);
+    finishQueue("Fila de imagens espaciais", {
+      detalhes: `${reportMapKeys.length} mapa(s); concorrência máxima ${mapQueuePeakConcurrencyRef.current}`,
+    });
+  }, [loading, mapQueueStartedAt, mapsReady, report, reportMapKeys.length]);
+
+  useEffect(() => {
     if (!report || loading || !mapsReady || summaryMeasuredRef.current) return;
     summaryMeasuredRef.current = true;
     const frame = window.requestAnimationFrame(() => {
@@ -617,19 +654,6 @@ export function MunicipalReportPreview({ municipalityCode, period, layerIds, emb
     });
     return () => window.cancelAnimationFrame(frame);
   }, [loading, mapsReady, report, reportMapKeys.length]);
-
-  const handleMapCapture = useCallback((key: string, src: string | null) => {
-    setMapImages((current) => {
-      if (current.get(key) === src) return current;
-      const next = new Map(current);
-      next.set(key, src);
-      return next;
-    });
-    setMapRenderIndex((index) => {
-      if (reportMapKeys[index] !== key) return index;
-      return index + 1;
-    });
-  }, [reportMapKeys]);
 
   function printReport() {
     if (!reportDocumentRef.current || exporting || !mapsReady) return;
@@ -699,8 +723,11 @@ export function MunicipalReportPreview({ municipalityCode, period, layerIds, emb
     const controller = new AbortController();
 
     async function loadReport() {
+      let reportLoaded = false;
       previewMeasuredRef.current = false;
       summaryMeasuredRef.current = false;
+      resetMapCaptureQueue();
+      setMapQueueStartedAt(null);
       setLoading(true);
       setError(null);
       try {
@@ -717,20 +744,13 @@ export function MunicipalReportPreview({ municipalityCode, period, layerIds, emb
           detalhes: `${layerIdsKey ? layerIdsKey.split(",").length : "todas"} camada(s) solicitada(s)`,
         });
         if (!response.ok) throw new Error(payload.error ?? t("loadError"));
+        reportLoaded = true;
         setReport(payload as MunicipalReportData);
         setDocsContent(null);
-        setMapImages(new Map());
-        setMapRenderIndex(0);
 
         // Fetch charts for all available analyses
         const reportData = payload as MunicipalReportData;
         const selectedLayerIds = layerIdsKey ? new Set(layerIdsKey.split(",")) : null;
-        const selectedAliases = (selectedLayerIds
-          ? reportData.analyses.filter(({ id }) => selectedLayerIds.has(id))
-          : reportData.analyses
-        )
-          .filter((a) => a.status === "available")
-          .map((a) => a.alias);
         const selectedLayerIdsForDocs = (selectedLayerIds
           ? reportData.analyses.filter(({ id }) => selectedLayerIds.has(id))
           : reportData.analyses
@@ -765,19 +785,19 @@ export function MunicipalReportPreview({ municipalityCode, period, layerIds, emb
         };
 
         const chartsTask = async () => {
-          if (selectedAliases.length === 0) {
+          if (selectedLayerIdsForDocs.length === 0) {
             setCharts(new Map());
             return;
           }
           const finishCharts = startMunicipalReportStage();
           const chartResponse = await fetch(
-            `/api/municipal-report/${encodeURIComponent(municipalityCode)}/chart?period=${encodeURIComponent(period)}&analysis=${selectedAliases.join(",")}`,
+            `/api/municipal-report/${encodeURIComponent(municipalityCode)}/chart?period=${encodeURIComponent(period)}&analysis=${selectedLayerIdsForDocs.join(",")}`,
             { credentials: "same-origin", signal: controller.signal },
           );
           const chartPayload = await chartResponse.json();
           finishCharts("Gráficos SVG", {
             response: chartResponse,
-            detalhes: `${selectedAliases.length} gráfico(s) solicitado(s)`,
+            detalhes: `${selectedLayerIdsForDocs.length} gráfico(s) solicitado(s)`,
           });
           if (chartResponse.ok) {
             const nextCharts = new Map<string, string>();
@@ -799,13 +819,16 @@ export function MunicipalReportPreview({ municipalityCode, period, layerIds, emb
         if (reason instanceof DOMException && reason.name === "AbortError") return;
         setError(reason instanceof Error ? reason.message : t("loadError"));
       } finally {
-        if (!controller.signal.aborted) setLoading(false);
+        if (!controller.signal.aborted) {
+          if (reportLoaded) setMapQueueStartedAt(performance.now());
+          setLoading(false);
+        }
       }
     }
 
     loadReport();
     return () => controller.abort();
-  }, [hasRequiredParameters, layerIdsKey, municipalityCode, period, t]);
+  }, [hasRequiredParameters, layerIdsKey, municipalityCode, period, resetMapCaptureQueue, t]);
 
   const visibleError = hasRequiredParameters ? error : null;
 
@@ -847,7 +870,7 @@ export function MunicipalReportPreview({ municipalityCode, period, layerIds, emb
           {!hasRequiredParameters && <EmptyReportPreview />}
           {loading && <div className="mx-auto flex min-h-56 max-w-[749px] flex-col items-center justify-center gap-4 bg-white p-10 text-center text-neutral-600 shadow-sm"><span aria-hidden="true" className="h-9 w-9 animate-spin rounded-full border-4 border-[#989F43]/25 border-t-[#989F43]"/><strong className="text-base font-semibold text-[#536e7b]">{t("loading")}</strong><span className="text-sm">{t("loadingHint")}</span></div>}
           {visibleError && !loading && <div className="mx-auto max-w-[749px] border border-red-200 bg-white p-8 shadow-sm"><h1 className="text-xl font-semibold">{t("loadError")}</h1><p className="mt-2 text-sm text-red-700">{visibleError}</p></div>}
-          {report && !loading && <div className="mx-auto origin-top transition-transform" style={{ width: "980px", transform: `scale(${zoom / 100})` }}><ReportDocument report={report} layerIds={layerIds} charts={charts} mapImages={mapImages} activeMapKey={activeMapKey} onMapCapture={handleMapCapture} documentRef={reportDocumentRef} docsContent={docsContent} /></div>}
+          {report && !loading && <div className="mx-auto origin-top transition-transform" style={{ width: "980px", transform: `scale(${zoom / 100})` }}><ReportDocument report={report} layerIds={layerIds} charts={charts} mapImages={mapImages} activeMapKeys={activeMapKeys} mapQueueStartedAt={mapQueueStartedAt} retryAttemptFor={retryAttemptFor} onMapCapture={handleMapCapture} documentRef={reportDocumentRef} docsContent={docsContent} /></div>}
         </div>
       </div>
     );
@@ -866,7 +889,7 @@ export function MunicipalReportPreview({ municipalityCode, period, layerIds, emb
             <p className="mt-2 text-sm text-red-700">{visibleError}</p>
           </div>
         )}
-        {report && !loading && <ReportDocument report={report} layerIds={layerIds} charts={charts} mapImages={mapImages} activeMapKey={activeMapKey} onMapCapture={handleMapCapture} docsContent={docsContent} />}
+        {report && !loading && <ReportDocument report={report} layerIds={layerIds} charts={charts} mapImages={mapImages} activeMapKeys={activeMapKeys} mapQueueStartedAt={mapQueueStartedAt} retryAttemptFor={retryAttemptFor} onMapCapture={handleMapCapture} docsContent={docsContent} />}
       </div>
     </div>
   );

@@ -485,6 +485,50 @@ um payload `territorial-compact` com `years`. Essas validacoes bloqueiam a
 publicacao quando indicam que a estrutura enviada ao Contentful esta
 inconsistente.
 
+## Séries orientadas ao relatório
+
+A mesma conversão também gera `municipal-report-series-manifest.json` e os
+envelopes em `json/report-series`. Cada camada começa com 64 shards calculados
+por `Number(CD_MUN) % shardCount`; a quantidade dobra automaticamente se algum
+`imageData` passar de 450 KB ou se a requisição localizada passar de 900 KB.
+
+Para validar sem escrever:
+
+```bash
+npm run pipeline:contentful-report-series:dry-run
+```
+
+Para criar o content type, publicar todos os shards e manter o runtime antigo
+ativo:
+
+```bash
+npm run pipeline:contentful-report-series:publish
+```
+
+Depois do smoke test, a ativação atualiza `panelLayer.reportSeriesConfig`:
+
+```bash
+npm run pipeline:contentful-report-series:activate
+```
+
+Esse comando não republica os shards já validados; ele altera somente o
+`reportSeriesConfig` das camadas selecionadas.
+
+Para rollout gradual, acrescente `-- --panel-layer-id CDI_Test` ao comando de
+ativação, gere um relatório protegido e só então prossiga para a próxima
+camada. Repetir a ativação com uma versão anterior do manifesto faz o rollback
+da mesma forma, sem alterar `municipalAnalysis`.
+
+Após validar a versão ativa, versões antigas podem ser despublicadas e
+removidas explicitamente com
+`npm run pipeline:contentful-report-series:activate-and-prune`. O comando exige
+ativação e publicação na mesma execução para impedir limpeza prematura.
+
+Defina `CONTENTFUL_MAX_RECORDS` com o limite contratado do espaço. Nesse caso,
+a publicação compara o total projetado com o entitlement e falha antes de
+criar entries. Sem essa variável, o resultado do dry-run deixa a verificação
+marcada como pendente.
+
 ## Contrato esperado do CSV
 
 Para municipios:

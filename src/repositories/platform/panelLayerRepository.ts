@@ -29,6 +29,7 @@ const GET_PANEL_LAYER = `
         maxScale
         category
         timeScale
+        reportSeriesConfig
       }
     }
   }
@@ -56,10 +57,20 @@ const GET_PANEL_LAYER_BY_ID = `
         maxScale
         category
         timeScale
+        reportSeriesConfig
       }
     }
   }
 `;
+
+const GET_PANEL_LAYER_LEGACY = GET_PANEL_LAYER.replace(
+  "\n        reportSeriesConfig",
+  "",
+);
+const GET_PANEL_LAYER_BY_ID_LEGACY = GET_PANEL_LAYER_BY_ID.replace(
+  "\n        reportSeriesConfig",
+  "",
+);
 
 interface PanelLayerResponse {
   panelLayerCollection: { items: Array<PanelLayerI | null> };
@@ -131,8 +142,16 @@ export async function getPanelLayers(
 
     return await attachMunicipalAnalysisToPanelLayers(panelLayers);
   } catch (error) {
-    console.error("Erro ao buscar camadas da plataforma no Contentful:", error);
-    return [];
+    try {
+      const data = await getContent<PanelLayerResponse>(GET_PANEL_LAYER_LEGACY);
+      const panelLayers = normalizePanelLayers(data.panelLayerCollection?.items).sort(comparePanelLayers);
+      return options.includeMunicipalAnalysis
+        ? await attachMunicipalAnalysisToPanelLayers(panelLayers)
+        : panelLayers;
+    } catch (legacyError) {
+      console.error("Erro ao buscar camadas da plataforma no Contentful:", error, legacyError);
+      return [];
+    }
   }
 }
 
@@ -177,7 +196,14 @@ async function getPanelLayerById(
 
     return panelLayer;
   } catch (error) {
-    console.error("Erro ao buscar camada da plataforma no Contentful:", error);
-    return null;
+    try {
+      const data = await getContent<PanelLayerResponse>(GET_PANEL_LAYER_BY_ID_LEGACY, {
+        id: panelLayerId,
+      });
+      return data.panelLayerCollection?.items?.find(isDefined) ?? null;
+    } catch (legacyError) {
+      console.error("Erro ao buscar camada da plataforma no Contentful:", error, legacyError);
+      return null;
+    }
   }
 }
