@@ -145,6 +145,12 @@ function translateAnalysisMethodology(
   if (tModulesHas(moduleKey)) {
     return tModules(moduleKey);
   }
+  if (
+    presentationMethodology === "Indicador territorial disponibilizado na plataforma SEDES." &&
+    tReportHas("indicators.defaultMethodology")
+  ) {
+    return tReport("indicators.defaultMethodology");
+  }
   return presentationMethodology;
 }
 

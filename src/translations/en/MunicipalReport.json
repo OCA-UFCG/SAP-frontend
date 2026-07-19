@@ -208,6 +208,30 @@
         "title": "Families in poverty",
         "methodology": "Percentage of families registered in CadÚnico in poverty aggregated by municipality."
       },
+      "pob_urb": {
+        "title": "Urban poverty",
+        "methodology": "Territorial indicator available on the SEDES platform."
+      },
+      "pobreza_urbana": {
+        "title": "Urban poverty",
+        "methodology": "Territorial indicator available on the SEDES platform."
+      },
+      "pobreza-urbana": {
+        "title": "Urban poverty",
+        "methodology": "Territorial indicator available on the SEDES platform."
+      },
+      "pob_rural": {
+        "title": "Rural poverty",
+        "methodology": "Territorial indicator available on the SEDES platform."
+      },
+      "pobreza_rural": {
+        "title": "Rural poverty",
+        "methodology": "Territorial indicator available on the SEDES platform."
+      },
+      "pobreza-rural": {
+        "title": "Rural poverty",
+        "methodology": "Territorial indicator available on the SEDES platform."
+      },
       "cemadenseca": {
         "title": "Cemaden: Drought",
         "methodology": "Drought index elaborated from monitoring and observational data from Cemaden."
@@ -283,7 +307,11 @@
       "mosaico-campestre": "Grassland mosaic",
       "corpo-d-agua-continental": "Continental water body",
       "corpo-d-agua-costeiro": "Coastal water body",
-      "area-descoberta": "Uncovered area"
+      "area-descoberta": "Uncovered area",
+      "pobreza-urbana": "Urban poverty",
+      "pobreza-rural": "Rural poverty",
+      "registros-de-secas-e-estiagens": "Drought and dryness records",
+      "registros": "records"
     }
   }
 }

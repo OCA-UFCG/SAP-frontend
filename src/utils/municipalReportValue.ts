@@ -21,13 +21,45 @@ export function formatMunicipalReportValue(
   }).format(value);
 }
 
+function slugifyUnitKey(unit: string) {
+  return unit
+    .toLowerCase()
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .replace(/[^a-z0-9]+/g, "-")
+    .replace(/(^-|-$)+/g, "");
+}
+
+export function translateUnit(
+  analysis: MunicipalReportValueSemantics,
+  t?: (key: string, values?: Record<string, string>) => string,
+) {
+  const unit = normalizedUnit(analysis);
+  if (!unit || !t) return unit;
+  const slug = slugifyUnitKey(unit);
+  try {
+    const translated = t(`classes.${slug}`);
+    if (
+      translated &&
+      !translated.startsWith("classes.") &&
+      translated !== `classes.${slug}`
+    ) {
+      return translated;
+    }
+  } catch {
+    // fallback
+  }
+  return unit;
+}
+
 export function formatMunicipalReportValueWithUnit(
   value: number,
   analysis: MunicipalReportValueSemantics,
   locale: string,
+  t?: (key: string, values?: Record<string, string>) => string,
 ) {
   const formattedValue = formatMunicipalReportValue(value, analysis, locale);
-  const unit = normalizedUnit(analysis);
+  const unit = translateUnit(analysis, t);
   return analysis.valueType === "absolute" && unit
     ? `${formattedValue} ${unit}`
     : formattedValue;
@@ -54,7 +86,7 @@ export function getMunicipalReportValueLabels(
     };
   }
 
-  const unit = normalizedUnit(analysis);
+  const unit = translateUnit(analysis, t);
   if (!t) {
     return {
       cardContext: unit ? `${unit} no município` : "valor total no município",

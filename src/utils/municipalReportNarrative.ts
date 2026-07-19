@@ -123,6 +123,7 @@ export function buildSituationNarrative(
       dominant.percentage,
       analysis,
       locale,
+      t,
     );
     if (t) {
       return t("narrative.absoluteFallback", {

@@ -208,6 +208,30 @@
         "title": "Famílias em situação de pobreza",
         "methodology": "Percentual de famílias inscritas no CadÚnico que se encontram em situação de pobreza agregado por município."
       },
+      "pob_urb": {
+        "title": "Pobreza urbana",
+        "methodology": "Indicador territorial disponibilizado na plataforma SEDES."
+      },
+      "pobreza_urbana": {
+        "title": "Pobreza urbana",
+        "methodology": "Indicador territorial disponibilizado na plataforma SEDES."
+      },
+      "pobreza-urbana": {
+        "title": "Pobreza urbana",
+        "methodology": "Indicador territorial disponibilizado na plataforma SEDES."
+      },
+      "pob_rural": {
+        "title": "Pobreza rural",
+        "methodology": "Indicador territorial disponibilizado na plataforma SEDES."
+      },
+      "pobreza_rural": {
+        "title": "Pobreza rural",
+        "methodology": "Indicador territorial disponibilizado na plataforma SEDES."
+      },
+      "pobreza-rural": {
+        "title": "Pobreza rural",
+        "methodology": "Indicador territorial disponibilizado na plataforma SEDES."
+      },
       "cemadenseca": {
         "title": "Cemaden: Seca",
         "methodology": "Índice de seca elaborado a partir de monitoramento e dados observacionais do Cemaden."
@@ -283,7 +307,11 @@
       "mosaico-campestre": "Mosaico campestre",
       "corpo-d-agua-continental": "Corpo d'água continental",
       "corpo-d-agua-costeiro": "Corpo d'água costeiro",
-      "area-descoberta": "Área descoberta"
+      "area-descoberta": "Área descoberta",
+      "pobreza-urbana": "Pobreza urbana",
+      "pobreza-rural": "Pobreza rural",
+      "registros-de-secas-e-estiagens": "Registros de secas e estiagens",
+      "registros": "registros"
     }
   }
 }
