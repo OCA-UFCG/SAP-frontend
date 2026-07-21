@@ -137,7 +137,7 @@ describe("MunicipalReportPreview", () => {
     global.fetch = originalFetch;
   });
 
-  it("renders the embedded report as HTML by default and keeps a modified-format toggle without PDF viewer controls", async () => {
+  it("renders HTML by default and restores PDF-style controls in the PDF format preview", async () => {
     const user = userEvent.setup();
 
     render(
@@ -153,7 +153,7 @@ describe("MunicipalReportPreview", () => {
     expect(screen.getByText("Monitor de Secas")).toBeInTheDocument();
     expect(screen.getByText("Distribuição espacial e série temporal")).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "HTML" })).toHaveAttribute("aria-pressed", "true");
-    expect(screen.getByRole("button", { name: "Formato modificado" })).toHaveAttribute("aria-pressed", "false");
+    expect(screen.getByRole("button", { name: "Formato PDF" })).toHaveAttribute("aria-pressed", "false");
     expect(screen.queryByLabelText("Aumentar zoom")).not.toBeInTheDocument();
     expect(screen.queryByLabelText("Diminuir zoom")).not.toBeInTheDocument();
     expect(screen.queryByText("75%")).not.toBeInTheDocument();
@@ -163,10 +163,17 @@ describe("MunicipalReportPreview", () => {
       expect(screen.getByRole("button", { name: "Download" })).toBeEnabled();
     });
 
-    await user.click(screen.getByRole("button", { name: "Formato modificado" }));
+    await user.click(screen.getByRole("button", { name: "Formato PDF" }));
 
     expect(screen.getByRole("button", { name: "HTML" })).toHaveAttribute("aria-pressed", "false");
-    expect(screen.getByRole("button", { name: "Formato modificado" })).toHaveAttribute("aria-pressed", "true");
-    expect(screen.queryByLabelText("Aumentar zoom")).not.toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Formato PDF" })).toHaveAttribute("aria-pressed", "true");
+    expect(screen.getByLabelText("Aumentar zoom")).toBeInTheDocument();
+    expect(screen.getByLabelText("Diminuir zoom")).toBeInTheDocument();
+    expect(screen.getByText("75%")).toBeInTheDocument();
+    expect(screen.queryByText("--")).not.toBeInTheDocument();
+
+    await user.click(screen.getByLabelText("Aumentar zoom"));
+
+    expect(screen.getByText("85%")).toBeInTheDocument();
   });
 });

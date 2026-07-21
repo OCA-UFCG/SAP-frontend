@@ -29,7 +29,7 @@
     "zoomOut": "Diminuir zoom",
     "viewMode": "Modo de visualização do relatório",
     "viewHtml": "HTML",
-    "viewModified": "Formato modificado",
+    "viewModified": "Formato PDF",
     "download": "Download",
     "preparingDownload": "Preparando PDF...",
     "popupBlocked": "O navegador bloqueou a janela de impressão. Permita pop-ups para baixar o relatório.",
