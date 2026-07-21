@@ -25,6 +25,7 @@ import {
   formatMunicipalReportValue,
   getMunicipalReportValueLabels,
 } from "@/utils/municipalReportValue";
+import { slugifyTranslationKey } from "@/utils/translations";
 import { ReportMapPreview } from "./ReportMapPreview";
 import { useReportMapCaptureQueue } from "./useReportMapCaptureQueue";
 
@@ -52,17 +53,107 @@ function compactPeriodRange(
   timeSeries: MunicipalReportAnalysis["timeSeries"],
   fallback: string,
   locale: string,
+  t?: (key: string, values?: Record<string, string>) => string,
 ) {
   const firstPeriod = timeSeries[0]?.period ?? fallback;
   const lastPeriod = timeSeries.at(-1)?.period ?? fallback;
   const firstLabel = formatReportPeriod(firstPeriod, locale);
   const lastLabel = formatReportPeriod(lastPeriod, locale);
-  return firstPeriod === lastPeriod ? firstLabel : `${firstLabel} a ${lastLabel}`;
+  if (firstPeriod === lastPeriod) return firstLabel;
+  if (t) return t("periodRange", { first: firstLabel, last: lastLabel });
+  return `${firstLabel} a ${lastLabel}`;
 }
 
-function buildReportFilename(report: MunicipalReportData | null, period: string, fallback: string) {
+function buildReportFilename(
+  report: MunicipalReportData | null,
+  period: string,
+  fallback: string,
+  prefix = "Relatório",
+) {
   if (!report) return fallback;
-  return `Relatório-${report.municipality.name.replace(/\s+/g, "-")}-${period}.PDF`;
+  return `${prefix}-${report.municipality.name.replace(/\s+/g, "-")}-${period}.PDF`;
+}
+
+function slugifyLabelKey(label: string): string {
+  return label
+    .toLowerCase()
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .replace(/</g, "menor-que")
+    .replace(/>/g, "maior-que")
+    .replace(/[^a-z0-9]+/g, "-")
+    .replace(/(^-|-$)+/g, "");
+}
+
+function translateAnalysisTitle(
+  analysis: MunicipalReportAnalysis,
+  tReport: (key: string) => string,
+  tReportHas: (key: string) => boolean,
+  tModules: (key: string) => string,
+  tModulesHas: (key: string) => boolean,
+) {
+  if (tReportHas(`indicators.${analysis.id}.title`)) {
+    return tReport(`indicators.${analysis.id}.title`);
+  }
+  const slug = slugifyTranslationKey(analysis.title);
+  if (tReportHas(`indicators.${slug}.title`)) {
+    return tReport(`indicators.${slug}.title`);
+  }
+  const moduleKey = `Layers.${slug}.title`;
+  if (tModulesHas(moduleKey)) {
+    return tModules(moduleKey);
+  }
+  return analysis.title;
+}
+
+function translateClassLabel(
+  label: string,
+  tReport: (key: string) => string,
+  tReportHas: (key: string) => boolean,
+  tCaption: (key: string) => string,
+  tCaptionHas: (key: string) => boolean,
+) {
+  const slug = slugifyLabelKey(label);
+  if (tCaptionHas(`labels.${slug}`)) {
+    return tCaption(`labels.${slug}`);
+  }
+  if (tReportHas(`classes.${slug}`)) {
+    return tReport(`classes.${slug}`);
+  }
+  return label;
+}
+
+function translateAnalysisMethodology(
+  analysis: MunicipalReportAnalysis,
+  docsContent: MunicipalReportDocsContent | null,
+  presentationMethodology: string,
+  tReport: (key: string) => string,
+  tReportHas: (key: string) => boolean,
+  tModules: (key: string) => string,
+  tModulesHas: (key: string) => boolean,
+  locale?: string,
+) {
+  const docsText = getReportDocsText(docsContent, analysis.title, locale);
+  if (docsText) return docsText;
+
+  if (tReportHas(`indicators.${analysis.id}.methodology`)) {
+    return tReport(`indicators.${analysis.id}.methodology`);
+  }
+  const slug = slugifyTranslationKey(analysis.title);
+  if (tReportHas(`indicators.${slug}.methodology`)) {
+    return tReport(`indicators.${slug}.methodology`);
+  }
+  const moduleKey = `Layers.${slug}.description`;
+  if (tModulesHas(moduleKey)) {
+    return tModules(moduleKey);
+  }
+  if (
+    presentationMethodology === "Indicador territorial disponibilizado na plataforma SEDES." &&
+    tReportHas("indicators.defaultMethodology")
+  ) {
+    return tReport("indicators.defaultMethodology");
+  }
+  return presentationMethodology;
 }
 
 function AnalysisSection({
@@ -91,18 +182,42 @@ function AnalysisSection({
   docsContent: MunicipalReportDocsContent | null;
 }) {
   const t = useTranslations("MunicipalReport");
+  const tModules = useTranslations("ModulesContext");
+  const tCaption = useTranslations("PlatformMapCaption");
+  const tHas = (key: string) => t.has(key);
+  const tModulesHas = (key: string) => tModules.has(key);
+  const tCaptionHas = (key: string) => tCaption.has(key);
+
+  const translatedTitle = translateAnalysisTitle(analysis, t, tHas, tModules, tModulesHas);
   const dominant = analysis.snapshot?.dominantClass;
   const presentation = getMunicipalReportPresentation(analysis.id);
-  const situationText = buildSituationNarrative(analysis, docsContent, report, presentation, locale);
+  const situationText = buildSituationNarrative(
+    analysis,
+    docsContent,
+    report,
+    presentation,
+    locale,
+    (key, values) => t(key, values),
+    (label) => translateClassLabel(label, t, tHas, tCaption, tCaptionHas),
+    (title, id) => translateAnalysisTitle({ ...analysis, title, id }, t, tHas, tModules, tModulesHas),
+    tHas,
+  );
   const sectionColor = presentation.sectionColor;
   const effectivePeriod = analysis.effectivePeriod ?? analysis.snapshot?.period;
   const referencePeriod = effectivePeriod ?? analysis.snapshot?.period ?? analysis.requestedPeriod;
   const referencePeriodLabel = formatReportPeriod(referencePeriod, locale);
   const snapshotPeriodLabel = analysis.snapshot?.label || referencePeriodLabel;
-  const periodResolution = `Período analisado: ${referencePeriodLabel}.`;
-  const historyRange = compactPeriodRange(analysis.timeSeries, referencePeriod, locale);
-  const narrativeSections = buildAnalysisNarrativeSections(analysis, docsContent);
-  const valueLabels = getMunicipalReportValueLabels(analysis);
+  const periodResolution = `${t("analyzedPeriod")}: ${referencePeriodLabel}.`;
+  const historyRange = compactPeriodRange(
+    analysis.timeSeries,
+    referencePeriod,
+    locale,
+    (key, values) => t(key, values),
+  );
+  const narrativeSections = buildAnalysisNarrativeSections(analysis, docsContent, locale);
+  const valueLabels = getMunicipalReportValueLabels(analysis, (key, values) =>
+    t(key, values),
+  );
 
   return (
     <section className="report-section">
@@ -110,7 +225,7 @@ function AnalysisSection({
         className="px-5 py-2.5 text-xl font-bold text-white"
         style={{ backgroundColor: sectionColor }}
       >
-        {index + 1}. {analysis.title}
+        {index + 1}. {translatedTitle}
       </h2>
 
       {analysis.status !== "available" || !analysis.snapshot ? (
@@ -123,13 +238,14 @@ function AnalysisSection({
               {t("availablePeriods")}: {analysis.timeSeries.map((item) => item.period).join(", ")}
             </p>
           )}
+
         </div>
       ) : (
         <>
           <div className="report-block mt-7 grid border border-[#d9e0e3] md:grid-cols-[1fr_226px]">
             <div className="p-5 text-[15px] leading-6 text-neutral-800">
               <p className="font-bold">
-                Situação atual:{" "}
+                {t("currentSituation")}{" "}
                 <span className="font-normal text-[#536e7b]">
                   {report.municipality.name} — {report.municipality.uf}
                 </span>
@@ -137,11 +253,11 @@ function AnalysisSection({
               {situationText && <p className="mt-2 whitespace-pre-line text-justify">{situationText}</p>}
               <dl className="mt-4 grid gap-2 border-t border-[#d9e0e3] pt-3 text-sm sm:grid-cols-2">
                 <div>
-                  <dt className="font-bold text-[#536e7b]">Período analisado</dt>
+                  <dt className="font-bold text-[#536e7b]">{t("analyzedPeriod")}</dt>
                   <dd>{referencePeriodLabel}</dd>
                 </div>
                 <div>
-                  <dt className="font-bold text-[#536e7b]">Série disponível</dt>
+                  <dt className="font-bold text-[#536e7b]">{t("availableSeries")}</dt>
                   <dd>{historyRange}</dd>
                 </div>
               </dl>
@@ -154,7 +270,7 @@ function AnalysisSection({
                   color: textColorForBackground(dominant.color || sectionColor),
                 }}
               >
-                <strong className="text-lg">{dominant.label}</strong>
+                <strong className="text-lg">{translateClassLabel(dominant.label, t, tHas, tCaption, tCaptionHas)}</strong>
                 <span className="mt-1 text-3xl font-bold">
                   {formatMunicipalReportValue(dominant.percentage, analysis, locale)}
                 </span>
@@ -164,13 +280,16 @@ function AnalysisSection({
           </div>
 
           <h3 className="report-heading mt-8 text-lg font-bold text-[#536e7b]">
-            {valueLabels.sectionTitle} de {analysis.title}
+            {t("sectionTitleOf", {
+              sectionTitle: valueLabels.sectionTitle,
+              title: translatedTitle,
+            })}
           </h3>
           <div className="report-block mt-3 overflow-hidden border border-[#c8ced1]">
             <table className="w-full border-collapse text-sm">
               <thead className="bg-[#176b39] text-white">
                 <tr>
-                  <th className="border-r border-white/40 px-4 py-2.5 text-left">Classe</th>
+                  <th className="border-r border-white/40 px-4 py-2.5 text-left">{t("tableClass")}</th>
                   <th className="w-36 px-4 py-2.5 text-right">{valueLabels.tableValue}</th>
                 </tr>
               </thead>
@@ -185,7 +304,7 @@ function AnalysisSection({
                         className="mr-2 inline-block h-2.5 w-2.5 rounded-full border border-black/10"
                         style={{ backgroundColor: item.color }}
                       />
-                      {item.label}
+                      {translateClassLabel(item.label, t, tHas, tCaption, tCaptionHas)}
                     </td>
                     <td className="px-4 py-2.5 text-right font-semibold">
                       {formatMunicipalReportValue(item.percentage, analysis, locale)}
@@ -198,12 +317,12 @@ function AnalysisSection({
 
           <div className="report-visual-block mt-8">
             <h3 className="report-heading text-lg font-bold text-[#536e7b]">
-              Distribuição espacial e série temporal
+              {t("spatialAndTimeSeries")}
             </h3>
             <div className="report-visual-grid mt-3 grid overflow-hidden border border-[#c8ced1] bg-white md:grid-cols-2">
               <div className="report-visual-panel flex flex-col border-b border-[#c8ced1] md:border-b-0 md:border-r">
                 <div className="border-b border-[#c8ced1] bg-[#f4f6f8] px-4 py-2.5 text-center text-sm font-semibold text-[#536e7b]">
-                  Imagem espacial: {snapshotPeriodLabel}
+                  {t("spatialImage", { period: snapshotPeriodLabel })}
                 </div>
                 <ReportMapPreview
                   municipalityCode={report.municipality.code}
@@ -217,7 +336,12 @@ function AnalysisSection({
                   onCapture={onMapCapture}
                 />
                 <p className="border-t border-[#c8ced1] px-4 py-2 text-xs leading-5 text-neutral-600">
-                  Raster temático de {analysis.title} para {referencePeriodLabel}, recortado visualmente pelo contorno municipal de {report.municipality.name} — {report.municipality.uf}.
+                  {t("rasterDescription", {
+                    title: translatedTitle,
+                    period: referencePeriodLabel,
+                    municipality: report.municipality.name,
+                    uf: report.municipality.uf,
+                  })}
                 </p>
               </div>
               <div className="report-visual-panel flex flex-col">
@@ -226,9 +350,9 @@ function AnalysisSection({
                 </div>
                 <div className="report-chart-frame flex min-h-[230px] flex-1 items-center justify-center p-4">
                   {chartSrc ? (
-                    <img src={chartSrc} alt={`Série temporal - ${analysis.title}`} className="max-h-[210px] max-w-full" />
+                    <img src={chartSrc} alt={t("timeSeriesAlt", { title: translatedTitle })} className="max-h-[210px] max-w-full" />
                   ) : (
-                    <span className="text-sm text-neutral-500">Série temporal indisponível para exportação.</span>
+                    <span className="text-sm text-neutral-500">{t("timeSeriesUnavailable")}</span>
                   )}
                 </div>
                 <p className="border-t border-[#c8ced1] px-4 py-2 text-xs leading-5 text-neutral-600">
@@ -240,21 +364,25 @@ function AnalysisSection({
 
           {narrativeSections.length > 0 ? (
             <div className="report-block mt-7 border border-[#d9e0e3] p-5 text-[15px] leading-6">
-              <h3 className="report-heading font-bold text-[#536e7b]">Análise da série histórica</h3>
+              <h3 className="report-heading font-bold text-[#536e7b]">{t("historicalAnalysisTitle")}</h3>
               {narrativeSections.map((section, sectionIndex) => (
                 <p key={`${section.title}:${sectionIndex}`} className="mt-3 whitespace-pre-line text-justify text-neutral-800">
                   <strong>{section.title}:</strong> {section.text}
                 </p>
               ))}
               <p className="mt-3 text-justify text-neutral-800">
-                <strong>Referência da seção:</strong> {periodResolution}
+                <strong>{t("sectionReferenceLabel")}</strong> {periodResolution}
               </p>
             </div>
           ) : (
             <div className="report-block mt-7 border border-[#d9e0e3] p-5 text-[15px] leading-6">
-              <h3 className="report-heading font-bold text-[#536e7b]">Nota sobre a série histórica</h3>
+              <h3 className="report-heading font-bold text-[#536e7b]">{t("historicalNoteTitle")}</h3>
               <p className="mt-1 text-justify text-neutral-800">
-                A série disponível para este indicador reúne {analysis.timeSeries.length} período(s), cobrindo {historyRange}. {periodResolution}
+                {t("historicalNoteText", {
+                  count: String(analysis.timeSeries.length),
+                  range: historyRange,
+                  resolution: periodResolution,
+                })}
               </p>
             </div>
           )}
@@ -289,12 +417,18 @@ function ReportDocument({
   docsContent: MunicipalReportDocsContent | null;
   viewMode?: ReportViewMode;
 }) {
+  const t = useTranslations("MunicipalReport");
+  const tModules = useTranslations("ModulesContext");
+  const tHas = (key: string) => t.has(key);
+  const tModulesHas = (key: string) => tModules.has(key);
   const locale = useLocale();
   const generatedAt = new Date(report.generatedAt).toLocaleDateString(locale);
   const selected = layerIds.length
     ? report.analyses.filter(({ id }) => layerIds.includes(id))
     : report.analyses;
-  const availableTitles = selected.map((analysis) => analysis.title).join(" · ");
+  const availableTitles = selected
+    .map((analysis) => translateAnalysisTitle(analysis, t, tHas, tModules, tModulesHas))
+    .join(" · ");
   const availableAnalyses = selected.filter((analysis) => analysis.status === "available" && analysis.snapshot);
   const effectivePeriodSummary = availableAnalyses
     .map((analysis) => analysis.effectivePeriod ?? analysis.snapshot?.period ?? report.requestedPeriod)
@@ -302,7 +436,7 @@ function ReportDocument({
     .map((period) => formatReportPeriod(period, locale))
     .join(" · ");
   const reportText = (section: string, fallback: string) =>
-    getReportDocsText(docsContent, section) ?? fallback;
+    getReportDocsText(docsContent, section, locale) ?? fallback;
 
   return (
     <article
@@ -315,47 +449,47 @@ function ReportDocument({
     >
       <header>
         <div className="flex flex-wrap items-start justify-between gap-4 text-xs text-[#0f5a2d]">
-          <strong>{reportText("Identificação do sistema", "SEDES — Sistema Estratégico Sobre Desertificação")}</strong>
-          <span className="text-[#536e7b]">{reportText("Tipo do relatório", "Relatório Analítico Automatizado")}</span>
+          <strong>{reportText("Identificação do sistema", t("document.systemIdentification"))}</strong>
+          <span className="text-[#536e7b]">{reportText("Tipo do relatório", t("document.reportType"))}</span>
           <div className="text-right">
-            <strong>{reportText("Instituições", "OCA / UFCG / INSA")}</strong>
-            <div className="mt-1 text-[10px] font-normal text-[#536e7b]">{reportText("Site", "beta-sap.lsd.ufcg.edu.br")}</div>
+            <strong>{reportText("Instituições", t("document.institutions"))}</strong>
+            <div className="mt-1 text-[10px] font-normal text-[#536e7b]">{reportText("Site", t("document.website"))}</div>
           </div>
         </div>
 
         <div className="mt-6 bg-[#125c2d] px-6 py-3 text-center text-white">
           <h1 className="text-[22px] font-bold uppercase leading-tight">
-            {reportText("Título principal", "Relatório Analítico do Sistema Estratégico Sobre Desertificação")}
+            {reportText("Título principal", t("document.mainTitle"))}
           </h1>
           <p className="mt-2 text-sm text-white/80">
-            {reportText("Subtítulo", "Lei nº 13.153/2015 · Política Nacional de Combate à Desertificação")}
+            {reportText("Subtítulo", t("document.subtitle"))}
           </p>
         </div>
 
         <div className="report-block mt-6 border border-[#c8ced1] text-sm">
           <div className="grid grid-cols-[175px_1fr] border-b border-[#c8ced1] sm:grid-cols-[175px_1fr_105px_115px]">
-            <strong className="bg-[#f1f2f2] px-3 py-2.5 text-[#536e7b]">{reportText("Rótulo área de análise", "Área de análise")}</strong>
+            <strong className="bg-[#f1f2f2] px-3 py-2.5 text-[#536e7b]">{reportText("Rótulo área de análise", t("document.analysisAreaLabel"))}</strong>
             <span className="border-l border-[#c8ced1] px-3 py-2.5 font-bold">
               {report.municipality.name} — {report.municipality.uf}
             </span>
-            <strong className="border-l border-[#c8ced1] bg-[#f1f2f2] px-3 py-2.5 text-center text-[#536e7b]">{reportText("Rótulo escala", "Escala")}</strong>
-            <span className="border-l border-[#c8ced1] px-3 py-2.5 text-center">Municipal</span>
+            <strong className="border-l border-[#c8ced1] bg-[#f1f2f2] px-3 py-2.5 text-center text-[#536e7b]">{reportText("Rótulo escala", t("document.scaleLabel"))}</strong>
+            <span className="border-l border-[#c8ced1] px-3 py-2.5 text-center">{t("document.scaleValue")}</span>
           </div>
           <div className="grid grid-cols-[175px_1fr] sm:grid-cols-[175px_1fr_105px_115px]">
-            <strong className="bg-[#f1f2f2] px-3 py-2.5 text-[#536e7b]">{reportText("Rótulo data de geração", "Data de geração")}</strong>
+            <strong className="bg-[#f1f2f2] px-3 py-2.5 text-[#536e7b]">{reportText("Rótulo data de geração", t("document.generationDateLabel"))}</strong>
             <span className="border-l border-[#c8ced1] px-3 py-2.5">{generatedAt}</span>
-            <strong className="border-l border-[#c8ced1] bg-[#f1f2f2] px-3 py-2.5 text-center text-[#536e7b]">{reportText("Rótulo referência", "Referência")}</strong>
+            <strong className="border-l border-[#c8ced1] bg-[#f1f2f2] px-3 py-2.5 text-center text-[#536e7b]">{reportText("Rótulo referência", t("document.referenceLabel"))}</strong>
             <span className="border-l border-[#c8ced1] px-3 py-2.5 text-center">{formatReportPeriod(report.requestedPeriod, locale)}</span>
           </div>
         </div>
 
         <div className="report-block mt-5 grid border border-[#c8ced1] text-sm sm:grid-cols-[175px_1fr]">
-          <strong className="bg-[#f1f2f2] px-3 py-2.5 text-[#536e7b]">{reportText("Rótulo variáveis selecionadas", "Variáveis selecionadas")}</strong>
+          <strong className="bg-[#f1f2f2] px-3 py-2.5 text-[#536e7b]">{reportText("Rótulo variáveis selecionadas", t("document.selectedVariablesLabel"))}</strong>
           <span className="border-l border-[#c8ced1] px-3 py-2.5">{availableTitles}</span>
         </div>
         {effectivePeriodSummary && (
           <div className="report-block mt-3 grid border border-[#c8ced1] text-sm sm:grid-cols-[175px_1fr]">
-            <strong className="bg-[#f1f2f2] px-3 py-2.5 text-[#536e7b]">{reportText("Rótulo períodos analisados", "Períodos analisados")}</strong>
+            <strong className="bg-[#f1f2f2] px-3 py-2.5 text-[#536e7b]">{reportText("Rótulo períodos analisados", t("document.analyzedPeriodsLabel"))}</strong>
             <span className="border-l border-[#c8ced1] px-3 py-2.5">
               {effectivePeriodSummary}
             </span>
@@ -386,26 +520,37 @@ function ReportDocument({
       </div>
 
       <section className="report-notes mt-12 border-t border-[#d9e0e3] pt-8">
-        <h2 className="report-heading text-xl font-bold text-[#536e7b]">{reportText("Título das notas", "Notas Metodológicas e Fontes")}</h2>
+        <h2 className="report-heading text-xl font-bold text-[#536e7b]">{reportText("Título das notas", t("document.notesTitle"))}</h2>
         <div className="mt-5 space-y-2 text-sm leading-5 text-neutral-800">
           {selected.map((analysis) => {
             const presentation = getMunicipalReportPresentation(analysis.id);
+            const title = translateAnalysisTitle(analysis, t, tHas, tModules, tModulesHas);
+            const methodology = translateAnalysisMethodology(
+              analysis,
+              docsContent,
+              presentation.methodology,
+              t,
+              tHas,
+              tModules,
+              tModulesHas,
+              locale,
+            );
             return (
               <p key={analysis.id} className="whitespace-pre-line">
-                <strong>{analysis.title}:</strong>{" "}
-                {getReportDocsText(docsContent, analysis.title) ?? presentation.methodology}
+                <strong>{title}:</strong>{" "}
+                {methodology}
               </p>
             );
           })}
-          <p className="whitespace-pre-line"><strong>Referência legal:</strong> {reportText("Referência legal", "Lei nº 13.153/2015 — Política Nacional de Combate à Desertificação e Mitigação dos Efeitos da Seca.")}</p>
+          <p className="whitespace-pre-line"><strong>{t("document.legalReferenceLabel")}:</strong> {reportText("Referência legal", t("document.legalReferenceValue"))}</p>
         </div>
         <p className="mt-8 text-sm leading-5 text-[#536e7b]">
-          {reportText("Aviso automático", "Este relatório foi gerado automaticamente pelo Sistema Estratégico Sobre Desertificação (SEDES). Os valores apresentados são produzidos a partir dos dados disponíveis na plataforma.")}
+          {reportText("Aviso automático", t("document.automatedNotice"))}
         </p>
       </section>
 
       <footer className="mt-16 border-t border-[#d9e0e3] pt-3 text-[11px] text-[#536e7b]">
-        {reportText("Rodapé", `SEDES — Relatório Analítico | Gerado em: ${generatedAt} | MMA/DCDE · OCA · UFCG · INSA`)}
+        {reportText("Rodapé", t("document.footer", { generatedAt }))}
       </footer>
     </article>
   );
@@ -543,7 +688,12 @@ export function MunicipalReportPreview({ municipalityCode, period, layerIds, emb
       .map((element) => element.outerHTML)
       .join("\n");
     const baseUrl = `${window.location.origin}/`;
-    const filename = buildReportFilename(report, period, t("reportLabel"));
+    const filename = buildReportFilename(
+      report,
+      period,
+      t("reportLabel"),
+      t("reportFilenamePrefix"),
+    );
     const printOverrides = `
       <style>
         html,body{margin:0;background:#fff}
@@ -712,7 +862,8 @@ export function MunicipalReportPreview({ municipalityCode, period, layerIds, emb
     const filename = buildReportFilename(
       report,
       period,
-      municipality ? `Relatório-${municipality.name.replace(/\s+/g, "-")}-${period}.PDF` : t("reportLabel"),
+      municipality ? `${t("reportFilenamePrefix")}-${municipality.name.replace(/\s+/g, "-")}-${period}.PDF` : t("reportLabel"),
+      t("reportFilenamePrefix"),
     );
 
     return (

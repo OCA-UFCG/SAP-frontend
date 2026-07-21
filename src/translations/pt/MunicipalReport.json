@@ -49,10 +49,272 @@
     "dominantClass": "Classe predominante",
     "availablePeriods": "Períodos disponíveis",
     "futurePlaceholder": "Espaço reservado para mapas, gráficos, textos automáticos e síntese integrada.",
+    "document": {
+      "systemIdentification": "SEDES — Sistema Estratégico Sobre Desertificação",
+      "reportType": "Relatório Analítico Automatizado",
+      "institutions": "OCA / UFCG / INSA",
+      "website": "beta-sap.lsd.ufcg.edu.br",
+      "mainTitle": "Relatório Analítico do Sistema Estratégico Sobre Desertificação",
+      "subtitle": "Lei nº 13.153/2015 · Política Nacional de Combate à Desertificação",
+      "analysisAreaLabel": "Área de análise",
+      "scaleLabel": "Escala",
+      "scaleValue": "Municipal",
+      "generationDateLabel": "Data de geração",
+      "referenceLabel": "Referência",
+      "selectedVariablesLabel": "Variáveis selecionadas",
+      "analyzedPeriodsLabel": "Períodos analisados",
+      "notesTitle": "Notas Metodológicas e Fontes",
+      "legalReferenceLabel": "Referência legal",
+      "legalReferenceValue": "Lei nº 13.153/2015 — Política Nacional de Combate à Desertificação e Mitigação dos Efeitos da Seca.",
+      "automatedNotice": "Este relatório foi gerado automaticamente pelo Sistema Estratégico Sobre Desertificação (SEDES). Os valores apresentados são produzidos a partir dos dados disponíveis na plataforma.",
+      "footer": "SEDES — Relatório Analítico | Gerado em: {generatedAt} | MMA/DCDE · OCA · UFCG · INSA"
+    },
+    "valueLabels": {
+      "percentageCardContext": "da área analisada",
+      "percentageSectionTitle": "Classes",
+      "percentageTableValue": "Cobertura (%)",
+      "percentageChartSeries": "Série temporal por classe",
+      "absoluteCardContextUnit": "{unit} no município",
+      "absoluteCardContextNoUnit": "valor total no município",
+      "absoluteSectionTitle": "Valores",
+      "absoluteTableValueUnit": "Total ({unit})",
+      "absoluteTableValueNoUnit": "Valor total",
+      "absoluteChartSeries": "Série temporal de valores"
+    },
+    "narrative": {
+      "absoluteFallback": "No município de {place}, o valor de {className} é {value}, conforme os dados de {title} para o período de {period}.",
+      "percentageFallback": "No município de {place}, predomina a classe {className}, com {percentage}% da área analisada {coverageContext}, conforme os dados de {title} para o período de {period}."
+    },
+    "coverageContexts": {
+      "anaseca": "enquadrada nesse nível de severidade",
+      "indicearidez": "enquadrada nessa zona climática",
+      "deg": "classificada nesse nível",
+      "default": "classificada nessa categoria",
+      "enquadrada-nesse-nivel-de-severidade": "enquadrada nesse nível de severidade",
+      "enquadrada-nessa-zona-climatica": "enquadrada nessa zona climática",
+      "classificada-nesse-nivel": "classificada nesse nível",
+      "classificada-nessa-categoria": "classificada nessa categoria"
+    },
+    "historyTerms": {
+      "phenomenon": {
+        "anaseca": "seca",
+        "default": "condição analisada"
+      },
+      "neutralState": {
+        "anaseca": "sem seca",
+        "default": "condição normal"
+      },
+      "severityTerm": {
+        "anaseca": "severidade",
+        "default": "intensidade"
+      }
+    },
+    "historyNarrative": {
+      "noPrevious": "Não há mês anterior disponível para comparação.",
+      "stable": "A classificação permaneceu estável em relação ao mês anterior, quando também predominava {prevClass}.",
+      "improvement": "Houve melhora em relação ao mês anterior, quando predominava {prevClass}; no período atual não predomina condição de {phenomenon}.",
+      "worsening": "Houve piora em relação ao mês anterior, quando predominava {prevClass}; no período atual passou a predominar {currClass}.",
+      "worseningRank": "Houve agravamento em relação ao mês anterior, quando predominava {prevClass}.",
+      "improvementRank": "Houve redução em relação ao mês anterior, quando predominava {prevClass}.",
+      "recent": "A série histórica de {title} registra que {place} apresentou condição de {phenomenon} em {affected} dos últimos {total} períodos analisados ({firstPeriod} a {currentPeriod}). No período de referência ({currentPeriod}), predomina {currClass}. {comparison}",
+      "context": "No período {firstPeriod}–{currentPeriod}, a classe predominante mais frequente foi {mostFreqClass}, em {mostFreqPerc}% dos períodos. A condição {neutralState} predominou em {neutralPerc}% do período. A maior {severityTerm} observada foi {maximumText}.",
+      "maximumText": "{maxClass}, registrada em {maxPeriod}"
+    },
+    "currentSituation": "Situação atual:",
+    "requestedPeriodForIndicator": "Período solicitado para este indicador: {period}.",
+    "analyzedPeriod": "Período analisado",
+    "availableSeries": "Série disponível",
+    "periodResolutionDiff": "Período solicitado: {requested}; período disponível usado no relatório: {available}.",
+    "periodResolutionSame": "Período de referência usado no relatório: {available}.",
+    "sectionTitleOf": "{sectionTitle} de {title}",
+    "tableClass": "Classe",
+    "spatialAndTimeSeries": "Distribuição espacial e série temporal",
+    "spatialImage": "Imagem espacial: {period}",
+    "rasterDescription": "Raster temático de {title} para {period}, recortado visualmente pelo contorno municipal de {municipality} — {uf}.",
+    "timeSeriesAlt": "Série temporal — {title}",
+    "timeSeriesUnavailable": "Série temporal indisponível para exportação.",
+    "historicalAnalysisTitle": "Análise da série histórica",
+    "sectionReferenceLabel": "Referência da seção:",
+    "historicalNoteTitle": "Nota sobre a série histórica",
+    "historicalNoteText": "A série disponível para este indicador reúne {count} período(s), cobrindo {range}. {resolution}",
+    "mapCropAlt": "Recorte do mapa do município",
+    "mapUnavailableExport": "Mapa indisponível para exportação.",
+    "periodRange": "{first} a {last}",
+    "reportFilenamePrefix": "Relatório",
     "status": {
       "available": "Disponível",
       "unavailable": "Indisponível",
       "period_not_found": "Período não encontrado"
+    },
+    "indicators": {
+      "anaseca": {
+        "title": "Monitor de Secas",
+        "methodology": "Produzido pela Agência Nacional de Águas e Saneamento Básico (ANA), com disponibilidade mensal e classificação da severidade da seca."
+      },
+      "monitor-de-secas": {
+        "title": "Monitor de Secas",
+        "methodology": "Produzido pela Agência Nacional de Águas e Saneamento Básico (ANA), com disponibilidade mensal e classificação da severidade da seca."
+      },
+      "monitor-de-seca-ana": {
+        "title": "Monitor de Seca | ANA",
+        "methodology": "Acompanha a situação da seca no Brasil com base na classificação oficial mensal da ANA."
+      },
+      "indicearidez": {
+        "title": "Índice de Aridez",
+        "methodology": "Calculado pela razão entre precipitação anual e evapotranspiração potencial, com referências decenais disponíveis na plataforma."
+      },
+      "indice-de-aridez": {
+        "title": "Índice de Aridez",
+        "methodology": "Calculado pela razão entre precipitação anual e evapotranspiração potencial, com referências decenais disponíveis na plataforma."
+      },
+      "deg": {
+        "title": "Índice de Degradação da Terra",
+        "methodology": "Indicador territorial produzido para caracterizar diferentes níveis de conservação e degradação do solo e da cobertura vegetal."
+      },
+      "indice-de-degradacao-da-terra": {
+        "title": "Índice de Degradação da Terra",
+        "methodology": "Indicador territorial produzido para caracterizar diferentes níveis de conservação e degradação do solo e da cobertura vegetal."
+      },
+      "indice-de-degradacao": {
+        "title": "Índice de Degradação",
+        "methodology": "Mostra os níveis de degradação da terra no Brasil, de áreas conservadas a áreas mais degradadas."
+      },
+      "carbonoembrapa": {
+        "title": "Carbono Orgânico do Solo | Embrapa",
+        "methodology": "Exibe a distribuição do carbono orgânico do solo no Brasil com base em dados da Embrapa."
+      },
+      "carbono": {
+        "title": "Carbono",
+        "methodology": "Exibe a distribuição do carbono orgânico do solo no Brasil com base em dados da Embrapa."
+      },
+      "prev_anomalia_precipitacao": {
+        "title": "Previsão: Anomalia de Precipitação",
+        "methodology": "Previsão de anomalia de precipitação elaborada com base em dados climáticos do CPTEC/INPE."
+      },
+      "previsao-anomalia-de-precipitacao": {
+        "title": "Previsão: Anomalia de Precipitação",
+        "methodology": "Previsão de anomalia de precipitação elaborada com base em dados climáticos do CPTEC/INPE."
+      },
+      "CDI_Test": {
+        "title": "Índice Composto de Seca (CDI)",
+        "methodology": "Monitora mensalmente os estágios da seca com base no Índice Composto de Seca (CDI) implementado por OCA seguindo Cammalleri et al. 2021."
+      },
+      "cdi": {
+        "title": "Índice Composto de Seca (CDI)",
+        "methodology": "Monitora mensalmente os estágios da seca com base no Índice Composto de Seca (CDI) implementado por OCA seguindo Cammalleri et al. 2021."
+      },
+      "pob_total": {
+        "title": "Famílias em situação de pobreza",
+        "methodology": "Percentual de famílias inscritas no CadÚnico que se encontram em situação de pobreza agregado por município."
+      },
+      "familias-em-situacao-de-pobreza": {
+        "title": "Famílias em situação de pobreza",
+        "methodology": "Percentual de famílias inscritas no CadÚnico que se encontram em situação de pobreza agregado por município."
+      },
+      "pob_urb": {
+        "title": "Pobreza urbana",
+        "methodology": "Indicador territorial disponibilizado na plataforma SEDES."
+      },
+      "pobreza_urbana": {
+        "title": "Pobreza urbana",
+        "methodology": "Indicador territorial disponibilizado na plataforma SEDES."
+      },
+      "pobreza-urbana": {
+        "title": "Pobreza urbana",
+        "methodology": "Indicador territorial disponibilizado na plataforma SEDES."
+      },
+      "pob_rural": {
+        "title": "Pobreza rural",
+        "methodology": "Indicador territorial disponibilizado na plataforma SEDES."
+      },
+      "pobreza_rural": {
+        "title": "Pobreza rural",
+        "methodology": "Indicador territorial disponibilizado na plataforma SEDES."
+      },
+      "pobreza-rural": {
+        "title": "Pobreza rural",
+        "methodology": "Indicador territorial disponibilizado na plataforma SEDES."
+      },
+      "cemadenseca": {
+        "title": "Cemaden: Seca",
+        "methodology": "Índice de seca elaborado a partir de monitoramento e dados observacionais do Cemaden."
+      },
+      "cemaden-seca": {
+        "title": "Cemaden: Seca",
+        "methodology": "Índice de seca elaborado a partir de monitoramento e dados observacionais do Cemaden."
+      },
+      "ods": {
+        "title": "Objetivos de Desenvolvimento Sustentável (ODS 15.3.1)",
+        "methodology": "Indica se a terra está em degradação, estável ou melhorando no território brasileiro conforme a metodologia do ODS 15.3.1."
+      },
+      "objetivos-de-desenvolvimento-sustentavel": {
+        "title": "Objetivos de Desenvolvimento Sustentável (ODS 15.3.1)",
+        "methodology": "Indica se a terra está em degradação, estável ou melhorando no território brasileiro conforme a metodologia do ODS 15.3.1."
+      },
+      "prodprimariabruta": {
+        "title": "Produção Primária Bruta | MODIS",
+        "methodology": "Indicador de produtividade vegetal e biomassa derivado de sensoriamento remoto MODIS."
+      },
+      "producao-primaria-bruta": {
+        "title": "Produção Primária Bruta | MODIS",
+        "methodology": "Indicador de produtividade vegetal e biomassa derivado de sensoriamento remoto MODIS."
+      },
+      "terraibge": {
+        "title": "Cobertura da Terra | IBGE",
+        "methodology": "Apresenta a distribuição das classes de cobertura e uso da terra com base nos mapeamentos oficiais do IBGE."
+      },
+      "cobertura-da-terra": {
+        "title": "Cobertura da Terra | IBGE",
+        "methodology": "Apresenta a distribuição das classes de cobertura e uso da terra com base nos mapeamentos oficiais do IBGE."
+      },
+      "s2id_secas_estiagens": {
+        "title": "Registros de Secas e Estiagens (2004-2025)",
+        "methodology": "Compilação oficial de registros e decretos de situação de emergência ou calamidade por secas e estiagens do S2ID."
+      },
+      "registros-de-secas-e-estiagens-2004-2025": {
+        "title": "Registros de Secas e Estiagens (2004-2025)",
+        "methodology": "Compilação oficial de registros e decretos de situação de emergência ou calamidade por secas e estiagens do S2ID."
+      },
+      "defaultMethodology": "Indicador territorial disponibilizado na plataforma SEDES."
+    },
+    "classes": {
+      "condicoes-normais": "Condições normais",
+      "sem-seca": "Sem seca",
+      "seca-fraca": "Seca fraca",
+      "seca-moderada": "Seca moderada",
+      "seca-severa": "Seca severa",
+      "seca-grave": "Seca grave",
+      "seca-extrema": "Seca extrema",
+      "seca-excepcional": "Seca excepcional",
+      "conservado": "Conservado",
+      "nivel-1": "Nível 1",
+      "nivel-2": "Nível 2",
+      "nivel-3": "Nível 3",
+      "nivel-4": "Nível 4",
+      "nivel-5": "Nível 5",
+      "arido": "Árido",
+      "semiarido": "Semiárido",
+      "subumido-seco": "Subúmido Seco",
+      "umido": "Úmido",
+      "degradando": "Degradando",
+      "estavel": "Estável",
+      "melhorando": "Melhorando",
+      "area-artificial": "Área artificial",
+      "area-agricola": "Área agrícola",
+      "pastagem-com-manejo": "Pastagem com manejo",
+      "mosaico-florestal": "Mosaico florestal",
+      "silvicultura": "Silvicultura",
+      "vegetacao-florestal": "Vegetação florestal",
+      "area-umida": "Área úmida",
+      "vegetacao-campestre": "Vegetação campestre",
+      "mosaico-campestre": "Mosaico campestre",
+      "corpo-d-agua-continental": "Corpo d'água continental",
+      "corpo-d-agua-costeiro": "Corpo d'água costeiro",
+      "area-descoberta": "Área descoberta",
+      "pobreza-urbana": "Pobreza urbana",
+      "pobreza-rural": "Pobreza rural",
+      "registros-de-secas-e-estiagens": "Registros de secas e estiagens",
+      "registros": "registros"
     }
   }
 }
