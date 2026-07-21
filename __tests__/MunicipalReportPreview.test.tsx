@@ -158,6 +158,12 @@ describe("MunicipalReportPreview", () => {
     expect(screen.queryByLabelText("Diminuir zoom")).not.toBeInTheDocument();
     expect(screen.queryByText("75%")).not.toBeInTheDocument();
     expect(screen.queryByText("--")).not.toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Normal" })).toHaveAttribute("aria-pressed", "true");
+    expect(screen.getByRole("button", { name: "Seca" })).toHaveAttribute("aria-pressed", "true");
+
+    await user.click(screen.getByRole("button", { name: "Seca" }));
+
+    expect(screen.getByRole("button", { name: "Seca" })).toHaveAttribute("aria-pressed", "false");
 
     await waitFor(() => {
       expect(screen.getByRole("button", { name: "Download" })).toBeEnabled();
@@ -171,6 +177,7 @@ describe("MunicipalReportPreview", () => {
     expect(screen.getByLabelText("Diminuir zoom")).toBeInTheDocument();
     expect(screen.getByText("75%")).toBeInTheDocument();
     expect(screen.queryByText("--")).not.toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "Seca" })).not.toBeInTheDocument();
 
     await user.click(screen.getByLabelText("Aumentar zoom"));
 

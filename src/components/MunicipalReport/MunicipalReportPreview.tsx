@@ -3,6 +3,16 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
 import { useLocale, useTranslations } from "next-intl";
+import {
+  CartesianGrid,
+  Line,
+  LineChart,
+  ReferenceLine,
+  ResponsiveContainer,
+  Tooltip,
+  XAxis,
+  YAxis,
+} from "recharts";
 import type {
   MunicipalReportAnalysis,
   MunicipalReportData,
@@ -25,6 +35,7 @@ import {
   formatMunicipalReportValue,
   getMunicipalReportValueLabels,
 } from "@/utils/municipalReportValue";
+import { buildMunicipalReportChartData } from "@/utils/municipalReportChart";
 import { slugifyTranslationKey } from "@/utils/translations";
 import { ReportMapPreview } from "./ReportMapPreview";
 import { useReportMapCaptureQueue } from "./useReportMapCaptureQueue";
@@ -37,6 +48,25 @@ interface MunicipalReportPreviewProps {
 }
 
 type ReportViewMode = "html" | "modified";
+
+type DynamicChartRow = {
+  period: string;
+  label: string;
+  highlighted: boolean;
+  [seriesId: string]: string | number | boolean;
+};
+
+type DynamicTooltipPayload = {
+  color?: string;
+  dataKey?: string | number;
+  value?: number | string;
+};
+
+type DynamicTooltipProps = {
+  active?: boolean;
+  label?: string;
+  payload?: DynamicTooltipPayload[];
+};
 
 function textColorForBackground(color: string) {
   const hex = color.replace("#", "");
@@ -156,12 +186,233 @@ function translateAnalysisMethodology(
   return presentationMethodology;
 }
 
+function MunicipalReportDynamicChart({
+  analysis,
+  locale,
+  referencePeriod,
+  translateLabel,
+}: {
+  analysis: MunicipalReportAnalysis;
+  locale: string;
+  referencePeriod: string;
+  translateLabel: (label: string) => string;
+}) {
+  const chartData = useMemo(
+    () => buildMunicipalReportChartData(analysis, referencePeriod),
+    [analysis, referencePeriod],
+  );
+  const [activeSeries, setActiveSeries] = useState(
+    () => new Set(chartData.series.map((series) => series.id)),
+  );
+  const seriesById = useMemo(
+    () => new Map(chartData.series.map((series) => [series.id, series])),
+    [chartData.series],
+  );
+  const rows = useMemo(
+    () =>
+      chartData.categories.map((category, index) => {
+        const row: DynamicChartRow = {
+          period: category.period,
+          label: category.label,
+          highlighted: category.highlighted,
+        };
+        chartData.series.forEach((series) => {
+          row[series.id] = series.points[index]?.value ?? 0;
+        });
+        return row;
+      }),
+    [chartData.categories, chartData.series],
+  );
+  const periodLabels = useMemo(
+    () =>
+      new Map(
+        chartData.categories.map((category) => [
+          category.period,
+          category.label,
+        ]),
+      ),
+    [chartData.categories],
+  );
+  const visibleSeries = chartData.series.filter((series) =>
+    activeSeries.has(series.id),
+  );
+  const observedMax = Math.max(
+    0,
+    ...chartData.series.flatMap((series) =>
+      series.points.map((point) => point.value),
+    ),
+  );
+  const axisMax =
+    analysis.valueType === "absolute"
+      ? Math.max(1, Math.ceil(observedMax / 5) * 5)
+      : 100;
+  const yTicks = Array.from(
+    { length: 6 },
+    (_, index) => (axisMax / 5) * index,
+  );
+  const referenceLinePeriod = chartData.categories.some(
+    (category) => category.period === chartData.referencePeriod,
+  )
+    ? chartData.referencePeriod
+    : null;
+
+  function toggleSeries(seriesId: string) {
+    setActiveSeries((current) => {
+      const next = new Set(current);
+      if (next.has(seriesId)) {
+        if (next.size > 1) next.delete(seriesId);
+      } else {
+        next.add(seriesId);
+      }
+      return next;
+    });
+  }
+
+  function renderTooltip({ active, label, payload }: DynamicTooltipProps) {
+    if (!active || !payload?.length) return null;
+    const period = typeof label === "string" ? label : "";
+    const periodLabel = periodLabels.get(period) ?? period;
+
+    return (
+      <div className="rounded border border-[#d9e0e3] bg-white px-3 py-2 text-xs shadow-lg">
+        <p className="font-bold text-[#536e7b]">{periodLabel}</p>
+        <div className="mt-2 space-y-1">
+          {payload
+            .filter((entry) => typeof entry.dataKey === "string")
+            .map((entry) => {
+              const series = seriesById.get(String(entry.dataKey));
+              if (!series) return null;
+              const numericValue = Number(entry.value ?? 0);
+              return (
+                <p
+                  key={series.id}
+                  className="flex items-center justify-between gap-4 text-neutral-700"
+                >
+                  <span className="inline-flex items-center gap-2">
+                    <span
+                      className="h-2.5 w-2.5 rounded-full"
+                      style={{ backgroundColor: series.color }}
+                    />
+                    {translateLabel(series.label)}
+                  </span>
+                  <strong>
+                    {formatMunicipalReportValue(
+                      numericValue,
+                      analysis,
+                      locale,
+                    )}
+                  </strong>
+                </p>
+              );
+            })}
+        </div>
+      </div>
+    );
+  }
+
+  if (rows.length === 0 || chartData.series.length === 0) {
+    return (
+      <span className="text-sm text-neutral-500">
+        Série temporal indisponível para visualização dinâmica.
+      </span>
+    );
+  }
+
+  return (
+    <div className="flex h-full min-h-[300px] w-full flex-col gap-3">
+      <div className="min-h-[230px] flex-1">
+        <ResponsiveContainer width="100%" height="100%">
+          <LineChart
+            data={rows}
+            margin={{ top: 18, right: 20, bottom: 8, left: 0 }}
+          >
+            <CartesianGrid stroke="#D8D9D4" strokeDasharray="3 3" />
+            <XAxis
+              dataKey="period"
+              tickFormatter={(value) => periodLabels.get(String(value)) ?? String(value)}
+              tick={{ fill: "#6B6768", fontSize: 12 }}
+              tickLine={false}
+              axisLine={{ stroke: "#C8CED1" }}
+              minTickGap={18}
+            />
+            <YAxis
+              domain={[0, axisMax]}
+              ticks={yTicks}
+              tickFormatter={(value) =>
+                analysis.valueType === "percentage"
+                  ? `${Number(value).toFixed(0)}%`
+                  : new Intl.NumberFormat(locale, {
+                      maximumFractionDigits: 0,
+                    }).format(Number(value))
+              }
+              tick={{ fill: "#6B6768", fontSize: 12 }}
+              tickLine={false}
+              axisLine={{ stroke: "#C8CED1" }}
+              width={54}
+            />
+            {referenceLinePeriod && (
+              <ReferenceLine
+                x={referenceLinePeriod}
+                stroke="#989F43"
+                strokeDasharray="4 4"
+                strokeWidth={2}
+              />
+            )}
+            <Tooltip
+              content={(props: DynamicTooltipProps) => renderTooltip(props)}
+              cursor={{ stroke: "#989F43", strokeWidth: 1 }}
+            />
+            {visibleSeries.map((series) => (
+              <Line
+                key={series.id}
+                type="monotone"
+                dataKey={series.id}
+                name={translateLabel(series.label)}
+                stroke={series.color}
+                strokeWidth={2.5}
+                dot={{ r: 2.8, strokeWidth: 2, fill: "#FFFFFF" }}
+                activeDot={{ r: 5, strokeWidth: 2, fill: "#FFFFFF" }}
+                isAnimationActive={false}
+              />
+            ))}
+          </LineChart>
+        </ResponsiveContainer>
+      </div>
+      <div className="flex flex-wrap gap-2">
+        {chartData.series.map((series) => {
+          const enabled = activeSeries.has(series.id);
+          return (
+            <button
+              key={series.id}
+              type="button"
+              aria-pressed={enabled}
+              onClick={() => toggleSeries(series.id)}
+              className={`inline-flex items-center gap-2 rounded border px-2.5 py-1.5 text-xs font-semibold transition ${
+                enabled
+                  ? "border-[#c8ced1] bg-white text-[#292829]"
+                  : "border-[#d9e0e3] bg-[#f4f6f8] text-neutral-500"
+              }`}
+            >
+              <span
+                className="h-2.5 w-2.5 rounded-full"
+                style={{ backgroundColor: series.color }}
+              />
+              {translateLabel(series.label)}
+            </button>
+          );
+        })}
+      </div>
+    </div>
+  );
+}
+
 function AnalysisSection({
   analysis,
   report,
   index,
   locale,
   chartSrc,
+  viewMode,
   mapSrc,
   mapActive,
   mapAttempt,
@@ -174,6 +425,7 @@ function AnalysisSection({
   index: number;
   locale: string;
   chartSrc?: string;
+  viewMode: ReportViewMode;
   mapSrc?: string;
   mapActive?: boolean;
   mapAttempt?: number;
@@ -349,7 +601,16 @@ function AnalysisSection({
                   {valueLabels.chartSeries}: {historyRange}
                 </div>
                 <div className="report-chart-frame flex min-h-[230px] flex-1 items-center justify-center p-4">
-                  {chartSrc ? (
+                  {viewMode === "html" ? (
+                    <MunicipalReportDynamicChart
+                      analysis={analysis}
+                      locale={locale}
+                      referencePeriod={referencePeriod}
+                      translateLabel={(label) =>
+                        translateClassLabel(label, t, tHas, tCaption, tCaptionHas)
+                      }
+                    />
+                  ) : chartSrc ? (
                     <img src={chartSrc} alt={t("timeSeriesAlt", { title: translatedTitle })} className="max-h-[210px] max-w-full" />
                   ) : (
                     <span className="text-sm text-neutral-500">{t("timeSeriesUnavailable")}</span>
@@ -508,6 +769,7 @@ function ReportDocument({
               index={index}
               locale={locale}
               chartSrc={charts.get(analysis.alias)}
+              viewMode={viewMode}
               mapSrc={mapImages.get(mapKey) ?? undefined}
               mapActive={activeMapKeys.has(mapKey)}
               mapAttempt={retryAttemptFor(mapKey)}
