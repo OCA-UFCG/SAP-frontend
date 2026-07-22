@@ -88,7 +88,7 @@ export const Footer = ({ content }: { content: FooterI[] }) => {
               height="524"
               src="/partners/mma-logo.png"
               alt="Ministério do Meio Ambiente e Mudança do Clima"
-              className="h-8 w-auto brightness-0 invert"
+              className="h-12 w-auto brightness-0 invert"
             />
             <Image
               width="1485"
