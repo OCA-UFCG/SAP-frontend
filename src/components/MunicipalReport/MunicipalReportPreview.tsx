@@ -79,6 +79,32 @@ function textColorForBackground(color: string) {
     : "#ffffff";
 }
 
+function parseHexColor(color: string) {
+  const hex = color.replace("#", "");
+  if (!/^[0-9a-f]{6}$/i.test(hex)) return null;
+  const [red, green, blue] = [0, 2, 4].map((offset) =>
+    Number.parseInt(hex.slice(offset, offset + 2), 16),
+  );
+  return { red, green, blue };
+}
+
+function toHex(value: number) {
+  return Math.max(0, Math.min(255, Math.round(value)))
+    .toString(16)
+    .padStart(2, "0");
+}
+
+function getVisibleChartColor(color: string) {
+  const parsed = parseHexColor(color);
+  if (!parsed) return "#536E7B";
+
+  const luminance =
+    parsed.red * 0.299 + parsed.green * 0.587 + parsed.blue * 0.114;
+  if (luminance <= 190) return color;
+
+  return `#${toHex(parsed.red * 0.72)}${toHex(parsed.green * 0.72)}${toHex(parsed.blue * 0.72)}`;
+}
+
 function compactPeriodRange(
   timeSeries: MunicipalReportAnalysis["timeSeries"],
   fallback: string,
@@ -283,6 +309,7 @@ function MunicipalReportDynamicChart({
               const series = seriesById.get(String(entry.dataKey));
               if (!series) return null;
               const numericValue = Number(entry.value ?? 0);
+              const visibleColor = getVisibleChartColor(series.color);
               return (
                 <p
                   key={series.id}
@@ -291,7 +318,7 @@ function MunicipalReportDynamicChart({
                   <span className="inline-flex items-center gap-2">
                     <span
                       className="h-2.5 w-2.5 rounded-full"
-                      style={{ backgroundColor: series.color }}
+                      style={{ backgroundColor: visibleColor }}
                     />
                     {translateLabel(series.label)}
                   </span>
@@ -319,21 +346,28 @@ function MunicipalReportDynamicChart({
   }
 
   return (
-    <div className="flex h-full min-h-[300px] w-full flex-col gap-3">
-      <div className="min-h-[230px] flex-1">
+    <div className="flex h-full min-h-[320px] w-full flex-col gap-3">
+      <div className="min-h-[255px] flex-1">
         <ResponsiveContainer width="100%" height="100%">
           <LineChart
             data={rows}
-            margin={{ top: 18, right: 20, bottom: 8, left: 0 }}
+            margin={{ top: 20, right: 28, bottom: 18, left: 8 }}
           >
-            <CartesianGrid stroke="#D8D9D4" strokeDasharray="3 3" />
+            <CartesianGrid
+              stroke="#E3E7EA"
+              strokeDasharray="4 6"
+              vertical={false}
+            />
             <XAxis
               dataKey="period"
               tickFormatter={(value) => periodLabels.get(String(value)) ?? String(value)}
-              tick={{ fill: "#6B6768", fontSize: 12 }}
+              tick={{ fill: "#5F6670", fontSize: 11 }}
               tickLine={false}
-              axisLine={{ stroke: "#C8CED1" }}
-              minTickGap={18}
+              axisLine={{ stroke: "#B8C0C5" }}
+              minTickGap={12}
+              height={38}
+              tickMargin={10}
+              interval="preserveStartEnd"
             />
             <YAxis
               domain={[0, axisMax]}
@@ -345,10 +379,11 @@ function MunicipalReportDynamicChart({
                       maximumFractionDigits: 0,
                     }).format(Number(value))
               }
-              tick={{ fill: "#6B6768", fontSize: 12 }}
+              tick={{ fill: "#5F6670", fontSize: 11 }}
               tickLine={false}
-              axisLine={{ stroke: "#C8CED1" }}
-              width={54}
+              axisLine={{ stroke: "#B8C0C5" }}
+              width={62}
+              tickMargin={8}
             />
             {referenceLinePeriod && (
               <ReferenceLine
@@ -360,7 +395,7 @@ function MunicipalReportDynamicChart({
             )}
             <Tooltip
               content={(props: DynamicTooltipProps) => renderTooltip(props)}
-              cursor={{ stroke: "#989F43", strokeWidth: 1 }}
+              cursor={{ stroke: "#8A9340", strokeWidth: 1.25 }}
             />
             {visibleSeries.map((series) => (
               <Line
@@ -368,10 +403,11 @@ function MunicipalReportDynamicChart({
                 type="monotone"
                 dataKey={series.id}
                 name={translateLabel(series.label)}
-                stroke={series.color}
-                strokeWidth={2.5}
-                dot={{ r: 2.8, strokeWidth: 2, fill: "#FFFFFF" }}
-                activeDot={{ r: 5, strokeWidth: 2, fill: "#FFFFFF" }}
+                stroke={getVisibleChartColor(series.color)}
+                strokeWidth={2}
+                strokeOpacity={0.92}
+                dot={{ r: 2.2, strokeWidth: 1.6, fill: "#FFFFFF" }}
+                activeDot={{ r: 4.4, strokeWidth: 2, fill: "#FFFFFF" }}
                 isAnimationActive={false}
               />
             ))}
@@ -395,7 +431,7 @@ function MunicipalReportDynamicChart({
             >
               <span
                 className="h-2.5 w-2.5 rounded-full"
-                style={{ backgroundColor: series.color }}
+                style={{ backgroundColor: getVisibleChartColor(series.color) }}
               />
               {translateLabel(series.label)}
             </button>
@@ -546,29 +582,41 @@ function AnalysisSection({
                 </tr>
               </thead>
               <tbody>
-                {analysis.snapshot.distribution.map((item) => (
-                  <tr
-                    key={item.id}
-                    className="report-data-row border-t border-[#c8ced1]"
-                    style={
-                      {
-                        "--report-row-bg": `${item.color}33`,
-                        "--report-row-hover-bg": `${item.color}4d`,
-                      } as CSSProperties
-                    }
-                  >
-                    <td className="border-r border-[#c8ced1] px-4 py-2.5 font-medium">
-                      <span
-                        className="mr-2 inline-block h-2.5 w-2.5 rounded-full border border-black/10"
-                        style={{ backgroundColor: item.color }}
-                      />
-                      {translateClassLabel(item.label, t, tHas, tCaption, tCaptionHas)}
-                    </td>
-                    <td className="px-4 py-2.5 text-right font-semibold">
-                      {formatMunicipalReportValue(item.percentage, analysis, locale)}
-                    </td>
-                  </tr>
-                ))}
+                {analysis.snapshot.distribution.map((item) => {
+                  const visibleColor = getVisibleChartColor(item.color);
+                  const rowBackground = `${visibleColor}33`;
+                  const rowHoverBackground = `${visibleColor}4d`;
+
+                  return (
+                    <tr
+                      key={item.id}
+                      className="report-data-row border-t border-[#c8ced1]"
+                      style={
+                        {
+                          "--report-row-bg": rowBackground,
+                          "--report-row-hover-bg": rowHoverBackground,
+                        } as CSSProperties
+                      }
+                    >
+                      <td
+                        className="border-r border-[#c8ced1] px-4 py-2.5 font-medium"
+                        style={{ backgroundColor: rowBackground }}
+                      >
+                        <span
+                          className="mr-2 inline-block h-2.5 w-2.5 rounded-full border border-black/10"
+                          style={{ backgroundColor: visibleColor }}
+                        />
+                        {translateClassLabel(item.label, t, tHas, tCaption, tCaptionHas)}
+                      </td>
+                      <td
+                        className="px-4 py-2.5 text-right font-semibold"
+                        style={{ backgroundColor: rowBackground }}
+                      >
+                        {formatMunicipalReportValue(item.percentage, analysis, locale)}
+                      </td>
+                    </tr>
+                  );
+                })}
               </tbody>
             </table>
           </div>
@@ -577,9 +625,9 @@ function AnalysisSection({
             <h3 className="report-heading text-lg font-bold text-[#536e7b]">
               {t("spatialAndTimeSeries")}
             </h3>
-            <div className="report-visual-grid mt-3 grid overflow-hidden border border-[#c8ced1] bg-white md:grid-cols-2">
+            <div className="report-visual-grid mt-3 grid overflow-hidden border border-[#c8ced1] bg-[#fbfcfd] md:grid-cols-2">
               <div className="report-visual-panel flex flex-col border-b border-[#c8ced1] md:border-b-0 md:border-r">
-                <div className="border-b border-[#c8ced1] bg-[#f4f6f8] px-4 py-2.5 text-center text-sm font-semibold text-[#536e7b]">
+                <div className="border-b border-[#c8ced1] bg-[#f8fafb] px-4 py-2.5 text-center text-sm font-semibold text-[#536e7b]">
                   {t("spatialImage", { period: snapshotPeriodLabel })}
                 </div>
                 <ReportMapPreview
@@ -603,10 +651,10 @@ function AnalysisSection({
                 </p>
               </div>
               <div className="report-visual-panel flex flex-col">
-                <div className="border-b border-[#c8ced1] bg-[#f4f6f8] px-4 py-2.5 text-center text-sm font-semibold text-[#536e7b]">
+                <div className="border-b border-[#c8ced1] bg-[#f8fafb] px-4 py-2.5 text-center text-sm font-semibold text-[#536e7b]">
                   {valueLabels.chartSeries}: {historyRange}
                 </div>
-                <div className="report-chart-frame flex min-h-[230px] flex-1 items-center justify-center p-4">
+                <div className="report-chart-frame flex min-h-[260px] flex-1 items-center justify-center bg-[#fbfcfd] p-3">
                   {viewMode === "html" ? (
                     <MunicipalReportDynamicChart
                       analysis={analysis}

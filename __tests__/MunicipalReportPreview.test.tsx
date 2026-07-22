@@ -53,6 +53,7 @@ const report: MunicipalReportData = {
       requestedPeriod: "2026",
       effectivePeriod: "2026",
       classes: [
+        { id: "sem-seca", label: "Sem seca", color: "#FFFFFF" },
         { id: "normal", label: "Normal", color: "#3c8f4d" },
         { id: "seca", label: "Seca", color: "#d97706" },
       ],
@@ -60,6 +61,7 @@ const report: MunicipalReportData = {
         period: "2026",
         label: "2026",
         distribution: [
+          { id: "sem-seca", label: "Sem seca", color: "#FFFFFF", percentage: 0 },
           { id: "normal", label: "Normal", color: "#3c8f4d", percentage: 70 },
           { id: "seca", label: "Seca", color: "#d97706", percentage: 30 },
         ],
@@ -75,6 +77,7 @@ const report: MunicipalReportData = {
           period: "2025",
           label: "2025",
           distribution: [
+            { id: "sem-seca", label: "Sem seca", color: "#FFFFFF", percentage: 0 },
             { id: "normal", label: "Normal", color: "#3c8f4d", percentage: 50 },
             { id: "seca", label: "Seca", color: "#d97706", percentage: 50 },
           ],
@@ -89,6 +92,7 @@ const report: MunicipalReportData = {
           period: "2026",
           label: "2026",
           distribution: [
+            { id: "sem-seca", label: "Sem seca", color: "#FFFFFF", percentage: 0 },
             { id: "normal", label: "Normal", color: "#3c8f4d", percentage: 70 },
             { id: "seca", label: "Seca", color: "#d97706", percentage: 30 },
           ],
@@ -158,6 +162,10 @@ describe("MunicipalReportPreview", () => {
     expect(screen.queryByLabelText("Diminuir zoom")).not.toBeInTheDocument();
     expect(screen.queryByText("75%")).not.toBeInTheDocument();
     expect(screen.queryByText("--")).not.toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Sem seca" })).toHaveAttribute("aria-pressed", "true");
+    expect(screen.getByRole("button", { name: "Sem seca" }).querySelector("span")).toHaveStyle({
+      backgroundColor: "#b8b8b8",
+    });
     expect(screen.getByRole("button", { name: "Normal" })).toHaveAttribute("aria-pressed", "true");
     expect(screen.getByRole("button", { name: "Seca" })).toHaveAttribute("aria-pressed", "true");
 
