@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState, type CSSProperties } from "react";
 import Link from "next/link";
 import { useLocale, useTranslations } from "next-intl";
 import {
@@ -547,11 +547,17 @@ function AnalysisSection({
               </thead>
               <tbody>
                 {analysis.snapshot.distribution.map((item) => (
-                  <tr key={item.id} className="border-t border-[#c8ced1]">
-                    <td
-                      className="border-r border-[#c8ced1] px-4 py-2.5 font-medium"
-                      style={{ backgroundColor: `${item.color}33` }}
-                    >
+                  <tr
+                    key={item.id}
+                    className="report-data-row border-t border-[#c8ced1]"
+                    style={
+                      {
+                        "--report-row-bg": `${item.color}33`,
+                        "--report-row-hover-bg": `${item.color}4d`,
+                      } as CSSProperties
+                    }
+                  >
+                    <td className="border-r border-[#c8ced1] px-4 py-2.5 font-medium">
                       <span
                         className="mr-2 inline-block h-2.5 w-2.5 rounded-full border border-black/10"
                         style={{ backgroundColor: item.color }}
