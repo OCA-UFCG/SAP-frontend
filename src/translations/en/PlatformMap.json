@@ -2,6 +2,10 @@
   "PlatformMap": {
     "loadingGeeLayer": "Loading GEE layer",
     "loadingMapLayer": "Loading map layer",
-    "opacity": "Transparency"
+    "opacity": "Transparency",
+    "satellite": "Satellite",
+    "street": "Street",
+    "switchToSatellite": "Switch to satellite view",
+    "switchToOsm": "Switch to street view"
   }
 }
