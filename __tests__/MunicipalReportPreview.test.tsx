@@ -1,4 +1,4 @@
-import { cleanup, render, screen, waitFor } from "@testing-library/react";
+import { cleanup, render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { useEffect, useRef } from "react";
@@ -119,19 +119,6 @@ describe("MunicipalReportPreview", () => {
         return Response.json({ content: {} });
       }
 
-      if (url.includes("/chart?")) {
-        return Response.json({
-          report,
-          charts: [
-            {
-              alias: "seca",
-              contentType: "image/svg+xml",
-              base64: btoa("<svg />"),
-            },
-          ],
-        });
-      }
-
       return Response.json(report);
     });
   });
@@ -141,7 +128,7 @@ describe("MunicipalReportPreview", () => {
     global.fetch = originalFetch;
   });
 
-  it("renders HTML by default and restores PDF-style controls in the PDF format preview", async () => {
+  it("renders the report directly as full HTML without PDF preview controls", async () => {
     const user = userEvent.setup();
 
     render(
@@ -156,8 +143,8 @@ describe("MunicipalReportPreview", () => {
     expect(await screen.findByRole("article")).toBeInTheDocument();
     expect(screen.getByText("Monitor de Secas")).toBeInTheDocument();
     expect(screen.getByText("Distribuição espacial e série temporal")).toBeInTheDocument();
-    expect(screen.getByRole("button", { name: "HTML" })).toHaveAttribute("aria-pressed", "true");
-    expect(screen.getByRole("button", { name: "Formato PDF" })).toHaveAttribute("aria-pressed", "false");
+    expect(screen.queryByRole("button", { name: "HTML" })).not.toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "Formato PDF" })).not.toBeInTheDocument();
     expect(screen.queryByLabelText("Aumentar zoom")).not.toBeInTheDocument();
     expect(screen.queryByLabelText("Diminuir zoom")).not.toBeInTheDocument();
     expect(screen.queryByText("75%")).not.toBeInTheDocument();
@@ -173,22 +160,11 @@ describe("MunicipalReportPreview", () => {
 
     expect(screen.getByRole("button", { name: "Seca" })).toHaveAttribute("aria-pressed", "false");
 
-    await waitFor(() => {
-      expect(screen.getByRole("button", { name: "Download" })).toBeEnabled();
-    });
-
-    await user.click(screen.getByRole("button", { name: "Formato PDF" }));
-
-    expect(screen.getByRole("button", { name: "HTML" })).toHaveAttribute("aria-pressed", "false");
-    expect(screen.getByRole("button", { name: "Formato PDF" })).toHaveAttribute("aria-pressed", "true");
-    expect(screen.getByLabelText("Aumentar zoom")).toBeInTheDocument();
-    expect(screen.getByLabelText("Diminuir zoom")).toBeInTheDocument();
-    expect(screen.getByText("75%")).toBeInTheDocument();
-    expect(screen.queryByText("--")).not.toBeInTheDocument();
-    expect(screen.queryByRole("button", { name: "Seca" })).not.toBeInTheDocument();
-
-    await user.click(screen.getByLabelText("Aumentar zoom"));
-
-    expect(screen.getByText("85%")).toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "Download" })).not.toBeInTheDocument();
+    expect(
+      vi.mocked(global.fetch).mock.calls.some(([input]) =>
+        String(input).includes("/chart?"),
+      ),
+    ).toBe(false);
   });
 });

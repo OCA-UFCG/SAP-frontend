@@ -25,7 +25,6 @@ import {
   formatReportPeriod,
   getReportDocsText,
 } from "@/utils/municipalReportNarrative";
-import citiesIndex from "@/data/citiesIndex.json";
 import {
   finishMunicipalReportMetrics,
   recordMunicipalReportNavigation,
@@ -46,8 +45,6 @@ interface MunicipalReportPreviewProps {
   layerIds?: string[];
   embedded?: boolean;
 }
-
-type ReportViewMode = "html" | "modified";
 
 type DynamicChartRow = {
   period: string;
@@ -118,16 +115,6 @@ function compactPeriodRange(
   if (firstPeriod === lastPeriod) return firstLabel;
   if (t) return t("periodRange", { first: firstLabel, last: lastLabel });
   return `${firstLabel} a ${lastLabel}`;
-}
-
-function buildReportFilename(
-  report: MunicipalReportData | null,
-  period: string,
-  fallback: string,
-  prefix = "Relatório",
-) {
-  if (!report) return fallback;
-  return `${prefix}-${report.municipality.name.replace(/\s+/g, "-")}-${period}.PDF`;
 }
 
 function slugifyLabelKey(label: string): string {
@@ -447,8 +434,6 @@ function AnalysisSection({
   report,
   index,
   locale,
-  chartSrc,
-  viewMode,
   mapSrc,
   mapActive,
   mapAttempt,
@@ -460,8 +445,6 @@ function AnalysisSection({
   report: MunicipalReportData;
   index: number;
   locale: string;
-  chartSrc?: string;
-  viewMode: ReportViewMode;
   mapSrc?: string;
   mapActive?: boolean;
   mapAttempt?: number;
@@ -655,20 +638,14 @@ function AnalysisSection({
                   {valueLabels.chartSeries}: {historyRange}
                 </div>
                 <div className="report-chart-frame flex min-h-[260px] flex-1 items-center justify-center bg-[#fbfcfd] p-3">
-                  {viewMode === "html" ? (
-                    <MunicipalReportDynamicChart
-                      analysis={analysis}
-                      locale={locale}
-                      referencePeriod={referencePeriod}
-                      translateLabel={(label) =>
-                        translateClassLabel(label, t, tHas, tCaption, tCaptionHas)
-                      }
-                    />
-                  ) : chartSrc ? (
-                    <img src={chartSrc} alt={t("timeSeriesAlt", { title: translatedTitle })} className="max-h-[210px] max-w-full" />
-                  ) : (
-                    <span className="text-sm text-neutral-500">{t("timeSeriesUnavailable")}</span>
-                  )}
+                  <MunicipalReportDynamicChart
+                    analysis={analysis}
+                    locale={locale}
+                    referencePeriod={referencePeriod}
+                    translateLabel={(label) =>
+                      translateClassLabel(label, t, tHas, tCaption, tCaptionHas)
+                    }
+                  />
                 </div>
                 <p className="border-t border-[#c8ced1] px-4 py-2 text-xs leading-5 text-neutral-600">
                   {periodResolution}
@@ -710,27 +687,21 @@ function AnalysisSection({
 function ReportDocument({
   report,
   layerIds = [],
-  charts,
   mapImages,
   activeMapKeys,
   mapQueueStartedAt,
   retryAttemptFor,
   onMapCapture,
-  documentRef,
   docsContent,
-  viewMode = "html",
 }: {
   report: MunicipalReportData;
   layerIds?: string[];
-  charts: Map<string, string>;
   mapImages: Map<string, string | null>;
   activeMapKeys: ReadonlySet<string>;
   mapQueueStartedAt: number | null;
   retryAttemptFor: (key: string) => number;
   onMapCapture?: (key: string, src: string | null) => void;
-  documentRef?: React.Ref<HTMLElement>;
   docsContent: MunicipalReportDocsContent | null;
-  viewMode?: ReportViewMode;
 }) {
   const t = useTranslations("MunicipalReport");
   const tModules = useTranslations("ModulesContext");
@@ -755,12 +726,7 @@ function ReportDocument({
 
   return (
     <article
-      ref={documentRef}
-      className={`report-paper mt-6 bg-white text-[#202020] ${
-        viewMode === "html"
-          ? "report-paper-html border border-[#d9e0e3]"
-          : "report-paper-modified shadow-[0_8px_35px_rgba(0,0,0,0.12)]"
-      }`}
+      className="report-paper report-paper-html min-h-full bg-white text-[#202020]"
     >
       <header>
         <div className="flex flex-wrap items-start justify-between gap-4 text-xs text-[#0f5a2d]">
@@ -822,8 +788,6 @@ function ReportDocument({
               report={report}
               index={index}
               locale={locale}
-              chartSrc={charts.get(analysis.alias)}
-              viewMode={viewMode}
               mapSrc={mapImages.get(mapKey) ?? undefined}
               mapActive={activeMapKeys.has(mapKey)}
               mapAttempt={retryAttemptFor(mapKey)}
@@ -900,14 +864,9 @@ export function MunicipalReportPreview({ municipalityCode, period, layerIds, emb
   const hasRequiredParameters = Boolean(municipalityCode && period);
   const [report, setReport] = useState<MunicipalReportData | null>(null);
   const [docsContent, setDocsContent] = useState<MunicipalReportDocsContent | null>(null);
-  const [charts, setCharts] = useState<Map<string, string>>(new Map());
   const [mapQueueStartedAt, setMapQueueStartedAt] = useState<number | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(hasRequiredParameters);
-  const [exporting, setExporting] = useState(false);
-  const [reportViewMode, setReportViewMode] = useState<ReportViewMode>("html");
-  const [zoom, setZoom] = useState(75);
-  const reportDocumentRef = useRef<HTMLElement>(null);
   const navigationMeasuredRef = useRef(false);
   const previewMeasuredRef = useRef(false);
   const summaryMeasuredRef = useRef(false);
@@ -984,74 +943,11 @@ export function MunicipalReportPreview({ municipalityCode, period, layerIds, emb
     summaryMeasuredRef.current = true;
     const frame = window.requestAnimationFrame(() => {
       finishMunicipalReportMetrics(
-        `${reportMapKeys.length} mapa(s) capturado(s); botão de download liberado.`,
+        `${reportMapKeys.length} mapa(s) capturado(s); visualização HTML pronta.`,
       );
     });
     return () => window.cancelAnimationFrame(frame);
   }, [loading, mapsReady, report, reportMapKeys.length]);
-
-  function printReport() {
-    if (!reportDocumentRef.current || exporting || !mapsReady) return;
-
-    setExporting(true);
-    const printWindow = window.open("", "_blank", "popup,width=980,height=800");
-    if (!printWindow) {
-      setExporting(false);
-      setError(t("popupBlocked"));
-      return;
-    }
-
-    const styles = [...document.querySelectorAll('link[rel="stylesheet"], style')]
-      .map((element) => element.outerHTML)
-      .join("\n");
-    const baseUrl = `${window.location.origin}/`;
-    const filename = buildReportFilename(
-      report,
-      period,
-      t("reportLabel"),
-      t("reportFilenamePrefix"),
-    );
-    const printOverrides = `
-      <style>
-        html,body{margin:0;background:#fff}
-        .report-paper{box-sizing:border-box;margin:0!important;box-shadow:none!important}
-        .report-visual-grid{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr)}
-        .report-visual-panel{min-width:0}
-        .report-visual-panel:first-child{border-right:1px solid #c8ced1;border-bottom:0}
-        .report-map-frame{height:230px}
-        .report-chart-frame{min-height:230px}
-        @media print{
-          html,body{width:210mm;background:#fff}
-          body{-webkit-print-color-adjust:exact;print-color-adjust:exact}
-          .report-paper{box-sizing:border-box}
-          .report-visual-grid{display:grid!important;grid-template-columns:minmax(0,1fr) minmax(0,1fr)!important}
-          .report-visual-panel{display:flex!important;flex-direction:column!important;min-width:0}
-          .report-map-frame{height:230px!important}
-          .report-chart-frame{min-height:230px!important}
-          .report-paper img{break-inside:avoid;page-break-inside:avoid}
-          .report-paper table{break-inside:auto;page-break-inside:auto}
-          .report-paper tr,.report-block,.report-visual-panel{break-inside:avoid;page-break-inside:avoid}
-          .report-heading{break-after:avoid;page-break-after:avoid}
-          .report-section{break-inside:auto;page-break-inside:auto}
-          .report-visual-block,.report-notes{break-inside:avoid;page-break-inside:avoid}
-        }
-      </style>`;
-    printWindow.document.open();
-    printWindow.document.write(`<!doctype html><html lang="${locale}"><head><meta charset="utf-8"><base href="${baseUrl}"><title>${filename}</title>${styles}${printOverrides}</head><body>${reportDocumentRef.current.outerHTML}</body></html>`);
-    printWindow.document.close();
-
-    const finish = () => {
-      printWindow.focus();
-      printWindow.print();
-      setExporting(false);
-    };
-    printWindow.addEventListener("afterprint", () => printWindow.close(), { once: true });
-    if (printWindow.document.readyState === "complete") {
-      window.setTimeout(finish, 300);
-    } else {
-      printWindow.addEventListener("load", () => window.setTimeout(finish, 300), { once: true });
-    }
-  }
 
   useEffect(() => {
     if (!hasRequiredParameters) return;
@@ -1083,7 +979,6 @@ export function MunicipalReportPreview({ municipalityCode, period, layerIds, emb
         setReport(payload as MunicipalReportData);
         setDocsContent(null);
 
-        // Fetch charts for all available analyses
         const reportData = payload as MunicipalReportData;
         const selectedLayerIds = layerIdsKey ? new Set(layerIdsKey.split(",")) : null;
         const selectedLayerIdsForDocs = (selectedLayerIds
@@ -1119,37 +1014,7 @@ export function MunicipalReportPreview({ municipalityCode, period, layerIds, emb
           }
         };
 
-        const chartsTask = async () => {
-          if (selectedLayerIdsForDocs.length === 0) {
-            setCharts(new Map());
-            return;
-          }
-          const finishCharts = startMunicipalReportStage();
-          const chartResponse = await fetch(
-            `/api/municipal-report/${encodeURIComponent(municipalityCode)}/chart?period=${encodeURIComponent(period)}&analysis=${selectedLayerIdsForDocs.join(",")}`,
-            { credentials: "same-origin", signal: controller.signal },
-          );
-          const chartPayload = await chartResponse.json();
-          finishCharts("Gráficos SVG", {
-            response: chartResponse,
-            detalhes: `${selectedLayerIdsForDocs.length} gráfico(s) solicitado(s)`,
-          });
-          if (chartResponse.ok) {
-            const nextCharts = new Map<string, string>();
-            for (const chart of chartPayload.charts) {
-              nextCharts.set(chart.alias, `data:${chart.contentType};base64,${chart.base64}`);
-            }
-            setCharts(nextCharts);
-          }
-        };
-
-        // Text resolution and SVG rendering are independent. Starting them
-        // together prevents the chart from waiting behind the Docs request.
-        const finishParallelAssets = startMunicipalReportStage();
-        await Promise.all([docsTask(), chartsTask()]);
-        finishParallelAssets("Janela paralela: textos + gráficos", {
-          detalhes: "Duração do mais lento entre as duas requisições paralelas",
-        });
+        await docsTask();
       } catch (reason) {
         if (reason instanceof DOMException && reason.name === "AbortError") return;
         setError(reason instanceof Error ? reason.message : loadErrorMessage);
@@ -1175,161 +1040,39 @@ export function MunicipalReportPreview({ municipalityCode, period, layerIds, emb
   const visibleError = hasRequiredParameters ? error : null;
 
   if (embedded) {
-    const municipality = citiesIndex.find((item) => item.code === municipalityCode);
-    const filename = buildReportFilename(
-      report,
-      period,
-      municipality ? `${t("reportFilenamePrefix")}-${municipality.name.replace(/\s+/g, "-")}-${period}.PDF` : t("reportLabel"),
-      t("reportFilenamePrefix"),
-    );
-
-    const viewModeToggle = (
-      <div
-        className="inline-flex h-10 overflow-hidden rounded border border-[#D9E0E3] bg-[#F6F7F6] p-1"
-        role="group"
-        aria-label={t("viewMode")}
-      >
-        <button
-          type="button"
-          aria-pressed={reportViewMode === "html"}
-          onClick={() => setReportViewMode("html")}
-          className={`rounded px-3 font-inter text-sm font-semibold transition ${
-            reportViewMode === "html"
-              ? "bg-white text-[#526426] shadow-sm"
-              : "text-[#536E7B] hover:text-[#292829]"
-          }`}
-        >
-          {t("viewHtml")}
-        </button>
-        <button
-          type="button"
-          aria-pressed={reportViewMode === "modified"}
-          onClick={() => setReportViewMode("modified")}
-          className={`rounded px-3 font-inter text-sm font-semibold transition ${
-            reportViewMode === "modified"
-              ? "bg-white text-[#526426] shadow-sm"
-              : "text-[#536E7B] hover:text-[#292829]"
-          }`}
-        >
-          {t("viewModified")}
-        </button>
-      </div>
-    );
-    const downloadButton = (
-      <button
-        type="button"
-        disabled={!report || exporting || !mapsReady}
-        onClick={printReport}
-        className="flex h-10 shrink-0 items-center justify-center gap-2 rounded bg-[#989F43] px-4 font-inter text-sm font-medium text-white disabled:opacity-50"
-      >
-        {exporting ? (
-          <span
-            aria-hidden="true"
-            className="h-4 w-4 animate-spin rounded-full border-2 border-white/40 border-t-white"
-          />
-        ) : (
-          <svg
-            className="h-4 w-4"
-            aria-hidden
-            viewBox="0 0 24 24"
-            fill="none"
-            stroke="currentColor"
-            strokeWidth="2"
-          >
-            <path d="M12 3v12m0 0 4-4m-4 4-4-4" />
-            <path d="M5 20h14" />
-          </svg>
-        )}
-        {exporting || (report && !mapsReady) ? t("preparingDownload") : t("download")}
-      </button>
-    );
+    const previewTitle = report
+      ? `${t("reportLabel")} - ${report.municipality.name} - ${formatReportPeriod(period, locale)}`
+      : t("reportLabel");
 
     return (
-      <div className="flex h-full min-w-0 flex-col bg-[#F6F7F6]">
-        {reportViewMode === "html" ? (
-          <div className="shrink-0 border-b border-[#D9E0E3] bg-white px-4 py-4 sm:px-6">
-            <div className="mx-auto flex w-full max-w-[980px] flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
-              <div className="min-w-0">
-                <p className="font-inter text-xs font-semibold uppercase tracking-[0.08em] text-[#536E7B]">
-                  {t("preview")}
-                </p>
-                <h1 className="mt-1 truncate font-inter text-base font-semibold text-[#292829]">
-                  {filename}
-                </h1>
-              </div>
-              <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
-                {viewModeToggle}
-                {downloadButton}
-              </div>
+      <div className="flex h-full min-w-0 flex-col bg-white">
+        <div className="shrink-0 border-b border-[#D9E0E3] bg-white px-4 py-4 sm:px-6">
+          <div className="flex w-full flex-col gap-3">
+            <div className="min-w-0">
+              <p className="font-inter text-xs font-semibold uppercase tracking-[0.08em] text-[#536E7B]">
+                {t("preview")}
+              </p>
+              <h1 className="mt-1 truncate font-inter text-base font-semibold text-[#292829]">
+                {previewTitle}
+              </h1>
             </div>
           </div>
-        ) : (
-          <div className="flex shrink-0 flex-col gap-3 border-b border-[#EFEFEF] bg-[#E4E5E2] px-4 py-4 lg:h-[72px] lg:flex-row lg:items-center lg:justify-between lg:px-6 lg:py-0">
-            <span className="min-w-0 flex-1 truncate font-inter text-base">
-              {filename}
-            </span>
-            <div className="flex shrink-0 flex-col gap-3 sm:flex-row sm:flex-wrap sm:items-center sm:justify-end">
-              {viewModeToggle}
-              <div className="flex shrink-0 items-center gap-2">
-                <button
-                  type="button"
-                  onClick={() => setZoom((value) => Math.min(125, value + 10))}
-                  className="flex h-10 w-10 items-center justify-center rounded border border-[#EFEFEF] bg-white text-[#989F43]"
-                  aria-label={t("zoomIn")}
-                >
-                  <svg className="h-6 w-6" aria-hidden viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                    <circle cx="11" cy="11" r="7" />
-                    <path d="M11 8v6M8 11h6M20 20l-3.5-3.5" />
-                  </svg>
-                </button>
-                <span className="flex h-10 w-[52px] items-center justify-center rounded-md border border-[#DCDBDC] bg-white px-2 font-inter text-base text-[#7E797B]">
-                  {zoom}%
-                </span>
-                <button
-                  type="button"
-                  onClick={() => setZoom((value) => Math.max(50, value - 10))}
-                  className="flex h-10 w-10 items-center justify-center rounded border border-[#EFEFEF] bg-white text-[#989F43]"
-                  aria-label={t("zoomOut")}
-                >
-                  <svg className="h-6 w-6" aria-hidden viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                    <circle cx="11" cy="11" r="7" />
-                    <path d="M8 11h6M20 20l-3.5-3.5" />
-                  </svg>
-                </button>
-              </div>
-              {downloadButton}
-            </div>
-          </div>
-        )}
-        <div className={`min-h-0 flex-1 overflow-auto bg-[#F6F7F6] ${reportViewMode === "html" ? "px-4 py-6 sm:px-8 sm:py-8" : "px-8 py-8"}`}>
+        </div>
+        <div className="min-h-0 flex-1 overflow-auto bg-white">
           {!hasRequiredParameters && <EmptyReportPreview />}
           {loading && <div className="mx-auto flex min-h-56 max-w-[749px] flex-col items-center justify-center gap-4 bg-white p-10 text-center text-neutral-600 shadow-sm"><span aria-hidden="true" className="h-9 w-9 animate-spin rounded-full border-4 border-[#989F43]/25 border-t-[#989F43]"/><strong className="text-base font-semibold text-[#536e7b]">{t("loading")}</strong><span className="text-sm">{t("loadingHint")}</span></div>}
           {visibleError && !loading && <div className="mx-auto max-w-[749px] border border-red-200 bg-white p-8 shadow-sm"><h1 className="text-xl font-semibold">{t("loadError")}</h1><p className="mt-2 text-sm text-red-700">{visibleError}</p></div>}
           {report && !loading && (
-            <div
-              className={
-                reportViewMode === "html"
-                  ? "mx-auto w-full max-w-[1120px]"
-                  : "mx-auto origin-top transition-transform"
-              }
-              style={
-                reportViewMode === "modified"
-                  ? { width: "980px", transform: `scale(${zoom / 100})` }
-                  : undefined
-              }
-            >
+            <div className="h-full w-full">
               <ReportDocument
                 report={report}
                 layerIds={layerIds}
-                charts={charts}
                 mapImages={mapImages}
                 activeMapKeys={activeMapKeys}
                 mapQueueStartedAt={mapQueueStartedAt}
                 retryAttemptFor={retryAttemptFor}
                 onMapCapture={handleMapCapture}
-                documentRef={reportDocumentRef}
                 docsContent={docsContent}
-                viewMode={reportViewMode}
               />
             </div>
           )}
@@ -1351,7 +1094,7 @@ export function MunicipalReportPreview({ municipalityCode, period, layerIds, emb
             <p className="mt-2 text-sm text-red-700">{visibleError}</p>
           </div>
         )}
-        {report && !loading && <ReportDocument report={report} layerIds={layerIds} charts={charts} mapImages={mapImages} activeMapKeys={activeMapKeys} mapQueueStartedAt={mapQueueStartedAt} retryAttemptFor={retryAttemptFor} onMapCapture={handleMapCapture} docsContent={docsContent} />}
+        {report && !loading && <ReportDocument report={report} layerIds={layerIds} mapImages={mapImages} activeMapKeys={activeMapKeys} mapQueueStartedAt={mapQueueStartedAt} retryAttemptFor={retryAttemptFor} onMapCapture={handleMapCapture} docsContent={docsContent} />}
       </div>
     </div>
   );

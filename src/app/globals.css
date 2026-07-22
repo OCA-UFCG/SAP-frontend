@@ -49,10 +49,6 @@ textarea {
     box-shadow: none;
   }
 
-  .report-paper.report-paper-modified {
-    width: 210mm;
-  }
-
   .report-visual-grid {
     display: grid;
     grid-template-columns: minmax(0, 1fr);
