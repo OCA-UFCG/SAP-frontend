@@ -2,6 +2,10 @@
   "PlatformMap": {
     "loadingGeeLayer": "Carregando camada do GEE",
     "loadingMapLayer": "Carregando camada do mapa",
-    "opacity": "Transparência"
+    "opacity": "Transparência",
+    "satellite": "Satélite",
+    "street": "Rua",
+    "switchToSatellite": "Alternar para vista de satélite",
+    "switchToOsm": "Alternar para vista de rua"
   }
 }

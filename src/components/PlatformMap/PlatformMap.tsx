@@ -4,6 +4,7 @@ import { useTranslations } from "next-intl";
 import { PlatformMapCaption } from "@/components/PlatformMapCaption/PlatformMapCaption";
 import { useEarthEngineTileLayer } from "./useEarthEngineTileLayer";
 import MapComponent from "../Map/MapComponent";
+import type { BasemapId } from "../Map/Map";
 import {
   useMapLayerActions,
   useMapLayerActiveState,
@@ -31,6 +32,7 @@ export function PlatformMap({ showMonitoringOverlays = true }: PlatformMapProps)
     activeYear,
   );
   const [readyRequestKey, setReadyRequestKey] = useState<string | null>(null);
+  const [basemap, setBasemap] = useState<BasemapId>("osm");
 
   const handleTileLayerReady = useCallback((readyRequestKey: string) => {
     setReadyRequestKey((current) =>
@@ -62,6 +64,7 @@ export function PlatformMap({ showMonitoringOverlays = true }: PlatformMapProps)
           tileLayerUrl={tileLayerUrl}
           tileLayerRequestKey={requestKey}
           layerOpacity={layerOpacity}
+          basemap={basemap}
           onStateSelect={(uf: string) => setSelectedState(uf.toLowerCase())}
           onSelectedMunicipalityCodeChange={setSelectedMunicipalityCode}
           onTileLayerReady={handleTileLayerReady}
@@ -86,6 +89,13 @@ export function PlatformMap({ showMonitoringOverlays = true }: PlatformMapProps)
       </div>
 
       <div className="absolute bottom-0 right-6 z-[1000] box-border flex min-h-[124px] w-[302px] flex-col items-end justify-center gap-[10px] pb-6">
+        <button
+          onClick={() => setBasemap(basemap === "osm" ? "satellite" : "osm")}
+          className="flex h-9 items-center gap-1.5 rounded-md border border-white/30 bg-stone-950/70 px-3 text-xs font-medium text-white shadow-lg backdrop-blur-sm transition hover:bg-stone-950/85"
+          aria-label={basemap === "osm" ? t("switchToSatellite") : t("switchToOsm")}
+        >
+{basemap === "osm" ? t("satellite") : t("street")}
+        </button>
         {showMonitoringOverlays && activeEEData && (
           <div className="box-border flex h-[50px] w-[302px] shrink-0 flex-col items-center gap-2 self-stretch rounded-lg border border-[#EFEFEF] bg-white p-4">
             <div className="flex h-[18px] w-[270px] shrink-0 items-center justify-center gap-2">
