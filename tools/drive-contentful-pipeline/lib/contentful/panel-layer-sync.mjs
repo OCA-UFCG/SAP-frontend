@@ -11,6 +11,17 @@ export async function readPanelLayerManifest(jsonDir) {
   );
 }
 
+export async function getExpectedPanelLayerYearKeys(jsonDir) {
+  const manifest = await readPanelLayerManifest(jsonDir);
+
+  return Object.fromEntries(
+    (manifest.panelLayers ?? []).map((entry) => [
+      entry.panelLayerId,
+      entry.yearKeys ?? [],
+    ]),
+  );
+}
+
 export async function resolveImageDataEntries(options) {
   if (options.imageDataPath) {
     return [

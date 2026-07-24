@@ -8,6 +8,8 @@ import {
   writeFullCycleReports,
 } from "../tools/drive-contentful-pipeline/lib/reporting/full-cycle-report.mjs";
 import { runRuntimeSmokeTests } from "../tools/drive-contentful-pipeline/lib/runtime/smoke-tests.mjs";
+import { getExpectedPanelLayerYearKeys } from "../tools/drive-contentful-pipeline/lib/contentful/panel-layer-sync.mjs";
+import { validatePartitionsAgainstPanelLayer } from "../tools/drive-contentful-pipeline/lib/contentful/municipal-analysis-sync.mjs";
 
 function buildReportInput() {
   return {
@@ -116,6 +118,70 @@ describe("pipeline full-cycle report", () => {
     await expect(readFile(paths.markdownPath, "utf8")).resolves.toContain(
       "Contentful municipalAnalysis",
     );
+  });
+
+  it("reads proposed panelLayer years for chained municipal validation", async () => {
+    const tempDir = await mkdtemp(path.join(os.tmpdir(), "sedes-panel-years-"));
+    await writeFile(
+      path.join(tempDir, "panel-layer-imageData-manifest.json"),
+      JSON.stringify({
+        panelLayers: [
+          {
+            panelLayerId: "prev_anomalia_precipitacao",
+            yearKeys: [
+              "2026-05",
+              "2026-06",
+              "2026-07",
+              "2026-08",
+              "2026-09",
+              "2026-10",
+            ],
+          },
+          {
+            panelLayerId: "anaseca",
+            yearKeys: ["2026-04"],
+          },
+        ],
+      }),
+      "utf8",
+    );
+
+    await expect(getExpectedPanelLayerYearKeys(tempDir)).resolves.toEqual({
+      prev_anomalia_precipitacao: [
+        "2026-05",
+        "2026-06",
+        "2026-07",
+        "2026-08",
+        "2026-09",
+        "2026-10",
+      ],
+      anaseca: ["2026-04"],
+    });
+
+    await expect(
+      validatePartitionsAgainstPanelLayer(
+        {},
+        "prev_anomalia_precipitacao",
+        [
+          {
+            partitionKey: "2026",
+            imageDataPath: "forecast.json",
+            yearKeys: [
+              "2026-05",
+              "2026-06",
+              "2026-07",
+              "2026-08",
+              "2026-09",
+              "2026-10",
+            ],
+          },
+        ],
+        (await getExpectedPanelLayerYearKeys(tempDir))
+          .prev_anomalia_precipitacao,
+      ),
+    ).resolves.toMatchObject({
+      missingPanelLayerYears: [],
+    });
   });
 
   it("skips runtime smoke without runtime URL or session cookie", async () => {

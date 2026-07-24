@@ -18,6 +18,8 @@ import {
 } from "../tools/drive-contentful-pipeline/lib/csv/territory.mjs";
 import { writeAnnualPartitions } from "../tools/drive-contentful-pipeline/lib/conversion/partition-writer.mjs";
 import { convertCsvDirectory } from "../tools/drive-contentful-pipeline/lib/conversion/output-files.mjs";
+import { writeDriveCsvSnapshot } from "../tools/drive-contentful-pipeline/lib/drive/drive-snapshot.mjs";
+import { assertUniqueDriveLocalNames } from "../tools/drive-contentful-pipeline/lib/drive/drive-client.mjs";
 import { patchEntryFields } from "../tools/drive-contentful-pipeline/lib/contentful/entries.mjs";
 import {
   formatConversionSummary,
@@ -118,6 +120,24 @@ class FakeContentfulFetch {
 
     global.fetch = fakeFetch as typeof fetch;
   }
+}
+
+async function writeTestDriveSnapshot(
+  csvDir: string,
+  files: Array<{ localName: string; modifiedTime: string }>,
+) {
+  await writeDriveCsvSnapshot(
+    csvDir,
+    "test-folder",
+    files.map((file, index) => ({
+      id: `file-${index}`,
+      name: file.localName,
+      localName: file.localName,
+      mimeType: "text/csv",
+      modifiedTime: file.modifiedTime,
+      size: "1",
+    })),
+  );
 }
 
 describe("municipal analysis pipeline validation", () => {
@@ -243,6 +263,16 @@ describe("municipal analysis pipeline validation", () => {
         ].join("\n"),
         "utf8",
       );
+      await writeTestDriveSnapshot(csvDir, [
+        {
+          localName: "Estatisticas_SEDES_Municipios_CDI_2026.csv",
+          modifiedTime: "2026-06-01T10:00:00.000Z",
+        },
+        {
+          localName: "Estatisticas_SEDES_Multinivel_CDI_2026.csv",
+          modifiedTime: "2026-06-02T10:00:00.000Z",
+        },
+      ]);
 
       const result = await convertCsvDirectory(
         {
@@ -270,9 +300,270 @@ describe("municipal analysis pipeline validation", () => {
       expect(payload.years["2026-01"].values["2507507"]).toEqual([10, 90]);
       expect(payload.years["2026-02"].values.br).toEqual([30, 70]);
       expect(payload.years["2026-02"].values["2507507"]).toEqual([40, 60]);
+      expect(result.skipped.find((item) => item.collision)).toMatchObject({
+        inputPath: expect.stringContaining(
+          "Estatisticas_SEDES_Municipios_CDI_2026.csv",
+        ),
+        ignored: true,
+        collision: {
+          yearKey: "2026-02",
+          winnerModifiedTime: "2026-06-02T10:00:00.000Z",
+          loserModifiedTime: "2026-06-01T10:00:00.000Z",
+        },
+      });
     } finally {
       await rm(rootDir, { recursive: true, force: true });
     }
+  });
+
+  it("uses Drive modifiedTime instead of calibration or location coverage", async () => {
+    const rootDir = path.join("/tmp", `sedes-modified-time-${Date.now()}`);
+    const csvDir = path.join(rootDir, "csv");
+    const jsonDir = path.join(rootDir, "json");
+    const olderName = "Estatisticas_SEDES_Municipios_CDI_Cal_20260601.csv";
+    const newerName = "Estatisticas_SEDES_Municipios_CDI_Cal_20260401.csv";
+    await mkdir(csvDir, { recursive: true });
+
+    try {
+      await writeFile(
+        path.join(csvDir, olderName),
+        [
+          "CD_MUN,NM_MUN,SIGLA_UF,ano,data_img,perc_classe_0,perc_classe_1",
+          "2507507,João Pessoa,PB,2026,2026-02-01,10,90",
+          "3550308,São Paulo,SP,2026,2026-02-01,20,80",
+          "2507507,João Pessoa,PB,2026,2026-03-01,30,70",
+        ].join("\n"),
+        "utf8",
+      );
+      await writeFile(
+        path.join(csvDir, newerName),
+        [
+          "CD_MUN,NM_MUN,SIGLA_UF,ano,data_img,perc_classe_0,perc_classe_1",
+          "2507507,João Pessoa,PB,2026,2026-02-01,99,1",
+        ].join("\n"),
+        "utf8",
+      );
+      await writeTestDriveSnapshot(csvDir, [
+        { localName: olderName, modifiedTime: "2026-06-10T10:00:00.000Z" },
+        { localName: newerName, modifiedTime: "2026-07-10T10:00:00.000Z" },
+      ]);
+
+      const result = await convertCsvDirectory(
+        {
+          csvDir,
+          jsonDir,
+          fileNamePattern: /\.csv$/iu,
+          writeAggregates: false,
+          writeRawPartitions: true,
+          maxContentfulJsonBytes: 450000,
+        },
+        minimalPipelineConfig,
+      );
+      const partition = result.partitionFiles[0];
+      const payload = JSON.parse(await readFile(partition.outputPath, "utf8"));
+
+      expect(payload.years["2026-02"].values).toEqual({
+        "2507507": [99, 1],
+      });
+      expect(payload.years["2026-03"].values["2507507"]).toEqual([30, 70]);
+      expect(result.skipped[0].collision).toMatchObject({
+        winnerInputPath: expect.stringContaining(newerName),
+        loserInputPath: expect.stringContaining(olderName),
+      });
+    } finally {
+      await rm(rootDir, { recursive: true, force: true });
+    }
+  });
+
+  it("applies Drive modifiedTime to panelLayer collisions", async () => {
+    const rootDir = path.join("/tmp", `sedes-panel-modified-${Date.now()}`);
+    const csvDir = path.join(rootDir, "csv");
+    const jsonDir = path.join(rootDir, "json");
+    const olderName = "CDI_panel_old.csv";
+    const newerName = "CDI_panel_new.csv";
+    await mkdir(csvDir, { recursive: true });
+
+    try {
+      for (const [name, value] of [
+        [olderName, 10],
+        [newerName, 90],
+      ] as const) {
+        await writeFile(
+          path.join(csvDir, name),
+          [
+            "location_key,location_name,ano,image_id,valor_classe_1",
+            `pb,Paraíba,2026,image-${value},${value}`,
+          ].join("\n"),
+          "utf8",
+        );
+      }
+      await writeTestDriveSnapshot(csvDir, [
+        { localName: olderName, modifiedTime: "2026-06-01T10:00:00.000Z" },
+        { localName: newerName, modifiedTime: "2026-06-02T10:00:00.000Z" },
+      ]);
+
+      const result = await convertCsvDirectory(
+        {
+          csvDir,
+          jsonDir,
+          fileNamePattern: /\.csv$/iu,
+          writeAggregates: false,
+          writeRawPartitions: true,
+          maxContentfulJsonBytes: 450000,
+        },
+        minimalPipelineConfig,
+      );
+      const payload = JSON.parse(
+        await readFile(result.panelLayerFiles[0].outputPath, "utf8"),
+      );
+
+      expect(payload.years["2026"].values.pb).toEqual([90]);
+      expect(payload.years["2026"].imageId).toBe("image-90");
+      expect(result.skipped[0].collision.winnerInputPath).toContain(newerName);
+    } finally {
+      await rm(rootDir, { recursive: true, force: true });
+    }
+  });
+
+  it("fails colliding local CSVs without Drive metadata", async () => {
+    const rootDir = path.join("/tmp", `sedes-missing-metadata-${Date.now()}`);
+    const csvDir = path.join(rootDir, "csv");
+    const jsonDir = path.join(rootDir, "json");
+    await mkdir(csvDir, { recursive: true });
+
+    try {
+      for (const [name, value] of [
+        ["CDI_first.csv", 10],
+        ["CDI_second.csv", 20],
+      ] as const) {
+        await writeFile(
+          path.join(csvDir, name),
+          [
+            "CD_MUN,NM_MUN,SIGLA_UF,ano,data_img,perc_classe_0",
+            `2507507,João Pessoa,PB,2026,2026-02-01,${value}`,
+          ].join("\n"),
+          "utf8",
+        );
+      }
+
+      await expect(
+        convertCsvDirectory(
+          {
+            csvDir,
+            jsonDir,
+            fileNamePattern: /\.csv$/iu,
+            writeAggregates: false,
+            writeRawPartitions: true,
+            maxContentfulJsonBytes: 450000,
+          },
+          minimalPipelineConfig,
+        ),
+      ).rejects.toThrow("não possui modifiedTime do Google Drive");
+    } finally {
+      await rm(rootDir, { recursive: true, force: true });
+    }
+  });
+
+  it("fails divergent collisions with equal Drive modifiedTime", async () => {
+    const rootDir = path.join("/tmp", `sedes-equal-metadata-${Date.now()}`);
+    const csvDir = path.join(rootDir, "csv");
+    const jsonDir = path.join(rootDir, "json");
+    const names = ["CDI_first.csv", "CDI_second.csv"];
+    await mkdir(csvDir, { recursive: true });
+
+    try {
+      for (const [index, name] of names.entries()) {
+        await writeFile(
+          path.join(csvDir, name),
+          [
+            "CD_MUN,NM_MUN,SIGLA_UF,ano,data_img,perc_classe_0",
+            `2507507,João Pessoa,PB,2026,2026-02-01,${index + 1}`,
+          ].join("\n"),
+          "utf8",
+        );
+      }
+      await writeTestDriveSnapshot(
+        csvDir,
+        names.map((localName) => ({
+          localName,
+          modifiedTime: "2026-06-01T10:00:00.000Z",
+        })),
+      );
+
+      await expect(
+        convertCsvDirectory(
+          {
+            csvDir,
+            jsonDir,
+            fileNamePattern: /\.csv$/iu,
+            writeAggregates: false,
+            writeRawPartitions: true,
+            maxContentfulJsonBytes: 450000,
+          },
+          minimalPipelineConfig,
+        ),
+      ).rejects.toThrow("possuem o mesmo modifiedTime");
+    } finally {
+      await rm(rootDir, { recursive: true, force: true });
+    }
+  });
+
+  it("converts only files registered in the current Drive snapshot", async () => {
+    const rootDir = path.join("/tmp", `sedes-snapshot-scope-${Date.now()}`);
+    const csvDir = path.join(rootDir, "csv");
+    const jsonDir = path.join(rootDir, "json");
+    const currentName = "CDI_current.csv";
+    const staleName = "CDI_stale.csv";
+    await mkdir(csvDir, { recursive: true });
+
+    try {
+      for (const name of [currentName, staleName]) {
+        await writeFile(
+          path.join(csvDir, name),
+          [
+            "CD_MUN,NM_MUN,SIGLA_UF,ano,data_img,perc_classe_0",
+            "2507507,João Pessoa,PB,2026,2026-02-01,10",
+          ].join("\n"),
+          "utf8",
+        );
+      }
+      await writeTestDriveSnapshot(csvDir, [
+        {
+          localName: currentName,
+          modifiedTime: "2026-06-01T10:00:00.000Z",
+        },
+      ]);
+
+      const result = await convertCsvDirectory(
+        {
+          csvDir,
+          jsonDir,
+          fileNamePattern: /\.csv$/iu,
+          writeAggregates: false,
+          writeRawPartitions: true,
+          maxContentfulJsonBytes: 450000,
+        },
+        minimalPipelineConfig,
+      );
+
+      expect(result.conversions[0].inputPath).toContain(currentName);
+      expect(result.conversions[0].inputPath).not.toContain(staleName);
+    } finally {
+      await rm(rootDir, { recursive: true, force: true });
+    }
+  });
+
+  it("rejects Drive files that would overwrite the same local CSV", () => {
+    expect(() =>
+      assertUniqueDriveLocalNames([
+        {
+          id: "sheet",
+          name: "forecast",
+          mimeType: "application/vnd.google-apps.spreadsheet",
+        },
+        { id: "csv", name: "forecast.csv", mimeType: "text/csv" },
+      ]),
+    ).toThrow("seriam gravados como forecast.csv");
   });
 
   it("writes compressed annual partitions and blocks ambiguous route keys", async () => {

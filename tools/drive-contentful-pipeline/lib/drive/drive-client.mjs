@@ -6,6 +6,7 @@ import {
   resolveWorkspacePath,
   toWorkspaceRelativePath,
 } from "../shared/paths.mjs";
+import { writeDriveCsvSnapshot } from "./drive-snapshot.mjs";
 
 const DRIVE_API_BASE_URL = "https://www.googleapis.com/drive/v3";
 const execFileAsync = promisify(execFile);
@@ -94,11 +95,34 @@ async function downloadDriveFile(file, destinationDir, options) {
     );
   }
 
-  const safeName = file.name.endsWith(".csv") ? file.name : `${file.name}.csv`;
+  const safeName = getDriveLocalCsvName(file);
   const outputPath = path.join(destinationDir, safeName);
   await writeFile(outputPath, Buffer.from(await response.arrayBuffer()));
 
   return outputPath;
+}
+
+export function getDriveLocalCsvName(file) {
+  return file.name.toLowerCase().endsWith(".csv")
+    ? file.name
+    : `${file.name}.csv`;
+}
+
+export function assertUniqueDriveLocalNames(files) {
+  const names = new Map();
+
+  for (const file of files) {
+    const localName = getDriveLocalCsvName(file);
+    const normalizedName = localName.toLocaleLowerCase("pt-BR");
+    const existing = names.get(normalizedName);
+
+    if (existing) {
+      throw new Error(
+        `A pasta do Google Drive contém nomes que colidem localmente: ${existing.name} (${existing.id}) e ${file.name} (${file.id}) seriam gravados como ${localName}.`,
+      );
+    }
+    names.set(normalizedName, file);
+  }
 }
 
 async function getGcloudAccessToken() {
@@ -134,6 +158,7 @@ export async function downloadCsvFiles(options) {
   if (files.length === 0) {
     throw new Error("Nenhum CSV encontrado na pasta do Google Drive.");
   }
+  assertUniqueDriveLocalNames(files);
 
   const downloads = [];
 
@@ -142,9 +167,14 @@ export async function downloadCsvFiles(options) {
     downloads.push({
       id: file.id,
       name: file.name,
+      localName: getDriveLocalCsvName(file),
+      mimeType: file.mimeType,
+      modifiedTime: file.modifiedTime,
+      size: file.size,
       outputPath: toWorkspaceRelativePath(outputPath),
     });
   }
 
+  await writeDriveCsvSnapshot(options.csvDir, options.folderId, downloads);
   return downloads;
 }
