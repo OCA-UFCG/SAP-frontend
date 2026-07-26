@@ -6,7 +6,7 @@ import {
   useMemo,
   useState,
 } from "react";
-import { IEEInfo, IImageParam } from "@/utils/interfaces";
+import { IEEInfo, IImageParam, IInterestedArea } from "@/utils/interfaces";
 import {
   activateEeLayerState,
   activateVectorLayerState,
@@ -19,6 +19,7 @@ import {
   setLayerOpacityValue,
   setSelectedMunicipalityCodeValue,
   setSelectedStateValue,
+  setInterestedArea,
 } from "@/components/MapLayerContext/mapLayerState";
 import type { CDIVectorData } from "@/lib/geo";
 
@@ -27,6 +28,7 @@ interface MapLayerActions {
   setSelectedState: (state: string) => void;
   setSelectedMunicipalityCode: (municipalityCode: string | null) => void;
   setActiveYear: (year: string) => void;
+  setInterestedArea: (interestedArea: IInterestedArea) => void;
   activateVectorLayer: (
     layerId: string,
     data: CDIVectorData,
@@ -45,7 +47,7 @@ type MapLayerActiveState = Pick<
 
 type MapLayerViewState = Pick<
   MapLayerState,
-  "activeLegend" | "selectedState" | "selectedMunicipalityCode" | "activeYear" | "layerOpacity"
+  "activeLegend" | "selectedState" | "selectedMunicipalityCode" | "activeYear" | "interestedArea" | "layerOpacity"
 >;
 
 interface MapLayerContextValue
@@ -103,6 +105,10 @@ export function MapLayerProvider({ children }: { children: React.ReactNode }) {
     setState((currentState) => setActiveYearValue(currentState, activeYear));
   }, []);
 
+  const setInterestedAreaCallback = useCallback((interestedArea: IInterestedArea) => {
+    setState((currentState) => setInterestedArea(currentState, interestedArea));
+  }, []);
+
   const activateVectorLayer = useCallback(
     (layerId: string, data: CDIVectorData, legend: IImageParam[] | null) => {
       setState((currentState) =>
@@ -144,6 +150,7 @@ export function MapLayerProvider({ children }: { children: React.ReactNode }) {
       selectedState: state.selectedState,
       selectedMunicipalityCode: state.selectedMunicipalityCode,
       activeYear: state.activeYear,
+      interestedArea: state.interestedArea,
       layerOpacity: state.layerOpacity,
     }),
     [
@@ -151,6 +158,7 @@ export function MapLayerProvider({ children }: { children: React.ReactNode }) {
       state.selectedState,
       state.selectedMunicipalityCode,
       state.activeYear,
+      state.interestedArea,
       state.layerOpacity,
     ],
   );
@@ -161,6 +169,7 @@ export function MapLayerProvider({ children }: { children: React.ReactNode }) {
       setSelectedState,
       setSelectedMunicipalityCode,
       setActiveYear,
+      setInterestedArea: setInterestedAreaCallback,
       activateVectorLayer,
       activateEeLayer,
       clearActiveLayer,
@@ -172,6 +181,7 @@ export function MapLayerProvider({ children }: { children: React.ReactNode }) {
       setSelectedState,
       setSelectedMunicipalityCode,
       setActiveYear,
+      setInterestedAreaCallback,
       activateVectorLayer,
       activateEeLayer,
       clearActiveLayer,

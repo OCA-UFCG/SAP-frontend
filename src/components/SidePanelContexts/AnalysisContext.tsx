@@ -1,9 +1,10 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { useTranslations } from "next-intl";
 import { AnalysisPanel } from "@/components/analysis/AnalysisPanel";
 import type { SearchSubmissionMetadata } from "@/components/SearchBar/types";
+import type { IInterestedArea } from "@/utils/interfaces";
 import {
   buildEmbeddedTerritorialAnalysisViewModel,
   getFallbackAnalysisLocationName,
@@ -64,9 +65,10 @@ export function AnalysisContext({
     setSelectedMunicipalityCode,
     setActiveLegend,
     setActiveYear,
+    setInterestedArea,
     resetPlatformState,
   } = useMapLayerActions();
-  const { selectedState, selectedMunicipalityCode, activeYear } =
+  const { selectedState, selectedMunicipalityCode, activeYear, interestedArea } =
     useMapLayerViewState();
 
   const dataset = useMemo(() => {
@@ -368,11 +370,20 @@ export function AnalysisContext({
     analysisImageDataByRequestKey[municipalAnalysisRequestKey] === undefined,
   );
 
+  const handleInterestedAreaChange = useCallback(
+    (value: IInterestedArea) => {
+      setInterestedArea(value);
+    },
+    [setInterestedArea],
+  );
+
   return (
     <AnalysisPanel
       moduleName={dataset?.name}
       yearOptions={yearOptions}
       activeYear={activeAnalysisYear}
+      interestedArea={interestedArea}
+      onInterestedAreaChange={handleInterestedAreaChange}
       onBack={handleGoBack}
       onSearch={handleSearch}
       searchTelemetryContext={{

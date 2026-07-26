@@ -18,10 +18,14 @@ import type {
   CompactAnalysisYearData,
   TerritorialAnalysisViewModel,
 } from "@/utils/analysis";
+import type { IInterestedArea } from "@/utils/interfaces";
+import { interestAreas, interestAreaOptionsByLevel } from "@/utils/constants";
 
 interface AnalysisPanelProps {
   moduleName?: string;
   yearOptions: AnalysisYearOption[];
+  interestedArea: IInterestedArea;
+  onInterestedAreaChange: (value: IInterestedArea) => void;
   activeYear: string;
   onBack: () => void;
   onSearch: (value: string, metadata: SearchSubmissionMetadata) => void;
@@ -230,6 +234,114 @@ function AnalysisYearSelect({
           ))}
         </div>
       )}
+    </div>
+  );
+}
+
+function SpatialScopeSelect({
+  interestedArea,
+  onInterestedAreaChange,
+}: {
+  interestedArea: IInterestedArea;
+  onInterestedAreaChange: (value: IInterestedArea) => void;
+}) {
+  const t = useTranslations("AnalysisPanel");
+  const containerRef = useRef<HTMLDivElement>(null);
+  const [isAreaOpen, setIsAreaOpen] = useState(false);
+  const [isValueOpen, setIsValueOpen] = useState(false);
+
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      if (!containerRef.current?.contains(event.target as Node)) {
+        setIsAreaOpen(false);
+        setIsValueOpen(false);
+      }
+    };
+    document.addEventListener("mousedown", handleClickOutside);
+    return () => document.removeEventListener("mousedown", handleClickOutside);
+  }, []);
+
+  const selectedArea = interestAreas.find((a) => a.value === interestedArea.interestedArea);
+  const valueOptions = interestAreaOptionsByLevel[interestedArea.interestedArea] ?? [];
+  const selectedValue = valueOptions.find((v) => v === interestedArea.interestedAreaValue) ?? valueOptions[0];
+
+  return (
+    <div ref={containerRef} className="flex w-full max-w-[392px] flex-col items-start gap-[6px]">
+      <label className="text-[14px] font-medium leading-[20px] text-[#292829]">
+        {t("spatialScope")}
+      </label>
+      <div className="flex w-full gap-2">
+        {/* Area select */}
+        <div className="relative flex-1">
+          <button
+            type="button"
+            onClick={() => { setIsAreaOpen((c) => !c); setIsValueOpen(false); }}
+            className="flex h-10 w-full items-center justify-between rounded-lg border border-transparent bg-[#E4E5E2] px-3 py-3 text-left text-sm shadow-sm transition hover:border-neutral-400"
+            aria-haspopup="listbox"
+            aria-expanded={isAreaOpen}
+          >
+            <span className="truncate text-[#292829]">{selectedArea?.label ?? t("selectArea")}</span>
+            <svg width="16" height="16" viewBox="0 0 20 20" fill="none" className={`ml-2 shrink-0 text-[#898989] transition-transform ${isAreaOpen ? "rotate-180" : ""}`} aria-hidden="true">
+              <path d="M5 7.5L10 12.5L15 7.5" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" />
+            </svg>
+          </button>
+          {isAreaOpen && (
+            <div className="absolute top-[calc(100%+8px)] z-20 w-full overflow-y-auto rounded-xl border border-neutral-200 bg-white p-2 shadow-lg">
+              {interestAreas.map((area) => (
+                <button
+                  key={area.value}
+                  type="button"
+                  role="option"
+                  aria-selected={interestedArea.interestedArea === area.value}
+                  onClick={() => {
+                    setIsAreaOpen(false);
+                    const firstValue = interestAreaOptionsByLevel[area.value]?.[0] ?? "";
+                    onInterestedAreaChange({ interestedArea: area.value, interestedAreaValue: firstValue });
+                  }}
+                  className="flex w-full rounded-lg px-3 py-2 text-left text-sm text-[#292829] transition hover:bg-[#F6F7F6]"
+                >
+                  {area.label}
+                </button>
+              ))}
+            </div>
+          )}
+        </div>
+
+        {/* Value select */}
+        <div className="relative flex-1">
+          <button
+            type="button"
+            onClick={() => { setIsValueOpen((c) => !c); setIsAreaOpen(false); }}
+            className="flex h-10 w-full items-center justify-between rounded-lg border border-transparent bg-[#E4E5E2] px-3 py-3 text-left text-sm shadow-sm transition hover:border-neutral-400"
+            aria-haspopup="listbox"
+            aria-expanded={isValueOpen}
+          >
+            <span className="truncate text-[#292829]">{selectedValue ?? t("selectValue")}</span>
+            <svg width="16" height="16" viewBox="0 0 20 20" fill="none" className={`ml-2 shrink-0 text-[#898989] transition-transform ${isValueOpen ? "rotate-180" : ""}`} aria-hidden="true">
+              <path d="M5 7.5L10 12.5L15 7.5" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" />
+            </svg>
+          </button>
+          {isValueOpen && (
+            <div className="absolute top-[calc(100%+8px)] z-20 w-full max-h-64 overflow-y-auto rounded-xl border border-neutral-200 bg-white p-2 shadow-lg">
+              {valueOptions.map((value) => (
+                <button
+                  key={value}
+                  type="button"
+                  role="option"
+                  aria-selected={interestedArea.interestedAreaValue === value}
+                  onClick={() => {
+                    setIsValueOpen(false);
+                    onInterestedAreaChange({ ...interestedArea, interestedAreaValue: value });
+                  }}
+                  className="flex w-full rounded-lg px-3 py-2 text-left text-sm text-[#292829] transition hover:bg-[#F6F7F6]"
+                >
+                  {value}
+                </button>
+              ))}
+            </div>
+          )}
+        </div>
+      </div>
     </div>
   );
 }
@@ -517,6 +629,8 @@ export function AnalysisPanel({
   moduleName,
   yearOptions,
   activeYear,
+  interestedArea,
+  onInterestedAreaChange,
   onBack,
   onSearch,
   searchTelemetryContext,
@@ -603,6 +717,13 @@ export function AnalysisPanel({
               activeYear={activeYear}
               yearOptions={yearOptions}
               onYearChange={onYearChange}
+            />
+          </div>
+
+          <div>
+            <SpatialScopeSelect
+              interestedArea={interestedArea}
+              onInterestedAreaChange={onInterestedAreaChange}
             />
           </div>
         </section>
