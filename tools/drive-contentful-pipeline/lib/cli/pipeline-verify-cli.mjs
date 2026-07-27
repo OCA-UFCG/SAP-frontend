@@ -14,6 +14,7 @@ import {
 import { getDefaultLocale } from "../contentful/client.mjs";
 import { getContentfulConfig, loadDotEnv } from "../contentful/env.mjs";
 import {
+  getExpectedPanelLayerYearKeys,
   resolveImageDataEntries,
   syncPanelLayerImageData,
 } from "../contentful/panel-layer-sync.mjs";
@@ -29,7 +30,6 @@ import {
   formatConversionSummary,
 } from "../reporting/pipeline-summary.mjs";
 import { resolveWorkspacePath } from "../shared/paths.mjs";
-import { readJson } from "../io/json.mjs";
 import { syncMunicipalReportSeries } from "../contentful/municipal-report-series-sync.mjs";
 
 function parseVerifyArgs(argv, pipelineConfig) {
@@ -119,7 +119,11 @@ async function runLocalConversion(options, pipelineConfig) {
     [],
     validation,
     options,
-    { municipalAnalysisManifest, panelLayerImageDataManifest, municipalReportSeriesManifest },
+    {
+      municipalAnalysisManifest,
+      panelLayerImageDataManifest,
+      municipalReportSeriesManifest,
+    },
   );
 
   await mkdir(resolveWorkspacePath(options.jsonDir), { recursive: true });
@@ -176,22 +180,6 @@ async function runPanelLayerDryRun(config, jsonDir, locale) {
     publish: false,
     results,
   };
-}
-
-async function getExpectedPanelLayerYearKeys(jsonDir) {
-  const manifest = await readJson(
-    path.join(
-      resolveWorkspacePath(jsonDir),
-      "panel-layer-imageData-manifest.json",
-    ),
-  );
-
-  return Object.fromEntries(
-    (manifest.panelLayers ?? []).map((entry) => [
-      entry.panelLayerId,
-      entry.yearKeys ?? [],
-    ]),
-  );
 }
 
 async function runMunicipalAnalysisDryRun(config, jsonDir, locale) {
@@ -260,7 +248,9 @@ export async function runPipelineVerifyCli(argv = process.argv.slice(2)) {
 
   console.log(`\n${formatContentfulPanelLayerSummary(panelLayerResult)}`);
   console.log(`\n${formatContentfulMunicipalSummary(municipalResult)}`);
-  console.log(`\nmunicipalReportSeries: ${reportSeriesResult.actions.length} shards validados.`);
+  console.log(
+    `\nmunicipalReportSeries: ${reportSeriesResult.actions.length} shards validados.`,
+  );
   assertContentfulDryRunOk(panelLayerResult, municipalResult);
 }
 

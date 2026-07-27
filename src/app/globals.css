@@ -40,15 +40,56 @@ textarea {
     width: 210mm;
     max-width: 100%;
     padding: 42px 56px 36px;
+    overflow-wrap: anywhere;
+  }
+
+  .report-paper.report-paper-html {
+    width: 100%;
+    margin-top: 0;
+    box-shadow: none;
   }
 
   .report-visual-grid {
     display: grid;
-    grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+    grid-template-columns: minmax(0, 1fr);
   }
 
   .report-visual-panel {
     min-width: 0;
+  }
+
+  .report-paper table {
+    min-width: 100%;
+  }
+
+  .report-paper .report-data-row > td {
+    background-color: var(--report-row-bg);
+  }
+
+  .report-paper.report-paper-html .report-data-row {
+    transition: background-color 160ms ease;
+  }
+
+  .report-paper.report-paper-html .report-data-row > td {
+    transition:
+      background-color 160ms ease,
+      box-shadow 160ms ease;
+  }
+
+  .report-paper.report-paper-html .report-data-row:hover {
+    background-color: var(--report-row-hover-bg);
+  }
+
+  .report-paper.report-paper-html .report-data-row:hover > td {
+    background-color: var(--report-row-hover-bg) !important;
+    box-shadow: inset 0 1px 0 rgba(32, 32, 32, 0.04),
+      inset 0 -1px 0 rgba(32, 32, 32, 0.04);
+  }
+}
+
+@media screen and (min-width: 768px) {
+  .report-visual-grid {
+    grid-template-columns: minmax(0, 0.84fr) minmax(0, 1.16fr);
   }
 }
 

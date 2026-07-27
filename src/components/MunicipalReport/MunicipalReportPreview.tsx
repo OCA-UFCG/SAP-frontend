@@ -1,8 +1,19 @@
 "use client";
 
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState, type CSSProperties } from "react";
 import Link from "next/link";
 import { useLocale, useTranslations } from "next-intl";
+import {
+  CartesianGrid,
+  Line,
+  LineChart,
+  ReferenceLine,
+  ResponsiveContainer,
+  Tooltip,
+  XAxis,
+  YAxis,
+} from "recharts";
+import type { TooltipContentProps } from "recharts";
 import type {
   MunicipalReportAnalysis,
   MunicipalReportData,
@@ -15,7 +26,6 @@ import {
   formatReportPeriod,
   getReportDocsText,
 } from "@/utils/municipalReportNarrative";
-import citiesIndex from "@/data/citiesIndex.json";
 import {
   finishMunicipalReportMetrics,
   recordMunicipalReportNavigation,
@@ -25,6 +35,7 @@ import {
   formatMunicipalReportValue,
   getMunicipalReportValueLabels,
 } from "@/utils/municipalReportValue";
+import { buildMunicipalReportChartData } from "@/utils/municipalReportChart";
 import { slugifyTranslationKey } from "@/utils/translations";
 import { ReportMapPreview } from "./ReportMapPreview";
 import { useReportMapCaptureQueue } from "./useReportMapCaptureQueue";
@@ -36,6 +47,13 @@ interface MunicipalReportPreviewProps {
   embedded?: boolean;
 }
 
+type DynamicChartRow = {
+  period: string;
+  label: string;
+  highlighted: boolean;
+  [seriesId: string]: string | number | boolean;
+};
+
 function textColorForBackground(color: string) {
   const hex = color.replace("#", "");
   if (!/^[0-9a-f]{6}$/i.test(hex)) return "#ffffff";
@@ -45,6 +63,32 @@ function textColorForBackground(color: string) {
   return red * 0.299 + green * 0.587 + blue * 0.114 > 170
     ? "#202020"
     : "#ffffff";
+}
+
+function parseHexColor(color: string) {
+  const hex = color.replace("#", "");
+  if (!/^[0-9a-f]{6}$/i.test(hex)) return null;
+  const [red, green, blue] = [0, 2, 4].map((offset) =>
+    Number.parseInt(hex.slice(offset, offset + 2), 16),
+  );
+  return { red, green, blue };
+}
+
+function toHex(value: number) {
+  return Math.max(0, Math.min(255, Math.round(value)))
+    .toString(16)
+    .padStart(2, "0");
+}
+
+function getVisibleChartColor(color: string) {
+  const parsed = parseHexColor(color);
+  if (!parsed) return "#536E7B";
+
+  const luminance =
+    parsed.red * 0.299 + parsed.green * 0.587 + parsed.blue * 0.114;
+  if (luminance <= 190) return color;
+
+  return `#${toHex(parsed.red * 0.72)}${toHex(parsed.green * 0.72)}${toHex(parsed.blue * 0.72)}`;
 }
 
 function compactPeriodRange(
@@ -60,16 +104,6 @@ function compactPeriodRange(
   if (firstPeriod === lastPeriod) return firstLabel;
   if (t) return t("periodRange", { first: firstLabel, last: lastLabel });
   return `${firstLabel} a ${lastLabel}`;
-}
-
-function buildReportFilename(
-  report: MunicipalReportData | null,
-  period: string,
-  fallback: string,
-  prefix = "Relatório",
-) {
-  if (!report) return fallback;
-  return `${prefix}-${report.municipality.name.replace(/\s+/g, "-")}-${period}.PDF`;
 }
 
 function slugifyLabelKey(label: string): string {
@@ -154,12 +188,245 @@ function translateAnalysisMethodology(
   return presentationMethodology;
 }
 
+function MunicipalReportDynamicChart({
+  analysis,
+  locale,
+  referencePeriod,
+  translateLabel,
+}: {
+  analysis: MunicipalReportAnalysis;
+  locale: string;
+  referencePeriod: string;
+  translateLabel: (label: string) => string;
+}) {
+  const chartData = useMemo(
+    () => buildMunicipalReportChartData(analysis, referencePeriod),
+    [analysis, referencePeriod],
+  );
+  const [activeSeries, setActiveSeries] = useState(
+    () => new Set(chartData.series.map((series) => series.id)),
+  );
+  const seriesById = useMemo(
+    () => new Map(chartData.series.map((series) => [series.id, series])),
+    [chartData.series],
+  );
+  const rows = useMemo(
+    () =>
+      chartData.categories.map((category, index) => {
+        const row: DynamicChartRow = {
+          period: category.period,
+          label: category.label,
+          highlighted: category.highlighted,
+        };
+        chartData.series.forEach((series) => {
+          row[series.id] = series.points[index]?.value ?? 0;
+        });
+        return row;
+      }),
+    [chartData.categories, chartData.series],
+  );
+  const periodLabels = useMemo(
+    () =>
+      new Map(
+        chartData.categories.map((category) => [
+          category.period,
+          category.label,
+        ]),
+      ),
+    [chartData.categories],
+  );
+  const visibleSeries = chartData.series.filter((series) =>
+    activeSeries.has(series.id),
+  );
+  const observedMax = Math.max(
+    0,
+    ...chartData.series.flatMap((series) =>
+      series.points.map((point) => point.value),
+    ),
+  );
+  const axisMax =
+    analysis.valueType === "absolute"
+      ? Math.max(1, Math.ceil(observedMax / 5) * 5)
+      : 100;
+  const yTicks = Array.from(
+    { length: 6 },
+    (_, index) => (axisMax / 5) * index,
+  );
+  const referenceLinePeriod = chartData.categories.some(
+    (category) => category.period === chartData.referencePeriod,
+  )
+    ? chartData.referencePeriod
+    : null;
+
+  function toggleSeries(seriesId: string) {
+    setActiveSeries((current) => {
+      const next = new Set(current);
+      if (next.has(seriesId)) {
+        if (next.size > 1) next.delete(seriesId);
+      } else {
+        next.add(seriesId);
+      }
+      return next;
+    });
+  }
+
+  function renderTooltip({
+    active,
+    label,
+    payload,
+  }: TooltipContentProps) {
+    if (!active || !payload?.length) return null;
+    const period = label == null ? "" : String(label);
+    const periodLabel = periodLabels.get(period) ?? period;
+
+    return (
+      <div className="rounded border border-[#d9e0e3] bg-white px-3 py-2 text-xs shadow-lg">
+        <p className="font-bold text-[#536e7b]">{periodLabel}</p>
+        <div className="mt-2 space-y-1">
+          {payload
+            .filter((entry) => typeof entry.dataKey === "string")
+            .map((entry) => {
+              const series = seriesById.get(String(entry.dataKey));
+              if (!series) return null;
+              const numericValue = Number(entry.value ?? 0);
+              const visibleColor = getVisibleChartColor(series.color);
+              return (
+                <p
+                  key={series.id}
+                  className="flex items-center justify-between gap-4 text-neutral-700"
+                >
+                  <span className="inline-flex items-center gap-2">
+                    <span
+                      className="h-2.5 w-2.5 rounded-full"
+                      style={{ backgroundColor: visibleColor }}
+                    />
+                    {translateLabel(series.label)}
+                  </span>
+                  <strong>
+                    {formatMunicipalReportValue(
+                      numericValue,
+                      analysis,
+                      locale,
+                    )}
+                  </strong>
+                </p>
+              );
+            })}
+        </div>
+      </div>
+    );
+  }
+
+  if (rows.length === 0 || chartData.series.length === 0) {
+    return (
+      <span className="text-sm text-neutral-500">
+        Série temporal indisponível para visualização dinâmica.
+      </span>
+    );
+  }
+
+  return (
+    <div className="flex h-full min-h-[320px] w-full flex-col gap-3">
+      <div className="min-h-[255px] flex-1">
+        <ResponsiveContainer width="100%" height="100%">
+          <LineChart
+            data={rows}
+            margin={{ top: 20, right: 28, bottom: 18, left: 8 }}
+          >
+            <CartesianGrid
+              stroke="#E3E7EA"
+              strokeDasharray="4 6"
+              vertical={false}
+            />
+            <XAxis
+              dataKey="period"
+              tickFormatter={(value) => periodLabels.get(String(value)) ?? String(value)}
+              tick={{ fill: "#5F6670", fontSize: 11 }}
+              tickLine={false}
+              axisLine={{ stroke: "#B8C0C5" }}
+              minTickGap={12}
+              height={38}
+              tickMargin={10}
+              interval="preserveStartEnd"
+            />
+            <YAxis
+              domain={[0, axisMax]}
+              ticks={yTicks}
+              tickFormatter={(value) =>
+                analysis.valueType === "percentage"
+                  ? `${Number(value).toFixed(0)}%`
+                  : new Intl.NumberFormat(locale, {
+                      maximumFractionDigits: 0,
+                    }).format(Number(value))
+              }
+              tick={{ fill: "#5F6670", fontSize: 11 }}
+              tickLine={false}
+              axisLine={{ stroke: "#B8C0C5" }}
+              width={62}
+              tickMargin={8}
+            />
+            {referenceLinePeriod && (
+              <ReferenceLine
+                x={referenceLinePeriod}
+                stroke="#989F43"
+                strokeDasharray="4 4"
+                strokeWidth={2}
+              />
+            )}
+            <Tooltip
+              content={renderTooltip}
+              cursor={{ stroke: "#8A9340", strokeWidth: 1.25 }}
+            />
+            {visibleSeries.map((series) => (
+              <Line
+                key={series.id}
+                type="monotone"
+                dataKey={series.id}
+                name={translateLabel(series.label)}
+                stroke={getVisibleChartColor(series.color)}
+                strokeWidth={2}
+                strokeOpacity={0.92}
+                dot={{ r: 2.2, strokeWidth: 1.6, fill: "#FFFFFF" }}
+                activeDot={{ r: 4.4, strokeWidth: 2, fill: "#FFFFFF" }}
+                isAnimationActive={false}
+              />
+            ))}
+          </LineChart>
+        </ResponsiveContainer>
+      </div>
+      <div className="flex flex-wrap gap-2">
+        {chartData.series.map((series) => {
+          const enabled = activeSeries.has(series.id);
+          return (
+            <button
+              key={series.id}
+              type="button"
+              aria-pressed={enabled}
+              onClick={() => toggleSeries(series.id)}
+              className={`inline-flex items-center gap-2 rounded border px-2.5 py-1.5 text-xs font-semibold transition ${
+                enabled
+                  ? "border-[#c8ced1] bg-white text-[#292829]"
+                  : "border-[#d9e0e3] bg-[#f4f6f8] text-neutral-500"
+              }`}
+            >
+              <span
+                className="h-2.5 w-2.5 rounded-full"
+                style={{ backgroundColor: getVisibleChartColor(series.color) }}
+              />
+              {translateLabel(series.label)}
+            </button>
+          );
+        })}
+      </div>
+    </div>
+  );
+}
+
 function AnalysisSection({
   analysis,
   report,
   index,
   locale,
-  chartSrc,
   mapSrc,
   mapActive,
   mapAttempt,
@@ -171,7 +438,6 @@ function AnalysisSection({
   report: MunicipalReportData;
   index: number;
   locale: string;
-  chartSrc?: string;
   mapSrc?: string;
   mapActive?: boolean;
   mapAttempt?: number;
@@ -292,23 +558,41 @@ function AnalysisSection({
                 </tr>
               </thead>
               <tbody>
-                {analysis.snapshot.distribution.map((item) => (
-                  <tr key={item.id} className="border-t border-[#c8ced1]">
-                    <td
-                      className="border-r border-[#c8ced1] px-4 py-2.5 font-medium"
-                      style={{ backgroundColor: `${item.color}33` }}
+                {analysis.snapshot.distribution.map((item) => {
+                  const visibleColor = getVisibleChartColor(item.color);
+                  const rowBackground = `${visibleColor}33`;
+                  const rowHoverBackground = `${visibleColor}4d`;
+
+                  return (
+                    <tr
+                      key={item.id}
+                      className="report-data-row border-t border-[#c8ced1]"
+                      style={
+                        {
+                          "--report-row-bg": rowBackground,
+                          "--report-row-hover-bg": rowHoverBackground,
+                        } as CSSProperties
+                      }
                     >
-                      <span
-                        className="mr-2 inline-block h-2.5 w-2.5 rounded-full border border-black/10"
-                        style={{ backgroundColor: item.color }}
-                      />
-                      {translateClassLabel(item.label, t, tHas, tCaption, tCaptionHas)}
-                    </td>
-                    <td className="px-4 py-2.5 text-right font-semibold">
-                      {formatMunicipalReportValue(item.percentage, analysis, locale)}
-                    </td>
-                  </tr>
-                ))}
+                      <td
+                        className="border-r border-[#c8ced1] px-4 py-2.5 font-medium"
+                        style={{ backgroundColor: rowBackground }}
+                      >
+                        <span
+                          className="mr-2 inline-block h-2.5 w-2.5 rounded-full border border-black/10"
+                          style={{ backgroundColor: visibleColor }}
+                        />
+                        {translateClassLabel(item.label, t, tHas, tCaption, tCaptionHas)}
+                      </td>
+                      <td
+                        className="px-4 py-2.5 text-right font-semibold"
+                        style={{ backgroundColor: rowBackground }}
+                      >
+                        {formatMunicipalReportValue(item.percentage, analysis, locale)}
+                      </td>
+                    </tr>
+                  );
+                })}
               </tbody>
             </table>
           </div>
@@ -317,9 +601,9 @@ function AnalysisSection({
             <h3 className="report-heading text-lg font-bold text-[#536e7b]">
               {t("spatialAndTimeSeries")}
             </h3>
-            <div className="report-visual-grid mt-3 grid overflow-hidden border border-[#c8ced1] bg-white md:grid-cols-2">
+            <div className="report-visual-grid mt-3 grid overflow-hidden border border-[#c8ced1] bg-[#fbfcfd] md:grid-cols-2">
               <div className="report-visual-panel flex flex-col border-b border-[#c8ced1] md:border-b-0 md:border-r">
-                <div className="border-b border-[#c8ced1] bg-[#f4f6f8] px-4 py-2.5 text-center text-sm font-semibold text-[#536e7b]">
+                <div className="border-b border-[#c8ced1] bg-[#f8fafb] px-4 py-2.5 text-center text-sm font-semibold text-[#536e7b]">
                   {t("spatialImage", { period: snapshotPeriodLabel })}
                 </div>
                 <ReportMapPreview
@@ -343,15 +627,18 @@ function AnalysisSection({
                 </p>
               </div>
               <div className="report-visual-panel flex flex-col">
-                <div className="border-b border-[#c8ced1] bg-[#f4f6f8] px-4 py-2.5 text-center text-sm font-semibold text-[#536e7b]">
+                <div className="border-b border-[#c8ced1] bg-[#f8fafb] px-4 py-2.5 text-center text-sm font-semibold text-[#536e7b]">
                   {valueLabels.chartSeries}: {historyRange}
                 </div>
-                <div className="report-chart-frame flex min-h-[230px] flex-1 items-center justify-center p-4">
-                  {chartSrc ? (
-                    <img src={chartSrc} alt={t("timeSeriesAlt", { title: translatedTitle })} className="max-h-[210px] max-w-full" />
-                  ) : (
-                    <span className="text-sm text-neutral-500">{t("timeSeriesUnavailable")}</span>
-                  )}
+                <div className="report-chart-frame flex min-h-[260px] flex-1 items-center justify-center bg-[#fbfcfd] p-3">
+                  <MunicipalReportDynamicChart
+                    analysis={analysis}
+                    locale={locale}
+                    referencePeriod={referencePeriod}
+                    translateLabel={(label) =>
+                      translateClassLabel(label, t, tHas, tCaption, tCaptionHas)
+                    }
+                  />
                 </div>
                 <p className="border-t border-[#c8ced1] px-4 py-2 text-xs leading-5 text-neutral-600">
                   {periodResolution}
@@ -393,24 +680,20 @@ function AnalysisSection({
 function ReportDocument({
   report,
   layerIds = [],
-  charts,
   mapImages,
   activeMapKeys,
   mapQueueStartedAt,
   retryAttemptFor,
   onMapCapture,
-  documentRef,
   docsContent,
 }: {
   report: MunicipalReportData;
   layerIds?: string[];
-  charts: Map<string, string>;
   mapImages: Map<string, string | null>;
   activeMapKeys: ReadonlySet<string>;
   mapQueueStartedAt: number | null;
   retryAttemptFor: (key: string) => number;
   onMapCapture?: (key: string, src: string | null) => void;
-  documentRef?: React.Ref<HTMLElement>;
   docsContent: MunicipalReportDocsContent | null;
 }) {
   const t = useTranslations("MunicipalReport");
@@ -435,7 +718,9 @@ function ReportDocument({
     getReportDocsText(docsContent, section, locale) ?? fallback;
 
   return (
-    <article ref={documentRef} className="report-paper mt-6 bg-white text-[#202020] shadow-[0_8px_35px_rgba(0,0,0,0.12)]">
+    <article
+      className="report-paper report-paper-html min-h-full bg-white text-[#202020]"
+    >
       <header>
         <div className="flex flex-wrap items-start justify-between gap-4 text-xs text-[#0f5a2d]">
           <strong>{reportText("Identificação do sistema", t("document.systemIdentification"))}</strong>
@@ -496,7 +781,6 @@ function ReportDocument({
               report={report}
               index={index}
               locale={locale}
-              chartSrc={charts.get(analysis.alias)}
               mapSrc={mapImages.get(mapKey) ?? undefined}
               mapActive={activeMapKeys.has(mapKey)}
               mapAttempt={retryAttemptFor(mapKey)}
@@ -573,13 +857,9 @@ export function MunicipalReportPreview({ municipalityCode, period, layerIds, emb
   const hasRequiredParameters = Boolean(municipalityCode && period);
   const [report, setReport] = useState<MunicipalReportData | null>(null);
   const [docsContent, setDocsContent] = useState<MunicipalReportDocsContent | null>(null);
-  const [charts, setCharts] = useState<Map<string, string>>(new Map());
   const [mapQueueStartedAt, setMapQueueStartedAt] = useState<number | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(hasRequiredParameters);
-  const [exporting, setExporting] = useState(false);
-  const [zoom, setZoom] = useState(75);
-  const reportDocumentRef = useRef<HTMLElement>(null);
   const navigationMeasuredRef = useRef(false);
   const previewMeasuredRef = useRef(false);
   const summaryMeasuredRef = useRef(false);
@@ -596,6 +876,7 @@ export function MunicipalReportPreview({ municipalityCode, period, layerIds, emb
       .filter((analysis) => analysis.status === "available" && analysis.snapshot)
       .map((analysis) => `${analysis.id}:${analysis.effectivePeriod ?? analysis.snapshot?.period ?? report.requestedPeriod}`);
   }, [layerIdsKey, report]);
+  const loadErrorMessage = t("loadError");
   const {
     activeMapKeys,
     handleMapCapture,
@@ -655,74 +936,11 @@ export function MunicipalReportPreview({ municipalityCode, period, layerIds, emb
     summaryMeasuredRef.current = true;
     const frame = window.requestAnimationFrame(() => {
       finishMunicipalReportMetrics(
-        `${reportMapKeys.length} mapa(s) capturado(s); botão de download liberado.`,
+        `${reportMapKeys.length} mapa(s) capturado(s); visualização HTML pronta.`,
       );
     });
     return () => window.cancelAnimationFrame(frame);
   }, [loading, mapsReady, report, reportMapKeys.length]);
-
-  function printReport() {
-    if (!reportDocumentRef.current || exporting || !mapsReady) return;
-
-    setExporting(true);
-    const printWindow = window.open("", "_blank", "popup,width=980,height=800");
-    if (!printWindow) {
-      setExporting(false);
-      setError(t("popupBlocked"));
-      return;
-    }
-
-    const styles = [...document.querySelectorAll('link[rel="stylesheet"], style')]
-      .map((element) => element.outerHTML)
-      .join("\n");
-    const baseUrl = `${window.location.origin}/`;
-    const filename = buildReportFilename(
-      report,
-      period,
-      t("reportLabel"),
-      t("reportFilenamePrefix"),
-    );
-    const printOverrides = `
-      <style>
-        html,body{margin:0;background:#fff}
-        .report-paper{box-sizing:border-box;margin:0!important;box-shadow:none!important}
-        .report-visual-grid{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr)}
-        .report-visual-panel{min-width:0}
-        .report-visual-panel:first-child{border-right:1px solid #c8ced1;border-bottom:0}
-        .report-map-frame{height:230px}
-        .report-chart-frame{min-height:230px}
-        @media print{
-          html,body{width:210mm;background:#fff}
-          body{-webkit-print-color-adjust:exact;print-color-adjust:exact}
-          .report-paper{box-sizing:border-box}
-          .report-visual-grid{display:grid!important;grid-template-columns:minmax(0,1fr) minmax(0,1fr)!important}
-          .report-visual-panel{display:flex!important;flex-direction:column!important;min-width:0}
-          .report-map-frame{height:230px!important}
-          .report-chart-frame{min-height:230px!important}
-          .report-paper img{break-inside:avoid;page-break-inside:avoid}
-          .report-paper table{break-inside:auto;page-break-inside:auto}
-          .report-paper tr,.report-block,.report-visual-panel{break-inside:avoid;page-break-inside:avoid}
-          .report-heading{break-after:avoid;page-break-after:avoid}
-          .report-section{break-inside:auto;page-break-inside:auto}
-          .report-visual-block,.report-notes{break-inside:avoid;page-break-inside:avoid}
-        }
-      </style>`;
-    printWindow.document.open();
-    printWindow.document.write(`<!doctype html><html lang="${locale}"><head><meta charset="utf-8"><base href="${baseUrl}"><title>${filename}</title>${styles}${printOverrides}</head><body>${reportDocumentRef.current.outerHTML}</body></html>`);
-    printWindow.document.close();
-
-    const finish = () => {
-      printWindow.focus();
-      printWindow.print();
-      setExporting(false);
-    };
-    printWindow.addEventListener("afterprint", () => printWindow.close(), { once: true });
-    if (printWindow.document.readyState === "complete") {
-      window.setTimeout(finish, 300);
-    } else {
-      printWindow.addEventListener("load", () => window.setTimeout(finish, 300), { once: true });
-    }
-  }
 
   useEffect(() => {
     if (!hasRequiredParameters) return;
@@ -749,12 +967,11 @@ export function MunicipalReportPreview({ municipalityCode, period, layerIds, emb
           response,
           detalhes: `${layerIdsKey ? layerIdsKey.split(",").length : "todas"} camada(s) solicitada(s)`,
         });
-        if (!response.ok) throw new Error(payload.error ?? t("loadError"));
+        if (!response.ok) throw new Error(payload.error ?? loadErrorMessage);
         reportLoaded = true;
         setReport(payload as MunicipalReportData);
         setDocsContent(null);
 
-        // Fetch charts for all available analyses
         const reportData = payload as MunicipalReportData;
         const selectedLayerIds = layerIdsKey ? new Set(layerIdsKey.split(",")) : null;
         const selectedLayerIdsForDocs = (selectedLayerIds
@@ -778,7 +995,7 @@ export function MunicipalReportPreview({ municipalityCode, period, layerIds, emb
               response: docsResponse,
               detalhes: `${selectedLayerIdsForDocs.length} tema(s)`,
             });
-            if (!docsResponse.ok) throw new Error(docsPayload.error ?? t("loadError"));
+            if (!docsResponse.ok) throw new Error(docsPayload.error ?? loadErrorMessage);
             setDocsContent(docsPayload.content as MunicipalReportDocsContent);
           } catch (docsError) {
             if (!docsResponse) {
@@ -790,40 +1007,10 @@ export function MunicipalReportPreview({ municipalityCode, period, layerIds, emb
           }
         };
 
-        const chartsTask = async () => {
-          if (selectedLayerIdsForDocs.length === 0) {
-            setCharts(new Map());
-            return;
-          }
-          const finishCharts = startMunicipalReportStage();
-          const chartResponse = await fetch(
-            `/api/municipal-report/${encodeURIComponent(municipalityCode)}/chart?period=${encodeURIComponent(period)}&analysis=${selectedLayerIdsForDocs.join(",")}`,
-            { credentials: "same-origin", signal: controller.signal },
-          );
-          const chartPayload = await chartResponse.json();
-          finishCharts("Gráficos SVG", {
-            response: chartResponse,
-            detalhes: `${selectedLayerIdsForDocs.length} gráfico(s) solicitado(s)`,
-          });
-          if (chartResponse.ok) {
-            const nextCharts = new Map<string, string>();
-            for (const chart of chartPayload.charts) {
-              nextCharts.set(chart.alias, `data:${chart.contentType};base64,${chart.base64}`);
-            }
-            setCharts(nextCharts);
-          }
-        };
-
-        // Text resolution and SVG rendering are independent. Starting them
-        // together prevents the chart from waiting behind the Docs request.
-        const finishParallelAssets = startMunicipalReportStage();
-        await Promise.all([docsTask(), chartsTask()]);
-        finishParallelAssets("Janela paralela: textos + gráficos", {
-          detalhes: "Duração do mais lento entre as duas requisições paralelas",
-        });
+        await docsTask();
       } catch (reason) {
         if (reason instanceof DOMException && reason.name === "AbortError") return;
-        setError(reason instanceof Error ? reason.message : t("loadError"));
+        setError(reason instanceof Error ? reason.message : loadErrorMessage);
       } finally {
         if (!controller.signal.aborted) {
           if (reportLoaded) setMapQueueStartedAt(performance.now());
@@ -834,49 +1021,54 @@ export function MunicipalReportPreview({ municipalityCode, period, layerIds, emb
 
     loadReport();
     return () => controller.abort();
-  }, [hasRequiredParameters, layerIdsKey, municipalityCode, period, resetMapCaptureQueue, t]);
+  }, [
+    hasRequiredParameters,
+    layerIdsKey,
+    loadErrorMessage,
+    municipalityCode,
+    period,
+    resetMapCaptureQueue,
+  ]);
 
   const visibleError = hasRequiredParameters ? error : null;
 
   if (embedded) {
-    const municipality = citiesIndex.find((item) => item.code === municipalityCode);
-    const filename = buildReportFilename(
-      report,
-      period,
-      municipality ? `${t("reportFilenamePrefix")}-${municipality.name.replace(/\s+/g, "-")}-${period}.PDF` : t("reportLabel"),
-      t("reportFilenamePrefix"),
-    );
+    const previewTitle = report
+      ? `${t("reportLabel")} - ${report.municipality.name} - ${formatReportPeriod(period, locale)}`
+      : t("reportLabel");
 
     return (
-      <div className="flex h-full min-w-0 flex-col bg-[#F6F7F6]">
-        <div className="flex h-[72px] shrink-0 items-center justify-between gap-4 border-b border-[#EFEFEF] bg-[#E4E5E2] px-6">
-          <span className="min-w-0 flex-1 truncate font-inter text-base">{filename}</span>
-          <div className="flex shrink-0 items-center justify-center gap-6">
-            <div className="flex h-10 items-center gap-2 font-inter text-base">
-              <span className="flex h-10 w-[33px] items-center justify-center rounded-md border border-[#DCDBDC] bg-white text-[#7E797B]">1</span>
-              <span className="text-[#292829]">/</span>
-              <span className="text-[#292829]">--</span>
-            </div>
-            <div className="flex shrink-0 items-center gap-2">
-              <button type="button" onClick={() => setZoom((value) => Math.min(125, value + 10))} className="flex h-10 w-10 items-center justify-center rounded border border-[#EFEFEF] bg-white text-[#989F43]" aria-label={t("zoomIn")}>
-                <svg className="h-6 w-6" aria-hidden viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><circle cx="11" cy="11" r="7" /><path d="M11 8v6M8 11h6M20 20l-3.5-3.5" /></svg>
-              </button>
-              <span className="flex h-10 w-[52px] items-center justify-center rounded-md border border-[#DCDBDC] bg-white px-2 font-inter text-base text-[#7E797B]">{zoom}%</span>
-              <button type="button" onClick={() => setZoom((value) => Math.max(50, value - 10))} className="flex h-10 w-10 items-center justify-center rounded border border-[#EFEFEF] bg-white text-[#989F43]" aria-label={t("zoomOut")}>
-                <svg className="h-6 w-6" aria-hidden viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><circle cx="11" cy="11" r="7" /><path d="M8 11h6M20 20l-3.5-3.5" /></svg>
-              </button>
+      <div className="flex h-full min-w-0 flex-col bg-white">
+        <div className="shrink-0 border-b border-[#D9E0E3] bg-white px-4 py-4 sm:px-6">
+          <div className="flex w-full flex-col gap-3">
+            <div className="min-w-0">
+              <p className="font-inter text-xs font-semibold uppercase tracking-[0.08em] text-[#536E7B]">
+                {t("preview")}
+              </p>
+              <h1 className="mt-1 truncate font-inter text-base font-semibold text-[#292829]">
+                {previewTitle}
+              </h1>
             </div>
           </div>
-          <button type="button" disabled={!report || exporting || !mapsReady} onClick={printReport} className="flex h-10 shrink-0 items-center gap-2 rounded bg-[#989F43] px-4 font-inter text-sm font-medium text-white disabled:opacity-50">
-            {exporting ? <span aria-hidden="true" className="h-4 w-4 animate-spin rounded-full border-2 border-white/40 border-t-white" /> : <svg className="h-4 w-4" aria-hidden viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M12 3v12m0 0 4-4m-4 4-4-4" /><path d="M5 20h14" /></svg>}
-            {exporting || (report && !mapsReady) ? t("preparingDownload") : t("download")}
-          </button>
         </div>
-        <div className="min-h-0 flex-1 overflow-auto bg-[#F6F7F6] px-8 py-8">
+        <div className="min-h-0 flex-1 overflow-auto bg-white">
           {!hasRequiredParameters && <EmptyReportPreview />}
           {loading && <div className="mx-auto flex min-h-56 max-w-[749px] flex-col items-center justify-center gap-4 bg-white p-10 text-center text-neutral-600 shadow-sm"><span aria-hidden="true" className="h-9 w-9 animate-spin rounded-full border-4 border-[#989F43]/25 border-t-[#989F43]" /><strong className="text-base font-semibold text-[#536e7b]">{t("loading")}</strong><span className="text-sm">{t("loadingHint")}</span></div>}
           {visibleError && !loading && <div className="mx-auto max-w-[749px] border border-red-200 bg-white p-8 shadow-sm"><h1 className="text-xl font-semibold">{t("loadError")}</h1><p className="mt-2 text-sm text-red-700">{visibleError}</p></div>}
-          {report && !loading && <div className="mx-auto origin-top transition-transform" style={{ width: "980px", transform: `scale(${zoom / 100})` }}><ReportDocument report={report} layerIds={layerIds} charts={charts} mapImages={mapImages} activeMapKeys={activeMapKeys} mapQueueStartedAt={mapQueueStartedAt} retryAttemptFor={retryAttemptFor} onMapCapture={handleMapCapture} documentRef={reportDocumentRef} docsContent={docsContent} /></div>}
+          {report && !loading && (
+            <div className="h-full w-full">
+              <ReportDocument
+                report={report}
+                layerIds={layerIds}
+                mapImages={mapImages}
+                activeMapKeys={activeMapKeys}
+                mapQueueStartedAt={mapQueueStartedAt}
+                retryAttemptFor={retryAttemptFor}
+                onMapCapture={handleMapCapture}
+                docsContent={docsContent}
+              />
+            </div>
+          )}
         </div>
       </div>
     );
@@ -895,7 +1087,7 @@ export function MunicipalReportPreview({ municipalityCode, period, layerIds, emb
             <p className="mt-2 text-sm text-red-700">{visibleError}</p>
           </div>
         )}
-        {report && !loading && <ReportDocument report={report} layerIds={layerIds} charts={charts} mapImages={mapImages} activeMapKeys={activeMapKeys} mapQueueStartedAt={mapQueueStartedAt} retryAttemptFor={retryAttemptFor} onMapCapture={handleMapCapture} docsContent={docsContent} />}
+        {report && !loading && <ReportDocument report={report} layerIds={layerIds} mapImages={mapImages} activeMapKeys={activeMapKeys} mapQueueStartedAt={mapQueueStartedAt} retryAttemptFor={retryAttemptFor} onMapCapture={handleMapCapture} docsContent={docsContent} />}
       </div>
     </div>
   );

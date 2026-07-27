@@ -214,13 +214,56 @@ export function mergeCompactDatasetYear(
       [yearKey]: selectedBaseYear,
     },
   };
+  const requestedCalendarYear = getCalendarYear(yearKey);
+  const patchesForSelectedYear = patches.flatMap((patch) => {
+    const patchYears = patch.years;
 
-  return patches
-    .filter((patch) => hasPatchForYear(base.years, patch.years, yearKey))
-    .reduce<CompactTerritorialAnalysisDataset>(
-      (imageData, patch) => mergeCompactDataset(imageData, patch),
-      baseWithSelectedYear,
+    if (!patchYears) {
+      return [];
+    }
+
+    const exactPatchYear = patchYears[yearKey];
+
+    if (exactPatchYear) {
+      return [
+        {
+          ...patch,
+          years: {
+            [yearKey]: exactPatchYear,
+          },
+        },
+      ];
+    }
+
+    const calendarCandidates = Object.entries(patchYears).filter(
+      ([patchYearKey]) =>
+        requestedCalendarYear &&
+        getCalendarYear(patchYearKey) === requestedCalendarYear,
     );
+
+    // Preserve the legacy annual-to-monthly fallback only when it is
+    // unambiguous. Multiple monthly entries from the same calendar year must
+    // never be collapsed into the requested month.
+    if (calendarCandidates.length !== 1) {
+      return [];
+    }
+
+    const [fallbackYearKey, fallbackYear] = calendarCandidates[0];
+
+    return [
+      {
+        ...patch,
+        years: {
+          [fallbackYearKey]: fallbackYear,
+        },
+      },
+    ];
+  });
+
+  return patchesForSelectedYear.reduce<CompactTerritorialAnalysisDataset>(
+    (imageData, patch) => mergeCompactDataset(imageData, patch),
+    baseWithSelectedYear,
+  );
 }
 
 export function mergePartialMunicipalImageData(
