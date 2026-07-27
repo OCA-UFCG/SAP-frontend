@@ -189,6 +189,66 @@ describe("municipalAnalysisMerge", () => {
     expect(merged.years["2026-02"]?.values["2914802"]).toEqual([800, 200]);
   });
 
+  it("does not collapse sibling monthly patches into the requested month", () => {
+    const base = buildBaseDataset();
+    base.years["2026-03"] = {
+      imageId: "img-2026-03",
+      year: "2026-03",
+      valuesScale: 10,
+      values: {
+        br: [500, 500],
+      },
+    };
+
+    const patch: CompactTerritorialAnalysisDatasetPatch = {
+      years: {
+        "2026-02": {
+          valuesScale: 1,
+          values: {
+            "2914802": [80, 20],
+          },
+        },
+        "2026-03": {
+          valuesScale: 1,
+          values: {
+            "2914802": [25, 75],
+          },
+        },
+      },
+    };
+
+    const february = mergeCompactDatasetYear(base, [patch], "2026-02");
+    const march = mergeCompactDatasetYear(base, [patch], "2026-03");
+
+    expect(february.years["2026-02"]?.values["2914802"]).toEqual([800, 200]);
+    expect(march.years["2026-03"]?.values["2914802"]).toEqual([250, 750]);
+  });
+
+  it("ignores an ambiguous calendar fallback without an exact month", () => {
+    const merged = mergeCompactDatasetYear(
+      buildBaseDataset(),
+      [
+        {
+          years: {
+            "2026-01": {
+              values: {
+                "2914802": [80, 20],
+              },
+            },
+            "2026-03": {
+              values: {
+                "2914802": [25, 75],
+              },
+            },
+          },
+        },
+      ],
+      "2026-02",
+    );
+
+    expect(merged.years["2026-02"]?.values["2914802"]).toBeUndefined();
+  });
+
   it("uses the same compact merge for client-side partial payloads", () => {
     const merged = mergePartialMunicipalImageData(buildBaseDataset(), {
       years: {

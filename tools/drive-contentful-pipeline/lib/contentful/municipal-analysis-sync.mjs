@@ -180,7 +180,7 @@ async function getPanelLayerYearKeys(config, panelLayerId) {
   return Object.keys(imageData);
 }
 
-async function validatePartitionsAgainstPanelLayer(
+export async function validatePartitionsAgainstPanelLayer(
   config,
   panelLayerId,
   partitions,

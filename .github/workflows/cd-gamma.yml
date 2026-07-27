@@ -37,6 +37,8 @@ jobs:
   build-image:
     needs: verify
     runs-on: ubuntu-latest
+    permissions:
+      contents: read
     steps:
       - uses: actions/checkout@v5
 
@@ -60,6 +62,7 @@ jobs:
 
       - name: Download vector tile artifacts
         env:
+          GH_TOKEN: ${{ github.token }}
           TILES_RELEASE_TAG: tiles-2025
         run: bash scripts/download-tiles.sh
 

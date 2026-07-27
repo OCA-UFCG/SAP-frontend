@@ -1,5 +1,14 @@
-import { mkdir, open, readdir, rm, unlink, writeFile } from "node:fs/promises";
+import {
+  access,
+  mkdir,
+  open,
+  readdir,
+  rm,
+  unlink,
+  writeFile,
+} from "node:fs/promises";
 import path from "node:path";
+import { isDeepStrictEqual } from "node:util";
 import { toRows } from "../csv/csv-parser.mjs";
 import {
   inferPanelLayerMapping,
@@ -19,6 +28,7 @@ import {
   slugifyFileName,
   toWorkspaceRelativePath,
 } from "../shared/paths.mjs";
+import { readDriveCsvSnapshot } from "../drive/drive-snapshot.mjs";
 
 async function cleanGeneratedImageDataFiles(jsonDir) {
   const entries = await readdir(jsonDir, { withFileTypes: true }).catch(
@@ -64,43 +74,12 @@ function toReportConversion(conversion) {
   return reportConversion;
 }
 
-function isSubsetOf(left, right) {
-  return left.every((item) => right.includes(item));
-}
-
-function getSourceRank(inputPath) {
-  const calibrationMatch = inputPath.match(/Cal_(\d{8})/iu);
-
-  return calibrationMatch?.[1] ? Number(calibrationMatch[1]) : 0;
-}
-
-function shouldReplaceYearEntry(candidate, existing) {
-  const candidateLocations = Object.keys(candidate.yearEntry.values).length;
-  const existingLocations = Object.keys(existing.yearEntry.values).length;
-
-  return (
-    candidateLocations > existingLocations ||
-    (candidateLocations === existingLocations &&
-      candidate.sourceRank > existing.sourceRank)
-  );
-}
-
-function isSupersededConversion(conversion, conversions) {
-  const yearKeys = Object.keys(conversion.imageData.years).sort();
-
-  return conversions.some((candidate) => {
-    if (
-      candidate === conversion ||
-      candidate.territory !== conversion.territory
-    )
-      return false;
-    const candidateYearKeys = Object.keys(candidate.imageData.years).sort();
-
-    return (
-      candidateYearKeys.length > yearKeys.length &&
-      isSubsetOf(yearKeys, candidateYearKeys)
-    );
-  });
+class CsvSourceCollisionError extends Error {
+  constructor(message) {
+    super(message);
+    this.name = "CsvSourceCollisionError";
+    this.code = "CSV_SOURCE_COLLISION";
+  }
 }
 
 function assertSameRecord(left, right, label, sourceCsvPath) {
@@ -120,7 +99,34 @@ function selectDominantTerritory(conversions) {
   return conversions[0]?.territory;
 }
 
-function mergeYearsByBestSource(conversions, skipped) {
+function getSourceMetadata(inputPath, sourceMetadata, yearKey) {
+  const metadata = sourceMetadata.get(inputPath);
+
+  if (!metadata?.modifiedTime || !Number.isFinite(metadata.modifiedAt)) {
+    throw new CsvSourceCollisionError(
+      `Colisão na referência ${yearKey}: o arquivo ${inputPath} não possui modifiedTime do Google Drive. Baixe novamente os CSVs para gerar o snapshot antes de usar --skip-download.`,
+    );
+  }
+
+  return metadata;
+}
+
+function toCollisionDecision(yearKey, winner, loser, identical = false) {
+  return {
+    yearKey,
+    winnerInputPath: winner.inputPath,
+    winnerModifiedTime: winner.metadata.modifiedTime,
+    loserInputPath: loser.inputPath,
+    loserModifiedTime: loser.metadata.modifiedTime,
+    identical,
+  };
+}
+
+function mergeYearsByMostRecentlyModified(
+  conversions,
+  skipped,
+  sourceMetadata,
+) {
   const mergedYears = {};
 
   for (const conversion of conversions.sort((left, right) =>
@@ -131,7 +137,6 @@ function mergeYearsByBestSource(conversions, skipped) {
     )) {
       const candidate = {
         inputPath: conversion.inputPath,
-        sourceRank: getSourceRank(conversion.inputPath),
         yearEntry,
       };
       const existing = mergedYears[yearKey];
@@ -141,14 +146,45 @@ function mergeYearsByBestSource(conversions, skipped) {
         continue;
       }
 
-      if (shouldReplaceYearEntry(candidate, existing)) {
+      candidate.metadata = getSourceMetadata(
+        candidate.inputPath,
+        sourceMetadata,
+        yearKey,
+      );
+      existing.metadata = getSourceMetadata(
+        existing.inputPath,
+        sourceMetadata,
+        yearKey,
+      );
+      const candidateModifiedAt = candidate.metadata.modifiedAt;
+      const existingModifiedAt = existing.metadata.modifiedAt;
+      const identical = isDeepStrictEqual(
+        candidate.yearEntry,
+        existing.yearEntry,
+      );
+
+      if (candidateModifiedAt === existingModifiedAt && !identical) {
+        throw new CsvSourceCollisionError(
+          `Colisão divergente na referência ${yearKey}: ${candidate.inputPath} e ${existing.inputPath} possuem o mesmo modifiedTime (${candidate.metadata.modifiedTime}).`,
+        );
+      }
+
+      const candidateWins = candidateModifiedAt > existingModifiedAt;
+      const winner = candidateWins ? candidate : existing;
+      const loser = candidateWins ? existing : candidate;
+
+      if (candidateWins) {
         mergedYears[yearKey] = candidate;
       }
 
+      const collision = toCollisionDecision(yearKey, winner, loser, identical);
       skipped.push({
-        inputPath: conversion.inputPath,
-        reason: `Referência ${yearKey} substituída por CSV da mesma camada com mais localidades ou calibração mais recente.`,
+        inputPath: loser.inputPath,
+        reason: identical
+          ? `Referência ${yearKey} duplicada com conteúdo idêntico; mantida ${winner.inputPath} (${winner.metadata.modifiedTime}).`
+          : `Referência ${yearKey} substituída por ${winner.inputPath}, modificado mais recentemente no Google Drive (${winner.metadata.modifiedTime} > ${loser.metadata.modifiedTime}).`,
         ignored: true,
+        collision,
       });
     }
   }
@@ -161,7 +197,7 @@ function mergeYearsByBestSource(conversions, skipped) {
   );
 }
 
-function mergeConversionEntries(convertedEntries, skipped) {
+function mergeConversionEntries(convertedEntries, skipped, sourceMetadata) {
   if (convertedEntries.length <= 1) return convertedEntries;
 
   const dominantTerritory = selectDominantTerritory(
@@ -188,9 +224,10 @@ function mergeConversionEntries(convertedEntries, skipped) {
     ),
     imageData: {
       templates: baseEntry.conversion.imageData.templates,
-      years: mergeYearsByBestSource(
+      years: mergeYearsByMostRecentlyModified(
         convertedEntries.map(({ conversion }) => conversion),
         skipped,
+        sourceMetadata,
       ),
     },
   };
@@ -301,8 +338,9 @@ async function writeAggregatedGroup(
     }
 
     const activeEntries = mergeConversionEntries(
-      filterSupersededEntries(convertedEntries, skipped),
+      convertedEntries,
       skipped,
+      options.sourceMetadata,
     );
     const conversions = activeEntries.map(({ conversion }) =>
       toReportConversion(conversion),
@@ -322,15 +360,16 @@ async function writeAggregatedGroup(
       );
     }
 
-    const reportSeries = activeEntries[0]?.conversion && group.panelLayerId
-      ? await writeMunicipalReportSeries(
-          activeEntries[0].conversion,
-          group,
-          reportSeriesDir,
-          pipelineConfig,
-          { maxImageDataBytes: options.maxContentfulJsonBytes },
-        )
-      : null;
+    const reportSeries =
+      activeEntries[0]?.conversion && group.panelLayerId
+        ? await writeMunicipalReportSeries(
+            activeEntries[0].conversion,
+            group,
+            reportSeriesDir,
+            pipelineConfig,
+            { maxImageDataBytes: options.maxContentfulJsonBytes },
+          )
+        : null;
 
     await closeAggregateFile(fileState);
 
@@ -348,22 +387,6 @@ async function writeAggregatedGroup(
     if (fileState.handle) await fileState.handle.close();
     throw error;
   }
-}
-
-function filterSupersededEntries(convertedEntries, skipped) {
-  const conversions = convertedEntries.map((entry) => entry.conversion);
-
-  return convertedEntries.filter(({ conversion }) => {
-    if (!isSupersededConversion(conversion, conversions)) return true;
-
-    skipped.push({
-      inputPath: conversion.inputPath,
-      reason:
-        "CSV substituído por outro arquivo da mesma camada/território com cobertura temporal mais completa.",
-      ignored: true,
-    });
-    return false;
-  });
 }
 
 function buildAggregatedFile(group, fileState, conversions) {
@@ -427,6 +450,7 @@ async function writePanelLayerImageDataFiles(
   csvPaths,
   panelLayerDir,
   pipelineConfig,
+  sourceMetadata,
 ) {
   const files = [];
   const conversionsByPanelLayerId = new Map();
@@ -474,7 +498,11 @@ async function writePanelLayerImageDataFiles(
       ),
       imageData: {
         ...baseConversion.imageData,
-        years: mergeYearsByBestSource(panelLayerConversions, skipped),
+        years: mergeYearsByMostRecentlyModified(
+          panelLayerConversions,
+          skipped,
+          sourceMetadata,
+        ),
       },
     };
     mergedConversion.yearKeys = Object.keys(
@@ -544,18 +572,65 @@ async function classifyCsvPaths(csvPaths, pipelineConfig) {
   return { panelLayerCsvPaths, municipalAnalysisCsvPaths, skipped };
 }
 
-export async function convertCsvDirectory(options, pipelineConfig) {
-  const csvDir = resolveWorkspacePath(options.csvDir);
-  const jsonDir = resolveWorkspacePath(options.jsonDir);
-  await mkdir(jsonDir, { recursive: true });
+function matchesFileName(pattern, name) {
+  pattern.lastIndex = 0;
+  return pattern.test(name);
+}
+
+async function resolveCsvSources(csvDir, fileNamePattern) {
+  const snapshot = await readDriveCsvSnapshot(csvDir);
+  const sourceMetadata = new Map();
+
+  if (snapshot) {
+    const csvPaths = [];
+    for (const file of snapshot.files) {
+      if (
+        !file.localName.toLowerCase().endsWith(".csv") ||
+        !matchesFileName(fileNamePattern, file.localName)
+      ) {
+        continue;
+      }
+
+      const csvPath = path.join(csvDir, file.localName);
+      try {
+        await access(csvPath);
+      } catch {
+        throw new Error(
+          `O arquivo ${file.localName}, registrado no snapshot do Drive, não existe em ${toWorkspaceRelativePath(csvDir)}.`,
+        );
+      }
+      const relativePath = toWorkspaceRelativePath(csvPath);
+      csvPaths.push(csvPath);
+      sourceMetadata.set(relativePath, file);
+    }
+
+    return {
+      csvPaths: csvPaths.sort((left, right) => left.localeCompare(right)),
+      sourceMetadata,
+      snapshot,
+    };
+  }
 
   const csvPaths = (await readdir(csvDir, { withFileTypes: true }))
     .filter(
       (entry) => entry.isFile() && entry.name.toLowerCase().endsWith(".csv"),
     )
-    .filter((entry) => options.fileNamePattern.test(entry.name))
+    .filter((entry) => matchesFileName(fileNamePattern, entry.name))
     .map((entry) => path.join(csvDir, entry.name))
     .sort((left, right) => left.localeCompare(right));
+
+  return { csvPaths, sourceMetadata, snapshot: null };
+}
+
+export async function convertCsvDirectory(options, pipelineConfig) {
+  const csvDir = resolveWorkspacePath(options.csvDir);
+  const jsonDir = resolveWorkspacePath(options.jsonDir);
+  await mkdir(jsonDir, { recursive: true });
+
+  const { csvPaths, sourceMetadata, snapshot } = await resolveCsvSources(
+    csvDir,
+    options.fileNamePattern,
+  );
 
   if (csvPaths.length === 0) {
     throw new Error(
@@ -566,12 +641,16 @@ export async function convertCsvDirectory(options, pipelineConfig) {
   await cleanGeneratedImageDataFiles(jsonDir);
   const partitionDir = await cleanGeneratedDirectory(jsonDir, "partitions");
   const panelLayerDir = await cleanGeneratedDirectory(jsonDir, "panel-layers");
-  const reportSeriesDir = await cleanGeneratedDirectory(jsonDir, "report-series");
+  const reportSeriesDir = await cleanGeneratedDirectory(
+    jsonDir,
+    "report-series",
+  );
   const classified = await classifyCsvPaths(csvPaths, pipelineConfig);
   const panelLayerResult = await writePanelLayerImageDataFiles(
     classified.panelLayerCsvPaths,
     panelLayerDir,
     pipelineConfig,
+    sourceMetadata,
   );
   const result = {
     aggregatedFiles: [],
@@ -581,6 +660,7 @@ export async function convertCsvDirectory(options, pipelineConfig) {
     partitionFiles: [],
     panelLayerFiles: panelLayerResult.files,
     reportSeries: [],
+    driveSnapshot: snapshot,
     skipped: [...classified.skipped, ...panelLayerResult.skipped],
   };
 
@@ -593,7 +673,7 @@ export async function convertCsvDirectory(options, pipelineConfig) {
         group,
         jsonDir,
         partitionDir,
-        options,
+        { ...options, sourceMetadata },
         pipelineConfig,
         reportSeriesDir,
       );
@@ -603,8 +683,10 @@ export async function convertCsvDirectory(options, pipelineConfig) {
       result.partitionFiles.push(...groupResult.partitionFiles);
       if (groupResult.aggregatedFile)
         result.aggregatedFiles.push(groupResult.aggregatedFile);
-      if (groupResult.reportSeries) result.reportSeries.push(groupResult.reportSeries);
+      if (groupResult.reportSeries)
+        result.reportSeries.push(groupResult.reportSeries);
     } catch (error) {
+      if (error?.code === "CSV_SOURCE_COLLISION") throw error;
       result.skipped.push(
         toSkippedCsv(
           group.sourceCsvPaths.map(toWorkspaceRelativePath).join(", "),
