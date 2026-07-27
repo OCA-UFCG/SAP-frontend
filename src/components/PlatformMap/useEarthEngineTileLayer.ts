@@ -22,6 +22,7 @@ interface ResolvedTileLayerState {
 export function useEarthEngineTileLayer(
   activeEEData: IEEInfo | null,
   activeYear: string,
+  interestedArea?: { interestedArea?: string; interestedAreaValue?: string } | null,
 ): EarthEngineTileLayerResult {
   const [resolvedTileLayer, setResolvedTileLayer] =
     useState<ResolvedTileLayerState>({
@@ -50,11 +51,13 @@ export function useEarthEngineTileLayer(
     }
 
     return {
-      requestKey: `${activeEEData.id}:${activeYear}`,
+      requestKey: `${activeEEData.id}:${activeYear}:${interestedArea?.interestedArea ?? "nacional"}:${interestedArea?.interestedAreaValue ?? "nacional"}`,
       layerId: activeEEData.id,
       year: activeYear,
+      spatialArea: interestedArea?.interestedArea,
+      spatialValue: interestedArea?.interestedAreaValue,
     };
-  }, [activeEEData, activeYear]);
+  }, [activeEEData, activeYear, interestedArea]);
 
   const requestKey = requestConfig?.requestKey ?? null;
 
@@ -93,6 +96,8 @@ export function useEarthEngineTileLayer(
           requestConfig.layerId,
           requestConfig.year,
           controller.signal,
+          requestConfig.spatialArea,
+          requestConfig.spatialValue,
         );
 
         if (latestRequestKeyRef.current !== requestConfig.requestKey) return;

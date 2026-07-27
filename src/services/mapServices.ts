@@ -19,9 +19,17 @@ export async function fetchMapURL(
   id: string,
   year: string,
   signal?: AbortSignal,
+  spatialArea?: string,
+  spatialValue?: string,
 ): Promise<string | null> {
+  const url = new URL(`${API_BASE_URL}/api/ee`);
+  url.searchParams.set("name", id);
+  url.searchParams.set("year", year);
+  if (spatialArea) url.searchParams.set("spatialArea", spatialArea);
+  if (spatialValue) url.searchParams.set("spatialValue", spatialValue);
+
   const response = await fetch(
-    `${API_BASE_URL}/api/ee?name=${encodeURIComponent(id)}&year=${encodeURIComponent(year)}`,
+    url.toString(),
     {
       method: "POST",
       signal,

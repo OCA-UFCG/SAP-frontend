@@ -1,5 +1,7 @@
 import ee from "@google/earthengine";
 import { createSign } from "node:crypto";
+import fs from "node:fs";
+import path from "node:path";
 import { addUrlToCache, buildCacheKey } from "@/app/api/ee/cache";
 import {
   resolveMapVisualizationPlan,
@@ -163,8 +165,52 @@ const getBrazilBoundary = () => {
   return brazilBoundary;
 };
 
-const clipImageToBrazil = (image: any) =>
-  image.clipToCollection(getBrazilBoundary());
+const applySpatialClip = (image: any, spatialArea?: string, spatialValue?: string) => {
+  if (!spatialArea || !spatialValue || spatialArea === "nacional") {
+    return image.clipToCollection(getBrazilBoundary());
+  }
+
+  const fileNameMap: Record<string, string> = {
+    region: "regionBoundaries.json",
+    biome: "biomeBoundaries.json",
+    semiarid: "semiaridBoundary.json",
+    asd: "asdBoundary.json",
+  };
+
+  const fileName = fileNameMap[spatialArea];
+  if (!fileName) {
+    return image.clipToCollection(getBrazilBoundary());
+  }
+
+  try {
+    // In Next.js, process.cwd() points to the project root
+    const filePath = path.join(process.cwd(), "src", "data", fileName);
+    const fileContent = fs.readFileSync(filePath, "utf-8");
+    const geojson = JSON.parse(fileContent);
+
+    const valueMap: Record<string, string> = {
+      "centro-oeste": "Centro-Oeste",
+      "semiarid": "semiárido",
+      "asd": "ASD",
+    };
+
+    const targetName = valueMap[spatialValue.toLowerCase()] || spatialValue;
+
+    const feature = geojson.features.find((f: any) => {
+      const name = String(f.properties.name);
+      return name === targetName || name.toLowerCase() === targetName.toLowerCase();
+    });
+    if (!feature) {
+      console.warn(`[GEE] -> Spatial value ${spatialValue} not found in ${fileName}, falling back to Brazil boundary.`);
+      return image.clipToCollection(getBrazilBoundary());
+    }
+
+    return image.clip(ee.Geometry(feature.geometry));
+  } catch (error) {
+    console.error(`[GEE] -> Error applying spatial clip for ${spatialArea} - ${spatialValue}:`, error);
+    return image.clipToCollection(getBrazilBoundary());
+  }
+};
 
 function rangeIncludesZero(min?: number | null, max?: number | null) {
   return (
@@ -202,6 +248,8 @@ export function shouldApplySelfMask({
 
 interface GetEarthEngineUrlOptions {
   mapVisualization?: CompactMapVisualizationConfig;
+  spatialArea?: string;
+  spatialValue?: string;
 }
 
 function normalizeGeeAssetType(type?: unknown) {
@@ -346,7 +394,7 @@ export const getEarthEngineUrl = async (
   options?: GetEarthEngineUrlOptions,
 ) => {
   try {
-    const { mapVisualization } = options ?? {};
+    const { mapVisualization, spatialArea, spatialValue } = options ?? {};
 
     await initializeGee();
 
@@ -429,7 +477,7 @@ export const getEarthEngineUrl = async (
     }
 
     if (!shouldUseFeatureCollection) {
-      GEEImage = clipImageToBrazil(GEEImage);
+      GEEImage = applySpatialClip(GEEImage, spatialArea, spatialValue);
     }
 
     if (

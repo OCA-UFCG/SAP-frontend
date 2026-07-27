@@ -265,6 +265,13 @@ function SpatialScopeSelect({
   const valueOptions = interestAreaOptionsByLevel[interestedArea.interestedArea] ?? [];
   const selectedValue = valueOptions.find((v) => v === interestedArea.interestedAreaValue) ?? valueOptions[0];
 
+  const DISPLAY_LABELS: Record<string, string> = {
+    "brasil": "Brasil",
+    "semiarid": "Semiárido",
+    "asd": "ASD e Entorno"
+  };
+  const formatOptionLabel = (val: string) => DISPLAY_LABELS[val] || val;
+
   return (
     <div ref={containerRef} className="flex w-full max-w-[392px] flex-col items-start gap-[6px]">
       <label className="text-[14px] font-medium leading-[20px] text-[#292829]">
@@ -316,7 +323,7 @@ function SpatialScopeSelect({
             aria-haspopup="listbox"
             aria-expanded={isValueOpen}
           >
-            <span className="truncate text-[#292829]">{selectedValue ?? t("selectValue")}</span>
+            <span className="truncate text-[#292829]">{(selectedValue ? formatOptionLabel(selectedValue) : t("selectValue"))}</span>
             <svg width="16" height="16" viewBox="0 0 20 20" fill="none" className={`ml-2 shrink-0 text-[#898989] transition-transform ${isValueOpen ? "rotate-180" : ""}`} aria-hidden="true">
               <path d="M5 7.5L10 12.5L15 7.5" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" />
             </svg>
@@ -335,7 +342,7 @@ function SpatialScopeSelect({
                   }}
                   className="flex w-full rounded-lg px-3 py-2 text-left text-sm text-[#292829] transition hover:bg-[#F6F7F6]"
                 >
-                  {value}
+                  {formatOptionLabel(value)}
                 </button>
               ))}
             </div>

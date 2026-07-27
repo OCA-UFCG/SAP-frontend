@@ -47,6 +47,8 @@ export async function POST(req: NextRequest) {
   try {
     const name = req.nextUrl.searchParams.get("name")?.trim() || "";
     const year = req.nextUrl.searchParams.get("year")?.trim() || "";
+    const spatialArea = req.nextUrl.searchParams.get("spatialArea")?.trim() || undefined;
+    const spatialValue = req.nextUrl.searchParams.get("spatialValue")?.trim() || undefined;
 
     if (!name || !year) {
       return NextResponse.json(
@@ -83,6 +85,8 @@ export async function POST(req: NextRequest) {
       layer.minScale,
       layer.maxScale,
       yearConfig.mapVisualization,
+      spatialArea,
+      spatialValue,
     );
 
     const finishCache = timing.start();
@@ -101,7 +105,11 @@ export async function POST(req: NextRequest) {
       yearConfig.imageParams,
       layer.minScale,
       layer.maxScale,
-      { mapVisualization: yearConfig.mapVisualization },
+      { 
+        mapVisualization: yearConfig.mapVisualization,
+        spatialArea,
+        spatialValue,
+      },
     );
     finishEarthEngine("earth_engine", "Geração da URL de tiles no Earth Engine");
 
