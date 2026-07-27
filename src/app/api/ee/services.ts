@@ -165,51 +165,44 @@ const getBrazilBoundary = () => {
   return brazilBoundary;
 };
 
+const BOUNDARY_FILE_MAP: Record<string, string> = {
+  region: "regionBoundaries.json",
+  biome: "biomeBoundaries.json",
+  semiarid: "semiaridBoundary.json",
+  asd: "asdBoundary.json",
+};
+
+// Cache parsed GeoJSON at module level — loaded once on server start
+const boundaryCache = new Map<string, unknown>();
+for (const [area, fileName] of Object.entries(BOUNDARY_FILE_MAP)) {
+  try {
+    const filePath = path.join(process.cwd(), "src", "data", fileName);
+    boundaryCache.set(area, JSON.parse(fs.readFileSync(filePath, "utf-8")));
+  } catch (error) {
+    console.error(`[GEE] -> Failed to load boundary file ${fileName}:`, error);
+  }
+}
+
 const applySpatialClip = (image: any, spatialArea?: string, spatialValue?: string) => {
   if (!spatialArea || !spatialValue || spatialArea === "nacional") {
     return image.clipToCollection(getBrazilBoundary());
   }
 
-  const fileNameMap: Record<string, string> = {
-    region: "regionBoundaries.json",
-    biome: "biomeBoundaries.json",
-    semiarid: "semiaridBoundary.json",
-    asd: "asdBoundary.json",
-  };
+  const geojson = boundaryCache.get(spatialArea) as
+    | { features: Array<{ properties: { name: string }; geometry: unknown }> }
+    | undefined;
 
-  const fileName = fileNameMap[spatialArea];
-  if (!fileName) {
+  if (!geojson) {
     return image.clipToCollection(getBrazilBoundary());
   }
 
-  try {
-    // In Next.js, process.cwd() points to the project root
-    const filePath = path.join(process.cwd(), "src", "data", fileName);
-    const fileContent = fs.readFileSync(filePath, "utf-8");
-    const geojson = JSON.parse(fileContent);
-
-    const valueMap: Record<string, string> = {
-      "centro-oeste": "Centro-Oeste",
-      "semiarid": "semiárido",
-      "asd": "ASD",
-    };
-
-    const targetName = valueMap[spatialValue.toLowerCase()] || spatialValue;
-
-    const feature = geojson.features.find((f: any) => {
-      const name = String(f.properties.name);
-      return name === targetName || name.toLowerCase() === targetName.toLowerCase();
-    });
-    if (!feature) {
-      console.warn(`[GEE] -> Spatial value ${spatialValue} not found in ${fileName}, falling back to Brazil boundary.`);
-      return image.clipToCollection(getBrazilBoundary());
-    }
-
-    return image.clip(ee.Geometry(feature.geometry));
-  } catch (error) {
-    console.error(`[GEE] -> Error applying spatial clip for ${spatialArea} - ${spatialValue}:`, error);
+  const feature = geojson.features.find((f) => f.properties.name === spatialValue);
+  if (!feature) {
+    console.warn(`[GEE] -> Spatial value ${spatialValue} not found for ${spatialArea}, falling back to Brazil boundary.`);
     return image.clipToCollection(getBrazilBoundary());
   }
+
+  return image.clip(ee.Geometry(feature.geometry));
 };
 
 function rangeIncludesZero(min?: number | null, max?: number | null) {
@@ -255,8 +248,8 @@ interface GetEarthEngineUrlOptions {
 function normalizeGeeAssetType(type?: unknown) {
   return type
     ? String(type)
-        .toUpperCase()
-        .replace(/[_\s-]/g, "")
+      .toUpperCase()
+      .replace(/[_\s-]/g, "")
     : "";
 }
 
@@ -498,11 +491,11 @@ export const getEarthEngineUrl = async (
     const mapImage =
       shouldUseFeatureCollection && featureCollection && mapVisualization
         ? renderFeatureCollectionMapImage({
-            collection: featureCollection,
-            image: categorizedImage,
-            visParams,
-            mapVisualization,
-          })
+          collection: featureCollection,
+          image: categorizedImage,
+          visParams,
+          mapVisualization,
+        })
         : categorizedImage;
     const mapId = (await getMapId(
       mapImage,

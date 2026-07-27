@@ -27,7 +27,7 @@ function getNestedValue(
 const ptMessages: TranslationDictionary = {};
 try {
   const localeDir = path.join(__dirname, "translations/pt");
-  const files = fs.readdirSync(localeDir).filter((f) => f.endsWith(".json"));
+  const files = fs.readdirSync(localeDir).filter((file) => file.endsWith(".json"));
   for (const file of files) {
     const filePath = path.join(localeDir, file);
     const fileContent = fs.readFileSync(filePath, "utf-8");
@@ -43,10 +43,10 @@ vi.mock("next-intl", () => {
     useTranslations: (namespace?: string) => {
       const translateFn = (key: string, values?: Record<string, string | number | boolean>) => {
         let message = key;
-        
+
         const namespaceObj = namespace ? ptMessages[namespace] : ptMessages;
         const resolved = getNestedValue(namespaceObj, key);
-        
+
         if (resolved !== undefined && typeof resolved === "string") {
           message = resolved;
         }
@@ -75,7 +75,7 @@ vi.mock("next-intl", () => {
 vi.mock("next-intl/server", () => {
   const translateFn = (key: string, values?: Record<string, string | number | boolean>) => {
     let message = key;
-    
+
     const resolved = getNestedValue(ptMessages, key);
     if (resolved !== undefined && typeof resolved === "string") {
       message = resolved;
@@ -109,10 +109,10 @@ vi.mock("@/translations/routing", () => {
     },
     usePathname: () => "/",
     useRouter: () => ({
-      push: () => {},
-      replace: () => {},
-      prefetch: () => {},
-      back: () => {},
+      push: () => { },
+      replace: () => { },
+      prefetch: () => { },
+      back: () => { },
     }),
     redirect: (url: string) => {
       throw new Error(`redirect:${url}`);

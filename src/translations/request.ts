@@ -13,8 +13,8 @@ export default getRequestConfig(async ({ requestLocale }) => {
   const messages: Record<string, unknown> = {};
   try {
     const localeDir = path.join(process.cwd(), "src/translations", locale);
-    const files = fs.readdirSync(localeDir).filter(f => f.endsWith('.json'));
-    
+    const files = fs.readdirSync(localeDir).filter(file => file.endsWith('.json'));
+
     for (const file of files) {
       const filePath = path.join(localeDir, file);
       const fileContent = fs.readFileSync(filePath, 'utf-8');

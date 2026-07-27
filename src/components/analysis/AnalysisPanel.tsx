@@ -261,14 +261,13 @@ function SpatialScopeSelect({
     return () => document.removeEventListener("mousedown", handleClickOutside);
   }, []);
 
-  const selectedArea = interestAreas.find((a) => a.value === interestedArea.interestedArea);
+  const selectedArea = interestAreas.find((area) => area.value === interestedArea.interestedArea);
   const valueOptions = interestAreaOptionsByLevel[interestedArea.interestedArea] ?? [];
-  const selectedValue = valueOptions.find((v) => v === interestedArea.interestedAreaValue) ?? valueOptions[0];
+  const selectedValue = valueOptions.find((value) => value === interestedArea.interestedAreaValue) ?? valueOptions[0];
 
   const DISPLAY_LABELS: Record<string, string> = {
     "brasil": "Brasil",
-    "semiarid": "Semiárido",
-    "asd": "ASD e Entorno"
+    "ASD": "ASD e Entorno"
   };
   const formatOptionLabel = (val: string) => DISPLAY_LABELS[val] || val;
 
@@ -426,9 +425,9 @@ function parseHexColor(color: string) {
   const expanded =
     normalized.length === 3
       ? normalized
-          .split("")
-          .map((character) => character + character)
-          .join("")
+        .split("")
+        .map((character) => character + character)
+        .join("")
       : normalized;
 
   return {
@@ -760,9 +759,8 @@ export function AnalysisPanel({
                       model.highlight.tone?.color ??
                       model.accentColor ??
                       "#F5F5F5",
-                    border: `1px solid ${
-                      model.highlight.tone?.border ?? "#F0F0D7"
-                    }`,
+                    border: `1px solid ${model.highlight.tone?.border ?? "#F0F0D7"
+                      }`,
                   }}
                 >
                   <span className="font-semibold text-[14px] leading-6 text-[#292829]">

@@ -74,7 +74,7 @@ export const interestAreaOptionsByLevel: Record<interestArea, string[]> = {
     "TO",
   ],
   */
-  region: ["Norte", "Nordeste", "Centro-oeste", "Sudeste", "Sul"],
+  region: ["Norte", "Nordeste", "Centro-Oeste", "Sudeste", "Sul"],
   biome: [
     "Amazônia",
     "Caatinga",
@@ -83,8 +83,8 @@ export const interestAreaOptionsByLevel: Record<interestArea, string[]> = {
     "Pampa",
     "Pantanal",
   ],
-  semiarid: ["semiarid"],
-  asd: ["asd"],
+  semiarid: ["semiárido"],
+  asd: ["ASD"],
 };
 
 
