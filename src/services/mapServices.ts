@@ -22,14 +22,12 @@ export async function fetchMapURL(
   spatialArea?: string,
   spatialValue?: string,
 ): Promise<string | null> {
-  const url = new URL(`${API_BASE_URL}/api/ee`);
-  url.searchParams.set("name", id);
-  url.searchParams.set("year", year);
-  if (spatialArea) url.searchParams.set("spatialArea", spatialArea);
-  if (spatialValue) url.searchParams.set("spatialValue", spatialValue);
+  const params = new URLSearchParams({ name: id, year });
+  if (spatialArea) params.set("spatialArea", spatialArea);
+  if (spatialValue) params.set("spatialValue", spatialValue);
 
   const response = await fetch(
-    url.toString(),
+    `${API_BASE_URL}/api/ee?${params.toString()}`,
     {
       method: "POST",
       signal,
