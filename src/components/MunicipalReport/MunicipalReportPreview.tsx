@@ -13,6 +13,7 @@ import {
   XAxis,
   YAxis,
 } from "recharts";
+import type { TooltipContentProps } from "recharts";
 import type {
   MunicipalReportAnalysis,
   MunicipalReportData,
@@ -51,18 +52,6 @@ type DynamicChartRow = {
   label: string;
   highlighted: boolean;
   [seriesId: string]: string | number | boolean;
-};
-
-type DynamicTooltipPayload = {
-  color?: string;
-  dataKey?: string | number;
-  value?: number | string;
-};
-
-type DynamicTooltipProps = {
-  active?: boolean;
-  label?: string;
-  payload?: DynamicTooltipPayload[];
 };
 
 function textColorForBackground(color: string) {
@@ -281,9 +270,13 @@ function MunicipalReportDynamicChart({
     });
   }
 
-  function renderTooltip({ active, label, payload }: DynamicTooltipProps) {
+  function renderTooltip({
+    active,
+    label,
+    payload,
+  }: TooltipContentProps) {
     if (!active || !payload?.length) return null;
-    const period = typeof label === "string" ? label : "";
+    const period = label == null ? "" : String(label);
     const periodLabel = periodLabels.get(period) ?? period;
 
     return (
@@ -381,7 +374,7 @@ function MunicipalReportDynamicChart({
               />
             )}
             <Tooltip
-              content={(props: DynamicTooltipProps) => renderTooltip(props)}
+              content={renderTooltip}
               cursor={{ stroke: "#8A9340", strokeWidth: 1.25 }}
             />
             {visibleSeries.map((series) => (
