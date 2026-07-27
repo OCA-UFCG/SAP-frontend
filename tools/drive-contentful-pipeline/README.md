@@ -145,6 +145,8 @@ Esse comando faz duas coisas em sequencia:
 
 - baixa os CSVs da pasta configurada do Google Drive para
   `data/contentful-pipeline/csv`;
+- grava `.drive-csv-snapshot.json` com ID, nome, tamanho e `modifiedTime` dos
+  arquivos encontrados;
 - converte os CSVs baixados para JSONs de `panelLayer.imageData` em
   `data/contentful-pipeline/json/panel-layers`;
 - converte os CSVs municipais/estaduais para JSONs particionados em
@@ -171,15 +173,31 @@ npm run pipeline:drive-csv-json -- \
 npm run pipeline:drive-csv-json -- --skip-download
 ```
 
-Esse comando nao acessa o Google Drive. Ele usa os CSVs que ja existem em
-`data/contentful-pipeline/csv` e regrava os JSONs particionados em
-`data/contentful-pipeline/json/partitions`.
+Esse comando nao acessa o Google Drive. Quando
+`.drive-csv-snapshot.json` existe, somente os CSVs registrados no ultimo
+snapshot sao convertidos e seus `modifiedTime` originais sao reutilizados.
+Arquivos locais antigos que nao pertencem ao snapshot sao ignorados.
 
 Use este comando quando:
 
 - os CSVs ja foram baixados antes;
-- voce editou ou adicionou CSVs manualmente na pasta local;
 - quer regenerar os JSONs sem depender do Drive.
+
+Em uma pasta local sem snapshot, a conversao continua funcionando enquanto nao
+houver duas fontes para a mesma camada e referencia. Uma colisao sem
+`modifiedTime` do Drive interrompe a execucao e exige um novo download.
+
+### Colisoes entre fontes
+
+Quando mais de um CSV fornece a mesma camada e referencia, a pipeline preserva
+integralmente os dados do arquivo com `modifiedTime` mais recente no Google
+Drive. A data de calibracao no nome e a quantidade de localidades nao participam
+do desempate. Referencias exclusivas dos demais arquivos continuam disponiveis.
+
+O relatorio `conversion-report.json` registra a fonte vencedora, a descartada e
+os timestamps comparados. Colisoes divergentes com timestamps iguais, fontes
+sem metadado e nomes do Drive que sobrescreveriam o mesmo CSV local sao erros
+bloqueantes. Os arquivos historicos podem permanecer no Drive.
 
 Tambem e possivel informar pastas explicitamente:
 
@@ -295,6 +313,8 @@ data/contentful-pipeline/
 Arquivos importantes:
 
 - `csv/`: CSVs baixados do Google Drive ou colocados localmente.
+- `csv/.drive-csv-snapshot.json`: metadados do ultimo snapshot usado para
+  selecionar fontes e resolver colisoes.
 - `json/panel-layers/`: JSONs que serao enviados ao campo `imageData` de
   `panelLayer`.
 - `json/partitions/`: JSONs que serao enviados a entries `municipalAnalysis`.
