@@ -4,7 +4,8 @@ import { ensureMunicipalityLayers } from "./municipalityLayers";
 
 export type MapMode = "demo" | "platform";
 
-export const MAP_SOURCE_ID = "osm-base";
+const MAP_SOURCE_ID = "osm-base";
+export const OSM_LAYER_ID = "osm-layer";
 export const STATES_SOURCE_ID = "brazil-states";
 export const STATES_SOURCE_LAYER = "brazilstates";
 export const CDI_SOURCE_ID = "cdi-data";
@@ -55,7 +56,7 @@ export const BASE_STYLE: maplibregl.StyleSpecification = {
   },
   layers: [
     {
-      id: MAP_SOURCE_ID,
+      id: OSM_LAYER_ID,
       type: "raster",
       source: MAP_SOURCE_ID,
     },

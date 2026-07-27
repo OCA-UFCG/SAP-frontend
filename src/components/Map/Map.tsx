@@ -8,7 +8,7 @@ import {
   GEE_LAYER_ID,
   GEE_SOURCE_ID,
   type MapMode,
-  MAP_SOURCE_ID,
+  OSM_LAYER_ID,
   SATELLITE_LAYER_ID,
   STATES_FILL_LAYER_ID,
   STATES_SOURCE_ID,
@@ -394,19 +394,16 @@ const Map = ({
     const map = mapRef.current;
     if (!map || !map.isStyleLoaded()) return;
 
-    try {
-      map.setLayoutProperty(
-        MAP_SOURCE_ID,
-        "visibility",
-        basemap === "osm" ? "visible" : "none",
-      );
-      map.setLayoutProperty(
-        SATELLITE_LAYER_ID,
-        "visibility",
-        basemap === "satellite" ? "visible" : "none",
-      );
-    } catch {
-    }
+    map.setLayoutProperty(
+      OSM_LAYER_ID,
+      "visibility",
+      basemap === "osm" ? "visible" : "none",
+    );
+    map.setLayoutProperty(
+      SATELLITE_LAYER_ID,
+      "visibility",
+      basemap === "satellite" ? "visible" : "none",
+    );
   }, [basemap, mapRef, mapInstanceVersion]);
 
   return (

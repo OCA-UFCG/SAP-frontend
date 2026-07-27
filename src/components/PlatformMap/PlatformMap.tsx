@@ -90,11 +90,18 @@ export function PlatformMap({ showMonitoringOverlays = true }: PlatformMapProps)
 
       <div className="absolute bottom-0 right-6 z-[1000] box-border flex min-h-[124px] w-[302px] flex-col items-end justify-center gap-[10px] pb-6">
         <button
-          onClick={() => setBasemap(basemap === "osm" ? "satellite" : "osm")}
+          type="button"
+          onClick={() =>
+            setBasemap((current) =>
+              current === "osm" ? "satellite" : "osm",
+            )
+          }
           className="flex h-9 items-center gap-1.5 rounded-md border border-white/30 bg-stone-950/70 px-3 text-xs font-medium text-white shadow-lg backdrop-blur-sm transition hover:bg-stone-950/85"
-          aria-label={basemap === "osm" ? t("switchToSatellite") : t("switchToOsm")}
+          aria-label={
+            basemap === "osm" ? t("switchToSatellite") : t("switchToOsm")
+          }
         >
-{basemap === "osm" ? t("satellite") : t("street")}
+          {basemap === "osm" ? t("satellite") : t("street")}
         </button>
         {showMonitoringOverlays && activeEEData && (
           <div className="box-border flex h-[50px] w-[302px] shrink-0 flex-col items-center gap-2 self-stretch rounded-lg border border-[#EFEFEF] bg-white p-4">

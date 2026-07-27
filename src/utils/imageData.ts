@@ -9,6 +9,9 @@ import type {
 } from "@/utils/interfaces";
 import { isCompactTerritorialImageData } from "@/contracts/imageDataContract.mjs";
 
+const FUTURE_ONLY_PANEL_LAYER_ID = "prev_anomalia_precipitacao";
+const FORECAST_TIME_ZONE = "America/Sao_Paulo";
+
 export interface ResolvedImageYearEntry {
   default: boolean;
   year?: string;
@@ -68,6 +71,52 @@ export function getImageDataYearKeys(
       ? Object.keys(imageData.years)
       : Object.keys(imageData),
   );
+}
+
+export function keepOnlyFutureForecastPeriods(
+  panelLayerId: string,
+  imageData: ImageDataConfig,
+  currentDate = new Date(),
+): ImageDataConfig {
+  if (
+    panelLayerId !== FUTURE_ONLY_PANEL_LAYER_ID ||
+    !isCompactImageData(imageData)
+  ) {
+    return imageData;
+  }
+
+  const currentMonthParts = new Intl.DateTimeFormat("en-US", {
+    timeZone: FORECAST_TIME_ZONE,
+    year: "numeric",
+    month: "2-digit",
+  }).formatToParts(currentDate);
+  const currentYear = currentMonthParts.find(
+    (part) => part.type === "year",
+  )?.value;
+  const currentMonth = currentMonthParts.find(
+    (part) => part.type === "month",
+  )?.value;
+  const currentMonthKey = `${currentYear}-${currentMonth}`;
+  const currentAndFutureYears = Object.fromEntries(
+    Object.entries(imageData.years).filter(
+      ([yearKey]) =>
+        /^\d{4}-(?:0[1-9]|1[0-2])$/u.test(yearKey) &&
+        yearKey >= currentMonthKey,
+    ),
+  );
+  const currentAndFutureYearKeys = sortYearKeys(
+    Object.keys(currentAndFutureYears),
+  );
+  const defaultYear =
+    imageData.defaultYear && currentAndFutureYears[imageData.defaultYear]
+      ? imageData.defaultYear
+      : currentAndFutureYearKeys.at(-1);
+
+  return {
+    ...imageData,
+    ...(defaultYear ? { defaultYear } : { defaultYear: undefined }),
+    years: currentAndFutureYears,
+  };
 }
 
 export function getImageDataDefaultYear(

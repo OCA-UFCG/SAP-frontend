@@ -2,9 +2,14 @@ import { mkdir, writeFile } from "node:fs/promises";
 import path from "node:path";
 import { pathToFileURL } from "node:url";
 import { loadPipelineConfig } from "../config/pipeline-config.mjs";
-import { getDefaultLocale, sleep, CONTENTFUL_WRITE_DELAY_MS } from "../contentful/client.mjs";
+import {
+  getDefaultLocale,
+  sleep,
+  CONTENTFUL_WRITE_DELAY_MS,
+} from "../contentful/client.mjs";
 import { getContentfulConfig, loadDotEnv } from "../contentful/env.mjs";
 import {
+  getExpectedPanelLayerYearKeys,
   resolveImageDataEntries,
   syncPanelLayerImageData,
 } from "../contentful/panel-layer-sync.mjs";
@@ -193,7 +198,11 @@ async function runConversion(options, pipelineConfig) {
     downloads,
     validation,
     options,
-    { municipalAnalysisManifest, panelLayerImageDataManifest, municipalReportSeriesManifest },
+    {
+      municipalAnalysisManifest,
+      panelLayerImageDataManifest,
+      municipalReportSeriesManifest,
+    },
   );
 
   await mkdir(resolveWorkspacePath(options.jsonDir), { recursive: true });
@@ -239,7 +248,9 @@ async function runPanelLayerSync(config, options, locale) {
   const results = [];
 
   for (const entry of entries) {
-    results.push(await syncPanelLayerImageData(config, syncOptions, locale, entry));
+    results.push(
+      await syncPanelLayerImageData(config, syncOptions, locale, entry),
+    );
     if (options.publish) await sleep(CONTENTFUL_WRITE_DELAY_MS);
   }
 
@@ -261,6 +272,9 @@ async function runMunicipalAnalysisSync(config, options, locale) {
     publish: options.publish,
     syncPartitions: true,
     allPanelLayers: true,
+    expectedPanelLayerYearKeys: await getExpectedPanelLayerYearKeys(
+      options.jsonDir,
+    ),
   };
   const panelLayerIds = await resolveAllPanelLayerIds(syncOptions);
   const results = [];
@@ -333,7 +347,9 @@ export async function runPipelineFullCycleCli(argv = process.argv.slice(2)) {
 
   console.log(`\n${formatContentfulPanelLayerSummary(panelLayerResult)}`);
   console.log(`\n${formatContentfulMunicipalSummary(municipalResult)}`);
-  console.log(`\nmunicipalReportSeries: ${reportSeriesResult.actions.length} shards; ${reportSeriesResult.activations.length} ativações.`);
+  console.log(
+    `\nmunicipalReportSeries: ${reportSeriesResult.actions.length} shards; ${reportSeriesResult.activations.length} ativações.`,
+  );
 
   if (!options.publish) {
     assertContentfulDryRunOk(panelLayerResult, municipalResult);

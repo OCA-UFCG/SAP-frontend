@@ -81,7 +81,8 @@ export function buildMunicipalReportSeriesManifest(reportSeries) {
   for (const layer of reportSeries) {
     for (const shard of layer.shards) {
       const key = `${layer.panelLayerId}::${layer.datasetVersion}::${shard.shardKey}`;
-      if (keys.has(key)) throw new Error(`Shard municipalReportSeries duplicado: ${key}.`);
+      if (keys.has(key))
+        throw new Error(`Shard municipalReportSeries duplicado: ${key}.`);
       keys.add(key);
     }
   }
@@ -144,6 +145,10 @@ export function buildConversionReport(
   options,
   manifests,
 ) {
+  const collisions = conversionResult.skipped
+    .filter((item) => item.collision)
+    .map((item) => item.collision);
+
   return {
     csvDir: options.csvDir,
     jsonDir: options.jsonDir,
@@ -168,10 +173,19 @@ export function buildConversionReport(
       (total, layer) => total + layer.shards.length,
       0,
     ),
+    collisionCount: collisions.length,
     mappedPartitionFiles: manifests.municipalAnalysisManifest.partitions.length,
     unmappedPartitionFiles:
       manifests.municipalAnalysisManifest.unmappedPartitions.length,
     downloads,
+    driveSnapshot: conversionResult.driveSnapshot
+      ? {
+          folderId: conversionResult.driveSnapshot.folderId,
+          capturedAt: conversionResult.driveSnapshot.capturedAt,
+          fileCount: conversionResult.driveSnapshot.files.length,
+        }
+      : null,
+    collisions,
     conversions: conversionResult.conversions,
     panelLayerConversions: conversionResult.panelLayerConversions,
     aggregatedFilesDetails: conversionResult.aggregatedFiles,
