@@ -56,7 +56,7 @@ describe("imageData helpers", () => {
     });
   });
 
-  it("keeps only strictly future months for precipitation forecasts", () => {
+  it("keeps the current and future months for precipitation forecasts", () => {
     const imageData: CompactTerritorialAnalysisDataset = {
       schemaVersion: 1,
       type: "territorial-compact",
@@ -73,10 +73,14 @@ describe("imageData helpers", () => {
     const filtered = keepOnlyFutureForecastPeriods(
       "prev_anomalia_precipitacao",
       imageData,
-      new Date(2026, 6, 24),
+      new Date("2026-07-24T12:00:00.000Z"),
     ) as CompactTerritorialAnalysisDataset;
 
-    expect(Object.keys(filtered.years)).toEqual(["2026-08", "2026-10"]);
+    expect(Object.keys(filtered.years)).toEqual([
+      "2026-07",
+      "2026-08",
+      "2026-10",
+    ]);
     expect(filtered.defaultYear).toBe("2026-10");
   });
 
@@ -120,6 +124,10 @@ describe("imageData helpers", () => {
       new Date("2026-08-01T01:00:00.000Z"),
     ) as CompactTerritorialAnalysisDataset;
 
-    expect(Object.keys(filtered.years)).toEqual(["2026-08", "2026-09"]);
+    expect(Object.keys(filtered.years)).toEqual([
+      "2026-07",
+      "2026-08",
+      "2026-09",
+    ]);
   });
 });
