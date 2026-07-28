@@ -27,7 +27,7 @@
     "moduleInformation": "Mais informações sobre {title}",
     "emptyPreviewTitle": "Pré-visualização do relatório",
     "emptyPreviewDescription": "Selecione o município, o período e os módulos disponíveis para gerar o relatório.",
-    "emptyPreviewInstruction": "Selecione as informações ao lado primeiro para gerar um relatório",
+    "emptyPreviewInstruction": "Selecione as informações ao lado para gerar um relatório",
     "preview": "Visualizar relatório",
     "back": "Voltar para Comunicação",
     "loading": "Carregando dados do relatório...",
