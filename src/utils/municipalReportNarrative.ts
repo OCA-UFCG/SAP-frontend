@@ -5,7 +5,7 @@ import {
   type MunicipalReportDocsContent,
 } from "@/contracts/municipalReport";
 import { type MunicipalReportPresentationConfig } from "@/config/municipalReport";
-import { formatMunicipalReportValueWithUnit } from "@/utils/municipalReportValue";
+import { formatMunicipalReportValueWithUnit, formatPercentage } from "@/utils/municipalReportValue";
 
 export function formatReportPeriod(period: string, locale: string) {
   const match = /^(\d{4})-(\d{2})$/.exec(period);
@@ -186,13 +186,13 @@ export function buildSituationNarrative(
     return t("narrative.percentageFallback", {
       place,
       className,
-      percentage: dominant.percentage.toFixed(1),
+      percentage: formatPercentage(dominant.percentage, locale),
       coverageContext,
       title: translatedTitle,
       period: formatReportPeriod(analysis.effectivePeriod, locale),
     });
   }
-  return `No município de ${place}, predomina a classe ${className}, com ${dominant.percentage.toFixed(1)}% da área analisada ${coverageContext}, conforme os dados de ${translatedTitle} para o período de ${formatReportPeriod(analysis.effectivePeriod, locale)}.`;
+  return `No município de ${place}, predomina a classe ${className}, com ${formatPercentage(dominant.percentage, locale)}% da área analisada ${coverageContext}, conforme os dados de ${translatedTitle} para o período de ${formatReportPeriod(analysis.effectivePeriod, locale)}.`;
 }
 
 export function buildHistoryNarrative(

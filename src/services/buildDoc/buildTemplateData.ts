@@ -8,6 +8,7 @@ import type {
   MunicipalReportPeriodSnapshot,
 } from "@/contracts/municipalReport";
 import type { TimingObserver } from "@/utils/serverTiming";
+import { formatPercentage } from "@/utils/municipalReportValue";
 
 export interface TemplateData {
   [key: string]: string | number | null | undefined;
@@ -140,8 +141,8 @@ function computarVariaveisSeca(timeSeries: MunicipalReportPeriodSnapshot[]): Rec
     ano_inicio_historico,
     ano_fim_historico,
     classe_seca_mais_frequente: formatClass(idClasseMaisFrequente, classeMaisFrequente),
-    percentual_freq_seca: Number(((countMaisFrequente / totalMeses) * 100).toFixed(1)),
-    percentual_sem_seca: Number((((freqClasses["sem-seca"]?.count ?? 0) / totalMeses) * 100).toFixed(1)),
+    percentual_freq_seca: formatPercentage((countMaisFrequente / totalMeses) * 100),
+    percentual_sem_seca: formatPercentage((((freqClasses["sem-seca"]?.count ?? 0) / totalMeses) * 100)),
     classe_seca_maxima: formatClass(idClasseMaxima, classeSecaMaxima),
     periodos_seca_maxima,
   };
@@ -228,7 +229,7 @@ function computarVariaveisDegradacao(timeSeries: MunicipalReportPeriodSnapshot[]
     status_tendencia_degradacao,
     classe_maior_variacao_deg: classeMaiorVariacao,
     acrescimo_decrescimo_deg: acrescimoDecrescimo,
-    variacao_deg_pontos: Number(maxDiff.toFixed(1)),
+    variacao_deg_pontos: formatPercentage(maxDiff),
     compatibilidade_com_seca: status_tendencia_degradacao === "aumento" ? "é" : "não é totalmente",
     relacao_seca_degradacao_texto:
       status_tendencia_degradacao === "aumento"
@@ -252,10 +253,10 @@ export function prepareTemplateData(report: MunicipalReportData): TemplateData {
 
   const grauRisco = varsDeg.status_tendencia_degradacao === "aumento" ? "elevado" : "moderado";
 
-  const soma_percentual_deg_n3_n4_n5 = Number(
-    (getDistributionPercentage(ultimoDeg, "nivel-3") +
+  const soma_percentual_deg_n3_n4_n5 = formatPercentage(
+      getDistributionPercentage(ultimoDeg, "nivel-3") +
       getDistributionPercentage(ultimoDeg, "nivel-4") +
-      getDistributionPercentage(ultimoDeg, "nivel-5")).toFixed(2),
+      getDistributionPercentage(ultimoDeg, "nivel-5")
   );
 
   return {
@@ -285,7 +286,7 @@ export function prepareTemplateData(report: MunicipalReportData): TemplateData {
     ...varsDeg,
 
     texto_resumo_seca: `Seca ${ultimoSeca?.dominantClass?.label.toLowerCase() ?? "ativa"} prolongada`,
-    texto_resumo_aridez: `enquadramento integral nas ASDs (${ultimoAridez?.dominantClass?.percentage}% ${ultimoAridez?.dominantClass?.label})`,
+    texto_resumo_aridez: `enquadramento integral nas ASDs (${formatPercentage(ultimoAridez?.dominantClass?.percentage ?? 0)}% ${ultimoAridez?.dominantClass?.label})`,
     texto_resumo_degradacao: "presença acentuada de degradação da terra",
     grau_exposicao_desertificacao: grauRisco,
   };

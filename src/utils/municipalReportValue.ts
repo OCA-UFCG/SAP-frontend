@@ -9,12 +9,19 @@ function normalizedUnit(analysis: MunicipalReportValueSemantics) {
   return analysis.unit.trim();
 }
 
+export function formatPercentage(value: number, locale = "pt-BR", fractionDigits = 1) {
+  return new Intl.NumberFormat(locale, {
+    minimumFractionDigits: fractionDigits,
+    maximumFractionDigits: fractionDigits,
+  }).format(value);
+}
+
 export function formatMunicipalReportValue(
   value: number,
   analysis: MunicipalReportValueSemantics,
   locale: string,
 ) {
-  if (analysis.valueType === "percentage") return `${value.toFixed(1)}%`;
+  if (analysis.valueType === "percentage") return `${formatPercentage(value, locale)}%`;
 
   return new Intl.NumberFormat(locale, {
     maximumFractionDigits: Number.isInteger(value) ? 0 : 1,

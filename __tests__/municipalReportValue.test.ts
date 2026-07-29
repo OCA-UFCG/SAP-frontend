@@ -9,7 +9,7 @@ describe("municipal report value presentation", () => {
   it("keeps percentage presentation for territorial coverage indicators", () => {
     const analysis = { valueType: "percentage" as const, unit: "%" };
 
-    expect(formatMunicipalReportValue(42, analysis, "pt-BR")).toBe("42.0%");
+    expect(formatMunicipalReportValue(42, analysis, "pt-BR")).toBe("42,0%");
     expect(getMunicipalReportValueLabels(analysis)).toMatchObject({
       cardContext: "da área analisada",
       tableValue: "Cobertura (%)",

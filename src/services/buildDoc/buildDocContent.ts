@@ -4,6 +4,27 @@ import type { DocsContent } from "./buildDocTemplate";
 import type { TemplateData } from "./buildTemplateData";
 import type { TimingObserver } from "@/utils/serverTiming";
 import type { MunicipalReportData } from "@/contracts/municipalReport";
+import { formatPercentage } from "@/utils/municipalReportValue";
+
+
+const PERCENTAGE_KEYS = new Set([
+  "percentual_seca",
+  "percentual_aridez",
+  "percentual_degradacao",
+  "percentual_freq_seca",
+  "percentual_sem_seca",
+  "variacao_deg_pontos",
+]);
+
+const TWO_DIGIT_PERCENTAGE_KEYS = new Set([
+  "soma_percentual_deg_n3_n4_n5",
+]);
+
+function formatTemplateNumber(key: string, value: number): string {
+    if (TWO_DIGIT_PERCENTAGE_KEYS.has(key)) return formatPercentage(value, "pt-BR", 2);
+    if (PERCENTAGE_KEYS.has(key)) return formatPercentage(value, "pt-BR", 1);
+    return String(value);
+}
 
 type BuildDocContentInput = {
   themes: string[];
@@ -65,6 +86,7 @@ function populateTemplate(theme: string, template: string, data: TemplateData): 
       return match;
     }
 
+    if (typeof value === "number") return formatTemplateNumber(normalizedKey, value);
     return String(value);
   });
 }
