@@ -91,20 +91,41 @@ export function PlatformMap({ showMonitoringOverlays = true }: PlatformMapProps)
       </div>
 
       <div className="absolute bottom-0 right-6 z-[1000] box-border flex min-h-[124px] w-[302px] flex-col items-end justify-center gap-[10px] pb-6">
-        <button
-          type="button"
-          onClick={() =>
-            setBasemap((current) =>
-              current === "osm" ? "satellite" : "osm",
-            )
-          }
-          className="flex h-9 items-center gap-1.5 rounded-md border border-white/30 bg-stone-950/70 px-3 text-xs font-medium text-white shadow-lg backdrop-blur-sm transition hover:bg-stone-950/85"
-          aria-label={
-            basemap === "osm" ? t("switchToSatellite") : t("switchToOsm")
-          }
+        <div
+          className="box-border flex h-[50px] w-[302px] shrink-0 items-center gap-2 self-stretch rounded-lg border border-[#EFEFEF] bg-white p-4"
+          role="group"
+          aria-label={t("basemap")}
         >
-          {basemap === "osm" ? t("satellite") : t("street")}
-        </button>
+          <span className="h-[18px] w-[66px] shrink-0 font-open-sans text-[10px] font-normal leading-[18px] tracking-[-0.006em] text-[#292829]">
+            {t("basemap")}
+          </span>
+          <div className="flex h-7 min-w-0 flex-1 rounded-md bg-[#F1F5F9] p-0.5">
+            <button
+              type="button"
+              onClick={() => setBasemap("osm")}
+              aria-pressed={basemap === "osm"}
+              className={`flex min-w-0 flex-1 items-center justify-center rounded-[4px] px-2 font-open-sans text-[10px] font-medium leading-[18px] transition-colors ${
+                basemap === "osm"
+                  ? "bg-[#989F43] text-white shadow-sm"
+                  : "text-[#292829] hover:bg-[#E4E5E2]"
+              }`}
+            >
+              {t("street")}
+            </button>
+            <button
+              type="button"
+              onClick={() => setBasemap("satellite")}
+              aria-pressed={basemap === "satellite"}
+              className={`flex min-w-0 flex-1 items-center justify-center rounded-[4px] px-2 font-open-sans text-[10px] font-medium leading-[18px] transition-colors ${
+                basemap === "satellite"
+                  ? "bg-[#989F43] text-white shadow-sm"
+                  : "text-[#292829] hover:bg-[#E4E5E2]"
+              }`}
+            >
+              {t("satellite")}
+            </button>
+          </div>
+        </div>
         {showMonitoringOverlays && activeEEData && (
           <div className="box-border flex h-[50px] w-[302px] shrink-0 flex-col items-center gap-2 self-stretch rounded-lg border border-[#EFEFEF] bg-white p-4">
             <div className="flex h-[18px] w-[270px] shrink-0 items-center justify-center gap-2">

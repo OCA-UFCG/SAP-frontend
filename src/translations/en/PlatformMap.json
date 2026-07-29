@@ -3,9 +3,8 @@
     "loadingGeeLayer": "Loading GEE layer",
     "loadingMapLayer": "Loading map layer",
     "opacity": "Transparency",
+    "basemap": "Base map",
     "satellite": "Satellite",
-    "street": "Street",
-    "switchToSatellite": "Switch to satellite view",
-    "switchToOsm": "Switch to street view"
+    "street": "Street"
   }
 }

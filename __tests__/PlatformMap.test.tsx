@@ -134,19 +134,20 @@ describe("PlatformMap", () => {
 
     render(<PlatformMap />);
 
-    const switchButton = screen.getByRole("button", {
-      name: "Alternar para vista de satélite",
-    });
+    const streetButton = screen.getByRole("button", { name: "Rua" });
+    const satelliteButton = screen.getByRole("button", { name: "Satélite" });
     expect(latestMapProps?.basemap).toBe("osm");
+    expect(streetButton).toHaveAttribute("aria-pressed", "true");
+    expect(satelliteButton).toHaveAttribute("aria-pressed", "false");
 
-    fireEvent.click(switchButton);
+    fireEvent.click(satelliteButton);
 
     expect(latestMapProps?.basemap).toBe("satellite");
+    expect(streetButton).toHaveAttribute("aria-pressed", "false");
+    expect(satelliteButton).toHaveAttribute("aria-pressed", "true");
     expect(
-      screen.getByRole("button", {
-        name: "Alternar para vista de rua",
-      }),
-    ).toHaveTextContent("Rua");
+      screen.getByRole("group", { name: "Mapa base" }),
+    ).toBeInTheDocument();
   });
 
   it("hides monitoring overlays outside monitoring without changing opacity", () => {

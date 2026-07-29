@@ -3,9 +3,8 @@
     "loadingGeeLayer": "Carregando camada do GEE",
     "loadingMapLayer": "Carregando camada do mapa",
     "opacity": "Transparência",
+    "basemap": "Mapa base",
     "satellite": "Satélite",
-    "street": "Rua",
-    "switchToSatellite": "Alternar para vista de satélite",
-    "switchToOsm": "Alternar para vista de rua"
+    "street": "Rua"
   }
 }
