@@ -978,8 +978,8 @@ export function MunicipalReportPreview({ municipalityCode, period, layerIds, emb
           ? reportData.analyses.filter(({ id }) => selectedLayerIds.has(id))
           : reportData.analyses
         )
-          .filter((a) => a.status === "available")
-          .map((a) => a.id);
+          .filter((analysis) => analysis.status === "available")
+          .map((analysis) => analysis.id);
 
         const docsTask = async () => {
           if (selectedLayerIdsForDocs.length === 0) return;
@@ -1053,7 +1053,7 @@ export function MunicipalReportPreview({ municipalityCode, period, layerIds, emb
         </div>
         <div className="min-h-0 flex-1 overflow-auto bg-white">
           {!hasRequiredParameters && <EmptyReportPreview />}
-          {loading && <div className="mx-auto flex min-h-56 max-w-[749px] flex-col items-center justify-center gap-4 bg-white p-10 text-center text-neutral-600 shadow-sm"><span aria-hidden="true" className="h-9 w-9 animate-spin rounded-full border-4 border-[#989F43]/25 border-t-[#989F43]"/><strong className="text-base font-semibold text-[#536e7b]">{t("loading")}</strong><span className="text-sm">{t("loadingHint")}</span></div>}
+          {loading && <div className="mx-auto flex min-h-56 max-w-[749px] flex-col items-center justify-center gap-4 bg-white p-10 text-center text-neutral-600 shadow-sm"><span aria-hidden="true" className="h-9 w-9 animate-spin rounded-full border-4 border-[#989F43]/25 border-t-[#989F43]" /><strong className="text-base font-semibold text-[#536e7b]">{t("loading")}</strong><span className="text-sm">{t("loadingHint")}</span></div>}
           {visibleError && !loading && <div className="mx-auto max-w-[749px] border border-red-200 bg-white p-8 shadow-sm"><h1 className="text-xl font-semibold">{t("loadError")}</h1><p className="mt-2 text-sm text-red-700">{visibleError}</p></div>}
           {report && !loading && (
             <div className="h-full w-full">

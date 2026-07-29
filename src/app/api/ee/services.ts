@@ -1,5 +1,7 @@
 import ee from "@google/earthengine";
 import { createSign } from "node:crypto";
+import fs from "node:fs";
+import path from "node:path";
 import { addUrlToCache, buildCacheKey } from "@/app/api/ee/cache";
 import {
   resolveMapVisualizationPlan,
@@ -163,8 +165,45 @@ const getBrazilBoundary = () => {
   return brazilBoundary;
 };
 
-const clipImageToBrazil = (image: any) =>
-  image.clipToCollection(getBrazilBoundary());
+const BOUNDARY_FILE_MAP: Record<string, string> = {
+  region: "regionBoundaries.json",
+  biome: "biomeBoundaries.json",
+  semiarid: "semiaridBoundary.json",
+  asd: "asdBoundary.json",
+};
+
+// Cache parsed GeoJSON at module level — loaded once on server start
+const boundaryCache = new Map<string, unknown>();
+for (const [area, fileName] of Object.entries(BOUNDARY_FILE_MAP)) {
+  try {
+    const filePath = path.join(process.cwd(), "src", "data", fileName);
+    boundaryCache.set(area, JSON.parse(fs.readFileSync(filePath, "utf-8")));
+  } catch (error) {
+    console.error(`[GEE] -> Failed to load boundary file ${fileName}:`, error);
+  }
+}
+
+const applySpatialClip = (image: any, spatialArea?: string, spatialValue?: string) => {
+  if (!spatialArea || !spatialValue || spatialArea === "nacional") {
+    return image.clipToCollection(getBrazilBoundary());
+  }
+
+  const geojson = boundaryCache.get(spatialArea) as
+    | { features: Array<{ properties: { name: string }; geometry: unknown }> }
+    | undefined;
+
+  if (!geojson) {
+    return image.clipToCollection(getBrazilBoundary());
+  }
+
+  const feature = geojson.features.find((f) => f.properties.name === spatialValue);
+  if (!feature) {
+    console.warn(`[GEE] -> Spatial value ${spatialValue} not found for ${spatialArea}, falling back to Brazil boundary.`);
+    return image.clipToCollection(getBrazilBoundary());
+  }
+
+  return image.clip(ee.Geometry(feature.geometry));
+};
 
 function rangeIncludesZero(min?: number | null, max?: number | null) {
   return (
@@ -202,13 +241,15 @@ export function shouldApplySelfMask({
 
 interface GetEarthEngineUrlOptions {
   mapVisualization?: CompactMapVisualizationConfig;
+  spatialArea?: string;
+  spatialValue?: string;
 }
 
 function normalizeGeeAssetType(type?: unknown) {
   return type
     ? String(type)
-        .toUpperCase()
-        .replace(/[_\s-]/g, "")
+      .toUpperCase()
+      .replace(/[_\s-]/g, "")
     : "";
 }
 
@@ -346,7 +387,7 @@ export const getEarthEngineUrl = async (
   options?: GetEarthEngineUrlOptions,
 ) => {
   try {
-    const { mapVisualization } = options ?? {};
+    const { mapVisualization, spatialArea, spatialValue } = options ?? {};
 
     await initializeGee();
 
@@ -429,7 +470,7 @@ export const getEarthEngineUrl = async (
     }
 
     if (!shouldUseFeatureCollection) {
-      GEEImage = clipImageToBrazil(GEEImage);
+      GEEImage = applySpatialClip(GEEImage, spatialArea, spatialValue);
     }
 
     if (
@@ -450,11 +491,11 @@ export const getEarthEngineUrl = async (
     const mapImage =
       shouldUseFeatureCollection && featureCollection && mapVisualization
         ? renderFeatureCollectionMapImage({
-            collection: featureCollection,
-            image: categorizedImage,
-            visParams,
-            mapVisualization,
-          })
+          collection: featureCollection,
+          image: categorizedImage,
+          visParams,
+          mapVisualization,
+        })
         : categorizedImage;
     const mapId = (await getMapId(
       mapImage,

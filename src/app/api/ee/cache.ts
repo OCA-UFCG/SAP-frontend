@@ -32,6 +32,8 @@ export const buildCacheKey = (
   minScale?: number,
   maxScale?: number,
   mapVisualization?: unknown,
+  spatialArea?: string,
+  spatialValue?: string,
 ) =>
   `${CACHE_KEY_VERSION}:${name}:${year}:${buildVisualizationSignature(
     imageId,
@@ -39,7 +41,7 @@ export const buildCacheKey = (
     minScale,
     maxScale,
     mapVisualization,
-  )}`;
+  )}:${spatialArea ?? "nacional"}:${spatialValue ?? "nacional"}`;
 
 function getFreshEntry(key: string): CacheEntry | null {
   const entry = cacheUrls.get(key);

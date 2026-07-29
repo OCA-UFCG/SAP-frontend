@@ -80,6 +80,8 @@ describe("useEarthEngineTileLayer", () => {
       "ee-layer",
       "2024",
       expect.any(AbortSignal),
+      undefined,
+      undefined,
     );
   });
 
@@ -115,7 +117,7 @@ describe("useEarthEngineTileLayer", () => {
     render(<Probe activeEEData={eeLayer} activeYear="2024" />);
 
     await waitFor(() => {
-      expect(screen.getByText("ee-layer:2024")).toBeInTheDocument();
+      expect(screen.getByText("ee-layer:2024:nacional:nacional")).toBeInTheDocument();
       expect(screen.getByText("loading")).toBeInTheDocument();
       expect(screen.getByText("no-url")).toBeInTheDocument();
     });

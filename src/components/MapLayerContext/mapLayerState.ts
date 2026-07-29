@@ -1,6 +1,6 @@
 import { getImageDataDefaultYear } from "@/utils/imageData";
 import type { CDIVectorData } from "@/lib/geo";
-import type { IEEInfo, IImageParam } from "@/utils/interfaces";
+import type { IEEInfo, IImageParam, IInterestedArea } from "@/utils/interfaces";
 
 export interface MapLayerState {
   activeData: CDIVectorData | null;
@@ -10,11 +10,13 @@ export interface MapLayerState {
   selectedMunicipalityCode: string | null;
   activeLayerId: string | null;
   activeYear: string;
+  interestedArea: IInterestedArea;
   layerOpacity: number;
 }
 
 export const DEFAULT_SELECTED_STATE = "br";
 export const DEFAULT_ACTIVE_YEAR = "general";
+export const DEFAULT_INTERESTED_AREA: IInterestedArea = {interestedArea: "national", interestedAreaValue: "brasil"}
 
 export function createInitialMapLayerState(): MapLayerState {
   return {
@@ -25,7 +27,18 @@ export function createInitialMapLayerState(): MapLayerState {
     selectedMunicipalityCode: null,
     activeLayerId: null,
     activeYear: DEFAULT_ACTIVE_YEAR,
+    interestedArea: DEFAULT_INTERESTED_AREA,
     layerOpacity: 0.85
+  };
+}
+
+export function setInterestedArea(
+  state: MapLayerState,
+  interestedArea: IInterestedArea,
+): MapLayerState{
+  return {
+    ...state,
+    interestedArea,
   };
 }
 
@@ -128,5 +141,6 @@ export function resetPlatformState(state: MapLayerState): MapLayerState {
     ...clearActiveLayerState(state),
     selectedState: DEFAULT_SELECTED_STATE,
     selectedMunicipalityCode: null,
+    interestedArea: DEFAULT_INTERESTED_AREA,
   };
 }
