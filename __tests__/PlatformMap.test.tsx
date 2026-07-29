@@ -176,6 +176,9 @@ describe("PlatformMap", () => {
     rerender(<PlatformMap showMonitoringOverlays={false} />);
 
     expect(
+      screen.queryByRole("group", { name: "Mapa base" }),
+    ).not.toBeInTheDocument();
+    expect(
       screen.queryByRole("slider", { name: "Transparência" }),
     ).not.toBeInTheDocument();
     expect(
