@@ -53,14 +53,51 @@ const model: TerritorialAnalysisViewModel = {
 };
 
 describe("AnalysisPanel", () => {
+  it("exposes localized accessible spatial selectors and emits canonical values", async () => {
+    const user = userEvent.setup();
+    const onSpatialSelectionChange = vi.fn();
+
+    render(
+      <AnalysisPanel
+        moduleName="Teste"
+        yearOptions={[{ value: "2024", label: "2024" }]}
+        activeYear="2024"
+        spatialSelection={{ spatialArea: "national", spatialValue: "brasil" }}
+        onSpatialSelectionChange={onSpatialSelectionChange}
+        onBack={vi.fn()}
+        onSearch={vi.fn()}
+        searchTelemetryContext={{
+          activeLayerId: "test",
+          activeLayerName: "Test",
+          activeDateLabel: "2024",
+        }}
+        onYearChange={vi.fn()}
+        model={model}
+      />,
+    );
+
+    await user.click(
+      screen.getByRole("button", { name: "Recorte espacial: Nacional" }),
+    );
+    expect(
+      screen.getByRole("listbox", { name: "Recorte espacial" }),
+    ).toBeVisible();
+    await user.click(screen.getByRole("option", { name: "Regional" }));
+
+    expect(onSpatialSelectionChange).toHaveBeenCalledWith({
+      spatialArea: "region",
+      spatialValue: "Norte",
+    });
+  });
+
   it("keeps the back action pinned at the top of the scrollable panel", () => {
     render(
       <AnalysisPanel
         moduleName="Teste"
         yearOptions={[{ value: "2024", label: "2024" }]}
         activeYear="2024"
-        interestedArea={{ interestedArea: "national", interestedAreaValue: "brasil" }}
-        onInterestedAreaChange={vi.fn()}
+        spatialSelection={{ spatialArea: "national", spatialValue: "brasil" }}
+        onSpatialSelectionChange={vi.fn()}
         onBack={vi.fn()}
         onSearch={vi.fn()}
         searchTelemetryContext={{ activeLayerId: "test", activeLayerName: "Test", activeDateLabel: "2024" }}
@@ -92,8 +129,8 @@ describe("AnalysisPanel", () => {
         moduleName="Teste"
         yearOptions={[{ value: "2024", label: "2024" }]}
         activeYear="2024"
-        interestedArea={{ interestedArea: "national", interestedAreaValue: "brasil" }}
-        onInterestedAreaChange={vi.fn()}
+        spatialSelection={{ spatialArea: "national", spatialValue: "brasil" }}
+        onSpatialSelectionChange={vi.fn()}
         onBack={onBack}
         onSearch={onSearch}
         searchTelemetryContext={{ activeLayerId: "test", activeLayerName: "Test", activeDateLabel: "2024" }}

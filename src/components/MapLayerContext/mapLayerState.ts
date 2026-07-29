@@ -1,6 +1,10 @@
 import { getImageDataDefaultYear } from "@/utils/imageData";
 import type { CDIVectorData } from "@/lib/geo";
-import type { IEEInfo, IImageParam, IInterestedArea } from "@/utils/interfaces";
+import type { IEEInfo, IImageParam } from "@/utils/interfaces";
+import {
+  DEFAULT_SPATIAL_SELECTION,
+  type SpatialSelection,
+} from "@/utils/spatialScope";
 
 export interface MapLayerState {
   activeData: CDIVectorData | null;
@@ -10,13 +14,12 @@ export interface MapLayerState {
   selectedMunicipalityCode: string | null;
   activeLayerId: string | null;
   activeYear: string;
-  interestedArea: IInterestedArea;
+  spatialSelection: SpatialSelection;
   layerOpacity: number;
 }
 
 export const DEFAULT_SELECTED_STATE = "br";
 export const DEFAULT_ACTIVE_YEAR = "general";
-export const DEFAULT_INTERESTED_AREA: IInterestedArea = {interestedArea: "national", interestedAreaValue: "brasil"}
 
 export function createInitialMapLayerState(): MapLayerState {
   return {
@@ -27,18 +30,18 @@ export function createInitialMapLayerState(): MapLayerState {
     selectedMunicipalityCode: null,
     activeLayerId: null,
     activeYear: DEFAULT_ACTIVE_YEAR,
-    interestedArea: DEFAULT_INTERESTED_AREA,
+    spatialSelection: DEFAULT_SPATIAL_SELECTION,
     layerOpacity: 0.85
   };
 }
 
-export function setInterestedArea(
+export function setSpatialSelection(
   state: MapLayerState,
-  interestedArea: IInterestedArea,
-): MapLayerState{
+  spatialSelection: SpatialSelection,
+): MapLayerState {
   return {
     ...state,
-    interestedArea,
+    spatialSelection,
   };
 }
 
@@ -141,6 +144,6 @@ export function resetPlatformState(state: MapLayerState): MapLayerState {
     ...clearActiveLayerState(state),
     selectedState: DEFAULT_SELECTED_STATE,
     selectedMunicipalityCode: null,
-    interestedArea: DEFAULT_INTERESTED_AREA,
+    spatialSelection: DEFAULT_SPATIAL_SELECTION,
   };
 }

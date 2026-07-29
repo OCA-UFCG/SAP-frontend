@@ -1,14 +1,44 @@
 import { describe, expect, it, vi } from "vitest";
 
+const eeMocks = vi.hoisted(() => {
+  const nationalCollection = { kind: "national-boundary" };
+  const filter = vi.fn(() => nationalCollection);
+  return {
+    feature: vi.fn((geometry) => ({ geometry })),
+    featureCollection: vi.fn((value) =>
+      typeof value === "string" ? { filter } : { features: value },
+    ),
+    filter,
+    filterEq: vi.fn(() => ({ kind: "country-filter" })),
+    geometry: vi.fn((value) => ({ value })),
+    nationalCollection,
+  };
+});
+
 vi.mock("@google/earthengine", () => ({
-  default: {},
+  default: {
+    Feature: eeMocks.feature,
+    FeatureCollection: eeMocks.featureCollection,
+    Filter: { eq: eeMocks.filterEq },
+    Geometry: eeMocks.geometry,
+  },
+}));
+
+vi.mock("@/app/api/ee/spatialBoundaries", () => ({
+  getSpatialBoundaryFeatures: vi.fn(() => [
+    { geometry: { type: "Polygon", coordinates: [] } },
+    { geometry: { type: "MultiPolygon", coordinates: [] } },
+  ]),
 }));
 
 vi.mock("@/repositories/platform/panelLayerRepository", () => ({
   getPanelLayers: vi.fn(),
 }));
 
-import { shouldApplySelfMask } from "@/app/api/ee/services";
+import {
+  applySpatialClip,
+  shouldApplySelfMask,
+} from "@/app/api/ee/services";
 
 describe("Earth Engine self mask selection", () => {
   it("keeps zero-valued pixels visible when the layer scale includes zero", () => {
@@ -56,5 +86,34 @@ describe("Earth Engine self mask selection", () => {
         maxScale: 5,
       }),
     ).toBe(true);
+  });
+});
+
+describe("Earth Engine spatial clipping", () => {
+  it("clips raster output to the canonical national collection", () => {
+    const image = { clipToCollection: vi.fn(() => "clipped") };
+
+    expect(applySpatialClip(image)).toBe("clipped");
+    expect(image.clipToCollection).toHaveBeenCalledWith(
+      eeMocks.nationalCollection,
+    );
+  });
+
+  it("clips rendered FeatureCollection output to all ASD boundaries", () => {
+    const renderedFeatureCollection = {
+      clipToCollection: vi.fn(() => "clipped-feature-collection"),
+    };
+
+    expect(
+      applySpatialClip(renderedFeatureCollection, {
+        spatialArea: "asd",
+        spatialValue: "ASD",
+      }),
+    ).toBe("clipped-feature-collection");
+    expect(eeMocks.geometry).toHaveBeenCalledTimes(2);
+    expect(eeMocks.feature).toHaveBeenCalledTimes(2);
+    expect(renderedFeatureCollection.clipToCollection).toHaveBeenCalledWith({
+      features: expect.any(Array),
+    });
   });
 });

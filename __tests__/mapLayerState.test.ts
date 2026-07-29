@@ -102,6 +102,10 @@ describe("mapLayerState", () => {
       selectedState: "ce",
       selectedMunicipalityCode: "2304400",
       activeYear: "2024",
+      spatialSelection: {
+        spatialArea: "region",
+        spatialValue: "Nordeste",
+      },
     });
 
     expect(state.activeEEData).toBeNull();
@@ -110,5 +114,9 @@ describe("mapLayerState", () => {
     expect(state.selectedState).toBe("br");
     expect(state.selectedMunicipalityCode).toBeNull();
     expect(state.activeYear).toBe("general");
+    expect(state.spatialSelection).toEqual({
+      spatialArea: "national",
+      spatialValue: "brasil",
+    });
   });
 });

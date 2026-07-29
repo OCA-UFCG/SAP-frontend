@@ -24,14 +24,14 @@ export function PlatformMap({ showMonitoringOverlays = true }: PlatformMapProps)
     selectedMunicipalityCode,
     activeYear,
     layerOpacity,
-    interestedArea,
+    spatialSelection,
   } = useMapLayerViewState();
   const { setSelectedState, setSelectedMunicipalityCode, setLayerOpacity } =
     useMapLayerActions();
   const { requestKey, status, tileLayerUrl } = useEarthEngineTileLayer(
     activeEEData,
     activeYear,
-    interestedArea,
+    spatialSelection,
   );
   const [readyRequestKey, setReadyRequestKey] = useState<string | null>(null);
   const [basemap, setBasemap] = useState<BasemapId>("osm");

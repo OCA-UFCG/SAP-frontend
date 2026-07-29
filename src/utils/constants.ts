@@ -1,4 +1,4 @@
-import { SedesChannelI, interestArea} from "./interfaces";
+import { SedesChannelI } from "./interfaces";
 
 export const channels: SedesChannelI[] = [
   // Para reativar outras redes, descomente os blocos abaixo.
@@ -32,61 +32,6 @@ export const channels: SedesChannelI[] = [
 ];
 
 export const sedesEmail = "sap.ufcg@gmail.com";
-
-export const interestAreas: { value: interestArea; label: string }[] = [
-  { value: "national", label: "Nacional" },
-  { value: "region", label: "Regional" },
-  { value: "biome", label: "Bioma" },
-  //{ value: "state", label: "Estadual" },
-  { value: "semiarid", label: "Semiárido" },
-  { value: "asd", label: "ASD e Entorno" },
-];
-export const interestAreaOptionsByLevel: Record<interestArea, string[]> = {
-  national: ["brasil"],
-  /*
-  state: [
-    "AC",
-    "AL",
-    "AP",
-    "AM",
-    "BA",
-    "CE",
-    "DF",
-    "ES",
-    "GO",
-    "MA",
-    "MT",
-    "MS",
-    "MG",
-    "PA",
-    "PB",
-    "PR",
-    "PE",
-    "PI",
-    "RJ",
-    "RN",
-    "RS",
-    "RO",
-    "RR",
-    "SC",
-    "SP",
-    "SE",
-    "TO",
-  ],
-  */
-  region: ["Norte", "Nordeste", "Centro-Oeste", "Sudeste", "Sul"],
-  biome: [
-    "Amazônia",
-    "Caatinga",
-    "Cerrado",
-    "Mata Atlântica",
-    "Pampa",
-    "Pantanal",
-  ],
-  semiarid: ["semiárido"],
-  asd: ["ASD"],
-};
-
 
 export const statesObj = {
   ac: "Acre",

@@ -1,8 +1,7 @@
 import ee from "@google/earthengine";
 import { createSign } from "node:crypto";
-import fs from "node:fs";
-import path from "node:path";
 import { addUrlToCache, buildCacheKey } from "@/app/api/ee/cache";
+import { getSpatialBoundaryFeatures } from "@/app/api/ee/spatialBoundaries";
 import {
   resolveMapVisualizationPlan,
   type ThresholdClassificationPlan,
@@ -11,6 +10,10 @@ import { getPanelLayers } from "@/repositories/platform/panelLayerRepository";
 import { IMapId, IEEInfo, IImageParam } from "@/utils/interfaces";
 import { getImageDataYearKeys, resolveImageYearEntry } from "@/utils/imageData";
 import type { CompactMapVisualizationConfig } from "@/utils/analysis";
+import {
+  DEFAULT_SPATIAL_SELECTION,
+  type SpatialSelection,
+} from "@/utils/spatialScope";
 
 // ====== GEE Singleton for Authentication and Initialization ======
 
@@ -165,45 +168,21 @@ const getBrazilBoundary = () => {
   return brazilBoundary;
 };
 
-const BOUNDARY_FILE_MAP: Record<string, string> = {
-  region: "regionBoundaries.json",
-  biome: "biomeBoundaries.json",
-  semiarid: "semiaridBoundary.json",
-  asd: "asdBoundary.json",
+const getSpatialClipCollection = (selection: SpatialSelection) => {
+  if (selection.spatialArea === "national") {
+    return getBrazilBoundary();
+  }
+
+  const features = getSpatialBoundaryFeatures(selection).map((feature) =>
+    ee.Feature(ee.Geometry(feature.geometry)),
+  );
+  return ee.FeatureCollection(features);
 };
 
-// Cache parsed GeoJSON at module level — loaded once on server start
-const boundaryCache = new Map<string, unknown>();
-for (const [area, fileName] of Object.entries(BOUNDARY_FILE_MAP)) {
-  try {
-    const filePath = path.join(process.cwd(), "src", "data", fileName);
-    boundaryCache.set(area, JSON.parse(fs.readFileSync(filePath, "utf-8")));
-  } catch (error) {
-    console.error(`[GEE] -> Failed to load boundary file ${fileName}:`, error);
-  }
-}
-
-const applySpatialClip = (image: any, spatialArea?: string, spatialValue?: string) => {
-  if (!spatialArea || !spatialValue || spatialArea === "nacional") {
-    return image.clipToCollection(getBrazilBoundary());
-  }
-
-  const geojson = boundaryCache.get(spatialArea) as
-    | { features: Array<{ properties: { name: string }; geometry: unknown }> }
-    | undefined;
-
-  if (!geojson) {
-    return image.clipToCollection(getBrazilBoundary());
-  }
-
-  const feature = geojson.features.find((f) => f.properties.name === spatialValue);
-  if (!feature) {
-    console.warn(`[GEE] -> Spatial value ${spatialValue} not found for ${spatialArea}, falling back to Brazil boundary.`);
-    return image.clipToCollection(getBrazilBoundary());
-  }
-
-  return image.clip(ee.Geometry(feature.geometry));
-};
+export const applySpatialClip = (
+  image: any,
+  selection: SpatialSelection = DEFAULT_SPATIAL_SELECTION,
+) => image.clipToCollection(getSpatialClipCollection(selection));
 
 function rangeIncludesZero(min?: number | null, max?: number | null) {
   return (
@@ -241,8 +220,7 @@ export function shouldApplySelfMask({
 
 interface GetEarthEngineUrlOptions {
   mapVisualization?: CompactMapVisualizationConfig;
-  spatialArea?: string;
-  spatialValue?: string;
+  spatialSelection?: SpatialSelection;
 }
 
 function normalizeGeeAssetType(type?: unknown) {
@@ -387,7 +365,10 @@ export const getEarthEngineUrl = async (
   options?: GetEarthEngineUrlOptions,
 ) => {
   try {
-    const { mapVisualization, spatialArea, spatialValue } = options ?? {};
+    const {
+      mapVisualization,
+      spatialSelection = DEFAULT_SPATIAL_SELECTION,
+    } = options ?? {};
 
     await initializeGee();
 
@@ -469,10 +450,6 @@ export const getEarthEngineUrl = async (
       }
     }
 
-    if (!shouldUseFeatureCollection) {
-      GEEImage = applySpatialClip(GEEImage, spatialArea, spatialValue);
-    }
-
     if (
       !shouldUseFeatureCollection &&
       shouldApplySelfMask({
@@ -497,8 +474,9 @@ export const getEarthEngineUrl = async (
           mapVisualization,
         })
         : categorizedImage;
+    const clippedMapImage = applySpatialClip(mapImage, spatialSelection);
     const mapId = (await getMapId(
-      mapImage,
+      clippedMapImage,
       shouldUseFeatureCollection ? undefined : visParams,
     )) as IMapId;
 

@@ -6,7 +6,8 @@ import {
   useMemo,
   useState,
 } from "react";
-import { IEEInfo, IImageParam, IInterestedArea } from "@/utils/interfaces";
+import { IEEInfo, IImageParam } from "@/utils/interfaces";
+import type { SpatialSelection } from "@/utils/spatialScope";
 import {
   activateEeLayerState,
   activateVectorLayerState,
@@ -19,7 +20,7 @@ import {
   setLayerOpacityValue,
   setSelectedMunicipalityCodeValue,
   setSelectedStateValue,
-  setInterestedArea,
+  setSpatialSelection,
 } from "@/components/MapLayerContext/mapLayerState";
 import type { CDIVectorData } from "@/lib/geo";
 
@@ -28,7 +29,7 @@ interface MapLayerActions {
   setSelectedState: (state: string) => void;
   setSelectedMunicipalityCode: (municipalityCode: string | null) => void;
   setActiveYear: (year: string) => void;
-  setInterestedArea: (interestedArea: IInterestedArea) => void;
+  setSpatialSelection: (selection: SpatialSelection) => void;
   activateVectorLayer: (
     layerId: string,
     data: CDIVectorData,
@@ -47,7 +48,7 @@ type MapLayerActiveState = Pick<
 
 type MapLayerViewState = Pick<
   MapLayerState,
-  "activeLegend" | "selectedState" | "selectedMunicipalityCode" | "activeYear" | "interestedArea" | "layerOpacity"
+  "activeLegend" | "selectedState" | "selectedMunicipalityCode" | "activeYear" | "spatialSelection" | "layerOpacity"
 >;
 
 interface MapLayerContextValue
@@ -105,8 +106,8 @@ export function MapLayerProvider({ children }: { children: React.ReactNode }) {
     setState((currentState) => setActiveYearValue(currentState, activeYear));
   }, []);
 
-  const setInterestedAreaCallback = useCallback((interestedArea: IInterestedArea) => {
-    setState((currentState) => setInterestedArea(currentState, interestedArea));
+  const setSpatialSelectionCallback = useCallback((selection: SpatialSelection) => {
+    setState((currentState) => setSpatialSelection(currentState, selection));
   }, []);
 
   const activateVectorLayer = useCallback(
@@ -150,7 +151,7 @@ export function MapLayerProvider({ children }: { children: React.ReactNode }) {
       selectedState: state.selectedState,
       selectedMunicipalityCode: state.selectedMunicipalityCode,
       activeYear: state.activeYear,
-      interestedArea: state.interestedArea,
+      spatialSelection: state.spatialSelection,
       layerOpacity: state.layerOpacity,
     }),
     [
@@ -158,7 +159,7 @@ export function MapLayerProvider({ children }: { children: React.ReactNode }) {
       state.selectedState,
       state.selectedMunicipalityCode,
       state.activeYear,
-      state.interestedArea,
+      state.spatialSelection,
       state.layerOpacity,
     ],
   );
@@ -169,7 +170,7 @@ export function MapLayerProvider({ children }: { children: React.ReactNode }) {
       setSelectedState,
       setSelectedMunicipalityCode,
       setActiveYear,
-      setInterestedArea: setInterestedAreaCallback,
+      setSpatialSelection: setSpatialSelectionCallback,
       activateVectorLayer,
       activateEeLayer,
       clearActiveLayer,
@@ -181,7 +182,7 @@ export function MapLayerProvider({ children }: { children: React.ReactNode }) {
       setSelectedState,
       setSelectedMunicipalityCode,
       setActiveYear,
-      setInterestedAreaCallback,
+      setSpatialSelectionCallback,
       activateVectorLayer,
       activateEeLayer,
       clearActiveLayer,
