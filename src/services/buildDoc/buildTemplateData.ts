@@ -256,7 +256,9 @@ export function prepareTemplateData(report: MunicipalReportData): TemplateData {
   const soma_percentual_deg_n3_n4_n5 = formatPercentage(
       getDistributionPercentage(ultimoDeg, "nivel-3") +
       getDistributionPercentage(ultimoDeg, "nivel-4") +
-      getDistributionPercentage(ultimoDeg, "nivel-5")
+      getDistributionPercentage(ultimoDeg, "nivel-5"), 
+      REPORT_LOCALE,
+      2
   );
 
   return {
