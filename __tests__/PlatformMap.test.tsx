@@ -1,4 +1,11 @@
-import { act, cleanup, render, screen, waitFor } from "@testing-library/react";
+import {
+  act,
+  cleanup,
+  fireEvent,
+  render,
+  screen,
+  waitFor,
+} from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import type { ComponentProps } from "react";
 
@@ -116,6 +123,30 @@ describe("PlatformMap", () => {
     expect(
       screen.getByRole("slider", { name: "Transparência" }),
     ).toHaveValue("0.85");
+  });
+
+  it("switches between street and satellite basemaps", () => {
+    useEarthEngineTileLayerMock.mockReturnValue({
+      requestKey: "ee-layer:2024",
+      status: "ready",
+      tileLayerUrl: "https://tiles.example/2024",
+    });
+
+    render(<PlatformMap />);
+
+    const switchButton = screen.getByRole("button", {
+      name: "Alternar para vista de satélite",
+    });
+    expect(latestMapProps?.basemap).toBe("osm");
+
+    fireEvent.click(switchButton);
+
+    expect(latestMapProps?.basemap).toBe("satellite");
+    expect(
+      screen.getByRole("button", {
+        name: "Alternar para vista de rua",
+      }),
+    ).toHaveTextContent("Rua");
   });
 
   it("hides monitoring overlays outside monitoring without changing opacity", () => {

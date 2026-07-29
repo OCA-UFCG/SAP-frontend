@@ -5,10 +5,13 @@ import { ensureMunicipalityLayers } from "./municipalityLayers";
 export type MapMode = "demo" | "platform";
 
 const MAP_SOURCE_ID = "osm-base";
+export const OSM_LAYER_ID = "osm-layer";
 export const STATES_SOURCE_ID = "brazil-states";
 export const STATES_SOURCE_LAYER = "brazilstates";
 export const CDI_SOURCE_ID = "cdi-data";
 export const GEE_SOURCE_ID = "gee-tiles";
+export const SATELLITE_SOURCE_ID = "satellite-base";
+export const SATELLITE_LAYER_ID = "satellite-layer";
 export const STATES_FILL_LAYER_ID = "state-fills";
 export const STATES_BORDER_LAYER_ID = "state-borders";
 export const CDI_LAYER_ID = "cdi-layer";
@@ -41,12 +44,27 @@ export const BASE_STYLE: maplibregl.StyleSpecification = {
       tileSize: 256,
       attribution: "&copy; OpenStreetMap contributors",
     },
+    [SATELLITE_SOURCE_ID]: {
+      type: "raster",
+      tiles: [
+        "https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}",
+      ],
+      tileSize: 256,
+      attribution:
+        "&copy; Esri, Maxar, Earthstar Geographics",
+    },
   },
   layers: [
     {
-      id: MAP_SOURCE_ID,
+      id: OSM_LAYER_ID,
       type: "raster",
       source: MAP_SOURCE_ID,
+    },
+    {
+      id: SATELLITE_LAYER_ID,
+      type: "raster",
+      source: SATELLITE_SOURCE_ID,
+      layout: { visibility: "none" },
     },
   ],
 };
