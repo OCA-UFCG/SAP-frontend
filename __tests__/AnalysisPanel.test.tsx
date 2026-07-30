@@ -11,6 +11,7 @@ vi.mock("@/components/SidePanelContexts/SearchBarPlatform", () => ({
 
 afterEach(() => {
   cleanup();
+  vi.unstubAllEnvs();
 });
 
 const model: TerritorialAnalysisViewModel = {
@@ -53,7 +54,35 @@ const model: TerritorialAnalysisViewModel = {
 };
 
 describe("AnalysisPanel", () => {
+  it("hides spatial selectors when the feature flag is disabled", () => {
+    vi.stubEnv("NEXT_PUBLIC_ENABLE_SPATIAL_SCOPE", "false");
+
+    render(
+      <AnalysisPanel
+        moduleName="Teste"
+        yearOptions={[{ value: "2024", label: "2024" }]}
+        activeYear="2024"
+        spatialSelection={{ spatialArea: "national", spatialValue: "brasil" }}
+        onSpatialSelectionChange={vi.fn()}
+        onBack={vi.fn()}
+        onSearch={vi.fn()}
+        searchTelemetryContext={{
+          activeLayerId: "test",
+          activeLayerName: "Test",
+          activeDateLabel: "2024",
+        }}
+        onYearChange={vi.fn()}
+        model={model}
+      />,
+    );
+
+    expect(
+      screen.queryByRole("button", { name: "Recorte espacial: Nacional" }),
+    ).not.toBeInTheDocument();
+  });
+
   it("exposes localized accessible spatial selectors and emits canonical values", async () => {
+    vi.stubEnv("NEXT_PUBLIC_ENABLE_SPATIAL_SCOPE", "true");
     const user = userEvent.setup();
     const onSpatialSelectionChange = vi.fn();
 

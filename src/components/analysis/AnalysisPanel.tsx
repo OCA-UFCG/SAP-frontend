@@ -694,6 +694,8 @@ export function AnalysisPanel({
   emptyStateDescription,
 }: AnalysisPanelProps) {
   const t = useTranslations("AnalysisPanel");
+  const isSpatialScopeEnabled =
+    process.env.NEXT_PUBLIC_ENABLE_SPATIAL_SCOPE === "true";
   const hasTemporalData = Boolean(
     years && classes && Object.keys(years).length > 0 && classes.length > 0,
   );
@@ -770,12 +772,14 @@ export function AnalysisPanel({
             />
           </div>
 
-          <div>
-            <SpatialScopeSelect
-              spatialSelection={spatialSelection}
-              onSpatialSelectionChange={onSpatialSelectionChange}
-            />
-          </div>
+          {isSpatialScopeEnabled ? (
+            <div>
+              <SpatialScopeSelect
+                spatialSelection={spatialSelection}
+                onSpatialSelectionChange={onSpatialSelectionChange}
+              />
+            </div>
+          ) : null}
         </section>
 
         {model ? (

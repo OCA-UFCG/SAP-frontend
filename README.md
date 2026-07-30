@@ -51,6 +51,18 @@ npm run dev
 
 Open `http://localhost:3000` in the browser.
 
+The spatial-scope selector is hidden by default. To enable it for local or
+preview validation, set the following variable before building or starting the
+application:
+
+```env
+NEXT_PUBLIC_ENABLE_SPATIAL_SCOPE=true
+```
+
+Leave the variable unset or set it to `false` to keep the selector hidden.
+Because it is a `NEXT_PUBLIC_*` variable, changing it in a deployed environment
+requires rebuilding the application.
+
 ## Available Scripts
 
 - `npm run dev`: start the development server.
