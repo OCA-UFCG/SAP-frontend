@@ -5,16 +5,16 @@ describe("getAllowedStateUfs", () => {
   it("returns null for national", () => {
     expect(
       getAllowedStateUfs({
-        interestedArea: "national",
-        interestedAreaValue: "brasil",
+        spatialArea: "national",
+        spatialValue: "brasil",
       }),
     ).toBeNull();
   });
 
   it("returns all states of a region", () => {
     const allowed = getAllowedStateUfs({
-      interestedArea: "region",
-      interestedAreaValue: "Nordeste",
+      spatialArea: "region",
+      spatialValue: "Nordeste",
     });
     expect(allowed?.has("ba")).toBe(true);
     expect(allowed?.has("sp")).toBe(false);
@@ -23,8 +23,8 @@ describe("getAllowedStateUfs", () => {
 
   it("filters by biome", () => {
     const allowed = getAllowedStateUfs({
-      interestedArea: "biome",
-      interestedAreaValue: "Pampa",
+      spatialArea: "biome",
+      spatialValue: "Pampa",
     });
     expect(allowed?.has("rs")).toBe(true);
     expect(allowed?.has("am")).toBe(false);
@@ -33,14 +33,14 @@ describe("getAllowedStateUfs", () => {
   it("filters by semiarid and asd", () => {
     expect(
       getAllowedStateUfs({
-        interestedArea: "semiarid",
-        interestedAreaValue: "semiárido",
+        spatialArea: "semiarid",
+        spatialValue: "semiárido",
       })?.has("ba"),
     ).toBe(true);
     expect(
       getAllowedStateUfs({
-        interestedArea: "asd",
-        interestedAreaValue: "ASD",
+        spatialArea: "asd",
+        spatialValue: "ASD",
       })?.has("rj"),
     ).toBe(true);
   });

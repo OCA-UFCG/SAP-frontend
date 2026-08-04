@@ -1,4 +1,4 @@
-import type { IInterestedArea } from "@/utils/interfaces";
+import type { SpatialSelection } from "@/utils/spatialScope";
 import stateClassification from "@/data/stateClassification.json";
 
 interface StateAreas {
@@ -11,21 +11,21 @@ interface StateAreas {
 const stateAreas = stateClassification as Record<string, StateAreas>;
 
 /**
- * Returns the lowercase UFs clickable when `interestedArea` is active,
+ * Returns the lowercase UFs clickable when `spatialSelection` is active,
  * or null when every state is allowed (national).
  */
 export function getAllowedStateUfs(
-  interestedArea: IInterestedArea | null,
+  spatialSelection: SpatialSelection | null,
 ): Set<string> | null {
   if (
-    !interestedArea ||
-    interestedArea.interestedArea === "national" ||
-    !interestedArea.interestedAreaValue
+    !spatialSelection ||
+    spatialSelection.spatialArea === "national" ||
+    !spatialSelection.spatialValue
   ) {
     return null;
   }
 
-  const { interestedArea: area, interestedAreaValue: value } = interestedArea;
+  const { spatialArea: area, spatialValue: value } = spatialSelection;
   const allowed = new Set<string>();
 
   for (const [uf, areas] of Object.entries(stateAreas)) {

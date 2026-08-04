@@ -45,8 +45,8 @@ export function PlatformMap({ showMonitoringOverlays = true }: PlatformMapProps)
   }, []);
 
   const allowedStateUfs = useMemo(
-    () => getAllowedStateUfs(interestedArea),
-    [interestedArea],
+    () => getAllowedStateUfs(spatialSelection),
+    [spatialSelection],
   );
 
   const hasRenderedCurrentRequest =

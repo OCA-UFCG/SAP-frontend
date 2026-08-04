@@ -376,9 +376,9 @@ export function AnalysisContext({
     analysisImageDataByRequestKey[municipalAnalysisRequestKey] === undefined,
   );
 
-  const handleInterestedAreaChange = useCallback(
-    (value: IInterestedArea) => {
-      setInterestedArea(value);
+  const handleSpatialSelectionChange = useCallback(
+    (value: SpatialSelection) => {
+      setSpatialSelection(value);
 
       // O recorte mudou: se o estado selecionado não pertence ao novo
       // recorte, deseleciona para não manter a borda de seleção antiga.
@@ -392,7 +392,12 @@ export function AnalysisContext({
         setSelectedMunicipalityCode(null);
       }
     },
-    [selectedState, setInterestedArea, setSelectedMunicipalityCode, setSelectedState],
+    [
+      selectedState,
+      setSpatialSelection,
+      setSelectedMunicipalityCode,
+      setSelectedState,
+    ],
   );
 
   return (
