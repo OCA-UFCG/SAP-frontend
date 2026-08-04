@@ -29,6 +29,7 @@ import type { PlatformSection } from "@/components/PlatformSideRail/PlatformSide
 import type { PanelLayerI, IEEInfo } from "@/utils/interfaces";
 import type { CompactTerritorialAnalysisDataset } from "@/utils/analysis";
 import { statesObj } from "@/utils/constants";
+import { getAllowedStateUfs } from "@/utils/interestAreaStates";
 import { mergePartialMunicipalImageData } from "@/utils/municipalAnalysisMerge";
 
 interface MunicipalAnalysisApiResponse {
@@ -373,8 +374,20 @@ export function AnalysisContext({
   const handleInterestedAreaChange = useCallback(
     (value: IInterestedArea) => {
       setInterestedArea(value);
+
+      // O recorte mudou: se o estado selecionado não pertence ao novo
+      // recorte, deseleciona para não manter a borda de seleção antiga.
+      const allowedUfs = getAllowedStateUfs(value);
+      if (
+        allowedUfs &&
+        selectedState !== "br" &&
+        !allowedUfs.has(selectedState)
+      ) {
+        setSelectedState("br");
+        setSelectedMunicipalityCode(null);
+      }
     },
-    [setInterestedArea],
+    [selectedState, setInterestedArea, setSelectedMunicipalityCode, setSelectedState],
   );
 
   return (
