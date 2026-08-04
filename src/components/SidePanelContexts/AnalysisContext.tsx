@@ -23,6 +23,7 @@ import { trackUiEvent } from "@/services/telemetry/client";
 import municipalAvailabilityIndex from "@/data/municipalAvailabilityIndex.json";
 import {
   hasMunicipalLayerPeriod,
+  isMunicipalLayerIndexed,
   type MunicipalAvailabilityIndex,
 } from "@/utils/municipalAvailability";
 import type { PlatformSection } from "@/components/PlatformSideRail/PlatformSideRail";
@@ -35,14 +36,18 @@ interface MunicipalAnalysisApiResponse {
   imageData?: PanelLayerI["imageData"] | null;
 }
 
-function getMunicipalAnalysisRequestKey(layerId: string, yearKey: string) {
-  return `${layerId}::${yearKey}`;
+function getMunicipalAnalysisRequestKey(
+  layerId: string,
+  yearKey: string,
+  apiPath?: string,
+) {
+  return `${apiPath ?? "public"}::${layerId}::${yearKey}`;
 }
 
 function getMunicipalAnalysisRequestYear(
   requestKey: string,
 ): string | undefined {
-  return requestKey.split("::").at(1);
+  return requestKey.split("::").at(-1);
 }
 
 export interface AnalysisContextProps {
@@ -93,7 +98,11 @@ export function AnalysisContext({
     effectiveYear ?? yearOptions[0]?.value ?? "general";
 
   const municipalAnalysisRequestKey = dataset?.id
-    ? getMunicipalAnalysisRequestKey(dataset.id, activeAnalysisYear)
+    ? getMunicipalAnalysisRequestKey(
+        dataset.id,
+        activeAnalysisYear,
+        dataset.municipalAnalysisApiPath,
+      )
     : null;
 
   const temporalMunicipalAnalysisRequestKeys = useMemo(() => {
@@ -102,7 +111,11 @@ export function AnalysisContext({
     }
 
     return yearOptions.map((option) =>
-      getMunicipalAnalysisRequestKey(dataset.id, option.value),
+      getMunicipalAnalysisRequestKey(
+        dataset.id,
+        option.value,
+        dataset.municipalAnalysisApiPath,
+      ),
     );
   }, [dataset, selectedMunicipalityCode, yearOptions]);
 
@@ -124,6 +137,7 @@ export function AnalysisContext({
         analysisImageDataByRequestKey[requestKey] === undefined &&
         (!selectedMunicipalityCode ||
           !yearKey ||
+          !isMunicipalLayerIndexed(availabilityIndex, dataset.id) ||
           hasMunicipalLayerPeriod(
             availabilityIndex,
             selectedMunicipalityCode,
@@ -147,10 +161,10 @@ export function AnalysisContext({
         return;
       }
 
-      const requestUrl = new URL(
-        `/api/municipal-analysis/${encodeURIComponent(dataset.id)}`,
-        window.location.origin,
-      );
+      const municipalApiPath =
+        dataset.municipalAnalysisApiPath ??
+        `/api/municipal-analysis/${encodeURIComponent(dataset.id)}`;
+      const requestUrl = new URL(municipalApiPath, window.location.origin);
       requestUrl.searchParams.set("year", yearKey);
 
       fetch(requestUrl.toString(), {
@@ -196,6 +210,7 @@ export function AnalysisContext({
   }, [
     analysisImageDataByRequestKey,
     dataset?.id,
+    dataset?.municipalAnalysisApiPath,
     municipalAnalysisRequestKey,
     selectedMunicipalityCode,
     temporalMunicipalAnalysisRequestKeys,
@@ -362,6 +377,10 @@ export function AnalysisContext({
   const activeMunicipalAnalysisKnownUnavailable = Boolean(
     selectedMunicipalityCode &&
       dataset?.id &&
+      isMunicipalLayerIndexed(
+        municipalAvailabilityIndex as MunicipalAvailabilityIndex,
+        dataset.id,
+      ) &&
       !hasMunicipalLayerPeriod(
         municipalAvailabilityIndex as MunicipalAvailabilityIndex,
         selectedMunicipalityCode,

@@ -3,6 +3,7 @@
     "monitoring": "Monitoring",
     "analysis": "Analysis",
     "communication": "Communication",
-    "logs": "Audit"
+    "logs": "Audit",
+    "catalog": "Index catalog"
   }
 }

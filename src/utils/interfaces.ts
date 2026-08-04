@@ -234,18 +234,20 @@ export interface PanelLayerI {
   id: string;
   description: string;
   panelPosition?: number | null;
-  previewMap: {
+  previewMap?: {
     url: string;
     title?: string;
     width?: number;
     height?: number;
-  };
+  } | null;
   imageData: ImageDataConfig;
   minScale?: number;
   maxScale?: number;
   category?: string;
   timeScale?: string;
   reportSeriesConfig?: MunicipalReportSeriesConfig | null;
+  tileApiPath?: string;
+  municipalAnalysisApiPath?: string;
 }
 
 export interface IEEInfo {
@@ -260,6 +262,8 @@ export interface IEEInfo {
   maxScale?: number;
   imageData: ImageDataConfig;
   type: string;
+  tileApiPath?: string;
+  municipalAnalysisApiPath?: string;
 }
 
 export interface IMapId {

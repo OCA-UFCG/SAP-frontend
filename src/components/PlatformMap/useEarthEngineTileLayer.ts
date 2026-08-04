@@ -55,11 +55,12 @@ export function useEarthEngineTileLayer(
     }
 
     return {
-      requestKey: `${activeEEData.id}:${activeYear}:${spatialSelection.spatialArea}:${spatialSelection.spatialValue}`,
+      requestKey: `${activeEEData.tileApiPath ? `${activeEEData.tileApiPath}:` : ""}${activeEEData.id}:${activeYear}:${spatialSelection.spatialArea}:${spatialSelection.spatialValue}`,
       layerId: activeEEData.id,
       year: activeYear,
       spatialArea: spatialSelection.spatialArea,
       spatialValue: spatialSelection.spatialValue,
+      apiPath: activeEEData.tileApiPath,
     };
   }, [activeEEData, activeYear, spatialSelection]);
 
@@ -96,13 +97,22 @@ export function useEarthEngineTileLayer(
 
     const fetchGeeUrl = async () => {
       try {
-        const url = await fetchMapURL(
-          requestConfig.layerId,
-          requestConfig.year,
-          controller.signal,
-          requestConfig.spatialArea,
-          requestConfig.spatialValue,
-        );
+        const url = requestConfig.apiPath
+          ? await fetchMapURL(
+              requestConfig.layerId,
+              requestConfig.year,
+              controller.signal,
+              requestConfig.spatialArea,
+              requestConfig.spatialValue,
+              requestConfig.apiPath,
+            )
+          : await fetchMapURL(
+              requestConfig.layerId,
+              requestConfig.year,
+              controller.signal,
+              requestConfig.spatialArea,
+              requestConfig.spatialValue,
+            );
 
         if (latestRequestKeyRef.current !== requestConfig.requestKey) return;
 

@@ -10,7 +10,8 @@ export type PlatformSection =
   | "analysis"
   | "analysis-detail"
   | "communication"
-  | "logs";
+  | "logs"
+  | "catalog";
 
 export interface PlatformSideRailProps {
   /** Which section is currently active/selected. */
@@ -38,6 +39,7 @@ type PlatformRailItem =
     }
   | {
       kind: "link";
+      id: "logs" | "catalog";
       href: string;
       label: string;
       icon: string;
@@ -77,9 +79,17 @@ export function PlatformSideRail({
   if (showAuditLink) {
     items.push({
       kind: "link",
+      id: "logs",
       href: "/platform?view=logs",
       label: t("logs"),
       icon: "info",
+    });
+    items.push({
+      kind: "link",
+      id: "catalog",
+      href: "/platform?view=catalog",
+      label: t("catalog"),
+      icon: "chart",
     });
   }
 
@@ -97,7 +107,7 @@ export function PlatformSideRail({
             const isActive =
               item.kind === "section"
                 ? item.id === activeSection
-                : activeSection === "logs";
+                : activeSection === item.id;
 
             const itemContent = (
               <>
@@ -155,7 +165,9 @@ export function PlatformSideRail({
         </div>
       </nav>
 
-      {activeSection !== "analysis" && activeSection !== "logs" && (
+      {activeSection !== "analysis" &&
+        activeSection !== "logs" &&
+        activeSection !== "catalog" && (
         <div
           className={`absolute top-1/2 -translate-y-1/2 transition-[right] duration-300 ease-in-out ${isPanelOpen ? "-right-[460px]" : "-right-[39px]"}`}
         >

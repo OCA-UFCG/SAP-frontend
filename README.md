@@ -224,6 +224,9 @@ These files are living documents. If a prompt or code change affects architectur
 - `/api/logs` remains the canonical append-only ingestion endpoint for log events.
 - The repository contains both application tests and Storybook coverage; prefer the narrowest relevant test command for the slice you change.
 - CI/CD blocks merges and releases on `npm run ci:verify`; broader Storybook/browser coverage remains a separate, non-blocking path.
+- O catálogo administrativo de índices está documentado em
+  `docs/index-catalog.md`. Ele usa a allowlist de Auditoria e credenciais
+  server-side de Contentful Management e Google Drive.
 
 ## Telemetry Validation
 

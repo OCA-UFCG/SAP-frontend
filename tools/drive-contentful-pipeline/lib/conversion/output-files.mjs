@@ -543,7 +543,8 @@ function isMultilevelPanelLayerCsv(rows, csvPath, pipelineConfig) {
 
   return (
     isMultilevelTerritoryRow(rows[0]) &&
-    panelLayerConfig?.mapVisualization?.sourceType === "image"
+    (panelLayerConfig?.mapVisualization?.sourceType === "image" ||
+      panelLayerConfig?.allowMultilevelPanelLayer === true)
   );
 }
 

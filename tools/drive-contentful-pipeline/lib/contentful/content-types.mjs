@@ -14,6 +14,13 @@ const MUNICIPAL_REPORT_SERIES_FIELDS = [
   { id: "imageData", name: "Image Data", type: "Object", required: true },
 ];
 
+const INDEX_CATALOG_CONFIG_FIELD = {
+  id: "catalogConfig",
+  name: "Configuração do catálogo",
+  type: "Object",
+  required: false,
+};
+
 function normalizeField(field) {
   return {
     ...field,
@@ -207,6 +214,61 @@ export async function ensureMunicipalAnalysisPartitionFields(
   );
 
   return { changed: true, fields: missingFields.map((field) => field.id) };
+}
+
+export async function ensureIndexCatalogContentModel(config) {
+  const contentTypeId = "panelLayer";
+  const contentTypeUrl = `${managementBaseUrl(config)}/content_types/${contentTypeId}`;
+  const contentType = await contentfulFetch(
+    contentTypeUrl,
+    { headers: { Authorization: `Bearer ${config.managementToken}` } },
+    "Busca do content type panelLayer para o catálogo",
+  );
+  const hasCatalogConfig = (contentType.fields ?? []).some(
+    (field) => field.id === INDEX_CATALOG_CONFIG_FIELD.id,
+  );
+  const previewMapIsRequired = (contentType.fields ?? []).some(
+    (field) => field.id === "previewMap" && field.required,
+  );
+
+  if (hasCatalogConfig && !previewMapIsRequired) {
+    return { changed: false };
+  }
+
+  const fields = (contentType.fields ?? []).map((field) =>
+    field.id === "previewMap" ? { ...field, required: false } : field,
+  );
+  if (!hasCatalogConfig) {
+    fields.push(normalizeField(INDEX_CATALOG_CONFIG_FIELD));
+  }
+
+  const updated = await contentfulFetch(
+    contentTypeUrl,
+    {
+      method: "PUT",
+      headers: {
+        Authorization: `Bearer ${config.managementToken}`,
+        "Content-Type": "application/vnd.contentful.management.v1+json",
+        "X-Contentful-Version": String(contentType.sys.version),
+      },
+      body: JSON.stringify({
+        name: contentType.name,
+        displayField: contentType.displayField ?? "id",
+        description: contentType.description,
+        fields,
+      }),
+    },
+    "Atualização do content type panelLayer para o catálogo",
+  );
+
+  await publishContentType(
+    config,
+    contentTypeId,
+    updated.sys.version,
+    "Publicação do content type panelLayer para o catálogo",
+  );
+
+  return { changed: true };
 }
 
 export function dryRunMunicipalAnalysisPartitionFields() {

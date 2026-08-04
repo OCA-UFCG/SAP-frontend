@@ -45,6 +45,10 @@ vi.mock("@/components/PlatformLayout/PlatformLayout", () => ({
   },
 }));
 
+vi.mock("@/components/IndexCatalog/IndexCatalogScreen", () => ({
+  IndexCatalogScreen: () => <div data-testid="catalog-screen-probe" />,
+}));
+
 import PlatformPage from "@/app/[locale]/platform/page";
 
 afterEach(() => {
@@ -104,6 +108,24 @@ describe("PlatformPage", () => {
     );
     expect(platformLayoutMock.mock.calls[0]?.[0]).not.toHaveProperty(
       "telemetryDashboardData",
+    );
+  });
+
+  it("renders the catalog only for the same allowlisted viewers", async () => {
+    resolveLogsViewerAccessMock.mockResolvedValueOnce("allowed");
+
+    const result = await PlatformPage({
+      searchParams: Promise.resolve({ view: "catalog" }),
+    });
+    render(result);
+
+    expect(getPanelLayersMock).not.toHaveBeenCalled();
+    expect(platformLayoutMock.mock.calls[0]?.[0]).toEqual(
+      expect.objectContaining({
+        showAuditLink: true,
+        viewMode: "catalog",
+        catalogDashboard: expect.any(Object),
+      }),
     );
   });
 

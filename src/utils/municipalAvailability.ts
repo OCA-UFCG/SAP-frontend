@@ -20,6 +20,13 @@ export interface MunicipalAvailabilityIndex {
   periodYears?: string[];
 }
 
+export function isMunicipalLayerIndexed(
+  index: MunicipalAvailabilityIndex,
+  layerId: string,
+) {
+  return index.layers.some((layer) => layer.panelLayerId === layerId);
+}
+
 function getPeriodYear(period: string) {
   return period.match(/^(\d{4})(?:-\d{2})?$/u)?.[1] ?? null;
 }

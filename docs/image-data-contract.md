@@ -110,3 +110,15 @@ Formato legado simplificado:
 
 Esse payload e invalido para publicacao porque usa versao desconhecida, nao tem
 classes, nao tem anos e nao declara `defaultYear`.
+
+# Extensão pelo catálogo administrativo
+
+O Catálogo de índices gera somente `territorial-compact` v1 e usa os mesmos
+validadores e particionamento da pipeline. O `panelLayer` mantém Brasil/UF e as
+partições `municipalAnalysis` carregam os dados territoriais sob demanda. A
+prévia usa as entries ainda não publicadas pela Contentful Management API; ela
+não altera o modo global de preview da aplicação.
+
+Camadas novas ainda ausentes do índice estático municipal podem tentar a API
+sob demanda no detalhamento. Essa exceção não se aplica ao Relatório
+Automático.

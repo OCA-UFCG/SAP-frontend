@@ -27,7 +27,20 @@ type LogsPlatformLayoutProps = {
   reportRequest?: never;
 };
 
-type PlatformLayoutProps = DefaultPlatformLayoutProps | LogsPlatformLayoutProps;
+type CatalogPlatformLayoutProps = {
+  showAuditLink?: boolean;
+  initialSection?: PlatformSidebarInitialSection;
+  viewMode: "catalog";
+  catalogDashboard: ReactNode;
+  panelLayers?: never;
+  telemetryDashboard?: never;
+  reportRequest?: never;
+};
+
+type PlatformLayoutProps =
+  | DefaultPlatformLayoutProps
+  | LogsPlatformLayoutProps
+  | CatalogPlatformLayoutProps;
 
 export function PlatformLayout({
   showAuditLink = false,
@@ -36,9 +49,13 @@ export function PlatformLayout({
 }: PlatformLayoutProps) {
   const viewMode = props.viewMode ?? "default";
   const isLogsView = props.viewMode === "logs";
+  const isCatalogView = props.viewMode === "catalog";
   const isCommunicationView = !isLogsView && initialSection === "communication";
   const sidebarStateKey = `${viewMode}:${initialSection}`;
-  const sidebarPanelLayers = props.viewMode === "logs" ? [] : props.panelLayers;
+  const sidebarPanelLayers =
+    props.viewMode === "logs" || props.viewMode === "catalog"
+      ? []
+      : props.panelLayers;
   const [activeSection, setActiveSection] =
     useState<PlatformSection>(initialSection);
 
@@ -48,6 +65,10 @@ export function PlatformLayout({
         {isLogsView ? (
           <div data-testid="platform-logs-shell" className="w-full">
             {props.telemetryDashboard}
+          </div>
+        ) : isCatalogView ? (
+          <div data-testid="platform-catalog-shell" className="w-full">
+            {props.catalogDashboard}
           </div>
         ) : isCommunicationView ? (
           <div className="absolute inset-0 bg-[#F6F7F6]" aria-hidden="true" />
@@ -62,7 +83,11 @@ export function PlatformLayout({
           showAuditLink={showAuditLink}
           initialSection={initialSection}
           viewMode={viewMode}
-          reportRequest={props.viewMode === "logs" ? undefined : props.reportRequest}
+          reportRequest={
+            props.viewMode === "logs" || props.viewMode === "catalog"
+              ? undefined
+              : props.reportRequest
+          }
           onActiveSectionChange={setActiveSection}
         />
       </div>

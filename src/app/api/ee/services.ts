@@ -158,6 +158,91 @@ export const initializeGee = async () => {
   return geeInitialized;
 };
 
+export interface EarthEngineAssetInspection {
+  id: string;
+  type: "image" | "imageCollection" | "featureCollection";
+  bands: string[];
+  properties: string[];
+}
+
+function evaluateEeValue<T>(value: {
+  evaluate: (
+    success: (result: T) => void,
+    failure: (error: unknown) => void,
+  ) => void;
+}) {
+  return new Promise<T>((resolve, reject) => {
+    value.evaluate(resolve, reject);
+  });
+}
+
+export async function inspectEarthEngineAsset(
+  imageId: string,
+): Promise<EarthEngineAssetInspection> {
+  await initializeGee();
+
+  const asset = await new Promise<Record<string, unknown>>((resolve, reject) => {
+    ee.data.getAsset(
+      imageId,
+      (result: Record<string, unknown> | undefined, error?: unknown) => {
+        if (error) {
+          reject(error);
+          return;
+        }
+        if (!result) {
+          reject(new Error(`Earth Engine asset not found: ${imageId}`));
+          return;
+        }
+        resolve(result);
+      },
+    );
+  });
+  const rawType = String(asset.type ?? "").toUpperCase();
+
+  if (rawType === "TABLE") {
+    const collection = ee.FeatureCollection(imageId);
+    const properties = await evaluateEeValue<string[]>(
+      collection.first().propertyNames(),
+    );
+    return {
+      id: imageId,
+      type: "featureCollection",
+      bands: [],
+      properties: (properties ?? []).filter(
+        (property) => !property.startsWith("system:"),
+      ),
+    };
+  }
+
+  if (rawType === "IMAGE_COLLECTION") {
+    const collection = ee.ImageCollection(imageId);
+    const bands = await evaluateEeValue<string[]>(
+      collection.first().bandNames(),
+    );
+    return {
+      id: imageId,
+      type: "imageCollection",
+      bands: bands ?? [],
+      properties: [],
+    };
+  }
+
+  if (rawType !== "IMAGE") {
+    throw new Error(
+      `Unsupported Earth Engine asset type ${rawType || "unknown"} for ${imageId}.`,
+    );
+  }
+
+  const image = ee.Image(imageId);
+  const bands = await evaluateEeValue<string[]>(image.bandNames());
+  return {
+    id: imageId,
+    type: "image",
+    bands: bands ?? [],
+    properties: [],
+  };
+}
+
 const getBrazilBoundary = () => {
   if (!brazilBoundary) {
     brazilBoundary = ee

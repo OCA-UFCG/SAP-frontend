@@ -199,3 +199,19 @@ export async function getCachedMunicipalAnalysisImageData(
 export function clearMunicipalAnalysisCacheForTests() {
   cache.clear();
 }
+
+export function clearMunicipalAnalysisCache(panelLayerId?: string) {
+  if (!panelLayerId) {
+    cache.clear();
+    return;
+  }
+
+  for (const cacheKey of cache.keys()) {
+    if (
+      cacheKey === panelLayerId ||
+      cacheKey.startsWith(`${panelLayerId}::`)
+    ) {
+      cache.delete(cacheKey);
+    }
+  }
+}

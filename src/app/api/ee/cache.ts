@@ -81,4 +81,13 @@ export const addUrlToCache = (key: string, url: string | null) => {
   cacheUrls.delete(key);
 };
 
+export const clearEarthEngineCacheForLayer = (layerId: string) => {
+  const marker = `:${layerId}:`;
+  for (const key of cacheUrls.keys()) {
+    if (key.includes(marker)) {
+      cacheUrls.delete(key);
+    }
+  }
+};
+
 export { CACHE_TTL_MS };

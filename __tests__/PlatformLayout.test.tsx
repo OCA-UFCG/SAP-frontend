@@ -77,4 +77,26 @@ describe("PlatformLayout", () => {
       }),
     );
   });
+
+  it("renders the protected catalog as a utility view without the map", () => {
+    platformSidebarMock.mockReset();
+
+    render(
+      <PlatformLayout
+        showAuditLink
+        viewMode="catalog"
+        catalogDashboard={<div data-testid="catalog-dashboard-probe" />}
+      />,
+    );
+
+    expect(screen.queryByTestId("platform-map-probe")).not.toBeInTheDocument();
+    expect(screen.getByTestId("catalog-dashboard-probe")).toBeInTheDocument();
+    expect(platformSidebarMock.mock.calls[0]?.[0]).toEqual(
+      expect.objectContaining({
+        panelLayers: [],
+        showAuditLink: true,
+        viewMode: "catalog",
+      }),
+    );
+  });
 });
