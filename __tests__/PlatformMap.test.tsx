@@ -63,11 +63,16 @@ describe("PlatformMap", () => {
       selectedState: "br",
       activeYear: "2024",
       layerOpacity: 0.85,
+      spatialSelection: {
+        spatialArea: "national",
+        spatialValue: "brasil",
+      },
     });
     useMapLayerActionsMock.mockReturnValue({
       setSelectedState: vi.fn(),
       setSelectedMunicipalityCode: vi.fn(),
       setLayerOpacity: vi.fn(),
+      setSpatialSelection: vi.fn(),
     });
   });
 
@@ -162,6 +167,10 @@ describe("PlatformMap", () => {
       selectedState: "br",
       activeYear: "2024",
       layerOpacity: 0.85,
+      spatialSelection: {
+        spatialArea: "national",
+        spatialValue: "brasil",
+      },
     });
 
     const { rerender } = render(<PlatformMap showMonitoringOverlays />);

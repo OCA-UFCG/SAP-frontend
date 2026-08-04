@@ -1,5 +1,5 @@
 "use client";
-import { useCallback, useState } from "react";
+import { useCallback, useMemo, useState } from "react";
 import { useTranslations } from "next-intl";
 import { PlatformMapCaption } from "@/components/PlatformMapCaption/PlatformMapCaption";
 import { useEarthEngineTileLayer } from "./useEarthEngineTileLayer";
@@ -14,6 +14,8 @@ import {
 interface PlatformMapProps {
   showMonitoringOverlays?: boolean;
 }
+
+import { getAllowedStateUfs } from "@/utils/interestAreaStates";
 
 export function PlatformMap({ showMonitoringOverlays = true }: PlatformMapProps) {
   const t = useTranslations("PlatformMap");
@@ -42,6 +44,11 @@ export function PlatformMap({ showMonitoringOverlays = true }: PlatformMapProps)
     );
   }, []);
 
+  const allowedStateUfs = useMemo(
+    () => getAllowedStateUfs(spatialSelection),
+    [spatialSelection],
+  );
+
   const hasRenderedCurrentRequest =
     status === "ready" && Boolean(requestKey) && readyRequestKey === requestKey;
 
@@ -66,6 +73,7 @@ export function PlatformMap({ showMonitoringOverlays = true }: PlatformMapProps)
           tileLayerUrl={tileLayerUrl}
           tileLayerRequestKey={requestKey}
           layerOpacity={layerOpacity}
+          allowedStateUfs={allowedStateUfs}
           basemap={basemap}
           onStateSelect={(uf: string) => setSelectedState(uf.toLowerCase())}
           onSelectedMunicipalityCodeChange={setSelectedMunicipalityCode}
