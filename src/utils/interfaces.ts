@@ -16,13 +16,6 @@ export interface FooterI {
   appears: boolean;
 }
 
-export interface IInterestedArea{
-  interestedArea: interestArea;
-  interestedAreaValue: string;
-}
-
-export type interestArea =
-  "national" | /*"state" |*/ "region" | "biome" | "semiarid" | "asd";
 export interface SedesChannelI {
   name: string;
   href: string;

@@ -8,6 +8,7 @@ vi.mock("@/services/mapServices", () => ({
 import { useEarthEngineTileLayer } from "@/components/PlatformMap/useEarthEngineTileLayer";
 import { fetchMapURL } from "@/services/mapServices";
 import type { IEEInfo, IImageParam } from "@/utils/interfaces";
+import type { SpatialSelection } from "@/utils/spatialScope";
 
 const mockedFetchMapURL = vi.mocked(fetchMapURL);
 
@@ -37,13 +38,16 @@ const eeLayer = {
 function Probe({
   activeEEData,
   activeYear,
+  spatialSelection,
 }: {
   activeEEData: IEEInfo | null;
   activeYear: string;
+  spatialSelection?: SpatialSelection;
 }) {
   const { requestKey, status, tileLayerUrl } = useEarthEngineTileLayer(
     activeEEData,
     activeYear,
+    spatialSelection,
   );
 
   return (
@@ -80,8 +84,8 @@ describe("useEarthEngineTileLayer", () => {
       "ee-layer",
       "2024",
       expect.any(AbortSignal),
-      undefined,
-      undefined,
+      "national",
+      "brasil",
     );
   });
 
@@ -117,7 +121,9 @@ describe("useEarthEngineTileLayer", () => {
     render(<Probe activeEEData={eeLayer} activeYear="2024" />);
 
     await waitFor(() => {
-      expect(screen.getByText("ee-layer:2024:nacional:nacional")).toBeInTheDocument();
+      expect(
+        screen.getByText("ee-layer:2024:national:brasil"),
+      ).toBeInTheDocument();
       expect(screen.getByText("loading")).toBeInTheDocument();
       expect(screen.getByText("no-url")).toBeInTheDocument();
     });
@@ -130,6 +136,48 @@ describe("useEarthEngineTileLayer", () => {
         screen.getByText("https://tiles.example/2024"),
       ).toBeInTheDocument();
     });
+  });
+
+  it("requests a new tile URL when the spatial selection changes", async () => {
+    mockedFetchMapURL
+      .mockResolvedValueOnce("https://tiles.example/brasil")
+      .mockResolvedValueOnce("https://tiles.example/nordeste");
+
+    const { rerender } = render(
+      <Probe activeEEData={eeLayer} activeYear="2024" />,
+    );
+
+    await waitFor(() => {
+      expect(screen.getByText("https://tiles.example/brasil")).toBeInTheDocument();
+    });
+
+    rerender(
+      <Probe
+        activeEEData={eeLayer}
+        activeYear="2024"
+        spatialSelection={{
+          spatialArea: "region",
+          spatialValue: "Nordeste",
+        }}
+      />,
+    );
+
+    await waitFor(() => {
+      expect(
+        screen.getByText("ee-layer:2024:region:Nordeste"),
+      ).toBeInTheDocument();
+      expect(
+        screen.getByText("https://tiles.example/nordeste"),
+      ).toBeInTheDocument();
+    });
+
+    expect(mockedFetchMapURL).toHaveBeenLastCalledWith(
+      "ee-layer",
+      "2024",
+      expect.any(AbortSignal),
+      "region",
+      "Nordeste",
+    );
   });
 
   it("does not fetch when the selected year is not available for the active layer", async () => {

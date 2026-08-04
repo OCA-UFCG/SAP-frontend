@@ -16,8 +16,35 @@ describe("ee cache", () => {
 
   it("uses the versioned key format consistently", () => {
     expect(buildCacheKey("layer-a", "2024")).toBe(
-      'v6:layer-a:2024:{"imageId":null,"imageParams":null,"minScale":null,"maxScale":null,"mapVisualization":null}:nacional:nacional',
+      'v7:layer-a:2024:{"imageId":null,"imageParams":null,"minScale":null,"maxScale":null,"mapVisualization":null}:national:brasil',
     );
+  });
+
+  it("uses the canonical national selection and separates other scopes", () => {
+    const defaultKey = buildCacheKey("layer-a", "2024");
+    const explicitNationalKey = buildCacheKey(
+      "layer-a",
+      "2024",
+      undefined,
+      undefined,
+      undefined,
+      undefined,
+      undefined,
+      { spatialArea: "national", spatialValue: "brasil" },
+    );
+    const regionalKey = buildCacheKey(
+      "layer-a",
+      "2024",
+      undefined,
+      undefined,
+      undefined,
+      undefined,
+      undefined,
+      { spatialArea: "region", spatialValue: "Nordeste" },
+    );
+
+    expect(explicitNationalKey).toBe(defaultKey);
+    expect(regionalKey).not.toBe(defaultKey);
   });
 
   it("stores and retrieves cached urls by the generated key", () => {

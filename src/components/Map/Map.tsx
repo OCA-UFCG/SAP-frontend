@@ -8,6 +8,8 @@ import {
   GEE_LAYER_ID,
   GEE_SOURCE_ID,
   type MapMode,
+  OSM_LAYER_ID,
+  SATELLITE_LAYER_ID,
   STATES_FILL_LAYER_ID,
   STATES_SOURCE_ID,
   STATES_SOURCE_LAYER,
@@ -24,6 +26,8 @@ import {
   buildMunicipalityLabel,
   MUNICIPALITY_HOVER_LAYER_ID,
 } from "./municipalityLayers";
+export type BasemapId = "osm" | "satellite";
+
 export interface MapProps {
   mapMode?: MapMode;
   minZoom?: number;
@@ -37,6 +41,7 @@ export interface MapProps {
   selectedMunicipalityCode?: string | null;
   tileLayerUrl?: string | null;
   tileLayerRequestKey?: string | null;
+  basemap?: BasemapId;
   onStateSelect?: (uf: string) => void;
   onSelectedMunicipalityCodeChange?: (municipalityCode: string | null) => void;
   onTileLayerReady?: (requestKey: string) => void;
@@ -57,6 +62,7 @@ const Map = ({
   selectedMunicipalityCode,
   tileLayerUrl,
   tileLayerRequestKey,
+  basemap = "osm",
   onStateSelect,
   onSelectedMunicipalityCodeChange,
   onTileLayerReady,
@@ -445,6 +451,22 @@ const Map = ({
     } catch {
     }
   }, [layerOpacity, mapRef, mapInstanceVersion]);
+
+  useEffect(() => {
+    const map = mapRef.current;
+    if (!map || !map.isStyleLoaded()) return;
+
+    map.setLayoutProperty(
+      OSM_LAYER_ID,
+      "visibility",
+      basemap === "osm" ? "visible" : "none",
+    );
+    map.setLayoutProperty(
+      SATELLITE_LAYER_ID,
+      "visibility",
+      basemap === "satellite" ? "visible" : "none",
+    );
+  }, [basemap, mapRef, mapInstanceVersion]);
 
   return (
     <div className="w-full h-full">

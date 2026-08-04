@@ -1,4 +1,11 @@
-import { act, cleanup, render, screen, waitFor } from "@testing-library/react";
+import {
+  act,
+  cleanup,
+  fireEvent,
+  render,
+  screen,
+  waitFor,
+} from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import type { ComponentProps } from "react";
 
@@ -118,6 +125,31 @@ describe("PlatformMap", () => {
     ).toHaveValue("0.85");
   });
 
+  it("switches between street and satellite basemaps", () => {
+    useEarthEngineTileLayerMock.mockReturnValue({
+      requestKey: "ee-layer:2024",
+      status: "ready",
+      tileLayerUrl: "https://tiles.example/2024",
+    });
+
+    render(<PlatformMap />);
+
+    const streetButton = screen.getByRole("button", { name: "Rua" });
+    const satelliteButton = screen.getByRole("button", { name: "Satélite" });
+    expect(latestMapProps?.basemap).toBe("osm");
+    expect(streetButton).toHaveAttribute("aria-pressed", "true");
+    expect(satelliteButton).toHaveAttribute("aria-pressed", "false");
+
+    fireEvent.click(satelliteButton);
+
+    expect(latestMapProps?.basemap).toBe("satellite");
+    expect(streetButton).toHaveAttribute("aria-pressed", "false");
+    expect(satelliteButton).toHaveAttribute("aria-pressed", "true");
+    expect(
+      screen.getByRole("group", { name: "Mapa base" }),
+    ).toBeInTheDocument();
+  });
+
   it("hides monitoring overlays outside monitoring without changing opacity", () => {
     useEarthEngineTileLayerMock.mockReturnValue({
       requestKey: "ee-layer:2024",
@@ -143,6 +175,9 @@ describe("PlatformMap", () => {
 
     rerender(<PlatformMap showMonitoringOverlays={false} />);
 
+    expect(
+      screen.queryByRole("group", { name: "Mapa base" }),
+    ).not.toBeInTheDocument();
     expect(
       screen.queryByRole("slider", { name: "Transparência" }),
     ).not.toBeInTheDocument();
