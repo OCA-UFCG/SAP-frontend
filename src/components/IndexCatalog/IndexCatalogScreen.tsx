@@ -657,7 +657,8 @@ export function IndexCatalogScreen() {
                             item.published ? "Mover para draft" : "Publicar"
                           } ${item.name}`}
                           onClick={() => togglePublication(item)}
-                          className="text-sm font-semibold text-[#5B612A] disabled:cursor-not-allowed disabled:text-[#AAA6A8]"
+                          className="text-sm font-semibold cursor-pointer text-[#5B612A] 
+                            disabled:cursor-not-allowed disabled:text-[#AAA6A8]"
                         >
                           {busy === `lifecycle-${item.entryId}`
                             ? "Alterando…"
@@ -674,7 +675,8 @@ export function IndexCatalogScreen() {
                           disabled={busy !== null}
                           aria-label={`Remover ${item.name}`}
                           onClick={() => reviewDeletion(item)}
-                          className="text-sm font-semibold text-red-700 disabled:cursor-not-allowed disabled:text-[#AAA6A8]"
+                          className="text-sm font-semibold text-red-700 cursor-pointer
+                           disabled:cursor-not-allowed disabled:text-[#AAA6A8]"
                         >
                           {busy === `delete-impact-${item.entryId}`
                             ? "Verificando…"
@@ -729,7 +731,7 @@ export function IndexCatalogScreen() {
             <label className="text-sm font-medium text-[#292829]">
               Categoria
               <select
-                className={inputClass}
+                className={`${inputClass} cursor-pointer`}
                 value={draft.category}
                 onChange={(event) =>
                   updateDraft(
@@ -773,7 +775,7 @@ export function IndexCatalogScreen() {
               />
               <button
                 type="button"
-                className={`${buttonClass} mt-1 shrink-0`}
+                className={`${buttonClass} mt-1 shrink-0 cursor-pointer`}
                 disabled={busy !== null}
                 onClick={searchDrive}
               >
@@ -847,7 +849,7 @@ export function IndexCatalogScreen() {
                 <label className="text-sm font-medium text-[#292829]">
                   Tipo de valor
                   <select
-                    className={inputClass}
+                    className={`${inputClass} cursor-pointer`}
                     value={draft.valueType}
                     onChange={(event) =>
                       updateDraft(
@@ -946,7 +948,7 @@ export function IndexCatalogScreen() {
               <label className="text-sm font-medium text-[#292829]">
                 Estratégia
                 <select
-                  className={inputClass}
+                  className={`${inputClass} cursor-pointer`}
                   value={draft.earthEngine.strategy}
                   onChange={(event) =>
                     updateEarthEngine({
@@ -962,7 +964,7 @@ export function IndexCatalogScreen() {
               <label className="text-sm font-medium text-[#292829]">
                 Tipo do asset
                 <select
-                  className={inputClass}
+                  className={`${inputClass} cursor-pointer`}
                   value={draft.earthEngine.sourceType}
                   onChange={(event) =>
                     updateEarthEngine({
@@ -1087,7 +1089,7 @@ export function IndexCatalogScreen() {
           <div className="mt-8 flex flex-wrap justify-end gap-3 border-t border-[#E4E5E2] pt-6">
             <button
               type="button"
-              className="rounded-md border border-[#989F43] px-4 py-2 text-sm font-semibold text-[#5B612A] disabled:opacity-50"
+              className="rounded-md cursor-pointer border border-[#989F43] px-4 py-2 text-sm font-semibold text-[#5B612A] disabled:opacity-50"
               disabled={busy !== null}
               onClick={saveDraft}
             >
@@ -1095,7 +1097,7 @@ export function IndexCatalogScreen() {
             </button>
             <button
               type="button"
-              className={buttonClass}
+              className={`${buttonClass} cursor-pointer`}
               disabled={busy !== null}
               onClick={generatePreview}
             >
@@ -1103,7 +1105,7 @@ export function IndexCatalogScreen() {
             </button>
             <button
               type="button"
-              className="rounded-md bg-[#292829] px-4 py-2 text-sm font-semibold text-white disabled:cursor-not-allowed disabled:opacity-40"
+              className="rounded-md bg-[#292829] px-4 py-2 cursor-pointer text-sm font-semibold text-white disabled:cursor-not-allowed disabled:opacity-40"
               disabled={busy !== null || !preview}
               onClick={publishDraft}
             >
