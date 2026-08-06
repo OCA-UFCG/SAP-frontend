@@ -56,7 +56,7 @@ export function catalogErrorResponse(error: unknown) {
     error instanceof Error ? error.message : "Falha inesperada no catálogo.";
   const validation = getCatalogValidationFromError(error);
   const isInputError =
-    /obrigat|inválid|inval|informe|selecione|máximo|publicados|legados|rascunho|prévia|confirme|confirmação|ação/iu.test(
+    /obrigat|inválid|inval|informe|selecione|cadastre|máximo|publicados|legados|rascunho|prévia|confirme|confirmação|ação/iu.test(
       message,
     );
 

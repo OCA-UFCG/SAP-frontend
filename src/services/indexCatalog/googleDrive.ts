@@ -12,6 +12,7 @@ import { toRows } from "../../../tools/drive-contentful-pipeline/lib/csv/csv-par
 
 const DRIVE_API_BASE_URL = "https://www.googleapis.com/drive/v3";
 const GOOGLE_TOKEN_URL = "https://oauth2.googleapis.com/token";
+const GOOGLE_DRIVE_FOLDER_MIME_TYPE = "application/vnd.google-apps.folder";
 const GOOGLE_SHEETS_MIME_TYPE = "application/vnd.google-apps.spreadsheet";
 const CSV_MIME_TYPES = new Set([
   "text/csv",
@@ -31,6 +32,7 @@ interface DriveApiFile {
 
 let accessTokenCache:
   | {
+      identity: string;
       value: string;
       expiresAt: number;
     }
@@ -81,10 +83,6 @@ async function getDriveAccessToken() {
     return process.env.GOOGLE_DRIVE_ACCESS_TOKEN;
   }
 
-  if (accessTokenCache && accessTokenCache.expiresAt > Date.now() + 60_000) {
-    return accessTokenCache.value;
-  }
-
   const email = process.env.GOOGLE_DRIVE_CLIENT_EMAIL;
   const privateKey = decodeDrivePrivateKey();
 
@@ -92,6 +90,14 @@ async function getDriveAccessToken() {
     throw new Error(
       "Configure GOOGLE_DRIVE_CLIENT_EMAIL e GOOGLE_DRIVE_PRIVATE_KEY_BASE64 para usar o catálogo.",
     );
+  }
+
+  const identity = email.trim().toLocaleLowerCase("en-US");
+  if (
+    accessTokenCache?.identity === identity &&
+    accessTokenCache.expiresAt > Date.now() + 60_000
+  ) {
+    return accessTokenCache.value;
   }
 
   const response = await fetch(GOOGLE_TOKEN_URL, {
@@ -117,6 +123,7 @@ async function getDriveAccessToken() {
   }
 
   accessTokenCache = {
+    identity,
     value: body.access_token,
     expiresAt: Date.now() + (body.expires_in ?? 3600) * 1000,
   };
@@ -141,7 +148,43 @@ async function driveFetch<T>(url: URL, context: string): Promise<T> {
   return JSON.parse(text) as T;
 }
 
+async function assertConfiguredFolderAccessible() {
+  const folderId = getDriveFolderId();
+  const url = new URL(
+    `${DRIVE_API_BASE_URL}/files/${encodeURIComponent(folderId)}`,
+  );
+  url.searchParams.set("fields", "id,name,mimeType,trashed");
+  url.searchParams.set("supportsAllDrives", "true");
+
+  let folder: DriveApiFile & { trashed?: boolean };
+  try {
+    folder = await driveFetch<DriveApiFile & { trashed?: boolean }>(
+      url,
+      "Validação da pasta configurada do Drive",
+    );
+  } catch (error) {
+    const reason =
+      error instanceof Error ? error.message : "Erro inesperado no Drive.";
+    if (/status (?:403|404)\b/u.test(reason)) {
+      throw new Error(
+        "A conta de serviço não consegue acessar a pasta configurada do Drive. Compartilhe a pasta com GOOGLE_DRIVE_CLIENT_EMAIL e tente novamente.",
+      );
+    }
+    throw new Error(
+      `Não foi possível validar o acesso à pasta configurada do Drive. ${reason}`,
+    );
+  }
+
+  if (folder.trashed || folder.mimeType !== GOOGLE_DRIVE_FOLDER_MIME_TYPE) {
+    throw new Error(
+      "GOOGLE_DRIVE_FOLDER_ID não aponta para uma pasta ativa do Drive.",
+    );
+  }
+}
+
 async function listConfiguredFolderFiles() {
+  await assertConfiguredFolderAccessible();
+
   const files: DriveApiFile[] = [];
   let pageToken = "";
 
@@ -285,6 +328,8 @@ async function getDriveFileMetadata(fileId: string) {
 export async function resolveSelectedDriveFiles(
   selectedFiles: DriveSourceSelection[],
 ) {
+  await assertConfiguredFolderAccessible();
+
   const folderId = getDriveFolderId();
   const resolved: Array<{
     metadata: DriveApiFile;

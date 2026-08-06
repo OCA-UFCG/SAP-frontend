@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { CatalogMonitoringPreview } from "@/components/IndexCatalog/CatalogMonitoringPreview";
 import {
   INDEX_CATEGORIES,
@@ -65,6 +65,18 @@ function statusLabel(item: IndexCatalogItem) {
   return "Rascunho";
 }
 
+function correctionMessages(item: IndexCatalogItem) {
+  if (item.status !== "error" || !item.catalogConfig) return [];
+
+  const validationMessages =
+    item.catalogConfig.validation?.errors.map((issue) => issue.message) ?? [];
+  const lastFailure = [...(item.catalogConfig.auditLog ?? [])]
+    .reverse()
+    .find((event) => event.outcome === "failure")?.message;
+
+  return [...new Set([...validationMessages, ...(lastFailure ? [lastFailure] : [])])];
+}
+
 function createClasses(files: DriveFileCandidate[]): ClassMapping[] {
   const columns =
     [...files]
@@ -97,6 +109,27 @@ function filesSafelyInferPercentage(files: DriveFileCandidate[]) {
         ),
     )
   );
+}
+
+function inferDriveConfiguration(
+  files: DriveFileCandidate[],
+  current: IndexCatalogDraftInput,
+) {
+  const compatibleFiles = files.filter(
+    (file) => file.inspection.role !== "unsupported",
+  );
+  const inferredPercentage = filesSafelyInferPercentage(compatibleFiles);
+
+  return {
+    compatibleFiles,
+    draft: {
+      ...current,
+      selectedFiles: compatibleFiles,
+      classes: createClasses(compatibleFiles),
+      valueType: inferredPercentage ? ("percentage" as const) : current.valueType,
+      unit: inferredPercentage ? "%" : current.unit,
+    },
+  };
 }
 
 function parseAssetsByPeriod(value: string) {
@@ -150,6 +183,8 @@ export function IndexCatalogScreen() {
   const [draft, setDraft] = useState<IndexCatalogDraftInput>(EMPTY_DRAFT);
   const [entryId, setEntryId] = useState<string | null>(null);
   const [driveResults, setDriveResults] = useState<DriveFileCandidate[]>([]);
+  const [driveError, setDriveError] = useState("");
+  const [driveMessage, setDriveMessage] = useState("");
   const [periodAssetsText, setPeriodAssetsText] = useState("");
   const [preview, setPreview] = useState<IndexCatalogPreview | null>(null);
   const [deleteImpact, setDeleteImpact] =
@@ -158,6 +193,9 @@ export function IndexCatalogScreen() {
   const [message, setMessage] = useState("");
   const [error, setError] = useState("");
   const [busy, setBusy] = useState<string | null>("load");
+  const entryIdRef = useRef<string | null>(null);
+  const createRequestKeyRef = useRef<string | null>(null);
+  const savePromiseRef = useRef<Promise<string | null> | null>(null);
 
   const loadItems = useCallback(async () => {
     const result = await apiRequest<{ items: IndexCatalogItem[] }>(
@@ -183,6 +221,14 @@ export function IndexCatalogScreen() {
     () => new Set(draft.selectedFiles.map((file) => file.id)),
     [draft.selectedFiles],
   );
+  const duplicateNameCounts = useMemo(() => {
+    const counts = new Map<string, number>();
+    for (const item of items) {
+      const key = item.name.trim().toLocaleLowerCase("pt-BR");
+      counts.set(key, (counts.get(key) ?? 0) + 1);
+    }
+    return counts;
+  }, [items]);
   const safelyInferredPercentage = filesSafelyInferPercentage(
     draft.selectedFiles,
   );
@@ -190,17 +236,24 @@ export function IndexCatalogScreen() {
   function startNewDraft() {
     setDraft({ ...EMPTY_DRAFT, earthEngine: { ...EMPTY_DRAFT.earthEngine } });
     setEntryId(null);
+    entryIdRef.current = null;
+    createRequestKeyRef.current = null;
     setDriveResults([]);
+    setDriveError("");
+    setDriveMessage("");
     setPeriodAssetsText("");
     setPreview(null);
-    setError("");
     setMessage("");
   }
 
   function clearEditor() {
     setDraft({ ...EMPTY_DRAFT, earthEngine: { ...EMPTY_DRAFT.earthEngine } });
     setEntryId(null);
+    entryIdRef.current = null;
+    createRequestKeyRef.current = null;
     setDriveResults([]);
+    setDriveError("");
+    setDriveMessage("");
     setPeriodAssetsText("");
     setPreview(null);
   }
@@ -219,13 +272,16 @@ export function IndexCatalogScreen() {
       earthEngine: item.catalogConfig.earthEngine,
     };
     setEntryId(item.entryId);
+    entryIdRef.current = item.entryId;
+    createRequestKeyRef.current = null;
     setDraft(input);
     setDriveResults(input.selectedFiles);
+    setDriveError("");
+    setDriveMessage("");
     setPeriodAssetsText(
       serializeAssetsByPeriod(input.earthEngine.assetsByPeriod),
     );
     setPreview(null);
-    setError("");
     setMessage(`Rascunho “${item.name}” carregado.`);
   }
 
@@ -247,7 +303,9 @@ export function IndexCatalogScreen() {
 
   async function searchDrive() {
     setBusy("drive");
-    setError("");
+    setDriveError("");
+    setDriveMessage("");
+    setDriveResults([]);
     setMessage("");
     try {
       const result = await apiRequest<{ items: DriveFileCandidate[] }>(
@@ -258,17 +316,24 @@ export function IndexCatalogScreen() {
         },
       );
       setDriveResults(result.items);
-      setMessage(
+      const inferred = inferDriveConfiguration(result.items, draft);
+      setDraft(inferred.draft);
+      setPreview(null);
+      setDriveMessage(
         result.items.length
-          ? `${result.items.length} arquivo(s) encontrado(s).`
-          : "Nenhum CSV ou Google Sheet corresponde à tag.",
+          ? `${inferred.compatibleFiles.length} arquivo(s) compatível(is) selecionado(s) automaticamente${
+              result.items.length > inferred.compatibleFiles.length
+                ? `; ${result.items.length - inferred.compatibleFiles.length} incompatível(is) ficou(aram) de fora.`
+                : "."
+            }`
+          : "A pasta está acessível, mas nenhum CSV ou Google Sheet corresponde à tag informada.",
       );
     } catch (requestError) {
-      setError(
+      const reason =
         requestError instanceof Error
           ? requestError.message
-          : "Falha ao pesquisar no Drive.",
-      );
+          : "Erro inesperado na requisição.";
+      setDriveError(reason);
     } finally {
       setBusy(null);
     }
@@ -291,8 +356,10 @@ export function IndexCatalogScreen() {
           : current.valueType,
         unit: filesSafelyInferPercentage(selected) ? "%" : current.unit,
         classes:
-          inferredClasses.length > 0 &&
-          current.classes.length !== inferredClasses.length
+          selected.length === 0
+            ? []
+            : inferredClasses.length > 0 &&
+                current.classes.length !== inferredClasses.length
             ? inferredClasses
             : current.classes,
       };
@@ -323,21 +390,56 @@ export function IndexCatalogScreen() {
     };
   }
 
-  async function saveDraft() {
+  async function persistDraft() {
     setBusy("save");
-    setError("");
     setMessage("");
     try {
-      const input = normalizedDraft();
-      const result = entryId
+      let input = normalizedDraft();
+      if (input.selectedFiles.length === 0 && input.sourceTag.trim()) {
+        const driveSearch = await apiRequest<{ items: DriveFileCandidate[] }>(
+          "/api/index-catalog/drive-search",
+          {
+            method: "POST",
+            body: JSON.stringify({ tag: input.sourceTag }),
+          },
+        );
+        const inferred = inferDriveConfiguration(driveSearch.items, input);
+        input = inferred.draft;
+        setDriveResults(driveSearch.items);
+        setDriveMessage(
+          `${inferred.compatibleFiles.length} arquivo(s) compatível(is) selecionado(s) automaticamente.`,
+        );
+        setDraft(input);
+
+        if (inferred.compatibleFiles.length === 0) {
+          throw new Error(
+            "Nenhum arquivo compatível foi encontrado para a tag informada.",
+          );
+        }
+        if (input.classes.length === 0) {
+          throw new Error(
+            "As fontes encontradas ainda não possuem colunas reconhecidas para inferir classes ou medidas.",
+          );
+        }
+      }
+      const currentEntryId = entryIdRef.current;
+      const result = currentEntryId
         ? await apiRequest<{ entryId: string }>(
-            `/api/index-catalog/drafts/${encodeURIComponent(entryId)}`,
+            `/api/index-catalog/drafts/${encodeURIComponent(currentEntryId)}`,
             { method: "PUT", body: JSON.stringify(input) },
           )
         : await apiRequest<{ entryId: string }>("/api/index-catalog", {
             method: "POST",
+            headers: {
+              "Idempotency-Key":
+                (createRequestKeyRef.current ??= idempotencyKey(
+                  "create",
+                  "draft",
+                )),
+            },
             body: JSON.stringify(input),
           });
+      entryIdRef.current = result.entryId;
       setEntryId(result.entryId);
       setDraft(input);
       setMessage("Rascunho salvo no Contentful sem publicação.");
@@ -355,12 +457,23 @@ export function IndexCatalogScreen() {
     }
   }
 
+  function saveDraft() {
+    if (savePromiseRef.current) return savePromiseRef.current;
+
+    const promise = persistDraft().finally(() => {
+      if (savePromiseRef.current === promise) {
+        savePromiseRef.current = null;
+      }
+    });
+    savePromiseRef.current = promise;
+    return promise;
+  }
+
   async function generatePreview() {
     const savedEntryId = await saveDraft();
     if (!savedEntryId) return;
 
     setBusy("preview");
-    setError("");
     setMessage("Validando Drive, Earth Engine e payloads…");
     try {
       const result = await apiRequest<IndexCatalogPreview>(
@@ -402,7 +515,6 @@ export function IndexCatalogScreen() {
   async function publishDraft() {
     if (!entryId || !preview) return;
     setBusy("publish");
-    setError("");
     setMessage("Revalidando fontes e publicando partições…");
     try {
       await apiRequest(
@@ -434,7 +546,6 @@ export function IndexCatalogScreen() {
   async function togglePublication(item: IndexCatalogItem) {
     const action = item.published ? "unpublish" : "publish";
     setBusy(`lifecycle-${item.entryId}`);
-    setError("");
     setMessage(
       item.published
         ? `Movendo “${item.name}” para draft…`
@@ -474,7 +585,6 @@ export function IndexCatalogScreen() {
 
   async function reviewDeletion(item: IndexCatalogItem) {
     setBusy(`delete-impact-${item.entryId}`);
-    setError("");
     setMessage("");
     try {
       const impact = await apiRequest<IndexCatalogLifecycleImpact>(
@@ -508,7 +618,6 @@ export function IndexCatalogScreen() {
     }
 
     setBusy("delete");
-    setError("");
     try {
       await apiRequest(
         `/api/index-catalog/entries/${encodeURIComponent(
@@ -554,6 +663,26 @@ export function IndexCatalogScreen() {
 
   return (
     <main className="min-h-[calc(100vh-64px)] bg-[#F6F7F6] pl-[140px]">
+      {error && (
+        <div className="fixed left-4 right-4 top-20 z-[70] flex justify-center sm:left-[156px] sm:right-8">
+          <div
+            role="alert"
+            aria-live="assertive"
+            aria-atomic="true"
+            className="flex w-full max-w-[1500px] items-start gap-4 rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-800 shadow-lg"
+          >
+            <span className="flex-1">{error}</span>
+            <button
+              type="button"
+              className="-mr-1 -mt-1 flex h-7 w-7 shrink-0 items-center justify-center rounded text-xl leading-none text-red-800 transition hover:bg-red-100 focus:outline-none focus:ring-2 focus:ring-red-400"
+              aria-label="Fechar notificação de erro"
+              onClick={() => setError("")}
+            >
+              ×
+            </button>
+          </div>
+        </div>
+      )}
       <div className="mx-auto max-w-[1500px] space-y-6 px-8 py-10">
         <header className="flex flex-wrap items-start justify-between gap-4">
           <div>
@@ -574,14 +703,6 @@ export function IndexCatalogScreen() {
           </button>
         </header>
 
-        {error && (
-          <div
-            role="alert"
-            className="rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-800"
-          >
-            {error}
-          </div>
-        )}
         {message && (
           <div
             role="status"
@@ -600,102 +721,138 @@ export function IndexCatalogScreen() {
             Monitoramento. Remover apaga o panelLayer e suas entradas
             territoriais vinculadas.
           </p>
-          <div className="mt-4 overflow-x-auto">
-            <table className="w-full min-w-[720px] text-left text-sm">
-              <thead className="border-b border-[#E4E5E2] text-xs uppercase text-[#7E797B]">
-                <tr>
-                  <th className="px-3 py-3">Nome</th>
-                  <th className="px-3 py-3">Categoria</th>
-                  <th className="px-3 py-3">Estado</th>
-                  <th className="px-3 py-3 text-right">Ação</th>
-                </tr>
-              </thead>
-              <tbody>
-                {items.map((item) => (
-                  <tr key={item.entryId} className="border-b border-[#F0F0ED]">
-                    <td className="px-3 py-3 font-medium text-[#292829]">
-                      {item.name}
-                    </td>
-                    <td className="px-3 py-3 text-[#666164]">
-                      {item.category ?? "—"}
-                    </td>
-                    <td className="px-3 py-3">
-                      <span className="rounded-full bg-[#F1F2E5] px-2.5 py-1 text-xs text-[#5B612A]">
+          <div className="mt-4 space-y-3">
+            {items.map((item) => {
+              const corrections = correctionMessages(item);
+              const duplicateCount =
+                duplicateNameCounts.get(
+                  item.name.trim().toLocaleLowerCase("pt-BR"),
+                ) ?? 0;
+              const canPublish =
+                item.published ||
+                !item.catalogManaged ||
+                item.status === "ready" ||
+                item.status === "published";
+
+              return (
+                <article
+                  key={item.entryId}
+                  className={`rounded-lg border p-4 ${
+                    item.status === "error"
+                      ? "border-red-200 bg-red-50/40"
+                      : "border-[#E4E5E2] bg-[#FAFAF8]"
+                  }`}
+                >
+                  <div className="flex flex-wrap items-start justify-between gap-4">
+                    <div className="min-w-0">
+                      <h3 className="font-semibold text-[#292829]">
+                        {item.name}
+                      </h3>
+                      <div className="mt-1 flex flex-wrap gap-x-3 gap-y-1 text-xs text-[#7E797B]">
+                        <span>{item.category ?? "Sem categoria"}</span>
+                        <span>ID técnico: {item.panelLayerId || "—"}</span>
+                        {item.catalogConfig?.updatedBy.at && (
+                          <span>
+                            Atualizado em{" "}
+                            {new Date(
+                              item.catalogConfig.updatedBy.at,
+                            ).toLocaleString("pt-BR")}
+                          </span>
+                        )}
+                      </div>
+                    </div>
+                    <div className="flex flex-wrap items-center gap-2">
+                      {duplicateCount > 1 && (
+                        <span className="rounded-full bg-amber-100 px-2.5 py-1 text-xs font-semibold text-amber-800">
+                          Possível duplicado
+                        </span>
+                      )}
+                      <span
+                        className={`rounded-full px-2.5 py-1 text-xs font-semibold ${
+                          item.status === "error"
+                            ? "bg-red-100 text-red-800"
+                            : item.status === "ready" || item.published
+                              ? "bg-emerald-100 text-emerald-800"
+                              : "bg-[#F1F2E5] text-[#5B612A]"
+                        }`}
+                      >
                         {statusLabel(item)}
                       </span>
-                    </td>
-                    <td className="px-3 py-3">
-                      <div className="flex min-w-[320px] justify-end gap-3">
-                        {item.catalogConfig && !item.published && (
-                          <button
-                            type="button"
-                            disabled={busy !== null}
-                            onClick={() => resumeDraft(item)}
-                            className="text-sm font-semibold text-[#777B3D] disabled:cursor-not-allowed disabled:text-[#AAA6A8]"
-                          >
-                            Retomar
-                          </button>
-                        )}
-                        <button
-                          type="button"
-                          disabled={
-                            busy !== null ||
-                            (!item.published &&
-                              item.catalogManaged &&
-                              item.status !== "ready" &&
-                              item.status !== "published")
-                          }
-                          title={
-                            !item.published &&
-                            item.catalogManaged &&
-                            item.status !== "ready" &&
-                            item.status !== "published"
-                              ? "Gere uma prévia válida antes de publicar."
-                              : undefined
-                          }
-                          aria-label={`${
-                            item.published ? "Mover para draft" : "Publicar"
-                          } ${item.name}`}
-                          onClick={() => togglePublication(item)}
-                          className="text-sm font-semibold text-[#5B612A] disabled:cursor-not-allowed disabled:text-[#AAA6A8]"
-                        >
-                          {busy === `lifecycle-${item.entryId}`
-                            ? "Alterando…"
-                            : item.published
-                              ? "Mover para draft"
-                              : item.catalogManaged &&
-                                  item.status !== "ready" &&
-                                  item.status !== "published"
-                                ? "Valide para publicar"
-                                : "Publicar"}
-                        </button>
-                        <button
-                          type="button"
-                          disabled={busy !== null}
-                          aria-label={`Remover ${item.name}`}
-                          onClick={() => reviewDeletion(item)}
-                          className="text-sm font-semibold text-red-700 disabled:cursor-not-allowed disabled:text-[#AAA6A8]"
-                        >
-                          {busy === `delete-impact-${item.entryId}`
-                            ? "Verificando…"
-                            : "Remover"}
-                        </button>
-                      </div>
-                    </td>
-                  </tr>
-                ))}
-                {!busy && items.length === 0 && (
-                  <tr>
-                    <td
-                      colSpan={4}
-                      className="px-3 py-8 text-center text-[#7E797B]"
+                    </div>
+                  </div>
+
+                  {item.status === "error" && (
+                    <div className="mt-3 rounded-md border border-red-200 bg-white px-3 py-2 text-sm text-red-800">
+                      <p className="font-semibold">O que precisa ser corrigido</p>
+                      {corrections.length > 0 ? (
+                        <ul className="mt-1 list-disc space-y-1 pl-5">
+                          {corrections.map((correction) => (
+                            <li key={correction}>{correction}</li>
+                          ))}
+                        </ul>
+                      ) : (
+                        <p className="mt-1">
+                          Abra o rascunho e gere uma nova prévia para obter o
+                          diagnóstico atualizado.
+                        </p>
+                      )}
+                    </div>
+                  )}
+
+                  <div className="mt-4 flex flex-wrap items-center justify-end gap-4 border-t border-[#E4E5E2] pt-3">
+                    {item.catalogConfig && !item.published && (
+                      <button
+                        type="button"
+                        disabled={busy !== null}
+                        onClick={() => resumeDraft(item)}
+                        className="text-sm font-semibold text-[#777B3D] disabled:cursor-not-allowed disabled:text-[#AAA6A8]"
+                      >
+                        {item.status === "error"
+                          ? "Abrir e corrigir"
+                          : "Continuar configuração"}
+                      </button>
+                    )}
+                    {canPublish ? (
+                      <button
+                        type="button"
+                        disabled={busy !== null}
+                        aria-label={`${
+                          item.published ? "Mover para draft" : "Publicar"
+                        } ${item.name}`}
+                        onClick={() => togglePublication(item)}
+                        className="text-sm font-semibold text-[#5B612A] disabled:cursor-not-allowed disabled:text-[#AAA6A8]"
+                      >
+                        {busy === `lifecycle-${item.entryId}`
+                          ? "Alterando…"
+                          : item.published
+                            ? "Mover para draft"
+                            : "Publicar"}
+                      </button>
+                    ) : (
+                      <span className="text-xs text-[#7E797B]">
+                        Próximo passo: abrir e gerar uma prévia válida
+                      </span>
+                    )}
+                    <button
+                      type="button"
+                      disabled={busy !== null}
+                      aria-label={`Remover ${item.name}`}
+                      onClick={() => reviewDeletion(item)}
+                      className="text-sm font-semibold text-red-700 disabled:cursor-not-allowed disabled:text-[#AAA6A8]"
                     >
-                      Nenhum panelLayer encontrado.
-                    </td>
-                  </tr>
-                )}
-              </tbody>
-            </table>
+                      {busy === `delete-impact-${item.entryId}`
+                        ? "Verificando…"
+                        : "Remover"}
+                    </button>
+                  </div>
+                </article>
+              );
+            })}
+            {!busy && items.length === 0 && (
+              <p className="px-3 py-8 text-center text-sm text-[#7E797B]">
+                Nenhum panelLayer encontrado.
+              </p>
+            )}
           </div>
         </section>
 
@@ -767,9 +924,11 @@ export function IndexCatalogScreen() {
                 className={inputClass}
                 value={draft.sourceTag}
                 placeholder="Ex.: desertificacao"
-                onChange={(event) =>
-                  updateDraft("sourceTag", event.target.value)
-                }
+                onChange={(event) => {
+                  updateDraft("sourceTag", event.target.value);
+                  setDriveError("");
+                  setDriveMessage("");
+                }}
               />
               <button
                 type="button"
@@ -780,6 +939,31 @@ export function IndexCatalogScreen() {
                 {busy === "drive" ? "Buscando…" : "Buscar no Drive"}
               </button>
             </div>
+
+            {driveError && (
+              <div
+                role="alert"
+                className="mt-3 rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-800"
+              >
+                <span className="font-semibold">
+                  Não foi possível buscar no Drive.
+                </span>{" "}
+                {driveError}
+              </div>
+            )}
+
+            {driveMessage && (
+              <div
+                role="status"
+                className={`mt-3 rounded-lg border px-4 py-3 text-sm ${
+                  driveResults.length > 0
+                    ? "border-[#D7D9B3] bg-[#F3F4DE] text-[#5B612A]"
+                    : "border-amber-200 bg-amber-50 text-amber-800"
+                }`}
+              >
+                {driveMessage}
+              </div>
+            )}
 
             {driveResults.length > 0 && (
               <div className="mt-4 overflow-x-auto rounded-lg border border-[#E4E5E2]">
@@ -836,8 +1020,24 @@ export function IndexCatalogScreen() {
 
           <div className="mt-8 border-t border-[#E4E5E2] pt-6">
             <h3 className="font-semibold text-[#292829]">
-              Interpretação e classes
+              Configuração inferida dos arquivos
             </h3>
+            <p className="mt-1 text-sm text-[#7E797B]">
+              O catálogo preenche esta etapa pelas colunas dos CSVs
+              selecionados automaticamente. Os ajustes abaixo são opcionais.
+            </p>
+            {draft.selectedFiles.length > 0 && (
+              <div className="mt-4 rounded-md border border-[#D7D9B3] bg-[#F3F4DE] px-3 py-3 text-sm text-[#5B612A]">
+                <p className="font-semibold">Detectado automaticamente</p>
+                <p className="mt-1">
+                  {draft.selectedFiles.length} fonte(s), {draft.classes.length}{" "}
+                  classe(s) ou medida(s)
+                  {draft.classes.length > 0
+                    ? `: ${draft.classes.map((entry) => entry.column).join(", ")}`
+                    : "."}
+                </p>
+              </div>
+            )}
             <div className="mt-4 grid gap-4 md:grid-cols-2">
               {safelyInferredPercentage ? (
                 <div className="rounded-md border border-[#D7D9B3] bg-[#F3F4DE] px-3 py-2 text-sm text-[#5B612A]">
@@ -877,65 +1077,72 @@ export function IndexCatalogScreen() {
               )}
             </div>
 
-            <div className="mt-4 space-y-3">
-              {draft.classes.map((classEntry, index) => (
-                <div
-                  key={`${classEntry.column}-${index}`}
-                  className="grid gap-3 rounded-lg border border-[#E4E5E2] bg-[#FAFAF8] p-4 md:grid-cols-[1.3fr_1.3fr_110px_100px]"
-                >
-                  <label className="text-xs font-medium text-[#666164]">
-                    Coluna
-                    <input
-                      className={inputClass}
-                      value={classEntry.column}
-                      onChange={(event) =>
-                        updateClass(index, { column: event.target.value })
-                      }
-                    />
-                  </label>
-                  <label className="text-xs font-medium text-[#666164]">
-                    Nome
-                    <input
-                      className={inputClass}
-                      value={classEntry.label}
-                      onChange={(event) =>
-                        updateClass(index, { label: event.target.value })
-                      }
-                    />
-                  </label>
-                  <label className="text-xs font-medium text-[#666164]">
-                    Cor
-                    <input
-                      type="color"
-                      className={`${inputClass} h-10 p-1`}
-                      value={classEntry.color}
-                      onChange={(event) =>
-                        updateClass(index, { color: event.target.value })
-                      }
-                    />
-                  </label>
-                  <label className="text-xs font-medium text-[#666164]">
-                    Código
-                    <input
-                      type="number"
-                      className={inputClass}
-                      value={classEntry.pixelValue ?? index}
-                      onChange={(event) =>
-                        updateClass(index, {
-                          pixelValue: Number(event.target.value),
-                        })
-                      }
-                    />
-                  </label>
+            {draft.classes.length > 0 && (
+              <details className="mt-4 rounded-lg border border-[#E4E5E2] bg-[#FAFAF8] p-4">
+                <summary className="cursor-pointer text-sm font-semibold text-[#5B612A]">
+                  Ajustar colunas, nomes, cores e códigos (opcional)
+                </summary>
+                <div className="mt-4 space-y-3">
+                  {draft.classes.map((classEntry, index) => (
+                    <div
+                      key={`${classEntry.column}-${index}`}
+                      className="grid gap-3 rounded-lg border border-[#E4E5E2] bg-white p-4 md:grid-cols-[1.3fr_1.3fr_110px_100px]"
+                    >
+                      <label className="text-xs font-medium text-[#666164]">
+                        Coluna
+                        <input
+                          className={inputClass}
+                          value={classEntry.column}
+                          onChange={(event) =>
+                            updateClass(index, { column: event.target.value })
+                          }
+                        />
+                      </label>
+                      <label className="text-xs font-medium text-[#666164]">
+                        Nome
+                        <input
+                          className={inputClass}
+                          value={classEntry.label}
+                          onChange={(event) =>
+                            updateClass(index, { label: event.target.value })
+                          }
+                        />
+                      </label>
+                      <label className="text-xs font-medium text-[#666164]">
+                        Cor
+                        <input
+                          type="color"
+                          className={`${inputClass} h-10 p-1`}
+                          value={classEntry.color}
+                          onChange={(event) =>
+                            updateClass(index, { color: event.target.value })
+                          }
+                        />
+                      </label>
+                      <label className="text-xs font-medium text-[#666164]">
+                        Código
+                        <input
+                          type="number"
+                          className={inputClass}
+                          value={classEntry.pixelValue ?? index}
+                          onChange={(event) =>
+                            updateClass(index, {
+                              pixelValue: Number(event.target.value),
+                            })
+                          }
+                        />
+                      </label>
+                    </div>
+                  ))}
                 </div>
-              ))}
-              {draft.selectedFiles.length > 0 && draft.classes.length === 0 && (
-                <p className="rounded-md bg-amber-50 px-3 py-2 text-sm text-amber-800">
-                  Os arquivos selecionados não expõem colunas reconhecidas de
-                  classe. Escolha arquivos compatíveis com o contrato atual.
-                </p>
-              )}
-            </div>
+              </details>
+            )}
+            {draft.selectedFiles.length > 0 && draft.classes.length === 0 && (
+              <p className="mt-4 rounded-md bg-amber-50 px-3 py-2 text-sm text-amber-800">
+                As fontes encontradas ainda não possuem nomes de colunas que o
+                catálogo reconheça automaticamente.
+              </p>
+            )}
           </div>
 
           <div className="mt-8 border-t border-[#E4E5E2] pt-6">

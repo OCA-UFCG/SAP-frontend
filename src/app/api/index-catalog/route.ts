@@ -1,6 +1,10 @@
 import { listCatalogEntries } from "@/services/indexCatalog/contentfulManagement";
 import { createIndexCatalogDraft } from "@/services/indexCatalog/indexCatalogService";
 import {
+  getIdempotencyKey,
+  runCatalogIdempotently,
+} from "@/services/indexCatalog/idempotency";
+import {
   catalogErrorResponse,
   noStoreJson,
   readJsonBody,
@@ -23,9 +27,11 @@ export async function POST(request: Request) {
   if ("response" in access) return access.response;
 
   try {
-    const result = await createIndexCatalogDraft(
-      await readJsonBody(request),
-      access.user,
+    const body = await readJsonBody(request);
+    const result = await runCatalogIdempotently(
+      `create:${access.user.uid}`,
+      getIdempotencyKey(request),
+      () => createIndexCatalogDraft(body, access.user),
     );
     return noStoreJson(result, 201);
   } catch (error) {

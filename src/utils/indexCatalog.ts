@@ -139,7 +139,6 @@ function parseDriveSelections(value: unknown): DriveSourceSelection[] {
   if (!Array.isArray(value) || value.length > 100) {
     throw new Error("A seleção de arquivos do Drive é inválida.");
   }
-
   const roles = new Set([
     "panel",
     "municipal",
