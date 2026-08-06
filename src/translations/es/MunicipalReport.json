@@ -27,7 +27,7 @@
     "moduleInformation": "Más información sobre {title}",
     "emptyPreviewTitle": "Vista previa del informe",
     "emptyPreviewDescription": "Seleccione el municipio, el período y los módulos disponibles para generar el informe.",
-    "emptyPreviewInstruction": "Seleccione primero la información del panel lateral para generar un informe",
+    "emptyPreviewInstruction": "Seleccione la información del panel lateral para generar un informe",
     "preview": "Ver informe",
     "back": "Volver a Comunicación",
     "loading": "Cargando datos del informe...",
