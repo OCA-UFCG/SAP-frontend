@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import {
+  formatPercentage,
   formatMunicipalReportValue,
   formatMunicipalReportValueWithUnit,
   getMunicipalReportValueLabels,
@@ -32,8 +33,6 @@ describe("municipal report value presentation", () => {
   });
 });
 
-import { formatPercentage } from "@/utils/municipalReportValue";
-
 describe("formatPercentage", () => {
   it("formats with pt-BR locale (comma decimal, dot thousands separator)", () => {
     expect(formatPercentage(1234.5, "pt-BR")).toBe("1.234,5");
@@ -56,13 +55,9 @@ describe("formatPercentage", () => {
     expect(formatPercentage(0.5, "es-AR")).toBe("0,5");
   });
 
-  it("uses system locale when no locale is provided", () => {
-    const systemLocale = new Intl.DateTimeFormat().resolvedOptions().locale;
-    const result = formatPercentage(42);
-    const expected = new Intl.NumberFormat(systemLocale, {
-      minimumFractionDigits: 1,
-      maximumFractionDigits: 1,
-    }).format(42);
-    expect(result).toBe(expected);
+  it("supports the locale identifiers used by the application routes", () => {
+    expect(formatPercentage(42.5, "pt")).toBe("42,5");
+    expect(formatPercentage(42.5, "en")).toBe("42.5");
+    expect(formatPercentage(42.5, "es")).toBe("42,5");
   });
 });

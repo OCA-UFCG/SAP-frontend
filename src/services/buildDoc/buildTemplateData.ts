@@ -23,20 +23,32 @@ function getAnalysis(report: MunicipalReportData, analysisId: string) {
   return report.analyses.find((analysis) => analysis.id === analysisId);
 }
 
-function getAnalysisTimeSeries(report: MunicipalReportData, analysisId: string): MunicipalReportPeriodSnapshot[] {
+function getAnalysisTimeSeries(
+  report: MunicipalReportData,
+  analysisId: string,
+): MunicipalReportPeriodSnapshot[] {
   const analysis = getAnalysis(report, analysisId);
   if (!analysis?.effectivePeriod) return [];
 
-  return analysis.timeSeries.filter((snapshot) => snapshot.period <= analysis.effectivePeriod!);
+  return analysis.timeSeries.filter(
+    (snapshot) => snapshot.period <= analysis.effectivePeriod!,
+  );
 }
 
-function getLatestSnapshot(timeSeries: MunicipalReportPeriodSnapshot[]): MunicipalReportPeriodSnapshot | undefined {
+function getLatestSnapshot(
+  timeSeries: MunicipalReportPeriodSnapshot[],
+): MunicipalReportPeriodSnapshot | undefined {
   const series = timeSeries.filter((snapshot) => snapshot.dominantClass);
   return series.length > 0 ? series[series.length - 1] : undefined;
 }
 
-function getDistributionPercentage(snapshot: MunicipalReportPeriodSnapshot | undefined, classId: string): number {
-  return snapshot?.distribution.find((item) => item.id === classId)?.percentage ?? 0;
+function getDistributionPercentage(
+  snapshot: MunicipalReportPeriodSnapshot | undefined,
+  classId: string,
+): number {
+  return (
+    snapshot?.distribution.find((item) => item.id === classId)?.percentage ?? 0
+  );
 }
 
 function formatPeriod(period: string) {
@@ -59,13 +71,16 @@ function formatClassLabel(label: string) {
 
 function formatClass(id: string, label: string) {
   const presentation = getMunicipalReportPresentation(SECA_ANALYSIS_ID);
-  const code = presentation.history?.classes[id]?.code ?? presentation.classes?.[id]?.code;
+  const code =
+    presentation.history?.classes[id]?.code ?? presentation.classes?.[id]?.code;
   const classLabel = formatClassLabel(label);
 
   return code ? `${classLabel} (${code})` : classLabel;
 }
 
-function computarVariaveisSeca(timeSeries: MunicipalReportPeriodSnapshot[]): Record<string, string | number> {
+function computarVariaveisSeca(
+  timeSeries: MunicipalReportPeriodSnapshot[],
+): Record<string, string | number> {
   const series = timeSeries.filter((snapshot) => snapshot.dominantClass);
   if (series.length === 0) return {};
 
@@ -75,7 +90,9 @@ function computarVariaveisSeca(timeSeries: MunicipalReportPeriodSnapshot[]): Rec
 
   const ultimos12 = series.slice(Math.max(totalMeses - 12, 0));
 
-  const qtd_meses_com_seca = ultimos12.filter((mes) => mes.dominantClass!.id !== "sem-seca").length;
+  const qtd_meses_com_seca = ultimos12.filter(
+    (mes) => mes.dominantClass!.id !== "sem-seca",
+  ).length;
   const mes_ano_inicio_tendencia = formatPeriod(ultimos12[0].period);
 
   const pesosSeca: Record<string, number> = {
@@ -88,7 +105,9 @@ function computarVariaveisSeca(timeSeries: MunicipalReportPeriodSnapshot[]): Rec
   };
 
   const pesoAtual = pesosSeca[ultimoMes.dominantClass!.id] ?? 0;
-  const pesoAnterior = penultimoMes ? (pesosSeca[penultimoMes.dominantClass!.id] ?? 0) : 0;
+  const pesoAnterior = penultimoMes
+    ? (pesosSeca[penultimoMes.dominantClass!.id] ?? 0)
+    : 0;
 
   let status_tendencia_seca = "mantendo";
   if (pesoAtual > pesoAnterior) status_tendencia_seca = "agravando";
@@ -128,27 +147,41 @@ function computarVariaveisSeca(timeSeries: MunicipalReportPeriodSnapshot[]): Rec
     }
   }
 
-  const mesesSecaMaxima = series.filter((m) => m.dominantClass!.id === idClasseMaxima).map((m) => m.period);
+  const mesesSecaMaxima = series
+    .filter((m) => m.dominantClass!.id === idClasseMaxima)
+    .map((m) => m.period);
   const periodos_seca_maxima =
     mesesSecaMaxima.length > 0
-      ? mesesSecaMaxima.slice(-3).map(formatPeriod).join(", ") + (mesesSecaMaxima.length > 3 ? " (entre outros)" : "")
+      ? mesesSecaMaxima.slice(-3).map(formatPeriod).join(", ") +
+        (mesesSecaMaxima.length > 3 ? " (entre outros)" : "")
       : "nenhum";
   return {
     qtd_meses_com_seca,
     mes_ano_inicio_tendencia,
     status_tendencia_seca,
-    classe_seca_anterior: penultimoMes ? formatClass(penultimoMes.dominantClass!.id, penultimoMes.dominantClass!.label) : "Sem dados",
+    classe_seca_anterior: penultimoMes
+      ? formatClass(
+          penultimoMes.dominantClass!.id,
+          penultimoMes.dominantClass!.label,
+        )
+      : "Sem dados",
     ano_inicio_historico,
     ano_fim_historico,
-    classe_seca_mais_frequente: formatClass(idClasseMaisFrequente, classeMaisFrequente),
-    percentual_freq_seca: formatPercentage((countMaisFrequente / totalMeses) * 100),
-    percentual_sem_seca: formatPercentage((((freqClasses["sem-seca"]?.count ?? 0) / totalMeses) * 100)),
+    classe_seca_mais_frequente: formatClass(
+      idClasseMaisFrequente,
+      classeMaisFrequente,
+    ),
+    percentual_freq_seca: (countMaisFrequente / totalMeses) * 100,
+    percentual_sem_seca:
+      ((freqClasses["sem-seca"]?.count ?? 0) / totalMeses) * 100,
     classe_seca_maxima: formatClass(idClasseMaxima, classeSecaMaxima),
     periodos_seca_maxima,
   };
 }
 
-function computarVariaveisAridez(timeSeries: MunicipalReportPeriodSnapshot[]): Record<string, string | number> {
+function computarVariaveisAridez(
+  timeSeries: MunicipalReportPeriodSnapshot[],
+): Record<string, string | number> {
   const series = timeSeries.filter((snapshot) => snapshot.dominantClass);
   if (series.length === 0) return {};
 
@@ -166,7 +199,10 @@ function computarVariaveisAridez(timeSeries: MunicipalReportPeriodSnapshot[]): R
   const pesoFim = pesosAridez[ultima.dominantClass!.id] ?? 0;
 
   let tendencia = "estabilidade";
-  if (pesoFim > pesoIni || ultima.dominantClass!.percentage > primeira.dominantClass!.percentage) {
+  if (
+    pesoFim > pesoIni ||
+    ultima.dominantClass!.percentage > primeira.dominantClass!.percentage
+  ) {
     tendencia = "aridificação";
   } else if (pesoFim < pesoIni) {
     tendencia = "amenização";
@@ -179,7 +215,9 @@ function computarVariaveisAridez(timeSeries: MunicipalReportPeriodSnapshot[]): R
   };
 }
 
-function computarVariaveisDegradacao(timeSeries: MunicipalReportPeriodSnapshot[]): Record<string, string | number> {
+function computarVariaveisDegradacao(
+  timeSeries: MunicipalReportPeriodSnapshot[],
+): Record<string, string | number> {
   const series = timeSeries.filter((snapshot) => snapshot.dominantClass);
   if (series.length < 2) return {};
 
@@ -197,11 +235,16 @@ function computarVariaveisDegradacao(timeSeries: MunicipalReportPeriodSnapshot[]
   const pctN5 = getPct(final, "nivel-5");
 
   let status_tendencia_degradacao = "estabilidade";
-  const degradacaoInicial = getPct(inicial, "nivel-3") + getPct(inicial, "nivel-4") + getPct(inicial, "nivel-5");
+  const degradacaoInicial =
+    getPct(inicial, "nivel-3") +
+    getPct(inicial, "nivel-4") +
+    getPct(inicial, "nivel-5");
   const degradacaoFinal = pctN3 + pctN4 + pctN5;
 
-  if (degradacaoFinal > degradacaoInicial + 1) status_tendencia_degradacao = "aumento";
-  if (degradacaoFinal < degradacaoInicial - 1) status_tendencia_degradacao = "redução";
+  if (degradacaoFinal > degradacaoInicial + 1)
+    status_tendencia_degradacao = "aumento";
+  if (degradacaoFinal < degradacaoInicial - 1)
+    status_tendencia_degradacao = "redução";
 
   let maxDiff = 0;
   let classeMaiorVariacao = "";
@@ -229,8 +272,9 @@ function computarVariaveisDegradacao(timeSeries: MunicipalReportPeriodSnapshot[]
     status_tendencia_degradacao,
     classe_maior_variacao_deg: classeMaiorVariacao,
     acrescimo_decrescimo_deg: acrescimoDecrescimo,
-    variacao_deg_pontos: formatPercentage(maxDiff),
-    compatibilidade_com_seca: status_tendencia_degradacao === "aumento" ? "é" : "não é totalmente",
+    variacao_deg_pontos: maxDiff,
+    compatibilidade_com_seca:
+      status_tendencia_degradacao === "aumento" ? "é" : "não é totalmente",
     relacao_seca_degradacao_texto:
       status_tendencia_degradacao === "aumento"
         ? "o déficit hídrico prolongado acelera a perda de cobertura vegetal"
@@ -243,23 +287,27 @@ export function prepareTemplateData(report: MunicipalReportData): TemplateData {
   const aridezSeries = getAnalysisTimeSeries(report, ARIDEZ_ANALYSIS_ID);
   const degSeries = getAnalysisTimeSeries(report, DEGRADACAO_ANALYSIS_ID);
 
-  const ultimoSeca = getAnalysis(report, SECA_ANALYSIS_ID)?.snapshot ?? getLatestSnapshot(secaSeries);
-  const ultimoAridez = getAnalysis(report, ARIDEZ_ANALYSIS_ID)?.snapshot ?? getLatestSnapshot(aridezSeries);
-  const ultimoDeg = getAnalysis(report, DEGRADACAO_ANALYSIS_ID)?.snapshot ?? getLatestSnapshot(degSeries);
+  const ultimoSeca =
+    getAnalysis(report, SECA_ANALYSIS_ID)?.snapshot ??
+    getLatestSnapshot(secaSeries);
+  const ultimoAridez =
+    getAnalysis(report, ARIDEZ_ANALYSIS_ID)?.snapshot ??
+    getLatestSnapshot(aridezSeries);
+  const ultimoDeg =
+    getAnalysis(report, DEGRADACAO_ANALYSIS_ID)?.snapshot ??
+    getLatestSnapshot(degSeries);
 
   const varsSeca = computarVariaveisSeca(secaSeries);
   const varsAridez = computarVariaveisAridez(aridezSeries);
   const varsDeg = computarVariaveisDegradacao(degSeries);
 
-  const grauRisco = varsDeg.status_tendencia_degradacao === "aumento" ? "elevado" : "moderado";
+  const grauRisco =
+    varsDeg.status_tendencia_degradacao === "aumento" ? "elevado" : "moderado";
 
-  const soma_percentual_deg_n3_n4_n5 = formatPercentage(
-      getDistributionPercentage(ultimoDeg, "nivel-3") +
-      getDistributionPercentage(ultimoDeg, "nivel-4") +
-      getDistributionPercentage(ultimoDeg, "nivel-5"), 
-      REPORT_LOCALE,
-      2
-  );
+  const soma_percentual_deg_n3_n4_n5 =
+    getDistributionPercentage(ultimoDeg, "nivel-3") +
+    getDistributionPercentage(ultimoDeg, "nivel-4") +
+    getDistributionPercentage(ultimoDeg, "nivel-5");
 
   return {
     municipio: report.municipality.name,
@@ -269,9 +317,13 @@ export function prepareTemplateData(report: MunicipalReportData): TemplateData {
     ),
     periodo_referencia: formatPeriod(report.requestedPeriod),
 
-    classe_seca: ultimoSeca?.dominantClass ? formatClass(ultimoSeca.dominantClass.id, ultimoSeca.dominantClass.label) : "Sem dados",
+    classe_seca: ultimoSeca?.dominantClass
+      ? formatClass(ultimoSeca.dominantClass.id, ultimoSeca.dominantClass.label)
+      : "Sem dados",
     percentual_seca: ultimoSeca?.dominantClass?.percentage ?? 0,
-    periodo_seca: ultimoSeca?.period ? formatPeriod(ultimoSeca.period) : "Sem dados",
+    periodo_seca: ultimoSeca?.period
+      ? formatPeriod(ultimoSeca.period)
+      : "Sem dados",
 
     classe_aridez: ultimoAridez?.dominantClass?.label ?? "Sem dados",
     percentual_aridez: ultimoAridez?.dominantClass?.percentage ?? 0,
@@ -288,13 +340,11 @@ export function prepareTemplateData(report: MunicipalReportData): TemplateData {
     ...varsDeg,
 
     texto_resumo_seca: `Seca ${ultimoSeca?.dominantClass?.label.toLowerCase() ?? "ativa"} prolongada`,
-    texto_resumo_aridez: `enquadramento integral nas ASDs (${formatPercentage(ultimoAridez?.dominantClass?.percentage ?? 0)}% ${ultimoAridez?.dominantClass?.label})`,
+    texto_resumo_aridez: `enquadramento integral nas ASDs (${formatPercentage(ultimoAridez?.dominantClass?.percentage ?? 0, REPORT_LOCALE)}% ${ultimoAridez?.dominantClass?.label})`,
     texto_resumo_degradacao: "presença acentuada de degradação da terra",
     grau_exposicao_desertificacao: grauRisco,
   };
 }
-
-
 
 export async function getTemplateData(
   ibgeId: string,
@@ -302,7 +352,9 @@ export async function getTemplateData(
   onTiming?: TimingObserver,
   existingReport?: import("@/contracts/municipalReport").MunicipalReportData,
 ): Promise<TemplateData> {
-  const report = existingReport ?? await buildMunicipalReport(ibgeId, period, { onTiming });
+  const report =
+    existingReport ??
+    (await buildMunicipalReport(ibgeId, period, { onTiming }));
   const templateData = prepareTemplateData(report);
 
   return { ...report.templateVariables, ...templateData };

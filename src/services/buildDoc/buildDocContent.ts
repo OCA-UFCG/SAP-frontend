@@ -6,24 +6,21 @@ import type { TimingObserver } from "@/utils/serverTiming";
 import type { MunicipalReportData } from "@/contracts/municipalReport";
 import { formatPercentage } from "@/utils/municipalReportValue";
 
-
-const PERCENTAGE_KEYS = new Set([
-  "percentual_seca",
-  "percentual_aridez",
-  "percentual_degradacao",
-  "percentual_freq_seca",
-  "percentual_sem_seca",
-  "variacao_deg_pontos",
-]);
-
-const TWO_DIGIT_PERCENTAGE_KEYS = new Set([
-  "soma_percentual_deg_n3_n4_n5",
-]);
+const REPORT_LOCALE = "pt-BR";
+const TWO_DIGIT_PERCENTAGE_KEYS = new Set(["soma_percentual_deg_n3_n4_n5"]);
 
 function formatTemplateNumber(key: string, value: number): string {
-    if (TWO_DIGIT_PERCENTAGE_KEYS.has(key)) return formatPercentage(value, "pt-BR", 2);
-    if (PERCENTAGE_KEYS.has(key)) return formatPercentage(value, "pt-BR", 1);
-    return String(value);
+  if (TWO_DIGIT_PERCENTAGE_KEYS.has(key)) {
+    return formatPercentage(value, REPORT_LOCALE, 2);
+  }
+  if (
+    key.startsWith("percentual_") ||
+    key.startsWith("frequencia_") ||
+    key === "variacao_deg_pontos"
+  ) {
+    return formatPercentage(value, REPORT_LOCALE);
+  }
+  return String(value);
 }
 
 type BuildDocContentInput = {
@@ -57,19 +54,35 @@ export async function buildDocContent({
     month,
     year,
   });
-  onTiming?.("docs_template", performance.now() - templateStartedAt, "Leitura do template no Google Docs");
+  onTiming?.(
+    "docs_template",
+    performance.now() - templateStartedAt,
+    "Leitura do template no Google Docs",
+  );
 
   const dataStartedAt = performance.now();
   const templateData = await getTemplateData(ibgeId, period, onTiming, report);
-  onTiming?.("docs_data", performance.now() - dataStartedAt, "Montagem dos dados do template");
+  onTiming?.(
+    "docs_data",
+    performance.now() - dataStartedAt,
+    "Montagem dos dados do template",
+  );
 
   const populateStartedAt = performance.now();
   const content = populateDocContent(baseTemplate, templateData);
-  onTiming?.("docs_populate", performance.now() - populateStartedAt, "Substituição das variáveis do template");
+  onTiming?.(
+    "docs_populate",
+    performance.now() - populateStartedAt,
+    "Substituição das variáveis do template",
+  );
   return content;
 }
 
-function populateTemplate(theme: string, template: string, data: TemplateData): string {
+function populateTemplate(
+  theme: string,
+  template: string,
+  data: TemplateData,
+): string {
   const regex = /\[([^\]]+)\]/g;
   const normalizedData = normalizeTemplateDataKeys(data);
   const placeholderCounters = new Map<string, number>();
@@ -77,21 +90,36 @@ function populateTemplate(theme: string, template: string, data: TemplateData): 
   return template.replace(regex, (match, key: string) => {
     const cleanKey = key.trim();
     const normalizedKey = normalizeTemplateKey(cleanKey);
-    const value =
-      data[cleanKey] ??
-      normalizedData[normalizedKey] ??
-      getAliasedTemplateValue(theme, normalizedKey, normalizedData, placeholderCounters);
+    let resolvedKey = normalizedKey;
+    let value = data[cleanKey] ?? normalizedData[normalizedKey];
+
+    if (value === undefined || value === null) {
+      const aliasedKey = getAliasedTemplateKey(
+        theme,
+        normalizedKey,
+        placeholderCounters,
+      );
+      if (aliasedKey) {
+        resolvedKey = aliasedKey;
+        value = normalizedData[aliasedKey];
+      }
+    }
 
     if (value === undefined || value === null) {
       return match;
     }
 
-    if (typeof value === "number") return formatTemplateNumber(normalizedKey, value);
+    if (typeof value === "number") {
+      return formatTemplateNumber(resolvedKey, value);
+    }
     return String(value);
   });
 }
 
-export function populateDocContent(template: DocsContent, data: TemplateData): DocsContent {
+export function populateDocContent(
+  template: DocsContent,
+  data: TemplateData,
+): DocsContent {
   return Object.fromEntries(
     Object.entries(template).map(([theme, sections]) => [
       theme,
@@ -107,10 +135,9 @@ export function populateDocContent(template: DocsContent, data: TemplateData): D
   );
 }
 
-function getAliasedTemplateValue(
+function getAliasedTemplateKey(
   theme: string,
   normalizedKey: string,
-  data: TemplateData,
   counters: Map<string, number>,
 ) {
   const aliasesByTheme: Record<string, Record<string, string>> = {
@@ -168,12 +195,10 @@ function getAliasedTemplateValue(
     const index = counters.get(normalizedKey) ?? 0;
     counters.set(normalizedKey, index + 1);
 
-    return data[sequence[index] ?? sequence[sequence.length - 1]];
+    return sequence[index] ?? sequence[sequence.length - 1];
   }
 
-  const alias = aliasesByTheme[theme]?.[normalizedKey];
-
-  return alias ? data[alias] : undefined;
+  return aliasesByTheme[theme]?.[normalizedKey];
 }
 
 function normalizeTemplateDataKeys(data: TemplateData): TemplateData {
