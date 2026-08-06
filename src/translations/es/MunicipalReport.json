@@ -3,7 +3,7 @@
     "section": "Comunicación",
     "title": "Informe municipal",
     "description": "Consulte los datos consolidados disponibles para un municipio y período.",
-    "selectionDescription": "Complete la información y luego haga clic en “generar informe”",
+    "selectionDescription": "Seleccione la información al lado para generar un informe",
     "selectArea": "Seleccione el área de análisis",
     "selectAreaHint": "Elija el municipio que se analizará en el informe.",
     "searchMunicipality": "Busque o seleccione un municipio",

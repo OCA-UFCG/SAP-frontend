@@ -3,7 +3,7 @@
     "section": "Comunicação",
     "title": "Relatório municipal",
     "description": "Consulte os dados consolidados disponíveis para um município e período.",
-    "selectionDescription": "Preencha as informações abaixo e em seguida clique em “gerar relatório”.",
+    "selectionDescription": "Selecione as informações ao lado para gerar um relatório",
     "selectArea": "Selecione a área da análise",
     "selectAreaHint": "Escolha o município que será analisado no relatório.",
     "searchMunicipality": "Busque ou selecione um município",
