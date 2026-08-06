@@ -15,9 +15,9 @@ export const Header = ({ content }: { content: ISection[] }) => {
             <Link href="/" className="relative z-10">
               <Image
                 alt="SEDES Logo"
-                src="/logo-sedes.png"
+                src="/logo-sedes.svg"
                 width={128}
-                height={72}
+                height={46}
                 className="h-12 w-auto"
               />
             </Link>

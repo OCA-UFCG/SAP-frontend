@@ -35,6 +35,15 @@ const openSans = Open_Sans({
 export const metadata: Metadata = {
   title: "Portal SEDES",
   description: "Portal SEDES criado por OCA",
+  manifest: "/manifest.json",
+  icons: {
+    icon: [
+      { url: "/favicon.svg", type: "image/svg+xml" },
+      { url: "/favicon-512x512.png", sizes: "512x512", type: "image/png" },
+      { url: "/favicon.ico", sizes: "any" },
+    ],
+    apple: [{ url: "/apple-icon.png", sizes: "180x180", type: "image/png" }],
+  },
 };
 
 const getCachedFooterContent = cache(getFooterContent);

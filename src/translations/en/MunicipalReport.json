@@ -27,7 +27,7 @@
     "moduleInformation": "More information about {title}",
     "emptyPreviewTitle": "Report preview",
     "emptyPreviewDescription": "Select the municipality, period, and available modules to generate the report.",
-    "emptyPreviewInstruction": "Select the information on the side first to generate a report",
+    "emptyPreviewInstruction": "Select the information on the side to generate a report",
     "preview": "Preview report",
     "back": "Back to Communication",
     "loading": "Loading report data...",
