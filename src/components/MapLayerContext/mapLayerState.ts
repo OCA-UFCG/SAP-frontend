@@ -1,6 +1,10 @@
 import { getImageDataDefaultYear } from "@/utils/imageData";
 import type { CDIVectorData } from "@/lib/geo";
 import type { IEEInfo, IImageParam } from "@/utils/interfaces";
+import {
+  DEFAULT_SPATIAL_SELECTION,
+  type SpatialSelection,
+} from "@/utils/spatialScope";
 
 export interface MapLayerState {
   activeData: CDIVectorData | null;
@@ -10,6 +14,7 @@ export interface MapLayerState {
   selectedMunicipalityCode: string | null;
   activeLayerId: string | null;
   activeYear: string;
+  spatialSelection: SpatialSelection;
   layerOpacity: number;
 }
 
@@ -25,7 +30,18 @@ export function createInitialMapLayerState(): MapLayerState {
     selectedMunicipalityCode: null,
     activeLayerId: null,
     activeYear: DEFAULT_ACTIVE_YEAR,
+    spatialSelection: DEFAULT_SPATIAL_SELECTION,
     layerOpacity: 0.85
+  };
+}
+
+export function setSpatialSelection(
+  state: MapLayerState,
+  spatialSelection: SpatialSelection,
+): MapLayerState {
+  return {
+    ...state,
+    spatialSelection,
   };
 }
 
@@ -128,5 +144,6 @@ export function resetPlatformState(state: MapLayerState): MapLayerState {
     ...clearActiveLayerState(state),
     selectedState: DEFAULT_SELECTED_STATE,
     selectedMunicipalityCode: null,
+    spatialSelection: DEFAULT_SPATIAL_SELECTION,
   };
 }

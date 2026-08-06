@@ -100,6 +100,10 @@ describe("AnalysisContext", () => {
       selectedState: municipality.uf,
       selectedMunicipalityCode: municipality.code,
       activeYear: "2024",
+      spatialSelection: {
+        spatialArea: "national",
+        spatialValue: "brasil",
+      },
     });
 
     useMapLayerActionsMock.mockReturnValue({
@@ -108,6 +112,7 @@ describe("AnalysisContext", () => {
       setActiveLegend: vi.fn(),
       setActiveYear: vi.fn(),
       resetPlatformState: vi.fn(),
+      setSpatialSelection: vi.fn(),
     });
 
     vi.mocked(trackUiEvent).mockReset();
@@ -288,6 +293,10 @@ describe("AnalysisContext", () => {
       selectedState: municipality.uf,
       selectedMunicipalityCode: municipality.code,
       activeYear: "2010",
+      spatialSelection: {
+        spatialArea: "national",
+        spatialValue: "brasil",
+      },
     });
 
     global.fetch = vi.fn().mockImplementation(async (url: string) => {

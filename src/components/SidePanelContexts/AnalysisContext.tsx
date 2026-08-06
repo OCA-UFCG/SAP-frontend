@@ -1,9 +1,10 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { useTranslations } from "next-intl";
 import { AnalysisPanel } from "@/components/analysis/AnalysisPanel";
 import type { SearchSubmissionMetadata } from "@/components/SearchBar/types";
+import type { SpatialSelection } from "@/utils/spatialScope";
 import {
   buildEmbeddedTerritorialAnalysisViewModel,
   getFallbackAnalysisLocationName,
@@ -28,6 +29,7 @@ import type { PlatformSection } from "@/components/PlatformSideRail/PlatformSide
 import type { PanelLayerI, IEEInfo } from "@/utils/interfaces";
 import type { CompactTerritorialAnalysisDataset } from "@/utils/analysis";
 import { statesObj } from "@/utils/constants";
+import { getAllowedStateUfs } from "@/utils/interestAreaStates";
 import { mergePartialMunicipalImageData } from "@/utils/municipalAnalysisMerge";
 
 interface MunicipalAnalysisApiResponse {
@@ -64,9 +66,15 @@ export function AnalysisContext({
     setSelectedMunicipalityCode,
     setActiveLegend,
     setActiveYear,
+    setSpatialSelection,
     resetPlatformState,
   } = useMapLayerActions();
-  const { selectedState, selectedMunicipalityCode, activeYear } =
+  const {
+    selectedState,
+    selectedMunicipalityCode,
+    activeYear,
+    spatialSelection,
+  } =
     useMapLayerViewState();
 
   const dataset = useMemo(() => {
@@ -368,11 +376,37 @@ export function AnalysisContext({
     analysisImageDataByRequestKey[municipalAnalysisRequestKey] === undefined,
   );
 
+  const handleSpatialSelectionChange = useCallback(
+    (value: SpatialSelection) => {
+      setSpatialSelection(value);
+
+      // O recorte mudou: se o estado selecionado não pertence ao novo
+      // recorte, deseleciona para não manter a borda de seleção antiga.
+      const allowedUfs = getAllowedStateUfs(value);
+      if (
+        allowedUfs &&
+        selectedState !== "br" &&
+        !allowedUfs.has(selectedState)
+      ) {
+        setSelectedState("br");
+        setSelectedMunicipalityCode(null);
+      }
+    },
+    [
+      selectedState,
+      setSpatialSelection,
+      setSelectedMunicipalityCode,
+      setSelectedState,
+    ],
+  );
+
   return (
     <AnalysisPanel
       moduleName={dataset?.name}
       yearOptions={yearOptions}
       activeYear={activeAnalysisYear}
+      spatialSelection={spatialSelection}
+      onSpatialSelectionChange={handleSpatialSelectionChange}
       onBack={handleGoBack}
       onSearch={handleSearch}
       searchTelemetryContext={{

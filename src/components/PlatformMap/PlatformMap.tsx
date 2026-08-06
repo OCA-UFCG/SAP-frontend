@@ -1,9 +1,10 @@
 "use client";
-import { useCallback, useState } from "react";
+import { useCallback, useMemo, useState } from "react";
 import { useTranslations } from "next-intl";
 import { PlatformMapCaption } from "@/components/PlatformMapCaption/PlatformMapCaption";
 import { useEarthEngineTileLayer } from "./useEarthEngineTileLayer";
 import MapComponent from "../Map/MapComponent";
+import type { BasemapId } from "../Map/Map";
 import {
   useMapLayerActions,
   useMapLayerActiveState,
@@ -14,6 +15,8 @@ interface PlatformMapProps {
   showMonitoringOverlays?: boolean;
 }
 
+import { getAllowedStateUfs } from "@/utils/interestAreaStates";
+
 export function PlatformMap({ showMonitoringOverlays = true }: PlatformMapProps) {
   const t = useTranslations("PlatformMap");
   const { activeData, activeEEData } = useMapLayerActiveState();
@@ -23,20 +26,28 @@ export function PlatformMap({ showMonitoringOverlays = true }: PlatformMapProps)
     selectedMunicipalityCode,
     activeYear,
     layerOpacity,
+    spatialSelection,
   } = useMapLayerViewState();
   const { setSelectedState, setSelectedMunicipalityCode, setLayerOpacity } =
     useMapLayerActions();
   const { requestKey, status, tileLayerUrl } = useEarthEngineTileLayer(
     activeEEData,
     activeYear,
+    spatialSelection,
   );
   const [readyRequestKey, setReadyRequestKey] = useState<string | null>(null);
+  const [basemap, setBasemap] = useState<BasemapId>("osm");
 
   const handleTileLayerReady = useCallback((readyRequestKey: string) => {
     setReadyRequestKey((current) =>
       current === readyRequestKey ? current : readyRequestKey,
     );
   }, []);
+
+  const allowedStateUfs = useMemo(
+    () => getAllowedStateUfs(spatialSelection),
+    [spatialSelection],
+  );
 
   const hasRenderedCurrentRequest =
     status === "ready" && Boolean(requestKey) && readyRequestKey === requestKey;
@@ -62,6 +73,8 @@ export function PlatformMap({ showMonitoringOverlays = true }: PlatformMapProps)
           tileLayerUrl={tileLayerUrl}
           tileLayerRequestKey={requestKey}
           layerOpacity={layerOpacity}
+          allowedStateUfs={allowedStateUfs}
+          basemap={basemap}
           onStateSelect={(uf: string) => setSelectedState(uf.toLowerCase())}
           onSelectedMunicipalityCodeChange={setSelectedMunicipalityCode}
           onTileLayerReady={handleTileLayerReady}
@@ -86,6 +99,43 @@ export function PlatformMap({ showMonitoringOverlays = true }: PlatformMapProps)
       </div>
 
       <div className="absolute bottom-0 right-6 z-[1000] box-border flex min-h-[124px] w-[302px] flex-col items-end justify-center gap-[10px] pb-6">
+        {showMonitoringOverlays && (
+          <div
+            className="box-border flex h-[50px] w-[302px] shrink-0 items-center gap-2 self-stretch rounded-lg border border-[#EFEFEF] bg-white p-4"
+            role="group"
+            aria-label={t("basemap")}
+          >
+            <span className="h-[18px] w-[66px] shrink-0 font-open-sans text-[10px] font-normal leading-[18px] tracking-[-0.006em] text-[#292829]">
+              {t("basemap")}
+            </span>
+            <div className="flex h-7 min-w-0 flex-1 rounded-md bg-[#F1F5F9] p-0.5">
+              <button
+                type="button"
+                onClick={() => setBasemap("osm")}
+                aria-pressed={basemap === "osm"}
+                className={`flex min-w-0 flex-1 items-center justify-center rounded-[4px] px-2 font-open-sans text-[10px] font-medium leading-[18px] transition-colors ${
+                  basemap === "osm"
+                    ? "bg-[#989F43] text-white shadow-sm"
+                    : "text-[#292829] hover:bg-[#E4E5E2]"
+                }`}
+              >
+                {t("street")}
+              </button>
+              <button
+                type="button"
+                onClick={() => setBasemap("satellite")}
+                aria-pressed={basemap === "satellite"}
+                className={`flex min-w-0 flex-1 items-center justify-center rounded-[4px] px-2 font-open-sans text-[10px] font-medium leading-[18px] transition-colors ${
+                  basemap === "satellite"
+                    ? "bg-[#989F43] text-white shadow-sm"
+                    : "text-[#292829] hover:bg-[#E4E5E2]"
+                }`}
+              >
+                {t("satellite")}
+              </button>
+            </div>
+          </div>
+        )}
         {showMonitoringOverlays && activeEEData && (
           <div className="box-border flex h-[50px] w-[302px] shrink-0 flex-col items-center gap-2 self-stretch rounded-lg border border-[#EFEFEF] bg-white p-4">
             <div className="flex h-[18px] w-[270px] shrink-0 items-center justify-center gap-2">

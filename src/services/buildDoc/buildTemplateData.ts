@@ -75,7 +75,7 @@ function computarVariaveisSeca(timeSeries: MunicipalReportPeriodSnapshot[]): Rec
 
   const ultimos12 = series.slice(Math.max(totalMeses - 12, 0));
 
-  const qtd_meses_com_seca = ultimos12.filter((m) => m.dominantClass!.id !== "sem-seca").length;
+  const qtd_meses_com_seca = ultimos12.filter((mes) => mes.dominantClass!.id !== "sem-seca").length;
   const mes_ano_inicio_tendencia = formatPeriod(ultimos12[0].period);
 
   const pesosSeca: Record<string, number> = {

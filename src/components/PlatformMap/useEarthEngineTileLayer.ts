@@ -4,6 +4,10 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { fetchMapURL } from "@/services/mapServices";
 import { getImageDataYearKeys, resolveImageYearEntry } from "@/utils/imageData";
 import type { IEEInfo } from "@/utils/interfaces";
+import {
+  DEFAULT_SPATIAL_SELECTION,
+  type SpatialSelection,
+} from "@/utils/spatialScope";
 
 export type EarthEngineTileLayerStatus = "idle" | "loading" | "ready" | "error";
 
@@ -22,6 +26,7 @@ interface ResolvedTileLayerState {
 export function useEarthEngineTileLayer(
   activeEEData: IEEInfo | null,
   activeYear: string,
+  spatialSelection: SpatialSelection = DEFAULT_SPATIAL_SELECTION,
 ): EarthEngineTileLayerResult {
   const [resolvedTileLayer, setResolvedTileLayer] =
     useState<ResolvedTileLayerState>({
@@ -50,11 +55,13 @@ export function useEarthEngineTileLayer(
     }
 
     return {
-      requestKey: `${activeEEData.id}:${activeYear}`,
+      requestKey: `${activeEEData.id}:${activeYear}:${spatialSelection.spatialArea}:${spatialSelection.spatialValue}`,
       layerId: activeEEData.id,
       year: activeYear,
+      spatialArea: spatialSelection.spatialArea,
+      spatialValue: spatialSelection.spatialValue,
     };
-  }, [activeEEData, activeYear]);
+  }, [activeEEData, activeYear, spatialSelection]);
 
   const requestKey = requestConfig?.requestKey ?? null;
 
@@ -93,6 +100,8 @@ export function useEarthEngineTileLayer(
           requestConfig.layerId,
           requestConfig.year,
           controller.signal,
+          requestConfig.spatialArea,
+          requestConfig.spatialValue,
         );
 
         if (latestRequestKeyRef.current !== requestConfig.requestKey) return;

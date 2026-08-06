@@ -1,0 +1,164 @@
+{
+  "ro": {
+    "region": "Norte",
+    "biomes": ["Amazônia"],
+    "semiarid": false,
+    "asd": false
+  },
+  "ac": {
+    "region": "Norte",
+    "biomes": ["Amazônia"],
+    "semiarid": false,
+    "asd": false
+  },
+  "am": {
+    "region": "Norte",
+    "biomes": ["Amazônia"],
+    "semiarid": false,
+    "asd": false
+  },
+  "rr": {
+    "region": "Norte",
+    "biomes": ["Amazônia"],
+    "semiarid": false,
+    "asd": false
+  },
+  "pa": {
+    "region": "Norte",
+    "biomes": ["Amazônia"],
+    "semiarid": false,
+    "asd": false
+  },
+  "ap": {
+    "region": "Norte",
+    "biomes": ["Amazônia"],
+    "semiarid": false,
+    "asd": false
+  },
+  "to": {
+    "region": "Norte",
+    "biomes": ["Cerrado", "Amazônia"],
+    "semiarid": false,
+    "asd": false
+  },
+  "ma": {
+    "region": "Nordeste",
+    "biomes": ["Amazônia", "Cerrado"],
+    "semiarid": true,
+    "asd": true
+  },
+  "pi": {
+    "region": "Nordeste",
+    "biomes": ["Caatinga", "Cerrado"],
+    "semiarid": true,
+    "asd": true
+  },
+  "ce": {
+    "region": "Nordeste",
+    "biomes": ["Caatinga"],
+    "semiarid": true,
+    "asd": true
+  },
+  "rn": {
+    "region": "Nordeste",
+    "biomes": ["Caatinga", "Mata Atlântica"],
+    "semiarid": true,
+    "asd": true
+  },
+  "pb": {
+    "region": "Nordeste",
+    "biomes": ["Caatinga", "Mata Atlântica"],
+    "semiarid": true,
+    "asd": true
+  },
+  "pe": {
+    "region": "Nordeste",
+    "biomes": ["Mata Atlântica", "Caatinga"],
+    "semiarid": true,
+    "asd": true
+  },
+  "al": {
+    "region": "Nordeste",
+    "biomes": ["Caatinga", "Mata Atlântica"],
+    "semiarid": true,
+    "asd": true
+  },
+  "se": {
+    "region": "Nordeste",
+    "biomes": ["Caatinga", "Mata Atlântica"],
+    "semiarid": true,
+    "asd": true
+  },
+  "ba": {
+    "region": "Nordeste",
+    "biomes": ["Caatinga", "Mata Atlântica", "Cerrado"],
+    "semiarid": true,
+    "asd": true
+  },
+  "mg": {
+    "region": "Sudeste",
+    "biomes": ["Cerrado", "Mata Atlântica", "Caatinga"],
+    "semiarid": true,
+    "asd": true
+  },
+  "es": {
+    "region": "Sudeste",
+    "biomes": ["Mata Atlântica"],
+    "semiarid": true,
+    "asd": false
+  },
+  "rj": {
+    "region": "Sudeste",
+    "biomes": ["Mata Atlântica"],
+    "semiarid": false,
+    "asd": true
+  },
+  "sp": {
+    "region": "Sudeste",
+    "biomes": ["Mata Atlântica", "Cerrado"],
+    "semiarid": false,
+    "asd": false
+  },
+  "pr": {
+    "region": "Sul",
+    "biomes": ["Mata Atlântica", "Cerrado"],
+    "semiarid": false,
+    "asd": false
+  },
+  "sc": {
+    "region": "Sul",
+    "biomes": ["Mata Atlântica"],
+    "semiarid": false,
+    "asd": false
+  },
+  "rs": {
+    "region": "Sul",
+    "biomes": ["Pampa", "Mata Atlântica"],
+    "semiarid": false,
+    "asd": false
+  },
+  "ms": {
+    "region": "Centro-Oeste",
+    "biomes": ["Cerrado", "Mata Atlântica", "Pantanal"],
+    "semiarid": false,
+    "asd": true
+  },
+  "mt": {
+    "region": "Centro-Oeste",
+    "biomes": ["Cerrado", "Amazônia", "Pantanal"],
+    "semiarid": false,
+    "asd": false
+  },
+  "go": {
+    "region": "Centro-Oeste",
+    "biomes": ["Cerrado", "Mata Atlântica"],
+    "semiarid": false,
+    "asd": false
+  },
+  "df": {
+    "region": "Centro-Oeste",
+    "biomes": ["Cerrado"],
+    "semiarid": false,
+    "asd": false
+  }
+}
