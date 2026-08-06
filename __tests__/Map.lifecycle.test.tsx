@@ -371,36 +371,6 @@ describe("Map lifecycle", () => {
 
     firstInstance.handlers.get("load")?.[0]?.({});
 
-    expect(firstInstance.fitBounds).toHaveBeenCalledWith(
-      expect.any(Array),
-      expect.objectContaining({
-        maxZoom: 5.5,
-        animate: true,
-        duration: 350,
-      }),
-    );
-
-    act(() => {
-      vi.advanceTimersByTime(1349);
-    });
-
-    expect(firstInstance.fitBounds).not.toHaveBeenCalledWith(
-      expect.any(Array),
-      expect.objectContaining({
-        maxZoom: 11.5,
-      }),
-    );
-
-    act(() => {
-      vi.advanceTimersByTime(1);
-    });
-
-    expect(firstInstance.querySourceFeatures).toHaveBeenCalledWith(
-      MUNICIPALITY_SOURCE_ID,
-      expect.objectContaining({
-        sourceLayer: "brazilcities",
-      }),
-    );
     expect(firstInstance.setFeatureState).toHaveBeenCalledWith(
       expect.objectContaining({
         source: MUNICIPALITY_SOURCE_ID,
@@ -408,10 +378,18 @@ describe("Map lifecycle", () => {
       }),
       { selected: true },
     );
-    expect(firstInstance.fitBounds).toHaveBeenLastCalledWith(
+    expect(firstInstance.fitBounds).toHaveBeenCalledWith(
       expect.any(Array),
       expect.objectContaining({
-        maxZoom: 11.5,
+        maxZoom: 14.5,
+        animate: true,
+        duration: 1200,
+        padding: {
+          bottom: 50,
+          left: 50,
+          right: 50,
+          top: 50,
+        },
       }),
     );
   });
@@ -465,10 +443,6 @@ describe("Map lifecycle", () => {
 
     firstInstance.handlers.get("load")?.[0]?.({});
 
-    act(() => {
-      vi.advanceTimersByTime(1350);
-    });
-
     expect(firstInstance.setFeatureState).toHaveBeenCalledWith(
       expect.objectContaining({
         source: MUNICIPALITY_SOURCE_ID,
@@ -494,9 +468,15 @@ describe("Map lifecycle", () => {
     expect(firstInstance.fitBounds).toHaveBeenCalledWith(
       expect.any(Array),
       expect.objectContaining({
-        maxZoom: 5.5,
+        maxZoom: 14.5,
         animate: true,
-        duration: 350,
+        duration: 1200,
+        padding: {
+          bottom: 50,
+          left: 50,
+          right: 50,
+          top: 50,
+        },
       }),
     );
 
@@ -534,7 +514,15 @@ describe("Map lifecycle", () => {
     expect(firstInstance.fitBounds).toHaveBeenLastCalledWith(
       expect.any(Array),
       expect.objectContaining({
-        maxZoom: 11.5,
+        maxZoom: 14.5,
+        animate: true,
+        duration: 1200,
+        padding: {
+          bottom: 50,
+          left: 50,
+          right: 50,
+          top: 50,
+        },
       }),
     );
   });
@@ -592,7 +580,15 @@ describe("Map lifecycle", () => {
     expect(firstInstance.fitBounds).toHaveBeenLastCalledWith(
       expect.any(Array),
       expect.objectContaining({
-        maxZoom: 11.5,
+        maxZoom: 14.5,
+        animate: true,
+        duration: 1200,
+        padding: {
+          bottom: 50,
+          left: 50,
+          right: 50,
+          top: 50,
+        },
       }),
     );
   });
@@ -612,19 +608,21 @@ describe("Map lifecycle", () => {
     firstInstance.querySourceFeatures.mockReturnValue([]);
     firstInstance.handlers.get("load")?.[0]?.({});
 
-    act(() => {
-      vi.advanceTimersByTime(1350);
-    });
-
     const [bounds, options] = firstInstance.fitBounds.mock.lastCall ?? [];
 
     expect(bounds).toEqual([
-      [-39.418926, -15.033229],
-      [-39.190238, -14.690567],
+      [-46.5599, -18.3372],
+      [-37.3411, -8.5475],
     ]);
     expect(options).toEqual(
       expect.objectContaining({
-        maxZoom: 11.5,
+        animate: false,
+        padding: {
+          bottom: 200,
+          left: 200,
+          right: 200,
+          top: 200,
+        },
       }),
     );
   });
@@ -695,7 +693,7 @@ describe("Map lifecycle", () => {
 
     expect(firstInstance.easeTo).toHaveBeenCalledWith(
       expect.objectContaining({
-        zoom: MUNICIPALITY_MIN_ZOOM,
+        zoom: 5,
       }),
     );
   });

@@ -25,6 +25,8 @@ import { isTileLayerReadyEvent } from "./tileLayerLoading";
 import {
   buildMunicipalityLabel,
   MUNICIPALITY_HOVER_LAYER_ID,
+  MUNICIPALITY_SOURCE_ID,
+  MUNICIPALITY_SOURCE_LAYER,
 } from "./municipalityLayers";
 export type BasemapId = "osm" | "satellite";
 
@@ -82,18 +84,21 @@ const Map = ({
     mapModeRef,
     mapRef,
     mapInstanceVersion,
+    onSelectedMunicipalityCodeChangeRef,
     onStateSelectRef,
     onTileLayerReadyRef,
     pendingTileLayerReadyKeyRef,
     popupRef,
     scheduleSelectedStateSync,
     selectedStateIdRef,
+    selectedMunicipalityCodeRef,
     selectedStateRef,
     setMapInstance,
     syncMapLayers,
     syncMapPadding,
     tileLayerRequestKeyRef,
     tileLayerUrlRef,
+    hoveredMunicipalityIdRef,
     warn,
   } = useMapController({
     center,
@@ -395,11 +400,70 @@ const Map = ({
           if (municipalityLabel) {
             popup.setLngLat(event.lngLat).setText(municipalityLabel).addTo(map);
           }
+
+          if (municipalityFeature?.id) {
+            if (hoveredMunicipalityIdRef.current !== null) {
+              map.setFeatureState(
+                {
+                  source: MUNICIPALITY_SOURCE_ID,
+                  sourceLayer: MUNICIPALITY_SOURCE_LAYER,
+                  id: hoveredMunicipalityIdRef.current,
+                },
+                { hover: false },
+              );
+            }
+            hoveredMunicipalityIdRef.current = municipalityFeature.id;
+            map.setFeatureState(
+              {
+                source: MUNICIPALITY_SOURCE_ID,
+                sourceLayer: MUNICIPALITY_SOURCE_LAYER,
+                id: hoveredMunicipalityIdRef.current,
+              },
+              { hover: true },
+            );
+          }
         });
 
         map.on("mouseleave", MUNICIPALITY_HOVER_LAYER_ID, () => {
           map.getCanvas().style.cursor = "";
           popup.remove();
+
+          if (hoveredMunicipalityIdRef.current !== null) {
+            map.setFeatureState(
+              {
+                source: MUNICIPALITY_SOURCE_ID,
+                sourceLayer: MUNICIPALITY_SOURCE_LAYER,
+                id: hoveredMunicipalityIdRef.current,
+              },
+              { hover: false },
+            );
+          }
+          hoveredMunicipalityIdRef.current = null;
+        });
+
+        map.on("click", MUNICIPALITY_HOVER_LAYER_ID, (event) => {
+          const clickedFeature = event.features?.[0] as
+            | MapGeoJSONFeature
+            | undefined;
+
+          const municipalityCode = clickedFeature?.properties?.CD_MUN as string | undefined;
+
+          if (!municipalityCode) return;
+
+          log("municipality click", {
+            municipalityCode,
+            featureId: clickedFeature?.id,
+          });
+
+          const nextCode =
+            selectedMunicipalityCodeRef.current === municipalityCode
+              ? null
+              : municipalityCode;
+
+          onSelectedMunicipalityCodeChangeRef.current?.(nextCode);
+
+          // Prevent the map background click from firing and clearing selection
+          event.preventDefault();
         });
       }
     });
@@ -436,6 +500,9 @@ const Map = ({
     tileLayerRequestKeyRef,
     tileLayerUrlRef,
     warn,
+    hoveredMunicipalityIdRef,
+    onSelectedMunicipalityCodeChangeRef,
+    selectedMunicipalityCodeRef,
     clearMarkers,
     setMapInstance,
   ]);

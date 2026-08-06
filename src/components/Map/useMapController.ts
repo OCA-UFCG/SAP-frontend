@@ -18,7 +18,6 @@ import {
   MAP_FIT_BOUNDS_BASE_PADDING,
 } from "./mapViewport";
 import { BRAZIL_TERRITORY_CODE } from "./stateSelection";
-import { MUNICIPALITY_MIN_ZOOM } from "./municipalityLayers";
 import { useMapControllerEffects } from "./useMapControllerEffects";
 import { useMapSelectionRuntime } from "./useMapSelectionRuntime";
 import { usePlatformSidebarOverlayWidth } from "./usePlatformSidebarOverlayWidth";
@@ -69,6 +68,7 @@ export const useMapController = ({
   const mapDebugId = useId().replace(/:/g, "").slice(-6);
   const mapDebugIdRef = useRef<string>(mapDebugId);
   const hoveredStateIdRef = useRef<string | number | null>(null);
+  const hoveredMunicipalityIdRef = useRef<string | number | null>(null);
   const selectedStateIdRef = useRef<string | number | null>(null);
   const selectedMunicipalityCodeRef = useRef<string | null>(
     selectedMunicipalityCode ?? null,
@@ -127,12 +127,13 @@ export const useMapController = ({
     (
       map: maplibregl.Map,
       bounds: LngLatBoundsLike,
-      options: Omit<MapFitBoundsOptions, "padding"> = {},
+      options: Omit<MapFitBoundsOptions, "padding"> & { basePadding?: number } = {},
     ) => {
+      const { basePadding = MAP_FIT_BOUNDS_BASE_PADDING, ...restOptions } = options;
       map.fitBounds(bounds, {
-        ...options,
+        ...restOptions,
         padding: buildOverlayAwareFitBoundsPadding({
-          basePadding: MAP_FIT_BOUNDS_BASE_PADDING,
+          basePadding,
           containerWidth: map.getContainer().clientWidth,
           leftOverlayWidth: leftOverlayWidthRef.current,
         }),
@@ -151,7 +152,9 @@ export const useMapController = ({
       if (selectedStateRef.current === BRAZIL_TERRITORY_CODE) return;
 
       const enforceMunicipalityZoom = () => {
-        enforceMinimumMapZoom(map, MUNICIPALITY_MIN_ZOOM, options);
+        // Enforce a zoom of 5 to maintain the same state zoom level as before,
+        // even though municipalities are now visible at 4.5
+        enforceMinimumMapZoom(map, 5, options);
       };
 
       if (options.animate) {
@@ -168,10 +171,11 @@ export const useMapController = ({
     (
       map: maplibregl.Map,
       bounds: LngLatBoundsLike,
-      options: Omit<MapFitBoundsOptions, "maxZoom"> = {},
+      options: Omit<MapFitBoundsOptions, "maxZoom" | "padding"> & { basePadding?: number } = {},
     ) => {
       fitMapToBounds(map, bounds, {
         ...options,
+        basePadding: options.basePadding ?? 50,
         maxZoom: MAP_MUNICIPALITY_FOCUS_MAX_ZOOM,
       });
     },
@@ -280,6 +284,7 @@ export const useMapController = ({
     mapModeRef,
     mapRef,
     mapInstanceVersion,
+    onSelectedMunicipalityCodeChangeRef,
     onStateSelectRef,
     onTileLayerReadyRef,
     pendingTileLayerReadyKeyRef,
@@ -295,6 +300,7 @@ export const useMapController = ({
     tileLayerRequestKeyRef,
     tileLayerUrlRef,
     hoveredStateIdRef,
+    hoveredMunicipalityIdRef,
     warn,
   };
 };
