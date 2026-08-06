@@ -1,5 +1,10 @@
+import {
+  DEFAULT_SPATIAL_SELECTION,
+  type SpatialSelection,
+} from "@/utils/spatialScope";
+
 const CACHE_TTL_MS = 1000 * 60 * 30;
-const CACHE_KEY_VERSION = "v6";
+const CACHE_KEY_VERSION = "v7";
 
 interface CacheEntry {
   url: string;
@@ -32,6 +37,7 @@ export const buildCacheKey = (
   minScale?: number,
   maxScale?: number,
   mapVisualization?: unknown,
+  spatialSelection: SpatialSelection = DEFAULT_SPATIAL_SELECTION,
 ) =>
   `${CACHE_KEY_VERSION}:${name}:${year}:${buildVisualizationSignature(
     imageId,
@@ -39,7 +45,7 @@ export const buildCacheKey = (
     minScale,
     maxScale,
     mapVisualization,
-  )}`;
+  )}:${spatialSelection.spatialArea}:${spatialSelection.spatialValue}`;
 
 function getFreshEntry(key: string): CacheEntry | null {
   const entry = cacheUrls.get(key);

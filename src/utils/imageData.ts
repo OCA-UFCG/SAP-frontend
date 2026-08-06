@@ -97,22 +97,25 @@ export function keepOnlyFutureForecastPeriods(
     (part) => part.type === "month",
   )?.value;
   const currentMonthKey = `${currentYear}-${currentMonth}`;
-  const futureYears = Object.fromEntries(
+  const currentAndFutureYears = Object.fromEntries(
     Object.entries(imageData.years).filter(
       ([yearKey]) =>
-        /^\d{4}-(?:0[1-9]|1[0-2])$/u.test(yearKey) && yearKey > currentMonthKey,
+        /^\d{4}-(?:0[1-9]|1[0-2])$/u.test(yearKey) &&
+        yearKey >= currentMonthKey,
     ),
   );
-  const futureYearKeys = sortYearKeys(Object.keys(futureYears));
+  const currentAndFutureYearKeys = sortYearKeys(
+    Object.keys(currentAndFutureYears),
+  );
   const defaultYear =
-    imageData.defaultYear && futureYears[imageData.defaultYear]
+    imageData.defaultYear && currentAndFutureYears[imageData.defaultYear]
       ? imageData.defaultYear
-      : futureYearKeys.at(-1);
+      : currentAndFutureYearKeys.at(-1);
 
   return {
     ...imageData,
     ...(defaultYear ? { defaultYear } : { defaultYear: undefined }),
-    years: futureYears,
+    years: currentAndFutureYears,
   };
 }
 

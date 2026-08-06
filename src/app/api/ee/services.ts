@@ -1,6 +1,7 @@
 import ee from "@google/earthengine";
 import { createSign } from "node:crypto";
 import { addUrlToCache, buildCacheKey } from "@/app/api/ee/cache";
+import { getSpatialBoundaryFeatures } from "@/app/api/ee/spatialBoundaries";
 import {
   resolveMapVisualizationPlan,
   type ThresholdClassificationPlan,
@@ -9,6 +10,10 @@ import { getPanelLayers } from "@/repositories/platform/panelLayerRepository";
 import { IMapId, IEEInfo, IImageParam } from "@/utils/interfaces";
 import { getImageDataYearKeys, resolveImageYearEntry } from "@/utils/imageData";
 import type { CompactMapVisualizationConfig } from "@/utils/analysis";
+import {
+  DEFAULT_SPATIAL_SELECTION,
+  type SpatialSelection,
+} from "@/utils/spatialScope";
 
 // ====== GEE Singleton for Authentication and Initialization ======
 
@@ -163,8 +168,21 @@ const getBrazilBoundary = () => {
   return brazilBoundary;
 };
 
-const clipImageToBrazil = (image: any) =>
-  image.clipToCollection(getBrazilBoundary());
+const getSpatialClipCollection = (selection: SpatialSelection) => {
+  if (selection.spatialArea === "national") {
+    return getBrazilBoundary();
+  }
+
+  const features = getSpatialBoundaryFeatures(selection).map((feature) =>
+    ee.Feature(ee.Geometry(feature.geometry)),
+  );
+  return ee.FeatureCollection(features);
+};
+
+export const applySpatialClip = (
+  image: any,
+  selection: SpatialSelection = DEFAULT_SPATIAL_SELECTION,
+) => image.clipToCollection(getSpatialClipCollection(selection));
 
 function rangeIncludesZero(min?: number | null, max?: number | null) {
   return (
@@ -202,13 +220,14 @@ export function shouldApplySelfMask({
 
 interface GetEarthEngineUrlOptions {
   mapVisualization?: CompactMapVisualizationConfig;
+  spatialSelection?: SpatialSelection;
 }
 
 function normalizeGeeAssetType(type?: unknown) {
   return type
     ? String(type)
-        .toUpperCase()
-        .replace(/[_\s-]/g, "")
+      .toUpperCase()
+      .replace(/[_\s-]/g, "")
     : "";
 }
 
@@ -346,7 +365,10 @@ export const getEarthEngineUrl = async (
   options?: GetEarthEngineUrlOptions,
 ) => {
   try {
-    const { mapVisualization } = options ?? {};
+    const {
+      mapVisualization,
+      spatialSelection = DEFAULT_SPATIAL_SELECTION,
+    } = options ?? {};
 
     await initializeGee();
 
@@ -428,10 +450,6 @@ export const getEarthEngineUrl = async (
       }
     }
 
-    if (!shouldUseFeatureCollection) {
-      GEEImage = clipImageToBrazil(GEEImage);
-    }
-
     if (
       !shouldUseFeatureCollection &&
       shouldApplySelfMask({
@@ -450,14 +468,15 @@ export const getEarthEngineUrl = async (
     const mapImage =
       shouldUseFeatureCollection && featureCollection && mapVisualization
         ? renderFeatureCollectionMapImage({
-            collection: featureCollection,
-            image: categorizedImage,
-            visParams,
-            mapVisualization,
-          })
+          collection: featureCollection,
+          image: categorizedImage,
+          visParams,
+          mapVisualization,
+        })
         : categorizedImage;
+    const clippedMapImage = applySpatialClip(mapImage, spatialSelection);
     const mapId = (await getMapId(
-      mapImage,
+      clippedMapImage,
       shouldUseFeatureCollection ? undefined : visParams,
     )) as IMapId;
 

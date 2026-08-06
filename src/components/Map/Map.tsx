@@ -8,6 +8,8 @@ import {
   GEE_LAYER_ID,
   GEE_SOURCE_ID,
   type MapMode,
+  OSM_LAYER_ID,
+  SATELLITE_LAYER_ID,
   STATES_FILL_LAYER_ID,
   STATES_SOURCE_ID,
   STATES_SOURCE_LAYER,
@@ -24,6 +26,8 @@ import {
   buildMunicipalityLabel,
   MUNICIPALITY_HOVER_LAYER_ID,
 } from "./municipalityLayers";
+export type BasemapId = "osm" | "satellite";
+
 export interface MapProps {
   mapMode?: MapMode;
   minZoom?: number;
@@ -37,10 +41,12 @@ export interface MapProps {
   selectedMunicipalityCode?: string | null;
   tileLayerUrl?: string | null;
   tileLayerRequestKey?: string | null;
+  basemap?: BasemapId;
   onStateSelect?: (uf: string) => void;
   onSelectedMunicipalityCodeChange?: (municipalityCode: string | null) => void;
   onTileLayerReady?: (requestKey: string) => void;
   layerOpacity?: number;
+  allowedStateUfs?: Set<string> | null;
 }
 
 const Map = ({
@@ -56,10 +62,12 @@ const Map = ({
   selectedMunicipalityCode,
   tileLayerUrl,
   tileLayerRequestKey,
+  basemap = "osm",
   onStateSelect,
   onSelectedMunicipalityCodeChange,
   onTileLayerReady,
-  layerOpacity = 0.85
+  layerOpacity = 0.85,
+  allowedStateUfs = null
 }: MapProps) => {
   const mapContainerRef = useRef<HTMLDivElement | null>(null);
   const {
@@ -104,6 +112,29 @@ const Map = ({
     zoom,
   });
   const { clearMarkers } = useMapMarkers(mapRef, markers, mapInstanceVersion);
+  const allowedStateUfsRef = useRef(allowedStateUfs);
+
+  useEffect(() => {
+    allowedStateUfsRef.current = allowedStateUfs;
+
+    // Recorte mudou com o mouse parado: limpa o hover ativo se o estado
+    // hoverado saiu da área. (O próximo mousemove reaplica o hover correto.)
+    const map = mapRef.current;
+    if (!map || !allowedStateUfs || !hoveredStateIdRef.current) return;
+    if (typeof hoveredStateIdRef.current !== "string") return;
+    if (allowedStateUfs.has(hoveredStateIdRef.current.toLowerCase())) return;
+
+    map.setFeatureState(
+      {
+        source: STATES_SOURCE_ID,
+        sourceLayer: STATES_SOURCE_LAYER,
+        id: hoveredStateIdRef.current,
+      },
+      { hover: false },
+    );
+    hoveredStateIdRef.current = null;
+    map.getCanvas().style.cursor = "";
+  }, [allowedStateUfs, hoveredStateIdRef, mapRef, popupRef]);
 
   useEffect(() => {
     if (!mapContainerRef.current || mapRef.current) {
@@ -207,6 +238,33 @@ const Map = ({
           | null
           | undefined;
 
+        const allowedUfs = allowedStateUfsRef.current;
+        const isOutsideArea = Boolean(
+          allowedUfs && uf && !allowedUfs.has(uf.toLowerCase()),
+        );
+
+        if (isOutsideArea) {
+          if (hoveredStateIdRef.current) {
+            map.setFeatureState(
+              {
+                source: STATES_SOURCE_ID,
+                sourceLayer: STATES_SOURCE_LAYER,
+                id: hoveredStateIdRef.current,
+              },
+              { hover: false },
+            );
+            hoveredStateIdRef.current = null;
+          }
+          map.getCanvas().style.cursor = "";
+          if (uf || name) {
+            popup
+              .setLngLat(event.lngLat)
+              .setText(name && uf ? `${name} (${uf})` : (name ?? uf ?? ""))
+              .addTo(map);
+          }
+          return;
+        }
+
         if (
           hoveredStateIdRef.current &&
           hoveredStateIdRef.current !== hoveredStateId
@@ -274,6 +332,16 @@ const Map = ({
             : undefined);
 
         if (!uf) return;
+
+        const allowedUfs = allowedStateUfsRef.current;
+        if (allowedUfs && !allowedUfs.has(uf.toLowerCase())) {
+          log("state click ignored: outside active interest area", {
+            uf,
+            allowedUfs,
+          });
+          event.preventDefault();
+          return;
+        }
 
         const nextSelectedState = resolveNextSelectedState(
           selectedStateRef.current,
@@ -383,6 +451,22 @@ const Map = ({
     } catch {
     }
   }, [layerOpacity, mapRef, mapInstanceVersion]);
+
+  useEffect(() => {
+    const map = mapRef.current;
+    if (!map || !map.isStyleLoaded()) return;
+
+    map.setLayoutProperty(
+      OSM_LAYER_ID,
+      "visibility",
+      basemap === "osm" ? "visible" : "none",
+    );
+    map.setLayoutProperty(
+      SATELLITE_LAYER_ID,
+      "visibility",
+      basemap === "satellite" ? "visible" : "none",
+    );
+  }, [basemap, mapRef, mapInstanceVersion]);
 
   return (
     <div className="w-full h-full">

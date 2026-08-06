@@ -67,3 +67,6 @@ storybook-static
 
 Molde_RelatorioAnalitico_SAP_v2_edit.pdf
 relatorio_template.docx
+
+data/runtime/
+/campos-necessarios-indice-sap.txt

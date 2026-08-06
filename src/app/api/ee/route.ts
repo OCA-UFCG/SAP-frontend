@@ -15,6 +15,7 @@ import { getPanelLayers } from "@/repositories/platform/panelLayerRepository";
 import { resolveImageYearEntry } from "@/utils/imageData";
 import { getAuthenticatedUserId } from "@/lib/server-session";
 import { createServerTiming } from "@/utils/serverTiming";
+import { resolveSpatialSelection } from "@/utils/spatialScope";
 
 export async function POST(req: NextRequest) {
   const timing = createServerTiming();
@@ -47,6 +48,10 @@ export async function POST(req: NextRequest) {
   try {
     const name = req.nextUrl.searchParams.get("name")?.trim() || "";
     const year = req.nextUrl.searchParams.get("year")?.trim() || "";
+    const spatialSelectionResult = resolveSpatialSelection(
+      req.nextUrl.searchParams.get("spatialArea"),
+      req.nextUrl.searchParams.get("spatialValue"),
+    );
 
     if (!name || !year) {
       return NextResponse.json(
@@ -54,6 +59,14 @@ export async function POST(req: NextRequest) {
         { status: 400 },
       );
     }
+
+    if (!spatialSelectionResult.ok) {
+      return NextResponse.json(
+        { error: spatialSelectionResult.error },
+        { status: 400 },
+      );
+    }
+    const spatialSelection = spatialSelectionResult.selection;
 
     const finishLayers = timing.start();
     const panelLayers = await getPanelLayers();
@@ -83,6 +96,7 @@ export async function POST(req: NextRequest) {
       layer.minScale,
       layer.maxScale,
       yearConfig.mapVisualization,
+      spatialSelection,
     );
 
     const finishCache = timing.start();
@@ -101,7 +115,10 @@ export async function POST(req: NextRequest) {
       yearConfig.imageParams,
       layer.minScale,
       layer.maxScale,
-      { mapVisualization: yearConfig.mapVisualization },
+      {
+        mapVisualization: yearConfig.mapVisualization,
+        spatialSelection,
+      },
     );
     finishEarthEngine("earth_engine", "Geração da URL de tiles no Earth Engine");
 

@@ -29,6 +29,10 @@ import { getAuthenticatedUserId } from "@/lib/server-session";
 const mockedGetEarthEngineUrl = vi.mocked(getEarthEngineUrl);
 const mockedGetPanelLayers = vi.mocked(getPanelLayers);
 const mockedGetAuthenticatedUserId = vi.mocked(getAuthenticatedUserId);
+const nationalSelection = {
+  spatialArea: "national",
+  spatialValue: "brasil",
+} as const;
 
 function createMockRequest(
   url: string,
@@ -85,6 +89,16 @@ describe("POST /api/ee cache behavior", () => {
     10,
     100,
   );
+  const regionalCacheKey = buildCacheKey(
+    "layer-a",
+    "2024",
+    "projects/example/image-v1",
+    [{ color: "#111111", label: "old" }],
+    0,
+    1,
+    undefined,
+    { spatialArea: "region", spatialValue: "Nordeste" },
+  );
 
   beforeEach(() => {
     mockedGetEarthEngineUrl.mockReset();
@@ -94,12 +108,14 @@ describe("POST /api/ee cache behavior", () => {
     clearEeRateLimit();
     removeCacheUrl(cacheKeyV1);
     removeCacheUrl(cacheKeyV2);
+    removeCacheUrl(regionalCacheKey);
   });
 
   afterEach(() => {
     clearEeRateLimit();
     removeCacheUrl(cacheKeyV1);
     removeCacheUrl(cacheKeyV2);
+    removeCacheUrl(regionalCacheKey);
   });
 
   it("returns 401 before processing layers when the session is invalid", async () => {
@@ -206,7 +222,10 @@ describe("POST /api/ee cache behavior", () => {
       [{ color: "#EEEEEE", label: "new" }],
       10,
       100,
-      { mapVisualization: undefined },
+      {
+        mapVisualization: undefined,
+        spatialSelection: nationalSelection,
+      },
     );
   });
 
@@ -258,7 +277,59 @@ describe("POST /api/ee cache behavior", () => {
       ],
       0,
       1,
-      { mapVisualization },
+      { mapVisualization, spatialSelection: nationalSelection },
+    );
+  });
+
+  it("rejects partial or unknown spatial selections", async () => {
+    const partialResponse = await POST(
+      createMockRequest(
+        "https://example.test/api/ee?name=layer-a&year=2024&spatialArea=region",
+      ),
+    );
+    const invalidResponse = await POST(
+      createMockRequest(
+        "https://example.test/api/ee?name=layer-a&year=2024&spatialArea=region&spatialValue=Atlantis",
+      ),
+    );
+
+    expect(partialResponse.status).toBe(400);
+    expect(invalidResponse.status).toBe(400);
+    expect(mockedGetEarthEngineUrl).not.toHaveBeenCalled();
+  });
+
+  it("shares the national cache key and separates regional selections", async () => {
+    mockedGetEarthEngineUrl
+      .mockResolvedValueOnce("https://tiles.example/brasil")
+      .mockResolvedValueOnce("https://tiles.example/nordeste");
+
+    const defaultRequest = createMockRequest(
+      "https://example.test/api/ee?name=layer-a&year=2024",
+    );
+    const explicitNationalRequest = createMockRequest(
+      "https://example.test/api/ee?name=layer-a&year=2024&spatialArea=national&spatialValue=brasil",
+    );
+    const regionalRequest = createMockRequest(
+      "https://example.test/api/ee?name=layer-a&year=2024&spatialArea=region&spatialValue=Nordeste",
+    );
+
+    expect((await POST(defaultRequest)).status).toBe(200);
+    expect((await POST(explicitNationalRequest)).status).toBe(200);
+    expect((await POST(regionalRequest)).status).toBe(200);
+
+    expect(mockedGetEarthEngineUrl).toHaveBeenCalledTimes(2);
+    expect(mockedGetEarthEngineUrl).toHaveBeenLastCalledWith(
+      "projects/example/image-v1",
+      [{ color: "#111111", label: "old" }],
+      0,
+      1,
+      {
+        mapVisualization: undefined,
+        spatialSelection: {
+          spatialArea: "region",
+          spatialValue: "Nordeste",
+        },
+      },
     );
   });
 
