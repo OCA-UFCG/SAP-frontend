@@ -171,7 +171,7 @@ export function getMultilevelLocation(row) {
 export function getMultilevelPanelLayerLocation(row) {
   const level = normalizeBlank(row.NIVEL_AGRUPAMENTO);
 
-  if (level !== "1_BR" && level !== "6_Estado") return null;
+  if (!level) return null;
 
   return getMultilevelLocation(row);
 }

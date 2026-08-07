@@ -5,6 +5,7 @@ import { useTranslations } from "next-intl";
 import { AnalysisPanel } from "@/components/analysis/AnalysisPanel";
 import type { SearchSubmissionMetadata } from "@/components/SearchBar/types";
 import type { SpatialSelection } from "@/utils/spatialScope";
+import { getSpatialScopeLocationKey } from "@/utils/spatialScope";
 import {
   buildEmbeddedTerritorialAnalysisViewModel,
   getFallbackAnalysisLocationName,
@@ -315,7 +316,11 @@ export function AnalysisContext({
     });
   };
 
-  const selectedLocationKey = selectedMunicipalityCode ?? selectedState;
+  const selectedLocationKey =
+    selectedMunicipalityCode ??
+    (selectedState !== "br" ? selectedState : null) ??
+    getSpatialScopeLocationKey(spatialSelection) ??
+    "br";
 
   const embeddedModel = useMemo(
     () =>
