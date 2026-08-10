@@ -3,7 +3,7 @@ import type { MunicipalReportAnalysis } from "@/contracts/municipalReport";
 import { renderMunicipalReportChart } from "@/services/municipalReportChartRenderer";
 import {
   buildMunicipalReportChartData,
-  MUNICIPAL_REPORT_CHART_MAX_MEASUREMENTS,
+  MUNICIPAL_REPORT_PDF_CHART_MAX_MEASUREMENTS,
 } from "@/utils/municipalReportChart";
 
 vi.mock("server-only", () => ({}));
@@ -81,7 +81,7 @@ describe("municipal report chart", () => {
     ).toEqual([0, 20, 45]);
   });
 
-  it("keeps only the 20 most recent measurements in chronological order", () => {
+  it("keeps the site history complete and limits only PDF data to the 10 most recent measurements", () => {
     const timeSeries = Array.from({ length: 25 }, (_, index) => {
       const year = 2023 + Math.floor(index / 12);
       const month = String((index % 12) + 1).padStart(2, "0");
@@ -101,18 +101,26 @@ describe("municipal report chart", () => {
         ],
       };
     }).reverse();
-    const chartData = buildMunicipalReportChartData(
+    const siteChartData = buildMunicipalReportChartData(
       { ...analysis, timeSeries },
       "2025-01",
     );
-
-    expect(chartData.categories).toHaveLength(
-      MUNICIPAL_REPORT_CHART_MAX_MEASUREMENTS,
+    const pdfChartData = buildMunicipalReportChartData(
+      { ...analysis, timeSeries },
+      "2025-01",
+      { maxMeasurements: MUNICIPAL_REPORT_PDF_CHART_MAX_MEASUREMENTS },
     );
-    expect(chartData.categories[0]?.period).toBe("2023-06");
-    expect(chartData.categories.at(-1)?.period).toBe("2025-01");
-    expect(chartData.series[0]?.points.map((point) => point.value)).toEqual(
-      Array.from({ length: 20 }, (_, index) => index + 5),
+
+    expect(siteChartData.categories).toHaveLength(25);
+    expect(siteChartData.categories[0]?.period).toBe("2023-01");
+    expect(siteChartData.categories.at(-1)?.period).toBe("2025-01");
+    expect(pdfChartData.categories).toHaveLength(
+      MUNICIPAL_REPORT_PDF_CHART_MAX_MEASUREMENTS,
+    );
+    expect(pdfChartData.categories[0]?.period).toBe("2024-04");
+    expect(pdfChartData.categories.at(-1)?.period).toBe("2025-01");
+    expect(pdfChartData.series[0]?.points.map((point) => point.value)).toEqual(
+      Array.from({ length: 10 }, (_, index) => index + 15),
     );
   });
 

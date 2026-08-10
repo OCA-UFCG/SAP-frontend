@@ -86,6 +86,10 @@ textarea {
       inset 0 1px 0 rgba(32, 32, 32, 0.04),
       inset 0 -1px 0 rgba(32, 32, 32, 0.04);
   }
+
+  .report-chart-print {
+    display: none !important;
+  }
 }
 
 @media screen and (min-width: 768px) {
@@ -145,8 +149,46 @@ textarea {
     height: 230px !important;
   }
 
+  .report-visual-title {
+    box-sizing: border-box;
+    display: flex !important;
+    min-height: 16mm;
+    align-items: center;
+    justify-content: center;
+  }
+
   .report-chart-frame {
     min-height: 230px !important;
+  }
+
+  .report-chart-screen {
+    display: none !important;
+  }
+
+  .report-chart-print {
+    display: block !important;
+  }
+
+  .report-visual-title.report-chart-print {
+    display: flex !important;
+  }
+
+  .report-chart-frame.report-chart-print {
+    display: flex !important;
+    min-height: 0 !important;
+    overflow: visible !important;
+  }
+
+  .report-print-chart-svg {
+    display: block;
+    width: 100% !important;
+    height: auto !important;
+    overflow: visible;
+  }
+
+  .report-map-frame img {
+    object-fit: contain !important;
+    object-position: center !important;
   }
 
   .report-paper img {

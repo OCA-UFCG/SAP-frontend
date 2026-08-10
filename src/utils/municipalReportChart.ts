@@ -3,7 +3,11 @@ import type {
   MunicipalReportPeriodSnapshot,
 } from "@/contracts/municipalReport";
 
-export const MUNICIPAL_REPORT_CHART_MAX_MEASUREMENTS = 20;
+export const MUNICIPAL_REPORT_PDF_CHART_MAX_MEASUREMENTS = 10;
+
+interface BuildMunicipalReportChartDataOptions {
+  maxMeasurements?: number;
+}
 
 export interface MunicipalReportChartPoint {
   period: string;
@@ -27,18 +31,27 @@ export interface MunicipalReportChartData {
 
 export function selectMunicipalReportChartSnapshots(
   timeSeries: MunicipalReportPeriodSnapshot[],
+  maxMeasurements?: number,
 ): MunicipalReportPeriodSnapshot[] {
-  return [...timeSeries]
-    .sort((left, right) => left.period.localeCompare(right.period))
-    .slice(-MUNICIPAL_REPORT_CHART_MAX_MEASUREMENTS);
+  const sortedSnapshots = [...timeSeries].sort((left, right) =>
+    left.period.localeCompare(right.period),
+  );
+
+  if (maxMeasurements == null) return sortedSnapshots;
+  if (maxMeasurements <= 0) return [];
+  return sortedSnapshots.slice(-maxMeasurements);
 }
 
 export function buildMunicipalReportChartData(
   analysis: MunicipalReportAnalysis,
   highlightPeriod: string,
+  options: BuildMunicipalReportChartDataOptions = {},
 ): MunicipalReportChartData {
   const referencePeriod = analysis.effectivePeriod ?? highlightPeriod;
-  const snapshots = selectMunicipalReportChartSnapshots(analysis.timeSeries);
+  const snapshots = selectMunicipalReportChartSnapshots(
+    analysis.timeSeries,
+    options.maxMeasurements,
+  );
 
   const categories = snapshots.map((snapshot) => ({
     period: snapshot.period,

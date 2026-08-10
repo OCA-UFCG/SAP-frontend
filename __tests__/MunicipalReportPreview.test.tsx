@@ -3,7 +3,10 @@ import userEvent from "@testing-library/user-event";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { useEffect, useRef } from "react";
 import type { ComponentProps } from "react";
-import type { MunicipalReportData } from "@/contracts/municipalReport";
+import type {
+  MunicipalReportData,
+  MunicipalReportPeriodSnapshot,
+} from "@/contracts/municipalReport";
 import { MunicipalReportPreview } from "@/components/MunicipalReport/MunicipalReportPreview";
 
 const { reportMapPreviewRenderSpy } = vi.hoisted(() => ({
@@ -36,6 +39,45 @@ vi.mock("@/utils/municipalReportMetrics", () => ({
   recordMunicipalReportNavigation: vi.fn(),
   startMunicipalReportStage: vi.fn(() => vi.fn()),
 }));
+
+const reportTimeSeries: MunicipalReportPeriodSnapshot[] = Array.from(
+  { length: 12 },
+  (_, index) => {
+    const period = String(2015 + index);
+    const normalPercentage = 50 + index;
+
+    return {
+      period,
+      label: period,
+      distribution: [
+        {
+          id: "sem-seca",
+          label: "Sem seca",
+          color: "#FFFFFF",
+          percentage: 0,
+        },
+        {
+          id: "normal",
+          label: "Normal",
+          color: "#3c8f4d",
+          percentage: normalPercentage,
+        },
+        {
+          id: "seca",
+          label: "Seca",
+          color: "#d97706",
+          percentage: 100 - normalPercentage,
+        },
+      ],
+      dominantClass: {
+        id: "normal",
+        label: "Normal",
+        color: "#3c8f4d",
+        percentage: normalPercentage,
+      },
+    };
+  },
+);
 
 const report: MunicipalReportData = {
   schemaVersion: 1,
@@ -82,48 +124,7 @@ const report: MunicipalReportData = {
           percentage: 70,
         },
       },
-      timeSeries: [
-        {
-          period: "2025",
-          label: "2025",
-          distribution: [
-            {
-              id: "sem-seca",
-              label: "Sem seca",
-              color: "#FFFFFF",
-              percentage: 0,
-            },
-            { id: "normal", label: "Normal", color: "#3c8f4d", percentage: 50 },
-            { id: "seca", label: "Seca", color: "#d97706", percentage: 50 },
-          ],
-          dominantClass: {
-            id: "normal",
-            label: "Normal",
-            color: "#3c8f4d",
-            percentage: 50,
-          },
-        },
-        {
-          period: "2026",
-          label: "2026",
-          distribution: [
-            {
-              id: "sem-seca",
-              label: "Sem seca",
-              color: "#FFFFFF",
-              percentage: 0,
-            },
-            { id: "normal", label: "Normal", color: "#3c8f4d", percentage: 70 },
-            { id: "seca", label: "Seca", color: "#d97706", percentage: 30 },
-          ],
-          dominantClass: {
-            id: "normal",
-            label: "Normal",
-            color: "#3c8f4d",
-            percentage: 70,
-          },
-        },
-      ],
+      timeSeries: reportTimeSeries,
     },
   ],
 };
@@ -175,7 +176,9 @@ describe("MunicipalReportPreview", () => {
     ).not.toBeInTheDocument();
     expect(screen.getByLabelText("Aumentar zoom")).toBeInTheDocument();
     expect(screen.getByLabelText("Diminuir zoom")).toBeInTheDocument();
-    expect(screen.getByText("100%")).toBeInTheDocument();
+    expect(
+      screen.getByText("100%", { selector: "output" }),
+    ).toBeInTheDocument();
     expect(screen.queryByText("--")).not.toBeInTheDocument();
     expect(screen.getByRole("button", { name: "Sem seca" })).toHaveAttribute(
       "aria-pressed",
@@ -215,7 +218,9 @@ describe("MunicipalReportPreview", () => {
     );
 
     await user.click(screen.getByLabelText("Diminuir zoom"));
-    expect(screen.getByText("100%")).toBeInTheDocument();
+    expect(
+      screen.getByText("100%", { selector: "output" }),
+    ).toBeInTheDocument();
     expect(
       vi
         .mocked(global.fetch)
@@ -269,6 +274,24 @@ describe("MunicipalReportPreview", () => {
     );
     expect(popupDocument.documentElement.outerHTML).toContain(
       "grid-template-columns:minmax(0,.84fr) minmax(0,1.16fr)",
+    );
+    expect(popupDocument.documentElement.outerHTML).toContain(
+      'data-report-pdf-measurements="10"',
+    );
+    expect(popupDocument.documentElement.outerHTML).toContain(
+      'data-report-pdf-first-period="2017"',
+    );
+    expect(popupDocument.documentElement.outerHTML).toContain(
+      'data-report-pdf-last-period="2026"',
+    );
+    expect(popupDocument.documentElement.outerHTML).toContain(
+      ".report-chart-screen{display:none!important}",
+    );
+    expect(popupDocument.documentElement.outerHTML).toContain(
+      ".report-visual-title{box-sizing:border-box;display:flex!important;min-height:16mm;align-items:center;justify-content:center}",
+    );
+    expect(popupDocument.documentElement.outerHTML).toContain(
+      "object-fit:contain!important",
     );
     expect(popupDocument.title).toBe("Relatório-Abadia-de-Goiás-2026.pdf");
 

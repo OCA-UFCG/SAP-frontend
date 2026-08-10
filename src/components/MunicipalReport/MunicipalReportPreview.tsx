@@ -45,6 +45,7 @@ import {
 } from "@/utils/municipalReportValue";
 import {
   buildMunicipalReportChartData,
+  MUNICIPAL_REPORT_PDF_CHART_MAX_MEASUREMENTS,
   selectMunicipalReportChartSnapshots,
 } from "@/utils/municipalReportChart";
 import { slugifyTranslationKey } from "@/utils/translations";
@@ -436,6 +437,221 @@ function MunicipalReportDynamicChart({
   );
 }
 
+const PRINT_CHART_WIDTH = 640;
+const PRINT_CHART_HEIGHT = 280;
+const PRINT_CHART_LEFT = 58;
+const PRINT_CHART_RIGHT = 16;
+const PRINT_CHART_TOP = 14;
+const PRINT_CHART_BOTTOM = 232;
+
+function MunicipalReportPrintChart({
+  analysis,
+  locale,
+  referencePeriod,
+  translateLabel,
+}: {
+  analysis: MunicipalReportAnalysis;
+  locale: string;
+  referencePeriod: string;
+  translateLabel: (label: string) => string;
+}) {
+  const chartData = useMemo(
+    () =>
+      buildMunicipalReportChartData(analysis, referencePeriod, {
+        maxMeasurements: MUNICIPAL_REPORT_PDF_CHART_MAX_MEASUREMENTS,
+      }),
+    [analysis, referencePeriod],
+  );
+  const observedMax = Math.max(
+    0,
+    ...chartData.series.flatMap((series) =>
+      series.points.map((point) => point.value),
+    ),
+  );
+  const axisMax =
+    analysis.valueType === "absolute"
+      ? Math.max(1, Math.ceil(observedMax / 5) * 5)
+      : 100;
+  const yTicks = Array.from({ length: 6 }, (_, index) => (axisMax / 5) * index);
+  const plotWidth = PRINT_CHART_WIDTH - PRINT_CHART_LEFT - PRINT_CHART_RIGHT;
+  const categoryCount = chartData.categories.length;
+
+  const xForIndex = (index: number) =>
+    categoryCount <= 1
+      ? PRINT_CHART_LEFT + plotWidth / 2
+      : PRINT_CHART_LEFT + (index / (categoryCount - 1)) * plotWidth;
+  const yForValue = (value: number) => {
+    const clampedValue = Math.max(0, Math.min(axisMax, value));
+    return (
+      PRINT_CHART_BOTTOM -
+      (clampedValue / axisMax) * (PRINT_CHART_BOTTOM - PRINT_CHART_TOP)
+    );
+  };
+  const visiblePeriodIndexes = new Set(
+    chartData.categories
+      .map((_, index) => index)
+      .filter(
+        (index) =>
+          categoryCount <= 5 ||
+          index === 0 ||
+          index === categoryCount - 1 ||
+          index % 3 === 0,
+      ),
+  );
+  const referenceIndex = chartData.categories.findIndex(
+    (category) => category.period === chartData.referencePeriod,
+  );
+
+  if (categoryCount === 0 || chartData.series.length === 0) {
+    return (
+      <span className="text-sm text-neutral-500">
+        Série temporal indisponível para impressão.
+      </span>
+    );
+  }
+
+  return (
+    <div
+      className="w-full"
+      data-report-pdf-measurements={categoryCount}
+      data-report-pdf-first-period={chartData.categories[0]?.period}
+      data-report-pdf-last-period={chartData.categories.at(-1)?.period}
+    >
+      <svg
+        className="report-print-chart-svg block h-auto w-full"
+        viewBox={`0 0 ${PRINT_CHART_WIDTH} ${PRINT_CHART_HEIGHT}`}
+        preserveAspectRatio="xMidYMid meet"
+        role="img"
+        aria-label={`${analysis.title}: ${chartData.categories[0]?.period} a ${chartData.categories.at(-1)?.period}`}
+      >
+        {yTicks.map((value) => {
+          const y = yForValue(value);
+          const label =
+            analysis.valueType === "percentage"
+              ? `${Number(value).toFixed(0)}%`
+              : new Intl.NumberFormat(locale, {
+                  maximumFractionDigits: 0,
+                }).format(value);
+
+          return (
+            <g key={value}>
+              <line
+                x1={PRINT_CHART_LEFT}
+                y1={y}
+                x2={PRINT_CHART_WIDTH - PRINT_CHART_RIGHT}
+                y2={y}
+                stroke="#E3E7EA"
+                strokeDasharray="4 6"
+              />
+              <text
+                x={PRINT_CHART_LEFT - 10}
+                y={y + 4}
+                textAnchor="end"
+                fontSize="14"
+                fill="#5F6670"
+              >
+                {label}
+              </text>
+            </g>
+          );
+        })}
+        <line
+          x1={PRINT_CHART_LEFT}
+          y1={PRINT_CHART_TOP}
+          x2={PRINT_CHART_LEFT}
+          y2={PRINT_CHART_BOTTOM}
+          stroke="#B8C0C5"
+        />
+        <line
+          x1={PRINT_CHART_LEFT}
+          y1={PRINT_CHART_BOTTOM}
+          x2={PRINT_CHART_WIDTH - PRINT_CHART_RIGHT}
+          y2={PRINT_CHART_BOTTOM}
+          stroke="#B8C0C5"
+        />
+        {referenceIndex >= 0 && (
+          <line
+            x1={xForIndex(referenceIndex)}
+            y1={PRINT_CHART_TOP}
+            x2={xForIndex(referenceIndex)}
+            y2={PRINT_CHART_BOTTOM}
+            stroke="#989F43"
+            strokeDasharray="5 5"
+            strokeWidth="2"
+          />
+        )}
+        {chartData.series.map((series) => {
+          const color = getVisibleChartColor(series.color);
+          const points = series.points
+            .map(
+              (point, index) =>
+                `${xForIndex(index).toFixed(1)},${yForValue(point.value).toFixed(1)}`,
+            )
+            .join(" ");
+
+          return (
+            <g key={series.id}>
+              <polyline
+                points={points}
+                fill="none"
+                stroke={color}
+                strokeWidth="2.5"
+                strokeLinecap="round"
+                strokeLinejoin="round"
+              />
+              {series.points.map((point, index) => (
+                <circle
+                  key={point.period}
+                  cx={xForIndex(index)}
+                  cy={yForValue(point.value)}
+                  r={point.highlighted ? 3.8 : 2.5}
+                  fill="#FFFFFF"
+                  stroke={color}
+                  strokeWidth={point.highlighted ? 2.5 : 1.8}
+                />
+              ))}
+            </g>
+          );
+        })}
+        {chartData.categories.map((category, index) => {
+          if (!visiblePeriodIndexes.has(index)) return null;
+          const textAnchor =
+            index === 0
+              ? "start"
+              : index === categoryCount - 1
+                ? "end"
+                : "middle";
+
+          return (
+            <text
+              key={category.period}
+              x={xForIndex(index)}
+              y={PRINT_CHART_BOTTOM + 28}
+              textAnchor={textAnchor}
+              fontSize="14"
+              fontWeight={category.highlighted ? 700 : 400}
+              fill="#5F6670"
+            >
+              {category.period}
+            </text>
+          );
+        })}
+      </svg>
+      <div className="mt-1 flex flex-wrap justify-center gap-x-3 gap-y-1 text-[10px] font-semibold text-[#292829]">
+        {chartData.series.map((series) => (
+          <span key={series.id} className="inline-flex items-center gap-1.5">
+            <span
+              className="inline-block h-2 w-2 rounded-full"
+              style={{ backgroundColor: getVisibleChartColor(series.color) }}
+            />
+            {translateLabel(series.label)}
+          </span>
+        ))}
+      </div>
+    </div>
+  );
+}
+
 function AnalysisSection({
   analysis,
   report,
@@ -506,8 +722,11 @@ function AnalysisSection({
     locale,
     (key, values) => t(key, values),
   );
-  const chartHistoryRange = compactPeriodRange(
-    selectMunicipalReportChartSnapshots(analysis.timeSeries),
+  const pdfChartHistoryRange = compactPeriodRange(
+    selectMunicipalReportChartSnapshots(
+      analysis.timeSeries,
+      MUNICIPAL_REPORT_PDF_CHART_MAX_MEASUREMENTS,
+    ),
     referencePeriod,
     locale,
     (key, values) => t(key, values),
@@ -675,7 +894,7 @@ function AnalysisSection({
             </h3>
             <div className="report-visual-grid mt-3 grid overflow-hidden border border-[#c8ced1] bg-[#fbfcfd] md:grid-cols-2">
               <div className="report-visual-panel flex flex-col border-b border-[#c8ced1] md:border-b-0 md:border-r">
-                <div className="border-b border-[#c8ced1] bg-[#f8fafb] px-4 py-2.5 text-center text-sm font-semibold text-[#536e7b]">
+                <div className="report-visual-title border-b border-[#c8ced1] bg-[#f8fafb] px-4 py-2.5 text-center text-sm font-semibold text-[#536e7b]">
                   {t("spatialImage", { period: snapshotPeriodLabel })}
                 </div>
                 <ReportMapPreview
@@ -699,11 +918,24 @@ function AnalysisSection({
                 </p>
               </div>
               <div className="report-visual-panel flex flex-col">
-                <div className="border-b border-[#c8ced1] bg-[#f8fafb] px-4 py-2.5 text-center text-sm font-semibold text-[#536e7b]">
-                  {valueLabels.chartSeries}: {chartHistoryRange}
+                <div className="report-visual-title report-chart-screen border-b border-[#c8ced1] bg-[#f8fafb] px-4 py-2.5 text-center text-sm font-semibold text-[#536e7b]">
+                  {valueLabels.chartSeries}: {historyRange}
                 </div>
-                <div className="report-chart-frame flex min-h-[260px] flex-1 items-center justify-center bg-[#fbfcfd] p-3">
+                <div className="report-visual-title report-chart-print hidden border-b border-[#c8ced1] bg-[#f8fafb] px-4 py-2.5 text-center text-sm font-semibold text-[#536e7b]">
+                  {valueLabels.chartSeries}: {pdfChartHistoryRange}
+                </div>
+                <div className="report-chart-frame report-chart-screen flex min-h-[260px] flex-1 items-center justify-center bg-[#fbfcfd] p-3">
                   <MunicipalReportDynamicChart
+                    analysis={analysis}
+                    locale={locale}
+                    referencePeriod={referencePeriod}
+                    translateLabel={(label) =>
+                      translateClassLabel(label, t, tHas, tCaption, tCaptionHas)
+                    }
+                  />
+                </div>
+                <div className="report-chart-frame report-chart-print hidden items-center justify-center bg-[#fbfcfd] p-3">
+                  <MunicipalReportPrintChart
                     analysis={analysis}
                     locale={locale}
                     referencePeriod={referencePeriod}
@@ -1149,11 +1381,19 @@ export function MunicipalReportPreview({
         .report-visual-panel:first-child{border-right:1px solid #c8ced1;border-bottom:0}
         .report-map-frame{height:230px}
         .report-chart-frame{min-height:230px}
+        .report-chart-print{display:none!important}
         @media print{
           .report-visual-grid{display:grid!important;grid-template-columns:minmax(0,.84fr) minmax(0,1.16fr)!important}
           .report-visual-panel{display:flex!important;flex-direction:column!important;min-width:0}
+          .report-visual-title{box-sizing:border-box;display:flex!important;min-height:16mm;align-items:center;justify-content:center}
           .report-map-frame{height:230px!important}
           .report-chart-frame{min-height:230px!important}
+          .report-chart-screen{display:none!important}
+          .report-chart-print{display:block!important}
+          .report-visual-title.report-chart-print{display:flex!important}
+          .report-chart-frame.report-chart-print{display:flex!important;min-height:0!important;overflow:visible!important}
+          .report-print-chart-svg{display:block;width:100%!important;height:auto!important;overflow:visible!important}
+          .report-map-frame img{object-fit:contain!important;object-position:center!important}
           .report-paper img{break-inside:avoid;page-break-inside:avoid}
           .report-paper table{break-inside:auto;page-break-inside:auto}
           .report-paper tr,.report-block,.report-visual-panel{break-inside:avoid;page-break-inside:avoid}
