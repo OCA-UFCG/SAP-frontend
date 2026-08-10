@@ -1,4 +1,4 @@
-import { cleanup, render, screen } from "@testing-library/react";
+import { cleanup, render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { useEffect, useRef } from "react";
@@ -61,7 +61,12 @@ const report: MunicipalReportData = {
         period: "2026",
         label: "2026",
         distribution: [
-          { id: "sem-seca", label: "Sem seca", color: "#FFFFFF", percentage: 0 },
+          {
+            id: "sem-seca",
+            label: "Sem seca",
+            color: "#FFFFFF",
+            percentage: 0,
+          },
           { id: "normal", label: "Normal", color: "#3c8f4d", percentage: 70 },
           { id: "seca", label: "Seca", color: "#d97706", percentage: 30 },
         ],
@@ -77,7 +82,12 @@ const report: MunicipalReportData = {
           period: "2025",
           label: "2025",
           distribution: [
-            { id: "sem-seca", label: "Sem seca", color: "#FFFFFF", percentage: 0 },
+            {
+              id: "sem-seca",
+              label: "Sem seca",
+              color: "#FFFFFF",
+              percentage: 0,
+            },
             { id: "normal", label: "Normal", color: "#3c8f4d", percentage: 50 },
             { id: "seca", label: "Seca", color: "#d97706", percentage: 50 },
           ],
@@ -92,7 +102,12 @@ const report: MunicipalReportData = {
           period: "2026",
           label: "2026",
           distribution: [
-            { id: "sem-seca", label: "Sem seca", color: "#FFFFFF", percentage: 0 },
+            {
+              id: "sem-seca",
+              label: "Sem seca",
+              color: "#FFFFFF",
+              percentage: 0,
+            },
             { id: "normal", label: "Normal", color: "#3c8f4d", percentage: 70 },
             { id: "seca", label: "Seca", color: "#d97706", percentage: 30 },
           ],
@@ -126,9 +141,10 @@ describe("MunicipalReportPreview", () => {
   afterEach(() => {
     cleanup();
     global.fetch = originalFetch;
+    vi.restoreAllMocks();
   });
 
-  it("renders the report directly as full HTML without PDF preview controls", async () => {
+  it("renders the report with PDF download and zoom controls", async () => {
     const user = userEvent.setup();
 
     render(
@@ -142,29 +158,88 @@ describe("MunicipalReportPreview", () => {
 
     expect(await screen.findByRole("article")).toBeInTheDocument();
     expect(screen.getByText("Monitor de Secas")).toBeInTheDocument();
-    expect(screen.getByText("Distribuição espacial e série temporal")).toBeInTheDocument();
-    expect(screen.queryByRole("button", { name: "HTML" })).not.toBeInTheDocument();
-    expect(screen.queryByRole("button", { name: "Formato PDF" })).not.toBeInTheDocument();
-    expect(screen.queryByLabelText("Aumentar zoom")).not.toBeInTheDocument();
-    expect(screen.queryByLabelText("Diminuir zoom")).not.toBeInTheDocument();
-    expect(screen.queryByText("75%")).not.toBeInTheDocument();
+    expect(
+      screen.getByText("Distribuição espacial e série temporal"),
+    ).toBeInTheDocument();
+    expect(
+      screen.queryByRole("button", { name: "HTML" }),
+    ).not.toBeInTheDocument();
+    expect(
+      screen.queryByRole("button", { name: "Formato PDF" }),
+    ).not.toBeInTheDocument();
+    expect(screen.getByLabelText("Aumentar zoom")).toBeInTheDocument();
+    expect(screen.getByLabelText("Diminuir zoom")).toBeInTheDocument();
+    expect(screen.getByText("100%")).toBeInTheDocument();
     expect(screen.queryByText("--")).not.toBeInTheDocument();
-    expect(screen.getByRole("button", { name: "Sem seca" })).toHaveAttribute("aria-pressed", "true");
-    expect(screen.getByRole("button", { name: "Sem seca" }).querySelector("span")).toHaveStyle({
+    expect(screen.getByRole("button", { name: "Sem seca" })).toHaveAttribute(
+      "aria-pressed",
+      "true",
+    );
+    expect(
+      screen.getByRole("button", { name: "Sem seca" }).querySelector("span"),
+    ).toHaveStyle({
       backgroundColor: "#b8b8b8",
     });
-    expect(screen.getByRole("button", { name: "Normal" })).toHaveAttribute("aria-pressed", "true");
-    expect(screen.getByRole("button", { name: "Seca" })).toHaveAttribute("aria-pressed", "true");
+    expect(screen.getByRole("button", { name: "Normal" })).toHaveAttribute(
+      "aria-pressed",
+      "true",
+    );
+    expect(screen.getByRole("button", { name: "Seca" })).toHaveAttribute(
+      "aria-pressed",
+      "true",
+    );
 
     await user.click(screen.getByRole("button", { name: "Seca" }));
 
-    expect(screen.getByRole("button", { name: "Seca" })).toHaveAttribute("aria-pressed", "false");
+    expect(screen.getByRole("button", { name: "Seca" })).toHaveAttribute(
+      "aria-pressed",
+      "false",
+    );
 
-    expect(screen.queryByRole("button", { name: "Download" })).not.toBeInTheDocument();
+    await waitFor(() => {
+      expect(screen.getByRole("button", { name: "Baixar PDF" })).toBeEnabled();
+    });
+
+    await user.click(screen.getByLabelText("Aumentar zoom"));
+    expect(screen.getByText("110%")).toBeInTheDocument();
+
+    await user.click(screen.getByLabelText("Diminuir zoom"));
+    expect(screen.getByText("100%")).toBeInTheDocument();
     expect(
-      vi.mocked(global.fetch).mock.calls.some(([input]) =>
-        String(input).includes("/chart?"),
-      ),
+      vi
+        .mocked(global.fetch)
+        .mock.calls.some(([input]) => String(input).includes("/chart?")),
     ).toBe(false);
+  });
+
+  it("opens the PDF print flow from the download button", async () => {
+    const user = userEvent.setup();
+    const openSpy = vi.spyOn(window, "open").mockReturnValue(null);
+
+    render(
+      <MunicipalReportPreview
+        municipalityCode="5200050"
+        period="2026"
+        layerIds={["anaseca"]}
+        embedded
+      />,
+    );
+
+    const downloadButton = await screen.findByRole("button", {
+      name: "Baixar PDF",
+    });
+    await waitFor(() => expect(downloadButton).toBeEnabled());
+    await user.click(downloadButton);
+
+    expect(openSpy).toHaveBeenCalledWith(
+      "",
+      "_blank",
+      "popup,width=980,height=800",
+    );
+    expect(
+      screen.getByText(
+        "O navegador bloqueou a janela de impressão. Permita pop-ups para baixar o relatório em PDF.",
+      ),
+    ).toBeInTheDocument();
   });
 });
