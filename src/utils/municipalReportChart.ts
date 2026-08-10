@@ -1,4 +1,13 @@
-import type { MunicipalReportAnalysis } from "@/contracts/municipalReport";
+import type {
+  MunicipalReportAnalysis,
+  MunicipalReportPeriodSnapshot,
+} from "@/contracts/municipalReport";
+
+export const MUNICIPAL_REPORT_PDF_CHART_MAX_MEASUREMENTS = 10;
+
+interface BuildMunicipalReportChartDataOptions {
+  maxMeasurements?: number;
+}
 
 export interface MunicipalReportChartPoint {
   period: string;
@@ -20,20 +29,36 @@ export interface MunicipalReportChartData {
   referencePeriod: string | null;
 }
 
+export function selectMunicipalReportChartSnapshots(
+  timeSeries: MunicipalReportPeriodSnapshot[],
+  maxMeasurements?: number,
+): MunicipalReportPeriodSnapshot[] {
+  const sortedSnapshots = [...timeSeries].sort((left, right) =>
+    left.period.localeCompare(right.period),
+  );
+
+  if (maxMeasurements == null) return sortedSnapshots;
+  if (maxMeasurements <= 0) return [];
+  return sortedSnapshots.slice(-maxMeasurements);
+}
+
 export function buildMunicipalReportChartData(
   analysis: MunicipalReportAnalysis,
   highlightPeriod: string,
+  options: BuildMunicipalReportChartDataOptions = {},
 ): MunicipalReportChartData {
   const referencePeriod = analysis.effectivePeriod ?? highlightPeriod;
-  const snapshots = [...analysis.timeSeries].sort((left, right) =>
-    left.period.localeCompare(right.period),
+  const snapshots = selectMunicipalReportChartSnapshots(
+    analysis.timeSeries,
+    options.maxMeasurements,
   );
 
   const categories = snapshots.map((snapshot) => ({
     period: snapshot.period,
     label: snapshot.label || snapshot.period,
     highlighted:
-      snapshot.period === highlightPeriod || snapshot.period === referencePeriod,
+      snapshot.period === highlightPeriod ||
+      snapshot.period === referencePeriod,
   }));
 
   const series = analysis.classes.map((analysisClass) => ({
