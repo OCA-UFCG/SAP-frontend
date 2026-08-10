@@ -1,7 +1,10 @@
 import { describe, expect, it, vi } from "vitest";
 import type { MunicipalReportAnalysis } from "@/contracts/municipalReport";
 import { renderMunicipalReportChart } from "@/services/municipalReportChartRenderer";
-import { buildMunicipalReportChartData } from "@/utils/municipalReportChart";
+import {
+  buildMunicipalReportChartData,
+  MUNICIPAL_REPORT_CHART_MAX_MEASUREMENTS,
+} from "@/utils/municipalReportChart";
 
 vi.mock("server-only", () => ({}));
 
@@ -78,7 +81,42 @@ describe("municipal report chart", () => {
     ).toEqual([0, 20, 45]);
   });
 
-  it("renders an escaped SVG line chart with every class and full history", async () => {
+  it("keeps only the 20 most recent measurements in chronological order", () => {
+    const timeSeries = Array.from({ length: 25 }, (_, index) => {
+      const year = 2023 + Math.floor(index / 12);
+      const month = String((index % 12) + 1).padStart(2, "0");
+      const period = `${year}-${month}`;
+
+      return {
+        period,
+        label: period,
+        dominantClass: null,
+        distribution: [
+          {
+            id: "neutral",
+            label: "Neutro",
+            color: "#687076",
+            percentage: index,
+          },
+        ],
+      };
+    }).reverse();
+    const chartData = buildMunicipalReportChartData(
+      { ...analysis, timeSeries },
+      "2025-01",
+    );
+
+    expect(chartData.categories).toHaveLength(
+      MUNICIPAL_REPORT_CHART_MAX_MEASUREMENTS,
+    );
+    expect(chartData.categories[0]?.period).toBe("2023-06");
+    expect(chartData.categories.at(-1)?.period).toBe("2025-01");
+    expect(chartData.series[0]?.points.map((point) => point.value)).toEqual(
+      Array.from({ length: 20 }, (_, index) => index + 5),
+    );
+  });
+
+  it("renders an escaped SVG line chart with every class", async () => {
     const svg = (
       await renderMunicipalReportChart(analysis, {
         highlightPeriod: "2024-03",

@@ -1,6 +1,14 @@
 "use client";
 
-import { useEffect, useMemo, useRef, useState, type Ref } from "react";
+import {
+  useEffect,
+  memo,
+  useMemo,
+  useRef,
+  useState,
+  type CSSProperties,
+  type Ref,
+} from "react";
 import Link from "next/link";
 import { useLocale, useTranslations } from "next-intl";
 import {
@@ -35,7 +43,10 @@ import {
   formatMunicipalReportValue,
   getMunicipalReportValueLabels,
 } from "@/utils/municipalReportValue";
-import { buildMunicipalReportChartData } from "@/utils/municipalReportChart";
+import {
+  buildMunicipalReportChartData,
+  selectMunicipalReportChartSnapshots,
+} from "@/utils/municipalReportChart";
 import { slugifyTranslationKey } from "@/utils/translations";
 import { ReportMapPreview } from "./ReportMapPreview";
 import { useReportMapCaptureQueue } from "./useReportMapCaptureQueue";
@@ -495,6 +506,12 @@ function AnalysisSection({
     locale,
     (key, values) => t(key, values),
   );
+  const chartHistoryRange = compactPeriodRange(
+    selectMunicipalReportChartSnapshots(analysis.timeSeries),
+    referencePeriod,
+    locale,
+    (key, values) => t(key, values),
+  );
   const narrativeSections = buildAnalysisNarrativeSections(
     analysis,
     docsContent,
@@ -514,7 +531,7 @@ function AnalysisSection({
       </h2>
 
       {analysis.status !== "available" || !analysis.snapshot ? (
-        <div className="report-block mt-7 border border-[#d9e0e3] p-5">
+        <div className="report-analysis-summary report-block mt-7 border border-[#d9e0e3] p-5">
           <p className="font-bold text-[#536e7b]">
             {t(`status.${analysis.status}`)}
           </p>
@@ -527,7 +544,7 @@ function AnalysisSection({
         </div>
       ) : (
         <>
-          <div className="report-block mt-7 grid border border-[#d9e0e3] md:grid-cols-[1fr_226px]">
+          <div className="report-analysis-summary report-block mt-7 grid border border-[#d9e0e3] md:grid-cols-[1fr_226px]">
             <div className="p-5 text-[15px] leading-6 text-neutral-800">
               <p className="font-bold">
                 {t("currentSituation")}{" "}
@@ -584,13 +601,13 @@ function AnalysisSection({
             )}
           </div>
 
-          <h3 className="report-heading mt-8 text-lg font-bold text-[#536e7b]">
+          <h3 className="report-data-heading report-heading mt-8 text-lg font-bold text-[#536e7b]">
             {t("sectionTitleOf", {
               sectionTitle: valueLabels.sectionTitle,
               title: translatedTitle,
             })}
           </h3>
-          <div className="report-block mt-3 overflow-hidden border border-[#c8ced1]">
+          <div className="report-data-table report-block mt-3 overflow-hidden border border-[#c8ced1]">
             <table className="w-full border-collapse text-sm">
               <thead className="bg-[#176b39] text-white">
                 <tr>
@@ -683,7 +700,7 @@ function AnalysisSection({
               </div>
               <div className="report-visual-panel flex flex-col">
                 <div className="border-b border-[#c8ced1] bg-[#f8fafb] px-4 py-2.5 text-center text-sm font-semibold text-[#536e7b]">
-                  {valueLabels.chartSeries}: {historyRange}
+                  {valueLabels.chartSeries}: {chartHistoryRange}
                 </div>
                 <div className="report-chart-frame flex min-h-[260px] flex-1 items-center justify-center bg-[#fbfcfd] p-3">
                   <MunicipalReportDynamicChart
@@ -703,7 +720,7 @@ function AnalysisSection({
           </div>
 
           {narrativeSections.length > 0 ? (
-            <div className="report-block mt-7 border border-[#d9e0e3] p-5 text-[15px] leading-6">
+            <div className="report-narrative report-block mt-7 border border-[#d9e0e3] p-5 text-[15px] leading-6">
               <h3 className="report-heading font-bold text-[#536e7b]">
                 {t("historicalAnalysisTitle")}
               </h3>
@@ -720,7 +737,7 @@ function AnalysisSection({
               </p>
             </div>
           ) : (
-            <div className="report-block mt-7 border border-[#d9e0e3] p-5 text-[15px] leading-6">
+            <div className="report-narrative report-block mt-7 border border-[#d9e0e3] p-5 text-[15px] leading-6">
               <h3 className="report-heading font-bold text-[#536e7b]">
                 {t("historicalNoteTitle")}
               </h3>
@@ -739,7 +756,7 @@ function AnalysisSection({
   );
 }
 
-function ReportDocument({
+const ReportDocument = memo(function ReportDocument({
   report,
   layerIds = [],
   mapImages,
@@ -888,7 +905,7 @@ function ReportDocument({
         )}
       </header>
 
-      <div className="mt-10 space-y-12">
+      <div className="report-sections mt-10 space-y-12">
         {selected.map((analysis, index) => {
           const mapKey = `${analysis.id}:${analysis.effectivePeriod ?? analysis.snapshot?.period ?? report.requestedPeriod}`;
           return (
@@ -954,7 +971,7 @@ function ReportDocument({
       </footer>
     </article>
   );
-}
+});
 
 function EmptyReportPreview() {
   const t = useTranslations("MunicipalReport");
@@ -1115,27 +1132,37 @@ export function MunicipalReportPreview({
     );
     const printOverrides = `
       <style>
-        html,body{margin:0;background:#fff}
-        .report-paper{box-sizing:border-box;margin:0!important;box-shadow:none!important}
-        .report-visual-grid{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr)}
+        @page{size:A4;margin:14mm 15mm}
+        html,body{width:auto;margin:0;background:#fff}
+        body{-webkit-print-color-adjust:exact;print-color-adjust:exact}
+        .report-paper{box-sizing:border-box;width:auto!important;min-height:auto!important;margin:0!important;padding:0!important;overflow:visible;box-shadow:none!important}
+        .report-sections{margin-top:8mm!important}
+        .report-section+.report-section{margin-top:8mm!important}
+        .report-analysis-summary{margin-top:5mm!important}
+        .report-data-heading{margin-top:5mm!important}
+        .report-data-table{margin-top:3mm!important}
+        .report-visual-block,.report-narrative{margin-top:5mm!important}
+        .report-notes{margin-top:8mm!important;padding-top:5mm!important}
+        .report-paper footer{margin-top:6mm!important}
+        .report-visual-grid{display:grid;grid-template-columns:minmax(0,.84fr) minmax(0,1.16fr)}
         .report-visual-panel{min-width:0}
         .report-visual-panel:first-child{border-right:1px solid #c8ced1;border-bottom:0}
         .report-map-frame{height:230px}
         .report-chart-frame{min-height:230px}
         @media print{
-          html,body{width:210mm;background:#fff}
-          body{-webkit-print-color-adjust:exact;print-color-adjust:exact}
-          .report-paper{box-sizing:border-box}
-          .report-visual-grid{display:grid!important;grid-template-columns:minmax(0,1fr) minmax(0,1fr)!important}
+          .report-visual-grid{display:grid!important;grid-template-columns:minmax(0,.84fr) minmax(0,1.16fr)!important}
           .report-visual-panel{display:flex!important;flex-direction:column!important;min-width:0}
           .report-map-frame{height:230px!important}
           .report-chart-frame{min-height:230px!important}
           .report-paper img{break-inside:avoid;page-break-inside:avoid}
           .report-paper table{break-inside:auto;page-break-inside:auto}
           .report-paper tr,.report-block,.report-visual-panel{break-inside:avoid;page-break-inside:avoid}
+          .report-narrative{break-inside:auto!important;page-break-inside:auto!important}
           .report-heading{break-after:avoid;page-break-after:avoid}
           .report-section{break-inside:auto;page-break-inside:auto}
-          .report-visual-block,.report-notes{break-inside:avoid;page-break-inside:avoid}
+          .report-visual-block{break-inside:avoid;page-break-inside:avoid}
+          .report-notes{break-inside:auto;page-break-inside:auto}
+          .report-paper p,.report-notes p{orphans:3;widows:3}
         }
       </style>`;
 
@@ -1382,7 +1409,7 @@ export function MunicipalReportPreview({
           )}
           {report && !loading && (
             <div
-              className="mx-auto origin-top-left transition-transform duration-150 ease-out will-change-transform motion-reduce:transition-none"
+              className="mx-auto origin-top-left will-change-transform"
               style={{ width: "100%", transform: `scale(${zoom / 100})` }}
             >
               <ReportDocument

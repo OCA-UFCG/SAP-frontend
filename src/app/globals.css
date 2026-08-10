@@ -82,7 +82,8 @@ textarea {
 
   .report-paper.report-paper-html .report-data-row:hover > td {
     background-color: var(--report-row-hover-bg) !important;
-    box-shadow: inset 0 1px 0 rgba(32, 32, 32, 0.04),
+    box-shadow:
+      inset 0 1px 0 rgba(32, 32, 32, 0.04),
       inset 0 -1px 0 rgba(32, 32, 32, 0.04);
   }
 }
@@ -96,21 +97,37 @@ textarea {
 @media print {
   @page {
     size: A4;
-    margin: 0;
+    margin: 14mm 15mm;
   }
 
   .report-paper {
     box-sizing: border-box;
     box-shadow: none !important;
     margin: 0 !important;
-    width: 210mm !important;
-    min-height: 297mm;
-    padding: 14mm 15mm !important;
+    width: auto !important;
+    min-height: auto !important;
+    padding: 0 !important;
+    overflow: visible;
+  }
+
+  .report-sections {
+    margin-top: 8mm !important;
+  }
+
+  .report-analysis-summary,
+  .report-data-heading,
+  .report-visual-block,
+  .report-narrative {
+    margin-top: 5mm !important;
+  }
+
+  .report-data-table {
+    margin-top: 3mm !important;
   }
 
   .report-visual-grid {
     display: grid !important;
-    grid-template-columns: minmax(0, 1fr) minmax(0, 1fr) !important;
+    grid-template-columns: minmax(0, 0.84fr) minmax(0, 1.16fr) !important;
   }
 
   .report-visual-panel {
@@ -154,6 +171,11 @@ textarea {
     page-break-after: avoid;
   }
 
+  .report-narrative {
+    break-inside: auto !important;
+    page-break-inside: auto !important;
+  }
+
   .report-section {
     break-inside: auto;
     page-break-inside: auto;
@@ -163,10 +185,22 @@ textarea {
     margin-top: 8mm !important;
   }
 
-  .report-visual-block,
-  .report-notes {
+  .report-visual-block {
     break-inside: avoid;
     page-break-inside: avoid;
+  }
+
+  .report-notes {
+    margin-top: 8mm !important;
+    padding-top: 5mm !important;
+    break-inside: auto;
+    page-break-inside: auto;
+  }
+
+  .report-paper p,
+  .report-notes p {
+    orphans: 3;
+    widows: 3;
   }
 
   .report-paper .space-y-12 > :not([hidden]) ~ :not([hidden]) {
@@ -176,7 +210,7 @@ textarea {
   }
 
   .report-paper footer {
-    margin-top: 10mm !important;
+    margin-top: 6mm !important;
   }
 }
 
