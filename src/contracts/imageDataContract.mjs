@@ -56,7 +56,11 @@ function validateClassList(value, path, errors) {
 
     for (const field of ["id", "label", "color"]) {
       if (!isNonEmptyString(entry[field])) {
-        pushError(errors, `${entryPath}.${field}`, "deve ser string não vazia.");
+        pushError(
+          errors,
+          `${entryPath}.${field}`,
+          "deve ser string não vazia.",
+        );
       }
     }
 
@@ -143,7 +147,7 @@ function validateMapVisualization(value, path, errors) {
     validateClassList(value.legend, `${path}.legend`, errors);
   }
 
-  for (const field of ["band", "sourceBand", "property"]) {
+  for (const field of ["band", "sourceBand", "outputBand", "property"]) {
     if (value[field] != null && !isNonEmptyString(value[field])) {
       pushError(errors, `${path}.${field}`, "deve ser string não vazia.");
     }
@@ -157,7 +161,11 @@ function validateMapVisualization(value, path, errors) {
         value.outline.color != null &&
         !isNonEmptyString(value.outline.color)
       ) {
-        pushError(errors, `${path}.outline.color`, "deve ser string não vazia.");
+        pushError(
+          errors,
+          `${path}.outline.color`,
+          "deve ser string não vazia.",
+        );
       }
 
       for (const field of ["width", "opacity"]) {
@@ -165,7 +173,11 @@ function validateMapVisualization(value, path, errors) {
           value.outline[field] != null &&
           !isFiniteNumber(value.outline[field])
         ) {
-          pushError(errors, `${path}.outline.${field}`, "deve ser número finito.");
+          pushError(
+            errors,
+            `${path}.outline.${field}`,
+            "deve ser número finito.",
+          );
         }
       }
     }
@@ -200,12 +212,20 @@ function validateMapVisualization(value, path, errors) {
         value.sourceRange.unit != null &&
         !isNonEmptyString(value.sourceRange.unit)
       ) {
-        pushError(errors, `${path}.sourceRange.unit`, "deve ser string não vazia.");
+        pushError(
+          errors,
+          `${path}.sourceRange.unit`,
+          "deve ser string não vazia.",
+        );
       }
     }
   }
 
-  validateOptionalStringRecord(value.valueMeaning, `${path}.valueMeaning`, errors);
+  validateOptionalStringRecord(
+    value.valueMeaning,
+    `${path}.valueMeaning`,
+    errors,
+  );
 }
 
 function validateYears(value, path, errors, options) {
@@ -237,6 +257,17 @@ function validateYears(value, path, errors, options) {
     }
 
     if (
+      yearEntry.leadTime != null &&
+      (!Number.isInteger(yearEntry.leadTime) || yearEntry.leadTime < 1)
+    ) {
+      pushError(
+        errors,
+        `${yearPath}.leadTime`,
+        "deve ser número inteiro positivo.",
+      );
+    }
+
+    if (
       yearEntry.valuesScale != null &&
       !isFiniteNumber(yearEntry.valuesScale)
     ) {
@@ -245,7 +276,11 @@ function validateYears(value, path, errors, options) {
 
     if (options.requireValues || yearEntry.values != null) {
       if (!isNumericArrayRecord(yearEntry.values)) {
-        pushError(errors, `${yearPath}.values`, "deve ser objeto de arrays numéricos.");
+        pushError(
+          errors,
+          `${yearPath}.values`,
+          "deve ser objeto de arrays numéricos.",
+        );
       }
     }
   }
@@ -283,9 +318,15 @@ function validateCompactDataset(value, context, errors) {
     if (
       !isRecord(value.locations) ||
       Object.keys(value.locations).length === 0 ||
-      !Object.values(value.locations).every((entry) => typeof entry === "string")
+      !Object.values(value.locations).every(
+        (entry) => typeof entry === "string",
+      )
     ) {
-      pushError(errors, "locations", "deve ser um objeto não vazio de strings.");
+      pushError(
+        errors,
+        "locations",
+        "deve ser um objeto não vazio de strings.",
+      );
     }
   } else {
     validateOptionalStringRecord(value.locations, "locations", errors);
@@ -377,14 +418,12 @@ export function validateCompressedTerritorialEnvelope(value) {
     pushError(errors, "encoding", "deve ser gzip+base64.");
   }
 
-  if (
-    !(
-      typeof value.data === "string" ||
-      (Array.isArray(value.data) &&
-        value.data.length > 0 &&
-        value.data.every((chunk) => typeof chunk === "string"))
-    )
-  ) {
+  if (!(
+    typeof value.data === "string" ||
+    (Array.isArray(value.data) &&
+      value.data.length > 0 &&
+      value.data.every((chunk) => typeof chunk === "string"))
+  )) {
     pushError(errors, "data", "deve ser string ou lista não vazia de strings.");
   }
 
@@ -447,5 +486,8 @@ export function assertValidImageDataContract(value, options = {}) {
 }
 
 export function isCompactTerritorialImageData(value) {
-  return validateImageDataContract(value, { context: "runtimeRead" }).ok && !isLegacyImageDataMap(value);
+  return (
+    validateImageDataContract(value, { context: "runtimeRead" }).ok &&
+    !isLegacyImageDataMap(value)
+  );
 }

@@ -70,6 +70,24 @@ describe("Earth Engine map visualization planning", () => {
     });
   });
 
+  it("renames threshold output without selecting that name from the source", () => {
+    const plan = resolveMapVisualizationPlan(
+      {
+        min: 0,
+        max: 2,
+        outputBand: "classified_value",
+        thresholds: [10, 20],
+        palette: ["#000000", "#111111", "#222222"],
+      },
+      [],
+      0,
+      2,
+    );
+
+    expect(plan.sourceBand).toBeUndefined();
+    expect(plan.thresholdClassification?.outputBand).toBe("classified_value");
+  });
+
   it("keeps feature collection visualization metadata in the resolved plan", () => {
     const plan = resolveMapVisualizationPlan(
       {

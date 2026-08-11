@@ -81,7 +81,38 @@ describe("imageData helpers", () => {
       "2026-08",
       "2026-10",
     ]);
-    expect(filtered.defaultYear).toBe("2026-10");
+    expect(filtered.defaultYear).toBe("2026-07");
+    expect(filtered).toMatchObject({
+      mapVisualization: {
+        sourceType: "imageCollection",
+        min: 0,
+        max: 5,
+        outputBand: "Classe_Previsao",
+        thresholds: [-90, -30, 0, 30, 90],
+        palette: [
+          "#a50026",
+          "#f46d43",
+          "#fee090",
+          "#abd9e9",
+          "#4575b4",
+          "#313695",
+        ],
+      },
+      years: {
+        "2026-07": {
+          imageId: "projects/ee-ulissesalencar17/assets/CPTEC_Prev_P_Anomalia",
+          leadTime: 1,
+        },
+        "2026-08": {
+          imageId: "projects/ee-ulissesalencar17/assets/CPTEC_Prev_P_Anomalia",
+          leadTime: 2,
+        },
+        "2026-10": {
+          imageId: "projects/ee-ulissesalencar17/assets/CPTEC_Prev_P_Anomalia",
+          leadTime: 3,
+        },
+      },
+    });
   });
 
   it("does not filter periods from other panel layers", () => {
@@ -103,6 +134,46 @@ describe("imageData helpers", () => {
         new Date(2026, 6, 24),
       ),
     ).toBe(imageData);
+  });
+
+  it("preserves legacy lead suffixes when historical emissions overlap", () => {
+    const legacyAssetPrefix =
+      "projects/ee-ulissesalencar17/assets/previsao_P_cal_";
+    const imageData: CompactTerritorialAnalysisDataset = {
+      schemaVersion: 1,
+      type: "territorial-compact",
+      defaultYear: "2026-11",
+      classes: [{ id: "a", label: "Classe A", color: "#111111" }],
+      years: {
+        "2026-05": { imageId: `${legacyAssetPrefix}20260401_01`, values: {} },
+        "2026-06": { imageId: `${legacyAssetPrefix}20260401_02`, values: {} },
+        "2026-07": { imageId: `${legacyAssetPrefix}20260601_01`, values: {} },
+        "2026-08": { imageId: `${legacyAssetPrefix}20260701_01`, values: {} },
+        "2026-09": { imageId: `${legacyAssetPrefix}20260701_02`, values: {} },
+        "2026-10": { imageId: `${legacyAssetPrefix}20260701_03`, values: {} },
+        "2026-11": { imageId: `${legacyAssetPrefix}20260701_04`, values: {} },
+      },
+    };
+
+    const filtered = keepOnlyFutureForecastPeriods(
+      "prev_anomalia_precipitacao",
+      imageData,
+      new Date("2026-08-10T12:00:00.000Z"),
+    ) as CompactTerritorialAnalysisDataset;
+
+    expect(
+      Object.fromEntries(
+        Object.entries(filtered.years).map(([month, entry]) => [
+          month,
+          entry.leadTime,
+        ]),
+      ),
+    ).toEqual({
+      "2026-08": 1,
+      "2026-09": 2,
+      "2026-10": 3,
+      "2026-11": 4,
+    });
   });
 
   it("uses the Brazil calendar month at UTC month boundaries", () => {

@@ -281,6 +281,86 @@ describe("POST /api/ee cache behavior", () => {
     );
   });
 
+  it("requests the selected lead from the latest CPTEC issuance", async () => {
+    const mapVisualization = {
+      sourceType: "imageCollection" as const,
+      min: 0,
+      max: 5,
+      outputBand: "Classe_Previsao",
+      thresholds: [-90, -30, 0, 30, 90],
+      palette: [
+        "#a50026",
+        "#f46d43",
+        "#fee090",
+        "#abd9e9",
+        "#4575b4",
+        "#313695",
+      ],
+    };
+    const imageId = "projects/ee-ulissesalencar17/assets/CPTEC_Prev_P_Anomalia";
+
+    mockedGetPanelLayers.mockResolvedValueOnce([
+      {
+        ...createMockLayer(),
+        imageData: {
+          type: "territorial-compact",
+          schemaVersion: 1,
+          defaultYear: "2026-08",
+          classes: [
+            {
+              id: "muito-abaixo",
+              label: "Muito abaixo do normal",
+              color: "#a50026",
+              pixelLimit: 0,
+            },
+          ],
+          mapVisualization,
+          years: {
+            "2026-08": {
+              imageId,
+              leadTime: 1,
+              values: { br: [100] },
+            },
+          },
+        },
+      },
+    ]);
+    mockedGetEarthEngineUrl.mockResolvedValueOnce(
+      "https://tiles.example/cptec/lead-1",
+    );
+
+    const response = await POST(
+      createMockRequest(
+        "https://example.test/api/ee?name=layer-a&year=2026-08",
+      ),
+    );
+
+    expect(response.status).toBe(200);
+    expect(mockedGetEarthEngineUrl).toHaveBeenCalledWith(
+      imageId,
+      [
+        {
+          color: "#a50026",
+          label: "Muito abaixo do normal",
+          pixelLimit: 0,
+        },
+      ],
+      0,
+      1,
+      {
+        mapVisualization,
+        spatialSelection: nationalSelection,
+        imageCollectionSelection: {
+          latestProperty: "data_emissao",
+          filterProperty: "lead_time",
+          filterValue: 1,
+          sortProperty: "lead_time",
+          selectFirstBand: true,
+        },
+      },
+    );
+  });
+
   it("rejects partial or unknown spatial selections", async () => {
     const partialResponse = await POST(
       createMockRequest(

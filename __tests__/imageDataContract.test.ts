@@ -112,6 +112,17 @@ describe("imageData contract", () => {
     ).toContain("years.2026.imageId: deve ser string não vazia.");
   });
 
+  it("rejects non-positive forecast lead times", () => {
+    const imageData = buildValidCompactImageData();
+    Object.assign(imageData.years["2026"], { leadTime: 0 });
+
+    expect(
+      validateImageDataContract(imageData, {
+        context: "panelLayerPublish",
+      }).errors,
+    ).toContain("years.2026.leadTime: deve ser número inteiro positivo.");
+  });
+
   it("accepts municipal patches without imageId", () => {
     expect(
       validateImageDataContract(

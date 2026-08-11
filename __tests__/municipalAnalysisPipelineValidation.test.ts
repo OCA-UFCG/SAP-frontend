@@ -318,6 +318,7 @@ describe("municipal analysis pipeline validation", () => {
       expectedYear: "2026-06",
       expectedImageId:
         "projects/ee-ulissesalencar17/assets/IC_monitor_seca_ANA/monitor_ana_2026_06",
+      expectedLeadTime: undefined,
     },
     {
       fileName: "Estatisticas_SAP_Multinivel_Prev_P_Cal_Anomalia_20260701.csv",
@@ -331,7 +332,8 @@ describe("municipal analysis pipeline validation", () => {
       ],
       expectedYear: "2026-11",
       expectedImageId:
-        "projects/ee-ulissesalencar17/assets/previsao_P_cal_20260701_04",
+        "projects/ee-ulissesalencar17/assets/CPTEC_Prev_P_Anomalia",
+      expectedLeadTime: 4,
     },
   ])(
     "infers image IDs for recent multilevel $panelLayerId files",
@@ -342,6 +344,7 @@ describe("municipal analysis pipeline validation", () => {
       rows,
       expectedYear,
       expectedImageId,
+      expectedLeadTime,
     }) => {
       const rootDir = path.join("/tmp", `sedes-image-id-${Date.now()}`);
       const inputPath = path.join(rootDir, fileName);
@@ -390,6 +393,9 @@ describe("municipal analysis pipeline validation", () => {
 
         expect(conversion.imageData.years[expectedYear].imageId).toBe(
           expectedImageId,
+        );
+        expect(conversion.imageData.years[expectedYear].leadTime).toBe(
+          expectedLeadTime,
         );
       } finally {
         await rm(rootDir, { recursive: true, force: true });
