@@ -1,3 +1,8 @@
+import {
+  buildSpatialLocationKey,
+  SPATIAL_LOCATION_NAMES,
+} from "@/contracts/spatialLocationKey.mjs";
+
 export type SpatialArea = "national" | "region" | "biome" | "semiarid" | "asd";
 
 export type SpatialSelection =
@@ -128,32 +133,37 @@ export function getSpatialScopeLocationKey(
 ): string | null {
   if (selection.spatialArea === "national") return "br";
 
-  const slugify = (val: string) =>
-    val
-      .normalize("NFD")
-      .replace(/[\u0300-\u036f]/g, "") // Diacritics
-      .toLowerCase()
-      .replace(/[^a-z0-9]+/g, "-")
-      .replace(/^-|-$/g, "");
-
-  const valueSlug = slugify(selection.spatialValue);
-
   switch (selection.spatialArea) {
     case "region":
-      return `2_regiao-${valueSlug}`;
+      return buildSpatialLocationKey("2_Regiao", selection.spatialValue);
     case "biome":
-      return `3_bioma-${valueSlug}`;
+      return buildSpatialLocationKey("3_Bioma", selection.spatialValue);
     case "asd":
-      // ASD in CSV might be 'asd' or 'asd-entorno' etc. depending on how slugify works on the actual values
-      return `4_asd-${valueSlug}`;
+      return buildSpatialLocationKey(
+        "4_ASD",
+        SPATIAL_LOCATION_NAMES.asdAndSurroundings,
+      );
     case "semiarid":
-      // Checking the CSV screenshot, semiarido name is 'Semiárido Total' or 'Sim'. Let's see what slugify returns for it.
-      // If the frontend spatialValue is 'semiárido', slugify gives 'semiarido'. We might need to map it carefully if the CSV has 'sim'.
-      // Looking at the territory.mjs `row["SEMIÁRIDO"]` -> 'sim' maybe?
-      // Wait, in the screenshot column "SEMIÁRIDO" has 'Sim', but "NOME_LOCAL" is "Semiárido Total".
-      // So name = 'Semiárido Total'. Slugify gives 'semiarido-total'.
-      return valueSlug === "semiarido" ? "5_semiarido-semiarido-total" : `5_semiarido-${valueSlug}`;
+      return buildSpatialLocationKey(
+        "5_Semiarido",
+        SPATIAL_LOCATION_NAMES.semiarid,
+      );
     default:
       return null;
+  }
+}
+
+export function getSpatialScopeLocationName(
+  selection: SpatialSelection,
+): string {
+  switch (selection.spatialArea) {
+    case "national":
+      return "Brasil";
+    case "asd":
+      return SPATIAL_LOCATION_NAMES.asdAndSurroundings;
+    case "semiarid":
+      return SPATIAL_LOCATION_NAMES.semiarid;
+    default:
+      return selection.spatialValue;
   }
 }

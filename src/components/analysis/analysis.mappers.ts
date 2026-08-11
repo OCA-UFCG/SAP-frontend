@@ -201,12 +201,15 @@ export function getFallbackAnalysisLocationName(locationKey: string): string {
   if (isMunicipalityLocationKey(locationKey)) {
     return municipalitiesByCode.get(locationKey) ?? locationKey;
   }
-  
+
   if (locationKey.includes("_")) {
     const parts = locationKey.split("-");
     if (parts.length > 1) {
       const nameSlug = parts.slice(1).join("-");
-      return nameSlug.split('-').map(w => w.charAt(0).toUpperCase() + w.slice(1)).join(' ');
+      return nameSlug
+        .split("-")
+        .map((word) => word.charAt(0).toUpperCase() + word.slice(1))
+        .join(" ");
     }
   }
 
@@ -512,5 +515,5 @@ export function getAnalysisLocationName(
     return null;
   }
 
-  return getCompactLocationName(compactAnalysis, locationKey);
+  return compactAnalysis.locations?.[locationKey] ?? null;
 }

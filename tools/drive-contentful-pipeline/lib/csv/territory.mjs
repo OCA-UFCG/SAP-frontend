@@ -1,3 +1,5 @@
+import { buildSpatialLocationKey } from "../../../../src/contracts/spatialLocationKey.mjs";
+
 const STATE_NAMES = {
   ac: "Acre",
   al: "Alagoas",
@@ -38,23 +40,19 @@ const MULTILEVEL_TERRITORIES = new Set([
   "7_Municipio",
 ]);
 
+const PANEL_LAYER_MULTILEVEL_TERRITORIES = new Set([
+  "1_BR",
+  "2_Regiao",
+  "3_Bioma",
+  "4_ASD",
+  "5_Semiarido",
+  "6_Estado",
+]);
+
 function normalizeBlank(value) {
   const normalized = String(value ?? "").trim();
 
   return normalized && normalized !== "---" ? normalized : "";
-}
-
-function slugifyLocation(value) {
-  return normalizeBlank(value)
-    .normalize("NFD")
-    .replace(/\p{Diacritic}/gu, "")
-    .toLowerCase()
-    .replace(/[^a-z0-9]+/gu, "-")
-    .replace(/^-|-$/gu, "");
-}
-
-function firstPresent(...values) {
-  return values.map(normalizeBlank).find(Boolean) ?? "";
 }
 
 function getStateCode(row) {
@@ -149,29 +147,22 @@ export function getMultilevelLocation(row) {
     return { key, label: uf ? `${name} - ${uf}` : name };
   }
 
-  const groupedName = firstPresent(
-    row.NM_REGIAO,
-    row.BIOMA_PRED,
-    row.ASD_ENTORN,
-    row["SEMIÁRIDO"],
-    name,
-  );
-  const groupedKey = slugifyLocation(groupedName);
-
-  if (!groupedKey) {
-    throw new Error(`Linha multinível sem localidade: ${JSON.stringify(row)}`);
+  if (!name) {
+    throw new Error(
+      `Linha multinível agregada sem NOME_LOCAL: ${JSON.stringify(row)}`,
+    );
   }
 
   return {
-    key: `${level.toLowerCase()}-${groupedKey}`,
-    label: name || groupedName,
+    key: buildSpatialLocationKey(level, name),
+    label: name,
   };
 }
 
 export function getMultilevelPanelLayerLocation(row) {
   const level = normalizeBlank(row.NIVEL_AGRUPAMENTO);
 
-  if (!level) return null;
+  if (!PANEL_LAYER_MULTILEVEL_TERRITORIES.has(level)) return null;
 
   return getMultilevelLocation(row);
 }
