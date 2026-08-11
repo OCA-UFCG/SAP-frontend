@@ -14,9 +14,11 @@ import {
 import { inferPanelLayerMapping } from "../tools/drive-contentful-pipeline/lib/csv/layer-mapping.mjs";
 import {
   getLocation,
+  getMultilevelPanelLayerLocation,
   inferTerritory,
 } from "../tools/drive-contentful-pipeline/lib/csv/territory.mjs";
 import { writeAnnualPartitions } from "../tools/drive-contentful-pipeline/lib/conversion/partition-writer.mjs";
+import { convertPanelLayerCsvFile } from "../tools/drive-contentful-pipeline/lib/conversion/panel-layer-converter.mjs";
 import { convertCsvDirectory } from "../tools/drive-contentful-pipeline/lib/conversion/output-files.mjs";
 import { writeDriveCsvSnapshot } from "../tools/drive-contentful-pipeline/lib/drive/drive-snapshot.mjs";
 import { assertUniqueDriveLocalNames } from "../tools/drive-contentful-pipeline/lib/drive/drive-client.mjs";
@@ -238,6 +240,163 @@ describe("municipal analysis pipeline validation", () => {
     ).toEqual({ key: "br", label: "Brasil" });
   });
 
+  it.each([
+    [
+      {
+        NIVEL_AGRUPAMENTO: "2_Regiao",
+        NOME_LOCAL: "Centro-oeste",
+        NM_REGIAO: "Centro-oeste",
+      },
+      "2_regiao-centro-oeste",
+    ],
+    [
+      {
+        NIVEL_AGRUPAMENTO: "3_Bioma",
+        NOME_LOCAL: "Mata Atlântica",
+        BIOMA_PRED: "Mata Atlântica",
+      },
+      "3_bioma-mata-atlantica",
+    ],
+    [
+      {
+        NIVEL_AGRUPAMENTO: "4_ASD",
+        NOME_LOCAL: "Apenas ASD",
+        ASD_ENTORN: "ASD",
+      },
+      "4_asd-apenas-asd",
+    ],
+    [
+      {
+        NIVEL_AGRUPAMENTO: "4_ASD",
+        NOME_LOCAL: "ASD + Entorno",
+        ASD_ENTORN: "ASD + Entorno",
+      },
+      "4_asd-asd-entorno",
+    ],
+    [
+      {
+        NIVEL_AGRUPAMENTO: "5_Semiarido",
+        NOME_LOCAL: "Semiárido Total",
+        SEMIÁRIDO: "Sim",
+      },
+      "5_semiarido-semiarido-total",
+    ],
+  ])("uses NIVEL_AGRUPAMENTO + NOME_LOCAL as the key contract", (row, key) => {
+    expect(getLocation(row, "multilevel")).toEqual({
+      key,
+      label: row.NOME_LOCAL,
+    });
+  });
+
+  it("keeps aggregate rows and excludes municipalities from panelLayer", () => {
+    expect(
+      getMultilevelPanelLayerLocation({
+        NIVEL_AGRUPAMENTO: "4_ASD",
+        NOME_LOCAL: "ASD + Entorno",
+      }),
+    ).toEqual({
+      key: "4_asd-asd-entorno",
+      label: "ASD + Entorno",
+    });
+
+    expect(
+      getMultilevelPanelLayerLocation({
+        NIVEL_AGRUPAMENTO: "7_Municipio",
+        NOME_LOCAL: "João Pessoa",
+        CD_MUN: "2507507",
+        SIGLA_UF: "PB",
+      }),
+    ).toBeNull();
+  });
+
+  it.each([
+    {
+      fileName: "Estatistica_Multinivel_MonitorANA_2026.csv",
+      panelLayerId: "anaseca",
+      pattern: "ana",
+      rows: ["1_BR,Brasil Total,2026,6,2026-06-01,100"],
+      expectedYear: "2026-06",
+      expectedImageId:
+        "projects/ee-ulissesalencar17/assets/IC_monitor_seca_ANA/monitor_ana_2026_06",
+    },
+    {
+      fileName: "Estatisticas_SAP_Multinivel_Prev_P_Cal_Anomalia_20260701.csv",
+      panelLayerId: "prev_anomalia_precipitacao",
+      pattern: "prev",
+      rows: [
+        "1_BR,Brasil Total,2026,8,2026-08-01,100",
+        "1_BR,Brasil Total,2026,9,2026-09-01,100",
+        "1_BR,Brasil Total,2026,10,2026-10-01,100",
+        "1_BR,Brasil Total,2026,11,2026-11-01,100",
+      ],
+      expectedYear: "2026-11",
+      expectedImageId:
+        "projects/ee-ulissesalencar17/assets/previsao_P_cal_20260701_04",
+    },
+  ])(
+    "infers image IDs for recent multilevel $panelLayerId files",
+    async ({
+      fileName,
+      panelLayerId,
+      pattern,
+      rows,
+      expectedYear,
+      expectedImageId,
+    }) => {
+      const rootDir = path.join("/tmp", `sedes-image-id-${Date.now()}`);
+      const inputPath = path.join(rootDir, fileName);
+      const config = normalizePipelineConfig({
+        schemaVersion: 1,
+        drive: { folderId: "folder" },
+        paths: { csvDir: "csv", jsonDir: "json" },
+        limits: {
+          maxContentfulJsonBytes: 450000,
+          compressedDataChunkSize: 30000,
+        },
+        defaults: {
+          fileNamePattern: "\\.csv$",
+          municipalityTemplate: "municipality",
+          stateTemplate: "state",
+        },
+        layerRules: [
+          {
+            key: pattern,
+            label: pattern,
+            panelLayerId,
+            patterns: [pattern],
+          },
+        ],
+        panelLayerProfiles: {
+          [panelLayerId]: {
+            classes: [{ id: "a", label: "A", color: "#000000" }],
+            templates: { state: "state" },
+            mapVisualization: { sourceType: "image" },
+          },
+        },
+      });
+      await mkdir(rootDir, { recursive: true });
+
+      try {
+        await writeFile(
+          inputPath,
+          [
+            "NIVEL_AGRUPAMENTO,NOME_LOCAL,ano,mes,data_img,perc_classe_0",
+            ...rows,
+          ].join("\n"),
+          "utf8",
+        );
+
+        const conversion = await convertPanelLayerCsvFile(inputPath, config);
+
+        expect(conversion.imageData.years[expectedYear].imageId).toBe(
+          expectedImageId,
+        );
+      } finally {
+        await rm(rootDir, { recursive: true, force: true });
+      }
+    },
+  );
+
   it("merges legacy and multilevel forecast CSVs into one annual partition", async () => {
     const rootDir = path.join("/tmp", `sedes-multilevel-${Date.now()}`);
     const csvDir = path.join(rootDir, "csv");
@@ -420,6 +579,82 @@ describe("municipal analysis pipeline validation", () => {
       expect(payload.years["2026"].values.pb).toEqual([90]);
       expect(payload.years["2026"].imageId).toBe("image-90");
       expect(result.skipped[0].collision.winnerInputPath).toContain(newerName);
+    } finally {
+      await rm(rootDir, { recursive: true, force: true });
+    }
+  });
+
+  it("merges complementary default templates from multilevel and municipal sources", async () => {
+    const rootDir = path.join("/tmp", `sedes-mixed-territory-${Date.now()}`);
+    const csvDir = path.join(rootDir, "csv");
+    const jsonDir = path.join(rootDir, "json");
+    const municipalName = "CDI_municipal.csv";
+    const multilevelName = "CDI_multilevel.csv";
+    const configWithoutTemplates = {
+      ...minimalPipelineConfig,
+      panelLayerProfiles: {
+        CDI_Test: {
+          ...minimalPipelineConfig.panelLayerProfiles.CDI_Test,
+          templates: undefined,
+        },
+      },
+    };
+    await mkdir(csvDir, { recursive: true });
+
+    try {
+      await writeFile(
+        path.join(csvDir, municipalName),
+        [
+          "CD_MUN,NM_MUN,SIGLA_UF,ano,data_img,perc_classe_0",
+          "2507507,João Pessoa,PB,2026,2026-02-01,10",
+        ].join("\n"),
+        "utf8",
+      );
+      await writeFile(
+        path.join(csvDir, multilevelName),
+        [
+          "NIVEL_AGRUPAMENTO,NOME_LOCAL,CD_MUN,NM_MUN,SIGLA_UF,ano,data_img,perc_classe_0",
+          "7_Municipio,João Pessoa,2507507,João Pessoa,PB,2026,2026-02-01,90",
+        ].join("\n"),
+        "utf8",
+      );
+      await writeTestDriveSnapshot(csvDir, [
+        {
+          localName: municipalName,
+          modifiedTime: "2026-06-01T10:00:00.000Z",
+        },
+        {
+          localName: multilevelName,
+          modifiedTime: "2026-06-02T10:00:00.000Z",
+        },
+      ]);
+
+      const result = await convertCsvDirectory(
+        {
+          csvDir,
+          jsonDir,
+          fileNamePattern: /\.csv$/iu,
+          writeAggregates: false,
+          writeRawPartitions: true,
+          maxContentfulJsonBytes: 450000,
+        },
+        configWithoutTemplates,
+      );
+      const payload = JSON.parse(
+        await readFile(result.partitionFiles[0].outputPath, "utf8"),
+      );
+
+      expect(payload.templates).toEqual({
+        municipality: "municipality",
+        state: "state",
+      });
+      expect(payload.years["2026-02"].values["2507507"]).toEqual([90]);
+      expect(result.skipped).toEqual([
+        expect.objectContaining({
+          inputPath: expect.stringContaining(municipalName),
+          ignored: true,
+        }),
+      ]);
     } finally {
       await rm(rootDir, { recursive: true, force: true });
     }
