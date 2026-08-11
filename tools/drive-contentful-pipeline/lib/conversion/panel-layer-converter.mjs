@@ -32,7 +32,7 @@ function assertPanelLayerValuesInRange(values, panelLayerConfig, context) {
 }
 
 function getForecastImageIdFromFileName(inputPath, yearKey, yearKeys) {
-  const calibrationMatch = inputPath.match(/Cal_(\d{8})/iu);
+  const calibrationMatch = inputPath.match(/Cal_(?:Anomalia_)?(\d{8})/iu);
 
   if (!calibrationMatch?.[1]) return "";
 
@@ -46,7 +46,16 @@ function getForecastImageIdFromFileName(inputPath, yearKey, yearKeys) {
   return `projects/ee-ulissesalencar17/assets/previsao_P_cal_${calibrationMatch[1]}_${suffix}`;
 }
 
+function getAnaImageId(panelLayerId, yearKey) {
+  if (panelLayerId !== "anaseca" || !/^\d{4}-\d{2}$/u.test(yearKey)) {
+    return "";
+  }
+
+  return `projects/ee-ulissesalencar17/assets/IC_monitor_seca_ANA/monitor_ana_${yearKey.replace("-", "_")}`;
+}
+
 function getPanelLayerImageId(
+  panelLayerId,
   panelLayerConfig,
   yearKey,
   row,
@@ -58,10 +67,11 @@ function getPanelLayerImageId(
     yearKey,
     yearKeys,
   );
+  const inferredAnaImageId = getAnaImageId(panelLayerId, yearKey);
   const configuredImageId = panelLayerConfig.imageIdByYear?.[yearKey];
   const fallbackImageId = isMultilevelTerritoryRow(row)
-    ? inferredImageId || configuredImageId
-    : configuredImageId || inferredImageId;
+    ? inferredImageId || inferredAnaImageId || configuredImageId
+    : configuredImageId || inferredImageId || inferredAnaImageId;
   const imageId =
     String(row.image_id ?? row.imageId ?? row.IMAGE_ID ?? "").trim() ||
     fallbackImageId ||
@@ -172,6 +182,7 @@ export async function convertPanelLayerCsvFile(inputPath, pipelineConfig) {
     if (!years.has(yearKey)) {
       years.set(yearKey, {
         imageId: getPanelLayerImageId(
+          mapping.panelLayerId,
           panelLayerConfig,
           yearKey,
           row,
