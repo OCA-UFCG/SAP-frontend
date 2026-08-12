@@ -395,7 +395,7 @@ function MunicipalReportDynamicChart({
             {visibleSeries.map((series) => (
               <Line
                 key={series.id}
-                type="monotone"
+                type="linear"
                 dataKey={series.id}
                 name={translateLabel(series.label)}
                 stroke={getVisibleChartColor(series.color)}
