@@ -1,4 +1,5 @@
 import maplibregl, { ExpressionSpecification } from "maplibre-gl";
+import type { FeatureCollection, Geometry } from "geojson";
 import { BRAZIL_RASTER_BOUNDS } from "./mapBounds";
 import { ensureMunicipalityLayers } from "./municipalityLayers";
 
@@ -16,6 +17,8 @@ export const STATES_FILL_LAYER_ID = "state-fills";
 export const STATES_BORDER_LAYER_ID = "state-borders";
 export const CDI_LAYER_ID = "cdi-layer";
 export const GEE_LAYER_ID = "gee-layer";
+export const SPATIAL_BOUNDARY_SOURCE_ID = "spatial-boundary";
+export const SPATIAL_BOUNDARY_LAYER_ID = "spatial-boundary-outline";
 
 const CDI_FILL_EXPRESSION: ExpressionSpecification = [
   "match",
@@ -227,4 +230,99 @@ export const ensureMapLayers = (
   }
 
   ensureMunicipalityLayers(map, STATES_BORDER_LAYER_ID);
+};
+
+const EMPTY_FEATURE_COLLECTION: FeatureCollection<Geometry> = {
+  type: "FeatureCollection",
+  features: [],
+};
+
+export const ensureSpatialBoundaryLayer = (
+  map: maplibregl.Map,
+  boundaryGeoJson: FeatureCollection<Geometry, { name: string }> | null,
+  showStatesBorder: boolean,
+  allowedStateUfs: Set<string> | null = null,
+) => {
+  const hasBoundary =
+    boundaryGeoJson !== null && boundaryGeoJson.features.length > 0;
+
+  // --- State borders: visibility + filter ---
+  if (map.getLayer(STATES_BORDER_LAYER_ID)) {
+    if (hasBoundary) {
+      // Biome/Semiarid/ASD: hide state borders entirely
+      map.setLayoutProperty(STATES_BORDER_LAYER_ID, "visibility", "none");
+      map.setFilter?.(STATES_BORDER_LAYER_ID, null);
+    } else if (allowedStateUfs) {
+      // Region: show only borders of states within the region
+      const upperUfs = Array.from(allowedStateUfs).map((uf) =>
+        uf.toUpperCase(),
+      );
+      map.setLayoutProperty(
+        STATES_BORDER_LAYER_ID,
+        "visibility",
+        showStatesBorder ? "visible" : "none",
+      );
+      map.setFilter?.(STATES_BORDER_LAYER_ID, [
+        "in",
+        ["get", "SIGLA_UF"],
+        ["literal", upperUfs],
+      ]);
+    } else {
+      // National: show all state borders, no filter
+      map.setLayoutProperty(
+        STATES_BORDER_LAYER_ID,
+        "visibility",
+        showStatesBorder ? "visible" : "none",
+      );
+      map.setFilter?.(STATES_BORDER_LAYER_ID, null);
+    }
+  }
+
+  // --- Spatial boundary overlay ---
+  if (hasBoundary) {
+    if (!map.getSource(SPATIAL_BOUNDARY_SOURCE_ID)) {
+      map.addSource(SPATIAL_BOUNDARY_SOURCE_ID, {
+        type: "geojson",
+        data: boundaryGeoJson,
+      });
+    } else {
+      const source = map.getSource(
+        SPATIAL_BOUNDARY_SOURCE_ID,
+      ) as maplibregl.GeoJSONSource;
+      source.setData(boundaryGeoJson);
+    }
+
+    if (!map.getLayer(SPATIAL_BOUNDARY_LAYER_ID)) {
+      // Insert the boundary layer right before the state fills,
+      // so it sits above the GEE raster but below the interactive fills.
+      map.addLayer(
+        {
+          id: SPATIAL_BOUNDARY_LAYER_ID,
+          type: "line",
+          source: SPATIAL_BOUNDARY_SOURCE_ID,
+          paint: {
+            "line-color": "#3388ff",
+            "line-width": 3,
+            "line-opacity": 0.85,
+          },
+        },
+        map.getLayer(STATES_FILL_LAYER_ID)
+          ? STATES_FILL_LAYER_ID
+          : undefined,
+      );
+    }
+  } else {
+    // Remove boundary layer when not needed
+    if (map.getLayer(SPATIAL_BOUNDARY_LAYER_ID)) {
+      map.removeLayer(SPATIAL_BOUNDARY_LAYER_ID);
+    }
+    if (map.getSource(SPATIAL_BOUNDARY_SOURCE_ID)) {
+      // Clear data before removing to avoid stale rendering
+      const source = map.getSource(
+        SPATIAL_BOUNDARY_SOURCE_ID,
+      ) as maplibregl.GeoJSONSource;
+      source.setData(EMPTY_FEATURE_COLLECTION);
+      map.removeSource(SPATIAL_BOUNDARY_SOURCE_ID);
+    }
+  }
 };
