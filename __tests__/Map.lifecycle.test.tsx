@@ -1,4 +1,5 @@
 import { act, cleanup, render, waitFor } from "@testing-library/react";
+import type { FeatureCollection, Geometry } from "geojson";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
 const { mapInstances, MapConstructorMock } = vi.hoisted(() => ({
@@ -11,6 +12,7 @@ const { mapInstances, MapConstructorMock } = vi.hoisted(() => ({
     getLayer: ReturnType<typeof vi.fn>;
     getSource: ReturnType<typeof vi.fn>;
     getZoom: ReturnType<typeof vi.fn>;
+    isStyleLoaded: ReturnType<typeof vi.fn>;
     querySourceFeatures: ReturnType<typeof vi.fn>;
     handlers: Map<string, Array<(event: unknown) => void>>;
     on: ReturnType<typeof vi.fn>;
@@ -318,6 +320,83 @@ describe("Map lifecycle", () => {
         paint: expect.objectContaining({ "raster-opacity": 0.3 }),
       }),
     );
+  });
+
+  it("documents that a boundary update waits for a later sync while the style is loading", async () => {
+    const boundaryGeoJson: FeatureCollection<Geometry, { name: string }> = {
+      type: "FeatureCollection",
+      features: [
+        {
+          type: "Feature",
+          properties: { name: "Caatinga" },
+          geometry: {
+            type: "Polygon",
+            coordinates: [
+              [
+                [-40, -10],
+                [-39, -10],
+                [-39, -9],
+                [-40, -10],
+              ],
+            ],
+          },
+        },
+      ],
+    };
+
+    const { rerender } = render(
+      <Map center={[-15.749997, -47.9499962]} estadoSelecionado="BR" />,
+    );
+    const firstInstance = mapInstances[0];
+    firstInstance.handlers.get("load")?.[0]?.({});
+    firstInstance.addSource.mockClear();
+
+    firstInstance.isStyleLoaded.mockReturnValue(false);
+    rerender(
+      <Map
+        center={[-15.749997, -47.9499962]}
+        estadoSelecionado="BR"
+        allowedStateUfs={new Set(["ba"])}
+        spatialBoundaryGeoJson={boundaryGeoJson}
+      />,
+    );
+
+    expect(firstInstance.addSource).not.toHaveBeenCalledWith(
+      "spatial-boundary",
+      expect.anything(),
+    );
+
+    // Finishing style loading alone does not retry the discarded prop update.
+    firstInstance.isStyleLoaded.mockReturnValue(true);
+    act(() => {
+      firstInstance.handlers.get("idle")?.forEach((handler) => handler({}));
+      firstInstance.handlers
+        .get("styledata")
+        ?.forEach((handler) => handler({}));
+    });
+
+    expect(firstInstance.addSource).not.toHaveBeenCalledWith(
+      "spatial-boundary",
+      expect.anything(),
+    );
+
+    // An unrelated later sync finally applies the boundary retained in the ref.
+    rerender(
+      <Map
+        center={[-15.749997, -47.9499962]}
+        estadoSelecionado="BR"
+        allowedStateUfs={new Set(["ba"])}
+        spatialBoundaryGeoJson={boundaryGeoJson}
+        tileLayerUrl="https://tiles.example/{z}/{x}/{y}"
+      />,
+    );
+
+    await waitFor(() => {
+      expect(firstInstance.addSource).toHaveBeenCalledWith(
+        "spatial-boundary",
+        expect.objectContaining({ data: boundaryGeoJson }),
+      );
+    });
   });
 
   it("registers municipality hover handlers", () => {
