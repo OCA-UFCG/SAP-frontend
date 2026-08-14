@@ -204,7 +204,7 @@ function translateAnalysisMethodology(
   }
   if (
     presentationMethodology ===
-      "Indicador territorial disponibilizado na plataforma SEDES." &&
+    "Indicador territorial disponibilizado na plataforma SEDES." &&
     tReportHas("indicators.defaultMethodology")
   ) {
     return tReport("indicators.defaultMethodology");
@@ -371,8 +371,8 @@ function MunicipalReportDynamicChart({
                 analysis.valueType === "percentage"
                   ? `${Number(value).toFixed(0)}%`
                   : new Intl.NumberFormat(locale, {
-                      maximumFractionDigits: 0,
-                    }).format(Number(value))
+                    maximumFractionDigits: 0,
+                  }).format(Number(value))
               }
               tick={{ fill: "#5F6670", fontSize: 11 }}
               tickLine={false}
@@ -395,7 +395,7 @@ function MunicipalReportDynamicChart({
             {visibleSeries.map((series) => (
               <Line
                 key={series.id}
-                type="monotone"
+                type="linear"
                 dataKey={series.id}
                 name={translateLabel(series.label)}
                 stroke={getVisibleChartColor(series.color)}
@@ -418,11 +418,10 @@ function MunicipalReportDynamicChart({
               type="button"
               aria-pressed={enabled}
               onClick={() => toggleSeries(series.id)}
-              className={`inline-flex items-center gap-2 rounded border px-2.5 py-1.5 text-xs font-semibold transition ${
-                enabled
-                  ? "border-[#c8ced1] bg-white text-[#292829]"
-                  : "border-[#d9e0e3] bg-[#f4f6f8] text-neutral-500"
-              }`}
+              className={`inline-flex items-center gap-2 rounded border px-2.5 py-1.5 text-xs font-semibold transition ${enabled
+                ? "border-[#c8ced1] bg-white text-[#292829]"
+                : "border-[#d9e0e3] bg-[#f4f6f8] text-neutral-500"
+                }`}
             >
               <span
                 className="h-2.5 w-2.5 rounded-full"
@@ -530,8 +529,8 @@ function MunicipalReportPrintChart({
             analysis.valueType === "percentage"
               ? `${Number(value).toFixed(0)}%`
               : new Intl.NumberFormat(locale, {
-                  maximumFractionDigits: 0,
-                }).format(value);
+                maximumFractionDigits: 0,
+              }).format(value);
 
           return (
             <g key={value}>
