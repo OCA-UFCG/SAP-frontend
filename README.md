@@ -26,13 +26,17 @@ nvm use --lts
 
 ## Environment Setup
 
-Use `env.sample.txt` as the starting point for local Contentful variables.
+Use `env.sample.txt` as the starting point for local runtime variables.
 
 ```bash
 cp env.sample.txt .env.local
 ```
 
-For map features backed by Google Earth Engine and for server-side telemetry ingestion, Firebase Admin credentials must also be configured in the runtime environment. Do not commit secrets to the repository.
+For map and statistics features backed by Google Earth Engine, configure the
+server-only `GEE_PRIVATE_KEY` service-account JSON. `GEE_PROJECT_ID` is only
+required when that JSON does not contain the intended consumer `project_id`.
+Firebase Admin credentials are separately required for server-side telemetry
+ingestion. Do not commit secrets to the repository.
 
 ## Getting Started
 
@@ -126,14 +130,17 @@ could not distinguish by `panelLayerId` and `year`, and verifies that compressed
 `imageData` payloads can be decompressed back to `territorial-compact` data.
 
 At runtime, `/platform` does not load every `municipalAnalysis` entry upfront.
-The analysis panel lazy-loads municipal data by layer and selected period
-through `/api/municipal-analysis/[panelLayerId]?year=<yearKey>`. That server
-route fetches the needed Contentful partition, decompresses and merges it with
-the matching `panelLayer` year, and keeps the result in a per-process in-memory
-cache for 10 minutes by default. If a refresh fails after the TTL, the cache can
-serve the expired value for that key while the next request tries Contentful
-again. The route still supports requests without `year` as a compatibility
-fallback, but the client should use period-scoped requests.
+The analysis panel lazy-loads data by layer, selected period, and selected
+territory through
+`/api/municipal-analysis/[panelLayerId]?year=<yearKey>&locationKey=<key>`.
+Registered statistics layers read a narrow slice of a GEE FeatureCollection;
+the other layers keep using the needed Contentful partition. If a GEE request
+fails operationally, the same request falls back to Contentful during the
+migration. The result is merged with the matching `panelLayer` year and kept in
+a per-process in-memory cache keyed by layer, period, and territory for 10
+minutes by default. If a refresh fails after the TTL, the cache can serve the
+expired value while the next request retries its source. Requests without
+`locationKey` remain supported as a compatibility fallback.
 Set `MUNICIPAL_ANALYSIS_CACHE_TTL_SECONDS` or
 `MUNICIPAL_ANALYSIS_CACHE_MAX_ENTRIES` to tune that behavior.
 The endpoint is protected server-side and returns private HTTP cache headers;
@@ -203,6 +210,7 @@ The repository includes a dedicated set of agent-oriented context files under `d
 - `docs/architecture.md`: architecture, runtime boundaries, and the main platform flow.
 - `docs/contentful-schema.md`: Contentful schema assumptions, risks, and change protocol.
 - `docs/gee-layers.md`: Earth Engine layer pipeline, visualization rules, cache behavior, and warmup behavior.
+- `docs/gee-statistics.md`: on-demand GEE FeatureCollection statistics, source registry, fallback, and rollout.
 - `docs/analysis-contract.md`: territorial analysis contract, semantic rules, and legacy compatibility.
 - `docs/image-data-contract.md`: executable `panelLayer.imageData` contract, including `territorial-compact` v1, municipal patches, compressed envelopes, and legacy read compatibility.
 - `docs/performance-notes.md`: known hotspots, guardrails, and regression signals.

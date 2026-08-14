@@ -5,7 +5,12 @@ vi.mock("@/infrastructure/contentful/client", () => ({
   getContent: vi.fn(),
 }));
 
+vi.mock("@/repositories/platform/geeStatisticsRepository", () => ({
+  getGeeStatisticsYearPatch: vi.fn(),
+}));
+
 import { getContent } from "@/infrastructure/contentful/client";
+import { getGeeStatisticsYearPatch } from "@/repositories/platform/geeStatisticsRepository";
 import {
   getPanelLayers,
   getPanelLayerWithMunicipalAnalysis,
@@ -13,6 +18,7 @@ import {
 } from "@/repositories/platform/panelLayerRepository";
 
 const mockedGetContent = vi.mocked(getContent);
+const mockedGetGeeStatisticsYearPatch = vi.mocked(getGeeStatisticsYearPatch);
 
 function buildPanelLayerResponse(items: unknown[]) {
   return {
@@ -63,6 +69,8 @@ function buildValidImageData() {
 describe("panelLayerRepository", () => {
   beforeEach(() => {
     mockedGetContent.mockReset();
+    mockedGetGeeStatisticsYearPatch.mockReset();
+    mockedGetGeeStatisticsYearPatch.mockResolvedValue(null);
   });
 
   it("ignores null panel layer items from Contentful", async () => {
@@ -712,6 +720,135 @@ describe("panelLayerRepository", () => {
     );
   });
 
+  it("uses an on-demand GEE statistics slice before Contentful", async () => {
+    mockedGetGeeStatisticsYearPatch.mockResolvedValue({
+      assetId: "projects/example/assets/carbon",
+      featureCount: 1,
+      omittedZeroValueLocationKeys: [],
+      metrics: {},
+      patch: {
+        locations: { "2507507": "João Pessoa - PB" },
+        years: {
+          "2020-01": {
+            valuesScale: 1,
+            values: { "2507507": [12.5, 87.5] },
+          },
+        },
+      },
+    });
+    mockedGetContent.mockImplementation(async (query: string) => {
+      if (query.includes("municipalAnalysisCollection")) {
+        throw new Error("Contentful municipalAnalysis não deveria ser lido.");
+      }
+
+      return buildPanelLayerResponse([
+        {
+          sys: { id: "sys-carbon" },
+          id: "carbonoembrapa",
+          name: "Carbono",
+          description: "",
+          previewMap: { url: "https://example.com/carbon.png" },
+          imageData: {
+            schemaVersion: 1,
+            type: "territorial-compact",
+            defaultYear: "2020-01",
+            classes: [
+              { id: "a", label: "Classe A", color: "#111111" },
+              { id: "b", label: "Classe B", color: "#222222" },
+            ],
+            years: {
+              "2020-01": {
+                imageId: "img-carbon",
+                valuesScale: 10,
+                values: { br: [400, 600] },
+              },
+            },
+          },
+        },
+      ]);
+    });
+
+    const layer = await getPanelLayerWithMunicipalAnalysisYear(
+      "carbonoembrapa",
+      "2020-01",
+      "2507507",
+    );
+    const imageData = layer?.imageData as {
+      years: Record<string, { values: Record<string, number[]> }>;
+    };
+
+    expect(mockedGetGeeStatisticsYearPatch).toHaveBeenCalledWith(
+      "carbonoembrapa",
+      "2020-01",
+      "2507507",
+      2,
+    );
+    expect(imageData.years["2020-01"]?.values["2507507"]).toEqual([125, 875]);
+  });
+
+  it("falls back to Contentful only when the GEE statistics request fails", async () => {
+    const warn = vi.spyOn(console, "warn").mockImplementation(() => {});
+    mockedGetGeeStatisticsYearPatch.mockRejectedValue(
+      new Error("Earth Engine unavailable"),
+    );
+    mockedGetContent.mockImplementation(async (query: string) => {
+      if (query.includes("GetMunicipalAnalysisByPanelLayerAndPartition")) {
+        return buildMunicipalAnalysisResponse([
+          {
+            sys: { id: "municipal-carbon" },
+            panelLayerId: "carbonoembrapa",
+            partitionKey: "2020",
+            imageData: {
+              years: {
+                "2020-01": {
+                  values: { "2507507": [20, 80] },
+                },
+              },
+            },
+          },
+        ]);
+      }
+
+      return buildPanelLayerResponse([
+        {
+          sys: { id: "sys-carbon" },
+          id: "carbonoembrapa",
+          name: "Carbono",
+          description: "",
+          previewMap: { url: "https://example.com/carbon.png" },
+          imageData: {
+            schemaVersion: 1,
+            type: "territorial-compact",
+            defaultYear: "2020-01",
+            classes: [
+              { id: "a", label: "Classe A", color: "#111111" },
+              { id: "b", label: "Classe B", color: "#222222" },
+            ],
+            years: {
+              "2020-01": { imageId: "img-carbon", values: {} },
+            },
+          },
+        },
+      ]);
+    });
+
+    const layer = await getPanelLayerWithMunicipalAnalysisYear(
+      "carbonoembrapa",
+      "2020-01",
+      "2507507",
+    );
+    const imageData = layer?.imageData as {
+      years: Record<string, { values: Record<string, number[]> }>;
+    };
+
+    expect(imageData.years["2020-01"]?.values["2507507"]).toEqual([20, 80]);
+    expect(warn).toHaveBeenCalledWith(
+      expect.stringContaining("usando Contentful como fallback"),
+      expect.any(Error),
+    );
+    warn.mockRestore();
+  });
+
   it("falls back to monthly municipal analysis partitions when annual partition is unavailable", async () => {
     mockedGetContent.mockImplementation(
       async (query: string, variables?: Record<string, unknown>) => {
@@ -744,7 +881,9 @@ describe("panelLayerRepository", () => {
         }
 
         if (query.includes("municipalAnalysisCollection")) {
-          throw new Error("A coleção municipalAnalysis não deve ser varrida quando os metadados de partição existem.");
+          throw new Error(
+            "A coleção municipalAnalysis não deve ser varrida quando os metadados de partição existem.",
+          );
         }
 
         return buildPanelLayerResponse([

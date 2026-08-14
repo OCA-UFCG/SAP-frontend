@@ -1,5 +1,7 @@
 import { describe, expect, it, vi } from "vitest";
 
+vi.mock("server-only", () => ({}));
+
 const eeMocks = vi.hoisted(() => {
   const nationalCollection = { kind: "national-boundary" };
   const filter = vi.fn(() => nationalCollection);

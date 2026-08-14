@@ -43,6 +43,7 @@ interface AnalysisPanelProps {
   selectedState?: string;
   emptyStateTitle?: string;
   emptyStateDescription?: string;
+  emptyStateLoading?: boolean;
 }
 
 interface TemporalVisionProps {
@@ -127,17 +128,29 @@ function formatAnalysisYearLabel(text: string, t?: (key: string) => string) {
 function EmptySection({
   title,
   description,
+  loading = false,
 }: {
   title: string;
   description: string;
+  loading?: boolean;
 }) {
   return (
     <div className="flex flex-col gap-2">
       <h2 className="text-[14px] font-semibold leading-6 text-[#292829]">
         {title}
       </h2>
-      <div className="rounded-lg border border-[#EFEFEF] bg-white p-4 text-[12px] leading-5 text-neutral-600 shadow-sm">
-        {description}
+      <div
+        role={loading ? "status" : undefined}
+        aria-busy={loading || undefined}
+        className="flex items-center gap-2 rounded-lg border border-[#EFEFEF] bg-white p-4 text-[12px] leading-5 text-neutral-600 shadow-sm"
+      >
+        {loading ? (
+          <span
+            aria-hidden="true"
+            className="h-4 w-4 shrink-0 animate-spin rounded-full border-2 border-[#989F43]/30 border-t-[#989F43]"
+          />
+        ) : null}
+        <span>{description}</span>
       </div>
     </div>
   );
@@ -692,6 +705,7 @@ export function AnalysisPanel({
   selectedState,
   emptyStateTitle,
   emptyStateDescription,
+  emptyStateLoading,
 }: AnalysisPanelProps) {
   const t = useTranslations("AnalysisPanel");
   const isSpatialScopeEnabled =
@@ -854,6 +868,7 @@ export function AnalysisPanel({
           <EmptySection
             title={emptyStateTitle ?? t("analysisUnavailable")}
             description={emptyStateDescription ?? t("analysisDataNotAvailable")}
+            loading={emptyStateLoading}
           />
         )}
       </div>

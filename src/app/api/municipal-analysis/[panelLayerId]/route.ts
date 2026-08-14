@@ -13,6 +13,8 @@ interface MunicipalAnalysisRouteContext {
 
 const PANEL_LAYER_ID_PATTERN = /^[A-Za-z0-9_-]{1,80}$/u;
 const YEAR_KEY_PATTERN = /^(\d{4})(?:-(0[1-9]|1[0-2]))?$/u;
+const LOCATION_KEY_PATTERN =
+  /^(?:br|[a-z]{2}|\d{7}|(?:2_regiao|3_bioma|4_asd|5_semiarido)-[a-z0-9-]+)$/u;
 
 function isValidPanelLayerId(value: string) {
   return PANEL_LAYER_ID_PATTERN.test(value);
@@ -20,6 +22,10 @@ function isValidPanelLayerId(value: string) {
 
 function isValidYearKey(value: string) {
   return YEAR_KEY_PATTERN.test(value);
+}
+
+function isValidLocationKey(value: string) {
+  return LOCATION_KEY_PATTERN.test(value);
 }
 
 function jsonError(message: string, status: number) {
@@ -49,6 +55,7 @@ export async function GET(
   const decodedPanelLayerId = decodeURIComponent(panelLayerId).trim();
   const url = new URL(request.url);
   const yearKey = url.searchParams.get("year")?.trim() || undefined;
+  const locationKey = url.searchParams.get("locationKey")?.trim() || undefined;
 
   if (!isValidPanelLayerId(decodedPanelLayerId)) {
     return jsonError("Invalid panel layer id.", 400);
@@ -58,13 +65,24 @@ export async function GET(
     return jsonError("Invalid year.", 400);
   }
 
+  if (locationKey && !isValidLocationKey(locationKey)) {
+    return jsonError("Invalid location key.", 400);
+  }
+
+  if (locationKey && !yearKey) {
+    return jsonError("A year is required when locationKey is provided.", 400);
+  }
+
   let result;
 
   try {
-    result = await getCachedMunicipalAnalysisImageData(
-      decodedPanelLayerId,
-      yearKey,
-    );
+    result = locationKey
+      ? await getCachedMunicipalAnalysisImageData(
+          decodedPanelLayerId,
+          yearKey,
+          locationKey,
+        )
+      : await getCachedMunicipalAnalysisImageData(decodedPanelLayerId, yearKey);
   } catch (error) {
     console.error("Erro ao carregar municipalAnalysis:", error);
     return jsonError("Unable to load municipal analysis.", 502);

@@ -34,19 +34,30 @@ import type { PanelLayerI, IEEInfo } from "@/utils/interfaces";
 import type { CompactTerritorialAnalysisDataset } from "@/utils/analysis";
 import { statesObj } from "@/utils/constants";
 import { mergePartialMunicipalImageData } from "@/utils/municipalAnalysisMerge";
+import { isGeeStatisticsLayerId } from "@/config/geeStatisticsLayers";
 
 interface MunicipalAnalysisApiResponse {
   imageData?: PanelLayerI["imageData"] | null;
 }
 
-function getMunicipalAnalysisRequestKey(layerId: string, yearKey: string) {
-  return `${layerId}::${yearKey}`;
+function getMunicipalAnalysisRequestKey(
+  layerId: string,
+  yearKey: string,
+  locationKey: string,
+) {
+  return `${layerId}::${yearKey}::${locationKey}`;
 }
 
 function getMunicipalAnalysisRequestYear(
   requestKey: string,
 ): string | undefined {
   return requestKey.split("::").at(1);
+}
+
+function getMunicipalAnalysisRequestLocation(
+  requestKey: string,
+): string | undefined {
+  return requestKey.split("::").at(2);
 }
 
 export interface AnalysisContextProps {
@@ -95,9 +106,23 @@ export function AnalysisContext({
   const activeAnalysisYear =
     effectiveYear ?? yearOptions[0]?.value ?? "general";
 
+  const spatialScopeLocationKey = getSpatialScopeLocationKey(spatialSelection);
+  const selectedLocationKey =
+    selectedMunicipalityCode ??
+    (selectedState !== "br" ? selectedState : null) ??
+    spatialScopeLocationKey ??
+    "br";
+
   const municipalAnalysisRequestKey = dataset?.id
-    ? getMunicipalAnalysisRequestKey(dataset.id, activeAnalysisYear)
+    ? getMunicipalAnalysisRequestKey(
+        dataset.id,
+        activeAnalysisYear,
+        selectedLocationKey,
+      )
     : null;
+  const usesGeeStatistics = Boolean(
+    dataset?.id && isGeeStatisticsLayerId(dataset.id),
+  );
 
   const temporalMunicipalAnalysisRequestKeys = useMemo(() => {
     if (!dataset?.id || !selectedMunicipalityCode) {
@@ -105,7 +130,11 @@ export function AnalysisContext({
     }
 
     return yearOptions.map((option) =>
-      getMunicipalAnalysisRequestKey(dataset.id, option.value),
+      getMunicipalAnalysisRequestKey(
+        dataset.id,
+        option.value,
+        selectedMunicipalityCode,
+      ),
     );
   }, [dataset, selectedMunicipalityCode, yearOptions]);
 
@@ -126,6 +155,7 @@ export function AnalysisContext({
         allRequestKeys.indexOf(requestKey) === index &&
         analysisImageDataByRequestKey[requestKey] === undefined &&
         (!selectedMunicipalityCode ||
+          usesGeeStatistics ||
           !yearKey ||
           hasMunicipalLayerPeriod(
             availabilityIndex,
@@ -144,9 +174,10 @@ export function AnalysisContext({
 
     requestKeys.forEach((requestKey, index) => {
       const yearKey = getMunicipalAnalysisRequestYear(requestKey);
+      const locationKey = getMunicipalAnalysisRequestLocation(requestKey);
       const controller = controllers[index];
 
-      if (!yearKey || !controller) {
+      if (!yearKey || !locationKey || !controller) {
         return;
       }
 
@@ -155,6 +186,7 @@ export function AnalysisContext({
         window.location.origin,
       );
       requestUrl.searchParams.set("year", yearKey);
+      requestUrl.searchParams.set("locationKey", locationKey);
 
       fetch(requestUrl.toString(), {
         credentials: "same-origin",
@@ -202,6 +234,7 @@ export function AnalysisContext({
     municipalAnalysisRequestKey,
     selectedMunicipalityCode,
     temporalMunicipalAnalysisRequestKeys,
+    usesGeeStatistics,
   ]);
 
   const enrichedDataset = useMemo(() => {
@@ -317,13 +350,6 @@ export function AnalysisContext({
     });
   };
 
-  const spatialScopeLocationKey = getSpatialScopeLocationKey(spatialSelection);
-  const selectedLocationKey =
-    selectedMunicipalityCode ??
-    (selectedState !== "br" ? selectedState : null) ??
-    spatialScopeLocationKey ??
-    "br";
-
   const embeddedModel = useMemo(
     () =>
       buildEmbeddedTerritorialAnalysisViewModel(
@@ -382,6 +408,7 @@ export function AnalysisContext({
   const activeMunicipalAnalysisKnownUnavailable = Boolean(
     selectedMunicipalityCode &&
     dataset?.id &&
+    !usesGeeStatistics &&
     !hasMunicipalLayerPeriod(
       municipalAvailabilityIndex as MunicipalAvailabilityIndex,
       selectedMunicipalityCode,
@@ -432,6 +459,7 @@ export function AnalysisContext({
           ? t("unavailableDescriptionLoading")
           : t("unavailableDescription", { location: unavailableLocationName })
       }
+      emptyStateLoading={isMunicipalAnalysisLoading}
     />
   );
 }

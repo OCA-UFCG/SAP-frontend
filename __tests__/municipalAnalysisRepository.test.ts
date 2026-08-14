@@ -5,6 +5,10 @@ vi.mock("@/infrastructure/contentful/client", () => ({
   getContent: vi.fn(),
 }));
 
+vi.mock("@/repositories/platform/geeStatisticsRepository", () => ({
+  getGeeStatisticsYearPatch: vi.fn(),
+}));
+
 import {
   decodeMunicipalAnalysisImageData,
   entryMatchesPartition,
