@@ -30,8 +30,10 @@ import type { PanelLayerI, IEEInfo } from "@/utils/interfaces";
 import type { CompactTerritorialAnalysisDataset } from "@/utils/analysis";
 import { statesObj } from "@/utils/constants";
 import { getAllowedStateUfs } from "@/utils/interestAreaStates";
-import { mergePartialMunicipalImageData } from "@/utils/municipalAnalysisMerge";
-
+import {
+  mergePartialMunicipalImageData,
+  mergeMultiplePartialMunicipalImageData,
+} from "@/utils/municipalAnalysisMerge";
 interface MunicipalAnalysisApiResponse {
   imageData?: PanelLayerI["imageData"] | null;
 }
@@ -138,61 +140,76 @@ export function AnalysisContext({
       return;
     }
 
-    const controllers = requestKeys.map(() => new AbortController());
+    const controller = new AbortController();
+    const signal = controller.signal;
 
-    requestKeys.forEach((requestKey, index) => {
-      const yearKey = getMunicipalAnalysisRequestYear(requestKey);
-      const controller = controllers[index];
+    const fetchInBatches = async () => {
+      const chunkSize = 10;
+      for (let i = 0; i < requestKeys.length; i += chunkSize) {
+        if (signal.aborted) {
+          return;
+        }
 
-      if (!yearKey || !controller) {
-        return;
-      }
+        const chunk = requestKeys.slice(i, i + chunkSize);
+        const results = await Promise.all(
+          chunk.map(async (requestKey) => {
+            const yearKey = getMunicipalAnalysisRequestYear(requestKey);
+            if (!yearKey) return { requestKey, data: null };
 
-      const requestUrl = new URL(
-        `/api/municipal-analysis/${encodeURIComponent(dataset.id)}`,
-        window.location.origin,
-      );
-      requestUrl.searchParams.set("year", yearKey);
-
-      fetch(requestUrl.toString(), {
-        credentials: "same-origin",
-        signal: controller.signal,
-      })
-        .then(async (response) => {
-          if (!response.ok) {
-            throw new Error(
-              `Municipal analysis request failed with status ${response.status}`,
+            const requestUrl = new URL(
+              `/api/municipal-analysis/${encodeURIComponent(dataset.id)}`,
+              window.location.origin,
             );
-          }
+            requestUrl.searchParams.set("year", yearKey);
 
-          return (await response.json()) as MunicipalAnalysisApiResponse;
-        })
-        .then((data) => {
-          setAnalysisImageDataByRequestKey((current) => ({
-            ...current,
-            [requestKey]: data.imageData ?? null,
-          }));
-        })
-        .catch((error) => {
-          if (controller.signal.aborted) {
-            return;
-          }
+            try {
+              const response = await fetch(requestUrl.toString(), {
+                credentials: "same-origin",
+                signal,
+              });
 
-          console.warn(
-            "Falha ao carregar municipalAnalysis sob demanda.",
-            error,
-          );
-          setAnalysisImageDataByRequestKey((current) => ({
-            ...current,
-            [requestKey]: null,
-          }));
-        });
-    });
+              if (!response.ok) {
+                console.warn(
+                  `Municipal analysis request failed with status ${response.status}`,
+                );
+                return { requestKey, data: null };
+              }
+
+              const data =
+                (await response.json()) as MunicipalAnalysisApiResponse;
+              return { requestKey, data: data.imageData ?? null };
+            } catch (error) {
+              if (!signal.aborted) {
+                console.warn(
+                  "Falha ao carregar municipalAnalysis sob demanda.",
+                  error,
+                );
+              }
+              return { requestKey, data: null };
+            }
+          }),
+        );
+
+        if (signal.aborted) {
+          return;
+        }
+
+        const newEntries: Record<string, PanelLayerI["imageData"] | null> = {};
+        for (const { requestKey, data } of results) {
+          newEntries[requestKey] = data;
+        }
+
+        setAnalysisImageDataByRequestKey((current) => ({
+          ...current,
+          ...newEntries,
+        }));
+      }
+    };
+
+    fetchInBatches();
 
     return () => {
-      controllers.forEach((controller) => {
-        controller.abort();
-      });
+      controller.abort();
     };
   }, [
     analysisImageDataByRequestKey,
@@ -229,24 +246,17 @@ export function AnalysisContext({
       return enrichedDataset;
     }
 
-    return temporalMunicipalAnalysisRequestKeys.reduce<PanelLayerI | undefined>(
-      (currentDataset, requestKey) => {
-        const partialImageData = analysisImageDataByRequestKey[requestKey];
-
-        if (!currentDataset || !partialImageData) {
-          return currentDataset;
-        }
-
-        return {
-          ...currentDataset,
-          imageData: mergePartialMunicipalImageData(
-            currentDataset.imageData,
-            partialImageData,
-          ),
-        };
-      },
-      dataset,
+    const availablePatches = temporalMunicipalAnalysisRequestKeys.map(
+      (requestKey) => analysisImageDataByRequestKey[requestKey],
     );
+
+    return {
+      ...dataset,
+      imageData: mergeMultiplePartialMunicipalImageData(
+        dataset.imageData,
+        availablePatches,
+      ),
+    };
   }, [
     analysisImageDataByRequestKey,
     dataset,
