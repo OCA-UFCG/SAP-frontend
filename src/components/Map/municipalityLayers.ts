@@ -6,7 +6,7 @@ export const MUNICIPALITY_BORDER_LAYER_ID = "municipality-borders";
 export const MUNICIPALITY_HOVER_LAYER_ID = "municipality-hover-fills";
 export const MUNICIPALITY_MIN_ZOOM = 7;
 export const MUNICIPALITY_BORDER_MIN_ZOOM = 7;
-export const MUNICIPALITY_SELECTED_BORDER_MIN_ZOOM = MUNICIPALITY_MIN_ZOOM;
+export const MUNICIPALITY_SELECTED_BORDER_MIN_ZOOM = 5;
 
 const MUNICIPALITY_TILES_PATH = "/api/tiles/{z}/{x}/{y}?tileset=cities";
 
