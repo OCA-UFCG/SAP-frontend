@@ -257,7 +257,7 @@ export function AnalysisContext({
   ]);
 
   function handleGoBack() {
-    resetPlatformState();
+    //resetPlatformState();
     onRequestSectionChange?.("monitoring");
   }
 

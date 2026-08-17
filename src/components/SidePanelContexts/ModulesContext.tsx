@@ -307,7 +307,7 @@ export function ModulesContext({
               "dados socioeconômicos": "socioeconomic",
               "outros": "others"
             };
-            
+
             return (
               <LayerAccordion
                 key={group.key}
