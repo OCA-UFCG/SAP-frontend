@@ -3,6 +3,7 @@
 import maplibregl, { MapSourceDataEvent, MapGeoJSONFeature } from "maplibre-gl";
 import "maplibre-gl/dist/maplibre-gl.css";
 import { useEffect, useRef } from "react";
+import type { FeatureCollection, Geometry } from "geojson";
 import type { CDIVectorData } from "@/lib/geo";
 import {
   GEE_LAYER_ID,
@@ -13,6 +14,7 @@ import {
   STATES_FILL_LAYER_ID,
   STATES_SOURCE_ID,
   STATES_SOURCE_LAYER,
+  ensureSpatialBoundaryLayer,
 } from "./mapDefinitions";
 import { useMapController } from "./useMapController";
 import { useMapMarkers } from "./useMapMarkers";
@@ -49,6 +51,7 @@ export interface MapProps {
   onTileLayerReady?: (requestKey: string) => void;
   layerOpacity?: number;
   allowedStateUfs?: Set<string> | null;
+  spatialBoundaryGeoJson?: FeatureCollection<Geometry, { name: string }> | null;
 }
 
 const Map = ({
@@ -70,6 +73,7 @@ const Map = ({
   onTileLayerReady,
   layerOpacity = 0.85,
   allowedStateUfs = null,
+  spatialBoundaryGeoJson = null,
 }: MapProps) => {
   const mapContainerRef = useRef<HTMLDivElement | null>(null);
   const {
@@ -111,6 +115,8 @@ const Map = ({
     onTileLayerReady,
     selectedMunicipalityCode,
     showStatesBorder,
+    spatialBoundaryGeoJson,
+    allowedStateUfs,
     tileLayerRequestKey,
     tileLayerUrl,
     layerOpacity,
@@ -542,6 +548,28 @@ const Map = ({
       basemap === "satellite" ? "visible" : "none",
     );
   }, [basemap, mapRef, mapInstanceVersion]);
+
+  useEffect(() => {
+    const map = mapRef.current;
+    if (!map || !map.isStyleLoaded()) return;
+
+    try {
+      ensureSpatialBoundaryLayer(
+        map,
+        spatialBoundaryGeoJson ?? null,
+        showStatesBorder,
+        allowedStateUfs,
+      );
+    } catch {
+      // Best-effort: if style is in transition, the next syncMapLayers will retry.
+    }
+  }, [
+    spatialBoundaryGeoJson,
+    allowedStateUfs,
+    showStatesBorder,
+    mapRef,
+    mapInstanceVersion,
+  ]);
 
   return (
     <div className="w-full h-full">

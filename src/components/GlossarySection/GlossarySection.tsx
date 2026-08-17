@@ -37,16 +37,28 @@ export const GlossarySection = ({ terms }: Props) => {
                 </tr>
               </thead>
               <tbody>
-                {terms.map((term) => (
-                  <tr key={term.id} className="border-t border-[#E4E5E2]">
-                    <td className="px-5 py-4 align-top font-bold text-[#21240F]">
-                      {term.term}
-                    </td>
-                    <td className="px-5 py-4 align-top text-[15px] leading-[150%] text-[#292829]">
-                      {term.definition}
-                    </td>
-                  </tr>
-                ))}
+                {terms.map((term) => {
+                  const translationKey = `entries.${term.id}`;
+                  const translatedTerm = t.has(`${translationKey}.term`)
+                    ? t(`${translationKey}.term`)
+                    : term.term;
+                  const translatedDefinition = t.has(
+                    `${translationKey}.definition`,
+                  )
+                    ? t(`${translationKey}.definition`)
+                    : term.definition;
+
+                  return (
+                    <tr key={term.id} className="border-t border-[#E4E5E2]">
+                      <td className="px-5 py-4 align-top font-bold text-[#21240F]">
+                        {translatedTerm}
+                      </td>
+                      <td className="px-5 py-4 align-top text-[15px] leading-[150%] text-[#292829]">
+                        {translatedDefinition}
+                      </td>
+                    </tr>
+                  );
+                })}
               </tbody>
             </table>
           </div>

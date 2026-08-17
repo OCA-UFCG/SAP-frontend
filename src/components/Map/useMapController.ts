@@ -1,6 +1,7 @@
 import type { CDIVectorData } from "@/lib/geo";
 import maplibregl, { LngLatBoundsLike } from "maplibre-gl";
 import { useCallback, useId, useMemo, useRef, useState } from "react";
+import type { FeatureCollection, Geometry } from "geojson";
 import { BASE_STYLE, type MapMode } from "./mapDefinitions";
 import {
   DEFAULT_CENTER,
@@ -37,6 +38,8 @@ interface UseMapControllerArgs {
   onStateSelect?: (uf: string) => void;
   onSelectedMunicipalityCodeChange?: (municipalityCode: string | null) => void;
   onTileLayerReady?: (requestKey: string) => void;
+  spatialBoundaryGeoJson?: FeatureCollection<Geometry, { name: string }> | null;
+  allowedStateUfs?: Set<string> | null;
 }
 
 export const useMapController = ({
@@ -54,6 +57,8 @@ export const useMapController = ({
   onStateSelect,
   onSelectedMunicipalityCodeChange,
   onTileLayerReady,
+  spatialBoundaryGeoJson = null,
+  allowedStateUfs = null,
 }: UseMapControllerArgs) => {
   const debugEnabled = process.env.NODE_ENV !== "production";
   const mapRef = useRef<maplibregl.Map | null>(null);
@@ -102,6 +107,8 @@ export const useMapController = ({
   const pendingStyleSyncRef = useRef(false);
   const pendingSelectedSyncRef = useRef(false);
   const leftOverlayWidthRef = useRef(0);
+  const spatialBoundaryGeoJsonRef = useRef<FeatureCollection<Geometry, { name: string }> | null>(spatialBoundaryGeoJson);
+  const allowedStateUfsRef = useRef<Set<string> | null>(allowedStateUfs);
   const leftOverlayWidth = usePlatformSidebarOverlayWidth();
   const normalizedCenter = isValidLatLngTuple(center) ? center : DEFAULT_CENTER;
   const initialViewRef = useRef({
@@ -223,6 +230,8 @@ export const useMapController = ({
     selectedStateIdRef,
     selectedStateRef,
     showStatesBorderRef,
+    spatialBoundaryGeoJsonRef,
+    allowedStateUfsRef,
     tileLayerUrlRef,
     layerOpacityRef,
   });
@@ -236,6 +245,8 @@ export const useMapController = ({
     currentBoundsRef,
     dadosCDI,
     estadoSelecionado,
+    spatialBoundaryGeoJson,
+    allowedStateUfs,
     fitSelectedMunicipalityToBounds,
     fitSelectedStateToBounds,
     hasCdiDataRef,
@@ -260,6 +271,8 @@ export const useMapController = ({
     selectedMunicipalityCodeRef,
     selectedStateIdRef,
     selectedStateRef,
+    spatialBoundaryGeoJsonRef,
+    allowedStateUfsRef,
     showStatesBorder,
     showStatesBorderRef,
     syncMapLayers,

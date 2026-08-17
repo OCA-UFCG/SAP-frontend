@@ -3,6 +3,7 @@ import { useCallback, useMemo, useState } from "react";
 import { useTranslations } from "next-intl";
 import { PlatformMapCaption } from "@/components/PlatformMapCaption/PlatformMapCaption";
 import { useEarthEngineTileLayer } from "./useEarthEngineTileLayer";
+import { useSpatialBoundaryOverlay } from "./useSpatialBoundaryOverlay";
 import MapComponent from "../Map/MapComponent";
 import type { BasemapId } from "../Map/Map";
 import {
@@ -49,6 +50,8 @@ export function PlatformMap({ showMonitoringOverlays = true }: PlatformMapProps)
     [spatialSelection],
   );
 
+  const { boundaryGeoJson } = useSpatialBoundaryOverlay(spatialSelection);
+
   const hasRenderedCurrentRequest =
     status === "ready" && Boolean(requestKey) && readyRequestKey === requestKey;
 
@@ -74,6 +77,7 @@ export function PlatformMap({ showMonitoringOverlays = true }: PlatformMapProps)
           tileLayerRequestKey={requestKey}
           layerOpacity={layerOpacity}
           allowedStateUfs={allowedStateUfs}
+          spatialBoundaryGeoJson={boundaryGeoJson}
           basemap={basemap}
           onStateSelect={(uf: string) => setSelectedState(uf.toLowerCase())}
           onSelectedMunicipalityCodeChange={setSelectedMunicipalityCode}

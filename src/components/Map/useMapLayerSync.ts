@@ -1,15 +1,16 @@
 import maplibregl, { GeoJSONSource } from "maplibre-gl";
 import { useCallback, type MutableRefObject } from "react";
+import type { FeatureCollection, Geometry } from "geojson";
 import {
   CDI_LAYER_ID,
   CDI_SOURCE_ID,
   GEE_LAYER_ID,
   GEE_SOURCE_ID,
   type MapMode,
-  STATES_BORDER_LAYER_ID,
   STATES_FILL_LAYER_ID,
   STATES_SOURCE_ID,
   ensureMapLayers,
+  ensureSpatialBoundaryLayer,
 } from "./mapDefinitions";
 import { buildCdiGeoJson } from "./mapBounds";
 
@@ -27,6 +28,8 @@ interface UseMapLayerSyncArgs {
   applySelectedFeatureState: (map: maplibregl.Map, next: string) => void;
   scheduleSelectedStateSync: (reason: string) => void;
   scheduleSelectedMunicipalitySync: (reason: string) => void;
+  spatialBoundaryGeoJsonRef: MutableRefObject<FeatureCollection<Geometry, { name: string }> | null>;
+  allowedStateUfsRef: MutableRefObject<Set<string> | null>;
   log: (...args: unknown[]) => void;
   warn: (...args: unknown[]) => void;
 }
@@ -45,6 +48,8 @@ export const useMapLayerSync = ({
   applySelectedFeatureState,
   scheduleSelectedStateSync,
   scheduleSelectedMunicipalitySync,
+  spatialBoundaryGeoJsonRef,
+  allowedStateUfsRef,
   log,
   warn,
 }: UseMapLayerSyncArgs) => {
@@ -119,10 +124,15 @@ export const useMapLayerSync = ({
 
       if (mapModeRef.current === "platform") {
         map.setLayoutProperty(STATES_FILL_LAYER_ID, "visibility", "visible");
-        map.setLayoutProperty(
-          STATES_BORDER_LAYER_ID,
-          "visibility",
-          showStatesBorderRef.current ? "visible" : "none",
+
+        // Let ensureSpatialBoundaryLayer control state border visibility
+        // when a spatial boundary overlay is active.
+        const boundaryGeoJson = spatialBoundaryGeoJsonRef.current;
+        ensureSpatialBoundaryLayer(
+          map,
+          boundaryGeoJson,
+          showStatesBorderRef.current,
+          allowedStateUfsRef.current,
         );
       }
 
@@ -146,6 +156,8 @@ export const useMapLayerSync = ({
       selectedMunicipalityCodeRef,
       selectedStateRef,
       showStatesBorderRef,
+      spatialBoundaryGeoJsonRef,
+      allowedStateUfsRef,
       tileLayerUrlRef,
       warn,
     ],
