@@ -9,6 +9,12 @@ import {
 } from "@/components/Map/municipalityLayers";
 
 describe("municipalityLayers", () => {
+  it("keeps the selected border visible below the municipality detail zoom", () => {
+    expect(MUNICIPALITY_SELECTED_BORDER_MIN_ZOOM).toBeLessThan(
+      MUNICIPALITY_BORDER_MIN_ZOOM,
+    );
+  });
+
   it("builds a municipality label with state code", () => {
     expect(
       buildMunicipalityLabel({

@@ -130,19 +130,30 @@ could not distinguish by `panelLayerId` and `year`, and verifies that compressed
 `imageData` payloads can be decompressed back to `territorial-compact` data.
 
 At runtime, `/platform` does not load every `municipalAnalysis` entry upfront.
-The analysis panel lazy-loads data by layer, selected period, and selected
-territory through
-`/api/municipal-analysis/[panelLayerId]?year=<yearKey>&locationKey=<key>`.
-Static migration layers and catalog v2 layers read a narrow slice of a GEE
-FeatureCollection; other legacy layers keep using the needed Contentful
-partition. Carbon and ANA retain a temporary Contentful fallback. Dynamic
-catalog sources use stale cache on a GEE refresh failure and otherwise report
-unavailability; they never duplicate statistics in Contentful. The result is
-merged with the matching `panelLayer` year and kept in
-a per-process in-memory cache keyed by layer, period, and territory for 10
-minutes by default. If a refresh fails after the TTL, the cache can serve the
-expired value while the next request retries its source. Requests without
-`locationKey` remain supported as a compatibility fallback.
+The analysis panel lazy-loads municipal data by layer and selected period
+through `/api/municipal-analysis/[panelLayerId]?year=<yearKey>`. That server
+route fetches the needed Contentful partition, decompresses and merges it with
+the matching `panelLayer` year, and keeps the result in a per-process in-memory
+cache for 10 minutes by default. If a refresh fails after the TTL, the cache can
+serve the expired value for that key while the next request tries Contentful
+again. The route still supports requests without `year` as a compatibility
+fallback, but the client should use period-scoped requests.
+The municipality chart loads its complete history separately through
+`/api/municipal-analysis/[panelLayerId]/series?locationKey=<code>`. The server
+reads one `municipalReportSeries` shard and returns only the selected
+municipality, so the period request remains small and independent from the
+temporal series.
+
+Static GEE migration layers and catalog v2 layers add
+`locationKey=<territory>` to the period endpoint so the server reads only the
+requested Brazil, state, municipality, region, biome, ASD, or semiarid row from
+the FeatureCollection. Their complete temporal chart is assembled from these
+narrow period responses; they do not create `municipalReportSeries`. Carbon and
+ANA retain a temporary Contentful fallback. Dynamic catalog sources use stale
+cache on a GEE refresh failure and otherwise report unavailability; they never
+duplicate statistics in Contentful. GEE results are cached per layer, period,
+and territory for 10 minutes by default. Requests without `locationKey` remain
+supported for legacy Contentful partitions.
 Set `MUNICIPAL_ANALYSIS_CACHE_TTL_SECONDS` or
 `MUNICIPAL_ANALYSIS_CACHE_MAX_ENTRIES` to tune that behavior.
 The endpoint is protected server-side and returns private HTTP cache headers;

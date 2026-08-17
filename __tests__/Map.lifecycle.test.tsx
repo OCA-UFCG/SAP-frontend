@@ -12,6 +12,7 @@ const { mapInstances, MapConstructorMock } = vi.hoisted(() => ({
     getLayer: ReturnType<typeof vi.fn>;
     getSource: ReturnType<typeof vi.fn>;
     getZoom: ReturnType<typeof vi.fn>;
+    queryRenderedFeatures: ReturnType<typeof vi.fn>;
     isStyleLoaded: ReturnType<typeof vi.fn>;
     querySourceFeatures: ReturnType<typeof vi.fn>;
     handlers: Map<string, Array<(event: unknown) => void>>;
@@ -107,6 +108,7 @@ vi.mock("maplibre-gl", () => {
     easeTo = vi.fn(() => this);
     fitBounds = vi.fn(() => this);
     getZoom = vi.fn(() => 4.2);
+    queryRenderedFeatures = vi.fn(() => []);
     querySourceFeatures = vi.fn(() => this.sourceFeatures);
     setPadding = vi.fn(() => this);
     setFeatureState = vi.fn(() => this);
@@ -143,6 +145,7 @@ vi.mock("maplibre-gl", () => {
 });
 
 import Map from "@/components/Map/Map";
+import { STATES_FILL_LAYER_ID } from "@/components/Map/mapDefinitions";
 import {
   MUNICIPALITY_BORDER_MIN_ZOOM,
   MUNICIPALITY_BORDER_LAYER_ID,
@@ -450,36 +453,6 @@ describe("Map lifecycle", () => {
 
     firstInstance.handlers.get("load")?.[0]?.({});
 
-    expect(firstInstance.fitBounds).toHaveBeenCalledWith(
-      expect.any(Array),
-      expect.objectContaining({
-        maxZoom: 5.5,
-        animate: true,
-        duration: 350,
-      }),
-    );
-
-    act(() => {
-      vi.advanceTimersByTime(1349);
-    });
-
-    expect(firstInstance.fitBounds).not.toHaveBeenCalledWith(
-      expect.any(Array),
-      expect.objectContaining({
-        maxZoom: 11.5,
-      }),
-    );
-
-    act(() => {
-      vi.advanceTimersByTime(1);
-    });
-
-    expect(firstInstance.querySourceFeatures).toHaveBeenCalledWith(
-      MUNICIPALITY_SOURCE_ID,
-      expect.objectContaining({
-        sourceLayer: "brazilcities",
-      }),
-    );
     expect(firstInstance.setFeatureState).toHaveBeenCalledWith(
       expect.objectContaining({
         source: MUNICIPALITY_SOURCE_ID,
@@ -487,10 +460,18 @@ describe("Map lifecycle", () => {
       }),
       { selected: true },
     );
-    expect(firstInstance.fitBounds).toHaveBeenLastCalledWith(
+    expect(firstInstance.fitBounds).toHaveBeenCalledWith(
       expect.any(Array),
       expect.objectContaining({
-        maxZoom: 11.5,
+        maxZoom: 14.5,
+        animate: true,
+        duration: 1200,
+        padding: {
+          bottom: 50,
+          left: 50,
+          right: 50,
+          top: 50,
+        },
       }),
     );
   });
@@ -544,10 +525,6 @@ describe("Map lifecycle", () => {
 
     firstInstance.handlers.get("load")?.[0]?.({});
 
-    act(() => {
-      vi.advanceTimersByTime(1350);
-    });
-
     expect(firstInstance.setFeatureState).toHaveBeenCalledWith(
       expect.objectContaining({
         source: MUNICIPALITY_SOURCE_ID,
@@ -573,9 +550,15 @@ describe("Map lifecycle", () => {
     expect(firstInstance.fitBounds).toHaveBeenCalledWith(
       expect.any(Array),
       expect.objectContaining({
-        maxZoom: 5.5,
+        maxZoom: 14.5,
         animate: true,
-        duration: 350,
+        duration: 1200,
+        padding: {
+          bottom: 50,
+          left: 50,
+          right: 50,
+          top: 50,
+        },
       }),
     );
 
@@ -613,7 +596,15 @@ describe("Map lifecycle", () => {
     expect(firstInstance.fitBounds).toHaveBeenLastCalledWith(
       expect.any(Array),
       expect.objectContaining({
-        maxZoom: 11.5,
+        maxZoom: 14.5,
+        animate: true,
+        duration: 1200,
+        padding: {
+          bottom: 50,
+          left: 50,
+          right: 50,
+          top: 50,
+        },
       }),
     );
   });
@@ -671,7 +662,15 @@ describe("Map lifecycle", () => {
     expect(firstInstance.fitBounds).toHaveBeenLastCalledWith(
       expect.any(Array),
       expect.objectContaining({
-        maxZoom: 11.5,
+        maxZoom: 14.5,
+        animate: true,
+        duration: 1200,
+        padding: {
+          bottom: 50,
+          left: 50,
+          right: 50,
+          top: 50,
+        },
       }),
     );
   });
@@ -691,24 +690,149 @@ describe("Map lifecycle", () => {
     firstInstance.querySourceFeatures.mockReturnValue([]);
     firstInstance.handlers.get("load")?.[0]?.({});
 
-    act(() => {
-      vi.advanceTimersByTime(1350);
-    });
-
     const [bounds, options] = firstInstance.fitBounds.mock.lastCall ?? [];
 
     expect(bounds).toEqual([
-      [-39.418926, -15.033229],
-      [-39.190238, -14.690567],
+      [-46.5599, -18.3372],
+      [-37.3411, -8.5475],
     ]);
     expect(options).toEqual(
       expect.objectContaining({
-        maxZoom: 11.5,
+        animate: false,
+        padding: {
+          bottom: 200,
+          left: 200,
+          right: 200,
+          top: 200,
+        },
       }),
     );
   });
 
-  it("clears the selected municipality when clicking anywhere on the map", async () => {
+  it("prioritizes a municipality click over state and background handlers", () => {
+    const onSelectedMunicipalityCodeChange = vi.fn();
+    const onStateSelect = vi.fn();
+    const municipalityFeature = {
+      id: "3509502",
+      properties: { CD_MUN: "3509502", SIGLA_UF: "SP" },
+    };
+
+    render(
+      <Map
+        center={[-15.749997, -47.9499962]}
+        estadoSelecionado="SP"
+        onSelectedMunicipalityCodeChange={onSelectedMunicipalityCodeChange}
+        onStateSelect={onStateSelect}
+      />,
+    );
+
+    const firstInstance = mapInstances[0];
+    firstInstance.handlers.get("load")?.[0]?.({});
+    firstInstance.queryRenderedFeatures.mockImplementation(
+      (_point, options: { layers?: string[] }) =>
+        options.layers?.includes(MUNICIPALITY_HOVER_LAYER_ID)
+          ? [municipalityFeature]
+          : [{ id: "SP", properties: { SIGLA_UF: "SP" } }],
+    );
+
+    firstInstance.handlers.get("click")?.[0]?.({ point: { x: 10, y: 10 } });
+
+    expect(onSelectedMunicipalityCodeChange).toHaveBeenCalledTimes(1);
+    expect(onSelectedMunicipalityCodeChange).toHaveBeenCalledWith("3509502");
+    expect(onSelectedMunicipalityCodeChange).not.toHaveBeenCalledWith(null);
+    expect(onStateSelect).not.toHaveBeenCalled();
+  });
+
+  it("toggles off the selected municipality without routing the click to the state", () => {
+    const onSelectedMunicipalityCodeChange = vi.fn();
+    const onStateSelect = vi.fn();
+
+    render(
+      <Map
+        center={[-15.749997, -47.9499962]}
+        estadoSelecionado="SP"
+        selectedMunicipalityCode="3509502"
+        onSelectedMunicipalityCodeChange={onSelectedMunicipalityCodeChange}
+        onStateSelect={onStateSelect}
+      />,
+    );
+
+    const firstInstance = mapInstances[0];
+    firstInstance.handlers.get("load")?.[0]?.({});
+    firstInstance.queryRenderedFeatures.mockImplementation(
+      (_point, options: { layers?: string[] }) =>
+        options.layers?.includes(MUNICIPALITY_HOVER_LAYER_ID)
+          ? [{ id: "3509502", properties: { CD_MUN: "3509502" } }]
+          : [{ id: "SP", properties: { SIGLA_UF: "SP" } }],
+    );
+    onSelectedMunicipalityCodeChange.mockClear();
+
+    firstInstance.handlers.get("click")?.[0]?.({ point: { x: 10, y: 10 } });
+
+    expect(onSelectedMunicipalityCodeChange).toHaveBeenCalledTimes(1);
+    expect(onSelectedMunicipalityCodeChange).toHaveBeenCalledWith(null);
+    expect(onStateSelect).not.toHaveBeenCalled();
+  });
+
+  it("routes a non-municipality click to the state and clears the municipality", () => {
+    const onSelectedMunicipalityCodeChange = vi.fn();
+    const onStateSelect = vi.fn();
+
+    render(
+      <Map
+        center={[-15.749997, -47.9499962]}
+        estadoSelecionado="SP"
+        selectedMunicipalityCode="3509502"
+        onSelectedMunicipalityCodeChange={onSelectedMunicipalityCodeChange}
+        onStateSelect={onStateSelect}
+      />,
+    );
+
+    const firstInstance = mapInstances[0];
+    firstInstance.handlers.get("load")?.[0]?.({});
+    firstInstance.queryRenderedFeatures.mockImplementation(
+      (_point, options: { layers?: string[] }) =>
+        options.layers?.includes(STATES_FILL_LAYER_ID)
+          ? [{ id: "BA", properties: { SIGLA_UF: "BA" } }]
+          : [],
+    );
+    onSelectedMunicipalityCodeChange.mockClear();
+
+    firstInstance.handlers.get("click")?.[0]?.({ point: { x: 10, y: 10 } });
+
+    expect(onSelectedMunicipalityCodeChange).toHaveBeenCalledTimes(1);
+    expect(onSelectedMunicipalityCodeChange).toHaveBeenCalledWith(null);
+    expect(onStateSelect).toHaveBeenCalledWith("BA");
+  });
+
+  it("keeps state clicks working in demo mode", () => {
+    const onStateSelect = vi.fn();
+
+    render(
+      <Map
+        center={[-15.749997, -47.9499962]}
+        estadoSelecionado="SP"
+        mapMode="demo"
+        onStateSelect={onStateSelect}
+      />,
+    );
+
+    const firstInstance = mapInstances[0];
+    firstInstance.handlers.get("load")?.[0]?.({});
+    firstInstance.queryRenderedFeatures.mockReturnValue([
+      { id: "BA", properties: { SIGLA_UF: "BA" } },
+    ]);
+
+    firstInstance.handlers.get("click")?.[0]?.({ point: { x: 10, y: 10 } });
+
+    expect(firstInstance.queryRenderedFeatures).toHaveBeenCalledWith(
+      { x: 10, y: 10 },
+      { layers: [STATES_FILL_LAYER_ID] },
+    );
+    expect(onStateSelect).toHaveBeenCalledWith("BA");
+  });
+
+  it("clears the selected municipality when clicking outside a municipality", async () => {
     const onSelectedMunicipalityCodeChange = vi.fn();
 
     render(
@@ -752,7 +876,7 @@ describe("Map lifecycle", () => {
       );
     });
 
-    firstInstance.handlers.get("click")?.forEach((handler) => handler({}));
+    firstInstance.handlers.get("click")?.[0]?.({ point: { x: 10, y: 10 } });
 
     await waitFor(() => {
       expect(firstInstance.setFeatureState).toHaveBeenCalledWith(
@@ -774,7 +898,7 @@ describe("Map lifecycle", () => {
 
     expect(firstInstance.easeTo).toHaveBeenCalledWith(
       expect.objectContaining({
-        zoom: MUNICIPALITY_MIN_ZOOM,
+        zoom: 5,
       }),
     );
   });

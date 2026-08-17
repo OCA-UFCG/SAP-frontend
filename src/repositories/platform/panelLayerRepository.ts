@@ -202,7 +202,7 @@ export async function getPanelLayerWithMunicipalAnalysisYear(
   );
 }
 
-async function getPanelLayerById(
+export async function getPanelLayerById(
   panelLayerId: string,
 ): Promise<PanelLayerI | null> {
   let firstError: unknown;
