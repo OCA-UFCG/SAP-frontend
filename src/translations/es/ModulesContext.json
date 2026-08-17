@@ -52,6 +52,18 @@
       "dinamica-da-degradacao-da-terra-ods-15-3-1": {
         "title": "Dinámica de Degradación de la Tierra - ODS 15.3.1",
         "description": "Indica si la tierra se está degradando, estable o mejorando en el territorio brasileño."
+      },
+      "registros-de-secas-e-estiagens-2004-2025": {
+        "title": "Registros de sequías y períodos secos (2004-2025)",
+        "description": "Cantidad anual de registros municipales de sequías y períodos secos en el S2ID entre 2004 y 2025."
+      },
+      "pobreza-urbana": {
+        "title": "Pobreza urbana",
+        "description": "Porcentaje de pobreza urbana agregado por municipio, con datos anuales de 2012 a 2025."
+      },
+      "pobreza-rural": {
+        "title": "Pobreza rural",
+        "description": "Porcentaje de pobreza rural agregado por municipio, con datos anuales de 2012 a 2025."
       }
     }
   }

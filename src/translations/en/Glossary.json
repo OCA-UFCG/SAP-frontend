@@ -3,6 +3,72 @@
     "title": "Glossary",
     "term": "Term",
     "definition": "Definition",
-    "empty": "No terms registered yet."
+    "empty": "No terms registered yet.",
+    "entries": {
+      "2g4SpG69RFS0IrjlLW1p1w": {
+        "term": "Areas Susceptible to Desertification (ASD)",
+        "definition": "The territorial scope of Brazilian policies to combat desertification. It encompasses areas with an Aridity Index below 0.65—that is, arid, semi-arid, and dry subhumid zones. The climate criterion follows the UNCCD, while in Brazil the municipalities included in this area are defined by PAB-Brazil."
+      },
+      "4R7tVeGr4usEVritYujubc": {
+        "term": "Aridity",
+        "definition": "A permanent characteristic of a region's climate, marked by an imbalance between the water supplied by precipitation and the water lost through evapotranspiration. It differs from drought, which is temporary."
+      },
+      "3zJfiSIKCtiVYXHG9Cmf5u": {
+        "term": "Aridification",
+        "definition": "The process by which aridity increases over time, associated with a relative reduction in available moisture and an increase in evaporative demand."
+      },
+      "3MmUxkpLypzuJ46ccudqJq": {
+        "term": "Caatinga Biome",
+        "definition": "A uniquely Brazilian biome, with vegetation adapted to semiarid conditions, high seasonal variability, and strong ecological and sociocultural importance for the Northeast region."
+      },
+      "2cVTwHiynqksx0RKZQ7oM2": {
+        "term": "Combating Desertification",
+        "definition": "A set of actions to prevent or reduce land degradation, rehabilitate partially degraded land, and restore desertified land. The UNCCD brings together under this concept sustainable land-use activities with three purposes: prevention or reduction, restoration, and rehabilitation of partially desertified land."
+      },
+      "WLaoywChWXFiyrlH1g9n3": {
+        "term": "Living with the Semiarid Region",
+        "definition": "A political, ecological, and scientific approach that regards the Semiarid Region not as an unviable space, but as an ecologically complex territory capable of supporting dignified ways of living, producing, and remaining on the land. It is structured around three pillars: sustainable use and restoration of natural resources, with attention to soil, water, and biodiversity; democratized access to land, water, and means of production; and agroecology as a process of territorial transformation that connects food production, environmental conservation, and social justice."
+      },
+      "1DH80MClQoPJ7XZc4rXcbA": {
+        "term": "Land Degradation",
+        "definition": "Reduction or loss of biodiversity, biological productivity, and the complexity of agricultural land resulting from land-use and territorial occupation systems (UNCCD, 1994)."
+      },
+      "3lj8uvIKKX6GhD88iPhuED": {
+        "term": "Desertification",
+        "definition": "Land degradation in arid, semi-arid, or dry subhumid areas resulting from climate variations and human activities. It should not be confused with the natural expansion of deserts or with aridification, which is a climate-driven process."
+      },
+      "2g45U7rlYA8klRSrbTyP4m": {
+        "term": "Aridity Index (AI)",
+        "definition": "The ratio of precipitation to mean annual potential evapotranspiration, calculated over long time series, generally 30 years. The lower the value, the drier the environment. Common ranges are: hyper-arid (below 0.05), arid (0.05 to 0.20), semi-arid (0.20 to 0.50), dry subhumid (0.50 to 0.65), and humid (0.65 and above)."
+      },
+      "3UdHvY2dm1psDr5Djun5A6": {
+        "term": "Mitigation of the Effects of Drought",
+        "definition": "A set of measures aimed at reducing the vulnerability of populations and ecosystems to drought episodes through water security, living with the Semiarid Region, and strengthening the response capacity of affected territories."
+      },
+      "4zknW2bXv17ItdmcFzaXuo": {
+        "term": "Land Degradation Neutrality",
+        "definition": "A state in which the quantity and quality of land resources needed to sustain ecosystem functions and services remain stable or increase. It corresponds to Target 15.3 of the Sustainable Development Goals."
+      },
+      "519w8AyBIPxJ5Ha7kB4T1n": {
+        "term": "PAB-Brazil",
+        "definition": "The Brazilian Action Plan to Combat Desertification and Mitigate the Effects of Drought (PAB-Brazil 2024) is the main instrument for implementing the National Policy to Combat Desertification and Mitigate the Effects of Drought (Law No. 13,153/2015). With a 20-year horizon (2024–2043), the plan seeks to coordinate strategies and actions to neutralize land degradation and mitigate the effects of drought, thereby reducing the environmental and socioeconomic vulnerabilities of Brazil's most affected regions."
+      },
+      "5xei6VoCqoWkWLLxFLF14O": {
+        "term": "Drought",
+        "definition": "A period of water scarcity for ecosystems and people, attributed to below-expected rainfall, high temperatures, and other factors that cause hydrological imbalance (IPCC, 2021). It is temporary in nature, which distinguishes it from aridity, a permanent characteristic of the climate."
+      },
+      "1KhrZFs6sxNNFQIg2TNT3o": {
+        "term": "Brazilian Semiarid Region",
+        "definition": "An official territorial area delimited by the Superintendency for the Development of the Northeast (Sudene) through Condel Resolutions 150/2021 and 176/2024. It combines climate and hydrological criteria and guides specific regional policies."
+      },
+      "5HSLqlOt0XJ1iBKo4Usomo": {
+        "term": "Social Technologies for Access to Water",
+        "definition": "Replicable, socially appropriate solutions developed with community participation to collect, store, and use water in contexts of scarcity."
+      },
+      "2skEfmy04rNttZvYkDPOBn": {
+        "term": "Drylands",
+        "definition": "Arid, semi-arid, and dry subhumid zones, defined by an Aridity Index between 0.05 and 0.65. They are the environments in which desertification can occur and, in Brazil, correspond to the full extent of areas susceptible to desertification."
+      }
+    }
   }
 }

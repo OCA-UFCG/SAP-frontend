@@ -52,6 +52,18 @@
       "dinamica-da-degradacao-da-terra-ods-15-3-1": {
         "title": "Land Degradation Dynamics - SDG 15.3.1",
         "description": "Indicates whether land is degrading, stable, or improving in the Brazilian territory."
+      },
+      "registros-de-secas-e-estiagens-2004-2025": {
+        "title": "Drought and Dry Spell Records (2004-2025)",
+        "description": "Annual number of municipal drought and dry-spell records in S2ID from 2004 to 2025."
+      },
+      "pobreza-urbana": {
+        "title": "Urban Poverty",
+        "description": "Municipal-level urban poverty percentage, with annual data from 2012 to 2025."
+      },
+      "pobreza-rural": {
+        "title": "Rural Poverty",
+        "description": "Municipal-level rural poverty percentage, with annual data from 2012 to 2025."
       }
     }
   }
