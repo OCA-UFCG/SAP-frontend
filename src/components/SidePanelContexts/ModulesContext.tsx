@@ -145,8 +145,14 @@ export function ModulesContext({
 }: ModulesContextProps) {
   const t = useTranslations("ModulesContext");
   const { activeData, activeEEData } = useMapLayerActiveState();
-  const { activateVectorLayer, activateEeLayer, clearActiveLayer, setSpatialSelection } =
-    useMapLayerActions();
+  const {
+    activateVectorLayer,
+    activateEeLayer,
+    clearActiveLayer,
+    setSpatialSelection,
+    setSelectedState,
+    setSelectedMunicipalityCode,
+  } = useMapLayerActions();
   const { spatialSelection } = useMapLayerViewState();
   
   const isSpatialScopeEnabled =
@@ -300,6 +306,15 @@ export function ModulesContext({
     ],
   );
 
+  const handleSpatialSelectionChange = useCallback(
+    (value: SpatialSelection) => {
+      setSpatialSelection(value);
+      setSelectedState("br");
+      setSelectedMunicipalityCode(null);
+    },
+    [setSpatialSelection, setSelectedState, setSelectedMunicipalityCode],
+  );
+
   return (
     <div className="h-full overflow-y-auto bg-[#F6F7F6] px-4 pt-12 pb-6">
       <div className="flex flex-col gap-6">
@@ -309,7 +324,7 @@ export function ModulesContext({
           <div>
             <SpatialScopeSelect
               spatialSelection={spatialSelection}
-              onSpatialSelectionChange={setSpatialSelection}
+              onSpatialSelectionChange={handleSpatialSelectionChange}
             />
           </div>
         ) : null}

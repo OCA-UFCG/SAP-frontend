@@ -395,22 +395,11 @@ export function AnalysisContext({
     analysisImageDataByRequestKey[municipalAnalysisRequestKey] === undefined,
   );
 
-  const handleSpatialSelectionChange = useCallback(
-    (value: SpatialSelection) => {
-      setSpatialSelection(value);
-      setSelectedState("br");
-      setSelectedMunicipalityCode(null);
-    },
-    [setSpatialSelection, setSelectedMunicipalityCode, setSelectedState],
-  );
-
   return (
     <AnalysisPanel
       moduleName={dataset?.name}
       yearOptions={yearOptions}
       activeYear={activeAnalysisYear}
-      spatialSelection={spatialSelection}
-      onSpatialSelectionChange={handleSpatialSelectionChange}
       onBack={handleGoBack}
       onSearch={handleSearch}
       searchTelemetryContext={{

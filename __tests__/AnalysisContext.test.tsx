@@ -255,44 +255,7 @@ describe("AnalysisContext", () => {
     expect(props.emptyStateTitle).toContain("Semiárido Total");
   });
 
-  it("clears a previous municipality when the spatial scope changes", () => {
-    render(
-      <AnalysisContext
-        activeSection="analysis-detail"
-        panelLayers={[
-          buildPanelLayer({
-            br: [45, 55],
-            [municipality.uf]: [35, 65],
-          }),
-        ]}
-      />,
-    );
 
-    const props = analysisPanelMock.mock.calls.at(-1)?.[0] as {
-      onSpatialSelectionChange: (value: {
-        spatialArea: "biome";
-        spatialValue: "Caatinga";
-      }) => void;
-    };
-
-    props.onSpatialSelectionChange({
-      spatialArea: "biome",
-      spatialValue: "Caatinga",
-    });
-
-    const actions = useMapLayerActionsMock.mock.results.at(-1)?.value as {
-      setSelectedMunicipalityCode: ReturnType<typeof vi.fn>;
-      setSelectedState: ReturnType<typeof vi.fn>;
-      setSpatialSelection: ReturnType<typeof vi.fn>;
-    };
-
-    expect(actions.setSpatialSelection).toHaveBeenCalledWith({
-      spatialArea: "biome",
-      spatialValue: "Caatinga",
-    });
-    expect(actions.setSelectedState).toHaveBeenCalledWith("br");
-    expect(actions.setSelectedMunicipalityCode).toHaveBeenCalledWith(null);
-  });
 
   it("tracks resolved municipality searches for the active layer", () => {
     render(
