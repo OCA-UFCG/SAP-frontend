@@ -5,7 +5,9 @@ import { useTranslations } from "next-intl";
 import {
   useMapLayerActions,
   useMapLayerActiveState,
+  useMapLayerViewState,
 } from "@/components/MapLayerContext/MapLayerContext";
+import { SpatialScopeSelect } from "@/components/SpatialScopeSelect/SpatialScopeSelect";
 import { DroughtDataset } from "@/components/DroughtDataset/DroughtDataset";
 import type { IDroughtDataset } from "@/components/DroughtDataset/DroughtDataset";
 import { LayerAccordion } from "@/components/LayerAccordion/LayerAccordion";
@@ -143,8 +145,12 @@ export function ModulesContext({
 }: ModulesContextProps) {
   const t = useTranslations("ModulesContext");
   const { activeData, activeEEData } = useMapLayerActiveState();
-  const { activateVectorLayer, activateEeLayer, clearActiveLayer } =
+  const { activateVectorLayer, activateEeLayer, clearActiveLayer, setSpatialSelection } =
     useMapLayerActions();
+  const { spatialSelection } = useMapLayerViewState();
+  
+  const isSpatialScopeEnabled =
+    process.env.NEXT_PUBLIC_ENABLE_SPATIAL_SCOPE === "true";
 
   const datasets = useMemo(
     () => buildLayerDatasets(panelLayers),
@@ -298,6 +304,15 @@ export function ModulesContext({
     <div className="h-full overflow-y-auto bg-[#F6F7F6] px-4 pt-12 pb-6">
       <div className="flex flex-col gap-6">
         <ContextHeader />
+
+        {isSpatialScopeEnabled ? (
+          <div>
+            <SpatialScopeSelect
+              spatialSelection={spatialSelection}
+              onSpatialSelectionChange={setSpatialSelection}
+            />
+          </div>
+        ) : null}
 
         <div className="flex flex-col gap-6">
           {groupedDatasets.map((group, index) => {
