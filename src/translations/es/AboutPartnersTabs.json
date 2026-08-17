@@ -8,16 +8,16 @@
     "content": {
       "hero": {
         "title": "Sobre nosotros",
-        "description": "El Sistema Estratégico sobre la Desertificación (SEDES) es el instrumento que materializa, a nivel operativo, el mandato legal de establecer un sistema integrado de información de alerta temprana para eventos de sequía y desertificación. En la Ley N° 13.153/2015, este deber se atribuye a las autoridades públicas en el marco de la Política Nacional de Lucha contra la Desertificación y Mitigación de los Efectos de la Sequía (PNCD). El SEDES proporciona información integrada y procesable para planificar, priorizar y responder a los riesgos. El sistema viabiliza los objetivos centrales de la PNCD, transformando observaciones e indicadores en alertas y evidencias para decisiones de contingencia, adaptación, protección de medios de vida y asignación de recursos."
+        "description": "El Sistema Estratégico sobre Desertificación y Sequía (SEDES) es el instrumento que materializa, a nivel operativo, el mandato legal de establecer un sistema integrado de información de alerta temprana para eventos de sequía y procesos de desertificación. En la Ley n.º 13.153/2015, este deber se atribuye a los poderes públicos en el marco de la Política Nacional de Lucha contra la Desertificación y Mitigación de los Efectos de la Sequía (PNCD). El SEDES proporciona información integrada y procesable para planificar, priorizar y responder a los riesgos. El sistema hace viables los objetivos centrales de la PNCD al transformar observaciones e indicadores en alertas y evidencias para decisiones de contingencia, adaptación, protección de los medios de vida y asignación de recursos."
       },
       "sections": {
         "0": {
           "title": "Sobre la sequía",
-          "text": "Se entiende como una condición anormal de escasez de agua, que puede involucrar precipitación, humedad del suelo, caudal de ríos, niveles de embalses o acuíferos."
+          "text": "La sequía se entiende como una condición anormal de escasez de agua que puede involucrar precipitaciones, humedad del suelo, caudal de los ríos, niveles de embalses o acuíferos."
         },
         "1": {
           "title": "Sobre la desertificación",
-          "text": "Es la degradación de la tierra en áreas áridas, semiáridas y subhúmedas secas resultante de diversos factores, incluyendo variaciones climáticas y actividades humanas."
+          "text": "La desertificación se define como la degradación de la tierra en zonas áridas, semiáridas y subhúmedas secas, resultante de diversos factores y agentes, incluidas las variaciones climáticas y las actividades humanas."
         }
       }
     }
