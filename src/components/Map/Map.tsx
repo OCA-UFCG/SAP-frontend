@@ -69,7 +69,7 @@ const Map = ({
   onSelectedMunicipalityCodeChange,
   onTileLayerReady,
   layerOpacity = 0.85,
-  allowedStateUfs = null
+  allowedStateUfs = null,
 }: MapProps) => {
   const mapContainerRef = useRef<HTMLDivElement | null>(null);
   const {
@@ -226,8 +226,7 @@ const Map = ({
 
       map.on("mousemove", STATES_FILL_LAYER_ID, (event) => {
         const hoveredFeature = event.features?.[0] as
-          | MapGeoJSONFeature
-          | undefined;
+          MapGeoJSONFeature | undefined;
         const uf =
           (hoveredFeature?.properties?.SIGLA_UF as string | undefined) ??
           (hoveredFeature?.properties?.uf as string | undefined) ??
@@ -238,10 +237,7 @@ const Map = ({
           (hoveredFeature?.properties?.nome as string | undefined);
 
         const hoveredStateId = (hoveredFeature?.id ?? uf) as
-          | string
-          | number
-          | null
-          | undefined;
+          string | number | null | undefined;
 
         const allowedUfs = allowedStateUfsRef.current;
         const isOutsideArea = Boolean(
@@ -323,10 +319,42 @@ const Map = ({
         popup.remove();
       });
 
-      map.on("click", STATES_FILL_LAYER_ID, (event) => {
-        const clickedFeature = event.features?.[0] as
-          | MapGeoJSONFeature
-          | undefined;
+      map.on("click", (event) => {
+        const clickedMunicipality =
+          mapModeRef.current === "platform" &&
+          map.getLayer(MUNICIPALITY_HOVER_LAYER_ID)
+            ? (map.queryRenderedFeatures(event.point, {
+                layers: [MUNICIPALITY_HOVER_LAYER_ID],
+              })[0] as MapGeoJSONFeature | undefined)
+            : undefined;
+        const rawMunicipalityCode =
+          clickedMunicipality?.properties?.CD_MUN ?? clickedMunicipality?.id;
+        const municipalityCode =
+          typeof rawMunicipalityCode === "string" ||
+          typeof rawMunicipalityCode === "number"
+            ? String(rawMunicipalityCode)
+            : null;
+
+        if (municipalityCode) {
+          log("municipality click", {
+            municipalityCode,
+            featureId: clickedMunicipality?.id,
+          });
+
+          if (selectedMunicipalityCodeRef.current === municipalityCode) {
+            clearSelectedMunicipalitySelection(map);
+          } else {
+            onSelectedMunicipalityCodeChangeRef.current?.(municipalityCode);
+          }
+
+          return;
+        }
+
+        const clickedFeature = map.getLayer(STATES_FILL_LAYER_ID)
+          ? (map.queryRenderedFeatures(event.point, {
+              layers: [STATES_FILL_LAYER_ID],
+            })[0] as MapGeoJSONFeature | undefined)
+          : undefined;
 
         const uf =
           (clickedFeature?.properties?.SIGLA_UF as string | undefined) ??
@@ -336,7 +364,12 @@ const Map = ({
             ? clickedFeature.id
             : undefined);
 
-        if (!uf) return;
+        if (!uf) {
+          if (mapModeRef.current === "platform") {
+            clearSelectedMunicipalitySelection(map);
+          }
+          return;
+        }
 
         const allowedUfs = allowedStateUfsRef.current;
         if (allowedUfs && !allowedUfs.has(uf.toLowerCase())) {
@@ -344,8 +377,14 @@ const Map = ({
             uf,
             allowedUfs,
           });
-          event.preventDefault();
+          if (mapModeRef.current === "platform") {
+            clearSelectedMunicipalitySelection(map);
+          }
           return;
+        }
+
+        if (mapModeRef.current === "platform") {
+          clearSelectedMunicipalitySelection(map);
         }
 
         const nextSelectedState = resolveNextSelectedState(
@@ -385,14 +424,9 @@ const Map = ({
       });
 
       if (mapModeRef.current === "platform") {
-        map.on("click", () => {
-          clearSelectedMunicipalitySelection(map);
-        });
-
         map.on("mousemove", MUNICIPALITY_HOVER_LAYER_ID, (event) => {
           const municipalityFeature = event.features?.[0] as
-            | MapGeoJSONFeature
-            | undefined;
+            MapGeoJSONFeature | undefined;
           const municipalityLabel = buildMunicipalityLabel(municipalityFeature);
 
           map.getCanvas().style.cursor = "pointer";
@@ -439,31 +473,6 @@ const Map = ({
             );
           }
           hoveredMunicipalityIdRef.current = null;
-        });
-
-        map.on("click", MUNICIPALITY_HOVER_LAYER_ID, (event) => {
-          const clickedFeature = event.features?.[0] as
-            | MapGeoJSONFeature
-            | undefined;
-
-          const municipalityCode = clickedFeature?.properties?.CD_MUN as string | undefined;
-
-          if (!municipalityCode) return;
-
-          log("municipality click", {
-            municipalityCode,
-            featureId: clickedFeature?.id,
-          });
-
-          const nextCode =
-            selectedMunicipalityCodeRef.current === municipalityCode
-              ? null
-              : municipalityCode;
-
-          onSelectedMunicipalityCodeChangeRef.current?.(nextCode);
-
-          // Prevent the map background click from firing and clearing selection
-          event.preventDefault();
         });
       }
     });
@@ -515,8 +524,7 @@ const Map = ({
       if (map.getLayer(GEE_LAYER_ID)) {
         map.setPaintProperty(GEE_LAYER_ID, "raster-opacity", layerOpacity);
       }
-    } catch {
-    }
+    } catch {}
   }, [layerOpacity, mapRef, mapInstanceVersion]);
 
   useEffect(() => {
