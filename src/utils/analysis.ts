@@ -72,6 +72,7 @@ export interface CompactMapVisualizationConfig {
   legend?: CompactAnalysisClass[];
   band?: string;
   sourceBand?: string;
+  outputBand?: string;
   property?: string;
   outline?: {
     color?: string;
@@ -90,6 +91,7 @@ export interface CompactMapVisualizationConfig {
 export interface CompactAnalysisYearData {
   imageId: string;
   year?: string;
+  leadTime?: number;
   valuesScale?: number;
   values: Record<string, number[]>;
 }

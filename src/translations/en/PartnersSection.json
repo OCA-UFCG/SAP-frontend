@@ -1,6 +1,44 @@
 {
   "PartnersSection": {
-    "title": "Partners",
-    "description": "Meet our partners who, in collaboration with us, support us in the development of the Strategic System on Desertification."
+    "title": "Working Group Members",
+    "description": "Meet the members who collaborate in the development of the Strategic System on Desertification and Drought.",
+    "partners": {
+      "Fq7hIvdhJW1t1PkXqeBA0": {
+        "name": "MMA",
+        "description": "Institutional Coordination of GT-SEDES"
+      },
+      "4GDCyf7c7AeAE2vIUmz1wU": {
+        "name": "OCA",
+        "description": "Technical Coordination"
+      },
+      "3R3Duiu6pBVsPrbKHZMa8U": {
+        "name": "ANA",
+        "description": "Drought Monitor and Hydrometeorological Tools"
+      },
+      "7ystzMhmjfOMEKneiQT6zw": {
+        "name": "INMET",
+        "description": "Climate Data"
+      },
+      "69kRxk7I8kj3kgA33DfBnX": {
+        "name": "INPE",
+        "description": "Climate Series and Deforestation"
+      },
+      "1lekqxyD8cyUmJqNzx9Z0B": {
+        "name": "IBGE",
+        "description": "Land Cover and Socioeconomic Indicators"
+      },
+      "8eWw4IQnjjlxEh5RJ7pML": {
+        "name": "Embrapa",
+        "description": "Soil Data"
+      },
+      "4fFBfhQZRvCbAMT5tfEeKh": {
+        "name": "INSA",
+        "description": "Technical Support"
+      },
+      "5KZqYkwtC2mJiRoNbc8d64": {
+        "name": "National Civil Defense",
+        "description": "Risks and Alerts"
+      }
+    }
   }
 }

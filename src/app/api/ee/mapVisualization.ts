@@ -64,7 +64,8 @@ export function resolveMapVisualizationPlan(
     ? mapVisualization.max
     : (maxScale ?? (palette.length > 0 ? min + palette.length - 1 : min));
   const sourceBand = hasThresholds
-    ? (mapVisualization.sourceBand ?? mapVisualization.band)
+    ? (mapVisualization.sourceBand ??
+      (mapVisualization.outputBand ? undefined : mapVisualization.band))
     : (mapVisualization.band ?? mapVisualization.sourceBand);
 
   return {
@@ -76,7 +77,7 @@ export function resolveMapVisualizationPlan(
     ...(hasThresholds
       ? {
           thresholdClassification: {
-            outputBand: mapVisualization.band,
+            outputBand: mapVisualization.outputBand ?? mapVisualization.band,
             startValue: min,
             thresholds,
           },

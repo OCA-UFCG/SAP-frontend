@@ -8,16 +8,16 @@
     "content": {
       "hero": {
         "title": "About us",
-        "description": "The Strategic System on Desertification (SEDES) is the instrument that materializes, at an operational level, the legal command to establish an integrated early warning information system for drought and desertification events. In Law No. 13.153/2015, this duty is assigned to public authorities under the National Policy to Combat Desertification and Mitigate the Effects of Drought (PNCD). SEDES provides integrated and actionable information to plan, prioritize, and respond to risks. The system enables the core objectives of the PNCD, transforming observations and indicators into alerts and evidence for contingency decisions, adaptation, livelihood protection, and resource allocation."
+        "description": "The Strategic System on Desertification and Drought (SEDES) is the instrument that gives operational effect to the legal mandate to establish an integrated early warning information system for drought events and desertification processes. Under Law No. 13,153/2015, this duty is assigned to public authorities as part of the National Policy to Combat Desertification and Mitigate the Effects of Drought (PNCD). SEDES provides integrated, actionable information for planning, prioritizing, and responding to risks. The system advances the core objectives of the PNCD by turning observations and indicators into alerts and evidence for contingency, adaptation, livelihood protection, and resource allocation decisions."
       },
       "sections": {
         "0": {
           "title": "About drought",
-          "text": "It is understood as an abnormal condition of water scarcity, which may involve precipitation, soil moisture, river flow, reservoir levels or aquifers."
+          "text": "Drought is understood as an abnormal condition of water scarcity that may involve precipitation, soil moisture, river flow, reservoir levels, or aquifers."
         },
         "1": {
           "title": "About desertification",
-          "text": "It is the degradation of land in arid, semi-arid and dry sub-humid areas resulting from various factors, including climatic variations and human activities."
+          "text": "Desertification is defined as land degradation in arid, semi-arid, and dry subhumid areas resulting from various factors and drivers, including climate variations and human activities."
         }
       }
     }

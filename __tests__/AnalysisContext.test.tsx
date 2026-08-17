@@ -59,6 +59,7 @@ function buildPanelLayer(
       values,
     },
   },
+  locations: Record<string, string> = {},
 ): PanelLayerI {
   return {
     sys: { id: "sys-layer-1" },
@@ -77,6 +78,7 @@ function buildPanelLayer(
       locations: {
         br: "Brasil",
         [municipality.uf]: municipality.uf.toUpperCase(),
+        ...locations,
       },
       years,
     },
@@ -100,6 +102,10 @@ describe("AnalysisContext", () => {
       selectedState: municipality.uf,
       selectedMunicipalityCode: municipality.code,
       activeYear: "2024",
+      spatialSelection: {
+        spatialArea: "national",
+        spatialValue: "brasil",
+      },
     });
 
     useMapLayerActionsMock.mockReturnValue({
@@ -108,6 +114,7 @@ describe("AnalysisContext", () => {
       setActiveLegend: vi.fn(),
       setActiveYear: vi.fn(),
       resetPlatformState: vi.fn(),
+      setSpatialSelection: vi.fn(),
     });
 
     vi.mocked(trackUiEvent).mockReset();
@@ -169,6 +176,122 @@ describe("AnalysisContext", () => {
     expect(props.selectedState).toBe(municipality.code);
     expect(props.model).toBeNull();
     expect(props.emptyStateTitle).toContain(municipality.label);
+  });
+
+  it("shows the canonical ASD + Entorno data instead of Apenas ASD", () => {
+    useMapLayerViewStateMock.mockReturnValue({
+      selectedState: "br",
+      selectedMunicipalityCode: null,
+      activeYear: "2024",
+      spatialSelection: {
+        spatialArea: "asd",
+        spatialValue: "ASD",
+      },
+    });
+
+    render(
+      <AnalysisContext
+        activeSection="analysis-detail"
+        panelLayers={[
+          buildPanelLayer(
+            {
+              br: [45, 55],
+              "4_asd-apenas-asd": [90, 10],
+              "4_asd-asd-entorno": [20, 80],
+            },
+            undefined,
+            {
+              "4_asd-apenas-asd": "Apenas ASD",
+              "4_asd-asd-entorno": "ASD + Entorno",
+            },
+          ),
+        ]}
+      />,
+    );
+
+    const props = analysisPanelMock.mock.calls.at(-1)?.[0] as {
+      model: {
+        name: string;
+        distribution: Array<{ id: string; value: number }>;
+      } | null;
+      selectedState: string;
+    };
+
+    expect(props.selectedState).toBe("4_asd-asd-entorno");
+    expect(props.model?.name).toBe("ASD + Entorno");
+    expect(props.model?.distribution[0]).toMatchObject({ value: 20 });
+  });
+
+  it("names an unavailable semiarid scope from the canonical contract", () => {
+    useMapLayerViewStateMock.mockReturnValue({
+      selectedState: "br",
+      selectedMunicipalityCode: null,
+      activeYear: "2024",
+      spatialSelection: {
+        spatialArea: "semiarid",
+        spatialValue: "semiárido",
+      },
+    });
+
+    render(
+      <AnalysisContext
+        activeSection="analysis-detail"
+        panelLayers={[
+          buildPanelLayer({
+            br: [45, 55],
+          }),
+        ]}
+      />,
+    );
+
+    const props = analysisPanelMock.mock.calls.at(-1)?.[0] as {
+      emptyStateTitle: string;
+      model: unknown;
+      selectedState: string;
+    };
+
+    expect(props.selectedState).toBe("5_semiarido-semiarido-total");
+    expect(props.model).toBeNull();
+    expect(props.emptyStateTitle).toContain("Semiárido Total");
+  });
+
+  it("clears a previous municipality when the spatial scope changes", () => {
+    render(
+      <AnalysisContext
+        activeSection="analysis-detail"
+        panelLayers={[
+          buildPanelLayer({
+            br: [45, 55],
+            [municipality.uf]: [35, 65],
+          }),
+        ]}
+      />,
+    );
+
+    const props = analysisPanelMock.mock.calls.at(-1)?.[0] as {
+      onSpatialSelectionChange: (value: {
+        spatialArea: "biome";
+        spatialValue: "Caatinga";
+      }) => void;
+    };
+
+    props.onSpatialSelectionChange({
+      spatialArea: "biome",
+      spatialValue: "Caatinga",
+    });
+
+    const actions = useMapLayerActionsMock.mock.results.at(-1)?.value as {
+      setSelectedMunicipalityCode: ReturnType<typeof vi.fn>;
+      setSelectedState: ReturnType<typeof vi.fn>;
+      setSpatialSelection: ReturnType<typeof vi.fn>;
+    };
+
+    expect(actions.setSpatialSelection).toHaveBeenCalledWith({
+      spatialArea: "biome",
+      spatialValue: "Caatinga",
+    });
+    expect(actions.setSelectedState).toHaveBeenCalledWith("br");
+    expect(actions.setSelectedMunicipalityCode).toHaveBeenCalledWith(null);
   });
 
   it("tracks resolved municipality searches for the active layer", () => {
@@ -288,6 +411,10 @@ describe("AnalysisContext", () => {
       selectedState: municipality.uf,
       selectedMunicipalityCode: municipality.code,
       activeYear: "2010",
+      spatialSelection: {
+        spatialArea: "national",
+        spatialValue: "brasil",
+      },
     });
 
     global.fetch = vi.fn().mockImplementation(async (url: string) => {

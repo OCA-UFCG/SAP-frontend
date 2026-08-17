@@ -9,7 +9,11 @@ const eeMocks = vi.hoisted(() => {
       typeof value === "string" ? { filter } : { features: value },
     ),
     filter,
-    filterEq: vi.fn(() => ({ kind: "country-filter" })),
+    filterEq: vi.fn((property, value) => ({
+      kind: "property-filter",
+      property,
+      value,
+    })),
     geometry: vi.fn((value) => ({ value })),
     nationalCollection,
   };
@@ -37,6 +41,7 @@ vi.mock("@/repositories/platform/panelLayerRepository", () => ({
 
 import {
   applySpatialClip,
+  selectImageCollectionImage,
   shouldApplySelfMask,
 } from "@/app/api/ee/services";
 
@@ -115,5 +120,44 @@ describe("Earth Engine spatial clipping", () => {
     expect(renderedFeatureCollection.clipToCollection).toHaveBeenCalledWith({
       features: expect.any(Array),
     });
+  });
+});
+
+describe("Earth Engine image collection selection", () => {
+  it("selects a lead from the latest CPTEC issuance and keeps the first band", () => {
+    eeMocks.filterEq.mockClear();
+    const selectedImage = {
+      projection: vi.fn(() => "native-projection"),
+      select: vi.fn(() => "selected"),
+    };
+    const collection = {
+      aggregate_array: vi.fn(() => ({
+        sort: () => ({ get: () => "2026-08-01" }),
+      })),
+      filter: vi.fn(),
+      sort: vi.fn(),
+      first: vi.fn(() => selectedImage),
+    };
+    collection.filter.mockReturnValue(collection);
+    collection.sort.mockReturnValue(collection);
+
+    expect(
+      selectImageCollectionImage(collection, {
+        latestProperty: "data_emissao",
+        filterProperty: "lead_time",
+        filterValue: 3,
+        sortProperty: "lead_time",
+        selectFirstBand: true,
+      }),
+    ).toBe("selected");
+    expect(eeMocks.filterEq).toHaveBeenNthCalledWith(
+      1,
+      "data_emissao",
+      "2026-08-01",
+    );
+    expect(eeMocks.filterEq).toHaveBeenNthCalledWith(2, "lead_time", 3);
+    expect(collection.sort).toHaveBeenCalledWith("lead_time");
+    expect(selectedImage.select).toHaveBeenCalledWith(0);
+    expect(selectedImage.projection).not.toHaveBeenCalled();
   });
 });

@@ -1,3 +1,8 @@
+import {
+  buildSpatialLocationKey,
+  SPATIAL_LOCATION_NAMES,
+} from "@/contracts/spatialLocationKey.mjs";
+
 export type SpatialArea = "national" | "region" | "biome" | "semiarid" | "asd";
 
 export type SpatialSelection =
@@ -121,4 +126,44 @@ export function resolveSpatialSelection(
 
 export function getDefaultSpatialValue(spatialArea: SpatialArea) {
   return SPATIAL_VALUE_OPTIONS[spatialArea][0].value;
+}
+
+export function getSpatialScopeLocationKey(
+  selection: SpatialSelection,
+): string | null {
+  if (selection.spatialArea === "national") return "br";
+
+  switch (selection.spatialArea) {
+    case "region":
+      return buildSpatialLocationKey("2_Regiao", selection.spatialValue);
+    case "biome":
+      return buildSpatialLocationKey("3_Bioma", selection.spatialValue);
+    case "asd":
+      return buildSpatialLocationKey(
+        "4_ASD",
+        SPATIAL_LOCATION_NAMES.asdAndSurroundings,
+      );
+    case "semiarid":
+      return buildSpatialLocationKey(
+        "5_Semiarido",
+        SPATIAL_LOCATION_NAMES.semiarid,
+      );
+    default:
+      return null;
+  }
+}
+
+export function getSpatialScopeLocationName(
+  selection: SpatialSelection,
+): string {
+  switch (selection.spatialArea) {
+    case "national":
+      return "Brasil";
+    case "asd":
+      return SPATIAL_LOCATION_NAMES.asdAndSurroundings;
+    case "semiarid":
+      return SPATIAL_LOCATION_NAMES.semiarid;
+    default:
+      return selection.spatialValue;
+  }
 }

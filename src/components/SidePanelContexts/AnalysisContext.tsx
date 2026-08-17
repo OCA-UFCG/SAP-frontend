@@ -4,7 +4,11 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import { useTranslations } from "next-intl";
 import { AnalysisPanel } from "@/components/analysis/AnalysisPanel";
 import type { SearchSubmissionMetadata } from "@/components/SearchBar/types";
-import type { SpatialSelection } from "@/utils/spatialScope";
+import {
+  getSpatialScopeLocationKey,
+  getSpatialScopeLocationName,
+  type SpatialSelection,
+} from "@/utils/spatialScope";
 import {
   buildEmbeddedTerritorialAnalysisViewModel,
   getFallbackAnalysisLocationName,
@@ -78,8 +82,7 @@ export function AnalysisContext({
     selectedMunicipalityCode,
     activeYear,
     spatialSelection,
-  } =
-    useMapLayerViewState();
+  } = useMapLayerViewState();
 
   const dataset = useMemo(() => {
     return panelLayers?.find((p) => p.id === activeLayerId) ?? panelLayers?.[0];
@@ -329,7 +332,12 @@ export function AnalysisContext({
     });
   };
 
-  const selectedLocationKey = selectedMunicipalityCode ?? selectedState;
+  const spatialScopeLocationKey = getSpatialScopeLocationKey(spatialSelection);
+  const selectedLocationKey =
+    selectedMunicipalityCode ??
+    (selectedState !== "br" ? selectedState : null) ??
+    spatialScopeLocationKey ??
+    "br";
 
   const embeddedModel = useMemo(
     () =>
@@ -342,15 +350,27 @@ export function AnalysisContext({
     [enrichedDataset, effectiveYear, selectedLocationKey, tCaption],
   );
 
-  const unavailableLocationName = useMemo(
-    () =>
-      getAnalysisLocationName(
-        enrichedDataset,
-        effectiveYear,
-        selectedLocationKey,
-      ) ?? getFallbackAnalysisLocationName(selectedLocationKey),
-    [enrichedDataset, effectiveYear, selectedLocationKey],
-  );
+  const unavailableLocationName = useMemo(() => {
+    const explicitLocationName = getAnalysisLocationName(
+      enrichedDataset,
+      effectiveYear,
+      selectedLocationKey,
+    );
+
+    if (explicitLocationName) {
+      return explicitLocationName;
+    }
+
+    return selectedLocationKey === spatialScopeLocationKey
+      ? getSpatialScopeLocationName(spatialSelection)
+      : getFallbackAnalysisLocationName(selectedLocationKey);
+  }, [
+    effectiveYear,
+    enrichedDataset,
+    selectedLocationKey,
+    spatialScopeLocationKey,
+    spatialSelection,
+  ]);
 
   useEffect(() => {
     if (!enrichedDataset?.imageData || !effectiveYear) {
@@ -397,8 +417,10 @@ export function AnalysisContext({
   const handleSpatialSelectionChange = useCallback(
     (value: SpatialSelection) => {
       setSpatialSelection(value);
+      setSelectedState("br");
+      setSelectedMunicipalityCode(null);
     },
-    [setSpatialSelection],
+    [setSpatialSelection, setSelectedMunicipalityCode, setSelectedState],
   );
 
   return (
@@ -421,7 +443,9 @@ export function AnalysisContext({
       years={temporalYears}
       classes={temporalClasses}
       selectedState={selectedLocationKey}
-      emptyStateTitle={t("unavailableTitle", { location: unavailableLocationName })}
+      emptyStateTitle={t("unavailableTitle", {
+        location: unavailableLocationName,
+      })}
       emptyStateDescription={
         isMunicipalAnalysisLoading
           ? t("unavailableDescriptionLoading")

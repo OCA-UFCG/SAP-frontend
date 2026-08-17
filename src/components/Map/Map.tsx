@@ -3,6 +3,7 @@
 import maplibregl, { MapSourceDataEvent, MapGeoJSONFeature } from "maplibre-gl";
 import "maplibre-gl/dist/maplibre-gl.css";
 import { useEffect, useRef } from "react";
+import type { FeatureCollection, Geometry } from "geojson";
 import type { CDIVectorData } from "@/lib/geo";
 import {
   GEE_LAYER_ID,
@@ -13,6 +14,7 @@ import {
   STATES_FILL_LAYER_ID,
   STATES_SOURCE_ID,
   STATES_SOURCE_LAYER,
+  ensureSpatialBoundaryLayer,
 } from "./mapDefinitions";
 import { useMapController } from "./useMapController";
 import { useMapMarkers } from "./useMapMarkers";
@@ -46,6 +48,8 @@ export interface MapProps {
   onSelectedMunicipalityCodeChange?: (municipalityCode: string | null) => void;
   onTileLayerReady?: (requestKey: string) => void;
   layerOpacity?: number;
+  allowedStateUfs?: Set<string> | null;
+  spatialBoundaryGeoJson?: FeatureCollection<Geometry, { name: string }> | null;
 }
 
 const Map = ({
@@ -65,7 +69,9 @@ const Map = ({
   onStateSelect,
   onSelectedMunicipalityCodeChange,
   onTileLayerReady,
-  layerOpacity = 0.85
+  layerOpacity = 0.85,
+  allowedStateUfs = null,
+  spatialBoundaryGeoJson = null,
 }: MapProps) => {
   const mapContainerRef = useRef<HTMLDivElement | null>(null);
   const {
@@ -104,12 +110,37 @@ const Map = ({
     onTileLayerReady,
     selectedMunicipalityCode,
     showStatesBorder,
+    spatialBoundaryGeoJson,
+    allowedStateUfs,
     tileLayerRequestKey,
     tileLayerUrl,
     layerOpacity,
     zoom,
   });
   const { clearMarkers } = useMapMarkers(mapRef, markers, mapInstanceVersion);
+  const allowedStateUfsRef = useRef(allowedStateUfs);
+
+  useEffect(() => {
+    allowedStateUfsRef.current = allowedStateUfs;
+
+    // Recorte mudou com o mouse parado: limpa o hover ativo se o estado
+    // hoverado saiu da área. (O próximo mousemove reaplica o hover correto.)
+    const map = mapRef.current;
+    if (!map || !allowedStateUfs || !hoveredStateIdRef.current) return;
+    if (typeof hoveredStateIdRef.current !== "string") return;
+    if (allowedStateUfs.has(hoveredStateIdRef.current.toLowerCase())) return;
+
+    map.setFeatureState(
+      {
+        source: STATES_SOURCE_ID,
+        sourceLayer: STATES_SOURCE_LAYER,
+        id: hoveredStateIdRef.current,
+      },
+      { hover: false },
+    );
+    hoveredStateIdRef.current = null;
+    map.getCanvas().style.cursor = "";
+  }, [allowedStateUfs, hoveredStateIdRef, mapRef, popupRef]);
 
   useEffect(() => {
     if (!mapContainerRef.current || mapRef.current) {
@@ -213,6 +244,33 @@ const Map = ({
           | null
           | undefined;
 
+        const allowedUfs = allowedStateUfsRef.current;
+        const isOutsideArea = Boolean(
+          allowedUfs && uf && !allowedUfs.has(uf.toLowerCase()),
+        );
+
+        if (isOutsideArea) {
+          if (hoveredStateIdRef.current) {
+            map.setFeatureState(
+              {
+                source: STATES_SOURCE_ID,
+                sourceLayer: STATES_SOURCE_LAYER,
+                id: hoveredStateIdRef.current,
+              },
+              { hover: false },
+            );
+            hoveredStateIdRef.current = null;
+          }
+          map.getCanvas().style.cursor = "";
+          if (uf || name) {
+            popup
+              .setLngLat(event.lngLat)
+              .setText(name && uf ? `${name} (${uf})` : (name ?? uf ?? ""))
+              .addTo(map);
+          }
+          return;
+        }
+
         if (
           hoveredStateIdRef.current &&
           hoveredStateIdRef.current !== hoveredStateId
@@ -280,6 +338,16 @@ const Map = ({
             : undefined);
 
         if (!uf) return;
+
+        const allowedUfs = allowedStateUfsRef.current;
+        if (allowedUfs && !allowedUfs.has(uf.toLowerCase())) {
+          log("state click ignored: outside active interest area", {
+            uf,
+            allowedUfs,
+          });
+          event.preventDefault();
+          return;
+        }
 
         const nextSelectedState = resolveNextSelectedState(
           selectedStateRef.current,
@@ -405,6 +473,28 @@ const Map = ({
       basemap === "satellite" ? "visible" : "none",
     );
   }, [basemap, mapRef, mapInstanceVersion]);
+
+  useEffect(() => {
+    const map = mapRef.current;
+    if (!map || !map.isStyleLoaded()) return;
+
+    try {
+      ensureSpatialBoundaryLayer(
+        map,
+        spatialBoundaryGeoJson ?? null,
+        showStatesBorder,
+        allowedStateUfs,
+      );
+    } catch {
+      // Best-effort: if style is in transition, the next syncMapLayers will retry.
+    }
+  }, [
+    spatialBoundaryGeoJson,
+    allowedStateUfs,
+    showStatesBorder,
+    mapRef,
+    mapInstanceVersion,
+  ]);
 
   return (
     <div className="w-full h-full">

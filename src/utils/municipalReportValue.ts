@@ -9,12 +9,24 @@ function normalizedUnit(analysis: MunicipalReportValueSemantics) {
   return analysis.unit.trim();
 }
 
+export function formatPercentage(
+  value: number,
+  locale: string,
+  fractionDigits = 1,
+) {
+  return new Intl.NumberFormat(locale, {
+    minimumFractionDigits: fractionDigits,
+    maximumFractionDigits: fractionDigits,
+  }).format(value);
+}
+
 export function formatMunicipalReportValue(
   value: number,
   analysis: MunicipalReportValueSemantics,
   locale: string,
 ) {
-  if (analysis.valueType === "percentage") return `${value.toFixed(1)}%`;
+  if (analysis.valueType === "percentage")
+    return `${formatPercentage(value, locale)}%`;
 
   return new Intl.NumberFormat(locale, {
     maximumFractionDigits: Number.isInteger(value) ? 0 : 1,
@@ -74,12 +86,8 @@ export function getMunicipalReportValueLabels(
       cardContext: t
         ? t("valueLabels.percentageCardContext")
         : "da área analisada",
-      sectionTitle: t
-        ? t("valueLabels.percentageSectionTitle")
-        : "Classes",
-      tableValue: t
-        ? t("valueLabels.percentageTableValue")
-        : "Cobertura (%)",
+      sectionTitle: t ? t("valueLabels.percentageSectionTitle") : "Classes",
+      tableValue: t ? t("valueLabels.percentageTableValue") : "Cobertura (%)",
       chartSeries: t
         ? t("valueLabels.percentageChartSeries")
         : "Série temporal por classe",

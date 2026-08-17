@@ -82,13 +82,20 @@ class CsvSourceCollisionError extends Error {
   }
 }
 
-function assertSameRecord(left, right, label, sourceCsvPath) {
-  const leftJson = JSON.stringify(sortRecordEntries(left));
-  const rightJson = JSON.stringify(sortRecordEntries(right));
+function mergeCompatibleRecords(left, right, label, sourceCsvPath) {
+  const merged = { ...left };
 
-  if (leftJson !== rightJson) {
-    throw new Error(`${label} divergente ao agregar ${sourceCsvPath}.`);
+  for (const [key, value] of Object.entries(right)) {
+    if (key in merged && !isDeepStrictEqual(merged[key], value)) {
+      throw new Error(
+        `${label}.${key} divergente ao agregar ${sourceCsvPath}.`,
+      );
+    }
+
+    merged[key] = value;
   }
+
+  return sortRecordEntries(merged);
 }
 
 function selectDominantTerritory(conversions) {
@@ -223,7 +230,16 @@ function mergeConversionEntries(convertedEntries, skipped, sourceMetadata) {
       ),
     ),
     imageData: {
-      templates: baseEntry.conversion.imageData.templates,
+      templates: convertedEntries.reduce(
+        (templates, { conversion }) =>
+          mergeCompatibleRecords(
+            templates,
+            conversion.imageData.templates,
+            "templates",
+            conversion.inputPath,
+          ),
+        {},
+      ),
       years: mergeYearsByMostRecentlyModified(
         convertedEntries.map(({ conversion }) => conversion),
         skipped,
@@ -323,7 +339,7 @@ async function writeAggregatedGroup(
             `Território divergente ao agregar ${conversion.inputPath}: ${conversion.territory} / ${fileState.territory}`,
           );
         } else {
-          assertSameRecord(
+          fileState.baseTemplates = mergeCompatibleRecords(
             fileState.baseTemplates,
             sortedTemplates,
             "templates",

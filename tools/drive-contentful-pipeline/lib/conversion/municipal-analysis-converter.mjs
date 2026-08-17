@@ -20,6 +20,13 @@ function getTemplates(territory, mapping, pipelineConfig) {
     return { municipality: pipelineConfig.defaults.municipalityTemplate };
   }
 
+  if (territory === "multilevel") {
+    return {
+      municipality: pipelineConfig.defaults.municipalityTemplate,
+      state: pipelineConfig.defaults.stateTemplate,
+    };
+  }
+
   return { state: pipelineConfig.defaults.stateTemplate };
 }
 

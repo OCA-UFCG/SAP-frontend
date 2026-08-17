@@ -345,39 +345,39 @@
     "prev_anomalia_precipitacao": {
       "classes": [
         {
-          "id": "muito-seco",
-          "label": "< -90",
-          "color": "#981c18",
+          "id": "muito-abaixo",
+          "label": "0 — Muito abaixo do normal",
+          "color": "#a50026",
           "pixelLimit": 0
         },
         {
-          "id": "seco",
-          "label": "-90 a -30",
-          "color": "#e46838",
+          "id": "abaixo",
+          "label": "1 — Abaixo do normal",
+          "color": "#f46d43",
           "pixelLimit": 1
         },
         {
-          "id": "levemente-seco",
-          "label": "-30 a 0",
-          "color": "#f5e795",
+          "id": "levemente-abaixo",
+          "label": "2 — Levemente abaixo",
+          "color": "#fee090",
           "pixelLimit": 2
         },
         {
-          "id": "levemente-umido",
-          "label": "0 a 30",
-          "color": "#c3eff6",
+          "id": "levemente-acima",
+          "label": "3 — Levemente acima",
+          "color": "#abd9e9",
           "pixelLimit": 3
         },
         {
-          "id": "umido",
-          "label": "30 a 90",
-          "color": "#70a6ea",
+          "id": "acima",
+          "label": "4 — Acima do normal",
+          "color": "#4575b4",
           "pixelLimit": 4
         },
         {
-          "id": "muito-umido",
-          "label": "> 90",
-          "color": "#4871c3",
+          "id": "muito-acima",
+          "label": "5 — Muito acima do normal",
+          "color": "#313695",
           "pixelLimit": 5
         }
       ],
@@ -392,33 +392,49 @@
         "totalLabel": "Estados"
       },
       "mapVisualization": {
-        "sourceType": "image",
+        "sourceType": "imageCollection",
         "min": 0,
         "max": 5,
+        "outputBand": "Classe_Previsao",
         "thresholds": [-90, -30, 0, 30, 90],
         "palette": [
-          "#981c18",
-          "#e46838",
-          "#f5e795",
-          "#c3eff6",
-          "#70a6ea",
-          "#4871c3"
+          "#a50026",
+          "#f46d43",
+          "#fee090",
+          "#abd9e9",
+          "#4575b4",
+          "#313695"
         ],
         "legend": [
-          { "id": "muito-seco", "label": "< -90", "color": "#981c18" },
-          { "id": "seco", "label": "-90 a -30", "color": "#e46838" },
-          { "id": "levemente-seco", "label": "-30 a 0", "color": "#f5e795" },
-          { "id": "levemente-umido", "label": "0 a 30", "color": "#c3eff6" },
-          { "id": "umido", "label": "30 a 90", "color": "#70a6ea" },
-          { "id": "muito-umido", "label": "> 90", "color": "#4871c3" }
+          {
+            "id": "muito-abaixo",
+            "label": "0 — Muito abaixo do normal",
+            "color": "#a50026"
+          },
+          {
+            "id": "abaixo",
+            "label": "1 — Abaixo do normal",
+            "color": "#f46d43"
+          },
+          {
+            "id": "levemente-abaixo",
+            "label": "2 — Levemente abaixo",
+            "color": "#fee090"
+          },
+          {
+            "id": "levemente-acima",
+            "label": "3 — Levemente acima",
+            "color": "#abd9e9"
+          },
+          { "id": "acima", "label": "4 — Acima do normal", "color": "#4575b4" },
+          {
+            "id": "muito-acima",
+            "label": "5 — Muito acima do normal",
+            "color": "#313695"
+          }
         ]
       },
-      "imageIdByYear": {
-        "2026-05": "projects/ee-ulissesalencar17/assets/previsao_P_cal_20260401_01",
-        "2026-06": "projects/ee-ulissesalencar17/assets/previsao_P_cal_20260401_02",
-        "2026-07": "projects/ee-ulissesalencar17/assets/previsao_P_cal_20260401_03",
-        "2026-08": "projects/ee-ulissesalencar17/assets/previsao_P_cal_20260401_04"
-      }
+      "imageId": "projects/ee-ulissesalencar17/assets/CPTEC_Prev_P_Anomalia"
     }
   }
 }

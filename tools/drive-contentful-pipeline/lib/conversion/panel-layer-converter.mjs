@@ -10,6 +10,10 @@ import {
 import { getYearKey } from "../csv/year.mjs";
 import { sortRecordEntries } from "../shared/records.mjs";
 import { toWorkspaceRelativePath } from "../shared/paths.mjs";
+import {
+  CPTEC_FORECAST_COLLECTION_ID,
+  CPTEC_FORECAST_PANEL_LAYER_ID,
+} from "../../../../src/contracts/cptecForecast.mjs";
 
 function assertPanelLayerValuesInRange(values, panelLayerConfig, context) {
   const range = panelLayerConfig.valueRange;
@@ -31,37 +35,27 @@ function assertPanelLayerValuesInRange(values, panelLayerConfig, context) {
   });
 }
 
-function getForecastImageIdFromFileName(inputPath, yearKey, yearKeys) {
-  const calibrationMatch = inputPath.match(/Cal_(\d{8})/iu);
-
-  if (!calibrationMatch?.[1]) return "";
-
-  const sortedYearKeys = Array.from(yearKeys).sort();
-  const yearIndex = sortedYearKeys.indexOf(yearKey);
-
-  if (yearIndex < 0) return "";
-
-  const suffix = String(yearIndex + 1).padStart(2, "0");
-
-  return `projects/ee-ulissesalencar17/assets/previsao_P_cal_${calibrationMatch[1]}_${suffix}`;
+function getForecastImageId(panelLayerId) {
+  return panelLayerId === CPTEC_FORECAST_PANEL_LAYER_ID
+    ? CPTEC_FORECAST_COLLECTION_ID
+    : "";
 }
 
-function getPanelLayerImageId(
-  panelLayerConfig,
-  yearKey,
-  row,
-  inputPath,
-  yearKeys,
-) {
-  const inferredImageId = getForecastImageIdFromFileName(
-    inputPath,
-    yearKey,
-    yearKeys,
-  );
+function getAnaImageId(panelLayerId, yearKey) {
+  if (panelLayerId !== "anaseca" || !/^\d{4}-\d{2}$/u.test(yearKey)) {
+    return "";
+  }
+
+  return `projects/ee-ulissesalencar17/assets/IC_monitor_seca_ANA/monitor_ana_${yearKey.replace("-", "_")}`;
+}
+
+function getPanelLayerImageId(panelLayerId, panelLayerConfig, yearKey, row) {
+  const inferredImageId = getForecastImageId(panelLayerId);
+  const inferredAnaImageId = getAnaImageId(panelLayerId, yearKey);
   const configuredImageId = panelLayerConfig.imageIdByYear?.[yearKey];
   const fallbackImageId = isMultilevelTerritoryRow(row)
-    ? inferredImageId || configuredImageId
-    : configuredImageId || inferredImageId;
+    ? inferredImageId || inferredAnaImageId || configuredImageId
+    : configuredImageId || inferredImageId || inferredAnaImageId;
   const csvImageId = String(
     row.image_id ?? row.imageId ?? row.IMAGE_ID ?? "",
   ).trim();
@@ -101,14 +95,17 @@ function toPanelLayerImageData(years, locations, panelLayerConfig) {
     valueConfig: panelLayerConfig.valueConfig,
     mapVisualization: panelLayerConfig.mapVisualization,
     years: Object.fromEntries(
-      yearKeys.map((yearKey) => {
+      yearKeys.map((yearKey, yearIndex) => {
         const yearEntry = years.get(yearKey);
+        const isCptecForecast =
+          yearEntry.imageId === CPTEC_FORECAST_COLLECTION_ID;
 
         return [
           yearKey,
           {
             imageId: yearEntry.imageId,
             year: yearEntry.year,
+            ...(isCptecForecast ? { leadTime: yearIndex + 1 } : {}),
             valuesScale: yearEntry.valuesScale,
             values: sortRecordEntries(yearEntry.values),
           },
@@ -156,8 +153,6 @@ export async function convertPanelLayerCsvFile(inputPath, pipelineConfig) {
 
   const locations = new Map();
   const years = new Map();
-  const yearKeys = new Set(rows.map(getYearKey));
-
   for (const row of rows) {
     const location = getPanelLayerCsvLocation(row);
 
@@ -175,11 +170,10 @@ export async function convertPanelLayerCsvFile(inputPath, pipelineConfig) {
     if (!years.has(yearKey)) {
       years.set(yearKey, {
         imageId: getPanelLayerImageId(
+          mapping.panelLayerId,
           panelLayerConfig,
           yearKey,
           row,
-          inputPath,
-          yearKeys,
         ),
         year: yearKey,
         valuesScale: 1,

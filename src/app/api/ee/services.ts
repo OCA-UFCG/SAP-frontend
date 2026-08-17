@@ -14,6 +14,7 @@ import {
   DEFAULT_SPATIAL_SELECTION,
   type SpatialSelection,
 } from "@/utils/spatialScope";
+import { getCptecForecastCollectionSelection } from "@/contracts/cptecForecast.mjs";
 
 // ====== GEE Singleton for Authentication and Initialization ======
 
@@ -303,16 +304,25 @@ export function shouldApplySelfMask({
   );
 }
 
+export interface ImageCollectionSelection {
+  latestProperty: string;
+  filterProperty: string;
+  filterValue: string | number;
+  sortProperty?: string;
+  selectFirstBand?: boolean;
+}
+
 interface GetEarthEngineUrlOptions {
   mapVisualization?: CompactMapVisualizationConfig;
   spatialSelection?: SpatialSelection;
+  imageCollectionSelection?: ImageCollectionSelection;
 }
 
 function normalizeGeeAssetType(type?: unknown) {
   return type
     ? String(type)
-      .toUpperCase()
-      .replace(/[_\s-]/g, "")
+        .toUpperCase()
+        .replace(/[_\s-]/g, "")
     : "";
 }
 
@@ -328,6 +338,47 @@ function isFeatureCollectionAsset({
     assetType === "TABLE" ||
     assetType === "FEATURECOLLECTION"
   );
+}
+
+function isImageCollectionAsset({
+  assetType,
+  mapVisualization,
+}: {
+  assetType: string;
+  mapVisualization?: CompactMapVisualizationConfig;
+}) {
+  return (
+    mapVisualization?.sourceType === "imageCollection" ||
+    assetType === "IMAGECOLLECTION"
+  );
+}
+
+export function selectImageCollectionImage(
+  collection: any,
+  selection?: ImageCollectionSelection,
+) {
+  if (!selection) {
+    const projection = collection.first().projection();
+    return collection.mosaic().setDefaultProjection(projection);
+  }
+
+  const latestValue = collection
+    .aggregate_array(selection.latestProperty)
+    .sort()
+    .get(-1);
+  let selectedCollection = collection.filter(
+    ee.Filter.eq(selection.latestProperty, latestValue),
+  );
+
+  if (selection.sortProperty) {
+    selectedCollection = selectedCollection.sort(selection.sortProperty);
+  }
+
+  selectedCollection = selectedCollection.filter(
+    ee.Filter.eq(selection.filterProperty, selection.filterValue),
+  );
+  const selectedImage = selectedCollection.first();
+  return selection.selectFirstBand ? selectedImage.select(0) : selectedImage;
 }
 
 function applyThresholdClassification(
@@ -453,6 +504,7 @@ export const getEarthEngineUrl = async (
     const {
       mapVisualization,
       spatialSelection = DEFAULT_SPATIAL_SELECTION,
+      imageCollectionSelection,
     } = options ?? {};
 
     await initializeGee();
@@ -475,6 +527,10 @@ export const getEarthEngineUrl = async (
       assetType,
       mapVisualization,
     });
+    const shouldUseImageCollection = isImageCollectionAsset({
+      assetType,
+      mapVisualization,
+    });
     let featureCollection: any | null = null;
 
     if (shouldUseFeatureCollection) {
@@ -490,13 +546,12 @@ export const getEarthEngineUrl = async (
       );
       featureCollection = featureCollectionImage.collection;
       GEEImage = featureCollectionImage.image;
-    } else if (assetType === "IMAGECOLLECTION") {
-      // Squash the collection into a single image dynamically
+    } else if (shouldUseImageCollection) {
       const collection = ee.ImageCollection(imageId);
-      // Mosaicking a collection drops native projection info (since images inside could vary).
-      // We must explicitly re-assign the projection from its first image so reduceResolution() doesn't crash.
-      const proj = collection.first().projection();
-      GEEImage = collection.mosaic().setDefaultProjection(proj);
+      GEEImage = selectImageCollectionImage(
+        collection,
+        imageCollectionSelection,
+      );
     } else {
       // Default behavior
       GEEImage = ee.Image(imageId);
@@ -553,11 +608,11 @@ export const getEarthEngineUrl = async (
     const mapImage =
       shouldUseFeatureCollection && featureCollection && mapVisualization
         ? renderFeatureCollectionMapImage({
-          collection: featureCollection,
-          image: categorizedImage,
-          visParams,
-          mapVisualization,
-        })
+            collection: featureCollection,
+            image: categorizedImage,
+            visParams,
+            mapVisualization,
+          })
         : categorizedImage;
     const clippedMapImage = applySpatialClip(mapImage, spatialSelection);
     const mapId = (await getMapId(
@@ -760,6 +815,10 @@ export const cacheMapData = async () => {
       for (const year of getImageDataYearKeys(imageData)) {
         const yearConfig = resolveImageYearEntry(imageData, year);
         if (!yearConfig) continue;
+        const imageCollectionSelection = getCptecForecastCollectionSelection(
+          yearConfig.imageId,
+          yearConfig.leadTime,
+        );
 
         const cacheKey = buildCacheKey(
           id,
@@ -769,6 +828,8 @@ export const cacheMapData = async () => {
           minScale,
           maxScale,
           yearConfig.mapVisualization,
+          DEFAULT_SPATIAL_SELECTION,
+          imageCollectionSelection,
         );
         const url = await getEarthEngineUrl(
           yearConfig.imageId,
@@ -777,6 +838,7 @@ export const cacheMapData = async () => {
           maxScale,
           {
             mapVisualization: yearConfig.mapVisualization,
+            ...(imageCollectionSelection ? { imageCollectionSelection } : {}),
           },
         );
         addUrlToCache(cacheKey, url);

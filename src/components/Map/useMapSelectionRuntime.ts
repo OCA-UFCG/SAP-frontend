@@ -1,5 +1,6 @@
 import maplibregl, { LngLatBoundsLike } from "maplibre-gl";
 import type { MutableRefObject } from "react";
+import type { FeatureCollection, Geometry } from "geojson";
 import { type MapMode } from "./mapDefinitions";
 import { buildCdiGeoJson } from "./mapBounds";
 import { useMapLayerSync } from "./useMapLayerSync";
@@ -32,6 +33,8 @@ interface UseMapSelectionRuntimeArgs {
   layerOpacityRef: MutableRefObject<number>;
   pendingStyleSyncRef: MutableRefObject<boolean>;
   pendingSelectedSyncRef: MutableRefObject<boolean>;
+  spatialBoundaryGeoJsonRef: MutableRefObject<FeatureCollection<Geometry, { name: string }> | null>;
+  allowedStateUfsRef: MutableRefObject<Set<string> | null>;
   fitMapToBounds: (
     map: maplibregl.Map,
     bounds: LngLatBoundsLike,
@@ -75,6 +78,8 @@ export const useMapSelectionRuntime = ({
   layerOpacityRef,
   pendingStyleSyncRef,
   pendingSelectedSyncRef,
+  spatialBoundaryGeoJsonRef,
+  allowedStateUfsRef,
   fitMapToBounds,
   fitSelectedMunicipalityToBounds,
 }: UseMapSelectionRuntimeArgs) => {
@@ -122,6 +127,8 @@ export const useMapSelectionRuntime = ({
     selectedMunicipalityCodeRef,
     selectedStateRef,
     showStatesBorderRef,
+    spatialBoundaryGeoJsonRef,
+    allowedStateUfsRef,
     tileLayerUrlRef,
     warn,
   });
