@@ -382,15 +382,44 @@ describe("AnalysisContext", () => {
     );
   });
 
-  it("fetches municipal analysis for the active layer and year only", async () => {
+  it("fetches only the latest default period when a municipality is selected", async () => {
+    useMapLayerViewStateMock.mockReturnValue({
+      selectedState: municipality.uf,
+      selectedMunicipalityCode: municipality.code,
+      activeYear: "general",
+      spatialSelection: {
+        spatialArea: "national",
+        spatialValue: "brasil",
+      },
+    });
+
     render(
       <AnalysisContext
         activeSection="analysis-detail"
         panelLayers={[
-          buildPanelLayer({
-            br: [45, 55],
-            [municipality.uf]: [35, 65],
-          }),
+          buildPanelLayer(
+            {
+              br: [45, 55],
+              [municipality.uf]: [35, 65],
+            },
+            {
+              "2010": {
+                imageId: "img-2010",
+                valuesScale: 1,
+                values: { br: [45, 55] },
+              },
+              "2020": {
+                imageId: "img-2020",
+                valuesScale: 1,
+                values: { br: [40, 60] },
+              },
+              "2024": {
+                imageId: "img-2024",
+                valuesScale: 1,
+                values: { br: [35, 65] },
+              },
+            },
+          ),
         ]}
       />,
     );
@@ -403,10 +432,11 @@ describe("AnalysisContext", () => {
           signal: expect.any(AbortSignal),
         }),
       );
+      expect(global.fetch).toHaveBeenCalledTimes(1);
     });
   });
 
-  it("keeps temporal municipal values independent from the selected analysis year", async () => {
+  it("loads other periods on demand and keeps previously loaded periods cached", async () => {
     useMapLayerViewStateMock.mockReturnValue({
       selectedState: municipality.uf,
       selectedMunicipalityCode: municipality.code,
@@ -441,35 +471,37 @@ describe("AnalysisContext", () => {
       } as Response;
     });
 
-    render(
-      <AnalysisContext
-        activeSection="analysis-detail"
-        panelLayers={[
-          buildPanelLayer(
-            {
+    const panelLayers = [
+      buildPanelLayer(
+        {
+          br: [45, 55],
+          [municipality.uf]: [35, 65],
+        },
+        {
+          "2010": {
+            imageId: "img-2010",
+            valuesScale: 1,
+            values: {
               br: [45, 55],
               [municipality.uf]: [35, 65],
             },
-            {
-              "2010": {
-                imageId: "img-2010",
-                valuesScale: 1,
-                values: {
-                  br: [45, 55],
-                  [municipality.uf]: [35, 65],
-                },
-              },
-              "2020": {
-                imageId: "img-2020",
-                valuesScale: 1,
-                values: {
-                  br: [99.9, 0.1],
-                  [municipality.uf]: [25, 75],
-                },
-              },
+          },
+          "2020": {
+            imageId: "img-2020",
+            valuesScale: 1,
+            values: {
+              br: [99.9, 0.1],
+              [municipality.uf]: [25, 75],
             },
-          ),
-        ]}
+          },
+        },
+      ),
+    ];
+
+    const { rerender } = render(
+      <AnalysisContext
+        activeSection="analysis-detail"
+        panelLayers={panelLayers}
       />,
     );
 
@@ -478,7 +510,7 @@ describe("AnalysisContext", () => {
         return new URL(url as string).searchParams.get("year");
       });
 
-      expect(calls).toEqual(expect.arrayContaining(["2010", "2020"]));
+      expect(calls).toEqual(["2010"]);
     });
 
     await waitFor(() => {
@@ -491,6 +523,46 @@ describe("AnalysisContext", () => {
         id: "a",
         value: 0.1,
       });
+      expect(props.years["2010"].values[municipality.code][0]).toBe(0.1);
+      expect(props.years["2020"].values[municipality.code]).toBeUndefined();
+    });
+
+    useMapLayerViewStateMock.mockReturnValue({
+      selectedState: municipality.uf,
+      selectedMunicipalityCode: municipality.code,
+      activeYear: "2020",
+      spatialSelection: {
+        spatialArea: "national",
+        spatialValue: "brasil",
+      },
+    });
+
+    rerender(
+      <AnalysisContext
+        activeSection="analysis-detail"
+        panelLayers={panelLayers}
+      />,
+    );
+
+    await waitFor(() => {
+      const calls = vi.mocked(global.fetch).mock.calls.map(([url]) => {
+        return new URL(url as string).searchParams.get("year");
+      });
+
+      expect(calls).toEqual(["2010", "2020"]);
+    });
+
+    await waitFor(() => {
+      const props = analysisPanelMock.mock.calls.at(-1)?.[0] as {
+        model: { distribution: Array<{ id: string; value: number }> } | null;
+        years: Record<string, { values: Record<string, number[]> }>;
+      };
+
+      expect(props.model?.distribution[0]).toMatchObject({
+        id: "a",
+        value: 72.6,
+      });
+      expect(props.years["2010"].values[municipality.code][0]).toBe(0.1);
       expect(props.years["2020"].values[municipality.code][0]).toBe(72.6);
     });
   });
