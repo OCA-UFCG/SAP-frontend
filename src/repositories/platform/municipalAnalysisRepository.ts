@@ -17,6 +17,7 @@ import {
   type CompactAnalysisYearPatch,
   type CompactTerritorialAnalysisDatasetPatch,
 } from "@/utils/municipalAnalysisMerge";
+import { getGeeStatisticsYearPatch } from "@/repositories/platform/geeStatisticsRepository";
 
 const GET_MUNICIPAL_ANALYSIS = `
   query GetMunicipalAnalysis($limit: Int!, $skip: Int!) {
@@ -515,6 +516,7 @@ export async function attachMunicipalAnalysisToPanelLayer(
 export async function attachMunicipalAnalysisYearToPanelLayer(
   panelLayer: PanelLayerI,
   yearKey: string,
+  locationKey?: string,
 ): Promise<PanelLayerI> {
   if (!isCompactImageData(panelLayer.imageData)) {
     return panelLayer;
@@ -528,6 +530,33 @@ export async function attachMunicipalAnalysisYearToPanelLayer(
         years: {},
       },
     };
+  }
+
+  if (locationKey) {
+    try {
+      const geeStatistics = await getGeeStatisticsYearPatch(
+        panelLayer.id,
+        yearKey,
+        locationKey,
+        panelLayer.imageData.classes.length,
+      );
+
+      if (geeStatistics) {
+        return {
+          ...panelLayer,
+          imageData: mergeCompactDatasetYear(
+            panelLayer.imageData,
+            [geeStatistics.patch],
+            yearKey,
+          ),
+        };
+      }
+    } catch (error) {
+      console.warn(
+        `[municipalAnalysis] Falha ao ler estatísticas GEE para ${panelLayer.id}/${yearKey}/${locationKey}; usando Contentful como fallback.`,
+        error,
+      );
+    }
   }
 
   const partitionKey = getPartitionKeyForYear(yearKey);

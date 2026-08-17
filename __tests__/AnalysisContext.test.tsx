@@ -397,7 +397,39 @@ describe("AnalysisContext", () => {
 
     await waitFor(() => {
       expect(global.fetch).toHaveBeenCalledWith(
-        "http://localhost:3000/api/municipal-analysis/layer-1?year=2024",
+        `http://localhost:3000/api/municipal-analysis/layer-1?year=2024&locationKey=${municipality.code}`,
+        expect.objectContaining({
+          credentials: "same-origin",
+          signal: expect.any(AbortSignal),
+        }),
+      );
+    });
+  });
+
+  it("does not block a GEE statistics request on the Contentful availability index", async () => {
+    const municipalityWithoutIndexedData = citiesIndex[1];
+    const layer = buildPanelLayer({ br: [45, 55] });
+    layer.id = "carbonoembrapa";
+    useMapLayerActiveStateMock.mockReturnValue({
+      activeLayerId: "carbonoembrapa",
+    });
+    useMapLayerViewStateMock.mockReturnValue({
+      selectedState: municipalityWithoutIndexedData.uf,
+      selectedMunicipalityCode: municipalityWithoutIndexedData.code,
+      activeYear: "2024",
+      spatialSelection: {
+        spatialArea: "national",
+        spatialValue: "brasil",
+      },
+    });
+
+    render(
+      <AnalysisContext activeSection="analysis-detail" panelLayers={[layer]} />,
+    );
+
+    await waitFor(() => {
+      expect(global.fetch).toHaveBeenCalledWith(
+        `http://localhost:3000/api/municipal-analysis/carbonoembrapa?year=2024&locationKey=${municipalityWithoutIndexedData.code}`,
         expect.objectContaining({
           credentials: "same-origin",
           signal: expect.any(AbortSignal),

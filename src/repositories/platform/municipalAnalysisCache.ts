@@ -7,7 +7,7 @@ import {
 import type { PanelLayerI } from "@/utils/interfaces";
 
 const DEFAULT_CACHE_TTL_SECONDS = 600;
-const DEFAULT_CACHE_MAX_ENTRIES = 20;
+const DEFAULT_CACHE_MAX_ENTRIES = 200;
 const STALE_WHILE_REVALIDATE_SECONDS = 3600;
 
 interface MunicipalAnalysisCacheValue {
@@ -88,9 +88,16 @@ function enforceCacheLimit() {
 async function loadMunicipalAnalysis(
   panelLayerId: string,
   yearKey?: string,
+  locationKey?: string,
 ): Promise<MunicipalAnalysisCacheValue> {
   const layer = yearKey
-    ? await getPanelLayerWithMunicipalAnalysisYear(panelLayerId, yearKey)
+    ? locationKey
+      ? await getPanelLayerWithMunicipalAnalysisYear(
+          panelLayerId,
+          yearKey,
+          locationKey,
+        )
+      : await getPanelLayerWithMunicipalAnalysisYear(panelLayerId, yearKey)
     : await getPanelLayerWithMunicipalAnalysis(panelLayerId);
 
   return {
@@ -99,16 +106,21 @@ async function loadMunicipalAnalysis(
   };
 }
 
-function getCacheKey(panelLayerId: string, yearKey?: string): string {
-  return yearKey ? `${panelLayerId}::${yearKey}` : panelLayerId;
+function getCacheKey(
+  panelLayerId: string,
+  yearKey?: string,
+  locationKey?: string,
+): string {
+  return [panelLayerId, yearKey, locationKey].filter(Boolean).join("::");
 }
 
 export async function getCachedMunicipalAnalysisImageData(
   panelLayerId: string,
   yearKey?: string,
+  locationKey?: string,
 ): Promise<MunicipalAnalysisCacheResult> {
   const now = Date.now();
-  const cacheKey = getCacheKey(panelLayerId, yearKey);
+  const cacheKey = getCacheKey(panelLayerId, yearKey, locationKey);
   const currentEntry = cache.get(cacheKey);
 
   if (currentEntry?.value && currentEntry.expiresAt > now) {
@@ -133,7 +145,7 @@ export async function getCachedMunicipalAnalysisImageData(
 
   logCacheEvent("miss", cacheKey);
 
-  const pending = loadMunicipalAnalysis(panelLayerId, yearKey);
+  const pending = loadMunicipalAnalysis(panelLayerId, yearKey, locationKey);
   const entry: MunicipalAnalysisCacheEntry = {
     expiresAt: now + getMunicipalAnalysisCacheTtlSeconds() * 1000,
     lastAccessedAt: now,
