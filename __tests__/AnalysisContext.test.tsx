@@ -85,6 +85,20 @@ function buildPanelLayer(
   };
 }
 
+function withReportSeries(panelLayer: PanelLayerI): PanelLayerI {
+  return {
+    ...panelLayer,
+    reportSeriesConfig: {
+      schemaVersion: 1,
+      datasetVersion: "v1",
+      shardCount: 64,
+      shardStrategy: "ibge-modulo",
+      firstPeriod: "2010",
+      lastPeriod: "2024",
+    },
+  };
+}
+
 describe("AnalysisContext", () => {
   const originalFetch = global.fetch;
 
@@ -382,7 +396,7 @@ describe("AnalysisContext", () => {
     );
   });
 
-  it("fetches only the latest default period when a municipality is selected", async () => {
+  it("fetches the active period and the complete municipal series separately", async () => {
     useMapLayerViewStateMock.mockReturnValue({
       selectedState: municipality.uf,
       selectedMunicipalityCode: municipality.code,
@@ -393,46 +407,91 @@ describe("AnalysisContext", () => {
       },
     });
 
+    global.fetch = vi.fn().mockImplementation(async (url: string) => {
+      const requestUrl = new URL(url);
+
+      return {
+        ok: true,
+        json: async () => ({
+          imageData: requestUrl.pathname.endsWith("/series")
+            ? {
+                schemaVersion: 1,
+                type: "territorial-compact",
+                years: {
+                  "2010": {
+                    valuesScale: 1,
+                    values: { [municipality.code]: [10, 90] },
+                  },
+                  "2020": {
+                    valuesScale: 1,
+                    values: { [municipality.code]: [20, 80] },
+                  },
+                  "2024": {
+                    valuesScale: 1,
+                    values: { [municipality.code]: [30, 70] },
+                  },
+                },
+              }
+            : null,
+        }),
+      } as Response;
+    });
+
     render(
       <AnalysisContext
         activeSection="analysis-detail"
         panelLayers={[
-          buildPanelLayer(
-            {
-              br: [45, 55],
-              [municipality.uf]: [35, 65],
-            },
-            {
-              "2010": {
-                imageId: "img-2010",
-                valuesScale: 1,
-                values: { br: [45, 55] },
+          withReportSeries(
+            buildPanelLayer(
+              {
+                br: [45, 55],
+                [municipality.uf]: [35, 65],
               },
-              "2020": {
-                imageId: "img-2020",
-                valuesScale: 1,
-                values: { br: [40, 60] },
+              {
+                "2010": {
+                  imageId: "img-2010",
+                  valuesScale: 1,
+                  values: { br: [45, 55] },
+                },
+                "2020": {
+                  imageId: "img-2020",
+                  valuesScale: 1,
+                  values: { br: [40, 60] },
+                },
+                "2024": {
+                  imageId: "img-2024",
+                  valuesScale: 1,
+                  values: { br: [35, 65] },
+                },
               },
-              "2024": {
-                imageId: "img-2024",
-                valuesScale: 1,
-                values: { br: [35, 65] },
-              },
-            },
+            ),
           ),
         ]}
       />,
     );
 
     await waitFor(() => {
-      expect(global.fetch).toHaveBeenCalledWith(
-        "http://localhost:3000/api/municipal-analysis/layer-1?year=2024",
-        expect.objectContaining({
-          credentials: "same-origin",
-          signal: expect.any(AbortSignal),
-        }),
+      const urls = vi
+        .mocked(global.fetch)
+        .mock.calls.map(([url]) => String(url));
+
+      expect(urls).toEqual(
+        expect.arrayContaining([
+          "http://localhost:3000/api/municipal-analysis/layer-1?year=2024",
+          `http://localhost:3000/api/municipal-analysis/layer-1/series?locationKey=${municipality.code}`,
+        ]),
       );
-      expect(global.fetch).toHaveBeenCalledTimes(1);
+      expect(global.fetch).toHaveBeenCalledTimes(2);
+    });
+
+    await waitFor(() => {
+      const props = analysisPanelMock.mock.calls.at(-1)?.[0] as {
+        years: Record<string, { values: Record<string, number[]> }>;
+      };
+
+      expect(props.years["2010"].values[municipality.code]).toEqual([10, 90]);
+      expect(props.years["2020"].values[municipality.code]).toEqual([20, 80]);
+      expect(props.years["2024"].values[municipality.code]).toEqual([30, 70]);
     });
   });
 

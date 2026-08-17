@@ -134,6 +134,11 @@ cache for 10 minutes by default. If a refresh fails after the TTL, the cache can
 serve the expired value for that key while the next request tries Contentful
 again. The route still supports requests without `year` as a compatibility
 fallback, but the client should use period-scoped requests.
+The municipality chart loads its complete history separately through
+`/api/municipal-analysis/[panelLayerId]/series?locationKey=<code>`. The server
+reads one `municipalReportSeries` shard and returns only the selected
+municipality, so the period request remains small and independent from the
+temporal series.
 Set `MUNICIPAL_ANALYSIS_CACHE_TTL_SECONDS` or
 `MUNICIPAL_ANALYSIS_CACHE_MAX_ENTRIES` to tune that behavior.
 The endpoint is protected server-side and returns private HTTP cache headers;
