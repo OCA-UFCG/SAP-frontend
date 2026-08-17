@@ -193,7 +193,7 @@ export async function getPanelLayerWithMunicipalAnalysisYear(
   return attachMunicipalAnalysisYearToPanelLayer(panelLayer, yearKey);
 }
 
-async function getPanelLayerById(
+export async function getPanelLayerById(
   panelLayerId: string,
 ): Promise<PanelLayerI | null> {
   try {

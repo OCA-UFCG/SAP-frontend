@@ -291,3 +291,53 @@ export function mergePartialMunicipalImageData(
     partialImageData as CompactTerritorialAnalysisDatasetPatch,
   );
 }
+
+export function mergeMultiplePartialMunicipalImageData(
+  baseImageData: PanelLayerI["imageData"],
+  partialImageDatas: Array<PanelLayerI["imageData"] | null | undefined>,
+): PanelLayerI["imageData"] {
+  if (!isCompactImageData(baseImageData)) {
+    // If not compact, we return the last valid patch, or base if none.
+    for (let i = partialImageDatas.length - 1; i >= 0; i--) {
+      if (partialImageDatas[i]) {
+        return partialImageDatas[i] as PanelLayerI["imageData"];
+      }
+    }
+    return baseImageData;
+  }
+
+  const validPatches = partialImageDatas
+    .filter(
+      (patch) =>
+        Boolean(patch) &&
+        validateImageDataContract(patch, { context: "municipalPatch" }).ok,
+    )
+    .map((patch) => patch as unknown as CompactTerritorialAnalysisDatasetPatch);
+
+  if (validPatches.length === 0) {
+    return baseImageData;
+  }
+
+  const combinedPatch: CompactTerritorialAnalysisDatasetPatch = {};
+  for (const patch of validPatches) {
+    if (patch.schemaVersion !== undefined) combinedPatch.schemaVersion = patch.schemaVersion;
+    if (patch.type) combinedPatch.type = patch.type;
+    if (patch.defaultYear) combinedPatch.defaultYear = patch.defaultYear;
+    if (patch.classes) combinedPatch.classes = patch.classes;
+    if (patch.locations) {
+      combinedPatch.locations = { ...(combinedPatch.locations || {}), ...patch.locations };
+    }
+    if (patch.templates) {
+      combinedPatch.templates = { ...(combinedPatch.templates || {}), ...patch.templates };
+    }
+    if (patch.ranking) {
+      combinedPatch.ranking = { ...(combinedPatch.ranking || {}), ...patch.ranking };
+    }
+    if (patch.mapVisualization) combinedPatch.mapVisualization = patch.mapVisualization;
+    if (patch.years) {
+      combinedPatch.years = { ...(combinedPatch.years || {}), ...patch.years };
+    }
+  }
+
+  return mergeCompactDataset(baseImageData, combinedPatch);
+}

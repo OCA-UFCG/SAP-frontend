@@ -57,7 +57,7 @@ export const DEFAULT_CENTER: [number, number] = [-15.749997, -47.9499962];
 export const MAP_FOCUS_ANIMATION_DURATION = 1200;
 export const MAP_OVERLAY_ADJUST_DURATION = 0;
 export const MAP_STATE_FOCUS_MAX_ZOOM = 5.5;
-export const MAP_MUNICIPALITY_FOCUS_MAX_ZOOM = 11.5;
+export const MAP_MUNICIPALITY_FOCUS_MAX_ZOOM = 14.5;
 export const MUNICIPALITY_STATE_FOCUS_DURATION = 350;
 export const MUNICIPALITY_FOCUS_DELAY_MS = 1000;
 export const MUNICIPALITY_FOCUS_RETRY_INTERVAL_MS = 150;
@@ -170,6 +170,9 @@ export const resolveMunicipalitySelectionBounds = (
   map: maplibregl.Map,
   municipalityCode: string,
 ) => {
+  const indexedBounds = getIndexedMunicipalityBounds(municipalityCode);
+  if (indexedBounds) return indexedBounds;
+
   const features = map.querySourceFeatures(MUNICIPALITY_SOURCE_ID, {
     sourceLayer: MUNICIPALITY_SOURCE_LAYER,
   }) as MapGeoJSONFeature[];
@@ -185,11 +188,9 @@ export const resolveMunicipalitySelectionBounds = (
     return properties?.[MUNICIPALITY_ID_PROPERTY] === municipalityCode;
   });
 
-  if (!feature) return getIndexedMunicipalityBounds(municipalityCode);
+  if (!feature) return null;
 
-  return (
-    getFeatureBounds(feature) ?? getIndexedMunicipalityBounds(municipalityCode)
-  );
+  return getFeatureBounds(feature);
 };
 
 export const buildCdiGeoJson = (
