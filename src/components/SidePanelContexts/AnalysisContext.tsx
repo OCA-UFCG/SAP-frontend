@@ -99,15 +99,15 @@ export function AnalysisContext({
     ? getMunicipalAnalysisRequestKey(dataset.id, activeAnalysisYear)
     : null;
 
+  const hasMunicipalitySelected = Boolean(selectedMunicipalityCode);
   const temporalMunicipalAnalysisRequestKeys = useMemo(() => {
-    if (!dataset?.id || !selectedMunicipalityCode) {
+    if (!dataset?.id || !hasMunicipalitySelected) {
       return [];
     }
-
     return yearOptions.map((option) =>
       getMunicipalAnalysisRequestKey(dataset.id, option.value),
     );
-  }, [dataset, selectedMunicipalityCode, yearOptions]);
+  }, [dataset, hasMunicipalitySelected, yearOptions]);
 
   useEffect(() => {
     if (!dataset?.id || !municipalAnalysisRequestKey) {
