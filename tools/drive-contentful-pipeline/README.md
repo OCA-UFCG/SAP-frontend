@@ -396,7 +396,9 @@ CSVs de `panelLayer` usam outro contrato: precisam ter `location_key`,
 `location_name`, `ano` e `valor_classe_N`. A camada
 `prev_anomalia_precipitacao` usa `Prev` como identificador no nome do arquivo e
 o script `scripts/gee/anomalia-precip.js` gera o CSV de `panelLayer` com as
-faixas de anomalia de precipitacao prevista. A visualizacao no SEDES usa os
+faixas de anomalia de precipitacao prevista. A visualizacao no SEDES usa a
+colecao `projects/ee-ulissesalencar17/assets/CPTEC_Prev_P_Anomalia`, seleciona
+automaticamente a ultima `data_emissao` e o `lead_time` de 1 a 4, e aplica os
 limiares `[-90, -30, 0, 30, 90]` para reclassificar o raster continuo em 6
 classes antes de aplicar a paleta. Para `pob_total`, a pipeline tambem
 valida que `valor_classe_N` esteja no intervalo `0..100`, porque o asset do GEE

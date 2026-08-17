@@ -16,6 +16,7 @@ import { resolveImageYearEntry } from "@/utils/imageData";
 import { getAuthenticatedUserId } from "@/lib/server-session";
 import { createServerTiming } from "@/utils/serverTiming";
 import { resolveSpatialSelection } from "@/utils/spatialScope";
+import { getCptecForecastCollectionSelection } from "@/contracts/cptecForecast.mjs";
 
 export async function POST(req: NextRequest) {
   const timing = createServerTiming();
@@ -88,6 +89,10 @@ export async function POST(req: NextRequest) {
       );
     }
 
+    const imageCollectionSelection = getCptecForecastCollectionSelection(
+      yearConfig.imageId,
+      yearConfig.leadTime,
+    );
     const cacheKey = buildCacheKey(
       name,
       year,
@@ -97,16 +102,23 @@ export async function POST(req: NextRequest) {
       layer.maxScale,
       yearConfig.mapVisualization,
       spatialSelection,
+      imageCollectionSelection,
     );
 
     const finishCache = timing.start();
     const urlOnCache = getCachedUrl(cacheKey);
-    finishCache("cache_lookup", urlOnCache ? "Cache de URL GEE: hit" : "Cache de URL GEE: miss");
+    finishCache(
+      "cache_lookup",
+      urlOnCache ? "Cache de URL GEE: hit" : "Cache de URL GEE: miss",
+    );
     if (hasKey(cacheKey) && urlOnCache) {
-      return NextResponse.json({ url: urlOnCache }, {
-        status: 200,
-        headers: { "Server-Timing": timing.header() },
-      });
+      return NextResponse.json(
+        { url: urlOnCache },
+        {
+          status: 200,
+          headers: { "Server-Timing": timing.header() },
+        },
+      );
     }
 
     const finishEarthEngine = timing.start();
@@ -118,16 +130,23 @@ export async function POST(req: NextRequest) {
       {
         mapVisualization: yearConfig.mapVisualization,
         spatialSelection,
+        ...(imageCollectionSelection ? { imageCollectionSelection } : {}),
       },
     );
-    finishEarthEngine("earth_engine", "Geração da URL de tiles no Earth Engine");
+    finishEarthEngine(
+      "earth_engine",
+      "Geração da URL de tiles no Earth Engine",
+    );
 
     addUrlToCache(cacheKey, url);
 
-    return NextResponse.json({ url }, {
-      status: 200,
-      headers: { "Server-Timing": timing.header() },
-    });
+    return NextResponse.json(
+      { url },
+      {
+        status: 200,
+        headers: { "Server-Timing": timing.header() },
+      },
+    );
   } catch (error: any) {
     return NextResponse.json(
       { error: error?.message ?? String(error) },

@@ -1,7 +1,10 @@
 import { describe, expect, it, vi } from "vitest";
 import type { MunicipalReportAnalysis } from "@/contracts/municipalReport";
 import { renderMunicipalReportChart } from "@/services/municipalReportChartRenderer";
-import { buildMunicipalReportChartData } from "@/utils/municipalReportChart";
+import {
+  buildMunicipalReportChartData,
+  MUNICIPAL_REPORT_PDF_CHART_MAX_MEASUREMENTS,
+} from "@/utils/municipalReportChart";
 
 vi.mock("server-only", () => ({}));
 
@@ -78,7 +81,50 @@ describe("municipal report chart", () => {
     ).toEqual([0, 20, 45]);
   });
 
-  it("renders an escaped SVG line chart with every class and full history", async () => {
+  it("keeps the site history complete and limits only PDF data to the 10 most recent measurements", () => {
+    const timeSeries = Array.from({ length: 25 }, (_, index) => {
+      const year = 2023 + Math.floor(index / 12);
+      const month = String((index % 12) + 1).padStart(2, "0");
+      const period = `${year}-${month}`;
+
+      return {
+        period,
+        label: period,
+        dominantClass: null,
+        distribution: [
+          {
+            id: "neutral",
+            label: "Neutro",
+            color: "#687076",
+            percentage: index,
+          },
+        ],
+      };
+    }).reverse();
+    const siteChartData = buildMunicipalReportChartData(
+      { ...analysis, timeSeries },
+      "2025-01",
+    );
+    const pdfChartData = buildMunicipalReportChartData(
+      { ...analysis, timeSeries },
+      "2025-01",
+      { maxMeasurements: MUNICIPAL_REPORT_PDF_CHART_MAX_MEASUREMENTS },
+    );
+
+    expect(siteChartData.categories).toHaveLength(25);
+    expect(siteChartData.categories[0]?.period).toBe("2023-01");
+    expect(siteChartData.categories.at(-1)?.period).toBe("2025-01");
+    expect(pdfChartData.categories).toHaveLength(
+      MUNICIPAL_REPORT_PDF_CHART_MAX_MEASUREMENTS,
+    );
+    expect(pdfChartData.categories[0]?.period).toBe("2024-04");
+    expect(pdfChartData.categories.at(-1)?.period).toBe("2025-01");
+    expect(pdfChartData.series[0]?.points.map((point) => point.value)).toEqual(
+      Array.from({ length: 10 }, (_, index) => index + 15),
+    );
+  });
+
+  it("renders an escaped SVG line chart with every class", async () => {
     const svg = (
       await renderMunicipalReportChart(analysis, {
         highlightPeriod: "2024-03",

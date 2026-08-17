@@ -15,7 +15,10 @@ describe("populateDocContent", () => {
           },
         ],
       },
-      { municipio: "Campina Grande", texto_tendencia_recente_seca: "Texto do backend" },
+      {
+        municipio: "Campina Grande",
+        texto_tendencia_recente_seca: "Texto do backend",
+      },
     );
 
     expect(content.DROUGHT_MONITOR[0].text).toBe(
@@ -25,7 +28,11 @@ describe("populateDocContent", () => {
 
   it("does not fabricate a value for an unknown placeholder", () => {
     const content = populateDocContent(
-      { ARIDITY_INDEX: [{ title: "Classificação", text: "IA = [valor_ia_medio]" }] },
+      {
+        ARIDITY_INDEX: [
+          { title: "Classificação", text: "IA = [valor_ia_medio]" },
+        ],
+      },
       { municipio: "Campina Grande" },
     );
 
@@ -34,11 +41,17 @@ describe("populateDocContent", () => {
 
   it("uses the layer effective period for the current Google Docs [MÊS/ANO] placeholder", () => {
     const content = populateDocContent(
-      { DROUGHT_MONITOR: [{ title: "Situação atual", text: "Monitor de Secas de [MÊS/ANO]." }] },
+      {
+        DROUGHT_MONITOR: [
+          { title: "Situação atual", text: "Monitor de Secas de [MÊS/ANO]." },
+        ],
+      },
       { periodo_seca: "abril de 2026" },
     );
 
-    expect(content.DROUGHT_MONITOR[0].text).toBe("Monitor de Secas de abril de 2026.");
+    expect(content.DROUGHT_MONITOR[0].text).toBe(
+      "Monitor de Secas de abril de 2026.",
+    );
   });
 
   it("populates report-wide sections with report template data", () => {
@@ -48,5 +61,45 @@ describe("populateDocContent", () => {
     );
 
     expect(content.__report__[0].text).toBe("Gerado em 13/07/2026.");
+  });
+
+  it("formats direct and aliased percentage placeholders in pt-BR", () => {
+    const content = populateDocContent(
+      {
+        DROUGHT_MONITOR: [
+          {
+            title: "Situação atual",
+            text: "Direto: [percentual_seca]%; alias: [PERCENTUAL]%.",
+          },
+        ],
+      },
+      { percentual_seca: 42.5 },
+    );
+
+    expect(content.DROUGHT_MONITOR[0].text).toBe(
+      "Direto: 42,5%; alias: 42,5%.",
+    );
+  });
+
+  it("formats sequential degradation percentage aliases with the right precision", () => {
+    const content = populateDocContent(
+      {
+        DEGRADATION_INDEX: [
+          {
+            title: "Valores",
+            text: "Soma: [X]%; conservado: [X]%; nível 1: [X]%.",
+          },
+        ],
+      },
+      {
+        soma_percentual_deg_n3_n4_n5: 12.345,
+        percentual_deg_conservado: 42.5,
+        percentual_deg_n1: 18.75,
+      },
+    );
+
+    expect(content.DEGRADATION_INDEX[0].text).toBe(
+      "Soma: 12,35%; conservado: 42,5%; nível 1: 18,8%.",
+    );
   });
 });

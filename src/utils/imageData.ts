@@ -8,13 +8,19 @@ import type {
   LegacyImageDataEntry,
 } from "@/utils/interfaces";
 import { isCompactTerritorialImageData } from "@/contracts/imageDataContract.mjs";
+import {
+  buildCptecForecastMapVisualization,
+  CPTEC_FORECAST_CLASSES,
+  CPTEC_FORECAST_COLLECTION_ID,
+  CPTEC_FORECAST_PANEL_LAYER_ID,
+} from "@/contracts/cptecForecast.mjs";
 
-const FUTURE_ONLY_PANEL_LAYER_ID = "prev_anomalia_precipitacao";
 const FORECAST_TIME_ZONE = "America/Sao_Paulo";
 
 export interface ResolvedImageYearEntry {
   default: boolean;
   year?: string;
+  leadTime?: number;
   imageId: string;
   imageParams: IImageParam[];
   analysis?: LegacyImageDataEntry["analysis"];
@@ -53,6 +59,22 @@ function buildCompactImageParams(
   }));
 }
 
+function getLegacyForecastLeadTime(imageId: string) {
+  const match = imageId.match(/_(0[1-4])$/u);
+  return match?.[1] ? Number(match[1]) : undefined;
+}
+
+function resolveForecastLeadTime(
+  yearData: CompactTerritorialAnalysisDataset["years"][string],
+  visibleIndex: number,
+) {
+  return (
+    yearData.leadTime ??
+    getLegacyForecastLeadTime(yearData.imageId) ??
+    visibleIndex + 1
+  );
+}
+
 export function isCompactImageData(
   imageData: ImageDataConfig | null | undefined,
 ): imageData is CompactTerritorialAnalysisDataset {
@@ -79,7 +101,7 @@ export function keepOnlyFutureForecastPeriods(
   currentDate = new Date(),
 ): ImageDataConfig {
   if (
-    panelLayerId !== FUTURE_ONLY_PANEL_LAYER_ID ||
+    panelLayerId !== CPTEC_FORECAST_PANEL_LAYER_ID ||
     !isCompactImageData(imageData)
   ) {
     return imageData;
@@ -97,23 +119,35 @@ export function keepOnlyFutureForecastPeriods(
     (part) => part.type === "month",
   )?.value;
   const currentMonthKey = `${currentYear}-${currentMonth}`;
-  const currentAndFutureYears = Object.fromEntries(
-    Object.entries(imageData.years).filter(
-      ([yearKey]) =>
+  const currentAndFutureEntries = sortYearKeys(Object.keys(imageData.years))
+    .filter(
+      (yearKey) =>
         /^\d{4}-(?:0[1-9]|1[0-2])$/u.test(yearKey) &&
         yearKey >= currentMonthKey,
-    ),
+    )
+    .map((yearKey) => [yearKey, imageData.years[yearKey]] as const);
+  const currentAndFutureYears = Object.fromEntries(
+    currentAndFutureEntries.map(([yearKey, yearData], visibleIndex) => [
+      yearKey,
+      {
+        ...yearData,
+        imageId: CPTEC_FORECAST_COLLECTION_ID,
+        leadTime: resolveForecastLeadTime(yearData, visibleIndex),
+      },
+    ]),
   );
   const currentAndFutureYearKeys = sortYearKeys(
     Object.keys(currentAndFutureYears),
   );
-  const defaultYear =
-    imageData.defaultYear && currentAndFutureYears[imageData.defaultYear]
-      ? imageData.defaultYear
-      : currentAndFutureYearKeys.at(-1);
+  const defaultYear = currentAndFutureYearKeys[0];
 
   return {
     ...imageData,
+    classes: CPTEC_FORECAST_CLASSES.map((forecastClass) => ({
+      ...forecastClass,
+    })),
+    mapVisualization:
+      buildCptecForecastMapVisualization() as CompactMapVisualizationConfig,
     ...(defaultYear ? { defaultYear } : { defaultYear: undefined }),
     years: currentAndFutureYears,
   };
@@ -164,6 +198,7 @@ export function resolveImageYearEntry(
     return {
       default: year === getImageDataDefaultYear(imageData),
       year: resolvedYear,
+      leadTime: yearData.leadTime,
       imageId: yearData.imageId,
       imageParams: buildCompactImageParams(imageData),
       mapVisualization: resolveMapVisualizationForYear(
@@ -204,6 +239,7 @@ function resolveMapVisualizationForYear(
     ...mapVisualization,
     property: replaceYearToken(mapVisualization.property, year),
     sourceBand: replaceYearToken(mapVisualization.sourceBand, year),
+    outputBand: replaceYearToken(mapVisualization.outputBand, year),
     band: replaceYearToken(mapVisualization.band, year),
   };
 }

@@ -120,14 +120,17 @@ function logInvalidPanelLayerImageData(layer: PanelLayerI) {
   );
 }
 
+function normalizePanelLayer(layer: PanelLayerI) {
+  logInvalidPanelLayerImageData(layer);
+
+  return {
+    ...layer,
+    imageData: keepOnlyFutureForecastPeriods(layer.id, layer.imageData),
+  };
+}
+
 function normalizePanelLayers(items: Array<PanelLayerI | null> = []) {
-  return items.filter(isDefined).map((layer) => {
-    logInvalidPanelLayerImageData(layer);
-    return {
-      ...layer,
-      imageData: keepOnlyFutureForecastPeriods(layer.id, layer.imageData),
-    };
-  });
+  return items.filter(isDefined).map(normalizePanelLayer);
 }
 
 export async function getPanelLayers(
@@ -201,11 +204,7 @@ async function getPanelLayerById(
     const panelLayer =
       data.panelLayerCollection?.items?.find(isDefined) ?? null;
 
-    if (panelLayer) {
-      logInvalidPanelLayerImageData(panelLayer);
-    }
-
-    return panelLayer;
+    return panelLayer ? normalizePanelLayer(panelLayer) : null;
   } catch (error) {
     try {
       const data = await getContent<PanelLayerResponse>(
@@ -214,7 +213,9 @@ async function getPanelLayerById(
           id: panelLayerId,
         },
       );
-      return data.panelLayerCollection?.items?.find(isDefined) ?? null;
+      const panelLayer =
+        data.panelLayerCollection?.items?.find(isDefined) ?? null;
+      return panelLayer ? normalizePanelLayer(panelLayer) : null;
     } catch (legacyError) {
       console.error(
         "Erro ao buscar camada da plataforma no Contentful:",
