@@ -1,5 +1,7 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
+vi.mock("server-only", () => ({}));
+
 const mocks = vi.hoisted(() => ({
   requireCatalogAccess: vi.fn(),
   publishIndexCatalogEntry: vi.fn(),
@@ -8,6 +10,7 @@ const mocks = vi.hoisted(() => ({
   getIndexCatalogLifecycleImpact: vi.fn(),
   clearEarthEngineCacheForLayer: vi.fn(),
   clearMunicipalAnalysisCache: vi.fn(),
+  clearGeeStatisticsSchemaCache: vi.fn(),
   revalidatePath: vi.fn(),
 }));
 
@@ -17,6 +20,9 @@ vi.mock("@/app/api/ee/cache", () => ({
 }));
 vi.mock("@/repositories/platform/municipalAnalysisCache", () => ({
   clearMunicipalAnalysisCache: mocks.clearMunicipalAnalysisCache,
+}));
+vi.mock("@/repositories/platform/geeStatisticsRepository", () => ({
+  clearGeeStatisticsSchemaCache: mocks.clearGeeStatisticsSchemaCache,
 }));
 vi.mock("@/services/indexCatalog/indexCatalogService", () => ({
   deleteIndexCatalogEntry: mocks.deleteIndexCatalogEntry,
@@ -44,10 +50,7 @@ vi.mock("@/app/api/index-catalog/http", () => ({
     ),
 }));
 
-import {
-  DELETE,
-  POST,
-} from "@/app/api/index-catalog/entries/[entryId]/route";
+import { DELETE, POST } from "@/app/api/index-catalog/entries/[entryId]/route";
 
 const context = { params: Promise.resolve({ entryId: "entry%201" }) };
 const user = { uid: "admin", email: "oca-dev@gmail.com" };
@@ -85,6 +88,7 @@ describe("index catalog lifecycle route", () => {
     );
     expect(mocks.clearEarthEngineCacheForLayer).toHaveBeenCalledWith("seca");
     expect(mocks.clearMunicipalAnalysisCache).toHaveBeenCalledWith("seca");
+    expect(mocks.clearGeeStatisticsSchemaCache).toHaveBeenCalled();
   });
 
   it("passes the typed confirmation to cascade deletion", async () => {

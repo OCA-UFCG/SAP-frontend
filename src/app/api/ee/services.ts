@@ -26,6 +26,52 @@ export interface EarthEngineAssetInspection {
   type: "image" | "imageCollection" | "featureCollection";
   bands: string[];
   properties: string[];
+  updateTime?: string;
+}
+
+export interface EarthEngineListedAsset {
+  id: string;
+  type: string;
+  updateTime?: string;
+}
+
+export async function listEarthEngineAssets(
+  parent: string,
+): Promise<EarthEngineListedAsset[]> {
+  await initializeGee();
+
+  const response = await new Promise<{
+    assets?: Array<Record<string, unknown>>;
+  }>((resolve, reject) => {
+    ee.data.listAssets(
+      parent,
+      {},
+      (
+        result: { assets?: Array<Record<string, unknown>> } | undefined,
+        error?: unknown,
+      ) => {
+        if (error) {
+          reject(error);
+          return;
+        }
+        resolve(result ?? {});
+      },
+    );
+  });
+
+  return (response.assets ?? []).flatMap((asset) => {
+    const id = String(asset.id ?? asset.name ?? "").trim();
+    if (!id) return [];
+    return [
+      {
+        id,
+        type: String(asset.type ?? ""),
+        ...(asset.updateTime || asset.update_time
+          ? { updateTime: String(asset.updateTime ?? asset.update_time) }
+          : {}),
+      },
+    ];
+  });
 }
 
 export async function inspectEarthEngineAsset(
@@ -33,25 +79,31 @@ export async function inspectEarthEngineAsset(
 ): Promise<EarthEngineAssetInspection> {
   await initializeGee();
 
-  const asset = await new Promise<Record<string, unknown>>((resolve, reject) => {
-    ee.data.getAsset(
-      assetId,
-      (result: Record<string, unknown> | undefined, error?: unknown) => {
-        if (error) {
-          reject(error);
-          return;
-        }
+  const asset = await new Promise<Record<string, unknown>>(
+    (resolve, reject) => {
+      ee.data.getAsset(
+        assetId,
+        (result: Record<string, unknown> | undefined, error?: unknown) => {
+          if (error) {
+            reject(error);
+            return;
+          }
 
-        if (!result) {
-          reject(new Error(`Earth Engine asset not found: ${assetId}`));
-          return;
-        }
+          if (!result) {
+            reject(new Error(`Earth Engine asset not found: ${assetId}`));
+            return;
+          }
 
-        resolve(result);
-      },
-    );
-  });
+          resolve(result);
+        },
+      );
+    },
+  );
   const rawType = String(asset.type ?? "").toUpperCase();
+  const metadata =
+    asset.updateTime || asset.update_time
+      ? { updateTime: String(asset.updateTime ?? asset.update_time) }
+      : {};
 
   if (rawType === "TABLE") {
     const collection = ee.FeatureCollection(assetId);
@@ -65,6 +117,7 @@ export async function inspectEarthEngineAsset(
       properties: (properties ?? []).filter(
         (property) => !property.startsWith("system:"),
       ),
+      ...metadata,
     };
   }
 
@@ -78,6 +131,7 @@ export async function inspectEarthEngineAsset(
       type: "imageCollection",
       bands: bands ?? [],
       properties: [],
+      ...metadata,
     };
   }
 
@@ -92,6 +146,7 @@ export async function inspectEarthEngineAsset(
     type: "image",
     bands: await evaluateGeeObject<string[]>(ee.Image(assetId).bandNames()),
     properties: [],
+    ...metadata,
   };
 }
 

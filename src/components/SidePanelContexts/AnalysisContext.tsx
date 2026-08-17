@@ -124,7 +124,8 @@ export function AnalysisContext({
       )
     : null;
   const usesGeeStatistics = Boolean(
-    dataset?.id && isGeeStatisticsLayerId(dataset.id),
+    dataset?.statisticsSource ||
+    (dataset?.id && isGeeStatisticsLayerId(dataset.id)),
   );
 
   const temporalMunicipalAnalysisRequestKeys = useMemo(() => {
@@ -413,18 +414,18 @@ export function AnalysisContext({
       : undefined;
   const activeMunicipalAnalysisKnownUnavailable = Boolean(
     selectedMunicipalityCode &&
-      dataset?.id &&
-      !usesGeeStatistics &&
-      isMunicipalLayerIndexed(
-        municipalAvailabilityIndex as MunicipalAvailabilityIndex,
-        dataset.id,
-      ) &&
-      !hasMunicipalLayerPeriod(
-        municipalAvailabilityIndex as MunicipalAvailabilityIndex,
-        selectedMunicipalityCode,
-        dataset.id,
-        activeAnalysisYear,
-      ),
+    dataset?.id &&
+    !usesGeeStatistics &&
+    isMunicipalLayerIndexed(
+      municipalAvailabilityIndex as MunicipalAvailabilityIndex,
+      dataset.id,
+    ) &&
+    !hasMunicipalLayerPeriod(
+      municipalAvailabilityIndex as MunicipalAvailabilityIndex,
+      selectedMunicipalityCode,
+      dataset.id,
+      activeAnalysisYear,
+    ),
   );
   const isMunicipalAnalysisLoading = Boolean(
     municipalAnalysisRequestKey &&

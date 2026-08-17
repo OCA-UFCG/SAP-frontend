@@ -1,4 +1,8 @@
 import type {
+  GeeFeatureCollectionStatisticsSource,
+  PublishedGeeStatisticsSource,
+} from "@/contracts/geeStatistics";
+import type {
   CompactMapVisualizationConfig,
   CompactTerritorialAnalysisDataset,
 } from "@/utils/analysis";
@@ -11,30 +15,9 @@ export const INDEX_CATEGORIES = [
 
 export type IndexCategory = (typeof INDEX_CATEGORIES)[number];
 
-export type DriveSourceRole =
-  "panel" | "municipal" | "multilevel" | "state" | "unsupported";
-
-export interface DriveFileInspection {
-  role: DriveSourceRole;
-  columns: string[];
-  periods: string[];
-  classColumns: string[];
-  warnings: string[];
-}
-
-export interface DriveFileCandidate {
-  id: string;
-  name: string;
-  mimeType: string;
-  modifiedTime: string;
-  size?: string;
-  inspection: DriveFileInspection;
-}
-
-export type DriveSourceSelection = DriveFileCandidate;
-
 export interface ClassMapping {
-  column: string;
+  /** Index from perc_classe_XX/area_ha_classe_XX. */
+  classIndex: number;
   id: string;
   label: string;
   color: string;
@@ -44,6 +27,7 @@ export interface ClassMapping {
 export type EarthEngineSourceType =
   "image" | "imageCollection" | "featureCollection";
 
+/** Map rendering is deliberately independent from the statistics table. */
 export interface EarthEngineAssetMapping {
   strategy: "single" | "perPeriod";
   sourceType: EarthEngineSourceType;
@@ -52,14 +36,13 @@ export interface EarthEngineAssetMapping {
   assetsByPeriod?: Record<string, string>;
   band?: string;
   property?: string;
-  continuousValues?: boolean;
   thresholds?: number[];
 }
 
 export interface CatalogValidationIssue {
   code: string;
   message: string;
-  fileId?: string;
+  assetId?: string;
   period?: string;
 }
 
@@ -73,10 +56,8 @@ export interface CatalogValidationReport {
     periods: string[];
     defaultPeriod?: string;
     timeScale?: "Anual" | "Mensal";
-    locations: number;
-    municipalLocations: number;
-    panelSourceCount: number;
-    municipalSourceCount: number;
+    classIndexes: number[];
+    statisticsAssetCount: number;
     imageDataBytes?: number;
   };
   sourceFingerprint: string;
@@ -86,38 +67,55 @@ export interface IndexCatalogDraftInput {
   name: string;
   description: string;
   category: IndexCategory;
-  sourceTag: string;
-  selectedFiles: DriveSourceSelection[];
-  valueType: "percentage" | "absolute";
-  unit: string;
+  statisticsSource: GeeFeatureCollectionStatisticsSource;
   classes: ClassMapping[];
   earthEngine: EarthEngineAssetMapping;
 }
 
-export interface IndexCatalogConfig extends IndexCatalogDraftInput {
-  schemaVersion: 1;
+interface IndexCatalogAuditData {
   panelLayerId: string;
   status: "draft" | "ready" | "error" | "published";
-  createdBy: {
-    uid: string;
-    email: string | null;
-    at: string;
-  };
-  updatedBy: {
-    uid: string;
-    email: string | null;
-    at: string;
-  };
+  createdBy: { uid: string; email: string | null; at: string };
+  updatedBy: { uid: string; email: string | null; at: string };
   validation?: CatalogValidationReport;
-  derivedEntryIds?: string[];
   auditLog?: Array<{
-    action: "create" | "update" | "preview" | "publish" | "unpublish";
+    action:
+      "create" | "update" | "revalidate" | "preview" | "publish" | "unpublish";
     outcome: "success" | "failure";
     uid: string;
     email: string | null;
     at: string;
     message?: string;
   }>;
+}
+
+export interface IndexCatalogConfigV2
+  extends IndexCatalogDraftInput, IndexCatalogAuditData {
+  schemaVersion: 2;
+  /** Filled by validation and copied to panelLayer.statisticsSource. */
+  validatedStatisticsSource?: PublishedGeeStatisticsSource;
+}
+
+/** Only enough of v1 is retained to identify and display it safely. */
+export interface LegacyIndexCatalogConfigV1 {
+  schemaVersion: 1;
+  panelLayerId: string;
+  status: "draft" | "ready" | "error" | "published";
+  name?: string;
+  description?: string;
+  category?: IndexCategory;
+  updatedBy?: { uid?: string; email?: string | null; at?: string };
+  validation?: unknown;
+  [key: string]: unknown;
+}
+
+export type IndexCatalogConfig =
+  IndexCatalogConfigV2 | LegacyIndexCatalogConfigV1;
+
+export function isIndexCatalogConfigV2(
+  config: IndexCatalogConfig | null | undefined,
+): config is IndexCatalogConfigV2 {
+  return config?.schemaVersion === 2;
 }
 
 export interface IndexCatalogItem {
@@ -129,26 +127,20 @@ export interface IndexCatalogItem {
   panelPosition?: number;
   published: boolean;
   hasUnpublishedChanges: boolean;
+  /** True only for v2. V1 and entries without catalogConfig are read-only. */
   catalogManaged: boolean;
-  status: "legacy" | IndexCatalogConfig["status"];
+  status: "legacy" | IndexCatalogConfigV2["status"];
   catalogConfig?: IndexCatalogConfig;
-}
-
-export interface IndexCatalogLinkedEntry {
-  entryId: string;
-  contentType: "municipalAnalysis" | "municipalReportSeries";
-  title: string;
-  published: boolean;
 }
 
 export interface IndexCatalogLifecycleImpact {
   item: IndexCatalogItem;
-  linkedEntries: IndexCatalogLinkedEntry[];
+  linkedEntries: [];
   counts: {
     panelLayer: 1;
-    municipalAnalysis: number;
-    municipalReportSeries: number;
-    total: number;
+    municipalAnalysis: 0;
+    municipalReportSeries: 0;
+    total: 1;
   };
 }
 
@@ -161,16 +153,12 @@ export interface IndexCatalogPreview {
     description: string;
     category: string;
     panelPosition?: number;
-    previewMap?: {
-      url: string;
-      title?: string;
-      width?: number;
-      height?: number;
-    } | null;
+    previewMap?: null;
     imageData: CompactTerritorialAnalysisDataset;
     minScale?: number;
     maxScale?: number;
     timeScale?: string;
+    statisticsSource: PublishedGeeStatisticsSource;
     tileApiPath: string;
     municipalAnalysisApiPath: string;
   };
@@ -179,12 +167,8 @@ export interface IndexCatalogPreview {
 
 export interface IndexCatalogBuildResult {
   panelLayerImageData: CompactTerritorialAnalysisDataset;
-  partitions: Array<{
-    partitionKey: string;
-    calendarYear?: string;
-    territory: string;
-    imageData: unknown;
-  }>;
   validation: CatalogValidationReport;
   mapVisualization: CompactMapVisualizationConfig;
+  statisticsSource: PublishedGeeStatisticsSource;
+  classes: ClassMapping[];
 }

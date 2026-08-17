@@ -2,7 +2,6 @@ import { describe, expect, it } from "vitest";
 import {
   createCatalogPanelLayerId,
   expandAssetForPeriod,
-  fileNameMatchesCatalogTag,
   inferTimeScale,
   makeUniqueCatalogPanelLayerId,
   parseIndexCatalogDraftInput,
@@ -12,29 +11,28 @@ const validDraft = {
   name: "Índice de Aridez",
   description: "Descrição curta",
   category: "Dados Climáticos",
-  sourceTag: "aridez",
-  selectedFiles: [
-    {
-      id: "drive-1",
-      name: "Aridez.csv",
-      mimeType: "text/csv",
-      modifiedTime: "2026-07-30T12:00:00.000Z",
-      inspection: {
-        role: "multilevel",
-        columns: ["NIVEL_AGRUPAMENTO", "valor_classe_1"],
-        periods: ["2025"],
-        classColumns: ["valor_classe_1"],
-        warnings: [],
-      },
+  statisticsSource: {
+    kind: "gee-feature-collection",
+    asset: {
+      type: "fixed",
+      assetId: "projects/example/assets/aridez_stats",
     },
-  ],
-  valueType: "absolute",
-  unit: "mm",
+    periodGranularity: "year",
+    properties: {
+      level: "NIVEL_AGRUPAMENTO",
+      locationName: "NOME_LOCAL",
+      municipalityCode: "CD_MUN",
+      stateCode: "NM_UF",
+      year: "ano",
+      date: "data_img",
+      totalArea: "area_total_ha",
+    },
+  },
   classes: [
     {
-      column: "valor_classe_1",
-      id: "medida",
-      label: "Medida",
+      classIndex: 1,
+      id: "seco",
+      label: "Seco",
       color: "#989F43",
       pixelValue: 1,
     },
@@ -42,21 +40,11 @@ const validDraft = {
   earthEngine: {
     strategy: "single",
     sourceType: "image",
-    singleAssetId: "projects/example/assets/aridez",
+    singleAssetId: "projects/example/assets/aridez_map",
   },
 };
 
-describe("index catalog input helpers", () => {
-  it("matches a literal Drive tag ignoring case and accents", () => {
-    expect(
-      fileNameMatchesCatalogTag(
-        "ÍNDICE_Desertificação_Municipios.csv",
-        "indice_desertificacao",
-      ),
-    ).toBe(true);
-    expect(fileNameMatchesCatalogTag("aridez.csv", "seca")).toBe(false);
-  });
-
+describe("index catalog v2 input helpers", () => {
   it("creates normalized unique technical ids", () => {
     expect(createCatalogPanelLayerId("Índice Água / Solo")).toBe(
       "indice-agua-solo",
@@ -69,27 +57,31 @@ describe("index catalog input helpers", () => {
     ).toBe("indice-agua-3");
   });
 
-  it("normalizes percentage units and rejects incomplete assets", () => {
-    expect(
-      parseIndexCatalogDraftInput({
-        ...validDraft,
-        valueType: "percentage",
-        unit: "qualquer",
-      }).unit,
-    ).toBe("%");
+  it("accepts only a FeatureCollection statistics source", () => {
+    const parsed = parseIndexCatalogDraftInput(validDraft);
+    expect(parsed.statisticsSource.kind).toBe("gee-feature-collection");
+    expect(parsed.classes[0]).toEqual(
+      expect.objectContaining({ classIndex: 1, color: "#989F43" }),
+    );
 
+    expect(() =>
+      parseIndexCatalogDraftInput({ ...validDraft, statisticsSource: null }),
+    ).toThrow("FeatureCollection");
+  });
+
+  it("allows inferred classes and rejects incomplete map assets", () => {
+    expect(
+      parseIndexCatalogDraftInput({ ...validDraft, classes: [] }).classes,
+    ).toEqual([]);
     expect(() =>
       parseIndexCatalogDraftInput({
         ...validDraft,
-        earthEngine: {
-          strategy: "perPeriod",
-          sourceType: "image",
-        },
+        earthEngine: { strategy: "perPeriod", sourceType: "image" },
       }),
-    ).toThrow("padrão ou os assets por período");
+    ).toThrow("template ou os assets de mapa");
   });
 
-  it("expands per-period asset patterns and infers periodicity", () => {
+  it("expands period templates and infers periodicity", () => {
     expect(
       expandAssetForPeriod(
         {

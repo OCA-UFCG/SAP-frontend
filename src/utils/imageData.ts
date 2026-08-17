@@ -223,8 +223,11 @@ export function resolveImageYearEntry(
   };
 }
 
-function replaceYearToken(value: string | undefined, year: string) {
-  return value?.replace(/\{year\}/gu, year);
+function replacePeriodTokens(value: string | undefined, period: string) {
+  return value
+    ?.replace(/\{period\}/gu, period)
+    .replace(/\{year\}/gu, period.slice(0, 4))
+    .replace(/\{month\}/gu, period.slice(5, 7));
 }
 
 function resolveMapVisualizationForYear(
@@ -237,10 +240,10 @@ function resolveMapVisualizationForYear(
 
   return {
     ...mapVisualization,
-    property: replaceYearToken(mapVisualization.property, year),
-    sourceBand: replaceYearToken(mapVisualization.sourceBand, year),
-    outputBand: replaceYearToken(mapVisualization.outputBand, year),
-    band: replaceYearToken(mapVisualization.band, year),
+    property: replacePeriodTokens(mapVisualization.property, year),
+    sourceBand: replacePeriodTokens(mapVisualization.sourceBand, year),
+    outputBand: replacePeriodTokens(mapVisualization.outputBand, year),
+    band: replacePeriodTokens(mapVisualization.band, year),
   };
 }
 

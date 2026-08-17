@@ -8,7 +8,9 @@ import {
   resolveGeeStatisticsSource,
 } from "@/contracts/geeStatistics";
 import type {
+  GeeFeatureCollectionStatisticsSource,
   GeeStatisticsSchema,
+  PublishedGeeStatisticsSource,
   ResolvedGeeStatisticsSource,
 } from "@/contracts/geeStatistics";
 import { buildSpatialLocationKey } from "@/contracts/spatialLocationKey.mjs";
@@ -39,7 +41,7 @@ interface EvaluatedFeatureCollection {
   features?: EvaluatedFeature[];
 }
 
-const propertyNamesByAssetId = new Map<string, Promise<string[]>>();
+const propertyNamesBySourceRevision = new Map<string, Promise<string[]>>();
 
 export interface GeeStatisticsMetrics {
   areaTotalHa?: number;
@@ -357,8 +359,10 @@ function buildLocationFilter(
 
 async function getGeeStatisticsSchema(
   source: ResolvedGeeStatisticsSource,
+  sourceRevision?: string,
 ): Promise<GeeStatisticsSchema> {
-  let propertyNamesPromise = propertyNamesByAssetId.get(source.assetId);
+  const cacheKey = `${sourceRevision ?? "legacy"}::${source.assetId}`;
+  let propertyNamesPromise = propertyNamesBySourceRevision.get(cacheKey);
   if (!propertyNamesPromise) {
     propertyNamesPromise = (async () => {
       const collection = ee.FeatureCollection(source.assetId);
@@ -374,13 +378,13 @@ async function getGeeStatisticsSchema(
 
       return propertyNames;
     })();
-    propertyNamesByAssetId.set(source.assetId, propertyNamesPromise);
+    propertyNamesBySourceRevision.set(cacheKey, propertyNamesPromise);
   }
 
   try {
     return inferGeeStatisticsSchema(source, await propertyNamesPromise);
   } catch (error) {
-    propertyNamesByAssetId.delete(source.assetId);
+    propertyNamesBySourceRevision.delete(cacheKey);
     throw error;
   }
 }
@@ -416,8 +420,10 @@ export async function getGeeStatisticsYearPatch(
   yearKey: string,
   locationKey: string,
   classCount: number,
+  explicitSource?:
+    PublishedGeeStatisticsSource | GeeFeatureCollectionStatisticsSource | null,
 ): Promise<GeeStatisticsYearResult | null> {
-  const source = getGeeStatisticsSource(panelLayerId);
+  const source = explicitSource ?? getGeeStatisticsSource(panelLayerId);
 
   if (!source) {
     return null;
@@ -425,7 +431,12 @@ export async function getGeeStatisticsYearPatch(
 
   const resolvedSource = resolveGeeStatisticsSource(source, yearKey);
   await initializeGee();
-  const schema = await getGeeStatisticsSchema(resolvedSource);
+  const schema = await getGeeStatisticsSchema(
+    resolvedSource,
+    "sourceRevision" in source && typeof source.sourceRevision === "string"
+      ? source.sourceRevision
+      : undefined,
+  );
 
   if (schema.percentageProperties.length !== classCount) {
     throw new Error(
@@ -450,5 +461,16 @@ export async function getGeeStatisticsYearPatch(
 }
 
 export function clearGeeStatisticsSchemaCacheForTests(): void {
-  propertyNamesByAssetId.clear();
+  propertyNamesBySourceRevision.clear();
+}
+
+export function clearGeeStatisticsSchemaCache(sourceRevision?: string): void {
+  if (!sourceRevision) {
+    propertyNamesBySourceRevision.clear();
+    return;
+  }
+  const prefix = `${sourceRevision}::`;
+  for (const key of propertyNamesBySourceRevision.keys()) {
+    if (key.startsWith(prefix)) propertyNamesBySourceRevision.delete(key);
+  }
 }

@@ -31,6 +31,16 @@ export interface GeeFeatureCollectionStatisticsSource {
   properties: GeeStatisticsPropertyMapping;
 }
 
+/**
+ * Public, immutable description stored on panelLayer.  The revision is not an
+ * arbitrary version number: the catalog recalculates it from the assets,
+ * their metadata, schemas and discovered periods every time it validates.
+ */
+export interface PublishedGeeStatisticsSource extends GeeFeatureCollectionStatisticsSource {
+  schemaVersion: 1;
+  sourceRevision: string;
+}
+
 export interface ResolvedGeeStatisticsSource extends GeeFeatureCollectionStatisticsSource {
   assetId: string;
 }
@@ -45,6 +55,165 @@ const MONTH_PERIOD_PATTERN = /^\d{4}-(?:0[1-9]|1[0-2])$/u;
 const YEAR_PERIOD_PATTERN = /^\d{4}$/u;
 const PERCENTAGE_PROPERTY_PATTERN = /^perc_classe_(\d+)$/u;
 const CLASS_AREA_PROPERTY_PATTERN = /^area_ha_classe_(\d+)$/u;
+const ASSET_ID_PATTERN = /^[A-Za-z0-9_./{}-]{3,300}$/u;
+const SOURCE_REVISION_PATTERN = /^[a-f0-9]{64}$/u;
+
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return typeof value === "object" && value !== null && !Array.isArray(value);
+}
+
+function requiredProperty(
+  value: unknown,
+  label: string,
+  options: { asset?: boolean; allowTemplate?: boolean } = {},
+): string {
+  if (typeof value !== "string" || !value.trim()) {
+    throw new Error(`${label} é obrigatório.`);
+  }
+
+  const normalized = value.trim();
+  if (
+    normalized.length > 300 ||
+    (options.asset && !ASSET_ID_PATTERN.test(normalized))
+  ) {
+    throw new Error(`${label} é inválido.`);
+  }
+  if (!options.allowTemplate && /[{}]/u.test(normalized)) {
+    throw new Error(`${label} não pode conter placeholders.`);
+  }
+
+  return normalized;
+}
+
+export function parseGeeFeatureCollectionStatisticsSource(
+  value: unknown,
+): GeeFeatureCollectionStatisticsSource {
+  if (!isRecord(value) || value.kind !== "gee-feature-collection") {
+    throw new Error("A fonte estatística deve ser uma FeatureCollection GEE.");
+  }
+  if (
+    value.periodGranularity !== "year" &&
+    value.periodGranularity !== "month"
+  ) {
+    throw new Error("A granularidade estatística deve ser anual ou mensal.");
+  }
+  if (!isRecord(value.asset) || !isRecord(value.properties)) {
+    throw new Error("A configuração da fonte estatística está incompleta.");
+  }
+
+  const asset =
+    value.asset.type === "fixed"
+      ? {
+          type: "fixed" as const,
+          assetId: requiredProperty(value.asset.assetId, "Asset estatístico", {
+            asset: true,
+          }),
+        }
+      : value.asset.type === "period-template"
+        ? {
+            type: "period-template" as const,
+            assetIdTemplate: requiredProperty(
+              value.asset.assetIdTemplate,
+              "Template do asset estatístico",
+              { asset: true, allowTemplate: true },
+            ),
+          }
+        : null;
+
+  if (!asset) {
+    throw new Error("A estratégia da fonte estatística é inválida.");
+  }
+  if (
+    asset.type === "period-template" &&
+    !/\{(?:year|month|period)\}/u.test(asset.assetIdTemplate)
+  ) {
+    throw new Error(
+      "O template estatístico deve conter {year}, {month} ou {period}.",
+    );
+  }
+  if (
+    asset.type === "period-template" &&
+    asset.assetIdTemplate.includes("{month}") &&
+    value.periodGranularity !== "month"
+  ) {
+    throw new Error("O placeholder {month} exige granularidade mensal.");
+  }
+
+  const properties = value.properties;
+  const scalarMetricProperties = isRecord(properties.scalarMetrics)
+    ? properties.scalarMetrics
+    : null;
+  const scalarMetrics = scalarMetricProperties
+    ? Object.fromEntries(
+        (["mean", "median", "mode", "min", "max"] as const).flatMap(
+          (metric) => {
+            const property = scalarMetricProperties[metric];
+            return typeof property === "string" && property.trim()
+              ? [[metric, property.trim()]]
+              : [];
+          },
+        ),
+      )
+    : undefined;
+
+  return {
+    kind: "gee-feature-collection",
+    asset,
+    periodGranularity: value.periodGranularity,
+    properties: {
+      level: requiredProperty(properties.level, "Propriedade de nível"),
+      locationName: requiredProperty(
+        properties.locationName,
+        "Propriedade de localidade",
+      ),
+      municipalityCode: requiredProperty(
+        properties.municipalityCode,
+        "Propriedade de município",
+      ),
+      stateCode: requiredProperty(properties.stateCode, "Propriedade de UF"),
+      year: requiredProperty(properties.year, "Propriedade de ano"),
+      date: requiredProperty(properties.date, "Propriedade de data"),
+      totalArea: requiredProperty(
+        properties.totalArea,
+        "Propriedade de área total",
+      ),
+      ...(scalarMetrics && Object.keys(scalarMetrics).length > 0
+        ? { scalarMetrics }
+        : {}),
+    },
+  };
+}
+
+export function parsePublishedGeeStatisticsSource(
+  value: unknown,
+): PublishedGeeStatisticsSource {
+  if (!isRecord(value) || value.schemaVersion !== 1) {
+    throw new Error("Versão do contrato statisticsSource inválida.");
+  }
+  if (
+    typeof value.sourceRevision !== "string" ||
+    !SOURCE_REVISION_PATTERN.test(value.sourceRevision)
+  ) {
+    throw new Error("Revisão da fonte estatística inválida.");
+  }
+
+  return {
+    ...parseGeeFeatureCollectionStatisticsSource(value),
+    schemaVersion: 1,
+    sourceRevision: value.sourceRevision,
+  };
+}
+
+export function tryParsePublishedGeeStatisticsSource(
+  value: unknown,
+): PublishedGeeStatisticsSource | null {
+  if (value == null) return null;
+  try {
+    return parsePublishedGeeStatisticsSource(value);
+  } catch {
+    return null;
+  }
+}
 
 function getScalarMetricPropertyNames(
   source: ResolvedGeeStatisticsSource,

@@ -539,6 +539,7 @@ export async function attachMunicipalAnalysisYearToPanelLayer(
         yearKey,
         locationKey,
         panelLayer.imageData.classes.length,
+        ...(panelLayer.statisticsSource ? [panelLayer.statisticsSource] : []),
       );
 
       if (geeStatistics) {
@@ -552,6 +553,12 @@ export async function attachMunicipalAnalysisYearToPanelLayer(
         };
       }
     } catch (error) {
+      if (panelLayer.statisticsSource) {
+        // Dynamic catalog sources never fall back to Contentful: no duplicated
+        // territorial payload exists there. The route cache may still serve a
+        // previously successful stale response.
+        throw error;
+      }
       console.warn(
         `[municipalAnalysis] Falha ao ler estatísticas GEE para ${panelLayer.id}/${yearKey}/${locationKey}; usando Contentful como fallback.`,
         error,

@@ -133,10 +133,12 @@ At runtime, `/platform` does not load every `municipalAnalysis` entry upfront.
 The analysis panel lazy-loads data by layer, selected period, and selected
 territory through
 `/api/municipal-analysis/[panelLayerId]?year=<yearKey>&locationKey=<key>`.
-Registered statistics layers read a narrow slice of a GEE FeatureCollection;
-the other layers keep using the needed Contentful partition. If a GEE request
-fails operationally, the same request falls back to Contentful during the
-migration. The result is merged with the matching `panelLayer` year and kept in
+Static migration layers and catalog v2 layers read a narrow slice of a GEE
+FeatureCollection; other legacy layers keep using the needed Contentful
+partition. Carbon and ANA retain a temporary Contentful fallback. Dynamic
+catalog sources use stale cache on a GEE refresh failure and otherwise report
+unavailability; they never duplicate statistics in Contentful. The result is
+merged with the matching `panelLayer` year and kept in
 a per-process in-memory cache keyed by layer, period, and territory for 10
 minutes by default. If a refresh fails after the TTL, the cache can serve the
 expired value while the next request retries its source. Requests without

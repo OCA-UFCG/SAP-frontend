@@ -7,6 +7,7 @@ import {
 import { validateImageDataContract } from "@/contracts/imageDataContract.mjs";
 import { PanelLayerI } from "@/utils/interfaces";
 import { keepOnlyFutureForecastPeriods } from "@/utils/imageData";
+import { tryParsePublishedGeeStatisticsSource } from "@/contracts/geeStatistics";
 
 const GET_PANEL_LAYER = `
   query GetPanelLayer {
@@ -31,6 +32,7 @@ const GET_PANEL_LAYER = `
         category
         timeScale
         reportSeriesConfig
+        statisticsSource
       }
     }
   }
@@ -59,19 +61,22 @@ const GET_PANEL_LAYER_BY_ID = `
         category
         timeScale
         reportSeriesConfig
+        statisticsSource
       }
     }
   }
 `;
 
-const GET_PANEL_LAYER_LEGACY = GET_PANEL_LAYER.replace(
-  "\n        reportSeriesConfig",
-  "",
-);
-const GET_PANEL_LAYER_BY_ID_LEGACY = GET_PANEL_LAYER_BY_ID.replace(
-  "\n        reportSeriesConfig",
-  "",
-);
+function queryVariants(query: string) {
+  return [
+    query,
+    query.replace("\n        reportSeriesConfig", ""),
+    query.replace("\n        statisticsSource", ""),
+    query
+      .replace("\n        reportSeriesConfig", "")
+      .replace("\n        statisticsSource", ""),
+  ];
+}
 
 interface PanelLayerResponse {
   panelLayerCollection: { items: Array<PanelLayerI | null> };
@@ -123,9 +128,19 @@ function logInvalidPanelLayerImageData(layer: PanelLayerI) {
 function normalizePanelLayer(layer: PanelLayerI) {
   logInvalidPanelLayerImageData(layer);
 
+  const statisticsSource = tryParsePublishedGeeStatisticsSource(
+    layer.statisticsSource,
+  );
+  if (layer.statisticsSource && !statisticsSource) {
+    console.warn(
+      `[panelLayerRepository] statisticsSource inválido para panelLayer ${layer.id}; a fonte dinâmica foi ignorada.`,
+    );
+  }
+
   return {
     ...layer,
     imageData: keepOnlyFutureForecastPeriods(layer.id, layer.imageData),
+    ...(statisticsSource ? { statisticsSource } : { statisticsSource: null }),
   };
 }
 
@@ -136,36 +151,25 @@ function normalizePanelLayers(items: Array<PanelLayerI | null> = []) {
 export async function getPanelLayers(
   options: GetPanelLayersOptions = {},
 ): Promise<PanelLayerI[]> {
-  try {
-    const data = await getContent<PanelLayerResponse>(GET_PANEL_LAYER);
-
-    const panelLayers = normalizePanelLayers(
-      data.panelLayerCollection?.items,
-    ).sort(comparePanelLayers);
-
-    if (!options.includeMunicipalAnalysis) {
-      return panelLayers;
-    }
-
-    return await attachMunicipalAnalysisToPanelLayers(panelLayers);
-  } catch (error) {
+  let firstError: unknown;
+  for (const query of queryVariants(GET_PANEL_LAYER)) {
     try {
-      const data = await getContent<PanelLayerResponse>(GET_PANEL_LAYER_LEGACY);
+      const data = await getContent<PanelLayerResponse>(query);
       const panelLayers = normalizePanelLayers(
         data.panelLayerCollection?.items,
       ).sort(comparePanelLayers);
       return options.includeMunicipalAnalysis
         ? await attachMunicipalAnalysisToPanelLayers(panelLayers)
         : panelLayers;
-    } catch (legacyError) {
-      console.error(
-        "Erro ao buscar camadas da plataforma no Contentful:",
-        error,
-        legacyError,
-      );
-      return [];
+    } catch (error) {
+      firstError ??= error;
     }
   }
+  console.error(
+    "Erro ao buscar camadas da plataforma no Contentful:",
+    firstError,
+  );
+  return [];
 }
 
 export async function getPanelLayerWithMunicipalAnalysis(
@@ -201,33 +205,22 @@ export async function getPanelLayerWithMunicipalAnalysisYear(
 async function getPanelLayerById(
   panelLayerId: string,
 ): Promise<PanelLayerI | null> {
-  try {
-    const data = await getContent<PanelLayerResponse>(GET_PANEL_LAYER_BY_ID, {
-      id: panelLayerId,
-    });
-
-    const panelLayer =
-      data.panelLayerCollection?.items?.find(isDefined) ?? null;
-
-    return panelLayer ? normalizePanelLayer(panelLayer) : null;
-  } catch (error) {
+  let firstError: unknown;
+  for (const query of queryVariants(GET_PANEL_LAYER_BY_ID)) {
     try {
-      const data = await getContent<PanelLayerResponse>(
-        GET_PANEL_LAYER_BY_ID_LEGACY,
-        {
-          id: panelLayerId,
-        },
-      );
+      const data = await getContent<PanelLayerResponse>(query, {
+        id: panelLayerId,
+      });
       const panelLayer =
         data.panelLayerCollection?.items?.find(isDefined) ?? null;
       return panelLayer ? normalizePanelLayer(panelLayer) : null;
-    } catch (legacyError) {
-      console.error(
-        "Erro ao buscar camada da plataforma no Contentful:",
-        error,
-        legacyError,
-      );
-      return null;
+    } catch (error) {
+      firstError ??= error;
     }
   }
+  console.error(
+    "Erro ao buscar camada da plataforma no Contentful:",
+    firstError,
+  );
+  return null;
 }

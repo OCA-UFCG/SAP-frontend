@@ -1,4 +1,10 @@
-import { cleanup, fireEvent, render, screen, waitFor } from "@testing-library/react";
+import {
+  cleanup,
+  fireEvent,
+  render,
+  screen,
+  waitFor,
+} from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 vi.mock("@/components/IndexCatalog/CatalogMonitoringPreview", () => ({
@@ -16,9 +22,30 @@ function jsonResponse(body: unknown, status = 200) {
   );
 }
 
-describe("IndexCatalogScreen", () => {
+function fillMinimumForm() {
+  fireEvent.change(screen.getByLabelText("Nome"), {
+    target: { value: "Índice GEE" },
+  });
+  fireEvent.change(screen.getByLabelText("Descrição"), {
+    target: { value: "Índice classificado" },
+  });
+  fireEvent.change(
+    screen.getByPlaceholderText("projects/projeto/assets/estatisticas"),
+    {
+      target: { value: "projects/example/assets/statistics" },
+    },
+  );
+  fireEvent.change(screen.getByLabelText("ID do asset de mapa"), {
+    target: { value: "projects/example/assets/map" },
+  });
+}
+
+describe("IndexCatalogScreen v2", () => {
   beforeEach(() => {
-    vi.stubGlobal("fetch", vi.fn(() => jsonResponse({ items: [] })));
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(() => jsonResponse({ items: [] })),
+    );
   });
 
   afterEach(() => {
@@ -26,233 +53,98 @@ describe("IndexCatalogScreen", () => {
     vi.unstubAllGlobals();
   });
 
-  it("searches the Drive, selects a compatible source and infers classes", async () => {
+  it("has no Drive/CSV controls and sends a statisticsSource contract", async () => {
     const fetchMock = vi.mocked(fetch);
     fetchMock
       .mockImplementationOnce(() => jsonResponse({ items: [] }))
       .mockImplementationOnce(() =>
-        jsonResponse({
-          items: [
-            {
-              id: "drive-1",
-              name: "Indice_Aridez.csv",
-              mimeType: "text/csv",
-              modifiedTime: "2026-07-30T12:00:00.000Z",
-              size: "2048",
-              inspection: {
-                role: "multilevel",
-                columns: [
-                  "NIVEL_AGRUPAMENTO",
-                  "NOME_LOCAL",
-                  "valor_classe_1",
-                  "valor_classe_2",
-                ],
-                periods: ["2025"],
-                classColumns: ["valor_classe_1", "valor_classe_2"],
-                warnings: [],
-              },
-            },
-          ],
-        }),
-      );
-
-    render(<IndexCatalogScreen />);
-    await screen.findByText("Nenhum panelLayer encontrado.");
-
-    fireEvent.change(screen.getByPlaceholderText("Ex.: desertificacao"), {
-      target: { value: "aridez" },
-    });
-    fireEvent.click(screen.getByRole("button", { name: "Buscar no Drive" }));
-
-    expect(await screen.findByText("Indice_Aridez.csv")).toBeInTheDocument();
-    expect(
-      screen.getByRole("checkbox", {
-        name: "Selecionar Indice_Aridez.csv",
-      }),
-    ).toBeChecked();
-
-    expect(screen.getByDisplayValue("Classe 1")).toBeInTheDocument();
-    expect(screen.getByDisplayValue("Classe 2")).toBeInTheDocument();
-    expect(
-      screen.getByText("1 arquivo(s) compatível(is) selecionado(s) automaticamente."),
-    ).toBeInTheDocument();
-  });
-
-  it("infers Drive files automatically when saving without a prior search", async () => {
-    const fetchMock = vi.mocked(fetch);
-    fetchMock
-      .mockImplementationOnce(() => jsonResponse({ items: [] }))
-      .mockImplementationOnce(() =>
-        jsonResponse({
-          items: [
-            {
-              id: "drive-auto",
-              name: "pob_total_panel_layer_2012_2025.csv",
-              mimeType: "text/csv",
-              modifiedTime: "2026-06-11T18:03:42.000Z",
-              inspection: {
-                role: "panel",
-                columns: ["location_key", "location_name", "valor_classe_1"],
-                periods: ["2025"],
-                classColumns: ["valor_classe_1"],
-                warnings: [],
-              },
-            },
-          ],
-        }),
+        jsonResponse({ entryId: "draft-1", panelLayerId: "indice-gee" }, 201),
       )
-      .mockImplementationOnce(() => jsonResponse({ entryId: "draft-auto" }, 201))
       .mockImplementationOnce(() => jsonResponse({ items: [] }));
 
     render(<IndexCatalogScreen />);
     await screen.findByText("Nenhum panelLayer encontrado.");
-    fireEvent.change(screen.getByPlaceholderText("Ex.: desertificacao"), {
-      target: { value: "pob_total" },
-    });
+    expect(screen.queryByText(/Google Drive/iu)).not.toBeInTheDocument();
+    expect(screen.queryByText(/CSV/iu)).not.toBeInTheDocument();
+    fillMinimumForm();
     fireEvent.click(screen.getByRole("button", { name: "Salvar rascunho" }));
 
     expect(
-      await screen.findByText("Rascunho salvo no Contentful sem publicação."),
+      await screen.findByText("Rascunho salvo. Nada foi publicado."),
     ).toBeInTheDocument();
-    expect(fetchMock).toHaveBeenNthCalledWith(
-      2,
-      "/api/index-catalog/drive-search",
-      expect.objectContaining({ method: "POST" }),
+    const request = fetchMock.mock.calls[1];
+    expect(request[0]).toBe("/api/index-catalog");
+    const body = JSON.parse(String((request[1] as RequestInit).body));
+    expect(body.statisticsSource).toEqual(
+      expect.objectContaining({ kind: "gee-feature-collection" }),
     );
-    expect(fetchMock).toHaveBeenNthCalledWith(
-      3,
-      "/api/index-catalog",
-      expect.objectContaining({
-        method: "POST",
-        headers: expect.objectContaining({
-          "Idempotency-Key": expect.any(String),
-        }),
-      }),
-    );
-    expect(screen.getByDisplayValue("valor_classe_1")).toBeInTheDocument();
+    expect(body).not.toHaveProperty("selectedFiles");
+    expect(body).not.toHaveProperty("sourceTag");
+    expect(body).not.toHaveProperty("unit");
   });
 
-  it("shows a local error when the Drive search request fails", async () => {
-    const fetchMock = vi.mocked(fetch);
-    fetchMock
-      .mockImplementationOnce(() => jsonResponse({ items: [] }))
-      .mockImplementationOnce(() =>
-        jsonResponse(
-          { error: "A conta de serviço não possui acesso à pasta configurada." },
-          502,
-        ),
-      );
-
-    render(<IndexCatalogScreen />);
-    await screen.findByText("Nenhum panelLayer encontrado.");
-
-    fireEvent.change(screen.getByPlaceholderText("Ex.: desertificacao"), {
-      target: { value: "aridez" },
-    });
-    fireEvent.click(screen.getByRole("button", { name: "Buscar no Drive" }));
-
-    const alert = await screen.findByRole("alert");
-    expect(alert).toHaveTextContent("Não foi possível buscar no Drive.");
-    expect(alert).toHaveTextContent(
-      "A conta de serviço não possui acesso à pasta configurada.",
-    );
-  });
-
-  it("shows locally when an accessible Drive folder has no matching files", async () => {
-    const fetchMock = vi.mocked(fetch);
-    fetchMock
-      .mockImplementationOnce(() => jsonResponse({ items: [] }))
-      .mockImplementationOnce(() => jsonResponse({ items: [] }));
-
-    render(<IndexCatalogScreen />);
-    await screen.findByText("Nenhum panelLayer encontrado.");
-
-    fireEvent.change(screen.getByPlaceholderText("Ex.: desertificacao"), {
-      target: { value: "tag-inexistente" },
-    });
-    fireEvent.click(screen.getByRole("button", { name: "Buscar no Drive" }));
-
-    expect(
-      await screen.findByText(
-        "A pasta está acessível, mas nenhum CSV ou Google Sheet corresponde à tag informada.",
-      ),
-    ).toBeInTheDocument();
-  });
-
-  it("keeps validation errors fixed in the viewport until they are dismissed", async () => {
-    const fetchMock = vi.mocked(fetch);
-    fetchMock.mockImplementationOnce(() => jsonResponse({ items: [] }));
-    fetchMock.mockImplementationOnce(() =>
-      jsonResponse(
-        { error: "Cadastre pelo menos uma classe ou medida." },
-        400,
-      ),
-    );
-    render(<IndexCatalogScreen />);
-    await screen.findByText("Nenhum panelLayer encontrado.");
-
-    fireEvent.click(screen.getByRole("button", { name: "Salvar rascunho" }));
-
-    const alert = await screen.findByRole("alert");
-    expect(alert).toHaveTextContent("Cadastre pelo menos uma classe ou medida.");
-    expect(alert.parentElement).toHaveClass("fixed");
-    expect(fetchMock).toHaveBeenCalledTimes(2);
-
-    fireEvent.click(
-      screen.getByRole("button", { name: "Fechar notificação de erro" }),
-    );
-    expect(screen.queryByRole("alert")).not.toBeInTheDocument();
-  });
-
-  it("explains correction reasons and flags duplicate-looking drafts", async () => {
-    const baseItem = {
-      panelLayerId: "pob-total",
-      name: "Teste catálogo — Pobreza CadÚnico 2026-08-04",
-      description: "Teste",
-      category: "Dados Socioeconômicos",
-      published: false,
-      hasUnpublishedChanges: false,
-      catalogManaged: true,
-      status: "error",
-      catalogConfig: {
-        updatedBy: { at: "2026-08-04T15:00:00.000Z" },
-        validation: {
-          errors: [
-            {
-              code: "missing_panel_source",
-              message: "Não foi encontrada uma fonte agregada compatível.",
-            },
+  it("infers class indexes from revalidation and shows the private preview", async () => {
+    const preview = {
+      entryId: "draft-1",
+      panelLayer: {
+        sys: { id: "draft-1" },
+        id: "indice-gee",
+        name: "Índice GEE",
+        description: "Índice classificado",
+        category: "Dados Climáticos",
+        imageData: {
+          schemaVersion: 1,
+          type: "territorial-compact",
+          classes: [
+            { id: "classe-0", label: "Classe 0", color: "#D9ED92" },
+            { id: "classe-1", label: "Classe 1", color: "#B5E48C" },
           ],
+          locations: { br: "Brasil" },
+          years: { "2025": { imageId: "map", values: {} } },
         },
-        auditLog: [
-          {
-            action: "preview",
-            outcome: "failure",
-            message: "Falha ao validar as fontes do índice.",
-          },
-        ],
+        statisticsSource: {
+          schemaVersion: 1,
+          sourceRevision: "a".repeat(64),
+          kind: "gee-feature-collection",
+        },
+      },
+      validation: {
+        valid: true,
+        inferred: {
+          periods: ["2025"],
+          classIndexes: [0, 1],
+          statisticsAssetCount: 1,
+        },
       },
     };
-    vi.mocked(fetch).mockImplementationOnce(() =>
-      jsonResponse({
-        items: [
-          { ...baseItem, entryId: "duplicate-1" },
-          { ...baseItem, entryId: "duplicate-2", panelLayerId: "pob-total-2" },
-        ],
+    const fetchMock = vi.mocked(fetch);
+    fetchMock
+      .mockImplementationOnce(() => jsonResponse({ items: [] }))
+      .mockImplementationOnce(() => jsonResponse({ entryId: "draft-1" }, 201))
+      .mockImplementationOnce(() => jsonResponse({ items: [] }))
+      .mockImplementationOnce(() => jsonResponse(preview))
+      .mockImplementationOnce(() => jsonResponse({ items: [] }));
+
+    render(<IndexCatalogScreen />);
+    await screen.findByText("Nenhum panelLayer encontrado.");
+    fillMinimumForm();
+    fireEvent.click(
+      screen.getByRole("button", {
+        name: "Revalidar assets e gerar prévia",
       }),
     );
 
-    render(<IndexCatalogScreen />);
-
-    expect(await screen.findAllByText("Possível duplicado")).toHaveLength(2);
-    expect(screen.getAllByText("O que precisa ser corrigido")).toHaveLength(2);
     expect(
-      screen.getAllByText("Não foi encontrada uma fonte agregada compatível."),
-    ).toHaveLength(2);
-    expect(screen.getAllByText("Abrir e corrigir")).toHaveLength(2);
+      await screen.findByTestId("catalog-preview-probe"),
+    ).toBeInTheDocument();
+    expect(screen.getAllByLabelText("Índice")).toHaveLength(2);
+    expect(screen.getByDisplayValue("Classe 0")).toBeInTheDocument();
+    expect(fetchMock.mock.calls.map(([url]) => url)).not.toContain(
+      "/api/index-catalog/drive-search",
+    );
   });
 
-  it("offers lifecycle controls for legacy entries and shows conditional unit", async () => {
+  it("keeps v1 and external panel layers read-only", async () => {
     vi.mocked(fetch).mockImplementationOnce(() =>
       jsonResponse({
         items: [
@@ -260,144 +152,23 @@ describe("IndexCatalogScreen", () => {
             entryId: "legacy",
             panelLayerId: "seca",
             name: "Seca",
-            description: "Legado",
+            description: "",
             published: true,
             hasUnpublishedChanges: false,
             catalogManaged: false,
             status: "legacy",
+            catalogConfig: { schemaVersion: 1, panelLayerId: "seca" },
           },
         ],
       }),
     );
-
     render(<IndexCatalogScreen />);
-    expect(await screen.findByText("Seca")).toBeInTheDocument();
     expect(
-      screen.getByRole("button", { name: "Mover para draft Seca" }),
-    ).toBeEnabled();
-    expect(
-      screen.getByRole("button", { name: "Remover Seca" }),
-    ).toBeEnabled();
-
-    fireEvent.change(screen.getByLabelText("Tipo de valor"), {
-      target: { value: "absolute" },
-    });
-    await waitFor(() =>
-      expect(screen.getByLabelText("Unidade")).toBeInTheDocument(),
-    );
-  });
-
-  it("moves a published index to draft through the lifecycle API", async () => {
-    const item = {
-      entryId: "legacy",
-      panelLayerId: "seca",
-      name: "Seca",
-      description: "Legado",
-      published: true,
-      hasUnpublishedChanges: false,
-      catalogManaged: false,
-      status: "legacy",
-    };
-    const fetchMock = vi.mocked(fetch);
-    fetchMock
-      .mockImplementationOnce(() => jsonResponse({ items: [item] }))
-      .mockImplementationOnce(() =>
-        jsonResponse({
-          entryId: "legacy",
-          panelLayerId: "seca",
-          status: "legacy",
-        }),
-      )
-      .mockImplementationOnce(() =>
-        jsonResponse({ items: [{ ...item, published: false }] }),
-      );
-
-    render(<IndexCatalogScreen />);
-    fireEvent.click(
-      await screen.findByRole("button", { name: "Mover para draft Seca" }),
-    );
-
-    expect(
-      await screen.findByText(
-        "“Seca” está em draft e não aparece mais no Monitoramento.",
-      ),
+      await screen.findByText("Legado — somente leitura"),
     ).toBeInTheDocument();
-    expect(fetchMock).toHaveBeenNthCalledWith(
-      2,
-      "/api/index-catalog/entries/legacy",
-      expect.objectContaining({
-        method: "POST",
-        body: JSON.stringify({ action: "unpublish" }),
-      }),
-    );
-    expect(await screen.findByText("Legado em draft")).toBeInTheDocument();
-  });
-
-  it("reviews cascade impact and requires the technical id before deletion", async () => {
-    const item = {
-      entryId: "legacy",
-      panelLayerId: "seca",
-      name: "Seca",
-      description: "Legado",
-      published: true,
-      hasUnpublishedChanges: false,
-      catalogManaged: false,
-      status: "legacy",
-    };
-    const fetchMock = vi.mocked(fetch);
-    fetchMock
-      .mockImplementationOnce(() => jsonResponse({ items: [item] }))
-      .mockImplementationOnce(() =>
-        jsonResponse({
-          item,
-          linkedEntries: [],
-          counts: {
-            panelLayer: 1,
-            municipalAnalysis: 2,
-            municipalReportSeries: 3,
-            total: 6,
-          },
-        }),
-      )
-      .mockImplementationOnce(() =>
-        jsonResponse({
-          entryId: "legacy",
-          panelLayerId: "seca",
-          status: "deleted",
-          deletedEntries: 6,
-        }),
-      )
-      .mockImplementationOnce(() => jsonResponse({ items: [] }));
-
-    render(<IndexCatalogScreen />);
-    fireEvent.click(
-      await screen.findByRole("button", { name: "Remover Seca" }),
-    );
-
-    expect(await screen.findByRole("dialog")).toBeInTheDocument();
-    const removeButton = screen.getByRole("button", {
-      name: "Remover 6 entrada(s)",
-    });
-    expect(removeButton).toBeDisabled();
-
-    fireEvent.change(screen.getByLabelText(/Digite/), {
-      target: { value: "seca" },
-    });
-    expect(removeButton).toBeEnabled();
-    fireEvent.click(removeButton);
-
     expect(
-      await screen.findByText(
-        "“Seca” foi removido do Contentful (6 entrada(s)).",
-      ),
-    ).toBeInTheDocument();
-    expect(fetchMock).toHaveBeenNthCalledWith(
-      3,
-      "/api/index-catalog/entries/legacy",
-      expect.objectContaining({
-        method: "DELETE",
-        body: JSON.stringify({ confirmation: "seca" }),
-      }),
-    );
+      screen.queryByRole("button", { name: "Abrir e editar" }),
+    ).not.toBeInTheDocument();
+    await waitFor(() => expect(fetch).toHaveBeenCalledTimes(1));
   });
 });

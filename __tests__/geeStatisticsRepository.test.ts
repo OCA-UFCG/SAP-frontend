@@ -135,6 +135,36 @@ describe("geeStatisticsRepository mapping", () => {
     });
   });
 
+  it.each([
+    ["2_Regiao", "Nordeste", "2_regiao-nordeste"],
+    ["3_Bioma", "Caatinga", "3_bioma-caatinga"],
+    ["4_ASD", "ASD + Entorno", "4_asd-asd-entorno"],
+    ["5_Semiarido", "Semiárido Total", "5_semiarido-semiarido-total"],
+  ])("maps aggregate level %s without geometry", (level, name, key) => {
+    const result = mapGeeStatisticsRows(
+      source,
+      schema,
+      "2020-01",
+      key,
+      [
+        {
+          NIVEL_AGRUPAMENTO: level,
+          NOME_LOCAL: name,
+          perc_classe_1: 35,
+          perc_classe_2: 65,
+          ".geo": { type: "Polygon", coordinates: [] },
+        },
+      ],
+      2,
+    );
+
+    expect(result.patch.locations).toEqual({ [key]: name });
+    expect(result.patch.years?.["2020-01"]?.values).toEqual({
+      [key]: [35, 65],
+    });
+    expect(JSON.stringify(result.patch)).not.toContain("coordinates");
+  });
+
   it("omits all-zero rows from available statistical values", () => {
     const result = mapGeeStatisticsRows(
       source,

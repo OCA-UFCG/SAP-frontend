@@ -4,6 +4,7 @@ import type {
   IndexCatalogConfig,
   IndexCatalogItem,
 } from "@/types/indexCatalog";
+import { isIndexCatalogConfigV2 } from "@/types/indexCatalog";
 
 const CONTENTFUL_RETRYABLE_STATUS = new Set([429, 500, 502, 503, 504]);
 const DEFAULT_LOCALE = "en-US";
@@ -169,15 +170,17 @@ function toCatalogItem(
       "",
     name:
       getLocalizedEntryField<string>(entry, "name", locale) ??
-      config?.name ??
+      (typeof config?.name === "string" ? config.name : undefined) ??
       "Índice sem nome",
     description:
       getLocalizedEntryField<string>(entry, "description", locale) ??
-      config?.description ??
+      (typeof config?.description === "string"
+        ? config.description
+        : undefined) ??
       "",
     category:
       getLocalizedEntryField<string>(entry, "category", locale) ??
-      config?.category,
+      (typeof config?.category === "string" ? config.category : undefined),
     panelPosition: getLocalizedEntryField<number>(
       entry,
       "panelPosition",
@@ -185,8 +188,12 @@ function toCatalogItem(
     ),
     published,
     hasUnpublishedChanges,
-    catalogManaged: Boolean(config),
-    status: config ? (published ? "published" : config.status) : "legacy",
+    catalogManaged: isIndexCatalogConfigV2(config),
+    status: isIndexCatalogConfigV2(config)
+      ? published && !hasUnpublishedChanges
+        ? "published"
+        : config.status
+      : "legacy",
     ...(config ? { catalogConfig: config } : {}),
   };
 }
@@ -294,86 +301,6 @@ export async function patchManagementEntry(
   );
 }
 
-export async function createMunicipalAnalysisDraft(
-  fields: Record<string, unknown>,
-) {
-  const locale = await getContentfulDefaultLocale();
-  return contentfulManagementFetch<ContentfulManagementEntry>(
-    "/entries",
-    {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/vnd.contentful.management.v1+json",
-        "X-Contentful-Content-Type": "municipalAnalysis",
-      },
-      body: JSON.stringify({
-        fields: Object.fromEntries(
-          Object.entries(fields).map(([key, value]) => [
-            key,
-            localized(value, locale),
-          ]),
-        ),
-      }),
-    },
-    "Criação de partição municipal em rascunho",
-  );
-}
-
-export async function listMunicipalAnalysisEntries(panelLayerId: string) {
-  return listEntriesByPanelLayerId("municipalAnalysis", panelLayerId);
-}
-
-export async function listMunicipalReportSeriesEntries(panelLayerId: string) {
-  try {
-    return await listEntriesByPanelLayerId(
-      "municipalReportSeries",
-      panelLayerId,
-    );
-  } catch (error) {
-    const message = error instanceof Error ? error.message : String(error);
-    if (
-      message.includes("municipalReportSeries") &&
-      /status (?:400|404)/u.test(message)
-    ) {
-      return [];
-    }
-    throw error;
-  }
-}
-
-async function listEntriesByPanelLayerId(
-  contentType: "municipalAnalysis" | "municipalReportSeries",
-  panelLayerId: string,
-) {
-  const entries: ContentfulManagementEntry[] = [];
-  const limit = 1000;
-
-  for (let skip = 0; ; skip += limit) {
-    const params = new URLSearchParams({
-      content_type: contentType,
-      "fields.panelLayerId": panelLayerId,
-      limit: String(limit),
-      skip: String(skip),
-    });
-    const response = await contentfulManagementFetch<{
-      total?: number;
-      items?: ContentfulManagementEntry[];
-    }>(
-      `/entries?${params.toString()}`,
-      { method: "GET" },
-      `Listagem de ${contentType} para ${panelLayerId}`,
-    );
-    const page = response.items ?? [];
-    entries.push(...page);
-
-    if (page.length === 0 || entries.length >= (response.total ?? 0)) {
-      break;
-    }
-  }
-
-  return entries;
-}
-
 export async function publishManagementEntry(entry: ContentfulManagementEntry) {
   return contentfulManagementFetch<ContentfulManagementEntry>(
     `/entries/${encodeURIComponent(entry.sys.id)}/published`,
@@ -406,9 +333,7 @@ export async function unpublishManagementEntry(
   );
 }
 
-export async function deleteManagementEntry(
-  entry: ContentfulManagementEntry,
-) {
+export async function deleteManagementEntry(entry: ContentfulManagementEntry) {
   await contentfulManagementFetch<null>(
     `/entries/${encodeURIComponent(entry.sys.id)}`,
     {
@@ -430,13 +355,21 @@ export async function ensureIndexCatalogContentModel() {
   const catalogField = contentType.fields.find(
     (field) => field.id === "catalogConfig",
   );
+  const statisticsSourceField = contentType.fields.find(
+    (field) => field.id === "statisticsSource",
+  );
   const previewMap = contentType.fields.find(
     (field) => field.id === "previewMap",
   );
   const needsCatalogField = !catalogField;
+  const needsStatisticsSourceField = !statisticsSourceField;
   const needsOptionalPreview = Boolean(previewMap?.required);
 
-  if (!needsCatalogField && !needsOptionalPreview) {
+  if (
+    !needsCatalogField &&
+    !needsStatisticsSourceField &&
+    !needsOptionalPreview
+  ) {
     return { changed: false };
   }
 
@@ -447,6 +380,18 @@ export async function ensureIndexCatalogContentModel() {
     fields.push({
       id: "catalogConfig",
       name: "Configuração do catálogo",
+      type: "Object",
+      localized: false,
+      required: false,
+      validations: [],
+      disabled: false,
+      omitted: false,
+    });
+  }
+  if (needsStatisticsSourceField) {
+    fields.push({
+      id: "statisticsSource",
+      name: "Fonte estatística GEE",
       type: "Object",
       localized: false,
       required: false,

@@ -5,225 +5,216 @@ vi.mock("server-only", () => ({}));
 const contentful = vi.hoisted(() => ({
   getCatalogEntry: vi.fn(),
   getManagementEntry: vi.fn(),
-  getLocalizedEntryField: vi.fn(
-    (
-      entry: { fields: Record<string, Record<string, unknown>> },
-      field: string,
-      locale: string,
-    ) => entry.fields[field]?.[locale],
-  ),
-  listMunicipalAnalysisEntries: vi.fn(),
-  listMunicipalReportSeriesEntries: vi.fn(),
+  getLocalizedEntryField: vi.fn(),
   patchManagementEntry: vi.fn(),
   publishManagementEntry: vi.fn(),
   unpublishManagementEntry: vi.fn(),
   deleteManagementEntry: vi.fn(),
 }));
+const buildCatalogDraft = vi.hoisted(() => vi.fn());
 
 vi.mock("@/services/indexCatalog/contentfulManagement", () => ({
   ...contentful,
-  createMunicipalAnalysisDraft: vi.fn(),
   createPanelLayerDraft: vi.fn(),
   ensureIndexCatalogContentModel: vi.fn(),
-  getContentfulDefaultLocale: vi.fn(),
   listCatalogEntries: vi.fn(),
 }));
-
 vi.mock("@/services/indexCatalog/catalogBuild", () => ({
-  buildCatalogDraft: vi.fn(),
+  buildCatalogDraft,
   getCatalogBuildValidation: vi.fn(),
 }));
-
-vi.mock("@/repositories/platform/municipalAnalysisRepository", () => ({
-  toDatasetPatch: vi.fn(),
+vi.mock("@/repositories/platform/geeStatisticsRepository", () => ({
+  getGeeStatisticsYearPatch: vi.fn(),
 }));
 
 import {
   deleteIndexCatalogEntry,
   getIndexCatalogLifecycleImpact,
+  publishIndexCatalogDraft,
   publishIndexCatalogEntry,
   unpublishIndexCatalogEntry,
 } from "@/services/indexCatalog/indexCatalogService";
 
-const user = {
-  uid: "admin-1",
-  email: "oca-dev@gmail.com",
+const user = { uid: "admin-1", email: "oca-dev@gmail.com" };
+const source = {
+  schemaVersion: 1 as const,
+  sourceRevision: "a".repeat(64),
+  kind: "gee-feature-collection" as const,
+  asset: { type: "fixed" as const, assetId: "projects/x/assets/stats" },
+  periodGranularity: "year" as const,
+  properties: {
+    level: "NIVEL_AGRUPAMENTO",
+    locationName: "NOME_LOCAL",
+    municipalityCode: "CD_MUN",
+    stateCode: "NM_UF",
+    year: "ano",
+    date: "data_img",
+    totalArea: "area_total_ha",
+  },
+};
+const validation = {
+  validatedAt: "2026-08-17T12:00:00.000Z",
+  valid: true,
+  errors: [],
+  warnings: [],
+  inferred: {
+    panelLayerId: "seca",
+    periods: ["2025"],
+    defaultPeriod: "2025",
+    timeScale: "Anual" as const,
+    classIndexes: [1],
+    statisticsAssetCount: 1,
+  },
+  sourceFingerprint: "fingerprint",
+};
+const config = {
+  schemaVersion: 2 as const,
+  panelLayerId: "seca",
+  status: "ready" as const,
+  name: "Seca",
+  description: "Teste",
+  category: "Dados Climáticos" as const,
+  statisticsSource: source,
+  validatedStatisticsSource: source,
+  classes: [
+    {
+      classIndex: 1,
+      id: "seca",
+      label: "Seca",
+      color: "#989F43",
+      pixelValue: 1,
+    },
+  ],
+  earthEngine: {
+    strategy: "single" as const,
+    sourceType: "image" as const,
+    singleAssetId: "projects/x/assets/map",
+  },
+  createdBy: { ...user, at: "2026-08-17T10:00:00.000Z" },
+  updatedBy: { ...user, at: "2026-08-17T12:00:00.000Z" },
+  validation,
+  auditLog: [],
 };
 
-function managementEntry(
-  id: string,
-  options: { published?: boolean; title?: string; version?: number } = {},
-) {
+function managementEntry(id: string, published = false, version = 1) {
   return {
     sys: {
       id,
-      version: options.version ?? 1,
-      ...(options.published ? { publishedAt: "2026-07-30T10:00:00Z" } : {}),
+      version,
+      ...(published ? { publishedAt: "2026-08-17T10:00:00Z" } : {}),
     },
-    fields: {
-      ...(options.title ? { title: { "en-US": options.title } } : {}),
+    fields: {},
+  };
+}
+
+function currentEntry(options: { published?: boolean; legacy?: boolean } = {}) {
+  const entry = managementEntry("panel", Boolean(options.published), 7);
+  return {
+    locale: "en-US",
+    entry,
+    item: {
+      entryId: "panel",
+      panelLayerId: "seca",
+      name: "Seca",
+      description: "Teste",
+      published: Boolean(options.published),
+      hasUnpublishedChanges: false,
+      catalogManaged: !options.legacy,
+      status: options.legacy ? "legacy" : "ready",
+      ...(options.legacy ? {} : { catalogConfig: config }),
     },
   };
 }
 
-describe("index catalog lifecycle", () => {
+describe("index catalog v2 lifecycle", () => {
   beforeEach(() => {
     vi.clearAllMocks();
-    contentful.listMunicipalAnalysisEntries.mockResolvedValue([]);
-    contentful.listMunicipalReportSeriesEntries.mockResolvedValue([]);
   });
 
-  it("reports every linked Contentful entry before deletion", async () => {
-    contentful.getCatalogEntry.mockResolvedValue({
-      locale: "en-US",
-      entry: managementEntry("panel"),
-      item: {
-        entryId: "panel",
-        panelLayerId: "seca",
-        name: "Seca",
-        description: "",
-        published: true,
-        hasUnpublishedChanges: false,
-        catalogManaged: false,
-        status: "legacy",
-      },
-    });
-    contentful.listMunicipalAnalysisEntries.mockResolvedValue([
-      managementEntry("municipal-1", {
-        title: "Municipal Seca 2025",
-        published: true,
-      }),
-    ]);
-    contentful.listMunicipalReportSeriesEntries.mockResolvedValue([
-      managementEntry("series-1", { title: "Série Seca" }),
-      managementEntry("series-2", { title: "Série Seca 2" }),
-    ]);
-
-    const impact = await getIndexCatalogLifecycleImpact("panel");
-
-    expect(impact.counts).toEqual({
-      panelLayer: 1,
-      municipalAnalysis: 1,
-      municipalReportSeries: 2,
-      total: 4,
-    });
-    expect(impact.linkedEntries).toEqual(
-      expect.arrayContaining([
-        expect.objectContaining({
-          entryId: "municipal-1",
-          contentType: "municipalAnalysis",
-          published: true,
-        }),
-        expect.objectContaining({
-          entryId: "series-1",
-          contentType: "municipalReportSeries",
-          published: false,
-        }),
-      ]),
-    );
-  });
-
-  it("moves a managed published index to a validated draft", async () => {
-    const entry = managementEntry("panel", { published: true, version: 7 });
-    const config = {
-      schemaVersion: 1,
-      panelLayerId: "seca",
-      status: "published",
-      validation: { valid: true },
-      derivedEntryIds: ["municipal-1"],
-      auditLog: [],
-    };
-    contentful.getCatalogEntry.mockResolvedValue({
-      locale: "en-US",
-      entry,
-      item: {
-        entryId: "panel",
-        panelLayerId: "seca",
-        name: "Seca",
-        description: "",
-        published: true,
-        hasUnpublishedChanges: false,
-        catalogManaged: true,
-        status: "published",
-        catalogConfig: config,
-      },
-    });
-    const patched = managementEntry("panel", {
-      published: true,
-      version: 8,
-    });
-    contentful.patchManagementEntry.mockResolvedValue(patched);
-    contentful.unpublishManagementEntry.mockResolvedValue(patched);
-
-    const result = await unpublishIndexCatalogEntry("panel", user);
-
-    expect(result.status).toBe("ready");
-    expect(contentful.patchManagementEntry).toHaveBeenCalledWith(
-      entry,
+  it("reports that only panelLayer is managed", async () => {
+    contentful.getCatalogEntry.mockResolvedValue(currentEntry());
+    await expect(getIndexCatalogLifecycleImpact("panel")).resolves.toEqual(
       expect.objectContaining({
-        catalogConfig: expect.objectContaining({
-          status: "ready",
-          auditLog: [
-            expect.objectContaining({
-              action: "unpublish",
-              outcome: "success",
-              email: "oca-dev@gmail.com",
-            }),
-          ],
-        }),
+        linkedEntries: [],
+        counts: {
+          panelLayer: 1,
+          municipalAnalysis: 0,
+          municipalReportSeries: 0,
+          total: 1,
+        },
       }),
     );
-    expect(contentful.unpublishManagementEntry).toHaveBeenCalledWith(patched);
   });
 
-  it("publishes a legacy draft directly", async () => {
-    const entry = managementEntry("panel");
-    contentful.getCatalogEntry.mockResolvedValue({
-      locale: "en-US",
-      entry,
-      item: {
-        entryId: "panel",
-        panelLayerId: "seca",
-        name: "Seca",
-        description: "",
-        published: false,
-        hasUnpublishedChanges: false,
-        catalogManaged: false,
-        status: "legacy",
-      },
-    });
-    contentful.publishManagementEntry.mockResolvedValue(
-      managementEntry("panel", { published: true, version: 2 }),
+  it("publishes one panelLayer and no derived Contentful entries", async () => {
+    const current = currentEntry();
+    contentful.getCatalogEntry.mockResolvedValue(current);
+    contentful.getManagementEntry.mockResolvedValue(current.entry);
+    contentful.patchManagementEntry.mockResolvedValue(
+      managementEntry("panel", false, 8),
     );
+    contentful.publishManagementEntry.mockResolvedValue(
+      managementEntry("panel", true, 9),
+    );
+    buildCatalogDraft.mockResolvedValue({
+      panelLayerImageData: { years: {} },
+      validation,
+      statisticsSource: source,
+      classes: config.classes,
+      mapVisualization: {},
+    });
 
-    await expect(publishIndexCatalogEntry("panel", user)).resolves.toEqual({
+    await expect(publishIndexCatalogDraft("panel", user)).resolves.toEqual({
       entryId: "panel",
       panelLayerId: "seca",
       status: "published",
     });
-    expect(contentful.publishManagementEntry).toHaveBeenCalledWith(entry);
+    expect(contentful.patchManagementEntry).toHaveBeenCalledWith(
+      current.entry,
+      expect.objectContaining({
+        imageData: { years: {} },
+        statisticsSource: source,
+      }),
+    );
+    expect(contentful.publishManagementEntry).toHaveBeenCalledTimes(1);
   });
 
-  it("does not mutate Contentful when deletion confirmation is wrong", async () => {
-    contentful.getCatalogEntry.mockResolvedValue({
-      locale: "en-US",
-      entry: managementEntry("panel", { published: true }),
-      item: {
-        entryId: "panel",
-        panelLayerId: "seca",
-        name: "Seca",
-        description: "",
-        published: true,
-        hasUnpublishedChanges: false,
-        catalogManaged: false,
-        status: "legacy",
-      },
-    });
+  it("allows unpublishing v2 and refuses lifecycle mutations for legacy", async () => {
+    const current = currentEntry({ published: true });
+    contentful.getCatalogEntry.mockResolvedValueOnce(current);
+    contentful.patchManagementEntry.mockResolvedValue(
+      managementEntry("panel", true, 8),
+    );
+    await expect(unpublishIndexCatalogEntry("panel", user)).resolves.toEqual(
+      expect.objectContaining({ status: "ready" }),
+    );
+    expect(contentful.unpublishManagementEntry).toHaveBeenCalledTimes(1);
 
+    contentful.getCatalogEntry.mockResolvedValueOnce(
+      currentEntry({ legacy: true }),
+    );
+    await expect(publishIndexCatalogEntry("panel", user)).rejects.toThrow(
+      "apenas para consulta",
+    );
+  });
+
+  it("deletes only the confirmed v2 panelLayer", async () => {
+    const current = currentEntry({ published: true });
+    contentful.getCatalogEntry.mockResolvedValue(current);
     await expect(
-      deleteIndexCatalogEntry("panel", "outro-id", user),
+      deleteIndexCatalogEntry("panel", "outro", user),
     ).rejects.toThrow("ID técnico");
-    expect(contentful.unpublishManagementEntry).not.toHaveBeenCalled();
     expect(contentful.deleteManagementEntry).not.toHaveBeenCalled();
+
+    contentful.unpublishManagementEntry.mockResolvedValue(
+      managementEntry("panel", false, 8),
+    );
+    contentful.getManagementEntry.mockResolvedValue(
+      managementEntry("panel", false, 8),
+    );
+    await expect(
+      deleteIndexCatalogEntry("panel", "seca", user),
+    ).resolves.toEqual(expect.objectContaining({ deletedEntries: 1 }));
+    expect(contentful.deleteManagementEntry).toHaveBeenCalledTimes(1);
   });
 });

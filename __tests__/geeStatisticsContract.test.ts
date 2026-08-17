@@ -3,6 +3,7 @@ import { describe, expect, it } from "vitest";
 import {
   getGeeStatisticsRequestedProperties,
   inferGeeStatisticsSchema,
+  parsePublishedGeeStatisticsSource,
   resolveGeeStatisticsSource,
 } from "@/contracts/geeStatistics";
 import type {
@@ -126,5 +127,31 @@ describe("GEE statistics contract", () => {
     expect(() => resolveGeeStatisticsSource(source, "2020-01")).toThrow(
       "incompatível com granularidade year",
     );
+  });
+
+  it("validates untrusted statisticsSource objects from Contentful", () => {
+    expect(
+      parsePublishedGeeStatisticsSource({
+        schemaVersion: 1,
+        sourceRevision: "a".repeat(64),
+        kind: "gee-feature-collection",
+        asset: {
+          type: "fixed",
+          assetId: "projects/example/assets/statistics",
+        },
+        periodGranularity: "year",
+        properties: standardProperties,
+      }).sourceRevision,
+    ).toHaveLength(64);
+    expect(() =>
+      parsePublishedGeeStatisticsSource({
+        schemaVersion: 1,
+        sourceRevision: "manual",
+        kind: "gee-feature-collection",
+        asset: { type: "fixed", assetId: "projects/x/assets/y" },
+        periodGranularity: "year",
+        properties: standardProperties,
+      }),
+    ).toThrow("Revisão");
   });
 });

@@ -849,6 +849,70 @@ describe("panelLayerRepository", () => {
     warn.mockRestore();
   });
 
+  it("does not fall back to Contentful for a dynamic catalog source", async () => {
+    mockedGetGeeStatisticsYearPatch.mockRejectedValue(
+      new Error("Earth Engine unavailable"),
+    );
+    const source = {
+      schemaVersion: 1,
+      sourceRevision: "a".repeat(64),
+      kind: "gee-feature-collection",
+      asset: {
+        type: "fixed",
+        assetId: "projects/example/assets/new-index",
+      },
+      periodGranularity: "year",
+      properties: {
+        level: "NIVEL_AGRUPAMENTO",
+        locationName: "NOME_LOCAL",
+        municipalityCode: "CD_MUN",
+        stateCode: "NM_UF",
+        year: "ano",
+        date: "data_img",
+        totalArea: "area_total_ha",
+      },
+    };
+    mockedGetContent.mockImplementation(async (query: string) => {
+      if (query.includes("municipalAnalysisCollection")) {
+        throw new Error("Contentful fallback must not be queried");
+      }
+      return buildPanelLayerResponse([
+        {
+          sys: { id: "sys-new" },
+          id: "new-index",
+          name: "Novo índice",
+          description: "",
+          statisticsSource: source,
+          imageData: {
+            schemaVersion: 1,
+            type: "territorial-compact",
+            defaultYear: "2025",
+            classes: [{ id: "a", label: "A", color: "#111111" }],
+            years: {
+              "2025": { imageId: "map", valuesScale: 1, values: {} },
+            },
+          },
+        },
+      ]);
+    });
+
+    await expect(
+      getPanelLayerWithMunicipalAnalysisYear("new-index", "2025", "br"),
+    ).rejects.toThrow("Earth Engine unavailable");
+    expect(mockedGetGeeStatisticsYearPatch).toHaveBeenCalledWith(
+      "new-index",
+      "2025",
+      "br",
+      1,
+      source,
+    );
+    expect(
+      mockedGetContent.mock.calls.some(([query]) =>
+        String(query).includes("municipalAnalysisCollection"),
+      ),
+    ).toBe(false);
+  });
+
   it("falls back to monthly municipal analysis partitions when annual partition is unavailable", async () => {
     mockedGetContent.mockImplementation(
       async (query: string, variables?: Record<string, unknown>) => {

@@ -7,8 +7,6 @@ const GOOGLE_OAUTH_TOKEN_URL = "https://oauth2.googleapis.com/token";
 const GEE_AUTH_SCOPES = [
   "https://www.googleapis.com/auth/earthengine",
   "https://www.googleapis.com/auth/cloud-platform",
-  "https://www.googleapis.com/auth/drive",
-  "https://www.googleapis.com/auth/devstorage.read_write",
 ];
 
 interface GeeServiceAccountCredentials {

@@ -2,6 +2,7 @@ import { revalidatePath } from "next/cache";
 import { publishIndexCatalogDraft } from "@/services/indexCatalog/indexCatalogService";
 import { clearEarthEngineCacheForLayer } from "@/app/api/ee/cache";
 import { clearMunicipalAnalysisCache } from "@/repositories/platform/municipalAnalysisCache";
+import { clearGeeStatisticsSchemaCache } from "@/repositories/platform/geeStatisticsRepository";
 import {
   getIdempotencyKey,
   runCatalogIdempotently,
@@ -31,6 +32,7 @@ export async function POST(request: Request, context: PublishRouteContext) {
 
     clearEarthEngineCacheForLayer(result.panelLayerId);
     clearMunicipalAnalysisCache(result.panelLayerId);
+    clearGeeStatisticsSchemaCache();
     revalidatePath("/[locale]/platform", "page");
     return noStoreJson(result);
   } catch (error) {

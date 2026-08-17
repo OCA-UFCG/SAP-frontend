@@ -7,6 +7,7 @@ import {
   requireCatalogAccess,
 } from "@/app/api/index-catalog/http";
 import { clearMunicipalAnalysisCache } from "@/repositories/platform/municipalAnalysisCache";
+import { clearGeeStatisticsSchemaCache } from "@/repositories/platform/geeStatisticsRepository";
 import {
   deleteIndexCatalogEntry,
   getIndexCatalogLifecycleImpact,
@@ -25,6 +26,7 @@ interface LifecycleRouteContext {
 function refreshPublicIndexCaches(panelLayerId: string) {
   clearEarthEngineCacheForLayer(panelLayerId);
   clearMunicipalAnalysisCache(panelLayerId);
+  clearGeeStatisticsSchemaCache();
   revalidatePath("/[locale]/platform", "page");
 }
 
@@ -69,10 +71,7 @@ export async function POST(request: Request, context: LifecycleRouteContext) {
   }
 }
 
-export async function DELETE(
-  request: Request,
-  context: LifecycleRouteContext,
-) {
+export async function DELETE(request: Request, context: LifecycleRouteContext) {
   const access = await requireCatalogAccess(request, { mutation: true });
   if ("response" in access) return access.response;
 
@@ -88,12 +87,7 @@ export async function DELETE(
     const result = await runCatalogIdempotently(
       `delete:${decodedEntryId}`,
       getIdempotencyKey(request),
-      () =>
-        deleteIndexCatalogEntry(
-          decodedEntryId,
-          confirmation,
-          access.user,
-        ),
+      () => deleteIndexCatalogEntry(decodedEntryId, confirmation, access.user),
     );
     refreshPublicIndexCaches(result.panelLayerId);
     return noStoreJson(result);

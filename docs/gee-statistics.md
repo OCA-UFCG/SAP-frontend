@@ -7,18 +7,18 @@ Engine (GEE) e convertê-las no mesmo patch `territorial-compact` já consumido
 pelo painel. Isso remove, para as camadas migradas, a obrigação de exportar CSV
 para o Google Drive e publicar entradas `municipalAnalysis` no Contentful.
 
-As fontes registradas atualmente são:
+As fontes legadas registradas estaticamente são:
 
 ```text
 carbonoembrapa -> asset fixo anual
 anaseca       -> um asset por ano, resolvido pelo período solicitado
 ```
 
-Esta é uma migração incremental. O `panelLayer` do Contentful continua sendo a
-fonte dos metadados da camada: classes, cores, templates, períodos, `imageId` e
-configuração visual. As entradas estatísticas `municipalAnalysis` permanecem
-como fallback temporário. Os shards `municipalReportSeries` e o índice de
-disponibilidade dos relatórios ainda não foram migrados para GEE.
+Novos índices não precisam ser registrados em código: publicam o contrato em
+`panelLayer.statisticsSource`. O `panelLayer` continua sendo a fonte das
+classes, cores, templates, períodos, `imageId` e configuração visual, mas não
+armazena valores territoriais. Os shards `municipalReportSeries` e o índice de
+disponibilidade dos relatórios não foram migrados para GEE.
 
 ## Autenticação
 
@@ -74,18 +74,16 @@ Exemplos de `locationKey` aceitos:
 
 ## Registro e mapeamento
 
-`src/config/geeStatisticsLayers.ts` lista as camadas que o frontend deve tratar
-como fontes GEE. `src/config/geeStatistics.ts` contém somente os perfis das
-fontes: estratégia do asset, granularidade temporal, propriedades territoriais
-e métricas escalares específicas, quando existirem. O contrato e a inferência
-do schema ficam isolados em `src/contracts/geeStatistics.ts`.
+`src/config/geeStatisticsLayers.ts` e `src/config/geeStatistics.ts` mantêm
+somente Carbono e ANA durante a transição. Para índices novos, o frontend
+detecta `panelLayer.statisticsSource`. O contrato e a inferência do schema
+ficam isolados em `src/contracts/geeStatistics.ts`.
 
 O adaptador aceita um asset fixo ou um template com `{year}`, `{month}` e
 `{period}`. O perfil de `anaseca`, por exemplo, resolve `2025-03` para o asset
-terminado em `MonitorANA_2025`. Assim, um novo asset anual passa a ser procurado
-automaticamente quando o `panelLayer` publicar períodos do novo ano. Não há
-varredura da pasta do GEE: o período publicado no Contentful continua sendo o
-catálogo de disponibilidade para a interface.
+terminado em `MonitorANA_2025`. No catálogo v2, a ação de revalidação lista o
+diretório-pai do template, descobre os períodos e só os torna públicos depois
+de uma nova prévia e publicação. O runtime não faz varredura de diretório.
 
 ### Contrato mínimo dos assets
 
@@ -121,10 +119,11 @@ de estatística e não viram distribuição no patch.
 
 ## Fallback e cache
 
-Quando a camada está registrada e o GEE responde, o resultado é autoritativo,
-inclusive quando não há valores para o recorte. Uma falha operacional de
-autenticação, permissão, rede, avaliação ou contrato é registrada no servidor e
-aciona a leitura equivalente no Contentful.
+Quando o GEE responde, o resultado é autoritativo, inclusive quando não há
+valores para o recorte. Carbono e ANA conservam fallback Contentful temporário.
+Uma fonte dinâmica de `panelLayer.statisticsSource` nunca usa esse fallback:
+se houver resposta antiga no cache ela pode ser servida como stale; sem cache,
+a rota responde indisponibilidade.
 
 O cache em memória usa a chave `panelLayerId::year::locationKey`. O TTL padrão
 é 10 minutos e o limite padrão é 200 entradas. Eles podem ser ajustados com
