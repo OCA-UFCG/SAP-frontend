@@ -7,10 +7,11 @@ Engine (GEE) e convertê-las no mesmo patch `territorial-compact` já consumido
 pelo painel. Isso remove, para as camadas migradas, a obrigação de exportar CSV
 para o Google Drive e publicar entradas `municipalAnalysis` no Contentful.
 
-A primeira fonte registrada é a camada `carbonoembrapa`:
+As fontes registradas atualmente são:
 
 ```text
-projects/obscaatinga/assets/Estatistica_Otimizada_Carbono_2020
+carbonoembrapa -> asset fixo anual
+anaseca       -> um asset por ano, resolvido pelo período solicitado
 ```
 
 Esta é uma migração incremental. O `panelLayer` do Contentful continua sendo a
@@ -35,11 +36,12 @@ GEE_PRIVATE_KEY='{"client_email":"...","private_key":"...","project_id":"..."}'
 GEE_PROJECT_ID=''
 GEE_STATISTICS_ENABLED='true'
 GEE_STATISTICS_CARBON_ASSET_ID='projects/obscaatinga/assets/Estatistica_Otimizada_Carbono_2020'
+GEE_STATISTICS_ANA_ASSET_TEMPLATE='projects/obscaatinga/assets/Estatisticas/Estatistica_Multinivel_MonitorANA_{year}'
 ```
 
 Definir `GEE_STATISTICS_ENABLED=false` desliga todas as fontes estatísticas GEE
-e força o caminho legado. O ID do asset de carbono pode ser substituído por
-ambiente sem alterar código.
+e força o caminho legado. IDs e templates podem ser substituídos por ambiente
+sem alterar código.
 
 ## Fluxo sob demanda
 
@@ -73,17 +75,49 @@ Exemplos de `locationKey` aceitos:
 ## Registro e mapeamento
 
 `src/config/geeStatisticsLayers.ts` lista as camadas que o frontend deve tratar
-como fontes GEE. `src/config/geeStatistics.ts` registra o asset e os nomes das
-propriedades da tabela. Para adicionar uma fonte, é necessário declarar:
+como fontes GEE. `src/config/geeStatistics.ts` contém somente os perfis das
+fontes: estratégia do asset, granularidade temporal, propriedades territoriais
+e métricas escalares específicas, quando existirem. O contrato e a inferência
+do schema ficam isolados em `src/contracts/geeStatistics.ts`.
+
+O adaptador aceita um asset fixo ou um template com `{year}`, `{month}` e
+`{period}`. O perfil de `anaseca`, por exemplo, resolve `2025-03` para o asset
+terminado em `MonitorANA_2025`. Assim, um novo asset anual passa a ser procurado
+automaticamente quando o `panelLayer` publicar períodos do novo ano. Não há
+varredura da pasta do GEE: o período publicado no Contentful continua sendo o
+catálogo de disponibilidade para a interface.
+
+### Contrato mínimo dos assets
+
+O schema é descoberto no primeiro acesso a cada asset e fica em cache no
+processo. Não é necessário listar manualmente o número das classes. O contrato
+exato é:
+
+- `perc_classe_XX` e `area_ha_classe_XX`, com a grafia `classe`;
+- os dois grupos devem conter exatamente os mesmos índices;
+- índices inteiros contíguos, começando em `0` ou `1`;
+- `NIVEL_AGRUPAMENTO`, `NOME_LOCAL`, `ano`, `data_img` e `area_total_ha`;
+- `CD_MUN` para linhas municipais e `NM_UF` para linhas estaduais/municipais;
+- uma única linha por período e localidade;
+- percentuais numéricos entre 0 e 100, totalizando `100 ± 0,2` (ou todos zero
+  para representar ausência), na ordem semântica das classes do `panelLayer`.
+
+As quantidades e os nomes das classes visuais permanecem no `panelLayer`; o
+asset fornece os valores. Por isso, o adaptador valida que a quantidade inferida
+é igual à quantidade de classes da camada. Ele não tenta inferir o significado
+de cada índice.
+
+Para adicionar outra fonte normalmente basta declarar:
 
 - o `panelLayerId` e o asset;
-- propriedades de nível territorial, nome, código IBGE, UF, ano e data;
-- propriedades percentuais na mesma ordem das classes do `panelLayer`;
-- propriedades métricas opcionais a serem preservadas no repositório.
+- granularidade `year` ou `month`;
+- estratégia fixa ou template de partição;
+- nomes territoriais diferentes do padrão, se houver;
+- métricas escalares opcionais, como média e mediana do carbono.
 
-O adaptador valida números, quantidade de classes e duplicidade territorial.
-Linhas cujas classes são todas zero são reconhecidas como ausência de
-estatística e não viram distribuição no patch.
+O adaptador valida schema, números, quantidade de classes e duplicidade
+territorial. Linhas cujas classes são todas zero são reconhecidas como ausência
+de estatística e não viram distribuição no patch.
 
 ## Fallback e cache
 

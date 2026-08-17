@@ -1,5 +1,9 @@
-export const GEE_STATISTICS_LAYER_IDS = ["carbonoembrapa"] as const;
+export const GEE_STATISTICS_LAYER_IDS = ["carbonoembrapa", "anaseca"] as const;
 
-export function isGeeStatisticsLayerId(panelLayerId: string): boolean {
+export type GeeStatisticsLayerId = (typeof GEE_STATISTICS_LAYER_IDS)[number];
+
+export function isGeeStatisticsLayerId(
+  panelLayerId: string,
+): panelLayerId is GeeStatisticsLayerId {
   return GEE_STATISTICS_LAYER_IDS.some((layerId) => layerId === panelLayerId);
 }

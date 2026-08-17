@@ -1,58 +1,60 @@
-import { GEE_STATISTICS_LAYER_IDS } from "@/config/geeStatisticsLayers";
-
-export interface GeeFeatureCollectionStatisticsSource {
-  kind: "gee-feature-collection";
-  assetId: string;
-  levelProperty: string;
-  locationNameProperty: string;
-  municipalityCodeProperty: string;
-  stateCodeProperty: string;
-  yearProperty: string;
-  dateProperty: string;
-  classProperties: string[];
-  metricProperties: string[];
-}
+import {
+  isGeeStatisticsLayerId,
+  type GeeStatisticsLayerId,
+} from "@/config/geeStatisticsLayers";
+import type { GeeFeatureCollectionStatisticsSource } from "@/contracts/geeStatistics";
 
 const CARBON_STATISTICS_ASSET =
-  "projects/obscaatinga/assets/Estatistica_Otimizada_Carbono_2020";
+  "projects/obscaatinga/assets/_teste_Estatistica_Otimizada_Carbono_2020";
+const ANA_STATISTICS_ASSET_TEMPLATE =
+  "projects/obscaatinga/assets/Estatisticas/Estatistica_Multinivel_MonitorANA_{year}";
 
-const STATISTICS_SOURCES: Record<string, GeeFeatureCollectionStatisticsSource> =
-  {
-    [GEE_STATISTICS_LAYER_IDS[0]]: {
-      kind: "gee-feature-collection",
+const STANDARD_PROPERTIES = {
+  level: "NIVEL_AGRUPAMENTO",
+  locationName: "NOME_LOCAL",
+  municipalityCode: "CD_MUN",
+  stateCode: "NM_UF",
+  year: "ano",
+  date: "data_img",
+  totalArea: "area_total_ha",
+} as const;
+
+const STATISTICS_SOURCES: Record<
+  GeeStatisticsLayerId,
+  GeeFeatureCollectionStatisticsSource
+> = {
+  carbonoembrapa: {
+    kind: "gee-feature-collection",
+    asset: {
+      type: "fixed",
       assetId:
         process.env.GEE_STATISTICS_CARBON_ASSET_ID?.trim() ||
         CARBON_STATISTICS_ASSET,
-      levelProperty: "NIVEL_AGRUPAMENTO",
-      locationNameProperty: "NOME_LOCAL",
-      municipalityCodeProperty: "CD_MUN",
-      stateCodeProperty: "NM_UF",
-      yearProperty: "ano",
-      dateProperty: "data_img",
-      classProperties: [
-        "perc_classe_1",
-        "perc_classe_2",
-        "perc_classe_3",
-        "perc_classe_4",
-        "perc_classe_5",
-        "perc_classe_6",
-      ],
-      metricProperties: [
-        "area_total_ha",
-        "area_ha_classe_1",
-        "area_ha_classe_2",
-        "area_ha_classe_3",
-        "area_ha_classe_4",
-        "area_ha_classe_5",
-        "area_ha_classe_6",
-        "media_Carbono",
-        "mediana_Carbono",
-        "moda_Carbono",
-        "min_Carbono",
-        "max_Carbono",
-      ],
     },
-  };
+    periodGranularity: "year",
+    properties: {
+      ...STANDARD_PROPERTIES,
+      scalarMetrics: {
+        mean: "media_Carbono",
+        median: "mediana_Carbono",
+        mode: "moda_Carbono",
+        min: "min_Carbono",
+        max: "max_Carbono",
+      },
+    },
+  },
+  anaseca: {
+    kind: "gee-feature-collection",
+    asset: {
+      type: "period-template",
+      assetIdTemplate:
+        process.env.GEE_STATISTICS_ANA_ASSET_TEMPLATE?.trim() ||
+        ANA_STATISTICS_ASSET_TEMPLATE,
+    },
+    periodGranularity: "month",
+    properties: STANDARD_PROPERTIES,
+  },
+};
 
 export function getGeeStatisticsSource(
   panelLayerId: string,
@@ -61,5 +63,7 @@ export function getGeeStatisticsSource(
     return null;
   }
 
-  return STATISTICS_SOURCES[panelLayerId] ?? null;
+  return isGeeStatisticsLayerId(panelLayerId)
+    ? STATISTICS_SOURCES[panelLayerId]
+    : null;
 }

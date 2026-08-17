@@ -1,8 +1,16 @@
 import "server-only";
 
 import ee from "@google/earthengine";
-import type { GeeFeatureCollectionStatisticsSource } from "@/config/geeStatistics";
 import { getGeeStatisticsSource } from "@/config/geeStatistics";
+import {
+  getGeeStatisticsRequestedProperties,
+  inferGeeStatisticsSchema,
+  resolveGeeStatisticsSource,
+} from "@/contracts/geeStatistics";
+import type {
+  GeeStatisticsSchema,
+  ResolvedGeeStatisticsSource,
+} from "@/contracts/geeStatistics";
 import { buildSpatialLocationKey } from "@/contracts/spatialLocationKey.mjs";
 import {
   evaluateGeeObject,
@@ -21,6 +29,7 @@ const SOURCE_LEVEL_BY_LOCATION_PREFIX: Record<string, string> = {
   "4_asd": "4_ASD",
   "5_semiarido": "5_Semiarido",
 };
+const PERCENTAGE_SUM_TOLERANCE = 0.2;
 
 interface EvaluatedFeature {
   properties?: Record<string, unknown>;
@@ -29,6 +38,8 @@ interface EvaluatedFeature {
 interface EvaluatedFeatureCollection {
   features?: EvaluatedFeature[];
 }
+
+const propertyNamesByAssetId = new Map<string, Promise<string[]>>();
 
 export interface GeeStatisticsMetrics {
   areaTotalHa?: number;
@@ -67,27 +78,27 @@ const stateCodeByName = new Map(
 );
 
 function getStateCode(
-  source: GeeFeatureCollectionStatisticsSource,
+  source: ResolvedGeeStatisticsSource,
   row: Record<string, unknown>,
 ): string | null {
   const rawStateCode = normalizeText(
-    row[source.stateCodeProperty],
+    row[source.properties.stateCode],
   ).toLowerCase();
 
   if (STATE_KEY_PATTERN.test(rawStateCode) && rawStateCode in statesObj) {
     return rawStateCode;
   }
 
-  const name = normalizeComparableText(row[source.locationNameProperty]);
+  const name = normalizeComparableText(row[source.properties.locationName]);
   return stateCodeByName.get(name) ?? null;
 }
 
 function getLocation(
-  source: GeeFeatureCollectionStatisticsSource,
+  source: ResolvedGeeStatisticsSource,
   row: Record<string, unknown>,
 ): { key: string; label: string } {
-  const level = normalizeText(row[source.levelProperty]);
-  const locationName = normalizeText(row[source.locationNameProperty]);
+  const level = normalizeText(row[source.properties.level]);
+  const locationName = normalizeText(row[source.properties.locationName]);
 
   if (level === "1_BR") {
     return { key: "br", label: "Brasil" };
@@ -110,7 +121,7 @@ function getLocation(
 
   if (level === "7_Municipio") {
     const municipalityCode = normalizeText(
-      row[source.municipalityCodeProperty],
+      row[source.properties.municipalityCode],
     );
 
     if (!MUNICIPALITY_KEY_PATTERN.test(municipalityCode)) {
@@ -151,21 +162,45 @@ function toOptionalFiniteNumber(value: unknown): number | undefined {
   return Number.isFinite(parsed) ? parsed : undefined;
 }
 
-function getMetrics(row: Record<string, unknown>): GeeStatisticsMetrics {
-  const classAreaHa = Array.from({ length: 6 }, (_, index) =>
-    toOptionalFiniteNumber(row[`area_ha_classe_${index + 1}`]),
+function getMetrics(
+  source: ResolvedGeeStatisticsSource,
+  schema: GeeStatisticsSchema,
+  row: Record<string, unknown>,
+): GeeStatisticsMetrics {
+  const classAreaHa = schema.classAreaProperties.map((property) =>
+    toOptionalFiniteNumber(row[property]),
   );
+  const scalarMetrics = source.properties.scalarMetrics;
+
+  if (
+    classAreaHa.some((value) => value !== undefined) &&
+    classAreaHa.some((value) => value === undefined)
+  ) {
+    throw new Error(
+      `Linha do asset estatístico ${source.assetId} possui áreas de classe incompletas.`,
+    );
+  }
 
   return {
-    areaTotalHa: toOptionalFiniteNumber(row.area_total_ha),
+    areaTotalHa: toOptionalFiniteNumber(row[source.properties.totalArea]),
     ...(classAreaHa.some((value) => value !== undefined)
-      ? { classAreaHa: classAreaHa.map((value) => value ?? 0) }
+      ? { classAreaHa: classAreaHa as number[] }
       : {}),
-    mean: toOptionalFiniteNumber(row.media_Carbono),
-    median: toOptionalFiniteNumber(row.mediana_Carbono),
-    mode: toOptionalFiniteNumber(row.moda_Carbono),
-    min: toOptionalFiniteNumber(row.min_Carbono),
-    max: toOptionalFiniteNumber(row.max_Carbono),
+    ...(scalarMetrics?.mean
+      ? { mean: toOptionalFiniteNumber(row[scalarMetrics.mean]) }
+      : {}),
+    ...(scalarMetrics?.median
+      ? { median: toOptionalFiniteNumber(row[scalarMetrics.median]) }
+      : {}),
+    ...(scalarMetrics?.mode
+      ? { mode: toOptionalFiniteNumber(row[scalarMetrics.mode]) }
+      : {}),
+    ...(scalarMetrics?.min
+      ? { min: toOptionalFiniteNumber(row[scalarMetrics.min]) }
+      : {}),
+    ...(scalarMetrics?.max
+      ? { max: toOptionalFiniteNumber(row[scalarMetrics.max]) }
+      : {}),
   };
 }
 
@@ -175,16 +210,41 @@ function shouldIncludeLocation(requestedLocationKey: string, rowKey: string) {
     : requestedLocationKey === rowKey;
 }
 
+function validatePercentageDistribution(
+  source: ResolvedGeeStatisticsSource,
+  locationKey: string,
+  yearKey: string,
+  values: number[],
+): boolean {
+  if (values.some((value) => value < 0 || value > 100)) {
+    throw new Error(
+      `Asset estatístico ${source.assetId} possui percentual fora do intervalo 0–100 em ${locationKey}/${yearKey}.`,
+    );
+  }
+
+  const isAllZero = values.every((value) => value === 0);
+  const sum = values.reduce((total, value) => total + value, 0);
+
+  if (!isAllZero && Math.abs(sum - 100) > PERCENTAGE_SUM_TOLERANCE) {
+    throw new Error(
+      `Asset estatístico ${source.assetId} possui percentuais que somam ${sum} em ${locationKey}/${yearKey}; esperado 100 ± ${PERCENTAGE_SUM_TOLERANCE}.`,
+    );
+  }
+
+  return !isAllZero;
+}
+
 export function mapGeeStatisticsRows(
-  source: GeeFeatureCollectionStatisticsSource,
+  source: ResolvedGeeStatisticsSource,
+  schema: GeeStatisticsSchema,
   yearKey: string,
   requestedLocationKey: string,
   rows: Record<string, unknown>[],
   classCount: number,
 ): GeeStatisticsYearResult {
-  if (source.classProperties.length !== classCount) {
+  if (schema.percentageProperties.length !== classCount) {
     throw new Error(
-      `Asset estatístico ${source.assetId} possui ${source.classProperties.length} classes, mas a camada possui ${classCount}.`,
+      `Asset estatístico ${source.assetId} possui ${schema.percentageProperties.length} classes, mas a camada possui ${classCount}.`,
     );
   }
 
@@ -208,13 +268,20 @@ export function mapGeeStatisticsRows(
     }
     seenLocationKeys.add(location.key);
     locations[location.key] = location.label;
-    metrics[location.key] = getMetrics(row);
+    metrics[location.key] = getMetrics(source, schema, row);
 
-    const locationValues = source.classProperties.map((property) =>
+    const locationValues = schema.percentageProperties.map((property) =>
       toFiniteNumber(row[property], `${location.key}/${yearKey}/${property}`),
     );
 
-    if (locationValues.every((value) => value === 0)) {
+    if (
+      !validatePercentageDistribution(
+        source,
+        location.key,
+        yearKey,
+        locationValues,
+      )
+    ) {
       omittedZeroValueLocationKeys.push(location.key);
       continue;
     }
@@ -245,35 +312,31 @@ function getAggregateLevel(locationKey: string): string | null {
 }
 
 function buildPeriodFilter(
-  source: GeeFeatureCollectionStatisticsSource,
+  source: ResolvedGeeStatisticsSource,
   yearKey: string,
 ) {
-  if (/^\d{4}-(?:0[1-9]|1[0-2])$/u.test(yearKey)) {
-    return ee.Filter.eq(source.dateProperty, `${yearKey}-01`);
+  if (source.periodGranularity === "month") {
+    return ee.Filter.eq(source.properties.date, `${yearKey}-01`);
   }
 
-  if (/^\d{4}$/u.test(yearKey)) {
-    return ee.Filter.eq(source.yearProperty, Number(yearKey));
-  }
-
-  throw new Error(`Período GEE inválido: ${yearKey}.`);
+  return ee.Filter.eq(source.properties.year, Number(yearKey));
 }
 
 function buildLocationFilter(
-  source: GeeFeatureCollectionStatisticsSource,
+  source: ResolvedGeeStatisticsSource,
   locationKey: string,
 ) {
   if (locationKey === "br") {
     return ee.Filter.or(
-      ee.Filter.eq(source.levelProperty, "1_BR"),
-      ee.Filter.eq(source.levelProperty, "6_Estado"),
+      ee.Filter.eq(source.properties.level, "1_BR"),
+      ee.Filter.eq(source.properties.level, "6_Estado"),
     );
   }
 
   if (MUNICIPALITY_KEY_PATTERN.test(locationKey)) {
     return ee.Filter.and(
-      ee.Filter.eq(source.levelProperty, "7_Municipio"),
-      ee.Filter.eq(source.municipalityCodeProperty, locationKey),
+      ee.Filter.eq(source.properties.level, "7_Municipio"),
+      ee.Filter.eq(source.properties.municipalityCode, locationKey),
     );
   }
 
@@ -281,38 +344,54 @@ function buildLocationFilter(
     // Some tables store the state name instead of its acronym in NM_UF. The
     // state slice has only 27 rows, so selecting the requested state after the
     // evaluation keeps the query small without coupling it to that convention.
-    return ee.Filter.eq(source.levelProperty, "6_Estado");
+    return ee.Filter.eq(source.properties.level, "6_Estado");
   }
 
   const aggregateLevel = getAggregateLevel(locationKey);
   if (aggregateLevel) {
-    return ee.Filter.eq(source.levelProperty, aggregateLevel);
+    return ee.Filter.eq(source.properties.level, aggregateLevel);
   }
 
   throw new Error(`Chave territorial GEE inválida: ${locationKey}.`);
 }
 
-function getRequestedProperties(source: GeeFeatureCollectionStatisticsSource) {
-  return [
-    source.levelProperty,
-    source.locationNameProperty,
-    source.municipalityCodeProperty,
-    source.stateCodeProperty,
-    source.yearProperty,
-    source.dateProperty,
-    ...source.classProperties,
-    ...source.metricProperties,
-  ];
+async function getGeeStatisticsSchema(
+  source: ResolvedGeeStatisticsSource,
+): Promise<GeeStatisticsSchema> {
+  let propertyNamesPromise = propertyNamesByAssetId.get(source.assetId);
+  if (!propertyNamesPromise) {
+    propertyNamesPromise = (async () => {
+      const collection = ee.FeatureCollection(source.assetId);
+      const propertyNames = await evaluateGeeObject<string[]>(
+        ee.Feature(collection.first()).propertyNames(),
+      );
+
+      if (!Array.isArray(propertyNames)) {
+        throw new Error(
+          `Não foi possível identificar o schema do asset estatístico ${source.assetId}.`,
+        );
+      }
+
+      return propertyNames;
+    })();
+    propertyNamesByAssetId.set(source.assetId, propertyNamesPromise);
+  }
+
+  try {
+    return inferGeeStatisticsSchema(source, await propertyNamesPromise);
+  } catch (error) {
+    propertyNamesByAssetId.delete(source.assetId);
+    throw error;
+  }
 }
 
 async function loadGeeStatisticsRows(
-  source: GeeFeatureCollectionStatisticsSource,
+  source: ResolvedGeeStatisticsSource,
+  schema: GeeStatisticsSchema,
   yearKey: string,
   locationKey: string,
 ): Promise<Record<string, unknown>[]> {
-  await initializeGee();
-
-  const properties = getRequestedProperties(source);
+  const properties = getGeeStatisticsRequestedProperties(source, schema);
   const collection = ee
     .FeatureCollection(source.assetId)
     .filter(buildPeriodFilter(source, yearKey))
@@ -344,6 +423,32 @@ export async function getGeeStatisticsYearPatch(
     return null;
   }
 
-  const rows = await loadGeeStatisticsRows(source, yearKey, locationKey);
-  return mapGeeStatisticsRows(source, yearKey, locationKey, rows, classCount);
+  const resolvedSource = resolveGeeStatisticsSource(source, yearKey);
+  await initializeGee();
+  const schema = await getGeeStatisticsSchema(resolvedSource);
+
+  if (schema.percentageProperties.length !== classCount) {
+    throw new Error(
+      `Asset estatístico ${resolvedSource.assetId} possui ${schema.percentageProperties.length} classes, mas a camada possui ${classCount}.`,
+    );
+  }
+
+  const rows = await loadGeeStatisticsRows(
+    resolvedSource,
+    schema,
+    yearKey,
+    locationKey,
+  );
+  return mapGeeStatisticsRows(
+    resolvedSource,
+    schema,
+    yearKey,
+    locationKey,
+    rows,
+    classCount,
+  );
+}
+
+export function clearGeeStatisticsSchemaCacheForTests(): void {
+  propertyNamesByAssetId.clear();
 }
