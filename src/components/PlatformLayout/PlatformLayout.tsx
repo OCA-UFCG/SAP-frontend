@@ -67,7 +67,10 @@ export function PlatformLayout({
             {props.telemetryDashboard}
           </div>
         ) : isCatalogView ? (
-          <div data-testid="platform-catalog-shell" className="w-full">
+          <div
+            data-testid="platform-catalog-shell"
+            className="min-h-[calc(100vh-64px)] w-full pl-[140px]"
+          >
             {props.catalogDashboard}
           </div>
         ) : isCommunicationView ? (

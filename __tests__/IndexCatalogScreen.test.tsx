@@ -70,7 +70,7 @@ describe("IndexCatalogScreen v2", () => {
     fireEvent.click(screen.getByRole("button", { name: "Salvar rascunho" }));
 
     expect(
-      await screen.findByText("Rascunho salvo. Nada foi publicado."),
+      await screen.findByText("Rascunho salvo no sistema. Nada foi publicado."),
     ).toBeInTheDocument();
     const request = fetchMock.mock.calls[1];
     expect(request[0]).toBe("/api/index-catalog");
@@ -81,6 +81,64 @@ describe("IndexCatalogScreen v2", () => {
     expect(body).not.toHaveProperty("selectedFiles");
     expect(body).not.toHaveProperty("sourceTag");
     expect(body).not.toHaveProperty("unit");
+  });
+
+  it("explains the three catalog actions in plain language", async () => {
+    render(<IndexCatalogScreen />);
+    await screen.findByText("Nenhum panelLayer encontrado.");
+    expect(
+      screen.queryByRole("button", { name: "Novo índice" }),
+    ).not.toBeInTheDocument();
+
+    expect(
+      screen.getByRole("button", {
+        name: "Salvar rascunho",
+        description:
+          "Guarda as informações preenchidas para você continuar depois. O índice ainda não aparece no Monitoramento.",
+      }),
+    ).toBeInTheDocument();
+    expect(
+      screen.getByRole("button", {
+        name: "Validar assets e gerar prévia",
+        description:
+          "Confere se os dados e mapas podem ser usados e mostra uma prévia privada. O índice ainda não aparece no Monitoramento.",
+      }),
+    ).toBeInTheDocument();
+    expect(
+      screen.getByRole("button", {
+        name: "Publicar",
+        description:
+          "Faz uma última conferência e disponibiliza o índice no Monitoramento. Os dados continuam guardados no Google Earth Engine.",
+      }),
+    ).toBeInTheDocument();
+  });
+
+  it("opens the guide with the real ANA example and omits period exceptions", async () => {
+    render(<IndexCatalogScreen />);
+    await screen.findByText("Nenhum panelLayer encontrado.");
+
+    fireEvent.change(screen.getByLabelText("Organização"), {
+      target: { value: "perPeriod" },
+    });
+    expect(
+      screen.queryByText("Exceções por período (opcional, uma por linha)"),
+    ).not.toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole("button", { name: "GUIA" }));
+    expect(
+      screen.getByRole("dialog", { name: "1. Identificação do índice" }),
+    ).toBeInTheDocument();
+    expect(
+      screen.getByText("TESTE — Monitor de Secas ANA 2025"),
+    ).toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole("button", { name: "Próxima etapa" }));
+    expect(
+      screen.getByText(
+        "projects/obscaatinga/assets/Estatisticas/Estatistica_Multinivel_MonitorANA_2025",
+      ),
+    ).toBeInTheDocument();
+    expect(screen.getByText("Única ou template?")).toBeInTheDocument();
   });
 
   it("infers class indexes from revalidation and shows the private preview", async () => {
@@ -130,9 +188,15 @@ describe("IndexCatalogScreen v2", () => {
     fillMinimumForm();
     fireEvent.click(
       screen.getByRole("button", {
-        name: "Revalidar assets e gerar prévia",
+        name: "Validar assets e gerar prévia",
       }),
     );
+
+    expect(
+      screen.getByRole("progressbar", {
+        name: "Progresso estimado da validação",
+      }),
+    ).toHaveAttribute("aria-valuenow", "5");
 
     expect(
       await screen.findByTestId("catalog-preview-probe"),

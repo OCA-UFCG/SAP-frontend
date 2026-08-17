@@ -1,7 +1,15 @@
 "use client";
 
-import { useCallback, useEffect, useRef, useState } from "react";
+import {
+  type ReactNode,
+  useCallback,
+  useEffect,
+  useId,
+  useRef,
+  useState,
+} from "react";
 import { CatalogMonitoringPreview } from "@/components/IndexCatalog/CatalogMonitoringPreview";
+import { IndexCatalogGuideModal } from "@/components/IndexCatalog/IndexCatalogGuideModal";
 import {
   INDEX_CATEGORIES,
   isIndexCatalogConfigV2,
@@ -46,6 +54,74 @@ interface ApiErrorBody {
   validation?: IndexCatalogPreview["validation"];
 }
 
+interface ValidationProgress {
+  message: string;
+  percent: number;
+}
+
+function advanceValidationProgress(current: ValidationProgress | null) {
+  if (!current || current.percent >= 94) return current;
+  const increment =
+    current.percent < 40
+      ? 5
+      : current.percent < 70
+        ? 3
+        : current.percent < 88
+          ? 2
+          : 1;
+  const percent = Math.min(94, current.percent + increment);
+  const message =
+    percent < 35
+      ? "Conectando ao Google Earth Engine…"
+      : percent < 65
+        ? "Lendo períodos, classes e colunas da tabela…"
+        : percent < 82
+          ? "Conferindo se os dados territoriais estão completos…"
+          : percent < 92
+            ? "Conferindo os mapas de cada período…"
+            : "Preparando a prévia para você conferir…";
+  return { message, percent };
+}
+
+interface CatalogActionButtonProps {
+  children: ReactNode;
+  className: string;
+  description: string;
+  disabled: boolean;
+  onClick: () => void;
+}
+
+function CatalogActionButton({
+  children,
+  className,
+  description,
+  disabled,
+  onClick,
+}: CatalogActionButtonProps) {
+  const descriptionId = useId();
+
+  return (
+    <span className="group relative inline-flex">
+      <button
+        type="button"
+        className={className}
+        disabled={disabled}
+        aria-describedby={descriptionId}
+        onClick={onClick}
+      >
+        {children}
+      </button>
+      <span
+        id={descriptionId}
+        role="tooltip"
+        className="pointer-events-none invisible absolute bottom-[calc(100%+0.5rem)] left-0 z-30 w-72 max-w-[calc(100vw-3rem)] rounded-md bg-stone-800 px-3 py-2 text-left text-xs font-normal leading-relaxed text-white opacity-0 shadow-lg transition-opacity group-hover:visible group-hover:opacity-100 group-focus-within:visible group-focus-within:opacity-100"
+      >
+        {description}
+      </span>
+    </span>
+  );
+}
+
 async function apiRequest<T>(path: string, options: RequestInit = {}) {
   const response = await fetch(path, {
     credentials: "same-origin",
@@ -69,24 +145,6 @@ function idempotencyKey(action: string, entryId: string) {
   return `${action}-${entryId}-${crypto.randomUUID()}`;
 }
 
-function parseAssetsByPeriod(value: string) {
-  return Object.fromEntries(
-    value.split(/\r?\n/u).flatMap((line) => {
-      const separator = line.indexOf("=");
-      if (separator < 1) return [];
-      const period = line.slice(0, separator).trim();
-      const assetId = line.slice(separator + 1).trim();
-      return period && assetId ? [[period, assetId]] : [];
-    }),
-  );
-}
-
-function serializeAssetsByPeriod(mapping?: Record<string, string>) {
-  return Object.entries(mapping ?? {})
-    .map(([period, assetId]) => `${period}=${assetId}`)
-    .join("\n");
-}
-
 function statusLabel(item: IndexCatalogItem) {
   if (!item.catalogManaged) return "Legado — somente leitura";
   if (item.published && item.hasUnpublishedChanges) {
@@ -102,7 +160,7 @@ export function IndexCatalogScreen() {
   const [items, setItems] = useState<IndexCatalogItem[]>([]);
   const [draft, setDraft] = useState<IndexCatalogDraftInput>(EMPTY_DRAFT);
   const [entryId, setEntryId] = useState<string | null>(null);
-  const [periodAssetsText, setPeriodAssetsText] = useState("");
+  const [guideOpen, setGuideOpen] = useState(false);
   const [preview, setPreview] = useState<IndexCatalogPreview | null>(null);
   const [deleteImpact, setDeleteImpact] =
     useState<IndexCatalogLifecycleImpact | null>(null);
@@ -110,8 +168,12 @@ export function IndexCatalogScreen() {
   const [message, setMessage] = useState("");
   const [error, setError] = useState("");
   const [busy, setBusy] = useState<string | null>("load");
+  const [validationProgress, setValidationProgress] =
+    useState<ValidationProgress | null>(null);
   const entryIdRef = useRef<string | null>(null);
   const createKeyRef = useRef<string | null>(null);
+  const validationRunRef = useRef(0);
+  const validationCompletionTimerRef = useRef<number | null>(null);
 
   const loadItems = useCallback(async () => {
     const result = await apiRequest<{ items: IndexCatalogItem[] }>(
@@ -138,6 +200,9 @@ export function IndexCatalogScreen() {
       });
     return () => {
       active = false;
+      if (validationCompletionTimerRef.current !== null) {
+        window.clearTimeout(validationCompletionTimerRef.current);
+      }
     };
   }, []);
 
@@ -146,7 +211,6 @@ export function IndexCatalogScreen() {
     setEntryId(null);
     entryIdRef.current = null;
     createKeyRef.current = null;
-    setPeriodAssetsText("");
     setPreview(null);
   }
 
@@ -159,14 +223,11 @@ export function IndexCatalogScreen() {
       category: config.category,
       statisticsSource: config.statisticsSource,
       classes: config.classes,
-      earthEngine: config.earthEngine,
+      earthEngine: { ...config.earthEngine, assetsByPeriod: undefined },
     });
     setEntryId(item.entryId);
     entryIdRef.current = item.entryId;
     createKeyRef.current = null;
-    setPeriodAssetsText(
-      serializeAssetsByPeriod(config.earthEngine.assetsByPeriod),
-    );
     setPreview(null);
     setMessage(`“${item.name}” aberto para edição.`);
   }
@@ -230,17 +291,16 @@ export function IndexCatalogScreen() {
   function normalizedDraft() {
     return {
       ...draft,
-      earthEngine: {
-        ...draft.earthEngine,
-        ...(draft.earthEngine.strategy === "perPeriod"
-          ? { assetsByPeriod: parseAssetsByPeriod(periodAssetsText) }
-          : {}),
-      },
+      earthEngine: { ...draft.earthEngine, assetsByPeriod: undefined },
     };
   }
 
-  async function saveDraft() {
-    setBusy("save");
+  async function saveDraft(options: { withinValidation?: boolean } = {}) {
+    const withinValidation = options.withinValidation === true;
+    if (!withinValidation) {
+      setBusy("save");
+      setValidationProgress(null);
+    }
     setError("");
     setMessage("");
     try {
@@ -264,7 +324,9 @@ export function IndexCatalogScreen() {
       entryIdRef.current = result.entryId;
       setEntryId(result.entryId);
       setDraft(input);
-      setMessage("Rascunho salvo. Nada foi publicado.");
+      if (!withinValidation) {
+        setMessage("Rascunho salvo no sistema. Nada foi publicado.");
+      }
       await loadItems();
       return result.entryId;
     } catch (reason) {
@@ -275,17 +337,36 @@ export function IndexCatalogScreen() {
       );
       return null;
     } finally {
-      setBusy(null);
+      if (!withinValidation) setBusy(null);
     }
   }
 
-  async function revalidateAndPreview() {
-    const savedEntryId = await saveDraft();
-    if (!savedEntryId) return;
+  async function validateAndPreview() {
+    const runId = ++validationRunRef.current;
+    if (validationCompletionTimerRef.current !== null) {
+      window.clearTimeout(validationCompletionTimerRef.current);
+      validationCompletionTimerRef.current = null;
+    }
     setBusy("preview");
-    setMessage(
-      "Validando FeatureCollections, períodos, classes, percentuais e assets de mapa…",
-    );
+    setError("");
+    setMessage("");
+    setValidationProgress({
+      percent: 5,
+      message: "Guardando o preenchimento como rascunho no sistema…",
+    });
+    const savedEntryId = await saveDraft({ withinValidation: true });
+    if (!savedEntryId) {
+      setValidationProgress(null);
+      setBusy(null);
+      return;
+    }
+    setValidationProgress({
+      percent: 20,
+      message: "Rascunho guardado. Conectando ao Google Earth Engine…",
+    });
+    const progressTimer = window.setInterval(() => {
+      setValidationProgress(advanceValidationProgress);
+    }, 2_500);
     try {
       const result = await apiRequest<IndexCatalogPreview>(
         `/api/index-catalog/drafts/${encodeURIComponent(savedEntryId)}/preview`,
@@ -309,8 +390,16 @@ export function IndexCatalogScreen() {
         })),
       }));
       setMessage(
-        "Assets revalidados. A prévia usa o GEE diretamente e continua privada.",
+        "Assets validados. A prévia usa o GEE diretamente e continua privada.",
       );
+      setValidationProgress({
+        percent: 100,
+        message: "Validação concluída. A prévia privada está pronta.",
+      });
+      validationCompletionTimerRef.current = window.setTimeout(() => {
+        if (validationRunRef.current === runId) setValidationProgress(null);
+        validationCompletionTimerRef.current = null;
+      }, 1_500);
       await loadItems();
     } catch (reason) {
       const validation = (reason as ApiErrorBody).validation;
@@ -322,8 +411,10 @@ export function IndexCatalogScreen() {
         ].join(" "),
       );
       setMessage("");
+      setValidationProgress(null);
       await loadItems().catch(() => undefined);
     } finally {
+      window.clearInterval(progressTimer);
       setBusy(null);
     }
   }
@@ -331,7 +422,7 @@ export function IndexCatalogScreen() {
   async function publishDraft() {
     if (!entryId || !preview) return;
     setBusy("publish");
-    setMessage("Revalidando os assets e publicando somente o panelLayer…");
+    setMessage("Fazendo a conferência final e publicando o índice…");
     try {
       await apiRequest(
         `/api/index-catalog/drafts/${encodeURIComponent(entryId)}/publish`,
@@ -445,10 +536,10 @@ export function IndexCatalogScreen() {
         </div>
         <button
           type="button"
-          className={`${buttonClass} bg-[#292829] text-white`}
-          onClick={resetEditor}
+          className={`${buttonClass} border border-[#989F43] bg-white text-[#62672D]`}
+          onClick={() => setGuideOpen(true)}
         >
-          Novo índice
+          GUIA
         </button>
       </header>
 
@@ -612,6 +703,11 @@ export function IndexCatalogScreen() {
                 <option value="fixed">FeatureCollection única</option>
                 <option value="period-template">Template por período</option>
               </select>
+              <span className="mt-1 block text-xs font-normal text-stone-500">
+                {draft.statisticsSource.asset.type === "fixed"
+                  ? "Uma única tabela reúne todos os períodos disponíveis."
+                  : "Várias tabelas seguem o mesmo padrão de endereço, como uma tabela para cada ano ou mês."}
+              </span>
             </label>
             <label className="text-sm font-medium">
               Granularidade
@@ -736,32 +832,17 @@ export function IndexCatalogScreen() {
                 />
               </label>
             ) : (
-              <>
-                <label className="text-sm font-medium md:col-span-2">
-                  Template do asset de mapa
-                  <input
-                    className={inputClass}
-                    placeholder="projects/projeto/assets/mapa_{period}"
-                    value={draft.earthEngine.assetPattern ?? ""}
-                    onChange={(event) =>
-                      updateMap({ assetPattern: event.target.value })
-                    }
-                  />
-                </label>
-                <label className="text-sm font-medium md:col-span-2">
-                  Exceções por período (opcional, uma por linha)
-                  <textarea
-                    className={inputClass}
-                    rows={3}
-                    placeholder="2025=projects/projeto/assets/mapa_2025"
-                    value={periodAssetsText}
-                    onChange={(event) => {
-                      setPeriodAssetsText(event.target.value);
-                      setPreview(null);
-                    }}
-                  />
-                </label>
-              </>
+              <label className="text-sm font-medium md:col-span-2">
+                Template do asset de mapa
+                <input
+                  className={inputClass}
+                  placeholder="projects/projeto/assets/mapa_{period}"
+                  value={draft.earthEngine.assetPattern ?? ""}
+                  onChange={(event) =>
+                    updateMap({ assetPattern: event.target.value })
+                  }
+                />
+              </label>
             )}
             {draft.earthEngine.sourceType === "featureCollection" ? (
               <label className="text-sm font-medium">
@@ -791,7 +872,7 @@ export function IndexCatalogScreen() {
           <legend className="px-2 font-bold">Classes</legend>
           {draft.classes.length === 0 ? (
             <p className="text-sm text-stone-500">
-              Clique em “Revalidar assets” para inferir os índices de
+              Clique em “Validar assets” para inferir os índices de
               perc_classe_XX e area_ha_classe_XX.
             </p>
           ) : (
@@ -842,31 +923,64 @@ export function IndexCatalogScreen() {
         </fieldset>
 
         <div className="mt-6 flex flex-wrap gap-3">
-          <button
-            type="button"
+          <CatalogActionButton
             className={`${buttonClass} border border-stone-300`}
             disabled={Boolean(busy)}
             onClick={() => void saveDraft()}
+            description="Guarda as informações preenchidas para você continuar depois. O índice ainda não aparece no Monitoramento."
           >
             Salvar rascunho
-          </button>
-          <button
-            type="button"
+          </CatalogActionButton>
+          <CatalogActionButton
             className={`${buttonClass} bg-[#E1E2B4]`}
             disabled={Boolean(busy)}
-            onClick={() => void revalidateAndPreview()}
+            onClick={() => void validateAndPreview()}
+            description="Confere se os dados e mapas podem ser usados e mostra uma prévia privada. O índice ainda não aparece no Monitoramento."
           >
-            Revalidar assets e gerar prévia
-          </button>
-          <button
-            type="button"
+            Validar assets e gerar prévia
+          </CatalogActionButton>
+          <CatalogActionButton
             className={`${buttonClass} bg-[#989F43] text-white`}
             disabled={Boolean(busy) || !preview}
             onClick={() => void publishDraft()}
+            description="Faz uma última conferência e disponibiliza o índice no Monitoramento. Os dados continuam guardados no Google Earth Engine."
           >
-            Publicar panelLayer
-          </button>
+            Publicar
+          </CatalogActionButton>
         </div>
+        {validationProgress && (
+          <div
+            className="mt-4 rounded-lg border border-[#D6D89A] bg-[#F4F5D8] p-4"
+            aria-live="polite"
+          >
+            <div className="flex items-center justify-between gap-3 text-sm font-semibold">
+              <span>Progresso estimado da validação</span>
+              <span>{validationProgress.percent}%</span>
+            </div>
+            <div
+              className="mt-2 h-2 overflow-hidden rounded-full bg-white"
+              role="progressbar"
+              aria-label="Progresso estimado da validação"
+              aria-valuemin={0}
+              aria-valuemax={100}
+              aria-valuenow={validationProgress.percent}
+            >
+              <div
+                className="h-full rounded-full bg-[#989F43] transition-[width] duration-500 ease-out"
+                style={{ width: `${validationProgress.percent}%` }}
+              />
+            </div>
+            <p className="mt-3 text-sm text-stone-700">
+              {validationProgress.message}
+            </p>
+            {validationProgress.percent < 100 && (
+              <p className="mt-1 text-xs text-stone-500">
+                Tabelas grandes podem levar alguns minutos. Você pode manter
+                esta tela aberta enquanto a conferência é feita.
+              </p>
+            )}
+          </div>
+        )}
       </section>
 
       {preview && (
@@ -923,6 +1037,9 @@ export function IndexCatalogScreen() {
             </div>
           </div>
         </div>
+      )}
+      {guideOpen && (
+        <IndexCatalogGuideModal onClose={() => setGuideOpen(false)} />
       )}
     </div>
   );

@@ -129,19 +129,27 @@ export function AnalysisContext({
   );
 
   const temporalMunicipalAnalysisRequestKeys = useMemo(() => {
-    if (!dataset?.id || !selectedMunicipalityCode) {
+    if (!dataset?.id || (!selectedMunicipalityCode && !usesGeeStatistics)) {
       return [];
     }
+
+    const temporalLocationKey = selectedMunicipalityCode ?? selectedLocationKey;
 
     return yearOptions.map((option) =>
       getMunicipalAnalysisRequestKey(
         dataset.id,
         option.value,
-        selectedMunicipalityCode,
+        temporalLocationKey,
         dataset.municipalAnalysisApiPath,
       ),
     );
-  }, [dataset, selectedMunicipalityCode, yearOptions]);
+  }, [
+    dataset,
+    selectedLocationKey,
+    selectedMunicipalityCode,
+    usesGeeStatistics,
+    yearOptions,
+  ]);
 
   useEffect(() => {
     if (!dataset?.id || !municipalAnalysisRequestKey) {
