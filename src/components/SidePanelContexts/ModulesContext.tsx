@@ -15,6 +15,7 @@ import type { PlatformSection } from "@/components/PlatformSideRail/PlatformSide
 import type { CDIVectorData } from "@/lib/geo";
 import { trackUiEvent } from "@/services/telemetry/client";
 import type { IEEInfo, PanelLayerI } from "@/utils/interfaces";
+import type { SpatialSelection } from "@/utils/spatialScope";
 import { getImageDataLegend } from "@/utils/imageData";
 import cdiData from "../../data/CDI_Janeiro_2024_Vetores.json";
 
