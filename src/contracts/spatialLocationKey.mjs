@@ -8,6 +8,7 @@ const SPATIAL_GROUP_LEVELS = new Set([
   "3_Bioma",
   "4_ASD",
   "5_Semiarido",
+  "6_Estado",
 ]);
 
 export function slugifySpatialLocationName(value) {
