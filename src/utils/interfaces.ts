@@ -3,6 +3,7 @@ import type {
   CompactTerritorialAnalysisDataset,
   LayerAnalysisConfig,
 } from "@/utils/analysis";
+import type { PublishedGeeStatisticsSource } from "@/contracts/geeStatistics";
 
 export interface DataCardsI {
   noDroughtAreaValue: number;
@@ -214,8 +215,7 @@ export interface LegacyImageDataEntry {
 export type LegacyImageDataMap = Record<string, LegacyImageDataEntry>;
 
 export type ImageDataConfig =
-  | LegacyImageDataMap
-  | CompactTerritorialAnalysisDataset;
+  LegacyImageDataMap | CompactTerritorialAnalysisDataset;
 
 export interface MunicipalReportSeriesConfig {
   schemaVersion: 1;
@@ -234,18 +234,21 @@ export interface PanelLayerI {
   id: string;
   description: string;
   panelPosition?: number | null;
-  previewMap: {
+  previewMap?: {
     url: string;
     title?: string;
     width?: number;
     height?: number;
-  };
+  } | null;
   imageData: ImageDataConfig;
   minScale?: number;
   maxScale?: number;
   category?: string;
   timeScale?: string;
   reportSeriesConfig?: MunicipalReportSeriesConfig | null;
+  statisticsSource?: PublishedGeeStatisticsSource | null;
+  tileApiPath?: string;
+  municipalAnalysisApiPath?: string;
 }
 
 export interface IEEInfo {
@@ -260,6 +263,9 @@ export interface IEEInfo {
   maxScale?: number;
   imageData: ImageDataConfig;
   type: string;
+  tileApiPath?: string;
+  municipalAnalysisApiPath?: string;
+  statisticsSource?: PublishedGeeStatisticsSource | null;
 }
 
 export interface IMapId {

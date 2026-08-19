@@ -4,6 +4,7 @@ import { notFound, redirect } from "next/navigation";
 import { PlatformLayout } from "@/components/PlatformLayout/PlatformLayout";
 import { TelemetryDashboardLoading } from "@/components/TelemetryDashboard/TelemetryDashboardLoading";
 import { TelemetryDashboardServer } from "@/components/TelemetryDashboard/TelemetryDashboardServer";
+import { IndexCatalogScreen } from "@/components/IndexCatalog/IndexCatalogScreen";
 import type { PlatformSidebarInitialSection } from "@/components/PlatformSidebar/PlatformSidebar";
 import { resolveLogsViewerAccess } from "@/lib/logs-access";
 import { SESSION_COOKIE_NAME } from "@/lib/server-session";
@@ -22,7 +23,10 @@ function getSingleSearchParamValue(value?: string | string[]) {
 }
 
 function normalizePlatformView(value?: string | string[]) {
-  return getSingleSearchParamValue(value) === "logs" ? "logs" : "default";
+  const normalized = getSingleSearchParamValue(value);
+  return normalized === "logs" || normalized === "catalog"
+    ? normalized
+    : "default";
 }
 
 function normalizePlatformSection(
@@ -51,11 +55,11 @@ export default async function PlatformPage({
   const sessionCookie =
     (await cookies()).get(SESSION_COOKIE_NAME)?.value ?? null;
 
-  if (viewMode === "logs" && !sessionCookie) {
+  if ((viewMode === "logs" || viewMode === "catalog") && !sessionCookie) {
     redirect("/login");
   }
 
-  if (viewMode === "logs") {
+  if (viewMode === "logs" || viewMode === "catalog") {
     const logsViewerAccess = await resolveLogsViewerAccess(sessionCookie);
 
     if (logsViewerAccess === "unauthenticated") {
@@ -64,6 +68,17 @@ export default async function PlatformPage({
 
     if (logsViewerAccess === "forbidden") {
       notFound();
+    }
+
+    if (viewMode === "catalog") {
+      return (
+        <PlatformLayout
+          showAuditLink
+          viewMode="catalog"
+          initialSection={initialSection}
+          catalogDashboard={<IndexCatalogScreen />}
+        />
+      );
     }
 
     return (

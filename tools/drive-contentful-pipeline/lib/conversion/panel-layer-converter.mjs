@@ -56,10 +56,13 @@ function getPanelLayerImageId(panelLayerId, panelLayerConfig, yearKey, row) {
   const fallbackImageId = isMultilevelTerritoryRow(row)
     ? inferredImageId || inferredAnaImageId || configuredImageId
     : configuredImageId || inferredImageId || inferredAnaImageId;
-  const imageId =
-    String(row.image_id ?? row.imageId ?? row.IMAGE_ID ?? "").trim() ||
-    fallbackImageId ||
-    panelLayerConfig.imageId;
+  const csvImageId = String(
+    row.image_id ?? row.imageId ?? row.IMAGE_ID ?? "",
+  ).trim();
+  const configuredFallback = fallbackImageId || panelLayerConfig.imageId;
+  const imageId = panelLayerConfig.overrideCsvImageId
+    ? configuredFallback || csvImageId
+    : csvImageId || configuredFallback;
 
   if (!imageId) {
     throw new Error(

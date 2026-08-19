@@ -55,6 +55,28 @@ describe("PlatformSideRail", () => {
       "href",
       "/platform?view=logs",
     );
+    expect(
+      screen.getByRole("link", { name: "Catálogo de índices" }),
+    ).toHaveAttribute("href", "/platform?view=catalog");
+  });
+
+  it("marks only the catalog entry as active in the catalog view", () => {
+    render(
+      <PlatformSideRail
+        activeSection="catalog"
+        onSectionChange={vi.fn()}
+        isPanelOpen={false}
+        onTogglePanel={vi.fn()}
+        showAuditLink
+      />,
+    );
+
+    expect(
+      screen.getByRole("link", { name: "Catálogo de índices" }),
+    ).toHaveAttribute("aria-current", "page");
+    expect(
+      screen.getByRole("link", { name: "Auditoria" }),
+    ).not.toHaveAttribute("aria-current");
   });
 
   it("marks the audit entry as active when the logs view is open", () => {

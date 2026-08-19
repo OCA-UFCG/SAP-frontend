@@ -54,9 +54,7 @@ const model: TerritorialAnalysisViewModel = {
 };
 
 describe("AnalysisPanel", () => {
-  it("hides spatial selectors when the feature flag is disabled", () => {
-    vi.stubEnv("NEXT_PUBLIC_ENABLE_SPATIAL_SCOPE", "false");
-
+  it("shows an accessible spinner beside the on-demand loading message", () => {
     render(
       <AnalysisPanel
         moduleName="Teste"
@@ -71,6 +69,35 @@ describe("AnalysisPanel", () => {
           activeLayerName: "Test",
           activeDateLabel: "2024",
         }}
+        onYearChange={vi.fn()}
+        model={null}
+        emptyStateTitle="Carregando dados"
+        emptyStateDescription="Os dados municipais desta camada estão sendo carregados sob demanda."
+        emptyStateLoading
+      />,
+    );
+
+    const status = screen.getByRole("status");
+    expect(status).toHaveAttribute("aria-busy", "true");
+    expect(status).toHaveTextContent(
+      "Os dados municipais desta camada estão sendo carregados sob demanda.",
+    );
+    expect(status.querySelector(".animate-spin")).toBeInTheDocument();
+  });
+
+  it("hides spatial selectors when the feature flag is disabled", () => {
+    vi.stubEnv("NEXT_PUBLIC_ENABLE_SPATIAL_SCOPE", "false");
+
+    render(
+      <AnalysisPanel
+        moduleName="Teste"
+        yearOptions={[{ value: "2024", label: "2024" }]}
+        activeYear="2024"
+        spatialSelection={{ spatialArea: "national", spatialValue: "brasil" }}
+        onSpatialSelectionChange={vi.fn()}
+        onBack={vi.fn()}
+        onSearch={vi.fn()}
+        searchTelemetryContext={{ activeLayerId: "test", activeLayerName: "Test", activeDateLabel: "2024" }}
         onYearChange={vi.fn()}
         model={model}
       />,
@@ -95,11 +122,7 @@ describe("AnalysisPanel", () => {
         onSpatialSelectionChange={onSpatialSelectionChange}
         onBack={vi.fn()}
         onSearch={vi.fn()}
-        searchTelemetryContext={{
-          activeLayerId: "test",
-          activeLayerName: "Test",
-          activeDateLabel: "2024",
-        }}
+        searchTelemetryContext={{ activeLayerId: "test", activeLayerName: "Test", activeDateLabel: "2024" }}
         onYearChange={vi.fn()}
         model={model}
       />,
@@ -162,7 +185,11 @@ describe("AnalysisPanel", () => {
         onSpatialSelectionChange={vi.fn()}
         onBack={onBack}
         onSearch={onSearch}
-        searchTelemetryContext={{ activeLayerId: "test", activeLayerName: "Test", activeDateLabel: "2024" }}
+        searchTelemetryContext={{
+          activeLayerId: "test",
+          activeLayerName: "Test",
+          activeDateLabel: "2024",
+        }}
         onYearChange={onYearChange}
         onRankingItemSelect={onRankingItemSelect}
         model={model}

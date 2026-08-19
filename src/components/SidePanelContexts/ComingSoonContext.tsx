@@ -25,6 +25,7 @@ export function ComingSoonContext({ activeSection }: ComingSoonContextProps) {
     "analysis-detail": tRail("analysis"),
     communication: tRail("communication"),
     logs: tRail("logs"),
+    catalog: tRail("catalog"),
   };
 
   return (

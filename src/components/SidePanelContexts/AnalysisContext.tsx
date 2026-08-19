@@ -27,6 +27,7 @@ import { trackUiEvent } from "@/services/telemetry/client";
 import municipalAvailabilityIndex from "@/data/municipalAvailabilityIndex.json";
 import {
   hasMunicipalLayerPeriod,
+  isMunicipalLayerIndexed,
   type MunicipalAvailabilityIndex,
 } from "@/utils/municipalAvailability";
 import type { PlatformSection } from "@/components/PlatformSideRail/PlatformSideRail";
@@ -37,19 +38,31 @@ import {
   mergeMultiplePartialMunicipalImageData,
   mergePartialMunicipalImageData,
 } from "@/utils/municipalAnalysisMerge";
+import { isGeeStatisticsLayerId } from "@/config/geeStatisticsLayers";
 
 interface MunicipalAnalysisApiResponse {
   imageData?: PanelLayerI["imageData"] | null;
 }
 
-function getMunicipalAnalysisRequestKey(layerId: string, yearKey: string) {
-  return `${layerId}::${yearKey}`;
+function getMunicipalAnalysisRequestKey(
+  layerId: string,
+  yearKey: string,
+  locationKey: string,
+  apiPath?: string,
+) {
+  return `${apiPath ?? "public"}::${layerId}::${yearKey}::${locationKey}`;
 }
 
 function getMunicipalAnalysisRequestYear(
   requestKey: string,
 ): string | undefined {
-  return requestKey.split("::").at(1);
+  return requestKey.split("::").at(-2);
+}
+
+function getMunicipalAnalysisRequestLocation(
+  requestKey: string,
+): string | undefined {
+  return requestKey.split("::").at(-1);
 }
 
 function getMunicipalSeriesRequestKey(
@@ -108,9 +121,25 @@ export function AnalysisContext({
   const activeAnalysisYear =
     effectiveYear ?? yearOptions[0]?.value ?? "general";
 
+  const spatialScopeLocationKey = getSpatialScopeLocationKey(spatialSelection);
+  const selectedLocationKey =
+    selectedMunicipalityCode ??
+    (selectedState !== "br" ? selectedState : null) ??
+    spatialScopeLocationKey ??
+    "br";
+
   const municipalAnalysisRequestKey = dataset?.id
-    ? getMunicipalAnalysisRequestKey(dataset.id, activeAnalysisYear)
+    ? getMunicipalAnalysisRequestKey(
+        dataset.id,
+        activeAnalysisYear,
+        selectedLocationKey,
+        dataset.municipalAnalysisApiPath,
+      )
     : null;
+  const usesGeeStatistics = Boolean(
+    dataset?.statisticsSource ||
+    (dataset?.id && isGeeStatisticsLayerId(dataset.id)),
+  );
   const municipalSeriesRequestKey =
     dataset?.id &&
     dataset.reportSeriesConfig?.datasetVersion &&
@@ -122,83 +151,134 @@ export function AnalysisContext({
         )
       : null;
 
+  const temporalMunicipalAnalysisRequestKeys = useMemo(() => {
+    if (!dataset?.id || !usesGeeStatistics) {
+      return [];
+    }
+
+    const temporalLocationKey = selectedMunicipalityCode ?? selectedLocationKey;
+
+    return yearOptions.map((option) =>
+      getMunicipalAnalysisRequestKey(
+        dataset.id,
+        option.value,
+        temporalLocationKey,
+        dataset.municipalAnalysisApiPath,
+      ),
+    );
+  }, [
+    dataset,
+    selectedLocationKey,
+    selectedMunicipalityCode,
+    usesGeeStatistics,
+    yearOptions,
+  ]);
+
   useEffect(() => {
     if (
       !dataset?.id ||
       !municipalAnalysisRequestKey ||
-      !selectedMunicipalityCode ||
-      analysisImageDataByRequestKey[municipalAnalysisRequestKey] !== undefined
+      (!selectedMunicipalityCode && !usesGeeStatistics)
     ) {
       return;
     }
 
-    const yearKey = getMunicipalAnalysisRequestYear(
-      municipalAnalysisRequestKey,
-    );
     const availabilityIndex =
       municipalAvailabilityIndex as MunicipalAvailabilityIndex;
+    const requestKeys = [
+      municipalAnalysisRequestKey,
+      ...temporalMunicipalAnalysisRequestKeys,
+    ].filter((requestKey, index, allRequestKeys) => {
+      const yearKey = getMunicipalAnalysisRequestYear(requestKey);
 
-    if (
-      !yearKey ||
-      !hasMunicipalLayerPeriod(
-        availabilityIndex,
-        selectedMunicipalityCode,
-        dataset.id,
-        yearKey,
-      )
-    ) {
+      return (
+        allRequestKeys.indexOf(requestKey) === index &&
+        analysisImageDataByRequestKey[requestKey] === undefined &&
+        (!selectedMunicipalityCode ||
+          usesGeeStatistics ||
+          !yearKey ||
+          !isMunicipalLayerIndexed(availabilityIndex, dataset.id) ||
+          hasMunicipalLayerPeriod(
+            availabilityIndex,
+            selectedMunicipalityCode,
+            dataset.id,
+            yearKey,
+          ))
+      );
+    });
+
+    if (requestKeys.length === 0) {
       return;
     }
 
-    const controller = new AbortController();
+    const controllers = requestKeys.map(() => new AbortController());
 
-    const requestUrl = new URL(
-      `/api/municipal-analysis/${encodeURIComponent(dataset.id)}`,
-      window.location.origin,
-    );
-    requestUrl.searchParams.set("year", yearKey);
+    requestKeys.forEach((requestKey, index) => {
+      const yearKey = getMunicipalAnalysisRequestYear(requestKey);
+      const locationKey = getMunicipalAnalysisRequestLocation(requestKey);
+      const controller = controllers[index];
 
-    const fetchActivePeriod = async () => {
-      let imageData: PanelLayerI["imageData"] | null = null;
-
-      try {
-        const response = await fetch(requestUrl.toString(), {
-          credentials: "same-origin",
-          signal: controller.signal,
-        });
-
-        if (!response.ok) {
-          throw new Error(
-            `Municipal analysis request failed with status ${response.status}`,
-          );
-        }
-
-        const data = (await response.json()) as MunicipalAnalysisApiResponse;
-        imageData = data.imageData ?? null;
-      } catch (error) {
-        if (controller.signal.aborted) {
-          return;
-        }
-
-        console.warn("Falha ao carregar municipalAnalysis sob demanda.", error);
+      if (!yearKey || !locationKey || !controller) {
+        return;
       }
 
-      setAnalysisImageDataByRequestKey((current) => ({
-        ...current,
-        [municipalAnalysisRequestKey]: imageData,
-      }));
-    };
+      const municipalApiPath =
+        dataset.municipalAnalysisApiPath ??
+        `/api/municipal-analysis/${encodeURIComponent(dataset.id)}`;
+      const requestUrl = new URL(municipalApiPath, window.location.origin);
+      requestUrl.searchParams.set("year", yearKey);
+      if (usesGeeStatistics || dataset.municipalAnalysisApiPath) {
+        requestUrl.searchParams.set("locationKey", locationKey);
+      }
 
-    void fetchActivePeriod();
+      fetch(requestUrl.toString(), {
+        credentials: "same-origin",
+        signal: controller.signal,
+      })
+        .then(async (response) => {
+          if (!response.ok) {
+            throw new Error(
+              `Municipal analysis request failed with status ${response.status}`,
+            );
+          }
+
+          return (await response.json()) as MunicipalAnalysisApiResponse;
+        })
+        .then((data) => {
+          setAnalysisImageDataByRequestKey((current) => ({
+            ...current,
+            [requestKey]: data.imageData ?? null,
+          }));
+        })
+        .catch((error) => {
+          if (controller.signal.aborted) {
+            return;
+          }
+
+          console.warn(
+            "Falha ao carregar municipalAnalysis sob demanda.",
+            error,
+          );
+          setAnalysisImageDataByRequestKey((current) => ({
+            ...current,
+            [requestKey]: null,
+          }));
+        });
+    });
 
     return () => {
-      controller.abort();
+      controllers.forEach((controller) => {
+        controller.abort();
+      });
     };
   }, [
     analysisImageDataByRequestKey,
     dataset?.id,
+    dataset?.municipalAnalysisApiPath,
     municipalAnalysisRequestKey,
     selectedMunicipalityCode,
+    temporalMunicipalAnalysisRequestKeys,
+    usesGeeStatistics,
   ]);
 
   useEffect(() => {
@@ -236,10 +316,7 @@ export function AnalysisContext({
         const data = (await response.json()) as MunicipalAnalysisApiResponse;
         imageData = data.imageData ?? null;
       } catch (error) {
-        if (controller.signal.aborted) {
-          return;
-        }
-
+        if (controller.signal.aborted) return;
         console.warn("Falha ao carregar série municipal sob demanda.", error);
       }
 
@@ -251,9 +328,7 @@ export function AnalysisContext({
 
     void fetchMunicipalSeries();
 
-    return () => {
-      controller.abort();
-    };
+    return () => controller.abort();
   }, [
     dataset?.id,
     municipalSeriesRequestKey,
@@ -292,9 +367,7 @@ export function AnalysisContext({
       const seriesImageData =
         seriesImageDataByRequestKey[municipalSeriesRequestKey];
 
-      if (!seriesImageData) {
-        return enrichedDataset;
-      }
+      if (!seriesImageData) return enrichedDataset;
 
       return {
         ...dataset,
@@ -305,16 +378,22 @@ export function AnalysisContext({
       };
     }
 
-    const availablePatches = yearOptions
-      .map(
-        (option) =>
-          analysisImageDataByRequestKey[
-            getMunicipalAnalysisRequestKey(dataset.id, option.value)
-          ],
-      )
-      .filter((patch) => patch !== undefined);
+    const requestKeys =
+      temporalMunicipalAnalysisRequestKeys.length > 0
+        ? temporalMunicipalAnalysisRequestKeys
+        : yearOptions.map((option) =>
+            getMunicipalAnalysisRequestKey(
+              dataset.id,
+              option.value,
+              selectedLocationKey,
+              dataset.municipalAnalysisApiPath,
+            ),
+          );
+    const availablePatches = requestKeys.map(
+      (requestKey) => analysisImageDataByRequestKey[requestKey],
+    );
 
-    if (availablePatches.length === 0) {
+    if (availablePatches.every((patch) => patch === undefined)) {
       return enrichedDataset;
     }
 
@@ -330,7 +409,9 @@ export function AnalysisContext({
     dataset,
     enrichedDataset,
     municipalSeriesRequestKey,
+    selectedLocationKey,
     seriesImageDataByRequestKey,
+    temporalMunicipalAnalysisRequestKeys,
     yearOptions,
   ]);
 
@@ -395,13 +476,6 @@ export function AnalysisContext({
     });
   };
 
-  const spatialScopeLocationKey = getSpatialScopeLocationKey(spatialSelection);
-  const selectedLocationKey =
-    selectedMunicipalityCode ??
-    (selectedState !== "br" ? selectedState : null) ??
-    spatialScopeLocationKey ??
-    "br";
-
   const embeddedModel = useMemo(
     () =>
       buildEmbeddedTerritorialAnalysisViewModel(
@@ -460,6 +534,11 @@ export function AnalysisContext({
   const activeMunicipalAnalysisKnownUnavailable = Boolean(
     selectedMunicipalityCode &&
     dataset?.id &&
+    !usesGeeStatistics &&
+    isMunicipalLayerIndexed(
+      municipalAvailabilityIndex as MunicipalAvailabilityIndex,
+      dataset.id,
+    ) &&
     !hasMunicipalLayerPeriod(
       municipalAvailabilityIndex as MunicipalAvailabilityIndex,
       selectedMunicipalityCode,
@@ -468,7 +547,6 @@ export function AnalysisContext({
     ),
   );
   const isMunicipalAnalysisLoading = Boolean(
-    selectedMunicipalityCode &&
     municipalAnalysisRequestKey &&
     !activeMunicipalAnalysisKnownUnavailable &&
     analysisImageDataByRequestKey[municipalAnalysisRequestKey] === undefined,
@@ -511,6 +589,7 @@ export function AnalysisContext({
           ? t("unavailableDescriptionLoading")
           : t("unavailableDescription", { location: unavailableLocationName })
       }
+      emptyStateLoading={isMunicipalAnalysisLoading}
     />
   );
 }

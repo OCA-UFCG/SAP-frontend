@@ -4,6 +4,7 @@ import {
   getAvailableReportLayers,
   getResolvableReportLayers,
   hasMunicipalLayerPeriod,
+  isMunicipalLayerIndexed,
   resolveMunicipalLayerPeriod,
   resolveNearestReportPeriod,
   type MunicipalAvailabilityIndex,
@@ -72,5 +73,10 @@ describe("municipal availability helpers", () => {
     expect(getAvailablePeriods(index)).toEqual(["2025", "2024", "2023"]);
     expect(getAvailablePeriods(index, "5200050")).toEqual(["2024"]);
     expect(getAvailablePeriods(index, "5200100")).toEqual(["2025", "2023"]);
+  });
+
+  it("distinguishes known legacy layers from catalog layers loaded on demand", () => {
+    expect(isMunicipalLayerIndexed(index, "seca")).toBe(true);
+    expect(isMunicipalLayerIndexed(index, "catalogo-novo")).toBe(false);
   });
 });

@@ -186,6 +186,40 @@ describe("municipalAnalysisCache", () => {
     );
   });
 
+  it("keeps separate cache entries per requested location", async () => {
+    mockedGetPanelLayerWithMunicipalAnalysisYear.mockImplementation(
+      async (id, year, locationKey) =>
+        buildLayer(`${id}-${year}-${locationKey}`),
+    );
+
+    await getCachedMunicipalAnalysisImageData(
+      "carbonoembrapa",
+      "2020-01",
+      "br",
+    );
+    await getCachedMunicipalAnalysisImageData(
+      "carbonoembrapa",
+      "2020-01",
+      "2507507",
+    );
+    const cachedBrazil = await getCachedMunicipalAnalysisImageData(
+      "carbonoembrapa",
+      "2020-01",
+      "br",
+    );
+
+    expect(cachedBrazil.status).toBe("hit");
+    expect(mockedGetPanelLayerWithMunicipalAnalysisYear).toHaveBeenCalledTimes(
+      2,
+    );
+    expect(
+      mockedGetPanelLayerWithMunicipalAnalysisYear,
+    ).toHaveBeenNthCalledWith(1, "carbonoembrapa", "2020-01", "br");
+    expect(
+      mockedGetPanelLayerWithMunicipalAnalysisYear,
+    ).toHaveBeenNthCalledWith(2, "carbonoembrapa", "2020-01", "2507507");
+  });
+
   it("evicts the least recently used entry when the cache reaches its limit", async () => {
     vi.useFakeTimers();
     vi.setSystemTime(0);

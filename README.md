@@ -26,13 +26,17 @@ nvm use --lts
 
 ## Environment Setup
 
-Use `env.sample.txt` as the starting point for local Contentful variables.
+Use `env.sample.txt` as the starting point for local runtime variables.
 
 ```bash
 cp env.sample.txt .env.local
 ```
 
-For map features backed by Google Earth Engine and for server-side telemetry ingestion, Firebase Admin credentials must also be configured in the runtime environment. Do not commit secrets to the repository.
+For map and statistics features backed by Google Earth Engine, configure the
+server-only `GEE_PRIVATE_KEY` service-account JSON. `GEE_PROJECT_ID` is only
+required when that JSON does not contain the intended consumer `project_id`.
+Firebase Admin credentials are separately required for server-side telemetry
+ingestion. Do not commit secrets to the repository.
 
 ## Getting Started
 
@@ -139,6 +143,17 @@ The municipality chart loads its complete history separately through
 reads one `municipalReportSeries` shard and returns only the selected
 municipality, so the period request remains small and independent from the
 temporal series.
+
+Static GEE migration layers and catalog v2 layers add
+`locationKey=<territory>` to the period endpoint so the server reads only the
+requested Brazil, state, municipality, region, biome, ASD, or semiarid row from
+the FeatureCollection. Their complete temporal chart is assembled from these
+narrow period responses; they do not create `municipalReportSeries`. Carbon and
+ANA retain a temporary Contentful fallback. Dynamic catalog sources use stale
+cache on a GEE refresh failure and otherwise report unavailability; they never
+duplicate statistics in Contentful. GEE results are cached per layer, period,
+and territory for 10 minutes by default. Requests without `locationKey` remain
+supported for legacy Contentful partitions.
 Set `MUNICIPAL_ANALYSIS_CACHE_TTL_SECONDS` or
 `MUNICIPAL_ANALYSIS_CACHE_MAX_ENTRIES` to tune that behavior.
 The endpoint is protected server-side and returns private HTTP cache headers;
@@ -208,6 +223,7 @@ The repository includes a dedicated set of agent-oriented context files under `d
 - `docs/architecture.md`: architecture, runtime boundaries, and the main platform flow.
 - `docs/contentful-schema.md`: Contentful schema assumptions, risks, and change protocol.
 - `docs/gee-layers.md`: Earth Engine layer pipeline, visualization rules, cache behavior, and warmup behavior.
+- `docs/gee-statistics.md`: on-demand GEE FeatureCollection statistics, source registry, fallback, and rollout.
 - `docs/analysis-contract.md`: territorial analysis contract, semantic rules, and legacy compatibility.
 - `docs/image-data-contract.md`: executable `panelLayer.imageData` contract, including `territorial-compact` v1, municipal patches, compressed envelopes, and legacy read compatibility.
 - `docs/performance-notes.md`: known hotspots, guardrails, and regression signals.
@@ -229,6 +245,9 @@ These files are living documents. If a prompt or code change affects architectur
 - `/api/logs` remains the canonical append-only ingestion endpoint for log events.
 - The repository contains both application tests and Storybook coverage; prefer the narrowest relevant test command for the slice you change.
 - CI/CD blocks merges and releases on `npm run ci:verify`; broader Storybook/browser coverage remains a separate, non-blocking path.
+- O catálogo administrativo de índices está documentado em
+  `docs/index-catalog.md`. Ele usa a allowlist de Auditoria e credenciais
+  server-side de Contentful Management e Google Drive.
 
 ## Telemetry Validation
 

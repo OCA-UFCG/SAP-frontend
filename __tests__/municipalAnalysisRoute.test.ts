@@ -22,15 +22,21 @@ vi.mock("@/repositories/platform/municipalAnalysisCache", () => ({
 
 import { GET } from "@/app/api/municipal-analysis/[panelLayerId]/route";
 
-const callMunicipalAnalysisRoute = (panelLayerId: string, yearKey?: string) =>
-  GET(
-    new Request(
-      `https://example.test/api/municipal-analysis/${panelLayerId}${yearKey ? `?year=${yearKey}` : ""}`,
-    ),
-    {
-      params: Promise.resolve({ panelLayerId }),
-    },
+const callMunicipalAnalysisRoute = (
+  panelLayerId: string,
+  yearKey?: string,
+  locationKey?: string,
+) => {
+  const url = new URL(
+    `https://example.test/api/municipal-analysis/${panelLayerId}`,
   );
+  if (yearKey) url.searchParams.set("year", yearKey);
+  if (locationKey) url.searchParams.set("locationKey", locationKey);
+
+  return GET(new Request(url), {
+    params: Promise.resolve({ panelLayerId }),
+  });
+};
 
 describe("municipal analysis route", () => {
   beforeEach(() => {
@@ -93,6 +99,27 @@ describe("municipal analysis route", () => {
     );
   });
 
+  it("loads a location-specific GEE statistics slice", async () => {
+    getCachedMunicipalAnalysisImageDataMock.mockResolvedValue({
+      found: true,
+      imageData: { type: "territorial-compact" },
+      status: "miss",
+    });
+
+    const response = await callMunicipalAnalysisRoute(
+      "carbonoembrapa",
+      "2020-01",
+      "2507507",
+    );
+
+    expect(response.status).toBe(200);
+    expect(getCachedMunicipalAnalysisImageDataMock).toHaveBeenCalledWith(
+      "carbonoembrapa",
+      "2020-01",
+      "2507507",
+    );
+  });
+
   it("rejects invalid panel layer ids before cache access", async () => {
     const response = await callMunicipalAnalysisRoute("../secret", "2026");
 
@@ -111,6 +138,34 @@ describe("municipal analysis route", () => {
     expect(response.headers.get("Cache-Control")).toBe("no-store");
     await expect(response.json()).resolves.toEqual({
       error: "Invalid year.",
+    });
+    expect(getCachedMunicipalAnalysisImageDataMock).not.toHaveBeenCalled();
+  });
+
+  it("rejects invalid location keys before cache access", async () => {
+    const response = await callMunicipalAnalysisRoute(
+      "carbonoembrapa",
+      "2020-01",
+      "../secret",
+    );
+
+    expect(response.status).toBe(400);
+    await expect(response.json()).resolves.toEqual({
+      error: "Invalid location key.",
+    });
+    expect(getCachedMunicipalAnalysisImageDataMock).not.toHaveBeenCalled();
+  });
+
+  it("requires a year for location-specific requests", async () => {
+    const response = await callMunicipalAnalysisRoute(
+      "carbonoembrapa",
+      undefined,
+      "br",
+    );
+
+    expect(response.status).toBe(400);
+    await expect(response.json()).resolves.toEqual({
+      error: "A year is required when locationKey is provided.",
     });
     expect(getCachedMunicipalAnalysisImageDataMock).not.toHaveBeenCalled();
   });

@@ -625,4 +625,104 @@ describe("AnalysisContext", () => {
       expect(props.years["2020"].values[municipality.code][0]).toBe(72.6);
     });
   });
+
+  it("does not block a GEE statistics request on the Contentful availability index", async () => {
+    const municipalityWithoutIndexedData = citiesIndex[1];
+    const layer = buildPanelLayer({ br: [45, 55] });
+    layer.id = "carbonoembrapa";
+    useMapLayerActiveStateMock.mockReturnValue({
+      activeLayerId: "carbonoembrapa",
+    });
+    useMapLayerViewStateMock.mockReturnValue({
+      selectedState: municipalityWithoutIndexedData.uf,
+      selectedMunicipalityCode: municipalityWithoutIndexedData.code,
+      activeYear: "2024",
+      spatialSelection: {
+        spatialArea: "national",
+        spatialValue: "brasil",
+      },
+    });
+
+    render(
+      <AnalysisContext activeSection="analysis-detail" panelLayers={[layer]} />,
+    );
+
+    await waitFor(() => {
+      expect(global.fetch).toHaveBeenCalledWith(
+        `http://localhost:3000/api/municipal-analysis/carbonoembrapa?year=2024&locationKey=${municipalityWithoutIndexedData.code}`,
+        expect.objectContaining({
+          credentials: "same-origin",
+          signal: expect.any(AbortSignal),
+        }),
+      );
+    });
+  });
+
+  it("loads every temporal period for a non-municipal GEE selection", async () => {
+    useMapLayerViewStateMock.mockReturnValue({
+      selectedState: "br",
+      selectedMunicipalityCode: null,
+      activeYear: "2025-12",
+      spatialSelection: {
+        spatialArea: "national",
+        spatialValue: "brasil",
+      },
+    });
+    const layer = buildPanelLayer(
+      {},
+      {
+        "2025-01": {
+          imageId: "img-2025-01",
+          valuesScale: 1,
+          values: {},
+        },
+        "2025-12": {
+          imageId: "img-2025-12",
+          valuesScale: 1,
+          values: {},
+        },
+      },
+    );
+    layer.statisticsSource = {
+      kind: "gee-feature-collection",
+    } as PanelLayerI["statisticsSource"];
+    global.fetch = vi.fn().mockImplementation(async (url: string) => {
+      const period = new URL(url).searchParams.get("year") ?? "";
+      return {
+        ok: true,
+        json: async () => ({
+          imageData: {
+            schemaVersion: 1,
+            type: "territorial-compact",
+            years: {
+              [period]: {
+                valuesScale: 1,
+                values: { br: period === "2025-01" ? [10, 90] : [20, 80] },
+              },
+            },
+          },
+        }),
+      } as Response;
+    });
+
+    render(
+      <AnalysisContext activeSection="analysis-detail" panelLayers={[layer]} />,
+    );
+
+    await waitFor(() => {
+      const periods = vi
+        .mocked(global.fetch)
+        .mock.calls.map(([url]) =>
+          new URL(url as string).searchParams.get("year"),
+        );
+      expect(periods).toEqual(expect.arrayContaining(["2025-01", "2025-12"]));
+    });
+    await waitFor(() => {
+      const props = analysisPanelMock.mock.calls.at(-1)?.[0] as {
+        years: Record<string, { values: Record<string, number[]> }>;
+      };
+      expect(props.years["2025-01"].values.br).toEqual([10, 90]);
+      expect(props.years["2025-12"].values.br).toEqual([20, 80]);
+    });
+  });
 });

@@ -61,6 +61,12 @@ continua vindo do `panelLayer`, entao `imageId` e opcional nos anos do patch.
 O patch municipal deve ter `years` nao vazio. Quando `values` aparece, ele deve
 ser objeto de arrays numericos.
 
+O runtime também pode produzir o mesmo patch sob demanda a partir de uma
+`FeatureCollection` do Earth Engine. Essa origem não muda o contrato consumido
+pelo frontend: classes, templates, visualização e `imageId` continuam no
+`panelLayer`, enquanto o patch GEE acrescenta apenas `locations` e os `values`
+do período e território solicitados. Veja `docs/gee-statistics.md`.
+
 ## Envelope comprimido
 
 Particoes grandes de `municipalAnalysis` sao publicadas no Contentful com
@@ -110,3 +116,15 @@ Formato legado simplificado:
 
 Esse payload e invalido para publicacao porque usa versao desconhecida, nao tem
 classes, nao tem anos e nao declara `defaultYear`.
+
+# Extensão pelo catálogo administrativo
+
+O Catálogo de índices gera somente `territorial-compact` v1 e usa os mesmos
+validadores e particionamento da pipeline. O `panelLayer` mantém Brasil/UF e as
+partições `municipalAnalysis` carregam os dados territoriais sob demanda. A
+prévia usa as entries ainda não publicadas pela Contentful Management API; ela
+não altera o modo global de preview da aplicação.
+
+Camadas novas ainda ausentes do índice estático municipal podem tentar a API
+sob demanda no detalhamento. Essa exceção não se aplica ao Relatório
+Automático.

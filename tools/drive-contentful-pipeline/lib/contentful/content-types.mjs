@@ -8,11 +8,35 @@ const MUNICIPAL_ANALYSIS_PARTITION_FIELDS = [
 
 const MUNICIPAL_REPORT_SERIES_FIELDS = [
   { id: "title", name: "Title", type: "Symbol", required: true },
-  { id: "panelLayerId", name: "Panel Layer ID", type: "Symbol", required: true },
+  {
+    id: "panelLayerId",
+    name: "Panel Layer ID",
+    type: "Symbol",
+    required: true,
+  },
   { id: "shardKey", name: "Shard Key", type: "Symbol", required: true },
-  { id: "datasetVersion", name: "Dataset Version", type: "Symbol", required: true },
+  {
+    id: "datasetVersion",
+    name: "Dataset Version",
+    type: "Symbol",
+    required: true,
+  },
   { id: "imageData", name: "Image Data", type: "Object", required: true },
 ];
+
+const INDEX_CATALOG_CONFIG_FIELD = {
+  id: "catalogConfig",
+  name: "Configuração do catálogo",
+  type: "Object",
+  required: false,
+};
+
+const STATISTICS_SOURCE_FIELD = {
+  id: "statisticsSource",
+  name: "Fonte estatística GEE",
+  type: "Object",
+  required: false,
+};
 
 function normalizeField(field) {
   return {
@@ -77,8 +101,12 @@ export async function ensureMunicipalReportSeriesContentModel(config) {
     );
     changed = true;
   } else {
-    const existing = new Set((contentType.fields ?? []).map((field) => field.id));
-    const missing = MUNICIPAL_REPORT_SERIES_FIELDS.filter((field) => !existing.has(field.id));
+    const existing = new Set(
+      (contentType.fields ?? []).map((field) => field.id),
+    );
+    const missing = MUNICIPAL_REPORT_SERIES_FIELDS.filter(
+      (field) => !existing.has(field.id),
+    );
     if (missing.length) {
       contentType = await contentfulFetch(
         contentTypeUrl,
@@ -93,7 +121,10 @@ export async function ensureMunicipalReportSeriesContentModel(config) {
             name: contentType.name,
             displayField: contentType.displayField ?? "title",
             description: contentType.description,
-            fields: [...(contentType.fields ?? []), ...missing.map(normalizeField)],
+            fields: [
+              ...(contentType.fields ?? []),
+              ...missing.map(normalizeField),
+            ],
           }),
         },
         "Atualização do content type municipalReportSeries",
@@ -113,7 +144,9 @@ export async function ensureMunicipalReportSeriesContentModel(config) {
 
   const panelLayer = await getContentTypeOrNull(config, "panelLayer");
   if (!panelLayer) throw new Error("Content type panelLayer não encontrado.");
-  const hasConfig = (panelLayer.fields ?? []).some((field) => field.id === "reportSeriesConfig");
+  const hasConfig = (panelLayer.fields ?? []).some(
+    (field) => field.id === "reportSeriesConfig",
+  );
   if (!hasConfig) {
     const updated = await contentfulFetch(
       `${managementBaseUrl(config)}/content_types/panelLayer`,
@@ -130,13 +163,23 @@ export async function ensureMunicipalReportSeriesContentModel(config) {
           description: panelLayer.description,
           fields: [
             ...(panelLayer.fields ?? []),
-            normalizeField({ id: "reportSeriesConfig", name: "Report Series Config", type: "Object", required: false }),
+            normalizeField({
+              id: "reportSeriesConfig",
+              name: "Report Series Config",
+              type: "Object",
+              required: false,
+            }),
           ],
         }),
       },
       "Adição de reportSeriesConfig ao panelLayer",
     );
-    await publishContentType(config, "panelLayer", updated.sys.version, "Publicação do content type panelLayer");
+    await publishContentType(
+      config,
+      "panelLayer",
+      updated.sys.version,
+      "Publicação do content type panelLayer",
+    );
     changed = true;
   }
 
@@ -207,6 +250,67 @@ export async function ensureMunicipalAnalysisPartitionFields(
   );
 
   return { changed: true, fields: missingFields.map((field) => field.id) };
+}
+
+export async function ensureIndexCatalogContentModel(config) {
+  const contentTypeId = "panelLayer";
+  const contentTypeUrl = `${managementBaseUrl(config)}/content_types/${contentTypeId}`;
+  const contentType = await contentfulFetch(
+    contentTypeUrl,
+    { headers: { Authorization: `Bearer ${config.managementToken}` } },
+    "Busca do content type panelLayer para o catálogo",
+  );
+  const hasCatalogConfig = (contentType.fields ?? []).some(
+    (field) => field.id === INDEX_CATALOG_CONFIG_FIELD.id,
+  );
+  const hasStatisticsSource = (contentType.fields ?? []).some(
+    (field) => field.id === STATISTICS_SOURCE_FIELD.id,
+  );
+  const previewMapIsRequired = (contentType.fields ?? []).some(
+    (field) => field.id === "previewMap" && field.required,
+  );
+
+  if (hasCatalogConfig && hasStatisticsSource && !previewMapIsRequired) {
+    return { changed: false };
+  }
+
+  const fields = (contentType.fields ?? []).map((field) =>
+    field.id === "previewMap" ? { ...field, required: false } : field,
+  );
+  if (!hasCatalogConfig) {
+    fields.push(normalizeField(INDEX_CATALOG_CONFIG_FIELD));
+  }
+  if (!hasStatisticsSource) {
+    fields.push(normalizeField(STATISTICS_SOURCE_FIELD));
+  }
+
+  const updated = await contentfulFetch(
+    contentTypeUrl,
+    {
+      method: "PUT",
+      headers: {
+        Authorization: `Bearer ${config.managementToken}`,
+        "Content-Type": "application/vnd.contentful.management.v1+json",
+        "X-Contentful-Version": String(contentType.sys.version),
+      },
+      body: JSON.stringify({
+        name: contentType.name,
+        displayField: contentType.displayField ?? "id",
+        description: contentType.description,
+        fields,
+      }),
+    },
+    "Atualização do content type panelLayer para o catálogo",
+  );
+
+  await publishContentType(
+    config,
+    contentTypeId,
+    updated.sys.version,
+    "Publicação do content type panelLayer para o catálogo",
+  );
+
+  return { changed: true };
 }
 
 export function dryRunMunicipalAnalysisPartitionFields() {

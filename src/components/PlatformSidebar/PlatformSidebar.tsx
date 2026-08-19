@@ -20,7 +20,7 @@ export type PlatformSidebarInitialSection =
   | "analysis"
   | "communication";
 
-export type PlatformSidebarViewMode = "default" | "logs";
+export type PlatformSidebarViewMode = "default" | "logs" | "catalog";
 
 function buildSidebarState(
   viewMode: PlatformSidebarViewMode,
@@ -29,6 +29,15 @@ function buildSidebarState(
   if (viewMode === "logs") {
     return {
       activeSection: "logs" as const,
+      panelSection: "monitoring" as const,
+      isPanelOpen: false,
+      showAnalysisFrame: false,
+    };
+  }
+
+  if (viewMode === "catalog") {
+    return {
+      activeSection: "catalog" as const,
       panelSection: "monitoring" as const,
       isPanelOpen: false,
       showAnalysisFrame: false,
@@ -81,7 +90,7 @@ export function PlatformSidebar({
   const router = useRouter();
   const { setActiveLegend } = useMapLayerActions();
   const initialSidebarState = buildSidebarState(viewMode, initialSection);
-  const isLogsView = viewMode === "logs";
+  const isUtilityView = viewMode === "logs" || viewMode === "catalog";
 
   const [activeSection, setActiveSection] = useState<PlatformSection>(
     initialSidebarState.activeSection,
@@ -112,7 +121,7 @@ export function PlatformSidebar({
             : undefined;
 
   function handleSectionChange(next: PlatformSection) {
-    if (isLogsView) {
+    if (isUtilityView) {
       if (next === "analysis" || next === "communication") {
         router.push(buildPlatformHref(next));
         return;
@@ -166,7 +175,7 @@ export function PlatformSidebar({
           showAuditLink={showAuditLink}
         />
 
-        {!isLogsView && (
+        {!isUtilityView && (
           <div
             data-platform-side-panel
             className={`
@@ -193,7 +202,7 @@ export function PlatformSidebar({
         )}
       </aside>
 
-      {showAnalysisFrame && !isLogsView && (
+      {showAnalysisFrame && !isUtilityView && (
         <div
           className="absolute top-0 bottom-0 right-0 z-10 bg-neutral-50 transition-all duration-300 ease-in-out"
           style={{ left: isPanelOpen ? defaultPanelOpenOffset : "140px" }}
@@ -207,7 +216,7 @@ export function PlatformSidebar({
         </div>
       )}
 
-      {activeSection === "communication" && !isLogsView && (
+      {activeSection === "communication" && !isUtilityView && (
         <>
           <div
             className="absolute inset-0 z-[5] bg-[#F6F7F6]"
