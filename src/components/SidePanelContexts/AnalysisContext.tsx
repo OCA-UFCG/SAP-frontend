@@ -1,13 +1,12 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useTranslations } from "next-intl";
 import { AnalysisPanel } from "@/components/analysis/AnalysisPanel";
 import type { SearchSubmissionMetadata } from "@/components/SearchBar/types";
 import {
   getSpatialScopeLocationKey,
   getSpatialScopeLocationName,
-  type SpatialSelection,
 } from "@/utils/spatialScope";
 import {
   buildEmbeddedTerritorialAnalysisViewModel,
@@ -80,8 +79,6 @@ export function AnalysisContext({
     setSelectedMunicipalityCode,
     setActiveLegend,
     setActiveYear,
-    setSpatialSelection,
-    resetPlatformState,
   } = useMapLayerActions();
   const {
     selectedState,
@@ -335,7 +332,8 @@ export function AnalysisContext({
   ]);
 
   function handleGoBack() {
-    resetPlatformState();
+    setSelectedState("br");
+    setSelectedMunicipalityCode(null);
     onRequestSectionChange?.("monitoring");
   }
 
@@ -474,22 +472,11 @@ export function AnalysisContext({
     analysisImageDataByRequestKey[municipalAnalysisRequestKey] === undefined,
   );
 
-  const handleSpatialSelectionChange = useCallback(
-    (value: SpatialSelection) => {
-      setSpatialSelection(value);
-      setSelectedState("br");
-      setSelectedMunicipalityCode(null);
-    },
-    [setSpatialSelection, setSelectedMunicipalityCode, setSelectedState],
-  );
-
   return (
     <AnalysisPanel
       moduleName={dataset?.name}
       yearOptions={yearOptions}
       activeYear={activeAnalysisYear}
-      spatialSelection={spatialSelection}
-      onSpatialSelectionChange={handleSpatialSelectionChange}
       onBack={handleGoBack}
       onSearch={handleSearch}
       searchTelemetryContext={{

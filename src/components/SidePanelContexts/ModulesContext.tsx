@@ -5,7 +5,9 @@ import { useTranslations } from "next-intl";
 import {
   useMapLayerActions,
   useMapLayerActiveState,
+  useMapLayerViewState,
 } from "@/components/MapLayerContext/MapLayerContext";
+import { SpatialScopeSelect } from "@/components/SpatialScopeSelect/SpatialScopeSelect";
 import { DroughtDataset } from "@/components/DroughtDataset/DroughtDataset";
 import type { IDroughtDataset } from "@/components/DroughtDataset/DroughtDataset";
 import { LayerAccordion } from "@/components/LayerAccordion/LayerAccordion";
@@ -13,6 +15,7 @@ import type { PlatformSection } from "@/components/PlatformSideRail/PlatformSide
 import type { CDIVectorData } from "@/lib/geo";
 import { trackUiEvent } from "@/services/telemetry/client";
 import type { IEEInfo, PanelLayerI } from "@/utils/interfaces";
+import type { SpatialSelection } from "@/utils/spatialScope";
 import { getImageDataLegend } from "@/utils/imageData";
 import cdiData from "../../data/CDI_Janeiro_2024_Vetores.json";
 
@@ -143,8 +146,18 @@ export function ModulesContext({
 }: ModulesContextProps) {
   const t = useTranslations("ModulesContext");
   const { activeData, activeEEData } = useMapLayerActiveState();
-  const { activateVectorLayer, activateEeLayer, clearActiveLayer } =
-    useMapLayerActions();
+  const {
+    activateVectorLayer,
+    activateEeLayer,
+    clearActiveLayer,
+    setSpatialSelection,
+    setSelectedState,
+    setSelectedMunicipalityCode,
+  } = useMapLayerActions();
+  const { spatialSelection } = useMapLayerViewState();
+
+  const isSpatialScopeEnabled =
+    process.env.NEXT_PUBLIC_ENABLE_SPATIAL_SCOPE === "true";
 
   const datasets = useMemo(
     () => buildLayerDatasets(panelLayers),
@@ -294,10 +307,28 @@ export function ModulesContext({
     ],
   );
 
+  const handleSpatialSelectionChange = useCallback(
+    (value: SpatialSelection) => {
+      setSpatialSelection(value);
+      setSelectedState("br");
+      setSelectedMunicipalityCode(null);
+    },
+    [setSpatialSelection, setSelectedState, setSelectedMunicipalityCode],
+  );
+
   return (
     <div className="h-full overflow-y-auto bg-[#F6F7F6] px-4 pt-12 pb-6">
       <div className="flex flex-col gap-6">
         <ContextHeader />
+
+        {isSpatialScopeEnabled ? (
+          <div>
+            <SpatialScopeSelect
+              spatialSelection={spatialSelection}
+              onSpatialSelectionChange={handleSpatialSelectionChange}
+            />
+          </div>
+        ) : null}
 
         <div className="flex flex-col gap-6">
           {groupedDatasets.map((group, index) => {
@@ -307,7 +338,7 @@ export function ModulesContext({
               "dados socioeconômicos": "socioeconomic",
               "outros": "others"
             };
-            
+
             return (
               <LayerAccordion
                 key={group.key}

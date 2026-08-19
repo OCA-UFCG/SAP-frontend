@@ -9,6 +9,7 @@ vi.mock("@/services/telemetry/client", () => ({
 
 const useMapLayerActiveStateMock = vi.fn();
 const useMapLayerActionsMock = vi.fn();
+const useMapLayerViewStateMock = vi.fn();
 
 vi.mock("next/image", () => ({
   default: ({ alt, ...props }: React.ImgHTMLAttributes<HTMLImageElement>) => {
@@ -19,6 +20,7 @@ vi.mock("next/image", () => ({
 vi.mock("@/components/MapLayerContext/MapLayerContext", () => ({
   useMapLayerActiveState: () => useMapLayerActiveStateMock(),
   useMapLayerActions: () => useMapLayerActionsMock(),
+  useMapLayerViewState: () => useMapLayerViewStateMock(),
 }));
 
 vi.mock("@/utils/imageData", () => ({
@@ -58,6 +60,7 @@ describe("ModulesContext", () => {
   beforeEach(() => {
     useMapLayerActiveStateMock.mockReset();
     useMapLayerActionsMock.mockReset();
+    useMapLayerViewStateMock.mockReset();
     vi.mocked(trackUiEvent).mockReset();
 
     useMapLayerActiveStateMock.mockReturnValue({
@@ -68,6 +71,10 @@ describe("ModulesContext", () => {
       activateVectorLayer: vi.fn(),
       activateEeLayer: vi.fn(),
       clearActiveLayer: vi.fn(),
+      setSpatialSelection: vi.fn(),
+    });
+    useMapLayerViewStateMock.mockReturnValue({
+      spatialSelection: { spatialArea: "national", spatialValue: "brasil" },
     });
   });
 
@@ -147,6 +154,7 @@ describe("ModulesContext", () => {
       activateVectorLayer,
       activateEeLayer: vi.fn(),
       clearActiveLayer: vi.fn(),
+      setSpatialSelection: vi.fn(),
     });
 
     render(
@@ -194,6 +202,7 @@ describe("ModulesContext", () => {
       activateVectorLayer: vi.fn(),
       activateEeLayer,
       clearActiveLayer: vi.fn(),
+      setSpatialSelection: vi.fn(),
     });
 
     render(
