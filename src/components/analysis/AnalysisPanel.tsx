@@ -18,10 +18,6 @@ import type {
   CompactAnalysisYearData,
   TerritorialAnalysisViewModel,
 } from "@/utils/analysis";
-import {
-  type SpatialSelection,
-} from "@/utils/spatialScope";
-
 interface AnalysisPanelProps {
   moduleName?: string;
   yearOptions: AnalysisYearOption[];

@@ -1,13 +1,12 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useTranslations } from "next-intl";
 import { AnalysisPanel } from "@/components/analysis/AnalysisPanel";
 import type { SearchSubmissionMetadata } from "@/components/SearchBar/types";
 import {
   getSpatialScopeLocationKey,
   getSpatialScopeLocationName,
-  type SpatialSelection,
 } from "@/utils/spatialScope";
 import {
   buildEmbeddedTerritorialAnalysisViewModel,
@@ -69,8 +68,6 @@ export function AnalysisContext({
     setSelectedMunicipalityCode,
     setActiveLegend,
     setActiveYear,
-    setSpatialSelection,
-    resetPlatformState,
   } = useMapLayerActions();
   const {
     selectedState,
@@ -257,7 +254,8 @@ export function AnalysisContext({
   ]);
 
   function handleGoBack() {
-    //resetPlatformState();
+    setSelectedState("br");
+    setSelectedMunicipalityCode(null);
     onRequestSectionChange?.("monitoring");
   }
 

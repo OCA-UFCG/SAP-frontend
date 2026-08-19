@@ -48,7 +48,7 @@ describe("spatial scope selection", () => {
     ],
     [
       { spatialArea: "state", spatialValue: "Paraíba" },
-      "6_estado-paraiba",
+      "pb",
       "Paraíba",
     ],
     [

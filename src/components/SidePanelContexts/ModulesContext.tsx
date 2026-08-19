@@ -155,7 +155,7 @@ export function ModulesContext({
     setSelectedMunicipalityCode,
   } = useMapLayerActions();
   const { spatialSelection } = useMapLayerViewState();
-  
+
   const isSpatialScopeEnabled =
     process.env.NEXT_PUBLIC_ENABLE_SPATIAL_SCOPE === "true";
 

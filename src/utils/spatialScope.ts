@@ -2,6 +2,11 @@ import {
   buildSpatialLocationKey,
   SPATIAL_LOCATION_NAMES,
 } from "@/contracts/spatialLocationKey.mjs";
+import { statesObj } from "@/utils/constants";
+
+const STATE_UF_BY_NAME = new Map<string, string>(
+  Object.entries(statesObj).map(([uf, name]) => [name, uf]),
+);
 
 export type SpatialArea =
   | "national"
@@ -204,7 +209,7 @@ export function getSpatialScopeLocationKey(
     case "region":
       return buildSpatialLocationKey("2_Regiao", selection.spatialValue);
     case "state":
-      return buildSpatialLocationKey("6_Estado", selection.spatialValue);
+      return STATE_UF_BY_NAME.get(selection.spatialValue) ?? null;
     case "biome":
       return buildSpatialLocationKey("3_Bioma", selection.spatialValue);
     case "asd":
