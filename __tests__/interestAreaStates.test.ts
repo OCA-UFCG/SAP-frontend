@@ -30,6 +30,16 @@ describe("getAllowedStateUfs", () => {
     expect(allowed?.has("am")).toBe(false);
   });
 
+  it("filters by state", () => {
+    const allowed = getAllowedStateUfs({
+      spatialArea: "state",
+      spatialValue: "Paraíba",
+    });
+    expect(allowed?.has("pb")).toBe(true);
+    expect(allowed?.has("ba")).toBe(false);
+    expect(allowed?.size).toBe(1);
+  });
+
   it("filters by semiarid and asd", () => {
     expect(
       getAllowedStateUfs({

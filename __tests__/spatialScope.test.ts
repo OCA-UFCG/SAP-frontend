@@ -17,6 +17,7 @@ describe("spatial scope selection", () => {
   it.each([
     ["national", "brasil"],
     ["region", "Nordeste"],
+    ["state", "Paraíba"],
     ["biome", "Caatinga"],
     ["semiarid", "semiárido"],
     ["asd", "ASD"],
@@ -44,6 +45,11 @@ describe("spatial scope selection", () => {
       { spatialArea: "region", spatialValue: "Centro-Oeste" },
       "2_regiao-centro-oeste",
       "Centro-Oeste",
+    ],
+    [
+      { spatialArea: "state", spatialValue: "Paraíba" },
+      "pb",
+      "Paraíba",
     ],
     [
       { spatialArea: "biome", spatialValue: "Mata Atlântica" },

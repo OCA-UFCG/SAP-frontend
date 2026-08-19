@@ -1,5 +1,6 @@
 import type { SpatialSelection } from "@/utils/spatialScope";
 import stateClassification from "@/data/stateClassification.json";
+import { statesObj } from "@/utils/constants";
 
 interface StateAreas {
   region: string;
@@ -32,13 +33,15 @@ export function getAllowedStateUfs(
     const matches =
       area === "region"
         ? areas.region === value
-        : area === "biome"
-          ? areas.biomes.includes(value)
-          : area === "semiarid"
-            ? areas.semiarid
-            : area === "asd"
-              ? areas.asd
-              : false;
+        : area === "state"
+          ? statesObj[uf as keyof typeof statesObj] === value
+          : area === "biome"
+            ? areas.biomes.includes(value)
+            : area === "semiarid"
+              ? areas.semiarid
+              : area === "asd"
+                ? areas.asd
+                : false;
 
     if (matches) {
       allowed.add(uf);

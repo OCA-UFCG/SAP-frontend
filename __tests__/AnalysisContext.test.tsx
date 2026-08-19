@@ -269,43 +269,76 @@ describe("AnalysisContext", () => {
     expect(props.emptyStateTitle).toContain("Semiárido Total");
   });
 
-  it("clears a previous municipality when the spatial scope changes", () => {
+  it("uses the canonical UF key for a state spatial scope", () => {
+    useMapLayerViewStateMock.mockReturnValue({
+      selectedState: "br",
+      selectedMunicipalityCode: null,
+      activeYear: "2024",
+      spatialSelection: {
+        spatialArea: "state",
+        spatialValue: "Paraíba",
+      },
+    });
+
     render(
       <AnalysisContext
         activeSection="analysis-detail"
         panelLayers={[
+          buildPanelLayer(
+            {
+              br: [45, 55],
+              pb: [20, 80],
+            },
+            undefined,
+            { pb: "Paraíba" },
+          ),
+        ]}
+      />,
+    );
+
+    const props = analysisPanelMock.mock.calls.at(-1)?.[0] as {
+      model: { name: string } | null;
+      selectedState: string;
+    };
+
+    expect(props.selectedState).toBe("pb");
+    expect(props.model?.name).toBe("Paraíba");
+  });
+
+  it("clears detail selections on back without resetting the chosen scope or layer", () => {
+    const onRequestSectionChange = vi.fn();
+
+    render(
+      <AnalysisContext
+        activeSection="analysis-detail"
+        onRequestSectionChange={onRequestSectionChange}
+        panelLayers={[
           buildPanelLayer({
             br: [45, 55],
             [municipality.uf]: [35, 65],
+            [municipality.code]: [80, 20],
           }),
         ]}
       />,
     );
 
     const props = analysisPanelMock.mock.calls.at(-1)?.[0] as {
-      onSpatialSelectionChange: (value: {
-        spatialArea: "biome";
-        spatialValue: "Caatinga";
-      }) => void;
+      onBack: () => void;
     };
-
-    props.onSpatialSelectionChange({
-      spatialArea: "biome",
-      spatialValue: "Caatinga",
-    });
+    props.onBack();
 
     const actions = useMapLayerActionsMock.mock.results.at(-1)?.value as {
+      resetPlatformState: ReturnType<typeof vi.fn>;
       setSelectedMunicipalityCode: ReturnType<typeof vi.fn>;
       setSelectedState: ReturnType<typeof vi.fn>;
       setSpatialSelection: ReturnType<typeof vi.fn>;
     };
 
-    expect(actions.setSpatialSelection).toHaveBeenCalledWith({
-      spatialArea: "biome",
-      spatialValue: "Caatinga",
-    });
     expect(actions.setSelectedState).toHaveBeenCalledWith("br");
     expect(actions.setSelectedMunicipalityCode).toHaveBeenCalledWith(null);
+    expect(actions.setSpatialSelection).not.toHaveBeenCalled();
+    expect(actions.resetPlatformState).not.toHaveBeenCalled();
+    expect(onRequestSectionChange).toHaveBeenCalledWith("monitoring");
   });
 
   it("tracks resolved municipality searches for the active layer", () => {

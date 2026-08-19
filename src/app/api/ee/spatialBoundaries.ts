@@ -38,6 +38,38 @@ const BOUNDARY_CONFIG: Record<
     fileName: "asdBoundary.json",
     expectedNames: ["ASD", "Entorno"],
   },
+  state: {
+    fileName: "geometria.json",
+    expectedNames: [
+      "Acre",
+      "Alagoas",
+      "Amapá",
+      "Amazonas",
+      "Bahia",
+      "Ceará",
+      "Distrito Federal",
+      "Espírito Santo",
+      "Goiás",
+      "Maranhão",
+      "Mato Grosso",
+      "Mato Grosso do Sul",
+      "Minas Gerais",
+      "Pará",
+      "Paraíba",
+      "Paraná",
+      "Pernambuco",
+      "Piauí",
+      "Rio de Janeiro",
+      "Rio Grande do Norte",
+      "Rio Grande do Sul",
+      "Rondônia",
+      "Roraima",
+      "Santa Catarina",
+      "São Paulo",
+      "Sergipe",
+      "Tocantins",
+    ],
+  },
 };
 
 const isFeatureCollection = (
@@ -68,7 +100,8 @@ function parseBoundaryFile(
 
   const featuresByName = new Map<string, SpatialBoundaryFeature>();
   for (const feature of parsed.features) {
-    const name = feature.properties?.name;
+    const rawProperties = feature.properties as { name?: string; info?: { nome?: string } } | null;
+    const name = rawProperties?.name ?? rawProperties?.info?.nome;
     if (
       feature.type !== "Feature" ||
       !feature.geometry ||
@@ -82,7 +115,10 @@ function parseBoundaryFile(
     if (featuresByName.has(name)) {
       throw new Error(`${fileName} contains duplicate boundary ${name}.`);
     }
-    featuresByName.set(name, feature as SpatialBoundaryFeature);
+    featuresByName.set(name, {
+      ...feature,
+      properties: { ...feature.properties, name },
+    } as SpatialBoundaryFeature);
   }
 
   for (const expectedName of BOUNDARY_CONFIG[area].expectedNames) {
