@@ -3,6 +3,7 @@
 import maplibregl, { MapSourceDataEvent, MapGeoJSONFeature } from "maplibre-gl";
 import "maplibre-gl/dist/maplibre-gl.css";
 import { useEffect, useRef } from "react";
+import type { FeatureCollection, Geometry } from "geojson";
 import type { CDIVectorData } from "@/lib/geo";
 import {
   GEE_LAYER_ID,
@@ -13,6 +14,7 @@ import {
   STATES_FILL_LAYER_ID,
   STATES_SOURCE_ID,
   STATES_SOURCE_LAYER,
+  ensureSpatialBoundaryLayer,
 } from "./mapDefinitions";
 import { useMapController } from "./useMapController";
 import { useMapMarkers } from "./useMapMarkers";
@@ -25,6 +27,8 @@ import { isTileLayerReadyEvent } from "./tileLayerLoading";
 import {
   buildMunicipalityLabel,
   MUNICIPALITY_HOVER_LAYER_ID,
+  MUNICIPALITY_SOURCE_ID,
+  MUNICIPALITY_SOURCE_LAYER,
 } from "./municipalityLayers";
 export type BasemapId = "osm" | "satellite";
 
@@ -47,6 +51,7 @@ export interface MapProps {
   onTileLayerReady?: (requestKey: string) => void;
   layerOpacity?: number;
   allowedStateUfs?: Set<string> | null;
+  spatialBoundaryGeoJson?: FeatureCollection<Geometry, { name: string }> | null;
 }
 
 const Map = ({
@@ -67,7 +72,8 @@ const Map = ({
   onSelectedMunicipalityCodeChange,
   onTileLayerReady,
   layerOpacity = 0.85,
-  allowedStateUfs = null
+  allowedStateUfs = null,
+  spatialBoundaryGeoJson = null,
 }: MapProps) => {
   const mapContainerRef = useRef<HTMLDivElement | null>(null);
   const {
@@ -82,18 +88,21 @@ const Map = ({
     mapModeRef,
     mapRef,
     mapInstanceVersion,
+    onSelectedMunicipalityCodeChangeRef,
     onStateSelectRef,
     onTileLayerReadyRef,
     pendingTileLayerReadyKeyRef,
     popupRef,
     scheduleSelectedStateSync,
     selectedStateIdRef,
+    selectedMunicipalityCodeRef,
     selectedStateRef,
     setMapInstance,
     syncMapLayers,
     syncMapPadding,
     tileLayerRequestKeyRef,
     tileLayerUrlRef,
+    hoveredMunicipalityIdRef,
     warn,
   } = useMapController({
     center,
@@ -106,6 +115,8 @@ const Map = ({
     onTileLayerReady,
     selectedMunicipalityCode,
     showStatesBorder,
+    spatialBoundaryGeoJson,
+    allowedStateUfs,
     tileLayerRequestKey,
     tileLayerUrl,
     layerOpacity,
@@ -221,8 +232,7 @@ const Map = ({
 
       map.on("mousemove", STATES_FILL_LAYER_ID, (event) => {
         const hoveredFeature = event.features?.[0] as
-          | MapGeoJSONFeature
-          | undefined;
+          MapGeoJSONFeature | undefined;
         const uf =
           (hoveredFeature?.properties?.SIGLA_UF as string | undefined) ??
           (hoveredFeature?.properties?.uf as string | undefined) ??
@@ -233,10 +243,7 @@ const Map = ({
           (hoveredFeature?.properties?.nome as string | undefined);
 
         const hoveredStateId = (hoveredFeature?.id ?? uf) as
-          | string
-          | number
-          | null
-          | undefined;
+          string | number | null | undefined;
 
         const allowedUfs = allowedStateUfsRef.current;
         const isOutsideArea = Boolean(
@@ -318,10 +325,42 @@ const Map = ({
         popup.remove();
       });
 
-      map.on("click", STATES_FILL_LAYER_ID, (event) => {
-        const clickedFeature = event.features?.[0] as
-          | MapGeoJSONFeature
-          | undefined;
+      map.on("click", (event) => {
+        const clickedMunicipality =
+          mapModeRef.current === "platform" &&
+          map.getLayer(MUNICIPALITY_HOVER_LAYER_ID)
+            ? (map.queryRenderedFeatures(event.point, {
+                layers: [MUNICIPALITY_HOVER_LAYER_ID],
+              })[0] as MapGeoJSONFeature | undefined)
+            : undefined;
+        const rawMunicipalityCode =
+          clickedMunicipality?.properties?.CD_MUN ?? clickedMunicipality?.id;
+        const municipalityCode =
+          typeof rawMunicipalityCode === "string" ||
+          typeof rawMunicipalityCode === "number"
+            ? String(rawMunicipalityCode)
+            : null;
+
+        if (municipalityCode) {
+          log("municipality click", {
+            municipalityCode,
+            featureId: clickedMunicipality?.id,
+          });
+
+          if (selectedMunicipalityCodeRef.current === municipalityCode) {
+            clearSelectedMunicipalitySelection(map);
+          } else {
+            onSelectedMunicipalityCodeChangeRef.current?.(municipalityCode);
+          }
+
+          return;
+        }
+
+        const clickedFeature = map.getLayer(STATES_FILL_LAYER_ID)
+          ? (map.queryRenderedFeatures(event.point, {
+              layers: [STATES_FILL_LAYER_ID],
+            })[0] as MapGeoJSONFeature | undefined)
+          : undefined;
 
         const uf =
           (clickedFeature?.properties?.SIGLA_UF as string | undefined) ??
@@ -331,7 +370,12 @@ const Map = ({
             ? clickedFeature.id
             : undefined);
 
-        if (!uf) return;
+        if (!uf) {
+          if (mapModeRef.current === "platform") {
+            clearSelectedMunicipalitySelection(map);
+          }
+          return;
+        }
 
         const allowedUfs = allowedStateUfsRef.current;
         if (allowedUfs && !allowedUfs.has(uf.toLowerCase())) {
@@ -339,8 +383,14 @@ const Map = ({
             uf,
             allowedUfs,
           });
-          event.preventDefault();
+          if (mapModeRef.current === "platform") {
+            clearSelectedMunicipalitySelection(map);
+          }
           return;
+        }
+
+        if (mapModeRef.current === "platform") {
+          clearSelectedMunicipalitySelection(map);
         }
 
         const nextSelectedState = resolveNextSelectedState(
@@ -380,14 +430,9 @@ const Map = ({
       });
 
       if (mapModeRef.current === "platform") {
-        map.on("click", () => {
-          clearSelectedMunicipalitySelection(map);
-        });
-
         map.on("mousemove", MUNICIPALITY_HOVER_LAYER_ID, (event) => {
           const municipalityFeature = event.features?.[0] as
-            | MapGeoJSONFeature
-            | undefined;
+            MapGeoJSONFeature | undefined;
           const municipalityLabel = buildMunicipalityLabel(municipalityFeature);
 
           map.getCanvas().style.cursor = "pointer";
@@ -395,11 +440,45 @@ const Map = ({
           if (municipalityLabel) {
             popup.setLngLat(event.lngLat).setText(municipalityLabel).addTo(map);
           }
+
+          if (municipalityFeature?.id) {
+            if (hoveredMunicipalityIdRef.current !== null) {
+              map.setFeatureState(
+                {
+                  source: MUNICIPALITY_SOURCE_ID,
+                  sourceLayer: MUNICIPALITY_SOURCE_LAYER,
+                  id: hoveredMunicipalityIdRef.current,
+                },
+                { hover: false },
+              );
+            }
+            hoveredMunicipalityIdRef.current = municipalityFeature.id;
+            map.setFeatureState(
+              {
+                source: MUNICIPALITY_SOURCE_ID,
+                sourceLayer: MUNICIPALITY_SOURCE_LAYER,
+                id: hoveredMunicipalityIdRef.current,
+              },
+              { hover: true },
+            );
+          }
         });
 
         map.on("mouseleave", MUNICIPALITY_HOVER_LAYER_ID, () => {
           map.getCanvas().style.cursor = "";
           popup.remove();
+
+          if (hoveredMunicipalityIdRef.current !== null) {
+            map.setFeatureState(
+              {
+                source: MUNICIPALITY_SOURCE_ID,
+                sourceLayer: MUNICIPALITY_SOURCE_LAYER,
+                id: hoveredMunicipalityIdRef.current,
+              },
+              { hover: false },
+            );
+          }
+          hoveredMunicipalityIdRef.current = null;
         });
       }
     });
@@ -436,6 +515,9 @@ const Map = ({
     tileLayerRequestKeyRef,
     tileLayerUrlRef,
     warn,
+    hoveredMunicipalityIdRef,
+    onSelectedMunicipalityCodeChangeRef,
+    selectedMunicipalityCodeRef,
     clearMarkers,
     setMapInstance,
   ]);
@@ -448,8 +530,7 @@ const Map = ({
       if (map.getLayer(GEE_LAYER_ID)) {
         map.setPaintProperty(GEE_LAYER_ID, "raster-opacity", layerOpacity);
       }
-    } catch {
-    }
+    } catch {}
   }, [layerOpacity, mapRef, mapInstanceVersion]);
 
   useEffect(() => {
@@ -467,6 +548,28 @@ const Map = ({
       basemap === "satellite" ? "visible" : "none",
     );
   }, [basemap, mapRef, mapInstanceVersion]);
+
+  useEffect(() => {
+    const map = mapRef.current;
+    if (!map || !map.isStyleLoaded()) return;
+
+    try {
+      ensureSpatialBoundaryLayer(
+        map,
+        spatialBoundaryGeoJson ?? null,
+        showStatesBorder,
+        allowedStateUfs,
+      );
+    } catch {
+      // Best-effort: if style is in transition, the next syncMapLayers will retry.
+    }
+  }, [
+    spatialBoundaryGeoJson,
+    allowedStateUfs,
+    showStatesBorder,
+    mapRef,
+    mapInstanceVersion,
+  ]);
 
   return (
     <div className="w-full h-full">

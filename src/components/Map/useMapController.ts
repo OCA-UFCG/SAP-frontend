@@ -1,6 +1,7 @@
 import type { CDIVectorData } from "@/lib/geo";
 import maplibregl, { LngLatBoundsLike } from "maplibre-gl";
 import { useCallback, useId, useMemo, useRef, useState } from "react";
+import type { FeatureCollection, Geometry } from "geojson";
 import { BASE_STYLE, type MapMode } from "./mapDefinitions";
 import {
   DEFAULT_CENTER,
@@ -18,7 +19,6 @@ import {
   MAP_FIT_BOUNDS_BASE_PADDING,
 } from "./mapViewport";
 import { BRAZIL_TERRITORY_CODE } from "./stateSelection";
-import { MUNICIPALITY_MIN_ZOOM } from "./municipalityLayers";
 import { useMapControllerEffects } from "./useMapControllerEffects";
 import { useMapSelectionRuntime } from "./useMapSelectionRuntime";
 import { usePlatformSidebarOverlayWidth } from "./usePlatformSidebarOverlayWidth";
@@ -38,6 +38,8 @@ interface UseMapControllerArgs {
   onStateSelect?: (uf: string) => void;
   onSelectedMunicipalityCodeChange?: (municipalityCode: string | null) => void;
   onTileLayerReady?: (requestKey: string) => void;
+  spatialBoundaryGeoJson?: FeatureCollection<Geometry, { name: string }> | null;
+  allowedStateUfs?: Set<string> | null;
 }
 
 export const useMapController = ({
@@ -55,6 +57,8 @@ export const useMapController = ({
   onStateSelect,
   onSelectedMunicipalityCodeChange,
   onTileLayerReady,
+  spatialBoundaryGeoJson = null,
+  allowedStateUfs = null,
 }: UseMapControllerArgs) => {
   const debugEnabled = process.env.NODE_ENV !== "production";
   const mapRef = useRef<maplibregl.Map | null>(null);
@@ -69,6 +73,7 @@ export const useMapController = ({
   const mapDebugId = useId().replace(/:/g, "").slice(-6);
   const mapDebugIdRef = useRef<string>(mapDebugId);
   const hoveredStateIdRef = useRef<string | number | null>(null);
+  const hoveredMunicipalityIdRef = useRef<string | number | null>(null);
   const selectedStateIdRef = useRef<string | number | null>(null);
   const selectedMunicipalityCodeRef = useRef<string | null>(
     selectedMunicipalityCode ?? null,
@@ -102,6 +107,8 @@ export const useMapController = ({
   const pendingStyleSyncRef = useRef(false);
   const pendingSelectedSyncRef = useRef(false);
   const leftOverlayWidthRef = useRef(0);
+  const spatialBoundaryGeoJsonRef = useRef<FeatureCollection<Geometry, { name: string }> | null>(spatialBoundaryGeoJson);
+  const allowedStateUfsRef = useRef<Set<string> | null>(allowedStateUfs);
   const leftOverlayWidth = usePlatformSidebarOverlayWidth();
   const normalizedCenter = isValidLatLngTuple(center) ? center : DEFAULT_CENTER;
   const initialViewRef = useRef({
@@ -127,12 +134,13 @@ export const useMapController = ({
     (
       map: maplibregl.Map,
       bounds: LngLatBoundsLike,
-      options: Omit<MapFitBoundsOptions, "padding"> = {},
+      options: Omit<MapFitBoundsOptions, "padding"> & { basePadding?: number } = {},
     ) => {
+      const { basePadding = MAP_FIT_BOUNDS_BASE_PADDING, ...restOptions } = options;
       map.fitBounds(bounds, {
-        ...options,
+        ...restOptions,
         padding: buildOverlayAwareFitBoundsPadding({
-          basePadding: MAP_FIT_BOUNDS_BASE_PADDING,
+          basePadding,
           containerWidth: map.getContainer().clientWidth,
           leftOverlayWidth: leftOverlayWidthRef.current,
         }),
@@ -151,7 +159,9 @@ export const useMapController = ({
       if (selectedStateRef.current === BRAZIL_TERRITORY_CODE) return;
 
       const enforceMunicipalityZoom = () => {
-        enforceMinimumMapZoom(map, MUNICIPALITY_MIN_ZOOM, options);
+        // Enforce a zoom of 5 to maintain the same state zoom level as before,
+        // even though municipalities are now visible at 4.5
+        enforceMinimumMapZoom(map, 5, options);
       };
 
       if (options.animate) {
@@ -168,10 +178,11 @@ export const useMapController = ({
     (
       map: maplibregl.Map,
       bounds: LngLatBoundsLike,
-      options: Omit<MapFitBoundsOptions, "maxZoom"> = {},
+      options: Omit<MapFitBoundsOptions, "maxZoom" | "padding"> & { basePadding?: number } = {},
     ) => {
       fitMapToBounds(map, bounds, {
         ...options,
+        basePadding: options.basePadding ?? 50,
         maxZoom: MAP_MUNICIPALITY_FOCUS_MAX_ZOOM,
       });
     },
@@ -219,6 +230,8 @@ export const useMapController = ({
     selectedStateIdRef,
     selectedStateRef,
     showStatesBorderRef,
+    spatialBoundaryGeoJsonRef,
+    allowedStateUfsRef,
     tileLayerUrlRef,
     layerOpacityRef,
   });
@@ -232,6 +245,8 @@ export const useMapController = ({
     currentBoundsRef,
     dadosCDI,
     estadoSelecionado,
+    spatialBoundaryGeoJson,
+    allowedStateUfs,
     fitSelectedMunicipalityToBounds,
     fitSelectedStateToBounds,
     hasCdiDataRef,
@@ -256,6 +271,8 @@ export const useMapController = ({
     selectedMunicipalityCodeRef,
     selectedStateIdRef,
     selectedStateRef,
+    spatialBoundaryGeoJsonRef,
+    allowedStateUfsRef,
     showStatesBorder,
     showStatesBorderRef,
     syncMapLayers,
@@ -280,6 +297,7 @@ export const useMapController = ({
     mapModeRef,
     mapRef,
     mapInstanceVersion,
+    onSelectedMunicipalityCodeChangeRef,
     onStateSelectRef,
     onTileLayerReadyRef,
     pendingTileLayerReadyKeyRef,
@@ -295,6 +313,7 @@ export const useMapController = ({
     tileLayerRequestKeyRef,
     tileLayerUrlRef,
     hoveredStateIdRef,
+    hoveredMunicipalityIdRef,
     warn,
   };
 };

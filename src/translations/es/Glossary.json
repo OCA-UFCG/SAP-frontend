@@ -3,6 +3,72 @@
     "title": "Glosario",
     "term": "Término",
     "definition": "Definición",
-    "empty": "Todavía no hay términos registrados."
+    "empty": "Todavía no hay términos registrados.",
+    "entries": {
+      "2g4SpG69RFS0IrjlLW1p1w": {
+        "term": "Áreas Susceptibles a la Desertificación (ASD)",
+        "definition": "Ámbito territorial de las políticas brasileñas de lucha contra la desertificación. Reúne las áreas con un Índice de Aridez inferior a 0,65, es decir, las zonas áridas, semiáridas y subhúmedas secas. El criterio climático sigue la UNCCD, mientras que la delimitación de los municipios incluidos en este ámbito se establece en Brasil mediante el PAB-Brasil."
+      },
+      "4R7tVeGr4usEVritYujubc": {
+        "term": "Aridez",
+        "definition": "Característica permanente del clima de una región, marcada por el desequilibrio entre el agua aportada por la precipitación y la que se pierde por evapotranspiración. Se diferencia de la sequía, que es temporal."
+      },
+      "3zJfiSIKCtiVYXHG9Cmf5u": {
+        "term": "Aridificación",
+        "definition": "Proceso de aumento de la aridez a lo largo del tiempo, asociado con la reducción relativa de la humedad disponible y el aumento de la demanda evaporativa."
+      },
+      "3MmUxkpLypzuJ46ccudqJq": {
+        "term": "Bioma Caatinga",
+        "definition": "Bioma exclusivamente brasileño, con formaciones vegetales adaptadas a las condiciones semiáridas, alta variabilidad estacional y gran relevancia ecológica y sociocultural para la región Nordeste."
+      },
+      "2cVTwHiynqksx0RKZQ7oM2": {
+        "term": "Lucha contra la Desertificación",
+        "definition": "Conjunto de acciones para prevenir o reducir la degradación de la tierra, rehabilitar tierras parcialmente degradadas y recuperar tierras desertificadas. La UNCCD reúne en este concepto las actividades de uso sostenible de la tierra con tres finalidades: prevenir o reducir, recuperar y rehabilitar tierras parcialmente desertificadas."
+      },
+      "WLaoywChWXFiyrlH1g9n3": {
+        "term": "Convivencia con el Semiárido",
+        "definition": "Enfoque político, ecológico y científico que reconoce el Semiárido no como un espacio inviable, sino como un territorio ecológicamente complejo, capaz de sostener formas dignas de vida, producción y permanencia. Se estructura sobre tres pilares: el uso sostenible y la recuperación de los recursos naturales, con atención al suelo, el agua y la biodiversidad; la democratización del acceso a la tierra, al agua y a los medios de producción; y la agroecología como proceso de transformación territorial que articula la producción de alimentos, la conservación ambiental y la justicia social."
+      },
+      "1DH80MClQoPJ7XZc4rXcbA": {
+        "term": "Degradación de la Tierra",
+        "definition": "Reducción o pérdida de la biodiversidad, la productividad biológica y la complejidad de las tierras agrícolas como consecuencia de los sistemas de uso de la tierra y ocupación del territorio (UNCCD, 1994)."
+      },
+      "3lj8uvIKKX6GhD88iPhuED": {
+        "term": "Desertificación",
+        "definition": "Degradación de la tierra en zonas áridas, semiáridas o subhúmedas secas, resultante de variaciones climáticas y actividades humanas. No debe confundirse con la expansión natural de los desiertos ni con la aridificación, que es un proceso de origen climático."
+      },
+      "2g45U7rlYA8klRSrbTyP4m": {
+        "term": "Índice de Aridez (IA)",
+        "definition": "Relación entre la precipitación y la evapotranspiración potencial media anual, calculada a partir de series temporales largas, por lo general de 30 años. Cuanto menor es el valor, más seco es el ambiente. Los intervalos habituales son: hiperárido (inferior a 0,05), árido (0,05 a 0,20), semiárido (0,20 a 0,50), subhúmedo seco (0,50 a 0,65) y húmedo (a partir de 0,65)."
+      },
+      "3UdHvY2dm1psDr5Djun5A6": {
+        "term": "Mitigación de los Efectos de la Sequía",
+        "definition": "Conjunto de medidas destinadas a reducir la vulnerabilidad de las poblaciones y los ecosistemas ante episodios de sequía mediante la seguridad hídrica, la convivencia con el Semiárido y el fortalecimiento de la capacidad de respuesta de los territorios afectados."
+      },
+      "4zknW2bXv17ItdmcFzaXuo": {
+        "term": "Neutralidad de la Degradación de la Tierra",
+        "definition": "Estado en el que la cantidad y la calidad de los recursos de la tierra necesarios para sostener las funciones y los servicios ecosistémicos se mantienen estables o aumentan. Corresponde a la meta 15.3 de los Objetivos de Desarrollo Sostenible."
+      },
+      "519w8AyBIPxJ5Ha7kB4T1n": {
+        "term": "PAB-Brasil",
+        "definition": "El Plan de Acción Brasileño de Lucha contra la Desertificación y Mitigación de los Efectos de la Sequía (PAB-Brasil 2024) es el principal instrumento para implementar la Política Nacional de Lucha contra la Desertificación y Mitigación de los Efectos de la Sequía (Ley n.º 13.153/2015). Con un horizonte de 20 años (2024–2043), el plan busca articular estrategias y acciones para neutralizar la degradación de la tierra y mitigar los efectos de la sequía, contribuyendo a reducir las vulnerabilidades ambientales y socioeconómicas de las regiones más afectadas de Brasil."
+      },
+      "5xei6VoCqoWkWLLxFLF14O": {
+        "term": "Sequía",
+        "definition": "Período de escasez de agua para los ecosistemas y la población, atribuido a precipitaciones inferiores a las esperadas, altas temperaturas y otros factores que provocan desequilibrio hidrológico (IPCC, 2021). Es de carácter temporal, lo que la diferencia de la aridez, una característica permanente del clima."
+      },
+      "1KhrZFs6sxNNFQIg2TNT3o": {
+        "term": "Semiárido Brasileño",
+        "definition": "Ámbito territorial oficial delimitado por la Superintendencia de Desarrollo del Nordeste (Sudene) mediante las Resoluciones Condel 150/2021 y 176/2024. Combina criterios climáticos e hidrológicos y orienta políticas regionales específicas."
+      },
+      "5HSLqlOt0XJ1iBKo4Usomo": {
+        "term": "Tecnologías Sociales de Acceso al Agua",
+        "definition": "Soluciones replicables, socialmente apropiadas y desarrolladas con participación comunitaria para captar, almacenar y utilizar agua en contextos de escasez."
+      },
+      "2skEfmy04rNttZvYkDPOBn": {
+        "term": "Tierras Secas",
+        "definition": "Zonas áridas, semiáridas y subhúmedas secas, definidas por un Índice de Aridez entre 0,05 y 0,65. Corresponden al ambiente en el que puede producirse la desertificación y, en Brasil, equivalen al conjunto de las áreas susceptibles a la desertificación."
+      }
+    }
   }
 }

@@ -3,6 +3,7 @@ import "server-only";
 import { gunzipSync } from "node:zlib";
 import { getContent } from "@/infrastructure/contentful/client";
 import type { MunicipalReportSeriesConfig } from "@/utils/interfaces";
+import type { CompactTerritorialAnalysisDatasetPatch } from "@/utils/municipalAnalysisMerge";
 
 const GET_REPORT_SERIES = `
   query GetMunicipalReportSeries($panelLayerId: String!, $datasetVersion: String!, $shardKey: String!) {
@@ -56,17 +57,25 @@ export function getMunicipalReportShardKey(
   return String(Number(municipalityCode) % config.shardCount);
 }
 
-export function decodeMunicipalReportSeries(value: unknown): SeriesPayload | null {
+export function decodeMunicipalReportSeries(
+  value: unknown,
+): SeriesPayload | null {
   if (
     !isRecord(value) ||
     value.type !== "municipal-report-series-compressed" ||
     value.encoding !== "gzip+base64" ||
-    !(typeof value.data === "string" ||
-      (Array.isArray(value.data) && value.data.every((item) => typeof item === "string")))
-  ) return null;
+    !(
+      typeof value.data === "string" ||
+      (Array.isArray(value.data) &&
+        value.data.every((item) => typeof item === "string"))
+    )
+  )
+    return null;
 
   try {
-    const encoded = Array.isArray(value.data) ? value.data.join("") : value.data;
+    const encoded = Array.isArray(value.data)
+      ? value.data.join("")
+      : value.data;
     const decoded: unknown = JSON.parse(
       gunzipSync(Buffer.from(encoded, "base64")).toString("utf8"),
     );
@@ -75,7 +84,8 @@ export function decodeMunicipalReportSeries(value: unknown): SeriesPayload | nul
       decoded.schemaVersion !== 1 ||
       decoded.type !== "municipal-report-series" ||
       !isRecord(decoded.municipalities)
-    ) return null;
+    )
+      return null;
     return decoded as unknown as SeriesPayload;
   } catch {
     return null;
@@ -94,7 +104,9 @@ async function loadShard(
   );
   const items = data.municipalReportSeriesCollection?.items ?? [];
   if (items.length > 1) {
-    throw new Error(`municipalReportSeries duplicado para ${panelLayerId}/${datasetVersion}/${shardKey}.`);
+    throw new Error(
+      `municipalReportSeries duplicado para ${panelLayerId}/${datasetVersion}/${shardKey}.`,
+    );
   }
   return decodeMunicipalReportSeries(items[0]?.imageData);
 }
@@ -102,6 +114,29 @@ async function loadShard(
 export interface MunicipalReportSeriesResult {
   municipality: MunicipalReportLocationSeries | null;
   aggregate: MunicipalReportLocationSeries | null;
+}
+
+export function buildMunicipalReportSeriesPatch(
+  municipalityCode: string,
+  series: MunicipalReportLocationSeries,
+): CompactTerritorialAnalysisDatasetPatch {
+  return {
+    schemaVersion: 1,
+    type: "territorial-compact",
+    years: Object.fromEntries(
+      Object.entries(series).map(([period, entry]) => [
+        period,
+        {
+          ...(typeof entry.valuesScale === "number"
+            ? { valuesScale: entry.valuesScale }
+            : {}),
+          values: {
+            [municipalityCode]: entry.values,
+          },
+        },
+      ]),
+    ),
+  };
 }
 
 export async function getMunicipalReportSeries(

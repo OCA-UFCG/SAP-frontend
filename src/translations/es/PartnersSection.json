@@ -1,6 +1,44 @@
 {
   "PartnersSection": {
-    "title": "Socios",
-    "description": "Conozca a nuestros socios quienes, en colaboración con nosotros, nos apoyan en el desarrollo del Sistema Estratégico sobre la Desertificación."
+    "title": "Integrantes del GT",
+    "description": "Conozca a los integrantes que colaboran en el desarrollo del Sistema Estratégico sobre Desertificación y Sequía.",
+    "partners": {
+      "Fq7hIvdhJW1t1PkXqeBA0": {
+        "name": "MMA",
+        "description": "Coordinación institucional del GT-SEDES"
+      },
+      "4GDCyf7c7AeAE2vIUmz1wU": {
+        "name": "OCA",
+        "description": "Coordinación técnica"
+      },
+      "3R3Duiu6pBVsPrbKHZMa8U": {
+        "name": "ANA",
+        "description": "Monitor de Sequías y Herramientas Hidrometeorológicas"
+      },
+      "7ystzMhmjfOMEKneiQT6zw": {
+        "name": "INMET",
+        "description": "Datos climáticos"
+      },
+      "69kRxk7I8kj3kgA33DfBnX": {
+        "name": "INPE",
+        "description": "Series climáticas y deforestación"
+      },
+      "1lekqxyD8cyUmJqNzx9Z0B": {
+        "name": "IBGE",
+        "description": "Cobertura de la tierra e indicadores socioeconómicos"
+      },
+      "8eWw4IQnjjlxEh5RJ7pML": {
+        "name": "Embrapa",
+        "description": "Datos de suelo"
+      },
+      "4fFBfhQZRvCbAMT5tfEeKh": {
+        "name": "INSA",
+        "description": "Apoyo técnico"
+      },
+      "5KZqYkwtC2mJiRoNbc8d64": {
+        "name": "Defensa Civil Nacional",
+        "description": "Riesgos y alertas"
+      }
+    }
   }
 }

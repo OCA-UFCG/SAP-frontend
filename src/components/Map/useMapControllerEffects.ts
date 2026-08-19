@@ -1,4 +1,5 @@
 import type { CDIVectorData } from "@/lib/geo";
+import type { FeatureCollection, Geometry } from "geojson";
 import maplibregl, { LngLatBoundsLike } from "maplibre-gl";
 import { useEffect, type MutableRefObject } from "react";
 import {
@@ -15,6 +16,8 @@ interface UseMapControllerEffectsArgs {
   mapMode: "demo" | "platform";
   estadoSelecionado: string;
   selectedMunicipalityCode?: string | null;
+  spatialBoundaryGeoJson?: FeatureCollection<Geometry, { name: string }> | null;
+  allowedStateUfs?: Set<string> | null;
   tileLayerUrl?: string | null;
   tileLayerRequestKey?: string | null;
   layerOpacity: number;
@@ -33,6 +36,8 @@ interface UseMapControllerEffectsArgs {
   selectedStateIdRef: MutableRefObject<string | number | null>;
   selectedMunicipalityCodeRef: MutableRefObject<string | null>;
   selectedMunicipalityBoundsRef: MutableRefObject<LngLatBoundsLike | null>;
+  spatialBoundaryGeoJsonRef: MutableRefObject<FeatureCollection<Geometry, { name: string }> | null>;
+  allowedStateUfsRef: MutableRefObject<Set<string> | null>;
   onStateSelectRef: MutableRefObject<((uf: string) => void) | undefined>;
   onSelectedMunicipalityCodeChangeRef: MutableRefObject<
     ((municipalityCode: string | null) => void) | undefined
@@ -82,6 +87,8 @@ export const useMapControllerEffects = ({
   mapMode,
   estadoSelecionado,
   selectedMunicipalityCode,
+  spatialBoundaryGeoJson,
+  allowedStateUfs,
   tileLayerUrl,
   tileLayerRequestKey,
   layerOpacity,
@@ -100,6 +107,8 @@ export const useMapControllerEffects = ({
   selectedStateIdRef,
   selectedMunicipalityCodeRef,
   selectedMunicipalityBoundsRef,
+  spatialBoundaryGeoJsonRef,
+  allowedStateUfsRef,
   onStateSelectRef,
   onSelectedMunicipalityCodeChangeRef,
   onTileLayerReadyRef,
@@ -135,6 +144,8 @@ export const useMapControllerEffects = ({
     if (!selectedMunicipalityCode) {
       selectedMunicipalityBoundsRef.current = null;
     }
+    spatialBoundaryGeoJsonRef.current = spatialBoundaryGeoJson ?? null;
+    allowedStateUfsRef.current = allowedStateUfs ?? null;
     onStateSelectRef.current = onStateSelect;
     onSelectedMunicipalityCodeChangeRef.current =
       onSelectedMunicipalityCodeChange;
@@ -149,6 +160,8 @@ export const useMapControllerEffects = ({
   }, [
     mapMode,
     estadoSelecionado,
+    spatialBoundaryGeoJson,
+    allowedStateUfs,
     onStateSelect,
     onSelectedMunicipalityCodeChange,
     onTileLayerReady,
@@ -164,6 +177,8 @@ export const useMapControllerEffects = ({
     selectedStateRef,
     selectedMunicipalityCodeRef,
     selectedMunicipalityBoundsRef,
+    spatialBoundaryGeoJsonRef,
+    allowedStateUfsRef,
     onStateSelectRef,
     onSelectedMunicipalityCodeChangeRef,
     onTileLayerReadyRef,

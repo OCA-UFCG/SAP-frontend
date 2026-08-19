@@ -282,6 +282,28 @@ export const useMunicipalitySelection = ({
         });
       }
 
+      const immediateBounds = resolveMunicipalitySelectionBounds(
+        map,
+        municipalityCode,
+      );
+
+      if (immediateBounds) {
+        selectedMunicipalityBoundsRef.current = immediateBounds;
+        finishSync();
+
+        try {
+          fitSelectedMunicipalityToBounds(map, immediateBounds, {
+            animate: true,
+            duration: MAP_FOCUS_ANIMATION_DURATION,
+            easing: smoothCameraEasing,
+          });
+        } catch (err) {
+          warn("selectedMunicipalitySync direct fit failed", { err });
+        }
+
+        return;
+      }
+
       const delayMs =
         (currentBoundsRef.current ? MUNICIPALITY_STATE_FOCUS_DURATION : 0) +
         MUNICIPALITY_FOCUS_DELAY_MS;

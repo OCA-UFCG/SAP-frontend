@@ -4,9 +4,9 @@ export const MUNICIPALITY_SOURCE_ID = "brazil-cities";
 export const MUNICIPALITY_SOURCE_LAYER = "brazilcities";
 export const MUNICIPALITY_BORDER_LAYER_ID = "municipality-borders";
 export const MUNICIPALITY_HOVER_LAYER_ID = "municipality-hover-fills";
-export const MUNICIPALITY_MIN_ZOOM = 5;
-export const MUNICIPALITY_BORDER_MIN_ZOOM = 9;
-export const MUNICIPALITY_SELECTED_BORDER_MIN_ZOOM = MUNICIPALITY_MIN_ZOOM;
+export const MUNICIPALITY_MIN_ZOOM = 7;
+export const MUNICIPALITY_BORDER_MIN_ZOOM = 7;
+export const MUNICIPALITY_SELECTED_BORDER_MIN_ZOOM = 5;
 
 const MUNICIPALITY_TILES_PATH = "/api/tiles/{z}/{x}/{y}?tileset=cities";
 
@@ -58,7 +58,14 @@ const ensureMunicipalityHoverLayer = (
         minzoom: MUNICIPALITY_MIN_ZOOM,
         paint: {
           "fill-color": "#000000",
-          "fill-opacity": 0,
+          "fill-opacity": [
+            "case",
+            ["boolean", ["feature-state", "hover"], false],
+            0.18,
+            ["boolean", ["feature-state", "selected"], false],
+            0.12,
+            0,
+          ],
         },
       },
       beforeLayerId,

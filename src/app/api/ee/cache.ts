@@ -4,7 +4,7 @@ import {
 } from "@/utils/spatialScope";
 
 const CACHE_TTL_MS = 1000 * 60 * 30;
-const CACHE_KEY_VERSION = "v7";
+const CACHE_KEY_VERSION = "v8";
 
 interface CacheEntry {
   url: string;
@@ -19,6 +19,7 @@ function buildVisualizationSignature(
   minScale?: number,
   maxScale?: number,
   mapVisualization?: unknown,
+  imageCollectionSelection?: unknown,
 ) {
   return JSON.stringify({
     imageId: imageId ?? null,
@@ -26,6 +27,7 @@ function buildVisualizationSignature(
     minScale: minScale ?? null,
     maxScale: maxScale ?? null,
     mapVisualization: mapVisualization ?? null,
+    imageCollectionSelection: imageCollectionSelection ?? null,
   });
 }
 
@@ -38,6 +40,7 @@ export const buildCacheKey = (
   maxScale?: number,
   mapVisualization?: unknown,
   spatialSelection: SpatialSelection = DEFAULT_SPATIAL_SELECTION,
+  imageCollectionSelection?: unknown,
 ) =>
   `${CACHE_KEY_VERSION}:${name}:${year}:${buildVisualizationSignature(
     imageId,
@@ -45,6 +48,7 @@ export const buildCacheKey = (
     minScale,
     maxScale,
     mapVisualization,
+    imageCollectionSelection,
   )}:${spatialSelection.spatialArea}:${spatialSelection.spatialValue}`;
 
 function getFreshEntry(key: string): CacheEntry | null {
