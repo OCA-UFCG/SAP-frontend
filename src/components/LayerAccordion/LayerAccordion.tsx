@@ -27,7 +27,7 @@ export function LayerAccordion({ title, children, defaultOpen = false }: LayerAc
         >
           {title}
         </span>
-        <Chevron open={isOpen} from="up" to="down" size={16} />
+        <Chevron open={isOpen} from="down" to="up" size={16} />
       </button>
 
       <div

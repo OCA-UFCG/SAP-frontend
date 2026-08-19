@@ -332,7 +332,7 @@ export function MunicipalReportContext({ panelLayers = [] }: MunicipalReportCont
 
           <div className="space-y-4">
             {groups.map((group, index) => (
-              <LayerAccordion key={group.key} title={translatedCategoryTitle(group)} defaultOpen={index === 0}>
+              <LayerAccordion key={group.key} title={translatedCategoryTitle(group)} defaultOpen={false}>
                 <div className="flex flex-col gap-2">
                   {group.layers.map((layer) => {
                     const available = availabilityState === "ready" && availability.get(layer.id) === true;
