@@ -1,6 +1,10 @@
 "use client";
 
-import maplibregl, { MapSourceDataEvent, MapGeoJSONFeature } from "maplibre-gl";
+import maplibregl, {
+  LngLatBoundsLike,
+  MapSourceDataEvent,
+  MapGeoJSONFeature,
+} from "maplibre-gl";
 import "maplibre-gl/dist/maplibre-gl.css";
 import { useEffect, useRef } from "react";
 import type { FeatureCollection, Geometry } from "geojson";
@@ -52,6 +56,8 @@ export interface MapProps {
   layerOpacity?: number;
   allowedStateUfs?: Set<string> | null;
   spatialBoundaryGeoJson?: FeatureCollection<Geometry, { name: string }> | null;
+  /** Limites da área de interesse a enquadrar quando a seleção muda. */
+  spatialFocusBounds?: LngLatBoundsLike | null;
 }
 
 const Map = ({
@@ -74,6 +80,7 @@ const Map = ({
   layerOpacity = 0.85,
   allowedStateUfs = null,
   spatialBoundaryGeoJson = null,
+  spatialFocusBounds = null,
 }: MapProps) => {
   const mapContainerRef = useRef<HTMLDivElement | null>(null);
   const {
@@ -116,6 +123,7 @@ const Map = ({
     selectedMunicipalityCode,
     showStatesBorder,
     spatialBoundaryGeoJson,
+    spatialFocusBounds,
     allowedStateUfs,
     tileLayerRequestKey,
     tileLayerUrl,

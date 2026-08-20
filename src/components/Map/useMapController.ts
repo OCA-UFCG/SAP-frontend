@@ -39,6 +39,7 @@ interface UseMapControllerArgs {
   onSelectedMunicipalityCodeChange?: (municipalityCode: string | null) => void;
   onTileLayerReady?: (requestKey: string) => void;
   spatialBoundaryGeoJson?: FeatureCollection<Geometry, { name: string }> | null;
+  spatialFocusBounds?: LngLatBoundsLike | null;
   allowedStateUfs?: Set<string> | null;
 }
 
@@ -58,6 +59,7 @@ export const useMapController = ({
   onSelectedMunicipalityCodeChange,
   onTileLayerReady,
   spatialBoundaryGeoJson = null,
+  spatialFocusBounds = null,
   allowedStateUfs = null,
 }: UseMapControllerArgs) => {
   const debugEnabled = process.env.NODE_ENV !== "production";
@@ -246,7 +248,9 @@ export const useMapController = ({
     dadosCDI,
     estadoSelecionado,
     spatialBoundaryGeoJson,
+    spatialFocusBounds,
     allowedStateUfs,
+    fitMapToBounds,
     fitSelectedMunicipalityToBounds,
     fitSelectedStateToBounds,
     hasCdiDataRef,

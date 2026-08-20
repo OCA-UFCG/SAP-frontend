@@ -40,7 +40,18 @@ vi.mock("@/components/MapLayerContext/MapLayerContext", () => ({
   useMapLayerActions: () => useMapLayerActionsMock(),
 }));
 
+const useSpatialBoundaryOverlayMock = vi.fn();
+
+vi.mock("@/components/PlatformMap/useSpatialBoundaryOverlay", () => ({
+  useSpatialBoundaryOverlay: () => useSpatialBoundaryOverlayMock(),
+}));
+
 import { PlatformMap } from "@/components/PlatformMap/PlatformMap";
+import {
+  geoBrasilSource,
+  resolveSpatialFocusBounds,
+} from "@/components/Map/mapBounds";
+import { getAllowedStateUfs } from "@/utils/interestAreaStates";
 
 describe("PlatformMap", () => {
   afterEach(() => {
@@ -53,6 +64,11 @@ describe("PlatformMap", () => {
     useMapLayerActiveStateMock.mockReset();
     useMapLayerViewStateMock.mockReset();
     useMapLayerActionsMock.mockReset();
+    useSpatialBoundaryOverlayMock.mockReset();
+    useSpatialBoundaryOverlayMock.mockReturnValue({
+      boundaryGeoJson: null,
+      status: "idle",
+    });
 
     useMapLayerActiveStateMock.mockReturnValue({
       activeData: null,
@@ -194,5 +210,130 @@ describe("PlatformMap", () => {
       screen.queryByRole("heading", { name: "Legenda do mapa" }),
     ).not.toBeInTheDocument();
     expect(useMapLayerActionsMock().setLayerOpacity).not.toHaveBeenCalled();
+  });
+
+  describe("focus bounds for the selected interest area", () => {
+    const readyTileLayer = {
+      requestKey: "ee-layer:2024",
+      status: "ready",
+      tileLayerUrl: "https://tiles.example/2024",
+    };
+
+    const viewStateFor = (spatialSelection: unknown) => ({
+      activeLegend: null,
+      selectedState: "br",
+      activeYear: "2024",
+      layerOpacity: 0.85,
+      spatialSelection,
+    });
+
+    beforeEach(() => {
+      useEarthEngineTileLayerMock.mockReturnValue(readyTileLayer);
+    });
+
+    it("frames Brazil for the national area", () => {
+      render(<PlatformMap />);
+
+      expect(latestMapProps?.spatialFocusBounds).toEqual(
+        resolveSpatialFocusBounds(geoBrasilSource, null, null),
+      );
+    });
+
+    it("frames the states that compose a selected region", () => {
+      useMapLayerViewStateMock.mockReturnValue(
+        viewStateFor({ spatialArea: "region", spatialValue: "Nordeste" }),
+      );
+
+      render(<PlatformMap />);
+
+      expect(latestMapProps?.spatialFocusBounds).toEqual(
+        resolveSpatialFocusBounds(
+          geoBrasilSource,
+          getAllowedStateUfs({
+            spatialArea: "region",
+            spatialValue: "Nordeste",
+          }),
+          null,
+        ),
+      );
+      expect(latestMapProps?.spatialFocusBounds).not.toEqual(
+        resolveSpatialFocusBounds(geoBrasilSource, null, null),
+      );
+    });
+
+    it("waits for the real boundary instead of framing the composing states", () => {
+      useSpatialBoundaryOverlayMock.mockReturnValue({
+        boundaryGeoJson: null,
+        status: "loading",
+      });
+      useMapLayerViewStateMock.mockReturnValue(
+        viewStateFor({ spatialArea: "biome", spatialValue: "Caatinga" }),
+      );
+
+      render(<PlatformMap />);
+
+      // Enquadrar agora causaria um movimento grosseiro seguido do correto.
+      expect(latestMapProps?.spatialFocusBounds).toBeNull();
+    });
+
+    it("frames the real boundary once it arrives", () => {
+      useSpatialBoundaryOverlayMock.mockReturnValue({
+        status: "ready",
+        boundaryGeoJson: {
+          type: "FeatureCollection",
+          features: [
+            {
+              type: "Feature",
+              properties: { name: "Caatinga" },
+              geometry: {
+                type: "Polygon",
+                coordinates: [
+                  [
+                    [-44, -16],
+                    [-36, -16],
+                    [-36, -3],
+                    [-44, -3],
+                    [-44, -16],
+                  ],
+                ],
+              },
+            },
+          ],
+        },
+      });
+      useMapLayerViewStateMock.mockReturnValue(
+        viewStateFor({ spatialArea: "biome", spatialValue: "Caatinga" }),
+      );
+
+      render(<PlatformMap />);
+
+      expect(latestMapProps?.spatialFocusBounds).toEqual([
+        [-44, -16],
+        [-36, -3],
+      ]);
+    });
+
+    it("falls back to the composing states when the boundary fetch fails", () => {
+      useSpatialBoundaryOverlayMock.mockReturnValue({
+        boundaryGeoJson: null,
+        status: "error",
+      });
+      useMapLayerViewStateMock.mockReturnValue(
+        viewStateFor({ spatialArea: "biome", spatialValue: "Caatinga" }),
+      );
+
+      render(<PlatformMap />);
+
+      expect(latestMapProps?.spatialFocusBounds).toEqual(
+        resolveSpatialFocusBounds(
+          geoBrasilSource,
+          getAllowedStateUfs({
+            spatialArea: "biome",
+            spatialValue: "Caatinga",
+          }),
+          null,
+        ),
+      );
+    });
   });
 });
