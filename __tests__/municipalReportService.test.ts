@@ -18,7 +18,6 @@ describe("buildMunicipalReport", () => {
         "2024-01": { values: [10] },
         "2024-03": { values: [30] },
       },
-      aggregate: null,
     }));
     const report = await buildMunicipalReport("5200050", "2024-02", {
       layers: [{
@@ -175,7 +174,9 @@ describe("buildMunicipalReport", () => {
     });
   });
 
-  it("builds the published S2ID series from annual partitions like Monitoramento", async () => {
+  it("builds the S2ID annual series from municipal totals, not national ones", async () => {
+    // Each annual partition carries both the national aggregate row ("br") and
+    // the municipal row. The municipal report must only ever plot the latter.
     const publishedSeries = [
       ["2004", 742], ["2005", 1569], ["2006", 888], ["2007", 1121],
       ["2008", 1000], ["2009", 608], ["2013", 3275], ["2015", 2114],
@@ -183,6 +184,9 @@ describe("buildMunicipalReport", () => {
       ["2021", 2753], ["2022", 2270], ["2023", 2414], ["2024", 2004],
       ["2025", 2780],
     ] as const;
+    const municipalSeries = publishedSeries.map(
+      ([period], index) => [period, index % 4] as const,
+    );
     const years = Object.fromEntries(publishedSeries.map(([period]) => [period, {
       imageId: `s2id-${period}`,
       values: {},
@@ -202,7 +206,9 @@ describe("buildMunicipalReport", () => {
             values: year === period
               ? {
                   br: [publishedSeries.find(([key]) => key === year)?.[1] ?? 0],
-                  "5200050": [year === "2024" ? 1 : 0],
+                  "5200050": [
+                    municipalSeries.find(([key]) => key === year)?.[1] ?? 0,
+                  ],
                 }
               : {},
           },
@@ -217,7 +223,6 @@ describe("buildMunicipalReport", () => {
         title: "S2ID",
         order: 1,
         periods: publishedSeries.map(([period]) => period),
-        timeSeriesLocationKey: "br",
       }],
       loadImageData,
     });
@@ -225,10 +230,62 @@ describe("buildMunicipalReport", () => {
     expect(report.analyses[0]?.timeSeries.map(({ period, distribution }) => [
       period,
       distribution[0]?.percentage,
-    ])).toEqual(publishedSeries);
-    expect(report.analyses[0]?.snapshot?.distribution[0]?.percentage).toBe(1);
+    ])).toEqual(municipalSeries.map(([period, value]) => [period, value]));
+    expect(report.analyses[0]?.snapshot?.distribution[0]?.percentage).toBe(
+      municipalSeries.find(([period]) => period === "2024")?.[1],
+    );
     expect(loadImageData).toHaveBeenCalledTimes(publishedSeries.length);
     expect(loadImageData).not.toHaveBeenCalledWith("s2id_secas_estiagens");
+  });
+
+  it("plots the municipal shard series and never requests the national aggregate", async () => {
+    const loadReportSeries = vi.fn(async () => ({
+      municipality: { "2024": { values: [3] }, "2025": { values: [2] } },
+    }));
+    // Resolved through listPanelLayers so the real src/config/municipalReport
+    // override for this layer is applied, exactly as in production.
+    const report = await buildMunicipalReport("5200050", "2025", {
+      listPanelLayers: async () =>
+        [
+          {
+            id: "s2id_secas_estiagens",
+            name: "Registros de Secas e Estiagens (2004-2025)",
+            panelPosition: 120,
+            reportSeriesConfig: {
+              schemaVersion: 1,
+              datasetVersion: "v1",
+              shardCount: 64,
+              shardStrategy: "ibge-modulo",
+              firstPeriod: "2024",
+              lastPeriod: "2025",
+            },
+            imageData: {
+              ...imageData,
+              valueConfig: { type: "absolute", unit: "registros" },
+              years: {
+                "2024": { imageId: "a", values: {} },
+                "2025": { imageId: "b", values: {} },
+              },
+            },
+          },
+        ] as never,
+      loadReportSeries,
+      loadImageData: vi.fn(),
+    });
+
+    expect(loadReportSeries).toHaveBeenCalledWith(
+      "s2id_secas_estiagens",
+      "5200050",
+      expect.objectContaining({ datasetVersion: "v1" }),
+    );
+    expect(report.analyses[0]?.timeSeries.map(({ period, distribution }) => [
+      period,
+      distribution[0]?.percentage,
+    ])).toEqual([
+      ["2024", 3],
+      ["2025", 2],
+    ]);
+    expect(report.analyses[0]?.snapshot?.distribution[0]?.percentage).toBe(2);
   });
 
   it("uses the nearest future snapshot when no previous period exists", async () => {
@@ -349,7 +406,6 @@ describe("buildMunicipalReport", () => {
       }],
       loadReportSeries: async () => ({
         municipality: { [sourcePeriod]: { values: [100] } },
-        aggregate: null,
       }),
     });
 
@@ -390,7 +446,6 @@ describe("buildMunicipalReport", () => {
       }],
       loadReportSeries: async () => ({
         municipality: { "2025": { values: [100] } },
-        aggregate: null,
       }),
     });
 
@@ -429,7 +484,6 @@ describe("buildMunicipalReport", () => {
       }],
       loadReportSeries: async () => ({
         municipality: { "2020": { values: [100] } },
-        aggregate: null,
       }),
     });
 
