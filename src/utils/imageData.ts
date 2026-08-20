@@ -1,6 +1,7 @@
 import type {
   CompactMapVisualizationConfig,
   CompactTerritorialAnalysisDataset,
+  ResolvedImageCollectionSelection,
 } from "@/utils/analysis";
 import type {
   IImageParam,
@@ -13,6 +14,7 @@ import {
   CPTEC_FORECAST_CLASSES,
   CPTEC_FORECAST_COLLECTION_ID,
   CPTEC_FORECAST_PANEL_LAYER_ID,
+  getCptecForecastCollectionSelection,
 } from "@/contracts/cptecForecast.mjs";
 
 const FORECAST_TIME_ZONE = "America/Sao_Paulo";
@@ -25,6 +27,23 @@ export interface ResolvedImageYearEntry {
   imageParams: IImageParam[];
   analysis?: LegacyImageDataEntry["analysis"];
   mapVisualization?: CompactMapVisualizationConfig;
+}
+
+export function resolveImageCollectionSelection(
+  yearConfig: ResolvedImageYearEntry,
+): ResolvedImageCollectionSelection | undefined {
+  const configured = yearConfig.mapVisualization?.imageCollectionSelection;
+  if (configured && Number.isInteger(yearConfig.leadTime)) {
+    return {
+      ...configured,
+      filterValue: yearConfig.leadTime as number,
+    };
+  }
+
+  return getCptecForecastCollectionSelection(
+    yearConfig.imageId,
+    yearConfig.leadTime,
+  );
 }
 
 function sortYearKeys(keys: string[]): string[] {

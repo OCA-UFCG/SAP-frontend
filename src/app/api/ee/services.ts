@@ -7,13 +7,16 @@ import {
 } from "@/app/api/ee/mapVisualization";
 import { getPanelLayers } from "@/repositories/platform/panelLayerRepository";
 import { IMapId, IEEInfo, IImageParam } from "@/utils/interfaces";
-import { getImageDataYearKeys, resolveImageYearEntry } from "@/utils/imageData";
+import {
+  getImageDataYearKeys,
+  resolveImageCollectionSelection,
+  resolveImageYearEntry,
+} from "@/utils/imageData";
 import type { CompactMapVisualizationConfig } from "@/utils/analysis";
 import {
   DEFAULT_SPATIAL_SELECTION,
   type SpatialSelection,
 } from "@/utils/spatialScope";
-import { getCptecForecastCollectionSelection } from "@/contracts/cptecForecast.mjs";
 import {
   evaluateGeeObject,
   initializeGee,
@@ -99,7 +102,7 @@ export async function inspectEarthEngineAsset(
       );
     },
   );
-  const rawType = String(asset.type ?? "").toUpperCase();
+  const rawType = normalizeGeeAssetType(asset.type);
   const metadata =
     asset.updateTime || asset.update_time
       ? { updateTime: String(asset.updateTime ?? asset.update_time) }
@@ -121,7 +124,7 @@ export async function inspectEarthEngineAsset(
     };
   }
 
-  if (rawType === "IMAGE_COLLECTION") {
+  if (rawType === "IMAGECOLLECTION") {
     const collection = ee.ImageCollection(assetId);
     const bands = await evaluateGeeObject<string[]>(
       ee.Image(collection.first()).bandNames(),
@@ -212,6 +215,7 @@ export function shouldApplySelfMask({
 
 export interface ImageCollectionSelection {
   latestProperty: string;
+  latestValue?: string | number;
   filterProperty: string;
   filterValue: string | number;
   sortProperty?: string;
@@ -224,7 +228,7 @@ interface GetEarthEngineUrlOptions {
   imageCollectionSelection?: ImageCollectionSelection;
 }
 
-function normalizeGeeAssetType(type?: unknown) {
+export function normalizeGeeAssetType(type?: unknown) {
   return type
     ? String(type)
         .toUpperCase()
@@ -268,10 +272,9 @@ export function selectImageCollectionImage(
     return collection.mosaic().setDefaultProjection(projection);
   }
 
-  const latestValue = collection
-    .aggregate_array(selection.latestProperty)
-    .sort()
-    .get(-1);
+  const latestValue =
+    selection.latestValue ??
+    collection.aggregate_array(selection.latestProperty).sort().get(-1);
   let selectedCollection = collection.filter(
     ee.Filter.eq(selection.latestProperty, latestValue),
   );
@@ -690,10 +693,8 @@ export const cacheMapData = async () => {
       for (const year of getImageDataYearKeys(imageData)) {
         const yearConfig = resolveImageYearEntry(imageData, year);
         if (!yearConfig) continue;
-        const imageCollectionSelection = getCptecForecastCollectionSelection(
-          yearConfig.imageId,
-          yearConfig.leadTime,
-        );
+        const imageCollectionSelection =
+          resolveImageCollectionSelection(yearConfig);
 
         const cacheKey = buildCacheKey(
           id,

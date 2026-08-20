@@ -12,11 +12,13 @@ import {
 } from "@/app/api/ee/services";
 import { consumeEeRateLimit } from "./rate-limit";
 import { getPanelLayers } from "@/repositories/platform/panelLayerRepository";
-import { resolveImageYearEntry } from "@/utils/imageData";
+import {
+  resolveImageCollectionSelection,
+  resolveImageYearEntry,
+} from "@/utils/imageData";
 import { getAuthenticatedUserId } from "@/lib/server-session";
 import { createServerTiming } from "@/utils/serverTiming";
 import { resolveSpatialSelection } from "@/utils/spatialScope";
-import { getCptecForecastCollectionSelection } from "@/contracts/cptecForecast.mjs";
 
 export async function POST(req: NextRequest) {
   const timing = createServerTiming();
@@ -89,10 +91,8 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    const imageCollectionSelection = getCptecForecastCollectionSelection(
-      yearConfig.imageId,
-      yearConfig.leadTime,
-    );
+    const imageCollectionSelection =
+      resolveImageCollectionSelection(yearConfig);
     const cacheKey = buildCacheKey(
       name,
       year,

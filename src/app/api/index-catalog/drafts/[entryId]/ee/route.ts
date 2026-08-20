@@ -6,7 +6,10 @@ import {
   requireCatalogAccess,
 } from "@/app/api/index-catalog/http";
 import { getIndexCatalogPreview } from "@/services/indexCatalog/indexCatalogService";
-import { resolveImageYearEntry } from "@/utils/imageData";
+import {
+  resolveImageCollectionSelection,
+  resolveImageYearEntry,
+} from "@/utils/imageData";
 import { resolveSpatialSelection } from "@/utils/spatialScope";
 
 interface DraftEeRouteContext {
@@ -43,6 +46,8 @@ export async function POST(request: Request, context: DraftEeRouteContext) {
         404,
       );
     }
+    const imageCollectionSelection =
+      resolveImageCollectionSelection(yearConfig);
 
     const cacheKey = buildCacheKey(
       `catalog-preview:${entryId}:${layer.id}`,
@@ -53,6 +58,7 @@ export async function POST(request: Request, context: DraftEeRouteContext) {
       layer.maxScale,
       yearConfig.mapVisualization,
       spatial.selection,
+      imageCollectionSelection,
     );
     const cachedUrl = getCachedUrl(cacheKey);
     if (cachedUrl) {
@@ -67,6 +73,7 @@ export async function POST(request: Request, context: DraftEeRouteContext) {
       {
         mapVisualization: yearConfig.mapVisualization,
         spatialSelection: spatial.selection,
+        ...(imageCollectionSelection ? { imageCollectionSelection } : {}),
       },
     );
     addUrlToCache(cacheKey, tileUrl);

@@ -191,6 +191,58 @@ function validateMapVisualization(value, path, errors) {
     pushError(errors, `${path}.thresholds`, "deve ser lista de números.");
   }
 
+  if (value.imageCollectionSelection != null) {
+    const selection = value.imageCollectionSelection;
+    if (!isRecord(selection)) {
+      pushError(
+        errors,
+        `${path}.imageCollectionSelection`,
+        "deve ser um objeto.",
+      );
+    } else {
+      for (const field of ["latestProperty", "filterProperty"]) {
+        if (!isNonEmptyString(selection[field])) {
+          pushError(
+            errors,
+            `${path}.imageCollectionSelection.${field}`,
+            "deve ser string não vazia.",
+          );
+        }
+      }
+      if (
+        selection.latestValue == null ||
+        (typeof selection.latestValue !== "string" &&
+          !isFiniteNumber(selection.latestValue))
+      ) {
+        pushError(
+          errors,
+          `${path}.imageCollectionSelection.latestValue`,
+          "deve ser string ou número.",
+        );
+      }
+      if (
+        selection.sortProperty != null &&
+        !isNonEmptyString(selection.sortProperty)
+      ) {
+        pushError(
+          errors,
+          `${path}.imageCollectionSelection.sortProperty`,
+          "deve ser string não vazia.",
+        );
+      }
+      if (
+        selection.selectFirstBand != null &&
+        typeof selection.selectFirstBand !== "boolean"
+      ) {
+        pushError(
+          errors,
+          `${path}.imageCollectionSelection.selectFirstBand`,
+          "deve ser booleano.",
+        );
+      }
+    }
+  }
+
   if (value.sourceRange != null) {
     if (!isRecord(value.sourceRange)) {
       pushError(errors, `${path}.sourceRange`, "deve ser um objeto.");

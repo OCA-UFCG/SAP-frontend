@@ -95,4 +95,52 @@ describe("index catalog v2 input helpers", () => {
     expect(inferTimeScale(["2024", "2025"])).toBe("Anual");
     expect(inferTimeScale(["2025-12", "2026-01"])).toBe("Mensal");
   });
+
+  it("accepts a forecast ImageCollection selection and normalizes its leads", () => {
+    const parsed = parseIndexCatalogDraftInput({
+      ...validDraft,
+      earthEngine: {
+        strategy: "single",
+        sourceType: "imageCollection",
+        singleAssetId: "projects/example/assets/forecast",
+        band: "b1",
+        thresholds: [-90, -30, 0, 30, 90],
+        collectionSelection: {
+          type: "latest-emission-leads",
+          emissionProperty: "data_emissao",
+          leadProperty: "lead_time",
+          targetDateProperty: "system:time_start",
+          leadValues: [4, 2, 1, 3],
+        },
+      },
+    });
+
+    expect(parsed.earthEngine.collectionSelection).toEqual(
+      expect.objectContaining({
+        emissionProperty: "data_emissao",
+        targetDateProperty: "system:time_start",
+        leadValues: [1, 2, 3, 4],
+      }),
+    );
+  });
+
+  it("rejects forecast selection for a per-period asset", () => {
+    expect(() =>
+      parseIndexCatalogDraftInput({
+        ...validDraft,
+        earthEngine: {
+          strategy: "perPeriod",
+          sourceType: "imageCollection",
+          assetPattern: "projects/example/assets/forecast_{period}",
+          collectionSelection: {
+            type: "latest-emission-leads",
+            emissionProperty: "data_emissao",
+            leadProperty: "lead_time",
+            targetDateProperty: "system:time_start",
+            leadValues: [1, 2, 3, 4],
+          },
+        },
+      }),
+    ).toThrow("asset único");
+  });
 });

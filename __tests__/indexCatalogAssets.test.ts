@@ -43,9 +43,34 @@ function collection(assetId: string, level?: string): MockCollection {
   };
 }
 
+function forecastCollection(assetId: string) {
+  const collectionMock = {
+    aggregate_array: (property: string) => {
+      const expression = {
+        tag:
+          property === "data_emissao"
+            ? "forecast-emissions"
+            : property === "lead_time"
+              ? "forecast-leads"
+              : "forecast-target-dates",
+        assetId,
+      } satisfies Expression;
+      return property === "data_emissao"
+        ? {
+            distinct: () => ({ sort: () => expression }),
+          }
+        : expression;
+    },
+    filter: () => collectionMock,
+    sort: () => collectionMock,
+  };
+  return collectionMock;
+}
+
 vi.mock("@google/earthengine", () => ({
   default: {
     FeatureCollection: (assetId: string) => collection(assetId),
+    ImageCollection: (assetId: string) => forecastCollection(assetId),
     Filter: {
       notNull: () => ({ tag: "not-null" }),
       eq: (_property: string, value: string) => ({ tag: "level", value }),
@@ -90,11 +115,26 @@ describe("index catalog GEE asset discovery", () => {
     mocks.evaluateGeeObject.mockImplementation(
       async (expression: Expression) => {
         if (expression.tag === "periods") {
+          if (expression.assetId.endsWith("forecast-statistics")) {
+            return ["2026-09-01", "2026-10-01", "2026-11-01", "2026-12-01"];
+          }
           return expression.assetId.endsWith("2024")
             ? ["2024-01-01"]
             : expression.assetId.endsWith("2025")
               ? ["2025-02-01"]
               : [2025];
+        }
+        if (expression.tag === "forecast-emissions") {
+          return [20260701, 20260801];
+        }
+        if (expression.tag === "forecast-leads") return [1, 2, 3, 4];
+        if (expression.tag === "forecast-target-dates") {
+          return [
+            Date.UTC(2026, 8, 1),
+            Date.UTC(2026, 9, 1),
+            Date.UTC(2026, 10, 1),
+            Date.UTC(2026, 11, 1),
+          ];
         }
         if (expression.tag === "invalid") return 0;
         if (expression.tag === "distinct") return 10;
@@ -106,21 +146,31 @@ describe("index catalog GEE asset discovery", () => {
       },
     );
     mocks.inspectEarthEngineAsset.mockImplementation(async (assetId: string) =>
-      assetId.endsWith("map")
+      assetId.endsWith("forecast-map")
         ? {
             id: assetId,
-            type: "image",
-            bands: ["classification"],
+            type: "imageCollection",
+            bands: ["b1"],
             properties: [],
             updateTime: "2026-08-17T12:00:00Z",
           }
-        : {
-            id: assetId,
-            type: "featureCollection",
-            bands: [],
-            properties: schemaProperties(),
-            updateTime: "2026-08-17T11:00:00Z",
-          },
+        : assetId.endsWith("map")
+          ? {
+              id: assetId,
+              type: "image",
+              bands: ["classification"],
+              properties: [],
+              updateTime: "2026-08-17T12:00:00Z",
+            }
+          : {
+              id: assetId,
+              type: "featureCollection",
+              bands: [],
+              properties: assetId.endsWith("forecast-statistics")
+                ? schemaProperties([0, 1, 2, 3, 4, 5])
+                : schemaProperties(),
+              updateTime: "2026-08-17T11:00:00Z",
+            },
     );
   });
 
@@ -196,5 +246,59 @@ describe("index catalog GEE asset discovery", () => {
     expect(build.classes).toEqual([
       expect.objectContaining({ classIndex: 1, label: "Classe 1" }),
     ]);
+  });
+
+  it("pins the latest forecast issuance and maps each period to its lead", async () => {
+    const build = await buildCatalogDraft({
+      schemaVersion: 2,
+      panelLayerId: "previsao-temperatura",
+      status: "draft",
+      name: "Previsão de temperatura",
+      description: "Teste",
+      category: "Dados Climáticos",
+      statisticsSource: {
+        kind: "gee-feature-collection",
+        asset: {
+          type: "fixed",
+          assetId: "projects/x/assets/forecast-statistics",
+        },
+        periodGranularity: "month",
+        properties,
+      },
+      classes: [],
+      earthEngine: {
+        strategy: "single",
+        sourceType: "imageCollection",
+        singleAssetId: "projects/x/assets/forecast-map",
+        band: "b1",
+        thresholds: [-90, -30, 0, 30, 90],
+        collectionSelection: {
+          type: "latest-emission-leads",
+          emissionProperty: "data_emissao",
+          leadProperty: "lead_time",
+          targetDateProperty: "system:time_start",
+          leadValues: [1, 2, 3, 4],
+        },
+      },
+      createdBy: { uid: "a", email: null, at: "2026-08-17T10:00:00Z" },
+      updatedBy: { uid: "a", email: null, at: "2026-08-17T10:00:00Z" },
+    });
+
+    expect(build.panelLayerImageData.defaultYear).toBe("2026-09");
+    expect(build.panelLayerImageData.years).toEqual(
+      expect.objectContaining({
+        "2026-09": expect.objectContaining({ leadTime: 1 }),
+        "2026-10": expect.objectContaining({ leadTime: 2 }),
+        "2026-11": expect.objectContaining({ leadTime: 3 }),
+        "2026-12": expect.objectContaining({ leadTime: 4 }),
+      }),
+    );
+    expect(build.mapVisualization.imageCollectionSelection).toEqual({
+      latestProperty: "data_emissao",
+      latestValue: 20260801,
+      filterProperty: "lead_time",
+      sortProperty: "lead_time",
+      selectFirstBand: true,
+    });
   });
 });

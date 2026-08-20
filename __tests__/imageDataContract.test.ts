@@ -123,6 +123,27 @@ describe("imageData contract", () => {
     ).toContain("years.2026.leadTime: deve ser número inteiro positivo.");
   });
 
+  it("accepts a pinned ImageCollection forecast selection", () => {
+    const imageData = buildValidCompactImageData();
+    Object.assign(imageData.mapVisualization, {
+      sourceType: "imageCollection",
+      imageCollectionSelection: {
+        latestProperty: "data_emissao",
+        latestValue: 20260801,
+        filterProperty: "lead_time",
+        sortProperty: "lead_time",
+        selectFirstBand: true,
+      },
+    });
+    Object.assign(imageData.years["2026"], { leadTime: 1 });
+
+    expect(
+      validateImageDataContract(imageData, {
+        context: "panelLayerPublish",
+      }),
+    ).toEqual({ ok: true, errors: [] });
+  });
+
   it("accepts municipal patches without imageId", () => {
     expect(
       validateImageDataContract(

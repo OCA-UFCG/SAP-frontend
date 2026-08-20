@@ -27,6 +27,14 @@ export interface ClassMapping {
 export type EarthEngineSourceType =
   "image" | "imageCollection" | "featureCollection";
 
+export interface ForecastImageCollectionSelection {
+  type: "latest-emission-leads";
+  emissionProperty: string;
+  leadProperty: string;
+  targetDateProperty: string;
+  leadValues: number[];
+}
+
 /** Map rendering is deliberately independent from the statistics table. */
 export interface EarthEngineAssetMapping {
   strategy: "single" | "perPeriod";
@@ -37,6 +45,7 @@ export interface EarthEngineAssetMapping {
   band?: string;
   property?: string;
   thresholds?: number[];
+  collectionSelection?: ForecastImageCollectionSelection;
 }
 
 export interface CatalogValidationIssue {

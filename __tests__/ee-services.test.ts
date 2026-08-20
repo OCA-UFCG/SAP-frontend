@@ -43,6 +43,7 @@ vi.mock("@/repositories/platform/panelLayerRepository", () => ({
 
 import {
   applySpatialClip,
+  normalizeGeeAssetType,
   selectImageCollectionImage,
   shouldApplySelfMask,
 } from "@/app/api/ee/services";
@@ -126,6 +127,12 @@ describe("Earth Engine spatial clipping", () => {
 });
 
 describe("Earth Engine image collection selection", () => {
+  it("normalizes every ImageCollection spelling returned by Earth Engine", () => {
+    expect(normalizeGeeAssetType("ImageCollection")).toBe("IMAGECOLLECTION");
+    expect(normalizeGeeAssetType("IMAGE_COLLECTION")).toBe("IMAGECOLLECTION");
+    expect(normalizeGeeAssetType("image-collection")).toBe("IMAGECOLLECTION");
+  });
+
   it("selects a lead from the latest CPTEC issuance and keeps the first band", () => {
     eeMocks.filterEq.mockClear();
     const selectedImage = {
@@ -161,5 +168,36 @@ describe("Earth Engine image collection selection", () => {
     expect(collection.sort).toHaveBeenCalledWith("lead_time");
     expect(selectedImage.select).toHaveBeenCalledWith(0);
     expect(selectedImage.projection).not.toHaveBeenCalled();
+  });
+
+  it("uses a pinned issuance without looking up a newer one", () => {
+    eeMocks.filterEq.mockClear();
+    const selectedImage = { select: vi.fn(() => "selected") };
+    const collection = {
+      aggregate_array: vi.fn(),
+      filter: vi.fn(),
+      sort: vi.fn(),
+      first: vi.fn(() => selectedImage),
+    };
+    collection.filter.mockReturnValue(collection);
+    collection.sort.mockReturnValue(collection);
+
+    expect(
+      selectImageCollectionImage(collection, {
+        latestProperty: "data_emissao",
+        latestValue: 20260801,
+        filterProperty: "lead_time",
+        filterValue: 4,
+        sortProperty: "lead_time",
+        selectFirstBand: true,
+      }),
+    ).toBe("selected");
+    expect(collection.aggregate_array).not.toHaveBeenCalled();
+    expect(eeMocks.filterEq).toHaveBeenNthCalledWith(
+      1,
+      "data_emissao",
+      20260801,
+    );
+    expect(eeMocks.filterEq).toHaveBeenNthCalledWith(2, "lead_time", 4);
   });
 });

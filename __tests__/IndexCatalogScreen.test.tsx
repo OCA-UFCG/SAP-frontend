@@ -141,6 +141,95 @@ describe("IndexCatalogScreen v2", () => {
     expect(screen.getByText("Única ou template?")).toBeInTheDocument();
   });
 
+  it("shows forecast collection fields and opens their contextual guide", async () => {
+    render(<IndexCatalogScreen />);
+    await screen.findByText("Nenhum panelLayer encontrado.");
+
+    fireEvent.change(screen.getByLabelText("Tipo"), {
+      target: { value: "imageCollection" },
+    });
+    fireEvent.change(screen.getByLabelText("Tratamento da coleção"), {
+      target: { value: "latest-emission-leads" },
+    });
+
+    expect(screen.getByLabelText("Propriedade da emissão")).toHaveValue(
+      "data_emissao",
+    );
+    expect(screen.getByLabelText("Propriedade do horizonte")).toHaveValue(
+      "lead_time",
+    );
+    expect(screen.getByLabelText("Propriedade do mês previsto")).toHaveValue(
+      "system:time_start",
+    );
+    expect(screen.getByLabelText(/^Horizontes/iu)).toHaveValue("1, 2, 3, 4");
+
+    fireEvent.click(
+      screen.getByRole("button", {
+        name: "Ajuda sobre previsão por emissão e horizonte",
+      }),
+    );
+    expect(
+      screen.getByRole("dialog", {
+        name: "Previsão por emissão e horizonte",
+      }),
+    ).toBeInTheDocument();
+    expect(
+      screen.getByText(
+        "projects/obscaatinga/assets/ColecaoImagens/CPTEC_Prev_T_Anomalia",
+      ),
+    ).toBeInTheDocument();
+    expect(screen.getByText(/lead 1 → 2026-09/iu)).toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole("button", { name: "Entendi" }));
+    expect(
+      screen.queryByRole("dialog", {
+        name: "Previsão por emissão e horizonte",
+      }),
+    ).not.toBeInTheDocument();
+  });
+
+  it("sends forecast properties, leads and thresholds in the draft", async () => {
+    const fetchMock = vi.mocked(fetch);
+    fetchMock
+      .mockImplementationOnce(() => jsonResponse({ items: [] }))
+      .mockImplementationOnce(() =>
+        jsonResponse({ entryId: "draft-forecast" }, 201),
+      )
+      .mockImplementationOnce(() => jsonResponse({ items: [] }));
+
+    render(<IndexCatalogScreen />);
+    await screen.findByText("Nenhum panelLayer encontrado.");
+    fillMinimumForm();
+    fireEvent.change(screen.getByLabelText("Tipo"), {
+      target: { value: "imageCollection" },
+    });
+    fireEvent.change(screen.getByLabelText("Tratamento da coleção"), {
+      target: { value: "latest-emission-leads" },
+    });
+    fireEvent.change(screen.getByLabelText(/^Limites das classes/iu), {
+      target: { value: "-90, -30, 0, 30, 90" },
+    });
+    fireEvent.click(screen.getByRole("button", { name: "Salvar rascunho" }));
+
+    await screen.findByText("Rascunho salvo no sistema. Nada foi publicado.");
+    const body = JSON.parse(
+      String((fetchMock.mock.calls[1][1] as RequestInit).body),
+    );
+    expect(body.earthEngine).toEqual(
+      expect.objectContaining({
+        sourceType: "imageCollection",
+        thresholds: [-90, -30, 0, 30, 90],
+        collectionSelection: {
+          type: "latest-emission-leads",
+          emissionProperty: "data_emissao",
+          leadProperty: "lead_time",
+          targetDateProperty: "system:time_start",
+          leadValues: [1, 2, 3, 4],
+        },
+      }),
+    );
+  });
+
   it("infers class indexes from revalidation and shows the private preview", async () => {
     const preview = {
       entryId: "draft-1",

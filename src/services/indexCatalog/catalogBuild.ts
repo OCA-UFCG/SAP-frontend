@@ -20,6 +20,7 @@ import {
 import type {
   CatalogValidationReport,
   ClassMapping,
+  EarthEngineAssetMapping,
   IndexCatalogBuildResult,
   IndexCatalogConfigV2,
 } from "@/types/indexCatalog";
@@ -42,6 +43,16 @@ interface DiscoveredStatisticsAsset {
   schema: GeeStatisticsSchema;
   periods: string[];
   rowCount: number;
+}
+
+interface ValidatedForecastCollection {
+  latestValue: string | number;
+  leadByPeriod: Record<string, number>;
+}
+
+interface ValidatedMapAssets {
+  assets: Array<{ assetId: string; updateTime?: string }>;
+  forecast?: ValidatedForecastCollection;
 }
 
 export interface CatalogStatisticsDiscovery {
@@ -345,6 +356,7 @@ function buildClasses(
 function buildMapVisualization(
   config: IndexCatalogConfigV2,
   classes: ClassMapping[],
+  forecast?: ValidatedForecastCollection,
 ) {
   const pixels = classes.map((entry) => entry.pixelValue ?? entry.classIndex);
   return {
@@ -370,16 +382,132 @@ function buildMapVisualization(
     ...(config.earthEngine.thresholds?.length
       ? { thresholds: config.earthEngine.thresholds }
       : {}),
+    ...(forecast && config.earthEngine.collectionSelection
+      ? {
+          imageCollectionSelection: {
+            latestProperty:
+              config.earthEngine.collectionSelection.emissionProperty,
+            latestValue: forecast.latestValue,
+            filterProperty: config.earthEngine.collectionSelection.leadProperty,
+            sortProperty: config.earthEngine.collectionSelection.leadProperty,
+            selectFirstBand: true,
+          },
+        }
+      : {}),
     ...(config.earthEngine.sourceType === "featureCollection"
       ? { outline: { color: "#000000", width: 0.5, opacity: 1 } }
       : {}),
   };
 }
 
+function normalizeForecastPeriod(value: unknown) {
+  if (value == null) return null;
+  if (typeof value === "string") {
+    const directPeriod = value.match(/^\d{4}-(?:0[1-9]|1[0-2])/u)?.[0];
+    if (directPeriod) return directPeriod;
+  }
+
+  const numeric = Number(value);
+  if (Number.isInteger(numeric) && /^\d{8}$/u.test(String(numeric))) {
+    const compactDate = String(numeric);
+    const period = `${compactDate.slice(0, 4)}-${compactDate.slice(4, 6)}`;
+    return /^\d{4}-(?:0[1-9]|1[0-2])$/u.test(period) ? period : null;
+  }
+  const date = new Date(Number.isFinite(numeric) ? numeric : String(value));
+  if (Number.isNaN(date.getTime())) return null;
+  return `${date.getUTCFullYear()}-${String(date.getUTCMonth() + 1).padStart(2, "0")}`;
+}
+
+async function validateForecastCollection(
+  mapping: EarthEngineAssetMapping,
+  periods: string[],
+  assetId: string,
+): Promise<ValidatedForecastCollection | undefined> {
+  const selection = mapping.collectionSelection;
+  if (!selection) return undefined;
+  if (periods.some((period) => !/^\d{4}-\d{2}$/u.test(period))) {
+    throw new Error(
+      "Previsão por emissão e horizonte exige estatísticas mensais.",
+    );
+  }
+  if (!mapping.band) {
+    throw new Error("Previsão por emissão e horizonte exige uma banda.");
+  }
+  if (!mapping.thresholds?.length) {
+    throw new Error(
+      "Previsão por emissão e horizonte exige os limites das classes.",
+    );
+  }
+
+  const collection = ee.ImageCollection(assetId);
+  const emissionValues = await evaluateGeeObject<Array<string | number>>(
+    collection.aggregate_array(selection.emissionProperty).distinct().sort(),
+  );
+  const latestValue = emissionValues?.at(-1);
+  if (latestValue == null) {
+    throw new Error(
+      `A coleção ${assetId} não possui valores em ${selection.emissionProperty}.`,
+    );
+  }
+
+  const latestCollection = collection
+    .filter(ee.Filter.eq(selection.emissionProperty, latestValue))
+    .sort(selection.leadProperty);
+  const [rawLeads, rawTargetDates] = await Promise.all([
+    evaluateGeeObject<unknown[]>(
+      latestCollection.aggregate_array(selection.leadProperty),
+    ),
+    evaluateGeeObject<unknown[]>(
+      latestCollection.aggregate_array(selection.targetDateProperty),
+    ),
+  ]);
+  if (rawLeads.length !== rawTargetDates.length) {
+    throw new Error(
+      `A coleção ${assetId} retornou horizontes e datas em quantidades diferentes.`,
+    );
+  }
+
+  const rows = rawLeads.map((rawLead, index) => ({
+    lead: Number(rawLead),
+    period: normalizeForecastPeriod(rawTargetDates[index]),
+  }));
+  const leadByPeriod: Record<string, number> = {};
+  for (const expectedLead of selection.leadValues) {
+    const matches = rows.filter((row) => row.lead === expectedLead);
+    if (matches.length !== 1) {
+      throw new Error(
+        `A emissão ${latestValue} de ${assetId} deve possuir exatamente uma imagem com ${selection.leadProperty}=${expectedLead}.`,
+      );
+    }
+    const period = matches[0].period;
+    if (!period) {
+      throw new Error(
+        `A imagem do horizonte ${expectedLead} não possui uma data válida em ${selection.targetDateProperty}.`,
+      );
+    }
+    if (leadByPeriod[period] != null) {
+      throw new Error(
+        `Mais de um horizonte da emissão ${latestValue} aponta para ${period}.`,
+      );
+    }
+    leadByPeriod[period] = expectedLead;
+  }
+
+  const forecastPeriods = Object.keys(leadByPeriod).sort();
+  const expectedPeriods = [...periods].sort();
+  if (forecastPeriods.join(",") !== expectedPeriods.join(",")) {
+    throw new Error(
+      `Os períodos da emissão ${latestValue} (${forecastPeriods.join(", ")}) não correspondem aos períodos estatísticos (${expectedPeriods.join(", ")}).`,
+    );
+  }
+
+  return { latestValue, leadByPeriod };
+}
+
 async function validateMapAssets(
   config: IndexCatalogConfigV2,
   periods: string[],
-) {
+): Promise<ValidatedMapAssets> {
   const assets = new Map<string, string[]>();
   for (const period of periods) {
     const assetId = expandAssetForPeriod(config.earthEngine, period);
@@ -432,7 +560,14 @@ async function validateMapAssets(
     }
     metadata.push({ assetId, updateTime: inspection.updateTime });
   }
-  return metadata;
+  const forecast = config.earthEngine.collectionSelection
+    ? await validateForecastCollection(
+        config.earthEngine,
+        periods,
+        config.earthEngine.singleAssetId ?? "",
+      )
+    : undefined;
+  return { assets: metadata, ...(forecast ? { forecast } : {}) };
 }
 
 function buildValidationError(
@@ -463,6 +598,14 @@ export async function buildCatalogDraft(
   try {
     const discovery = await discoverCatalogStatistics(config.statisticsSource);
     const classes = buildClasses(config.classes, discovery.classIndexes);
+    if (
+      config.earthEngine.thresholds?.length &&
+      config.earthEngine.thresholds.length !== classes.length - 1
+    ) {
+      throw new Error(
+        `Informe exatamente ${Math.max(0, classes.length - 1)} limite(s) para separar as ${classes.length} classes.`,
+      );
+    }
     const mapAssets = await validateMapAssets(config, discovery.periods);
     const sourceRevision = hash({
       source: config.statisticsSource,
@@ -475,12 +618,19 @@ export async function buildCatalogDraft(
       schemaVersion: 1,
       sourceRevision,
     };
-    const mapVisualization = buildMapVisualization(config, classes);
+    const mapVisualization = buildMapVisualization(
+      config,
+      classes,
+      mapAssets.forecast,
+    );
     const years = Object.fromEntries(
       discovery.periods.map((period) => [
         period,
         {
           imageId: expandAssetForPeriod(config.earthEngine, period),
+          ...(mapAssets.forecast
+            ? { leadTime: mapAssets.forecast.leadByPeriod[period] }
+            : {}),
           valuesScale: 1,
           values: {},
         },
@@ -489,7 +639,9 @@ export async function buildCatalogDraft(
     const panelLayerImageData = {
       schemaVersion: 1,
       type: "territorial-compact" as const,
-      defaultYear: discovery.periods.at(-1),
+      defaultYear: mapAssets.forecast
+        ? discovery.periods[0]
+        : discovery.periods.at(-1),
       classes: classes.map(({ id, label, color, pixelValue }) => ({
         id,
         label,

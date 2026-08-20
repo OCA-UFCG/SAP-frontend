@@ -10,6 +10,7 @@ import {
 } from "react";
 import { CatalogMonitoringPreview } from "@/components/IndexCatalog/CatalogMonitoringPreview";
 import { IndexCatalogGuideModal } from "@/components/IndexCatalog/IndexCatalogGuideModal";
+import { ImageCollectionForecastGuideModal } from "@/components/IndexCatalog/ImageCollectionForecastGuideModal";
 import {
   INDEX_CATEGORIES,
   isIndexCatalogConfigV2,
@@ -156,11 +157,31 @@ function statusLabel(item: IndexCatalogItem) {
   return "Rascunho";
 }
 
+function parseNumberList(value: string, label: string, integersOnly = false) {
+  const parts = value
+    .split(",")
+    .map((part) => part.trim())
+    .filter(Boolean);
+  const numbers = parts.map(Number);
+  if (
+    numbers.some(
+      (number) =>
+        !Number.isFinite(number) || (integersOnly && !Number.isInteger(number)),
+    )
+  ) {
+    throw new Error(`${label} deve usar números separados por vírgula.`);
+  }
+  return numbers;
+}
+
 export function IndexCatalogScreen() {
   const [items, setItems] = useState<IndexCatalogItem[]>([]);
   const [draft, setDraft] = useState<IndexCatalogDraftInput>(EMPTY_DRAFT);
   const [entryId, setEntryId] = useState<string | null>(null);
   const [guideOpen, setGuideOpen] = useState(false);
+  const [forecastGuideOpen, setForecastGuideOpen] = useState(false);
+  const [thresholdsInput, setThresholdsInput] = useState("");
+  const [leadValuesInput, setLeadValuesInput] = useState("1, 2, 3, 4");
   const [preview, setPreview] = useState<IndexCatalogPreview | null>(null);
   const [deleteImpact, setDeleteImpact] =
     useState<IndexCatalogLifecycleImpact | null>(null);
@@ -212,6 +233,8 @@ export function IndexCatalogScreen() {
     entryIdRef.current = null;
     createKeyRef.current = null;
     setPreview(null);
+    setThresholdsInput("");
+    setLeadValuesInput("1, 2, 3, 4");
   }
 
   function resumeDraft(item: IndexCatalogItem) {
@@ -229,6 +252,11 @@ export function IndexCatalogScreen() {
     entryIdRef.current = item.entryId;
     createKeyRef.current = null;
     setPreview(null);
+    setThresholdsInput(config.earthEngine.thresholds?.join(", ") ?? "");
+    setLeadValuesInput(
+      config.earthEngine.collectionSelection?.leadValues.join(", ") ??
+        "1, 2, 3, 4",
+    );
     setMessage(`“${item.name}” aberto para edição.`);
   }
 
@@ -289,9 +317,28 @@ export function IndexCatalogScreen() {
   }
 
   function normalizedDraft() {
+    const collectionSelection = draft.earthEngine.collectionSelection;
     return {
       ...draft,
-      earthEngine: { ...draft.earthEngine, assetsByPeriod: undefined },
+      earthEngine: {
+        ...draft.earthEngine,
+        assetsByPeriod: undefined,
+        thresholds: thresholdsInput.trim()
+          ? parseNumberList(thresholdsInput, "Limites das classes")
+          : undefined,
+        ...(collectionSelection
+          ? {
+              collectionSelection: {
+                ...collectionSelection,
+                leadValues: parseNumberList(
+                  leadValuesInput,
+                  "Horizontes",
+                  true,
+                ),
+              },
+            }
+          : { collectionSelection: undefined }),
+      },
     };
   }
 
@@ -408,7 +455,11 @@ export function IndexCatalogScreen() {
         [
           reason instanceof Error ? reason.message : "Falha na validação.",
           ...(validation?.errors.map((issue) => issue.message) ?? []),
-        ].join(" "),
+        ]
+          .filter(
+            (message, index, messages) => messages.indexOf(message) === index,
+          )
+          .join(" "),
       );
       setMessage("");
       setValidationProgress(null);
@@ -724,6 +775,10 @@ export function IndexCatalogScreen() {
                 <option value="year">Anual</option>
                 <option value="month">Mensal</option>
               </select>
+              <span className="mt-1 block text-xs font-normal text-stone-500">
+                Anual gera períodos como 2026; Mensal gera 2026-09. Precisa
+                bater com os períodos da tabela.
+              </span>
             </label>
             <label className="text-sm font-medium md:col-span-2">
               {draft.statisticsSource.asset.type === "fixed"
@@ -793,23 +848,90 @@ export function IndexCatalogScreen() {
               <select
                 className={inputClass}
                 value={draft.earthEngine.sourceType}
-                onChange={(event) =>
+                onChange={(event) => {
+                  if (
+                    event.target.value !== "imageCollection" &&
+                    draft.earthEngine.collectionSelection
+                  ) {
+                    setThresholdsInput("");
+                  }
                   updateMap({
                     sourceType: event.target
                       .value as EarthEngineAssetMapping["sourceType"],
-                  })
-                }
+                    collectionSelection:
+                      event.target.value === "imageCollection"
+                        ? draft.earthEngine.collectionSelection
+                        : undefined,
+                  });
+                }}
               >
                 <option value="image">Image</option>
                 <option value="imageCollection">ImageCollection</option>
                 <option value="featureCollection">FeatureCollection</option>
               </select>
             </label>
+            {draft.earthEngine.sourceType === "imageCollection" && (
+              <div className="text-sm font-medium md:col-span-2">
+                <div className="flex items-center gap-2">
+                  <label htmlFor="image-collection-treatment">
+                    Tratamento da coleção
+                  </label>
+                  <button
+                    type="button"
+                    className="grid size-6 cursor-pointer place-items-center rounded-full border border-[#989F43] bg-white text-xs font-bold text-[#62672D] hover:bg-[#F4F5D8]"
+                    aria-label="Ajuda sobre previsão por emissão e horizonte"
+                    onClick={() => setForecastGuideOpen(true)}
+                  >
+                    ?
+                  </button>
+                </div>
+                <select
+                  id="image-collection-treatment"
+                  className={inputClass}
+                  value={
+                    draft.earthEngine.collectionSelection
+                      ? "latest-emission-leads"
+                      : "mosaic"
+                  }
+                  onChange={(event) => {
+                    if (event.target.value === "latest-emission-leads") {
+                      updateMap({
+                        strategy: "single",
+                        collectionSelection: {
+                          type: "latest-emission-leads",
+                          emissionProperty: "data_emissao",
+                          leadProperty: "lead_time",
+                          targetDateProperty: "system:time_start",
+                          leadValues: [1, 2, 3, 4],
+                        },
+                      });
+                      setLeadValuesInput("1, 2, 3, 4");
+                    } else {
+                      updateMap({
+                        collectionSelection: undefined,
+                        thresholds: undefined,
+                      });
+                      setThresholdsInput("");
+                    }
+                  }}
+                >
+                  <option value="mosaic">Usar todas as imagens</option>
+                  <option value="latest-emission-leads">
+                    Previsão por emissão e horizonte
+                  </option>
+                </select>
+                <span className="mt-1 block text-xs font-normal text-stone-500">
+                  Use previsão quando a coleção guarda várias rodadas e um
+                  horizonte diferente para cada mês.
+                </span>
+              </div>
+            )}
             <label className="text-sm font-medium">
               Organização
               <select
                 className={inputClass}
                 value={draft.earthEngine.strategy}
+                disabled={Boolean(draft.earthEngine.collectionSelection)}
                 onChange={(event) =>
                   updateMap({
                     strategy: event.target.value as "single" | "perPeriod",
@@ -819,6 +941,11 @@ export function IndexCatalogScreen() {
                 <option value="single">Asset único</option>
                 <option value="perPeriod">Por período</option>
               </select>
+              {draft.earthEngine.collectionSelection && (
+                <span className="mt-1 block text-xs font-normal text-stone-500">
+                  Previsões por emissão usam uma única coleção.
+                </span>
+              )}
             </label>
             {draft.earthEngine.strategy === "single" ? (
               <label className="text-sm font-medium md:col-span-2">
@@ -865,6 +992,84 @@ export function IndexCatalogScreen() {
                 />
               </label>
             )}
+            {draft.earthEngine.collectionSelection && (
+              <>
+                <label className="text-sm font-medium">
+                  Propriedade da emissão
+                  <input
+                    className={inputClass}
+                    value={
+                      draft.earthEngine.collectionSelection.emissionProperty
+                    }
+                    onChange={(event) =>
+                      updateMap({
+                        collectionSelection: {
+                          ...draft.earthEngine.collectionSelection!,
+                          emissionProperty: event.target.value,
+                        },
+                      })
+                    }
+                  />
+                </label>
+                <label className="text-sm font-medium">
+                  Propriedade do horizonte
+                  <input
+                    className={inputClass}
+                    value={draft.earthEngine.collectionSelection.leadProperty}
+                    onChange={(event) =>
+                      updateMap({
+                        collectionSelection: {
+                          ...draft.earthEngine.collectionSelection!,
+                          leadProperty: event.target.value,
+                        },
+                      })
+                    }
+                  />
+                </label>
+                <label className="text-sm font-medium">
+                  Propriedade do mês previsto
+                  <input
+                    className={inputClass}
+                    value={
+                      draft.earthEngine.collectionSelection.targetDateProperty
+                    }
+                    onChange={(event) =>
+                      updateMap({
+                        collectionSelection: {
+                          ...draft.earthEngine.collectionSelection!,
+                          targetDateProperty: event.target.value,
+                        },
+                      })
+                    }
+                  />
+                </label>
+                <label className="text-sm font-medium">
+                  Horizontes
+                  <input
+                    className={inputClass}
+                    placeholder="1, 2, 3, 4"
+                    value={leadValuesInput}
+                    onChange={(event) => setLeadValuesInput(event.target.value)}
+                  />
+                  <span className="mt-1 block text-xs font-normal text-stone-500">
+                    Números inteiros separados por vírgula.
+                  </span>
+                </label>
+                <label className="text-sm font-medium md:col-span-2">
+                  Limites das classes
+                  <input
+                    className={inputClass}
+                    placeholder="-90, -30, 0, 30, 90"
+                    value={thresholdsInput}
+                    onChange={(event) => setThresholdsInput(event.target.value)}
+                  />
+                  <span className="mt-1 block text-xs font-normal text-stone-500">
+                    Informe um limite a menos que a quantidade de classes, em
+                    ordem crescente. Exemplo: 6 classes exigem 5 limites.
+                  </span>
+                </label>
+              </>
+            )}
           </div>
         </fieldset>
 
@@ -872,8 +1077,8 @@ export function IndexCatalogScreen() {
           <legend className="px-2 font-bold">Classes</legend>
           {draft.classes.length === 0 ? (
             <p className="text-sm text-stone-500">
-              Clique em “Validar assets” para inferir os índices de
-              perc_classe_XX e area_ha_classe_XX.
+              Clique em “Validar assets e gerar prévia” para inferir os índices
+              de perc_classe_XX e area_ha_classe_XX.
             </p>
           ) : (
             <div className="space-y-3">
@@ -1040,6 +1245,11 @@ export function IndexCatalogScreen() {
       )}
       {guideOpen && (
         <IndexCatalogGuideModal onClose={() => setGuideOpen(false)} />
+      )}
+      {forecastGuideOpen && (
+        <ImageCollectionForecastGuideModal
+          onClose={() => setForecastGuideOpen(false)}
+        />
       )}
     </div>
   );

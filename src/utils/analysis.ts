@@ -64,6 +64,18 @@ export interface CompactAnalysisValueConfig {
   distributionTitle?: string;
 }
 
+export interface CompactImageCollectionSelectionConfig {
+  latestProperty: string;
+  latestValue?: string | number;
+  filterProperty: string;
+  sortProperty?: string;
+  selectFirstBand?: boolean;
+}
+
+export interface ResolvedImageCollectionSelection extends CompactImageCollectionSelectionConfig {
+  filterValue: string | number;
+}
+
 export interface CompactMapVisualizationConfig {
   sourceType?: "image" | "imageCollection" | "featureCollection";
   min?: number;
@@ -86,6 +98,7 @@ export interface CompactMapVisualizationConfig {
     unit?: string;
   };
   valueMeaning?: Record<string, string>;
+  imageCollectionSelection?: CompactImageCollectionSelectionConfig;
 }
 
 export interface CompactAnalysisYearData {

@@ -30,6 +30,18 @@ São configurações independentes:
 - mapa: Image, ImageCollection ou FeatureCollection, em asset único ou por
   período.
 
+ImageCollections podem usar mosaico comum ou o tratamento de previsão por
+emissão e horizonte. Nesse tratamento, o catálogo encontra a emissão mais
+recente durante a validação, associa os leads aos períodos pela data-alvo da
+imagem e grava a emissão resolvida na revisão. O mapa público não muda
+silenciosamente quando uma emissão nova chega: é necessário revalidar com a
+FeatureCollection estatística correspondente e publicar uma nova revisão.
+
+O formulário solicita os nomes das propriedades de emissão, horizonte e
+data-alvo, a lista de leads, a banda bruta e os limites crescentes que separam
+as classes. A validação exige uma imagem por lead, períodos mensais iguais aos
+da estatística e exatamente um limite a menos que a quantidade de classes.
+
 A FeatureCollection deve possuir pares `perc_classe_XX` e
 `area_ha_classe_XX`. Os índices precisam ser contíguos e iniciar em 0 ou 1. O
 catálogo infere a quantidade e os índices; a pessoa configura apenas rótulos,
