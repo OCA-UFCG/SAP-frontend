@@ -1,5 +1,5 @@
 import bbox from "@turf/bbox";
-import { FeatureCollection, Geometry } from "geojson";
+import { FeatureCollection, GeoJsonProperties, Geometry } from "geojson";
 import maplibregl, { LngLatBoundsLike, MapGeoJSONFeature } from "maplibre-gl";
 import geometria from "../../data/geometria.json";
 import municipalityBoundsIndexData from "../../data/municipalityBounds.json";
@@ -130,6 +130,62 @@ export const resolveCurrentBounds = (
     [minLng, minLat],
     [maxLng, maxLat],
   ];
+};
+
+const toLngLatBounds = (
+  boundingBox: [number, number, number, number],
+): LngLatBoundsLike => {
+  const [minLng, minLat, maxLng, maxLat] = boundingBox;
+  return [
+    [minLng, minLat],
+    [maxLng, maxLat],
+  ];
+};
+
+/**
+ * Limites para enquadrar a área de interesse selecionada.
+ *
+ * Prefere o contorno real quando ele existe (bioma, semiárido, ASD). Para
+ * região e estado não há contorno servido pela API, então cai na união dos
+ * estados que compõem a área — a mesma lista já usada para decidir quais
+ * estados ficam clicáveis. Sem nenhuma restrição de estado a área é nacional,
+ * e o enquadramento é o do Brasil.
+ *
+ * @example resolveSpatialFocusBounds(geoBrasilSource, new Set(["pb", "ce"]), null)
+ */
+export const resolveSpatialFocusBounds = (
+  geoBrasil: FeatureCollection<Geometry, EstadoProperties>,
+  allowedStateUfs: Set<string> | null,
+  boundaryGeoJson: FeatureCollection<Geometry, GeoJsonProperties> | null,
+): LngLatBoundsLike | null => {
+  if (boundaryGeoJson?.features.length) {
+    return toLngLatBounds(
+      bbox(boundaryGeoJson) as [number, number, number, number],
+    );
+  }
+
+  if (!allowedStateUfs?.size) {
+    return toLngLatBounds(bbox(geoBrasil) as [number, number, number, number]);
+  }
+
+  // `getAllowedStateUfs` devolve UFs minúsculas; `info.sigla` é maiúscula.
+  const normalizedUfs = new Set(
+    [...allowedStateUfs].map((uf) => uf.toUpperCase()),
+  );
+  const features = geoBrasil.features.filter((feature) =>
+    normalizedUfs.has(feature.properties?.info.sigla ?? ""),
+  );
+
+  if (!features.length) return null;
+
+  return toLngLatBounds(
+    bbox({ type: "FeatureCollection", features }) as [
+      number,
+      number,
+      number,
+      number,
+    ],
+  );
 };
 
 const getFeatureBounds = (
