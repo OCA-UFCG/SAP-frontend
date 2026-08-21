@@ -70,3 +70,6 @@ relatorio_template.docx
 
 data/runtime/
 /campos-necessarios-indice-sap.txt
+
+# Worktrees criados por ferramentas de agente dentro do próprio repositório.
+.claude/worktrees/
