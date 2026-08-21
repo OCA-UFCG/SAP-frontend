@@ -1,14 +1,10 @@
-import { revalidatePath } from "next/cache";
-import { clearEarthEngineCacheForLayer } from "@/app/api/ee/cache";
+import { refreshPublicIndexCaches } from "@/app/api/index-catalog/caches";
 import {
   catalogErrorResponse,
   noStoreJson,
   readJsonBody,
   requireCatalogAccess,
 } from "@/app/api/index-catalog/http";
-import { clearMunicipalAnalysisCache } from "@/repositories/platform/municipalAnalysisCache";
-import { clearPanelLayersCache } from "@/repositories/platform/panelLayerRepository";
-import { clearGeeStatisticsSchemaCache } from "@/repositories/platform/geeStatisticsRepository";
 import {
   deleteIndexCatalogEntry,
   getIndexCatalogLifecycleImpact,
@@ -22,14 +18,6 @@ import {
 
 interface LifecycleRouteContext {
   params: Promise<{ entryId: string }>;
-}
-
-function refreshPublicIndexCaches(panelLayerId: string) {
-  clearEarthEngineCacheForLayer(panelLayerId);
-  clearMunicipalAnalysisCache(panelLayerId);
-  clearPanelLayersCache();
-  clearGeeStatisticsSchemaCache();
-  revalidatePath("/[locale]/platform", "page");
 }
 
 export async function GET(request: Request, context: LifecycleRouteContext) {

@@ -70,6 +70,33 @@ Novos períodos não entram automaticamente no índice público. O operador usa
 **Revalidar assets**, confere a prévia e publica uma nova revisão. Um índice já
 publicado pode receber alterações em draft sem retirar a versão pública atual.
 
+Publicar confere `sys.publishedAt` na resposta do Contentful antes de responder
+sucesso, e a tela reconsulta a lista para confirmar que o índice está publicado.
+Uma publicação que não se registra vira erro, não mensagem de sucesso: sem essa
+checagem o índice ficava fora do Monitoramento sem nenhum sinal no catálogo.
+
+### ID técnico do panelLayer
+
+O formulário não pede o ID técnico: ele é o slug do nome (`Previsão: Anomalia
+Temperatura | CPTEC INPE` → `previsao-anomalia-temperatura-cptec-inpe`), com
+sufixo numérico quando já existe outro igual. Enquanto a entry nunca foi
+publicada o ID acompanha o nome a cada salvamento. Depois da primeira
+publicação ele congela, porque telemetria, relatórios, caches e a URL do
+Monitoramento usam esse ID como chave — por isso um índice criado como "Teste
+temperatura" e renomeado depois continua sendo `teste-temperatura`.
+
+### Estado de publicação
+
+O Contentful é a autoridade: `sys.publishedAt` diz se o índice está no
+Monitoramento; `catalogConfig.status` é só a memória do catálogo. Os dois
+divergem quando a entry é despublicada por fora — no app do Contentful, ou num
+"Excluir" que despublicou e falhou ao remover. A leitura reconcilia os dois
+(`reconcileCatalogPublicationStatus`): um índice `published` numa entry em
+rascunho volta a `ready` quando a prévia validada ainda vale, e pode ser
+publicado de novo em um clique. Sem isso, `assertPublishable` só aceitava
+`ready` e o operador recebia "Revalide os assets e gere a prévia antes de
+publicar" com a prévia já validada.
+
 ## Compatibilidade e falhas
 
 `catalogConfig` v1 e panel layers externos aparecem apenas para leitura. O
@@ -83,8 +110,12 @@ rota entrega o último resultado em cache, se existir; sem cache, informa
 indisponibilidade.
 
 Publicação, despublicação e remoção invalidam caches de tiles, estatísticas e
-painel. O cache de schema inclui `sourceRevision`, portanto uma revisão nova não
-reaproveita silenciosamente o schema anterior.
+painel por `refreshPublicIndexCaches`. O cache de schema inclui
+`sourceRevision`, portanto uma revisão nova não reaproveita silenciosamente o
+schema anterior. As queries de `panelLayer` carregam a tag `panel-layers` no
+Data Cache do Next e a invalidação passa por ela: limpar só a memoização do
+processo deixava `/api/ee` servindo a lista antiga por até uma hora, e o índice
+recém-publicado não aparecia no mapa.
 
 ## Content model e ambiente
 

@@ -5,6 +5,7 @@ import {
   inferTimeScale,
   makeUniqueCatalogPanelLayerId,
   parseIndexCatalogDraftInput,
+  reconcileCatalogPublicationStatus,
 } from "@/utils/indexCatalog";
 
 const validDraft = {
@@ -43,6 +44,61 @@ const validDraft = {
     singleAssetId: "projects/example/assets/aridez_map",
   },
 };
+
+const validationReport = {
+  validatedAt: "2026-08-21T18:19:34.000Z",
+  valid: true,
+  errors: [],
+  warnings: [],
+  inferred: {
+    panelLayerId: "teste-temperatura",
+    periods: ["2026-09"],
+    classIndexes: [0],
+    statisticsAssetCount: 1,
+  },
+  sourceFingerprint: "f".repeat(64),
+};
+
+describe("reconciliação do status de publicação do catálogo", () => {
+  it("volta para ready quando a entry marcada como published virou rascunho", () => {
+    // Regressão: teste-temperatura ficou com catalogConfig.status "published"
+    // numa entry despublicada, e assertPublishable (que só aceita "ready")
+    // respondia "Revalide os assets e gere a prévia antes de publicar".
+    expect(
+      reconcileCatalogPublicationStatus(
+        { status: "published", validation: validationReport },
+        false,
+      ),
+    ).toBe("ready");
+  });
+
+  it("volta para draft quando não há prévia válida para reaproveitar", () => {
+    expect(
+      reconcileCatalogPublicationStatus({ status: "published" }, false),
+    ).toBe("draft");
+    expect(
+      reconcileCatalogPublicationStatus(
+        {
+          status: "published",
+          validation: { ...validationReport, valid: false },
+        },
+        false,
+      ),
+    ).toBe("draft");
+  });
+
+  it("preserva o status quando o Contentful concorda com o catálogo", () => {
+    expect(
+      reconcileCatalogPublicationStatus({ status: "published" }, true),
+    ).toBe("published");
+    expect(reconcileCatalogPublicationStatus({ status: "ready" }, false)).toBe(
+      "ready",
+    );
+    expect(reconcileCatalogPublicationStatus({ status: "error" }, false)).toBe(
+      "error",
+    );
+  });
+});
 
 describe("index catalog v2 input helpers", () => {
   it("creates normalized unique technical ids", () => {

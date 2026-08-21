@@ -634,6 +634,7 @@ describe("panelLayerRepository", () => {
     expect(mockedGetContent).toHaveBeenCalledWith(
       expect.stringContaining("GetPanelLayerById"),
       { id: "CDI_Test" },
+      { next: { revalidate: 3600, tags: ["panel-layers"] } },
     );
     expect(mockedGetContent).toHaveBeenCalledWith(
       expect.stringContaining("municipalAnalysisCollection"),

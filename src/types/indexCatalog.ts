@@ -135,6 +135,11 @@ export interface IndexCatalogItem {
   category?: string;
   panelPosition?: number;
   published: boolean;
+  /**
+   * True depois da primeira publicação, mesmo que a entry esteja despublicada
+   * agora. É o que congela o ID técnico do panelLayer.
+   */
+  everPublished: boolean;
   hasUnpublishedChanges: boolean;
   /** True only for v2. V1 and entries without catalogConfig are read-only. */
   catalogManaged: boolean;

@@ -12,9 +12,13 @@ const mocks = vi.hoisted(() => ({
   clearMunicipalAnalysisCache: vi.fn(),
   clearGeeStatisticsSchemaCache: vi.fn(),
   revalidatePath: vi.fn(),
+  revalidateTag: vi.fn(),
 }));
 
-vi.mock("next/cache", () => ({ revalidatePath: mocks.revalidatePath }));
+vi.mock("next/cache", () => ({
+  revalidatePath: mocks.revalidatePath,
+  revalidateTag: mocks.revalidateTag,
+}));
 vi.mock("@/app/api/ee/cache", () => ({
   clearEarthEngineCacheForLayer: mocks.clearEarthEngineCacheForLayer,
 }));
@@ -119,5 +123,8 @@ describe("index catalog lifecycle route", () => {
       "/[locale]/platform",
       "page",
     );
+    // Sem invalidar a tag, a lista de panelLayer guardada no Data Cache do Next
+    // por outra rota continuaria servindo o índice removido do Monitoramento.
+    expect(mocks.revalidateTag).toHaveBeenCalledWith("panel-layers", "max");
   });
 });
