@@ -562,4 +562,36 @@ describe("POST /api/ee cache behavior", () => {
     expect(otherClientRes.status).toBe(200);
     expect(otherClientBody.url).toBe("https://tiles.example/layer-a/v1");
   });
+
+  it("dedupes concurrent Earth Engine requests sharing the same cache key", async () => {
+    const pendingResolvers: Array<(url: string) => void> = [];
+    mockedGetEarthEngineUrl.mockImplementation(
+      () =>
+        new Promise<string>((resolve) => {
+          pendingResolvers.push(resolve);
+        }),
+    );
+
+    const request = createMockRequest(
+      "https://example.test/api/ee?name=layer-a&year=2024",
+    );
+    const responses = [POST(request), POST(request), POST(request)];
+
+    await vi.waitFor(() => expect(pendingResolvers.length).toBeGreaterThan(0));
+    expect(pendingResolvers).toHaveLength(1);
+
+    pendingResolvers.forEach((resolve) =>
+      resolve("https://tiles.example/layer-a/shared"),
+    );
+    const bodies = await Promise.all(
+      (await Promise.all(responses)).map(
+        (res) => res.json() as Promise<{ url?: string }>,
+      ),
+    );
+
+    expect(mockedGetEarthEngineUrl).toHaveBeenCalledTimes(1);
+    bodies.forEach((body) =>
+      expect(body.url).toBe("https://tiles.example/layer-a/shared"),
+    );
+  });
 });

@@ -11,11 +11,15 @@ import {
   resolveCatalogRequestAccess,
 } from "@/lib/catalog-access";
 import { adminAuth } from "@/lib/firebase-admin";
+import { clearVerifiedSessionCache } from "@/lib/verified-session-cache";
 
 const mockedAdminAuth = vi.mocked(adminAuth);
 
 describe("index catalog access", () => {
   beforeEach(() => {
+    // Os casos reaproveitam o mesmo cookie com identidades diferentes, então o
+    // cache de sessões verificadas precisa começar vazio em cada um.
+    clearVerifiedSessionCache();
     mockedAdminAuth.verifySessionCookie.mockReset();
     vi.unstubAllEnvs();
     vi.stubEnv("LOGS_ALLOWED_EMAILS", "oca-dev@gmail.com");
