@@ -87,9 +87,21 @@ interface IndexCatalogAuditData {
   createdBy: { uid: string; email: string | null; at: string };
   updatedBy: { uid: string; email: string | null; at: string };
   validation?: CatalogValidationReport;
+  /**
+   * Asset do Contentful com a imagem de prévia do mapa capturada na validação.
+   * Guardamos o id para reaproveitar o mesmo asset em cada nova captura, em vez
+   * de deixar um rastro de imagens órfãs no espaço.
+   */
+  previewMap?: { assetId: string; capturedAt: string };
   auditLog?: Array<{
     action:
-      "create" | "update" | "revalidate" | "preview" | "publish" | "unpublish";
+      | "create"
+      | "update"
+      | "revalidate"
+      | "preview"
+      | "preview-map"
+      | "publish"
+      | "unpublish";
     outcome: "success" | "failure";
     uid: string;
     email: string | null;
@@ -167,7 +179,7 @@ export interface IndexCatalogPreview {
     description: string;
     category: string;
     panelPosition?: number;
-    previewMap?: null;
+    previewMap?: { url: string } | null;
     imageData: CompactTerritorialAnalysisDataset;
     minScale?: number;
     maxScale?: number;

@@ -20,7 +20,12 @@ import {
   type ContentfulManagementEntry,
 } from "@/services/indexCatalog/contentfulManagement";
 import {
-  isIndexCatalogConfigV2,
+  catalogTimestamp,
+  requireManagedConfig,
+  withAuditEvent,
+} from "@/services/indexCatalog/catalogConfigAudit";
+import { getIndexCatalogPreviewMapUrl } from "@/services/indexCatalog/previewMapService";
+import {
   type CatalogValidationReport,
   type IndexCatalogConfigV2,
   type IndexCatalogDraftInput,
@@ -31,47 +36,15 @@ import {
   createCatalogPanelLayerId,
   makeUniqueCatalogPanelLayerId,
   parseIndexCatalogDraftInput,
+  resolvePanelPositionInCategory,
 } from "@/utils/indexCatalog";
-
-function now() {
-  return new Date().toISOString();
-}
-
-function withAuditEvent(
-  config: IndexCatalogConfigV2,
-  user: AuthenticatedUserSession,
-  event: {
-    action: NonNullable<IndexCatalogConfigV2["auditLog"]>[number]["action"];
-    outcome: "success" | "failure";
-    message?: string;
-  },
-): IndexCatalogConfigV2 {
-  return {
-    ...config,
-    auditLog: [
-      ...(config.auditLog ?? []),
-      { ...event, uid: user.uid, email: user.email, at: now() },
-    ].slice(-50),
-  };
-}
-
-function requireManagedConfig(
-  current: Awaited<ReturnType<typeof getCatalogEntry>>,
-) {
-  if (!isIndexCatalogConfigV2(current.item.catalogConfig)) {
-    throw new Error(
-      "Este índice é legado e está disponível apenas para consulta. Crie um índice v2 para gerenciá-lo pelo catálogo.",
-    );
-  }
-  return current.item.catalogConfig;
-}
 
 function toInitialConfig(
   input: IndexCatalogDraftInput,
   panelLayerId: string,
   user: AuthenticatedUserSession,
 ) {
-  const timestamp = now();
+  const timestamp = catalogTimestamp();
   const config: IndexCatalogConfigV2 = {
     schemaVersion: 2,
     panelLayerId,
@@ -162,7 +135,7 @@ export async function updateIndexCatalogDraft(
       status: "draft",
       validation: undefined,
       validatedStatisticsSource: undefined,
-      updatedBy: { uid: user.uid, email: user.email, at: now() },
+      updatedBy: { uid: user.uid, email: user.email, at: catalogTimestamp() },
     },
     user,
     { action: "update", outcome: "success" },
@@ -183,26 +156,7 @@ export async function updateIndexCatalogDraft(
   };
 }
 
-function getNextPanelPosition(
-  entries: Awaited<ReturnType<typeof listCatalogEntries>>,
-  category: string,
-  entryId: string,
-) {
-  const currentPosition = entries.find(
-    (entry) => entry.entryId === entryId,
-  )?.panelPosition;
-  if (typeof currentPosition === "number") return currentPosition;
-  const positions = entries
-    .filter((entry) => entry.entryId !== entryId && entry.category === category)
-    .flatMap((entry) =>
-      typeof entry.panelPosition === "number" ? [entry.panelPosition] : [],
-    );
-  return positions.length > 0
-    ? Math.max(...positions) + 1
-    : entries.filter((entry) => entry.category === category).length;
-}
-
-function buildCatalogPreviewResponse(
+async function buildCatalogPreviewResponse(
   entry: ContentfulManagementEntry,
   locale: string,
   config: IndexCatalogConfigV2,
@@ -211,7 +165,7 @@ function buildCatalogPreviewResponse(
     "imageData",
     locale,
   ) as IndexCatalogPreview["panelLayer"]["imageData"],
-): IndexCatalogPreview {
+): Promise<IndexCatalogPreview> {
   if (
     !config.validation?.valid ||
     !config.validatedStatisticsSource ||
@@ -219,6 +173,8 @@ function buildCatalogPreviewResponse(
   ) {
     throw new Error("O rascunho ainda não possui uma prévia válida.");
   }
+
+  const previewMapUrl = await getIndexCatalogPreviewMapUrl(entry, locale);
 
   return {
     entryId: entry.sys.id,
@@ -233,7 +189,7 @@ function buildCatalogPreviewResponse(
         "panelPosition",
         locale,
       ),
-      previewMap: null,
+      previewMap: previewMapUrl ? { url: previewMapUrl } : null,
       imageData,
       timeScale: config.validation.inferred.timeScale,
       statisticsSource: config.validatedStatisticsSource,
@@ -261,7 +217,7 @@ export async function generateIndexCatalogPreview(
         status: "ready",
         validation: build.validation,
         validatedStatisticsSource: build.statisticsSource,
-        updatedBy: { uid: user.uid, email: user.email, at: now() },
+        updatedBy: { uid: user.uid, email: user.email, at: catalogTimestamp() },
       },
       user,
       { action: "preview", outcome: "success" },
@@ -274,14 +230,18 @@ export async function generateIndexCatalogPreview(
         description: config.description,
         measurementUnit: "%",
         category: config.category,
-        panelPosition: getNextPanelPosition(entries, config.category, entryId),
+        panelPosition: resolvePanelPositionInCategory(
+          entries,
+          config.category,
+          entryId,
+        ),
         timeScale: build.validation.inferred.timeScale,
         imageData: build.panelLayerImageData,
         statisticsSource: build.statisticsSource,
         catalogConfig: readyConfig,
       },
     );
-    return buildCatalogPreviewResponse(
+    return await buildCatalogPreviewResponse(
       updated,
       current.locale,
       readyConfig,
@@ -294,7 +254,7 @@ export async function generateIndexCatalogPreview(
         ...config,
         status: "error",
         ...(validation ? { validation } : {}),
-        updatedBy: { uid: user.uid, email: user.email, at: now() },
+        updatedBy: { uid: user.uid, email: user.email, at: catalogTimestamp() },
       },
       user,
       {
@@ -372,7 +332,7 @@ export async function publishIndexCatalogDraft(
         status: "published",
         validation: build.validation,
         validatedStatisticsSource: build.statisticsSource,
-        updatedBy: { uid: user.uid, email: user.email, at: now() },
+        updatedBy: { uid: user.uid, email: user.email, at: catalogTimestamp() },
       },
       user,
       { action: "publish", outcome: "success" },
@@ -404,7 +364,7 @@ export async function publishIndexCatalogDraft(
       {
         ...config,
         status: "ready",
-        updatedBy: { uid: user.uid, email: user.email, at: now() },
+        updatedBy: { uid: user.uid, email: user.email, at: catalogTimestamp() },
       },
       user,
       {
@@ -476,7 +436,7 @@ export async function unpublishIndexCatalogEntry(
       {
         ...config,
         status,
-        updatedBy: { uid: user.uid, email: user.email, at: now() },
+        updatedBy: { uid: user.uid, email: user.email, at: catalogTimestamp() },
       },
       user,
       { action: "unpublish", outcome: "success" },
@@ -526,7 +486,7 @@ export async function deleteIndexCatalogEntry(
     deletedEntries: 1,
     uid: user.uid,
     email: user.email,
-    at: now(),
+    at: catalogTimestamp(),
   });
   return {
     entryId,

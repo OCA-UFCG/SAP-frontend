@@ -329,3 +329,48 @@ export function expandAssetForPeriod(
     ""
   );
 }
+
+interface CategoryPositionEntry {
+  entryId: string;
+  category?: string;
+  panelPosition?: number;
+}
+
+/**
+ * Posição do índice na categoria dele no Monitoramento. Um índice novo entra
+ * depois do último — a lista é ordenada por essa posição, então repetir um
+ * número já usado deixa a ordem por conta da ordem de chegada do Contentful, e
+ * foi assim que um índice recém-publicado apareceu como primeiro em Dados
+ * Climáticos em vez de último. Por isso uma posição já ocupada por outra camada
+ * da mesma categoria é recalculada, em vez de mantida.
+ *
+ * @example
+ * // anaseca 0, cemadenseca 1, prev_anomalia_precipitacao 10
+ * resolvePanelPositionInCategory(entries, "Dados Climáticos", "novo") // 11
+ */
+export function resolvePanelPositionInCategory(
+  entries: readonly CategoryPositionEntry[],
+  category: string,
+  entryId: string,
+) {
+  const sameCategory = entries.filter(
+    (entry) => entry.entryId !== entryId && entry.category === category,
+  );
+  const takenPositions = sameCategory.flatMap((entry) =>
+    typeof entry.panelPosition === "number" ? [entry.panelPosition] : [],
+  );
+  const currentPosition = entries.find(
+    (entry) => entry.entryId === entryId,
+  )?.panelPosition;
+
+  if (
+    typeof currentPosition === "number" &&
+    !takenPositions.includes(currentPosition)
+  ) {
+    return currentPosition;
+  }
+
+  return takenPositions.length > 0
+    ? Math.max(...takenPositions) + 1
+    : sameCategory.length;
+}
