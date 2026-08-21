@@ -7,6 +7,7 @@ import {
   requireCatalogAccess,
 } from "@/app/api/index-catalog/http";
 import { clearMunicipalAnalysisCache } from "@/repositories/platform/municipalAnalysisCache";
+import { clearPanelLayersCache } from "@/repositories/platform/panelLayerRepository";
 import { clearGeeStatisticsSchemaCache } from "@/repositories/platform/geeStatisticsRepository";
 import {
   deleteIndexCatalogEntry,
@@ -26,6 +27,7 @@ interface LifecycleRouteContext {
 function refreshPublicIndexCaches(panelLayerId: string) {
   clearEarthEngineCacheForLayer(panelLayerId);
   clearMunicipalAnalysisCache(panelLayerId);
+  clearPanelLayersCache();
   clearGeeStatisticsSchemaCache();
   revalidatePath("/[locale]/platform", "page");
 }
