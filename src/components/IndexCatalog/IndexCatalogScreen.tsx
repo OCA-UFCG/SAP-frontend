@@ -201,6 +201,7 @@ export function IndexCatalogScreen() {
       "/api/index-catalog",
     );
     setItems(result.items);
+    return result.items;
   }, []);
 
   useEffect(() => {
@@ -226,6 +227,10 @@ export function IndexCatalogScreen() {
       }
     };
   }, []);
+
+  const editingItem = entryId
+    ? items.find((item) => item.entryId === entryId)
+    : undefined;
 
   function resetEditor() {
     setDraft(structuredClone(EMPTY_DRAFT));
@@ -472,21 +477,35 @@ export function IndexCatalogScreen() {
 
   async function publishDraft() {
     if (!entryId || !preview) return;
+    const publishedEntryId = entryId;
     setBusy("publish");
     setMessage("Fazendo a conferência final e publicando o índice…");
     try {
       await apiRequest(
-        `/api/index-catalog/drafts/${encodeURIComponent(entryId)}/publish`,
+        `/api/index-catalog/drafts/${encodeURIComponent(publishedEntryId)}/publish`,
         {
           method: "POST",
           headers: {
-            "Idempotency-Key": idempotencyKey("publish", entryId),
+            "Idempotency-Key": idempotencyKey("publish", publishedEntryId),
           },
         },
       );
       resetEditor();
-      setMessage("Índice publicado no Monitoramento sem copiar estatísticas.");
-      await loadItems();
+      // A lista recarregada vem do Contentful, então é ela — e não a resposta
+      // da publicação — que diz se o índice está de fato no Monitoramento.
+      const publishedItem = (await loadItems()).find(
+        (item) => item.entryId === publishedEntryId,
+      );
+      if (publishedItem && !publishedItem.published) {
+        setMessage("");
+        setError(
+          "A publicação não ficou registrada no Contentful: o índice continua como rascunho e não vai aparecer no Monitoramento. Tente publicar novamente.",
+        );
+        return;
+      }
+      setMessage(
+        "Índice publicado no Monitoramento. As estatísticas continuam sendo lidas do asset no GEE a cada consulta — nada foi copiado para o Contentful.",
+      );
     } catch (reason) {
       setError(reason instanceof Error ? reason.message : "Falha ao publicar.");
       setMessage("");
@@ -700,6 +719,14 @@ export function IndexCatalogScreen() {
               value={draft.name}
               onChange={(event) => updateDraft("name", event.target.value)}
             />
+            {editingItem && (
+              <span className="mt-1 block text-xs font-normal text-stone-600">
+                ID técnico: <code>{editingItem.panelLayerId}</code> —{" "}
+                {editingItem.everPublished
+                  ? "congelado: o índice já foi publicado e telemetria, relatórios e caches usam esse ID como chave."
+                  : "gerado a partir do nome; acompanha o nome até a primeira publicação."}
+              </span>
+            )}
           </label>
           <label className="text-sm font-medium">
             Categoria

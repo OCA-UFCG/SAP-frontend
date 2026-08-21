@@ -67,6 +67,20 @@ const GET_PANEL_LAYER_BY_ID = `
   }
 `;
 
+/**
+ * Tag do Data Cache do Next para as queries de `panelLayer`.
+ * `clearPanelLayersCache` só limpa a memoização deste processo; a resposta do
+ * Contentful continua no Data Cache por até `revalidate` segundos e é
+ * compartilhada por todas as rotas. Uma entrada criada por `/api/ee` não é
+ * invalidada por `revalidatePath("/[locale]/platform")`, então sem a tag um
+ * índice recém-publicado podia ficar até uma hora fora da lista que o mapa usa.
+ */
+export const PANEL_LAYERS_CACHE_TAG = "panel-layers";
+
+const PANEL_LAYERS_FETCH_OPTIONS = {
+  next: { revalidate: 3600, tags: [PANEL_LAYERS_CACHE_TAG] },
+};
+
 function queryVariants(query: string) {
   return [
     query,
@@ -152,7 +166,11 @@ async function loadPanelLayersFromContentful(): Promise<PanelLayerI[]> {
   let firstError: unknown;
   for (const query of queryVariants(GET_PANEL_LAYER)) {
     try {
-      const data = await getContent<PanelLayerResponse>(query);
+      const data = await getContent<PanelLayerResponse>(
+        query,
+        undefined,
+        PANEL_LAYERS_FETCH_OPTIONS,
+      );
       return normalizePanelLayers(data.panelLayerCollection?.items).sort(
         comparePanelLayers,
       );
@@ -266,9 +284,11 @@ export async function getPanelLayerById(
   let firstError: unknown;
   for (const query of queryVariants(GET_PANEL_LAYER_BY_ID)) {
     try {
-      const data = await getContent<PanelLayerResponse>(query, {
-        id: panelLayerId,
-      });
+      const data = await getContent<PanelLayerResponse>(
+        query,
+        { id: panelLayerId },
+        PANEL_LAYERS_FETCH_OPTIONS,
+      );
       const panelLayer =
         data.panelLayerCollection?.items?.find(isDefined) ?? null;
       return panelLayer ? normalizePanelLayer(panelLayer) : null;
