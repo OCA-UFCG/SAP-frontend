@@ -36,6 +36,7 @@ import {
   createCatalogPanelLayerId,
   makeUniqueCatalogPanelLayerId,
   parseIndexCatalogDraftInput,
+  resolvePanelPositionInCategory,
 } from "@/utils/indexCatalog";
 
 function toInitialConfig(
@@ -155,25 +156,6 @@ export async function updateIndexCatalogDraft(
   };
 }
 
-function getNextPanelPosition(
-  entries: Awaited<ReturnType<typeof listCatalogEntries>>,
-  category: string,
-  entryId: string,
-) {
-  const currentPosition = entries.find(
-    (entry) => entry.entryId === entryId,
-  )?.panelPosition;
-  if (typeof currentPosition === "number") return currentPosition;
-  const positions = entries
-    .filter((entry) => entry.entryId !== entryId && entry.category === category)
-    .flatMap((entry) =>
-      typeof entry.panelPosition === "number" ? [entry.panelPosition] : [],
-    );
-  return positions.length > 0
-    ? Math.max(...positions) + 1
-    : entries.filter((entry) => entry.category === category).length;
-}
-
 async function buildCatalogPreviewResponse(
   entry: ContentfulManagementEntry,
   locale: string,
@@ -248,7 +230,11 @@ export async function generateIndexCatalogPreview(
         description: config.description,
         measurementUnit: "%",
         category: config.category,
-        panelPosition: getNextPanelPosition(entries, config.category, entryId),
+        panelPosition: resolvePanelPositionInCategory(
+          entries,
+          config.category,
+          entryId,
+        ),
         timeScale: build.validation.inferred.timeScale,
         imageData: build.panelLayerImageData,
         statisticsSource: build.statisticsSource,

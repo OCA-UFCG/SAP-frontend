@@ -6,6 +6,7 @@ import {
   makeUniqueCatalogPanelLayerId,
   parseIndexCatalogDraftInput,
   reconcileCatalogPublicationStatus,
+  resolvePanelPositionInCategory,
 } from "@/utils/indexCatalog";
 
 const validDraft = {
@@ -198,5 +199,59 @@ describe("index catalog v2 input helpers", () => {
         },
       }),
     ).toThrow("asset único");
+  });
+});
+
+describe("posição do índice na categoria do Monitoramento", () => {
+  const climaticos = [
+    { entryId: "anaseca", category: "Dados Climáticos", panelPosition: 0 },
+    { entryId: "cemadenseca", category: "Dados Climáticos", panelPosition: 1 },
+    { entryId: "aridez", category: "Dados Climáticos", panelPosition: 4 },
+    {
+      entryId: "precipitacao",
+      category: "Dados Climáticos",
+      panelPosition: 10,
+    },
+    { entryId: "pobreza", category: "Dados Socioeconômicos", panelPosition: 9 },
+  ];
+
+  it("coloca um índice novo logo depois do último da categoria", () => {
+    expect(
+      resolvePanelPositionInCategory(climaticos, "Dados Climáticos", "novo"),
+    ).toBe(11);
+  });
+
+  it("ignora as posições das outras categorias", () => {
+    expect(
+      resolvePanelPositionInCategory(climaticos, "Dados Ambientais", "novo"),
+    ).toBe(0);
+  });
+
+  it("mantém a posição que o índice já tem quando ela é só dele", () => {
+    expect(
+      resolvePanelPositionInCategory(
+        [
+          ...climaticos,
+          { entryId: "novo", category: "Dados Climáticos", panelPosition: 7 },
+        ],
+        "Dados Climáticos",
+        "novo",
+      ),
+    ).toBe(7);
+  });
+
+  it("recalcula uma posição repetida em vez de deixar o índice na frente", () => {
+    // Regressão: teste-temperatura foi publicado com posição 0, empatado com
+    // anaseca, e apareceu como primeiro em Dados Climáticos.
+    expect(
+      resolvePanelPositionInCategory(
+        [
+          ...climaticos,
+          { entryId: "novo", category: "Dados Climáticos", panelPosition: 0 },
+        ],
+        "Dados Climáticos",
+        "novo",
+      ),
+    ).toBe(11);
   });
 });

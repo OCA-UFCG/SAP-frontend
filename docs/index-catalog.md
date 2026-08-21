@@ -96,6 +96,19 @@ O asset é publicado na hora — sem isso não existe URL — mas o índice segu
 invisível no Monitoramento até a entry ser publicada. Num índice já publicado,
 a imagem nova só aparece na próxima publicação, e a tela diz isso.
 
+### Posição na categoria
+
+A ordem da lista do Monitoramento vem de `panelLayer.panelPosition`, e a
+validação resolve a posição do índice com `resolvePanelPositionInCategory`: um
+índice novo entra depois do último da própria categoria (`Math.max(...) + 1`).
+
+Uma posição já ocupada por outra camada da mesma categoria é recalculada em vez
+de mantida. Sem isso o índice ficava empatado — foi o que aconteceu com
+`teste-temperatura` publicado na posição 0, a mesma do `anaseca` — e a lista
+caía na ordem em que o Contentful devolvia as entries, colocando o índice novo
+como primeiro. O empate também virou desempate por nome em
+`comparePanelLayers`, para a lista não mudar de ordem a cada publicação.
+
 ### ID técnico do panelLayer
 
 O formulário não pede o ID técnico: ele é o slug do nome (`Previsão: Anomalia

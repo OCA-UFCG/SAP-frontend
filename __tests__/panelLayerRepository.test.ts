@@ -136,6 +136,44 @@ describe("panelLayerRepository", () => {
     ]);
   });
 
+  it("breaks a tied panel position by name instead of by Contentful order", async () => {
+    // Regressão: um índice publicado com a posição de outra camada da mesma
+    // categoria aparecia primeiro, conforme a ordem em que o Contentful
+    // devolvia as entries.
+    mockedGetContent.mockResolvedValueOnce(
+      buildPanelLayerResponse([
+        {
+          sys: { id: "sys-2" },
+          id: "layer-zebra",
+          name: "Zebra",
+          description: "Zebra",
+          category: "Dados Climáticos",
+          panelPosition: 0,
+          previewMap: { url: "https://example.com/map-2.png" },
+          imageData: buildValidImageData(),
+        },
+        {
+          sys: { id: "sys-1" },
+          id: "layer-abelha",
+          name: "Abelha",
+          description: "Abelha",
+          category: "Dados Climáticos",
+          panelPosition: 0,
+          previewMap: { url: "https://example.com/map-1.png" },
+          imageData: buildValidImageData(),
+        },
+      ]),
+    );
+    mockedGetContent.mockResolvedValueOnce(buildMunicipalAnalysisResponse([]));
+
+    const layers = await getPanelLayers();
+
+    expect(layers.map((layer) => layer.id)).toEqual([
+      "layer-abelha",
+      "layer-zebra",
+    ]);
+  });
+
   it("does not fetch municipal analysis for the default panel layers request", async () => {
     mockedGetContent.mockResolvedValueOnce(
       buildPanelLayerResponse([

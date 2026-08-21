@@ -104,6 +104,10 @@ function isDefined<T>(value: T | null | undefined): value is T {
   return value != null;
 }
 
+function compareByName(left: PanelLayerI, right: PanelLayerI): number {
+  return (left.name ?? "").localeCompare(right.name ?? "", "pt-BR");
+}
+
 function comparePanelLayers(left: PanelLayerI, right: PanelLayerI): number {
   const leftPosition = left.panelPosition;
   const rightPosition = right.panelPosition;
@@ -111,7 +115,7 @@ function comparePanelLayers(left: PanelLayerI, right: PanelLayerI): number {
   const rightMissing = rightPosition == null;
 
   if (leftMissing && rightMissing) {
-    return 0;
+    return compareByName(left, right);
   }
 
   if (leftMissing) {
@@ -122,7 +126,9 @@ function comparePanelLayers(left: PanelLayerI, right: PanelLayerI): number {
     return 1;
   }
 
-  return leftPosition - rightPosition;
+  // Empate de posição deixaria a ordem por conta da ordem de chegada do
+  // Contentful, que muda a cada publicação. O nome mantém a lista estável.
+  return leftPosition - rightPosition || compareByName(left, right);
 }
 
 function logInvalidPanelLayerImageData(layer: PanelLayerI) {
