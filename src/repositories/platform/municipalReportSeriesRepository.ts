@@ -113,7 +113,6 @@ async function loadShard(
 
 export interface MunicipalReportSeriesResult {
   municipality: MunicipalReportLocationSeries | null;
-  aggregate: MunicipalReportLocationSeries | null;
 }
 
 export function buildMunicipalReportSeriesPatch(
@@ -143,17 +142,14 @@ export async function getMunicipalReportSeries(
   panelLayerId: string,
   municipalityCode: string,
   config: MunicipalReportSeriesConfig,
-  includeAggregate = false,
 ): Promise<MunicipalReportSeriesResult> {
   const shardKey = getMunicipalReportShardKey(municipalityCode, config);
-  const [municipalShard, aggregateShard] = await Promise.all([
-    loadShard(panelLayerId, config.datasetVersion, shardKey),
-    includeAggregate
-      ? loadShard(panelLayerId, config.datasetVersion, "aggregate")
-      : Promise.resolve(null),
-  ]);
+  const municipalShard = await loadShard(
+    panelLayerId,
+    config.datasetVersion,
+    shardKey,
+  );
   return {
     municipality: municipalShard?.municipalities[municipalityCode] ?? null,
-    aggregate: aggregateShard?.municipalities.br ?? null,
   };
 }

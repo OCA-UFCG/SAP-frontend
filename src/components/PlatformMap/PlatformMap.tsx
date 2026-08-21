@@ -7,6 +7,7 @@ import { useSpatialBoundaryOverlay } from "./useSpatialBoundaryOverlay";
 import MapComponent from "../Map/MapComponent";
 import type { BasemapId } from "../Map/Map";
 import type { SpatialSelection } from "@/utils/spatialScope";
+import { geoBrasilSource, resolveSpatialFocusBounds } from "../Map/mapBounds";
 import {
   useMapLayerActions,
   useMapLayerActiveState,
@@ -51,7 +52,20 @@ export function PlatformMap({ showMonitoringOverlays = true }: PlatformMapProps)
     [spatialSelection],
   );
 
-  const { boundaryGeoJson } = useSpatialBoundaryOverlay(spatialSelection);
+  const { boundaryGeoJson, status: boundaryStatus } =
+    useSpatialBoundaryOverlay(spatialSelection);
+
+  const spatialFocusBounds = useMemo(() => {
+    // Enquanto o contorno exato está em voo, não enquadrar pela união dos
+    // estados: renderizaria um movimento grosseiro seguido de outro correto.
+    if (boundaryStatus === "loading") return null;
+
+    return resolveSpatialFocusBounds(
+      geoBrasilSource,
+      allowedStateUfs,
+      boundaryGeoJson,
+    );
+  }, [allowedStateUfs, boundaryGeoJson, boundaryStatus]);
 
   const handleSpatialSelectionChange = useCallback(
     (selection: SpatialSelection) => {
@@ -88,6 +102,7 @@ export function PlatformMap({ showMonitoringOverlays = true }: PlatformMapProps)
           layerOpacity={layerOpacity}
           allowedStateUfs={allowedStateUfs}
           spatialBoundaryGeoJson={boundaryGeoJson}
+          spatialFocusBounds={spatialFocusBounds}
           basemap={basemap}
           spatialArea={spatialSelection.spatialArea}
           spatialValue={spatialSelection.spatialValue}

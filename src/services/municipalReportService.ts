@@ -71,7 +71,6 @@ async function resolveReportLayers(
       periods: isCompactImageData(layer.imageData)
         ? Object.keys(layer.imageData.years)
         : undefined,
-      timeSeriesLocationKey: override?.timeSeriesLocationKey,
       presentation: override?.presentation,
       reportSeriesConfig: layer.reportSeriesConfig,
       baseImageData: isCompactImageData(layer.imageData)
@@ -194,7 +193,6 @@ async function loadReportSeriesData(
     config.panelLayerId,
     municipalityCode,
     config.reportSeriesConfig,
-    Boolean(config.timeSeriesLocationKey),
   );
   if (!result.municipality) return null;
   const dataset = buildSeriesDataset(
@@ -202,15 +200,9 @@ async function loadReportSeriesData(
     municipalityCode,
     result.municipality,
   );
-  const timeSeriesDataset = config.timeSeriesLocationKey && result.aggregate
-    ? buildSeriesDataset(config.baseImageData, "br", result.aggregate)
-    : dataset;
   return {
     dataset,
-    timeSeries: buildMunicipalReportTimeSeries(
-      timeSeriesDataset,
-      config.timeSeriesLocationKey ?? municipalityCode,
-    ),
+    timeSeries: buildMunicipalReportTimeSeries(dataset, municipalityCode),
   };
 }
 
@@ -238,7 +230,6 @@ async function loadMunicipalTimeSeries(
   municipalityCode: string,
   effectivePeriod: string,
   availablePeriods: readonly string[] | undefined,
-  timeSeriesLocationKey: string,
   loadImageData: typeof getCachedMunicipalAnalysisImageData,
 ) {
   const seed = await limitFallbackLoad(() => loadImageData(panelLayerId, effectivePeriod));
@@ -268,7 +259,7 @@ async function loadMunicipalTimeSeries(
         if (!dataset || !period || !isCompactImageData(dataset)) return [];
         const snapshot = buildMunicipalReportSnapshot(
           dataset,
-          timeSeriesLocationKey,
+          municipalityCode,
           period,
         );
         return snapshot ? [snapshot] : [];
@@ -286,7 +277,7 @@ async function loadMunicipalTimeSeries(
   }
   return {
     dataset: complete.imageData,
-    timeSeries: buildMunicipalReportTimeSeries(complete.imageData, timeSeriesLocationKey),
+    timeSeries: buildMunicipalReportTimeSeries(complete.imageData, municipalityCode),
   };
 }
 
@@ -381,23 +372,14 @@ export async function buildMunicipalReport(
           municipalityCode,
           effectivePeriod,
           config.periods,
-          config.timeSeriesLocationKey ?? municipalityCode,
           loadImageData,
         );
         if (!temporalData) return unavailable(config, requestedPeriod);
         const { dataset, timeSeries: sourceTimeSeries } = temporalData;
-        const sourceSnapshot = seriesData
-          ? resolveMunicipalReportSnapshot(
-              buildMunicipalReportTimeSeries(dataset, municipalityCode),
-              requestedPeriod,
-            )
-          : config.timeSeriesLocationKey
-            ? buildMunicipalReportSnapshot(
-                dataset,
-                municipalityCode,
-                effectivePeriod,
-              )
-            : resolveMunicipalReportSnapshot(sourceTimeSeries, requestedPeriod);
+        const sourceSnapshot = resolveMunicipalReportSnapshot(
+          sourceTimeSeries,
+          requestedPeriod,
+        );
         const spatialPeriods = config.baseImageData
           ? Object.keys(config.baseImageData.years)
           : (config.periods ?? []);
