@@ -28,6 +28,7 @@ import {
   type IndexCatalogPreview,
 } from "@/types/indexCatalog";
 import {
+  createCatalogPanelLayerId,
   makeUniqueCatalogPanelLayerId,
   parseIndexCatalogDraftInput,
 } from "@/utils/indexCatalog";
@@ -109,6 +110,37 @@ export async function createIndexCatalogDraft(
   return { entryId: entry.sys.id, panelLayerId, status: config.status };
 }
 
+/**
+ * O ID técnico do panelLayer nasce do primeiro nome salvo, porque o formulário
+ * não pede um. Enquanto a entry nunca foi publicada nada aponta para esse ID,
+ * então ele acompanha o nome; depois da primeira publicação ele congela, já que
+ * telemetria, relatórios, caches e a URL do Monitoramento usam esse ID como
+ * chave. É por isso que um índice criado como "Teste temperatura" e renomeado
+ * depois continua sendo `teste-temperatura`.
+ */
+async function resolveDraftPanelLayerId(
+  entry: ContentfulManagementEntry,
+  config: IndexCatalogConfigV2,
+  name: string,
+) {
+  if (entry.sys.firstPublishedAt || entry.sys.publishedAt) {
+    return config.panelLayerId;
+  }
+
+  const candidate = createCatalogPanelLayerId(name);
+  if (candidate === config.panelLayerId) {
+    return config.panelLayerId;
+  }
+
+  const entries = await listCatalogEntries();
+  return makeUniqueCatalogPanelLayerId(
+    name,
+    entries
+      .filter((item) => item.entryId !== entry.sys.id)
+      .map((item) => item.panelLayerId),
+  );
+}
+
 export async function updateIndexCatalogDraft(
   entryId: string,
   rawInput: unknown,
@@ -117,10 +149,16 @@ export async function updateIndexCatalogDraft(
   const input = parseIndexCatalogDraftInput(rawInput);
   const current = await getCatalogEntry(entryId);
   const previous = requireManagedConfig(current);
+  const panelLayerId = await resolveDraftPanelLayerId(
+    current.entry,
+    previous,
+    input.name,
+  );
   const config = withAuditEvent(
     {
       ...previous,
       ...input,
+      panelLayerId,
       status: "draft",
       validation: undefined,
       validatedStatisticsSource: undefined,
@@ -130,6 +168,7 @@ export async function updateIndexCatalogDraft(
     { action: "update", outcome: "success" },
   );
   const updated = await patchManagementEntry(current.entry, {
+    id: panelLayerId,
     name: input.name,
     description: input.description,
     measurementUnit: "%",
@@ -347,6 +386,14 @@ export async function publishIndexCatalogDraft(
       },
     );
     const published = await publishManagementEntry(latestPanelLayer);
+    // Sem essa checagem, a rota responderia "publicado" para uma entry que
+    // continuou em rascunho e o índice ficaria invisível no Monitoramento sem
+    // nenhum sinal na tela do catálogo.
+    if (!published.sys.publishedAt) {
+      throw new Error(
+        `O Contentful não confirmou a publicação da entry ${entryId}: sys.publishedAt ausente. O índice continuaria em rascunho e fora do Monitoramento.`,
+      );
+    }
     return {
       entryId: published.sys.id,
       panelLayerId: config.panelLayerId,
@@ -444,7 +491,18 @@ async function deleteEntryCompletely(entry: ContentfulManagementEntry) {
     await unpublishManagementEntry(entry);
     entry = await getManagementEntry(entry.sys.id);
   }
-  await deleteManagementEntry(entry);
+
+  try {
+    await deleteManagementEntry(entry);
+  } catch (error) {
+    // A entry já foi despublicada aqui: sem esse log, o índice sai do
+    // Monitoramento e sobra um rascunho sem nenhum registro do motivo.
+    console.error(
+      `[indexCatalog] entry ${entry.sys.id} foi despublicada mas a remoção falhou; ela permanece como rascunho no Contentful.`,
+      error,
+    );
+    throw error;
+  }
 }
 
 export async function deleteIndexCatalogEntry(

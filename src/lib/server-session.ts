@@ -1,4 +1,8 @@
 import { adminAuth } from "@/lib/firebase-admin";
+import {
+  getVerifiedSession,
+  rememberVerifiedSession,
+} from "@/lib/verified-session-cache";
 
 export const SESSION_COOKIE_NAME = "session";
 export const SESSION_COOKIE_MAX_AGE_SECONDS = 60 * 60 * 24;
@@ -26,39 +30,46 @@ export async function createFirebaseSessionCookie(token: string) {
   });
 }
 
-export async function verifyFirebaseSessionCookie(
-  sessionCookie?: string | null,
-) {
-  if (!sessionCookie) return false;
-
-  try {
-    await adminAuth.verifySessionCookie(sessionCookie, true);
-    return true;
-  } catch {
-    return false;
-  }
-}
-
-export async function getAuthenticatedUserSession(
-  request: Request,
+/**
+ * Resolve a sessão de um cookie, servindo do cache de sessões verificadas quando
+ * possível. Toda entrada da plataforma passa por aqui, então é o único ponto que
+ * fala com o Firebase Admin para autenticar um request.
+ */
+async function resolveSessionFromCookie(
+  sessionCookie: string | null,
 ): Promise<AuthenticatedUserSession | null> {
-  const sessionCookie = getSessionCookieFromRequest(request);
-
   if (!sessionCookie) return null;
+
+  const cachedSession = getVerifiedSession(sessionCookie);
+  if (cachedSession) return cachedSession;
 
   try {
     const decodedToken = await adminAuth.verifySessionCookie(
       sessionCookie,
       true,
     );
-
-    return {
+    const session = {
       uid: decodedToken.uid,
       email: normalizeSessionEmail(decodedToken.email),
     };
+
+    rememberVerifiedSession(sessionCookie, session, decodedToken.exp * 1000);
+    return session;
   } catch {
     return null;
   }
+}
+
+export async function verifyFirebaseSessionCookie(
+  sessionCookie?: string | null,
+) {
+  return Boolean(await resolveSessionFromCookie(sessionCookie ?? null));
+}
+
+export async function getAuthenticatedUserSession(
+  request: Request,
+): Promise<AuthenticatedUserSession | null> {
+  return resolveSessionFromCookie(getSessionCookieFromRequest(request));
 }
 
 export async function getAuthenticatedUserId(request: Request) {

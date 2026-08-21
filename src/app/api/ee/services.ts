@@ -8,7 +8,7 @@ import {
 import { getPanelLayers } from "@/repositories/platform/panelLayerRepository";
 import { IMapId, IEEInfo, IImageParam } from "@/utils/interfaces";
 import {
-  getImageDataYearKeys,
+  getImageDataDefaultYear,
   resolveImageCollectionSelection,
   resolveImageYearEntry,
 } from "@/utils/imageData";
@@ -670,6 +670,23 @@ function getMapId(image: any, visParams?: any) {
   });
 }
 
+/**
+ * Períodos que o warmup deve aquecer. Aquecer todos custava 496 idas SEQUENCIAIS
+ * ao Earth Engine (301 só do CDI_Test), disparadas pelo primeiro request após
+ * cada restart e repetidas a cada 12 h, competindo com os usuários pela mesma
+ * cota. O painel abre no período default, então é ele que vale pré-aquecer; os
+ * demais viram miss sob demanda, já protegidos pelo dedupe de getOrCreateCachedUrl.
+ *
+ * getWarmupYearKeys(layer.imageData); // ["2020"]
+ */
+export function getWarmupYearKeys(
+  imageData: IEEInfo["imageData"] | undefined,
+): string[] {
+  const defaultYear = getImageDataDefaultYear(imageData);
+
+  return defaultYear ? [defaultYear] : [];
+}
+
 let warmupStarted = false;
 /**
  * Fetches and caches map data from Contentful/GEE API sources.
@@ -690,7 +707,7 @@ export const cacheMapData = async () => {
       const minScale = layer.minScale;
       const maxScale = layer.maxScale;
 
-      for (const year of getImageDataYearKeys(imageData)) {
+      for (const year of getWarmupYearKeys(imageData)) {
         const yearConfig = resolveImageYearEntry(imageData, year);
         if (!yearConfig) continue;
         const imageCollectionSelection =

@@ -5,6 +5,7 @@ import type {
   IndexCatalogItem,
 } from "@/types/indexCatalog";
 import { isIndexCatalogConfigV2 } from "@/types/indexCatalog";
+import { reconcileCatalogPublicationStatus } from "@/utils/indexCatalog";
 
 const CONTENTFUL_RETRYABLE_STATUS = new Set([429, 500, 502, 503, 504]);
 const DEFAULT_LOCALE = "en-US";
@@ -19,6 +20,7 @@ interface ContentfulSys {
   id: string;
   version: number;
   publishedAt?: string;
+  firstPublishedAt?: string;
   publishedVersion?: number;
   contentType?: {
     sys?: {
@@ -146,6 +148,26 @@ export function getLocalizedEntryField<T>(
   return entry.fields[fieldId]?.[locale] as T | undefined;
 }
 
+/**
+ * Contentful manda: uma entry sem `publishedAt` não está no Monitoramento,
+ * mesmo que o catálogo tenha guardado `status: "published"`. Devolver o config
+ * reconciliado é o que deixa o resto do serviço (inclusive `assertPublishable`)
+ * enxergar o estado real em vez da memória do catálogo.
+ */
+function toReconciledCatalogConfig(
+  config: IndexCatalogConfig | undefined,
+  published: boolean,
+) {
+  if (!isIndexCatalogConfigV2(config)) {
+    return null;
+  }
+
+  return {
+    ...config,
+    status: reconcileCatalogPublicationStatus(config, published),
+  };
+}
+
 function toCatalogItem(
   entry: ContentfulManagementEntry,
   locale: string,
@@ -161,6 +183,9 @@ function toCatalogItem(
     typeof entry.sys.publishedVersion === "number" &&
     entry.sys.version > entry.sys.publishedVersion + 1,
   );
+
+  const managedConfig = toReconciledCatalogConfig(config, published);
+  const effectiveConfig = managedConfig ?? config;
 
   return {
     entryId: entry.sys.id,
@@ -187,14 +212,15 @@ function toCatalogItem(
       locale,
     ),
     published,
+    everPublished: Boolean(entry.sys.firstPublishedAt ?? entry.sys.publishedAt),
     hasUnpublishedChanges,
-    catalogManaged: isIndexCatalogConfigV2(config),
-    status: isIndexCatalogConfigV2(config)
+    catalogManaged: Boolean(managedConfig),
+    status: managedConfig
       ? published && !hasUnpublishedChanges
         ? "published"
-        : config.status
+        : managedConfig.status
       : "legacy",
-    ...(config ? { catalogConfig: config } : {}),
+    ...(effectiveConfig ? { catalogConfig: effectiveConfig } : {}),
   };
 }
 

@@ -12,6 +12,7 @@ vi.mock("@/repositories/platform/geeStatisticsRepository", () => ({
 import { getContent } from "@/infrastructure/contentful/client";
 import { getGeeStatisticsYearPatch } from "@/repositories/platform/geeStatisticsRepository";
 import {
+  clearPanelLayersCache,
   getPanelLayers,
   getPanelLayerWithMunicipalAnalysis,
   getPanelLayerWithMunicipalAnalysisYear,
@@ -68,6 +69,7 @@ function buildValidImageData() {
 
 describe("panelLayerRepository", () => {
   beforeEach(() => {
+    clearPanelLayersCache();
     mockedGetContent.mockReset();
     mockedGetGeeStatisticsYearPatch.mockReset();
     mockedGetGeeStatisticsYearPatch.mockResolvedValue(null);
@@ -632,6 +634,7 @@ describe("panelLayerRepository", () => {
     expect(mockedGetContent).toHaveBeenCalledWith(
       expect.stringContaining("GetPanelLayerById"),
       { id: "CDI_Test" },
+      { next: { revalidate: 3600, tags: ["panel-layers"] } },
     );
     expect(mockedGetContent).toHaveBeenCalledWith(
       expect.stringContaining("municipalAnalysisCollection"),
@@ -1085,5 +1088,76 @@ describe("panelLayerRepository", () => {
 
     expect(Object.keys(imageData.years)).toEqual(["2026-02"]);
     expect(imageData.years["2026-02"]?.values["2914802"]).toEqual([90, 10]);
+  });
+
+  it("reuses the in-process panel layers instead of reparsing Contentful per request", async () => {
+    mockedGetContent.mockResolvedValue(
+      buildPanelLayerResponse([
+        {
+          sys: { id: "sys-1" },
+          id: "layer-1",
+          name: "Layer 1",
+          description: "Layer 1",
+          previewMap: { url: "https://example.com/map.png" },
+          imageData: buildValidImageData(),
+        },
+      ]),
+    );
+
+    const [first, second] = await Promise.all([
+      getPanelLayers(),
+      getPanelLayers(),
+    ]);
+    const third = await getPanelLayers();
+
+    expect(mockedGetContent).toHaveBeenCalledTimes(1);
+    expect(first[0]?.id).toBe("layer-1");
+    expect(second[0]?.id).toBe("layer-1");
+    expect(third[0]?.id).toBe("layer-1");
+  });
+
+  it("reloads panel layers after the catalog invalidates the cache", async () => {
+    mockedGetContent.mockResolvedValue(
+      buildPanelLayerResponse([
+        {
+          sys: { id: "sys-1" },
+          id: "layer-1",
+          name: "Layer 1",
+          description: "Layer 1",
+          previewMap: { url: "https://example.com/map.png" },
+          imageData: buildValidImageData(),
+        },
+      ]),
+    );
+
+    await getPanelLayers();
+    clearPanelLayersCache();
+    await getPanelLayers();
+
+    expect(mockedGetContent).toHaveBeenCalledTimes(2);
+  });
+
+  it("does not memoize an empty result when Contentful fails", async () => {
+    mockedGetContent.mockRejectedValue(new Error("Contentful indisponível"));
+
+    const failed = await getPanelLayers();
+
+    mockedGetContent.mockReset();
+    mockedGetContent.mockResolvedValue(
+      buildPanelLayerResponse([
+        {
+          sys: { id: "sys-1" },
+          id: "layer-1",
+          name: "Layer 1",
+          description: "Layer 1",
+          previewMap: { url: "https://example.com/map.png" },
+          imageData: buildValidImageData(),
+        },
+      ]),
+    );
+    const recovered = await getPanelLayers();
+
+    expect(failed).toEqual([]);
+    expect(recovered[0]?.id).toBe("layer-1");
   });
 });

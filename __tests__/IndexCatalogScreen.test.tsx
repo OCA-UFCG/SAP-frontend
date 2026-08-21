@@ -297,6 +297,84 @@ describe("IndexCatalogScreen v2", () => {
     );
   });
 
+  it("avisa quando a publicação não fica registrada no Contentful", async () => {
+    // Regressão: a tela mostrava "Índice publicado no Monitoramento" mesmo
+    // quando a entry seguia como rascunho, e só a lista revelava o problema.
+    const preview = {
+      entryId: "draft-1",
+      panelLayer: {
+        sys: { id: "draft-1" },
+        id: "indice-gee",
+        name: "Índice GEE",
+        description: "Índice classificado",
+        category: "Dados Climáticos",
+        imageData: {
+          schemaVersion: 1,
+          type: "territorial-compact",
+          classes: [{ id: "classe-0", label: "Classe 0", color: "#D9ED92" }],
+          locations: { br: "Brasil" },
+          years: { "2025": { imageId: "map", values: {} } },
+        },
+        statisticsSource: {
+          schemaVersion: 1,
+          sourceRevision: "a".repeat(64),
+          kind: "gee-feature-collection",
+        },
+      },
+      validation: {
+        valid: true,
+        inferred: {
+          periods: ["2025"],
+          classIndexes: [0],
+          statisticsAssetCount: 1,
+        },
+      },
+    };
+    const draftItem = {
+      entryId: "draft-1",
+      panelLayerId: "indice-gee",
+      name: "Índice GEE",
+      description: "Índice classificado",
+      published: false,
+      everPublished: true,
+      hasUnpublishedChanges: false,
+      catalogManaged: true,
+      status: "ready",
+    };
+    const fetchMock = vi.mocked(fetch);
+    fetchMock
+      .mockImplementationOnce(() => jsonResponse({ items: [] }))
+      .mockImplementationOnce(() => jsonResponse({ entryId: "draft-1" }, 201))
+      .mockImplementationOnce(() => jsonResponse({ items: [] }))
+      .mockImplementationOnce(() => jsonResponse(preview))
+      .mockImplementationOnce(() => jsonResponse({ items: [] }))
+      .mockImplementationOnce(() =>
+        jsonResponse({
+          entryId: "draft-1",
+          panelLayerId: "indice-gee",
+          status: "published",
+        }),
+      )
+      .mockImplementationOnce(() => jsonResponse({ items: [draftItem] }));
+
+    render(<IndexCatalogScreen />);
+    await screen.findByText("Nenhum panelLayer encontrado.");
+    fillMinimumForm();
+    fireEvent.click(
+      screen.getByRole("button", { name: "Validar assets e gerar prévia" }),
+    );
+    await screen.findByTestId("catalog-preview-probe");
+
+    fireEvent.click(screen.getByRole("button", { name: "Publicar" }));
+
+    expect(await screen.findByRole("alert")).toHaveTextContent(
+      "continua como rascunho",
+    );
+    expect(
+      screen.queryByText(/Índice publicado no Monitoramento/),
+    ).not.toBeInTheDocument();
+  });
+
   it("keeps v1 and external panel layers read-only", async () => {
     vi.mocked(fetch).mockImplementationOnce(() =>
       jsonResponse({

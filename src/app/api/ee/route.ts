@@ -1,9 +1,9 @@
 import { NextResponse } from "next/server";
 import type { NextRequest } from "next/server";
 import {
-  addUrlToCache,
   buildCacheKey,
   getCachedUrl,
+  getOrCreateCachedUrl,
   hasKey,
 } from "@/app/api/ee/cache";
 import {
@@ -122,23 +122,26 @@ export async function POST(req: NextRequest) {
     }
 
     const finishEarthEngine = timing.start();
-    const url = await getEarthEngineUrl(
-      yearConfig.imageId,
-      yearConfig.imageParams,
-      layer.minScale,
-      layer.maxScale,
-      {
-        mapVisualization: yearConfig.mapVisualization,
-        spatialSelection,
-        ...(imageCollectionSelection ? { imageCollectionSelection } : {}),
-      },
+    // getOrCreateCachedUrl compartilha uma única ida ao Earth Engine entre os
+    // requests simultâneos que caem no mesmo miss (cold start ou fim do TTL) e
+    // popula o cache ao resolver.
+    const url = await getOrCreateCachedUrl(cacheKey, () =>
+      getEarthEngineUrl(
+        yearConfig.imageId,
+        yearConfig.imageParams,
+        layer.minScale,
+        layer.maxScale,
+        {
+          mapVisualization: yearConfig.mapVisualization,
+          spatialSelection,
+          ...(imageCollectionSelection ? { imageCollectionSelection } : {}),
+        },
+      ),
     );
     finishEarthEngine(
       "earth_engine",
       "Geração da URL de tiles no Earth Engine",
     );
-
-    addUrlToCache(cacheKey, url);
 
     return NextResponse.json(
       { url },

@@ -3,6 +3,7 @@ import {
   INDEX_CATEGORIES,
   type ClassMapping,
   type EarthEngineAssetMapping,
+  type IndexCatalogConfigV2,
   type IndexCatalogDraftInput,
   type IndexCategory,
 } from "@/types/indexCatalog";
@@ -57,6 +58,31 @@ export function makeUniqueCatalogPanelLayerId(
     if (!used.has(candidate)) return candidate;
   }
   throw new Error("Não foi possível gerar um identificador único.");
+}
+
+/**
+ * Reconcilia o `status` guardado no `catalogConfig` com o estado real de
+ * publicação da entry no Contentful, que é a autoridade: `sys.publishedAt`.
+ *
+ * Os dois divergem quando a entry deixa de estar publicada por fora do
+ * catálogo — despublicada no app do Contentful, ou um "Excluir" que
+ * despublicou e falhou ao remover. Sem reconciliar, um índice com
+ * `status: "published"` numa entry em rascunho fica impossível de publicar:
+ * `assertPublishable` só aceita `ready`, e o operador recebe "Revalide os
+ * assets e gere a prévia antes de publicar" mesmo com a prévia validada.
+ *
+ * @example
+ * reconcileCatalogPublicationStatus({ status: "published", validation }, false);
+ * // => "ready"  (a prévia validada continua valendo; basta publicar de novo)
+ */
+export function reconcileCatalogPublicationStatus(
+  config: Pick<IndexCatalogConfigV2, "status" | "validation">,
+  published: boolean,
+): IndexCatalogConfigV2["status"] {
+  if (published || config.status !== "published") {
+    return config.status;
+  }
+  return config.validation?.valid ? "ready" : "draft";
 }
 
 function parseClasses(value: unknown): ClassMapping[] {
