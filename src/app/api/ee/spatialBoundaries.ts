@@ -193,3 +193,16 @@ export function getSpatialBoundaryFeatures(
     return feature;
   });
 }
+
+export function getAllSpatialBoundaryFeaturesForArea(
+  area: BoundaryArea,
+): readonly SpatialBoundaryFeature[] {
+  const featuresByName = getBoundaryIndex().get(area);
+  if (!featuresByName) {
+    throw new Error(
+      `No boundary collection configured for ${area}.`,
+    );
+  }
+  return Array.from(featuresByName.values());
+}
+

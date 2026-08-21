@@ -1,7 +1,10 @@
 import { NextResponse } from "next/server";
 import type { NextRequest } from "next/server";
 import type { FeatureCollection, Geometry } from "geojson";
-import { getSpatialBoundaryFeatures } from "@/app/api/ee/spatialBoundaries";
+import {
+  getAllSpatialBoundaryFeaturesForArea,
+  getSpatialBoundaryFeatures,
+} from "@/app/api/ee/spatialBoundaries";
 import {
   resolveSpatialSelection,
   type SpatialSelection,
@@ -46,7 +49,10 @@ export async function GET(req: NextRequest) {
   }
 
   try {
-    const features = getSpatialBoundaryFeatures(selection);
+    const features =
+      selection.spatialArea === "biome"
+        ? getAllSpatialBoundaryFeaturesForArea("biome")
+        : getSpatialBoundaryFeatures(selection);
     const featureCollection: FeatureCollection<Geometry, { name: string }> = {
       type: "FeatureCollection",
       features: [...features],

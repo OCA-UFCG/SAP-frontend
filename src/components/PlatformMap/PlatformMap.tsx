@@ -6,6 +6,7 @@ import { useEarthEngineTileLayer } from "./useEarthEngineTileLayer";
 import { useSpatialBoundaryOverlay } from "./useSpatialBoundaryOverlay";
 import MapComponent from "../Map/MapComponent";
 import type { BasemapId } from "../Map/Map";
+import type { SpatialSelection } from "@/utils/spatialScope";
 import {
   useMapLayerActions,
   useMapLayerActiveState,
@@ -29,7 +30,7 @@ export function PlatformMap({ showMonitoringOverlays = true }: PlatformMapProps)
     layerOpacity,
     spatialSelection,
   } = useMapLayerViewState();
-  const { setSelectedState, setSelectedMunicipalityCode, setLayerOpacity } =
+  const { setSelectedState, setSelectedMunicipalityCode, setLayerOpacity, setSpatialSelection } =
     useMapLayerActions();
   const { requestKey, status, tileLayerUrl } = useEarthEngineTileLayer(
     activeEEData,
@@ -51,6 +52,15 @@ export function PlatformMap({ showMonitoringOverlays = true }: PlatformMapProps)
   );
 
   const { boundaryGeoJson } = useSpatialBoundaryOverlay(spatialSelection);
+
+  const handleSpatialSelectionChange = useCallback(
+    (selection: SpatialSelection) => {
+      setSpatialSelection(selection);
+      setSelectedState("br");
+      setSelectedMunicipalityCode(null);
+    },
+    [setSpatialSelection, setSelectedState, setSelectedMunicipalityCode],
+  );
 
   const hasRenderedCurrentRequest =
     status === "ready" && Boolean(requestKey) && readyRequestKey === requestKey;
@@ -79,8 +89,11 @@ export function PlatformMap({ showMonitoringOverlays = true }: PlatformMapProps)
           allowedStateUfs={allowedStateUfs}
           spatialBoundaryGeoJson={boundaryGeoJson}
           basemap={basemap}
+          spatialArea={spatialSelection.spatialArea}
+          spatialValue={spatialSelection.spatialValue}
           onStateSelect={(uf: string) => setSelectedState(uf.toLowerCase())}
           onSelectedMunicipalityCodeChange={setSelectedMunicipalityCode}
+          onSpatialSelectionChange={handleSpatialSelectionChange}
           onTileLayerReady={handleTileLayerReady}
         />
 

@@ -1,3 +1,4 @@
+import "@testing-library/jest-dom/vitest";
 import type { FeatureCollection, Geometry } from "geojson";
 import { cleanup, render, screen, waitFor } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
@@ -84,7 +85,7 @@ describe("useSpatialBoundaryOverlay", () => {
       expect(screen.getByText("Caatinga")).toBeInTheDocument();
     });
     expect(fetch).toHaveBeenCalledWith(
-      "/api/spatial-boundary?spatialArea=biome&spatialValue=Caatinga",
+      "/api/spatial-boundary?spatialArea=biome&spatialValue=Caatinga&v=2",
       { signal: expect.any(AbortSignal) },
     );
   });

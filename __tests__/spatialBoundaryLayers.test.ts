@@ -3,6 +3,7 @@ import type maplibregl from "maplibre-gl";
 import { describe, expect, it, vi } from "vitest";
 import {
   GEE_LAYER_ID,
+  SPATIAL_BOUNDARY_FILL_LAYER_ID,
   SPATIAL_BOUNDARY_LAYER_ID,
   SPATIAL_BOUNDARY_SOURCE_ID,
   STATES_BORDER_LAYER_ID,
@@ -91,8 +92,11 @@ describe("spatial boundary MapLibre layers", () => {
     ensureMapLayers(map, "platform", true, false, null);
     ensureSpatialBoundaryLayer(map, boundaryGeoJson, true, new Set(["ba"]));
 
-    expect(layers.indexOf(SPATIAL_BOUNDARY_LAYER_ID)).toBe(
-      layers.indexOf(STATES_FILL_LAYER_ID) - 1,
+    expect(layers.indexOf(SPATIAL_BOUNDARY_LAYER_ID)).toBeLessThan(
+      layers.indexOf(STATES_FILL_LAYER_ID),
+    );
+    expect(layers.indexOf(SPATIAL_BOUNDARY_FILL_LAYER_ID)).toBeLessThan(
+      layers.indexOf(STATES_FILL_LAYER_ID),
     );
   });
 
@@ -113,9 +117,9 @@ describe("spatial boundary MapLibre layers", () => {
     );
     ensureSpatialBoundaryLayer(map, boundaryGeoJson, true, new Set(["ba"]));
 
-    // This verifies ordering only. A clipped/transparent raster can still
-    // leave the boundary visible, so this is not inherently a visual defect.
-    expect(layers.indexOf(GEE_LAYER_ID)).toBeGreaterThan(
+    // Verify that GEE raster is placed BELOW the spatial boundary,
+    // so it doesn't obscure the dark hover preview overlay.
+    expect(layers.indexOf(GEE_LAYER_ID)).toBeLessThan(
       layers.indexOf(SPATIAL_BOUNDARY_LAYER_ID),
     );
     expect(layers.indexOf(GEE_LAYER_ID)).toBeLessThan(

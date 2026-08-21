@@ -1,5 +1,9 @@
 import { describe, expect, it } from "vitest";
-import { getAllowedStateUfs } from "@/utils/interestAreaStates";
+import {
+  getAllowedStateUfs,
+  getStateBiomes,
+  getStateRegion,
+} from "@/utils/interestAreaStates";
 
 describe("getAllowedStateUfs", () => {
   it("returns null for national", () => {
@@ -55,3 +59,19 @@ describe("getAllowedStateUfs", () => {
     ).toBe(true);
   });
 });
+
+describe("getStateRegion & getStateBiomes", () => {
+  it("returns region for given UF", () => {
+    expect(getStateRegion("ba")).toBe("Nordeste");
+    expect(getStateRegion("sp")).toBe("Sudeste");
+    expect(getStateRegion("am")).toBe("Norte");
+    expect(getStateRegion("unknown")).toBeNull();
+  });
+
+  it("returns biomes for given UF", () => {
+    expect(getStateBiomes("am")).toEqual(["Amazônia"]);
+    expect(getStateBiomes("rs")).toEqual(["Pampa", "Mata Atlântica"]);
+    expect(getStateBiomes("unknown")).toEqual([]);
+  });
+});
+

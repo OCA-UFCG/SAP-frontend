@@ -4,12 +4,19 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 
 vi.mock("@/app/api/ee/spatialBoundaries", () => ({
   getSpatialBoundaryFeatures: vi.fn(),
+  getAllSpatialBoundaryFeaturesForArea: vi.fn(),
 }));
 
 import { GET } from "@/app/api/spatial-boundary/route";
-import { getSpatialBoundaryFeatures } from "@/app/api/ee/spatialBoundaries";
+import {
+  getAllSpatialBoundaryFeaturesForArea,
+  getSpatialBoundaryFeatures,
+} from "@/app/api/ee/spatialBoundaries";
 
 const mockedGetSpatialBoundaryFeatures = vi.mocked(getSpatialBoundaryFeatures);
+const mockedGetAllSpatialBoundaryFeaturesForArea = vi.mocked(
+  getAllSpatialBoundaryFeaturesForArea,
+);
 
 const caatingaFeature: Feature<Geometry, { name: string }> = {
   type: "Feature",
@@ -36,10 +43,11 @@ function createRequest(query = ""): NextRequest {
 describe("GET /api/spatial-boundary", () => {
   beforeEach(() => {
     mockedGetSpatialBoundaryFeatures.mockReset();
+    mockedGetAllSpatialBoundaryFeaturesForArea.mockReset();
   });
 
   it("returns the selected boundary as cacheable GeoJSON", async () => {
-    mockedGetSpatialBoundaryFeatures.mockReturnValueOnce([caatingaFeature]);
+    mockedGetAllSpatialBoundaryFeaturesForArea.mockReturnValueOnce([caatingaFeature]);
 
     const response = await GET(
       createRequest("?spatialArea=biome&spatialValue=Caatinga"),
@@ -53,10 +61,7 @@ describe("GET /api/spatial-boundary", () => {
       type: "FeatureCollection",
       features: [caatingaFeature],
     });
-    expect(mockedGetSpatialBoundaryFeatures).toHaveBeenCalledWith({
-      spatialArea: "biome",
-      spatialValue: "Caatinga",
-    });
+    expect(mockedGetAllSpatialBoundaryFeaturesForArea).toHaveBeenCalledWith("biome");
   });
 
   it("rejects incomplete or invalid selections", async () => {
@@ -68,6 +73,7 @@ describe("GET /api/spatial-boundary", () => {
     expect(missingValue.status).toBe(400);
     expect(invalidValue.status).toBe(400);
     expect(mockedGetSpatialBoundaryFeatures).not.toHaveBeenCalled();
+    expect(mockedGetAllSpatialBoundaryFeaturesForArea).not.toHaveBeenCalled();
   });
 
   it("rejects administrative scopes that do not use an overlay", async () => {
@@ -81,10 +87,11 @@ describe("GET /api/spatial-boundary", () => {
     expect(national.status).toBe(400);
     expect(region.status).toBe(400);
     expect(mockedGetSpatialBoundaryFeatures).not.toHaveBeenCalled();
+    expect(mockedGetAllSpatialBoundaryFeaturesForArea).not.toHaveBeenCalled();
   });
 
   it("returns 500 when the boundary repository fails", async () => {
-    mockedGetSpatialBoundaryFeatures.mockImplementationOnce(() => {
+    mockedGetAllSpatialBoundaryFeaturesForArea.mockImplementationOnce(() => {
       throw new Error("boundary unavailable");
     });
 

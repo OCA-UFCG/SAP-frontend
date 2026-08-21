@@ -5,12 +5,16 @@ import "maplibre-gl/dist/maplibre-gl.css";
 import { useEffect, useRef } from "react";
 import type { FeatureCollection, Geometry } from "geojson";
 import type { CDIVectorData } from "@/lib/geo";
+import type { SpatialArea, SpatialSelection } from "@/utils/spatialScope";
+import { getStateBiomes, getStateRegion, getRegionStateUfs } from "@/utils/interestAreaStates";
 import {
   GEE_LAYER_ID,
   GEE_SOURCE_ID,
   type MapMode,
   OSM_LAYER_ID,
   SATELLITE_LAYER_ID,
+  SPATIAL_BOUNDARY_FILL_LAYER_ID,
+  SPATIAL_BOUNDARY_SOURCE_ID,
   STATES_FILL_LAYER_ID,
   STATES_SOURCE_ID,
   STATES_SOURCE_LAYER,
@@ -30,6 +34,7 @@ import {
   MUNICIPALITY_SOURCE_ID,
   MUNICIPALITY_SOURCE_LAYER,
 } from "./municipalityLayers";
+import { useSpatialAreaClickSelection } from "./useSpatialAreaClickSelection";
 export type BasemapId = "osm" | "satellite";
 
 export interface MapProps {
@@ -52,6 +57,9 @@ export interface MapProps {
   layerOpacity?: number;
   allowedStateUfs?: Set<string> | null;
   spatialBoundaryGeoJson?: FeatureCollection<Geometry, { name: string }> | null;
+  spatialArea?: SpatialArea;
+  spatialValue?: string;
+  onSpatialSelectionChange?: (selection: SpatialSelection) => void;
 }
 
 const Map = ({
@@ -74,6 +82,9 @@ const Map = ({
   layerOpacity = 0.85,
   allowedStateUfs = null,
   spatialBoundaryGeoJson = null,
+  spatialArea = "national",
+  spatialValue = "brasil",
+  onSpatialSelectionChange,
 }: MapProps) => {
   const mapContainerRef = useRef<HTMLDivElement | null>(null);
   const {
@@ -117,6 +128,7 @@ const Map = ({
     showStatesBorder,
     spatialBoundaryGeoJson,
     allowedStateUfs,
+    spatialValue,
     tileLayerRequestKey,
     tileLayerUrl,
     layerOpacity,
@@ -124,6 +136,33 @@ const Map = ({
   });
   const { clearMarkers } = useMapMarkers(mapRef, markers, mapInstanceVersion);
   const allowedStateUfsRef = useRef(allowedStateUfs);
+  const spatialAreaRef = useRef<SpatialArea>(spatialArea);
+  const spatialValueRef = useRef<string>(spatialValue);
+  const onSpatialSelectionChangeRef = useRef(onSpatialSelectionChange);
+  const hoveredBoundaryIdRef = useRef<string | number | null>(null);
+  const hoveredRegionUfsRef = useRef<string[]>([]);
+
+  useEffect(() => {
+    spatialAreaRef.current = spatialArea;
+    spatialValueRef.current = spatialValue;
+    onSpatialSelectionChangeRef.current = onSpatialSelectionChange;
+    
+    if (mapRef.current && hoveredRegionUfsRef.current.length > 0) {
+      hoveredRegionUfsRef.current.forEach((oldUf) => {
+        mapRef.current?.setFeatureState(
+          { source: STATES_SOURCE_ID, sourceLayer: STATES_SOURCE_LAYER, id: oldUf },
+          { hover: false },
+        );
+      });
+      hoveredRegionUfsRef.current = [];
+    }
+  }, [spatialArea, spatialValue, onSpatialSelectionChange, mapRef]);
+
+  const { resolveSpatialClick } = useSpatialAreaClickSelection({
+    mapRef,
+    spatialAreaRef,
+    spatialValueRef,
+  });
 
   useEffect(() => {
     allowedStateUfsRef.current = allowedStateUfs;
@@ -245,6 +284,131 @@ const Map = ({
         const hoveredStateId = (hoveredFeature?.id ?? uf) as
           string | number | null | undefined;
 
+        // --- Region mode hover handling ---
+        if (spatialAreaRef.current === "region") {
+          if (hoveredStateIdRef.current) {
+            map.setFeatureState(
+              {
+                source: STATES_SOURCE_ID,
+                sourceLayer: STATES_SOURCE_LAYER,
+                id: hoveredStateIdRef.current,
+              },
+              { hover: false },
+            );
+            hoveredStateIdRef.current = null;
+          }
+
+          let regionName: string | undefined;
+
+          if (uf) {
+            regionName = getStateRegion(uf) ?? undefined;
+          }
+
+          if (regionName) {
+            const regionUfs = getRegionStateUfs(regionName).map((u) => u.toUpperCase());
+            const currentHovered = hoveredRegionUfsRef.current;
+            
+            if (currentHovered.length > 0 && currentHovered[0] !== regionUfs[0]) {
+              currentHovered.forEach((oldUf) => {
+                map.setFeatureState(
+                  { source: STATES_SOURCE_ID, sourceLayer: STATES_SOURCE_LAYER, id: oldUf },
+                  { hover: false },
+                );
+              });
+            }
+            
+            regionUfs.forEach((newUf) => {
+              map.setFeatureState(
+                { source: STATES_SOURCE_ID, sourceLayer: STATES_SOURCE_LAYER, id: newUf },
+                { hover: true },
+              );
+            });
+            hoveredRegionUfsRef.current = regionUfs;
+
+            map.getCanvas().style.cursor = "pointer";
+            popup.setLngLat(event.lngLat).setText(regionName).addTo(map);
+          } else {
+            if (hoveredRegionUfsRef.current.length > 0) {
+              hoveredRegionUfsRef.current.forEach((oldUf) => {
+                map.setFeatureState(
+                  { source: STATES_SOURCE_ID, sourceLayer: STATES_SOURCE_LAYER, id: oldUf },
+                  { hover: false },
+                );
+              });
+              hoveredRegionUfsRef.current = [];
+            }
+            map.getCanvas().style.cursor = "";
+            popup.remove();
+          }
+
+          return;
+        }
+
+        // --- Biome mode hover handling ---
+        if (spatialAreaRef.current === "biome") {
+          if (hoveredStateIdRef.current) {
+            map.setFeatureState(
+              {
+                source: STATES_SOURCE_ID,
+                sourceLayer: STATES_SOURCE_LAYER,
+                id: hoveredStateIdRef.current,
+              },
+              { hover: false },
+            );
+            hoveredStateIdRef.current = null;
+          }
+
+          let biomeName: string | undefined;
+          let boundaryFeatureId: string | number | undefined;
+
+          if (map.getLayer(SPATIAL_BOUNDARY_FILL_LAYER_ID)) {
+            const boundaryFeatures = map.queryRenderedFeatures(event.point, {
+              layers: [SPATIAL_BOUNDARY_FILL_LAYER_ID],
+            }) as MapGeoJSONFeature[];
+
+            if (boundaryFeatures.length > 0) {
+              const f = boundaryFeatures[0];
+              biomeName = f.properties?.name as string | undefined;
+              boundaryFeatureId = f.id;
+            }
+          }
+
+          if (!biomeName && uf) {
+            const stateBiomes = getStateBiomes(uf);
+            biomeName = stateBiomes[0];
+          }
+
+          if (biomeName) {
+            const targetId = (boundaryFeatureId ?? biomeName) as string | number;
+
+            if (
+              hoveredBoundaryIdRef.current !== null &&
+              hoveredBoundaryIdRef.current !== targetId
+            ) {
+              map.setFeatureState(
+                {
+                  source: SPATIAL_BOUNDARY_SOURCE_ID,
+                  id: hoveredBoundaryIdRef.current,
+                },
+                { hover: false },
+              );
+            }
+            hoveredBoundaryIdRef.current = targetId;
+            map.setFeatureState(
+              { source: SPATIAL_BOUNDARY_SOURCE_ID, id: targetId },
+              { hover: true },
+            );
+
+            map.getCanvas().style.cursor = "pointer";
+            popup.setLngLat(event.lngLat).setText(biomeName).addTo(map);
+          } else {
+            map.getCanvas().style.cursor = "";
+            popup.remove();
+          }
+
+          return;
+        }
+
         const allowedUfs = allowedStateUfsRef.current;
         const isOutsideArea = Boolean(
           allowedUfs && uf && !allowedUfs.has(uf.toLowerCase()),
@@ -321,6 +485,21 @@ const Map = ({
         }
 
         hoveredStateIdRef.current = null;
+        
+        if (hoveredRegionUfsRef.current.length > 0) {
+          hoveredRegionUfsRef.current.forEach((oldUf) => {
+            map.setFeatureState(
+              {
+                source: STATES_SOURCE_ID,
+                sourceLayer: STATES_SOURCE_LAYER,
+                id: oldUf,
+              },
+              { hover: false },
+            );
+          });
+          hoveredRegionUfsRef.current = [];
+        }
+
         map.getCanvas().style.cursor = "";
         popup.remove();
       });
@@ -370,6 +549,36 @@ const Map = ({
             ? clickedFeature.id
             : undefined);
 
+        // --- Spatial area click interception ---
+        // Before processing as a state click, check if the click should
+        // change the spatial scope (biome/region) or be blocked (biome mode).
+        const spatialResult = resolveSpatialClick(event.point, uf);
+
+        if (spatialResult === "block") {
+          log("spatial click blocked (biome mode, no state selection)", {
+            uf,
+            spatialArea: spatialAreaRef.current,
+          });
+          return;
+        }
+
+        if (spatialResult !== null) {
+          log("spatial click: switching scope", {
+            uf,
+            from: {
+              spatialArea: spatialAreaRef.current,
+              spatialValue: spatialValueRef.current,
+            },
+            to: spatialResult,
+          });
+          if (mapModeRef.current === "platform") {
+            clearSelectedMunicipalitySelection(map);
+          }
+          onSpatialSelectionChangeRef.current?.(spatialResult);
+          return;
+        }
+
+        // --- Normal state click flow ---
         if (!uf) {
           if (mapModeRef.current === "platform") {
             clearSelectedMunicipalitySelection(map);
@@ -430,6 +639,51 @@ const Map = ({
       });
 
       if (mapModeRef.current === "platform") {
+        // --- Spatial boundary hover (biome/region names) ---
+        map.on("mousemove", SPATIAL_BOUNDARY_FILL_LAYER_ID, (event) => {
+          const feature = event.features?.[0] as
+            MapGeoJSONFeature | undefined;
+          const boundaryName = feature?.properties?.name as
+            string | undefined;
+
+          // Apply hover feature-state
+          if (feature?.id !== undefined && feature.id !== null) {
+            if (
+              hoveredBoundaryIdRef.current !== null &&
+              hoveredBoundaryIdRef.current !== feature.id
+            ) {
+              map.setFeatureState(
+                { source: SPATIAL_BOUNDARY_SOURCE_ID, id: hoveredBoundaryIdRef.current },
+                { hover: false },
+              );
+            }
+            hoveredBoundaryIdRef.current = feature.id;
+            map.setFeatureState(
+              { source: SPATIAL_BOUNDARY_SOURCE_ID, id: feature.id },
+              { hover: true },
+            );
+          }
+
+          map.getCanvas().style.cursor = "pointer";
+
+          if (boundaryName) {
+            popup.setLngLat(event.lngLat).setText(boundaryName).addTo(map);
+          }
+        });
+
+        map.on("mouseleave", SPATIAL_BOUNDARY_FILL_LAYER_ID, () => {
+          if (hoveredBoundaryIdRef.current !== null) {
+            map.setFeatureState(
+              { source: SPATIAL_BOUNDARY_SOURCE_ID, id: hoveredBoundaryIdRef.current },
+              { hover: false },
+            );
+          }
+          hoveredBoundaryIdRef.current = null;
+          map.getCanvas().style.cursor = "";
+          popup.remove();
+        });
+
+        // --- Municipality hover ---
         map.on("mousemove", MUNICIPALITY_HOVER_LAYER_ID, (event) => {
           const municipalityFeature = event.features?.[0] as
             MapGeoJSONFeature | undefined;
@@ -516,8 +770,13 @@ const Map = ({
     tileLayerUrlRef,
     warn,
     hoveredMunicipalityIdRef,
+    hoveredBoundaryIdRef,
     onSelectedMunicipalityCodeChangeRef,
+    onSpatialSelectionChangeRef,
     selectedMunicipalityCodeRef,
+    spatialAreaRef,
+    spatialValueRef,
+    resolveSpatialClick,
     clearMarkers,
     setMapInstance,
   ]);
@@ -559,6 +818,7 @@ const Map = ({
         spatialBoundaryGeoJson ?? null,
         showStatesBorder,
         allowedStateUfs,
+        spatialValue,
       );
     } catch {
       // Best-effort: if style is in transition, the next syncMapLayers will retry.
@@ -567,6 +827,7 @@ const Map = ({
     spatialBoundaryGeoJson,
     allowedStateUfs,
     showStatesBorder,
+    spatialValue,
     mapRef,
     mapInstanceVersion,
   ]);

@@ -66,7 +66,7 @@ export function useSpatialBoundaryOverlay(
 
     const fetchBoundary = async () => {
       try {
-        const params = new URLSearchParams({ spatialArea, spatialValue });
+        const params = new URLSearchParams({ spatialArea, spatialValue, v: "2" });
         const response = await fetch(
           `/api/spatial-boundary?${params.toString()}`,
           { signal: controller.signal },
