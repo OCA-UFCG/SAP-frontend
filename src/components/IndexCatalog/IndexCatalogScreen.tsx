@@ -9,6 +9,12 @@ import {
   useState,
 } from "react";
 import { CatalogMonitoringPreview } from "@/components/IndexCatalog/CatalogMonitoringPreview";
+import { CatalogPreviewMapCapture } from "@/components/IndexCatalog/CatalogPreviewMapCapture";
+import {
+  catalogApiRequest as apiRequest,
+  catalogIdempotencyKey as idempotencyKey,
+  type CatalogApiErrorBody as ApiErrorBody,
+} from "@/components/IndexCatalog/catalogApiClient";
 import { IndexCatalogGuideModal } from "@/components/IndexCatalog/IndexCatalogGuideModal";
 import { ImageCollectionForecastGuideModal } from "@/components/IndexCatalog/ImageCollectionForecastGuideModal";
 import {
@@ -49,11 +55,6 @@ const EMPTY_DRAFT: IndexCatalogDraftInput = {
     singleAssetId: "",
   },
 };
-
-interface ApiErrorBody {
-  error?: string;
-  validation?: IndexCatalogPreview["validation"];
-}
 
 interface ValidationProgress {
   message: string;
@@ -121,29 +122,6 @@ function CatalogActionButton({
       </span>
     </span>
   );
-}
-
-async function apiRequest<T>(path: string, options: RequestInit = {}) {
-  const response = await fetch(path, {
-    credentials: "same-origin",
-    ...options,
-    headers: {
-      ...(options.body ? { "Content-Type": "application/json" } : {}),
-      ...(options.headers ?? {}),
-    },
-  });
-  const body = (await response.json().catch(() => ({}))) as ApiErrorBody & T;
-  if (!response.ok) {
-    throw Object.assign(
-      new Error(body.error ?? `A requisição falhou (${response.status}).`),
-      { validation: body.validation },
-    );
-  }
-  return body;
-}
-
-function idempotencyKey(action: string, entryId: string) {
-  return `${action}-${entryId}-${crypto.randomUUID()}`;
 }
 
 function statusLabel(item: IndexCatalogItem) {
@@ -1225,6 +1203,22 @@ export function IndexCatalogScreen() {
             <strong>{preview.validation.inferred.statisticsAssetCount}</strong>{" "}
             asset(s) estatístico(s) validados.
           </div>
+          <CatalogPreviewMapCapture
+            preview={preview}
+            onSaved={(url) =>
+              setPreview((current) =>
+                current
+                  ? {
+                      ...current,
+                      panelLayer: {
+                        ...current.panelLayer,
+                        previewMap: { url },
+                      },
+                    }
+                  : current,
+              )
+            }
+          />
           <CatalogMonitoringPreview preview={preview} />
         </section>
       )}

@@ -62,7 +62,8 @@ somem `100 ± 0,2` (todos zero representam ausência).
    - calcula `sourceRevision` com IDs, metadata, schemas e períodos;
    - grava somente a configuração e o `imageData` leve no draft.
 3. A prévia administrativa consulta o GEE diretamente e permite exercitar
-   Brasil, UF, município, região, bioma, ASD e semiárido.
+   Brasil, UF, município, região, bioma, ASD e semiárido. Junto dela o
+   navegador captura a imagem de prévia do mapa (ver abaixo).
 4. Publicar repete a validação e exige o mesmo fingerprint da prévia. Somente o
    `panelLayer` é publicado.
 
@@ -74,6 +75,26 @@ Publicar confere `sys.publishedAt` na resposta do Contentful antes de responder
 sucesso, e a tela reconsulta a lista para confirmar que o índice está publicado.
 Uma publicação que não se registra vira erro, não mensagem de sucesso: sem essa
 checagem o índice ficava fora do Monitoramento sem nenhum sinal no catálogo.
+
+### Imagem de prévia do mapa
+
+O cartão do índice no Monitoramento é o campo `previewMap` do `panelLayer` —
+nos índices legados ele é uma captura de tela feita à mão. Na validação, o
+navegador monta o mapa do período padrão enquadrado no Brasil (mesmo
+`BASE_STYLE` e `ensureMapLayers` da plataforma), exporta o canvas em PNG com
+`captureMapCanvasPng` e envia para
+`POST /api/index-catalog/drafts/{entryId}/preview-map`.
+
+A captura acontece no navegador porque é lá que existe WebGL: o servidor não
+renderiza tiles. A rota valida o PNG (`decodePreviewMapDataUrl`: assinatura e
+tamanho máximo), sobe o arquivo pela API de uploads, processa, publica o asset
+e liga o asset ao campo `previewMap` da entry. O id do asset fica em
+`catalogConfig.previewMap.assetId` para que cada nova captura substitua o
+arquivo do mesmo asset, em vez de deixar imagens órfãs no espaço.
+
+O asset é publicado na hora — sem isso não existe URL — mas o índice segue
+invisível no Monitoramento até a entry ser publicada. Num índice já publicado,
+a imagem nova só aparece na próxima publicação, e a tela diz isso.
 
 ### ID técnico do panelLayer
 
@@ -108,6 +129,9 @@ usar o fallback histórico no Contentful. Fontes dinâmicas publicadas em
 `panelLayer.statisticsSource` não procuram Contentful: quando o GEE falha, a
 rota entrega o último resultado em cache, se existir; sem cache, informa
 indisponibilidade.
+
+A imagem de prévia não entra no `sourceFingerprint`: ela ilustra o índice, não
+descreve os dados, então recapturá-la não invalida a prévia validada.
 
 Publicação, despublicação e remoção invalidam caches de tiles, estatísticas e
 painel por `refreshPublicIndexCaches`. O cache de schema inclui

@@ -11,6 +11,13 @@ vi.mock("@/components/IndexCatalog/CatalogMonitoringPreview", () => ({
   CatalogMonitoringPreview: () => <div data-testid="catalog-preview-probe" />,
 }));
 
+// A captura tem seus próprios testes; aqui só interessa que a validação a mostre.
+vi.mock("@/components/IndexCatalog/CatalogPreviewMapCapture", () => ({
+  CatalogPreviewMapCapture: () => (
+    <div data-testid="catalog-preview-map-probe" />
+  ),
+}));
+
 import { IndexCatalogScreen } from "@/components/IndexCatalog/IndexCatalogScreen";
 
 function jsonResponse(body: unknown, status = 200) {
@@ -364,6 +371,7 @@ describe("IndexCatalogScreen v2", () => {
       screen.getByRole("button", { name: "Validar assets e gerar prévia" }),
     );
     await screen.findByTestId("catalog-preview-probe");
+    await screen.findByTestId("catalog-preview-map-probe");
 
     fireEvent.click(screen.getByRole("button", { name: "Publicar" }));
 

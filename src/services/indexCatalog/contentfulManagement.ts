@@ -10,7 +10,7 @@ import { reconcileCatalogPublicationStatus } from "@/utils/indexCatalog";
 const CONTENTFUL_RETRYABLE_STATUS = new Set([429, 500, 502, 503, 504]);
 const DEFAULT_LOCALE = "en-US";
 
-interface ContentfulManagementConfig {
+export interface ContentfulManagementConfig {
   spaceId: string;
   environment: string;
   managementToken: string;
@@ -62,7 +62,7 @@ function requiredEnv(primary: string, fallback?: string) {
   return value;
 }
 
-function getContentfulManagementConfig(): ContentfulManagementConfig {
+export function getContentfulManagementConfig(): ContentfulManagementConfig {
   return {
     spaceId: requiredEnv(
       "CONTENTFUL_SPACE_ID",
@@ -80,7 +80,7 @@ function managementBaseUrl(config: ContentfulManagementConfig) {
   return `https://api.contentful.com/spaces/${config.spaceId}/environments/${config.environment}`;
 }
 
-async function contentfulManagementFetch<T>(
+export async function contentfulManagementFetch<T>(
   path: string,
   init: RequestInit,
   context: string,
