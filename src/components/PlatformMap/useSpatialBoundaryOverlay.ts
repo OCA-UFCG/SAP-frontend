@@ -3,62 +3,77 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import type { FeatureCollection, Geometry } from "geojson";
 import type { SpatialSelection } from "@/utils/spatialScope";
+import { selectActiveBoundaryFeatures } from "@/utils/spatialBoundaryFeatures";
 
 type SpatialBoundaryStatus = "idle" | "loading" | "ready" | "error";
+type BoundaryCollection = FeatureCollection<Geometry, { name: string }>;
 
 interface SpatialBoundaryOverlayResult {
-  boundaryGeoJson: FeatureCollection<Geometry, { name: string }> | null;
+  /** Tudo que o mapa desenha: em modo bioma, os seis biomas. */
+  boundaryGeoJson: BoundaryCollection | null;
+  /** Só o recorte selecionado, para quem enquadra a câmera. */
+  activeBoundaryGeoJson: BoundaryCollection | null;
   status: SpatialBoundaryStatus;
 }
 
 const AREAS_WITH_BOUNDARY = new Set<string>(["biome", "semiarid", "asd"]);
 
-function needsBoundary(selection: SpatialSelection): boolean {
-  return AREAS_WITH_BOUNDARY.has(selection.spatialArea);
+/** A URL é a chave do cache: mesma resposta, mesma entrada. */
+const boundaryCache = new Map<string, BoundaryCollection>();
+
+/**
+ * Esvazia o cache de contornos.
+ *
+ * O cache vive no módulo de propósito, para sobreviver a remontagens do mapa
+ * dentro da mesma sessão; os testes precisam de um jeito de começar do zero.
+ */
+export function clearSpatialBoundaryCache() {
+  boundaryCache.clear();
 }
 
-function buildBoundaryCacheKey(selection: SpatialSelection): string {
-  return `${selection.spatialArea}:${selection.spatialValue}`;
-}
+/**
+ * URL do contorno para a seleção, ou `null` quando a área não tem contorno.
+ *
+ * Em modo bioma pedimos a área inteira (`scope=area`), porque o mapa precisa dos
+ * biomas vizinhos desenhados para o hover e o clique trocarem de bioma. Como a
+ * resposta não depende do bioma selecionado, a URL também não o inclui — assim
+ * o navegador baixa e guarda uma cópia só, em vez de uma por bioma.
+ */
+function buildBoundaryRequestUrl(selection: SpatialSelection): string | null {
+  if (!AREAS_WITH_BOUNDARY.has(selection.spatialArea)) return null;
 
-const boundaryCache = new Map<
-  string,
-  FeatureCollection<Geometry, { name: string }>
->();
+  const params: Record<string, string> =
+    selection.spatialArea === "biome"
+      ? { spatialArea: "biome", scope: "area" }
+      : {
+          spatialArea: selection.spatialArea,
+          spatialValue: selection.spatialValue,
+        };
+
+  return `/api/spatial-boundary?${new URLSearchParams(params).toString()}`;
+}
 
 export function useSpatialBoundaryOverlay(
   spatialSelection: SpatialSelection,
 ): SpatialBoundaryOverlayResult {
   const [fetchedState, setFetchedState] = useState<{
-    key: string;
-    geoJson: FeatureCollection<Geometry, { name: string }> | null;
+    url: string;
+    geoJson: BoundaryCollection | null;
     status: "ready" | "error";
   } | null>(null);
 
-  const latestKeyRef = useRef<string | null>(null);
-
-  const requestConfig = useMemo(() => {
-    if (!needsBoundary(spatialSelection)) {
-      return null;
-    }
-    return {
-      key: buildBoundaryCacheKey(spatialSelection),
-      spatialArea: spatialSelection.spatialArea,
-      spatialValue: spatialSelection.spatialValue,
-    };
-  }, [spatialSelection]);
+  const latestUrlRef = useRef<string | null>(null);
+  const requestUrl = buildBoundaryRequestUrl(spatialSelection);
 
   useEffect(() => {
-    if (!requestConfig) {
-      latestKeyRef.current = null;
+    if (!requestUrl) {
+      latestUrlRef.current = null;
       return;
     }
 
-    const { key, spatialArea, spatialValue } = requestConfig;
-    latestKeyRef.current = key;
+    latestUrlRef.current = requestUrl;
 
-    // Check client-side cache first
-    if (boundaryCache.has(key)) {
+    if (boundaryCache.has(requestUrl)) {
       return;
     }
 
@@ -66,37 +81,30 @@ export function useSpatialBoundaryOverlay(
 
     const fetchBoundary = async () => {
       try {
-        const params = new URLSearchParams({ spatialArea, spatialValue, v: "2" });
-        const response = await fetch(
-          `/api/spatial-boundary?${params.toString()}`,
-          { signal: controller.signal },
-        );
+        const response = await fetch(requestUrl, {
+          signal: controller.signal,
+        });
 
-        if (latestKeyRef.current !== key) return;
+        if (latestUrlRef.current !== requestUrl) return;
 
         if (!response.ok) {
-          console.error(
-            `Spatial boundary fetch failed: ${response.status}`,
-          );
-          setFetchedState({ key, geoJson: null, status: "error" });
+          console.error(`Spatial boundary fetch failed: ${response.status}`);
+          setFetchedState({ url: requestUrl, geoJson: null, status: "error" });
           return;
         }
 
-        const geoJson = (await response.json()) as FeatureCollection<
-          Geometry,
-          { name: string }
-        >;
+        const geoJson = (await response.json()) as BoundaryCollection;
 
-        if (latestKeyRef.current !== key) return;
+        if (latestUrlRef.current !== requestUrl) return;
 
-        boundaryCache.set(key, geoJson);
-        setFetchedState({ key, geoJson, status: "ready" });
+        boundaryCache.set(requestUrl, geoJson);
+        setFetchedState({ url: requestUrl, geoJson, status: "ready" });
       } catch (err) {
         if (controller.signal.aborted) return;
-        if (latestKeyRef.current !== key) return;
+        if (latestUrlRef.current !== requestUrl) return;
 
         console.error("Error fetching spatial boundary:", err);
-        setFetchedState({ key, geoJson: null, status: "error" });
+        setFetchedState({ url: requestUrl, geoJson: null, status: "error" });
       }
     };
 
@@ -105,23 +113,41 @@ export function useSpatialBoundaryOverlay(
     return () => {
       controller.abort();
     };
-  }, [requestConfig]);
+    // Trocar de bioma não muda a URL: nem cancela o download em voo, nem repete
+    // o pedido já respondido.
+  }, [requestUrl]);
 
-  if (!requestConfig) {
-    return { boundaryGeoJson: null, status: "idle" };
-  }
+  const loaded = useMemo((): {
+    boundaryGeoJson: BoundaryCollection | null;
+    status: SpatialBoundaryStatus;
+  } => {
+    if (!requestUrl) {
+      return { boundaryGeoJson: null, status: "idle" };
+    }
 
-  const cached = boundaryCache.get(requestConfig.key);
-  if (cached) {
-    return { boundaryGeoJson: cached, status: "ready" };
-  }
+    const cached = boundaryCache.get(requestUrl);
+    if (cached) {
+      return { boundaryGeoJson: cached, status: "ready" };
+    }
 
-  if (fetchedState?.key === requestConfig.key) {
-    return {
-      boundaryGeoJson: fetchedState.geoJson,
-      status: fetchedState.status,
-    };
-  }
+    if (fetchedState?.url === requestUrl) {
+      return {
+        boundaryGeoJson: fetchedState.geoJson,
+        status: fetchedState.status,
+      };
+    }
 
-  return { boundaryGeoJson: null, status: "loading" };
+    return { boundaryGeoJson: null, status: "loading" };
+  }, [requestUrl, fetchedState]);
+
+  const activeBoundaryGeoJson = useMemo(
+    () =>
+      selectActiveBoundaryFeatures(
+        loaded.boundaryGeoJson,
+        spatialSelection.spatialValue,
+      ),
+    [loaded.boundaryGeoJson, spatialSelection.spatialValue],
+  );
+
+  return { ...loaded, activeBoundaryGeoJson };
 }

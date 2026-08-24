@@ -47,7 +47,7 @@ describe("GET /api/spatial-boundary", () => {
   });
 
   it("returns the selected boundary as cacheable GeoJSON", async () => {
-    mockedGetAllSpatialBoundaryFeaturesForArea.mockReturnValueOnce([caatingaFeature]);
+    mockedGetSpatialBoundaryFeatures.mockReturnValueOnce([caatingaFeature]);
 
     const response = await GET(
       createRequest("?spatialArea=biome&spatialValue=Caatinga"),
@@ -61,7 +61,39 @@ describe("GET /api/spatial-boundary", () => {
       type: "FeatureCollection",
       features: [caatingaFeature],
     });
-    expect(mockedGetAllSpatialBoundaryFeaturesForArea).toHaveBeenCalledWith("biome");
+    expect(mockedGetSpatialBoundaryFeatures).toHaveBeenCalledWith({
+      spatialArea: "biome",
+      spatialValue: "Caatinga",
+    });
+    expect(mockedGetAllSpatialBoundaryFeaturesForArea).not.toHaveBeenCalled();
+  });
+
+  it("returns the whole area for scope=area, without asking for a value", async () => {
+    // O mapa em modo bioma precisa dos vizinhos; como a resposta não depende do
+    // valor selecionado, a URL não o inclui e o navegador guarda uma cópia só.
+    mockedGetAllSpatialBoundaryFeaturesForArea.mockReturnValueOnce([
+      caatingaFeature,
+    ]);
+
+    const response = await GET(createRequest("?spatialArea=biome&scope=area"));
+
+    expect(response.status).toBe(200);
+    expect(mockedGetAllSpatialBoundaryFeaturesForArea).toHaveBeenCalledWith(
+      "biome",
+    );
+    expect(mockedGetSpatialBoundaryFeatures).not.toHaveBeenCalled();
+  });
+
+  it("rejects scope=area for an area that has no boundary overlay", async () => {
+    const region = await GET(createRequest("?spatialArea=region&scope=area"));
+    const missing = await GET(createRequest("?scope=area"));
+
+    expect(region.status).toBe(400);
+    expect(missing.status).toBe(400);
+    expect(await region.json()).toEqual({
+      error: expect.stringContaining("region"),
+    });
+    expect(mockedGetAllSpatialBoundaryFeaturesForArea).not.toHaveBeenCalled();
   });
 
   it("rejects incomplete or invalid selections", async () => {
@@ -91,7 +123,7 @@ describe("GET /api/spatial-boundary", () => {
   });
 
   it("returns 500 when the boundary repository fails", async () => {
-    mockedGetAllSpatialBoundaryFeaturesForArea.mockImplementationOnce(() => {
+    mockedGetSpatialBoundaryFeatures.mockImplementationOnce(() => {
       throw new Error("boundary unavailable");
     });
 
