@@ -3,6 +3,7 @@ import {
   INDEX_CATEGORIES,
   type ClassMapping,
   type EarthEngineAssetMapping,
+  type IndexCatalogConfigV2,
   type IndexCatalogDraftInput,
   type IndexCategory,
 } from "@/types/indexCatalog";
@@ -57,6 +58,31 @@ export function makeUniqueCatalogPanelLayerId(
     if (!used.has(candidate)) return candidate;
   }
   throw new Error("Não foi possível gerar um identificador único.");
+}
+
+/**
+ * Reconcilia o `status` guardado no `catalogConfig` com o estado real de
+ * publicação da entry no Contentful, que é a autoridade: `sys.publishedAt`.
+ *
+ * Os dois divergem quando a entry deixa de estar publicada por fora do
+ * catálogo — despublicada no app do Contentful, ou um "Excluir" que
+ * despublicou e falhou ao remover. Sem reconciliar, um índice com
+ * `status: "published"` numa entry em rascunho fica impossível de publicar:
+ * `assertPublishable` só aceita `ready`, e o operador recebe "Revalide os
+ * assets e gere a prévia antes de publicar" mesmo com a prévia validada.
+ *
+ * @example
+ * reconcileCatalogPublicationStatus({ status: "published", validation }, false);
+ * // => "ready"  (a prévia validada continua valendo; basta publicar de novo)
+ */
+export function reconcileCatalogPublicationStatus(
+  config: Pick<IndexCatalogConfigV2, "status" | "validation">,
+  published: boolean,
+): IndexCatalogConfigV2["status"] {
+  if (published || config.status !== "published") {
+    return config.status;
+  }
+  return config.validation?.valid ? "ready" : "draft";
 }
 
 function parseClasses(value: unknown): ClassMapping[] {
@@ -302,4 +328,49 @@ export function expandAssetForPeriod(
       .replaceAll("{month}", period.slice(5, 7)) ??
     ""
   );
+}
+
+interface CategoryPositionEntry {
+  entryId: string;
+  category?: string;
+  panelPosition?: number;
+}
+
+/**
+ * Posição do índice na categoria dele no Monitoramento. Um índice novo entra
+ * depois do último — a lista é ordenada por essa posição, então repetir um
+ * número já usado deixa a ordem por conta da ordem de chegada do Contentful, e
+ * foi assim que um índice recém-publicado apareceu como primeiro em Dados
+ * Climáticos em vez de último. Por isso uma posição já ocupada por outra camada
+ * da mesma categoria é recalculada, em vez de mantida.
+ *
+ * @example
+ * // anaseca 0, cemadenseca 1, prev_anomalia_precipitacao 10
+ * resolvePanelPositionInCategory(entries, "Dados Climáticos", "novo") // 11
+ */
+export function resolvePanelPositionInCategory(
+  entries: readonly CategoryPositionEntry[],
+  category: string,
+  entryId: string,
+) {
+  const sameCategory = entries.filter(
+    (entry) => entry.entryId !== entryId && entry.category === category,
+  );
+  const takenPositions = sameCategory.flatMap((entry) =>
+    typeof entry.panelPosition === "number" ? [entry.panelPosition] : [],
+  );
+  const currentPosition = entries.find(
+    (entry) => entry.entryId === entryId,
+  )?.panelPosition;
+
+  if (
+    typeof currentPosition === "number" &&
+    !takenPositions.includes(currentPosition)
+  ) {
+    return currentPosition;
+  }
+
+  return takenPositions.length > 0
+    ? Math.max(...takenPositions) + 1
+    : sameCategory.length;
 }

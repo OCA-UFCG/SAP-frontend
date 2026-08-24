@@ -35,6 +35,9 @@ export default defineConfig({
           environment: "jsdom",
           setupFiles: ['./src/vitest.setup.ts'],
           include: ["**/__tests__/**/*.test.{ts,tsx,js,jsx}"],
+          // Um git worktree criado dentro do repositório traz outra cópia de
+          // __tests__, que rodaria contra o src desta árvore e falharia.
+          exclude: ["**/node_modules/**", "**/.claude/**", "**/.next/**"],
           maxWorkers: 2,
           pool: "threads",
           sequence: {

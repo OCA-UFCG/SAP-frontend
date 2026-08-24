@@ -5,6 +5,7 @@ import { useTranslations } from "next-intl";
 import maplibregl from "maplibre-gl";
 import "maplibre-gl/dist/maplibre-gl.css";
 import { fetchMapURL } from "@/services/mapServices";
+import { captureMapCanvasPng } from "@/components/Map/captureMapCanvas";
 import { startMunicipalReportStage } from "@/utils/municipalReportMetrics";
 import { GEE_LAYER_ID, GEE_SOURCE_ID } from "@/components/Map/mapDefinitions";
 import {
@@ -241,22 +242,13 @@ export function ReportMapPreview({
           detalhes: "Do evento load até o primeiro idle",
         });
         const finishPng = startMunicipalReportStage();
-        try {
-          const dataUrl = map.getCanvas().toDataURL("image/png");
-          finishPng(`Mapa ${layerId}: codificação PNG`, {
-            detalhes: "canvas.toDataURL(image/png)",
-          });
-          if (dataUrl && dataUrl.length > 100) {
-            finishCapture(dataUrl);
-          } else {
-            finishCapture(null);
-          }
-        } catch {
-          finishPng(`Mapa ${layerId}: codificação PNG`, {
-            detalhes: "Falha em canvas.toDataURL(image/png)",
-          });
-          finishCapture(null);
-        }
+        const dataUrl = captureMapCanvasPng(map);
+        finishPng(`Mapa ${layerId}: codificação PNG`, {
+          detalhes: dataUrl
+            ? "canvas.toDataURL(image/png)"
+            : "Falha em canvas.toDataURL(image/png)",
+        });
+        finishCapture(dataUrl);
       });
     }
 

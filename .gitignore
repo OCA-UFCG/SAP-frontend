@@ -70,3 +70,6 @@ relatorio_template.docx
 
 data/runtime/
 /campos-necessarios-indice-sap.txt
+
+# Worktrees e estado local de agentes
+/.claude/
