@@ -82,6 +82,20 @@ describe("ModulesContext", () => {
     cleanup();
   });
 
+  // Regressao: o seletor ficou invisivel em producao porque dependia da flag
+  // NEXT_PUBLIC_ENABLE_SPATIAL_SCOPE, que nao era injetada no build de producao.
+  it("renders the spatial scope selector without depending on any rollout flag", () => {
+    vi.stubEnv("NEXT_PUBLIC_ENABLE_SPATIAL_SCOPE", "");
+
+    render(<ModulesContext activeSection="analysis" panelLayers={[]} />);
+
+    expect(
+      screen.getByRole("button", { name: "Recorte espacial: Nacional" }),
+    ).toBeInTheDocument();
+
+    vi.unstubAllEnvs();
+  });
+
   it("groups panel layers by their Contentful category and opens the first visible group", () => {
     const panelLayers: PanelLayerI[] = [
       {
