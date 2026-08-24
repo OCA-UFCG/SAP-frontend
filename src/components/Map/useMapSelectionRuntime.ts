@@ -35,7 +35,7 @@ interface UseMapSelectionRuntimeArgs {
   pendingSelectedSyncRef: MutableRefObject<boolean>;
   spatialBoundaryGeoJsonRef: MutableRefObject<FeatureCollection<Geometry, { name: string }> | null>;
   allowedStateUfsRef: MutableRefObject<Set<string> | null>;
-  spatialValueRef?: MutableRefObject<string>;
+  spatialValueRef: MutableRefObject<string>;
   fitMapToBounds: (
     map: maplibregl.Map,
     bounds: LngLatBoundsLike,

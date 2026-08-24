@@ -3,6 +3,5 @@
   "compilerOptions": {
     "types": ["vitest/globals", "@testing-library/jest-dom"]
   },
-  "include": ["**/*.ts", "**/*.tsx"],
-  "exclude": []
+  "include": ["**/*.ts", "**/*.tsx"]
 }

@@ -324,6 +324,7 @@ export const useMapController = ({
     tileLayerUrlRef,
     hoveredStateIdRef,
     hoveredMunicipalityIdRef,
+    spatialValueRef,
     warn,
   };
 };

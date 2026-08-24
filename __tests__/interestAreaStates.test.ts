@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import {
   getAllowedStateUfs,
+  getRegionStateUfs,
   getStateBiomes,
   getStateRegion,
 } from "@/utils/interestAreaStates";
@@ -75,3 +76,21 @@ describe("getStateRegion & getStateBiomes", () => {
   });
 });
 
+describe("getRegionStateUfs", () => {
+  it("lists every UF of a region, in lowercase", () => {
+    expect(getRegionStateUfs("Sul").sort()).toEqual(["pr", "rs", "sc"]);
+  });
+
+  it("covers the 27 UFs across the five regions without repeating any", () => {
+    const ufs = ["Norte", "Nordeste", "Centro-Oeste", "Sudeste", "Sul"].flatMap(
+      (region) => getRegionStateUfs(region),
+    );
+
+    expect(new Set(ufs).size).toBe(27);
+    expect(ufs).toHaveLength(27);
+  });
+
+  it("returns an empty list for a name that is not a region", () => {
+    expect(getRegionStateUfs("Caatinga")).toEqual([]);
+  });
+});
