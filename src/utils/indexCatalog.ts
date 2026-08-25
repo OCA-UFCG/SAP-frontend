@@ -10,8 +10,9 @@ import {
 
 const HEX_COLOR_PATTERN = /^#[0-9a-f]{6}$/iu;
 const ASSET_ID_PATTERN = /^[A-Za-z0-9_./{}-]{3,300}$/u;
-const PERIOD_PATTERN = /^\d{4}(?:-(?:0[1-9]|1[0-2]))?$/u;
+const PERIOD_PATTERN = /^(\d{4})(?:-(0[1-9]|1[0-2]))?$/u;
 const ASSET_YEAR_PATTERN = /(?<![0-9])(?:19|20|21)\d{2}(?![0-9])/gu;
+const ASSET_MONTH_SUFFIX_PATTERN = /^([_\-./])(0[1-9]|1[0-2])(?![0-9])/u;
 const GEE_PROPERTY_PATTERN = /^[A-Za-z_][A-Za-z0-9_:.-]{0,119}$/u;
 
 function isRecord(value: unknown): value is Record<string, unknown> {
@@ -308,36 +309,92 @@ export function parseIndexCatalogDraftInput(
   };
 }
 
+export interface DetectedPeriodTemplate {
+  /** Endereço com `{year}` — e `{month}`, quando houver — no lugar do período. */
+  assetIdTemplate: string;
+  year: string;
+  month?: string;
+  /**
+   * Uma tabela por mês só pode ser lida como mensal. Uma tabela por ano não diz
+   * nada sobre as linhas: a tabela anual do Monitor da ANA guarda os doze meses
+   * em `data_img`, então ali a granularidade continua sendo uma escolha.
+   */
+  granularity?: "month";
+}
+
 /**
- * Descobre o template de partição anual a partir do endereço de um único ano.
+ * Descobre o template de partição por período a partir do endereço de UM asset.
  *
  * O operador cola `.../Estatistica_Multinivel_MonitorANA_2026` e o catálogo
  * passa a procurar `.../Estatistica_Multinivel_MonitorANA_{year}` no
- * diretório-pai, encontrando todos os anos irmãos. Cada tabela pode guardar
- * vários meses: a granularidade mensal continua sendo resolvida por `data_img`.
+ * diretório-pai, reunindo os períodos irmãos. Ninguém precisa conhecer a
+ * sintaxe `{year}`/`{month}` para cadastrar um índice — quem usa o catálogo
+ * conhece o produto e o GEE, não as convenções internas da plataforma.
  *
  * Usa a ÚLTIMA ocorrência de um ano no endereço, porque o caminho até o asset
  * pode conter outros números (`.../Estatisticas_2020/MonitorANA_2026`).
+ *
+ * O mês só é reconhecido imediatamente depois do ano e separado dele
+ * (`..._2026_09`, `..._2026-09`), o que evita confundir sufixos de versão com
+ * período.
  */
-export function detectYearPartitionedTemplate(assetId: string) {
+export function detectPeriodTemplate(
+  assetId: string,
+): DetectedPeriodTemplate | null {
   const normalized = assetId.trim();
   if (!normalized || /[{}]/u.test(normalized)) return null;
 
-  const occurrences = [...normalized.matchAll(ASSET_YEAR_PATTERN)];
-  const lastYear = occurrences.at(-1);
+  const lastYear = [...normalized.matchAll(ASSET_YEAR_PATTERN)].at(-1);
   if (!lastYear || lastYear.index === undefined) return null;
 
+  const prefix = normalized.slice(0, lastYear.index);
+  const suffix = normalized.slice(lastYear.index + 4);
+  const month = ASSET_MONTH_SUFFIX_PATTERN.exec(suffix);
+
+  if (!month) {
+    return { assetIdTemplate: `${prefix}{year}${suffix}`, year: lastYear[0] };
+  }
+
   return {
+    assetIdTemplate: `${prefix}{year}${month[1]}{month}${suffix.slice(month[0].length)}`,
     year: lastYear[0],
-    assetIdTemplate: `${normalized.slice(0, lastYear.index)}{year}${normalized.slice(
-      lastYear.index + 4,
-    )}`,
+    month: month[2],
+    granularity: "month",
   };
 }
 
-/** Reexibe o template como o endereço concreto que o operador digitou. */
-export function fillYearPlaceholder(template: string, year?: string) {
-  return year ? template.replaceAll("{year}", year) : template;
+/** Reexibe um template como o endereço concreto de um período conhecido. */
+export function fillPeriodTemplate(template: string, period?: string) {
+  const match = period ? PERIOD_PATTERN.exec(period) : null;
+  if (!match || !period) return template;
+
+  const [, year, month] = match;
+  // Sem o mês não há endereço concreto a mostrar: melhor o template cru do que
+  // um endereço truncado que o catálogo nunca vai procurar.
+  if (!month && template.includes("{month}")) return template;
+
+  return template
+    .replaceAll("{period}", period)
+    .replaceAll("{year}", year)
+    .replaceAll("{month}", month ?? "");
+}
+
+/**
+ * Endereço concreto que o formulário pode reexibir sem mentir para o operador.
+ *
+ * Só devolve um endereço quando a detecção o traduz de volta para exatamente o
+ * mesmo template. Em qualquer outro caso — `{period}`, um sufixo fixo que
+ * parece mês — a tela mostra o template cru, porque reexibir um endereço que a
+ * detecção reinterpretaria de outro jeito faria o operador salvar um template
+ * diferente do que já estava publicado.
+ */
+export function toConcreteAssetSample(template: string, period?: string) {
+  const sample = fillPeriodTemplate(template, period);
+  if (sample === template) return null;
+
+  return detectPeriodTemplate(sample)?.assetIdTemplate === template
+    ? sample
+    : null;
 }
 
 export function inferTimeScale(periods: readonly string[]) {

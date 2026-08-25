@@ -1,14 +1,15 @@
 import { describe, expect, it } from "vitest";
 import {
   createCatalogPanelLayerId,
-  detectYearPartitionedTemplate,
+  detectPeriodTemplate,
   expandAssetForPeriod,
-  fillYearPlaceholder,
+  fillPeriodTemplate,
   inferTimeScale,
   makeUniqueCatalogPanelLayerId,
   parseIndexCatalogDraftInput,
   reconcileCatalogPublicationStatus,
   resolvePanelPositionInCategory,
+  toConcreteAssetSample,
 } from "@/utils/indexCatalog";
 
 const validDraft = {
@@ -258,10 +259,10 @@ describe("posição do índice na categoria do Monitoramento", () => {
   });
 });
 
-describe("detectYearPartitionedTemplate", () => {
+describe("detectPeriodTemplate", () => {
   it("turns a concrete year asset into the {year} template the contract expects", () => {
     expect(
-      detectYearPartitionedTemplate(
+      detectPeriodTemplate(
         "projects/obscaatinga/assets/Estatisticas/Estatistica_Multinivel_MonitorANA_2026",
       ),
     ).toEqual({
@@ -273,42 +274,101 @@ describe("detectYearPartitionedTemplate", () => {
 
   it("uses the last year so folders named after a year are preserved", () => {
     expect(
-      detectYearPartitionedTemplate(
-        "projects/x/assets/Estatisticas_2020/ana_2026",
-      )?.assetIdTemplate,
+      detectPeriodTemplate("projects/x/assets/Estatisticas_2020/ana_2026")
+        ?.assetIdTemplate,
     ).toBe("projects/x/assets/Estatisticas_2020/ana_{year}");
   });
 
+  it("recognizes a month right after the year and locks monthly granularity", () => {
+    expect(
+      detectPeriodTemplate(
+        "projects/ee/assets/IC_monitor_seca_ANA/monitor_ana_2025_01",
+      ),
+    ).toEqual({
+      year: "2025",
+      month: "01",
+      granularity: "month",
+      assetIdTemplate:
+        "projects/ee/assets/IC_monitor_seca_ANA/monitor_ana_{year}_{month}",
+    });
+    expect(detectPeriodTemplate("projects/x/assets/ana_2026-09")).toMatchObject(
+      {
+        assetIdTemplate: "projects/x/assets/ana_{year}-{month}",
+        granularity: "month",
+      },
+    );
+  });
+
+  it("does not read a version suffix as a month", () => {
+    // "_2" e "_13" não são meses: virar {month} aqui faria o catálogo procurar
+    // tabelas que não existem e gravar uma fonte mensal por engano.
+    expect(
+      detectPeriodTemplate("projects/x/assets/ana_2026_2")?.assetIdTemplate,
+    ).toBe("projects/x/assets/ana_{year}_2");
+    expect(
+      detectPeriodTemplate("projects/x/assets/ana_2026_13")?.granularity,
+    ).toBeUndefined();
+  });
+
   it("refuses ids without a four-digit year or already templated", () => {
-    expect(
-      detectYearPartitionedTemplate("projects/x/assets/estatisticas"),
-    ).toBeNull();
-    expect(
-      detectYearPartitionedTemplate("projects/x/assets/ana_202"),
-    ).toBeNull();
-    expect(
-      detectYearPartitionedTemplate("projects/x/assets/ana_{year}"),
-    ).toBeNull();
-    expect(detectYearPartitionedTemplate("   ")).toBeNull();
+    expect(detectPeriodTemplate("projects/x/assets/estatisticas")).toBeNull();
+    expect(detectPeriodTemplate("projects/x/assets/ana_202")).toBeNull();
+    expect(detectPeriodTemplate("projects/x/assets/ana_{year}")).toBeNull();
+    expect(detectPeriodTemplate("   ")).toBeNull();
   });
 
   it("ignores longer digit runs that only look like a year", () => {
-    expect(
-      detectYearPartitionedTemplate("projects/x/assets/ana_20261"),
-    ).toBeNull();
+    expect(detectPeriodTemplate("projects/x/assets/ana_20261")).toBeNull();
   });
 });
 
-describe("fillYearPlaceholder", () => {
-  it("shows the operator the concrete year again", () => {
-    expect(fillYearPlaceholder("projects/x/assets/ana_{year}", "2026")).toBe(
+describe("fillPeriodTemplate", () => {
+  it("shows the operator the concrete address again", () => {
+    expect(fillPeriodTemplate("projects/x/assets/ana_{year}", "2026")).toBe(
       "projects/x/assets/ana_2026",
     );
+    expect(
+      fillPeriodTemplate("projects/x/assets/ana_{year}_{month}", "2026-09"),
+    ).toBe("projects/x/assets/ana_2026_09");
+    expect(
+      fillPeriodTemplate("projects/x/assets/ana_{period}", "2026-09"),
+    ).toBe("projects/x/assets/ana_2026-09");
   });
 
-  it("keeps the template when no year is known yet", () => {
-    expect(fillYearPlaceholder("projects/x/assets/ana_{year}")).toBe(
+  it("keeps the template when there is no concrete address to show", () => {
+    expect(fillPeriodTemplate("projects/x/assets/ana_{year}")).toBe(
       "projects/x/assets/ana_{year}",
     );
+    // Um template mensal com período anual só renderia um endereço truncado.
+    expect(
+      fillPeriodTemplate("projects/x/assets/ana_{year}_{month}", "2026"),
+    ).toBe("projects/x/assets/ana_{year}_{month}");
+  });
+});
+
+describe("toConcreteAssetSample", () => {
+  it("offers the concrete address when detection rebuilds the same template", () => {
+    expect(
+      toConcreteAssetSample("projects/x/assets/ana_{year}", "2026-09"),
+    ).toBe("projects/x/assets/ana_2026");
+    expect(
+      toConcreteAssetSample("projects/x/assets/ana_{year}_{month}", "2026-09"),
+    ).toBe("projects/x/assets/ana_2026_09");
+  });
+
+  it("refuses addresses that detection would read as another template", () => {
+    // {period} viraria {year}-{month} na volta, e um sufixo fixo "_01" viraria
+    // {month}: reexibir isso faria o operador salvar um template diferente do
+    // que já está publicado.
+    expect(
+      toConcreteAssetSample("projects/x/assets/ana_{period}", "2026-09"),
+    ).toBeNull();
+    expect(
+      toConcreteAssetSample("projects/x/assets/ana_{year}_01", "2026"),
+    ).toBeNull();
+  });
+
+  it("has nothing to show without a known period", () => {
+    expect(toConcreteAssetSample("projects/x/assets/ana_{year}")).toBeNull();
   });
 });

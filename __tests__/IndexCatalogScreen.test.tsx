@@ -36,13 +36,10 @@ function fillMinimumForm() {
   fireEvent.change(screen.getByLabelText("Descrição"), {
     target: { value: "Índice classificado" },
   });
-  fireEvent.change(
-    screen.getByPlaceholderText("projects/projeto/assets/estatisticas"),
-    {
-      target: { value: "projects/example/assets/statistics" },
-    },
-  );
-  fireEvent.change(screen.getByLabelText("ID do asset de mapa"), {
+  fireEvent.change(screen.getByLabelText("Endereço da FeatureCollection"), {
+    target: { value: "projects/example/assets/statistics" },
+  });
+  fireEvent.change(screen.getByLabelText("Endereço do asset de mapa"), {
     target: { value: "projects/example/assets/map" },
   });
 }
@@ -124,8 +121,8 @@ describe("IndexCatalogScreen v2", () => {
     render(<IndexCatalogScreen />);
     await screen.findByText("Nenhum panelLayer encontrado.");
 
-    fireEvent.change(screen.getByLabelText("Organização"), {
-      target: { value: "perPeriod" },
+    fireEvent.change(screen.getByLabelText(/^Organização das imagens/u), {
+      target: { value: "per-period" },
     });
     expect(
       screen.queryByText("Exceções por período (opcional, uma por linha)"),
@@ -145,14 +142,14 @@ describe("IndexCatalogScreen v2", () => {
         "projects/obscaatinga/assets/Estatisticas/Estatistica_Multinivel_MonitorANA_2025",
       ),
     ).toBeInTheDocument();
-    expect(screen.getByText("Única ou template?")).toBeInTheDocument();
+    expect(screen.getByText("Uma tabela ou várias?")).toBeInTheDocument();
   });
 
   it("shows forecast collection fields and opens their contextual guide", async () => {
     render(<IndexCatalogScreen />);
     await screen.findByText("Nenhum panelLayer encontrado.");
 
-    fireEvent.change(screen.getByLabelText("Tipo"), {
+    fireEvent.change(screen.getByLabelText("Tipo do asset"), {
       target: { value: "imageCollection" },
     });
     fireEvent.change(screen.getByLabelText("Tratamento da coleção"), {
@@ -207,13 +204,13 @@ describe("IndexCatalogScreen v2", () => {
     render(<IndexCatalogScreen />);
     await screen.findByText("Nenhum panelLayer encontrado.");
     fillMinimumForm();
-    fireEvent.change(screen.getByLabelText("Tipo"), {
+    fireEvent.change(screen.getByLabelText("Tipo do asset"), {
       target: { value: "imageCollection" },
     });
     fireEvent.change(screen.getByLabelText("Tratamento da coleção"), {
       target: { value: "latest-emission-leads" },
     });
-    fireEvent.change(screen.getByLabelText(/^Limites das classes/iu), {
+    fireEvent.change(screen.getByLabelText(/^Limites das faixas/iu), {
       target: { value: "-90, -30, 0, 30, 90" },
     });
     fireEvent.click(screen.getByRole("button", { name: "Salvar rascunho" }));
@@ -381,6 +378,171 @@ describe("IndexCatalogScreen v2", () => {
     expect(
       screen.queryByText(/Índice publicado no Monitoramento/),
     ).not.toBeInTheDocument();
+  });
+
+  it("deriva o template da tabela a partir do endereço de um período", async () => {
+    // Antes o operador tinha de saber escrever {year} à mão; agora ele cola o
+    // endereço concreto de um ano e a tela mostra o que reconheceu.
+    const fetchMock = vi.mocked(fetch);
+    fetchMock
+      .mockImplementationOnce(() => jsonResponse({ items: [] }))
+      .mockImplementationOnce(() => jsonResponse({ entryId: "draft-1" }, 201))
+      .mockImplementationOnce(() => jsonResponse({ items: [] }));
+
+    render(<IndexCatalogScreen />);
+    await screen.findByText("Nenhum panelLayer encontrado.");
+    fillMinimumForm();
+    fireEvent.change(screen.getByLabelText(/^Organização das tabelas/u), {
+      target: { value: "per-period" },
+    });
+    fireEvent.change(
+      screen.getByLabelText("Endereço da tabela de um período"),
+      { target: { value: "projects/example/assets/estatisticas_2026" } },
+    );
+
+    expect(
+      screen.getByText(/projects\/example\/assets\/estatisticas_\{year\}/u),
+    ).toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole("button", { name: "Salvar rascunho" }));
+    await screen.findByText("Rascunho salvo no sistema. Nada foi publicado.");
+    const body = JSON.parse(
+      String((fetchMock.mock.calls[1][1] as RequestInit).body),
+    );
+    expect(body.statisticsSource.asset).toEqual({
+      type: "period-template",
+      assetIdTemplate: "projects/example/assets/estatisticas_{year}",
+    });
+    expect(body.statisticsSource.periodGranularity).toBe("year");
+  });
+
+  it("fixa a granularidade mensal quando o nome da tabela traz o mês", async () => {
+    // resolveGeeStatisticsSource rejeita {month} em fonte anual, então a tela
+    // não deixa mais essa combinação ser salva.
+    const fetchMock = vi.mocked(fetch);
+    fetchMock
+      .mockImplementationOnce(() => jsonResponse({ items: [] }))
+      .mockImplementationOnce(() => jsonResponse({ entryId: "draft-1" }, 201))
+      .mockImplementationOnce(() => jsonResponse({ items: [] }));
+
+    render(<IndexCatalogScreen />);
+    await screen.findByText("Nenhum panelLayer encontrado.");
+    fillMinimumForm();
+    fireEvent.change(screen.getByLabelText(/^Organização das tabelas/u), {
+      target: { value: "per-period" },
+    });
+    fireEvent.change(
+      screen.getByLabelText("Endereço da tabela de um período"),
+      { target: { value: "projects/example/assets/estatisticas_2026_09" } },
+    );
+
+    expect(
+      screen.getByLabelText(/^Granularidade dos períodos/u),
+    ).toBeDisabled();
+
+    fireEvent.click(screen.getByRole("button", { name: "Salvar rascunho" }));
+    await screen.findByText("Rascunho salvo no sistema. Nada foi publicado.");
+    const body = JSON.parse(
+      String((fetchMock.mock.calls[1][1] as RequestInit).body),
+    );
+    expect(body.statisticsSource).toMatchObject({
+      periodGranularity: "month",
+      asset: {
+        type: "period-template",
+        assetIdTemplate: "projects/example/assets/estatisticas_{year}_{month}",
+      },
+    });
+  });
+
+  it("mantém o template cru quando o operador escolhe escrevê-lo à mão", async () => {
+    const fetchMock = vi.mocked(fetch);
+    fetchMock
+      .mockImplementationOnce(() => jsonResponse({ items: [] }))
+      .mockImplementationOnce(() => jsonResponse({ entryId: "draft-1" }, 201))
+      .mockImplementationOnce(() => jsonResponse({ items: [] }));
+
+    render(<IndexCatalogScreen />);
+    await screen.findByText("Nenhum panelLayer encontrado.");
+    fillMinimumForm();
+    fireEvent.change(screen.getByLabelText(/^Organização das tabelas/u), {
+      target: { value: "per-period" },
+    });
+    fireEvent.click(
+      screen.getByRole("button", {
+        name: "Escrever o template do endereço à mão",
+      }),
+    );
+    fireEvent.change(screen.getByLabelText("Template do endereço"), {
+      target: { value: "projects/example/assets/estatisticas_{period}" },
+    });
+    fireEvent.click(screen.getByRole("button", { name: "Salvar rascunho" }));
+
+    await screen.findByText("Rascunho salvo no sistema. Nada foi publicado.");
+    const body = JSON.parse(
+      String((fetchMock.mock.calls[1][1] as RequestInit).body),
+    );
+    expect(body.statisticsSource.asset.assetIdTemplate).toBe(
+      "projects/example/assets/estatisticas_{period}",
+    );
+  });
+
+  it("aceita faixas de valor num Image comum, sem previsão", async () => {
+    // Regressão de formulário: os limites do mapa só apareciam junto da
+    // previsão por emissão, embora valham para qualquer Image.
+    const fetchMock = vi.mocked(fetch);
+    fetchMock
+      .mockImplementationOnce(() => jsonResponse({ items: [] }))
+      .mockImplementationOnce(() => jsonResponse({ entryId: "draft-1" }, 201))
+      .mockImplementationOnce(() => jsonResponse({ items: [] }));
+
+    render(<IndexCatalogScreen />);
+    await screen.findByText("Nenhum panelLayer encontrado.");
+    fillMinimumForm();
+    fireEvent.change(screen.getByLabelText(/^Como o mapa vira classes/u), {
+      target: { value: "value-ranges" },
+    });
+    fireEvent.change(screen.getByLabelText(/^Limites das faixas/iu), {
+      target: { value: "0, 10, 20" },
+    });
+    fireEvent.click(screen.getByRole("button", { name: "Salvar rascunho" }));
+
+    await screen.findByText("Rascunho salvo no sistema. Nada foi publicado.");
+    const body = JSON.parse(
+      String((fetchMock.mock.calls[1][1] as RequestInit).body),
+    );
+    expect(body.earthEngine).toMatchObject({
+      sourceType: "image",
+      thresholds: [0, 10, 20],
+    });
+    expect(body.earthEngine.collectionSelection).toBeUndefined();
+  });
+
+  it("deriva o template do mapa a partir do endereço de um mês", async () => {
+    const fetchMock = vi.mocked(fetch);
+    fetchMock
+      .mockImplementationOnce(() => jsonResponse({ items: [] }))
+      .mockImplementationOnce(() => jsonResponse({ entryId: "draft-1" }, 201))
+      .mockImplementationOnce(() => jsonResponse({ items: [] }));
+
+    render(<IndexCatalogScreen />);
+    await screen.findByText("Nenhum panelLayer encontrado.");
+    fillMinimumForm();
+    fireEvent.change(screen.getByLabelText(/^Organização das imagens/u), {
+      target: { value: "per-period" },
+    });
+    fireEvent.change(screen.getByLabelText("Endereço do mapa de um período"), {
+      target: { value: "projects/example/assets/monitor_ana_2025_01" },
+    });
+    fireEvent.click(screen.getByRole("button", { name: "Salvar rascunho" }));
+
+    await screen.findByText("Rascunho salvo no sistema. Nada foi publicado.");
+    const body = JSON.parse(
+      String((fetchMock.mock.calls[1][1] as RequestInit).body),
+    );
+    expect(body.earthEngine).toMatchObject({
+      strategy: "perPeriod",
+      assetPattern: "projects/example/assets/monitor_ana_{year}_{month}",
+    });
   });
 
   it("keeps v1 and external panel layers read-only", async () => {

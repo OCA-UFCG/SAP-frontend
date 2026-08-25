@@ -27,13 +27,45 @@ São configurações independentes:
 
 - estatísticas: sempre uma FeatureCollection fixa ou um template com `{year}`,
   `{month}` e/ou `{period}`;
-  - o formulário oferece **Uma tabela por ano (detectar os anos)**: o operador
-    cola o endereço de um ano concreto (`..._MonitorANA_2026`) e a tela grava o
-    template equivalente (`..._MonitorANA_{year}`). Não é um terceiro contrato,
-    é atalho de digitação. Combinado com granularidade mensal, atende o caso em
-    que cada tabela anual guarda os meses daquele ano — é a forma do `anaseca`;
 - mapa: Image, ImageCollection ou FeatureCollection, em asset único ou por
   período.
+
+### O formulário não pede a sintaxe do template
+
+O contrato continua sendo o mesmo — `fixed` ou `period-template`. O que a tela
+pergunta é só "uma tabela com todos os períodos" ou "uma tabela por período", e
+nesse segundo caso ela pede o **endereço concreto de um período** que já existe.
+`detectPeriodTemplate` deriva o template desse endereço, sempre pelo último ano
+de quatro dígitos (o caminho pode conter outros números, como
+`.../Estatisticas_2020/MonitorANA_2026`), e reconhece um mês logo depois do ano e
+separado dele (`..._2026_09`, `..._2026-09`). O template derivado aparece na tela
+como confirmação, e "escrever o template do endereço à mão" continua disponível
+para nomes fora do padrão. O mesmo campo é usado pelo mapa.
+
+Quando o nome traz o mês, a granularidade é fixada em mensal: um asset por mês só
+pode ser lido como fonte mensal, e `resolveGeeStatisticsSource` rejeita `{month}`
+em fonte anual. Quando só há o ano, a escolha continua com o operador — a tabela
+anual do `anaseca` guarda os doze meses em `data_img`, então ali a granularidade
+correta é mensal mesmo com uma tabela por ano. A granularidade descreve as linhas
+da tabela, não o nome do arquivo; inferi-la exigiria uma leitura extra no GEE e
+segue como trabalho futuro.
+
+Ao reabrir um índice, a tela só reexibe o endereço concreto quando a detecção o
+traduz de volta para exatamente o mesmo template (`toConcreteAssetSample`). Um
+template `{period}`, ou um sufixo fixo que pareça mês, aparece como template cru:
+reexibir um endereço que a detecção reinterpretaria de outro jeito faria o
+operador salvar um template diferente do que está publicado.
+
+### Faixas de valor no mapa
+
+`mapVisualization.thresholds` classifica um raster contínuo em faixas — é o
+mecanismo geral de `resolveMapVisualizationPlan`, não algo específico de
+previsão. O formulário pergunta **como o mapa vira classes**: o pixel já é o
+código da classe, ou é preciso separar por faixas de valor. Antes o campo de
+limites só aparecia junto do tratamento de previsão por emissão, e um Image com
+valores contínuos não tinha como ser cadastrado sem escolher previsão. Vale para
+Image e ImageCollection; numa FeatureCollection a cor vem da propriedade
+escolhida, e por isso os limites não são oferecidos ali.
 
 ImageCollections podem usar mosaico comum ou o tratamento de previsão por
 emissão e horizonte. Nesse tratamento, o catálogo encontra a emissão mais
@@ -44,7 +76,8 @@ FeatureCollection estatística correspondente e publicar uma nova revisão.
 
 O formulário solicita os nomes das propriedades de emissão, horizonte e
 data-alvo, a lista de leads, a banda bruta e os limites crescentes que separam
-as classes. A validação exige uma imagem por lead, períodos mensais iguais aos
+as classes (o tratamento de previsão já entra em "separar por faixas de valor",
+porque a banda prevista é contínua). A validação exige uma imagem por lead, períodos mensais iguais aos
 da estatística e exatamente um limite a menos que a quantidade de classes.
 
 A FeatureCollection deve possuir pares `perc_classe_XX` e

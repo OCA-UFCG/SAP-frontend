@@ -4,38 +4,38 @@ import { useEffect, useState, type ReactNode } from "react";
 
 const ANA_STATISTICS_ASSET =
   "projects/obscaatinga/assets/Estatisticas/Estatistica_Multinivel_MonitorANA_2025";
-const ANA_MAP_TEMPLATE =
-  "projects/ee-ulissesalencar17/assets/IC_monitor_seca_ANA/monitor_ana_{year}_{month}";
+const ANA_MAP_SAMPLE =
+  "projects/ee-ulissesalencar17/assets/IC_monitor_seca_ANA/monitor_ana_2025_01";
 
 const TERRITORY_PROPERTIES = [
   [
-    "level",
+    "Nível do território",
     "NIVEL_AGRUPAMENTO",
     "Indica se a linha representa Brasil, região, estado, município, bioma, ASD ou semiárido.",
   ],
   [
-    "locationName",
+    "Nome do território",
     "NOME_LOCAL",
     "Nome do território que será apresentado para a pessoa usuária.",
   ],
   [
-    "municipalityCode",
+    "Código do município",
     "CD_MUN",
     "Código oficial usado para localizar um município sem depender apenas do nome.",
   ],
   [
-    "stateCode",
+    "Unidade federativa",
     "NM_UF",
     "Identificação da unidade federativa usada nas consultas por estado e município.",
   ],
-  ["year", "ano", "Ano ao qual a estatística pertence."],
+  ["Ano", "ano", "Ano ao qual a estatística pertence."],
   [
-    "date",
+    "Data da imagem",
     "data_img",
     "Data usada para descobrir e consultar os períodos mensais.",
   ],
   [
-    "totalArea",
+    "Área total em hectares",
     "area_total_ha",
     "Área total do território, em hectares, usada como referência da análise.",
   ],
@@ -111,42 +111,48 @@ const STEPS = [
       <>
         <GuideStep>
           <GuideField
-            label="Organização dos assets"
-            value="FeatureCollection única"
+            label="Organização das tabelas"
+            value="Uma tabela com todos os períodos"
             explanation="Use quando uma única tabela contém todos os períodos. Neste exemplo, a mesma tabela contém os 12 meses de 2025."
           />
           <GuideField
-            label="Granularidade"
+            label="Granularidade dos períodos"
             value="Mensal"
-            explanation="Informa se a escolha de período será feita por ano ou por mês. O sistema encontrará janeiro a dezembro pela coluna data_img."
+            explanation="Descreve as linhas da tabela: o sistema encontrará janeiro a dezembro pela coluna data_img."
           />
           <div className="md:col-span-2">
             <GuideField
-              label="ID da FeatureCollection"
+              label="Endereço da FeatureCollection"
               value={ANA_STATISTICS_ASSET}
               explanation="É o endereço exato da tabela no Google Earth Engine. O catálogo somente lê esse asset; não o copia nem o modifica."
             />
           </div>
         </GuideStep>
         <div className="mt-4 rounded-lg border border-[#D6D89A] bg-[#F4F5D8] p-4 text-sm leading-relaxed">
-          <strong>Única ou template?</strong> Em uma FeatureCollection única,
-          todos os períodos ficam dentro da mesma tabela. No template por
-          período, existem várias tabelas com nomes previsíveis, por exemplo
-          <code className="mx-1 rounded bg-white px-1">
-            estatisticas_{"{year}"}
-          </code>
-          , e o sistema procura cada tabela correspondente no diretório do GEE.
+          <strong>Uma tabela ou várias?</strong> Se todos os períodos estão na
+          mesma tabela, escolha
+          <em className="mx-1">Uma tabela com todos os períodos</em> e cole o
+          endereço dela. Se existe uma tabela para cada período, escolha
+          <em className="mx-1">Uma tabela por período</em> e cole o endereço de
+          <strong className="mx-1">uma delas</strong>, por exemplo
+          <code className="mx-1 rounded bg-white px-1">estatisticas_2026</code>.
+          O catálogo reconhece o período no nome, procura as tabelas irmãs na
+          mesma pasta e mostra na tela o que reconheceu. Você não precisa
+          escrever{" "}
+          <code className="mx-1 rounded bg-white px-1">{"{year}"}</code>
+          nem <code className="mx-1 rounded bg-white px-1">{"{month}"}</code> —
+          e, se o nome for fora do padrão, existe a opção de escrever o template
+          à mão.
           <br />
           <br />
-          <strong>Uma tabela por ano?</strong> Quando existe uma tabela para
-          cada ano e cada uma guarda os meses daquele ano, escolha
-          <em className="mx-1">Uma tabela por ano (detectar os anos)</em>, cole
-          o endereço de um único ano (
-          <code className="mx-1 rounded bg-white px-1">estatisticas_2026</code>)
-          e deixe a granularidade em <em>Mensal</em>. O catálogo troca o ano por
-          <code className="mx-1 rounded bg-white px-1">{"{year}"}</code>,
-          encontra os demais anos na mesma pasta e lê os meses de cada tabela
-          pela coluna data_img.
+          <strong>E a granularidade?</strong> Ela descreve as linhas da tabela,
+          não o nome do arquivo. Uma tabela por ano pode guardar os doze meses
+          daquele ano — é o caso do Monitor da ANA: deixe
+          <em className="mx-1">Mensal</em> e os períodos saem da coluna
+          data_img. Quando o próprio nome da tabela já traz o mês (
+          <code className="mx-1 rounded bg-white px-1">..._2026_09</code>), a
+          leitura mensal é a única possível e o catálogo fixa a granularidade
+          para você.
         </div>
       </>
     ),
@@ -180,21 +186,26 @@ const STEPS = [
           explanation="Cada mapa mensal da ANA é uma imagem do Earth Engine. Também existem índices baseados em ImageCollection ou FeatureCollection."
         />
         <GuideField
-          label="Organização"
-          value="Por período"
+          label="Organização das imagens"
+          value="Um asset por período"
           explanation="Há uma imagem diferente para cada mês. O sistema monta o endereço usando o ano e o mês selecionados."
         />
         <div className="md:col-span-2">
           <GuideField
-            label="Template do asset de mapa"
-            value={ANA_MAP_TEMPLATE}
-            explanation="{year} será substituído pelo ano e {month} pelo mês. Para janeiro de 2025, o final do endereço será monitor_ana_2025_01."
+            label="Endereço do mapa de um período"
+            value={ANA_MAP_SAMPLE}
+            explanation="Cole o endereço de um mês que já existe. O catálogo reconhece 2025 e 01 no nome e passa a montar o endereço de cada período, exatamente como faz com as tabelas."
           />
         </div>
         <GuideField
           label="Banda"
           value="classe"
           explanation="É o nome da informação dentro da imagem que contém os números das classes de seca."
+        />
+        <GuideField
+          label="Como o mapa vira classes"
+          value="O pixel já é o código da classe"
+          explanation="Os mapas da ANA guardam o número da classe em cada pixel. Quando a imagem tem valores contínuos — anomalia, índice, milímetros — escolha Separar por faixas de valor e informe os limites."
         />
       </GuideStep>
     ),
