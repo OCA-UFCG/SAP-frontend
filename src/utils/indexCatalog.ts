@@ -11,6 +11,7 @@ import {
 const HEX_COLOR_PATTERN = /^#[0-9a-f]{6}$/iu;
 const ASSET_ID_PATTERN = /^[A-Za-z0-9_./{}-]{3,300}$/u;
 const PERIOD_PATTERN = /^\d{4}(?:-(?:0[1-9]|1[0-2]))?$/u;
+const ASSET_YEAR_PATTERN = /(?<![0-9])(?:19|20|21)\d{2}(?![0-9])/gu;
 const GEE_PROPERTY_PATTERN = /^[A-Za-z_][A-Za-z0-9_:.-]{0,119}$/u;
 
 function isRecord(value: unknown): value is Record<string, unknown> {
@@ -305,6 +306,38 @@ export function parseIndexCatalogDraftInput(
     classes: parseClasses(value.classes),
     earthEngine: parseEarthEngineMapping(value.earthEngine),
   };
+}
+
+/**
+ * Descobre o template de partição anual a partir do endereço de um único ano.
+ *
+ * O operador cola `.../Estatistica_Multinivel_MonitorANA_2026` e o catálogo
+ * passa a procurar `.../Estatistica_Multinivel_MonitorANA_{year}` no
+ * diretório-pai, encontrando todos os anos irmãos. Cada tabela pode guardar
+ * vários meses: a granularidade mensal continua sendo resolvida por `data_img`.
+ *
+ * Usa a ÚLTIMA ocorrência de um ano no endereço, porque o caminho até o asset
+ * pode conter outros números (`.../Estatisticas_2020/MonitorANA_2026`).
+ */
+export function detectYearPartitionedTemplate(assetId: string) {
+  const normalized = assetId.trim();
+  if (!normalized || /[{}]/u.test(normalized)) return null;
+
+  const occurrences = [...normalized.matchAll(ASSET_YEAR_PATTERN)];
+  const lastYear = occurrences.at(-1);
+  if (!lastYear || lastYear.index === undefined) return null;
+
+  return {
+    year: lastYear[0],
+    assetIdTemplate: `${normalized.slice(0, lastYear.index)}{year}${normalized.slice(
+      lastYear.index + 4,
+    )}`,
+  };
+}
+
+/** Reexibe o template como o endereço concreto que o operador digitou. */
+export function fillYearPlaceholder(template: string, year?: string) {
+  return year ? template.replaceAll("{year}", year) : template;
 }
 
 export function inferTimeScale(periods: readonly string[]) {
