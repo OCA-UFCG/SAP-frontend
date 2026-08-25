@@ -27,6 +27,11 @@ São configurações independentes:
 
 - estatísticas: sempre uma FeatureCollection fixa ou um template com `{year}`,
   `{month}` e/ou `{period}`;
+  - o formulário oferece **Uma tabela por ano (detectar os anos)**: o operador
+    cola o endereço de um ano concreto (`..._MonitorANA_2026`) e a tela grava o
+    template equivalente (`..._MonitorANA_{year}`). Não é um terceiro contrato,
+    é atalho de digitação. Combinado com granularidade mensal, atende o caso em
+    que cada tabela anual guarda os meses daquele ano — é a forma do `anaseca`;
 - mapa: Image, ImageCollection ou FeatureCollection, em asset único ou por
   período.
 

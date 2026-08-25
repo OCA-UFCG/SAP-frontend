@@ -18,6 +18,10 @@ import {
 import { IndexCatalogGuideModal } from "@/components/IndexCatalog/IndexCatalogGuideModal";
 import { ImageCollectionForecastGuideModal } from "@/components/IndexCatalog/ImageCollectionForecastGuideModal";
 import {
+  detectYearPartitionedTemplate,
+  fillYearPlaceholder,
+} from "@/utils/indexCatalog";
+import {
   INDEX_CATEGORIES,
   isIndexCatalogConfigV2,
   type ClassMapping,
@@ -55,6 +59,45 @@ const EMPTY_DRAFT: IndexCatalogDraftInput = {
     singleAssetId: "",
   },
 };
+
+/**
+ * "year-siblings" não é uma terceira forma de contrato: ela grava o mesmo
+ * `period-template` com `{year}`. A diferença é só de formulário — o operador
+ * cola o endereço de um ano concreto em vez de escrever o placeholder.
+ */
+type StatisticsAssetMode = "fixed" | "year-siblings" | "period-template";
+
+const STATISTICS_ASSET_MODE_HINTS: Record<StatisticsAssetMode, string> = {
+  fixed: "Uma única tabela reúne todos os períodos disponíveis.",
+  "year-siblings":
+    "Existe uma tabela por ano e cada uma guarda os meses daquele ano. Informe o endereço de um ano; o catálogo descobre os demais na mesma pasta.",
+  "period-template":
+    "Várias tabelas seguem o mesmo padrão de endereço, como uma tabela para cada ano ou mês.",
+};
+
+const STATISTICS_ASSET_FIELD_LABELS: Record<StatisticsAssetMode, string> = {
+  fixed: "ID da FeatureCollection",
+  "year-siblings": "ID da FeatureCollection de um dos anos",
+  "period-template": "Template da FeatureCollection",
+};
+
+const STATISTICS_ASSET_PLACEHOLDERS: Record<StatisticsAssetMode, string> = {
+  fixed: "projects/projeto/assets/estatisticas",
+  "year-siblings": "projects/projeto/assets/estatisticas_2026",
+  "period-template": "projects/projeto/assets/estatisticas_{year}",
+};
+
+function inferStatisticsAssetMode(
+  asset: IndexCatalogDraftInput["statisticsSource"]["asset"],
+): StatisticsAssetMode {
+  if (asset.type === "fixed") return "fixed";
+  const template = asset.assetIdTemplate;
+  return template.includes("{year}") &&
+    !template.includes("{month}") &&
+    !template.includes("{period}")
+    ? "year-siblings"
+    : "period-template";
+}
 
 interface ValidationProgress {
   message: string;
@@ -155,6 +198,9 @@ function parseNumberList(value: string, label: string, integersOnly = false) {
 export function IndexCatalogScreen() {
   const [items, setItems] = useState<IndexCatalogItem[]>([]);
   const [draft, setDraft] = useState<IndexCatalogDraftInput>(EMPTY_DRAFT);
+  const [statisticsAssetMode, setStatisticsAssetMode] =
+    useState<StatisticsAssetMode>("fixed");
+  const [yearSampleAssetId, setYearSampleAssetId] = useState("");
   const [entryId, setEntryId] = useState<string | null>(null);
   const [guideOpen, setGuideOpen] = useState(false);
   const [forecastGuideOpen, setForecastGuideOpen] = useState(false);
@@ -212,6 +258,8 @@ export function IndexCatalogScreen() {
 
   function resetEditor() {
     setDraft(structuredClone(EMPTY_DRAFT));
+    setStatisticsAssetMode("fixed");
+    setYearSampleAssetId("");
     setEntryId(null);
     entryIdRef.current = null;
     createKeyRef.current = null;
@@ -231,6 +279,18 @@ export function IndexCatalogScreen() {
       classes: config.classes,
       earthEngine: { ...config.earthEngine, assetsByPeriod: undefined },
     });
+    const assetMode = inferStatisticsAssetMode(config.statisticsSource.asset);
+    setStatisticsAssetMode(assetMode);
+    // Reexibe o ano que o operador digitou, e não o placeholder gravado.
+    setYearSampleAssetId(
+      assetMode === "year-siblings" &&
+        config.statisticsSource.asset.type === "period-template"
+        ? fillYearPlaceholder(
+            config.statisticsSource.asset.assetIdTemplate,
+            config.validation?.inferred.periods.at(-1)?.slice(0, 4),
+          )
+        : "",
+    );
     setEntryId(item.entryId);
     entryIdRef.current = item.entryId;
     createKeyRef.current = null;
@@ -265,6 +325,34 @@ export function IndexCatalogScreen() {
       },
     }));
     setPreview(null);
+  }
+
+  function changeStatisticsAssetMode(mode: StatisticsAssetMode) {
+    setStatisticsAssetMode(mode);
+    setYearSampleAssetId("");
+    updateStatisticsAsset(
+      mode === "fixed"
+        ? { type: "fixed", assetId: "" }
+        : { type: "period-template", assetIdTemplate: "" },
+    );
+  }
+
+  function changeStatisticsAssetId(value: string) {
+    if (statisticsAssetMode !== "year-siblings") {
+      updateStatisticsAsset(
+        statisticsAssetMode === "fixed"
+          ? { type: "fixed", assetId: value }
+          : { type: "period-template", assetIdTemplate: value },
+      );
+      return;
+    }
+    // O contrato só entende o template; o ano digitado fica só na tela.
+    setYearSampleAssetId(value);
+    updateStatisticsAsset({
+      type: "period-template",
+      assetIdTemplate:
+        detectYearPartitionedTemplate(value)?.assetIdTemplate ?? value.trim(),
+    });
   }
 
   function updateStatisticsProperty(
@@ -567,6 +655,10 @@ export function IndexCatalogScreen() {
     }
   }
 
+  const detectedYearPartition =
+    statisticsAssetMode === "year-siblings"
+      ? detectYearPartitionedTemplate(yearSampleAssetId)
+      : null;
   const inputClass =
     "mt-1 w-full rounded-md border border-[#CFD0CA] bg-white px-3 py-2 text-sm outline-none focus:border-[#989F43] focus:ring-2 focus:ring-[#E1E2B4]";
   const buttonClass =
@@ -747,22 +839,21 @@ export function IndexCatalogScreen() {
               Organização dos assets
               <select
                 className={inputClass}
-                value={draft.statisticsSource.asset.type}
+                value={statisticsAssetMode}
                 onChange={(event) =>
-                  updateStatisticsAsset(
-                    event.target.value === "fixed"
-                      ? { type: "fixed", assetId: "" }
-                      : { type: "period-template", assetIdTemplate: "" },
+                  changeStatisticsAssetMode(
+                    event.target.value as StatisticsAssetMode,
                   )
                 }
               >
                 <option value="fixed">FeatureCollection única</option>
+                <option value="year-siblings">
+                  Uma tabela por ano (detectar os anos)
+                </option>
                 <option value="period-template">Template por período</option>
               </select>
               <span className="mt-1 block text-xs font-normal text-stone-500">
-                {draft.statisticsSource.asset.type === "fixed"
-                  ? "Uma única tabela reúne todos os períodos disponíveis."
-                  : "Várias tabelas seguem o mesmo padrão de endereço, como uma tabela para cada ano ou mês."}
+                {STATISTICS_ASSET_MODE_HINTS[statisticsAssetMode]}
               </span>
             </label>
             <label className="text-sm font-medium">
@@ -786,35 +877,42 @@ export function IndexCatalogScreen() {
               </span>
             </label>
             <label className="text-sm font-medium md:col-span-2">
-              {draft.statisticsSource.asset.type === "fixed"
-                ? "ID da FeatureCollection"
-                : "Template da FeatureCollection"}
+              {STATISTICS_ASSET_FIELD_LABELS[statisticsAssetMode]}
               <input
                 className={inputClass}
-                placeholder={
-                  draft.statisticsSource.asset.type === "fixed"
-                    ? "projects/projeto/assets/estatisticas"
-                    : "projects/projeto/assets/estatisticas_{year}"
-                }
+                placeholder={STATISTICS_ASSET_PLACEHOLDERS[statisticsAssetMode]}
                 value={
-                  draft.statisticsSource.asset.type === "fixed"
-                    ? draft.statisticsSource.asset.assetId
-                    : draft.statisticsSource.asset.assetIdTemplate
+                  statisticsAssetMode === "year-siblings"
+                    ? yearSampleAssetId
+                    : draft.statisticsSource.asset.type === "fixed"
+                      ? draft.statisticsSource.asset.assetId
+                      : draft.statisticsSource.asset.assetIdTemplate
                 }
                 onChange={(event) =>
-                  updateStatisticsAsset(
-                    draft.statisticsSource.asset.type === "fixed"
-                      ? { type: "fixed", assetId: event.target.value }
-                      : {
-                          type: "period-template",
-                          assetIdTemplate: event.target.value,
-                        },
-                  )
+                  changeStatisticsAssetId(event.target.value)
                 }
               />
               <span className="mt-1 block text-xs font-normal text-stone-500">
-                Templates aceitam {"{year}"}, {"{month}"} e {"{period}"}.
+                {statisticsAssetMode === "period-template"
+                  ? "Templates aceitam {year}, {month} e {period}."
+                  : statisticsAssetMode === "fixed"
+                    ? "Endereço exato da tabela, que precisa conter todos os períodos."
+                    : "Cole o endereço completo de um dos anos; o ano no fim do nome vira a chave de busca."}
               </span>
+              {statisticsAssetMode === "year-siblings" &&
+                yearSampleAssetId.trim() !== "" && (
+                  <span
+                    className={`mt-2 block rounded-md px-3 py-2 text-xs font-normal ${
+                      detectedYearPartition
+                        ? "bg-[#F4F5D8] text-[#4B4E15]"
+                        : "bg-amber-50 text-amber-800"
+                    }`}
+                  >
+                    {detectedYearPartition
+                      ? `Ano ${detectedYearPartition.year} detectado. O catálogo vai procurar ${detectedYearPartition.assetIdTemplate} no mesmo diretório e reunir todos os anos encontrados. Cada tabela pode guardar vários meses: escolha "Mensal" na granularidade para que os períodos venham de data_img.`
+                      : "Não encontramos um ano de 4 dígitos neste endereço. Inclua o ano (por exemplo, ..._2026) ou use “Template por período”."}
+                  </span>
+                )}
             </label>
           </div>
           <details className="mt-4">
