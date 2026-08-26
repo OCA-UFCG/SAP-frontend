@@ -1,0 +1,100 @@
+{
+  "AnalyzeForm": {
+    "title": "Análise Multicriterial",
+    "description": "Preencha os dados abaixo para executar a análise.",
+    "criteriasTitle": "Critérios",
+    "criteriasDesc": "Selecione e ajuste a importância relativa de cada critério para a tomada de decisão. O peso atribuído (de 1 a 10) será normalizado automaticamente para que a soma total seja igual a 100%.",
+    "criteriaSumError": "A soma dos valores dos critérios deve ser menor ou igual a 1",
+    "thresholdsTitle": "Limiares",
+    "thresholdsDesc": "Ajuste os parâmetros de comparação utilizados pelo método multicritério. O limiar de Indiferença define o limite para considerar alternativas equivalentes; o de Preferência estabelece a diferença necessária para que uma alternativa seja considerada superior; e o de Veto atua como um fator restritivo, impedindo a sobreclassificação se houver uma diferença extrema.",
+    "indifferenceLabel": "Indiferença",
+    "indifferencePlaceholder": "Limiar de indiferença",
+    "indifferenceRequired": "Indiferença é obrigatório",
+    "preferenceLabel": "Preferência",
+    "preferencePlaceholder": "Limiar de preferência",
+    "preferenceRequired": "Preferência é obrigatório",
+    "vetoLabel": "Veto",
+    "vetoPlaceholder": "Limiar de veto",
+    "vetoRequired": "Veto é obrigatório",
+    "scenariosTitle": "Cenários",
+    "scenariosDesc": "Escolha a estratégia de classificação das alternativas em categorias. O cenário Otimista tende a classificar as alternativas de forma mais favorável (classe mais alta possível), enquanto o Pessimista adota uma postura mais conservadora, classificando-as apenas onde há desempenho consistente.",
+    "scenarioRequired": "Cenário é obrigatório",
+    "optimistic": "Otimista",
+    "pessimistic": "Pessimista",
+    "analysisLevelTitle": "Granularidade do Rankeamento",
+    "analysisLevelDesc": "Nível em que as cidades serão comparadas.",
+    "levelRequired": "Ranking é obrigatório",
+    "estadual": "Estadual",
+    "nacional": "Nacional",
+    "todos": "Todos",
+    "regional": "Regional",
+    "bioma": "Bioma",
+    "semiarido": "Semiárido",
+    "asdEntorno": "ASD e Entorno",
+    "interestAreaTitle": "Área de Interesse",
+    "interestAreaDesc": "Define o recorte geográfico onde a análise será aplicada",
+    "interestAreaFieldLabel": "Área",
+    "interestAreaRequired": "Área de interesse é obrigatório",
+    "interestAreaValueTitle": "Recorte",
+    "interestAreaValueDesc": "O item exato dentro da área.",
+    "interestAreaValueRequired": "Valor da área de interesse é obrigatório",
+    "interestAreaSearchPlaceholder": "Buscar área de interesse...",
+    "interestAreaNoResults": "Nenhum resultado encontrado",
+    "interestAreaOptions": {
+      "national": {
+        "brasil": "Brasil"
+      },
+      "state": {
+        "AC": "Acre",
+        "AL": "Alagoas",
+        "AP": "Amapá",
+        "AM": "Amazonas",
+        "BA": "Bahia",
+        "CE": "Ceará",
+        "DF": "Distrito Federal",
+        "ES": "Espírito Santo",
+        "GO": "Goiás",
+        "MA": "Maranhão",
+        "MT": "Mato Grosso",
+        "MS": "Mato Grosso do Sul",
+        "MG": "Minas Gerais",
+        "PA": "Pará",
+        "PB": "Paraíba",
+        "PR": "Paraná",
+        "PE": "Pernambuco",
+        "PI": "Piauí",
+        "RJ": "Rio de Janeiro",
+        "RN": "Rio Grande do Norte",
+        "RS": "Rio Grande do Sul",
+        "RO": "Rondônia",
+        "RR": "Roraima",
+        "SC": "Santa Catarina",
+        "SP": "São Paulo",
+        "SE": "Sergipe",
+        "TO": "Tocantins"
+      },
+      "region": {
+        "Norte": "Norte",
+        "Nordeste": "Nordeste",
+        "Centro-oeste": "Centro-Oeste",
+        "Sudeste": "Sudeste",
+        "Sul": "Sul"
+      },
+      "biome": {
+        "Amazônia": "Amazônia",
+        "Caatinga": "Caatinga",
+        "Cerrado": "Cerrado",
+        "Mata Atlântica": "Mata Atlântica",
+        "Pampa": "Pampa",
+        "Pantanal": "Pantanal"
+      },
+      "semiarid": {
+        "semiarid": "Semiárido"
+      },
+      "asd": {
+        "asd": "ASD e Entorno"
+      }
+    },
+    "submitButton": "Analisar"
+  }
+}

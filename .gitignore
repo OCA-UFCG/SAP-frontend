@@ -26,6 +26,9 @@
 /scripts
 !/scripts/
 /scripts/*
+# Gerador do GeoJSON de visão geral da AMFE: o artefato em public/data é
+# commitado, então a receita para regerá-lo também precisa ser.
+!/scripts/build-cities-overview.mjs
 /scripts/gee/
 /tmp
 mise.toml

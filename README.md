@@ -227,6 +227,7 @@ The repository includes a dedicated set of agent-oriented context files under `d
 - `docs/analysis-contract.md`: territorial analysis contract, semantic rules, and legacy compatibility.
 - `docs/image-data-contract.md`: executable `panelLayer.imageData` contract, including `territorial-compact` v1, municipal patches, compressed envelopes, and legacy read compatibility.
 - `docs/performance-notes.md`: known hotspots, guardrails, and regression signals.
+- `docs/amfe.md`: multicriteria analysis page, backend proxy routes, and the map choropleth contract.
 
 These files are living documents. If a prompt or code change affects architecture, contracts, schema, EE flow, performance, or other operational assumptions, the affected files in `docs/` must be updated in the same iteration.
 
@@ -248,6 +249,10 @@ These files are living documents. If a prompt or code change affects architectur
 - O catálogo administrativo de índices está documentado em
   `docs/index-catalog.md`. Ele usa a allowlist de Auditoria e credenciais
   server-side de Contentful Management e Google Drive.
+- A análise multicritério (AMFE) vive em `/platform/amfe` e está documentada em
+  `docs/amfe.md`. Ela fala com o backend `SAP-analise-multicriterial` apenas
+  pelas rotas de proxy `/api/amfe/*`, que exigem `API_BASE_URL` no runtime; os
+  deploys leem `API_BASE_URL_BETA`, `API_BASE_URL_GAMMA` e `API_BASE_URL`.
 
 ## Telemetry Validation
 

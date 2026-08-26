@@ -18,6 +18,7 @@ const { mapInstances, MapConstructorMock } = vi.hoisted(() => ({
     handlers: Map<string, Array<(event: unknown) => void>>;
     on: ReturnType<typeof vi.fn>;
     once: ReturnType<typeof vi.fn>;
+    off: ReturnType<typeof vi.fn>;
     remove: ReturnType<typeof vi.fn>;
     setFeatureState: ReturnType<typeof vi.fn>;
     setLayoutProperty: ReturnType<typeof vi.fn>;
@@ -87,6 +88,28 @@ vi.mock("maplibre-gl", () => {
       this.handlers.set(eventName, [...currentHandlers, callback]);
       return this;
     });
+    off = vi.fn(
+      (
+        eventName: string,
+        layerOrCallback?: string | MapEventCallback,
+        callback?: MapEventCallback,
+      ) => {
+        const eventKey =
+          typeof layerOrCallback === "string"
+            ? `${eventName}:${layerOrCallback}`
+            : eventName;
+        const eventCallback =
+          typeof layerOrCallback === "string" ? callback : layerOrCallback;
+
+        const currentHandlers = this.handlers.get(eventKey) ?? [];
+        this.handlers.set(
+          eventKey,
+          currentHandlers.filter((handler) => handler !== eventCallback),
+        );
+
+        return this;
+      },
+    );
     getSource = vi.fn((sourceId?: string) =>
       sourceId ? this.sources.get(sourceId) : undefined,
     );
@@ -183,6 +206,29 @@ describe("Map lifecycle", () => {
     unmount();
 
     expect(firstInstance.remove).toHaveBeenCalledTimes(1);
+  });
+
+  it("reports the current zoom on load and after each zoom gesture", () => {
+    const onZoomChange = vi.fn();
+
+    render(
+      <Map
+        center={[-15.749997, -47.9499962]}
+        estadoSelecionado="BR"
+        onZoomChange={onZoomChange}
+      />,
+    );
+
+    const firstInstance = mapInstances[0];
+    firstInstance.handlers.get("load")?.[0]?.({});
+
+    expect(onZoomChange).toHaveBeenCalledWith(4.2);
+
+    onZoomChange.mockClear();
+    firstInstance.getZoom.mockReturnValue(6.5);
+    firstInstance.handlers.get("zoomend")?.[0]?.({});
+
+    expect(onZoomChange).toHaveBeenCalledWith(6.5);
   });
 
   it("adds municipality vector source and layers from the state focus zoom", () => {

@@ -22,6 +22,11 @@ import {
 } from "./mapDefinitions";
 import { useMapController } from "./useMapController";
 import { useMapMarkers } from "./useMapMarkers";
+import { useMunicipalityClassification } from "./useMunicipalityClassification";
+import type {
+  MunicipalityClassification,
+  MunicipalityOverviewGeoJson,
+} from "./classificationLayers";
 import {
   BRAZIL_TERRITORY_CODE,
   resolveNextSelectedState,
@@ -58,6 +63,13 @@ export interface MapProps {
   spatialBoundaryGeoJson?: FeatureCollection<Geometry, { name: string }> | null;
   /** Limites da área de interesse a enquadrar quando a seleção muda. */
   spatialFocusBounds?: LngLatBoundsLike | null;
+  /**
+   * Resultado da análise multicritério a pintar como coropleta. `null` deixa o
+   * mapa sem coropleta — é o comportamento dos demais modos.
+   */
+  municipalityClassification?: MunicipalityClassification | null;
+  municipalityOverviewGeoJson?: MunicipalityOverviewGeoJson | null;
+  onZoomChange?: (zoom: number) => void;
 }
 
 const Map = ({
@@ -81,6 +93,9 @@ const Map = ({
   allowedStateUfs = null,
   spatialBoundaryGeoJson = null,
   spatialFocusBounds = null,
+  municipalityClassification = null,
+  municipalityOverviewGeoJson = null,
+  onZoomChange,
 }: MapProps) => {
   const mapContainerRef = useRef<HTMLDivElement | null>(null);
   const {
@@ -131,7 +146,19 @@ const Map = ({
     zoom,
   });
   const { clearMarkers } = useMapMarkers(mapRef, markers, mapInstanceVersion);
+
+  useMunicipalityClassification(
+    mapRef,
+    municipalityClassification,
+    municipalityOverviewGeoJson,
+    mapInstanceVersion,
+  );
   const allowedStateUfsRef = useRef(allowedStateUfs);
+  const onZoomChangeRef = useRef(onZoomChange);
+
+  useEffect(() => {
+    onZoomChangeRef.current = onZoomChange;
+  }, [onZoomChange]);
 
   useEffect(() => {
     allowedStateUfsRef.current = allowedStateUfs;
@@ -209,10 +236,15 @@ const Map = ({
       onTileLayerReadyRef.current?.(pendingRequestKey);
     });
 
+    map.on("zoomend", () => {
+      onZoomChangeRef.current?.(map.getZoom());
+    });
+
     map.on("load", () => {
       log("map load");
       syncMapLayers();
       syncMapPadding(map);
+      onZoomChangeRef.current?.(map.getZoom());
 
       const boundsToFit = currentBoundsRef.current;
       if (boundsToFit) {

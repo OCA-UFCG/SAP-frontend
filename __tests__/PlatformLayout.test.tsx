@@ -13,6 +13,10 @@ vi.mock("@/components/PlatformMap/PlatformMap", () => ({
   PlatformMap: () => <div data-testid="platform-map-probe" />,
 }));
 
+vi.mock("@/components/Amfe/AmfeScreen", () => ({
+  AmfeScreen: () => <div data-testid="amfe-screen-probe" />,
+}));
+
 vi.mock("@/components/PlatformSidebar/PlatformSidebar", () => ({
   PlatformSidebar: (props: Record<string, unknown>) => {
     platformSidebarMock(props);
@@ -99,6 +103,24 @@ describe("PlatformLayout", () => {
         panelLayers: [],
         showAuditLink: true,
         viewMode: "catalog",
+      }),
+    );
+  });
+  it("replaces the map with the multicriteria screen on a definite-height shell", () => {
+    platformSidebarMock.mockReset();
+
+    render(<PlatformLayout viewMode="amfe" initialSection="analysis" />);
+
+    expect(screen.queryByTestId("platform-map-probe")).not.toBeInTheDocument();
+    expect(screen.getByTestId("amfe-screen-probe")).toBeInTheDocument();
+    expect(screen.getByTestId("platform-amfe-shell")).toHaveClass(
+      "h-[calc(100vh-64px)]",
+    );
+    expect(platformSidebarMock.mock.calls[0]?.[0]).toEqual(
+      expect.objectContaining({
+        panelLayers: [],
+        viewMode: "amfe",
+        initialSection: "analysis",
       }),
     );
   });

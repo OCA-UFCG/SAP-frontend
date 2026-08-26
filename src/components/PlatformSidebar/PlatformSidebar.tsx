@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { useRouter } from "next/navigation";
+import { useRouter } from "@/translations/routing";
 import {
   PlatformSection,
   PlatformSideRail,
@@ -12,7 +12,6 @@ import { ComingSoonContext } from "@/components/SidePanelContexts/ComingSoonCont
 import { MunicipalReportContext } from "@/components/SidePanelContexts/MunicipalReportContext";
 import { PanelLayerI } from "@/utils/interfaces";
 import { useMapLayerActions } from "@/components/MapLayerContext/MapLayerContext";
-import { useTranslations, useLocale } from "next-intl";
 import { MunicipalReportPreview } from "@/components/MunicipalReport/MunicipalReportPreview";
 
 export type PlatformSidebarInitialSection =
@@ -20,7 +19,11 @@ export type PlatformSidebarInitialSection =
   | "analysis"
   | "communication";
 
-export type PlatformSidebarViewMode = "default" | "logs" | "catalog";
+export type PlatformSidebarViewMode =
+  | "default"
+  | "logs"
+  | "catalog"
+  | "amfe";
 
 function buildSidebarState(
   viewMode: PlatformSidebarViewMode,
@@ -31,7 +34,6 @@ function buildSidebarState(
       activeSection: "logs" as const,
       panelSection: "monitoring" as const,
       isPanelOpen: false,
-      showAnalysisFrame: false,
     };
   }
 
@@ -40,16 +42,14 @@ function buildSidebarState(
       activeSection: "catalog" as const,
       panelSection: "monitoring" as const,
       isPanelOpen: false,
-      showAnalysisFrame: false,
     };
   }
 
-  if (initialSection === "analysis") {
+  if (viewMode === "amfe") {
     return {
       activeSection: "analysis" as const,
       panelSection: "monitoring" as const,
       isPanelOpen: false,
-      showAnalysisFrame: true,
     };
   }
 
@@ -57,13 +57,16 @@ function buildSidebarState(
     activeSection: initialSection,
     panelSection: initialSection,
     isPanelOpen: true,
-    showAnalysisFrame: false,
   };
 }
 
 function buildPlatformHref(section: PlatformSidebarInitialSection) {
   if (section === "monitoring") {
     return "/platform";
+  }
+
+  if (section === "analysis") {
+    return "/platform/amfe";
   }
 
   return `/platform?section=${section}`;
@@ -86,11 +89,13 @@ export function PlatformSidebar({
   reportRequest,
   onActiveSectionChange,
 }: PlatformSidebarProps) {
-  const t = useTranslations("PlatformSidebar");
   const router = useRouter();
   const { setActiveLegend } = useMapLayerActions();
   const initialSidebarState = buildSidebarState(viewMode, initialSection);
-  const isUtilityView = viewMode === "logs" || viewMode === "catalog";
+  // A AMFE, como logs e catálogo, substitui o mapa e traz o próprio painel:
+  // o sidebar não deve abrir painel nem moldura de análise por cima dela.
+  const isUtilityView =
+    viewMode === "logs" || viewMode === "catalog" || viewMode === "amfe";
 
   const [activeSection, setActiveSection] = useState<PlatformSection>(
     initialSidebarState.activeSection,
@@ -101,11 +106,6 @@ export function PlatformSidebar({
   const [isPanelOpen, setIsPanelOpen] = useState(
     initialSidebarState.isPanelOpen,
   );
-  const [showAnalysisFrame, setShowAnalysisFrame] = useState(
-    initialSidebarState.showAnalysisFrame,
-  );
-  const locale = useLocale();
-  const analysisFrameUrl = `https://gamma-analise-multicriterial.oca-portal.com/${locale}`;
   const defaultPanelOpenOffset = "560px";
   const sidePanelWidthClass = isPanelOpen ? "w-[420px]" : "w-0";
 
@@ -132,18 +132,14 @@ export function PlatformSidebar({
     }
 
     if (next === "analysis") {
-      setShowAnalysisFrame(true);
-      setActiveSection(next);
-      onActiveSectionChange?.(next);
-      setIsPanelOpen(false);
       setActiveLegend(null);
+      router.push(buildPlatformHref(next));
       return;
     }
     setActiveSection(next);
     onActiveSectionChange?.(next);
     setPanelSection(next);
     setIsPanelOpen(true);
-    setShowAnalysisFrame(false);
 
     if (next === "monitoring" && initialSection === "communication") {
       router.push(buildPlatformHref("monitoring"));
@@ -201,20 +197,6 @@ export function PlatformSidebar({
           </div>
         )}
       </aside>
-
-      {showAnalysisFrame && !isUtilityView && (
-        <div
-          className="absolute top-0 bottom-0 right-0 z-10 bg-neutral-50 transition-all duration-300 ease-in-out"
-          style={{ left: isPanelOpen ? defaultPanelOpenOffset : "140px" }}
-        >
-          <iframe
-            src={analysisFrameUrl}
-            title={t("MulticriterialAnalysis")}
-            className="w-full h-full border-0"
-            allowFullScreen
-          />
-        </div>
-      )}
 
       {activeSection === "communication" && !isUtilityView && (
         <>
