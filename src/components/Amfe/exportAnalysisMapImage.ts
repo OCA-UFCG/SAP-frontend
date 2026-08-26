@@ -84,9 +84,9 @@ export const captureAnalysisMapPng = ({
       window.setTimeout(() => {
         try {
           map.remove();
-        } finally {
-          container.remove();
+        } catch {
         }
+        container.remove();
       }, 0);
     };
 
