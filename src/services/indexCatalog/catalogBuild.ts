@@ -17,6 +17,10 @@ import {
   evaluateGeeObject,
   initializeGee,
 } from "@/infrastructure/earth-engine/client";
+import {
+  countInvalidPercentageRows,
+  parsePercentageColumns,
+} from "@/utils/catalogPercentageRows";
 import type {
   CatalogValidationReport,
   ClassMapping,
@@ -171,35 +175,19 @@ async function validateCollectionRows(
   const completeStateRowsExpression = stateRows
     .filter(ee.Filter.notNull([source.properties.stateCode]))
     .size();
-  const checked = collection.map((rawFeature: unknown) => {
-    const feature = ee.Feature(rawFeature);
-    let sum = ee.Number(0);
-    let inRange: any = ee.Number(1).eq(1);
-    let allZero: any = ee.Number(1).eq(1);
-    for (const property of schema.percentageProperties) {
-      const value = ee.Number(feature.get(property));
-      sum = sum.add(value);
-      inRange = inRange.and(value.gte(0)).and(value.lte(100));
-      allZero = allZero.and(value.eq(0));
-    }
-    const sumIsValid = sum
-      .subtract(100)
-      .abs()
-      .lte(PERCENTAGE_TOLERANCE)
-      .or(allZero);
-    return feature.set(
-      "__catalog_invalid_percentage",
-      ee.Algorithms.If(inRange.and(sumIsValid), 0, 1),
-    );
-  });
-  const invalidPercentageExpression = checked.aggregate_sum(
-    "__catalog_invalid_percentage",
+  // As colunas de percentual vêm cruas e a checagem por linha acontece no Node.
+  // Pedir o mesmo ao GEE (um map() por linha somando as classes) custava ~38 s
+  // numa tabela de 67 mil linhas contra ~2,7 s aqui, e era o que fazia a prévia
+  // de um índice com vários anos estourar o timeout do proxy no ambiente Beta.
+  const percentageColumnsExpression = collection.reduceColumns(
+    ee.Reducer.toList().repeat(schema.percentageProperties.length),
+    schema.percentageProperties,
   );
   const [
     rowCount,
     completeCount,
     distinctCount,
-    invalidPercentageCount,
+    percentageColumns,
     municipalCount,
     completeMunicipalCount,
     stateCount,
@@ -208,7 +196,7 @@ async function validateCollectionRows(
     evaluateGeeObject<number>(rowCountExpression),
     evaluateGeeObject<number>(completeCountExpression),
     evaluateGeeObject<number>(distinctCountExpression),
-    evaluateGeeObject<number>(invalidPercentageExpression),
+    evaluateGeeObject<{ list: unknown }>(percentageColumnsExpression),
     evaluateGeeObject<number>(municipalRows.size()),
     evaluateGeeObject<number>(completeMunicipalRowsExpression),
     evaluateGeeObject<number>(stateRows.size()),
@@ -238,6 +226,17 @@ async function validateCollectionRows(
       `Asset estatístico ${source.assetId} possui ${rowCount - distinctCount} território(s)/período(s) duplicado(s).`,
     );
   }
+  // Depois das checagens de nulo: uma coluna com valor ausente sai mais curta de
+  // reduceColumns, e o erro de campo obrigatório vazio explica melhor a causa.
+  const invalidPercentageCount = countInvalidPercentageRows(
+    parsePercentageColumns(
+      percentageColumns.list,
+      schema.percentageProperties,
+      rowCount,
+      source.assetId,
+    ),
+    PERCENTAGE_TOLERANCE,
+  );
   if (invalidPercentageCount > 0) {
     throw new Error(
       `Asset estatístico ${source.assetId} possui ${invalidPercentageCount} linha(s) com percentuais fora de 0–100 ou sem total 100 ± ${PERCENTAGE_TOLERANCE}.`,
