@@ -19,6 +19,8 @@ export const CDI_LAYER_ID = "cdi-layer";
 export const GEE_LAYER_ID = "gee-layer";
 export const SPATIAL_BOUNDARY_SOURCE_ID = "spatial-boundary";
 export const SPATIAL_BOUNDARY_LAYER_ID = "spatial-boundary-outline";
+export const REF_OVERLAY_SOURCE_PREFIX = "ref-overlay-src-";
+export const REF_OVERLAY_LAYER_PREFIX = "ref-overlay-lyr-";
 
 const CDI_FILL_EXPRESSION: ExpressionSpecification = [
   "match",
@@ -323,6 +325,98 @@ export const ensureSpatialBoundaryLayer = (
       ) as maplibregl.GeoJSONSource;
       source.setData(EMPTY_FEATURE_COLLECTION);
       map.removeSource(SPATIAL_BOUNDARY_SOURCE_ID);
+    }
+  }
+};
+
+import { REFERENCE_LAYER_IDS } from "@/components/MapLayerContext/mapLayerState";
+
+/**
+ * Ensures that each active reference overlay has a raster tile source+layer on
+ * the map, and removes sources/layers for overlays that are no longer active.
+ *
+ * Reference overlays are inserted above the satellite/OSM basemaps but below
+ * the main GEE layer so they act as background context.
+ */
+export const ensureReferenceOverlayLayers = (
+  map: maplibregl.Map,
+  activeTileUrls: Map<string, string | undefined>,
+) => {
+  // 1. Synchronously remove any reference layer/source whose tile URL is missing or deactivated.
+  //    This runs immediately without waiting for isStyleLoaded(), matching how Contentful layers clean up.
+  for (const overlayId of REFERENCE_LAYER_IDS) {
+    const tileUrl = activeTileUrls.get(overlayId);
+    if (!tileUrl) {
+      const sourceId = `${REF_OVERLAY_SOURCE_PREFIX}${overlayId}`;
+      const layerId = `${REF_OVERLAY_LAYER_PREFIX}${overlayId}`;
+      try {
+        if (map.getLayer(layerId)) map.removeLayer(layerId);
+        if (map.getSource(sourceId)) map.removeSource(sourceId);
+      } catch {
+        // Best-effort cleanup
+      }
+    }
+  }
+
+  // 2. Adding/updating sources and layers requires style to be loaded.
+  if (!map.isStyleLoaded()) {
+    return;
+  }
+
+  // 3. Add/update sources and layers for active overlays.
+  for (const [overlayId, tileUrl] of activeTileUrls) {
+    if (!tileUrl) continue;
+
+    const sourceId = `${REF_OVERLAY_SOURCE_PREFIX}${overlayId}`;
+    const layerId = `${REF_OVERLAY_LAYER_PREFIX}${overlayId}`;
+
+    const existingSource = map.getSource(sourceId) as
+      | maplibregl.RasterTileSource
+      | undefined;
+
+    if (!existingSource) {
+      map.addSource(sourceId, {
+        type: "raster",
+        tiles: [tileUrl],
+        tileSize: 256,
+        bounds: BRAZIL_RASTER_BOUNDS,
+      });
+    } else {
+      // Update tile URL if it changed without cloning the full style JSON
+      const existingTileUrl = existingSource.tiles?.[0];
+      if (existingTileUrl !== tileUrl) {
+        if (map.getLayer(layerId)) map.removeLayer(layerId);
+        if (map.getSource(sourceId)) map.removeSource(sourceId);
+        map.addSource(sourceId, {
+          type: "raster",
+          tiles: [tileUrl],
+          tileSize: 256,
+          bounds: BRAZIL_RASTER_BOUNDS,
+        });
+      }
+    }
+
+    if (!map.getLayer(layerId)) {
+      // Insert below the CDI layer (which is below the GEE layer).
+      const beforeLayer = map.getLayer(CDI_LAYER_ID)
+        ? CDI_LAYER_ID
+        : map.getLayer(GEE_LAYER_ID)
+          ? GEE_LAYER_ID
+          : map.getLayer(STATES_FILL_LAYER_ID)
+            ? STATES_FILL_LAYER_ID
+            : undefined;
+
+      map.addLayer(
+        {
+          id: layerId,
+          type: "raster",
+          source: sourceId,
+          paint: {
+            "raster-opacity": 1,
+          },
+        },
+        beforeLayer,
+      );
     }
   }
 };

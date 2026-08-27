@@ -12,8 +12,10 @@ import {
   activateEeLayerState,
   activateVectorLayerState,
   clearActiveLayerState,
+  clearReferenceOverlaysValue,
   createInitialMapLayerState,
   MapLayerState,
+  type ReferenceLayerId,
   resetPlatformState as resetPlatformStateValue,
   setActiveLegendValue,
   setActiveYearValue,
@@ -21,6 +23,7 @@ import {
   setSelectedMunicipalityCodeValue,
   setSelectedStateValue,
   setSpatialSelection,
+  toggleReferenceOverlayValue,
 } from "@/components/MapLayerContext/mapLayerState";
 import type { CDIVectorData } from "@/lib/geo";
 
@@ -39,6 +42,8 @@ interface MapLayerActions {
   clearActiveLayer: () => void;
   resetPlatformState: () => void;
   setLayerOpacity: (opacity: number) => void;
+  toggleReferenceOverlay: (layerId: ReferenceLayerId) => void;
+  clearReferenceOverlays: () => void;
 }
 
 type MapLayerActiveState = Pick<
@@ -48,7 +53,7 @@ type MapLayerActiveState = Pick<
 
 type MapLayerViewState = Pick<
   MapLayerState,
-  "activeLegend" | "selectedState" | "selectedMunicipalityCode" | "activeYear" | "spatialSelection" | "layerOpacity"
+  "activeLegend" | "selectedState" | "selectedMunicipalityCode" | "activeYear" | "spatialSelection" | "layerOpacity" | "referenceOverlays"
 >;
 
 interface MapLayerContextValue
@@ -136,6 +141,14 @@ export function MapLayerProvider({ children }: { children: React.ReactNode }) {
     setState((currentState) => resetPlatformStateValue(currentState));
   }, []);
 
+  const toggleReferenceOverlay = useCallback((layerId: ReferenceLayerId) => {
+    setState((currentState) => toggleReferenceOverlayValue(currentState, layerId));
+  }, []);
+
+  const clearReferenceOverlays = useCallback(() => {
+    setState((currentState) => clearReferenceOverlaysValue(currentState));
+  }, []);
+
   const activeState = useMemo<MapLayerActiveState>(
     () => ({
       activeData: state.activeData,
@@ -153,6 +166,7 @@ export function MapLayerProvider({ children }: { children: React.ReactNode }) {
       activeYear: state.activeYear,
       spatialSelection: state.spatialSelection,
       layerOpacity: state.layerOpacity,
+      referenceOverlays: state.referenceOverlays,
     }),
     [
       state.activeLegend,
@@ -161,6 +175,7 @@ export function MapLayerProvider({ children }: { children: React.ReactNode }) {
       state.activeYear,
       state.spatialSelection,
       state.layerOpacity,
+      state.referenceOverlays,
     ],
   );
 
@@ -176,6 +191,8 @@ export function MapLayerProvider({ children }: { children: React.ReactNode }) {
       clearActiveLayer,
       resetPlatformState,
       setLayerOpacity,
+      toggleReferenceOverlay,
+      clearReferenceOverlays,
     }),
     [
       setActiveLegend,
@@ -188,6 +205,8 @@ export function MapLayerProvider({ children }: { children: React.ReactNode }) {
       clearActiveLayer,
       resetPlatformState,
       setLayerOpacity,
+      toggleReferenceOverlay,
+      clearReferenceOverlays,
     ],
   );
 

@@ -18,6 +18,7 @@ import {
   STATES_FILL_LAYER_ID,
   STATES_SOURCE_ID,
   STATES_SOURCE_LAYER,
+  ensureReferenceOverlayLayers,
   ensureSpatialBoundaryLayer,
 } from "./mapDefinitions";
 import { useMapController } from "./useMapController";
@@ -35,6 +36,9 @@ import {
   MUNICIPALITY_SOURCE_LAYER,
 } from "./municipalityLayers";
 export type BasemapId = "osm" | "satellite";
+
+const EMPTY_TILE_URL_MAP: globalThis.Map<string, string | undefined> =
+  new globalThis.Map();
 
 export interface MapProps {
   mapMode?: MapMode;
@@ -58,6 +62,8 @@ export interface MapProps {
   spatialBoundaryGeoJson?: FeatureCollection<Geometry, { name: string }> | null;
   /** Limites da área de interesse a enquadrar quando a seleção muda. */
   spatialFocusBounds?: LngLatBoundsLike | null;
+  /** Tile URLs for active reference overlay layers (quilombolas, etc.). */
+  referenceOverlayTileUrls?: Map<string, string | undefined>;
 }
 
 const Map = ({
@@ -81,6 +87,7 @@ const Map = ({
   allowedStateUfs = null,
   spatialBoundaryGeoJson = null,
   spatialFocusBounds = null,
+  referenceOverlayTileUrls,
 }: MapProps) => {
   const mapContainerRef = useRef<HTMLDivElement | null>(null);
   const {
@@ -578,6 +585,43 @@ const Map = ({
     mapRef,
     mapInstanceVersion,
   ]);
+
+  useEffect(() => {
+    const map = mapRef.current;
+    if (!map) return;
+
+    let pendingRetry = false;
+
+    const sync = () => {
+      try {
+        ensureReferenceOverlayLayers(
+          map,
+          referenceOverlayTileUrls ?? EMPTY_TILE_URL_MAP,
+        );
+      } catch {
+        // Ignore
+      }
+
+      if (typeof map.isStyleLoaded === "function" && !map.isStyleLoaded() && !pendingRetry) {
+        pendingRetry = true;
+        const retry = () => {
+          map.off?.("styledata", retry);
+          map.off?.("idle", retry);
+          pendingRetry = false;
+          sync();
+        };
+        map.once?.("styledata", retry);
+        map.once?.("idle", retry);
+      }
+    };
+
+    sync();
+
+    map.on?.("styledata", sync);
+    return () => {
+      map.off?.("styledata", sync);
+    };
+  }, [referenceOverlayTileUrls, mapRef, mapInstanceVersion]);
 
   return (
     <div className="w-full h-full">

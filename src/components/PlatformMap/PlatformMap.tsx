@@ -1,8 +1,9 @@
 "use client";
-import { useCallback, useMemo, useState } from "react";
+import { useCallback, useMemo, useRef, useState } from "react";
 import { useTranslations } from "next-intl";
 import { PlatformMapCaption } from "@/components/PlatformMapCaption/PlatformMapCaption";
 import { useEarthEngineTileLayer } from "./useEarthEngineTileLayer";
+import { useReferenceOverlayTileLayers } from "./useReferenceOverlayTileLayers";
 import { useSpatialBoundaryOverlay } from "./useSpatialBoundaryOverlay";
 import MapComponent from "../Map/MapComponent";
 import type { BasemapId } from "../Map/Map";
@@ -12,6 +13,10 @@ import {
   useMapLayerActiveState,
   useMapLayerViewState,
 } from "@/components/MapLayerContext/MapLayerContext";
+import {
+  REFERENCE_LAYER_IDS,
+  type ReferenceLayerId,
+} from "@/components/MapLayerContext/mapLayerState";
 
 interface PlatformMapProps {
   showMonitoringOverlays?: boolean;
@@ -29,8 +34,9 @@ export function PlatformMap({ showMonitoringOverlays = true }: PlatformMapProps)
     activeYear,
     layerOpacity,
     spatialSelection,
+    referenceOverlays,
   } = useMapLayerViewState();
-  const { setSelectedState, setSelectedMunicipalityCode, setLayerOpacity } =
+  const { setSelectedState, setSelectedMunicipalityCode, setLayerOpacity, toggleReferenceOverlay } =
     useMapLayerActions();
   const { requestKey, status, tileLayerUrl } = useEarthEngineTileLayer(
     activeEEData,
@@ -39,6 +45,37 @@ export function PlatformMap({ showMonitoringOverlays = true }: PlatformMapProps)
   );
   const [readyRequestKey, setReadyRequestKey] = useState<string | null>(null);
   const [basemap, setBasemap] = useState<BasemapId>("osm");
+  const [isReferenceOverlaysOpen, setIsReferenceOverlaysOpen] = useState(false);
+
+  const referenceOverlayTileMap = useReferenceOverlayTileLayers(referenceOverlays);
+
+  // Derive a primitive string key of active ready tile URLs to preserve referential equality
+  // without accessing or mutating React refs during render.
+  const activeOverlayUrlsKey = useMemo(() => {
+    const parts: string[] = [];
+    for (const [layerId, entry] of referenceOverlayTileMap) {
+      if (
+        referenceOverlays?.has?.(layerId) &&
+        entry.status === "ready" &&
+        entry.tileUrl
+      ) {
+        parts.push(`${layerId}:${entry.tileUrl}`);
+      }
+    }
+    return parts.sort().join("|");
+  }, [referenceOverlayTileMap, referenceOverlays]);
+
+  const referenceOverlayTileUrls = useMemo(() => {
+    const urls = new Map<string, string | undefined>();
+    if (!activeOverlayUrlsKey) return urls;
+    for (const part of activeOverlayUrlsKey.split("|")) {
+      const [layerId, tileUrl] = part.split(":");
+      if (layerId && tileUrl) {
+        urls.set(layerId, tileUrl);
+      }
+    }
+    return urls;
+  }, [activeOverlayUrlsKey]);
 
   const handleTileLayerReady = useCallback((readyRequestKey: string) => {
     setReadyRequestKey((current) =>
@@ -74,6 +111,14 @@ export function PlatformMap({ showMonitoringOverlays = true }: PlatformMapProps)
     (status === "loading" ||
       (status === "ready" && !hasRenderedCurrentRequest));
 
+  // Check if any reference overlay is currently loading
+  const isAnyReferenceOverlayLoading = useMemo(() => {
+    for (const entry of referenceOverlayTileMap.values()) {
+      if (entry.status === "loading") return true;
+    }
+    return false;
+  }, [referenceOverlayTileMap]);
+
   return (
     <div className="absolute inset-0">
       <div className="relative flex w-full h-full z-10">
@@ -94,12 +139,13 @@ export function PlatformMap({ showMonitoringOverlays = true }: PlatformMapProps)
           spatialBoundaryGeoJson={boundaryGeoJson}
           spatialFocusBounds={spatialFocusBounds}
           basemap={basemap}
+          referenceOverlayTileUrls={referenceOverlayTileUrls}
           onStateSelect={(uf: string) => setSelectedState(uf.toLowerCase())}
           onSelectedMunicipalityCodeChange={setSelectedMunicipalityCode}
           onTileLayerReady={handleTileLayerReady}
         />
 
-        {isGeeLayerLoading && (
+        {(isGeeLayerLoading || isAnyReferenceOverlayLoading) && (
           <div className="pointer-events-none absolute inset-0 z-20 flex items-center justify-center px-6">
             <div
               aria-live="polite"
@@ -118,6 +164,62 @@ export function PlatformMap({ showMonitoringOverlays = true }: PlatformMapProps)
       </div>
 
       <div className="absolute bottom-0 right-6 z-[1000] box-border flex min-h-[124px] w-[302px] flex-col items-end justify-center gap-[10px] pb-6">
+        {showMonitoringOverlays && (
+          <div
+            className="box-border flex w-[302px] shrink-0 flex-col gap-2.5 self-stretch rounded-lg border border-[#EFEFEF] bg-white px-4 py-3"
+            role="group"
+            aria-label={t("referenceOverlays")}
+          >
+            <button
+              type="button"
+              className="flex w-full items-center justify-between outline-none"
+              onClick={() => setIsReferenceOverlaysOpen(!isReferenceOverlaysOpen)}
+              aria-expanded={isReferenceOverlaysOpen}
+            >
+              <span className="font-open-sans text-[10px] font-semibold leading-[18px] tracking-[-0.006em] text-[#292829]">
+                {t("referenceOverlays")}
+              </span>
+              <svg
+                width="16"
+                height="16"
+                viewBox="0 0 16 16"
+                fill="none"
+                xmlns="http://www.w3.org/2000/svg"
+                className={`transition-transform duration-200 ${isReferenceOverlaysOpen ? "rotate-90" : ""}`}
+              >
+                <path
+                  d="M6 12L10 8L6 4"
+                  stroke="#292829"
+                  strokeWidth="1.5"
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                />
+              </svg>
+            </button>
+            {isReferenceOverlaysOpen && (
+              <div className="flex flex-col gap-1.5 mt-1">
+                {REFERENCE_LAYER_IDS.map((layerId) => (
+                  <label
+                    key={layerId}
+                    className="flex cursor-pointer items-center gap-2"
+                  >
+                    <input
+                      type="checkbox"
+                      checked={referenceOverlays.has(layerId)}
+                      onChange={() => toggleReferenceOverlay(layerId)}
+                      className="h-3.5 w-3.5 shrink-0 cursor-pointer appearance-none rounded-[3px] border border-[#C4C4C4] bg-white transition-colors checked:border-[#989F43] checked:bg-[#989F43] relative
+                        after:content-[''] after:absolute after:inset-0 after:flex after:items-center after:justify-center
+                        checked:after:content-['✓'] after:text-[9px] after:font-bold after:text-white after:leading-none after:text-center"
+                    />
+                    <span className="font-open-sans text-[10px] font-normal leading-[16px] text-[#292829] select-none">
+                      {t(layerId as ReferenceLayerId)}
+                    </span>
+                  </label>
+                ))}
+              </div>
+            )}
+          </div>
+        )}
         {showMonitoringOverlays && (
           <div
             className="box-border flex h-[50px] w-[302px] shrink-0 items-center gap-2 self-stretch rounded-lg border border-[#EFEFEF] bg-white p-4"
