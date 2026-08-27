@@ -9,6 +9,12 @@ import {
   useState,
 } from "react";
 import { CatalogMonitoringPreview } from "@/components/IndexCatalog/CatalogMonitoringPreview";
+import { CatalogPreviewMapCapture } from "@/components/IndexCatalog/CatalogPreviewMapCapture";
+import {
+  catalogApiRequest as apiRequest,
+  catalogIdempotencyKey as idempotencyKey,
+  type CatalogApiErrorBody as ApiErrorBody,
+} from "@/components/IndexCatalog/catalogApiClient";
 import { IndexCatalogGuideModal } from "@/components/IndexCatalog/IndexCatalogGuideModal";
 import { ImageCollectionForecastGuideModal } from "@/components/IndexCatalog/ImageCollectionForecastGuideModal";
 import {
@@ -49,11 +55,6 @@ const EMPTY_DRAFT: IndexCatalogDraftInput = {
     singleAssetId: "",
   },
 };
-
-interface ApiErrorBody {
-  error?: string;
-  validation?: IndexCatalogPreview["validation"];
-}
 
 interface ValidationProgress {
   message: string;
@@ -123,29 +124,6 @@ function CatalogActionButton({
   );
 }
 
-async function apiRequest<T>(path: string, options: RequestInit = {}) {
-  const response = await fetch(path, {
-    credentials: "same-origin",
-    ...options,
-    headers: {
-      ...(options.body ? { "Content-Type": "application/json" } : {}),
-      ...(options.headers ?? {}),
-    },
-  });
-  const body = (await response.json().catch(() => ({}))) as ApiErrorBody & T;
-  if (!response.ok) {
-    throw Object.assign(
-      new Error(body.error ?? `A requisição falhou (${response.status}).`),
-      { validation: body.validation },
-    );
-  }
-  return body;
-}
-
-function idempotencyKey(action: string, entryId: string) {
-  return `${action}-${entryId}-${crypto.randomUUID()}`;
-}
-
 function statusLabel(item: IndexCatalogItem) {
   if (!item.catalogManaged) return "Legado — somente leitura";
   if (item.published && item.hasUnpublishedChanges) {
@@ -201,6 +179,7 @@ export function IndexCatalogScreen() {
       "/api/index-catalog",
     );
     setItems(result.items);
+    return result.items;
   }, []);
 
   useEffect(() => {
@@ -226,6 +205,10 @@ export function IndexCatalogScreen() {
       }
     };
   }, []);
+
+  const editingItem = entryId
+    ? items.find((item) => item.entryId === entryId)
+    : undefined;
 
   function resetEditor() {
     setDraft(structuredClone(EMPTY_DRAFT));
@@ -472,21 +455,35 @@ export function IndexCatalogScreen() {
 
   async function publishDraft() {
     if (!entryId || !preview) return;
+    const publishedEntryId = entryId;
     setBusy("publish");
     setMessage("Fazendo a conferência final e publicando o índice…");
     try {
       await apiRequest(
-        `/api/index-catalog/drafts/${encodeURIComponent(entryId)}/publish`,
+        `/api/index-catalog/drafts/${encodeURIComponent(publishedEntryId)}/publish`,
         {
           method: "POST",
           headers: {
-            "Idempotency-Key": idempotencyKey("publish", entryId),
+            "Idempotency-Key": idempotencyKey("publish", publishedEntryId),
           },
         },
       );
       resetEditor();
-      setMessage("Índice publicado no Monitoramento sem copiar estatísticas.");
-      await loadItems();
+      // A lista recarregada vem do Contentful, então é ela — e não a resposta
+      // da publicação — que diz se o índice está de fato no Monitoramento.
+      const publishedItem = (await loadItems()).find(
+        (item) => item.entryId === publishedEntryId,
+      );
+      if (publishedItem && !publishedItem.published) {
+        setMessage("");
+        setError(
+          "A publicação não ficou registrada no Contentful: o índice continua como rascunho e não vai aparecer no Monitoramento. Tente publicar novamente.",
+        );
+        return;
+      }
+      setMessage(
+        "Índice publicado no Monitoramento. As estatísticas continuam sendo lidas do asset no GEE a cada consulta — nada foi copiado para o Contentful.",
+      );
     } catch (reason) {
       setError(reason instanceof Error ? reason.message : "Falha ao publicar.");
       setMessage("");
@@ -700,6 +697,14 @@ export function IndexCatalogScreen() {
               value={draft.name}
               onChange={(event) => updateDraft("name", event.target.value)}
             />
+            {editingItem && (
+              <span className="mt-1 block text-xs font-normal text-stone-600">
+                ID técnico: <code>{editingItem.panelLayerId}</code> —{" "}
+                {editingItem.everPublished
+                  ? "congelado: o índice já foi publicado e telemetria, relatórios e caches usam esse ID como chave."
+                  : "gerado a partir do nome; acompanha o nome até a primeira publicação."}
+              </span>
+            )}
           </label>
           <label className="text-sm font-medium">
             Categoria
@@ -1198,6 +1203,22 @@ export function IndexCatalogScreen() {
             <strong>{preview.validation.inferred.statisticsAssetCount}</strong>{" "}
             asset(s) estatístico(s) validados.
           </div>
+          <CatalogPreviewMapCapture
+            preview={preview}
+            onSaved={(url) =>
+              setPreview((current) =>
+                current
+                  ? {
+                      ...current,
+                      panelLayer: {
+                        ...current.panelLayer,
+                        previewMap: { url },
+                      },
+                    }
+                  : current,
+              )
+            }
+          />
           <CatalogMonitoringPreview preview={preview} />
         </section>
       )}

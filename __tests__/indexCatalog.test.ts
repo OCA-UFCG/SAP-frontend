@@ -5,6 +5,8 @@ import {
   inferTimeScale,
   makeUniqueCatalogPanelLayerId,
   parseIndexCatalogDraftInput,
+  reconcileCatalogPublicationStatus,
+  resolvePanelPositionInCategory,
 } from "@/utils/indexCatalog";
 
 const validDraft = {
@@ -43,6 +45,61 @@ const validDraft = {
     singleAssetId: "projects/example/assets/aridez_map",
   },
 };
+
+const validationReport = {
+  validatedAt: "2026-08-21T18:19:34.000Z",
+  valid: true,
+  errors: [],
+  warnings: [],
+  inferred: {
+    panelLayerId: "teste-temperatura",
+    periods: ["2026-09"],
+    classIndexes: [0],
+    statisticsAssetCount: 1,
+  },
+  sourceFingerprint: "f".repeat(64),
+};
+
+describe("reconciliação do status de publicação do catálogo", () => {
+  it("volta para ready quando a entry marcada como published virou rascunho", () => {
+    // Regressão: teste-temperatura ficou com catalogConfig.status "published"
+    // numa entry despublicada, e assertPublishable (que só aceita "ready")
+    // respondia "Revalide os assets e gere a prévia antes de publicar".
+    expect(
+      reconcileCatalogPublicationStatus(
+        { status: "published", validation: validationReport },
+        false,
+      ),
+    ).toBe("ready");
+  });
+
+  it("volta para draft quando não há prévia válida para reaproveitar", () => {
+    expect(
+      reconcileCatalogPublicationStatus({ status: "published" }, false),
+    ).toBe("draft");
+    expect(
+      reconcileCatalogPublicationStatus(
+        {
+          status: "published",
+          validation: { ...validationReport, valid: false },
+        },
+        false,
+      ),
+    ).toBe("draft");
+  });
+
+  it("preserva o status quando o Contentful concorda com o catálogo", () => {
+    expect(
+      reconcileCatalogPublicationStatus({ status: "published" }, true),
+    ).toBe("published");
+    expect(reconcileCatalogPublicationStatus({ status: "ready" }, false)).toBe(
+      "ready",
+    );
+    expect(reconcileCatalogPublicationStatus({ status: "error" }, false)).toBe(
+      "error",
+    );
+  });
+});
 
 describe("index catalog v2 input helpers", () => {
   it("creates normalized unique technical ids", () => {
@@ -142,5 +199,59 @@ describe("index catalog v2 input helpers", () => {
         },
       }),
     ).toThrow("asset único");
+  });
+});
+
+describe("posição do índice na categoria do Monitoramento", () => {
+  const climaticos = [
+    { entryId: "anaseca", category: "Dados Climáticos", panelPosition: 0 },
+    { entryId: "cemadenseca", category: "Dados Climáticos", panelPosition: 1 },
+    { entryId: "aridez", category: "Dados Climáticos", panelPosition: 4 },
+    {
+      entryId: "precipitacao",
+      category: "Dados Climáticos",
+      panelPosition: 10,
+    },
+    { entryId: "pobreza", category: "Dados Socioeconômicos", panelPosition: 9 },
+  ];
+
+  it("coloca um índice novo logo depois do último da categoria", () => {
+    expect(
+      resolvePanelPositionInCategory(climaticos, "Dados Climáticos", "novo"),
+    ).toBe(11);
+  });
+
+  it("ignora as posições das outras categorias", () => {
+    expect(
+      resolvePanelPositionInCategory(climaticos, "Dados Ambientais", "novo"),
+    ).toBe(0);
+  });
+
+  it("mantém a posição que o índice já tem quando ela é só dele", () => {
+    expect(
+      resolvePanelPositionInCategory(
+        [
+          ...climaticos,
+          { entryId: "novo", category: "Dados Climáticos", panelPosition: 7 },
+        ],
+        "Dados Climáticos",
+        "novo",
+      ),
+    ).toBe(7);
+  });
+
+  it("recalcula uma posição repetida em vez de deixar o índice na frente", () => {
+    // Regressão: teste-temperatura foi publicado com posição 0, empatado com
+    // anaseca, e apareceu como primeiro em Dados Climáticos.
+    expect(
+      resolvePanelPositionInCategory(
+        [
+          ...climaticos,
+          { entryId: "novo", category: "Dados Climáticos", panelPosition: 0 },
+        ],
+        "Dados Climáticos",
+        "novo",
+      ),
+    ).toBe(11);
   });
 });

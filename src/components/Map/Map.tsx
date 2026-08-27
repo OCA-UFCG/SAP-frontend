@@ -10,15 +10,22 @@ import { useEffect, useRef } from "react";
 import type { FeatureCollection, Geometry } from "geojson";
 import type { CDIVectorData } from "@/lib/geo";
 import type { SpatialArea, SpatialSelection } from "@/utils/spatialScope";
-import { getStateBiomes, getStateRegion, getRegionStateUfs } from "@/utils/interestAreaStates";
+import { getStateRegion } from "@/utils/interestAreaStates";
+import { resolveBiomeAtPoint } from "./resolveBiomeAtPoint";
+import {
+  applyBiomeHoverPreview,
+  applyRegionHoverPreview,
+  clearBiomeHoverPreview,
+  clearRegionHoverPreview,
+  clearStateHoverPreview,
+  type HoveredRegion,
+} from "./spatialAreaHoverPreview";
 import {
   GEE_LAYER_ID,
   GEE_SOURCE_ID,
   type MapMode,
   OSM_LAYER_ID,
   SATELLITE_LAYER_ID,
-  SPATIAL_BOUNDARY_FILL_LAYER_ID,
-  SPATIAL_BOUNDARY_SOURCE_ID,
   STATES_FILL_LAYER_ID,
   STATES_SOURCE_ID,
   STATES_SOURCE_LAYER,
@@ -121,6 +128,7 @@ const Map = ({
     tileLayerRequestKeyRef,
     tileLayerUrlRef,
     hoveredMunicipalityIdRef,
+    spatialValueRef,
     warn,
   } = useMapController({
     center,
@@ -145,25 +153,18 @@ const Map = ({
   const { clearMarkers } = useMapMarkers(mapRef, markers, mapInstanceVersion);
   const allowedStateUfsRef = useRef(allowedStateUfs);
   const spatialAreaRef = useRef<SpatialArea>(spatialArea);
-  const spatialValueRef = useRef<string>(spatialValue);
   const onSpatialSelectionChangeRef = useRef(onSpatialSelectionChange);
-  const hoveredBoundaryIdRef = useRef<string | number | null>(null);
-  const hoveredRegionUfsRef = useRef<string[]>([]);
+  const hoveredBoundaryRef = useRef<string | null>(null);
+  const hoveredRegionRef = useRef<HoveredRegion | null>(null);
 
   useEffect(() => {
     spatialAreaRef.current = spatialArea;
-    spatialValueRef.current = spatialValue;
     onSpatialSelectionChangeRef.current = onSpatialSelectionChange;
-    
-    if (mapRef.current && hoveredRegionUfsRef.current.length > 0) {
-      hoveredRegionUfsRef.current.forEach((oldUf) => {
-        mapRef.current?.setFeatureState(
-          { source: STATES_SOURCE_ID, sourceLayer: STATES_SOURCE_LAYER, id: oldUf },
-          { hover: false },
-        );
-      });
-      hoveredRegionUfsRef.current = [];
-    }
+
+    // O recorte mudou com o mouse parado: o destaque desenhado para o recorte
+    // anterior não faz mais sentido. O próximo mousemove reaplica o correto.
+    clearRegionHoverPreview(mapRef.current, hoveredRegionRef);
+    clearBiomeHoverPreview(mapRef.current, hoveredBoundaryRef);
   }, [spatialArea, spatialValue, onSpatialSelectionChange, mapRef]);
 
   const { resolveSpatialClick } = useSpatialAreaClickSelection({
@@ -292,59 +293,22 @@ const Map = ({
         const hoveredStateId = (hoveredFeature?.id ?? uf) as
           string | number | null | undefined;
 
-        // --- Region mode hover handling ---
+        // O recorte ativo decide o que o hover mostra: em região destacamos
+        // os estados da região inteira, em bioma o polígono do bioma. Nos
+        // outros recortes segue o hover de estado, logo abaixo.
         if (spatialAreaRef.current === "region") {
-          if (hoveredStateIdRef.current) {
-            map.setFeatureState(
-              {
-                source: STATES_SOURCE_ID,
-                sourceLayer: STATES_SOURCE_LAYER,
-                id: hoveredStateIdRef.current,
-              },
-              { hover: false },
-            );
-            hoveredStateIdRef.current = null;
-          }
-
-          let regionName: string | undefined;
-
-          if (uf) {
-            regionName = getStateRegion(uf) ?? undefined;
-          }
+          clearStateHoverPreview(map, hoveredStateIdRef);
+          const regionName = uf ? getStateRegion(uf) : null;
 
           if (regionName) {
-            const regionUfs = getRegionStateUfs(regionName).map((u) => u.toUpperCase());
-            const currentHovered = hoveredRegionUfsRef.current;
-            
-            if (currentHovered.length > 0 && currentHovered[0] !== regionUfs[0]) {
-              currentHovered.forEach((oldUf) => {
-                map.setFeatureState(
-                  { source: STATES_SOURCE_ID, sourceLayer: STATES_SOURCE_LAYER, id: oldUf },
-                  { hover: false },
-                );
-              });
-            }
-            
-            regionUfs.forEach((newUf) => {
-              map.setFeatureState(
-                { source: STATES_SOURCE_ID, sourceLayer: STATES_SOURCE_LAYER, id: newUf },
-                { hover: true },
-              );
+            applyRegionHoverPreview(map, {
+              regionName,
+              lngLat: event.lngLat,
+              popup,
+              hoveredRegionRef,
             });
-            hoveredRegionUfsRef.current = regionUfs;
-
-            map.getCanvas().style.cursor = "pointer";
-            popup.setLngLat(event.lngLat).setText(regionName).addTo(map);
           } else {
-            if (hoveredRegionUfsRef.current.length > 0) {
-              hoveredRegionUfsRef.current.forEach((oldUf) => {
-                map.setFeatureState(
-                  { source: STATES_SOURCE_ID, sourceLayer: STATES_SOURCE_LAYER, id: oldUf },
-                  { hover: false },
-                );
-              });
-              hoveredRegionUfsRef.current = [];
-            }
+            clearRegionHoverPreview(map, hoveredRegionRef);
             map.getCanvas().style.cursor = "";
             popup.remove();
           }
@@ -352,64 +316,19 @@ const Map = ({
           return;
         }
 
-        // --- Biome mode hover handling ---
         if (spatialAreaRef.current === "biome") {
-          if (hoveredStateIdRef.current) {
-            map.setFeatureState(
-              {
-                source: STATES_SOURCE_ID,
-                sourceLayer: STATES_SOURCE_LAYER,
-                id: hoveredStateIdRef.current,
-              },
-              { hover: false },
-            );
-            hoveredStateIdRef.current = null;
-          }
-
-          let biomeName: string | undefined;
-          let boundaryFeatureId: string | number | undefined;
-
-          if (map.getLayer(SPATIAL_BOUNDARY_FILL_LAYER_ID)) {
-            const boundaryFeatures = map.queryRenderedFeatures(event.point, {
-              layers: [SPATIAL_BOUNDARY_FILL_LAYER_ID],
-            }) as MapGeoJSONFeature[];
-
-            if (boundaryFeatures.length > 0) {
-              const f = boundaryFeatures[0];
-              biomeName = f.properties?.name as string | undefined;
-              boundaryFeatureId = f.id;
-            }
-          }
-
-          if (!biomeName && uf) {
-            const stateBiomes = getStateBiomes(uf);
-            biomeName = stateBiomes[0];
-          }
+          clearStateHoverPreview(map, hoveredStateIdRef);
+          const biomeName = resolveBiomeAtPoint(map, event.point, uf);
 
           if (biomeName) {
-            const targetId = (boundaryFeatureId ?? biomeName) as string | number;
-
-            if (
-              hoveredBoundaryIdRef.current !== null &&
-              hoveredBoundaryIdRef.current !== targetId
-            ) {
-              map.setFeatureState(
-                {
-                  source: SPATIAL_BOUNDARY_SOURCE_ID,
-                  id: hoveredBoundaryIdRef.current,
-                },
-                { hover: false },
-              );
-            }
-            hoveredBoundaryIdRef.current = targetId;
-            map.setFeatureState(
-              { source: SPATIAL_BOUNDARY_SOURCE_ID, id: targetId },
-              { hover: true },
-            );
-
-            map.getCanvas().style.cursor = "pointer";
-            popup.setLngLat(event.lngLat).setText(biomeName).addTo(map);
+            applyBiomeHoverPreview(map, {
+              biomeName,
+              lngLat: event.lngLat,
+              popup,
+              hoveredBoundaryRef,
+            });
           } else {
+            clearBiomeHoverPreview(map, hoveredBoundaryRef);
             map.getCanvas().style.cursor = "";
             popup.remove();
           }
@@ -481,32 +400,9 @@ const Map = ({
       });
 
       map.on("mouseleave", STATES_FILL_LAYER_ID, () => {
-        if (hoveredStateIdRef.current) {
-          map.setFeatureState(
-            {
-              source: STATES_SOURCE_ID,
-              sourceLayer: STATES_SOURCE_LAYER,
-              id: hoveredStateIdRef.current,
-            },
-            { hover: false },
-          );
-        }
-
-        hoveredStateIdRef.current = null;
-        
-        if (hoveredRegionUfsRef.current.length > 0) {
-          hoveredRegionUfsRef.current.forEach((oldUf) => {
-            map.setFeatureState(
-              {
-                source: STATES_SOURCE_ID,
-                sourceLayer: STATES_SOURCE_LAYER,
-                id: oldUf,
-              },
-              { hover: false },
-            );
-          });
-          hoveredRegionUfsRef.current = [];
-        }
+        clearStateHoverPreview(map, hoveredStateIdRef);
+        clearRegionHoverPreview(map, hoveredRegionRef);
+        clearBiomeHoverPreview(map, hoveredBoundaryRef);
 
         map.getCanvas().style.cursor = "";
         popup.remove();
@@ -647,50 +543,6 @@ const Map = ({
       });
 
       if (mapModeRef.current === "platform") {
-        // --- Spatial boundary hover (biome/region names) ---
-        map.on("mousemove", SPATIAL_BOUNDARY_FILL_LAYER_ID, (event) => {
-          const feature = event.features?.[0] as
-            MapGeoJSONFeature | undefined;
-          const boundaryName = feature?.properties?.name as
-            string | undefined;
-
-          // Apply hover feature-state
-          if (feature?.id !== undefined && feature.id !== null) {
-            if (
-              hoveredBoundaryIdRef.current !== null &&
-              hoveredBoundaryIdRef.current !== feature.id
-            ) {
-              map.setFeatureState(
-                { source: SPATIAL_BOUNDARY_SOURCE_ID, id: hoveredBoundaryIdRef.current },
-                { hover: false },
-              );
-            }
-            hoveredBoundaryIdRef.current = feature.id;
-            map.setFeatureState(
-              { source: SPATIAL_BOUNDARY_SOURCE_ID, id: feature.id },
-              { hover: true },
-            );
-          }
-
-          map.getCanvas().style.cursor = "pointer";
-
-          if (boundaryName) {
-            popup.setLngLat(event.lngLat).setText(boundaryName).addTo(map);
-          }
-        });
-
-        map.on("mouseleave", SPATIAL_BOUNDARY_FILL_LAYER_ID, () => {
-          if (hoveredBoundaryIdRef.current !== null) {
-            map.setFeatureState(
-              { source: SPATIAL_BOUNDARY_SOURCE_ID, id: hoveredBoundaryIdRef.current },
-              { hover: false },
-            );
-          }
-          hoveredBoundaryIdRef.current = null;
-          map.getCanvas().style.cursor = "";
-          popup.remove();
-        });
-
         // --- Municipality hover ---
         map.on("mousemove", MUNICIPALITY_HOVER_LAYER_ID, (event) => {
           const municipalityFeature = event.features?.[0] as
@@ -778,7 +630,8 @@ const Map = ({
     tileLayerUrlRef,
     warn,
     hoveredMunicipalityIdRef,
-    hoveredBoundaryIdRef,
+    hoveredBoundaryRef,
+    hoveredRegionRef,
     onSelectedMunicipalityCodeChangeRef,
     onSpatialSelectionChangeRef,
     selectedMunicipalityCodeRef,

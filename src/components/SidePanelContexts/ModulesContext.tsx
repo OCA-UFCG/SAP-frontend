@@ -156,9 +156,6 @@ export function ModulesContext({
   } = useMapLayerActions();
   const { spatialSelection } = useMapLayerViewState();
 
-  const isSpatialScopeEnabled =
-    process.env.NEXT_PUBLIC_ENABLE_SPATIAL_SCOPE === "true";
-
   const datasets = useMemo(
     () => buildLayerDatasets(panelLayers),
     [panelLayers],
@@ -321,14 +318,12 @@ export function ModulesContext({
       <div className="flex flex-col gap-6">
         <ContextHeader />
 
-        {isSpatialScopeEnabled ? (
-          <div>
-            <SpatialScopeSelect
-              spatialSelection={spatialSelection}
-              onSpatialSelectionChange={handleSpatialSelectionChange}
-            />
-          </div>
-        ) : null}
+        <div>
+          <SpatialScopeSelect
+            spatialSelection={spatialSelection}
+            onSpatialSelectionChange={handleSpatialSelectionChange}
+          />
+        </div>
 
         <div className="flex flex-col gap-6">
           {groupedDatasets.map((group, index) => {

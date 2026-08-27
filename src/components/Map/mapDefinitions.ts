@@ -2,6 +2,7 @@ import maplibregl, { ExpressionSpecification } from "maplibre-gl";
 import type { FeatureCollection, Geometry } from "geojson";
 import { BRAZIL_RASTER_BOUNDS } from "./mapBounds";
 import { ensureMunicipalityLayers } from "./municipalityLayers";
+import { getActiveBoundaryNames } from "@/utils/spatialScope";
 
 export type MapMode = "demo" | "platform";
 
@@ -321,13 +322,14 @@ export const ensureSpatialBoundaryLayer = (
       );
     }
 
+    // A fonte pode trazer a área inteira (os seis biomas) porque a camada de
+    // preenchimento precisa deles para o hover e o clique. O contorno, não: ele
+    // marca o recorte ativo, então filtra pelo nome da seleção.
     if (spatialValue && map.getLayer(SPATIAL_BOUNDARY_LAYER_ID)) {
-      const targetNames =
-        spatialValue === "ASD" ? ["ASD", "Entorno"] : [spatialValue];
       map.setFilter(SPATIAL_BOUNDARY_LAYER_ID, [
         "in",
         ["get", "name"],
-        ["literal", targetNames],
+        ["literal", [...getActiveBoundaryNames(spatialValue)]],
       ]);
     }
 

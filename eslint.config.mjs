@@ -15,6 +15,9 @@ const eslintConfig = defineConfig([
     "out/**",
     "build/**",
     "next-env.d.ts",
+    // Worktrees locais criados dentro do repositório: outra árvore de código,
+    // que lintada aqui apenas duplica trabalho e estoura a memória do eslint.
+    ".claude/**",
   ]),
   ...storybook.configs["flat/recommended"],
 

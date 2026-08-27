@@ -1,10 +1,10 @@
-import type { MapGeoJSONFeature, Map as MaplibreMap, PointLike } from "maplibre-gl";
+import type { Map as MaplibreMap, PointLike } from "maplibre-gl";
 import type { MutableRefObject } from "react";
 import { useCallback } from "react";
 import type { SpatialArea, SpatialSelection } from "@/utils/spatialScope";
 import { SPATIAL_VALUE_OPTIONS } from "@/utils/spatialScope";
-import { getStateBiomes, getStateRegion } from "@/utils/interestAreaStates";
-import { SPATIAL_BOUNDARY_FILL_LAYER_ID } from "./mapDefinitions";
+import { getStateRegion } from "@/utils/interestAreaStates";
+import { resolveBiomeAtPoint } from "./resolveBiomeAtPoint";
 
 /**
  * Result of resolving a map click against the active spatial scope:
@@ -26,11 +26,6 @@ interface UseSpatialAreaClickSelectionArgs {
   spatialValueRef: MutableRefObject<string>;
 }
 
-/** Verify that a biome name is a known `spatialValue` for the biome area. */
-const BIOME_VALUES = new Set(
-  SPATIAL_VALUE_OPTIONS.biome.map((option) => option.value),
-);
-
 /** Verify that a region name is a known `spatialValue` for the region area. */
 const REGION_VALUES = new Set(
   SPATIAL_VALUE_OPTIONS.region.map((option) => option.value),
@@ -40,8 +35,9 @@ const REGION_VALUES = new Set(
  * Resolves whether a map click should intercept spatial scope navigation.
  *
  * Biome mode:
- *   – Searches rendered boundary features for any biome name different from spatialValue.
- *   – Fallback: checks the clicked state's UF to find a biome different from spatialValue.
+ *   – Resolve o bioma sob o cursor com `resolveBiomeAtPoint`, a mesma função
+ *     que alimenta o balão do hover, para o clique nunca discordar do que o
+ *     usuário acabou de ler na tela.
  *   – If a different biome → returns the new SpatialSelection.
  *   – If inside same biome or click outside → returns "block" (no state selection).
  *
@@ -68,52 +64,21 @@ export function useSpatialAreaClickSelection({
 
       // --- Biome mode ---
       if (spatialArea === "biome") {
-        const map = mapRef.current;
-        let clickedBiomeName: string | undefined;
+        const clickedBiome = resolveBiomeAtPoint(
+          mapRef.current,
+          clickPoint,
+          clickedUf,
+        );
 
-        if (map && map.getLayer(SPATIAL_BOUNDARY_FILL_LAYER_ID)) {
-          const features = map.queryRenderedFeatures(clickPoint, {
-            layers: [SPATIAL_BOUNDARY_FILL_LAYER_ID],
-          }) as MapGeoJSONFeature[];
-
-          // 1. If the active biome feature is rendered under clickPoint, block click
-          const activeFeature = features.find(
-            (f) => f.properties?.name === spatialValue,
-          );
-          if (activeFeature) {
-            return "block";
-          }
-
-          // 2. Look for any other rendered biome feature at clickPoint
-          const otherFeature = features.find(
-            (f) => f.properties?.name && BIOME_VALUES.has(f.properties.name),
-          );
-
-          if (otherFeature) {
-            clickedBiomeName = otherFeature.properties?.name as string;
-          }
-        }
-
-        // 3. Fallback: check clicked state's UF
-        if (!clickedBiomeName && clickedUf) {
-          const stateBiomes = getStateBiomes(clickedUf);
-
-          // If the clicked state belongs to the active biome, do nothing
-          if (stateBiomes.includes(spatialValue)) {
-            return "block";
-          }
-
-          clickedBiomeName = stateBiomes.find((b) => BIOME_VALUES.has(b));
-        }
-
-        if (clickedBiomeName && clickedBiomeName !== spatialValue) {
+        if (clickedBiome && clickedBiome !== spatialValue) {
           return {
             spatialArea: "biome",
-            spatialValue: clickedBiomeName,
+            spatialValue: clickedBiome,
           } as SpatialSelection;
         }
 
-        // Same biome or click outside any biome boundary → block state selection
+        // Mesmo bioma ou clique fora de qualquer bioma: engole o clique, para
+        // não selecionar um estado dentro de um recorte por bioma.
         return "block";
       }
 

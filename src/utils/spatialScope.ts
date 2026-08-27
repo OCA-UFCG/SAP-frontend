@@ -196,6 +196,23 @@ export function resolveSpatialSelection(
   };
 }
 
+/**
+ * Nomes das features de contorno que desenham a seleção ativa.
+ *
+ * A ASD é a única área desenhada por mais de uma feature: "ASD" e "Entorno"
+ * formam um recorte só. Esta função é a fonte única dessa regra — a rota de
+ * contorno, o filtro da camada e o enquadramento da câmera precisam concordar
+ * sobre o que conta como "a seleção ativa", senão o mapa desenha um recorte e
+ * a câmera enquadra outro.
+ *
+ * @example getActiveBoundaryNames("ASD") // ["ASD", "Entorno"]
+ */
+export function getActiveBoundaryNames(
+  spatialValue: string,
+): readonly string[] {
+  return spatialValue === "ASD" ? ["ASD", "Entorno"] : [spatialValue];
+}
+
 export function getDefaultSpatialValue(spatialArea: SpatialArea) {
   return SPATIAL_VALUE_OPTIONS[spatialArea][0].value;
 }

@@ -30,7 +30,7 @@ interface UseMapLayerSyncArgs {
   scheduleSelectedMunicipalitySync: (reason: string) => void;
   spatialBoundaryGeoJsonRef: MutableRefObject<FeatureCollection<Geometry, { name: string }> | null>;
   allowedStateUfsRef: MutableRefObject<Set<string> | null>;
-  spatialValueRef?: MutableRefObject<string>;
+  spatialValueRef: MutableRefObject<string>;
   log: (...args: unknown[]) => void;
   warn: (...args: unknown[]) => void;
 }
@@ -135,7 +135,7 @@ export const useMapLayerSync = ({
           boundaryGeoJson,
           showStatesBorderRef.current,
           allowedStateUfsRef.current,
-          spatialValueRef?.current ?? null,
+          spatialValueRef.current,
         );
       }
 
@@ -161,6 +161,7 @@ export const useMapLayerSync = ({
       showStatesBorderRef,
       spatialBoundaryGeoJsonRef,
       allowedStateUfsRef,
+      spatialValueRef,
       tileLayerUrlRef,
       warn,
     ],

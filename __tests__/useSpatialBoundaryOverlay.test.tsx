@@ -2,7 +2,10 @@ import "@testing-library/jest-dom/vitest";
 import type { FeatureCollection, Geometry } from "geojson";
 import { cleanup, render, screen, waitFor } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { useSpatialBoundaryOverlay } from "@/components/PlatformMap/useSpatialBoundaryOverlay";
+import {
+  clearSpatialBoundaryCache,
+  useSpatialBoundaryOverlay,
+} from "@/components/PlatformMap/useSpatialBoundaryOverlay";
 import type { SpatialSelection } from "@/utils/spatialScope";
 
 function makeBoundary(
@@ -30,21 +33,37 @@ function makeBoundary(
   };
 }
 
+function makeCollection(
+  ...names: string[]
+): FeatureCollection<Geometry, { name: string }> {
+  return {
+    type: "FeatureCollection",
+    features: names.flatMap((name) => makeBoundary(name).features),
+  };
+}
+
+const names = (
+  collection: FeatureCollection<Geometry, { name: string }> | null,
+) =>
+  collection?.features.map((feature) => feature.properties.name).join(",") ??
+  "no-boundary";
+
 function Probe({ selection }: { selection: SpatialSelection }) {
-  const { boundaryGeoJson, status } = useSpatialBoundaryOverlay(selection);
+  const { boundaryGeoJson, activeBoundaryGeoJson, status } =
+    useSpatialBoundaryOverlay(selection);
 
   return (
     <div>
       <span>{status}</span>
-      <span>
-        {boundaryGeoJson?.features[0]?.properties.name ?? "no-boundary"}
-      </span>
+      <span data-testid="drawn">{names(boundaryGeoJson)}</span>
+      <span data-testid="active">{names(activeBoundaryGeoJson)}</span>
     </div>
   );
 }
 
 describe("useSpatialBoundaryOverlay", () => {
   beforeEach(() => {
+    clearSpatialBoundaryCache();
     vi.stubGlobal("fetch", vi.fn());
   });
 
@@ -82,25 +101,23 @@ describe("useSpatialBoundaryOverlay", () => {
     expect(screen.getByText("loading")).toBeInTheDocument();
     await waitFor(() => {
       expect(screen.getByText("ready")).toBeInTheDocument();
-      expect(screen.getByText("Caatinga")).toBeInTheDocument();
+      expect(screen.getByTestId("drawn")).toHaveTextContent("Caatinga");
     });
     expect(fetch).toHaveBeenCalledWith(
-      "/api/spatial-boundary?spatialArea=biome&spatialValue=Caatinga&v=2",
+      "/api/spatial-boundary?spatialArea=biome&scope=area",
       { signal: expect.any(AbortSignal) },
     );
   });
 
   it("aborts the previous request and ignores its stale response", async () => {
-    let resolvePampa!: (response: Response) => void;
-    const pendingPampa = new Promise<Response>((resolve) => {
-      resolvePampa = resolve;
+    let resolveBiomes!: (response: Response) => void;
+    const pendingBiomes = new Promise<Response>((resolve) => {
+      resolveBiomes = resolve;
     });
     vi.mocked(fetch)
-      .mockImplementationOnce(() => pendingPampa)
+      .mockImplementationOnce(() => pendingBiomes)
       .mockResolvedValueOnce(
-        new Response(JSON.stringify(makeBoundary("Pantanal")), {
-          status: 200,
-        }),
+        new Response(JSON.stringify(makeBoundary("ASD")), { status: 200 }),
       );
 
     const { rerender } = render(
@@ -108,23 +125,68 @@ describe("useSpatialBoundaryOverlay", () => {
     );
     const firstSignal = vi.mocked(fetch).mock.calls[0]?.[1]?.signal;
 
-    rerender(
-      <Probe selection={{ spatialArea: "biome", spatialValue: "Pantanal" }} />,
-    );
+    rerender(<Probe selection={{ spatialArea: "asd", spatialValue: "ASD" }} />);
 
     expect(firstSignal?.aborted).toBe(true);
     await waitFor(() => {
-      expect(screen.getByText("Pantanal")).toBeInTheDocument();
+      expect(screen.getByTestId("drawn")).toHaveTextContent("ASD");
     });
 
-    resolvePampa(
+    resolveBiomes(
       new Response(JSON.stringify(makeBoundary("Pampa")), { status: 200 }),
     );
 
     await waitFor(() => {
-      expect(screen.queryByText("Pampa")).not.toBeInTheDocument();
-      expect(screen.getByText("Pantanal")).toBeInTheDocument();
+      expect(screen.getByTestId("drawn")).not.toHaveTextContent("Pampa");
+      expect(screen.getByTestId("drawn")).toHaveTextContent("ASD");
     });
+  });
+
+  it("downloads the biome collection once and reuses it for every biome", async () => {
+    // Antes a URL carregava o bioma selecionado, então trocar de bioma baixava
+    // de novo os mesmos 1,6 MB e guardava uma cópia por bioma.
+    vi.mocked(fetch).mockResolvedValueOnce(
+      new Response(JSON.stringify(makeCollection("Caatinga", "Cerrado")), {
+        status: 200,
+      }),
+    );
+
+    const { rerender } = render(
+      <Probe selection={{ spatialArea: "biome", spatialValue: "Caatinga" }} />,
+    );
+
+    await waitFor(() => {
+      expect(screen.getByTestId("active")).toHaveTextContent("Caatinga");
+    });
+
+    rerender(
+      <Probe selection={{ spatialArea: "biome", spatialValue: "Cerrado" }} />,
+    );
+
+    expect(fetch).toHaveBeenCalledTimes(1);
+    expect(screen.getByTestId("active")).toHaveTextContent("Cerrado");
+  });
+
+  it("exposes the whole area to draw and only the selection to frame", async () => {
+    // Regressão: enquadrar pela coleção inteira dá a caixa do Brasil, igual
+    // para os seis biomas, e a câmera para de se mover ao trocar de bioma.
+    vi.mocked(fetch).mockResolvedValueOnce(
+      new Response(
+        JSON.stringify(makeCollection("Caatinga", "Cerrado", "Pampa")),
+        { status: 200 },
+      ),
+    );
+
+    render(
+      <Probe selection={{ spatialArea: "biome", spatialValue: "Cerrado" }} />,
+    );
+
+    await waitFor(() => {
+      expect(screen.getByTestId("drawn")).toHaveTextContent(
+        "Caatinga,Cerrado,Pampa",
+      );
+    });
+    expect(screen.getByTestId("active")).toHaveTextContent("Cerrado");
   });
 
   it("reuses a cached boundary when returning to a previous selection", async () => {
@@ -144,7 +206,7 @@ describe("useSpatialBoundaryOverlay", () => {
     );
 
     await waitFor(() => {
-      expect(screen.getByText("Mata Atlântica")).toBeInTheDocument();
+      expect(screen.getByTestId("drawn")).toHaveTextContent("Mata Atlântica");
     });
 
     rerender(
@@ -160,7 +222,7 @@ describe("useSpatialBoundaryOverlay", () => {
     );
 
     expect(screen.getByText("ready")).toBeInTheDocument();
-    expect(screen.getByText("Mata Atlântica")).toBeInTheDocument();
+    expect(screen.getByTestId("drawn")).toHaveTextContent("Mata Atlântica");
     expect(fetch).toHaveBeenCalledTimes(1);
   });
 
@@ -174,7 +236,7 @@ describe("useSpatialBoundaryOverlay", () => {
 
     await waitFor(() => {
       expect(screen.getByText("error")).toBeInTheDocument();
-      expect(screen.getByText("no-boundary")).toBeInTheDocument();
+      expect(screen.getByTestId("drawn")).toHaveTextContent("no-boundary");
     });
   });
 });
