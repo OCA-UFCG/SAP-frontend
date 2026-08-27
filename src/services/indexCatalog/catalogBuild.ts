@@ -18,6 +18,11 @@ import {
   initializeGee,
 } from "@/infrastructure/earth-engine/client";
 import {
+  buildStatisticsAssetKey,
+  getOrValidateStatisticsAsset,
+  type DiscoveredStatisticsAsset,
+} from "@/services/indexCatalog/statisticsAssetCache";
+import {
   countInvalidPercentageRows,
   parsePercentageColumns,
 } from "@/utils/catalogPercentageRows";
@@ -40,14 +45,6 @@ const DEFAULT_CLASS_COLORS = [
   "#1A759F",
   "#184E77",
 ];
-
-interface DiscoveredStatisticsAsset {
-  assetId: string;
-  updateTime?: string;
-  schema: GeeStatisticsSchema;
-  periods: string[];
-  rowCount: number;
-}
 
 interface ValidatedForecastCollection {
   latestValue: string | number;
@@ -259,30 +256,47 @@ async function inspectStatisticsAsset(
   }
   const resolved = resolvedSource(source, assetId);
   const schema = inferGeeStatisticsSchema(resolved, inspection.properties);
+  const updateTime = inspection.updateTime ?? listedUpdateTime;
+  // A leitura de metadados acima roda sempre: é ela que responde se a tabela
+  // mudou. Só a parte cara — períodos e conferência das linhas — é memoizada.
+  return getOrValidateStatisticsAsset(
+    buildStatisticsAssetKey(resolved, updateTime),
+    () => discoverStatisticsPeriodsAndRows(resolved, schema, updateTime),
+  );
+}
+
+async function discoverStatisticsPeriodsAndRows(
+  resolved: ResolvedGeeStatisticsSource,
+  schema: GeeStatisticsSchema,
+  updateTime?: string,
+): Promise<DiscoveredStatisticsAsset> {
   const periodProperty =
-    source.periodGranularity === "month"
-      ? source.properties.date
-      : source.properties.year;
+    resolved.periodGranularity === "month"
+      ? resolved.properties.date
+      : resolved.properties.year;
   const rawPeriods = await evaluateGeeObject<unknown[]>(
-    ee.FeatureCollection(assetId).aggregate_array(periodProperty).distinct(),
+    ee
+      .FeatureCollection(resolved.assetId)
+      .aggregate_array(periodProperty)
+      .distinct(),
   );
   const periods = [
     ...new Set(
       (rawPeriods ?? []).flatMap((value) => {
-        const period = normalizePeriod(value, source.periodGranularity);
+        const period = normalizePeriod(value, resolved.periodGranularity);
         return period ? [period] : [];
       }),
     ),
   ].sort();
   if (periods.length === 0) {
     throw new Error(
-      `Asset estatístico ${assetId} não possui períodos válidos em ${periodProperty}.`,
+      `Asset estatístico ${resolved.assetId} não possui períodos válidos em ${periodProperty}.`,
     );
   }
   const rowCount = await validateCollectionRows(resolved, schema);
   return {
-    assetId,
-    updateTime: inspection.updateTime ?? listedUpdateTime,
+    assetId: resolved.assetId,
+    updateTime,
     schema,
     periods,
     rowCount,

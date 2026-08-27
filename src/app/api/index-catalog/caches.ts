@@ -16,6 +16,10 @@ import {
  * `/api/ee` até o `revalidate` expirar.
  */
 export function refreshPublicIndexCaches(panelLayerId: string) {
+  // A memoização de assets estatísticos (statisticsAssetCache) fica de fora de
+  // propósito: ela é indexada pelo `updateTime` do asset no Earth Engine, então
+  // se invalida sozinha quando a tabela é reexportada. Limpá-la aqui jogaria
+  // fora justamente as entradas que fazem a publicação ser rápida.
   clearEarthEngineCacheForLayer(panelLayerId);
   clearMunicipalAnalysisCache(panelLayerId);
   clearPanelLayersCache();

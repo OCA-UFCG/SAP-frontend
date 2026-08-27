@@ -103,6 +103,7 @@ import {
   buildCatalogDraft,
   discoverCatalogStatistics,
 } from "@/services/indexCatalog/catalogBuild";
+import { clearStatisticsAssetCache } from "@/services/indexCatalog/statisticsAssetCache";
 
 const properties = {
   level: "NIVEL_AGRUPAMENTO",
@@ -146,6 +147,7 @@ describe("index catalog GEE asset discovery", () => {
 
   beforeEach(() => {
     vi.clearAllMocks();
+    clearStatisticsAssetCache();
     mocks.evaluateGeeObject.mockImplementation(
       async (expression: Expression) => {
         if (expression.tag === "periods") {
@@ -222,6 +224,48 @@ describe("index catalog GEE asset discovery", () => {
       expect.objectContaining({ periods: ["2025"], classIndexes: [1] }),
     );
     expect(mocks.listEarthEngineAssets).not.toHaveBeenCalled();
+  });
+
+  const fixedSource = {
+    kind: "gee-feature-collection",
+    asset: { type: "fixed", assetId: "projects/x/assets/statistics" },
+    periodGranularity: "year",
+    properties,
+  } as const;
+
+  // A validação de um asset é memoizada por updateTime: revalidar a prévia e
+  // publicar em seguida não deve repetir a leitura das linhas no Earth Engine.
+  it("reuses the validation of an asset that has not been re-exported", async () => {
+    await discoverCatalogStatistics(fixedSource);
+    const evaluationsAfterFirstRun = mocks.evaluateGeeObject.mock.calls.length;
+
+    await discoverCatalogStatistics(fixedSource);
+
+    expect(mocks.evaluateGeeObject.mock.calls.length).toBe(
+      evaluationsAfterFirstRun,
+    );
+    // Os metadados continuam sendo lidos: são eles que dizem se a tabela mudou.
+    expect(mocks.inspectEarthEngineAsset).toHaveBeenCalledTimes(2);
+  });
+
+  it("validates again when the asset has been re-exported", async () => {
+    await discoverCatalogStatistics(fixedSource);
+    const evaluationsAfterFirstRun = mocks.evaluateGeeObject.mock.calls.length;
+    mocks.inspectEarthEngineAsset.mockImplementation(
+      async (assetId: string) => ({
+        id: assetId,
+        type: "featureCollection",
+        bands: [],
+        properties: schemaProperties(),
+        updateTime: "2026-08-18T09:00:00Z",
+      }),
+    );
+
+    await discoverCatalogStatistics(fixedSource);
+
+    expect(mocks.evaluateGeeObject.mock.calls.length).toBeGreaterThan(
+      evaluationsAfterFirstRun,
+    );
   });
 
   // A checagem por linha dos percentuais saiu do Earth Engine e passou a rodar
