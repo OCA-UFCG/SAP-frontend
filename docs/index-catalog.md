@@ -48,9 +48,10 @@ as classes. A validação exige uma imagem por lead, períodos mensais iguais ao
 da estatística e exatamente um limite a menos que a quantidade de classes.
 
 A FeatureCollection deve possuir pares `perc_classe_XX` e
-`area_ha_classe_XX`. Os índices precisam ser contíguos e iniciar em 0 ou 1. O
-catálogo infere a quantidade e os índices; a pessoa configura apenas rótulos,
-cores e o mapa. O valor é percentual e a unidade é `%`.
+`area_ha_classe_XX`. Os índices precisam ser contíguos, mas podem iniciar em
+qualquer número — 0, 1 ou outro qualquer, como assets que começam em
+`perc_classe_2`. O catálogo infere a quantidade e os índices; a pessoa
+configura apenas rótulos, cores e o mapa. O valor é percentual e a unidade é `%`.
 
 Também são obrigatórias as propriedades territoriais, `ano`, `data_img` e
 `area_total_ha`. A validação rejeita schema incompleto, classes divergentes,
