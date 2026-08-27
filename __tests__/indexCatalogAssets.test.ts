@@ -9,14 +9,19 @@ const mocks = vi.hoisted(() => ({
   evaluateGeeObject: vi.fn(),
 }));
 
-type Expression = { tag: string; assetId: string; level?: string };
+type Expression = {
+  tag: string;
+  assetId: string;
+  level?: string;
+  propertyCount?: number;
+};
 
 interface MockCollection {
   aggregate_array: () => { distinct: () => Expression };
   filter: (filter: { tag?: string; value?: string }) => MockCollection;
   distinct: () => { size: () => Expression };
   size: () => Expression;
-  map: () => { aggregate_sum: () => Expression };
+  reduceColumns: (reducer: unknown, properties: string[]) => Expression;
 }
 
 function collection(assetId: string, level?: string): MockCollection {
@@ -37,9 +42,12 @@ function collection(assetId: string, level?: string): MockCollection {
       size: () => ({ tag: "distinct", assetId }) satisfies Expression,
     }),
     size: () => ({ tag: "size", assetId, level }) satisfies Expression,
-    map: () => ({
-      aggregate_sum: () => ({ tag: "invalid", assetId }) satisfies Expression,
-    }),
+    reduceColumns: (_reducer: unknown, properties: string[]) =>
+      ({
+        tag: "percentage-columns",
+        assetId,
+        propertyCount: properties.length,
+      }) satisfies Expression,
   };
 }
 
@@ -75,6 +83,11 @@ vi.mock("@google/earthengine", () => ({
       notNull: () => ({ tag: "not-null" }),
       eq: (_property: string, value: string) => ({ tag: "level", value }),
     },
+    Reducer: {
+      toList: () => ({
+        repeat: (count: number) => ({ tag: "to-list", count }),
+      }),
+    },
   },
 }));
 vi.mock("@/app/api/ee/services", () => ({
@@ -109,7 +122,28 @@ function schemaProperties(indexes = [1]) {
   ];
 }
 
+const MOCK_ROW_COUNT = 10;
+
+/** Uma coluna por classe, cada linha somando 100 — o caso válido. */
+function percentageColumns(propertyCount: number, rowTotal = 100) {
+  return Array.from({ length: propertyCount }, () =>
+    Array.from({ length: MOCK_ROW_COUNT }, () => rowTotal / propertyCount),
+  );
+}
+
 describe("index catalog GEE asset discovery", () => {
+  function overridePercentageColumns(
+    build: (propertyCount: number) => number[][],
+  ) {
+    const original = mocks.evaluateGeeObject.getMockImplementation()!;
+    mocks.evaluateGeeObject.mockImplementation(
+      async (expression: Expression) =>
+        expression.tag === "percentage-columns"
+          ? { list: build(expression.propertyCount ?? 1) }
+          : original(expression),
+    );
+  }
+
   beforeEach(() => {
     vi.clearAllMocks();
     mocks.evaluateGeeObject.mockImplementation(
@@ -136,7 +170,9 @@ describe("index catalog GEE asset discovery", () => {
             Date.UTC(2026, 11, 1),
           ];
         }
-        if (expression.tag === "invalid") return 0;
+        if (expression.tag === "percentage-columns") {
+          return { list: percentageColumns(expression.propertyCount ?? 1) };
+        }
         if (expression.tag === "distinct") return 10;
         if (expression.level === "7_Municipio") return 5;
         if (expression.level === "7_Municipio-complete") return 5;
@@ -186,6 +222,36 @@ describe("index catalog GEE asset discovery", () => {
       expect.objectContaining({ periods: ["2025"], classIndexes: [1] }),
     );
     expect(mocks.listEarthEngineAssets).not.toHaveBeenCalled();
+  });
+
+  // A checagem por linha dos percentuais saiu do Earth Engine e passou a rodar
+  // no Node; estes dois casos fixam que a guarda continua valendo.
+  it("rejects an asset whose percentages do not add up to 100", async () => {
+    overridePercentageColumns((propertyCount) =>
+      percentageColumns(propertyCount, 90),
+    );
+    await expect(
+      discoverCatalogStatistics({
+        kind: "gee-feature-collection",
+        asset: { type: "fixed", assetId: "projects/x/assets/statistics" },
+        periodGranularity: "year",
+        properties,
+      }),
+    ).rejects.toThrow(/possui 10 linha\(s\) com percentuais fora de 0–100/u);
+  });
+
+  it("rejects percentage columns that come back misaligned with the row count", async () => {
+    overridePercentageColumns((propertyCount) =>
+      percentageColumns(propertyCount).map((column) => column.slice(1)),
+    );
+    await expect(
+      discoverCatalogStatistics({
+        kind: "gee-feature-collection",
+        asset: { type: "fixed", assetId: "projects/x/assets/statistics" },
+        periodGranularity: "year",
+        properties,
+      }),
+    ).rejects.toThrow(/retornou 9 valor\(es\); esperado 10, um por linha/u);
   });
 
   it("lists the template parent and discovers monthly assets only", async () => {
