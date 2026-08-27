@@ -59,7 +59,7 @@ export function PlatformMap({ showMonitoringOverlays = true }: PlatformMapProps)
         entry.status === "ready" &&
         entry.tileUrl
       ) {
-        parts.push(`${layerId}:${entry.tileUrl}`);
+        parts.push(`${layerId}:::${entry.tileUrl}`);
       }
     }
     return parts.sort().join("|");
@@ -69,9 +69,13 @@ export function PlatformMap({ showMonitoringOverlays = true }: PlatformMapProps)
     const urls = new Map<string, string | undefined>();
     if (!activeOverlayUrlsKey) return urls;
     for (const part of activeOverlayUrlsKey.split("|")) {
-      const [layerId, tileUrl] = part.split(":");
-      if (layerId && tileUrl) {
-        urls.set(layerId, tileUrl);
+      const idx = part.indexOf(":::");
+      if (idx !== -1) {
+        const layerId = part.slice(0, idx);
+        const tileUrl = part.slice(idx + 3);
+        if (layerId && tileUrl) {
+          urls.set(layerId, tileUrl);
+        }
       }
     }
     return urls;
