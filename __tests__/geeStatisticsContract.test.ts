@@ -76,6 +76,29 @@ describe("GEE statistics contract", () => {
     expect(schema.classIndexes).toEqual([1, 2, 3, 4, 5, 6]);
   });
 
+  // Regressão: o catálogo recusava
+  // Estatisticas_IA_atlas_BR_DWGD_1990 com "deve iniciar as classes em 0 ou 1;
+  // recebeu 2", embora o schema fosse contíguo e utilizável.
+  it("accepts a contiguous class schema that starts outside 0 or 1", () => {
+    const source = getResolvedSource();
+    const schema = inferGeeStatisticsSchema(
+      source,
+      getPropertyNames([4, 2, 3]),
+    );
+
+    expect(schema.classIndexes).toEqual([2, 3, 4]);
+    expect(schema.percentageProperties).toEqual([
+      "perc_classe_2",
+      "perc_classe_3",
+      "perc_classe_4",
+    ]);
+    expect(schema.classAreaProperties).toEqual([
+      "area_ha_classe_2",
+      "area_ha_classe_3",
+      "area_ha_classe_4",
+    ]);
+  });
+
   it("rejects missing, mismatched or non-contiguous class columns", () => {
     expect(() =>
       inferGeeStatisticsSchema(getResolvedSource(), [

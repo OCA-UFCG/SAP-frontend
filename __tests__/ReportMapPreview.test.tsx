@@ -47,6 +47,7 @@ vi.mock("maplibre-gl", () => {
     });
     fitBounds = vi.fn(() => this);
     setFeatureState = vi.fn(() => this);
+    setFilter = vi.fn(() => this);
     getCanvas = vi.fn(() => ({
       toDataURL: vi.fn(() => `data:image/png;base64,${"a".repeat(120)}`),
     }));

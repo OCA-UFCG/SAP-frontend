@@ -255,13 +255,12 @@ function validateClassIndexes(assetId: string, classIndexes: number[]): void {
     );
   }
 
-  const firstIndex = classIndexes[0];
-  if (firstIndex !== 0 && firstIndex !== 1) {
-    throw new Error(
-      `Asset estatístico ${assetId} deve iniciar as classes em 0 ou 1; recebeu ${firstIndex}.`,
-    );
-  }
-
+  // O índice inicial é livre de propósito: assets reais chegam com classes
+  // começando em 0, em 1 e também em valores arbitrários (ex.: perc_classe_2 em
+  // Estatisticas_IA_atlas_BR_DWGD_1990). Tudo a jusante trata classIndexes
+  // posicionalmente — buildClasses mapeia por posição e o repositório lê as
+  // colunas pelo nome —, então exigir um início fixo apenas rejeitava assets
+  // válidos. O que ainda importa é a sequência ser contígua.
   for (let position = 1; position < classIndexes.length; position += 1) {
     if (classIndexes[position] !== classIndexes[position - 1] + 1) {
       throw new Error(
