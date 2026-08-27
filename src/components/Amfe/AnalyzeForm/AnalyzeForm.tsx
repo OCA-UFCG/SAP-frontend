@@ -351,8 +351,8 @@ const AnalyzeForm = ({ setFormPayload }: AnalyzeFormProps) => {
                         style={{ color: text }}
                       >
                         {interestAreas.map((option) => (
-                          <option key={option.value} value={option.value}>
-                            {interestAreaLabels[option.value]}
+                          <option key={option} value={option}>
+                            {interestAreaLabels[option]}
                           </option>
                         ))}
                       </select>

@@ -13,12 +13,34 @@ const resolveBackendBaseUrl = () => {
   return apiBaseUrl;
 };
 
-export const denyUnauthenticatedAmfeRequest = async (request: Request) => {
+export type AmfeRequestUser =
+  | { userId: string; denied?: undefined }
+  | { userId?: undefined; denied: NextResponse };
+
+/**
+ * Resolve o dono da requisição AMFE, ou a resposta 401 que a rota deve devolver.
+ *
+ * Devolve o id em vez de só barrar anônimos porque a guarda de taxa do
+ * `/api/amfe/analyze` chaveia por usuário autenticado — nunca por header
+ * encaminhável, que o cliente controla.
+ *
+ * @example
+ *   const { userId, denied } = await resolveAmfeRequestUser(request);
+ *   if (denied) return denied;
+ */
+export const resolveAmfeRequestUser = async (
+  request: Request,
+): Promise<AmfeRequestUser> => {
   const authenticatedUserId = await getAuthenticatedUserId(request);
 
-  if (authenticatedUserId) return null;
+  if (authenticatedUserId) return { userId: authenticatedUserId };
 
-  return NextResponse.json({ error: "Unauthorized access." }, { status: 401 });
+  return {
+    denied: NextResponse.json(
+      { error: "Unauthorized access." },
+      { status: 401 },
+    ),
+  };
 };
 
 const parseBackendPayload = (rawBody: string): unknown => {

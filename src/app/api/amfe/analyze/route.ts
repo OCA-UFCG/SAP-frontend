@@ -1,12 +1,27 @@
-import { NextRequest } from "next/server";
+import { NextRequest, NextResponse } from "next/server";
 import {
-  denyUnauthenticatedAmfeRequest,
   proxyToAnalysisBackend,
+  resolveAmfeRequestUser,
 } from "../backendProxy";
+import { consumeAmfeAnalyzeRateLimit } from "../rate-limit";
 
 export async function POST(request: NextRequest) {
-  const denied = await denyUnauthenticatedAmfeRequest(request);
+  const { userId, denied } = await resolveAmfeRequestUser(request);
   if (denied) return denied;
+
+  const rateLimit = consumeAmfeAnalyzeRateLimit(userId);
+  if (rateLimit.limited) {
+    return NextResponse.json(
+      { error: "Too many analysis requests. Try again later." },
+      {
+        status: 429,
+        headers: {
+          ...rateLimit.headers,
+          "Retry-After": String(rateLimit.retryAfterSeconds),
+        },
+      },
+    );
+  }
 
   const body = await request.text();
 

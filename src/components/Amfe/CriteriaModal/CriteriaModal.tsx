@@ -57,7 +57,7 @@ function InfoTooltip({
         title={t("infoTitle")}
         className="flex items-center justify-center p-1"
       >
-        <Icon id="infoIcon" size={20} className="text-[#989D93]" />
+        <Icon id="info" size={20} className="text-[#989D93]" />
       </button>
 
       {open && (
@@ -148,7 +148,7 @@ function ModalOverlay({
               onClick={onClose}
               className="flex h-7 w-7 shrink-0 items-center justify-center"
             >
-              <Icon id="closeIcon" size={18} />
+              <Icon id="close-modal" size={18} />
             </button>
           </div>
 
@@ -159,7 +159,7 @@ function ModalOverlay({
 
         <div className="flex min-h-0 flex-1 flex-col gap-4 px-5 py-4">
           <div className="flex h-14 w-full shrink-0 items-center gap-3 rounded-[10px] border border-[#D1D4CF] bg-[#F8F8F7] px-5">
-            <Icon id="searchIcon" size={20} className="text-[#8C9189]" />
+            <Icon id="loupe" size={20} className="shrink-0" fill="#8C9189" />
             <input
               type="text"
               placeholder={t("searchPlaceholder")}

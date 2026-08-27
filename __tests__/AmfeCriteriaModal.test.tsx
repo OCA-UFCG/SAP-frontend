@@ -62,3 +62,25 @@ test("opens the first tooltips below the search field", () => {
   expect(tooltip?.getAttribute("role")).toBe("tooltip");
   expect(tooltip?.className).toContain("top-[calc(100%+10px)]");
 });
+
+test("draws its icons from the shared platform sprite symbols", () => {
+  render(
+    <CriteriaModal options={[{ id: "criterion", name: "Critério" }]}>
+      {(open) => <button onClick={open}>Abrir sprite</button>}
+    </CriteriaModal>,
+  );
+
+  fireEvent.click(screen.getByRole("button", { name: "Abrir sprite" }));
+
+  // O modal vai para um portal, então os ícones não ficam sob o container.
+  const symbols = Array.from(document.body.querySelectorAll("use")).map(
+    (node) => node.getAttribute("href"),
+  );
+
+  // O SAP-amfe trouxe closeIcon/infoIcon/searchIcon duplicando símbolos que a
+  // plataforma já tinha. Se voltarem, este teste falha.
+  expect(symbols).toContain("/sprite.svg#close-modal");
+  expect(symbols).toContain("/sprite.svg#info");
+  expect(symbols).toContain("/sprite.svg#loupe");
+  expect(symbols.join(",")).not.toMatch(/closeIcon|infoIcon|searchIcon/);
+});

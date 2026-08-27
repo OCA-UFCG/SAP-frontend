@@ -1,7 +1,5 @@
 import { AnalysisLevel, interestArea } from "./amfeInterfaces";
 
-export const apiVersions = [{ label: "Versão 1.0", value: "1.0" }];
-
 export const accent = "#989F43";
 export const inputBg = "#d7d7d6";
 export const text = "#292829";
@@ -18,13 +16,14 @@ export const rankingLevelsByInterestArea: Record<
   asd: ["national", "state"],
 };
 
-export const interestAreas: { value: interestArea; label: string }[] = [
-  { value: "national", label: "Nacional" },
-  { value: "region", label: "Regional" },
-  { value: "biome", label: "Bioma" },
-  { value: "state", label: "Estadual" },
-  { value: "semiarid", label: "Semiárido" },
-  { value: "asd", label: "ASD e Entorno" },
+// Só os valores: os rótulos exibidos vêm de `useTranslations`, não daqui.
+export const interestAreas: interestArea[] = [
+  "national",
+  "region",
+  "biome",
+  "state",
+  "semiarid",
+  "asd",
 ];
 export const interestAreaOptionsByLevel: Record<interestArea, string[]> = {
   national: ["brasil"],

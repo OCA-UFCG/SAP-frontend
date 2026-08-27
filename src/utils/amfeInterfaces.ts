@@ -21,12 +21,6 @@ export interface CriteriaCardI {
   error?: string;
 }
 
-export interface InputSliderI extends InputFormI {
-  min: number;
-  max: number;
-  step: number;
-}
-
 export interface Criteria {
   name: string;
   value: number;
@@ -34,7 +28,6 @@ export interface Criteria {
 }
 
 export interface AnalyzeFormData {
-  version?: string;
   criteria: Criteria[];
   indifference: number;
   preference: number;
@@ -87,20 +80,9 @@ export interface ExcludedCity {
   missing_fields: string[];
 }
 export type ExcludedCities = Record<string, ExcludedCity>;
-export interface CitiesTableI {
-  cities: Cities;
-}
 export interface AnalyzeFormProps {
   setFormPayload: React.Dispatch<React.SetStateAction<AnalyzePayload | null>>;
 }
-export interface ButtonI {
-  onClick?: React.MouseEventHandler<HTMLButtonElement>;
-  type?: "button" | "submit" | "reset";
-  className?: string;
-  disabled?: boolean;
-  children: React.ReactNode;
-}
-
 export interface CriterionOption {
   id: string;
   name: string;
