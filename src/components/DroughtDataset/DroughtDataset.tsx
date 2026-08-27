@@ -21,7 +21,7 @@ export interface IDroughtDataset {
 
 function InfoIcon() {
   return (
-    <svg width="16" height="16" aria-hidden>
+    <svg width="16" height="16" aria-hidden className="text-[#2C1E1C]">
       <use href="/sprite.svg#info" />
     </svg>
   );

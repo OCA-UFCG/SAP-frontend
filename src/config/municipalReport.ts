@@ -4,7 +4,6 @@ export interface MunicipalReportLayerConfig {
   title: string;
   order: number;
   periods?: string[];
-  timeSeriesLocationKey?: "br";
   presentation?: MunicipalReportPresentationConfig;
   reportSeriesConfig?: import("@/utils/interfaces").MunicipalReportSeriesConfig | null;
   baseImageData?: import("@/utils/analysis").CompactTerritorialAnalysisDataset;
@@ -86,7 +85,6 @@ export const MUNICIPAL_REPORT_LAYERS: readonly MunicipalReportLayerConfig[] = [
     alias: "s2id_secas_estiagens",
     title: "Registros de Secas e Estiagens (2004-2025)",
     order: 120,
-    timeSeriesLocationKey: "br",
   },
 ] as const;
 

@@ -20,7 +20,12 @@ import {
   type ContentfulManagementEntry,
 } from "@/services/indexCatalog/contentfulManagement";
 import {
-  isIndexCatalogConfigV2,
+  catalogTimestamp,
+  requireManagedConfig,
+  withAuditEvent,
+} from "@/services/indexCatalog/catalogConfigAudit";
+import { getIndexCatalogPreviewMapUrl } from "@/services/indexCatalog/previewMapService";
+import {
   type CatalogValidationReport,
   type IndexCatalogConfigV2,
   type IndexCatalogDraftInput,
@@ -28,49 +33,18 @@ import {
   type IndexCatalogPreview,
 } from "@/types/indexCatalog";
 import {
+  createCatalogPanelLayerId,
   makeUniqueCatalogPanelLayerId,
   parseIndexCatalogDraftInput,
+  resolvePanelPositionInCategory,
 } from "@/utils/indexCatalog";
-
-function now() {
-  return new Date().toISOString();
-}
-
-function withAuditEvent(
-  config: IndexCatalogConfigV2,
-  user: AuthenticatedUserSession,
-  event: {
-    action: NonNullable<IndexCatalogConfigV2["auditLog"]>[number]["action"];
-    outcome: "success" | "failure";
-    message?: string;
-  },
-): IndexCatalogConfigV2 {
-  return {
-    ...config,
-    auditLog: [
-      ...(config.auditLog ?? []),
-      { ...event, uid: user.uid, email: user.email, at: now() },
-    ].slice(-50),
-  };
-}
-
-function requireManagedConfig(
-  current: Awaited<ReturnType<typeof getCatalogEntry>>,
-) {
-  if (!isIndexCatalogConfigV2(current.item.catalogConfig)) {
-    throw new Error(
-      "Este índice é legado e está disponível apenas para consulta. Crie um índice v2 para gerenciá-lo pelo catálogo.",
-    );
-  }
-  return current.item.catalogConfig;
-}
 
 function toInitialConfig(
   input: IndexCatalogDraftInput,
   panelLayerId: string,
   user: AuthenticatedUserSession,
 ) {
-  const timestamp = now();
+  const timestamp = catalogTimestamp();
   const config: IndexCatalogConfigV2 = {
     schemaVersion: 2,
     panelLayerId,
@@ -109,6 +83,37 @@ export async function createIndexCatalogDraft(
   return { entryId: entry.sys.id, panelLayerId, status: config.status };
 }
 
+/**
+ * O ID técnico do panelLayer nasce do primeiro nome salvo, porque o formulário
+ * não pede um. Enquanto a entry nunca foi publicada nada aponta para esse ID,
+ * então ele acompanha o nome; depois da primeira publicação ele congela, já que
+ * telemetria, relatórios, caches e a URL do Monitoramento usam esse ID como
+ * chave. É por isso que um índice criado como "Teste temperatura" e renomeado
+ * depois continua sendo `teste-temperatura`.
+ */
+async function resolveDraftPanelLayerId(
+  entry: ContentfulManagementEntry,
+  config: IndexCatalogConfigV2,
+  name: string,
+) {
+  if (entry.sys.firstPublishedAt || entry.sys.publishedAt) {
+    return config.panelLayerId;
+  }
+
+  const candidate = createCatalogPanelLayerId(name);
+  if (candidate === config.panelLayerId) {
+    return config.panelLayerId;
+  }
+
+  const entries = await listCatalogEntries();
+  return makeUniqueCatalogPanelLayerId(
+    name,
+    entries
+      .filter((item) => item.entryId !== entry.sys.id)
+      .map((item) => item.panelLayerId),
+  );
+}
+
 export async function updateIndexCatalogDraft(
   entryId: string,
   rawInput: unknown,
@@ -117,19 +122,26 @@ export async function updateIndexCatalogDraft(
   const input = parseIndexCatalogDraftInput(rawInput);
   const current = await getCatalogEntry(entryId);
   const previous = requireManagedConfig(current);
+  const panelLayerId = await resolveDraftPanelLayerId(
+    current.entry,
+    previous,
+    input.name,
+  );
   const config = withAuditEvent(
     {
       ...previous,
       ...input,
+      panelLayerId,
       status: "draft",
       validation: undefined,
       validatedStatisticsSource: undefined,
-      updatedBy: { uid: user.uid, email: user.email, at: now() },
+      updatedBy: { uid: user.uid, email: user.email, at: catalogTimestamp() },
     },
     user,
     { action: "update", outcome: "success" },
   );
   const updated = await patchManagementEntry(current.entry, {
+    id: panelLayerId,
     name: input.name,
     description: input.description,
     measurementUnit: "%",
@@ -144,26 +156,7 @@ export async function updateIndexCatalogDraft(
   };
 }
 
-function getNextPanelPosition(
-  entries: Awaited<ReturnType<typeof listCatalogEntries>>,
-  category: string,
-  entryId: string,
-) {
-  const currentPosition = entries.find(
-    (entry) => entry.entryId === entryId,
-  )?.panelPosition;
-  if (typeof currentPosition === "number") return currentPosition;
-  const positions = entries
-    .filter((entry) => entry.entryId !== entryId && entry.category === category)
-    .flatMap((entry) =>
-      typeof entry.panelPosition === "number" ? [entry.panelPosition] : [],
-    );
-  return positions.length > 0
-    ? Math.max(...positions) + 1
-    : entries.filter((entry) => entry.category === category).length;
-}
-
-function buildCatalogPreviewResponse(
+async function buildCatalogPreviewResponse(
   entry: ContentfulManagementEntry,
   locale: string,
   config: IndexCatalogConfigV2,
@@ -172,7 +165,7 @@ function buildCatalogPreviewResponse(
     "imageData",
     locale,
   ) as IndexCatalogPreview["panelLayer"]["imageData"],
-): IndexCatalogPreview {
+): Promise<IndexCatalogPreview> {
   if (
     !config.validation?.valid ||
     !config.validatedStatisticsSource ||
@@ -180,6 +173,8 @@ function buildCatalogPreviewResponse(
   ) {
     throw new Error("O rascunho ainda não possui uma prévia válida.");
   }
+
+  const previewMapUrl = await getIndexCatalogPreviewMapUrl(entry, locale);
 
   return {
     entryId: entry.sys.id,
@@ -194,7 +189,7 @@ function buildCatalogPreviewResponse(
         "panelPosition",
         locale,
       ),
-      previewMap: null,
+      previewMap: previewMapUrl ? { url: previewMapUrl } : null,
       imageData,
       timeScale: config.validation.inferred.timeScale,
       statisticsSource: config.validatedStatisticsSource,
@@ -222,7 +217,7 @@ export async function generateIndexCatalogPreview(
         status: "ready",
         validation: build.validation,
         validatedStatisticsSource: build.statisticsSource,
-        updatedBy: { uid: user.uid, email: user.email, at: now() },
+        updatedBy: { uid: user.uid, email: user.email, at: catalogTimestamp() },
       },
       user,
       { action: "preview", outcome: "success" },
@@ -235,14 +230,18 @@ export async function generateIndexCatalogPreview(
         description: config.description,
         measurementUnit: "%",
         category: config.category,
-        panelPosition: getNextPanelPosition(entries, config.category, entryId),
+        panelPosition: resolvePanelPositionInCategory(
+          entries,
+          config.category,
+          entryId,
+        ),
         timeScale: build.validation.inferred.timeScale,
         imageData: build.panelLayerImageData,
         statisticsSource: build.statisticsSource,
         catalogConfig: readyConfig,
       },
     );
-    return buildCatalogPreviewResponse(
+    return await buildCatalogPreviewResponse(
       updated,
       current.locale,
       readyConfig,
@@ -255,7 +254,7 @@ export async function generateIndexCatalogPreview(
         ...config,
         status: "error",
         ...(validation ? { validation } : {}),
-        updatedBy: { uid: user.uid, email: user.email, at: now() },
+        updatedBy: { uid: user.uid, email: user.email, at: catalogTimestamp() },
       },
       user,
       {
@@ -333,7 +332,7 @@ export async function publishIndexCatalogDraft(
         status: "published",
         validation: build.validation,
         validatedStatisticsSource: build.statisticsSource,
-        updatedBy: { uid: user.uid, email: user.email, at: now() },
+        updatedBy: { uid: user.uid, email: user.email, at: catalogTimestamp() },
       },
       user,
       { action: "publish", outcome: "success" },
@@ -347,6 +346,14 @@ export async function publishIndexCatalogDraft(
       },
     );
     const published = await publishManagementEntry(latestPanelLayer);
+    // Sem essa checagem, a rota responderia "publicado" para uma entry que
+    // continuou em rascunho e o índice ficaria invisível no Monitoramento sem
+    // nenhum sinal na tela do catálogo.
+    if (!published.sys.publishedAt) {
+      throw new Error(
+        `O Contentful não confirmou a publicação da entry ${entryId}: sys.publishedAt ausente. O índice continuaria em rascunho e fora do Monitoramento.`,
+      );
+    }
     return {
       entryId: published.sys.id,
       panelLayerId: config.panelLayerId,
@@ -357,7 +364,7 @@ export async function publishIndexCatalogDraft(
       {
         ...config,
         status: "ready",
-        updatedBy: { uid: user.uid, email: user.email, at: now() },
+        updatedBy: { uid: user.uid, email: user.email, at: catalogTimestamp() },
       },
       user,
       {
@@ -429,7 +436,7 @@ export async function unpublishIndexCatalogEntry(
       {
         ...config,
         status,
-        updatedBy: { uid: user.uid, email: user.email, at: now() },
+        updatedBy: { uid: user.uid, email: user.email, at: catalogTimestamp() },
       },
       user,
       { action: "unpublish", outcome: "success" },
@@ -444,7 +451,18 @@ async function deleteEntryCompletely(entry: ContentfulManagementEntry) {
     await unpublishManagementEntry(entry);
     entry = await getManagementEntry(entry.sys.id);
   }
-  await deleteManagementEntry(entry);
+
+  try {
+    await deleteManagementEntry(entry);
+  } catch (error) {
+    // A entry já foi despublicada aqui: sem esse log, o índice sai do
+    // Monitoramento e sobra um rascunho sem nenhum registro do motivo.
+    console.error(
+      `[indexCatalog] entry ${entry.sys.id} foi despublicada mas a remoção falhou; ela permanece como rascunho no Contentful.`,
+      error,
+    );
+    throw error;
+  }
 }
 
 export async function deleteIndexCatalogEntry(
@@ -468,7 +486,7 @@ export async function deleteIndexCatalogEntry(
     deletedEntries: 1,
     uid: user.uid,
     email: user.email,
-    at: now(),
+    at: catalogTimestamp(),
   });
   return {
     entryId,

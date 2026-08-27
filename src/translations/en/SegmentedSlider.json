@@ -1,0 +1,7 @@
+{
+  "SegmentedSlider": {
+    "ariaLabel": "Criteria distribution",
+    "editButton": "Add or edit criteria",
+    "editButtonAria": "Edit criteria, {count} selected"
+  }
+}

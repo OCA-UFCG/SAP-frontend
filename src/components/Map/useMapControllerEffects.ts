@@ -1,7 +1,7 @@
 import type { CDIVectorData } from "@/lib/geo";
 import type { FeatureCollection, Geometry } from "geojson";
 import maplibregl, { LngLatBoundsLike } from "maplibre-gl";
-import { useEffect, type MutableRefObject } from "react";
+import { useEffect, useRef, type MutableRefObject } from "react";
 import {
   MAP_FOCUS_ANIMATION_DURATION,
   MAP_OVERLAY_ADJUST_DURATION,
@@ -17,6 +17,7 @@ interface UseMapControllerEffectsArgs {
   estadoSelecionado: string;
   selectedMunicipalityCode?: string | null;
   spatialBoundaryGeoJson?: FeatureCollection<Geometry, { name: string }> | null;
+  spatialFocusBounds?: LngLatBoundsLike | null;
   allowedStateUfs?: Set<string> | null;
   tileLayerUrl?: string | null;
   tileLayerRequestKey?: string | null;
@@ -79,15 +80,83 @@ interface UseMapControllerEffectsArgs {
       easing?: (progress: number) => number;
     },
   ) => void;
+  fitMapToBounds: (
+    map: maplibregl.Map,
+    bounds: LngLatBoundsLike,
+    options?: {
+      animate?: boolean;
+      basePadding?: number;
+      duration?: number;
+      easing?: (progress: number) => number;
+      maxZoom?: number;
+    },
+  ) => void;
   log: (...args: unknown[]) => void;
   warn: (...args: unknown[]) => void;
 }
+
+interface SpatialFocusEffectArgs {
+  fitMapToBounds: UseMapControllerEffectsArgs["fitMapToBounds"];
+  mapInstanceVersion: number;
+  mapRef: MutableRefObject<maplibregl.Map | null>;
+  selectedMunicipalityCode?: string | null;
+  spatialFocusBounds?: LngLatBoundsLike | null;
+}
+
+/**
+ * Enquadra a área de interesse quando a seleção muda.
+ *
+ * Antes só o clique num estado e a seleção de município moviam a câmera; a
+ * troca de área de interesse redesenhava o contorno e deixava o usuário
+ * olhando para outra parte do mapa.
+ */
+const useSpatialFocusEffect = ({
+  fitMapToBounds,
+  mapInstanceVersion,
+  mapRef,
+  selectedMunicipalityCode,
+  spatialFocusBounds,
+}: SpatialFocusEffectArgs) => {
+  const lastFocusKeyRef = useRef<string | null>(null);
+
+  useEffect(() => {
+    const map = mapRef.current;
+    if (!map || !spatialFocusBounds) return;
+
+    const focusKey = JSON.stringify(spatialFocusBounds);
+    if (lastFocusKeyRef.current === focusKey) return;
+
+    const isInitialFocus = lastFocusKeyRef.current === null;
+    lastFocusKeyRef.current = focusKey;
+
+    // Na montagem o enquadramento vem de `initialView`; mover a câmera aqui
+    // brigaria com ele e animaria o mapa sem o usuário ter pedido nada.
+    if (isInitialFocus) return;
+
+    // O foco no município é mais específico e tem a própria animação.
+    if (selectedMunicipalityCode) return;
+
+    fitMapToBounds(map, spatialFocusBounds, {
+      animate: true,
+      duration: MAP_FOCUS_ANIMATION_DURATION,
+      easing: smoothCameraEasing,
+      maxZoom: MAP_STATE_FOCUS_MAX_ZOOM,
+    });
+  }, [
+    fitMapToBounds,
+    mapInstanceVersion,
+    mapRef,
+    selectedMunicipalityCode,
+    spatialFocusBounds,
+  ]);
+};
 
 export const useMapControllerEffects = ({
   mapMode,
   estadoSelecionado,
   selectedMunicipalityCode,
   spatialBoundaryGeoJson,
+  spatialFocusBounds,
   allowedStateUfs,
   tileLayerUrl,
   tileLayerRequestKey,
@@ -129,9 +198,18 @@ export const useMapControllerEffects = ({
   syncMapPadding,
   fitSelectedStateToBounds,
   fitSelectedMunicipalityToBounds,
+  fitMapToBounds,
   log,
   warn,
 }: UseMapControllerEffectsArgs) => {
+  useSpatialFocusEffect({
+    fitMapToBounds,
+    mapInstanceVersion,
+    mapRef,
+    selectedMunicipalityCode,
+    spatialFocusBounds,
+  });
+
   useEffect(
     () => clearSelectedMunicipalityFocusTimeout,
     [clearSelectedMunicipalityFocusTimeout],

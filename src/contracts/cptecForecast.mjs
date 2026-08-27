@@ -17,37 +17,37 @@ export const CPTEC_FORECAST_PALETTE = Object.freeze([
 export const CPTEC_FORECAST_CLASSES = Object.freeze([
   Object.freeze({
     id: "muito-abaixo",
-    label: "0 — Muito abaixo do normal",
+    label: "Muito abaixo do normal (< -90 mm/mês)",
     color: CPTEC_FORECAST_PALETTE[0],
     pixelLimit: 0,
   }),
   Object.freeze({
     id: "abaixo",
-    label: "1 — Abaixo do normal",
+    label: "Abaixo do normal (-90 a -30 mm/mês)",
     color: CPTEC_FORECAST_PALETTE[1],
     pixelLimit: 1,
   }),
   Object.freeze({
     id: "levemente-abaixo",
-    label: "2 — Levemente abaixo",
+    label: "Levemente abaixo (-30 a 0 mm/mês)",
     color: CPTEC_FORECAST_PALETTE[2],
     pixelLimit: 2,
   }),
   Object.freeze({
     id: "levemente-acima",
-    label: "3 — Levemente acima",
+    label: "Levemente acima (0 a 30 mm/mês)",
     color: CPTEC_FORECAST_PALETTE[3],
     pixelLimit: 3,
   }),
   Object.freeze({
     id: "acima",
-    label: "4 — Acima do normal",
+    label: "Acima do normal (30 a 90 mm/mês)",
     color: CPTEC_FORECAST_PALETTE[4],
     pixelLimit: 4,
   }),
   Object.freeze({
     id: "muito-acima",
-    label: "5 — Muito acima do normal",
+    label: "Muito acima do normal (> 90 mm/mês)",
     color: CPTEC_FORECAST_PALETTE[5],
     pixelLimit: 5,
   }),

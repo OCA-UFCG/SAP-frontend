@@ -361,6 +361,83 @@ describe("POST /api/ee cache behavior", () => {
     );
   });
 
+  it("uses the forecast selection pinned by the catalog", async () => {
+    const imageId =
+      "projects/obscaatinga/assets/ColecaoImagens/CPTEC_Prev_T_Anomalia";
+    const imageCollectionSelection = {
+      latestProperty: "data_emissao",
+      latestValue: 20260801,
+      filterProperty: "lead_time",
+      sortProperty: "lead_time",
+      selectFirstBand: true,
+    };
+    const mapVisualization = {
+      sourceType: "imageCollection" as const,
+      min: 0,
+      max: 5,
+      sourceBand: "b1",
+      thresholds: [-90, -30, 0, 30, 90],
+      imageCollectionSelection,
+    };
+    mockedGetPanelLayers.mockResolvedValueOnce([
+      {
+        ...createMockLayer(),
+        imageData: {
+          type: "territorial-compact",
+          schemaVersion: 1,
+          defaultYear: "2026-09",
+          classes: [
+            {
+              id: "classe-0",
+              label: "Muito abaixo do normal",
+              color: "#a50026",
+              pixelLimit: 0,
+            },
+          ],
+          mapVisualization,
+          years: {
+            "2026-09": {
+              imageId,
+              leadTime: 1,
+              values: { br: [100] },
+            },
+          },
+        },
+      },
+    ]);
+    mockedGetEarthEngineUrl.mockResolvedValueOnce(
+      "https://tiles.example/cptec-temperature/lead-1",
+    );
+
+    const response = await POST(
+      createMockRequest(
+        "https://example.test/api/ee?name=layer-a&year=2026-09",
+      ),
+    );
+
+    expect(response.status).toBe(200);
+    expect(mockedGetEarthEngineUrl).toHaveBeenCalledWith(
+      imageId,
+      [
+        {
+          color: "#a50026",
+          label: "Muito abaixo do normal",
+          pixelLimit: 0,
+        },
+      ],
+      0,
+      1,
+      {
+        mapVisualization,
+        spatialSelection: nationalSelection,
+        imageCollectionSelection: {
+          ...imageCollectionSelection,
+          filterValue: 1,
+        },
+      },
+    );
+  });
+
   it("rejects partial or unknown spatial selections", async () => {
     const partialResponse = await POST(
       createMockRequest(
@@ -484,5 +561,37 @@ describe("POST /api/ee cache behavior", () => {
 
     expect(otherClientRes.status).toBe(200);
     expect(otherClientBody.url).toBe("https://tiles.example/layer-a/v1");
+  });
+
+  it("dedupes concurrent Earth Engine requests sharing the same cache key", async () => {
+    const pendingResolvers: Array<(url: string) => void> = [];
+    mockedGetEarthEngineUrl.mockImplementation(
+      () =>
+        new Promise<string>((resolve) => {
+          pendingResolvers.push(resolve);
+        }),
+    );
+
+    const request = createMockRequest(
+      "https://example.test/api/ee?name=layer-a&year=2024",
+    );
+    const responses = [POST(request), POST(request), POST(request)];
+
+    await vi.waitFor(() => expect(pendingResolvers.length).toBeGreaterThan(0));
+    expect(pendingResolvers).toHaveLength(1);
+
+    pendingResolvers.forEach((resolve) =>
+      resolve("https://tiles.example/layer-a/shared"),
+    );
+    const bodies = await Promise.all(
+      (await Promise.all(responses)).map(
+        (res) => res.json() as Promise<{ url?: string }>,
+      ),
+    );
+
+    expect(mockedGetEarthEngineUrl).toHaveBeenCalledTimes(1);
+    bodies.forEach((body) =>
+      expect(body.url).toBe("https://tiles.example/layer-a/shared"),
+    );
   });
 });

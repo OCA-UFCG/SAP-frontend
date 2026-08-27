@@ -346,37 +346,37 @@
       "classes": [
         {
           "id": "muito-abaixo",
-          "label": "0 — Muito abaixo do normal",
+          "label": "Muito abaixo do normal (< -90 mm/mês)",
           "color": "#a50026",
           "pixelLimit": 0
         },
         {
           "id": "abaixo",
-          "label": "1 — Abaixo do normal",
+          "label": "Abaixo do normal (-90 a -30 mm/mês)",
           "color": "#f46d43",
           "pixelLimit": 1
         },
         {
           "id": "levemente-abaixo",
-          "label": "2 — Levemente abaixo",
+          "label": "Levemente abaixo (-30 a 0 mm/mês)",
           "color": "#fee090",
           "pixelLimit": 2
         },
         {
           "id": "levemente-acima",
-          "label": "3 — Levemente acima",
+          "label": "Levemente acima (0 a 30 mm/mês)",
           "color": "#abd9e9",
           "pixelLimit": 3
         },
         {
           "id": "acima",
-          "label": "4 — Acima do normal",
+          "label": "Acima do normal (30 a 90 mm/mês)",
           "color": "#4575b4",
           "pixelLimit": 4
         },
         {
           "id": "muito-acima",
-          "label": "5 — Muito acima do normal",
+          "label": "Muito acima do normal (> 90 mm/mês)",
           "color": "#313695",
           "pixelLimit": 5
         }
@@ -408,28 +408,32 @@
         "legend": [
           {
             "id": "muito-abaixo",
-            "label": "0 — Muito abaixo do normal",
+            "label": "Muito abaixo do normal (< -90 mm/mês)",
             "color": "#a50026"
           },
           {
             "id": "abaixo",
-            "label": "1 — Abaixo do normal",
+            "label": "Abaixo do normal (-90 a -30 mm/mês)",
             "color": "#f46d43"
           },
           {
             "id": "levemente-abaixo",
-            "label": "2 — Levemente abaixo",
+            "label": "Levemente abaixo (-30 a 0 mm/mês)",
             "color": "#fee090"
           },
           {
             "id": "levemente-acima",
-            "label": "3 — Levemente acima",
+            "label": "Levemente acima (0 a 30 mm/mês)",
             "color": "#abd9e9"
           },
-          { "id": "acima", "label": "4 — Acima do normal", "color": "#4575b4" },
+          {
+            "id": "acima",
+            "label": "Acima do normal (30 a 90 mm/mês)",
+            "color": "#4575b4"
+          },
           {
             "id": "muito-acima",
-            "label": "5 — Muito acima do normal",
+            "label": "Muito acima do normal (> 90 mm/mês)",
             "color": "#313695"
           }
         ]

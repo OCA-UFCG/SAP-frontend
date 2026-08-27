@@ -7,13 +7,16 @@ import {
 } from "@/app/api/ee/mapVisualization";
 import { getPanelLayers } from "@/repositories/platform/panelLayerRepository";
 import { IMapId, IEEInfo, IImageParam } from "@/utils/interfaces";
-import { getImageDataYearKeys, resolveImageYearEntry } from "@/utils/imageData";
+import {
+  getImageDataDefaultYear,
+  resolveImageCollectionSelection,
+  resolveImageYearEntry,
+} from "@/utils/imageData";
 import type { CompactMapVisualizationConfig } from "@/utils/analysis";
 import {
   DEFAULT_SPATIAL_SELECTION,
   type SpatialSelection,
 } from "@/utils/spatialScope";
-import { getCptecForecastCollectionSelection } from "@/contracts/cptecForecast.mjs";
 import {
   evaluateGeeObject,
   initializeGee,
@@ -99,7 +102,7 @@ export async function inspectEarthEngineAsset(
       );
     },
   );
-  const rawType = String(asset.type ?? "").toUpperCase();
+  const rawType = normalizeGeeAssetType(asset.type);
   const metadata =
     asset.updateTime || asset.update_time
       ? { updateTime: String(asset.updateTime ?? asset.update_time) }
@@ -121,7 +124,7 @@ export async function inspectEarthEngineAsset(
     };
   }
 
-  if (rawType === "IMAGE_COLLECTION") {
+  if (rawType === "IMAGECOLLECTION") {
     const collection = ee.ImageCollection(assetId);
     const bands = await evaluateGeeObject<string[]>(
       ee.Image(collection.first()).bandNames(),
@@ -212,6 +215,7 @@ export function shouldApplySelfMask({
 
 export interface ImageCollectionSelection {
   latestProperty: string;
+  latestValue?: string | number;
   filterProperty: string;
   filterValue: string | number;
   sortProperty?: string;
@@ -224,7 +228,7 @@ interface GetEarthEngineUrlOptions {
   imageCollectionSelection?: ImageCollectionSelection;
 }
 
-function normalizeGeeAssetType(type?: unknown) {
+export function normalizeGeeAssetType(type?: unknown) {
   return type
     ? String(type)
         .toUpperCase()
@@ -268,10 +272,9 @@ export function selectImageCollectionImage(
     return collection.mosaic().setDefaultProjection(projection);
   }
 
-  const latestValue = collection
-    .aggregate_array(selection.latestProperty)
-    .sort()
-    .get(-1);
+  const latestValue =
+    selection.latestValue ??
+    collection.aggregate_array(selection.latestProperty).sort().get(-1);
   let selectedCollection = collection.filter(
     ee.Filter.eq(selection.latestProperty, latestValue),
   );
@@ -667,6 +670,23 @@ function getMapId(image: any, visParams?: any) {
   });
 }
 
+/**
+ * Períodos que o warmup deve aquecer. Aquecer todos custava 496 idas SEQUENCIAIS
+ * ao Earth Engine (301 só do CDI_Test), disparadas pelo primeiro request após
+ * cada restart e repetidas a cada 12 h, competindo com os usuários pela mesma
+ * cota. O painel abre no período default, então é ele que vale pré-aquecer; os
+ * demais viram miss sob demanda, já protegidos pelo dedupe de getOrCreateCachedUrl.
+ *
+ * getWarmupYearKeys(layer.imageData); // ["2020"]
+ */
+export function getWarmupYearKeys(
+  imageData: IEEInfo["imageData"] | undefined,
+): string[] {
+  const defaultYear = getImageDataDefaultYear(imageData);
+
+  return defaultYear ? [defaultYear] : [];
+}
+
 let warmupStarted = false;
 /**
  * Fetches and caches map data from Contentful/GEE API sources.
@@ -687,13 +707,11 @@ export const cacheMapData = async () => {
       const minScale = layer.minScale;
       const maxScale = layer.maxScale;
 
-      for (const year of getImageDataYearKeys(imageData)) {
+      for (const year of getWarmupYearKeys(imageData)) {
         const yearConfig = resolveImageYearEntry(imageData, year);
         if (!yearConfig) continue;
-        const imageCollectionSelection = getCptecForecastCollectionSelection(
-          yearConfig.imageId,
-          yearConfig.leadTime,
-        );
+        const imageCollectionSelection =
+          resolveImageCollectionSelection(yearConfig);
 
         const cacheKey = buildCacheKey(
           id,

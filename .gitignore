@@ -26,6 +26,9 @@
 /scripts
 !/scripts/
 /scripts/*
+# Gerador do GeoJSON de visão geral da AMFE: o artefato em public/data é
+# commitado, então a receita para regerá-lo também precisa ser.
+!/scripts/build-cities-overview.mjs
 /scripts/gee/
 /tmp
 mise.toml
@@ -70,3 +73,6 @@ relatorio_template.docx
 
 data/runtime/
 /campos-necessarios-indice-sap.txt
+
+# Worktrees e estado local de agentes
+/.claude/

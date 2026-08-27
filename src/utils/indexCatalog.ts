@@ -3,6 +3,7 @@ import {
   INDEX_CATEGORIES,
   type ClassMapping,
   type EarthEngineAssetMapping,
+  type IndexCatalogConfigV2,
   type IndexCatalogDraftInput,
   type IndexCategory,
 } from "@/types/indexCatalog";
@@ -10,6 +11,7 @@ import {
 const HEX_COLOR_PATTERN = /^#[0-9a-f]{6}$/iu;
 const ASSET_ID_PATTERN = /^[A-Za-z0-9_./{}-]{3,300}$/u;
 const PERIOD_PATTERN = /^\d{4}(?:-(?:0[1-9]|1[0-2]))?$/u;
+const GEE_PROPERTY_PATTERN = /^[A-Za-z_][A-Za-z0-9_:.-]{0,119}$/u;
 
 function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === "object" && value !== null && !Array.isArray(value);
@@ -56,6 +58,31 @@ export function makeUniqueCatalogPanelLayerId(
     if (!used.has(candidate)) return candidate;
   }
   throw new Error("Não foi possível gerar um identificador único.");
+}
+
+/**
+ * Reconcilia o `status` guardado no `catalogConfig` com o estado real de
+ * publicação da entry no Contentful, que é a autoridade: `sys.publishedAt`.
+ *
+ * Os dois divergem quando a entry deixa de estar publicada por fora do
+ * catálogo — despublicada no app do Contentful, ou um "Excluir" que
+ * despublicou e falhou ao remover. Sem reconciliar, um índice com
+ * `status: "published"` numa entry em rascunho fica impossível de publicar:
+ * `assertPublishable` só aceita `ready`, e o operador recebe "Revalide os
+ * assets e gere a prévia antes de publicar" mesmo com a prévia validada.
+ *
+ * @example
+ * reconcileCatalogPublicationStatus({ status: "published", validation }, false);
+ * // => "ready"  (a prévia validada continua valendo; basta publicar de novo)
+ */
+export function reconcileCatalogPublicationStatus(
+  config: Pick<IndexCatalogConfigV2, "status" | "validation">,
+  published: boolean,
+): IndexCatalogConfigV2["status"] {
+  if (published || config.status !== "published") {
+    return config.status;
+  }
+  return config.validation?.valid ? "ready" : "draft";
 }
 
 function parseClasses(value: unknown): ClassMapping[] {
@@ -166,6 +193,73 @@ function parseEarthEngineMapping(value: unknown): EarthEngineAssetMapping {
     throw new Error("Os limites do mapa devem ser números crescentes.");
   }
 
+  let collectionSelection: EarthEngineAssetMapping["collectionSelection"];
+  if (value.collectionSelection != null) {
+    if (sourceType !== "imageCollection") {
+      throw new Error(
+        "A seleção por emissão e horizonte exige uma ImageCollection.",
+      );
+    }
+    if (strategy !== "single") {
+      throw new Error(
+        "A previsão por emissão e horizonte exige um asset único.",
+      );
+    }
+    if (!isRecord(value.collectionSelection)) {
+      throw new Error("Configuração da coleção de previsão inválida.");
+    }
+    if (value.collectionSelection.type !== "latest-emission-leads") {
+      throw new Error("Tratamento da ImageCollection inválido.");
+    }
+    const emissionProperty = requiredString(
+      value.collectionSelection.emissionProperty,
+      "Propriedade da emissão",
+      120,
+    );
+    const leadProperty = requiredString(
+      value.collectionSelection.leadProperty,
+      "Propriedade do horizonte",
+      120,
+    );
+    const targetDateProperty = requiredString(
+      value.collectionSelection.targetDateProperty,
+      "Propriedade do mês previsto",
+      120,
+    );
+    for (const [label, property] of [
+      ["emissão", emissionProperty],
+      ["horizonte", leadProperty],
+      ["mês previsto", targetDateProperty],
+    ] as const) {
+      if (!GEE_PROPERTY_PATTERN.test(property)) {
+        throw new Error(`Propriedade de ${label} inválida: ${property}.`);
+      }
+    }
+    if (
+      !Array.isArray(value.collectionSelection.leadValues) ||
+      value.collectionSelection.leadValues.length === 0 ||
+      value.collectionSelection.leadValues.length > 24
+    ) {
+      throw new Error("Informe de 1 a 24 horizontes da previsão.");
+    }
+    const leadValues = value.collectionSelection.leadValues.map(Number);
+    if (
+      leadValues.some((lead) => !Number.isInteger(lead) || lead < 1) ||
+      new Set(leadValues).size !== leadValues.length
+    ) {
+      throw new Error(
+        "Os horizontes devem ser números inteiros positivos e sem repetição.",
+      );
+    }
+    collectionSelection = {
+      type: "latest-emission-leads",
+      emissionProperty,
+      leadProperty,
+      targetDateProperty,
+      leadValues: [...leadValues].sort((left, right) => left - right),
+    };
+  }
+
   return {
     strategy,
     sourceType,
@@ -179,6 +273,7 @@ function parseEarthEngineMapping(value: unknown): EarthEngineAssetMapping {
       ? { property: value.property.trim() }
       : {}),
     ...(thresholds?.length ? { thresholds } : {}),
+    ...(collectionSelection ? { collectionSelection } : {}),
   };
 }
 
@@ -233,4 +328,49 @@ export function expandAssetForPeriod(
       .replaceAll("{month}", period.slice(5, 7)) ??
     ""
   );
+}
+
+interface CategoryPositionEntry {
+  entryId: string;
+  category?: string;
+  panelPosition?: number;
+}
+
+/**
+ * Posição do índice na categoria dele no Monitoramento. Um índice novo entra
+ * depois do último — a lista é ordenada por essa posição, então repetir um
+ * número já usado deixa a ordem por conta da ordem de chegada do Contentful, e
+ * foi assim que um índice recém-publicado apareceu como primeiro em Dados
+ * Climáticos em vez de último. Por isso uma posição já ocupada por outra camada
+ * da mesma categoria é recalculada, em vez de mantida.
+ *
+ * @example
+ * // anaseca 0, cemadenseca 1, prev_anomalia_precipitacao 10
+ * resolvePanelPositionInCategory(entries, "Dados Climáticos", "novo") // 11
+ */
+export function resolvePanelPositionInCategory(
+  entries: readonly CategoryPositionEntry[],
+  category: string,
+  entryId: string,
+) {
+  const sameCategory = entries.filter(
+    (entry) => entry.entryId !== entryId && entry.category === category,
+  );
+  const takenPositions = sameCategory.flatMap((entry) =>
+    typeof entry.panelPosition === "number" ? [entry.panelPosition] : [],
+  );
+  const currentPosition = entries.find(
+    (entry) => entry.entryId === entryId,
+  )?.panelPosition;
+
+  if (
+    typeof currentPosition === "number" &&
+    !takenPositions.includes(currentPosition)
+  ) {
+    return currentPosition;
+  }
+
+  return takenPositions.length > 0
+    ? Math.max(...takenPositions) + 1
+    : sameCategory.length;
 }

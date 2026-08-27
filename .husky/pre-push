@@ -1,1 +1,12 @@
-make docker-build-prod
+# O portão do push é a checagem de tipos, não um build.
+#
+# Antes daqui rodava `make docker-build-prod`: um `docker build` completo da
+# imagem de produção, que por sua vez roda `npm run build` lá dentro. Custava
+# minutos a cada push, chamava o Contentful (via generate:municipal-availability)
+# e estourava a memória de máquinas de desenvolvimento — quando o OOM killer
+# disparava, ele costumava matar o editor em vez do build, derrubando a sessão
+# inteira em vez de apenas reprovar o push.
+#
+# O build já é obrigatório no CI: `ci:verify` roda em todo push, em qualquer
+# branch, e bloqueia o merge. Repetir isso na máquina não pegava nada a mais.
+npx tsc --noEmit

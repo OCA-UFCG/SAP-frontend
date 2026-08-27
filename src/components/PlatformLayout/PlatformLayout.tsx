@@ -4,6 +4,7 @@ import type { ReactNode } from "react";
 import { useState } from "react";
 import { MapLayerProvider } from "@/components/MapLayerContext/MapLayerContext";
 import { PlatformMap } from "@/components/PlatformMap/PlatformMap";
+import { AmfeScreen } from "@/components/Amfe/AmfeScreen";
 import { PlatformSidebar } from "@/components/PlatformSidebar/PlatformSidebar";
 import type { PlatformSidebarInitialSection } from "@/components/PlatformSidebar/PlatformSidebar";
 import type { PlatformSection } from "@/components/PlatformSideRail/PlatformSideRail";
@@ -37,10 +38,20 @@ type CatalogPlatformLayoutProps = {
   reportRequest?: never;
 };
 
+type AmfePlatformLayoutProps = {
+  showAuditLink?: boolean;
+  initialSection?: PlatformSidebarInitialSection;
+  viewMode: "amfe";
+  panelLayers?: never;
+  telemetryDashboard?: never;
+  reportRequest?: never;
+};
+
 type PlatformLayoutProps =
   | DefaultPlatformLayoutProps
   | LogsPlatformLayoutProps
-  | CatalogPlatformLayoutProps;
+  | CatalogPlatformLayoutProps
+  | AmfePlatformLayoutProps;
 
 export function PlatformLayout({
   showAuditLink = false,
@@ -50,10 +61,13 @@ export function PlatformLayout({
   const viewMode = props.viewMode ?? "default";
   const isLogsView = props.viewMode === "logs";
   const isCatalogView = props.viewMode === "catalog";
+  const isAmfeView = props.viewMode === "amfe";
   const isCommunicationView = !isLogsView && initialSection === "communication";
   const sidebarStateKey = `${viewMode}:${initialSection}`;
   const sidebarPanelLayers =
-    props.viewMode === "logs" || props.viewMode === "catalog"
+    props.viewMode === "logs" ||
+    props.viewMode === "catalog" ||
+    props.viewMode === "amfe"
       ? []
       : props.panelLayers;
   const [activeSection, setActiveSection] =
@@ -73,6 +87,13 @@ export function PlatformLayout({
           >
             {props.catalogDashboard}
           </div>
+        ) : isAmfeView ? (
+          <div
+            data-testid="platform-amfe-shell"
+            className="h-[calc(100vh-64px)] w-full overflow-hidden pl-[140px]"
+          >
+            <AmfeScreen />
+          </div>
         ) : isCommunicationView ? (
           <div className="absolute inset-0 bg-[#F6F7F6]" aria-hidden="true" />
         ) : (
@@ -87,7 +108,9 @@ export function PlatformLayout({
           initialSection={initialSection}
           viewMode={viewMode}
           reportRequest={
-            props.viewMode === "logs" || props.viewMode === "catalog"
+            props.viewMode === "logs" ||
+            props.viewMode === "catalog" ||
+            props.viewMode === "amfe"
               ? undefined
               : props.reportRequest
           }

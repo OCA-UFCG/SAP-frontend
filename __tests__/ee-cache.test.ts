@@ -4,6 +4,7 @@ import {
   addUrlToCache,
   buildCacheKey,
   CACHE_TTL_MS,
+  clearEarthEngineCacheForLayer,
   getCachedUrl,
   hasKey,
   removeCacheUrl,
@@ -82,5 +83,27 @@ describe("ee cache", () => {
 
     expect(hasKey(cacheKey)).toBe(false);
     expect(getCachedUrl(cacheKey)).toBeUndefined();
+  });
+
+  it("evicts the least recently used url when the cache exceeds its limit", () => {
+    vi.stubEnv("EE_URL_CACHE_MAX_ENTRIES", "2");
+    clearEarthEngineCacheForLayer("bounded-layer");
+
+    const firstKey = buildCacheKey("bounded-layer", "2001");
+    const secondKey = buildCacheKey("bounded-layer", "2002");
+    const thirdKey = buildCacheKey("bounded-layer", "2003");
+
+    addUrlToCache(firstKey, "https://tiles.example/2001");
+    addUrlToCache(secondKey, "https://tiles.example/2002");
+    // Reading the first key makes the second one the least recently used.
+    expect(getCachedUrl(firstKey)).toBe("https://tiles.example/2001");
+    addUrlToCache(thirdKey, "https://tiles.example/2003");
+
+    expect(hasKey(secondKey)).toBe(false);
+    expect(getCachedUrl(firstKey)).toBe("https://tiles.example/2001");
+    expect(getCachedUrl(thirdKey)).toBe("https://tiles.example/2003");
+
+    vi.unstubAllEnvs();
+    clearEarthEngineCacheForLayer("bounded-layer");
   });
 });

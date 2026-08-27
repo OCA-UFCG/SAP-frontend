@@ -1,0 +1,100 @@
+{
+  "AnalyzeForm": {
+    "title": "Análisis Multicriterio",
+    "description": "Complete los datos a continuación para ejecutar el análisis.",
+    "criteriasTitle": "Criterios",
+    "criteriasDesc": "Seleccione y ajuste la importancia relativa de cada criterio para la toma de decisiones. El peso asignado (de 1 a 10) se normalizará automáticamente para que la suma total sea igual al 100%.",
+    "criteriaSumError": "La suma de los valores de los criterios debe ser menor o igual a 1",
+    "thresholdsTitle": "Umbrales",
+    "thresholdsDesc": "Ajuste los parámetros de comparación utilizados por el método multicriterio. El umbral de Indiferencia define el límite para considerar alternativas equivalentes; el de Preferencia establece la diferencia necesaria para que una alternativa sea considerada superior; y el de Veto actúa como un factor restrictivo, impidiendo la sobreclasificación si existe una diferencia extrema.",
+    "indifferenceLabel": "Indiferencia",
+    "indifferencePlaceholder": "Umbral de indiferencia",
+    "indifferenceRequired": "La indiferencia es requerida",
+    "preferenceLabel": "Preferencia",
+    "preferencePlaceholder": "Umbral de preferencia",
+    "preferenceRequired": "La preferencia es requerida",
+    "vetoLabel": "Veto",
+    "vetoPlaceholder": "Umbral de veto",
+    "vetoRequired": "El veto es requerido",
+    "scenariosTitle": "Escenarios",
+    "scenariosDesc": "Elija la estrategia para clasificar las alternativas en categorías. El escenario Optimista tiende a clasificar las alternativas de forma más favorable (clase más alta posible), mientras que el Pesimista adopta una postura más conservadora, clasificándolas solo donde hay un desempeño consistente.",
+    "scenarioRequired": "El escenario es requerido",
+    "optimistic": "Optimista",
+    "pessimistic": "Pesimista",
+    "analysisLevelTitle": "Nivel de Análisis",
+    "analysisLevelDesc": "Seleccione el nivel de análisis deseado.",
+    "levelRequired": "El nivel de análisis es requerido",
+    "estadual": "Estatal",
+    "nacional": "Nacional",
+    "todos": "Todos",
+    "regional": "Regional",
+    "bioma": "Bioma",
+    "semiarido": "Semiárido",
+    "asdEntorno": "ASD y Entorno",
+    "interestAreaTitle": "Área de Interés",
+    "interestAreaDesc": "Define el recorte geográfico donde se aplicará el análisis.",
+    "interestAreaFieldLabel": "Área",
+    "interestAreaRequired": "El área de interés es requerida",
+    "interestAreaValueTitle": "Recorte",
+    "interestAreaValueDesc": "El elemento exacto dentro del área.",
+    "interestAreaValueRequired": "El valor del área de interés es requerido",
+    "interestAreaSearchPlaceholder": "Buscar área de interés...",
+    "interestAreaNoResults": "No se encontraron resultados",
+    "interestAreaOptions": {
+      "national": {
+        "brasil": "Brasil"
+      },
+      "state": {
+        "AC": "Acre",
+        "AL": "Alagoas",
+        "AP": "Amapá",
+        "AM": "Amazonas",
+        "BA": "Bahía",
+        "CE": "Ceará",
+        "DF": "Distrito Federal",
+        "ES": "Espírito Santo",
+        "GO": "Goiás",
+        "MA": "Maranhão",
+        "MT": "Mato Grosso",
+        "MS": "Mato Grosso del Sur",
+        "MG": "Minas Gerais",
+        "PA": "Pará",
+        "PB": "Paraíba",
+        "PR": "Paraná",
+        "PE": "Pernambuco",
+        "PI": "Piauí",
+        "RJ": "Río de Janeiro",
+        "RN": "Río Grande del Norte",
+        "RS": "Río Grande del Sur",
+        "RO": "Rondônia",
+        "RR": "Roraima",
+        "SC": "Santa Catarina",
+        "SP": "São Paulo",
+        "SE": "Sergipe",
+        "TO": "Tocantins"
+      },
+      "region": {
+        "Norte": "Norte",
+        "Nordeste": "Nordeste",
+        "Centro-oeste": "Centro-oeste",
+        "Sudeste": "Sudeste",
+        "Sul": "Sur"
+      },
+      "biome": {
+        "Amazônia": "Amazonía",
+        "Caatinga": "Caatinga",
+        "Cerrado": "Cerrado",
+        "Mata Atlântica": "Mata Atlántica",
+        "Pampa": "Pampa",
+        "Pantanal": "Pantanal"
+      },
+      "semiarid": {
+        "semiarid": "Semiárido"
+      },
+      "asd": {
+        "asd": "ASD y Entorno"
+      }
+    },
+    "submitButton": "Analizar"
+  }
+}
