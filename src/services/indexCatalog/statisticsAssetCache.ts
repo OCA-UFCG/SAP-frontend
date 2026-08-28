@@ -95,6 +95,21 @@ export function getOrValidateStatisticsAsset(
   });
 }
 
+/**
+ * Diz se esta revisão já está memoizada (ou em voo), sem executar nada.
+ *
+ * A descoberta usa isto para montar o lote: só as tabelas que ainda não estão
+ * memoizadas entram no pedido ao Earth Engine. Sem essa consulta, um índice de
+ * 35 anos em que só um ano mudou pediria as 35 tabelas outra vez, e a
+ * memoização não economizaria nenhuma leitura.
+ *
+ * @example
+ * const pendentes = planejadas.filter((item) => !isStatisticsAssetCached(item.key));
+ */
+export function isStatisticsAssetCached(key: string | undefined) {
+  return Boolean(key && validatedAssets.has(key));
+}
+
 /** Esvazia a memoização. Usada pelos testes e por invalidações explícitas. */
 export function clearStatisticsAssetCache() {
   validatedAssets.clear();

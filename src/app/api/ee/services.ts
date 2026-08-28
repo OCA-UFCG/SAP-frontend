@@ -30,6 +30,14 @@ export interface EarthEngineAssetInspection {
   bands: string[];
   properties: string[];
   updateTime?: string;
+  /**
+   * Carimbo de revisão do asset. Ao contrário de `updateTime`, o `version` do
+   * `ee.data.getAsset` vem preenchido em todos os assets que medimos, e é o
+   * mesmo instante em microssegundos: `1787861735398000` para um `updateTime`
+   * de `2026-08-27T20:15:35.398639Z`. Serve de chave de revisão nos assets em
+   * que o `updateTime` simplesmente não vem na resposta.
+   */
+  version?: string;
 }
 
 export interface EarthEngineListedAsset {
@@ -38,21 +46,21 @@ export interface EarthEngineListedAsset {
   updateTime?: string;
 }
 
-export async function listEarthEngineAssets(
-  parent: string,
-): Promise<EarthEngineListedAsset[]> {
-  await initializeGee();
+interface ListAssetsPage {
+  assets?: Array<Record<string, unknown>>;
+  nextPageToken?: string;
+}
 
-  const response = await new Promise<{
-    assets?: Array<Record<string, unknown>>;
-  }>((resolve, reject) => {
+// Teto alto o bastante para nenhum diretório real alcançar, e que ainda impede
+// um `nextPageToken` que não avança de virar laço infinito.
+const MAX_ASSET_PAGES = 100;
+
+function requestAssetPage(parent: string, pageToken?: string) {
+  return new Promise<ListAssetsPage>((resolve, reject) => {
     ee.data.listAssets(
       parent,
-      {},
-      (
-        result: { assets?: Array<Record<string, unknown>> } | undefined,
-        error?: unknown,
-      ) => {
+      pageToken ? { pageToken } : {},
+      (result: ListAssetsPage | undefined, error?: unknown) => {
         if (error) {
           reject(error);
           return;
@@ -61,8 +69,31 @@ export async function listEarthEngineAssets(
       },
     );
   });
+}
 
-  return (response.assets ?? []).flatMap((asset) => {
+/**
+ * Todos os assets de um diretório do Earth Engine, seguindo a paginação.
+ *
+ * Seguir o `nextPageToken` não é otimização: a API pagina de verdade (com
+ * `pageSize: 10` ela devolve 10 assets e um token), e ler só a primeira página
+ * fazia o catálogo publicar um índice com anos faltando **sem nenhum erro** —
+ * a validação confirmava os anos que tinham sobrado como se fossem todos.
+ */
+export async function listEarthEngineAssets(
+  parent: string,
+): Promise<EarthEngineListedAsset[]> {
+  await initializeGee();
+
+  const listedAssets: Array<Record<string, unknown>> = [];
+  let pageToken: string | undefined;
+  for (let page = 0; page < MAX_ASSET_PAGES; page++) {
+    const response = await requestAssetPage(parent, pageToken);
+    listedAssets.push(...(response.assets ?? []));
+    pageToken = response.nextPageToken;
+    if (!pageToken) break;
+  }
+
+  return listedAssets.flatMap((asset) => {
     const id = String(asset.id ?? asset.name ?? "").trim();
     if (!id) return [];
     return [
@@ -103,10 +134,12 @@ export async function inspectEarthEngineAsset(
     },
   );
   const rawType = normalizeGeeAssetType(asset.type);
-  const metadata =
-    asset.updateTime || asset.update_time
+  const metadata = {
+    ...(asset.updateTime || asset.update_time
       ? { updateTime: String(asset.updateTime ?? asset.update_time) }
-      : {};
+      : {}),
+    ...(asset.version ? { version: String(asset.version) } : {}),
+  };
 
   if (rawType === "TABLE") {
     const collection = ee.FeatureCollection(assetId);

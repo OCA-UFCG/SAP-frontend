@@ -20,8 +20,14 @@ import {
 import {
   buildStatisticsAssetKey,
   getOrValidateStatisticsAsset,
+  isStatisticsAssetCached,
   type DiscoveredStatisticsAsset,
 } from "@/services/indexCatalog/statisticsAssetCache";
+import {
+  readStatisticsAssetProbes,
+  readStatisticsAssetProperties,
+  type StatisticsAssetProbe,
+} from "@/services/indexCatalog/statisticsAssetProbe";
 import {
   countInvalidPercentageRows,
   parsePercentageColumns,
@@ -90,14 +96,40 @@ function templatePattern(template: string) {
   );
 }
 
+interface StatisticsAssetCandidate {
+  id: string;
+  /**
+   * Só o que entra no `sourceRevision` do índice publicado. Mantido igual ao
+   * que a versão anterior gravava, para uma prévia validada antes desta
+   * mudança continuar passando na conferência de impressão digital da
+   * publicação.
+   */
+  updateTime?: string;
+  /** Carimbo de revisão usado apenas como chave da memoização. */
+  revision?: string;
+}
+
 async function getStatisticsAssetIds(
   source: GeeFeatureCollectionStatisticsSource,
-) {
+): Promise<StatisticsAssetCandidate[]> {
   if (source.asset.type === "fixed") {
+    // O tipo do asset é conferido aqui porque, ao contrário do caminho por
+    // template, não existe listagem que já garanta que ele é uma tabela.
+    const assetId = source.asset.assetId;
+    const inspection = await inspectEarthEngineAsset(assetId);
+    if (inspection.type !== "featureCollection") {
+      throw new Error(
+        `O asset estatístico ${assetId} é ${inspection.type}; esperado FeatureCollection.`,
+      );
+    }
     return [
       {
-        id: source.asset.assetId,
-        updateTime: undefined as string | undefined,
+        id: assetId,
+        updateTime: inspection.updateTime,
+        // O `getAsset` não devolve `updateTime` em nenhum asset que medimos, e
+        // sem carimbo a memoização nunca engatava num asset fixo. O `version`
+        // vem sempre, e é o mesmo instante em microssegundos.
+        revision: inspection.updateTime ?? inspection.version,
       },
     ];
   }
@@ -117,7 +149,14 @@ async function getStatisticsAssetIds(
       `Nenhuma FeatureCollection corresponde ao template ${template}.`,
     );
   }
-  return assets.map(({ id, updateTime }) => ({ id, updateTime }));
+  // A listagem do diretório-pai já respondeu o tipo e o `updateTime` de todas
+  // as tabelas de uma vez. Um `getAsset` por tabela só repetiria isso: eram
+  // 35 idas e voltas (39 s medidos) sem nenhuma garantia nova.
+  return assets.map(({ id, updateTime }) => ({
+    id,
+    updateTime,
+    revision: updateTime,
+  }));
 }
 
 function resolvedSource(
@@ -127,107 +166,51 @@ function resolvedSource(
   return { ...source, assetId };
 }
 
-async function validateCollectionRows(
+interface PlannedStatisticsAsset {
+  source: ResolvedGeeStatisticsSource;
+  updateTime?: string;
+  key?: string;
+}
+
+interface PendingStatisticsReading {
+  schema: GeeStatisticsSchema;
+  probe: StatisticsAssetProbe;
+}
+
+function validateProbedRows(
   source: ResolvedGeeStatisticsSource,
   schema: GeeStatisticsSchema,
+  probe: StatisticsAssetProbe,
 ) {
-  const collection = ee.FeatureCollection(source.assetId);
-  const required = [
-    source.properties.level,
-    source.properties.locationName,
-    source.properties.year,
-    source.properties.date,
-    source.properties.totalArea,
-    ...schema.percentageProperties,
-    ...schema.classAreaProperties,
-  ];
-  const rowCountExpression = collection.size();
-  const completeCountExpression = collection
-    .filter(ee.Filter.notNull(required))
-    .size();
-  const distinctCountExpression = collection
-    .distinct([
-      source.properties.level,
-      source.properties.locationName,
-      source.properties.municipalityCode,
-      source.properties.stateCode,
-      source.properties.year,
-      source.properties.date,
-    ])
-    .size();
-  const municipalRows = collection.filter(
-    ee.Filter.eq(source.properties.level, "7_Municipio"),
-  );
-  const completeMunicipalRowsExpression = municipalRows
-    .filter(
-      ee.Filter.notNull([
-        source.properties.municipalityCode,
-        source.properties.stateCode,
-      ]),
-    )
-    .size();
-  const stateRows = collection.filter(
-    ee.Filter.eq(source.properties.level, "6_Estado"),
-  );
-  const completeStateRowsExpression = stateRows
-    .filter(ee.Filter.notNull([source.properties.stateCode]))
-    .size();
-  // As colunas de percentual vêm cruas e a checagem por linha acontece no Node.
-  // Pedir o mesmo ao GEE (um map() por linha somando as classes) custava ~38 s
-  // numa tabela de 67 mil linhas contra ~2,7 s aqui, e era o que fazia a prévia
-  // de um índice com vários anos estourar o timeout do proxy no ambiente Beta.
-  const percentageColumnsExpression = collection.reduceColumns(
-    ee.Reducer.toList().repeat(schema.percentageProperties.length),
-    schema.percentageProperties,
-  );
-  const [
-    rowCount,
-    completeCount,
-    distinctCount,
-    percentageColumns,
-    municipalCount,
-    completeMunicipalCount,
-    stateCount,
-    completeStateCount,
-  ] = await Promise.all([
-    evaluateGeeObject<number>(rowCountExpression),
-    evaluateGeeObject<number>(completeCountExpression),
-    evaluateGeeObject<number>(distinctCountExpression),
-    evaluateGeeObject<{ list: unknown }>(percentageColumnsExpression),
-    evaluateGeeObject<number>(municipalRows.size()),
-    evaluateGeeObject<number>(completeMunicipalRowsExpression),
-    evaluateGeeObject<number>(stateRows.size()),
-    evaluateGeeObject<number>(completeStateRowsExpression),
-  ]);
-
+  const rowCount = probe.rowCount;
   if (!rowCount) {
     throw new Error(`Asset estatístico ${source.assetId} não possui linhas.`);
   }
-  if (completeCount !== rowCount) {
+  if (probe.completeCount !== rowCount) {
     throw new Error(
-      `Asset estatístico ${source.assetId} possui ${rowCount - completeCount} linha(s) com campos obrigatórios vazios.`,
+      `Asset estatístico ${source.assetId} possui ${rowCount - probe.completeCount} linha(s) com campos obrigatórios vazios.`,
     );
   }
-  if (completeMunicipalCount !== municipalCount) {
+  if (probe.completeMunicipalCount !== probe.municipalCount) {
     throw new Error(
       `Asset estatístico ${source.assetId} possui município(s) sem CD_MUN ou UF.`,
     );
   }
-  if (completeStateCount !== stateCount) {
+  if (probe.completeStateCount !== probe.stateCount) {
     throw new Error(
       `Asset estatístico ${source.assetId} possui estado(s) sem propriedade de UF.`,
     );
   }
-  if (distinctCount !== rowCount) {
+  if (probe.distinctCount !== rowCount) {
     throw new Error(
-      `Asset estatístico ${source.assetId} possui ${rowCount - distinctCount} território(s)/período(s) duplicado(s).`,
+      `Asset estatístico ${source.assetId} possui ${rowCount - probe.distinctCount} território(s)/período(s) duplicado(s).`,
     );
   }
   // Depois das checagens de nulo: uma coluna com valor ausente sai mais curta de
   // reduceColumns, e o erro de campo obrigatório vazio explica melhor a causa.
   const invalidPercentageCount = countInvalidPercentageRows(
     parsePercentageColumns(
-      percentageColumns.list,
+      probe.percentageColumns,
       schema.percentageProperties,
       rowCount,
       source.assetId,
@@ -243,61 +226,85 @@ async function validateCollectionRows(
   return rowCount;
 }
 
-async function inspectStatisticsAsset(
-  source: GeeFeatureCollectionStatisticsSource,
-  assetId: string,
-  listedUpdateTime?: string,
-): Promise<DiscoveredStatisticsAsset> {
-  const inspection = await inspectEarthEngineAsset(assetId);
-  if (inspection.type !== "featureCollection") {
-    throw new Error(
-      `O asset estatístico ${assetId} é ${inspection.type}; esperado FeatureCollection.`,
-    );
-  }
-  const resolved = resolvedSource(source, assetId);
-  const schema = inferGeeStatisticsSchema(resolved, inspection.properties);
-  const updateTime = inspection.updateTime ?? listedUpdateTime;
-  // A leitura de metadados acima roda sempre: é ela que responde se a tabela
-  // mudou. Só a parte cara — períodos e conferência das linhas — é memoizada.
-  return getOrValidateStatisticsAsset(
-    buildStatisticsAssetKey(resolved, updateTime),
-    () => discoverStatisticsPeriodsAndRows(resolved, schema, updateTime),
-  );
-}
-
-async function discoverStatisticsPeriodsAndRows(
-  resolved: ResolvedGeeStatisticsSource,
-  schema: GeeStatisticsSchema,
-  updateTime?: string,
-): Promise<DiscoveredStatisticsAsset> {
-  const periodProperty =
-    resolved.periodGranularity === "month"
-      ? resolved.properties.date
-      : resolved.properties.year;
-  const rawPeriods = await evaluateGeeObject<unknown[]>(
-    ee
-      .FeatureCollection(resolved.assetId)
-      .aggregate_array(periodProperty)
-      .distinct(),
-  );
+function probedPeriods(
+  source: ResolvedGeeStatisticsSource,
+  probe: StatisticsAssetProbe,
+) {
+  const property =
+    source.periodGranularity === "month"
+      ? source.properties.date
+      : source.properties.year;
   const periods = [
     ...new Set(
-      (rawPeriods ?? []).flatMap((value) => {
-        const period = normalizePeriod(value, resolved.periodGranularity);
+      (probe.periods ?? []).flatMap((value) => {
+        const period = normalizePeriod(value, source.periodGranularity);
         return period ? [period] : [];
       }),
     ),
   ].sort();
   if (periods.length === 0) {
     throw new Error(
-      `Asset estatístico ${resolved.assetId} não possui períodos válidos em ${periodProperty}.`,
+      `Asset estatístico ${source.assetId} não possui períodos válidos em ${property}.`,
     );
   }
-  const rowCount = await validateCollectionRows(resolved, schema);
+  return periods;
+}
+
+/**
+ * Lê em lote o schema e as linhas das tabelas que a memoização ainda não tem.
+ *
+ * São dois pedidos ao Earth Engine para o conjunto todo: um traz as colunas de
+ * cada tabela (é delas que sai o schema de classes) e o outro traz as contagens
+ * e os percentuais, que dependem do schema descoberto no primeiro. Antes eram
+ * 10 pedidos por tabela — 350 num índice de 35 anos.
+ */
+async function readPendingStatistics(
+  pending: PlannedStatisticsAsset[],
+): Promise<Map<string, PendingStatisticsReading>> {
+  if (pending.length === 0) return new Map();
+
+  const properties = await readStatisticsAssetProperties(
+    pending.map((item) => item.source.assetId),
+  );
+  const requests = pending.map((item, index) => ({
+    source: item.source,
+    schema: inferGeeStatisticsSchema(item.source, properties[index]),
+  }));
+  const probes = await readStatisticsAssetProbes(requests);
+
+  return new Map(
+    requests.flatMap(({ source, schema }) => {
+      const probe = probes.get(source.assetId);
+      return probe ? [[source.assetId, { schema, probe }] as const] : [];
+    }),
+  );
+}
+
+async function discoverStatisticsAsset(
+  planned: PlannedStatisticsAsset,
+  batched: Promise<Map<string, PendingStatisticsReading>>,
+): Promise<DiscoveredStatisticsAsset> {
+  const { source, updateTime } = planned;
+  // A leitura em lote cobre as tabelas que a memoização não tinha. Uma entrada
+  // memoizada pode ser descartada pelo teto do cache entre o planejamento do
+  // lote e este ponto (num índice com mais tabelas que o teto), e nesse caso a
+  // tabela é lida sozinha em vez de a validação falhar.
+  const reading =
+    (await batched).get(source.assetId) ??
+    (await readPendingStatistics([planned])).get(source.assetId);
+  if (!reading) {
+    throw new Error(
+      `O Earth Engine não devolveu a leitura do asset estatístico ${source.assetId}.`,
+    );
+  }
+  // Períodos antes das linhas: um asset sem período válido tem uma causa mais
+  // específica que "linha com campo vazio", e é a mensagem mais útil.
+  const periods = probedPeriods(source, reading.probe);
+  const rowCount = validateProbedRows(source, reading.schema, reading.probe);
   return {
-    assetId: resolved.assetId,
+    assetId: source.assetId,
     updateTime,
-    schema,
+    schema: reading.schema,
     periods,
     rowCount,
   };
@@ -308,14 +315,30 @@ export async function discoverCatalogStatistics(
 ): Promise<CatalogStatisticsDiscovery> {
   await initializeGee();
   const candidates = await getStatisticsAssetIds(source);
-  const assets: DiscoveredStatisticsAsset[] = [];
-  // Deliberately sequential: validating many large tables at once easily hits
-  // Earth Engine's concurrent aggregation limit.
-  for (const candidate of candidates) {
-    assets.push(
-      await inspectStatisticsAsset(source, candidate.id, candidate.updateTime),
-    );
-  }
+  // A chave da memoização sai do endereço e da revisão do asset, e não do
+  // schema: por isso ela é montada antes de qualquer leitura, e uma tabela já
+  // memoizada não custa nem a leitura das colunas.
+  const planned: PlannedStatisticsAsset[] = candidates.map((candidate) => {
+    const resolved = resolvedSource(source, candidate.id);
+    return {
+      source: resolved,
+      updateTime: candidate.updateTime,
+      key: buildStatisticsAssetKey(resolved, candidate.revision),
+    };
+  });
+  // O lote é disparado antes do Promise.all: assim cada tabela já fica
+  // registrada como "em voo" no cache, e duas prévias simultâneas do mesmo
+  // rascunho compartilham a mesma leitura em vez de pedir tudo duas vezes.
+  const batched = readPendingStatistics(
+    planned.filter((item) => !isStatisticsAssetCached(item.key)),
+  );
+  const assets = await Promise.all(
+    planned.map((item) =>
+      getOrValidateStatisticsAsset(item.key, () =>
+        discoverStatisticsAsset(item, batched),
+      ),
+    ),
+  );
 
   const expectedIndexes = assets[0].schema.classIndexes;
   for (const asset of assets.slice(1)) {
