@@ -84,3 +84,47 @@ test("draws its icons from the shared platform sprite symbols", () => {
   expect(symbols).toContain("/sprite.svg#loupe");
   expect(symbols.join(",")).not.toMatch(/closeIcon|infoIcon|searchIcon/);
 });
+
+test("lays the criteria out in a three column grid", () => {
+  render(
+    <CriteriaModal options={[{ id: "criterion", name: "Grade" }]}>
+      {(open) => <button onClick={open}>Abrir grade</button>}
+    </CriteriaModal>,
+  );
+
+  fireEvent.click(screen.getByRole("button", { name: "Abrir grade" }));
+
+  const grid = screen.getByText("Grade").closest("div")?.parentElement;
+  expect(grid?.className).toContain("grid-cols-1");
+  expect(grid?.className).toContain("sm:grid-cols-3");
+});
+
+test("opens the last column tooltip towards the left so it stays inside the modal", () => {
+  const options = ["Alfa", "Beta", "Gama"].map((name, index) => ({
+    id: String(index),
+    name,
+    description: `Descrição ${name}`,
+  }));
+
+  render(
+    <CriteriaModal options={options}>
+      {(open) => <button onClick={open}>Abrir alinhamento</button>}
+    </CriteriaModal>,
+  );
+
+  fireEvent.click(screen.getByRole("button", { name: "Abrir alinhamento" }));
+
+  fireEvent.mouseEnter(
+    screen.getByRole("button", { name: "Informações sobre Alfa" }),
+  );
+  expect(screen.getByText("Descrição Alfa").parentElement?.className).toContain(
+    "left-[-26px]",
+  );
+
+  fireEvent.mouseEnter(
+    screen.getByRole("button", { name: "Informações sobre Gama" }),
+  );
+  expect(screen.getByText("Descrição Gama").parentElement?.className).toContain(
+    "right-[-26px]",
+  );
+});

@@ -13,6 +13,10 @@ export interface CriteriaModalProps {
 
 const MAX_SELECTED = 8;
 
+// A grade tem três colunas, então a primeira linha são os três primeiros itens
+// e a última coluna precisa abrir o balão para a esquerda para não vazar do modal.
+const COLUMNS = 3;
+
 function Checkbox({ checked }: { checked: boolean }) {
   return (
     <Icon
@@ -31,6 +35,7 @@ function InfoTooltip({
   onOpen,
   onClose,
   placement,
+  align,
 }: {
   id: string;
   name: string;
@@ -40,11 +45,12 @@ function InfoTooltip({
   onOpen: () => void;
   onClose: () => void;
   placement: "above" | "below";
+  align: "left" | "right";
 }) {
   const t = useTranslations("CriteriaModal");
   return (
     <div
-      className="relative ml-auto inline-block"
+      className="relative inline-block shrink-0"
       onMouseEnter={onOpen}
       onMouseLeave={onClose}
     >
@@ -63,10 +69,10 @@ function InfoTooltip({
       {open && (
         <div
           role="tooltip"
-          className={`absolute right-0 z-[200] w-[260px] max-w-[calc(100vw-48px)] rounded-[8px] border border-[#E4E5E2] bg-white p-3 text-left shadow-[0_4px_20px_rgba(0,0,0,0.13)] ${placement === "below" ? "top-[calc(100%+10px)]" : "bottom-[calc(100%+10px)]"}`}
+          className={`absolute z-[200] w-[260px] max-w-[calc(100vw-48px)] rounded-[8px] border border-[#E4E5E2] bg-white p-3 text-left shadow-[0_4px_20px_rgba(0,0,0,0.13)] ${placement === "below" ? "top-[calc(100%+10px)]" : "bottom-[calc(100%+10px)]"} ${align === "right" ? "right-[-26px]" : "left-[-26px]"}`}
         >
           <span
-            className={`absolute right-[14px] block h-3 w-3 rotate-45 bg-white ${placement === "below" ? "-top-[6px] border-t border-l border-[#E4E5E2]" : "-bottom-[6px] border-r border-b border-[#E4E5E2]"}`}
+            className={`absolute block h-3 w-3 rotate-45 bg-white ${placement === "below" ? "-top-[6px] border-t border-l border-[#E4E5E2]" : "-bottom-[6px] border-r border-b border-[#E4E5E2]"} ${align === "right" ? "right-[34px]" : "left-[34px]"}`}
           />
 
           <p className="mb-1 text-[13px] leading-[18px] font-semibold text-black">
@@ -131,13 +137,13 @@ function ModalOverlay({
         setInfoOption(null);
         onClose();
       }}
-      className="fixed inset-0 z-[99999] flex items-center justify-center bg-black/35"
+      className="fixed inset-0 z-[99999] flex items-center justify-center bg-black/35 p-4"
     >
       <div
         onClick={(e) => e.stopPropagation()}
-        className="relative flex h-[calc(100vh-32px)] max-h-[860px] w-[543px] max-w-[calc(100vw-32px)] flex-col overflow-hidden rounded-[12px] bg-white shadow-[0_8px_40px_rgba(0,0,0,0.15)]"
+        className="relative flex max-h-[calc(100vh-32px)] w-[880px] max-w-full flex-col overflow-hidden rounded-[12px] bg-white shadow-[0_8px_40px_rgba(0,0,0,0.15)]"
       >
-        <div className="flex min-h-[120px] shrink-0 flex-col gap-4 border-b border-[#B4BA61] px-6 py-4 text-left">
+        <div className="flex shrink-0 flex-col gap-4 border-b border-[#B4BA61] px-6 py-4 text-left">
           <div className="flex min-h-6 w-full items-start justify-between gap-4">
             <h2 className="font-inter text-[24px] leading-7 font-semibold tracking-[-0.015em] text-black">
               {t("title")}
@@ -157,8 +163,8 @@ function ModalOverlay({
           </p>
         </div>
 
-        <div className="flex min-h-0 flex-1 flex-col gap-4 px-5 py-4">
-          <div className="flex h-14 w-full shrink-0 items-center gap-3 rounded-[10px] border border-[#D1D4CF] bg-[#F8F8F7] px-5">
+        <div className="flex min-h-0 flex-col gap-4 px-5 py-4">
+          <div className="flex h-14 w-full shrink-0 items-center gap-3 rounded-[10px] bg-[#EFEFED] px-5">
             <Icon id="loupe" size={20} className="shrink-0" fill="#8C9189" />
             <input
               type="text"
@@ -169,7 +175,7 @@ function ModalOverlay({
             />
           </div>
 
-          <div className="flex min-h-0 flex-1 flex-col gap-2 overflow-y-auto pr-1">
+          <div className="grid min-h-0 grid-cols-1 gap-x-6 gap-y-1 overflow-y-auto pr-1 sm:grid-cols-3">
             {filtered.map((option, index) => {
               const checked = selected.has(option.id);
               const disabled =
@@ -191,10 +197,10 @@ function ModalOverlay({
                       toggle(option.id);
                     }
                   }}
-                  className={`flex min-h-12 shrink-0 items-center gap-3 rounded-[8px] border border-[#E4E5E2] px-3 py-2 text-left transition-colors ${disabled ? "cursor-not-allowed opacity-40" : "cursor-pointer hover:bg-[#F8F8F7]"}`}
+                  className={`flex min-h-9 items-center gap-2 rounded-[6px] px-2 py-1 text-left transition-colors ${disabled ? "cursor-not-allowed opacity-40" : "cursor-pointer hover:bg-[#F8F8F7]"}`}
                 >
                   <Checkbox checked={checked} />
-                  <span className="min-w-0 flex-1 font-['Open_Sans'] text-[16px] leading-5 font-normal text-black">
+                  <span className="min-w-0 truncate font-['Open_Sans'] text-[16px] leading-5 font-normal text-black">
                     {option.name}
                   </span>
 
@@ -209,7 +215,8 @@ function ModalOverlay({
                     }}
                     onOpen={() => setInfoOption(option.id)}
                     onClose={() => setInfoOption(null)}
-                    placement={index < 2 ? "below" : "above"}
+                    placement={index < COLUMNS ? "below" : "above"}
+                    align={index % COLUMNS === COLUMNS - 1 ? "right" : "left"}
                   />
                 </div>
               );

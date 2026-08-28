@@ -2,7 +2,7 @@
   "CriteriaModal": {
     "title": "Add or edit criteria",
     "description": "Add or remove the criteria you want to compose the analysis. You can add up to 8.",
-    "searchPlaceholder": "Search criteria",
+    "searchPlaceholder": "Search for a criterion",
     "applyButton": "Apply",
     "infoAriaLabel": "Information about {name}",
     "infoTitle": "Information",

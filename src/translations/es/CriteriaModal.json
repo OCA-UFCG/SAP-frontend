@@ -2,7 +2,7 @@
   "CriteriaModal": {
     "title": "Agregar o editar criterios",
     "description": "Agregue o retire los criterios que desee para componer el análisis. Puede agregar un máximo de 8.",
-    "searchPlaceholder": "Buscar criterio",
+    "searchPlaceholder": "Busque un criterio",
     "applyButton": "Aplicar",
     "infoAriaLabel": "Información sobre {name}",
     "infoTitle": "Información",
