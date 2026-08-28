@@ -1,5 +1,5 @@
 "use client";
-import { useCallback, useMemo, useRef, useState } from "react";
+import { useCallback, useMemo, useState } from "react";
 import { useTranslations } from "next-intl";
 import { PlatformMapCaption } from "@/components/PlatformMapCaption/PlatformMapCaption";
 import { useEarthEngineTileLayer } from "./useEarthEngineTileLayer";
@@ -39,8 +39,13 @@ export function PlatformMap({
     spatialSelection,
     referenceOverlays,
   } = useMapLayerViewState();
-  const { setSelectedState, setSelectedMunicipalityCode, setLayerOpacity, toggleReferenceOverlay, setSpatialSelection, } =
-    useMapLayerActions();
+  const {
+    setSelectedState,
+    setSelectedMunicipalityCode,
+    setLayerOpacity,
+    toggleReferenceOverlay,
+    setSpatialSelection,
+  } = useMapLayerActions();
   const { requestKey, status, tileLayerUrl } = useEarthEngineTileLayer(
     activeEEData,
     activeYear,
@@ -50,39 +55,18 @@ export function PlatformMap({
   const [basemap, setBasemap] = useState<BasemapId>("osm");
   const [isReferenceOverlaysOpen, setIsReferenceOverlaysOpen] = useState(false);
 
-  const referenceOverlayTileMap = useReferenceOverlayTileLayers(referenceOverlays);
+  const referenceOverlayTileMap =
+    useReferenceOverlayTileLayers(referenceOverlays);
 
-  // Derive a primitive string key of active ready tile URLs to preserve referential equality
-  // without accessing or mutating React refs during render.
-  const activeOverlayUrlsKey = useMemo(() => {
-    const parts: string[] = [];
+  const readyReferenceOverlayTileUrls = useMemo(() => {
+    const tileUrls = new Map<string, string | undefined>();
     for (const [layerId, entry] of referenceOverlayTileMap) {
-      if (
-        referenceOverlays?.has?.(layerId) &&
-        entry.status === "ready" &&
-        entry.tileUrl
-      ) {
-        parts.push(`${layerId}:::${entry.tileUrl}`);
+      if (entry.status === "ready" && entry.tileUrl) {
+        tileUrls.set(layerId, entry.tileUrl);
       }
     }
-    return parts.sort().join("|");
-  }, [referenceOverlayTileMap, referenceOverlays]);
-
-  const referenceOverlayTileUrls = useMemo(() => {
-    const urls = new Map<string, string | undefined>();
-    if (!activeOverlayUrlsKey) return urls;
-    for (const part of activeOverlayUrlsKey.split("|")) {
-      const idx = part.indexOf(":::");
-      if (idx !== -1) {
-        const layerId = part.slice(0, idx);
-        const tileUrl = part.slice(idx + 3);
-        if (layerId && tileUrl) {
-          urls.set(layerId, tileUrl);
-        }
-      }
-    }
-    return urls;
-  }, [activeOverlayUrlsKey]);
+    return tileUrls;
+  }, [referenceOverlayTileMap]);
 
   const handleTileLayerReady = useCallback((readyRequestKey: string) => {
     setReadyRequestKey((current) =>
@@ -161,7 +145,7 @@ export function PlatformMap({
           spatialBoundaryGeoJson={boundaryGeoJson}
           spatialFocusBounds={spatialFocusBounds}
           basemap={basemap}
-          referenceOverlayTileUrls={referenceOverlayTileUrls}
+          referenceOverlayTileUrls={readyReferenceOverlayTileUrls}
           spatialArea={spatialSelection.spatialArea}
           spatialValue={spatialSelection.spatialValue}
           onStateSelect={(uf: string) => setSelectedState(uf.toLowerCase())}
@@ -198,7 +182,9 @@ export function PlatformMap({
             <button
               type="button"
               className="flex w-full items-center justify-between outline-none"
-              onClick={() => setIsReferenceOverlaysOpen(!isReferenceOverlaysOpen)}
+              onClick={() =>
+                setIsReferenceOverlaysOpen(!isReferenceOverlaysOpen)
+              }
               aria-expanded={isReferenceOverlaysOpen}
             >
               <span className="font-open-sans text-[10px] font-semibold leading-[18px] tracking-[-0.006em] text-[#292829]">

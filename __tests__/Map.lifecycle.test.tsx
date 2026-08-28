@@ -18,6 +18,7 @@ const { mapInstances, MapConstructorMock } = vi.hoisted(() => ({
     handlers: Map<string, Array<(event: unknown) => void>>;
     on: ReturnType<typeof vi.fn>;
     once: ReturnType<typeof vi.fn>;
+    off: ReturnType<typeof vi.fn>;
     remove: ReturnType<typeof vi.fn>;
     setFeatureState: ReturnType<typeof vi.fn>;
     setFilter: ReturnType<typeof vi.fn>;
@@ -86,6 +87,14 @@ vi.mock("maplibre-gl", () => {
     once = vi.fn((eventName: string, callback: MapEventCallback) => {
       const currentHandlers = this.handlers.get(eventName) ?? [];
       this.handlers.set(eventName, [...currentHandlers, callback]);
+      return this;
+    });
+    off = vi.fn((eventName: string, callback: MapEventCallback) => {
+      const currentHandlers = this.handlers.get(eventName) ?? [];
+      this.handlers.set(
+        eventName,
+        currentHandlers.filter((handler) => handler !== callback),
+      );
       return this;
     });
     getSource = vi.fn((sourceId?: string) =>

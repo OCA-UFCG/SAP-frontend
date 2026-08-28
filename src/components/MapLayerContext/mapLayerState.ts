@@ -7,10 +7,7 @@ import {
 } from "@/utils/spatialScope";
 
 export type ReferenceLayerId =
-  | "quilombolas"
-  | "assentamentos"
-  | "terras_indigenas"
-  | "unidades_conservacao";
+  "quilombolas" | "assentamentos" | "terras_indigenas" | "unidades_conservacao";
 
 export const REFERENCE_LAYER_IDS: readonly ReferenceLayerId[] = [
   "quilombolas",
@@ -165,13 +162,6 @@ export function toggleReferenceOverlayValue(
     next.add(layerId);
   }
   return { ...state, referenceOverlays: next };
-}
-
-export function clearReferenceOverlaysValue(
-  state: MapLayerState,
-): MapLayerState {
-  if (state.referenceOverlays.size === 0) return state;
-  return { ...state, referenceOverlays: new Set<ReferenceLayerId>() };
 }
 
 export function resetPlatformState(state: MapLayerState): MapLayerState {

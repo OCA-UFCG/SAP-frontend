@@ -700,40 +700,43 @@ const Map = ({
     mapInstanceVersion,
   ]);
 
+  const referenceOverlaySyncRef = useRef<{
+    tileUrls: globalThis.Map<string, string | undefined>;
+    disarmRetry: (() => void) | null;
+  }>({ tileUrls: EMPTY_TILE_URL_MAP, disarmRetry: null });
+
   useEffect(() => {
     const map = mapRef.current;
     if (!map) return;
 
-    let pendingRetry = false;
+    const syncState = referenceOverlaySyncRef.current;
+    syncState.tileUrls = referenceOverlayTileUrls ?? EMPTY_TILE_URL_MAP;
 
+    // `sync` lê as URLs do ref, e não do closure: um retry agendado aqui só roda
+    // depois de outros toggles, e precisa aplicar o estado atual das camadas.
+    // Reaplicar o estado congelado removeria a camada que o usuário acabou de ligar.
     const sync = () => {
-      try {
-        ensureReferenceOverlayLayers(
-          map,
-          referenceOverlayTileUrls ?? EMPTY_TILE_URL_MAP,
-        );
-      } catch {
-        // Ignore
-      }
+      if (ensureReferenceOverlayLayers(map, syncState.tileUrls)) return;
+      if (syncState.disarmRetry) return;
 
-      if (typeof map.isStyleLoaded === "function" && !map.isStyleLoaded() && !pendingRetry) {
-        pendingRetry = true;
-        const retry = () => {
-          map.off?.("styledata", retry);
-          map.off?.("idle", retry);
-          pendingRetry = false;
-          sync();
-        };
-        map.once?.("styledata", retry);
-        map.once?.("idle", retry);
-      }
+      const retry = () => {
+        syncState.disarmRetry?.();
+        sync();
+      };
+      syncState.disarmRetry = () => {
+        map.off("styledata", retry);
+        map.off("idle", retry);
+        syncState.disarmRetry = null;
+      };
+      map.once("styledata", retry);
+      map.once("idle", retry);
     };
 
     sync();
-
-    map.on?.("styledata", sync);
+    map.on("styledata", sync);
     return () => {
-      map.off?.("styledata", sync);
+      map.off("styledata", sync);
+      syncState.disarmRetry?.();
     };
   }, [referenceOverlayTileUrls, mapRef, mapInstanceVersion]);
 
