@@ -255,21 +255,27 @@ function validateClassIndexes(assetId: string, classIndexes: number[]): void {
     );
   }
 
-  // O índice inicial é livre de propósito: assets reais chegam com classes
-  // começando em 0, em 1 e também em valores arbitrários (ex.: perc_classe_2 em
-  // Estatisticas_IA_atlas_BR_DWGD_1990). Tudo a jusante trata classIndexes
-  // posicionalmente — buildClasses mapeia por posição e o repositório lê as
-  // colunas pelo nome —, então exigir um início fixo apenas rejeitava assets
-  // válidos. O que ainda importa é a sequência ser contígua.
-  for (let position = 1; position < classIndexes.length; position += 1) {
-    if (classIndexes[position] !== classIndexes[position - 1] + 1) {
-      throw new Error(
-        `Asset estatístico ${assetId} possui lacuna na sequência de classes: ${classIndexes.join(
-          ", ",
-        )}.`,
-      );
-    }
-  }
+  // Nem o índice inicial nem a continuidade da sequência são exigidos, e isso é
+  // deliberado. Assets reais chegam com classes começando em 0, em 1 e em
+  // valores arbitrários (perc_classe_2 em Estatisticas_IA_atlas_BR_DWGD_1990), e
+  // também com lacunas: a cobertura do solo do IBGE
+  // (Estatistica_Multinivel_cobertura_solo_IBGE) usa as classes
+  // 1 a 6 e 9 a 14, porque 7 e 8 não existem na legenda dela — e os pixels 7 e 8
+  // também não existem no raster correspondente.
+  //
+  // Tudo que consome o schema é posicional: `percentageProperties` e
+  // `classAreaProperties` são montados na ordem crescente de `classIndexes`, o
+  // repositório lê as colunas pelo nome nessa mesma ordem, e `buildClasses`
+  // casa classe com cor por posição. O único lugar que dependia de contiguidade
+  // era a paleta do mapa, onde `min`/`max`/`palette` iam direto para o Earth
+  // Engine, que distribui a paleta linearmente no intervalo: com lacunas, as
+  // cores saíam trocadas de classe. Isso passou a ser resolvido em
+  // `resolveMapVisualizationPlan`, que remapeia valores esparsos para posições
+  // densas antes de visualizar.
+  //
+  // O que continua garantido aqui: existe ao menos uma classe, os índices são
+  // únicos (`getIndexedProperties` rejeita duplicata) e o conjunto de colunas
+  // perc_classe_XX é idêntico ao de area_ha_classe_XX (conferido a seguir).
 }
 
 export function inferGeeStatisticsSchema(

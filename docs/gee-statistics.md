@@ -93,7 +93,9 @@ exato é:
 
 - `perc_classe_XX` e `area_ha_classe_XX`, com a grafia `classe`;
 - os dois grupos devem conter exatamente os mesmos índices;
-- índices inteiros contíguos, começando em `0` ou `1`;
+- índices inteiros únicos, sem exigência de valor inicial nem de sequência
+  contígua — a cobertura do solo do IBGE usa 1 a 6 e 9 a 14, porque 7 e 8 não
+  existem na legenda dela;
 - `NIVEL_AGRUPAMENTO`, `NOME_LOCAL`, `ano`, `data_img` e `area_total_ha`;
 - `CD_MUN` para linhas municipais e `NM_UF` para linhas estaduais/municipais;
 - uma única linha por período e localidade;

@@ -310,7 +310,12 @@ function applyThresholdClassification(
   return classifiedImage.updateMask(image.mask());
 }
 
-function applyMapVisualization(
+/**
+ * Aplica o plano de visualização à imagem: seleciona a banda, classifica por
+ * limites quando houver, e densifica classes esparsas. Exportada para o teste
+ * poder afirmar que o remapeamento chega à imagem, e não só ao plano.
+ */
+export function applyMapVisualization(
   image: any,
   mapVisualization: CompactMapVisualizationConfig,
   imageParams: IImageParam[],
@@ -329,6 +334,16 @@ function applyMapVisualization(
     selectedImage = applyThresholdClassification(
       selectedImage,
       plan.thresholdClassification,
+    );
+  }
+
+  // Classes esparsas (1 a 6 e 9 a 14 na cobertura do solo do IBGE) viram
+  // posições densas antes de visualizar, senão o Earth Engine espalha as 12
+  // cores por 14 valores e cada classe recebe a cor da vizinha.
+  if (plan.categoricalRemap) {
+    selectedImage = selectedImage.remap(
+      plan.categoricalRemap.from,
+      plan.categoricalRemap.to,
     );
   }
 
