@@ -29,6 +29,7 @@ import {
   STATES_FILL_LAYER_ID,
   STATES_SOURCE_ID,
   STATES_SOURCE_LAYER,
+  ensureReferenceOverlayLayers,
   ensureSpatialBoundaryLayer,
 } from "./mapDefinitions";
 import { useMapController } from "./useMapController";
@@ -52,6 +53,9 @@ import {
 } from "./municipalityLayers";
 import { useSpatialAreaClickSelection } from "./useSpatialAreaClickSelection";
 export type BasemapId = "osm" | "satellite";
+
+const EMPTY_TILE_URL_MAP: globalThis.Map<string, string | undefined> =
+  new globalThis.Map();
 
 export interface MapProps {
   mapMode?: MapMode;
@@ -85,6 +89,8 @@ export interface MapProps {
   municipalityClassification?: MunicipalityClassification | null;
   municipalityOverviewGeoJson?: MunicipalityOverviewGeoJson | null;
   onZoomChange?: (zoom: number) => void;
+  /** Tile URLs for active reference overlay layers (quilombolas, etc.). */
+  referenceOverlayTileUrls?: Map<string, string | undefined>;
 }
 
 const Map = ({
@@ -114,6 +120,7 @@ const Map = ({
   municipalityClassification = null,
   municipalityOverviewGeoJson = null,
   onZoomChange,
+  referenceOverlayTileUrls,
 }: MapProps) => {
   const mapContainerRef = useRef<HTMLDivElement | null>(null);
   const {
@@ -724,6 +731,46 @@ const Map = ({
     mapRef,
     mapInstanceVersion,
   ]);
+
+  const referenceOverlaySyncRef = useRef<{
+    tileUrls: globalThis.Map<string, string | undefined>;
+    disarmRetry: (() => void) | null;
+  }>({ tileUrls: EMPTY_TILE_URL_MAP, disarmRetry: null });
+
+  useEffect(() => {
+    const map = mapRef.current;
+    if (!map) return;
+
+    const syncState = referenceOverlaySyncRef.current;
+    syncState.tileUrls = referenceOverlayTileUrls ?? EMPTY_TILE_URL_MAP;
+
+    // `sync` lê as URLs do ref, e não do closure: um retry agendado aqui só roda
+    // depois de outros toggles, e precisa aplicar o estado atual das camadas.
+    // Reaplicar o estado congelado removeria a camada que o usuário acabou de ligar.
+    const sync = () => {
+      if (ensureReferenceOverlayLayers(map, syncState.tileUrls)) return;
+      if (syncState.disarmRetry) return;
+
+      const retry = () => {
+        syncState.disarmRetry?.();
+        sync();
+      };
+      syncState.disarmRetry = () => {
+        map.off("styledata", retry);
+        map.off("idle", retry);
+        syncState.disarmRetry = null;
+      };
+      map.once("styledata", retry);
+      map.once("idle", retry);
+    };
+
+    sync();
+    map.on("styledata", sync);
+    return () => {
+      map.off("styledata", sync);
+      syncState.disarmRetry?.();
+    };
+  }, [referenceOverlayTileUrls, mapRef, mapInstanceVersion]);
 
   return (
     <div className="w-full h-full">

@@ -6,6 +6,16 @@ import {
   type SpatialSelection,
 } from "@/utils/spatialScope";
 
+export type ReferenceLayerId =
+  "quilombolas" | "assentamentos" | "terras_indigenas" | "unidades_conservacao";
+
+export const REFERENCE_LAYER_IDS: readonly ReferenceLayerId[] = [
+  "quilombolas",
+  "assentamentos",
+  "terras_indigenas",
+  "unidades_conservacao",
+] as const;
+
 export interface MapLayerState {
   activeData: CDIVectorData | null;
   activeLegend: IImageParam[] | null;
@@ -16,6 +26,7 @@ export interface MapLayerState {
   activeYear: string;
   spatialSelection: SpatialSelection;
   layerOpacity: number;
+  referenceOverlays: Set<ReferenceLayerId>;
 }
 
 export const DEFAULT_SELECTED_STATE = "br";
@@ -31,7 +42,8 @@ export function createInitialMapLayerState(): MapLayerState {
     activeLayerId: null,
     activeYear: DEFAULT_ACTIVE_YEAR,
     spatialSelection: DEFAULT_SPATIAL_SELECTION,
-    layerOpacity: 0.85
+    layerOpacity: 0.85,
+    referenceOverlays: new Set<ReferenceLayerId>(),
   };
 }
 
@@ -139,11 +151,25 @@ export function clearActiveLayerState(state: MapLayerState): MapLayerState {
   };
 }
 
+export function toggleReferenceOverlayValue(
+  state: MapLayerState,
+  layerId: ReferenceLayerId,
+): MapLayerState {
+  const next = new Set(state.referenceOverlays);
+  if (next.has(layerId)) {
+    next.delete(layerId);
+  } else {
+    next.add(layerId);
+  }
+  return { ...state, referenceOverlays: next };
+}
+
 export function resetPlatformState(state: MapLayerState): MapLayerState {
   return {
     ...clearActiveLayerState(state),
     selectedState: DEFAULT_SELECTED_STATE,
     selectedMunicipalityCode: null,
     spatialSelection: DEFAULT_SPATIAL_SELECTION,
+    referenceOverlays: new Set<ReferenceLayerId>(),
   };
 }

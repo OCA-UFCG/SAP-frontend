@@ -4,6 +4,7 @@ import { BRAZIL_RASTER_BOUNDS } from "./mapBounds";
 import { ensureMunicipalityLayers } from "./municipalityLayers";
 import { ensureClassificationLayer } from "./classificationLayers";
 import { getActiveBoundaryNames } from "@/utils/spatialScope";
+import { REFERENCE_LAYER_IDS } from "@/components/MapLayerContext/mapLayerState";
 
 export type MapMode = "demo" | "platform";
 
@@ -21,6 +22,8 @@ export const CDI_LAYER_ID = "cdi-layer";
 export const GEE_LAYER_ID = "gee-layer";
 export const SPATIAL_BOUNDARY_SOURCE_ID = "spatial-boundary";
 export const SPATIAL_BOUNDARY_LAYER_ID = "spatial-boundary-outline";
+export const REF_OVERLAY_SOURCE_PREFIX = "ref-overlay-src-";
+export const REF_OVERLAY_LAYER_PREFIX = "ref-overlay-lyr-";
 export const SPATIAL_BOUNDARY_FILL_LAYER_ID = "spatial-boundary-fills";
 
 const CDI_FILL_EXPRESSION: ExpressionSpecification = [
@@ -56,8 +59,7 @@ export const BASE_STYLE: maplibregl.StyleSpecification = {
         "https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}",
       ],
       tileSize: 256,
-      attribution:
-        "&copy; Esri, Maxar, Earthstar Geographics",
+      attribution: "&copy; Esri, Maxar, Earthstar Geographics",
     },
   },
   layers: [
@@ -130,8 +132,7 @@ export const ensureMapLayers = (
       });
     } else {
       const existingSourceSpec = map.getStyle()?.sources?.[GEE_SOURCE_ID] as
-        | { tiles?: string[] }
-        | undefined;
+        { tiles?: string[] } | undefined;
       const existingTileUrl = existingSourceSpec?.tiles?.[0];
 
       if (existingTileUrl !== tileLayerUrl) {
@@ -160,10 +161,10 @@ export const ensureMapLayers = (
         map.getLayer(SPATIAL_BOUNDARY_LAYER_ID)
           ? SPATIAL_BOUNDARY_LAYER_ID
           : map.getLayer(SPATIAL_BOUNDARY_FILL_LAYER_ID)
-          ? SPATIAL_BOUNDARY_FILL_LAYER_ID
-          : map.getLayer(STATES_FILL_LAYER_ID)
-          ? STATES_FILL_LAYER_ID
-          : undefined,
+            ? SPATIAL_BOUNDARY_FILL_LAYER_ID
+            : map.getLayer(STATES_FILL_LAYER_ID)
+              ? STATES_FILL_LAYER_ID
+              : undefined,
       );
     }
   } else {
@@ -318,9 +319,7 @@ export const ensureSpatialBoundaryLayer = (
             "line-opacity": 0.85,
           },
         },
-        map.getLayer(STATES_FILL_LAYER_ID)
-          ? STATES_FILL_LAYER_ID
-          : undefined,
+        map.getLayer(STATES_FILL_LAYER_ID) ? STATES_FILL_LAYER_ID : undefined,
       );
     }
 
@@ -353,9 +352,7 @@ export const ensureSpatialBoundaryLayer = (
             ],
           },
         },
-        map.getLayer(STATES_FILL_LAYER_ID)
-          ? STATES_FILL_LAYER_ID
-          : undefined,
+        map.getLayer(STATES_FILL_LAYER_ID) ? STATES_FILL_LAYER_ID : undefined,
       );
     }
   } else {
@@ -374,5 +371,101 @@ export const ensureSpatialBoundaryLayer = (
       source.setData(EMPTY_FEATURE_COLLECTION);
       map.removeSource(SPATIAL_BOUNDARY_SOURCE_ID);
     }
+  }
+};
+
+export type ReferenceOverlayTileUrls = ReadonlyMap<string, string | undefined>;
+
+const referenceOverlaySourceId = (overlayId: string) =>
+  `${REF_OVERLAY_SOURCE_PREFIX}${overlayId}`;
+
+const referenceOverlayLayerId = (overlayId: string) =>
+  `${REF_OVERLAY_LAYER_PREFIX}${overlayId}`;
+
+const removeReferenceOverlay = (map: maplibregl.Map, overlayId: string) => {
+  const sourceId = referenceOverlaySourceId(overlayId);
+  const layerId = referenceOverlayLayerId(overlayId);
+  try {
+    if (map.getLayer(layerId)) map.removeLayer(layerId);
+    if (map.getSource(sourceId)) map.removeSource(sourceId);
+  } catch {
+    // Best-effort cleanup
+  }
+};
+
+const buildReferenceOverlaySource = (
+  tileUrl: string,
+): maplibregl.RasterSourceSpecification => ({
+  type: "raster",
+  tiles: [tileUrl],
+  tileSize: 256,
+  bounds: BRAZIL_RASTER_BOUNDS,
+});
+
+/** Camada âncora: o overlay entra abaixo do dado de análise, como contexto de fundo. */
+const resolveReferenceOverlayAnchor = (map: maplibregl.Map) => {
+  if (map.getLayer(CDI_LAYER_ID)) return CDI_LAYER_ID;
+  if (map.getLayer(GEE_LAYER_ID)) return GEE_LAYER_ID;
+  if (map.getLayer(STATES_FILL_LAYER_ID)) return STATES_FILL_LAYER_ID;
+  return undefined;
+};
+
+const applyReferenceOverlay = (
+  map: maplibregl.Map,
+  overlayId: string,
+  tileUrl: string,
+) => {
+  const sourceId = referenceOverlaySourceId(overlayId);
+  const layerId = referenceOverlayLayerId(overlayId);
+  const existingSource = map.getSource(sourceId) as
+    maplibregl.RasterTileSource | undefined;
+
+  // Trocar a URL exige recriar a source: `tiles` não é editável in-place.
+  if (existingSource && existingSource.tiles?.[0] !== tileUrl) {
+    removeReferenceOverlay(map, overlayId);
+  }
+
+  if (!map.getSource(sourceId)) {
+    map.addSource(sourceId, buildReferenceOverlaySource(tileUrl));
+  }
+
+  if (!map.getLayer(layerId)) {
+    map.addLayer(
+      { id: layerId, type: "raster", source: sourceId, paint: {} },
+      resolveReferenceOverlayAnchor(map),
+    );
+  }
+};
+
+/**
+ * Sincroniza as camadas de referência (quilombolas, assentamentos, etc.) com o
+ * conjunto de URLs de tiles ativas: remove as que saíram e adiciona as que
+ * entraram, sempre abaixo da camada de análise.
+ *
+ * Retorna `false` quando o MapLibre ainda está montando o estilo e recusou a
+ * escrita — nesse caso o chamador deve reagendar em `styledata`/`idle`.
+ *
+ * const applied = ensureReferenceOverlayLayers(map, new Map([["quilombolas", url]]));
+ */
+export const ensureReferenceOverlayLayers = (
+  map: maplibregl.Map,
+  activeTileUrls: ReferenceOverlayTileUrls,
+): boolean => {
+  for (const overlayId of REFERENCE_LAYER_IDS) {
+    if (!activeTileUrls.get(overlayId)) removeReferenceOverlay(map, overlayId);
+  }
+
+  try {
+    for (const [overlayId, tileUrl] of activeTileUrls) {
+      if (tileUrl) applyReferenceOverlay(map, overlayId, tileUrl);
+    }
+    return true;
+  } catch {
+    // `addSource`/`addLayer` lançam "Style is not done loading." enquanto o
+    // MapLibre ainda parseia o estilo (troca de basemap, primeiro render).
+    // Não dá para usar `map.isStyleLoaded()` como guarda aqui: ele também
+    // retorna false enquanto QUALQUER source ainda busca tiles, o que durante
+    // cliques seguidos deixaria a adição bloqueada quase o tempo todo.
+    return false;
   }
 };
