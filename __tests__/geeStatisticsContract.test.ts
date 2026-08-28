@@ -99,7 +99,7 @@ describe("GEE statistics contract", () => {
     ]);
   });
 
-  it("rejects missing, mismatched or non-contiguous class columns", () => {
+  it("rejects missing or mismatched class columns", () => {
     expect(() =>
       inferGeeStatisticsSchema(getResolvedSource(), [
         ...Object.values(standardProperties),
@@ -116,10 +116,48 @@ describe("GEE statistics contract", () => {
         "area_ha_classe_0",
       ]),
     ).toThrow("mesmo conjunto");
+  });
 
+  // A cobertura do solo do IBGE usa as classes 1 a 6 e 9 a 14: 7 e 8 não
+  // existem na legenda dela. Exigir sequência contígua rejeitava o asset sem
+  // que nada a jusante precisasse disso — tudo é posicional.
+  it("accepts a class schema with gaps in the sequence", () => {
+    const indexes = [1, 2, 3, 4, 5, 6, 9, 10, 11, 12, 13, 14];
+    const schema = inferGeeStatisticsSchema(
+      getResolvedSource(),
+      getPropertyNames([...indexes].reverse()),
+    );
+
+    expect(schema.classIndexes).toEqual(indexes);
+    expect(schema.percentageProperties).toEqual(
+      indexes.map((index) => `perc_classe_${index}`),
+    );
+    expect(schema.classAreaProperties).toEqual(
+      indexes.map((index) => `area_ha_classe_${index}`),
+    );
+  });
+
+  it("still rejects a gapped schema whose area columns do not match", () => {
     expect(() =>
-      inferGeeStatisticsSchema(getResolvedSource(), getPropertyNames([0, 2])),
-    ).toThrow("lacuna na sequência");
+      inferGeeStatisticsSchema(getResolvedSource(), [
+        ...Object.values(standardProperties),
+        "perc_classe_1",
+        "perc_classe_9",
+        "area_ha_classe_1",
+        "area_ha_classe_8",
+      ]),
+    ).toThrow("mesmo conjunto");
+  });
+
+  it("still rejects a duplicated class index", () => {
+    expect(() =>
+      inferGeeStatisticsSchema(getResolvedSource(), [
+        ...Object.values(standardProperties),
+        "perc_classe_09",
+        "perc_classe_9",
+        "area_ha_classe_9",
+      ]),
+    ).toThrow("índice de classe duplicado");
   });
 
   it("resolves a year-partitioned monthly source without configuration changes", () => {
