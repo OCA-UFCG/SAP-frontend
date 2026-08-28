@@ -202,7 +202,6 @@ main() {
   ensure_network
   retire_current_container
   start_container
-  connect_network "$CONTAINER_NAME"
 
   if ! wait_until_healthy; then
     roll_back_to_previous
