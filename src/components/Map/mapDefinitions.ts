@@ -3,6 +3,7 @@ import type { FeatureCollection, Geometry } from "geojson";
 import { BRAZIL_RASTER_BOUNDS } from "./mapBounds";
 import { ensureMunicipalityLayers } from "./municipalityLayers";
 import { ensureClassificationLayer } from "./classificationLayers";
+import { getActiveBoundaryNames } from "@/utils/spatialScope";
 
 export type MapMode = "demo" | "platform";
 
@@ -20,6 +21,7 @@ export const CDI_LAYER_ID = "cdi-layer";
 export const GEE_LAYER_ID = "gee-layer";
 export const SPATIAL_BOUNDARY_SOURCE_ID = "spatial-boundary";
 export const SPATIAL_BOUNDARY_LAYER_ID = "spatial-boundary-outline";
+export const SPATIAL_BOUNDARY_FILL_LAYER_ID = "spatial-boundary-fills";
 
 const CDI_FILL_EXPRESSION: ExpressionSpecification = [
   "match",
@@ -155,7 +157,13 @@ export const ensureMapLayers = (
             "raster-resampling": "nearest",
           },
         },
-        map.getLayer(STATES_FILL_LAYER_ID) ? STATES_FILL_LAYER_ID : undefined,
+        map.getLayer(SPATIAL_BOUNDARY_LAYER_ID)
+          ? SPATIAL_BOUNDARY_LAYER_ID
+          : map.getLayer(SPATIAL_BOUNDARY_FILL_LAYER_ID)
+          ? SPATIAL_BOUNDARY_FILL_LAYER_ID
+          : map.getLayer(STATES_FILL_LAYER_ID)
+          ? STATES_FILL_LAYER_ID
+          : undefined,
       );
     }
   } else {
@@ -244,6 +252,7 @@ export const ensureSpatialBoundaryLayer = (
   boundaryGeoJson: FeatureCollection<Geometry, { name: string }> | null,
   showStatesBorder: boolean,
   allowedStateUfs: Set<string> | null = null,
+  spatialValue: string | null = null,
 ) => {
   const hasBoundary =
     boundaryGeoJson !== null && boundaryGeoJson.features.length > 0;
@@ -286,6 +295,7 @@ export const ensureSpatialBoundaryLayer = (
       map.addSource(SPATIAL_BOUNDARY_SOURCE_ID, {
         type: "geojson",
         data: boundaryGeoJson,
+        promoteId: "name",
       });
     } else {
       const source = map.getSource(
@@ -295,7 +305,7 @@ export const ensureSpatialBoundaryLayer = (
     }
 
     if (!map.getLayer(SPATIAL_BOUNDARY_LAYER_ID)) {
-      // Insert the boundary layer right before the state fills,
+      // Insert the boundary outline right before the state fills,
       // so it sits above the GEE raster but below the interactive fills.
       map.addLayer(
         {
@@ -313,8 +323,46 @@ export const ensureSpatialBoundaryLayer = (
           : undefined,
       );
     }
+
+    // A fonte pode trazer a área inteira (os seis biomas) porque a camada de
+    // preenchimento precisa deles para o hover e o clique. O contorno, não: ele
+    // marca o recorte ativo, então filtra pelo nome da seleção.
+    if (spatialValue && map.getLayer(SPATIAL_BOUNDARY_LAYER_ID)) {
+      map.setFilter(SPATIAL_BOUNDARY_LAYER_ID, [
+        "in",
+        ["get", "name"],
+        ["literal", [...getActiveBoundaryNames(spatialValue)]],
+      ]);
+    }
+
+    // Interactive fill layer for click/hover detection on spatial boundaries.
+    // Transparent by default; shows a dark highlight preview on hover.
+    if (!map.getLayer(SPATIAL_BOUNDARY_FILL_LAYER_ID)) {
+      map.addLayer(
+        {
+          id: SPATIAL_BOUNDARY_FILL_LAYER_ID,
+          type: "fill",
+          source: SPATIAL_BOUNDARY_SOURCE_ID,
+          paint: {
+            "fill-color": "#000000",
+            "fill-opacity": [
+              "case",
+              ["boolean", ["feature-state", "hover"], false],
+              0.22,
+              0,
+            ],
+          },
+        },
+        map.getLayer(STATES_FILL_LAYER_ID)
+          ? STATES_FILL_LAYER_ID
+          : undefined,
+      );
+    }
   } else {
-    // Remove boundary layer when not needed
+    // Remove boundary layers when not needed
+    if (map.getLayer(SPATIAL_BOUNDARY_FILL_LAYER_ID)) {
+      map.removeLayer(SPATIAL_BOUNDARY_FILL_LAYER_ID);
+    }
     if (map.getLayer(SPATIAL_BOUNDARY_LAYER_ID)) {
       map.removeLayer(SPATIAL_BOUNDARY_LAYER_ID);
     }

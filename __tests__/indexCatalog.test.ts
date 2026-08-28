@@ -1,7 +1,9 @@
 import { describe, expect, it } from "vitest";
 import {
   createCatalogPanelLayerId,
+  detectYearPartitionedTemplate,
   expandAssetForPeriod,
+  fillYearPlaceholder,
   inferTimeScale,
   makeUniqueCatalogPanelLayerId,
   parseIndexCatalogDraftInput,
@@ -253,5 +255,60 @@ describe("posição do índice na categoria do Monitoramento", () => {
         "novo",
       ),
     ).toBe(11);
+  });
+});
+
+describe("detectYearPartitionedTemplate", () => {
+  it("turns a concrete year asset into the {year} template the contract expects", () => {
+    expect(
+      detectYearPartitionedTemplate(
+        "projects/obscaatinga/assets/Estatisticas/Estatistica_Multinivel_MonitorANA_2026",
+      ),
+    ).toEqual({
+      year: "2026",
+      assetIdTemplate:
+        "projects/obscaatinga/assets/Estatisticas/Estatistica_Multinivel_MonitorANA_{year}",
+    });
+  });
+
+  it("uses the last year so folders named after a year are preserved", () => {
+    expect(
+      detectYearPartitionedTemplate(
+        "projects/x/assets/Estatisticas_2020/ana_2026",
+      )?.assetIdTemplate,
+    ).toBe("projects/x/assets/Estatisticas_2020/ana_{year}");
+  });
+
+  it("refuses ids without a four-digit year or already templated", () => {
+    expect(
+      detectYearPartitionedTemplate("projects/x/assets/estatisticas"),
+    ).toBeNull();
+    expect(
+      detectYearPartitionedTemplate("projects/x/assets/ana_202"),
+    ).toBeNull();
+    expect(
+      detectYearPartitionedTemplate("projects/x/assets/ana_{year}"),
+    ).toBeNull();
+    expect(detectYearPartitionedTemplate("   ")).toBeNull();
+  });
+
+  it("ignores longer digit runs that only look like a year", () => {
+    expect(
+      detectYearPartitionedTemplate("projects/x/assets/ana_20261"),
+    ).toBeNull();
+  });
+});
+
+describe("fillYearPlaceholder", () => {
+  it("shows the operator the concrete year again", () => {
+    expect(fillYearPlaceholder("projects/x/assets/ana_{year}", "2026")).toBe(
+      "projects/x/assets/ana_2026",
+    );
+  });
+
+  it("keeps the template when no year is known yet", () => {
+    expect(fillYearPlaceholder("projects/x/assets/ana_{year}")).toBe(
+      "projects/x/assets/ana_{year}",
+    );
   });
 });

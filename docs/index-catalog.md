@@ -27,6 +27,11 @@ São configurações independentes:
 
 - estatísticas: sempre uma FeatureCollection fixa ou um template com `{year}`,
   `{month}` e/ou `{period}`;
+  - o formulário oferece **Uma tabela por ano (detectar os anos)**: o operador
+    cola o endereço de um ano concreto (`..._MonitorANA_2026`) e a tela grava o
+    template equivalente (`..._MonitorANA_{year}`). Não é um terceiro contrato,
+    é atalho de digitação. Combinado com granularidade mensal, atende o caso em
+    que cada tabela anual guarda os meses daquele ano — é a forma do `anaseca`;
 - mapa: Image, ImageCollection ou FeatureCollection, em asset único ou por
   período.
 
@@ -43,9 +48,17 @@ as classes. A validação exige uma imagem por lead, períodos mensais iguais ao
 da estatística e exatamente um limite a menos que a quantidade de classes.
 
 A FeatureCollection deve possuir pares `perc_classe_XX` e
-`area_ha_classe_XX`. Os índices precisam ser contíguos e iniciar em 0 ou 1. O
-catálogo infere a quantidade e os índices; a pessoa configura apenas rótulos,
-cores e o mapa. O valor é percentual e a unidade é `%`.
+`area_ha_classe_XX`. Os índices podem iniciar em qualquer número — 0, 1 ou outro
+qualquer, como assets que começam em `perc_classe_2` — e podem ter lacunas: a
+cobertura do solo do IBGE usa as classes 1 a 6 e 9 a 14, porque 7 e 8 não
+existem na legenda dela. O catálogo infere a quantidade e os índices; a pessoa
+configura apenas rótulos, cores e o mapa. O valor é percentual e a unidade é `%`.
+
+Quando as classes têm lacunas, o mapa remapeia os valores de pixel para posições
+densas antes de visualizar. Sem isso o Earth Engine espalharia as cores da paleta
+pelo intervalo inteiro e cada classe receberia a cor da vizinha; como efeito
+colateral desejável, um pixel cujo valor não é classe nenhuma da camada passa a
+ser mascarado em vez de pintado com a cor de outra classe.
 
 Também são obrigatórias as propriedades territoriais, `ano`, `data_img` e
 `area_total_ha`. A validação rejeita schema incompleto, classes divergentes,

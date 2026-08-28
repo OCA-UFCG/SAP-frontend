@@ -9,14 +9,45 @@ const mocks = vi.hoisted(() => ({
   evaluateGeeObject: vi.fn(),
 }));
 
-type Expression = { tag: string; assetId: string; level?: string };
+/**
+ * O mock resolve expressões compostas, e não só folhas: a validação passou a
+ * pedir um `ee.Dictionary` por tabela dentro de um `ee.List` por lote, então o
+ * teste precisa refletir essa forma para contar idas e voltas de verdade.
+ */
+type Expression =
+  | { tag: "list"; items: Expression[] }
+  | { tag: "probe"; assetId: string; shape: Record<string, Expression> }
+  | { tag: "property-names"; assetId: string }
+  | {
+      tag: "percentage-columns";
+      assetId: string;
+      propertyCount: number;
+      unwrapped?: boolean;
+      get?: (key: string) => Expression;
+    }
+  | { tag: string; assetId: string; level?: string; propertyCount?: number };
 
 interface MockCollection {
-  aggregate_array: () => { distinct: () => Expression };
+  aggregate_array: (property: string) => { distinct: () => Expression };
   filter: (filter: { tag?: string; value?: string }) => MockCollection;
   distinct: () => { size: () => Expression };
   size: () => Expression;
-  map: () => { aggregate_sum: () => Expression };
+  first: () => { assetId: string };
+  reduceColumns: (reducer: unknown, properties: string[]) => Expression;
+}
+
+function percentageExpression(
+  assetId: string,
+  propertyCount: number,
+  unwrapped = false,
+): Expression {
+  return {
+    tag: "percentage-columns",
+    assetId,
+    propertyCount,
+    unwrapped,
+    get: () => percentageExpression(assetId, propertyCount, true),
+  };
 }
 
 function collection(assetId: string, level?: string): MockCollection {
@@ -37,9 +68,9 @@ function collection(assetId: string, level?: string): MockCollection {
       size: () => ({ tag: "distinct", assetId }) satisfies Expression,
     }),
     size: () => ({ tag: "size", assetId, level }) satisfies Expression,
-    map: () => ({
-      aggregate_sum: () => ({ tag: "invalid", assetId }) satisfies Expression,
-    }),
+    first: () => ({ assetId }),
+    reduceColumns: (_reducer: unknown, properties: string[]) =>
+      percentageExpression(assetId, properties.length),
   };
 }
 
@@ -71,9 +102,29 @@ vi.mock("@google/earthengine", () => ({
   default: {
     FeatureCollection: (assetId: string) => collection(assetId),
     ImageCollection: (assetId: string) => forecastCollection(assetId),
+    Feature: (first: { assetId: string }) => ({
+      propertyNames: () =>
+        ({
+          tag: "property-names",
+          assetId: first.assetId,
+        }) satisfies Expression,
+    }),
+    Dictionary: (shape: Record<string, Expression>) =>
+      ({
+        tag: "probe",
+        assetId: String((shape.rowCount as { assetId?: string }).assetId),
+        shape,
+      }) satisfies Expression,
+    List: (items: Expression[]) =>
+      ({ tag: "list", items }) satisfies Expression,
     Filter: {
       notNull: () => ({ tag: "not-null" }),
       eq: (_property: string, value: string) => ({ tag: "level", value }),
+    },
+    Reducer: {
+      toList: () => ({
+        repeat: (count: number) => ({ tag: "to-list", count }),
+      }),
     },
   },
 }));
@@ -90,6 +141,7 @@ import {
   buildCatalogDraft,
   discoverCatalogStatistics,
 } from "@/services/indexCatalog/catalogBuild";
+import { clearStatisticsAssetCache } from "@/services/indexCatalog/statisticsAssetCache";
 
 const properties = {
   level: "NIVEL_AGRUPAMENTO",
@@ -109,41 +161,104 @@ function schemaProperties(indexes = [1]) {
   ];
 }
 
+const MOCK_ROW_COUNT = 10;
+
+function assetProperties(assetId: string) {
+  return assetId.endsWith("forecast-statistics")
+    ? schemaProperties([0, 1, 2, 3, 4, 5])
+    : schemaProperties();
+}
+
+/** Uma coluna por classe, cada linha somando 100 — o caso válido. */
+function percentageColumns(propertyCount: number, rowTotal = 100) {
+  return Array.from({ length: propertyCount }, () =>
+    Array.from({ length: MOCK_ROW_COUNT }, () => rowTotal / propertyCount),
+  );
+}
+
+let percentageColumnsBuilder: (propertyCount: number) => number[][] =
+  percentageColumns;
+
+function resolveLeaf(expression: Expression): unknown {
+  if (expression.tag === "property-names") {
+    return assetProperties(expression.assetId);
+  }
+  if (expression.tag === "periods") {
+    if (expression.assetId.endsWith("forecast-statistics")) {
+      return ["2026-09-01", "2026-10-01", "2026-11-01", "2026-12-01"];
+    }
+    return expression.assetId.endsWith("2024")
+      ? ["2024-01-01"]
+      : expression.assetId.endsWith("2025")
+        ? ["2025-02-01"]
+        : [2025];
+  }
+  if (expression.tag === "forecast-emissions") return [20260701, 20260801];
+  if (expression.tag === "forecast-leads") return [1, 2, 3, 4];
+  if (expression.tag === "forecast-target-dates") {
+    return [
+      Date.UTC(2026, 8, 1),
+      Date.UTC(2026, 9, 1),
+      Date.UTC(2026, 10, 1),
+      Date.UTC(2026, 11, 1),
+    ];
+  }
+  if (expression.tag === "percentage-columns") {
+    const columns = percentageColumnsBuilder(expression.propertyCount ?? 1);
+    return "unwrapped" in expression && expression.unwrapped
+      ? columns
+      : { list: columns };
+  }
+  if (expression.tag === "distinct") return 10;
+  if (expression.level === "7_Municipio") return 5;
+  if (expression.level === "7_Municipio-complete") return 5;
+  if (expression.level === "6_Estado") return 2;
+  if (expression.level === "6_Estado-complete") return 2;
+  return 10;
+}
+
+function resolveExpression(expression: Expression): unknown {
+  if (expression.tag === "list") {
+    return expression.items.map(resolveExpression);
+  }
+  if (expression.tag === "probe") {
+    return Object.fromEntries(
+      Object.entries(expression.shape).map(([field, value]) => [
+        field,
+        resolveExpression(value),
+      ]),
+    );
+  }
+  return resolveLeaf(expression);
+}
+
+/** Quantas expressões de leitura de linhas foram realmente avaliadas. */
+function probedAssetIds() {
+  return mocks.evaluateGeeObject.mock.calls.flatMap(
+    ([expression]: [Expression]) =>
+      expression.tag === "list"
+        ? expression.items
+            .filter((item) => item.tag === "probe")
+            .map((item) => (item as { assetId: string }).assetId)
+        : expression.tag === "probe"
+          ? [(expression as { assetId: string }).assetId]
+          : [],
+  );
+}
+
 describe("index catalog GEE asset discovery", () => {
+  function overridePercentageColumns(
+    build: (propertyCount: number) => number[][],
+  ) {
+    percentageColumnsBuilder = build;
+  }
+
   beforeEach(() => {
     vi.clearAllMocks();
-    mocks.evaluateGeeObject.mockImplementation(
-      async (expression: Expression) => {
-        if (expression.tag === "periods") {
-          if (expression.assetId.endsWith("forecast-statistics")) {
-            return ["2026-09-01", "2026-10-01", "2026-11-01", "2026-12-01"];
-          }
-          return expression.assetId.endsWith("2024")
-            ? ["2024-01-01"]
-            : expression.assetId.endsWith("2025")
-              ? ["2025-02-01"]
-              : [2025];
-        }
-        if (expression.tag === "forecast-emissions") {
-          return [20260701, 20260801];
-        }
-        if (expression.tag === "forecast-leads") return [1, 2, 3, 4];
-        if (expression.tag === "forecast-target-dates") {
-          return [
-            Date.UTC(2026, 8, 1),
-            Date.UTC(2026, 9, 1),
-            Date.UTC(2026, 10, 1),
-            Date.UTC(2026, 11, 1),
-          ];
-        }
-        if (expression.tag === "invalid") return 0;
-        if (expression.tag === "distinct") return 10;
-        if (expression.level === "7_Municipio") return 5;
-        if (expression.level === "7_Municipio-complete") return 5;
-        if (expression.level === "6_Estado") return 2;
-        if (expression.level === "6_Estado-complete") return 2;
-        return 10;
-      },
+    clearStatisticsAssetCache();
+    percentageColumnsBuilder = percentageColumns;
+    mocks.evaluateGeeObject.mockImplementation(async (expression: Expression) =>
+      resolveExpression(expression),
     );
     mocks.inspectEarthEngineAsset.mockImplementation(async (assetId: string) =>
       assetId.endsWith("forecast-map")
@@ -166,9 +281,7 @@ describe("index catalog GEE asset discovery", () => {
               id: assetId,
               type: "featureCollection",
               bands: [],
-              properties: assetId.endsWith("forecast-statistics")
-                ? schemaProperties([0, 1, 2, 3, 4, 5])
-                : schemaProperties(),
+              properties: assetProperties(assetId),
               updateTime: "2026-08-17T11:00:00Z",
             },
     );
@@ -186,6 +299,97 @@ describe("index catalog GEE asset discovery", () => {
       expect.objectContaining({ periods: ["2025"], classIndexes: [1] }),
     );
     expect(mocks.listEarthEngineAssets).not.toHaveBeenCalled();
+  });
+
+  const fixedSource = {
+    kind: "gee-feature-collection",
+    asset: { type: "fixed", assetId: "projects/x/assets/statistics" },
+    periodGranularity: "year",
+    properties,
+  } as const;
+
+  // A validação de um asset é memoizada por revisão: revalidar a prévia e
+  // publicar em seguida não deve repetir a leitura das linhas no Earth Engine.
+  it("reuses the validation of an asset that has not been re-exported", async () => {
+    await discoverCatalogStatistics(fixedSource);
+    expect(probedAssetIds()).toEqual(["projects/x/assets/statistics"]);
+
+    await discoverCatalogStatistics(fixedSource);
+
+    // Nenhuma leitura de linhas nova: a segunda descoberta reaproveita a
+    // primeira e só relê o schema, que é o que responde "a tabela mudou?".
+    expect(probedAssetIds()).toEqual(["projects/x/assets/statistics"]);
+    expect(mocks.inspectEarthEngineAsset).toHaveBeenCalledTimes(2);
+  });
+
+  it("validates again when the asset has been re-exported", async () => {
+    await discoverCatalogStatistics(fixedSource);
+    mocks.inspectEarthEngineAsset.mockImplementation(
+      async (assetId: string) => ({
+        id: assetId,
+        type: "featureCollection",
+        bands: [],
+        properties: schemaProperties(),
+        updateTime: "2026-08-18T09:00:00Z",
+      }),
+    );
+
+    await discoverCatalogStatistics(fixedSource);
+
+    expect(probedAssetIds()).toEqual([
+      "projects/x/assets/statistics",
+      "projects/x/assets/statistics",
+    ]);
+  });
+
+  // O `getAsset` não devolve `updateTime` em nenhum asset que medimos, e sem
+  // carimbo a memoização de um asset fixo nunca engatava. O `version` vem
+  // sempre, e é o mesmo instante em microssegundos.
+  it("memoizes a fixed asset that only reports version, not updateTime", async () => {
+    mocks.inspectEarthEngineAsset.mockImplementation(
+      async (assetId: string) => ({
+        id: assetId,
+        type: "featureCollection",
+        bands: [],
+        properties: schemaProperties(),
+        version: "1787861735398000",
+      }),
+    );
+
+    await discoverCatalogStatistics(fixedSource);
+    await discoverCatalogStatistics(fixedSource);
+
+    expect(probedAssetIds()).toEqual(["projects/x/assets/statistics"]);
+  });
+
+  // A checagem por linha dos percentuais saiu do Earth Engine e passou a rodar
+  // no Node; estes dois casos fixam que a guarda continua valendo.
+  it("rejects an asset whose percentages do not add up to 100", async () => {
+    overridePercentageColumns((propertyCount) =>
+      percentageColumns(propertyCount, 90),
+    );
+    await expect(
+      discoverCatalogStatistics({
+        kind: "gee-feature-collection",
+        asset: { type: "fixed", assetId: "projects/x/assets/statistics" },
+        periodGranularity: "year",
+        properties,
+      }),
+    ).rejects.toThrow(/possui 10 linha\(s\) com percentuais fora de 0–100/u);
+  });
+
+  it("rejects percentage columns that come back misaligned with the row count", async () => {
+    overridePercentageColumns((propertyCount) =>
+      percentageColumns(propertyCount).map((column) => column.slice(1)),
+    );
+    await expect(
+      discoverCatalogStatistics({
+        kind: "gee-feature-collection",
+        asset: { type: "fixed", assetId: "projects/x/assets/statistics" },
+        periodGranularity: "year",
+        properties,
+      }),
+    ).rejects.toThrow(/retornou 9 valor\(es\); esperado 10, um por linha/u);
   });
 
   it("lists the template parent and discovers monthly assets only", async () => {

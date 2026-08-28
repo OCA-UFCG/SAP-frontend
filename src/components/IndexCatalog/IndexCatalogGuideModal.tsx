@@ -136,6 +136,17 @@ const STEPS = [
             estatisticas_{"{year}"}
           </code>
           , e o sistema procura cada tabela correspondente no diretório do GEE.
+          <br />
+          <br />
+          <strong>Uma tabela por ano?</strong> Quando existe uma tabela para
+          cada ano e cada uma guarda os meses daquele ano, escolha
+          <em className="mx-1">Uma tabela por ano (detectar os anos)</em>, cole
+          o endereço de um único ano (
+          <code className="mx-1 rounded bg-white px-1">estatisticas_2026</code>)
+          e deixe a granularidade em <em>Mensal</em>. O catálogo troca o ano por
+          <code className="mx-1 rounded bg-white px-1">{"{year}"}</code>,
+          encontra os demais anos na mesma pasta e lê os meses de cada tabela
+          pela coluna data_img.
         </div>
       </>
     ),

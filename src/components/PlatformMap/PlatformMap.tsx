@@ -6,6 +6,7 @@ import { useEarthEngineTileLayer } from "./useEarthEngineTileLayer";
 import { useSpatialBoundaryOverlay } from "./useSpatialBoundaryOverlay";
 import MapComponent from "../Map/MapComponent";
 import type { BasemapId } from "../Map/Map";
+import type { SpatialSelection } from "@/utils/spatialScope";
 import { geoBrasilSource, resolveSpatialFocusBounds } from "../Map/mapBounds";
 import {
   useMapLayerActions,
@@ -19,7 +20,9 @@ interface PlatformMapProps {
 
 import { getAllowedStateUfs } from "@/utils/interestAreaStates";
 
-export function PlatformMap({ showMonitoringOverlays = true }: PlatformMapProps) {
+export function PlatformMap({
+  showMonitoringOverlays = true,
+}: PlatformMapProps) {
   const t = useTranslations("PlatformMap");
   const { activeData, activeEEData } = useMapLayerActiveState();
   const {
@@ -30,8 +33,12 @@ export function PlatformMap({ showMonitoringOverlays = true }: PlatformMapProps)
     layerOpacity,
     spatialSelection,
   } = useMapLayerViewState();
-  const { setSelectedState, setSelectedMunicipalityCode, setLayerOpacity } =
-    useMapLayerActions();
+  const {
+    setSelectedState,
+    setSelectedMunicipalityCode,
+    setLayerOpacity,
+    setSpatialSelection,
+  } = useMapLayerActions();
   const { requestKey, status, tileLayerUrl } = useEarthEngineTileLayer(
     activeEEData,
     activeYear,
@@ -51,20 +58,35 @@ export function PlatformMap({ showMonitoringOverlays = true }: PlatformMapProps)
     [spatialSelection],
   );
 
-  const { boundaryGeoJson, status: boundaryStatus } =
-    useSpatialBoundaryOverlay(spatialSelection);
+  const {
+    boundaryGeoJson,
+    activeBoundaryGeoJson,
+    status: boundaryStatus,
+  } = useSpatialBoundaryOverlay(spatialSelection);
 
   const spatialFocusBounds = useMemo(() => {
     // Enquanto o contorno exato está em voo, não enquadrar pela união dos
     // estados: renderizaria um movimento grosseiro seguido de outro correto.
     if (boundaryStatus === "loading") return null;
 
+    // Enquadrar pelo recorte ativo, não pela coleção inteira: em bioma a rota
+    // devolve os seis biomas, cuja caixa envolvente é o Brasil — e é a mesma
+    // para todos, então a câmera nem se moveria ao trocar de bioma.
     return resolveSpatialFocusBounds(
       geoBrasilSource,
       allowedStateUfs,
-      boundaryGeoJson,
+      activeBoundaryGeoJson,
     );
-  }, [allowedStateUfs, boundaryGeoJson, boundaryStatus]);
+  }, [allowedStateUfs, activeBoundaryGeoJson, boundaryStatus]);
+
+  const handleSpatialSelectionChange = useCallback(
+    (selection: SpatialSelection) => {
+      setSpatialSelection(selection);
+      setSelectedState("br");
+      setSelectedMunicipalityCode(null);
+    },
+    [setSpatialSelection, setSelectedState, setSelectedMunicipalityCode],
+  );
 
   const hasRenderedCurrentRequest =
     status === "ready" && Boolean(requestKey) && readyRequestKey === requestKey;
@@ -94,8 +116,11 @@ export function PlatformMap({ showMonitoringOverlays = true }: PlatformMapProps)
           spatialBoundaryGeoJson={boundaryGeoJson}
           spatialFocusBounds={spatialFocusBounds}
           basemap={basemap}
+          spatialArea={spatialSelection.spatialArea}
+          spatialValue={spatialSelection.spatialValue}
           onStateSelect={(uf: string) => setSelectedState(uf.toLowerCase())}
           onSelectedMunicipalityCodeChange={setSelectedMunicipalityCode}
+          onSpatialSelectionChange={handleSpatialSelectionChange}
           onTileLayerReady={handleTileLayerReady}
         />
 

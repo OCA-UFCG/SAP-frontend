@@ -9,6 +9,17 @@ import "maplibre-gl/dist/maplibre-gl.css";
 import { useEffect, useRef } from "react";
 import type { FeatureCollection, Geometry } from "geojson";
 import type { CDIVectorData } from "@/lib/geo";
+import type { SpatialArea, SpatialSelection } from "@/utils/spatialScope";
+import { getStateRegion } from "@/utils/interestAreaStates";
+import { resolveBiomeAtPoint } from "./resolveBiomeAtPoint";
+import {
+  applyBiomeHoverPreview,
+  applyRegionHoverPreview,
+  clearBiomeHoverPreview,
+  clearRegionHoverPreview,
+  clearStateHoverPreview,
+  type HoveredRegion,
+} from "./spatialAreaHoverPreview";
 import {
   GEE_LAYER_ID,
   GEE_SOURCE_ID,
@@ -39,6 +50,7 @@ import {
   MUNICIPALITY_SOURCE_ID,
   MUNICIPALITY_SOURCE_LAYER,
 } from "./municipalityLayers";
+import { useSpatialAreaClickSelection } from "./useSpatialAreaClickSelection";
 export type BasemapId = "osm" | "satellite";
 
 export interface MapProps {
@@ -61,6 +73,9 @@ export interface MapProps {
   layerOpacity?: number;
   allowedStateUfs?: Set<string> | null;
   spatialBoundaryGeoJson?: FeatureCollection<Geometry, { name: string }> | null;
+  spatialArea?: SpatialArea;
+  spatialValue?: string;
+  onSpatialSelectionChange?: (selection: SpatialSelection) => void;
   /** Limites da área de interesse a enquadrar quando a seleção muda. */
   spatialFocusBounds?: LngLatBoundsLike | null;
   /**
@@ -92,6 +107,9 @@ const Map = ({
   layerOpacity = 0.85,
   allowedStateUfs = null,
   spatialBoundaryGeoJson = null,
+  spatialArea = "national",
+  spatialValue = "brasil",
+  onSpatialSelectionChange,
   spatialFocusBounds = null,
   municipalityClassification = null,
   municipalityOverviewGeoJson = null,
@@ -125,6 +143,7 @@ const Map = ({
     tileLayerRequestKeyRef,
     tileLayerUrlRef,
     hoveredMunicipalityIdRef,
+    spatialValueRef,
     warn,
   } = useMapController({
     center,
@@ -140,6 +159,7 @@ const Map = ({
     spatialBoundaryGeoJson,
     spatialFocusBounds,
     allowedStateUfs,
+    spatialValue,
     tileLayerRequestKey,
     tileLayerUrl,
     layerOpacity,
@@ -155,10 +175,30 @@ const Map = ({
   );
   const allowedStateUfsRef = useRef(allowedStateUfs);
   const onZoomChangeRef = useRef(onZoomChange);
+  const spatialAreaRef = useRef<SpatialArea>(spatialArea);
+  const onSpatialSelectionChangeRef = useRef(onSpatialSelectionChange);
+  const hoveredBoundaryRef = useRef<string | null>(null);
+  const hoveredRegionRef = useRef<HoveredRegion | null>(null);
 
   useEffect(() => {
     onZoomChangeRef.current = onZoomChange;
   }, [onZoomChange]);
+
+  useEffect(() => {
+    spatialAreaRef.current = spatialArea;
+    onSpatialSelectionChangeRef.current = onSpatialSelectionChange;
+
+    // O recorte mudou com o mouse parado: o destaque desenhado para o recorte
+    // anterior não faz mais sentido. O próximo mousemove reaplica o correto.
+    clearRegionHoverPreview(mapRef.current, hoveredRegionRef);
+    clearBiomeHoverPreview(mapRef.current, hoveredBoundaryRef);
+  }, [spatialArea, spatialValue, onSpatialSelectionChange, mapRef]);
+
+  const { resolveSpatialClick } = useSpatialAreaClickSelection({
+    mapRef,
+    spatialAreaRef,
+    spatialValueRef,
+  });
 
   useEffect(() => {
     allowedStateUfsRef.current = allowedStateUfs;
@@ -285,6 +325,49 @@ const Map = ({
         const hoveredStateId = (hoveredFeature?.id ?? uf) as
           string | number | null | undefined;
 
+        // O recorte ativo decide o que o hover mostra: em região destacamos
+        // os estados da região inteira, em bioma o polígono do bioma. Nos
+        // outros recortes segue o hover de estado, logo abaixo.
+        if (spatialAreaRef.current === "region") {
+          clearStateHoverPreview(map, hoveredStateIdRef);
+          const regionName = uf ? getStateRegion(uf) : null;
+
+          if (regionName) {
+            applyRegionHoverPreview(map, {
+              regionName,
+              lngLat: event.lngLat,
+              popup,
+              hoveredRegionRef,
+            });
+          } else {
+            clearRegionHoverPreview(map, hoveredRegionRef);
+            map.getCanvas().style.cursor = "";
+            popup.remove();
+          }
+
+          return;
+        }
+
+        if (spatialAreaRef.current === "biome") {
+          clearStateHoverPreview(map, hoveredStateIdRef);
+          const biomeName = resolveBiomeAtPoint(map, event.point, uf);
+
+          if (biomeName) {
+            applyBiomeHoverPreview(map, {
+              biomeName,
+              lngLat: event.lngLat,
+              popup,
+              hoveredBoundaryRef,
+            });
+          } else {
+            clearBiomeHoverPreview(map, hoveredBoundaryRef);
+            map.getCanvas().style.cursor = "";
+            popup.remove();
+          }
+
+          return;
+        }
+
         const allowedUfs = allowedStateUfsRef.current;
         const isOutsideArea = Boolean(
           allowedUfs && uf && !allowedUfs.has(uf.toLowerCase()),
@@ -349,18 +432,10 @@ const Map = ({
       });
 
       map.on("mouseleave", STATES_FILL_LAYER_ID, () => {
-        if (hoveredStateIdRef.current) {
-          map.setFeatureState(
-            {
-              source: STATES_SOURCE_ID,
-              sourceLayer: STATES_SOURCE_LAYER,
-              id: hoveredStateIdRef.current,
-            },
-            { hover: false },
-          );
-        }
+        clearStateHoverPreview(map, hoveredStateIdRef);
+        clearRegionHoverPreview(map, hoveredRegionRef);
+        clearBiomeHoverPreview(map, hoveredBoundaryRef);
 
-        hoveredStateIdRef.current = null;
         map.getCanvas().style.cursor = "";
         popup.remove();
       });
@@ -410,6 +485,36 @@ const Map = ({
             ? clickedFeature.id
             : undefined);
 
+        // --- Spatial area click interception ---
+        // Before processing as a state click, check if the click should
+        // change the spatial scope (biome/region) or be blocked (biome mode).
+        const spatialResult = resolveSpatialClick(event.point, uf);
+
+        if (spatialResult === "block") {
+          log("spatial click blocked (biome mode, no state selection)", {
+            uf,
+            spatialArea: spatialAreaRef.current,
+          });
+          return;
+        }
+
+        if (spatialResult !== null) {
+          log("spatial click: switching scope", {
+            uf,
+            from: {
+              spatialArea: spatialAreaRef.current,
+              spatialValue: spatialValueRef.current,
+            },
+            to: spatialResult,
+          });
+          if (mapModeRef.current === "platform") {
+            clearSelectedMunicipalitySelection(map);
+          }
+          onSpatialSelectionChangeRef.current?.(spatialResult);
+          return;
+        }
+
+        // --- Normal state click flow ---
         if (!uf) {
           if (mapModeRef.current === "platform") {
             clearSelectedMunicipalitySelection(map);
@@ -470,6 +575,7 @@ const Map = ({
       });
 
       if (mapModeRef.current === "platform") {
+        // --- Municipality hover ---
         map.on("mousemove", MUNICIPALITY_HOVER_LAYER_ID, (event) => {
           const municipalityFeature = event.features?.[0] as
             MapGeoJSONFeature | undefined;
@@ -556,8 +662,14 @@ const Map = ({
     tileLayerUrlRef,
     warn,
     hoveredMunicipalityIdRef,
+    hoveredBoundaryRef,
+    hoveredRegionRef,
     onSelectedMunicipalityCodeChangeRef,
+    onSpatialSelectionChangeRef,
     selectedMunicipalityCodeRef,
+    spatialAreaRef,
+    spatialValueRef,
+    resolveSpatialClick,
     clearMarkers,
     setMapInstance,
   ]);
@@ -599,6 +711,7 @@ const Map = ({
         spatialBoundaryGeoJson ?? null,
         showStatesBorder,
         allowedStateUfs,
+        spatialValue,
       );
     } catch {
       // Best-effort: if style is in transition, the next syncMapLayers will retry.
@@ -607,6 +720,7 @@ const Map = ({
     spatialBoundaryGeoJson,
     allowedStateUfs,
     showStatesBorder,
+    spatialValue,
     mapRef,
     mapInstanceVersion,
   ]);

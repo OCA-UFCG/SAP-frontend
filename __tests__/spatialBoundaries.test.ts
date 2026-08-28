@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import {
+  getAllSpatialBoundaryFeaturesForArea,
   getSpatialBoundaryFeatures,
   loadSpatialBoundaryIndex,
 } from "@/app/api/ee/spatialBoundaries";
@@ -23,6 +24,23 @@ describe("spatial boundary repository", () => {
     expect(features.map((feature) => feature.properties.name)).toEqual([
       "ASD",
       "Entorno",
+    ]);
+  });
+
+  it("returns every biome of the area, not just the selected one", () => {
+    // O mapa em modo bioma precisa dos vizinhos desenhados para o clique e o
+    // hover trocarem de bioma.
+    const names = getAllSpatialBoundaryFeaturesForArea("biome").map(
+      (feature) => feature.properties.name,
+    );
+
+    expect(names.sort()).toEqual([
+      "Amazônia",
+      "Caatinga",
+      "Cerrado",
+      "Mata Atlântica",
+      "Pampa",
+      "Pantanal",
     ]);
   });
 
