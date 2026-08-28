@@ -13,6 +13,7 @@ import { CatalogPreviewMapCapture } from "@/components/IndexCatalog/CatalogPrevi
 import {
   catalogApiRequest as apiRequest,
   catalogIdempotencyKey as idempotencyKey,
+  requestCatalogPreview as requestPreview,
   type CatalogApiErrorBody as ApiErrorBody,
 } from "@/components/IndexCatalog/catalogApiClient";
 import { IndexCatalogGuideModal } from "@/components/IndexCatalog/IndexCatalogGuideModal";
@@ -217,6 +218,7 @@ export function IndexCatalogScreen() {
     useState<ValidationProgress | null>(null);
   const entryIdRef = useRef<string | null>(null);
   const createKeyRef = useRef<string | null>(null);
+  const previewKeyRef = useRef<string | null>(null);
   const validationRunRef = useRef(0);
   const validationCompletionTimerRef = useRef<number | null>(null);
 
@@ -263,6 +265,7 @@ export function IndexCatalogScreen() {
     setEntryId(null);
     entryIdRef.current = null;
     createKeyRef.current = null;
+    previewKeyRef.current = null;
     setPreview(null);
     setThresholdsInput("");
     setLeadValuesInput("1, 2, 3, 4");
@@ -294,6 +297,7 @@ export function IndexCatalogScreen() {
     setEntryId(item.entryId);
     entryIdRef.current = item.entryId;
     createKeyRef.current = null;
+    previewKeyRef.current = null;
     setPreview(null);
     setThresholdsInput(config.earthEngine.thresholds?.join(", ") ?? "");
     setLeadValuesInput(
@@ -485,16 +489,17 @@ export function IndexCatalogScreen() {
     const progressTimer = window.setInterval(() => {
       setValidationProgress(advanceValidationProgress);
     }, 2_500);
+    // A mesma chave é reenviada enquanto a validação não der certo. O servidor
+    // deduplica por ela (runCatalogIdempotently), então clicar de novo depois de
+    // um "Failed to fetch" espera a validação que já está rodando em vez de
+    // disparar uma segunda em paralelo, competindo pela mesma cota do GEE.
+    const previewKey = (previewKeyRef.current ??= idempotencyKey(
+      "preview",
+      savedEntryId,
+    ));
     try {
-      const result = await apiRequest<IndexCatalogPreview>(
-        `/api/index-catalog/drafts/${encodeURIComponent(savedEntryId)}/preview`,
-        {
-          method: "POST",
-          headers: {
-            "Idempotency-Key": idempotencyKey("preview", savedEntryId),
-          },
-        },
-      );
+      const result = await requestPreview(savedEntryId, previewKey);
+      previewKeyRef.current = null;
       setPreview(result);
       const indexes = result.validation.inferred.classIndexes;
       setDraft((current) => ({
