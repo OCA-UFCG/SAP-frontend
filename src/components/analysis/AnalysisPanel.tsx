@@ -246,7 +246,6 @@ function AnalysisYearSelect({
   );
 }
 
-
 function DistributionSection({
   items,
   valueType,
@@ -320,9 +319,9 @@ function parseHexColor(color: string) {
   const expanded =
     normalized.length === 3
       ? normalized
-        .split("")
-        .map((character) => character + character)
-        .join("")
+          .split("")
+          .map((character) => character + character)
+          .join("")
       : normalized;
 
   return {
@@ -593,7 +592,7 @@ export function AnalysisPanel({
 
         <header className="flex flex-col gap-2">
           <h1 className="font-inter text-[24px] font-semibold leading-[24px] tracking-[-0.015em]">
-            {t("analysisOfModule")} {moduleName}
+            {moduleName}
           </h1>
           <p className="font-inter text-[16px] font-medium leading-[24px] tracking-[-0.015em]">
             {t("searchStateOrCityToStart")}
@@ -619,8 +618,6 @@ export function AnalysisPanel({
               onYearChange={onYearChange}
             />
           </div>
-
-
         </section>
 
         {model ? (
@@ -648,8 +645,9 @@ export function AnalysisPanel({
                       model.highlight.tone?.color ??
                       model.accentColor ??
                       "#F5F5F5",
-                    border: `1px solid ${model.highlight.tone?.border ?? "#F0F0D7"
-                      }`,
+                    border: `1px solid ${
+                      model.highlight.tone?.border ?? "#F0F0D7"
+                    }`,
                   }}
                 >
                   <span className="font-semibold text-[14px] leading-6 text-[#292829]">
