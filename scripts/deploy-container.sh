@@ -106,11 +106,12 @@ start_container() {
 
   docker_run_forwarding_env "$preserve_list" \
     --name "$CONTAINER_NAME" \
+    --network "$NETWORK_NAME" \
     --restart unless-stopped \
     -p "${HOST_PORT}:${CONTAINER_PORT}" \
     "${env_flags[@]}" \
     -d "$IMAGE"
-}
+   }
 
 wait_until_healthy() {
   local url
