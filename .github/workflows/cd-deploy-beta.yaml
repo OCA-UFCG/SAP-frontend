@@ -96,23 +96,22 @@ jobs:
       - name: Debug environment (Runner)
         run: echo "Image is ${{ vars.DOCKER_IMAGE_BETA }}"
 
-      - name: Ensure docker network exists
-        run: |
-          DOCKER_NETWORK_NAME="${{ vars.NETWORK_NAME }}"
-          if ! sudo docker network inspect "$DOCKER_NETWORK_NAME" >/dev/null 2>&1; then
-            sudo docker network create "$DOCKER_NETWORK_NAME"
-            echo "Created network: $DOCKER_NETWORK_NAME"
-          else
-            echo "Network already exists: $DOCKER_NETWORK_NAME"
-          fi
       - name: Pull the latest beta image
         run: sudo docker pull ${{ vars.DOCKER_IMAGE_BETA }}:latest
 
-      - name: Stop existing container
-        run: sudo docker rm -f ${{ vars.CONTAINER_NAME_BETA }} || true
+      - name: Check out the deploy script
+        uses: actions/checkout@v5
+        with:
+          sparse-checkout: scripts/deploy-container.sh
+          sparse-checkout-cone-mode: false
 
-      - name: Run the new Beta container
+      - name: Deploy with health check and automatic rollback
         env:
+          IMAGE: ${{ vars.DOCKER_IMAGE_BETA }}:latest
+          CONTAINER_NAME: ${{ vars.CONTAINER_NAME_BETA }}
+          HOST_PORT: ${{ vars.HOST_PORT_BETA }}
+          CONTAINER_PORT: ${{ vars.CONTAINER_PORT }}
+          NETWORK_NAME: ${{ vars.NETWORK_NAME }}
           GEE_PRIVATE_KEY: ${{ secrets.GEE_PRIVATE_KEY }}
           FIREBASE_PROJECT_ID: ${{ secrets.FIREBASE_PROJECT_ID }}
           FIREBASE_CLIENT_EMAIL: ${{ secrets.FIREBASE_CLIENT_EMAIL }}
@@ -122,10 +121,7 @@ jobs:
           CONTENTFUL_MANAGEMENT_TOKEN: ${{ secrets.CONTENTFUL_MANAGEMENT_TOKEN }}
           DOCS_DEFAULT: ${{ vars.DOCS_DEFAULT }}
           NEXT_PUBLIC_HOST_URL: ${{ vars.NEXT_PUBLIC_HOST_URL_BETA }}
-        run: sudo --preserve-env=GEE_PRIVATE_KEY,FIREBASE_PROJECT_ID,FIREBASE_CLIENT_EMAIL,FIREBASE_PRIVATE_KEY_BASE64,FIREBASE_TELEMETRY_COLLECTION,LOGS_ALLOWED_EMAILS,CONTENTFUL_MANAGEMENT_TOKEN,DOCS_DEFAULT,NEXT_PUBLIC_HOST_URL docker run --name ${{ vars.CONTAINER_NAME_BETA }} --restart unless-stopped -p ${{ vars.HOST_PORT_BETA }}:${{ vars.CONTAINER_PORT }} -e GEE_PRIVATE_KEY -e FIREBASE_PROJECT_ID -e FIREBASE_CLIENT_EMAIL -e FIREBASE_PRIVATE_KEY_BASE64 -e FIREBASE_TELEMETRY_COLLECTION -e LOGS_ALLOWED_EMAILS -e CONTENTFUL_MANAGEMENT_TOKEN -e DOCS_DEFAULT -e NEXT_PUBLIC_HOST_URL -d ${{ vars.DOCKER_IMAGE_BETA }}:latest
-
-      - name: Connect to the Beta container network
-        run: sudo docker network connect ${{ vars.NETWORK_NAME }} ${{ vars.CONTAINER_NAME_BETA }}
+        run: bash ./scripts/deploy-container.sh
 
       - name: Prune unused Docker images
         run: sudo docker system prune -f

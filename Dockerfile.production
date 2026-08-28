@@ -64,5 +64,9 @@ EXPOSE 3000
 # Build the Next.js project
 RUN npm run build
 
-# Start the Next.js project in production mode
-CMD ["npm", "start"]
+# Executa o binário do Next como PID 1, sem npm nem shell no meio. Com `npm start`
+# o SIGTERM do `docker stop` morria no npm e o next-server ficava órfão segurando
+# a porta: medido em >25s sem encerrar, contra 739ms chamando o binário direto.
+# É isso que permite ao deploy parar o container antigo de forma graciosa, em vez
+# de matá-lo no meio dos requests em andamento.
+CMD ["/app/node_modules/.bin/next", "start"]

@@ -26,6 +26,9 @@
 /scripts
 !/scripts/
 /scripts/*
+# Scripts usados pelo CI precisam ser versionados, apesar da regra acima.
+!/scripts/download-tiles.sh
+!/scripts/deploy-container.sh
 /scripts/gee/
 /tmp
 mise.toml

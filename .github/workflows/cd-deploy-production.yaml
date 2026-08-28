@@ -85,7 +85,7 @@ jobs:
             NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET=${{ secrets.NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET }}
             NEXT_PUBLIC_FIREBASE_MESSAGING_SENDER_ID=${{ secrets.NEXT_PUBLIC_FIREBASE_MESSAGING_SENDER_ID }}
             NEXT_PUBLIC_FIREBASE_APP_ID=${{ secrets.NEXT_PUBLIC_FIREBASE_APP_ID }}
-  push-beta:
+  push-prod:
     needs: build-image
     runs-on: [self-hosted, sap-prod-runner]
 
@@ -93,24 +93,22 @@ jobs:
       - name: Debug environment (Runner)
         run: echo "Image is ${{ vars.DOCKER_IMAGE_PROD}}"
 
-      - name: Ensure docker network exists
-        run: |
-          DOCKER_NETWORK_NAME="${{ vars.NETWORK_NAME }}"
-          if ! sudo docker network inspect "$DOCKER_NETWORK_NAME" >/dev/null 2>&1; then
-            sudo docker network create "$DOCKER_NETWORK_NAME"
-            echo "Created network: $DOCKER_NETWORK_NAME"
-          else
-            echo "Network already exists: $DOCKER_NETWORK_NAME"
-          fi
-
       - name: Pull the latest production image
         run: sudo docker pull ${{ vars.DOCKER_IMAGE_PROD}}:latest
 
-      - name: Stop existing container
-        run: sudo docker rm -f ${{ vars.CONTAINER_NAME_PROD}} || true
+      - name: Check out the deploy script
+        uses: actions/checkout@v5
+        with:
+          sparse-checkout: scripts/deploy-container.sh
+          sparse-checkout-cone-mode: false
 
-      - name: Run the new production container
+      - name: Deploy with health check and automatic rollback
         env:
+          IMAGE: ${{ vars.DOCKER_IMAGE_PROD }}:latest
+          CONTAINER_NAME: ${{ vars.CONTAINER_NAME_PROD }}
+          HOST_PORT: ${{ vars.HOST_PORT_PROD }}
+          CONTAINER_PORT: ${{ vars.CONTAINER_PORT }}
+          NETWORK_NAME: ${{ vars.NETWORK_NAME }}
           GEE_PRIVATE_KEY: ${{ secrets.GEE_PRIVATE_KEY }}
           FIREBASE_PROJECT_ID: ${{ secrets.FIREBASE_PROJECT_ID }}
           FIREBASE_CLIENT_EMAIL: ${{ secrets.FIREBASE_CLIENT_EMAIL }}
@@ -120,10 +118,7 @@ jobs:
           CONTENTFUL_MANAGEMENT_TOKEN: ${{ secrets.CONTENTFUL_MANAGEMENT_TOKEN }}
           DOCS_DEFAULT: ${{ vars.DOCS_DEFAULT }}
           NEXT_PUBLIC_HOST_URL: ${{ vars.NEXT_PUBLIC_HOST_URL }}
-        run: sudo --preserve-env=GEE_PRIVATE_KEY,FIREBASE_PROJECT_ID,FIREBASE_CLIENT_EMAIL,FIREBASE_PRIVATE_KEY_BASE64,FIREBASE_TELEMETRY_COLLECTION,LOGS_ALLOWED_EMAILS,CONTENTFUL_MANAGEMENT_TOKEN,DOCS_DEFAULT,NEXT_PUBLIC_HOST_URL docker run --name ${{ vars.CONTAINER_NAME_PROD}} --restart unless-stopped -p ${{ vars.HOST_PORT_PROD}}:${{ vars.CONTAINER_PORT }} -e GEE_PRIVATE_KEY -e FIREBASE_PROJECT_ID -e FIREBASE_CLIENT_EMAIL -e FIREBASE_PRIVATE_KEY_BASE64 -e FIREBASE_TELEMETRY_COLLECTION -e LOGS_ALLOWED_EMAILS -e CONTENTFUL_MANAGEMENT_TOKEN -e DOCS_DEFAULT -e NEXT_PUBLIC_HOST_URL -d ${{ vars.DOCKER_IMAGE_PROD}}:latest
-
-      - name: Connect to the SAP network
-        run: sudo docker network connect ${{ vars.NETWORK_NAME }} ${{ vars.CONTAINER_NAME_PROD}}
+        run: bash ./scripts/deploy-container.sh
 
       - name: Prune unused Docker images
         run: sudo docker system prune -f
