@@ -6,6 +6,7 @@ import type {
   ResolvedGeeStatisticsSource,
 } from "@/contracts/geeStatistics";
 import { evaluateGeeObject } from "@/infrastructure/earth-engine/client";
+import { chunk } from "@/utils/chunk";
 
 /**
  * Tudo que a validação de uma tabela estatística precisa saber do Earth Engine,
@@ -115,14 +116,6 @@ function buildProbeExpression({ source, schema }: StatisticsAssetProbeRequest) {
       )
       .get("list"),
   });
-}
-
-function chunk<T>(items: T[], size: number) {
-  const chunks: T[][] = [];
-  for (let index = 0; index < items.length; index += size) {
-    chunks.push(items.slice(index, index + size));
-  }
-  return chunks;
 }
 
 async function readProbeBatch(requests: StatisticsAssetProbeRequest[]) {

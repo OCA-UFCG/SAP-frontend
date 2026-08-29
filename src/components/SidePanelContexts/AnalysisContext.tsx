@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { useTranslations } from "next-intl";
 import { AnalysisPanel } from "@/components/analysis/AnalysisPanel";
 import type { SearchSubmissionMetadata } from "@/components/SearchBar/types";
@@ -105,6 +105,12 @@ export function AnalysisContext({
   }, [panelLayers, activeLayerId]);
   const [analysisImageDataByRequestKey, setAnalysisImageDataByRequestKey] =
     useState<Record<string, PanelLayerI["imageData"] | null>>({});
+  // Chaves já disparadas. O efeito que busca os períodos NÃO pode depender de
+  // `analysisImageDataByRequestKey`: ele escreve nesse estado a cada resposta,
+  // então cada resposta o reexecutava, a limpeza abortava tudo o que ainda
+  // estava voltando e o novo run redisparava o que faltava. Com 30 períodos
+  // isso virava 30 + 29 + 28 + ... requisições em vez de 30.
+  const requestedAnalysisKeysRef = useRef<Set<string>>(new Set());
   const [seriesImageDataByRequestKey, setSeriesImageDataByRequestKey] =
     useState<Record<string, PanelLayerI["imageData"] | null>>({});
 
@@ -190,7 +196,7 @@ export function AnalysisContext({
 
       return (
         allRequestKeys.indexOf(requestKey) === index &&
-        analysisImageDataByRequestKey[requestKey] === undefined &&
+        !requestedAnalysisKeysRef.current.has(requestKey) &&
         (!selectedMunicipalityCode ||
           usesGeeStatistics ||
           !yearKey ||
@@ -209,6 +215,8 @@ export function AnalysisContext({
     }
 
     const controllers = requestKeys.map(() => new AbortController());
+    const requestedKeys = requestedAnalysisKeysRef.current;
+    requestKeys.forEach((requestKey) => requestedKeys.add(requestKey));
 
     requestKeys.forEach((requestKey, index) => {
       const yearKey = getMunicipalAnalysisRequestYear(requestKey);
@@ -264,12 +272,15 @@ export function AnalysisContext({
     });
 
     return () => {
-      controllers.forEach((controller) => {
+      controllers.forEach((controller, index) => {
         controller.abort();
+        // Uma busca abortada nunca grava resultado, então a chave volta a ficar
+        // disponível: sem isso, trocar de território deixaria o período órfão.
+        const abortedKey = requestKeys[index];
+        if (abortedKey) requestedKeys.delete(abortedKey);
       });
     };
   }, [
-    analysisImageDataByRequestKey,
     dataset?.id,
     dataset?.municipalAnalysisApiPath,
     municipalAnalysisRequestKey,

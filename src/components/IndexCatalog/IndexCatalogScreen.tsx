@@ -10,6 +10,7 @@ import {
 } from "react";
 import { CatalogMonitoringPreview } from "@/components/IndexCatalog/CatalogMonitoringPreview";
 import { CatalogPreviewMapCapture } from "@/components/IndexCatalog/CatalogPreviewMapCapture";
+import { ClassColorField } from "@/components/IndexCatalog/ClassColorField";
 import {
   catalogApiRequest as apiRequest,
   catalogIdempotencyKey as idempotencyKey,
@@ -1193,7 +1194,7 @@ export function IndexCatalogScreen() {
               {draft.classes.map((entry, index) => (
                 <div
                   key={entry.classIndex}
-                  className="grid items-end gap-3 md:grid-cols-[110px_1fr_110px]"
+                  className="grid items-end gap-3 md:grid-cols-[110px_1fr_260px]"
                 >
                   <label className="text-xs font-medium">
                     Índice
@@ -1213,19 +1214,12 @@ export function IndexCatalogScreen() {
                       }
                     />
                   </label>
-                  <label className="text-xs font-medium">
-                    Cor
-                    <input
-                      className={`${inputClass} h-10 p-1`}
-                      type="color"
-                      value={entry.color}
-                      onChange={(event) =>
-                        updateClass(index, {
-                          color: event.target.value.toUpperCase(),
-                        })
-                      }
-                    />
-                  </label>
+                  <ClassColorField
+                    color={entry.color}
+                    inputClass={inputClass}
+                    label={`classe ${entry.classIndex}`}
+                    onChange={(color) => updateClass(index, { color })}
+                  />
                 </div>
               ))}
             </div>
