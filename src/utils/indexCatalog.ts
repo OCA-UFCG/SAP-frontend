@@ -1,4 +1,5 @@
 import { parseGeeFeatureCollectionStatisticsSource } from "@/contracts/geeStatistics";
+import { HEX_COLOR_PATTERN } from "@/utils/hexColor";
 import {
   INDEX_CATEGORIES,
   type ClassMapping,
@@ -8,7 +9,6 @@ import {
   type IndexCategory,
 } from "@/types/indexCatalog";
 
-const HEX_COLOR_PATTERN = /^#[0-9a-f]{6}$/iu;
 const ASSET_ID_PATTERN = /^[A-Za-z0-9_./{}-]{3,300}$/u;
 const PERIOD_PATTERN = /^\d{4}(?:-(?:0[1-9]|1[0-2]))?$/u;
 const ASSET_YEAR_PATTERN = /(?<![0-9])(?:19|20|21)\d{2}(?![0-9])/gu;
