@@ -50,17 +50,18 @@ describe("UserAuth", () => {
     cleanup();
   });
 
-  it("shows the disconnected status and login action in the dropdown when there is no authenticated user", () => {
+  it("shows a plain Entrar action instead of the user menu when there is no authenticated user", () => {
     mockAuthValue();
 
     render(<UserAuth />);
 
-    fireEvent.click(screen.getByRole("button", { name: /menu do usuário/i }));
-
-    expect(screen.getByText("Status da sessão")).toBeInTheDocument();
-    expect(screen.getByText("Desconectado")).toBeInTheDocument();
     expect(screen.getByRole("button", { name: /entrar/i })).toBeInTheDocument();
-    expect(screen.queryByRole("button", { name: /sair/i })).not.toBeInTheDocument();
+    expect(
+      screen.queryByRole("button", { name: /menu do usuário/i }),
+    ).not.toBeInTheDocument();
+    expect(
+      screen.queryByRole("button", { name: /sair/i }),
+    ).not.toBeInTheDocument();
   });
 
   it("redirects to login when the disconnected user clicks Entrar", () => {
@@ -68,7 +69,6 @@ describe("UserAuth", () => {
 
     render(<UserAuth />);
 
-    fireEvent.click(screen.getByRole("button", { name: /menu do usuário/i }));
     fireEvent.click(screen.getByRole("button", { name: /entrar/i }));
 
     expect(pushMock).toHaveBeenCalledWith("/login");

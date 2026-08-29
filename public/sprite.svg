@@ -225,4 +225,24 @@
         </g>
     </symbol>
 
+    <symbol id="mail" viewBox="0 0 16 16">
+        <rect width="16" height="16" fill="#292829"/>
+        <path
+            d="M13.333 2.66669H2.66634C1.92996 2.66669 1.33301 3.26364 1.33301 4.00002V12C1.33301 12.7364 1.92996 13.3334 2.66634 13.3334H13.333C14.0694 13.3334 14.6663 12.7364 14.6663 12V4.00002C14.6663 3.26364 14.0694 2.66669 13.333 2.66669Z"
+            stroke="#F8F7F8"
+            stroke-width="0.833333"
+            stroke-linecap="round"
+            stroke-linejoin="round"
+            fill="none"
+        />
+        <path
+            d="M14.6663 4.66669L8.68634 8.46669C8.48052 8.59564 8.24255 8.66403 7.99967 8.66403C7.7568 8.66403 7.51883 8.59564 7.31301 8.46669L1.33301 4.66669"
+            stroke="#F8F7F8"
+            stroke-width="0.833333"
+            stroke-linecap="round"
+            stroke-linejoin="round"
+            fill="none"
+        />
+    </symbol>
+
 </svg>
