@@ -46,6 +46,7 @@ import {
   getWarmupYearKeys,
   normalizeGeeAssetType,
   selectImageCollectionImage,
+  selectLastBand,
   shouldApplySelfMask,
 } from "@/app/api/ee/services";
 
@@ -252,5 +253,22 @@ describe("Earth Engine cache warmup scope", () => {
   it("returns no warmup period when the layer has none", () => {
     expect(getWarmupYearKeys(undefined)).toEqual([]);
     expect(getWarmupYearKeys({})).toEqual([]);
+  });
+});
+
+describe("seleção da última banda", () => {
+  it("monta a escolha como expressão do Earth Engine, sem evaluate no cliente", () => {
+    const bandNames = {
+      size: vi.fn(() => ({ subtract: vi.fn(() => "lastIndex") })),
+      get: vi.fn(() => "CDI"),
+    };
+    const image = {
+      bandNames: vi.fn(() => bandNames),
+      select: vi.fn(() => "cdi-band"),
+    };
+
+    expect(selectLastBand(image)).toBe("cdi-band");
+    expect(bandNames.get).toHaveBeenCalledWith("lastIndex");
+    expect(image.select).toHaveBeenCalledWith(["CDI"]);
   });
 });

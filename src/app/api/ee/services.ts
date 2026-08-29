@@ -21,6 +21,12 @@ import {
   evaluateGeeObject,
   initializeGee,
 } from "@/infrastructure/earth-engine/client";
+import {
+  normalizeGeeAssetType,
+  resolveGeeAssetType,
+} from "@/app/api/ee/assetType";
+
+export { normalizeGeeAssetType };
 
 let brazilBoundary: any | null = null;
 
@@ -261,14 +267,6 @@ interface GetEarthEngineUrlOptions {
   imageCollectionSelection?: ImageCollectionSelection;
 }
 
-export function normalizeGeeAssetType(type?: unknown) {
-  return type
-    ? String(type)
-        .toUpperCase()
-        .replace(/[_\s-]/g, "")
-    : "";
-}
-
 function isFeatureCollectionAsset({
   assetType,
   mapVisualization,
@@ -383,6 +381,19 @@ export function applyMapVisualization(
   return { image: selectedImage, visParams: plan.visParams };
 }
 
+/**
+ * A última banda da imagem, escolhida por uma expressão do Earth Engine em vez
+ * de um `bandNames().evaluate()` no cliente. As duas formas dão a mesma banda;
+ * esta não gasta um round trip, que é o custo dominante ao abrir uma camada.
+ *
+ * @example
+ * selectLastBand(ee.Image("...cdi_v1_2026_01")); // banda "CDI"
+ */
+export function selectLastBand(image: any) {
+  const bandNames = image.bandNames();
+  return image.select([bandNames.get(bandNames.size().subtract(1))]);
+}
+
 function buildFeatureCollectionImage(
   imageId: string,
   mapVisualization: CompactMapVisualizationConfig,
@@ -466,20 +477,13 @@ export const getEarthEngineUrl = async (
 
     await initializeGee();
 
-    // 1. Fetch asset metadata dynamically to check if it's an Image or ImageCollection
-    const assetMeta: any = await new Promise((resolve) => {
-      ee.data.getAsset(
-        imageId,
-        (asset: any) => resolve(asset),
-        () => resolve(null), // Safe fallback
-      );
-    });
+    // 1. Descobrir se o asset é Image, ImageCollection ou FeatureCollection.
+    // `resolveGeeAssetType` só vai à rede quando o `mapVisualization` não
+    // declara `sourceType` e nenhum outro período do mesmo asset já perguntou.
+    const assetType = await resolveGeeAssetType(imageId, mapVisualization);
 
     // 2. Instantiate correctly based on type
     let GEEImage: any;
-
-    // GEE api might return "ImageCollection" or "IMAGE_COLLECTION" depending on the endpoint version
-    const assetType = normalizeGeeAssetType(assetMeta?.type);
     const shouldUseFeatureCollection = isFeatureCollectionAsset({
       assetType,
       mapVisualization,
@@ -528,23 +532,11 @@ export const getEarthEngineUrl = async (
       GEEImage = configuredImage.image;
       configuredVisParams = configuredImage.visParams;
     } else {
-      // 3. Fetch the list of available bands and automatically select one.
-      try {
-        const bandNames = await new Promise((resolve, reject) => {
-          GEEImage.bandNames().evaluate(
-            (bands: any) => resolve(bands),
-            (err: any) => reject(err),
-          );
-        });
-        if (bandNames && Array.isArray(bandNames) && bandNames.length > 0) {
-          GEEImage = GEEImage.select(bandNames[bandNames.length - 1]);
-        }
-      } catch (bandErr) {
-        console.error(
-          `[GEE] -> Failed to fetch bands for ${imageId}:`,
-          bandErr,
-        );
-      }
+      // 3. Camada legada, sem `mapVisualization`: a banda visualizada é a
+      // última do asset. A escolha é feita dentro da própria expressão, e não
+      // com um `evaluate()` antes do `getMapId`, porque cada ida ao Earth
+      // Engine custa cerca de um segundo e essa custava uma por período aberto.
+      GEEImage = selectLastBand(GEEImage);
     }
 
     if (

@@ -103,6 +103,23 @@ Formato legado simplificado:
 }
 ```
 
+## `mapVisualization.sourceType` evita uma ida ao Earth Engine
+
+Para instanciar a camada, `getEarthEngineUrl` precisa saber se o `imageId` é uma
+`Image`, uma `ImageCollection` ou uma `FeatureCollection`. Quando o
+`mapVisualization` declara `sourceType`, essa resposta já está no contrato e
+nenhuma pergunta é feita ao Earth Engine; sem ele, `resolveGeeAssetType`
+pergunta uma vez por asset e memoriza a resposta por 6 h
+(`src/app/api/ee/assetType.ts`).
+
+O tipo de um asset só muda quando alguém o reexporta com outra estrutura, e a
+publicação do catálogo descarta esse cache junto com os demais. Uma leitura que
+falha **não** é memorizada: guardá-la fixaria o ramo `ee.Image` numa camada que
+é FeatureCollection.
+
+Publicar `sourceType` é, portanto, a diferença entre uma e nenhuma ida ao Earth
+Engine por URL de tiles. Das 19 camadas publicadas hoje, 11 o declaram.
+
 ## Exemplo invalido
 
 ```json
