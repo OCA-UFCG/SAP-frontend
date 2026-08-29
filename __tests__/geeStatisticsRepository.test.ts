@@ -11,7 +11,10 @@ import type {
   GeeStatisticsSchema,
   ResolvedGeeStatisticsSource,
 } from "@/contracts/geeStatistics";
-import { mapGeeStatisticsRows } from "@/repositories/platform/geeStatisticsRepository";
+import {
+  mapGeeStatisticsRows,
+  matchesStatisticsPeriod,
+} from "@/repositories/platform/geeStatisticsRepository";
 
 const source: ResolvedGeeStatisticsSource = {
   kind: "gee-feature-collection",
@@ -223,5 +226,39 @@ describe("geeStatisticsRepository mapping", () => {
     expect(() =>
       mapGeeStatisticsRows(source, schema, "2020-01", "br", [invalidBrazil], 2),
     ).toThrow("esperado 100 ± 0.2");
+  });
+});
+
+describe("seleção do período entre as linhas do território", () => {
+  // A leitura no Earth Engine passou a trazer o território inteiro de uma vez,
+  // então é esta função que escolhe o período. Errar aqui mostra o mês errado
+  // no painel sem levantar erro nenhum.
+  it("casa o mês pelo primeiro dia gravado em data_img", () => {
+    const row = { data_img: "2025-06-01", ano: 2025 };
+
+    expect(matchesStatisticsPeriod(source, row, "2025-06")).toBe(true);
+    expect(matchesStatisticsPeriod(source, row, "2025-07")).toBe(false);
+    expect(matchesStatisticsPeriod(source, row, "2024-06")).toBe(false);
+  });
+
+  it("casa o ano em fontes anuais, mesmo quando ano vem como texto", () => {
+    const annualSource: ResolvedGeeStatisticsSource = {
+      ...source,
+      periodGranularity: "year",
+    };
+
+    expect(matchesStatisticsPeriod(annualSource, { ano: 2020 }, "2020")).toBe(
+      true,
+    );
+    expect(matchesStatisticsPeriod(annualSource, { ano: "2020" }, "2020")).toBe(
+      true,
+    );
+    expect(matchesStatisticsPeriod(annualSource, { ano: 2021 }, "2020")).toBe(
+      false,
+    );
+  });
+
+  it("descarta a linha quando a propriedade do período não veio", () => {
+    expect(matchesStatisticsPeriod(source, {}, "2025-06")).toBe(false);
   });
 });

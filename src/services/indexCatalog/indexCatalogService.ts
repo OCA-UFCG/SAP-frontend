@@ -293,6 +293,11 @@ export async function getIndexCatalogDraftMunicipalData(
     locationKey,
     config.classes.length,
     config.validatedStatisticsSource,
+    // A prévia do catálogo reusa o painel de análise, então ela dispara um
+    // pedido por período do rascunho. Passar os períodos já inferidos na
+    // validação faz essa tela custar uma leitura do Earth Engine em vez de uma
+    // por ano — é onde a espera mais incomoda, porque é onde se publica.
+    config.validation.inferred.periods,
   );
   return result ? { imageData: result.patch } : null;
 }

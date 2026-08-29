@@ -818,11 +818,15 @@ describe("panelLayerRepository", () => {
       years: Record<string, { values: Record<string, number[]> }>;
     };
 
+    // Os períodos publicados fecham a chamada: é com eles que o repositório lê
+    // a série inteira numa ida ao Earth Engine em vez de uma por período.
     expect(mockedGetGeeStatisticsYearPatch).toHaveBeenCalledWith(
       "carbonoembrapa",
       "2020-01",
       "2507507",
       2,
+      null,
+      ["2020-01"],
     );
     expect(imageData.years["2020-01"]?.values["2507507"]).toEqual([125, 875]);
   });
@@ -946,6 +950,7 @@ describe("panelLayerRepository", () => {
       "br",
       1,
       source,
+      ["2025"],
     );
     expect(
       mockedGetContent.mock.calls.some(([query]) =>

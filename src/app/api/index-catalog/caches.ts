@@ -2,6 +2,7 @@ import { revalidatePath, revalidateTag } from "next/cache";
 import { clearEarthEngineCacheForLayer } from "@/app/api/ee/cache";
 import { clearMunicipalAnalysisCache } from "@/repositories/platform/municipalAnalysisCache";
 import { clearGeeStatisticsSchemaCache } from "@/repositories/platform/geeStatisticsRepository";
+import { clearGeeStatisticsRowsCache } from "@/repositories/platform/geeStatisticsRowsCache";
 import {
   clearPanelLayersCache,
   PANEL_LAYERS_CACHE_TAG,
@@ -9,11 +10,12 @@ import {
 
 /**
  * Invalida tudo o que uma escrita do catálogo no Contentful torna obsoleto.
- * São quatro caches distintos e um cache de fetch: a URL de tiles do Earth
+ * São cinco caches distintos e um cache de fetch: a URL de tiles do Earth
  * Engine, o período de análise territorial, a lista memoizada de panelLayer, o
- * schema estatístico do GEE e a resposta do Contentful guardada no Data Cache
- * do Next. Publicar sem invalidar a tag deixava o índice novo fora de
- * `/api/ee` até o `revalidate` expirar.
+ * schema estatístico do GEE, as linhas estatísticas já lidas do GEE e a
+ * resposta do Contentful guardada no Data Cache do Next. Publicar sem
+ * invalidar a tag deixava o índice novo fora de `/api/ee` até o `revalidate`
+ * expirar.
  */
 export function refreshPublicIndexCaches(panelLayerId: string) {
   // A memoização de assets estatísticos (statisticsAssetCache) fica de fora de
@@ -24,6 +26,7 @@ export function refreshPublicIndexCaches(panelLayerId: string) {
   clearMunicipalAnalysisCache(panelLayerId);
   clearPanelLayersCache();
   clearGeeStatisticsSchemaCache();
+  clearGeeStatisticsRowsCache();
   // "max" é a forma que o Next 16 aceita fora de Server Actions; sem o
   // segundo argumento a chamada é depreciada.
   revalidateTag(PANEL_LAYERS_CACHE_TAG, "max");
