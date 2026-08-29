@@ -1,17 +1,17 @@
-import { beforeEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 const {
   getCachedMunicipalAnalysisImageDataMock,
   getMunicipalAnalysisCacheControlHeaderMock,
-  requireAuthenticatedRequestMock,
+  getAuthenticatedUserIdMock,
 } = vi.hoisted(() => ({
   getCachedMunicipalAnalysisImageDataMock: vi.fn(),
   getMunicipalAnalysisCacheControlHeaderMock: vi.fn(),
-  requireAuthenticatedRequestMock: vi.fn(),
+  getAuthenticatedUserIdMock: vi.fn(),
 }));
 
 vi.mock("@/lib/server-session", () => ({
-  requireAuthenticatedRequest: requireAuthenticatedRequestMock,
+  getAuthenticatedUserId: getAuthenticatedUserIdMock,
 }));
 
 vi.mock("@/repositories/platform/municipalAnalysisCache", () => ({
@@ -21,6 +21,7 @@ vi.mock("@/repositories/platform/municipalAnalysisCache", () => ({
 }));
 
 import { GET } from "@/app/api/municipal-analysis/[panelLayerId]/route";
+import { clearMunicipalAnalysisRateLimit } from "@/app/api/municipal-analysis/rate-limit";
 
 const callMunicipalAnalysisRoute = (
   panelLayerId: string,
@@ -42,17 +43,16 @@ describe("municipal analysis route", () => {
   beforeEach(() => {
     getCachedMunicipalAnalysisImageDataMock.mockReset();
     getMunicipalAnalysisCacheControlHeaderMock.mockReset();
-    requireAuthenticatedRequestMock.mockReset();
-    requireAuthenticatedRequestMock.mockResolvedValue(null);
+    getAuthenticatedUserIdMock.mockReset();
+    getAuthenticatedUserIdMock.mockResolvedValue("user-1");
+    clearMunicipalAnalysisRateLimit();
     getMunicipalAnalysisCacheControlHeaderMock.mockReturnValue(
       "private, max-age=600, stale-while-revalidate=3600",
     );
   });
 
   it("rejects unauthenticated requests without loading municipal analysis", async () => {
-    requireAuthenticatedRequestMock.mockResolvedValue(
-      Response.json({ error: "Unauthorized access." }, { status: 401 }),
-    );
+    getAuthenticatedUserIdMock.mockResolvedValue(null);
 
     const response = await callMunicipalAnalysisRoute("CDI_Test", "2026");
 
@@ -199,4 +199,47 @@ describe("municipal analysis route", () => {
       error: "Unable to load municipal analysis.",
     });
   });
+
+  // Esta rota é a que mais gera trabalho no Earth Engine, e a fila do SDK é uma
+  // só por processo: sem teto, um cliente descontrolado atrasa o mapa de todos
+  // os outros usuários daquela instância.
+  it("barra o usuário que passa do teto da janela, sem tocar no Earth Engine", async () => {
+    vi.stubEnv("MUNICIPAL_ANALYSIS_RATE_LIMIT_MAX_REQUESTS", "2");
+    getCachedMunicipalAnalysisImageDataMock.mockResolvedValue({
+      found: true,
+      imageData: { type: "territorial-compact" },
+      status: "hit",
+    });
+
+    await callMunicipalAnalysisRoute("CDI_Test", "2026");
+    await callMunicipalAnalysisRoute("CDI_Test", "2025");
+    getCachedMunicipalAnalysisImageDataMock.mockClear();
+    const response = await callMunicipalAnalysisRoute("CDI_Test", "2024");
+
+    expect(response.status).toBe(429);
+    expect(response.headers.get("X-RateLimit-Limit")).toBe("2");
+    expect(Number(response.headers.get("Retry-After"))).toBeGreaterThan(0);
+    expect(getCachedMunicipalAnalysisImageDataMock).not.toHaveBeenCalled();
+  });
+
+  it("não gasta cota de quem nem chegou a se autenticar", async () => {
+    vi.stubEnv("MUNICIPAL_ANALYSIS_RATE_LIMIT_MAX_REQUESTS", "1");
+    getAuthenticatedUserIdMock.mockResolvedValue(null);
+
+    await callMunicipalAnalysisRoute("CDI_Test", "2026");
+    getAuthenticatedUserIdMock.mockResolvedValue("user-1");
+    getCachedMunicipalAnalysisImageDataMock.mockResolvedValue({
+      found: true,
+      imageData: { type: "territorial-compact" },
+      status: "hit",
+    });
+
+    const response = await callMunicipalAnalysisRoute("CDI_Test", "2026");
+
+    expect(response.status).toBe(200);
+  });
+});
+
+afterEach(() => {
+  vi.unstubAllEnvs();
 });

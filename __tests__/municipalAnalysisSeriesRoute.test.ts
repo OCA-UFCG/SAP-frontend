@@ -6,16 +6,16 @@ const {
   getMunicipalAnalysisCacheControlHeaderMock,
   getMunicipalReportSeriesMock,
   getPanelLayerByIdMock,
-  requireAuthenticatedRequestMock,
+  getAuthenticatedUserIdMock,
 } = vi.hoisted(() => ({
   getMunicipalAnalysisCacheControlHeaderMock: vi.fn(),
   getMunicipalReportSeriesMock: vi.fn(),
   getPanelLayerByIdMock: vi.fn(),
-  requireAuthenticatedRequestMock: vi.fn(),
+  getAuthenticatedUserIdMock: vi.fn(),
 }));
 
 vi.mock("@/lib/server-session", () => ({
-  requireAuthenticatedRequest: requireAuthenticatedRequestMock,
+  getAuthenticatedUserId: getAuthenticatedUserIdMock,
 }));
 
 vi.mock("@/repositories/platform/municipalAnalysisCache", () => ({
@@ -39,6 +39,7 @@ vi.mock("@/repositories/platform/panelLayerRepository", () => ({
 }));
 
 import { GET } from "@/app/api/municipal-analysis/[panelLayerId]/series/route";
+import { clearMunicipalAnalysisRateLimit } from "@/app/api/municipal-analysis/rate-limit";
 
 const reportSeriesConfig = {
   schemaVersion: 1 as const,
@@ -63,11 +64,12 @@ function callRoute(panelLayerId: string, locationKey?: string) {
 
 describe("municipal analysis series route", () => {
   beforeEach(() => {
-    requireAuthenticatedRequestMock.mockReset();
+    getAuthenticatedUserIdMock.mockReset();
+    getAuthenticatedUserIdMock.mockResolvedValue("user-1");
+    clearMunicipalAnalysisRateLimit();
     getPanelLayerByIdMock.mockReset();
     getMunicipalReportSeriesMock.mockReset();
     getMunicipalAnalysisCacheControlHeaderMock.mockReset();
-    requireAuthenticatedRequestMock.mockResolvedValue(null);
     getMunicipalAnalysisCacheControlHeaderMock.mockReturnValue(
       "private, max-age=600, stale-while-revalidate=3600",
     );
@@ -130,9 +132,7 @@ describe("municipal analysis series route", () => {
   });
 
   it("rejects unauthenticated requests", async () => {
-    requireAuthenticatedRequestMock.mockResolvedValue(
-      Response.json({ error: "Unauthorized access." }, { status: 401 }),
-    );
+    getAuthenticatedUserIdMock.mockResolvedValue(null);
 
     const response = await callRoute("layer-1", "5200050");
 

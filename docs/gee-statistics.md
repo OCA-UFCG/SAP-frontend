@@ -133,6 +133,58 @@ O cache em memória usa a chave `panelLayerId::year::locationKey`. O TTL padrão
 `MUNICIPAL_ANALYSIS_CACHE_MAX_ENTRIES`. Em uma implantação com múltiplas
 instâncias, cada processo mantém seu próprio cache.
 
+## A fila do Earth Engine é uma só por processo
+
+O SDK do Earth Engine mantém **uma fila de requisições por processo Node**
+(`apiclient.requestQueue_`, despachando uma a cada 350 ms) e ela é compartilhada
+por tudo: tiles do mapa, estatísticas, catálogo e aquecimento de cache, de todos
+os usuários daquela instância. O risco operacional não é estourar a cota do
+Google — a carga da plataforma não chega perto dela — é **essa fila encher**, e
+o mapa de um usuário ficar esperando atrás do painel de outro.
+
+Duas proteções existem por causa disso.
+
+### Toda chamada tem prazo
+
+O SDK não tem prazo próprio: `deadlineMs_` vale `0`, que significa "sem
+deadline". Uma conexão pendurada nunca retornava, e a requisição ficava
+ocupando a fila para sempre. Pior: um `429` do Earth Engine não vira erro, vira
+espera — o SDK reenfileira até 10 vezes com backoff de até 120 s, o que dá mais
+de dez minutos preso antes de desistir.
+
+`src/infrastructure/earth-engine/client.ts` define os dois limites:
+
+| Variável                        | Padrão | O que limita                                         |
+| ------------------------------- | -----: | ---------------------------------------------------- |
+| `GEE_REQUEST_DEADLINE_SECONDS`  |   30 s | cada tentativa HTTP do SDK (`ee.data.setDeadline`)   |
+| `GEE_OPERATION_TIMEOUT_SECONDS` |   60 s | a operação inteira, do ponto de vista de quem chamou |
+
+O segundo existe **além** do primeiro justamente por causa das retentativas.
+Desistir não cancela a requisição dentro do SDK — ela continua na fila dele —,
+mas libera o chamador: a rota responde, o cache serve o valor velho quando
+existe e o handler do Node é devolvido.
+
+É também o que impede a memoização de `initializeGee` de envenenar o processo.
+Ela guarda a promessa de inicialização; sem prazo, um `ee.initialize` que nunca
+se resolvia ficava guardado ali e toda chamada seguinte esperava para sempre
+pela mesma promessa, até o restart.
+
+### `/api/municipal-analysis` tem teto por usuário
+
+O teto de 30 req/min existia só em `/api/ee`, que é o caminho dos tiles — não o
+que mais gera carga. `/api/municipal-analysis` e sua rota de série passam a
+dividir um balde próprio, de 300 requisições por minuto por usuário
+(`MUNICIPAL_ANALYSIS_RATE_LIMIT_MAX_REQUESTS`).
+
+O teto é alto de propósito: o uso legítimo é volumoso, porque abrir uma camada
+migrada custa uma requisição por período e trocar de território repete a série.
+Ele não serve para moderar navegação normal, e sim para conter o descontrole —
+um laço no cliente e um usuário autenticado martelando a rota ocupam a mesma
+fila que atende todo mundo.
+
+O contador é por processo e por janela fixa, como todos os caches desta base
+(`src/app/api/rateLimit.ts`).
+
 ## Retirada do pipeline legado
 
 Para uma camada migrada, a remoção segura das estatísticas do Contentful deve

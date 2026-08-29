@@ -20,6 +20,7 @@ import {
 import {
   evaluateGeeObject,
   initializeGee,
+  withGeeTimeout,
 } from "@/infrastructure/earth-engine/client";
 
 let brazilBoundary: any | null = null;
@@ -711,11 +712,17 @@ const getImageScale = (
  * @returns {Promise<Object>} - The map ID object.
  */
 function getMapId(image: any, visParams?: any) {
-  return new Promise((resolve, reject) => {
-    image.getMapId(visParams, (obj: any, error: any) =>
-      error ? reject(new Error(error)) : resolve(obj),
-    );
-  });
+  // Sob o mesmo teto de relógio das demais chamadas: um `getMapId` preso é o
+  // que trava o mapa de quem está olhando, e o SDK sozinho espera indefinidamente.
+  return withGeeTimeout(
+    "getMapId",
+    () =>
+      new Promise((resolve, reject) => {
+        image.getMapId(visParams, (obj: any, error: any) =>
+          error ? reject(new Error(error)) : resolve(obj),
+        );
+      }),
+  );
 }
 
 /**

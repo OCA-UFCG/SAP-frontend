@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
-import { requireAuthenticatedRequest } from "@/lib/server-session";
+import { getAuthenticatedUserId } from "@/lib/server-session";
+import { consumeMunicipalAnalysisRateLimit } from "@/app/api/municipal-analysis/rate-limit";
 import {
   getCachedMunicipalAnalysisImageData,
   getMunicipalAnalysisCacheControlHeader,
@@ -28,27 +29,57 @@ function isValidLocationKey(value: string) {
   return LOCATION_KEY_PATTERN.test(value);
 }
 
-function jsonError(message: string, status: number) {
+function jsonError(
+  message: string,
+  status: number,
+  headers: Record<string, string> = {},
+) {
   return NextResponse.json(
     { error: message },
     {
       status,
       headers: {
         "Cache-Control": "no-store",
+        ...headers,
       },
     },
   );
+}
+
+/**
+ * 401 quando não há sessão, 429 quando o usuário passou do teto da janela.
+ *
+ * O teto existe porque esta rota é a que mais gera trabalho no Earth Engine, e
+ * a fila do SDK é uma só por processo: um cliente descontrolado aqui atrasa o
+ * mapa de todos os outros usuários daquela instância.
+ */
+async function rejectUnservableRequest(request: Request) {
+  const authenticatedUserId = await getAuthenticatedUserId(request);
+
+  if (!authenticatedUserId) {
+    return jsonError("Unauthorized access.", 401);
+  }
+
+  const rateLimit = consumeMunicipalAnalysisRateLimit(authenticatedUserId);
+
+  if (rateLimit.limited) {
+    return jsonError("Too many municipal analysis requests.", 429, {
+      ...rateLimit.headers,
+      "Retry-After": String(rateLimit.retryAfterSeconds),
+    });
+  }
+
+  return null;
 }
 
 export async function GET(
   request: Request,
   context: MunicipalAnalysisRouteContext,
 ) {
-  const unauthorizedResponse = await requireAuthenticatedRequest(request);
+  const unservableResponse = await rejectUnservableRequest(request);
 
-  if (unauthorizedResponse) {
-    unauthorizedResponse.headers.set("Cache-Control", "no-store");
-    return unauthorizedResponse;
+  if (unservableResponse) {
+    return unservableResponse;
   }
 
   const { panelLayerId } = await context.params;

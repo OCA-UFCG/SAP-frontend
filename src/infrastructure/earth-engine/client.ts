@@ -21,6 +21,70 @@ interface GoogleOAuthToken {
   tokenType: string;
 }
 
+// Deadline de CADA tentativa HTTP do SDK. Sem isto ele usa `deadlineMs_ = 0`,
+// que é "sem prazo": uma conexão pendurada com o Earth Engine nunca retorna e
+// fica ocupando para sempre a fila global do processo, que é uma só e atende
+// todos os usuários daquela instância.
+const DEFAULT_REQUEST_DEADLINE_MS = 30_000;
+// Teto de relógio da operação inteira. Existe ALÉM do deadline porque o SDK
+// reenfileira sozinho até 10 vezes com backoff de até 120 s: um 429 do Earth
+// Engine não vira erro, vira espera, e só com o deadline por tentativa uma
+// chamada podia ficar presa por mais de dez minutos antes de desistir.
+const DEFAULT_OPERATION_TIMEOUT_MS = 60_000;
+
+function readTimeoutSeconds(variableName: string, fallbackMs: number) {
+  const configured = Number(process.env[variableName]);
+
+  if (!Number.isFinite(configured) || configured <= 0) {
+    return fallbackMs;
+  }
+
+  return Math.floor(configured * 1000);
+}
+
+function getOperationTimeoutMs() {
+  return readTimeoutSeconds(
+    "GEE_OPERATION_TIMEOUT_SECONDS",
+    DEFAULT_OPERATION_TIMEOUT_MS,
+  );
+}
+
+/**
+ * Desiste de esperar uma operação do Earth Engine depois do teto configurado.
+ *
+ * A desistência não cancela a requisição no SDK — ela continua na fila dele.
+ * O que muda é que o chamador deixa de ficar preso: a rota responde, o cache
+ * serve o valor velho quando existe, e o handler do Node é liberado.
+ *
+ * @example
+ * await withGeeTimeout("getMapId de projects/x/asset", () => getMapId(image));
+ */
+export function withGeeTimeout<T>(
+  operation: string,
+  run: () => Promise<T>,
+): Promise<T> {
+  const timeoutMs = getOperationTimeoutMs();
+
+  return new Promise<T>((resolve, reject) => {
+    const timer = setTimeout(() => {
+      reject(
+        new Error(
+          `Earth Engine não respondeu em ${timeoutMs} ms: ${operation}.`,
+        ),
+      );
+    }, timeoutMs);
+
+    // `unref` evita que o timer sozinho segure o processo vivo; em jsdom o
+    // retorno de setTimeout é um número e não tem o método.
+    (timer as unknown as { unref?: () => void }).unref?.();
+
+    Promise.resolve()
+      .then(run)
+      .then(resolve, reject)
+      .finally(() => clearTimeout(timer));
+  });
+}
+
 let geeInitialized: Promise<void> | null = null;
 
 function encodeJwtPart(value: object) {
@@ -148,6 +212,12 @@ async function authenticateAndInitialize(): Promise<void> {
 
   const credentials = parseGeeCredentials(key);
   const projectId = resolveGeeProjectId(credentials);
+  ee.data.setDeadline(
+    readTimeoutSeconds(
+      "GEE_REQUEST_DEADLINE_SECONDS",
+      DEFAULT_REQUEST_DEADLINE_MS,
+    ),
+  );
   const token = await fetchGoogleOAuthToken(credentials);
 
   ee.data.setAuthToken(
@@ -172,7 +242,13 @@ export function initializeGee(): Promise<void> {
     return geeInitialized;
   }
 
-  geeInitialized = authenticateAndInitialize().catch((error) => {
+  // O timeout é o que impede a memoização de envenenar o processo: sem ele,
+  // um `ee.initialize` que nunca se resolve fica guardado aqui e toda chamada
+  // seguinte espera para sempre pela mesma promessa, até o restart.
+  geeInitialized = withGeeTimeout(
+    "ee.initialize",
+    authenticateAndInitialize,
+  ).catch((error) => {
     geeInitialized = null;
     throw error;
   });
@@ -183,16 +259,20 @@ export function initializeGee(): Promise<void> {
 export function evaluateGeeObject<T>(value: {
   evaluate: (callback: (result: T, error?: unknown) => void) => void;
 }): Promise<T> {
-  return new Promise<T>((resolve, reject) => {
-    value.evaluate((result, error) => {
-      if (error) {
-        reject(error instanceof Error ? error : new Error(String(error)));
-        return;
-      }
+  return withGeeTimeout(
+    "evaluate",
+    () =>
+      new Promise<T>((resolve, reject) => {
+        value.evaluate((result, error) => {
+          if (error) {
+            reject(error instanceof Error ? error : new Error(String(error)));
+            return;
+          }
 
-      resolve(result);
-    });
-  });
+          resolve(result);
+        });
+      }),
+  );
 }
 
 export function clearGeeClientForTests() {

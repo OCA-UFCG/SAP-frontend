@@ -6,7 +6,7 @@ import { mergePartialMunicipalImageData } from "@/utils/municipalAnalysisMerge";
 vi.mock("server-only", () => ({}));
 
 vi.mock("@/lib/server-session", () => ({
-  requireAuthenticatedRequest: vi.fn().mockResolvedValue(null),
+  getAuthenticatedUserId: vi.fn().mockResolvedValue("user-1"),
 }));
 
 vi.mock("@/infrastructure/contentful/client", () => ({
