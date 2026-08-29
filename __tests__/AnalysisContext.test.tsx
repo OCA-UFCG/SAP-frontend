@@ -758,4 +758,78 @@ describe("AnalysisContext", () => {
       expect(props.years["2025-12"].values.br).toEqual([20, 80]);
     });
   });
+
+  // Regressão: o efeito que busca os períodos dependia do estado onde grava
+  // cada resposta. Cada resposta o reexecutava, a limpeza abortava tudo o que
+  // ainda estava voltando e o novo run redisparava o que faltava, então uma
+  // camada de N períodos chegava a N + (N-1) + ... requisições.
+  it("pede cada período uma única vez, mesmo com as respostas chegando aos poucos", async () => {
+    const periodKeys = Array.from(
+      { length: 12 },
+      (_, index) => `2025-${String(index + 1).padStart(2, "0")}`,
+    );
+    useMapLayerViewStateMock.mockReturnValue({
+      selectedState: "br",
+      selectedMunicipalityCode: null,
+      activeYear: "2025-12",
+      spatialSelection: {
+        spatialArea: "national",
+        spatialValue: "brasil",
+      },
+    });
+    const layer = buildPanelLayer(
+      {},
+      Object.fromEntries(
+        periodKeys.map((period) => [
+          period,
+          { imageId: `img-${period}`, valuesScale: 1, values: {} },
+        ]),
+      ),
+    );
+    layer.statisticsSource = {
+      kind: "gee-feature-collection",
+    } as PanelLayerI["statisticsSource"];
+    global.fetch = vi.fn().mockImplementation(async (url: string) => {
+      const period = new URL(url).searchParams.get("year") ?? "";
+      // Respostas escalonadas: é o que expõe o problema, porque cada uma
+      // reexecutava o efeito enquanto as outras ainda estavam em voo.
+      await new Promise((resolve) =>
+        setTimeout(resolve, periodKeys.indexOf(period) * 5),
+      );
+      return {
+        ok: true,
+        json: async () => ({
+          imageData: {
+            schemaVersion: 1,
+            type: "territorial-compact",
+            years: {
+              [period]: { valuesScale: 1, values: { br: [30, 70] } },
+            },
+          },
+        }),
+      } as Response;
+    });
+
+    render(
+      <AnalysisContext activeSection="analysis-detail" panelLayers={[layer]} />,
+    );
+
+    await waitFor(() => {
+      const props = analysisPanelMock.mock.calls.at(-1)?.[0] as {
+        years: Record<string, { values: Record<string, number[]> }>;
+      };
+      periodKeys.forEach((period) =>
+        expect(props.years[period]?.values.br).toEqual([30, 70]),
+      );
+    });
+
+    const requestedPeriods = vi
+      .mocked(global.fetch)
+      .mock.calls.map(([url]) =>
+        new URL(url as string).searchParams.get("year"),
+      );
+
+    expect(requestedPeriods).toHaveLength(periodKeys.length);
+    expect([...new Set(requestedPeriods)]).toHaveLength(periodKeys.length);
+  });
 });

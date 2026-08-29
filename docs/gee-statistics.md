@@ -52,6 +52,7 @@ processamento são diferentes:
 seleção de camada/período/território
   -> GET /api/municipal-analysis/{layer}?year={period}&locationKey={key}
   -> cache do servidor (layer + period + location)
+  -> cache de linhas da série (assets + location) -- uma leitura por território
   -> consulta filtrada à FeatureCollection GEE
   -> conversão para patch territorial-compact
   -> merge com os metadados do panelLayer
@@ -132,6 +133,53 @@ O cache em memória usa a chave `panelLayerId::year::locationKey`. O TTL padrão
 `MUNICIPAL_ANALYSIS_CACHE_TTL_SECONDS` e
 `MUNICIPAL_ANALYSIS_CACHE_MAX_ENTRIES`. Em uma implantação com múltiplas
 instâncias, cada processo mantém seu próprio cache.
+
+### A leitura no GEE é por território, não por período
+
+Abaixo daquele cache existe um segundo, em `geeStatisticsRowsCache.ts`, cuja
+chave é **a série inteira de assets** mais o território e as propriedades
+pedidas. Ele guarda todas as linhas daquele território, e o período é
+selecionado depois, em JavaScript, por `matchesStatisticsPeriod`.
+
+O motivo é que o preço de uma consulta ao Earth Engine é do round trip, e não do
+volume. Medido no índice de aridez do ERA5-Land, que tem 45 tabelas anuais:
+
+| Como se pede                   | Requisições | `2507507` | `br` (1 260 linhas) |
+| ------------------------------ | ----------: | --------: | ------------------: |
+| um `evaluate` por período      |          45 | 17 103 ms |           17 098 ms |
+| um `evaluate` com os 45 assets |           1 |  3 709 ms |            3 623 ms |
+| três `evaluate` de 15 assets   |           3 |         — |            2 968 ms |
+
+O território continua filtrado no GEE porque é ele que limita o tamanho da
+resposta — sem ele viriam as 5.573 linhas municipais. O período não limita nada,
+então filtrá-lo lá custava uma ida ao Earth Engine por período visível.
+
+As duas formas de fonte convergem para a mesma leitura:
+
+- **`fixed`** — um asset guarda todos os períodos, então a série é ele mesmo.
+- **`period-template`** — cada período resolve um `assetId`, e
+  `ee.FeatureCollection([...]).flatten()` junta os recortes antes de avaliar.
+  A lista costuma ser menor que a de períodos: o template do Monitor de Secas da
+  ANA é anual e a granularidade é mensal, então 30 períodos moram em 3 assets.
+
+O schema segue a mesma chave: o catálogo valida que todas as tabelas de um
+índice têm o mesmo conjunto de colunas, então uma leitura de `propertyNames()`
+responde pela série toda. Antes, abrir o índice de aridez do ERA5-Land custava
+45 leituras de schema **mais** 45 de linhas.
+
+Os assets entram em blocos de 15 (`STATISTICS_ROWS_BATCH_SIZE`) porque um asset
+inexistente derruba o pedido inteiro — com o nome dele no erro. O bloco limita
+quanto trabalho uma falha invalida e, medido, ainda é mais rápido que um pedido
+único.
+
+Quem passa a lista de períodos é o chamador: `attachMunicipalAnalysisYearToPanelLayer`
+usa as chaves de `imageData.years`, e a prévia do catálogo usa
+`validation.inferred.periods`. Sem essa lista o comportamento é o antigo, uma
+leitura só do período pedido.
+
+A publicação do catálogo limpa esse cache junto com os demais, em
+`refreshPublicIndexCaches`. O limite de entradas pode ser ajustado com
+`GEE_STATISTICS_ROWS_CACHE_MAX_ENTRIES`.
 
 ## Retirada do pipeline legado
 

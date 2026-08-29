@@ -539,7 +539,10 @@ export async function attachMunicipalAnalysisYearToPanelLayer(
         yearKey,
         locationKey,
         panelLayer.imageData.classes.length,
-        ...(panelLayer.statisticsSource ? [panelLayer.statisticsSource] : []),
+        panelLayer.statisticsSource ?? null,
+        // Todos os períodos publicados da camada: é o que permite ao
+        // repositório ler a série inteira num pedido em vez de um por período.
+        Object.keys(panelLayer.imageData.years),
       );
 
       if (geeStatistics) {
