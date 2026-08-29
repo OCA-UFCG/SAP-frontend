@@ -24,12 +24,6 @@ const content: ISections = {
     name: "Home",
     path: "/",
     appears: true,
-  },
-  "about-section": {
-    id: "3",
-    name: "Sobre o SEDES",
-    path: "#",
-    appears: true,
     childrenCollection: {
       items: [
         { id: "3-1", name: "Plano de Ação Brasileiro", path: "/#plano-de-acao-brasileiro", appears: true },

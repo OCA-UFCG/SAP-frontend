@@ -49,38 +49,49 @@ export const UserAuth = () => {
     <div className="flex items-center gap-4">
       <LanguageSwitcher />
 
-      <div className="relative" ref={menuRef}>
+      {!user ? (
         <button
           type="button"
-          onClick={() =>
-            setOpenPathname((currentPathname) =>
-              currentPathname === pathname ? null : pathname,
-            )
-          }
-          className="flex items-center justify-center cursor-pointer w-10 h-10 rounded-full hover:bg-stone-200 focus:outline-none focus:ring-2 focus:ring-[#777E32] transition-colors"
-          aria-label={t("menuLabel")}
-          aria-expanded={isOpen}
-          aria-haspopup="dialog"
+          onClick={handleLogin}
+          className="flex h-10 cursor-pointer items-center rounded-md px-4 py-2 font-medium text-neutral-800 transition-colors hover:bg-stone-200 hover:text-[#777E32] focus:outline-none focus:ring-2 focus:ring-[#777E32]"
         >
-          <Icon id="user" size={24} className="stroke-[#21240F]" />
+          {t("login")}
         </button>
-
-        {isOpen && (
-          <div
-            className="absolute right-0 mt-2 w-56 rounded-md border border-stone-200 bg-white py-1 shadow-lg z-50"
-            role="dialog"
-            aria-label={t("statusLabel")}
+      ) : (
+        <div className="relative" ref={menuRef}>
+          <button
+            type="button"
+            onClick={() =>
+              setOpenPathname((currentPathname) =>
+                currentPathname === pathname ? null : pathname,
+              )
+            }
+            className="flex items-center justify-center cursor-pointer w-10 h-10 rounded-full hover:bg-stone-200 focus:outline-none focus:ring-2 focus:ring-[#777E32] transition-colors"
+            aria-label={t("menuLabel")}
+            aria-expanded={isOpen}
+            aria-haspopup="dialog"
           >
-            <div
-              className={`px-4 py-3 ${user ? "border-b border-stone-100" : ""}`}
-            >
-              <p className="text-sm font-medium text-stone-900">{sessionLabel}</p>
-              <p className="text-sm text-stone-500 truncate" title={sessionValue}>
-                {sessionValue}
-              </p>
-            </div>
+            <Icon id="user" size={24} className="stroke-[#21240F]" />
+          </button>
 
-            {user ? (
+          {isOpen && (
+            <div
+              className="absolute right-0 mt-2 w-56 rounded-md border border-stone-200 bg-white py-1 shadow-lg z-50"
+              role="dialog"
+              aria-label={t("statusLabel")}
+            >
+              <div className="px-4 py-3 border-b border-stone-100">
+                <p className="text-sm font-medium text-stone-900">
+                  {sessionLabel}
+                </p>
+                <p
+                  className="text-sm text-stone-500 truncate"
+                  title={sessionValue}
+                >
+                  {sessionValue}
+                </p>
+              </div>
+
               <button
                 type="button"
                 onClick={handleLogout}
@@ -88,18 +99,10 @@ export const UserAuth = () => {
               >
                 {t("logout")}
               </button>
-            ) : (
-              <button
-                type="button"
-                onClick={handleLogin}
-                className="w-full text-left cursor-pointer px-4 py-2 text-sm font-medium text-[#777E32] transition-colors hover:bg-stone-100"
-              >
-                {t("login")}
-              </button>
-            )}
-          </div>
-        )}
-      </div>
+            </div>
+          )}
+        </div>
+      )}
     </div>
   );
 };

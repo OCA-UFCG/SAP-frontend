@@ -65,12 +65,6 @@ export default async function RootLayout({
       name: t("home"),
       path: "/",
       appears: true,
-    },
-    "about-section": {
-      id: "3",
-      name: t("about"),
-      path: "#",
-      appears: true,
       childrenCollection: {
         items: [
           {
