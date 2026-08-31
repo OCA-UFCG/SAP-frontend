@@ -34,6 +34,7 @@ export interface AnalysisMapImageOptions {
   classification: MunicipalityClassification | null;
   overviewGeoJson: MunicipalityOverviewGeoJson | null;
   boundaryGeoJson: FeatureCollection<Geometry, { name: string }> | null;
+  spatialValue: string;
   allowedStateUfs: Set<string> | null;
   bounds: LngLatBoundsLike | null;
 }
@@ -57,6 +58,7 @@ export const captureAnalysisMapPng = ({
   classification,
   overviewGeoJson,
   boundaryGeoJson,
+  spatialValue,
   allowedStateUfs,
   bounds,
 }: AnalysisMapImageOptions): Promise<string | null> =>
@@ -100,7 +102,13 @@ export const captureAnalysisMapPng = ({
         ensureClassificationOverviewLayer(map, overviewGeoJson);
       }
 
-      ensureSpatialBoundaryLayer(map, boundaryGeoJson, true, allowedStateUfs);
+      ensureSpatialBoundaryLayer(
+        map,
+        boundaryGeoJson,
+        true,
+        allowedStateUfs,
+        spatialValue,
+      );
 
       if (classification) {
         applyClassificationFeatureStates(
