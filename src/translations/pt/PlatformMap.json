@@ -5,6 +5,11 @@
     "opacity": "Transparência",
     "basemap": "Mapa base",
     "satellite": "Satélite",
-    "street": "Rua"
+    "street": "Rua",
+    "referenceOverlays": "Territórios",
+    "quilombolas": "Territórios Quilombolas",
+    "assentamentos": "Assentamentos",
+    "terras_indigenas": "Terras Indígenas",
+    "unidades_conservacao": "Unidades de Conservação"
   }
 }
