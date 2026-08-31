@@ -372,10 +372,18 @@ export function applyMapVisualization(
   // posições densas antes de visualizar, senão o Earth Engine espalha as 12
   // cores por 14 valores e cada classe recebe a cor da vizinha.
   if (plan.categoricalRemap) {
-    selectedImage = selectedImage.remap(
-      plan.categoricalRemap.from,
-      plan.categoricalRemap.to,
-    );
+    // `round().int()` antes do remap por causa do zoom. Longe, o Earth Engine
+    // serve a pirâmide do asset, e num raster `float` ela é feita de MÉDIAS: o
+    // pixel que mistura as classes 2 e 6 chega como 4,3. Como `remap` mascara
+    // todo valor fora da lista, sem arredondar a camada some quando o mapa está
+    // afastado — medido no semiárido, 90% dos pixels sumiam na escala de ~40 km
+    // e 100% voltam com o arredondamento. A correção de raiz é reexportar o
+    // asset como inteiro com pyramidingPolicy MODE; isto é a rede de proteção
+    // para quando ela não existir.
+    selectedImage = selectedImage
+      .round()
+      .int()
+      .remap(plan.categoricalRemap.from, plan.categoricalRemap.to);
   }
 
   return { image: selectedImage, visParams: plan.visParams };
