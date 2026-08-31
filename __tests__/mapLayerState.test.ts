@@ -7,6 +7,7 @@ import {
   type CDIVectorData,
   createInitialMapLayerState,
   resetPlatformState,
+  toggleReferenceOverlayValue,
 } from "@/components/MapLayerContext/mapLayerState";
 import type { IEEInfo, IImageParam } from "@/utils/interfaces";
 
@@ -118,5 +119,45 @@ describe("mapLayerState", () => {
       spatialArea: "national",
       spatialValue: "brasil",
     });
+  });
+
+  it("toggles a reference overlay on and off without touching the others", () => {
+    const withQuilombolas = toggleReferenceOverlayValue(
+      createInitialMapLayerState(),
+      "quilombolas",
+    );
+    const withBoth = toggleReferenceOverlayValue(
+      withQuilombolas,
+      "terras_indigenas",
+    );
+    const withoutQuilombolas = toggleReferenceOverlayValue(
+      withBoth,
+      "quilombolas",
+    );
+
+    expect(Array.from(withBoth.referenceOverlays).sort()).toEqual([
+      "quilombolas",
+      "terras_indigenas",
+    ]);
+    expect(Array.from(withoutQuilombolas.referenceOverlays)).toEqual([
+      "terras_indigenas",
+    ]);
+  });
+
+  it("keeps the previous reference overlay set untouched when toggling", () => {
+    const initial = createInitialMapLayerState();
+    const next = toggleReferenceOverlayValue(initial, "assentamentos");
+
+    expect(initial.referenceOverlays.size).toBe(0);
+    expect(next.referenceOverlays).not.toBe(initial.referenceOverlays);
+  });
+
+  it("clears the reference overlays when the platform state is reset", () => {
+    const state = toggleReferenceOverlayValue(
+      createInitialMapLayerState(),
+      "unidades_conservacao",
+    );
+
+    expect(resetPlatformState(state).referenceOverlays.size).toBe(0);
   });
 });

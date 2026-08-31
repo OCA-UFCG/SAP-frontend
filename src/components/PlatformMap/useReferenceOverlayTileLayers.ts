@@ -17,6 +17,39 @@ export type ReferenceOverlayTileMap = Map<
   ReferenceOverlayEntry
 >;
 
+interface CachedTileUrl {
+  url: string;
+  fetchedAt: number;
+}
+
+// A URL de tiles do GEE não vale para sempre. O servidor descarta a dele depois
+// de 30 min (CACHE_TTL_MS em src/app/api/ee/cache.ts) justamente porque o mapid
+// expira. O cache do cliente precisa vencer ANTES disso: caso contrário uma aba
+// aberta por horas continua pedindo tiles de uma URL que o servidor já
+// abandonou, e a camada some do mapa sem nenhum erro visível.
+const CLIENT_URL_CACHE_TTL_MS = 1000 * 60 * 25;
+
+const clientUrlCache = new Map<ReferenceLayerId, CachedTileUrl>();
+
+const EMPTY_SET = new Set<ReferenceLayerId>();
+
+/** Somente para testes: o cache vive no módulo e precisa ser zerado entre casos. */
+export function clearReferenceOverlayUrlCache() {
+  clientUrlCache.clear();
+}
+
+function readFreshCachedUrl(layerId: ReferenceLayerId): string | undefined {
+  const cached = clientUrlCache.get(layerId);
+  if (!cached) return undefined;
+
+  if (Date.now() - cached.fetchedAt > CLIENT_URL_CACHE_TTL_MS) {
+    clientUrlCache.delete(layerId);
+    return undefined;
+  }
+
+  return cached.url;
+}
+
 async function fetchReferenceLayerUrl(
   layerId: ReferenceLayerId,
   signal?: AbortSignal,
@@ -24,134 +57,148 @@ async function fetchReferenceLayerUrl(
   const params = new URLSearchParams({ layer: layerId });
   const response = await fetch(
     `${API_BASE_URL}/api/ee/reference-layers?${params.toString()}`,
-    {
-      method: "POST",
-      signal,
-      credentials: "include",
-    },
+    { method: "POST", signal, credentials: "include" },
   );
 
   if (!response.ok) {
-    const data = await response.json().catch(() => null);
+    const body = await response.json().catch(() => null);
     throw new Error(
-      (data as { error?: string })?.error ?? "Failed to fetch reference layer",
+      (body as { error?: string })?.error ??
+        `Failed to fetch reference layer "${layerId}": HTTP ${response.status}`,
     );
   }
 
-  const data = (await response.json()) as { url?: string };
-  return typeof data.url === "string" ? data.url : null;
+  const body = (await response.json()) as { url?: string };
+  return typeof body.url === "string" ? body.url : null;
 }
 
-// Client-side session cache for resolved tile URLs.
-// Prevents duplicate POST /api/ee/reference-layers requests and rate-limit consumption
-// when checking/unchecking the same reference layer multiple times.
-const clientUrlCache = new Map<ReferenceLayerId, string>();
+/**
+ * Devolve a URL de tiles da camada, do cache do cliente quando ainda está
+ * dentro da validade e da API quando não está.
+ */
+async function resolveReferenceLayerTileUrl(
+  layerId: ReferenceLayerId,
+  signal: AbortSignal,
+): Promise<string | null> {
+  const cachedUrl = readFreshCachedUrl(layerId);
+  if (cachedUrl) return cachedUrl;
 
-const EMPTY_SET = new Set<ReferenceLayerId>();
+  const url = await fetchReferenceLayerUrl(layerId, signal);
+  if (url) clientUrlCache.set(layerId, { url, fetchedAt: Date.now() });
+  return url;
+}
+
+function withEntry(
+  current: ReferenceOverlayTileMap,
+  layerId: ReferenceLayerId,
+  entry: ReferenceOverlayEntry,
+): ReferenceOverlayTileMap {
+  const previous = current.get(layerId);
+  if (previous?.status === entry.status && previous.tileUrl === entry.tileUrl) {
+    return current;
+  }
+
+  const next = new Map(current);
+  next.set(layerId, entry);
+  return next;
+}
+
+function serializeOverlaySet(overlays: Set<ReferenceLayerId>): string {
+  return Array.from(overlays).sort().join(",");
+}
+
+function parseOverlayKey(overlaysKey: string): ReferenceLayerId[] {
+  return overlaysKey ? (overlaysKey.split(",") as ReferenceLayerId[]) : [];
+}
 
 /**
- * For each active reference overlay, fetches the GEE tile URL.
- * Returns a stable Map keyed by ReferenceLayerId.
+ * Resolve a URL de tiles de cada camada de referência ativa.
  *
- * Uses a ref-based controller map so that deactivation aborts in-flight
- * requests synchronously during the effect, preventing race conditions where
- * a .then() microtask resurrects a removed entry between state changes.
+ * Retorna um Map estável por `ReferenceLayerId`; camadas desmarcadas somem do
+ * resultado e têm a requisição em voo abortada na hora.
+ *
+ * const tiles = useReferenceOverlayTileLayers(referenceOverlays);
  */
 export function useReferenceOverlayTileLayers(
   activeOverlays?: Set<ReferenceLayerId> | null,
 ): ReferenceOverlayTileMap {
-  const overlays = activeOverlays instanceof Set ? activeOverlays : EMPTY_SET;
-
-  // Stores status/error entries for active layers
-  const [statusMap, setStatusMap] = useState<
-    Map<ReferenceLayerId, ReferenceOverlayEntry>
-  >(() => new Map());
-
-  // Persistent controller map — lives across effect invocations so we can
-  // abort a specific layer's request the moment it leaves the active set.
+  const overlaysKey = serializeOverlaySet(
+    activeOverlays instanceof Set ? activeOverlays : EMPTY_SET,
+  );
+  const [statusMap, setStatusMap] = useState<ReferenceOverlayTileMap>(
+    () => new Map(),
+  );
   const controllersRef = useRef(
-    new (globalThis.Map)<ReferenceLayerId, AbortController>(),
+    new globalThis.Map<ReferenceLayerId, AbortController>(),
   );
 
   useEffect(() => {
     const controllers = controllersRef.current;
+    const activeIds = parseOverlayKey(overlaysKey);
+    const activeIdSet = new Set(activeIds);
 
-    // 1. Abort and remove controllers for overlays no longer active.
     for (const [layerId, controller] of controllers) {
-      if (!overlays.has(layerId)) {
-        controller.abort();
-        controllers.delete(layerId);
-      }
+      if (activeIdSet.has(layerId)) continue;
+      controller.abort();
+      controllers.delete(layerId);
     }
 
-    // 2. Start fetches for newly-activated overlays that aren't cached or fetching.
-    for (const layerId of overlays) {
-      if (controllers.has(layerId) || clientUrlCache.has(layerId)) continue;
+    for (const layerId of activeIds) {
+      if (controllers.has(layerId)) continue;
 
       const controller = new AbortController();
       controllers.set(layerId, controller);
 
-      fetchReferenceLayerUrl(layerId, controller.signal)
+      resolveReferenceLayerTileUrl(layerId, controller.signal)
         .then((url) => {
           if (controller.signal.aborted) return;
-
-          if (url) {
-            clientUrlCache.set(layerId, url);
-          }
-
-          setStatusMap((current) => {
-            const next = new Map(current);
-            next.set(layerId, {
+          setStatusMap((current) =>
+            withEntry(current, layerId, {
               status: url ? "ready" : "error",
               tileUrl: url ?? undefined,
-            });
-            return next;
-          });
+            }),
+          );
         })
-        .catch((err) => {
+        .catch((error) => {
           if (controller.signal.aborted) return;
-
-          console.error(`Error fetching reference layer "${layerId}":`, err);
-          setStatusMap((current) => {
-            const next = new Map(current);
-            next.set(layerId, { status: "error", tileUrl: undefined });
-            return next;
-          });
+          console.error(
+            `[referenceOverlay] falha ao resolver a URL de tiles: ${layerId}`,
+            error,
+          );
+          setStatusMap((current) =>
+            withEntry(current, layerId, {
+              status: "error",
+              tileUrl: undefined,
+            }),
+          );
+        })
+        .finally(() => {
+          // Sem esta liberação o controller já resolvido continua no mapa, e o
+          // guard de "requisição em voo" acima bloqueia para sempre qualquer
+          // nova tentativa dessa camada.
+          if (controllers.get(layerId) === controller) {
+            controllers.delete(layerId);
+          }
         });
     }
+  }, [overlaysKey]);
 
-    // No per-invocation cleanup — controllers are managed explicitly above.
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [serializeOverlaySet(overlays)]);
-
-  // Cleanup on unmount: abort all in-flight requests.
   useEffect(() => {
     const controllers = controllersRef.current;
     return () => {
-      for (const controller of controllers.values()) {
-        controller.abort();
-      }
+      for (const controller of controllers.values()) controller.abort();
       controllers.clear();
     };
   }, []);
 
-  // Compute the active tileMap dynamically from overlays, clientUrlCache, and statusMap.
   return useMemo(() => {
-    const map: ReferenceOverlayTileMap = new Map();
-    for (const layerId of overlays) {
-      const cachedUrl = clientUrlCache.get(layerId);
-      if (cachedUrl) {
-        map.set(layerId, { status: "ready", tileUrl: cachedUrl });
-      } else {
-        const entry = statusMap.get(layerId);
-        map.set(layerId, entry ?? { status: "loading", tileUrl: undefined });
-      }
+    const tileMap: ReferenceOverlayTileMap = new Map();
+    for (const layerId of parseOverlayKey(overlaysKey)) {
+      tileMap.set(
+        layerId,
+        statusMap.get(layerId) ?? { status: "loading", tileUrl: undefined },
+      );
     }
-    return map;
-  }, [overlays, statusMap]);
-}
-
-function serializeOverlaySet(set?: Set<ReferenceLayerId> | null): string {
-  if (!set || !(set instanceof Set)) return "";
-  return Array.from(set).sort().join(",");
+    return tileMap;
+  }, [overlaysKey, statusMap]);
 }

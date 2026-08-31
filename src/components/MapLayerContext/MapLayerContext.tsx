@@ -12,7 +12,6 @@ import {
   activateEeLayerState,
   activateVectorLayerState,
   clearActiveLayerState,
-  clearReferenceOverlaysValue,
   createInitialMapLayerState,
   MapLayerState,
   type ReferenceLayerId,
@@ -43,7 +42,6 @@ interface MapLayerActions {
   resetPlatformState: () => void;
   setLayerOpacity: (opacity: number) => void;
   toggleReferenceOverlay: (layerId: ReferenceLayerId) => void;
-  clearReferenceOverlays: () => void;
 }
 
 type MapLayerActiveState = Pick<
@@ -53,7 +51,13 @@ type MapLayerActiveState = Pick<
 
 type MapLayerViewState = Pick<
   MapLayerState,
-  "activeLegend" | "selectedState" | "selectedMunicipalityCode" | "activeYear" | "spatialSelection" | "layerOpacity" | "referenceOverlays"
+  | "activeLegend"
+  | "selectedState"
+  | "selectedMunicipalityCode"
+  | "activeYear"
+  | "spatialSelection"
+  | "layerOpacity"
+  | "referenceOverlays"
 >;
 
 interface MapLayerContextValue
@@ -86,8 +90,8 @@ export function MapLayerProvider({ children }: { children: React.ReactNode }) {
   }, []);
 
   const setLayerOpacity = useCallback((opacity: number) => {
-  setState((current) => setLayerOpacityValue(current, opacity));
-}, []);
+    setState((current) => setLayerOpacityValue(current, opacity));
+  }, []);
 
   const setSelectedState = useCallback((selectedState: string) => {
     setState((currentState) =>
@@ -111,9 +115,12 @@ export function MapLayerProvider({ children }: { children: React.ReactNode }) {
     setState((currentState) => setActiveYearValue(currentState, activeYear));
   }, []);
 
-  const setSpatialSelectionCallback = useCallback((selection: SpatialSelection) => {
-    setState((currentState) => setSpatialSelection(currentState, selection));
-  }, []);
+  const setSpatialSelectionCallback = useCallback(
+    (selection: SpatialSelection) => {
+      setState((currentState) => setSpatialSelection(currentState, selection));
+    },
+    [],
+  );
 
   const activateVectorLayer = useCallback(
     (layerId: string, data: CDIVectorData, legend: IImageParam[] | null) => {
@@ -142,11 +149,9 @@ export function MapLayerProvider({ children }: { children: React.ReactNode }) {
   }, []);
 
   const toggleReferenceOverlay = useCallback((layerId: ReferenceLayerId) => {
-    setState((currentState) => toggleReferenceOverlayValue(currentState, layerId));
-  }, []);
-
-  const clearReferenceOverlays = useCallback(() => {
-    setState((currentState) => clearReferenceOverlaysValue(currentState));
+    setState((currentState) =>
+      toggleReferenceOverlayValue(currentState, layerId),
+    );
   }, []);
 
   const activeState = useMemo<MapLayerActiveState>(
@@ -192,7 +197,6 @@ export function MapLayerProvider({ children }: { children: React.ReactNode }) {
       resetPlatformState,
       setLayerOpacity,
       toggleReferenceOverlay,
-      clearReferenceOverlays,
     }),
     [
       setActiveLegend,
@@ -206,7 +210,6 @@ export function MapLayerProvider({ children }: { children: React.ReactNode }) {
       resetPlatformState,
       setLayerOpacity,
       toggleReferenceOverlay,
-      clearReferenceOverlays,
     ],
   );
 

@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import type { NextRequest } from "next/server";
 import ee from "@google/earthengine";
-import { getOrCreateCachedUrl } from "@/app/api/ee/cache";
+import { getCachedUrl, getOrCreateCachedUrl } from "@/app/api/ee/cache";
 import { consumeEeRateLimit } from "@/app/api/ee/rate-limit";
 import { getAuthenticatedUserId } from "@/lib/server-session";
 import { initializeGee } from "@/infrastructure/earth-engine/client";
@@ -13,12 +13,9 @@ import { ensureEeCacheWarmupStarted } from "@/app/api/ee/services";
  * hardcoded here.
  */
 const REFERENCE_LAYER_ASSETS: Record<string, string> = {
-  quilombolas:
-    "projects/obscaatinga/assets/Areas_Quilombolas_INCRA",
-  assentamentos:
-    "projects/obscaatinga/assets/Assentamento_Brasil_INCRA",
-  terras_indigenas:
-    "projects/obscaatinga/assets/TIs_Funai_jul26",
+  quilombolas: "projects/obscaatinga/assets/Areas_Quilombolas_INCRA",
+  assentamentos: "projects/obscaatinga/assets/Assentamento_Brasil_INCRA",
+  terras_indigenas: "projects/obscaatinga/assets/TIs_Funai_jul26",
   unidades_conservacao:
     "projects/ee-ulissesalencar17/assets/cnuc_2026_03_atualizado",
 };
@@ -35,21 +32,17 @@ function buildRefCacheKey(layerId: string): string {
   return `${CACHE_KEY_PREFIX}:${layerId}`;
 }
 
-async function getReferenceLayerTileUrl(
-  assetId: string,
-): Promise<string> {
+async function getReferenceLayerTileUrl(assetId: string): Promise<string> {
   await initializeGee();
 
   const collection = ee.FeatureCollection(assetId);
   const styledImage = collection.style(GRAY_STYLE);
 
-  const mapId = await new Promise<{ urlFormat: string }>(
-    (resolve, reject) => {
-      styledImage.getMapId({}, (obj: any, error: any) =>
-        error ? reject(new Error(error)) : resolve(obj),
-      );
-    },
-  );
+  const mapId = await new Promise<{ urlFormat: string }>((resolve, reject) => {
+    styledImage.getMapId({}, (obj: any, error: any) =>
+      error ? reject(new Error(error)) : resolve(obj),
+    );
+  });
 
   return mapId.urlFormat;
 }
@@ -93,6 +86,14 @@ export async function POST(req: NextRequest) {
 
   try {
     const cacheKey = buildRefCacheKey(layerParam);
+    // `getOrCreateCachedUrl` só compartilha requisições simultâneas; sem esta
+    // leitura cada toggle geraria um `getMapId` novo no Earth Engine — a
+    // `unidades_conservacao` sozinha leva ~4,5 s para responder.
+    const cachedUrl = getCachedUrl(cacheKey);
+    if (cachedUrl) {
+      return NextResponse.json({ url: cachedUrl }, { status: 200 });
+    }
+
     const url = await getOrCreateCachedUrl(cacheKey, () =>
       getReferenceLayerTileUrl(assetId),
     );
