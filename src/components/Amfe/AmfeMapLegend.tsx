@@ -17,7 +17,7 @@ export const AmfeMapLegend = () => {
   const t = useTranslations("Map");
 
   return (
-    <div className="absolute right-4 bottom-4 z-[1000] rounded-lg bg-white/90 p-3 shadow-lg">
+    <div className="box-border w-[302px] shrink-0 self-stretch rounded-lg border border-[#EFEFEF] bg-white px-4 py-3">
       <p className="mb-2 text-xs font-semibold text-[#364153]">
         {t("classification")}
       </p>

@@ -202,3 +202,29 @@ export function useReferenceOverlayTileLayers(
     return tileMap;
   }, [overlaysKey, statusMap]);
 }
+
+export interface ReferenceOverlayTiles {
+  tileUrls: globalThis.Map<string, string | undefined>;
+  isLoading: boolean;
+}
+
+export function useReferenceOverlayTiles(
+  activeOverlays?: Set<ReferenceLayerId> | null,
+): ReferenceOverlayTiles {
+  const tileMap = useReferenceOverlayTileLayers(activeOverlays);
+
+  return useMemo(() => {
+    const tileUrls = new globalThis.Map<string, string | undefined>();
+    let isLoading = false;
+
+    for (const [layerId, entry] of tileMap) {
+      if (entry.status === "ready" && entry.tileUrl) {
+        tileUrls.set(layerId, entry.tileUrl);
+      } else if (entry.status === "loading") {
+        isLoading = true;
+      }
+    }
+
+    return { tileUrls, isLoading };
+  }, [tileMap]);
+}

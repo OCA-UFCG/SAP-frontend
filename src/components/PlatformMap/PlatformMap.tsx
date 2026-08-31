@@ -3,7 +3,7 @@ import { useCallback, useMemo, useState } from "react";
 import { useTranslations } from "next-intl";
 import { PlatformMapCaption } from "@/components/PlatformMapCaption/PlatformMapCaption";
 import { useEarthEngineTileLayer } from "./useEarthEngineTileLayer";
-import { useReferenceOverlayTileLayers } from "./useReferenceOverlayTileLayers";
+import { useReferenceOverlayTiles } from "./useReferenceOverlayTileLayers";
 import { useSpatialBoundaryOverlay } from "./useSpatialBoundaryOverlay";
 import MapComponent from "../Map/MapComponent";
 import type { BasemapId } from "../Map/Map";
@@ -14,10 +14,8 @@ import {
   useMapLayerActiveState,
   useMapLayerViewState,
 } from "@/components/MapLayerContext/MapLayerContext";
-import {
-  REFERENCE_LAYER_IDS,
-  type ReferenceLayerId,
-} from "@/components/MapLayerContext/mapLayerState";
+import { BasemapControl } from "@/components/MapControls/BasemapControl";
+import { ReferenceOverlaysControl } from "@/components/MapControls/ReferenceOverlaysControl";
 
 interface PlatformMapProps {
   showMonitoringOverlays?: boolean;
@@ -53,20 +51,11 @@ export function PlatformMap({
   );
   const [readyRequestKey, setReadyRequestKey] = useState<string | null>(null);
   const [basemap, setBasemap] = useState<BasemapId>("osm");
-  const [isReferenceOverlaysOpen, setIsReferenceOverlaysOpen] = useState(false);
 
-  const referenceOverlayTileMap =
-    useReferenceOverlayTileLayers(referenceOverlays);
-
-  const readyReferenceOverlayTileUrls = useMemo(() => {
-    const tileUrls = new Map<string, string | undefined>();
-    for (const [layerId, entry] of referenceOverlayTileMap) {
-      if (entry.status === "ready" && entry.tileUrl) {
-        tileUrls.set(layerId, entry.tileUrl);
-      }
-    }
-    return tileUrls;
-  }, [referenceOverlayTileMap]);
+  const {
+    tileUrls: readyReferenceOverlayTileUrls,
+    isLoading: isAnyReferenceOverlayLoading,
+  } = useReferenceOverlayTiles(referenceOverlays);
 
   const handleTileLayerReady = useCallback((readyRequestKey: string) => {
     setReadyRequestKey((current) =>
@@ -117,14 +106,6 @@ export function PlatformMap({
     (status === "loading" ||
       (status === "ready" && !hasRenderedCurrentRequest));
 
-  // Check if any reference overlay is currently loading
-  const isAnyReferenceOverlayLoading = useMemo(() => {
-    for (const entry of referenceOverlayTileMap.values()) {
-      if (entry.status === "loading") return true;
-    }
-    return false;
-  }, [referenceOverlayTileMap]);
-
   return (
     <div className="absolute inset-0">
       <div className="relative flex w-full h-full z-10">
@@ -174,99 +155,13 @@ export function PlatformMap({
 
       <div className="absolute bottom-0 right-6 z-[1000] box-border flex min-h-[124px] w-[302px] flex-col items-end justify-center gap-[10px] pb-6">
         {showMonitoringOverlays && (
-          <div
-            className="box-border flex w-[302px] shrink-0 flex-col gap-2.5 self-stretch rounded-lg border border-[#EFEFEF] bg-white px-4 py-3"
-            role="group"
-            aria-label={t("referenceOverlays")}
-          >
-            <button
-              type="button"
-              className="flex w-full items-center justify-between outline-none"
-              onClick={() =>
-                setIsReferenceOverlaysOpen(!isReferenceOverlaysOpen)
-              }
-              aria-expanded={isReferenceOverlaysOpen}
-            >
-              <span className="font-open-sans text-[10px] font-semibold leading-[18px] tracking-[-0.006em] text-[#292829]">
-                {t("referenceOverlays")}
-              </span>
-              <svg
-                width="16"
-                height="16"
-                viewBox="0 0 16 16"
-                fill="none"
-                xmlns="http://www.w3.org/2000/svg"
-                className={`transition-transform duration-200 ${isReferenceOverlaysOpen ? "rotate-180" : ""}`}
-              >
-                <path
-                  d="M4 10L8 6L12 10"
-                  stroke="#292829"
-                  strokeWidth="1.5"
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                />
-              </svg>
-            </button>
-            {isReferenceOverlaysOpen && (
-              <div className="flex flex-col gap-1.5 mt-1">
-                {REFERENCE_LAYER_IDS.map((layerId) => (
-                  <label
-                    key={layerId}
-                    className="flex cursor-pointer items-center gap-2"
-                  >
-                    <input
-                      type="checkbox"
-                      checked={referenceOverlays.has(layerId)}
-                      onChange={() => toggleReferenceOverlay(layerId)}
-                      className="h-3.5 w-3.5 shrink-0 cursor-pointer appearance-none rounded-[3px] border border-[#C4C4C4] bg-white transition-colors checked:border-[#989F43] checked:bg-[#989F43] relative
-                        after:content-[''] after:absolute after:inset-0 after:flex after:items-center after:justify-center
-                        checked:after:content-['✓'] after:text-[9px] after:font-bold after:text-white after:leading-none after:text-center"
-                    />
-                    <span className="font-open-sans text-[10px] font-normal leading-[16px] text-[#292829] select-none">
-                      {t(layerId as ReferenceLayerId)}
-                    </span>
-                  </label>
-                ))}
-              </div>
-            )}
-          </div>
+          <ReferenceOverlaysControl
+            activeOverlays={referenceOverlays}
+            onToggle={toggleReferenceOverlay}
+          />
         )}
         {showMonitoringOverlays && (
-          <div
-            className="box-border flex h-[50px] w-[302px] shrink-0 items-center gap-2 self-stretch rounded-lg border border-[#EFEFEF] bg-white p-4"
-            role="group"
-            aria-label={t("basemap")}
-          >
-            <span className="h-[18px] w-[66px] shrink-0 font-open-sans text-[10px] font-normal leading-[18px] tracking-[-0.006em] text-[#292829]">
-              {t("basemap")}
-            </span>
-            <div className="flex h-7 min-w-0 flex-1 rounded-md bg-[#F1F5F9] p-0.5">
-              <button
-                type="button"
-                onClick={() => setBasemap("osm")}
-                aria-pressed={basemap === "osm"}
-                className={`flex min-w-0 flex-1 items-center justify-center rounded-[4px] px-2 font-open-sans text-[10px] font-medium leading-[18px] transition-colors ${
-                  basemap === "osm"
-                    ? "bg-[#989F43] text-white shadow-sm"
-                    : "text-[#292829] hover:bg-[#E4E5E2]"
-                }`}
-              >
-                {t("street")}
-              </button>
-              <button
-                type="button"
-                onClick={() => setBasemap("satellite")}
-                aria-pressed={basemap === "satellite"}
-                className={`flex min-w-0 flex-1 items-center justify-center rounded-[4px] px-2 font-open-sans text-[10px] font-medium leading-[18px] transition-colors ${
-                  basemap === "satellite"
-                    ? "bg-[#989F43] text-white shadow-sm"
-                    : "text-[#292829] hover:bg-[#E4E5E2]"
-                }`}
-              >
-                {t("satellite")}
-              </button>
-            </div>
-          </div>
+          <BasemapControl basemap={basemap} onChange={setBasemap} />
         )}
         {showMonitoringOverlays && activeEEData && (
           <div className="box-border flex h-[50px] w-[302px] shrink-0 flex-col items-center gap-2 self-stretch rounded-lg border border-[#EFEFEF] bg-white p-4">

@@ -1,8 +1,9 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useCallback, useMemo, useState } from "react";
 import { useTranslations, useLocale } from "next-intl";
 import MapComponent from "@/components/Map/MapComponent";
+import type { BasemapId } from "@/components/Map/Map";
 import { CLASSIFICATION_MIN_ZOOM } from "@/components/Map/classificationLayers";
 import type { MunicipalityClassification } from "@/components/Map/classificationLayers";
 import {
@@ -10,6 +11,10 @@ import {
   resolveSpatialFocusBounds,
 } from "@/components/Map/mapBounds";
 import { useSpatialBoundaryOverlay } from "@/components/PlatformMap/useSpatialBoundaryOverlay";
+import { useReferenceOverlayTiles } from "@/components/PlatformMap/useReferenceOverlayTileLayers";
+import { BasemapControl } from "@/components/MapControls/BasemapControl";
+import { ReferenceOverlaysControl } from "@/components/MapControls/ReferenceOverlaysControl";
+import type { ReferenceLayerId } from "@/components/MapLayerContext/mapLayerState";
 import { BRAZIL_TERRITORY_CODE } from "@/components/Map/stateSelection";
 import { getAllowedStateUfs } from "@/utils/interestAreaStates";
 import { DEFAULT_SPATIAL_SELECTION } from "@/utils/spatialScope";
@@ -35,6 +40,26 @@ export const AmfeScreen = () => {
   const [zoom, setZoom] = useState(INITIAL_ZOOM);
   const { cities, excludedCities, coverage, loading, error } =
     useCities(formPayload);
+
+  const [basemap, setBasemap] = useState<BasemapId>("osm");
+  const [referenceOverlays, setReferenceOverlays] = useState(
+    () => new Set<ReferenceLayerId>(),
+  );
+
+  const toggleReferenceOverlay = useCallback((layerId: ReferenceLayerId) => {
+    setReferenceOverlays((current) => {
+      const next = new Set(current);
+      if (next.has(layerId)) {
+        next.delete(layerId);
+      } else {
+        next.add(layerId);
+      }
+      return next;
+    });
+  }, []);
+
+  const { tileUrls: referenceOverlayTileUrls } =
+    useReferenceOverlayTiles(referenceOverlays);
 
   const spatialSelection = useMemo(
     () => toSpatialSelection(formPayload?.interestArea) ?? DEFAULT_SPATIAL_SELECTION,
@@ -91,6 +116,7 @@ export const AmfeScreen = () => {
             classification: municipalityClassification,
             overviewGeoJson,
             boundaryGeoJson,
+            spatialValue: spatialSelection.spatialValue,
             allowedStateUfs,
             bounds: spatialFocusBounds,
           },
@@ -100,6 +126,7 @@ export const AmfeScreen = () => {
       municipalityClassification,
       overviewGeoJson,
       spatialFocusBounds,
+      spatialSelection.spatialValue,
     ],
   );
 
@@ -148,9 +175,12 @@ export const AmfeScreen = () => {
             estadoSelecionado={BRAZIL_TERRITORY_CODE}
             allowedStateUfs={allowedStateUfs}
             spatialBoundaryGeoJson={boundaryGeoJson}
+            spatialValue={spatialSelection.spatialValue}
             spatialFocusBounds={spatialFocusBounds}
             municipalityClassification={municipalityClassification}
             municipalityOverviewGeoJson={overviewGeoJson}
+            basemap={basemap}
+            referenceOverlayTileUrls={referenceOverlayTileUrls}
             className="h-full w-full"
           />
 
@@ -160,7 +190,14 @@ export const AmfeScreen = () => {
             imageOptions={imageOptions}
           />
 
-          {municipalityClassification && <AmfeMapLegend />}
+          <div className="absolute bottom-0 right-6 z-[1000] box-border flex w-[302px] flex-col items-end gap-[10px] pb-6">
+            <ReferenceOverlaysControl
+              activeOverlays={referenceOverlays}
+              onToggle={toggleReferenceOverlay}
+            />
+            <BasemapControl basemap={basemap} onChange={setBasemap} />
+            {municipalityClassification && <AmfeMapLegend />}
+          </div>
 
           {isClassificationBelowZoomFloor && (
             <p
