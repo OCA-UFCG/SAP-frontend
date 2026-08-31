@@ -6,6 +6,8 @@ const mocks = vi.hoisted(() => ({
   remap: vi.fn(),
   select: vi.fn(),
   where: vi.fn(),
+  round: vi.fn(),
+  int: vi.fn(),
 }));
 
 /** Imagem falsa que registra a cadeia de operações aplicada a ela. */
@@ -19,6 +21,14 @@ function fakeImage(label: string) {
     remap: (from: number[], to: number[]) => {
       mocks.remap(from, to);
       return fakeImage(`${label}.remap`);
+    },
+    round: () => {
+      mocks.round();
+      return fakeImage(`${label}.round`);
+    },
+    int: () => {
+      mocks.int();
+      return fakeImage(`${label}.int`);
     },
     where: () => {
       mocks.where();
@@ -104,6 +114,28 @@ describe("applyMapVisualization com classes esparsas", () => {
       max: 12,
       palette: visualizationFor(GAPPED_INDEXES).palette,
     });
+  });
+
+  // Regressão: "Cobertura da Terra | IBGE s" aparecia só com zoom. Longe, a
+  // pirâmide do raster float entrega médias (4,3 entre as classes 2 e 6) e o
+  // `remap` mascarava tudo que não fosse um valor exato da lista.
+  it("arredonda para inteiro antes de remapear, senão a camada some no zoom afastado", () => {
+    applyMapVisualization(
+      fakeImage("raster"),
+      visualizationFor(GAPPED_INDEXES),
+      [],
+      0,
+      0,
+    );
+
+    expect(mocks.round).toHaveBeenCalled();
+    expect(mocks.int).toHaveBeenCalled();
+    expect(mocks.round.mock.invocationCallOrder[0]).toBeLessThan(
+      mocks.remap.mock.invocationCallOrder[0],
+    );
+    expect(mocks.int.mock.invocationCallOrder[0]).toBeLessThan(
+      mocks.remap.mock.invocationCallOrder[0],
+    );
   });
 
   it("seleciona a banda antes de remapear, porque remap só aceita uma banda", () => {
