@@ -1,0 +1,44 @@
+{
+  "Criteria": {
+    "ia_mean": {
+      "label": "Índice de Aridez",
+      "description": "Promedio municipal del índice de aridez."
+    },
+    "spe_mean_per": {
+      "label": "Índice de Sequía",
+      "description": "Porcentaje promedio municipal del indicador SPE."
+    },
+    "area_deg54_mun": {
+      "label": "Área Degradada",
+      "description": "Área municipal clasificada como degradada."
+    },
+    "pobreza_rural_2021": {
+      "label": "Pobreza Rural",
+      "description": "Indicador municipal de pobreza rural en 2021."
+    },
+    "ips": {
+      "label": "Índice de Progreso Social",
+      "description": "Evalúa si las personas tienen lo necesario para vivir y prosperar mediante la metodología Social Progress Imperative."
+    },
+    "ivcm": {
+      "label": "Índice de Vulnerabilidad Climática",
+      "description": "Riesgo de que los habitantes sean afectados por eventos climáticos en 2024, estimado por el Instituto Votorantim."
+    },
+    "seca_grave_6_meses": {
+      "label": "Sequía Registrada",
+      "description": "Porcentaje de las clases más altas de sequía (grave, extrema y excepcional) registrado durante los últimos 6 meses por el Monitor de Sequías de la ANA."
+    },
+    "anomalia_out_2026": {
+      "label": "Anomalía de Precipitación",
+      "description": "Anomalía de precipitación prevista por el CPTEC/INPE para octubre de 2026."
+    },
+    "mulheres_produtoras_2017": {
+      "label": "Mujeres Productoras",
+      "description": "Porcentaje máximo de mujeres productoras en el municipio, según el Censo Agropecuario de 2017."
+    },
+    "produtores_associados_2017": {
+      "label": "Productores en Cooperativas",
+      "description": "Porcentaje máximo de productores asociados a cooperativas por municipio, según el Censo Agropecuario de 2017."
+    }
+  }
+}

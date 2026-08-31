@@ -34,6 +34,11 @@ import {
 } from "./mapDefinitions";
 import { useMapController } from "./useMapController";
 import { useMapMarkers } from "./useMapMarkers";
+import { useMunicipalityClassification } from "./useMunicipalityClassification";
+import type {
+  MunicipalityClassification,
+  MunicipalityOverviewGeoJson,
+} from "./classificationLayers";
 import {
   BRAZIL_TERRITORY_CODE,
   resolveNextSelectedState,
@@ -77,6 +82,13 @@ export interface MapProps {
   onSpatialSelectionChange?: (selection: SpatialSelection) => void;
   /** Limites da área de interesse a enquadrar quando a seleção muda. */
   spatialFocusBounds?: LngLatBoundsLike | null;
+  /**
+   * Resultado da análise multicritério a pintar como coropleta. `null` deixa o
+   * mapa sem coropleta — é o comportamento dos demais modos.
+   */
+  municipalityClassification?: MunicipalityClassification | null;
+  municipalityOverviewGeoJson?: MunicipalityOverviewGeoJson | null;
+  onZoomChange?: (zoom: number) => void;
   /** Tile URLs for active reference overlay layers (quilombolas, etc.). */
   referenceOverlayTileUrls?: Map<string, string | undefined>;
 }
@@ -105,6 +117,9 @@ const Map = ({
   spatialValue = "brasil",
   onSpatialSelectionChange,
   spatialFocusBounds = null,
+  municipalityClassification = null,
+  municipalityOverviewGeoJson = null,
+  onZoomChange,
   referenceOverlayTileUrls,
 }: MapProps) => {
   const mapContainerRef = useRef<HTMLDivElement | null>(null);
@@ -158,11 +173,23 @@ const Map = ({
     zoom,
   });
   const { clearMarkers } = useMapMarkers(mapRef, markers, mapInstanceVersion);
+
+  useMunicipalityClassification(
+    mapRef,
+    municipalityClassification,
+    municipalityOverviewGeoJson,
+    mapInstanceVersion,
+  );
   const allowedStateUfsRef = useRef(allowedStateUfs);
+  const onZoomChangeRef = useRef(onZoomChange);
   const spatialAreaRef = useRef<SpatialArea>(spatialArea);
   const onSpatialSelectionChangeRef = useRef(onSpatialSelectionChange);
   const hoveredBoundaryRef = useRef<string | null>(null);
   const hoveredRegionRef = useRef<HoveredRegion | null>(null);
+
+  useEffect(() => {
+    onZoomChangeRef.current = onZoomChange;
+  }, [onZoomChange]);
 
   useEffect(() => {
     spatialAreaRef.current = spatialArea;
@@ -256,10 +283,15 @@ const Map = ({
       onTileLayerReadyRef.current?.(pendingRequestKey);
     });
 
+    map.on("zoomend", () => {
+      onZoomChangeRef.current?.(map.getZoom());
+    });
+
     map.on("load", () => {
       log("map load");
       syncMapLayers();
       syncMapPadding(map);
+      onZoomChangeRef.current?.(map.getZoom());
 
       const boundsToFit = currentBoundsRef.current;
       if (boundsToFit) {

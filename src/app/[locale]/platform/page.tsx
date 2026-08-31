@@ -34,11 +34,15 @@ function normalizePlatformSection(
 ): PlatformSidebarInitialSection {
   const normalizedValue = getSingleSearchParamValue(value);
 
-  if (normalizedValue === "analysis" || normalizedValue === "communication") {
+  if (normalizedValue === "communication") {
     return normalizedValue;
   }
 
   return "monitoring";
+}
+
+function isLegacyAnalysisSection(value?: string | string[]) {
+  return getSingleSearchParamValue(value) === "analysis";
 }
 
 export default async function PlatformPage({
@@ -54,6 +58,10 @@ export default async function PlatformPage({
   const layerIds = (getSingleSearchParamValue(resolvedSearchParams.layers) ?? "").split(",").filter(Boolean);
   const sessionCookie =
     (await cookies()).get(SESSION_COOKIE_NAME)?.value ?? null;
+
+  if (isLegacyAnalysisSection(resolvedSearchParams.section)) {
+    redirect("/platform/amfe");
+  }
 
   if ((viewMode === "logs" || viewMode === "catalog") && !sessionCookie) {
     redirect("/login");

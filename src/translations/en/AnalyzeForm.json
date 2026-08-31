@@ -1,0 +1,100 @@
+{
+  "AnalyzeForm": {
+    "title": "Multicriteria Analysis",
+    "description": "Fill in the details below to run the analysis.",
+    "criteriasTitle": "Criteria",
+    "criteriasDesc": "Select and adjust the relative importance of each criterion for decision making. The assigned weight (1 to 10) will be automatically normalized so that the total sum equals 100%.",
+    "criteriaSumError": "The sum of the criteria values must be less than or equal to 1",
+    "thresholdsTitle": "Thresholds",
+    "thresholdsDesc": "Adjust the comparison parameters used by the multicriteria method. The Indifference threshold defines the limit to consider alternatives equivalent; Preference establishes the difference needed for an alternative to be considered superior; and Veto acts as a restrictive factor, preventing overranking if there is an extreme difference.",
+    "indifferenceLabel": "Indifference",
+    "indifferencePlaceholder": "Indifference threshold",
+    "indifferenceRequired": "Indifference is required",
+    "preferenceLabel": "Preference",
+    "preferencePlaceholder": "Preference threshold",
+    "preferenceRequired": "Preference is required",
+    "vetoLabel": "Veto",
+    "vetoPlaceholder": "Veto threshold",
+    "vetoRequired": "Veto is required",
+    "scenariosTitle": "Scenarios",
+    "scenariosDesc": "Choose the strategy to classify alternatives into categories. The Optimistic scenario tends to classify alternatives more favorably (highest possible class), while the Pessimistic scenario adopts a more conservative posture, classifying them only where there is consistent performance.",
+    "scenarioRequired": "Scenario is required",
+    "optimistic": "Optimistic",
+    "pessimistic": "Pessimistic",
+    "analysisLevelTitle": "Ranking Granularity",
+    "analysisLevelDesc": "The level at which cities will be compared.",
+    "levelRequired": "Analysis level is required",
+    "estadual": "Statewide",
+    "nacional": "National",
+    "todos": "All",
+    "regional": "Regional",
+    "bioma": "Biome",
+    "semiarido": "Semi-arid Region",
+    "asdEntorno": "ASD and Surroundings",
+    "interestAreaTitle": "Analysis Area",
+    "interestAreaDesc": "Define the geographic scope, where the analysis will be applied.",
+    "interestAreaFieldLabel": "Area",
+    "interestAreaRequired": "Interest area is required",
+    "interestAreaValueTitle": "Scope",
+    "interestAreaValueDesc": "The exact item within the area.",
+    "interestAreaValueRequired": "Interest area value is required",
+    "interestAreaSearchPlaceholder": "Search interest area...",
+    "interestAreaNoResults": "No results found",
+    "interestAreaOptions": {
+      "national": {
+        "brasil": "Brazil"
+      },
+      "state": {
+        "AC": "Acre",
+        "AL": "Alagoas",
+        "AP": "Amapá",
+        "AM": "Amazonas",
+        "BA": "Bahia",
+        "CE": "Ceará",
+        "DF": "Federal District",
+        "ES": "Espírito Santo",
+        "GO": "Goiás",
+        "MA": "Maranhão",
+        "MT": "Mato Grosso",
+        "MS": "Mato Grosso do Sul",
+        "MG": "Minas Gerais",
+        "PA": "Pará",
+        "PB": "Paraíba",
+        "PR": "Paraná",
+        "PE": "Pernambuco",
+        "PI": "Piauí",
+        "RJ": "Rio de Janeiro",
+        "RN": "Rio Grande do Norte",
+        "RS": "Rio Grande do Sul",
+        "RO": "Rondônia",
+        "RR": "Roraima",
+        "SC": "Santa Catarina",
+        "SP": "São Paulo",
+        "SE": "Sergipe",
+        "TO": "Tocantins"
+      },
+      "region": {
+        "Norte": "North",
+        "Nordeste": "Northeast",
+        "Centro-oeste": "Central-West",
+        "Sudeste": "Southeast",
+        "Sul": "South"
+      },
+      "biome": {
+        "Amazônia": "Amazon",
+        "Caatinga": "Caatinga",
+        "Cerrado": "Cerrado",
+        "Mata Atlântica": "Atlantic Forest",
+        "Pampa": "Pampa",
+        "Pantanal": "Pantanal"
+      },
+      "semiarid": {
+        "semiarid": "Semi-arid Region"
+      },
+      "asd": {
+        "asd": "ASD and Surroundings"
+      }
+    },
+    "submitButton": "Analyze"
+  }
+}

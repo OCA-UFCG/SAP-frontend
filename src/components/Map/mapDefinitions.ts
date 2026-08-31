@@ -2,6 +2,7 @@ import maplibregl, { ExpressionSpecification } from "maplibre-gl";
 import type { FeatureCollection, Geometry } from "geojson";
 import { BRAZIL_RASTER_BOUNDS } from "./mapBounds";
 import { ensureMunicipalityLayers } from "./municipalityLayers";
+import { ensureClassificationLayer } from "./classificationLayers";
 import { getActiveBoundaryNames } from "@/utils/spatialScope";
 import { REFERENCE_LAYER_IDS } from "@/components/MapLayerContext/mapLayerState";
 
@@ -239,6 +240,7 @@ export const ensureMapLayers = (
   }
 
   ensureMunicipalityLayers(map, STATES_BORDER_LAYER_ID);
+  ensureClassificationLayer(map);
 };
 
 const EMPTY_FEATURE_COLLECTION: FeatureCollection<Geometry> = {

@@ -129,6 +129,15 @@ describe("PlatformPage", () => {
     );
   });
 
+  it("sends the retired analysis section to the multicriteria page", async () => {
+    await expect(
+      PlatformPage({
+        searchParams: Promise.resolve({ section: "analysis" }),
+      }),
+    ).rejects.toThrow("redirect:/platform/amfe");
+    expect(platformLayoutMock).not.toHaveBeenCalled();
+  });
+
   it("redirects logs requests to login when no session cookie is available", async () => {
     cookiesMock.mockResolvedValue({
       get: vi.fn().mockReturnValue(undefined),

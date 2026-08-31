@@ -1,0 +1,11 @@
+{
+  "CriteriaModal": {
+    "title": "Adicionar ou editar critérios",
+    "description": "Adicione ou retire os critérios que deseja para compor a análise. Você pode adicionar no máximo 8.",
+    "searchPlaceholder": "Pesquise um critério",
+    "applyButton": "Aplicar",
+    "infoAriaLabel": "Informações sobre {name}",
+    "infoTitle": "Informações",
+    "defaultDescription": "Descrição de {name}"
+  }
+}
