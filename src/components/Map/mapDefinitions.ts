@@ -396,6 +396,19 @@ const removeReferenceOverlay = (map: maplibregl.Map, overlayId: string) => {
   }
 };
 
+/**
+ * Esconde o território sem destruir a camada. O MapLibre para de pedir tiles de
+ * uma source que nenhuma camada visível usa, e guarda os que já baixou; remover
+ * a source jogaria esse cache fora, e religar o mesmo território baixaria tudo
+ * do Earth Engine de novo. Só a troca de URL de tiles ainda recria a source.
+ */
+const hideReferenceOverlay = (map: maplibregl.Map, overlayId: string) => {
+  const layerId = referenceOverlayLayerId(overlayId);
+  if (!map.getLayer(layerId)) return;
+
+  map.setLayoutProperty(layerId, "visibility", "none");
+};
+
 const buildReferenceOverlaySource = (
   tileUrl: string,
 ): maplibregl.RasterSourceSpecification => ({
@@ -441,15 +454,27 @@ const applyReferenceOverlay = (
 
   if (!map.getLayer(layerId)) {
     map.addLayer(
-      { id: layerId, type: "raster", source: sourceId, paint: {} },
+      {
+        id: layerId,
+        type: "raster",
+        source: sourceId,
+        paint: {},
+        layout: { visibility: "visible" },
+      },
       resolveReferenceOverlayAnchor(map),
     );
+    return;
   }
+
+  // Reexibe a camada que continuou no mapa depois de o território ser
+  // desligado. Repor o mesmo valor não repinta nada: o MapLibre ignora um
+  // `setLayoutProperty` que não muda a propriedade.
+  map.setLayoutProperty(layerId, "visibility", "visible");
 };
 
 /**
  * Sincroniza as camadas de referência (quilombolas, assentamentos, etc.) com o
- * conjunto de URLs de tiles ativas: remove as que saíram e adiciona as que
+ * conjunto de URLs de tiles ativas: esconde as que saíram e desenha as que
  * entraram, sempre acima da camada de análise.
  *
  * Retorna `false` quando o MapLibre ainda está montando o estilo e recusou a
@@ -461,11 +486,11 @@ export const ensureReferenceOverlayLayers = (
   map: maplibregl.Map,
   activeTileUrls: ReferenceOverlayTileUrls,
 ): boolean => {
-  for (const overlayId of REFERENCE_LAYER_IDS) {
-    if (!activeTileUrls.get(overlayId)) removeReferenceOverlay(map, overlayId);
-  }
-
   try {
+    for (const overlayId of REFERENCE_LAYER_IDS) {
+      if (!activeTileUrls.get(overlayId)) hideReferenceOverlay(map, overlayId);
+    }
+
     for (const [overlayId, tileUrl] of activeTileUrls) {
       if (tileUrl) applyReferenceOverlay(map, overlayId, tileUrl);
     }

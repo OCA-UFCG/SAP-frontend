@@ -15,6 +15,7 @@ interface AddedLayer {
   id: string;
   source: string;
   beforeId?: string;
+  layout?: Record<string, string>;
 }
 
 /**
@@ -46,9 +47,20 @@ class FakeMapLibreMap {
     this.sources.set(id, source);
   }
 
-  addLayer(layer: { id: string; source: string }, beforeId?: string) {
+  addLayer(
+    layer: { id: string; source: string; layout?: Record<string, string> },
+    beforeId?: string,
+  ) {
     if (!this.styleParsed) throw new Error("Style is not done loading.");
     this.layers.set(layer.id, { ...layer, beforeId });
+  }
+
+  setLayoutProperty(layerId: string, name: string, value: string) {
+    if (!this.styleParsed) throw new Error("Style is not done loading.");
+    const layer = this.layers.get(layerId);
+    if (!layer)
+      throw new Error(`Cannot style non-existing layer "${layerId}".`);
+    layer.layout = { ...layer.layout, [name]: value };
   }
 
   removeSource(id: string) {
@@ -90,7 +102,7 @@ describe("ensureReferenceOverlayLayers", () => {
     );
   });
 
-  it("removes the source and layer of an overlay that left the active set", () => {
+  it("hides an overlay that left the active set instead of destroying its tiles", () => {
     const map = new FakeMapLibreMap();
     ensureReferenceOverlayLayers(
       map.asMapLibre(),
@@ -99,8 +111,28 @@ describe("ensureReferenceOverlayLayers", () => {
 
     ensureReferenceOverlayLayers(map.asMapLibre(), new Map());
 
-    expect(map.getSource(sourceIdOf("quilombolas"))).toBeUndefined();
-    expect(map.getLayer(layerIdOf("quilombolas"))).toBeUndefined();
+    expect(map.getSource(sourceIdOf("quilombolas"))).toBeDefined();
+    expect(map.getLayer(layerIdOf("quilombolas"))?.layout?.visibility).toBe(
+      "none",
+    );
+  });
+
+  it("shows the overlay again without recreating its source", () => {
+    const map = new FakeMapLibreMap();
+    const tileUrls = new Map([
+      ["quilombolas", "https://tiles.example/a/{z}/{x}/{y}"],
+    ]);
+
+    ensureReferenceOverlayLayers(map.asMapLibre(), tileUrls);
+    const sourceBeforeToggle = map.getSource(sourceIdOf("quilombolas"));
+
+    ensureReferenceOverlayLayers(map.asMapLibre(), new Map());
+    ensureReferenceOverlayLayers(map.asMapLibre(), tileUrls);
+
+    expect(map.getSource(sourceIdOf("quilombolas"))).toBe(sourceBeforeToggle);
+    expect(map.getLayer(layerIdOf("quilombolas"))?.layout?.visibility).toBe(
+      "visible",
+    );
   });
 
   // Regressão: clicar repetidamente nos territórios fazia todos pararem de
