@@ -33,7 +33,6 @@ const INITIAL_ZOOM = 4;
 const MIN_ZOOM = 3;
 const INITIAL_FILL_OPACITY = 0.85;
 
-
 export const AmfeScreen = () => {
   const t = useTranslations("Analyze");
   const tMap = useTranslations("Map");
@@ -65,12 +64,14 @@ export const AmfeScreen = () => {
     useReferenceOverlayTiles(referenceOverlays);
 
   const spatialSelection = useMemo(
-    () => toSpatialSelection(formPayload?.interestArea) ?? DEFAULT_SPATIAL_SELECTION,
+    () =>
+      toSpatialSelection(formPayload?.interestArea) ??
+      DEFAULT_SPATIAL_SELECTION,
     [formPayload?.interestArea],
   );
 
-  const municipalityClassification = useMemo<MunicipalityClassification | null>(
-    () => {
+  const municipalityClassification =
+    useMemo<MunicipalityClassification | null>(() => {
       const codes = Object.keys(cities);
       if (codes.length === 0) return null;
 
@@ -80,9 +81,7 @@ export const AmfeScreen = () => {
         ),
         excludedCodes: Object.keys(excludedCities),
       };
-    },
-    [cities, excludedCities],
-  );
+    }, [cities, excludedCities]);
 
   const allowedStateUfs = useMemo(
     () => getAllowedStateUfs(spatialSelection),
@@ -122,10 +121,12 @@ export const AmfeScreen = () => {
             spatialValue: spatialSelection.spatialValue,
             allowedStateUfs,
             bounds: spatialFocusBounds,
+            fillOpacity,
           },
     [
       allowedStateUfs,
       boundaryGeoJson,
+      fillOpacity,
       municipalityClassification,
       overviewGeoJson,
       spatialFocusBounds,
