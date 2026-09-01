@@ -1,5 +1,6 @@
 import ee from "@google/earthengine";
 import { addUrlToCache, buildCacheKey } from "@/app/api/ee/cache";
+import { warmReferenceLayerUrls } from "@/app/api/ee/referenceLayers";
 import { getSpatialBoundaryFeatures } from "@/app/api/ee/spatialBoundaries";
 import {
   resolveMapVisualizationPlan,
@@ -742,6 +743,11 @@ let warmupStarted = false;
  */
 export const cacheMapData = async () => {
   try {
+    // Antes das camadas do painel, e antes do Contentful: são só quatro idas ao
+    // Earth Engine, elas não dependem de nada externo e é o que faz o primeiro
+    // clique num território não esperar o `getMapId` depois de cada restart.
+    await warmReferenceLayerUrls();
+
     const panelLayers = await getPanelLayers();
 
     for (const layer of panelLayers) {

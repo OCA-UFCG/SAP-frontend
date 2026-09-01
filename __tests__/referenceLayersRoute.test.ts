@@ -1,6 +1,9 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import type { NextRequest } from "next/server";
 
+// A rota alcança `@/app/api/ee/referenceLayers`, que é um módulo de servidor.
+vi.mock("server-only", () => ({}));
+
 vi.mock("@/app/api/ee/services", () => ({
   ensureEeCacheWarmupStarted: vi.fn(),
 }));
