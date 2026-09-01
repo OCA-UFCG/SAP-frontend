@@ -100,7 +100,44 @@ describe("useSpatialAreaClickSelection", () => {
     });
   });
 
-  it.each(["national", "state", "semiarid", "asd"] as const)(
+  describe("state scope", () => {
+    it("switches to the state that was clicked", () => {
+      const { resolveSpatialClick } = renderResolver("state", "Bahia");
+
+      expect(resolveSpatialClick(point, "sp")).toEqual({
+        spatialArea: "state",
+        spatialValue: "São Paulo",
+      });
+    });
+
+    it("lets the state selection happen inside the state already selected", () => {
+      const { resolveSpatialClick } = renderResolver("state", "Bahia");
+
+      expect(resolveSpatialClick(point, "ba")).toBeNull();
+    });
+
+    it("does not intercept a click outside any state", () => {
+      const { resolveSpatialClick } = renderResolver("state", "Bahia");
+
+      expect(resolveSpatialClick(point, undefined)).toBeNull();
+    });
+  });
+
+  describe("semiarid scope", () => {
+    it("swallows the click on a state inside the semiarid", () => {
+      const { resolveSpatialClick } = renderResolver("semiarid", "semiárido");
+
+      expect(resolveSpatialClick(point, "ba")).toBe("block");
+    });
+
+    it("swallows the click on a state outside the semiarid", () => {
+      const { resolveSpatialClick } = renderResolver("semiarid", "semiárido");
+
+      expect(resolveSpatialClick(point, "rs")).toBe("block");
+    });
+  });
+
+  it.each(["national", "asd"] as const)(
     "never intercepts clicks in %s scope",
     (spatialArea) => {
       const { resolveSpatialClick } = renderResolver(spatialArea, "brasil", [

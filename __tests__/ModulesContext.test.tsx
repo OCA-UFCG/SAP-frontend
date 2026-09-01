@@ -96,7 +96,7 @@ describe("ModulesContext", () => {
     vi.unstubAllEnvs();
   });
 
-  it("groups panel layers by their Contentful category and opens the first visible group", () => {
+  it("groups panel layers by their Contentful category and starts every group closed", () => {
     const panelLayers: PanelLayerI[] = [
       {
         sys: { id: "sys-ambiental" },
@@ -131,7 +131,7 @@ describe("ModulesContext", () => {
       .getByText("Categoria Livre")
       .closest("button");
 
-    expect(ambientalAccordion).toHaveAttribute("aria-expanded", "true");
+    expect(ambientalAccordion).toHaveAttribute("aria-expanded", "false");
     expect(livreAccordion).toHaveAttribute("aria-expanded", "false");
     expect(screen.getByText("Camada Ambiental")).toBeInTheDocument();
     expect(screen.getByText("Camada Livre")).toBeInTheDocument();
@@ -155,9 +155,34 @@ describe("ModulesContext", () => {
 
     expect(screen.getByText("Outros").closest("button")).toHaveAttribute(
       "aria-expanded",
-      "true",
+      "false",
     );
     expect(screen.getByText("Camada Sem Categoria")).toBeInTheDocument();
+  });
+
+  // Regressão: "Dados Climáticos" é a primeira categoria da ordem fixa e vinha
+  // aberta por default, deixando o painel de Monitoramento já rolado.
+  it("keeps Dados Climáticos closed even though it is the first category", () => {
+    const panelLayers: PanelLayerI[] = [
+      {
+        sys: { id: "sys-climatico" },
+        id: "layer-climatico",
+        name: "Camada Climática",
+        description: "Descricao climatica",
+        category: "Dados Climáticos",
+        panelPosition: 1,
+        previewMap: { url: "https://example.com/climatico.png" },
+        imageData: {},
+      },
+    ];
+
+    render(
+      <ModulesContext activeSection="analysis" panelLayers={panelLayers} />,
+    );
+
+    expect(
+      screen.getByText("Dados Climáticos").closest("button"),
+    ).toHaveAttribute("aria-expanded", "false");
   });
 
   it("tracks vector layer activation when a layer toggle is turned on", async () => {

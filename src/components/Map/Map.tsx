@@ -494,11 +494,12 @@ const Map = ({
 
         // --- Spatial area click interception ---
         // Before processing as a state click, check if the click should
-        // change the spatial scope (biome/region) or be blocked (biome mode).
+        // change the spatial scope (biome/region/state) or be blocked
+        // (biome and semiarid).
         const spatialResult = resolveSpatialClick(event.point, uf);
 
         if (spatialResult === "block") {
-          log("spatial click blocked (biome mode, no state selection)", {
+          log("spatial click blocked (no state selection in this scope)", {
             uf,
             spatialArea: spatialAreaRef.current,
           });
