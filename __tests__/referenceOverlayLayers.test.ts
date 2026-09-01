@@ -6,8 +6,10 @@ import {
   GEE_LAYER_ID,
   REF_OVERLAY_LAYER_PREFIX,
   REF_OVERLAY_SOURCE_PREFIX,
+  STATES_BORDER_LAYER_ID,
   ensureReferenceOverlayLayers,
 } from "@/components/Map/mapDefinitions";
+import { MUNICIPALITY_HOVER_LAYER_ID } from "@/components/Map/municipalityLayers";
 
 interface AddedLayer {
   id: string;
@@ -158,10 +160,14 @@ describe("ensureReferenceOverlayLayers", () => {
     expect(map.getLayer(layerIdOf("quilombolas"))).toBeDefined();
   });
 
-  it("keeps overlays below the analysis layers", () => {
+  it("puts overlays above the analysis layers, below hover and borders", () => {
     const map = new FakeMapLibreMap();
     map.layers.set(GEE_LAYER_ID, { id: GEE_LAYER_ID, source: "gee" });
     map.layers.set(CDI_LAYER_ID, { id: CDI_LAYER_ID, source: "cdi" });
+    map.layers.set(MUNICIPALITY_HOVER_LAYER_ID, {
+      id: MUNICIPALITY_HOVER_LAYER_ID,
+      source: "municipalities",
+    });
 
     ensureReferenceOverlayLayers(
       map.asMapLibre(),
@@ -171,7 +177,25 @@ describe("ensureReferenceOverlayLayers", () => {
     );
 
     expect(map.getLayer(layerIdOf("unidades_conservacao"))?.beforeId).toBe(
-      CDI_LAYER_ID,
+      MUNICIPALITY_HOVER_LAYER_ID,
+    );
+  });
+
+  it("falls back to the state borders while the municipality layers are absent", () => {
+    const map = new FakeMapLibreMap();
+    map.layers.set(GEE_LAYER_ID, { id: GEE_LAYER_ID, source: "gee" });
+    map.layers.set(STATES_BORDER_LAYER_ID, {
+      id: STATES_BORDER_LAYER_ID,
+      source: "states",
+    });
+
+    ensureReferenceOverlayLayers(
+      map.asMapLibre(),
+      new Map([["quilombolas", "https://tiles.example/q/{z}/{x}/{y}"]]),
+    );
+
+    expect(map.getLayer(layerIdOf("quilombolas"))?.beforeId).toBe(
+      STATES_BORDER_LAYER_ID,
     );
   });
 

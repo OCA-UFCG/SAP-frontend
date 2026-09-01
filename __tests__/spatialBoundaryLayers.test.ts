@@ -1,16 +1,20 @@
 import type { FeatureCollection, Geometry } from "geojson";
 import type maplibregl from "maplibre-gl";
 import { describe, expect, it, vi } from "vitest";
+import { CLASSIFICATION_LAYER_ID } from "@/components/Map/classificationLayers";
 import {
   GEE_LAYER_ID,
+  REF_OVERLAY_LAYER_PREFIX,
   SPATIAL_BOUNDARY_FILL_LAYER_ID,
   SPATIAL_BOUNDARY_LAYER_ID,
   SPATIAL_BOUNDARY_SOURCE_ID,
   STATES_BORDER_LAYER_ID,
   STATES_FILL_LAYER_ID,
   ensureMapLayers,
+  ensureReferenceOverlayLayers,
   ensureSpatialBoundaryLayer,
 } from "@/components/Map/mapDefinitions";
+import { MUNICIPALITY_HOVER_LAYER_ID } from "@/components/Map/municipalityLayers";
 
 const boundaryGeoJson: FeatureCollection<Geometry, { name: string }> = {
   type: "FeatureCollection",
@@ -124,6 +128,52 @@ describe("spatial boundary MapLibre layers", () => {
     );
     expect(layers.indexOf(GEE_LAYER_ID)).toBeLessThan(
       layers.indexOf(STATES_FILL_LAYER_ID),
+    );
+  });
+
+  it("keeps the territory overlays above every analysis layer", () => {
+    const { layers, map } = createOrderedMapMock();
+    const quilombolasLayerId = `${REF_OVERLAY_LAYER_PREFIX}quilombolas`;
+
+    ensureMapLayers(map, "platform", true, false, null);
+    ensureReferenceOverlayLayers(
+      map,
+      new Map([["quilombolas", "https://tiles.example/q/{z}/{x}/{y}"]]),
+    );
+
+    // Sequência real da UI: o usuário liga o território e só depois aplica um
+    // índice ou troca de período, o que readiciona o raster do GEE.
+    ensureMapLayers(
+      map,
+      "platform",
+      true,
+      false,
+      "https://tiles.example/2020/{z}/{x}/{y}",
+      1,
+    );
+    ensureMapLayers(
+      map,
+      "platform",
+      true,
+      false,
+      "https://tiles.example/2021/{z}/{x}/{y}",
+      1,
+    );
+
+    expect(layers).toContain(CLASSIFICATION_LAYER_ID);
+    expect(layers.indexOf(GEE_LAYER_ID)).toBeLessThan(
+      layers.indexOf(quilombolasLayerId),
+    );
+    // A coropleta da AMFE é pintada com 85% de opacidade: abaixo dela o
+    // território não apareceria no mapa da análise multicritério.
+    expect(layers.indexOf(CLASSIFICATION_LAYER_ID)).toBeLessThan(
+      layers.indexOf(quilombolasLayerId),
+    );
+    expect(layers.indexOf(quilombolasLayerId)).toBeLessThan(
+      layers.indexOf(MUNICIPALITY_HOVER_LAYER_ID),
+    );
+    expect(layers.indexOf(quilombolasLayerId)).toBeLessThan(
+      layers.indexOf(STATES_BORDER_LAYER_ID),
     );
   });
 

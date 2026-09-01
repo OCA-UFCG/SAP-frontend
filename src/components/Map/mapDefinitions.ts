@@ -1,7 +1,10 @@
 import maplibregl, { ExpressionSpecification } from "maplibre-gl";
 import type { FeatureCollection, Geometry } from "geojson";
 import { BRAZIL_RASTER_BOUNDS } from "./mapBounds";
-import { ensureMunicipalityLayers } from "./municipalityLayers";
+import {
+  MUNICIPALITY_HOVER_LAYER_ID,
+  ensureMunicipalityLayers,
+} from "./municipalityLayers";
 import { ensureClassificationLayer } from "./classificationLayers";
 import { getActiveBoundaryNames } from "@/utils/spatialScope";
 import { REFERENCE_LAYER_IDS } from "@/components/MapLayerContext/mapLayerState";
@@ -402,11 +405,18 @@ const buildReferenceOverlaySource = (
   bounds: BRAZIL_RASTER_BOUNDS,
 });
 
-/** Camada âncora: o overlay entra abaixo do dado de análise, como contexto de fundo. */
+/**
+ * Camada âncora: o território entra ACIMA de todo dado de análise — o raster do
+ * GEE, o fill do CDI e a coropleta da AMFE, que é empilhada logo abaixo do hover
+ * de município — e abaixo das camadas de hover, seleção e limites, que precisam
+ * continuar legíveis por cima dele. Enquanto o território entrava por baixo,
+ * aplicar um índice o cobria e ele deixava de ser visível.
+ */
 const resolveReferenceOverlayAnchor = (map: maplibregl.Map) => {
-  if (map.getLayer(CDI_LAYER_ID)) return CDI_LAYER_ID;
-  if (map.getLayer(GEE_LAYER_ID)) return GEE_LAYER_ID;
-  if (map.getLayer(STATES_FILL_LAYER_ID)) return STATES_FILL_LAYER_ID;
+  if (map.getLayer(MUNICIPALITY_HOVER_LAYER_ID)) {
+    return MUNICIPALITY_HOVER_LAYER_ID;
+  }
+  if (map.getLayer(STATES_BORDER_LAYER_ID)) return STATES_BORDER_LAYER_ID;
   return undefined;
 };
 
@@ -440,7 +450,7 @@ const applyReferenceOverlay = (
 /**
  * Sincroniza as camadas de referência (quilombolas, assentamentos, etc.) com o
  * conjunto de URLs de tiles ativas: remove as que saíram e adiciona as que
- * entraram, sempre abaixo da camada de análise.
+ * entraram, sempre acima da camada de análise.
  *
  * Retorna `false` quando o MapLibre ainda está montando o estilo e recusou a
  * escrita — nesse caso o chamador deve reagendar em `styledata`/`idle`.
