@@ -4,6 +4,7 @@ import { useCallback } from "react";
 import type { SpatialArea, SpatialSelection } from "@/utils/spatialScope";
 import { SPATIAL_VALUE_OPTIONS } from "@/utils/spatialScope";
 import { getStateRegion } from "@/utils/interestAreaStates";
+import { statesObj } from "@/utils/constants";
 import { resolveBiomeAtPoint } from "./resolveBiomeAtPoint";
 
 /**
@@ -31,6 +32,16 @@ const REGION_VALUES = new Set(
   SPATIAL_VALUE_OPTIONS.region.map((option) => option.value),
 );
 
+/** Verify that a state name is a known `spatialValue` for the state area. */
+const STATE_VALUES = new Set(
+  SPATIAL_VALUE_OPTIONS.state.map((option) => option.value),
+);
+
+/** Nome do estado como o recorte o nomeia ("ba" -> "Bahia"), ou null. */
+function resolveStateName(uf: string): string | null {
+  return statesObj[uf.toLowerCase() as keyof typeof statesObj] ?? null;
+}
+
 /**
  * Resolves whether a map click should intercept spatial scope navigation.
  *
@@ -46,7 +57,17 @@ const REGION_VALUES = new Set(
  *   – If a different region → returns the new SpatialSelection.
  *   – If the same region → returns null (allows state selection).
  *
- * Other modes (national, state, semiarid, asd):
+ * State mode:
+ *   – Clicking another state troca o recorte para esse estado, do mesmo jeito
+ *     que o clique troca de bioma em modo bioma. Sem isso o recorte por estado
+ *     só podia ser trocado pelo seletor do painel.
+ *   – If the same state → returns null (allows the usual state selection).
+ *
+ * Semiarid mode:
+ *   – Returns "block": o semiárido é um recorte único, e selecionar um estado
+ *     dentro dele mudaria a análise para um território que não é o recorte.
+ *
+ * Other modes (national, asd):
  *   – Returns null (state selection proceeds normally).
  */
 export function useSpatialAreaClickSelection({
@@ -101,7 +122,33 @@ export function useSpatialAreaClickSelection({
         return null;
       }
 
-      // --- Other modes (national, state, semiarid, asd) ---
+      // --- State mode ---
+      if (spatialArea === "state" && clickedUf) {
+        const clickedState = resolveStateName(clickedUf);
+
+        if (
+          clickedState &&
+          STATE_VALUES.has(clickedState) &&
+          clickedState !== spatialValue
+        ) {
+          return {
+            spatialArea: "state",
+            spatialValue: clickedState,
+          } as SpatialSelection;
+        }
+
+        // Mesmo estado → segue a seleção de estado normal (zoom e municípios).
+        return null;
+      }
+
+      // --- Semiarid mode ---
+      if (spatialArea === "semiarid") {
+        // Engole o clique: o recorte é o semiárido inteiro, e selecionar um
+        // estado aqui trocaria a análise para um território fora do recorte.
+        return "block";
+      }
+
+      // --- Other modes (national, asd) ---
       return null;
     },
     [mapRef, spatialAreaRef, spatialValueRef],

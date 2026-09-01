@@ -326,19 +326,22 @@ export function ModulesContext({
         </div>
 
         <div className="flex flex-col gap-6">
-          {groupedDatasets.map((group, index) => {
+          {groupedDatasets.map((group) => {
             const categoryKeyMap: Record<string, string> = {
               "dados climáticos": "climate",
               "dados ambientais": "environmental",
               "dados socioeconômicos": "socioeconomic",
-              "outros": "others"
+              outros: "others",
             };
 
             return (
               <LayerAccordion
                 key={group.key}
-                title={categoryKeyMap[group.key] ? t(`categories.${categoryKeyMap[group.key]}`) : group.title}
-                defaultOpen={index === 0}
+                title={
+                  categoryKeyMap[group.key]
+                    ? t(`categories.${categoryKeyMap[group.key]}`)
+                    : group.title
+                }
               >
                 {group.datasets.map((dataset) => {
                   const fileRef = dataset.fileRef ?? "";
