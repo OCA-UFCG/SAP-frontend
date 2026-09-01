@@ -3,6 +3,7 @@ import { useEffect, useRef } from "react";
 import {
   CLASSIFICATION_SOURCES,
   applyClassificationFeatureStates,
+  applyClassificationFillOpacity,
   clearClassificationFeatureStates,
   ensureClassificationLayer,
   ensureClassificationOverviewLayer,
@@ -23,13 +24,14 @@ const resolveReadySources = (
  * descartado quando o estilo recarrega — daí o reapply no evento `styledata`.
  *
  * @example
- * useMunicipalityClassification(mapRef, analysis, overview, mapInstanceVersion);
+ * useMunicipalityClassification(mapRef, analysis, overview, version, 0.4);
  */
 export const useMunicipalityClassification = (
   mapRef: React.RefObject<maplibregl.Map | null>,
   classification: MunicipalityClassification | null,
   overviewGeoJson: MunicipalityOverviewGeoJson | null,
   mapInstanceVersion: number,
+  fillOpacity: number,
 ) => {
   const appliedCodesRef = useRef<Set<string>>(new Set());
 
@@ -45,6 +47,10 @@ export const useMunicipalityClassification = (
       if (classification && overviewGeoJson) {
         ensureClassificationOverviewLayer(map, overviewGeoJson);
       }
+
+      // Depois de garantir as camadas: a barra pode ter mudado antes de a
+      // coropleta existir, e o reload de estilo devolve o paint padrão.
+      applyClassificationFillOpacity(map, fillOpacity);
 
       const sources = resolveReadySources(map);
 
@@ -66,5 +72,11 @@ export const useMunicipalityClassification = (
     return () => {
       map.off("styledata", syncClassification);
     };
-  }, [classification, mapInstanceVersion, mapRef, overviewGeoJson]);
+  }, [
+    classification,
+    fillOpacity,
+    mapInstanceVersion,
+    mapRef,
+    overviewGeoJson,
+  ]);
 };

@@ -13,6 +13,8 @@ import {
   CLASSIFICATION_OVERVIEW_OUTLINE_LAYER_ID,
   CLASSIFICATION_OVERVIEW_SOURCE_ID,
   CLASSIFICATION_MIN_ZOOM as FLOOR,
+  applyClassificationFillOpacity,
+  buildClassificationFillOpacity,
   ensureClassificationOverviewLayer,
   CLASSIFICATION_STATE_KEY,
   EXCLUDED_STATE_KEY,
@@ -182,6 +184,84 @@ describe("classification paint expressions", () => {
     expect(JSON.stringify(CLASSIFICATION_FILL_COLOR)).not.toContain(
       "to-number",
     );
+  });
+});
+
+describe("buildClassificationFillOpacity", () => {
+  const rankedOpacities = (expression: readonly unknown[]) =>
+    CLASSIFICATION_COLORS.map((_color, level) => expression[2 + level * 2]);
+
+  it("paints every ranked municipality with the requested opacity", () => {
+    expect(rankedOpacities(buildClassificationFillOpacity(0.4))).toEqual(
+      CLASSIFICATION_COLORS.map(() => 0.4),
+    );
+  });
+
+  it("fades the excluded municipalities proportionally so they stay behind the ranked ones", () => {
+    const expression = buildClassificationFillOpacity(0.4);
+
+    // Excluídos valem 0.25 quando os classificados valem 0.85; a barra move os
+    // dois juntos, senão em 0% sobrariam manchas cinza sobre o mapa base.
+    expect(expression.at(-2)).toBeCloseTo(0.4 * (0.25 / 0.85));
+    expect(expression.at(-1)).toBe(0);
+  });
+
+  it("defaults to the expression the layers already ship with", () => {
+    expect(buildClassificationFillOpacity()).toEqual(
+      CLASSIFICATION_FILL_OPACITY,
+    );
+  });
+});
+
+class FakePaintMap {
+  readonly painted: Array<{ id: string; name: string; value: unknown }> = [];
+
+  constructor(private readonly existingLayerIds: Set<string>) {}
+
+  getLayer(id: string) {
+    return this.existingLayerIds.has(id) ? { id } : undefined;
+  }
+
+  setPaintProperty(id: string, name: string, value: unknown) {
+    this.painted.push({ id, name, value });
+  }
+}
+
+describe("applyClassificationFillOpacity", () => {
+  it("repaints both choropleth fills and leaves the outlines alone", () => {
+    const map = new FakePaintMap(
+      new Set([
+        CLASSIFICATION_LAYER_ID,
+        CLASSIFICATION_OUTLINE_LAYER_ID,
+        CLASSIFICATION_OVERVIEW_LAYER_ID,
+        CLASSIFICATION_OVERVIEW_OUTLINE_LAYER_ID,
+      ]),
+    );
+
+    applyClassificationFillOpacity(map, 0.4);
+
+    expect(map.painted).toEqual([
+      {
+        id: CLASSIFICATION_LAYER_ID,
+        name: "fill-opacity",
+        value: buildClassificationFillOpacity(0.4),
+      },
+      {
+        id: CLASSIFICATION_OVERVIEW_LAYER_ID,
+        name: "fill-opacity",
+        value: buildClassificationFillOpacity(0.4),
+      },
+    ]);
+  });
+
+  it("skips the overview fill while it is not on the map", () => {
+    // Antes da primeira análise só existe a coropleta de tiles; pintar uma
+    // camada ausente lança no MapLibre.
+    const map = new FakePaintMap(new Set([CLASSIFICATION_LAYER_ID]));
+
+    applyClassificationFillOpacity(map, 0.4);
+
+    expect(map.painted.map(({ id }) => id)).toEqual([CLASSIFICATION_LAYER_ID]);
   });
 });
 

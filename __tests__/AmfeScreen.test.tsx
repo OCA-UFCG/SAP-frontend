@@ -1,4 +1,11 @@
-import { act, cleanup, render, screen, waitFor } from "@testing-library/react";
+import {
+  act,
+  cleanup,
+  fireEvent,
+  render,
+  screen,
+  waitFor,
+} from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import type { AnalyzePayload, AnalyzeFormProps } from "@/utils/amfeInterfaces";
@@ -229,6 +236,40 @@ describe("AmfeScreen", () => {
     await user.click(screen.getByRole("button", { name: "run-analysis" }));
 
     expect(await screen.findByText("Nível de prioridade")).toBeInTheDocument();
+  });
+
+  it("shows the opacity control only when there is a choropleth to fade", async () => {
+    const user = userEvent.setup();
+
+    render(<AmfeScreen />);
+
+    expect(
+      screen.queryByRole("slider", { name: "Transparência" }),
+    ).not.toBeInTheDocument();
+
+    await user.click(screen.getByRole("button", { name: "run-analysis" }));
+
+    expect(
+      await screen.findByRole("slider", { name: "Transparência" }),
+    ).toHaveValue("0.85");
+  });
+
+  it("fades the choropleth fill without touching the basemap", async () => {
+    const user = userEvent.setup();
+
+    render(<AmfeScreen />);
+
+    await user.click(screen.getByRole("button", { name: "run-analysis" }));
+    const slider = await screen.findByRole("slider", {
+      name: "Transparência",
+    });
+
+    fireEvent.change(slider, { target: { value: "0.4" } });
+
+    expect(mapPropsMock.mock.calls.at(-1)?.[0]?.classificationFillOpacity).toBe(
+      0.4,
+    );
+    expect(screen.getByText("40%")).toBeInTheDocument();
   });
 
   it("keeps the export menu on the map and enables the workbook with results", async () => {

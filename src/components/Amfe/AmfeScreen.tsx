@@ -13,6 +13,7 @@ import {
 import { useSpatialBoundaryOverlay } from "@/components/PlatformMap/useSpatialBoundaryOverlay";
 import { useReferenceOverlayTiles } from "@/components/PlatformMap/useReferenceOverlayTileLayers";
 import { BasemapControl } from "@/components/MapControls/BasemapControl";
+import { LayerOpacityControl } from "@/components/MapControls/LayerOpacityControl";
 import { ReferenceOverlaysControl } from "@/components/MapControls/ReferenceOverlaysControl";
 import type { ReferenceLayerId } from "@/components/MapLayerContext/mapLayerState";
 import { BRAZIL_TERRITORY_CODE } from "@/components/Map/stateSelection";
@@ -30,6 +31,7 @@ const BRAZIL_CENTER: [number, number] = [-15.749997, -47.9499962];
 
 const INITIAL_ZOOM = 4;
 const MIN_ZOOM = 3;
+const INITIAL_FILL_OPACITY = 0.85;
 
 
 export const AmfeScreen = () => {
@@ -42,6 +44,7 @@ export const AmfeScreen = () => {
     useCities(formPayload);
 
   const [basemap, setBasemap] = useState<BasemapId>("osm");
+  const [fillOpacity, setFillOpacity] = useState(INITIAL_FILL_OPACITY);
   const [referenceOverlays, setReferenceOverlays] = useState(
     () => new Set<ReferenceLayerId>(),
   );
@@ -179,6 +182,7 @@ export const AmfeScreen = () => {
             spatialFocusBounds={spatialFocusBounds}
             municipalityClassification={municipalityClassification}
             municipalityOverviewGeoJson={overviewGeoJson}
+            classificationFillOpacity={fillOpacity}
             basemap={basemap}
             referenceOverlayTileUrls={referenceOverlayTileUrls}
             className="h-full w-full"
@@ -196,6 +200,12 @@ export const AmfeScreen = () => {
               onToggle={toggleReferenceOverlay}
             />
             <BasemapControl basemap={basemap} onChange={setBasemap} />
+            {municipalityClassification && (
+              <LayerOpacityControl
+                opacity={fillOpacity}
+                onChange={setFillOpacity}
+              />
+            )}
             {municipalityClassification && <AmfeMapLegend />}
           </div>
 

@@ -88,6 +88,8 @@ export interface MapProps {
    */
   municipalityClassification?: MunicipalityClassification | null;
   municipalityOverviewGeoJson?: MunicipalityOverviewGeoJson | null;
+  /** Opacidade do preenchimento da coropleta, controlada pela barra do mapa. */
+  classificationFillOpacity?: number;
   onZoomChange?: (zoom: number) => void;
   /** Tile URLs for active reference overlay layers (quilombolas, etc.). */
   referenceOverlayTileUrls?: Map<string, string | undefined>;
@@ -119,6 +121,7 @@ const Map = ({
   spatialFocusBounds = null,
   municipalityClassification = null,
   municipalityOverviewGeoJson = null,
+  classificationFillOpacity = 0.85,
   onZoomChange,
   referenceOverlayTileUrls,
 }: MapProps) => {
@@ -179,6 +182,7 @@ const Map = ({
     municipalityClassification,
     municipalityOverviewGeoJson,
     mapInstanceVersion,
+    classificationFillOpacity,
   );
   const allowedStateUfsRef = useRef(allowedStateUfs);
   const onZoomChangeRef = useRef(onZoomChange);
