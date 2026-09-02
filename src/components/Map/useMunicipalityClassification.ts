@@ -34,6 +34,12 @@ export const useMunicipalityClassification = (
   fillOpacity: number,
 ) => {
   const appliedCodesRef = useRef<Set<string>>(new Set());
+  // A opacidade entra por ref, e não nas dependências do efeito abaixo:
+  // regravar a classificação inteira custa duas escritas de feature-state por
+  // município (mais de 11 mil numa análise nacional) e mover a barra só precisa
+  // repintar duas camadas. O efeito de pintura, logo adiante, é quem responde
+  // à barra.
+  const fillOpacityRef = useRef(fillOpacity);
 
   useEffect(() => {
     const map = mapRef.current;
@@ -50,7 +56,7 @@ export const useMunicipalityClassification = (
 
       // Depois de garantir as camadas: a barra pode ter mudado antes de a
       // coropleta existir, e o reload de estilo devolve o paint padrão.
-      applyClassificationFillOpacity(map, fillOpacity);
+      applyClassificationFillOpacity(map, fillOpacityRef.current);
 
       const sources = resolveReadySources(map);
 
@@ -72,11 +78,17 @@ export const useMunicipalityClassification = (
     return () => {
       map.off("styledata", syncClassification);
     };
-  }, [
-    classification,
-    fillOpacity,
-    mapInstanceVersion,
-    mapRef,
-    overviewGeoJson,
-  ]);
+  }, [classification, mapInstanceVersion, mapRef, overviewGeoJson]);
+
+  // Mover a barra repinta as duas camadas de preenchimento e mais nada. Sem
+  // camada na tela ainda, `applyClassificationFillOpacity` não faz nada, e o
+  // efeito acima aplica o valor guardado assim que a coropleta existir.
+  useEffect(() => {
+    fillOpacityRef.current = fillOpacity;
+
+    const map = mapRef.current;
+    if (!map) return;
+
+    applyClassificationFillOpacity(map, fillOpacity);
+  }, [fillOpacity, mapRef]);
 };

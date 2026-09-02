@@ -11,6 +11,7 @@ import {
 import {
   CLASSIFICATION_SOURCES,
   applyClassificationFeatureStates,
+  applyClassificationFillOpacity,
   ensureClassificationLayer,
   ensureClassificationOverviewLayer,
   type MunicipalityClassification,
@@ -37,6 +38,12 @@ export interface AnalysisMapImageOptions {
   spatialValue: string;
   allowedStateUfs: Set<string> | null;
   bounds: LngLatBoundsLike | null;
+  /**
+   * Opacidade escolhida na barra de transparência do mapa. A captura monta um
+   * mapa próprio, fora da tela, então precisa receber o valor explicitamente —
+   * senão a imagem baixada sai sempre no padrão, e não no que está na tela.
+   */
+  fillOpacity: number;
 }
 
 const createCaptureContainer = () => {
@@ -61,6 +68,7 @@ export const captureAnalysisMapPng = ({
   spatialValue,
   allowedStateUfs,
   bounds,
+  fillOpacity,
 }: AnalysisMapImageOptions): Promise<string | null> =>
   new Promise((resolve) => {
     const container = createCaptureContainer();
@@ -86,8 +94,7 @@ export const captureAnalysisMapPng = ({
       window.setTimeout(() => {
         try {
           map.remove();
-        } catch {
-        }
+        } catch {}
         container.remove();
       }, 0);
     };
@@ -101,6 +108,8 @@ export const captureAnalysisMapPng = ({
       if (classification && overviewGeoJson) {
         ensureClassificationOverviewLayer(map, overviewGeoJson);
       }
+
+      applyClassificationFillOpacity(map, fillOpacity);
 
       ensureSpatialBoundaryLayer(
         map,
