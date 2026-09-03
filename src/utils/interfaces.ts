@@ -4,6 +4,7 @@ import type {
   LayerAnalysisConfig,
 } from "@/utils/analysis";
 import type { PublishedGeeStatisticsSource } from "@/contracts/geeStatistics";
+import type { PublishedPanelLayerReportConfig } from "@/contracts/panelLayerReport";
 
 export interface DataCardsI {
   noDroughtAreaValue: number;
@@ -247,6 +248,8 @@ export interface PanelLayerI {
   timeScale?: string;
   reportSeriesConfig?: MunicipalReportSeriesConfig | null;
   statisticsSource?: PublishedGeeStatisticsSource | null;
+  /** Texto do Relatório Automático escrito no catálogo, quando existe. */
+  reportConfig?: PublishedPanelLayerReportConfig | null;
   tileApiPath?: string;
   municipalAnalysisApiPath?: string;
 }

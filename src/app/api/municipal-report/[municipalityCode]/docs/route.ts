@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import citiesIndex from "@/data/citiesIndex.json";
 import { requireAuthenticatedRequest } from "@/lib/server-session";
+import { getPanelLayers } from "@/repositories/platform/panelLayerRepository";
 import { buildDocContent } from "@/services/buildDoc/buildDocContent";
 import { buildCachedMunicipalReport } from "@/services/municipalReportCache";
 import { createServerTiming } from "@/utils/serverTiming";
@@ -14,6 +15,22 @@ function error(message: string, status: number) {
 
 function getSelectedThemes(layerIds: string[]) {
   return [...new Set(layerIds)];
+}
+
+/**
+ * O texto de relatório escrito no catálogo, indexado pelo id da camada — a
+ * mesma chave que o bloco `[layer: <id>]` do Google Docs usa, para que a
+ * montagem do documento não precise saber de onde o texto veio.
+ */
+async function loadCatalogSectionsByTheme(themes: string[]) {
+  const selected = new Set(themes);
+  const panelLayers = await getPanelLayers();
+
+  return Object.fromEntries(
+    panelLayers
+      .filter((layer) => selected.has(layer.id) && layer.reportConfig?.sections.length)
+      .map((layer) => [layer.id, layer.reportConfig!.sections]),
+  );
 }
 
 function getPeriodParts(period: string) {
@@ -62,6 +79,7 @@ export async function GET(request: Request, context: { params: Promise<{ municip
     const finishDocs = timing.start();
     const content = await buildDocContent({
       themes,
+      catalogSectionsByTheme: await loadCatalogSectionsByTheme(themes),
       city: municipality.name,
       state: municipality.uf.toUpperCase(),
       month,
