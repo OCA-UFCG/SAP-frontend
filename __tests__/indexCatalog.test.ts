@@ -7,6 +7,7 @@ import {
   inferTimeScale,
   makeUniqueCatalogPanelLayerId,
   parseIndexCatalogDraftInput,
+  parseIndexCatalogPresentationInput,
   reconcileCatalogPublicationStatus,
   resolvePanelPositionInCategory,
 } from "@/utils/indexCatalog";
@@ -100,6 +101,69 @@ describe("reconciliação do status de publicação do catálogo", () => {
     expect(reconcileCatalogPublicationStatus({ status: "error" }, false)).toBe(
       "error",
     );
+  });
+});
+
+describe("parseIndexCatalogPresentationInput", () => {
+  const validPresentation = {
+    name: "Registros de Secas e Estiagens",
+    description: "Ocorrências registradas no S2iD.",
+    category: "Dados Climáticos",
+    measurementUnit: "registros",
+    panelPosition: "4",
+  };
+
+  it("aceita a unidade do legado em vez de normalizar para %", () => {
+    expect(parseIndexCatalogPresentationInput(validPresentation)).toEqual({
+      name: "Registros de Secas e Estiagens",
+      description: "Ocorrências registradas no S2iD.",
+      category: "Dados Climáticos",
+      measurementUnit: "registros",
+      panelPosition: 4,
+    });
+  });
+
+  it("não aceita configuração de dados, que mudaria os números do índice", () => {
+    const parsed = parseIndexCatalogPresentationInput({
+      ...validPresentation,
+      statisticsSource: { kind: "gee-feature-collection" },
+      classes: [{ classIndex: 0, label: "x", color: "#000000" }],
+      earthEngine: { strategy: "single", sourceType: "image" },
+    }) as Record<string, unknown>;
+
+    expect(parsed.statisticsSource).toBeUndefined();
+    expect(parsed.classes).toBeUndefined();
+    expect(parsed.earthEngine).toBeUndefined();
+  });
+
+  it("omite a posição quando o campo vem vazio", () => {
+    expect(
+      parseIndexCatalogPresentationInput({
+        ...validPresentation,
+        panelPosition: "",
+      }),
+    ).not.toHaveProperty("panelPosition");
+  });
+
+  it("recusa unidade em branco, categoria desconhecida e posição negativa", () => {
+    expect(() =>
+      parseIndexCatalogPresentationInput({
+        ...validPresentation,
+        measurementUnit: "   ",
+      }),
+    ).toThrow("Unidade de medida");
+    expect(() =>
+      parseIndexCatalogPresentationInput({
+        ...validPresentation,
+        category: "Dados Inventados",
+      }),
+    ).toThrow("Categoria inválida.");
+    expect(() =>
+      parseIndexCatalogPresentationInput({
+        ...validPresentation,
+        panelPosition: "-2",
+      }),
+    ).toThrow("maior ou igual a zero");
   });
 });
 

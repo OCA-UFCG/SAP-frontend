@@ -9,7 +9,11 @@ import {
   useState,
 } from "react";
 import { CatalogMonitoringPreview } from "@/components/IndexCatalog/CatalogMonitoringPreview";
-import { CatalogPreviewMapCapture } from "@/components/IndexCatalog/CatalogPreviewMapCapture";
+import {
+  CatalogPreviewMapCapture,
+  resolvePreviewMapPeriod,
+} from "@/components/IndexCatalog/CatalogPreviewMapCapture";
+import { LegacyIndexEditor } from "@/components/IndexCatalog/LegacyIndexEditor";
 import { CatalogReportPreview } from "@/components/IndexCatalog/CatalogReportPreview";
 import { ClassColorField } from "@/components/IndexCatalog/ClassColorField";
 import {
@@ -35,7 +39,7 @@ import {
 } from "@/utils/indexCatalogReportDraft";
 import {
   INDEX_CATEGORIES,
-  isIndexCatalogConfigV2,
+  isFullyManagedCatalogConfig,
   type ClassMapping,
   type EarthEngineAssetMapping,
   type IndexCatalogDraftInput,
@@ -180,7 +184,15 @@ function CatalogActionButton({
 }
 
 function statusLabel(item: IndexCatalogItem) {
-  if (!item.catalogManaged) return "Legado — somente leitura";
+  if (!item.catalogManaged) {
+    return item.adoptable ? "Legado — pronto para adotar" : "Legado";
+  }
+  if (item.managedScope === "presentation") {
+    if (item.published && item.hasUnpublishedChanges) {
+      return "Legado adotado — alterações não publicadas";
+    }
+    return item.published ? "Legado adotado — publicado" : "Legado adotado";
+  }
   if (item.published && item.hasUnpublishedChanges) {
     return "Publicado com revisão em rascunho";
   }
@@ -222,6 +234,8 @@ export function IndexCatalogScreen() {
   const [thresholdsInput, setThresholdsInput] = useState("");
   const [leadValuesInput, setLeadValuesInput] = useState("1, 2, 3, 4");
   const [preview, setPreview] = useState<IndexCatalogPreview | null>(null);
+  /** Índice legado adotado em edição; o formulário v2 fica escondido enquanto ele existe. */
+  const [legacyItem, setLegacyItem] = useState<IndexCatalogItem | null>(null);
   const [deleteImpact, setDeleteImpact] =
     useState<IndexCatalogLifecycleImpact | null>(null);
   const [deleteConfirmation, setDeleteConfirmation] = useState("");
@@ -281,6 +295,7 @@ export function IndexCatalogScreen() {
     : undefined;
 
   function resetEditor() {
+    setLegacyItem(null);
     setDraft(structuredClone(EMPTY_DRAFT));
     setReport(createDefaultReportDraft());
     setStatisticsAssetMode("fixed");
@@ -295,8 +310,46 @@ export function IndexCatalogScreen() {
     setLeadValuesInput("1, 2, 3, 4");
   }
 
+  function openLegacyEditor(item: IndexCatalogItem) {
+    resetEditor();
+    setLegacyItem(item);
+    setMessage(`“${item.name}” aberto para edição da apresentação.`);
+  }
+
+  /**
+   * A adoção só grava o `catalogConfig`, então nada muda no Monitoramento até
+   * alguém publicar. A lista é recarregada para o editor abrir com o item já
+   * gerenciado — é dele que o formulário lê o texto do relatório gravado.
+   */
+  async function adoptLegacy(item: IndexCatalogItem) {
+    setBusy("adopt");
+    setError("");
+    try {
+      await apiRequest(
+        `/api/index-catalog/entries/${encodeURIComponent(item.entryId)}/adopt`,
+        {
+          method: "POST",
+          headers: {
+            "Idempotency-Key": idempotencyKey("adopt", item.entryId),
+          },
+        },
+      );
+      const refreshed = await loadItems();
+      const adopted = refreshed.find(
+        (candidate) => candidate.entryId === item.entryId,
+      );
+      if (adopted) openLegacyEditor(adopted);
+    } catch (reason) {
+      setError(
+        reason instanceof Error ? reason.message : "Falha ao adotar o índice.",
+      );
+    } finally {
+      setBusy(null);
+    }
+  }
+
   function resumeDraft(item: IndexCatalogItem) {
-    if (!isIndexCatalogConfigV2(item.catalogConfig)) return;
+    if (!isFullyManagedCatalogConfig(item.catalogConfig)) return;
     const config = item.catalogConfig;
     setDraft({
       name: config.name,
@@ -827,12 +880,77 @@ export function IndexCatalogScreen() {
                   {item.panelLayerId}
                 </p>
                 {!item.catalogManaged && (
-                  <p className="mt-3 text-xs text-amber-800">
-                    Configuração v1 ou índice externo. Visível, mas não editável
-                    por este formulário.
-                  </p>
+                  <div className="mt-4 flex flex-wrap items-center gap-2">
+                    {item.adoptable ? (
+                      <>
+                        <button
+                          type="button"
+                          className={`${buttonClass} bg-[#E8E9DC]`}
+                          disabled={Boolean(busy)}
+                          onClick={() => void adoptLegacy(item)}
+                        >
+                          Adotar no catálogo
+                        </button>
+                        <span className="text-xs text-stone-500">
+                          Destrava nome, unidade, imagem e texto do relatório.
+                          Nada muda na plataforma até você publicar.
+                        </span>
+                      </>
+                    ) : (
+                      <p className="text-xs text-amber-800">
+                        {item.adoptionBlockedReason}
+                      </p>
+                    )}
+                    {!item.everPublished && (
+                      <button
+                        type="button"
+                        className={`${buttonClass} text-red-700`}
+                        onClick={() => void reviewDeletion(item)}
+                      >
+                        Remover
+                      </button>
+                    )}
+                  </div>
                 )}
-                {item.catalogManaged && (
+                {item.managedScope === "presentation" && (
+                  <div className="mt-4 flex flex-wrap gap-2">
+                    <button
+                      type="button"
+                      className={`${buttonClass} bg-[#E8E9DC]`}
+                      onClick={() => openLegacyEditor(item)}
+                    >
+                      Abrir e editar
+                    </button>
+                    {item.published && (
+                      <button
+                        type="button"
+                        className={`${buttonClass} border border-stone-300`}
+                        onClick={() => void togglePublication(item)}
+                      >
+                        Despublicar
+                      </button>
+                    )}
+                    {!item.published && (
+                      <button
+                        type="button"
+                        className={`${buttonClass} bg-[#989F43] text-white`}
+                        onClick={() => void togglePublication(item)}
+                      >
+                        Publicar
+                      </button>
+                    )}
+                    {!item.everPublished && (
+                      <button
+                        type="button"
+                        className={`${buttonClass} text-red-700`}
+                        onClick={() => void reviewDeletion(item)}
+                      >
+                        Remover
+                      </button>
+                    )}
+                  </div>
+                )}
+                {item.managedScope === "full" && (
                   <div className="mt-4 flex flex-wrap gap-2">
                     <button
                       type="button"
@@ -874,521 +992,541 @@ export function IndexCatalogScreen() {
         )}
       </section>
 
-      <section className="rounded-xl border border-stone-200 bg-white p-5">
-        <h2 className="text-lg font-bold">
-          {entryId ? "Editar índice" : "Cadastrar índice"}
-        </h2>
-        <div className="mt-5 grid gap-4 md:grid-cols-2">
-          <label className="text-sm font-medium">
-            Nome
-            <input
-              className={inputClass}
-              value={draft.name}
-              onChange={(event) => updateDraft("name", event.target.value)}
-            />
-            {editingItem && (
-              <span className="mt-1 block text-xs font-normal text-stone-600">
-                ID técnico: <code>{editingItem.panelLayerId}</code> —{" "}
-                {editingItem.everPublished
-                  ? "congelado: o índice já foi publicado e telemetria, relatórios e caches usam esse ID como chave."
-                  : "gerado a partir do nome; acompanha o nome até a primeira publicação."}
-              </span>
-            )}
-          </label>
-          <label className="text-sm font-medium">
-            Categoria
-            <select
-              className={inputClass}
-              value={draft.category}
-              onChange={(event) =>
-                updateDraft(
-                  "category",
-                  event.target.value as IndexCatalogDraftInput["category"],
-                )
-              }
-            >
-              {INDEX_CATEGORIES.map((category) => (
-                <option key={category}>{category}</option>
-              ))}
-            </select>
-          </label>
-          <label className="text-sm font-medium md:col-span-2">
-            Descrição
-            <textarea
-              className={inputClass}
-              rows={3}
-              value={draft.description}
-              onChange={(event) =>
-                updateDraft("description", event.target.value)
-              }
-            />
-          </label>
-        </div>
+      {legacyItem && (
+        <LegacyIndexEditor
+          item={legacyItem}
+          inputClass={inputClass}
+          buttonClass={buttonClass}
+          onChanged={() => void loadItems()}
+          onClose={() => setLegacyItem(null)}
+        />
+      )}
 
-        <fieldset className="mt-7 rounded-lg border border-stone-200 p-4">
-          <legend className="px-2 font-bold">Fonte das estatísticas</legend>
-          <p className="text-xs text-stone-500">
-            Obrigatoriamente FeatureCollection. Classes e períodos são
-            inferidos.
-          </p>
-          <div className="mt-4 grid gap-4 md:grid-cols-2">
+      {!legacyItem && (
+        <section className="rounded-xl border border-stone-200 bg-white p-5">
+          <h2 className="text-lg font-bold">
+            {entryId ? "Editar índice" : "Cadastrar índice"}
+          </h2>
+          <div className="mt-5 grid gap-4 md:grid-cols-2">
             <label className="text-sm font-medium">
-              Organização dos assets
-              <select
-                className={inputClass}
-                value={statisticsAssetMode}
-                onChange={(event) =>
-                  changeStatisticsAssetMode(
-                    event.target.value as StatisticsAssetMode,
-                  )
-                }
-              >
-                <option value="fixed">FeatureCollection única</option>
-                <option value="year-siblings">
-                  Uma tabela por ano (detectar os anos)
-                </option>
-                <option value="period-template">Template por período</option>
-              </select>
-              <span className="mt-1 block text-xs font-normal text-stone-500">
-                {STATISTICS_ASSET_MODE_HINTS[statisticsAssetMode]}
-              </span>
-            </label>
-            <label className="text-sm font-medium">
-              Granularidade
-              <select
-                className={inputClass}
-                value={draft.statisticsSource.periodGranularity}
-                onChange={(event) =>
-                  updateDraft("statisticsSource", {
-                    ...draft.statisticsSource,
-                    periodGranularity: event.target.value as "year" | "month",
-                  })
-                }
-              >
-                <option value="year">Anual</option>
-                <option value="month">Mensal</option>
-              </select>
-              <span className="mt-1 block text-xs font-normal text-stone-500">
-                Anual gera períodos como 2026; Mensal gera 2026-09. Precisa
-                bater com os períodos da tabela.
-              </span>
-            </label>
-            <label className="text-sm font-medium md:col-span-2">
-              {STATISTICS_ASSET_FIELD_LABELS[statisticsAssetMode]}
+              Nome
               <input
                 className={inputClass}
-                placeholder={STATISTICS_ASSET_PLACEHOLDERS[statisticsAssetMode]}
-                value={
-                  statisticsAssetMode === "year-siblings"
-                    ? yearSampleAssetId
-                    : draft.statisticsSource.asset.type === "fixed"
-                      ? draft.statisticsSource.asset.assetId
-                      : draft.statisticsSource.asset.assetIdTemplate
-                }
-                onChange={(event) =>
-                  changeStatisticsAssetId(event.target.value)
-                }
+                value={draft.name}
+                onChange={(event) => updateDraft("name", event.target.value)}
               />
-              <span className="mt-1 block text-xs font-normal text-stone-500">
-                {statisticsAssetMode === "period-template"
-                  ? "Templates aceitam {year}, {month} e {period}."
-                  : statisticsAssetMode === "fixed"
-                    ? "Endereço exato da tabela, que precisa conter todos os períodos."
-                    : "Cole o endereço completo de um dos anos; o ano no fim do nome vira a chave de busca."}
-              </span>
-              {statisticsAssetMode === "year-siblings" &&
-                yearSampleAssetId.trim() !== "" && (
-                  <span
-                    className={`mt-2 block rounded-md px-3 py-2 text-xs font-normal ${
-                      detectedYearPartition
-                        ? "bg-[#F4F5D8] text-[#4B4E15]"
-                        : "bg-amber-50 text-amber-800"
-                    }`}
-                  >
-                    {detectedYearPartition
-                      ? `Ano ${detectedYearPartition.year} detectado. O catálogo vai procurar ${detectedYearPartition.assetIdTemplate} no mesmo diretório e reunir todos os anos encontrados. Cada tabela pode guardar vários meses: escolha "Mensal" na granularidade para que os períodos venham de data_img.`
-                      : "Não encontramos um ano de 4 dígitos neste endereço. Inclua o ano (por exemplo, ..._2026) ou use “Template por período”."}
-                  </span>
-                )}
-            </label>
-          </div>
-          <details className="mt-4">
-            <summary className="cursor-pointer text-sm font-semibold">
-              Propriedades territoriais padronizadas
-            </summary>
-            <div className="mt-3 grid gap-3 md:grid-cols-2 xl:grid-cols-3">
-              {(
-                Object.keys(STANDARD_PROPERTIES) as Array<
-                  keyof typeof STANDARD_PROPERTIES
-                >
-              ).map((key) => (
-                <label key={key} className="text-xs font-medium">
-                  {key}
-                  <input
-                    className={inputClass}
-                    value={draft.statisticsSource.properties[key]}
-                    onChange={(event) =>
-                      updateStatisticsProperty(key, event.target.value)
-                    }
-                  />
-                </label>
-              ))}
-            </div>
-          </details>
-        </fieldset>
-
-        <fieldset className="mt-7 rounded-lg border border-stone-200 p-4">
-          <legend className="px-2 font-bold">Visualização do mapa</legend>
-          <p className="text-xs text-stone-500">
-            Fonte separada: Image, ImageCollection ou FeatureCollection.
-          </p>
-          <div className="mt-4 grid gap-4 md:grid-cols-2">
-            <label className="text-sm font-medium">
-              Tipo
-              <select
-                className={inputClass}
-                value={draft.earthEngine.sourceType}
-                onChange={(event) => {
-                  if (
-                    event.target.value !== "imageCollection" &&
-                    draft.earthEngine.collectionSelection
-                  ) {
-                    setThresholdsInput("");
-                  }
-                  updateMap({
-                    sourceType: event.target
-                      .value as EarthEngineAssetMapping["sourceType"],
-                    collectionSelection:
-                      event.target.value === "imageCollection"
-                        ? draft.earthEngine.collectionSelection
-                        : undefined,
-                  });
-                }}
-              >
-                <option value="image">Image</option>
-                <option value="imageCollection">ImageCollection</option>
-                <option value="featureCollection">FeatureCollection</option>
-              </select>
-            </label>
-            {draft.earthEngine.sourceType === "imageCollection" && (
-              <div className="text-sm font-medium md:col-span-2">
-                <div className="flex items-center gap-2">
-                  <label htmlFor="image-collection-treatment">
-                    Tratamento da coleção
-                  </label>
-                  <button
-                    type="button"
-                    className="grid size-6 cursor-pointer place-items-center rounded-full border border-[#989F43] bg-white text-xs font-bold text-[#62672D] hover:bg-[#F4F5D8]"
-                    aria-label="Ajuda sobre previsão por emissão e horizonte"
-                    onClick={() => setForecastGuideOpen(true)}
-                  >
-                    ?
-                  </button>
-                </div>
-                <select
-                  id="image-collection-treatment"
-                  className={inputClass}
-                  value={
-                    draft.earthEngine.collectionSelection
-                      ? "latest-emission-leads"
-                      : "mosaic"
-                  }
-                  onChange={(event) => {
-                    if (event.target.value === "latest-emission-leads") {
-                      updateMap({
-                        strategy: "single",
-                        collectionSelection: {
-                          type: "latest-emission-leads",
-                          emissionProperty: "data_emissao",
-                          leadProperty: "lead_time",
-                          targetDateProperty: "system:time_start",
-                          leadValues: [1, 2, 3, 4],
-                        },
-                      });
-                      setLeadValuesInput("1, 2, 3, 4");
-                    } else {
-                      updateMap({
-                        collectionSelection: undefined,
-                        thresholds: undefined,
-                      });
-                      setThresholdsInput("");
-                    }
-                  }}
-                >
-                  <option value="mosaic">Usar todas as imagens</option>
-                  <option value="latest-emission-leads">
-                    Previsão por emissão e horizonte
-                  </option>
-                </select>
-                <span className="mt-1 block text-xs font-normal text-stone-500">
-                  Use previsão quando a coleção guarda várias rodadas e um
-                  horizonte diferente para cada mês.
-                </span>
-              </div>
-            )}
-            <label className="text-sm font-medium">
-              Organização
-              <select
-                className={inputClass}
-                value={draft.earthEngine.strategy}
-                disabled={Boolean(draft.earthEngine.collectionSelection)}
-                onChange={(event) =>
-                  updateMap({
-                    strategy: event.target.value as "single" | "perPeriod",
-                  })
-                }
-              >
-                <option value="single">Asset único</option>
-                <option value="perPeriod">Por período</option>
-              </select>
-              {draft.earthEngine.collectionSelection && (
-                <span className="mt-1 block text-xs font-normal text-stone-500">
-                  Previsões por emissão usam uma única coleção.
+              {editingItem && (
+                <span className="mt-1 block text-xs font-normal text-stone-600">
+                  ID técnico: <code>{editingItem.panelLayerId}</code> —{" "}
+                  {editingItem.everPublished
+                    ? "congelado: o índice já foi publicado e telemetria, relatórios e caches usam esse ID como chave."
+                    : "gerado a partir do nome; acompanha o nome até a primeira publicação."}
                 </span>
               )}
             </label>
-            {draft.earthEngine.strategy === "single" ? (
-              <label className="text-sm font-medium md:col-span-2">
-                ID do asset de mapa
-                <input
-                  className={inputClass}
-                  value={draft.earthEngine.singleAssetId ?? ""}
-                  onChange={(event) =>
-                    updateMap({ singleAssetId: event.target.value })
-                  }
-                />
-              </label>
-            ) : (
-              <label className="text-sm font-medium md:col-span-2">
-                Template do asset de mapa
-                <input
-                  className={inputClass}
-                  placeholder="projects/projeto/assets/mapa_{period}"
-                  value={draft.earthEngine.assetPattern ?? ""}
-                  onChange={(event) =>
-                    updateMap({ assetPattern: event.target.value })
-                  }
-                />
-              </label>
-            )}
-            {draft.earthEngine.sourceType === "featureCollection" ? (
-              <label className="text-sm font-medium">
-                Propriedade para renderizar
-                <input
-                  className={inputClass}
-                  value={draft.earthEngine.property ?? ""}
-                  onChange={(event) =>
-                    updateMap({ property: event.target.value })
-                  }
-                />
-              </label>
-            ) : (
-              <label className="text-sm font-medium">
-                Banda (obrigatória se houver várias)
-                <input
-                  className={inputClass}
-                  value={draft.earthEngine.band ?? ""}
-                  onChange={(event) => updateMap({ band: event.target.value })}
-                />
-              </label>
-            )}
-            {draft.earthEngine.collectionSelection && (
-              <>
-                <label className="text-sm font-medium">
-                  Propriedade da emissão
-                  <input
-                    className={inputClass}
-                    value={
-                      draft.earthEngine.collectionSelection.emissionProperty
-                    }
-                    onChange={(event) =>
-                      updateMap({
-                        collectionSelection: {
-                          ...draft.earthEngine.collectionSelection!,
-                          emissionProperty: event.target.value,
-                        },
-                      })
-                    }
-                  />
-                </label>
-                <label className="text-sm font-medium">
-                  Propriedade do horizonte
-                  <input
-                    className={inputClass}
-                    value={draft.earthEngine.collectionSelection.leadProperty}
-                    onChange={(event) =>
-                      updateMap({
-                        collectionSelection: {
-                          ...draft.earthEngine.collectionSelection!,
-                          leadProperty: event.target.value,
-                        },
-                      })
-                    }
-                  />
-                </label>
-                <label className="text-sm font-medium">
-                  Propriedade do mês previsto
-                  <input
-                    className={inputClass}
-                    value={
-                      draft.earthEngine.collectionSelection.targetDateProperty
-                    }
-                    onChange={(event) =>
-                      updateMap({
-                        collectionSelection: {
-                          ...draft.earthEngine.collectionSelection!,
-                          targetDateProperty: event.target.value,
-                        },
-                      })
-                    }
-                  />
-                </label>
-                <label className="text-sm font-medium">
-                  Horizontes
-                  <input
-                    className={inputClass}
-                    placeholder="1, 2, 3, 4"
-                    value={leadValuesInput}
-                    onChange={(event) => setLeadValuesInput(event.target.value)}
-                  />
-                  <span className="mt-1 block text-xs font-normal text-stone-500">
-                    Números inteiros separados por vírgula.
-                  </span>
-                </label>
-                <label className="text-sm font-medium md:col-span-2">
-                  Limites das classes
-                  <input
-                    className={inputClass}
-                    placeholder="-90, -30, 0, 30, 90"
-                    value={thresholdsInput}
-                    onChange={(event) => setThresholdsInput(event.target.value)}
-                  />
-                  <span className="mt-1 block text-xs font-normal text-stone-500">
-                    Informe um limite a menos que a quantidade de classes, em
-                    ordem crescente. Exemplo: 6 classes exigem 5 limites.
-                  </span>
-                </label>
-              </>
-            )}
+            <label className="text-sm font-medium">
+              Categoria
+              <select
+                className={inputClass}
+                value={draft.category}
+                onChange={(event) =>
+                  updateDraft(
+                    "category",
+                    event.target.value as IndexCatalogDraftInput["category"],
+                  )
+                }
+              >
+                {INDEX_CATEGORIES.map((category) => (
+                  <option key={category}>{category}</option>
+                ))}
+              </select>
+            </label>
+            <label className="text-sm font-medium md:col-span-2">
+              Descrição
+              <textarea
+                className={inputClass}
+                rows={3}
+                value={draft.description}
+                onChange={(event) =>
+                  updateDraft("description", event.target.value)
+                }
+              />
+            </label>
           </div>
-        </fieldset>
 
-        <fieldset className="mt-7 rounded-lg border border-stone-200 p-4">
-          <legend className="px-2 font-bold">Classes</legend>
-          {draft.classes.length === 0 ? (
-            <p className="text-sm text-stone-500">
-              Clique em “Validar assets e gerar prévia” para inferir os índices
-              de perc_classe_XX e area_ha_classe_XX.
+          <fieldset className="mt-7 rounded-lg border border-stone-200 p-4">
+            <legend className="px-2 font-bold">Fonte das estatísticas</legend>
+            <p className="text-xs text-stone-500">
+              Obrigatoriamente FeatureCollection. Classes e períodos são
+              inferidos.
             </p>
-          ) : (
-            <div className="space-y-3">
-              {draft.classes.map((entry, index) => (
-                <div
-                  key={entry.classIndex}
-                  className="grid items-end gap-3 md:grid-cols-[110px_1fr_260px]"
+            <div className="mt-4 grid gap-4 md:grid-cols-2">
+              <label className="text-sm font-medium">
+                Organização dos assets
+                <select
+                  className={inputClass}
+                  value={statisticsAssetMode}
+                  onChange={(event) =>
+                    changeStatisticsAssetMode(
+                      event.target.value as StatisticsAssetMode,
+                    )
+                  }
                 >
-                  <label className="text-xs font-medium">
-                    Índice
-                    <input
-                      className={`${inputClass} bg-stone-100`}
-                      readOnly
-                      value={entry.classIndex}
-                    />
-                  </label>
-                  <label className="text-xs font-medium">
-                    Rótulo
+                  <option value="fixed">FeatureCollection única</option>
+                  <option value="year-siblings">
+                    Uma tabela por ano (detectar os anos)
+                  </option>
+                  <option value="period-template">Template por período</option>
+                </select>
+                <span className="mt-1 block text-xs font-normal text-stone-500">
+                  {STATISTICS_ASSET_MODE_HINTS[statisticsAssetMode]}
+                </span>
+              </label>
+              <label className="text-sm font-medium">
+                Granularidade
+                <select
+                  className={inputClass}
+                  value={draft.statisticsSource.periodGranularity}
+                  onChange={(event) =>
+                    updateDraft("statisticsSource", {
+                      ...draft.statisticsSource,
+                      periodGranularity: event.target.value as "year" | "month",
+                    })
+                  }
+                >
+                  <option value="year">Anual</option>
+                  <option value="month">Mensal</option>
+                </select>
+                <span className="mt-1 block text-xs font-normal text-stone-500">
+                  Anual gera períodos como 2026; Mensal gera 2026-09. Precisa
+                  bater com os períodos da tabela.
+                </span>
+              </label>
+              <label className="text-sm font-medium md:col-span-2">
+                {STATISTICS_ASSET_FIELD_LABELS[statisticsAssetMode]}
+                <input
+                  className={inputClass}
+                  placeholder={
+                    STATISTICS_ASSET_PLACEHOLDERS[statisticsAssetMode]
+                  }
+                  value={
+                    statisticsAssetMode === "year-siblings"
+                      ? yearSampleAssetId
+                      : draft.statisticsSource.asset.type === "fixed"
+                        ? draft.statisticsSource.asset.assetId
+                        : draft.statisticsSource.asset.assetIdTemplate
+                  }
+                  onChange={(event) =>
+                    changeStatisticsAssetId(event.target.value)
+                  }
+                />
+                <span className="mt-1 block text-xs font-normal text-stone-500">
+                  {statisticsAssetMode === "period-template"
+                    ? "Templates aceitam {year}, {month} e {period}."
+                    : statisticsAssetMode === "fixed"
+                      ? "Endereço exato da tabela, que precisa conter todos os períodos."
+                      : "Cole o endereço completo de um dos anos; o ano no fim do nome vira a chave de busca."}
+                </span>
+                {statisticsAssetMode === "year-siblings" &&
+                  yearSampleAssetId.trim() !== "" && (
+                    <span
+                      className={`mt-2 block rounded-md px-3 py-2 text-xs font-normal ${
+                        detectedYearPartition
+                          ? "bg-[#F4F5D8] text-[#4B4E15]"
+                          : "bg-amber-50 text-amber-800"
+                      }`}
+                    >
+                      {detectedYearPartition
+                        ? `Ano ${detectedYearPartition.year} detectado. O catálogo vai procurar ${detectedYearPartition.assetIdTemplate} no mesmo diretório e reunir todos os anos encontrados. Cada tabela pode guardar vários meses: escolha "Mensal" na granularidade para que os períodos venham de data_img.`
+                        : "Não encontramos um ano de 4 dígitos neste endereço. Inclua o ano (por exemplo, ..._2026) ou use “Template por período”."}
+                    </span>
+                  )}
+              </label>
+            </div>
+            <details className="mt-4">
+              <summary className="cursor-pointer text-sm font-semibold">
+                Propriedades territoriais padronizadas
+              </summary>
+              <div className="mt-3 grid gap-3 md:grid-cols-2 xl:grid-cols-3">
+                {(
+                  Object.keys(STANDARD_PROPERTIES) as Array<
+                    keyof typeof STANDARD_PROPERTIES
+                  >
+                ).map((key) => (
+                  <label key={key} className="text-xs font-medium">
+                    {key}
                     <input
                       className={inputClass}
-                      value={entry.label}
+                      value={draft.statisticsSource.properties[key]}
                       onChange={(event) =>
-                        updateClass(index, { label: event.target.value })
+                        updateStatisticsProperty(key, event.target.value)
                       }
                     />
                   </label>
-                  <ClassColorField
-                    color={entry.color}
-                    inputClass={inputClass}
-                    label={`classe ${entry.classIndex}`}
-                    onChange={(color) => updateClass(index, { color })}
-                  />
+                ))}
+              </div>
+            </details>
+          </fieldset>
+
+          <fieldset className="mt-7 rounded-lg border border-stone-200 p-4">
+            <legend className="px-2 font-bold">Visualização do mapa</legend>
+            <p className="text-xs text-stone-500">
+              Fonte separada: Image, ImageCollection ou FeatureCollection.
+            </p>
+            <div className="mt-4 grid gap-4 md:grid-cols-2">
+              <label className="text-sm font-medium">
+                Tipo
+                <select
+                  className={inputClass}
+                  value={draft.earthEngine.sourceType}
+                  onChange={(event) => {
+                    if (
+                      event.target.value !== "imageCollection" &&
+                      draft.earthEngine.collectionSelection
+                    ) {
+                      setThresholdsInput("");
+                    }
+                    updateMap({
+                      sourceType: event.target
+                        .value as EarthEngineAssetMapping["sourceType"],
+                      collectionSelection:
+                        event.target.value === "imageCollection"
+                          ? draft.earthEngine.collectionSelection
+                          : undefined,
+                    });
+                  }}
+                >
+                  <option value="image">Image</option>
+                  <option value="imageCollection">ImageCollection</option>
+                  <option value="featureCollection">FeatureCollection</option>
+                </select>
+              </label>
+              {draft.earthEngine.sourceType === "imageCollection" && (
+                <div className="text-sm font-medium md:col-span-2">
+                  <div className="flex items-center gap-2">
+                    <label htmlFor="image-collection-treatment">
+                      Tratamento da coleção
+                    </label>
+                    <button
+                      type="button"
+                      className="grid size-6 cursor-pointer place-items-center rounded-full border border-[#989F43] bg-white text-xs font-bold text-[#62672D] hover:bg-[#F4F5D8]"
+                      aria-label="Ajuda sobre previsão por emissão e horizonte"
+                      onClick={() => setForecastGuideOpen(true)}
+                    >
+                      ?
+                    </button>
+                  </div>
+                  <select
+                    id="image-collection-treatment"
+                    className={inputClass}
+                    value={
+                      draft.earthEngine.collectionSelection
+                        ? "latest-emission-leads"
+                        : "mosaic"
+                    }
+                    onChange={(event) => {
+                      if (event.target.value === "latest-emission-leads") {
+                        updateMap({
+                          strategy: "single",
+                          collectionSelection: {
+                            type: "latest-emission-leads",
+                            emissionProperty: "data_emissao",
+                            leadProperty: "lead_time",
+                            targetDateProperty: "system:time_start",
+                            leadValues: [1, 2, 3, 4],
+                          },
+                        });
+                        setLeadValuesInput("1, 2, 3, 4");
+                      } else {
+                        updateMap({
+                          collectionSelection: undefined,
+                          thresholds: undefined,
+                        });
+                        setThresholdsInput("");
+                      }
+                    }}
+                  >
+                    <option value="mosaic">Usar todas as imagens</option>
+                    <option value="latest-emission-leads">
+                      Previsão por emissão e horizonte
+                    </option>
+                  </select>
+                  <span className="mt-1 block text-xs font-normal text-stone-500">
+                    Use previsão quando a coleção guarda várias rodadas e um
+                    horizonte diferente para cada mês.
+                  </span>
                 </div>
-              ))}
+              )}
+              <label className="text-sm font-medium">
+                Organização
+                <select
+                  className={inputClass}
+                  value={draft.earthEngine.strategy}
+                  disabled={Boolean(draft.earthEngine.collectionSelection)}
+                  onChange={(event) =>
+                    updateMap({
+                      strategy: event.target.value as "single" | "perPeriod",
+                    })
+                  }
+                >
+                  <option value="single">Asset único</option>
+                  <option value="perPeriod">Por período</option>
+                </select>
+                {draft.earthEngine.collectionSelection && (
+                  <span className="mt-1 block text-xs font-normal text-stone-500">
+                    Previsões por emissão usam uma única coleção.
+                  </span>
+                )}
+              </label>
+              {draft.earthEngine.strategy === "single" ? (
+                <label className="text-sm font-medium md:col-span-2">
+                  ID do asset de mapa
+                  <input
+                    className={inputClass}
+                    value={draft.earthEngine.singleAssetId ?? ""}
+                    onChange={(event) =>
+                      updateMap({ singleAssetId: event.target.value })
+                    }
+                  />
+                </label>
+              ) : (
+                <label className="text-sm font-medium md:col-span-2">
+                  Template do asset de mapa
+                  <input
+                    className={inputClass}
+                    placeholder="projects/projeto/assets/mapa_{period}"
+                    value={draft.earthEngine.assetPattern ?? ""}
+                    onChange={(event) =>
+                      updateMap({ assetPattern: event.target.value })
+                    }
+                  />
+                </label>
+              )}
+              {draft.earthEngine.sourceType === "featureCollection" ? (
+                <label className="text-sm font-medium">
+                  Propriedade para renderizar
+                  <input
+                    className={inputClass}
+                    value={draft.earthEngine.property ?? ""}
+                    onChange={(event) =>
+                      updateMap({ property: event.target.value })
+                    }
+                  />
+                </label>
+              ) : (
+                <label className="text-sm font-medium">
+                  Banda (obrigatória se houver várias)
+                  <input
+                    className={inputClass}
+                    value={draft.earthEngine.band ?? ""}
+                    onChange={(event) =>
+                      updateMap({ band: event.target.value })
+                    }
+                  />
+                </label>
+              )}
+              {draft.earthEngine.collectionSelection && (
+                <>
+                  <label className="text-sm font-medium">
+                    Propriedade da emissão
+                    <input
+                      className={inputClass}
+                      value={
+                        draft.earthEngine.collectionSelection.emissionProperty
+                      }
+                      onChange={(event) =>
+                        updateMap({
+                          collectionSelection: {
+                            ...draft.earthEngine.collectionSelection!,
+                            emissionProperty: event.target.value,
+                          },
+                        })
+                      }
+                    />
+                  </label>
+                  <label className="text-sm font-medium">
+                    Propriedade do horizonte
+                    <input
+                      className={inputClass}
+                      value={draft.earthEngine.collectionSelection.leadProperty}
+                      onChange={(event) =>
+                        updateMap({
+                          collectionSelection: {
+                            ...draft.earthEngine.collectionSelection!,
+                            leadProperty: event.target.value,
+                          },
+                        })
+                      }
+                    />
+                  </label>
+                  <label className="text-sm font-medium">
+                    Propriedade do mês previsto
+                    <input
+                      className={inputClass}
+                      value={
+                        draft.earthEngine.collectionSelection.targetDateProperty
+                      }
+                      onChange={(event) =>
+                        updateMap({
+                          collectionSelection: {
+                            ...draft.earthEngine.collectionSelection!,
+                            targetDateProperty: event.target.value,
+                          },
+                        })
+                      }
+                    />
+                  </label>
+                  <label className="text-sm font-medium">
+                    Horizontes
+                    <input
+                      className={inputClass}
+                      placeholder="1, 2, 3, 4"
+                      value={leadValuesInput}
+                      onChange={(event) =>
+                        setLeadValuesInput(event.target.value)
+                      }
+                    />
+                    <span className="mt-1 block text-xs font-normal text-stone-500">
+                      Números inteiros separados por vírgula.
+                    </span>
+                  </label>
+                  <label className="text-sm font-medium md:col-span-2">
+                    Limites das classes
+                    <input
+                      className={inputClass}
+                      placeholder="-90, -30, 0, 30, 90"
+                      value={thresholdsInput}
+                      onChange={(event) =>
+                        setThresholdsInput(event.target.value)
+                      }
+                    />
+                    <span className="mt-1 block text-xs font-normal text-stone-500">
+                      Informe um limite a menos que a quantidade de classes, em
+                      ordem crescente. Exemplo: 6 classes exigem 5 limites.
+                    </span>
+                  </label>
+                </>
+              )}
+            </div>
+          </fieldset>
+
+          <fieldset className="mt-7 rounded-lg border border-stone-200 p-4">
+            <legend className="px-2 font-bold">Classes</legend>
+            {draft.classes.length === 0 ? (
+              <p className="text-sm text-stone-500">
+                Clique em “Validar assets e gerar prévia” para inferir os
+                índices de perc_classe_XX e area_ha_classe_XX.
+              </p>
+            ) : (
+              <div className="space-y-3">
+                {draft.classes.map((entry, index) => (
+                  <div
+                    key={entry.classIndex}
+                    className="grid items-end gap-3 md:grid-cols-[110px_1fr_260px]"
+                  >
+                    <label className="text-xs font-medium">
+                      Índice
+                      <input
+                        className={`${inputClass} bg-stone-100`}
+                        readOnly
+                        value={entry.classIndex}
+                      />
+                    </label>
+                    <label className="text-xs font-medium">
+                      Rótulo
+                      <input
+                        className={inputClass}
+                        value={entry.label}
+                        onChange={(event) =>
+                          updateClass(index, { label: event.target.value })
+                        }
+                      />
+                    </label>
+                    <ClassColorField
+                      color={entry.color}
+                      inputClass={inputClass}
+                      label={`classe ${entry.classIndex}`}
+                      onChange={(color) => updateClass(index, { color })}
+                    />
+                  </div>
+                ))}
+              </div>
+            )}
+            <p className="mt-3 text-xs text-stone-500">
+              O valor é sempre percentual e a unidade é sempre % nesta versão.
+            </p>
+          </fieldset>
+
+          <IndexCatalogReportFields
+            report={report}
+            inputClass={inputClass}
+            buttonClass={buttonClass}
+            disabled={Boolean(busy) || !entryId}
+            onChange={setReport}
+            onSave={() => void saveReportText()}
+          />
+
+          <div className="mt-6 flex flex-wrap gap-3">
+            <CatalogActionButton
+              className={`${buttonClass} border border-stone-300`}
+              disabled={Boolean(busy)}
+              onClick={() => void saveDraft()}
+              description="Guarda as informações preenchidas para você continuar depois. O índice ainda não aparece no Monitoramento."
+            >
+              Salvar rascunho
+            </CatalogActionButton>
+            <CatalogActionButton
+              className={`${buttonClass} bg-[#E1E2B4]`}
+              disabled={Boolean(busy)}
+              onClick={() => void validateAndPreview()}
+              description="Confere se os dados e mapas podem ser usados e mostra uma prévia privada. O índice ainda não aparece no Monitoramento."
+            >
+              Validar assets e gerar prévia
+            </CatalogActionButton>
+            <CatalogActionButton
+              className={`${buttonClass} bg-[#989F43] text-white`}
+              disabled={Boolean(busy) || !preview}
+              onClick={() => void publishDraft()}
+              description="Faz uma última conferência e disponibiliza o índice no Monitoramento. Os dados continuam guardados no Google Earth Engine."
+            >
+              Publicar
+            </CatalogActionButton>
+          </div>
+          {validationProgress && (
+            <div
+              className="mt-4 rounded-lg border border-[#D6D89A] bg-[#F4F5D8] p-4"
+              aria-live="polite"
+            >
+              <div className="flex items-center justify-between gap-3 text-sm font-semibold">
+                <span>Progresso estimado da validação</span>
+                <span>{validationProgress.percent}%</span>
+              </div>
+              <div
+                className="mt-2 h-2 overflow-hidden rounded-full bg-white"
+                role="progressbar"
+                aria-label="Progresso estimado da validação"
+                aria-valuemin={0}
+                aria-valuemax={100}
+                aria-valuenow={validationProgress.percent}
+              >
+                <div
+                  className="h-full rounded-full bg-[#989F43] transition-[width] duration-500 ease-out"
+                  style={{ width: `${validationProgress.percent}%` }}
+                />
+              </div>
+              <p className="mt-3 text-sm text-stone-700">
+                {validationProgress.message}
+              </p>
+              {validationProgress.percent < 100 && (
+                <p className="mt-1 text-xs text-stone-500">
+                  Tabelas grandes podem levar alguns minutos. Você pode manter
+                  esta tela aberta enquanto a conferência é feita.
+                </p>
+              )}
             </div>
           )}
-          <p className="mt-3 text-xs text-stone-500">
-            O valor é sempre percentual e a unidade é sempre % nesta versão.
-          </p>
-        </fieldset>
-
-        <IndexCatalogReportFields
-          report={report}
-          inputClass={inputClass}
-          buttonClass={buttonClass}
-          disabled={Boolean(busy) || !entryId}
-          onChange={setReport}
-          onSave={() => void saveReportText()}
-        />
-
-        <div className="mt-6 flex flex-wrap gap-3">
-          <CatalogActionButton
-            className={`${buttonClass} border border-stone-300`}
-            disabled={Boolean(busy)}
-            onClick={() => void saveDraft()}
-            description="Guarda as informações preenchidas para você continuar depois. O índice ainda não aparece no Monitoramento."
-          >
-            Salvar rascunho
-          </CatalogActionButton>
-          <CatalogActionButton
-            className={`${buttonClass} bg-[#E1E2B4]`}
-            disabled={Boolean(busy)}
-            onClick={() => void validateAndPreview()}
-            description="Confere se os dados e mapas podem ser usados e mostra uma prévia privada. O índice ainda não aparece no Monitoramento."
-          >
-            Validar assets e gerar prévia
-          </CatalogActionButton>
-          <CatalogActionButton
-            className={`${buttonClass} bg-[#989F43] text-white`}
-            disabled={Boolean(busy) || !preview}
-            onClick={() => void publishDraft()}
-            description="Faz uma última conferência e disponibiliza o índice no Monitoramento. Os dados continuam guardados no Google Earth Engine."
-          >
-            Publicar
-          </CatalogActionButton>
-        </div>
-        {validationProgress && (
-          <div
-            className="mt-4 rounded-lg border border-[#D6D89A] bg-[#F4F5D8] p-4"
-            aria-live="polite"
-          >
-            <div className="flex items-center justify-between gap-3 text-sm font-semibold">
-              <span>Progresso estimado da validação</span>
-              <span>{validationProgress.percent}%</span>
-            </div>
-            <div
-              className="mt-2 h-2 overflow-hidden rounded-full bg-white"
-              role="progressbar"
-              aria-label="Progresso estimado da validação"
-              aria-valuemin={0}
-              aria-valuemax={100}
-              aria-valuenow={validationProgress.percent}
-            >
-              <div
-                className="h-full rounded-full bg-[#989F43] transition-[width] duration-500 ease-out"
-                style={{ width: `${validationProgress.percent}%` }}
-              />
-            </div>
-            <p className="mt-3 text-sm text-stone-700">
-              {validationProgress.message}
-            </p>
-            {validationProgress.percent < 100 && (
-              <p className="mt-1 text-xs text-stone-500">
-                Tabelas grandes podem levar alguns minutos. Você pode manter
-                esta tela aberta enquanto a conferência é feita.
-              </p>
-            )}
-          </div>
-        )}
-      </section>
+        </section>
+      )}
 
       {preview && (
         <section className="space-y-4">
@@ -1401,7 +1539,11 @@ export function IndexCatalogScreen() {
             asset(s) estatístico(s) validados.
           </div>
           <CatalogPreviewMapCapture
-            preview={preview}
+            preview={{
+              entryId: preview.entryId,
+              panelLayer: preview.panelLayer,
+              period: resolvePreviewMapPeriod(preview),
+            }}
             onSaved={(url) =>
               setPreview((current) =>
                 current

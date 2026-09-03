@@ -16,6 +16,7 @@ vi.mock("@/components/IndexCatalog/CatalogPreviewMapCapture", () => ({
   CatalogPreviewMapCapture: () => (
     <div data-testid="catalog-preview-map-probe" />
   ),
+  resolvePreviewMapPeriod: () => "2025",
 }));
 
 // Idem para a prévia do relatório: ela faz o seu próprio pedido ao servidor, e
@@ -432,7 +433,10 @@ describe("IndexCatalogScreen v2", () => {
     ).not.toBeInTheDocument();
   });
 
-  it("keeps v1 and external panel layers read-only", async () => {
+  it("oferece adoção para o índice legado em vez da mensagem de somente leitura", async () => {
+    // Regressão: o cartão dizia "Configuração v1 ou índice externo. Visível,
+    // mas não editável por este formulário." e não havia nenhum caminho para
+    // editar o que já morava na entry.
     vi.mocked(fetch).mockImplementationOnce(() =>
       jsonResponse({
         items: [
@@ -444,6 +448,8 @@ describe("IndexCatalogScreen v2", () => {
             published: true,
             hasUnpublishedChanges: false,
             catalogManaged: false,
+            managedScope: null,
+            adoptable: true,
             status: "legacy",
             catalogConfig: { schemaVersion: 1, panelLayerId: "seca" },
           },
@@ -452,11 +458,44 @@ describe("IndexCatalogScreen v2", () => {
     );
     render(<IndexCatalogScreen />);
     expect(
-      await screen.findByText("Legado — somente leitura"),
+      await screen.findByRole("button", { name: "Adotar no catálogo" }),
     ).toBeInTheDocument();
+    expect(
+      screen.queryByText(/não editável por este formulário/u),
+    ).not.toBeInTheDocument();
     expect(
       screen.queryByRole("button", { name: "Abrir e editar" }),
     ).not.toBeInTheDocument();
     await waitFor(() => expect(fetch).toHaveBeenCalledTimes(1));
+  });
+
+  it("não oferece adoção quando o imageData ainda é pré-compacto", async () => {
+    vi.mocked(fetch).mockImplementationOnce(() =>
+      jsonResponse({
+        items: [
+          {
+            entryId: "legacy",
+            panelLayerId: "veg",
+            name: "Vegetação Nativa",
+            description: "",
+            published: false,
+            hasUnpublishedChanges: false,
+            catalogManaged: false,
+            managedScope: null,
+            adoptable: false,
+            adoptionBlockedReason:
+              "O imageData desta entry ainda está no formato pré-compacto (imageParams por ano). Converta para territorial-compact antes de adotar.",
+            status: "legacy",
+          },
+        ],
+      }),
+    );
+    render(<IndexCatalogScreen />);
+    expect(
+      await screen.findByText(/formato pré-compacto/u),
+    ).toBeInTheDocument();
+    expect(
+      screen.queryByRole("button", { name: "Adotar no catálogo" }),
+    ).not.toBeInTheDocument();
   });
 });

@@ -19,6 +19,10 @@ const SUGGESTED_SECTION_COLOR = "#176B39";
 const MAX_SECTIONS = 12;
 const GENERIC_SECTION_HINT =
   "Texto desta seção do relatório. Use colchetes para inserir dados do município.";
+const DEFAULT_INTRO =
+  "Este é o texto que ficará na parte deste índice no relatório municipal. Ele já vem preenchido com um texto padrão que funciona para qualquer índice — ajuste as frases ao seu índice antes de publicar.";
+const DEFAULT_SAVE_HINT =
+  "Este botão grava só os textos, sem refazer a conferência dos assets: a prévia já validada continua valendo. “Salvar rascunho” e “Validar assets e gerar prévia” também gravam os textos.";
 
 function getSectionHint(index: number) {
   return CATALOG_REPORT_SECTION_HINTS[index] ?? GENERIC_SECTION_HINT;
@@ -84,6 +88,12 @@ interface IndexCatalogReportFieldsProps {
   disabled: boolean;
   onChange: (report: IndexCatalogReportDraft) => void;
   onSave: () => void;
+  /** Substitui a explicação de abertura; o índice legado tem outra história. */
+  intro?: string;
+  /** Explicação abaixo do botão de salvar. */
+  saveHint?: string;
+  /** Botões extra ao lado de "Adicionar seção", como importar do Google Docs. */
+  extraActions?: React.ReactNode;
 }
 
 export function IndexCatalogReportFields({
@@ -93,6 +103,9 @@ export function IndexCatalogReportFields({
   disabled,
   onChange,
   onSave,
+  intro = DEFAULT_INTRO,
+  saveHint = DEFAULT_SAVE_HINT,
+  extraActions,
 }: IndexCatalogReportFieldsProps) {
   const [guideOpen, setGuideOpen] = useState(false);
 
@@ -112,11 +125,7 @@ export function IndexCatalogReportFields({
     <fieldset className="mt-7 rounded-lg border border-stone-200 p-4">
       <legend className="px-2 font-bold">Relatório Automático</legend>
       <div className="flex flex-wrap items-start justify-between gap-3">
-        <p className="max-w-2xl text-sm text-stone-600">
-          Este é o texto que ficará na parte deste índice no relatório
-          municipal. Ele já vem preenchido com um texto padrão que funciona para
-          qualquer índice — ajuste as frases ao seu índice antes de publicar.
-        </p>
+        <p className="max-w-2xl text-sm text-stone-600">{intro}</p>
         <button
           type="button"
           className="cursor-pointer rounded-md border border-[#CFD0CA] px-3 py-2 text-xs font-semibold whitespace-nowrap hover:bg-[#F4F5D8]"
@@ -178,6 +187,7 @@ export function IndexCatalogReportFields({
         >
           Restaurar o texto padrão
         </button>
+        {extraActions}
       </div>
 
       <label className="mt-6 block text-xs font-medium">
@@ -230,11 +240,7 @@ export function IndexCatalogReportFields({
         >
           Salvar textos do relatório
         </button>
-        <p className="mt-2 text-xs text-stone-500">
-          Este botão grava só os textos, sem refazer a conferência dos assets: a
-          prévia já validada continua valendo. “Salvar rascunho” e “Validar
-          assets e gerar prévia” também gravam os textos.
-        </p>
+        <p className="mt-2 text-xs text-stone-500">{saveHint}</p>
       </div>
 
       {guideOpen && (

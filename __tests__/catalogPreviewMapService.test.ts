@@ -143,14 +143,14 @@ describe("saveIndexCatalogPreviewMap", () => {
     expect(mocks.patchManagementEntry).not.toHaveBeenCalled();
   });
 
-  it("refuses legacy entries", async () => {
+  it("refuses entries the catalog has not adopted", async () => {
     mocks.getCatalogEntry.mockResolvedValue(
       catalogEntry(false, { schemaVersion: 1, panelLayerId: "legado" }),
     );
 
     await expect(
       saveIndexCatalogPreviewMap("entry-1", PNG_DATA_URL, user),
-    ).rejects.toThrow("legado");
+    ).rejects.toThrow(/não foi adotado/u);
   });
 });
 

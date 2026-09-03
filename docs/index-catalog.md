@@ -227,11 +227,104 @@ publicado de novo em um clique. Sem isso, `assertPublishable` só aceitava
 `ready` e o operador recebia "Revalide os assets e gere a prévia antes de
 publicar" com a prévia já validada.
 
+## Índices legados: escopo de apresentação
+
+O catálogo gerencia duas coisas diferentes, e a separação entre elas é o que
+permite editar um índice legado:
+
+- **apresentação** — nome, descrição, categoria, posição, unidade, imagem do
+  cartão e texto do Relatório Automático. Tudo isso mora na própria entry do
+  `panelLayer` e nunca dependeu do Earth Engine;
+- **origem dos números** — a FeatureCollection estatística, os assets de mapa, a
+  validação e a descoberta de períodos.
+
+Um índice legado tem a primeira parte completa e não tem nada da segunda: os
+valores dele vêm das partições `municipalAnalysis` escritas pela pipeline de CSV
+ou do registro estático de `src/config/geeStatisticsLayers.ts`. Até a primeira
+versão deste escopo, exigir a segunda parte trancava a primeira, e o cartão do
+índice dizia apenas "visível, mas não editável por este formulário".
+
+`catalogConfig.managedScope` distingue os dois casos: `full` (ou ausente, nas
+entries publicadas antes do campo existir) é o índice que o catálogo criou;
+`presentation` é um legado adotado.
+
+### Adotar
+
+"Adotar no catálogo", no cartão do índice, grava **somente** o `catalogConfig`
+derivado da própria entry. A operação é inerte de propósito: a versão publicada
+do índice continua idêntica e nada muda no Monitoramento até alguém publicar.
+O texto de relatório que já estivesse na entry é herdado; o asset da imagem de
+prévia **não** é, porque nos legados ele é uma captura de tela feita à mão e
+reaproveitar o id faria a primeira captura do catálogo sobrescrever o arquivo
+original.
+
+A adoção é recusada quando o `imageData` da entry ainda está no formato
+pré-compacto (`imageParams` por ano, como `CDI` e `veg`): sem `classes`,
+`years` e `defaultYear` não há mapa nem períodos para a tela ler. Converter para
+`territorial-compact` é o pré-requisito.
+
+### O que o escopo de apresentação escreve
+
+`PUT /api/index-catalog/entries/[entryId]/presentation` grava `name`,
+`description`, `category`, `measurementUnit` e `panelPosition`, e mais nada.
+Nunca `imageData`, nunca `statisticsSource`, nunca classes:
+
+- reescrever o `imageData` de um legado apagaria os valores territoriais que
+  estão gravados ali;
+- gravar `statisticsSource` desligaria o fallback do Contentful sem volta —
+  `municipalAnalysisRepository` relança o erro do GEE em vez de ler as
+  partições quando a camada declara uma fonte dinâmica.
+
+A unidade é editável e não é normalizada para `%` como no escopo completo,
+porque os legados usam `classes`, `%` e `registros`. Toda escrita do catálogo
+mandava `measurementUnit: "%"` fixo, o que trocaria a unidade de
+`s2id_secas_estiagens` em silêncio.
+
+Salvar não derruba `status` nem apaga validação alguma: não existe validação de
+assets neste escopo, e "Gerar prévia" apenas lê a entry.
+
+### Prévia e texto do relatório
+
+`GET /api/index-catalog/entries/[entryId]/presentation` devolve a camada como
+ela está, com o período padrão do próprio `imageData`. É o que permite capturar
+a imagem do cartão de um legado: a rota de tiles do catálogo passou a resolver a
+camada pelos campos da entry (`resolveCatalogPreviewTileLayer`) em vez de exigir
+uma prévia validada, porque um legado tem `imageId` por período sem ter
+validação. `municipalAnalysisApiPath` fica de fora da resposta de propósito —
+sem ele o painel de análise usa a rota de produção do índice, que é a única que
+sabe ler as partições.
+
+A prévia do Relatório Automático de um legado roda pelo caminho de produção:
+sem `loadImageData` e sem `availabilityIndex` próprios, e reaproveitando a
+configuração estática de `MUNICIPAL_REPORT_LAYERS` quando ela existe. É de lá
+que vêm o alias, a ordem e a narrativa de severidade que o relatório real usa.
+
+O formulário de um legado abre com o texto do relatório **vazio**, e não com o
+texto padrão do catálogo: a narrativa de um legado mora num bloco do Google
+Docs, e abrir com o padrão faria o primeiro salvamento substituir o texto real
+por um genérico. "Trazer o texto do Google Docs"
+(`GET /api/index-catalog/entries/[entryId]/docs-text`) traz as seções do
+documento com os colchetes intactos, para o operador editar o que já está
+publicado. Um texto vazio devolve o índice ao documento.
+
+### O que o catálogo não faz num legado
+
+- não valida assets, não calcula `sourceRevision` e não confere fingerprint;
+- não remove a entry de um legado que já foi publicado. O `panelLayer` é a única
+  cópia da configuração de um índice cujos valores moram nas partições, então
+  apagá-lo tiraria o índice da plataforma sem nada para reconstruí-lo.
+  "Despublicar" continua disponível;
+- não muda a origem dos dados. Migrar um legado para o escopo completo continua
+  exigindo a FeatureCollection estatística no GEE.
+
 ## Compatibilidade e falhas
 
-`catalogConfig` v1 e panel layers externos aparecem apenas para leitura. O
-catálogo só publica, despublica ou remove entradas v2. A remoção exclui somente
-o `panelLayer`; nunca chama uma operação de escrita ou exclusão no GEE.
+`catalogConfig` v1 e panel layers sem configuração aparecem para leitura e
+podem ser adotados no escopo de apresentação. Uma entry que **nunca** foi
+publicada pode ser removida mesmo sem adoção — é o caso dos rascunhos de teste
+com `catalogConfig` v1, que de outra forma ficariam sem nenhuma ação na tela.
+A remoção exclui somente o `panelLayer`; nunca chama uma operação de escrita ou
+exclusão no GEE.
 
 Carbono e ANA ainda possuem registro estático para compatibilidade. Eles podem
 usar o fallback histórico no Contentful. Fontes dinâmicas publicadas em

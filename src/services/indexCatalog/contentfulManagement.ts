@@ -4,8 +4,13 @@ import type {
   IndexCatalogConfig,
   IndexCatalogItem,
 } from "@/types/indexCatalog";
-import { isIndexCatalogConfigV2 } from "@/types/indexCatalog";
+import {
+  isManagedCatalogConfig,
+  isPresentationManagedCatalogConfig,
+} from "@/types/indexCatalog";
 import { reconcileCatalogPublicationStatus } from "@/utils/indexCatalog";
+import { isCompactImageData } from "@/utils/imageData";
+import type { ImageDataConfig } from "@/utils/interfaces";
 
 const CONTENTFUL_RETRYABLE_STATUS = new Set([429, 500, 502, 503, 504]);
 const DEFAULT_LOCALE = "en-US";
@@ -170,7 +175,7 @@ function toReconciledCatalogConfig(
   config: IndexCatalogConfig | undefined,
   published: boolean,
 ) {
-  if (!isIndexCatalogConfigV2(config)) {
+  if (!isManagedCatalogConfig(config)) {
     return null;
   }
 
@@ -178,6 +183,39 @@ function toReconciledCatalogConfig(
     ...config,
     status: reconcileCatalogPublicationStatus(config, published),
   };
+}
+
+/**
+ * O catálogo só adota um legado cujo `imageData` já está no formato
+ * `territorial-compact`: a captura da imagem de prévia e a prévia do relatório
+ * leem `classes`, `years` e `defaultYear` de lá. No formato pré-compacto
+ * (`imageParams` por ano) nada disso existe, e adotar entregaria uma tela que
+ * quebra em vez de um índice editável.
+ */
+function describeAdoptability(
+  entry: ContentfulManagementEntry,
+  locale: string,
+) {
+  const imageData = getLocalizedEntryField<ImageDataConfig>(
+    entry,
+    "imageData",
+    locale,
+  );
+  if (!imageData) {
+    return {
+      adoptable: false,
+      adoptionBlockedReason:
+        "A entry não tem imageData: não há mapa nem períodos para o catálogo mostrar.",
+    };
+  }
+  if (!isCompactImageData(imageData)) {
+    return {
+      adoptable: false,
+      adoptionBlockedReason:
+        "O imageData desta entry ainda está no formato pré-compacto (imageParams por ano). Converta para territorial-compact antes de adotar.",
+    };
+  }
+  return { adoptable: true };
 }
 
 function toCatalogItem(
@@ -198,6 +236,9 @@ function toCatalogItem(
 
   const managedConfig = toReconciledCatalogConfig(config, published);
   const effectiveConfig = managedConfig ?? config;
+  const adoptability = managedConfig
+    ? { adoptable: false }
+    : describeAdoptability(entry, locale);
 
   return {
     entryId: entry.sys.id,
@@ -226,7 +267,18 @@ function toCatalogItem(
     published,
     everPublished: Boolean(entry.sys.firstPublishedAt ?? entry.sys.publishedAt),
     hasUnpublishedChanges,
+    measurementUnit: getLocalizedEntryField<string>(
+      entry,
+      "measurementUnit",
+      locale,
+    ),
     catalogManaged: Boolean(managedConfig),
+    managedScope: managedConfig
+      ? isPresentationManagedCatalogConfig(managedConfig)
+        ? "presentation"
+        : "full"
+      : null,
+    ...adoptability,
     status: managedConfig
       ? published && !hasUnpublishedChanges
         ? "published"

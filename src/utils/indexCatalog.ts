@@ -6,6 +6,7 @@ import {
   type EarthEngineAssetMapping,
   type IndexCatalogConfigV2,
   type IndexCatalogDraftInput,
+  type IndexCatalogPresentationInput,
   type IndexCategory,
 } from "@/types/indexCatalog";
 
@@ -306,6 +307,62 @@ export function parseIndexCatalogDraftInput(
     classes: parseClasses(value.classes),
     earthEngine: parseEarthEngineMapping(value.earthEngine),
   };
+}
+
+/**
+ * O que o formulário de um índice legado adotado pode gravar.
+ *
+ * Deliberadamente não aceita `statisticsSource`, `classes` nem `earthEngine`:
+ * os valores de um legado vêm das partições `municipalAnalysis` ou do registro
+ * estático, e escrever qualquer um dos três mudaria a origem dos números em vez
+ * da apresentação deles.
+ *
+ * A unidade é validada mas não normalizada para `%`, como no escopo completo,
+ * porque os legados usam "classes" e "registros" — trocar isso mudaria o rótulo
+ * do painel de análise sem ninguém pedir.
+ *
+ * @example
+ * parseIndexCatalogPresentationInput({
+ *   name: "Registros de Secas e Estiagens",
+ *   description: "…",
+ *   category: "Dados Climáticos",
+ *   measurementUnit: "registros",
+ * });
+ */
+export function parseIndexCatalogPresentationInput(
+  value: unknown,
+): IndexCatalogPresentationInput {
+  if (!isRecord(value)) throw new Error("Edição inválida.");
+  if (
+    typeof value.category !== "string" ||
+    !(INDEX_CATEGORIES as readonly string[]).includes(value.category)
+  ) {
+    throw new Error("Categoria inválida.");
+  }
+
+  const panelPosition = Number(value.panelPosition);
+  return {
+    name: requiredString(value.name, "Nome", 120),
+    description: requiredString(value.description, "Descrição", 500),
+    category: value.category as IndexCategory,
+    measurementUnit: requiredString(
+      value.measurementUnit,
+      "Unidade de medida",
+      40,
+    ),
+    ...(value.panelPosition != null && value.panelPosition !== ""
+      ? { panelPosition: assertPanelPosition(panelPosition) }
+      : {}),
+  };
+}
+
+function assertPanelPosition(panelPosition: number) {
+  if (!Number.isInteger(panelPosition) || panelPosition < 0) {
+    throw new Error(
+      `Posição na categoria deve ser um inteiro maior ou igual a zero, recebido: ${panelPosition}`,
+    );
+  }
+  return panelPosition;
 }
 
 /**

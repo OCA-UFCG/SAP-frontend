@@ -46,7 +46,10 @@ vi.mock("@/components/Map/mapDefinitions", () => ({
 
 vi.mock("@/services/mapServices", () => ({ fetchMapURL: vi.fn() }));
 
-import { CatalogPreviewMapCapture } from "@/components/IndexCatalog/CatalogPreviewMapCapture";
+import {
+  CatalogPreviewMapCapture,
+  resolvePreviewMapPeriod,
+} from "@/components/IndexCatalog/CatalogPreviewMapCapture";
 import { ensureMapLayers } from "@/components/Map/mapDefinitions";
 import { fetchMapURL } from "@/services/mapServices";
 import type { IndexCatalogPreview } from "@/types/indexCatalog";
@@ -90,6 +93,13 @@ const preview = {
   },
 } as unknown as IndexCatalogPreview;
 
+/** A captura recebe a camada e o período; a prévia validada é só a origem deles. */
+const captureSource = {
+  entryId: preview.entryId,
+  panelLayer: preview.panelLayer,
+  period: resolvePreviewMapPeriod(preview),
+};
+
 function emit(instanceIndex: number, eventName: string) {
   const handlers = mapInstances[instanceIndex]?.handlers.get(eventName) ?? [];
   act(() => {
@@ -121,7 +131,7 @@ describe("CatalogPreviewMapCapture", () => {
   });
 
   it("captures the default period map and saves it through the catalog route", async () => {
-    render(<CatalogPreviewMapCapture preview={preview} />);
+    render(<CatalogPreviewMapCapture preview={captureSource} />);
 
     await waitFor(() => expect(mapInstances).toHaveLength(1));
     expect(fetchMapURL).toHaveBeenCalledWith(
@@ -169,7 +179,7 @@ describe("CatalogPreviewMapCapture", () => {
   });
 
   it("reports a capture the browser could not produce", async () => {
-    render(<CatalogPreviewMapCapture preview={preview} />);
+    render(<CatalogPreviewMapCapture preview={captureSource} />);
 
     await waitFor(() => expect(mapInstances).toHaveLength(1));
     mapInstances[0].getCanvas.mockReturnValueOnce({
@@ -196,7 +206,7 @@ describe("CatalogPreviewMapCapture", () => {
       ),
     );
 
-    render(<CatalogPreviewMapCapture preview={preview} />);
+    render(<CatalogPreviewMapCapture preview={captureSource} />);
     await waitFor(() => expect(mapInstances).toHaveLength(1));
     emit(0, "load");
     emit(0, "idle");
