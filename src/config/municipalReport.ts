@@ -13,6 +13,11 @@ export interface MunicipalReportLayerConfig {
    * não de partições `municipalAnalysis` no Contentful.
    */
   statisticsSource?: import("@/contracts/geeStatistics").PublishedGeeStatisticsSource | null;
+  /**
+   * Cor e nota de metodologia escritas no catálogo. Vencem `presentation`, que
+   * é o registro estático e não tem entrada para um índice do catálogo.
+   */
+  reportPresentation?: { sectionColor?: string; methodology?: string };
 }
 
 export interface MunicipalReportClassPresentation {

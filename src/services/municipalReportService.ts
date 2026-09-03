@@ -13,6 +13,7 @@ import type {
 } from "@/contracts/municipalReport";
 import { getCachedMunicipalAnalysisImageData } from "@/repositories/platform/municipalAnalysisCache";
 import { getPanelLayers } from "@/repositories/platform/panelLayerRepository";
+import type { PanelLayerI } from "@/utils/interfaces";
 import {
   getMunicipalReportSeries,
   type MunicipalReportLocationSeries,
@@ -53,6 +54,19 @@ function stableAlias(value: string) {
     .replace(/^_+|_+$/g, "");
 }
 
+/**
+ * O que do texto do catálogo é apresentação, e não narrativa: a cor do
+ * cabeçalho e a nota de metodologia. Só isso precisa atravessar o contrato do
+ * relatório — as seções chegam ao cliente pela rota de textos.
+ */
+function toReportPresentation(reportConfig: PanelLayerI["reportConfig"]) {
+  if (!reportConfig?.sectionColor && !reportConfig?.methodology) return undefined;
+  return {
+    ...(reportConfig.sectionColor ? { sectionColor: reportConfig.sectionColor } : {}),
+    ...(reportConfig.methodology ? { methodology: reportConfig.methodology } : {}),
+  };
+}
+
 async function resolveReportLayers(
   dependencies: MunicipalReportServiceDependencies,
 ) {
@@ -73,6 +87,7 @@ async function resolveReportLayers(
         ? Object.keys(layer.imageData.years)
         : undefined,
       presentation: override?.presentation,
+      reportPresentation: toReportPresentation(layer.reportConfig),
       reportSeriesConfig: layer.reportSeriesConfig,
       statisticsSource: layer.statisticsSource,
       baseImageData: isCompactImageData(layer.imageData)
@@ -224,6 +239,9 @@ function unavailable(
     classes: [],
     snapshot: null,
     timeSeries: [],
+    ...(config.reportPresentation
+      ? { presentation: config.reportPresentation }
+      : {}),
   };
 }
 
@@ -451,6 +469,9 @@ export async function buildMunicipalReport(
           classes: getMunicipalReportClasses(dataset),
           snapshot,
           timeSeries,
+          ...(config.reportPresentation
+            ? { presentation: config.reportPresentation }
+            : {}),
         };
       } catch (error) {
         console.error(

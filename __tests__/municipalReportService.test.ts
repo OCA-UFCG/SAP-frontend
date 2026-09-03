@@ -556,6 +556,59 @@ describe("buildMunicipalReport", () => {
       expect(report.analyses[0]?.timeSeries).toHaveLength(2);
     });
 
+    it("leva a cor e a nota escritas no catálogo para o relatório", async () => {
+      const report = await buildMunicipalReport("5200050", "2024", {
+        listPanelLayers: async () =>
+          [
+            {
+              id: "indice-catalogo",
+              name: "Índice do Catálogo",
+              panelPosition: 10,
+              imageData: catalogImageData,
+              statisticsSource,
+              reportConfig: {
+                schemaVersion: 1,
+                sectionColor: "#795548",
+                methodology: "Produzido a partir de dados do satélite X.",
+                sections: [{ title: "Situação atual", text: "Texto." }],
+              },
+            },
+          ] as never,
+        loadImageData: async (_id: string, period?: string) => ({
+          found: true,
+          imageData: withMunicipalValues(period ?? "2024", [40, 60]),
+          status: "hit" as const,
+        }),
+      });
+
+      expect(report.analyses[0]?.presentation).toEqual({
+        sectionColor: "#795548",
+        methodology: "Produzido a partir de dados do satélite X.",
+      });
+    });
+
+    it("não inventa apresentação para uma camada sem texto no catálogo", async () => {
+      const report = await buildMunicipalReport("5200050", "2024", {
+        listPanelLayers: async () =>
+          [
+            {
+              id: "indice-catalogo",
+              name: "Índice do Catálogo",
+              panelPosition: 10,
+              imageData: catalogImageData,
+              statisticsSource,
+            },
+          ] as never,
+        loadImageData: async (_id: string, period?: string) => ({
+          found: true,
+          imageData: withMunicipalValues(period ?? "2024", [40, 60]),
+          status: "hit" as const,
+        }),
+      });
+
+      expect(report.analyses[0]?.presentation).toBeUndefined();
+    });
+
     it("semeia a série num período publicado quando o pedido não existe na camada", async () => {
       const loadImageData = vi.fn(async (_id: string, period?: string) => ({
         found: true,

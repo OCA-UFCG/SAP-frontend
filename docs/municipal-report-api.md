@@ -54,6 +54,14 @@ Exemplo resumido:
 
 Cada análise pode ter estado `available`, `unavailable` ou `period_not_found`. Falhas parciais não invalidam as demais análises. As variáveis são valores estruturados; esta API não interpola templates.
 
+Uma análise pode trazer `presentation` — `{ sectionColor?, methodology? }` —
+quando o índice publicou esses valores pelo catálogo
+(`panelLayer.reportConfig`). É um campo aditivo e opcional da v1: um índice
+legado não o traz e o cliente cai no registro estático de
+`src/config/municipalReport.ts`, como sempre fez. As seções de texto **não**
+passam por aqui; elas chegam pela rota de textos
+(`/api/municipal-report/{codigoIBGE}/docs`).
+
 Quando o período solicitado não existe, a API ainda retorna `200` com
 `status: "period_not_found"` e os períodos existentes em `timeSeries`. O status
 `502` é reservado ao caso em que nenhuma camada configurada pôde ser carregada.
