@@ -15,6 +15,14 @@ vi.mock("@/components/IndexCatalog/CatalogPreviewMapCapture", () => ({
   ),
   resolvePreviewMapPeriod: () => "2020",
 }));
+// A prévia do Monitoramento monta o mapa de verdade (MapLibre) e o painel
+// lateral; aqui só interessa que "Gerar prévia" a coloque na tela.
+vi.mock("@/components/IndexCatalog/CatalogMonitoringPreview", () => ({
+  CatalogMonitoringPreview: () => (
+    <div data-testid="catalog-monitoring-probe" />
+  ),
+}));
+
 // A legenda também tem teste próprio (LegacyAppearanceFields.test.tsx) e lê a
 // aparência gravada ao montar; aqui ela só entraria na fila de respostas de
 // fetch que cada caso monta.
@@ -217,6 +225,44 @@ describe("LegacyIndexEditor", () => {
       "/api/index-catalog/entries/entry-legacy",
     );
     expect(requestBody(0)).toEqual({ action: "publish" });
+  });
+
+  it("mostra o mapa do Monitoramento ao gerar a prévia", async () => {
+    // Regressão: "Gerar prévia" num legado só mostrava a miniatura do cartão,
+    // e o operador não via o índice desenhado no mapa antes de publicar.
+    vi.mocked(fetch).mockImplementationOnce(() =>
+      jsonResponse({
+        entryId: "entry-legacy",
+        managedScope: "presentation",
+        defaultPeriod: "2020",
+        panelLayer: {
+          sys: { id: "entry-legacy" },
+          id: "s2id_secas_estiagens",
+          name: "Registros de Secas e Estiagens",
+          tileApiPath: "/api/index-catalog/drafts/entry-legacy/ee",
+          imageData: {
+            schemaVersion: 1,
+            type: "territorial-compact",
+            defaultYear: "2020",
+            classes: [
+              { id: "registros", label: "Registros", color: "#8C2D04" },
+            ],
+            years: { "2020": { imageId: "assets/s2id", values: { br: [12] } } },
+          },
+        },
+      }),
+    );
+    renderEditor();
+
+    fireEvent.click(screen.getByRole("button", { name: "Gerar prévia" }));
+
+    expect(
+      await screen.findByTestId("catalog-monitoring-probe"),
+    ).toBeInTheDocument();
+    expect(screen.getByTestId("catalog-preview-map-probe")).toBeInTheDocument();
+    expect(
+      await screen.findByText(/Prévia do período 2020 carregada/u),
+    ).toBeInTheDocument();
   });
 
   it("mostra o erro do servidor sem perder o que estava na tela", async () => {

@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { CatalogMonitoringPreview } from "@/components/IndexCatalog/CatalogMonitoringPreview";
 import { CatalogPreviewMapCapture } from "@/components/IndexCatalog/CatalogPreviewMapCapture";
 import { LegacyAppearanceFields } from "@/components/IndexCatalog/LegacyAppearanceFields";
 import { CatalogReportPreview } from "@/components/IndexCatalog/CatalogReportPreview";
@@ -385,6 +386,12 @@ export function LegacyIndexEditor({
               panelLayer: preview.panelLayer,
               period: preview.defaultPeriod,
             }}
+          />
+          {/* O mapa de verdade, com o painel lateral, como o índice vai ficar no
+              Monitoramento. É a mesma prévia do escopo completo: sem ela, "Gerar
+              prévia" num legado só mostrava a miniatura do cartão. */}
+          <CatalogMonitoringPreview
+            preview={{ panelLayer: preview.panelLayer }}
           />
           <CatalogReportPreview entryId={preview.entryId} />
         </div>
