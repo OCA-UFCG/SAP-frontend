@@ -113,10 +113,9 @@ export function IndexCatalogReportFields({
       <legend className="px-2 font-bold">Relatório Automático</legend>
       <div className="flex flex-wrap items-start justify-between gap-3">
         <p className="max-w-2xl text-sm text-stone-600">
-          Este é o texto que ficará na parte deste índice deste índice no
-          relatório municipal. Ele já vem preenchido com um texto padrão que
-          funciona para qualquer índice — ajuste as frases ao seu índice antes
-          de publicar.
+          Este é o texto que ficará na parte deste índice no relatório
+          municipal. Ele já vem preenchido com um texto padrão que funciona para
+          qualquer índice — ajuste as frases ao seu índice antes de publicar.
         </p>
         <button
           type="button"
