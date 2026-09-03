@@ -1,9 +1,20 @@
 "use client";
 
+import { useState } from "react";
 import { ClassColorField } from "@/components/IndexCatalog/ClassColorField";
+import { IndexCatalogReportGuideModal } from "@/components/IndexCatalog/IndexCatalogReportGuideModal";
+import {
+  CATALOG_REPORT_SECTION_HINTS,
+  DEFAULT_CATALOG_REPORT_METHODOLOGY,
+  DEFAULT_CATALOG_REPORT_SECTIONS,
+} from "@/config/indexCatalogReportText";
 
 /** Cor de cabeçalho sugerida quando o operador pede uma cor própria. */
 const SUGGESTED_SECTION_COLOR = "#176B39";
+
+const MAX_SECTIONS = 12;
+const GENERIC_SECTION_HINT =
+  "Texto desta seção do relatório. Use colchetes para inserir dados do município.";
 
 /**
  * O texto do relatório em edição. Vive separado de `IndexCatalogDraftInput` de
@@ -16,11 +27,80 @@ export interface IndexCatalogReportDraft {
   methodology: string;
 }
 
-export const EMPTY_REPORT_DRAFT: IndexCatalogReportDraft = {
-  sections: [],
-  sectionColor: "",
-  methodology: "",
-};
+/**
+ * O rascunho de texto com que um índice novo começa.
+ *
+ * Vem preenchido, e não em branco, porque um índice do catálogo não tem seção
+ * no Google Docs: em branco ele publicaria sem nenhuma narrativa. O texto
+ * padrão é genérico mas publicável, e serve de exemplo vivo de onde entra
+ * frase e onde entra dado.
+ */
+export function createDefaultReportDraft(): IndexCatalogReportDraft {
+  return {
+    sections: DEFAULT_CATALOG_REPORT_SECTIONS.map((section) => ({
+      ...section,
+    })),
+    sectionColor: "",
+    methodology: DEFAULT_CATALOG_REPORT_METHODOLOGY,
+  };
+}
+
+function getSectionHint(index: number) {
+  return CATALOG_REPORT_SECTION_HINTS[index] ?? GENERIC_SECTION_HINT;
+}
+
+interface ReportSectionCardProps {
+  index: number;
+  section: { title: string; text: string };
+  inputClass: string;
+  onChange: (values: Partial<{ title: string; text: string }>) => void;
+  onRemove: () => void;
+}
+
+function ReportSectionCard({
+  index,
+  section,
+  inputClass,
+  onChange,
+  onRemove,
+}: ReportSectionCardProps) {
+  const suggested = DEFAULT_CATALOG_REPORT_SECTIONS[index];
+
+  return (
+    <div className="rounded-md border border-stone-200 bg-stone-50/60 p-3">
+      <div className="flex items-end gap-3">
+        <label className="flex-1 text-xs font-medium">
+          Título da seção {index + 1}
+          <input
+            className={inputClass}
+            maxLength={160}
+            placeholder={suggested?.title ?? "Título que aparece no relatório"}
+            value={section.title}
+            onChange={(event) => onChange({ title: event.target.value })}
+          />
+        </label>
+        <button
+          type="button"
+          className="cursor-pointer rounded-md border border-[#CFD0CA] px-3 py-2 text-xs font-semibold hover:bg-[#F4F5D8]"
+          onClick={onRemove}
+        >
+          Remover
+        </button>
+      </div>
+      <label className="mt-3 block text-xs font-medium">
+        Texto
+        <textarea
+          className={`${inputClass} min-h-24`}
+          maxLength={4000}
+          placeholder={suggested?.text ?? GENERIC_SECTION_HINT}
+          value={section.text}
+          onChange={(event) => onChange({ text: event.target.value })}
+        />
+      </label>
+      <p className="mt-1 text-xs text-stone-500">{getSectionHint(index)}</p>
+    </div>
+  );
+}
 
 interface IndexCatalogReportFieldsProps {
   report: IndexCatalogReportDraft;
@@ -39,7 +119,12 @@ export function IndexCatalogReportFields({
   onChange,
   onSave,
 }: IndexCatalogReportFieldsProps) {
-  function updateSection(index: number, values: Partial<{ title: string; text: string }>) {
+  const [guideOpen, setGuideOpen] = useState(false);
+
+  function updateSection(
+    index: number,
+    values: Partial<{ title: string; text: string }>,
+  ) {
     onChange({
       ...report,
       sections: report.sections.map((section, position) =>
@@ -51,90 +136,91 @@ export function IndexCatalogReportFields({
   return (
     <fieldset className="mt-7 rounded-lg border border-stone-200 p-4">
       <legend className="px-2 font-bold">Relatório Automático</legend>
-      <p className="text-sm text-stone-600">
-        Estes textos aparecem no relatório do município, na parte deste índice.
-        Deixe tudo em branco para continuar usando o texto do documento
-        compartilhado no Google Docs.
-      </p>
+      <div className="flex flex-wrap items-start justify-between gap-3">
+        <p className="max-w-2xl text-sm text-stone-600">
+          Este é o texto que o cidadão lê na parte deste índice do relatório do
+          município. Ele já vem preenchido com um texto padrão que funciona para
+          qualquer índice — ajuste as frases ao seu índice antes de publicar.
+        </p>
+        <button
+          type="button"
+          className="cursor-pointer rounded-md border border-[#CFD0CA] px-3 py-2 text-xs font-semibold whitespace-nowrap hover:bg-[#F4F5D8]"
+          onClick={() => setGuideOpen(true)}
+        >
+          Guia e exemplos
+        </button>
+      </div>
       <p className="mt-2 text-xs text-stone-500">
-        Uma seção chamada “Situação atual” substitui a frase que o relatório
-        monta sozinho. Você pode inserir dados do município escrevendo o nome do
-        dado entre colchetes, como <code>[municipio]</code> ou{" "}
-        <code>[ano]</code>.
+        O que estiver entre colchetes é trocado pelo dado do município:{" "}
+        <code>[municipio]</code>, <code>[classe]</code>,{" "}
+        <code>[percentual]</code> e <code>[periodo_extenso]</code>. Um campo
+        deixado em branco simplesmente não aparece no relatório.
       </p>
 
       <div className="mt-4 space-y-4">
         {report.sections.map((section, index) => (
-          <div key={index} className="rounded-md border border-stone-200 p-3">
-            <div className="flex items-end gap-3">
-              <label className="flex-1 text-xs font-medium">
-                Título da seção {index + 1}
-                <input
-                  className={inputClass}
-                  maxLength={160}
-                  placeholder="Situação atual"
-                  value={section.title}
-                  onChange={(event) =>
-                    updateSection(index, { title: event.target.value })
-                  }
-                />
-              </label>
-              <button
-                type="button"
-                className="cursor-pointer rounded-md border border-[#CFD0CA] px-3 py-2 text-xs font-semibold hover:bg-[#F4F5D8]"
-                onClick={() =>
-                  onChange({
-                    ...report,
-                    sections: report.sections.filter(
-                      (_, position) => position !== index,
-                    ),
-                  })
-                }
-              >
-                Remover
-              </button>
-            </div>
-            <label className="mt-3 block text-xs font-medium">
-              Texto
-              <textarea
-                className={`${inputClass} min-h-24`}
-                maxLength={4000}
-                value={section.text}
-                onChange={(event) =>
-                  updateSection(index, { text: event.target.value })
-                }
-              />
-            </label>
-          </div>
+          <ReportSectionCard
+            key={index}
+            index={index}
+            section={section}
+            inputClass={inputClass}
+            onChange={(values) => updateSection(index, values)}
+            onRemove={() =>
+              onChange({
+                ...report,
+                sections: report.sections.filter(
+                  (_, position) => position !== index,
+                ),
+              })
+            }
+          />
         ))}
       </div>
 
-      <button
-        type="button"
-        className="mt-3 cursor-pointer rounded-md border border-[#CFD0CA] px-3 py-2 text-xs font-semibold hover:bg-[#F4F5D8] disabled:cursor-not-allowed disabled:opacity-50"
-        disabled={report.sections.length >= 12}
-        onClick={() =>
-          onChange({
-            ...report,
-            sections: [...report.sections, { title: "", text: "" }],
-          })
-        }
-      >
-        Adicionar seção
-      </button>
+      <div className="mt-3 flex flex-wrap gap-2">
+        <button
+          type="button"
+          className="cursor-pointer rounded-md border border-[#CFD0CA] px-3 py-2 text-xs font-semibold hover:bg-[#F4F5D8] disabled:cursor-not-allowed disabled:opacity-50"
+          disabled={report.sections.length >= MAX_SECTIONS}
+          onClick={() =>
+            onChange({
+              ...report,
+              sections: [...report.sections, { title: "", text: "" }],
+            })
+          }
+        >
+          Adicionar seção
+        </button>
+        <button
+          type="button"
+          className="cursor-pointer rounded-md border border-[#CFD0CA] px-3 py-2 text-xs font-semibold hover:bg-[#F4F5D8]"
+          onClick={() =>
+            onChange({
+              ...createDefaultReportDraft(),
+              sectionColor: report.sectionColor,
+            })
+          }
+        >
+          Restaurar o texto padrão
+        </button>
+      </div>
 
       <label className="mt-6 block text-xs font-medium">
         Nota de metodologia
         <textarea
           className={`${inputClass} min-h-20`}
           maxLength={2000}
-          placeholder="Como o índice é produzido, em uma ou duas frases. Aparece nas notas ao pé do relatório."
+          placeholder={DEFAULT_CATALOG_REPORT_METHODOLOGY}
           value={report.methodology}
           onChange={(event) =>
             onChange({ ...report, methodology: event.target.value })
           }
         />
       </label>
+      <p className="mt-1 text-xs text-stone-500">
+        Aparece nas notas ao pé do relatório. Vale citar a fonte dos dados, o
+        período coberto e a regra que separa as classes.
+      </p>
 
       <label className="mt-5 flex items-center gap-2 text-xs font-medium">
         <input
@@ -174,6 +260,10 @@ export function IndexCatalogReportFields({
           validada continua valendo.
         </p>
       </div>
+
+      {guideOpen && (
+        <IndexCatalogReportGuideModal onClose={() => setGuideOpen(false)} />
+      )}
     </fieldset>
   );
 }

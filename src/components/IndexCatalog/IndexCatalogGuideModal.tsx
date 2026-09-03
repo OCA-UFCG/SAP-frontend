@@ -251,16 +251,20 @@ const STEPS = [
           </li>
           <li>
             Para inserir um dado do município, escreva o nome do dado entre
-            colchetes — por exemplo <code>[municipio]</code> ou{" "}
-            <code>[ano]</code>. O relatório troca pelo valor de cada município.
+            colchetes — por exemplo <code>[municipio]</code>,{" "}
+            <code>[classe]</code> ou <code>[percentual]</code>. O relatório
+            troca pelo valor de cada município.
           </li>
           <li>
             A <strong>nota de metodologia</strong> aparece nas notas ao pé do
             relatório, explicando em uma ou duas frases como o índice é feito.
           </li>
           <li>
-            Deixando tudo em branco, o índice continua usando o texto do
-            documento compartilhado no Google Docs.
+            Um índice novo já vem com um <strong>texto padrão</strong>{" "}
+            preenchido, que funciona para qualquer índice. O botão{" "}
+            <strong>“Guia e exemplos”</strong>, dentro da própria seção, mostra
+            a lista completa dos dados que podem ser inseridos e como cada
+            frase aparece no relatório.
           </li>
         </ul>
         <ol className="mt-5 space-y-3 text-sm leading-relaxed text-stone-700">
@@ -272,7 +276,8 @@ const STEPS = [
           <li>
             <strong>2. Validar assets e gerar prévia:</strong> salva o rascunho,
             confere tabelas, períodos, classes e mapas no GEE e mostra uma
-            prévia privada.
+            prévia privada — o mapa, o painel de análise e como este índice
+            apareceria no relatório de Campina Grande - PB.
           </li>
           <li>
             <strong>3. Salvar textos do relatório:</strong> guarda só os textos.

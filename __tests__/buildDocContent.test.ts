@@ -103,3 +103,48 @@ describe("populateDocContent", () => {
     );
   });
 });
+
+describe("populateDocContent com variáveis por camada", () => {
+  it("resolve [classe] e [percentual] para a camada da própria seção", () => {
+    const content = populateDocContent(
+      {
+        "indice-de-aridez-era5-land": [
+          {
+            title: "Situação atual",
+            text: "Predomina [classe], com [percentual]% em [periodo_extenso].",
+          },
+        ],
+      },
+      {
+        classe_indice_de_aridez_era5_land: "Semiárido",
+        percentual_indice_de_aridez_era5_land: 83.42,
+        periodo_extenso_indice_de_aridez_era5_land: "setembro de 2024",
+      },
+    );
+
+    expect(content["indice-de-aridez-era5-land"][0].text).toBe(
+      "Predomina Semiárido, com 83,4% em setembro de 2024.",
+    );
+  });
+
+  it("não mistura camadas: [classe] não pega o valor de outro índice", () => {
+    const content = populateDocContent(
+      { "indice-a": [{ title: "Situação atual", text: "Classe: [classe]." }] },
+      { classe_indice_b: "Semiárido" },
+    );
+
+    expect(content["indice-a"][0].text).toBe("Classe: [classe].");
+  });
+
+  it("mantém o apelido explícito das camadas legadas na frente do genérico", () => {
+    const content = populateDocContent(
+      { ARIDITY_INDEX: [{ title: "Situação", text: "Classe: [classe]." }] },
+      {
+        classe_aridez: "Semiárido",
+        classe_aridity_index: "Valor genérico indevido",
+      },
+    );
+
+    expect(content.ARIDITY_INDEX[0].text).toBe("Classe: Semiárido.");
+  });
+});

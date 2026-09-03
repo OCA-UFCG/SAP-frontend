@@ -233,7 +233,39 @@ function getAliasedTemplateKey(
     return sequence[index] ?? sequence[sequence.length - 1];
   }
 
-  return aliasesByTheme[theme]?.[normalizedKey];
+  return (
+    aliasesByTheme[theme]?.[normalizedKey] ??
+    getLayerScopedTemplateKey(theme, normalizedKey)
+  );
+}
+
+/**
+ * As variáveis do relatório são por camada (`classe_indice_de_aridez`), mas quem
+ * escreve o texto de um índice no catálogo não conhece o id gerado para ele.
+ * Dentro da seção de uma camada, então, `[classe]` significa a classe daquela
+ * camada: é isso que este alias resolve.
+ *
+ * O tema de uma seção do catálogo é o próprio `panelLayer.id`, e o alias das
+ * variáveis é esse id normalizado da mesma forma que `normalizeTemplateKey`
+ * normaliza — por isso a composição basta e não há tabela a manter. Uma chave
+ * que não exista em `TemplateData` continua devolvendo `undefined`, e o
+ * colchete sobrevive literalmente, como antes.
+ */
+const LAYER_SCOPED_TEMPLATE_KEYS = new Set([
+  "classe",
+  "percentual",
+  "valor",
+  "valor_com_unidade",
+  "unidade",
+  "periodo",
+  "periodo_extenso",
+]);
+
+function getLayerScopedTemplateKey(theme: string, normalizedKey: string) {
+  if (!LAYER_SCOPED_TEMPLATE_KEYS.has(normalizedKey)) return undefined;
+  const normalizedTheme = normalizeTemplateKey(theme);
+
+  return normalizedTheme ? `${normalizedKey}_${normalizedTheme}` : undefined;
 }
 
 function normalizeTemplateDataKeys(data: TemplateData): TemplateData {

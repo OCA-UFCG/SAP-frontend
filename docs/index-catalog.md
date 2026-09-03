@@ -52,6 +52,50 @@ Como o relatório lê o `panelLayer` publicado, editar o texto de um índice já
 publicado exige republicar — a rota devolve `requiresRepublish` para a tela
 avisar.
 
+### Texto padrão e variáveis
+
+Um índice novo abre com o texto de `src/config/indexCatalogReportText.ts` já
+preenchido: quatro seções ("Situação atual", "O que este índice mede", "Como
+interpretar os resultados", "Limitações de uso") e a nota de metodologia. Vem
+preenchido, e não em branco, porque um índice do catálogo **não tem seção no
+Google Docs**: em branco ele publicaria sem nenhuma narrativa. Por isso o texto
+padrão é genérico mas publicável sem edição — nenhuma frase dele é instrução
+para o operador. As instruções ficam nos `placeholder` dos campos, nas dicas
+abaixo deles e no modal "Guia e exemplos" da própria seção.
+
+As variáveis oferecidas na tela são as de `CATALOG_REPORT_VARIABLES`, e a lista
+é fechada de propósito: `populateTemplate` devolve o próprio `[texto]` quando não
+encontra a chave, então prometer uma variável inexistente publica o colchete no
+relatório. `[classe]`, `[percentual]`, `[valor]`, `[valor_com_unidade]`,
+`[unidade]`, `[periodo]` e `[periodo_extenso]` se referem à **camada da própria
+seção**: `getLayerScopedTemplateKey` em `buildDocContent.ts` compõe
+`<chave>_<id da camada normalizado>`, que é exatamente o alias com que
+`municipalReportService` grava `templateVariables`. Sem isso, quem escreve o
+texto precisaria conhecer o id gerado para o índice. O alias explícito das
+camadas legadas (`aliasesByTheme`) continua vencendo o genérico.
+
+### Prévia do relatório
+
+`GET /api/index-catalog/drafts/[entryId]/report-preview` monta como o índice em
+rascunho apareceria no Relatório Automático de **Campina Grande - PB**, no
+período mais recente que a validação encontrou. É rota própria, e não parte da
+resposta de `preview`, porque custa uma leitura no Earth Engine e a validação já
+é a etapa lenta do catálogo.
+
+O município é fixo porque a prévia serve para conferir aparência, não para
+consultar município: Campina Grande está em todos os recortes do semiárido,
+então um índice válido sempre tem linha para ela — um município de borda
+transformaria "sem dados" em dúvida sobre a prévia. A leitura cobre só o período
+da prévia (`periodKeys` omitido), e não a série inteira, que custaria uma
+requisição por período para desenhar um gráfico que a prévia não mostra.
+
+`buildIndexCatalogReportPreview` injeta `layers` e `loadImageData` em
+`buildMunicipalReport`: o caminho normal resolve a fonte estatística pelo
+`panelLayer` **publicado**, que ainda não existe para um rascunho. O
+`availabilityIndex` vai vazio para que o período seja o que a validação inferiu.
+A interpolação usa `populateDocContent`, a mesma do relatório de produção, para
+que um colchete que não resolve apareça errado na prévia também.
+
 ## Fonte estatística e fonte de mapa
 
 São configurações independentes:

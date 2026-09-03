@@ -13,12 +13,12 @@ import type {
 } from "@/contracts/municipalReport";
 import { getCachedMunicipalAnalysisImageData } from "@/repositories/platform/municipalAnalysisCache";
 import { getPanelLayers } from "@/repositories/platform/panelLayerRepository";
-import type { PanelLayerI } from "@/utils/interfaces";
 import {
   getMunicipalReportSeries,
   type MunicipalReportLocationSeries,
 } from "@/repositories/platform/municipalReportSeriesRepository";
 import { isCompactImageData } from "@/utils/imageData";
+import { formatReportPeriod } from "@/utils/municipalReportNarrative";
 import {
   resolveMunicipalLayerPeriod,
   resolveNearestReportPeriod,
@@ -29,6 +29,8 @@ import {
   buildMunicipalReportTimeSeries,
   getMunicipalReportClasses,
   resolveMunicipalReportSnapshot,
+  stableMunicipalReportAlias,
+  toMunicipalReportPresentation,
 } from "@/utils/municipalReport";
 import type { TimingObserver } from "@/utils/serverTiming";
 
@@ -45,27 +47,8 @@ export interface MunicipalReportServiceDependencies {
 
 export class MunicipalReportNotFoundError extends Error {}
 
-function stableAlias(value: string) {
-  return value
-    .normalize("NFD")
-    .replace(/[\u0300-\u036f]/g, "")
-    .toLowerCase()
-    .replace(/[^a-z0-9]+/g, "_")
-    .replace(/^_+|_+$/g, "");
-}
-
-/**
- * O que do texto do catálogo é apresentação, e não narrativa: a cor do
- * cabeçalho e a nota de metodologia. Só isso precisa atravessar o contrato do
- * relatório — as seções chegam ao cliente pela rota de textos.
- */
-function toReportPresentation(reportConfig: PanelLayerI["reportConfig"]) {
-  if (!reportConfig?.sectionColor && !reportConfig?.methodology) return undefined;
-  return {
-    ...(reportConfig.sectionColor ? { sectionColor: reportConfig.sectionColor } : {}),
-    ...(reportConfig.methodology ? { methodology: reportConfig.methodology } : {}),
-  };
-}
+/** O relatório é montado em pt-BR; as variáveis de template acompanham. */
+const REPORT_TEMPLATE_LOCALE = "pt-BR";
 
 async function resolveReportLayers(
   dependencies: MunicipalReportServiceDependencies,
@@ -80,14 +63,14 @@ async function resolveReportLayers(
     const override = configured.get(layer.id);
     return {
       panelLayerId: layer.id,
-      alias: override?.alias ?? stableAlias(layer.id),
+      alias: override?.alias ?? stableMunicipalReportAlias(layer.id),
       title: layer.name || override?.title || layer.id,
       order: layer.panelPosition ?? override?.order ?? index,
       periods: isCompactImageData(layer.imageData)
         ? Object.keys(layer.imageData.years)
         : undefined,
       presentation: override?.presentation,
-      reportPresentation: toReportPresentation(layer.reportConfig),
+      reportPresentation: toMunicipalReportPresentation(layer.reportConfig),
       reportSeriesConfig: layer.reportSeriesConfig,
       statisticsSource: layer.statisticsSource,
       baseImageData: isCompactImageData(layer.imageData)
@@ -101,7 +84,8 @@ function createLimiter(maxConcurrent: number) {
   let active = 0;
   const queue: Array<() => void> = [];
   return async <T>(operation: () => Promise<T>): Promise<T> => {
-    if (active >= maxConcurrent) await new Promise<void>((resolve) => queue.push(resolve));
+    if (active >= maxConcurrent)
+      await new Promise<void>((resolve) => queue.push(resolve));
     active += 1;
     try {
       return await operation();
@@ -293,11 +277,11 @@ async function loadMunicipalTimeSeries(
   // Each response contains the lightweight dataset metadata plus municipal
   // values for one period, avoiding the full-layer Contentful aggregation.
   if (seed.found && seed.imageData && isCompactImageData(seed.imageData)) {
-    const periodKeys = [...(availablePeriods?.length
-      ? availablePeriods
-      : Object.keys(seed.imageData.years))].sort((left, right) =>
-        left.localeCompare(right),
-      );
+    const periodKeys = [
+      ...(availablePeriods?.length
+        ? availablePeriods
+        : Object.keys(seed.imageData.years)),
+    ].sort((left, right) => left.localeCompare(right));
 
     if (periodKeys.length > 0) {
       const datasets = await Promise.all(
@@ -306,7 +290,9 @@ async function loadMunicipalTimeSeries(
           const result = await limitFallbackLoad(() =>
             loadImageData(panelLayerId, period, locationKey),
           );
-          return result.found && result.imageData && isCompactImageData(result.imageData)
+          return result.found &&
+            result.imageData &&
+            isCompactImageData(result.imageData)
             ? result.imageData
             : null;
         }),
@@ -333,12 +319,19 @@ async function loadMunicipalTimeSeries(
   if (locationKey) return null;
 
   const complete = await limitFallbackLoad(() => loadImageData(panelLayerId));
-  if (!complete.found || !complete.imageData || !isCompactImageData(complete.imageData)) {
+  if (
+    !complete.found ||
+    !complete.imageData ||
+    !isCompactImageData(complete.imageData)
+  ) {
     return null;
   }
   return {
     dataset: complete.imageData,
-    timeSeries: buildMunicipalReportTimeSeries(complete.imageData, municipalityCode),
+    timeSeries: buildMunicipalReportTimeSeries(
+      complete.imageData,
+      municipalityCode,
+    ),
   };
 }
 
@@ -355,7 +348,8 @@ export async function buildMunicipalReport(
 
   const loadImageData =
     dependencies.loadImageData ?? getCachedMunicipalAnalysisImageData;
-  const loadReportSeries = dependencies.loadReportSeries ?? getMunicipalReportSeries;
+  const loadReportSeries =
+    dependencies.loadReportSeries ?? getMunicipalReportSeries;
   const availabilityIndex =
     dependencies.availabilityIndex ??
     (municipalAvailabilityIndex as MunicipalAvailabilityIndex);
@@ -386,10 +380,12 @@ export async function buildMunicipalReport(
     )
     .sort((a, b) => {
       if (requestedAnalysisOrder) {
-        const leftOrder = requestedAnalysisOrder.get(a.panelLayerId.toLowerCase())
-          ?? requestedAnalysisOrder.get(a.alias.toLowerCase());
-        const rightOrder = requestedAnalysisOrder.get(b.panelLayerId.toLowerCase())
-          ?? requestedAnalysisOrder.get(b.alias.toLowerCase());
+        const leftOrder =
+          requestedAnalysisOrder.get(a.panelLayerId.toLowerCase()) ??
+          requestedAnalysisOrder.get(a.alias.toLowerCase());
+        const rightOrder =
+          requestedAnalysisOrder.get(b.panelLayerId.toLowerCase()) ??
+          requestedAnalysisOrder.get(b.alias.toLowerCase());
 
         if (leftOrder != null && rightOrder != null) {
           return leftOrder - rightOrder;
@@ -428,14 +424,16 @@ export async function buildMunicipalReport(
             error,
           );
         }
-        const temporalData = seriesData ?? await loadMunicipalTimeSeries(
-          config.panelLayerId,
-          municipalityCode,
-          effectivePeriod,
-          config.periods,
-          loadImageData,
-          config.statisticsSource ? municipalityCode : undefined,
-        );
+        const temporalData =
+          seriesData ??
+          (await loadMunicipalTimeSeries(
+            config.panelLayerId,
+            municipalityCode,
+            effectivePeriod,
+            config.periods,
+            loadImageData,
+            config.statisticsSource ? municipalityCode : undefined,
+          ));
         if (!temporalData) return unavailable(config, requestedPeriod);
         const { dataset, timeSeries: sourceTimeSeries } = temporalData;
         const sourceSnapshot = resolveMunicipalReportSnapshot(
@@ -481,7 +479,7 @@ export async function buildMunicipalReport(
         return unavailable(config, requestedPeriod);
       } finally {
         dependencies.onTiming?.(
-          `analysis_${stableAlias(config.panelLayerId)}`,
+          `analysis_${stableMunicipalReportAlias(config.panelLayerId)}`,
           performance.now() - analysisStartedAt,
           config.title,
         );
@@ -498,14 +496,21 @@ export async function buildMunicipalReport(
     const dominantValue = analysis.snapshot?.dominantClass?.percentage ?? null;
     templateVariables[`classe_${analysis.alias}`] =
       analysis.snapshot?.dominantClass?.label ?? null;
-    templateVariables[`percentual_${analysis.alias}`] =
-      dominantValue;
+    templateVariables[`percentual_${analysis.alias}`] = dominantValue;
     templateVariables[`valor_${analysis.alias}`] = dominantValue;
     templateVariables[`unidade_${analysis.alias}`] = analysis.unit || null;
-    templateVariables[`valor_com_unidade_${analysis.alias}`] = dominantValue == null
-      ? null
-      : `${dominantValue.toLocaleString("pt-BR", { maximumFractionDigits: 1 })}${analysis.unit ? ` ${analysis.unit}` : ""}`;
+    templateVariables[`valor_com_unidade_${analysis.alias}`] =
+      dominantValue == null
+        ? null
+        : `${dominantValue.toLocaleString("pt-BR", { maximumFractionDigits: 1 })}${analysis.unit ? ` ${analysis.unit}` : ""}`;
     templateVariables[`periodo_${analysis.alias}`] = analysis.effectivePeriod;
+    // O período por extenso existe para o texto escrito no catálogo: "2024-09"
+    // no meio de uma frase lê-se mal, e quem escreve não deve ter que formatar
+    // data à mão para cada índice.
+    templateVariables[`periodo_extenso_${analysis.alias}`] =
+      analysis.effectivePeriod
+        ? formatReportPeriod(analysis.effectivePeriod, REPORT_TEMPLATE_LOCALE)
+        : null;
   }
 
   return {

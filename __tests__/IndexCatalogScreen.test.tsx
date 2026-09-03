@@ -18,6 +18,12 @@ vi.mock("@/components/IndexCatalog/CatalogPreviewMapCapture", () => ({
   ),
 }));
 
+// Idem para a prévia do relatório: ela faz o seu próprio pedido ao servidor, e
+// sem o stub esse pedido consumiria uma das respostas encadeadas dos testes.
+vi.mock("@/components/IndexCatalog/CatalogReportPreview", () => ({
+  CatalogReportPreview: () => <div data-testid="catalog-report-preview-probe" />,
+}));
+
 import { IndexCatalogScreen } from "@/components/IndexCatalog/IndexCatalogScreen";
 
 function jsonResponse(body: unknown, status = 200) {
@@ -296,6 +302,10 @@ describe("IndexCatalogScreen v2", () => {
 
     expect(
       await screen.findByTestId("catalog-preview-probe"),
+    ).toBeInTheDocument();
+    // A prévia gerada mostra o mapa e também como o índice sairia no relatório.
+    expect(
+      screen.getByTestId("catalog-report-preview-probe"),
     ).toBeInTheDocument();
     expect(screen.getAllByLabelText("Índice")).toHaveLength(2);
     expect(screen.getByDisplayValue("Classe 0")).toBeInTheDocument();

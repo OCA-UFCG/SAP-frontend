@@ -10,6 +10,7 @@ import {
 } from "react";
 import { CatalogMonitoringPreview } from "@/components/IndexCatalog/CatalogMonitoringPreview";
 import { CatalogPreviewMapCapture } from "@/components/IndexCatalog/CatalogPreviewMapCapture";
+import { CatalogReportPreview } from "@/components/IndexCatalog/CatalogReportPreview";
 import { ClassColorField } from "@/components/IndexCatalog/ClassColorField";
 import {
   catalogApiRequest as apiRequest,
@@ -19,7 +20,7 @@ import {
 } from "@/components/IndexCatalog/catalogApiClient";
 import { IndexCatalogGuideModal } from "@/components/IndexCatalog/IndexCatalogGuideModal";
 import {
-  EMPTY_REPORT_DRAFT,
+  createDefaultReportDraft,
   IndexCatalogReportFields,
   type IndexCatalogReportDraft,
 } from "@/components/IndexCatalog/IndexCatalogReportFields";
@@ -205,8 +206,9 @@ function parseNumberList(value: string, label: string, integersOnly = false) {
 export function IndexCatalogScreen() {
   const [items, setItems] = useState<IndexCatalogItem[]>([]);
   const [draft, setDraft] = useState<IndexCatalogDraftInput>(EMPTY_DRAFT);
-  const [report, setReport] =
-    useState<IndexCatalogReportDraft>(EMPTY_REPORT_DRAFT);
+  const [report, setReport] = useState<IndexCatalogReportDraft>(
+    createDefaultReportDraft,
+  );
   const [statisticsAssetMode, setStatisticsAssetMode] =
     useState<StatisticsAssetMode>("fixed");
   const [yearSampleAssetId, setYearSampleAssetId] = useState("");
@@ -268,7 +270,7 @@ export function IndexCatalogScreen() {
 
   function resetEditor() {
     setDraft(structuredClone(EMPTY_DRAFT));
-    setReport(structuredClone(EMPTY_REPORT_DRAFT));
+    setReport(createDefaultReportDraft());
     setStatisticsAssetMode("fixed");
     setYearSampleAssetId("");
     setEntryId(null);
@@ -291,11 +293,18 @@ export function IndexCatalogScreen() {
       classes: config.classes,
       earthEngine: { ...config.earthEngine, assetsByPeriod: undefined },
     });
-    setReport({
-      sections: config.report?.sections.map((section) => ({ ...section })) ?? [],
-      sectionColor: config.report?.sectionColor ?? "",
-      methodology: config.report?.methodology ?? "",
-    });
+    // Um rascunho sem texto salvo recebe o padrão, e não campos vazios: é o
+    // mesmo ponto de partida de um índice novo, inclusive para os que foram
+    // criados antes de existir texto de relatório no catálogo.
+    setReport(
+      config.report
+        ? {
+            sections: config.report.sections.map((section) => ({ ...section })),
+            sectionColor: config.report.sectionColor ?? "",
+            methodology: config.report.methodology ?? "",
+          }
+        : createDefaultReportDraft(),
+    );
     const assetMode = inferStatisticsAssetMode(config.statisticsSource.asset);
     setStatisticsAssetMode(assetMode);
     // Reexibe o ano que o operador digitou, e não o placeholder gravado.
@@ -1390,6 +1399,7 @@ export function IndexCatalogScreen() {
             }
           />
           <CatalogMonitoringPreview preview={preview} />
+          <CatalogReportPreview entryId={preview.entryId} />
         </section>
       )}
 

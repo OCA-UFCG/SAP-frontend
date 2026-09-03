@@ -47,12 +47,20 @@ Exemplo resumido:
     "codigoMunicipio": "5200050",
     "classe_seca": "Sem seca",
     "percentual_seca": 62.4,
-    "periodo_seca": "2024-01"
+    "periodo_seca": "2024-01",
+    "periodo_extenso_seca": "janeiro de 2024"
   }
 }
 ```
 
 Cada análise pode ter estado `available`, `unavailable` ou `period_not_found`. Falhas parciais não invalidam as demais análises. As variáveis são valores estruturados; esta API não interpola templates.
+
+Cada análise contribui com `classe_<alias>`, `percentual_<alias>`,
+`valor_<alias>`, `unidade_<alias>`, `valor_com_unidade_<alias>`,
+`periodo_<alias>` e `periodo_extenso_<alias>`. O último é o período já escrito
+por extenso ("janeiro de 2024"), e existe para o texto que o catálogo publica:
+`2024-01` no meio de uma frase lê-se mal, e quem escreve não deve ter que
+formatar data à mão para cada índice.
 
 Uma análise pode trazer `presentation` — `{ sectionColor?, methodology? }` —
 quando o índice publicou esses valores pelo catálogo
