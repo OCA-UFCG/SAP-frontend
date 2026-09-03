@@ -18,6 +18,12 @@ vi.mock("@/components/IndexCatalog/CatalogPreviewMapCapture", () => ({
   ),
 }));
 
+// Idem para a prévia do relatório: ela faz o seu próprio pedido ao servidor, e
+// sem o stub esse pedido consumiria uma das respostas encadeadas dos testes.
+vi.mock("@/components/IndexCatalog/CatalogReportPreview", () => ({
+  CatalogReportPreview: () => <div data-testid="catalog-report-preview-probe" />,
+}));
+
 import { IndexCatalogScreen } from "@/components/IndexCatalog/IndexCatalogScreen";
 
 function jsonResponse(body: unknown, status = 200) {
@@ -67,6 +73,7 @@ describe("IndexCatalogScreen v2", () => {
       .mockImplementationOnce(() =>
         jsonResponse({ entryId: "draft-1", panelLayerId: "indice-gee" }, 201),
       )
+      .mockImplementationOnce(() => jsonResponse({ requiresRepublish: false }))
       .mockImplementationOnce(() => jsonResponse({ items: [] }));
 
     render(<IndexCatalogScreen />);
@@ -88,6 +95,41 @@ describe("IndexCatalogScreen v2", () => {
     expect(body).not.toHaveProperty("selectedFiles");
     expect(body).not.toHaveProperty("sourceTag");
     expect(body).not.toHaveProperty("unit");
+  });
+
+  it("salva o texto do relatório junto com o rascunho", async () => {
+    // Regressão: o texto ficava só no navegador porque "Salvar rascunho" mandava
+    // apenas o formulário de dados, e a prévia do relatório caía na frase
+    // automática mesmo depois de o operador escrever o texto.
+    const fetchMock = vi.mocked(fetch);
+    fetchMock
+      .mockImplementationOnce(() => jsonResponse({ items: [] }))
+      .mockImplementationOnce(() =>
+        jsonResponse({ entryId: "draft-1", panelLayerId: "indice-gee" }, 201),
+      )
+      .mockImplementationOnce(() => jsonResponse({ requiresRepublish: false }))
+      .mockImplementationOnce(() => jsonResponse({ items: [] }));
+
+    render(<IndexCatalogScreen />);
+    await screen.findByText("Nenhum panelLayer encontrado.");
+    fillMinimumForm();
+    fireEvent.change(screen.getAllByLabelText("Texto")[1], {
+      target: { value: "TESTE" },
+    });
+    fireEvent.click(screen.getByRole("button", { name: "Salvar rascunho" }));
+
+    await waitFor(() => expect(fetch).toHaveBeenCalledTimes(4));
+    const reportCall = fetchMock.mock.calls.find(([url]) =>
+      String(url).endsWith("/report-text"),
+    );
+    expect(reportCall?.[0]).toBe(
+      "/api/index-catalog/drafts/draft-1/report-text",
+    );
+    const body = JSON.parse(String((reportCall?.[1] as RequestInit).body));
+    expect(body.report.sections).toContainEqual({
+      title: "O que este índice mede",
+      text: "TESTE",
+    });
   });
 
   it("explains the three catalog actions in plain language", async () => {
@@ -202,6 +244,7 @@ describe("IndexCatalogScreen v2", () => {
       .mockImplementationOnce(() =>
         jsonResponse({ entryId: "draft-forecast" }, 201),
       )
+      .mockImplementationOnce(() => jsonResponse({ requiresRepublish: false }))
       .mockImplementationOnce(() => jsonResponse({ items: [] }));
 
     render(<IndexCatalogScreen />);
@@ -275,6 +318,7 @@ describe("IndexCatalogScreen v2", () => {
     fetchMock
       .mockImplementationOnce(() => jsonResponse({ items: [] }))
       .mockImplementationOnce(() => jsonResponse({ entryId: "draft-1" }, 201))
+      .mockImplementationOnce(() => jsonResponse({ requiresRepublish: false }))
       .mockImplementationOnce(() => jsonResponse({ items: [] }))
       .mockImplementationOnce(() => jsonResponse(preview))
       .mockImplementationOnce(() => jsonResponse({ items: [] }));
@@ -296,6 +340,10 @@ describe("IndexCatalogScreen v2", () => {
 
     expect(
       await screen.findByTestId("catalog-preview-probe"),
+    ).toBeInTheDocument();
+    // A prévia gerada mostra o mapa e também como o índice sairia no relatório.
+    expect(
+      screen.getByTestId("catalog-report-preview-probe"),
     ).toBeInTheDocument();
     expect(screen.getAllByLabelText("Índice")).toHaveLength(2);
     expect(screen.getByDisplayValue("Classe 0")).toBeInTheDocument();
@@ -352,6 +400,7 @@ describe("IndexCatalogScreen v2", () => {
     fetchMock
       .mockImplementationOnce(() => jsonResponse({ items: [] }))
       .mockImplementationOnce(() => jsonResponse({ entryId: "draft-1" }, 201))
+      .mockImplementationOnce(() => jsonResponse({ requiresRepublish: false }))
       .mockImplementationOnce(() => jsonResponse({ items: [] }))
       .mockImplementationOnce(() => jsonResponse(preview))
       .mockImplementationOnce(() => jsonResponse({ items: [] }))

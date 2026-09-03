@@ -708,7 +708,10 @@ function AnalysisSection({
       ),
     tHas,
   );
-  const sectionColor = presentation.sectionColor;
+  // O catálogo vence o registro estático: um índice publicado por lá não está em
+  // MUNICIPAL_REPORT_LAYERS e cairia sempre no verde da ANA.
+  const sectionColor =
+    analysis.presentation?.sectionColor ?? presentation.sectionColor;
   const effectivePeriod = analysis.effectivePeriod ?? analysis.snapshot?.period;
   const referencePeriod =
     effectivePeriod ?? analysis.snapshot?.period ?? analysis.requestedPeriod;
@@ -1174,7 +1177,7 @@ const ReportDocument = memo(function ReportDocument({
             const methodology = translateAnalysisMethodology(
               analysis,
               docsContent,
-              presentation.methodology,
+              analysis.presentation?.methodology ?? presentation.methodology,
               t,
               tHas,
               tModules,

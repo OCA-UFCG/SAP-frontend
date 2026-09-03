@@ -11,15 +11,98 @@ Um índice v2 publica somente um `panelLayer` no Contentful:
 - metadados (nome, descrição, categoria e posição);
 - `imageData` leve, com classes, períodos, templates, mapa e `values: {}`;
 - `statisticsSource`, contrato versionado da FeatureCollection estatística;
-- `catalogConfig` v2, usado pelo formulário e pela auditoria.
+- `catalogConfig` v2, usado pelo formulário e pela auditoria;
+- `reportConfig`, opcional, com o texto do Relatório Automático daquele índice
+  (`src/contracts/panelLayerReport.ts`).
 
 Os valores territoriais continuam no GEE e são consultados sob demanda. O
 catálogo não busca Google Drive, não lê ou grava CSV, não executa o conversor e
 não cria `municipalAnalysis` nem `municipalReportSeries`. As pipelines globais
 continuam no repositório apenas para índices legados fora deste catálogo.
 
-O Relatório Automático, suas séries, narrativas, documentos, PDFs e índice de
-disponibilidade não fazem parte desta implementação.
+O Relatório Automático **consome** um índice do catálogo: as camadas são
+descobertas a partir do próprio `panelLayer`, os valores territoriais vêm do GEE
+pelo `locationKey` e a disponibilidade de período é decidida pelos períodos
+publicados, e não pelo `municipalAvailabilityIndex.json` gerado no build — que
+só conhece os índices legados. O texto pode vir do `reportConfig` (ver
+"Texto do relatório" abaixo) em vez do Google Docs.
+
+Continuam fora do catálogo: as séries `municipalReportSeries`, o índice de
+disponibilidade gerado no build e a geração de PDF.
+
+## Texto do relatório
+
+A seção "Relatório Automático" do formulário grava `panelLayer.reportConfig`:
+seções (título + texto), nota de metodologia e cor do cabeçalho. A forma de
+`sections` é a mesma que o Google Docs entrega, então o texto do catálogo
+substitui o bloco `[layer: <id>]` do documento sem que a montagem do relatório
+precise saber de onde ele veio — inclusive a substituição de variáveis entre
+colchetes e a regra de que uma seção "Situação atual" vence a frase gerada
+automaticamente. Sem `reportConfig`, o índice continua lendo o documento.
+
+O "Salvar rascunho" e o "Validar assets e gerar prévia" gravam o texto junto com
+o formulário, chamando a rota de texto depois do `PUT`. Sem isso o texto ficava
+apenas no navegador e a prévia do relatório mostrava a frase automática — quem
+clica no botão de salvar principal espera que o que está na tela seja gravado. A
+escrita é evitada quando o texto em edição já é o gravado (`isStoredReportText`),
+para não gastar uma requisição ao Contentful e um evento de auditoria a cada
+salvamento.
+
+A escrita tem rota própria,
+`POST /api/index-catalog/drafts/[entryId]/report-text`, e **não** o `PUT` do
+rascunho: `updateIndexCatalogDraft` zera `status`, `validation` e
+`validatedStatisticsSource`, o que obrigaria uma revalidação inteira no Earth
+Engine para corrigir uma frase. `report` mora em `IndexCatalogAuditData` junto
+com `previewMap`, fora de `IndexCatalogDraftInput`, justamente para ficar fora do
+`sourceFingerprint` conferido na publicação.
+
+Como o relatório lê o `panelLayer` publicado, editar o texto de um índice já
+publicado exige republicar — a rota devolve `requiresRepublish` para a tela
+avisar.
+
+### Texto padrão e variáveis
+
+Um índice novo abre com o texto de `src/config/indexCatalogReportText.ts` já
+preenchido: quatro seções ("Situação atual", "O que este índice mede", "Como
+interpretar os resultados", "Limitações de uso") e a nota de metodologia. Vem
+preenchido, e não em branco, porque um índice do catálogo **não tem seção no
+Google Docs**: em branco ele publicaria sem nenhuma narrativa. Por isso o texto
+padrão é genérico mas publicável sem edição — nenhuma frase dele é instrução
+para o operador. As instruções ficam nos `placeholder` dos campos, nas dicas
+abaixo deles e no modal "Guia e exemplos" da própria seção.
+
+As variáveis oferecidas na tela são as de `CATALOG_REPORT_VARIABLES`, e a lista
+é fechada de propósito: `populateTemplate` devolve o próprio `[texto]` quando não
+encontra a chave, então prometer uma variável inexistente publica o colchete no
+relatório. `[classe]`, `[percentual]`, `[valor]`, `[valor_com_unidade]`,
+`[unidade]`, `[periodo]` e `[periodo_extenso]` se referem à **camada da própria
+seção**: `getLayerScopedTemplateKey` em `buildDocContent.ts` compõe
+`<chave>_<id da camada normalizado>`, que é exatamente o alias com que
+`municipalReportService` grava `templateVariables`. Sem isso, quem escreve o
+texto precisaria conhecer o id gerado para o índice. O alias explícito das
+camadas legadas (`aliasesByTheme`) continua vencendo o genérico.
+
+### Prévia do relatório
+
+`GET /api/index-catalog/drafts/[entryId]/report-preview` monta como o índice em
+rascunho apareceria no Relatório Automático de **Campina Grande - PB**, no
+período mais recente que a validação encontrou. É rota própria, e não parte da
+resposta de `preview`, porque custa uma leitura no Earth Engine e a validação já
+é a etapa lenta do catálogo.
+
+O município é fixo porque a prévia serve para conferir aparência, não para
+consultar município: Campina Grande está em todos os recortes do semiárido,
+então um índice válido sempre tem linha para ela — um município de borda
+transformaria "sem dados" em dúvida sobre a prévia. A leitura cobre só o período
+da prévia (`periodKeys` omitido), e não a série inteira, que custaria uma
+requisição por período para desenhar um gráfico que a prévia não mostra.
+
+`buildIndexCatalogReportPreview` injeta `layers` e `loadImageData` em
+`buildMunicipalReport`: o caminho normal resolve a fonte estatística pelo
+`panelLayer` **publicado**, que ainda não existe para um rascunho. O
+`availabilityIndex` vai vazio para que o período seja o que a validação inferiu.
+A interpolação usa `populateDocContent`, a mesma do relatório de produção, para
+que um colchete que não resolve apareça errado na prévia também.
 
 ## Fonte estatística e fonte de mapa
 

@@ -18,8 +18,10 @@ import {
   type MunicipalReportLocationSeries,
 } from "@/repositories/platform/municipalReportSeriesRepository";
 import { isCompactImageData } from "@/utils/imageData";
+import { formatReportPeriod } from "@/utils/municipalReportNarrative";
 import {
   resolveMunicipalLayerPeriod,
+  resolveNearestReportPeriod,
   type MunicipalAvailabilityIndex,
 } from "@/utils/municipalAvailability";
 import {
@@ -27,6 +29,8 @@ import {
   buildMunicipalReportTimeSeries,
   getMunicipalReportClasses,
   resolveMunicipalReportSnapshot,
+  stableMunicipalReportAlias,
+  toMunicipalReportPresentation,
 } from "@/utils/municipalReport";
 import type { TimingObserver } from "@/utils/serverTiming";
 
@@ -43,14 +47,8 @@ export interface MunicipalReportServiceDependencies {
 
 export class MunicipalReportNotFoundError extends Error {}
 
-function stableAlias(value: string) {
-  return value
-    .normalize("NFD")
-    .replace(/[\u0300-\u036f]/g, "")
-    .toLowerCase()
-    .replace(/[^a-z0-9]+/g, "_")
-    .replace(/^_+|_+$/g, "");
-}
+/** O relatório é montado em pt-BR; as variáveis de template acompanham. */
+const REPORT_TEMPLATE_LOCALE = "pt-BR";
 
 async function resolveReportLayers(
   dependencies: MunicipalReportServiceDependencies,
@@ -65,14 +63,16 @@ async function resolveReportLayers(
     const override = configured.get(layer.id);
     return {
       panelLayerId: layer.id,
-      alias: override?.alias ?? stableAlias(layer.id),
+      alias: override?.alias ?? stableMunicipalReportAlias(layer.id),
       title: layer.name || override?.title || layer.id,
       order: layer.panelPosition ?? override?.order ?? index,
       periods: isCompactImageData(layer.imageData)
         ? Object.keys(layer.imageData.years)
         : undefined,
       presentation: override?.presentation,
+      reportPresentation: toMunicipalReportPresentation(layer.reportConfig),
       reportSeriesConfig: layer.reportSeriesConfig,
+      statisticsSource: layer.statisticsSource,
       baseImageData: isCompactImageData(layer.imageData)
         ? layer.imageData
         : undefined,
@@ -84,7 +84,8 @@ function createLimiter(maxConcurrent: number) {
   let active = 0;
   const queue: Array<() => void> = [];
   return async <T>(operation: () => Promise<T>): Promise<T> => {
-    if (active >= maxConcurrent) await new Promise<void>((resolve) => queue.push(resolve));
+    if (active >= maxConcurrent)
+      await new Promise<void>((resolve) => queue.push(resolve));
     active += 1;
     try {
       return await operation();
@@ -222,34 +223,76 @@ function unavailable(
     classes: [],
     snapshot: null,
     timeSeries: [],
+    ...(config.reportPresentation
+      ? { presentation: config.reportPresentation }
+      : {}),
   };
+}
+
+/**
+ * O período que serve de semente para a leitura da série.
+ *
+ * Uma camada do catálogo não está no índice de disponibilidade, então o período
+ * pedido chega aqui sem nenhuma resolução e é literalmente o que o formulário
+ * mandou. Se a camada não publicou esse período, a leitura da semente devolve
+ * `years: {}` e a série inteira se perde — mesmo com todos os outros períodos
+ * disponíveis. Cair no último período publicado resolve isso sem escolher nada
+ * pelo relatório: o período efetivo continua sendo decidido depois, por
+ * `resolveMunicipalReportSnapshot`, sobre a série já montada.
+ */
+function resolveSeriesSeedPeriod(
+  requestedPeriod: string,
+  availablePeriods: readonly string[] | undefined,
+) {
+  if (!availablePeriods?.length) return requestedPeriod;
+  if (availablePeriods.includes(requestedPeriod)) return requestedPeriod;
+
+  return (
+    resolveNearestReportPeriod(availablePeriods, requestedPeriod) ??
+    requestedPeriod
+  );
 }
 
 async function loadMunicipalTimeSeries(
   panelLayerId: string,
   municipalityCode: string,
-  effectivePeriod: string,
+  requestedEffectivePeriod: string,
   availablePeriods: readonly string[] | undefined,
   loadImageData: typeof getCachedMunicipalAnalysisImageData,
+  // Só as camadas com fonte estatística no GEE recebem território: é ele que
+  // liga a leitura no Earth Engine em `attachMunicipalAnalysisYearToPanelLayer`.
+  // As legadas continuam pedindo a partição inteira do Contentful, inclusive
+  // `anaseca` e `carbonoembrapa`, que têm registro estático no GEE mas cujo
+  // relatório sempre veio do Contentful.
+  locationKey?: string,
 ) {
-  const seed = await limitFallbackLoad(() => loadImageData(panelLayerId, effectivePeriod));
+  const effectivePeriod = locationKey
+    ? resolveSeriesSeedPeriod(requestedEffectivePeriod, availablePeriods)
+    : requestedEffectivePeriod;
+  const seed = await limitFallbackLoad(() =>
+    loadImageData(panelLayerId, effectivePeriod, locationKey),
+  );
 
   // Annual/monthly partition requests are the same path used by Monitoramento.
   // Each response contains the lightweight dataset metadata plus municipal
   // values for one period, avoiding the full-layer Contentful aggregation.
   if (seed.found && seed.imageData && isCompactImageData(seed.imageData)) {
-    const periodKeys = [...(availablePeriods?.length
-      ? availablePeriods
-      : Object.keys(seed.imageData.years))].sort((left, right) =>
-        left.localeCompare(right),
-      );
+    const periodKeys = [
+      ...(availablePeriods?.length
+        ? availablePeriods
+        : Object.keys(seed.imageData.years)),
+    ].sort((left, right) => left.localeCompare(right));
 
     if (periodKeys.length > 0) {
       const datasets = await Promise.all(
         periodKeys.map(async (period) => {
           if (period === effectivePeriod) return seed.imageData;
-          const result = await limitFallbackLoad(() => loadImageData(panelLayerId, period));
-          return result.found && result.imageData && isCompactImageData(result.imageData)
+          const result = await limitFallbackLoad(() =>
+            loadImageData(panelLayerId, period, locationKey),
+          );
+          return result.found &&
+            result.imageData &&
+            isCompactImageData(result.imageData)
             ? result.imageData
             : null;
         }),
@@ -270,14 +313,25 @@ async function loadMunicipalTimeSeries(
   }
 
   // Compatibility fallback for an annual request against a monthly dataset
-  // or environments that have not published partition metadata yet.
+  // or environments that have not published partition metadata yet. Uma fonte
+  // dinâmica não tem esse caminho: sem período não há o que pedir ao Earth
+  // Engine, e a agregação do Contentful nunca teve os valores dessa camada.
+  if (locationKey) return null;
+
   const complete = await limitFallbackLoad(() => loadImageData(panelLayerId));
-  if (!complete.found || !complete.imageData || !isCompactImageData(complete.imageData)) {
+  if (
+    !complete.found ||
+    !complete.imageData ||
+    !isCompactImageData(complete.imageData)
+  ) {
     return null;
   }
   return {
     dataset: complete.imageData,
-    timeSeries: buildMunicipalReportTimeSeries(complete.imageData, municipalityCode),
+    timeSeries: buildMunicipalReportTimeSeries(
+      complete.imageData,
+      municipalityCode,
+    ),
   };
 }
 
@@ -294,7 +348,8 @@ export async function buildMunicipalReport(
 
   const loadImageData =
     dependencies.loadImageData ?? getCachedMunicipalAnalysisImageData;
-  const loadReportSeries = dependencies.loadReportSeries ?? getMunicipalReportSeries;
+  const loadReportSeries =
+    dependencies.loadReportSeries ?? getMunicipalReportSeries;
   const availabilityIndex =
     dependencies.availabilityIndex ??
     (municipalAvailabilityIndex as MunicipalAvailabilityIndex);
@@ -325,10 +380,12 @@ export async function buildMunicipalReport(
     )
     .sort((a, b) => {
       if (requestedAnalysisOrder) {
-        const leftOrder = requestedAnalysisOrder.get(a.panelLayerId.toLowerCase())
-          ?? requestedAnalysisOrder.get(a.alias.toLowerCase());
-        const rightOrder = requestedAnalysisOrder.get(b.panelLayerId.toLowerCase())
-          ?? requestedAnalysisOrder.get(b.alias.toLowerCase());
+        const leftOrder =
+          requestedAnalysisOrder.get(a.panelLayerId.toLowerCase()) ??
+          requestedAnalysisOrder.get(a.alias.toLowerCase());
+        const rightOrder =
+          requestedAnalysisOrder.get(b.panelLayerId.toLowerCase()) ??
+          requestedAnalysisOrder.get(b.alias.toLowerCase());
 
         if (leftOrder != null && rightOrder != null) {
           return leftOrder - rightOrder;
@@ -367,13 +424,16 @@ export async function buildMunicipalReport(
             error,
           );
         }
-        const temporalData = seriesData ?? await loadMunicipalTimeSeries(
-          config.panelLayerId,
-          municipalityCode,
-          effectivePeriod,
-          config.periods,
-          loadImageData,
-        );
+        const temporalData =
+          seriesData ??
+          (await loadMunicipalTimeSeries(
+            config.panelLayerId,
+            municipalityCode,
+            effectivePeriod,
+            config.periods,
+            loadImageData,
+            config.statisticsSource ? municipalityCode : undefined,
+          ));
         if (!temporalData) return unavailable(config, requestedPeriod);
         const { dataset, timeSeries: sourceTimeSeries } = temporalData;
         const sourceSnapshot = resolveMunicipalReportSnapshot(
@@ -407,6 +467,9 @@ export async function buildMunicipalReport(
           classes: getMunicipalReportClasses(dataset),
           snapshot,
           timeSeries,
+          ...(config.reportPresentation
+            ? { presentation: config.reportPresentation }
+            : {}),
         };
       } catch (error) {
         console.error(
@@ -416,7 +479,7 @@ export async function buildMunicipalReport(
         return unavailable(config, requestedPeriod);
       } finally {
         dependencies.onTiming?.(
-          `analysis_${stableAlias(config.panelLayerId)}`,
+          `analysis_${stableMunicipalReportAlias(config.panelLayerId)}`,
           performance.now() - analysisStartedAt,
           config.title,
         );
@@ -433,14 +496,21 @@ export async function buildMunicipalReport(
     const dominantValue = analysis.snapshot?.dominantClass?.percentage ?? null;
     templateVariables[`classe_${analysis.alias}`] =
       analysis.snapshot?.dominantClass?.label ?? null;
-    templateVariables[`percentual_${analysis.alias}`] =
-      dominantValue;
+    templateVariables[`percentual_${analysis.alias}`] = dominantValue;
     templateVariables[`valor_${analysis.alias}`] = dominantValue;
     templateVariables[`unidade_${analysis.alias}`] = analysis.unit || null;
-    templateVariables[`valor_com_unidade_${analysis.alias}`] = dominantValue == null
-      ? null
-      : `${dominantValue.toLocaleString("pt-BR", { maximumFractionDigits: 1 })}${analysis.unit ? ` ${analysis.unit}` : ""}`;
+    templateVariables[`valor_com_unidade_${analysis.alias}`] =
+      dominantValue == null
+        ? null
+        : `${dominantValue.toLocaleString("pt-BR", { maximumFractionDigits: 1 })}${analysis.unit ? ` ${analysis.unit}` : ""}`;
     templateVariables[`periodo_${analysis.alias}`] = analysis.effectivePeriod;
+    // O período por extenso existe para o texto escrito no catálogo: "2024-09"
+    // no meio de uma frase lê-se mal, e quem escreve não deve ter que formatar
+    // data à mão para cada índice.
+    templateVariables[`periodo_extenso_${analysis.alias}`] =
+      analysis.effectivePeriod
+        ? formatReportPeriod(analysis.effectivePeriod, REPORT_TEMPLATE_LOCALE)
+        : null;
   }
 
   return {

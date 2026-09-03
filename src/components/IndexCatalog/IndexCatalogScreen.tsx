@@ -10,6 +10,7 @@ import {
 } from "react";
 import { CatalogMonitoringPreview } from "@/components/IndexCatalog/CatalogMonitoringPreview";
 import { CatalogPreviewMapCapture } from "@/components/IndexCatalog/CatalogPreviewMapCapture";
+import { CatalogReportPreview } from "@/components/IndexCatalog/CatalogReportPreview";
 import { ClassColorField } from "@/components/IndexCatalog/ClassColorField";
 import {
   catalogApiRequest as apiRequest,
@@ -18,11 +19,20 @@ import {
   type CatalogApiErrorBody as ApiErrorBody,
 } from "@/components/IndexCatalog/catalogApiClient";
 import { IndexCatalogGuideModal } from "@/components/IndexCatalog/IndexCatalogGuideModal";
+import { IndexCatalogReportFields } from "@/components/IndexCatalog/IndexCatalogReportFields";
 import { ImageCollectionForecastGuideModal } from "@/components/IndexCatalog/ImageCollectionForecastGuideModal";
 import {
   detectYearPartitionedTemplate,
   fillYearPlaceholder,
 } from "@/utils/indexCatalog";
+import type { PublishedPanelLayerReportConfig } from "@/contracts/panelLayerReport";
+import {
+  createDefaultReportDraft,
+  isStoredReportText,
+  toReportDraft,
+  toReportTextPayload,
+  type IndexCatalogReportDraft,
+} from "@/utils/indexCatalogReportDraft";
 import {
   INDEX_CATEGORIES,
   isIndexCatalogConfigV2,
@@ -200,6 +210,9 @@ function parseNumberList(value: string, label: string, integersOnly = false) {
 export function IndexCatalogScreen() {
   const [items, setItems] = useState<IndexCatalogItem[]>([]);
   const [draft, setDraft] = useState<IndexCatalogDraftInput>(EMPTY_DRAFT);
+  const [report, setReport] = useState<IndexCatalogReportDraft>(
+    createDefaultReportDraft,
+  );
   const [statisticsAssetMode, setStatisticsAssetMode] =
     useState<StatisticsAssetMode>("fixed");
   const [yearSampleAssetId, setYearSampleAssetId] = useState("");
@@ -220,6 +233,14 @@ export function IndexCatalogScreen() {
   const entryIdRef = useRef<string | null>(null);
   const createKeyRef = useRef<string | null>(null);
   const previewKeyRef = useRef<string | null>(null);
+  /**
+   * O texto do relatório já gravado neste índice. Fica num ref, e não vem da
+   * lista de itens, porque o `saveDraft` compara logo depois de criar a entry —
+   * antes de a lista ser recarregada.
+   */
+  const storedReportRef = useRef<PublishedPanelLayerReportConfig | undefined>(
+    undefined,
+  );
   const validationRunRef = useRef(0);
   const validationCompletionTimerRef = useRef<number | null>(null);
 
@@ -261,12 +282,14 @@ export function IndexCatalogScreen() {
 
   function resetEditor() {
     setDraft(structuredClone(EMPTY_DRAFT));
+    setReport(createDefaultReportDraft());
     setStatisticsAssetMode("fixed");
     setYearSampleAssetId("");
     setEntryId(null);
     entryIdRef.current = null;
     createKeyRef.current = null;
     previewKeyRef.current = null;
+    storedReportRef.current = undefined;
     setPreview(null);
     setThresholdsInput("");
     setLeadValuesInput("1, 2, 3, 4");
@@ -283,6 +306,11 @@ export function IndexCatalogScreen() {
       classes: config.classes,
       earthEngine: { ...config.earthEngine, assetsByPeriod: undefined },
     });
+    // Um rascunho sem texto salvo recebe o padrão, e não campos vazios: é o
+    // mesmo ponto de partida de um índice novo, inclusive para os que foram
+    // criados antes de existir texto de relatório no catálogo.
+    setReport(toReportDraft(config.report));
+    storedReportRef.current = config.report;
     const assetMode = inferStatisticsAssetMode(config.statisticsSource.asset);
     setStatisticsAssetMode(assetMode);
     // Reexibe o ano que o operador digitou, e não o placeholder gravado.
@@ -447,6 +475,12 @@ export function IndexCatalogScreen() {
       entryIdRef.current = result.entryId;
       setEntryId(result.entryId);
       setDraft(input);
+      // O texto do relatório vai junto. Ele tem rota própria porque um ajuste de
+      // frase não deve refazer a validação, mas quem clica "Salvar rascunho" — ou
+      // "Validar assets e gerar prévia", que passa por aqui — espera que o que
+      // está na tela seja gravado. Sem isto o texto ficava só no navegador e a
+      // prévia do relatório mostrava a frase automática.
+      await writeReportText(result.entryId);
       if (!withinValidation) {
         setMessage("Rascunho salvo no sistema. Nada foi publicado.");
       }
@@ -461,6 +495,63 @@ export function IndexCatalogScreen() {
       return null;
     } finally {
       if (!withinValidation) setBusy(null);
+    }
+  }
+
+  /**
+   * Grava o texto do relatório pela rota própria, que não zera a validação.
+   *
+   * Devolve `null` quando não havia nada a gravar, para o chamador saber que
+   * nenhuma requisição foi feita. Uma escrita à toa custaria uma ida ao
+   * Contentful e um evento na trilha de auditoria em cada salvamento.
+   */
+  async function writeReportText(currentEntryId: string) {
+    const payload = toReportTextPayload(report);
+    if (isStoredReportText(payload, storedReportRef.current)) return null;
+    const result = await apiRequest<{ requiresRepublish: boolean }>(
+      `/api/index-catalog/drafts/${encodeURIComponent(currentEntryId)}/report-text`,
+      {
+        method: "POST",
+        headers: {
+          "Idempotency-Key": idempotencyKey("report-text", currentEntryId),
+        },
+        body: JSON.stringify({ report: payload }),
+      },
+    );
+    storedReportRef.current = payload;
+    return result;
+  }
+
+  /**
+   * O botão dedicado da seção: grava só o texto, sem passar pelo `PUT` do
+   * rascunho, que zeraria a validação e obrigaria uma nova conferência de todos
+   * os assets no Earth Engine só para corrigir uma frase.
+   */
+  async function saveReportText() {
+    const currentEntryId = entryIdRef.current;
+    if (!currentEntryId) {
+      setError("Salve o rascunho antes de escrever os textos do relatório.");
+      return;
+    }
+    setBusy("report-text");
+    setError("");
+    setMessage("");
+    try {
+      const result = await writeReportText(currentEntryId);
+      setMessage(
+        result?.requiresRepublish
+          ? "Textos salvos. Publique o índice de novo para que eles apareçam no relatório."
+          : "Textos do relatório salvos.",
+      );
+      await loadItems();
+    } catch (reason) {
+      setError(
+        reason instanceof Error
+          ? reason.message
+          : "Falha ao salvar os textos do relatório.",
+      );
+    } finally {
+      setBusy(null);
     }
   }
 
@@ -1229,6 +1320,15 @@ export function IndexCatalogScreen() {
           </p>
         </fieldset>
 
+        <IndexCatalogReportFields
+          report={report}
+          inputClass={inputClass}
+          buttonClass={buttonClass}
+          disabled={Boolean(busy) || !entryId}
+          onChange={setReport}
+          onSave={() => void saveReportText()}
+        />
+
         <div className="mt-6 flex flex-wrap gap-3">
           <CatalogActionButton
             className={`${buttonClass} border border-stone-300`}
@@ -1317,6 +1417,7 @@ export function IndexCatalogScreen() {
             }
           />
           <CatalogMonitoringPreview preview={preview} />
+          <CatalogReportPreview entryId={preview.entryId} />
         </section>
       )}
 

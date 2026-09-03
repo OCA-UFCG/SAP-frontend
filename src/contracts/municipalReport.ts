@@ -31,6 +31,13 @@ export interface MunicipalReportAnalysis {
   classes: MunicipalReportClass[];
   snapshot: MunicipalReportPeriodSnapshot | null;
   timeSeries: MunicipalReportPeriodSnapshot[];
+  /**
+   * Cor do cabeçalho e nota de metodologia escritas no catálogo. Presente só
+   * nos índices que as publicaram; os legados seguem lendo
+   * `MUNICIPAL_REPORT_LAYERS`, que o cliente já conhece. Campo aditivo e
+   * opcional: um consumidor da v1 que o ignore continua correto.
+   */
+  presentation?: { sectionColor?: string; methodology?: string };
 }
 
 export type MunicipalReportTemplateValue = string | number | null;

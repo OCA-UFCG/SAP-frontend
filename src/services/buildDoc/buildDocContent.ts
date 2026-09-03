@@ -3,7 +3,10 @@ import { getTemplateData } from "./buildTemplateData";
 import type { DocsContent } from "./buildDocTemplate";
 import type { TemplateData } from "./buildTemplateData";
 import type { TimingObserver } from "@/utils/serverTiming";
-import type { MunicipalReportData } from "@/contracts/municipalReport";
+import type {
+  MunicipalReportData,
+  MunicipalReportDocsContent,
+} from "@/contracts/municipalReport";
 import { formatPercentage } from "@/utils/municipalReportValue";
 
 const REPORT_LOCALE = "pt-BR";
@@ -33,7 +36,37 @@ type BuildDocContentInput = {
   period: string;
   onTiming?: TimingObserver;
   report?: MunicipalReportData;
+  /**
+   * Texto escrito no catálogo, por camada. Substitui o bloco
+   * `[layer: <id>]` do Google Docs para as camadas que o trouxerem.
+   */
+  catalogSectionsByTheme?: MunicipalReportDocsContent;
 };
+
+/**
+ * As seções do Google Docs, ou nada quando o documento não pôde ser lido e o
+ * catálogo já respondeu pelo texto.
+ *
+ * Um índice cujo texto vem do catálogo não deve depender do documento para
+ * existir no relatório — é justamente o acoplamento que o catálogo veio
+ * remover. Sem texto nenhum do catálogo a falha continua sendo fatal, porque aí
+ * não há relatório a montar.
+ */
+async function loadDocsSections(
+  input: Parameters<typeof getDocTemplate>[0],
+  hasCatalogSections: boolean,
+): Promise<DocsContent> {
+  try {
+    return await getDocTemplate(input);
+  } catch (error) {
+    if (!hasCatalogSections) throw error;
+    console.warn(
+      "[municipalReportDocs] DOCS_DEFAULT indisponível; usando apenas o texto escrito no catálogo.",
+      error,
+    );
+    return {};
+  }
+}
 
 export async function buildDocContent({
   themes,
@@ -45,15 +78,17 @@ export async function buildDocContent({
   period,
   onTiming,
   report,
+  catalogSectionsByTheme,
 }: BuildDocContentInput) {
   const templateStartedAt = performance.now();
-  const baseTemplate = await getDocTemplate({
-    themes,
-    city,
-    state,
-    month,
-    year,
-  });
+  const catalogSections = catalogSectionsByTheme ?? {};
+  const docsSections = await loadDocsSections(
+    { themes, city, state, month, year },
+    Object.keys(catalogSections).length > 0,
+  );
+  // O texto do catálogo entra depois: para uma camada que o publicou, ele
+  // substitui o bloco do documento em vez de se somar a ele.
+  const baseTemplate: DocsContent = { ...docsSections, ...catalogSections };
   onTiming?.(
     "docs_template",
     performance.now() - templateStartedAt,
@@ -198,7 +233,39 @@ function getAliasedTemplateKey(
     return sequence[index] ?? sequence[sequence.length - 1];
   }
 
-  return aliasesByTheme[theme]?.[normalizedKey];
+  return (
+    aliasesByTheme[theme]?.[normalizedKey] ??
+    getLayerScopedTemplateKey(theme, normalizedKey)
+  );
+}
+
+/**
+ * As variáveis do relatório são por camada (`classe_indice_de_aridez`), mas quem
+ * escreve o texto de um índice no catálogo não conhece o id gerado para ele.
+ * Dentro da seção de uma camada, então, `[classe]` significa a classe daquela
+ * camada: é isso que este alias resolve.
+ *
+ * O tema de uma seção do catálogo é o próprio `panelLayer.id`, e o alias das
+ * variáveis é esse id normalizado da mesma forma que `normalizeTemplateKey`
+ * normaliza — por isso a composição basta e não há tabela a manter. Uma chave
+ * que não exista em `TemplateData` continua devolvendo `undefined`, e o
+ * colchete sobrevive literalmente, como antes.
+ */
+const LAYER_SCOPED_TEMPLATE_KEYS = new Set([
+  "classe",
+  "percentual",
+  "valor",
+  "valor_com_unidade",
+  "unidade",
+  "periodo",
+  "periodo_extenso",
+]);
+
+function getLayerScopedTemplateKey(theme: string, normalizedKey: string) {
+  if (!LAYER_SCOPED_TEMPLATE_KEYS.has(normalizedKey)) return undefined;
+  const normalizedTheme = normalizeTemplateKey(theme);
+
+  return normalizedTheme ? `${normalizedKey}_${normalizedTheme}` : undefined;
 }
 
 function normalizeTemplateDataKeys(data: TemplateData): TemplateData {

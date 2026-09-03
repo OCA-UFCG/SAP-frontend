@@ -3,6 +3,11 @@ import type {
   PublishedGeeStatisticsSource,
 } from "@/contracts/geeStatistics";
 import type {
+  MunicipalReportData,
+  MunicipalReportDocsContent,
+} from "@/contracts/municipalReport";
+import type { PublishedPanelLayerReportConfig } from "@/contracts/panelLayerReport";
+import type {
   CompactMapVisualizationConfig,
   CompactTerritorialAnalysisDataset,
 } from "@/utils/analysis";
@@ -93,6 +98,13 @@ interface IndexCatalogAuditData {
    * de deixar um rastro de imagens órfãs no espaço.
    */
   previewMap?: { assetId: string; capturedAt: string };
+  /**
+   * Texto do Relatório Automático escrito no catálogo. Fica aqui, e não em
+   * `IndexCatalogDraftInput`, porque não descreve os dados: mudar uma frase não
+   * pode invalidar a prévia nem entrar no `sourceFingerprint` conferido na
+   * publicação. É a mesma razão pela qual `previewMap` mora aqui.
+   */
+  report?: PublishedPanelLayerReportConfig;
   auditLog?: Array<{
     action:
       | "create"
@@ -100,6 +112,7 @@ interface IndexCatalogAuditData {
       | "revalidate"
       | "preview"
       | "preview-map"
+      | "report-text"
       | "publish"
       | "unpublish";
     outcome: "success" | "failure";
@@ -197,4 +210,19 @@ export interface IndexCatalogBuildResult {
   mapVisualization: CompactMapVisualizationConfig;
   statisticsSource: PublishedGeeStatisticsSource;
   classes: ClassMapping[];
+}
+
+/**
+ * Como um índice em rascunho apareceria no Relatório Automático.
+ *
+ * Vive nos tipos, e não no serviço, porque a tela do catálogo consome a
+ * resposta: o serviço é `server-only` e importar o tipo de lá acoplaria o
+ * bundle do navegador a um módulo que não pode entrar nele.
+ */
+export interface IndexCatalogReportPreview {
+  municipality: { code: string; name: string; uf: string };
+  period: string;
+  report: MunicipalReportData;
+  /** As seções escritas no catálogo, já com as variáveis trocadas pelos dados. */
+  docsContent: MunicipalReportDocsContent;
 }

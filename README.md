@@ -199,9 +199,14 @@ temas -> DOCS_DEFAULT -> cache -> seções por layer -> texto preenchido
 ```
 
 Assim, a equipe pode editar todos os textos em um só lugar, mantendo uma seção
-por layer. Para incluir um novo layer, adicione seu `docsTheme` na configuração
-do relatório e crie no documento uma seção cujo título corresponda ao título do
-layer.
+por layer. O tema é o próprio `panelLayer.id`, e a seção do documento é
+encontrada pelo **título** do layer — não existe campo `docsTheme`. Para incluir
+um novo layer no relatório basta criar no documento uma seção cujo título
+corresponda ao título do layer.
+
+Um índice publicado pelo catálogo tem uma alternativa: o campo
+`panelLayer.reportConfig`, escrito na seção "Relatório Automático" do formulário,
+substitui o bloco do documento daquele índice. Ver `docs/index-catalog.md`.
 
 ## Agent Context Docs
 

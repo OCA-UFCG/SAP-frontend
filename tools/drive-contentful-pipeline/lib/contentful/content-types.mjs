@@ -38,6 +38,18 @@ const STATISTICS_SOURCE_FIELD = {
   required: false,
 };
 
+/**
+ * Texto do Relatório Automático escrito no catálogo. Sem este campo a escrita
+ * falha com "unknown field" e o índice publicado continua dependendo de uma
+ * seção no Google Docs para ter narrativa no relatório.
+ */
+const REPORT_CONFIG_FIELD = {
+  id: "reportConfig",
+  name: "Texto do Relatório Automático",
+  type: "Object",
+  required: false,
+};
+
 function normalizeField(field) {
   return {
     ...field,
@@ -266,11 +278,19 @@ export async function ensureIndexCatalogContentModel(config) {
   const hasStatisticsSource = (contentType.fields ?? []).some(
     (field) => field.id === STATISTICS_SOURCE_FIELD.id,
   );
+  const hasReportConfig = (contentType.fields ?? []).some(
+    (field) => field.id === REPORT_CONFIG_FIELD.id,
+  );
   const previewMapIsRequired = (contentType.fields ?? []).some(
     (field) => field.id === "previewMap" && field.required,
   );
 
-  if (hasCatalogConfig && hasStatisticsSource && !previewMapIsRequired) {
+  if (
+    hasCatalogConfig &&
+    hasStatisticsSource &&
+    hasReportConfig &&
+    !previewMapIsRequired
+  ) {
     return { changed: false };
   }
 
@@ -282,6 +302,9 @@ export async function ensureIndexCatalogContentModel(config) {
   }
   if (!hasStatisticsSource) {
     fields.push(normalizeField(STATISTICS_SOURCE_FIELD));
+  }
+  if (!hasReportConfig) {
+    fields.push(normalizeField(REPORT_CONFIG_FIELD));
   }
 
   const updated = await contentfulFetch(

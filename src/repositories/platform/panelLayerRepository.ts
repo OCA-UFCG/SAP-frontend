@@ -8,6 +8,7 @@ import { validateImageDataContract } from "@/contracts/imageDataContract.mjs";
 import { PanelLayerI } from "@/utils/interfaces";
 import { keepOnlyFutureForecastPeriods } from "@/utils/imageData";
 import { tryParsePublishedGeeStatisticsSource } from "@/contracts/geeStatistics";
+import { tryParsePublishedPanelLayerReportConfig } from "@/contracts/panelLayerReport";
 
 const GET_PANEL_LAYER = `
   query GetPanelLayer {
@@ -33,6 +34,7 @@ const GET_PANEL_LAYER = `
         timeScale
         reportSeriesConfig
         statisticsSource
+        reportConfig
       }
     }
   }
@@ -62,6 +64,7 @@ const GET_PANEL_LAYER_BY_ID = `
         timeScale
         reportSeriesConfig
         statisticsSource
+        reportConfig
       }
     }
   }
@@ -81,15 +84,39 @@ const PANEL_LAYERS_FETCH_OPTIONS = {
   next: { revalidate: 3600, tags: [PANEL_LAYERS_CACHE_TAG] },
 };
 
+const OPTIONAL_PANEL_LAYER_FIELDS = [
+  "reportSeriesConfig",
+  "statisticsSource",
+  "reportConfig",
+] as const;
+
+/**
+ * A mesma query com cada combinação de campos opcionais removida, da mais
+ * completa para a mais enxuta.
+ *
+ * Um ambiente cujo content type ainda não recebeu
+ * `npm run contentful:ensure-index-catalog` rejeita a query inteira por causa
+ * de um único campo desconhecido, então a leitura degrada em vez de falhar.
+ * Enumerar as combinações à mão deixou de caber quando os campos opcionais
+ * passaram de dois para três.
+ */
 function queryVariants(query: string) {
-  return [
-    query,
-    query.replace("\n        reportSeriesConfig", ""),
-    query.replace("\n        statisticsSource", ""),
-    query
-      .replace("\n        reportSeriesConfig", "")
-      .replace("\n        statisticsSource", ""),
-  ];
+  const removals = OPTIONAL_PANEL_LAYER_FIELDS.reduce<string[][]>(
+    (combinations, field) => [
+      ...combinations,
+      ...combinations.map((removed) => [...removed, field]),
+    ],
+    [[]],
+  );
+
+  return removals
+    .sort((left, right) => left.length - right.length)
+    .map((removed) =>
+      removed.reduce(
+        (text, field) => text.replace(`\n        ${field}`, ""),
+        query,
+      ),
+    );
 }
 
 interface PanelLayerResponse {
@@ -157,10 +184,20 @@ function normalizePanelLayer(layer: PanelLayerI) {
     );
   }
 
+  const reportConfig = tryParsePublishedPanelLayerReportConfig(
+    layer.reportConfig,
+  );
+  if (layer.reportConfig && !reportConfig) {
+    console.warn(
+      `[panelLayerRepository] reportConfig inválido para panelLayer ${layer.id}; o texto do relatório caiu para o Google Docs.`,
+    );
+  }
+
   return {
     ...layer,
     imageData: keepOnlyFutureForecastPeriods(layer.id, layer.imageData),
     ...(statisticsSource ? { statisticsSource } : { statisticsSource: null }),
+    ...(reportConfig ? { reportConfig } : { reportConfig: null }),
   };
 }
 

@@ -200,7 +200,7 @@ const STEPS = [
     ),
   },
   {
-    title: "5. Classes e etapas finais",
+    title: "5. Classes",
     description:
       "Os índices das classes são encontrados automaticamente. Depois, você informa apenas os nomes e as cores.",
     content: (
@@ -231,6 +231,42 @@ const STEPS = [
             </tbody>
           </table>
         </div>
+      </>
+    ),
+  },
+  {
+    title: "6. Textos do relatório e etapas finais",
+    description:
+      "O Relatório Automático de cada município tem uma parte para este índice. Você escreve esse texto aqui mesmo.",
+    content: (
+      <>
+        <ul className="mt-5 space-y-3 text-sm leading-relaxed text-stone-700">
+          <li>
+            Cada <strong>seção</strong> é um título e um parágrafo. Elas
+            aparecem no relatório na ordem em que estão na tela.
+          </li>
+          <li>
+            Uma seção chamada <strong>“Situação atual”</strong> substitui a
+            frase que o relatório monta sozinho a partir dos dados.
+          </li>
+          <li>
+            Para inserir um dado do município, escreva o nome do dado entre
+            colchetes — por exemplo <code>[municipio]</code>,{" "}
+            <code>[classe]</code> ou <code>[percentual]</code>. O relatório
+            troca pelo valor de cada município.
+          </li>
+          <li>
+            A <strong>nota de metodologia</strong> aparece nas notas ao pé do
+            relatório, explicando em uma ou duas frases como o índice é feito.
+          </li>
+          <li>
+            Um índice novo já vem com um <strong>texto padrão</strong>{" "}
+            preenchido, que funciona para qualquer índice. O botão{" "}
+            <strong>“Guia e exemplos”</strong>, dentro da própria seção, mostra
+            a lista completa dos dados que podem ser inseridos e como cada
+            frase aparece no relatório.
+          </li>
+        </ul>
         <ol className="mt-5 space-y-3 text-sm leading-relaxed text-stone-700">
           <li>
             <strong>1. Salvar rascunho:</strong> guarda o trabalho na área de
@@ -240,11 +276,17 @@ const STEPS = [
           <li>
             <strong>2. Validar assets e gerar prévia:</strong> salva o rascunho,
             confere tabelas, períodos, classes e mapas no GEE e mostra uma
-            prévia privada.
+            prévia privada — o mapa, o painel de análise e como este índice
+            apareceria no relatório de Campina Grande - PB.
           </li>
           <li>
-            <strong>3. Publicar:</strong> faz uma última validação e torna o
-            índice disponível no Monitoramento.
+            <strong>3. Salvar textos do relatório:</strong> guarda só os textos.
+            Não refaz a conferência dos assets, então a prévia validada continua
+            valendo.
+          </li>
+          <li>
+            <strong>4. Publicar:</strong> faz uma última validação e torna o
+            índice — e os textos — disponíveis no Monitoramento.
           </li>
         </ol>
       </>

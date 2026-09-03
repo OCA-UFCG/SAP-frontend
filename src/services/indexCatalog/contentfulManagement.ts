@@ -10,6 +10,18 @@ import { reconcileCatalogPublicationStatus } from "@/utils/indexCatalog";
 const CONTENTFUL_RETRYABLE_STATUS = new Set([429, 500, 502, 503, 504]);
 const DEFAULT_LOCALE = "en-US";
 
+/**
+ * Campos `Object` que o catálogo escreve no `panelLayer` e que o content type
+ * precisa ter antes da primeira escrita — o Contentful rejeita uma entry com
+ * campo desconhecido, e sem `reportConfig` o índice publicado seguiria
+ * dependendo de uma seção no Google Docs para ter texto no relatório.
+ */
+const CATALOG_PANEL_LAYER_FIELDS = [
+  { id: "catalogConfig", name: "Configuração do catálogo" },
+  { id: "statisticsSource", name: "Fonte estatística GEE" },
+  { id: "reportConfig", name: "Texto do Relatório Automático" },
+] as const;
+
 export interface ContentfulManagementConfig {
   spaceId: string;
   environment: string;
@@ -378,46 +390,25 @@ export async function ensureIndexCatalogContentModel() {
     { method: "GET" },
     "Leitura do content type panelLayer",
   );
-  const catalogField = contentType.fields.find(
-    (field) => field.id === "catalogConfig",
-  );
-  const statisticsSourceField = contentType.fields.find(
-    (field) => field.id === "statisticsSource",
+  const existing = new Set(contentType.fields.map((field) => field.id));
+  const missing = CATALOG_PANEL_LAYER_FIELDS.filter(
+    (field) => !existing.has(field.id),
   );
   const previewMap = contentType.fields.find(
     (field) => field.id === "previewMap",
   );
-  const needsCatalogField = !catalogField;
-  const needsStatisticsSourceField = !statisticsSourceField;
   const needsOptionalPreview = Boolean(previewMap?.required);
 
-  if (
-    !needsCatalogField &&
-    !needsStatisticsSourceField &&
-    !needsOptionalPreview
-  ) {
+  if (missing.length === 0 && !needsOptionalPreview) {
     return { changed: false };
   }
 
   const fields = contentType.fields.map((field) =>
     field.id === "previewMap" ? { ...field, required: false } : field,
   );
-  if (needsCatalogField) {
+  for (const field of missing) {
     fields.push({
-      id: "catalogConfig",
-      name: "Configuração do catálogo",
-      type: "Object",
-      localized: false,
-      required: false,
-      validations: [],
-      disabled: false,
-      omitted: false,
-    });
-  }
-  if (needsStatisticsSourceField) {
-    fields.push({
-      id: "statisticsSource",
-      name: "Fonte estatística GEE",
+      ...field,
       type: "Object",
       localized: false,
       required: false,
