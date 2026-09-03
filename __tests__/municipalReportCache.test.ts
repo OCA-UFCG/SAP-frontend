@@ -1,11 +1,13 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 vi.mock("server-only", () => ({}));
+const panelLayersFixture: Array<Record<string, unknown>> = [{
+  id: "cdi",
+  reportSeriesConfig: { datasetVersion: "v1" },
+}];
+
 vi.mock("@/repositories/platform/panelLayerRepository", () => ({
-  getPanelLayers: vi.fn(async () => [{
-    id: "cdi",
-    reportSeriesConfig: { datasetVersion: "v1" },
-  }]),
+  getPanelLayers: vi.fn(async () => panelLayersFixture),
 }));
 vi.mock("@/services/municipalReportService", () => ({
   buildMunicipalReport: vi.fn(async (municipalityCode: string, requestedPeriod: string) => ({
@@ -28,6 +30,11 @@ describe("municipal report cache", () => {
   beforeEach(() => {
     clearMunicipalReportCache();
     vi.clearAllMocks();
+    panelLayersFixture.length = 0;
+    panelLayersFixture.push({
+      id: "cdi",
+      reportSeriesConfig: { datasetVersion: "v1" },
+    });
   });
 
   it("deduplicates report assembly by municipality, period, layers and dataset version", async () => {
@@ -54,5 +61,47 @@ describe("municipal report cache", () => {
     });
 
     expect(buildMunicipalReport).toHaveBeenCalledTimes(2);
+  });
+
+  // Regressão: um índice publicado pelo catálogo não tem `reportSeriesConfig`,
+  // então a chave dele era a constante "<id>@legacy" e republicar com outras
+  // classes ou outra tabela estatística devolvia o relatório anterior por até
+  // dez minutos.
+  it("invalida o relatório quando a revisão da fonte estatística muda", async () => {
+    panelLayersFixture.length = 0;
+    panelLayersFixture.push({
+      id: "indice-catalogo",
+      statisticsSource: { schemaVersion: 1, sourceRevision: "rev-1" },
+    });
+    await buildCachedMunicipalReport("5200050", "2024", {
+      analysisIds: ["indice-catalogo"],
+    });
+
+    panelLayersFixture[0] = {
+      id: "indice-catalogo",
+      statisticsSource: { schemaVersion: 1, sourceRevision: "rev-2" },
+    };
+    await buildCachedMunicipalReport("5200050", "2024", {
+      analysisIds: ["indice-catalogo"],
+    });
+
+    expect(buildMunicipalReport).toHaveBeenCalledTimes(2);
+  });
+
+  it("reaproveita o relatório enquanto a revisão da fonte estatística for a mesma", async () => {
+    panelLayersFixture.length = 0;
+    panelLayersFixture.push({
+      id: "indice-catalogo",
+      statisticsSource: { schemaVersion: 1, sourceRevision: "rev-1" },
+    });
+
+    await buildCachedMunicipalReport("5200050", "2024", {
+      analysisIds: ["indice-catalogo"],
+    });
+    await buildCachedMunicipalReport("5200050", "2024", {
+      analysisIds: ["indice-catalogo"],
+    });
+
+    expect(buildMunicipalReport).toHaveBeenCalledTimes(1);
   });
 });

@@ -69,7 +69,16 @@ function formatClassLabel(label: string) {
   return `${normalized.charAt(0).toLocaleUpperCase(REPORT_LOCALE)}${normalized.slice(1).toLocaleLowerCase(REPORT_LOCALE)}`;
 }
 
-function formatClass(id: string, label: string) {
+/**
+ * Rotula uma classe do Monitor de Secas com o código da ANA, quando existe:
+ * `Seca moderada (D1)`.
+ *
+ * A tabela de códigos é lida de `anaseca` de propósito, e o nome diz isso: são
+ * os códigos S0/D0-D4 da classificacao da ANA, que só descrevem as classes
+ * dessa camada. Chamar isto para outra camada devolveria o código da classe de
+ * seca cujo id coincidisse, e nenhum para as demais.
+ */
+function formatSecaClass(id: string, label: string) {
   const presentation = getMunicipalReportPresentation(SECA_ANALYSIS_ID);
   const code =
     presentation.history?.classes[id]?.code ?? presentation.classes?.[id]?.code;
@@ -160,21 +169,21 @@ function computarVariaveisSeca(
     mes_ano_inicio_tendencia,
     status_tendencia_seca,
     classe_seca_anterior: penultimoMes
-      ? formatClass(
+      ? formatSecaClass(
           penultimoMes.dominantClass!.id,
           penultimoMes.dominantClass!.label,
         )
       : "Sem dados",
     ano_inicio_historico,
     ano_fim_historico,
-    classe_seca_mais_frequente: formatClass(
+    classe_seca_mais_frequente: formatSecaClass(
       idClasseMaisFrequente,
       classeMaisFrequente,
     ),
     percentual_freq_seca: (countMaisFrequente / totalMeses) * 100,
     percentual_sem_seca:
       ((freqClasses["sem-seca"]?.count ?? 0) / totalMeses) * 100,
-    classe_seca_maxima: formatClass(idClasseMaxima, classeSecaMaxima),
+    classe_seca_maxima: formatSecaClass(idClasseMaxima, classeSecaMaxima),
     periodos_seca_maxima,
   };
 }
@@ -318,7 +327,7 @@ export function prepareTemplateData(report: MunicipalReportData): TemplateData {
     periodo_referencia: formatPeriod(report.requestedPeriod),
 
     classe_seca: ultimoSeca?.dominantClass
-      ? formatClass(ultimoSeca.dominantClass.id, ultimoSeca.dominantClass.label)
+      ? formatSecaClass(ultimoSeca.dominantClass.id, ultimoSeca.dominantClass.label)
       : "Sem dados",
     percentual_seca: ultimoSeca?.dominantClass?.percentage ?? 0,
     periodo_seca: ultimoSeca?.period

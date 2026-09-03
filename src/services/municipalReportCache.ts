@@ -2,6 +2,7 @@ import "server-only";
 
 import type { MunicipalReportData } from "@/contracts/municipalReport";
 import { getPanelLayers } from "@/repositories/platform/panelLayerRepository";
+import type { PanelLayerI } from "@/utils/interfaces";
 import {
   buildMunicipalReport,
   type MunicipalReportServiceDependencies,
@@ -29,6 +30,24 @@ function trimCache() {
   }
 }
 
+/**
+ * A identidade dos dados de uma camada dentro da chave do cache.
+ *
+ * Um índice publicado pelo catálogo não tem `reportSeriesConfig`, então antes
+ * ele entrava na chave como a constante `"legacy"` e republicar com outras
+ * classes, outros períodos ou outra tabela estatística devolvia o relatório
+ * anterior. `sourceRevision` é recalculado a cada revalidação do catálogo
+ * (assets, períodos e índices de classe entram no hash), então é ele que
+ * descreve a versão dos dados de uma camada v2.
+ */
+function resolveLayerDataVersion(layer: PanelLayerI): string {
+  return (
+    layer.statisticsSource?.sourceRevision ??
+    layer.reportSeriesConfig?.datasetVersion ??
+    "legacy"
+  );
+}
+
 export async function buildCachedMunicipalReport(
   municipalityCode: string,
   requestedPeriod: string,
@@ -40,7 +59,7 @@ export async function buildCachedMunicipalReport(
     : null;
   const versions = panelLayers
     .filter((layer) => !selected || selected.has(layer.id.toLowerCase()))
-    .map((layer) => `${layer.id}@${layer.reportSeriesConfig?.datasetVersion ?? "legacy"}`)
+    .map((layer) => `${layer.id}@${resolveLayerDataVersion(layer)}`)
     .sort();
   const requestedIds = [...(dependencies.analysisIds ?? [])]
     .map((id) => id.toLowerCase())
