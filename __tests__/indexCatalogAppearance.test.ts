@@ -79,6 +79,8 @@ function stubEntry(
   contentful.patchManagementEntry.mockResolvedValue(entry);
   const fields: Record<string, unknown> = {
     imageData: options.imageData ?? legacyImageData(),
+    minScale: 1,
+    maxScale: 2,
   };
   contentful.getLocalizedEntryField.mockImplementation(
     (_entry: unknown, fieldId: string) => fields[fieldId],
@@ -109,6 +111,18 @@ describe("getIndexCatalogAppearance", () => {
       "Muito alto",
     ]);
     expect(result.periodCount).toBe(2);
+  });
+
+  it("diz como o mapa classifica o raster, para o formulário v2 nascer certo", () => {
+    // As classes deste legado não têm `pixelLimit`, e é `minScale..maxScale`
+    // que revela os códigos — a mesma leitura que a rota de tiles faz.
+    stubEntry();
+
+    return expect(
+      getIndexCatalogAppearance("entry-deg"),
+    ).resolves.toMatchObject({
+      classification: { kind: "pixel-codes", values: [1, 2] },
+    });
   });
 
   it("recusa um índice que não foi adotado no escopo de apresentação", async () => {

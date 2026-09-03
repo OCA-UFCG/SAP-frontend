@@ -31,6 +31,7 @@ import {
   parseNumberList,
 } from "@/utils/indexCatalog";
 import type { LegacyAppearance } from "@/utils/legacyAppearance";
+import type { LegacyClassification } from "@/utils/legacyClassification";
 import type { PublishedPanelLayerReportConfig } from "@/contracts/panelLayerReport";
 import {
   createDefaultReportDraft,
@@ -348,9 +349,17 @@ export function IndexCatalogScreen() {
     setBusy("v2-from-legacy");
     setError("");
     try {
-      const loaded = await apiRequest<{ appearance: LegacyAppearance }>(
+      const loaded = await apiRequest<{
+        appearance: LegacyAppearance;
+        classification: LegacyClassification;
+      }>(
         `/api/index-catalog/entries/${encodeURIComponent(item.entryId)}/appearance`,
       );
+      const { classification } = loaded;
+      const codes =
+        classification.kind === "pixel-codes" ? classification.values : null;
+      const thresholds =
+        classification.kind === "value-bounds" ? classification.values : [];
       resetEditor();
       setDraft({
         ...structuredClone(EMPTY_DRAFT),
@@ -359,24 +368,30 @@ export function IndexCatalogScreen() {
         category:
           INDEX_CATEGORIES.find((category) => category === item.category) ??
           EMPTY_DRAFT.category,
-        // Os índices de classe do asset v2 vêm das colunas `perc_classe_XX` e
-        // são reescritos pela validação; a ordem das classes do legado é a
-        // melhor aposta até lá.
+        // O índice de classe do v2 é o nome da coluna `perc_classe_XX`, e a
+        // validação vai reescrevê-lo com o que a tabela tiver. Quando o legado
+        // diz qual é o código de cada classe, ele é usado aqui para que os
+        // rótulos caiam na classe certa mesmo em asset com código esparso
+        // (cobertura da terra: 1 a 6 e 9 a 14) ou em ordem inversa
+        // (Cemaden: 6 a 1).
         classes: loaded.appearance.legend.map((row, position) => ({
-          classIndex: position + 1,
+          classIndex: codes?.[position] ?? position + 1,
           id: row.id,
           label: row.label,
           color: row.color,
+          ...(codes ? { pixelValue: codes[position] } : {}),
         })),
       });
-      // Os limites vão para o campo do bloco de coleção, que só aparece nesse
-      // modo de mapeamento; a mensagem os cita para o valor não ficar
-      // preenchido sem que ninguém veja.
-      const thresholds = loaded.appearance.thresholds ?? [];
       setThresholdsInput(thresholds.join(", "));
       setMessage(
         `Formulário preenchido com a legenda de “${item.name}”${
-          thresholds.length ? ` e com os limites ${thresholds.join(", ")}` : ""
+          thresholds.length
+            ? `. O mapa dele é um raster contínuo, então os limites ${thresholds.join(", ")} vieram junto — confira o campo “Limites das classes”`
+            : ""
+        }${
+          classification.kind === "unknown"
+            ? ". Não deu para descobrir como o mapa dele classifica o raster, então confira as classes e os limites antes de validar"
+            : ""
         }. Falta a FeatureCollection das estatísticas e os assets do mapa — o índice legado não foi alterado.`,
       );
     } catch (reason) {
@@ -1440,23 +1455,29 @@ export function IndexCatalogScreen() {
                       Números inteiros separados por vírgula.
                     </span>
                   </label>
-                  <label className="text-sm font-medium md:col-span-2">
-                    Limites das classes
-                    <input
-                      className={inputClass}
-                      placeholder="-90, -30, 0, 30, 90"
-                      value={thresholdsInput}
-                      onChange={(event) =>
-                        setThresholdsInput(event.target.value)
-                      }
-                    />
-                    <span className="mt-1 block text-xs font-normal text-stone-500">
-                      Informe um limite a menos que a quantidade de classes, em
-                      ordem crescente. Exemplo: 6 classes exigem 5 limites.
-                    </span>
-                  </label>
                 </>
               )}
+              {/* Fora do bloco de previsão: um raster contínuo precisa dos
+                  limites qualquer que seja a estratégia de asset. Sem este
+                  campo visível, um índice como o Carbono Orgânico do Solo era
+                  publicado com `min` 1 e `max` 6 sobre valores em g/kg, e o
+                  mapa saía inteiro na cor da última classe. */}
+              <label className="text-sm font-medium md:col-span-2">
+                Limites das classes (opcional)
+                <input
+                  className={inputClass}
+                  placeholder="-90, -30, 0, 30, 90"
+                  value={thresholdsInput}
+                  onChange={(event) => setThresholdsInput(event.target.value)}
+                />
+                <span className="mt-1 block text-xs font-normal text-stone-500">
+                  Só para raster contínuo, em que cada classe é uma faixa de
+                  valores: informe os limites na unidade do próprio asset (g/kg,
+                  mm, °C), um a menos que a quantidade de classes e em ordem
+                  crescente — 6 classes exigem 5 limites. Deixe vazio quando o
+                  raster já guarda o número da classe em cada pixel.
+                </span>
+              </label>
             </div>
           </fieldset>
 

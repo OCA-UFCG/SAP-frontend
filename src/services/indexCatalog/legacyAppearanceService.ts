@@ -8,9 +8,14 @@ import {
 } from "@/services/indexCatalog/catalogConfigAudit";
 import {
   getCatalogEntry,
+  getLocalizedEntryField,
   patchManagementEntry,
 } from "@/services/indexCatalog/contentfulManagement";
 import { readCompactImageData } from "@/services/indexCatalog/presentationImageData";
+import {
+  readLegacyClassification,
+  type LegacyClassification,
+} from "@/utils/legacyClassification";
 import {
   applyLegacyAppearance,
   parseLegacyAppearanceInput,
@@ -25,6 +30,12 @@ export interface IndexCatalogAppearanceResponse {
   appearance: LegacyAppearance;
   /** Quantos períodos usam esta legenda — o alcance da alteração. */
   periodCount: number;
+  /**
+   * Como o mapa deste legado classifica o raster. Não é editável por aqui:
+   * serve para o formulário v2 nascer com a mesma classificação em vez de
+   * supor que cada classe é um código de 1 a N.
+   */
+  classification: LegacyClassification;
 }
 
 /**
@@ -49,6 +60,18 @@ export async function getIndexCatalogAppearance(
     panelLayerId: config.panelLayerId,
     appearance: readLegacyAppearance(imageData),
     periodCount: Object.keys(imageData.years).length,
+    classification: readLegacyClassification(imageData, {
+      minScale: getLocalizedEntryField<number>(
+        current.entry,
+        "minScale",
+        current.locale,
+      ),
+      maxScale: getLocalizedEntryField<number>(
+        current.entry,
+        "maxScale",
+        current.locale,
+      ),
+    }),
   };
 }
 
@@ -96,6 +119,20 @@ export async function updateIndexCatalogAppearance(
     panelLayerId: previous.panelLayerId,
     appearance: readLegacyAppearance(next),
     periodCount: Object.keys(next.years).length,
+    // A classificação do raster não muda numa edição de aparência; ela viaja na
+    // resposta só para a tela não precisar de um segundo pedido.
+    classification: readLegacyClassification(next, {
+      minScale: getLocalizedEntryField<number>(
+        current.entry,
+        "minScale",
+        current.locale,
+      ),
+      maxScale: getLocalizedEntryField<number>(
+        current.entry,
+        "maxScale",
+        current.locale,
+      ),
+    }),
     changed,
     requiresRepublish: false,
   };

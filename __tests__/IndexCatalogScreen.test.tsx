@@ -507,9 +507,11 @@ describe("IndexCatalogScreen v2", () => {
               },
               { id: "area-agricola", label: "Área agrícola", color: "#EBE628" },
             ],
-            thresholds: [40, 60],
             paletteLength: 2,
           },
+          // Códigos esparsos, como a cobertura da terra do IBGE: o rótulo tem
+          // de acompanhar o código, não a posição na lista.
+          classification: { kind: "pixel-codes", values: [1, 9] },
         }),
       );
     render(<IndexCatalogScreen />);
@@ -528,7 +530,9 @@ describe("IndexCatalogScreen v2", () => {
     expect(screen.getAllByLabelText("Rótulo")[0]).toHaveValue(
       "Área artificial",
     );
-    expect(screen.getByText(/e com os limites 40, 60/u)).toBeInTheDocument();
+    expect(screen.getAllByLabelText("Índice")[1]).toHaveValue("9");
+    // Raster com código por pixel não tem limites a preencher.
+    expect(screen.getByLabelText(/Limites das classes/u)).toHaveValue("");
     // Só houve leitura: a lista e a aparência. Nada foi gravado.
     expect(fetch).toHaveBeenCalledTimes(2);
     expect(vi.mocked(fetch).mock.calls[1][0]).toBe(
@@ -536,6 +540,66 @@ describe("IndexCatalogScreen v2", () => {
     );
     const [, init] = vi.mocked(fetch).mock.calls[1] as [string, RequestInit];
     expect(init.method ?? "GET").toBe("GET");
+  });
+
+  it("preenche os limites quando o mapa do legado é um raster contínuo", async () => {
+    // Regressão: o Carbono Orgânico do Solo guarda g/kg no raster e as faixas
+    // em `pixelLimit`. Sem trazer esses limites, o v2 saía com min 1 e max 6
+    // sobre valores em g/kg — 90% do mapa na cor da última classe e nada de
+    // vermelho, enquanto o legado mostrava as seis faixas.
+    vi.mocked(fetch)
+      .mockImplementationOnce(() =>
+        jsonResponse({
+          items: [
+            {
+              entryId: "legacy",
+              panelLayerId: "carbonoembrapa",
+              name: "Carbono Orgânico do Solo",
+              description: "Carbono no solo.",
+              category: "Dados Ambientais",
+              published: true,
+              everPublished: true,
+              hasUnpublishedChanges: false,
+              catalogManaged: true,
+              managedScope: "presentation",
+              adoptable: false,
+              status: "published",
+            },
+          ],
+        }),
+      )
+      .mockImplementationOnce(() =>
+        jsonResponse({
+          panelLayerId: "carbonoembrapa",
+          periodCount: 1,
+          appearance: {
+            legendSource: "classes",
+            legend: [
+              { id: "menor-que-5", label: "<5", color: "#921F14" },
+              { id: "maior-que-16", label: ">16", color: "#242F1E" },
+            ],
+            paletteLength: 0,
+          },
+          classification: { kind: "value-bounds", values: [4.999, 16] },
+        }),
+      );
+    render(<IndexCatalogScreen />);
+
+    fireEvent.click(
+      await screen.findByRole("button", { name: "Criar versão v2" }),
+    );
+
+    await waitFor(() =>
+      expect(screen.getByLabelText(/Limites das classes/u)).toHaveValue(
+        "4.999, 16",
+      ),
+    );
+    expect(
+      screen.getByText(/raster contínuo, então os limites 4.999, 16/u),
+    ).toBeInTheDocument();
+    // O índice de classe volta a ser a posição: as colunas de estatística de um
+    // raster classificado por limites são perc_classe_1..N.
+    expect(screen.getAllByLabelText("Índice")[0]).toHaveValue("1");
   });
 
   it("não oferece adoção quando o imageData ainda é pré-compacto", async () => {
