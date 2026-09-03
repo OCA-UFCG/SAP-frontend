@@ -7,6 +7,12 @@ export interface MunicipalReportLayerConfig {
   presentation?: MunicipalReportPresentationConfig;
   reportSeriesConfig?: import("@/utils/interfaces").MunicipalReportSeriesConfig | null;
   baseImageData?: import("@/utils/analysis").CompactTerritorialAnalysisDataset;
+  /**
+   * Presente apenas nas camadas publicadas pelo catálogo. É o que diz ao
+   * relatório que os valores territoriais vêm do Earth Engine sob demanda, e
+   * não de partições `municipalAnalysis` no Contentful.
+   */
+  statisticsSource?: import("@/contracts/geeStatistics").PublishedGeeStatisticsSource | null;
 }
 
 export interface MunicipalReportClassPresentation {

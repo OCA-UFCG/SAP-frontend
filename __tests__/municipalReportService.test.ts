@@ -122,7 +122,7 @@ describe("buildMunicipalReport", () => {
 
     expect(report.analyses.map(({ id }) => id)).toEqual(["seca"]);
     expect(loadImageData).toHaveBeenCalledTimes(1);
-    expect(loadImageData).toHaveBeenCalledWith("seca", "2024");
+    expect(loadImageData).toHaveBeenCalledWith("seca", "2024", undefined);
   });
 
   it("keeps selected analyses in the checkbox request order", async () => {
@@ -322,7 +322,7 @@ describe("buildMunicipalReport", () => {
       loadImageData,
     });
 
-    expect(loadImageData).toHaveBeenCalledWith("seca", "2024");
+    expect(loadImageData).toHaveBeenCalledWith("seca", "2024", undefined);
     expect(report.requestedPeriod).toBe("2025");
     expect(report.analyses[0]).toMatchObject({
       status: "available",
@@ -490,6 +490,148 @@ describe("buildMunicipalReport", () => {
     expect(report.analyses[0]).toMatchObject({
       effectivePeriod: "2020",
       snapshot: { period: "2020", label: "2020" },
+    });
+  });
+  // Regressão da integração catálogo -> Relatório Automático: um índice
+  // publicado pelo catálogo entrava no relatório como `period_not_found`
+  // silencioso, porque `loadImageData` era chamado sem território e o Earth
+  // Engine só é consultado quando `locationKey` está presente.
+  describe("camadas com fonte estatística no Earth Engine", () => {
+    const catalogImageData: CompactTerritorialAnalysisDataset = {
+      schemaVersion: 1,
+      type: "territorial-compact",
+      classes: [
+        { id: "baixo", label: "Baixo", color: "#0f0" },
+        { id: "alto", label: "Alto", color: "#f00" },
+      ],
+      years: {
+        "2023": { imageId: "a/2023", values: {} },
+        "2024": { imageId: "a/2024", values: {} },
+      },
+    };
+
+    const statisticsSource = {
+      schemaVersion: 1,
+      sourceRevision: "rev-1",
+    } as never;
+
+    function withMunicipalValues(period: string, values: number[]) {
+      return {
+        ...catalogImageData,
+        years: {
+          ...catalogImageData.years,
+          [period]: { imageId: `a/${period}`, values: { "5200050": values } },
+        },
+      };
+    }
+
+    it("passa o código do município como território para a camada do catálogo", async () => {
+      const loadImageData = vi.fn(async (_id: string, period?: string) => ({
+        found: true,
+        imageData: withMunicipalValues(period ?? "2024", period === "2023" ? [70, 30] : [40, 60]),
+        status: "hit" as const,
+      }));
+
+      const report = await buildMunicipalReport("5200050", "2024", {
+        layers: [{
+          panelLayerId: "indice-catalogo",
+          alias: "indice_catalogo",
+          title: "Índice do Catálogo",
+          order: 1,
+          periods: ["2023", "2024"],
+          statisticsSource,
+          baseImageData: catalogImageData,
+        }],
+        loadImageData,
+      });
+
+      for (const call of loadImageData.mock.calls) {
+        expect(call[2]).toBe("5200050");
+      }
+      expect(report.analyses[0]).toMatchObject({
+        status: "available",
+        effectivePeriod: "2024",
+      });
+      expect(report.analyses[0]?.snapshot?.dominantClass?.label).toBe("Alto");
+      expect(report.analyses[0]?.timeSeries).toHaveLength(2);
+    });
+
+    it("semeia a série num período publicado quando o pedido não existe na camada", async () => {
+      const loadImageData = vi.fn(async (_id: string, period?: string) => ({
+        found: true,
+        imageData: withMunicipalValues(period ?? "2024", [40, 60]),
+        status: "hit" as const,
+      }));
+
+      const report = await buildMunicipalReport("5200050", "2026", {
+        layers: [{
+          panelLayerId: "indice-catalogo",
+          alias: "indice_catalogo",
+          title: "Índice do Catálogo",
+          order: 1,
+          periods: ["2023", "2024"],
+          statisticsSource,
+          baseImageData: catalogImageData,
+        }],
+        loadImageData,
+      });
+
+      expect(loadImageData.mock.calls.map(([, period]) => period)).not.toContain("2026");
+      expect(report.analyses[0]).toMatchObject({
+        status: "available",
+        requestedPeriod: "2026",
+        effectivePeriod: "2024",
+      });
+    });
+
+    it("não gasta a agregação completa do Contentful quando a leitura por período não devolve dados", async () => {
+      const loadImageData = vi.fn(async () => ({
+        found: false,
+        imageData: null,
+        status: "miss" as const,
+      }));
+
+      const report = await buildMunicipalReport("5200050", "2024", {
+        layers: [{
+          panelLayerId: "indice-catalogo",
+          alias: "indice_catalogo",
+          title: "Índice do Catálogo",
+          order: 1,
+          periods: ["2023", "2024"],
+          statisticsSource,
+          baseImageData: catalogImageData,
+        }],
+        loadImageData,
+      });
+
+      expect(loadImageData).toHaveBeenCalledTimes(1);
+      expect(loadImageData.mock.calls[0]?.[1]).toBe("2024");
+      expect(report.analyses[0]?.status).toBe("unavailable");
+    });
+
+    it("mantém a camada legada sem território, lendo as partições do Contentful", async () => {
+      const loadImageData = vi.fn(async () => ({
+        found: true,
+        imageData,
+        status: "hit" as const,
+      }));
+
+      await buildMunicipalReport("5200050", "2024", {
+        layers: [{
+          panelLayerId: "anaseca",
+          alias: "seca",
+          title: "Monitor de Secas",
+          order: 1,
+          periods: ["2024"],
+          baseImageData: imageData,
+        }],
+        loadImageData,
+      });
+
+      expect(loadImageData).toHaveBeenCalled();
+      for (const call of loadImageData.mock.calls) {
+        expect(call[2]).toBeUndefined();
+      }
     });
   });
 });

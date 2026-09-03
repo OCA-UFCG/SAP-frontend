@@ -20,6 +20,7 @@ import {
 import { isCompactImageData } from "@/utils/imageData";
 import {
   resolveMunicipalLayerPeriod,
+  resolveNearestReportPeriod,
   type MunicipalAvailabilityIndex,
 } from "@/utils/municipalAvailability";
 import {
@@ -73,6 +74,7 @@ async function resolveReportLayers(
         : undefined,
       presentation: override?.presentation,
       reportSeriesConfig: layer.reportSeriesConfig,
+      statisticsSource: layer.statisticsSource,
       baseImageData: isCompactImageData(layer.imageData)
         ? layer.imageData
         : undefined,
@@ -225,14 +227,49 @@ function unavailable(
   };
 }
 
+/**
+ * O período que serve de semente para a leitura da série.
+ *
+ * Uma camada do catálogo não está no índice de disponibilidade, então o período
+ * pedido chega aqui sem nenhuma resolução e é literalmente o que o formulário
+ * mandou. Se a camada não publicou esse período, a leitura da semente devolve
+ * `years: {}` e a série inteira se perde — mesmo com todos os outros períodos
+ * disponíveis. Cair no último período publicado resolve isso sem escolher nada
+ * pelo relatório: o período efetivo continua sendo decidido depois, por
+ * `resolveMunicipalReportSnapshot`, sobre a série já montada.
+ */
+function resolveSeriesSeedPeriod(
+  requestedPeriod: string,
+  availablePeriods: readonly string[] | undefined,
+) {
+  if (!availablePeriods?.length) return requestedPeriod;
+  if (availablePeriods.includes(requestedPeriod)) return requestedPeriod;
+
+  return (
+    resolveNearestReportPeriod(availablePeriods, requestedPeriod) ??
+    requestedPeriod
+  );
+}
+
 async function loadMunicipalTimeSeries(
   panelLayerId: string,
   municipalityCode: string,
-  effectivePeriod: string,
+  requestedEffectivePeriod: string,
   availablePeriods: readonly string[] | undefined,
   loadImageData: typeof getCachedMunicipalAnalysisImageData,
+  // Só as camadas com fonte estatística no GEE recebem território: é ele que
+  // liga a leitura no Earth Engine em `attachMunicipalAnalysisYearToPanelLayer`.
+  // As legadas continuam pedindo a partição inteira do Contentful, inclusive
+  // `anaseca` e `carbonoembrapa`, que têm registro estático no GEE mas cujo
+  // relatório sempre veio do Contentful.
+  locationKey?: string,
 ) {
-  const seed = await limitFallbackLoad(() => loadImageData(panelLayerId, effectivePeriod));
+  const effectivePeriod = locationKey
+    ? resolveSeriesSeedPeriod(requestedEffectivePeriod, availablePeriods)
+    : requestedEffectivePeriod;
+  const seed = await limitFallbackLoad(() =>
+    loadImageData(panelLayerId, effectivePeriod, locationKey),
+  );
 
   // Annual/monthly partition requests are the same path used by Monitoramento.
   // Each response contains the lightweight dataset metadata plus municipal
@@ -248,7 +285,9 @@ async function loadMunicipalTimeSeries(
       const datasets = await Promise.all(
         periodKeys.map(async (period) => {
           if (period === effectivePeriod) return seed.imageData;
-          const result = await limitFallbackLoad(() => loadImageData(panelLayerId, period));
+          const result = await limitFallbackLoad(() =>
+            loadImageData(panelLayerId, period, locationKey),
+          );
           return result.found && result.imageData && isCompactImageData(result.imageData)
             ? result.imageData
             : null;
@@ -270,7 +309,11 @@ async function loadMunicipalTimeSeries(
   }
 
   // Compatibility fallback for an annual request against a monthly dataset
-  // or environments that have not published partition metadata yet.
+  // or environments that have not published partition metadata yet. Uma fonte
+  // dinâmica não tem esse caminho: sem período não há o que pedir ao Earth
+  // Engine, e a agregação do Contentful nunca teve os valores dessa camada.
+  if (locationKey) return null;
+
   const complete = await limitFallbackLoad(() => loadImageData(panelLayerId));
   if (!complete.found || !complete.imageData || !isCompactImageData(complete.imageData)) {
     return null;
@@ -373,6 +416,7 @@ export async function buildMunicipalReport(
           effectivePeriod,
           config.periods,
           loadImageData,
+          config.statisticsSource ? municipalityCode : undefined,
         );
         if (!temporalData) return unavailable(config, requestedPeriod);
         const { dataset, timeSeries: sourceTimeSeries } = temporalData;

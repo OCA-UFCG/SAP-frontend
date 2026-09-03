@@ -7,10 +7,8 @@ import { InfoModal } from "@/components/InfoModal/InfoModal";
 import { LayerAccordion } from "@/components/LayerAccordion/LayerAccordion";
 import citiesIndex from "@/data/citiesIndex.json";
 import municipalAvailabilityIndex from "@/data/municipalAvailabilityIndex.json";
-import {
-  getResolvableReportLayers,
-  type MunicipalAvailabilityIndex,
-} from "@/utils/municipalAvailability";
+import type { MunicipalAvailabilityIndex } from "@/utils/municipalAvailability";
+import { getSelectableReportLayerIds } from "@/utils/reportLayerAvailability";
 import type { PanelLayerI } from "@/utils/interfaces";
 import { startMunicipalReportMetrics } from "@/utils/municipalReportMetrics";
 import { slugifyTranslationKey } from "@/utils/translations";
@@ -109,14 +107,12 @@ export function MunicipalReportContext({ panelLayers = [] }: MunicipalReportCont
 
   const availableLayerIds = useMemo(() => {
     if (!municipalityCode || !validPeriod) return new Set<string>();
-    const availableIds = new Set(
-      getResolvableReportLayers(
-        municipalAvailabilityIndex as MunicipalAvailabilityIndex,
-        municipalityCode,
-        period,
-      ),
+    return getSelectableReportLayerIds(
+      panelLayers,
+      municipalAvailabilityIndex as MunicipalAvailabilityIndex,
+      municipalityCode,
+      period,
     );
-    return new Set(panelLayers.filter((layer) => availableIds.has(layer.id)).map((layer) => layer.id));
   }, [municipalityCode, panelLayers, period, validPeriod]);
 
   const availability = useMemo(
@@ -163,14 +159,12 @@ export function MunicipalReportContext({ panelLayers = [] }: MunicipalReportCont
 
   function getDefaultSelectedLayers(code: string, selectedPeriod: string) {
     if (!/^\d{4}(-\d{2})?$/.test(selectedPeriod)) return new Set<string>();
-    const availableIds = new Set(
-      getResolvableReportLayers(
-        municipalAvailabilityIndex as MunicipalAvailabilityIndex,
-        code,
-        selectedPeriod,
-      ),
+    return getSelectableReportLayerIds(
+      panelLayers,
+      municipalAvailabilityIndex as MunicipalAvailabilityIndex,
+      code,
+      selectedPeriod,
     );
-    return new Set(panelLayers.filter((layer) => availableIds.has(layer.id)).map((layer) => layer.id));
   }
 
   function selectMunicipality(code: string, label: string) {
