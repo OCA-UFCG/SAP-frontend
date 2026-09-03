@@ -11,15 +11,46 @@ Um índice v2 publica somente um `panelLayer` no Contentful:
 - metadados (nome, descrição, categoria e posição);
 - `imageData` leve, com classes, períodos, templates, mapa e `values: {}`;
 - `statisticsSource`, contrato versionado da FeatureCollection estatística;
-- `catalogConfig` v2, usado pelo formulário e pela auditoria.
+- `catalogConfig` v2, usado pelo formulário e pela auditoria;
+- `reportConfig`, opcional, com o texto do Relatório Automático daquele índice
+  (`src/contracts/panelLayerReport.ts`).
 
 Os valores territoriais continuam no GEE e são consultados sob demanda. O
 catálogo não busca Google Drive, não lê ou grava CSV, não executa o conversor e
 não cria `municipalAnalysis` nem `municipalReportSeries`. As pipelines globais
 continuam no repositório apenas para índices legados fora deste catálogo.
 
-O Relatório Automático, suas séries, narrativas, documentos, PDFs e índice de
-disponibilidade não fazem parte desta implementação.
+O Relatório Automático **consome** um índice do catálogo: as camadas são
+descobertas a partir do próprio `panelLayer`, os valores territoriais vêm do GEE
+pelo `locationKey` e a disponibilidade de período é decidida pelos períodos
+publicados, e não pelo `municipalAvailabilityIndex.json` gerado no build — que
+só conhece os índices legados. O texto pode vir do `reportConfig` (ver
+"Texto do relatório" abaixo) em vez do Google Docs.
+
+Continuam fora do catálogo: as séries `municipalReportSeries`, o índice de
+disponibilidade gerado no build e a geração de PDF.
+
+## Texto do relatório
+
+A seção "Relatório Automático" do formulário grava `panelLayer.reportConfig`:
+seções (título + texto), nota de metodologia e cor do cabeçalho. A forma de
+`sections` é a mesma que o Google Docs entrega, então o texto do catálogo
+substitui o bloco `[layer: <id>]` do documento sem que a montagem do relatório
+precise saber de onde ele veio — inclusive a substituição de variáveis entre
+colchetes e a regra de que uma seção "Situação atual" vence a frase gerada
+automaticamente. Sem `reportConfig`, o índice continua lendo o documento.
+
+A escrita tem rota própria,
+`POST /api/index-catalog/drafts/[entryId]/report-text`, e **não** o `PUT` do
+rascunho: `updateIndexCatalogDraft` zera `status`, `validation` e
+`validatedStatisticsSource`, o que obrigaria uma revalidação inteira no Earth
+Engine para corrigir uma frase. `report` mora em `IndexCatalogAuditData` junto
+com `previewMap`, fora de `IndexCatalogDraftInput`, justamente para ficar fora do
+`sourceFingerprint` conferido na publicação.
+
+Como o relatório lê o `panelLayer` publicado, editar o texto de um índice já
+publicado exige republicar — a rota devolve `requiresRepublish` para a tela
+avisar.
 
 ## Fonte estatística e fonte de mapa
 

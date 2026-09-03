@@ -2,6 +2,7 @@ import type {
   GeeFeatureCollectionStatisticsSource,
   PublishedGeeStatisticsSource,
 } from "@/contracts/geeStatistics";
+import type { PublishedPanelLayerReportConfig } from "@/contracts/panelLayerReport";
 import type {
   CompactMapVisualizationConfig,
   CompactTerritorialAnalysisDataset,
@@ -93,6 +94,13 @@ interface IndexCatalogAuditData {
    * de deixar um rastro de imagens órfãs no espaço.
    */
   previewMap?: { assetId: string; capturedAt: string };
+  /**
+   * Texto do Relatório Automático escrito no catálogo. Fica aqui, e não em
+   * `IndexCatalogDraftInput`, porque não descreve os dados: mudar uma frase não
+   * pode invalidar a prévia nem entrar no `sourceFingerprint` conferido na
+   * publicação. É a mesma razão pela qual `previewMap` mora aqui.
+   */
+  report?: PublishedPanelLayerReportConfig;
   auditLog?: Array<{
     action:
       | "create"
@@ -100,6 +108,7 @@ interface IndexCatalogAuditData {
       | "revalidate"
       | "preview"
       | "preview-map"
+      | "report-text"
       | "publish"
       | "unpublish";
     outcome: "success" | "failure";
