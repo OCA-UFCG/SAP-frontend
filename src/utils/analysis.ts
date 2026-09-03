@@ -76,6 +76,20 @@ export interface ResolvedImageCollectionSelection extends CompactImageCollection
   filterValue: string | number;
 }
 
+/**
+ * Janela de tempo do período pedido, usada para escolher uma imagem dentro de
+ * uma `ImageCollection` que não declara `imageCollectionSelection`.
+ *
+ * `property`/`value` são o escape hatch para assets cuja data (`system:time_start`)
+ * não é confiável: quando presentes, a filtragem usa a etiqueta em vez da data.
+ */
+export interface ResolvedImageCollectionPeriod {
+  startMillis: number;
+  endMillis: number;
+  property?: string;
+  value?: string;
+}
+
 export interface CompactMapVisualizationConfig {
   sourceType?: "image" | "imageCollection" | "featureCollection";
   min?: number;
@@ -99,6 +113,12 @@ export interface CompactMapVisualizationConfig {
   };
   valueMeaning?: Record<string, string>;
   imageCollectionSelection?: CompactImageCollectionSelectionConfig;
+  /**
+   * Etiqueta do ano/período de cada imagem da coleção (`ano_fim_janela`, `ano`,
+   * ...). Só precisa ser preenchida quando `system:time_start` do asset não
+   * corresponde ao período exibido; sem ela a escolha é feita pela data.
+   */
+  imageCollectionPeriodProperty?: string;
 }
 
 export interface CompactAnalysisYearData {

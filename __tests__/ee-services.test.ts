@@ -16,17 +16,35 @@ const eeMocks = vi.hoisted(() => {
       property,
       value,
     })),
+    filterOr: vi.fn((...filters) => ({ kind: "or-filter", filters })),
     geometry: vi.fn((value) => ({ value })),
+    image: vi.fn((value) => ({
+      kind: "image",
+      value,
+      setDefaultProjection: vi.fn((projection) => ({
+        kind: "projected-image",
+        value,
+        projection,
+      })),
+    })),
+    algorithmsIf: vi.fn((condition, ifTrue, ifFalse) => ({
+      kind: "if",
+      condition,
+      ifTrue,
+      ifFalse,
+    })),
     nationalCollection,
   };
 });
 
 vi.mock("@google/earthengine", () => ({
   default: {
+    Algorithms: { If: eeMocks.algorithmsIf },
     Feature: eeMocks.feature,
     FeatureCollection: eeMocks.featureCollection,
-    Filter: { eq: eeMocks.filterEq },
+    Filter: { eq: eeMocks.filterEq, or: eeMocks.filterOr },
     Geometry: eeMocks.geometry,
+    Image: eeMocks.image,
   },
 }));
 
@@ -201,6 +219,99 @@ describe("Earth Engine image collection selection", () => {
       20260801,
     );
     expect(eeMocks.filterEq).toHaveBeenNthCalledWith(2, "lead_time", 4);
+  });
+});
+
+/**
+ * Regressão: as camadas Índice de Aridez (BR-DWGD e ERA5 Land) e Cobertura da
+ * Terra IBGE mostravam sempre a mesma imagem em todos os anos, porque todos os
+ * períodos apontam para o mesmo endereço de coleção e, sem instrução de
+ * seleção, a coleção inteira era empilhada com `mosaic()`.
+ */
+describe("Earth Engine image collection period selection", () => {
+  function buildPeriodCollection(hasImages: string) {
+    const periodCollection = {
+      size: vi.fn(() => ({ gt: vi.fn(() => hasImages) })),
+      mosaic: vi.fn(() => "period-mosaic"),
+    };
+    const collection = {
+      first: vi.fn(() => ({ projection: vi.fn(() => "native-projection") })),
+      filter: vi.fn(() => periodCollection),
+      filterDate: vi.fn(() => periodCollection),
+      mosaic: vi.fn(() => ({
+        setDefaultProjection: vi.fn(() => "full-mosaic-projected"),
+      })),
+    };
+
+    return { collection, periodCollection };
+  }
+
+  it("keeps only the images of the requested period instead of the whole collection", () => {
+    const { collection, periodCollection } =
+      buildPeriodCollection("has-images");
+
+    const selected = selectImageCollectionImage(collection, undefined, {
+      startMillis: Date.UTC(1990, 0, 1),
+      endMillis: Date.UTC(1991, 0, 1),
+    });
+
+    expect(collection.filterDate).toHaveBeenCalledWith(
+      Date.UTC(1990, 0, 1),
+      Date.UTC(1991, 0, 1),
+    );
+    expect(periodCollection.mosaic).toHaveBeenCalled();
+    expect(eeMocks.algorithmsIf).toHaveBeenCalledWith(
+      "has-images",
+      "period-mosaic",
+      expect.anything(),
+    );
+    expect(selected).toMatchObject({
+      kind: "projected-image",
+      projection: "native-projection",
+    });
+  });
+
+  it("falls back to the full mosaic when no image matches the period", () => {
+    const { collection } = buildPeriodCollection("no-images");
+
+    selectImageCollectionImage(collection, undefined, {
+      startMillis: Date.UTC(2100, 0, 1),
+      endMillis: Date.UTC(2101, 0, 1),
+    });
+
+    const [condition, , fallback] =
+      eeMocks.algorithmsIf.mock.calls.at(-1) ?? [];
+    expect(condition).toBe("no-images");
+    // A coleção inteira continua sendo a rede de segurança: o fallback é
+    // decidido dentro da expressão, sem uma ida extra ao Earth Engine.
+    expect(fallback).toBeDefined();
+    expect(collection.mosaic).toHaveBeenCalled();
+  });
+
+  it("matches a configured year label as number and as text", () => {
+    eeMocks.filterEq.mockClear();
+    const { collection } = buildPeriodCollection("has-images");
+
+    selectImageCollectionImage(collection, undefined, {
+      startMillis: Date.UTC(2000, 0, 1),
+      endMillis: Date.UTC(2001, 0, 1),
+      property: "ano",
+      value: "2000",
+    });
+
+    expect(collection.filterDate).not.toHaveBeenCalled();
+    expect(eeMocks.filterEq).toHaveBeenNthCalledWith(1, "ano", 2000);
+    expect(eeMocks.filterEq).toHaveBeenNthCalledWith(2, "ano", "2000");
+    expect(eeMocks.filterOr).toHaveBeenCalled();
+  });
+
+  it("mosaics the whole collection when the layer has no period to filter by", () => {
+    const { collection } = buildPeriodCollection("has-images");
+
+    expect(selectImageCollectionImage(collection, undefined)).toBe(
+      "full-mosaic-projected",
+    );
+    expect(collection.filterDate).not.toHaveBeenCalled();
   });
 });
 

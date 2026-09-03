@@ -243,6 +243,21 @@ function validateMapVisualization(value, path, errors) {
     }
   }
 
+  // Escape hatch para assets cuja `system:time_start` não corresponde ao período
+  // exibido: nomeia a etiqueta de ano das imagens da coleção. Opcional de
+  // propósito — o caminho normal escolhe a imagem pela data e não exige que
+  // quem cadastra o índice conheça as propriedades internas do asset.
+  if (
+    value.imageCollectionPeriodProperty != null &&
+    !isNonEmptyString(value.imageCollectionPeriodProperty)
+  ) {
+    pushError(
+      errors,
+      `${path}.imageCollectionPeriodProperty`,
+      "deve ser string não vazia.",
+    );
+  }
+
   if (value.sourceRange != null) {
     if (!isRecord(value.sourceRange)) {
       pushError(errors, `${path}.sourceRange`, "deve ser um objeto.");

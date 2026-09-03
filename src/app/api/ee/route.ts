@@ -13,6 +13,7 @@ import {
 import { consumeEeRateLimit } from "./rate-limit";
 import { getPanelLayers } from "@/repositories/platform/panelLayerRepository";
 import {
+  resolveImageCollectionPeriod,
   resolveImageCollectionSelection,
   resolveImageYearEntry,
 } from "@/utils/imageData";
@@ -93,6 +94,9 @@ export async function POST(req: NextRequest) {
 
     const imageCollectionSelection =
       resolveImageCollectionSelection(yearConfig);
+    // Derivado de `year` e do `mapVisualization`, que já entram na chave de
+    // cache — por isso não é preciso somá-lo à assinatura.
+    const imageCollectionPeriod = resolveImageCollectionPeriod(yearConfig);
     const cacheKey = buildCacheKey(
       name,
       year,
@@ -135,6 +139,7 @@ export async function POST(req: NextRequest) {
           mapVisualization: yearConfig.mapVisualization,
           spatialSelection,
           ...(imageCollectionSelection ? { imageCollectionSelection } : {}),
+          ...(imageCollectionPeriod ? { imageCollectionPeriod } : {}),
         },
       ),
     );

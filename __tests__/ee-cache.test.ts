@@ -17,7 +17,7 @@ describe("ee cache", () => {
 
   it("uses the versioned key format consistently", () => {
     expect(buildCacheKey("layer-a", "2024")).toBe(
-      'v8:layer-a:2024:{"imageId":null,"imageParams":null,"minScale":null,"maxScale":null,"mapVisualization":null,"imageCollectionSelection":null}:national:brasil',
+      'v9:layer-a:2024:{"imageId":null,"imageParams":null,"minScale":null,"maxScale":null,"mapVisualization":null,"imageCollectionSelection":null}:national:brasil',
     );
   });
 
