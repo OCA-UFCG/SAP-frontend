@@ -135,7 +135,9 @@ export default async function RootLayout({
                 (item) => item.appears,
               )}
             ></Header>
-            <main className="flex-1 w-full">{children}</main>
+            <main className="flex flex-col flex-1 min-h-0 w-full">
+              {children}
+            </main>
             <FooterSlot content={footerContent} />
           </AuthProvider>
         </NextIntlClientProvider>

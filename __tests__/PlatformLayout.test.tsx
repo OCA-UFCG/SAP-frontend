@@ -113,8 +113,15 @@ describe("PlatformLayout", () => {
 
     expect(screen.queryByTestId("platform-map-probe")).not.toBeInTheDocument();
     expect(screen.getByTestId("amfe-screen-probe")).toBeInTheDocument();
+    // A casca preenche o espaço que sobra do `main`, em vez de reivindicar a
+    // viewport inteira: com o rodapé abaixo dela, reivindicar 100vh empurrava o
+    // documento para além da tela e deixava rolar os componentes para fora.
     expect(screen.getByTestId("platform-amfe-shell")).toHaveClass(
-      "h-[calc(100vh-64px)]",
+      "flex-1",
+      "min-h-0",
+    );
+    expect(screen.getByTestId("platform-amfe-shell").className).not.toContain(
+      "100vh",
     );
     expect(platformSidebarMock.mock.calls[0]?.[0]).toEqual(
       expect.objectContaining({
@@ -123,5 +130,20 @@ describe("PlatformLayout", () => {
         initialSection: "analysis",
       }),
     );
+  });
+
+  // Regressão: o rodapé fica abaixo da plataforma. Enquanto a casca exigia uma
+  // viewport inteira, o documento ficava mais alto que a tela e a roda do mouse
+  // sobre qualquer área neutra arrastava os componentes para fora do campo de
+  // visão. A casca precisa caber no que sobra do `main`, não reivindicar 100vh.
+  it("sizes the platform shell from the space left by the header and footer", () => {
+    platformSidebarMock.mockReset();
+
+    render(<PlatformLayout viewMode="amfe" initialSection="analysis" />);
+
+    const wrapper = screen.getByTestId("platform-amfe-shell").parentElement;
+
+    expect(wrapper).toHaveClass("flex-1", "min-h-0");
+    expect(wrapper?.className).not.toContain("100vh");
   });
 });

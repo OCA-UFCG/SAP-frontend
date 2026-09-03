@@ -54,12 +54,23 @@ describe("Footer", () => {
     expect(logo.className).toContain("h-[57px]");
   });
 
-  it("does not render on the platform route", () => {
-    usePathnameMock.mockReturnValue("/platform");
+  // O rodapé faz parte da plataforma. O caminho vem com o prefixo de locale
+  // (`localePrefix: "always"`), então qualquer regra por rota precisa ser
+  // exercitada com o caminho real, e não com um "/platform" que nunca ocorre.
+  it("renders on the platform route", () => {
+    usePathnameMock.mockReturnValue("/pt/platform");
 
-    const { container } = render(<FooterSlot content={footerContent} />);
+    render(<FooterSlot content={footerContent} />);
 
-    expect(container).toBeEmptyDOMElement();
+    expect(screen.getByAltText("SEDES")).toBeInTheDocument();
+  });
+
+  it("renders on the multicriteria route", () => {
+    usePathnameMock.mockReturnValue("/pt/platform/amfe");
+
+    render(<FooterSlot content={footerContent} />);
+
+    expect(screen.getByAltText("SEDES")).toBeInTheDocument();
   });
 
   it("renders on non-platform routes", () => {
