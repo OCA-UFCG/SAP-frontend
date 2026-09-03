@@ -28,7 +28,9 @@ import { ImageCollectionForecastGuideModal } from "@/components/IndexCatalog/Ima
 import {
   detectYearPartitionedTemplate,
   fillYearPlaceholder,
+  parseNumberList,
 } from "@/utils/indexCatalog";
+import type { LegacyAppearance } from "@/utils/legacyAppearance";
 import type { PublishedPanelLayerReportConfig } from "@/contracts/panelLayerReport";
 import {
   createDefaultReportDraft,
@@ -202,23 +204,6 @@ function statusLabel(item: IndexCatalogItem) {
   return "Rascunho";
 }
 
-function parseNumberList(value: string, label: string, integersOnly = false) {
-  const parts = value
-    .split(",")
-    .map((part) => part.trim())
-    .filter(Boolean);
-  const numbers = parts.map(Number);
-  if (
-    numbers.some(
-      (number) =>
-        !Number.isFinite(number) || (integersOnly && !Number.isInteger(number)),
-    )
-  ) {
-    throw new Error(`${label} deve usar números separados por vírgula.`);
-  }
-  return numbers;
-}
-
 export function IndexCatalogScreen() {
   const [items, setItems] = useState<IndexCatalogItem[]>([]);
   const [draft, setDraft] = useState<IndexCatalogDraftInput>(EMPTY_DRAFT);
@@ -342,6 +327,63 @@ export function IndexCatalogScreen() {
     } catch (reason) {
       setError(
         reason instanceof Error ? reason.message : "Falha ao adotar o índice.",
+      );
+    } finally {
+      setBusy(null);
+    }
+  }
+
+  /**
+   * Abre o formulário v2 preenchido com o que o índice legado já tem: nome,
+   * descrição, categoria, a legenda inteira com rótulos e cores, e os limites
+   * do mapa quando existem.
+   *
+   * Nada é gravado, e a entry legada não é tocada. Migrar um índice para o
+   * caminho do GEE é criar um índice v2 novo ao lado do legado — foi assim que
+   * os v2 de hoje nasceram, redigitados à mão — e a troca (despublicar o
+   * legado, publicar o novo) continua sendo uma decisão explícita. O que este
+   * botão remove é a redigitação de doze rótulos e doze cores, não a decisão.
+   */
+  async function startV2FromLegacy(item: IndexCatalogItem) {
+    setBusy("v2-from-legacy");
+    setError("");
+    try {
+      const loaded = await apiRequest<{ appearance: LegacyAppearance }>(
+        `/api/index-catalog/entries/${encodeURIComponent(item.entryId)}/appearance`,
+      );
+      resetEditor();
+      setDraft({
+        ...structuredClone(EMPTY_DRAFT),
+        name: `${item.name} (v2)`,
+        description: item.description,
+        category:
+          INDEX_CATEGORIES.find((category) => category === item.category) ??
+          EMPTY_DRAFT.category,
+        // Os índices de classe do asset v2 vêm das colunas `perc_classe_XX` e
+        // são reescritos pela validação; a ordem das classes do legado é a
+        // melhor aposta até lá.
+        classes: loaded.appearance.legend.map((row, position) => ({
+          classIndex: position + 1,
+          id: row.id,
+          label: row.label,
+          color: row.color,
+        })),
+      });
+      // Os limites vão para o campo do bloco de coleção, que só aparece nesse
+      // modo de mapeamento; a mensagem os cita para o valor não ficar
+      // preenchido sem que ninguém veja.
+      const thresholds = loaded.appearance.thresholds ?? [];
+      setThresholdsInput(thresholds.join(", "));
+      setMessage(
+        `Formulário preenchido com a legenda de “${item.name}”${
+          thresholds.length ? ` e com os limites ${thresholds.join(", ")}` : ""
+        }. Falta a FeatureCollection das estatísticas e os assets do mapa — o índice legado não foi alterado.`,
+      );
+    } catch (reason) {
+      setError(
+        reason instanceof Error
+          ? reason.message
+          : "Falha ao ler a legenda do índice legado.",
       );
     } finally {
       setBusy(null);
@@ -920,6 +962,14 @@ export function IndexCatalogScreen() {
                       onClick={() => openLegacyEditor(item)}
                     >
                       Abrir e editar
+                    </button>
+                    <button
+                      type="button"
+                      className={`${buttonClass} border border-stone-300`}
+                      disabled={Boolean(busy)}
+                      onClick={() => void startV2FromLegacy(item)}
+                    >
+                      Criar versão v2
                     </button>
                     {item.published && (
                       <button

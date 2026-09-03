@@ -464,3 +464,36 @@ export function resolvePanelPositionInCategory(
     ? Math.max(...takenPositions) + 1
     : sameCategory.length;
 }
+
+/**
+ * Lista de números separados por vírgula, como os limites das classes e os
+ * lead times aparecem no formulário.
+ *
+ * Vive aqui, e não na tela, porque a edição de aparência de um índice legado
+ * usa a mesma escrita para os limites do mapa.
+ *
+ * @example
+ * parseNumberList("20, 40, 60", "Limites das faixas"); // [20, 40, 60]
+ */
+export function parseNumberList(
+  value: string,
+  label: string,
+  integersOnly = false,
+): number[] {
+  const parts = value
+    .split(",")
+    .map((part) => part.trim())
+    .filter(Boolean);
+  const numbers = parts.map(Number);
+
+  if (
+    numbers.some(
+      (number) =>
+        !Number.isFinite(number) || (integersOnly && !Number.isInteger(number)),
+    )
+  ) {
+    throw new Error(`${label} deve usar números separados por vírgula.`);
+  }
+
+  return numbers;
+}

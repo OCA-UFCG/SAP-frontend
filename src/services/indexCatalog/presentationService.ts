@@ -12,45 +12,26 @@ import {
   getLocalizedEntryField,
   patchManagementEntry,
   publishManagementEntry,
-  type ContentfulManagementEntry,
 } from "@/services/indexCatalog/contentfulManagement";
+import { readCompactImageData } from "@/services/indexCatalog/presentationImageData";
 import { getIndexCatalogPreviewMapUrl } from "@/services/indexCatalog/previewMapService";
 import {
   isPresentationManagedCatalogConfig,
   type IndexCatalogPresentationPreview,
 } from "@/types/indexCatalog";
-import type { CompactTerritorialAnalysisDataset } from "@/utils/analysis";
-import { isCompactImageData } from "@/utils/imageData";
-import type { ImageDataConfig } from "@/utils/interfaces";
 import { parseIndexCatalogPresentationInput } from "@/utils/indexCatalog";
 import { getDocTemplate } from "@/services/buildDoc/buildDocTemplate";
-
-function readCompactImageData(
-  entry: ContentfulManagementEntry,
-  locale: string,
-  panelLayerId: string,
-): CompactTerritorialAnalysisDataset {
-  const imageData = getLocalizedEntryField<ImageDataConfig>(
-    entry,
-    "imageData",
-    locale,
-  );
-  if (!isCompactImageData(imageData)) {
-    throw new Error(
-      `O imageData de ${panelLayerId} não está no formato territorial-compact, então o catálogo não consegue desenhar o mapa nem descobrir os períodos dele.`,
-    );
-  }
-  return imageData;
-}
 
 /**
  * Grava a apresentação de um índice legado adotado.
  *
- * Só escreve campos que já moravam na entry, e nunca `imageData`,
- * `statisticsSource` ou `catalogConfig.classes`: os valores territoriais do
- * índice continuam vindo das partições `municipalAnalysis` ou do registro
- * estático, e reescrever qualquer um dos três mudaria os números em vez da
- * apresentação. Também não derruba nenhum `status` de validação, porque não
+ * Só escreve campos que já moravam na entry, e nunca `imageData` nem
+ * `statisticsSource`: os valores territoriais do índice continuam vindo das
+ * partições `municipalAnalysis` ou do registro estático, e reescrever qualquer
+ * um dos dois mudaria os números em vez da apresentação. Rótulos e cores, que
+ * moram dentro do `imageData`, têm escrita própria em
+ * `legacyAppearanceService` justamente porque ela precisa de uma guarda que
+ * esta não precisa. Também não derruba nenhum `status` de validação, porque não
  * existe validação de assets neste escopo.
  *
  * @example

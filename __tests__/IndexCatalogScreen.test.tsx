@@ -22,7 +22,9 @@ vi.mock("@/components/IndexCatalog/CatalogPreviewMapCapture", () => ({
 // Idem para a prévia do relatório: ela faz o seu próprio pedido ao servidor, e
 // sem o stub esse pedido consumiria uma das respostas encadeadas dos testes.
 vi.mock("@/components/IndexCatalog/CatalogReportPreview", () => ({
-  CatalogReportPreview: () => <div data-testid="catalog-report-preview-probe" />,
+  CatalogReportPreview: () => (
+    <div data-testid="catalog-report-preview-probe" />
+  ),
 }));
 
 import { IndexCatalogScreen } from "@/components/IndexCatalog/IndexCatalogScreen";
@@ -467,6 +469,73 @@ describe("IndexCatalogScreen v2", () => {
       screen.queryByRole("button", { name: "Abrir e editar" }),
     ).not.toBeInTheDocument();
     await waitFor(() => expect(fetch).toHaveBeenCalledTimes(1));
+  });
+
+  it("preenche o formulário v2 com a legenda do legado sem tocar na entry dele", async () => {
+    vi.mocked(fetch)
+      .mockImplementationOnce(() =>
+        jsonResponse({
+          items: [
+            {
+              entryId: "legacy",
+              panelLayerId: "terraibge",
+              name: "Cobertura da Terra | IBGE",
+              description: "Classes de cobertura do IBGE.",
+              category: "Dados Ambientais",
+              published: true,
+              everPublished: true,
+              hasUnpublishedChanges: false,
+              catalogManaged: true,
+              managedScope: "presentation",
+              adoptable: false,
+              status: "published",
+            },
+          ],
+        }),
+      )
+      .mockImplementationOnce(() =>
+        jsonResponse({
+          panelLayerId: "terraibge",
+          periodCount: 6,
+          appearance: {
+            legendSource: "classes",
+            legend: [
+              {
+                id: "area-artificial",
+                label: "Área artificial",
+                color: "#FF0000",
+              },
+              { id: "area-agricola", label: "Área agrícola", color: "#EBE628" },
+            ],
+            thresholds: [40, 60],
+            paletteLength: 2,
+          },
+        }),
+      );
+    render(<IndexCatalogScreen />);
+
+    fireEvent.click(
+      await screen.findByRole("button", { name: "Criar versão v2" }),
+    );
+
+    // O nome ganha o sufixo para o ID técnico do índice novo não colidir com o
+    // do legado, que continua publicado ao lado dele.
+    await waitFor(() =>
+      expect(screen.getByLabelText("Nome")).toHaveValue(
+        "Cobertura da Terra | IBGE (v2)",
+      ),
+    );
+    expect(screen.getAllByLabelText("Rótulo")[0]).toHaveValue(
+      "Área artificial",
+    );
+    expect(screen.getByText(/e com os limites 40, 60/u)).toBeInTheDocument();
+    // Só houve leitura: a lista e a aparência. Nada foi gravado.
+    expect(fetch).toHaveBeenCalledTimes(2);
+    expect(vi.mocked(fetch).mock.calls[1][0]).toBe(
+      "/api/index-catalog/entries/legacy/appearance",
+    );
+    const [, init] = vi.mocked(fetch).mock.calls[1] as [string, RequestInit];
+    expect(init.method ?? "GET").toBe("GET");
   });
 
   it("não oferece adoção quando o imageData ainda é pré-compacto", async () => {

@@ -110,6 +110,7 @@ interface IndexCatalogAuditData {
       | "create"
       | "adopt"
       | "update"
+      | "appearance"
       | "revalidate"
       | "preview"
       | "preview-map"

@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import { CatalogPreviewMapCapture } from "@/components/IndexCatalog/CatalogPreviewMapCapture";
+import { LegacyAppearanceFields } from "@/components/IndexCatalog/LegacyAppearanceFields";
 import { CatalogReportPreview } from "@/components/IndexCatalog/CatalogReportPreview";
 import { IndexCatalogReportFields } from "@/components/IndexCatalog/IndexCatalogReportFields";
 import {
@@ -73,10 +74,10 @@ function toInitialReport(item: IndexCatalogItem): IndexCatalogReportDraft {
  * Formulário de um índice legado adotado.
  *
  * Mostra somente o que o catálogo gerencia neste escopo — identidade, unidade,
- * posição, imagem do cartão e texto do relatório. Não há seção de estatísticas,
- * de mapa nem de classes de propósito: os valores deste índice vêm das
- * partições `municipalAnalysis` ou do registro estático, e editá-los aqui
- * mudaria os números em vez da apresentação.
+ * posição, legenda, imagem do cartão e texto do relatório. Não há seção de
+ * estatísticas nem de assets de propósito: os valores deste índice vêm das
+ * partições `municipalAnalysis` ou do registro estático, e reescrever a origem
+ * deles aqui mudaria os números em vez da apresentação.
  */
 export function LegacyIndexEditor({
   item,
@@ -203,9 +204,9 @@ export function LegacyIndexEditor({
           <h2 className="text-lg font-bold">Editar índice legado</h2>
           <p className="mt-1 max-w-3xl text-sm text-stone-600">
             O catálogo gerencia a apresentação de <strong>{item.name}</strong>:
-            identidade, unidade, posição, imagem do cartão e texto do relatório.
-            Os valores continuam vindo de onde já vinham — a pipeline de CSV ou
-            o registro estático —, então não há assets a validar aqui.
+            identidade, unidade, posição, legenda, imagem do cartão e texto do
+            relatório. Os valores continuam vindo de onde já vinham — a pipeline
+            de CSV ou o registro estático —, então não há assets a validar aqui.
           </p>
           <p className="mt-2 text-xs text-stone-500">
             ID técnico: <code>{item.panelLayerId}</code> — congelado, porque
@@ -305,6 +306,19 @@ export function LegacyIndexEditor({
           </p>
         </div>
       </div>
+
+      <LegacyAppearanceFields
+        entryId={item.entryId}
+        inputClass={inputClass}
+        buttonClass={buttonClass}
+        disabled={Boolean(busy)}
+        onSaved={() => {
+          // A prévia aberta foi desenhada com as cores anteriores; deixá-la na
+          // tela depois de gravar mostraria um mapa que já não é o do índice.
+          setPreview(null);
+          onChanged();
+        }}
+      />
 
       <IndexCatalogReportFields
         report={report}

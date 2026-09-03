@@ -15,6 +15,12 @@ vi.mock("@/components/IndexCatalog/CatalogPreviewMapCapture", () => ({
   ),
   resolvePreviewMapPeriod: () => "2020",
 }));
+// A legenda também tem teste próprio (LegacyAppearanceFields.test.tsx) e lê a
+// aparência gravada ao montar; aqui ela só entraria na fila de respostas de
+// fetch que cada caso monta.
+vi.mock("@/components/IndexCatalog/LegacyAppearanceFields", () => ({
+  LegacyAppearanceFields: () => <div data-testid="legacy-appearance-probe" />,
+}));
 vi.mock("@/components/IndexCatalog/CatalogReportPreview", () => ({
   CatalogReportPreview: () => (
     <div data-testid="catalog-report-preview-probe" />
@@ -106,7 +112,9 @@ describe("LegacyIndexEditor", () => {
 
     expect(screen.getByLabelText("Unidade de medida")).toHaveValue("registros");
     expect(screen.getByLabelText("Posição na categoria")).toHaveValue("4");
-    // Nada de estatísticas, mapa ou classes: mexer nisso mudaria os números.
+    expect(screen.getByTestId("legacy-appearance-probe")).toBeInTheDocument();
+    // Nem estatísticas, nem assets, nem períodos: reescrever a origem dos
+    // dados de um legado mudaria os números, não a apresentação.
     expect(
       screen.queryByText("Fonte das estatísticas"),
     ).not.toBeInTheDocument();

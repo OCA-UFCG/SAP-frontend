@@ -267,13 +267,17 @@ pré-compacto (`imageParams` por ano, como `CDI` e `veg`): sem `classes`,
 
 `PUT /api/index-catalog/entries/[entryId]/presentation` grava `name`,
 `description`, `category`, `measurementUnit` e `panelPosition`, e mais nada.
-Nunca `imageData`, nunca `statisticsSource`, nunca classes:
+Nunca `imageData` inteiro, nunca `statisticsSource`:
 
 - reescrever o `imageData` de um legado apagaria os valores territoriais que
-  estão gravados ali;
+  estão gravados ali — nos legados eles ocupam a maior parte do campo (196 KB
+  dos 238 KB de `CDI_Test`, 93 KB dos 100 KB de `anaseca`);
 - gravar `statisticsSource` desligaria o fallback do Contentful sem volta —
   `municipalAnalysisRepository` relança o erro do GEE em vez de ler as
   partições quando a camada declara uma fonte dinâmica.
+
+Rótulos e cores moram dentro do `imageData` e têm escrita própria, descrita
+abaixo, justamente porque ela precisa de uma guarda que esta não precisa.
 
 A unidade é editável e não é normalizada para `%` como no escopo completo,
 porque os legados usam `classes`, `%` e `registros`. Toda escrita do catálogo
@@ -282,6 +286,88 @@ mandava `measurementUnit: "%"` fixo, o que trocaria a unidade de
 
 Salvar não derruba `status` nem apaga validação alguma: não existe validação de
 assets neste escopo, e "Gerar prévia" apenas lê a entry.
+
+### Legenda, cores e limites
+
+`GET` e `PUT /api/index-catalog/entries/[entryId]/appearance` editam o que a
+pessoa vê no mapa. É a única escrita do escopo de apresentação que toca o
+`imageData`, e a mais cuidadosa do catálogo.
+
+**Onde a legenda mora.** A plataforma resolve a legenda como
+`mapVisualization.legend ?? classes` (`buildCompactImageParams`, em
+`src/utils/imageData.ts`), e a edição grava no mesmo lugar de onde o mapa lê —
+nunca nos dois. Isso divide os legados em duas famílias:
+
+- **classificatórios** (`terraibge`, `deg`, `carbonoembrapa`, `anaseca`, …) — as
+  classes são a legenda, e cada linha é uma classe do raster;
+- **valor único** (`pob_total`, `pob_rural`, `pob_urb`, `s2id_secas_estiagens`) —
+  `classes` tem uma linha só, o nome da série medida que aparece no painel e no
+  gráfico, e as faixas coloridas do mapa estão em `mapVisualization.legend`. O
+  formulário mostra as duas coisas separadas, com esses nomes.
+
+**O que a rota garante.** `applyLegacyAppearance` (em
+`src/utils/legacyAppearance.ts`) aplica a alteração por cópia do objeto gravado
+e:
+
+- recusa criar, remover ou reordenar linhas. `values[locationKey][i]` é a classe
+  `i`, então mexer na lista desalinharia todos os números já publicados de todos
+  os períodos. Isso vale para os 14 legados adotáveis: em todos eles o tamanho
+  das listas de valores é igual ao número de classes;
+- sincroniza `mapVisualization.palette` com as cores da legenda, **casando cada
+  casa da paleta pela cor que ela já tem**, e não pela posição. A paleta é
+  indexada pelo valor de pixel do raster: `cemadenseca` lista as classes com
+  `pixelLimit` de 6 a 1 e a paleta de 1 a 6, na ordem inversa da legenda (e sem
+  `#`, que o Earth Engine também aceita). Sincronizar por posição inverteria as
+  cores do mapa inteiro — e a conferência de aparência não pegaria isso, porque
+  a paleta é um campo que esta edição pode escrever. A convenção de escrita da
+  entry é preservada. Quando alguma casa não corresponde a exatamente uma linha,
+  ou quando os tamanhos não coincidem, a edição de **cores** é recusada com o
+  motivo; editar só rótulos continua permitido, porque aí a paleta não entra em
+  jogo;
+- não reescreve a caixa das letras de uma cor que não mudou. A tela normaliza
+  tudo para `#RRGGBB` em maiúsculas e a maioria dos legados está gravada em
+  minúsculas; sem isso, abrir um índice e salvar sem editar nada criaria uma
+  versão nova e o marcaria como "alterações não publicadas" à toa;
+- descarta o `tone` de uma classe cuja cor mudou. `tone` são as cores do chip no
+  painel de análise; sem ele o painel recalcula o tom a partir de `color`, e com
+  ele o painel continuaria na cor antiga;
+- mantém `pixelLimit`, `value` e qualquer campo que o contrato não conhece,
+  porque nenhuma linha é reconstruída do zero;
+- aceita novos `thresholds` só quando o índice já classifica o mapa por limites,
+  na mesma quantidade e em ordem crescente. Eles estão na unidade do asset
+  (`7000, 13000, …` em `prodprimariabruta`), não na do rótulo;
+- confere, antes de gravar, que nada além de rótulos, cores, paleta e limites
+  mudou (`assertOnlyAppearanceChanged`). O objeto novo é construído por cópia do
+  antigo, então essa conferência só falha se alguém mudar essa construção — e é
+  para esse dia que ela existe.
+
+**O corpo da requisição carrega só as linhas.** O servidor relê o `imageData`
+gravado e aplica a alteração em cima dele, para que os valores territoriais não
+trafeguem pelo navegador nem possam voltar corrompidos.
+
+**Uma edição que não muda nada não grava.** Cada `patch` cria uma versão nova no
+Contentful e marcaria um índice publicado como "alterações não publicadas" sem
+que exista alteração alguma.
+
+Como o `imageData` do `panelLayer` é a autoridade da aparência —
+`mergeCompactDataset` preserva `classes` e `mapVisualization` da base e ignora
+os das partições —, um rótulo editado aqui vale para o mapa, a legenda, o painel
+de análise e o relatório, em todos os períodos de uma vez.
+
+### Criar versão v2 a partir de um legado
+
+"Criar versão v2", no cartão de um legado adotado, abre o formulário completo
+preenchido com o que o índice já tem: nome (com sufixo `(v2)`, porque o ID
+técnico nasce do nome e não pode colidir com o do legado), descrição, categoria,
+a legenda inteira com rótulos e cores, e os limites do mapa quando existem.
+
+Nada é gravado e a entry legada não é tocada. Migrar um índice continua sendo
+criar um índice v2 novo ao lado do legado — foi assim que `cobertura-da-terra-ibge-s`,
+`monitor-de-seca-ana` e os dois índices de aridez nasceram, redigitados à mão — e
+a troca (despublicar o legado, publicar o novo) continua sendo uma decisão
+explícita do operador. O botão remove a redigitação, não a decisão. Os índices
+de classe são reescritos pela validação a partir das colunas `perc_classe_XX` do
+asset; a ordem das classes do legado é a aposta inicial.
 
 ### Prévia e texto do relatório
 
@@ -315,7 +401,10 @@ publicado. Um texto vazio devolve o índice ao documento.
   apagá-lo tiraria o índice da plataforma sem nada para reconstruí-lo.
   "Despublicar" continua disponível;
 - não muda a origem dos dados. Migrar um legado para o escopo completo continua
-  exigindo a FeatureCollection estatística no GEE.
+  exigindo a FeatureCollection estatística no GEE; o catálogo só adianta o
+  preenchimento do formulário;
+- não cria nem remove classes, e não mexe em `imageId`, períodos, `pixelLimit`
+  nem nos valores — só na aparência deles.
 
 ## Compatibilidade e falhas
 
