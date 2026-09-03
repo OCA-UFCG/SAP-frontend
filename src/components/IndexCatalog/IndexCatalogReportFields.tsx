@@ -8,6 +8,10 @@ import {
   DEFAULT_CATALOG_REPORT_METHODOLOGY,
   DEFAULT_CATALOG_REPORT_SECTIONS,
 } from "@/config/indexCatalogReportText";
+import {
+  createDefaultReportDraft,
+  type IndexCatalogReportDraft,
+} from "@/utils/indexCatalogReportDraft";
 
 /** Cor de cabeçalho sugerida quando o operador pede uma cor própria. */
 const SUGGESTED_SECTION_COLOR = "#176B39";
@@ -15,35 +19,6 @@ const SUGGESTED_SECTION_COLOR = "#176B39";
 const MAX_SECTIONS = 12;
 const GENERIC_SECTION_HINT =
   "Texto desta seção do relatório. Use colchetes para inserir dados do município.";
-
-/**
- * O texto do relatório em edição. Vive separado de `IndexCatalogDraftInput` de
- * propósito: mudar uma frase não descreve os dados e não pode invalidar a
- * prévia já validada no Earth Engine.
- */
-export interface IndexCatalogReportDraft {
-  sections: Array<{ title: string; text: string }>;
-  sectionColor: string;
-  methodology: string;
-}
-
-/**
- * O rascunho de texto com que um índice novo começa.
- *
- * Vem preenchido, e não em branco, porque um índice do catálogo não tem seção
- * no Google Docs: em branco ele publicaria sem nenhuma narrativa. O texto
- * padrão é genérico mas publicável, e serve de exemplo vivo de onde entra
- * frase e onde entra dado.
- */
-export function createDefaultReportDraft(): IndexCatalogReportDraft {
-  return {
-    sections: DEFAULT_CATALOG_REPORT_SECTIONS.map((section) => ({
-      ...section,
-    })),
-    sectionColor: "",
-    methodology: DEFAULT_CATALOG_REPORT_METHODOLOGY,
-  };
-}
 
 function getSectionHint(index: number) {
   return CATALOG_REPORT_SECTION_HINTS[index] ?? GENERIC_SECTION_HINT;
@@ -257,8 +232,9 @@ export function IndexCatalogReportFields({
           Salvar textos do relatório
         </button>
         <p className="mt-2 text-xs text-stone-500">
-          Salvar os textos não refaz a conferência dos assets: a prévia já
-          validada continua valendo.
+          Este botão grava só os textos, sem refazer a conferência dos assets: a
+          prévia já validada continua valendo. “Salvar rascunho” e “Validar
+          assets e gerar prévia” também gravam os textos.
         </p>
       </div>
 

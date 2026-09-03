@@ -19,16 +19,20 @@ import {
   type CatalogApiErrorBody as ApiErrorBody,
 } from "@/components/IndexCatalog/catalogApiClient";
 import { IndexCatalogGuideModal } from "@/components/IndexCatalog/IndexCatalogGuideModal";
-import {
-  createDefaultReportDraft,
-  IndexCatalogReportFields,
-  type IndexCatalogReportDraft,
-} from "@/components/IndexCatalog/IndexCatalogReportFields";
+import { IndexCatalogReportFields } from "@/components/IndexCatalog/IndexCatalogReportFields";
 import { ImageCollectionForecastGuideModal } from "@/components/IndexCatalog/ImageCollectionForecastGuideModal";
 import {
   detectYearPartitionedTemplate,
   fillYearPlaceholder,
 } from "@/utils/indexCatalog";
+import type { PublishedPanelLayerReportConfig } from "@/contracts/panelLayerReport";
+import {
+  createDefaultReportDraft,
+  isStoredReportText,
+  toReportDraft,
+  toReportTextPayload,
+  type IndexCatalogReportDraft,
+} from "@/utils/indexCatalogReportDraft";
 import {
   INDEX_CATEGORIES,
   isIndexCatalogConfigV2,
@@ -229,6 +233,14 @@ export function IndexCatalogScreen() {
   const entryIdRef = useRef<string | null>(null);
   const createKeyRef = useRef<string | null>(null);
   const previewKeyRef = useRef<string | null>(null);
+  /**
+   * O texto do relatório já gravado neste índice. Fica num ref, e não vem da
+   * lista de itens, porque o `saveDraft` compara logo depois de criar a entry —
+   * antes de a lista ser recarregada.
+   */
+  const storedReportRef = useRef<PublishedPanelLayerReportConfig | undefined>(
+    undefined,
+  );
   const validationRunRef = useRef(0);
   const validationCompletionTimerRef = useRef<number | null>(null);
 
@@ -277,6 +289,7 @@ export function IndexCatalogScreen() {
     entryIdRef.current = null;
     createKeyRef.current = null;
     previewKeyRef.current = null;
+    storedReportRef.current = undefined;
     setPreview(null);
     setThresholdsInput("");
     setLeadValuesInput("1, 2, 3, 4");
@@ -296,15 +309,8 @@ export function IndexCatalogScreen() {
     // Um rascunho sem texto salvo recebe o padrão, e não campos vazios: é o
     // mesmo ponto de partida de um índice novo, inclusive para os que foram
     // criados antes de existir texto de relatório no catálogo.
-    setReport(
-      config.report
-        ? {
-            sections: config.report.sections.map((section) => ({ ...section })),
-            sectionColor: config.report.sectionColor ?? "",
-            methodology: config.report.methodology ?? "",
-          }
-        : createDefaultReportDraft(),
-    );
+    setReport(toReportDraft(config.report));
+    storedReportRef.current = config.report;
     const assetMode = inferStatisticsAssetMode(config.statisticsSource.asset);
     setStatisticsAssetMode(assetMode);
     // Reexibe o ano que o operador digitou, e não o placeholder gravado.
@@ -469,6 +475,12 @@ export function IndexCatalogScreen() {
       entryIdRef.current = result.entryId;
       setEntryId(result.entryId);
       setDraft(input);
+      // O texto do relatório vai junto. Ele tem rota própria porque um ajuste de
+      // frase não deve refazer a validação, mas quem clica "Salvar rascunho" — ou
+      // "Validar assets e gerar prévia", que passa por aqui — espera que o que
+      // está na tela seja gravado. Sem isto o texto ficava só no navegador e a
+      // prévia do relatório mostrava a frase automática.
+      await writeReportText(result.entryId);
       if (!withinValidation) {
         setMessage("Rascunho salvo no sistema. Nada foi publicado.");
       }
@@ -487,9 +499,33 @@ export function IndexCatalogScreen() {
   }
 
   /**
-   * Salva o texto do relatório pela rota própria. Não passa por `saveDraft`
-   * porque o `PUT` do rascunho zera a validação e obrigaria uma nova conferência
-   * de todos os assets no Earth Engine só para corrigir uma frase.
+   * Grava o texto do relatório pela rota própria, que não zera a validação.
+   *
+   * Devolve `null` quando não havia nada a gravar, para o chamador saber que
+   * nenhuma requisição foi feita. Uma escrita à toa custaria uma ida ao
+   * Contentful e um evento na trilha de auditoria em cada salvamento.
+   */
+  async function writeReportText(currentEntryId: string) {
+    const payload = toReportTextPayload(report);
+    if (isStoredReportText(payload, storedReportRef.current)) return null;
+    const result = await apiRequest<{ requiresRepublish: boolean }>(
+      `/api/index-catalog/drafts/${encodeURIComponent(currentEntryId)}/report-text`,
+      {
+        method: "POST",
+        headers: {
+          "Idempotency-Key": idempotencyKey("report-text", currentEntryId),
+        },
+        body: JSON.stringify({ report: payload }),
+      },
+    );
+    storedReportRef.current = payload;
+    return result;
+  }
+
+  /**
+   * O botão dedicado da seção: grava só o texto, sem passar pelo `PUT` do
+   * rascunho, que zeraria a validação e obrigaria uma nova conferência de todos
+   * os assets no Earth Engine só para corrigir uma frase.
    */
   async function saveReportText() {
     const currentEntryId = entryIdRef.current;
@@ -501,27 +537,9 @@ export function IndexCatalogScreen() {
     setError("");
     setMessage("");
     try {
-      const result = await apiRequest<{ requiresRepublish: boolean }>(
-        `/api/index-catalog/drafts/${encodeURIComponent(currentEntryId)}/report-text`,
-        {
-          method: "POST",
-          headers: {
-            "Idempotency-Key": idempotencyKey("report-text", currentEntryId),
-          },
-          body: JSON.stringify({
-            report: {
-              schemaVersion: 1,
-              sections: report.sections.filter((section) =>
-                section.text.trim(),
-              ),
-              sectionColor: report.sectionColor || undefined,
-              methodology: report.methodology.trim() || undefined,
-            },
-          }),
-        },
-      );
+      const result = await writeReportText(currentEntryId);
       setMessage(
-        result.requiresRepublish
+        result?.requiresRepublish
           ? "Textos salvos. Publique o índice de novo para que eles apareçam no relatório."
           : "Textos do relatório salvos.",
       );

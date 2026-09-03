@@ -40,6 +40,14 @@ precise saber de onde ele veio — inclusive a substituição de variáveis entr
 colchetes e a regra de que uma seção "Situação atual" vence a frase gerada
 automaticamente. Sem `reportConfig`, o índice continua lendo o documento.
 
+O "Salvar rascunho" e o "Validar assets e gerar prévia" gravam o texto junto com
+o formulário, chamando a rota de texto depois do `PUT`. Sem isso o texto ficava
+apenas no navegador e a prévia do relatório mostrava a frase automática — quem
+clica no botão de salvar principal espera que o que está na tela seja gravado. A
+escrita é evitada quando o texto em edição já é o gravado (`isStoredReportText`),
+para não gastar uma requisição ao Contentful e um evento de auditoria a cada
+salvamento.
+
 A escrita tem rota própria,
 `POST /api/index-catalog/drafts/[entryId]/report-text`, e **não** o `PUT` do
 rascunho: `updateIndexCatalogDraft` zera `status`, `validation` e
