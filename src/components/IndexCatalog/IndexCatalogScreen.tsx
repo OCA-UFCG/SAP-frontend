@@ -18,6 +18,11 @@ import {
   type CatalogApiErrorBody as ApiErrorBody,
 } from "@/components/IndexCatalog/catalogApiClient";
 import { IndexCatalogGuideModal } from "@/components/IndexCatalog/IndexCatalogGuideModal";
+import {
+  EMPTY_REPORT_DRAFT,
+  IndexCatalogReportFields,
+  type IndexCatalogReportDraft,
+} from "@/components/IndexCatalog/IndexCatalogReportFields";
 import { ImageCollectionForecastGuideModal } from "@/components/IndexCatalog/ImageCollectionForecastGuideModal";
 import {
   detectYearPartitionedTemplate,
@@ -200,6 +205,8 @@ function parseNumberList(value: string, label: string, integersOnly = false) {
 export function IndexCatalogScreen() {
   const [items, setItems] = useState<IndexCatalogItem[]>([]);
   const [draft, setDraft] = useState<IndexCatalogDraftInput>(EMPTY_DRAFT);
+  const [report, setReport] =
+    useState<IndexCatalogReportDraft>(EMPTY_REPORT_DRAFT);
   const [statisticsAssetMode, setStatisticsAssetMode] =
     useState<StatisticsAssetMode>("fixed");
   const [yearSampleAssetId, setYearSampleAssetId] = useState("");
@@ -261,6 +268,7 @@ export function IndexCatalogScreen() {
 
   function resetEditor() {
     setDraft(structuredClone(EMPTY_DRAFT));
+    setReport(structuredClone(EMPTY_REPORT_DRAFT));
     setStatisticsAssetMode("fixed");
     setYearSampleAssetId("");
     setEntryId(null);
@@ -282,6 +290,11 @@ export function IndexCatalogScreen() {
       statisticsSource: config.statisticsSource,
       classes: config.classes,
       earthEngine: { ...config.earthEngine, assetsByPeriod: undefined },
+    });
+    setReport({
+      sections: config.report?.sections.map((section) => ({ ...section })) ?? [],
+      sectionColor: config.report?.sectionColor ?? "",
+      methodology: config.report?.methodology ?? "",
     });
     const assetMode = inferStatisticsAssetMode(config.statisticsSource.asset);
     setStatisticsAssetMode(assetMode);
@@ -461,6 +474,57 @@ export function IndexCatalogScreen() {
       return null;
     } finally {
       if (!withinValidation) setBusy(null);
+    }
+  }
+
+  /**
+   * Salva o texto do relatório pela rota própria. Não passa por `saveDraft`
+   * porque o `PUT` do rascunho zera a validação e obrigaria uma nova conferência
+   * de todos os assets no Earth Engine só para corrigir uma frase.
+   */
+  async function saveReportText() {
+    const currentEntryId = entryIdRef.current;
+    if (!currentEntryId) {
+      setError("Salve o rascunho antes de escrever os textos do relatório.");
+      return;
+    }
+    setBusy("report-text");
+    setError("");
+    setMessage("");
+    try {
+      const result = await apiRequest<{ requiresRepublish: boolean }>(
+        `/api/index-catalog/drafts/${encodeURIComponent(currentEntryId)}/report-text`,
+        {
+          method: "POST",
+          headers: {
+            "Idempotency-Key": idempotencyKey("report-text", currentEntryId),
+          },
+          body: JSON.stringify({
+            report: {
+              schemaVersion: 1,
+              sections: report.sections.filter((section) =>
+                section.text.trim(),
+              ),
+              sectionColor: report.sectionColor || undefined,
+              methodology: report.methodology.trim() || undefined,
+            },
+          }),
+        },
+      );
+      setMessage(
+        result.requiresRepublish
+          ? "Textos salvos. Publique o índice de novo para que eles apareçam no relatório."
+          : "Textos do relatório salvos.",
+      );
+      await loadItems();
+    } catch (reason) {
+      setError(
+        reason instanceof Error
+          ? reason.message
+          : "Falha ao salvar os textos do relatório.",
+      );
+    } finally {
+      setBusy(null);
     }
   }
 
@@ -1228,6 +1292,15 @@ export function IndexCatalogScreen() {
             O valor é sempre percentual e a unidade é sempre % nesta versão.
           </p>
         </fieldset>
+
+        <IndexCatalogReportFields
+          report={report}
+          inputClass={inputClass}
+          buttonClass={buttonClass}
+          disabled={Boolean(busy) || !entryId}
+          onChange={setReport}
+          onSave={() => void saveReportText()}
+        />
 
         <div className="mt-6 flex flex-wrap gap-3">
           <CatalogActionButton
