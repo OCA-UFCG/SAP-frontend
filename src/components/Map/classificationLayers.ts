@@ -137,11 +137,16 @@ export const CLASSIFICATION_FILL_COLOR = buildClassificationCases(
   "transparent",
 );
 
-export const CLASSIFICATION_FILL_OPACITY = buildClassificationCases(
-  () => CLASSIFIED_OPACITY,
-  EXCLUDED_OPACITY,
-  0,
-);
+export const buildClassificationFillOpacity = (
+  classifiedOpacity: number = CLASSIFIED_OPACITY,
+) =>
+  buildClassificationCases(
+    () => classifiedOpacity,
+    classifiedOpacity * (EXCLUDED_OPACITY / CLASSIFIED_OPACITY),
+    0,
+  );
+
+export const CLASSIFICATION_FILL_OPACITY = buildClassificationFillOpacity();
 
 export const CLASSIFICATION_OUTLINE_OPACITY = buildClassificationCases(
   () => CLASSIFIED_OUTLINE_OPACITY,
@@ -256,6 +261,31 @@ export const ensureClassificationOverviewLayer = (
     { maxzoom: CLASSIFICATION_MIN_ZOOM },
     resolveBeforeLayerId(map),
   );
+};
+
+export interface PaintCapableMap extends Pick<LayerCapableMap, "getLayer"> {
+  setPaintProperty(
+    layerId: string,
+    name: string,
+    value: ExpressionSpecification,
+  ): void;
+}
+
+const CLASSIFICATION_FILL_LAYER_IDS = [
+  CLASSIFICATION_LAYER_ID,
+  CLASSIFICATION_OVERVIEW_LAYER_ID,
+] as const;
+
+export const applyClassificationFillOpacity = (
+  map: PaintCapableMap,
+  classifiedOpacity: number,
+) => {
+  const expression = buildClassificationFillOpacity(classifiedOpacity);
+
+  for (const layerId of CLASSIFICATION_FILL_LAYER_IDS) {
+    if (!map.getLayer(layerId)) continue;
+    map.setPaintProperty(layerId, "fill-opacity", expression);
+  }
 };
 
 const featureRefs = (

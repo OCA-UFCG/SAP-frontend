@@ -3,6 +3,7 @@ import { useEffect, useRef } from "react";
 import {
   CLASSIFICATION_SOURCES,
   applyClassificationFeatureStates,
+  applyClassificationFillOpacity,
   clearClassificationFeatureStates,
   ensureClassificationLayer,
   ensureClassificationOverviewLayer,
@@ -23,15 +24,22 @@ const resolveReadySources = (
  * descartado quando o estilo recarrega — daí o reapply no evento `styledata`.
  *
  * @example
- * useMunicipalityClassification(mapRef, analysis, overview, mapInstanceVersion);
+ * useMunicipalityClassification(mapRef, analysis, overview, version, 0.4);
  */
 export const useMunicipalityClassification = (
   mapRef: React.RefObject<maplibregl.Map | null>,
   classification: MunicipalityClassification | null,
   overviewGeoJson: MunicipalityOverviewGeoJson | null,
   mapInstanceVersion: number,
+  fillOpacity: number,
 ) => {
   const appliedCodesRef = useRef<Set<string>>(new Set());
+  // A opacidade entra por ref, e não nas dependências do efeito abaixo:
+  // regravar a classificação inteira custa duas escritas de feature-state por
+  // município (mais de 11 mil numa análise nacional) e mover a barra só precisa
+  // repintar duas camadas. O efeito de pintura, logo adiante, é quem responde
+  // à barra.
+  const fillOpacityRef = useRef(fillOpacity);
 
   useEffect(() => {
     const map = mapRef.current;
@@ -45,6 +53,10 @@ export const useMunicipalityClassification = (
       if (classification && overviewGeoJson) {
         ensureClassificationOverviewLayer(map, overviewGeoJson);
       }
+
+      // Depois de garantir as camadas: a barra pode ter mudado antes de a
+      // coropleta existir, e o reload de estilo devolve o paint padrão.
+      applyClassificationFillOpacity(map, fillOpacityRef.current);
 
       const sources = resolveReadySources(map);
 
@@ -67,4 +79,16 @@ export const useMunicipalityClassification = (
       map.off("styledata", syncClassification);
     };
   }, [classification, mapInstanceVersion, mapRef, overviewGeoJson]);
+
+  // Mover a barra repinta as duas camadas de preenchimento e mais nada. Sem
+  // camada na tela ainda, `applyClassificationFillOpacity` não faz nada, e o
+  // efeito acima aplica o valor guardado assim que a coropleta existir.
+  useEffect(() => {
+    fillOpacityRef.current = fillOpacity;
+
+    const map = mapRef.current;
+    if (!map) return;
+
+    applyClassificationFillOpacity(map, fillOpacity);
+  }, [fillOpacity, mapRef]);
 };

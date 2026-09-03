@@ -23,6 +23,7 @@ const { mapInstances, MapConstructorMock } = vi.hoisted(() => ({
     setFeatureState: ReturnType<typeof vi.fn>;
     setFilter: ReturnType<typeof vi.fn>;
     setLayoutProperty: ReturnType<typeof vi.fn>;
+    setPaintProperty: ReturnType<typeof vi.fn>;
     setPadding: ReturnType<typeof vi.fn>;
     sources: Map<string, unknown>;
     sourceFeatures: Array<unknown>;
@@ -139,6 +140,7 @@ vi.mock("maplibre-gl", () => {
     setFilter = vi.fn(() => this);
     getFeatureState = vi.fn(() => ({}));
     setLayoutProperty = vi.fn(() => this);
+    setPaintProperty = vi.fn(() => this);
     getContainer = vi.fn(() => ({ clientWidth: 1280 }));
     getCanvas = vi.fn(() => ({ style: { cursor: "" } }));
     remove = vi.fn();
