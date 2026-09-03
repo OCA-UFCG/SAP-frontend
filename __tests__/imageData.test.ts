@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import {
   getImageDataLegend,
   keepOnlyFutureForecastPeriods,
+  resolveImageCollectionPeriod,
   resolveImageYearEntry,
 } from "@/utils/imageData";
 import type { CompactTerritorialAnalysisDataset } from "@/utils/analysis";
@@ -200,5 +201,83 @@ describe("imageData helpers", () => {
       "2026-08",
       "2026-09",
     ]);
+  });
+});
+
+/**
+ * Regressão: os 35 períodos do Índice de Aridez BR-DWGD apontam para a mesma
+ * `ImageCollection`, então sem uma janela de tempo o mapa exibia sempre a
+ * última imagem empilhada, independente do ano escolhido no painel.
+ */
+describe("resolveImageCollectionPeriod", () => {
+  const baseEntry = {
+    default: false,
+    imageId:
+      "projects/obscaatinga/assets/ColecaoImagens/IA_atlas_BR_DWGD_default_v1",
+    imageParams: [],
+  };
+
+  it("turns an annual period into the UTC window of that year", () => {
+    expect(
+      resolveImageCollectionPeriod({ ...baseEntry, year: "1990" }),
+    ).toEqual({
+      startMillis: Date.UTC(1990, 0, 1),
+      endMillis: Date.UTC(1991, 0, 1),
+    });
+  });
+
+  it("turns a monthly period into the UTC window of that month", () => {
+    expect(
+      resolveImageCollectionPeriod({ ...baseEntry, year: "2024-12" }),
+    ).toEqual({
+      startMillis: Date.UTC(2024, 11, 1),
+      endMillis: Date.UTC(2025, 0, 1),
+    });
+  });
+
+  it("adds the configured year label so assets with unreliable dates still work", () => {
+    expect(
+      resolveImageCollectionPeriod({
+        ...baseEntry,
+        year: "2000",
+        mapVisualization: {
+          sourceType: "imageCollection",
+          imageCollectionPeriodProperty: "ano",
+        },
+      }),
+    ).toEqual({
+      startMillis: Date.UTC(2000, 0, 1),
+      endMillis: Date.UTC(2001, 0, 1),
+      property: "ano",
+      value: "2000",
+    });
+  });
+
+  it("leaves forecast layers to their own selection", () => {
+    expect(
+      resolveImageCollectionPeriod({
+        ...baseEntry,
+        year: "2026-09",
+        leadTime: 1,
+        mapVisualization: {
+          sourceType: "imageCollection",
+          imageCollectionSelection: {
+            latestProperty: "data_emissao",
+            latestValue: 20260801,
+            filterProperty: "lead_time",
+          },
+        },
+      }),
+    ).toBeUndefined();
+  });
+
+  it("ignores period keys that are not datable", () => {
+    expect(
+      resolveImageCollectionPeriod({ ...baseEntry, year: "general" }),
+    ).toBeUndefined();
+    expect(resolveImageCollectionPeriod(baseEntry)).toBeUndefined();
+    expect(
+      resolveImageCollectionPeriod({ ...baseEntry, year: "2024-13" }),
+    ).toBeUndefined();
   });
 });

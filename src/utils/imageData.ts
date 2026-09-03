@@ -1,6 +1,7 @@
 import type {
   CompactMapVisualizationConfig,
   CompactTerritorialAnalysisDataset,
+  ResolvedImageCollectionPeriod,
   ResolvedImageCollectionSelection,
 } from "@/utils/analysis";
 import type {
@@ -44,6 +45,74 @@ export function resolveImageCollectionSelection(
     yearConfig.imageId,
     yearConfig.leadTime,
   );
+}
+
+const YEAR_PERIOD_PATTERN = /^(\d{4})$/u;
+const MONTH_PERIOD_PATTERN = /^(\d{4})-(\d{2})$/u;
+
+/**
+ * Janela UTC do período, ou `undefined` para chaves que não são um período
+ * datável (`general`, rótulos livres).
+ */
+function resolvePeriodRange(period: string) {
+  const yearMatch = YEAR_PERIOD_PATTERN.exec(period);
+
+  if (yearMatch) {
+    const year = Number(yearMatch[1]);
+    return {
+      startMillis: Date.UTC(year, 0, 1),
+      endMillis: Date.UTC(year + 1, 0, 1),
+    };
+  }
+
+  const monthMatch = MONTH_PERIOD_PATTERN.exec(period);
+  if (!monthMatch) {
+    return undefined;
+  }
+
+  const year = Number(monthMatch[1]);
+  const month = Number(monthMatch[2]);
+  if (month < 1 || month > 12) {
+    return undefined;
+  }
+
+  return {
+    startMillis: Date.UTC(year, month - 1, 1),
+    endMillis: Date.UTC(year, month, 1),
+  };
+}
+
+/**
+ * Como escolher, dentro de uma `ImageCollection`, a imagem do período pedido
+ * quando a camada não traz uma `imageCollectionSelection` explícita.
+ *
+ * Sem isso a coleção inteira era empilhada com `mosaic()` e o mapa mostrava
+ * sempre a última imagem, qualquer que fosse o ano selecionado — o bug das
+ * camadas Índice de Aridez (BR-DWGD e ERA5 Land) e Cobertura da Terra IBGE,
+ * cujos 35, 45 e 6 períodos apontam todos para o mesmo endereço de coleção.
+ *
+ * @example
+ * resolveImageCollectionPeriod({ year: "1990", ... });
+ * // { startMillis: 631152000000, endMillis: 662688000000 }
+ */
+export function resolveImageCollectionPeriod(
+  yearConfig: ResolvedImageYearEntry,
+): ResolvedImageCollectionPeriod | undefined {
+  // As camadas de previsão já sabem escolher a imagem pela rodada e pelo
+  // lead time; filtrar por data em cima disso descartaria a escolha delas.
+  if (resolveImageCollectionSelection(yearConfig)) {
+    return undefined;
+  }
+
+  const period = yearConfig.year;
+  const range = period ? resolvePeriodRange(period) : undefined;
+  if (!period || !range) {
+    return undefined;
+  }
+
+  const property = yearConfig.mapVisualization?.imageCollectionPeriodProperty;
+
+  return { ...range, ...(property ? { property, value: period } : {}) };
 }
 
 function sortYearKeys(keys: string[]): string[] {

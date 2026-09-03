@@ -120,6 +120,33 @@ falha **não** é memorizada: guardá-la fixaria o ramo `ee.Image` numa camada q
 Publicar `sourceType` é, portanto, a diferença entre uma e nenhuma ida ao Earth
 Engine por URL de tiles. Das 19 camadas publicadas hoje, 11 o declaram.
 
+## Uma `ImageCollection` é filtrada pelo período pedido
+
+Quando `sourceType` é `imageCollection`, todos os períodos da camada podem
+apontar para o mesmo endereço de coleção — é o caso do Índice de Aridez
+(BR-DWGD, 35 anos; ERA5 Land, 45 anos) e da Cobertura da Terra IBGE (6 anos).
+Nesses casos a chave do período é o único dado que diz qual imagem exibir.
+
+`resolveImageCollectionPeriod` (`src/utils/imageData.ts`) converte a chave do
+período na janela UTC correspondente (`1990` → 1º/jan/1990 até 1º/jan/1991;
+`2024-12` → 1º/dez/2024 até 1º/jan/2025) e `selectImageCollectionImage`
+(`src/app/api/ee/services.ts`) reduz a coleção a essa janela por
+`system:time_start` antes de mosaicar. Se nenhuma imagem casar, a coleção
+inteira volta a ser empilhada — o comportamento anterior, preservado para
+coleções que são pedaços de um mesmo período. A decisão acontece dentro da
+expressão do Earth Engine (`ee.Algorithms.If`), sem ida extra à rede.
+
+Camadas com `imageCollectionSelection` (as de previsão) escolhem a imagem pela
+rodada e pelo lead time e não passam por essa filtragem.
+
+`mapVisualization.imageCollectionPeriodProperty` é o escape hatch para assets
+cuja `system:time_start` não corresponde ao período publicado: ele nomeia a
+etiqueta de ano das imagens (`ano_fim_janela`, `ano`, ...) e o filtro passa a
+usá-la, aceitando o valor como número ou como texto, porque a mesma etiqueta
+aparece nas duas formas dependendo de quem exportou o asset. O catálogo não
+preenche esse campo; ele existe para edição direta no Contentful quando a data
+do asset estiver errada.
+
 ## Exemplo invalido
 
 ```json

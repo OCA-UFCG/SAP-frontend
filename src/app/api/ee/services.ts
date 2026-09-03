@@ -9,10 +9,14 @@ import { getPanelLayers } from "@/repositories/platform/panelLayerRepository";
 import { IMapId, IEEInfo, IImageParam } from "@/utils/interfaces";
 import {
   getImageDataDefaultYear,
+  resolveImageCollectionPeriod,
   resolveImageCollectionSelection,
   resolveImageYearEntry,
 } from "@/utils/imageData";
-import type { CompactMapVisualizationConfig } from "@/utils/analysis";
+import type {
+  CompactMapVisualizationConfig,
+  ResolvedImageCollectionPeriod,
+} from "@/utils/analysis";
 import {
   DEFAULT_SPATIAL_SELECTION,
   type SpatialSelection,
@@ -265,6 +269,7 @@ interface GetEarthEngineUrlOptions {
   mapVisualization?: CompactMapVisualizationConfig;
   spatialSelection?: SpatialSelection;
   imageCollectionSelection?: ImageCollectionSelection;
+  imageCollectionPeriod?: ResolvedImageCollectionPeriod;
 }
 
 function isFeatureCollectionAsset({
@@ -294,13 +299,69 @@ function isImageCollectionAsset({
   );
 }
 
+/**
+ * A coleção reduzida às imagens do período pedido.
+ *
+ * A mesma etiqueta de ano aparece como número num asset (`ano_fim_janela: 1990`)
+ * e como texto em outro (`ano: "2000"`), então o filtro por etiqueta aceita as
+ * duas formas em vez de exigir que o catálogo saiba o tipo.
+ */
+function filterCollectionByPeriod(
+  collection: any,
+  period: ResolvedImageCollectionPeriod,
+) {
+  if (!period.property || !period.value) {
+    return collection.filterDate(period.startMillis, period.endMillis);
+  }
+
+  const numericValue = Number(period.value);
+
+  return collection.filter(
+    Number.isFinite(numericValue)
+      ? ee.Filter.or(
+          ee.Filter.eq(period.property, numericValue),
+          ee.Filter.eq(period.property, period.value),
+        )
+      : ee.Filter.eq(period.property, period.value),
+  );
+}
+
+/**
+ * Mosaico apenas das imagens do período pedido, caindo para a coleção inteira
+ * quando nenhuma imagem casa com o período.
+ *
+ * O `ee.Algorithms.If` decide isso dentro da própria expressão do Earth Engine:
+ * medir o tamanho da coleção aqui custaria uma ida extra de ~1 s em cada miss de
+ * cache. O fallback preserva o comportamento antigo para coleções que são
+ * pedaços de um mesmo período e evita mapa em branco quando a data do asset não
+ * corresponde ao período publicado.
+ */
+function selectPeriodMosaic(
+  collection: any,
+  period: ResolvedImageCollectionPeriod,
+) {
+  const periodCollection = filterCollectionByPeriod(collection, period);
+
+  return ee.Image(
+    ee.Algorithms.If(
+      periodCollection.size().gt(0),
+      periodCollection.mosaic(),
+      collection.mosaic(),
+    ),
+  );
+}
+
 export function selectImageCollectionImage(
   collection: any,
   selection?: ImageCollectionSelection,
+  period?: ResolvedImageCollectionPeriod,
 ) {
   if (!selection) {
     const projection = collection.first().projection();
-    return collection.mosaic().setDefaultProjection(projection);
+    const mosaic = period
+      ? selectPeriodMosaic(collection, period)
+      : collection.mosaic();
+    return mosaic.setDefaultProjection(projection);
   }
 
   const latestValue =
@@ -481,6 +542,7 @@ export const getEarthEngineUrl = async (
       mapVisualization,
       spatialSelection = DEFAULT_SPATIAL_SELECTION,
       imageCollectionSelection,
+      imageCollectionPeriod,
     } = options ?? {};
 
     await initializeGee();
@@ -520,6 +582,7 @@ export const getEarthEngineUrl = async (
       GEEImage = selectImageCollectionImage(
         collection,
         imageCollectionSelection,
+        imageCollectionPeriod,
       );
     } else {
       // Default behavior
@@ -760,6 +823,7 @@ export const cacheMapData = async () => {
         if (!yearConfig) continue;
         const imageCollectionSelection =
           resolveImageCollectionSelection(yearConfig);
+        const imageCollectionPeriod = resolveImageCollectionPeriod(yearConfig);
 
         const cacheKey = buildCacheKey(
           id,
@@ -780,6 +844,7 @@ export const cacheMapData = async () => {
           {
             mapVisualization: yearConfig.mapVisualization,
             ...(imageCollectionSelection ? { imageCollectionSelection } : {}),
+            ...(imageCollectionPeriod ? { imageCollectionPeriod } : {}),
           },
         );
         addUrlToCache(cacheKey, url);

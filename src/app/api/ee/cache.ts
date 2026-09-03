@@ -4,7 +4,7 @@ import {
 } from "@/utils/spatialScope";
 
 const CACHE_TTL_MS = 1000 * 60 * 30;
-const CACHE_KEY_VERSION = "v8";
+const CACHE_KEY_VERSION = "v9";
 // O espaço de chaves é camada x período x recorte espacial (~500 períodos x ~40
 // recortes). Cada entrada é só uma URL, então o teto existe para o mapa não
 // crescer para sempre com chaves que ninguém pede de novo, não por memória.

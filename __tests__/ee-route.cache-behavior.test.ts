@@ -277,7 +277,16 @@ describe("POST /api/ee cache behavior", () => {
       ],
       0,
       1,
-      { mapVisualization, spatialSelection: nationalSelection },
+      {
+        mapVisualization,
+        spatialSelection: nationalSelection,
+        // Só é usado quando o asset é uma ImageCollection, mas a rota não sabe
+        // disso antes de consultar o Earth Engine.
+        imageCollectionPeriod: {
+          startMillis: Date.UTC(2025, 0, 1),
+          endMillis: Date.UTC(2026, 0, 1),
+        },
+      },
     );
   });
 
