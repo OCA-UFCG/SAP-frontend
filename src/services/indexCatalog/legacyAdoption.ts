@@ -1,11 +1,9 @@
 import "server-only";
 
+import { buildAdoptedPresentationConfig } from "@/contracts/indexCatalogAdoption.mjs";
 import { tryParsePublishedPanelLayerReportConfig } from "@/contracts/panelLayerReport";
 import type { AuthenticatedUserSession } from "@/lib/server-session";
-import {
-  catalogTimestamp,
-  withAuditEvent,
-} from "@/services/indexCatalog/catalogConfigAudit";
+import { catalogTimestamp } from "@/services/indexCatalog/catalogConfigAudit";
 import {
   ensureIndexCatalogContentModel,
   getCatalogEntry,
@@ -14,9 +12,7 @@ import {
   patchManagementEntry,
 } from "@/services/indexCatalog/contentfulManagement";
 import {
-  INDEX_CATEGORIES,
   isManagedCatalogConfig,
-  type IndexCatalogItem,
   type IndexCatalogPresentationConfigV2,
 } from "@/types/indexCatalog";
 
@@ -25,49 +21,6 @@ export interface AdoptedIndexCatalogEntry {
   panelLayerId: string;
   managedScope: "presentation";
   status: IndexCatalogPresentationConfigV2["status"];
-}
-
-/**
- * A categoria de um legado sempre é uma das três do catálogo na base atual; o
- * fallback existe para uma entry incompleta não impedir a adoção, e o
- * formulário obriga o operador a escolher antes de republicar.
- */
-function resolveAdoptedCategory(item: IndexCatalogItem) {
-  return (
-    INDEX_CATEGORIES.find((category) => category === item.category) ??
-    INDEX_CATEGORIES[0]
-  );
-}
-
-function toAdoptedConfig(
-  item: IndexCatalogItem,
-  reportConfig: ReturnType<typeof tryParsePublishedPanelLayerReportConfig>,
-  user: AuthenticatedUserSession,
-): IndexCatalogPresentationConfigV2 {
-  const at = catalogTimestamp();
-  const author = { uid: user.uid, email: user.email, at };
-  return {
-    schemaVersion: 2,
-    managedScope: "presentation",
-    panelLayerId: item.panelLayerId,
-    status: item.published ? "published" : "draft",
-    name: item.name,
-    description: item.description,
-    category: resolveAdoptedCategory(item),
-    measurementUnit: item.measurementUnit ?? "",
-    ...(typeof item.panelPosition === "number"
-      ? { panelPosition: item.panelPosition }
-      : {}),
-    ...(reportConfig ? { report: reportConfig } : {}),
-    createdBy: author,
-    updatedBy: author,
-    adoptedFrom: {
-      at,
-      ...(item.catalogConfig?.schemaVersion === 1
-        ? { previousSchemaVersion: 1 as const }
-        : {}),
-    },
-  };
 }
 
 /**
@@ -111,17 +64,14 @@ export async function adoptLegacyIndexCatalogEntry(
   }
 
   await ensureIndexCatalogContentModel();
-  const config = withAuditEvent(
-    toAdoptedConfig(
-      current.item,
-      tryParsePublishedPanelLayerReportConfig(
-        getLocalizedEntryField(current.entry, "reportConfig", current.locale),
-      ),
-      user,
+  const config = buildAdoptedPresentationConfig({
+    item: current.item,
+    reportConfig: tryParsePublishedPanelLayerReportConfig(
+      getLocalizedEntryField(current.entry, "reportConfig", current.locale),
     ),
-    user,
-    { action: "adopt", outcome: "success" },
-  );
+    actor: user,
+    at: catalogTimestamp(),
+  });
   const updated = await patchManagementEntry(
     await getManagementEntry(entryId),
     {

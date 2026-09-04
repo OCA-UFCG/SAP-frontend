@@ -2,6 +2,7 @@ import type {
   GeeFeatureCollectionStatisticsSource,
   PublishedGeeStatisticsSource,
 } from "@/contracts/geeStatistics";
+import { INDEX_CATALOG_CATEGORIES } from "@/contracts/indexCatalogAdoption.mjs";
 import type {
   MunicipalReportData,
   MunicipalReportDocsContent,
@@ -12,11 +13,11 @@ import type {
   CompactTerritorialAnalysisDataset,
 } from "@/utils/analysis";
 
-export const INDEX_CATEGORIES = [
-  "Dados Climáticos",
-  "Dados Ambientais",
-  "Dados Socioeconômicos",
-] as const;
+/**
+ * A lista mora no contrato `.mjs` porque a adoção em lote, que roda em Node
+ * puro, precisa resolver a categoria de um legado exatamente como a tela.
+ */
+export const INDEX_CATEGORIES = INDEX_CATALOG_CATEGORIES;
 
 export type IndexCategory = (typeof INDEX_CATEGORIES)[number];
 

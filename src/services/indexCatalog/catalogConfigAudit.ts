@@ -1,3 +1,4 @@
+import { appendCatalogAuditEvent } from "@/contracts/indexCatalogAdoption.mjs";
 import type { AuthenticatedUserSession } from "@/lib/server-session";
 import {
   isFullyManagedCatalogConfig,
@@ -23,13 +24,12 @@ export function withAuditEvent<T extends ManagedIndexCatalogConfig>(
     message?: string;
   },
 ): T {
-  return {
-    ...config,
-    auditLog: [
-      ...(config.auditLog ?? []),
-      { ...event, uid: user.uid, email: user.email, at: catalogTimestamp() },
-    ].slice(-50),
-  };
+  return appendCatalogAuditEvent(config, {
+    ...event,
+    uid: user.uid,
+    email: user.email,
+    at: catalogTimestamp(),
+  });
 }
 
 interface CatalogEntryWithConfig {

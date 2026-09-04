@@ -28,6 +28,8 @@
     "pipeline:full-cycle": "node --max-old-space-size=4096 tools/drive-contentful-pipeline/pipeline-full-cycle.mjs",
     "pipeline:verify": "node --max-old-space-size=4096 tools/drive-contentful-pipeline/pipeline-verify.mjs",
     "contentful:ensure-index-catalog": "node tools/drive-contentful-pipeline/contentful-ensure-index-catalog.mjs",
+    "catalog:adopt-legacy:dry-run": "node tools/drive-contentful-pipeline/contentful-adopt-legacy-indices.mjs",
+    "catalog:adopt-legacy:apply": "node tools/drive-contentful-pipeline/contentful-adopt-legacy-indices.mjs --apply",
     "ci:verify": "npm run generate:municipal-availability && npm run lint && npm run test:unit -- --run && npm run build:app",
     "storybook": "storybook dev -p 6006",
     "build-storybook": "storybook build",
