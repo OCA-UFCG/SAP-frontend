@@ -368,6 +368,21 @@ export async function discoverCatalogStatistics(
   };
 }
 
+/**
+ * Casa o que o operador configurou com as classes que a tabela de estatísticas
+ * realmente tem.
+ *
+ * O normal é casar por `classIndex`, porque num rascunho retomado ele já é o
+ * número da coluna `perc_classe_XX`. Num formulário preenchido a partir de um
+ * índice legado não é: a legenda vem do Contentful e só a tabela sabe se as
+ * colunas são `perc_classe_0..5` ou `perc_classe_1..6`. Quando os dois conjuntos
+ * divergem e a quantidade de classes bate, a posição é a informação confiável —
+ * sem isso o v2 da previsão de anomalia nasceria com a primeira classe como
+ * "Classe 0", num cinza padrão, e todas as cores deslocadas uma casa.
+ *
+ * `pixelValue` continua vindo do que foi configurado: ele é o código no raster,
+ * e não tem obrigação de ser igual ao número da coluna.
+ */
 function buildClasses(
   configured: ClassMapping[],
   classIndexes: number[],
@@ -375,8 +390,13 @@ function buildClasses(
   const configuredByIndex = new Map(
     configured.map((entry) => [entry.classIndex, entry]),
   );
+  const matchByPosition =
+    configured.length === classIndexes.length &&
+    classIndexes.some((classIndex) => !configuredByIndex.has(classIndex));
   return classIndexes.map((classIndex, position) => {
-    const existing = configuredByIndex.get(classIndex);
+    const existing = matchByPosition
+      ? configured[position]
+      : configuredByIndex.get(classIndex);
     return {
       classIndex,
       id: existing?.id || `classe-${classIndex}`,

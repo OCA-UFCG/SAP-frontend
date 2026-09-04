@@ -113,6 +113,41 @@ describe("readLegacyClassification", () => {
     });
   });
 
+  it("prefere a escala aos pixelLimit deslocados, como indicearidez", () => {
+    // O legado grava pixelLimit 1 a 4 numa escala 2 a 5, mas o raster usa 2 a 5:
+    // é o que `getImageScale` desenha e o que as colunas perc_classe_2 a
+    // perc_classe_5 dos assets de aridez confirmam. Ler os limites aqui
+    // deslocaria a legenda inteira uma casa.
+    const imageData = dataset([
+      row("arido", 1),
+      row("semiarido", 2),
+      row("subumido-seco", 3),
+      row("umido", 4),
+    ]);
+
+    expect(
+      readLegacyClassification(imageData, { minScale: 2, maxScale: 5 }),
+    ).toEqual({ kind: "pixel-codes", values: [2, 3, 4, 5] });
+  });
+
+  it("mantém os pixelLimit quando eles cobrem a escala, como CDI_Test", () => {
+    // Mesma forma do caso anterior — sem mapVisualization e com a escala
+    // cobrindo a quantidade de classes —, mas aqui os limites são os códigos
+    // de verdade, e por isso vencem a dedução por posição.
+    const imageData = dataset([
+      row("c0", 0),
+      row("c1", 1),
+      row("c2", 2),
+      row("c3", 3),
+      row("c4", 4),
+      row("c5", 5),
+    ]);
+
+    expect(
+      readLegacyClassification(imageData, { minScale: 0, maxScale: 5 }),
+    ).toEqual({ kind: "pixel-codes", values: [0, 1, 2, 3, 4, 5] });
+  });
+
   it("não adivinha quando a escala não corresponde à quantidade de classes", () => {
     // s2id_secas_estiagens: uma classe só, escala 0 a 50 e nenhum limite.
     const imageData = dataset([row("registros")]);

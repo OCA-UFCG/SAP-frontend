@@ -41,14 +41,15 @@ function isFiniteNumber(value: unknown): value is number {
  *
  * 1. `mapVisualization.thresholds` explícito é a resposta direta
  *    (`prodprimariabruta`, `prev_anomalia_precipitacao`, os três de pobreza);
- * 2. todas as classes com `pixelLimit` são códigos de pixel (`terraibge`,
- *    `cemadenseca`, `anaseca`, `indicearidez`, `CDI_Test`);
- * 3. exatamente uma classe a menos que o total, faltando a última, são limites
+ * 2. sem `mapVisualization`, `minScale..maxScale` cobrindo exatamente a
+ *    quantidade de classes são códigos consecutivos, porque é assim que
+ *    `getImageScale` distribui a paleta — por posição (`deg` com 1 a 6, `ods`
+ *    com 9 a 11, `indicearidez` com 2 a 5);
+ * 3. todas as classes com `pixelLimit` são códigos de pixel (`terraibge`,
+ *    `cemadenseca`, `anaseca`, `CDI_Test`);
+ * 4. exatamente uma classe a menos que o total, faltando a última, são limites
  *    superiores: a última faixa é aberta e por isso não tem limite
- *    (`carbonoembrapa`);
- * 4. nenhuma classe com `pixelLimit`, mas `minScale..maxScale` cobrindo
- *    exatamente a quantidade de classes, são códigos consecutivos (`deg` com
- *    1 a 6, `ods` com 9 a 11) — é a mesma leitura que a rota de tiles faz.
+ *    (`carbonoembrapa`).
  *
  * @example
  * readLegacyClassification(carbono, { minScale: 0, maxScale: 50 });
@@ -68,6 +69,18 @@ export function readLegacyClassification(
     .map((entry) => entry.pixelLimit)
     .filter(isFiniteNumber);
 
+  // Sem `mapVisualization`, quem desenha o mapa é `getImageScale`, e ele só usa
+  // o `pixelLimit` como código do raster quando esses limites cobrem exatamente
+  // `minScale..maxScale`. Fora disso ele manda a paleta por POSIÇÃO no intervalo
+  // da escala, e é a escala que diz os códigos. O índice de aridez é esse caso:
+  // as classes gravam pixelLimit 1 a 4 numa escala 2 a 5, e o raster usa 2 a 5
+  // — o que a tabela de estatísticas confirma, com colunas perc_classe_2 a
+  // perc_classe_5. Ler os limites aqui deslocaria a legenda inteira uma casa.
+  if (!imageData.mapVisualization) {
+    const positional = resolvePositionalCodes(classes.length, limits, scale);
+    if (positional) return positional;
+  }
+
   if (limits.length === classes.length) {
     return { kind: "pixel-codes", values: limits };
   }
@@ -85,6 +98,36 @@ export function readLegacyClassification(
   }
 
   return resolveClassificationFromScale(classes.length, scale);
+}
+
+/**
+ * Códigos deduzidos da escala do painel quando é ela, e não o `pixelLimit`
+ * gravado, que diz o valor de cada classe no raster. `null` quando essa leitura
+ * não se aplica, para o chamador seguir com as regras seguintes.
+ */
+function resolvePositionalCodes(
+  classCount: number,
+  limits: number[],
+  { minScale, maxScale }: LegacyScaleRange,
+): LegacyClassification | null {
+  if (
+    !isFiniteNumber(minScale) ||
+    !isFiniteNumber(maxScale) ||
+    maxScale - minScale + 1 !== classCount
+  ) {
+    return null;
+  }
+
+  // A mesma condição de `getImageScale`: limites contíguos que começam e
+  // terminam na escala são os códigos de verdade, e aí eles têm prioridade.
+  const limitsCoverTheScale =
+    limits.length === classCount &&
+    new Set(limits).size === classCount &&
+    Math.min(...limits) === minScale &&
+    Math.max(...limits) === maxScale;
+  if (limitsCoverTheScale) return null;
+
+  return resolveClassificationFromScale(classCount, { minScale, maxScale });
 }
 
 function resolveClassificationFromScale(

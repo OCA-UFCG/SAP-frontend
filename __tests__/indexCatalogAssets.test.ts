@@ -164,9 +164,14 @@ function schemaProperties(indexes = [1]) {
 const MOCK_ROW_COUNT = 10;
 
 function assetProperties(assetId: string) {
-  return assetId.endsWith("forecast-statistics")
-    ? schemaProperties([0, 1, 2, 3, 4, 5])
-    : schemaProperties();
+  if (assetId.endsWith("forecast-statistics")) {
+    return schemaProperties([0, 1, 2, 3, 4, 5]);
+  }
+  // Uma tabela cujas colunas começam em perc_classe_2, como os assets de aridez.
+  if (assetId.endsWith("aridez-statistics")) {
+    return schemaProperties([2, 3, 4, 5]);
+  }
+  return schemaProperties();
 }
 
 /** Uma coluna por classe, cada linha somando 100 — o caso válido. */
@@ -449,6 +454,67 @@ describe("index catalog GEE asset discovery", () => {
     expect(build.panelLayerImageData.locations).toEqual({ br: "Brasil" });
     expect(build.classes).toEqual([
       expect.objectContaining({ classIndex: 1, label: "Classe 1" }),
+    ]);
+  });
+
+  it("casa a legenda do legado por posição quando a tabela começa noutro número", async () => {
+    // Um v2 criado a partir de um legado traz a legenda do Contentful, e só a
+    // tabela sabe se as colunas são perc_classe_0..5 ou perc_classe_2..5. Sem o
+    // casamento por posição, as quatro classes de aridez nasceriam como
+    // "Classe 2".."Classe 5" no cinza padrão, com as cores deslocadas.
+    const build = await buildCatalogDraft({
+      schemaVersion: 2,
+      panelLayerId: "indice-de-aridez",
+      status: "draft",
+      name: "Índice de Aridez",
+      description: "Teste",
+      category: "Dados Climáticos",
+      statisticsSource: {
+        kind: "gee-feature-collection",
+        asset: {
+          type: "fixed",
+          assetId: "projects/x/assets/aridez-statistics",
+        },
+        periodGranularity: "year",
+        properties,
+      },
+      classes: [
+        { classIndex: 1, id: "arido", label: "Árido", color: "#FF0000" },
+        {
+          classIndex: 2,
+          id: "semiarido",
+          label: "Semiárido",
+          color: "#FFA500",
+        },
+        {
+          classIndex: 3,
+          id: "subumido",
+          label: "Subúmido Seco",
+          color: "#FFFF00",
+        },
+        { classIndex: 4, id: "umido", label: "Úmido", color: "#00FF00" },
+      ],
+      earthEngine: {
+        strategy: "single",
+        sourceType: "image",
+        singleAssetId: "projects/x/assets/map",
+        band: "classification",
+      },
+      createdBy: { uid: "a", email: null, at: "2026-08-17T10:00:00Z" },
+      updatedBy: { uid: "a", email: null, at: "2026-08-17T10:00:00Z" },
+    });
+
+    expect(
+      build.classes.map(({ classIndex, label, color }) => ({
+        classIndex,
+        label,
+        color,
+      })),
+    ).toEqual([
+      { classIndex: 2, label: "Árido", color: "#FF0000" },
+      { classIndex: 3, label: "Semiárido", color: "#FFA500" },
+      { classIndex: 4, label: "Subúmido Seco", color: "#FFFF00" },
+      { classIndex: 5, label: "Úmido", color: "#00FF00" },
     ]);
   });
 
