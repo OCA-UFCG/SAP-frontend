@@ -2,6 +2,7 @@ import type {
   CompactAnalysisClass,
   CompactTerritorialAnalysisDataset,
 } from "@/utils/analysis";
+import { canonicalJson } from "@/utils/canonicalJson";
 import { normalizeHexColor } from "@/utils/hexColor";
 
 /** Uma linha da legenda: o que a pessoa vê no mapa e pode reescrever. */
@@ -377,23 +378,6 @@ function withoutAppearance(imageData: CompactTerritorialAnalysisDataset) {
   }
 
   return clone;
-}
-
-function canonicalJson(value: unknown): string {
-  if (Array.isArray(value)) {
-    return `[${value.map(canonicalJson).join(",")}]`;
-  }
-  if (value === null || typeof value !== "object") {
-    return JSON.stringify(value) ?? "null";
-  }
-  const entries = Object.entries(value as Record<string, unknown>)
-    .filter(([, entryValue]) => entryValue !== undefined)
-    .sort(([left], [right]) => left.localeCompare(right))
-    .map(
-      ([key, entryValue]) =>
-        `${JSON.stringify(key)}:${canonicalJson(entryValue)}`,
-    );
-  return `{${entries.join(",")}}`;
 }
 
 /**

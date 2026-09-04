@@ -29,6 +29,11 @@ vi.mock("@/components/IndexCatalog/CatalogMonitoringPreview", () => ({
 vi.mock("@/components/IndexCatalog/LegacyAppearanceFields", () => ({
   LegacyAppearanceFields: () => <div data-testid="legacy-appearance-probe" />,
 }));
+// O asset do mapa tem teste próprio (LegacyMapAssetFields.test.tsx) e também lê
+// o que está gravado ao montar, pela mesma razão da legenda.
+vi.mock("@/components/IndexCatalog/LegacyMapAssetFields", () => ({
+  LegacyMapAssetFields: () => <div data-testid="legacy-map-asset-probe" />,
+}));
 vi.mock("@/components/IndexCatalog/CatalogReportPreview", () => ({
   CatalogReportPreview: () => (
     <div data-testid="catalog-report-preview-probe" />
@@ -121,8 +126,10 @@ describe("LegacyIndexEditor", () => {
     expect(screen.getByLabelText("Unidade de medida")).toHaveValue("registros");
     expect(screen.getByLabelText("Posição na categoria")).toHaveValue("4");
     expect(screen.getByTestId("legacy-appearance-probe")).toBeInTheDocument();
-    // Nem estatísticas, nem assets, nem períodos: reescrever a origem dos
-    // dados de um legado mudaria os números, não a apresentação.
+    // O mapa de um legado já vem do Earth Engine, então o asset é editável.
+    expect(screen.getByTestId("legacy-map-asset-probe")).toBeInTheDocument();
+    // As estatísticas não: elas vêm do Contentful, e gravar uma fonte dinâmica
+    // aqui desligaria a origem dos números em vez de mudar a apresentação.
     expect(
       screen.queryByText("Fonte das estatísticas"),
     ).not.toBeInTheDocument();
