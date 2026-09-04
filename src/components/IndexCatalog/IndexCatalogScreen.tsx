@@ -30,8 +30,6 @@ import {
   fillYearPlaceholder,
   parseNumberList,
 } from "@/utils/indexCatalog";
-import type { LegacyAppearance } from "@/utils/legacyAppearance";
-import type { LegacyClassification } from "@/utils/legacyClassification";
 import type { PublishedPanelLayerReportConfig } from "@/contracts/panelLayerReport";
 import {
   createDefaultReportDraft,
@@ -328,77 +326,6 @@ export function IndexCatalogScreen() {
     } catch (reason) {
       setError(
         reason instanceof Error ? reason.message : "Falha ao adotar o índice.",
-      );
-    } finally {
-      setBusy(null);
-    }
-  }
-
-  /**
-   * Abre o formulário v2 preenchido com o que o índice legado já tem: nome,
-   * descrição, categoria, a legenda inteira com rótulos e cores, e os limites
-   * do mapa quando existem.
-   *
-   * Nada é gravado, e a entry legada não é tocada. Migrar um índice para o
-   * caminho do GEE é criar um índice v2 novo ao lado do legado — foi assim que
-   * os v2 de hoje nasceram, redigitados à mão — e a troca (despublicar o
-   * legado, publicar o novo) continua sendo uma decisão explícita. O que este
-   * botão remove é a redigitação de doze rótulos e doze cores, não a decisão.
-   */
-  async function startV2FromLegacy(item: IndexCatalogItem) {
-    setBusy("v2-from-legacy");
-    setError("");
-    try {
-      const loaded = await apiRequest<{
-        appearance: LegacyAppearance;
-        classification: LegacyClassification;
-      }>(
-        `/api/index-catalog/entries/${encodeURIComponent(item.entryId)}/appearance`,
-      );
-      const { classification } = loaded;
-      const codes =
-        classification.kind === "pixel-codes" ? classification.values : null;
-      const thresholds =
-        classification.kind === "value-bounds" ? classification.values : [];
-      resetEditor();
-      setDraft({
-        ...structuredClone(EMPTY_DRAFT),
-        name: `${item.name} (v2)`,
-        description: item.description,
-        category:
-          INDEX_CATEGORIES.find((category) => category === item.category) ??
-          EMPTY_DRAFT.category,
-        // O índice de classe do v2 é o nome da coluna `perc_classe_XX`, e a
-        // validação vai reescrevê-lo com o que a tabela tiver. Quando o legado
-        // diz qual é o código de cada classe, ele é usado aqui para que os
-        // rótulos caiam na classe certa mesmo em asset com código esparso
-        // (cobertura da terra: 1 a 6 e 9 a 14) ou em ordem inversa
-        // (Cemaden: 6 a 1).
-        classes: loaded.appearance.legend.map((row, position) => ({
-          classIndex: codes?.[position] ?? position + 1,
-          id: row.id,
-          label: row.label,
-          color: row.color,
-          ...(codes ? { pixelValue: codes[position] } : {}),
-        })),
-      });
-      setThresholdsInput(thresholds.join(", "));
-      setMessage(
-        `Formulário preenchido com a legenda de “${item.name}”${
-          thresholds.length
-            ? `. O mapa dele é um raster contínuo, então os limites ${thresholds.join(", ")} vieram junto — confira o campo “Limites das classes”`
-            : ""
-        }${
-          classification.kind === "unknown"
-            ? ". Não deu para descobrir como o mapa dele classifica o raster, então confira as classes e os limites antes de validar"
-            : ""
-        }. Falta a FeatureCollection das estatísticas e os assets do mapa — o índice legado não foi alterado.`,
-      );
-    } catch (reason) {
-      setError(
-        reason instanceof Error
-          ? reason.message
-          : "Falha ao ler a legenda do índice legado.",
       );
     } finally {
       setBusy(null);
@@ -977,14 +904,6 @@ export function IndexCatalogScreen() {
                       onClick={() => openLegacyEditor(item)}
                     >
                       Abrir e editar
-                    </button>
-                    <button
-                      type="button"
-                      className={`${buttonClass} border border-stone-300`}
-                      disabled={Boolean(busy)}
-                      onClick={() => void startV2FromLegacy(item)}
-                    >
-                      Criar versão v2
                     </button>
                     {item.published && (
                       <button
