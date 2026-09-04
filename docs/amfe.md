@@ -34,10 +34,38 @@ protegida pelo layout de `platform/`, mas as rotas precisam do gate por conta
 própria: o backend costuma viver em rede privada e este proxy é o único caminho
 até ele — sem o gate, ele ficaria aberto na internet.
 
+### De onde vêm os critérios
+
+O catálogo não é configurado aqui. Ele nasce de uma planilha do Google Sheets
+(aba `criterios`) que o backend lê e expõe em `/api/v1/criterias`. Adicionar um
+critério à análise é adicionar uma linha lá, não mexer neste repositório.
+
+Desde a release `1.1.0` do backend, ele relê essa planilha **a cada 30 minutos**
+enquanto está de pé (`DATASET_SYNC_INTERVAL_SECONDS`, em segundos; zero
+desliga). Antes a leitura acontecia só na subida do processo e o dataset ficava
+congelado até um restart do container — o beta chegou a servir 10 critérios por
+duas semanas enquanto a planilha já tinha 16.
+
+Duas consequências para esta app:
+
+- **A lista fica em cache pela sessão do navegador.** `useCriterias`
+  (`src/components/Amfe/useCriterias.ts`) guarda o resultado numa promise de
+  módulo, descartada só em caso de erro. Uma aba aberta antes da
+  ressincronização continua com a lista antiga até um recarregamento completo
+  da página; não há invalidação por tempo aqui.
+- **Um critério novo aparece com o rótulo da planilha.** `useCriterias`
+  sobrepõe `label` e `description` pelas mensagens de `Criteria` quando elas
+  existem (`t.has`) e cai no valor do backend quando não. Como
+  `src/translations/{en,es}/Criteria.json` cobrem só os dez critérios
+  originais, os que vieram depois aparecem em português nesses locales até
+  alguém traduzi-los. `src/translations/pt/Criteria.json` é vazio de propósito:
+  os rótulos da planilha já estão em português.
+
 Não existe proxy para `POST /api/v1/sync`. Ele existia, sem chamador na UI, e
 repassava um `x-sync-token` vindo do cliente devolvendo o status do backend —
-um oráculo para força bruta do token. Se a recarga operacional precisar de uma
-rota aqui, ela tem que autenticar e não aceitar o token do requisitante.
+um oráculo para força bruta do token. Com o refresh periódico, a recarga
+operacional deixou de ser necessária no caminho normal; se ainda assim uma rota
+aqui fizer falta, ela tem que autenticar e não aceitar o token do requisitante.
 
 `API_BASE_URL` aponta para a base do backend (ex.: `http://127.0.0.1:8000` em
 desenvolvimento). Sem essa variável as rotas de proxy respondem 500 com a
