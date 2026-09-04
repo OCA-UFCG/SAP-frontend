@@ -43,3 +43,9 @@ export function buildAdoptedPresentationConfig(input: {
   actor: { uid: string; email: string | null };
   at: string;
 }): IndexCatalogPresentationConfigV2;
+
+export function buildPublishedPresentationConfig(input: {
+  config: IndexCatalogPresentationConfigV2;
+  actor: { uid: string; email: string | null };
+  at: string;
+}): IndexCatalogPresentationConfigV2;
