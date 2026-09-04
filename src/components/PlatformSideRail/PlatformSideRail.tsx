@@ -96,7 +96,7 @@ export function PlatformSideRail({
   return (
     <div
       className={clsx(
-        "sticky top-16 relative h-[calc(100vh-64px)] w-[140px] shrink-0 self-start",
+        "sticky top-16 relative h-[calc(100vh-64px)] max-h-full w-[140px] shrink-0 self-start",
         className,
       )}
       data-platform-side-rail

@@ -26,6 +26,25 @@ afterEach(() => {
 });
 
 describe("PlatformSideRail", () => {
+  // A trilha continua alta como a viewport nas telas que rolam (catálogo,
+  // auditoria), mas não pode ultrapassar o container nas que cabem inteiras —
+  // senão ela invade o rodapé que fica logo abaixo da plataforma.
+  it("never grows past the shell that holds it", () => {
+    render(
+      <PlatformSideRail
+        activeSection="monitoring"
+        onSectionChange={vi.fn()}
+        isPanelOpen
+        onTogglePanel={vi.fn()}
+        showAuditLink={false}
+      />,
+    );
+
+    expect(document.querySelector("[data-platform-side-rail]")).toHaveClass(
+      "max-h-full",
+    );
+  });
+
   it("renders the audit link only when the server enables logs access", () => {
     const { rerender } = render(
       <PlatformSideRail

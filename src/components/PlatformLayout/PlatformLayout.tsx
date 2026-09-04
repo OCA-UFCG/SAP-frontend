@@ -75,7 +75,7 @@ export function PlatformLayout({
 
   return (
     <MapLayerProvider>
-      <div className="relative w-full min-h-[calc(100vh-64px)] bg-neutral-50">
+      <div className="relative flex flex-col w-full flex-1 min-h-0 bg-neutral-50">
         {isLogsView ? (
           <div data-testid="platform-logs-shell" className="w-full">
             {props.telemetryDashboard}
@@ -90,7 +90,7 @@ export function PlatformLayout({
         ) : isAmfeView ? (
           <div
             data-testid="platform-amfe-shell"
-            className="h-[calc(100vh-64px)] w-full overflow-hidden pl-[140px]"
+            className="flex flex-1 min-h-0 w-full overflow-hidden pl-[140px]"
           >
             <AmfeScreen />
           </div>
