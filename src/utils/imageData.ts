@@ -147,7 +147,13 @@ function buildCompactImageParams(
   }));
 }
 
-function getLegacyForecastLeadTime(imageId: string) {
+/**
+ * O `_01`.. `_04` no fim do nome do asset, usado como tempo de previsão quando
+ * a entry não grava `leadTime` explicitamente. Exportado porque a edição do
+ * asset do mapa no catálogo precisa recusar uma troca que mudaria esse número
+ * sem que ninguém tivesse pedido (`src/utils/legacyMapAssets.ts`).
+ */
+export function getLegacyForecastLeadTime(imageId: string) {
   const match = imageId.match(/_(0[1-4])$/u);
   return match?.[1] ? Number(match[1]) : undefined;
 }

@@ -115,6 +115,7 @@ interface IndexCatalogAuditData {
       | "revalidate"
       | "preview"
       | "preview-map"
+      | "map-asset"
       | "report-text"
       | "publish"
       | "unpublish";

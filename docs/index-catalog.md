@@ -323,8 +323,9 @@ Nunca `imageData` inteiro, nunca `statisticsSource`:
   `municipalAnalysisRepository` relança o erro do GEE em vez de ler as
   partições quando a camada declara uma fonte dinâmica.
 
-Rótulos e cores moram dentro do `imageData` e têm escrita própria, descrita
-abaixo, justamente porque ela precisa de uma guarda que esta não precisa.
+O asset do mapa, os rótulos e as cores moram dentro do `imageData` e têm
+escritas próprias, descritas abaixo, justamente porque elas precisam de uma
+guarda que esta não precisa.
 
 A unidade é editável e não é normalizada para `%` como no escopo completo,
 porque os legados usam `classes`, `%` e `registros`. Toda escrita do catálogo
@@ -333,6 +334,47 @@ mandava `measurementUnit: "%"` fixo, o que trocaria a unidade de
 
 Salvar não derruba `status` nem apaga validação alguma: não existe validação de
 assets neste escopo, e "Gerar prévia" apenas lê a entry.
+
+### Asset do mapa
+
+`GET` e `PUT /api/index-catalog/entries/[entryId]/map-assets` trocam o
+`imageData.years[período].imageId` — a imagem que o Earth Engine desenha no
+mapa.
+
+O mapa é a única parte de um legado que já vem do Earth Engine, e por isso é
+editável enquanto a fonte estatística não é. As duas situações não são
+simétricas:
+
+- gravar `statisticsSource` num legado **desliga** a origem dos números dele,
+  porque `municipalAnalysisRepository` deixa de cair para as partições do
+  Contentful quando a camada declara fonte dinâmica;
+- trocar o `imageId` não desliga nada: o tile passa a ser gerado a partir de
+  outra imagem (`/api/ee`, que lê `yearConfig.imageId`), e os números do painel
+  continuam vindo de onde vinham.
+
+**Os períodos são fixos.** A escrita exige exatamente o mesmo conjunto de
+períodos que a entry já tem. Criar um período daria um mapa com o painel de
+análise vazio, porque as estatísticas daquele período viriam de uma partição
+`municipalAnalysis` que esta tela não escreve; remover apagaria os valores
+gravados junto do período, que não têm outra cópia no Contentful.
+
+**Guardas.** `assertOnlyMapAssetsChanged` compara o `imageData` antes e depois
+ignorando os `imageId` e recusa a gravação se qualquer outra coisa tiver mudado
+— é a mesma proteção da aparência, pela mesma razão: o campo também guarda os
+valores territoriais. Além dela, uma troca que mudaria o tempo de previsão lido
+do fim do nome do asset (`..._01`, em `getLegacyForecastLeadTime`) é recusada,
+porque moveria o período para outro horizonte em silêncio.
+
+A validação do id é frouxa de propósito: convivem assets do projeto
+(`projects/ee-ocaufcg/assets/IA_1961_1990`) e coleções públicas
+(`MODIS/061/MOD17A3HGF/2001_01_01`). O que ela pega são os erros que o Earth
+Engine só reportaria como um mapa em branco — campo vazio, espaço no meio,
+barra sobrando, URL colada do navegador.
+
+Na tela, um índice cujos períodos usam todos o mesmo asset (os três de pobreza,
+`s2id_secas_estiagens`, `ods`) mostra um campo só; os demais mostram uma linha
+por período. Depois de salvar, "Gerar prévia" desenha o mapa com o asset novo, e
+a troca só entra no ar na publicação.
 
 ### Legenda, cores e limites
 
@@ -442,8 +484,9 @@ publicado. Um texto vazio devolve o índice ao documento.
 - não muda a origem dos dados. Migrar um legado para o escopo completo continua
   exigindo a FeatureCollection estatística no GEE; o catálogo só adianta o
   preenchimento do formulário;
-- não cria nem remove classes, e não mexe em `imageId`, períodos, `pixelLimit`
-  nem nos valores — só na aparência deles.
+- não cria nem remove classes nem períodos, e não mexe em `pixelLimit` nem nos
+  valores. O `imageId` de um período existente é editável (veja "Asset do
+  mapa"); o resto do `imageData` só muda em aparência.
 
 ## Compatibilidade e falhas
 
