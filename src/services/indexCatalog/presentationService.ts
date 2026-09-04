@@ -1,5 +1,6 @@
 import "server-only";
 
+import { buildPublishedPresentationConfig } from "@/contracts/indexCatalogAdoption.mjs";
 import type { AuthenticatedUserSession } from "@/lib/server-session";
 import {
   catalogTimestamp,
@@ -150,15 +151,11 @@ export async function publishIndexCatalogPresentation(
 ) {
   const current = await getCatalogEntry(entryId);
   const config = requirePresentationConfig(current);
-  const publishedConfig = withAuditEvent(
-    {
-      ...config,
-      status: "published" as const,
-      updatedBy: { uid: user.uid, email: user.email, at: catalogTimestamp() },
-    },
-    user,
-    { action: "publish", outcome: "success" },
-  );
+  const publishedConfig = buildPublishedPresentationConfig({
+    config,
+    actor: user,
+    at: catalogTimestamp(),
+  });
   const patched = await patchManagementEntry(current.entry, {
     catalogConfig: publishedConfig,
   });

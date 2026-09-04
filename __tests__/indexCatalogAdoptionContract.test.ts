@@ -3,6 +3,7 @@ import { describe, expect, it } from "vitest";
 import {
   appendCatalogAuditEvent,
   buildAdoptedPresentationConfig,
+  buildPublishedPresentationConfig,
   resolveAdoptedCategory,
 } from "@/contracts/indexCatalogAdoption.mjs";
 
@@ -136,5 +137,82 @@ describe("appendCatalogAuditEvent", () => {
     expect(auditLog).toHaveLength(50);
     expect(auditLog?.[0]).toMatchObject({ message: "evento-1" });
     expect(auditLog?.at(-1)).toEqual(event);
+  });
+});
+
+describe("buildPublishedPresentationConfig", () => {
+  const publishedAt = "2026-09-05T09:00:00.000Z";
+
+  it("não reescreve nada do conteúdo ao publicar", () => {
+    const adopted = buildConfig({ name: "Índice de Degradação" });
+    const published = buildPublishedPresentationConfig({
+      config: adopted,
+      actor,
+      at: publishedAt,
+    });
+
+    expect(published.name).toBe(adopted.name);
+    expect(published.description).toBe(adopted.description);
+    expect(published.category).toBe(adopted.category);
+    expect(published.measurementUnit).toBe(adopted.measurementUnit);
+    expect(published.panelLayerId).toBe(adopted.panelLayerId);
+    expect(published.managedScope).toBe("presentation");
+  });
+
+  it("registra quem publicou e quando, sem apagar o histórico anterior", () => {
+    const adopted = buildConfig();
+    const published = buildPublishedPresentationConfig({
+      config: adopted,
+      actor,
+      at: publishedAt,
+    });
+
+    expect(published.status).toBe("published");
+    expect(published.updatedBy).toEqual({
+      uid: actor.uid,
+      email: actor.email,
+      at: publishedAt,
+    });
+    // O evento de adoção continua lá: o rastro é acumulativo.
+    expect(published.auditLog?.map((event) => event.action)).toEqual([
+      "adopt",
+      "publish",
+    ]);
+    expect(published.auditLog?.at(-1)).toEqual({
+      action: "publish",
+      outcome: "success",
+      uid: actor.uid,
+      email: actor.email,
+      at: publishedAt,
+    });
+  });
+
+  it("marca como publicado um legado que fora adotado como rascunho", () => {
+    // Um legado despublicado é adotado com status "draft"; publicar é
+    // justamente o que o promove, e a tela decide o botão por esse campo.
+    const adopted = buildConfig({ published: false });
+    expect(adopted.status).toBe("draft");
+
+    expect(
+      buildPublishedPresentationConfig({
+        config: adopted,
+        actor,
+        at: publishedAt,
+      }).status,
+    ).toBe("published");
+  });
+
+  it("preserva o e-mail nulo de um ator sem e-mail", () => {
+    const published = buildPublishedPresentationConfig({
+      config: buildConfig(),
+      actor: { uid: "tool:publish-adopted-legacy", email: null },
+      at: publishedAt,
+    });
+
+    expect(published.updatedBy).toEqual({
+      uid: "tool:publish-adopted-legacy",
+      email: null,
+      at: publishedAt,
+    });
   });
 });

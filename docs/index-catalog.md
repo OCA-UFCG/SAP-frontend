@@ -287,6 +287,29 @@ O lote repete as recusas da rota e acrescenta duas guardas próprias:
   validar esse campo exige o parser de `src/contracts/panelLayerReport.ts`, que é
   TypeScript. Essas entries são adotadas pelo botão, que sabe herdar o texto.
 
+### Publicar todos os legados adotados de uma vez
+
+A adoção grava só na versão de rascunho, de propósito, para não mexer no que
+está no ar. O efeito colateral é que todo legado adotado passa a exibir
+"alterações não publicadas" no catálogo, e esse aviso passa a esconder uma
+pendência de verdade quando ela aparecer.
+`npm run catalog:publish-legacy:dry-run -- --actor-email=<e-mail>` lista o que
+seria publicado; `catalog:publish-legacy:apply` publica. O `catalogConfig`
+publicado é montado por `buildPublishedPresentationConfig`, o mesmo do botão
+"Republicar" do editor.
+
+A guarda que justifica a ferramenta é a comparação com a própria versão
+publicada, campo a campo, **ignorando a ordem das chaves do JSON**: o Contentful
+devolve `reportSeriesConfig` com as chaves em ordens diferentes no rascunho e no
+publicado, e uma comparação ingênua acusa alteração em onze dos catorze legados
+quando os dois lados são idênticos. Uma entry cujo rascunho difere em qualquer
+campo além de `catalogConfig` é recusada, porque publicá-la levaria ao ar uma
+alteração de conteúdo que ninguém revisou — `--allow-field=previewMap` aceita
+uma dessas diferenças conscientemente, um campo por vez.
+
+Uma entry que nunca foi publicada também é recusada: publicá-la a colocaria no
+Monitoramento pela primeira vez, e isso é decisão de quem opera, não de um lote.
+
 ### O que o escopo de apresentação escreve
 
 `PUT /api/index-catalog/entries/[entryId]/presentation` grava `name`,

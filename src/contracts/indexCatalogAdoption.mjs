@@ -4,7 +4,7 @@
  * Mora aqui, e não dentro do serviço, porque duas coisas precisam produzir
  * exatamente o mesmo `catalogConfig`: o botão "Adotar no catálogo" da tela
  * (`src/services/indexCatalog/legacyAdoption.ts`) e a adoção em lote de
- * `tools/index-catalog/adopt-legacy-indices.mjs`, que é Node puro e não
+ * `tools/drive-contentful-pipeline/contentful-adopt-legacy-indices.mjs`, que é Node puro e não
  * consegue importar um módulo `server-only`. Se as duas divergirem, metade dos
  * legados nasce com um formato de configuração e metade com outro.
  *
@@ -95,5 +95,31 @@ export function buildAdoptedPresentationConfig({
       },
     },
     { action: "adopt", outcome: "success", ...author },
+  );
+}
+
+/**
+ * Monta o `catalogConfig` de um legado adotado no momento em que ele é
+ * publicado.
+ *
+ * Mora aqui pela mesma razão da adoção: o botão "Publicar" do editor
+ * (`src/services/indexCatalog/presentationService.ts`) e a publicação em lote
+ * de `tools/drive-contentful-pipeline/contentful-publish-adopted-legacy.mjs`
+ * precisam deixar o mesmo rastro. Nada do conteúdo é reescrito — o que a tela
+ * editou já foi gravado antes; aqui só se registra quem publicou e quando.
+ *
+ * @example
+ * buildPublishedPresentationConfig({
+ *   config: adopted,
+ *   actor: { uid: "abc", email: "oca@gmail.com" },
+ *   at: "2026-09-04T12:00:00.000Z",
+ * }); // => { ...adopted, status: "published", auditLog: [..., { action: "publish" }] }
+ */
+export function buildPublishedPresentationConfig({ config, actor, at }) {
+  const author = { uid: actor.uid, email: actor.email ?? null, at };
+
+  return appendCatalogAuditEvent(
+    { ...config, status: "published", updatedBy: author },
+    { action: "publish", outcome: "success", ...author },
   );
 }
