@@ -97,6 +97,22 @@ const config = {
   auditLog: [],
 };
 
+/** O `catalogConfig` de um legado adotado: sem estatísticas, mapa ou classes. */
+const presentationConfig = {
+  schemaVersion: 2 as const,
+  managedScope: "presentation" as const,
+  panelLayerId: "seca",
+  status: "published" as const,
+  name: "Seca",
+  description: "Teste",
+  category: "Dados Climáticos" as const,
+  measurementUnit: "classes",
+  createdBy: { ...user, at: "2026-09-01T10:00:00.000Z" },
+  updatedBy: { ...user, at: "2026-09-01T10:00:00.000Z" },
+  adoptedFrom: { at: "2026-09-01T10:00:00.000Z" },
+  auditLog: [],
+};
+
 function managementEntry(
   id: string,
   published = false,
@@ -119,6 +135,8 @@ function currentEntry(
     published?: boolean;
     legacy?: boolean;
     everPublished?: boolean;
+    /** Um legado adotado: config v2 em escopo de apresentação. */
+    presentation?: boolean;
   } = {},
 ) {
   const entry = managementEntry(
@@ -140,7 +158,11 @@ function currentEntry(
       hasUnpublishedChanges: false,
       catalogManaged: !options.legacy,
       status: options.legacy ? "legacy" : "ready",
-      ...(options.legacy ? {} : { catalogConfig: config }),
+      ...(options.legacy
+        ? {}
+        : {
+            catalogConfig: options.presentation ? presentationConfig : config,
+          }),
     },
   };
 }
@@ -213,7 +235,7 @@ describe("index catalog v2 lifecycle", () => {
       currentEntry({ legacy: true }),
     );
     await expect(publishIndexCatalogEntry("panel", user)).rejects.toThrow(
-      "apenas para consulta",
+      /não foi adotado/u,
     );
   });
 
@@ -311,5 +333,70 @@ describe("index catalog v2 lifecycle", () => {
       deleteIndexCatalogEntry("panel", "seca", user),
     ).resolves.toEqual(expect.objectContaining({ deletedEntries: 1 }));
     expect(contentful.deleteManagementEntry).toHaveBeenCalledTimes(1);
+  });
+
+  it("nunca remove a entry de um legado adotado que já foi publicado", async () => {
+    // O `panelLayer` é a única cópia da configuração de um índice cujos valores
+    // moram nas partições `municipalAnalysis`: apagá-lo tiraria o índice da
+    // plataforma sem nada para reconstruí-lo.
+    contentful.getCatalogEntry.mockResolvedValue(
+      currentEntry({ published: true, presentation: true }),
+    );
+
+    await expect(
+      deleteIndexCatalogEntry("panel", "seca", user),
+    ).rejects.toThrow(/não remove a entry/u);
+    expect(contentful.deleteManagementEntry).not.toHaveBeenCalled();
+  });
+
+  it("remove o legado adotado que nunca foi publicado", async () => {
+    contentful.getCatalogEntry.mockResolvedValue(
+      currentEntry({ presentation: true }),
+    );
+    contentful.getManagementEntry.mockResolvedValue(
+      managementEntry("panel", false, 8),
+    );
+
+    await expect(
+      deleteIndexCatalogEntry("panel", "seca", user),
+    ).resolves.toEqual(expect.objectContaining({ deletedEntries: 1 }));
+  });
+
+  it("remove o rascunho de teste que o catálogo nunca adotou nem publicou", async () => {
+    // Os rascunhos com `catalogConfig` v1 não podem ser adotados (não têm
+    // imageData) e ficariam sem nenhuma ação na tela se a remoção exigisse
+    // adoção. Nada nunca foi publicado a partir deles.
+    contentful.getCatalogEntry.mockResolvedValue(
+      currentEntry({ legacy: true }),
+    );
+    contentful.getManagementEntry.mockResolvedValue(
+      managementEntry("panel", false, 8),
+    );
+
+    await expect(
+      deleteIndexCatalogEntry("panel", "seca", user),
+    ).resolves.toEqual(expect.objectContaining({ deletedEntries: 1 }));
+  });
+
+  it("não remove a entry publicada que o catálogo não gerencia", async () => {
+    contentful.getCatalogEntry.mockResolvedValue(
+      currentEntry({ legacy: true, published: true }),
+    );
+
+    await expect(
+      deleteIndexCatalogEntry("panel", "seca", user),
+    ).rejects.toThrow(/não é gerenciado pelo catálogo/u);
+    expect(contentful.deleteManagementEntry).not.toHaveBeenCalled();
+  });
+
+  it("recusa revalidar e reescrever a configuração de um legado adotado", async () => {
+    contentful.getCatalogEntry.mockResolvedValue(
+      currentEntry({ published: true, presentation: true }),
+    );
+
+    await expect(
+      updateIndexCatalogDraft("panel", { name: "Seca" }, user),
+    ).rejects.toThrow(/apenas a apresentação/u);
+    expect(contentful.patchManagementEntry).not.toHaveBeenCalled();
   });
 });

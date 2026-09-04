@@ -227,11 +227,242 @@ publicado de novo em um clique. Sem isso, `assertPublishable` só aceitava
 `ready` e o operador recebia "Revalide os assets e gere a prévia antes de
 publicar" com a prévia já validada.
 
+## Índices legados: escopo de apresentação
+
+O catálogo gerencia duas coisas diferentes, e a separação entre elas é o que
+permite editar um índice legado:
+
+- **apresentação** — nome, descrição, categoria, posição, unidade, imagem do
+  cartão e texto do Relatório Automático. Tudo isso mora na própria entry do
+  `panelLayer` e nunca dependeu do Earth Engine;
+- **origem dos números** — a FeatureCollection estatística, os assets de mapa, a
+  validação e a descoberta de períodos.
+
+Um índice legado tem a primeira parte completa e não tem nada da segunda: os
+valores dele vêm das partições `municipalAnalysis` escritas pela pipeline de CSV
+ou do registro estático de `src/config/geeStatisticsLayers.ts`. Até a primeira
+versão deste escopo, exigir a segunda parte trancava a primeira, e o cartão do
+índice dizia apenas "visível, mas não editável por este formulário".
+
+`catalogConfig.managedScope` distingue os dois casos: `full` (ou ausente, nas
+entries publicadas antes do campo existir) é o índice que o catálogo criou;
+`presentation` é um legado adotado.
+
+### Adotar
+
+"Adotar no catálogo", no cartão do índice, grava **somente** o `catalogConfig`
+derivado da própria entry. A operação é inerte de propósito: a versão publicada
+do índice continua idêntica e nada muda no Monitoramento até alguém publicar.
+O texto de relatório que já estivesse na entry é herdado; o asset da imagem de
+prévia **não** é, porque nos legados ele é uma captura de tela feita à mão e
+reaproveitar o id faria a primeira captura do catálogo sobrescrever o arquivo
+original.
+
+A adoção é recusada quando o `imageData` da entry ainda está no formato
+pré-compacto (`imageParams` por ano, como `CDI` e `veg`): sem `classes`,
+`years` e `defaultYear` não há mapa nem períodos para a tela ler. Converter para
+`territorial-compact` é o pré-requisito.
+
+`buildAdoptedPresentationConfig`, em `src/contracts/indexCatalogAdoption.mjs`, é
+quem monta o `catalogConfig` adotado. Ele mora num contrato `.mjs`, e não dentro
+do serviço, porque a adoção em lote (abaixo) roda em Node puro e não consegue
+importar um módulo `server-only`: se as duas implementações divergissem, metade
+dos legados nasceria com um formato de configuração e metade com outro.
+
+### Adotar todos os legados de uma vez
+
+Adotar índice a índice pela tela é o caminho normal, mas a migração inicial da
+base tinha 13 legados para destravar. `npm run catalog:adopt-legacy:dry-run --
+--actor-email=<e-mail>` lista o que seria adotado e por que cada entry ficou de
+fora; `catalog:adopt-legacy:apply` grava. Como qualquer escrita no Contentful
+deste repositório, o dry-run é a checagem de segurança, não formalidade.
+
+O lote repete as recusas da rota e acrescenta duas guardas próprias:
+
+- exige `--actor-email` presente em `LOGS_ALLOWED_EMAILS`, a mesma allowlist que
+  a rota exige, porque esse e-mail vai para o `auditLog` da entry. O `uid`
+  gravado é `tool:adopt-legacy-indices`, para o histórico dizer que a adoção veio
+  do terminal e não de um clique;
+- recusa uma entry que já tenha `reportConfig`, em vez de adotá-la sem o texto:
+  validar esse campo exige o parser de `src/contracts/panelLayerReport.ts`, que é
+  TypeScript. Essas entries são adotadas pelo botão, que sabe herdar o texto.
+
+### O que o escopo de apresentação escreve
+
+`PUT /api/index-catalog/entries/[entryId]/presentation` grava `name`,
+`description`, `category`, `measurementUnit` e `panelPosition`, e mais nada.
+Nunca `imageData` inteiro, nunca `statisticsSource`:
+
+- reescrever o `imageData` de um legado apagaria os valores territoriais que
+  estão gravados ali — nos legados eles ocupam a maior parte do campo (196 KB
+  dos 238 KB de `CDI_Test`, 93 KB dos 100 KB de `anaseca`);
+- gravar `statisticsSource` desligaria o fallback do Contentful sem volta —
+  `municipalAnalysisRepository` relança o erro do GEE em vez de ler as
+  partições quando a camada declara uma fonte dinâmica.
+
+Rótulos e cores moram dentro do `imageData` e têm escrita própria, descrita
+abaixo, justamente porque ela precisa de uma guarda que esta não precisa.
+
+A unidade é editável e não é normalizada para `%` como no escopo completo,
+porque os legados usam `classes`, `%` e `registros`. Toda escrita do catálogo
+mandava `measurementUnit: "%"` fixo, o que trocaria a unidade de
+`s2id_secas_estiagens` em silêncio.
+
+Salvar não derruba `status` nem apaga validação alguma: não existe validação de
+assets neste escopo, e "Gerar prévia" apenas lê a entry.
+
+### Legenda, cores e limites
+
+`GET` e `PUT /api/index-catalog/entries/[entryId]/appearance` editam o que a
+pessoa vê no mapa. É a única escrita do escopo de apresentação que toca o
+`imageData`, e a mais cuidadosa do catálogo.
+
+**Onde a legenda mora.** A plataforma resolve a legenda como
+`mapVisualization.legend ?? classes` (`buildCompactImageParams`, em
+`src/utils/imageData.ts`), e a edição grava no mesmo lugar de onde o mapa lê —
+nunca nos dois. Isso divide os legados em duas famílias:
+
+- **classificatórios** (`terraibge`, `deg`, `carbonoembrapa`, `anaseca`, …) — as
+  classes são a legenda, e cada linha é uma classe do raster;
+- **valor único** (`pob_total`, `pob_rural`, `pob_urb`, `s2id_secas_estiagens`) —
+  `classes` tem uma linha só, o nome da série medida que aparece no painel e no
+  gráfico, e as faixas coloridas do mapa estão em `mapVisualization.legend`. O
+  formulário mostra as duas coisas separadas, com esses nomes.
+
+**O que a rota garante.** `applyLegacyAppearance` (em
+`src/utils/legacyAppearance.ts`) aplica a alteração por cópia do objeto gravado
+e:
+
+- recusa criar, remover ou reordenar linhas. `values[locationKey][i]` é a classe
+  `i`, então mexer na lista desalinharia todos os números já publicados de todos
+  os períodos. Isso vale para os 14 legados adotáveis: em todos eles o tamanho
+  das listas de valores é igual ao número de classes;
+- sincroniza `mapVisualization.palette` com as cores da legenda, **casando cada
+  casa da paleta pela cor que ela já tem**, e não pela posição. A paleta é
+  indexada pelo valor de pixel do raster: `cemadenseca` lista as classes com
+  `pixelLimit` de 6 a 1 e a paleta de 1 a 6, na ordem inversa da legenda (e sem
+  `#`, que o Earth Engine também aceita). Sincronizar por posição inverteria as
+  cores do mapa inteiro — e a conferência de aparência não pegaria isso, porque
+  a paleta é um campo que esta edição pode escrever. A convenção de escrita da
+  entry é preservada. Quando alguma casa não corresponde a exatamente uma linha,
+  ou quando os tamanhos não coincidem, a edição de **cores** é recusada com o
+  motivo; editar só rótulos continua permitido, porque aí a paleta não entra em
+  jogo;
+- não reescreve a caixa das letras de uma cor que não mudou. A tela normaliza
+  tudo para `#RRGGBB` em maiúsculas e a maioria dos legados está gravada em
+  minúsculas; sem isso, abrir um índice e salvar sem editar nada criaria uma
+  versão nova e o marcaria como "alterações não publicadas" à toa;
+- descarta o `tone` de uma classe cuja cor mudou. `tone` são as cores do chip no
+  painel de análise; sem ele o painel recalcula o tom a partir de `color`, e com
+  ele o painel continuaria na cor antiga;
+- mantém `pixelLimit`, `value` e qualquer campo que o contrato não conhece,
+  porque nenhuma linha é reconstruída do zero;
+- aceita novos `thresholds` só quando o índice já classifica o mapa por limites,
+  na mesma quantidade e em ordem crescente. Eles estão na unidade do asset
+  (`7000, 13000, …` em `prodprimariabruta`), não na do rótulo;
+- confere, antes de gravar, que nada além de rótulos, cores, paleta e limites
+  mudou (`assertOnlyAppearanceChanged`). O objeto novo é construído por cópia do
+  antigo, então essa conferência só falha se alguém mudar essa construção — e é
+  para esse dia que ela existe.
+
+**O corpo da requisição carrega só as linhas.** O servidor relê o `imageData`
+gravado e aplica a alteração em cima dele, para que os valores territoriais não
+trafeguem pelo navegador nem possam voltar corrompidos.
+
+**Uma edição que não muda nada não grava.** Cada `patch` cria uma versão nova no
+Contentful e marcaria um índice publicado como "alterações não publicadas" sem
+que exista alteração alguma.
+
+Como o `imageData` do `panelLayer` é a autoridade da aparência —
+`mergeCompactDataset` preserva `classes` e `mapVisualization` da base e ignora
+os das partições —, um rótulo editado aqui vale para o mapa, a legenda, o painel
+de análise e o relatório, em todos os períodos de uma vez.
+
+### Criar versão v2 a partir de um legado
+
+"Criar versão v2", no cartão de um legado adotado, abre o formulário completo
+preenchido com o que o índice já tem: nome (com sufixo `(v2)`, porque o ID
+técnico nasce do nome e não pode colidir com o do legado), descrição, categoria,
+a legenda inteira com rótulos e cores, e os limites do mapa quando existem.
+
+A classificação do mapa vem junto, e é a parte que não pode ser adivinhada. Um
+legado guarda de quatro formas diferentes como o raster vira classe, e
+`readLegacyClassification` (em `src/utils/legacyClassification.ts`) distingue as
+quatro a partir da entry:
+
+| forma              | onde está                                             | exemplos                                                               |
+| ------------------ | ----------------------------------------------------- | ---------------------------------------------------------------------- |
+| limites explícitos | `mapVisualization.thresholds`                         | `prodprimariabruta`, `prev_anomalia_precipitacao`, pobreza             |
+| código por pixel   | `pixelLimit` em **todas** as classes                  | `terraibge` (1 a 6 e 9 a 14), `cemadenseca` (6 a 1), `anaseca` (0 a 5) |
+| faixa de valores   | `pixelLimit` em todas menos a última                  | `carbonoembrapa` (4.999, 6, 8, 10, 16 g/kg)                            |
+| código consecutivo | `minScale..maxScale` cobrindo a quantidade de classes | `deg` (1 a 6), `ods` (9 a 11)                                          |
+
+Quando são códigos, eles vão para o índice de classe do rascunho, e é isso que
+faz o rótulo cair na classe certa num asset de código esparso ou em ordem
+inversa. Quando são faixas, eles vão para "Limites das classes" — sem isso o v2
+saía com `min` 1 e `max` 6 sobre valores em g/kg, e **90% do mapa do Carbono
+Orgânico do Solo ficava na cor da última classe, sem nenhum vermelho**, enquanto
+o legado mostrava as seis faixas (2,8% na primeira). Foi medido contando os
+pixels de cada cor num tile do semiárido, antes e depois.
+
+O campo "Limites das classes" ficava visível somente no bloco de coleção de
+previsão, embora o formulário sempre o enviasse. Ele passou a aparecer em
+qualquer estratégia de asset, porque um raster contínuo precisa dele
+independentemente de como as imagens são escolhidas.
+
+Nada é gravado e a entry legada não é tocada. Migrar um índice continua sendo
+criar um índice v2 novo ao lado do legado — foi assim que `cobertura-da-terra-ibge-s`,
+`monitor-de-seca-ana` e os dois índices de aridez nasceram, redigitados à mão — e
+a troca (despublicar o legado, publicar o novo) continua sendo uma decisão
+explícita do operador. O botão remove a redigitação, não a decisão. Os índices
+de classe são reescritos pela validação a partir das colunas `perc_classe_XX` do
+asset; a ordem das classes do legado é a aposta inicial.
+
+### Prévia e texto do relatório
+
+`GET /api/index-catalog/entries/[entryId]/presentation` devolve a camada como
+ela está, com o período padrão do próprio `imageData`. É o que permite capturar
+a imagem do cartão de um legado: a rota de tiles do catálogo passou a resolver a
+camada pelos campos da entry (`resolveCatalogPreviewTileLayer`) em vez de exigir
+uma prévia validada, porque um legado tem `imageId` por período sem ter
+validação. `municipalAnalysisApiPath` fica de fora da resposta de propósito —
+sem ele o painel de análise usa a rota de produção do índice, que é a única que
+sabe ler as partições.
+
+A prévia do Relatório Automático de um legado roda pelo caminho de produção:
+sem `loadImageData` e sem `availabilityIndex` próprios, e reaproveitando a
+configuração estática de `MUNICIPAL_REPORT_LAYERS` quando ela existe. É de lá
+que vêm o alias, a ordem e a narrativa de severidade que o relatório real usa.
+
+O formulário de um legado abre com o texto do relatório **vazio**, e não com o
+texto padrão do catálogo: a narrativa de um legado mora num bloco do Google
+Docs, e abrir com o padrão faria o primeiro salvamento substituir o texto real
+por um genérico. "Trazer o texto do Google Docs"
+(`GET /api/index-catalog/entries/[entryId]/docs-text`) traz as seções do
+documento com os colchetes intactos, para o operador editar o que já está
+publicado. Um texto vazio devolve o índice ao documento.
+
+### O que o catálogo não faz num legado
+
+- não valida assets, não calcula `sourceRevision` e não confere fingerprint;
+- não remove a entry de um legado que já foi publicado. O `panelLayer` é a única
+  cópia da configuração de um índice cujos valores moram nas partições, então
+  apagá-lo tiraria o índice da plataforma sem nada para reconstruí-lo.
+  "Despublicar" continua disponível;
+- não muda a origem dos dados. Migrar um legado para o escopo completo continua
+  exigindo a FeatureCollection estatística no GEE; o catálogo só adianta o
+  preenchimento do formulário;
+- não cria nem remove classes, e não mexe em `imageId`, períodos, `pixelLimit`
+  nem nos valores — só na aparência deles.
+
 ## Compatibilidade e falhas
 
-`catalogConfig` v1 e panel layers externos aparecem apenas para leitura. O
-catálogo só publica, despublica ou remove entradas v2. A remoção exclui somente
-o `panelLayer`; nunca chama uma operação de escrita ou exclusão no GEE.
+`catalogConfig` v1 e panel layers sem configuração aparecem para leitura e
+podem ser adotados no escopo de apresentação. Uma entry que **nunca** foi
+publicada pode ser removida mesmo sem adoção — é o caso dos rascunhos de teste
+com `catalogConfig` v1, que de outra forma ficariam sem nenhuma ação na tela.
+A remoção exclui somente o `panelLayer`; nunca chama uma operação de escrita ou
+exclusão no GEE.
 
 Carbono e ANA ainda possuem registro estático para compatibilidade. Eles podem
 usar o fallback histórico no Contentful. Fontes dinâmicas publicadas em

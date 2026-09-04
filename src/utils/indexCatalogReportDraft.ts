@@ -37,6 +37,19 @@ export function createDefaultReportDraft(): IndexCatalogReportDraft {
 }
 
 /**
+ * O rascunho de texto com que um índice **legado** adotado começa: vazio.
+ *
+ * O oposto de `createDefaultReportDraft`, e por um motivo concreto: um legado
+ * já tem narrativa, num bloco do Google Docs. Abrir com o texto padrão do
+ * catálogo e salvar substituiria o texto real do documento por um genérico.
+ * Vazio significa "continua vindo do documento", e é da rota de importação que
+ * o texto de verdade vem quando o operador quiser editá-lo aqui.
+ */
+export function createEmptyReportDraft(): IndexCatalogReportDraft {
+  return { sections: [], sectionColor: "", methodology: "" };
+}
+
+/**
  * O texto do rascunho no formato que a rota de gravação recebe.
  *
  * Aplica as mesmas regras do contrato — descarta a seção sem texto e apara os

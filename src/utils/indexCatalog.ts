@@ -6,6 +6,7 @@ import {
   type EarthEngineAssetMapping,
   type IndexCatalogConfigV2,
   type IndexCatalogDraftInput,
+  type IndexCatalogPresentationInput,
   type IndexCategory,
 } from "@/types/indexCatalog";
 
@@ -309,6 +310,62 @@ export function parseIndexCatalogDraftInput(
 }
 
 /**
+ * O que o formulário de um índice legado adotado pode gravar.
+ *
+ * Deliberadamente não aceita `statisticsSource`, `classes` nem `earthEngine`:
+ * os valores de um legado vêm das partições `municipalAnalysis` ou do registro
+ * estático, e escrever qualquer um dos três mudaria a origem dos números em vez
+ * da apresentação deles.
+ *
+ * A unidade é validada mas não normalizada para `%`, como no escopo completo,
+ * porque os legados usam "classes" e "registros" — trocar isso mudaria o rótulo
+ * do painel de análise sem ninguém pedir.
+ *
+ * @example
+ * parseIndexCatalogPresentationInput({
+ *   name: "Registros de Secas e Estiagens",
+ *   description: "…",
+ *   category: "Dados Climáticos",
+ *   measurementUnit: "registros",
+ * });
+ */
+export function parseIndexCatalogPresentationInput(
+  value: unknown,
+): IndexCatalogPresentationInput {
+  if (!isRecord(value)) throw new Error("Edição inválida.");
+  if (
+    typeof value.category !== "string" ||
+    !(INDEX_CATEGORIES as readonly string[]).includes(value.category)
+  ) {
+    throw new Error("Categoria inválida.");
+  }
+
+  const panelPosition = Number(value.panelPosition);
+  return {
+    name: requiredString(value.name, "Nome", 120),
+    description: requiredString(value.description, "Descrição", 500),
+    category: value.category as IndexCategory,
+    measurementUnit: requiredString(
+      value.measurementUnit,
+      "Unidade de medida",
+      40,
+    ),
+    ...(value.panelPosition != null && value.panelPosition !== ""
+      ? { panelPosition: assertPanelPosition(panelPosition) }
+      : {}),
+  };
+}
+
+function assertPanelPosition(panelPosition: number) {
+  if (!Number.isInteger(panelPosition) || panelPosition < 0) {
+    throw new Error(
+      `Posição na categoria deve ser um inteiro maior ou igual a zero, recebido: ${panelPosition}`,
+    );
+  }
+  return panelPosition;
+}
+
+/**
  * Descobre o template de partição anual a partir do endereço de um único ano.
  *
  * O operador cola `.../Estatistica_Multinivel_MonitorANA_2026` e o catálogo
@@ -406,4 +463,37 @@ export function resolvePanelPositionInCategory(
   return takenPositions.length > 0
     ? Math.max(...takenPositions) + 1
     : sameCategory.length;
+}
+
+/**
+ * Lista de números separados por vírgula, como os limites das classes e os
+ * lead times aparecem no formulário.
+ *
+ * Vive aqui, e não na tela, porque a edição de aparência de um índice legado
+ * usa a mesma escrita para os limites do mapa.
+ *
+ * @example
+ * parseNumberList("20, 40, 60", "Limites das faixas"); // [20, 40, 60]
+ */
+export function parseNumberList(
+  value: string,
+  label: string,
+  integersOnly = false,
+): number[] {
+  const parts = value
+    .split(",")
+    .map((part) => part.trim())
+    .filter(Boolean);
+  const numbers = parts.map(Number);
+
+  if (
+    numbers.some(
+      (number) =>
+        !Number.isFinite(number) || (integersOnly && !Number.isInteger(number)),
+    )
+  ) {
+    throw new Error(`${label} deve usar números separados por vírgula.`);
+  }
+
+  return numbers;
 }

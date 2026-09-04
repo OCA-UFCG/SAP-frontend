@@ -14,10 +14,22 @@ import {
 import type { IEEInfo, PanelLayerI } from "@/utils/interfaces";
 import type { PlatformSection } from "@/components/PlatformSideRail/PlatformSideRail";
 
+/**
+ * A prévia do Monitoramento precisa apenas da camada a desenhar.
+ *
+ * É menos que uma prévia validada de propósito, pela mesma razão da captura da
+ * imagem do cartão: um índice legado adotado tem mapa, períodos e legenda sem
+ * ter validação nenhuma, e é o mapa de verdade que o operador precisa ver antes
+ * de publicar.
+ */
+export interface CatalogMonitoringPreviewSource {
+  panelLayer: IndexCatalogPreview["panelLayer"];
+}
+
 export function CatalogMonitoringPreview({
   preview,
 }: {
-  preview: IndexCatalogPreview;
+  preview: CatalogMonitoringPreviewSource;
 }) {
   const [section, setSection] = useState<PlatformSection>("monitoring");
   const { activateEeLayer, resetPlatformState, setActiveYear } =

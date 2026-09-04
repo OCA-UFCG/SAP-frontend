@@ -140,3 +140,132 @@ describe("estado de publicação lido do Contentful", () => {
     );
   });
 });
+
+/** Uma entry legada: sem `catalogConfig`, com o `imageData` que ela tiver. */
+class FakeLegacyPanelLayerApi {
+  constructor(private readonly imageData: unknown) {}
+
+  readonly fetch = async (url: string) => {
+    if (String(url).endsWith("/locales")) {
+      return Response.json({ items: [{ code: "en-US", default: true }] });
+    }
+
+    return Response.json({
+      sys: {
+        id: "legacy-entry",
+        version: 4,
+        firstPublishedAt: "2024-01-01T00:00:00.000Z",
+        publishedAt: "2024-01-01T00:00:00.000Z",
+        publishedVersion: 3,
+      },
+      fields: {
+        id: { "en-US": "s2id_secas_estiagens" },
+        name: { "en-US": "Registros de Secas e Estiagens" },
+        description: { "en-US": "Ocorrências do S2iD." },
+        category: { "en-US": "Dados Climáticos" },
+        measurementUnit: { "en-US": "registros" },
+        panelPosition: { "en-US": 4 },
+        imageData: { "en-US": this.imageData },
+      },
+    });
+  };
+}
+
+const COMPACT_IMAGE_DATA = {
+  schemaVersion: 1,
+  type: "territorial-compact",
+  defaultYear: "2020",
+  classes: [{ id: "registros", label: "Registros", color: "#8C2D04" }],
+  locations: { br: "Brasil" },
+  years: { "2020": { imageId: "assets/s2id", values: { br: [12] } } },
+};
+
+describe("adoção de índices legados na listagem", () => {
+  beforeEach(() => {
+    vi.stubEnv("NEXT_PUBLIC_CONTENTFUL_SPACE_ID", "space-teste");
+    vi.stubEnv("CONTENTFUL_MANAGEMENT_TOKEN", "token-teste");
+  });
+
+  afterEach(() => {
+    vi.unstubAllEnvs();
+    vi.unstubAllGlobals();
+  });
+
+  it("marca como adotável o legado em territorial-compact e devolve a unidade", async () => {
+    vi.stubGlobal(
+      "fetch",
+      new FakeLegacyPanelLayerApi(COMPACT_IMAGE_DATA).fetch,
+    );
+
+    const current = await getCatalogEntry("legacy-entry");
+
+    expect(current.item.catalogManaged).toBe(false);
+    expect(current.item.managedScope).toBeNull();
+    expect(current.item.adoptable).toBe(true);
+    expect(current.item.measurementUnit).toBe("registros");
+    expect(current.item.status).toBe("legacy");
+  });
+
+  it("recusa a adoção do legado no formato pré-compacto", async () => {
+    // `CDI` e `veg` ainda guardam `imageParams` por ano: sem `classes` nem
+    // `years`, a captura da imagem e a prévia do relatório não têm o que ler.
+    vi.stubGlobal(
+      "fetch",
+      new FakeLegacyPanelLayerApi({
+        "2021": { imageId: "assets/cdi", imageParams: [] },
+      }).fetch,
+    );
+
+    const current = await getCatalogEntry("legacy-entry");
+
+    expect(current.item.adoptable).toBe(false);
+    expect(current.item.adoptionBlockedReason).toMatch(/pré-compacto/u);
+  });
+
+  it("reconhece o escopo de apresentação de um legado já adotado", async () => {
+    class FakeAdoptedLegacyApi {
+      readonly fetch = async (url: string) => {
+        if (String(url).endsWith("/locales")) {
+          return Response.json({ items: [{ code: "en-US", default: true }] });
+        }
+
+        return Response.json({
+          sys: {
+            id: "legacy-entry",
+            version: 6,
+            firstPublishedAt: "2024-01-01T00:00:00.000Z",
+            publishedAt: "2024-01-01T00:00:00.000Z",
+            publishedVersion: 5,
+          },
+          fields: {
+            id: { "en-US": "s2id_secas_estiagens" },
+            name: { "en-US": "Registros de Secas e Estiagens" },
+            description: { "en-US": "Ocorrências do S2iD." },
+            imageData: { "en-US": COMPACT_IMAGE_DATA },
+            catalogConfig: {
+              "en-US": {
+                schemaVersion: 2,
+                managedScope: "presentation",
+                panelLayerId: "s2id_secas_estiagens",
+                status: "published",
+                name: "Registros de Secas e Estiagens",
+                description: "Ocorrências do S2iD.",
+                category: "Dados Climáticos",
+                measurementUnit: "registros",
+                adoptedFrom: { at: "2026-09-01T10:00:00.000Z" },
+              },
+            },
+          },
+        });
+      };
+    }
+    vi.stubGlobal("fetch", new FakeAdoptedLegacyApi().fetch);
+
+    const current = await getCatalogEntry("legacy-entry");
+
+    expect(current.item.catalogManaged).toBe(true);
+    expect(current.item.managedScope).toBe("presentation");
+    expect(current.item.adoptable).toBe(false);
+    expect(current.item.status).toBe("published");
+  });
+});

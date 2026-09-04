@@ -15,6 +15,20 @@ import type { IndexCatalogPreview } from "@/types/indexCatalog";
 import { getImageDataYearKeys, isCompactImageData } from "@/utils/imageData";
 
 /**
+ * O mínimo de que a captura precisa: a camada e o período a desenhar. É menos
+ * que uma prévia validada de propósito, porque um índice legado adotado tem
+ * mapa e período sem ter validação nenhuma.
+ */
+export interface CatalogPreviewMapSource {
+  entryId: string;
+  panelLayer: Pick<
+    IndexCatalogPreview["panelLayer"],
+    "id" | "name" | "tileApiPath" | "imageData"
+  >;
+  period: string;
+}
+
+/**
  * A captura sai do canvas do mapa, então a resolução seria a da tela do
  * operador. Fixamos 2x para a imagem do cartão não depender do monitor usado.
  */
@@ -55,7 +69,7 @@ export function CatalogPreviewMapCapture({
   preview,
   onSaved,
 }: {
-  preview: IndexCatalogPreview;
+  preview: CatalogPreviewMapSource;
   onSaved?: (url: string) => void;
 }) {
   const [attempt, setAttempt] = useState(0);
@@ -66,9 +80,8 @@ export function CatalogPreviewMapCapture({
   const containerRef = useRef<HTMLDivElement | null>(null);
   const mapRef = useRef<maplibregl.Map | null>(null);
   const onSavedRef = useRef(onSaved);
-  const { entryId } = preview;
+  const { entryId, period } = preview;
   const { id: panelLayerId, name, tileApiPath } = preview.panelLayer;
-  const period = resolvePreviewMapPeriod(preview);
   // A captura é identificada pelo período e pela tentativa: a imagem antiga
   // desaparece sozinha quando a chave muda, sem reset dentro do efeito.
   const captureKey = `${entryId}:${period}:${attempt}`;

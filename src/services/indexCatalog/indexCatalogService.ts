@@ -21,13 +21,18 @@ import {
 } from "@/services/indexCatalog/contentfulManagement";
 import {
   catalogTimestamp,
+  requireFullyManagedConfig,
   requireManagedConfig,
   withAuditEvent,
 } from "@/services/indexCatalog/catalogConfigAudit";
 import { getIndexCatalogPreviewMapUrl } from "@/services/indexCatalog/previewMapService";
+import { publishIndexCatalogPresentation } from "@/services/indexCatalog/presentationService";
 import {
+  isFullyManagedCatalogConfig,
+  isPresentationManagedCatalogConfig,
   type CatalogValidationReport,
   type IndexCatalogConfigV2,
+  type IndexCatalogItem,
   type IndexCatalogDraftInput,
   type IndexCatalogLifecycleImpact,
   type IndexCatalogPreview,
@@ -119,9 +124,11 @@ export async function updateIndexCatalogDraft(
   rawInput: unknown,
   user: AuthenticatedUserSession,
 ) {
-  const input = parseIndexCatalogDraftInput(rawInput);
+  // O escopo é conferido antes de validar o corpo: um legado adotado enviado
+  // para esta rota tem de ouvir que ela não é dele, e não "Categoria inválida".
   const current = await getCatalogEntry(entryId);
-  const previous = requireManagedConfig(current);
+  const previous = requireFullyManagedConfig(current);
+  const input = parseIndexCatalogDraftInput(rawInput);
   const panelLayerId = await resolveDraftPanelLayerId(
     current.entry,
     previous,
@@ -205,7 +212,7 @@ export async function generateIndexCatalogPreview(
   user: AuthenticatedUserSession,
 ) {
   const current = await getCatalogEntry(entryId);
-  const config = requireManagedConfig(current);
+  const config = requireFullyManagedConfig(current);
 
   try {
     const build = await buildCatalogDraft(config);
@@ -272,7 +279,7 @@ export async function generateIndexCatalogPreview(
 
 export async function getIndexCatalogPreview(entryId: string) {
   const current = await getCatalogEntry(entryId);
-  const config = requireManagedConfig(current);
+  const config = requireFullyManagedConfig(current);
   return buildCatalogPreviewResponse(current.entry, current.locale, config);
 }
 
@@ -282,7 +289,7 @@ export async function getIndexCatalogDraftMunicipalData(
   locationKey: string,
 ) {
   const current = await getCatalogEntry(entryId);
-  const config = requireManagedConfig(current);
+  const config = requireFullyManagedConfig(current);
   if (!config.validation?.valid || !config.validatedStatisticsSource) {
     return null;
   }
@@ -317,7 +324,7 @@ export async function publishIndexCatalogDraft(
   user: AuthenticatedUserSession,
 ) {
   const current = await getCatalogEntry(entryId);
-  const config = requireManagedConfig(current);
+  const config = requireFullyManagedConfig(current);
   assertPublishable(config);
 
   try {
@@ -393,7 +400,8 @@ export async function getIndexCatalogLifecycleImpact(
   entryId: string,
 ): Promise<IndexCatalogLifecycleImpact> {
   const current = await getCatalogEntry(entryId);
-  requireManagedConfig(current);
+  // A mesma regra da remoção: esta é a tela que a confirma.
+  requireDeletablePanelLayerId(current.item);
   return {
     item: current.item,
     linkedEntries: [],
@@ -419,7 +427,11 @@ export async function publishIndexCatalogEntry(
       status: "published" as const,
     };
   }
-  return publishIndexCatalogDraft(entryId, user);
+  // Um legado adotado não tem assets a revalidar: publicar é levar ao ar a
+  // versão de rascunho da entry, com o texto e a imagem que já foram gravados.
+  return isPresentationManagedCatalogConfig(config)
+    ? publishIndexCatalogPresentation(entryId, user)
+    : publishIndexCatalogDraft(entryId, user);
 }
 
 export async function unpublishIndexCatalogEntry(
@@ -470,14 +482,53 @@ async function deleteEntryCompletely(entry: ContentfulManagementEntry) {
   }
 }
 
+/**
+ * O catálogo remove a entry de um índice que ele mesmo criou, ou de um rascunho
+ * que nunca foi publicado. Um legado que já esteve no ar é diferente: o
+ * `panelLayer` dele é a única cópia da configuração de um índice cujos valores
+ * moram nas partições `municipalAnalysis`, e apagá-lo tiraria o índice da
+ * plataforma sem nada para reconstruí-lo.
+ */
+function assertDeletable(item: IndexCatalogItem) {
+  if (!item.everPublished) return;
+
+  if (isPresentationManagedCatalogConfig(item.catalogConfig)) {
+    throw new Error(
+      `${item.panelLayerId} é um índice legado que já foi publicado: o catálogo gerencia a apresentação dele, mas não remove a entry. Use “Despublicar” para tirá-lo do Monitoramento.`,
+    );
+  }
+  if (!isFullyManagedCatalogConfig(item.catalogConfig)) {
+    throw new Error(
+      `${item.panelLayerId} já foi publicado e não é gerenciado pelo catálogo, então o catálogo não remove a entry dele.`,
+    );
+  }
+}
+
+/**
+ * O ID técnico que a remoção confere, para qualquer entry que o catálogo possa
+ * remover. Vem do item, e não do `catalogConfig`, porque uma entry que nunca
+ * foi publicada pode ser removida sem ter sido adotada — é o caso dos rascunhos
+ * de teste com `catalogConfig` v1, que de outra forma ficariam sem nenhuma ação
+ * disponível na tela.
+ */
+function requireDeletablePanelLayerId(item: IndexCatalogItem) {
+  assertDeletable(item);
+  if (!item.panelLayerId.trim()) {
+    throw new Error(
+      `A entry ${item.entryId} não tem o campo id preenchido, então não há ID técnico para confirmar a remoção.`,
+    );
+  }
+  return item.panelLayerId;
+}
+
 export async function deleteIndexCatalogEntry(
   entryId: string,
   confirmation: string,
   user: AuthenticatedUserSession,
 ) {
   const current = await getCatalogEntry(entryId);
-  const config = requireManagedConfig(current);
-  if (confirmation.trim() !== config.panelLayerId) {
+  const panelLayerId = requireDeletablePanelLayerId(current.item);
+  if (confirmation.trim() !== panelLayerId) {
     throw new Error(
       "Confirme a remoção informando exatamente o ID técnico do índice.",
     );
@@ -487,7 +538,7 @@ export async function deleteIndexCatalogEntry(
     action: "delete",
     outcome: "success",
     entryId,
-    panelLayerId: config.panelLayerId,
+    panelLayerId,
     deletedEntries: 1,
     uid: user.uid,
     email: user.email,
@@ -495,7 +546,7 @@ export async function deleteIndexCatalogEntry(
   });
   return {
     entryId,
-    panelLayerId: config.panelLayerId,
+    panelLayerId,
     status: "deleted" as const,
     deletedEntries: 1,
   };

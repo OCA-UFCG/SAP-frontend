@@ -188,11 +188,11 @@ describe("saveIndexCatalogReportText", () => {
     expect(contentful.patchManagementEntry).not.toHaveBeenCalled();
   });
 
-  it("recusa um índice legado", async () => {
+  it("recusa um índice que o catálogo não adotou", async () => {
     stubEntry({ legacy: true });
 
     await expect(
       saveIndexCatalogReportText("panel", validReport, user),
-    ).rejects.toThrow(/legado/u);
+    ).rejects.toThrow(/não foi adotado/u);
   });
 });

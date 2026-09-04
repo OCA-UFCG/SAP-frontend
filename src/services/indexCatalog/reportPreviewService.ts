@@ -9,18 +9,23 @@ import { getGeeStatisticsYearPatch } from "@/repositories/platform/geeStatistics
 import { populateDocContent } from "@/services/buildDoc/buildDocContent";
 import { getTemplateData } from "@/services/buildDoc/buildTemplateData";
 import { requireManagedConfig } from "@/services/indexCatalog/catalogConfigAudit";
+import { MUNICIPAL_REPORT_LAYERS } from "@/config/municipalReport";
 import {
   getCatalogEntry,
   getLocalizedEntryField,
 } from "@/services/indexCatalog/contentfulManagement";
 import { buildMunicipalReport } from "@/services/municipalReportService";
 import type { MunicipalReportLayerConfig } from "@/config/municipalReport";
-import type {
-  IndexCatalogConfigV2,
-  IndexCatalogReportPreview,
+import {
+  isPresentationManagedCatalogConfig,
+  type IndexCatalogConfigV2,
+  type IndexCatalogPresentationConfigV2,
+  type IndexCatalogReportPreview,
+  type ManagedIndexCatalogConfig,
 } from "@/types/indexCatalog";
 import type { CompactTerritorialAnalysisDataset } from "@/utils/analysis";
 import { mergeCompactDatasetYear } from "@/utils/municipalAnalysisMerge";
+import type { MunicipalReportSeriesConfig } from "@/utils/interfaces";
 import type { MunicipalAvailabilityIndex } from "@/utils/municipalAvailability";
 import {
   stableMunicipalReportAlias,
@@ -127,6 +132,81 @@ function toPreviewLayerConfig(
   };
 }
 
+function toDraftPreviewInput(
+  config: IndexCatalogConfigV2,
+  imageData: CompactTerritorialAnalysisDataset,
+) {
+  if (!config.validation?.valid || !config.validatedStatisticsSource) {
+    throw new Error("Valide os assets e gere a prévia antes do relatório.");
+  }
+  const period = getLatestPeriod(config);
+  return {
+    period,
+    dependencies: {
+      layers: [toPreviewLayerConfig(config, imageData, period)],
+      loadImageData: createDraftImageDataLoader(config, imageData),
+      availabilityIndex: EMPTY_AVAILABILITY_INDEX,
+    },
+  };
+}
+
+/**
+ * A prévia de um índice legado adotado roda pelo caminho de produção.
+ *
+ * Nada de `loadImageData` nem de `availabilityIndex` próprios: os valores dele
+ * continuam nas partições `municipalAnalysis` (ou no registro estático de
+ * `geeStatisticsLayers`), e é o índice de disponibilidade gerado no build que
+ * decide qual período o município tem. Trocar qualquer um dos dois faria a
+ * prévia mostrar um relatório que não é o que o usuário recebe — e a prévia
+ * existe justamente para conferir o texto contra os valores reais.
+ *
+ * A configuração estática da camada (`MUNICIPAL_REPORT_LAYERS`) é reaproveitada
+ * quando existe, porque é dela que vêm o alias, a ordem e a narrativa de
+ * severidade que o relatório de produção usa neste índice.
+ */
+function toLegacyPreviewInput(
+  config: IndexCatalogPresentationConfigV2,
+  imageData: CompactTerritorialAnalysisDataset,
+  current: Awaited<ReturnType<typeof getCatalogEntry>>,
+) {
+  const productionConfig = MUNICIPAL_REPORT_LAYERS.find(
+    (layer) => layer.panelLayerId === config.panelLayerId,
+  );
+  const periods = Object.keys(imageData.years);
+  const period = imageData.defaultYear ?? periods.at(-1);
+  if (!period) {
+    throw new Error(
+      `O imageData de ${config.panelLayerId} não tem nenhum período para montar a prévia do relatório.`,
+    );
+  }
+
+  return {
+    period,
+    dependencies: {
+      layers: [
+        {
+          ...productionConfig,
+          panelLayerId: config.panelLayerId,
+          alias:
+            productionConfig?.alias ??
+            stableMunicipalReportAlias(config.panelLayerId),
+          title: config.name,
+          order: productionConfig?.order ?? 0,
+          periods,
+          reportPresentation: toMunicipalReportPresentation(config.report),
+          reportSeriesConfig:
+            getLocalizedEntryField<MunicipalReportSeriesConfig>(
+              current.entry,
+              "reportSeriesConfig",
+              current.locale,
+            ),
+          baseImageData: imageData,
+        } satisfies MunicipalReportLayerConfig,
+      ],
+    },
+  };
+}
+
 /**
  * Como este índice apareceria no Relatório Automático de Campina Grande - PB,
  * no período mais recente que a validação encontrou.
@@ -144,9 +224,6 @@ export async function buildIndexCatalogReportPreview(
 ): Promise<IndexCatalogReportPreview> {
   const current = await getCatalogEntry(entryId);
   const config = requireManagedConfig(current);
-  if (!config.validation?.valid || !config.validatedStatisticsSource) {
-    throw new Error("Valide os assets e gere a prévia antes do relatório.");
-  }
   const imageData = getLocalizedEntryField(
     current.entry,
     "imageData",
@@ -157,12 +234,14 @@ export async function buildIndexCatalogReportPreview(
   }
 
   const municipality = getPreviewMunicipality();
-  const period = getLatestPeriod(config);
-  const report = await buildMunicipalReport(municipality.code, period, {
-    layers: [toPreviewLayerConfig(config, imageData, period)],
-    loadImageData: createDraftImageDataLoader(config, imageData),
-    availabilityIndex: EMPTY_AVAILABILITY_INDEX,
-  });
+  const { period, dependencies } = isPresentationManagedCatalogConfig(config)
+    ? toLegacyPreviewInput(config, imageData, current)
+    : toDraftPreviewInput(config, imageData);
+  const report = await buildMunicipalReport(
+    municipality.code,
+    period,
+    dependencies,
+  );
 
   return {
     municipality: {
@@ -184,7 +263,7 @@ export async function buildIndexCatalogReportPreview(
  * apareça errado aqui também — a prévia serve justamente para ver isso.
  */
 async function resolveCatalogSections(
-  config: IndexCatalogConfigV2,
+  config: ManagedIndexCatalogConfig,
   report: MunicipalReportData,
   period: string,
 ): Promise<MunicipalReportDocsContent> {
