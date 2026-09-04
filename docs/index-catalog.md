@@ -378,45 +378,12 @@ Como o `imageData` do `panelLayer` é a autoridade da aparência —
 os das partições —, um rótulo editado aqui vale para o mapa, a legenda, o painel
 de análise e o relatório, em todos os períodos de uma vez.
 
-### Criar versão v2 a partir de um legado
-
-"Criar versão v2", no cartão de um legado adotado, abre o formulário completo
-preenchido com o que o índice já tem: nome (com sufixo `(v2)`, porque o ID
-técnico nasce do nome e não pode colidir com o do legado), descrição, categoria,
-a legenda inteira com rótulos e cores, e os limites do mapa quando existem.
-
-A classificação do mapa vem junto, e é a parte que não pode ser adivinhada. Um
-legado guarda de quatro formas diferentes como o raster vira classe, e
-`readLegacyClassification` (em `src/utils/legacyClassification.ts`) distingue as
-quatro a partir da entry:
-
-| forma              | onde está                                             | exemplos                                                               |
-| ------------------ | ----------------------------------------------------- | ---------------------------------------------------------------------- |
-| limites explícitos | `mapVisualization.thresholds`                         | `prodprimariabruta`, `prev_anomalia_precipitacao`, pobreza             |
-| código por pixel   | `pixelLimit` em **todas** as classes                  | `terraibge` (1 a 6 e 9 a 14), `cemadenseca` (6 a 1), `anaseca` (0 a 5) |
-| faixa de valores   | `pixelLimit` em todas menos a última                  | `carbonoembrapa` (4.999, 6, 8, 10, 16 g/kg)                            |
-| código consecutivo | `minScale..maxScale` cobrindo a quantidade de classes | `deg` (1 a 6), `ods` (9 a 11)                                          |
-
-Quando são códigos, eles vão para o índice de classe do rascunho, e é isso que
-faz o rótulo cair na classe certa num asset de código esparso ou em ordem
-inversa. Quando são faixas, eles vão para "Limites das classes" — sem isso o v2
-saía com `min` 1 e `max` 6 sobre valores em g/kg, e **90% do mapa do Carbono
-Orgânico do Solo ficava na cor da última classe, sem nenhum vermelho**, enquanto
-o legado mostrava as seis faixas (2,8% na primeira). Foi medido contando os
-pixels de cada cor num tile do semiárido, antes e depois.
+### Limites das classes
 
 O campo "Limites das classes" ficava visível somente no bloco de coleção de
-previsão, embora o formulário sempre o enviasse. Ele passou a aparecer em
-qualquer estratégia de asset, porque um raster contínuo precisa dele
-independentemente de como as imagens são escolhidas.
-
-Nada é gravado e a entry legada não é tocada. Migrar um índice continua sendo
-criar um índice v2 novo ao lado do legado — foi assim que `cobertura-da-terra-ibge-s`,
-`monitor-de-seca-ana` e os dois índices de aridez nasceram, redigitados à mão — e
-a troca (despublicar o legado, publicar o novo) continua sendo uma decisão
-explícita do operador. O botão remove a redigitação, não a decisão. Os índices
-de classe são reescritos pela validação a partir das colunas `perc_classe_XX` do
-asset; a ordem das classes do legado é a aposta inicial.
+previsão, embora o formulário sempre o enviasse. Ele aparece em qualquer
+estratégia de asset, porque um raster contínuo precisa dele independentemente de
+como as imagens são escolhidas.
 
 ### Prévia e texto do relatório
 
