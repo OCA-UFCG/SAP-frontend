@@ -6,6 +6,7 @@ import {
   resolveGeeMunicipalValueTableSource,
   type GeeMunicipalValueTableStatisticsSource,
 } from "@/contracts/geeMunicipalValueTable";
+import { assertGeeStatisticsPeriod } from "@/contracts/geeStatisticsAsset";
 import { evaluateGeeObject } from "@/infrastructure/earth-engine/client";
 import {
   buildMunicipalityRow,
@@ -13,7 +14,6 @@ import {
   mapMunicipalValueRows,
   toSingleValuesByPeriod,
   toValuesByPeriod,
-  MUNICIPALITY_KEY_PATTERN,
   type MunicipalValueRow,
 } from "@/repositories/platform/geeMunicipalValueTable";
 import {
@@ -21,6 +21,8 @@ import {
   getOrLoadStatisticsRows,
 } from "@/repositories/platform/geeStatisticsRowsCache";
 import type { CompactTerritorialAnalysisDatasetPatch } from "@/utils/municipalAnalysisMerge";
+import { STATE_KEY_PATTERN } from "@/utils/geeStateCode";
+import { MUNICIPALITY_KEY_PATTERN } from "@/utils/statisticsLocationScope";
 
 /**
  * Um asset e as colunas de período que ele guarda.
@@ -56,7 +58,7 @@ function isSupportedLocationKey(locationKey: string) {
   return (
     locationKey === "br" ||
     MUNICIPALITY_KEY_PATTERN.test(locationKey) ||
-    /^[a-z]{2}$/u.test(locationKey)
+    STATE_KEY_PATTERN.test(locationKey)
   );
 }
 
@@ -272,6 +274,13 @@ export async function getMunicipalValueTableYearPatch(
   locationKey: string,
   periodKeys: readonly string[] = [],
 ): Promise<MunicipalValueTableYearResult> {
+  // O período pedido é conferido antes de planejar. `planValueTableReads`
+  // descarta em silêncio o que não sabe resolver, e isso é o certo para os
+  // períodos vizinhos que pegam carona na mesma leitura — mas não para este:
+  // com um vizinho válido no plano a leitura seguia adiante, gastava uma ida ao
+  // Earth Engine e devolvia o período vazio, que o painel mostra como "sem
+  // dado" em vez de dizer que ele não existe nesta fonte.
+  assertGeeStatisticsPeriod(yearKey, source.periodGranularity);
   const plans = planValueTableReads(
     source,
     periodKeys.length > 0 ? [...periodKeys, yearKey] : [yearKey],

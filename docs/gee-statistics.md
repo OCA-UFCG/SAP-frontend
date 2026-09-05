@@ -190,6 +190,11 @@ exigiriam um cruzamento espacial que a tabela municipal não carrega. É o mesmo
 comportamento que as camadas socioeconômicas legadas já têm hoje, e a validação
 do catálogo devolve um aviso dizendo isso.
 
+Um período incompatível com a granularidade da fonte é recusado quando é ele o
+pedido, com a mesma mensagem do caminho classificatório. Os períodos vizinhos,
+que pegam carona na leitura da série, continuam sendo descartados em silêncio —
+não faz sentido derrubar o período pedido por causa de um vizinho inválido.
+
 ### O que o painel mostra
 
 A camada tem **uma classe só** — o próprio indicador —, e `values` é um vetor de

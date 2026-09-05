@@ -30,10 +30,13 @@ import {
 } from "@/repositories/platform/geeStatisticsRowsCache";
 import { chunk } from "@/utils/chunk";
 import { resolveGeeStateCode, STATE_KEY_PATTERN } from "@/utils/geeStateCode";
+import {
+  MUNICIPALITY_KEY_PATTERN,
+  shouldIncludeLocation,
+} from "@/utils/statisticsLocationScope";
 import type { CompactTerritorialAnalysisDatasetPatch } from "@/utils/municipalAnalysisMerge";
 import { statesObj } from "@/utils/constants";
 
-const MUNICIPALITY_KEY_PATTERN = /^\d{7}$/u;
 const AGGREGATE_LOCATION_PATTERN = /^(2_regiao|3_bioma|4_asd|5_semiarido)-/u;
 
 const SOURCE_LEVEL_BY_LOCATION_PREFIX: Record<string, string> = {
@@ -201,12 +204,6 @@ function getMetrics(
       ? { max: toOptionalFiniteNumber(row[scalarMetrics.max]) }
       : {}),
   };
-}
-
-function shouldIncludeLocation(requestedLocationKey: string, rowKey: string) {
-  return requestedLocationKey === "br"
-    ? rowKey === "br" || STATE_KEY_PATTERN.test(rowKey)
-    : requestedLocationKey === rowKey;
 }
 
 function validatePercentageDistribution(

@@ -232,6 +232,18 @@ describe("getMunicipalValueTableYearPatch", () => {
     expect(result.patch.years?.["2013"]?.values).toEqual({});
   });
 
+  it("recusa o período pedido que a fonte não sabe resolver", async () => {
+    // Regressão: o período incompatível era descartado junto com os outros, e
+    // como a série tinha períodos válidos a leitura seguia adiante. A resposta
+    // saía 200 com o período vazio — "sem dado" no painel — em vez de dizer que
+    // o período não existe nesta fonte, que é o que o caminho classificatório
+    // faz e o que o comentário de `planValueTableReads` prometia.
+    await expect(
+      getMunicipalValueTableYearPatch(source, "2013-04", "br", PERIODS),
+    ).rejects.toThrow(/2013-04/u);
+    expect(evaluate).not.toHaveBeenCalled();
+  });
+
   it("answers an aggregate spatial scope with no data instead of failing", async () => {
     const result = await getMunicipalValueTableYearPatch(
       source,

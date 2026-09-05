@@ -1,5 +1,9 @@
 import type { GeeMunicipalValueTableStatisticsSource } from "@/contracts/geeMunicipalValueTable";
 import { getStateLabel, resolveGeeStateCode } from "@/utils/geeStateCode";
+import {
+  MUNICIPALITY_KEY_PATTERN,
+  shouldIncludeLocation,
+} from "@/utils/statisticsLocationScope";
 import type { CompactTerritorialAnalysisDatasetPatch } from "@/utils/municipalAnalysisMerge";
 
 /**
@@ -15,8 +19,6 @@ export interface MunicipalValueRow {
   label: string;
   valuesByPeriod: Record<string, number | null>;
 }
-
-export const MUNICIPALITY_KEY_PATTERN = /^\d{7}$/u;
 
 function toOptionalFiniteNumber(value: unknown): number | null {
   if (value === null || value === undefined || value === "") return null;
@@ -107,12 +109,6 @@ export function toSingleValuesByPeriod(
       toOptionalFiniteNumber(properties[columnByPeriod[periodKey]]),
     ]),
   );
-}
-
-function shouldIncludeLocation(requestedLocationKey: string, rowKey: string) {
-  return requestedLocationKey === "br"
-    ? rowKey === "br" || /^[a-z]{2}$/u.test(rowKey)
-    : requestedLocationKey === rowKey;
 }
 
 /**
