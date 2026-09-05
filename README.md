@@ -9,7 +9,7 @@ Frontend application for the SEDES platform, built with Next.js. The project com
 - TypeScript
 - Contentful GraphQL
 - Google Earth Engine
-- MapLibre and Leaflet
+- MapLibre
 - Vitest and Storybook
 
 ## Prerequisites
