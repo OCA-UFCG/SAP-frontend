@@ -1,0 +1,20 @@
+{
+  "ErrorPage": {
+    "unexpected": {
+      "title": "Algo salió mal por aquí",
+      "description": "No pudimos armar esta página. Suele ser temporal: casi siempre es una de nuestras fuentes de datos que no respondió a tiempo.",
+      "retry": "Intentar de nuevo",
+      "home": "Volver al inicio",
+      "digest": "Código del error: {digest}"
+    },
+    "notFound": {
+      "title": "Página no encontrada",
+      "description": "La dirección que abriste no existe o no está disponible para tu cuenta.",
+      "home": "Volver al inicio",
+      "platform": "Ir a la plataforma"
+    },
+    "loading": {
+      "platform": "Cargando la plataforma"
+    }
+  }
+}
