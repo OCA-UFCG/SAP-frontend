@@ -1,7 +1,6 @@
 import "server-only";
 
-import ee from "@google/earthengine";
-import { createHash } from "node:crypto";
+import { isGeeMunicipalValueTableSource } from "@/contracts/geeMunicipalValueTable";
 import {
   inferGeeStatisticsSchema,
   type GeeFeatureCollectionStatisticsSource,
@@ -9,14 +8,14 @@ import {
   type PublishedGeeStatisticsSource,
   type ResolvedGeeStatisticsSource,
 } from "@/contracts/geeStatistics";
+import { getStatisticsAssetIds } from "@/services/indexCatalog/statisticsAssetDiscovery";
+import { hashCatalogValue } from "@/services/indexCatalog/catalogFingerprint";
+import { buildMunicipalValueTableDraft } from "@/services/indexCatalog/municipalValueTableDraft";
 import {
-  inspectEarthEngineAsset,
-  listEarthEngineAssets,
-} from "@/app/api/ee/services";
-import {
-  evaluateGeeObject,
-  initializeGee,
-} from "@/infrastructure/earth-engine/client";
+  validateMapAssets,
+  type ValidatedForecastCollection,
+} from "@/services/indexCatalog/mapAssetValidation";
+import { initializeGee } from "@/infrastructure/earth-engine/client";
 import {
   buildStatisticsAssetKey,
   getOrValidateStatisticsAsset,
@@ -35,7 +34,6 @@ import {
 import type {
   CatalogValidationReport,
   ClassMapping,
-  EarthEngineAssetMapping,
   IndexCatalogBuildResult,
   IndexCatalogConfigV2,
 } from "@/types/indexCatalog";
@@ -52,24 +50,10 @@ const DEFAULT_CLASS_COLORS = [
   "#184E77",
 ];
 
-interface ValidatedForecastCollection {
-  latestValue: string | number;
-  leadByPeriod: Record<string, number>;
-}
-
-interface ValidatedMapAssets {
-  assets: Array<{ assetId: string; updateTime?: string }>;
-  forecast?: ValidatedForecastCollection;
-}
-
 export interface CatalogStatisticsDiscovery {
   assets: DiscoveredStatisticsAsset[];
   periods: string[];
   classIndexes: number[];
-}
-
-function hash(value: unknown) {
-  return createHash("sha256").update(JSON.stringify(value)).digest("hex");
 }
 
 function normalizePeriod(
@@ -83,80 +67,6 @@ function normalizePeriod(
   const date = String(value ?? "").trim();
   const period = date.match(/^\d{4}-(?:0[1-9]|1[0-2])/u)?.[0] ?? "";
   return PERIOD_PATTERN.test(period) ? period : null;
-}
-
-function templatePattern(template: string) {
-  const escaped = template.replace(/[.*+?^${}()|[\]\\]/gu, "\\$&");
-  return new RegExp(
-    `^${escaped
-      .replaceAll("\\{year\\}", "\\d{4}")
-      .replaceAll("\\{month\\}", "(?:0[1-9]|1[0-2])")
-      .replaceAll("\\{period\\}", "\\d{4}(?:-(?:0[1-9]|1[0-2]))?")}$`,
-    "u",
-  );
-}
-
-interface StatisticsAssetCandidate {
-  id: string;
-  /**
-   * Só o que entra no `sourceRevision` do índice publicado. Mantido igual ao
-   * que a versão anterior gravava, para uma prévia validada antes desta
-   * mudança continuar passando na conferência de impressão digital da
-   * publicação.
-   */
-  updateTime?: string;
-  /** Carimbo de revisão usado apenas como chave da memoização. */
-  revision?: string;
-}
-
-async function getStatisticsAssetIds(
-  source: GeeFeatureCollectionStatisticsSource,
-): Promise<StatisticsAssetCandidate[]> {
-  if (source.asset.type === "fixed") {
-    // O tipo do asset é conferido aqui porque, ao contrário do caminho por
-    // template, não existe listagem que já garanta que ele é uma tabela.
-    const assetId = source.asset.assetId;
-    const inspection = await inspectEarthEngineAsset(assetId);
-    if (inspection.type !== "featureCollection") {
-      throw new Error(
-        `O asset estatístico ${assetId} é ${inspection.type}; esperado FeatureCollection.`,
-      );
-    }
-    return [
-      {
-        id: assetId,
-        updateTime: inspection.updateTime,
-        // O `getAsset` não devolve `updateTime` em nenhum asset que medimos, e
-        // sem carimbo a memoização nunca engatava num asset fixo. O `version`
-        // vem sempre, e é o mesmo instante em microssegundos.
-        revision: inspection.updateTime ?? inspection.version,
-      },
-    ];
-  }
-
-  const template = source.asset.assetIdTemplate;
-  const separator = template.lastIndexOf("/");
-  if (separator < 1) {
-    throw new Error("O template estatístico precisa ter um diretório-pai.");
-  }
-  const parent = template.slice(0, separator);
-  const pattern = templatePattern(template);
-  const assets = (await listEarthEngineAssets(parent)).filter(
-    (asset) => pattern.test(asset.id) && asset.type.toUpperCase() === "TABLE",
-  );
-  if (assets.length === 0) {
-    throw new Error(
-      `Nenhuma FeatureCollection corresponde ao template ${template}.`,
-    );
-  }
-  // A listagem do diretório-pai já respondeu o tipo e o `updateTime` de todas
-  // as tabelas de uma vez. Um `getAsset` por tabela só repetiria isso: eram
-  // 35 idas e voltas (39 s medidos) sem nenhuma garantia nova.
-  return assets.map(({ id, updateTime }) => ({
-    id,
-    updateTime,
-    revision: updateTime,
-  }));
 }
 
 function resolvedSource(
@@ -314,7 +224,7 @@ export async function discoverCatalogStatistics(
   source: GeeFeatureCollectionStatisticsSource,
 ): Promise<CatalogStatisticsDiscovery> {
   await initializeGee();
-  const candidates = await getStatisticsAssetIds(source);
+  const candidates = await getStatisticsAssetIds(source.asset);
   // A chave da memoização sai do endereço e da revisão do asset, e não do
   // schema: por isso ela é montada antes de qualquer leitura, e uma tabela já
   // memoizada não custa nem a leitura das colunas.
@@ -456,176 +366,6 @@ function buildMapVisualization(
   };
 }
 
-function normalizeForecastPeriod(value: unknown) {
-  if (value == null) return null;
-  if (typeof value === "string") {
-    const directPeriod = value.match(/^\d{4}-(?:0[1-9]|1[0-2])/u)?.[0];
-    if (directPeriod) return directPeriod;
-  }
-
-  const numeric = Number(value);
-  if (Number.isInteger(numeric) && /^\d{8}$/u.test(String(numeric))) {
-    const compactDate = String(numeric);
-    const period = `${compactDate.slice(0, 4)}-${compactDate.slice(4, 6)}`;
-    return /^\d{4}-(?:0[1-9]|1[0-2])$/u.test(period) ? period : null;
-  }
-  const date = new Date(Number.isFinite(numeric) ? numeric : String(value));
-  if (Number.isNaN(date.getTime())) return null;
-  return `${date.getUTCFullYear()}-${String(date.getUTCMonth() + 1).padStart(2, "0")}`;
-}
-
-async function validateForecastCollection(
-  mapping: EarthEngineAssetMapping,
-  periods: string[],
-  assetId: string,
-): Promise<ValidatedForecastCollection | undefined> {
-  const selection = mapping.collectionSelection;
-  if (!selection) return undefined;
-  if (periods.some((period) => !/^\d{4}-\d{2}$/u.test(period))) {
-    throw new Error(
-      "Previsão por emissão e horizonte exige estatísticas mensais.",
-    );
-  }
-  if (!mapping.band) {
-    throw new Error("Previsão por emissão e horizonte exige uma banda.");
-  }
-  if (!mapping.thresholds?.length) {
-    throw new Error(
-      "Previsão por emissão e horizonte exige os limites das classes.",
-    );
-  }
-
-  const collection = ee.ImageCollection(assetId);
-  const emissionValues = await evaluateGeeObject<Array<string | number>>(
-    collection.aggregate_array(selection.emissionProperty).distinct().sort(),
-  );
-  const latestValue = emissionValues?.at(-1);
-  if (latestValue == null) {
-    throw new Error(
-      `A coleção ${assetId} não possui valores em ${selection.emissionProperty}.`,
-    );
-  }
-
-  const latestCollection = collection
-    .filter(ee.Filter.eq(selection.emissionProperty, latestValue))
-    .sort(selection.leadProperty);
-  const [rawLeads, rawTargetDates] = await Promise.all([
-    evaluateGeeObject<unknown[]>(
-      latestCollection.aggregate_array(selection.leadProperty),
-    ),
-    evaluateGeeObject<unknown[]>(
-      latestCollection.aggregate_array(selection.targetDateProperty),
-    ),
-  ]);
-  if (rawLeads.length !== rawTargetDates.length) {
-    throw new Error(
-      `A coleção ${assetId} retornou horizontes e datas em quantidades diferentes.`,
-    );
-  }
-
-  const rows = rawLeads.map((rawLead, index) => ({
-    lead: Number(rawLead),
-    period: normalizeForecastPeriod(rawTargetDates[index]),
-  }));
-  const leadByPeriod: Record<string, number> = {};
-  for (const expectedLead of selection.leadValues) {
-    const matches = rows.filter((row) => row.lead === expectedLead);
-    if (matches.length !== 1) {
-      throw new Error(
-        `A emissão ${latestValue} de ${assetId} deve possuir exatamente uma imagem com ${selection.leadProperty}=${expectedLead}.`,
-      );
-    }
-    const period = matches[0].period;
-    if (!period) {
-      throw new Error(
-        `A imagem do horizonte ${expectedLead} não possui uma data válida em ${selection.targetDateProperty}.`,
-      );
-    }
-    if (leadByPeriod[period] != null) {
-      throw new Error(
-        `Mais de um horizonte da emissão ${latestValue} aponta para ${period}.`,
-      );
-    }
-    leadByPeriod[period] = expectedLead;
-  }
-
-  const forecastPeriods = Object.keys(leadByPeriod).sort();
-  const expectedPeriods = [...periods].sort();
-  if (forecastPeriods.join(",") !== expectedPeriods.join(",")) {
-    throw new Error(
-      `Os períodos da emissão ${latestValue} (${forecastPeriods.join(", ")}) não correspondem aos períodos estatísticos (${expectedPeriods.join(", ")}).`,
-    );
-  }
-
-  return { latestValue, leadByPeriod };
-}
-
-async function validateMapAssets(
-  config: IndexCatalogConfigV2,
-  periods: string[],
-): Promise<ValidatedMapAssets> {
-  const assets = new Map<string, string[]>();
-  for (const period of periods) {
-    const assetId = expandAssetForPeriod(config.earthEngine, period);
-    if (!assetId) {
-      throw new Error(`Não há asset de mapa para o período ${period}.`);
-    }
-    assets.set(assetId, [...(assets.get(assetId) ?? []), period]);
-  }
-
-  const metadata: Array<{ assetId: string; updateTime?: string }> = [];
-  for (const [assetId, assetPeriods] of assets) {
-    const inspection = await inspectEarthEngineAsset(assetId);
-    if (inspection.type !== config.earthEngine.sourceType) {
-      throw new Error(
-        `O asset de mapa ${assetId} é ${inspection.type}, mas o formulário informa ${config.earthEngine.sourceType}.`,
-      );
-    }
-    for (const period of assetPeriods) {
-      const band = config.earthEngine.band
-        ?.replaceAll("{period}", period)
-        .replaceAll("{year}", period.slice(0, 4))
-        .replaceAll("{month}", period.slice(5, 7));
-      const property = config.earthEngine.property
-        ?.replaceAll("{period}", period)
-        .replaceAll("{year}", period.slice(0, 4))
-        .replaceAll("{month}", period.slice(5, 7));
-      if (band && !inspection.bands.includes(band)) {
-        throw new Error(
-          `A banda ${band} não existe em ${assetId} (${period}).`,
-        );
-      }
-      if (property && !inspection.properties.includes(property)) {
-        throw new Error(
-          `A propriedade ${property} não existe em ${assetId} (${period}).`,
-        );
-      }
-    }
-    if (
-      inspection.type === "featureCollection" &&
-      !config.earthEngine.property
-    ) {
-      throw new Error("FeatureCollection de mapa exige uma propriedade.");
-    }
-    if (
-      inspection.type !== "featureCollection" &&
-      inspection.bands.length > 1 &&
-      !config.earthEngine.band
-    ) {
-      throw new Error("Asset de mapa com várias bandas exige uma banda.");
-    }
-    metadata.push({ assetId, updateTime: inspection.updateTime });
-  }
-  const forecast = config.earthEngine.collectionSelection
-    ? await validateForecastCollection(
-        config.earthEngine,
-        periods,
-        config.earthEngine.singleAssetId ?? "",
-      )
-    : undefined;
-  return { assets: metadata, ...(forecast ? { forecast } : {}) };
-}
-
 function buildValidationError(
   config: IndexCatalogConfigV2,
   error: unknown,
@@ -652,6 +392,13 @@ export async function buildCatalogDraft(
   config: IndexCatalogConfigV2,
 ): Promise<IndexCatalogBuildResult> {
   try {
+    if (isGeeMunicipalValueTableSource(config.statisticsSource)) {
+      return await buildMunicipalValueTableDraft(
+        config,
+        config.statisticsSource,
+      );
+    }
+
     const discovery = await discoverCatalogStatistics(config.statisticsSource);
     const classes = buildClasses(config.classes, discovery.classIndexes);
     if (
@@ -663,7 +410,7 @@ export async function buildCatalogDraft(
       );
     }
     const mapAssets = await validateMapAssets(config, discovery.periods);
-    const sourceRevision = hash({
+    const sourceRevision = hashCatalogValue({
       source: config.statisticsSource,
       assets: discovery.assets,
       periods: discovery.periods,
@@ -725,7 +472,7 @@ export async function buildCatalogDraft(
     const imageDataBytes = Buffer.byteLength(
       JSON.stringify(panelLayerImageData),
     );
-    const sourceFingerprint = hash({
+    const sourceFingerprint = hashCatalogValue({
       sourceRevision,
       mapAssets,
       classes,

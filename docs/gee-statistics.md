@@ -4,7 +4,10 @@
 
 O runtime pode ler estatísticas de uma `FeatureCollection` do Google Earth
 Engine (GEE) e convertê-las no mesmo patch `territorial-compact` já consumido
-pelo painel. Isso remove, para as camadas migradas, a obrigação de exportar CSV
+pelo painel. São duas formas de tabela: a **distribuição por classes**
+(`gee-feature-collection`, descrita a seguir) e a **tabela municipal de valor
+único** (`gee-municipal-value-table`, mais abaixo), em que a mesma
+FeatureCollection é a estatística e o asset do mapa. Isso remove, para as camadas migradas, a obrigação de exportar CSV
 para o Google Drive e publicar entradas `municipalAnalysis` no Contentful.
 
 As fontes legadas registradas estaticamente são:
@@ -119,6 +122,80 @@ Para adicionar outra fonte normalmente basta declarar:
 O adaptador valida schema, números, quantidade de classes e duplicidade
 territorial. Linhas cujas classes são todas zero são reconhecidas como ausência
 de estatística e não viram distribuição no patch.
+
+## Segunda forma: tabela municipal de valor único
+
+Nem toda estatística é uma distribuição por classes. Os dados socioeconômicos
+chegam numa FeatureCollection **larga e só de municípios**: uma linha por
+município, uma coluna por período (`2004`, `2005`, …, `2025`) e um número em
+cada célula. A mesma FeatureCollection costuma ser também o asset do mapa, que a
+desenha com `reduceToImage` sobre a coluna do período — é o que Ulisses Alencar
+descreveu como "a estatística e o visualizador juntos".
+
+Essa forma tem o `kind` `gee-municipal-value-table`, definido em
+`src/contracts/geeMunicipalValueTable.ts`:
+
+```json
+{
+  "kind": "gee-municipal-value-table",
+  "asset": { "type": "fixed", "assetId": "projects/x/assets/pob_total" },
+  "periodGranularity": "year",
+  "valueProperty": "{year}",
+  "aggregation": "mean",
+  "properties": {
+    "municipalityCode": "CD_MUN",
+    "locationName": "NM_MUN",
+    "stateCode": "SIGLA_UF"
+  }
+}
+```
+
+### Contrato mínimo dos assets
+
+- uma linha por município, sem repetição, com o código IBGE de 7 dígitos;
+- o nome do município e a UF — sigla (`PB`) ou nome (`Paraíba`), as duas grafias
+  são aceitas por `resolveGeeStateCode`;
+- uma coluna por período. `valueProperty` aceita `{year}`, `{month}` e
+  `{period}`; numa FeatureCollection única ele **precisa** ter um placeholder,
+  senão todos os períodos leriam a mesma coluna e a série sairia plana;
+- nenhuma célula vazia nas colunas de período. Um vazio não estraga só aquele
+  período: `reduceColumns` descarta a feature inteira, então o município some de
+  todos os períodos e o total da UF sai menor sem nenhum erro. A validação do
+  catálogo recusa a tabela por isso.
+
+O período também pode vir do nome do asset (`pob_{year}` com uma coluna fixa
+`valor`) ou dos dois lados ao mesmo tempo (`renda_{year}` com colunas
+`mes_{month}`). `resolveValueTablePeriodColumns` junta as duas metades.
+
+### Como Brasil e UFs são calculados
+
+A tabela só tem municípios, então os demais níveis são derivados dentro do Earth
+Engine com `reduceColumns`, agrupando por UF: `sum` para contagens (registros do
+S2ID) e `mean` para percentuais (pobreza do CadÚnico). A escolha é do operador,
+no catálogo, porque só ele sabe o que o número significa.
+
+Conferido contra os valores que hoje estão no Contentful: `pob_total` em 2012 dá
+`br` 70,26653619764559 e `pb` 79,99618240130047 pela média, e
+`Municipios_S2ID_corrigido` em 2004 dá `br` 742 e `pb` 34 pela soma — os mesmos
+números, com todas as casas decimais.
+
+O recorte nacional volta em **uma** ida ao Earth Engine com o Brasil e as 27 UFs
+de todos os períodos: 1,4 s medido em `pob_total` (14 anos) e 1,7 s em
+`Municipios_S2ID_corrigido` (23 anos). Como a resposta é a mesma para qualquer
+recorte agregado, ela fica no cache sob a chave `aggregates`, e trocar de UF ou
+de período depois disso não custa ida nenhuma.
+
+Recortes de **região, bioma, ASD e semiárido ficam sem valor** nesta forma: eles
+exigiriam um cruzamento espacial que a tabela municipal não carrega. É o mesmo
+comportamento que as camadas socioeconômicas legadas já têm hoje, e a validação
+do catálogo devolve um aviso dizendo isso.
+
+### O que o painel mostra
+
+A camada tem **uma classe só** — o próprio indicador —, e `values` é um vetor de
+um valor por território. As faixas coloridas pertencem à legenda do mapa
+(`mapVisualization.legend` + `thresholds`), não à estatística. `valueConfig`
+carrega a unidade (`registros`, `%`) e o formato do número.
 
 ## Fallback e cache
 

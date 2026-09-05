@@ -47,7 +47,12 @@ import {
   type IndexCatalogItem,
   type IndexCatalogLifecycleImpact,
   type IndexCatalogPreview,
+  type MunicipalValueIndicator,
 } from "@/types/indexCatalog";
+import {
+  MunicipalValueIndicatorFields,
+  ValueRangeFields,
+} from "@/components/IndexCatalog/MunicipalValueTableFields";
 
 const STANDARD_PROPERTIES = {
   level: "NIVEL_AGRUPAMENTO",
@@ -57,6 +62,32 @@ const STANDARD_PROPERTIES = {
   year: "ano",
   date: "data_img",
   totalArea: "area_total_ha",
+};
+
+/**
+ * Os nomes que as tabelas municipais reais usam. Vêm do recorte do IBGE que
+ * quase todo mundo exporta junto com os dados socioeconômicos.
+ */
+const VALUE_TABLE_PROPERTIES = {
+  municipalityCode: "CD_MUN",
+  locationName: "NM_MUN",
+  stateCode: "SIGLA_UF",
+};
+
+const VALUE_TABLE_PROPERTY_LABELS: Record<
+  keyof typeof VALUE_TABLE_PROPERTIES,
+  string
+> = {
+  municipalityCode: "Código do município (IBGE)",
+  locationName: "Nome do município",
+  stateCode: "UF do município",
+};
+
+const EMPTY_VALUE_INDICATOR: MunicipalValueIndicator = {
+  label: "",
+  color: "#BD0026",
+  measurementUnit: "%",
+  valueType: "percentage",
 };
 
 const EMPTY_DRAFT: IndexCatalogDraftInput = {
@@ -75,6 +106,23 @@ const EMPTY_DRAFT: IndexCatalogDraftInput = {
     sourceType: "image",
     singleAssetId: "",
   },
+};
+
+/**
+ * As duas formas de tabela que o catálogo publica.
+ *
+ * `classes` é a tabela multinível com `perc_classe_XX`. `value` é a tabela
+ * municipal larga — uma linha por município, uma coluna por período —, que é
+ * como chegam os dados socioeconômicos e em que a mesma FeatureCollection
+ * costuma ser também o asset do mapa.
+ */
+type StatisticsShape = "classes" | "value";
+
+const STATISTICS_SHAPE_HINTS: Record<StatisticsShape, string> = {
+  classes:
+    "A tabela tem uma linha por território e por período, com as colunas perc_classe_XX e area_ha_classe_XX. O painel mostra quanto da área cabe em cada classe.",
+  value:
+    "A tabela tem uma linha por município e uma coluna por período, com um número só em cada célula. O painel mostra esse número, e Brasil e UFs saem da soma ou da média dos municípios.",
 };
 
 /**
@@ -342,6 +390,9 @@ export function IndexCatalogScreen() {
       statisticsSource: config.statisticsSource,
       classes: config.classes,
       earthEngine: { ...config.earthEngine, assetsByPeriod: undefined },
+      ...(config.valueIndicator
+        ? { valueIndicator: config.valueIndicator }
+        : {}),
     });
     // Um rascunho sem texto salvo recebe o padrão, e não campos vazios: é o
     // mesmo ponto de partida de um índice novo, inclusive para os que foram
@@ -425,16 +476,81 @@ export function IndexCatalogScreen() {
     });
   }
 
-  function updateStatisticsProperty(
-    key: keyof typeof STANDARD_PROPERTIES,
-    value: string,
-  ) {
+  function updateStatisticsProperty(key: string, value: string) {
     setDraft((current) => ({
       ...current,
       statisticsSource: {
         ...current.statisticsSource,
         properties: { ...current.statisticsSource.properties, [key]: value },
+      } as IndexCatalogDraftInput["statisticsSource"],
+    }));
+    setPreview(null);
+  }
+
+  function updateValueTableSource(
+    values: Partial<
+      Pick<
+        Extract<
+          IndexCatalogDraftInput["statisticsSource"],
+          { kind: "gee-municipal-value-table" }
+        >,
+        "valueProperty" | "aggregation"
+      >
+    >,
+  ) {
+    setDraft((current) => ({
+      ...current,
+      statisticsSource: {
+        ...current.statisticsSource,
+        ...values,
+      } as IndexCatalogDraftInput["statisticsSource"],
+    }));
+    setPreview(null);
+  }
+
+  function updateValueIndicator(values: Partial<MunicipalValueIndicator>) {
+    setDraft((current) => ({
+      ...current,
+      valueIndicator: {
+        ...(current.valueIndicator ?? EMPTY_VALUE_INDICATOR),
+        ...values,
       },
+    }));
+    setPreview(null);
+  }
+
+  /**
+   * Trocar a forma da tabela troca o contrato inteiro da fonte: as propriedades
+   * territoriais, o eixo de período e o significado das cores mudam juntos. Por
+   * isso o rascunho recomeça a fonte em vez de tentar aproveitar o que estava
+   * preenchido, que produziria uma configuração meio de cada.
+   */
+  function changeStatisticsShape(shape: StatisticsShape) {
+    setStatisticsAssetMode("fixed");
+    setYearSampleAssetId("");
+    setThresholdsInput("");
+    setDraft((current) => ({
+      ...current,
+      classes: [],
+      statisticsSource:
+        shape === "value"
+          ? {
+              kind: "gee-municipal-value-table",
+              asset: { type: "fixed", assetId: "" },
+              periodGranularity: "year",
+              valueProperty: "{year}",
+              aggregation: "mean",
+              properties: VALUE_TABLE_PROPERTIES,
+            }
+          : {
+              kind: "gee-feature-collection",
+              asset: { type: "fixed", assetId: "" },
+              periodGranularity: "year",
+              properties: STANDARD_PROPERTIES,
+            },
+      ...(shape === "value"
+        ? { valueIndicator: current.valueIndicator ?? EMPTY_VALUE_INDICATOR }
+        : { valueIndicator: undefined }),
     }));
     setPreview(null);
   }
@@ -456,6 +572,36 @@ export function IndexCatalogScreen() {
     }));
     setPreview(null);
   }
+
+  const statisticsShape: StatisticsShape =
+    draft.statisticsSource.kind === "gee-municipal-value-table"
+      ? "value"
+      : "classes";
+  const isValueTable = statisticsShape === "value";
+  const valueTableSource =
+    draft.statisticsSource.kind === "gee-municipal-value-table"
+      ? draft.statisticsSource
+      : null;
+  // As duas formas de fonte têm conjuntos diferentes de propriedades
+  // territoriais, e o formulário renderiza a lista que a forma escolhida usa.
+  function statisticsPropertyValue(key: string) {
+    const properties: Record<string, unknown> = {
+      ...draft.statisticsSource.properties,
+    };
+    const value = properties[key];
+    return typeof value === "string" ? value : "";
+  }
+  const statisticsPropertyFields = isValueTable
+    ? (
+        Object.keys(VALUE_TABLE_PROPERTIES) as Array<
+          keyof typeof VALUE_TABLE_PROPERTIES
+        >
+      ).map((key) => ({ key, label: VALUE_TABLE_PROPERTY_LABELS[key] }))
+    : (
+        Object.keys(STANDARD_PROPERTIES) as Array<
+          keyof typeof STANDARD_PROPERTIES
+        >
+      ).map((key) => ({ key, label: key }));
 
   function normalizedDraft() {
     const collectionSelection = draft.earthEngine.collectionSelection;
@@ -633,13 +779,19 @@ export function IndexCatalogScreen() {
       const indexes = result.validation.inferred.classIndexes;
       setDraft((current) => ({
         ...current,
-        classes: result.panelLayer.imageData.classes.map((entry, position) => ({
-          classIndex: indexes[position],
-          id: entry.id,
-          label: entry.label,
-          color: entry.color,
-          pixelValue: entry.pixelLimit ?? indexes[position],
-        })),
+        // Numa tabela de valor único as faixas foram escritas à mão e a camada
+        // tem uma classe só — reler as classes da prévia apagaria a legenda do
+        // mapa que o operador acabou de montar.
+        classes:
+          current.statisticsSource.kind === "gee-municipal-value-table"
+            ? current.classes
+            : result.panelLayer.imageData.classes.map((entry, position) => ({
+                classIndex: indexes[position],
+                id: entry.id,
+                label: entry.label,
+                color: entry.color,
+                pixelValue: entry.pixelLimit ?? indexes[position],
+              })),
       }));
       setMessage(
         "Assets validados. A prévia usa o GEE diretamente e continua privada.",
@@ -1041,10 +1193,30 @@ export function IndexCatalogScreen() {
           <fieldset className="mt-7 rounded-lg border border-stone-200 p-4">
             <legend className="px-2 font-bold">Fonte das estatísticas</legend>
             <p className="text-xs text-stone-500">
-              Obrigatoriamente FeatureCollection. Classes e períodos são
-              inferidos.
+              Obrigatoriamente FeatureCollection. Períodos são inferidos da
+              própria tabela.
             </p>
             <div className="mt-4 grid gap-4 md:grid-cols-2">
+              <label className="text-sm font-medium md:col-span-2">
+                Forma da tabela
+                <select
+                  className={inputClass}
+                  value={statisticsShape}
+                  onChange={(event) =>
+                    changeStatisticsShape(event.target.value as StatisticsShape)
+                  }
+                >
+                  <option value="classes">
+                    Distribuição por classes (perc_classe_XX)
+                  </option>
+                  <option value="value">
+                    Valor único por município (uma coluna por período)
+                  </option>
+                </select>
+                <span className="mt-1 block text-xs font-normal text-stone-500">
+                  {STATISTICS_SHAPE_HINTS[statisticsShape]}
+                </span>
+              </label>
               <label className="text-sm font-medium">
                 Organização dos assets
                 <select
@@ -1127,21 +1299,63 @@ export function IndexCatalogScreen() {
                   )}
               </label>
             </div>
+            {isValueTable && (
+              <div className="mt-4 grid gap-4 md:grid-cols-2">
+                <label className="text-sm font-medium">
+                  Coluna do valor
+                  <input
+                    className={inputClass}
+                    placeholder="{year}"
+                    value={valueTableSource?.valueProperty ?? ""}
+                    onChange={(event) =>
+                      updateValueTableSource({
+                        valueProperty: event.target.value,
+                      })
+                    }
+                  />
+                  <span className="mt-1 block text-xs font-normal text-stone-500">
+                    Numa tabela cujas colunas são os anos (2004, 2005, …),
+                    escreva {"{year}"}. O catálogo lê a tabela, encontra todas
+                    as colunas que casam e transforma cada uma num período.
+                  </span>
+                </label>
+                <label className="text-sm font-medium">
+                  Como somar os municípios
+                  <select
+                    className={inputClass}
+                    value={valueTableSource?.aggregation ?? "mean"}
+                    onChange={(event) =>
+                      updateValueTableSource({
+                        aggregation: event.target.value as "sum" | "mean",
+                      })
+                    }
+                  >
+                    <option value="mean">
+                      Média dos municípios (percentuais, índices)
+                    </option>
+                    <option value="sum">
+                      Soma dos municípios (contagens, totais)
+                    </option>
+                  </select>
+                  <span className="mt-1 block text-xs font-normal text-stone-500">
+                    A tabela só tem municípios; o valor de cada UF e o do Brasil
+                    saem daqui. Recortes de região, bioma, ASD e semiárido ficam
+                    sem valor nesta forma.
+                  </span>
+                </label>
+              </div>
+            )}
             <details className="mt-4">
               <summary className="cursor-pointer text-sm font-semibold">
                 Propriedades territoriais padronizadas
               </summary>
               <div className="mt-3 grid gap-3 md:grid-cols-2 xl:grid-cols-3">
-                {(
-                  Object.keys(STANDARD_PROPERTIES) as Array<
-                    keyof typeof STANDARD_PROPERTIES
-                  >
-                ).map((key) => (
+                {statisticsPropertyFields.map(({ key, label }) => (
                   <label key={key} className="text-xs font-medium">
-                    {key}
+                    {label}
                     <input
                       className={inputClass}
-                      value={draft.statisticsSource.properties[key]}
+                      value={statisticsPropertyValue(key)}
                       onChange={(event) =>
                         updateStatisticsProperty(key, event.target.value)
                       }
@@ -1381,71 +1595,92 @@ export function IndexCatalogScreen() {
                   campo visível, um índice como o Carbono Orgânico do Solo era
                   publicado com `min` 1 e `max` 6 sobre valores em g/kg, e o
                   mapa saía inteiro na cor da última classe. */}
-              <label className="text-sm font-medium md:col-span-2">
-                Limites das classes (opcional)
-                <input
-                  className={inputClass}
-                  placeholder="-90, -30, 0, 30, 90"
-                  value={thresholdsInput}
-                  onChange={(event) => setThresholdsInput(event.target.value)}
-                />
-                <span className="mt-1 block text-xs font-normal text-stone-500">
-                  Só para raster contínuo, em que cada classe é uma faixa de
-                  valores: informe os limites na unidade do próprio asset (g/kg,
-                  mm, °C), um a menos que a quantidade de classes e em ordem
-                  crescente — 6 classes exigem 5 limites. Deixe vazio quando o
-                  raster já guarda o número da classe em cada pixel.
-                </span>
-              </label>
+              {!isValueTable && (
+                <label className="text-sm font-medium md:col-span-2">
+                  Limites das classes (opcional)
+                  <input
+                    className={inputClass}
+                    placeholder="-90, -30, 0, 30, 90"
+                    value={thresholdsInput}
+                    onChange={(event) => setThresholdsInput(event.target.value)}
+                  />
+                  <span className="mt-1 block text-xs font-normal text-stone-500">
+                    Só para raster contínuo, em que cada classe é uma faixa de
+                    valores: informe os limites na unidade do próprio asset
+                    (g/kg, mm, °C), um a menos que a quantidade de classes e em
+                    ordem crescente — 6 classes exigem 5 limites. Deixe vazio
+                    quando o raster já guarda o número da classe em cada pixel.
+                  </span>
+                </label>
+              )}
             </div>
           </fieldset>
 
-          <fieldset className="mt-7 rounded-lg border border-stone-200 p-4">
-            <legend className="px-2 font-bold">Classes</legend>
-            {draft.classes.length === 0 ? (
-              <p className="text-sm text-stone-500">
-                Clique em “Validar assets e gerar prévia” para inferir os
-                índices de perc_classe_XX e area_ha_classe_XX.
+          {isValueTable ? (
+            <>
+              <MunicipalValueIndicatorFields
+                indicator={draft.valueIndicator ?? EMPTY_VALUE_INDICATOR}
+                inputClass={inputClass}
+                onChange={updateValueIndicator}
+              />
+              <ValueRangeFields
+                ranges={draft.classes}
+                thresholdsInput={thresholdsInput}
+                inputClass={inputClass}
+                buttonClass={buttonClass}
+                onChangeRange={updateClass}
+                onChangeRanges={(ranges) => updateDraft("classes", ranges)}
+                onChangeThresholds={setThresholdsInput}
+              />
+            </>
+          ) : (
+            <fieldset className="mt-7 rounded-lg border border-stone-200 p-4">
+              <legend className="px-2 font-bold">Classes</legend>
+              {draft.classes.length === 0 ? (
+                <p className="text-sm text-stone-500">
+                  Clique em “Validar assets e gerar prévia” para inferir os
+                  índices de perc_classe_XX e area_ha_classe_XX.
+                </p>
+              ) : (
+                <div className="space-y-3">
+                  {draft.classes.map((entry, index) => (
+                    <div
+                      key={entry.classIndex}
+                      className="grid items-end gap-3 md:grid-cols-[110px_1fr_260px]"
+                    >
+                      <label className="text-xs font-medium">
+                        Índice
+                        <input
+                          className={`${inputClass} bg-stone-100`}
+                          readOnly
+                          value={entry.classIndex}
+                        />
+                      </label>
+                      <label className="text-xs font-medium">
+                        Rótulo
+                        <input
+                          className={inputClass}
+                          value={entry.label}
+                          onChange={(event) =>
+                            updateClass(index, { label: event.target.value })
+                          }
+                        />
+                      </label>
+                      <ClassColorField
+                        color={entry.color}
+                        inputClass={inputClass}
+                        label={`classe ${entry.classIndex}`}
+                        onChange={(color) => updateClass(index, { color })}
+                      />
+                    </div>
+                  ))}
+                </div>
+              )}
+              <p className="mt-3 text-xs text-stone-500">
+                O valor é sempre percentual e a unidade é sempre % nesta versão.
               </p>
-            ) : (
-              <div className="space-y-3">
-                {draft.classes.map((entry, index) => (
-                  <div
-                    key={entry.classIndex}
-                    className="grid items-end gap-3 md:grid-cols-[110px_1fr_260px]"
-                  >
-                    <label className="text-xs font-medium">
-                      Índice
-                      <input
-                        className={`${inputClass} bg-stone-100`}
-                        readOnly
-                        value={entry.classIndex}
-                      />
-                    </label>
-                    <label className="text-xs font-medium">
-                      Rótulo
-                      <input
-                        className={inputClass}
-                        value={entry.label}
-                        onChange={(event) =>
-                          updateClass(index, { label: event.target.value })
-                        }
-                      />
-                    </label>
-                    <ClassColorField
-                      color={entry.color}
-                      inputClass={inputClass}
-                      label={`classe ${entry.classIndex}`}
-                      onChange={(color) => updateClass(index, { color })}
-                    />
-                  </div>
-                ))}
-              </div>
-            )}
-            <p className="mt-3 text-xs text-stone-500">
-              O valor é sempre percentual e a unidade é sempre % nesta versão.
-            </p>
-          </fieldset>
+            </fieldset>
+          )}
 
           <IndexCatalogReportFields
             report={report}

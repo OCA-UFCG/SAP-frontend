@@ -49,6 +49,45 @@ const validDraft = {
   },
 };
 
+/**
+ * O formato dos dados socioeconômicos: uma FeatureCollection municipal em que
+ * cada ano é uma coluna e que também é o asset que desenha o mapa.
+ */
+const validValueTableDraft = {
+  name: "Registros de Secas e Estiagens",
+  description: "Quantidade anual de registros municipais no S2ID.",
+  category: "Dados Socioeconômicos",
+  statisticsSource: {
+    kind: "gee-municipal-value-table",
+    asset: { type: "fixed", assetId: "projects/example/assets/s2id" },
+    periodGranularity: "year",
+    valueProperty: "{year}",
+    aggregation: "sum",
+    properties: {
+      municipalityCode: "CD_MUN",
+      locationName: "NM_MUN",
+      stateCode: "SIGLA_UF",
+    },
+  },
+  valueIndicator: {
+    label: "Registros de secas e estiagens",
+    color: "#8c2d04",
+    measurementUnit: "registros",
+    valueType: "absolute",
+  },
+  classes: [
+    { classIndex: 0, id: "0-6", label: "0 a 6", color: "#FEE5D9" },
+    { classIndex: 1, id: "6-12", label: "> 6 a 12", color: "#FCAE91" },
+  ],
+  earthEngine: {
+    strategy: "single",
+    sourceType: "featureCollection",
+    singleAssetId: "projects/example/assets/s2id",
+    property: "{year}",
+    thresholds: [6],
+  },
+};
+
 const validationReport = {
   validatedAt: "2026-08-21T18:19:34.000Z",
   valid: true,
@@ -190,6 +229,37 @@ describe("index catalog v2 input helpers", () => {
     expect(() =>
       parseIndexCatalogDraftInput({ ...validDraft, statisticsSource: null }),
     ).toThrow("FeatureCollection");
+  });
+
+  it("accepts a municipal value table with its indicator", () => {
+    const parsed = parseIndexCatalogDraftInput(validValueTableDraft);
+
+    expect(parsed.statisticsSource).toMatchObject({
+      kind: "gee-municipal-value-table",
+      valueProperty: "{year}",
+      aggregation: "sum",
+    });
+    expect(parsed.valueIndicator).toEqual({
+      label: "Registros de secas e estiagens",
+      color: "#8C2D04",
+      measurementUnit: "registros",
+      valueType: "absolute",
+    });
+  });
+
+  it("requires an indicator and at least two colour ranges for a value table", () => {
+    expect(() =>
+      parseIndexCatalogDraftInput({
+        ...validValueTableDraft,
+        valueIndicator: undefined,
+      }),
+    ).toThrow("Descreva o indicador");
+    expect(() =>
+      parseIndexCatalogDraftInput({
+        ...validValueTableDraft,
+        classes: validValueTableDraft.classes.slice(0, 1),
+      }),
+    ).toThrow("duas faixas de cor");
   });
 
   it("allows inferred classes and rejects incomplete map assets", () => {

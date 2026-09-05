@@ -1,17 +1,28 @@
-export type GeeStatisticsPeriodGranularity = "year" | "month";
+import {
+  assertGeeStatisticsPeriod,
+  isGeeStatisticsRecord,
+  parseGeeStatisticsAssetSource,
+  requiredGeeStatisticsProperty,
+  resolveGeeStatisticsAssetId,
+} from "@/contracts/geeStatisticsAsset";
+import {
+  isGeeMunicipalValueTableSource,
+  parseGeeMunicipalValueTableSource,
+  type GeeMunicipalValueTableStatisticsSource,
+} from "@/contracts/geeMunicipalValueTable";
+
+import type {
+  GeeStatisticsAssetSource,
+  GeeStatisticsPeriodGranularity,
+} from "@/contracts/geeStatisticsAsset";
+
+export type {
+  GeeStatisticsAssetSource,
+  GeeStatisticsPeriodGranularity,
+} from "@/contracts/geeStatisticsAsset";
 
 export type GeeStatisticsScalarMetric =
   "mean" | "median" | "mode" | "min" | "max";
-
-export type GeeStatisticsAssetSource =
-  | {
-      type: "fixed";
-      assetId: string;
-    }
-  | {
-      type: "period-template";
-      assetIdTemplate: string;
-    };
 
 export interface GeeStatisticsPropertyMapping {
   level: string;
@@ -32,14 +43,29 @@ export interface GeeFeatureCollectionStatisticsSource {
 }
 
 /**
+ * As duas formas de tabela que uma camada pode publicar: a distribuição por
+ * classes (`perc_classe_XX` por nível territorial) e o valor único por
+ * município. A segunda existe porque os dados socioeconômicos chegam numa
+ * FeatureCollection que é, ao mesmo tempo, a estatística e o asset do mapa.
+ */
+export type GeeStatisticsSource =
+  GeeFeatureCollectionStatisticsSource | GeeMunicipalValueTableStatisticsSource;
+
+interface PublishedStatisticsSourceStamp {
+  schemaVersion: 1;
+  sourceRevision: string;
+}
+
+/**
  * Public, immutable description stored on panelLayer.  The revision is not an
  * arbitrary version number: the catalog recalculates it from the assets,
  * their metadata, schemas and discovered periods every time it validates.
  */
-export interface PublishedGeeStatisticsSource extends GeeFeatureCollectionStatisticsSource {
-  schemaVersion: 1;
-  sourceRevision: string;
-}
+export type PublishedGeeStatisticsSource = GeeStatisticsSource &
+  PublishedStatisticsSourceStamp;
+
+export type PublishedGeeMunicipalValueTableSource =
+  GeeMunicipalValueTableStatisticsSource & PublishedStatisticsSourceStamp;
 
 export interface ResolvedGeeStatisticsSource extends GeeFeatureCollectionStatisticsSource {
   assetId: string;
@@ -51,39 +77,12 @@ export interface GeeStatisticsSchema {
   classAreaProperties: string[];
 }
 
-const MONTH_PERIOD_PATTERN = /^\d{4}-(?:0[1-9]|1[0-2])$/u;
-const YEAR_PERIOD_PATTERN = /^\d{4}$/u;
 const PERCENTAGE_PROPERTY_PATTERN = /^perc_classe_(\d+)$/u;
 const CLASS_AREA_PROPERTY_PATTERN = /^area_ha_classe_(\d+)$/u;
-const ASSET_ID_PATTERN = /^[A-Za-z0-9_./{}-]{3,300}$/u;
 const SOURCE_REVISION_PATTERN = /^[a-f0-9]{64}$/u;
 
-function isRecord(value: unknown): value is Record<string, unknown> {
-  return typeof value === "object" && value !== null && !Array.isArray(value);
-}
-
-function requiredProperty(
-  value: unknown,
-  label: string,
-  options: { asset?: boolean; allowTemplate?: boolean } = {},
-): string {
-  if (typeof value !== "string" || !value.trim()) {
-    throw new Error(`${label} é obrigatório.`);
-  }
-
-  const normalized = value.trim();
-  if (
-    normalized.length > 300 ||
-    (options.asset && !ASSET_ID_PATTERN.test(normalized))
-  ) {
-    throw new Error(`${label} é inválido.`);
-  }
-  if (!options.allowTemplate && /[{}]/u.test(normalized)) {
-    throw new Error(`${label} não pode conter placeholders.`);
-  }
-
-  return normalized;
-}
+const isRecord = isGeeStatisticsRecord;
+const requiredProperty = requiredGeeStatisticsProperty;
 
 export function parseGeeFeatureCollectionStatisticsSource(
   value: unknown,
@@ -97,47 +96,14 @@ export function parseGeeFeatureCollectionStatisticsSource(
   ) {
     throw new Error("A granularidade estatística deve ser anual ou mensal.");
   }
-  if (!isRecord(value.asset) || !isRecord(value.properties)) {
+  if (!isRecord(value.properties)) {
     throw new Error("A configuração da fonte estatística está incompleta.");
   }
 
-  const asset =
-    value.asset.type === "fixed"
-      ? {
-          type: "fixed" as const,
-          assetId: requiredProperty(value.asset.assetId, "Asset estatístico", {
-            asset: true,
-          }),
-        }
-      : value.asset.type === "period-template"
-        ? {
-            type: "period-template" as const,
-            assetIdTemplate: requiredProperty(
-              value.asset.assetIdTemplate,
-              "Template do asset estatístico",
-              { asset: true, allowTemplate: true },
-            ),
-          }
-        : null;
-
-  if (!asset) {
-    throw new Error("A estratégia da fonte estatística é inválida.");
-  }
-  if (
-    asset.type === "period-template" &&
-    !/\{(?:year|month|period)\}/u.test(asset.assetIdTemplate)
-  ) {
-    throw new Error(
-      "O template estatístico deve conter {year}, {month} ou {period}.",
-    );
-  }
-  if (
-    asset.type === "period-template" &&
-    asset.assetIdTemplate.includes("{month}") &&
-    value.periodGranularity !== "month"
-  ) {
-    throw new Error("O placeholder {month} exige granularidade mensal.");
-  }
+  const asset = parseGeeStatisticsAssetSource(
+    value.asset,
+    value.periodGranularity,
+  );
 
   const properties = value.properties;
   const scalarMetricProperties = isRecord(properties.scalarMetrics)
@@ -184,6 +150,19 @@ export function parseGeeFeatureCollectionStatisticsSource(
   };
 }
 
+/**
+ * Uma fonte de qualquer das duas formas, escolhida pelo `kind`.
+ *
+ * O `kind` ausente ou desconhecido cai na distribuição por classes, que é a
+ * única forma que existia antes e a que produz a mensagem de erro útil para uma
+ * configuração incompleta.
+ */
+export function parseGeeStatisticsSource(value: unknown): GeeStatisticsSource {
+  return isGeeMunicipalValueTableSource(value)
+    ? parseGeeMunicipalValueTableSource(value)
+    : parseGeeFeatureCollectionStatisticsSource(value);
+}
+
 export function parsePublishedGeeStatisticsSource(
   value: unknown,
 ): PublishedGeeStatisticsSource {
@@ -198,7 +177,7 @@ export function parsePublishedGeeStatisticsSource(
   }
 
   return {
-    ...parseGeeFeatureCollectionStatisticsSource(value),
+    ...parseGeeStatisticsSource(value),
     schemaVersion: 1,
     sourceRevision: value.sourceRevision,
   };
@@ -348,42 +327,16 @@ export function resolveGeeStatisticsSource(
   source: GeeFeatureCollectionStatisticsSource,
   periodKey: string,
 ): ResolvedGeeStatisticsSource {
-  const isValidPeriod =
-    source.periodGranularity === "month"
-      ? MONTH_PERIOD_PATTERN.test(periodKey)
-      : YEAR_PERIOD_PATTERN.test(periodKey);
+  assertGeeStatisticsPeriod(periodKey, source.periodGranularity);
 
-  if (!isValidPeriod) {
-    throw new Error(
-      `Período ${periodKey} incompatível com granularidade ${source.periodGranularity} do asset estatístico.`,
-    );
-  }
-
-  const month =
-    source.periodGranularity === "month" ? periodKey.slice(5, 7) : null;
-  if (
-    source.asset.type === "period-template" &&
-    source.asset.assetIdTemplate.includes("{month}") &&
-    !month
-  ) {
-    throw new Error(
-      "Template de asset com {month} exige uma fonte de granularidade mensal.",
-    );
-  }
-
-  const assetId =
-    source.asset.type === "fixed"
-      ? source.asset.assetId
-      : source.asset.assetIdTemplate
-          .replaceAll("{period}", periodKey)
-          .replaceAll("{year}", periodKey.slice(0, 4))
-          .replaceAll("{month}", month ?? "");
-
-  if (!assetId.trim() || /\{[^}]+\}/u.test(assetId)) {
-    throw new Error(`Configuração de asset estatístico inválida: ${assetId}.`);
-  }
-
-  return { ...source, assetId };
+  return {
+    ...source,
+    assetId: resolveGeeStatisticsAssetId(
+      source.asset,
+      periodKey,
+      source.periodGranularity,
+    ),
+  };
 }
 
 export function getGeeStatisticsRequestedProperties(

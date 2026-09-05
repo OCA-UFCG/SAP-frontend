@@ -10,9 +10,15 @@ import {
 import type {
   GeeFeatureCollectionStatisticsSource,
   GeeStatisticsSchema,
+  GeeStatisticsSource,
   PublishedGeeStatisticsSource,
   ResolvedGeeStatisticsSource,
 } from "@/contracts/geeStatistics";
+import {
+  isGeeMunicipalValueTableSource,
+  type GeeMunicipalValueTableStatisticsSource,
+} from "@/contracts/geeMunicipalValueTable";
+import { getMunicipalValueTableYearPatch } from "@/repositories/platform/geeMunicipalValueTableRepository";
 import { buildSpatialLocationKey } from "@/contracts/spatialLocationKey.mjs";
 import {
   evaluateGeeObject,
@@ -23,11 +29,11 @@ import {
   getOrLoadStatisticsRows,
 } from "@/repositories/platform/geeStatisticsRowsCache";
 import { chunk } from "@/utils/chunk";
+import { resolveGeeStateCode, STATE_KEY_PATTERN } from "@/utils/geeStateCode";
 import type { CompactTerritorialAnalysisDatasetPatch } from "@/utils/municipalAnalysisMerge";
 import { statesObj } from "@/utils/constants";
 
 const MUNICIPALITY_KEY_PATTERN = /^\d{7}$/u;
-const STATE_KEY_PATTERN = /^[a-z]{2}$/u;
 const AGGREGATE_LOCATION_PATTERN = /^(2_regiao|3_bioma|4_asd|5_semiarido)-/u;
 
 const SOURCE_LEVEL_BY_LOCATION_PREFIX: Record<string, string> = {
@@ -76,34 +82,14 @@ function normalizeText(value: unknown): string {
   return String(value ?? "").trim();
 }
 
-function normalizeComparableText(value: unknown): string {
-  return normalizeText(value)
-    .normalize("NFD")
-    .replace(/\p{Diacritic}/gu, "")
-    .toLowerCase();
-}
-
-const stateCodeByName = new Map(
-  Object.entries(statesObj).map(([stateCode, stateName]) => [
-    normalizeComparableText(stateName),
-    stateCode,
-  ]),
-);
-
 function getStateCode(
   source: ResolvedGeeStatisticsSource,
   row: Record<string, unknown>,
 ): string | null {
-  const rawStateCode = normalizeText(
+  return resolveGeeStateCode(
     row[source.properties.stateCode],
-  ).toLowerCase();
-
-  if (STATE_KEY_PATTERN.test(rawStateCode) && rawStateCode in statesObj) {
-    return rawStateCode;
-  }
-
-  const name = normalizeComparableText(row[source.properties.locationName]);
-  return stateCodeByName.get(name) ?? null;
+    row[source.properties.locationName],
+  );
 }
 
 function getLocation(
@@ -542,6 +528,43 @@ async function loadGeeStatisticsRows(
 }
 
 /**
+ * A tabela municipal de valor único adaptada ao mesmo resultado das tabelas
+ * classificatórias.
+ *
+ * A camada precisa ter exatamente uma classe — o indicador em si —, porque o
+ * asset traz um número por município e não uma distribuição. Conferir isso aqui
+ * evita um painel que soma um vetor de um valor em cima de uma legenda de seis.
+ */
+async function readMunicipalValueTablePatch(
+  source: GeeMunicipalValueTableStatisticsSource,
+  yearKey: string,
+  locationKey: string,
+  classCount: number,
+  periodKeys: readonly string[],
+): Promise<GeeStatisticsYearResult> {
+  if (classCount !== 1) {
+    throw new Error(
+      `A camada possui ${classCount} classes, mas uma tabela municipal de valor único produz uma só.`,
+    );
+  }
+
+  const result = await getMunicipalValueTableYearPatch(
+    source,
+    yearKey,
+    locationKey,
+    periodKeys,
+  );
+
+  return {
+    assetId: result.assetIds.join(", "),
+    featureCount: Object.keys(result.patch.locations ?? {}).length,
+    omittedZeroValueLocationKeys: [],
+    patch: result.patch,
+    metrics: {},
+  };
+}
+
+/**
  * O patch territorial de um período, lendo a série inteira de uma vez.
  *
  * `periodKeys` são todos os períodos publicados da camada. Quando vem
@@ -561,8 +584,7 @@ export async function getGeeStatisticsYearPatch(
   yearKey: string,
   locationKey: string,
   classCount: number,
-  explicitSource?:
-    PublishedGeeStatisticsSource | GeeFeatureCollectionStatisticsSource | null,
+  explicitSource?: PublishedGeeStatisticsSource | GeeStatisticsSource | null,
   periodKeys: readonly string[] = [],
 ): Promise<GeeStatisticsYearResult | null> {
   const source = explicitSource ?? getGeeStatisticsSource(panelLayerId);
@@ -571,8 +593,19 @@ export async function getGeeStatisticsYearPatch(
     return null;
   }
 
-  const resolvedSource = resolveGeeStatisticsSource(source, yearKey);
   await initializeGee();
+
+  if (isGeeMunicipalValueTableSource(source)) {
+    return readMunicipalValueTablePatch(
+      source,
+      yearKey,
+      locationKey,
+      classCount,
+      periodKeys,
+    );
+  }
+
+  const resolvedSource = resolveGeeStatisticsSource(source, yearKey);
   const schema = await getGeeStatisticsSchema(
     resolvedSource,
     "sourceRevision" in source && typeof source.sourceRevision === "string"

@@ -25,6 +25,7 @@ import {
   requireManagedConfig,
   withAuditEvent,
 } from "@/services/indexCatalog/catalogConfigAudit";
+import { isGeeMunicipalValueTableSource } from "@/contracts/geeMunicipalValueTable";
 import { getIndexCatalogPreviewMapUrl } from "@/services/indexCatalog/previewMapService";
 import { publishIndexCatalogPresentation } from "@/services/indexCatalog/presentationService";
 import {
@@ -64,6 +65,19 @@ function toInitialConfig(
   });
 }
 
+/**
+ * A unidade que o painel de análise mostra ao lado do valor.
+ *
+ * Uma tabela classificatória é sempre percentual — cada classe ocupa uma fatia
+ * da área —, mas um índice de valor único tem a unidade do próprio indicador:
+ * "registros", "pessoas", "%".
+ */
+function resolveMeasurementUnit(input: {
+  valueIndicator?: { measurementUnit: string };
+}) {
+  return input.valueIndicator?.measurementUnit ?? "%";
+}
+
 export async function createIndexCatalogDraft(
   rawInput: unknown,
   user: AuthenticatedUserSession,
@@ -80,7 +94,7 @@ export async function createIndexCatalogDraft(
     id: panelLayerId,
     name: input.name,
     description: input.description,
-    measurementUnit: "%",
+    measurementUnit: resolveMeasurementUnit(input),
     category: input.category,
     catalogConfig: config,
   });
@@ -151,7 +165,7 @@ export async function updateIndexCatalogDraft(
     id: panelLayerId,
     name: input.name,
     description: input.description,
-    measurementUnit: "%",
+    measurementUnit: resolveMeasurementUnit(input),
     category: input.category,
     catalogConfig: config,
   });
@@ -235,7 +249,7 @@ export async function generateIndexCatalogPreview(
         id: config.panelLayerId,
         name: config.name,
         description: config.description,
-        measurementUnit: "%",
+        measurementUnit: resolveMeasurementUnit(config),
         category: config.category,
         panelPosition: resolvePanelPositionInCategory(
           entries,
@@ -298,7 +312,12 @@ export async function getIndexCatalogDraftMunicipalData(
     config.panelLayerId,
     year,
     locationKey,
-    config.classes.length,
+    // A contagem é a das classes da camada, e não a de `config.classes`: numa
+    // tabela de valor único aquela lista guarda as faixas de cor do mapa, e a
+    // camada publicada tem uma classe só — o indicador.
+    isGeeMunicipalValueTableSource(config.validatedStatisticsSource)
+      ? 1
+      : config.classes.length,
     config.validatedStatisticsSource,
     // A prévia do catálogo reusa o painel de análise, então ela dispara um
     // pedido por período do rascunho. Passar os períodos já inferidos na

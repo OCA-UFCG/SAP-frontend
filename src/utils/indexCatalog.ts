@@ -1,4 +1,5 @@
-import { parseGeeFeatureCollectionStatisticsSource } from "@/contracts/geeStatistics";
+import { isGeeMunicipalValueTableSource } from "@/contracts/geeMunicipalValueTable";
+import { parseGeeStatisticsSource } from "@/contracts/geeStatistics";
 import { HEX_COLOR_PATTERN } from "@/utils/hexColor";
 import {
   INDEX_CATEGORIES,
@@ -8,6 +9,7 @@ import {
   type IndexCatalogDraftInput,
   type IndexCatalogPresentationInput,
   type IndexCategory,
+  type MunicipalValueIndicator,
 } from "@/types/indexCatalog";
 
 const ASSET_ID_PATTERN = /^[A-Za-z0-9_./{}-]{3,300}$/u;
@@ -279,6 +281,32 @@ function parseEarthEngineMapping(value: unknown): EarthEngineAssetMapping {
   };
 }
 
+function parseValueIndicator(value: unknown): MunicipalValueIndicator {
+  if (!isRecord(value)) {
+    throw new Error("Descreva o indicador do índice de valor único.");
+  }
+  const color = requiredString(value.color, "Cor do indicador", 7);
+  if (!HEX_COLOR_PATTERN.test(color)) {
+    throw new Error("A cor do indicador deve usar #RRGGBB.");
+  }
+  if (value.valueType !== "percentage" && value.valueType !== "absolute") {
+    throw new Error(
+      "O tipo do valor deve ser percentual ou absoluto (contagens).",
+    );
+  }
+
+  return {
+    label: requiredString(value.label, "Rótulo do indicador", 120),
+    color: color.toUpperCase(),
+    measurementUnit: requiredString(
+      value.measurementUnit,
+      "Unidade do indicador",
+      30,
+    ),
+    valueType: value.valueType,
+  };
+}
+
 export function parseIndexCatalogDraftInput(
   value: unknown,
 ): IndexCatalogDraftInput {
@@ -290,12 +318,23 @@ export function parseIndexCatalogDraftInput(
     throw new Error("Categoria inválida.");
   }
 
-  const statisticsSource = parseGeeFeatureCollectionStatisticsSource(
-    value.statisticsSource,
-  );
-  if (statisticsSource.properties.scalarMetrics) {
+  const statisticsSource = parseGeeStatisticsSource(value.statisticsSource);
+  if (
+    statisticsSource.kind === "gee-feature-collection" &&
+    statisticsSource.properties.scalarMetrics
+  ) {
     throw new Error(
       "O catálogo v2 aceita apenas estatísticas classificatórias nesta versão.",
+    );
+  }
+  const isValueTable = isGeeMunicipalValueTableSource(statisticsSource);
+  const classes = parseClasses(value.classes);
+  // Uma tabela de valor único desenha faixas no mapa, e cada faixa é separada da
+  // seguinte por um limite: sem eles o Earth Engine espalharia a paleta pelo
+  // intervalo bruto do indicador e a legenda passaria a mentir sobre a cor.
+  if (isValueTable && classes.length < 2) {
+    throw new Error(
+      "Informe pelo menos duas faixas de cor para o mapa do indicador.",
     );
   }
 
@@ -304,8 +343,11 @@ export function parseIndexCatalogDraftInput(
     description: requiredString(value.description, "Descrição", 500),
     category: value.category as IndexCategory,
     statisticsSource,
-    classes: parseClasses(value.classes),
+    classes,
     earthEngine: parseEarthEngineMapping(value.earthEngine),
+    ...(isValueTable
+      ? { valueIndicator: parseValueIndicator(value.valueIndicator) }
+      : {}),
   };
 }
 
