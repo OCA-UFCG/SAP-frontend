@@ -25,7 +25,6 @@ import {
   requireManagedConfig,
   withAuditEvent,
 } from "@/services/indexCatalog/catalogConfigAudit";
-import { isGeeMunicipalValueTableSource } from "@/contracts/geeMunicipalValueTable";
 import { getIndexCatalogPreviewMapUrl } from "@/services/indexCatalog/previewMapService";
 import { publishIndexCatalogPresentation } from "@/services/indexCatalog/presentationService";
 import {
@@ -39,6 +38,7 @@ import {
   type IndexCatalogPreview,
 } from "@/types/indexCatalog";
 import {
+  catalogLayerClassCount,
   createCatalogPanelLayerId,
   makeUniqueCatalogPanelLayerId,
   parseIndexCatalogDraftInput,
@@ -312,12 +312,7 @@ export async function getIndexCatalogDraftMunicipalData(
     config.panelLayerId,
     year,
     locationKey,
-    // A contagem é a das classes da camada, e não a de `config.classes`: numa
-    // tabela de valor único aquela lista guarda as faixas de cor do mapa, e a
-    // camada publicada tem uma classe só — o indicador.
-    isGeeMunicipalValueTableSource(config.validatedStatisticsSource)
-      ? 1
-      : config.classes.length,
+    catalogLayerClassCount(config.validatedStatisticsSource, config.classes),
     config.validatedStatisticsSource,
     // A prévia do catálogo reusa o painel de análise, então ela dispara um
     // pedido por período do rascunho. Passar os períodos já inferidos na

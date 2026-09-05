@@ -548,8 +548,17 @@ export function IndexCatalogScreen() {
               periodGranularity: "year",
               properties: STANDARD_PROPERTIES,
             },
+      // O mapa desta forma é sempre a própria FeatureCollection, e a validação
+      // recusa qualquer outro tipo. Deixar o formulário no padrão "Image" só
+      // renderia um erro no fim de uma validação inteira.
       ...(shape === "value"
-        ? { valueIndicator: current.valueIndicator ?? EMPTY_VALUE_INDICATOR }
+        ? {
+            earthEngine: {
+              ...current.earthEngine,
+              sourceType: "featureCollection" as const,
+            },
+            valueIndicator: current.valueIndicator ?? EMPTY_VALUE_INDICATOR,
+          }
         : { valueIndicator: undefined }),
     }));
     setPreview(null);

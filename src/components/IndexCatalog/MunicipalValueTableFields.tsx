@@ -111,12 +111,27 @@ export function ValueRangeFields({
   onChangeRanges: (ranges: ClassMapping[]) => void;
   onChangeThresholds: (value: string) => void;
 }) {
+  /**
+   * O `id` da faixa não aparece no formulário, mas o cadastro recusa dois iguais
+   * ("As classes não podem ter índices ou IDs duplicados"). Remover uma faixa
+   * renumera a posição e não o `id`, então contar as faixas para nomear a
+   * próxima repetia um nome já usado — apagar a faixa do meio de três e
+   * acrescentar outra travava o salvamento sem nada na tela para corrigir.
+   */
+  function nextRangeId() {
+    const used = new Set(ranges.map((range) => range.id));
+    for (let position = ranges.length + 1; ; position += 1) {
+      const candidate = `faixa-${position}`;
+      if (!used.has(candidate)) return candidate;
+    }
+  }
+
   function addRange() {
     onChangeRanges([
       ...ranges,
       {
         classIndex: ranges.length,
-        id: `faixa-${ranges.length + 1}`,
+        id: nextRangeId(),
         label: "",
         color: "#CCCCCC",
         pixelValue: ranges.length,

@@ -182,6 +182,9 @@ O formulário pede, além do endereço do asset:
 
 A camada publicada tem **uma classe só** (o indicador) e um valor por
 território; as faixas ficam em `mapVisualization.legend` com os `thresholds`.
+O mapa desta forma é sempre uma FeatureCollection — é a própria tabela que é
+pintada —, então a validação recusa Image e ImageCollection em vez de
+sobrescrever o tipo em silêncio.
 
 A validação recusa: tabela sem coluna que case com a coluna do valor, município
 repetido, linha sem código IBGE ou sem nome, coluna de UF que não é uma UF,

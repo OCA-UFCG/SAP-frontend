@@ -126,6 +126,94 @@ function stubGeeRow() {
   });
 }
 
+/** Uma tabela municipal de valor único: uma classe na camada, faixas no mapa. */
+const valueTableSource = {
+  schemaVersion: 1 as const,
+  sourceRevision: "b".repeat(64),
+  kind: "gee-municipal-value-table" as const,
+  asset: { type: "fixed" as const, assetId: "projects/x/assets/municipios" },
+  periodGranularity: "year" as const,
+  valueProperty: "{year}",
+  aggregation: "sum" as const,
+  properties: {
+    municipalityCode: "CD_MUN",
+    locationName: "NM_MUN",
+    stateCode: "SIGLA_UF",
+  },
+};
+
+function stubValueTableDraft() {
+  const entry = { sys: { id: "panel", version: 3 }, fields: {} };
+  contentful.getCatalogEntry.mockResolvedValue({
+    entry,
+    locale: "en-US",
+    item: {
+      entryId: "panel",
+      published: false,
+      catalogConfig: {
+        schemaVersion: 2 as const,
+        panelLayerId: "registros-de-secas",
+        status: "ready" as const,
+        name: "Registros de Secas e Estiagens",
+        description: "Teste",
+        category: "Dados Socioeconômicos" as const,
+        statisticsSource: valueTableSource,
+        validatedStatisticsSource: valueTableSource,
+        // As faixas de cor do mapa, que não são as classes da camada.
+        classes: [
+          { classIndex: 0, id: "0-6", label: "0 a 6", color: "#FEE5D9" },
+          { classIndex: 1, id: "6-12", label: "> 6 a 12", color: "#FCAE91" },
+          { classIndex: 2, id: "12-18", label: "> 12 a 18", color: "#FB6A4A" },
+        ],
+        valueIndicator: {
+          label: "Registros de secas e estiagens",
+          color: "#8C2D04",
+          measurementUnit: "registros",
+          valueType: "absolute" as const,
+        },
+        earthEngine: {
+          strategy: "single" as const,
+          sourceType: "featureCollection" as const,
+          singleAssetId: "projects/x/assets/municipios",
+          property: "{year}",
+          thresholds: [6, 12],
+        },
+        createdBy: { uid: "u", email: "e", at: "2026-01-01T00:00:00.000Z" },
+        updatedBy: { uid: "u", email: "e", at: "2026-01-01T00:00:00.000Z" },
+        validation: {
+          validatedAt: "2026-01-01T00:00:00.000Z",
+          valid: true,
+          errors: [],
+          warnings: [],
+          inferred: {
+            panelLayerId: "registros-de-secas",
+            periods: ["2024"],
+            defaultPeriod: "2024",
+            timeScale: "Anual" as const,
+            classIndexes: [0, 1, 2],
+            statisticsAssetCount: 1,
+          },
+          sourceFingerprint: "fingerprint",
+        },
+        auditLog: [],
+      },
+    },
+  });
+  contentful.getLocalizedEntryField.mockReturnValue({
+    schemaVersion: 1,
+    type: "territorial-compact",
+    classes: [
+      {
+        id: "registros-de-secas",
+        label: "Registros de secas e estiagens",
+        color: "#8C2D04",
+      },
+    ],
+    valueConfig: { type: "absolute", unit: "registros" },
+    years: { "2024": { imageId: "projects/x/assets/municipios", values: {} } },
+  } as unknown as CompactTerritorialAnalysisDataset);
+}
+
 describe("buildIndexCatalogReportPreview", () => {
   beforeEach(() => vi.clearAllMocks());
 
@@ -203,6 +291,32 @@ describe("buildIndexCatalogReportPreview", () => {
     const preview = await buildIndexCatalogReportPreview("panel");
 
     expect(preview.report.analyses[0]?.status).toBe("unavailable");
+  });
+
+  it("pede uma classe só num índice de valor único, e não as faixas do mapa", async () => {
+    // Regressão: a prévia do relatório passava `config.classes.length`, que numa
+    // tabela de valor único são as faixas de cor do mapa. O repositório recusava
+    // com "a camada possui 3 classes, mas uma tabela municipal de valor único
+    // produz uma só" e a seção aparecia como indisponível, sem erro na tela.
+    stubValueTableDraft();
+    gee.getGeeStatisticsYearPatch.mockResolvedValue({
+      assetId: "projects/x/assets/municipios",
+      featureCount: 1,
+      omittedZeroValueLocationKeys: [],
+      metrics: {},
+      patch: { years: { "2024": { values: { [CAMPINA_GRANDE]: [34] } } } },
+    });
+
+    const preview = await buildIndexCatalogReportPreview("panel");
+
+    expect(gee.getGeeStatisticsYearPatch).toHaveBeenCalledWith(
+      "registros-de-secas",
+      "2024",
+      CAMPINA_GRANDE,
+      1,
+      valueTableSource,
+    );
+    expect(preview.report.analyses[0]?.status).toBe("available");
   });
 
   it("não vai ao Earth Engine com um rascunho sem prévia validada", async () => {

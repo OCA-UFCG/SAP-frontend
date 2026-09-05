@@ -89,6 +89,26 @@ export function reconcileCatalogPublicationStatus(
   return config.validation?.valid ? "ready" : "draft";
 }
 
+/**
+ * Quantas classes a camada publicada tem — o número que o repositório
+ * estatístico confere contra o asset antes de ler as linhas.
+ *
+ * Não é `classes.length`: numa tabela municipal de valor único aquela lista
+ * guarda as faixas de cor do mapa (duas ou mais), enquanto a camada tem uma
+ * classe só, o próprio indicador. Existe como função compartilhada porque a
+ * prévia do painel e a prévia do relatório precisam do mesmo número, e quando
+ * cada uma calculava o seu a do relatório ficou para trás.
+ *
+ * @example
+ * catalogLayerClassCount(valueTableSource, config.classes); // 1
+ */
+export function catalogLayerClassCount(
+  statisticsSource: unknown,
+  classes: readonly ClassMapping[],
+) {
+  return isGeeMunicipalValueTableSource(statisticsSource) ? 1 : classes.length;
+}
+
 function parseClasses(value: unknown): ClassMapping[] {
   if (!Array.isArray(value) || value.length > 100) {
     throw new Error("Configuração de classes inválida.");

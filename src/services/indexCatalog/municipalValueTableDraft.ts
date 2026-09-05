@@ -97,6 +97,21 @@ function requireIndicator(
   return config.valueIndicator;
 }
 
+/**
+ * O mapa de um índice de valor único é desenhado a partir da própria tabela:
+ * `buildValueMapVisualization` grava `sourceType: "featureCollection"` e não
+ * usa banda. Sem esta recusa a validação aprovaria um raster — ela confere o
+ * asset contra o que o formulário diz —, e o índice publicado tentaria ler esse
+ * raster como tabela, devolvendo um mapa em branco.
+ */
+function requireFeatureCollectionMap(config: IndexCatalogConfigV2) {
+  if (config.earthEngine.sourceType !== "featureCollection") {
+    throw new Error(
+      `O mapa de um índice de valor único por município sai da própria FeatureCollection, mas o formulário informa ${config.earthEngine.sourceType}. Escolha FeatureCollection em "Visualização do mapa".`,
+    );
+  }
+}
+
 function requireThresholds(config: IndexCatalogConfigV2, rangeCount: number) {
   const thresholds = config.earthEngine.thresholds ?? [];
   if (thresholds.length !== rangeCount - 1) {
@@ -120,6 +135,7 @@ export async function buildMunicipalValueTableDraft(
   source: GeeMunicipalValueTableStatisticsSource,
 ): Promise<IndexCatalogBuildResult> {
   const indicator = requireIndicator(config);
+  requireFeatureCollectionMap(config);
   const ranges = buildRangeClasses(config.classes);
   const thresholds = requireThresholds(config, ranges.length);
   const discovery = await discoverMunicipalValueTable(source);

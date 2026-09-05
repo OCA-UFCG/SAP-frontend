@@ -117,6 +117,27 @@ describe("buildValueTemplates", () => {
 });
 
 describe("buildMunicipalValueTableDraft", () => {
+  it("recusa um mapa que não seja a própria FeatureCollection", async () => {
+    // Regressão: `buildValueMapVisualization` grava sempre
+    // `sourceType: "featureCollection"`, mas a validação do asset comparava com
+    // o que o formulário dizia. Um raster passava na validação e o índice
+    // publicado tentava lê-lo como tabela.
+    await expect(
+      buildMunicipalValueTableDraft(
+        buildConfig({
+          earthEngine: {
+            strategy: "single",
+            sourceType: "image",
+            singleAssetId: ASSET_ID,
+            thresholds: [6, 12],
+          },
+        }),
+        statisticsSource,
+      ),
+    ).rejects.toThrow(/sai da própria FeatureCollection/);
+    expect(mocks.validateMapAssets).not.toHaveBeenCalled();
+  });
+
   it("publishes one statistic class and keeps the ranges in the map legend", async () => {
     const build = await buildMunicipalValueTableDraft(
       buildConfig(),

@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import {
+  catalogLayerClassCount,
   createCatalogPanelLayerId,
   detectYearPartitionedTemplate,
   expandAssetForPeriod,
@@ -444,5 +445,27 @@ describe("fillYearPlaceholder", () => {
     expect(fillYearPlaceholder("projects/x/assets/ana_{year}")).toBe(
       "projects/x/assets/ana_{year}",
     );
+  });
+});
+
+describe("catalogLayerClassCount", () => {
+  const ranges = [
+    { classIndex: 0, id: "0-6", label: "0 a 6", color: "#FEE5D9" },
+    { classIndex: 1, id: "6-12", label: "> 6 a 12", color: "#FCAE91" },
+  ];
+
+  it("conta uma classe só numa tabela municipal de valor único", () => {
+    // As faixas configuradas são as cores do mapa; a camada publicada tem uma
+    // classe, o indicador. Passar 2 faz a leitura estatística recusar o asset.
+    expect(
+      catalogLayerClassCount({ kind: "gee-municipal-value-table" }, ranges),
+    ).toBe(1);
+  });
+
+  it("conta as classes configuradas numa tabela classificatória", () => {
+    expect(
+      catalogLayerClassCount({ kind: "gee-feature-collection" }, ranges),
+    ).toBe(2);
+    expect(catalogLayerClassCount(undefined, ranges)).toBe(2);
   });
 });
