@@ -1,3 +1,5 @@
+import { createRateLimitStore } from "@/utils/rateLimitStore";
+
 /**
  * Guarda de taxa da análise multicritério.
  *
@@ -15,23 +17,17 @@
 const AMFE_ANALYZE_RATE_LIMIT_WINDOW_MS = 1000 * 60;
 const AMFE_ANALYZE_RATE_LIMIT_MAX_REQUESTS = 5;
 
-interface RateLimitEntry {
-  count: number;
-  resetAt: number;
-}
-
-const requestsByClient = new Map<string, RateLimitEntry>();
+const requestsByClient = createRateLimitStore();
 
 export function consumeAmfeAnalyzeRateLimit(clientKey: string) {
   const now = Date.now();
-  const currentEntry = requestsByClient.get(clientKey);
+  const currentEntry = requestsByClient.get(clientKey, now);
 
-  const entry =
-    !currentEntry || now >= currentEntry.resetAt
-      ? { count: 1, resetAt: now + AMFE_ANALYZE_RATE_LIMIT_WINDOW_MS }
-      : { count: currentEntry.count + 1, resetAt: currentEntry.resetAt };
+  const entry = !currentEntry
+    ? { count: 1, resetAt: now + AMFE_ANALYZE_RATE_LIMIT_WINDOW_MS }
+    : { count: currentEntry.count + 1, resetAt: currentEntry.resetAt };
 
-  requestsByClient.set(clientKey, entry);
+  requestsByClient.set(clientKey, entry, now);
 
   return {
     limited: entry.count > AMFE_ANALYZE_RATE_LIMIT_MAX_REQUESTS,
