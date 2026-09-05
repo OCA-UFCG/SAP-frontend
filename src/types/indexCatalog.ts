@@ -149,9 +149,14 @@ export interface IndexCatalogPresentationInput {
   description: string;
   category: IndexCategory;
   /**
-   * Editável, e não fixada em `%` como no escopo completo: os legados usam
-   * "classes", "%" e "registros", e sobrescrever a unidade trocaria o rótulo
-   * do painel de análise em silêncio.
+   * Editável, e não fixada em `%` como no escopo completo, porque os legados
+   * usam "classes", "%" e "registros".
+   *
+   * Vale só como ficha do índice: `panelLayer.measurementUnit` não entra na
+   * consulta de `panelLayerRepository` e nenhuma tela da plataforma o lê. A
+   * unidade que o painel de análise mostra é `imageData.valueConfig.unit`, que
+   * este escopo não escreve — editá-la exigiria tocar o campo que também guarda
+   * os valores territoriais do legado.
    */
   measurementUnit: string;
   panelPosition?: number;

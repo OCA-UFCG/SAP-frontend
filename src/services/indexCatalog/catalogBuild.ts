@@ -692,12 +692,17 @@ export async function buildCatalogDraft(
         },
       ]),
     );
+    // Numa previsão o período padrão é o primeiro — o mês mais próximo —, e nos
+    // demais índices é o mais recente. Sai daqui para o `imageData` e para o
+    // relatório da validação juntos: quando cada um calculava o seu, a prévia do
+    // relatório e a captura da imagem caíam no horizonte mais distante.
+    const defaultPeriod = mapAssets.forecast
+      ? discovery.periods[0]
+      : discovery.periods.at(-1);
     const panelLayerImageData = {
       schemaVersion: 1,
       type: "territorial-compact" as const,
-      defaultYear: mapAssets.forecast
-        ? discovery.periods[0]
-        : discovery.periods.at(-1),
+      defaultYear: defaultPeriod,
       classes: classes.map(({ id, label, color, pixelValue }) => ({
         id,
         label,
@@ -740,7 +745,7 @@ export async function buildCatalogDraft(
       inferred: {
         panelLayerId: config.panelLayerId,
         periods: discovery.periods,
-        defaultPeriod: discovery.periods.at(-1),
+        defaultPeriod,
         timeScale: inferTimeScale(discovery.periods),
         classIndexes: discovery.classIndexes,
         statisticsAssetCount: discovery.assets.length,

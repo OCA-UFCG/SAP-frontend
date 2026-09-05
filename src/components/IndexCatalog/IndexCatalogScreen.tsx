@@ -277,6 +277,16 @@ export function IndexCatalogScreen() {
   const editingItem = entryId
     ? items.find((item) => item.entryId === entryId)
     : undefined;
+  /**
+   * Publicar exige uma prévia gerada agora — exceto num índice já publicado que
+   * recebeu só texto do relatório ou uma imagem nova: essas escritas não mexem
+   * na validação gravada, e é aqui, de dentro do editor, que quem as fez
+   * procura o botão para levá-las ao ar.
+   */
+  const canRepublish = Boolean(
+    editingItem?.published && editingItem.hasUnpublishedChanges,
+  );
+  const canPublishDraft = Boolean(preview) || canRepublish;
 
   function resetEditor() {
     setLegacyItem(null);
@@ -676,7 +686,7 @@ export function IndexCatalogScreen() {
   }
 
   async function publishDraft() {
-    if (!entryId || !preview) return;
+    if (!entryId || !canPublishDraft) return;
     const publishedEntryId = entryId;
     setBusy("publish");
     setMessage("Fazendo a conferência final e publicando o índice…");
@@ -714,8 +724,16 @@ export function IndexCatalogScreen() {
     }
   }
 
-  async function togglePublication(item: IndexCatalogItem) {
-    const action = item.published ? "unpublish" : "publish";
+  /**
+   * A ação vem de quem clicou, e não do estado do item: um índice publicado
+   * agora tem dois botões — "Republicar", para levar ao ar o que está no
+   * rascunho, e "Despublicar" —, e deduzir a ação de `item.published` faria o
+   * primeiro tirar o índice do Monitoramento.
+   */
+  async function changePublication(
+    item: IndexCatalogItem,
+    action: "publish" | "unpublish",
+  ) {
     setBusy(`lifecycle-${item.entryId}`);
     try {
       await apiRequest(
@@ -729,7 +747,7 @@ export function IndexCatalogScreen() {
         },
       );
       setMessage(
-        item.published
+        action === "unpublish"
           ? `“${item.name}” foi despublicado.`
           : `“${item.name}” foi publicado.`,
       );
@@ -909,18 +927,20 @@ export function IndexCatalogScreen() {
                       <button
                         type="button"
                         className={`${buttonClass} border border-stone-300`}
-                        onClick={() => void togglePublication(item)}
+                        onClick={() =>
+                          void changePublication(item, "unpublish")
+                        }
                       >
                         Despublicar
                       </button>
                     )}
-                    {!item.published && (
+                    {(!item.published || item.hasUnpublishedChanges) && (
                       <button
                         type="button"
                         className={`${buttonClass} bg-[#989F43] text-white`}
-                        onClick={() => void togglePublication(item)}
+                        onClick={() => void changePublication(item, "publish")}
                       >
-                        Publicar
+                        {item.published ? "Republicar" : "Publicar"}
                       </button>
                     )}
                     {!item.everPublished && (
@@ -947,18 +967,25 @@ export function IndexCatalogScreen() {
                       <button
                         type="button"
                         className={`${buttonClass} border border-stone-300`}
-                        onClick={() => void togglePublication(item)}
+                        onClick={() =>
+                          void changePublication(item, "unpublish")
+                        }
                       >
                         Despublicar
                       </button>
                     )}
-                    {!item.published && item.status === "ready" && (
+                    {/* Republicar é o que leva ao ar o texto do relatório e a
+                        imagem do cartão, que são gravados no rascunho sem
+                        refazer a validação. Sem este botão a única saída era
+                        despublicar o índice e publicá-lo de novo. */}
+                    {((!item.published && item.status === "ready") ||
+                      (item.published && item.hasUnpublishedChanges)) && (
                       <button
                         type="button"
                         className={`${buttonClass} bg-[#989F43] text-white`}
-                        onClick={() => void togglePublication(item)}
+                        onClick={() => void changePublication(item, "publish")}
                       >
-                        Publicar
+                        {item.published ? "Republicar" : "Publicar"}
                       </button>
                     )}
                     <button
@@ -1475,11 +1502,11 @@ export function IndexCatalogScreen() {
             </CatalogActionButton>
             <CatalogActionButton
               className={`${buttonClass} bg-[#989F43] text-white`}
-              disabled={Boolean(busy) || !preview}
+              disabled={Boolean(busy) || !canPublishDraft}
               onClick={() => void publishDraft()}
               description="Faz uma última conferência e disponibiliza o índice no Monitoramento. Os dados continuam guardados no Google Earth Engine."
             >
-              Publicar
+              {canRepublish && !preview ? "Republicar" : "Publicar"}
             </CatalogActionButton>
           </div>
           {validationProgress && (

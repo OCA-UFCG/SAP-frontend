@@ -309,9 +309,23 @@ export async function getIndexCatalogDraftMunicipalData(
   return result ? { imageData: result.patch } : null;
 }
 
+/**
+ * Publicar exige uma prévia válida gravada — e é isso que se confere, não o
+ * `status` sozinho.
+ *
+ * Um índice já publicado tem `status: "published"`, e exigir `"ready"` tornava
+ * impossível republicá-lo: corrigir o texto do relatório ou recapturar a imagem
+ * do cartão grava na versão de rascunho de propósito, sem tocar na validação,
+ * e a publicação dessa correção caía aqui com "Revalide os assets" mesmo com a
+ * prévia intacta. `draft` e `error` continuam recusados porque nos dois a
+ * validação foi apagada ou marcada inválida, e a conferência que realmente
+ * protege o índice público segue sendo a impressão digital reconferida em
+ * `publishIndexCatalogDraft`.
+ */
 function assertPublishable(config: IndexCatalogConfigV2) {
   if (
-    config.status !== "ready" ||
+    config.status === "draft" ||
+    config.status === "error" ||
     !config.validation?.valid ||
     !config.validatedStatisticsSource
   ) {

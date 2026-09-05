@@ -471,6 +471,70 @@ describe("IndexCatalogScreen v2", () => {
     await waitFor(() => expect(fetch).toHaveBeenCalledTimes(1));
   });
 
+  it("oferece Republicar no índice publicado com alteração pendente", async () => {
+    // Regressão: o cartão de um índice v2 publicado só tinha "Despublicar".
+    // Depois de salvar o texto do relatório, a tela pedia para publicar de novo
+    // e não havia botão para isso — a saída era tirar o índice do ar e
+    // republicá-lo.
+    vi.mocked(fetch).mockImplementationOnce(() =>
+      jsonResponse({
+        items: [
+          {
+            entryId: "v2",
+            panelLayerId: "indice-gee",
+            name: "Índice GEE",
+            description: "",
+            published: true,
+            everPublished: true,
+            hasUnpublishedChanges: true,
+            catalogManaged: true,
+            managedScope: "full",
+            adoptable: false,
+            status: "published",
+          },
+        ],
+      }),
+    );
+    render(<IndexCatalogScreen />);
+
+    expect(
+      await screen.findByRole("button", { name: "Republicar" }),
+    ).toBeInTheDocument();
+    expect(
+      screen.getByRole("button", { name: "Despublicar" }),
+    ).toBeInTheDocument();
+  });
+
+  it("não oferece Republicar quando não há alteração pendente", async () => {
+    vi.mocked(fetch).mockImplementationOnce(() =>
+      jsonResponse({
+        items: [
+          {
+            entryId: "v2",
+            panelLayerId: "indice-gee",
+            name: "Índice GEE",
+            description: "",
+            published: true,
+            everPublished: true,
+            hasUnpublishedChanges: false,
+            catalogManaged: true,
+            managedScope: "full",
+            adoptable: false,
+            status: "published",
+          },
+        ],
+      }),
+    );
+    render(<IndexCatalogScreen />);
+
+    expect(
+      await screen.findByRole("button", { name: "Despublicar" }),
+    ).toBeInTheDocument();
+    expect(
+      screen.queryByRole("button", { name: "Republicar" }),
+    ).not.toBeInTheDocument();
+  });
+
   it("não oferece adoção quando o imageData ainda é pré-compacto", async () => {
     vi.mocked(fetch).mockImplementationOnce(() =>
       jsonResponse({
