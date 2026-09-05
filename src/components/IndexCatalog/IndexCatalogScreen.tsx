@@ -28,6 +28,7 @@ import { ImageCollectionForecastGuideModal } from "@/components/IndexCatalog/Ima
 import {
   detectYearPartitionedTemplate,
   fillYearPlaceholder,
+  hasPublishableValidation,
   parseNumberList,
 } from "@/utils/indexCatalog";
 import type { PublishedPanelLayerReportConfig } from "@/contracts/panelLayerReport";
@@ -282,9 +283,15 @@ export function IndexCatalogScreen() {
    * recebeu só texto do relatório ou uma imagem nova: essas escritas não mexem
    * na validação gravada, e é aqui, de dentro do editor, que quem as fez
    * procura o botão para levá-las ao ar.
+   *
+   * Um rascunho editado fica de fora porque o `PUT` do rascunho apaga a
+   * validação: a rota recusaria a publicação, e o botão só levaria o operador
+   * a um "Revalide os assets" depois do clique.
    */
   const canRepublish = Boolean(
-    editingItem?.published && editingItem.hasUnpublishedChanges,
+    editingItem?.published &&
+    editingItem.hasUnpublishedChanges &&
+    hasPublishableValidation(editingItem.status),
   );
   const canPublishDraft = Boolean(preview) || canRepublish;
 
@@ -977,9 +984,13 @@ export function IndexCatalogScreen() {
                     {/* Republicar é o que leva ao ar o texto do relatório e a
                         imagem do cartão, que são gravados no rascunho sem
                         refazer a validação. Sem este botão a única saída era
-                        despublicar o índice e publicá-lo de novo. */}
+                        despublicar o índice e publicá-lo de novo. A condição é
+                        a mesma que a rota confere: um rascunho editado perdeu a
+                        validação e seria recusado no clique. */}
                     {((!item.published && item.status === "ready") ||
-                      (item.published && item.hasUnpublishedChanges)) && (
+                      (item.published &&
+                        item.hasUnpublishedChanges &&
+                        hasPublishableValidation(item.status))) && (
                       <button
                         type="button"
                         className={`${buttonClass} bg-[#989F43] text-white`}

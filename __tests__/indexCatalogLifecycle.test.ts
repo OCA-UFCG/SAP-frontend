@@ -328,6 +328,39 @@ describe("index catalog v2 lifecycle", () => {
     );
   });
 
+  it("mantém o índice como publicado quando a republicação falha", async () => {
+    // Regressão: o tratamento de erro gravava `status: "ready"` fixo, o que era
+    // certo enquanto publicar só podia partir de "ready". Numa republicação ele
+    // parte de "published", e rebaixar o status dizia que o índice tinha saído
+    // do ar — a versão publicada continua no Monitoramento.
+    const current = currentEntry({ published: true, pendingChanges: true });
+    contentful.getCatalogEntry.mockResolvedValue(current);
+    contentful.getManagementEntry.mockResolvedValue(current.entry);
+    contentful.patchManagementEntry.mockResolvedValue(
+      managementEntry("panel", true, 9),
+    );
+    contentful.publishManagementEntry.mockResolvedValue(
+      managementEntry("panel", false, 10),
+    );
+    buildCatalogDraft.mockResolvedValue({
+      panelLayerImageData: { years: {} },
+      validation,
+      statisticsSource: source,
+      classes: config.classes,
+      mapVisualization: {},
+    });
+
+    await expect(publishIndexCatalogEntry("panel", user)).rejects.toThrow(
+      "não confirmou a publicação",
+    );
+    expect(contentful.patchManagementEntry).toHaveBeenLastCalledWith(
+      current.entry,
+      expect.objectContaining({
+        catalogConfig: expect.objectContaining({ status: "published" }),
+      }),
+    );
+  });
+
   it("acompanha o nome no ID técnico só até a primeira publicação", async () => {
     const draftInput = {
       name: "Previsão: Anomalia Temperatura | CPTEC INPE",

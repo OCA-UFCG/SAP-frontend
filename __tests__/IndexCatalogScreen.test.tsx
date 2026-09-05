@@ -535,6 +535,43 @@ describe("IndexCatalogScreen v2", () => {
     ).not.toBeInTheDocument();
   });
 
+  it("não oferece Republicar quando a edição do rascunho apagou a prévia", async () => {
+    // O `PUT` do rascunho derruba o status para "draft" e apaga a validação, e
+    // a rota de publicação recusa esse estado. Oferecer "Republicar" aqui só
+    // levaria a um "Revalide os assets" depois do clique, sem nada na tela para
+    // o operador corrigir.
+    vi.mocked(fetch).mockImplementationOnce(() =>
+      jsonResponse({
+        items: [
+          {
+            entryId: "v2",
+            panelLayerId: "indice-gee",
+            name: "Índice GEE",
+            description: "",
+            published: true,
+            everPublished: true,
+            hasUnpublishedChanges: true,
+            catalogManaged: true,
+            managedScope: "full",
+            adoptable: false,
+            status: "draft",
+          },
+        ],
+      }),
+    );
+    render(<IndexCatalogScreen />);
+
+    expect(
+      await screen.findByRole("button", { name: "Despublicar" }),
+    ).toBeInTheDocument();
+    expect(
+      screen.queryByRole("button", { name: "Republicar" }),
+    ).not.toBeInTheDocument();
+    expect(
+      screen.getByText("Publicado com revisão em rascunho"),
+    ).toBeInTheDocument();
+  });
+
   it("não oferece adoção quando o imageData ainda é pré-compacto", async () => {
     vi.mocked(fetch).mockImplementationOnce(() =>
       jsonResponse({

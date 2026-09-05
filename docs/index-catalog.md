@@ -171,9 +171,16 @@ publicado pode receber alterações em draft sem retirar a versão pública atua
 **Republicar** as leva ao ar reconferindo o mesmo fingerprint.
 
 Publicar exige uma prévia válida gravada, e não um `status` específico:
-`draft` e `error` são recusados porque nos dois a validação foi apagada ou
-marcada inválida, enquanto `ready` e `published` seguem para a reconferência do
-fingerprint.
+`hasPublishableValidation` recusa `draft` e `error` — nos dois a validação foi
+apagada ou marcada inválida — e deixa `ready` e `published` seguirem para a
+reconferência do fingerprint. A mesma função decide se a tela oferece
+**Republicar**, para o botão não aparecer num estado que a rota recusaria: uma
+edição da configuração derruba o status para `draft`, e ali o caminho é
+revalidar antes de publicar.
+
+Uma publicação que falha não rebaixa o status do índice: ele volta a ser o de
+antes da tentativa, porque numa republicação a versão publicada continua no
+Monitoramento.
 
 Publicar confere `sys.publishedAt` na resposta do Contentful antes de responder
 sucesso, e a tela reconsulta a lista para confirmar que o índice está publicado.

@@ -6,6 +6,7 @@ import {
   type EarthEngineAssetMapping,
   type IndexCatalogConfigV2,
   type IndexCatalogDraftInput,
+  type IndexCatalogItem,
   type IndexCatalogPresentationInput,
   type IndexCategory,
 } from "@/types/indexCatalog";
@@ -70,8 +71,9 @@ export function makeUniqueCatalogPanelLayerId(
  * catálogo — despublicada no app do Contentful, ou um "Excluir" que
  * despublicou e falhou ao remover. Sem reconciliar, um índice com
  * `status: "published"` numa entry em rascunho fica impossível de publicar:
- * `assertPublishable` só aceita `ready`, e o operador recebe "Revalide os
- * assets e gere a prévia antes de publicar" mesmo com a prévia validada.
+ * o operador recebe "Revalide os assets e gere a prévia antes de publicar"
+ * mesmo com a prévia validada, porque `hasPublishableValidation` julga o
+ * `status` gravado e ele não descreve mais a entry.
  *
  * @example
  * reconcileCatalogPublicationStatus({ status: "published", validation }, false);
@@ -85,6 +87,26 @@ export function reconcileCatalogPublicationStatus(
     return config.status;
   }
   return config.validation?.valid ? "ready" : "draft";
+}
+
+/**
+ * Se a prévia gravada num índice ainda serve para publicar.
+ *
+ * `draft` e `error` não servem — nos dois a validação foi apagada ou marcada
+ * inválida —, e `ready` e `published` seguem para a reconferência do
+ * fingerprint. Mora aqui, e não só na rota, porque a tela decide com a mesma
+ * regra se oferece "Republicar": um botão que aparece num estado que a rota
+ * recusa só produz "Revalide os assets e gere a prévia antes de publicar"
+ * depois do clique, e o operador não tem o que corrigir na tela.
+ *
+ * @example
+ * hasPublishableValidation("published"); // true
+ * hasPublishableValidation("draft"); // false — salvar o rascunho apaga a prévia
+ */
+export function hasPublishableValidation(
+  status: IndexCatalogItem["status"],
+): boolean {
+  return status === "ready" || status === "published";
 }
 
 function parseClasses(value: unknown): ClassMapping[] {
