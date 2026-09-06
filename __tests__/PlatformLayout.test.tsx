@@ -113,15 +113,11 @@ describe("PlatformLayout", () => {
 
     expect(screen.queryByTestId("platform-map-probe")).not.toBeInTheDocument();
     expect(screen.getByTestId("amfe-screen-probe")).toBeInTheDocument();
-    // A casca preenche o espaço que sobra do `main`, em vez de reivindicar a
-    // viewport inteira: com o rodapé abaixo dela, reivindicar 100vh empurrava o
-    // documento para além da tela e deixava rolar os componentes para fora.
+    // A AMFE precisa de uma altura definida: é ela que dá limite ao
+    // `overflow-y-auto` do formulário. Sem isso a página inteira passa a rolar e
+    // o mapa é empurrado para fora da tela.
     expect(screen.getByTestId("platform-amfe-shell")).toHaveClass(
-      "flex-1",
-      "min-h-0",
-    );
-    expect(screen.getByTestId("platform-amfe-shell").className).not.toContain(
-      "100vh",
+      "h-[calc(100vh-66px)]",
     );
     expect(platformSidebarMock.mock.calls[0]?.[0]).toEqual(
       expect.objectContaining({
@@ -132,18 +128,32 @@ describe("PlatformLayout", () => {
     );
   });
 
-  // Regressão: o rodapé fica abaixo da plataforma. Enquanto a casca exigia uma
-  // viewport inteira, o documento ficava mais alto que a tela e a roda do mouse
-  // sobre qualquer área neutra arrastava os componentes para fora do campo de
-  // visão. A casca precisa caber no que sobra do `main`, não reivindicar 100vh.
-  it("sizes the platform shell from the space left by the header and footer", () => {
-    platformSidebarMock.mockReset();
+  // Regressão: o rodapé passou a ser renderizado dentro da plataforma e, com a
+  // casca ocupando só o espaço que sobrava, ele roubava 160px da tela em
+  // Monitoramento. A casca precisa medir a viewport menos o cabeçalho para que o
+  // rodapé caia abaixo da dobra — igual em todas as seções.
+  it("sizes every platform shell from the viewport below the header", () => {
+    const shells = [
+      { props: { viewMode: "amfe" as const }, testId: "platform-amfe-shell" },
+      {
+        props: { viewMode: "catalog" as const, catalogDashboard: <div /> },
+        testId: "platform-catalog-shell",
+      },
+    ];
 
-    render(<PlatformLayout viewMode="amfe" initialSection="analysis" />);
+    for (const { props, testId } of shells) {
+      platformSidebarMock.mockReset();
 
-    const wrapper = screen.getByTestId("platform-amfe-shell").parentElement;
+      const { unmount } = render(
+        <PlatformLayout {...props} initialSection="analysis" />,
+      );
 
-    expect(wrapper).toHaveClass("flex-1", "min-h-0");
-    expect(wrapper?.className).not.toContain("100vh");
+      const wrapper = screen.getByTestId(testId).parentElement;
+
+      expect(wrapper).toHaveClass("min-h-[calc(100vh-66px)]");
+      expect(wrapper?.className).not.toContain("min-h-0");
+
+      unmount();
+    }
   });
 });

@@ -93,9 +93,9 @@ describe("PlatformSideRail", () => {
     expect(
       screen.getByRole("link", { name: "Catálogo de índices" }),
     ).toHaveAttribute("aria-current", "page");
-    expect(
-      screen.getByRole("link", { name: "Auditoria" }),
-    ).not.toHaveAttribute("aria-current");
+    expect(screen.getByRole("link", { name: "Auditoria" })).not.toHaveAttribute(
+      "aria-current",
+    );
   });
 
   it("marks the audit entry as active when the logs view is open", () => {
@@ -129,8 +129,10 @@ describe("PlatformSideRail", () => {
     const rail = screen.getByRole("navigation").parentElement;
 
     expect(rail).toHaveClass("sticky");
-    expect(rail).toHaveClass("top-16");
-    expect(rail).toHaveClass("h-[calc(100vh-64px)]");
+    // `top-16.5` e `100vh-66px` são a altura real do cabeçalho (`h-16.5` mais a
+    // borda). Os antigos 64px deixavam a trilha 2px fora de lugar.
+    expect(rail).toHaveClass("top-16.5");
+    expect(rail).toHaveClass("h-[calc(100vh-66px)]");
     expect(rail).toHaveClass("w-[140px]");
   });
 });

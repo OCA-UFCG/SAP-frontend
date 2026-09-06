@@ -54,6 +54,23 @@ describe("Footer", () => {
     expect(logo.className).toContain("h-[57px]");
   });
 
+  // Regressão: os logos parceiros e as redes sociais estavam empilhados numa
+  // coluna, somando 96px de conteúdo. O rodapé passava dos 153px do Figma e, na
+  // plataforma, essa faixa a mais era arrancada da tela do mapa.
+  it("keeps the partner logos and the social links on a single band", () => {
+    render(<Footer content={footerContent} />);
+
+    const logosRow = screen.getByAltText(
+      "Ministério do Meio Ambiente e Mudança do Clima",
+    ).parentElement;
+
+    expect(logosRow?.className).not.toContain("flex-col");
+    expect(logosRow).toContainElement(
+      screen.getByAltText("Observatório da Caatinga e Desertificação"),
+    );
+    expect(logosRow).toContainElement(screen.getByTestId("social-channels"));
+  });
+
   // O rodapé faz parte da plataforma. O caminho vem com o prefixo de locale
   // (`localePrefix: "always"`), então qualquer regra por rota precisa ser
   // exercitada com o caminho real, e não com um "/platform" que nunca ocorre.
