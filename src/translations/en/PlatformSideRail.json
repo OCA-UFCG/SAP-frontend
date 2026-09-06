@@ -4,6 +4,7 @@
     "analysis": "Analysis",
     "communication": "Communication",
     "logs": "Audit",
-    "catalog": "Index catalog"
+    "catalog": "Index catalog",
+    "loading": "Loading"
   }
 }

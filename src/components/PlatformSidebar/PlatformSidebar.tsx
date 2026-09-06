@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useTransition } from "react";
 import dynamic from "next/dynamic";
 import { useRouter } from "@/translations/routing";
 import {
@@ -121,6 +121,12 @@ export function PlatformSidebar({
   const [isPanelOpen, setIsPanelOpen] = useState(
     initialSidebarState.isPanelOpen,
   );
+  // Sair de auditoria ou do catálogo ainda é uma navegação, e ela espera o
+  // servidor. O `useTransition` mantém a trilha na tela e marca o item clicado
+  // como em andamento em vez de deixar a tela parada.
+  const [isLeavingUtilityView, startUtilityViewExit] = useTransition();
+  const [utilityViewExitTarget, setUtilityViewExitTarget] =
+    useState<PlatformSection | null>(null);
   const defaultPanelOpenOffset = "560px";
   const sidePanelWidthClass = isPanelOpen ? "w-[420px]" : "w-0";
 
@@ -140,12 +146,13 @@ export function PlatformSidebar({
   // montado e a troca em dezenas de milissegundos em vez de perto de um segundo.
   function handleSectionChange(next: PlatformSection) {
     if (isUtilityView) {
-      if (next === "analysis" || next === "communication") {
-        router.push(buildPlatformHref(next));
-        return;
-      }
+      const href =
+        next === "analysis" || next === "communication"
+          ? buildPlatformHref(next)
+          : buildPlatformHref("monitoring");
 
-      router.push(buildPlatformHref("monitoring"));
+      setUtilityViewExitTarget(next);
+      startUtilityViewExit(() => router.push(href));
       return;
     }
 
@@ -186,6 +193,7 @@ export function PlatformSidebar({
           isPanelOpen={isPanelOpen}
           onTogglePanel={() => setIsPanelOpen((v) => !v)}
           showAuditLink={showAuditLink}
+          pendingSection={isLeavingUtilityView ? utilityViewExitTarget : null}
         />
 
         {!isUtilityView && (
