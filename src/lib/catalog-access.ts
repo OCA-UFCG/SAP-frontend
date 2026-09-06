@@ -1,6 +1,6 @@
 import { getAuthenticatedUserSession } from "@/lib/server-session";
 import {
-  parseAllowedLogsViewerEmails,
+  isAllowedLogsViewerEmail,
   resolveLogsViewerAccess,
 } from "@/lib/logs-access";
 
@@ -61,10 +61,7 @@ export async function resolveCatalogRequestAccess(
     return { allowed: false, status: 401 };
   }
 
-  const allowedEmails = parseAllowedLogsViewerEmails();
-  const email = user.email?.trim().toLowerCase() ?? null;
-
-  if (!email || !allowedEmails.has(email)) {
+  if (!isAllowedLogsViewerEmail(user.email)) {
     return { allowed: false, status: 403 };
   }
 

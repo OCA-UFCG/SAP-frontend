@@ -60,10 +60,25 @@ async function resolveSessionFromCookie(
   }
 }
 
+/**
+ * Sessão autenticada a partir do cookie em si, servida do cache de sessões
+ * verificadas. Existe para as páginas de servidor, que leem o cookie por
+ * `cookies()` e não têm um `Request` para entregar a
+ * `getAuthenticatedUserSession`. Sem ela cada página refaz a ida ao Identity
+ * Toolkit que o layout da plataforma já pagou no mesmo request.
+ *
+ * const session = await getAuthenticatedSessionFromCookie(sessionCookie);
+ */
+export async function getAuthenticatedSessionFromCookie(
+  sessionCookie?: string | null,
+): Promise<AuthenticatedUserSession | null> {
+  return resolveSessionFromCookie(sessionCookie ?? null);
+}
+
 export async function verifyFirebaseSessionCookie(
   sessionCookie?: string | null,
 ) {
-  return Boolean(await resolveSessionFromCookie(sessionCookie ?? null));
+  return Boolean(await getAuthenticatedSessionFromCookie(sessionCookie));
 }
 
 export async function getAuthenticatedUserSession(
