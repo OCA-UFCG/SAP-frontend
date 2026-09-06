@@ -35,4 +35,10 @@ jobs:
           NEXT_PUBLIC_CONTENTFUL_PREVIEW: ${{ secrets.NEXT_PUBLIC_CONTENTFUL_PREVIEW }}
           NEXT_PUBLIC_CONTENTFUL_PREVIEW_TOKEN: ${{ secrets.NEXT_PUBLIC_CONTENTFUL_PREVIEW_TOKEN }}
           NEXT_PUBLIC_CONTENTFUL_SPACE_ID: ${{ secrets.NEXT_PUBLIC_CONTENTFUL_SPACE_ID }}
+          # PRs do Dependabot e de forks não recebem os secrets do repositório, e
+          # sem eles o índice de disponibilidade municipal não pode ser gerado a
+          # partir do Contentful. Aqui o placeholder vazio é aceitável: este job
+          # só verifica lint, testes e build. Os workflows de CD não definem esta
+          # variável, então um deploy com secret faltando continua falhando alto.
+          ALLOW_PLACEHOLDER_AVAILABILITY_INDEX: "true"
         run: npm run ci:verify
