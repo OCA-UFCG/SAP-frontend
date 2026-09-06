@@ -35,6 +35,7 @@ const { fakeEarthEngine } = vi.hoisted(() => {
       eq: () => ({}),
       and: () => ({}),
       or: () => ({}),
+      stringStartsWith: () => ({}),
     };
 
     private node(assetIds: string[], kind: FakeNode["kind"]): FakeNode {
@@ -101,11 +102,15 @@ const source: GeeFeatureCollectionStatisticsSource = {
   },
 };
 
-function municipalRow(assetId: string) {
+function municipalRow(
+  assetId: string,
+  municipalityCode = "2507507",
+  locationName = "João Pessoa",
+) {
   return {
     NIVEL_AGRUPAMENTO: "7_Municipio",
-    NOME_LOCAL: "João Pessoa",
-    CD_MUN: "2507507",
+    NOME_LOCAL: locationName,
+    CD_MUN: municipalityCode,
     NM_UF: "PB",
     ano: Number(assetId.slice(-4)),
     perc_classe_1: 40,
@@ -193,6 +198,56 @@ describe("leitura em lote da série estatística", () => {
 
     expect(readAssets).toEqual(["projects/example/assets/aridez_2020"]);
     expect(result?.assetId).toBe("projects/example/assets/aridez_2020");
+  });
+
+  // A leitura municipal traz a UF inteira porque o preço é o da ida ao Earth
+  // Engine, não o do volume: medido no ERA5-Land (45 anos), um município custou
+  // 2985 ms e os 223 municípios da Paraíba, 3122 ms. Antes disso, cada
+  // município novo pagava a série inteira de novo.
+  it("serve outro município da mesma UF sem voltar ao Earth Engine", async () => {
+    mockedEvaluate.mockImplementation(async (object: unknown) => {
+      const node = object as FakeNode;
+      if (node.kind === "propertyNames") return PROPERTY_NAMES as never;
+      return {
+        features: node.assetIds.flatMap((assetId) => [
+          { properties: municipalRow(assetId) },
+          { properties: municipalRow(assetId, "2504009", "Campina Grande") },
+        ]),
+      } as never;
+    });
+
+    await readPeriod("2020");
+    mockedEvaluate.mockClear();
+
+    const result = await getGeeStatisticsYearPatch(
+      "indicearidez",
+      "2020",
+      "2504009",
+      2,
+      source,
+      YEARS,
+    );
+
+    expect(mockedEvaluate).not.toHaveBeenCalled();
+    expect(result?.patch.years?.["2020"]?.values).toEqual({
+      "2504009": [40, 60],
+    });
+  });
+
+  it("volta ao Earth Engine quando o município é de outra UF", async () => {
+    await readPeriod("2020");
+    mockedEvaluate.mockClear();
+
+    await getGeeStatisticsYearPatch(
+      "indicearidez",
+      "2020",
+      "3550308",
+      2,
+      source,
+      YEARS,
+    );
+
+    expect(mockedEvaluate).toHaveBeenCalled();
   });
 
   it("ignora um período incompatível com a granularidade sem derrubar a série", async () => {

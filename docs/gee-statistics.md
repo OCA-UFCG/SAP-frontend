@@ -154,6 +154,30 @@ O território continua filtrado no GEE porque é ele que limita o tamanho da
 resposta — sem ele viriam as 5.573 linhas municipais. O período não limita nada,
 então filtrá-lo lá custava uma ida ao Earth Engine por período visível.
 
+#### Um município é lido junto com a UF inteira
+
+Pelo mesmo motivo, o filtro de um município não é o do código pedido, e sim o
+dos municípios daquela UF (`resolveStatisticsReadScope`). Medido no ERA5-Land,
+45 anos:
+
+| Como se pede                     | Tempo    | Linhas | Municípios servidos |
+| -------------------------------- | -------- | -----: | ------------------: |
+| só o município `2510808` (Patos) | 2 985 ms |     45 |                   1 |
+| todos os municípios da Paraíba   | 3 122 ms | 10 035 |                 223 |
+
+137 ms a mais servem 223 municípios em vez de um, e a chave do cache passa a ser
+a UF. Sem isso, cada município novo pagava a série inteira de novo — o relatório
+municipal gastava de 4 a 8 s de Earth Engine por município.
+
+O recorte é sempre pelos dois primeiros dígitos do código do IBGE, que
+identificam a UF. `NM_UF` não serve para isso porque a coluna guarda ora a sigla,
+ora o nome do estado, dependendo da tabela.
+
+As linhas dos demais municípios são descartadas em `loadGeeStatisticsRows`, antes
+de qualquer mapeamento: `mapGeeStatisticsRows` continua recebendo exatamente as
+linhas do território pedido, então uma linha inválida de outro município não
+derruba a leitura.
+
 As duas formas de fonte convergem para a mesma leitura:
 
 - **`fixed`** — um asset guarda todos os períodos, então a série é ele mesmo.
@@ -178,8 +202,11 @@ usa as chaves de `imageData.years`, e a prévia do catálogo usa
 leitura só do período pedido.
 
 A publicação do catálogo limpa esse cache junto com os demais, em
-`refreshPublicIndexCaches`. O limite de entradas pode ser ajustado com
-`GEE_STATISTICS_ROWS_CACHE_MAX_ENTRIES`.
+`refreshPublicIndexCaches`. O teto tem duas partes, porque as entradas diferem em
+duas ordens de grandeza (45 linhas para um período, ~10 mil para uma UF):
+`GEE_STATISTICS_ROWS_CACHE_MAX_ENTRIES` limita quantas entradas cabem e
+`GEE_STATISTICS_ROWS_CACHE_MAX_ROWS` limita o total de linhas guardadas. A
+evicção é LRU e respeita os dois.
 
 ## Retirada do pipeline legado
 

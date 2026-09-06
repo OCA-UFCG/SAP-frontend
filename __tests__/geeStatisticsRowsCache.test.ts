@@ -63,6 +63,7 @@ describe("chave do cache de linhas estatísticas", () => {
 
 describe("cache de linhas estatísticas", () => {
   beforeEach(() => {
+    vi.unstubAllEnvs();
     clearGeeStatisticsRowsCache();
   });
 
@@ -119,6 +120,29 @@ describe("cache de linhas estatísticas", () => {
     await getOrLoadStatisticsRows(key, reader.read);
 
     expect(reader.calls).toBe(2);
+  });
+
+  it("descarta as entradas mais antigas quando o total de linhas estoura o teto", async () => {
+    vi.stubEnv("GEE_STATISTICS_ROWS_CACHE_MAX_ROWS", "8");
+    const wideRows = Array.from({ length: 4 }, (_, index) => ({
+      data_img: `2025-0${index + 1}-01`,
+    }));
+    const readers = ["uf-25", "uf-26", "uf-27"].map(
+      () => new FakeStatisticsReader(wideRows),
+    );
+    const keys = ["uf-25", "uf-26", "uf-27"].map((scope) =>
+      buildStatisticsRowsCacheKey(["asset"], scope, ["data_img"]),
+    );
+
+    for (const [index, key] of keys.entries()) {
+      await getOrLoadStatisticsRows(key, readers[index].read);
+    }
+    // A primeira UF já saiu para o total caber; a última continua em cache.
+    await getOrLoadStatisticsRows(keys[0], readers[0].read);
+    await getOrLoadStatisticsRows(keys[2], readers[2].read);
+
+    expect(readers[0].calls).toBe(2);
+    expect(readers[2].calls).toBe(1);
   });
 
   it("não deixa uma leitura que falhou presa como pendente", async () => {

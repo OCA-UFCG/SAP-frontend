@@ -5,14 +5,23 @@ import { createHash } from "node:crypto";
 const CACHE_TTL_MS = 1000 * 60 * 10;
 // Uma entrada é o recorte de um território dentro de uma série de assets:
 // ~1260 linhas para `br` no índice de aridez do ERA5-Land (Brasil + 27 estados
-// x 45 anos, ~390 KiB) e 45 para um município. O teto existe para uma navegação
-// longa por municípios não fazer o mapa crescer sem fim.
+// x 45 anos, ~390 KiB) e ~10.000 para uma UF, desde que a leitura municipal
+// passou a trazer o estado inteiro. O teto existe para uma navegação longa por
+// municípios não fazer o mapa crescer sem fim.
 const DEFAULT_MAX_ENTRIES = 200;
+// Só contar entradas deixou de descrever a memória usada quando elas passaram a
+// diferir em duas ordens de grandeza: 200 entradas de UF seriam ~400 MB. O teto
+// de linhas mantém o gasto na mesma faixa de antes (~250 mil linhas, ~60 MB) e
+// cabe cerca de 25 UFs de uma camada, ou uma UF de cada uma das camadas do
+// relatório.
+const DEFAULT_MAX_ROWS = 250_000;
 
 interface StatisticsRowsEntry {
   rows: Record<string, unknown>[];
   timestamp: number;
 }
+
+let cachedRowCount = 0;
 
 const rowsByAssetLocation = new Map<string, StatisticsRowsEntry>();
 // Uma promessa por chave em voo. É o ponto principal deste cache: ao abrir uma
@@ -23,14 +32,28 @@ const pendingRowsByAssetLocation = new Map<
   Promise<Record<string, unknown>[]>
 >();
 
-function getMaxEntries() {
-  const value = Number(process.env.GEE_STATISTICS_ROWS_CACHE_MAX_ENTRIES);
+function readPositiveIntegerEnv(key: string, fallback: number) {
+  const value = Number(process.env[key]);
 
   if (!Number.isFinite(value) || value <= 0) {
-    return DEFAULT_MAX_ENTRIES;
+    return fallback;
   }
 
   return Math.floor(value);
+}
+
+function getMaxEntries() {
+  return readPositiveIntegerEnv(
+    "GEE_STATISTICS_ROWS_CACHE_MAX_ENTRIES",
+    DEFAULT_MAX_ENTRIES,
+  );
+}
+
+function getMaxRows() {
+  return readPositiveIntegerEnv(
+    "GEE_STATISTICS_ROWS_CACHE_MAX_ROWS",
+    DEFAULT_MAX_ROWS,
+  );
 }
 
 /**
@@ -63,21 +86,33 @@ export function buildStatisticsRowsCacheKey(
 // Map preserva ordem de inserção: reinserir a chave lida deixa a menos
 // recentemente usada em primeiro lugar, o que torna a evicção O(1).
 function markAsRecentlyUsed(key: string, entry: StatisticsRowsEntry) {
-  rowsByAssetLocation.delete(key);
+  deleteEntry(key);
   rowsByAssetLocation.set(key, entry);
+  cachedRowCount += entry.rows.length;
+}
+
+function deleteEntry(key: string) {
+  const entry = rowsByAssetLocation.get(key);
+  if (!entry) return;
+  cachedRowCount -= entry.rows.length;
+  rowsByAssetLocation.delete(key);
 }
 
 function evictLeastRecentlyUsed() {
   const maxEntries = getMaxEntries();
+  const maxRows = getMaxRows();
 
-  while (rowsByAssetLocation.size > maxEntries) {
+  while (
+    rowsByAssetLocation.size > maxEntries ||
+    (cachedRowCount > maxRows && rowsByAssetLocation.size > 1)
+  ) {
     const { value: oldestKey } = rowsByAssetLocation.keys().next();
 
     if (oldestKey === undefined) {
       return;
     }
 
-    rowsByAssetLocation.delete(oldestKey);
+    deleteEntry(oldestKey);
   }
 }
 
@@ -88,7 +123,7 @@ function getFreshRows(key: string) {
   }
 
   if (Date.now() - entry.timestamp > CACHE_TTL_MS) {
-    rowsByAssetLocation.delete(key);
+    deleteEntry(key);
     return null;
   }
 
@@ -133,6 +168,7 @@ export function getOrLoadStatisticsRows(
 export function clearGeeStatisticsRowsCache() {
   rowsByAssetLocation.clear();
   pendingRowsByAssetLocation.clear();
+  cachedRowCount = 0;
 }
 
 export { CACHE_TTL_MS as GEE_STATISTICS_ROWS_CACHE_TTL_MS };

@@ -368,6 +368,47 @@ function getAggregateLevel(locationKey: string): string | null {
   return prefix ? (SOURCE_LEVEL_BY_LOCATION_PREFIX[prefix] ?? null) : null;
 }
 
+/**
+ * Os dois primeiros dígitos do código do IBGE, que identificam a UF, ou `null`
+ * quando a chave não é municipal.
+ *
+ * @example
+ * getStateCodePrefix("2510808"); // "25" (Paraíba)
+ */
+function getStateCodePrefix(locationKey: string): string | null {
+  return MUNICIPALITY_KEY_PATTERN.test(locationKey)
+    ? locationKey.slice(0, 2)
+    : null;
+}
+
+/**
+ * O recorte que vale a pena ler e guardar em cache para um território pedido.
+ *
+ * Um município custa o mesmo que a UF inteira: o preço de uma leitura é o da
+ * ida ao Earth Engine, não o do volume. Medido no índice de aridez do ERA5-Land
+ * (45 anos), pedir só Patos levou 2985 ms e pedir os 223 municípios da Paraíba
+ * levou 3122 ms — 137 ms a mais para servir 223 municípios em vez de um. Como a
+ * chave de cache passa a ser a UF, o segundo relatório municipal daquele estado
+ * não vai mais ao Earth Engine, em vez de pagar de novo os segundos da leitura.
+ *
+ * O recorte é sempre pelo código do IBGE, cujos dois primeiros dígitos são a
+ * UF. Não usamos `NM_UF` porque a coluna guarda ora a sigla, ora o nome do
+ * estado, dependendo da tabela.
+ *
+ * @example
+ * resolveStatisticsReadScope("2510808"); // { cacheKey: "uf-25", ... }
+ */
+export function resolveStatisticsReadScope(locationKey: string): {
+  cacheKey: string;
+  municipalityCode: string | null;
+} {
+  const stateCodePrefix = getStateCodePrefix(locationKey);
+
+  return stateCodePrefix
+    ? { cacheKey: `uf-${stateCodePrefix}`, municipalityCode: locationKey }
+    : { cacheKey: locationKey, municipalityCode: null };
+}
+
 function buildLocationFilter(
   source: ResolvedGeeStatisticsSource,
   locationKey: string,
@@ -379,10 +420,17 @@ function buildLocationFilter(
     );
   }
 
-  if (MUNICIPALITY_KEY_PATTERN.test(locationKey)) {
+  const stateCodePrefix = getStateCodePrefix(locationKey);
+  if (stateCodePrefix) {
+    // Todos os municípios da UF, e não só o pedido: ver
+    // `resolveStatisticsReadScope`. As linhas dos demais são descartadas em
+    // `loadGeeStatisticsRows`, antes de qualquer mapeamento.
     return ee.Filter.and(
       ee.Filter.eq(source.properties.level, "7_Municipio"),
-      ee.Filter.eq(source.properties.municipalityCode, locationKey),
+      ee.Filter.stringStartsWith(
+        source.properties.municipalityCode,
+        stateCodePrefix,
+      ),
     );
   }
 
@@ -481,11 +529,13 @@ async function readStatisticsRowsBatch(
  * período.
  *
  * O filtro territorial fica no Earth Engine porque é ele que limita o tamanho
- * da resposta: sem ele viriam as 5.573 linhas municipais. O filtro de período
- * não limita nada — ler um mês do asset do ANA custou 2436 ms e ler os doze
- * meses do mesmo ano custou 2423 ms, porque o preço é do round trip, não do
- * volume. Filtrar por período aqui fazia o painel gastar uma ida ao Earth
- * Engine por período visível ao abrir a camada.
+ * da resposta: sem ele viriam as 5.573 linhas municipais. Para um município o
+ * filtro é o da UF inteira, e não o do código pedido — ver
+ * `resolveStatisticsReadScope`. O filtro de período não limita nada — ler um
+ * mês do asset do ANA custou 2436 ms e ler os doze meses do mesmo ano custou
+ * 2423 ms, porque o preço é do round trip, não do volume. Filtrar por período
+ * aqui fazia o painel gastar uma ida ao Earth Engine por período visível ao
+ * abrir a camada.
  */
 async function loadSeriesLocationRows(
   source: ResolvedGeeStatisticsSource,
@@ -533,12 +583,26 @@ async function loadGeeStatisticsRows(
   locationKey: string,
 ): Promise<Record<string, unknown>[]> {
   const properties = getGeeStatisticsRequestedProperties(source, schema);
+  const scope = resolveStatisticsReadScope(locationKey);
   const rows = await getOrLoadStatisticsRows(
-    buildStatisticsRowsCacheKey(assetIds, locationKey, properties),
+    buildStatisticsRowsCacheKey(assetIds, scope.cacheKey, properties),
     () => loadSeriesLocationRows(source, assetIds, properties, locationKey),
   );
 
-  return rows.filter((row) => matchesStatisticsPeriod(source, row, yearKey));
+  // A leitura municipal traz a UF inteira, então as linhas dos outros
+  // municípios saem aqui: `mapGeeStatisticsRows` continua recebendo
+  // exatamente as linhas do território pedido.
+  const scopedRows = scope.municipalityCode
+    ? rows.filter(
+        (row) =>
+          normalizeText(row[source.properties.municipalityCode]) ===
+          scope.municipalityCode,
+      )
+    : rows;
+
+  return scopedRows.filter((row) =>
+    matchesStatisticsPeriod(source, row, yearKey),
+  );
 }
 
 /**
