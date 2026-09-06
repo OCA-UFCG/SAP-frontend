@@ -9,7 +9,6 @@
     },
     "notFound": {
       "title": "Página no encontrada",
-      "description": "La dirección que abriste no existe o no está disponible para tu cuenta.",
       "home": "Volver al inicio",
       "platform": "Ir a la plataforma"
     },

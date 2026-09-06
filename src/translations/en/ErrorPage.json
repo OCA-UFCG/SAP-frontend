@@ -9,7 +9,6 @@
     },
     "notFound": {
       "title": "Page not found",
-      "description": "The address you opened does not exist or is not available for your account.",
       "home": "Back to home",
       "platform": "Go to the platform"
     },

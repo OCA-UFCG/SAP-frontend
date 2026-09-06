@@ -2,7 +2,8 @@ import type { ReactNode } from "react";
 
 interface ErrorScreenProps {
   title: string;
-  description: string;
+  /** Opcional: o 404 se explica pelo título e dispensa uma segunda linha. */
+  description?: string;
   /** Linha discreta abaixo da descrição, usada para o digest do erro. */
   note?: string;
   actions: ReactNode;
@@ -36,9 +37,11 @@ export function ErrorScreen({
           {title}
         </h1>
 
-        <p className="text-[16px] leading-[150%] text-neutral-700 lg:text-[18px]">
-          {description}
-        </p>
+        {description ? (
+          <p className="text-[16px] leading-[150%] text-neutral-700 lg:text-[18px]">
+            {description}
+          </p>
+        ) : null}
 
         {note ? (
           <p className="font-mono text-[13px] text-neutral-500">{note}</p>

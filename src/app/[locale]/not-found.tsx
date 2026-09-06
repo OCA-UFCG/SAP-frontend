@@ -9,9 +9,12 @@ import {
 /**
  * Destino dos `notFound()` disparados dentro de um locale. O caso real não é
  * URL inexistente — essas caem no catch-all `[...slug]` — e sim o gate da
- * `LOGS_ALLOWED_EMAILS` em `/platform?view=logs|catalog`. Por isso o texto
- * junta "não existe" e "não está disponível para a sua conta": quem não tem
- * acesso não deve conseguir descobrir que a página existe.
+ * `LOGS_ALLOWED_EMAILS` em `/platform?view=logs|catalog`.
+ *
+ * A tela é a mesma nos dois casos, e é isso que importa: quem não tem acesso
+ * recebe exatamente o que receberia se a página não existisse, e por isso não
+ * consegue descobrir que ela existe. O título sozinho já diz tudo o que a
+ * pessoa precisa saber, então não há segunda linha de texto.
  */
 export default function LocaleNotFound() {
   const t = useTranslations("ErrorPage");
@@ -19,7 +22,6 @@ export default function LocaleNotFound() {
   return (
     <ErrorScreen
       title={t("notFound.title")}
-      description={t("notFound.description")}
       actions={
         <>
           <Link href="/" className={PRIMARY_ACTION_CLASS}>

@@ -26,6 +26,9 @@ describe("LocaleErrorBoundary", () => {
     expect(
       screen.getByRole("heading", { name: "Algo deu errado por aqui" }),
     ).toBeInTheDocument();
+    // A descrição é opcional no ErrorScreen desde que o 404 deixou de ter uma.
+    // Aqui ela continua sendo obrigatória: é o que diz que a falha é passageira.
+    expect(screen.getByText(/não respondeu a tempo/)).toBeInTheDocument();
     expect(
       screen.getByRole("button", { name: "Tentar de novo" }),
     ).toBeInTheDocument();
@@ -73,19 +76,15 @@ describe("LocaleErrorBoundary", () => {
 describe("LocaleNotFound", () => {
   beforeEach(cleanup);
 
-  // O caso real é o gate da LOGS_ALLOWED_EMAILS: o texto não pode confirmar
-  // que a página existe para quem não tem acesso a ela.
-  it("mostra a mesma mensagem para inexistente e sem acesso", () => {
-    render(<LocaleNotFound />);
+  // O caso real é o gate da LOGS_ALLOWED_EMAILS: a tela não pode dizer nada
+  // que confirme, para quem não tem acesso, que a página existe.
+  it("mostra só o título, sem revelar por que a página não veio", () => {
+    const { container } = render(<LocaleNotFound />);
 
     expect(
       screen.getByRole("heading", { name: "Página não encontrada" }),
     ).toBeInTheDocument();
-    expect(
-      screen.getByText(
-        "O endereço que você abriu não existe ou não está disponível para a sua conta.",
-      ),
-    ).toBeInTheDocument();
+    expect(container).not.toHaveTextContent(/acesso|permiss|conta|existe/i);
   });
 
   it("oferece saída para o início e para a plataforma", () => {
