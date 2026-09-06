@@ -141,6 +141,18 @@ describe("MunicipalReportPreview", () => {
         return Response.json({ content: {} });
       }
 
+      if (url.includes("/api/ee/map-urls")) {
+        return Response.json({
+          maps: [
+            {
+              name: "anaseca",
+              year: "2026",
+              url: "https://tiles.example/{z}/{x}/{y}",
+            },
+          ],
+        });
+      }
+
       return Response.json(report);
     });
   });

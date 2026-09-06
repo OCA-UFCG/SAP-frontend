@@ -66,10 +66,6 @@ vi.mock("maplibre-gl", () => {
   };
 });
 
-vi.mock("@/services/mapServices", () => ({
-  fetchMapURL: vi.fn(),
-}));
-
 vi.mock("@/components/Map/municipalityLayers", () => ({
   MUNICIPALITY_BORDER_LAYER_ID: "municipality-borders",
   MUNICIPALITY_SOURCE_ID: "brazil-cities",
@@ -93,9 +89,8 @@ vi.mock("@/components/Map/mapBounds", async (importOriginal) => {
 });
 
 import { ReportMapPreview } from "@/components/MunicipalReport/ReportMapPreview";
-import { fetchMapURL } from "@/services/mapServices";
 
-const mockedFetchMapURL = vi.mocked(fetchMapURL);
+const TILE_URL = "https://tiles.example/{z}/{x}/{y}";
 
 function emit(instanceIndex: number, eventName: string) {
   const handlers = mapInstances[instanceIndex]?.handlers.get(eventName) ?? [];
@@ -109,8 +104,6 @@ describe("ReportMapPreview", () => {
     mapInstances.length = 0;
     MapConstructorMock.mockClear();
     prewarmMock.mockClear();
-    mockedFetchMapURL.mockReset();
-    mockedFetchMapURL.mockResolvedValue("https://tiles.example/{z}/{x}/{y}");
   });
 
   afterEach(() => {
@@ -123,15 +116,15 @@ describe("ReportMapPreview", () => {
         municipalityCode="5200050"
         layerId="anaseca"
         period="2024-01"
+        tileUrl={TILE_URL}
         imageSrc="data:image/png;base64,ready"
       />,
     );
 
     expect(MapConstructorMock).not.toHaveBeenCalled();
-    expect(mockedFetchMapURL).not.toHaveBeenCalled();
   });
 
-  it("passes an AbortSignal to the tile URL request", async () => {
+  it("does not build a map before the batch resolves the tile URL", () => {
     render(
       <ReportMapPreview
         municipalityCode="5200050"
@@ -140,30 +133,53 @@ describe("ReportMapPreview", () => {
       />,
     );
 
-    await waitFor(() => {
-      expect(mockedFetchMapURL).toHaveBeenCalledWith(
-        "anaseca",
-        "2024-01",
-        expect.any(AbortSignal),
-      );
-    });
+    expect(MapConstructorMock).not.toHaveBeenCalled();
   });
 
-  it("aborts pending work and removes MapLibre when unmounted", async () => {
+  // Regressão: um período sem imagem no `panelLayer` fazia o item do relatório
+  // sair com um retângulo cinza mudo, e ainda gastava um contexto WebGL.
+  it("shows a message instead of a map when the period has no image", () => {
+    const { getByText } = render(
+      <ReportMapPreview
+        municipalityCode="5200050"
+        layerId="prev_anomalia_precipitacao"
+        period="2026-05"
+        unavailableReason="year_not_found"
+      />,
+    );
+
+    expect(MapConstructorMock).not.toHaveBeenCalled();
+    expect(getByText("Sem imagem do mapa para este período.")).toBeTruthy();
+  });
+
+  it("keeps the map out of the way when the tile URL failed for another reason", () => {
+    const { getByText } = render(
+      <ReportMapPreview
+        municipalityCode="5200050"
+        layerId="anaseca"
+        period="2024-01"
+        unavailableReason="rate_limited"
+      />,
+    );
+
+    expect(MapConstructorMock).not.toHaveBeenCalled();
+    expect(getByText("Mapa indisponível para exportação.")).toBeTruthy();
+  });
+
+  it("removes MapLibre when unmounted", async () => {
     const { unmount } = render(
       <ReportMapPreview
         municipalityCode="5200050"
         layerId="cancel-test-layer"
         period="2024-01"
+        tileUrl={TILE_URL}
       />,
     );
 
     await waitFor(() => expect(mapInstances).toHaveLength(1));
-    const signal = mockedFetchMapURL.mock.calls[0][2];
 
     unmount();
 
-    expect(signal?.aborted).toBe(true);
     expect(mapInstances[0].remove).toHaveBeenCalledTimes(1);
   });
 
@@ -175,6 +191,7 @@ describe("ReportMapPreview", () => {
         municipalityCode="5200050"
         layerId="anaseca"
         period="2024-01"
+        tileUrl={TILE_URL}
         onCapture={onCapture}
       />,
     );
@@ -215,6 +232,7 @@ describe("ReportMapPreview", () => {
         municipalityCode="5200050"
         layerId="anaseca"
         period="2024-01"
+        tileUrl={TILE_URL}
         onCapture={firstCapture}
       />,
     );
@@ -226,6 +244,7 @@ describe("ReportMapPreview", () => {
         municipalityCode="5200050"
         layerId="anaseca"
         period="2024-01"
+        tileUrl={TILE_URL}
         onCapture={secondCapture}
       />,
     );
@@ -248,6 +267,7 @@ describe("ReportMapPreview", () => {
         municipalityCode="5200050"
         layerId="anaseca"
         period="2024-01"
+        tileUrl={TILE_URL}
         onCapture={onCapture}
       />,
     );
@@ -275,6 +295,7 @@ describe("ReportMapPreview", () => {
         municipalityCode="5200050"
         layerId="anaseca"
         period="2024-01"
+        tileUrl={TILE_URL}
         attempt={0}
         onCapture={onCapture}
       />,
@@ -295,6 +316,7 @@ describe("ReportMapPreview", () => {
         municipalityCode="5200050"
         layerId="anaseca"
         period="2024-01"
+        tileUrl={TILE_URL}
         attempt={1}
         onCapture={onCapture}
       />,
