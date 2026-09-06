@@ -1,4 +1,7 @@
-import { getContent } from "@/infrastructure/contentful/client";
+import {
+  CONTENTFUL_COLLECTION_LIMIT,
+  getContent,
+} from "@/infrastructure/contentful/client";
 import {
   attachMunicipalAnalysisToPanelLayer,
   attachMunicipalAnalysisToPanelLayers,
@@ -10,9 +13,12 @@ import { keepOnlyFutureForecastPeriods } from "@/utils/imageData";
 import { tryParsePublishedGeeStatisticsSource } from "@/contracts/geeStatistics";
 import { tryParsePublishedPanelLayerReportConfig } from "@/contracts/panelLayerReport";
 
+// O Contentful devolve no máximo 100 itens quando a query não pede `limit`, e
+// os que passarem disso somem sem erro nenhum. `CONTENTFUL_COLLECTION_LIMIT` é o
+// teto explícito para a lista continuar completa quando o catálogo crescer.
 const GET_PANEL_LAYER = `
   query GetPanelLayer {
-    panelLayerCollection {
+    panelLayerCollection(limit: ${CONTENTFUL_COLLECTION_LIMIT}) {
       items {
         sys {
           id

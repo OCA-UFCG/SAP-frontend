@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import dynamic from "next/dynamic";
 import { useRouter } from "@/translations/routing";
 import {
   PlatformSection,
@@ -12,7 +13,21 @@ import { ComingSoonContext } from "@/components/SidePanelContexts/ComingSoonCont
 import { MunicipalReportContext } from "@/components/SidePanelContexts/MunicipalReportContext";
 import { PanelLayerI } from "@/utils/interfaces";
 import { useMapLayerActions } from "@/components/MapLayerContext/MapLayerContext";
-import { MunicipalReportPreview } from "@/components/MunicipalReport/MunicipalReportPreview";
+import type { MunicipalReportPreviewProps } from "@/components/MunicipalReport/MunicipalReportPreview";
+
+// O relatório municipal carrega o `recharts` junto. Ele só aparece na seção de
+// Comunicação, então importá-lo sob demanda tira essa biblioteca do pacote que
+// todo mundo baixa ao abrir a plataforma.
+const LazyMunicipalReportPreview = dynamic<MunicipalReportPreviewProps>(
+  () =>
+    import("@/components/MunicipalReport/MunicipalReportPreview").then(
+      (module) => ({ default: module.MunicipalReportPreview }),
+    ),
+  {
+    ssr: false,
+    loading: () => <div className="h-full w-full animate-pulse bg-[#F6F7F6]" />,
+  },
+);
 
 export type PlatformSidebarInitialSection =
   | "monitoring"
@@ -208,7 +223,7 @@ export function PlatformSidebar({
             className="absolute inset-y-0 right-0 z-10 bg-[#F6F7F6] transition-[left] duration-300 ease-in-out"
             style={{ left: isPanelOpen ? defaultPanelOpenOffset : "140px" }}
           >
-            <MunicipalReportPreview
+            <LazyMunicipalReportPreview
               municipalityCode={reportRequest?.municipalityCode ?? ""}
               period={reportRequest?.period ?? ""}
               layerIds={reportRequest?.layerIds ?? []}

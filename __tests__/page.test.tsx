@@ -11,6 +11,7 @@ vi.mock("next/image", () => ({
 }));
 
 vi.mock("@/infrastructure/contentful/client", () => ({
+  CONTENTFUL_COLLECTION_LIMIT: 200,
   getContent: vi.fn().mockResolvedValue({
     aboutCollection: {
       items: [

@@ -52,7 +52,7 @@ import { slugifyTranslationKey } from "@/utils/translations";
 import { ReportMapPreview } from "./ReportMapPreview";
 import { useReportMapCaptureQueue } from "./useReportMapCaptureQueue";
 
-interface MunicipalReportPreviewProps {
+export interface MunicipalReportPreviewProps {
   municipalityCode: string;
   period: string;
   layerIds?: string[];
