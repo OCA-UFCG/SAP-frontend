@@ -58,6 +58,39 @@ async function reuseExistingIndexWithoutCredentials() {
   }
 }
 
+/**
+ * O GitHub não expõe os secrets do repositório para workflows disparados por
+ * pull requests do Dependabot (eles vivem no escopo separado "Dependabot
+ * secrets"), e o mesmo vale para PRs vindas de forks. Sem credenciais e sem um
+ * índice prévio — o arquivo é gerado, está no .gitignore e não existe num
+ * checkout limpo — o `ci:verify` morria antes do lint, dos testes e do build,
+ * porque `src/data/municipalAvailabilityIndex.json` é importado diretamente
+ * pelos componentes e o webpack não resolve o módulo sem ele.
+ *
+ * O placeholder é vazio de propósito: uma PR de bump de dependência não exerce
+ * o conteúdo do índice, só precisa que o módulo exista para compilar.
+ */
+async function writePlaceholderIndexForCredentiallessCi() {
+  if (process.env.ALLOW_PLACEHOLDER_AVAILABILITY_INDEX !== "true") return false;
+
+  const placeholder = {
+    schemaVersion: 1,
+    generatedAt: new Date().toISOString(),
+    placeholder: true,
+    layers: [],
+    byMunicipality: {},
+  };
+
+  await mkdir(path.dirname(OUTPUT_FILE), { recursive: true });
+  await writeFile(OUTPUT_FILE, `${JSON.stringify(placeholder, null, 2)}\n`, "utf8");
+
+  console.warn(
+    "[municipalAvailability] sem credenciais do Contentful; gravando índice placeholder vazio " +
+      `(ALLOW_PLACEHOLDER_AVAILABILITY_INDEX=true): ${OUTPUT_FILE}. Não use este build para deploy.`,
+  );
+  return true;
+}
+
 function getContentfulConfig() {
   const preview = env("CONTENTFUL_PREVIEW", "NEXT_PUBLIC_CONTENTFUL_PREVIEW") === "true";
   const spaceId = env("CONTENTFUL_SPACE_ID", "NEXT_PUBLIC_CONTENTFUL_SPACE_ID");
@@ -173,7 +206,11 @@ async function loadAvailabilityEntries() {
   return entries;
 }
 
-if (!(await reuseExistingIndexWithoutCredentials())) {
+const reusedOrStubbed =
+  (await reuseExistingIndexWithoutCredentials()) ||
+  (!hasContentfulCredentials() && (await writePlaceholderIndexForCredentiallessCi()));
+
+if (!reusedOrStubbed) {
   const [availabilityEntries, panelLayers] = await Promise.all([
     loadAvailabilityEntries(),
     loadPanelLayers(),

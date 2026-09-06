@@ -85,7 +85,14 @@ It is used to move Google Earth Engine CSV exports into Contentful
 The generated files under `data/contentful-pipeline` are local pipeline output
 and must not be committed. `src/data/municipalAvailabilityIndex.json` is also a
 generated artifact: `npm run build` recreates it from the municipal analyses
-published in Contentful before compiling the application.
+published in Contentful before compiling the application. Without credentials it
+falls back to the index already on disk; when there is none either — a clean CI
+checkout of a Dependabot or fork pull request, which GitHub runs without the
+repository secrets — the CI workflow sets
+`ALLOW_PLACEHOLDER_AVAILABILITY_INDEX=true` so an empty placeholder is written
+and lint, tests and build can still run. The deploy workflows deliberately leave
+that variable unset, so a missing secret fails the release instead of shipping an
+empty index.
 
 Typical flow:
 
