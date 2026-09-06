@@ -1,7 +1,12 @@
 import { cleanup, render, screen } from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
+const { linkStatusMock } = vi.hoisted(() => ({
+  linkStatusMock: vi.fn(() => ({ pending: false })),
+}));
+
 vi.mock("next/link", () => ({
+  useLinkStatus: () => linkStatusMock(),
   default: ({
     children,
     href,
@@ -23,6 +28,7 @@ import { PlatformSideRail } from "@/components/PlatformSideRail/PlatformSideRail
 
 afterEach(() => {
   cleanup();
+  linkStatusMock.mockReturnValue({ pending: false });
 });
 
 describe("PlatformSideRail", () => {
@@ -134,5 +140,46 @@ describe("PlatformSideRail", () => {
     expect(rail).toHaveClass("top-16.5");
     expect(rail).toHaveClass("h-[calc(100vh-66px)]");
     expect(rail).toHaveClass("w-[140px]");
+  });
+
+  // Auditoria e catálogo continuam sendo páginas separadas, e ir até elas
+  // espera o servidor. Sem esse aviso a trilha fica parada depois do clique e a
+  // pessoa não sabe se acertou o botão.
+  it("marks a rail link as loading while its navigation is in flight", () => {
+    linkStatusMock.mockReturnValue({ pending: true });
+
+    render(
+      <PlatformSideRail
+        activeSection="monitoring"
+        onSectionChange={() => {}}
+        isPanelOpen
+        onTogglePanel={() => {}}
+        showAuditLink
+      />,
+    );
+
+    expect(screen.getAllByRole("status", { name: "Carregando" })).toHaveLength(
+      2,
+    );
+  });
+
+  it("marks the section the rail is navigating to", () => {
+    render(
+      <PlatformSideRail
+        activeSection="logs"
+        onSectionChange={() => {}}
+        isPanelOpen={false}
+        onTogglePanel={() => {}}
+        showAuditLink
+        pendingSection="monitoring"
+      />,
+    );
+
+    expect(
+      screen.getByRole("button", { name: /Monitoramento/i }),
+    ).toHaveAttribute("aria-busy", "true");
+    expect(
+      screen.getByRole("button", { name: /Análise/i }),
+    ).not.toHaveAttribute("aria-busy");
   });
 });

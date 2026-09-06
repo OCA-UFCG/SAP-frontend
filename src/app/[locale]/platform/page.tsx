@@ -8,7 +8,7 @@ import { IndexCatalogScreen } from "@/components/IndexCatalog/IndexCatalogScreen
 import type { PlatformSidebarInitialSection } from "@/components/PlatformSidebar/PlatformSidebar";
 import { resolveLogsViewerAccess } from "@/lib/logs-access";
 import { SESSION_COOKIE_NAME } from "@/lib/server-session";
-import { getPanelLayers } from "@/repositories/platform/panelLayerRepository";
+import { loadPlatformShellData } from "./platformShellData";
 
 interface PlatformPageSearchParams {
   view?: string | string[];
@@ -34,15 +34,11 @@ function normalizePlatformSection(
 ): PlatformSidebarInitialSection {
   const normalizedValue = getSingleSearchParamValue(value);
 
-  if (normalizedValue === "communication") {
+  if (normalizedValue === "communication" || normalizedValue === "analysis") {
     return normalizedValue;
   }
 
   return "monitoring";
-}
-
-function isLegacyAnalysisSection(value?: string | string[]) {
-  return getSingleSearchParamValue(value) === "analysis";
 }
 
 export default async function PlatformPage({
@@ -53,15 +49,16 @@ export default async function PlatformPage({
   const resolvedSearchParams = searchParams ? await searchParams : {};
   const viewMode = normalizePlatformView(resolvedSearchParams.view);
   const initialSection = normalizePlatformSection(resolvedSearchParams.section);
-  const municipalityCode = getSingleSearchParamValue(resolvedSearchParams.municipalityCode) ?? "";
+  const municipalityCode =
+    getSingleSearchParamValue(resolvedSearchParams.municipalityCode) ?? "";
   const period = getSingleSearchParamValue(resolvedSearchParams.period) ?? "";
-  const layerIds = (getSingleSearchParamValue(resolvedSearchParams.layers) ?? "").split(",").filter(Boolean);
+  const layerIds = (
+    getSingleSearchParamValue(resolvedSearchParams.layers) ?? ""
+  )
+    .split(",")
+    .filter(Boolean);
   const sessionCookie =
     (await cookies()).get(SESSION_COOKIE_NAME)?.value ?? null;
-
-  if (isLegacyAnalysisSection(resolvedSearchParams.section)) {
-    redirect("/platform/amfe");
-  }
 
   if ((viewMode === "logs" || viewMode === "catalog") && !sessionCookie) {
     redirect("/login");
@@ -103,19 +100,19 @@ export default async function PlatformPage({
     );
   }
 
-  const [panelLayers, logsViewerAccess] = await Promise.all([
-    getPanelLayers(),
-    sessionCookie
-      ? resolveLogsViewerAccess(sessionCookie)
-      : Promise.resolve("unauthenticated" as const),
-  ]);
+  const { panelLayers, showAuditLink } =
+    await loadPlatformShellData(sessionCookie);
 
   return (
     <PlatformLayout
       panelLayers={panelLayers}
-      showAuditLink={logsViewerAccess === "allowed"}
+      showAuditLink={showAuditLink}
       initialSection={initialSection}
-      reportRequest={municipalityCode && period ? { municipalityCode, period, layerIds } : undefined}
+      reportRequest={
+        municipalityCode && period
+          ? { municipalityCode, period, layerIds }
+          : undefined
+      }
     />
   );
 }

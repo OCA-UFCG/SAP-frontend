@@ -1,178 +1,133 @@
 "use client";
-import { useCallback, useMemo, useState } from "react";
-import { useTranslations } from "next-intl";
-import { PlatformMapCaption } from "@/components/PlatformMapCaption/PlatformMapCaption";
-import { useEarthEngineTileLayer } from "./useEarthEngineTileLayer";
-import { useReferenceOverlayTiles } from "./useReferenceOverlayTileLayers";
-import { useSpatialBoundaryOverlay } from "./useSpatialBoundaryOverlay";
-import MapComponent from "../Map/MapComponent";
-import type { BasemapId } from "../Map/Map";
-import type { SpatialSelection } from "@/utils/spatialScope";
-import { geoBrasilSource, resolveSpatialFocusBounds } from "../Map/mapBounds";
-import {
-  useMapLayerActions,
-  useMapLayerActiveState,
-  useMapLayerViewState,
-} from "@/components/MapLayerContext/MapLayerContext";
-import { BasemapControl } from "@/components/MapControls/BasemapControl";
-import { LayerOpacityControl } from "@/components/MapControls/LayerOpacityControl";
-import { ReferenceOverlaysControl } from "@/components/MapControls/ReferenceOverlaysControl";
 
-interface PlatformMapProps {
-  showMonitoringOverlays?: boolean;
+import MapComponent from "../Map/MapComponent";
+import type { MapProps } from "../Map/Map";
+import { BRAZIL_TERRITORY_CODE } from "../Map/stateSelection";
+import { useOptionalAmfeAnalysis } from "@/components/Amfe/AmfeAnalysisContext";
+import { AmfeAnalysisStatusLines } from "@/components/Amfe/AmfeAnalysisStatusLines";
+import { AmfeMapOverlays } from "@/components/Amfe/AmfeMapOverlays";
+import type { AmfeAnalysisState } from "@/components/Amfe/useAmfeAnalysisState";
+import { MonitoringMapOverlays } from "./MonitoringMapOverlays";
+import {
+  PLATFORM_MAP_CENTER,
+  PLATFORM_MAP_INITIAL_ZOOM,
+  PLATFORM_MAP_MIN_ZOOM,
+} from "./platformMapView";
+import {
+  useMonitoringMapLayers,
+  type MonitoringMapLayers,
+} from "./useMonitoringMapLayers";
+
+export type PlatformMapSection = "monitoring" | "analysis" | "communication";
+
+/** `estadoSelecionado` é obrigatório no mapa; o resto cada seção preenche. */
+type SectionMapProps = Partial<MapProps> & Pick<MapProps, "estadoSelecionado">;
+
+// Em Análise o mapa começa depois da trilha (140px) e do formulário (600px), e
+// repete a moldura arredondada que a tela da AMFE sempre teve.
+const ANALYSIS_AREA_CLASS =
+  "absolute inset-y-0 left-[740px] right-0 flex min-h-0 flex-col overflow-hidden p-6";
+const ANALYSIS_FRAME_CLASS =
+  "relative min-h-[520px] w-full flex-1 overflow-hidden rounded-xl border border-neutral-200";
+const FULL_BLEED_AREA_CLASS = "absolute inset-0";
+const FULL_BLEED_FRAME_CLASS = "relative z-10 flex h-full w-full";
+
+function buildMonitoringMapProps(
+  monitoring: MonitoringMapLayers,
+): SectionMapProps {
+  return {
+    dadosCDI: monitoring.activeData ?? undefined,
+    estadoSelecionado: monitoring.selectedState.toUpperCase(),
+    selectedMunicipalityCode: monitoring.selectedMunicipalityCode,
+    tileLayerUrl: monitoring.tileLayerUrl,
+    tileLayerRequestKey: monitoring.requestKey,
+    layerOpacity: monitoring.layerOpacity,
+    allowedStateUfs: monitoring.allowedStateUfs,
+    spatialBoundaryGeoJson: monitoring.boundaryGeoJson,
+    spatialFocusBounds: monitoring.spatialFocusBounds,
+    basemap: monitoring.basemap,
+    referenceOverlayTileUrls: monitoring.referenceOverlayTileUrls,
+    spatialArea: monitoring.spatialSelection.spatialArea,
+    spatialValue: monitoring.spatialSelection.spatialValue,
+    onStateSelect: (uf: string) =>
+      monitoring.setSelectedState(uf.toLowerCase()),
+    onSelectedMunicipalityCodeChange: monitoring.setSelectedMunicipalityCode,
+    onSpatialSelectionChange: monitoring.handleSpatialSelectionChange,
+    onTileLayerReady: monitoring.handleTileLayerReady,
+  };
 }
 
-import { getAllowedStateUfs } from "@/utils/interestAreaStates";
+function buildAnalysisMapProps(analysis: AmfeAnalysisState): SectionMapProps {
+  return {
+    estadoSelecionado: BRAZIL_TERRITORY_CODE,
+    allowedStateUfs: analysis.allowedStateUfs,
+    spatialBoundaryGeoJson: analysis.boundaryGeoJson,
+    spatialValue: analysis.spatialSelection.spatialValue,
+    spatialFocusBounds: analysis.spatialFocusBounds,
+    municipalityClassification: analysis.municipalityClassification,
+    municipalityOverviewGeoJson: analysis.overviewGeoJson,
+    classificationFillOpacity: analysis.fillOpacity,
+    basemap: analysis.basemap,
+    referenceOverlayTileUrls: analysis.referenceOverlayTileUrls,
+    onZoomChange: analysis.setZoom,
+  };
+}
 
+interface PlatformMapProps {
+  section: PlatformMapSection;
+  /** Os controles do mapa somem quando o painel abre os detalhes da camada. */
+  showMonitoringControls?: boolean;
+}
+
+/**
+ * A área de mapa da plataforma, nas três seções que a usam.
+ *
+ * Monitoramento e Análise pintam coisas diferentes — uma camada do Earth Engine
+ * contra a coropleta da análise multicritério — mas é o mesmo mapa: só as
+ * propriedades e a moldura mudam. Comunicação mantém o mapa montado por baixo do
+ * relatório para que voltar dela não custe uma reconstrução.
+ */
 export function PlatformMap({
-  showMonitoringOverlays = true,
+  section,
+  showMonitoringControls = true,
 }: PlatformMapProps) {
-  const t = useTranslations("PlatformMap");
-  const { activeData, activeEEData } = useMapLayerActiveState();
-  const {
-    activeLegend,
-    selectedState,
-    selectedMunicipalityCode,
-    activeYear,
-    layerOpacity,
-    spatialSelection,
-    referenceOverlays,
-  } = useMapLayerViewState();
-  const {
-    setSelectedState,
-    setSelectedMunicipalityCode,
-    setLayerOpacity,
-    toggleReferenceOverlay,
-    setSpatialSelection,
-  } = useMapLayerActions();
-  const { requestKey, status, tileLayerUrl } = useEarthEngineTileLayer(
-    activeEEData,
-    activeYear,
-    spatialSelection,
-  );
-  const [readyRequestKey, setReadyRequestKey] = useState<string | null>(null);
-  const [basemap, setBasemap] = useState<BasemapId>("osm");
-
-  const {
-    tileUrls: readyReferenceOverlayTileUrls,
-    isLoading: isAnyReferenceOverlayLoading,
-  } = useReferenceOverlayTiles(referenceOverlays);
-
-  const handleTileLayerReady = useCallback((readyRequestKey: string) => {
-    setReadyRequestKey((current) =>
-      current === readyRequestKey ? current : readyRequestKey,
-    );
-  }, []);
-
-  const allowedStateUfs = useMemo(
-    () => getAllowedStateUfs(spatialSelection),
-    [spatialSelection],
-  );
-
-  const {
-    boundaryGeoJson,
-    activeBoundaryGeoJson,
-    status: boundaryStatus,
-  } = useSpatialBoundaryOverlay(spatialSelection);
-
-  const spatialFocusBounds = useMemo(() => {
-    // Enquanto o contorno exato está em voo, não enquadrar pela união dos
-    // estados: renderizaria um movimento grosseiro seguido de outro correto.
-    if (boundaryStatus === "loading") return null;
-
-    // Enquadrar pelo recorte ativo, não pela coleção inteira: em bioma a rota
-    // devolve os seis biomas, cuja caixa envolvente é o Brasil — e é a mesma
-    // para todos, então a câmera nem se moveria ao trocar de bioma.
-    return resolveSpatialFocusBounds(
-      geoBrasilSource,
-      allowedStateUfs,
-      activeBoundaryGeoJson,
-    );
-  }, [allowedStateUfs, activeBoundaryGeoJson, boundaryStatus]);
-
-  const handleSpatialSelectionChange = useCallback(
-    (selection: SpatialSelection) => {
-      setSpatialSelection(selection);
-      setSelectedState("br");
-      setSelectedMunicipalityCode(null);
-    },
-    [setSpatialSelection, setSelectedState, setSelectedMunicipalityCode],
-  );
-
-  const hasRenderedCurrentRequest =
-    status === "ready" && Boolean(requestKey) && readyRequestKey === requestKey;
-
-  const isGeeLayerLoading =
-    Boolean(activeEEData) &&
-    (status === "loading" ||
-      (status === "ready" && !hasRenderedCurrentRequest));
+  const monitoring = useMonitoringMapLayers();
+  const analysis = useOptionalAmfeAnalysis();
+  const isAnalysis = section === "analysis" && analysis !== null;
 
   return (
-    <div className="absolute inset-0">
-      <div className="relative flex w-full h-full z-10">
+    <div
+      data-testid="platform-map-area"
+      className={isAnalysis ? ANALYSIS_AREA_CLASS : FULL_BLEED_AREA_CLASS}
+    >
+      {isAnalysis && <AmfeAnalysisStatusLines />}
+
+      {/* A moldura muda de forma entre as seções, mas o <MapComponent> ocupa
+          sempre a mesma posição na árvore. É isso que mantém a instância do
+          MapLibre viva ao trocar de seção, em vez de destruir uma e construir
+          outra — o que media perto de um segundo por troca. */}
+      <div
+        className={isAnalysis ? ANALYSIS_FRAME_CLASS : FULL_BLEED_FRAME_CLASS}
+      >
         <MapComponent
           mapMode="platform"
-          minZoom={3}
-          center={[-15.749997, -47.9499962]}
-          zoom={4}
+          center={PLATFORM_MAP_CENTER}
+          zoom={PLATFORM_MAP_INITIAL_ZOOM}
+          minZoom={PLATFORM_MAP_MIN_ZOOM}
           showStatesBorder
-          dadosCDI={activeData ?? undefined}
-          estadoSelecionado={selectedState.toUpperCase()}
-          selectedMunicipalityCode={selectedMunicipalityCode}
-          className="w-full h-full"
-          tileLayerUrl={tileLayerUrl}
-          tileLayerRequestKey={requestKey}
-          layerOpacity={layerOpacity}
-          allowedStateUfs={allowedStateUfs}
-          spatialBoundaryGeoJson={boundaryGeoJson}
-          spatialFocusBounds={spatialFocusBounds}
-          basemap={basemap}
-          referenceOverlayTileUrls={readyReferenceOverlayTileUrls}
-          spatialArea={spatialSelection.spatialArea}
-          spatialValue={spatialSelection.spatialValue}
-          onStateSelect={(uf: string) => setSelectedState(uf.toLowerCase())}
-          onSelectedMunicipalityCodeChange={setSelectedMunicipalityCode}
-          onSpatialSelectionChange={handleSpatialSelectionChange}
-          onTileLayerReady={handleTileLayerReady}
+          className="h-full w-full"
+          {...(isAnalysis && analysis
+            ? buildAnalysisMapProps(analysis)
+            : buildMonitoringMapProps(monitoring))}
         />
 
-        {(isGeeLayerLoading || isAnyReferenceOverlayLoading) && (
-          <div className="pointer-events-none absolute inset-0 z-20 flex items-center justify-center px-6">
-            <div
-              aria-live="polite"
-              aria-label={t("loadingGeeLayer")}
-              className="flex items-center gap-3 rounded-full border border-white/25 bg-stone-950/78 px-5 py-3 text-sm font-medium text-white shadow-[0_18px_60px_rgba(0,0,0,0.35)] backdrop-blur-sm"
-              role="status"
-            >
-              <span
-                aria-hidden="true"
-                className="h-4 w-4 animate-spin rounded-full border-2 border-white/35 border-t-white"
-              />
-              <span>{t("loadingMapLayer")}</span>
-            </div>
-          </div>
-        )}
-      </div>
-
-      <div className="absolute bottom-0 right-6 z-[1000] box-border flex min-h-[124px] w-[302px] flex-col items-end justify-center gap-[10px] pb-6">
-        {showMonitoringOverlays && (
-          <ReferenceOverlaysControl
-            activeOverlays={referenceOverlays}
-            onToggle={toggleReferenceOverlay}
+        {isAnalysis ? (
+          <AmfeMapOverlays />
+        ) : (
+          <MonitoringMapOverlays
+            monitoring={monitoring}
+            showControls={showMonitoringControls}
           />
-        )}
-        {showMonitoringOverlays && (
-          <BasemapControl basemap={basemap} onChange={setBasemap} />
-        )}
-        {showMonitoringOverlays && activeEEData && (
-          <LayerOpacityControl
-            opacity={layerOpacity ?? 0.85}
-            onChange={setLayerOpacity}
-          />
-        )}
-
-        {showMonitoringOverlays && activeLegend && activeLegend.length > 0 && (
-          <PlatformMapCaption legend={activeLegend} />
         )}
       </div>
     </div>

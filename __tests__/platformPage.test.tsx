@@ -129,13 +129,25 @@ describe("PlatformPage", () => {
     );
   });
 
-  it("sends the retired analysis section to the multicriteria page", async () => {
-    await expect(
-      PlatformPage({
-        searchParams: Promise.resolve({ section: "analysis" }),
+  // Análise deixou de ser uma página própria: ela é uma seção da mesma casca,
+  // com o mesmo mapa. O link antigo `?section=analysis` abre direto nela, sem o
+  // redirecionamento que custava uma ida a mais ao servidor.
+  it("opens the analysis section in place instead of redirecting", async () => {
+    resolveLogsViewerAccessMock.mockResolvedValueOnce("forbidden");
+
+    const result = await PlatformPage({
+      searchParams: Promise.resolve({ section: "analysis" }),
+    });
+    render(result);
+
+    expect(redirectMock).not.toHaveBeenCalled();
+    expect(platformLayoutMock.mock.calls[0]?.[0]).toEqual(
+      expect.objectContaining({
+        panelLayers: [],
+        showAuditLink: false,
+        initialSection: "analysis",
       }),
-    ).rejects.toThrow("redirect:/platform/amfe");
-    expect(platformLayoutMock).not.toHaveBeenCalled();
+    );
   });
 
   it("redirects logs requests to login when no session cookie is available", async () => {
