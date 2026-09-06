@@ -135,7 +135,10 @@ export const AmfeScreen = () => {
   );
 
   return (
-    <div className="flex w-full min-h-0">
+    // `h-full` é o que faz o formulário rolar dentro da própria coluna: sem uma
+    // altura definida aqui, o `overflow-y-auto` do `aside` não tem limite e a
+    // página inteira passa a rolar, empurrando o mapa para fora da tela.
+    <div className="flex h-full w-full min-h-0">
       <aside className="h-full w-[600px] shrink-0 overflow-y-auto overscroll-contain border-r border-gray-200 bg-[#efefef]">
         <AnalyzeForm setFormPayload={setFormPayload} />
       </aside>

@@ -8,6 +8,10 @@ import { AmfeScreen } from "@/components/Amfe/AmfeScreen";
 import { PlatformSidebar } from "@/components/PlatformSidebar/PlatformSidebar";
 import type { PlatformSidebarInitialSection } from "@/components/PlatformSidebar/PlatformSidebar";
 import type { PlatformSection } from "@/components/PlatformSideRail/PlatformSideRail";
+import {
+  PLATFORM_SHELL_HEIGHT_CLASS,
+  PLATFORM_SHELL_MIN_HEIGHT_CLASS,
+} from "./platformShell";
 import type { PanelLayerI } from "@/utils/interfaces";
 
 type DefaultPlatformLayoutProps = {
@@ -16,7 +20,11 @@ type DefaultPlatformLayoutProps = {
   initialSection?: PlatformSidebarInitialSection;
   viewMode?: "default";
   telemetryDashboard?: never;
-  reportRequest?: { municipalityCode: string; period: string; layerIds: string[] };
+  reportRequest?: {
+    municipalityCode: string;
+    period: string;
+    layerIds: string[];
+  };
 };
 
 type LogsPlatformLayoutProps = {
@@ -75,7 +83,12 @@ export function PlatformLayout({
 
   return (
     <MapLayerProvider>
-      <div className="relative flex flex-col w-full flex-1 min-h-0 bg-neutral-50">
+      {/* Toda seção começa na mesma altura: o que sobra da viewport abaixo do
+          cabeçalho. O rodapé vem logo depois, fora da dobra, e só aparece
+          quando a pessoa rola. */}
+      <div
+        className={`relative flex w-full flex-col bg-neutral-50 ${PLATFORM_SHELL_MIN_HEIGHT_CLASS}`}
+      >
         {isLogsView ? (
           <div data-testid="platform-logs-shell" className="w-full">
             {props.telemetryDashboard}
@@ -83,14 +96,14 @@ export function PlatformLayout({
         ) : isCatalogView ? (
           <div
             data-testid="platform-catalog-shell"
-            className="min-h-[calc(100vh-64px)] w-full pl-[140px]"
+            className={`w-full pl-[140px] ${PLATFORM_SHELL_MIN_HEIGHT_CLASS}`}
           >
             {props.catalogDashboard}
           </div>
         ) : isAmfeView ? (
           <div
             data-testid="platform-amfe-shell"
-            className="flex flex-1 min-h-0 w-full overflow-hidden pl-[140px]"
+            className={`flex w-full overflow-hidden pl-[140px] ${PLATFORM_SHELL_HEIGHT_CLASS}`}
           >
             <AmfeScreen />
           </div>

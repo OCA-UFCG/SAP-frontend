@@ -2,6 +2,7 @@
 import { Link } from "@/translations/routing";
 import { Chevron } from "../Chevron/Chevron";
 import { Icon } from "../Icon/Icon";
+import { PLATFORM_SHELL_HEIGHT_CLASS } from "@/components/PlatformLayout/platformShell";
 import clsx from "clsx";
 import { useTranslations } from "next-intl";
 
@@ -96,7 +97,9 @@ export function PlatformSideRail({
   return (
     <div
       className={clsx(
-        "sticky top-16 relative h-[calc(100vh-64px)] max-h-full w-[140px] shrink-0 self-start",
+        // `top-16.5` acompanha a altura real do cabeçalho; `max-h-full` impede
+        // que a trilha ultrapasse a casca e invada o rodapé nas telas que rolam.
+        `sticky top-16.5 relative max-h-full w-[140px] shrink-0 self-start ${PLATFORM_SHELL_HEIGHT_CLASS}`,
         className,
       )}
       data-platform-side-rail
@@ -168,20 +171,20 @@ export function PlatformSideRail({
       {activeSection !== "analysis" &&
         activeSection !== "logs" &&
         activeSection !== "catalog" && (
-        <div
-          className={`absolute top-1/2 -translate-y-1/2 transition-[right] duration-300 ease-in-out ${isPanelOpen ? "-right-[460px]" : "-right-[39px]"}`}
-        >
-          <button
-            type="button"
-            onClick={onTogglePanel}
-            className="h-10 w-10 rounded-r-lg border border-neutral-200 bg-white shadow-sm flex items-center justify-center"
+          <div
+            className={`absolute top-1/2 -translate-y-1/2 transition-[right] duration-300 ease-in-out ${isPanelOpen ? "-right-[460px]" : "-right-[39px]"}`}
           >
-            <span className="cursor-pointer text-sm font-bold">
-              <Chevron open={isPanelOpen} from="left" to="right" />
-            </span>
-          </button>
-        </div>
-      )}
+            <button
+              type="button"
+              onClick={onTogglePanel}
+              className="h-10 w-10 rounded-r-lg border border-neutral-200 bg-white shadow-sm flex items-center justify-center"
+            >
+              <span className="cursor-pointer text-sm font-bold">
+                <Chevron open={isPanelOpen} from="left" to="right" />
+              </span>
+            </button>
+          </div>
+        )}
     </div>
   );
 }
