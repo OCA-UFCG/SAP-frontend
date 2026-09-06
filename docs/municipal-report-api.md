@@ -124,3 +124,77 @@ GET /api/municipal-report/2504009/chart?period=2024&analysis=seca,aridez,degrada
   alt="Monitor de Secas"
 />
 ```
+
+---
+
+## URLs de tiles dos mapas (`POST /api/ee/map-urls`)
+
+A imagem espacial de cada item do relatório é capturada no navegador: um mapa
+MapLibre desenha o raster do Earth Engine sobre o contorno do município e o
+`canvas` vira PNG. Para desenhar, cada mapa precisa da URL de tiles daquela
+camada naquele período.
+
+Essa rota resolve todas de uma vez. Exige sessão autenticada e recebe:
+
+```json
+{
+  "maps": [
+    { "name": "anaseca", "year": "2024-12" },
+    { "name": "deg", "year": "2021" }
+  ]
+}
+```
+
+Responde com uma entrada por par pedido, na mesma ordem, cada uma com `url` ou
+com `status`:
+
+```json
+{
+  "maps": [
+    {
+      "name": "anaseca",
+      "year": "2024-12",
+      "url": "https://earthengine.googleapis.com/..."
+    },
+    { "name": "deg", "year": "2021", "status": "year_not_found" }
+  ]
+}
+```
+
+| `status`          | Significado                                                     |
+| ----------------- | --------------------------------------------------------------- |
+| `layer_not_found` | Não existe `panelLayer` com esse id.                            |
+| `year_not_found`  | O `imageData` da camada não tem imagem para esse período.       |
+| `rate_limited`    | A janela de chamadas ao Earth Engine do usuário acabou.         |
+| `error`           | A geração da URL falhou no Earth Engine.                        |
+| `pending`         | Ainda em voo; peça de novo daqui a pouco (veja o prazo abaixo). |
+
+Uma camada nunca derruba o lote: quem falha volta com `status` e o relatório
+mostra "imagem indisponível" naquele item, em vez de um quadro cinza sem
+explicação.
+
+### Por que em lote
+
+Antes cada mapa pedia a sua URL ao `/api/ee`. Um relatório de 20 camadas virava
+20 requisições contra o limite de 30 por minuto por usuário, então quem tivesse
+acabado de navegar pelo mapa perdia a imagem das últimas camadas — e a única
+retentativa disparava dentro da mesma janela, falhava de novo e ainda gastava
+mais uma vaga.
+
+O limitador do `/api/ee` passou a cobrar **uma vaga por ida ao Earth Engine**, e
+não por requisição: uma URL que já está em cache, ou cuja chamada já está em
+voo, não custa cota nenhuma ao Earth Engine e por isso não custa vaga. A
+proteção continua sendo de 30 chamadas ao Earth Engine por minuto por usuário.
+
+### O prazo e o `pending`
+
+Vinte camadas frias custam cerca de 13 s: o SDK do Earth Engine despacha uma
+requisição a cada 350 ms de uma fila global do processo. Segurar tudo isso numa
+requisição só a deixaria à mercê do timeout do proxy, e aí os vinte mapas se
+perderiam de uma vez.
+
+A rota espera no máximo `EE_MAP_URLS_DEADLINE_MS`
+(`src/contracts/eeMapUrls.ts`) e devolve `pending` para o que não ficou pronto.
+A ida ao Earth Engine continua em voo; quem pergunta de novo entra na mesma
+promessa, sem gerar chamada nova nem gastar vaga. O relatório desenha cada mapa
+assim que a URL dele chega, em vez de esperar as vinte.

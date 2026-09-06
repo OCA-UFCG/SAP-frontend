@@ -72,6 +72,38 @@ function createMockLayer(
   };
 }
 
+/**
+ * Uma camada com um `imageId` por ano. Cada ano vira uma chave de cache
+ * diferente, que é o que faz cada requisição ser um miss de verdade — o
+ * limitador só cobra as idas ao Earth Engine.
+ */
+function createYearlyLayer(years: readonly string[]) {
+  return {
+    ...createMockLayer(),
+    imageData: Object.fromEntries(
+      years.map((year, index) => [
+        year,
+        {
+          default: index === 0,
+          imageId: `projects/example/image-${year}`,
+          imageParams: [{ color: "#111111", label: "old" }],
+        },
+      ]),
+    ),
+  };
+}
+
+function yearlyRequestUrls(years: readonly string[]) {
+  return years.map(
+    (year) => `https://example.test/api/ee?name=layer-a&year=${year}`,
+  );
+}
+
+const RATE_LIMIT_YEARS = Array.from(
+  { length: EE_RATE_LIMIT_MAX_REQUESTS + 1 },
+  (_, index) => String(2000 + index),
+);
+
 describe("POST /api/ee cache behavior", () => {
   const cacheKeyV1 = buildCacheKey(
     "layer-a",
@@ -116,6 +148,18 @@ describe("POST /api/ee cache behavior", () => {
     removeCacheUrl(cacheKeyV1);
     removeCacheUrl(cacheKeyV2);
     removeCacheUrl(regionalCacheKey);
+    for (const year of RATE_LIMIT_YEARS) {
+      removeCacheUrl(
+        buildCacheKey(
+          "layer-a",
+          year,
+          `projects/example/image-${year}`,
+          [{ color: "#111111", label: "old" }],
+          0,
+          1,
+        ),
+      );
+    }
   });
 
   it("returns 401 before processing layers when the session is invalid", async () => {
@@ -524,20 +568,22 @@ describe("POST /api/ee cache behavior", () => {
     expect(mockedGetEarthEngineUrl).toHaveBeenCalledTimes(1);
   });
 
-  it("returns 429 after too many requests from the same client", async () => {
+  it("returns 429 after too many Earth Engine calls from the same client", async () => {
+    mockedGetPanelLayers.mockResolvedValue([
+      createYearlyLayer(RATE_LIMIT_YEARS),
+    ]);
     mockedGetEarthEngineUrl.mockResolvedValue(
       "https://tiles.example/layer-a/v1",
     );
+    const urls = yearlyRequestUrls(RATE_LIMIT_YEARS);
 
-    const requestUrl = "https://example.test/api/ee?name=layer-a&year=2024";
-
-    for (let attempt = 0; attempt < EE_RATE_LIMIT_MAX_REQUESTS; attempt++) {
-      const res = await POST(createMockRequest(requestUrl, "198.51.100.7"));
+    for (const url of urls.slice(0, EE_RATE_LIMIT_MAX_REQUESTS)) {
+      const res = await POST(createMockRequest(url, "198.51.100.7"));
       expect(res.status).toBe(200);
     }
 
     const limitedRes = await POST(
-      createMockRequest(requestUrl, "198.51.100.7"),
+      createMockRequest(urls.at(-1)!, "198.51.100.7"),
     );
     const body = (await limitedRes.json()) as { error?: string };
 
@@ -547,24 +593,49 @@ describe("POST /api/ee cache behavior", () => {
     expect(limitedRes.headers.get("X-RateLimit-Limit")).toBe(
       String(EE_RATE_LIMIT_MAX_REQUESTS),
     );
+    expect(mockedGetEarthEngineUrl).toHaveBeenCalledTimes(
+      EE_RATE_LIMIT_MAX_REQUESTS,
+    );
+  });
+
+  // Regressão: o relatório municipal pedia uma URL por camada e as últimas
+  // voltavam 429, deixando o item sem imagem do mapa. Um hit de cache não gasta
+  // cota do Earth Engine e por isso não pode gastar vaga do limitador.
+  it("does not consume the rate limit when the URL comes from cache", async () => {
+    mockedGetEarthEngineUrl.mockResolvedValue(
+      "https://tiles.example/layer-a/v1",
+    );
+    const requestUrl = "https://example.test/api/ee?name=layer-a&year=2024";
+
+    for (
+      let attempt = 0;
+      attempt < EE_RATE_LIMIT_MAX_REQUESTS + 20;
+      attempt++
+    ) {
+      const res = await POST(createMockRequest(requestUrl, "198.51.100.9"));
+      expect(res.status).toBe(200);
+    }
+
     expect(mockedGetEarthEngineUrl).toHaveBeenCalledTimes(1);
   });
 
   it("tracks rate limits independently per client", async () => {
+    mockedGetPanelLayers.mockResolvedValue([
+      createYearlyLayer(RATE_LIMIT_YEARS),
+    ]);
     mockedGetEarthEngineUrl.mockResolvedValue(
       "https://tiles.example/layer-a/v1",
     );
+    const urls = yearlyRequestUrls(RATE_LIMIT_YEARS);
 
-    const requestUrl = "https://example.test/api/ee?name=layer-a&year=2024";
-
-    for (let attempt = 0; attempt < EE_RATE_LIMIT_MAX_REQUESTS; attempt++) {
+    for (const url of urls.slice(0, EE_RATE_LIMIT_MAX_REQUESTS)) {
       mockedGetAuthenticatedUserId.mockResolvedValueOnce("user-123");
-      await POST(createMockRequest(requestUrl, "198.51.100.11"));
+      await POST(createMockRequest(url, "198.51.100.11"));
     }
 
     mockedGetAuthenticatedUserId.mockResolvedValueOnce("user-456");
     const otherClientRes = await POST(
-      createMockRequest(requestUrl, "198.51.100.12"),
+      createMockRequest(urls.at(-1)!, "198.51.100.12"),
     );
     const otherClientBody = (await otherClientRes.json()) as { url?: string };
 

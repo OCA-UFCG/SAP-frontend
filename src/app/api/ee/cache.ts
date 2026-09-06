@@ -115,6 +115,12 @@ export const getCachedUrl = (key: string) => {
 
 export const removeCacheUrl = (key: string) => cacheUrls.delete(key);
 
+/**
+ * Se a chave já tem uma ida ao Earth Engine em voo. Quem entra numa promessa
+ * existente não gera chamada nova, e por isso não deve gastar vaga do limitador.
+ */
+export const hasPendingUrl = (key: string) => pendingUrls.has(key);
+
 export const addUrlToCache = (key: string, url: string | null) => {
   if (url) {
     markAsRecentlyUsed(key, { url, timestamp: Date.now() });

@@ -136,6 +136,7 @@
     "historicalNoteText": "La serie disponible para este indicador reúne {count} período(s), cubriendo {range}. {resolution}",
     "mapCropAlt": "Recorte del mapa del municipio",
     "mapUnavailableExport": "Mapa no disponible para exportación.",
+    "mapPeriodUnavailable": "Sin imagen del mapa para este período.",
     "periodRange": "{first} a {last}",
     "reportFilenamePrefix": "Informe",
     "status": {

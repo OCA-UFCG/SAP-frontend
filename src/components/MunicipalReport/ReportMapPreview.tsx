@@ -4,8 +4,8 @@ import { useEffect, useRef, useState } from "react";
 import { useTranslations } from "next-intl";
 import maplibregl from "maplibre-gl";
 import "maplibre-gl/dist/maplibre-gl.css";
-import { fetchMapURL } from "@/services/mapServices";
 import { captureMapCanvasPng } from "@/components/Map/captureMapCanvas";
+import type { EeMapUrlFailure } from "@/contracts/eeMapUrls";
 import { startMunicipalReportStage } from "@/utils/municipalReportMetrics";
 import { GEE_LAYER_ID, GEE_SOURCE_ID } from "@/components/Map/mapDefinitions";
 import {
@@ -26,27 +26,21 @@ const REPORT_MAP_STYLE: maplibregl.StyleSpecification = {
   layers: [],
 };
 
-const tileUrlCache = new Map<string, string | null>();
 let reportMapResourcesPrewarmed = false;
+
+/**
+ * O `panelLayer` não tem imagem para o período que o relatório resolveu pelos
+ * dados da análise. É conteúdo faltando, não falha momentânea, então a mensagem
+ * é outra.
+ */
+function isMissingPeriod(reason?: EeMapUrlFailure) {
+  return reason === "year_not_found" || reason === "layer_not_found";
+}
 
 function prewarmReportMapResources() {
   if (reportMapResourcesPrewarmed) return;
   reportMapResourcesPrewarmed = true;
   maplibregl.prewarm();
-}
-
-async function resolveReportTileUrl(
-  layerId: string,
-  period: string,
-  signal: AbortSignal,
-) {
-  const key = `${layerId}:${period}`;
-  if (tileUrlCache.has(key)) {
-    return { tileUrl: tileUrlCache.get(key) ?? null, cacheHit: true };
-  }
-  const tileUrl = await fetchMapURL(layerId, period, signal);
-  tileUrlCache.set(key, tileUrl);
-  return { tileUrl, cacheHit: false };
 }
 
 interface ReportMapPreviewProps {
@@ -58,6 +52,13 @@ interface ReportMapPreviewProps {
   attempt?: number;
   imageSrc?: string;
   queuedAt?: number | null;
+  /** URL de tiles já resolvida pelo lote do relatório. */
+  tileUrl?: string;
+  /**
+   * Por que essa camada não trouxe URL de tiles. Preenchido significa "não
+   * tente desenhar o mapa", e escolhe a mensagem que o item mostra.
+   */
+  unavailableReason?: EeMapUrlFailure;
   onCapture?: (src: string | null) => void;
 }
 
@@ -70,6 +71,8 @@ export function ReportMapPreview({
   attempt = 0,
   imageSrc: capturedImageSrc,
   queuedAt,
+  tileUrl,
+  unavailableReason,
   onCapture,
 }: ReportMapPreviewProps) {
   const t = useTranslations("MunicipalReport");
@@ -93,7 +96,6 @@ export function ReportMapPreview({
   useEffect(() => {
     let aborted = false;
     let finishMap: ReturnType<typeof startMunicipalReportStage> | null = null;
-    const controller = new AbortController();
 
     const finishCapture = (src: string | null) => {
       if (aborted || captureCompletedRef.current) return;
@@ -112,7 +114,7 @@ export function ReportMapPreview({
       onCaptureRef.current?.(src);
     };
 
-    async function setupMapPreview() {
+    function setupMapPreview() {
       captureCompletedRef.current = false;
       finishMap = startMunicipalReportStage();
       if (
@@ -128,26 +130,6 @@ export function ReportMapPreview({
       }
 
       prewarmReportMapResources();
-      const finishTileUrl = startMunicipalReportStage();
-      let tileUrl: string | null;
-      let cacheHit: boolean;
-      try {
-        ({ tileUrl, cacheHit } = await resolveReportTileUrl(
-          layerId,
-          period,
-          controller.signal,
-        ));
-      } catch (reason) {
-        finishTileUrl(`Mapa ${layerId}: URL do Earth Engine`, {
-          detalhes: "Falha na requisição POST /api/ee",
-        });
-        throw reason;
-      }
-      finishTileUrl(`Mapa ${layerId}: URL do Earth Engine`, {
-        detalhes: cacheHit
-          ? "Cache local do navegador"
-          : "Requisição POST /api/ee",
-      });
       if (aborted || !containerRef.current) return;
 
       if (mapRef.current) {
@@ -252,18 +234,20 @@ export function ReportMapPreview({
       });
     }
 
-    if (active && !resolvedImageSrc && !captureFailed) {
-      setupMapPreview().catch((reason) => {
-        if (reason instanceof DOMException && reason.name === "AbortError") {
-          return;
-        }
-        finishCapture(null);
-      });
+    // Sem URL de tiles não há mapa para capturar: o lote do relatório resolve
+    // todas antes, e quem não tem imagem naquele período chega com `unavailable`.
+    if (
+      active &&
+      tileUrl &&
+      !unavailableReason &&
+      !resolvedImageSrc &&
+      !captureFailed
+    ) {
+      setupMapPreview();
     }
 
     return () => {
       aborted = true;
-      controller.abort();
       if (mapRef.current) {
         mapRef.current.remove();
         mapRef.current = null;
@@ -280,15 +264,23 @@ export function ReportMapPreview({
     period,
     queuedAt,
     resolvedImageSrc,
+    tileUrl,
+    unavailableReason,
   ]);
+
+  // Um item sem mapa precisa dizer isso. Antes, quando a fila desistia da
+  // captura, `active` voltava a ser falso e o item caía no retângulo cinza
+  // mudo: o relatório saía com buracos e ninguém ficava sabendo.
+  const unavailableMessage = isMissingPeriod(unavailableReason)
+    ? t("mapPeriodUnavailable")
+    : unavailableReason || captureFailed
+      ? t("mapUnavailableExport")
+      : null;
 
   return (
     <div
       className={`relative w-full overflow-hidden bg-[#f8f9fa] ${className ?? "h-[240px]"}`}
     >
-      {!resolvedImageSrc && active && !captureFailed && (
-        <div ref={containerRef} className="h-full w-full" />
-      )}
       {resolvedImageSrc && (
         <img
           src={resolvedImageSrc}
@@ -296,13 +288,16 @@ export function ReportMapPreview({
           className="h-full w-full object-cover"
         />
       )}
-      {!resolvedImageSrc && !active && (
-        <div className="h-full w-full bg-[#eef1f1]" aria-hidden="true" />
-      )}
-      {!resolvedImageSrc && active && captureFailed && (
+      {!resolvedImageSrc && unavailableMessage && (
         <div className="flex h-full w-full items-center justify-center bg-[#eef1f1] px-4 text-center text-xs text-neutral-500">
-          {t("mapUnavailableExport")}
+          {unavailableMessage}
         </div>
+      )}
+      {!resolvedImageSrc && !unavailableMessage && active && tileUrl && (
+        <div ref={containerRef} className="h-full w-full" />
+      )}
+      {!resolvedImageSrc && !unavailableMessage && !(active && tileUrl) && (
+        <div className="h-full w-full bg-[#eef1f1]" aria-hidden="true" />
       )}
     </div>
   );
