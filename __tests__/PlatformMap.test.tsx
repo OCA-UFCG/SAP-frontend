@@ -100,7 +100,7 @@ describe("PlatformMap", () => {
       tileLayerUrl: undefined,
     });
 
-    render(<PlatformMap />);
+    render(<PlatformMap section="monitoring" />);
 
     expect(
       screen.getByRole("status", { name: "Carregando camada do GEE" }),
@@ -115,7 +115,7 @@ describe("PlatformMap", () => {
       tileLayerUrl: "https://tiles.example/2024",
     });
 
-    render(<PlatformMap />);
+    render(<PlatformMap section="monitoring" />);
 
     expect(
       screen.getByRole("status", { name: "Carregando camada do GEE" }),
@@ -140,7 +140,7 @@ describe("PlatformMap", () => {
       tileLayerUrl: "https://tiles.example/2024",
     });
 
-    render(<PlatformMap />);
+    render(<PlatformMap section="monitoring" />);
 
     expect(screen.getByRole("slider", { name: "Transparência" })).toHaveValue(
       "0.85",
@@ -154,7 +154,7 @@ describe("PlatformMap", () => {
       tileLayerUrl: "https://tiles.example/2024",
     });
 
-    render(<PlatformMap />);
+    render(<PlatformMap section="monitoring" />);
 
     const streetButton = screen.getByRole("button", { name: "Rua" });
     const satelliteButton = screen.getByRole("button", { name: "Satélite" });
@@ -190,7 +190,9 @@ describe("PlatformMap", () => {
       },
     });
 
-    const { rerender } = render(<PlatformMap showMonitoringOverlays />);
+    const { rerender } = render(
+      <PlatformMap section="monitoring" showMonitoringControls />,
+    );
 
     expect(screen.getByRole("slider", { name: "Transparência" })).toHaveValue(
       "0.85",
@@ -199,7 +201,9 @@ describe("PlatformMap", () => {
       screen.getByRole("heading", { name: "Legendas" }),
     ).toBeInTheDocument();
 
-    rerender(<PlatformMap showMonitoringOverlays={false} />);
+    rerender(
+      <PlatformMap section="monitoring" showMonitoringControls={false} />,
+    );
 
     expect(
       screen.queryByRole("group", { name: "Mapa base" }),
@@ -233,7 +237,7 @@ describe("PlatformMap", () => {
     });
 
     it("frames Brazil for the national area", () => {
-      render(<PlatformMap />);
+      render(<PlatformMap section="monitoring" />);
 
       expect(latestMapProps?.spatialFocusBounds).toEqual(
         resolveSpatialFocusBounds(geoBrasilSource, null, null),
@@ -245,7 +249,7 @@ describe("PlatformMap", () => {
         viewStateFor({ spatialArea: "region", spatialValue: "Nordeste" }),
       );
 
-      render(<PlatformMap />);
+      render(<PlatformMap section="monitoring" />);
 
       expect(latestMapProps?.spatialFocusBounds).toEqual(
         resolveSpatialFocusBounds(
@@ -272,7 +276,7 @@ describe("PlatformMap", () => {
         viewStateFor({ spatialArea: "biome", spatialValue: "Caatinga" }),
       );
 
-      render(<PlatformMap />);
+      render(<PlatformMap section="monitoring" />);
 
       // Enquadrar agora causaria um movimento grosseiro seguido do correto.
       expect(latestMapProps?.spatialFocusBounds).toBeNull();
@@ -312,7 +316,7 @@ describe("PlatformMap", () => {
         viewStateFor({ spatialArea: "biome", spatialValue: "Caatinga" }),
       );
 
-      render(<PlatformMap />);
+      render(<PlatformMap section="monitoring" />);
 
       expect(latestMapProps?.spatialFocusBounds).toEqual([
         [-44, -16],
@@ -340,7 +344,7 @@ describe("PlatformMap", () => {
         viewStateFor({ spatialArea: "biome", spatialValue: "Caatinga" }),
       );
 
-      render(<PlatformMap />);
+      render(<PlatformMap section="monitoring" />);
 
       expect(latestMapProps?.spatialFocusBounds).toEqual([
         [-44, -16],
@@ -360,7 +364,7 @@ describe("PlatformMap", () => {
         viewStateFor({ spatialArea: "biome", spatialValue: "Caatinga" }),
       );
 
-      render(<PlatformMap />);
+      render(<PlatformMap section="monitoring" />);
 
       expect(latestMapProps?.spatialFocusBounds).toEqual(
         resolveSpatialFocusBounds(
