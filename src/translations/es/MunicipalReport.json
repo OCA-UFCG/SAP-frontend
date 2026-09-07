@@ -29,6 +29,7 @@
     "zoomOut": "Disminuir zoom",
     "downloadPdf": "Descargar PDF",
     "preparingDownload": "Preparando PDF...",
+    "preparingDownloadMaps": "Preparando PDF... ({count} mapa(s) restante(s))",
     "popupBlocked": "El navegador bloqueó la ventana de impresión. Permita ventanas emergentes para descargar el informe en PDF.",
     "emptyPreviewTitle": "Vista previa del informe",
     "emptyPreviewDescription": "Seleccione el municipio, el período y los módulos disponibles para generar el informe.",

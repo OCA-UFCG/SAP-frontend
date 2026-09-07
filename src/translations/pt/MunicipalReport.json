@@ -29,6 +29,7 @@
     "zoomOut": "Diminuir zoom",
     "downloadPdf": "Baixar PDF",
     "preparingDownload": "Preparando PDF...",
+    "preparingDownloadMaps": "Preparando PDF... ({count} mapa(s) restante(s))",
     "popupBlocked": "O navegador bloqueou a janela de impressão. Permita pop-ups para baixar o relatório em PDF.",
     "emptyPreviewTitle": "Pré-visualização do relatório",
     "emptyPreviewDescription": "Selecione o município, o período e os módulos disponíveis para gerar o relatório.",
