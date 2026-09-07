@@ -11,6 +11,11 @@ export const SESSION_COOKIE_MAX_AGE_MS = SESSION_COOKIE_MAX_AGE_SECONDS * 1000;
 export interface AuthenticatedUserSession {
   uid: string;
   email: string | null;
+  // O Firebase deste projeto aceita autocadastro por e-mail e senha, então ter
+  // uma conta com um endereço não prova ser dono dele. A allowlist do catálogo
+  // e dos logs compara endereços, e por isso precisa desta prova de posse: só
+  // quem abre a caixa de entrada consegue verificar o e-mail.
+  hasVerifiedEmail: boolean;
 }
 
 function normalizeSessionEmail(email: unknown) {
@@ -48,9 +53,10 @@ async function resolveSessionFromCookie(
       sessionCookie,
       true,
     );
-    const session = {
+    const session: AuthenticatedUserSession = {
       uid: decodedToken.uid,
       email: normalizeSessionEmail(decodedToken.email),
+      hasVerifiedEmail: decodedToken.email_verified === true,
     };
 
     rememberVerifiedSession(sessionCookie, session, decodedToken.exp * 1000);

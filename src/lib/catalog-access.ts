@@ -1,16 +1,16 @@
-import { getAuthenticatedUserSession } from "@/lib/server-session";
 import {
-  isAllowedLogsViewerEmail,
+  getAuthenticatedUserSession,
+  type AuthenticatedUserSession,
+} from "@/lib/server-session";
+import {
+  isAllowedLogsViewerSession,
   resolveLogsViewerAccess,
 } from "@/lib/logs-access";
 
 export type CatalogRequestAccess =
   | {
       allowed: true;
-      user: {
-        uid: string;
-        email: string | null;
-      };
+      user: AuthenticatedUserSession;
     }
   | {
       allowed: false;
@@ -61,7 +61,7 @@ export async function resolveCatalogRequestAccess(
     return { allowed: false, status: 401 };
   }
 
-  if (!isAllowedLogsViewerEmail(user.email)) {
+  if (!isAllowedLogsViewerSession(user)) {
     return { allowed: false, status: 403 };
   }
 

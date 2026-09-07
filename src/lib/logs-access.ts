@@ -1,4 +1,7 @@
-import { getAuthenticatedSessionFromCookie } from "@/lib/server-session";
+import {
+  getAuthenticatedSessionFromCookie,
+  type AuthenticatedUserSession,
+} from "@/lib/server-session";
 
 export type LogsViewerAccess = "allowed" | "forbidden" | "unauthenticated";
 
@@ -36,6 +39,25 @@ export function isAllowedLogsViewerEmail(email?: string | null) {
 }
 
 /**
+ * Decide se uma sessão autenticada pode ver os logs e o catálogo.
+ *
+ * Estar na allowlist não basta: o e-mail também precisa estar verificado. O
+ * autocadastro do Firebase deixa qualquer pessoa registrar um endereço que não
+ * é dela, e um endereço da allowlist ainda sem conta criada viraria acesso de
+ * administração de graça. Verificar o e-mail exige a caixa de entrada, que o
+ * impostor não tem.
+ *
+ * Uma conta criada pelo console sem verificação precisa ser regularizada com
+ * `npm run auth:catalog-access -- --mark-verified <e-mail>` e um novo login,
+ * porque o cookie de sessão carrega o estado do momento em que foi emitido.
+ *
+ * isAllowedLogsViewerSession(session);
+ */
+export function isAllowedLogsViewerSession(session: AuthenticatedUserSession) {
+  return session.hasVerifiedEmail && isAllowedLogsViewerEmail(session.email);
+}
+
+/**
  * Acesso do visitante às telas de auditoria e catálogo.
  *
  * O e-mail vem do claim da sessão, resolvido pelo cache de sessões verificadas
@@ -60,5 +82,5 @@ export async function resolveLogsViewerAccess(
     return "unauthenticated";
   }
 
-  return isAllowedLogsViewerEmail(session.email) ? "allowed" : "forbidden";
+  return isAllowedLogsViewerSession(session) ? "allowed" : "forbidden";
 }

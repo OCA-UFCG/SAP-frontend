@@ -28,6 +28,7 @@
     "pipeline:full-cycle": "node --max-old-space-size=4096 tools/drive-contentful-pipeline/pipeline-full-cycle.mjs",
     "pipeline:verify": "node --max-old-space-size=4096 tools/drive-contentful-pipeline/pipeline-verify.mjs",
     "contentful:ensure-index-catalog": "node tools/drive-contentful-pipeline/contentful-ensure-index-catalog.mjs",
+    "auth:catalog-access": "node tools/auth/catalog-access.mjs",
     "catalog:adopt-legacy:dry-run": "node tools/drive-contentful-pipeline/contentful-adopt-legacy-indices.mjs",
     "catalog:adopt-legacy:apply": "node tools/drive-contentful-pipeline/contentful-adopt-legacy-indices.mjs --apply",
     "catalog:publish-legacy:dry-run": "node tools/drive-contentful-pipeline/contentful-publish-adopted-legacy.mjs",

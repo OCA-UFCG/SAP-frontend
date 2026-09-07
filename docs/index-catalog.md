@@ -1,8 +1,16 @@
 # Catálogo de índices baseado em assets GEE
 
 O catálogo administrativo fica em `/platform?view=catalog`. Ele exige sessão
-Firebase, a allowlist `LOGS_ALLOWED_EMAILS`, same-origin nas mutações e
-`Idempotency-Key` em prévia, publicação e ciclo de vida.
+Firebase, a allowlist `LOGS_ALLOWED_EMAILS` **com e-mail verificado**,
+same-origin nas mutações e `Idempotency-Key` em prévia, publicação e ciclo de
+vida.
+
+A verificação do e-mail faz parte da guarda porque o projeto Firebase aceita
+autocadastro: sem ela, um endereço da allowlist que ainda não tivesse conta
+viraria acesso de escrita no Contentful para quem o registrasse primeiro. Quem
+audita a lista é `npm run auth:catalog-access`; uma conta criada pelo console
+sem verificação é regularizada com `-- --mark-verified <e-mail>` e um novo
+login, já que o cookie de sessão guarda o estado do momento em que foi emitido.
 
 ## O que é publicado
 

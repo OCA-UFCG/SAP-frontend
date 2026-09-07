@@ -23,6 +23,16 @@ function mockVerifiedSession(email: string, uid = "user-123") {
   mockedAdminAuth.verifySessionCookie.mockResolvedValue({
     uid,
     email,
+    email_verified: true,
+    exp: HOUR_FROM_NOW_SECONDS,
+  } as never);
+}
+
+function mockUnverifiedSession(email: string, uid = "user-789") {
+  mockedAdminAuth.verifySessionCookie.mockResolvedValue({
+    uid,
+    email,
+    email_verified: false,
     exp: HOUR_FROM_NOW_SECONDS,
   } as never);
 }
@@ -104,6 +114,19 @@ describe("logs access", () => {
     );
 
     vi.stubEnv("LOGS_ALLOWED_EMAILS", "outra-pessoa@gmail.com");
+
+    await expect(resolveLogsViewerAccess("valid-session")).resolves.toBe(
+      "forbidden",
+    );
+  });
+
+  // Regressão: o autocadastro do Firebase deixa qualquer pessoa registrar um
+  // endereço que não é dela. Enquanto a allowlist olhava só o texto do e-mail,
+  // um endereço da lista ainda sem conta virava acesso de administração para
+  // quem o registrasse primeiro.
+  it("refuses an allowlisted email whose account never verified it", async () => {
+    vi.stubEnv("LOGS_ALLOWED_EMAILS", "oca@gmail.com");
+    mockUnverifiedSession("oca@gmail.com");
 
     await expect(resolveLogsViewerAccess("valid-session")).resolves.toBe(
       "forbidden",

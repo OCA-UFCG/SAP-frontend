@@ -29,6 +29,7 @@ describe("index catalog access", () => {
     mockedAdminAuth.verifySessionCookie.mockResolvedValueOnce({
       uid: "user-1",
       email: "OCA-DEV@gmail.com",
+      email_verified: true,
     } as never);
 
     await expect(
@@ -39,8 +40,31 @@ describe("index catalog access", () => {
       ),
     ).resolves.toEqual({
       allowed: true,
-      user: { uid: "user-1", email: "oca-dev@gmail.com" },
+      user: {
+        uid: "user-1",
+        email: "oca-dev@gmail.com",
+        hasVerifiedEmail: true,
+      },
     });
+  });
+
+  // Regressão: com o autocadastro do Firebase aberto, quem registrasse um
+  // e-mail da allowlist que ainda não tinha conta ganhava escrita no Contentful.
+  // Verificar o e-mail exige a caixa de entrada, que o impostor não tem.
+  it("rejects an allowlisted email whose account never verified it", async () => {
+    mockedAdminAuth.verifySessionCookie.mockResolvedValueOnce({
+      uid: "user-3",
+      email: "oca-dev@gmail.com",
+      email_verified: false,
+    } as never);
+
+    await expect(
+      resolveCatalogRequestAccess(
+        new Request("https://sap.example/api/index-catalog", {
+          headers: { cookie: "session=valid-cookie" },
+        }),
+      ),
+    ).resolves.toEqual({ allowed: false, status: 403 });
   });
 
   it("rejects authenticated users outside the allowlist", async () => {

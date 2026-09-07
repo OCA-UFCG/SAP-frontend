@@ -242,6 +242,7 @@ These files are living documents. If a prompt or code change affects architectur
 - `FIREBASE_TELEMETRY_COLLECTION` defaults to `telemetry-events-local`; set explicit non-local values such as `telemetry-events-beta` and `telemetry-events-prod` to avoid mixing logs across environments.
 - This repository's deploy workflows read `FIREBASE_TELEMETRY_COLLECTION_BETA` and `FIREBASE_TELEMETRY_COLLECTION_PROD` GitHub variables for the runtime container env.
 - Set `LOGS_ALLOWED_EMAILS` to a comma-separated list of normalized emails allowed to view `/platform/logs`.
+- Being on the allowlist is not enough: the account's email must be verified, because the Firebase project accepts self sign-up and an allowlisted address without an account would otherwise grant admin access to whoever registers it first. Run `npm run auth:catalog-access` to audit the list, and `npm run auth:catalog-access -- --mark-verified <email>` for an account created from the console (the person then has to log in again).
 - The inspection page at `/platform/logs` is protected server-side: unauthenticated users are redirected to `/login`, and authenticated users outside `LOGS_ALLOWED_EMAILS` do not receive the dashboard response.
 - `/api/logs` remains the canonical append-only ingestion endpoint for log events.
 - The repository contains both application tests and Storybook coverage; prefer the narrowest relevant test command for the slice you change.

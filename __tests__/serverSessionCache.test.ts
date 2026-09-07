@@ -63,7 +63,11 @@ describe("verified session cache", () => {
       SESSION_COOKIE,
       true,
     );
-    expect(first).toEqual({ uid: "user-123", email: "dev@example.com" });
+    expect(first).toEqual({
+      uid: "user-123",
+      email: "dev@example.com",
+      hasVerifiedEmail: false,
+    });
     expect(second).toEqual(first);
     expect(third).toBe("user-123");
   });
