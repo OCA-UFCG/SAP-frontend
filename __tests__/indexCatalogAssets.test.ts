@@ -555,6 +555,11 @@ describe("index catalog GEE asset discovery", () => {
     });
 
     expect(build.panelLayerImageData.defaultYear).toBe("2026-09");
+    // Regressão: o relatório da validação anunciava o último período mesmo numa
+    // previsão, cujo padrão é o mês mais próximo. A captura da imagem do cartão
+    // e a prévia do relatório liam esse campo e caíam no horizonte mais
+    // distante.
+    expect(build.validation.inferred.defaultPeriod).toBe("2026-09");
     expect(build.panelLayerImageData.years).toEqual(
       expect.objectContaining({
         "2026-09": expect.objectContaining({ leadTime: 1 }),

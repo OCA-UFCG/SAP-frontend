@@ -137,6 +137,10 @@ function currentEntry(
     everPublished?: boolean;
     /** Um legado adotado: config v2 em escopo de apresentação. */
     presentation?: boolean;
+    /** Publicado, com uma escrita posterior na versão de rascunho. */
+    pendingChanges?: boolean;
+    /** Rascunho cuja validação foi apagada por uma edição da configuração. */
+    stale?: boolean;
   } = {},
 ) {
   const entry = managementEntry(
@@ -155,13 +159,24 @@ function currentEntry(
       description: "Teste",
       published: Boolean(options.published),
       everPublished: options.everPublished ?? Boolean(options.published),
-      hasUnpublishedChanges: false,
+      hasUnpublishedChanges: Boolean(options.pendingChanges),
       catalogManaged: !options.legacy,
       status: options.legacy ? "legacy" : "ready",
       ...(options.legacy
         ? {}
         : {
-            catalogConfig: options.presentation ? presentationConfig : config,
+            catalogConfig: options.presentation
+              ? presentationConfig
+              : options.stale
+                ? {
+                    ...config,
+                    status: "draft" as const,
+                    validation: undefined,
+                    validatedStatisticsSource: undefined,
+                  }
+                : options.published
+                  ? { ...config, status: "published" as const }
+                  : config,
           }),
     },
   };
@@ -220,6 +235,48 @@ describe("index catalog v2 lifecycle", () => {
     expect(contentful.publishManagementEntry).toHaveBeenCalledTimes(1);
   });
 
+  it("republica um índice já publicado que recebeu texto do relatório", async () => {
+    // Regressão: `assertPublishable` exigia status "ready", e um índice
+    // publicado guarda "published". Salvar o texto do relatório ou recapturar a
+    // imagem do cartão grava no rascunho sem refazer a validação, então publicar
+    // essa correção caía em "Revalide os assets" — e a única saída era
+    // despublicar o índice e publicá-lo de novo.
+    const current = currentEntry({ published: true, pendingChanges: true });
+    contentful.getCatalogEntry.mockResolvedValue(current);
+    contentful.getManagementEntry.mockResolvedValue(current.entry);
+    contentful.patchManagementEntry.mockResolvedValue(
+      managementEntry("panel", true, 9),
+    );
+    contentful.publishManagementEntry.mockResolvedValue(
+      managementEntry("panel", true, 10),
+    );
+    buildCatalogDraft.mockResolvedValue({
+      panelLayerImageData: { years: {} },
+      validation,
+      statisticsSource: source,
+      classes: config.classes,
+      mapVisualization: {},
+    });
+
+    await expect(publishIndexCatalogEntry("panel", user)).resolves.toEqual({
+      entryId: "panel",
+      panelLayerId: "seca",
+      status: "published",
+    });
+    expect(contentful.publishManagementEntry).toHaveBeenCalledTimes(1);
+  });
+
+  it("continua recusando publicar um rascunho sem prévia validada", async () => {
+    contentful.getCatalogEntry.mockResolvedValue(
+      currentEntry({ published: true, pendingChanges: true, stale: true }),
+    );
+
+    await expect(publishIndexCatalogEntry("panel", user)).rejects.toThrow(
+      /Revalide os assets/u,
+    );
+    expect(buildCatalogDraft).not.toHaveBeenCalled();
+  });
+
   it("allows unpublishing v2 and refuses lifecycle mutations for legacy", async () => {
     const current = currentEntry({ published: true });
     contentful.getCatalogEntry.mockResolvedValueOnce(current);
@@ -267,6 +324,39 @@ describe("index catalog v2 lifecycle", () => {
       current.entry,
       expect.objectContaining({
         catalogConfig: expect.objectContaining({ status: "ready" }),
+      }),
+    );
+  });
+
+  it("mantém o índice como publicado quando a republicação falha", async () => {
+    // Regressão: o tratamento de erro gravava `status: "ready"` fixo, o que era
+    // certo enquanto publicar só podia partir de "ready". Numa republicação ele
+    // parte de "published", e rebaixar o status dizia que o índice tinha saído
+    // do ar — a versão publicada continua no Monitoramento.
+    const current = currentEntry({ published: true, pendingChanges: true });
+    contentful.getCatalogEntry.mockResolvedValue(current);
+    contentful.getManagementEntry.mockResolvedValue(current.entry);
+    contentful.patchManagementEntry.mockResolvedValue(
+      managementEntry("panel", true, 9),
+    );
+    contentful.publishManagementEntry.mockResolvedValue(
+      managementEntry("panel", false, 10),
+    );
+    buildCatalogDraft.mockResolvedValue({
+      panelLayerImageData: { years: {} },
+      validation,
+      statisticsSource: source,
+      classes: config.classes,
+      mapVisualization: {},
+    });
+
+    await expect(publishIndexCatalogEntry("panel", user)).rejects.toThrow(
+      "não confirmou a publicação",
+    );
+    expect(contentful.patchManagementEntry).toHaveBeenLastCalledWith(
+      current.entry,
+      expect.objectContaining({
+        catalogConfig: expect.objectContaining({ status: "published" }),
       }),
     );
   });

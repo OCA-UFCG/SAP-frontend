@@ -39,6 +39,7 @@ import {
 } from "@/types/indexCatalog";
 import {
   createCatalogPanelLayerId,
+  hasPublishableValidation,
   makeUniqueCatalogPanelLayerId,
   parseIndexCatalogDraftInput,
   resolvePanelPositionInCategory,
@@ -309,9 +310,26 @@ export async function getIndexCatalogDraftMunicipalData(
   return result ? { imageData: result.patch } : null;
 }
 
+/**
+ * Publicar exige uma prévia válida gravada — e é isso que se confere, não o
+ * `status` sozinho.
+ *
+ * Um índice já publicado tem `status: "published"`, e exigir `"ready"` tornava
+ * impossível republicá-lo: corrigir o texto do relatório ou recapturar a imagem
+ * do cartão grava na versão de rascunho de propósito, sem tocar na validação,
+ * e a publicação dessa correção caía aqui com "Revalide os assets" mesmo com a
+ * prévia intacta. `draft` e `error` continuam recusados porque nos dois a
+ * validação foi apagada ou marcada inválida, e a conferência que realmente
+ * protege o índice público segue sendo a impressão digital reconferida em
+ * `publishIndexCatalogDraft`.
+ *
+ * A regra de status é `hasPublishableValidation`, compartilhada com a tela: é
+ * ela que decide se o botão "Republicar" aparece, e as duas separadas deixariam
+ * um botão visível para um estado que esta função recusa.
+ */
 function assertPublishable(config: IndexCatalogConfigV2) {
   if (
-    config.status !== "ready" ||
+    !hasPublishableValidation(config.status) ||
     !config.validation?.valid ||
     !config.validatedStatisticsSource
   ) {
@@ -372,10 +390,14 @@ export async function publishIndexCatalogDraft(
       status: "published" as const,
     };
   } catch (error) {
+    // O `status` fica como estava antes da tentativa — o spread de `config` o
+    // preserva de propósito. Escrever `"ready"` aqui era certo enquanto
+    // publicar só podia partir de `"ready"`; numa republicação ele parte de
+    // `"published"`, e rebaixá-lo diria que o índice saiu do ar quando a
+    // versão publicada continua no Monitoramento.
     const failedConfig = withAuditEvent(
       {
         ...config,
-        status: "ready",
         updatedBy: { uid: user.uid, email: user.email, at: catalogTimestamp() },
       },
       user,

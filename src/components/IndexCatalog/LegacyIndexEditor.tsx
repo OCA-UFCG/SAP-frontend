@@ -290,9 +290,11 @@ export function LegacyIndexEditor({
             />
           </label>
           <p className="mt-1 text-xs text-stone-500">
-            É o rótulo que o painel de análise usa. Os legados usam “classes”,
-            “%” e “registros” — mantenha o que este índice já tem se não houver
-            motivo para mudar.
+            Rótulo de organização, guardado na ficha do índice. Ele não muda o
+            que aparece na plataforma: a unidade que o painel de análise mostra
+            ao lado do número vem do próprio conjunto de dados do índice, e este
+            formulário ainda não a edita. Os legados usam “classes”, “%” e
+            “registros” — mantenha o que este índice já tem.
           </p>
         </div>
         <div>
