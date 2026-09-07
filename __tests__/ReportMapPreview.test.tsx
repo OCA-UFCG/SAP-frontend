@@ -5,13 +5,20 @@ const { mapInstances, MapConstructorMock, prewarmMock } = vi.hoisted(() => ({
   mapInstances: [] as Array<{
     addLayer: ReturnType<typeof vi.fn>;
     addSource: ReturnType<typeof vi.fn>;
+    areTilesLoaded: ReturnType<typeof vi.fn>;
     fitBounds: ReturnType<typeof vi.fn>;
     getCanvas: ReturnType<typeof vi.fn>;
     getLayer: ReturnType<typeof vi.fn>;
     getSource: ReturnType<typeof vi.fn>;
-    handlers: Map<string, Array<() => void>>;
+    handlers: Map<string, Array<(event?: unknown) => void>>;
+    isSourceLoaded: ReturnType<typeof vi.fn>;
+    off: ReturnType<typeof vi.fn>;
     on: ReturnType<typeof vi.fn>;
     remove: ReturnType<typeof vi.fn>;
+    removeFeatureState: ReturnType<typeof vi.fn>;
+    removeLayer: ReturnType<typeof vi.fn>;
+    removeSource: ReturnType<typeof vi.fn>;
+    resize: ReturnType<typeof vi.fn>;
     setFeatureState: ReturnType<typeof vi.fn>;
   }>,
   MapConstructorMock: vi.fn(),
@@ -19,7 +26,7 @@ const { mapInstances, MapConstructorMock, prewarmMock } = vi.hoisted(() => ({
 }));
 
 vi.mock("maplibre-gl", () => {
-  type MapEventCallback = () => void;
+  type MapEventCallback = (event?: unknown) => void;
 
   class MockMap {
     handlers = new globalThis.Map<string, MapEventCallback[]>();
@@ -29,6 +36,14 @@ vi.mock("maplibre-gl", () => {
     on = vi.fn((eventName: string, callback: MapEventCallback) => {
       const currentHandlers = this.handlers.get(eventName) ?? [];
       this.handlers.set(eventName, [...currentHandlers, callback]);
+      return this;
+    });
+    off = vi.fn((eventName: string, callback: MapEventCallback) => {
+      const currentHandlers = this.handlers.get(eventName) ?? [];
+      this.handlers.set(
+        eventName,
+        currentHandlers.filter((handler) => handler !== callback),
+      );
       return this;
     });
     getSource = vi.fn((sourceId?: string) =>
@@ -45,8 +60,20 @@ vi.mock("maplibre-gl", () => {
       this.layers.add(layer.id);
       return this;
     });
+    removeSource = vi.fn((sourceId: string) => {
+      this.sources.delete(sourceId);
+      return this;
+    });
+    removeLayer = vi.fn((layerId: string) => {
+      this.layers.delete(layerId);
+      return this;
+    });
+    isSourceLoaded = vi.fn(() => true);
+    areTilesLoaded = vi.fn(() => true);
+    resize = vi.fn(() => this);
     fitBounds = vi.fn(() => this);
     setFeatureState = vi.fn(() => this);
+    removeFeatureState = vi.fn(() => this);
     setFilter = vi.fn(() => this);
     getCanvas = vi.fn(() => ({
       toDataURL: vi.fn(() => `data:image/png;base64,${"a".repeat(120)}`),
@@ -89,18 +116,35 @@ vi.mock("@/components/Map/mapBounds", async (importOriginal) => {
 });
 
 import { ReportMapPreview } from "@/components/MunicipalReport/ReportMapPreview";
+import {
+  countIdleReportMaps,
+  destroyReportMapPool,
+} from "@/components/MunicipalReport/reportMapPool";
 
 const TILE_URL = "https://tiles.example/{z}/{x}/{y}";
 
-function emit(instanceIndex: number, eventName: string) {
-  const handlers = mapInstances[instanceIndex]?.handlers.get(eventName) ?? [];
+function emit(instanceIndex: number, eventName: string, event?: unknown) {
+  const handlers = [
+    ...(mapInstances[instanceIndex]?.handlers.get(eventName) ?? []),
+  ];
   act(() => {
-    for (const handler of handlers) handler();
+    for (const handler of handlers) handler(event);
   });
+}
+
+/**
+ * O caminho que o MapLibre percorre até a captura: o raster reporta que
+ * carregou e o mapa para de desenhar. O `sourcedata` é obrigatório porque um
+ * mapa reaproveitado já está parado quando recebe a camada nova.
+ */
+function emitRasterReady(instanceIndex: number) {
+  emit(instanceIndex, "sourcedata", { sourceId: "gee-tiles" });
+  emit(instanceIndex, "idle");
 }
 
 describe("ReportMapPreview", () => {
   beforeEach(() => {
+    destroyReportMapPool();
     mapInstances.length = 0;
     MapConstructorMock.mockClear();
     prewarmMock.mockClear();
@@ -108,6 +152,7 @@ describe("ReportMapPreview", () => {
 
   afterEach(() => {
     cleanup();
+    destroyReportMapPool();
   });
 
   it("does not initialize MapLibre when an image is already available", () => {
@@ -166,7 +211,10 @@ describe("ReportMapPreview", () => {
     expect(getByText("Mapa indisponível para exportação.")).toBeTruthy();
   });
 
-  it("removes MapLibre when unmounted", async () => {
+  // Antes cada item do relatório criava e destruía a própria instância: os 20
+  // mapas gastavam 795 ms de mediana só até o evento `load`, recarregando vinte
+  // vezes o mesmo estilo e a mesma malha municipal.
+  it("devolve o mapa para a estante ao desmontar, em vez de destruí-lo", async () => {
     const { unmount } = render(
       <ReportMapPreview
         municipalityCode="5200050"
@@ -177,10 +225,120 @@ describe("ReportMapPreview", () => {
     );
 
     await waitFor(() => expect(mapInstances).toHaveLength(1));
+    emit(0, "load");
+    await waitFor(() => expect(mapInstances[0].addLayer).toHaveBeenCalled());
 
     unmount();
 
+    expect(mapInstances[0].remove).not.toHaveBeenCalled();
+    expect(countIdleReportMaps()).toBe(1);
+  });
+
+  // Regressão: a espera pelo evento `load` fica pendente quando a fila desiste
+  // do mapa antes dele, e a instância criada dentro de `acquireReportMap`
+  // ficava órfã — um contexto WebGL preso que ninguém mais alcançava.
+  it("descarta o mapa quando a fila desiste antes do estilo carregar", async () => {
+    const { unmount } = render(
+      <ReportMapPreview
+        municipalityCode="5200050"
+        layerId="anaseca"
+        period="2024-01"
+        tileUrl={TILE_URL}
+      />,
+    );
+
+    await waitFor(() => expect(mapInstances).toHaveLength(1));
+
+    unmount();
+
+    await waitFor(() =>
+      expect(mapInstances[0].remove).toHaveBeenCalledTimes(1),
+    );
+    expect(countIdleReportMaps()).toBe(0);
+  });
+
+  it("descarta a estante quando a prévia do relatório sai da tela", async () => {
+    const { unmount } = render(
+      <ReportMapPreview
+        municipalityCode="5200050"
+        layerId="anaseca"
+        period="2024-01"
+        tileUrl={TILE_URL}
+      />,
+    );
+
+    await waitFor(() => expect(mapInstances).toHaveLength(1));
+    emit(0, "load");
+    await waitFor(() => expect(mapInstances[0].addLayer).toHaveBeenCalled());
+    unmount();
+    expect(countIdleReportMaps()).toBe(1);
+
+    destroyReportMapPool();
+
+    expect(countIdleReportMaps()).toBe(0);
     expect(mapInstances[0].remove).toHaveBeenCalledTimes(1);
+  });
+
+  it("limpa o raster e o município destacado ao devolver o mapa", async () => {
+    const { unmount } = render(
+      <ReportMapPreview
+        municipalityCode="5200050"
+        layerId="anaseca"
+        period="2024-01"
+        tileUrl={TILE_URL}
+      />,
+    );
+
+    await waitFor(() => expect(mapInstances).toHaveLength(1));
+    emit(0, "load");
+    await waitFor(() => expect(mapInstances[0].addLayer).toHaveBeenCalled());
+
+    unmount();
+
+    // Sem esta limpeza a captura seguinte desenharia a camada anterior por cima
+    // e destacaria o município errado.
+    expect(mapInstances[0].removeLayer).toHaveBeenCalledWith("gee-layer");
+    expect(mapInstances[0].removeSource).toHaveBeenCalledWith("gee-tiles");
+    expect(mapInstances[0].removeFeatureState).toHaveBeenCalled();
+  });
+
+  it("reaproveita a mesma instância do MapLibre em outra camada", async () => {
+    const firstCapture = vi.fn();
+    const { unmount } = render(
+      <ReportMapPreview
+        municipalityCode="5200050"
+        layerId="anaseca"
+        period="2024-01"
+        tileUrl={TILE_URL}
+        onCapture={firstCapture}
+      />,
+    );
+
+    await waitFor(() => expect(mapInstances).toHaveLength(1));
+    emit(0, "load");
+    await waitFor(() => expect(mapInstances[0].addLayer).toHaveBeenCalled());
+    emitRasterReady(0);
+    await waitFor(() => expect(firstCapture).toHaveBeenCalledTimes(1));
+    unmount();
+
+    const secondCapture = vi.fn();
+    render(
+      <ReportMapPreview
+        municipalityCode="5200050"
+        layerId="indicearidez"
+        period="2020"
+        tileUrl={TILE_URL}
+        onCapture={secondCapture}
+      />,
+    );
+
+    await waitFor(() =>
+      expect(mapInstances[0].resize).toHaveBeenCalledTimes(1),
+    );
+    emitRasterReady(0);
+
+    await waitFor(() => expect(secondCapture).toHaveBeenCalledTimes(1));
+    expect(MapConstructorMock).toHaveBeenCalledTimes(1);
   });
 
   it("captures only once when MapLibre emits idle more than once", async () => {
@@ -199,7 +357,8 @@ describe("ReportMapPreview", () => {
     await waitFor(() => expect(mapInstances).toHaveLength(1));
 
     emit(0, "load");
-    emit(0, "idle");
+    await waitFor(() => expect(mapInstances[0].addLayer).toHaveBeenCalled());
+    emitRasterReady(0);
     emit(0, "idle");
 
     await waitFor(() => {
@@ -253,7 +412,8 @@ describe("ReportMapPreview", () => {
     expect(mapInstances[0].remove).not.toHaveBeenCalled();
 
     emit(0, "load");
-    emit(0, "idle");
+    await waitFor(() => expect(mapInstances[0].addLayer).toHaveBeenCalled());
+    emitRasterReady(0);
 
     await waitFor(() => expect(secondCapture).toHaveBeenCalledTimes(1));
     expect(firstCapture).not.toHaveBeenCalled();
@@ -280,7 +440,8 @@ describe("ReportMapPreview", () => {
     });
 
     emit(0, "load");
-    emit(0, "idle");
+    await waitFor(() => expect(mapInstances[0].addLayer).toHaveBeenCalled());
+    emitRasterReady(0);
 
     await waitFor(() => {
       expect(onCapture).toHaveBeenCalledTimes(1);
@@ -288,7 +449,7 @@ describe("ReportMapPreview", () => {
     });
   });
 
-  it("creates a fresh map when a serial retry attempt is requested", async () => {
+  it("reaproveita o mapa da estante na nova tentativa da fila", async () => {
     const onCapture = vi.fn();
     const { rerender } = render(
       <ReportMapPreview
@@ -308,7 +469,8 @@ describe("ReportMapPreview", () => {
       }),
     });
     emit(0, "load");
-    emit(0, "idle");
+    await waitFor(() => expect(mapInstances[0].addLayer).toHaveBeenCalled());
+    emitRasterReady(0);
     await waitFor(() => expect(onCapture).toHaveBeenCalledWith(null));
 
     rerender(
@@ -322,7 +484,10 @@ describe("ReportMapPreview", () => {
       />,
     );
 
-    await waitFor(() => expect(mapInstances).toHaveLength(2));
-    expect(mapInstances[0].remove).toHaveBeenCalledTimes(1);
+    await waitFor(() =>
+      expect(mapInstances[0].resize).toHaveBeenCalledTimes(1),
+    );
+    expect(mapInstances).toHaveLength(1);
+    expect(mapInstances[0].remove).not.toHaveBeenCalled();
   });
 });

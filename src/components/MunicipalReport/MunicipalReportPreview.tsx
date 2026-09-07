@@ -50,6 +50,7 @@ import {
 } from "@/utils/municipalReportChart";
 import { slugifyTranslationKey } from "@/utils/translations";
 import { ReportMapPreview } from "./ReportMapPreview";
+import { destroyReportMapPool } from "./reportMapPool";
 import { useReportMapCaptureQueue } from "./useReportMapCaptureQueue";
 import {
   useReportMapTileUrls,
@@ -666,6 +667,7 @@ function AnalysisSection({
   mapActive,
   mapAttempt,
   mapQueuedAt,
+  onMapVisibility,
   mapTileUrl,
   mapUnavailableReason,
   onMapCapture,
@@ -679,6 +681,7 @@ function AnalysisSection({
   mapActive?: boolean;
   mapAttempt?: number;
   mapQueuedAt?: number | null;
+  onMapVisibility?: (visible: boolean) => void;
   mapTileUrl?: string;
   mapUnavailableReason?: EeMapUrlFailure;
   onMapCapture?: (src: string | null) => void;
@@ -921,6 +924,7 @@ function AnalysisSection({
                   tileUrl={mapTileUrl}
                   unavailableReason={mapUnavailableReason}
                   onCapture={onMapCapture}
+                  onVisibilityChange={onMapVisibility}
                 />
                 <p className="border-t border-[#c8ced1] px-4 py-2 text-xs leading-5 text-neutral-600">
                   {t("rasterDescription", {
@@ -1011,6 +1015,7 @@ const ReportDocument = memo(function ReportDocument({
   mapTileUrls,
   retryAttemptFor,
   onMapCapture,
+  onMapVisibility,
   documentRef,
   docsContent,
 }: {
@@ -1022,6 +1027,7 @@ const ReportDocument = memo(function ReportDocument({
   mapTileUrls: ReportMapTileUrls;
   retryAttemptFor: (key: string) => number;
   onMapCapture?: (key: string, src: string | null) => void;
+  onMapVisibility?: (key: string, visible: boolean) => void;
   documentRef?: Ref<HTMLElement>;
   docsContent: MunicipalReportDocsContent | null;
 }) {
@@ -1170,6 +1176,7 @@ const ReportDocument = memo(function ReportDocument({
               mapTileUrl={mapTileUrls.tileUrlFor(mapKey)}
               mapUnavailableReason={mapTileUrls.failureFor(mapKey)}
               onMapCapture={(src) => onMapCapture?.(mapKey, src)}
+              onMapVisibility={(visible) => onMapVisibility?.(mapKey, visible)}
               docsContent={docsContent}
             />
           );
@@ -1301,8 +1308,10 @@ export function MunicipalReportPreview({
   const {
     activeMapKeys,
     handleMapCapture,
+    handleMapVisibility,
     mapImages,
     mapsReady: capturesReady,
+    pendingMapCount,
     resetMapCaptureQueue,
     retryAttemptFor,
   } = useReportMapCaptureQueue(reportMapKeys);
@@ -1316,6 +1325,10 @@ export function MunicipalReportPreview({
     navigationMeasuredRef.current = true;
     recordMunicipalReportNavigation();
   }, [hasRequiredParameters]);
+
+  // Cinco contextos WebGL guardados são baratos enquanto o relatório está
+  // aberto, e desperdício depois que ele sai da tela.
+  useEffect(() => destroyReportMapPool, []);
 
   useEffect(() => {
     if (!report || loading || previewMeasuredRef.current) return;
@@ -1650,9 +1663,11 @@ export function MunicipalReportPreview({
                     <path d="M5 20h14" />
                   </svg>
                 )}
-                {exporting || (report && !mapsReady)
+                {exporting
                   ? t("preparingDownload")
-                  : t("downloadPdf")}
+                  : report && !mapsReady
+                    ? t("preparingDownloadMaps", { count: pendingMapCount })
+                    : t("downloadPdf")}
               </button>
             </div>
           </div>
@@ -1691,6 +1706,7 @@ export function MunicipalReportPreview({
                 mapTileUrls={mapTileUrls}
                 retryAttemptFor={retryAttemptFor}
                 onMapCapture={handleMapCapture}
+                onMapVisibility={handleMapVisibility}
                 documentRef={reportDocumentRef}
                 docsContent={docsContent}
               />
@@ -1731,6 +1747,7 @@ export function MunicipalReportPreview({
             mapTileUrls={mapTileUrls}
             retryAttemptFor={retryAttemptFor}
             onMapCapture={handleMapCapture}
+            onMapVisibility={handleMapVisibility}
             docsContent={docsContent}
           />
         )}
