@@ -2,19 +2,32 @@ import "server-only";
 
 import { createHash } from "node:crypto";
 
-const CACHE_TTL_MS = 1000 * 60 * 10;
+// As estatísticas moram em assets publicados do Earth Engine: mudam quando
+// alguém republica o índice, e não ao longo do dia. Os dez minutos daqui eram
+// herdados do cache de conteúdo do Contentful, que editores mexem a qualquer
+// hora, e faziam a primeira leitura de cada estado — de 3 a 6 s de Earth Engine
+// — se repetir várias vezes por dia sem que o dado tivesse mudado. As rotas de
+// publicação do catálogo chamam `clearGeeStatisticsRowsCache`, então uma
+// republicação continua aparecendo na hora, com validade longa ou curta; o que
+// a validade longa atrasa é só a atualização feita direto no Earth Engine, fora
+// da plataforma.
+const DEFAULT_CACHE_TTL_SECONDS = 60 * 60 * 12;
 // Uma entrada é o recorte de um território dentro de uma série de assets:
 // ~1260 linhas para `br` no índice de aridez do ERA5-Land (Brasil + 27 estados
-// x 45 anos, ~390 KiB) e ~10.000 para uma UF, desde que a leitura municipal
-// passou a trazer o estado inteiro. O teto existe para uma navegação longa por
-// municípios não fazer o mapa crescer sem fim.
+// x 45 anos, ~390 KiB) e de ~8000 a ~38 000 para uma UF, desde que a leitura
+// municipal passou a trazer o estado inteiro. O teto existe para uma navegação
+// longa por municípios não fazer o mapa crescer sem fim.
 const DEFAULT_MAX_ENTRIES = 200;
 // Só contar entradas deixou de descrever a memória usada quando elas passaram a
-// diferir em duas ordens de grandeza: 200 entradas de UF seriam ~400 MB. O teto
-// de linhas mantém o gasto na mesma faixa de antes (~250 mil linhas, ~60 MB) e
-// cabe cerca de 25 UFs de uma camada, ou uma UF de cada uma das camadas do
-// relatório.
-const DEFAULT_MAX_ROWS = 250_000;
+// diferir em duas ordens de grandeza: 200 entradas de UF seriam centenas de MB.
+// O teto de linhas é o que mantém o gasto previsível. Medido no índice de
+// aridez do ERA5-Land, 250 785 linhas de 16 colunas ocupam 142 MB de heap, ou
+// ~0,58 KiB por linha, então 120 mil linhas custam ~70 MB — a mesma faixa das
+// 200 entradas de ~400 KiB do cache de `municipalAnalysis`. Cabem juntos os
+// cinco estados semiáridos com mais municípios na camada mais pesada
+// (Minas Gerais 38 385 + Bahia 18 765 + Paraíba 10 035 + Pernambuco 8325 +
+// Ceará 8280 = 83 790 linhas).
+const DEFAULT_MAX_ROWS = 120_000;
 
 interface StatisticsRowsEntry {
   rows: Record<string, unknown>[];
@@ -46,6 +59,15 @@ function getMaxEntries() {
   return readPositiveIntegerEnv(
     "GEE_STATISTICS_ROWS_CACHE_MAX_ENTRIES",
     DEFAULT_MAX_ENTRIES,
+  );
+}
+
+function getCacheTtlMs() {
+  return (
+    readPositiveIntegerEnv(
+      "GEE_STATISTICS_ROWS_CACHE_TTL_SECONDS",
+      DEFAULT_CACHE_TTL_SECONDS,
+    ) * 1000
   );
 }
 
@@ -122,7 +144,7 @@ function getFreshRows(key: string) {
     return null;
   }
 
-  if (Date.now() - entry.timestamp > CACHE_TTL_MS) {
+  if (Date.now() - entry.timestamp > getCacheTtlMs()) {
     deleteEntry(key);
     return null;
   }
@@ -171,4 +193,4 @@ export function clearGeeStatisticsRowsCache() {
   cachedRowCount = 0;
 }
 
-export { CACHE_TTL_MS as GEE_STATISTICS_ROWS_CACHE_TTL_MS };
+export { getCacheTtlMs as getGeeStatisticsRowsCacheTtlMs };

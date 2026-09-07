@@ -196,6 +196,41 @@ inexistente derruba o pedido inteiro — com o nome dele no erro. O bloco limita
 quanto trabalho uma falha invalida e, medido, ainda é mais rápido que um pedido
 único.
 
+### O teto de 5000 feições por pedido
+
+O Earth Engine recusa qualquer consulta que acumule mais de 5000 feições, com
+`Collection query aborted after accumulating over 5000 elements`. O teto vale por
+pedido, e a leitura municipal traz uma linha por município da UF em cada asset do
+bloco — então o número de assets que podem viajar juntos depende do tamanho do
+estado. Medido no índice de aridez do ERA5-Land, com blocos de 15:
+
+| Estado            | Municípios | Blocos de 15 |
+| ----------------- | ---------- | ------------ |
+| Minas Gerais      | 853        | falha        |
+| São Paulo         | 645        | falha        |
+| Rio Grande do Sul | 499        | falha        |
+| Bahia             | 417        | falha        |
+| Paraná            | 399        | falha        |
+| Paraíba           | 223        | 3198 ms      |
+| Pernambuco        | 185        | 4311 ms      |
+
+`getStatisticsRowsBatchSize` resolve isso reduzindo o bloco a 5 assets na leitura
+municipal — o que cabe no maior estado, com 853 municípios. O teto usa sempre o
+maior estado, e não o estado pedido: errar para baixo custa alguns segundos na
+primeira leitura daquele estado (a Bahia sai em 5533 ms com blocos de 5, contra
+3784 ms com blocos de 8), enquanto errar para cima derruba o relatório inteiro.
+Os demais territórios continuam em blocos de 15, porque `br` traz 28 linhas por
+asset e os agregados trazem menos.
+
+Ler o Brasil inteiro numa entrada só de cache não é possível por esse caminho:
+um único asset já tem 5573 linhas municipais. O que escapa do teto é agregar as
+colunas no lado do Earth Engine (`reduceColumns`), mas aí a agregação descarta os
+valores nulos e as colunas deixam de descrever a mesma linha — no asset de 1980,
+3 municípios têm nulo em alguma coluna pedida, o que atribuiria os valores ao
+município errado. Preencher os nulos antes de agregar corrige o alinhamento e
+custa 11 933 ms por bloco de 15, contra 4207 ms sem preencher, além de 142 MB de
+heap por camada. Por isso a leitura ficou no recorte estadual.
+
 Quem passa a lista de períodos é o chamador: `attachMunicipalAnalysisYearToPanelLayer`
 usa as chaves de `imageData.years`, e a prévia do catálogo usa
 `validation.inferred.periods`. Sem essa lista o comportamento é o antigo, uma
@@ -203,10 +238,22 @@ leitura só do período pedido.
 
 A publicação do catálogo limpa esse cache junto com os demais, em
 `refreshPublicIndexCaches`. O teto tem duas partes, porque as entradas diferem em
-duas ordens de grandeza (45 linhas para um período, ~10 mil para uma UF):
-`GEE_STATISTICS_ROWS_CACHE_MAX_ENTRIES` limita quantas entradas cabem e
+duas ordens de grandeza (45 linhas para um período, de 8 mil a 38 mil para uma
+UF): `GEE_STATISTICS_ROWS_CACHE_MAX_ENTRIES` limita quantas entradas cabem e
 `GEE_STATISTICS_ROWS_CACHE_MAX_ROWS` limita o total de linhas guardadas. A
-evicção é LRU e respeita os dois.
+evicção é LRU e respeita os dois. O teto de linhas está em 120 mil porque 250 785
+linhas de 16 colunas ocupam 142 MB de heap medidos (~0,58 KiB por linha), então
+120 mil custam ~70 MB — a mesma faixa das 200 entradas de ~400 KiB do cache de
+`municipalAnalysis`. Cabem juntos os cinco estados semiáridos com mais
+municípios na camada mais pesada (83 790 linhas).
+
+A validade é de doze horas
+(`GEE_STATISTICS_ROWS_CACHE_TTL_SECONDS`), e não os dez minutos dos caches de
+conteúdo. A diferença é a natureza do dado: um asset estatístico é publicado, e
+muda quando alguém republica o índice, enquanto uma entrada do Contentful muda a
+qualquer hora do dia. Como a publicação do catálogo limpa este cache, uma
+republicação continua aparecendo na hora; o que a validade longa atrasa é apenas
+a atualização feita direto no Earth Engine, fora da plataforma.
 
 ## Retirada do pipeline legado
 

@@ -67,6 +67,7 @@ import { evaluateGeeObject } from "@/infrastructure/earth-engine/client";
 import {
   clearGeeStatisticsSchemaCacheForTests,
   getGeeStatisticsYearPatch,
+  getStatisticsRowsBatchSize,
 } from "@/repositories/platform/geeStatisticsRepository";
 import { clearGeeStatisticsRowsCache } from "@/repositories/platform/geeStatisticsRowsCache";
 
@@ -150,16 +151,21 @@ describe("leitura em lote da série estatística", () => {
   // Regressão: cada período resolvia um assetId próprio, então abrir o índice
   // de aridez do ERA5-Land custava 45 leituras de schema e 45 de linhas — 90
   // idas ao Earth Engine, ~17 s só nas linhas.
-  it("lê os 45 anos em 4 idas ao Earth Engine, não em 90", async () => {
+  it("lê os 45 anos em 10 idas ao Earth Engine, não em 90", async () => {
     const result = await readPeriod("2020");
 
-    expect(mockedEvaluate).toHaveBeenCalledTimes(4);
+    expect(mockedEvaluate).toHaveBeenCalledTimes(10);
     expect(result?.patch.years?.["2020"]?.values).toEqual({
       "2507507": [40, 60],
     });
   });
 
-  it("agrupa os assets em blocos de 15", async () => {
+  // Regressão: com 15 assets por pedido, a leitura municipal — que traz a UF
+  // inteira — passava de 5000 feições nos estados grandes e o Earth Engine
+  // abortava com "Collection query aborted after accumulating over 5000
+  // elements". Medido no índice de aridez do ERA5-Land, falhava em Minas
+  // Gerais, São Paulo, Rio Grande do Sul, Bahia e Paraná.
+  it("agrupa a leitura municipal em blocos que caibam no teto de 5000 feições", async () => {
     await readPeriod("2020");
 
     const batchSizes = mockedEvaluate.mock.calls
@@ -167,7 +173,15 @@ describe("leitura em lote da série estatística", () => {
       .filter((node) => node.kind !== "propertyNames")
       .map((node) => node.assetIds.length);
 
-    expect(batchSizes).toEqual([15, 15, 15]);
+    expect(batchSizes).toEqual([5, 5, 5, 5, 5, 5, 5, 5, 5]);
+    expect(Math.max(...batchSizes) * 853).toBeLessThanOrEqual(5000);
+  });
+
+  it("mantém os blocos de 15 fora da leitura municipal", () => {
+    expect(getStatisticsRowsBatchSize("br")).toBe(15);
+    expect(getStatisticsRowsBatchSize("pb")).toBe(15);
+    expect(getStatisticsRowsBatchSize("5_semiarido-semiarido")).toBe(15);
+    expect(getStatisticsRowsBatchSize("3100104")).toBe(5);
   });
 
   it("serve os outros períodos da mesma leitura, sem voltar ao Earth Engine", async () => {
@@ -258,6 +272,8 @@ describe("leitura em lote da série estatística", () => {
       ]),
     ).resolves.not.toBeNull();
 
-    expect(mockedEvaluate).toHaveBeenCalledTimes(4);
+    // O período inválido não vira um asset, então a série continua nos mesmos
+    // 45 anos: uma leitura de schema e nove blocos de 5 assets.
+    expect(mockedEvaluate).toHaveBeenCalledTimes(10);
   });
 });

@@ -1,4 +1,4 @@
-import { beforeEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 vi.mock("server-only", () => ({}));
 
@@ -65,6 +65,10 @@ describe("cache de linhas estatísticas", () => {
   beforeEach(() => {
     vi.unstubAllEnvs();
     clearGeeStatisticsRowsCache();
+  });
+
+  afterEach(() => {
+    vi.useRealTimers();
   });
 
   it("lê o Earth Engine uma vez só quando vários períodos pedem juntos", async () => {
@@ -143,6 +147,43 @@ describe("cache de linhas estatísticas", () => {
 
     expect(readers[0].calls).toBe(2);
     expect(readers[2].calls).toBe(1);
+  });
+
+  // As estatísticas vêm de assets publicados, que mudam quando alguém
+  // republica o índice. Os dez minutos de antes eram herdados do cache de
+  // conteúdo do Contentful e faziam a primeira leitura de cada estado — de 3 a
+  // 6 s de Earth Engine — se repetir várias vezes por dia sem que o dado
+  // tivesse mudado.
+  it("guarda as linhas por doze horas, e não por dez minutos", async () => {
+    vi.useFakeTimers({ toFake: ["Date"] });
+    const key = buildStatisticsRowsCacheKey(["asset"], "uf-25", ["data_img"]);
+    const reader = new FakeStatisticsReader(ROWS);
+
+    vi.setSystemTime(new Date("2026-01-01T00:00:00Z"));
+    await getOrLoadStatisticsRows(key, reader.read);
+
+    vi.setSystemTime(new Date("2026-01-01T11:59:00Z"));
+    await getOrLoadStatisticsRows(key, reader.read);
+    expect(reader.calls).toBe(1);
+
+    vi.setSystemTime(new Date("2026-01-01T12:01:00Z"));
+    await getOrLoadStatisticsRows(key, reader.read);
+    expect(reader.calls).toBe(2);
+  });
+
+  it("aceita outra validade em GEE_STATISTICS_ROWS_CACHE_TTL_SECONDS", async () => {
+    vi.stubEnv("GEE_STATISTICS_ROWS_CACHE_TTL_SECONDS", "60");
+    vi.useFakeTimers({ toFake: ["Date"] });
+    const key = buildStatisticsRowsCacheKey(["asset"], "uf-29", ["data_img"]);
+    const reader = new FakeStatisticsReader(ROWS);
+
+    vi.setSystemTime(new Date("2026-01-01T00:00:00Z"));
+    await getOrLoadStatisticsRows(key, reader.read);
+
+    vi.setSystemTime(new Date("2026-01-01T00:02:00Z"));
+    await getOrLoadStatisticsRows(key, reader.read);
+
+    expect(reader.calls).toBe(2);
   });
 
   it("não deixa uma leitura que falhou presa como pendente", async () => {

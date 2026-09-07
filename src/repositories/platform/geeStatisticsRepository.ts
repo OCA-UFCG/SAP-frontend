@@ -43,6 +43,17 @@ const PERCENTAGE_SUM_TOLERANCE = 0.2;
 // cada ano era um `evaluate` seu. O teto também limita o estrago de uma falha:
 // um asset inexistente derruba o pedido inteiro, com o nome dele no erro.
 const STATISTICS_ROWS_BATCH_SIZE = 15;
+// O Earth Engine recusa qualquer consulta que acumule mais de 5000 feições, com
+// "Collection query aborted after accumulating over 5000 elements". O teto vale
+// por pedido, e é ele que decide quantos assets podem viajar juntos.
+const MAX_FEATURES_PER_REQUEST = 5000;
+// Minas Gerais, o estado com mais municípios. É ele que dita o bloco seguro de
+// uma leitura estadual, porque a leitura traz uma linha por município em cada
+// asset: 853 x 15 assets = 12 795 feições, muito acima do teto. Medido no
+// índice de aridez do ERA5-Land, com blocos de 15, Minas Gerais, São Paulo
+// (645), Rio Grande do Sul (499), Bahia (417) e Paraná (399) falhavam, e os 22
+// estados restantes passavam.
+const LARGEST_STATE_MUNICIPALITY_COUNT = 853;
 
 interface EvaluatedFeature {
   properties?: Record<string, unknown>;
@@ -529,14 +540,47 @@ async function readStatisticsRowsBatch(
  * período.
  *
  * O filtro territorial fica no Earth Engine porque é ele que limita o tamanho
- * da resposta: sem ele viriam as 5.573 linhas municipais. Para um município o
- * filtro é o da UF inteira, e não o do código pedido — ver
- * `resolveStatisticsReadScope`. O filtro de período não limita nada — ler um
+ * da resposta: sem ele viriam as 5.573 linhas municipais, e o Earth Engine
+ * aborta acima de 5000 feições por pedido. Para um município o filtro é o da UF
+ * inteira, e não o do código pedido — ver `resolveStatisticsReadScope` — e é por
+ * isso que o bloco de assets vem de `getStatisticsRowsBatchSize`, e não do teto
+ * fixo. O filtro de período não limita nada — ler um
  * mês do asset do ANA custou 2436 ms e ler os doze meses do mesmo ano custou
  * 2423 ms, porque o preço é do round trip, não do volume. Filtrar por período
  * aqui fazia o painel gastar uma ida ao Earth Engine por período visível ao
  * abrir a camada.
  */
+/**
+ * Quantos assets de período cabem numa mesma ida ao Earth Engine.
+ *
+ * A leitura municipal traz a UF inteira (ver `resolveStatisticsReadScope`),
+ * então o número de feições do pedido é o de municípios do estado vezes o de
+ * assets do bloco — e o Earth Engine aborta acima de `MAX_FEATURES_PER_REQUEST`.
+ * O teto usa sempre o maior estado, e não o estado pedido, porque errar para
+ * baixo custa alguns segundos na primeira leitura daquele estado, enquanto
+ * errar para cima derruba o relatório inteiro.
+ *
+ * Os demais territórios não têm esse problema: `br` traz 28 linhas por asset
+ * (Brasil e os 27 estados) e os agregados trazem menos ainda.
+ *
+ * @example
+ * getStatisticsRowsBatchSize("2910800"); // 5 (leitura da Bahia inteira)
+ * getStatisticsRowsBatchSize("br"); // 15
+ */
+export function getStatisticsRowsBatchSize(locationKey: string): number {
+  if (!getStateCodePrefix(locationKey)) {
+    return STATISTICS_ROWS_BATCH_SIZE;
+  }
+
+  return Math.max(
+    1,
+    Math.min(
+      STATISTICS_ROWS_BATCH_SIZE,
+      Math.floor(MAX_FEATURES_PER_REQUEST / LARGEST_STATE_MUNICIPALITY_COUNT),
+    ),
+  );
+}
+
 async function loadSeriesLocationRows(
   source: ResolvedGeeStatisticsSource,
   assetIds: readonly string[],
@@ -548,8 +592,14 @@ async function loadSeriesLocationRows(
   // despacha uma requisição a cada 350 ms de uma fila global do processo, então
   // um limitador aqui só somaria espera à espera que já existe.
   const batches = await Promise.all(
-    chunk(assetIds, STATISTICS_ROWS_BATCH_SIZE).map((assetIdBatch) =>
-      readStatisticsRowsBatch(source, assetIdBatch, properties, locationFilter),
+    chunk(assetIds, getStatisticsRowsBatchSize(locationKey)).map(
+      (assetIdBatch) =>
+        readStatisticsRowsBatch(
+          source,
+          assetIdBatch,
+          properties,
+          locationFilter,
+        ),
     ),
   );
 
