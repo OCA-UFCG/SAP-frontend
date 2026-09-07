@@ -9,6 +9,7 @@ import {
   makeUniqueCatalogPanelLayerId,
   parseIndexCatalogDraftInput,
   parseIndexCatalogPresentationInput,
+  hasPublishableValidation,
   reconcileCatalogPublicationStatus,
   resolvePanelPositionInCategory,
 } from "@/utils/indexCatalog";
@@ -141,6 +142,20 @@ describe("reconciliação do status de publicação do catálogo", () => {
     expect(reconcileCatalogPublicationStatus({ status: "error" }, false)).toBe(
       "error",
     );
+  });
+});
+
+describe("hasPublishableValidation", () => {
+  it("aceita ready e published, os dois estados com prévia gravada", () => {
+    expect(hasPublishableValidation("ready")).toBe(true);
+    // Republicar parte daqui: as escritas de texto e imagem não tocam a prévia.
+    expect(hasPublishableValidation("published")).toBe(true);
+  });
+
+  it("recusa os estados em que a prévia foi apagada ou invalidada", () => {
+    expect(hasPublishableValidation("draft")).toBe(false);
+    expect(hasPublishableValidation("error")).toBe(false);
+    expect(hasPublishableValidation("legacy")).toBe(false);
   });
 });
 

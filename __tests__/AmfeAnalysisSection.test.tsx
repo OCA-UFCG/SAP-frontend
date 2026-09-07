@@ -36,6 +36,12 @@ vi.mock("@/components/Map/MapComponent", () => ({
   },
 }));
 
+// A seção de Monitoramento não é o assunto aqui, mas o mapa é o mesmo
+// componente e o hook dela roda junto.
+vi.mock("@/components/PlatformMap/useMonitoringMapLayers", () => ({
+  useMonitoringMapLayers: () => ({}),
+}));
+
 vi.mock("@/components/PlatformMap/useSpatialBoundaryOverlay", () => ({
   useSpatialBoundaryOverlay: (selection: unknown) => {
     boundaryOverlayMock(selection);
@@ -55,7 +61,9 @@ vi.mock("@/components/Amfe/AnalyzeForm/AnalyzeForm", () => ({
   ),
 }));
 
-import { AmfeScreen } from "@/components/Amfe/AmfeScreen";
+import { AmfeAnalysisProvider } from "@/components/Amfe/AmfeAnalysisContext";
+import { AmfeAnalysisFormColumn } from "@/components/Amfe/AmfeAnalysisFormColumn";
+import { PlatformMap } from "@/components/PlatformMap/PlatformMap";
 
 const ANALYZE_RESPONSE = {
   result: {
@@ -80,6 +88,19 @@ const OVERVIEW_GEOJSON = {
 };
 
 let releaseOverview: (() => void) | null = null;
+
+/** A mesma composição que a plataforma monta: formulário ao lado do mapa. */
+function renderAnalysisSection() {
+  return render(
+    <AmfeAnalysisProvider>
+      <AmfeAnalysisFormColumn />
+      <PlatformMap section="analysis" />
+    </AmfeAnalysisProvider>,
+  );
+}
+
+const runAnalysis = async (user: ReturnType<typeof userEvent.setup>) =>
+  user.click(await screen.findByRole("button", { name: "run-analysis" }));
 
 beforeEach(() => {
   mapPropsMock.mockReset();
@@ -108,17 +129,17 @@ afterEach(() => {
   vi.unstubAllGlobals();
 });
 
-describe("AmfeScreen", () => {
+describe("analysis section", () => {
   it("paints the analysis result as a choropleth on the platform map", async () => {
     const user = userEvent.setup();
 
-    render(<AmfeScreen />);
+    renderAnalysisSection();
 
     expect(mapPropsMock.mock.calls[0]?.[0]).toEqual(
       expect.objectContaining({ municipalityClassification: null }),
     );
 
-    await user.click(screen.getByRole("button", { name: "run-analysis" }));
+    await runAnalysis(user);
 
     await waitFor(() => {
       expect(fetch).toHaveBeenCalledWith(
@@ -137,7 +158,7 @@ describe("AmfeScreen", () => {
   });
 
   it("opens framing the whole country instead of the choropleth zoom floor", () => {
-    render(<AmfeScreen />);
+    renderAnalysisSection();
 
     expect(mapPropsMock.mock.calls[0]?.[0]).toEqual(
       expect.objectContaining({ minZoom: 3, zoom: 4 }),
@@ -147,13 +168,13 @@ describe("AmfeScreen", () => {
   it("keeps the municipalities painted below the zoom floor of the vector tiles", async () => {
     const user = userEvent.setup();
 
-    render(<AmfeScreen />);
+    renderAnalysisSection();
 
     expect(fetch).not.toHaveBeenCalledWith(
       expect.stringContaining("brazil-cities-overview"),
     );
 
-    await user.click(screen.getByRole("button", { name: "run-analysis" }));
+    await runAnalysis(user);
 
     await waitFor(() => {
       expect(mapPropsMock.mock.calls.at(-1)?.[0]).toEqual(
@@ -167,9 +188,9 @@ describe("AmfeScreen", () => {
   it("frames the interest area the way the monitoring spatial scope does", async () => {
     const user = userEvent.setup();
 
-    render(<AmfeScreen />);
+    renderAnalysisSection();
 
-    await user.click(screen.getByRole("button", { name: "run-analysis" }));
+    await runAnalysis(user);
 
     await waitFor(() => {
       expect(mapPropsMock.mock.calls.at(-1)?.[0]?.allowedStateUfs).toEqual(
@@ -186,7 +207,7 @@ describe("AmfeScreen", () => {
     const user = userEvent.setup();
     releaseOverview = () => {};
 
-    render(<AmfeScreen />);
+    renderAnalysisSection();
 
     const emitZoom = (zoom: number) => {
       const onZoomChange = mapPropsMock.mock.calls.at(-1)?.[0]
@@ -197,7 +218,7 @@ describe("AmfeScreen", () => {
     emitZoom(CLASSIFICATION_MIN_ZOOM - 1);
     expect(screen.queryByRole("status")).not.toBeInTheDocument();
 
-    await user.click(screen.getByRole("button", { name: "run-analysis" }));
+    await runAnalysis(user);
     await screen.findByText(/2 de 3 municípios/);
 
     emitZoom(CLASSIFICATION_MIN_ZOOM - 1);
@@ -214,12 +235,13 @@ describe("AmfeScreen", () => {
   });
 
   it("keeps the spatial selection stable across re-renders", async () => {
-    render(<AmfeScreen />);
+    renderAnalysisSection();
 
     const firstSelection = boundaryOverlayMock.mock.calls[0]?.[0];
 
-    const onZoomChange = mapPropsMock.mock.calls.at(-1)?.[0]
-      ?.onZoomChange as (zoom: number) => void;
+    const onZoomChange = mapPropsMock.mock.calls.at(-1)?.[0]?.onZoomChange as (
+      zoom: number,
+    ) => void;
     act(() => onZoomChange(7));
 
     expect(boundaryOverlayMock.mock.calls.length).toBeGreaterThan(1);
@@ -229,11 +251,11 @@ describe("AmfeScreen", () => {
   it("shows the priority legend only when there is a choropleth to read", async () => {
     const user = userEvent.setup();
 
-    render(<AmfeScreen />);
+    renderAnalysisSection();
 
     expect(screen.queryByText("Nível de prioridade")).not.toBeInTheDocument();
 
-    await user.click(screen.getByRole("button", { name: "run-analysis" }));
+    await runAnalysis(user);
 
     expect(await screen.findByText("Nível de prioridade")).toBeInTheDocument();
   });
@@ -241,13 +263,13 @@ describe("AmfeScreen", () => {
   it("shows the opacity control only when there is a choropleth to fade", async () => {
     const user = userEvent.setup();
 
-    render(<AmfeScreen />);
+    renderAnalysisSection();
 
     expect(
       screen.queryByRole("slider", { name: "Transparência" }),
     ).not.toBeInTheDocument();
 
-    await user.click(screen.getByRole("button", { name: "run-analysis" }));
+    await runAnalysis(user);
 
     expect(
       await screen.findByRole("slider", { name: "Transparência" }),
@@ -257,9 +279,9 @@ describe("AmfeScreen", () => {
   it("fades the choropleth fill without touching the basemap", async () => {
     const user = userEvent.setup();
 
-    render(<AmfeScreen />);
+    renderAnalysisSection();
 
-    await user.click(screen.getByRole("button", { name: "run-analysis" }));
+    await runAnalysis(user);
     const slider = await screen.findByRole("slider", {
       name: "Transparência",
     });
@@ -275,13 +297,13 @@ describe("AmfeScreen", () => {
   it("keeps the export menu on the map and enables the workbook with results", async () => {
     const user = userEvent.setup();
 
-    render(<AmfeScreen />);
+    renderAnalysisSection();
 
     await user.click(screen.getByRole("button", { name: /Download/ }));
     expect(screen.getByRole("button", { name: "XLSX" })).toBeDisabled();
     await user.click(screen.getByRole("button", { name: /Download/ }));
 
-    await user.click(screen.getByRole("button", { name: "run-analysis" }));
+    await runAnalysis(user);
     await waitFor(() => {
       expect(screen.getByText(/2 de 3 municípios/)).toBeInTheDocument();
     });
@@ -299,13 +321,11 @@ describe("AmfeScreen", () => {
   it("reports the coverage returned by the backend", async () => {
     const user = userEvent.setup();
 
-    render(<AmfeScreen />);
+    renderAnalysisSection();
 
-    await user.click(screen.getByRole("button", { name: "run-analysis" }));
+    await runAnalysis(user);
 
-    expect(
-      await screen.findByText("2 de 3 municípios"),
-    ).toBeInTheDocument();
+    expect(await screen.findByText("2 de 3 municípios")).toBeInTheDocument();
     expect(
       screen.getByText("(1 omitidos por dados ausentes)"),
     ).toBeInTheDocument();

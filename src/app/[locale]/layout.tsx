@@ -135,9 +135,10 @@ export default async function RootLayout({
                 (item) => item.appears,
               )}
             ></Header>
-            <main className="flex flex-col flex-1 min-h-0 w-full">
-              {children}
-            </main>
+            {/* Sem `min-h-0`: o rodapé fica depois do `main`, então encolher o
+                conteúdo abaixo da altura que ele pede faria o rodapé subir por
+                cima da plataforma em vez de esperar a rolagem. */}
+            <main className="flex flex-col flex-1 w-full">{children}</main>
             <FooterSlot content={footerContent} />
           </AuthProvider>
         </NextIntlClientProvider>

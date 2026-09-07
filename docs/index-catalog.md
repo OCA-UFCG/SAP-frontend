@@ -58,7 +58,9 @@ com `previewMap`, fora de `IndexCatalogDraftInput`, justamente para ficar fora d
 
 Como o relatório lê o `panelLayer` publicado, editar o texto de um índice já
 publicado exige republicar — a rota devolve `requiresRepublish` para a tela
-avisar.
+avisar. **Republicar** aparece no cartão e no editor sempre que o índice está
+publicado e tem alteração pendente, e é a única forma de levar ao ar uma
+correção de texto ou uma imagem nova sem despublicar o índice antes.
 
 ### Texto padrão e variáveis
 
@@ -212,7 +214,20 @@ sem valor nesta forma, porque não saem de uma tabela municipal.
 
 Novos períodos não entram automaticamente no índice público. O operador usa
 **Revalidar assets**, confere a prévia e publica uma nova revisão. Um índice já
-publicado pode receber alterações em draft sem retirar a versão pública atual.
+publicado pode receber alterações em draft sem retirar a versão pública atual, e
+**Republicar** as leva ao ar reconferindo o mesmo fingerprint.
+
+Publicar exige uma prévia válida gravada, e não um `status` específico:
+`hasPublishableValidation` recusa `draft` e `error` — nos dois a validação foi
+apagada ou marcada inválida — e deixa `ready` e `published` seguirem para a
+reconferência do fingerprint. A mesma função decide se a tela oferece
+**Republicar**, para o botão não aparecer num estado que a rota recusaria: uma
+edição da configuração derruba o status para `draft`, e ali o caminho é
+revalidar antes de publicar.
+
+Uma publicação que falha não rebaixa o status do índice: ele volta a ser o de
+antes da tentativa, porque numa republicação a versão publicada continua no
+Monitoramento.
 
 Publicar confere `sys.publishedAt` na resposta do Contentful antes de responder
 sucesso, e a tela reconsulta a lista para confirmar que o índice está publicado.

@@ -1,5 +1,14 @@
 import "server-only";
 
+/**
+ * Teto explícito para as queries de coleção. Sem um `limit`, o Contentful
+ * devolve 100 itens e descarta o resto sem erro nenhum, então uma coleção que
+ * cresce passa a chegar incompleta em silêncio. 200 fica bem acima das maiores
+ * coleções de hoje (20 `panelLayer`, 16 termos de glossário) e bem abaixo do
+ * limite de complexidade da API.
+ */
+export const CONTENTFUL_COLLECTION_LIMIT = 200;
+
 interface ContentfulGraphQLResponse<T> {
   data?: T;
   errors?: Array<{ message?: string }>;

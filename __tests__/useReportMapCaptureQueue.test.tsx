@@ -27,6 +27,50 @@ describe("selectActiveReportMapKeys", () => {
     ).toEqual(["map-0", "map-2", "map-3", "map-4", "map-5"]);
   });
 
+  // O relatório tem 20 mapas e 5 vagas: preencher na ordem do documento fazia
+  // quem estava lendo a última seção esperar todas as anteriores. Medido em
+  // Juazeiro - BA, a espera na fila foi de 8450 ms de mediana e 15 202 ms no
+  // pior mapa.
+  it("dá as vagas primeiro aos mapas que estão na tela", () => {
+    const keys = ["map-0", "map-1", "map-2", "map-3", "map-4", "map-5"];
+
+    expect(
+      selectActiveReportMapKeys(keys, new Set(), null, 3, {
+        visibleKeys: new Set(["map-4", "map-5"]),
+      }),
+    ).toEqual(["map-4", "map-5", "map-0"]);
+  });
+
+  it("mantém a ordem do documento entre os mapas visíveis", () => {
+    const keys = ["map-0", "map-1", "map-2", "map-3"];
+
+    expect(
+      selectActiveReportMapKeys(keys, new Set(), null, 4, {
+        visibleKeys: new Set(["map-3", "map-1"]),
+      }),
+    ).toEqual(["map-1", "map-3", "map-0", "map-2"]);
+  });
+
+  it("não repete um mapa já capturado que continua na tela", () => {
+    const keys = ["map-0", "map-1", "map-2"];
+
+    expect(
+      selectActiveReportMapKeys(keys, new Set(["map-1"]), null, 2, {
+        visibleKeys: new Set(["map-1", "map-2"]),
+      }),
+    ).toEqual(["map-2", "map-0"]);
+  });
+
+  it("volta à ordem do documento quando nada foi reportado como visível", () => {
+    const keys = ["map-0", "map-1", "map-2", "map-3"];
+
+    expect(
+      selectActiveReportMapKeys(keys, new Set(), null, 2, {
+        visibleKeys: new Set(),
+      }),
+    ).toEqual(["map-0", "map-1"]);
+  });
+
   it("reduces concurrency to one while retrying a failed capture", () => {
     expect(
       selectActiveReportMapKeys(
@@ -83,6 +127,47 @@ describe("useReportMapCaptureQueue", () => {
         ["map-0", "image-0"],
       ]),
     );
+  });
+
+  it("passa a priorizar o mapa avisado como visível", () => {
+    const { result } = renderHook(() =>
+      useReportMapCaptureQueue([
+        "map-0",
+        "map-1",
+        "map-2",
+        "map-3",
+        "map-4",
+        "map-5",
+      ]),
+    );
+
+    expect(result.current.activeMapKeys.has("map-5")).toBe(false);
+
+    act(() => result.current.handleMapVisibility("map-5", true));
+
+    expect([...result.current.activeMapKeys]).toEqual([
+      "map-5",
+      "map-0",
+      "map-1",
+      "map-2",
+      "map-3",
+    ]);
+
+    act(() => result.current.handleMapVisibility("map-5", false));
+
+    expect(result.current.activeMapKeys.has("map-5")).toBe(false);
+  });
+
+  it("conta quantos mapas ainda faltam", () => {
+    const { result } = renderHook(() =>
+      useReportMapCaptureQueue(["map-0", "map-1", "map-2"]),
+    );
+
+    expect(result.current.pendingMapCount).toBe(3);
+
+    act(() => result.current.handleMapCapture("map-1", "image-1"));
+
+    expect(result.current.pendingMapCount).toBe(2);
   });
 
   it("cancels queue state before a different report starts", () => {

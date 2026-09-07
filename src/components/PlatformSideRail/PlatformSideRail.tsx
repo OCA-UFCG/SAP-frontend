@@ -1,7 +1,9 @@
 "use client";
+import { useLinkStatus } from "next/link";
 import { Link } from "@/translations/routing";
 import { Chevron } from "../Chevron/Chevron";
 import { Icon } from "../Icon/Icon";
+import { PLATFORM_SHELL_HEIGHT_CLASS } from "@/components/PlatformLayout/platformShell";
 import clsx from "clsx";
 import { useTranslations } from "next-intl";
 
@@ -27,6 +29,9 @@ export interface PlatformSideRailProps {
   /** Whether the authenticated viewer can access the logs dashboard. */
   showAuditLink?: boolean;
 
+  /** Seção cuja navegação está em voo, para a trilha dizer que está indo. */
+  pendingSection?: PlatformSection | null;
+
   className?: string;
 }
 
@@ -45,6 +50,51 @@ type PlatformRailItem =
       icon: string;
     };
 
+function RailPendingSpinner() {
+  const t = useTranslations("PlatformSideRail");
+
+  return (
+    <span
+      role="status"
+      aria-label={t("loading")}
+      className="h-6 w-6 animate-spin rounded-full border-2 border-[#E1E2B4] border-t-[#777E32]"
+    />
+  );
+}
+
+function RailItemContent({
+  icon,
+  label,
+  isPending,
+}: {
+  icon: string;
+  label: string;
+  isPending: boolean;
+}) {
+  return (
+    <>
+      <div className="flex items-center justify-center">
+        {isPending ? <RailPendingSpinner /> : <Icon id={icon} size={24} />}
+      </div>
+
+      <div className="text-[12px] leading-[14px] font-medium text-center break-words w-full px-1">
+        {label}
+      </div>
+    </>
+  );
+}
+
+/**
+ * Auditoria e catálogo são links de verdade, e o Next avisa quando a navegação
+ * daquele link está em voo. Sem isso a trilha fica parada por perto de um
+ * segundo depois do clique, sem sinal nenhum de que algo aconteceu.
+ */
+function RailLinkContent({ icon, label }: { icon: string; label: string }) {
+  const { pending } = useLinkStatus();
+
+  return <RailItemContent icon={icon} label={label} isPending={pending} />;
+}
+
 /**
  * PlatformSideRail
  *
@@ -61,6 +111,7 @@ export function PlatformSideRail({
   isPanelOpen,
   onTogglePanel,
   showAuditLink = false,
+  pendingSection = null,
   className,
 }: PlatformSideRailProps) {
   const t = useTranslations("PlatformSideRail");
@@ -96,7 +147,9 @@ export function PlatformSideRail({
   return (
     <div
       className={clsx(
-        "sticky top-16 relative h-[calc(100vh-64px)] max-h-full w-[140px] shrink-0 self-start",
+        // `top-16.5` acompanha a altura real do cabeçalho; `max-h-full` impede
+        // que a trilha ultrapasse a casca e invada o rodapé nas telas que rolam.
+        `sticky top-16.5 relative max-h-full w-[140px] shrink-0 self-start ${PLATFORM_SHELL_HEIGHT_CLASS}`,
         className,
       )}
       data-platform-side-rail
@@ -108,18 +161,6 @@ export function PlatformSideRail({
               item.kind === "section"
                 ? item.id === activeSection
                 : activeSection === item.id;
-
-            const itemContent = (
-              <>
-                <div className={clsx("flex items-center justify-center")}>
-                  <Icon id={item.icon} size={24} />
-                </div>
-
-                <div className="text-[12px] leading-[14px] font-medium text-center break-words w-full px-1">
-                  {item.label}
-                </div>
-              </>
-            );
 
             return (
               <div
@@ -136,6 +177,7 @@ export function PlatformSideRail({
                     type="button"
                     onClick={() => onSectionChange(item.id)}
                     aria-current={isActive ? "page" : undefined}
+                    aria-busy={pendingSection === item.id || undefined}
                     className={clsx(
                       "cursor-pointer w-full h-[88px] flex flex-col items-center justify-center gap-[4px] px-[8px] rounded-lg transition-colors duration-150",
                       isActive
@@ -143,7 +185,11 @@ export function PlatformSideRail({
                         : "text-[#292829] hover:bg-[#F8F7F8]",
                     )}
                   >
-                    {itemContent}
+                    <RailItemContent
+                      icon={item.icon}
+                      label={item.label}
+                      isPending={pendingSection === item.id}
+                    />
                   </button>
                 ) : (
                   <Link
@@ -156,7 +202,7 @@ export function PlatformSideRail({
                         : "text-[#292829] hover:bg-[#F8F7F8]",
                     )}
                   >
-                    {itemContent}
+                    <RailLinkContent icon={item.icon} label={item.label} />
                   </Link>
                 )}
               </div>
@@ -168,20 +214,20 @@ export function PlatformSideRail({
       {activeSection !== "analysis" &&
         activeSection !== "logs" &&
         activeSection !== "catalog" && (
-        <div
-          className={`absolute top-1/2 -translate-y-1/2 transition-[right] duration-300 ease-in-out ${isPanelOpen ? "-right-[460px]" : "-right-[39px]"}`}
-        >
-          <button
-            type="button"
-            onClick={onTogglePanel}
-            className="h-10 w-10 rounded-r-lg border border-neutral-200 bg-white shadow-sm flex items-center justify-center"
+          <div
+            className={`absolute top-1/2 -translate-y-1/2 transition-[right] duration-300 ease-in-out ${isPanelOpen ? "-right-[460px]" : "-right-[39px]"}`}
           >
-            <span className="cursor-pointer text-sm font-bold">
-              <Chevron open={isPanelOpen} from="left" to="right" />
-            </span>
-          </button>
-        </div>
-      )}
+            <button
+              type="button"
+              onClick={onTogglePanel}
+              className="h-10 w-10 rounded-r-lg border border-neutral-200 bg-white shadow-sm flex items-center justify-center"
+            >
+              <span className="cursor-pointer text-sm font-bold">
+                <Chevron open={isPanelOpen} from="left" to="right" />
+              </span>
+            </button>
+          </div>
+        )}
     </div>
   );
 }

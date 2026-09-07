@@ -1,4 +1,7 @@
-import { getContent } from "@/infrastructure/contentful/client";
+import {
+  CONTENTFUL_COLLECTION_LIMIT,
+  getContent,
+} from "@/infrastructure/contentful/client";
 import type { Document } from "@contentful/rich-text-types";
 import {
   AboutSectionI,
@@ -12,7 +15,7 @@ import { normalizeContentfulImage } from "@/utils/functions";
 
 const GET_FOOTER_PAGE = `
   query GetFooterPage($locale: String!) {
-    footerCollection(locale: $locale) {
+    footerCollection(limit: ${CONTENTFUL_COLLECTION_LIMIT}, locale: $locale) {
       items {
         sys {
           id
@@ -39,7 +42,7 @@ const GET_HOME_PAGE = `
       }
     }
 
-    secaoSobreCollection(locale: $locale) {
+    secaoSobreCollection(limit: ${CONTENTFUL_COLLECTION_LIMIT}, locale: $locale) {
       items {
         identifier
         title
@@ -82,7 +85,7 @@ const GET_HOME_PAGE = `
       }
     }
 
-    partnersCollection(locale: $locale, order: order_ASC) {
+    partnersCollection(limit: ${CONTENTFUL_COLLECTION_LIMIT}, locale: $locale, order: order_ASC) {
       items {
         sys {
           id
@@ -102,7 +105,7 @@ const GET_HOME_PAGE = `
 
 const GET_ABOUT_PAGE = `
   query GetAboutPage($locale: String!) {
-    secaoSobreCollection(locale: $locale, where: { includeInAboutSap: true }) {
+    secaoSobreCollection(limit: ${CONTENTFUL_COLLECTION_LIMIT}, locale: $locale, where: { includeInAboutSap: true }) {
       items {
         sys {
           id
@@ -131,7 +134,7 @@ const GET_ABOUT_PAGE = `
       }
     }
 
-    partnersCollection(locale: $locale, order: order_ASC) {
+    partnersCollection(limit: ${CONTENTFUL_COLLECTION_LIMIT}, locale: $locale, order: order_ASC) {
       items {
         sys {
           id
@@ -151,7 +154,7 @@ const GET_ABOUT_PAGE = `
 
 const GET_GLOSSARY_PAGE = `
   query GetGlossaryPage($locale: String!) {
-    glossaryCollection(locale: $locale, order: term_ASC) {
+    glossaryCollection(limit: ${CONTENTFUL_COLLECTION_LIMIT}, locale: $locale, order: term_ASC) {
       items {
         sys {
           id

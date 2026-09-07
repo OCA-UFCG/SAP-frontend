@@ -1,13 +1,10 @@
+import { createRateLimitStore } from "@/utils/rateLimitStore";
+
 const LOGS_RATE_LIMIT_WINDOW_MS = 1000 * 60;
 const LOGS_RATE_LIMIT_MAX_AUTHENTICATED_EVENTS = 120;
 const LOGS_RATE_LIMIT_MAX_ANONYMOUS_EVENTS = 60;
 
-interface RateLimitEntry {
-  count: number;
-  resetAt: number;
-}
-
-const requestsByClient = new Map<string, RateLimitEntry>();
+const requestsByClient = createRateLimitStore();
 
 export function consumeLogsRateLimit(
   clientKey: string,
@@ -15,17 +12,16 @@ export function consumeLogsRateLimit(
   maxEvents: number,
 ) {
   const now = Date.now();
-  const currentEntry = requestsByClient.get(clientKey);
+  const currentEntry = requestsByClient.get(clientKey, now);
 
-  const entry =
-    !currentEntry || now >= currentEntry.resetAt
-      ? { count: eventUnits, resetAt: now + LOGS_RATE_LIMIT_WINDOW_MS }
-      : {
-          count: currentEntry.count + eventUnits,
-          resetAt: currentEntry.resetAt,
-        };
+  const entry = !currentEntry
+    ? { count: eventUnits, resetAt: now + LOGS_RATE_LIMIT_WINDOW_MS }
+    : {
+        count: currentEntry.count + eventUnits,
+        resetAt: currentEntry.resetAt,
+      };
 
-  requestsByClient.set(clientKey, entry);
+  requestsByClient.set(clientKey, entry, now);
 
   return {
     limited: entry.count > maxEvents,

@@ -1,6 +1,7 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 vi.mock("@/infrastructure/contentful/client", () => ({
+  CONTENTFUL_COLLECTION_LIMIT: 200,
   getContent: vi.fn(),
 }));
 

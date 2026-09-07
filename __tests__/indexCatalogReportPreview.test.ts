@@ -46,11 +46,14 @@ const imageData: CompactTerritorialAnalysisDataset = {
   },
 };
 
-function stubDraft(report?: {
-  sections: Array<{ title: string; text: string }>;
-  sectionColor?: string;
-  methodology?: string;
-}) {
+function stubDraft(
+  report?: {
+    sections: Array<{ title: string; text: string }>;
+    sectionColor?: string;
+    methodology?: string;
+  },
+  defaultPeriod = "2024",
+) {
   const entry = { sys: { id: "panel", version: 3 }, fields: {} };
   contentful.getCatalogEntry.mockResolvedValue({
     entry,
@@ -98,7 +101,7 @@ function stubDraft(report?: {
           inferred: {
             panelLayerId: "indice-de-aridez-catalogo",
             periods: ["2023", "2024"],
-            defaultPeriod: "2024",
+            defaultPeriod,
             timeScale: "Anual" as const,
             classIndexes: [1, 2],
             statisticsAssetCount: 1,
@@ -317,6 +320,24 @@ describe("buildIndexCatalogReportPreview", () => {
       valueTableSource,
     );
     expect(preview.report.analyses[0]?.status).toBe("available");
+  });
+
+  it("monta a prévia no período padrão, e não sempre no último", async () => {
+    // Numa previsão o padrão é o primeiro período — o mês mais próximo. A
+    // prévia pegava o último da lista, ou seja, o horizonte mais distante.
+    stubDraft(undefined, "2023");
+    stubGeeRow();
+
+    const preview = await buildIndexCatalogReportPreview("panel");
+
+    expect(preview.period).toBe("2023");
+    expect(gee.getGeeStatisticsYearPatch).toHaveBeenCalledWith(
+      "indice-de-aridez-catalogo",
+      "2023",
+      CAMPINA_GRANDE,
+      2,
+      source,
+    );
   });
 
   it("não vai ao Earth Engine com um rascunho sem prévia validada", async () => {

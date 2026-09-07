@@ -66,8 +66,16 @@ function getPreviewMunicipality() {
   return municipality;
 }
 
-function getLatestPeriod(config: IndexCatalogConfigV2) {
-  const period = config.validation?.inferred.periods.at(-1);
+/**
+ * O período que a prévia monta: o padrão que a validação inferiu, com o mais
+ * recente como reserva para as validações gravadas antes de ele existir. Não é
+ * sempre o último da lista porque num índice de previsão o padrão é o primeiro
+ * — o mês mais próximo —, e prever o horizonte mais distante não é o que a
+ * pessoa vê ao abrir o relatório.
+ */
+function getPreviewPeriod(config: IndexCatalogConfigV2) {
+  const inferred = config.validation?.inferred;
+  const period = inferred?.defaultPeriod ?? inferred?.periods.at(-1);
   if (!period) {
     throw new Error(
       "O rascunho não tem nenhum período validado para montar a prévia do relatório.",
@@ -140,7 +148,7 @@ function toDraftPreviewInput(
   if (!config.validation?.valid || !config.validatedStatisticsSource) {
     throw new Error("Valide os assets e gere a prévia antes do relatório.");
   }
-  const period = getLatestPeriod(config);
+  const period = getPreviewPeriod(config);
   return {
     period,
     dependencies: {

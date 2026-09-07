@@ -50,9 +50,15 @@ import {
 } from "@/utils/municipalReportChart";
 import { slugifyTranslationKey } from "@/utils/translations";
 import { ReportMapPreview } from "./ReportMapPreview";
+import { destroyReportMapPool } from "./reportMapPool";
 import { useReportMapCaptureQueue } from "./useReportMapCaptureQueue";
+import {
+  useReportMapTileUrls,
+  type ReportMapTileUrls,
+} from "./useReportMapTileUrls";
+import type { EeMapUrlFailure } from "@/contracts/eeMapUrls";
 
-interface MunicipalReportPreviewProps {
+export interface MunicipalReportPreviewProps {
   municipalityCode: string;
   period: string;
   layerIds?: string[];
@@ -204,7 +210,7 @@ function translateAnalysisMethodology(
   }
   if (
     presentationMethodology ===
-    "Indicador territorial disponibilizado na plataforma SEDES." &&
+      "Indicador territorial disponibilizado na plataforma SEDES." &&
     tReportHas("indicators.defaultMethodology")
   ) {
     return tReport("indicators.defaultMethodology");
@@ -371,8 +377,8 @@ function MunicipalReportDynamicChart({
                 analysis.valueType === "percentage"
                   ? `${Number(value).toFixed(0)}%`
                   : new Intl.NumberFormat(locale, {
-                    maximumFractionDigits: 0,
-                  }).format(Number(value))
+                      maximumFractionDigits: 0,
+                    }).format(Number(value))
               }
               tick={{ fill: "#5F6670", fontSize: 11 }}
               tickLine={false}
@@ -418,10 +424,11 @@ function MunicipalReportDynamicChart({
               type="button"
               aria-pressed={enabled}
               onClick={() => toggleSeries(series.id)}
-              className={`inline-flex items-center gap-2 rounded border px-2.5 py-1.5 text-xs font-semibold transition ${enabled
-                ? "border-[#c8ced1] bg-white text-[#292829]"
-                : "border-[#d9e0e3] bg-[#f4f6f8] text-neutral-500"
-                }`}
+              className={`inline-flex items-center gap-2 rounded border px-2.5 py-1.5 text-xs font-semibold transition ${
+                enabled
+                  ? "border-[#c8ced1] bg-white text-[#292829]"
+                  : "border-[#d9e0e3] bg-[#f4f6f8] text-neutral-500"
+              }`}
             >
               <span
                 className="h-2.5 w-2.5 rounded-full"
@@ -529,8 +536,8 @@ function MunicipalReportPrintChart({
             analysis.valueType === "percentage"
               ? `${Number(value).toFixed(0)}%`
               : new Intl.NumberFormat(locale, {
-                maximumFractionDigits: 0,
-              }).format(value);
+                  maximumFractionDigits: 0,
+                }).format(value);
 
           return (
             <g key={value}>
@@ -660,6 +667,9 @@ function AnalysisSection({
   mapActive,
   mapAttempt,
   mapQueuedAt,
+  onMapVisibility,
+  mapTileUrl,
+  mapUnavailableReason,
   onMapCapture,
   docsContent,
 }: {
@@ -671,6 +681,9 @@ function AnalysisSection({
   mapActive?: boolean;
   mapAttempt?: number;
   mapQueuedAt?: number | null;
+  onMapVisibility?: (visible: boolean) => void;
+  mapTileUrl?: string;
+  mapUnavailableReason?: EeMapUrlFailure;
   onMapCapture?: (src: string | null) => void;
   docsContent: MunicipalReportDocsContent | null;
 }) {
@@ -908,7 +921,10 @@ function AnalysisSection({
                   attempt={mapAttempt}
                   imageSrc={mapSrc}
                   queuedAt={mapQueuedAt}
+                  tileUrl={mapTileUrl}
+                  unavailableReason={mapUnavailableReason}
                   onCapture={onMapCapture}
+                  onVisibilityChange={onMapVisibility}
                 />
                 <p className="border-t border-[#c8ced1] px-4 py-2 text-xs leading-5 text-neutral-600">
                   {t("rasterDescription", {
@@ -996,8 +1012,10 @@ const ReportDocument = memo(function ReportDocument({
   mapImages,
   activeMapKeys,
   mapQueueStartedAt,
+  mapTileUrls,
   retryAttemptFor,
   onMapCapture,
+  onMapVisibility,
   documentRef,
   docsContent,
 }: {
@@ -1006,8 +1024,10 @@ const ReportDocument = memo(function ReportDocument({
   mapImages: Map<string, string | null>;
   activeMapKeys: ReadonlySet<string>;
   mapQueueStartedAt: number | null;
+  mapTileUrls: ReportMapTileUrls;
   retryAttemptFor: (key: string) => number;
   onMapCapture?: (key: string, src: string | null) => void;
+  onMapVisibility?: (key: string, visible: boolean) => void;
   documentRef?: Ref<HTMLElement>;
   docsContent: MunicipalReportDocsContent | null;
 }) {
@@ -1153,7 +1173,10 @@ const ReportDocument = memo(function ReportDocument({
               mapActive={activeMapKeys.has(mapKey)}
               mapAttempt={retryAttemptFor(mapKey)}
               mapQueuedAt={mapQueueStartedAt}
+              mapTileUrl={mapTileUrls.tileUrlFor(mapKey)}
+              mapUnavailableReason={mapTileUrls.failureFor(mapKey)}
               onMapCapture={(src) => onMapCapture?.(mapKey, src)}
+              onMapVisibility={(visible) => onMapVisibility?.(mapKey, visible)}
               docsContent={docsContent}
             />
           );
@@ -1255,7 +1278,7 @@ export function MunicipalReportPreview({
   const mapQueueMeasuredRef = useRef(false);
   const mapQueuePeakConcurrencyRef = useRef(0);
   const layerIdsKey = useMemo(() => layerIds?.join(",") ?? "", [layerIds]);
-  const reportMapKeys = useMemo(() => {
+  const requestedMapKeys = useMemo(() => {
     if (!report) return [];
     const selectedLayerIds = layerIdsKey
       ? new Set(layerIdsKey.split(","))
@@ -1274,20 +1297,38 @@ export function MunicipalReportPreview({
       );
   }, [layerIdsKey, report]);
   const loadErrorMessage = t("loadError");
+  const mapTileUrls = useReportMapTileUrls(requestedMapKeys);
+  // A fila de captura recebe cada camada assim que a URL dela chega, e nunca as
+  // que não têm imagem no período: montar um MapLibre para uma dessas só
+  // gastava contexto WebGL e terminava em captura vazia.
+  const reportMapKeys = useMemo(
+    () => requestedMapKeys.filter((key) => mapTileUrls.tileUrlFor(key)),
+    [mapTileUrls, requestedMapKeys],
+  );
   const {
     activeMapKeys,
     handleMapCapture,
+    handleMapVisibility,
     mapImages,
-    mapsReady,
+    mapsReady: capturesReady,
+    pendingMapCount,
     resetMapCaptureQueue,
     retryAttemptFor,
   } = useReportMapCaptureQueue(reportMapKeys);
+  // Enquanto as URLs não voltam a fila está vazia, e uma fila vazia estaria
+  // "pronta": sem esta guarda o botão de exportar liberava antes do primeiro
+  // mapa existir.
+  const mapsReady = mapTileUrls.resolved && capturesReady;
 
   useEffect(() => {
     if (!hasRequiredParameters || navigationMeasuredRef.current) return;
     navigationMeasuredRef.current = true;
     recordMunicipalReportNavigation();
   }, [hasRequiredParameters]);
+
+  // Cinco contextos WebGL guardados são baratos enquanto o relatório está
+  // aberto, e desperdício depois que ele sai da tela.
+  useEffect(() => destroyReportMapPool, []);
 
   useEffect(() => {
     if (!report || loading || previewMeasuredRef.current) return;
@@ -1622,9 +1663,11 @@ export function MunicipalReportPreview({
                     <path d="M5 20h14" />
                   </svg>
                 )}
-                {exporting || (report && !mapsReady)
+                {exporting
                   ? t("preparingDownload")
-                  : t("downloadPdf")}
+                  : report && !mapsReady
+                    ? t("preparingDownloadMaps", { count: pendingMapCount })
+                    : t("downloadPdf")}
               </button>
             </div>
           </div>
@@ -1660,8 +1703,10 @@ export function MunicipalReportPreview({
                 mapImages={mapImages}
                 activeMapKeys={activeMapKeys}
                 mapQueueStartedAt={mapQueueStartedAt}
+                mapTileUrls={mapTileUrls}
                 retryAttemptFor={retryAttemptFor}
                 onMapCapture={handleMapCapture}
+                onMapVisibility={handleMapVisibility}
                 documentRef={reportDocumentRef}
                 docsContent={docsContent}
               />
@@ -1699,8 +1744,10 @@ export function MunicipalReportPreview({
             mapImages={mapImages}
             activeMapKeys={activeMapKeys}
             mapQueueStartedAt={mapQueueStartedAt}
+            mapTileUrls={mapTileUrls}
             retryAttemptFor={retryAttemptFor}
             onMapCapture={handleMapCapture}
+            onMapVisibility={handleMapVisibility}
             docsContent={docsContent}
           />
         )}

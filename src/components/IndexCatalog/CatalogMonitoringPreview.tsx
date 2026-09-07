@@ -65,7 +65,10 @@ export function CatalogMonitoringPreview({
       className="relative h-[720px] min-h-[620px] overflow-hidden rounded-xl border border-[#D9DAD4] bg-[#E4E5E2]"
       aria-label="Prévia do Monitoramento"
     >
-      <PlatformMap showMonitoringOverlays={section === "monitoring"} />
+      <PlatformMap
+        section="monitoring"
+        showMonitoringControls={section === "monitoring"}
+      />
       <div className="absolute inset-y-0 left-0 z-20 w-[420px] overflow-hidden border-r border-neutral-200 bg-[#F6F7F6]">
         {section === "analysis-detail" ? (
           <AnalysisContext

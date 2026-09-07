@@ -29,6 +29,7 @@
     "zoomOut": "Zoom out",
     "downloadPdf": "Download PDF",
     "preparingDownload": "Preparing PDF...",
+    "preparingDownloadMaps": "Preparing PDF... ({count} map(s) left)",
     "popupBlocked": "The browser blocked the print window. Allow pop-ups to download the report as a PDF.",
     "emptyPreviewTitle": "Report preview",
     "emptyPreviewDescription": "Select the municipality, period, and available modules to generate the report.",
@@ -136,6 +137,7 @@
     "historicalNoteText": "The available series for this indicator includes {count} period(s), covering {range}. {resolution}",
     "mapCropAlt": "Cropped municipality map",
     "mapUnavailableExport": "Map unavailable for export.",
+    "mapPeriodUnavailable": "No map image for this period.",
     "periodRange": "{first} to {last}",
     "reportFilenamePrefix": "Report",
     "status": {

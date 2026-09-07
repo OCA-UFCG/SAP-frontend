@@ -1,6 +1,7 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useTransition } from "react";
+import dynamic from "next/dynamic";
 import { useRouter } from "@/translations/routing";
 import {
   PlatformSection,
@@ -12,18 +13,26 @@ import { ComingSoonContext } from "@/components/SidePanelContexts/ComingSoonCont
 import { MunicipalReportContext } from "@/components/SidePanelContexts/MunicipalReportContext";
 import { PanelLayerI } from "@/utils/interfaces";
 import { useMapLayerActions } from "@/components/MapLayerContext/MapLayerContext";
-import { MunicipalReportPreview } from "@/components/MunicipalReport/MunicipalReportPreview";
+import type { MunicipalReportPreviewProps } from "@/components/MunicipalReport/MunicipalReportPreview";
+
+// O relatório municipal carrega o `recharts` junto. Ele só aparece na seção de
+// Comunicação, então importá-lo sob demanda tira essa biblioteca do pacote que
+// todo mundo baixa ao abrir a plataforma.
+const LazyMunicipalReportPreview = dynamic<MunicipalReportPreviewProps>(
+  () =>
+    import("@/components/MunicipalReport/MunicipalReportPreview").then(
+      (module) => ({ default: module.MunicipalReportPreview }),
+    ),
+  {
+    ssr: false,
+    loading: () => <div className="h-full w-full animate-pulse bg-[#F6F7F6]" />,
+  },
+);
 
 export type PlatformSidebarInitialSection =
-  | "monitoring"
-  | "analysis"
-  | "communication";
+  "monitoring" | "analysis" | "communication";
 
-export type PlatformSidebarViewMode =
-  | "default"
-  | "logs"
-  | "catalog"
-  | "amfe";
+export type PlatformSidebarViewMode = "default" | "logs" | "catalog";
 
 function buildSidebarState(
   viewMode: PlatformSidebarViewMode,
@@ -45,7 +54,10 @@ function buildSidebarState(
     };
   }
 
-  if (viewMode === "amfe") {
+  // Análise ocupa a faixa do painel com o próprio formulário, então entra com o
+  // painel recolhido — e sem trocar a seção dele, que reaparece intacta ao
+  // voltar para Monitoramento.
+  if (initialSection === "analysis") {
     return {
       activeSection: "analysis" as const,
       panelSection: "monitoring" as const,
@@ -77,7 +89,11 @@ interface PlatformSidebarProps {
   showAuditLink?: boolean;
   initialSection?: PlatformSidebarInitialSection;
   viewMode?: PlatformSidebarViewMode;
-  reportRequest?: { municipalityCode: string; period: string; layerIds: string[] };
+  reportRequest?: {
+    municipalityCode: string;
+    period: string;
+    layerIds: string[];
+  };
   onActiveSectionChange?: (section: PlatformSection) => void;
 }
 
@@ -92,10 +108,9 @@ export function PlatformSidebar({
   const router = useRouter();
   const { setActiveLegend } = useMapLayerActions();
   const initialSidebarState = buildSidebarState(viewMode, initialSection);
-  // A AMFE, como logs e catálogo, substitui o mapa e traz o próprio painel:
-  // o sidebar não deve abrir painel nem moldura de análise por cima dela.
-  const isUtilityView =
-    viewMode === "logs" || viewMode === "catalog" || viewMode === "amfe";
+  // Auditoria e catálogo substituem o mapa e trazem o próprio conteúdo: o
+  // sidebar não deve abrir painel por cima deles.
+  const isUtilityView = viewMode === "logs" || viewMode === "catalog";
 
   const [activeSection, setActiveSection] = useState<PlatformSection>(
     initialSidebarState.activeSection,
@@ -106,6 +121,12 @@ export function PlatformSidebar({
   const [isPanelOpen, setIsPanelOpen] = useState(
     initialSidebarState.isPanelOpen,
   );
+  // Sair de auditoria ou do catálogo ainda é uma navegação, e ela espera o
+  // servidor. O `useTransition` mantém a trilha na tela e marca o item clicado
+  // como em andamento em vez de deixar a tela parada.
+  const [isLeavingUtilityView, startUtilityViewExit] = useTransition();
+  const [utilityViewExitTarget, setUtilityViewExitTarget] =
+    useState<PlatformSection | null>(null);
   const defaultPanelOpenOffset = "560px";
   const sidePanelWidthClass = isPanelOpen ? "w-[420px]" : "w-0";
 
@@ -120,29 +141,32 @@ export function PlatformSidebar({
             ? MunicipalReportContext
             : undefined;
 
+  // Auditoria e catálogo são outras páginas: sair delas exige navegar. Dentro
+  // da plataforma, trocar de seção é estado de cliente — é o que mantém o mapa
+  // montado e a troca em dezenas de milissegundos em vez de perto de um segundo.
   function handleSectionChange(next: PlatformSection) {
     if (isUtilityView) {
-      if (next === "analysis" || next === "communication") {
-        router.push(buildPlatformHref(next));
-        return;
-      }
+      const href =
+        next === "analysis" || next === "communication"
+          ? buildPlatformHref(next)
+          : buildPlatformHref("monitoring");
 
-      router.push(buildPlatformHref("monitoring"));
+      setUtilityViewExitTarget(next);
+      startUtilityViewExit(() => router.push(href));
       return;
     }
 
     if (next === "analysis") {
+      // A legenda do Monitoramento não descreve a coropleta da análise.
       setActiveLegend(null);
-      router.push(buildPlatformHref(next));
-      return;
     }
+
     setActiveSection(next);
     onActiveSectionChange?.(next);
-    setPanelSection(next);
-    setIsPanelOpen(true);
+    setIsPanelOpen(next !== "analysis");
 
-    if (next === "monitoring" && initialSection === "communication") {
-      router.push(buildPlatformHref("monitoring"));
+    if (next !== "analysis") {
+      setPanelSection(next);
     }
   }
 
@@ -169,6 +193,7 @@ export function PlatformSidebar({
           isPanelOpen={isPanelOpen}
           onTogglePanel={() => setIsPanelOpen((v) => !v)}
           showAuditLink={showAuditLink}
+          pendingSection={isLeavingUtilityView ? utilityViewExitTarget : null}
         />
 
         {!isUtilityView && (
@@ -208,7 +233,7 @@ export function PlatformSidebar({
             className="absolute inset-y-0 right-0 z-10 bg-[#F6F7F6] transition-[left] duration-300 ease-in-out"
             style={{ left: isPanelOpen ? defaultPanelOpenOffset : "140px" }}
           >
-            <MunicipalReportPreview
+            <LazyMunicipalReportPreview
               municipalityCode={reportRequest?.municipalityCode ?? ""}
               period={reportRequest?.period ?? ""}
               layerIds={reportRequest?.layerIds ?? []}
