@@ -49,7 +49,7 @@
     "@amcharts/amcharts5": "^5.17.2",
     "@contentful/rich-text-react-renderer": "^16.1.6",
     "@contentful/rich-text-types": "^17.2.7",
-    "@google/earthengine": "^1.7.21",
+    "@google/earthengine": "^1.7.42",
     "@turf/bbox": "^7.4.0",
     "clsx": "^2.1.1",
     "firebase": "^12.13.0",
