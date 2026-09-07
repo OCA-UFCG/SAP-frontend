@@ -355,6 +355,46 @@ describe("/api/logs", () => {
     });
   });
 
+  // Regressão: a chave do limite anônimo vinha do primeiro item do
+  // X-Forwarded-For, escrito pelo próprio cliente. Trocando esse valor a cada
+  // requisição dava para gravar telemetria sem nunca bater no limite.
+  it("keys the anonymous rate limit by the hop nginx wrote, not by the client prefix", async () => {
+    mockedGetAuthenticatedUserSession.mockResolvedValueOnce(null);
+    mockedIngestTelemetryEvents.mockResolvedValueOnce({ accepted: 1 });
+
+    const response = await POST(
+      new Request("https://example.test/api/logs", {
+        method: "POST",
+        headers: {
+          ...createSameOriginHeaders(),
+          "content-type": "application/json",
+          "x-forwarded-for": "10.0.0.1, 203.0.113.7",
+        },
+        body: JSON.stringify({
+          events: [
+            {
+              eventName: "search_not_found",
+              surface: "home",
+              query: "cidade inexistente",
+              selectionMethod: "button",
+              anonymousSessionId: "anon-1",
+              activeLayerId: "CDI",
+              activeLayerName: "CDI Janeiro 2024",
+              activeDateLabel: "31/01/24",
+            },
+          ],
+        }),
+      }),
+    );
+
+    expect(response.status).toBe(202);
+    expect(mockedConsumeLogsRateLimit).toHaveBeenCalledWith(
+      "ip:203.0.113.7",
+      1,
+      60,
+    );
+  });
+
   it("returns 429 when the logs rate limit is exceeded", async () => {
     mockedGetAuthenticatedUserSession.mockResolvedValueOnce(null);
     mockedConsumeLogsRateLimit.mockReturnValueOnce({

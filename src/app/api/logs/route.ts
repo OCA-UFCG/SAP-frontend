@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { getAuthenticatedUserSession } from "@/lib/server-session";
+import { resolveTrustedClientIp } from "@/utils/requestClientIp";
 import {
   LOGS_RATE_LIMIT_MAX_ANONYMOUS_EVENTS,
   LOGS_RATE_LIMIT_MAX_AUTHENTICATED_EVENTS,
@@ -159,25 +160,15 @@ function getRequestClientKey(req: Request, uid?: string | null) {
     return `uid:${uid}`;
   }
 
-  const forwardedFor = req.headers
-    .get("x-forwarded-for")
-    ?.split(",")[0]
-    ?.trim();
-  const realIp = req.headers.get("x-real-ip")?.trim();
-  const connectingIp = req.headers.get("cf-connecting-ip")?.trim();
+  // Nunca o primeiro item do `X-Forwarded-For`: aquele trecho é escrito pelo
+  // cliente, e trocá-lo a cada requisição zerava a contagem do limite anônimo.
+  const clientIp = resolveTrustedClientIp(req);
+
+  if (clientIp) {
+    return `ip:${clientIp}`;
+  }
+
   const userAgent = req.headers.get("user-agent")?.trim();
-
-  if (forwardedFor) {
-    return `ip:${forwardedFor}`;
-  }
-
-  if (realIp) {
-    return `ip:${realIp}`;
-  }
-
-  if (connectingIp) {
-    return `ip:${connectingIp}`;
-  }
 
   return `ua:${userAgent || "unknown"}`;
 }
