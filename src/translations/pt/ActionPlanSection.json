@@ -3,10 +3,12 @@
     "title": "{title}",
     "axesSection": {
       "title": "{title}",
+      "description": "{description}",
+      "actionsLabel": "Ações",
       "executorLabel": "Executor",
       "partnersLabel": "Parceiros",
       "actionsSuffix": "ações",
-      "sedesHere": "O SEDES atua neste eixo"
+      "sedesHere": "O SEDES atua nesse eixo"
     }
   }
 }

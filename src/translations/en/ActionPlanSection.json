@@ -3,15 +3,31 @@
     "title": "The plan SEDES is part of",
     "text": "SEDES is part of the Brazilian Action Plan to Combat Desertification and Mitigate the Effects of Drought (PAB-Brazil), launched by the Ministry of Environment and Climate Change in December 2025. It is the main implementation instrument of the PNCD, with a horizon through 2045. SEDES corresponds to Objective 2.4 of the plan, under the \"Research, innovation and information management\" axis.",
     "stats": {
-      "0": { "label": "strategic objectives" },
-      "1": { "label": "actions with indicators" },
-      "2": { "label": "thematic axes" },
-      "3": { "label": "ministries involved" },
-      "4": { "value": "1.6k+", "label": "municipalities in ASD" },
-      "5": { "value": "39M", "label": "people benefited" }
+      "0": {
+        "value": "39M",
+        "label": "people benefited"
+      },
+      "1": {
+        "label": "strategic objectives"
+      },
+      "2": {
+        "label": "actions with indicators"
+      },
+      "3": {
+        "label": "thematic axes"
+      },
+      "4": {
+        "label": "ministries involved"
+      },
+      "5": {
+        "value": "1.6M+",
+        "label": "municipalities in ASD"
+      }
     },
     "axesSection": {
       "title": "Thematic axes",
+      "description": "See the 5 axes that structure the plan and where SEDES operates.",
+      "actionsLabel": "Actions",
       "executorLabel": "Lead agency",
       "partnersLabel": "Partners",
       "actionsSuffix": "actions",
@@ -24,7 +40,8 @@
           "title": "Climate adaptation and mitigation of drought effects"
         },
         "2": {
-          "title": "Research, innovation and information management"
+          "title": "Research, innovation and information management",
+          "description": "Axis responsible for structuring data, indicators and technical-scientific knowledge for combating desertification."
         },
         "3": {
           "title": "Improving the population's living conditions"

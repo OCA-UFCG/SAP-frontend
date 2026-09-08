@@ -1,5 +1,6 @@
 {
   "PlatformModulesSection": {
-    "title": "{title}"
+    "title": "{title}",
+    "learnMore": "Saiba mais"
   }
 }
