@@ -123,7 +123,7 @@ export default async function RootLayout({
   const footerContent = await getCachedFooterContent();
 
   return (
-    <html lang={locale}>
+    <html lang={locale} data-scroll-behavior="smooth">
       <meta name="apple-mobile-web-app-title" content="Portal SEDES" />
       <body
         className={`${geistSans.variable} ${geistMono.variable} ${inter.variable} ${openSans.variable} antialiased min-h-screen flex flex-col`}

@@ -2,6 +2,7 @@ import Image from "next/image";
 import { AboutSectionI } from "@/utils/interfaces";
 import { useTranslations } from "next-intl";
 import { documentToReactComponents } from "@contentful/rich-text-react-renderer";
+import { Badge } from "@/components/Badge/Badge";
 
 const INFO_ROW_KEYS = ["ted", "oca", "ufcgInsa", "dcdeMma"] as const;
 
@@ -32,44 +33,42 @@ export const AboutSection = ({ id, content, className = "" }: Props) => {
       id={id}
       className={`w-full scroll-mt-16.5 bg-white flex flex-col items-start ${className}`}
     >
-      <div className="w-full max-w-[1440px] mx-auto px-4 py-12 md:px-10 lg:px-[80px] flex flex-col gap-[33px]">
-        <div>
-          <p className="mb-1 text-xs font-bold uppercase tracking-wide text-[#989F43] md:text-sm">
-            {footerT("aboutMenu.financiamento")}
-          </p>
+      <div className="w-full max-w-[1440px] mx-auto px-4 py-12 md:px-10 lg:px-[80px] flex flex-col gap-6">
+        <div className="flex flex-col items-start gap-4">
+          <Badge label={footerT("aboutMenu.financiamento")} />
           <h2 className="text-[24px] md:text-[28px] lg:text-[30px] leading-[28px] md:leading-[32px] lg:leading-[36px] tracking-[-0.0075em] text-[#292829] font-semibold text-left">
             {title}
           </h2>
+          <div className="text-[15px] md:text-[16px] leading-[150%] text-[#292829] text-left">
+            {text}
+          </div>
         </div>
 
-        <div className="text-[15px] md:text-[16px] leading-[150%] text-[#292829] text-left">
-          {text}
-        </div>
-
-        <div className="flex flex-col lg:flex-row items-start lg:items-stretch gap-[33px] w-full">
-          <div className="flex flex-col gap-3 w-full flex-1">
+        <div className="flex flex-col lg:flex-row items-start lg:items-stretch gap-6 w-full">
+          <div className="flex w-full flex-1 flex-col justify-center gap-5">
             {INFO_ROW_KEYS.map((key) => (
-              <div
-                key={key}
-                className="flex flex-col sm:flex-row sm:items-center justify-between gap-1 sm:gap-4 rounded-lg border border-[#E4E5E2] bg-[#F6F7F6] px-5 py-4"
-              >
-                <span className="font-bold text-[#21240F]">
-                  {INFO_ROW_LABELS[key]}
-                </span>
-                <span className="text-sm text-[#292829] sm:text-right">
-                  {t(`infoRows.${key}`)}
-                </span>
+              <div key={key} className="flex min-h-[64px] items-stretch gap-px">
+                <div className="flex w-1/3 shrink-0 items-center rounded-l-lg bg-[#777E32] px-5 py-2 sm:w-1/4">
+                  <span className="text-base sm:text-xl font-semibold leading-6 text-[#F8F7F8]">
+                    {INFO_ROW_LABELS[key]}
+                  </span>
+                </div>
+                <div className="flex flex-1 items-center rounded-r-lg bg-[#E4E5E2] px-5 py-2">
+                  <span className="text-sm sm:text-base font-semibold leading-6 text-[#292829]">
+                    {t(`infoRows.${key}`)}
+                  </span>
+                </div>
               </div>
             ))}
           </div>
 
-          <div className="shrink-0 mx-auto lg:mx-0 w-full lg:w-auto lg:max-w-[480px] rounded-[8px] overflow-hidden">
+          <div className="relative mx-auto h-[240px] w-full shrink-0 overflow-hidden rounded-lg lg:mx-0 lg:h-[320px] lg:flex-1">
             <Image
               src={imageSrc}
               alt={title}
-              width={420}
-              height={320}
-              className="w-full h-auto lg:w-auto lg:h-full rounded-[8px] object-contain"
+              fill
+              sizes="(max-width: 1024px) 100vw, 50vw"
+              className="object-cover"
             />
           </div>
         </div>

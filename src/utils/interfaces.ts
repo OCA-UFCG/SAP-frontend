@@ -78,6 +78,7 @@ export interface StatCardI {
 
 export interface ThematicAxisI {
   title: string;
+  description?: string;
   executor: string;
   executorActionsCount: number;
   partners: string[];
@@ -92,6 +93,7 @@ export interface ActionPlanSectionI {
   };
   stats: StatCardI[];
   axesTitle: string;
+  axesDescription: string;
   axes: ThematicAxisI[];
 }
 
@@ -113,6 +115,12 @@ export interface WorkingGroupSectionI {
 export interface PlatformModuleI {
   title: string;
   description: string;
+  image?: string;
+  /** CSS object-position for the background photo. Defaults to "50% 50%". */
+  imagePosition?: string;
+  /** Zoom applied to the photo, anchored to the card's left edge. Defaults to 1. */
+  imageZoom?: number;
+  href?: string;
 }
 
 export interface PlatformModulesSectionI {
