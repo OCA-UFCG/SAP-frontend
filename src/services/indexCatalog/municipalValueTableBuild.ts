@@ -1,6 +1,7 @@
 import "server-only";
 
 import type { GeeMunicipalValueTableStatisticsSource } from "@/contracts/geeMunicipalValueTable";
+import { buildColumnDiagnosis } from "@/contracts/geeStatisticsColumns";
 import { initializeGee } from "@/infrastructure/earth-engine/client";
 import { readStatisticsAssetProperties } from "@/services/indexCatalog/statisticsAssetProbe";
 import {
@@ -105,6 +106,53 @@ function validateProbe(
   }
 }
 
+/** O papel de cada coluna territorial, para o erro dizer o que ela deveria trazer. */
+const TERRITORIAL_COLUMN_ROLES = [
+  ["municipalityCode", "código do município"],
+  ["locationName", "nome do município"],
+  ["stateCode", "UF"],
+] as const;
+
+function findMissingTerritorialColumns(
+  source: GeeMunicipalValueTableStatisticsSource,
+  columnNames: readonly string[],
+): string[] {
+  const missing = TERRITORIAL_COLUMN_ROLES.filter(
+    ([field]) => !columnNames.includes(source.properties[field]),
+  ).map(([field, role]) => `${source.properties[field]} (${role})`);
+  return missing.length > 0
+    ? [`não tem estas colunas do mapeamento: ${missing.join(", ")}`]
+    : [];
+}
+
+/**
+ * Recusa uma tabela cujas colunas não servem para valor único por município.
+ *
+ * Junta a falta de coluna de período com a falta de coluna territorial numa
+ * mensagem só porque um asset da outra forma de tabela falha nas duas, e são as
+ * duas juntas que mostram que o errado foi escolher a forma, não o mapeamento.
+ */
+function assertValueTableColumns(
+  source: GeeMunicipalValueTableStatisticsSource,
+  assetId: string,
+  columns: ValueTablePeriodColumn[],
+  columnNames: readonly string[],
+) {
+  const problems = [
+    ...(columns.length === 0
+      ? [
+          `não tem nenhuma coluna de período que corresponda a ${source.valueProperty}`,
+        ]
+      : []),
+    ...findMissingTerritorialColumns(source, columnNames),
+  ];
+  if (problems.length === 0) return;
+
+  throw new Error(
+    buildColumnDiagnosis({ assetId, problems, columnNames, shape: "value" }),
+  );
+}
+
 /**
  * Descobre os períodos e valida as tabelas municipais de valor único de um
  * índice.
@@ -142,28 +190,14 @@ export async function discoverMunicipalValueTable(
     ),
   }));
 
-  const empty = planned.find((asset) => asset.columns.length === 0);
-  if (empty) {
-    throw new Error(
-      `A tabela ${empty.assetId} não possui nenhuma coluna de período que corresponda a ${source.valueProperty}.`,
-    );
-  }
-
-  const missingProperties = planned.flatMap((asset, index) => {
-    const columns = propertiesByAsset[index] ?? [];
-    return [
-      source.properties.municipalityCode,
-      source.properties.locationName,
-      source.properties.stateCode,
-    ]
-      .filter((property) => !columns.includes(property))
-      .map((property) => `${property} (${asset.assetId})`);
-  });
-  if (missingProperties.length > 0) {
-    throw new Error(
-      `Colunas territoriais ausentes: ${missingProperties.join(", ")}.`,
-    );
-  }
+  planned.forEach((asset, index) =>
+    assertValueTableColumns(
+      source,
+      asset.assetId,
+      asset.columns,
+      propertiesByAsset[index] ?? [],
+    ),
+  );
 
   const probes = await readMunicipalValueTableProbes(
     source,

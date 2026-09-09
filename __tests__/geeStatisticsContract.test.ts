@@ -115,7 +115,39 @@ describe("GEE statistics contract", () => {
         "perc_classe_1",
         "area_ha_classe_0",
       ]),
-    ).toThrow("mesmo conjunto");
+    ).toThrow("não tem o par de todas as classes: area_ha_classe_1");
+  });
+
+  // Regressão: a validação parava no primeiro problema, então quem cadastrou o
+  // Municipios_S2ID_corrigido descobria que faltava perc_classe_XX e só depois,
+  // uma validação por vez, que o mapeamento territorial também não existia.
+  it("reports every column problem at once, with the columns the asset has", () => {
+    expect(() =>
+      inferGeeStatisticsSchema(getResolvedSource(), [
+        "CD_MUN",
+        "NM_UF",
+        "2024",
+        "2025",
+      ]),
+    ).toThrow(
+      /não possui colunas perc_classe_XX; não tem estas colunas do mapeamento: NIVEL_AGRUPAMENTO \(nível territorial\), NOME_LOCAL \(nome do território\), ano \(ano\), data_img \(data\), area_total_ha \(área total\)/u,
+    );
+  });
+
+  it("points a period-column asset at the single-value shape", () => {
+    expect(() =>
+      inferGeeStatisticsSchema(getResolvedSource(), ["CD_MUN", "2024", "2025"]),
+    ).toThrow("Valor único por município");
+  });
+
+  it("names the scalar metric column that the asset does not have", () => {
+    const source = getResolvedSource({
+      properties: { ...standardProperties, scalarMetrics: { mean: "media" } },
+    });
+
+    expect(() =>
+      inferGeeStatisticsSchema(source, getPropertyNames([0])),
+    ).toThrow("media (média)");
   });
 
   // A cobertura do solo do IBGE usa as classes 1 a 6 e 9 a 14: 7 e 8 não
@@ -146,7 +178,9 @@ describe("GEE statistics contract", () => {
         "area_ha_classe_1",
         "area_ha_classe_8",
       ]),
-    ).toThrow("mesmo conjunto");
+    ).toThrow(
+      "não tem o par de todas as classes: area_ha_classe_9, perc_classe_8",
+    );
   });
 
   it("still rejects a duplicated class index", () => {

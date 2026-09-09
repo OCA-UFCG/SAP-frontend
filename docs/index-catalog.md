@@ -165,6 +165,16 @@ Também são obrigatórias as propriedades territoriais, `ano`, `data_img` e
 períodos duplicados, linhas incompletas e percentuais fora de 0–100 ou que não
 somem `100 ± 0,2` (todos zero representam ausência).
 
+Quando as colunas não batem, o erro traz **todos** os problemas de uma vez, as
+colunas que o asset realmente tem e — quando elas sugerem a outra forma de
+tabela — qual escolher em "Forma da tabela"
+(`src/contracts/geeStatisticsColumns.ts`). É o que evita descobrir um problema
+por validação: um asset de valor único escolhido como distribuição por classes
+falha ao mesmo tempo nas colunas de classe e no mapeamento territorial, e são as
+duas juntas que mostram que o errado foi a forma. As colunas de período são
+resumidas (`23 colunas de período (2004 a 2026)`) para não empurrarem as colunas
+territoriais para fora da mensagem.
+
 ### Valor único por município
 
 É a forma em que a mesma FeatureCollection é a tabela de estatísticas **e** o
