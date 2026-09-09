@@ -1,16 +1,21 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { useTranslations } from "next-intl";
 import { getMunicipalReportPresentation } from "@/config/municipalReport";
 import type { MunicipalReportAnalysis } from "@/contracts/municipalReport";
 import type { IndexCatalogReportPreview } from "@/types/indexCatalog";
 import { catalogApiRequest } from "@/components/IndexCatalog/catalogApiClient";
+import { MunicipalReportNotes } from "@/components/MunicipalReport/MunicipalReportNotes";
+import { ReportPreviewVisuals } from "@/components/IndexCatalog/CatalogReportPreviewVisuals";
 import { getContrastTextColor } from "@/utils/functions";
+import { getVisibleChartColor } from "@/utils/municipalReportChart";
 import {
   buildAnalysisNarrativeSections,
   buildSituationNarrative,
   formatReportPeriod,
 } from "@/utils/municipalReportNarrative";
+import { translateClassLabel } from "@/utils/municipalReportTranslations";
 import {
   formatMunicipalReportValue,
   getMunicipalReportValueLabels,
@@ -18,6 +23,22 @@ import {
 
 /** A prévia é uma tela administrativa em pt-BR; o relatório real é traduzido. */
 const PREVIEW_LOCALE = "pt-BR";
+/**
+ * O texto escrito no catálogo é pt, e as narrativas do relatório só resolvem
+ * nesse idioma: pedir outro esvaziaria justamente o que a prévia serve para
+ * conferir.
+ */
+const PREVIEW_NARRATIVE_LOCALE = "pt";
+
+interface CatalogReportPreviewProps {
+  entryId: string;
+  /**
+   * A rota de tiles do rascunho. É ela que desenha a imagem espacial de um
+   * índice que ainda não existe em produção — `/api/ee` só conhece camadas
+   * publicadas.
+   */
+  tileApiPath: string;
+}
 
 function ReportPreviewFrame({ children }: { children: React.ReactNode }) {
   return (
@@ -33,9 +54,11 @@ function ReportPreviewFrame({ children }: { children: React.ReactNode }) {
 function DominantClassCard({
   analysis,
   sectionColor,
+  translateLabel,
 }: {
   analysis: MunicipalReportAnalysis;
   sectionColor: string;
+  translateLabel: (label: string) => string;
 }) {
   const dominant = analysis.snapshot?.dominantClass;
   if (!dominant) return null;
@@ -50,7 +73,7 @@ function DominantClassCard({
         color: getContrastTextColor(background),
       }}
     >
-      <strong className="text-lg">{dominant.label}</strong>
+      <strong className="text-lg">{translateLabel(dominant.label)}</strong>
       <span className="mt-1 text-3xl font-bold">
         {formatMunicipalReportValue(
           dominant.percentage,
@@ -65,8 +88,10 @@ function DominantClassCard({
 
 function DistributionTable({
   analysis,
+  translateLabel,
 }: {
   analysis: MunicipalReportAnalysis;
+  translateLabel: (label: string) => string;
 }) {
   const labels = getMunicipalReportValueLabels(analysis);
 
@@ -81,30 +106,33 @@ function DistributionTable({
         </tr>
       </thead>
       <tbody>
-        {analysis.snapshot?.distribution.map((item) => (
-          <tr key={item.id} className="border-t border-[#c8ced1]">
-            <td
-              className="border-r border-[#c8ced1] px-4 py-2 font-medium"
-              style={{ backgroundColor: `${item.color}33` }}
-            >
-              <span
-                className="mr-2 inline-block h-2.5 w-2.5 rounded-full border border-black/10"
-                style={{ backgroundColor: item.color }}
-              />
-              {item.label}
-            </td>
-            <td
-              className="px-4 py-2 text-right font-semibold"
-              style={{ backgroundColor: `${item.color}33` }}
-            >
-              {formatMunicipalReportValue(
-                item.percentage,
-                analysis,
-                PREVIEW_LOCALE,
-              )}
-            </td>
-          </tr>
-        ))}
+        {analysis.snapshot?.distribution.map((item) => {
+          const visibleColor = getVisibleChartColor(item.color);
+          return (
+            <tr key={item.id} className="border-t border-[#c8ced1]">
+              <td
+                className="border-r border-[#c8ced1] px-4 py-2 font-medium"
+                style={{ backgroundColor: `${visibleColor}33` }}
+              >
+                <span
+                  className="mr-2 inline-block h-2.5 w-2.5 rounded-full border border-black/10"
+                  style={{ backgroundColor: visibleColor }}
+                />
+                {translateLabel(item.label)}
+              </td>
+              <td
+                className="px-4 py-2 text-right font-semibold"
+                style={{ backgroundColor: `${visibleColor}33` }}
+              >
+                {formatMunicipalReportValue(
+                  item.percentage,
+                  analysis,
+                  PREVIEW_LOCALE,
+                )}
+              </td>
+            </tr>
+          );
+        })}
       </tbody>
     </table>
   );
@@ -120,9 +148,13 @@ function DistributionTable({
  */
 function ReportPreviewBody({
   preview,
+  tileApiPath,
 }: {
   preview: IndexCatalogReportPreview;
+  tileApiPath: string;
 }) {
+  const t = useTranslations("MunicipalReport");
+  const tCaption = useTranslations("PlatformMapCaption");
   // A resposta da rota é entrada externa como qualquer fetch: sem análise não
   // há prévia a desenhar, e a tela do catálogo não pode cair por causa disso.
   const analysis = preview.report?.analyses?.[0];
@@ -134,6 +166,14 @@ function ReportPreviewBody({
     );
   }
 
+  const translateLabel = (label: string) =>
+    translateClassLabel(
+      label,
+      t,
+      (key) => t.has(key),
+      tCaption,
+      (key) => tCaption.has(key),
+    );
   const presentation = getMunicipalReportPresentation(analysis.id);
   const sectionColor =
     analysis.presentation?.sectionColor ?? presentation.sectionColor;
@@ -142,19 +182,16 @@ function ReportPreviewBody({
     preview.docsContent,
     preview.report,
     presentation,
-    "pt",
+    PREVIEW_NARRATIVE_LOCALE,
   );
   const narrativeSections = buildAnalysisNarrativeSections(
     analysis,
     preview.docsContent,
-    "pt",
+    PREVIEW_NARRATIVE_LOCALE,
   );
-  const methodology =
-    analysis.presentation?.methodology ?? presentation.methodology;
-  const periodLabel = formatReportPeriod(
-    analysis.effectivePeriod ?? preview.period,
-    PREVIEW_LOCALE,
-  );
+  const referencePeriod =
+    analysis.effectivePeriod ?? analysis.snapshot?.period ?? preview.period;
+  const periodLabel = formatReportPeriod(referencePeriod, PREVIEW_LOCALE);
 
   return (
     <>
@@ -199,12 +236,24 @@ function ReportPreviewBody({
             <DominantClassCard
               analysis={analysis}
               sectionColor={sectionColor}
+              translateLabel={translateLabel}
             />
           </div>
 
           <div className="mx-5 overflow-hidden border border-[#c8ced1]">
-            <DistributionTable analysis={analysis} />
+            <DistributionTable
+              analysis={analysis}
+              translateLabel={translateLabel}
+            />
           </div>
+
+          <ReportPreviewVisuals
+            analysis={analysis}
+            municipality={preview.municipality}
+            referencePeriod={referencePeriod}
+            tileApiPath={tileApiPath}
+            translateLabel={translateLabel}
+          />
 
           {narrativeSections.length > 0 && (
             <div className="m-5 border border-[#d9e0e3] p-5 text-[15px] leading-6">
@@ -220,11 +269,13 @@ function ReportPreviewBody({
             </div>
           )}
 
-          {methodology && (
-            <p className="mx-5 mb-5 border-t border-[#d9e0e3] pt-3 text-xs leading-5 text-neutral-600">
-              <strong>Notas:</strong> {methodology}
-            </p>
-          )}
+          <div className="mx-5 mb-5">
+            <MunicipalReportNotes
+              analyses={[analysis]}
+              docsContent={preview.docsContent}
+              locale={PREVIEW_NARRATIVE_LOCALE}
+            />
+          </div>
         </>
       )}
     </>
@@ -237,7 +288,10 @@ interface ReportPreviewState {
   error: string;
 }
 
-export function CatalogReportPreview({ entryId }: { entryId: string }) {
+export function CatalogReportPreview({
+  entryId,
+  tileApiPath,
+}: CatalogReportPreviewProps) {
   const [state, setState] = useState<ReportPreviewState | null>(null);
 
   useEffect(() => {
@@ -280,7 +334,10 @@ export function CatalogReportPreview({ entryId }: { entryId: string }) {
         {current?.error ? (
           <p className="p-5 text-sm text-red-700">{current.error}</p>
         ) : current?.preview ? (
-          <ReportPreviewBody preview={current.preview} />
+          <ReportPreviewBody
+            preview={current.preview}
+            tileApiPath={tileApiPath}
+          />
         ) : (
           <p className="p-5 text-sm text-stone-500">
             Lendo os valores de Campina Grande no Earth Engine…

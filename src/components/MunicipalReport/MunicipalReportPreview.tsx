@@ -11,17 +11,6 @@ import {
 } from "react";
 import Link from "next/link";
 import { useLocale, useTranslations } from "next-intl";
-import {
-  CartesianGrid,
-  Line,
-  LineChart,
-  ReferenceLine,
-  ResponsiveContainer,
-  Tooltip,
-  XAxis,
-  YAxis,
-} from "recharts";
-import type { TooltipContentProps } from "recharts";
 import type {
   MunicipalReportAnalysis,
   MunicipalReportData,
@@ -31,6 +20,7 @@ import { getMunicipalReportPresentation } from "@/config/municipalReport";
 import {
   buildAnalysisNarrativeSections,
   buildSituationNarrative,
+  compactPeriodRange,
   formatReportPeriod,
   getReportDocsText,
 } from "@/utils/municipalReportNarrative";
@@ -45,10 +35,16 @@ import {
 } from "@/utils/municipalReportValue";
 import {
   buildMunicipalReportChartData,
+  getVisibleChartColor,
   MUNICIPAL_REPORT_PDF_CHART_MAX_MEASUREMENTS,
   selectMunicipalReportChartSnapshots,
 } from "@/utils/municipalReportChart";
-import { slugifyTranslationKey } from "@/utils/translations";
+import {
+  translateAnalysisTitle,
+  translateClassLabel,
+} from "@/utils/municipalReportTranslations";
+import { MunicipalReportDynamicChart } from "./MunicipalReportDynamicChart";
+import { MunicipalReportNotes } from "./MunicipalReportNotes";
 import { ReportMapPreview } from "./ReportMapPreview";
 import { destroyReportMapPool } from "./reportMapPool";
 import { useReportMapCaptureQueue } from "./useReportMapCaptureQueue";
@@ -65,13 +61,6 @@ export interface MunicipalReportPreviewProps {
   embedded?: boolean;
 }
 
-type DynamicChartRow = {
-  period: string;
-  label: string;
-  highlighted: boolean;
-  [seriesId: string]: string | number | boolean;
-};
-
 function textColorForBackground(color: string) {
   const hex = color.replace("#", "");
   if (!/^[0-9a-f]{6}$/i.test(hex)) return "#ffffff";
@@ -83,47 +72,6 @@ function textColorForBackground(color: string) {
     : "#ffffff";
 }
 
-function parseHexColor(color: string) {
-  const hex = color.replace("#", "");
-  if (!/^[0-9a-f]{6}$/i.test(hex)) return null;
-  const [red, green, blue] = [0, 2, 4].map((offset) =>
-    Number.parseInt(hex.slice(offset, offset + 2), 16),
-  );
-  return { red, green, blue };
-}
-
-function toHex(value: number) {
-  return Math.max(0, Math.min(255, Math.round(value)))
-    .toString(16)
-    .padStart(2, "0");
-}
-
-function getVisibleChartColor(color: string) {
-  const parsed = parseHexColor(color);
-  if (!parsed) return "#536E7B";
-
-  const luminance =
-    parsed.red * 0.299 + parsed.green * 0.587 + parsed.blue * 0.114;
-  if (luminance <= 190) return color;
-
-  return `#${toHex(parsed.red * 0.72)}${toHex(parsed.green * 0.72)}${toHex(parsed.blue * 0.72)}`;
-}
-
-function compactPeriodRange(
-  timeSeries: MunicipalReportAnalysis["timeSeries"],
-  fallback: string,
-  locale: string,
-  t?: (key: string, values?: Record<string, string>) => string,
-) {
-  const firstPeriod = timeSeries[0]?.period ?? fallback;
-  const lastPeriod = timeSeries.at(-1)?.period ?? fallback;
-  const firstLabel = formatReportPeriod(firstPeriod, locale);
-  const lastLabel = formatReportPeriod(lastPeriod, locale);
-  if (firstPeriod === lastPeriod) return firstLabel;
-  if (t) return t("periodRange", { first: firstLabel, last: lastLabel });
-  return `${firstLabel} a ${lastLabel}`;
-}
-
 function buildReportFilename(
   report: MunicipalReportData | null,
   period: string,
@@ -133,314 +81,6 @@ function buildReportFilename(
   if (!report) return fallback;
   const municipality = report.municipality.name.trim().replace(/\s+/g, "-");
   return `${prefix}-${municipality}-${period}.pdf`;
-}
-
-function slugifyLabelKey(label: string): string {
-  return label
-    .toLowerCase()
-    .normalize("NFD")
-    .replace(/[\u0300-\u036f]/g, "")
-    .replace(/</g, "menor-que")
-    .replace(/>/g, "maior-que")
-    .replace(/[^a-z0-9]+/g, "-")
-    .replace(/(^-|-$)+/g, "");
-}
-
-function translateAnalysisTitle(
-  analysis: MunicipalReportAnalysis,
-  tReport: (key: string) => string,
-  tReportHas: (key: string) => boolean,
-  tModules: (key: string) => string,
-  tModulesHas: (key: string) => boolean,
-) {
-  if (tReportHas(`indicators.${analysis.id}.title`)) {
-    return tReport(`indicators.${analysis.id}.title`);
-  }
-  const slug = slugifyTranslationKey(analysis.title);
-  if (tReportHas(`indicators.${slug}.title`)) {
-    return tReport(`indicators.${slug}.title`);
-  }
-  const moduleKey = `Layers.${slug}.title`;
-  if (tModulesHas(moduleKey)) {
-    return tModules(moduleKey);
-  }
-  return analysis.title;
-}
-
-function translateClassLabel(
-  label: string,
-  tReport: (key: string) => string,
-  tReportHas: (key: string) => boolean,
-  tCaption: (key: string) => string,
-  tCaptionHas: (key: string) => boolean,
-) {
-  const slug = slugifyLabelKey(label);
-  if (tCaptionHas(`labels.${slug}`)) {
-    return tCaption(`labels.${slug}`);
-  }
-  if (tReportHas(`classes.${slug}`)) {
-    return tReport(`classes.${slug}`);
-  }
-  return label;
-}
-
-function translateAnalysisMethodology(
-  analysis: MunicipalReportAnalysis,
-  docsContent: MunicipalReportDocsContent | null,
-  presentationMethodology: string,
-  tReport: (key: string) => string,
-  tReportHas: (key: string) => boolean,
-  tModules: (key: string) => string,
-  tModulesHas: (key: string) => boolean,
-  locale?: string,
-) {
-  const docsText = getReportDocsText(docsContent, analysis.title, locale);
-  if (docsText) return docsText;
-
-  if (tReportHas(`indicators.${analysis.id}.methodology`)) {
-    return tReport(`indicators.${analysis.id}.methodology`);
-  }
-  const slug = slugifyTranslationKey(analysis.title);
-  if (tReportHas(`indicators.${slug}.methodology`)) {
-    return tReport(`indicators.${slug}.methodology`);
-  }
-  const moduleKey = `Layers.${slug}.description`;
-  if (tModulesHas(moduleKey)) {
-    return tModules(moduleKey);
-  }
-  if (
-    presentationMethodology ===
-      "Indicador territorial disponibilizado na plataforma SEDES." &&
-    tReportHas("indicators.defaultMethodology")
-  ) {
-    return tReport("indicators.defaultMethodology");
-  }
-  return presentationMethodology;
-}
-
-function MunicipalReportDynamicChart({
-  analysis,
-  locale,
-  referencePeriod,
-  translateLabel,
-}: {
-  analysis: MunicipalReportAnalysis;
-  locale: string;
-  referencePeriod: string;
-  translateLabel: (label: string) => string;
-}) {
-  const chartData = useMemo(
-    () => buildMunicipalReportChartData(analysis, referencePeriod),
-    [analysis, referencePeriod],
-  );
-  const [activeSeries, setActiveSeries] = useState(
-    () => new Set(chartData.series.map((series) => series.id)),
-  );
-  const seriesById = useMemo(
-    () => new Map(chartData.series.map((series) => [series.id, series])),
-    [chartData.series],
-  );
-  const rows = useMemo(
-    () =>
-      chartData.categories.map((category, index) => {
-        const row: DynamicChartRow = {
-          period: category.period,
-          label: category.label,
-          highlighted: category.highlighted,
-        };
-        chartData.series.forEach((series) => {
-          row[series.id] = series.points[index]?.value ?? 0;
-        });
-        return row;
-      }),
-    [chartData.categories, chartData.series],
-  );
-  const periodLabels = useMemo(
-    () =>
-      new Map(
-        chartData.categories.map((category) => [
-          category.period,
-          category.label,
-        ]),
-      ),
-    [chartData.categories],
-  );
-  const visibleSeries = chartData.series.filter((series) =>
-    activeSeries.has(series.id),
-  );
-  const observedMax = Math.max(
-    0,
-    ...chartData.series.flatMap((series) =>
-      series.points.map((point) => point.value),
-    ),
-  );
-  const axisMax =
-    analysis.valueType === "absolute"
-      ? Math.max(1, Math.ceil(observedMax / 5) * 5)
-      : 100;
-  const yTicks = Array.from({ length: 6 }, (_, index) => (axisMax / 5) * index);
-  const referenceLinePeriod = chartData.categories.some(
-    (category) => category.period === chartData.referencePeriod,
-  )
-    ? chartData.referencePeriod
-    : null;
-
-  function toggleSeries(seriesId: string) {
-    setActiveSeries((current) => {
-      const next = new Set(current);
-      if (next.has(seriesId)) {
-        if (next.size > 1) next.delete(seriesId);
-      } else {
-        next.add(seriesId);
-      }
-      return next;
-    });
-  }
-
-  function renderTooltip({ active, label, payload }: TooltipContentProps) {
-    if (!active || !payload?.length) return null;
-    const period = label == null ? "" : String(label);
-    const periodLabel = periodLabels.get(period) ?? period;
-
-    return (
-      <div className="rounded border border-[#d9e0e3] bg-white px-3 py-2 text-xs shadow-lg">
-        <p className="font-bold text-[#536e7b]">{periodLabel}</p>
-        <div className="mt-2 space-y-1">
-          {payload
-            .filter((entry) => typeof entry.dataKey === "string")
-            .map((entry) => {
-              const series = seriesById.get(String(entry.dataKey));
-              if (!series) return null;
-              const numericValue = Number(entry.value ?? 0);
-              const visibleColor = getVisibleChartColor(series.color);
-              return (
-                <p
-                  key={series.id}
-                  className="flex items-center justify-between gap-4 text-neutral-700"
-                >
-                  <span className="inline-flex items-center gap-2">
-                    <span
-                      className="h-2.5 w-2.5 rounded-full"
-                      style={{ backgroundColor: visibleColor }}
-                    />
-                    {translateLabel(series.label)}
-                  </span>
-                  <strong>
-                    {formatMunicipalReportValue(numericValue, analysis, locale)}
-                  </strong>
-                </p>
-              );
-            })}
-        </div>
-      </div>
-    );
-  }
-
-  if (rows.length === 0 || chartData.series.length === 0) {
-    return (
-      <span className="text-sm text-neutral-500">
-        Série temporal indisponível para visualização dinâmica.
-      </span>
-    );
-  }
-
-  return (
-    <div className="flex h-full min-h-[320px] w-full flex-col gap-3">
-      <div className="min-h-[255px] flex-1">
-        <ResponsiveContainer width="100%" height="100%">
-          <LineChart
-            data={rows}
-            margin={{ top: 20, right: 28, bottom: 18, left: 8 }}
-          >
-            <CartesianGrid
-              stroke="#E3E7EA"
-              strokeDasharray="4 6"
-              vertical={false}
-            />
-            <XAxis
-              dataKey="period"
-              tickFormatter={(value) =>
-                periodLabels.get(String(value)) ?? String(value)
-              }
-              tick={{ fill: "#5F6670", fontSize: 11 }}
-              tickLine={false}
-              axisLine={{ stroke: "#B8C0C5" }}
-              minTickGap={12}
-              height={38}
-              tickMargin={10}
-              interval="preserveStartEnd"
-            />
-            <YAxis
-              domain={[0, axisMax]}
-              ticks={yTicks}
-              tickFormatter={(value) =>
-                analysis.valueType === "percentage"
-                  ? `${Number(value).toFixed(0)}%`
-                  : new Intl.NumberFormat(locale, {
-                      maximumFractionDigits: 0,
-                    }).format(Number(value))
-              }
-              tick={{ fill: "#5F6670", fontSize: 11 }}
-              tickLine={false}
-              axisLine={{ stroke: "#B8C0C5" }}
-              width={62}
-              tickMargin={8}
-            />
-            {referenceLinePeriod && (
-              <ReferenceLine
-                x={referenceLinePeriod}
-                stroke="#989F43"
-                strokeDasharray="4 4"
-                strokeWidth={2}
-              />
-            )}
-            <Tooltip
-              content={renderTooltip}
-              cursor={{ stroke: "#8A9340", strokeWidth: 1.25 }}
-            />
-            {visibleSeries.map((series) => (
-              <Line
-                key={series.id}
-                type="linear"
-                dataKey={series.id}
-                name={translateLabel(series.label)}
-                stroke={getVisibleChartColor(series.color)}
-                strokeWidth={2}
-                strokeOpacity={0.92}
-                dot={{ r: 2.2, strokeWidth: 1.6, fill: "#FFFFFF" }}
-                activeDot={{ r: 4.4, strokeWidth: 2, fill: "#FFFFFF" }}
-                isAnimationActive={false}
-              />
-            ))}
-          </LineChart>
-        </ResponsiveContainer>
-      </div>
-      <div className="flex flex-wrap gap-2">
-        {chartData.series.map((series) => {
-          const enabled = activeSeries.has(series.id);
-          return (
-            <button
-              key={series.id}
-              type="button"
-              aria-pressed={enabled}
-              onClick={() => toggleSeries(series.id)}
-              className={`inline-flex items-center gap-2 rounded border px-2.5 py-1.5 text-xs font-semibold transition ${
-                enabled
-                  ? "border-[#c8ced1] bg-white text-[#292829]"
-                  : "border-[#d9e0e3] bg-[#f4f6f8] text-neutral-500"
-              }`}
-            >
-              <span
-                className="h-2.5 w-2.5 rounded-full"
-                style={{ backgroundColor: getVisibleChartColor(series.color) }}
-              />
-              {translateLabel(series.label)}
-            </button>
-          );
-        })}
-      </div>
-    </div>
-  );
 }
 
 const PRINT_CHART_WIDTH = 640;
@@ -1183,45 +823,11 @@ const ReportDocument = memo(function ReportDocument({
         })}
       </div>
 
-      <section className="report-notes mt-12 border-t border-[#d9e0e3] pt-8">
-        <h2 className="report-heading text-xl font-bold text-[#536e7b]">
-          {reportText("Título das notas", t("document.notesTitle"))}
-        </h2>
-        <div className="mt-5 space-y-2 text-sm leading-5 text-neutral-800">
-          {selected.map((analysis) => {
-            const presentation = getMunicipalReportPresentation(analysis.id);
-            const title = translateAnalysisTitle(
-              analysis,
-              t,
-              tHas,
-              tModules,
-              tModulesHas,
-            );
-            const methodology = translateAnalysisMethodology(
-              analysis,
-              docsContent,
-              analysis.presentation?.methodology ?? presentation.methodology,
-              t,
-              tHas,
-              tModules,
-              tModulesHas,
-              locale,
-            );
-            return (
-              <p key={analysis.id} className="whitespace-pre-line">
-                <strong>{title}:</strong> {methodology}
-              </p>
-            );
-          })}
-          <p className="whitespace-pre-line">
-            <strong>{t("document.legalReferenceLabel")}:</strong>{" "}
-            {reportText("Referência legal", t("document.legalReferenceValue"))}
-          </p>
-        </div>
-        <p className="mt-8 text-sm leading-5 text-[#536e7b]">
-          {reportText("Aviso automático", t("document.automatedNotice"))}
-        </p>
-      </section>
+      <MunicipalReportNotes
+        analyses={selected}
+        docsContent={docsContent}
+        locale={locale}
+      />
 
       <footer className="mt-16 border-t border-[#d9e0e3] pt-3 text-[11px] text-[#536e7b]">
         {reportText("Rodapé", t("document.footer", { generatedAt }))}

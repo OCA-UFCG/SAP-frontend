@@ -354,3 +354,28 @@ export function buildHistoryNarrative(
     context: `No período ${firstPeriod}–${currentPeriod}, a classe predominante mais frequente foi ${mostFreqClass}, em ${mostFreqPerc}% dos períodos. A condição ${config.history.neutralState} predominou em ${neutralPerc}% do período. A maior ${config.history.severityTerm} observada foi ${maximumText}.`,
   };
 }
+
+/**
+ * O intervalo coberto por uma série, no formato "2000 a 2024".
+ *
+ * Encolhe para um período só quando a série tem uma medição, e aceita um `t`
+ * para que o relatório traduza a conjunção — a prévia do catálogo, que é
+ * pt-BR, chama sem ele.
+ *
+ * @example
+ * compactPeriodRange(analysis.timeSeries, "2024", "pt-BR"); // "2000 a 2024"
+ */
+export function compactPeriodRange(
+  timeSeries: MunicipalReportAnalysis["timeSeries"],
+  fallback: string,
+  locale: string,
+  t?: (key: string, values?: Record<string, string>) => string,
+) {
+  const firstPeriod = timeSeries[0]?.period ?? fallback;
+  const lastPeriod = timeSeries.at(-1)?.period ?? fallback;
+  const firstLabel = formatReportPeriod(firstPeriod, locale);
+  const lastLabel = formatReportPeriod(lastPeriod, locale);
+  if (firstPeriod === lastPeriod) return firstLabel;
+  if (t) return t("periodRange", { first: firstLabel, last: lastLabel });
+  return `${firstLabel} a ${lastLabel}`;
+}

@@ -95,9 +95,18 @@ resposta de `preview`, porque custa uma leitura no Earth Engine e a validação 
 O município é fixo porque a prévia serve para conferir aparência, não para
 consultar município: Campina Grande está em todos os recortes do semiárido,
 então um índice válido sempre tem linha para ela — um município de borda
-transformaria "sem dados" em dúvida sobre a prévia. A leitura cobre só o período
-da prévia (`periodKeys` omitido), e não a série inteira, que custaria uma
-requisição por período para desenhar um gráfico que a prévia não mostra.
+transformaria "sem dados" em dúvida sobre a prévia. A leitura cobre a série
+inteira — todos os períodos validados vão como `periodKeys` —, porque a prévia
+desenha o gráfico do relatório; o cache de linhas do repositório faz disso uma
+ida ao Earth Engine, e não uma por período.
+
+A tela mostra a seção completa: cabeçalho, situação atual, tabela de classes, a
+imagem espacial do município ao lado do gráfico da série, o texto de análise e
+as notas metodológicas. A imagem espacial vem da rota de tiles do rascunho
+(`/api/index-catalog/drafts/[entryId]/ee`), porque `/api/ee` só conhece camadas
+publicadas. Gráfico e notas são os mesmos componentes do relatório de produção
+(`MunicipalReportDynamicChart`, `MunicipalReportNotes`), para que a prévia não
+possa divergir dele.
 
 `buildIndexCatalogReportPreview` injeta `layers` e `loadImageData` em
 `buildMunicipalReport`: o caminho normal resolve a fonte estatística pelo
