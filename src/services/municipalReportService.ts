@@ -494,6 +494,10 @@ export async function buildMunicipalReport(
   };
   for (const analysis of analyses) {
     const dominantValue = analysis.snapshot?.dominantClass?.percentage ?? null;
+    // O nome do índice existe para a frase escrita no catálogo poder citar a
+    // fonte ("conforme o [indice]") sem que quem escreve repita o título à mão
+    // — um texto genérico passa a valer para qualquer índice.
+    templateVariables[`indice_${analysis.alias}`] = analysis.title;
     templateVariables[`classe_${analysis.alias}`] =
       analysis.snapshot?.dominantClass?.label ?? null;
     templateVariables[`percentual_${analysis.alias}`] = dominantValue;

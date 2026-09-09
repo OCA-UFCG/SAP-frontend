@@ -252,6 +252,7 @@ function getAliasedTemplateKey(
  * colchete sobrevive literalmente, como antes.
  */
 const LAYER_SCOPED_TEMPLATE_KEYS = new Set([
+  "indice",
   "classe",
   "percentual",
   "valor",
