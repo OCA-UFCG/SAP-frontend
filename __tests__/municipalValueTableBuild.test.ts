@@ -98,13 +98,35 @@ describe("discoverMunicipalValueTable", () => {
     );
   });
 
-  it("names the missing territorial columns", async () => {
+  it("names the missing territorial columns and what each one should carry", async () => {
     mocks.readStatisticsAssetProperties.mockResolvedValue([
       ["CD_MUN", "2024", "2025"],
     ]);
 
     await expect(discoverMunicipalValueTable(source)).rejects.toThrow(
-      "NM_MUN (projects/example/assets/pob_total)",
+      "NM_MUN (nome do município), SIGLA_UF (UF)",
+    );
+  });
+
+  // Escolher a forma errada da tabela quebra as duas checagens de uma vez, e é
+  // vendo as duas juntas que se percebe que o errado foi a forma.
+  it("reports the missing period and territorial columns at once", async () => {
+    mocks.readStatisticsAssetProperties.mockResolvedValue([
+      ["NIVEL_AGRUPAMENTO", "perc_classe_1", "area_ha_classe_1"],
+    ]);
+
+    await expect(discoverMunicipalValueTable(source)).rejects.toThrow(
+      /nenhuma coluna de período que corresponda a \{year\}; não tem estas colunas do mapeamento: CD_MUN/u,
+    );
+  });
+
+  it("points a perc_classe asset at the class-distribution shape", async () => {
+    mocks.readStatisticsAssetProperties.mockResolvedValue([
+      ["NIVEL_AGRUPAMENTO", "perc_classe_1", "area_ha_classe_1"],
+    ]);
+
+    await expect(discoverMunicipalValueTable(source)).rejects.toThrow(
+      "Distribuição por classes",
     );
   });
 

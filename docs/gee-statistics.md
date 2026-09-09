@@ -106,6 +106,10 @@ exato é:
 - percentuais numéricos entre 0 e 100, totalizando `100 ± 0,2` (ou todos zero
   para representar ausência), na ordem semântica das classes do `panelLayer`.
 
+Um asset que não cumpre esse contrato é recusado com uma mensagem que lista
+todos os desvios encontrados, as colunas que ele tem e a forma de tabela que
+elas sugerem — ver "Fonte estatística e fonte de mapa" em `docs/index-catalog.md`.
+
 As quantidades e os nomes das classes visuais permanecem no `panelLayer`; o
 asset fornece os valores. Por isso, o adaptador valida que a quantidade inferida
 é igual à quantidade de classes da camada. Ele não tenta inferir o significado

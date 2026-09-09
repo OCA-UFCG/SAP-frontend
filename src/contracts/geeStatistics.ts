@@ -5,6 +5,7 @@ import {
   requiredGeeStatisticsProperty,
   resolveGeeStatisticsAssetId,
 } from "@/contracts/geeStatisticsAsset";
+import { buildColumnDiagnosis } from "@/contracts/geeStatisticsColumns";
 import {
   isGeeMunicipalValueTableSource,
   parseGeeMunicipalValueTableSource,
@@ -227,11 +228,61 @@ function getIndexedProperties(
   return properties;
 }
 
-function validateClassIndexes(assetId: string, classIndexes: number[]): void {
+/** O papel de cada coluna mapeada, para o erro dizer o que ela deveria trazer. */
+const SCALAR_METRIC_ROLES: Record<GeeStatisticsScalarMetric, string> = {
+  mean: "média",
+  median: "mediana",
+  mode: "moda",
+  min: "mínimo",
+  max: "máximo",
+};
+
+function getMappedColumns(
+  source: ResolvedGeeStatisticsSource,
+): Array<[string, string]> {
+  const { properties } = source;
+  return [
+    [properties.level, "nível territorial"],
+    [properties.locationName, "nome do território"],
+    [properties.municipalityCode, "código do município"],
+    [properties.stateCode, "UF"],
+    [properties.year, "ano"],
+    [properties.date, "data"],
+    [properties.totalArea, "área total"],
+    ...Object.entries(properties.scalarMetrics ?? {}).flatMap(
+      ([metric, column]): Array<[string, string]> =>
+        typeof column === "string"
+          ? [[column, SCALAR_METRIC_ROLES[metric as GeeStatisticsScalarMetric]]]
+          : [],
+    ),
+  ];
+}
+
+function findMissingMappedColumns(
+  source: ResolvedGeeStatisticsSource,
+  columnNames: string[],
+): string[] {
+  const missing = getMappedColumns(source)
+    .filter(([column]) => !columnNames.includes(column))
+    .map(([column, role]) => `${column} (${role})`);
+  return missing.length > 0
+    ? [`não tem estas colunas do mapeamento: ${missing.join(", ")}`]
+    : [];
+}
+
+/**
+ * O que impede as colunas de classe de virarem um schema, ou uma lista vazia.
+ *
+ * Devolve os problemas em vez de lançar porque a mensagem do catálogo junta
+ * todos: parar no primeiro esconderia que o mapeamento territorial também não
+ * bate, e a pessoa descobriria um erro por vez.
+ */
+function findClassColumnProblems(
+  classIndexes: number[],
+  areaIndexes: number[],
+): string[] {
   if (classIndexes.length === 0) {
-    throw new Error(
-      `Asset estatístico ${assetId} não possui colunas perc_classe_XX.`,
-    );
+    return ["não possui colunas perc_classe_XX"];
   }
 
   // Nem o índice inicial nem a continuidade da sequência são exigidos, e isso é
@@ -254,9 +305,33 @@ function validateClassIndexes(assetId: string, classIndexes: number[]): void {
   //
   // O que continua garantido aqui: existe ao menos uma classe, os índices são
   // únicos (`getIndexedProperties` rejeita duplicata) e o conjunto de colunas
-  // perc_classe_XX é idêntico ao de area_ha_classe_XX (conferido a seguir).
+  // perc_classe_XX é idêntico ao de area_ha_classe_XX (conferido logo abaixo).
+  const unpaired = [
+    ...classIndexes
+      .filter((classIndex) => !areaIndexes.includes(classIndex))
+      .map((classIndex) => `area_ha_classe_${classIndex}`),
+    ...areaIndexes
+      .filter((classIndex) => !classIndexes.includes(classIndex))
+      .map((classIndex) => `perc_classe_${classIndex}`),
+  ];
+  return unpaired.length > 0
+    ? [`não tem o par de todas as classes: ${unpaired.join(", ")}`]
+    : [];
 }
 
+/**
+ * O schema de classes que as colunas do asset descrevem.
+ *
+ * Quando elas não descrevem nenhum, o erro traz **todos** os problemas de uma
+ * vez, as colunas que o asset tem de verdade e a forma de tabela que elas
+ * sugerem. Quem cadastra um índice não abre o Code Editor do Earth Engine: uma
+ * mensagem por problema significava uma validação por problema.
+ *
+ * @example
+ * inferGeeStatisticsSchema(source, ["CD_MUN", "2024"]);
+ * // Error: Asset estatístico projects/x/assets/municipios: não possui colunas
+ * // perc_classe_XX; não tem estas colunas do mapeamento: ano (ano)…
+ */
 export function inferGeeStatisticsSchema(
   source: ResolvedGeeStatisticsSource,
   propertyNames: string[],
@@ -273,42 +348,22 @@ export function inferGeeStatisticsSchema(
   const classIndexes = [...percentageProperties.keys()].sort(
     (left, right) => left - right,
   );
-
-  validateClassIndexes(source.assetId, classIndexes);
-
   const areaIndexes = [...classAreaProperties.keys()].sort(
     (left, right) => left - right,
   );
-  if (
-    classIndexes.length !== areaIndexes.length ||
-    classIndexes.some(
-      (classIndex, position) => classIndex !== areaIndexes[position],
-    )
-  ) {
-    throw new Error(
-      `Asset estatístico ${source.assetId} deve possuir o mesmo conjunto de colunas perc_classe_XX e area_ha_classe_XX.`,
-    );
-  }
 
-  const requiredProperties = [
-    source.properties.level,
-    source.properties.locationName,
-    source.properties.municipalityCode,
-    source.properties.stateCode,
-    source.properties.year,
-    source.properties.date,
-    source.properties.totalArea,
-    ...getScalarMetricPropertyNames(source),
+  const problems = [
+    ...findClassColumnProblems(classIndexes, areaIndexes),
+    ...findMissingMappedColumns(source, uniquePropertyNames),
   ];
-  const missingProperties = requiredProperties.filter(
-    (propertyName) => !uniquePropertyNames.includes(propertyName),
-  );
-
-  if (missingProperties.length > 0) {
+  if (problems.length > 0) {
     throw new Error(
-      `Asset estatístico ${source.assetId} não possui as colunas obrigatórias: ${missingProperties.join(
-        ", ",
-      )}.`,
+      buildColumnDiagnosis({
+        assetId: source.assetId,
+        problems,
+        columnNames: uniquePropertyNames,
+        shape: "classes",
+      }),
     );
   }
 
