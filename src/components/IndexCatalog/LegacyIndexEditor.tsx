@@ -412,7 +412,10 @@ export function LegacyIndexEditor({
           <CatalogMonitoringPreview
             preview={{ panelLayer: preview.panelLayer }}
           />
-          <CatalogReportPreview entryId={preview.entryId} />
+          <CatalogReportPreview
+            entryId={preview.entryId}
+            tileApiPath={preview.panelLayer.tileApiPath}
+          />
         </div>
       )}
     </section>

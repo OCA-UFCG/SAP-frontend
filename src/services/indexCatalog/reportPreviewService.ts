@@ -89,12 +89,17 @@ function getPreviewPeriod(config: IndexCatalogConfigV2) {
  *
  * O caminho normal (`getCachedMunicipalAnalysisImageData`) resolve a fonte
  * estatística pelo `panelLayer` **publicado**, que ainda não existe para um
- * rascunho. Aqui a fonte é a que a validação aprovou, e a leitura cobre só o
- * período da prévia — um pedido ao Earth Engine, não um por período da série.
+ * rascunho. Aqui a fonte é a que a validação aprovou.
+ *
+ * `periodKeys` são todos os períodos validados, e não o da prévia: com eles a
+ * primeira leitura traz a série inteira do território e os demais períodos saem
+ * do cache de linhas. É o que deixa o gráfico do relatório aparecer na prévia
+ * sem custar uma ida ao Earth Engine por período.
  */
 function createDraftImageDataLoader(
   config: IndexCatalogConfigV2,
   imageData: CompactTerritorialAnalysisDataset,
+  periodKeys: readonly string[],
 ) {
   return async (
     _panelLayerId: string,
@@ -110,6 +115,7 @@ function createDraftImageDataLoader(
       locationKey,
       catalogLayerClassCount(config.validatedStatisticsSource, config.classes),
       config.validatedStatisticsSource,
+      periodKeys,
     );
     if (!result) {
       return { found: false, imageData: null, status: "miss" as const };
@@ -125,16 +131,16 @@ function createDraftImageDataLoader(
 function toPreviewLayerConfig(
   config: IndexCatalogConfigV2,
   imageData: CompactTerritorialAnalysisDataset,
-  period: string,
+  periods: readonly string[],
 ): MunicipalReportLayerConfig {
   return {
     panelLayerId: config.panelLayerId,
     alias: stableMunicipalReportAlias(config.panelLayerId),
     title: config.name,
     order: 0,
-    // Só o período da prévia: a série inteira custaria uma leitura por período
-    // no Earth Engine para desenhar um gráfico que a prévia não mostra.
-    periods: [period],
+    // Todos os períodos validados: é a série que o gráfico do relatório
+    // desenha, e ela chega numa leitura só (ver `createDraftImageDataLoader`).
+    periods: [...periods],
     reportPresentation: toMunicipalReportPresentation(config.report),
     statisticsSource: config.validatedStatisticsSource,
     baseImageData: imageData,
@@ -149,11 +155,12 @@ function toDraftPreviewInput(
     throw new Error("Valide os assets e gere a prévia antes do relatório.");
   }
   const period = getPreviewPeriod(config);
+  const periods = config.validation.inferred.periods;
   return {
     period,
     dependencies: {
-      layers: [toPreviewLayerConfig(config, imageData, period)],
-      loadImageData: createDraftImageDataLoader(config, imageData),
+      layers: [toPreviewLayerConfig(config, imageData, periods)],
+      loadImageData: createDraftImageDataLoader(config, imageData, periods),
       availabilityIndex: EMPTY_AVAILABILITY_INDEX,
     },
   };

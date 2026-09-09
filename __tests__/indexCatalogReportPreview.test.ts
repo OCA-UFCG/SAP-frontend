@@ -116,17 +116,31 @@ function stubDraft(
   contentful.getLocalizedEntryField.mockReturnValue(imageData);
 }
 
-/** Uma leitura do Earth Engine em que Campina Grande é 16,6% árida. */
+/**
+ * Uma leitura do Earth Engine em que Campina Grande é 16,6% árida em 2024 e
+ * 10% em 2023 — dois períodos, que é o mínimo para haver série no gráfico.
+ */
+const ARIDITY_BY_PERIOD: Record<string, [number, number]> = {
+  "2023": [10, 90],
+  "2024": [16.6, 83.4],
+};
+
 function stubGeeRow() {
-  gee.getGeeStatisticsYearPatch.mockResolvedValue({
-    assetId: "projects/x/assets/stats",
-    featureCount: 1,
-    omittedZeroValueLocationKeys: [],
-    metrics: {},
-    patch: {
-      years: { "2024": { values: { [CAMPINA_GRANDE]: [16.6, 83.4] } } },
-    },
-  });
+  gee.getGeeStatisticsYearPatch.mockImplementation(
+    async (_layerId: string, yearKey: string) => ({
+      assetId: "projects/x/assets/stats",
+      featureCount: 1,
+      omittedZeroValueLocationKeys: [],
+      metrics: {},
+      patch: {
+        years: {
+          [yearKey]: {
+            values: { [CAMPINA_GRANDE]: ARIDITY_BY_PERIOD[yearKey] },
+          },
+        },
+      },
+    }),
+  );
 }
 
 /** Uma tabela municipal de valor único: uma classe na camada, faixas no mapa. */
@@ -237,19 +251,33 @@ describe("buildIndexCatalogReportPreview", () => {
     );
   });
 
-  it("lê o Earth Engine uma vez, só para o período da prévia", async () => {
+  it("cobre a série inteira e leva os períodos publicados em cada leitura", async () => {
     stubDraft();
     stubGeeRow();
 
-    await buildIndexCatalogReportPreview("panel");
+    const preview = await buildIndexCatalogReportPreview("panel");
 
-    expect(gee.getGeeStatisticsYearPatch).toHaveBeenCalledTimes(1);
+    // A série é o que o gráfico do relatório desenha; os períodos publicados
+    // vão junto para o repositório trazer todas as linhas numa ida ao Earth
+    // Engine e servir as demais do cache.
+    expect(
+      preview.report.analyses[0]?.timeSeries.map((item) => item.period),
+    ).toEqual(["2023", "2024"]);
     expect(gee.getGeeStatisticsYearPatch).toHaveBeenCalledWith(
       "indice-de-aridez-catalogo",
       "2024",
       CAMPINA_GRANDE,
       2,
       source,
+      ["2023", "2024"],
+    );
+    expect(gee.getGeeStatisticsYearPatch).toHaveBeenCalledWith(
+      "indice-de-aridez-catalogo",
+      "2023",
+      CAMPINA_GRANDE,
+      2,
+      source,
+      ["2023", "2024"],
     );
   });
 
@@ -318,6 +346,7 @@ describe("buildIndexCatalogReportPreview", () => {
       CAMPINA_GRANDE,
       1,
       valueTableSource,
+      ["2024"],
     );
     expect(preview.report.analyses[0]?.status).toBe("available");
   });
@@ -331,13 +360,7 @@ describe("buildIndexCatalogReportPreview", () => {
     const preview = await buildIndexCatalogReportPreview("panel");
 
     expect(preview.period).toBe("2023");
-    expect(gee.getGeeStatisticsYearPatch).toHaveBeenCalledWith(
-      "indice-de-aridez-catalogo",
-      "2023",
-      CAMPINA_GRANDE,
-      2,
-      source,
-    );
+    expect(preview.report.analyses[0]?.effectivePeriod).toBe("2023");
   });
 
   it("não vai ao Earth Engine com um rascunho sem prévia validada", async () => {

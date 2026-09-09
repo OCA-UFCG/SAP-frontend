@@ -1831,7 +1831,10 @@ export function IndexCatalogScreen() {
             }
           />
           <CatalogMonitoringPreview preview={preview} />
-          <CatalogReportPreview entryId={preview.entryId} />
+          <CatalogReportPreview
+            entryId={preview.entryId}
+            tileApiPath={preview.panelLayer.tileApiPath}
+          />
         </section>
       )}
 
