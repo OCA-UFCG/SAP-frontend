@@ -27,6 +27,7 @@ import type { CompactTerritorialAnalysisDataset } from "@/utils/analysis";
 import { mergeCompactDatasetYear } from "@/utils/municipalAnalysisMerge";
 import type { MunicipalReportSeriesConfig } from "@/utils/interfaces";
 import type { MunicipalAvailabilityIndex } from "@/utils/municipalAvailability";
+import { catalogLayerClassCount } from "@/utils/indexCatalog";
 import {
   stableMunicipalReportAlias,
   toMunicipalReportPresentation,
@@ -107,7 +108,7 @@ function createDraftImageDataLoader(
       config.panelLayerId,
       yearKey,
       locationKey,
-      config.classes.length,
+      catalogLayerClassCount(config.validatedStatisticsSource, config.classes),
       config.validatedStatisticsSource,
     );
     if (!result) {

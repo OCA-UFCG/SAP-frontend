@@ -111,7 +111,13 @@ que um colchete que não resolve apareça errado na prévia também.
 São configurações independentes:
 
 - estatísticas: sempre uma FeatureCollection fixa ou um template com `{year}`,
-  `{month}` e/ou `{period}`;
+  `{month}` e/ou `{period}`, em uma de **duas formas de tabela** (o campo
+  "Forma da tabela" no formulário):
+  - **Distribuição por classes** (`gee-feature-collection`): uma linha por
+    território e período, com `perc_classe_XX` e `area_ha_classe_XX`;
+  - **Valor único por município** (`gee-municipal-value-table`): uma linha por
+    município, uma coluna por período e um número em cada célula — a forma dos
+    dados socioeconômicos, descrita adiante;
   - o formulário oferece **Uma tabela por ano (detectar os anos)**: o operador
     cola o endereço de um ano concreto (`..._MonitorANA_2026`) e a tela grava o
     template equivalente (`..._MonitorANA_{year}`). Não é um terceiro contrato,
@@ -149,6 +155,47 @@ Também são obrigatórias as propriedades territoriais, `ano`, `data_img` e
 `area_total_ha`. A validação rejeita schema incompleto, classes divergentes,
 períodos duplicados, linhas incompletas e percentuais fora de 0–100 ou que não
 somem `100 ± 0,2` (todos zero representam ausência).
+
+### Valor único por município
+
+É a forma em que a mesma FeatureCollection é a tabela de estatísticas **e** o
+asset que desenha o mapa: `projects/ee-ulissesalencar17/assets/pob_total` tem
+5.573 linhas municipais, as colunas `2012`…`2025` com o percentual de pobreza e
+as colunas territoriais do recorte do IBGE. O mapa a desenha com
+`reduceToImage` sobre a coluna do período.
+
+O formulário pede, além do endereço do asset:
+
+- **Coluna do valor** — `{year}` quando as colunas são os anos. Numa
+  FeatureCollection única ela precisa ter `{year}`, `{month}` ou `{period}`; é
+  ela que separa os períodos. Quando cada asset é um período (`pob_{year}`), a
+  coluna pode ser fixa.
+- **Como somar os municípios** — `soma` para contagens (registros de seca do
+  S2ID) e `média` para percentuais (pobreza do CadÚnico). A tabela só tem
+  municípios, e é daí que saem o valor de cada UF e o do Brasil.
+- **Indicador** — nome, unidade (`registros`, `%`), formato do número
+  (percentual ou contagem) e cor. O nome e a unidade montam as frases do painel
+  ("Registros de secas e estiagens em Paraíba: 34 registros.") e o título do
+  ranking de estados; a unidade também vira o `measurementUnit` do `panelLayer`,
+  que nesta forma deixa de ser fixo em `%`.
+- **Faixas de cor do mapa** — escritas à mão, porque a tabela não tem uma coluna
+  por faixa que o catálogo pudesse inferir. São a legenda do mapa, e exigem
+  exatamente um limite a menos que a quantidade de faixas.
+
+A camada publicada tem **uma classe só** (o indicador) e um valor por
+território; as faixas ficam em `mapVisualization.legend` com os `thresholds`.
+O mapa desta forma é sempre uma FeatureCollection — é a própria tabela que é
+pintada —, então a validação recusa Image e ImageCollection em vez de
+sobrescrever o tipo em silêncio.
+
+A validação recusa: tabela sem coluna que case com a coluna do valor, município
+repetido, linha sem código IBGE ou sem nome, coluna de UF que não é uma UF,
+tabela com mais de 6.000 linhas (sinal de que não é municipal) e qualquer célula
+vazia numa coluna de período — um vazio faz `reduceColumns` descartar o
+município de **todos** os períodos e o total da UF sair menor em silêncio.
+
+A prévia sempre traz um aviso: recortes de região, bioma, ASD e semiárido ficam
+sem valor nesta forma, porque não saem de uma tabela municipal.
 
 ## Descoberta, prévia e publicação
 

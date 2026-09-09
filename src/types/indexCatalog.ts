@@ -1,5 +1,5 @@
 import type {
-  GeeFeatureCollectionStatisticsSource,
+  GeeStatisticsSource,
   PublishedGeeStatisticsSource,
 } from "@/contracts/geeStatistics";
 import { INDEX_CATALOG_CATEGORIES } from "@/contracts/indexCatalogAdoption.mjs";
@@ -78,13 +78,36 @@ export interface CatalogValidationReport {
   sourceFingerprint: string;
 }
 
+/**
+ * O indicador de um índice cuja tabela traz um valor por município, e não uma
+ * distribuição por classes.
+ *
+ * O painel mostra um número só por território — 742 registros, 70,3% —, então a
+ * camada tem uma única "classe" (o próprio indicador) e as faixas coloridas
+ * pertencem ao mapa, não à estatística.
+ */
+export interface MunicipalValueIndicator {
+  label: string;
+  color: string;
+  /** Rótulo da unidade no painel: `%`, `registros`, `pessoas`. */
+  measurementUnit: string;
+  /** `percentage` arredonda para uma casa; `absolute` formata como contagem. */
+  valueType: "percentage" | "absolute";
+}
+
 export interface IndexCatalogDraftInput {
   name: string;
   description: string;
   category: IndexCategory;
-  statisticsSource: GeeFeatureCollectionStatisticsSource;
+  statisticsSource: GeeStatisticsSource;
   classes: ClassMapping[];
   earthEngine: EarthEngineAssetMapping;
+  /**
+   * Obrigatório quando `statisticsSource.kind` é `gee-municipal-value-table` e
+   * ignorado nas demais formas, em que a unidade é sempre `%` e cada classe da
+   * tabela já tem rótulo e cor próprios.
+   */
+  valueIndicator?: MunicipalValueIndicator;
 }
 
 interface IndexCatalogAuditData {

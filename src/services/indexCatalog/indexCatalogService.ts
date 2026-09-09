@@ -38,6 +38,7 @@ import {
   type IndexCatalogPreview,
 } from "@/types/indexCatalog";
 import {
+  catalogLayerClassCount,
   createCatalogPanelLayerId,
   hasPublishableValidation,
   makeUniqueCatalogPanelLayerId,
@@ -65,6 +66,19 @@ function toInitialConfig(
   });
 }
 
+/**
+ * A unidade que o painel de análise mostra ao lado do valor.
+ *
+ * Uma tabela classificatória é sempre percentual — cada classe ocupa uma fatia
+ * da área —, mas um índice de valor único tem a unidade do próprio indicador:
+ * "registros", "pessoas", "%".
+ */
+function resolveMeasurementUnit(input: {
+  valueIndicator?: { measurementUnit: string };
+}) {
+  return input.valueIndicator?.measurementUnit ?? "%";
+}
+
 export async function createIndexCatalogDraft(
   rawInput: unknown,
   user: AuthenticatedUserSession,
@@ -81,7 +95,7 @@ export async function createIndexCatalogDraft(
     id: panelLayerId,
     name: input.name,
     description: input.description,
-    measurementUnit: "%",
+    measurementUnit: resolveMeasurementUnit(input),
     category: input.category,
     catalogConfig: config,
   });
@@ -152,7 +166,7 @@ export async function updateIndexCatalogDraft(
     id: panelLayerId,
     name: input.name,
     description: input.description,
-    measurementUnit: "%",
+    measurementUnit: resolveMeasurementUnit(input),
     category: input.category,
     catalogConfig: config,
   });
@@ -236,7 +250,7 @@ export async function generateIndexCatalogPreview(
         id: config.panelLayerId,
         name: config.name,
         description: config.description,
-        measurementUnit: "%",
+        measurementUnit: resolveMeasurementUnit(config),
         category: config.category,
         panelPosition: resolvePanelPositionInCategory(
           entries,
@@ -299,7 +313,7 @@ export async function getIndexCatalogDraftMunicipalData(
     config.panelLayerId,
     year,
     locationKey,
-    config.classes.length,
+    catalogLayerClassCount(config.validatedStatisticsSource, config.classes),
     config.validatedStatisticsSource,
     // A prévia do catálogo reusa o painel de análise, então ela dispara um
     // pedido por período do rascunho. Passar os períodos já inferidos na
