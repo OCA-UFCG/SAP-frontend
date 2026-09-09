@@ -19,9 +19,9 @@ const SECTION_EXAMPLES: ReadonlyArray<{
   {
     title: "Situação atual",
     written:
-      "Em [municipio] — [uf], a classe predominante deste índice é [classe], que responde por [percentual]% da área do município no período de [periodo_extenso].",
+      "No município de [municipio] — [uf], [percentual]% do seu território está na classe [classe], conforme o [indice], no período de [periodo_extenso].",
     rendered:
-      "Em Campina Grande — PB, a classe predominante deste índice é Semiárido, que responde por 83,4% da área do município no período de setembro de 2024.",
+      "No município de Campina Grande — PB, 83,4% do seu território está na classe Semiárido, conforme o Monitor de Secas da ANA, no período de setembro de 2024.",
   },
   {
     title: "Como interpretar os resultados",
@@ -175,10 +175,10 @@ export function IndexCatalogReportGuideModal({
           </table>
         </div>
         <p className="mt-2 text-xs text-stone-500">
-          <code>[classe]</code>, <code>[percentual]</code> e{" "}
-          <code>[periodo]</code> sempre se referem a <em>este</em> índice, não
-          aos outros do relatório. Um nome que não esteja nesta tabela fica
-          escrito com os colchetes no relatório final.
+          <code>[indice]</code>, <code>[classe]</code>,{" "}
+          <code>[percentual]</code> e <code>[periodo]</code> sempre se referem a{" "}
+          <em>este</em> índice, não aos outros do relatório. Um nome que não
+          esteja nesta tabela fica escrito com os colchetes no relatório final.
         </p>
 
         <h3 className="mt-5 font-bold">O texto padrão</h3>

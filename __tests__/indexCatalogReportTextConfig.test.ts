@@ -18,6 +18,7 @@ const TEMPLATE_DATA = {
   uf: "PB",
   periodo_referencia: "setembro de 2024",
   data_geracao: "03/09/2026",
+  indice_indice_de_aridez_catalogo: "Índice de Aridez",
   classe_indice_de_aridez_catalogo: "Semiárido",
   percentual_indice_de_aridez_catalogo: 83.42,
   periodo_indice_de_aridez_catalogo: "2024-09",
@@ -51,6 +52,17 @@ describe("texto padrão do Relatório Automático no catálogo", () => {
     for (const section of content[THEME]) {
       expect(section.text).not.toMatch(/[[\]]/u);
     }
+  });
+
+  // [indice] resolve para o título da própria camada, e é o que permite o
+  // texto padrão citar a fonte do dado sem ser reescrito índice a índice.
+  it("troca [indice] pelo nome do índice da seção", () => {
+    const content = populateDocContent(
+      { [THEME]: [{ title: "Situação atual", text: "conforme o [indice]" }] },
+      TEMPLATE_DATA,
+    );
+
+    expect(content[THEME][0].text).toBe("conforme o Índice de Aridez");
   });
 
   it("oferece na tela só variáveis que o relatório sabe resolver", () => {

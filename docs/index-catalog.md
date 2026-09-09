@@ -76,9 +76,9 @@ abaixo deles e no modal "Guia e exemplos" da própria seção.
 As variáveis oferecidas na tela são as de `CATALOG_REPORT_VARIABLES`, e a lista
 é fechada de propósito: `populateTemplate` devolve o próprio `[texto]` quando não
 encontra a chave, então prometer uma variável inexistente publica o colchete no
-relatório. `[classe]`, `[percentual]`, `[valor]`, `[valor_com_unidade]`,
-`[unidade]`, `[periodo]` e `[periodo_extenso]` se referem à **camada da própria
-seção**: `getLayerScopedTemplateKey` em `buildDocContent.ts` compõe
+relatório. `[indice]` (o título do índice), `[classe]`, `[percentual]`,
+`[valor]`, `[valor_com_unidade]`, `[unidade]`, `[periodo]` e
+`[periodo_extenso]` se referem à **camada da própria seção**: `getLayerScopedTemplateKey` em `buildDocContent.ts` compõe
 `<chave>_<id da camada normalizado>`, que é exatamente o alias com que
 `municipalReportService` grava `templateVariables`. Sem isso, quem escreve o
 texto precisaria conhecer o id gerado para o índice. O alias explícito das

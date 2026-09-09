@@ -136,7 +136,7 @@ export function IndexCatalogReportFields({
       </div>
       <p className="mt-2 text-xs text-stone-500">
         O que estiver entre colchetes é trocado pelo dado do município:{" "}
-        <code>[municipio]</code>, <code>[classe]</code>,{" "}
+        <code>[municipio]</code>, <code>[indice]</code>, <code>[classe]</code>,{" "}
         <code>[percentual]</code> e <code>[periodo_extenso]</code>. Um campo
         deixado em branco simplesmente não aparece no relatório.
       </p>

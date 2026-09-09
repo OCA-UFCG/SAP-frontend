@@ -22,6 +22,11 @@ export interface CatalogReportVariable {
  */
 export const CATALOG_REPORT_VARIABLES: readonly CatalogReportVariable[] = [
   {
+    token: "[indice]",
+    description: "Nome deste índice, como publicado no catálogo.",
+    example: "Monitor de Secas da ANA",
+  },
+  {
     token: "[municipio]",
     description: "Nome do município do relatório.",
     example: "Campina Grande",
@@ -80,7 +85,7 @@ export const DEFAULT_CATALOG_REPORT_SECTIONS: readonly MunicipalReportDocsSectio
   [
     {
       title: "Situação atual",
-      text: "Em [municipio] — [uf], a classe predominante deste índice é [classe], que responde por [percentual]% da área do município no período de [periodo_extenso].",
+      text: "No município de [municipio] — [uf], [percentual]% do seu território está na classe [classe], conforme o [indice], no período de [periodo_extenso].",
     },
     {
       title: "O que este índice mede",
