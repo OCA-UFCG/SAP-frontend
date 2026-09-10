@@ -7,6 +7,7 @@ import { LegacyAppearanceFields } from "@/components/IndexCatalog/LegacyAppearan
 import { LegacyMapAssetFields } from "@/components/IndexCatalog/LegacyMapAssetFields";
 import { CatalogReportPreview } from "@/components/IndexCatalog/CatalogReportPreview";
 import { IndexCatalogReportFields } from "@/components/IndexCatalog/IndexCatalogReportFields";
+import { PanelPositionField } from "@/components/IndexCatalog/PanelPositionField";
 import {
   catalogApiRequest,
   catalogIdempotencyKey,
@@ -86,12 +87,15 @@ function toInitialReport(item: IndexCatalogItem): IndexCatalogReportDraft {
  */
 export function LegacyIndexEditor({
   item,
+  items,
   inputClass,
   buttonClass,
   onChanged,
   onClose,
 }: {
   item: IndexCatalogItem;
+  /** Todos os índices do catálogo, para o aviso de posição já ocupada. */
+  items: IndexCatalogItem[];
   inputClass: string;
   buttonClass: string;
   onChanged: () => void;
@@ -297,22 +301,14 @@ export function LegacyIndexEditor({
             “registros” — mantenha o que este índice já tem.
           </p>
         </div>
-        <div>
-          <label className="text-sm font-medium">
-            Posição na categoria
-            <input
-              className={inputClass}
-              inputMode="numeric"
-              value={form.panelPosition}
-              onChange={(event) =>
-                setForm({ ...form, panelPosition: event.target.value })
-              }
-            />
-          </label>
-          <p className="mt-1 text-xs text-stone-500">
-            Ordem na lista do Monitoramento, do menor para o maior.
-          </p>
-        </div>
+        <PanelPositionField
+          value={form.panelPosition}
+          onChange={(panelPosition) => setForm({ ...form, panelPosition })}
+          items={items}
+          entryId={item.entryId}
+          category={form.category}
+          inputClass={inputClass}
+        />
       </div>
 
       <LegacyMapAssetFields

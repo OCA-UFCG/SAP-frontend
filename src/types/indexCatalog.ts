@@ -108,6 +108,16 @@ export interface IndexCatalogDraftInput {
    * tabela já tem rótulo e cor próprios.
    */
   valueIndicator?: MunicipalValueIndicator;
+  /**
+   * Onde o índice deve ficar na lista da categoria dele no Monitoramento.
+   *
+   * É um pedido, não o número em vigor: o campo `panelLayer.panelPosition` só
+   * recebe este valor na publicação, porque é lá que a troca com o índice que
+   * já ocupava a posição pode ser aplicada nas duas entries de uma vez
+   * (`resolvePanelPositionPlan`). Ausente enquanto ninguém escolheu uma
+   * posição, e aí o índice novo entra depois do último da categoria.
+   */
+  panelPosition?: number;
 }
 
 interface IndexCatalogAuditData {

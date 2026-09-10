@@ -88,11 +88,12 @@ function adoptedItem(overrides: Partial<IndexCatalogItem> = {}) {
   } as IndexCatalogItem;
 }
 
-function renderEditor(item = adoptedItem()) {
+function renderEditor(item = adoptedItem(), items = [item]) {
   const onChanged = vi.fn();
   render(
     <LegacyIndexEditor
       item={item}
+      items={items}
       inputClass={inputClass}
       buttonClass={buttonClass}
       onChanged={onChanged}

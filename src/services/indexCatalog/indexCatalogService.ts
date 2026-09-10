@@ -25,6 +25,7 @@ import {
   requireManagedConfig,
   withAuditEvent,
 } from "@/services/indexCatalog/catalogConfigAudit";
+import { preparePanelPositionForPublish } from "@/services/indexCatalog/panelPositionPublication";
 import { getIndexCatalogPreviewMapUrl } from "@/services/indexCatalog/previewMapService";
 import { publishIndexCatalogPresentation } from "@/services/indexCatalog/presentationService";
 import {
@@ -43,7 +44,6 @@ import {
   hasPublishableValidation,
   makeUniqueCatalogPanelLayerId,
   parseIndexCatalogDraftInput,
-  resolvePanelPositionInCategory,
 } from "@/utils/indexCatalog";
 
 function toInitialConfig(
@@ -231,7 +231,6 @@ export async function generateIndexCatalogPreview(
 
   try {
     const build = await buildCatalogDraft(config);
-    const entries = await listCatalogEntries();
     const readyConfig = withAuditEvent(
       {
         ...config,
@@ -252,11 +251,9 @@ export async function generateIndexCatalogPreview(
         description: config.description,
         measurementUnit: resolveMeasurementUnit(config),
         category: config.category,
-        panelPosition: resolvePanelPositionInCategory(
-          entries,
-          config.category,
-          entryId,
-        ),
+        // A prévia não mexe na ordem do Monitoramento de propósito: o campo
+        // `panelPosition` é escrito na publicação, que é onde a troca com o
+        // índice que já ocupava a posição pode ser aplicada nas duas entries.
         timeScale: build.validation.inferred.timeScale,
         imageData: build.panelLayerImageData,
         statisticsSource: build.statisticsSource,
@@ -369,6 +366,14 @@ export async function publishIndexCatalogDraft(
         "Os assets ou a configuração mudaram desde a última prévia. Revalide antes de publicar.",
       );
     }
+    const position = await preparePanelPositionForPublish({
+      entryId,
+      entry: current.entry,
+      locale: current.locale,
+      category: config.category,
+      requestedPosition: config.panelPosition,
+      user,
+    });
     const publishedConfig = withAuditEvent(
       {
         ...config,
@@ -384,6 +389,7 @@ export async function publishIndexCatalogDraft(
     const latestPanelLayer = await patchManagementEntry(
       await getManagementEntry(entryId),
       {
+        panelPosition: position.position,
         imageData: build.panelLayerImageData,
         statisticsSource: build.statisticsSource,
         catalogConfig: publishedConfig,
@@ -398,10 +404,12 @@ export async function publishIndexCatalogDraft(
         `O Contentful não confirmou a publicação da entry ${entryId}: sys.publishedAt ausente. O índice continuaria em rascunho e fora do Monitoramento.`,
       );
     }
+    const positionNote = await position.applySwap();
     return {
       entryId: published.sys.id,
       panelLayerId: config.panelLayerId,
       status: "published" as const,
+      ...(positionNote ? { positionNote } : {}),
     };
   } catch (error) {
     // O `status` fica como estava antes da tentativa — o spread de `config` o

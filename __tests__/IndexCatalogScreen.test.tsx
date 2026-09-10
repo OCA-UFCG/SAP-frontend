@@ -100,6 +100,55 @@ describe("IndexCatalogScreen v2", () => {
     expect(body).not.toHaveProperty("unit");
   });
 
+  it("manda a posição na categoria escrita no formulário", async () => {
+    const fetchMock = vi.mocked(fetch);
+    fetchMock
+      .mockImplementationOnce(() => jsonResponse({ items: [] }))
+      .mockImplementationOnce(() =>
+        jsonResponse({ entryId: "draft-1", panelLayerId: "indice-gee" }, 201),
+      )
+      .mockImplementationOnce(() => jsonResponse({ requiresRepublish: false }))
+      .mockImplementationOnce(() => jsonResponse({ items: [] }));
+
+    render(<IndexCatalogScreen />);
+    await screen.findByText("Nenhum panelLayer encontrado.");
+    fillMinimumForm();
+    fireEvent.change(screen.getByLabelText("Posição na categoria"), {
+      target: { value: "0" },
+    });
+    fireEvent.click(screen.getByRole("button", { name: "Salvar rascunho" }));
+
+    await waitFor(() => expect(fetch).toHaveBeenCalledTimes(4));
+    const body = JSON.parse(
+      String((fetchMock.mock.calls[1][1] as RequestInit).body),
+    );
+    expect(body.panelPosition).toBe(0);
+  });
+
+  it("deixa a posição de fora quando o campo fica vazio", async () => {
+    // Campo vazio significa "onde já está": mandar zero colocaria todo índice
+    // novo brigando pelo primeiro lugar da categoria.
+    const fetchMock = vi.mocked(fetch);
+    fetchMock
+      .mockImplementationOnce(() => jsonResponse({ items: [] }))
+      .mockImplementationOnce(() =>
+        jsonResponse({ entryId: "draft-1", panelLayerId: "indice-gee" }, 201),
+      )
+      .mockImplementationOnce(() => jsonResponse({ requiresRepublish: false }))
+      .mockImplementationOnce(() => jsonResponse({ items: [] }));
+
+    render(<IndexCatalogScreen />);
+    await screen.findByText("Nenhum panelLayer encontrado.");
+    fillMinimumForm();
+    fireEvent.click(screen.getByRole("button", { name: "Salvar rascunho" }));
+
+    await waitFor(() => expect(fetch).toHaveBeenCalledTimes(4));
+    const body = JSON.parse(
+      String((fetchMock.mock.calls[1][1] as RequestInit).body),
+    );
+    expect(body.panelPosition).toBeUndefined();
+  });
+
   it("salva o texto do relatório junto com o rascunho", async () => {
     // Regressão: o texto ficava só no navegador porque "Salvar rascunho" mandava
     // apenas o formulário de dados, e a prévia do relatório caía na frase

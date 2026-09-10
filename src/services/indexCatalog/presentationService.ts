@@ -15,6 +15,7 @@ import {
   publishManagementEntry,
 } from "@/services/indexCatalog/contentfulManagement";
 import { readCompactImageData } from "@/services/indexCatalog/presentationImageData";
+import { preparePanelPositionForPublish } from "@/services/indexCatalog/panelPositionPublication";
 import { getIndexCatalogPreviewMapUrl } from "@/services/indexCatalog/previewMapService";
 import {
   isPresentationManagedCatalogConfig,
@@ -56,14 +57,14 @@ export async function updateIndexCatalogPresentation(
     { action: "update", outcome: "success" },
   );
 
+  // A posição fica só no `catalogConfig` aqui: o campo `panelPosition` da entry
+  // é escrito na publicação, que é onde a troca com o índice que já ocupava a
+  // posição pode ser aplicada nas duas entries de uma vez.
   const updated = await patchManagementEntry(current.entry, {
     name: input.name,
     description: input.description,
     category: input.category,
     measurementUnit: input.measurementUnit,
-    ...(input.panelPosition === undefined
-      ? {}
-      : { panelPosition: input.panelPosition }),
     catalogConfig: config,
   });
 
@@ -139,9 +140,11 @@ export async function getIndexCatalogPresentationPreview(
 /**
  * Publica um índice legado adotado.
  *
- * Não regrava nada antes de publicar: o que a tela editou já foi gravado pelo
- * salvamento, pela captura da imagem ou pela rota de texto. Publicar aqui é
- * levar a versão de rascunho da entry para o ar, e a conferência de
+ * Não regrava o conteúdo antes de publicar: o que a tela editou já foi gravado
+ * pelo salvamento, pela captura da imagem ou pela rota de texto. A exceção é a
+ * posição na categoria, que é aplicada aqui para poder trocar de lugar com o
+ * índice que já estava nela. Publicar é levar a versão de rascunho da entry
+ * para o ar, e a conferência de
  * `sys.publishedAt` existe pelo mesmo motivo do escopo completo — uma
  * publicação que não se registra tem de virar erro, não mensagem de sucesso.
  */
@@ -156,7 +159,16 @@ export async function publishIndexCatalogPresentation(
     actor: user,
     at: catalogTimestamp(),
   });
+  const position = await preparePanelPositionForPublish({
+    entryId,
+    entry: current.entry,
+    locale: current.locale,
+    category: config.category,
+    requestedPosition: config.panelPosition,
+    user,
+  });
   const patched = await patchManagementEntry(current.entry, {
+    panelPosition: position.position,
     catalogConfig: publishedConfig,
   });
   const published = await publishManagementEntry(patched);
@@ -166,10 +178,12 @@ export async function publishIndexCatalogPresentation(
     );
   }
 
+  const positionNote = await position.applySwap();
   return {
     entryId: published.sys.id,
     panelLayerId: config.panelLayerId,
     status: "published" as const,
+    ...(positionNote ? { positionNote } : {}),
   };
 }
 

@@ -11,7 +11,7 @@ import {
   parseIndexCatalogPresentationInput,
   hasPublishableValidation,
   reconcileCatalogPublicationStatus,
-  resolvePanelPositionInCategory,
+  resolvePanelPositionPlan,
 } from "@/utils/indexCatalog";
 
 const validDraft = {
@@ -356,7 +356,12 @@ describe("index catalog v2 input helpers", () => {
 
 describe("posição do índice na categoria do Monitoramento", () => {
   const climaticos = [
-    { entryId: "anaseca", category: "Dados Climáticos", panelPosition: 0 },
+    {
+      entryId: "anaseca",
+      name: "Monitor de seca | ANA",
+      category: "Dados Climáticos",
+      panelPosition: 0,
+    },
     { entryId: "cemadenseca", category: "Dados Climáticos", panelPosition: 1 },
     { entryId: "aridez", category: "Dados Climáticos", panelPosition: 4 },
     {
@@ -369,42 +374,94 @@ describe("posição do índice na categoria do Monitoramento", () => {
 
   it("coloca um índice novo logo depois do último da categoria", () => {
     expect(
-      resolvePanelPositionInCategory(climaticos, "Dados Climáticos", "novo"),
-    ).toBe(11);
+      resolvePanelPositionPlan(climaticos, {
+        entryId: "novo",
+        category: "Dados Climáticos",
+      }),
+    ).toEqual({ position: 11 });
   });
 
   it("ignora as posições das outras categorias", () => {
     expect(
-      resolvePanelPositionInCategory(climaticos, "Dados Ambientais", "novo"),
-    ).toBe(0);
+      resolvePanelPositionPlan(climaticos, {
+        entryId: "novo",
+        category: "Dados Ambientais",
+      }),
+    ).toEqual({ position: 0 });
   });
 
-  it("mantém a posição que o índice já tem quando ela é só dele", () => {
+  it("mantém a posição que o índice já tem quando ninguém pediu outra", () => {
     expect(
-      resolvePanelPositionInCategory(
-        [
-          ...climaticos,
-          { entryId: "novo", category: "Dados Climáticos", panelPosition: 7 },
-        ],
-        "Dados Climáticos",
-        "novo",
-      ),
-    ).toBe(7);
+      resolvePanelPositionPlan(climaticos, {
+        entryId: "novo",
+        category: "Dados Climáticos",
+        currentPosition: 7,
+      }),
+    ).toEqual({ position: 7 });
   });
 
-  it("recalcula uma posição repetida em vez de deixar o índice na frente", () => {
+  it("respeita a posição livre que o formulário pediu", () => {
+    expect(
+      resolvePanelPositionPlan(climaticos, {
+        entryId: "novo",
+        category: "Dados Climáticos",
+        requestedPosition: 3,
+        currentPosition: 11,
+      }),
+    ).toEqual({ position: 3 });
+  });
+
+  it("troca de lugar com o índice que já estava na posição pedida", () => {
     // Regressão: teste-temperatura foi publicado com posição 0, empatado com
-    // anaseca, e apareceu como primeiro em Dados Climáticos.
+    // anaseca, e apareceu como primeiro em Dados Climáticos. Antes o empate era
+    // desfeito jogando o índice novo para o fim da categoria, ignorando o que o
+    // operador pediu; agora os dois trocam de posição.
     expect(
-      resolvePanelPositionInCategory(
+      resolvePanelPositionPlan(climaticos, {
+        entryId: "novo",
+        category: "Dados Climáticos",
+        requestedPosition: 0,
+        currentPosition: 15,
+      }),
+    ).toEqual({
+      position: 0,
+      swap: {
+        entryId: "anaseca",
+        name: "Monitor de seca | ANA",
+        panelLayerId: undefined,
+        position: 15,
+      },
+    });
+  });
+
+  it("dá ao ocupante a posição que sobra quando o índice novo ainda não tem uma", () => {
+    expect(
+      resolvePanelPositionPlan(climaticos, {
+        entryId: "novo",
+        category: "Dados Climáticos",
+        requestedPosition: 1,
+      }),
+    ).toMatchObject({
+      position: 1,
+      swap: { entryId: "cemadenseca", position: 11 },
+    });
+  });
+
+  it("não troca nada quando a posição pedida é a que o índice já ocupa", () => {
+    expect(
+      resolvePanelPositionPlan(
         [
           ...climaticos,
-          { entryId: "novo", category: "Dados Climáticos", panelPosition: 0 },
+          { entryId: "novo", category: "Dados Climáticos", panelPosition: 4 },
         ],
-        "Dados Climáticos",
-        "novo",
+        {
+          entryId: "novo",
+          category: "Dados Climáticos",
+          requestedPosition: 4,
+          currentPosition: 4,
+        },
       ),
-    ).toBe(11);
+    ).toEqual({ position: 4 });
   });
 });
 
