@@ -131,7 +131,7 @@
     "rasterDescription": "Raster temático de {title} para {period}, recortado visualmente pelo contorno municipal de {municipality} — {uf}.",
     "timeSeriesAlt": "Série temporal — {title}",
     "timeSeriesUnavailable": "Série temporal indisponível para exportação.",
-    "historicalAnalysisTitle": "Análise da série histórica",
+    "historicalAnalysisTitle": "Análise e Interpretação",
     "sectionReferenceLabel": "Referência da seção:",
     "historicalNoteTitle": "Nota sobre a série histórica",
     "historicalNoteText": "A série disponível para este indicador reúne {count} período(s), cobrindo {range}. {resolution}",
