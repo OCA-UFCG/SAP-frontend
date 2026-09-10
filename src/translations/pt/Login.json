@@ -1,12 +1,14 @@
 {
   "Login": {
-    "title": "Faça login",
-    "description": "Digite suas credenciais para acessar a plataforma.",
+    "title": "Entrar",
+    "logoAlt": "Logo do SEDES",
     "emailPlaceholder": "Email",
     "passwordPlaceholder": "Senha",
     "emailRequired": "Informe o login.",
     "passwordRequired": "Informe a senha.",
+    "showPassword": "Mostrar senha",
+    "hidePassword": "Ocultar senha",
     "submitting": "Entrando...",
-    "submit": "Entrar"
+    "submit": "Continue"
   }
 }
