@@ -54,7 +54,7 @@ export const Login = ({ onSubmit, backgroundImageUrl, error }: LoginProps) => {
           <div className="flex w-full flex-col gap-6">
             <div className="flex w-full flex-col items-center gap-16">
               <Image
-                src="/logo-sedes-verde.svg"
+                src="/green-sedes-logo.svg"
                 alt={t("logoAlt")}
                 width={128}
                 height={46}
