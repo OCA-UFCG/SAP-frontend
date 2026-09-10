@@ -387,6 +387,7 @@ export function parseIndexCatalogDraftInput(
     statisticsSource,
     classes,
     earthEngine: parseEarthEngineMapping(value.earthEngine),
+    ...parsePanelPositionInput(value.panelPosition),
     ...(isValueTable
       ? { valueIndicator: parseValueIndicator(value.valueIndicator) }
       : {}),
@@ -424,7 +425,6 @@ export function parseIndexCatalogPresentationInput(
     throw new Error("Categoria inválida.");
   }
 
-  const panelPosition = Number(value.panelPosition);
   return {
     name: requiredString(value.name, "Nome", 120),
     description: requiredString(value.description, "Descrição", 500),
@@ -434,19 +434,26 @@ export function parseIndexCatalogPresentationInput(
       "Unidade de medida",
       40,
     ),
-    ...(value.panelPosition != null && value.panelPosition !== ""
-      ? { panelPosition: assertPanelPosition(panelPosition) }
-      : {}),
+    ...parsePanelPositionInput(value.panelPosition),
   };
 }
 
-function assertPanelPosition(panelPosition: number) {
+/**
+ * A posição escrita no formulário, ou nada.
+ *
+ * Campo vazio não é posição zero: sem número o índice fica onde já está, e um
+ * índice novo entra depois do último da categoria.
+ */
+function parsePanelPositionInput(value: unknown) {
+  if (value == null || value === "") return {};
+
+  const panelPosition = Number(value);
   if (!Number.isInteger(panelPosition) || panelPosition < 0) {
     throw new Error(
       `Posição na categoria deve ser um inteiro maior ou igual a zero, recebido: ${panelPosition}`,
     );
   }
-  return panelPosition;
+  return { panelPosition };
 }
 
 /**
@@ -506,47 +513,111 @@ export function expandAssetForPeriod(
 
 interface CategoryPositionEntry {
   entryId: string;
+  panelLayerId?: string;
+  name?: string;
   category?: string;
   panelPosition?: number;
 }
 
+interface PanelPositionPlanRequest {
+  entryId: string;
+  category: string;
+  /** A posição escrita no formulário, quando o operador escreveu uma. */
+  requestedPosition?: number;
+  /** A posição que este índice ocupa hoje na lista publicada. */
+  currentPosition?: number;
+}
+
+export interface PanelPositionPlan {
+  position: number;
+  /**
+   * O índice que já ocupava a posição pedida e o número que ele recebe em
+   * troca. Ausente quando a posição estava livre.
+   */
+  swap?: {
+    entryId: string;
+    panelLayerId?: string;
+    name?: string;
+    position: number;
+  };
+}
+
 /**
- * Posição do índice na categoria dele no Monitoramento. Um índice novo entra
- * depois do último — a lista é ordenada por essa posição, então repetir um
- * número já usado deixa a ordem por conta da ordem de chegada do Contentful, e
- * foi assim que um índice recém-publicado apareceu como primeiro em Dados
- * Climáticos em vez de último. Por isso uma posição já ocupada por outra camada
- * da mesma categoria é recalculada, em vez de mantida.
+ * A primeira posição livre depois da última ocupada na categoria.
  *
- * @example
- * // anaseca 0, cemadenseca 1, prev_anomalia_precipitacao 10
- * resolvePanelPositionInCategory(entries, "Dados Climáticos", "novo") // 11
+ * `sameCategory.length` no lugar de zero quando ninguém tem posição preserva o
+ * comportamento antigo: uma categoria inteira sem números não deixa todos os
+ * índices empatados em zero.
  */
-export function resolvePanelPositionInCategory(
-  entries: readonly CategoryPositionEntry[],
-  category: string,
-  entryId: string,
-) {
-  const sameCategory = entries.filter(
-    (entry) => entry.entryId !== entryId && entry.category === category,
-  );
+function nextFreePositionInCategory(sameCategory: CategoryPositionEntry[]) {
   const takenPositions = sameCategory.flatMap((entry) =>
     typeof entry.panelPosition === "number" ? [entry.panelPosition] : [],
   );
-  const currentPosition = entries.find(
-    (entry) => entry.entryId === entryId,
-  )?.panelPosition;
-
-  if (
-    typeof currentPosition === "number" &&
-    !takenPositions.includes(currentPosition)
-  ) {
-    return currentPosition;
-  }
-
   return takenPositions.length > 0
     ? Math.max(...takenPositions) + 1
     : sameCategory.length;
+}
+
+/**
+ * Onde o índice entra na lista do Monitoramento, e quem sai do lugar por causa
+ * disso.
+ *
+ * Sem posição escrita no formulário o índice fica onde está, e um índice novo
+ * entra depois do último da categoria. Com uma posição escrita, ela é
+ * respeitada: se outro índice da mesma categoria já estiver nela, os dois
+ * trocam de lugar — o pedido vale para quem pediu e o antigo ocupante recebe a
+ * posição que este índice deixou vazia.
+ *
+ * A troca existe porque a lista é ordenada por esse número: dois índices
+ * empatados caíam na ordem de chegada do Contentful, e foi assim que
+ * `teste-temperatura`, publicado na posição 0 junto com `anaseca`, apareceu
+ * como primeiro em Dados Climáticos. Antes o empate era desfeito jogando o
+ * índice novo para o fim, o que ignorava em silêncio o que o operador pediu.
+ *
+ * @example
+ * // anaseca está na posição 0 e este índice na 15
+ * resolvePanelPositionPlan(entries, {
+ *   entryId: "novo",
+ *   category: "Dados Climáticos",
+ *   requestedPosition: 0,
+ *   currentPosition: 15,
+ * });
+ * // => { position: 0, swap: { entryId: "anaseca", position: 15 } }
+ */
+export function resolvePanelPositionPlan(
+  entries: readonly CategoryPositionEntry[],
+  request: PanelPositionPlanRequest,
+): PanelPositionPlan {
+  const sameCategory = entries.filter(
+    (entry) =>
+      entry.entryId !== request.entryId && entry.category === request.category,
+  );
+  const vacatedPosition =
+    request.currentPosition ?? nextFreePositionInCategory(sameCategory);
+
+  if (request.requestedPosition == null) {
+    return { position: vacatedPosition };
+  }
+
+  const occupant = sameCategory.find(
+    (entry) => entry.panelPosition === request.requestedPosition,
+  );
+
+  // Trocar por um número igual não muda nada e ainda escreveria numa entry de
+  // outro índice sem motivo.
+  if (!occupant || vacatedPosition === request.requestedPosition) {
+    return { position: request.requestedPosition };
+  }
+
+  return {
+    position: request.requestedPosition,
+    swap: {
+      entryId: occupant.entryId,
+      panelLayerId: occupant.panelLayerId,
+      name: occupant.name,
+      position: vacatedPosition,
+    },
+  };
 }
 
 /**

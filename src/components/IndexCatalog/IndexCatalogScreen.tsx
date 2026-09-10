@@ -24,6 +24,7 @@ import {
 } from "@/components/IndexCatalog/catalogApiClient";
 import { IndexCatalogGuideModal } from "@/components/IndexCatalog/IndexCatalogGuideModal";
 import { IndexCatalogReportFields } from "@/components/IndexCatalog/IndexCatalogReportFields";
+import { PanelPositionField } from "@/components/IndexCatalog/PanelPositionField";
 import { ImageCollectionForecastGuideModal } from "@/components/IndexCatalog/ImageCollectionForecastGuideModal";
 import {
   detectYearPartitionedTemplate,
@@ -265,6 +266,9 @@ export function IndexCatalogScreen() {
   const [guideOpen, setGuideOpen] = useState(false);
   const [forecastGuideOpen, setForecastGuideOpen] = useState(false);
   const [thresholdsInput, setThresholdsInput] = useState("");
+  // A posição fica em texto porque o campo aceita vazio, que significa "onde
+  // está" e não zero.
+  const [panelPositionInput, setPanelPositionInput] = useState("");
   const [leadValuesInput, setLeadValuesInput] = useState("1, 2, 3, 4");
   const [preview, setPreview] = useState<IndexCatalogPreview | null>(null);
   /** Índice legado adotado em edição; o formulário v2 fica escondido enquanto ele existe. */
@@ -356,6 +360,7 @@ export function IndexCatalogScreen() {
     storedReportRef.current = undefined;
     setPreview(null);
     setThresholdsInput("");
+    setPanelPositionInput("");
     setLeadValuesInput("1, 2, 3, 4");
   }
 
@@ -434,6 +439,9 @@ export function IndexCatalogScreen() {
     previewKeyRef.current = null;
     setPreview(null);
     setThresholdsInput(config.earthEngine.thresholds?.join(", ") ?? "");
+    setPanelPositionInput(
+      item.panelPosition === undefined ? "" : String(item.panelPosition),
+    );
     setLeadValuesInput(
       config.earthEngine.collectionSelection?.leadValues.join(", ") ??
         "1, 2, 3, 4",
@@ -633,6 +641,10 @@ export function IndexCatalogScreen() {
     const collectionSelection = draft.earthEngine.collectionSelection;
     return {
       ...draft,
+      panelPosition:
+        panelPositionInput.trim() === ""
+          ? undefined
+          : Number(panelPositionInput),
       earthEngine: {
         ...draft.earthEngine,
         assetsByPeriod: undefined,
@@ -904,7 +916,7 @@ export function IndexCatalogScreen() {
   ) {
     setBusy(`lifecycle-${item.entryId}`);
     try {
-      await apiRequest(
+      const result = await apiRequest<{ positionNote?: string }>(
         `/api/index-catalog/entries/${encodeURIComponent(item.entryId)}`,
         {
           method: "POST",
@@ -914,10 +926,18 @@ export function IndexCatalogScreen() {
           body: JSON.stringify({ action }),
         },
       );
+      // A troca de posição mexe em outro índice, então ela tem de aparecer na
+      // tela: sem isso o operador não saberia para onde foi o índice que estava
+      // no lugar pedido.
       setMessage(
-        action === "unpublish"
-          ? `“${item.name}” foi despublicado.`
-          : `“${item.name}” foi publicado.`,
+        [
+          action === "unpublish"
+            ? `“${item.name}” foi despublicado.`
+            : `“${item.name}” foi publicado.`,
+          result.positionNote,
+        ]
+          .filter(Boolean)
+          .join(" "),
       );
       await loadItems();
     } catch (reason) {
@@ -1178,6 +1198,7 @@ export function IndexCatalogScreen() {
       {legacyItem && (
         <LegacyIndexEditor
           item={legacyItem}
+          items={items}
           inputClass={inputClass}
           buttonClass={buttonClass}
           onChanged={() => void loadItems()}
@@ -1224,6 +1245,17 @@ export function IndexCatalogScreen() {
                 ))}
               </select>
             </label>
+            <PanelPositionField
+              value={panelPositionInput}
+              onChange={(value) => {
+                setPanelPositionInput(value);
+                setPreview(null);
+              }}
+              items={items}
+              entryId={entryId}
+              category={draft.category}
+              inputClass={inputClass}
+            />
             <label className="text-sm font-medium md:col-span-2">
               Descrição
               <textarea

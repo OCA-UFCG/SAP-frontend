@@ -6,6 +6,7 @@ const contentful = vi.hoisted(() => ({
   getCatalogEntry: vi.fn(),
   getLocalizedEntryField: vi.fn(),
   getManagementEntry: vi.fn(),
+  listCatalogEntries: vi.fn(),
   patchManagementEntry: vi.fn(),
   publishManagementEntry: vi.fn(),
 }));
@@ -68,6 +69,7 @@ function stubEntry(
     published?: boolean;
     config?: unknown;
     fields?: Record<string, unknown>;
+    entries?: unknown[];
   } = {},
 ) {
   const entry = {
@@ -89,6 +91,7 @@ function stubEntry(
     },
   });
   contentful.getManagementEntry.mockResolvedValue(entry);
+  contentful.listCatalogEntries.mockResolvedValue(options.entries ?? []);
   contentful.patchManagementEntry.mockResolvedValue(entry);
   contentful.publishManagementEntry.mockResolvedValue({
     sys: { id: "entry-legacy", publishedAt: "2026-09-03T12:00:00.000Z" },
@@ -131,8 +134,11 @@ describe("updateIndexCatalogPresentation", () => {
     expect(patchedFields()).toMatchObject({
       name: validInput.name,
       measurementUnit: "registros",
-      panelPosition: 5,
     });
+    // A posição pedida fica no catalogConfig; o campo da entry só é escrito na
+    // publicação, que é onde a troca com o ocupante pode ser aplicada.
+    expect(patchedFields().panelPosition).toBeUndefined();
+    expect(patchedFields().catalogConfig).toMatchObject({ panelPosition: 5 });
     expect(patchedFields().imageData).toBeUndefined();
     expect(patchedFields().statisticsSource).toBeUndefined();
   });

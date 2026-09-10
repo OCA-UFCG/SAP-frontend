@@ -275,16 +275,39 @@ a imagem nova só aparece na próxima publicação, e a tela diz isso.
 
 ### Posição na categoria
 
-A ordem da lista do Monitoramento vem de `panelLayer.panelPosition`, e a
-validação resolve a posição do índice com `resolvePanelPositionInCategory`: um
-índice novo entra depois do último da própria categoria (`Math.max(...) + 1`).
+A ordem da lista do Monitoramento vem de `panelLayer.panelPosition`, do menor
+para o maior, dentro da categoria. Os dois formulários do catálogo — o completo
+e o do índice legado adotado — editam esse número no campo "Posição na
+categoria" (`PanelPositionField`), e deixá-lo vazio significa "onde já está":
+um índice novo entra depois do último da própria categoria (`Math.max(...) + 1`).
 
-Uma posição já ocupada por outra camada da mesma categoria é recalculada em vez
-de mantida. Sem isso o índice ficava empatado — foi o que aconteceu com
-`teste-temperatura` publicado na posição 0, a mesma do `anaseca` — e a lista
-caía na ordem em que o Contentful devolvia as entries, colocando o índice novo
-como primeiro. O empate também virou desempate por nome em
-`comparePanelLayers`, para a lista não mudar de ordem a cada publicação.
+O número escrito no formulário é um **pedido**, gravado no `catalogConfig`. Ele
+só chega ao campo `panelPosition` da entry na publicação, e é
+`resolvePanelPositionPlan` que decide o que acontece quando outro índice da
+mesma categoria já está nele: os dois **trocam de lugar**. Quem pediu recebe a
+posição pedida, e o antigo ocupante recebe a posição que o outro deixou vazia —
+tanto no campo quanto no `catalogConfig` dele, para o formulário do índice
+movido não reabrir pedindo a posição antiga e desfazer a troca no salvamento
+seguinte. A troca é aplicada por `preparePanelPositionForPublish` depois de a
+entry que pediu ir ao ar, e o ocupante é republicado junto, porque sem isso a
+lista publicada continuaria com os dois no mesmo número.
+
+Um ocupante que tem outras alterações em rascunho **não** é republicado:
+publicá-lo levaria ao ar uma edição que ninguém revisou só por causa de uma
+troca de posição. Nesse caso a troca fica gravada no rascunho dele e a resposta
+da publicação traz um aviso (`positionNote`) pedindo a republicação — é o mesmo
+texto que a tela do catálogo mostra.
+
+Escrever o campo só na publicação é o que torna a troca possível: é a posição
+que a entry ainda tem publicada que diz qual número vai sobrar para o ocupante.
+Por isso a prévia não mexe mais na ordem.
+
+O empate era antes desfeito jogando o índice novo para o fim da categoria, o
+que ignorava em silêncio o que o operador pediu — foi o que aconteceu com
+`teste-temperatura`, publicado na posição 0, a mesma do `anaseca`: a lista caiu
+na ordem em que o Contentful devolvia as entries e o índice novo apareceu como
+primeiro. O desempate por nome em `comparePanelLayers` continua como rede de
+segurança, para a lista não mudar de ordem a cada publicação.
 
 ### ID técnico do panelLayer
 
@@ -394,7 +417,8 @@ Monitoramento pela primeira vez, e isso é decisão de quem opera, não de um lo
 ### O que o escopo de apresentação escreve
 
 `PUT /api/index-catalog/entries/[entryId]/presentation` grava `name`,
-`description`, `category`, `measurementUnit` e `panelPosition`, e mais nada.
+`description`, `category`, `measurementUnit` e a posição pedida (dentro do
+`catalogConfig`, ver "Posição na categoria"), e mais nada.
 Nunca `imageData` inteiro, nunca `statisticsSource`:
 
 - reescrever o `imageData` de um legado apagaria os valores territoriais que

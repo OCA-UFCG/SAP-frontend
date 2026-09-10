@@ -259,11 +259,15 @@ function toCatalogItem(
     category:
       getLocalizedEntryField<string>(entry, "category", locale) ??
       (typeof config?.category === "string" ? config.category : undefined),
-    panelPosition: getLocalizedEntryField<number>(
-      entry,
-      "panelPosition",
-      locale,
-    ),
+    // A posição pedida no catálogo vem antes da que está publicada: ela é o que
+    // o formulário tem de reabrir mostrando, e é sobre ela que o aviso de
+    // posição ocupada precisa avisar. O número em vigor continua no campo da
+    // entry, e é ele que a publicação troca (`resolvePanelPositionPlan`).
+    panelPosition:
+      (typeof effectiveConfig?.panelPosition === "number"
+        ? effectiveConfig.panelPosition
+        : undefined) ??
+      getLocalizedEntryField<number>(entry, "panelPosition", locale),
     published,
     everPublished: Boolean(entry.sys.firstPublishedAt ?? entry.sys.publishedAt),
     hasUnpublishedChanges,

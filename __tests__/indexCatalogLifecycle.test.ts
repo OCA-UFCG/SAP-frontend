@@ -185,6 +185,10 @@ function currentEntry(
 describe("index catalog v2 lifecycle", () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    // A publicação decide a posição do índice na categoria, e para isso lê a
+    // lista do catálogo.
+    contentful.listCatalogEntries.mockResolvedValue([]);
+    contentful.getLocalizedEntryField.mockReturnValue(undefined);
   });
 
   it("reports that only panelLayer is managed", async () => {
@@ -230,6 +234,7 @@ describe("index catalog v2 lifecycle", () => {
       expect.objectContaining({
         imageData: { years: {} },
         statisticsSource: source,
+        panelPosition: 0,
       }),
     );
     expect(contentful.publishManagementEntry).toHaveBeenCalledTimes(1);
