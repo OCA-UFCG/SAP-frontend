@@ -148,3 +148,39 @@ describe("populateDocContent com variáveis por camada", () => {
     expect(content.ARIDITY_INDEX[0].text).toBe("Classe: Semiárido.");
   });
 });
+
+describe("populateDocContent > variáveis de série da própria camada", () => {
+  it("resolve as variáveis novas no escopo da seção, sem o operador saber o alias", () => {
+    const content = populateDocContent(
+      {
+        indice_novo: [
+          {
+            title: "Contexto histórico",
+            text: "Antes era [classe_anterior], com [percentual_anterior]% da área, e a situação vem [status_tendencia] desde [periodo_inicial].",
+          },
+        ],
+      },
+      {
+        classe_anterior_indice_novo: "Sem seca",
+        percentual_anterior_indice_novo: 83.42,
+        status_tendencia_indice_novo: "agravando",
+        periodo_inicial_indice_novo: "janeiro de 2020",
+      },
+    );
+
+    expect(content.indice_novo[0].text).toBe(
+      "Antes era Sem seca, com 83,4% da área, e a situação vem agravando desde janeiro de 2020.",
+    );
+  });
+
+  it("formata como pontos percentuais qualquer variação, e não só a da degradação", () => {
+    const content = populateDocContent(
+      {
+        indice_novo: [{ title: "Variação", text: "[variacao_pontos] pontos" }],
+      },
+      { variacao_pontos_indice_novo: 12.34 },
+    );
+
+    expect(content.indice_novo[0].text).toBe("12,3 pontos");
+  });
+});

@@ -51,6 +51,7 @@ function stubDraft(
     sections: Array<{ title: string; text: string }>;
     sectionColor?: string;
     methodology?: string;
+    severity?: { order: string[]; neutralClassId?: string };
   },
   defaultPeriod = "2024",
 ) {
@@ -396,5 +397,43 @@ describe("buildIndexCatalogReportPreview", () => {
       /Valide os assets/u,
     );
     expect(gee.getGeeStatisticsYearPatch).not.toHaveBeenCalled();
+  });
+});
+
+describe("buildIndexCatalogReportPreview > variáveis oferecidas", () => {
+  beforeEach(() => vi.clearAllMocks());
+
+  it("lista as variáveis deste índice com o valor de Campina Grande", async () => {
+    stubDraft();
+    stubGeeRow();
+
+    const { variables } = await buildIndexCatalogReportPreview("panel");
+    const municipio = variables.find((entry) => entry.token === "[municipio]");
+
+    expect(municipio?.example).toBe("Campina Grande");
+    expect(variables.map(({ token }) => token)).toContain("[classe_anterior]");
+  });
+
+  it("não oferece a janela de 12 meses a um índice anual", async () => {
+    stubDraft();
+    stubGeeRow();
+
+    const { variables } = await buildIndexCatalogReportPreview("panel");
+
+    expect(variables.map(({ token }) => token)).not.toContain(
+      "[janela_12_meses]",
+    );
+  });
+
+  it("só oferece a tendência depois que a ordem de gravidade é declarada", async () => {
+    stubDraft({
+      sections: [],
+      severity: { order: ["semiarido", "arido"], neutralClassId: "semiarido" },
+    });
+    stubGeeRow();
+
+    const { variables } = await buildIndexCatalogReportPreview("panel");
+
+    expect(variables.map(({ token }) => token)).toContain("[status_tendencia]");
   });
 });

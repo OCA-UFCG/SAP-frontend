@@ -4,9 +4,11 @@ vi.mock("server-only", () => ({}));
 
 import {
   createDefaultReportDraft,
+  describeSeverityChoice,
   isStoredReportText,
   toReportDraft,
   toReportTextPayload,
+  toSeverityOrder,
 } from "@/utils/indexCatalogReportDraft";
 
 describe("toReportTextPayload", () => {
@@ -17,6 +19,8 @@ describe("toReportTextPayload", () => {
         { title: "Vazia", text: "   " },
       ],
       sectionColor: "",
+      severityOrder: [],
+      neutralClassId: "",
       methodology: "  Nota  ",
     });
 
@@ -39,6 +43,8 @@ describe("isStoredReportText", () => {
     const payload = toReportTextPayload({
       sections: [{ title: "Situação atual", text: "" }],
       sectionColor: "",
+      severityOrder: [],
+      neutralClassId: "",
       methodology: "",
     });
 
@@ -96,5 +102,70 @@ describe("toReportDraft", () => {
     ]);
     expect(draft.methodology).toBe("Nota do índice");
     expect(draft.sectionColor).toBe("");
+  });
+});
+
+describe("describeSeverityChoice", () => {
+  const classIds = ["umido", "subumido", "semiarido"];
+
+  it("reconhece a ordem gravada nos dois sentidos", () => {
+    expect(describeSeverityChoice(classIds, classIds)).toBe("best-first");
+    expect(describeSeverityChoice([...classIds].reverse(), classIds)).toBe(
+      "worst-first",
+    );
+  });
+
+  it("trata a ausência de ordem como resposta válida", () => {
+    expect(describeSeverityChoice([], classIds)).toBe("none");
+  });
+
+  it("marca como vencida a ordem que já não descreve as classes do índice", () => {
+    expect(describeSeverityChoice(["umido", "arido"], classIds)).toBe("stale");
+    expect(describeSeverityChoice(["umido", "subumido"], classIds)).toBe(
+      "stale",
+    );
+  });
+});
+
+describe("toSeverityOrder", () => {
+  it("grava a ordem das classes no sentido que o operador respondeu", () => {
+    expect(toSeverityOrder("best-first", ["a", "b"])).toEqual(["a", "b"]);
+    expect(toSeverityOrder("worst-first", ["a", "b"])).toEqual(["b", "a"]);
+    expect(toSeverityOrder("none", ["a", "b"])).toEqual([]);
+  });
+});
+
+describe("a ordem de gravidade no rascunho", () => {
+  const draft = {
+    sections: [{ title: "Situação atual", text: "Texto." }],
+    sectionColor: "",
+    methodology: "",
+    severityOrder: ["sem-seca", "seca-fraca"],
+    neutralClassId: "sem-seca",
+  };
+
+  it("atravessa a gravação e a leitura sem perder a classe neutra", () => {
+    expect(toReportDraft(toReportTextPayload(draft))).toMatchObject({
+      severityOrder: ["sem-seca", "seca-fraca"],
+      neutralClassId: "sem-seca",
+    });
+  });
+
+  it("não publica uma ordem com menos de duas classes", () => {
+    expect(
+      toReportTextPayload({ ...draft, severityOrder: ["sem-seca"] }).severity,
+    ).toBeUndefined();
+  });
+
+  it("conta como alteração a ser gravada", () => {
+    const stored = toReportTextPayload({ ...draft, severityOrder: [] });
+
+    expect(isStoredReportText(toReportTextPayload(draft), stored)).toBe(false);
+    expect(
+      isStoredReportText(
+        toReportTextPayload(draft),
+        toReportTextPayload(draft),
+      ),
+    ).toBe(true);
   });
 });

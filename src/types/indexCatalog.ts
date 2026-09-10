@@ -371,4 +371,17 @@ export interface IndexCatalogReportPreview {
   report: MunicipalReportData;
   /** As seções escritas no catálogo, já com as variáveis trocadas pelos dados. */
   docsContent: MunicipalReportDocsContent;
+  /**
+   * As variáveis que **este** índice comporta, com o valor que cada uma teria
+   * no município da prévia. Varia por índice: um índice anual não recebe a
+   * janela de 12 meses, e um sem ordem de gravidade declarada não recebe a
+   * tendência.
+   */
+  variables: IndexCatalogReportVariable[];
+}
+
+export interface IndexCatalogReportVariable {
+  token: string;
+  description: string;
+  example: string;
 }

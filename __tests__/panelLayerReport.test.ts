@@ -95,3 +95,66 @@ describe("tryParsePublishedPanelLayerReportConfig", () => {
     expect(tryParsePublishedPanelLayerReportConfig(valid)?.sections).toHaveLength(2);
   });
 });
+
+describe("parsePublishedPanelLayerReportConfig > severity", () => {
+  it("aceita a ordem de gravidade com a classe neutra", () => {
+    const parsed = parsePublishedPanelLayerReportConfig({
+      ...valid,
+      severity: {
+        order: [" sem-seca ", "seca-fraca"],
+        neutralClassId: "sem-seca",
+      },
+    });
+
+    expect(parsed.severity).toEqual({
+      order: ["sem-seca", "seca-fraca"],
+      neutralClassId: "sem-seca",
+    });
+  });
+
+  it("descarta uma ordem que não ordena nada", () => {
+    expect(
+      parsePublishedPanelLayerReportConfig({
+        ...valid,
+        severity: { order: ["unica"] },
+      }).severity,
+    ).toBeUndefined();
+    expect(
+      parsePublishedPanelLayerReportConfig({ ...valid, severity: null })
+        .severity,
+    ).toBeUndefined();
+  });
+
+  it("recusa uma classe neutra que não está na ordem", () => {
+    expect(() =>
+      parsePublishedPanelLayerReportConfig({
+        ...valid,
+        severity: { order: ["a", "b"], neutralClassId: "c" },
+      }),
+    ).toThrow(/neutralClassId ausente de severity.order: c/u);
+  });
+
+  it("recusa ids repetidos, que descreveriam a mesma classe em dois lugares", () => {
+    expect(() =>
+      parsePublishedPanelLayerReportConfig({
+        ...valid,
+        severity: { order: ["a", "a"] },
+      }),
+    ).toThrow(/repete ids de classe/u);
+  });
+
+  it("recusa uma ordem que não é lista de ids", () => {
+    expect(() =>
+      parsePublishedPanelLayerReportConfig({
+        ...valid,
+        severity: { order: "a,b" },
+      }),
+    ).toThrow(/severity.order deve ser uma lista/u);
+    expect(() =>
+      parsePublishedPanelLayerReportConfig({
+        ...valid,
+        severity: { order: ["a", 2] },
+      }),
+    ).toThrow(/severity.order\[1\]/u);
+  });
+});

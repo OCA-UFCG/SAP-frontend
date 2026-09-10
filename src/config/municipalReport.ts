@@ -18,6 +18,12 @@ export interface MunicipalReportLayerConfig {
    * é o registro estático e não tem entrada para um índice do catálogo.
    */
   reportPresentation?: { sectionColor?: string; methodology?: string };
+  /**
+   * A ordem de gravidade das classes, quando alguém a declarou. É o que
+   * destrava as variáveis de tendência do relatório — sem ela não há como
+   * dizer que uma classe é pior que outra.
+   */
+  reportSeverity?: import("@/utils/reportVariableProfile").ReportSeveritySpec;
 }
 
 export interface MunicipalReportClassPresentation {

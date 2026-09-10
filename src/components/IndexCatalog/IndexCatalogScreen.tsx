@@ -1731,6 +1731,7 @@ export function IndexCatalogScreen() {
 
           <IndexCatalogReportFields
             report={report}
+            classes={draft.classes}
             inputClass={inputClass}
             buttonClass={buttonClass}
             disabled={Boolean(busy) || !entryId}

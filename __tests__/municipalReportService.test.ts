@@ -688,3 +688,95 @@ describe("buildMunicipalReport", () => {
     });
   });
 });
+
+const serieDeDuasClasses: CompactTerritorialAnalysisDataset = {
+  schemaVersion: 1,
+  type: "territorial-compact",
+  classes: [
+    { id: "sem-seca", label: "Sem seca", color: "#0f0" },
+    { id: "seca-fraca", label: "Seca fraca", color: "#ff0" },
+  ],
+  years: {
+    "2023": { imageId: "a", values: { "5200050": [80, 20] } },
+    "2024": { imageId: "b", values: { "5200050": [30, 70] } },
+  },
+};
+
+function camadaComSerie(
+  reportSeverity?: import("@/utils/reportVariableProfile").ReportSeveritySpec,
+) {
+  return {
+    layers: [
+      {
+        panelLayerId: "indice-novo",
+        alias: "indice_novo",
+        title: "Índice Novo",
+        order: 1,
+        periods: ["2023", "2024"],
+        baseImageData: serieDeDuasClasses,
+        ...(reportSeverity ? { reportSeverity } : {}),
+      },
+    ],
+    loadImageData: async () => ({
+      found: true,
+      imageData: serieDeDuasClasses,
+      status: "hit" as const,
+    }),
+  };
+}
+
+describe("buildMunicipalReport > variáveis de série", () => {
+  it("descreve o período anterior a partir da série que a análise já carregou", async () => {
+    const report = await buildMunicipalReport(
+      "5200050",
+      "2024",
+      camadaComSerie() as never,
+    );
+
+    expect(report.templateVariables.classe_anterior_indice_novo).toBe(
+      "Sem seca",
+    );
+    expect(report.templateVariables.percentual_anterior_indice_novo).toBe(80);
+    expect(report.templateVariables.quantidade_periodos_indice_novo).toBe(2);
+    // A classe atual valia 20% em 2023 e vale 70% em 2024.
+    expect(report.templateVariables.variacao_pontos_indice_novo).toBe(50);
+  });
+
+  it("só descreve a tendência quando a ordem de gravidade foi declarada", async () => {
+    const semOrdem = await buildMunicipalReport(
+      "5200050",
+      "2024",
+      camadaComSerie() as never,
+    );
+    const comOrdem = await buildMunicipalReport(
+      "5200050",
+      "2024",
+      camadaComSerie({
+        order: ["sem-seca", "seca-fraca"],
+        neutralClassId: "sem-seca",
+      }) as never,
+    );
+
+    expect(semOrdem.templateVariables).not.toHaveProperty(
+      "status_tendencia_indice_novo",
+    );
+    expect(comOrdem.templateVariables.status_tendencia_indice_novo).toBe(
+      "agravando",
+    );
+    expect(
+      comOrdem.templateVariables.quantidade_periodos_com_fenomeno_indice_novo,
+    ).toBe(1);
+  });
+
+  it("não pede nenhuma leitura além das que a série do relatório já faz", async () => {
+    const dependencies = camadaComSerie();
+    const loadImageData = vi.fn(dependencies.loadImageData);
+    await buildMunicipalReport("5200050", "2024", {
+      ...dependencies,
+      loadImageData,
+    } as never);
+
+    // Um pedido por período publicado, exatamente como antes das variáveis.
+    expect(loadImageData).toHaveBeenCalledTimes(2);
+  });
+});

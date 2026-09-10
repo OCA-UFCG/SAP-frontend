@@ -83,6 +83,9 @@ export async function saveIndexCatalogReportText(
  */
 function toStoredReportConfig(report: PublishedPanelLayerReportConfig) {
   const isEmpty =
-    report.sections.length === 0 && !report.sectionColor && !report.methodology;
+    report.sections.length === 0 &&
+    !report.sectionColor &&
+    !report.methodology &&
+    !report.severity;
   return isEmpty ? undefined : report;
 }

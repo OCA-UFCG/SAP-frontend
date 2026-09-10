@@ -32,6 +32,11 @@ import {
   stableMunicipalReportAlias,
   toMunicipalReportPresentation,
 } from "@/utils/municipalReport";
+import { computeReportSeriesVariables } from "@/utils/reportSeriesVariables";
+import {
+  describeReportVariableProfile,
+  resolveReportSeverity,
+} from "@/utils/reportVariableProfile";
 import type { TimingObserver } from "@/utils/serverTiming";
 
 export interface MunicipalReportServiceDependencies {
@@ -71,6 +76,14 @@ async function resolveReportLayers(
         : undefined,
       presentation: override?.presentation,
       reportPresentation: toMunicipalReportPresentation(layer.reportConfig),
+      // O catálogo vence o registro estático: é onde quem cadastra o índice
+      // declara a ordem. O registro estático mantém o Monitor de Secas e a
+      // Degradação no mesmo cálculo, sem uma implementação só deles.
+      reportSeverity: resolveReportSeverity(
+        layer.reportConfig?.severity,
+        override?.presentation?.history?.classes ??
+          override?.presentation?.classes,
+      ),
       reportSeriesConfig: layer.reportSeriesConfig,
       statisticsSource: layer.statisticsSource,
       baseImageData: isCompactImageData(layer.imageData)
@@ -335,6 +348,36 @@ async function loadMunicipalTimeSeries(
   };
 }
 
+/**
+ * As variáveis de série de uma análise, já filtradas pelo que aquele índice
+ * comporta.
+ *
+ * A série é cortada no período analisado porque o relatório descreve a
+ * situação daquele período: um "período anterior" que viesse depois dele
+ * descreveria um dado que o leitor não está vendo.
+ */
+function buildAnalysisSeriesVariables(
+  analysis: MunicipalReportAnalysis,
+  config: MunicipalReportLayerConfig | undefined,
+) {
+  if (!analysis.effectivePeriod) return {};
+
+  const timeSeries = analysis.timeSeries.filter(
+    (snapshot) => snapshot.period <= analysis.effectivePeriod!,
+  );
+  const profile = describeReportVariableProfile({
+    periods: config?.periods ?? timeSeries.map(({ period }) => period),
+    classCount: analysis.classes.length,
+    severity: config?.reportSeverity,
+  });
+
+  return computeReportSeriesVariables(
+    timeSeries,
+    profile,
+    REPORT_TEMPLATE_LOCALE,
+  );
+}
+
 export async function buildMunicipalReport(
   municipalityCode: string,
   requestedPeriod: string,
@@ -492,7 +535,7 @@ export async function buildMunicipalReport(
     uf: municipality.uf.toUpperCase(),
     codigoMunicipio: municipality.code,
   };
-  for (const analysis of analyses) {
+  analyses.forEach((analysis, index) => {
     const dominantValue = analysis.snapshot?.dominantClass?.percentage ?? null;
     // O nome do índice existe para a frase escrita no catálogo poder citar a
     // fonte ("conforme o [indice]") sem que quem escreve repita o título à mão
@@ -515,7 +558,16 @@ export async function buildMunicipalReport(
       analysis.effectivePeriod
         ? formatReportPeriod(analysis.effectivePeriod, REPORT_TEMPLATE_LOCALE)
         : null;
-  }
+
+    // As variáveis de série saem da série que a análise já carrega: nenhuma
+    // leitura nova, no Contentful ou no Earth Engine. `layers` e `analyses`
+    // têm a mesma ordem — a segunda é o `map` da primeira.
+    for (const [key, value] of Object.entries(
+      buildAnalysisSeriesVariables(analysis, layers[index]),
+    )) {
+      templateVariables[`${key}_${analysis.alias}`] = value;
+    }
+  });
 
   return {
     schemaVersion: 1,

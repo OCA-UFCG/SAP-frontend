@@ -8,6 +8,7 @@ import type { IndexCatalogReportPreview } from "@/types/indexCatalog";
 import { catalogApiRequest } from "@/components/IndexCatalog/catalogApiClient";
 import { MunicipalReportNotes } from "@/components/MunicipalReport/MunicipalReportNotes";
 import { ReportPreviewVisuals } from "@/components/IndexCatalog/CatalogReportPreviewVisuals";
+import { CatalogReportVariablesPanel } from "@/components/IndexCatalog/CatalogReportVariablesPanel";
 import { getContrastTextColor } from "@/utils/functions";
 import { getVisibleChartColor } from "@/utils/municipalReportChart";
 import {
@@ -344,6 +345,13 @@ export function CatalogReportPreview({
           </p>
         )}
       </ReportPreviewFrame>
+      {current?.preview && (
+        // A resposta da rota é um `cast`, não um payload validado: uma versão
+        // publicada antes deste campo existir chegaria aqui sem ele.
+        <CatalogReportVariablesPanel
+          variables={current.preview.variables ?? []}
+        />
+      )}
     </div>
   );
 }
