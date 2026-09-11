@@ -1,7 +1,12 @@
 "use client";
 
+import { useState } from "react";
 import { useForm } from "react-hook-form";
 import { useTranslations } from "next-intl";
+import Image from "next/image";
+import { Icon } from "../Icon/Icon";
+import { LoginField } from "./LoginField";
+import { LoginPhotoPanel } from "./LoginPhotoPanel";
 
 export type LoginFormValues = {
   login: string;
@@ -14,8 +19,11 @@ type LoginProps = {
   error?: string;
 };
 
+const BELOW_HEADER = "min-h-[calc(100vh-4.125rem)]";
+
 export const Login = ({ onSubmit, backgroundImageUrl, error }: LoginProps) => {
   const t = useTranslations("Login");
+  const [passwordVisible, setPasswordVisible] = useState(false);
   const {
     register,
     handleSubmit,
@@ -31,78 +39,91 @@ export const Login = ({ onSubmit, backgroundImageUrl, error }: LoginProps) => {
     await onSubmit?.(values);
   });
 
-  const backgroundImage = backgroundImageUrl
-    ? `linear-gradient(120deg, rgba(39, 41, 22, 0.86), rgba(39, 41, 22, 0.28)), url("${backgroundImageUrl}")`
-    : "linear-gradient(120deg, #4A4E26, #989F43)";
+  const toggleLabel = passwordVisible ? t("hidePassword") : t("showPassword");
 
   return (
-    <section
-      className="relative flex min-h-screen w-full items-center justify-center overflow-hidden bg-[#4A4E26] bg-cover bg-center px-4 py-12"
-      style={{ backgroundImage }}
-    >
-      <div className="absolute inset-0 bg-[radial-gradient(circle_at_70%_20%,rgba(255,255,255,0.22),transparent_34%),linear-gradient(180deg,rgba(0,0,0,0.18),rgba(0,0,0,0.42))]" />
+    <section className={`flex w-full items-stretch ${BELOW_HEADER}`}>
+      <LoginPhotoPanel photoUrl={backgroundImageUrl} />
 
-      <div className="relative z-10 flex w-full max-w-[462px] flex-col gap-8 rounded-lg border border-white/45 bg-white/24 p-6 shadow-2xl shadow-black/25 backdrop-blur-xl sm:p-8">
-        <header className="flex flex-col gap-2">
-          <h1 className="font-inter text-[24px] font-semibold leading-8 text-white drop-shadow-sm">
-            {t("title")}
-          </h1>
-          <p className="text-[14px] leading-5 text-white/82">
-            {t("description")}
-          </p>
-        </header>
+      <div className="flex w-full shrink-0 items-center justify-center bg-white px-[42px] py-16 lg:w-[495px] lg:border-l-4 lg:border-solid lg:border-[#EFEFEF]">
+        <form
+          className="flex w-[342px] max-w-full flex-col items-center gap-[23px]"
+          onSubmit={submitLogin}
+          noValidate
+        >
+          <div className="flex w-full flex-col gap-6">
+            <div className="flex w-full flex-col items-center gap-16">
+              <Image
+                src="/green-sedes-logo.svg"
+                alt={t("logoAlt")}
+                width={128}
+                height={46}
+                priority
+                className="h-[110px] w-auto"
+              />
+              <h1 className="font-inter w-full text-[24px] font-medium leading-5 tracking-[-0.36px] text-[#50554C]">
+                {t("title")}
+              </h1>
+            </div>
 
-        {error ? (
-          <div className="rounded-lg border border-red-200/70 bg-red-50/90 px-4 py-3 text-sm text-red-700 shadow-sm">
-            {error}
-          </div>
-        ) : null}
+            <div className="flex w-full flex-col gap-4">
+              {error ? (
+                <p
+                  role="alert"
+                  className="rounded-[7px] bg-[#FCE8E6] px-2.5 py-2 text-[13px] leading-5 text-[#B3261E]"
+                >
+                  {error}
+                </p>
+              ) : null}
 
-        <form className="flex flex-col gap-5" onSubmit={submitLogin} noValidate>
-          <div className="flex flex-col gap-2">
-            <input
-              id="login"
-              type="text"
-              autoComplete="username"
-              aria-label="Login"
-              aria-invalid={Boolean(errors.login)}
-              className="h-10 w-full rounded-lg border border-white/30 bg-white/82 px-3 py-3 text-sm text-[#292829] shadow-sm outline-none transition placeholder:text-[#6D6D6D] hover:border-white/70 focus:border-white focus:ring-2 focus:ring-white/35"
-              placeholder={t("emailPlaceholder")}
-              {...register("login", {
-                required: t("emailRequired"),
-              })}
-            />
-            {errors.login ? (
-              <p className="text-[12px] leading-5 text-red-100">
-                {errors.login.message}
-              </p>
-            ) : null}
-          </div>
+              <LoginField
+                id="login"
+                type="text"
+                autoComplete="username"
+                placeholder={t("emailPlaceholder")}
+                registration={register("login", {
+                  required: t("emailRequired"),
+                })}
+                errorMessage={errors.login?.message}
+              />
 
-          <div className="flex flex-col gap-2">
-            <input
-              id="password"
-              type="password"
-              autoComplete="current-password"
-              aria-label="Senha"
-              aria-invalid={Boolean(errors.password)}
-              className="h-10 w-full rounded-lg border border-white/30 bg-white/82 px-3 py-3 text-sm text-[#292829] shadow-sm outline-none transition placeholder:text-[#6D6D6D] hover:border-white/70 focus:border-white focus:ring-2 focus:ring-white/35"
-              placeholder={t("passwordPlaceholder")}
-              {...register("password", {
-                required: t("passwordRequired"),
-              })}
-            />
-            {errors.password ? (
-              <p className="text-[12px] leading-5 text-red-100">
-                {errors.password.message}
-              </p>
-            ) : null}
+              <LoginField
+                id="password"
+                type={passwordVisible ? "text" : "password"}
+                autoComplete="current-password"
+                placeholder={t("passwordPlaceholder")}
+                registration={register("password", {
+                  required: t("passwordRequired"),
+                })}
+                errorMessage={errors.password?.message}
+                trailing={
+                  <button
+                    type="button"
+                    onClick={() => setPasswordVisible((visible) => !visible)}
+                    aria-label={toggleLabel}
+                    aria-pressed={passwordVisible}
+                    aria-controls="password"
+                    className="flex cursor-pointer items-center rounded-sm p-0.5 focus:outline-none focus-visible:ring-2 focus-visible:ring-[#989F43]"
+                  >
+                    <Icon
+                      id="eye"
+                      width={20}
+                      height={14}
+                      aria-hidden
+                      className={
+                        passwordVisible ? "text-[#50554C]" : "text-[#676264]"
+                      }
+                    />
+                  </button>
+                }
+              />
+            </div>
           </div>
 
           <button
             type="submit"
             disabled={isSubmitting}
-            className="mt-3 flex h-10 w-full cursor-pointer items-center justify-center rounded-lg bg-[#989F43] px-4 py-2 text-[14px] font-medium leading-6 text-white shadow-sm transition hover:bg-[#5B612A] focus:outline-none focus:ring-2 focus:ring-[#777E32] focus:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-70"
+            className="font-open-sans flex h-[33px] w-full cursor-pointer items-center justify-center rounded-md bg-[#989F43] px-3 py-1.5 text-[11.65px] leading-5 text-white transition hover:bg-[#5B612A] focus:outline-none focus-visible:ring-2 focus-visible:ring-[#777E32] focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-70"
           >
             {isSubmitting ? t("submitting") : t("submit")}
           </button>

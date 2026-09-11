@@ -1,11 +1,13 @@
 {
   "Login": {
-    "title": "Iniciar sesión",
-    "description": "Ingrese sus credenciales para acceder a la plataforma.",
+    "title": "Entrar",
+    "logoAlt": "Logotipo del SEDES",
     "emailPlaceholder": "Correo electrónico",
     "passwordPlaceholder": "Contraseña",
     "emailRequired": "Ingrese su usuario.",
     "passwordRequired": "Ingrese su contraseña.",
+    "showPassword": "Mostrar contraseña",
+    "hidePassword": "Ocultar contraseña",
     "submitting": "Entrando...",
     "submit": "Entrar"
   }
