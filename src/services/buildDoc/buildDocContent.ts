@@ -8,6 +8,7 @@ import type {
   MunicipalReportDocsContent,
 } from "@/contracts/municipalReport";
 import { formatPercentage } from "@/utils/municipalReportValue";
+import { REPORT_SERIES_VARIABLE_KEYS } from "@/utils/reportSeriesVariables";
 
 const REPORT_LOCALE = "pt-BR";
 const TWO_DIGIT_PERCENTAGE_KEYS = new Set(["soma_percentual_deg_n3_n4_n5"]);
@@ -16,10 +17,14 @@ function formatTemplateNumber(key: string, value: number): string {
   if (TWO_DIGIT_PERCENTAGE_KEYS.has(key)) {
     return formatPercentage(value, REPORT_LOCALE, 2);
   }
+  // `variacao_` cobre os pontos percentuais de qualquer índice, inclusive o
+  // `variacao_deg_pontos` que antes era caso à parte. A diferença de um
+  // indicador de valor único chama-se `diferenca_valor` justamente para não
+  // cair aqui e ganhar uma casa decimal que ela não tem.
   if (
     key.startsWith("percentual_") ||
     key.startsWith("frequencia_") ||
-    key === "variacao_deg_pontos"
+    key.startsWith("variacao_")
   ) {
     return formatPercentage(value, REPORT_LOCALE);
   }
@@ -260,6 +265,10 @@ const LAYER_SCOPED_TEMPLATE_KEYS = new Set([
   "unidade",
   "periodo",
   "periodo_extenso",
+  // Derivadas da tabela de variáveis de série, e não repetidas à mão: é o que
+  // impede a tela do catálogo de oferecer um `[classe_anterior]` que o
+  // relatório não produz.
+  ...REPORT_SERIES_VARIABLE_KEYS,
 ]);
 
 function getLayerScopedTemplateKey(theme: string, normalizedKey: string) {

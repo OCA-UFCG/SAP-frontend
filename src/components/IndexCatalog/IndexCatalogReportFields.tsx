@@ -10,7 +10,10 @@ import {
 } from "@/config/indexCatalogReportText";
 import {
   createDefaultReportDraft,
+  describeSeverityChoice,
+  toSeverityOrder,
   type IndexCatalogReportDraft,
+  type ReportSeverityChoice,
 } from "@/utils/indexCatalogReportDraft";
 
 /** Cor de cabeçalho sugerida quando o operador pede uma cor própria. */
@@ -26,6 +29,111 @@ const DEFAULT_SAVE_HINT =
 
 function getSectionHint(index: number) {
   return CATALOG_REPORT_SECTION_HINTS[index] ?? GENERIC_SECTION_HINT;
+}
+
+const SEVERITY_CHOICES: ReadonlyArray<{
+  value: Exclude<ReportSeverityChoice, "stale">;
+  label: string;
+}> = [
+  { value: "none", label: "Não têm ordem de gravidade" },
+  { value: "best-first", label: "Da melhor para a pior, na ordem da legenda" },
+  { value: "worst-first", label: "Da pior para a melhor, na ordem da legenda" },
+];
+
+/**
+ * A única informação do relatório que não dá para deduzir do asset: qual classe
+ * é pior que qual.
+ *
+ * A pergunta existe em vez de um palpite pela ordem da legenda porque um índice
+ * de cobertura da terra não tem ordem de gravidade nenhuma, e inventar uma daria
+ * uma frase errada com cara de certa. O padrão é "não têm ordem": quem não
+ * responde não ganha as variáveis de tendência, e isso é o resultado correto.
+ */
+function ReportSeverityFields({
+  report,
+  classes,
+  inputClass,
+  onChange,
+}: {
+  report: IndexCatalogReportDraft;
+  classes: ReadonlyArray<{ id: string; label: string }>;
+  inputClass: string;
+  onChange: (report: IndexCatalogReportDraft) => void;
+}) {
+  const classIds = classes.map((entry) => entry.id);
+  const choice = describeSeverityChoice(report.severityOrder, classIds);
+  const ordered = report.severityOrder
+    .map((id) => classes.find((entry) => entry.id === id)?.label ?? id)
+    .join(" → ");
+
+  return (
+    <div className="mt-6 rounded-md border border-stone-200 bg-stone-50/60 p-3">
+      <label className="block text-xs font-medium">
+        As classes deste índice vão da melhor para a pior?
+        <select
+          className={inputClass}
+          value={choice === "stale" ? "none" : choice}
+          onChange={(event) =>
+            onChange({
+              ...report,
+              severityOrder: toSeverityOrder(
+                event.target.value as ReportSeverityChoice,
+                classIds,
+              ),
+              neutralClassId:
+                event.target.value === "none" ? "" : report.neutralClassId,
+            })
+          }
+        >
+          {SEVERITY_CHOICES.map((entry) => (
+            <option key={entry.value} value={entry.value}>
+              {entry.label}
+            </option>
+          ))}
+        </select>
+      </label>
+      <p className="mt-1 text-xs text-stone-500">
+        Só com essa resposta o relatório consegue dizer que a situação está
+        agravando, amenizando ou se mantendo, e qual foi a pior condição já
+        registrada. Um índice sem ordem — cobertura da terra, por exemplo —
+        simplesmente fica sem essas frases.
+      </p>
+      {choice === "stale" && (
+        <p className="mt-2 text-xs text-red-700">
+          As classes mudaram depois que a ordem foi declarada, então ela foi
+          descartada. Responda de novo para voltar a ter as frases de tendência.
+        </p>
+      )}
+      {report.severityOrder.length >= 2 && (
+        <>
+          <p className="mt-2 text-xs text-stone-600">
+            Da melhor para a pior: <strong>{ordered}</strong>
+          </p>
+          <label className="mt-3 block text-xs font-medium">
+            Qual classe representa a condição normal? (opcional)
+            <select
+              className={inputClass}
+              value={report.neutralClassId}
+              onChange={(event) =>
+                onChange({ ...report, neutralClassId: event.target.value })
+              }
+            >
+              <option value="">Nenhuma</option>
+              {classes.map((entry) => (
+                <option key={entry.id} value={entry.id}>
+                  {entry.label || entry.id}
+                </option>
+              ))}
+            </select>
+          </label>
+          <p className="mt-1 text-xs text-stone-500">
+            É o equivalente ao “sem seca”: com ela o relatório pode contar em
+            quantos períodos o município ficou fora da condição normal.
+          </p>
+        </>
+      )}
+    </div>
+  );
 }
 
 interface ReportSectionCardProps {
@@ -94,6 +202,11 @@ interface IndexCatalogReportFieldsProps {
   saveHint?: string;
   /** Botões extra ao lado de "Adicionar seção", como importar do Google Docs. */
   extraActions?: React.ReactNode;
+  /**
+   * As classes do índice em edição. Ausente no índice legado adotado, que não
+   * as edita aqui: sem elas a pergunta de gravidade não aparece.
+   */
+  classes?: ReadonlyArray<{ id: string; label: string }>;
 }
 
 export function IndexCatalogReportFields({
@@ -106,6 +219,7 @@ export function IndexCatalogReportFields({
   intro = DEFAULT_INTRO,
   saveHint = DEFAULT_SAVE_HINT,
   extraActions,
+  classes,
 }: IndexCatalogReportFieldsProps) {
   const [guideOpen, setGuideOpen] = useState(false);
 
@@ -206,6 +320,15 @@ export function IndexCatalogReportFields({
         Aparece nas notas ao pé do relatório. Vale citar a fonte dos dados, o
         período coberto e a regra que separa as classes.
       </p>
+
+      {classes && classes.length > 1 && (
+        <ReportSeverityFields
+          report={report}
+          classes={classes}
+          inputClass={inputClass}
+          onChange={onChange}
+        />
+      )}
 
       <label className="mt-5 flex items-center gap-2 text-xs font-medium">
         <input

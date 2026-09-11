@@ -180,6 +180,13 @@ export function IndexCatalogReportGuideModal({
           <em>este</em> índice, não aos outros do relatório. Um nome que não
           esteja nesta tabela fica escrito com os colchetes no relatório final.
         </p>
+        <p className="mt-2 text-xs text-stone-500">
+          Estas valem para qualquer índice. O seu provavelmente aceita mais —
+          período anterior, classe mais frequente, tendência —, e quais são
+          depende dos períodos que ele tem e de você ter declarado a ordem de
+          gravidade das classes. A lista completa, com o valor de cada uma em
+          Campina Grande, fica na prévia do relatório.
+        </p>
 
         <h3 className="mt-5 font-bold">O texto padrão</h3>
         <p className="mt-1 text-sm leading-relaxed text-stone-600">

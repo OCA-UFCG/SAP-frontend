@@ -6,6 +6,7 @@ const MAX_SECTIONS = 12;
 const MAX_TITLE_LENGTH = 160;
 const MAX_TEXT_LENGTH = 4000;
 const MAX_METHODOLOGY_LENGTH = 2000;
+const MAX_SEVERITY_CLASSES = 64;
 const HEX_COLOR_PATTERN = /^#[0-9a-f]{6}$/iu;
 
 /**
@@ -34,6 +35,34 @@ export interface PublishedPanelLayerReportConfig {
   /** Parágrafo das "Notas" ao pé do relatório. */
   methodology?: string;
   sections: MunicipalReportDocsSection[];
+  /** Ordem de gravidade das classes. Ausente em quem não a declarou. */
+  severity?: PublishedPanelLayerReportSeverity;
+}
+
+/**
+ * A ordem de gravidade entre as classes do índice, declarada por quem cadastra.
+ *
+ * Existe porque nenhuma outra parte do `panelLayer` sabe qual classe é pior que
+ * qual: `imageData.classes` guarda id, rótulo e cor, e a ordem em que elas
+ * aparecem é a ordem da legenda, não uma afirmação sobre gravidade. Sem esta
+ * declaração o relatório não tem como dizer "agravando" ou "amenizando", e um
+ * índice sem ordem — cobertura da terra, por exemplo — simplesmente não a
+ * publica, em vez de receber uma ordem inventada.
+ *
+ * Guarda a lista de ids em vez de "crescente/decrescente" de propósito:
+ * reordenar as classes depois inverteria o sentido de um flag em silêncio.
+ *
+ * @example
+ * const severity: PublishedPanelLayerReportSeverity = {
+ *   order: ["sem-seca", "seca-fraca", "seca-moderada"],
+ *   neutralClassId: "sem-seca",
+ * };
+ */
+export interface PublishedPanelLayerReportSeverity {
+  /** Ids das classes, da condição melhor para a pior. */
+  order: string[];
+  /** A classe que representa a condição normal, quando o índice tem uma. */
+  neutralClassId?: string;
 }
 
 function parseOptionalText(
@@ -87,6 +116,57 @@ function parseSection(value: unknown, index: number): MunicipalReportDocsSection
   return { title: title.trim(), text: text.trim() };
 }
 
+function parseSeverity(
+  value: unknown,
+): PublishedPanelLayerReportSeverity | undefined {
+  if (value == null) return undefined;
+  if (typeof value !== "object") {
+    throw new Error(
+      `reportConfig.severity deve ser um objeto { order, neutralClassId }, recebido: ${typeof value}`,
+    );
+  }
+  const { order, neutralClassId } = value as Record<string, unknown>;
+  if (!Array.isArray(order)) {
+    throw new Error(
+      `reportConfig.severity.order deve ser uma lista de ids de classe, recebido: ${typeof order}`,
+    );
+  }
+  if (order.length > MAX_SEVERITY_CLASSES) {
+    throw new Error(
+      `reportConfig.severity.order excede ${MAX_SEVERITY_CLASSES} classes: ${order.length}`,
+    );
+  }
+  const parsedOrder = order.map((id, index) => {
+    if (typeof id !== "string" || !id.trim()) {
+      throw new Error(
+        `reportConfig.severity.order[${index}] deve ser um id de classe não vazio, recebido: ${JSON.stringify(id)}`,
+      );
+    }
+    return id.trim();
+  });
+  if (new Set(parsedOrder).size !== parsedOrder.length) {
+    throw new Error(
+      `reportConfig.severity.order repete ids de classe: ${parsedOrder.join(", ")}`,
+    );
+  }
+  // Uma ordem com menos de duas classes não ordena nada; sem ela o índice fica
+  // sem as variáveis de tendência, que é o resultado correto.
+  if (parsedOrder.length < 2) return undefined;
+
+  const neutral = parseOptionalText(
+    neutralClassId,
+    "severity.neutralClassId",
+    200,
+  );
+  if (neutral && !parsedOrder.includes(neutral)) {
+    throw new Error(
+      `reportConfig.severity.neutralClassId ausente de severity.order: ${neutral}; esperado um de ${parsedOrder.join(", ")}`,
+    );
+  }
+
+  return { order: parsedOrder, ...(neutral ? { neutralClassId: neutral } : {}) };
+}
+
 export function parsePublishedPanelLayerReportConfig(
   value: unknown,
 ): PublishedPanelLayerReportConfig {
@@ -127,10 +207,13 @@ export function parsePublishedPanelLayerReportConfig(
     MAX_METHODOLOGY_LENGTH,
   );
 
+  const severity = parseSeverity(raw.severity);
+
   return {
     schemaVersion: PANEL_LAYER_REPORT_SCHEMA_VERSION,
     ...(sectionColor ? { sectionColor } : {}),
     ...(methodology ? { methodology } : {}),
+    ...(severity ? { severity } : {}),
     // Uma seção sem texto não vira seção vazia no relatório: ela some, como já
     // acontece com um bloco em branco no Google Docs.
     sections: rawSections

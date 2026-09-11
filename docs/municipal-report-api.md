@@ -62,6 +62,41 @@ por extenso ("janeiro de 2024"), e existe para o texto que o catálogo publica:
 `2024-01` no meio de uma frase lê-se mal, e quem escreve não deve ter que
 formatar data à mão para cada índice.
 
+## Variáveis de série, por índice
+
+Além dessas, cada análise contribui com as **variáveis de série** que aquele
+índice comporta — `classe_anterior_<alias>`, `status_tendencia_<alias>`,
+`janela_12_meses_<alias>` e as demais de
+`src/utils/reportSeriesVariables.ts`. Elas saem da série que a análise já
+carrega, sem nenhuma leitura nova no Contentful ou no Earth Engine.
+
+O conjunto **varia por índice**, e é decidido pelo perfil temporal
+(`describeReportVariableProfile`), nunca pelos dados do município:
+
+| Exige                          | Quem recebe                                                                                             |
+| ------------------------------ | ------------------------------------------------------------------------------------------------------- |
+| dois períodos                  | qualquer índice com série                                                                               |
+| distribuição por classes       | índices com mais de uma classe; os de valor único recebem `valor_anterior` e `diferenca_valor` no lugar |
+| mensal com mais de 12 períodos | `janela_12_meses`, `classe_mesmo_mes_ano_anterior`, `variacao_ano_a_ano`                                |
+| ordem de gravidade declarada   | `status_tendencia`, `classe_maior_severidade`, `periodo_maior_severidade`                               |
+| classe neutra declarada        | `quantidade_periodos_com_fenomeno`, `percentual_condicao_neutra`                                        |
+
+Um índice de **previsão** — cujo último período ainda não chegou — não recebe
+nenhuma delas: os períodos dele são horizontes de uma mesma emissão, e
+compará-los não é comparar história.
+
+A disponibilidade é uma propriedade do índice, e não do município, de
+propósito: fosse do município, um texto escrito com a lista de Campina Grande
+quebraria em outro município. Quando a série de um município específico não
+sustenta uma variável oferecida, o valor é a string `sem dados` — nunca `null`,
+porque a substituição do relatório deixaria o `[colchete]` cru no texto que o
+cidadão lê.
+
+A ordem de gravidade não é inferida. Ela vem de `panelLayer.reportConfig.severity`
+(declarada no catálogo) ou dos `rank`/`isNeutral` estáticos de
+`MUNICIPAL_REPORT_LAYERS`. Sem uma das duas, as variáveis de tendência
+simplesmente não existem para aquele índice.
+
 Uma análise pode trazer `presentation` — `{ sectionColor?, methodology? }` —
 quando o índice publicou esses valores pelo catálogo
 (`panelLayer.reportConfig`). É um campo aditivo e opcional da v1: um índice

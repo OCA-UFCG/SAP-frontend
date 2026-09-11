@@ -40,6 +40,39 @@ precise saber de onde ele veio — inclusive a substituição de variáveis entr
 colchetes e a regra de que uma seção "Situação atual" vence a frase gerada
 automaticamente. Sem `reportConfig`, o índice continua lendo o documento.
 
+### Ordem de gravidade das classes
+
+Uma pergunta no mesmo formulário grava `reportConfig.severity`: a lista de ids
+das classes da melhor para a pior, mais a classe que representa a condição
+normal. O padrão é "não têm ordem de gravidade", e é uma resposta legítima —
+cobertura da terra não tem gravidade nenhuma.
+
+Ela existe porque nada mais no `panelLayer` sabe qual classe é pior que qual:
+`imageData.classes` guarda id, rótulo e cor, e a ordem em que elas aparecem é a
+ordem da legenda, não uma afirmação sobre gravidade. Deduzir a gravidade dessa
+ordem daria uma frase errada com cara de certa num índice sem ordem, então o
+catálogo pergunta em vez de inferir. Sem a resposta, o índice fica sem as
+variáveis de tendência do relatório (`[status_tendencia]`,
+`[classe_maior_severidade]` e as demais listadas em
+`docs/municipal-report-api.md`), e a prévia diz isso.
+
+A ordem é gravada como lista explícita de ids, e não como "crescente" ou
+"decrescente", porque reordenar as classes depois inverteria o sentido de um
+flag em silêncio. Quando as classes mudam, a lista deixa de descrevê-las e o
+formulário pede a resposta de novo (`describeSeverityChoice` devolve `stale`)
+em vez de reinterpretá-la.
+
+### Variáveis oferecidas na prévia
+
+A prévia do relatório devolve, além das seções já resolvidas, a lista das
+variáveis que **aquele** índice aceita, cada uma com o valor que teria em
+Campina Grande. A disponibilidade vem do perfil temporal do índice — períodos,
+granularidade, forma do valor, ordem de gravidade —, nunca dos dados do
+município da prévia: fosse do município, um texto escrito ali poderia quebrar
+em outro. O exemplo passa pela mesma substituição do relatório de produção, de
+modo que uma variável que não resolve aparece na tela com os colchetes, como
+apareceria para o cidadão.
+
 O "Salvar rascunho" e o "Validar assets e gerar prévia" gravam o texto junto com
 o formulário, chamando a rota de texto depois do `PUT`. Sem isso o texto ficava
 apenas no navegador e a prévia do relatório mostrava a frase automática — quem

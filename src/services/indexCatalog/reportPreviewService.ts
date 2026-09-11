@@ -7,7 +7,11 @@ import type {
 } from "@/contracts/municipalReport";
 import { getGeeStatisticsYearPatch } from "@/repositories/platform/geeStatisticsRepository";
 import { populateDocContent } from "@/services/buildDoc/buildDocContent";
-import { getTemplateData } from "@/services/buildDoc/buildTemplateData";
+import {
+  getTemplateData,
+  type TemplateData,
+} from "@/services/buildDoc/buildTemplateData";
+import { CATALOG_REPORT_VARIABLES } from "@/config/indexCatalogReportText";
 import { requireManagedConfig } from "@/services/indexCatalog/catalogConfigAudit";
 import { MUNICIPAL_REPORT_LAYERS } from "@/config/municipalReport";
 import {
@@ -21,6 +25,7 @@ import {
   type IndexCatalogConfigV2,
   type IndexCatalogPresentationConfigV2,
   type IndexCatalogReportPreview,
+  type IndexCatalogReportVariable,
   type ManagedIndexCatalogConfig,
 } from "@/types/indexCatalog";
 import type { CompactTerritorialAnalysisDataset } from "@/utils/analysis";
@@ -32,6 +37,11 @@ import {
   stableMunicipalReportAlias,
   toMunicipalReportPresentation,
 } from "@/utils/municipalReport";
+import { describeReportSeriesVariables } from "@/utils/reportSeriesVariables";
+import {
+  describeReportVariableProfile,
+  resolveReportSeverity,
+} from "@/utils/reportVariableProfile";
 
 /**
  * O município da prévia. É fixo de propósito: a prévia serve para conferir a
@@ -142,6 +152,7 @@ function toPreviewLayerConfig(
     // desenha, e ela chega numa leitura só (ver `createDraftImageDataLoader`).
     periods: [...periods],
     reportPresentation: toMunicipalReportPresentation(config.report),
+    reportSeverity: resolveReportSeverity(config.report?.severity),
     statisticsSource: config.validatedStatisticsSource,
     baseImageData: imageData,
   };
@@ -210,6 +221,11 @@ function toLegacyPreviewInput(
           order: productionConfig?.order ?? 0,
           periods,
           reportPresentation: toMunicipalReportPresentation(config.report),
+          reportSeverity: resolveReportSeverity(
+            config.report?.severity,
+            productionConfig?.presentation?.history?.classes ??
+              productionConfig?.presentation?.classes,
+          ),
           reportSeriesConfig:
             getLocalizedEntryField<MunicipalReportSeriesConfig>(
               current.entry,
@@ -259,6 +275,13 @@ export async function buildIndexCatalogReportPreview(
     dependencies,
   );
 
+  const templateData = await getTemplateData(
+    municipality.code,
+    period,
+    undefined,
+    report,
+  );
+
   return {
     municipality: {
       code: municipality.code,
@@ -267,8 +290,59 @@ export async function buildIndexCatalogReportPreview(
     },
     period,
     report,
-    docsContent: await resolveCatalogSections(config, report, period),
+    docsContent: resolveCatalogSections(config, templateData),
+    variables: describeCatalogVariables(config, report, templateData),
   };
+}
+
+/**
+ * As variáveis que este índice comporta, cada uma com o valor que sairia no
+ * relatório de Campina Grande.
+ *
+ * A lista de disponibilidade vem do perfil do índice — períodos, granularidade,
+ * classes, ordem de gravidade —, e não dos dados deste município: fosse o
+ * contrário, um texto escrito aqui poderia quebrar em outro município. O
+ * município entra só no exemplo.
+ *
+ * O exemplo passa pela mesma substituição do relatório (`populateDocContent`),
+ * de modo que uma variável que não resolve aparece na tela com os colchetes,
+ * exatamente como apareceria para o cidadão.
+ */
+function describeCatalogVariables(
+  config: ManagedIndexCatalogConfig,
+  report: MunicipalReportData,
+  templateData: TemplateData,
+): IndexCatalogReportVariable[] {
+  const analysis = report.analyses[0];
+  const profile = describeReportVariableProfile({
+    periods: analysis?.timeSeries.map(({ period }) => period) ?? [],
+    classCount: analysis?.classes.length ?? 0,
+    severity: resolveReportSeverity(config.report?.severity),
+  });
+  const tokens = [
+    ...CATALOG_REPORT_VARIABLES.map(({ token, description }) => ({
+      token,
+      description,
+    })),
+    ...describeReportSeriesVariables(profile).map(({ token, description }) => ({
+      token,
+      description,
+    })),
+  ];
+  const resolved = populateDocContent(
+    {
+      [config.panelLayerId]: tokens.map(({ token }) => ({
+        title: "",
+        text: token,
+      })),
+    },
+    templateData,
+  );
+
+  return tokens.map((entry, index) => ({
+    ...entry,
+    example: resolved[config.panelLayerId]?.[index]?.text ?? entry.token,
+  }));
 }
 
 /**
@@ -278,19 +352,12 @@ export async function buildIndexCatalogReportPreview(
  * não uma cópia simplificada, para que um `[percentual]` que não resolve
  * apareça errado aqui também — a prévia serve justamente para ver isso.
  */
-async function resolveCatalogSections(
+function resolveCatalogSections(
   config: ManagedIndexCatalogConfig,
-  report: MunicipalReportData,
-  period: string,
-): Promise<MunicipalReportDocsContent> {
+  templateData: TemplateData,
+): MunicipalReportDocsContent {
   const sections = config.report?.sections ?? [];
   if (sections.length === 0) return {};
 
-  const templateData = await getTemplateData(
-    report.municipality.code,
-    period,
-    undefined,
-    report,
-  );
   return populateDocContent({ [config.panelLayerId]: sections }, templateData);
 }

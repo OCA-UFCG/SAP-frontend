@@ -60,6 +60,7 @@ function buildPreview(): IndexCatalogReportPreview {
     municipality: { code: "2504009", name: "Campina Grande", uf: "PB" },
     period: "2024",
     docsContent: {},
+    variables: [],
     report: {
       schemaVersion: 1,
       generatedAt: "2026-01-01T00:00:00.000Z",

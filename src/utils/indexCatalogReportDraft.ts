@@ -16,6 +16,15 @@ export interface IndexCatalogReportDraft {
   sections: Array<{ title: string; text: string }>;
   sectionColor: string;
   methodology: string;
+  /**
+   * Ids das classes, da melhor para a pior. Vazio quando o índice não tem
+   * ordem de gravidade — cobertura da terra, por exemplo —, e é esse vazio que
+   * mantém as variáveis de tendência fora da lista em vez de inventar uma
+   * ordem a partir da ordem da legenda.
+   */
+  severityOrder: string[];
+  /** Id da classe que representa a condição normal, quando existe uma. */
+  neutralClassId: string;
 }
 
 /**
@@ -33,6 +42,8 @@ export function createDefaultReportDraft(): IndexCatalogReportDraft {
     })),
     sectionColor: "",
     methodology: DEFAULT_CATALOG_REPORT_METHODOLOGY,
+    severityOrder: [],
+    neutralClassId: "",
   };
 }
 
@@ -46,7 +57,13 @@ export function createDefaultReportDraft(): IndexCatalogReportDraft {
  * o texto de verdade vem quando o operador quiser editá-lo aqui.
  */
 export function createEmptyReportDraft(): IndexCatalogReportDraft {
-  return { sections: [], sectionColor: "", methodology: "" };
+  return {
+    sections: [],
+    sectionColor: "",
+    methodology: "",
+    severityOrder: [],
+    neutralClassId: "",
+  };
 }
 
 /**
@@ -68,6 +85,16 @@ export function toReportTextPayload(
     ...(draft.sectionColor ? { sectionColor: draft.sectionColor } : {}),
     ...(draft.methodology.trim()
       ? { methodology: draft.methodology.trim() }
+      : {}),
+    ...(draft.severityOrder.length >= 2
+      ? {
+          severity: {
+            order: [...draft.severityOrder],
+            ...(draft.neutralClassId
+              ? { neutralClassId: draft.neutralClassId }
+              : {}),
+          },
+        }
       : {}),
     sections: draft.sections
       .filter((section) => section.text.trim())
@@ -92,13 +119,16 @@ export function isStoredReportText(
     return (
       payload.sections.length === 0 &&
       !payload.sectionColor &&
-      !payload.methodology
+      !payload.methodology &&
+      !payload.severity
     );
   }
 
   return (
     (payload.sectionColor ?? "") === (stored.sectionColor ?? "") &&
     (payload.methodology ?? "") === (stored.methodology ?? "") &&
+    JSON.stringify(payload.severity ?? null) ===
+      JSON.stringify(stored.severity ?? null) &&
     JSON.stringify(payload.sections) === JSON.stringify(stored.sections)
   );
 }
@@ -113,5 +143,50 @@ export function toReportDraft(
     sections: stored.sections.map((section) => ({ ...section })),
     sectionColor: stored.sectionColor ?? "",
     methodology: stored.methodology ?? "",
+    severityOrder: [...(stored.severity?.order ?? [])],
+    neutralClassId: stored.severity?.neutralClassId ?? "",
   };
+}
+
+export type ReportSeverityChoice =
+  "none" | "best-first" | "worst-first" | "stale";
+
+/**
+ * Como a ordem de gravidade gravada se relaciona com as classes que o índice
+ * tem hoje.
+ *
+ * `stale` é o caso que importa: quem reordenou, renomeou ou removeu uma classe
+ * depois de declarar a ordem tem uma lista que já não descreve o índice. Dizer
+ * isso é melhor do que reinterpretá-la em silêncio, porque a reinterpretação
+ * mais provável — "a ordem da legenda é a ordem da gravidade" — é justamente o
+ * palpite que esta declaração existe para evitar.
+ *
+ * @example
+ * describeSeverityChoice(["umido", "arido"], ["umido", "arido"]); // "best-first"
+ */
+export function describeSeverityChoice(
+  order: readonly string[],
+  classIds: readonly string[],
+): ReportSeverityChoice {
+  if (order.length < 2) return "none";
+
+  const coversSameClasses =
+    order.length === classIds.length &&
+    order.every((id) => classIds.includes(id));
+  if (!coversSameClasses) return "stale";
+  if (order.every((id, index) => id === classIds[index])) return "best-first";
+  if (order.every((id, index) => id === classIds.at(-1 - index))) {
+    return "worst-first";
+  }
+  return "stale";
+}
+
+/** A ordem que a resposta do operador grava, na ordem das classes da tela. */
+export function toSeverityOrder(
+  choice: ReportSeverityChoice,
+  classIds: readonly string[],
+): string[] {
+  if (choice === "best-first") return [...classIds];
+  if (choice === "worst-first") return [...classIds].reverse();
+  return [];
 }
