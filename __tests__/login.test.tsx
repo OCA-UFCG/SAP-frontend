@@ -18,7 +18,7 @@ describe("Login", () => {
     expect(screen.getByPlaceholderText("Email")).toBeInTheDocument();
     expect(screen.getByPlaceholderText("Senha")).toBeInTheDocument();
     expect(
-      screen.getByRole("button", { name: "Continue" }),
+      screen.getByRole("button", { name: "Entrar" }),
     ).toBeInTheDocument();
   });
 
@@ -64,7 +64,7 @@ describe("Login", () => {
     const onSubmit = vi.fn();
     render(<Login onSubmit={onSubmit} />);
 
-    await user.click(screen.getByRole("button", { name: "Continue" }));
+    await user.click(screen.getByRole("button", { name: "Entrar" }));
 
     expect(await screen.findByText("Informe o login.")).toBeInTheDocument();
     expect(screen.getByText("Informe a senha.")).toBeInTheDocument();
@@ -78,7 +78,7 @@ describe("Login", () => {
 
     await user.type(screen.getByPlaceholderText("Email"), "ana@sedes.gov.br");
     await user.type(screen.getByPlaceholderText("Senha"), "segredo123");
-    await user.click(screen.getByRole("button", { name: "Continue" }));
+    await user.click(screen.getByRole("button", { name: "Entrar" }));
 
     await waitFor(() => {
       expect(onSubmit).toHaveBeenCalledWith({
