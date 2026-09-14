@@ -26,6 +26,7 @@ import { IndexCatalogGuideModal } from "@/components/IndexCatalog/IndexCatalogGu
 import { IndexCatalogReportFields } from "@/components/IndexCatalog/IndexCatalogReportFields";
 import { PanelPositionField } from "@/components/IndexCatalog/PanelPositionField";
 import { ImageCollectionForecastGuideModal } from "@/components/IndexCatalog/ImageCollectionForecastGuideModal";
+import { isCompactImageData } from "@/utils/imageData";
 import {
   detectYearPartitionedTemplate,
   fillYearPlaceholder,
@@ -55,6 +56,12 @@ import {
   MunicipalValueIndicatorFields,
   ValueRangeFields,
 } from "@/components/IndexCatalog/MunicipalValueTableFields";
+import {
+  AmfeSheetColumnFields,
+  type AmfeSheetColumn,
+} from "@/components/IndexCatalog/AmfeSheetColumnFields";
+import type { AmfeSheetColumnStatisticsSource } from "@/contracts/amfeSheetColumn";
+import type { GeeStatisticsAssetSource } from "@/contracts/geeStatisticsAsset";
 
 const STANDARD_PROPERTIES = {
   level: "NIVEL_AGRUPAMENTO",
@@ -120,6 +127,30 @@ const EMPTY_DRAFT: IndexCatalogDraftInput = {
  */
 type StatisticsShape = "classes" | "value";
 
+/**
+ * De onde vem o índice, a primeira pergunta do cadastro.
+ *
+ * "gee" é o caminho de sempre: uma tabela de estatísticas e um asset de mapa no
+ * Earth Engine. "amfe-sheet" é o índice pintado município a município a partir
+ * de uma coluna da planilha da análise multicritério, sem asset nenhum — e por
+ * isso ele esconde o formulário do Earth Engine inteiro, em vez de deixar
+ * campos que não valeriam para ele.
+ */
+type IndexSourceKind = "gee" | "amfe-sheet";
+
+const INDEX_SOURCE_KIND_HINTS: Record<IndexSourceKind, string> = {
+  gee: "O mapa é um raster ou uma FeatureCollection do Earth Engine, e as estatísticas saem de uma tabela publicada lá.",
+  "amfe-sheet":
+    "O valor de cada município vem de uma coluna da planilha da Análise Multicritério, e o mapa pinta cada município com a cor da faixa em que ele cai. Não há asset do Earth Engine neste caminho.",
+};
+
+const EMPTY_SHEET_SOURCE: AmfeSheetColumnStatisticsSource = {
+  kind: "amfe-sheet-column",
+  column: "",
+  periodKey: String(new Date().getFullYear()),
+  aggregation: "mean",
+};
+
 const STATISTICS_SHAPE_HINTS: Record<StatisticsShape, string> = {
   classes:
     "A tabela tem uma linha por território e por período, com as colunas perc_classe_XX e area_ha_classe_XX. O painel mostra quanto da área cabe em cada classe.",
@@ -155,7 +186,7 @@ const STATISTICS_ASSET_PLACEHOLDERS: Record<StatisticsAssetMode, string> = {
 };
 
 function inferStatisticsAssetMode(
-  asset: IndexCatalogDraftInput["statisticsSource"]["asset"],
+  asset: GeeStatisticsAssetSource,
 ): StatisticsAssetMode {
   if (asset.type === "fixed") return "fixed";
   const template = asset.assetIdTemplate;
@@ -346,6 +377,11 @@ export function IndexCatalogScreen() {
     hasPublishableValidation(editingItem.status),
   );
   const canPublishDraft = Boolean(preview) || canRepublish;
+  const isSheetPreview = Boolean(
+    preview &&
+    isCompactImageData(preview.panelLayer.imageData) &&
+    preview.panelLayer.imageData.mapVisualization?.municipalChoropleth,
+  );
 
   function resetEditor() {
     setLegacyItem(null);
@@ -421,14 +457,19 @@ export function IndexCatalogScreen() {
     // criados antes de existir texto de relatório no catálogo.
     setReport(toReportDraft(config.report));
     storedReportRef.current = config.report;
-    const assetMode = inferStatisticsAssetMode(config.statisticsSource.asset);
+    const resumedSource = config.statisticsSource;
+    const resumedGeeSource =
+      resumedSource.kind === "amfe-sheet-column" ? null : resumedSource;
+    const assetMode = resumedGeeSource
+      ? inferStatisticsAssetMode(resumedGeeSource.asset)
+      : "fixed";
     setStatisticsAssetMode(assetMode);
     // Reexibe o ano que o operador digitou, e não o placeholder gravado.
     setYearSampleAssetId(
       assetMode === "year-siblings" &&
-        config.statisticsSource.asset.type === "period-template"
+        resumedGeeSource?.asset.type === "period-template"
         ? fillYearPlaceholder(
-            config.statisticsSource.asset.assetIdTemplate,
+            resumedGeeSource.asset.assetIdTemplate,
             config.validation?.inferred.periods.at(-1)?.slice(0, 4),
           )
         : "",
@@ -457,19 +498,24 @@ export function IndexCatalogScreen() {
     setPreview(null);
   }
 
-  function updateStatisticsAsset(
-    values: Partial<IndexCatalogDraftInput["statisticsSource"]["asset"]>,
-  ) {
-    setDraft((current) => ({
-      ...current,
-      statisticsSource: {
-        ...current.statisticsSource,
-        asset: {
-          ...current.statisticsSource.asset,
-          ...values,
-        } as IndexCatalogDraftInput["statisticsSource"]["asset"],
-      },
-    }));
+  function updateStatisticsAsset(values: Record<string, unknown>) {
+    setDraft((current) => {
+      // Uma coluna de planilha não tem asset; os campos que chamam isto só
+      // existem no formulário do Earth Engine, e a guarda é a rede para o
+      // rascunho nunca nascer meio de cada.
+      if (current.statisticsSource.kind === "amfe-sheet-column") return current;
+
+      return {
+        ...current,
+        statisticsSource: {
+          ...current.statisticsSource,
+          asset: {
+            ...current.statisticsSource.asset,
+            ...values,
+          },
+        } as IndexCatalogDraftInput["statisticsSource"],
+      };
+    });
     setPreview(null);
   }
 
@@ -502,13 +548,17 @@ export function IndexCatalogScreen() {
   }
 
   function updateStatisticsProperty(key: string, value: string) {
-    setDraft((current) => ({
-      ...current,
-      statisticsSource: {
-        ...current.statisticsSource,
-        properties: { ...current.statisticsSource.properties, [key]: value },
-      } as IndexCatalogDraftInput["statisticsSource"],
-    }));
+    setDraft((current) => {
+      if (current.statisticsSource.kind === "amfe-sheet-column") return current;
+
+      return {
+        ...current,
+        statisticsSource: {
+          ...current.statisticsSource,
+          properties: { ...current.statisticsSource.properties, [key]: value },
+        } as IndexCatalogDraftInput["statisticsSource"],
+      };
+    });
     setPreview(null);
   }
 
@@ -541,6 +591,84 @@ export function IndexCatalogScreen() {
         ...values,
       },
     }));
+    setPreview(null);
+  }
+
+  /**
+   * Trocar a origem do índice troca tudo o que o formulário pergunta: um índice
+   * de planilha não tem asset, não tem granularidade e não tem propriedades
+   * territoriais para mapear. Por isso o rascunho recomeça a fonte, as classes
+   * e os limites, em vez de manter preenchimentos que não valeriam no outro
+   * caminho.
+   */
+  function changeIndexSourceKind(kind: IndexSourceKind) {
+    setStatisticsAssetMode("fixed");
+    setYearSampleAssetId("");
+    setThresholdsInput("");
+    setDraft((current) => ({
+      ...current,
+      classes: [],
+      statisticsSource:
+        kind === "amfe-sheet"
+          ? { ...EMPTY_SHEET_SOURCE }
+          : {
+              kind: "gee-feature-collection",
+              asset: { type: "fixed", assetId: "" },
+              periodGranularity: "year",
+              properties: STANDARD_PROPERTIES,
+            },
+      earthEngine:
+        kind === "amfe-sheet"
+          ? { strategy: "single", sourceType: "featureCollection" }
+          : { strategy: "single", sourceType: "image", singleAssetId: "" },
+      valueIndicator:
+        kind === "amfe-sheet"
+          ? (current.valueIndicator ?? EMPTY_VALUE_INDICATOR)
+          : undefined,
+    }));
+    setPreview(null);
+  }
+
+  function updateSheetSource(values: Partial<AmfeSheetColumnStatisticsSource>) {
+    setDraft((current) => {
+      if (current.statisticsSource.kind !== "amfe-sheet-column") return current;
+
+      return {
+        ...current,
+        statisticsSource: { ...current.statisticsSource, ...values },
+      };
+    });
+    setPreview(null);
+  }
+
+  /**
+   * Escolher a coluna preenche o indicador com o que a própria planilha diz
+   * sobre ela — o título do critério e a unidade. Só preenche o que está vazio:
+   * quem já escreveu o nome do indicador não quer vê-lo trocado ao voltar na
+   * coluna para conferir.
+   */
+  function applySheetColumnDefaults(column: AmfeSheetColumn) {
+    setDraft((current) => {
+      const indicator = current.valueIndicator ?? EMPTY_VALUE_INDICATOR;
+
+      return {
+        ...current,
+        valueIndicator: {
+          ...indicator,
+          label: indicator.label || column.label,
+          measurementUnit: indicator.measurementUnit || column.unit || "%",
+        },
+      };
+    });
+    setPreview(null);
+  }
+
+  function applySuggestedRanges(
+    suggestion: { thresholds: number[] },
+    ranges: ClassMapping[],
+  ) {
+    setThresholdsInput(suggestion.thresholds.join(", "));
+    setDraft((current) => ({ ...current, classes: ranges }));
     setPreview(null);
   }
 
@@ -607,20 +735,28 @@ export function IndexCatalogScreen() {
     setPreview(null);
   }
 
-  const statisticsShape: StatisticsShape =
-    draft.statisticsSource.kind === "gee-municipal-value-table"
-      ? "value"
-      : "classes";
-  const isValueTable = statisticsShape === "value";
-  const valueTableSource =
-    draft.statisticsSource.kind === "gee-municipal-value-table"
+  const sheetSource =
+    draft.statisticsSource.kind === "amfe-sheet-column"
       ? draft.statisticsSource
       : null;
+  /** A fonte quando ela é do Earth Engine; `null` numa coluna de planilha. */
+  const geeSource =
+    draft.statisticsSource.kind === "amfe-sheet-column"
+      ? null
+      : draft.statisticsSource;
+  const indexSourceKind: IndexSourceKind = sheetSource ? "amfe-sheet" : "gee";
+  const statisticsShape: StatisticsShape =
+    geeSource?.kind === "gee-municipal-value-table" ? "value" : "classes";
+  // A coluna da planilha é, para o resto do formulário, um índice de valor
+  // único: um indicador, faixas de cor e uma classe só na camada.
+  const isValueTable = Boolean(sheetSource) || statisticsShape === "value";
+  const valueTableSource =
+    geeSource?.kind === "gee-municipal-value-table" ? geeSource : null;
   // As duas formas de fonte têm conjuntos diferentes de propriedades
   // territoriais, e o formulário renderiza a lista que a forma escolhida usa.
   function statisticsPropertyValue(key: string) {
     const properties: Record<string, unknown> = {
-      ...draft.statisticsSource.properties,
+      ...(geeSource?.properties ?? {}),
     };
     const value = properties[key];
     return typeof value === "string" ? value : "";
@@ -821,7 +957,8 @@ export function IndexCatalogScreen() {
         // tem uma classe só — reler as classes da prévia apagaria a legenda do
         // mapa que o operador acabou de montar.
         classes:
-          current.statisticsSource.kind === "gee-municipal-value-table"
+          current.statisticsSource.kind === "gee-municipal-value-table" ||
+          current.statisticsSource.kind === "amfe-sheet-column"
             ? current.classes
             : result.panelLayer.imageData.classes.map((entry, position) => ({
                 classIndex: indexes[position],
@@ -1269,431 +1406,482 @@ export function IndexCatalogScreen() {
             </label>
           </div>
 
-          <fieldset className="mt-7 rounded-lg border border-stone-200 p-4">
-            <legend className="px-2 font-bold">Fonte das estatísticas</legend>
-            <p className="text-xs text-stone-500">
-              Obrigatoriamente FeatureCollection. Períodos são inferidos da
-              própria tabela.
-            </p>
-            <div className="mt-4 grid gap-4 md:grid-cols-2">
-              <label className="text-sm font-medium md:col-span-2">
-                Forma da tabela
-                <select
-                  className={inputClass}
-                  value={statisticsShape}
-                  onChange={(event) =>
-                    changeStatisticsShape(event.target.value as StatisticsShape)
-                  }
-                >
-                  <option value="classes">
-                    Distribuição por classes (perc_classe_XX)
-                  </option>
-                  <option value="value">
-                    Valor único por município (uma coluna por período)
-                  </option>
-                </select>
-                <span className="mt-1 block text-xs font-normal text-stone-500">
-                  {STATISTICS_SHAPE_HINTS[statisticsShape]}
-                </span>
-              </label>
-              <label className="text-sm font-medium">
-                Organização dos assets
-                <select
-                  className={inputClass}
-                  value={statisticsAssetMode}
-                  onChange={(event) =>
-                    changeStatisticsAssetMode(
-                      event.target.value as StatisticsAssetMode,
-                    )
-                  }
-                >
-                  <option value="fixed">FeatureCollection única</option>
-                  <option value="year-siblings">
-                    Uma tabela por ano (detectar os anos)
-                  </option>
-                  <option value="period-template">Template por período</option>
-                </select>
-                <span className="mt-1 block text-xs font-normal text-stone-500">
-                  {STATISTICS_ASSET_MODE_HINTS[statisticsAssetMode]}
-                </span>
-              </label>
-              <label className="text-sm font-medium">
-                Granularidade
-                <select
-                  className={inputClass}
-                  value={draft.statisticsSource.periodGranularity}
-                  onChange={(event) =>
-                    updateDraft("statisticsSource", {
-                      ...draft.statisticsSource,
-                      periodGranularity: event.target.value as "year" | "month",
-                    })
-                  }
-                >
-                  <option value="year">Anual</option>
-                  <option value="month">Mensal</option>
-                </select>
-                <span className="mt-1 block text-xs font-normal text-stone-500">
-                  Anual gera períodos como 2026; Mensal gera 2026-09. Precisa
-                  bater com os períodos da tabela.
-                </span>
-              </label>
-              <label className="text-sm font-medium md:col-span-2">
-                {STATISTICS_ASSET_FIELD_LABELS[statisticsAssetMode]}
-                <input
-                  className={inputClass}
-                  placeholder={
-                    STATISTICS_ASSET_PLACEHOLDERS[statisticsAssetMode]
-                  }
-                  value={
-                    statisticsAssetMode === "year-siblings"
-                      ? yearSampleAssetId
-                      : draft.statisticsSource.asset.type === "fixed"
-                        ? draft.statisticsSource.asset.assetId
-                        : draft.statisticsSource.asset.assetIdTemplate
-                  }
-                  onChange={(event) =>
-                    changeStatisticsAssetId(event.target.value)
-                  }
-                />
-                <span className="mt-1 block text-xs font-normal text-stone-500">
-                  {statisticsAssetMode === "period-template"
-                    ? "Templates aceitam {year}, {month} e {period}."
-                    : statisticsAssetMode === "fixed"
-                      ? "Endereço exato da tabela, que precisa conter todos os períodos."
-                      : "Cole o endereço completo de um dos anos; o ano no fim do nome vira a chave de busca."}
-                </span>
-                {statisticsAssetMode === "year-siblings" &&
-                  yearSampleAssetId.trim() !== "" && (
-                    <span
-                      className={`mt-2 block rounded-md px-3 py-2 text-xs font-normal ${
-                        detectedYearPartition
-                          ? "bg-[#F4F5D8] text-[#4B4E15]"
-                          : "bg-amber-50 text-amber-800"
-                      }`}
-                    >
-                      {detectedYearPartition
-                        ? `Ano ${detectedYearPartition.year} detectado. O catálogo vai procurar ${detectedYearPartition.assetIdTemplate} no mesmo diretório e reunir todos os anos encontrados. Cada tabela pode guardar vários meses: escolha "Mensal" na granularidade para que os períodos venham de data_img.`
-                        : "Não encontramos um ano de 4 dígitos neste endereço. Inclua o ano (por exemplo, ..._2026) ou use “Template por período”."}
-                    </span>
-                  )}
-              </label>
-            </div>
-            {isValueTable && (
-              <div className="mt-4 grid gap-4 md:grid-cols-2">
-                <label className="text-sm font-medium">
-                  Coluna do valor
-                  <input
-                    className={inputClass}
-                    placeholder="{year}"
-                    value={valueTableSource?.valueProperty ?? ""}
-                    onChange={(event) =>
-                      updateValueTableSource({
-                        valueProperty: event.target.value,
-                      })
-                    }
-                  />
-                  <span className="mt-1 block text-xs font-normal text-stone-500">
-                    Numa tabela cujas colunas são os anos (2004, 2005, …),
-                    escreva {"{year}"}. O catálogo lê a tabela, encontra todas
-                    as colunas que casam e transforma cada uma num período.
-                  </span>
-                </label>
-                <label className="text-sm font-medium">
-                  Como somar os municípios
-                  <select
-                    className={inputClass}
-                    value={valueTableSource?.aggregation ?? "mean"}
-                    onChange={(event) =>
-                      updateValueTableSource({
-                        aggregation: event.target.value as "sum" | "mean",
-                      })
-                    }
-                  >
-                    <option value="mean">
-                      Média dos municípios (percentuais, índices)
-                    </option>
-                    <option value="sum">
-                      Soma dos municípios (contagens, totais)
-                    </option>
-                  </select>
-                  <span className="mt-1 block text-xs font-normal text-stone-500">
-                    A tabela só tem municípios; o valor de cada UF e o do Brasil
-                    saem daqui. Recortes de região, bioma, ASD e semiárido ficam
-                    sem valor nesta forma.
-                  </span>
-                </label>
-              </div>
-            )}
-            <details className="mt-4">
-              <summary className="cursor-pointer text-sm font-semibold">
-                Propriedades territoriais padronizadas
-              </summary>
-              <div className="mt-3 grid gap-3 md:grid-cols-2 xl:grid-cols-3">
-                {statisticsPropertyFields.map(({ key, label }) => (
-                  <label key={key} className="text-xs font-medium">
-                    {label}
-                    <input
-                      className={inputClass}
-                      value={statisticsPropertyValue(key)}
-                      onChange={(event) =>
-                        updateStatisticsProperty(key, event.target.value)
-                      }
-                    />
-                  </label>
-                ))}
-              </div>
-            </details>
+          <fieldset className="mt-7 rounded-lg border-2 border-[#989F43] p-4">
+            <legend className="px-2 font-bold">De onde vem este índice</legend>
+            <label className="mt-2 block text-sm font-medium">
+              Origem dos dados
+              <select
+                className={inputClass}
+                value={indexSourceKind}
+                onChange={(event) =>
+                  changeIndexSourceKind(event.target.value as IndexSourceKind)
+                }
+              >
+                <option value="gee">
+                  Raster ou tabela do Google Earth Engine
+                </option>
+                <option value="amfe-sheet">
+                  Coluna da planilha da Análise Multicritério
+                </option>
+              </select>
+              <span className="mt-1 block text-xs font-normal text-stone-500">
+                {INDEX_SOURCE_KIND_HINTS[indexSourceKind]}
+              </span>
+            </label>
           </fieldset>
 
-          <fieldset className="mt-7 rounded-lg border border-stone-200 p-4">
-            <legend className="px-2 font-bold">Visualização do mapa</legend>
-            <p className="text-xs text-stone-500">
-              Fonte separada: Image, ImageCollection ou FeatureCollection.
-            </p>
-            <div className="mt-4 grid gap-4 md:grid-cols-2">
-              <label className="text-sm font-medium">
-                Tipo
-                <select
-                  className={inputClass}
-                  value={draft.earthEngine.sourceType}
-                  onChange={(event) => {
-                    if (
-                      event.target.value !== "imageCollection" &&
-                      draft.earthEngine.collectionSelection
-                    ) {
-                      setThresholdsInput("");
-                    }
-                    updateMap({
-                      sourceType: event.target
-                        .value as EarthEngineAssetMapping["sourceType"],
-                      collectionSelection:
-                        event.target.value === "imageCollection"
-                          ? draft.earthEngine.collectionSelection
-                          : undefined,
-                    });
-                  }}
-                >
-                  <option value="image">Image</option>
-                  <option value="imageCollection">ImageCollection</option>
-                  <option value="featureCollection">FeatureCollection</option>
-                </select>
-              </label>
-              {draft.earthEngine.sourceType === "imageCollection" && (
-                <div className="text-sm font-medium md:col-span-2">
-                  <div className="flex items-center gap-2">
-                    <label htmlFor="image-collection-treatment">
-                      Tratamento da coleção
-                    </label>
-                    <button
-                      type="button"
-                      className="grid size-6 cursor-pointer place-items-center rounded-full border border-[#989F43] bg-white text-xs font-bold text-[#62672D] hover:bg-[#F4F5D8]"
-                      aria-label="Ajuda sobre previsão por emissão e horizonte"
-                      onClick={() => setForecastGuideOpen(true)}
-                    >
-                      ?
-                    </button>
-                  </div>
+          {sheetSource && (
+            <AmfeSheetColumnFields
+              source={sheetSource}
+              inputClass={inputClass}
+              buttonClass={buttonClass}
+              rangeCount={draft.classes.length}
+              onChange={updateSheetSource}
+              onColumnSelected={applySheetColumnDefaults}
+              onSuggestedRanges={applySuggestedRanges}
+            />
+          )}
+
+          {geeSource && (
+            <fieldset className="mt-7 rounded-lg border border-stone-200 p-4">
+              <legend className="px-2 font-bold">Fonte das estatísticas</legend>
+              <p className="text-xs text-stone-500">
+                Obrigatoriamente FeatureCollection. Períodos são inferidos da
+                própria tabela.
+              </p>
+              <div className="mt-4 grid gap-4 md:grid-cols-2">
+                <label className="text-sm font-medium md:col-span-2">
+                  Forma da tabela
                   <select
-                    id="image-collection-treatment"
                     className={inputClass}
-                    value={
-                      draft.earthEngine.collectionSelection
-                        ? "latest-emission-leads"
-                        : "mosaic"
+                    value={statisticsShape}
+                    onChange={(event) =>
+                      changeStatisticsShape(
+                        event.target.value as StatisticsShape,
+                      )
                     }
-                    onChange={(event) => {
-                      if (event.target.value === "latest-emission-leads") {
-                        updateMap({
-                          strategy: "single",
-                          collectionSelection: {
-                            type: "latest-emission-leads",
-                            emissionProperty: "data_emissao",
-                            leadProperty: "lead_time",
-                            targetDateProperty: "system:time_start",
-                            leadValues: [1, 2, 3, 4],
-                          },
-                        });
-                        setLeadValuesInput("1, 2, 3, 4");
-                      } else {
-                        updateMap({
-                          collectionSelection: undefined,
-                          thresholds: undefined,
-                        });
-                        setThresholdsInput("");
-                      }
-                    }}
                   >
-                    <option value="mosaic">Usar todas as imagens</option>
-                    <option value="latest-emission-leads">
-                      Previsão por emissão e horizonte
+                    <option value="classes">
+                      Distribuição por classes (perc_classe_XX)
+                    </option>
+                    <option value="value">
+                      Valor único por município (uma coluna por período)
                     </option>
                   </select>
                   <span className="mt-1 block text-xs font-normal text-stone-500">
-                    Use previsão quando a coleção guarda várias rodadas e um
-                    horizonte diferente para cada mês.
+                    {STATISTICS_SHAPE_HINTS[statisticsShape]}
                   </span>
-                </div>
-              )}
-              <label className="text-sm font-medium">
-                Organização
-                <select
-                  className={inputClass}
-                  value={draft.earthEngine.strategy}
-                  disabled={Boolean(draft.earthEngine.collectionSelection)}
-                  onChange={(event) =>
-                    updateMap({
-                      strategy: event.target.value as "single" | "perPeriod",
-                    })
-                  }
-                >
-                  <option value="single">Asset único</option>
-                  <option value="perPeriod">Por período</option>
-                </select>
-                {draft.earthEngine.collectionSelection && (
+                </label>
+                <label className="text-sm font-medium">
+                  Organização dos assets
+                  <select
+                    className={inputClass}
+                    value={statisticsAssetMode}
+                    onChange={(event) =>
+                      changeStatisticsAssetMode(
+                        event.target.value as StatisticsAssetMode,
+                      )
+                    }
+                  >
+                    <option value="fixed">FeatureCollection única</option>
+                    <option value="year-siblings">
+                      Uma tabela por ano (detectar os anos)
+                    </option>
+                    <option value="period-template">
+                      Template por período
+                    </option>
+                  </select>
                   <span className="mt-1 block text-xs font-normal text-stone-500">
-                    Previsões por emissão usam uma única coleção.
+                    {STATISTICS_ASSET_MODE_HINTS[statisticsAssetMode]}
                   </span>
-                )}
-              </label>
-              {draft.earthEngine.strategy === "single" ? (
-                <label className="text-sm font-medium md:col-span-2">
-                  ID do asset de mapa
-                  <input
-                    className={inputClass}
-                    value={draft.earthEngine.singleAssetId ?? ""}
-                    onChange={(event) =>
-                      updateMap({ singleAssetId: event.target.value })
-                    }
-                  />
                 </label>
-              ) : (
-                <label className="text-sm font-medium md:col-span-2">
-                  Template do asset de mapa
-                  <input
-                    className={inputClass}
-                    placeholder="projects/projeto/assets/mapa_{period}"
-                    value={draft.earthEngine.assetPattern ?? ""}
-                    onChange={(event) =>
-                      updateMap({ assetPattern: event.target.value })
-                    }
-                  />
-                </label>
-              )}
-              {draft.earthEngine.sourceType === "featureCollection" ? (
                 <label className="text-sm font-medium">
-                  Propriedade para renderizar
+                  Granularidade
+                  <select
+                    className={inputClass}
+                    value={geeSource.periodGranularity}
+                    onChange={(event) =>
+                      updateDraft("statisticsSource", {
+                        ...geeSource,
+                        periodGranularity: event.target.value as
+                          "year" | "month",
+                      })
+                    }
+                  >
+                    <option value="year">Anual</option>
+                    <option value="month">Mensal</option>
+                  </select>
+                  <span className="mt-1 block text-xs font-normal text-stone-500">
+                    Anual gera períodos como 2026; Mensal gera 2026-09. Precisa
+                    bater com os períodos da tabela.
+                  </span>
+                </label>
+                <label className="text-sm font-medium md:col-span-2">
+                  {STATISTICS_ASSET_FIELD_LABELS[statisticsAssetMode]}
                   <input
                     className={inputClass}
-                    value={draft.earthEngine.property ?? ""}
+                    placeholder={
+                      STATISTICS_ASSET_PLACEHOLDERS[statisticsAssetMode]
+                    }
+                    value={
+                      statisticsAssetMode === "year-siblings"
+                        ? yearSampleAssetId
+                        : geeSource.asset.type === "fixed"
+                          ? geeSource.asset.assetId
+                          : geeSource.asset.assetIdTemplate
+                    }
                     onChange={(event) =>
-                      updateMap({ property: event.target.value })
+                      changeStatisticsAssetId(event.target.value)
                     }
                   />
+                  <span className="mt-1 block text-xs font-normal text-stone-500">
+                    {statisticsAssetMode === "period-template"
+                      ? "Templates aceitam {year}, {month} e {period}."
+                      : statisticsAssetMode === "fixed"
+                        ? "Endereço exato da tabela, que precisa conter todos os períodos."
+                        : "Cole o endereço completo de um dos anos; o ano no fim do nome vira a chave de busca."}
+                  </span>
+                  {statisticsAssetMode === "year-siblings" &&
+                    yearSampleAssetId.trim() !== "" && (
+                      <span
+                        className={`mt-2 block rounded-md px-3 py-2 text-xs font-normal ${
+                          detectedYearPartition
+                            ? "bg-[#F4F5D8] text-[#4B4E15]"
+                            : "bg-amber-50 text-amber-800"
+                        }`}
+                      >
+                        {detectedYearPartition
+                          ? `Ano ${detectedYearPartition.year} detectado. O catálogo vai procurar ${detectedYearPartition.assetIdTemplate} no mesmo diretório e reunir todos os anos encontrados. Cada tabela pode guardar vários meses: escolha "Mensal" na granularidade para que os períodos venham de data_img.`
+                          : "Não encontramos um ano de 4 dígitos neste endereço. Inclua o ano (por exemplo, ..._2026) ou use “Template por período”."}
+                      </span>
+                    )}
                 </label>
-              ) : (
-                <label className="text-sm font-medium">
-                  Banda (obrigatória se houver várias)
-                  <input
-                    className={inputClass}
-                    value={draft.earthEngine.band ?? ""}
-                    onChange={(event) =>
-                      updateMap({ band: event.target.value })
-                    }
-                  />
-                </label>
-              )}
-              {draft.earthEngine.collectionSelection && (
-                <>
+              </div>
+              {isValueTable && (
+                <div className="mt-4 grid gap-4 md:grid-cols-2">
                   <label className="text-sm font-medium">
-                    Propriedade da emissão
+                    Coluna do valor
                     <input
                       className={inputClass}
-                      value={
-                        draft.earthEngine.collectionSelection.emissionProperty
-                      }
+                      placeholder="{year}"
+                      value={valueTableSource?.valueProperty ?? ""}
                       onChange={(event) =>
-                        updateMap({
-                          collectionSelection: {
-                            ...draft.earthEngine.collectionSelection!,
-                            emissionProperty: event.target.value,
-                          },
+                        updateValueTableSource({
+                          valueProperty: event.target.value,
                         })
-                      }
-                    />
-                  </label>
-                  <label className="text-sm font-medium">
-                    Propriedade do horizonte
-                    <input
-                      className={inputClass}
-                      value={draft.earthEngine.collectionSelection.leadProperty}
-                      onChange={(event) =>
-                        updateMap({
-                          collectionSelection: {
-                            ...draft.earthEngine.collectionSelection!,
-                            leadProperty: event.target.value,
-                          },
-                        })
-                      }
-                    />
-                  </label>
-                  <label className="text-sm font-medium">
-                    Propriedade do mês previsto
-                    <input
-                      className={inputClass}
-                      value={
-                        draft.earthEngine.collectionSelection.targetDateProperty
-                      }
-                      onChange={(event) =>
-                        updateMap({
-                          collectionSelection: {
-                            ...draft.earthEngine.collectionSelection!,
-                            targetDateProperty: event.target.value,
-                          },
-                        })
-                      }
-                    />
-                  </label>
-                  <label className="text-sm font-medium">
-                    Horizontes
-                    <input
-                      className={inputClass}
-                      placeholder="1, 2, 3, 4"
-                      value={leadValuesInput}
-                      onChange={(event) =>
-                        setLeadValuesInput(event.target.value)
                       }
                     />
                     <span className="mt-1 block text-xs font-normal text-stone-500">
-                      Números inteiros separados por vírgula.
+                      Numa tabela cujas colunas são os anos (2004, 2005, …),
+                      escreva {"{year}"}. O catálogo lê a tabela, encontra todas
+                      as colunas que casam e transforma cada uma num período.
                     </span>
                   </label>
-                </>
+                  <label className="text-sm font-medium">
+                    Como somar os municípios
+                    <select
+                      className={inputClass}
+                      value={valueTableSource?.aggregation ?? "mean"}
+                      onChange={(event) =>
+                        updateValueTableSource({
+                          aggregation: event.target.value as "sum" | "mean",
+                        })
+                      }
+                    >
+                      <option value="mean">
+                        Média dos municípios (percentuais, índices)
+                      </option>
+                      <option value="sum">
+                        Soma dos municípios (contagens, totais)
+                      </option>
+                    </select>
+                    <span className="mt-1 block text-xs font-normal text-stone-500">
+                      A tabela só tem municípios; o valor de cada UF e o do
+                      Brasil saem daqui. Recortes de região, bioma, ASD e
+                      semiárido ficam sem valor nesta forma.
+                    </span>
+                  </label>
+                </div>
               )}
-              {/* Fora do bloco de previsão: um raster contínuo precisa dos
+              <details className="mt-4">
+                <summary className="cursor-pointer text-sm font-semibold">
+                  Propriedades territoriais padronizadas
+                </summary>
+                <div className="mt-3 grid gap-3 md:grid-cols-2 xl:grid-cols-3">
+                  {statisticsPropertyFields.map(({ key, label }) => (
+                    <label key={key} className="text-xs font-medium">
+                      {label}
+                      <input
+                        className={inputClass}
+                        value={statisticsPropertyValue(key)}
+                        onChange={(event) =>
+                          updateStatisticsProperty(key, event.target.value)
+                        }
+                      />
+                    </label>
+                  ))}
+                </div>
+              </details>
+            </fieldset>
+          )}
+
+          {geeSource && (
+            <fieldset className="mt-7 rounded-lg border border-stone-200 p-4">
+              <legend className="px-2 font-bold">Visualização do mapa</legend>
+              <p className="text-xs text-stone-500">
+                Fonte separada: Image, ImageCollection ou FeatureCollection.
+              </p>
+              <div className="mt-4 grid gap-4 md:grid-cols-2">
+                <label className="text-sm font-medium">
+                  Tipo
+                  <select
+                    className={inputClass}
+                    value={draft.earthEngine.sourceType}
+                    onChange={(event) => {
+                      if (
+                        event.target.value !== "imageCollection" &&
+                        draft.earthEngine.collectionSelection
+                      ) {
+                        setThresholdsInput("");
+                      }
+                      updateMap({
+                        sourceType: event.target
+                          .value as EarthEngineAssetMapping["sourceType"],
+                        collectionSelection:
+                          event.target.value === "imageCollection"
+                            ? draft.earthEngine.collectionSelection
+                            : undefined,
+                      });
+                    }}
+                  >
+                    <option value="image">Image</option>
+                    <option value="imageCollection">ImageCollection</option>
+                    <option value="featureCollection">FeatureCollection</option>
+                  </select>
+                </label>
+                {draft.earthEngine.sourceType === "imageCollection" && (
+                  <div className="text-sm font-medium md:col-span-2">
+                    <div className="flex items-center gap-2">
+                      <label htmlFor="image-collection-treatment">
+                        Tratamento da coleção
+                      </label>
+                      <button
+                        type="button"
+                        className="grid size-6 cursor-pointer place-items-center rounded-full border border-[#989F43] bg-white text-xs font-bold text-[#62672D] hover:bg-[#F4F5D8]"
+                        aria-label="Ajuda sobre previsão por emissão e horizonte"
+                        onClick={() => setForecastGuideOpen(true)}
+                      >
+                        ?
+                      </button>
+                    </div>
+                    <select
+                      id="image-collection-treatment"
+                      className={inputClass}
+                      value={
+                        draft.earthEngine.collectionSelection
+                          ? "latest-emission-leads"
+                          : "mosaic"
+                      }
+                      onChange={(event) => {
+                        if (event.target.value === "latest-emission-leads") {
+                          updateMap({
+                            strategy: "single",
+                            collectionSelection: {
+                              type: "latest-emission-leads",
+                              emissionProperty: "data_emissao",
+                              leadProperty: "lead_time",
+                              targetDateProperty: "system:time_start",
+                              leadValues: [1, 2, 3, 4],
+                            },
+                          });
+                          setLeadValuesInput("1, 2, 3, 4");
+                        } else {
+                          updateMap({
+                            collectionSelection: undefined,
+                            thresholds: undefined,
+                          });
+                          setThresholdsInput("");
+                        }
+                      }}
+                    >
+                      <option value="mosaic">Usar todas as imagens</option>
+                      <option value="latest-emission-leads">
+                        Previsão por emissão e horizonte
+                      </option>
+                    </select>
+                    <span className="mt-1 block text-xs font-normal text-stone-500">
+                      Use previsão quando a coleção guarda várias rodadas e um
+                      horizonte diferente para cada mês.
+                    </span>
+                  </div>
+                )}
+                <label className="text-sm font-medium">
+                  Organização
+                  <select
+                    className={inputClass}
+                    value={draft.earthEngine.strategy}
+                    disabled={Boolean(draft.earthEngine.collectionSelection)}
+                    onChange={(event) =>
+                      updateMap({
+                        strategy: event.target.value as "single" | "perPeriod",
+                      })
+                    }
+                  >
+                    <option value="single">Asset único</option>
+                    <option value="perPeriod">Por período</option>
+                  </select>
+                  {draft.earthEngine.collectionSelection && (
+                    <span className="mt-1 block text-xs font-normal text-stone-500">
+                      Previsões por emissão usam uma única coleção.
+                    </span>
+                  )}
+                </label>
+                {draft.earthEngine.strategy === "single" ? (
+                  <label className="text-sm font-medium md:col-span-2">
+                    ID do asset de mapa
+                    <input
+                      className={inputClass}
+                      value={draft.earthEngine.singleAssetId ?? ""}
+                      onChange={(event) =>
+                        updateMap({ singleAssetId: event.target.value })
+                      }
+                    />
+                  </label>
+                ) : (
+                  <label className="text-sm font-medium md:col-span-2">
+                    Template do asset de mapa
+                    <input
+                      className={inputClass}
+                      placeholder="projects/projeto/assets/mapa_{period}"
+                      value={draft.earthEngine.assetPattern ?? ""}
+                      onChange={(event) =>
+                        updateMap({ assetPattern: event.target.value })
+                      }
+                    />
+                  </label>
+                )}
+                {draft.earthEngine.sourceType === "featureCollection" ? (
+                  <label className="text-sm font-medium">
+                    Propriedade para renderizar
+                    <input
+                      className={inputClass}
+                      value={draft.earthEngine.property ?? ""}
+                      onChange={(event) =>
+                        updateMap({ property: event.target.value })
+                      }
+                    />
+                  </label>
+                ) : (
+                  <label className="text-sm font-medium">
+                    Banda (obrigatória se houver várias)
+                    <input
+                      className={inputClass}
+                      value={draft.earthEngine.band ?? ""}
+                      onChange={(event) =>
+                        updateMap({ band: event.target.value })
+                      }
+                    />
+                  </label>
+                )}
+                {draft.earthEngine.collectionSelection && (
+                  <>
+                    <label className="text-sm font-medium">
+                      Propriedade da emissão
+                      <input
+                        className={inputClass}
+                        value={
+                          draft.earthEngine.collectionSelection.emissionProperty
+                        }
+                        onChange={(event) =>
+                          updateMap({
+                            collectionSelection: {
+                              ...draft.earthEngine.collectionSelection!,
+                              emissionProperty: event.target.value,
+                            },
+                          })
+                        }
+                      />
+                    </label>
+                    <label className="text-sm font-medium">
+                      Propriedade do horizonte
+                      <input
+                        className={inputClass}
+                        value={
+                          draft.earthEngine.collectionSelection.leadProperty
+                        }
+                        onChange={(event) =>
+                          updateMap({
+                            collectionSelection: {
+                              ...draft.earthEngine.collectionSelection!,
+                              leadProperty: event.target.value,
+                            },
+                          })
+                        }
+                      />
+                    </label>
+                    <label className="text-sm font-medium">
+                      Propriedade do mês previsto
+                      <input
+                        className={inputClass}
+                        value={
+                          draft.earthEngine.collectionSelection
+                            .targetDateProperty
+                        }
+                        onChange={(event) =>
+                          updateMap({
+                            collectionSelection: {
+                              ...draft.earthEngine.collectionSelection!,
+                              targetDateProperty: event.target.value,
+                            },
+                          })
+                        }
+                      />
+                    </label>
+                    <label className="text-sm font-medium">
+                      Horizontes
+                      <input
+                        className={inputClass}
+                        placeholder="1, 2, 3, 4"
+                        value={leadValuesInput}
+                        onChange={(event) =>
+                          setLeadValuesInput(event.target.value)
+                        }
+                      />
+                      <span className="mt-1 block text-xs font-normal text-stone-500">
+                        Números inteiros separados por vírgula.
+                      </span>
+                    </label>
+                  </>
+                )}
+                {/* Fora do bloco de previsão: um raster contínuo precisa dos
                   limites qualquer que seja a estratégia de asset. Sem este
                   campo visível, um índice como o Carbono Orgânico do Solo era
                   publicado com `min` 1 e `max` 6 sobre valores em g/kg, e o
                   mapa saía inteiro na cor da última classe. */}
-              {!isValueTable && (
-                <label className="text-sm font-medium md:col-span-2">
-                  Limites das classes (opcional)
-                  <input
-                    className={inputClass}
-                    placeholder="-90, -30, 0, 30, 90"
-                    value={thresholdsInput}
-                    onChange={(event) => setThresholdsInput(event.target.value)}
-                  />
-                  <span className="mt-1 block text-xs font-normal text-stone-500">
-                    Só para raster contínuo, em que cada classe é uma faixa de
-                    valores: informe os limites na unidade do próprio asset
-                    (g/kg, mm, °C), um a menos que a quantidade de classes e em
-                    ordem crescente — 6 classes exigem 5 limites. Deixe vazio
-                    quando o raster já guarda o número da classe em cada pixel.
-                  </span>
-                </label>
-              )}
-            </div>
-          </fieldset>
+                {!isValueTable && (
+                  <label className="text-sm font-medium md:col-span-2">
+                    Limites das classes (opcional)
+                    <input
+                      className={inputClass}
+                      placeholder="-90, -30, 0, 30, 90"
+                      value={thresholdsInput}
+                      onChange={(event) =>
+                        setThresholdsInput(event.target.value)
+                      }
+                    />
+                    <span className="mt-1 block text-xs font-normal text-stone-500">
+                      Só para raster contínuo, em que cada classe é uma faixa de
+                      valores: informe os limites na unidade do próprio asset
+                      (g/kg, mm, °C), um a menos que a quantidade de classes e
+                      em ordem crescente — 6 classes exigem 5 limites. Deixe
+                      vazio quando o raster já guarda o número da classe em cada
+                      pixel.
+                    </span>
+                  </label>
+                )}
+              </div>
+            </fieldset>
+          )}
 
           {isValueTable ? (
             <>
@@ -1837,32 +2025,63 @@ export function IndexCatalogScreen() {
         <section className="space-y-4">
           <div className="rounded-lg border border-[#D6D89A] bg-white p-4 text-sm">
             <strong>{preview.validation.inferred.periods.length}</strong>{" "}
-            período(s),{" "}
+            período(s) e{" "}
             <strong>{preview.validation.inferred.classIndexes.length}</strong>{" "}
-            classe(s) e{" "}
-            <strong>{preview.validation.inferred.statisticsAssetCount}</strong>{" "}
-            asset(s) estatístico(s) validados.
+            classe(s) validados
+            {isSheetPreview ? (
+              " na planilha da Análise Multicritério."
+            ) : (
+              <>
+                {" em "}
+                <strong>
+                  {preview.validation.inferred.statisticsAssetCount}
+                </strong>{" "}
+                asset(s) estatístico(s).
+              </>
+            )}
           </div>
-          <CatalogPreviewMapCapture
-            preview={{
-              entryId: preview.entryId,
-              panelLayer: preview.panelLayer,
-              period: resolvePreviewMapPeriod(preview),
-            }}
-            onSaved={(url) =>
-              setPreview((current) =>
-                current
-                  ? {
-                      ...current,
-                      panelLayer: {
-                        ...current.panelLayer,
-                        previewMap: { url },
-                      },
-                    }
-                  : current,
-              )
-            }
-          />
+          {/* Os avisos dizem o que este índice não vai ter — série histórica,
+              recortes agregados, municípios sem valor. Ficam na tela porque são
+              exatamente as perguntas que aparecem depois da publicação. */}
+          {preview.validation.warnings.length > 0 && (
+            <ul className="space-y-2 rounded-lg border border-amber-200 bg-amber-50 p-4 text-sm text-amber-900">
+              {preview.validation.warnings.map((warning) => (
+                <li key={warning.code}>{warning.message}</li>
+              ))}
+            </ul>
+          )}
+          {/* A captura desenha o mapa a partir dos tiles do Earth Engine, que uma
+              camada de coropleta não tem. Enquanto ela não souber pintar a
+              planilha, o índice é publicado sem a imagem do cartão em vez de
+              mostrar uma falha que não tem conserto na tela. */}
+          {isSheetPreview ? (
+            <p className="rounded-lg border border-amber-200 bg-amber-50 p-4 text-sm text-amber-900">
+              A imagem do cartão ainda não é capturada para índices da planilha.
+              A prévia do Monitoramento, abaixo, mostra o mapa como ele vai
+              ficar.
+            </p>
+          ) : (
+            <CatalogPreviewMapCapture
+              preview={{
+                entryId: preview.entryId,
+                panelLayer: preview.panelLayer,
+                period: resolvePreviewMapPeriod(preview),
+              }}
+              onSaved={(url) =>
+                setPreview((current) =>
+                  current
+                    ? {
+                        ...current,
+                        panelLayer: {
+                          ...current.panelLayer,
+                          previewMap: { url },
+                        },
+                      }
+                    : current,
+                )
+              }
+            />
+          )}
           <CatalogMonitoringPreview preview={preview} />
           <CatalogReportPreview
             entryId={preview.entryId}

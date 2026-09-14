@@ -4,6 +4,7 @@ import {
   CLASSIFICATION_SOURCES,
   applyClassificationFeatureStates,
   applyClassificationFillOpacity,
+  applyClassificationPalette,
   clearClassificationFeatureStates,
   ensureClassificationLayer,
   ensureClassificationOverviewLayer,
@@ -34,6 +35,10 @@ export const useMunicipalityClassification = (
   fillOpacity: number,
 ) => {
   const appliedCodesRef = useRef<Set<string>>(new Set());
+  // A paleta acompanha a classificação, e a opacidade precisa dela para montar
+  // um ramo por faixa: sem isso, uma camada de três faixas ficaria com o último
+  // nível transparente, porque a expressão padrão só cobre cinco níveis fixos.
+  const paletteRef = useRef(classification?.palette);
   // A opacidade entra por ref, e não nas dependências do efeito abaixo:
   // regravar a classificação inteira custa duas escritas de feature-state por
   // município (mais de 11 mil numa análise nacional) e mover a barra só precisa
@@ -44,6 +49,8 @@ export const useMunicipalityClassification = (
   useEffect(() => {
     const map = mapRef.current;
     if (!map) return;
+
+    paletteRef.current = classification?.palette;
 
     const syncClassification = () => {
       if (!map.getSource(MUNICIPALITY_SOURCE_ID)) return;
@@ -56,7 +63,12 @@ export const useMunicipalityClassification = (
 
       // Depois de garantir as camadas: a barra pode ter mudado antes de a
       // coropleta existir, e o reload de estilo devolve o paint padrão.
-      applyClassificationFillOpacity(map, fillOpacityRef.current);
+      applyClassificationPalette(map, classification?.palette);
+      applyClassificationFillOpacity(
+        map,
+        fillOpacityRef.current,
+        classification?.palette?.length,
+      );
 
       const sources = resolveReadySources(map);
 
@@ -89,6 +101,10 @@ export const useMunicipalityClassification = (
     const map = mapRef.current;
     if (!map) return;
 
-    applyClassificationFillOpacity(map, fillOpacity);
+    applyClassificationFillOpacity(
+      map,
+      fillOpacity,
+      paletteRef.current?.length,
+    );
   }, [fillOpacity, mapRef]);
 };

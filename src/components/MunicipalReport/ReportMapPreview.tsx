@@ -27,10 +27,15 @@ import {
 /**
  * O `panelLayer` não tem imagem para o período que o relatório resolveu pelos
  * dados da análise. É conteúdo faltando, não falha momentânea, então a mensagem
- * é outra.
+ * é outra. Uma camada de coropleta municipal cai no mesmo caso: ela não tem
+ * raster em período nenhum, e o relatório ainda não sabe desenhá-la.
  */
 function isMissingPeriod(reason?: EeMapUrlFailure) {
-  return reason === "year_not_found" || reason === "layer_not_found";
+  return (
+    reason === "year_not_found" ||
+    reason === "layer_not_found" ||
+    reason === "municipal_choropleth"
+  );
 }
 
 function addGeeRasterLayer(map: maplibregl.Map, tileUrl: string) {

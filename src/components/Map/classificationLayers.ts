@@ -102,6 +102,13 @@ export interface MunicipalityClassification {
   classificationByCode: Readonly<Record<string, number>>;
   /** Códigos presentes na área mas sem dado suficiente para ranquear. */
   excludedCodes: readonly string[];
+  /**
+   * Cores por nível, da primeira faixa à última. A análise multicritério omite
+   * e usa `CLASSIFICATION_COLORS`, porque a escala de prioridade dela é fixa;
+   * uma camada do Monitoramento traz a paleta publicada no próprio índice, que
+   * tem outra quantidade de faixas e outras cores.
+   */
+  palette?: readonly string[];
 }
 
 /**
@@ -114,11 +121,12 @@ const buildClassificationCases = (
   valueForLevel: (level: number) => string | number,
   excludedValue: string | number,
   fallback: string | number,
+  levelCount: number = CLASSIFICATION_COLORS.length,
 ) => {
-  const branches = CLASSIFICATION_COLORS.flatMap((_color, level) => [
+  const branches = Array.from({ length: levelCount }, (_value, level) => [
     ["==", ["feature-state", CLASSIFICATION_STATE_KEY], level],
     valueForLevel(level),
-  ]);
+  ]).flat();
 
   // O cast é necessário porque a tipagem de ExpressionSpecification não
   // acompanha arrays montados dinamicamente.
@@ -131,19 +139,27 @@ const buildClassificationCases = (
   ] as unknown as ExpressionSpecification;
 };
 
-export const CLASSIFICATION_FILL_COLOR = buildClassificationCases(
-  (level) => CLASSIFICATION_COLORS[level],
-  EXCLUDED_COLOR,
-  "transparent",
-);
+export const buildClassificationFillColor = (
+  palette: readonly string[] = CLASSIFICATION_COLORS,
+) =>
+  buildClassificationCases(
+    (level) => palette[level],
+    EXCLUDED_COLOR,
+    "transparent",
+    palette.length,
+  );
+
+export const CLASSIFICATION_FILL_COLOR = buildClassificationFillColor();
 
 export const buildClassificationFillOpacity = (
   classifiedOpacity: number = CLASSIFIED_OPACITY,
+  levelCount: number = CLASSIFICATION_COLORS.length,
 ) =>
   buildClassificationCases(
     () => classifiedOpacity,
     classifiedOpacity * (EXCLUDED_OPACITY / CLASSIFIED_OPACITY),
     0,
+    levelCount,
   );
 
 export const CLASSIFICATION_FILL_OPACITY = buildClassificationFillOpacity();
@@ -279,12 +295,38 @@ const CLASSIFICATION_FILL_LAYER_IDS = [
 export const applyClassificationFillOpacity = (
   map: PaintCapableMap,
   classifiedOpacity: number,
+  levelCount?: number,
 ) => {
-  const expression = buildClassificationFillOpacity(classifiedOpacity);
+  const expression = buildClassificationFillOpacity(
+    classifiedOpacity,
+    levelCount,
+  );
 
   for (const layerId of CLASSIFICATION_FILL_LAYER_IDS) {
     if (!map.getLayer(layerId)) continue;
     map.setPaintProperty(layerId, "fill-opacity", expression);
+  }
+};
+
+/**
+ * Troca as cores da coropleta pelas da camada em exibição.
+ *
+ * A cor entra por `setPaintProperty`, e não na criação da camada, porque as
+ * duas camadas de preenchimento são criadas uma vez e sobrevivem à troca de
+ * índice no painel — recriá-las a cada troca faria o mapa piscar.
+ *
+ * @example
+ * applyClassificationPalette(map, ["#FFFFCC", "#FD8D3C", "#BD0026"]);
+ */
+export const applyClassificationPalette = (
+  map: PaintCapableMap,
+  palette: readonly string[] = CLASSIFICATION_COLORS,
+) => {
+  const expression = buildClassificationFillColor(palette);
+
+  for (const layerId of CLASSIFICATION_FILL_LAYER_IDS) {
+    if (!map.getLayer(layerId)) continue;
+    map.setPaintProperty(layerId, "fill-color", expression);
   }
 };
 

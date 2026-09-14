@@ -9,6 +9,7 @@ import { getPanelLayers } from "@/repositories/platform/panelLayerRepository";
 import { IMapId, IEEInfo, IImageParam } from "@/utils/interfaces";
 import {
   getImageDataDefaultYear,
+  isCompactImageData,
   resolveImageCollectionPeriod,
   resolveImageCollectionSelection,
   resolveImageYearEntry,
@@ -812,6 +813,15 @@ export const cacheMapData = async () => {
       const imageData = layer.imageData as IEEInfo["imageData"] | undefined;
 
       if (!id || !imageData || typeof imageData !== "object") {
+        continue;
+      }
+
+      // Uma camada de coropleta municipal não tem tile a aquecer: o mapa dela é
+      // desenhado no navegador a partir dos valores lidos da planilha.
+      if (
+        isCompactImageData(imageData) &&
+        imageData.mapVisualization?.municipalChoropleth
+      ) {
         continue;
       }
 

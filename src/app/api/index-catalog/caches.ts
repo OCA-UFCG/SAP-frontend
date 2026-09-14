@@ -1,6 +1,7 @@
 import { revalidatePath, revalidateTag } from "next/cache";
 import { clearEarthEngineCacheForLayer } from "@/app/api/ee/cache";
 import { clearGeeAssetTypeCache } from "@/app/api/ee/assetType";
+import { clearSheetChoroplethCache } from "@/repositories/platform/amfeSheetChoroplethCache";
 import { clearMunicipalAnalysisCache } from "@/repositories/platform/municipalAnalysisCache";
 import { clearGeeStatisticsSchemaCache } from "@/repositories/platform/geeStatisticsRepository";
 import { clearGeeStatisticsRowsCache } from "@/repositories/platform/geeStatisticsRowsCache";
@@ -35,6 +36,10 @@ export function refreshPublicIndexCaches(panelLayerId: string) {
   clearPanelLayersCache();
   clearGeeStatisticsSchemaCache();
   clearGeeStatisticsRowsCache();
+  // A coropleta de uma camada de planilha é montada a partir dos limites
+  // publicados: mudar as faixas sem limpá-la deixaria o mapa com as cores
+  // antigas até o TTL, mesmo com a legenda nova já na tela.
+  clearSheetChoroplethCache();
   // O relatório guarda o documento inteiro montado, indexado por município,
   // período e camadas pedidas — nunca por camada isolada, então não há como
   // invalidar só o índice publicado. Republicar um índice v2 não mudava a

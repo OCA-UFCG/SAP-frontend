@@ -11,6 +11,11 @@ import {
   parseGeeMunicipalValueTableSource,
   type GeeMunicipalValueTableStatisticsSource,
 } from "@/contracts/geeMunicipalValueTable";
+import {
+  isAmfeSheetColumnSource,
+  parseAmfeSheetColumnSource,
+  type AmfeSheetColumnStatisticsSource,
+} from "@/contracts/amfeSheetColumn";
 
 import type {
   GeeStatisticsAssetSource,
@@ -44,13 +49,17 @@ export interface GeeFeatureCollectionStatisticsSource {
 }
 
 /**
- * As duas formas de tabela que uma camada pode publicar: a distribuição por
- * classes (`perc_classe_XX` por nível territorial) e o valor único por
- * município. A segunda existe porque os dados socioeconômicos chegam numa
- * FeatureCollection que é, ao mesmo tempo, a estatística e o asset do mapa.
+ * As formas de tabela que uma camada pode publicar: a distribuição por classes
+ * (`perc_classe_XX` por nível territorial), o valor único por município e a
+ * coluna da planilha da análise multicritério. A segunda existe porque os dados
+ * socioeconômicos chegam numa FeatureCollection que é, ao mesmo tempo, a
+ * estatística e o asset do mapa; a terceira não passa pelo Earth Engine, e é
+ * lida da mesma planilha que alimenta a análise multicritério.
  */
 export type GeeStatisticsSource =
-  GeeFeatureCollectionStatisticsSource | GeeMunicipalValueTableStatisticsSource;
+  | GeeFeatureCollectionStatisticsSource
+  | GeeMunicipalValueTableStatisticsSource
+  | AmfeSheetColumnStatisticsSource;
 
 interface PublishedStatisticsSourceStamp {
   schemaVersion: 1;
@@ -67,6 +76,9 @@ export type PublishedGeeStatisticsSource = GeeStatisticsSource &
 
 export type PublishedGeeMunicipalValueTableSource =
   GeeMunicipalValueTableStatisticsSource & PublishedStatisticsSourceStamp;
+
+export type PublishedAmfeSheetColumnSource = AmfeSheetColumnStatisticsSource &
+  PublishedStatisticsSourceStamp;
 
 export interface ResolvedGeeStatisticsSource extends GeeFeatureCollectionStatisticsSource {
   assetId: string;
@@ -152,13 +164,15 @@ export function parseGeeFeatureCollectionStatisticsSource(
 }
 
 /**
- * Uma fonte de qualquer das duas formas, escolhida pelo `kind`.
+ * Uma fonte de qualquer das formas, escolhida pelo `kind`.
  *
  * O `kind` ausente ou desconhecido cai na distribuição por classes, que é a
  * única forma que existia antes e a que produz a mensagem de erro útil para uma
  * configuração incompleta.
  */
 export function parseGeeStatisticsSource(value: unknown): GeeStatisticsSource {
+  if (isAmfeSheetColumnSource(value)) return parseAmfeSheetColumnSource(value);
+
   return isGeeMunicipalValueTableSource(value)
     ? parseGeeMunicipalValueTableSource(value)
     : parseGeeFeatureCollectionStatisticsSource(value);

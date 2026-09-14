@@ -18,7 +18,12 @@ import {
   isGeeMunicipalValueTableSource,
   type GeeMunicipalValueTableStatisticsSource,
 } from "@/contracts/geeMunicipalValueTable";
+import {
+  isAmfeSheetColumnSource,
+  type AmfeSheetColumnStatisticsSource,
+} from "@/contracts/amfeSheetColumn";
 import { getMunicipalValueTableYearPatch } from "@/repositories/platform/geeMunicipalValueTableRepository";
+import { getAmfeSheetColumnYearPatch } from "@/repositories/platform/amfeSheetRepository";
 import { buildSpatialLocationKey } from "@/contracts/spatialLocationKey.mjs";
 import {
   evaluateGeeObject,
@@ -562,6 +567,37 @@ async function readMunicipalValueTablePatch(
 }
 
 /**
+ * A coluna da planilha da análise multicritério adaptada ao mesmo resultado das
+ * demais fontes.
+ *
+ * Como a tabela municipal de valor único, ela produz um número por território e
+ * a camada tem uma classe só. A diferença é que não há Earth Engine no caminho:
+ * a leitura é do arquivo publicado pelo Google Docs.
+ */
+async function readAmfeSheetColumnPatch(
+  source: AmfeSheetColumnStatisticsSource,
+  yearKey: string,
+  locationKey: string,
+  classCount: number,
+): Promise<GeeStatisticsYearResult> {
+  if (classCount !== 1) {
+    throw new Error(
+      `A camada possui ${classCount} classes, mas uma coluna da planilha produz uma só.`,
+    );
+  }
+
+  const patch = await getAmfeSheetColumnYearPatch(source, yearKey, locationKey);
+
+  return {
+    assetId: `planilha:${source.column}`,
+    featureCount: Object.keys(patch.locations ?? {}).length,
+    omittedZeroValueLocationKeys: [],
+    patch,
+    metrics: {},
+  };
+}
+
+/**
  * O patch territorial de um período, lendo a série inteira de uma vez.
  *
  * `periodKeys` são todos os períodos publicados da camada. Quando vem
@@ -588,6 +624,12 @@ export async function getGeeStatisticsYearPatch(
 
   if (!source) {
     return null;
+  }
+
+  // Antes de `initializeGee`: esta fonte não passa pelo Earth Engine, e abrir a
+  // conexão só para não usá-la custaria o handshake da conta de serviço.
+  if (isAmfeSheetColumnSource(source)) {
+    return readAmfeSheetColumnPatch(source, yearKey, locationKey, classCount);
   }
 
   await initializeGee();

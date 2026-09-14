@@ -14,6 +14,7 @@ import {
 import { getAllowedStateUfs } from "@/utils/interestAreaStates";
 import type { SpatialSelection } from "@/utils/spatialScope";
 import { useEarthEngineTileLayer } from "./useEarthEngineTileLayer";
+import { useSheetChoroplethLayer } from "./useSheetChoroplethLayer";
 import { useReferenceOverlayTiles } from "./useReferenceOverlayTileLayers";
 import { useSpatialBoundaryOverlay } from "./useSpatialBoundaryOverlay";
 
@@ -45,8 +46,12 @@ export function useMonitoringMapLayers() {
     toggleReferenceOverlay,
     setSpatialSelection,
   } = useMapLayerActions();
+  const sheetChoropleth = useSheetChoroplethLayer(activeEEData);
+  // A camada de planilha não tem raster: passar `null` aqui é o que impede um
+  // pedido ao `/api/ee` — e uma chamada ao Earth Engine — por um índice cujo
+  // mapa é desenhado no próprio navegador.
   const { requestKey, status, tileLayerUrl } = useEarthEngineTileLayer(
-    activeEEData,
+    sheetChoropleth.isSheetLayer ? null : activeEEData,
     activeYear,
     spatialSelection,
   );
@@ -104,8 +109,10 @@ export function useMonitoringMapLayers() {
 
   const isGeeLayerLoading =
     Boolean(activeEEData) &&
-    (status === "loading" ||
-      (status === "ready" && !hasRenderedCurrentRequest));
+    (sheetChoropleth.isLoading ||
+      (!sheetChoropleth.isSheetLayer &&
+        (status === "loading" ||
+          (status === "ready" && !hasRenderedCurrentRequest))));
 
   return {
     activeData,
@@ -132,5 +139,7 @@ export function useMonitoringMapLayers() {
     spatialSelection,
     tileLayerUrl,
     toggleReferenceOverlay,
+    municipalityClassification: sheetChoropleth.classification,
+    municipalityOverviewGeoJson: sheetChoropleth.overviewGeoJson,
   };
 }

@@ -1,3 +1,4 @@
+import { isAmfeSheetColumnSource } from "@/contracts/amfeSheetColumn";
 import { isGeeMunicipalValueTableSource } from "@/contracts/geeMunicipalValueTable";
 import { parseGeeStatisticsSource } from "@/contracts/geeStatistics";
 import { HEX_COLOR_PATTERN } from "@/utils/hexColor";
@@ -108,7 +109,10 @@ export function catalogLayerClassCount(
   statisticsSource: unknown,
   classes: readonly ClassMapping[],
 ) {
-  return isGeeMunicipalValueTableSource(statisticsSource) ? 1 : classes.length;
+  return isGeeMunicipalValueTableSource(statisticsSource) ||
+    isAmfeSheetColumnSource(statisticsSource)
+    ? 1
+    : classes.length;
 }
 
 /**
@@ -323,6 +327,35 @@ function parseEarthEngineMapping(value: unknown): EarthEngineAssetMapping {
   };
 }
 
+/**
+ * Os limites entre as faixas de cor, sem nenhum asset de mapa em volta.
+ *
+ * Um índice de coluna de planilha não tem asset de visualização — o mapa é
+ * pintado município a município —, então `parseEarthEngineMapping` recusaria o
+ * cadastro pedindo um endereço que não existe. O que sobra dele e continua
+ * valendo são os limites.
+ */
+function parseSheetColumnMapping(value: unknown): EarthEngineAssetMapping {
+  const thresholds =
+    isRecord(value) && Array.isArray(value.thresholds)
+      ? value.thresholds.map(Number)
+      : undefined;
+  if (
+    thresholds?.some((threshold) => !Number.isFinite(threshold)) ||
+    thresholds?.some(
+      (threshold, index) => index > 0 && threshold <= thresholds[index - 1],
+    )
+  ) {
+    throw new Error("Os limites do mapa devem ser números crescentes.");
+  }
+
+  return {
+    strategy: "single",
+    sourceType: "featureCollection",
+    ...(thresholds?.length ? { thresholds } : {}),
+  };
+}
+
 function parseValueIndicator(value: unknown): MunicipalValueIndicator {
   if (!isRecord(value)) {
     throw new Error("Descreva o indicador do índice de valor único.");
@@ -369,7 +402,9 @@ export function parseIndexCatalogDraftInput(
       "O catálogo v2 aceita apenas estatísticas classificatórias nesta versão.",
     );
   }
-  const isValueTable = isGeeMunicipalValueTableSource(statisticsSource);
+  const isSheetColumn = isAmfeSheetColumnSource(statisticsSource);
+  const isValueTable =
+    isSheetColumn || isGeeMunicipalValueTableSource(statisticsSource);
   const classes = parseClasses(value.classes);
   // Uma tabela de valor único desenha faixas no mapa, e cada faixa é separada da
   // seguinte por um limite: sem eles o Earth Engine espalharia a paleta pelo
@@ -386,7 +421,9 @@ export function parseIndexCatalogDraftInput(
     category: value.category as IndexCategory,
     statisticsSource,
     classes,
-    earthEngine: parseEarthEngineMapping(value.earthEngine),
+    earthEngine: isSheetColumn
+      ? parseSheetColumnMapping(value.earthEngine)
+      : parseEarthEngineMapping(value.earthEngine),
     ...parsePanelPositionInput(value.panelPosition),
     ...(isValueTable
       ? { valueIndicator: parseValueIndicator(value.valueIndicator) }

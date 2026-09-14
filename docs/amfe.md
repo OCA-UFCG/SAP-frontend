@@ -73,6 +73,14 @@ mensagem explícita — nada mais da plataforma é afetado. Os workflows de depl
 leem as variáveis de repositório `API_BASE_URL_BETA`, `API_BASE_URL_GAMMA` e
 `API_BASE_URL` (produção) e as injetam no container em runtime.
 
+## A planilha também alimenta o Monitoramento
+
+A mesma planilha (aba de dados, uma linha por município) pode publicar um índice
+no Monitoramento: o catálogo cadastra uma coluna dela como índice, e o mapa
+pinta cada município com a cor da faixa do valor. Esse caminho não passa pelo
+backend da análise multicritério — a aplicação lê a planilha publicada
+diretamente. Ver `docs/amfe-sheet-index.md`.
+
 ## Coropleta no mapa da plataforma
 
 A AMFE reusa o `Map` do MapLibre em vez do Leaflet do app original. O resultado

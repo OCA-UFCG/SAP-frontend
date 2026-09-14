@@ -42,6 +42,12 @@ function buildMonitoringMapProps(
     tileLayerUrl: monitoring.tileLayerUrl,
     tileLayerRequestKey: monitoring.requestKey,
     layerOpacity: monitoring.layerOpacity,
+    // A camada de planilha é pintada pela coropleta, e a mesma barra de
+    // opacidade do Monitoramento controla as duas — para quem usa, é uma
+    // camada como as outras.
+    municipalityClassification: monitoring.municipalityClassification,
+    municipalityOverviewGeoJson: monitoring.municipalityOverviewGeoJson,
+    classificationFillOpacity: monitoring.layerOpacity,
     allowedStateUfs: monitoring.allowedStateUfs,
     spatialBoundaryGeoJson: monitoring.boundaryGeoJson,
     spatialFocusBounds: monitoring.spatialFocusBounds,

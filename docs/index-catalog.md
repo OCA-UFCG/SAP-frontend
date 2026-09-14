@@ -148,6 +148,20 @@ possa divergir dele.
 A interpolação usa `populateDocContent`, a mesma do relatório de produção, para
 que um colchete que não resolve apareça errado na prévia também.
 
+## A primeira pergunta: de onde vem o índice
+
+Antes de qualquer campo, o formulário pergunta a origem dos dados:
+
+- **Raster ou tabela do Google Earth Engine** — o caminho descrito no resto
+  deste documento;
+- **Coluna da planilha da Análise Multicritério** — um índice sem asset nenhum,
+  cujo valor municipal vem de uma coluna da planilha que a análise multicritério
+  já usa e cujo mapa é pintado município a município. Trocar a origem recomeça a
+  fonte, as classes e os limites, porque nenhum preenchimento de um caminho vale
+  no outro. Ver `docs/amfe-sheet-index.md`.
+
+O que vem abaixo descreve o caminho do Earth Engine.
+
 ## Fonte estatística e fonte de mapa
 
 São configurações independentes:

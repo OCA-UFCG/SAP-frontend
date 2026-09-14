@@ -129,6 +129,26 @@ function validateMapVisualization(value, path, errors) {
     );
   }
 
+  // Campo aditivo: uma camada sem ele continua sendo desenhada por tiles do
+  // Earth Engine, que é o caso de todas as publicadas antes desta versão.
+  if (value.municipalChoropleth != null) {
+    if (!isRecord(value.municipalChoropleth)) {
+      pushError(errors, `${path}.municipalChoropleth`, "deve ser um objeto.");
+    } else if (value.municipalChoropleth.source !== "amfe-sheet") {
+      pushError(
+        errors,
+        `${path}.municipalChoropleth.source`,
+        "deve ser amfe-sheet.",
+      );
+    } else if (!isNonEmptyString(value.municipalChoropleth.column)) {
+      pushError(
+        errors,
+        `${path}.municipalChoropleth.column`,
+        "deve ser string não vazia.",
+      );
+    }
+  }
+
   for (const field of ["min", "max"]) {
     if (value[field] != null && !isFiniteNumber(value[field])) {
       pushError(errors, `${path}.${field}`, "deve ser número finito.");

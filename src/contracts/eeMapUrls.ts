@@ -30,7 +30,12 @@ export interface EeMapUrlRequestItem {
  * `panelLayer` não tem imagem para ele.
  */
 export type EeMapUrlFailure =
-  "layer_not_found" | "year_not_found" | "rate_limited" | "error";
+  | "layer_not_found"
+  | "year_not_found"
+  /** A camada é pintada como coropleta municipal e não tem tile nenhum. */
+  | "municipal_choropleth"
+  | "rate_limited"
+  | "error";
 
 /** `pending` não é falha: é "a URL ainda vem, pergunte de novo". */
 export type EeMapUrlStatus = EeMapUrlFailure | "pending";

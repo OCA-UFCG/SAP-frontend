@@ -7,6 +7,7 @@ import {
 } from "@/app/api/ee/cache";
 import { getEarthEngineUrl } from "@/app/api/ee/services";
 import {
+  isCompactImageData,
   resolveImageCollectionPeriod,
   resolveImageCollectionSelection,
   resolveImageYearEntry,
@@ -20,7 +21,11 @@ import type { SpatialSelection } from "@/utils/spatialScope";
  * análise pode não existir no `imageData` do `panelLayer` — é o que fazia um
  * item do relatório sair com um retângulo cinza mudo.
  */
-export type LayerMapUrlUnavailableReason = "layer_not_found" | "year_not_found";
+export type LayerMapUrlUnavailableReason =
+  | "layer_not_found"
+  | "year_not_found"
+  /** Camada pintada município a município no navegador; não existe raster. */
+  | "municipal_choropleth";
 
 export type LayerMapUrlResolution =
   | { status: "cached"; url: string }
@@ -89,6 +94,16 @@ export function resolveLayerMapUrl(
 ): LayerMapUrlResolution {
   const layer = panelLayers.find((item) => item.id === name);
   if (!layer) return { status: "unavailable", reason: "layer_not_found" };
+
+  // Uma camada de coropleta não tem asset: o `imageId` do período é só uma
+  // etiqueta de procedência. Sem esta recusa, um pedido perdido gastaria uma
+  // ida ao Earth Engine para falhar com "asset not found".
+  if (
+    isCompactImageData(layer.imageData) &&
+    layer.imageData.mapVisualization?.municipalChoropleth
+  ) {
+    return { status: "unavailable", reason: "municipal_choropleth" };
+  }
 
   const yearConfig = resolveImageYearEntry(layer.imageData, year);
   if (!yearConfig) return { status: "unavailable", reason: "year_not_found" };

@@ -56,7 +56,7 @@ export function buildValueTemplates(
  * `classifyValueByThresholds` devolve `min + posição`, então as faixas ocupam
  * `0..n-1` e a paleta cai exatamente sobre elas.
  */
-function buildRangeClasses(configured: ClassMapping[]): ClassMapping[] {
+export function buildRangeClasses(configured: ClassMapping[]): ClassMapping[] {
   return configured.map((entry, position) => ({
     ...entry,
     classIndex: position,
@@ -88,7 +88,7 @@ function buildValueMapVisualization(
   };
 }
 
-function requireIndicator(
+export function requireIndicator(
   config: IndexCatalogConfigV2,
 ): MunicipalValueIndicator {
   if (!config.valueIndicator) {
@@ -112,7 +112,10 @@ function requireFeatureCollectionMap(config: IndexCatalogConfigV2) {
   }
 }
 
-function requireThresholds(config: IndexCatalogConfigV2, rangeCount: number) {
+export function requireThresholds(
+  config: IndexCatalogConfigV2,
+  rangeCount: number,
+) {
   const thresholds = config.earthEngine.thresholds ?? [];
   if (thresholds.length !== rangeCount - 1) {
     throw new Error(

@@ -17,9 +17,11 @@ function describeUnavailable(
   name: string,
   year: string,
 ) {
-  return reason === "layer_not_found"
-    ? `Layer ${name} not found.`
-    : `Year ${year} not available for layer ${name}.`;
+  if (reason === "layer_not_found") return `Layer ${name} not found.`;
+  if (reason === "municipal_choropleth") {
+    return `Layer ${name} is painted as a municipal choropleth and has no Earth Engine tiles.`;
+  }
+  return `Year ${year} not available for layer ${name}.`;
 }
 
 export async function POST(req: NextRequest) {

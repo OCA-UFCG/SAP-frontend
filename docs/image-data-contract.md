@@ -120,6 +120,28 @@ falha **não** é memorizada: guardá-la fixaria o ramo `ee.Image` numa camada q
 Publicar `sourceType` é, portanto, a diferença entre uma e nenhuma ida ao Earth
 Engine por URL de tiles. Das 19 camadas publicadas hoje, 11 o declaram.
 
+## `mapVisualization.municipalChoropleth` tira a camada do Earth Engine
+
+Uma camada que declara
+
+```json
+"municipalChoropleth": { "source": "amfe-sheet", "column": "ips" }
+```
+
+não é desenhada por tiles: o Monitoramento pinta cada município no navegador,
+com a cor da faixa em que o valor daquele município cai. `palette` e
+`thresholds` do mesmo `mapVisualization` são a legenda e os cortes; a coluna diz
+de onde vem o número, na planilha da análise multicritério.
+
+O campo é aditivo — uma camada sem ele continua sendo desenhada por tiles, que é
+o caso de todas as publicadas antes desta versão. O `imageId` de cada período
+continua obrigatório pelo contrato e, nestas camadas, é a etiqueta
+`planilha-amfe:<coluna>`, não um endereço de asset. `/api/ee` recusa essas
+camadas explicitamente (`municipal_choropleth`) em vez de gastar uma ida ao
+Earth Engine para falhar com "asset not found", e o aquecimento de cache as pula.
+
+Ver `docs/amfe-sheet-index.md`.
+
 ## Uma `ImageCollection` é filtrada pelo período pedido
 
 Quando `sourceType` é `imageCollection`, todos os períodos da camada podem

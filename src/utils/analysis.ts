@@ -90,8 +90,25 @@ export interface ResolvedImageCollectionPeriod {
   value?: string;
 }
 
+/**
+ * Marca uma camada que não é desenhada por tiles do Earth Engine, e sim
+ * pintando cada município no próprio navegador a partir dos valores lidos no
+ * servidor. É o que permite publicar em Monitoramento um índice cujo dado vem
+ * da planilha da análise multicritério, que não tem raster nenhum.
+ */
+export interface CompactMunicipalChoroplethConfig {
+  source: "amfe-sheet";
+  /**
+   * A coluna da planilha que dá o valor de cada município. Fica aqui, e não só
+   * na fonte estatística, porque é a configuração do mapa: quem desenha precisa
+   * dela, e a prévia do catálogo desenha um índice que ainda não foi publicado.
+   */
+  column: string;
+}
+
 export interface CompactMapVisualizationConfig {
   sourceType?: "image" | "imageCollection" | "featureCollection";
+  municipalChoropleth?: CompactMunicipalChoroplethConfig;
   min?: number;
   max?: number;
   palette?: string[];

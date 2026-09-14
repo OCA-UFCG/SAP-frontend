@@ -1,5 +1,6 @@
 import "server-only";
 
+import { isAmfeSheetColumnSource } from "@/contracts/amfeSheetColumn";
 import { isGeeMunicipalValueTableSource } from "@/contracts/geeMunicipalValueTable";
 import {
   inferGeeStatisticsSchema,
@@ -10,6 +11,7 @@ import {
 } from "@/contracts/geeStatistics";
 import { getStatisticsAssetIds } from "@/services/indexCatalog/statisticsAssetDiscovery";
 import { hashCatalogValue } from "@/services/indexCatalog/catalogFingerprint";
+import { buildAmfeSheetColumnDraft } from "@/services/indexCatalog/amfeSheetColumnDraft";
 import { buildMunicipalValueTableDraft } from "@/services/indexCatalog/municipalValueTableDraft";
 import {
   validateMapAssets,
@@ -392,6 +394,10 @@ export async function buildCatalogDraft(
   config: IndexCatalogConfigV2,
 ): Promise<IndexCatalogBuildResult> {
   try {
+    if (isAmfeSheetColumnSource(config.statisticsSource)) {
+      return await buildAmfeSheetColumnDraft(config, config.statisticsSource);
+    }
+
     if (isGeeMunicipalValueTableSource(config.statisticsSource)) {
       return await buildMunicipalValueTableDraft(
         config,
