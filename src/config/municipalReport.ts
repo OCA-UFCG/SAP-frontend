@@ -2,6 +2,8 @@ export interface MunicipalReportLayerConfig {
   panelLayerId: string;
   alias: string;
   title: string;
+  /** A categoria do índice no painel, propagada do `panelLayer` para a análise. */
+  category?: string;
   order: number;
   periods?: string[];
   presentation?: MunicipalReportPresentationConfig;

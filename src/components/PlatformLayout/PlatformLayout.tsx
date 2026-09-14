@@ -15,6 +15,7 @@ import type { PanelLayerI } from "@/utils/interfaces";
 
 type DefaultPlatformLayoutProps = {
   panelLayers: PanelLayerI[];
+  detailLayerId?: string;
   showAuditLink?: boolean;
   initialSection?: PlatformSidebarInitialSection;
   viewMode?: "default";
@@ -108,6 +109,11 @@ export function PlatformLayout({
             panelLayers={sidebarPanelLayers}
             showAuditLink={showAuditLink}
             initialSection={initialSection}
+            detailLayerId={
+              props.viewMode === "logs" || props.viewMode === "catalog"
+                ? undefined
+                : props.detailLayerId
+            }
             viewMode={viewMode}
             reportRequest={
               props.viewMode === "logs" || props.viewMode === "catalog"

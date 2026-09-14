@@ -52,7 +52,7 @@
       "reportType": "Informe Analítico Automatizado",
       "institutions": "OCA / UFCG / INSA",
       "website": "beta-sap.lsd.ufcg.edu.br",
-      "mainTitle": "Informe Analítico del Sistema Estratégico sobre Desertificación",
+      "mainTitle": "Informe analítico del sistema de alerta temprana de sequía y desertificación",
       "subtitle": "Ley Nº 13.153/2015 · Política Nacional de Lucha contra la Desertificación",
       "analysisAreaLabel": "Área de análisis",
       "scaleLabel": "Escala",
@@ -65,7 +65,18 @@
       "legalReferenceLabel": "Referencia legal",
       "legalReferenceValue": "Ley Nº 13.153/2015 — Política Nacional de Lucha contra la Desertificación y Mitigación de los Efectos de la Sequía.",
       "automatedNotice": "Este informe fue generado automáticamente por el Sistema Estratégico sobre Desertificación (SEDES). Los valores presentados son producidos a partir de los datos disponibles en la plataforma.",
-      "footer": "SEDES — Informe Analítico | Generado el: {generatedAt} | MMA/DCDE · OCA · UFCG · INSA"
+      "footer": "SEDES — Informe Analítico | Generado el: {generatedAt} | MMA/DCDE · OCA · UFCG · INSA",
+      "generatedLabel": "Informe automático generado: {date}",
+      "variableIndexTitle": "Índice de las variables seleccionadas",
+      "backToTop": "Volver arriba",
+      "goToSection": "Ir a la sección de {title}",
+      "viewMonitor": "Ver monitor",
+      "situationTitle": "Situación",
+      "classCoverageTitle": "Clases por cobertura (%) del área",
+      "spatialDistributionTitle": "Distribución espacial",
+      "timeSeriesTitle": "Serie temporal por clase",
+      "timeSeriesAnalysisTitle": "Análisis de la serie temporal",
+      "footerCredits": "MMA/DCDE · OCA · UFCG · INSA"
     },
     "valueLabels": {
       "percentageCardContext": "del área analizada",

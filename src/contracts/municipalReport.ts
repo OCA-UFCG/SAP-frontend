@@ -23,6 +23,7 @@ export interface MunicipalReportAnalysis {
   id: string;
   alias: string;
   title: string;
+  category?: string;
   unit: string;
   valueType: "percentage" | "absolute";
   status: MunicipalReportAnalysisStatus;

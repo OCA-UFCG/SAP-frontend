@@ -70,6 +70,7 @@ async function resolveReportLayers(
       panelLayerId: layer.id,
       alias: override?.alias ?? stableMunicipalReportAlias(layer.id),
       title: layer.name || override?.title || layer.id,
+      category: layer.category ?? override?.category,
       order: layer.panelPosition ?? override?.order ?? index,
       periods: isCompactImageData(layer.imageData)
         ? Object.keys(layer.imageData.years)
@@ -228,6 +229,7 @@ function unavailable(
     id: config.panelLayerId,
     alias: config.alias,
     title: config.title,
+    ...(config.category ? { category: config.category } : {}),
     unit: "%",
     valueType: "percentage",
     status: "unavailable",
@@ -500,6 +502,7 @@ export async function buildMunicipalReport(
           id: config.panelLayerId,
           alias: config.alias,
           title: config.title,
+          ...(config.category ? { category: config.category } : {}),
           unit:
             dataset.valueConfig?.unit ??
             (dataset.valueConfig?.type === "absolute" ? "" : "%"),

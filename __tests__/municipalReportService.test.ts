@@ -74,6 +74,38 @@ describe("buildMunicipalReport", () => {
     expect(report.templateVariables.classe_outra_camada).toBe("Seca");
   });
 
+  it("leva a categoria do panelLayer para a análise, inclusive quando ela fica indisponível", async () => {
+    const report = await buildMunicipalReport("5200050", "2024", {
+      listPanelLayers: async () =>
+        [
+          {
+            id: "anaseca",
+            name: "Monitor de Secas",
+            category: "Dados Climáticos",
+            panelPosition: 10,
+          },
+          {
+            id: "sem-dados",
+            name: "Camada Sem Dados",
+            category: "Dados Ambientais",
+            panelPosition: 20,
+          },
+          { id: "sem-categoria", name: "Camada Legada", panelPosition: 30 },
+        ] as never,
+      loadImageData: async (panelLayerId: string) =>
+        panelLayerId === "sem-dados"
+          ? { found: false, status: "miss" }
+          : { found: true, imageData, status: "hit" },
+    });
+
+    const byId = new Map(report.analyses.map((item) => [item.id, item]));
+
+    expect(byId.get("anaseca")?.category).toBe("Dados Climáticos");
+    expect(byId.get("sem-dados")?.status).toBe("unavailable");
+    expect(byId.get("sem-dados")?.category).toBe("Dados Ambientais");
+    expect(byId.get("sem-categoria")?.category).toBeUndefined();
+  });
+
   it("keeps configured order, partial failures and stable template variables", async () => {
     const report = await buildMunicipalReport("5200050", "2024", {
       now: () => new Date("2026-01-01T00:00:00.000Z"),
