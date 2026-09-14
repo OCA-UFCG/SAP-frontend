@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 
 import { ClassColorField } from "@/components/IndexCatalog/ClassColorField";
 import { catalogApiRequest } from "@/components/IndexCatalog/catalogApiClient";
@@ -31,6 +31,19 @@ function toDraft(appearance: LegacyAppearance): AppearanceDraft {
       : {}),
     thresholds: (appearance.thresholds ?? []).join(", "),
   };
+}
+
+/**
+ * As classes que o relatório conhece, que nem sempre são as linhas da legenda:
+ * num índice de valor único as faixas coloridas do mapa moram em
+ * `mapVisualization.legend` e a série medida é que está em `classes`. É por
+ * essas que a ordem de gravidade do relatório é declarada.
+ */
+function toReportClasses(appearance: LegacyAppearance) {
+  return (appearance.series ?? appearance.legend).map(({ id, label }) => ({
+    id,
+    label,
+  }));
 }
 
 function replaceRow(
@@ -102,18 +115,35 @@ export function LegacyAppearanceFields({
   buttonClass,
   disabled,
   onSaved,
+  onClassesLoaded,
 }: {
   entryId: string;
   inputClass: string;
   buttonClass: string;
   disabled: boolean;
   onSaved: () => void;
+  /**
+   * As classes lidas do `imageData`, para o formulário do relatório poder
+   * perguntar a ordem de gravidade delas. Vem daqui porque é esta seção que já
+   * carrega a aparência do legado, e carregá-la duas vezes traria 200 KB de
+   * valores territoriais de novo.
+   */
+  onClassesLoaded?: (
+    classes: ReadonlyArray<{ id: string; label: string }>,
+  ) => void;
 }) {
   const [loaded, setLoaded] = useState<AppearanceResponse | null>(null);
   const [draft, setDraft] = useState<AppearanceDraft | null>(null);
   const [busy, setBusy] = useState(false);
   const [status, setStatus] = useState("");
   const [error, setError] = useState("");
+  // Referência, e não dependência do efeito: um callback recriado a cada
+  // render do pai recarregaria a aparência inteira a cada tecla digitada.
+  const onClassesLoadedRef = useRef(onClassesLoaded);
+
+  useEffect(() => {
+    onClassesLoadedRef.current = onClassesLoaded;
+  }, [onClassesLoaded]);
 
   useEffect(() => {
     let active = true;
@@ -124,6 +154,7 @@ export function LegacyAppearanceFields({
         if (!active) return;
         setLoaded(response);
         setDraft(toDraft(response.appearance));
+        onClassesLoadedRef.current?.(toReportClasses(response.appearance));
       })
       .catch((reason) => {
         if (active) {
@@ -161,6 +192,7 @@ export function LegacyAppearanceFields({
       );
       setLoaded(response);
       setDraft(toDraft(response.appearance));
+      onClassesLoadedRef.current?.(toReportClasses(response.appearance));
       setStatus(
         response.changed === "nada"
           ? "A legenda na tela já é a que está gravada."

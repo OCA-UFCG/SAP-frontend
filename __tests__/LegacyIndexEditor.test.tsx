@@ -1,3 +1,4 @@
+import { useEffect } from "react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import {
   cleanup,
@@ -27,8 +28,26 @@ vi.mock("@/components/IndexCatalog/CatalogMonitoringPreview", () => ({
 // aparência gravada ao montar; aqui ela só entraria na fila de respostas de
 // fetch que cada caso monta.
 vi.mock("@/components/IndexCatalog/LegacyAppearanceFields", () => ({
-  LegacyAppearanceFields: () => <div data-testid="legacy-appearance-probe" />,
+  LegacyAppearanceFields: ({
+    onClassesLoaded,
+  }: {
+    onClassesLoaded?: (
+      classes: ReadonlyArray<{ id: string; label: string }>,
+    ) => void;
+  }) => {
+    // A seção de legenda é quem lê a aparência gravada, e é dela que as
+    // classes do índice chegam ao formulário do relatório.
+    useEffect(() => {
+      onClassesLoaded?.(APPEARANCE_CLASSES);
+    }, [onClassesLoaded]);
+    return <div data-testid="legacy-appearance-probe" />;
+  },
 }));
+
+const APPEARANCE_CLASSES = [
+  { id: "sem-seca", label: "Sem seca" },
+  { id: "seca-fraca", label: "Seca fraca" },
+];
 // O asset do mapa tem teste próprio (LegacyMapAssetFields.test.tsx) e também lê
 // o que está gravado ao montar, pela mesma razão da legenda.
 vi.mock("@/components/IndexCatalog/LegacyMapAssetFields", () => ({
@@ -151,6 +170,23 @@ describe("LegacyIndexEditor", () => {
     ).not.toBeInTheDocument();
     expect(
       screen.getByRole("button", { name: "Trazer o texto do Google Docs" }),
+    ).toBeInTheDocument();
+  });
+
+  // Regressão: a pergunta da ordem de gravidade só aparece quando o formulário
+  // recebe as classes, e este editor não as passava — nenhum índice legado
+  // conseguia declará-la, embora a tela do catálogo v2 conseguisse.
+  it("pergunta a ordem de gravidade com as classes lidas da legenda", async () => {
+    renderEditor();
+
+    const severity = await screen.findByLabelText(
+      /As classes deste índice vão da melhor para a pior\?/u,
+    );
+    fireEvent.change(severity, { target: { value: "best-first" } });
+
+    expect(screen.getByText(/Sem seca → Seca fraca/u)).toBeInTheDocument();
+    expect(
+      screen.getByLabelText(/Qual classe representa a condição normal\?/u),
     ).toBeInTheDocument();
   });
 

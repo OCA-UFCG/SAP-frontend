@@ -41,6 +41,7 @@ import { describeReportSeriesVariables } from "@/utils/reportSeriesVariables";
 import {
   describeReportVariableProfile,
   resolveReportSeverity,
+  type ReportSeveritySpec,
 } from "@/utils/reportVariableProfile";
 
 /**
@@ -291,7 +292,12 @@ export async function buildIndexCatalogReportPreview(
     period,
     report,
     docsContent: resolveCatalogSections(config, templateData),
-    variables: describeCatalogVariables(config, report, templateData),
+    variables: describeCatalogVariables(
+      config,
+      report,
+      templateData,
+      dependencies.layers[0]?.reportSeverity,
+    ),
   };
 }
 
@@ -304,6 +310,11 @@ export async function buildIndexCatalogReportPreview(
  * contrário, um texto escrito aqui poderia quebrar em outro município. O
  * município entra só no exemplo.
  *
+ * A gravidade é a mesma que a camada da prévia usa, e não uma resolvida de
+ * novo a partir do catálogo: num índice legado ela pode vir dos `rank`
+ * estáticos de `MUNICIPAL_REPORT_LAYERS`, e resolvê-la sem esse recurso fazia a
+ * tela esconder variáveis de tendência que o relatório sabe preencher.
+ *
  * O exemplo passa pela mesma substituição do relatório (`populateDocContent`),
  * de modo que uma variável que não resolve aparece na tela com os colchetes,
  * exatamente como apareceria para o cidadão.
@@ -312,12 +323,13 @@ function describeCatalogVariables(
   config: ManagedIndexCatalogConfig,
   report: MunicipalReportData,
   templateData: TemplateData,
+  severity: ReportSeveritySpec | undefined,
 ): IndexCatalogReportVariable[] {
   const analysis = report.analyses[0];
   const profile = describeReportVariableProfile({
     periods: analysis?.timeSeries.map(({ period }) => period) ?? [],
     classCount: analysis?.classes.length ?? 0,
-    severity: resolveReportSeverity(config.report?.severity),
+    severity,
   });
   const tokens = [
     ...CATALOG_REPORT_VARIABLES.map(({ token, description }) => ({
