@@ -114,6 +114,12 @@ export function LegacyIndexEditor({
   );
   const [preview, setPreview] =
     useState<IndexCatalogPresentationPreview | null>(null);
+  // As classes do índice, para o formulário do relatório poder perguntar a
+  // ordem de gravidade delas. Só chegam depois que a seção de legenda lê a
+  // aparência gravada, e até lá a pergunta fica fora da tela.
+  const [reportClasses, setReportClasses] = useState<
+    ReadonlyArray<{ id: string; label: string }>
+  >([]);
   const [busy, setBusy] = useState<string | null>(null);
   const [message, setMessage] = useState("");
   const [error, setError] = useState("");
@@ -334,10 +340,12 @@ export function LegacyIndexEditor({
           setPreview(null);
           onChanged();
         }}
+        onClassesLoaded={setReportClasses}
       />
 
       <IndexCatalogReportFields
         report={report}
+        classes={reportClasses}
         inputClass={inputClass}
         buttonClass={buttonClass}
         disabled={Boolean(busy)}
