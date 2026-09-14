@@ -1,6 +1,6 @@
 "use client";
 
-import { memo, useCallback, useMemo } from "react";
+import { memo, useCallback, useEffect, useMemo, useRef } from "react";
 import { useTranslations } from "next-intl";
 import {
   useMapLayerActions,
@@ -23,6 +23,7 @@ export interface ModulesContextProps {
   activeSection: PlatformSection;
   panelLayers?: PanelLayerI[];
   onRequestSectionChange?: (next: PlatformSection) => void;
+  detailLayerId?: string;
 }
 
 type LayerDataset = IDroughtDataset & { category?: string };
@@ -143,6 +144,7 @@ export function ModulesContext({
   activeSection,
   panelLayers = [],
   onRequestSectionChange,
+  detailLayerId,
 }: ModulesContextProps) {
   const t = useTranslations("ModulesContext");
   const { activeData, activeEEData } = useMapLayerActiveState();
@@ -303,6 +305,14 @@ export function ModulesContext({
       onRequestSectionChange,
     ],
   );
+
+  const openedDetailLayerRef = useRef<string | null>(null);
+  useEffect(() => {
+    if (!detailLayerId || openedDetailLayerRef.current === detailLayerId) return;
+    if (!layerById.has(detailLayerId)) return;
+    openedDetailLayerRef.current = detailLayerId;
+    handleDetails(detailLayerId);
+  }, [detailLayerId, handleDetails, layerById]);
 
   const handleSpatialSelectionChange = useCallback(
     (value: SpatialSelection) => {

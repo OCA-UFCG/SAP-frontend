@@ -9,6 +9,7 @@ import citiesIndex from "@/data/citiesIndex.json";
 import municipalAvailabilityIndex from "@/data/municipalAvailabilityIndex.json";
 import type { MunicipalAvailabilityIndex } from "@/utils/municipalAvailability";
 import { getSelectableReportLayerIds } from "@/utils/reportLayerAvailability";
+import { resolveReportCategoryKey } from "@/utils/municipalReportCategories";
 import type { PanelLayerI } from "@/utils/interfaces";
 import { startMunicipalReportMetrics } from "@/utils/municipalReportMetrics";
 import { slugifyTranslationKey } from "@/utils/translations";
@@ -17,13 +18,6 @@ interface MunicipalReportContextProps { panelLayers?: PanelLayerI[] }
 
 const CATEGORY_ORDER = ["Dados Climáticos", "Dados Ambientais", "Dados Socioeconômicos"];
 const REPORT_DEFAULT_PERIOD = "2026";
-
-const CATEGORY_TRANSLATION_KEYS: Record<string, string> = {
-  "dados climáticos": "climate",
-  "dados ambientais": "environmental",
-  "dados socioeconômicos": "socioeconomic",
-  outros: "others",
-};
 
 interface ReportLayerGroup {
   key: string;
@@ -122,8 +116,7 @@ export function MunicipalReportContext({ panelLayers = [] }: MunicipalReportCont
   const availabilityState = municipalityCode && validPeriod ? "ready" : "idle";
 
   function translatedCategoryTitle(group: ReportLayerGroup) {
-    const translationKey = CATEGORY_TRANSLATION_KEYS[group.key];
-    return translationKey ? tModules(`categories.${translationKey}`) : group.title;
+    return tModules(`categories.${resolveReportCategoryKey(group.title)}`);
   }
 
   function translatedLayerTitle(layer: PanelLayerI) {

@@ -7,6 +7,7 @@ import type {
   MunicipalReportDocsContent,
 } from "@/contracts/municipalReport";
 import { getReportDocsText } from "@/utils/municipalReportNarrative";
+import { ReportSectionHeading } from "@/components/MunicipalReport/ReportSectionHeading";
 import {
   translateAnalysisMethodology,
   translateAnalysisTitle,
@@ -40,11 +41,11 @@ export function MunicipalReportNotes({
     getReportDocsText(docsContent, section, locale) ?? fallback;
 
   return (
-    <section className="report-notes mt-12 border-t border-[#d9e0e3] pt-8">
-      <h2 className="report-heading text-xl font-bold text-[#536e7b]">
+    <section className="report-notes border-t border-[#D3DCD5] pt-8">
+      <ReportSectionHeading level={2} accent="#8B9440">
         {reportText("Título das notas", t("document.notesTitle"))}
-      </h2>
-      <div className="mt-5 space-y-2 text-sm leading-5 text-neutral-800">
+      </ReportSectionHeading>
+      <div className="mt-5 space-y-2 text-sm leading-6 text-[#2C3A31]">
         {analyses.map((analysis) => {
           const presentation = getMunicipalReportPresentation(analysis.id);
           const title = translateAnalysisTitle(
@@ -75,7 +76,7 @@ export function MunicipalReportNotes({
           {reportText("Referência legal", t("document.legalReferenceValue"))}
         </p>
       </div>
-      <p className="mt-8 text-sm leading-5 text-[#536e7b]">
+      <p className="mt-8 text-sm leading-6 text-[#58655C]">
         {reportText("Aviso automático", t("document.automatedNotice"))}
       </p>
     </section>

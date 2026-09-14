@@ -137,6 +137,48 @@ describe("ModulesContext", () => {
     expect(screen.getByText("Camada Livre")).toBeInTheDocument();
   });
 
+  it("abre o detalhamento do índice pedido pela URL, ativando a camada no mapa", () => {
+    const onRequestSectionChange = vi.fn();
+    const panelLayers: PanelLayerI[] = [
+      {
+        sys: { id: "sys-seca" },
+        id: "anaseca",
+        name: "Monitor de Secas",
+        description: "Descricao",
+        category: "Dados Climáticos",
+        panelPosition: 1,
+        previewMap: { url: "https://example.com/seca.png" },
+        imageData: { years: {} },
+      },
+    ];
+
+    render(
+      <ModulesContext
+        activeSection="monitoring"
+        panelLayers={panelLayers}
+        detailLayerId="anaseca"
+        onRequestSectionChange={onRequestSectionChange}
+      />,
+    );
+
+    expect(onRequestSectionChange).toHaveBeenCalledWith("analysis-detail");
+  });
+
+  it("ignora um id de camada que não existe, em vez de abrir painel vazio", () => {
+    const onRequestSectionChange = vi.fn();
+
+    render(
+      <ModulesContext
+        activeSection="monitoring"
+        panelLayers={[]}
+        detailLayerId="camada-inexistente"
+        onRequestSectionChange={onRequestSectionChange}
+      />,
+    );
+
+    expect(onRequestSectionChange).not.toHaveBeenCalled();
+  });
+
   it("uses Outros when category is missing and still renders it", () => {
     const panelLayers: PanelLayerI[] = [
       {

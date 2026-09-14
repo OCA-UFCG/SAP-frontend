@@ -16,6 +16,7 @@ interface PlatformPageSearchParams {
   municipalityCode?: string | string[];
   period?: string | string[];
   layers?: string | string[];
+  layer?: string | string[];
 }
 
 function getSingleSearchParamValue(value?: string | string[]) {
@@ -52,6 +53,8 @@ export default async function PlatformPage({
   const municipalityCode =
     getSingleSearchParamValue(resolvedSearchParams.municipalityCode) ?? "";
   const period = getSingleSearchParamValue(resolvedSearchParams.period) ?? "";
+  const detailLayerId =
+    getSingleSearchParamValue(resolvedSearchParams.layer)?.trim() || undefined;
   const layerIds = (
     getSingleSearchParamValue(resolvedSearchParams.layers) ?? ""
   )
@@ -108,6 +111,7 @@ export default async function PlatformPage({
       panelLayers={panelLayers}
       showAuditLink={showAuditLink}
       initialSection={initialSection}
+      detailLayerId={detailLayerId}
       reportRequest={
         municipalityCode && period
           ? { municipalityCode, period, layerIds }

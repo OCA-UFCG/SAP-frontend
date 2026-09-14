@@ -176,9 +176,15 @@ describe("MunicipalReportPreview", () => {
     );
 
     expect(await screen.findByRole("article")).toBeInTheDocument();
-    expect(screen.getByText("Monitor de Secas")).toBeInTheDocument();
+    // Duas ocorrências: o item do índice navegável e o cabeçalho da seção.
+    expect(screen.getAllByText("Monitor de Secas")).toHaveLength(2);
     expect(
-      screen.getByText("Distribuição espacial e série temporal"),
+      screen.getByRole("link", { name: /Ir para a seção de Monitor de Secas/ }),
+    ).toHaveAttribute("href", "#report-analysis-seca");
+    expect(screen.getByText("Distribuição espacial")).toBeInTheDocument();
+    expect(screen.getByText("Série temporal por classe")).toBeInTheDocument();
+    expect(
+      screen.getByText("Classes por cobertura (%) da área"),
     ).toBeInTheDocument();
     expect(
       screen.queryByRole("button", { name: "HTML" }),
@@ -192,30 +198,18 @@ describe("MunicipalReportPreview", () => {
       screen.getByText("100%", { selector: "output" }),
     ).toBeInTheDocument();
     expect(screen.queryByText("--")).not.toBeInTheDocument();
-    expect(screen.getByRole("button", { name: "Sem seca" })).toHaveAttribute(
-      "aria-pressed",
-      "true",
-    );
+    // A legenda do gráfico empilhado não é interativa: esconder uma classe faria
+    // as colunas deixarem de somar 100, ou renormalizar em silêncio.
     expect(
-      screen.getByRole("button", { name: "Sem seca" }).querySelector("span"),
-    ).toHaveStyle({
-      backgroundColor: "#b8b8b8",
-    });
-    expect(screen.getByRole("button", { name: "Normal" })).toHaveAttribute(
-      "aria-pressed",
-      "true",
-    );
-    expect(screen.getByRole("button", { name: "Seca" })).toHaveAttribute(
-      "aria-pressed",
-      "true",
-    );
+      screen.queryByRole("button", { name: "Sem seca" }),
+    ).not.toBeInTheDocument();
 
-    await user.click(screen.getByRole("button", { name: "Seca" }));
-
-    expect(screen.getByRole("button", { name: "Seca" })).toHaveAttribute(
-      "aria-pressed",
-      "false",
-    );
+    // As barras usam a cor verdadeira da classe, sem escurecer, e um fio de
+    // contorno é o que mantém visível a classe branca.
+    const bars = document.querySelectorAll("[data-report-class-bar]");
+    expect(bars).toHaveLength(3);
+    expect(bars[0]).toHaveStyle({ backgroundColor: "#FFFFFF" });
+    expect(bars[0].className).toContain("border-black/10");
 
     await waitFor(() => {
       expect(screen.getByRole("button", { name: "Baixar PDF" })).toBeEnabled();
@@ -238,6 +232,48 @@ describe("MunicipalReportPreview", () => {
         .mocked(global.fetch)
         .mock.calls.some(([input]) => String(input).includes("/chart?")),
     ).toBe(false);
+  });
+
+  it("leva o pedido do relatório no link Ver monitor, para a volta não perdê-lo", async () => {
+    render(
+      <MunicipalReportPreview
+        municipalityCode="5200050"
+        period="2026"
+        layerIds={["anaseca"]}
+        embedded
+      />,
+    );
+
+    const link = await screen.findByRole("link", { name: "Ver monitor" });
+    const href = link.getAttribute("href") ?? "";
+
+    // Trocar de seção pelo trilho lateral preserva a URL; este link navega e a
+    // substituiria, então o pedido precisa viajar junto.
+    expect(href).toContain("layer=anaseca");
+    expect(href).toContain("municipalityCode=5200050");
+    expect(href).toContain("period=2026");
+    expect(href).toContain("layers=anaseca");
+  });
+
+  it("abre o monitoramento sem navegar quando a plataforma oferece o atalho", async () => {
+    const user = userEvent.setup();
+    const onOpenMonitor = vi.fn();
+
+    render(
+      <MunicipalReportPreview
+        municipalityCode="5200050"
+        period="2026"
+        layerIds={["anaseca"]}
+        onOpenMonitor={onOpenMonitor}
+        embedded
+      />,
+    );
+
+    await user.click(await screen.findByRole("link", { name: "Ver monitor" }));
+
+    // Navegar descartava o CSS do chunk do relatório e o custo era uma ida ao
+    // servidor; dentro da plataforma a troca é estado de cliente.
+    expect(onOpenMonitor).toHaveBeenCalledWith("anaseca");
   });
 
   it("opens the PDF print flow with a descriptive filename", async () => {
@@ -279,28 +315,28 @@ describe("MunicipalReportPreview", () => {
       "Monitor de Secas",
     );
     expect(popupDocument.documentElement.outerHTML).toContain(
-      "@page{size:A4;margin:14mm 15mm}",
+      "@page{size:A4;margin:12mm 14mm}",
     );
     expect(popupDocument.documentElement.outerHTML).toContain(
       "padding:0!important",
     );
     expect(popupDocument.documentElement.outerHTML).toContain(
-      "grid-template-columns:minmax(0,.84fr) minmax(0,1.16fr)",
+      ".report-map-frame{aspect-ratio:auto!important;height:70mm!important}",
+    );
+    // O gráfico do PDF é o SVG de viewBox fixo, e o período de referência
+    // continua marcado com asterisco no eixo.
+    expect(popupDocument.documentElement.outerHTML).toContain(
+      'data-stack-segment="2026:normal"',
     );
     expect(popupDocument.documentElement.outerHTML).toContain(
-      'data-report-pdf-measurements="10"',
+      'viewBox="0 0 640 330"',
     );
-    expect(popupDocument.documentElement.outerHTML).toContain(
-      'data-report-pdf-first-period="2017"',
-    );
-    expect(popupDocument.documentElement.outerHTML).toContain(
-      'data-report-pdf-last-period="2026"',
-    );
+    expect(popupDocument.documentElement.outerHTML).toContain(">2026*<");
     expect(popupDocument.documentElement.outerHTML).toContain(
       ".report-chart-screen{display:none!important}",
     );
     expect(popupDocument.documentElement.outerHTML).toContain(
-      ".report-visual-title{box-sizing:border-box;display:flex!important;min-height:16mm;align-items:center;justify-content:center}",
+      ".report-chart-print{display:block!important}",
     );
     expect(popupDocument.documentElement.outerHTML).toContain(
       "object-fit:contain!important",

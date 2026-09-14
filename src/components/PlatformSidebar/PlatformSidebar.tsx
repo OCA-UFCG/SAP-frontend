@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useTransition } from "react";
+import { useCallback, useState, useTransition } from "react";
 import dynamic from "next/dynamic";
 import { useRouter } from "@/translations/routing";
 import {
@@ -94,6 +94,7 @@ interface PlatformSidebarProps {
     period: string;
     layerIds: string[];
   };
+  detailLayerId?: string;
   onActiveSectionChange?: (section: PlatformSection) => void;
 }
 
@@ -103,6 +104,7 @@ export function PlatformSidebar({
   initialSection = "monitoring",
   viewMode = "default",
   reportRequest,
+  detailLayerId,
   onActiveSectionChange,
 }: PlatformSidebarProps) {
   const router = useRouter();
@@ -121,6 +123,9 @@ export function PlatformSidebar({
   const [isPanelOpen, setIsPanelOpen] = useState(
     initialSidebarState.isPanelOpen,
   );
+  const [requestedDetailLayerId, setRequestedDetailLayerId] = useState<
+    string | undefined
+  >(detailLayerId);
   // Sair de auditoria ou do catálogo ainda é uma navegação, e ela espera o
   // servidor. O `useTransition` mantém a trilha na tela e marca o item clicado
   // como em andamento em vez de deixar a tela parada.
@@ -170,7 +175,16 @@ export function PlatformSidebar({
     }
   }
 
+  const openLayerMonitoring = useCallback((layerId: string) => {
+    setRequestedDetailLayerId(layerId);
+    setActiveSection("monitoring");
+    setPanelSection("monitoring");
+    setIsPanelOpen(true);
+  }, []);
+
   function handlePanelSectionChange(next: PlatformSection) {
+    if (next === "analysis-detail") setRequestedDetailLayerId(undefined);
+
     setPanelSection(next);
 
     if (next === "monitoring" && activeSection === "analysis-detail") {
@@ -216,6 +230,7 @@ export function PlatformSidebar({
                 activeSection={panelSection}
                 panelLayers={panelLayers}
                 ContextComponent={ContextComponent}
+                detailLayerId={requestedDetailLayerId}
                 onRequestSectionChange={handlePanelSectionChange}
               />
             </div>
@@ -237,6 +252,7 @@ export function PlatformSidebar({
               municipalityCode={reportRequest?.municipalityCode ?? ""}
               period={reportRequest?.period ?? ""}
               layerIds={reportRequest?.layerIds ?? []}
+              onOpenMonitor={openLayerMonitoring}
               embedded
             />
           </div>
