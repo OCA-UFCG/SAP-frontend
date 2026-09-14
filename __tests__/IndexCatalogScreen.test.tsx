@@ -4,6 +4,7 @@ import {
   render,
   screen,
   waitFor,
+  within,
 } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
@@ -650,4 +651,91 @@ describe("IndexCatalogScreen v2", () => {
       screen.queryByRole("button", { name: "Adotar no catálogo" }),
     ).not.toBeInTheDocument();
   });
+
+  it("abre o índice v2 mesmo com um índice legado adotado já aberto", async () => {
+    // Regressão: o formulário do catálogo só é renderizado quando não há índice
+    // legado aberto, e `resumeDraft` não fechava o editor legado. Com um índice
+    // adotado aberto, clicar em "Abrir e editar" num índice v2 carregava o
+    // rascunho numa seção invisível e o botão parecia não funcionar.
+    vi.mocked(fetch).mockImplementationOnce(() =>
+      jsonResponse({
+        items: [
+          {
+            entryId: "adotado",
+            panelLayerId: "s2id_secas_estiagens",
+            name: "Secas e Estiagens",
+            description: "Ocorrências registradas no S2iD.",
+            published: true,
+            everPublished: true,
+            hasUnpublishedChanges: false,
+            catalogManaged: true,
+            managedScope: "presentation",
+            adoptable: false,
+            status: "published",
+            catalogConfig: {
+              schemaVersion: 2,
+              managedScope: "presentation",
+              panelLayerId: "s2id_secas_estiagens",
+              status: "published",
+              name: "Secas e Estiagens",
+              description: "Ocorrências registradas no S2iD.",
+              category: "Dados Climáticos",
+            },
+          },
+          {
+            entryId: "v2",
+            panelLayerId: "indice-gee",
+            name: "Índice GEE",
+            description: "Índice classificado",
+            published: false,
+            everPublished: false,
+            hasUnpublishedChanges: true,
+            catalogManaged: true,
+            managedScope: "full",
+            adoptable: false,
+            status: "draft",
+            catalogConfig: {
+              schemaVersion: 2,
+              managedScope: "full",
+              panelLayerId: "indice-gee",
+              status: "draft",
+              name: "Índice GEE",
+              description: "Índice classificado",
+              category: "Dados Climáticos",
+              statisticsSource: {
+                asset: {
+                  type: "fixed",
+                  assetId: "projects/example/assets/statistics",
+                },
+              },
+              classes: [],
+              earthEngine: { assetId: "projects/example/assets/map" },
+            },
+          },
+        ],
+      }),
+    );
+    render(<IndexCatalogScreen />);
+
+    const legacyCard = (await screen.findByText("Secas e Estiagens"))
+      .closest("article") as HTMLElement;
+    fireEvent.click(
+      within(legacyCard).getByRole("button", { name: "Abrir e editar" }),
+    );
+    expect(await screen.findByText("Editar índice legado")).toBeInTheDocument();
+
+    const v2Card = screen.getByText("Índice GEE").closest(
+      "article",
+    ) as HTMLElement;
+    fireEvent.click(
+      within(v2Card).getByRole("button", { name: "Abrir e editar" }),
+    );
+
+    expect(await screen.findByText("Editar índice")).toBeInTheDocument();
+    expect(
+      screen.queryByText("Editar índice legado"),
+    ).not.toBeInTheDocument();
+    expect(screen.getByDisplayValue("Índice GEE")).toBeInTheDocument();
+  });
+
 });

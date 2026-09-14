@@ -404,6 +404,12 @@ export function IndexCatalogScreen() {
 
   function resumeDraft(item: IndexCatalogItem) {
     if (!isFullyManagedCatalogConfig(item.catalogConfig)) return;
+    // O formulário do catálogo só é renderizado quando não há índice legado
+    // aberto, então trocar de um índice adotado para um índice v2 sem fechar o
+    // editor legado carregava o rascunho numa seção invisível: o clique em
+    // "Abrir e editar" parecia não funcionar. É o simétrico do reset que
+    // openLegacyEditor já faz no sentido contrário.
+    setLegacyItem(null);
     const config = item.catalogConfig;
     setDraft({
       name: config.name,
