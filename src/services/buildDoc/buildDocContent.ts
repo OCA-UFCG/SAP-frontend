@@ -1,4 +1,5 @@
 import { getDocTemplate } from "./buildDocTemplate";
+import { getMunicipalReportLayerConfig } from "@/config/municipalReport";
 import { getTemplateData } from "./buildTemplateData";
 import type { DocsContent } from "./buildDocTemplate";
 import type { TemplateData } from "./buildTemplateData";
@@ -250,11 +251,15 @@ function getAliasedTemplateKey(
  * Dentro da seção de uma camada, então, `[classe]` significa a classe daquela
  * camada: é isso que este alias resolve.
  *
- * O tema de uma seção do catálogo é o próprio `panelLayer.id`, e o alias das
- * variáveis é esse id normalizado da mesma forma que `normalizeTemplateKey`
- * normaliza — por isso a composição basta e não há tabela a manter. Uma chave
- * que não exista em `TemplateData` continua devolvendo `undefined`, e o
- * colchete sobrevive literalmente, como antes.
+ * O tema de uma seção do catálogo é o próprio `panelLayer.id`, mas o sufixo das
+ * variáveis é o apelido de relatório daquela camada — que num índice legado é
+ * escrito à mão e difere do id (`indicearidez` -> `aridez`). Por isso o apelido
+ * é resolvido aqui em vez de o id ser normalizado direto: sem isso, as
+ * variáveis por camada de todo índice legado (as 8 de período e as de série)
+ * saíam do relatório com os colchetes literais. Um índice novo do catálogo não
+ * era afetado porque lá o apelido já é o id normalizado. Uma chave que não
+ * exista em `TemplateData` continua devolvendo `undefined`, e o colchete
+ * sobrevive literalmente, como antes.
  */
 const LAYER_SCOPED_TEMPLATE_KEYS = new Set([
   "indice",
@@ -273,9 +278,10 @@ const LAYER_SCOPED_TEMPLATE_KEYS = new Set([
 
 function getLayerScopedTemplateKey(theme: string, normalizedKey: string) {
   if (!LAYER_SCOPED_TEMPLATE_KEYS.has(normalizedKey)) return undefined;
-  const normalizedTheme = normalizeTemplateKey(theme);
+  const alias =
+    getMunicipalReportLayerConfig(theme)?.alias ?? normalizeTemplateKey(theme);
 
-  return normalizedTheme ? `${normalizedKey}_${normalizedTheme}` : undefined;
+  return alias ? `${normalizedKey}_${alias}` : undefined;
 }
 
 function normalizeTemplateDataKeys(data: TemplateData): TemplateData {

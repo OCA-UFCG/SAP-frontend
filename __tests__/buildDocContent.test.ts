@@ -183,4 +183,31 @@ describe("populateDocContent > variáveis de série da própria camada", () => {
 
     expect(content.indice_novo[0].text).toBe("12,3 pontos");
   });
+
+  // Regressão: num índice legado o apelido das variáveis é escrito à mão em
+  // MUNICIPAL_REPORT_LAYERS ("indicearidez" -> "aridez"), e o texto escrito no
+  // catálogo saía com [classe], [percentual] e as variáveis de série em
+  // colchetes literais, no relatório e na prévia do catálogo.
+  it("resolve as variáveis por camada pelo apelido de relatório de um índice legado", () => {
+    const content = populateDocContent(
+      {
+        indicearidez: [
+          {
+            title: "Situação",
+            text: "[classe] em [percentual]% da área em [periodo_extenso], antes [classe_anterior].",
+          },
+        ],
+      },
+      {
+        classe_aridez: "Semiárido",
+        percentual_aridez: 61.27,
+        periodo_extenso_aridez: "2020",
+        classe_anterior_aridez: "Subúmido seco",
+      },
+    );
+
+    expect(content.indicearidez[0].text).toBe(
+      "Semiárido em 61,3% da área em 2020, antes Subúmido seco.",
+    );
+  });
 });
