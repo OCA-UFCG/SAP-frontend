@@ -8,6 +8,7 @@ import {
   useRef,
   useState,
 } from "react";
+import { CatalogIndexSections } from "@/components/IndexCatalog/CatalogIndexSections";
 import { CatalogMonitoringPreview } from "@/components/IndexCatalog/CatalogMonitoringPreview";
 import {
   CatalogPreviewMapCapture,
@@ -232,25 +233,6 @@ function CatalogActionButton({
       </span>
     </span>
   );
-}
-
-function statusLabel(item: IndexCatalogItem) {
-  if (!item.catalogManaged) {
-    return item.adoptable ? "Legado — pronto para adotar" : "Legado";
-  }
-  if (item.managedScope === "presentation") {
-    if (item.published && item.hasUnpublishedChanges) {
-      return "Legado adotado — alterações não publicadas";
-    }
-    return item.published ? "Legado adotado — publicado" : "Legado adotado";
-  }
-  if (item.published && item.hasUnpublishedChanges) {
-    return "Publicado com revisão em rascunho";
-  }
-  if (item.published) return "Publicado";
-  if (item.status === "ready") return "Prévia validada";
-  if (item.status === "error") return "Requer correções";
-  return "Rascunho";
 }
 
 export function IndexCatalogScreen() {
@@ -1051,155 +1033,20 @@ export function IndexCatalogScreen() {
         </p>
       )}
 
-      <section className="rounded-xl border border-stone-200 bg-white p-5">
-        <h2 className="text-lg font-bold">Índices existentes</h2>
-        {busy === "load" ? (
-          <p className="mt-3 text-sm">Carregando…</p>
-        ) : items.length === 0 ? (
-          <p className="mt-3 text-sm text-stone-500">
-            Nenhum panelLayer encontrado.
-          </p>
-        ) : (
-          <div className="mt-4 grid gap-3 md:grid-cols-2 xl:grid-cols-3">
-            {items.map((item) => (
-              <article
-                key={item.entryId}
-                className="rounded-lg border border-stone-200 p-4"
-              >
-                <div className="flex items-start justify-between gap-3">
-                  <h3 className="font-semibold">{item.name}</h3>
-                  <span className="rounded-full bg-stone-100 px-2 py-1 text-[11px]">
-                    {statusLabel(item)}
-                  </span>
-                </div>
-                <p className="mt-2 text-xs text-stone-500">
-                  {item.panelLayerId}
-                </p>
-                {!item.catalogManaged && (
-                  <div className="mt-4 flex flex-wrap items-center gap-2">
-                    {item.adoptable ? (
-                      <>
-                        <button
-                          type="button"
-                          className={`${buttonClass} bg-[#E8E9DC]`}
-                          disabled={Boolean(busy)}
-                          onClick={() => void adoptLegacy(item)}
-                        >
-                          Adotar no catálogo
-                        </button>
-                        <span className="text-xs text-stone-500">
-                          Destrava nome, unidade, imagem e texto do relatório.
-                          Nada muda na plataforma até você publicar.
-                        </span>
-                      </>
-                    ) : (
-                      <p className="text-xs text-amber-800">
-                        {item.adoptionBlockedReason}
-                      </p>
-                    )}
-                    {!item.everPublished && (
-                      <button
-                        type="button"
-                        className={`${buttonClass} text-red-700`}
-                        onClick={() => void reviewDeletion(item)}
-                      >
-                        Remover
-                      </button>
-                    )}
-                  </div>
-                )}
-                {item.managedScope === "presentation" && (
-                  <div className="mt-4 flex flex-wrap gap-2">
-                    <button
-                      type="button"
-                      className={`${buttonClass} bg-[#E8E9DC]`}
-                      onClick={() => openLegacyEditor(item)}
-                    >
-                      Abrir e editar
-                    </button>
-                    {item.published && (
-                      <button
-                        type="button"
-                        className={`${buttonClass} border border-stone-300`}
-                        onClick={() =>
-                          void changePublication(item, "unpublish")
-                        }
-                      >
-                        Despublicar
-                      </button>
-                    )}
-                    {(!item.published || item.hasUnpublishedChanges) && (
-                      <button
-                        type="button"
-                        className={`${buttonClass} bg-[#989F43] text-white`}
-                        onClick={() => void changePublication(item, "publish")}
-                      >
-                        {item.published ? "Republicar" : "Publicar"}
-                      </button>
-                    )}
-                    {!item.everPublished && (
-                      <button
-                        type="button"
-                        className={`${buttonClass} text-red-700`}
-                        onClick={() => void reviewDeletion(item)}
-                      >
-                        Remover
-                      </button>
-                    )}
-                  </div>
-                )}
-                {item.managedScope === "full" && (
-                  <div className="mt-4 flex flex-wrap gap-2">
-                    <button
-                      type="button"
-                      className={`${buttonClass} bg-[#E8E9DC]`}
-                      onClick={() => resumeDraft(item)}
-                    >
-                      Abrir e editar
-                    </button>
-                    {item.published && (
-                      <button
-                        type="button"
-                        className={`${buttonClass} border border-stone-300`}
-                        onClick={() =>
-                          void changePublication(item, "unpublish")
-                        }
-                      >
-                        Despublicar
-                      </button>
-                    )}
-                    {/* Republicar é o que leva ao ar o texto do relatório e a
-                        imagem do cartão, que são gravados no rascunho sem
-                        refazer a validação. Sem este botão a única saída era
-                        despublicar o índice e publicá-lo de novo. A condição é
-                        a mesma que a rota confere: um rascunho editado perdeu a
-                        validação e seria recusado no clique. */}
-                    {((!item.published && item.status === "ready") ||
-                      (item.published &&
-                        item.hasUnpublishedChanges &&
-                        hasPublishableValidation(item.status))) && (
-                      <button
-                        type="button"
-                        className={`${buttonClass} bg-[#989F43] text-white`}
-                        onClick={() => void changePublication(item, "publish")}
-                      >
-                        {item.published ? "Republicar" : "Publicar"}
-                      </button>
-                    )}
-                    <button
-                      type="button"
-                      className={`${buttonClass} text-red-700`}
-                      onClick={() => void reviewDeletion(item)}
-                    >
-                      Remover
-                    </button>
-                  </div>
-                )}
-              </article>
-            ))}
-          </div>
-        )}
-      </section>
+      <CatalogIndexSections
+        items={items}
+        loading={busy === "load"}
+        busy={busy}
+        inputClass={inputClass}
+        buttonClass={buttonClass}
+        onAdoptLegacy={(item) => void adoptLegacy(item)}
+        onOpenLegacyEditor={openLegacyEditor}
+        onResumeDraft={resumeDraft}
+        onChangePublication={(item, action) =>
+          void changePublication(item, action)
+        }
+        onReviewDeletion={(item) => void reviewDeletion(item)}
+      />
 
       {legacyItem && (
         <LegacyIndexEditor

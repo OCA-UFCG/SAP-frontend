@@ -30,6 +30,19 @@ vi.mock("@/components/IndexCatalog/CatalogReportPreview", () => ({
 
 import { IndexCatalogScreen } from "@/components/IndexCatalog/IndexCatalogScreen";
 
+/**
+ * Todas as seções da listagem abrem fechadas, então um teste que inspeciona os
+ * cartões de uma delas precisa expandi-la primeiro.
+ */
+async function expandCatalogSection(title: string) {
+  const header = await screen.findByRole("button", {
+    name: new RegExp(title, "u"),
+  });
+  if (header.getAttribute("aria-expanded") === "false") {
+    fireEvent.click(header);
+  }
+}
+
 function jsonResponse(body: unknown, status = 200) {
   return Promise.resolve(
     new Response(JSON.stringify(body), {
@@ -509,6 +522,7 @@ describe("IndexCatalogScreen v2", () => {
       }),
     );
     render(<IndexCatalogScreen />);
+    await expandCatalogSection("Legados fora do catálogo");
     expect(
       await screen.findByRole("button", { name: "Adotar no catálogo" }),
     ).toBeInTheDocument();
@@ -546,6 +560,7 @@ describe("IndexCatalogScreen v2", () => {
       }),
     );
     render(<IndexCatalogScreen />);
+    await expandCatalogSection("Publicados");
 
     expect(
       await screen.findByRole("button", { name: "Republicar" }),
@@ -576,6 +591,7 @@ describe("IndexCatalogScreen v2", () => {
       }),
     );
     render(<IndexCatalogScreen />);
+    await expandCatalogSection("Publicados");
 
     expect(
       await screen.findByRole("button", { name: "Despublicar" }),
@@ -610,6 +626,7 @@ describe("IndexCatalogScreen v2", () => {
       }),
     );
     render(<IndexCatalogScreen />);
+    await expandCatalogSection("Publicados");
 
     expect(
       await screen.findByRole("button", { name: "Despublicar" }),
@@ -644,6 +661,7 @@ describe("IndexCatalogScreen v2", () => {
       }),
     );
     render(<IndexCatalogScreen />);
+    await expandCatalogSection("Legados fora do catálogo");
     expect(
       await screen.findByText(/formato pré-compacto/u),
     ).toBeInTheDocument();
@@ -716,26 +734,26 @@ describe("IndexCatalogScreen v2", () => {
       }),
     );
     render(<IndexCatalogScreen />);
+    await expandCatalogSection("Publicados");
+    await expandCatalogSection("Não publicados");
 
-    const legacyCard = (await screen.findByText("Secas e Estiagens"))
-      .closest("article") as HTMLElement;
+    const legacyCard = (await screen.findByText("Secas e Estiagens")).closest(
+      "article",
+    ) as HTMLElement;
     fireEvent.click(
       within(legacyCard).getByRole("button", { name: "Abrir e editar" }),
     );
     expect(await screen.findByText("Editar índice legado")).toBeInTheDocument();
 
-    const v2Card = screen.getByText("Índice GEE").closest(
-      "article",
-    ) as HTMLElement;
+    const v2Card = screen
+      .getByText("Índice GEE")
+      .closest("article") as HTMLElement;
     fireEvent.click(
       within(v2Card).getByRole("button", { name: "Abrir e editar" }),
     );
 
     expect(await screen.findByText("Editar índice")).toBeInTheDocument();
-    expect(
-      screen.queryByText("Editar índice legado"),
-    ).not.toBeInTheDocument();
+    expect(screen.queryByText("Editar índice legado")).not.toBeInTheDocument();
     expect(screen.getByDisplayValue("Índice GEE")).toBeInTheDocument();
   });
-
 });
