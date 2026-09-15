@@ -5,6 +5,7 @@
     "criteriasTitle": "Critérios",
     "criteriasDesc": "Selecione e ajuste a importância relativa de cada critério para a tomada de decisão. O peso atribuído (de 1 a 10) será normalizado automaticamente para que a soma total seja igual a 100%.",
     "criteriaSumError": "A soma dos valores dos critérios deve ser menor ou igual a 1",
+    "advancedSettingsTitle": "Configurações avançadas",
     "thresholdsTitle": "Limiares",
     "thresholdsDesc": "Ajuste os parâmetros de comparação utilizados pelo método multicritério. O limiar de Indiferença define o limite para considerar alternativas equivalentes; o de Preferência estabelece a diferença necessária para que uma alternativa seja considerada superior; e o de Veto atua como um fator restritivo, impedindo a sobreclassificação se houver uma diferença extrema.",
     "indifferenceLabel": "Indiferença",

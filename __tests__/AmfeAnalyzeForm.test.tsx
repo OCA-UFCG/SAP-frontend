@@ -1,11 +1,21 @@
-import { fireEvent, render, screen, waitFor } from "@testing-library/react";
-import { expect, test, vi } from "vitest";
+import {
+  cleanup,
+  fireEvent,
+  render,
+  screen,
+  waitFor,
+} from "@testing-library/react";
+import { afterEach, expect, test, vi } from "vitest";
 
 import AnalyzeForm from "@/components/Amfe/AnalyzeForm/AnalyzeForm";
 
 vi.mock("next-intl", () => ({
   useTranslations: () => (key: string) => key,
 }));
+
+afterEach(() => {
+  cleanup();
+});
 
 vi.mock("@/components/Amfe/useCriterias", () => ({
   default: () => ({
@@ -71,5 +81,31 @@ test("initializes default criteria once and preserves later user selections", as
     expect(screen.getByTestId("selected-criteria").textContent).toBe(
       "user-criterion",
     );
+  });
+});
+
+test("starts with the pessimistic scenario selected", async () => {
+  render(<AnalyzeForm setFormPayload={vi.fn()} />);
+
+  const pessimistic = screen.getByRole("radio", { name: "pessimistic" });
+  const optimistic = screen.getByRole("radio", { name: "optimistic" });
+
+  await waitFor(() => {
+    expect((pessimistic as HTMLInputElement).checked).toBe(true);
+  });
+  expect((optimistic as HTMLInputElement).checked).toBe(false);
+});
+
+test("keeps advanced settings collapsed until the reader opens them", async () => {
+  render(<AnalyzeForm setFormPayload={vi.fn()} />);
+
+  const toggle = screen.getByRole("button", { name: "advancedSettingsTitle" });
+
+  expect(toggle).toHaveAttribute("aria-expanded", "false");
+
+  fireEvent.click(toggle);
+
+  await waitFor(() => {
+    expect(toggle).toHaveAttribute("aria-expanded", "true");
   });
 });

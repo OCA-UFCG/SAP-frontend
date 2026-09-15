@@ -5,6 +5,7 @@
     "criteriasTitle": "Criterios",
     "criteriasDesc": "Seleccione y ajuste la importancia relativa de cada criterio para la toma de decisiones. El peso asignado (de 1 a 10) se normalizará automáticamente para que la suma total sea igual al 100%.",
     "criteriaSumError": "La suma de los valores de los criterios debe ser menor o igual a 1",
+    "advancedSettingsTitle": "Configuraciones avanzadas",
     "thresholdsTitle": "Umbrales",
     "thresholdsDesc": "Ajuste los parámetros de comparación utilizados por el método multicriterio. El umbral de Indiferencia define el límite para considerar alternativas equivalentes; el de Preferencia establece la diferencia necesaria para que una alternativa sea considerada superior; y el de Veto actúa como un factor restrictivo, impidiendo la sobreclasificación si existe una diferencia extrema.",
     "indifferenceLabel": "Indiferencia",
