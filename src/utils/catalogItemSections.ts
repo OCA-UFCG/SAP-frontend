@@ -1,6 +1,6 @@
 import type { IndexCatalogItem } from "@/types/indexCatalog";
 
-export type CatalogSectionKey = "published" | "unpublished" | "legacy";
+export type CatalogSectionKey = "published" | "unpublished";
 
 export interface CatalogItemSection {
   key: CatalogSectionKey;
@@ -29,16 +29,9 @@ const SECTION_DEFINITIONS: Omit<CatalogItemSection, "items">[] = [
     hint: "Índices visíveis na plataforma hoje.",
     defaultOpen: false,
   },
-  {
-    key: "legacy",
-    title: "Legados fora do catálogo",
-    hint: "Índices antigos que o catálogo ainda não adotou.",
-    defaultOpen: false,
-  },
 ];
 
 function sectionKeyOf(item: IndexCatalogItem): CatalogSectionKey {
-  if (!item.catalogManaged) return "legacy";
   return item.published ? "published" : "unpublished";
 }
 
@@ -73,7 +66,12 @@ export function splitCatalogItemsIntoSections(
   items: IndexCatalogItem[],
   search = "",
 ): CatalogItemSection[] {
-  const visible = items.filter((item) => matchesCatalogSearch(item, search));
+  // Um panelLayer que o catálogo não gerencia não é listado: sem a adoção, não
+  // há nada a fazer com ele por aqui, e ele só empurrava para baixo os índices
+  // em que o operador trabalha de fato.
+  const visible = items.filter(
+    (item) => item.catalogManaged && matchesCatalogSearch(item, search),
+  );
   return SECTION_DEFINITIONS.map((definition) => ({
     ...definition,
     items: visible.filter((item) => sectionKeyOf(item) === definition.key),

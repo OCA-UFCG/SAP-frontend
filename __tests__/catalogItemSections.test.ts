@@ -16,31 +16,27 @@ function buildItem(overrides: Partial<IndexCatalogItem>): IndexCatalogItem {
     hasUnpublishedChanges: false,
     catalogManaged: true,
     managedScope: "full",
-    adoptable: false,
     status: "draft",
     ...overrides,
   } as IndexCatalogItem;
 }
 
 describe("splitCatalogItemsIntoSections", () => {
-  it("separa publicados, não publicados e legados fora do catálogo", () => {
+  it("separa publicados de não publicados", () => {
     const published = buildItem({ entryId: "a", published: true });
     const draft = buildItem({ entryId: "b" });
-    const legacy = buildItem({ entryId: "c", catalogManaged: false });
 
-    const sections = splitCatalogItemsIntoSections([published, draft, legacy]);
+    const sections = splitCatalogItemsIntoSections([published, draft]);
 
     expect(sections.map((section) => section.key)).toEqual([
       "unpublished",
       "published",
-      "legacy",
     ]);
     expect(sections[0].items).toEqual([draft]);
     expect(sections[1].items).toEqual([published]);
-    expect(sections[2].items).toEqual([legacy]);
   });
 
-  it("conta um legado já publicado como legado, não como publicado", () => {
+  it("não lista um panelLayer que o catálogo não gerencia", () => {
     const legacyPublished = buildItem({
       catalogManaged: false,
       published: true,
@@ -48,13 +44,12 @@ describe("splitCatalogItemsIntoSections", () => {
 
     const sections = splitCatalogItemsIntoSections([legacyPublished]);
 
-    expect(sections.find((s) => s.key === "legacy")?.items).toHaveLength(1);
-    expect(sections.find((s) => s.key === "published")?.items).toHaveLength(0);
+    expect(sections.every((section) => section.items.length === 0)).toBe(true);
   });
 
   it("mantém a seção vazia na lista para a tela poder anunciá-la", () => {
     const sections = splitCatalogItemsIntoSections([]);
-    expect(sections).toHaveLength(3);
+    expect(sections).toHaveLength(2);
     expect(sections.every((section) => section.items.length === 0)).toBe(true);
   });
 

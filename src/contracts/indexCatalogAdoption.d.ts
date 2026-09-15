@@ -1,6 +1,4 @@
-import type { PublishedPanelLayerReportConfig } from "@/contracts/panelLayerReport";
 import type {
-  IndexCatalogConfig,
   IndexCatalogConfigV2,
   IndexCatalogPresentationConfigV2,
   ManagedIndexCatalogConfig,
@@ -20,29 +18,6 @@ export function appendCatalogAuditEvent<T extends ManagedIndexCatalogConfig>(
   config: T,
   event: CatalogAuditEvent,
 ): T;
-
-export function resolveAdoptedCategory(
-  category: string | undefined,
-): (typeof INDEX_CATALOG_CATEGORIES)[number];
-
-/** O que a adoção precisa ler da entry legada, e nada além disso. */
-export interface AdoptablePanelLayerFields {
-  panelLayerId: string;
-  name: string;
-  description: string;
-  category?: string;
-  measurementUnit?: string;
-  panelPosition?: number;
-  published: boolean;
-  catalogConfig?: IndexCatalogConfig;
-}
-
-export function buildAdoptedPresentationConfig(input: {
-  item: AdoptablePanelLayerFields;
-  reportConfig?: PublishedPanelLayerReportConfig | null;
-  actor: { uid: string; email: string | null };
-  at: string;
-}): IndexCatalogPresentationConfigV2;
 
 export function buildPublishedPresentationConfig(input: {
   config: IndexCatalogPresentationConfigV2;

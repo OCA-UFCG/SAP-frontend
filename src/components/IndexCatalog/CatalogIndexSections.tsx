@@ -9,9 +9,6 @@ import { hasPublishableValidation } from "@/utils/indexCatalog";
 import type { IndexCatalogItem } from "@/types/indexCatalog";
 
 export function statusLabel(item: IndexCatalogItem) {
-  if (!item.catalogManaged) {
-    return item.adoptable ? "Legado — pronto para adotar" : "Legado";
-  }
   if (item.managedScope === "presentation") {
     if (item.published && item.hasUnpublishedChanges) {
       return "Legado adotado — alterações não publicadas";
@@ -30,10 +27,8 @@ export function statusLabel(item: IndexCatalogItem) {
 interface CatalogIndexSectionsProps {
   items: IndexCatalogItem[];
   loading: boolean;
-  busy: string | null;
   inputClass: string;
   buttonClass: string;
-  onAdoptLegacy: (item: IndexCatalogItem) => void;
   onOpenLegacyEditor: (item: IndexCatalogItem) => void;
   onResumeDraft: (item: IndexCatalogItem) => void;
   onChangePublication: (
@@ -45,9 +40,7 @@ interface CatalogIndexSectionsProps {
 
 function CatalogIndexCard({
   item,
-  busy,
   buttonClass,
-  onAdoptLegacy,
   onOpenLegacyEditor,
   onResumeDraft,
   onChangePublication,
@@ -65,39 +58,6 @@ function CatalogIndexCard({
         </span>
       </div>
       <p className="mt-2 text-xs text-stone-500">{item.panelLayerId}</p>
-      {!item.catalogManaged && (
-        <div className="mt-4 flex flex-wrap items-center gap-2">
-          {item.adoptable ? (
-            <>
-              <button
-                type="button"
-                className={`${buttonClass} bg-[#E8E9DC]`}
-                disabled={Boolean(busy)}
-                onClick={() => onAdoptLegacy(item)}
-              >
-                Adotar no catálogo
-              </button>
-              <span className="text-xs text-stone-500">
-                Destrava nome, unidade, imagem e texto do relatório. Nada muda
-                na plataforma até você publicar.
-              </span>
-            </>
-          ) : (
-            <p className="text-xs text-amber-800">
-              {item.adoptionBlockedReason}
-            </p>
-          )}
-          {!item.everPublished && (
-            <button
-              type="button"
-              className={`${buttonClass} text-red-700`}
-              onClick={() => onReviewDeletion(item)}
-            >
-              Remover
-            </button>
-          )}
-        </div>
-      )}
       {item.managedScope === "presentation" && (
         <div className="mt-4 flex flex-wrap gap-2">
           <button

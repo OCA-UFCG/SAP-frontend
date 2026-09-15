@@ -352,38 +352,6 @@ export function IndexCatalogScreen() {
     setMessage(`“${item.name}” aberto para edição da apresentação.`);
   }
 
-  /**
-   * A adoção só grava o `catalogConfig`, então nada muda no Monitoramento até
-   * alguém publicar. A lista é recarregada para o editor abrir com o item já
-   * gerenciado — é dele que o formulário lê o texto do relatório gravado.
-   */
-  async function adoptLegacy(item: IndexCatalogItem) {
-    setBusy("adopt");
-    setError("");
-    try {
-      await apiRequest(
-        `/api/index-catalog/entries/${encodeURIComponent(item.entryId)}/adopt`,
-        {
-          method: "POST",
-          headers: {
-            "Idempotency-Key": idempotencyKey("adopt", item.entryId),
-          },
-        },
-      );
-      const refreshed = await loadItems();
-      const adopted = refreshed.find(
-        (candidate) => candidate.entryId === item.entryId,
-      );
-      if (adopted) openLegacyEditor(adopted);
-    } catch (reason) {
-      setError(
-        reason instanceof Error ? reason.message : "Falha ao adotar o índice.",
-      );
-    } finally {
-      setBusy(null);
-    }
-  }
-
   function resumeDraft(item: IndexCatalogItem) {
     if (!isFullyManagedCatalogConfig(item.catalogConfig)) return;
     // O formulário do catálogo só é renderizado quando não há índice legado
@@ -1036,10 +1004,8 @@ export function IndexCatalogScreen() {
       <CatalogIndexSections
         items={items}
         loading={busy === "load"}
-        busy={busy}
         inputClass={inputClass}
         buttonClass={buttonClass}
-        onAdoptLegacy={(item) => void adoptLegacy(item)}
         onOpenLegacyEditor={openLegacyEditor}
         onResumeDraft={resumeDraft}
         onChangePublication={(item, action) =>

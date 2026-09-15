@@ -88,7 +88,6 @@ function adoptedItem(overrides: Partial<IndexCatalogItem> = {}) {
     hasUnpublishedChanges: false,
     catalogManaged: true,
     managedScope: "presentation",
-    adoptable: false,
     status: "published",
     catalogConfig: {
       schemaVersion: 2,

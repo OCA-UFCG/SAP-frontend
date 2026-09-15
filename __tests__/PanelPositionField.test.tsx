@@ -21,7 +21,6 @@ function catalogItem(
     hasUnpublishedChanges: false,
     catalogManaged: true,
     managedScope: "full",
-    adoptable: false,
     status: "published",
   };
 }

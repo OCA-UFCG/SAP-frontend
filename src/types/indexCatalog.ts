@@ -294,14 +294,6 @@ export interface IndexCatalogItem {
    * apagaria no primeiro salvamento.
    */
   measurementUnit?: string;
-  /**
-   * Um legado que o catálogo consegue adotar no escopo de apresentação. Falso
-   * quando o `imageData` ainda está no formato pré-compacto: ali não há
-   * `classes` nem `years` para o resto da tela ler.
-   */
-  adoptable: boolean;
-  /** Por que a adoção não é oferecida, para a tela poder dizer ao operador. */
-  adoptionBlockedReason?: string;
   status: "legacy" | IndexCatalogConfigV2["status"];
   catalogConfig?: IndexCatalogConfig;
 }
