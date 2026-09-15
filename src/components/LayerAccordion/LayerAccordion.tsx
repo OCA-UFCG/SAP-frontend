@@ -7,16 +7,32 @@ interface LayerAccordionProps {
   title: string;
   children: React.ReactNode;
   defaultOpen?: boolean;
+  /** Modo controlado: quem monta o acordeão guarda o aberto/fechado. */
+  open?: boolean;
+  onOpenChange?: (open: boolean) => void;
 }
 
-export function LayerAccordion({ title, children, defaultOpen = false }: LayerAccordionProps) {
-  const [isOpen, setIsOpen] = useState(defaultOpen);
+export function LayerAccordion({
+  title,
+  children,
+  defaultOpen = false,
+  open,
+  onOpenChange,
+}: LayerAccordionProps) {
+  const [uncontrolledOpen, setUncontrolledOpen] = useState(defaultOpen);
+  const isOpen = open ?? uncontrolledOpen;
+
+  const toggle = () => {
+    const next = !isOpen;
+    setUncontrolledOpen(next);
+    onOpenChange?.(next);
+  };
 
   return (
     <div className="flex flex-col w-full bg-white hover:bg-[#E4E5E2] border border-[#EFEFEF] rounded-lg transition-colors duration-150">
       <button
         type="button"
-        onClick={() => setIsOpen(!isOpen)}
+        onClick={toggle}
         className="flex flex-row items-center w-full px-4 py-4 gap-[18px] text-left bg-transparent"
         style={{ height: 56 }}
         aria-expanded={isOpen}
