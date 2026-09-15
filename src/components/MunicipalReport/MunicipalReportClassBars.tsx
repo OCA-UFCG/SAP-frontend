@@ -4,6 +4,7 @@ import type { MunicipalReportAnalysis } from "@/contracts/municipalReport";
 import { formatMunicipalReportValue } from "@/utils/municipalReportValue";
 
 const ZERO_BAR_WIDTH = "2px";
+const MAX_BAR_SHARE = 92;
 
 export function MunicipalReportClassBars({
   analysis,
@@ -29,7 +30,10 @@ export function MunicipalReportClassBars({
       </caption>
       <tbody>
         {distribution.map((item) => {
-          const share = Math.max(0, (item.percentage / scaleMax) * 100);
+          const share = Math.max(
+            0,
+            (item.percentage / scaleMax) * MAX_BAR_SHARE,
+          );
 
           return (
             <tr key={item.id} className="report-class-bar-row align-middle">
@@ -41,15 +45,17 @@ export function MunicipalReportClassBars({
               </th>
               <td className="py-1 align-middle">
                 <span className="flex items-center gap-3">
-                  <span
-                    data-report-class-bar
-                    className="block h-6 shrink-0 border border-black/10"
-                    style={{
-                      width: `${Number(share.toFixed(4))}%`,
-                      minWidth: ZERO_BAR_WIDTH,
-                      backgroundColor: item.color,
-                    }}
-                  />
+                  <span className="flex min-w-0 flex-1">
+                    <span
+                      data-report-class-bar
+                      className="block h-6 shrink-0 border border-black/10"
+                      style={{
+                        width: `${Number(share.toFixed(4))}%`,
+                        minWidth: ZERO_BAR_WIDTH,
+                        backgroundColor: item.color,
+                      }}
+                    />
+                  </span>
                   <span className="shrink-0 whitespace-nowrap tabular-nums">
                     {formatMunicipalReportValue(
                       item.percentage,

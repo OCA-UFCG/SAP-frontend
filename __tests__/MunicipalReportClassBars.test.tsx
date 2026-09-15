@@ -62,8 +62,41 @@ describe("MunicipalReportClassBars", () => {
     const { container } = renderBars();
     const bars = container.querySelectorAll("[data-report-class-bar]");
 
-    expect((bars[0] as HTMLElement).style.width).toBe("28.3%");
-    expect((bars[1] as HTMLElement).style.width).toBe("71.7%");
+    expect((bars[0] as HTMLElement).style.width).toBe("26.036%");
+    expect((bars[1] as HTMLElement).style.width).toBe("65.964%");
+  });
+
+  it("deixa folga à direita para o valor, mesmo com a classe em 100%", () => {
+    const { container } = renderBars(
+      buildAnalysis({
+        snapshot: {
+          period: "2026-05",
+          label: "2026-05",
+          dominantClass: null,
+          distribution: [
+            { id: "tudo", label: "Sem seca", color: "#CCCCCC", percentage: 100 },
+          ],
+        },
+      }),
+    );
+    const bar = container.querySelector(
+      "[data-report-class-bar]",
+    ) as HTMLElement;
+
+    expect(Number.parseFloat(bar.style.width)).toBeLessThan(100);
+    expect(Number.parseFloat(bar.style.width)).toBeGreaterThan(80);
+  });
+
+  it("mede a barra contra uma trilha que não inclui o rótulo do valor", () => {
+    const { container } = renderBars();
+    const bar = container.querySelector(
+      "[data-report-class-bar]",
+    ) as HTMLElement;
+    const row = container.querySelector(".report-class-bar-row") as HTMLElement;
+    const value = row.querySelector("td > span > span:last-child");
+
+    expect(bar.parentElement).not.toBe(value?.parentElement);
+    expect(value?.textContent).toContain("28,3");
   });
 
   it("desenha uma marca visível para a classe de valor zero", () => {
@@ -103,8 +136,8 @@ describe("MunicipalReportClassBars", () => {
     );
     const bars = container.querySelectorAll("[data-report-class-bar]");
 
-    expect((bars[0] as HTMLElement).style.width).toBe("100%");
-    expect((bars[1] as HTMLElement).style.width).toBe("25%");
+    expect((bars[0] as HTMLElement).style.width).toBe("92%");
+    expect((bars[1] as HTMLElement).style.width).toBe("23%");
   });
 
   it("expõe os valores como tabela acessível", () => {
