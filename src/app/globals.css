@@ -37,19 +37,19 @@ textarea {
 
 /* A escala nao usa a caixa branca de borda preta do MapLibre: sobre o mapa ela
    vira uma regua fina com o numero em cima, legivel tanto no mapa de ruas
-   quanto no satelite gracas ao contorno branco do texto. */
-.maplibregl-ctrl-bottom-left {
+   quanto no satelite gracas ao contorno branco do texto.
+
+   Todos os seletores abaixo carregam uma classe a mais do que os da folha do
+   MapLibre de proposito. O `globals.css` e `maplibre-gl.css` entram no bundle em
+   ordem imprevisivel (ela ja saiu diferente entre duas maquinas), entao empatar
+   em especificidade deixaria o resultado depender dessa ordem. */
+.maplibregl-map .maplibregl-ctrl-bottom-left {
   /* Acompanha a borda esquerda do mapa visivel; o painel lateral cobre o resto. */
   margin-left: var(--platform-map-scale-offset, 0px);
   transition: margin-left 300ms ease-in-out;
 }
 
-/* Especificidade acima da folha do MapLibre, que tambem casa este seletor. */
 .maplibregl-ctrl-bottom-left .maplibregl-ctrl.maplibregl-ctrl-scale {
-  margin: 0 0 16px 16px;
-}
-
-.maplibregl-ctrl-scale {
   background: none;
   border: 2px solid #313131;
   border-top: none;
@@ -60,6 +60,7 @@ textarea {
   font-size: 11px;
   font-weight: 600;
   line-height: 1.2;
+  margin: 0 0 16px 16px;
   padding: 0 4px 2px;
   text-align: right;
   text-shadow:
