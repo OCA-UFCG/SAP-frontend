@@ -17,6 +17,7 @@ import { trackUiEvent } from "@/services/telemetry/client";
 import type { IEEInfo, PanelLayerI } from "@/utils/interfaces";
 import type { SpatialSelection } from "@/utils/spatialScope";
 import { getImageDataLegend } from "@/utils/imageData";
+import { useMonitoringListState } from "./monitoringListState";
 import cdiData from "../../data/CDI_Janeiro_2024_Vetores.json";
 
 export interface ModulesContextProps {
@@ -157,6 +158,48 @@ export function ModulesContext({
     setSelectedMunicipalityCode,
   } = useMapLayerActions();
   const { spatialSelection } = useMapLayerViewState();
+  const listState = useMonitoringListState();
+  const scrollContainerRef = useRef<HTMLDivElement | null>(null);
+
+  // Abrir um índice desmonta esta listagem; ao voltar, devolvemos a rolagem que
+  // o usuário tinha deixado em vez de reabrir a lista no topo. As miniaturas das
+  // camadas chegam depois da primeira pintura, então na montagem o painel ainda
+  // é curto demais para a posição salva e o navegador a limita ao fim atual — daí
+  // reaplicarmos enquanto o conteúdo cresce, até alcançar o alvo.
+  const restoreScrollTop = listState?.getScrollTop;
+  useEffect(() => {
+    const container = scrollContainerRef.current;
+    if (!container || !restoreScrollTop) return;
+
+    const target = restoreScrollTop();
+    if (target <= 0) return;
+
+    const applyTarget = () => {
+      container.scrollTop = target;
+      return container.scrollTop >= target;
+    };
+
+    if (applyTarget()) return;
+
+    const observer = new ResizeObserver(() => {
+      if (applyTarget()) {
+        observer.disconnect();
+      }
+    });
+
+    observer.observe(container);
+    Array.from(container.children).forEach((child) => observer.observe(child));
+
+    return () => observer.disconnect();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  const handleScroll = useCallback(() => {
+    const container = scrollContainerRef.current;
+    if (!container || !listState) return;
+
+    listState.setScrollTop(container.scrollTop);
+  }, [listState]);
 
   const datasets = useMemo(
     () => buildLayerDatasets(panelLayers),
@@ -308,7 +351,8 @@ export function ModulesContext({
 
   const openedDetailLayerRef = useRef<string | null>(null);
   useEffect(() => {
-    if (!detailLayerId || openedDetailLayerRef.current === detailLayerId) return;
+    if (!detailLayerId || openedDetailLayerRef.current === detailLayerId)
+      return;
     if (!layerById.has(detailLayerId)) return;
     openedDetailLayerRef.current = detailLayerId;
     handleDetails(detailLayerId);
@@ -324,7 +368,11 @@ export function ModulesContext({
   );
 
   return (
-    <div className="h-full overflow-y-auto bg-[#F6F7F6] px-4 pt-12 pb-6">
+    <div
+      ref={scrollContainerRef}
+      onScroll={handleScroll}
+      className="h-full overflow-y-auto bg-[#F6F7F6] px-4 pt-12 pb-6"
+    >
       <div className="flex flex-col gap-6">
         <ContextHeader />
 
@@ -347,6 +395,10 @@ export function ModulesContext({
             return (
               <LayerAccordion
                 key={group.key}
+                open={listState?.isCategoryOpen(group.key)}
+                onOpenChange={(open) =>
+                  listState?.setCategoryOpen(group.key, open)
+                }
                 title={
                   categoryKeyMap[group.key]
                     ? t(`categories.${categoryKeyMap[group.key]}`)

@@ -11,6 +11,7 @@ import { PlatformSidePanel } from "@/components/PlatformSidePanel/PlatformSidePa
 import { AnalysisContext } from "@/components/SidePanelContexts/AnalysisContext";
 import { ComingSoonContext } from "@/components/SidePanelContexts/ComingSoonContext";
 import { MunicipalReportContext } from "@/components/SidePanelContexts/MunicipalReportContext";
+import { MonitoringListStateProvider } from "@/components/SidePanelContexts/monitoringListState";
 import { PanelLayerI } from "@/utils/interfaces";
 import { useMapLayerActions } from "@/components/MapLayerContext/MapLayerContext";
 import type { MunicipalReportPreviewProps } from "@/components/MunicipalReport/MunicipalReportPreview";
@@ -196,7 +197,7 @@ export function PlatformSidebar({
   }
 
   return (
-    <>
+    <MonitoringListStateProvider>
       <aside
         className="absolute left-0 top-0 z-20 flex h-full"
         data-platform-sidebar-overlay
@@ -258,6 +259,6 @@ export function PlatformSidebar({
           </div>
         </>
       )}
-    </>
+    </MonitoringListStateProvider>
   );
 }
