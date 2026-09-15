@@ -201,25 +201,8 @@ describe("adoção de índices legados na listagem", () => {
 
     expect(current.item.catalogManaged).toBe(false);
     expect(current.item.managedScope).toBeNull();
-    expect(current.item.adoptable).toBe(true);
     expect(current.item.measurementUnit).toBe("registros");
     expect(current.item.status).toBe("legacy");
-  });
-
-  it("recusa a adoção do legado no formato pré-compacto", async () => {
-    // `CDI` e `veg` ainda guardam `imageParams` por ano: sem `classes` nem
-    // `years`, a captura da imagem e a prévia do relatório não têm o que ler.
-    vi.stubGlobal(
-      "fetch",
-      new FakeLegacyPanelLayerApi({
-        "2021": { imageId: "assets/cdi", imageParams: [] },
-      }).fetch,
-    );
-
-    const current = await getCatalogEntry("legacy-entry");
-
-    expect(current.item.adoptable).toBe(false);
-    expect(current.item.adoptionBlockedReason).toMatch(/pré-compacto/u);
   });
 
   it("reconhece o escopo de apresentação de um legado já adotado", async () => {
@@ -265,7 +248,6 @@ describe("adoção de índices legados na listagem", () => {
 
     expect(current.item.catalogManaged).toBe(true);
     expect(current.item.managedScope).toBe("presentation");
-    expect(current.item.adoptable).toBe(false);
     expect(current.item.status).toBe("published");
   });
 });

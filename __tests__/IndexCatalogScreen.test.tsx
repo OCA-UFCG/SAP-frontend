@@ -30,6 +30,19 @@ vi.mock("@/components/IndexCatalog/CatalogReportPreview", () => ({
 
 import { IndexCatalogScreen } from "@/components/IndexCatalog/IndexCatalogScreen";
 
+/**
+ * Todas as seções da listagem abrem fechadas, então um teste que inspeciona os
+ * cartões de uma delas precisa expandi-la primeiro.
+ */
+async function expandCatalogSection(title: string) {
+  const header = await screen.findByRole("button", {
+    name: new RegExp(title, "u"),
+  });
+  if (header.getAttribute("aria-expanded") === "false") {
+    fireEvent.click(header);
+  }
+}
+
 function jsonResponse(body: unknown, status = 200) {
   return Promise.resolve(
     new Response(JSON.stringify(body), {
@@ -485,10 +498,10 @@ describe("IndexCatalogScreen v2", () => {
     ).not.toBeInTheDocument();
   });
 
-  it("oferece adoção para o índice legado em vez da mensagem de somente leitura", async () => {
-    // Regressão: o cartão dizia "Configuração v1 ou índice externo. Visível,
-    // mas não editável por este formulário." e não havia nenhum caminho para
-    // editar o que já morava na entry.
+  it("não lista um panelLayer que o catálogo não gerencia", async () => {
+    // O catálogo deixou de listar legados fora dele junto com a remoção da
+    // adoção: sem "Adotar no catálogo" não sobra nada a fazer com esses
+    // cartões, e eles só afastavam os índices em que o operador trabalha.
     vi.mocked(fetch).mockImplementationOnce(() =>
       jsonResponse({
         items: [
@@ -501,7 +514,6 @@ describe("IndexCatalogScreen v2", () => {
             hasUnpublishedChanges: false,
             catalogManaged: false,
             managedScope: null,
-            adoptable: true,
             status: "legacy",
             catalogConfig: { schemaVersion: 1, panelLayerId: "seca" },
           },
@@ -509,16 +521,14 @@ describe("IndexCatalogScreen v2", () => {
       }),
     );
     render(<IndexCatalogScreen />);
-    expect(
-      await screen.findByRole("button", { name: "Adotar no catálogo" }),
-    ).toBeInTheDocument();
-    expect(
-      screen.queryByText(/não editável por este formulário/u),
-    ).not.toBeInTheDocument();
-    expect(
-      screen.queryByRole("button", { name: "Abrir e editar" }),
-    ).not.toBeInTheDocument();
     await waitFor(() => expect(fetch).toHaveBeenCalledTimes(1));
+    expect(
+      screen.queryByText("Legados fora do catálogo"),
+    ).not.toBeInTheDocument();
+    expect(screen.queryByText("Seca")).not.toBeInTheDocument();
+    expect(
+      screen.queryByRole("button", { name: "Adotar no catálogo" }),
+    ).not.toBeInTheDocument();
   });
 
   it("oferece Republicar no índice publicado com alteração pendente", async () => {
@@ -539,13 +549,13 @@ describe("IndexCatalogScreen v2", () => {
             hasUnpublishedChanges: true,
             catalogManaged: true,
             managedScope: "full",
-            adoptable: false,
             status: "published",
           },
         ],
       }),
     );
     render(<IndexCatalogScreen />);
+    await expandCatalogSection("Publicados");
 
     expect(
       await screen.findByRole("button", { name: "Republicar" }),
@@ -569,13 +579,13 @@ describe("IndexCatalogScreen v2", () => {
             hasUnpublishedChanges: false,
             catalogManaged: true,
             managedScope: "full",
-            adoptable: false,
             status: "published",
           },
         ],
       }),
     );
     render(<IndexCatalogScreen />);
+    await expandCatalogSection("Publicados");
 
     expect(
       await screen.findByRole("button", { name: "Despublicar" }),
@@ -603,13 +613,13 @@ describe("IndexCatalogScreen v2", () => {
             hasUnpublishedChanges: true,
             catalogManaged: true,
             managedScope: "full",
-            adoptable: false,
             status: "draft",
           },
         ],
       }),
     );
     render(<IndexCatalogScreen />);
+    await expandCatalogSection("Publicados");
 
     expect(
       await screen.findByRole("button", { name: "Despublicar" }),
@@ -620,36 +630,6 @@ describe("IndexCatalogScreen v2", () => {
     expect(
       screen.getByText("Publicado com revisão em rascunho"),
     ).toBeInTheDocument();
-  });
-
-  it("não oferece adoção quando o imageData ainda é pré-compacto", async () => {
-    vi.mocked(fetch).mockImplementationOnce(() =>
-      jsonResponse({
-        items: [
-          {
-            entryId: "legacy",
-            panelLayerId: "veg",
-            name: "Vegetação Nativa",
-            description: "",
-            published: false,
-            hasUnpublishedChanges: false,
-            catalogManaged: false,
-            managedScope: null,
-            adoptable: false,
-            adoptionBlockedReason:
-              "O imageData desta entry ainda está no formato pré-compacto (imageParams por ano). Converta para territorial-compact antes de adotar.",
-            status: "legacy",
-          },
-        ],
-      }),
-    );
-    render(<IndexCatalogScreen />);
-    expect(
-      await screen.findByText(/formato pré-compacto/u),
-    ).toBeInTheDocument();
-    expect(
-      screen.queryByRole("button", { name: "Adotar no catálogo" }),
-    ).not.toBeInTheDocument();
   });
 
   it("abre o índice v2 mesmo com um índice legado adotado já aberto", async () => {
@@ -670,7 +650,6 @@ describe("IndexCatalogScreen v2", () => {
             hasUnpublishedChanges: false,
             catalogManaged: true,
             managedScope: "presentation",
-            adoptable: false,
             status: "published",
             catalogConfig: {
               schemaVersion: 2,
@@ -692,7 +671,6 @@ describe("IndexCatalogScreen v2", () => {
             hasUnpublishedChanges: true,
             catalogManaged: true,
             managedScope: "full",
-            adoptable: false,
             status: "draft",
             catalogConfig: {
               schemaVersion: 2,
@@ -716,26 +694,26 @@ describe("IndexCatalogScreen v2", () => {
       }),
     );
     render(<IndexCatalogScreen />);
+    await expandCatalogSection("Publicados");
+    await expandCatalogSection("Não publicados");
 
-    const legacyCard = (await screen.findByText("Secas e Estiagens"))
-      .closest("article") as HTMLElement;
+    const legacyCard = (await screen.findByText("Secas e Estiagens")).closest(
+      "article",
+    ) as HTMLElement;
     fireEvent.click(
       within(legacyCard).getByRole("button", { name: "Abrir e editar" }),
     );
     expect(await screen.findByText("Editar índice legado")).toBeInTheDocument();
 
-    const v2Card = screen.getByText("Índice GEE").closest(
-      "article",
-    ) as HTMLElement;
+    const v2Card = screen
+      .getByText("Índice GEE")
+      .closest("article") as HTMLElement;
     fireEvent.click(
       within(v2Card).getByRole("button", { name: "Abrir e editar" }),
     );
 
     expect(await screen.findByText("Editar índice")).toBeInTheDocument();
-    expect(
-      screen.queryByText("Editar índice legado"),
-    ).not.toBeInTheDocument();
+    expect(screen.queryByText("Editar índice legado")).not.toBeInTheDocument();
     expect(screen.getByDisplayValue("Índice GEE")).toBeInTheDocument();
   });
-
 });

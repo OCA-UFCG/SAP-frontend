@@ -2,119 +2,37 @@ import { describe, expect, it } from "vitest";
 
 import {
   appendCatalogAuditEvent,
-  buildAdoptedPresentationConfig,
   buildPublishedPresentationConfig,
-  resolveAdoptedCategory,
 } from "@/contracts/indexCatalogAdoption.mjs";
 
 const actor = { uid: "admin-1", email: "oca-dev@gmail.com" };
 const at = "2026-09-04T12:00:00.000Z";
 
-function buildConfig(
-  item: Partial<
-    Parameters<typeof buildAdoptedPresentationConfig>[0]["item"]
-  > = {},
-  reportConfig?: Parameters<
-    typeof buildAdoptedPresentationConfig
-  >[0]["reportConfig"],
-) {
-  return buildAdoptedPresentationConfig({
-    item: {
+/**
+ * Um legado já adotado, como o `catalogConfig` dele está gravado na entry. A
+ * adoção em si saiu do repositório; o que o contrato ainda faz é registrar a
+ * publicação por cima dessa configuração.
+ */
+function buildAdoptedConfig({ published = true } = {}) {
+  const author = { uid: actor.uid, email: actor.email, at };
+  return appendCatalogAuditEvent(
+    {
+      schemaVersion: 2,
+      managedScope: "presentation",
       panelLayerId: "s2id_secas_estiagens",
+      status: published ? "published" : "draft",
       name: "Registros de Secas e Estiagens",
       description: "Ocorrências registradas no S2iD.",
       category: "Dados Socioeconômicos",
       measurementUnit: "registros",
       panelPosition: 3,
-      published: true,
-      ...item,
-    },
-    reportConfig,
-    actor,
-    at,
-  });
-}
-
-describe("buildAdoptedPresentationConfig", () => {
-  it("adota um legado publicado no escopo de apresentação", () => {
-    expect(buildConfig()).toMatchObject({
-      schemaVersion: 2,
-      managedScope: "presentation",
-      panelLayerId: "s2id_secas_estiagens",
-      status: "published",
-      category: "Dados Socioeconômicos",
-      measurementUnit: "registros",
-      panelPosition: 3,
+      createdBy: author,
+      updatedBy: author,
       adoptedFrom: { at },
-    });
-  });
-
-  it("nunca escreve a origem dos números de um legado", () => {
-    const config = buildConfig() as Record<string, unknown>;
-
-    expect(config).not.toHaveProperty("statisticsSource");
-    expect(config).not.toHaveProperty("classes");
-    expect(config).not.toHaveProperty("earthEngine");
-  });
-
-  it("adota um legado despublicado como rascunho", () => {
-    expect(buildConfig({ published: false }).status).toBe("draft");
-  });
-
-  it("omite a posição quando a entry não tem uma", () => {
-    expect(buildConfig({ panelPosition: undefined })).not.toHaveProperty(
-      "panelPosition",
-    );
-  });
-
-  it("preserva a unidade do legado em vez de normalizar para %", () => {
-    expect(buildConfig({ measurementUnit: "%" }).measurementUnit).toBe("%");
-    expect(buildConfig({ measurementUnit: undefined }).measurementUnit).toBe(
-      "",
-    );
-  });
-
-  it("herda o texto de relatório que já estava na entry", () => {
-    const report = {
-      schemaVersion: 1 as const,
-      sections: [{ title: "Situação atual", text: "Em [municipio]." }],
-    };
-
-    expect(buildConfig({}, report).report).toEqual(report);
-  });
-
-  it("registra na auditoria da adoção que a entry vinha de um catalogConfig v1", () => {
-    const config = buildConfig({ catalogConfig: { schemaVersion: 1 } });
-
-    expect(config.adoptedFrom.previousSchemaVersion).toBe(1);
-    expect(buildConfig().adoptedFrom).not.toHaveProperty(
-      "previousSchemaVersion",
-    );
-  });
-
-  it("deixa rastro de quem adotou", () => {
-    expect(buildConfig().auditLog).toEqual([
-      {
-        action: "adopt",
-        outcome: "success",
-        uid: actor.uid,
-        email: actor.email,
-        at,
-      },
-    ]);
-  });
-});
-
-describe("resolveAdoptedCategory", () => {
-  it("mantém uma categoria conhecida do catálogo", () => {
-    expect(resolveAdoptedCategory("Dados Ambientais")).toBe("Dados Ambientais");
-  });
-
-  it("cai na primeira categoria quando a entry não tem uma válida", () => {
-    expect(resolveAdoptedCategory(undefined)).toBe("Dados Climáticos");
-    expect(resolveAdoptedCategory("Outra coisa")).toBe("Dados Climáticos");
-  });
-});
+    } as never,
+    { action: "adopt", outcome: "success", ...author },
+  );
+}
 
 describe("appendCatalogAuditEvent", () => {
   const event = {
@@ -144,7 +62,7 @@ describe("buildPublishedPresentationConfig", () => {
   const publishedAt = "2026-09-05T09:00:00.000Z";
 
   it("não reescreve nada do conteúdo ao publicar", () => {
-    const adopted = buildConfig({ name: "Índice de Degradação" });
+    const adopted = { ...buildAdoptedConfig(), name: "Índice de Degradação" };
     const published = buildPublishedPresentationConfig({
       config: adopted,
       actor,
@@ -160,7 +78,7 @@ describe("buildPublishedPresentationConfig", () => {
   });
 
   it("registra quem publicou e quando, sem apagar o histórico anterior", () => {
-    const adopted = buildConfig();
+    const adopted = buildAdoptedConfig();
     const published = buildPublishedPresentationConfig({
       config: adopted,
       actor,
@@ -190,7 +108,7 @@ describe("buildPublishedPresentationConfig", () => {
   it("marca como publicado um legado que fora adotado como rascunho", () => {
     // Um legado despublicado é adotado com status "draft"; publicar é
     // justamente o que o promove, e a tela decide o botão por esse campo.
-    const adopted = buildConfig({ published: false });
+    const adopted = buildAdoptedConfig({ published: false });
     expect(adopted.status).toBe("draft");
 
     expect(
@@ -204,7 +122,7 @@ describe("buildPublishedPresentationConfig", () => {
 
   it("preserva o e-mail nulo de um ator sem e-mail", () => {
     const published = buildPublishedPresentationConfig({
-      config: buildConfig(),
+      config: buildAdoptedConfig(),
       actor: { uid: "tool:publish-adopted-legacy", email: null },
       at: publishedAt,
     });

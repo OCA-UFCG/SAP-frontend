@@ -385,44 +385,17 @@ versão deste escopo, exigir a segunda parte trancava a primeira, e o cartão do
 entries publicadas antes do campo existir) é o índice que o catálogo criou;
 `presentation` é um legado adotado.
 
-### Adotar
+### A adoção foi encerrada
 
-"Adotar no catálogo", no cartão do índice, grava **somente** o `catalogConfig`
-derivado da própria entry. A operação é inerte de propósito: a versão publicada
-do índice continua idêntica e nada muda no Monitoramento até alguém publicar.
-O texto de relatório que já estivesse na entry é herdado; o asset da imagem de
-prévia **não** é, porque nos legados ele é uma captura de tela feita à mão e
-reaproveitar o id faria a primeira captura do catálogo sobrescrever o arquivo
-original.
+Os treze legados que valia a pena destravar já foram adotados, e a listagem do
+catálogo deixou de mostrar `panelLayer` fora dele: o que sobrava eram entries de
+teste, sem nada que o operador pudesse fazer ali. Com isso saíram do repositório
+o botão "Adotar no catálogo", a rota `POST /api/index-catalog/entries/[entryId]/adopt`,
+o serviço `legacyAdoption.ts` e o lote `catalog:adopt-legacy:*`.
 
-A adoção é recusada quando o `imageData` da entry ainda está no formato
-pré-compacto (`imageParams` por ano, como `CDI` e `veg`): sem `classes`,
-`years` e `defaultYear` não há mapa nem períodos para a tela ler. Converter para
-`territorial-compact` é o pré-requisito.
-
-`buildAdoptedPresentationConfig`, em `src/contracts/indexCatalogAdoption.mjs`, é
-quem monta o `catalogConfig` adotado. Ele mora num contrato `.mjs`, e não dentro
-do serviço, porque a adoção em lote (abaixo) roda em Node puro e não consegue
-importar um módulo `server-only`: se as duas implementações divergissem, metade
-dos legados nasceria com um formato de configuração e metade com outro.
-
-### Adotar todos os legados de uma vez
-
-Adotar índice a índice pela tela é o caminho normal, mas a migração inicial da
-base tinha 13 legados para destravar. `npm run catalog:adopt-legacy:dry-run --
---actor-email=<e-mail>` lista o que seria adotado e por que cada entry ficou de
-fora; `catalog:adopt-legacy:apply` grava. Como qualquer escrita no Contentful
-deste repositório, o dry-run é a checagem de segurança, não formalidade.
-
-O lote repete as recusas da rota e acrescenta duas guardas próprias:
-
-- exige `--actor-email` presente em `LOGS_ALLOWED_EMAILS`, a mesma allowlist que
-  a rota exige, porque esse e-mail vai para o `auditLog` da entry. O `uid`
-  gravado é `tool:adopt-legacy-indices`, para o histórico dizer que a adoção veio
-  do terminal e não de um clique;
-- recusa uma entry que já tenha `reportConfig`, em vez de adotá-la sem o texto:
-  validar esse campo exige o parser de `src/contracts/panelLayerReport.ts`, que é
-  TypeScript. Essas entries são adotadas pelo botão, que sabe herdar o texto.
+O que ficou é o resultado da adoção: `catalogConfig.managedScope: "presentation"`
+nas entries adotadas, e todo o editor de legado que as mantém editáveis. Adotar
+um legado novo hoje exige gravar esse `catalogConfig` à mão no Contentful.
 
 ### Publicar todos os legados adotados de uma vez
 
@@ -628,12 +601,13 @@ publicado. Um texto vazio devolve o índice ao documento.
 
 ## Compatibilidade e falhas
 
-`catalogConfig` v1 e panel layers sem configuração aparecem para leitura e
-podem ser adotados no escopo de apresentação. Uma entry que **nunca** foi
-publicada pode ser removida mesmo sem adoção — é o caso dos rascunhos de teste
-com `catalogConfig` v1, que de outra forma ficariam sem nenhuma ação na tela.
-A remoção exclui somente o `panelLayer`; nunca chama uma operação de escrita ou
-exclusão no GEE.
+`catalogConfig` v1 e panel layers sem configuração **não aparecem na listagem**:
+sem a adoção não há ação possível sobre eles, e os cartões só afastavam os
+índices em que se trabalha de fato. Eles continuam existindo no Contentful e a
+plataforma continua exibindo os que estão publicados — quem precisar removê-los
+faz isso pelo Contentful. A remoção pela tela, que exclui somente o
+`panelLayer` e nunca chama escrita ou exclusão no GEE, vale para os índices
+gerenciados pelo catálogo.
 
 Carbono e ANA ainda possuem registro estático para compatibilidade. Eles podem
 usar o fallback histórico no Contentful. Fontes dinâmicas publicadas em
