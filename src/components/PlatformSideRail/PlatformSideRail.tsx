@@ -118,13 +118,13 @@ export function PlatformSideRail({
 
   const items: PlatformRailItem[] = [
     { kind: "section", id: "monitoring", label: t("monitoring"), icon: "eye" },
-    { kind: "section", id: "analysis", label: t("analysis"), icon: "chart" },
     {
       kind: "section",
       id: "communication",
       label: t("communication"),
       icon: "calendar",
     },
+    { kind: "section", id: "analysis", label: t("analysis"), icon: "chart" },
   ];
 
   if (showAuditLink) {
