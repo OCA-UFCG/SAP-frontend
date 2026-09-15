@@ -263,6 +263,14 @@ const Map = ({
 
     map.addControl(new maplibregl.NavigationControl(), "top-right");
 
+    // A escala acompanha os demais controles no topo direito: o rodape esquerdo
+    // fica atras do painel lateral e o direito e ocupado pelos cartoes de
+    // territorios e mapa base (MonitoringMapOverlays).
+    map.addControl(
+      new maplibregl.ScaleControl({ maxWidth: 120, unit: "metric" }),
+      "top-right",
+    );
+
     map.jumpTo({ center: initialCenter, zoom: initialView.zoom });
 
     map.on("sourcedata", (event: MapSourceDataEvent) => {
