@@ -263,6 +263,15 @@ const Map = ({
 
     map.addControl(new maplibregl.NavigationControl(), "top-right");
 
+    // A escala fica no rodape esquerdo, o lugar em que se espera encontrar
+    // uma; o deslocamento ate a borda do mapa visivel vem do CSS
+    // (`--platform-map-scale-offset`), porque so o layout sabe quanto o painel
+    // lateral esta cobrindo.
+    map.addControl(
+      new maplibregl.ScaleControl({ maxWidth: 120, unit: "metric" }),
+      "bottom-left",
+    );
+
     map.jumpTo({ center: initialCenter, zoom: initialView.zoom });
 
     map.on("sourcedata", (event: MapSourceDataEvent) => {

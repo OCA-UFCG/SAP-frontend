@@ -1,6 +1,7 @@
 "use client";
 
 import MapComponent from "../Map/MapComponent";
+import type { CSSProperties } from "react";
 import type { MapProps } from "../Map/Map";
 import { BRAZIL_TERRITORY_CODE } from "../Map/stateSelection";
 import { useOptionalAmfeAnalysis } from "@/components/Amfe/AmfeAnalysisContext";
@@ -99,6 +100,17 @@ export function PlatformMap({
     <div
       data-testid="platform-map-area"
       className={isAnalysis ? ANALYSIS_AREA_CLASS : FULL_BLEED_AREA_CLASS}
+      // A escala do mapa se apoia nesta medida para nascer na borda esquerda do
+      // mapa *visivel*. Em Analise o mapa ja comeca depois do formulario; nas
+      // demais secoes ele e full-bleed e o painel lateral cobre a esquerda, com
+      // a largura publicada por PlatformSidebar.
+      style={
+        {
+          "--platform-map-scale-offset": isAnalysis
+            ? "0px"
+            : "var(--platform-side-overlay-width, 140px)",
+        } as CSSProperties
+      }
     >
       {isAnalysis && <AmfeAnalysisStatusLines />}
 
