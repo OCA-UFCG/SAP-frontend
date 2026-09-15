@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useState, useTransition } from "react";
+import { useCallback, useEffect, useState, useTransition } from "react";
 import dynamic from "next/dynamic";
 import { useRouter } from "@/translations/routing";
 import {
@@ -134,6 +134,23 @@ export function PlatformSidebar({
     useState<PlatformSection | null>(null);
   const defaultPanelOpenOffset = "560px";
   const sidePanelWidthClass = isPanelOpen ? "w-[420px]" : "w-0";
+
+  // A lateral flutua por cima do mapa full-bleed, entao quem desenha algo no
+  // canto inferior esquerdo do mapa (a escala) precisa saber quanto dele esta
+  // coberto. Publicar a medida evita subir `isPanelOpen` ate o layout so para
+  // isso; quem consome le `--platform-side-overlay-width`.
+  useEffect(() => {
+    const overlayWidth = isPanelOpen ? defaultPanelOpenOffset : "140px";
+    document.documentElement.style.setProperty(
+      "--platform-side-overlay-width",
+      overlayWidth,
+    );
+    return () => {
+      document.documentElement.style.removeProperty(
+        "--platform-side-overlay-width",
+      );
+    };
+  }, [isPanelOpen]);
 
   const ContextComponent =
     panelSection === "monitoring"

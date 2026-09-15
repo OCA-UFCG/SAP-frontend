@@ -35,20 +35,37 @@ textarea {
   justify-content: center;
 }
 
-/* Alinha a barra de escala do MapLibre com o visual dos demais controles do
-   mapa, no lugar da caixa branca de borda preta que vem por padrao. */
+/* A escala nao usa a caixa branca de borda preta do MapLibre: sobre o mapa ela
+   vira uma regua fina com o numero em cima, legivel tanto no mapa de ruas
+   quanto no satelite gracas ao contorno branco do texto. */
+.maplibregl-ctrl-bottom-left {
+  /* Acompanha a borda esquerda do mapa visivel; o painel lateral cobre o resto. */
+  margin-left: var(--platform-map-scale-offset, 0px);
+  transition: margin-left 300ms ease-in-out;
+}
+
+/* Especificidade acima da folha do MapLibre, que tambem casa este seletor. */
+.maplibregl-ctrl-bottom-left .maplibregl-ctrl.maplibregl-ctrl-scale {
+  margin: 0 0 16px 16px;
+}
+
 .maplibregl-ctrl-scale {
-  background-color: rgba(255, 255, 255, 0.85);
-  /* Mantem o desenho de "regua" do MapLibre (laterais + base), so que mais
-     discreto do que a borda preta de 2px do padrao. */
-  border: 1px solid #616161;
+  background: none;
+  border: 2px solid #313131;
   border-top: none;
-  border-radius: 0 0 2px 2px;
-  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.15);
+  border-radius: 0;
+  box-shadow: none;
   color: #313131;
   font-family: var(--font-open-sans), sans-serif;
   font-size: 11px;
-  padding: 2px 6px;
+  font-weight: 600;
+  line-height: 1.2;
+  padding: 0 4px 2px;
+  text-align: right;
+  text-shadow:
+    0 0 3px #fff,
+    0 0 3px #fff,
+    0 0 3px #fff;
 }
 @media screen {
   .report-paper {
