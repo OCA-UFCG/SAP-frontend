@@ -1,4 +1,5 @@
 import citiesIndex from "@/data/citiesIndex.json";
+import { analysisValueSuffix } from "@/utils/analysisValue";
 import { statesObj } from "@/utils/constants";
 import type { PanelLayerI } from "@/utils/interfaces";
 import type {
@@ -292,6 +293,12 @@ function buildCompactRankingGroups(
 
   const scale = yearData.valuesScale ?? 1;
   const isAbsolute = data.valueConfig?.type === "absolute";
+  // A unidade do próprio indicador, e não `%` fixo: um índice publicado em mm
+  // ou em km² é "percentual" só no sentido de não ser contagem inteira.
+  const valueSuffix = analysisValueSuffix(
+    data.valueConfig?.type,
+    data.valueConfig?.unit,
+  );
   const dominantCounts = new Map<string, number>();
   const entriesByClass = data.classes.map(
     () => [] as Array<AnalysisRankingEntry & { numericValue: number }>,
@@ -353,9 +360,11 @@ function buildCompactRankingGroups(
 
     const allItems = sortedEntries.map(({ numericValue, ...entry }) => ({
       ...entry,
-      trailingLabel: isAbsolute
-        ? `${numericValue.toLocaleString("pt-BR")} ${data.valueConfig?.unit ?? ""}`.trim()
-        : `${numericValue.toFixed(1)}%`,
+      trailingLabel: `${
+        isAbsolute
+          ? numericValue.toLocaleString("pt-BR")
+          : numericValue.toFixed(1)
+      }${valueSuffix}`,
     }));
 
     return {
@@ -369,9 +378,11 @@ function buildCompactRankingGroups(
       ),
       items: topEntries.map(({ numericValue, ...entry }) => ({
         ...entry,
-        trailingLabel: isAbsolute
-          ? `${numericValue.toLocaleString("pt-BR")} ${data.valueConfig?.unit ?? ""}`.trim()
-          : `${numericValue.toFixed(1)}%`,
+        trailingLabel: `${
+          isAbsolute
+            ? numericValue.toLocaleString("pt-BR")
+            : numericValue.toFixed(1)
+        }${valueSuffix}`,
       })),
       allItems,
     };

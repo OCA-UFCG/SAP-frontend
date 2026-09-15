@@ -3,7 +3,11 @@ import {
   noStoreJson,
   requireCatalogAccess,
 } from "@/app/api/index-catalog/http";
-import { buildSheetChoropleth } from "@/repositories/platform/amfeSheetChoroplethCache";
+import {
+  buildSheetChoropleth,
+  selectChoroplethMunicipality,
+} from "@/repositories/platform/amfeSheetChoroplethCache";
+import { MUNICIPALITY_KEY_PATTERN } from "@/utils/statisticsLocationScope";
 import { resolveCatalogPreviewTileLayer } from "@/services/indexCatalog/presentationService";
 import { isCompactImageData } from "@/utils/imageData";
 
@@ -43,7 +47,24 @@ export async function GET(
       );
     }
 
-    return noStoreJson(result);
+    // A prévia do relatório pede só o município que ela enquadra; a prévia do
+    // Monitoramento e a captura do cartão desenham o país e omitem o parâmetro.
+    const locationKey = new URL(request.url).searchParams
+      .get("locationKey")
+      ?.trim();
+
+    if (locationKey && !MUNICIPALITY_KEY_PATTERN.test(locationKey)) {
+      return noStoreJson(
+        {
+          error: `locationKey precisa ser um código IBGE de 7 dígitos: ${locationKey}`,
+        },
+        400,
+      );
+    }
+
+    return noStoreJson(
+      locationKey ? selectChoroplethMunicipality(result, locationKey) : result,
+    );
   } catch (error) {
     return catalogErrorResponse(error);
   }

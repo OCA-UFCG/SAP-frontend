@@ -26,6 +26,7 @@ import { IndexCatalogGuideModal } from "@/components/IndexCatalog/IndexCatalogGu
 import { IndexCatalogReportFields } from "@/components/IndexCatalog/IndexCatalogReportFields";
 import { PanelPositionField } from "@/components/IndexCatalog/PanelPositionField";
 import { ImageCollectionForecastGuideModal } from "@/components/IndexCatalog/ImageCollectionForecastGuideModal";
+import type { ReportSeriesShape } from "@/utils/reportVariableProfile";
 import { isCompactImageData } from "@/utils/imageData";
 import {
   detectYearPartitionedTemplate,
@@ -36,6 +37,7 @@ import {
 import type { PublishedPanelLayerReportConfig } from "@/contracts/panelLayerReport";
 import {
   createDefaultReportDraft,
+  isUntouchedDefaultReportText,
   isStoredReportText,
   toReportDraft,
   toReportTextPayload,
@@ -601,6 +603,23 @@ export function IndexCatalogScreen() {
    * e os limites, em vez de manter preenchimentos que não valeriam no outro
    * caminho.
    */
+  /**
+   * A narrativa padrão acompanha a forma do índice, mas só enquanto ninguém a
+   * editou: as duas afirmam coisas diferentes — uma fala em fração de área por
+   * classe, a outra num número por município —, e deixar a de classes num
+   * índice de valor único publicaria "86% do seu território está na classe
+   * Domicílios com esgotamento sanitário". Um texto já escrito à mão nunca é
+   * substituído; nesse caso o operador reescreve, ou usa "Restaurar o texto
+   * padrão".
+   */
+  function syncDefaultReportText(shape: ReportSeriesShape) {
+    setReport((current) =>
+      isUntouchedDefaultReportText(current)
+        ? createDefaultReportDraft(shape)
+        : current,
+    );
+  }
+
   function changeIndexSourceKind(kind: IndexSourceKind) {
     setStatisticsAssetMode("fixed");
     setYearSampleAssetId("");
@@ -626,6 +645,9 @@ export function IndexCatalogScreen() {
           ? (current.valueIndicator ?? EMPTY_VALUE_INDICATOR)
           : undefined,
     }));
+    syncDefaultReportText(
+      kind === "amfe-sheet" ? "municipal-value" : "class-distribution",
+    );
     setPreview(null);
   }
 
@@ -714,6 +736,9 @@ export function IndexCatalogScreen() {
           }
         : { valueIndicator: undefined }),
     }));
+    syncDefaultReportText(
+      shape === "value" ? "municipal-value" : "class-distribution",
+    );
     setPreview(null);
   }
 
@@ -1952,6 +1977,7 @@ export function IndexCatalogScreen() {
           <IndexCatalogReportFields
             report={report}
             classes={draft.classes}
+            shape={isValueTable ? "municipal-value" : "class-distribution"}
             inputClass={inputClass}
             buttonClass={buttonClass}
             disabled={Boolean(busy) || !entryId}
@@ -2042,50 +2068,42 @@ export function IndexCatalogScreen() {
           </div>
           {/* Os avisos dizem o que este índice não vai ter — série histórica,
               recortes agregados, municípios sem valor. Ficam na tela porque são
-              exatamente as perguntas que aparecem depois da publicação. */}
-          {preview.validation.warnings.length > 0 && (
+              exatamente as perguntas que aparecem depois da publicação.
+              A leitura é defensiva porque uma validação gravada antes deste
+              campo existir não o traz, e a tela do catálogo não pode cair por
+              causa de um índice validado na versão anterior. */}
+          {(preview.validation.warnings?.length ?? 0) > 0 && (
             <ul className="space-y-2 rounded-lg border border-amber-200 bg-amber-50 p-4 text-sm text-amber-900">
-              {preview.validation.warnings.map((warning) => (
+              {preview.validation.warnings?.map((warning) => (
                 <li key={warning.code}>{warning.message}</li>
               ))}
             </ul>
           )}
-          {/* A captura desenha o mapa a partir dos tiles do Earth Engine, que uma
-              camada de coropleta não tem. Enquanto ela não souber pintar a
-              planilha, o índice é publicado sem a imagem do cartão em vez de
-              mostrar uma falha que não tem conserto na tela. */}
-          {isSheetPreview ? (
-            <p className="rounded-lg border border-amber-200 bg-amber-50 p-4 text-sm text-amber-900">
-              A imagem do cartão ainda não é capturada para índices da planilha.
-              A prévia do Monitoramento, abaixo, mostra o mapa como ele vai
-              ficar.
-            </p>
-          ) : (
-            <CatalogPreviewMapCapture
-              preview={{
-                entryId: preview.entryId,
-                panelLayer: preview.panelLayer,
-                period: resolvePreviewMapPeriod(preview),
-              }}
-              onSaved={(url) =>
-                setPreview((current) =>
-                  current
-                    ? {
-                        ...current,
-                        panelLayer: {
-                          ...current.panelLayer,
-                          previewMap: { url },
-                        },
-                      }
-                    : current,
-                )
-              }
-            />
-          )}
+          <CatalogPreviewMapCapture
+            preview={{
+              entryId: preview.entryId,
+              panelLayer: preview.panelLayer,
+              period: resolvePreviewMapPeriod(preview),
+            }}
+            onSaved={(url) =>
+              setPreview((current) =>
+                current
+                  ? {
+                      ...current,
+                      panelLayer: {
+                        ...current.panelLayer,
+                        previewMap: { url },
+                      },
+                    }
+                  : current,
+              )
+            }
+          />
           <CatalogMonitoringPreview preview={preview} />
           <CatalogReportPreview
             entryId={preview.entryId}
             tileApiPath={preview.panelLayer.tileApiPath}
+            paintsChoropleth={isSheetPreview}
           />
         </section>
       )}

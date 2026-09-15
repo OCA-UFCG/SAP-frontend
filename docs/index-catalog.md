@@ -99,7 +99,13 @@ correção de texto ou uma imagem nova sem despublicar o índice antes.
 
 Um índice novo abre com o texto de `src/config/indexCatalogReportText.ts` já
 preenchido: quatro seções ("Situação atual", "O que este índice mede", "Como
-interpretar os resultados", "Limitações de uso") e a nota de metodologia. Vem
+interpretar os resultados", "Limitações de uso") e a nota de metodologia. São
+**dois** conjuntos, escolhidos pela forma do índice: um índice que reparte o
+território em classes recebe `DEFAULT_CATALOG_REPORT_SECTIONS`; um que publica
+um número por município — a tabela municipal de valor único e a coluna da
+planilha — recebe `DEFAULT_VALUE_INDEX_REPORT_SECTIONS`. Trocar a forma no
+formulário troca o texto, mas **só enquanto ele ainda é o padrão**
+(`isUntouchedDefaultReportText`): um texto escrito à mão nunca é substituído. Vem
 preenchido, e não em branco, porque um índice do catálogo **não tem seção no
 Google Docs**: em branco ele publicaria sem nenhuma narrativa. Por isso o texto
 padrão é genérico mas publicável sem edição — nenhuma frase dele é instrução
@@ -109,7 +115,14 @@ abaixo deles e no modal "Guia e exemplos" da própria seção.
 As variáveis oferecidas na tela são as de `CATALOG_REPORT_VARIABLES`, e a lista
 é fechada de propósito: `populateTemplate` devolve o próprio `[texto]` quando não
 encontra a chave, então prometer uma variável inexistente publica o colchete no
-relatório. `[indice]` (o título do índice), `[classe]`, `[percentual]`,
+relatório. Parte delas depende da forma do índice, pelo campo `shape`:
+`[classe]` e `[percentual]` só aparecem numa distribuição por classes, e
+`[valor]`, `[unidade]` e `[valor_com_unidade]` só num índice de valor único.
+Oferecer `[percentual]` a um índice de valor único era o que fazia o texto
+padrão afirmar "86,0% do seu território está na classe Domicílios com
+esgotamento sanitário" — o número é o valor do indicador, não fração de área.
+
+`[indice]` (o título do índice), `[classe]`, `[percentual]`,
 `[valor]`, `[valor_com_unidade]`, `[unidade]`, `[periodo]` e
 `[periodo_extenso]` se referem à **camada da própria seção**: `getLayerScopedTemplateKey` em `buildDocContent.ts` compõe
 `<chave>_<id da camada normalizado>`, que é exatamente o alias com que

@@ -16,15 +16,8 @@ import type {
   CompactAnalysisTemplates,
   CompactMapVisualizationConfig,
 } from "@/utils/analysis";
+import { measurementUnitSuffix } from "@/utils/analysisValue";
 import { expandAssetForPeriod, inferTimeScale } from "@/utils/indexCatalog";
-
-/**
- * Como a unidade entra no fim da frase: `%` cola no número e o resto vem
- * separado por espaço, senão o painel escreveria "70,3 %" e "742registros".
- */
-function unitSuffix(measurementUnit: string) {
-  return measurementUnit === "%" ? "%" : ` ${measurementUnit}`;
-}
 
 /**
  * As frases do painel para um indicador de valor único.
@@ -40,7 +33,7 @@ function unitSuffix(measurementUnit: string) {
 export function buildValueTemplates(
   indicator: MunicipalValueIndicator,
 ): CompactAnalysisTemplates {
-  const suffix = unitSuffix(indicator.measurementUnit);
+  const suffix = measurementUnitSuffix(indicator.measurementUnit);
   return {
     country: `${indicator.label} no {name}: {value}${suffix}.`,
     state: `${indicator.label} em {name}: {value}${suffix}.`,

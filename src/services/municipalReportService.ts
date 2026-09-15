@@ -2,6 +2,7 @@ import "server-only";
 
 import citiesIndex from "@/data/citiesIndex.json";
 import municipalAvailabilityIndex from "@/data/municipalAvailabilityIndex.json";
+import { analysisValueSuffix } from "@/utils/analysisValue";
 import {
   MUNICIPAL_REPORT_LAYERS,
   type MunicipalReportLayerConfig,
@@ -546,10 +547,12 @@ export async function buildMunicipalReport(
     templateVariables[`percentual_${analysis.alias}`] = dominantValue;
     templateVariables[`valor_${analysis.alias}`] = dominantValue;
     templateVariables[`unidade_${analysis.alias}`] = analysis.unit || null;
+    // `%` cola no número e as demais unidades vêm separadas: sem isso a frase
+    // do relatório saía com "86 %" e "742registros".
     templateVariables[`valor_com_unidade_${analysis.alias}`] =
       dominantValue == null
         ? null
-        : `${dominantValue.toLocaleString("pt-BR", { maximumFractionDigits: 1 })}${analysis.unit ? ` ${analysis.unit}` : ""}`;
+        : `${dominantValue.toLocaleString("pt-BR", { maximumFractionDigits: 1 })}${analysisValueSuffix(analysis.valueType, analysis.unit)}`;
     templateVariables[`periodo_${analysis.alias}`] = analysis.effectivePeriod;
     // O período por extenso existe para o texto escrito no catálogo: "2024-09"
     // no meio de uma frase lê-se mal, e quem escreve não deve ter que formatar

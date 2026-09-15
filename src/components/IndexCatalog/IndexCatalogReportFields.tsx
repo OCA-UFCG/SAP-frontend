@@ -7,7 +7,10 @@ import {
   CATALOG_REPORT_SECTION_HINTS,
   DEFAULT_CATALOG_REPORT_METHODOLOGY,
   DEFAULT_CATALOG_REPORT_SECTIONS,
+  DEFAULT_VALUE_INDEX_REPORT_SECTIONS,
 } from "@/config/indexCatalogReportText";
+import type { MunicipalReportDocsSection } from "@/contracts/municipalReport";
+import type { ReportSeriesShape } from "@/utils/reportVariableProfile";
 import {
   createDefaultReportDraft,
   describeSeverityChoice,
@@ -139,6 +142,8 @@ function ReportSeverityFields({
 interface ReportSectionCardProps {
   index: number;
   section: { title: string; text: string };
+  /** O texto padrão da forma deste índice, usado só como dica nos campos. */
+  defaultSections: readonly MunicipalReportDocsSection[];
   inputClass: string;
   onChange: (values: Partial<{ title: string; text: string }>) => void;
   onRemove: () => void;
@@ -147,11 +152,12 @@ interface ReportSectionCardProps {
 function ReportSectionCard({
   index,
   section,
+  defaultSections,
   inputClass,
   onChange,
   onRemove,
 }: ReportSectionCardProps) {
-  const suggested = DEFAULT_CATALOG_REPORT_SECTIONS[index];
+  const suggested = defaultSections[index];
 
   return (
     <div className="rounded-md border border-stone-200 bg-stone-50/60 p-3">
@@ -207,6 +213,12 @@ interface IndexCatalogReportFieldsProps {
    * as edita aqui: sem elas a pergunta de gravidade não aparece.
    */
   classes?: ReadonlyArray<{ id: string; label: string }>;
+  /**
+   * A forma do índice em edição. Decide qual narrativa padrão o botão de
+   * restaurar devolve e qual texto serve de dica nos campos — as duas afirmam
+   * coisas diferentes sobre o que o índice mede.
+   */
+  shape?: ReportSeriesShape;
 }
 
 export function IndexCatalogReportFields({
@@ -220,8 +232,13 @@ export function IndexCatalogReportFields({
   saveHint = DEFAULT_SAVE_HINT,
   extraActions,
   classes,
+  shape = "class-distribution",
 }: IndexCatalogReportFieldsProps) {
   const [guideOpen, setGuideOpen] = useState(false);
+  const defaultSections =
+    shape === "municipal-value"
+      ? DEFAULT_VALUE_INDEX_REPORT_SECTIONS
+      : DEFAULT_CATALOG_REPORT_SECTIONS;
 
   function updateSection(
     index: number,
@@ -251,8 +268,13 @@ export function IndexCatalogReportFields({
       <p className="mt-2 text-xs text-stone-500">
         O que estiver entre colchetes é trocado pelo dado do município:{" "}
         <code>[municipio]</code>, <code>[indice]</code>, <code>[classe]</code>,{" "}
-        <code>[percentual]</code> e <code>[periodo_extenso]</code>. Um campo
-        deixado em branco simplesmente não aparece no relatório.
+        {shape === "municipal-value" ? (
+          <code>[valor_com_unidade]</code>
+        ) : (
+          <code>[percentual]</code>
+        )}{" "}
+        e <code>[periodo_extenso]</code>. Um campo deixado em branco
+        simplesmente não aparece no relatório.
       </p>
 
       <div className="mt-4 space-y-4">
@@ -261,6 +283,7 @@ export function IndexCatalogReportFields({
             key={index}
             index={index}
             section={section}
+            defaultSections={defaultSections}
             inputClass={inputClass}
             onChange={(values) => updateSection(index, values)}
             onRemove={() =>
@@ -294,7 +317,7 @@ export function IndexCatalogReportFields({
           className="cursor-pointer rounded-md border border-[#CFD0CA] px-3 py-2 text-xs font-semibold hover:bg-[#F4F5D8]"
           onClick={() =>
             onChange({
-              ...createDefaultReportDraft(),
+              ...createDefaultReportDraft(shape),
               sectionColor: report.sectionColor,
             })
           }

@@ -158,7 +158,12 @@ export function IndexCatalogReportGuideModal({
               </tr>
             </thead>
             <tbody>
-              {CATALOG_REPORT_VARIABLES.map((variable) => (
+              {/* Só as que valem para qualquer índice: as demais dependem da
+                  forma dele, e a prévia do relatório lista as do índice em
+                  edição com o valor de cada uma. */}
+              {CATALOG_REPORT_VARIABLES.filter(
+                (variable) => !variable.shape,
+              ).map((variable) => (
                 <tr key={variable.token} className="border-t border-stone-200">
                   <td className="px-3 py-2 font-mono text-xs">
                     {variable.token}
@@ -175,17 +180,21 @@ export function IndexCatalogReportGuideModal({
           </table>
         </div>
         <p className="mt-2 text-xs text-stone-500">
-          <code>[indice]</code>, <code>[classe]</code>,{" "}
-          <code>[percentual]</code> e <code>[periodo]</code> sempre se referem a{" "}
-          <em>este</em> índice, não aos outros do relatório. Um nome que não
-          esteja nesta tabela fica escrito com os colchetes no relatório final.
+          <code>[indice]</code> e <code>[periodo]</code> — e as demais variáveis
+          de dado — sempre se referem a <em>este</em> índice, não aos outros do
+          relatório. Um nome que não esteja na lista do índice fica escrito com
+          os colchetes no relatório final.
         </p>
         <p className="mt-2 text-xs text-stone-500">
-          Estas valem para qualquer índice. O seu provavelmente aceita mais —
-          período anterior, classe mais frequente, tendência —, e quais são
-          depende dos períodos que ele tem e de você ter declarado a ordem de
-          gravidade das classes. A lista completa, com o valor de cada uma em
-          Campina Grande, fica na prévia do relatório.
+          Estas valem para qualquer índice. O seu aceita mais, e quais depende
+          da forma dele: um índice que reparte o território em classes recebe{" "}
+          <code>[classe]</code> e <code>[percentual]</code>; um que traz um
+          número por município recebe <code>[valor]</code>,{" "}
+          <code>[unidade]</code> e <code>[valor_com_unidade]</code>. Períodos
+          anteriores, classe mais frequente e tendência dependem dos períodos
+          que o índice tem e de você ter declarado a ordem de gravidade das
+          classes. A lista completa, com o valor de cada uma em Campina Grande,
+          fica na prévia do relatório.
         </p>
 
         <h3 className="mt-5 font-bold">O texto padrão</h3>

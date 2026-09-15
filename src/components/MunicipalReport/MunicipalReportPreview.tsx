@@ -45,6 +45,7 @@ import {
 } from "@/utils/municipalReportTranslations";
 import { MunicipalReportDynamicChart } from "./MunicipalReportDynamicChart";
 import { MunicipalReportNotes } from "./MunicipalReportNotes";
+import { buildSheetChoroplethPath } from "@/components/Map/sheetChoropleth";
 import { ReportMapPreview } from "./ReportMapPreview";
 import { destroyReportMapPool } from "./reportMapPool";
 import { useReportMapCaptureQueue } from "./useReportMapCaptureQueue";
@@ -563,6 +564,11 @@ function AnalysisSection({
                   queuedAt={mapQueuedAt}
                   tileUrl={mapTileUrl}
                   unavailableReason={mapUnavailableReason}
+                  choroplethApiPath={buildSheetChoroplethPath(
+                    analysis.id,
+                    undefined,
+                    report.municipality.code,
+                  )}
                   onCapture={onMapCapture}
                   onVisibilityChange={onMapVisibility}
                 />

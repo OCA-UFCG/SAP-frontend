@@ -103,17 +103,48 @@ publicado, e por isso existe
 `GET /api/index-catalog/drafts/[entryId]/choropleth`, o equivalente da rota de
 tiles do rascunho.
 
+As duas rotas aceitam `?locationKey=<código IBGE>` e devolvem então só aquele
+município. É o que o mapa do Relatório Automático pede: ele enquadra um
+município, e baixar a classificação dos 5.571 para pintar um polígono seria uma
+resposta ~100x maior — multiplicada pelos até vinte índices do relatório.
+
+### Onde mais a coropleta é desenhada
+
+Três telas desenham a mesma classificação, cada uma com a fonte de geometria
+que o enquadramento delas alcança:
+
+- **Monitoramento** (`useSheetChoroplethLayer`) — tiles da malha municipal acima
+  do zoom 5, GeoJSON de visão geral abaixo.
+- **Relatório Automático e a prévia dele no catálogo**
+  (`ReportMapPreview` + `reportChoroplethMap.ts`) — só os tiles, porque o quadro
+  sempre enquadra um município; baixar os ~490 KB da visão geral por item do
+  relatório custaria mais do que o mapa inteiro. O quadro sabe que é uma
+  coropleta porque o lote de URLs devolve `municipal_choropleth`, que deixou de
+  ser tratado como falta de imagem no período.
+- **Imagem do cartão** (`CatalogPreviewMapCapture`) — só o GeoJSON de visão
+  geral, porque o cartão enquadra o Brasil inteiro, abaixo do zoom 5, onde o
+  `brazil-cities.mbtiles` não tem tile nenhum.
+
 ## Limitações conhecidas
 
 - **Sem série histórica.** Um período só, e o painel não mostra gráfico.
 - **Sem recortes agregados.** Região, bioma, ASD e semiárido ficam sem valor.
-- **Sem imagem do cartão.** A captura da prévia desenha tiles do Earth Engine;
-  para estes índices ela é pulada, e o catálogo diz isso na tela.
-- **Sem mapa no Relatório Automático.** O item do relatório cai no mesmo caminho
-  de "período sem imagem".
+- **Municípios muito grandes no relatório.** O quadro do relatório pinta a
+  coropleta a partir dos tiles da malha municipal, que existem do zoom 5 para
+  cima. Um município cujo enquadramento caia abaixo disso sairia sem cor.
 - **A planilha é pública e externa.** Ela é lida pela URL de exportação do
   Google Docs, sem credencial; se a planilha deixar de ser compartilhada por
   link, a leitura passa a falhar.
+
+## O texto do relatório
+
+Um índice de planilha tem **uma classe só** — o próprio indicador —, então o
+catálogo o trata como índice de valor único também na narrativa: ele recebe
+`[valor]`, `[unidade]` e `[valor_com_unidade]`, e **não** recebe `[percentual]`
+nem `[classe]`. O texto padrão desses índices é
+`DEFAULT_VALUE_INDEX_REPORT_SECTIONS`, e existe porque o genérico afirmava
+"[percentual]% do seu território está na classe [classe]" — falso aqui: o número
+é o valor do indicador, não uma fração de área.
 
 ## Variáveis de ambiente
 

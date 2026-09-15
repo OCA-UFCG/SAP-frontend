@@ -85,6 +85,33 @@ export async function buildSheetChoropleth(
   };
 }
 
+/**
+ * A coropleta reduzida a um município.
+ *
+ * O mapa do Relatório Automático enquadra um município só: mandar a
+ * classificação dos 5.571 para pintar um polígono seria uma resposta ~100x
+ * maior do que a necessária, multiplicada pelos até vinte índices do relatório.
+ * A paleta continua inteira porque é ela que traduz o nível em cor.
+ *
+ * @example
+ * selectChoroplethMunicipality(result, "2504009");
+ */
+export function selectChoroplethMunicipality(
+  result: SheetChoroplethResult,
+  municipalityCode: string,
+): SheetChoroplethResult {
+  const level = result.classificationByCode[municipalityCode];
+
+  return {
+    ...result,
+    classificationByCode:
+      level === undefined ? {} : { [municipalityCode]: level },
+    excludedCodes: result.excludedCodes.includes(municipalityCode)
+      ? [municipalityCode]
+      : [],
+  };
+}
+
 async function buildPublishedChoropleth(panelLayerId: string) {
   const panelLayer = await getPanelLayerById(panelLayerId);
 

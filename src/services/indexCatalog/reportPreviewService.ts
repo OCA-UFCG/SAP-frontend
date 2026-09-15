@@ -320,7 +320,12 @@ function describeCatalogVariables(
     severity: resolveReportSeverity(config.report?.severity),
   });
   const tokens = [
-    ...CATALOG_REPORT_VARIABLES.map(({ token, description }) => ({
+    // A forma do índice decide quais variáveis existem: `[percentual]` num
+    // índice de valor único traria o número do indicador com cara de fração de
+    // área, e `[valor]` numa distribuição por classes não significa nada.
+    ...CATALOG_REPORT_VARIABLES.filter(
+      ({ shape }) => !shape || shape === profile.shape,
+    ).map(({ token, description }) => ({
       token,
       description,
     })),

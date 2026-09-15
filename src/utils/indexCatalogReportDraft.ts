@@ -1,7 +1,10 @@
 import {
   DEFAULT_CATALOG_REPORT_METHODOLOGY,
   DEFAULT_CATALOG_REPORT_SECTIONS,
+  DEFAULT_VALUE_INDEX_REPORT_SECTIONS,
 } from "@/config/indexCatalogReportText";
+import type { MunicipalReportDocsSection } from "@/contracts/municipalReport";
+import type { ReportSeriesShape } from "@/utils/reportVariableProfile";
 import {
   PANEL_LAYER_REPORT_SCHEMA_VERSION,
   type PublishedPanelLayerReportConfig,
@@ -27,6 +30,37 @@ export interface IndexCatalogReportDraft {
   neutralClassId: string;
 }
 
+function defaultSectionsFor(
+  shape: ReportSeriesShape,
+): readonly MunicipalReportDocsSection[] {
+  return shape === "municipal-value"
+    ? DEFAULT_VALUE_INDEX_REPORT_SECTIONS
+    : DEFAULT_CATALOG_REPORT_SECTIONS;
+}
+
+/**
+ * Se o texto em edição ainda é exatamente o padrão de alguma das formas — ou
+ * seja, ninguém escreveu nada próprio ali.
+ *
+ * É o que autoriza a tela a trocar a narrativa ao mudar a forma do índice sem
+ * apagar trabalho de quem escreve: um texto editado nunca é substituído.
+ *
+ * @example
+ * isUntouchedDefaultReportText(createDefaultReportDraft()); // true
+ */
+export function isUntouchedDefaultReportText(
+  draft: IndexCatalogReportDraft,
+): boolean {
+  return [
+    DEFAULT_CATALOG_REPORT_SECTIONS,
+    DEFAULT_VALUE_INDEX_REPORT_SECTIONS,
+  ].some(
+    (sections) =>
+      JSON.stringify(draft.sections) ===
+      JSON.stringify(sections.map((section) => ({ ...section }))),
+  );
+}
+
 /**
  * O rascunho de texto com que um índice novo começa.
  *
@@ -34,10 +68,20 @@ export interface IndexCatalogReportDraft {
  * no Google Docs: em branco ele publicaria sem nenhuma narrativa. O texto
  * padrão é genérico mas publicável, e serve de exemplo vivo de onde entra
  * frase e onde entra dado.
+ *
+ * A forma importa porque as duas narrativas afirmam coisas diferentes: uma fala
+ * em fração de área por classe, a outra num número por município. Publicar a
+ * primeira num índice de valor único imprimiria uma frase falsa no relatório do
+ * cidadão.
+ *
+ * @example
+ * createDefaultReportDraft("municipal-value").sections[0].title; // "Situação atual"
  */
-export function createDefaultReportDraft(): IndexCatalogReportDraft {
+export function createDefaultReportDraft(
+  shape: ReportSeriesShape = "class-distribution",
+): IndexCatalogReportDraft {
   return {
-    sections: DEFAULT_CATALOG_REPORT_SECTIONS.map((section) => ({
+    sections: defaultSectionsFor(shape).map((section) => ({
       ...section,
     })),
     sectionColor: "",

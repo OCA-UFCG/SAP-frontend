@@ -1,6 +1,10 @@
 import { NextResponse } from "next/server";
 import { requireAuthenticatedRequest } from "@/lib/server-session";
-import { getCachedSheetChoropleth } from "@/repositories/platform/amfeSheetChoroplethCache";
+import {
+  getCachedSheetChoropleth,
+  selectChoroplethMunicipality,
+} from "@/repositories/platform/amfeSheetChoroplethCache";
+import { MUNICIPALITY_KEY_PATTERN } from "@/utils/statisticsLocationScope";
 
 interface ChoroplethRouteContext {
   params: Promise<{ panelLayerId: string }>;
@@ -38,6 +42,19 @@ export async function GET(request: Request, context: ChoroplethRouteContext) {
     return jsonError("Invalid panel layer id.", 400);
   }
 
+  // O mapa do relatório enquadra um município só e pede apenas o dele; o
+  // Monitoramento desenha o país e omite o parâmetro.
+  const locationKey = new URL(request.url).searchParams
+    .get("locationKey")
+    ?.trim();
+
+  if (locationKey && !MUNICIPALITY_KEY_PATTERN.test(locationKey)) {
+    return jsonError(
+      `locationKey must be a 7-digit IBGE municipality code: ${locationKey}`,
+      400,
+    );
+  }
+
   try {
     const result = await getCachedSheetChoropleth(decodedPanelLayerId);
 
@@ -45,7 +62,11 @@ export async function GET(request: Request, context: ChoroplethRouteContext) {
       return jsonError("Panel layer is not painted from a sheet column.", 404);
     }
 
-    return NextResponse.json(result, {
+    const body = locationKey
+      ? selectChoroplethMunicipality(result, locationKey)
+      : result;
+
+    return NextResponse.json(body, {
       headers: { "Cache-Control": "private, max-age=600" },
     });
   } catch (error) {

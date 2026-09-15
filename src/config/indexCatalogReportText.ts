@@ -1,4 +1,5 @@
 import type { MunicipalReportDocsSection } from "@/contracts/municipalReport";
+import type { ReportSeriesShape } from "@/utils/reportVariableProfile";
 
 /**
  * Uma variável que o operador pode escrever entre colchetes no texto do
@@ -13,6 +14,13 @@ export interface CatalogReportVariable {
   token: string;
   description: string;
   example: string;
+  /**
+   * A forma de índice que sustenta a variável; ausente quando ela vale para as
+   * duas. `[percentual]` só significa alguma coisa numa distribuição por
+   * classes — num índice de valor único ele traz o próprio número do indicador,
+   * e o texto padrão o escrevia como se fosse fração de área do município.
+   */
+  shape?: ReportSeriesShape;
 }
 
 /**
@@ -40,12 +48,33 @@ export const CATALOG_REPORT_VARIABLES: readonly CatalogReportVariable[] = [
     token: "[classe]",
     description: "Classe predominante deste índice no município.",
     example: "Semiárido",
+    shape: "class-distribution",
   },
   {
     token: "[percentual]",
     description:
       "Quanto da área do município está na classe predominante, sem o sinal de %.",
     example: "83,4",
+    shape: "class-distribution",
+  },
+  {
+    token: "[valor]",
+    description:
+      "O valor do indicador no município, sem a unidade. Formatado como o índice pede.",
+    example: "86,0",
+    shape: "municipal-value",
+  },
+  {
+    token: "[unidade]",
+    description: "A unidade do indicador, como cadastrada no índice.",
+    example: "%",
+    shape: "municipal-value",
+  },
+  {
+    token: "[valor_com_unidade]",
+    description: "O valor e a unidade juntos, prontos para entrar na frase.",
+    example: "86,0%",
+    shape: "municipal-value",
   },
   {
     token: "[periodo]",
@@ -98,6 +127,37 @@ export const DEFAULT_CATALOG_REPORT_SECTIONS: readonly MunicipalReportDocsSectio
     {
       title: "Limitações de uso",
       text: "Os valores desta seção resultam do cruzamento entre a grade do índice e o limite territorial do município, e por isso descrevem a área municipal como um todo, sem detalhar localidades. Para decisões locais, use este resultado junto com informações de campo.",
+    },
+  ];
+
+/**
+ * O texto padrão de um índice que publica **um número por município**, e não
+ * uma distribuição por classes.
+ *
+ * Existe porque o texto acima é falso para ele: um índice de valor único não
+ * reparte o território em faixas, e a frase "[percentual]% do seu território
+ * está na classe [classe]" saía dizendo que 86% da área de Campina Grande é da
+ * classe "Domicílios com esgotamento sanitário" — quando 86% é a fração de
+ * domicílios com esgoto. Numa coluna de contagem a mesma frase sairia com
+ * "446% do seu território".
+ */
+export const DEFAULT_VALUE_INDEX_REPORT_SECTIONS: readonly MunicipalReportDocsSection[] =
+  [
+    {
+      title: "Situação atual",
+      text: "Em [municipio] — [uf], o valor de [indice] é [valor_com_unidade], no período de [periodo_extenso].",
+    },
+    {
+      title: "O que este índice mede",
+      text: "Este índice traz um número por município, e não uma repartição do território em faixas. O mapa pinta cada município inteiro com a cor da faixa em que o valor dele cai, e a tabela desta seção traz o valor do município no período analisado.",
+    },
+    {
+      title: "Como interpretar os resultados",
+      text: "O número descreve o município como um todo e não distingue localidades dentro dele: dois municípios na mesma faixa de cor podem ter situações internas bem diferentes. A leitura fica mais completa quando comparada com os demais municípios do estado e com os outros índices deste relatório.",
+    },
+    {
+      title: "Limitações de uso",
+      text: "O valor vem da fonte original do indicador, com a data indicada no período, e não é recalculado pela plataforma. Para decisões locais, use este resultado junto com informações de campo.",
     },
   ];
 

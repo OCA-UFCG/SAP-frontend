@@ -39,6 +39,12 @@ interface CatalogReportPreviewProps {
    * publicadas.
    */
   tileApiPath: string;
+  /**
+   * `true` quando o mapa do índice é pintado município a município, e não por
+   * tiles. A prévia então nem pede a URL de tiles: a rota do rascunho recusaria
+   * o pedido, e a resposta viraria "sem imagem no período".
+   */
+  paintsChoropleth?: boolean;
 }
 
 function ReportPreviewFrame({ children }: { children: React.ReactNode }) {
@@ -150,9 +156,11 @@ function DistributionTable({
 function ReportPreviewBody({
   preview,
   tileApiPath,
+  paintsChoropleth,
 }: {
   preview: IndexCatalogReportPreview;
   tileApiPath: string;
+  paintsChoropleth: boolean;
 }) {
   const t = useTranslations("MunicipalReport");
   const tCaption = useTranslations("PlatformMapCaption");
@@ -253,6 +261,7 @@ function ReportPreviewBody({
             municipality={preview.municipality}
             referencePeriod={referencePeriod}
             tileApiPath={tileApiPath}
+            paintsChoropleth={paintsChoropleth}
             translateLabel={translateLabel}
           />
 
@@ -292,6 +301,7 @@ interface ReportPreviewState {
 export function CatalogReportPreview({
   entryId,
   tileApiPath,
+  paintsChoropleth = false,
 }: CatalogReportPreviewProps) {
   const [state, setState] = useState<ReportPreviewState | null>(null);
 
@@ -338,6 +348,7 @@ export function CatalogReportPreview({
           <ReportPreviewBody
             preview={current.preview}
             tileApiPath={tileApiPath}
+            paintsChoropleth={paintsChoropleth}
           />
         ) : (
           <p className="p-5 text-sm text-stone-500">

@@ -2,15 +2,15 @@
 
 import { useEffect, useMemo, useState } from "react";
 import type { MunicipalityClassification } from "@/components/Map/classificationLayers";
+import {
+  buildSheetChoroplethPath,
+  fetchSheetChoropleth,
+  paintsMunicipalChoropleth,
+} from "@/components/Map/sheetChoropleth";
 import useCitiesOverview from "@/components/Amfe/useCitiesOverview";
 import type { IEEInfo } from "@/utils/interfaces";
-import { isCompactImageData } from "@/utils/imageData";
 
-interface SheetChoroplethResponse {
-  classificationByCode: Record<string, number>;
-  excludedCodes: string[];
-  palette: string[];
-}
+export { paintsMunicipalChoropleth };
 
 export interface SheetChoroplethLayer {
   /** `true` quando a camada ativa é pintada município a município. */
@@ -18,22 +18,6 @@ export interface SheetChoroplethLayer {
   classification: MunicipalityClassification | null;
   overviewGeoJson: ReturnType<typeof useCitiesOverview>["overviewGeoJson"];
   isLoading: boolean;
-}
-
-/**
- * Diz se a camada declara que o mapa dela é uma coropleta municipal. A marca
- * viaja no `imageData` justamente para o cliente decidir isso sem um segundo
- * pedido ao servidor — é ela que evita pedir tile ao `/api/ee` para um índice
- * que não tem raster nenhum.
- */
-export function paintsMunicipalChoropleth(
-  activeEEData: IEEInfo | null,
-): boolean {
-  if (!activeEEData || !isCompactImageData(activeEEData.imageData)) {
-    return false;
-  }
-
-  return Boolean(activeEEData.imageData.mapVisualization?.municipalChoropleth);
 }
 
 /**
@@ -51,17 +35,12 @@ export function useSheetChoroplethLayer(
 ): SheetChoroplethLayer {
   const isSheetLayer = paintsMunicipalChoropleth(activeEEData);
   const panelLayerId = isSheetLayer ? (activeEEData?.id ?? null) : null;
-  // A prévia do catálogo desenha um rascunho, que ainda não é um `panelLayer`
-  // publicado: ela aponta o mapa para as rotas do rascunho pelo `tileApiPath`, e
-  // a coropleta segue o mesmo endereço.
   const requestPath = panelLayerId
-    ? activeEEData?.tileApiPath
-      ? `${activeEEData.tileApiPath.replace(/\/ee$/u, "")}/choropleth`
-      : `/api/municipal-analysis/${encodeURIComponent(panelLayerId)}/choropleth`
+    ? buildSheetChoroplethPath(panelLayerId, activeEEData?.tileApiPath)
     : null;
   const [response, setResponse] = useState<{
     panelLayerId: string;
-    data: SheetChoroplethResponse | null;
+    data: MunicipalityClassification | null;
   } | null>(null);
   const { overviewGeoJson } = useCitiesOverview(isSheetLayer);
 
@@ -70,13 +49,7 @@ export function useSheetChoroplethLayer(
 
     const controller = new AbortController();
 
-    fetch(requestPath, { signal: controller.signal })
-      .then(async (result) => {
-        if (!result.ok) {
-          throw new Error(`Choropleth request failed with ${result.status}`);
-        }
-        return (await result.json()) as SheetChoroplethResponse;
-      })
+    fetchSheetChoropleth(requestPath, controller.signal)
       .then((data) => setResponse({ panelLayerId, data }))
       .catch((error) => {
         if (controller.signal.aborted) return;
@@ -97,13 +70,7 @@ export function useSheetChoroplethLayer(
     // classificação de outro índice enquanto a nova não chega mostraria cores
     // que não correspondem à legenda em tela.
     if (!panelLayerId || response?.panelLayerId !== panelLayerId) return null;
-    if (!response.data) return null;
-
-    return {
-      classificationByCode: response.data.classificationByCode,
-      excludedCodes: response.data.excludedCodes,
-      palette: response.data.palette,
-    };
+    return response.data;
   }, [panelLayerId, response]);
 
   return {

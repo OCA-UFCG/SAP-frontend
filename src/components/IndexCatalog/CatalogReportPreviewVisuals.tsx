@@ -6,6 +6,7 @@ import type { EeMapUrlFailure } from "@/contracts/eeMapUrls";
 import type { MunicipalReportAnalysis } from "@/contracts/municipalReport";
 import type { IndexCatalogReportPreview } from "@/types/indexCatalog";
 import { MunicipalReportDynamicChart } from "@/components/MunicipalReport/MunicipalReportDynamicChart";
+import { buildSheetChoroplethPath } from "@/components/Map/sheetChoropleth";
 import { ReportMapPreview } from "@/components/MunicipalReport/ReportMapPreview";
 import { destroyReportMapPool } from "@/components/MunicipalReport/reportMapPool";
 import { fetchMapURL } from "@/services/mapServices";
@@ -34,11 +35,14 @@ function useDraftTileUrl(
   tileApiPath: string,
   panelLayerId: string,
   period: string,
+  paintsChoropleth: boolean,
 ) {
   const [tileUrl, setTileUrl] = useState<DraftTileUrl | null>(null);
   const key = `${panelLayerId}:${period}`;
 
   useEffect(() => {
+    if (paintsChoropleth) return;
+
     const controller = new AbortController();
     fetchMapURL(
       panelLayerId,
@@ -58,7 +62,15 @@ function useDraftTileUrl(
         setTileUrl({ key, failure: "error" });
       });
     return () => controller.abort();
-  }, [key, panelLayerId, period, tileApiPath]);
+  }, [key, panelLayerId, period, tileApiPath, paintsChoropleth]);
+
+  // Uma camada de coropleta não tem raster: pedir a URL só gastaria uma ida à
+  // rota do rascunho para receber a mesma recusa. O motivo devolvido aqui é o
+  // que faz o quadro buscar a classificação municipal em vez de dizer que não
+  // há imagem no período.
+  if (paintsChoropleth) {
+    return { key, failure: "municipal_choropleth" } satisfies DraftTileUrl;
+  }
 
   return tileUrl?.key === key ? tileUrl : null;
 }
@@ -72,16 +84,23 @@ export function ReportPreviewVisuals({
   municipality,
   referencePeriod,
   tileApiPath,
+  paintsChoropleth,
   translateLabel,
 }: {
   analysis: MunicipalReportAnalysis;
   municipality: IndexCatalogReportPreview["municipality"];
   referencePeriod: string;
   tileApiPath: string;
+  paintsChoropleth: boolean;
   translateLabel: (label: string) => string;
 }) {
   const t = useTranslations("MunicipalReport");
-  const tileUrl = useDraftTileUrl(tileApiPath, analysis.id, referencePeriod);
+  const tileUrl = useDraftTileUrl(
+    tileApiPath,
+    analysis.id,
+    referencePeriod,
+    paintsChoropleth,
+  );
   // O mapa volta para a estante do relatório ao sair de cena; sem esvaziá-la o
   // contexto WebGL sobreviveria ao fechamento da prévia.
   useEffect(() => destroyReportMapPool, []);
@@ -115,6 +134,11 @@ export function ReportPreviewVisuals({
             className="h-[230px] w-full"
             tileUrl={tileUrl?.url}
             unavailableReason={tileUrl?.failure}
+            choroplethApiPath={buildSheetChoroplethPath(
+              analysis.id,
+              tileApiPath,
+              municipality.code,
+            )}
           />
           <p className="border-t border-[#c8ced1] px-4 py-2 text-xs leading-5 text-neutral-600">
             {t("rasterDescription", {

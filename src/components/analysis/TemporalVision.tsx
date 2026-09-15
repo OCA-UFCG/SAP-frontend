@@ -5,6 +5,7 @@ import * as am5 from "@amcharts/amcharts5";
 import * as am5xy from "@amcharts/amcharts5/xy";
 import am5themes_Animated from "@amcharts/amcharts5/themes/Animated";
 import { useTranslations } from "next-intl";
+import { analysisValueSuffix, hasPercentageScale } from "@/utils/analysisValue";
 import type {
   CompactAnalysisClass,
   CompactAnalysisYearData,
@@ -80,6 +81,8 @@ export function TemporalVision({
   const legendRef = useRef<am5.Legend | null>(null);
   const seriesRef = useRef(new Map<string, am5xy.LineSeries>());
   const deferredSelectedState = useDeferredValue(selectedState);
+  const valueSuffix = analysisValueSuffix(valueType, valueUnit);
+  const percentageScale = hasPercentageScale(valueType, valueUnit);
 
   useLayoutEffect(() => {
     if (isTestEnvironment() || !containerRef.current || rootRef.current) {
@@ -122,7 +125,9 @@ export function TemporalVision({
     const yAxis = chart.yAxes.push(
       am5xy.ValueAxis.new(root, {
         min: 0,
-        ...(valueType === "percentage" ? { max: 100, strictMinMax: true } : {}),
+        // Travar o eixo em 100 só vale numa escala de 0 a 100: um índice em mm
+        // ou de aridez teria a série inteira colada no eixo.
+        ...(percentageScale ? { max: 100, strictMinMax: true } : {}),
         renderer: am5xy.AxisRendererY.new(root, {}),
       }),
     );
@@ -137,11 +142,11 @@ export function TemporalVision({
           return text;
         }
 
-        if (valueType === "absolute") {
+        if (!percentageScale) {
           return text;
         }
 
-        return value % 20 === 0 ? `${value}%` : "";
+        return value % 20 === 0 ? `${value}${valueSuffix}` : "";
       });
 
     yAxis
@@ -154,7 +159,7 @@ export function TemporalVision({
           return 0;
         }
 
-        return valueType === "absolute" || value % 20 === 0 ? 0.15 : 0;
+        return !percentageScale || value % 20 === 0 ? 0.15 : 0;
       });
 
     chart.set(
@@ -238,7 +243,7 @@ export function TemporalVision({
       rootRef.current = null;
       root.dispose();
     };
-  }, [valueType]);
+  }, [percentageScale, valueSuffix]);
 
   useEffect(() => {
     const root = rootRef.current;
@@ -297,10 +302,7 @@ export function TemporalVision({
             tooltip: (() => {
               const tooltip = am5.Tooltip.new(root, {
                 pointerOrientation: "horizontal",
-                labelText:
-                  valueType === "absolute"
-                    ? `{valueY} ${valueUnit ?? ""}`.trim()
-                    : "{valueY}%",
+                labelText: `{valueY}${valueSuffix}`,
               });
               tooltip.label.setAll({ fontSize: 12 });
               return tooltip;
@@ -336,7 +338,7 @@ export function TemporalVision({
     }
 
     legend.data.setAll(chart.series.values);
-  }, [years, classes, deferredSelectedState, valueType, valueUnit]);
+  }, [years, classes, deferredSelectedState, valueSuffix]);
 
   return (
     <div className="flex flex-col gap-2">

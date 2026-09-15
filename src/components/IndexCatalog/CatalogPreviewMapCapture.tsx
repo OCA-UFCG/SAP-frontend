@@ -8,6 +8,19 @@ import {
   catalogIdempotencyKey,
 } from "@/components/IndexCatalog/catalogApiClient";
 import { captureMapCanvasPng } from "@/components/Map/captureMapCanvas";
+import useCitiesOverview from "@/components/Amfe/useCitiesOverview";
+import {
+  applyClassificationFeatureStates,
+  applyClassificationPalette,
+  CLASSIFICATION_OVERVIEW_SOURCE,
+  ensureClassificationOverviewLayer,
+  type MunicipalityClassification,
+  type MunicipalityOverviewGeoJson,
+} from "@/components/Map/classificationLayers";
+import {
+  buildSheetChoroplethPath,
+  fetchSheetChoropleth,
+} from "@/components/Map/sheetChoropleth";
 import { BRAZIL_RASTER_BOUNDS } from "@/components/Map/mapBounds";
 import { BASE_STYLE, ensureMapLayers } from "@/components/Map/mapDefinitions";
 import { fetchMapURL } from "@/services/mapServices";
@@ -35,6 +48,25 @@ export interface CatalogPreviewMapSource {
 const PREVIEW_MAP_PIXEL_RATIO = 2;
 
 type PreviewMapStage = "capturing" | "saving" | "saved" | "failed";
+
+/**
+ * Pinta a coropleta no mapa do cartão.
+ *
+ * Usa o GeoJSON de visão geral, e não os tiles da malha municipal: o cartão
+ * enquadra o Brasil inteiro, abaixo do zoom 5, e é justamente aí que o
+ * `brazil-cities.mbtiles` não tem tile nenhum para pintar.
+ */
+function paintPreviewChoropleth(
+  map: maplibregl.Map,
+  classification: MunicipalityClassification,
+  overviewGeoJson: MunicipalityOverviewGeoJson,
+) {
+  ensureClassificationOverviewLayer(map, overviewGeoJson);
+  applyClassificationPalette(map, classification.palette);
+  applyClassificationFeatureStates(map, classification, [
+    CLASSIFICATION_OVERVIEW_SOURCE,
+  ]);
+}
 
 interface SavedPreviewMapResponse {
   url: string;
@@ -82,6 +114,14 @@ export function CatalogPreviewMapCapture({
   const onSavedRef = useRef(onSaved);
   const { entryId, period } = preview;
   const { id: panelLayerId, name, tileApiPath } = preview.panelLayer;
+  const { imageData } = preview.panelLayer;
+  const paintsChoropleth = Boolean(
+    isCompactImageData(imageData) &&
+    imageData.mapVisualization?.municipalChoropleth,
+  );
+  // Os ~490 KB do GeoJSON de visão geral só são baixados quando o índice em
+  // prévia é mesmo uma coropleta.
+  const { overviewGeoJson } = useCitiesOverview(paintsChoropleth);
   // A captura é identificada pelo período e pela tentativa: a imagem antiga
   // desaparece sozinha quando a chave muda, sem reset dentro do efeito.
   const captureKey = `${entryId}:${period}:${attempt}`;
@@ -151,14 +191,24 @@ export function CatalogPreviewMapCapture({
     async function capturePreviewMap() {
       setStage("capturing");
       setFailureReason("");
-      const tileUrl = await fetchMapURL(
-        panelLayerId,
-        period,
-        controller.signal,
-        undefined,
-        undefined,
-        tileApiPath,
-      );
+      // Uma coropleta não tem tile a pedir: o mapa dela é pintado município a
+      // município a partir da classificação que a rota do rascunho devolve.
+      const classification = paintsChoropleth
+        ? await fetchSheetChoropleth(
+            buildSheetChoroplethPath(panelLayerId, tileApiPath),
+            controller.signal,
+          )
+        : null;
+      const tileUrl = paintsChoropleth
+        ? undefined
+        : await fetchMapURL(
+            panelLayerId,
+            period,
+            controller.signal,
+            undefined,
+            undefined,
+            tileApiPath,
+          );
       if (aborted || !containerRef.current) return;
 
       releaseMap();
@@ -177,10 +227,17 @@ export function CatalogPreviewMapCapture({
       map.on("load", () => {
         if (aborted) return;
         ensureMapLayers(map, "platform", true, false, tileUrl);
+        if (classification && overviewGeoJson) {
+          paintPreviewChoropleth(map, classification, overviewGeoJson);
+        }
       });
       map.on("webglcontextlost", () => void settle(null));
       map.on("idle", () => void settle(captureMapCanvasPng(map)));
     }
+
+    // O GeoJSON de visão geral é o que o mapa do cartão pinta numa coropleta:
+    // sem ele em mãos a captura sairia com o Brasil em branco.
+    if (paintsChoropleth && !overviewGeoJson) return;
 
     capturePreviewMap().catch((reason) => {
       if (reason instanceof DOMException && reason.name === "AbortError")
@@ -200,7 +257,16 @@ export function CatalogPreviewMapCapture({
       controller.abort();
       releaseMap();
     };
-  }, [captureKey, entryId, panelLayerId, period, releaseMap, tileApiPath]);
+  }, [
+    captureKey,
+    entryId,
+    panelLayerId,
+    period,
+    releaseMap,
+    tileApiPath,
+    paintsChoropleth,
+    overviewGeoJson,
+  ]);
 
   const busy = stage === "capturing" || stage === "saving";
 
@@ -218,8 +284,10 @@ export function CatalogPreviewMapCapture({
         </button>
       </div>
       <p className="mt-1 text-xs text-stone-600">
-        Capturada do mapa do período {period || "padrão"}. É a imagem que
-        ilustra o índice na lista do Monitoramento.
+        {paintsChoropleth
+          ? "Desenhada a partir dos valores da planilha, município a município."
+          : `Capturada do mapa do período ${period || "padrão"}.`}{" "}
+        É a imagem que ilustra o índice na lista do Monitoramento.
       </p>
       <div className="mt-3 flex flex-wrap items-start gap-4">
         <div className="relative h-[280px] w-[280px] shrink-0 overflow-hidden rounded-md border border-stone-200 bg-[#f8f9fa]">

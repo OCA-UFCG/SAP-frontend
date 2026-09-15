@@ -1,10 +1,14 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { useTranslations } from "next-intl";
 import maplibregl from "maplibre-gl";
 import "maplibre-gl/dist/maplibre-gl.css";
 import { captureMapCanvasPng } from "@/components/Map/captureMapCanvas";
+import type { MunicipalityClassification } from "@/components/Map/classificationLayers";
+import { fetchSheetChoropleth } from "@/components/Map/sheetChoropleth";
+import { paintReportChoropleth } from "@/components/MunicipalReport/reportChoroplethMap";
+import { resolveMapSource } from "@/components/MunicipalReport/reportMapSource";
 import type { EeMapUrlFailure } from "@/contracts/eeMapUrls";
 import { startMunicipalReportStage } from "@/utils/municipalReportMetrics";
 import { GEE_LAYER_ID, GEE_SOURCE_ID } from "@/components/Map/mapDefinitions";
@@ -27,8 +31,8 @@ import {
 /**
  * O `panelLayer` não tem imagem para o período que o relatório resolveu pelos
  * dados da análise. É conteúdo faltando, não falha momentânea, então a mensagem
- * é outra. Uma camada de coropleta municipal cai no mesmo caso: ela não tem
- * raster em período nenhum, e o relatório ainda não sabe desenhá-la.
+ * é outra. Uma camada de coropleta entra aqui só quando chega sem endereço para
+ * buscar a classificação — com ele, ela é desenhada como qualquer outra.
  */
 function isMissingPeriod(reason?: EeMapUrlFailure) {
   return (
@@ -131,6 +135,58 @@ function waitForRasterCapture(
   });
 }
 
+/**
+ * Espera o mapa parar de desenhar, sem exigir dados de uma fonte nova.
+ *
+ * É a espera da coropleta: as cores dela entram por `setPaintProperty` e
+ * feature-state, aplicados antes desta chamada, então não há tile novo cuja
+ * chegada precise ser confirmada — só o enquadramento do município.
+ */
+function waitForIdleCapture(
+  map: maplibregl.Map,
+  signal: AbortSignal,
+): Promise<boolean> {
+  return new Promise((resolve) => {
+    function handleIdle() {
+      if (map.areTilesLoaded()) settle(true);
+    }
+
+    function handleGiveUp() {
+      settle(false);
+    }
+
+    function settle(ready: boolean) {
+      map.off("idle", handleIdle);
+      map.off("webglcontextlost", handleGiveUp);
+      signal.removeEventListener("abort", handleGiveUp);
+      resolve(ready);
+    }
+
+    map.on("idle", handleIdle);
+    map.on("webglcontextlost", handleGiveUp);
+    signal.addEventListener("abort", handleGiveUp);
+  });
+}
+
+/**
+ * A mensagem do quadro sem imagem.
+ *
+ * Um quadro que tem o que desenhar só fala quando a captura em si falhou: o
+ * motivo que veio do lote de URLs — `municipal_choropleth`, por exemplo — deixa
+ * de ser impedimento assim que existe outro caminho para desenhar a camada.
+ */
+function resolveUnavailableMessage(
+  t: (key: string) => string,
+  hasMapSource: boolean,
+  unavailableReason: EeMapUrlFailure | undefined,
+  captureFailed: boolean,
+): string | null {
+  if (hasMapSource) return captureFailed ? t("mapUnavailableExport") : null;
+  if (isMissingPeriod(unavailableReason)) return t("mapPeriodUnavailable");
+  if (unavailableReason || captureFailed) return t("mapUnavailableExport");
+  return null;
+}
+
 interface ReportMapPreviewProps {
   municipalityCode: string;
   layerId: string;
@@ -147,6 +203,12 @@ interface ReportMapPreviewProps {
    * tente desenhar o mapa", e escolhe a mensagem que o item mostra.
    */
   unavailableReason?: EeMapUrlFailure;
+  /**
+   * Onde buscar a classificação municipal quando a camada é uma coropleta.
+   * Sem ele o quadro só sabe dizer que não há imagem — é o que acontecia com
+   * todo índice publicado a partir de uma coluna da planilha.
+   */
+  choroplethApiPath?: string;
   onCapture?: (src: string | null) => void;
   /**
    * Avisa a fila que este quadro entrou ou saiu da área visível, para que os
@@ -166,6 +228,7 @@ export function ReportMapPreview({
   queuedAt,
   tileUrl,
   unavailableReason,
+  choroplethApiPath,
   onCapture,
   onVisibilityChange,
 }: ReportMapPreviewProps) {
@@ -179,6 +242,12 @@ export function ReportMapPreview({
   const captureKey = `${imageKey}:${attempt}`;
   const [image, setImage] = useState<{ key: string; src: string } | null>(null);
   const [failedImageKey, setFailedImageKey] = useState<string | null>(null);
+  // Memoizado porque entra na lista de dependências do efeito de captura: um
+  // objeto novo a cada render remontaria o mapa sem nada ter mudado.
+  const mapSource = useMemo(
+    () => resolveMapSource(tileUrl, unavailableReason, choroplethApiPath),
+    [tileUrl, unavailableReason, choroplethApiPath],
+  );
   const localImageSrc = image?.key === imageKey ? image.src : null;
   const resolvedImageSrc = capturedImageSrc ?? localImageSrc;
   const captureFailed = failedImageKey === captureKey;
@@ -226,7 +295,7 @@ export function ReportMapPreview({
       }
       finishMap?.(`Mapa ${layerId} (${period})`, {
         detalhes: src
-          ? "URL do Earth Engine, tiles, renderização e captura PNG"
+          ? "Tiles ou coropleta, renderização e captura PNG"
           : "Mapa indisponível ou falha na captura",
       });
       onCaptureRef.current?.(src);
@@ -248,7 +317,23 @@ export function ReportMapPreview({
       }
 
       const slot = containerRef.current;
-      if (aborted || !slot || !tileUrl) return;
+      const source = mapSource;
+      if (aborted || !slot || !source) return;
+
+      // A classificação vem antes de ocupar uma vaga de mapa: uma falha de rede
+      // aqui não pode segurar um contexto WebGL que outro item da fila espera.
+      let classification: MunicipalityClassification | null = null;
+      if (source.kind === "choropleth") {
+        classification = await fetchSheetChoropleth(
+          source.path,
+          controller.signal,
+        ).catch(() => null);
+        if (aborted || controller.signal.aborted) return;
+        if (!classification) {
+          finishCapture(null);
+          return;
+        }
+      }
 
       const finishAcquire = startMunicipalReportStage();
       const acquired = await acquireReportMap(slot, controller.signal);
@@ -270,12 +355,20 @@ export function ReportMapPreview({
       }
 
       const finishTilesAndRender = startMunicipalReportStage();
-      addGeeRasterLayer(acquired.map, tileUrl);
+      if (classification) {
+        paintReportChoropleth(acquired.map, classification);
+      } else if (source.kind === "raster") {
+        addGeeRasterLayer(acquired.map, source.tileUrl);
+      }
       focusMunicipality(acquired.map, municipalityCode);
-      const ready = await waitForRasterCapture(acquired.map, controller.signal);
+      const ready = classification
+        ? await waitForIdleCapture(acquired.map, controller.signal)
+        : await waitForRasterCapture(acquired.map, controller.signal);
       finishTilesAndRender(`Mapa ${layerId}: tiles e renderização`, {
         detalhes: ready
-          ? "Do raster adicionado até o mapa parar de desenhar"
+          ? classification
+            ? "Da coropleta pintada até o mapa parar de desenhar"
+            : "Do raster adicionado até o mapa parar de desenhar"
           : "Contexto WebGL perdido antes da captura",
       });
       if (aborted) return;
@@ -295,15 +388,10 @@ export function ReportMapPreview({
       finishCapture(dataUrl);
     }
 
-    // Sem URL de tiles não há mapa para capturar: o lote do relatório resolve
-    // todas antes, e quem não tem imagem naquele período chega com `unavailable`.
-    if (
-      active &&
-      tileUrl &&
-      !unavailableReason &&
-      !resolvedImageSrc &&
-      !captureFailed
-    ) {
+    // Sem fonte de desenho não há mapa para capturar: o lote do relatório
+    // resolve as URLs antes, e quem não tem imagem naquele período chega com
+    // `unavailable`.
+    if (active && mapSource && !resolvedImageSrc && !captureFailed) {
       setupMapPreview();
     }
 
@@ -328,18 +416,18 @@ export function ReportMapPreview({
     period,
     queuedAt,
     resolvedImageSrc,
-    tileUrl,
-    unavailableReason,
+    mapSource,
   ]);
 
   // Um item sem mapa precisa dizer isso. Antes, quando a fila desistia da
   // captura, `active` voltava a ser falso e o item caía no retângulo cinza
   // mudo: o relatório saía com buracos e ninguém ficava sabendo.
-  const unavailableMessage = isMissingPeriod(unavailableReason)
-    ? t("mapPeriodUnavailable")
-    : unavailableReason || captureFailed
-      ? t("mapUnavailableExport")
-      : null;
+  const unavailableMessage = resolveUnavailableMessage(
+    t,
+    Boolean(mapSource),
+    unavailableReason,
+    captureFailed,
+  );
 
   return (
     <div
@@ -358,10 +446,10 @@ export function ReportMapPreview({
           {unavailableMessage}
         </div>
       )}
-      {!resolvedImageSrc && !unavailableMessage && active && tileUrl && (
+      {!resolvedImageSrc && !unavailableMessage && active && mapSource && (
         <div ref={containerRef} className="h-full w-full" />
       )}
-      {!resolvedImageSrc && !unavailableMessage && !(active && tileUrl) && (
+      {!resolvedImageSrc && !unavailableMessage && !(active && mapSource) && (
         <div className="h-full w-full bg-[#eef1f1]" aria-hidden="true" />
       )}
     </div>

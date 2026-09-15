@@ -3,6 +3,7 @@
 import { useEffect, useRef, useState, useMemo } from "react";
 import dynamic from "next/dynamic";
 import { useTranslations } from "next-intl";
+import { analysisValueSuffix, hasPercentageScale } from "@/utils/analysisValue";
 import { Chevron } from "@/components/Chevron/Chevron";
 import SearchBarPlatform from "@/components/SidePanelContexts/SearchBarPlatform";
 import type {
@@ -259,10 +260,15 @@ function DistributionSection({
 }) {
   const t = useTranslations("AnalysisPanel");
   const absolute = valueType === "absolute";
+  const valueSuffix = analysisValueSuffix(valueType, valueUnit);
+  // A barra proporcional só diz a verdade numa escala de 0 a 100. Num índice em
+  // mm, ou num de aridez que vai de 0,2 a 2,7, ela sairia como um risco — então
+  // esses caem na mesma lista de valores que uma contagem usa.
+  const percentageScale = hasPercentageScale(valueType, valueUnit);
   const formatValue = (value: number) =>
     absolute
-      ? `${value.toLocaleString("pt-BR")} ${valueUnit ?? ""}`.trim()
-      : `${value}%`;
+      ? `${value.toLocaleString("pt-BR")}${valueSuffix}`
+      : `${value}${valueSuffix}`;
   return (
     <div className="flex flex-col gap-2">
       <h2 className="text-[14px] font-semibold leading-6 text-[#292829]">
@@ -270,7 +276,7 @@ function DistributionSection({
       </h2>
 
       <div className="rounded-lg border border-[#EFEFEF] bg-white p-3 shadow-sm">
-        {!absolute ? (
+        {percentageScale ? (
           <div className="flex h-10 w-full overflow-hidden rounded-md">
             {items
               .filter((item) => item.value > 0)
@@ -282,9 +288,9 @@ function DistributionSection({
                     backgroundColor: item.color,
                   }}
                   className="flex items-center justify-center border-r border-white/20 text-[12px] font-bold text-[#292829] transition-all duration-500 last:border-0"
-                  title={`${item.label}: ${item.value}%`}
+                  title={`${item.label}: ${formatValue(item.value)}`}
                 >
-                  {item.value > 10 && `${item.value}%`}
+                  {item.value > 10 && formatValue(item.value)}
                 </div>
               ))}
           </div>

@@ -12,7 +12,7 @@ vi.mock("@/repositories/platform/panelLayerRepository", () => ({
   getPanelLayerById: vi.fn(),
 }));
 
-const { buildSheetChoropleth } =
+const { buildSheetChoropleth, selectChoroplethMunicipality } =
   await import("@/repositories/platform/amfeSheetChoroplethCache");
 
 const table = {
@@ -86,5 +86,39 @@ describe("buildSheetChoropleth", () => {
     await expect(
       buildSheetChoropleth({ ...mapVisualization, thresholds: [40] }),
     ).rejects.toThrow(/uma cor a mais que os limites/u);
+  });
+});
+
+// O mapa do Relatório Automático enquadra um município só: mandar a
+// classificação dos 5.571 para pintar um polígono seria uma resposta ~100x
+// maior, multiplicada pelos até vinte índices do relatório.
+describe("selectChoroplethMunicipality", () => {
+  beforeEach(() => {
+    getAmfeSheetTable.mockResolvedValue(table);
+  });
+
+  it("keeps only the requested municipality and the whole palette", async () => {
+    const result = await buildSheetChoropleth(mapVisualization);
+    const sliced = selectChoroplethMunicipality(result!, "2504009");
+
+    expect(sliced.classificationByCode).toEqual({ "2504009": 1 });
+    expect(sliced.excludedCodes).toEqual([]);
+    expect(sliced.palette).toEqual(mapVisualization.palette);
+  });
+
+  it("keeps a municipality without value in the excluded list", async () => {
+    const result = await buildSheetChoropleth(mapVisualization);
+    const sliced = selectChoroplethMunicipality(result!, "1100015");
+
+    expect(sliced.classificationByCode).toEqual({});
+    expect(sliced.excludedCodes).toEqual(["1100015"]);
+  });
+
+  it("returns nothing to paint for a municipality the sheet does not have", async () => {
+    const result = await buildSheetChoropleth(mapVisualization);
+    const sliced = selectChoroplethMunicipality(result!, "9999999");
+
+    expect(sliced.classificationByCode).toEqual({});
+    expect(sliced.excludedCodes).toEqual([]);
   });
 });
