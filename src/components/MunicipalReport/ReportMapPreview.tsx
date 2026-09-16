@@ -12,7 +12,12 @@ import { getAllowedStateUfs } from "@/utils/interestAreaStates";
 import { resolveReportTerritory } from "@/utils/reportTerritory";
 import { selectActiveBoundaryFeatures } from "@/utils/spatialBoundaryFeatures";
 import { startMunicipalReportStage } from "@/utils/municipalReportMetrics";
-import { GEE_LAYER_ID, GEE_SOURCE_ID } from "@/components/Map/mapDefinitions";
+import {
+  GEE_LAYER_ID,
+  GEE_SOURCE_ID,
+  REPORT_TERRITORY_OUTLINE_LAYER_ID,
+  REPORT_TERRITORY_OUTLINE_SOURCE_ID,
+} from "@/components/Map/mapDefinitions";
 import {
   BRAZIL_RASTER_BOUNDS,
   geoBrasilSource,
@@ -58,9 +63,6 @@ function addGeeRasterLayer(map: maplibregl.Map, tileUrl: string) {
     MUNICIPALITY_BORDER_LAYER_ID,
   );
 }
-
-const TERRITORY_OUTLINE_SOURCE_ID = "report-territory-outline";
-const TERRITORY_OUTLINE_LAYER_ID = "report-territory-outline-line";
 
 type OutlineCollection = FeatureCollection<Geometry, { name: string }>;
 
@@ -116,14 +118,14 @@ async function loadTerritoryOutline(
 }
 
 function drawTerritoryOutline(map: maplibregl.Map, outline: OutlineCollection) {
-  map.addSource(TERRITORY_OUTLINE_SOURCE_ID, {
+  map.addSource(REPORT_TERRITORY_OUTLINE_SOURCE_ID, {
     type: "geojson",
     data: outline,
   });
   map.addLayer({
-    id: TERRITORY_OUTLINE_LAYER_ID,
+    id: REPORT_TERRITORY_OUTLINE_LAYER_ID,
     type: "line",
-    source: TERRITORY_OUTLINE_SOURCE_ID,
+    source: REPORT_TERRITORY_OUTLINE_SOURCE_ID,
     paint: { "line-color": "#292829", "line-width": 1.4 },
   });
 }

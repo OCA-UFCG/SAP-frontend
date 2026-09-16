@@ -145,6 +145,8 @@ function emitRasterReady(instanceIndex: number) {
 
 /** Abadia de Goiás — GO, o município das asserções deste arquivo. */
 const ABADIA_DE_GOIAS = resolveReportTerritory("5200050")!;
+/** Um recorte agregado, que desenha contorno próprio em vez da malha municipal. */
+const CAATINGA = resolveReportTerritory("3_bioma-caatinga")!;
 
 describe("ReportMapPreview", () => {
   beforeEach(() => {
@@ -304,6 +306,51 @@ describe("ReportMapPreview", () => {
     expect(mapInstances[0].removeLayer).toHaveBeenCalledWith("gee-layer");
     expect(mapInstances[0].removeSource).toHaveBeenCalledWith("gee-tiles");
     expect(mapInstances[0].removeFeatureState).toHaveBeenCalled();
+  });
+
+  // Regressão: o contorno do território ficava no mapa devolvido para a
+  // estante, e a captura seguinte morria em `Source "report-territory-outline"
+  // already exists`, deixando o relatório sem mapa a partir do segundo índice.
+  it("limpa também o contorno do território ao devolver o mapa", async () => {
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async () => ({
+        ok: true,
+        json: async () => ({
+          type: "FeatureCollection",
+          features: [
+            {
+              type: "Feature",
+              properties: { name: "Caatinga" },
+              geometry: { type: "Point", coordinates: [-38, -7] },
+            },
+          ],
+        }),
+      })),
+    );
+
+    const { unmount } = render(
+      <ReportMapPreview
+        territory={CAATINGA}
+        layerId="anaseca"
+        period="2024-01"
+        tileUrl={TILE_URL}
+      />,
+    );
+
+    await waitFor(() => expect(mapInstances).toHaveLength(1));
+    emit(0, "load");
+    await waitFor(() => expect(mapInstances[0].addLayer).toHaveBeenCalled());
+
+    unmount();
+
+    expect(mapInstances[0].removeLayer).toHaveBeenCalledWith(
+      "report-territory-outline-line",
+    );
+    expect(mapInstances[0].removeSource).toHaveBeenCalledWith(
+      "report-territory-outline",
+    );
+    vi.unstubAllGlobals();
   });
 
   it("reaproveita a mesma instância do MapLibre em outra camada", async () => {
