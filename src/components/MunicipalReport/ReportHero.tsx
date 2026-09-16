@@ -57,7 +57,7 @@ export function ReportHero({
               {title ?? t("document.mainTitle")}
             </p>
             <h1 className="font-open-sans text-[40px] font-bold leading-[68px] text-[#989F43]">
-              {report.municipality.name} - {report.municipality.uf}
+              {report.territory.label}
             </h1>
             <p className="font-open-sans text-base leading-6 text-[#292829]">
               {subtitle ?? t("document.subtitle")}
@@ -74,7 +74,7 @@ export function ReportHero({
               </div>
               <div className="flex flex-col items-start">
                 <dt className="font-semibold">{t("document.scaleLabel")}</dt>
-                <dd>{t("document.scaleValue")}</dd>
+                <dd>{t(`scopes.${report.territory.level}`)}</dd>
               </div>
             </dl>
 

@@ -61,7 +61,8 @@ import {
 import type { EeMapUrlFailure } from "@/contracts/eeMapUrls";
 
 export interface MunicipalReportPreviewProps {
-  municipalityCode: string;
+  /** Chave territorial do relatório: código IBGE, UF, "br" ou recorte agregado. */
+  locationKey: string;
   period: string;
   layerIds?: string[];
   embedded?: boolean;
@@ -86,8 +87,10 @@ function buildReportFilename(
   prefix: string,
 ) {
   if (!report) return fallback;
-  const municipality = report.municipality.name.trim().replace(/\s+/g, "-");
-  return `${prefix}-${municipality}-${period}.pdf`;
+  // O nome, e não o rótulo: o rótulo do município leva "— UF", e um travessão
+  // no meio do nome do arquivo não ajuda ninguém.
+  const territory = report.territory.name.trim().replace(/\s+/g, "-");
+  return `${prefix}-${territory}-${period}.pdf`;
 }
 
 const AnalysisSection = memo(function AnalysisSection({
@@ -292,7 +295,7 @@ const AnalysisSection = memo(function AnalysisSection({
                 {t("spatialImage", { period: snapshotPeriodLabel })}
               </p>
               <ReportMapPreview
-                municipalityCode={report.municipality.code}
+                territory={report.territory}
                 layerId={analysis.id}
                 period={referencePeriod}
                 className="report-map-frame aspect-[696/322] w-full rounded-lg bg-white"
@@ -311,8 +314,11 @@ const AnalysisSection = memo(function AnalysisSection({
                 {t("rasterDescription", {
                   title: translatedTitle,
                   period: referencePeriodLabel,
-                  municipality: report.municipality.name,
-                  uf: report.municipality.uf,
+                  territory: report.territory.label,
+                  scope: report.territory.kindLabel,
+                  // O pt-BR usa a forma com preposição ("do bioma Caatinga");
+                  // as outras línguas montam a frase com {territory}.
+                  boundary: report.territory.possessiveLabel,
                 })}
               </p>
             </div>
@@ -444,7 +450,7 @@ const ReportDocument = memo(function ReportDocument({
     const params = new URLSearchParams({
       section: "monitoring",
       layer: analysisId,
-      municipalityCode: report.municipality.code,
+      locationKey: report.territory.locationKey,
       period: report.requestedPeriod,
     });
     const selectedIds = selected.map(({ id }) => id);
@@ -550,7 +556,7 @@ function EmptyReportPreview() {
 }
 
 export function MunicipalReportPreview({
-  municipalityCode,
+  locationKey,
   period,
   layerIds,
   embedded = false,
@@ -558,7 +564,7 @@ export function MunicipalReportPreview({
 }: MunicipalReportPreviewProps) {
   const t = useTranslations("MunicipalReport");
   const locale = useLocale();
-  const hasRequiredParameters = Boolean(municipalityCode && period);
+  const hasRequiredParameters = Boolean(locationKey && period);
   const [report, setReport] = useState<MunicipalReportData | null>(null);
   const [docsContent, setDocsContent] =
     useState<MunicipalReportDocsContent | null>(null);
@@ -789,7 +795,7 @@ export function MunicipalReportPreview({
         const reportParams = new URLSearchParams({ period });
         if (layerIdsKey) reportParams.set("layers", layerIdsKey);
         const response = await fetch(
-          `/api/municipal-report/${encodeURIComponent(municipalityCode)}?${reportParams.toString()}`,
+          `/api/municipal-report/${encodeURIComponent(locationKey)}?${reportParams.toString()}`,
           { credentials: "same-origin", signal: controller.signal },
         );
         const payload = await response.json();
@@ -820,7 +826,7 @@ export function MunicipalReportPreview({
           let docsResponse: Response | undefined;
           try {
             docsResponse = await fetch(
-              `/api/municipal-report/${encodeURIComponent(municipalityCode)}/docs?period=${encodeURIComponent(period)}&layers=${encodeURIComponent(selectedLayerIdsForDocs.join(","))}`,
+              `/api/municipal-report/${encodeURIComponent(locationKey)}/docs?period=${encodeURIComponent(period)}&layers=${encodeURIComponent(selectedLayerIdsForDocs.join(","))}`,
               { credentials: "same-origin", signal: controller.signal },
             );
             const docsPayload = await docsResponse.json();
@@ -865,7 +871,7 @@ export function MunicipalReportPreview({
     hasRequiredParameters,
     layerIdsKey,
     loadErrorMessage,
-    municipalityCode,
+    locationKey,
     period,
     resetMapCaptureQueue,
   ]);
@@ -874,7 +880,7 @@ export function MunicipalReportPreview({
 
   if (embedded) {
     const previewTitle = report
-      ? `${t("reportLabel")} - ${report.municipality.name} - ${formatReportPeriod(period, locale)}`
+      ? `${t("reportLabel")} - ${report.territory.label} - ${formatReportPeriod(period, locale)}`
       : t("reportLabel");
 
     return (

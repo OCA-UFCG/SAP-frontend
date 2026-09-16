@@ -86,6 +86,9 @@ function toStoredReportConfig(report: PublishedPanelLayerReportConfig) {
     report.sections.length === 0 &&
     !report.sectionColor &&
     !report.methodology &&
-    !report.severity;
+    !report.severity &&
+    // Um índice fora do relatório precisa do campo mesmo sem texto nenhum:
+    // apagar o `reportConfig` aqui o devolveria ao relatório em silêncio.
+    report.includeInReport !== false;
   return isEmpty ? undefined : report;
 }

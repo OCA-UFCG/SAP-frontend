@@ -91,7 +91,7 @@ interface PlatformSidebarProps {
   initialSection?: PlatformSidebarInitialSection;
   viewMode?: PlatformSidebarViewMode;
   reportRequest?: {
-    municipalityCode: string;
+    locationKey: string;
     period: string;
     layerIds: string[];
   };
@@ -267,7 +267,7 @@ export function PlatformSidebar({
             style={{ left: isPanelOpen ? defaultPanelOpenOffset : "140px" }}
           >
             <LazyMunicipalReportPreview
-              municipalityCode={reportRequest?.municipalityCode ?? ""}
+              locationKey={reportRequest?.locationKey ?? ""}
               period={reportRequest?.period ?? ""}
               layerIds={reportRequest?.layerIds ?? []}
               onOpenMonitor={openLayerMonitoring}

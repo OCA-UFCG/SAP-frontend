@@ -1,12 +1,14 @@
 import { NextResponse } from "next/server";
-import citiesIndex from "@/data/citiesIndex.json";
 import { requireAuthenticatedRequest } from "@/lib/server-session";
 import { getPanelLayers } from "@/repositories/platform/panelLayerRepository";
 import { buildDocContent } from "@/services/buildDoc/buildDocContent";
 import { buildCachedMunicipalReport } from "@/services/municipalReportCache";
+import {
+  isReportTerritoryKeyShape,
+  resolveReportTerritory,
+} from "@/utils/reportTerritory";
 import { createServerTiming } from "@/utils/serverTiming";
 
-const MUNICIPALITY_CODE_PATTERN = /^\d{7}$/u;
 const PERIOD_PATTERN = /^(\d{4})(?:-(0[1-9]|1[0-2]))?$/u;
 
 function error(message: string, status: number) {
@@ -39,7 +41,7 @@ function getPeriodParts(period: string) {
   return { year: match?.[1] ?? period, month: match?.[2] ?? "" };
 }
 
-export async function GET(request: Request, context: { params: Promise<{ municipalityCode: string }> }) {
+export async function GET(request: Request, context: { params: Promise<{ locationKey: string }> }) {
   const timing = createServerTiming();
   const finishAuth = timing.start();
   const unauthorized = await requireAuthenticatedRequest(request);
@@ -50,8 +52,8 @@ export async function GET(request: Request, context: { params: Promise<{ municip
     return unauthorized;
   }
 
-  const { municipalityCode } = await context.params;
-  const code = decodeURIComponent(municipalityCode).trim();
+  const { locationKey } = await context.params;
+  const code = decodeURIComponent(locationKey).trim();
   const searchParams = new URL(request.url).searchParams;
   const period = searchParams.get("period")?.trim();
   const layerIds = (searchParams.get("layers") ?? "")
@@ -59,12 +61,11 @@ export async function GET(request: Request, context: { params: Promise<{ municip
     .map((layerId) => layerId.trim())
     .filter(Boolean);
 
-  if (!MUNICIPALITY_CODE_PATTERN.test(code)) return error("Invalid municipality code.", 400);
+  if (!isReportTerritoryKeyShape(code)) return error("Invalid territory key.", 400);
+  const territory = resolveReportTerritory(code);
+  if (!territory) return error("Territory not found.", 404);
   if (!period || !PERIOD_PATTERN.test(period)) return error("Invalid or missing period.", 400);
   if (layerIds.length === 0) return error("Missing selected report layers.", 400);
-
-  const municipality = citiesIndex.find((city) => city.code === code);
-  if (!municipality) return error("Municipality not found.", 404);
 
   const themes = getSelectedThemes(layerIds);
   if (themes.length === 0) return error("No Docs template configured for selected layers.", 400);
@@ -80,8 +81,8 @@ export async function GET(request: Request, context: { params: Promise<{ municip
     const content = await buildDocContent({
       themes,
       catalogSectionsByTheme: await loadCatalogSectionsByTheme(themes),
-      city: municipality.name,
-      state: municipality.uf.toUpperCase(),
+      city: territory.name,
+      state: territory.uf ?? "",
       month,
       year,
       ibgeId: code,

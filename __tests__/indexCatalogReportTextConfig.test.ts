@@ -14,6 +14,11 @@ const THEME = "indice-de-aridez-catalogo";
 
 /** Os valores que o relatório entrega para cada variável oferecida na tela. */
 const TEMPLATE_DATA = {
+  territorio: "Campina Grande — PB",
+  recorte: "município",
+  no_territorio: "No município de Campina Grande — PB",
+  do_territorio: "do município de Campina Grande — PB",
+  municipio_uf: "Campina Grande — PB",
   municipio: "Campina Grande",
   uf: "PB",
   periodo_referencia: "setembro de 2024",

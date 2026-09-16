@@ -49,7 +49,7 @@ function resolveLayerDataVersion(layer: PanelLayerI): string {
 }
 
 export async function buildCachedMunicipalReport(
-  municipalityCode: string,
+  locationKey: string,
   requestedPeriod: string,
   dependencies: Pick<MunicipalReportServiceDependencies, "analysisIds" | "onTiming"> = {},
 ): Promise<MunicipalReportData> {
@@ -64,7 +64,7 @@ export async function buildCachedMunicipalReport(
   const requestedIds = [...(dependencies.analysisIds ?? [])]
     .map((id) => id.toLowerCase())
     .join(",");
-  const key = [municipalityCode, requestedPeriod, requestedIds, versions.join(",")].join("::");
+  const key = [locationKey, requestedPeriod, requestedIds, versions.join(",")].join("::");
   const now = Date.now();
   const current = cache.get(key);
 
@@ -79,7 +79,7 @@ export async function buildCachedMunicipalReport(
     return current.pending;
   }
 
-  const pending = buildMunicipalReport(municipalityCode, requestedPeriod, {
+  const pending = buildMunicipalReport(locationKey, requestedPeriod, {
     ...dependencies,
     listPanelLayers: async () => panelLayers,
   });

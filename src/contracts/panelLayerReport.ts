@@ -30,6 +30,13 @@ const HEX_COLOR_PATTERN = /^#[0-9a-f]{6}$/iu;
  */
 export interface PublishedPanelLayerReportConfig {
   schemaVersion: typeof PANEL_LAYER_REPORT_SCHEMA_VERSION;
+  /**
+   * Se este índice entra no Relatório Automático. Ausente significa que sim:
+   * é o campo novo que precisa ser declarado para excluir um índice, e não o
+   * contrário — assim nenhum índice já publicado sai do relatório por não
+   * conhecer esta opção.
+   */
+  includeInReport?: boolean;
   /** Cor do cabeçalho da seção. Sem ela o relatório deriva da paleta de classes. */
   sectionColor?: string;
   /** Parágrafo das "Notas" ao pé do relatório. */
@@ -208,9 +215,17 @@ export function parsePublishedPanelLayerReportConfig(
   );
 
   const severity = parseSeverity(raw.severity);
+  if (raw.includeInReport != null && typeof raw.includeInReport !== "boolean") {
+    throw new Error(
+      `reportConfig.includeInReport deve ser booleano, recebido: ${JSON.stringify(raw.includeInReport)}`,
+    );
+  }
 
   return {
     schemaVersion: PANEL_LAYER_REPORT_SCHEMA_VERSION,
+    // Só o "não" é gravado: gravar `true` encheria todo índice de um campo que
+    // repete o padrão, e a ausência já significa incluído.
+    ...(raw.includeInReport === false ? { includeInReport: false } : {}),
     ...(sectionColor ? { sectionColor } : {}),
     ...(methodology ? { methodology } : {}),
     ...(severity ? { severity } : {}),

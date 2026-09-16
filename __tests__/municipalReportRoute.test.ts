@@ -13,7 +13,7 @@ vi.mock("@/repositories/platform/municipalAnalysisCache", () => ({
   getMunicipalAnalysisCacheControlHeader: () => "private, max-age=600",
 }));
 
-import { GET } from "@/app/api/municipal-report/[municipalityCode]/route";
+import { GET } from "@/app/api/municipal-report/[locationKey]/route";
 import { requireAuthenticatedRequest } from "@/lib/server-session";
 import { MunicipalReportNotFoundError } from "@/services/municipalReportService";
 import { buildCachedMunicipalReport } from "@/services/municipalReportCache";
@@ -21,10 +21,10 @@ import { buildCachedMunicipalReport } from "@/services/municipalReportCache";
 const auth = vi.mocked(requireAuthenticatedRequest);
 const build = vi.mocked(buildCachedMunicipalReport);
 const context = (code: string) => ({
-  params: Promise.resolve({ municipalityCode: code }),
+  params: Promise.resolve({ locationKey: code }),
 });
 
-describe("GET /api/municipal-report/[municipalityCode]", () => {
+describe("GET /api/municipal-report/[locationKey]", () => {
   beforeEach(() => {
     vi.resetAllMocks();
     auth.mockResolvedValue(null);
@@ -112,6 +112,21 @@ describe("GET /api/municipal-report/[municipalityCode]", () => {
     );
     expect(response.status).toBe(200);
   });
+
+  it.each(["br", "pb", "3_bioma-caatinga"])(
+    "aceita a chave territorial %s",
+    async (key) => {
+      build.mockResolvedValueOnce({
+        analyses: [{ status: "available" }],
+      } as never);
+      const response = await GET(
+        new Request(`https://test/api/municipal-report/${key}?period=2024`),
+        context(key),
+      );
+      expect(response.status).toBe(200);
+      expect(build).toHaveBeenCalledWith(key, "2024", expect.anything());
+    },
+  );
 
   it("returns 404 for an unknown municipality", async () => {
     build.mockRejectedValueOnce(
