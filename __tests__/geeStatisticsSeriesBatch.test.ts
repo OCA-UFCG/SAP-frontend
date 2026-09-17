@@ -206,3 +206,81 @@ describe("leitura em lote da série estatística", () => {
     expect(mockedEvaluate).toHaveBeenCalledTimes(4);
   });
 });
+
+/**
+ * Regressão: o Monitor de Secas da ANA sumiu do painel e do relatório em todos
+ * os recortes porque a tabela de 2026 estava sendo reingerida e, indo no mesmo
+ * `flatten()` dos outros anos, levava 2024 e 2025 junto.
+ */
+describe("asset indisponível dentro da série", () => {
+  const BROKEN_ASSET = "projects/example/assets/aridez_2024";
+
+  function breakAssets(brokenAssetIds: readonly string[]) {
+    mockedEvaluate.mockImplementation(async (object: unknown) => {
+      const node = object as FakeNode;
+      if (node.assetIds.some((assetId) => brokenAssetIds.includes(assetId))) {
+        throw new Error(
+          `Collection.loadTable: Collection asset '${node.assetIds[0]}' not found.`,
+        );
+      }
+      if (node.kind === "propertyNames") return PROPERTY_NAMES as never;
+      return {
+        features: node.assetIds.map((assetId) => ({
+          properties: municipalRow(assetId),
+        })),
+      } as never;
+    });
+  }
+
+  it("mantém os demais períodos quando um asset da série não responde", async () => {
+    breakAssets([BROKEN_ASSET]);
+
+    const result = await readPeriod("2020");
+
+    expect(result?.patch.years?.["2020"]?.values).toEqual({
+      "2507507": [40, 60],
+    });
+  });
+
+  it("devolve vazio o período do asset indisponível, em vez de falhar", async () => {
+    breakAssets([BROKEN_ASSET]);
+
+    const result = await readPeriod("2024");
+
+    expect(result?.patch.years?.["2024"]?.values).toEqual({});
+  });
+
+  it("lê o schema de outro asset da série quando o do período pedido está fora", async () => {
+    breakAssets([BROKEN_ASSET]);
+
+    await expect(readPeriod("2024")).resolves.not.toBeNull();
+
+    const schemaAssets = mockedEvaluate.mock.calls
+      .map(([object]) => object as FakeNode)
+      .filter((node) => node.kind === "propertyNames")
+      .flatMap((node) => node.assetIds);
+
+    expect(schemaAssets[0]).toBe(BROKEN_ASSET);
+    expect(schemaAssets[1]).toBe("projects/example/assets/aridez_2023");
+  });
+
+  it("relê um asset por vez apenas o bloco que falhou", async () => {
+    breakAssets([BROKEN_ASSET]);
+
+    await readPeriod("2020");
+
+    const rowReads = mockedEvaluate.mock.calls
+      .map(([object]) => object as FakeNode)
+      .filter((node) => node.kind !== "propertyNames");
+
+    // Os 3 blocos de 15 mais a releitura individual dos 15 assets do bloco que
+    // falhou: os outros dois blocos continuam custando uma ida cada.
+    expect(rowReads).toHaveLength(18);
+  });
+
+  it("propaga o erro quando nenhum asset da série responde", async () => {
+    breakAssets(YEARS.map((year) => `projects/example/assets/aridez_${year}`));
+
+    await expect(readPeriod("2020")).rejects.toThrow(/not found/u);
+  });
+});

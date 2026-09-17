@@ -52,6 +52,11 @@ const PERCENTAGE_SUM_TOLERANCE = 0.2;
 // cada ano era um `evaluate` seu. O teto também limita o estrago de uma falha:
 // um asset inexistente derruba o pedido inteiro, com o nome dele no erro.
 const STATISTICS_ROWS_BATCH_SIZE = 15;
+// Quantos assets da série podem ser tentados como amostra do schema antes de a
+// leitura desistir. O teto existe porque a tentativa é sequencial: numa queda
+// geral do Earth Engine, percorrer os 45 anos do índice de aridez somaria 45
+// idas fracassadas antes de responder ao usuário.
+const SCHEMA_ASSET_CANDIDATES = 3;
 
 interface EvaluatedFeature {
   properties?: Record<string, unknown>;
@@ -384,9 +389,69 @@ function buildLocationFilter(
   throw new Error(`Chave territorial GEE inválida: ${locationKey}.`);
 }
 
+/**
+ * A ordem em que os assets da série são tentados como amostra do schema: o do
+ * período pedido primeiro, depois os mais recentes.
+ *
+ * `assetIds` chega ordenado por nome, e o nome de um `period-template` termina
+ * no período — por isso o mais recente é o último.
+ */
+function getSchemaAssetCandidates(
+  source: ResolvedGeeStatisticsSource,
+  seriesAssetIds: readonly string[],
+): string[] {
+  const candidates = new Set<string>([source.assetId]);
+
+  for (const assetId of [...seriesAssetIds].reverse()) {
+    if (candidates.size >= SCHEMA_ASSET_CANDIDATES) break;
+    candidates.add(assetId);
+  }
+
+  return [...candidates];
+}
+
+/**
+ * As colunas da série, lidas do primeiro asset que responder.
+ *
+ * Todos os assets de um índice têm as mesmas colunas — o catálogo valida isso
+ * ao publicar —, então qualquer um serve de amostra. Insistir no asset do
+ * período pedido fazia um asset ilegível sozinho (uma reingestão em andamento,
+ * por exemplo) derrubar a camada inteira, inclusive os anos que estavam no ar.
+ */
+async function loadSeriesPropertyNames(
+  assetIds: readonly string[],
+): Promise<string[]> {
+  let firstError: unknown;
+
+  for (const assetId of assetIds) {
+    try {
+      const collection = ee.FeatureCollection(assetId);
+      const propertyNames = await evaluateGeeObject<string[]>(
+        ee.Feature(collection.first()).propertyNames(),
+      );
+
+      if (Array.isArray(propertyNames)) return propertyNames;
+
+      firstError ??= new Error(
+        `Não foi possível identificar o schema do asset estatístico ${assetId}.`,
+      );
+    } catch (error) {
+      firstError ??= error;
+    }
+  }
+
+  throw (
+    firstError ??
+    new Error(
+      `Nenhum asset estatístico informado para identificar o schema da série.`,
+    )
+  );
+}
+
 async function getGeeStatisticsSchema(
   source: ResolvedGeeStatisticsSource,
   sourceRevision?: string,
+  seriesAssetIds: readonly string[] = [],
 ): Promise<GeeStatisticsSchema> {
   // A chave é a série, não o asset do período. O catálogo valida que todas as
   // tabelas de um índice têm o mesmo conjunto de colunas, então ler o schema de
@@ -395,20 +460,9 @@ async function getGeeStatisticsSchema(
   const cacheKey = `${sourceRevision ?? "legacy"}::${getStatisticsSeriesKey(source)}`;
   let propertyNamesPromise = propertyNamesBySourceRevision.get(cacheKey);
   if (!propertyNamesPromise) {
-    propertyNamesPromise = (async () => {
-      const collection = ee.FeatureCollection(source.assetId);
-      const propertyNames = await evaluateGeeObject<string[]>(
-        ee.Feature(collection.first()).propertyNames(),
-      );
-
-      if (!Array.isArray(propertyNames)) {
-        throw new Error(
-          `Não foi possível identificar o schema do asset estatístico ${source.assetId}.`,
-        );
-      }
-
-      return propertyNames;
-    })();
+    propertyNamesPromise = loadSeriesPropertyNames(
+      getSchemaAssetCandidates(source, seriesAssetIds),
+    );
     propertyNamesBySourceRevision.set(cacheKey, propertyNamesPromise);
   }
 
@@ -459,6 +513,85 @@ async function readStatisticsRowsBatch(
   return result.features.map((feature) => feature.properties ?? {});
 }
 
+interface SeriesBatchReading {
+  rows: Record<string, unknown>[];
+  unavailableAssetIds: string[];
+  firstError?: unknown;
+}
+
+/**
+ * Relê um bloco asset por asset, ficando com os que responderem.
+ *
+ * `ee.FeatureCollection([...]).flatten()` é tudo ou nada: um asset ilegível
+ * derruba o pedido do bloco inteiro e leva junto os anos que estavam no ar. Foi
+ * o que tirou o Monitor de Secas da ANA do painel e do relatório em todos os
+ * recortes enquanto a tabela de 2026 estava sendo reingerida — 2024 e 2025
+ * respondiam, mas iam no mesmo pedido. A releitura custa uma ida por asset e só
+ * acontece no caminho de erro.
+ */
+async function readRowsIsolatingUnavailableAssets(
+  source: ResolvedGeeStatisticsSource,
+  assetIds: readonly string[],
+  properties: string[],
+  locationFilter: unknown,
+): Promise<SeriesBatchReading> {
+  let firstError: unknown;
+  const readings = await Promise.all(
+    assetIds.map(async (assetId) => {
+      try {
+        const rows = await readStatisticsRowsBatch(
+          source,
+          [assetId],
+          properties,
+          locationFilter,
+        );
+        return { assetId, rows };
+      } catch (error) {
+        firstError ??= error;
+        console.error(
+          `[geeStatistics] asset indisponível, fora da série: ${assetId}`,
+          error,
+        );
+        return { assetId, rows: null };
+      }
+    }),
+  );
+
+  return {
+    rows: readings.flatMap(({ rows }) => rows ?? []),
+    unavailableAssetIds: readings
+      .filter(({ rows }) => rows === null)
+      .map(({ assetId }) => assetId),
+    firstError,
+  };
+}
+
+async function readSeriesBatch(
+  source: ResolvedGeeStatisticsSource,
+  assetIdBatch: readonly string[],
+  properties: string[],
+  locationFilter: unknown,
+): Promise<SeriesBatchReading> {
+  try {
+    return {
+      rows: await readStatisticsRowsBatch(
+        source,
+        assetIdBatch,
+        properties,
+        locationFilter,
+      ),
+      unavailableAssetIds: [],
+    };
+  } catch {
+    return readRowsIsolatingUnavailableAssets(
+      source,
+      assetIdBatch,
+      properties,
+      locationFilter,
+    );
+  }
+}
+
 /**
  * Todas as linhas da série estatística para um território, sem filtrar por
  * período.
@@ -482,11 +615,26 @@ async function loadSeriesLocationRows(
   // um limitador aqui só somaria espera à espera que já existe.
   const batches = await Promise.all(
     chunk(assetIds, STATISTICS_ROWS_BATCH_SIZE).map((assetIdBatch) =>
-      readStatisticsRowsBatch(source, assetIdBatch, properties, locationFilter),
+      readSeriesBatch(source, assetIdBatch, properties, locationFilter),
     ),
   );
+  const unavailableAssetIds = batches.flatMap(
+    ({ unavailableAssetIds: unavailable }) => unavailable,
+  );
 
-  return batches.flat();
+  // Quando nenhum asset responde não é um período que falta, é a fonte que está
+  // fora: o erro sobe como antes, porque uma série vazia devolvida em silêncio
+  // viraria "sem dados" em toda a camada, sem ninguém notar.
+  if (unavailableAssetIds.length === assetIds.length) {
+    throw (
+      batches.find(({ firstError }) => firstError)?.firstError ??
+      new Error(
+        `Nenhum asset estatístico da série respondeu para ${locationKey}: ${assetIds.join(", ")}.`,
+      )
+    );
+  }
+
+  return batches.flatMap(({ rows }) => rows);
 }
 
 /**
@@ -516,6 +664,8 @@ async function loadGeeStatisticsRows(
   locationKey: string,
 ): Promise<Record<string, unknown>[]> {
   const properties = getGeeStatisticsRequestedProperties(source, schema);
+  // Uma série lida sem um asset indisponível também é cacheada: o asset que
+  // voltar entra na próxima leitura, até 10 minutos depois (o TTL deste cache).
   const rows = await getOrLoadStatisticsRows(
     buildStatisticsRowsCacheKey(assetIds, locationKey, properties),
     () => loadSeriesLocationRows(source, assetIds, properties, locationKey),
@@ -603,11 +753,17 @@ export async function getGeeStatisticsYearPatch(
   }
 
   const resolvedSource = resolveGeeStatisticsSource(source, yearKey);
+  const seriesAssetIds = resolveSeriesAssetIds(
+    source,
+    periodKeys,
+    resolvedSource.assetId,
+  );
   const schema = await getGeeStatisticsSchema(
     resolvedSource,
     "sourceRevision" in source && typeof source.sourceRevision === "string"
       ? source.sourceRevision
       : undefined,
+    seriesAssetIds,
   );
 
   if (schema.percentageProperties.length !== classCount) {
@@ -619,7 +775,7 @@ export async function getGeeStatisticsYearPatch(
   const rows = await loadGeeStatisticsRows(
     resolvedSource,
     schema,
-    resolveSeriesAssetIds(source, periodKeys, resolvedSource.assetId),
+    seriesAssetIds,
     yearKey,
     locationKey,
   );
