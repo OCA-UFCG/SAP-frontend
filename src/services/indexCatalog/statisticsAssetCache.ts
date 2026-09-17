@@ -10,6 +10,11 @@ export interface DiscoveredStatisticsAsset {
   schema: GeeStatisticsSchema;
   periods: string[];
   rowCount: number;
+  /**
+   * Coluna do trimestre confirmada neste asset: existe e a sigla de cada
+   * período é a do trimestre que começa naquele mês.
+   */
+  seasonProperty?: string;
 }
 
 // Cada entrada guarda schema, períodos e contagem de um asset — algumas centenas

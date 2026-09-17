@@ -16,6 +16,7 @@ import {
   type ValidatedForecastCollection,
 } from "@/services/indexCatalog/mapAssetValidation";
 import { initializeGee } from "@/infrastructure/earth-engine/client";
+import { seasonPairsDescribeQuarters } from "@/utils/seasonalPeriod";
 import {
   buildStatisticsAssetKey,
   getOrValidateStatisticsAsset,
@@ -54,6 +55,13 @@ export interface CatalogStatisticsDiscovery {
   assets: DiscoveredStatisticsAsset[];
   periods: string[];
   classIndexes: number[];
+  /**
+   * Coluna do trimestre, quando **todos** os assets da fonte a têm. Exigir
+   * unanimidade evita publicar como sazonal um índice cuja série só tem a
+   * coluna em parte dos anos, o que deixaria o seletor de período misturando
+   * rótulos de mês e de trimestre.
+   */
+  seasonProperty?: string;
 }
 
 function normalizePeriod(
@@ -136,6 +144,43 @@ function validateProbedRows(
   return rowCount;
 }
 
+/**
+ * Confirma que a coluna `temporada` descreve o trimestre do próprio período.
+ *
+ * A previsão mensal do INMET também publica essa coluna, mas com a sigla da
+ * emissão repetida em todos os meses (`2026-10`, `2026-11` e `2026-12` todos
+ * como `OND`). Sem esta conferência, um índice mensal seria rotulado como
+ * trimestral no seletor de período.
+ */
+function confirmedSeasonProperty(
+  source: ResolvedGeeStatisticsSource,
+  schema: GeeStatisticsSchema,
+  probe: StatisticsAssetProbe,
+): string | undefined {
+  if (!schema.seasonProperty) return undefined;
+
+  const pairs = probe.seasonPairs;
+  if (!Array.isArray(pairs) || pairs.length !== 2) return undefined;
+
+  const [periodValues, seasonValues] = pairs as [unknown[], unknown[]];
+  if (!Array.isArray(periodValues) || periodValues.length === 0) {
+    return undefined;
+  }
+
+  const pairsByPeriod = periodValues.flatMap((value, index) => {
+    const period = normalizePeriod(value, source.periodGranularity);
+    const season = seasonValues?.[index];
+    return period && typeof season === "string"
+      ? [[period, season] as const]
+      : [];
+  });
+  if (pairsByPeriod.length !== periodValues.length) return undefined;
+
+  return seasonPairsDescribeQuarters(pairsByPeriod)
+    ? schema.seasonProperty
+    : undefined;
+}
+
 function probedPeriods(
   source: ResolvedGeeStatisticsSource,
   probe: StatisticsAssetProbe,
@@ -211,12 +256,18 @@ async function discoverStatisticsAsset(
   // específica que "linha com campo vazio", e é a mensagem mais útil.
   const periods = probedPeriods(source, reading.probe);
   const rowCount = validateProbedRows(source, reading.schema, reading.probe);
+  const seasonProperty = confirmedSeasonProperty(
+    source,
+    reading.schema,
+    reading.probe,
+  );
   return {
     assetId: source.assetId,
     updateTime,
     schema: reading.schema,
     periods,
     rowCount,
+    ...(seasonProperty ? { seasonProperty } : {}),
   };
 }
 
@@ -271,10 +322,15 @@ export async function discoverCatalogStatistics(
     }
   }
 
+  const seasonProperty = assets.every((asset) => asset.seasonProperty)
+    ? assets[0].seasonProperty
+    : undefined;
+
   return {
     assets,
     periods: [...periodOwners.keys()].sort(),
     classIndexes: expectedIndexes,
+    ...(seasonProperty ? { seasonProperty } : {}),
   };
 }
 
@@ -416,8 +472,18 @@ export async function buildCatalogDraft(
       periods: discovery.periods,
       classIndexes: discovery.classIndexes,
     });
+    // A coluna do trimestre é detectada na leitura das colunas do asset e
+    // gravada aqui: é ela que faz o seletor de período do Monitoramento
+    // escrever "Setembro - Outubro - Novembro - 2026". Ninguém preenche isso
+    // no formulário do catálogo.
     const statisticsSource: PublishedGeeStatisticsSource = {
       ...config.statisticsSource,
+      properties: {
+        ...config.statisticsSource.properties,
+        ...(discovery.seasonProperty
+          ? { season: discovery.seasonProperty }
+          : {}),
+      },
       schemaVersion: 1,
       sourceRevision,
     };
