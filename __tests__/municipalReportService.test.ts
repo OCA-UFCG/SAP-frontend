@@ -897,6 +897,51 @@ describe("buildMunicipalReport > variáveis de série", () => {
     expect(report.analyses.map(({ id }) => id)).toEqual(["dentro"]);
   });
 
+  // Regressão: com a tabela de 2026 do Monitor de Secas da ANA fora do ar, a
+  // seção inteira virava "Indisponível" mesmo com 2024 e 2025 publicados.
+  it("entrega o último período disponível quando o asset do período pedido está fora do ar", async () => {
+    const datasetForPeriod = (
+      period: string,
+      values: Record<string, number[]>,
+    ): CompactTerritorialAnalysisDataset => ({
+      schemaVersion: 1,
+      type: "territorial-compact",
+      classes: [{ id: "seca", label: "Seca", color: "#f00" }],
+      years: { [period]: { imageId: "x", values } },
+    });
+    const loadImageData = vi.fn(async (_id: string, period?: string) => ({
+      found: true,
+      status: "hit" as const,
+      // O período cujo asset não responde volta sem valores, e não com erro: é
+      // o que o repositório passa a devolver ao isolar o asset indisponível.
+      imageData: datasetForPeriod(
+        period ?? "",
+        period?.startsWith("2026") ? {} : { br: [100] },
+      ),
+    }));
+
+    const report = await buildMunicipalReport("br", "2026", {
+      layers: [
+        {
+          panelLayerId: "monitor-de-seca-ana",
+          alias: "seca",
+          title: "Monitor de seca | ANA",
+          order: 1,
+          periods: ["2025-11", "2025-12", "2026-07"],
+          statisticsSource: { kind: "gee-feature-collection" } as never,
+        },
+      ],
+      loadImageData,
+    });
+
+    expect(report.analyses[0]).toMatchObject({
+      status: "available",
+      requestedPeriod: "2026",
+      effectivePeriod: "2025-12",
+    });
+    expect(report.templateVariables.periodo_seca).toBe("2025-12");
+  });
+
   it("entrega as variáveis de território que o texto do catálogo cita", async () => {
     const report = await buildMunicipalReport("2504009", "2024", {
       listPanelLayers: async () => [] as never,
