@@ -2,8 +2,7 @@
 
 import { useTranslations } from "next-intl";
 import { PlatformMapCaption } from "@/components/PlatformMapCaption/PlatformMapCaption";
-import { BasemapControl } from "@/components/MapControls/BasemapControl";
-import { LayerOpacityControl } from "@/components/MapControls/LayerOpacityControl";
+import { MapSettingsControl } from "@/components/MapControls/MapSettingsControl";
 import { ReferenceOverlaysControl } from "@/components/MapControls/ReferenceOverlaysControl";
 import type { MonitoringMapLayers } from "./useMonitoringMapLayers";
 
@@ -58,19 +57,19 @@ export function MonitoringMapOverlays({
             onToggle={toggleReferenceOverlay}
           />
         )}
-        {showControls && (
-          <BasemapControl basemap={basemap} onChange={setBasemap} />
-        )}
-        {showControls && activeEEData && (
-          <LayerOpacityControl
-            opacity={layerOpacity ?? 0.85}
-            onChange={setLayerOpacity}
-          />
-        )}
         {showControls && activeLegend && activeLegend.length > 0 && (
           <PlatformMapCaption legend={activeLegend} />
         )}
       </div>
+
+      {showControls && (
+        <MapSettingsControl
+          basemap={basemap}
+          onBasemapChange={setBasemap}
+          opacity={activeEEData ? (layerOpacity ?? 0.85) : undefined}
+          onOpacityChange={activeEEData ? setLayerOpacity : undefined}
+        />
+      )}
     </>
   );
 }
