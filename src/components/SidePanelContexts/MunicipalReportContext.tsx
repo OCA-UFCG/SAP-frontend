@@ -313,9 +313,9 @@ export function MunicipalReportContext({ panelLayers = [] }: MunicipalReportCont
           <p className="font-inter text-xs font-medium leading-[18px] tracking-[-0.015em]">{t("selectAreaHint")}</p>
           <div className="flex w-full flex-col items-start gap-[6px]">
             <span id="municipal-report-scope-label" className="text-[14px] font-medium leading-[20px] text-[#292829]">{t("scope")}</span>
-            {/* Os dois controles ficam lado a lado, como o recorte de Monitoramento:
-                é o mesmo gesto para o usuário, então é o mesmo desenho. */}
-            <div className="flex w-full gap-2">
+            {/* Recorte em cima, território embaixo: o segundo campo só faz sentido
+                depois de escolher o primeiro, e empilhado ele cabe inteiro. */}
+            <div className="flex w-full flex-col gap-2">
               <PanelDropdown
                 labelledBy="municipal-report-scope-label"
                 ariaLabelPrefix={t("scope")}
@@ -353,7 +353,7 @@ export function MunicipalReportContext({ panelLayers = [] }: MunicipalReportCont
                   aria-controls="municipal-report-municipality-options"
                   aria-expanded={isMunicipalityOptionsOpen}
                   aria-haspopup="listbox"
-                  className="min-w-0 flex-1 border-none bg-transparent p-0 text-[13px] leading-5 text-[#292829] outline-none ring-0 placeholder:text-[13px] placeholder:text-[#292829]"
+                  className="min-w-0 flex-1 border-none bg-transparent p-0 text-[13px] leading-5 text-[#292829] outline-none ring-0 placeholder:text-[12px] placeholder:text-[#292829]"
                   placeholder={t("searchMunicipality")}
                 />
                 {(municipalityQuery || municipalityCode) && (
