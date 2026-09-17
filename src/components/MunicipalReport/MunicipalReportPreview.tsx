@@ -80,6 +80,9 @@ function textColorForBackground(color: string) {
     : "#ffffff";
 }
 
+/** Fontes declaradas em `src/app/[locale]/layout.tsx` e usadas pelo documento. */
+const FONT_VARIABLE_NAMES = ["--font-open-sans", "--font-inter"];
+
 function buildReportFilename(
   report: MunicipalReportData | null,
   period: string,
@@ -183,7 +186,6 @@ const AnalysisSection = memo(function AnalysisSection({
   const valueLabels = getMunicipalReportValueLabels(analysis, (key, values) =>
     t(key, values),
   );
-
 
   return (
     <section
@@ -709,6 +711,16 @@ export function MunicipalReportPreview({
       .map((element) => element.outerHTML)
       .join("\n");
     const baseUrl = `${window.location.origin}/`;
+    // As variáveis de fonte do next/font vivem na className do <body> do app
+    // (src/app/[locale]/layout.tsx). A janela de impressão monta um <body> novo,
+    // sem essa classe, e o PDF saía numa fonte de sistema em vez de Open Sans —
+    // o que muda a largura do texto e a quebra de página junto. Vão como regra
+    // CSS, e não como atributo style: o valor resolvido traz aspas duplas
+    // (`"Open Sans", "Open Sans Fallback"`) que truncariam o atributo.
+    const appBodyStyle = getComputedStyle(document.body);
+    const printFontVariables = FONT_VARIABLE_NAMES.map(
+      (name) => `${name}:${appBodyStyle.getPropertyValue(name)}`,
+    ).join(";");
     const filename = buildReportFilename(
       report,
       period,
@@ -718,6 +730,7 @@ export function MunicipalReportPreview({
     const printOverrides = `
       <style>
         @page{size:A4;margin:12mm 14mm}
+        body{${printFontVariables}}
         html,body{width:auto;margin:0;background:#fff}
         body{-webkit-print-color-adjust:exact;print-color-adjust:exact}
         .report-paper{box-sizing:border-box;width:auto!important;min-height:auto!important;margin:0!important;padding:0!important;overflow:visible;box-shadow:none!important}
@@ -738,7 +751,15 @@ export function MunicipalReportPreview({
           .report-block{break-inside:avoid;page-break-inside:avoid}
           .report-class-bar-row{break-inside:avoid;page-break-inside:avoid}
           .report-variable-index{break-inside:avoid;page-break-inside:avoid}
-          .report-time-series,.report-spatial,.report-class-coverage{break-inside:avoid;page-break-inside:avoid}
+          /* Mapa, gráfico e barras de classe medem 435, 506 e até 530px numa
+             página A4 de 1032px úteis: dois cabem, três nunca. Enquanto o cartão
+             inteiro era indivisível, o terceiro pulava de página e deixava um
+             vão de 300 a 500px no pé da anterior, seção após seção. O que de
+             fato não pode ser cortado ao meio é a imagem do mapa e o SVG do
+             gráfico; o cabeçalho, a legenda e a tabela de classes podem fluir. */
+          .report-time-series,.report-spatial,.report-class-coverage{break-inside:auto;page-break-inside:auto}
+          .report-time-series>.report-block,.report-spatial>.report-block,.report-class-coverage>.report-block{break-inside:auto;page-break-inside:auto}
+          .report-map-frame,.report-chart-print{break-inside:avoid;page-break-inside:avoid}
           .report-narrative{break-inside:auto;page-break-inside:auto}
           .report-notes{break-inside:auto;page-break-inside:auto;margin-top:8mm!important;padding-top:5mm!important}
           .report-document-footer{break-inside:avoid;page-break-inside:avoid}
