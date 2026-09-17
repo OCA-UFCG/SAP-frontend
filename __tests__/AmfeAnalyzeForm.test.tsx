@@ -109,3 +109,33 @@ test("keeps advanced settings collapsed until the reader opens them", async () =
     expect(toggle).toHaveAttribute("aria-expanded", "true");
   });
 });
+
+test("keeps the collapsed advanced settings out of the tab order", () => {
+  const { container } = render(<AnalyzeForm setFormPayload={vi.fn()} />);
+
+  const indifference = screen.getByPlaceholderText("indifferencePlaceholder");
+
+  expect(indifference.closest("[inert]")).not.toBeNull();
+});
+
+test("opens the advanced settings when a threshold is missing", async () => {
+  render(<AnalyzeForm setFormPayload={vi.fn()} />);
+
+  const toggle = screen.getByRole("button", { name: "advancedSettingsTitle" });
+  fireEvent.click(toggle);
+
+  const indifference = screen.getByPlaceholderText("indifferencePlaceholder");
+  fireEvent.change(indifference, { target: { value: "" } });
+  fireEvent.click(toggle);
+
+  await waitFor(() => {
+    expect(toggle).toHaveAttribute("aria-expanded", "false");
+  });
+
+  fireEvent.click(screen.getByRole("button", { name: "submitButton" }));
+
+  await waitFor(() => {
+    expect(toggle).toHaveAttribute("aria-expanded", "true");
+  });
+  expect(screen.getByText("indifferenceRequired")).toBeTruthy();
+});

@@ -47,10 +47,18 @@ export function LayerAccordion({
       </button>
 
       <div
-        className={`grid transition-all duration-300 ease-in-out ${isOpen ? "grid-rows-[1fr] opacity-100 pb-4" : "grid-rows-[0fr] opacity-0"
-          }`}
+        className={`grid transition-all duration-300 ease-in-out ${
+          isOpen
+            ? "grid-rows-[1fr] opacity-100 pb-4"
+            : "grid-rows-[0fr] opacity-0"
+        }`}
       >
-        <div className="overflow-hidden flex flex-col gap-6 px-4 pt-1">
+        {/* Fechado, o conteúdo continua montado (para não perder estado), então
+            `inert` é o que impede o Tab de parar em campos invisíveis. */}
+        <div
+          inert={!isOpen}
+          className="overflow-hidden flex flex-col gap-6 px-4 pt-1"
+        >
           <hr className="w-full border-t border-[#EFEFEF]" />
           {children}
         </div>
