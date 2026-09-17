@@ -62,11 +62,11 @@ describe("MunicipalReportClassBars", () => {
     const { container } = renderBars();
     const bars = container.querySelectorAll("[data-report-class-bar]");
 
-    expect((bars[0] as HTMLElement).style.width).toBe("26.036%");
-    expect((bars[1] as HTMLElement).style.width).toBe("65.964%");
+    expect((bars[0] as HTMLElement).style.width).toBe("28.3%");
+    expect((bars[1] as HTMLElement).style.width).toBe("71.7%");
   });
 
-  it("deixa folga à direita para o valor, mesmo com a classe em 100%", () => {
+  it("desenha a classe de 100% na largura cheia da trilha", () => {
     const { container } = renderBars(
       buildAnalysis({
         snapshot: {
@@ -74,7 +74,12 @@ describe("MunicipalReportClassBars", () => {
           label: "2026-05",
           dominantClass: null,
           distribution: [
-            { id: "tudo", label: "Sem seca", color: "#CCCCCC", percentage: 100 },
+            {
+              id: "tudo",
+              label: "Sem seca",
+              color: "#CCCCCC",
+              percentage: 100,
+            },
           ],
         },
       }),
@@ -83,8 +88,10 @@ describe("MunicipalReportClassBars", () => {
       "[data-report-class-bar]",
     ) as HTMLElement;
 
-    expect(Number.parseFloat(bar.style.width)).toBeLessThan(100);
-    expect(Number.parseFloat(bar.style.width)).toBeGreaterThan(80);
+    // A trilha é irmã do rótulo, então 100% da trilha ainda deixa o valor
+    // dentro da caixa — era o valor que vazava antes, não a barra.
+    expect(bar.style.width).toBe("100%");
+    expect(bar.parentElement?.className).toContain("flex-1");
   });
 
   it("mede a barra contra uma trilha que não inclui o rótulo do valor", () => {
@@ -136,8 +143,8 @@ describe("MunicipalReportClassBars", () => {
     );
     const bars = container.querySelectorAll("[data-report-class-bar]");
 
-    expect((bars[0] as HTMLElement).style.width).toBe("92%");
-    expect((bars[1] as HTMLElement).style.width).toBe("23%");
+    expect((bars[0] as HTMLElement).style.width).toBe("100%");
+    expect((bars[1] as HTMLElement).style.width).toBe("25%");
   });
 
   it("expõe os valores como tabela acessível", () => {
