@@ -5,6 +5,7 @@ import { useLocale, useTranslations } from "next-intl";
 import { useRouter } from "next/navigation";
 import { InfoModal } from "@/components/InfoModal/InfoModal";
 import { LayerAccordion } from "@/components/LayerAccordion/LayerAccordion";
+import { PanelDropdown } from "@/components/PanelDropdown/PanelDropdown";
 import citiesIndex from "@/data/citiesIndex.json";
 import municipalAvailabilityIndex from "@/data/municipalAvailabilityIndex.json";
 import type { MunicipalAvailabilityIndex } from "@/utils/municipalAvailability";
@@ -310,34 +311,29 @@ export function MunicipalReportContext({ panelLayers = [] }: MunicipalReportCont
         <fieldset className="space-y-3">
           <legend className="font-open-sans text-lg font-semibold leading-6">{t("selectArea")}</legend>
           <p className="font-inter text-xs font-medium leading-[18px] tracking-[-0.015em]">{t("selectAreaHint")}</p>
-          <div className="space-y-6">
-            <label className="flex w-full flex-col items-start gap-[6px]">
-              <span className="text-[14px] font-medium leading-[20px] text-[#292829]">{t("scope")}</span>
-              <select
+          <div className="flex w-full flex-col items-start gap-[6px]">
+            <span id="municipal-report-scope-label" className="text-[14px] font-medium leading-[20px] text-[#292829]">{t("scope")}</span>
+            {/* Os dois controles ficam lado a lado, como o recorte de Monitoramento:
+                é o mesmo gesto para o usuário, então é o mesmo desenho. */}
+            <div className="flex w-full gap-2">
+              <PanelDropdown
+                labelledBy="municipal-report-scope-label"
+                ariaLabelPrefix={t("scope")}
+                options={REPORT_SCOPE_OPTIONS.map((option) => ({ value: option, label: t(`scopes.${option}`) }))}
                 value={scope}
-                onChange={(event) => selectScope(event.target.value as ReportScope)}
-                className="h-10 w-full rounded-lg border border-transparent bg-[#E4E5E2] px-3 text-[13px] leading-5 text-[#292829] shadow-sm transition hover:border-neutral-400 focus:border-neutral-600 focus:outline-none focus:ring-2 focus:ring-neutral-600"
-              >
-                {REPORT_SCOPE_OPTIONS.map((option) => (
-                  <option key={option} value={option}>{t(`scopes.${option}`)}</option>
-                ))}
-              </select>
-            </label>
-            {scope !== "municipality" && scope !== "national" && (
-              <label className="flex w-full flex-col items-start gap-[6px]">
-                <span className="text-[14px] font-medium leading-[20px] text-[#292829]">{t(`scopes.${scope}`)}</span>
-                <select
+                placeholder={t("scope")}
+                onChange={(value) => selectScope(value as ReportScope)}
+              />
+              {scope !== "municipality" && scope !== "national" && (
+                <PanelDropdown
+                  labelledBy="municipal-report-scope-label"
+                  ariaLabelPrefix={t(`scopes.${scope}`)}
+                  options={SPATIAL_VALUE_OPTIONS[scope].map((option) => ({ value: option.value, label: tAnalysis(option.labelKey) }))}
                   value={spatialValue}
-                  onChange={(event) => selectSpatialValue(event.target.value)}
-                  className="h-10 w-full rounded-lg border border-transparent bg-[#E4E5E2] px-3 text-[13px] leading-5 text-[#292829] shadow-sm transition hover:border-neutral-400 focus:border-neutral-600 focus:outline-none focus:ring-2 focus:ring-neutral-600"
-                >
-                  <option value="">{t("selectTerritory")}</option>
-                  {SPATIAL_VALUE_OPTIONS[scope].map((option) => (
-                    <option key={option.value} value={option.value}>{tAnalysis(option.labelKey)}</option>
-                  ))}
-                </select>
-              </label>
-            )}
+                  placeholder={t("selectTerritory")}
+                  onChange={selectSpatialValue}
+                />
+              )}
             <div ref={municipalityPickerRef} className={`relative min-w-0 flex-1 ${scope === "municipality" ? "" : "hidden"}`}>
               <span className="sr-only">{t("municipality")}</span>
               <div className="flex h-10 w-full items-center overflow-hidden rounded-lg border border-transparent bg-[#E4E5E2] px-3 py-3 shadow-sm transition hover:border-neutral-400 focus-within:border-neutral-600 focus-within:ring-2 focus-within:ring-neutral-600">
@@ -389,6 +385,7 @@ export function MunicipalReportContext({ panelLayers = [] }: MunicipalReportCont
                   )}
                 </div>
               )}
+            </div>
             </div>
             {/* Seletor de data temporariamente desativado. O período padrão do relatório é 2026.
             <label className="flex w-full max-w-[392px] flex-col items-start gap-[6px]">
