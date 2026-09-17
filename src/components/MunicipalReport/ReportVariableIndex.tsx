@@ -9,7 +9,7 @@ import {
   REPORT_CATEGORY_TOKENS,
   reportAnalysisAnchorId,
 } from "@/utils/municipalReportCategories";
-import { easeScrollTo, findScrollableAncestor } from "./ReportBackToTop";
+import { easeScrollTo, findScrollableAncestor } from "@/utils/reportScroll";
 
 function handleAnchorClick(
   event: MouseEvent<HTMLAnchorElement>,
@@ -60,7 +60,10 @@ export function ReportVariableIndex({
           const tokens = REPORT_CATEGORY_TOKENS[group.key];
 
           return (
-            <section key={group.key} className="flex min-w-0 flex-col gap-2 pb-4 pt-1">
+            <section
+              key={group.key}
+              className="flex min-w-0 flex-col gap-2 pb-4 pt-1"
+            >
               <h3 className="font-inter text-base font-medium leading-6 text-[#292829]">
                 {tModules(`categories.${group.key}`)}
               </h3>

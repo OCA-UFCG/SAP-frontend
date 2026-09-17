@@ -4,7 +4,6 @@ import type { MunicipalReportAnalysis } from "@/contracts/municipalReport";
 import { formatMunicipalReportValue } from "@/utils/municipalReportValue";
 
 const ZERO_BAR_WIDTH = "2px";
-const MAX_BAR_SHARE = 92;
 
 export function MunicipalReportClassBars({
   analysis,
@@ -26,14 +25,14 @@ export function MunicipalReportClassBars({
   return (
     <table className="report-class-bars font-open-sans w-full border-collapse border-spacing-0 text-xs text-[#292829]">
       <caption className="sr-only">
-        {analysis.title} — {analysis.snapshot?.label ?? analysis.requestedPeriod}
+        {analysis.title} —{" "}
+        {analysis.snapshot?.label ?? analysis.requestedPeriod}
       </caption>
       <tbody>
         {distribution.map((item) => {
-          const share = Math.max(
-            0,
-            (item.percentage / scaleMax) * MAX_BAR_SHARE,
-          );
+          // A trilha abaixo já exclui o rótulo do valor, então a barra pode
+          // ocupar a largura cheia sem empurrar a porcentagem para fora.
+          const share = Math.max(0, (item.percentage / scaleMax) * 100);
 
           return (
             <tr key={item.id} className="report-class-bar-row align-middle">
