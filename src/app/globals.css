@@ -197,6 +197,23 @@ textarea {
     page-break-inside: avoid;
   }
 
+  /* Os cartões de mapa, gráfico e barras de classe são altos demais para serem
+     indivisíveis: dois já ocupam a página A4 e o terceiro deixava um vão em
+     branco no pé dela. O que não pode ser cortado ao meio é a imagem e o SVG.
+     A mesma regra vale na janela de impressão, em MunicipalReportPreview. */
+  .report-time-series > .report-block,
+  .report-spatial > .report-block,
+  .report-class-coverage > .report-block {
+    break-inside: auto;
+    page-break-inside: auto;
+  }
+
+  .report-map-frame,
+  .report-chart-print {
+    break-inside: avoid;
+    page-break-inside: avoid;
+  }
+
   .report-heading {
     break-after: avoid;
     page-break-after: avoid;

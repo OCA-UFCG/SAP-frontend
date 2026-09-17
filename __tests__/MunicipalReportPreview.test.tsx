@@ -343,6 +343,15 @@ describe("MunicipalReportPreview", () => {
     expect(popupDocument.documentElement.outerHTML).toContain(
       "object-fit:contain!important",
     );
+    // Regressão: os cartões de mapa, gráfico e barras eram indivisíveis, então
+    // o terceiro pulava de página e deixava meia folha em branco. Só a imagem e
+    // o SVG seguem indivisíveis.
+    expect(popupDocument.documentElement.outerHTML).toContain(
+      ".report-time-series,.report-spatial,.report-class-coverage{break-inside:auto;page-break-inside:auto}",
+    );
+    expect(popupDocument.documentElement.outerHTML).toContain(
+      ".report-map-frame,.report-chart-print{break-inside:avoid;page-break-inside:avoid}",
+    );
     expect(popupDocument.title).toBe("Relatório-Abadia-de-Goiás-2026.pdf");
 
     const loadListener = vi
@@ -362,6 +371,49 @@ describe("MunicipalReportPreview", () => {
       afterPrintListener(new Event("afterprint"));
     }
     expect(close).toHaveBeenCalled();
+  });
+
+  // Regressão: a janela de impressão monta um <body> novo, sem a className do
+  // next/font que o layout põe no <body> do app, e o PDF saía numa fonte de
+  // sistema em vez de Open Sans.
+  it("carries the app font variables into the print window body", async () => {
+    const user = userEvent.setup();
+    // Com aspas duplas, como o next/font resolve de verdade: é o que truncava o
+    // atributo style e deixava o PDF sem a fonte.
+    document.body.style.setProperty("--font-open-sans", '"Open Sans teste"');
+    document.body.style.setProperty("--font-inter", '"Inter teste"');
+    const popupDocument = document.implementation.createHTMLDocument();
+    const popup = {
+      document: popupDocument,
+      focus: vi.fn(),
+      print: vi.fn(),
+      close: vi.fn(),
+      addEventListener: vi.fn(),
+    } as unknown as Window;
+    vi.spyOn(window, "open").mockReturnValue(popup);
+
+    render(
+      <MunicipalReportPreview
+        locationKey="5200050"
+        period="2026"
+        layerIds={["anaseca"]}
+        embedded
+      />,
+    );
+
+    const downloadButton = await screen.findByRole("button", {
+      name: "Baixar PDF",
+    });
+    await waitFor(() => expect(downloadButton).toBeEnabled());
+    await user.click(downloadButton);
+
+    const printedHtml = popupDocument.documentElement.outerHTML;
+    expect(printedHtml).toContain(
+      'body{--font-open-sans:"Open Sans teste";--font-inter:"Inter teste"}',
+    );
+
+    document.body.style.removeProperty("--font-open-sans");
+    document.body.style.removeProperty("--font-inter");
   });
 
   it("shows an error when the browser blocks the PDF print window", async () => {
