@@ -1,4 +1,5 @@
 import { describe, expect, it } from "vitest";
+import { resolveReportTerritory } from "@/utils/reportTerritory";
 import type {
   MunicipalReportAnalysis,
   MunicipalReportDocsContent,
@@ -118,6 +119,7 @@ describe("municipal report narrative", () => {
           schemaVersion: 1,
           generatedAt: "2026-07-14T00:00:00.000Z",
           requestedPeriod: "2025",
+          territory: resolveReportTerritory("3100609")!,
           municipality: { code: "3100609", name: "Abaeté", uf: "MG" },
           analyses: [absoluteAnalysis],
           templateVariables: {},

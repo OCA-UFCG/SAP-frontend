@@ -19,16 +19,16 @@ const SECTION_EXAMPLES: ReadonlyArray<{
   {
     title: "Situação atual",
     written:
-      "No município de [municipio] — [uf], [percentual]% do seu território está na classe [classe], conforme o [indice], no período de [periodo_extenso].",
+      "[no_territorio], [percentual]% do território está na classe [classe], conforme o [indice], no período de [periodo_extenso].",
     rendered:
-      "No município de Campina Grande — PB, 83,4% do seu território está na classe Semiárido, conforme o Monitor de Secas da ANA, no período de setembro de 2024.",
+      "No município de Campina Grande — PB, 83,4% do território está na classe Semiárido, conforme o Monitor de Secas da ANA, no período de setembro de 2024. (No relatório da Caatinga, a mesma frase abre com “No bioma Caatinga”.)",
   },
   {
     title: "Como interpretar os resultados",
     written:
-      "Uma parcela de [percentual]% em [classe] indica que a maior parte do território de [municipio] esteve nessa faixa em [periodo_extenso], o que não exclui a presença de áreas mais críticas.",
+      "Uma parcela de [percentual]% em [classe] indica que a maior parte da área [do_territorio] esteve nessa faixa em [periodo_extenso], o que não exclui a presença de áreas mais críticas.",
     rendered:
-      "Uma parcela de 83,4% em Semiárido indica que a maior parte do território de Campina Grande esteve nessa faixa em setembro de 2024, o que não exclui a presença de áreas mais críticas.",
+      "Uma parcela de 83,4% em Semiárido indica que a maior parte da área do município de Campina Grande — PB esteve nessa faixa em setembro de 2024, o que não exclui a presença de áreas mais críticas.",
   },
 ];
 
@@ -144,7 +144,9 @@ export function IndexCatalogReportGuideModal({
         <h3 className="mt-5 font-bold">Dados que você pode inserir</h3>
         <p className="mt-1 text-sm text-stone-600">
           Escreva o nome entre colchetes. O servidor troca pelo dado do
-          município no momento em que o relatório é gerado.
+          território no momento em que o relatório é gerado — o mesmo texto é
+          lido no relatório de um município, de um estado, de um bioma ou do
+          Brasil.
         </p>
         <div className="mt-3 overflow-hidden rounded-lg border border-stone-200">
           <table className="w-full border-collapse text-sm">

@@ -1,4 +1,5 @@
 import { cleanup, render, screen, waitFor } from "@testing-library/react";
+import { resolveReportTerritory } from "@/utils/reportTerritory";
 import userEvent from "@testing-library/user-event";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { useEffect, useRef } from "react";
@@ -83,6 +84,7 @@ const report: MunicipalReportData = {
   schemaVersion: 1,
   generatedAt: "2026-07-15T12:00:00.000Z",
   requestedPeriod: "2026",
+  territory: resolveReportTerritory("5200050")!,
   municipality: {
     code: "5200050",
     name: "Abadia de Goiás",
@@ -168,7 +170,7 @@ describe("MunicipalReportPreview", () => {
 
     render(
       <MunicipalReportPreview
-        municipalityCode="5200050"
+        locationKey="5200050"
         period="2026"
         layerIds={["anaseca"]}
         embedded
@@ -237,7 +239,7 @@ describe("MunicipalReportPreview", () => {
   it("leva o pedido do relatório no link Ver monitor, para a volta não perdê-lo", async () => {
     render(
       <MunicipalReportPreview
-        municipalityCode="5200050"
+        locationKey="5200050"
         period="2026"
         layerIds={["anaseca"]}
         embedded
@@ -250,7 +252,7 @@ describe("MunicipalReportPreview", () => {
     // Trocar de seção pelo trilho lateral preserva a URL; este link navega e a
     // substituiria, então o pedido precisa viajar junto.
     expect(href).toContain("layer=anaseca");
-    expect(href).toContain("municipalityCode=5200050");
+    expect(href).toContain("locationKey=5200050");
     expect(href).toContain("period=2026");
     expect(href).toContain("layers=anaseca");
   });
@@ -261,7 +263,7 @@ describe("MunicipalReportPreview", () => {
 
     render(
       <MunicipalReportPreview
-        municipalityCode="5200050"
+        locationKey="5200050"
         period="2026"
         layerIds={["anaseca"]}
         onOpenMonitor={onOpenMonitor}
@@ -293,7 +295,7 @@ describe("MunicipalReportPreview", () => {
 
     render(
       <MunicipalReportPreview
-        municipalityCode="5200050"
+        locationKey="5200050"
         period="2026"
         layerIds={["anaseca"]}
         embedded
@@ -368,7 +370,7 @@ describe("MunicipalReportPreview", () => {
 
     render(
       <MunicipalReportPreview
-        municipalityCode="5200050"
+        locationKey="5200050"
         period="2026"
         layerIds={["anaseca"]}
         embedded

@@ -13,6 +13,8 @@ import { loadPlatformShellData } from "./platformShellData";
 interface PlatformPageSearchParams {
   view?: string | string[];
   section?: string | string[];
+  locationKey?: string | string[];
+  /** Forma antiga do parâmetro, mantida para os links já compartilhados. */
   municipalityCode?: string | string[];
   period?: string | string[];
   layers?: string | string[];
@@ -50,8 +52,10 @@ export default async function PlatformPage({
   const resolvedSearchParams = searchParams ? await searchParams : {};
   const viewMode = normalizePlatformView(resolvedSearchParams.view);
   const initialSection = normalizePlatformSection(resolvedSearchParams.section);
-  const municipalityCode =
-    getSingleSearchParamValue(resolvedSearchParams.municipalityCode) ?? "";
+  const locationKey =
+    getSingleSearchParamValue(resolvedSearchParams.locationKey) ??
+    getSingleSearchParamValue(resolvedSearchParams.municipalityCode) ??
+    "";
   const period = getSingleSearchParamValue(resolvedSearchParams.period) ?? "";
   const detailLayerId =
     getSingleSearchParamValue(resolvedSearchParams.layer)?.trim() || undefined;
@@ -113,9 +117,7 @@ export default async function PlatformPage({
       initialSection={initialSection}
       detailLayerId={detailLayerId}
       reportRequest={
-        municipalityCode && period
-          ? { municipalityCode, period, layerIds }
-          : undefined
+        locationKey && period ? { locationKey, period, layerIds } : undefined
       }
     />
   );

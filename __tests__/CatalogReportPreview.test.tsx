@@ -1,4 +1,5 @@
 import { cleanup, render, screen, waitFor } from "@testing-library/react";
+import { resolveReportTerritory } from "@/utils/reportTerritory";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 vi.mock("@/components/IndexCatalog/catalogApiClient", () => ({
@@ -65,6 +66,7 @@ function buildPreview(): IndexCatalogReportPreview {
       schemaVersion: 1,
       generatedAt: "2026-01-01T00:00:00.000Z",
       requestedPeriod: "2024",
+      territory: resolveReportTerritory("2504009")!,
       municipality: { code: "2504009", name: "Campina Grande", uf: "PB" },
       templateVariables: {},
       analyses: [

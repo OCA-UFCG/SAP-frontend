@@ -319,8 +319,8 @@ export function prepareTemplateData(report: MunicipalReportData): TemplateData {
     getDistributionPercentage(ultimoDeg, "nivel-5");
 
   return {
-    municipio: report.municipality.name,
-    uf: report.municipality.uf,
+    municipio: report.territory.name,
+    uf: report.territory.uf ?? "",
     data_geracao: new Intl.DateTimeFormat("pt-BR", { timeZone: "UTC" }).format(
       new Date(report.generatedAt),
     ),

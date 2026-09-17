@@ -40,6 +40,30 @@ precise saber de onde ele veio — inclusive a substituição de variáveis entr
 colchetes e a regra de que uma seção "Situação atual" vence a frase gerada
 automaticamente. Sem `reportConfig`, o índice continua lendo o documento.
 
+### O índice entra no relatório?
+
+A mesma seção do formulário grava `reportConfig.includeInReport`. Só o "não" é
+gravado: a ausência do campo significa incluído, e é isso que mantém no
+relatório todo índice publicado antes de a pergunta existir. Desmarcado, o
+índice continua no mapa e no painel de análise, mas some da lista do Relatório
+Automático em todos os recortes — `getSelectableReportLayerIds` o retira do
+formulário e `resolveReportLayers` não monta seção para ele.
+
+### Um texto para todos os recortes
+
+O relatório é gerado para município, estado, Brasil, região, bioma, semiárido e
+ASD, e o texto escrito aqui é o mesmo em todos eles. Por isso as variáveis de
+território substituíram a citação direta ao município: `[no_territorio]` abre a
+frase já com a contração certa ("No município de Campina Grande — PB", "Na
+região Nordeste", "No bioma Caatinga"), `[do_territorio]` serve ao meio da frase
+("quanto da área [do_territorio]"), `[territorio]` é só o nome e `[recorte]` é o
+substantivo do recorte. A contração depende do gênero do recorte e do artigo do
+nome, e quem escreve a frase não sabe em que recorte ela será lida — por isso
+ela vem pronta do servidor, em `src/utils/reportTerritory.ts`.
+
+`[municipio]` e `[uf]` continuam existindo para os textos antigos: fora do
+município, `[municipio]` descreve o território do relatório e `[uf]` fica vazia.
+
 ### Ordem de gravidade das classes
 
 Uma pergunta no mesmo formulário grava `reportConfig.severity`: a lista de ids

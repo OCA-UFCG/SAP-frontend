@@ -248,11 +248,35 @@ export function IndexCatalogReportFields({
           Guia e exemplos
         </button>
       </div>
-      <p className="mt-2 text-xs text-stone-500">
-        O que estiver entre colchetes é trocado pelo dado do município:{" "}
-        <code>[municipio]</code>, <code>[indice]</code>, <code>[classe]</code>,{" "}
+      <label className="mt-4 flex items-start gap-2 text-sm font-medium">
+        <input
+          type="checkbox"
+          className="mt-1"
+          checked={report.includeInReport}
+          onChange={(event) =>
+            onChange({ ...report, includeInReport: event.target.checked })
+          }
+        />
+        Este índice deve ser incluído no relatório?
+      </label>
+      <p className="mt-1 text-xs text-stone-500">
+        Desmarcado, o índice continua no mapa e no painel de análise, mas some
+        da lista do Relatório Automático em todos os recortes. Os textos abaixo
+        ficam guardados e voltam a valer se você marcar de novo.
+      </p>
+
+      <p className="mt-4 text-xs text-stone-500">
+        O que estiver entre colchetes é trocado pelo dado do território:{" "}
+        <code>[no_territorio]</code>, <code>[territorio]</code>,{" "}
+        <code>[recorte]</code>, <code>[indice]</code>, <code>[classe]</code>,{" "}
         <code>[percentual]</code> e <code>[periodo_extenso]</code>. Um campo
         deixado em branco simplesmente não aparece no relatório.
+      </p>
+      <p className="mt-1 text-xs text-stone-500">
+        O mesmo texto é lido em todos os recortes — município, estado, Brasil,
+        região, bioma, semiárido e ASD. Por isso escreva{" "}
+        <code>[no_territorio]</code> (vira “No município de Campina Grande — PB”
+        ou “Na região Nordeste”) em vez de citar município à mão.
       </p>
 
       <div className="mt-4 space-y-4">

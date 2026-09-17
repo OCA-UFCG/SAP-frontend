@@ -1,7 +1,12 @@
 "use client";
 
 import maplibregl from "maplibre-gl";
-import { GEE_LAYER_ID, GEE_SOURCE_ID } from "@/components/Map/mapDefinitions";
+import {
+  GEE_LAYER_ID,
+  GEE_SOURCE_ID,
+  REPORT_TERRITORY_OUTLINE_LAYER_ID,
+  REPORT_TERRITORY_OUTLINE_SOURCE_ID,
+} from "@/components/Map/mapDefinitions";
 import {
   MUNICIPALITY_SOURCE_ID,
   MUNICIPALITY_SOURCE_LAYER,
@@ -130,6 +135,12 @@ export function releaseReportMap(pooled: PooledReportMap) {
     try {
       if (map.getLayer(GEE_LAYER_ID)) map.removeLayer(GEE_LAYER_ID);
       if (map.getSource(GEE_SOURCE_ID)) map.removeSource(GEE_SOURCE_ID);
+      if (map.getLayer(REPORT_TERRITORY_OUTLINE_LAYER_ID)) {
+        map.removeLayer(REPORT_TERRITORY_OUTLINE_LAYER_ID);
+      }
+      if (map.getSource(REPORT_TERRITORY_OUTLINE_SOURCE_ID)) {
+        map.removeSource(REPORT_TERRITORY_OUTLINE_SOURCE_ID);
+      }
       map.removeFeatureState({
         source: MUNICIPALITY_SOURCE_ID,
         sourceLayer: MUNICIPALITY_SOURCE_LAYER,

@@ -21,7 +21,7 @@ type DefaultPlatformLayoutProps = {
   viewMode?: "default";
   telemetryDashboard?: never;
   reportRequest?: {
-    municipalityCode: string;
+    locationKey: string;
     period: string;
     layerIds: string[];
   };

@@ -1,4 +1,5 @@
 import { describe, expect, it, vi } from "vitest";
+import { resolveReportTerritory } from "@/utils/reportTerritory";
 vi.mock("server-only", () => ({}));
 import { prepareTemplateData } from "@/services/buildDoc/buildTemplateData";
 import type {
@@ -34,6 +35,7 @@ function buildReport(
     schemaVersion: 1,
     generatedAt: "2026-07-11T00:00:00.000Z",
     requestedPeriod: "2026",
+    territory: resolveReportTerritory("2504009")!,
     municipality: { code: "2504009", name: "Campina Grande", uf: "PB" },
     analyses: [
       {

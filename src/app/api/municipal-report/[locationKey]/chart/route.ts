@@ -9,17 +9,17 @@ import {
   renderMunicipalReportCharts,
   resolveMunicipalReportChartAnalyses,
 } from "@/services/municipalReportChartService";
+import { isReportTerritoryKeyShape } from "@/utils/reportTerritory";
 import { createServerTiming } from "@/utils/serverTiming";
 
-const MUNICIPALITY_CODE_PATTERN = /^\d{7}$/u;
 const PERIOD_PATTERN = /^(\d{4})(?:-(0[1-9]|1[0-2]))?$/u;
 const CHART_CACHE_TTL_MS = 10 * 60 * 1000;
 const CHART_CACHE_MAX_ITEMS = 80;
 
 interface MunicipalReportChartResponse {
-  municipality: Awaited<
+  territory: Awaited<
     ReturnType<typeof buildCachedMunicipalReport>
-  >["municipality"];
+  >["territory"];
   requestedPeriod: string;
   charts: Awaited<ReturnType<typeof renderMunicipalReportCharts>>;
 }
@@ -67,13 +67,13 @@ function writeChartCache(key: string, payload: MunicipalReportChartResponse) {
 }
 
 /**
- * GET /api/municipal-report/{municipalityCode}/chart?period=YYYY-MM&analysis=seca,aridez
+ * GET /api/municipal-report/{locationKey}/chart?period=YYYY-MM&analysis=seca,aridez
  *
  * Returns base64-encoded SVG chart images for the requested analyses.
  */
 export async function GET(
   request: Request,
-  context: { params: Promise<{ municipalityCode: string }> },
+  context: { params: Promise<{ locationKey: string }> },
 ) {
   const timing = createServerTiming();
   const finishAuth = timing.start();
@@ -85,14 +85,14 @@ export async function GET(
     return unauthorized;
   }
 
-  const { municipalityCode } = await context.params;
-  const code = decodeURIComponent(municipalityCode).trim();
+  const { locationKey } = await context.params;
+  const code = decodeURIComponent(locationKey).trim();
   const url = new URL(request.url);
   const period = url.searchParams.get("period")?.trim();
   const analysisParam = url.searchParams.get("analysis")?.trim();
 
-  if (!MUNICIPALITY_CODE_PATTERN.test(code))
-    return error("Invalid municipality code.", 400);
+  if (!isReportTerritoryKeyShape(code))
+    return error("Invalid territory key.", 400);
   if (!period || !PERIOD_PATTERN.test(period))
     return error("Invalid or missing period.", 400);
   if (!analysisParam)
@@ -151,7 +151,7 @@ export async function GET(
     const charts = await renderMunicipalReportCharts(availableAnalyses, period);
     finishRender("render_charts", "Renderização dos SVGs");
     const payload = {
-      municipality: report.municipality,
+      territory: report.territory,
       requestedPeriod: period,
       charts,
     };
