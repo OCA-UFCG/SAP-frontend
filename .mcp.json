@@ -3,6 +3,10 @@
     "chrome-devtools": {
       "command": "./tools/mcp/chrome-devtools-mcp.sh",
       "args": []
+    },
+    "contentful": {
+      "command": "./tools/mcp/contentful-mcp.sh",
+      "args": []
     }
   }
 }
