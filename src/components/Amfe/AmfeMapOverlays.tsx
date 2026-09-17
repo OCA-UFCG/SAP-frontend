@@ -46,7 +46,9 @@ export function AmfeMapOverlays() {
         basemap={basemap}
         onBasemapChange={setBasemap}
         opacity={municipalityClassification ? fillOpacity : undefined}
-        onOpacityChange={municipalityClassification ? setFillOpacity : undefined}
+        onOpacityChange={
+          municipalityClassification ? setFillOpacity : undefined
+        }
       />
 
       {isClassificationBelowZoomFloor && (

@@ -260,16 +260,23 @@ describe("analysis section", () => {
     expect(await screen.findByText("Nível de prioridade")).toBeInTheDocument();
   });
 
+  /** Mapa base e Transparência agora moram atrás do botão de ajustes do mapa. */
+  async function openMapSettings(user: ReturnType<typeof userEvent.setup>) {
+    await user.click(screen.getByRole("button", { name: "Ajustes do mapa" }));
+  }
+
   it("shows the opacity control only when there is a choropleth to fade", async () => {
     const user = userEvent.setup();
 
     renderAnalysisSection();
+    await openMapSettings(user);
 
     expect(
       screen.queryByRole("slider", { name: "Transparência" }),
     ).not.toBeInTheDocument();
 
     await runAnalysis(user);
+    await openMapSettings(user);
 
     expect(
       await screen.findByRole("slider", { name: "Transparência" }),
@@ -282,6 +289,7 @@ describe("analysis section", () => {
     renderAnalysisSection();
 
     await runAnalysis(user);
+    await openMapSettings(user);
     const slider = await screen.findByRole("slider", {
       name: "Transparência",
     });
