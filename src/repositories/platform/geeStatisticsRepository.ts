@@ -28,7 +28,11 @@ import {
   buildStatisticsRowsCacheKey,
   getOrLoadStatisticsRows,
 } from "@/repositories/platform/geeStatisticsRowsCache";
-import { chunk } from "@/utils/chunk";
+import {
+  readStatisticsSeries,
+  setMergedCollectionsEvaluator,
+  STATISTICS_OWNER_PROPERTY,
+} from "@/repositories/platform/geeStatisticsSeriesBatcher";
 import { resolveGeeStateCode, STATE_KEY_PATTERN } from "@/utils/geeStateCode";
 import {
   MUNICIPALITY_KEY_PATTERN,
@@ -46,12 +50,6 @@ const SOURCE_LEVEL_BY_LOCATION_PREFIX: Record<string, string> = {
   "5_semiarido": "5_Semiarido",
 };
 const PERCENTAGE_SUM_TOLERANCE = 0.2;
-// Quantos assets de período entram em cada leitura. Medido no índice de aridez
-// do ERA5-Land (45 anos, território `br`): um pedido com os 45 assets responde
-// em 4243 ms e três pedidos de 15 respondem em 2968 ms, contra 17 098 ms quando
-// cada ano era um `evaluate` seu. O teto também limita o estrago de uma falha:
-// um asset inexistente derruba o pedido inteiro, com o nome dele no erro.
-const STATISTICS_ROWS_BATCH_SIZE = 15;
 // Quantos assets da série podem ser tentados como amostra do schema antes de a
 // leitura desistir. O teto existe porque a tentativa é sequencial: numa queda
 // geral do Earth Engine, percorrer os 45 anos do índice de aridez somaria 45
@@ -475,33 +473,43 @@ async function getGeeStatisticsSchema(
 }
 
 /**
- * As linhas de um bloco de assets para um território, numa ida só ao Earth
- * Engine.
+ * A sub-coleção de um asset: filtrada pelo território, reduzida às colunas
+ * pedidas e marcada com o número do pedido.
  *
- * `ee.FeatureCollection([...]).flatten()` junta os recortes antes de avaliar,
- * então o bloco inteiro volta na mesma resposta e no mesmo formato de um asset
- * sozinho. É essa junção que faz o preço parar de acompanhar o número de
- * períodos: cada ida ao Earth Engine custa cerca de um segundo qualquer que
- * seja o tamanho do que se pede.
+ * A marcação existe porque a leitura viaja junto com a de outras camadas: sem
+ * ela, a resposta conjunta não diria de qual série cada linha veio.
  */
-async function readStatisticsRowsBatch(
-  source: ResolvedGeeStatisticsSource,
-  assetIds: readonly string[],
+function buildAssetRowsCollection(
+  assetId: string,
   properties: string[],
   locationFilter: unknown,
-): Promise<Record<string, unknown>[]> {
-  const merged = ee
-    .FeatureCollection(
-      assetIds.map((assetId) =>
+  ownerTag: number,
+) {
+  return ee
+    .FeatureCollection(assetId)
+    .filter(locationFilter)
+    .map((feature: unknown) =>
+      ee.Feature(
+        null,
         ee
-          .FeatureCollection(assetId)
-          .filter(locationFilter)
-          .map((feature: unknown) =>
-            ee.Feature(null, ee.Feature(feature).toDictionary(properties)),
-          ),
+          .Feature(feature)
+          .toDictionary(properties)
+          .set(STATISTICS_OWNER_PROPERTY, ownerTag),
       ),
-    )
-    .flatten();
+    );
+}
+
+/**
+ * Como as sub-coleções enfileiradas viram uma resposta.
+ *
+ * `ee.FeatureCollection([...]).flatten()` junta os recortes antes de avaliar,
+ * então tudo o que entrou no pedido volta na mesma resposta e no mesmo formato
+ * de um asset sozinho. É essa junção que faz o preço parar de acompanhar o
+ * número de períodos — e agora o de camadas: cada ida ao Earth Engine custa
+ * cerca de um segundo qualquer que seja o tamanho do que se pede.
+ */
+setMergedCollectionsEvaluator(async (collections, assetIds) => {
+  const merged = ee.FeatureCollection([...collections]).flatten();
   const result = await evaluateGeeObject<EvaluatedFeatureCollection>(merged);
 
   if (!Array.isArray(result?.features)) {
@@ -511,86 +519,7 @@ async function readStatisticsRowsBatch(
   }
 
   return result.features.map((feature) => feature.properties ?? {});
-}
-
-interface SeriesBatchReading {
-  rows: Record<string, unknown>[];
-  unavailableAssetIds: string[];
-  firstError?: unknown;
-}
-
-/**
- * Relê um bloco asset por asset, ficando com os que responderem.
- *
- * `ee.FeatureCollection([...]).flatten()` é tudo ou nada: um asset ilegível
- * derruba o pedido do bloco inteiro e leva junto os anos que estavam no ar. Foi
- * o que tirou o Monitor de Secas da ANA do painel e do relatório em todos os
- * recortes enquanto a tabela de 2026 estava sendo reingerida — 2024 e 2025
- * respondiam, mas iam no mesmo pedido. A releitura custa uma ida por asset e só
- * acontece no caminho de erro.
- */
-async function readRowsIsolatingUnavailableAssets(
-  source: ResolvedGeeStatisticsSource,
-  assetIds: readonly string[],
-  properties: string[],
-  locationFilter: unknown,
-): Promise<SeriesBatchReading> {
-  let firstError: unknown;
-  const readings = await Promise.all(
-    assetIds.map(async (assetId) => {
-      try {
-        const rows = await readStatisticsRowsBatch(
-          source,
-          [assetId],
-          properties,
-          locationFilter,
-        );
-        return { assetId, rows };
-      } catch (error) {
-        firstError ??= error;
-        console.error(
-          `[geeStatistics] asset indisponível, fora da série: ${assetId}`,
-          error,
-        );
-        return { assetId, rows: null };
-      }
-    }),
-  );
-
-  return {
-    rows: readings.flatMap(({ rows }) => rows ?? []),
-    unavailableAssetIds: readings
-      .filter(({ rows }) => rows === null)
-      .map(({ assetId }) => assetId),
-    firstError,
-  };
-}
-
-async function readSeriesBatch(
-  source: ResolvedGeeStatisticsSource,
-  assetIdBatch: readonly string[],
-  properties: string[],
-  locationFilter: unknown,
-): Promise<SeriesBatchReading> {
-  try {
-    return {
-      rows: await readStatisticsRowsBatch(
-        source,
-        assetIdBatch,
-        properties,
-        locationFilter,
-      ),
-      unavailableAssetIds: [],
-    };
-  } catch {
-    return readRowsIsolatingUnavailableAssets(
-      source,
-      assetIdBatch,
-      properties,
-      locationFilter,
-    );
-  }
-}
+});
 
 /**
  * Todas as linhas da série estatística para um território, sem filtrar por
@@ -613,13 +542,12 @@ async function loadSeriesLocationRows(
   // Sem limitador de concorrência de propósito: o SDK do Earth Engine já
   // despacha uma requisição a cada 350 ms de uma fila global do processo, então
   // um limitador aqui só somaria espera à espera que já existe.
-  const batches = await Promise.all(
-    chunk(assetIds, STATISTICS_ROWS_BATCH_SIZE).map((assetIdBatch) =>
-      readSeriesBatch(source, assetIdBatch, properties, locationFilter),
-    ),
-  );
-  const unavailableAssetIds = batches.flatMap(
-    ({ unavailableAssetIds: unavailable }) => unavailable,
+  const { rows, unavailableAssetIds, firstError } = await readStatisticsSeries(
+    assetIds.map((assetId) => ({
+      assetId,
+      buildCollection: (ownerTag: number) =>
+        buildAssetRowsCollection(assetId, properties, locationFilter, ownerTag),
+    })),
   );
 
   // Quando nenhum asset responde não é um período que falta, é a fonte que está
@@ -627,14 +555,14 @@ async function loadSeriesLocationRows(
   // viraria "sem dados" em toda a camada, sem ninguém notar.
   if (unavailableAssetIds.length === assetIds.length) {
     throw (
-      batches.find(({ firstError }) => firstError)?.firstError ??
+      firstError ??
       new Error(
         `Nenhum asset estatístico da série respondeu para ${locationKey}: ${assetIds.join(", ")}.`,
       )
     );
   }
 
-  return batches.flatMap(({ rows }) => rows);
+  return rows;
 }
 
 /**

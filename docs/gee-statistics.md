@@ -253,10 +253,23 @@ O schema segue a mesma chave: o catálogo valida que todas as tabelas de um
 responde pela série toda. Antes, abrir o índice de aridez do ERA5-Land custava
 45 leituras de schema **mais** 45 de linhas.
 
-Os assets entram em blocos de 15 (`STATISTICS_ROWS_BATCH_SIZE`) porque um asset
+Os assets entram em blocos de 15 (`SERIES_ASSETS_PER_REQUEST`) porque um asset
 inexistente derruba o pedido inteiro — com o nome dele no erro. O bloco limita
 quanto trabalho uma falha invalida e, medido, ainda é mais rápido que um pedido
 único.
+
+Os blocos não são de uma camada só. `geeStatisticsSeriesBatcher` junta numa
+janela de 20 ms as séries pedidas por camadas diferentes e preenche cada bloco
+com os assets de todas elas, porque o preço é o número de idas: o SDK do Earth
+Engine despacha uma requisição a cada 350 ms de uma fila global do processo. No
+relatório municipal isso trocou ~23 idas por ~12, e o tempo de montagem caiu de
+10,5 s para 5,8 s num relatório estadual medido em desenvolvimento.
+
+Cada sub-coleção é marcada com o número do pedido (a coluna sintética
+`__pedido`), e é por ela que as linhas voltam para a camada certa. Se a marcação
+não voltar, o bloco é relido asset a asset em vez de arriscar entregar a linha
+de uma camada para outra — um erro que não apareceria como erro, e sim como
+número trocado no relatório.
 
 Quem passa a lista de períodos é o chamador: `attachMunicipalAnalysisYearToPanelLayer`
 usa as chaves de `imageData.years`, e a prévia do catálogo usa
