@@ -1,5 +1,11 @@
-import { useEffect, useRef } from "react";
-import { Controller, useFieldArray, useForm, useWatch } from "react-hook-form";
+import { useEffect, useRef, useState } from "react";
+import {
+  Controller,
+  useFieldArray,
+  useForm,
+  useWatch,
+  type FieldErrors,
+} from "react-hook-form";
 import { useTranslations } from "next-intl";
 import InputForm from "./InputForm";
 import {
@@ -52,6 +58,21 @@ const AnalyzeForm = ({ setFormPayload }: AnalyzeFormProps) => {
       interestArea: "state",
     },
   });
+
+  const [advancedSettingsOpen, setAdvancedSettingsOpen] = useState(false);
+
+  const openAdvancedSettingsOnError = (
+    submitErrors: FieldErrors<AnalyzeFormData>,
+  ) => {
+    if (
+      submitErrors.indifference ||
+      submitErrors.preference ||
+      submitErrors.veto ||
+      submitErrors.typeScenario
+    ) {
+      setAdvancedSettingsOpen(true);
+    }
+  };
 
   const selectedInterestArea = useWatch({ control, name: "interestArea" });
   const selectedLevel = useWatch({ control, name: "level" });
@@ -164,7 +185,7 @@ const AnalyzeForm = ({ setFormPayload }: AnalyzeFormProps) => {
             color: text,
           }}
           className="w-full max-w-4xl p-2 md:p-4"
-          onSubmit={handleSubmit(onSubmit)}
+          onSubmit={handleSubmit(onSubmit, openAdvancedSettingsOnError)}
         >
           <div>
             <h1
@@ -324,7 +345,11 @@ const AnalyzeForm = ({ setFormPayload }: AnalyzeFormProps) => {
           </section>
 
           <div className={sectionClass}>
-            <LayerAccordion title={t("advancedSettingsTitle")}>
+            <LayerAccordion
+              title={t("advancedSettingsTitle")}
+              open={advancedSettingsOpen}
+              onOpenChange={setAdvancedSettingsOpen}
+            >
               <section>
                 <div className={sectionHeaderClass}>
                   <h2 className={sectionTitleClass} style={{ color: text }}>
