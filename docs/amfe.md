@@ -213,6 +213,25 @@ imagem, porque o canvas WebGL não contém o DOM — e a imagem sai do projeto, 
 a atribuição precisa viajar com ela. O layout é função pura e o desenho fala com
 uma interface mínima de contexto 2D, já que jsdom não implementa canvas.
 
+### PDF
+
+O terceiro item do menu gera um relatório em PDF: os parâmetros da
+análise, o mapa com legenda, a cobertura e a
+distribuição por classe, mais as listas de prioridade muito alta e de
+municípios excluídos.
+
+O documento é montado como string por dois módulos puros
+(`analysisReportModel.ts` e `analysisReportHtml.ts`) e impresso numa janela
+nova por `exportAnalysisReport.ts` — não passa por React nem pelo Tailwind,
+porque a janela de impressão não carrega as folhas de estilo da aplicação.
+
+As duas listas cortam em `REPORT_LIST_LIMIT` (30) e apontam a planilha, que
+continua sendo a fonte completa dos dados por município.
+
+A janela abre antes da captura do mapa de propósito: a captura leva segundos, e
+uma janela aberta depois dela já não conta como resposta ao clique — o
+bloqueador de pop-up a mataria.
+
 ## Testes focados
 
 ```

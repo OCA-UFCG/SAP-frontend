@@ -14,6 +14,8 @@ export function AmfeMapOverlays() {
   const tMap = useTranslations("Map");
   const {
     cities,
+    excludedCities,
+    coverage,
     formPayload,
     imageOptions,
     loading,
@@ -31,6 +33,8 @@ export function AmfeMapOverlays() {
     <>
       <AmfeMapDownloadMenu
         cities={cities}
+        coverage={coverage}
+        excludedCities={excludedCities}
         payload={formPayload}
         imageOptions={imageOptions}
       />

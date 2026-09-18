@@ -1,17 +1,29 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
-import { useTranslations } from "next-intl";
+import { useEffect, useMemo, useRef, useState } from "react";
+import { useLocale, useTranslations } from "next-intl";
 import { Icon } from "@/components/Icon/Icon";
-import type { AnalyzePayload, Cities } from "@/utils/amfeInterfaces";
+import type {
+  AnalysisCoverage,
+  AnalyzePayload,
+  Cities,
+  ExcludedCities,
+} from "@/utils/amfeInterfaces";
 import { downloadAnalysisWorkbook } from "./exportAnalysisWorkbook";
 import {
   downloadAnalysisMapImage,
   type AnalysisMapImageOptions,
 } from "./exportAnalysisMapImage";
+import {
+  PopupBlockedError,
+  downloadAnalysisReport,
+} from "./exportAnalysisReport";
+import useCriterias from "./useCriterias";
 
 interface AmfeMapDownloadMenuProps {
   cities: Cities;
+  coverage: AnalysisCoverage | null;
+  excludedCities: ExcludedCities;
   payload: AnalyzePayload | null;
   imageOptions: AnalysisMapImageOptions | null;
 }
@@ -21,12 +33,24 @@ const ITEM_CLASS =
 
 export const AmfeMapDownloadMenu = ({
   cities,
+  coverage,
+  excludedCities,
   payload,
   imageOptions,
 }: AmfeMapDownloadMenuProps) => {
   const t = useTranslations("Map");
+  const locale = useLocale();
+  const { criterias } = useCriterias();
+  const criteriaLabels = useMemo(
+    () =>
+      Object.fromEntries(
+        criterias.map((criterion) => [criterion.name, criterion.label]),
+      ),
+    [criterias],
+  );
   const [isOpen, setIsOpen] = useState(false);
   const [isExportingImage, setIsExportingImage] = useState(false);
+  const [isExportingReport, setIsExportingReport] = useState(false);
   const [imageError, setImageError] = useState<string | null>(null);
   const containerRef = useRef<HTMLDivElement | null>(null);
 
@@ -66,16 +90,45 @@ export const AmfeMapDownloadMenu = ({
     }
   };
 
+  const handleReport = async () => {
+    if (!payload || !imageOptions) return;
+
+    setIsOpen(false);
+    setImageError(null);
+    setIsExportingReport(true);
+
+    try {
+      await downloadAnalysisReport(
+        imageOptions,
+        cities,
+        coverage,
+        excludedCities,
+        payload,
+        criteriaLabels,
+        t,
+        locale,
+      );
+    } catch (error) {
+      setImageError(
+        error instanceof PopupBlockedError
+          ? t("reportPopupBlocked")
+          : t("errorReport"),
+      );
+    } finally {
+      setIsExportingReport(false);
+    }
+  };
+
   return (
     <div ref={containerRef} className="absolute top-4 left-4 z-[1000]">
       <button
         type="button"
         onClick={() => setIsOpen((open) => !open)}
         aria-expanded={isOpen}
-        aria-busy={isExportingImage}
+        aria-busy={isExportingImage || isExportingReport}
         className="flex min-h-12 items-center gap-2 rounded-full border border-white/50 bg-[#989F43] px-5 py-3.5 text-sm font-semibold text-white shadow-[0_10px_24px_rgba(0,0,0,0.20)] transition-colors hover:bg-[#858C38]"
       >
-        {isExportingImage && (
+        {(isExportingImage || isExportingReport) && (
           <span
             aria-hidden="true"
             className="h-4 w-4 animate-spin rounded-full border-2 border-white/40 border-t-white"
@@ -107,6 +160,14 @@ export const AmfeMapDownloadMenu = ({
             className={ITEM_CLASS}
           >
             PNG
+          </button>
+          <button
+            type="button"
+            onClick={() => void handleReport()}
+            disabled={!payload || !imageOptions || isExportingReport}
+            className={ITEM_CLASS}
+          >
+            PDF
           </button>
         </div>
       )}
