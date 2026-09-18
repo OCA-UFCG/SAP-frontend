@@ -1,5 +1,11 @@
-import { useEffect, useRef } from "react";
-import { Controller, useFieldArray, useForm, useWatch } from "react-hook-form";
+import { useEffect, useRef, useState } from "react";
+import {
+  Controller,
+  useFieldArray,
+  useForm,
+  useWatch,
+  type FieldErrors,
+} from "react-hook-form";
 import { useTranslations } from "next-intl";
 import InputForm from "./InputForm";
 import {
@@ -18,6 +24,7 @@ import {
 } from "@/utils/amfeConsts";
 import ErrorMessage from "./ErrorMessage";
 import SegmentedSlider from "./SegmentedSlider";
+import { LayerAccordion } from "@/components/LayerAccordion/LayerAccordion";
 import useCriterias from "@/components/Amfe/useCriterias";
 
 const sectionClass = "mt-8";
@@ -45,12 +52,27 @@ const AnalyzeForm = ({ setFormPayload }: AnalyzeFormProps) => {
   } = useForm<AnalyzeFormData>({
     defaultValues: {
       criteria: [],
-      typeScenario: "optimistic",
+      typeScenario: "pessimistic",
       level: "state",
       interestAreaValue: interestAreaOptionsByLevel.state[0],
       interestArea: "state",
     },
   });
+
+  const [advancedSettingsOpen, setAdvancedSettingsOpen] = useState(false);
+
+  const openAdvancedSettingsOnError = (
+    submitErrors: FieldErrors<AnalyzeFormData>,
+  ) => {
+    if (
+      submitErrors.indifference ||
+      submitErrors.preference ||
+      submitErrors.veto ||
+      submitErrors.typeScenario
+    ) {
+      setAdvancedSettingsOpen(true);
+    }
+  };
 
   const selectedInterestArea = useWatch({ control, name: "interestArea" });
   const selectedLevel = useWatch({ control, name: "level" });
@@ -163,7 +185,7 @@ const AnalyzeForm = ({ setFormPayload }: AnalyzeFormProps) => {
             color: text,
           }}
           className="w-full max-w-4xl p-2 md:p-4"
-          onSubmit={handleSubmit(onSubmit)}
+          onSubmit={handleSubmit(onSubmit, openAdvancedSettingsOnError)}
         >
           <div>
             <h1
@@ -202,123 +224,6 @@ const AnalyzeForm = ({ setFormPayload }: AnalyzeFormProps) => {
                 setValue={setValue}
               />
             </div>
-          </section>
-
-          <section className={sectionClass}>
-            <div className={sectionHeaderClass}>
-              <h2 className={sectionTitleClass} style={{ color: text }}>
-                <span className={sectionMarkerClass} />
-                <span>{t("thresholdsTitle")}</span>
-              </h2>
-              <p className={sectionDescriptionClass} style={{ color: text }}>
-                {t("thresholdsDesc")}
-              </p>
-            </div>
-            <div className={inputGroupCardClass}>
-              <div className="grid grid-cols-1 gap-4 md:grid-cols-3">
-                <InputForm
-                  error={errors.indifference?.message as string}
-                  fieldLabel={t("indifferenceLabel")}
-                  inputProps={{
-                    placeholder: t("indifferencePlaceholder"),
-                    type: "number",
-                    step: 0.01,
-                  }}
-                  formProps={{
-                    name: "indifference",
-                    control: control,
-                    rules: { required: t("indifferenceRequired") },
-                    defaultValue: 0.02,
-                  }}
-                />
-                <InputForm
-                  error={errors.preference?.message as string}
-                  fieldLabel={t("preferenceLabel")}
-                  inputProps={{
-                    placeholder: t("preferencePlaceholder"),
-                    type: "number",
-                    step: 0.1,
-                  }}
-                  formProps={{
-                    name: "preference",
-                    control: control,
-                    rules: { required: t("preferenceRequired") },
-                    defaultValue: 0.1,
-                  }}
-                />
-                <InputForm
-                  error={errors.veto?.message as string}
-                  fieldLabel={t("vetoLabel")}
-                  inputProps={{
-                    placeholder: t("vetoPlaceholder"),
-                    type: "number",
-                    step: 0.1,
-                  }}
-                  formProps={{
-                    name: "veto",
-                    control: control,
-                    rules: { required: t("vetoRequired") },
-                    defaultValue: 0.5,
-                  }}
-                />
-              </div>
-            </div>
-          </section>
-
-          <section className={sectionClass}>
-            <div className={sectionHeaderClass}>
-              <h2 className={sectionTitleClass} style={{ color: text }}>
-                <span className={sectionMarkerClass} />
-                <span>{t("scenariosTitle")}</span>
-              </h2>
-              <p className={sectionDescriptionClass} style={{ color: text }}>
-                {t("scenariosDesc")}
-              </p>
-            </div>
-            <Controller
-              name="typeScenario"
-              control={control}
-              rules={{ required: t("scenarioRequired") }}
-              render={({ field }) => (
-                <div
-                  className="grid grid-cols-1 gap-3 rounded-xl border bg-white p-2 shadow-[0_1px_2px_rgba(0,0,0,0.04)] sm:grid-cols-2"
-                  style={{ borderColor: "rgba(0,0,0,0.08)" }}
-                >
-                  {(["optimistic", "pessimistic"] as const).map((option) => (
-                    <label
-                      key={option}
-                      className={`flex cursor-pointer items-center gap-3 rounded-lg px-4 py-3 font-medium transition-colors ${
-                        field.value === option
-                          ? "bg-[#989F43]/10"
-                          : "hover:bg-neutral-50"
-                      }`}
-                      style={{ color: text }}
-                    >
-                      <input
-                        type="radio"
-                        value={option}
-                        checked={field.value === option}
-                        onChange={() => field.onChange(option)}
-                        className="sr-only"
-                      />
-                      <span className="flex h-5 w-5 items-center justify-center rounded-full border-2 border-[#ccc]">
-                        {field.value === option && (
-                          <span className="block h-2.5 w-2.5 rounded-full bg-[#989F43]" />
-                        )}
-                      </span>
-                      {option === "optimistic"
-                        ? t("optimistic")
-                        : t("pessimistic")}
-                    </label>
-                  ))}
-                </div>
-              )}
-            />
-            {errors.typeScenario && (
-              <p className="mt-1 text-sm text-red-500">
-                {errors.typeScenario.message as string}
-              </p>
-            )}
           </section>
 
           <section className={sectionClass}>
@@ -438,6 +343,139 @@ const AnalyzeForm = ({ setFormPayload }: AnalyzeFormProps) => {
               </p>
             )}
           </section>
+
+          <div className={sectionClass}>
+            <LayerAccordion
+              title={t("advancedSettingsTitle")}
+              open={advancedSettingsOpen}
+              onOpenChange={setAdvancedSettingsOpen}
+            >
+              <section>
+                <div className={sectionHeaderClass}>
+                  <h2 className={sectionTitleClass} style={{ color: text }}>
+                    <span className={sectionMarkerClass} />
+                    <span>{t("thresholdsTitle")}</span>
+                  </h2>
+                  <p
+                    className={sectionDescriptionClass}
+                    style={{ color: text }}
+                  >
+                    {t("thresholdsDesc")}
+                  </p>
+                </div>
+                <div className={inputGroupCardClass}>
+                  <div className="grid grid-cols-1 gap-4 md:grid-cols-3">
+                    <InputForm
+                      error={errors.indifference?.message as string}
+                      fieldLabel={t("indifferenceLabel")}
+                      inputProps={{
+                        placeholder: t("indifferencePlaceholder"),
+                        type: "number",
+                        step: 0.01,
+                      }}
+                      formProps={{
+                        name: "indifference",
+                        control: control,
+                        rules: { required: t("indifferenceRequired") },
+                        defaultValue: 0.02,
+                      }}
+                    />
+                    <InputForm
+                      error={errors.preference?.message as string}
+                      fieldLabel={t("preferenceLabel")}
+                      inputProps={{
+                        placeholder: t("preferencePlaceholder"),
+                        type: "number",
+                        step: 0.1,
+                      }}
+                      formProps={{
+                        name: "preference",
+                        control: control,
+                        rules: { required: t("preferenceRequired") },
+                        defaultValue: 0.1,
+                      }}
+                    />
+                    <InputForm
+                      error={errors.veto?.message as string}
+                      fieldLabel={t("vetoLabel")}
+                      inputProps={{
+                        placeholder: t("vetoPlaceholder"),
+                        type: "number",
+                        step: 0.1,
+                      }}
+                      formProps={{
+                        name: "veto",
+                        control: control,
+                        rules: { required: t("vetoRequired") },
+                        defaultValue: 0.5,
+                      }}
+                    />
+                  </div>
+                </div>
+              </section>
+
+              <section>
+                <div className={sectionHeaderClass}>
+                  <h2 className={sectionTitleClass} style={{ color: text }}>
+                    <span className={sectionMarkerClass} />
+                    <span>{t("scenariosTitle")}</span>
+                  </h2>
+                  <p
+                    className={sectionDescriptionClass}
+                    style={{ color: text }}
+                  >
+                    {t("scenariosDesc")}
+                  </p>
+                </div>
+                <Controller
+                  name="typeScenario"
+                  control={control}
+                  rules={{ required: t("scenarioRequired") }}
+                  render={({ field }) => (
+                    <div
+                      className="grid grid-cols-1 gap-3 rounded-xl border bg-white p-2 shadow-[0_1px_2px_rgba(0,0,0,0.04)] sm:grid-cols-2"
+                      style={{ borderColor: "rgba(0,0,0,0.08)" }}
+                    >
+                      {(["optimistic", "pessimistic"] as const).map(
+                        (option) => (
+                          <label
+                            key={option}
+                            className={`flex cursor-pointer items-center gap-3 rounded-lg px-4 py-3 font-medium transition-colors ${
+                              field.value === option
+                                ? "bg-[#989F43]/10"
+                                : "hover:bg-neutral-50"
+                            }`}
+                            style={{ color: text }}
+                          >
+                            <input
+                              type="radio"
+                              value={option}
+                              checked={field.value === option}
+                              onChange={() => field.onChange(option)}
+                              className="sr-only"
+                            />
+                            <span className="flex h-5 w-5 items-center justify-center rounded-full border-2 border-[#ccc]">
+                              {field.value === option && (
+                                <span className="block h-2.5 w-2.5 rounded-full bg-[#989F43]" />
+                              )}
+                            </span>
+                            {option === "optimistic"
+                              ? t("optimistic")
+                              : t("pessimistic")}
+                          </label>
+                        ),
+                      )}
+                    </div>
+                  )}
+                />
+                {errors.typeScenario && (
+                  <p className="mt-1 text-sm text-red-500">
+                    {errors.typeScenario.message as string}
+                  </p>
+                )}
+              </section>
+            </LayerAccordion>
+          </div>
 
           <ButtonUi
             type="submit"
