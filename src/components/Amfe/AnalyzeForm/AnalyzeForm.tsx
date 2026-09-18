@@ -1,5 +1,11 @@
 import { useEffect, useRef, useState } from "react";
-import { Controller, useFieldArray, useForm, useWatch } from "react-hook-form";
+import {
+  Controller,
+  useFieldArray,
+  useForm,
+  useWatch,
+  type FieldErrors,
+} from "react-hook-form";
 import { useTranslations } from "next-intl";
 import InputForm from "./InputForm";
 import {
@@ -55,14 +61,18 @@ const AnalyzeForm = ({ setFormPayload }: AnalyzeFormProps) => {
 
   const [advancedSettingsOpen, setAdvancedSettingsOpen] = useState(false);
 
-  // Os erros dos limiares e do cenário são desenhados dentro do acordeão: se
-  // ele estiver fechado, o envio falha sem que a pessoa veja o motivo.
-  const hasAdvancedSettingsError = Boolean(
-    errors.indifference ||
-    errors.preference ||
-    errors.veto ||
-    errors.typeScenario,
-  );
+  const openAdvancedSettingsOnError = (
+    submitErrors: FieldErrors<AnalyzeFormData>,
+  ) => {
+    if (
+      submitErrors.indifference ||
+      submitErrors.preference ||
+      submitErrors.veto ||
+      submitErrors.typeScenario
+    ) {
+      setAdvancedSettingsOpen(true);
+    }
+  };
 
   const selectedInterestArea = useWatch({ control, name: "interestArea" });
   const selectedLevel = useWatch({ control, name: "level" });
@@ -175,7 +185,7 @@ const AnalyzeForm = ({ setFormPayload }: AnalyzeFormProps) => {
             color: text,
           }}
           className="w-full max-w-4xl p-2 md:p-4"
-          onSubmit={handleSubmit(onSubmit)}
+          onSubmit={handleSubmit(onSubmit, openAdvancedSettingsOnError)}
         >
           <div>
             <h1
@@ -337,7 +347,7 @@ const AnalyzeForm = ({ setFormPayload }: AnalyzeFormProps) => {
           <div className={sectionClass}>
             <LayerAccordion
               title={t("advancedSettingsTitle")}
-              open={advancedSettingsOpen || hasAdvancedSettingsError}
+              open={advancedSettingsOpen}
               onOpenChange={setAdvancedSettingsOpen}
             >
               <section>

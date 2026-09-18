@@ -139,3 +139,45 @@ test("opens the advanced settings when a threshold is missing", async () => {
   });
   expect(screen.getByText("indifferenceRequired")).toBeTruthy();
 });
+
+test("closes the advanced settings on click while an error is still showing", async () => {
+  render(<AnalyzeForm setFormPayload={vi.fn()} />);
+
+  const toggle = screen.getByRole("button", { name: "advancedSettingsTitle" });
+  fireEvent.click(toggle);
+
+  const indifference = screen.getByPlaceholderText("indifferencePlaceholder");
+  fireEvent.change(indifference, { target: { value: "" } });
+  fireEvent.click(screen.getByRole("button", { name: "submitButton" }));
+
+  await waitFor(() => {
+    expect(screen.getByText("indifferenceRequired")).toBeTruthy();
+  });
+
+  fireEvent.click(toggle);
+
+  await waitFor(() => {
+    expect(toggle).toHaveAttribute("aria-expanded", "false");
+  });
+});
+
+test("keeps the advanced settings open while the reader fixes the value", async () => {
+  render(<AnalyzeForm setFormPayload={vi.fn()} />);
+
+  const toggle = screen.getByRole("button", { name: "advancedSettingsTitle" });
+  const indifference = screen.getByPlaceholderText("indifferencePlaceholder");
+
+  fireEvent.change(indifference, { target: { value: "" } });
+  fireEvent.click(screen.getByRole("button", { name: "submitButton" }));
+
+  await waitFor(() => {
+    expect(toggle).toHaveAttribute("aria-expanded", "true");
+  });
+
+  fireEvent.change(indifference, { target: { value: "0.02" } });
+
+  await waitFor(() => {
+    expect(screen.queryByText("indifferenceRequired")).toBeNull();
+  });
+  expect(toggle).toHaveAttribute("aria-expanded", "true");
+});
