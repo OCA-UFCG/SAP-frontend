@@ -866,11 +866,12 @@ export function IndexCatalogScreen() {
       const indexes = result.validation.inferred.classIndexes;
       setDraft((current) => ({
         ...current,
-        // Numa tabela de valor único as faixas foram escritas à mão e a camada
-        // tem uma classe só — reler as classes da prévia apagaria a legenda do
-        // mapa que o operador acabou de montar.
+        // Nas formas de valor único — a tabela do GEE e a planilha — as faixas
+        // foram escritas à mão e a camada tem uma classe só; reler as classes
+        // da prévia apagaria a legenda do mapa que o operador acabou de montar.
         classes:
-          current.statisticsSource.kind === "gee-municipal-value-table"
+          current.statisticsSource.kind === "gee-municipal-value-table" ||
+          current.statisticsSource.kind === "municipal-spreadsheet"
             ? current.classes
             : result.panelLayer.imageData.classes.map((entry, position) => ({
                 classIndex: indexes[position],

@@ -2,7 +2,10 @@ import "server-only";
 
 import type { AuthenticatedUserSession } from "@/lib/server-session";
 import { isMunicipalSpreadsheetSource } from "@/contracts/municipalSpreadsheet";
-import { getSpreadsheetYearPatch } from "@/repositories/platform/municipalSpreadsheetRepository";
+import {
+  getSpreadsheetMunicipalValues,
+  getSpreadsheetYearPatch,
+} from "@/repositories/platform/municipalSpreadsheetRepository";
 import { getGeeStatisticsYearPatch } from "@/repositories/platform/geeStatisticsRepository";
 import {
   buildCatalogDraft,
@@ -333,6 +336,24 @@ export async function getIndexCatalogDraftMunicipalData(
     config.validation.inferred.periods,
   );
   return result ? { imageData: result.patch } : null;
+}
+
+/**
+ * Os valores municipais de um rascunho de planilha, para a coropleta da prévia.
+ *
+ * Devolve `null` quando o índice não vem de planilha: nas demais formas o mapa
+ * da prévia é um tile do Earth Engine, servido por `drafts/[entryId]/ee`.
+ */
+export async function getIndexCatalogDraftChoroplethValues(
+  entryId: string,
+  year: string,
+) {
+  const current = await getCatalogEntry(entryId);
+  const config = requireFullyManagedConfig(current);
+  if (!isMunicipalSpreadsheetSource(config.validatedStatisticsSource)) {
+    return null;
+  }
+  return getSpreadsheetMunicipalValues(config.validatedStatisticsSource, year);
 }
 
 /**

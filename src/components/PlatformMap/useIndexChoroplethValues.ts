@@ -15,9 +15,23 @@ export interface IndexChoropleth {
 }
 
 interface ChoroplethConfig {
-  panelLayerId: string;
+  /** Rota que devolve o valor de cada município do período. */
+  valuesUrl: string;
   palette: string[];
   thresholds: number[];
+}
+
+/**
+ * A rota dos valores municipais da camada ativa.
+ *
+ * Um índice em rascunho no catálogo ainda não tem `panelLayer` publicado, e por
+ * isso é lido pela rota do próprio rascunho — a mesma divisão que já existe
+ * para os tiles e para o painel de análise.
+ */
+function resolveChoroplethValuesUrl(activeEEData: IEEInfo): string {
+  return activeEEData.municipalAnalysisApiPath
+    ? `${activeEEData.municipalAnalysisApiPath}/choropleth`
+    : `/api/municipal-analysis/${encodeURIComponent(activeEEData.id)}/choropleth`;
 }
 
 /**
@@ -35,19 +49,19 @@ export function resolveChoroplethConfig(
   if (mapVisualization?.sourceType !== "municipalChoropleth") return null;
 
   return {
-    panelLayerId: activeEEData.id,
+    valuesUrl: resolveChoroplethValuesUrl(activeEEData),
     palette: mapVisualization.palette ?? [],
     thresholds: mapVisualization.thresholds ?? [],
   };
 }
 
-async function fetchMunicipalValues(panelLayerId: string, year: string) {
+async function fetchMunicipalValues(valuesUrl: string, year: string) {
   const response = await fetch(
-    `/api/municipal-analysis/${encodeURIComponent(panelLayerId)}/choropleth?year=${encodeURIComponent(year)}`,
+    `${valuesUrl}?year=${encodeURIComponent(year)}`,
   );
   if (!response.ok) {
     throw new Error(
-      `A leitura dos valores municipais de ${panelLayerId}/${year} respondeu ${response.status}.`,
+      `A leitura dos valores municipais em ${valuesUrl} para ${year} respondeu ${response.status}.`,
     );
   }
   const payload = (await response.json()) as {
@@ -105,7 +119,7 @@ export function useIndexChoroplethValues(
     () => resolveChoroplethConfig(activeEEData),
     [activeEEData],
   );
-  const requestKey = config ? `${config.panelLayerId}:${activeYear}` : null;
+  const requestKey = config ? `${config.valuesUrl}:${activeYear}` : null;
   const [loaded, setLoaded] = useState<LoadedChoropleth | null>(null);
   const { overviewGeoJson } = useCitiesOverview(Boolean(config));
 
@@ -113,7 +127,7 @@ export function useIndexChoroplethValues(
     if (!config || !activeYear || !requestKey) return;
 
     let cancelled = false;
-    fetchMunicipalValues(config.panelLayerId, activeYear)
+    fetchMunicipalValues(config.valuesUrl, activeYear)
       .then((values) => {
         if (cancelled) return;
         setLoaded({
