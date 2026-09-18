@@ -17,8 +17,22 @@ import {
   CPTEC_FORECAST_PANEL_LAYER_ID,
   getCptecForecastCollectionSelection,
 } from "@/contracts/cptecForecast.mjs";
+import { resolveSeasonEndMonthKey } from "@/utils/seasonalPeriod";
 
 const FORECAST_TIME_ZONE = "America/Sao_Paulo";
+
+/** Ano-mês corrente (`2026-09`) no fuso da plataforma, comparável como texto. */
+function resolveCurrentMonthKey(currentDate: Date): string {
+  const parts = new Intl.DateTimeFormat("en-US", {
+    timeZone: FORECAST_TIME_ZONE,
+    year: "numeric",
+    month: "2-digit",
+  }).formatToParts(currentDate);
+  const year = parts.find((part) => part.type === "year")?.value;
+  const month = parts.find((part) => part.type === "month")?.value;
+
+  return `${year}-${month}`;
+}
 
 export interface ResolvedImageYearEntry {
   default: boolean;
@@ -189,6 +203,51 @@ export function getImageDataYearKeys(
   );
 }
 
+/**
+ * Uma camada sazonal descreve a previsão de um trimestre: o seletor de período
+ * do Monitoramento fica com uma opção só, o trimestre que ainda não terminou.
+ * Quem diz que a camada é sazonal é a coluna `temporada` do asset, detectada na
+ * publicação do catálogo — nenhum índice declara isso à mão.
+ */
+export function keepOnlyCurrentSeasonPeriod(
+  imageData: ImageDataConfig,
+  seasonal: boolean,
+  currentDate = new Date(),
+): ImageDataConfig {
+  if (!seasonal || !isCompactImageData(imageData)) {
+    return imageData;
+  }
+
+  const seasonEnds = Object.keys(imageData.years).map(
+    (periodKey) => [periodKey, resolveSeasonEndMonthKey(periodKey)] as const,
+  );
+
+  if (seasonEnds.some(([, endKey]) => !endKey)) {
+    return imageData;
+  }
+
+  const currentMonthKey = resolveCurrentMonthKey(currentDate);
+  const ongoing = seasonEnds
+    .filter(([, endKey]) => (endKey as string) >= currentMonthKey)
+    .sort(([, left], [, right]) =>
+      (left as string).localeCompare(right as string),
+    );
+  // Sem trimestre em curso resta o mais recente, para a camada não ficar sem
+  // nenhum período enquanto o asset não recebe a previsão seguinte.
+  const [selectedPeriod] =
+    ongoing[0] ?? seasonEnds[seasonEnds.length - 1] ?? [];
+
+  if (!selectedPeriod) {
+    return imageData;
+  }
+
+  return {
+    ...imageData,
+    defaultYear: selectedPeriod,
+    years: { [selectedPeriod]: imageData.years[selectedPeriod] },
+  };
+}
+
 export function keepOnlyFutureForecastPeriods(
   panelLayerId: string,
   imageData: ImageDataConfig,
@@ -201,18 +260,7 @@ export function keepOnlyFutureForecastPeriods(
     return imageData;
   }
 
-  const currentMonthParts = new Intl.DateTimeFormat("en-US", {
-    timeZone: FORECAST_TIME_ZONE,
-    year: "numeric",
-    month: "2-digit",
-  }).formatToParts(currentDate);
-  const currentYear = currentMonthParts.find(
-    (part) => part.type === "year",
-  )?.value;
-  const currentMonth = currentMonthParts.find(
-    (part) => part.type === "month",
-  )?.value;
-  const currentMonthKey = `${currentYear}-${currentMonth}`;
+  const currentMonthKey = resolveCurrentMonthKey(currentDate);
   const currentAndFutureEntries = sortYearKeys(Object.keys(imageData.years))
     .filter(
       (yearKey) =>

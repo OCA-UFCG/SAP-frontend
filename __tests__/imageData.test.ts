@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import {
   getImageDataLegend,
+  keepOnlyCurrentSeasonPeriod,
   keepOnlyFutureForecastPeriods,
   resolveImageCollectionPeriod,
   resolveImageYearEntry,
@@ -279,5 +280,44 @@ describe("resolveImageCollectionPeriod", () => {
     expect(
       resolveImageCollectionPeriod({ ...baseEntry, year: "2024-13" }),
     ).toBeUndefined();
+  });
+
+  it("keeps a single option for seasonal layers", () => {
+    const imageData: CompactTerritorialAnalysisDataset = {
+      schemaVersion: 1,
+      type: "territorial-compact",
+      defaultYear: "2026-06",
+      classes: [{ id: "a", label: "Classe A", color: "#111111" }],
+      years: {
+        "2026-06": { imageId: "img-jja", values: {} },
+        "2026-09": { imageId: "img-son", values: {} },
+        "2026-10": { imageId: "img-ond", values: {} },
+      },
+    };
+
+    const filtered = keepOnlyCurrentSeasonPeriod(
+      imageData,
+      true,
+      new Date("2026-09-17T12:00:00.000Z"),
+    ) as CompactTerritorialAnalysisDataset;
+
+    expect(Object.keys(filtered.years)).toEqual(["2026-09"]);
+    expect(filtered.defaultYear).toBe("2026-09");
+  });
+
+  it("leaves non-seasonal layers untouched", () => {
+    const imageData: CompactTerritorialAnalysisDataset = {
+      schemaVersion: 1,
+      type: "territorial-compact",
+      defaultYear: "2025",
+      classes: [{ id: "a", label: "Classe A", color: "#111111" }],
+      years: {
+        "2024": { imageId: "img-2024", values: {} },
+        "2025": { imageId: "img-2025", values: {} },
+      },
+    };
+
+    expect(keepOnlyCurrentSeasonPeriod(imageData, false)).toBe(imageData);
+    expect(keepOnlyCurrentSeasonPeriod(imageData, true)).toBe(imageData);
   });
 });

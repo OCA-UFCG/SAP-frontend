@@ -249,4 +249,31 @@ describe("GEE statistics contract", () => {
       }),
     ).toThrow("Revisão");
   });
+
+  it("detects the season column that marks a seasonal forecast index", () => {
+    const source = getResolvedSource();
+
+    expect(
+      inferGeeStatisticsSchema(source, getPropertyNames([0, 1])).seasonProperty,
+    ).toBeUndefined();
+    expect(
+      inferGeeStatisticsSchema(source, [
+        ...getPropertyNames([0, 1]),
+        "temporada",
+      ]).seasonProperty,
+    ).toBe("temporada");
+  });
+
+  it("keeps the published season column when reading the contract back", () => {
+    const published = parsePublishedGeeStatisticsSource({
+      kind: "gee-feature-collection",
+      schemaVersion: 1,
+      sourceRevision: "a".repeat(64),
+      periodGranularity: "month",
+      asset: { type: "fixed", assetId: "projects/x/assets/t" },
+      properties: { ...standardProperties, season: "temporada" },
+    });
+
+    expect(published.properties).toMatchObject({ season: "temporada" });
+  });
 });

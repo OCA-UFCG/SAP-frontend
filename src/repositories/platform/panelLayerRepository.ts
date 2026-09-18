@@ -9,7 +9,11 @@ import {
 } from "@/repositories/platform/municipalAnalysisRepository";
 import { validateImageDataContract } from "@/contracts/imageDataContract.mjs";
 import { PanelLayerI } from "@/utils/interfaces";
-import { keepOnlyFutureForecastPeriods } from "@/utils/imageData";
+import {
+  keepOnlyCurrentSeasonPeriod,
+  keepOnlyFutureForecastPeriods,
+} from "@/utils/imageData";
+import { hasSeasonalPeriods } from "@/utils/seasonalPeriod";
 import { tryParsePublishedGeeStatisticsSource } from "@/contracts/geeStatistics";
 import { tryParsePublishedPanelLayerReportConfig } from "@/contracts/panelLayerReport";
 
@@ -201,7 +205,10 @@ function normalizePanelLayer(layer: PanelLayerI) {
 
   return {
     ...layer,
-    imageData: keepOnlyFutureForecastPeriods(layer.id, layer.imageData),
+    imageData: keepOnlyCurrentSeasonPeriod(
+      keepOnlyFutureForecastPeriods(layer.id, layer.imageData),
+      Boolean(statisticsSource && hasSeasonalPeriods({ statisticsSource })),
+    ),
     ...(statisticsSource ? { statisticsSource } : { statisticsSource: null }),
     ...(reportConfig ? { reportConfig } : { reportConfig: null }),
   };

@@ -39,6 +39,32 @@ Para publicar `panelLayer.imageData`, a pipeline exige:
 - cada ano com `imageId` string nao vazia e `values` como objeto de arrays
   numericos.
 
+## Periodos trimestrais (previsao sazonal)
+
+Os indices de previsao sazonal (CPTEC/INMET) publicam um trimestre por periodo,
+mas a chave continua sendo o **mes em que o trimestre comeca** (`2026-09`). O
+que diz que aquele mes e, na verdade, um trimestre e a coluna `temporada` do
+asset no Earth Engine, que guarda a sigla de tres letras (`SON`, `OND`, `NDJ`).
+
+A publicacao do catalogo detecta essa coluna na mesma leitura que ja descobre as
+classes — sem nenhuma ida extra ao Earth Engine e sem nenhum campo novo no
+formulario — e grava `statisticsSource.properties.season`. Com isso, no runtime:
+
+- o seletor de periodo do Monitoramento escreve "Setembro - Outubro - Novembro -
+  2026" no lugar de `2026-09` (`src/utils/seasonalPeriod.ts`);
+- a camada fica com uma opcao so, o trimestre que ainda nao terminou
+  (`keepOnlyCurrentSeasonPeriod` em `src/utils/imageData.ts`, aplicada no
+  `panelLayerRepository`).
+
+A presenca da coluna nao basta. A previsao **mensal** do INMET tambem publica
+`temporada`, mas com a sigla da emissao repetida em todos os meses (`2026-10`,
+`2026-11` e `2026-12` todos como `OND`), enquanto no asset trimestral a sigla
+acompanha o periodo (`2026-09` = `SON`, `2026-10` = `OND`). Por isso a
+publicacao so grava `properties.season` quando, em **todos** os assets da fonte,
+a sigla de cada periodo e a do trimestre que comeca naquele mes
+(`seasonPairsDescribeQuarters`). Sem essa conferencia um indice mensal apareceria
+rotulado como trimestral.
+
 ## Patches `municipalAnalysis`
 
 `municipalAnalysis.imageData` pode ser um patch parcial. O asset visual do mapa

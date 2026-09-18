@@ -25,6 +25,15 @@ export type {
 export type GeeStatisticsScalarMetric =
   "mean" | "median" | "mode" | "min" | "max";
 
+/**
+ * Nome canônico da coluna em que os assets de previsão sazonal do CPTEC/INMET
+ * gravam o trimestre como sigla de três letras — a inicial de cada mês
+ * ("SON" = setembro, outubro, novembro). A publicação do catálogo detecta essa
+ * coluna sozinha e grava `properties.season`; é só por ela que a plataforma
+ * sabe que um período mensal representa, na verdade, um trimestre.
+ */
+export const GEE_SEASON_PROPERTY = "temporada";
+
 export interface GeeStatisticsPropertyMapping {
   level: string;
   locationName: string;
@@ -33,6 +42,12 @@ export interface GeeStatisticsPropertyMapping {
   year: string;
   date: string;
   totalArea: string;
+  /**
+   * Coluna do trimestre, presente só nos índices de previsão sazonal. Quando
+   * ela existe, o período mensal `2026-09` é exibido como
+   * "Setembro - Outubro - Novembro - 2026".
+   */
+  season?: string;
   scalarMetrics?: Partial<Record<GeeStatisticsScalarMetric, string>>;
 }
 
@@ -76,6 +91,12 @@ export interface GeeStatisticsSchema {
   classIndexes: number[];
   percentageProperties: string[];
   classAreaProperties: string[];
+  /**
+   * Coluna do trimestre encontrada no asset, quando ela existe. Sai da mesma
+   * leitura de colunas que já descobre as classes, então detectar um índice
+   * sazonal não custa nenhuma ida extra ao Earth Engine.
+   */
+  seasonProperty?: string;
 }
 
 const PERCENTAGE_PROPERTY_PATTERN = /^perc_classe_(\d+)$/u;
@@ -144,6 +165,9 @@ export function parseGeeFeatureCollectionStatisticsSource(
         properties.totalArea,
         "Propriedade de área total",
       ),
+      ...(typeof properties.season === "string" && properties.season.trim()
+        ? { season: properties.season.trim() }
+        : {}),
       ...(scalarMetrics && Object.keys(scalarMetrics).length > 0
         ? { scalarMetrics }
         : {}),
@@ -375,6 +399,9 @@ export function inferGeeStatisticsSchema(
     classAreaProperties: classIndexes.map((classIndex) =>
       classAreaProperties.get(classIndex)!,
     ),
+    ...(uniquePropertyNames.includes(GEE_SEASON_PROPERTY)
+      ? { seasonProperty: GEE_SEASON_PROPERTY }
+      : {}),
   };
 }
 
