@@ -3,6 +3,7 @@ import { requireAuthenticatedRequest } from "@/lib/server-session";
 import { getPanelLayers } from "@/repositories/platform/panelLayerRepository";
 import { buildDocContent } from "@/services/buildDoc/buildDocContent";
 import { buildCachedMunicipalReport } from "@/services/municipalReportCache";
+import type { MunicipalReportData } from "@/contracts/municipalReport";
 import {
   isReportTerritoryKeyShape,
   resolveReportTerritory,
@@ -15,8 +16,22 @@ function error(message: string, status: number) {
   return NextResponse.json({ error: message }, { status, headers: { "Cache-Control": "no-store" } });
 }
 
-function getSelectedThemes(layerIds: string[]) {
-  return [...new Set(layerIds)];
+/**
+ * Os temas do documento são as camadas que o relatório conseguiu montar.
+ *
+ * Antes quem filtrava era a tela, que mandava aqui só as camadas disponíveis —
+ * uma lista diferente da que ela tinha pedido no relatório-base. Como a lista
+ * pedida entra na chave do cache do relatório, essa diferença fazia a chamada
+ * dos textos errar o cache e remontar o relatório inteiro.
+ */
+function getSelectedThemes(report: MunicipalReportData) {
+  return [
+    ...new Set(
+      report.analyses
+        .filter((analysis) => analysis.status === "available")
+        .map((analysis) => analysis.id),
+    ),
+  ];
 }
 
 /**
@@ -65,18 +80,20 @@ export async function GET(request: Request, context: { params: Promise<{ locatio
   const territory = resolveReportTerritory(code);
   if (!territory) return error("Territory not found.", 404);
   if (!period || !PERIOD_PATTERN.test(period)) return error("Invalid or missing period.", 400);
-  if (layerIds.length === 0) return error("Missing selected report layers.", 400);
-
-  const themes = getSelectedThemes(layerIds);
-  if (themes.length === 0) return error("No Docs template configured for selected layers.", 400);
 
   const { month, year } = getPeriodParts(period);
 
   try {
+    // Sem `layers` o relatório é o de todas as camadas — a mesma convenção da
+    // rota do relatório-base, para que as duas chamadas da tela compartilhem a
+    // mesma entrada de cache.
     const report = await buildCachedMunicipalReport(code, period, {
-      analysisIds: layerIds,
+      ...(layerIds.length ? { analysisIds: layerIds } : {}),
       onTiming: timing.record,
     });
+    const themes = getSelectedThemes(report);
+    if (themes.length === 0)
+      return error("No available report analysis for this territory.", 404);
     const finishDocs = timing.start();
     const content = await buildDocContent({
       themes,

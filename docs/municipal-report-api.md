@@ -146,6 +146,24 @@ Quando o período solicitado não existe, a API ainda retorna `200` com
 
 ---
 
+## Textos do relatório (`GET /api/municipal-report/{chaveTerritorial}/docs`)
+
+Parâmetros: `period` (obrigatório) e `layers` (opcional). A convenção de
+`layers` é a mesma da rota do relatório-base — sem ele, valem todas as camadas.
+
+As duas chamadas da tela devem mandar **a mesma** lista, porque a lista pedida
+entra na chave do cache do relatório (`municipalReportCache`): mandar aqui só as
+camadas disponíveis fazia esta rota errar o cache e remontar o relatório
+inteiro. Quem filtra o que vira seção é o servidor, pelo `status` das análises
+do relatório já montado. Quando nenhuma análise fica disponível, a resposta é
+`404`.
+
+O teto de relatórios em memória é 100 (`MUNICIPAL_REPORT_CACHE_MAX_ENTRIES`),
+com expulsão do menos recentemente usado. Um relatório municipal completo ocupa
+~430 KiB.
+
+---
+
 ## Chart API (geração de imagem)
 
 `GET /api/municipal-report/{chaveTerritorial}/chart?period=YYYY-MM&analysis=alias` exige sessão autenticada e retorna um **PNG** do gráfico de série temporal.

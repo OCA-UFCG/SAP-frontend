@@ -6,10 +6,11 @@ interface FakeNode {
   kind: "collection" | "feature" | "propertyNames";
   assetIds: string[];
   filter: () => FakeNode;
-  map: () => FakeNode;
+  map: (mapper: (feature: FakeNode) => unknown) => FakeNode;
   flatten: () => FakeNode;
   first: () => FakeNode;
   toDictionary: () => FakeNode;
+  set: () => FakeNode;
   propertyNames: () => FakeNode;
 }
 
@@ -42,10 +43,17 @@ const { fakeEarthEngine } = vi.hoisted(() => {
         kind,
         assetIds,
         filter: () => node,
-        map: () => node,
+        // Chama o mapeador de verdade: é ele que marca a sub-coleção com o
+        // dono do pedido, e um `map` que ignora o callback esconderia um erro
+        // nessa marcação.
+        map: (mapper: (feature: FakeNode) => unknown) => {
+          mapper(node);
+          return node;
+        },
         flatten: () => node,
         first: () => this.node(assetIds, "feature"),
         toDictionary: () => this.node(assetIds, "feature"),
+        set: () => node,
         propertyNames: () => ({ ...node, kind: "propertyNames" }),
       };
       return node;

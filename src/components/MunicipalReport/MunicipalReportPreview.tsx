@@ -570,6 +570,9 @@ export function MunicipalReportPreview({
   const [report, setReport] = useState<MunicipalReportData | null>(null);
   const [docsContent, setDocsContent] =
     useState<MunicipalReportDocsContent | null>(null);
+  // Os textos chegam depois do relatório, em paralelo com os mapas. O download
+  // espera por eles: um PDF exportado no meio do caminho sairia sem texto.
+  const [docsResolved, setDocsResolved] = useState(false);
   const [mapQueueStartedAt, setMapQueueStartedAt] = useState<number | null>(
     null,
   );
@@ -625,6 +628,7 @@ export function MunicipalReportPreview({
   // "pronta": sem esta guarda o botão de exportar liberava antes do primeiro
   // mapa existir.
   const mapsReady = mapTileUrls.resolved && capturesReady;
+  const reportReadyForExport = mapsReady && docsResolved;
 
   useEffect(() => {
     if (!hasRequiredParameters || navigationMeasuredRef.current) return;
@@ -694,7 +698,8 @@ export function MunicipalReportPreview({
   const handleDownload = useCallback(() => printReportRef.current(), []);
 
   function printReport() {
-    if (!reportDocumentRef.current || exporting || !mapsReady) return;
+    if (!reportDocumentRef.current || exporting || !reportReadyForExport)
+      return;
 
     setExporting(true);
     setError(null);
@@ -809,6 +814,7 @@ export function MunicipalReportPreview({
       summaryMeasuredRef.current = false;
       resetMapCaptureQueue();
       setMapQueueStartedAt(null);
+      setDocsResolved(false);
       setLoading(true);
       setError(null);
       try {
@@ -830,30 +836,32 @@ export function MunicipalReportPreview({
         setDocsContent(null);
 
         const reportData = payload as MunicipalReportData;
-        const selectedLayerIds = layerIdsKey
-          ? new Set(layerIdsKey.split(","))
-          : null;
-        const selectedLayerIdsForDocs = (
-          selectedLayerIds
-            ? reportData.analyses.filter(({ id }) => selectedLayerIds.has(id))
-            : reportData.analyses
-        )
-          .filter((analysis) => analysis.status === "available")
-          .map((analysis) => analysis.id);
+        const hasAvailableAnalysis = reportData.analyses.some(
+          (analysis) => analysis.status === "available",
+        );
 
         const docsTask = async () => {
-          if (selectedLayerIdsForDocs.length === 0) return;
+          if (!hasAvailableAnalysis) {
+            setDocsResolved(true);
+            return;
+          }
           const finishDocs = startMunicipalReportStage();
           let docsResponse: Response | undefined;
           try {
+            // As mesmas camadas pedidas no relatório-base: a chave do cache do
+            // relatório inclui a lista pedida, então mandar aqui só as
+            // disponíveis fazia esta chamada errar o cache e remontar o
+            // relatório inteiro. Quem filtra o que vira seção é o servidor.
+            const docsParams = new URLSearchParams({ period });
+            if (layerIdsKey) docsParams.set("layers", layerIdsKey);
             docsResponse = await fetch(
-              `/api/municipal-report/${encodeURIComponent(locationKey)}/docs?period=${encodeURIComponent(period)}&layers=${encodeURIComponent(selectedLayerIdsForDocs.join(","))}`,
+              `/api/municipal-report/${encodeURIComponent(locationKey)}/docs?${docsParams.toString()}`,
               { credentials: "same-origin", signal: controller.signal },
             );
             const docsPayload = await docsResponse.json();
             finishDocs("Textos do Google Docs", {
               response: docsResponse,
-              detalhes: `${selectedLayerIdsForDocs.length} tema(s)`,
+              detalhes: `${layerIdsKey ? layerIdsKey.split(",").length : "todas"} camada(s) solicitada(s)`,
             });
             if (!docsResponse.ok)
               throw new Error(docsPayload.error ?? loadErrorMessage);
@@ -864,16 +872,23 @@ export function MunicipalReportPreview({
                 detalhes: "Falha antes de receber a resposta",
               });
             }
-            if (controller.signal.aborted) throw docsError;
+            if (controller.signal.aborted) return;
             console.warn(
               "Não foi possível carregar os textos do relatório; mantendo os dados e gráficos disponíveis.",
               docsError,
             );
             setDocsContent(null);
+          } finally {
+            if (!controller.signal.aborted) setDocsResolved(true);
           }
         };
 
-        await docsTask();
+        // Os textos não entram no caminho crítico: a captura dos mapas só
+        // começa quando `loading` vira falso, e esperar o Google Docs aqui
+        // somava a latência dele (1,3 s quente, mais no primeiro acesso) antes
+        // do primeiro mapa sair. O download continua bloqueado até os textos
+        // resolverem, então nenhum PDF sai sem eles.
+        void docsTask();
       } catch (reason) {
         if (reason instanceof DOMException && reason.name === "AbortError")
           return;
@@ -1005,11 +1020,11 @@ export function MunicipalReportPreview({
                 docsContent={docsContent}
                 onOpenMonitor={onOpenMonitor}
                 onDownload={handleDownload}
-                downloadDisabled={exporting || !mapsReady}
+                downloadDisabled={exporting || !reportReadyForExport}
                 downloadLabel={
                   exporting
                     ? t("preparingDownload")
-                    : mapsReady
+                    : reportReadyForExport
                       ? t("downloadPdf")
                       : t("preparingDownloadMaps", { count: pendingMapCount })
                 }
@@ -1056,11 +1071,11 @@ export function MunicipalReportPreview({
             onOpenMonitor={onOpenMonitor}
             documentRef={reportDocumentRef}
             onDownload={handleDownload}
-            downloadDisabled={exporting || !mapsReady}
+            downloadDisabled={exporting || !reportReadyForExport}
             downloadLabel={
               exporting
                 ? t("preparingDownload")
-                : mapsReady
+                : reportReadyForExport
                   ? t("downloadPdf")
                   : t("preparingDownloadMaps", { count: pendingMapCount })
             }

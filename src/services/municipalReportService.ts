@@ -128,7 +128,20 @@ function createLimiter(maxConcurrent: number) {
   };
 }
 
+// O limitador existe para o caminho legado, em que cada período é uma consulta
+// própria ao Contentful. No caminho do GEE um período não é uma ida à rede: os
+// períodos de uma camada compartilham a mesma leitura de série, deduplicada em
+// `geeStatisticsRowsCache`. Segurá-los em quatro só atrasava o enfileiramento —
+// e é o enfileiramento simultâneo que permite às camadas viajarem juntas numa
+// ida só ao Earth Engine.
 const limitFallbackLoad = createLimiter(4);
+
+function limitLegacyLoad<T>(
+  isGeeBacked: boolean,
+  operation: () => Promise<T>,
+): Promise<T> {
+  return isGeeBacked ? operation() : limitFallbackLoad(operation);
+}
 
 function getCalendarYear(period: string) {
   return period.match(/^(\d{4})(?:-\d{2})?$/u)?.[1] ?? null;
@@ -302,7 +315,7 @@ async function loadMunicipalTimeSeries(
   const effectivePeriod = locationKey
     ? resolveSeriesSeedPeriod(requestedEffectivePeriod, availablePeriods)
     : requestedEffectivePeriod;
-  const seed = await limitFallbackLoad(() =>
+  const seed = await limitLegacyLoad(Boolean(locationKey), () =>
     loadImageData(panelLayerId, effectivePeriod, locationKey),
   );
 
@@ -320,7 +333,7 @@ async function loadMunicipalTimeSeries(
       const datasets = await Promise.all(
         periodKeys.map(async (period) => {
           if (period === effectivePeriod) return seed.imageData;
-          const result = await limitFallbackLoad(() =>
+          const result = await limitLegacyLoad(Boolean(locationKey), () =>
             loadImageData(panelLayerId, period, locationKey),
           );
           return result.found &&

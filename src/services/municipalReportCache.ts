@@ -9,24 +9,43 @@ import {
 } from "@/services/municipalReportService";
 
 const TTL_MS = 600_000;
-const MAX_REPORTS = 10;
+// Um relatório municipal completo ocupa ~430 KiB (as 21 camadas com a série
+// inteira de cada uma), então o teto é o que se aceita gastar de heap: 100
+// entradas são ~43 MiB no pior caso. Dez entradas, o valor anterior, cabiam em
+// menos de um minuto de navegação — dois usuários pulando entre municípios já
+// expulsavam o relatório um do outro antes do TTL, e cada expulsão custa os
+// ~18 s de remontagem.
+const DEFAULT_MAX_REPORTS = 100;
 
 interface CacheEntry {
   expiresAt: number;
-  lastAccessedAt: number;
   value?: MunicipalReportData;
   pending?: Promise<MunicipalReportData>;
 }
 
 const cache = new Map<string, CacheEntry>();
 
+function getMaxReports() {
+  const value = Number(process.env.MUNICIPAL_REPORT_CACHE_MAX_ENTRIES);
+  if (!Number.isFinite(value) || value <= 0) return DEFAULT_MAX_REPORTS;
+  return Math.floor(value);
+}
+
+// Map preserva ordem de inserção: reinserir a chave lida deixa a menos
+// recentemente usada em primeiro lugar, e a evicção passa a ser O(1). A versão
+// anterior ordenava o cache inteiro a cada inserção, o que encarecia justamente
+// o teto maior que este arquivo agora permite.
+function markAsRecentlyUsed(key: string, entry: CacheEntry) {
+  cache.delete(key);
+  cache.set(key, entry);
+}
+
 function trimCache() {
-  while (cache.size > MAX_REPORTS) {
-    const oldest = [...cache.entries()].sort(
-      ([, left], [, right]) => left.lastAccessedAt - right.lastAccessedAt,
-    )[0]?.[0];
-    if (!oldest) return;
-    cache.delete(oldest);
+  const maxReports = getMaxReports();
+  while (cache.size > maxReports) {
+    const { value: oldestKey } = cache.keys().next();
+    if (oldestKey === undefined) return;
+    cache.delete(oldestKey);
   }
 }
 
@@ -69,12 +88,12 @@ export async function buildCachedMunicipalReport(
   const current = cache.get(key);
 
   if (current?.value && current.expiresAt > now) {
-    current.lastAccessedAt = now;
+    markAsRecentlyUsed(key, current);
     dependencies.onTiming?.("report_cache", 0, "Cache do relatório: hit");
     return current.value;
   }
   if (current?.pending) {
-    current.lastAccessedAt = now;
+    markAsRecentlyUsed(key, current);
     dependencies.onTiming?.("report_cache", 0, "Cache do relatório: deduplicado");
     return current.pending;
   }
@@ -83,17 +102,17 @@ export async function buildCachedMunicipalReport(
     ...dependencies,
     listPanelLayers: async () => panelLayers,
   });
-  cache.set(key, { expiresAt: now + TTL_MS, lastAccessedAt: now, pending });
+  markAsRecentlyUsed(key, { expiresAt: now + TTL_MS, pending });
   trimCache();
 
   try {
     const value = await pending;
     const completedAt = Date.now();
-    cache.set(key, {
+    markAsRecentlyUsed(key, {
       expiresAt: completedAt + TTL_MS,
-      lastAccessedAt: completedAt,
       value,
     });
+    trimCache();
     return value;
   } catch (error) {
     cache.delete(key);
