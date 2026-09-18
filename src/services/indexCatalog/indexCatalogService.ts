@@ -1,6 +1,8 @@
 import "server-only";
 
 import type { AuthenticatedUserSession } from "@/lib/server-session";
+import { isMunicipalSpreadsheetSource } from "@/contracts/municipalSpreadsheet";
+import { getSpreadsheetYearPatch } from "@/repositories/platform/municipalSpreadsheetRepository";
 import { getGeeStatisticsYearPatch } from "@/repositories/platform/geeStatisticsRepository";
 import {
   buildCatalogDraft,
@@ -304,6 +306,18 @@ export async function getIndexCatalogDraftMunicipalData(
   const config = requireFullyManagedConfig(current);
   if (!config.validation?.valid || !config.validatedStatisticsSource) {
     return null;
+  }
+
+  // Um índice de planilha já tem os valores no instantâneo gravado na
+  // validação: a prévia lê o mesmo arquivo que a plataforma vai servir, e não
+  // passa pelo Earth Engine.
+  if (isMunicipalSpreadsheetSource(config.validatedStatisticsSource)) {
+    const spreadsheet = await getSpreadsheetYearPatch(
+      config.validatedStatisticsSource,
+      year,
+      locationKey,
+    );
+    return { imageData: spreadsheet.patch };
   }
 
   const result = await getGeeStatisticsYearPatch(

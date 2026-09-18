@@ -18,6 +18,8 @@ import {
   type CompactTerritorialAnalysisDatasetPatch,
 } from "@/utils/municipalAnalysisMerge";
 import { getGeeStatisticsYearPatch } from "@/repositories/platform/geeStatisticsRepository";
+import { isMunicipalSpreadsheetSource } from "@/contracts/municipalSpreadsheet";
+import { getSpreadsheetYearPatch } from "@/repositories/platform/municipalSpreadsheetRepository";
 
 const GET_MUNICIPAL_ANALYSIS = `
   query GetMunicipalAnalysis($limit: Int!, $skip: Int!) {
@@ -529,6 +531,27 @@ export async function attachMunicipalAnalysisYearToPanelLayer(
         ...panelLayer.imageData,
         years: {},
       },
+    };
+  }
+
+  if (
+    locationKey &&
+    isMunicipalSpreadsheetSource(panelLayer.statisticsSource)
+  ) {
+    // Um índice de planilha nunca cai para o Contentful: os valores vivem só no
+    // instantâneo, e um erro aqui precisa aparecer em vez de virar painel vazio.
+    const spreadsheet = await getSpreadsheetYearPatch(
+      panelLayer.statisticsSource,
+      yearKey,
+      locationKey,
+    );
+    return {
+      ...panelLayer,
+      imageData: mergeCompactDatasetYear(
+        panelLayer.imageData,
+        [spreadsheet.patch],
+        yearKey,
+      ),
     };
   }
 

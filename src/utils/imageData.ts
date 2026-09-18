@@ -38,7 +38,8 @@ export interface ResolvedImageYearEntry {
   default: boolean;
   year?: string;
   leadTime?: number;
-  imageId: string;
+  /** Ausente quando o mapa é uma coropleta municipal, sem asset a carregar. */
+  imageId?: string;
   imageParams: IImageParam[];
   analysis?: LegacyImageDataEntry["analysis"];
   mapVisualization?: CompactMapVisualizationConfig;
@@ -178,7 +179,7 @@ function resolveForecastLeadTime(
 ) {
   return (
     yearData.leadTime ??
-    getLegacyForecastLeadTime(yearData.imageId) ??
+    getLegacyForecastLeadTime(yearData.imageId ?? "") ??
     visibleIndex + 1
   );
 }

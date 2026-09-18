@@ -30,6 +30,60 @@ só conhece os índices legados. O texto pode vir do `reportConfig` (ver
 Continuam fora do catálogo: as séries `municipalReportSeries`, o índice de
 disponibilidade gerado no build e a geração de PDF.
 
+## Índice criado a partir de uma planilha do Google
+
+Nem toda base territorial chega ao Earth Engine. Para as que vivem numa planilha
+— PIB, IDHM e afins —, o formulário oferece a forma **"Planilha do Google"**: o
+operador cola o link, diz qual dado da planilha usar e como os territórios
+maiores somam. Não há asset, banda nem propriedade a informar.
+
+### A convenção da planilha
+
+Uma aba só (a primeira), uma linha por município, e duas famílias de colunas:
+
+- **territoriais, de nome fixo**: `CD_MUN`, `NM_MUN`, `SIGLA_UF`, `NM_UF`,
+  `NM_REGIAO`, `BIOMA_PRED`, `SEMIÁRIDO` (`Sim`/`Não`), `ASD_ENTORN`
+  (`ASD`/`Entorno`/`Não`). Só as três primeiras são obrigatórias; as demais
+  habilitam os recortes agregados. A comparação ignora acento e caixa.
+- **de dado, terminadas em `_{ano}`**: `pib_2010`, `pib_2020`, `pib_2023`. O
+  prefixo escolhido no formulário separa os indicadores de uma planilha que
+  traga mais de um, e cada coluna vira um período do índice.
+
+Uma linha sem código IBGE de 7 dígitos é descartada (é o rodapé com a fonte do
+dado), e uma célula vazia vira "sem dado" — diferente de zero, e contada num
+aviso da validação.
+
+### O que a validação faz
+
+`buildSpreadsheetIndexDraft` baixa a planilha, descobre os períodos, agrega
+município, UF, Brasil, região, bioma, ASD e semiárido (soma ou média simples,
+conforme o formulário) e grava o resultado num **asset JSON do Contentful** — o
+instantâneo, contrato `municipal-spreadsheet-snapshot`. O `panelLayer` publicado
+guarda só o ponteiro para ele em `statisticsSource.snapshot`.
+
+Os valores não entram em `imageData` de propósito: são ~5.600 territórios por
+período (~400 KB numa planilha de três anos), e `imageData` é lido e revalidado
+a cada requisição do Monitoramento, de toda camada.
+
+### Em produção
+
+- O painel lê o instantâneo por `municipalSpreadsheetRepository`, com cache de
+  1 h por processo e dedupe de leituras em voo. O Google Drive **não** é
+  acessado em produção: a planilha pode ser movida, renomeada ou fechada.
+- O mapa é a coropleta municipal descrita em `docs/image-data-contract.md`. Os
+  valores de todos os municípios do período vêm de
+  `/api/municipal-analysis/[panelLayerId]/choropleth?year=`, autenticada como as
+  demais.
+- Atualizar os dados é revalidar o índice no catálogo: a leitura da planilha
+  regrava o mesmo asset de instantâneo.
+
+### Limites conhecidos
+
+A média é simples — cada município pesa igual, porque a planilha não traz coluna
+de peso. Para um índice como o IDHM isso **não** reproduz o número oficial do
+Brasil, que é calculado sobre agregados nacionais e não como média dos
+municípios. A tela diz isso ao operador no campo de agregação.
+
 ## Texto do relatório
 
 A seção "Relatório Automático" do formulário grava `panelLayer.reportConfig`:

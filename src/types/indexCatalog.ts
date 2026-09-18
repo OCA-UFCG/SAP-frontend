@@ -31,7 +31,15 @@ export interface ClassMapping {
 }
 
 export type EarthEngineSourceType =
-  "image" | "imageCollection" | "featureCollection";
+  | "image"
+  | "imageCollection"
+  | "featureCollection"
+  /**
+   * O mapa não vem do Earth Engine: é pintado no navegador sobre os tiles de
+   * município, a partir dos valores do próprio índice. É a forma dos índices
+   * criados a partir de planilha, que não têm asset nem geometria.
+   */
+  | "municipalChoropleth";
 
 export interface ForecastImageCollectionSelection {
   type: "latest-emission-leads";

@@ -43,6 +43,8 @@ function buildMonitoringMapProps(
     tileLayerUrl: monitoring.tileLayerUrl,
     tileLayerRequestKey: monitoring.requestKey,
     layerOpacity: monitoring.layerOpacity,
+    indexChoropleth: monitoring.choropleth,
+    classificationFillOpacity: monitoring.layerOpacity,
     allowedStateUfs: monitoring.allowedStateUfs,
     spatialBoundaryGeoJson: monitoring.boundaryGeoJson,
     spatialFocusBounds: monitoring.spatialFocusBounds,

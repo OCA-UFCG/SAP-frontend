@@ -40,7 +40,9 @@ export function readLegacyMapAssets(
 ): LegacyMapAssets {
   const rows = Object.entries(imageData.years).map(([period, entry]) => ({
     period,
-    imageId: entry.imageId,
+    // Uma coropleta municipal não tem asset; a tela de assets de mapa mostra a
+    // linha vazia em vez de sumir com o período.
+    imageId: entry.imageId ?? "",
     ...(entry.year ? { year: entry.year } : {}),
   }));
   const first = rows[0]?.imageId;
@@ -162,9 +164,10 @@ function assertForecastLeadTimeKept(
     const previous = before.years[period];
     if (previous.leadTime != null) continue;
 
-    const previousLead = getLegacyForecastLeadTime(previous.imageId);
+    const previousLead = getLegacyForecastLeadTime(previous.imageId ?? "");
     if (previousLead === undefined) continue;
-    if (getLegacyForecastLeadTime(entry.imageId) === previousLead) continue;
+    if (getLegacyForecastLeadTime(entry.imageId ?? "") === previousLead)
+      continue;
 
     throw new Error(
       `O período ${period} tira o tempo de previsão do fim do nome do asset ("${previous.imageId}" vale ${previousLead}), e "${entry.imageId}" mudaria esse número. Mantenha o mesmo sufixo _0N ou grave o leadTime na entry antes de trocar.`,

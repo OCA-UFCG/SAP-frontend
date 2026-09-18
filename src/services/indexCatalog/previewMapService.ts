@@ -9,7 +9,7 @@ import {
 import {
   getAssetFileUrl,
   getContentfulAsset,
-  saveContentfulPreviewImage,
+  saveContentfulAsset,
 } from "@/services/indexCatalog/contentfulAssets";
 import {
   getCatalogEntry,
@@ -81,7 +81,7 @@ export async function saveIndexCatalogPreviewMap(
   const config = requireManagedConfig(current);
   const image = decodePreviewMapDataUrl(rawImage, config.panelLayerId);
 
-  const saved = await saveContentfulPreviewImage({
+  const saved = await saveContentfulAsset({
     assetId: config.previewMap?.assetId,
     bytes: image.bytes,
     contentType: image.contentType,

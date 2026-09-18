@@ -383,3 +383,19 @@ describe("seleção da última banda", () => {
     expect(image.select).toHaveBeenCalledWith(["CDI"]);
   });
 });
+
+describe("getWarmupYearKeys for a choropleth index", () => {
+  const choroplethImageData = {
+    schemaVersion: 1,
+    type: "territorial-compact",
+    defaultYear: "2020",
+    classes: [{ id: "pib", label: "PIB", color: "#F00" }],
+    locations: { br: "Brasil" },
+    mapVisualization: { sourceType: "municipalChoropleth" },
+    years: { "2020": { valuesScale: 1, values: {} } },
+  } as unknown as Parameters<typeof getWarmupYearKeys>[0];
+
+  it("has nothing to warm up, because there is no Earth Engine asset", () => {
+    expect(getWarmupYearKeys(choroplethImageData)).toEqual([]);
+  });
+});

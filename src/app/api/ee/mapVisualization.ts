@@ -1,3 +1,4 @@
+import { classifyValueByThresholds } from "@/utils/valueThresholds";
 import type { CompactMapVisualizationConfig } from "@/utils/analysis";
 import type { IImageParam } from "@/utils/interfaces";
 
@@ -30,6 +31,8 @@ export interface ResolvedMapVisualizationPlan {
   };
 }
 
+export { classifyValueByThresholds };
+
 function isFiniteNumber(value: unknown): value is number {
   return typeof value === "number" && Number.isFinite(value);
 }
@@ -38,18 +41,6 @@ function getFallbackPalette(imageParams: IImageParam[]) {
   return imageParams
     .map((imageParam) => imageParam.color)
     .filter((color): color is string => typeof color === "string");
-}
-
-export function classifyValueByThresholds(
-  value: number,
-  thresholds: number[],
-  startValue: number,
-) {
-  return thresholds.reduce(
-    (currentClass, threshold, index) =>
-      value >= threshold ? startValue + index + 1 : currentClass,
-    startValue,
-  );
 }
 
 /**

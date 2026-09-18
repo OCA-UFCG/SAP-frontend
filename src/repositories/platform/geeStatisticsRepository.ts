@@ -18,6 +18,7 @@ import {
   isGeeMunicipalValueTableSource,
   type GeeMunicipalValueTableStatisticsSource,
 } from "@/contracts/geeMunicipalValueTable";
+import { isMunicipalSpreadsheetSource } from "@/contracts/municipalSpreadsheet";
 import { getMunicipalValueTableYearPatch } from "@/repositories/platform/geeMunicipalValueTableRepository";
 import { buildSpatialLocationKey } from "@/contracts/spatialLocationKey.mjs";
 import {
@@ -666,6 +667,16 @@ export async function getGeeStatisticsYearPatch(
 
   if (!source) {
     return null;
+  }
+
+  // Uma planilha não passa por aqui: ela é lida por
+  // `municipalSpreadsheetRepository`, antes de qualquer inicialização do Earth
+  // Engine. Esta recusa existe para o caso de uma fonte de planilha chegar por
+  // um caminho novo — melhor um erro nomeado que um `undefined.assetId`.
+  if (isMunicipalSpreadsheetSource(source)) {
+    throw new Error(
+      `A camada ${panelLayerId} usa uma planilha como fonte estatística e não deve ser lida pelo Earth Engine.`,
+    );
   }
 
   await initializeGee();

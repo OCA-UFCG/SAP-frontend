@@ -237,19 +237,31 @@ export const ensureClassificationLayer = (map: LayerCapableMap) => {
   );
 };
 
+/**
+ * A source do GeoJSON de visão geral, separada das camadas porque a coropleta
+ * do Monitoramento desenha as suas próprias camadas sobre a mesma source — uma
+ * cópia só do arquivo na memória do navegador.
+ */
+export const ensureClassificationOverviewSource = (
+  map: SourceCapableMap,
+  overviewGeoJson: MunicipalityOverviewGeoJson,
+) => {
+  if (map.getSource(CLASSIFICATION_OVERVIEW_SOURCE_ID)) return;
+
+  map.addSource(CLASSIFICATION_OVERVIEW_SOURCE_ID, {
+    type: "geojson",
+    data: overviewGeoJson,
+    promoteId: CLASSIFICATION_OVERVIEW_CODE_PROPERTY,
+  });
+};
+
 export const ensureClassificationOverviewLayer = (
   map: SourceCapableMap,
   overviewGeoJson: MunicipalityOverviewGeoJson,
 ) => {
   if (map.getLayer(CLASSIFICATION_OVERVIEW_LAYER_ID)) return;
 
-  if (!map.getSource(CLASSIFICATION_OVERVIEW_SOURCE_ID)) {
-    map.addSource(CLASSIFICATION_OVERVIEW_SOURCE_ID, {
-      type: "geojson",
-      data: overviewGeoJson,
-      promoteId: CLASSIFICATION_OVERVIEW_CODE_PROPERTY,
-    });
-  }
+  ensureClassificationOverviewSource(map, overviewGeoJson);
 
   addClassificationLayerPair(
     map,

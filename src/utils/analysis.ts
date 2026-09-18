@@ -91,7 +91,12 @@ export interface ResolvedImageCollectionPeriod {
 }
 
 export interface CompactMapVisualizationConfig {
-  sourceType?: "image" | "imageCollection" | "featureCollection";
+  sourceType?:
+    | "image"
+    | "imageCollection"
+    | "featureCollection"
+    /** Coropleta municipal pintada no navegador, sem asset do Earth Engine. */
+    | "municipalChoropleth";
   min?: number;
   max?: number;
   palette?: string[];
@@ -122,7 +127,11 @@ export interface CompactMapVisualizationConfig {
 }
 
 export interface CompactAnalysisYearData {
-  imageId: string;
+  /**
+   * Ausente nos índices cujo mapa é uma coropleta municipal: não há asset do
+   * Earth Engine por trás dela, e o período é desenhado a partir dos valores.
+   */
+  imageId?: string;
   year?: string;
   leadTime?: number;
   valuesScale?: number;

@@ -39,6 +39,22 @@ Para publicar `panelLayer.imageData`, a pipeline exige:
 - cada ano com `imageId` string nao vazia e `values` como objeto de arrays
   numericos.
 
+## Mapa desenhado no navegador
+
+`mapVisualization.sourceType` aceita `municipalChoropleth` alem de `image`,
+`imageCollection` e `featureCollection`. Nesse tipo o mapa nao vem do Earth
+Engine: a plataforma pinta os municipios dos tiles que ja serve
+(`/api/tiles?tileset=cities`, mais o GeoJSON de visao geral abaixo do zoom 5),
+usando `palette` e `thresholds` do proprio `mapVisualization`.
+
+Como nao existe asset por tras, `years[].imageId` e **opcional** nesse caso — e
+so nesse caso. `isChoroplethImageData` e quem decide isso, e a mesma funcao faz
+`/api/ee` e o warmup ignorarem a camada.
+
+E a forma dos indices criados a partir de planilha
+(`statisticsSource.kind: "municipal-spreadsheet"`); veja
+`docs/index-catalog.md`.
+
 ## Periodos trimestrais (previsao sazonal)
 
 Os indices de previsao sazonal (CPTEC/INMET) publicam um trimestre por periodo,
