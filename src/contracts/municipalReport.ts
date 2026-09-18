@@ -103,11 +103,53 @@ export interface MunicipalReportChartImage {
   base64: string;
 }
 
+export type MunicipalReportTerritoryLevel =
+  | "municipality"
+  | "state"
+  | "region"
+  | "biome"
+  | "asd"
+  | "semiarid"
+  | "national";
+
+/**
+ * O território descrito pelo relatório, em todas as grafias que o documento
+ * usa: o título leva `label`, as frases escritas no catálogo levam
+ * `prepositionalLabel` e a leitura no Earth Engine leva `locationKey`.
+ *
+ * @example
+ * const territory: MunicipalReportTerritory = {
+ *   locationKey: "3_bioma-caatinga",
+ *   level: "biome",
+ *   name: "Caatinga",
+ *   label: "Caatinga",
+ *   kindLabel: "bioma",
+ *   prepositionalLabel: "No bioma Caatinga",
+ *   possessiveLabel: "do bioma Caatinga",
+ * };
+ */
+export interface MunicipalReportTerritory {
+  locationKey: string;
+  level: MunicipalReportTerritoryLevel;
+  name: string;
+  label: string;
+  kindLabel: string;
+  prepositionalLabel: string;
+  possessiveLabel: string;
+  uf?: string;
+}
+
 export interface MunicipalReportData {
   schemaVersion: 1;
   generatedAt: string;
   requestedPeriod: string;
-  municipality: { code: string; name: string; uf: string };
+  territory: MunicipalReportTerritory;
+  /**
+   * Presente só no relatório de um município. Campo mantido da v1 para os
+   * consumidores que dependem do código IBGE — o recorte territorial do
+   * relatório está em `territory`, que existe em todos eles.
+   */
+  municipality?: { code: string; name: string; uf: string };
   analyses: MunicipalReportAnalysis[];
   templateVariables: Record<string, MunicipalReportTemplateValue>;
 }

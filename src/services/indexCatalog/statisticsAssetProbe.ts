@@ -17,6 +17,13 @@ import { chunk } from "@/utils/chunk";
  */
 export interface StatisticsAssetProbe {
   periods: unknown[];
+  /**
+   * Pares período/sigla de trimestre, presentes só quando o asset tem a coluna
+   * `temporada`. É o que distingue uma previsão trimestral (a sigla acompanha o
+   * período: `2026-09` → `SON`) de uma previsão mensal cujo asset carrega a
+   * sigla da emissão, igual em todos os meses (`2026-10`, `2026-11` → `OND`).
+   */
+  seasonPairs?: unknown;
   rowCount: number;
   completeCount: number;
   distinctCount: number;
@@ -75,8 +82,21 @@ function buildProbeExpression({ source, schema }: StatisticsAssetProbeRequest) {
     ee.Filter.eq(source.properties.level, "6_Estado"),
   );
 
+  const seasonProperty = schema.seasonProperty;
+
   return ee.Dictionary({
     periods: collection.aggregate_array(periodProperty(source)).distinct(),
+    ...(seasonProperty
+      ? {
+          seasonPairs: collection
+            .distinct([periodProperty(source), seasonProperty])
+            .reduceColumns(ee.Reducer.toList().repeat(2), [
+              periodProperty(source),
+              seasonProperty,
+            ])
+            .get("list"),
+        }
+      : {}),
     rowCount: collection.size(),
     completeCount: collection
       .filter(ee.Filter.notNull(requiredProperties(source, schema)))

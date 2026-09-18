@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 
+import { resolveReportTerritory } from "@/utils/reportTerritory";
 import { getSelectableReportLayerIds } from "@/utils/reportLayerAvailability";
 import type { MunicipalAvailabilityIndex } from "@/utils/municipalAvailability";
 import type { PanelLayerI } from "@/utils/interfaces";
@@ -32,6 +33,13 @@ function layer(
   } as unknown as PanelLayerI;
 }
 
+/** O território de uma chave, já garantido: o teste erra se a chave não existir. */
+function territory(locationKey: string) {
+  const resolved = resolveReportTerritory(locationKey);
+  if (!resolved) throw new Error(`Território inexistente: ${locationKey}`);
+  return resolved;
+}
+
 const publishedSource = {
   schemaVersion: 1,
   sourceRevision: "rev-1",
@@ -45,7 +53,7 @@ describe("getSelectableReportLayerIds", () => {
     const selectable = getSelectableReportLayerIds(
       [layer("indice-catalogo", ["2023", "2024"], publishedSource)],
       index,
-      CAMPINA_GRANDE,
+      territory(CAMPINA_GRANDE),
       "2024",
     );
 
@@ -56,7 +64,7 @@ describe("getSelectableReportLayerIds", () => {
     const selectable = getSelectableReportLayerIds(
       [layer("indice-catalogo", ["2023", "2024"], publishedSource)],
       index,
-      CAMPINA_GRANDE,
+      territory(CAMPINA_GRANDE),
       "2026",
     );
 
@@ -67,7 +75,7 @@ describe("getSelectableReportLayerIds", () => {
     const selectable = getSelectableReportLayerIds(
       [layer("indice-vazio", [], publishedSource)],
       index,
-      CAMPINA_GRANDE,
+      territory(CAMPINA_GRANDE),
       "2024",
     );
 
@@ -78,7 +86,7 @@ describe("getSelectableReportLayerIds", () => {
     const selectable = getSelectableReportLayerIds(
       [layer("anaseca", ["2023", "2024"]), layer("deg", ["2023", "2024"])],
       index,
-      CAMPINA_GRANDE,
+      territory(CAMPINA_GRANDE),
       "2024",
     );
 
@@ -91,10 +99,45 @@ describe("getSelectableReportLayerIds", () => {
     const selectable = getSelectableReportLayerIds(
       [layer("anaseca", ["2024"])],
       index,
-      "5200050",
+      territory("5200050"),
       "2024",
     );
 
     expect(selectable.size).toBe(0);
+  });
+
+  it("fora do município, oferece só as camadas com fonte no Earth Engine", () => {
+    const selectable = getSelectableReportLayerIds(
+      [
+        layer("indice-catalogo", ["2024"], publishedSource),
+        layer("anaseca", ["2024"]),
+      ],
+      index,
+      territory("ba"),
+      "2024",
+    );
+
+    expect(selectable.has("indice-catalogo")).toBe(true);
+    // A camada legada guarda valores por município no Contentful: ela não tem
+    // linha nenhuma para um estado.
+    expect(selectable.has("anaseca")).toBe(false);
+  });
+
+  it("não oferece o índice que o catálogo tirou do relatório", () => {
+    const excluded = layer("indice-catalogo", ["2024"], publishedSource);
+    excluded.reportConfig = {
+      schemaVersion: 1,
+      sections: [],
+      includeInReport: false,
+    };
+
+    const selectable = getSelectableReportLayerIds(
+      [excluded],
+      index,
+      territory("br"),
+      "2024",
+    );
+
+    expect(selectable.has("indice-catalogo")).toBe(false);
   });
 });

@@ -811,4 +811,150 @@ describe("buildMunicipalReport > variáveis de série", () => {
     // Um pedido por período publicado, exatamente como antes das variáveis.
     expect(loadImageData).toHaveBeenCalledTimes(2);
   });
+
+  // O relatório deixou de ser só municipal: a mesma chave territorial viaja até
+  // o Earth Engine, e é ela que o serviço precisa repassar sem traduzir.
+  it("monta o relatório de um recorte agregado com a chave territorial do recorte", async () => {
+    const loadImageData = vi.fn(async () => ({
+      found: true,
+      imageData: {
+        ...imageData,
+        years: { "2024": { imageId: "x", values: { br: [100] } } },
+      },
+      status: "hit" as const,
+    }));
+    const report = await buildMunicipalReport("br", "2024", {
+      listPanelLayers: async () =>
+        [
+          {
+            id: "indice-catalogo",
+            name: "Índice do Catálogo",
+            statisticsSource: { schemaVersion: 1, sourceRevision: "rev-1" },
+          },
+        ] as never,
+      loadImageData,
+    });
+
+    expect(loadImageData).toHaveBeenCalledWith("indice-catalogo", "2024", "br");
+    expect(report.territory).toMatchObject({
+      locationKey: "br",
+      level: "national",
+      label: "Brasil",
+    });
+    expect(report.municipality).toBeUndefined();
+    expect(report.analyses[0]?.status).toBe("available");
+  });
+
+  it("deixa a camada legada fora de um recorte agregado, e a mantém no município", async () => {
+    const listPanelLayers = async () =>
+      [
+        { id: "anaseca", name: "Monitor de Secas" },
+        {
+          id: "indice-catalogo",
+          name: "Índice do Catálogo",
+          statisticsSource: { schemaVersion: 1, sourceRevision: "rev-1" },
+        },
+      ] as never;
+    const loadImageData = async () => ({
+      found: true,
+      imageData,
+      status: "hit" as const,
+    });
+
+    const stateReport = await buildMunicipalReport("pb", "2024", {
+      listPanelLayers,
+      loadImageData,
+    });
+    const municipalReport = await buildMunicipalReport("5200050", "2024", {
+      listPanelLayers,
+      loadImageData,
+    });
+
+    expect(stateReport.analyses.map(({ id }) => id)).toEqual([
+      "indice-catalogo",
+    ]);
+    expect(municipalReport.analyses.map(({ id }) => id)).toContain("anaseca");
+  });
+
+  it("não monta seção do índice que o catálogo tirou do relatório", async () => {
+    const report = await buildMunicipalReport("5200050", "2024", {
+      listPanelLayers: async () =>
+        [
+          { id: "dentro", name: "Dentro" },
+          {
+            id: "fora",
+            name: "Fora",
+            reportConfig: {
+              schemaVersion: 1,
+              sections: [],
+              includeInReport: false,
+            },
+          },
+        ] as never,
+      loadImageData: async () => ({ found: true, imageData, status: "hit" }),
+    });
+
+    expect(report.analyses.map(({ id }) => id)).toEqual(["dentro"]);
+  });
+
+  // Regressão: com a tabela de 2026 do Monitor de Secas da ANA fora do ar, a
+  // seção inteira virava "Indisponível" mesmo com 2024 e 2025 publicados.
+  it("entrega o último período disponível quando o asset do período pedido está fora do ar", async () => {
+    const datasetForPeriod = (
+      period: string,
+      values: Record<string, number[]>,
+    ): CompactTerritorialAnalysisDataset => ({
+      schemaVersion: 1,
+      type: "territorial-compact",
+      classes: [{ id: "seca", label: "Seca", color: "#f00" }],
+      years: { [period]: { imageId: "x", values } },
+    });
+    const loadImageData = vi.fn(async (_id: string, period?: string) => ({
+      found: true,
+      status: "hit" as const,
+      // O período cujo asset não responde volta sem valores, e não com erro: é
+      // o que o repositório passa a devolver ao isolar o asset indisponível.
+      imageData: datasetForPeriod(
+        period ?? "",
+        period?.startsWith("2026") ? {} : { br: [100] },
+      ),
+    }));
+
+    const report = await buildMunicipalReport("br", "2026", {
+      layers: [
+        {
+          panelLayerId: "monitor-de-seca-ana",
+          alias: "seca",
+          title: "Monitor de seca | ANA",
+          order: 1,
+          periods: ["2025-11", "2025-12", "2026-07"],
+          statisticsSource: { kind: "gee-feature-collection" } as never,
+        },
+      ],
+      loadImageData,
+    });
+
+    expect(report.analyses[0]).toMatchObject({
+      status: "available",
+      requestedPeriod: "2026",
+      effectivePeriod: "2025-12",
+    });
+    expect(report.templateVariables.periodo_seca).toBe("2025-12");
+  });
+
+  it("entrega as variáveis de território que o texto do catálogo cita", async () => {
+    const report = await buildMunicipalReport("2504009", "2024", {
+      listPanelLayers: async () => [] as never,
+    });
+
+    expect(report.templateVariables).toMatchObject({
+      territorio: "Campina Grande — PB",
+      recorte: "município",
+      no_territorio: "No município de Campina Grande — PB",
+      do_territorio: "do município de Campina Grande — PB",
+      municipio_uf: "Campina Grande — PB",
+      municipio: "Campina Grande",
+      uf: "PB",
+    });
+  });
 });

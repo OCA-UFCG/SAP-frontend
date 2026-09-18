@@ -36,9 +36,12 @@ export function MunicipalReportClassBars({
 
           return (
             <tr key={item.id} className="report-class-bar-row align-middle">
+              {/* `min-w` além de `w`: a célula da barra ocupa o resto da
+                  largura, e sem o mínimo a tabela espremia o rótulo até a
+                  largura da palavra mais longa. */}
               <th
                 scope="row"
-                className="w-[117px] py-1 pr-2 text-left align-middle font-normal leading-normal"
+                className="w-[117px] min-w-[117px] py-1 pr-2 text-left align-middle font-normal leading-normal"
               >
                 {translateLabel(item.label)}
               </th>

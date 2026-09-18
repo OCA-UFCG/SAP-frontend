@@ -133,6 +133,11 @@ describe("PlatformMap", () => {
     });
   });
 
+  /** Mapa base e Transparência agora moram atrás do botão de ajustes do mapa. */
+  function openMapSettings() {
+    fireEvent.click(screen.getByRole("button", { name: "Ajustes do mapa" }));
+  }
+
   it("labels the opacity control for assistive technologies", () => {
     useEarthEngineTileLayerMock.mockReturnValue({
       requestKey: "ee-layer:2024",
@@ -141,6 +146,7 @@ describe("PlatformMap", () => {
     });
 
     render(<PlatformMap section="monitoring" />);
+    openMapSettings();
 
     expect(screen.getByRole("slider", { name: "Transparência" })).toHaveValue(
       "0.85",
@@ -155,6 +161,7 @@ describe("PlatformMap", () => {
     });
 
     render(<PlatformMap section="monitoring" />);
+    openMapSettings();
 
     const streetButton = screen.getByRole("button", { name: "Rua" });
     const satelliteButton = screen.getByRole("button", { name: "Satélite" });
@@ -193,6 +200,7 @@ describe("PlatformMap", () => {
     const { rerender } = render(
       <PlatformMap section="monitoring" showMonitoringControls />,
     );
+    openMapSettings();
 
     expect(screen.getByRole("slider", { name: "Transparência" })).toHaveValue(
       "0.85",
@@ -205,6 +213,9 @@ describe("PlatformMap", () => {
       <PlatformMap section="monitoring" showMonitoringControls={false} />,
     );
 
+    expect(
+      screen.queryByRole("button", { name: "Ajustes do mapa" }),
+    ).not.toBeInTheDocument();
     expect(
       screen.queryByRole("group", { name: "Mapa base" }),
     ).not.toBeInTheDocument();

@@ -23,6 +23,14 @@ export const STATES_FILL_LAYER_ID = "state-fills";
 export const STATES_BORDER_LAYER_ID = "state-borders";
 export const CDI_LAYER_ID = "cdi-layer";
 export const GEE_LAYER_ID = "gee-layer";
+/**
+ * O contorno do território no mapa do Relatório Automático. Mora aqui, e não no
+ * componente que o desenha, porque quem devolve o mapa para a estante
+ * (`reportMapPool`) precisa removê-lo: uma instância reaproveitada já tem a
+ * fonte, e adicioná-la de novo derruba a captura seguinte.
+ */
+export const REPORT_TERRITORY_OUTLINE_SOURCE_ID = "report-territory-outline";
+export const REPORT_TERRITORY_OUTLINE_LAYER_ID = "report-territory-outline-line";
 export const SPATIAL_BOUNDARY_SOURCE_ID = "spatial-boundary";
 export const SPATIAL_BOUNDARY_LAYER_ID = "spatial-boundary-outline";
 export const REF_OVERLAY_SOURCE_PREFIX = "ref-overlay-src-";

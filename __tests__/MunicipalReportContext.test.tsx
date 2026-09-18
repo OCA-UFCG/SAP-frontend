@@ -99,8 +99,11 @@ describe("MunicipalReportContext", () => {
     expect(screen.getByRole("checkbox", { name: "Índice futuro" })).toBeChecked();
     expect(screen.getByRole("checkbox", { name: "Sem dados" })).toBeChecked();
 
-    await user.click(screen.getByRole("combobox"));
-    await user.type(screen.getByRole("combobox"), "Abadia");
+    const municipalityInput = screen.getByRole("combobox", {
+      name: /município/iu,
+    });
+    await user.click(municipalityInput);
+    await user.type(municipalityInput, "Abadia");
     await user.click(screen.getByRole("option", { name: "Abadia de Goiás - GO" }));
 
     await waitFor(() => {

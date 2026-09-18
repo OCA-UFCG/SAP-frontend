@@ -14,9 +14,13 @@ import {
   formatReportPeriod,
 } from "@/utils/municipalReportNarrative";
 import { getMunicipalReportValueLabels } from "@/utils/municipalReportValue";
+import { resolveReportTerritory } from "@/utils/reportTerritory";
 
 /** A prévia é uma tela administrativa em pt-BR; o relatório real é traduzido. */
 const PREVIEW_LOCALE = "pt-BR";
+
+/** Campina Grande — PB, o município de exemplo da prévia do catálogo. */
+const FALLBACK_PREVIEW_MUNICIPALITY_CODE = "2504009";
 
 interface DraftTileUrl {
   key: string;
@@ -81,6 +85,11 @@ export function ReportPreviewVisuals({
   translateLabel: (label: string) => string;
 }) {
   const t = useTranslations("MunicipalReport");
+  // A prévia do catálogo é sempre municipal: ela mostra como o índice ficará no
+  // relatório de um município de exemplo.
+  const previewTerritory =
+    resolveReportTerritory(municipality.code) ??
+    resolveReportTerritory(FALLBACK_PREVIEW_MUNICIPALITY_CODE)!;
   const tileUrl = useDraftTileUrl(tileApiPath, analysis.id, referencePeriod);
   // O mapa volta para a estante do relatório ao sair de cena; sem esvaziá-la o
   // contexto WebGL sobreviveria ao fechamento da prévia.
@@ -109,7 +118,7 @@ export function ReportPreviewVisuals({
             })}
           </div>
           <ReportMapPreview
-            municipalityCode={municipality.code}
+            territory={previewTerritory}
             layerId={analysis.id}
             period={referencePeriod}
             className="h-[230px] w-full"
@@ -120,8 +129,9 @@ export function ReportPreviewVisuals({
             {t("rasterDescription", {
               title: analysis.title,
               period: referencePeriodLabel,
-              municipality: municipality.name,
-              uf: municipality.uf,
+              territory: previewTerritory.label,
+              scope: previewTerritory.kindLabel,
+              boundary: previewTerritory.possessiveLabel,
             })}
           </p>
         </div>

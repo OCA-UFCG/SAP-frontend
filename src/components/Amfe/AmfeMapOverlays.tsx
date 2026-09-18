@@ -1,8 +1,7 @@
 "use client";
 
 import { useTranslations } from "next-intl";
-import { BasemapControl } from "@/components/MapControls/BasemapControl";
-import { LayerOpacityControl } from "@/components/MapControls/LayerOpacityControl";
+import { MapSettingsControl } from "@/components/MapControls/MapSettingsControl";
 import { ReferenceOverlaysControl } from "@/components/MapControls/ReferenceOverlaysControl";
 import { AmfeMapDownloadMenu } from "./AmfeMapDownloadMenu";
 import { AmfeMapLegend } from "./AmfeMapLegend";
@@ -40,15 +39,17 @@ export function AmfeMapOverlays() {
           activeOverlays={referenceOverlays}
           onToggle={toggleReferenceOverlay}
         />
-        <BasemapControl basemap={basemap} onChange={setBasemap} />
-        {municipalityClassification && (
-          <LayerOpacityControl
-            opacity={fillOpacity}
-            onChange={setFillOpacity}
-          />
-        )}
         {municipalityClassification && <AmfeMapLegend />}
       </div>
+
+      <MapSettingsControl
+        basemap={basemap}
+        onBasemapChange={setBasemap}
+        opacity={municipalityClassification ? fillOpacity : undefined}
+        onOpacityChange={
+          municipalityClassification ? setFillOpacity : undefined
+        }
+      />
 
       {isClassificationBelowZoomFloor && (
         <p

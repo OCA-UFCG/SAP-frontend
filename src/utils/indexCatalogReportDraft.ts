@@ -13,6 +13,12 @@ import {
  * prévia já validada no Earth Engine.
  */
 export interface IndexCatalogReportDraft {
+  /**
+   * Se o índice entra no Relatório Automático. Começa marcado: um índice novo
+   * nasce dentro do relatório, e sair dele é uma decisão explícita de quem
+   * cadastra.
+   */
+  includeInReport: boolean;
   sections: Array<{ title: string; text: string }>;
   sectionColor: string;
   methodology: string;
@@ -37,6 +43,7 @@ export interface IndexCatalogReportDraft {
  */
 export function createDefaultReportDraft(): IndexCatalogReportDraft {
   return {
+    includeInReport: true,
     sections: DEFAULT_CATALOG_REPORT_SECTIONS.map((section) => ({
       ...section,
     })),
@@ -58,6 +65,7 @@ export function createDefaultReportDraft(): IndexCatalogReportDraft {
  */
 export function createEmptyReportDraft(): IndexCatalogReportDraft {
   return {
+    includeInReport: true,
     sections: [],
     sectionColor: "",
     methodology: "",
@@ -82,6 +90,7 @@ export function toReportTextPayload(
 ): PublishedPanelLayerReportConfig {
   return {
     schemaVersion: PANEL_LAYER_REPORT_SCHEMA_VERSION,
+    ...(draft.includeInReport ? {} : { includeInReport: false }),
     ...(draft.sectionColor ? { sectionColor: draft.sectionColor } : {}),
     ...(draft.methodology.trim()
       ? { methodology: draft.methodology.trim() }
@@ -120,11 +129,14 @@ export function isStoredReportText(
       payload.sections.length === 0 &&
       !payload.sectionColor &&
       !payload.methodology &&
-      !payload.severity
+      !payload.severity &&
+      payload.includeInReport !== false
     );
   }
 
   return (
+    (payload.includeInReport !== false) ===
+      (stored.includeInReport !== false) &&
     (payload.sectionColor ?? "") === (stored.sectionColor ?? "") &&
     (payload.methodology ?? "") === (stored.methodology ?? "") &&
     JSON.stringify(payload.severity ?? null) ===
@@ -140,6 +152,7 @@ export function toReportDraft(
   if (!stored) return createDefaultReportDraft();
 
   return {
+    includeInReport: stored.includeInReport !== false,
     sections: stored.sections.map((section) => ({ ...section })),
     sectionColor: stored.sectionColor ?? "",
     methodology: stored.methodology ?? "",

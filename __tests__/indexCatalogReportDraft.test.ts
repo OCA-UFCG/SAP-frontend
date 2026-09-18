@@ -41,6 +41,7 @@ describe("isStoredReportText", () => {
 
   it("trata um rascunho vazio como igual a não ter texto gravado", () => {
     const payload = toReportTextPayload({
+      includeInReport: true,
       sections: [{ title: "Situação atual", text: "" }],
       sectionColor: "",
       severityOrder: [],

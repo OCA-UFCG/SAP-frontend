@@ -5,7 +5,7 @@
     "description": "Consulte os dados consolidados disponíveis para um município e período.",
     "selectionDescription": "Selecione as informações ao lado para gerar um relatório",
     "selectArea": "Selecione a área da análise",
-    "selectAreaHint": "Escolha o município que será analisado no relatório.",
+    "selectAreaHint": "Escolha o recorte e o território que serão analisados no relatório.",
     "searchMunicipality": "Busque ou selecione um município",
     "noMunicipalityResults": "Nenhum município encontrado",
     "selectModules": "Selecione os módulos de monitoramento",
@@ -20,7 +20,7 @@
     "analysisDate": "Data da análise",
     "periodHint": "Informe um ano (2024) ou mês (2024-01).",
     "invalidPeriod": "Informe um período no formato AAAA ou AAAA-MM.",
-    "availabilityIdle": "Selecione o município e informe o período para consultar os módulos.",
+    "availabilityIdle": "Selecione o território e informe o período para consultar os módulos.",
     "checkingAvailability": "Verificando módulos disponíveis para o período...",
     "availabilityError": "Não foi possível consultar a disponibilidade dos módulos.",
     "noModulesAvailable": "Nenhum módulo possui dados para esse período.",
@@ -40,7 +40,7 @@
     "loadingHint": "Isso pode levar alguns segundos, dependendo dos módulos selecionados.",
     "loadError": "Não foi possível carregar o relatório",
     "missingParameters": "Município e período são obrigatórios.",
-    "reportLabel": "Relatório analítico municipal",
+    "reportLabel": "Relatório analítico territorial",
     "ibgeCode": "Código IBGE",
     "generatedAt": "Gerado em",
     "effectivePeriod": "Período efetivo",
@@ -91,8 +91,8 @@
       "absoluteChartSeries": "Série temporal de valores"
     },
     "narrative": {
-      "absoluteFallback": "No município de {place}, o valor de {className} é {value}, conforme os dados de {title} para o período de {period}.",
-      "percentageFallback": "No município de {place}, predomina a classe {className}, com {percentage}% da área analisada {coverageContext}, conforme os dados de {title} para o período de {period}."
+      "absoluteFallback": "{place}, o valor de {className} é {value}, conforme os dados de {title} para o período de {period}.",
+      "percentageFallback": "{place}, predomina a classe {className}, com {percentage}% da área analisada {coverageContext}, conforme os dados de {title} para o período de {period}."
     },
     "coverageContexts": {
       "anaseca": "enquadrada nesse nível de severidade",
@@ -139,7 +139,7 @@
     "tableClass": "Classe",
     "spatialAndTimeSeries": "Distribuição espacial e série temporal",
     "spatialImage": "Imagem espacial: {period}",
-    "rasterDescription": "Raster temático de {title} para {period}, recortado visualmente pelo contorno municipal de {municipality} — {uf}.",
+    "rasterDescription": "Raster temático de {title} para {period}, recortado visualmente pelo contorno {boundary}.",
     "timeSeriesAlt": "Série temporal — {title}",
     "timeSeriesUnavailable": "Série temporal indisponível para exportação.",
     "historicalAnalysisTitle": "Análise e Interpretação",
@@ -325,6 +325,17 @@
       "pobreza-rural": "Pobreza rural",
       "registros-de-secas-e-estiagens": "Registros de secas e estiagens",
       "registros": "registros"
-    }
+    },
+    "scope": "Recorte",
+    "scopes": {
+      "municipality": "Município",
+      "national": "Brasil",
+      "region": "Região",
+      "state": "Estado",
+      "biome": "Bioma",
+      "semiarid": "Semiárido",
+      "asd": "ASD e Entorno"
+    },
+    "selectTerritory": "Selecione o território"
   }
 }

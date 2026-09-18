@@ -113,7 +113,10 @@ export function buildSituationNarrative(
 
   const dominant = analysis.snapshot?.dominantClass;
   if (!dominant || !analysis.effectivePeriod) return null;
-  const place = `${report.municipality.name} — ${report.municipality.uf}`;
+  // A frase automática abre com o território já flexionado ("No município de
+  // Campina Grande — PB", "Na região Nordeste"): a contração depende do
+  // recorte, e o servidor é quem sabe qual é.
+  const place = report.territory.prepositionalLabel;
   const translatedLabel = translateClass ? translateClass(dominant.label) : dominant.label;
   const translatedTitle = translateTitle ? translateTitle(analysis.title, analysis.id) : analysis.title;
   const code = config.history?.classes[dominant.id]?.code ?? config.classes?.[dominant.id]?.code;
@@ -134,7 +137,7 @@ export function buildSituationNarrative(
         period: formatReportPeriod(analysis.effectivePeriod, locale),
       });
     }
-    return `No município de ${place}, o valor de ${className} é ${value}, conforme os dados de ${translatedTitle} para o período de ${formatReportPeriod(analysis.effectivePeriod, locale)}.`;
+    return `${place}, o valor de ${className} é ${value}, conforme os dados de ${translatedTitle} para o período de ${formatReportPeriod(analysis.effectivePeriod, locale)}.`;
   }
 
   let coverageContext = config.coverageContext;
@@ -192,7 +195,7 @@ export function buildSituationNarrative(
       period: formatReportPeriod(analysis.effectivePeriod, locale),
     });
   }
-  return `No município de ${place}, predomina a classe ${className}, com ${formatPercentage(dominant.percentage, locale)}% da área analisada ${coverageContext}, conforme os dados de ${translatedTitle} para o período de ${formatReportPeriod(analysis.effectivePeriod, locale)}.`;
+  return `${place}, predomina a classe ${className}, com ${formatPercentage(dominant.percentage, locale)}% da área analisada ${coverageContext}, conforme os dados de ${translatedTitle} para o período de ${formatReportPeriod(analysis.effectivePeriod, locale)}.`;
 }
 
 export function buildHistoryNarrative(

@@ -3,6 +3,7 @@
     "loadingGeeLayer": "Loading GEE layer",
     "loadingMapLayer": "Loading map layer",
     "opacity": "Transparency",
+    "mapSettings": "Map settings",
     "basemap": "Base map",
     "satellite": "Satellite",
     "street": "Street",

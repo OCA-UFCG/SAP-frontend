@@ -1,6 +1,18 @@
 # Municipal report data API
 
-`GET /api/municipal-report/{codigoIBGE}?period=YYYY` (ou `YYYY-MM`) exige uma sessão autenticada e retorna o contrato `MunicipalReportData` versão 1.
+`GET /api/municipal-report/{chaveTerritorial}?period=YYYY` (ou `YYYY-MM`) exige uma sessão autenticada e retorna o contrato `MunicipalReportData` versão 1.
+
+A chave territorial é a mesma de `/api/municipal-analysis`: código IBGE de 7
+dígitos, UF de duas letras, `br`, ou um recorte agregado
+(`2_regiao-nordeste`, `3_bioma-caatinga`, `4_asd-asd-entorno`,
+`5_semiarido-semiarido-total`). Uma chave com forma inválida responde 400; uma
+chave bem formada cujo território não existe responde 404.
+
+Fora do município, o relatório monta só os índices com `statisticsSource` no
+Earth Engine: os legados guardam valores por município nas partições
+`municipalAnalysis` do Contentful e não têm linha para estado, bioma ou Brasil.
+Um índice cujo catálogo declarou `reportConfig.includeInReport: false` fica fora
+do relatório em todos os recortes.
 
 Exemplo resumido:
 
@@ -9,6 +21,16 @@ Exemplo resumido:
   "schemaVersion": 1,
   "generatedAt": "2026-07-07T12:00:00.000Z",
   "requestedPeriod": "2024-01",
+  "territory": {
+    "locationKey": "5200050",
+    "level": "municipality",
+    "name": "Abadia de Goiás",
+    "label": "Abadia de Goiás — GO",
+    "kindLabel": "município",
+    "prepositionalLabel": "No município de Abadia de Goiás — GO",
+    "possessiveLabel": "do município de Abadia de Goiás — GO",
+    "uf": "GO"
+  },
   "municipality": { "code": "5200050", "name": "Abadia de Goiás", "uf": "GO" },
   "analyses": [
     {
@@ -42,6 +64,11 @@ Exemplo resumido:
     }
   ],
   "templateVariables": {
+    "territorio": "Abadia de Goiás — GO",
+    "recorte": "município",
+    "no_territorio": "No município de Abadia de Goiás — GO",
+    "do_territorio": "do município de Abadia de Goiás — GO",
+    "municipio_uf": "Abadia de Goiás — GO",
     "municipio": "Abadia de Goiás",
     "uf": "GO",
     "codigoMunicipio": "5200050",
@@ -52,6 +79,14 @@ Exemplo resumido:
   }
 }
 ```
+
+`territory` descreve o recorte do relatório e existe em todas as respostas;
+`municipality` continua presente apenas no relatório de um município, para os
+consumidores que dependem do código IBGE. As variáveis de território
+(`no_territorio`, `do_territorio`, `territorio`, `recorte`) são as que o texto
+escrito no catálogo usa para valer em qualquer recorte: `no_territorio` já vem
+com a contração certa ("Na região Nordeste", "No bioma Caatinga"). `uf` fica
+vazia nos recortes que não têm uma.
 
 Cada análise pode ter estado `available`, `unavailable` ou `period_not_found`. Falhas parciais não invalidam as demais análises. As variáveis são valores estruturados; esta API não interpola templates.
 
@@ -103,7 +138,7 @@ quando o índice publicou esses valores pelo catálogo
 legado não o traz e o cliente cai no registro estático de
 `src/config/municipalReport.ts`, como sempre fez. As seções de texto **não**
 passam por aqui; elas chegam pela rota de textos
-(`/api/municipal-report/{codigoIBGE}/docs`).
+(`/api/municipal-report/{chaveTerritorial}/docs`).
 
 Quando o período solicitado não existe, a API ainda retorna `200` com
 `status: "period_not_found"` e os períodos existentes em `timeSeries`. O status
@@ -111,9 +146,27 @@ Quando o período solicitado não existe, a API ainda retorna `200` com
 
 ---
 
+## Textos do relatório (`GET /api/municipal-report/{chaveTerritorial}/docs`)
+
+Parâmetros: `period` (obrigatório) e `layers` (opcional). A convenção de
+`layers` é a mesma da rota do relatório-base — sem ele, valem todas as camadas.
+
+As duas chamadas da tela devem mandar **a mesma** lista, porque a lista pedida
+entra na chave do cache do relatório (`municipalReportCache`): mandar aqui só as
+camadas disponíveis fazia esta rota errar o cache e remontar o relatório
+inteiro. Quem filtra o que vira seção é o servidor, pelo `status` das análises
+do relatório já montado. Quando nenhuma análise fica disponível, a resposta é
+`404`.
+
+O teto de relatórios em memória é 100 (`MUNICIPAL_REPORT_CACHE_MAX_ENTRIES`),
+com expulsão do menos recentemente usado. Um relatório municipal completo ocupa
+~430 KiB.
+
+---
+
 ## Chart API (geração de imagem)
 
-`GET /api/municipal-report/{codigoIBGE}/chart?period=YYYY-MM&analysis=alias` exige sessão autenticada e retorna um **PNG** do gráfico de série temporal.
+`GET /api/municipal-report/{chaveTerritorial}/chart?period=YYYY-MM&analysis=alias` exige sessão autenticada e retorna um **PNG** do gráfico de série temporal.
 
 ### Parâmetros
 

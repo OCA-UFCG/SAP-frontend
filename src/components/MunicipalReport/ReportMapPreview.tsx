@@ -4,14 +4,26 @@ import { useEffect, useRef, useState } from "react";
 import { useTranslations } from "next-intl";
 import maplibregl from "maplibre-gl";
 import "maplibre-gl/dist/maplibre-gl.css";
+import type { FeatureCollection, Geometry } from "geojson";
 import { captureMapCanvasPng } from "@/components/Map/captureMapCanvas";
 import type { EeMapUrlFailure } from "@/contracts/eeMapUrls";
+import type { MunicipalReportTerritory } from "@/contracts/municipalReport";
+import { getAllowedStateUfs } from "@/utils/interestAreaStates";
+import { resolveReportTerritory } from "@/utils/reportTerritory";
+import { selectActiveBoundaryFeatures } from "@/utils/spatialBoundaryFeatures";
 import { startMunicipalReportStage } from "@/utils/municipalReportMetrics";
-import { GEE_LAYER_ID, GEE_SOURCE_ID } from "@/components/Map/mapDefinitions";
+import {
+  GEE_LAYER_ID,
+  GEE_SOURCE_ID,
+  REPORT_TERRITORY_OUTLINE_LAYER_ID,
+  REPORT_TERRITORY_OUTLINE_SOURCE_ID,
+} from "@/components/Map/mapDefinitions";
 import {
   BRAZIL_RASTER_BOUNDS,
+  geoBrasilSource,
   getIndexedMunicipalityBounds,
   MAP_MUNICIPALITY_FOCUS_MAX_ZOOM,
+  resolveSpatialFocusBounds,
 } from "@/components/Map/mapBounds";
 import {
   MUNICIPALITY_BORDER_LAYER_ID,
@@ -50,6 +62,103 @@ function addGeeRasterLayer(map: maplibregl.Map, tileUrl: string) {
     },
     MUNICIPALITY_BORDER_LAYER_ID,
   );
+}
+
+type OutlineCollection = FeatureCollection<Geometry, { name: string }>;
+
+/**
+ * O contorno do território do relatório, quando ele não está na malha
+ * municipal.
+ *
+ * Bioma, semiárido e ASD vêm da mesma rota de contorno que o mapa de
+ * Monitoramento usa; estado e região são desenhados a partir da malha de
+ * estados que o pacote já carrega, porque não há contorno servido para eles.
+ * O Brasil não precisa de nenhum: o raster já é o país inteiro.
+ */
+async function loadTerritoryOutline(
+  territory: MunicipalReportTerritory,
+  signal: AbortSignal,
+): Promise<OutlineCollection | null> {
+  const selection = resolveReportTerritory(territory.locationKey)?.selection;
+  if (!selection || selection.spatialArea === "national") return null;
+
+  if (selection.spatialArea === "state" || selection.spatialArea === "region") {
+    const allowedUfs = getAllowedStateUfs(selection);
+    if (!allowedUfs?.size) return null;
+    const normalized = new Set([...allowedUfs].map((uf) => uf.toUpperCase()));
+
+    return {
+      type: "FeatureCollection",
+      features: geoBrasilSource.features
+        .filter((feature) =>
+          normalized.has(feature.properties?.info.sigla ?? ""),
+        )
+        .map((feature) => ({
+          type: "Feature" as const,
+          geometry: feature.geometry,
+          properties: { name: territory.name },
+        })),
+    };
+  }
+
+  const params = new URLSearchParams({
+    spatialArea: selection.spatialArea,
+    spatialValue: selection.spatialValue,
+  });
+  const response = await fetch(`/api/spatial-boundary?${params.toString()}`, {
+    credentials: "same-origin",
+    signal,
+  });
+  if (!response.ok) return null;
+
+  return selectActiveBoundaryFeatures(
+    (await response.json()) as OutlineCollection,
+    selection.spatialValue,
+  );
+}
+
+function drawTerritoryOutline(map: maplibregl.Map, outline: OutlineCollection) {
+  map.addSource(REPORT_TERRITORY_OUTLINE_SOURCE_ID, {
+    type: "geojson",
+    data: outline,
+  });
+  map.addLayer({
+    id: REPORT_TERRITORY_OUTLINE_LAYER_ID,
+    type: "line",
+    source: REPORT_TERRITORY_OUTLINE_SOURCE_ID,
+    paint: { "line-color": "#292829", "line-width": 1.4 },
+  });
+}
+
+/**
+ * Enquadra e destaca o território do relatório.
+ *
+ * O município continua usando a malha municipal e o `feature-state` dela; os
+ * demais recortes ganham contorno próprio, porque nenhum deles existe naquela
+ * malha e sem isso o mapa de um bioma sairia igual ao do Brasil.
+ */
+async function focusTerritory(
+  map: maplibregl.Map,
+  territory: MunicipalReportTerritory,
+  signal: AbortSignal,
+) {
+  if (territory.level === "municipality") {
+    focusMunicipality(map, territory.locationKey);
+    return;
+  }
+
+  const outline = await loadTerritoryOutline(territory, signal).catch(
+    () => null,
+  );
+  if (signal.aborted) return;
+  if (outline?.features.length) drawTerritoryOutline(map, outline);
+
+  const bounds = resolveSpatialFocusBounds(
+    geoBrasilSource,
+    null,
+    outline?.features.length ? outline : null,
+  );
+  if (bounds) map.fitBounds(bounds, { padding: 24, animate: false });
 }
 
 function focusMunicipality(map: maplibregl.Map, municipalityCode: string) {
@@ -127,7 +236,7 @@ function waitForRasterCapture(
 }
 
 interface ReportMapPreviewProps {
-  municipalityCode: string;
+  territory: MunicipalReportTerritory;
   layerId: string;
   period: string;
   className?: string;
@@ -151,7 +260,7 @@ interface ReportMapPreviewProps {
 }
 
 export function ReportMapPreview({
-  municipalityCode,
+  territory,
   layerId,
   period,
   className,
@@ -170,7 +279,7 @@ export function ReportMapPreview({
   const captureCompletedRef = useRef(false);
   const onCaptureRef = useRef(onCapture);
   const queueWaitRecordedKeyRef = useRef<string | null>(null);
-  const imageKey = `${municipalityCode}:${layerId}:${period}`;
+  const imageKey = `${territory.locationKey}:${layerId}:${period}`;
   const captureKey = `${imageKey}:${attempt}`;
   const [image, setImage] = useState<{ key: string; src: string } | null>(null);
   const [failedImageKey, setFailedImageKey] = useState<string | null>(null);
@@ -266,7 +375,8 @@ export function ReportMapPreview({
 
       const finishTilesAndRender = startMunicipalReportStage();
       addGeeRasterLayer(acquired.map, tileUrl);
-      focusMunicipality(acquired.map, municipalityCode);
+      await focusTerritory(acquired.map, territory, controller.signal);
+      if (aborted) return;
       const ready = await waitForRasterCapture(acquired.map, controller.signal);
       finishTilesAndRender(`Mapa ${layerId}: tiles e renderização`, {
         detalhes: ready
@@ -319,7 +429,7 @@ export function ReportMapPreview({
     attempt,
     imageKey,
     layerId,
-    municipalityCode,
+    territory,
     period,
     queuedAt,
     resolvedImageSrc,

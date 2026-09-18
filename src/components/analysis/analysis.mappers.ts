@@ -13,6 +13,10 @@ import type {
   TerritorialAnalysisViewModel,
 } from "@/utils/analysis";
 import {
+  formatSeasonalPeriodLabel,
+  hasSeasonalPeriods,
+} from "@/utils/seasonalPeriod";
+import {
   getImageDataDefaultYear,
   getImageDataLegend,
   getImageDataYearKeys,
@@ -22,6 +26,15 @@ import {
 
 function getImageDataYearLabel(key: string, dataset?: PanelLayerI): string {
   const entry = resolveImageYearEntry(dataset?.imageData, key);
+  // Numa camada sazonal o mês da chave é o início de um trimestre, e o rótulo
+  // precisa dizer os três meses.
+  const seasonalLabel = hasSeasonalPeriods(dataset)
+    ? formatSeasonalPeriodLabel(key)
+    : null;
+
+  if (seasonalLabel) {
+    return seasonalLabel;
+  }
 
   if (entry?.year?.trim()) {
     return entry.year.trim();

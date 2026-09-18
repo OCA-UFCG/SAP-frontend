@@ -61,7 +61,8 @@ import {
 import type { EeMapUrlFailure } from "@/contracts/eeMapUrls";
 
 export interface MunicipalReportPreviewProps {
-  municipalityCode: string;
+  /** Chave territorial do relatório: código IBGE, UF, "br" ou recorte agregado. */
+  locationKey: string;
   period: string;
   layerIds?: string[];
   embedded?: boolean;
@@ -79,6 +80,9 @@ function textColorForBackground(color: string) {
     : "#ffffff";
 }
 
+/** Fontes declaradas em `src/app/[locale]/layout.tsx` e usadas pelo documento. */
+const FONT_VARIABLE_NAMES = ["--font-open-sans", "--font-inter"];
+
 function buildReportFilename(
   report: MunicipalReportData | null,
   period: string,
@@ -86,8 +90,10 @@ function buildReportFilename(
   prefix: string,
 ) {
   if (!report) return fallback;
-  const municipality = report.municipality.name.trim().replace(/\s+/g, "-");
-  return `${prefix}-${municipality}-${period}.pdf`;
+  // O nome, e não o rótulo: o rótulo do município leva "— UF", e um travessão
+  // no meio do nome do arquivo não ajuda ninguém.
+  const territory = report.territory.name.trim().replace(/\s+/g, "-");
+  return `${prefix}-${territory}-${period}.pdf`;
 }
 
 const AnalysisSection = memo(function AnalysisSection({
@@ -180,7 +186,6 @@ const AnalysisSection = memo(function AnalysisSection({
   const valueLabels = getMunicipalReportValueLabels(analysis, (key, values) =>
     t(key, values),
   );
-
 
   return (
     <section
@@ -292,7 +297,7 @@ const AnalysisSection = memo(function AnalysisSection({
                 {t("spatialImage", { period: snapshotPeriodLabel })}
               </p>
               <ReportMapPreview
-                municipalityCode={report.municipality.code}
+                territory={report.territory}
                 layerId={analysis.id}
                 period={referencePeriod}
                 className="report-map-frame aspect-[696/322] w-full rounded-lg bg-white"
@@ -311,8 +316,11 @@ const AnalysisSection = memo(function AnalysisSection({
                 {t("rasterDescription", {
                   title: translatedTitle,
                   period: referencePeriodLabel,
-                  municipality: report.municipality.name,
-                  uf: report.municipality.uf,
+                  territory: report.territory.label,
+                  scope: report.territory.kindLabel,
+                  // O pt-BR usa a forma com preposição ("do bioma Caatinga");
+                  // as outras línguas montam a frase com {territory}.
+                  boundary: report.territory.possessiveLabel,
                 })}
               </p>
             </div>
@@ -444,7 +452,7 @@ const ReportDocument = memo(function ReportDocument({
     const params = new URLSearchParams({
       section: "monitoring",
       layer: analysisId,
-      municipalityCode: report.municipality.code,
+      locationKey: report.territory.locationKey,
       period: report.requestedPeriod,
     });
     const selectedIds = selected.map(({ id }) => id);
@@ -550,7 +558,7 @@ function EmptyReportPreview() {
 }
 
 export function MunicipalReportPreview({
-  municipalityCode,
+  locationKey,
   period,
   layerIds,
   embedded = false,
@@ -558,10 +566,13 @@ export function MunicipalReportPreview({
 }: MunicipalReportPreviewProps) {
   const t = useTranslations("MunicipalReport");
   const locale = useLocale();
-  const hasRequiredParameters = Boolean(municipalityCode && period);
+  const hasRequiredParameters = Boolean(locationKey && period);
   const [report, setReport] = useState<MunicipalReportData | null>(null);
   const [docsContent, setDocsContent] =
     useState<MunicipalReportDocsContent | null>(null);
+  // Os textos chegam depois do relatório, em paralelo com os mapas. O download
+  // espera por eles: um PDF exportado no meio do caminho sairia sem texto.
+  const [docsResolved, setDocsResolved] = useState(false);
   const [mapQueueStartedAt, setMapQueueStartedAt] = useState<number | null>(
     null,
   );
@@ -617,6 +628,7 @@ export function MunicipalReportPreview({
   // "pronta": sem esta guarda o botão de exportar liberava antes do primeiro
   // mapa existir.
   const mapsReady = mapTileUrls.resolved && capturesReady;
+  const reportReadyForExport = mapsReady && docsResolved;
 
   useEffect(() => {
     if (!hasRequiredParameters || navigationMeasuredRef.current) return;
@@ -686,7 +698,8 @@ export function MunicipalReportPreview({
   const handleDownload = useCallback(() => printReportRef.current(), []);
 
   function printReport() {
-    if (!reportDocumentRef.current || exporting || !mapsReady) return;
+    if (!reportDocumentRef.current || exporting || !reportReadyForExport)
+      return;
 
     setExporting(true);
     setError(null);
@@ -703,6 +716,16 @@ export function MunicipalReportPreview({
       .map((element) => element.outerHTML)
       .join("\n");
     const baseUrl = `${window.location.origin}/`;
+    // As variáveis de fonte do next/font vivem na className do <body> do app
+    // (src/app/[locale]/layout.tsx). A janela de impressão monta um <body> novo,
+    // sem essa classe, e o PDF saía numa fonte de sistema em vez de Open Sans —
+    // o que muda a largura do texto e a quebra de página junto. Vão como regra
+    // CSS, e não como atributo style: o valor resolvido traz aspas duplas
+    // (`"Open Sans", "Open Sans Fallback"`) que truncariam o atributo.
+    const appBodyStyle = getComputedStyle(document.body);
+    const printFontVariables = FONT_VARIABLE_NAMES.map(
+      (name) => `${name}:${appBodyStyle.getPropertyValue(name)}`,
+    ).join(";");
     const filename = buildReportFilename(
       report,
       period,
@@ -712,6 +735,7 @@ export function MunicipalReportPreview({
     const printOverrides = `
       <style>
         @page{size:A4;margin:12mm 14mm}
+        body{${printFontVariables}}
         html,body{width:auto;margin:0;background:#fff}
         body{-webkit-print-color-adjust:exact;print-color-adjust:exact}
         .report-paper{box-sizing:border-box;width:auto!important;min-height:auto!important;margin:0!important;padding:0!important;overflow:visible;box-shadow:none!important}
@@ -732,7 +756,15 @@ export function MunicipalReportPreview({
           .report-block{break-inside:avoid;page-break-inside:avoid}
           .report-class-bar-row{break-inside:avoid;page-break-inside:avoid}
           .report-variable-index{break-inside:avoid;page-break-inside:avoid}
-          .report-time-series,.report-spatial,.report-class-coverage{break-inside:avoid;page-break-inside:avoid}
+          /* Mapa, gráfico e barras de classe medem 435, 506 e até 530px numa
+             página A4 de 1032px úteis: dois cabem, três nunca. Enquanto o cartão
+             inteiro era indivisível, o terceiro pulava de página e deixava um
+             vão de 300 a 500px no pé da anterior, seção após seção. O que de
+             fato não pode ser cortado ao meio é a imagem do mapa e o SVG do
+             gráfico; o cabeçalho, a legenda e a tabela de classes podem fluir. */
+          .report-time-series,.report-spatial,.report-class-coverage{break-inside:auto;page-break-inside:auto}
+          .report-time-series>.report-block,.report-spatial>.report-block,.report-class-coverage>.report-block{break-inside:auto;page-break-inside:auto}
+          .report-map-frame,.report-chart-print{break-inside:avoid;page-break-inside:avoid}
           .report-narrative{break-inside:auto;page-break-inside:auto}
           .report-notes{break-inside:auto;page-break-inside:auto;margin-top:8mm!important;padding-top:5mm!important}
           .report-document-footer{break-inside:avoid;page-break-inside:avoid}
@@ -782,6 +814,7 @@ export function MunicipalReportPreview({
       summaryMeasuredRef.current = false;
       resetMapCaptureQueue();
       setMapQueueStartedAt(null);
+      setDocsResolved(false);
       setLoading(true);
       setError(null);
       try {
@@ -789,7 +822,7 @@ export function MunicipalReportPreview({
         const reportParams = new URLSearchParams({ period });
         if (layerIdsKey) reportParams.set("layers", layerIdsKey);
         const response = await fetch(
-          `/api/municipal-report/${encodeURIComponent(municipalityCode)}?${reportParams.toString()}`,
+          `/api/municipal-report/${encodeURIComponent(locationKey)}?${reportParams.toString()}`,
           { credentials: "same-origin", signal: controller.signal },
         );
         const payload = await response.json();
@@ -803,30 +836,32 @@ export function MunicipalReportPreview({
         setDocsContent(null);
 
         const reportData = payload as MunicipalReportData;
-        const selectedLayerIds = layerIdsKey
-          ? new Set(layerIdsKey.split(","))
-          : null;
-        const selectedLayerIdsForDocs = (
-          selectedLayerIds
-            ? reportData.analyses.filter(({ id }) => selectedLayerIds.has(id))
-            : reportData.analyses
-        )
-          .filter((analysis) => analysis.status === "available")
-          .map((analysis) => analysis.id);
+        const hasAvailableAnalysis = reportData.analyses.some(
+          (analysis) => analysis.status === "available",
+        );
 
         const docsTask = async () => {
-          if (selectedLayerIdsForDocs.length === 0) return;
+          if (!hasAvailableAnalysis) {
+            setDocsResolved(true);
+            return;
+          }
           const finishDocs = startMunicipalReportStage();
           let docsResponse: Response | undefined;
           try {
+            // As mesmas camadas pedidas no relatório-base: a chave do cache do
+            // relatório inclui a lista pedida, então mandar aqui só as
+            // disponíveis fazia esta chamada errar o cache e remontar o
+            // relatório inteiro. Quem filtra o que vira seção é o servidor.
+            const docsParams = new URLSearchParams({ period });
+            if (layerIdsKey) docsParams.set("layers", layerIdsKey);
             docsResponse = await fetch(
-              `/api/municipal-report/${encodeURIComponent(municipalityCode)}/docs?period=${encodeURIComponent(period)}&layers=${encodeURIComponent(selectedLayerIdsForDocs.join(","))}`,
+              `/api/municipal-report/${encodeURIComponent(locationKey)}/docs?${docsParams.toString()}`,
               { credentials: "same-origin", signal: controller.signal },
             );
             const docsPayload = await docsResponse.json();
             finishDocs("Textos do Google Docs", {
               response: docsResponse,
-              detalhes: `${selectedLayerIdsForDocs.length} tema(s)`,
+              detalhes: `${layerIdsKey ? layerIdsKey.split(",").length : "todas"} camada(s) solicitada(s)`,
             });
             if (!docsResponse.ok)
               throw new Error(docsPayload.error ?? loadErrorMessage);
@@ -837,16 +872,23 @@ export function MunicipalReportPreview({
                 detalhes: "Falha antes de receber a resposta",
               });
             }
-            if (controller.signal.aborted) throw docsError;
+            if (controller.signal.aborted) return;
             console.warn(
               "Não foi possível carregar os textos do relatório; mantendo os dados e gráficos disponíveis.",
               docsError,
             );
             setDocsContent(null);
+          } finally {
+            if (!controller.signal.aborted) setDocsResolved(true);
           }
         };
 
-        await docsTask();
+        // Os textos não entram no caminho crítico: a captura dos mapas só
+        // começa quando `loading` vira falso, e esperar o Google Docs aqui
+        // somava a latência dele (1,3 s quente, mais no primeiro acesso) antes
+        // do primeiro mapa sair. O download continua bloqueado até os textos
+        // resolverem, então nenhum PDF sai sem eles.
+        void docsTask();
       } catch (reason) {
         if (reason instanceof DOMException && reason.name === "AbortError")
           return;
@@ -865,7 +907,7 @@ export function MunicipalReportPreview({
     hasRequiredParameters,
     layerIdsKey,
     loadErrorMessage,
-    municipalityCode,
+    locationKey,
     period,
     resetMapCaptureQueue,
   ]);
@@ -874,7 +916,7 @@ export function MunicipalReportPreview({
 
   if (embedded) {
     const previewTitle = report
-      ? `${t("reportLabel")} - ${report.municipality.name} - ${formatReportPeriod(period, locale)}`
+      ? `${t("reportLabel")} - ${report.territory.label} - ${formatReportPeriod(period, locale)}`
       : t("reportLabel");
 
     return (
@@ -978,11 +1020,11 @@ export function MunicipalReportPreview({
                 docsContent={docsContent}
                 onOpenMonitor={onOpenMonitor}
                 onDownload={handleDownload}
-                downloadDisabled={exporting || !mapsReady}
+                downloadDisabled={exporting || !reportReadyForExport}
                 downloadLabel={
                   exporting
                     ? t("preparingDownload")
-                    : mapsReady
+                    : reportReadyForExport
                       ? t("downloadPdf")
                       : t("preparingDownloadMaps", { count: pendingMapCount })
                 }
@@ -1029,11 +1071,11 @@ export function MunicipalReportPreview({
             onOpenMonitor={onOpenMonitor}
             documentRef={reportDocumentRef}
             onDownload={handleDownload}
-            downloadDisabled={exporting || !mapsReady}
+            downloadDisabled={exporting || !reportReadyForExport}
             downloadLabel={
               exporting
                 ? t("preparingDownload")
-                : mapsReady
+                : reportReadyForExport
                   ? t("downloadPdf")
                   : t("preparingDownloadMaps", { count: pendingMapCount })
             }

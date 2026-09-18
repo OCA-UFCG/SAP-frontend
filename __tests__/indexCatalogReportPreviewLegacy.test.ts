@@ -1,4 +1,5 @@
 import { describe, expect, it, vi } from "vitest";
+import { resolveReportTerritory } from "@/utils/reportTerritory";
 
 vi.mock("server-only", () => ({}));
 
@@ -77,6 +78,7 @@ function stubLegacyEntry() {
     schemaVersion: 1,
     generatedAt: "2026-01-01T00:00:00.000Z",
     requestedPeriod: "2024",
+    territory: resolveReportTerritory(CAMPINA_GRANDE)!,
     municipality: { code: CAMPINA_GRANDE, name: "Campina Grande", uf: "PB" },
     templateVariables: {},
     analyses: [

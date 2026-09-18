@@ -1,6 +1,5 @@
 import "server-only";
 
-import citiesIndex from "@/data/citiesIndex.json";
 import municipalAvailabilityIndex from "@/data/municipalAvailabilityIndex.json";
 import {
   MUNICIPAL_REPORT_LAYERS,
@@ -34,6 +33,10 @@ import {
 } from "@/utils/municipalReport";
 import { computeReportSeriesVariables } from "@/utils/reportSeriesVariables";
 import {
+  resolveReportTerritory,
+  type ReportTerritory,
+} from "@/utils/reportTerritory";
+import {
   describeReportVariableProfile,
   resolveReportSeverity,
 } from "@/utils/reportVariableProfile";
@@ -55,12 +58,27 @@ export class MunicipalReportNotFoundError extends Error {}
 /** O relatório é montado em pt-BR; as variáveis de template acompanham. */
 const REPORT_TEMPLATE_LOCALE = "pt-BR";
 
+/**
+ * As camadas que podem virar seção do relatório neste território.
+ *
+ * Fora do município só entram as camadas com fonte estatística no Earth
+ * Engine: as legadas guardam valores por município nas partições do Contentful
+ * e não têm linha nenhuma para estado, bioma ou Brasil. Deixá-las na lista não
+ * daria um relatório incompleto, daria um relatório com seções vazias.
+ */
 async function resolveReportLayers(
   dependencies: MunicipalReportServiceDependencies,
+  territory: ReportTerritory,
 ) {
   if (dependencies.layers) return [...dependencies.layers];
 
-  const panelLayers = await (dependencies.listPanelLayers ?? getPanelLayers)();
+  const panelLayers = (
+    await (dependencies.listPanelLayers ?? getPanelLayers)()
+  ).filter(
+    (layer) =>
+      layer.reportConfig?.includeInReport !== false &&
+      (territory.level === "municipality" || Boolean(layer.statisticsSource)),
+  );
   const configured = new Map(
     MUNICIPAL_REPORT_LAYERS.map((layer) => [layer.panelLayerId, layer]),
   );
@@ -110,7 +128,20 @@ function createLimiter(maxConcurrent: number) {
   };
 }
 
+// O limitador existe para o caminho legado, em que cada período é uma consulta
+// própria ao Contentful. No caminho do GEE um período não é uma ida à rede: os
+// períodos de uma camada compartilham a mesma leitura de série, deduplicada em
+// `geeStatisticsRowsCache`. Segurá-los em quatro só atrasava o enfileiramento —
+// e é o enfileiramento simultâneo que permite às camadas viajarem juntas numa
+// ida só ao Earth Engine.
 const limitFallbackLoad = createLimiter(4);
+
+function limitLegacyLoad<T>(
+  isGeeBacked: boolean,
+  operation: () => Promise<T>,
+): Promise<T> {
+  return isGeeBacked ? operation() : limitFallbackLoad(operation);
+}
 
 function getCalendarYear(period: string) {
   return period.match(/^(\d{4})(?:-\d{2})?$/u)?.[1] ?? null;
@@ -284,7 +315,7 @@ async function loadMunicipalTimeSeries(
   const effectivePeriod = locationKey
     ? resolveSeriesSeedPeriod(requestedEffectivePeriod, availablePeriods)
     : requestedEffectivePeriod;
-  const seed = await limitFallbackLoad(() =>
+  const seed = await limitLegacyLoad(Boolean(locationKey), () =>
     loadImageData(panelLayerId, effectivePeriod, locationKey),
   );
 
@@ -302,7 +333,7 @@ async function loadMunicipalTimeSeries(
       const datasets = await Promise.all(
         periodKeys.map(async (period) => {
           if (period === effectivePeriod) return seed.imageData;
-          const result = await limitFallbackLoad(() =>
+          const result = await limitLegacyLoad(Boolean(locationKey), () =>
             loadImageData(panelLayerId, period, locationKey),
           );
           return result.found &&
@@ -381,15 +412,15 @@ function buildAnalysisSeriesVariables(
 }
 
 export async function buildMunicipalReport(
-  municipalityCode: string,
+  locationKey: string,
   requestedPeriod: string,
   dependencies: MunicipalReportServiceDependencies = {},
 ): Promise<MunicipalReportData> {
-  const municipality = citiesIndex.find(
-    (city) => city.code === municipalityCode,
-  );
-  if (!municipality)
-    throw new MunicipalReportNotFoundError("Municipality not found.");
+  const territory = resolveReportTerritory(locationKey);
+  if (!territory)
+    throw new MunicipalReportNotFoundError(
+      `Território não encontrado: ${locationKey}; esperado um código IBGE de 7 dígitos, uma UF, "br" ou uma chave de recorte agregado.`,
+    );
 
   const loadImageData =
     dependencies.loadImageData ?? getCachedMunicipalAnalysisImageData;
@@ -410,7 +441,7 @@ export async function buildMunicipalReport(
       )
     : null;
   const layersStartedAt = performance.now();
-  const resolvedLayers = await resolveReportLayers(dependencies);
+  const resolvedLayers = await resolveReportLayers(dependencies, territory);
   dependencies.onTiming?.(
     "resolve_layers",
     performance.now() - layersStartedAt,
@@ -443,26 +474,36 @@ export async function buildMunicipalReport(
     layers.map(async (config): Promise<MunicipalReportAnalysis> => {
       const analysisStartedAt = performance.now();
       try {
-        const isIndexedLayer = availabilityIndex.layers.some(
-          (layer) => layer.panelLayerId === config.panelLayerId,
-        );
-        const indexedPeriod = resolveMunicipalLayerPeriod(
-          availabilityIndex,
-          municipalityCode,
-          config.panelLayerId,
-          requestedPeriod,
-        );
+        // O índice de disponibilidade é por município: ele responde pelas
+        // camadas legadas, que só existem nesse recorte.
+        const isIndexedLayer =
+          territory.level === "municipality" &&
+          availabilityIndex.layers.some(
+            (layer) => layer.panelLayerId === config.panelLayerId,
+          );
+        const indexedPeriod = territory.municipalityCode
+          ? resolveMunicipalLayerPeriod(
+              availabilityIndex,
+              territory.municipalityCode,
+              config.panelLayerId,
+              requestedPeriod,
+            )
+          : null;
         if (isIndexedLayer && !indexedPeriod && !config.reportSeriesConfig) {
           return unavailable(config, requestedPeriod);
         }
         const effectivePeriod = indexedPeriod ?? requestedPeriod;
         let seriesData = null;
         try {
-          seriesData = await loadReportSeriesData(
-            config,
-            municipalityCode,
-            loadReportSeries,
-          );
+          // O shard de série também é municipal, e o relatório de um recorte
+          // agregado nunca o alcança.
+          seriesData = territory.municipalityCode
+            ? await loadReportSeriesData(
+                config,
+                territory.municipalityCode,
+                loadReportSeries,
+              )
+            : null;
         } catch (error) {
           console.warn(
             `[municipalReport] Shard indisponível para ${config.panelLayerId}; usando municipalAnalysis.`,
@@ -473,11 +514,11 @@ export async function buildMunicipalReport(
           seriesData ??
           (await loadMunicipalTimeSeries(
             config.panelLayerId,
-            municipalityCode,
+            territory.locationKey,
             effectivePeriod,
             config.periods,
             loadImageData,
-            config.statisticsSource ? municipalityCode : undefined,
+            config.statisticsSource ? territory.locationKey : undefined,
           ));
         if (!temporalData) return unavailable(config, requestedPeriod);
         const { dataset, timeSeries: sourceTimeSeries } = temporalData;
@@ -533,11 +574,8 @@ export async function buildMunicipalReport(
     }),
   );
 
-  const templateVariables: MunicipalReportData["templateVariables"] = {
-    municipio: municipality.name,
-    uf: municipality.uf.toUpperCase(),
-    codigoMunicipio: municipality.code,
-  };
+  const templateVariables: MunicipalReportData["templateVariables"] =
+    buildTerritoryTemplateVariables(territory);
   analyses.forEach((analysis, index) => {
     const dominantValue = analysis.snapshot?.dominantClass?.percentage ?? null;
     // O nome do índice existe para a frase escrita no catálogo poder citar a
@@ -576,12 +614,56 @@ export async function buildMunicipalReport(
     schemaVersion: 1,
     generatedAt: (dependencies.now ?? (() => new Date()))().toISOString(),
     requestedPeriod,
-    municipality: {
-      code: municipality.code,
-      name: municipality.name,
-      uf: municipality.uf.toUpperCase(),
-    },
+    territory: toReportTerritoryContract(territory),
+    ...(territory.municipalityCode
+      ? {
+          municipality: {
+            code: territory.municipalityCode,
+            name: territory.name,
+            uf: territory.uf ?? "",
+          },
+        }
+      : {}),
     analyses,
     templateVariables,
+  };
+}
+
+/** O território sem os campos que só o servidor usa. */
+function toReportTerritoryContract(
+  territory: ReportTerritory,
+): MunicipalReportData["territory"] {
+  return {
+    locationKey: territory.locationKey,
+    level: territory.level,
+    name: territory.name,
+    label: territory.label,
+    kindLabel: territory.kindLabel,
+    prepositionalLabel: territory.prepositionalLabel,
+    possessiveLabel: territory.possessiveLabel,
+    ...(territory.uf ? { uf: territory.uf } : {}),
+  };
+}
+
+/**
+ * As variáveis de território que o texto escrito no catálogo pode citar.
+ *
+ * `[municipio]` e `[uf]` continuam existindo porque textos antigos os usam,
+ * mas fora do município eles descrevem o território do relatório: um texto
+ * publicado antes desta mudança escreve o nome certo no lugar errado, em vez de
+ * deixar o colchete cru no documento que o cidadão lê.
+ */
+function buildTerritoryTemplateVariables(
+  territory: ReportTerritory,
+): MunicipalReportData["templateVariables"] {
+  return {
+    territorio: territory.label,
+    recorte: territory.kindLabel,
+    no_territorio: territory.prepositionalLabel,
+    do_territorio: territory.possessiveLabel,
+    municipio_uf: territory.label,
+    municipio: territory.name,
+    uf: territory.uf ?? "",
+    codigoMunicipio: territory.municipalityCode ?? territory.locationKey,
   };
 }

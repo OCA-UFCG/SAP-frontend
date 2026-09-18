@@ -1,6 +1,9 @@
 import { describe, expect, it } from "vitest";
 
-import { buildEmbeddedTerritorialAnalysisViewModel } from "@/components/analysis/analysis.mappers";
+import {
+  buildEmbeddedTerritorialAnalysisViewModel,
+  getAnalysisYearOptions,
+} from "@/components/analysis/analysis.mappers";
 import type { CompactTerritorialAnalysisDataset } from "@/utils/analysis";
 import type { PanelLayerI } from "@/utils/interfaces";
 
@@ -268,5 +271,45 @@ describe("analysis.mappers", () => {
         (group.allItems ?? group.items).map((item) => item.id),
       ),
     ).not.toContain("5300108");
+  });
+
+  it("spells out the season in the period selector", () => {
+    const layer = buildLayer({
+      schemaVersion: 1,
+      type: "territorial-compact",
+      defaultYear: "2026-09",
+      classes: [{ id: "a", label: "Classe A", color: "#111111" }],
+      years: {
+        "2026-09": { imageId: "img-son", values: {} },
+      },
+    });
+    const seasonalLayer = {
+      ...layer,
+      statisticsSource: {
+        kind: "gee-feature-collection",
+        schemaVersion: 1,
+        sourceRevision: "a".repeat(64),
+        periodGranularity: "month",
+        asset: { type: "fixed", assetId: "projects/x/assets/t" },
+        properties: {
+          level: "NIVEL_AGRUPAMENTO",
+          locationName: "NOME_LOCAL",
+          municipalityCode: "CD_MUN",
+          stateCode: "NM_UF",
+          year: "ano",
+          date: "data_img",
+          totalArea: "area_total_ha",
+          season: "temporada",
+        },
+      },
+    } as PanelLayerI;
+
+    expect(getAnalysisYearOptions(seasonalLayer)).toEqual([
+      { value: "2026-09", label: "Setembro - Outubro - Novembro - 2026" },
+    ]);
+    // Sem a coluna do trimestre o período continua sendo um mês comum.
+    expect(getAnalysisYearOptions(layer)).toEqual([
+      { value: "2026-09", label: "2026-09" },
+    ]);
   });
 });

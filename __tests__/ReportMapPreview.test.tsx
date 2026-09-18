@@ -115,6 +115,7 @@ vi.mock("@/components/Map/mapBounds", async (importOriginal) => {
   };
 });
 
+import { resolveReportTerritory } from "@/utils/reportTerritory";
 import { ReportMapPreview } from "@/components/MunicipalReport/ReportMapPreview";
 import {
   countIdleReportMaps,
@@ -142,6 +143,11 @@ function emitRasterReady(instanceIndex: number) {
   emit(instanceIndex, "idle");
 }
 
+/** Abadia de Goiás — GO, o município das asserções deste arquivo. */
+const ABADIA_DE_GOIAS = resolveReportTerritory("5200050")!;
+/** Um recorte agregado, que desenha contorno próprio em vez da malha municipal. */
+const CAATINGA = resolveReportTerritory("3_bioma-caatinga")!;
+
 describe("ReportMapPreview", () => {
   beforeEach(() => {
     destroyReportMapPool();
@@ -158,7 +164,7 @@ describe("ReportMapPreview", () => {
   it("does not initialize MapLibre when an image is already available", () => {
     render(
       <ReportMapPreview
-        municipalityCode="5200050"
+        territory={ABADIA_DE_GOIAS}
         layerId="anaseca"
         period="2024-01"
         tileUrl={TILE_URL}
@@ -172,7 +178,7 @@ describe("ReportMapPreview", () => {
   it("does not build a map before the batch resolves the tile URL", () => {
     render(
       <ReportMapPreview
-        municipalityCode="5200050"
+        territory={ABADIA_DE_GOIAS}
         layerId="anaseca"
         period="2024-01"
       />,
@@ -186,7 +192,7 @@ describe("ReportMapPreview", () => {
   it("shows a message instead of a map when the period has no image", () => {
     const { getByText } = render(
       <ReportMapPreview
-        municipalityCode="5200050"
+        territory={ABADIA_DE_GOIAS}
         layerId="prev_anomalia_precipitacao"
         period="2026-05"
         unavailableReason="year_not_found"
@@ -200,7 +206,7 @@ describe("ReportMapPreview", () => {
   it("keeps the map out of the way when the tile URL failed for another reason", () => {
     const { getByText } = render(
       <ReportMapPreview
-        municipalityCode="5200050"
+        territory={ABADIA_DE_GOIAS}
         layerId="anaseca"
         period="2024-01"
         unavailableReason="rate_limited"
@@ -217,7 +223,7 @@ describe("ReportMapPreview", () => {
   it("devolve o mapa para a estante ao desmontar, em vez de destruí-lo", async () => {
     const { unmount } = render(
       <ReportMapPreview
-        municipalityCode="5200050"
+        territory={ABADIA_DE_GOIAS}
         layerId="cancel-test-layer"
         period="2024-01"
         tileUrl={TILE_URL}
@@ -240,7 +246,7 @@ describe("ReportMapPreview", () => {
   it("descarta o mapa quando a fila desiste antes do estilo carregar", async () => {
     const { unmount } = render(
       <ReportMapPreview
-        municipalityCode="5200050"
+        territory={ABADIA_DE_GOIAS}
         layerId="anaseca"
         period="2024-01"
         tileUrl={TILE_URL}
@@ -260,7 +266,7 @@ describe("ReportMapPreview", () => {
   it("descarta a estante quando a prévia do relatório sai da tela", async () => {
     const { unmount } = render(
       <ReportMapPreview
-        municipalityCode="5200050"
+        territory={ABADIA_DE_GOIAS}
         layerId="anaseca"
         period="2024-01"
         tileUrl={TILE_URL}
@@ -282,7 +288,7 @@ describe("ReportMapPreview", () => {
   it("limpa o raster e o município destacado ao devolver o mapa", async () => {
     const { unmount } = render(
       <ReportMapPreview
-        municipalityCode="5200050"
+        territory={ABADIA_DE_GOIAS}
         layerId="anaseca"
         period="2024-01"
         tileUrl={TILE_URL}
@@ -302,11 +308,56 @@ describe("ReportMapPreview", () => {
     expect(mapInstances[0].removeFeatureState).toHaveBeenCalled();
   });
 
+  // Regressão: o contorno do território ficava no mapa devolvido para a
+  // estante, e a captura seguinte morria em `Source "report-territory-outline"
+  // already exists`, deixando o relatório sem mapa a partir do segundo índice.
+  it("limpa também o contorno do território ao devolver o mapa", async () => {
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async () => ({
+        ok: true,
+        json: async () => ({
+          type: "FeatureCollection",
+          features: [
+            {
+              type: "Feature",
+              properties: { name: "Caatinga" },
+              geometry: { type: "Point", coordinates: [-38, -7] },
+            },
+          ],
+        }),
+      })),
+    );
+
+    const { unmount } = render(
+      <ReportMapPreview
+        territory={CAATINGA}
+        layerId="anaseca"
+        period="2024-01"
+        tileUrl={TILE_URL}
+      />,
+    );
+
+    await waitFor(() => expect(mapInstances).toHaveLength(1));
+    emit(0, "load");
+    await waitFor(() => expect(mapInstances[0].addLayer).toHaveBeenCalled());
+
+    unmount();
+
+    expect(mapInstances[0].removeLayer).toHaveBeenCalledWith(
+      "report-territory-outline-line",
+    );
+    expect(mapInstances[0].removeSource).toHaveBeenCalledWith(
+      "report-territory-outline",
+    );
+    vi.unstubAllGlobals();
+  });
+
   it("reaproveita a mesma instância do MapLibre em outra camada", async () => {
     const firstCapture = vi.fn();
     const { unmount } = render(
       <ReportMapPreview
-        municipalityCode="5200050"
+        territory={ABADIA_DE_GOIAS}
         layerId="anaseca"
         period="2024-01"
         tileUrl={TILE_URL}
@@ -324,7 +375,7 @@ describe("ReportMapPreview", () => {
     const secondCapture = vi.fn();
     render(
       <ReportMapPreview
-        municipalityCode="5200050"
+        territory={ABADIA_DE_GOIAS}
         layerId="indicearidez"
         period="2020"
         tileUrl={TILE_URL}
@@ -346,7 +397,7 @@ describe("ReportMapPreview", () => {
 
     render(
       <ReportMapPreview
-        municipalityCode="5200050"
+        territory={ABADIA_DE_GOIAS}
         layerId="anaseca"
         period="2024-01"
         tileUrl={TILE_URL}
@@ -388,7 +439,7 @@ describe("ReportMapPreview", () => {
     const secondCapture = vi.fn();
     const { rerender } = render(
       <ReportMapPreview
-        municipalityCode="5200050"
+        territory={ABADIA_DE_GOIAS}
         layerId="anaseca"
         period="2024-01"
         tileUrl={TILE_URL}
@@ -400,7 +451,7 @@ describe("ReportMapPreview", () => {
 
     rerender(
       <ReportMapPreview
-        municipalityCode="5200050"
+        territory={ABADIA_DE_GOIAS}
         layerId="anaseca"
         period="2024-01"
         tileUrl={TILE_URL}
@@ -424,7 +475,7 @@ describe("ReportMapPreview", () => {
 
     render(
       <ReportMapPreview
-        municipalityCode="5200050"
+        territory={ABADIA_DE_GOIAS}
         layerId="anaseca"
         period="2024-01"
         tileUrl={TILE_URL}
@@ -453,7 +504,7 @@ describe("ReportMapPreview", () => {
     const onCapture = vi.fn();
     const { rerender } = render(
       <ReportMapPreview
-        municipalityCode="5200050"
+        territory={ABADIA_DE_GOIAS}
         layerId="anaseca"
         period="2024-01"
         tileUrl={TILE_URL}
@@ -475,7 +526,7 @@ describe("ReportMapPreview", () => {
 
     rerender(
       <ReportMapPreview
-        municipalityCode="5200050"
+        territory={ABADIA_DE_GOIAS}
         layerId="anaseca"
         period="2024-01"
         tileUrl={TILE_URL}

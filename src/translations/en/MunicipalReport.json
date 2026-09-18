@@ -5,7 +5,7 @@
     "description": "View the consolidated data available for a municipality and period.",
     "selectionDescription": "Select the information on the side to generate a report",
     "selectArea": "Select the analysis area",
-    "selectAreaHint": "Choose the municipality to be analyzed in the report.",
+    "selectAreaHint": "Choose the scope and the territory to be analyzed in the report.",
     "searchMunicipality": "Search or select a municipality",
     "noMunicipalityResults": "No municipalities found",
     "selectModules": "Select monitoring modules",
@@ -20,7 +20,7 @@
     "analysisDate": "Analysis date",
     "periodHint": "Enter a year (2024) or month (2024-01).",
     "invalidPeriod": "Enter a period in YYYY or YYYY-MM format.",
-    "availabilityIdle": "Select a municipality and period to check the modules.",
+    "availabilityIdle": "Select a territory and period to check the modules.",
     "checkingAvailability": "Checking modules available for the period...",
     "availabilityError": "Could not check module availability.",
     "noModulesAvailable": "No modules have data for this period.",
@@ -40,7 +40,7 @@
     "loadingHint": "This may take a few seconds, depending on the selected modules.",
     "loadError": "The report could not be loaded",
     "missingParameters": "Municipality and period are required.",
-    "reportLabel": "Municipal analytical report",
+    "reportLabel": "Territorial analytical report",
     "ibgeCode": "IBGE code",
     "generatedAt": "Generated on",
     "effectivePeriod": "Effective period",
@@ -91,8 +91,8 @@
       "absoluteChartSeries": "Value time series"
     },
     "narrative": {
-      "absoluteFallback": "In the municipality of {place}, the value of {className} is {value}, according to {title} data for the period of {period}.",
-      "percentageFallback": "In the municipality of {place}, the {className} class predominates, with {percentage}% of the analyzed area {coverageContext}, according to {title} data for the period of {period}."
+      "absoluteFallback": "In {place}, the value of {className} is {value}, according to {title} data for the period of {period}.",
+      "percentageFallback": "In {place}, the {className} class predominates, with {percentage}% of the analyzed area {coverageContext}, according to {title} data for the period of {period}."
     },
     "coverageContexts": {
       "anaseca": "classified at this severity level",
@@ -139,7 +139,7 @@
     "tableClass": "Class",
     "spatialAndTimeSeries": "Spatial distribution and time series",
     "spatialImage": "Spatial map: {period}",
-    "rasterDescription": "Thematic raster of {title} for {period}, visually clipped by the municipal boundary of {municipality} — {uf}.",
+    "rasterDescription": "Thematic raster of {title} for {period}, visually clipped by the {scope} boundary of {territory}.",
     "timeSeriesAlt": "Time series — {title}",
     "timeSeriesUnavailable": "Time series unavailable for export.",
     "historicalAnalysisTitle": "Historical series analysis",
@@ -325,6 +325,17 @@
       "pobreza-rural": "Rural poverty",
       "registros-de-secas-e-estiagens": "Drought and dryness records",
       "registros": "records"
-    }
+    },
+    "scope": "Territorial scope",
+    "scopes": {
+      "municipality": "Municipality",
+      "national": "Brazil",
+      "region": "Region",
+      "state": "State",
+      "biome": "Biome",
+      "semiarid": "Semi-arid",
+      "asd": "ASD and surroundings"
+    },
+    "selectTerritory": "Select the territory"
   }
 }
