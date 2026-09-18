@@ -1,5 +1,6 @@
 "use client";
 
+import type { MouseEvent } from "react";
 import { useTranslations } from "next-intl";
 import type { MunicipalReportAnalysis } from "@/contracts/municipalReport";
 import {
@@ -8,6 +9,33 @@ import {
   REPORT_CATEGORY_TOKENS,
   reportAnalysisAnchorId,
 } from "@/utils/municipalReportCategories";
+import { easeScrollTo, findScrollableAncestor } from "@/utils/reportScroll";
+
+function handleAnchorClick(
+  event: MouseEvent<HTMLAnchorElement>,
+  anchorId: string,
+) {
+  if (event.defaultPrevented || event.button !== 0) return;
+  if (event.metaKey || event.ctrlKey || event.shiftKey || event.altKey) return;
+
+  const target = document.getElementById(anchorId);
+  if (!target) return;
+
+  const scrollable = findScrollableAncestor(target);
+  if (!scrollable) return;
+
+  event.preventDefault();
+
+  const sticky = scrollable.querySelector<HTMLElement>(".report-back-to-top");
+  const stickyHeight = sticky ? sticky.getBoundingClientRect().height : 0;
+  const top =
+    scrollable.scrollTop +
+    target.getBoundingClientRect().top -
+    scrollable.getBoundingClientRect().top -
+    stickyHeight;
+
+  easeScrollTo(scrollable, Math.max(0, top));
+}
 
 export function ReportVariableIndex({
   analyses,
@@ -32,18 +60,23 @@ export function ReportVariableIndex({
           const tokens = REPORT_CATEGORY_TOKENS[group.key];
 
           return (
-            <section key={group.key} className="flex min-w-0 flex-col gap-2 pb-4 pt-1">
+            <section
+              key={group.key}
+              className="flex min-w-0 flex-col gap-2 pb-4 pt-1"
+            >
               <h3 className="font-inter text-base font-medium leading-6 text-[#292829]">
                 {tModules(`categories.${group.key}`)}
               </h3>
               <ul className="flex flex-col gap-2">
                 {group.analyses.map((analysis) => {
                   const title = translateTitle(analysis);
+                  const anchorId = reportAnalysisAnchorId(analysis.alias);
 
                   return (
                     <li key={analysis.id}>
                       <a
-                        href={`#${reportAnalysisAnchorId(analysis.alias)}`}
+                        href={`#${anchorId}`}
+                        onClick={(event) => handleAnchorClick(event, anchorId)}
                         aria-label={t("document.goToSection", { title })}
                         className="flex items-stretch overflow-hidden rounded-lg border border-[#EFEFEF] bg-white transition hover:border-[#C8CAC5]"
                       >

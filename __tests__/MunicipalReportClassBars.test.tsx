@@ -66,6 +66,46 @@ describe("MunicipalReportClassBars", () => {
     expect((bars[1] as HTMLElement).style.width).toBe("71.7%");
   });
 
+  it("desenha a classe de 100% na largura cheia da trilha", () => {
+    const { container } = renderBars(
+      buildAnalysis({
+        snapshot: {
+          period: "2026-05",
+          label: "2026-05",
+          dominantClass: null,
+          distribution: [
+            {
+              id: "tudo",
+              label: "Sem seca",
+              color: "#CCCCCC",
+              percentage: 100,
+            },
+          ],
+        },
+      }),
+    );
+    const bar = container.querySelector(
+      "[data-report-class-bar]",
+    ) as HTMLElement;
+
+    // A trilha é irmã do rótulo, então 100% da trilha ainda deixa o valor
+    // dentro da caixa — era o valor que vazava antes, não a barra.
+    expect(bar.style.width).toBe("100%");
+    expect(bar.parentElement?.className).toContain("flex-1");
+  });
+
+  it("mede a barra contra uma trilha que não inclui o rótulo do valor", () => {
+    const { container } = renderBars();
+    const bar = container.querySelector(
+      "[data-report-class-bar]",
+    ) as HTMLElement;
+    const row = container.querySelector(".report-class-bar-row") as HTMLElement;
+    const value = row.querySelector("td > span > span:last-child");
+
+    expect(bar.parentElement).not.toBe(value?.parentElement);
+    expect(value?.textContent).toContain("28,3");
+  });
+
   it("desenha uma marca visível para a classe de valor zero", () => {
     const { container } = renderBars();
     const zeroBar = container.querySelectorAll(
@@ -105,36 +145,6 @@ describe("MunicipalReportClassBars", () => {
 
     expect((bars[0] as HTMLElement).style.width).toBe("100%");
     expect((bars[1] as HTMLElement).style.width).toBe("25%");
-  });
-
-  // Regressão: com a barra e a porcentagem dentro da mesma célula, uma classe
-  // de 100% ocupava a célula inteira e empurrava o número para fora da margem
-  // da folha, que no PDF do Relatório Automático saía cortado ao meio.
-  it("mantém a porcentagem numa coluna própria, fora da célula da barra", () => {
-    const { container } = renderBars(
-      buildAnalysis({
-        snapshot: {
-          period: "2026-05",
-          label: "2026-05",
-          dominantClass: null,
-          distribution: [
-            {
-              id: "seca-fraca",
-              label: "Seca fraca",
-              color: "#FFEB00",
-              percentage: 100,
-            },
-          ],
-        },
-      }),
-    );
-    const row = container.querySelector("tr") as HTMLElement;
-    const cells = row.querySelectorAll("td");
-
-    expect(cells).toHaveLength(2);
-    expect(cells[0].querySelector("[data-report-class-bar]")).toBeTruthy();
-    expect(cells[0].textContent).toBe("");
-    expect(cells[1].textContent).toContain("100");
   });
 
   it("expõe os valores como tabela acessível", () => {

@@ -2,16 +2,7 @@
 
 import type { MouseEvent } from "react";
 import { useTranslations } from "next-intl";
-
-function findScrollableAncestor(element: HTMLElement | null) {
-  for (let node = element; node; node = node.parentElement) {
-    if (node.scrollHeight <= node.clientHeight) continue;
-    const overflowY = getComputedStyle(node).overflowY;
-    if (overflowY === "auto" || overflowY === "scroll") return node;
-  }
-
-  return null;
-}
+import { easeScrollTo, findScrollableAncestor } from "@/utils/reportScroll";
 
 export function ReportBackToTop() {
   const t = useTranslations("MunicipalReport");
@@ -21,7 +12,7 @@ export function ReportBackToTop() {
     if (!scrollable) return;
 
     event.preventDefault();
-    scrollable.scrollTo({ top: 0, behavior: "smooth" });
+    easeScrollTo(scrollable, 0);
   }
 
   return (

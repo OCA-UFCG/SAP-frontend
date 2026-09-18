@@ -30,6 +30,8 @@ export function MunicipalReportClassBars({
       </caption>
       <tbody>
         {distribution.map((item) => {
+          // A trilha abaixo já exclui o rótulo do valor, então a barra pode
+          // ocupar a largura cheia sem empurrar a porcentagem para fora.
           const share = Math.max(0, (item.percentage / scaleMax) * 100);
 
           return (
@@ -43,25 +45,27 @@ export function MunicipalReportClassBars({
               >
                 {translateLabel(item.label)}
               </th>
-              {/* A porcentagem tem coluna própria em vez de seguir a barra
-                  dentro da mesma célula: quando a classe chegava perto de 100%
-                  a barra ocupava a célula inteira e empurrava o número para
-                  fora da margem da folha, que no PDF saía cortado ao meio.
-                  Sendo coluna da tabela, a largura é a mesma em todas as
-                  linhas, então a escala das barras continua comparável. */}
-              <td className="w-full py-1 align-middle">
-                <span
-                  data-report-class-bar
-                  className="block h-6 border border-black/10"
-                  style={{
-                    width: `${Number(share.toFixed(4))}%`,
-                    minWidth: ZERO_BAR_WIDTH,
-                    backgroundColor: item.color,
-                  }}
-                />
-              </td>
-              <td className="py-1 pl-3 align-middle whitespace-nowrap tabular-nums">
-                {formatMunicipalReportValue(item.percentage, analysis, locale)}
+              <td className="py-1 align-middle">
+                <span className="flex items-center gap-3">
+                  <span className="flex min-w-0 flex-1">
+                    <span
+                      data-report-class-bar
+                      className="block h-6 shrink-0 border border-black/10"
+                      style={{
+                        width: `${Number(share.toFixed(4))}%`,
+                        minWidth: ZERO_BAR_WIDTH,
+                        backgroundColor: item.color,
+                      }}
+                    />
+                  </span>
+                  <span className="shrink-0 whitespace-nowrap tabular-nums">
+                    {formatMunicipalReportValue(
+                      item.percentage,
+                      analysis,
+                      locale,
+                    )}
+                  </span>
+                </span>
               </td>
             </tr>
           );
