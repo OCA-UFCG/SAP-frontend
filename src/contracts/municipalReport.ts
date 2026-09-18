@@ -139,6 +139,13 @@ export interface MunicipalReportTerritory {
   uf?: string;
 }
 
+/**
+ * Versão do contrato `MunicipalReportData`. Existe como constante para quem
+ * valida um relatório vindo de fora do processo — hoje o cache em disco, que
+ * precisa recusar um arquivo gravado por uma versão anterior do contrato.
+ */
+export const MUNICIPAL_REPORT_SCHEMA_VERSION = 1;
+
 export interface MunicipalReportData {
   schemaVersion: 1;
   generatedAt: string;

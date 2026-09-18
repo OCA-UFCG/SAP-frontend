@@ -7,6 +7,11 @@ import {
   buildMunicipalReport,
   type MunicipalReportServiceDependencies,
 } from "@/services/municipalReportService";
+import {
+  clearStoredReports,
+  readStoredReport,
+  storeReport,
+} from "@/services/municipalReportFileStore";
 
 const TTL_MS = 600_000;
 // Um relatório municipal completo ocupa ~430 KiB (as 21 camadas com a série
@@ -67,6 +72,44 @@ function resolveLayerDataVersion(layer: PanelLayerI): string {
   );
 }
 
+/**
+ * O disco fica entre o cache em memória e o Earth Engine: logo depois de um
+ * deploy a memória está vazia, mas o relatório montado antes dele continua
+ * gravado, e ler o arquivo custa milissegundos contra os segundos de leitura do
+ * Earth Engine.
+ *
+ * Um arquivo vencido não é descartado de imediato: se a remontagem falhar, ele
+ * é resposta melhor que um erro — a mesma regra de "servir o valor velho em vez
+ * de falhar" que os outros caches desta base já seguem.
+ */
+async function loadReportThroughDiskCache(
+  key: string,
+  dependencies: Pick<MunicipalReportServiceDependencies, "onTiming">,
+  build: () => Promise<MunicipalReportData>,
+): Promise<MunicipalReportData> {
+  const startedAt = Date.now();
+  const stored = await readStoredReport(key);
+  if (stored && !stored.expired) {
+    const elapsed = Date.now() - startedAt;
+    dependencies.onTiming?.("report_cache", elapsed, "Cache do relatório: disco");
+    return stored.report;
+  }
+
+  try {
+    const value = await build();
+    await storeReport(key, value);
+    return value;
+  } catch (cause) {
+    if (!stored) throw cause;
+    console.warn(
+      `[municipalReport] remontagem falhou; servindo o arquivo vencido: ${key}`,
+      cause,
+    );
+    dependencies.onTiming?.("report_cache", 0, "Cache do relatório: disco vencido");
+    return stored.report;
+  }
+}
+
 export async function buildCachedMunicipalReport(
   locationKey: string,
   requestedPeriod: string,
@@ -98,10 +141,12 @@ export async function buildCachedMunicipalReport(
     return current.pending;
   }
 
-  const pending = buildMunicipalReport(locationKey, requestedPeriod, {
-    ...dependencies,
-    listPanelLayers: async () => panelLayers,
-  });
+  const pending = loadReportThroughDiskCache(key, dependencies, () =>
+    buildMunicipalReport(locationKey, requestedPeriod, {
+      ...dependencies,
+      listPanelLayers: async () => panelLayers,
+    }),
+  );
   markAsRecentlyUsed(key, { expiresAt: now + TTL_MS, pending });
   trimCache();
 
@@ -122,4 +167,5 @@ export async function buildCachedMunicipalReport(
 
 export function clearMunicipalReportCache() {
   cache.clear();
+  return clearStoredReports();
 }
