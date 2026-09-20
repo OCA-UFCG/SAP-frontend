@@ -98,6 +98,38 @@ export function resolveCategoricalRemap(
   };
 }
 
+/**
+ * Se a camada desenha classes discretas, e por isso só está correta na escala
+ * nativa do asset.
+ *
+ * Longe, o Earth Engine serve a pirâmide do asset em vez do dado original, e
+ * todos os assets do catálogo a constroem por MÉDIA (`pyramidingPolicy: MEAN`).
+ * Para um dado contínuo isso é legítimo — a média de anomalias ainda é uma
+ * anomalia. Para classes não é: a média entre "Vegetação Florestal" (6) e
+ * "Corpo d'água" (12) é 9, que é "Área Úmida", uma classe que não está ali.
+ * Medido no semiárido em z5: o Índice de Degradação da Terra exibia "Nível 1"
+ * em 16,3% da tela contra 0,3% reais, e a Cobertura da Terra perdia 9% da
+ * camada em buracos brancos.
+ *
+ * Uma camada com `thresholds` está fora porque o dado dela é contínuo: a
+ * classificação por faixas roda depois e já entrega uma classe válida.
+ *
+ * @example
+ * isCategoricalMapVisualization({ legend: [{ pixelLimit: 1 }, { pixelLimit: 2 }] }); // true
+ */
+export function isCategoricalMapVisualization(
+  mapVisualization: CompactMapVisualizationConfig,
+) {
+  if (mapVisualization.sourceType === "featureCollection") return false;
+  if (mapVisualization.thresholds?.length) return false;
+
+  const pixelValues = (mapVisualization.legend ?? [])
+    .map((entry) => entry.pixelLimit)
+    .filter(isFiniteNumber);
+
+  return pixelValues.length > 0 && pixelValues.every(Number.isInteger);
+}
+
 export function resolveMapVisualizationPlan(
   mapVisualization: CompactMapVisualizationConfig,
   imageParams: IImageParam[],
