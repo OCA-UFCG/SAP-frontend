@@ -2,6 +2,7 @@ import ee from "@google/earthengine";
 import { addUrlToCache, buildCacheKey } from "@/app/api/ee/cache";
 import { getSpatialBoundaryFeatures } from "@/app/api/ee/spatialBoundaries";
 import {
+  isCategoricalMapVisualization,
   resolveMapVisualizationPlan,
   type ThresholdClassificationPlan,
 } from "@/app/api/ee/mapVisualization";
@@ -451,6 +452,53 @@ export function applyMapVisualization(
 }
 
 /**
+ * Acima desta escala nativa a pirâmide do asset não chega a ser usada nos zooms
+ * que a plataforma abre, então forçar a escala nativa seria custo sem ganho.
+ *
+ * O corte é generoso de propósito: os assets categóricos do catálogo se dividem
+ * entre ~500 m, que sofrem o problema, e ~11 km, que não sofrem em zoom nenhum
+ * (conferido até z2, com o Brasil inteiro na tela). Qualquer valor nessa folga
+ * de 20x separa os dois grupos.
+ */
+const FINE_ASSET_SCALE_LIMIT_METERS = 1000;
+
+/**
+ * A projeção nativa da banda que vai ser desenhada, para servir de referência a
+ * `renderAtNativeScale`.
+ */
+function resolveNativeProjection(
+  image: any,
+  mapVisualization: CompactMapVisualizationConfig,
+) {
+  const band = mapVisualization.sourceBand ?? mapVisualization.band;
+  return (band ? image.select(band) : image.select(0)).projection();
+}
+
+/**
+ * Prende a imagem à escala nativa do asset, tirando a pirâmide do caminho — ver
+ * `isCategoricalMapVisualization` para o porquê.
+ *
+ * O teste de escala roda dentro da própria expressão do Earth Engine, e não com
+ * um `evaluate()` antes: ler `nominalScale()` no cliente custaria um round trip
+ * de ~1 s em cada miss de cache, que é o custo dominante ao abrir uma camada.
+ * É o mesmo padrão de `selectPeriodMosaic`.
+ *
+ * Medido em z5 no semiárido: sem isto, 67,7% dos pixels do Índice de Degradação
+ * da Terra saíam numa cor que não existe na legenda; com isto, 0%.
+ */
+function renderAtNativeScale(image: any, nativeProjection: any) {
+  const scale = nativeProjection.nominalScale();
+
+  return ee.Image(
+    ee.Algorithms.If(
+      scale.lte(FINE_ASSET_SCALE_LIMIT_METERS),
+      image.reproject({ crs: nativeProjection, scale }),
+      image,
+    ),
+  );
+}
+
+/**
  * A última banda da imagem, escolhida por uma expressão do Earth Engine em vez
  * de um `bandNames().evaluate()` no cliente. As duas formas dão a mesma banda;
  * esta não gasta um round trip, que é o custo dominante ao abrir uma camada.
@@ -590,6 +638,14 @@ export const getEarthEngineUrl = async (
     }
 
     let configuredVisParams: any;
+    // Lida antes de `applyMapVisualization` porque o remap e a classificação
+    // trocam as bandas da imagem, e a referência tem de ser a do asset.
+    const nativeProjection =
+      mapVisualization &&
+      !shouldUseFeatureCollection &&
+      isCategoricalMapVisualization(mapVisualization)
+        ? resolveNativeProjection(GEEImage, mapVisualization)
+        : null;
 
     if (mapVisualization) {
       const configuredImage = applyMapVisualization(
@@ -620,6 +676,10 @@ export const getEarthEngineUrl = async (
       })
     ) {
       GEEImage = GEEImage.selfMask();
+    }
+
+    if (nativeProjection) {
+      GEEImage = renderAtNativeScale(GEEImage, nativeProjection);
     }
 
     const { categorizedImage, visParams } = configuredVisParams
