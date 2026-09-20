@@ -39,9 +39,10 @@ export const REQUIRED_MUNICIPAL_SPREADSHEET_COLUMNS = Object.freeze([
 /**
  * Onde o instantâneo dos valores foi guardado depois de lido da planilha.
  *
- * O `assetId` existe para a revalidação reaproveitar o mesmo asset do
- * Contentful em vez de deixar um rastro de JSONs órfãos no espaço — a mesma
- * razão de `previewMap` guardar o dele.
+ * Cada publicação grava um arquivo novo e move o ponteiro para ele: o arquivo
+ * anterior continua intacto, porque é o que a produção lê até a entry terminar
+ * de publicar. O `assetId` identifica o arquivo desta versão, para achá-lo no
+ * Contentful — não é um lugar a ser regravado.
  */
 export interface MunicipalSpreadsheetSnapshotRef {
   assetId: string;
@@ -51,10 +52,11 @@ export interface MunicipalSpreadsheetSnapshotRef {
 /**
  * Estatística lida de uma planilha do Google, e não do Earth Engine.
  *
- * O link é lido uma vez, na validação do catálogo: os valores de todos os
- * recortes territoriais são calculados ali e guardados num instantâneo. Em
- * produção a plataforma lê o instantâneo, nunca o Google Drive — a planilha
- * pode ser movida, renomeada ou fechada sem derrubar o índice publicado.
+ * O link é lido na validação do catálogo, que calcula os valores de todos os
+ * recortes territoriais e os guarda em memória para a prévia; a publicação
+ * relê, confere e grava o instantâneo. Em produção a plataforma lê o
+ * instantâneo, nunca o Google Drive — a planilha pode ser movida, renomeada ou
+ * fechada sem derrubar o índice publicado.
  *
  * @example
  * const source: MunicipalSpreadsheetStatisticsSource = {

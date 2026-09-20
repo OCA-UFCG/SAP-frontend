@@ -1,15 +1,18 @@
 import "server-only";
 
-import type {
-  MunicipalSpreadsheetStatisticsSource,
-  MunicipalSpreadsheetSnapshotRef,
+import {
+  isMunicipalSpreadsheetSource,
+  type MunicipalSpreadsheetStatisticsSource,
+  type MunicipalSpreadsheetSnapshotRef,
 } from "@/contracts/municipalSpreadsheet";
 import type { PublishedMunicipalSpreadsheetSource } from "@/contracts/geeStatistics";
-import { readGoogleSpreadsheet } from "@/infrastructure/google-drive/spreadsheetReader";
 import { hashCatalogValue } from "@/services/indexCatalog/catalogFingerprint";
-import { saveSpreadsheetSnapshot } from "@/services/indexCatalog/spreadsheetSnapshotStorage";
+import { rememberDraftSpreadsheetSnapshot } from "@/services/indexCatalog/draftSpreadsheetSnapshot";
+import {
+  readSpreadsheetSnapshot,
+  type SpreadsheetSnapshotReaderDependencies,
+} from "@/services/indexCatalog/spreadsheetSnapshotReader";
 import type {
-  CatalogValidationIssue,
   CatalogValidationReport,
   ClassMapping,
   IndexCatalogBuildResult,
@@ -18,22 +21,14 @@ import type {
 } from "@/types/indexCatalog";
 import type { CompactMapVisualizationConfig } from "@/utils/analysis";
 import { inferTimeScale } from "@/utils/indexCatalog";
-import { aggregateMunicipalSpreadsheet } from "@/utils/municipalSpreadsheetAggregation";
-import {
-  assertSpreadsheetColumns,
-  readMunicipalSpreadsheetRows,
-  resolveSpreadsheetPeriodColumns,
-} from "@/utils/municipalSpreadsheetTable";
 import {
   buildRangeClasses,
   buildValueTemplates,
   requireValueThresholds,
 } from "@/utils/municipalValueIndicator";
 
-export interface SpreadsheetIndexDraftDependencies {
-  readSpreadsheet?: typeof readGoogleSpreadsheet;
-  saveSnapshot?: typeof saveSpreadsheetSnapshot;
-}
+export type SpreadsheetIndexDraftDependencies =
+  SpreadsheetSnapshotReaderDependencies;
 
 /**
  * O mapa de um índice de planilha é pintado no navegador sobre os tiles de
@@ -71,104 +66,17 @@ function requireIndicator(
   return config.valueIndicator;
 }
 
-function buildWarnings(
-  missingByPeriod: Record<string, number>,
-  unknownStateCount: number,
-  municipalityCount: number,
-): CatalogValidationIssue[] {
-  const incomplete = Object.entries(missingByPeriod).filter(
-    ([, missing]) => missing > 0,
-  );
-  return [
-    ...(incomplete.length > 0
-      ? [
-          {
-            code: "spreadsheet_missing_values",
-            message: `A planilha tem municípios sem valor: ${incomplete
-              .map(([period, missing]) => `${period} (${missing})`)
-              .join(
-                ", ",
-              )}. Eles aparecem como "sem dado" no mapa e ficam fora das somas dos territórios maiores.`,
-          },
-        ]
-      : []),
-    ...(unknownStateCount > 0
-      ? [
-          {
-            code: "spreadsheet_unknown_state",
-            message: `${unknownStateCount} de ${municipalityCount} municípios têm UF que não reconheci em SIGLA_UF/NM_UF; eles ficam fora do ranking de estados.`,
-          },
-        ]
-      : []),
-  ];
-}
-
-interface SpreadsheetReading {
-  periods: string[];
-  municipalityCount: number;
-  snapshot: MunicipalSpreadsheetSnapshotRef;
-  snapshotRevision: string;
-  warnings: CatalogValidationIssue[];
-}
-
 /**
- * Lê a planilha, agrega todos os recortes e guarda o instantâneo.
- *
- * O instantâneo é gravado já na validação, e não só na publicação, porque é
- * dele que a prévia do catálogo lê os valores: assim o que o operador confere
- * na prévia é exatamente o arquivo que a plataforma vai servir.
+ * O instantâneo que a versão publicada do índice está lendo, repassado sem
+ * mudança para a validação não mexer no ponteiro da produção. Quem grava um
+ * arquivo novo é `publishSpreadsheetSnapshot`, já com a publicação decidida.
  */
-async function readAndStoreSpreadsheet(
+function carryPublishedSnapshot(
   config: IndexCatalogConfigV2,
-  source: MunicipalSpreadsheetStatisticsSource,
-  {
-    readSpreadsheet = readGoogleSpreadsheet,
-    saveSnapshot = saveSpreadsheetSnapshot,
-  }: SpreadsheetIndexDraftDependencies,
-): Promise<SpreadsheetReading> {
-  const table = await readSpreadsheet(source.fileId);
-  const periodColumns = resolveSpreadsheetPeriodColumns(
-    table.header,
-    source.valuePrefix,
-  );
-  assertSpreadsheetColumns(table.header, periodColumns, source.valuePrefix);
-
-  const periods = periodColumns.map((column) => column.periodKey);
-  const { rows } = readMunicipalSpreadsheetRows(
-    table.header,
-    table.rows,
-    periodColumns,
-  );
-  if (rows.length === 0) {
-    throw new Error(
-      `A planilha ${source.fileId} não tem nenhuma linha com código de município em CD_MUN.`,
-    );
-  }
-
-  const aggregated = aggregateMunicipalSpreadsheet(
-    rows,
-    periods,
-    source.aggregation,
-  );
-  const snapshot = await saveSnapshot(
-    config.panelLayerId,
-    aggregated.snapshot,
-    source.snapshot?.assetId,
-  );
-
-  return {
-    periods,
-    municipalityCount: rows.length,
-    snapshot,
-    // A revisão não olha a planilha inteira: ela resume os valores agregados,
-    // que é o que muda o índice publicado.
-    snapshotRevision: hashCatalogValue(aggregated.snapshot.values),
-    warnings: buildWarnings(
-      aggregated.missingByPeriod,
-      aggregated.unknownStateCount,
-      rows.length,
-    ),
-  };
+): MunicipalSpreadsheetSnapshotRef | undefined {
+  return isMunicipalSpreadsheetSource(config.validatedStatisticsSource)
+    ? config.validatedStatisticsSource.snapshot
+    : undefined;
 }
 
 /**
@@ -178,6 +86,9 @@ async function readAndStoreSpreadsheet(
  * Engine: a planilha é a fonte dos valores e os tiles de município já existem
  * na plataforma. O que se valida é a planilha — colunas da convenção, código
  * IBGE por linha e pelo menos uma coluna `{prefixo}_{ano}`.
+ *
+ * A validação não escreve no Contentful. O instantâneo fica na memória do
+ * processo, de onde a prévia o lê, e só a publicação o grava como asset.
  */
 export async function buildSpreadsheetIndexDraft(
   config: IndexCatalogConfigV2,
@@ -190,8 +101,10 @@ export async function buildSpreadsheetIndexDraft(
     config.earthEngine.thresholds,
     ranges.length,
   );
-  const reading = await readAndStoreSpreadsheet(config, source, dependencies);
+  const reading = await readSpreadsheetSnapshot(source, dependencies);
+  rememberDraftSpreadsheetSnapshot(source, reading.snapshot);
 
+  const publishedSnapshot = carryPublishedSnapshot(config);
   const sourceRevision = hashCatalogValue({
     fileId: source.fileId,
     valuePrefix: source.valuePrefix,
@@ -201,7 +114,7 @@ export async function buildSpreadsheetIndexDraft(
   });
   const statisticsSource: PublishedMunicipalSpreadsheetSource = {
     ...source,
-    snapshot: reading.snapshot,
+    ...(publishedSnapshot ? { snapshot: publishedSnapshot } : {}),
     schemaVersion: 1,
     sourceRevision,
   };
@@ -266,5 +179,6 @@ export async function buildSpreadsheetIndexDraft(
     mapVisualization,
     statisticsSource,
     classes: ranges,
+    spreadsheetSnapshot: reading.snapshot,
   };
 }

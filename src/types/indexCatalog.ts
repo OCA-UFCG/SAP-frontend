@@ -7,6 +7,7 @@ import type {
   MunicipalReportData,
   MunicipalReportDocsContent,
 } from "@/contracts/municipalReport";
+import type { MunicipalSpreadsheetSnapshot } from "@/contracts/municipalSpreadsheetSnapshot";
 import type { PublishedPanelLayerReportConfig } from "@/contracts/panelLayerReport";
 import type {
   CompactMapVisualizationConfig,
@@ -366,6 +367,12 @@ export interface IndexCatalogBuildResult {
   mapVisualization: CompactMapVisualizationConfig;
   statisticsSource: PublishedGeeStatisticsSource;
   classes: ClassMapping[];
+  /**
+   * Os valores lidos da planilha, só para um índice de planilha. Viajam em
+   * memória porque a validação não os grava: quem escreve o asset é a
+   * publicação, depois de conferir a impressão digital.
+   */
+  spreadsheetSnapshot?: MunicipalSpreadsheetSnapshot;
 }
 
 /**

@@ -53,13 +53,34 @@ Uma linha sem código IBGE de 7 dígitos é descartada (é o rodapé com a fonte
 dado), e uma célula vazia vira "sem dado" — diferente de zero, e contada num
 aviso da validação.
 
+Uma coluna de dado pode chegar formatada como texto — acontece sempre que a base
+veio de um CSV importado —, e aí o separador decimal precisa ser descoberto. A
+decisão é da **coluna inteira**, nunca da célula: `1.046.342,5` prova que o ponto
+é milhar, `1,046,342.5` prova o contrário, e `0.763` sozinho é decimal. Quando
+nada na coluna decide (todas as células no formato `2.500`), o ponto é lido como
+decimal e a validação devolve o aviso `spreadsheet_ambiguous_decimal` dizendo
+qual coluna e qual célula — em vez de escolher em silêncio e entregar todo
+município multiplicado ou dividido por mil.
+
 ### O que a validação faz
 
-`buildSpreadsheetIndexDraft` baixa a planilha, descobre os períodos, agrega
+`buildSpreadsheetIndexDraft` baixa a planilha, descobre os períodos e agrega
 município, UF, Brasil, região, bioma, ASD e semiárido (soma ou média simples,
-conforme o formulário) e grava o resultado num **asset JSON do Contentful** — o
-instantâneo, contrato `municipal-spreadsheet-snapshot`. O `panelLayer` publicado
-guarda só o ponteiro para ele em `statisticsSource.snapshot`.
+conforme o formulário). O resultado é o **instantâneo**, contrato
+`municipal-spreadsheet-snapshot`.
+
+**A validação não escreve no Contentful.** O instantâneo fica na memória do
+processo (`draftSpreadsheetSnapshot`, 30 min, com dedupe de leituras em voo) e é
+de lá que a prévia — painel, coropleta e relatório — lê os valores. Isso não é
+detalhe de desempenho: a publicação revalida para comparar a impressão digital e
+pode recusar com "Revalide antes de publicar", e uma validação que gravasse já
+teria trocado o arquivo que a produção está lendo.
+
+Quem grava é `publishSpreadsheetSnapshot`, chamado por
+`publishIndexCatalogDraft` **depois** da conferência da impressão digital. Ele
+sobe um **asset JSON novo** — nunca uma regravação do anterior, que continua
+sendo o que a produção serve até a entry terminar de publicar. O `panelLayer`
+publicado guarda só o ponteiro em `statisticsSource.snapshot`.
 
 Os valores não entram em `imageData` de propósito: são ~5.600 territórios por
 período (~400 KB numa planilha de três anos), e `imageData` é lido e revalidado
@@ -74,10 +95,15 @@ a cada requisição do Monitoramento, de toda camada.
   valores de todos os municípios do período vêm de
   `/api/municipal-analysis/[panelLayerId]/choropleth?year=`, autenticada como as
   demais.
-- Atualizar os dados é revalidar o índice no catálogo: a leitura da planilha
-  regrava o mesmo asset de instantâneo.
+- Atualizar os dados é revalidar **e republicar** o índice no catálogo: a
+  revalidação só mostra o dado novo na prévia, e a publicação é que grava o
+  instantâneo e aponta o índice para ele.
 
 ### Limites conhecidos
+
+Cada publicação deixa o instantâneo anterior no espaço do Contentful, sem nada
+apontando para ele. É o preço de nunca regravar um arquivo que a produção pode
+estar lendo; são algumas centenas de KB por publicação, e a limpeza é manual.
 
 A média é simples — cada município pesa igual, porque a planilha não traz coluna
 de peso. Para um índice como o IDHM isso **não** reproduz o número oficial do
