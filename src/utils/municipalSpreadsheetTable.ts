@@ -120,14 +120,93 @@ export function assertSpreadsheetColumns(
   }
 }
 
-function toOptionalNumber(value: unknown): number | null {
-  if (value === null || value === undefined || value === "") return null;
-  // A planilha brasileira às vezes chega com vírgula decimal e separador de
-  // milhar; um `Number("1.046.342,5")` viraria NaN e o município sairia sem dado.
-  const parsed =
-    typeof value === "number"
-      ? value
-      : Number(String(value).trim().replace(/\./gu, "").replace(",", "."));
+/**
+ * Como a coluna escreve números: `decimal-comma` é o formato brasileiro
+ * (`1.046.342,5`) e `decimal-point` o americano (`0.763`).
+ */
+export type SpreadsheetDecimalConvention = "decimal-point" | "decimal-comma";
+
+/** Uma célula como "1.046", que tanto vale 1046 quanto 1,046. */
+const AMBIGUOUS_CELL_PATTERN = /^-?\d{1,3}\.\d{3}$/u;
+
+export interface SpreadsheetColumnConvention {
+  convention: SpreadsheetDecimalConvention;
+  /** Uma célula ambígua, quando nenhuma célula da coluna decidiu a convenção. */
+  ambiguousSample: string | null;
+}
+
+function countSeparator(cell: string, separator: string) {
+  return cell.split(separator).length - 1;
+}
+
+/**
+ * O que uma célula sozinha consegue provar sobre a convenção da coluna.
+ *
+ * `null` quando ela não prova nada — é o caso de "1.046", que cabe nas duas
+ * leituras e por isso precisa do resto da coluna para ser decidido.
+ */
+function decideConventionByCell(
+  cell: string,
+): SpreadsheetDecimalConvention | null {
+  const lastDot = cell.lastIndexOf(".");
+  const lastComma = cell.lastIndexOf(",");
+  // Com os dois separadores na mesma célula, o último é o decimal.
+  if (lastDot >= 0 && lastComma >= 0) {
+    return lastDot > lastComma ? "decimal-point" : "decimal-comma";
+  }
+  // Repetido, um separador só pode ser o de milhar.
+  if (countSeparator(cell, ".") > 1) return "decimal-comma";
+  if (countSeparator(cell, ",") > 1) return "decimal-point";
+  return null;
+}
+
+/**
+ * Descobre, olhando a coluna inteira, o que o ponto separa nela.
+ *
+ * A decisão é da coluna e não da célula porque uma célula isolada não basta:
+ * apagar todo ponto antes de converter — como se fazia aqui — lia o IDHM
+ * "0.763" de uma coluna formatada como texto (o que acontece sempre que a base
+ * veio de um CSV importado) como 763, em silêncio, para todo município.
+ *
+ * @example
+ * inferColumnConvention(["1.046.342,5"]).convention; // "decimal-comma"
+ * inferColumnConvention(["0.763"]).convention; // "decimal-point"
+ */
+export function inferColumnConvention(
+  cells: readonly string[],
+): SpreadsheetColumnConvention {
+  for (const cell of cells) {
+    const decided = decideConventionByCell(cell);
+    if (decided) return { convention: decided, ambiguousSample: null };
+  }
+
+  // Nenhuma célula decidiu. A vírgula só aparece como decimal no formato
+  // brasileiro, então ela ganha; sem vírgula nenhuma o ponto é decimal, que é
+  // a leitura certa de "0.763" e a que o `Number` do JavaScript já faria.
+  if (cells.some((cell) => cell.includes(","))) {
+    return { convention: "decimal-comma", ambiguousSample: null };
+  }
+  return {
+    convention: "decimal-point",
+    ambiguousSample:
+      cells.find((cell) => AMBIGUOUS_CELL_PATTERN.test(cell)) ?? null,
+  };
+}
+
+function toOptionalNumber(
+  value: unknown,
+  convention: SpreadsheetDecimalConvention,
+): number | null {
+  // Uma célula numérica já chega pronta do xlsx: não há separador a interpretar.
+  if (typeof value === "number") return Number.isFinite(value) ? value : null;
+  const text = String(value ?? "").trim();
+  if (!text) return null;
+
+  const normalized =
+    convention === "decimal-comma"
+      ? text.replace(/\./gu, "").replace(",", ".")
+      : text.replace(/,/gu, "");
+  const parsed = Number(normalized);
   return Number.isFinite(parsed) ? parsed : null;
 }
 
@@ -157,6 +236,7 @@ function buildRow(
   row: readonly unknown[],
   index: Map<string, number>,
   periodColumns: readonly SpreadsheetPeriodColumn[],
+  conventions: readonly SpreadsheetColumnConvention[],
   municipalityCode: string,
 ): MunicipalSpreadsheetRow {
   const name = readCell(
@@ -183,16 +263,55 @@ function buildRow(
     ),
     // "ASD" e "Entorno" formam um recorte só na plataforma, e "Não" fica fora.
     isAsdOrSurroundings: asd !== "" && !/^n[ãa]o$/iu.test(asd),
-    values: periodColumns.map(({ column }) =>
-      toOptionalNumber(row[index.get(normalizeColumnName(column)) ?? -1]),
+    values: periodColumns.map(({ column }, position) =>
+      toOptionalNumber(
+        row[index.get(normalizeColumnName(column)) ?? -1],
+        conventions[position].convention,
+      ),
     ),
   };
+}
+
+/** Uma coluna cujo ponto tanto pode ser milhar quanto decimal. */
+export interface AmbiguousDecimalColumn {
+  column: string;
+  sample: string;
 }
 
 export interface MunicipalSpreadsheetReading {
   rows: MunicipalSpreadsheetRow[];
   /** Linhas descartadas por não terem um código IBGE de 7 dígitos. */
   skippedRowCount: number;
+  /** Colunas lidas como decimal sem que a coluna provasse a convenção. */
+  ambiguousDecimalColumns: AmbiguousDecimalColumn[];
+}
+
+/**
+ * As células de texto de uma coluna, que são as únicas que dizem algo sobre a
+ * convenção: uma célula numérica já vem convertida do xlsx.
+ */
+function readColumnTextCells(
+  rows: readonly (readonly unknown[])[],
+  position: number | undefined,
+): string[] {
+  if (position === undefined) return [];
+  return rows.flatMap((row) => {
+    const cell = row[position];
+    const text = typeof cell === "string" ? cell.trim() : "";
+    return text ? [text] : [];
+  });
+}
+
+function inferPeriodConventions(
+  rows: readonly (readonly unknown[])[],
+  index: Map<string, number>,
+  periodColumns: readonly SpreadsheetPeriodColumn[],
+): SpreadsheetColumnConvention[] {
+  return periodColumns.map(({ column }) =>
+    inferColumnConvention(
+      readColumnTextCells(rows, index.get(normalizeColumnName(column))),
+    ),
+  );
 }
 
 /**
@@ -211,17 +330,34 @@ export function readMunicipalSpreadsheetRows(
   periodColumns: readonly SpreadsheetPeriodColumn[],
 ): MunicipalSpreadsheetReading {
   const index = buildColumnIndex(header);
-  const read: MunicipalSpreadsheetRow[] = [];
-  let skippedRowCount = 0;
-
-  for (const row of rows) {
+  // Duas passadas: a convenção decimal é da coluna inteira, então ela precisa
+  // estar decidida antes de converter a primeira célula. Só as linhas com
+  // código IBGE entram na decisão — o rodapé com a fonte do dado não conta.
+  const coded = rows.flatMap((row) => {
     const municipalityCode = readMunicipalityCode(row, index);
-    if (!municipalityCode) {
-      skippedRowCount += 1;
-      continue;
-    }
-    read.push(buildRow(row, index, periodColumns, municipalityCode));
-  }
+    return municipalityCode ? [{ row, municipalityCode }] : [];
+  });
+  const conventions = inferPeriodConventions(
+    coded.map(({ row }) => row),
+    index,
+    periodColumns,
+  );
 
-  return { rows: read, skippedRowCount };
+  return {
+    rows: coded.map(({ row, municipalityCode }) =>
+      buildRow(row, index, periodColumns, conventions, municipalityCode),
+    ),
+    skippedRowCount: rows.length - coded.length,
+    ambiguousDecimalColumns: conventions.flatMap(
+      ({ ambiguousSample }, position) =>
+        ambiguousSample
+          ? [
+              {
+                column: periodColumns[position].column,
+                sample: ambiguousSample,
+              },
+            ]
+          : [],
+    ),
+  };
 }

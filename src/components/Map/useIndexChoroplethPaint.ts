@@ -29,6 +29,13 @@ export const useIndexChoroplethPaint = (
   fillOpacity: number,
 ) => {
   const appliedCodesRef = useRef<Set<string>>(new Set());
+  // A opacidade entra por ref, e não nas dependências do efeito abaixo, pelo
+  // mesmo motivo de `useMunicipalityClassification`: regravar a coropleta
+  // inteira custa duas escritas de feature-state por município nas duas sources
+  // (mais de 11 mil num índice nacional), e a barra tem passo de 0,05 — um
+  // arrasto de ponta a ponta faria isso umas vinte vezes na thread principal.
+  // Mover a barra só precisa repintar as camadas, e é o efeito seguinte que faz.
+  const fillOpacityRef = useRef(fillOpacity);
 
   useEffect(() => {
     const map = mapRef.current;
@@ -47,9 +54,13 @@ export const useIndexChoroplethPaint = (
         map,
         choropleth.palette,
         choropleth.overviewGeoJson,
-        fillOpacity,
+        fillOpacityRef.current,
       );
-      applyIndexChoroplethPaint(map, choropleth.palette, fillOpacity);
+      applyIndexChoroplethPaint(
+        map,
+        choropleth.palette,
+        fillOpacityRef.current,
+      );
 
       try {
         clearIndexChoroplethStates(map, appliedCodesRef.current);
@@ -68,5 +79,18 @@ export const useIndexChoroplethPaint = (
     return () => {
       map.off("styledata", syncChoropleth);
     };
-  }, [choropleth, fillOpacity, mapInstanceVersion, mapRef]);
+  }, [choropleth, mapInstanceVersion, mapRef]);
+
+  // Mover a barra reescreve o paint das camadas e mais nada. A paleta entra nas
+  // dependências porque a expressão de opacidade é montada a partir dela — sem
+  // camada na tela ainda, `applyIndexChoroplethPaint` não faz nada, e o efeito
+  // acima aplica o valor guardado assim que a coropleta existir.
+  useEffect(() => {
+    fillOpacityRef.current = fillOpacity;
+
+    const map = mapRef.current;
+    if (!map || !choropleth) return;
+
+    applyIndexChoroplethPaint(map, choropleth.palette, fillOpacity);
+  }, [choropleth, fillOpacity, mapRef]);
 };

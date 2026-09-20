@@ -7,7 +7,7 @@ import type { MunicipalSpreadsheetStatisticsSource } from "@/contracts/municipal
 import type { SpreadsheetTable } from "@/infrastructure/google-drive/spreadsheetReader";
 import { buildSpreadsheetIndexDraft } from "@/services/indexCatalog/spreadsheetIndexDraft";
 import type { IndexCatalogConfigV2 } from "@/types/indexCatalog";
-import type { MunicipalSpreadsheetSnapshot } from "@/contracts/municipalSpreadsheetSnapshot";
+import type { PublishedMunicipalSpreadsheetSource } from "@/contracts/geeStatistics";
 
 const HEADER = [
   "CD_MUN",
@@ -83,14 +83,11 @@ class FakeSpreadsheetReader {
   read = async () => this.table;
 }
 
-/** Guarda o instantâneo que a validação produziu, para o teste inspecioná-lo. */
-class FakeSnapshotStore {
-  saved: MunicipalSpreadsheetSnapshot | null = null;
-  save = async (
-    _panelLayerId: string,
-    snapshot: MunicipalSpreadsheetSnapshot,
-  ) => {
-    this.saved = snapshot;
+/** Conta quantas vezes o Contentful foi chamado para gravar um asset. */
+class FakeAssetStore {
+  calls = 0;
+  save = async () => {
+    this.calls += 1;
     return { assetId: "asset-1", url: "https://assets.test/pib.json" };
   };
 }
@@ -102,13 +99,10 @@ function buildDraft(
     sheetName: "Base_unida",
   },
 ) {
-  const store = new FakeSnapshotStore();
   const reader = new FakeSpreadsheetReader(table);
   return {
-    store,
     result: buildSpreadsheetIndexDraft(config, source, {
       readSpreadsheet: reader.read,
-      saveSnapshot: store.save,
     }),
   };
 }
@@ -148,15 +142,46 @@ describe("buildSpreadsheetIndexDraft", () => {
   });
 
   it("keeps the territorial values out of imageData and inside the snapshot", async () => {
-    const draft = buildDraft();
-    const { panelLayerImageData } = await draft.result;
+    const { panelLayerImageData, spreadsheetSnapshot } =
+      await buildDraft().result;
 
     expect(panelLayerImageData.years["2010"].values).toEqual({});
-    expect(draft.store.saved?.values.br).toEqual([40, 20]);
-    expect(draft.store.saved?.values["5_semiarido-semiarido-total"]).toEqual([
+    expect(spreadsheetSnapshot?.values.br).toEqual([40, 20]);
+    expect(spreadsheetSnapshot?.values["5_semiarido-semiarido-total"]).toEqual([
       30,
       null,
     ]);
+  });
+
+  // Regressão: validar gravava o instantâneo reaproveitando o asset do índice
+  // publicado, então "Gerar prévia" trocava o arquivo que a produção estava
+  // lendo — e uma publicação recusada logo depois já tinha alterado o dado.
+  it("does not write anything to Contentful while validating", async () => {
+    const assets = new FakeAssetStore();
+    const published = {
+      ...config,
+      status: "published",
+      validatedStatisticsSource: {
+        ...source,
+        schemaVersion: 1,
+        sourceRevision: "antigo",
+        snapshot: { assetId: "asset-1", url: "https://assets.test/pib.json" },
+      },
+    } as unknown as IndexCatalogConfigV2;
+
+    const build = await buildSpreadsheetIndexDraft(published, source, {
+      readSpreadsheet: new FakeSpreadsheetReader({
+        header: HEADER,
+        rows: ROWS,
+        sheetName: "Base_unida",
+      }).read,
+    });
+
+    expect(assets.calls).toBe(0);
+    // O ponteiro continua no arquivo que a versão publicada serve.
+    expect(
+      (build.statisticsSource as PublishedMunicipalSpreadsheetSource).snapshot,
+    ).toEqual({ assetId: "asset-1", url: "https://assets.test/pib.json" });
   });
 
   it("warns about the municipalities left without a value", async () => {
@@ -166,6 +191,19 @@ describe("buildSpreadsheetIndexDraft", () => {
       "spreadsheet_missing_values",
     );
     expect(validation.warnings[0].message).toContain("2020 (1)");
+  });
+
+  it("warns when it could not tell a thousand separator from a decimal point", async () => {
+    const { result } = buildDraft({
+      header: HEADER,
+      rows: ROWS.map((row) => [...row.slice(0, 8), "2.500", "3.100"]),
+      sheetName: "Base_unida",
+    });
+
+    const warning = (await result).validation.warnings.find(
+      (issue) => issue.code === "spreadsheet_ambiguous_decimal",
+    );
+    expect(warning?.message).toContain('pib_2010 (ex.: "2.500")');
   });
 
   it("refuses a sheet without any column of the chosen indicator", async () => {
@@ -202,7 +240,6 @@ describe("buildSpreadsheetIndexDraft", () => {
             rows: ROWS,
             sheetName: "Base_unida",
           }).read,
-          saveSnapshot: new FakeSnapshotStore().save,
         },
       ),
     ).rejects.toThrow(/exatamente 1 limite/u);

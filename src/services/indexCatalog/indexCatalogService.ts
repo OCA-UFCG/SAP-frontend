@@ -3,9 +3,11 @@ import "server-only";
 import type { AuthenticatedUserSession } from "@/lib/server-session";
 import { isMunicipalSpreadsheetSource } from "@/contracts/municipalSpreadsheet";
 import {
-  getSpreadsheetMunicipalValues,
-  getSpreadsheetYearPatch,
+  buildSpreadsheetYearPatch,
+  selectMunicipalSpreadsheetValues,
 } from "@/repositories/platform/municipalSpreadsheetRepository";
+import { getDraftSpreadsheetSnapshot } from "@/services/indexCatalog/draftSpreadsheetSnapshot";
+import { publishSpreadsheetSnapshot } from "@/services/indexCatalog/spreadsheetSnapshotStorage";
 import { getGeeStatisticsYearPatch } from "@/repositories/platform/geeStatisticsRepository";
 import {
   buildCatalogDraft,
@@ -37,6 +39,7 @@ import {
   isFullyManagedCatalogConfig,
   isPresentationManagedCatalogConfig,
   type CatalogValidationReport,
+  type IndexCatalogBuildResult,
   type IndexCatalogConfigV2,
   type IndexCatalogItem,
   type IndexCatalogDraftInput,
@@ -311,16 +314,17 @@ export async function getIndexCatalogDraftMunicipalData(
     return null;
   }
 
-  // Um índice de planilha já tem os valores no instantâneo gravado na
-  // validação: a prévia lê o mesmo arquivo que a plataforma vai servir, e não
-  // passa pelo Earth Engine.
+  // Um índice de planilha não passa pelo Earth Engine: a prévia lê a própria
+  // planilha, guardada em memória pela validação. O asset publicado fica fora
+  // disso de propósito — ele pertence à versão que está no ar, e um rascunho
+  // que o lesse mostraria os valores antigos como se fossem os novos.
   if (isMunicipalSpreadsheetSource(config.validatedStatisticsSource)) {
-    const spreadsheet = await getSpreadsheetYearPatch(
+    const snapshot = await getDraftSpreadsheetSnapshot(
       config.validatedStatisticsSource,
-      year,
-      locationKey,
     );
-    return { imageData: spreadsheet.patch };
+    return {
+      imageData: buildSpreadsheetYearPatch(snapshot, year, locationKey),
+    };
   }
 
   const result = await getGeeStatisticsYearPatch(
@@ -353,7 +357,10 @@ export async function getIndexCatalogDraftChoroplethValues(
   if (!isMunicipalSpreadsheetSource(config.validatedStatisticsSource)) {
     return null;
   }
-  return getSpreadsheetMunicipalValues(config.validatedStatisticsSource, year);
+  const snapshot = await getDraftSpreadsheetSnapshot(
+    config.validatedStatisticsSource,
+  );
+  return selectMunicipalSpreadsheetValues(snapshot, year);
 }
 
 /**
@@ -373,6 +380,30 @@ export async function getIndexCatalogDraftChoroplethValues(
  * ela que decide se o botão "Republicar" aparece, e as duas separadas deixariam
  * um botão visível para um estado que esta função recusa.
  */
+/**
+ * A fonte estatística que vai para a entry publicada.
+ *
+ * Para toda forma vinda do Earth Engine ela é a própria saída da validação; só
+ * a planilha precisa de uma escrita, porque os seus valores não moram num asset
+ * do GEE e sim num arquivo JSON que este é o momento de gravar.
+ */
+async function storePublishedStatisticsSource(
+  panelLayerId: string,
+  build: IndexCatalogBuildResult,
+) {
+  if (
+    !isMunicipalSpreadsheetSource(build.statisticsSource) ||
+    !build.spreadsheetSnapshot
+  ) {
+    return build.statisticsSource;
+  }
+  return publishSpreadsheetSnapshot(
+    panelLayerId,
+    build.spreadsheetSnapshot,
+    build.statisticsSource,
+  );
+}
+
 function assertPublishable(config: IndexCatalogConfigV2) {
   if (
     !hasPublishableValidation(config.status) ||
@@ -401,6 +432,13 @@ export async function publishIndexCatalogDraft(
         "Os assets ou a configuração mudaram desde a última prévia. Revalide antes de publicar.",
       );
     }
+    // Só aqui, com a publicação já decidida, o índice de planilha escreve no
+    // Contentful. Antes da conferência acima, uma publicação recusada teria
+    // trocado o arquivo que a produção lê.
+    const statisticsSource = await storePublishedStatisticsSource(
+      config.panelLayerId,
+      build,
+    );
     const position = await preparePanelPositionForPublish({
       entryId,
       entry: current.entry,
@@ -415,7 +453,7 @@ export async function publishIndexCatalogDraft(
         classes: build.classes,
         status: "published",
         validation: build.validation,
-        validatedStatisticsSource: build.statisticsSource,
+        validatedStatisticsSource: statisticsSource,
         updatedBy: { uid: user.uid, email: user.email, at: catalogTimestamp() },
       },
       user,
@@ -426,7 +464,7 @@ export async function publishIndexCatalogDraft(
       {
         panelPosition: position.position,
         imageData: build.panelLayerImageData,
-        statisticsSource: build.statisticsSource,
+        statisticsSource,
         catalogConfig: publishedConfig,
       },
     );

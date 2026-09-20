@@ -77,14 +77,17 @@ export async function getSpreadsheetYearPatch(
  *
  * Vai como `{ código: valor }` e não como lista de objetos: são mais de cinco
  * mil municípios, e a resposta trafega em cada troca de período.
+ *
+ * Separado da leitura do asset porque a prévia do catálogo chega aqui com o
+ * instantâneo em memória, lido da planilha e ainda não publicado.
+ *
+ * @example
+ * selectMunicipalSpreadsheetValues(snapshot, "2023")["2507507"]; // 12345
  */
-export async function getSpreadsheetMunicipalValues(
-  source: MunicipalSpreadsheetStatisticsSource,
+export function selectMunicipalSpreadsheetValues(
+  snapshot: MunicipalSpreadsheetSnapshot,
   yearKey: string,
-): Promise<Record<string, number>> {
-  const snapshot = await getOrLoadSpreadsheetSnapshot(
-    requireSnapshotUrl(source),
-  );
+): Record<string, number> {
   const position = snapshot.periods.indexOf(yearKey);
   if (position < 0) return {};
 
@@ -96,4 +99,14 @@ export async function getSpreadsheetMunicipalValues(
     }
   }
   return values;
+}
+
+export async function getSpreadsheetMunicipalValues(
+  source: MunicipalSpreadsheetStatisticsSource,
+  yearKey: string,
+): Promise<Record<string, number>> {
+  const snapshot = await getOrLoadSpreadsheetSnapshot(
+    requireSnapshotUrl(source),
+  );
+  return selectMunicipalSpreadsheetValues(snapshot, yearKey);
 }

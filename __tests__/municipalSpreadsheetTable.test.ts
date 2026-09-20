@@ -152,6 +152,65 @@ describe("readMunicipalSpreadsheetRows", () => {
     expect(rows[0].values[0]).toBe(1046342.5);
   });
 
+  // Regressão: apagar todo ponto antes de converter lia o IDHM "0.763" de uma
+  // coluna de texto como 763 — todo município multiplicado por mil, sem erro
+  // nenhum, porque o número resultante é finito e passa pela validação.
+  it("reads a decimal written with a point instead of multiplying it by a thousand", () => {
+    const first = [...ROW];
+    const second = [...ROW];
+    first[11] = "0.763";
+    second[11] = "0.612";
+    second[0] = "2504009";
+    const { rows } = readMunicipalSpreadsheetRows(
+      HEADER,
+      [first, second],
+      periodColumns,
+    );
+
+    expect(rows.map((row) => row.values[0])).toEqual([0.763, 0.612]);
+  });
+
+  it("reads the American format, where the comma is the thousand separator", () => {
+    const row = [...ROW];
+    row[11] = "1,046,342.5";
+    const { rows } = readMunicipalSpreadsheetRows(HEADER, [row], periodColumns);
+
+    expect(rows[0].values[0]).toBe(1046342.5);
+  });
+
+  it("takes the convention from the column, not from the cell", () => {
+    const withThousands = [...ROW];
+    const alone = [...ROW];
+    withThousands[11] = "1.046.342";
+    alone[11] = "2.500";
+    alone[0] = "2504009";
+    const { rows } = readMunicipalSpreadsheetRows(
+      HEADER,
+      [withThousands, alone],
+      periodColumns,
+    );
+
+    expect(rows.map((row) => row.values[0])).toEqual([1046342, 2500]);
+  });
+
+  it("reports the column it could not decide instead of guessing in silence", () => {
+    const row = [...ROW];
+    row[11] = "2.500";
+    const reading = readMunicipalSpreadsheetRows(HEADER, [row], periodColumns);
+
+    expect(reading.rows[0].values[0]).toBe(2.5);
+    expect(reading.ambiguousDecimalColumns).toEqual([
+      { column: "pib_2010", sample: "2.500" },
+    ]);
+  });
+
+  it("does not call a column ambiguous when the sheet already gave it as a number", () => {
+    const reading = readMunicipalSpreadsheetRows(HEADER, [ROW], periodColumns);
+
+    expect(reading.ambiguousDecimalColumns).toEqual([]);
+    expect(reading.rows[0].values).toEqual([1000, 2000]);
+  });
+
   it("keeps an empty cell as missing instead of turning it into zero", () => {
     const row = [...ROW];
     row[11] = null;
