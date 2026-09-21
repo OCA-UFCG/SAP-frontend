@@ -28,7 +28,7 @@ export interface CatalogPreviewMapSource {
   entryId: string;
   panelLayer: Pick<
     IndexCatalogPreview["panelLayer"],
-    "id" | "name" | "tileApiPath" | "imageData" | "statisticsSource"
+    "id" | "name" | "tileApiPath" | "imageData" | "municipalAnalysisApiPath"
   >;
   period: string;
 }
@@ -156,9 +156,9 @@ export function CatalogPreviewMapCapture({
     async function capturePreviewMap() {
       setStage("capturing");
       setFailureReason("");
-      // Um índice de planilha não tem asset: o mapa da prévia é a mesma
-      // coropleta que o Monitoramento desenha, lida do instantâneo gravado na
-      // validação.
+      // Um índice de planilha não tem asset no Earth Engine: o mapa da prévia
+      // é a mesma coropleta que o Monitoramento desenha, lida da rota do
+      // rascunho.
       const choropleth = await loadCatalogChoroplethPreview(
         preview.panelLayer,
         period,
