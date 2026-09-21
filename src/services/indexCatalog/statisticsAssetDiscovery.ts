@@ -92,3 +92,30 @@ export async function getStatisticsAssetIds(
     revision: updateTime,
   }));
 }
+
+const PLACEHOLDER_GROUPS: Record<string, string> = {
+  "\\{year\\}": "(?<year>\\d{4})",
+  "\\{month\\}": "(?<month>0[1-9]|1[0-2])",
+  "\\{period\\}": "(?<period>\\d{4}(?:-(?:0[1-9]|1[0-2]))?)",
+};
+
+/**
+ * O período que o nome de um asset carrega, segundo o template que o descreve.
+ *
+ * É o que permite dizer "a pasta tem 2026 e o índice publicado não" sem ler
+ * nenhuma tabela: o período está no próprio nome do asset, e a listagem do
+ * diretório já o trouxe.
+ *
+ * periodFromAssetId("projects/x/assets/estat_{year}", "projects/x/assets/estat_2026"); // "2026"
+ */
+export function periodFromAssetId(template: string, assetId: string) {
+  let pattern = template.replace(/[.*+?^${}()|[\]\\]/gu, "\\$&");
+  for (const [placeholder, group] of Object.entries(PLACEHOLDER_GROUPS)) {
+    pattern = pattern.replaceAll(placeholder, group);
+  }
+  const groups = new RegExp(`^${pattern}$`, "u").exec(assetId)?.groups;
+  if (!groups) return null;
+  if (groups.period) return groups.period;
+  if (!groups.year) return null;
+  return groups.month ? `${groups.year}-${groups.month}` : groups.year;
+}

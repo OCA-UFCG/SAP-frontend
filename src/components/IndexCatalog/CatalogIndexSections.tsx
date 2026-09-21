@@ -1,12 +1,16 @@
 "use client";
 
 import { useMemo, useState } from "react";
+import { CatalogNewDataButton } from "@/components/IndexCatalog/CatalogNewDataButton";
 import {
   splitCatalogItemsIntoSections,
   type CatalogSectionKey,
 } from "@/utils/catalogItemSections";
 import { hasPublishableValidation } from "@/utils/indexCatalog";
-import type { IndexCatalogItem } from "@/types/indexCatalog";
+import type {
+  CatalogNewDataCheck,
+  IndexCatalogItem,
+} from "@/types/indexCatalog";
 
 export function statusLabel(item: IndexCatalogItem) {
   if (item.managedScope === "presentation") {
@@ -27,6 +31,12 @@ export function statusLabel(item: IndexCatalogItem) {
 interface CatalogIndexSectionsProps {
   items: IndexCatalogItem[];
   loading: boolean;
+  /** O que a varredura de novos dados respondeu, por `entryId`. */
+  newDataChecks: Record<string, CatalogNewDataCheck>;
+  /** True enquanto a varredura ainda não respondeu. */
+  scanningNewData: boolean;
+  /** Índices publicados que a varredura não conseguiu verificar. */
+  newDataFailures: number;
   inputClass: string;
   buttonClass: string;
   onOpenLegacyEditor: (item: IndexCatalogItem) => void;
@@ -41,13 +51,22 @@ interface CatalogIndexSectionsProps {
 function CatalogIndexCard({
   item,
   buttonClass,
+  newDataCheck,
   onOpenLegacyEditor,
   onResumeDraft,
   onChangePublication,
   onReviewDeletion,
-}: { item: IndexCatalogItem } & Omit<
+}: {
+  item: IndexCatalogItem;
+  newDataCheck?: CatalogNewDataCheck;
+} & Omit<
   CatalogIndexSectionsProps,
-  "items" | "loading" | "inputClass"
+  | "items"
+  | "loading"
+  | "inputClass"
+  | "newDataChecks"
+  | "scanningNewData"
+  | "newDataFailures"
 >) {
   return (
     <article className="rounded-lg border border-stone-200 p-4">
@@ -105,6 +124,11 @@ function CatalogIndexCard({
           >
             Abrir e editar
           </button>
+          <CatalogNewDataButton
+            item={item}
+            buttonClass={buttonClass}
+            scannedCheck={newDataCheck}
+          />
           {item.published && (
             <button
               type="button"
@@ -154,15 +178,27 @@ export function CatalogIndexSections({
   items,
   loading,
   inputClass,
+  newDataChecks,
+  scanningNewData,
+  newDataFailures,
   ...cardProps
 }: CatalogIndexSectionsProps) {
   const [search, setSearch] = useState("");
   const [closedSections, setClosedSections] = useState<
     Partial<Record<CatalogSectionKey, boolean>>
   >({});
+  const outdatedEntryIds = useMemo(
+    () =>
+      new Set(
+        Object.entries(newDataChecks)
+          .filter(([, check]) => check.status === "new-data")
+          .map(([entryId]) => entryId),
+      ),
+    [newDataChecks],
+  );
   const sections = useMemo(
-    () => splitCatalogItemsIntoSections(items, search),
-    [items, search],
+    () => splitCatalogItemsIntoSections(items, search, outdatedEntryIds),
+    [items, search, outdatedEntryIds],
   );
 
   function isOpen(key: CatalogSectionKey, defaultOpen: boolean) {
@@ -219,7 +255,13 @@ export function CatalogIndexSections({
                       {section.items.length}
                     </span>
                     <span className="block text-xs text-stone-500">
-                      {section.hint}
+                      {section.key !== "published-outdated"
+                        ? section.hint
+                        : scanningNewData
+                          ? "Verificando as pastas do Earth Engine…"
+                          : newDataFailures > 0
+                            ? `${section.hint} ${newDataFailures} índice(s) não puderam ser verificados.`
+                            : section.hint}
                     </span>
                   </span>
                   <span aria-hidden className="text-stone-500">
@@ -230,7 +272,11 @@ export function CatalogIndexSections({
                   <div className="px-4 pb-4">
                     {section.items.length === 0 ? (
                       <p className="text-sm text-stone-500">
-                        Nenhum índice nesta seção.
+                        {section.key === "published-outdated"
+                          ? scanningNewData
+                            ? "Verificando…"
+                            : "Todo índice publicado está com os dados mais recentes da pasta dele."
+                          : "Nenhum índice nesta seção."}
                       </p>
                     ) : (
                       <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-3">
@@ -238,6 +284,7 @@ export function CatalogIndexSections({
                           <CatalogIndexCard
                             key={item.entryId}
                             item={item}
+                            newDataCheck={newDataChecks[item.entryId]}
                             {...cardProps}
                           />
                         ))}
