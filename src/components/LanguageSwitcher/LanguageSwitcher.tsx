@@ -50,7 +50,23 @@ export const LanguageSwitcher = () => {
         aria-expanded={isOpen}
         aria-haspopup="listbox"
       >
-        <Icon id="mail" size={16} className="shrink-0" />
+        {/* Globo desenhado inline: o sprite em /sprite.svg não tem um ícone de
+            idioma, e o de carta que estava aqui não representa troca de idioma. */}
+        <svg
+          xmlns="http://www.w3.org/2000/svg"
+          viewBox="0 0 24 24"
+          fill="none"
+          stroke="currentColor"
+          strokeWidth="2"
+          strokeLinecap="round"
+          strokeLinejoin="round"
+          className="w-4 h-4 shrink-0"
+          aria-hidden="true"
+        >
+          <circle cx="12" cy="12" r="10" />
+          <path d="M12 2a14.5 14.5 0 0 0 0 20 14.5 14.5 0 0 0 0-20" />
+          <path d="M2 12h20" />
+        </svg>
         {/* Em telas de celular o cabeçalho ainda divide espaço com o logo,
             o Entrar e o menu hambúrguer, e aí só cabe a sigla. */}
         <span className="hidden sm:inline">{activeLanguage.name}</span>
