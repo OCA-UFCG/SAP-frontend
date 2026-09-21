@@ -50,6 +50,9 @@ The minimum set to run the platform locally:
 - **Google Earth Engine** — the server-only `GEE_PRIVATE_KEY` service-account
   JSON backs map tiles and on-demand statistics. `GEE_PROJECT_ID` is only
   required when that JSON does not carry the intended consumer `project_id`.
+  That project is also the one whose Earth Engine quota is consumed: usage is
+  charged to the project issuing the request, not to the project owning the
+  asset being read.
 - **Firebase** — the `NEXT_PUBLIC_FIREBASE_*` values drive browser sign-in, and
   the Admin credentials (`FIREBASE_PROJECT_ID`, `FIREBASE_CLIENT_EMAIL`,
   `FIREBASE_PRIVATE_KEY`) drive server-side session verification and telemetry
