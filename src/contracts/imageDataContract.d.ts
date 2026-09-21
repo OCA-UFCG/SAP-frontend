@@ -36,3 +36,7 @@ export function isLegacyImageDataMap(value: unknown): boolean;
 export function validateCompressedTerritorialEnvelope(
   value: unknown,
 ): ImageDataContractValidation;
+
+export const MAP_SOURCE_TYPES: readonly string[];
+
+export function isChoroplethImageData(value: unknown): boolean;

@@ -10,6 +10,11 @@ import {
 import { captureMapCanvasPng } from "@/components/Map/captureMapCanvas";
 import { BRAZIL_RASTER_BOUNDS } from "@/components/Map/mapBounds";
 import { BASE_STYLE, ensureMapLayers } from "@/components/Map/mapDefinitions";
+import {
+  applyIndexChoroplethStates,
+  ensureIndexChoroplethLayers,
+} from "@/components/Map/indexChoroplethLayers";
+import { loadCatalogChoroplethPreview } from "@/components/IndexCatalog/catalogChoroplethPreview";
 import { fetchMapURL } from "@/services/mapServices";
 import type { IndexCatalogPreview } from "@/types/indexCatalog";
 import { getImageDataYearKeys, isCompactImageData } from "@/utils/imageData";
@@ -23,7 +28,7 @@ export interface CatalogPreviewMapSource {
   entryId: string;
   panelLayer: Pick<
     IndexCatalogPreview["panelLayer"],
-    "id" | "name" | "tileApiPath" | "imageData"
+    "id" | "name" | "tileApiPath" | "imageData" | "statisticsSource"
   >;
   period: string;
 }
@@ -151,14 +156,24 @@ export function CatalogPreviewMapCapture({
     async function capturePreviewMap() {
       setStage("capturing");
       setFailureReason("");
-      const tileUrl = await fetchMapURL(
-        panelLayerId,
+      // Um índice de planilha não tem asset: o mapa da prévia é a mesma
+      // coropleta que o Monitoramento desenha, lida do instantâneo gravado na
+      // validação.
+      const choropleth = await loadCatalogChoroplethPreview(
+        preview.panelLayer,
         period,
         controller.signal,
-        undefined,
-        undefined,
-        tileApiPath,
       );
+      const tileUrl = choropleth
+        ? null
+        : await fetchMapURL(
+            panelLayerId,
+            period,
+            controller.signal,
+            undefined,
+            undefined,
+            tileApiPath,
+          );
       if (aborted || !containerRef.current) return;
 
       releaseMap();
@@ -177,6 +192,14 @@ export function CatalogPreviewMapCapture({
       map.on("load", () => {
         if (aborted) return;
         ensureMapLayers(map, "platform", true, false, tileUrl);
+        if (!choropleth) return;
+        ensureIndexChoroplethLayers(
+          map,
+          choropleth.palette,
+          choropleth.overviewGeoJson,
+          0.85,
+        );
+        applyIndexChoroplethStates(map, choropleth.classByCode);
       });
       map.on("webglcontextlost", () => void settle(null));
       map.on("idle", () => void settle(captureMapCanvasPng(map)));
@@ -200,7 +223,15 @@ export function CatalogPreviewMapCapture({
       controller.abort();
       releaseMap();
     };
-  }, [captureKey, entryId, panelLayerId, period, releaseMap, tileApiPath]);
+  }, [
+    captureKey,
+    entryId,
+    panelLayerId,
+    period,
+    preview.panelLayer,
+    releaseMap,
+    tileApiPath,
+  ]);
 
   const busy = stage === "capturing" || stage === "saving";
 

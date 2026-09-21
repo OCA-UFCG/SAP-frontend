@@ -6,6 +6,9 @@ import type {
   MunicipalReportDocsContent,
 } from "@/contracts/municipalReport";
 import { getGeeStatisticsYearPatch } from "@/repositories/platform/geeStatisticsRepository";
+import { isMunicipalSpreadsheetSource } from "@/contracts/municipalSpreadsheet";
+import { buildSpreadsheetYearPatch } from "@/repositories/platform/municipalSpreadsheetRepository";
+import { getDraftSpreadsheetSnapshot } from "@/services/indexCatalog/draftSpreadsheetSnapshot";
 import { populateDocContent } from "@/services/buildDoc/buildDocContent";
 import {
   getTemplateData,
@@ -120,6 +123,24 @@ function createDraftImageDataLoader(
     if (!yearKey || !locationKey || !config.validatedStatisticsSource) {
       return { found: false, imageData: null, status: "miss" as const };
     }
+    // Um índice de planilha lê a planilha do rascunho, e não o Earth Engine —
+    // é o mesmo desvio que `attachMunicipalAnalysisYearToPanelLayer` faz em
+    // produção, com a diferença de que em produção a fonte é o asset publicado.
+    if (isMunicipalSpreadsheetSource(config.validatedStatisticsSource)) {
+      const snapshot = await getDraftSpreadsheetSnapshot(
+        config.validatedStatisticsSource,
+      );
+      return {
+        found: true,
+        imageData: mergeCompactDatasetYear(
+          imageData,
+          [buildSpreadsheetYearPatch(snapshot, yearKey, locationKey)],
+          yearKey,
+        ),
+        status: "miss" as const,
+      };
+    }
+
     const result = await getGeeStatisticsYearPatch(
       config.panelLayerId,
       yearKey,

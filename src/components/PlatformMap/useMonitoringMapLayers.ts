@@ -14,6 +14,7 @@ import {
 import { getAllowedStateUfs } from "@/utils/interestAreaStates";
 import type { SpatialSelection } from "@/utils/spatialScope";
 import { useEarthEngineTileLayer } from "./useEarthEngineTileLayer";
+import { useIndexChoroplethValues } from "./useIndexChoroplethValues";
 import { useReferenceOverlayTiles } from "./useReferenceOverlayTileLayers";
 import { useSpatialBoundaryOverlay } from "./useSpatialBoundaryOverlay";
 
@@ -49,6 +50,12 @@ export function useMonitoringMapLayers() {
     activeEEData,
     activeYear,
     spatialSelection,
+  );
+  // Índice criado a partir de planilha: o mapa não vem do Earth Engine, é
+  // pintado sobre os tiles de município a partir dos valores do próprio índice.
+  const { choropleth, status: choroplethStatus } = useIndexChoroplethValues(
+    activeEEData,
+    activeYear,
   );
   const [readyRequestKey, setReadyRequestKey] = useState<string | null>(null);
   const [basemap, setBasemap] = useState<BasemapId>("osm");
@@ -103,9 +110,10 @@ export function useMonitoringMapLayers() {
     status === "ready" && Boolean(requestKey) && readyRequestKey === requestKey;
 
   const isGeeLayerLoading =
-    Boolean(activeEEData) &&
-    (status === "loading" ||
-      (status === "ready" && !hasRenderedCurrentRequest));
+    (Boolean(activeEEData) &&
+      (status === "loading" ||
+        (status === "ready" && !hasRenderedCurrentRequest))) ||
+    choroplethStatus === "loading";
 
   return {
     activeData,
@@ -115,6 +123,7 @@ export function useMonitoringMapLayers() {
     basemap,
     setBasemap,
     boundaryGeoJson,
+    choropleth,
     handleSpatialSelectionChange,
     handleTileLayerReady,
     isAnyReferenceOverlayLoading,

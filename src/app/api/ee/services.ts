@@ -1,3 +1,4 @@
+import { isChoroplethImageData } from "@/contracts/imageDataContract.mjs";
 import ee from "@google/earthengine";
 import { addUrlToCache, buildCacheKey } from "@/app/api/ee/cache";
 import { getSpatialBoundaryFeatures } from "@/app/api/ee/spatialBoundaries";
@@ -853,6 +854,10 @@ function getMapId(image: any, visParams?: any) {
 export function getWarmupYearKeys(
   imageData: IEEInfo["imageData"] | undefined,
 ): string[] {
+  // Uma coropleta municipal não tem asset para aquecer: o mapa dela é pintado
+  // no navegador a partir dos valores do próprio índice.
+  if (isChoroplethImageData(imageData)) return [];
+
   const defaultYear = getImageDataDefaultYear(imageData);
 
   return defaultYear ? [defaultYear] : [];

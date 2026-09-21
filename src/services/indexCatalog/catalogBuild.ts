@@ -1,6 +1,7 @@
 import "server-only";
 
 import { isGeeMunicipalValueTableSource } from "@/contracts/geeMunicipalValueTable";
+import { isMunicipalSpreadsheetSource } from "@/contracts/municipalSpreadsheet";
 import {
   inferGeeStatisticsSchema,
   type GeeFeatureCollectionStatisticsSource,
@@ -11,6 +12,7 @@ import {
 import { getStatisticsAssetIds } from "@/services/indexCatalog/statisticsAssetDiscovery";
 import { hashCatalogValue } from "@/services/indexCatalog/catalogFingerprint";
 import { buildMunicipalValueTableDraft } from "@/services/indexCatalog/municipalValueTableDraft";
+import { buildSpreadsheetIndexDraft } from "@/services/indexCatalog/spreadsheetIndexDraft";
 import {
   validateMapAssets,
   type ValidatedForecastCollection,
@@ -448,6 +450,10 @@ export async function buildCatalogDraft(
   config: IndexCatalogConfigV2,
 ): Promise<IndexCatalogBuildResult> {
   try {
+    if (isMunicipalSpreadsheetSource(config.statisticsSource)) {
+      return await buildSpreadsheetIndexDraft(config, config.statisticsSource);
+    }
+
     if (isGeeMunicipalValueTableSource(config.statisticsSource)) {
       return await buildMunicipalValueTableDraft(
         config,

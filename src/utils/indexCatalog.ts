@@ -1,3 +1,4 @@
+import { isMunicipalSpreadsheetSource } from "@/contracts/municipalSpreadsheet";
 import { isGeeMunicipalValueTableSource } from "@/contracts/geeMunicipalValueTable";
 import { parseGeeStatisticsSource } from "@/contracts/geeStatistics";
 import { HEX_COLOR_PATTERN } from "@/utils/hexColor";
@@ -108,7 +109,10 @@ export function catalogLayerClassCount(
   statisticsSource: unknown,
   classes: readonly ClassMapping[],
 ) {
-  return isGeeMunicipalValueTableSource(statisticsSource) ? 1 : classes.length;
+  return isGeeMunicipalValueTableSource(statisticsSource) ||
+    isMunicipalSpreadsheetSource(statisticsSource)
+    ? 1
+    : classes.length;
 }
 
 /**
@@ -174,6 +178,22 @@ function parseClasses(value: unknown): ClassMapping[] {
   return classes.sort((left, right) => left.classIndex - right.classIndex);
 }
 
+/** Os limites que separam as faixas de cor, recusados fora de ordem crescente. */
+function parseThresholds(
+  value: unknown,
+): Pick<EarthEngineAssetMapping, "thresholds"> {
+  const thresholds = Array.isArray(value) ? value.map(Number) : undefined;
+  if (
+    thresholds?.some((threshold) => !Number.isFinite(threshold)) ||
+    thresholds?.some(
+      (threshold, index) => index > 0 && threshold <= thresholds[index - 1],
+    )
+  ) {
+    throw new Error("Os limites do mapa devem ser números crescentes.");
+  }
+  return thresholds?.length ? { thresholds } : {};
+}
+
 function parseEarthEngineMapping(value: unknown): EarthEngineAssetMapping {
   if (!isRecord(value)) {
     throw new Error("O asset de visualização do mapa é obrigatório.");
@@ -186,9 +206,23 @@ function parseEarthEngineMapping(value: unknown): EarthEngineAssetMapping {
   if (
     sourceType !== "image" &&
     sourceType !== "imageCollection" &&
-    sourceType !== "featureCollection"
+    sourceType !== "featureCollection" &&
+    sourceType !== "municipalChoropleth"
   ) {
-    throw new Error("Tipo do asset de mapa inválido.");
+    throw new Error(
+      `Tipo do asset de mapa inválido: ${JSON.stringify(sourceType)}.`,
+    );
+  }
+
+  // A coropleta municipal é desenhada no navegador sobre os tiles que a
+  // plataforma já serve: não há asset a informar, e exigir um faria a única
+  // forma sem Earth Engine pedir um endereço do Earth Engine.
+  if (sourceType === "municipalChoropleth") {
+    return {
+      strategy: "single",
+      sourceType,
+      ...parseThresholds(value.thresholds),
+    };
   }
 
   const singleAssetId =
@@ -227,17 +261,7 @@ function parseEarthEngineMapping(value: unknown): EarthEngineAssetMapping {
     }
   }
 
-  const thresholds = Array.isArray(value.thresholds)
-    ? value.thresholds.map(Number)
-    : undefined;
-  if (
-    thresholds?.some((threshold) => !Number.isFinite(threshold)) ||
-    thresholds?.some(
-      (threshold, index) => index > 0 && threshold <= thresholds[index - 1],
-    )
-  ) {
-    throw new Error("Os limites do mapa devem ser números crescentes.");
-  }
+  const { thresholds } = parseThresholds(value.thresholds);
 
   let collectionSelection: EarthEngineAssetMapping["collectionSelection"];
   if (value.collectionSelection != null) {
@@ -369,11 +393,15 @@ export function parseIndexCatalogDraftInput(
       "O catálogo v2 aceita apenas estatísticas classificatórias nesta versão.",
     );
   }
-  const isValueTable = isGeeMunicipalValueTableSource(statisticsSource);
+  // As duas formas de valor único — a tabela do GEE e a planilha — mostram um
+  // número por território e descrevem o mesmo indicador.
+  const isValueTable =
+    isGeeMunicipalValueTableSource(statisticsSource) ||
+    isMunicipalSpreadsheetSource(statisticsSource);
   const classes = parseClasses(value.classes);
   // Uma tabela de valor único desenha faixas no mapa, e cada faixa é separada da
-  // seguinte por um limite: sem eles o Earth Engine espalharia a paleta pelo
-  // intervalo bruto do indicador e a legenda passaria a mentir sobre a cor.
+  // seguinte por um limite: sem eles a paleta se espalharia pelo intervalo bruto
+  // do indicador e a legenda passaria a mentir sobre a cor.
   if (isValueTable && classes.length < 2) {
     throw new Error(
       "Informe pelo menos duas faixas de cor para o mapa do indicador.",

@@ -7,6 +7,7 @@ import type {
   MunicipalReportData,
   MunicipalReportDocsContent,
 } from "@/contracts/municipalReport";
+import type { MunicipalSpreadsheetSnapshot } from "@/contracts/municipalSpreadsheetSnapshot";
 import type { PublishedPanelLayerReportConfig } from "@/contracts/panelLayerReport";
 import type {
   CompactMapVisualizationConfig,
@@ -31,7 +32,15 @@ export interface ClassMapping {
 }
 
 export type EarthEngineSourceType =
-  "image" | "imageCollection" | "featureCollection";
+  | "image"
+  | "imageCollection"
+  | "featureCollection"
+  /**
+   * O mapa não vem do Earth Engine: é pintado no navegador sobre os tiles de
+   * município, a partir dos valores do próprio índice. É a forma dos índices
+   * criados a partir de planilha, que não têm asset nem geometria.
+   */
+  | "municipalChoropleth";
 
 export interface ForecastImageCollectionSelection {
   type: "latest-emission-leads";
@@ -358,6 +367,12 @@ export interface IndexCatalogBuildResult {
   mapVisualization: CompactMapVisualizationConfig;
   statisticsSource: PublishedGeeStatisticsSource;
   classes: ClassMapping[];
+  /**
+   * Os valores lidos da planilha, só para um índice de planilha. Viajam em
+   * memória porque a validação não os grava: quem escreve o asset é a
+   * publicação, depois de conferir a impressão digital.
+   */
+  spreadsheetSnapshot?: MunicipalSpreadsheetSnapshot;
 }
 
 /**

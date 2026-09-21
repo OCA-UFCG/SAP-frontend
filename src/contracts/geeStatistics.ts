@@ -11,6 +11,11 @@ import {
   parseGeeMunicipalValueTableSource,
   type GeeMunicipalValueTableStatisticsSource,
 } from "@/contracts/geeMunicipalValueTable";
+import {
+  isMunicipalSpreadsheetSource,
+  parseMunicipalSpreadsheetSource,
+  type MunicipalSpreadsheetStatisticsSource,
+} from "@/contracts/municipalSpreadsheet";
 
 import type {
   GeeStatisticsAssetSource,
@@ -59,13 +64,21 @@ export interface GeeFeatureCollectionStatisticsSource {
 }
 
 /**
- * As duas formas de tabela que uma camada pode publicar: a distribuição por
- * classes (`perc_classe_XX` por nível territorial) e o valor único por
- * município. A segunda existe porque os dados socioeconômicos chegam numa
- * FeatureCollection que é, ao mesmo tempo, a estatística e o asset do mapa.
+ * As formas de tabela que uma camada pode publicar: a distribuição por classes
+ * (`perc_classe_XX` por nível territorial), o valor único por município e a
+ * planilha do Google. A segunda existe porque os dados socioeconômicos chegam
+ * numa FeatureCollection que é, ao mesmo tempo, a estatística e o asset do
+ * mapa; a terceira porque parte dessas bases nunca chega ao Earth Engine —
+ * elas vivem numa planilha, e o operador publica o índice colando o link.
+ *
+ * O nome do tipo continua falando em GEE por compatibilidade: ele é o campo
+ * `panelLayer.statisticsSource` já publicado, e renomeá-lo tocaria em todo o
+ * catálogo sem mudar nada de comportamento.
  */
 export type GeeStatisticsSource =
-  GeeFeatureCollectionStatisticsSource | GeeMunicipalValueTableStatisticsSource;
+  | GeeFeatureCollectionStatisticsSource
+  | GeeMunicipalValueTableStatisticsSource
+  | MunicipalSpreadsheetStatisticsSource;
 
 interface PublishedStatisticsSourceStamp {
   schemaVersion: 1;
@@ -82,6 +95,9 @@ export type PublishedGeeStatisticsSource = GeeStatisticsSource &
 
 export type PublishedGeeMunicipalValueTableSource =
   GeeMunicipalValueTableStatisticsSource & PublishedStatisticsSourceStamp;
+
+export type PublishedMunicipalSpreadsheetSource =
+  MunicipalSpreadsheetStatisticsSource & PublishedStatisticsSourceStamp;
 
 export interface ResolvedGeeStatisticsSource extends GeeFeatureCollectionStatisticsSource {
   assetId: string;
@@ -183,6 +199,9 @@ export function parseGeeFeatureCollectionStatisticsSource(
  * configuração incompleta.
  */
 export function parseGeeStatisticsSource(value: unknown): GeeStatisticsSource {
+  if (isMunicipalSpreadsheetSource(value)) {
+    return parseMunicipalSpreadsheetSource(value);
+  }
   return isGeeMunicipalValueTableSource(value)
     ? parseGeeMunicipalValueTableSource(value)
     : parseGeeFeatureCollectionStatisticsSource(value);

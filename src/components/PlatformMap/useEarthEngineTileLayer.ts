@@ -2,6 +2,7 @@
 
 import { useEffect, useMemo, useRef, useState } from "react";
 import { fetchMapURL } from "@/services/mapServices";
+import { isChoroplethImageData } from "@/contracts/imageDataContract.mjs";
 import { getImageDataYearKeys, resolveImageYearEntry } from "@/utils/imageData";
 import type { IEEInfo } from "@/utils/interfaces";
 import {
@@ -38,6 +39,12 @@ export function useEarthEngineTileLayer(
 
   const requestConfig = useMemo(() => {
     if (!activeEEData) {
+      return null;
+    }
+
+    // Uma coropleta municipal é desenhada no navegador: não há tile a pedir ao
+    // Earth Engine, e pedir um faria a rota falhar por falta de `imageId`.
+    if (isChoroplethImageData(activeEEData.imageData)) {
       return null;
     }
 

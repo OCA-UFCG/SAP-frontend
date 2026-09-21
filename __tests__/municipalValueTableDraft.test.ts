@@ -16,10 +16,8 @@ vi.mock("@/services/indexCatalog/mapAssetValidation", () => ({
 }));
 
 import type { GeeMunicipalValueTableStatisticsSource } from "@/contracts/geeMunicipalValueTable";
-import {
-  buildMunicipalValueTableDraft,
-  buildValueTemplates,
-} from "@/services/indexCatalog/municipalValueTableDraft";
+import { buildMunicipalValueTableDraft } from "@/services/indexCatalog/municipalValueTableDraft";
+import { buildValueTemplates } from "@/utils/municipalValueIndicator";
 import type { IndexCatalogConfigV2 } from "@/types/indexCatalog";
 
 const ASSET_ID = "projects/example/assets/s2id";

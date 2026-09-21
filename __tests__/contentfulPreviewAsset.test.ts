@@ -2,7 +2,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 vi.mock("server-only", () => ({}));
 
-import { saveContentfulPreviewImage } from "@/services/indexCatalog/contentfulAssets";
+import { saveContentfulAsset } from "@/services/indexCatalog/contentfulAssets";
 
 interface RecordedRequest {
   url: string;
@@ -83,7 +83,7 @@ const input = {
   locale: "en-US",
 };
 
-describe("saveContentfulPreviewImage", () => {
+describe("saveContentfulAsset", () => {
   beforeEach(() => {
     vi.stubEnv("NEXT_PUBLIC_CONTENTFUL_SPACE_ID", "space-teste");
     vi.stubEnv("CONTENTFUL_MANAGEMENT_TOKEN", "token-teste");
@@ -99,7 +99,7 @@ describe("saveContentfulPreviewImage", () => {
     const api = new FakeContentfulAssetApi();
     vi.stubGlobal("fetch", api.fetch);
 
-    const saved = await saveContentfulPreviewImage(input);
+    const saved = await saveContentfulAsset(input);
 
     expect(saved).toEqual({
       assetId: "asset-1",
@@ -136,7 +136,7 @@ describe("saveContentfulPreviewImage", () => {
     const api = new FakeContentfulAssetApi();
     vi.stubGlobal("fetch", api.fetch);
 
-    await saveContentfulPreviewImage({ ...input, assetId: "asset-1" });
+    await saveContentfulAsset({ ...input, assetId: "asset-1" });
 
     const updates = api.requests.filter(
       (request) => request.method === "PUT" && request.url.endsWith("/asset-1"),
@@ -156,7 +156,7 @@ describe("saveContentfulPreviewImage", () => {
     vi.stubGlobal("fetch", api.fetch);
 
     await expect(
-      saveContentfulPreviewImage({ ...input, assetId: "apagado" }),
+      saveContentfulAsset({ ...input, assetId: "apagado" }),
     ).resolves.toEqual({ assetId: "asset-1", url: `https:${PROCESSED_URL}` });
     expect(
       api.requests.some(
@@ -171,7 +171,7 @@ describe("saveContentfulPreviewImage", () => {
     const api = new FakeContentfulAssetApi({ processedAfterGets: 3 });
     vi.stubGlobal("fetch", api.fetch);
 
-    const pending = saveContentfulPreviewImage(input);
+    const pending = saveContentfulAsset(input);
     await vi.advanceTimersByTimeAsync(2_000);
 
     await expect(pending).resolves.toEqual({

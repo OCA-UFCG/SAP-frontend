@@ -35,10 +35,12 @@ import {
 import { useMapController } from "./useMapController";
 import { useMapMarkers } from "./useMapMarkers";
 import { useMunicipalityClassification } from "./useMunicipalityClassification";
+import { useIndexChoroplethPaint } from "./useIndexChoroplethPaint";
 import type {
   MunicipalityClassification,
   MunicipalityOverviewGeoJson,
 } from "./classificationLayers";
+import type { IndexChoropleth } from "@/components/PlatformMap/useIndexChoroplethValues";
 import {
   BRAZIL_TERRITORY_CODE,
   resolveNextSelectedState,
@@ -88,6 +90,11 @@ export interface MapProps {
    */
   municipalityClassification?: MunicipalityClassification | null;
   municipalityOverviewGeoJson?: MunicipalityOverviewGeoJson | null;
+  /**
+   * Coropleta municipal do índice ativo do Monitoramento, quando ele vem de
+   * planilha. `null` nos demais índices, cujo mapa é um tile do Earth Engine.
+   */
+  indexChoropleth?: IndexChoropleth | null;
   /** Opacidade do preenchimento da coropleta, controlada pela barra do mapa. */
   classificationFillOpacity?: number;
   onZoomChange?: (zoom: number) => void;
@@ -122,6 +129,7 @@ const Map = ({
   municipalityClassification = null,
   municipalityOverviewGeoJson = null,
   classificationFillOpacity = 0.85,
+  indexChoropleth = null,
   onZoomChange,
   referenceOverlayTileUrls,
 }: MapProps) => {
@@ -181,6 +189,12 @@ const Map = ({
     mapRef,
     municipalityClassification,
     municipalityOverviewGeoJson,
+    mapInstanceVersion,
+    classificationFillOpacity,
+  );
+  useIndexChoroplethPaint(
+    mapRef,
+    indexChoropleth,
     mapInstanceVersion,
     classificationFillOpacity,
   );

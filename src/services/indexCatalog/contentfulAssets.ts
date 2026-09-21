@@ -8,7 +8,8 @@ import {
 /**
  * O processamento de arquivo no Contentful é assíncrono: o PUT /process
  * responde 204 e a URL do arquivo só aparece depois. Esperamos por ela porque
- * é essa URL que o cartão do Monitoramento carrega.
+ * é essa URL que o cartão do Monitoramento carrega — e, no índice vindo de
+ * planilha, também a que a plataforma lê para ter os valores.
  */
 const ASSET_PROCESSING_ATTEMPTS = 12;
 const ASSET_PROCESSING_DELAY_MS = 500;
@@ -32,7 +33,7 @@ export interface ContentfulAsset {
   };
 }
 
-export interface PreviewImageUploadInput {
+export interface ContentfulAssetUploadInput {
   /** Reaproveita o asset já ligado ao índice, para não acumular órfãos. */
   assetId?: string;
   bytes: Uint8Array<ArrayBuffer>;
@@ -42,7 +43,7 @@ export interface PreviewImageUploadInput {
   locale: string;
 }
 
-export interface SavedPreviewImage {
+export interface SavedContentfulAsset {
   assetId: string;
   url: string;
 }
@@ -73,7 +74,7 @@ async function uploadAssetBytes(
 
   if (!response.ok) {
     throw new Error(
-      `Upload da imagem de prévia falhou com status ${response.status}: ${text.slice(0, 500)}`,
+      `Upload do arquivo para o Contentful falhou com status ${response.status}: ${text.slice(0, 500)}`,
     );
   }
 
@@ -81,14 +82,17 @@ async function uploadAssetBytes(
 
   if (!uploadId) {
     throw new Error(
-      `Upload da imagem de prévia não retornou sys.id: ${text.slice(0, 200)}`,
+      `Upload do arquivo para o Contentful não retornou sys.id: ${text.slice(0, 200)}`,
     );
   }
 
   return uploadId;
 }
 
-function buildAssetFileField(input: PreviewImageUploadInput, uploadId: string) {
+function buildAssetFileField(
+  input: ContentfulAssetUploadInput,
+  uploadId: string,
+) {
   return {
     [input.locale]: {
       contentType: input.contentType,
@@ -98,15 +102,15 @@ function buildAssetFileField(input: PreviewImageUploadInput, uploadId: string) {
   };
 }
 
-function buildAssetFields(input: PreviewImageUploadInput, uploadId: string) {
+function buildAssetFields(input: ContentfulAssetUploadInput, uploadId: string) {
   return {
     title: { [input.locale]: input.title },
     file: buildAssetFileField(input, uploadId),
   };
 }
 
-async function createPreviewAsset(
-  input: PreviewImageUploadInput,
+async function createContentfulAsset(
+  input: ContentfulAssetUploadInput,
   uploadId: string,
 ) {
   return contentfulManagementFetch<ContentfulAsset>(
@@ -116,13 +120,13 @@ async function createPreviewAsset(
       headers: { "Content-Type": ASSET_JSON_CONTENT_TYPE },
       body: JSON.stringify({ fields: buildAssetFields(input, uploadId) }),
     },
-    "Criação do asset de prévia do mapa",
+    "Criação do asset no Contentful",
   );
 }
 
-async function replacePreviewAssetFile(
+async function replaceContentfulAssetFile(
   asset: ContentfulAsset,
-  input: PreviewImageUploadInput,
+  input: ContentfulAssetUploadInput,
   uploadId: string,
 ) {
   return contentfulManagementFetch<ContentfulAsset>(
@@ -137,7 +141,7 @@ async function replacePreviewAssetFile(
         fields: { ...asset.fields, ...buildAssetFields(input, uploadId) },
       }),
     },
-    `Atualização do asset de prévia ${asset.sys.id}`,
+    `Atualização do asset ${asset.sys.id}`,
   );
 }
 
@@ -148,7 +152,7 @@ async function processAssetFile(asset: ContentfulAsset, locale: string) {
       method: "PUT",
       headers: { "X-Contentful-Version": String(asset.sys.version) },
     },
-    `Processamento do asset de prévia ${asset.sys.id}`,
+    `Processamento do asset ${asset.sys.id}`,
   );
 }
 
@@ -188,7 +192,7 @@ async function waitForProcessedAsset(assetId: string, locale: string) {
   }
 
   throw new Error(
-    `O Contentful não terminou de processar o asset ${assetId} em ${ASSET_PROCESSING_ATTEMPTS} tentativas. Gere a imagem de prévia novamente.`,
+    `O Contentful não terminou de processar o asset ${assetId} em ${ASSET_PROCESSING_ATTEMPTS} tentativas. Tente gerar o arquivo novamente.`,
   );
 }
 
@@ -199,17 +203,17 @@ async function publishAsset(asset: ContentfulAsset) {
       method: "PUT",
       headers: { "X-Contentful-Version": String(asset.sys.version) },
     },
-    `Publicação do asset de prévia ${asset.sys.id}`,
+    `Publicação do asset ${asset.sys.id}`,
   );
 }
 
 /**
- * Sobe a imagem, espera o processamento e publica o asset. O asset é publicado
+ * Sobe o arquivo, espera o processamento e publica o asset. O asset é publicado
  * na hora porque a URL só existe publicada; o índice em si continua invisível
  * no Monitoramento até a entry do panelLayer ser publicada.
  *
  * @example
- * const saved = await saveContentfulPreviewImage({
+ * const saved = await saveContentfulAsset({
  *   assetId: config.previewMap?.assetId,
  *   bytes, contentType: "image/png",
  *   fileName: "indice-aridez-previa-mapa.png",
@@ -217,14 +221,14 @@ async function publishAsset(asset: ContentfulAsset) {
  *   locale: "en-US",
  * });
  */
-export async function saveContentfulPreviewImage(
-  input: PreviewImageUploadInput,
-): Promise<SavedPreviewImage> {
+export async function saveContentfulAsset(
+  input: ContentfulAssetUploadInput,
+): Promise<SavedContentfulAsset> {
   const uploadId = await uploadAssetBytes(input.bytes, input.contentType);
   const existing = input.assetId ? await findAssetOrNull(input.assetId) : null;
   const draft = existing
-    ? await replacePreviewAssetFile(existing, input, uploadId)
-    : await createPreviewAsset(input, uploadId);
+    ? await replaceContentfulAssetFile(existing, input, uploadId)
+    : await createContentfulAsset(input, uploadId);
 
   await processAssetFile(draft, input.locale);
   const processed = await waitForProcessedAsset(draft.sys.id, input.locale);
