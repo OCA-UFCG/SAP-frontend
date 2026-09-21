@@ -62,6 +62,33 @@ decimal e a validação devolve o aviso `spreadsheet_ambiguous_decimal` dizendo
 qual coluna e qual célula — em vez de escolher em silêncio e entregar todo
 município multiplicado ou dividido por mil.
 
+### As faixas de cor detectadas da planilha
+
+As faixas da legenda não vêm da planilha como coluna: elas descrevem a
+distribuição dos valores. O botão **"Detectar faixas da planilha"**, na seção
+"Faixas de cor do mapa", pede `POST /api/index-catalog/spreadsheet-legend` com a
+fonte que está no formulário e devolve limites, rótulos e cores prontos.
+
+- O corte é por **quantis** sobre os municípios do período mais recente: cada
+  cor fica com mais ou menos o mesmo número de municípios. Dividir o intervalo
+  em partes iguais não serve para dado municipal brasileiro — o maior PIB é
+  milhares de vezes o mediano, e o país inteiro cairia na primeira cor.
+  `detectValueLegend` só cai no corte por intervalos iguais quando os valores se
+  repetem tanto que os quantis coincidem, e a tela diz qual dos dois usou.
+- Só os municípios entram na conta. O instantâneo também guarda Brasil, UFs,
+  regiões, biomas, ASD e semiárido, e uma soma estadual é ordens de grandeza
+  maior que a de qualquer município dela.
+- Cada limite é arredondado pela sua própria ordem de grandeza (três dígitos
+  significativos), para a legenda dizer "1.130.000.000" e não "1.127.483.219,4".
+- As cores saem de `buildSequentialColorRamp`: tons da cor do indicador, do mais
+  claro ao mais escuro, para a legenda não exigir cinco escolhas de cor.
+
+A rota **não escreve nada** e não exige rascunho salvo: a fonte vai no corpo,
+porque a detecção acontece enquanto o operador preenche o formulário. O
+resultado substitui os campos e continua editável — quem publica é quem decide
+onde cada faixa começa. Ela reaproveita o instantâneo em memória, então detectar
+faixas depois de validar não relê o Google Drive.
+
 ### O que a validação faz
 
 `buildSpreadsheetIndexDraft` baixa a planilha, descobre os períodos e agrega

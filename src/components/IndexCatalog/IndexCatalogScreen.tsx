@@ -59,6 +59,7 @@ import {
 import { SpreadsheetSourceFields } from "@/components/IndexCatalog/SpreadsheetSourceFields";
 import type { MunicipalSpreadsheetStatisticsSource } from "@/contracts/municipalSpreadsheet";
 import { parseGoogleFileId } from "@/utils/municipalSpreadsheetLink";
+import type { DetectedValueLegend } from "@/utils/spreadsheetLegendDetection";
 
 /**
  * O id do arquivo enquanto o operador ainda está digitando o link: um link pela
@@ -641,6 +642,55 @@ export function IndexCatalogScreen() {
       ),
     }));
     setPreview(null);
+  }
+
+  /**
+   * Preenche as faixas de cor a partir dos valores da própria planilha.
+   *
+   * Substitui limites, rótulos e cores de uma vez, e diz na mensagem o que
+   * usou — período, quantos municípios e qual corte —, porque quem revisa a
+   * legenda precisa saber de onde vieram os números antes de aceitá-los. O
+   * resultado é rascunho de formulário: nada é gravado até salvar ou validar.
+   */
+  async function detectSpreadsheetRanges() {
+    const source = spreadsheetSource;
+    if (!source?.fileId || !source.valuePrefix.trim()) {
+      setError(
+        "Cole o link da planilha e escreva o prefixo das colunas de dado antes de detectar as faixas.",
+      );
+      return;
+    }
+    setBusy("detect-ranges");
+    setError("");
+    setMessage("");
+    try {
+      const legend = await apiRequest<
+        DetectedValueLegend & { periodKey: string }
+      >("/api/index-catalog/spreadsheet-legend", {
+        method: "POST",
+        body: JSON.stringify({
+          source,
+          indicator: draft.valueIndicator ?? EMPTY_VALUE_INDICATOR,
+        }),
+      });
+      setThresholdsInput(legend.thresholds.join(", "));
+      updateDraft("classes", legend.ranges);
+      setMessage(
+        `${legend.rangeCount} faixas detectadas em ${legend.periodKey}, a partir de ${legend.sampleCount.toLocaleString("pt-BR")} municípios com valor. ${
+          legend.method === "quantile"
+            ? "Cada cor ficou com mais ou menos o mesmo número de municípios."
+            : "Os valores se repetem demais para dividir por quantidade de municípios, então o intervalo foi cortado em partes iguais."
+        } Ajuste o que quiser e valide para ver no mapa.`,
+      );
+    } catch (reason) {
+      setError(
+        reason instanceof Error
+          ? reason.message
+          : "Falha ao detectar as faixas da planilha.",
+      );
+    } finally {
+      setBusy(null);
+    }
   }
 
   const statisticsShape: StatisticsShape =
@@ -1651,6 +1701,12 @@ export function IndexCatalogScreen() {
                 onChangeRange={updateClass}
                 onChangeRanges={(ranges) => updateDraft("classes", ranges)}
                 onChangeThresholds={setThresholdsInput}
+                detecting={busy === "detect-ranges"}
+                onDetectRanges={
+                  isSpreadsheet
+                    ? () => void detectSpreadsheetRanges()
+                    : undefined
+                }
               />
             </>
           ) : (
