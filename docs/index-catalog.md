@@ -420,6 +420,31 @@ fonte não tem asset do Earth Engine, como `municipal-spreadsheet` e
 `amfe-sheet-column`. Um legado adotado no escopo de apresentação não tem o
 botão, porque a origem dos dados dele não é uma pasta do Earth Engine.
 
+### A seção "Publicados sem os dados mais recentes"
+
+A tela do catálogo pede `GET /api/index-catalog/new-data` ao abrir e usa a
+resposta para separar, dentro dos publicados, quem já está com dado velho. O
+índice apontado sai de "Publicados" e aparece na seção nova — que é a única que
+abre expandida, porque é curta, costuma estar vazia e é o aviso que justifica
+abrir o catálogo. O cartão já mostra o motivo, sem precisar clicar no botão.
+
+A varredura verifica apenas os índices `published` de escopo completo, com
+concorrência 4 (o SDK do Earth Engine despacha uma requisição a cada 350 ms de
+uma fila global, então mais que isso só alonga a fila). Um índice cuja
+verificação falha não derruba a varredura: ele fica fora da seção, é contado em
+`failed` — a tela anuncia "N índice(s) não puderam ser verificados" — e o botão
+do cartão dele mostra o erro de perto.
+
+O resultado é memoizado por processo por 10 minutos, guardando a **promessa** e
+não o valor, para dois operadores que abrem a tela ao mesmo tempo dividirem uma
+varredura em vez de disparar duas. Uma varredura que falha inteira não fica
+guardada. `refreshPublicIndexCaches` chama `clearPublishedNewDataScan()`, senão a
+seção continuaria acusando por dez minutos o índice que acabou de ser
+republicado.
+
+A tela não pede a varredura quando não há nenhum índice publicado de escopo
+completo: não existe pasta para listar, e a chamada seria desperdício.
+
 ### Imagem de prévia do mapa
 
 O cartão do índice no Monitoramento é o campo `previewMap` do `panelLayer` —

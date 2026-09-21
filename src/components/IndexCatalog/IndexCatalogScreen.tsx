@@ -51,6 +51,7 @@ import {
   type IndexCatalogLifecycleImpact,
   type IndexCatalogPreview,
   type MunicipalValueIndicator,
+  type PublishedNewDataScan,
 } from "@/types/indexCatalog";
 import {
   MunicipalValueIndicatorFields,
@@ -269,6 +270,10 @@ function CatalogActionButton({
 
 export function IndexCatalogScreen() {
   const [items, setItems] = useState<IndexCatalogItem[]>([]);
+  const [newDataScan, setNewDataScan] = useState<PublishedNewDataScan | null>(
+    null,
+  );
+  const [scanningNewData, setScanningNewData] = useState(true);
   const [draft, setDraft] = useState<IndexCatalogDraftInput>(EMPTY_DRAFT);
   const [report, setReport] = useState<IndexCatalogReportDraft>(
     createDefaultReportDraft,
@@ -309,19 +314,49 @@ export function IndexCatalogScreen() {
   const validationRunRef = useRef(0);
   const validationCompletionTimerRef = useRef<number | null>(null);
 
+  /**
+   * Pede a verificação de todos os índices publicados de uma vez, que é o que
+   * enche a seção "Publicados sem os dados mais recentes".
+   *
+   * Só vale a pena com a listagem em mãos: sem nenhum índice publicado criado
+   * pelo catálogo não há o que verificar, e a varredura é a parte lenta da tela
+   * (uma listagem de pasta do Earth Engine por índice).
+   */
+  const loadNewDataScan = useCallback((items: IndexCatalogItem[]) => {
+    const scannable = items.some(
+      (item) => item.published && item.managedScope === "full",
+    );
+    if (!scannable) {
+      setNewDataScan(null);
+      setScanningNewData(false);
+      return;
+    }
+    setScanningNewData(true);
+    apiRequest<PublishedNewDataScan>("/api/index-catalog/new-data")
+      .then(setNewDataScan)
+      .catch(() => setNewDataScan(null))
+      .finally(() => setScanningNewData(false));
+  }, []);
+
   const loadItems = useCallback(async () => {
     const result = await apiRequest<{ items: IndexCatalogItem[] }>(
       "/api/index-catalog",
     );
     setItems(result.items);
+    // A varredura acompanha a listagem: publicar, despublicar ou revalidar um
+    // índice muda quem está desatualizado, e a resposta do servidor é
+    // memoizada, então repetir o pedido custa quase nada quando nada mudou.
+    loadNewDataScan(result.items);
     return result.items;
-  }, []);
+  }, [loadNewDataScan]);
 
   useEffect(() => {
     let active = true;
     apiRequest<{ items: IndexCatalogItem[] }>("/api/index-catalog")
       .then((result) => {
-        if (active) setItems(result.items);
+        if (!active) return;
+        setItems(result.items);
+        loadNewDataScan(result.items);
       })
       .catch((reason) => {
         if (active) {
@@ -339,7 +374,7 @@ export function IndexCatalogScreen() {
         window.clearTimeout(validationCompletionTimerRef.current);
       }
     };
-  }, []);
+  }, [loadNewDataScan]);
 
   const editingItem = entryId
     ? items.find((item) => item.entryId === entryId)
@@ -1098,6 +1133,9 @@ export function IndexCatalogScreen() {
       <CatalogIndexSections
         items={items}
         loading={busy === "load"}
+        newDataChecks={newDataScan?.checks ?? {}}
+        scanningNewData={scanningNewData}
+        newDataFailures={newDataScan?.failed ?? 0}
         inputClass={inputClass}
         buttonClass={buttonClass}
         onOpenLegacyEditor={openLegacyEditor}

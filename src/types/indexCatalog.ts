@@ -326,6 +326,21 @@ export interface CatalogNewDataCheck {
   updatedAssets: Array<{ assetId: string; updateTime: string }>;
 }
 
+/**
+ * O resultado da verificação de todos os índices publicados de uma vez.
+ *
+ * `checks` é indexado por `entryId`, e um índice cuja verificação falhou fica
+ * de fora dele — por isso `checked` e `failed` vêm junto: sem eles a tela não
+ * teria como distinguir "nenhum índice desatualizado" de "a varredura não
+ * conseguiu olhar".
+ */
+export interface PublishedNewDataScan {
+  checkedAt: string;
+  checked: number;
+  failed: number;
+  checks: Record<string, CatalogNewDataCheck>;
+}
+
 export interface IndexCatalogLifecycleImpact {
   item: IndexCatalogItem;
   linkedEntries: [];

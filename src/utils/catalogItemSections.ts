@@ -1,6 +1,7 @@
 import type { IndexCatalogItem } from "@/types/indexCatalog";
 
-export type CatalogSectionKey = "published" | "unpublished";
+export type CatalogSectionKey =
+  "published-outdated" | "published" | "unpublished";
 
 export interface CatalogItemSection {
   key: CatalogSectionKey;
@@ -24,15 +25,29 @@ const SECTION_DEFINITIONS: Omit<CatalogItemSection, "items">[] = [
     defaultOpen: false,
   },
   {
+    key: "published-outdated",
+    title: "Publicados sem os dados mais recentes",
+    hint: "No ar, mas a pasta do Earth Engine tem período novo ou asset reescrito depois da última validação.",
+    // A única seção que abre sozinha: ela é curta, costuma estar vazia, e é o
+    // aviso que justifica o operador ter aberto o catálogo.
+    defaultOpen: true,
+  },
+  {
     key: "published",
     title: "Publicados",
-    hint: "Índices visíveis na plataforma hoje.",
+    hint: "Índices visíveis na plataforma hoje, com os dados da pasta do Earth Engine.",
     defaultOpen: false,
   },
 ];
 
-function sectionKeyOf(item: IndexCatalogItem): CatalogSectionKey {
-  return item.published ? "published" : "unpublished";
+function sectionKeyOf(
+  item: IndexCatalogItem,
+  outdatedEntryIds: ReadonlySet<string>,
+): CatalogSectionKey {
+  if (!item.published) return "unpublished";
+  return outdatedEntryIds.has(item.entryId)
+    ? "published-outdated"
+    : "published";
 }
 
 function normalizeSearchText(value: string) {
@@ -60,11 +75,16 @@ export function matchesCatalogSearch(item: IndexCatalogItem, search: string) {
  * que elas aparecem. Seções vazias continuam na lista para a tela poder dizer
  * "nenhum índice aqui" em vez de sumir com o título.
  *
- * @example splitCatalogItemsIntoSections(items, "seca")
+ * `outdatedEntryIds` são os índices que a varredura de novos dados apontou como
+ * publicando dado velho. Enquanto ela não responde o conjunto é vazio, e eles
+ * ficam em "Publicados" — a seção nova nasce vazia em vez de acusar todo mundo.
+ *
+ * @example splitCatalogItemsIntoSections(items, "seca", new Set([entryId]))
  */
 export function splitCatalogItemsIntoSections(
   items: IndexCatalogItem[],
   search = "",
+  outdatedEntryIds: ReadonlySet<string> = new Set(),
 ): CatalogItemSection[] {
   // Um panelLayer que o catálogo não gerencia não é listado: sem a adoção, não
   // há nada a fazer com ele por aqui, e ele só empurrava para baixo os índices
@@ -74,6 +94,8 @@ export function splitCatalogItemsIntoSections(
   );
   return SECTION_DEFINITIONS.map((definition) => ({
     ...definition,
-    items: visible.filter((item) => sectionKeyOf(item) === definition.key),
+    items: visible.filter(
+      (item) => sectionKeyOf(item, outdatedEntryIds) === definition.key,
+    ),
   }));
 }

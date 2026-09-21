@@ -25,25 +25,34 @@ const NEW_DATA_TONE: Record<CatalogNewDataCheck["status"], string> = {
 export function CatalogNewDataButton({
   item,
   buttonClass,
+  scannedCheck,
 }: {
   item: IndexCatalogItem;
   buttonClass: string;
+  /** O que a varredura da abertura da tela já descobriu sobre este índice. */
+  scannedCheck?: CatalogNewDataCheck;
 }) {
   const [checking, setChecking] = useState(false);
-  const [check, setCheck] = useState<CatalogNewDataCheck | null>(null);
+  const [clickedCheck, setClickedCheck] = useState<CatalogNewDataCheck | null>(
+    null,
+  );
+  // O clique manda sobre a varredura, que pode ter até dez minutos de idade. A
+  // varredura não vira estado inicial porque ela chega depois do primeiro
+  // render, e um `useState` não a veria.
+  const check = clickedCheck ?? scannedCheck ?? null;
   const [error, setError] = useState<string | null>(null);
 
   async function runCheck() {
     setChecking(true);
     setError(null);
     try {
-      setCheck(
+      setClickedCheck(
         await catalogApiRequest<CatalogNewDataCheck>(
           `/api/index-catalog/drafts/${encodeURIComponent(item.entryId)}/new-data`,
         ),
       );
     } catch (reason) {
-      setCheck(null);
+      setClickedCheck(null);
       setError(
         reason instanceof Error
           ? reason.message
