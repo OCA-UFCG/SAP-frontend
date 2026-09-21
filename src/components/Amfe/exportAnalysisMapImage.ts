@@ -157,11 +157,14 @@ const PRIORITY_LABEL_KEYS = [
   "priorityVeryHigh",
 ] as const;
 
-export const downloadAnalysisMapImage = async (
+/**
+ * O PNG da análise já composto com legenda e atribuição. Existe separado do
+ * download porque o relatório precisa da mesma imagem sem salvá-la em disco.
+ */
+export const buildAnalysisMapPng = async (
   options: AnalysisMapImageOptions,
   t: MapImageTranslator,
-  fileName = "mapa.png",
-) => {
+): Promise<string> => {
   const capturedPng = await captureAnalysisMapPng(options);
   if (!capturedPng) {
     throw new Error("Map capture returned no image");
@@ -182,5 +185,13 @@ export const downloadAnalysisMapImage = async (
     throw new Error("Browser denied a 2d canvas context");
   }
 
-  triggerDownload(composed, fileName);
+  return composed;
+};
+
+export const downloadAnalysisMapImage = async (
+  options: AnalysisMapImageOptions,
+  t: MapImageTranslator,
+  fileName = "mapa.png",
+) => {
+  triggerDownload(await buildAnalysisMapPng(options, t), fileName);
 };

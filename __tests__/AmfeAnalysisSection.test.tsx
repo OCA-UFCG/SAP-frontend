@@ -61,6 +61,13 @@ vi.mock("@/components/Amfe/AnalyzeForm/AnalyzeForm", () => ({
   ),
 }));
 
+// O catálogo de critérios não é o assunto desta suíte; sem este mock o menu
+// de download chamaria /api/amfe/criterias de verdade e cairia no mesmo stub
+// de fetch usado para a análise, que devolve um payload de forma diferente.
+vi.mock("@/components/Amfe/useCriterias", () => ({
+  default: () => ({ criterias: [], loading: false, error: null }),
+}));
+
 import { AmfeAnalysisProvider } from "@/components/Amfe/AmfeAnalysisContext";
 import { AmfeAnalysisFormColumn } from "@/components/Amfe/AmfeAnalysisFormColumn";
 import { PlatformMap } from "@/components/PlatformMap/PlatformMap";

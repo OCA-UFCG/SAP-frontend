@@ -136,6 +136,7 @@ export function useAmfeAnalysisState() {
     formPayload,
     setFormPayload,
     cities,
+    excludedCities,
     coverage,
     loading,
     error,
