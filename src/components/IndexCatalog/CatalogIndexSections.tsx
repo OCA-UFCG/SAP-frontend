@@ -1,6 +1,7 @@
 "use client";
 
 import { useMemo, useState } from "react";
+import { CatalogNewDataButton } from "@/components/IndexCatalog/CatalogNewDataButton";
 import {
   splitCatalogItemsIntoSections,
   type CatalogSectionKey,
@@ -105,6 +106,7 @@ function CatalogIndexCard({
           >
             Abrir e editar
           </button>
+          <CatalogNewDataButton item={item} buttonClass={buttonClass} />
           {item.published && (
             <button
               type="button"

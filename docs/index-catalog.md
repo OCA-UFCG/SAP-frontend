@@ -390,6 +390,36 @@ sucesso, e a tela reconsulta a lista para confirmar que o índice está publicad
 Uma publicação que não se registra vira erro, não mensagem de sucesso: sem essa
 checagem o índice ficava fora do Monitoramento sem nenhum sinal no catálogo.
 
+### Verificar novos dados
+
+`GET /api/index-catalog/drafts/[entryId]/new-data` responde se a pasta do Earth
+Engine tem dado que o índice ainda não tem, e é o que o botão **Verificar novos
+dados** do cartão chama. A verificação é de leitura: não escreve na entry, não
+recalcula o `sourceRevision` e não passa pelo `Idempotency-Key`.
+
+Ela compara duas coisas com a última validação bem-sucedida gravada em
+`catalogConfig.validation`:
+
+- **Período novo** — a listagem do diretório-pai do template (`listAssets`, a
+  mesma de `getStatisticsAssetIds`) traz os assets irmãos, e `periodFromAssetId`
+  lê o período do próprio nome de cada um. O que não está em
+  `validation.inferred.periods` é período novo.
+- **Asset reescrito** — qualquer asset coberto cujo carimbo de revisão
+  (`updateTime`, ou `version` em microssegundos quando o `updateTime` não vem)
+  seja posterior a `validation.validatedAt`. É o único sinal possível num asset
+  `fixed`, em que o período não está no nome e um período novo é uma linha nova.
+
+Custa uma chamada ao Earth Engine, contra as dezenas de leituras de tabela de
+"Validar assets e gerar prévia": ela responde **se** vale revalidar, e não
+substitui a revalidação. Incorporar o dado continua sendo abrir o índice,
+validar e republicar.
+
+As respostas possíveis são `new-data`, `up-to-date`, `never-validated` (não há
+validação para comparar) e `not-applicable` — esta última para os índices cuja
+fonte não tem asset do Earth Engine, como `municipal-spreadsheet` e
+`amfe-sheet-column`. Um legado adotado no escopo de apresentação não tem o
+botão, porque a origem dos dados dele não é uma pasta do Earth Engine.
+
 ### Imagem de prévia do mapa
 
 O cartão do índice no Monitoramento é o campo `previewMap` do `panelLayer` —

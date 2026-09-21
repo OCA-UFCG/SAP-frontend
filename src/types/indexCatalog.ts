@@ -307,6 +307,25 @@ export interface IndexCatalogItem {
   catalogConfig?: IndexCatalogConfig;
 }
 
+/**
+ * O que o botão "Verificar novos dados" descobriu ao comparar a pasta do Earth
+ * Engine com a última validação do índice.
+ *
+ * `new-data` é a única resposta que pede ação: ou a pasta ganhou períodos que o
+ * índice não tem, ou um asset de período já conhecido foi reescrito depois da
+ * validação.
+ */
+export interface CatalogNewDataCheck {
+  checkedAt: string;
+  status: "up-to-date" | "new-data" | "not-applicable" | "never-validated";
+  /** Frase pronta para a tela, já com períodos e assets citados. */
+  message: string;
+  /** Os períodos que a validação atual do índice cobre. */
+  knownPeriods: string[];
+  newPeriods: string[];
+  updatedAssets: Array<{ assetId: string; updateTime: string }>;
+}
+
 export interface IndexCatalogLifecycleImpact {
   item: IndexCatalogItem;
   linkedEntries: [];
