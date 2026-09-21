@@ -1,12 +1,13 @@
 "use client";
 
-import { parseMunicipalSpreadsheetSnapshot } from "@/contracts/municipalSpreadsheetSnapshot";
-import { isMunicipalSpreadsheetSource } from "@/contracts/municipalSpreadsheet";
 import type { MunicipalityOverviewGeoJson } from "@/components/Map/classificationLayers";
 import { CITIES_OVERVIEW_URL } from "@/components/Amfe/useCitiesOverview";
-import type { IndexCatalogPreview } from "@/types/indexCatalog";
-import { isCompactImageData } from "@/utils/imageData";
-import { classifyValueByThresholds } from "@/utils/valueThresholds";
+import {
+  fetchMunicipalValues,
+  resolveChoroplethConfig,
+  toClassByCode,
+  type ChoroplethLayerSource,
+} from "@/components/PlatformMap/useIndexChoroplethValues";
 
 export interface CatalogChoroplethPreview {
   palette: string[];
@@ -14,41 +15,25 @@ export interface CatalogChoroplethPreview {
   overviewGeoJson: MunicipalityOverviewGeoJson;
 }
 
-interface ChoroplethPreviewSource {
-  imageData: IndexCatalogPreview["panelLayer"]["imageData"];
-  statisticsSource?: IndexCatalogPreview["panelLayer"]["statisticsSource"];
-}
-
-/**
- * O endereço do instantâneo de um índice de planilha em rascunho, ou `null`
- * quando o mapa do índice vem do Earth Engine.
- *
- * O arquivo é gravado já na validação, então a prévia lê exatamente o que a
- * plataforma vai servir depois de publicado.
- */
-export function resolveChoroplethSnapshotUrl(
-  source: ChoroplethPreviewSource,
-): string | null {
-  const statisticsSource = source.statisticsSource;
-  if (!isMunicipalSpreadsheetSource(statisticsSource)) return null;
-  if (!isCompactImageData(source.imageData)) return null;
-  if (source.imageData.mapVisualization?.sourceType !== "municipalChoropleth") {
-    return null;
-  }
-  return statisticsSource.snapshot?.url ?? null;
-}
-
-async function fetchJson<T>(url: string, signal?: AbortSignal): Promise<T> {
-  const response = await fetch(url, { signal });
+async function fetchOverviewGeoJson(signal?: AbortSignal) {
+  const response = await fetch(CITIES_OVERVIEW_URL, { signal });
   if (!response.ok) {
-    throw new Error(`A leitura de ${url} respondeu ${response.status}.`);
+    throw new Error(
+      `A leitura de ${CITIES_OVERVIEW_URL} respondeu ${response.status}.`,
+    );
   }
-  return (await response.json()) as T;
+  return (await response.json()) as MunicipalityOverviewGeoJson;
 }
 
 /**
  * Os dados que a captura da imagem de prévia precisa para desenhar a coropleta
  * de um índice de planilha.
+ *
+ * Os valores vêm da mesma rota que a prévia do Monitoramento usa — a do
+ * rascunho, quando o índice ainda não foi publicado — e não do asset de
+ * instantâneo: esse asset só é gravado na publicação, então um índice de
+ * planilha novo não tem nenhum, e a captura caía na rota de tiles do Earth
+ * Engine, que ele também não tem.
  *
  * A imagem do cartão enquadra o Brasil inteiro, abaixo do zoom em que existem
  * tiles de município: é por isso que o GeoJSON de visão geral entra aqui e não
@@ -58,39 +43,21 @@ async function fetchJson<T>(url: string, signal?: AbortSignal): Promise<T> {
  * const preview = await loadCatalogChoroplethPreview(source, "2023");
  */
 export async function loadCatalogChoroplethPreview(
-  source: ChoroplethPreviewSource,
+  source: ChoroplethLayerSource,
   period: string,
   signal?: AbortSignal,
 ): Promise<CatalogChoroplethPreview | null> {
-  const snapshotUrl = resolveChoroplethSnapshotUrl(source);
-  if (!snapshotUrl || !isCompactImageData(source.imageData)) return null;
+  const config = resolveChoroplethConfig(source);
+  if (!config || !period) return null;
 
-  const mapVisualization = source.imageData.mapVisualization;
-  const thresholds = mapVisualization?.thresholds ?? [];
-  const [snapshot, overviewGeoJson] = await Promise.all([
-    fetchJson<unknown>(snapshotUrl, signal).then(
-      parseMunicipalSpreadsheetSnapshot,
-    ),
-    fetchJson<MunicipalityOverviewGeoJson>(CITIES_OVERVIEW_URL, signal),
+  const [values, overviewGeoJson] = await Promise.all([
+    fetchMunicipalValues(config.valuesUrl, period, signal),
+    fetchOverviewGeoJson(signal),
   ]);
 
-  const position = snapshot.periods.indexOf(period);
-  const classByCode: Record<string, number> = {};
-  for (const [locationKey, values] of Object.entries(snapshot.values)) {
-    const value = position < 0 ? null : values[position];
-    if (
-      !/^\d{7}$/u.test(locationKey) ||
-      value === null ||
-      value === undefined
-    ) {
-      continue;
-    }
-    classByCode[locationKey] = classifyValueByThresholds(value, thresholds, 0);
-  }
-
   return {
-    palette: mapVisualization?.palette ?? [],
-    classByCode,
+    palette: config.palette,
+    classByCode: toClassByCode(values, config.thresholds),
     overviewGeoJson,
   };
 }

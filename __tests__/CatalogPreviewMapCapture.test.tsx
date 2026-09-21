@@ -46,11 +46,20 @@ vi.mock("@/components/Map/mapDefinitions", () => ({
 
 vi.mock("@/services/mapServices", () => ({ fetchMapURL: vi.fn() }));
 
+vi.mock("@/components/Map/indexChoroplethLayers", () => ({
+  ensureIndexChoroplethLayers: vi.fn(),
+  applyIndexChoroplethStates: vi.fn(),
+}));
+
 import {
   CatalogPreviewMapCapture,
   resolvePreviewMapPeriod,
 } from "@/components/IndexCatalog/CatalogPreviewMapCapture";
 import { ensureMapLayers } from "@/components/Map/mapDefinitions";
+import {
+  applyIndexChoroplethStates,
+  ensureIndexChoroplethLayers,
+} from "@/components/Map/indexChoroplethLayers";
 import { fetchMapURL } from "@/services/mapServices";
 import type { IndexCatalogPreview } from "@/types/indexCatalog";
 
@@ -176,6 +185,58 @@ describe("CatalogPreviewMapCapture", () => {
     await screen.findByText(
       "Imagem guardada. Ela será publicada junto com o índice.",
     );
+  });
+
+  // Regressão: um índice de planilha ainda não publicado não tem asset de
+  // instantâneo, e a captura pedia tiles ao Earth Engine — que ele nunca tem —
+  // em vez de desenhar a coropleta pela rota do rascunho.
+  it("draws the choropleth of a spreadsheet index that has no snapshot asset", async () => {
+    const fetchMock = vi.fn(async (input: RequestInfo | URL) => {
+      const url = String(input);
+      if (url.startsWith("/data/brazil-cities-overview.json")) {
+        return Response.json({ type: "FeatureCollection", features: [] });
+      }
+      if (url.includes("/municipal-analysis/choropleth")) {
+        return Response.json({ year: "2025", values: { "2504009": 42 } });
+      }
+      return Response.json({
+        url: "https://images/previa.png",
+        requiresRepublish: false,
+      });
+    });
+    vi.stubGlobal("fetch", fetchMock);
+
+    render(
+      <CatalogPreviewMapCapture
+        preview={{
+          ...captureSource,
+          panelLayer: {
+            ...captureSource.panelLayer,
+            imageData: {
+              ...captureSource.panelLayer.imageData,
+              mapVisualization: {
+                sourceType: "municipalChoropleth",
+                palette: ["#D9ED92", "#184E77"],
+                thresholds: [50],
+              },
+            },
+          },
+        }}
+      />,
+    );
+
+    await waitFor(() => expect(mapInstances).toHaveLength(1));
+    expect(fetchMock).toHaveBeenCalledWith(
+      "/api/index-catalog/drafts/entry-1/municipal-analysis/choropleth?year=2025",
+      expect.anything(),
+    );
+    expect(fetchMapURL).not.toHaveBeenCalled();
+
+    emit(0, "load");
+    expect(ensureIndexChoroplethLayers).toHaveBeenCalled();
+    expect(applyIndexChoroplethStates).toHaveBeenCalledWith(expect.anything(), {
+      "2504009": 0,
+    });
   });
 
   it("reports a capture the browser could not produce", async () => {
