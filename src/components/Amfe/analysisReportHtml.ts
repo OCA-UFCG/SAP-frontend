@@ -5,7 +5,7 @@ import type {
 } from "./analysisReportModel";
 
 /**
- * Nomes de município e campos faltantes vêm do backend e entram no meio de
+ * Nomes de município vêm do backend e entram no meio de
  * HTML. Sem isto, um nome com `<` quebra o documento.
  */
 const escapeHtml = (value: string) =>
@@ -132,12 +132,7 @@ export const renderAnalysisReportHtml = (
     .join("");
 
   const excluded = model.excluded.shown
-    .map(
-      (city) =>
-        `<li>${escapeHtml(city.name)} &mdash; ${escapeHtml(
-          t("reportMissingFields"),
-        )}: <em>${escapeHtml(city.missingFields.join(", "))}</em></li>`,
-    )
+    .map((city) => `<li>${escapeHtml(city.name)}</li>`)
     .join("");
 
   const coverage = model.coverage

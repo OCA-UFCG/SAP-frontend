@@ -153,7 +153,6 @@ export interface ReportCity {
 
 export interface ReportExcludedCity {
   name: string;
-  missingFields: string[];
 }
 
 export interface CappedList<T> {
@@ -253,10 +252,7 @@ const buildTopPriority = (cities: Cities): ReportCity[] =>
 
 const buildExcluded = (excludedCities: ExcludedCities): ReportExcludedCity[] =>
   Object.values(excludedCities)
-    .map((city) => ({
-      name: city.name ?? "",
-      missingFields: city.missing_fields ?? [],
-    }))
+    .map((city) => ({ name: city.name ?? "" }))
     .sort(byName);
 
 /**

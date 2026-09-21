@@ -126,16 +126,13 @@ describe("buildAnalysisReportModel", () => {
     expect(topPriority.remaining).toBe(0);
   });
 
-  it("guarda os excluídos com os campos que faltaram", () => {
+  it("guarda os excluídos apenas pelo nome", () => {
     const { excluded } = model(citiesAtLevel(4, 1), {
       "2504108": { name: "Cajazeiras", missing_fields: ["ips", "ivcm"] },
     });
 
     expect(excluded.total).toBe(1);
-    expect(excluded.shown[0]).toEqual({
-      name: "Cajazeiras",
-      missingFields: ["ips", "ivcm"],
-    });
+    expect(excluded.shown[0]).toEqual({ name: "Cajazeiras" });
   });
 
   it("traduz a área de interesse e o nível do ranking por extenso", () => {
@@ -144,14 +141,12 @@ describe("buildAnalysisReportModel", () => {
     expect(scope).toEqual({ area: "scopeState", value: "PB", level: "scopeState" });
   });
 
-  it("não quebra quando o excluído chega sem missing_fields", () => {
+  it("não quebra quando o excluído chega sem nome", () => {
     const { excluded } = model(citiesAtLevel(4, 1), {
-      "2504108": {
-        name: "Cajazeiras",
-      } as unknown as ExcludedCities[string],
+      "2504108": {} as unknown as ExcludedCities[string],
     });
 
-    expect(excluded.shown[0].missingFields).toEqual([]);
+    expect(excluded.shown[0]).toEqual({ name: "" });
   });
 
   it("traduz a cobertura vinda do backend", () => {

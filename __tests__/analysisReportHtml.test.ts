@@ -65,14 +65,14 @@ describe("renderAnalysisReportHtml", () => {
     expect(html).toContain("reportScope:scopeState|PB|scopeState");
   });
 
-  it("rotula os campos faltantes do excluído e escapa o nome", () => {
+  it("lista o excluído só pelo nome e escapa o nome", () => {
     const html = render(
       { "1": { name: "Areia", UF: "PB", classification: 4 } },
       { "2": { name: "Foo <b>bar</b>", missing_fields: ["ips", "ivcm"] } },
     );
 
-    expect(html).toContain("reportMissingFields");
-    expect(html).toContain("ips, ivcm");
+    expect(html).not.toContain("reportMissingFields");
+    expect(html).not.toContain("ips, ivcm");
     expect(html).toContain("Foo &lt;b&gt;bar&lt;/b&gt;");
     expect(html).not.toContain("<b>bar</b>");
   });

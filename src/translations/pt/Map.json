@@ -51,7 +51,6 @@
     "reportShareColumn": "Participação",
     "reportTopPriority": "Prioridade muito alta",
     "reportExcluded": "Municípios excluídos",
-    "reportMissingFields": "Campos faltantes",
     "reportAndMore": "{count, plural, one {E mais # município.} other {E mais # municípios.}}",
     "reportSeeWorkbook": "A lista completa está na planilha da análise.",
     "reportAttribution": "© OpenStreetMap contributors",

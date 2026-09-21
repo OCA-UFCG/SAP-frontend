@@ -51,7 +51,6 @@
     "reportShareColumn": "Share",
     "reportTopPriority": "Very high priority",
     "reportExcluded": "Excluded municipalities",
-    "reportMissingFields": "Missing fields",
     "reportAndMore": "{count, plural, one {And # more municipality.} other {And # more municipalities.}}",
     "reportSeeWorkbook": "The full list is in the analysis spreadsheet.",
     "reportAttribution": "© OpenStreetMap contributors",
