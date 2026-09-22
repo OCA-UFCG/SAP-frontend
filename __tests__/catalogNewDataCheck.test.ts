@@ -105,6 +105,44 @@ describe("checkCatalogNewData", () => {
     expect(check.knownPeriods).toEqual(["2024", "2025"]);
   });
 
+  // Regressão: o Monitor de Secas da ANA guarda um asset por ano mas é mensal,
+  // e a comparação de texto entre "2026" (nome do asset) e "2026-08" (período
+  // validado) marcava os três anos da pasta como novos a cada verificação,
+  // mesmo recém-validado e republicado.
+  it("não inventa período novo num índice mensal com um asset por ano", async () => {
+    mocks.getCatalogEntry.mockResolvedValue(
+      catalogEntry({
+        statisticsSource: {
+          kind: "gee-feature-collection",
+          asset: { type: "period-template", assetIdTemplate: TEMPLATE },
+          periodGranularity: "month",
+        },
+        validation: {
+          validatedAt: VALIDATED_AT,
+          valid: true,
+          errors: [],
+          warnings: [],
+          inferred: {
+            panelLayerId: "indice_teste",
+            periods: ["2024-11", "2024-12", "2025-01"],
+            classIndexes: [1, 2],
+            statisticsAssetCount: 2,
+          },
+          sourceFingerprint: "abc",
+        },
+      }),
+    );
+    mocks.getStatisticsAssetIds.mockResolvedValue([
+      listedAsset("2024", "2025-01-01T00:00:00.000Z"),
+      listedAsset("2025", "2026-01-01T00:00:00.000Z"),
+      listedAsset("2026", "2026-01-01T00:00:00.000Z"),
+    ]);
+
+    const check = await checkCatalogNewData("entry-1");
+
+    expect(check.newPeriods).toEqual(["2026"]);
+  });
+
   it("aponta o asset reescrito depois da validação", async () => {
     mocks.getStatisticsAssetIds.mockResolvedValue([
       listedAsset("2024", "2025-01-01T00:00:00.000Z"),

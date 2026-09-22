@@ -78,6 +78,25 @@ function foundPeriods(
   );
 }
 
+/**
+ * Se o período lido do nome do asset já está coberto pelo que o índice validou.
+ *
+ * O nome do asset e a validação nem sempre falam na mesma granularidade: o
+ * Monitor de Secas da ANA guarda um arquivo por ano
+ * (`..._MonitorANA_{year}`) mas é mensal, então a validação inferiu
+ * `2026-01`…`2026-08` e a pasta oferece `2026`. Comparar os dois como texto
+ * marcava todo ano como novo para sempre, mesmo logo depois de validar e
+ * republicar. Um ano só é novo quando nenhum período conhecido cai dentro dele.
+ *
+ * covers("2026", ["2026-01"]); // true
+ * covers("2027", ["2026-01"]); // false
+ */
+function covers(period: string, knownPeriods: string[]) {
+  if (knownPeriods.includes(period)) return true;
+  if (!/^\d{4}$/u.test(period)) return false;
+  return knownPeriods.some((known) => known.startsWith(`${period}-`));
+}
+
 function describe(
   newPeriods: string[],
   updatedAssets: CatalogNewDataCheck["updatedAssets"],
@@ -143,7 +162,7 @@ export async function checkCatalogNewData(
   const candidates = await getStatisticsAssetIds(asset);
   const knownPeriods = validation.inferred.periods;
   const newPeriods = foundPeriods(asset, candidates)
-    .filter((period) => !knownPeriods.includes(period))
+    .filter((period) => !covers(period, knownPeriods))
     .sort();
   const updatedAssets = candidates.flatMap((candidate) => {
     const revisedAt = assetRevisionTime(candidate);
