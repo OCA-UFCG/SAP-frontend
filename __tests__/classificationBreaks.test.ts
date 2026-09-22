@@ -122,6 +122,33 @@ describe("computeClassBreaks", () => {
     ).toThrow(/três faixas/u);
   });
 
+  // Regressão: um intervalo pequeno demais para a amplitude do asset montava
+  // uma faixa por passo — um milhão delas num raster de 0 a 1.000.000 com
+  // intervalo 1 —, e o cálculo roda a cada tecla digitada no campo de largura.
+  it("recusa um intervalo que geraria mais faixas que a legenda aceita", () => {
+    const wide = sampleOf(
+      Array.from({ length: 200 }, (_value, index) => index * 5000),
+    );
+    const start = Date.now();
+    expect(() =>
+      computeClassBreaks(wide, {
+        method: "definedInterval",
+        classCount: 4,
+        intervalSize: 1,
+      }),
+    ).toThrow(/máximo de 24/u);
+    expect(Date.now() - start).toBeLessThan(500);
+  });
+
+  it("aceita o intervalo que chega exatamente ao máximo de faixas", () => {
+    const { classCount } = computeClassBreaks(zeroToHundred(), {
+      method: "definedInterval",
+      classCount: 4,
+      intervalSize: 100 / 24,
+    });
+    expect(classCount).toBe(24);
+  });
+
   it("usa a média como limite no desvio padrão", () => {
     const sample = sampleOf([0, 10, 20, 30, 40]);
     const { thresholds } = computeClassBreaks(sample, {

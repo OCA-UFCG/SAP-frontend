@@ -119,10 +119,26 @@ function assertSeparableBreaks(
   );
 }
 
+/**
+ * O máximo de faixas que uma legenda aceita.
+ *
+ * Vale tanto para quem escolhe a quantidade quanto para `definedInterval`, em
+ * que ela sai da largura informada: uma largura pequena demais para a amplitude
+ * do asset produzia centenas de milhares de limites, calculados a cada tecla
+ * digitada no campo. Ninguém publica uma legenda assim — é sempre um zero a
+ * mais ou a vírgula no lugar errado —, e sem o teto a aba travava antes de a
+ * pessoa terminar de digitar o número que queria.
+ */
+const MAX_CLASS_COUNT = 24;
+
 function requireClassCount({ classCount, method }: ClassBreaksRequest) {
-  if (!Number.isInteger(classCount) || classCount < 2 || classCount > 24) {
+  if (
+    !Number.isInteger(classCount) ||
+    classCount < 2 ||
+    classCount > MAX_CLASS_COUNT
+  ) {
     throw new Error(
-      `Quantidade de faixas inválida para ${method}: ${classCount}. Informe um inteiro entre 2 e 24.`,
+      `Quantidade de faixas inválida para ${method}: ${classCount}. Informe um inteiro entre 2 e ${MAX_CLASS_COUNT}.`,
     );
   }
   return classCount;
@@ -189,6 +205,7 @@ function definedIntervalBreaks(
     );
   }
   const step = intervalSize as number;
+  assertIntervalFitsLegend(sample, step);
   const breaks: number[] = [];
   for (let edge = sample.min + step; edge < sample.max; edge += step) {
     breaks.push(edge);
@@ -199,6 +216,24 @@ function definedIntervalBreaks(
     );
   }
   return breaks;
+}
+
+/**
+ * Recusa uma largura de faixa pequena demais **antes** de montar os limites.
+ *
+ * A contagem é feita pela conta, e não pelo laço, porque o laço é justamente o
+ * problema: uma largura de 1 num raster que vai de 0 a 1.000.000 montava um
+ * milhão de limites em dois segundos, arredondava cada um deles e desenhava a
+ * lista inteira na tela — a cada tecla, já que quem quer digitar "1000" digita
+ * "1" primeiro.
+ */
+function assertIntervalFitsLegend(sample: ClassificationSample, step: number) {
+  const amplitude = sample.max - sample.min;
+  const wouldBeClasses = Math.ceil(amplitude / step);
+  if (wouldBeClasses <= MAX_CLASS_COUNT) return;
+  throw new Error(
+    `Um intervalo de ${formatNumber(step)} gera ${formatNumber(wouldBeClasses)} faixas entre ${sample.min} e ${sample.max}, acima do máximo de ${MAX_CLASS_COUNT}. Use um intervalo de pelo menos ${formatNumber(amplitude / MAX_CLASS_COUNT)}.`,
+  );
 }
 
 /**
