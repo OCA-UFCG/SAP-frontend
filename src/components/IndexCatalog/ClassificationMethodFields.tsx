@@ -66,7 +66,16 @@ export function ClassificationMethodFields({
   const [loading, setLoading] = useState(false);
   const [loadError, setLoadError] = useState<string | null>(null);
   const [method, setMethod] = useState<ClassificationMethodId>("manual");
-  const [requestedClassCount, setRequestedClassCount] = useState(classCount);
+  /**
+   * A quantidade de faixas é derivada, e não copiada para o estado no primeiro
+   * render: quando o bloco monta, a validação ainda não rodou e `classCount` é
+   * zero. Guardar esse zero deixava o campo travado em "0" depois que as
+   * classes apareciam, e todo método recusava o cálculo.
+   */
+  const [chosenClassCount, setChosenClassCount] = useState<number | null>(null);
+  const requestedClassCount = canChangeClassCount
+    ? (chosenClassCount ?? classCount)
+    : classCount;
   const [intervalSize, setIntervalSize] = useState("");
   const [deviationInterval, setDeviationInterval] = useState(1);
 
@@ -191,7 +200,7 @@ export function ClassificationMethodFields({
                   value={requestedClassCount}
                   disabled={!canChangeClassCount}
                   onChange={(event) =>
-                    setRequestedClassCount(Number(event.target.value))
+                    setChosenClassCount(Number(event.target.value))
                   }
                 />
                 <span className="mt-1 block text-xs font-normal text-stone-500">

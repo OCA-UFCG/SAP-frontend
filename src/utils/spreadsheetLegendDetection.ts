@@ -2,6 +2,8 @@ import type {
   ClassMapping,
   MunicipalValueIndicator,
 } from "@/types/indexCatalog";
+import { computeClassBreaks } from "@/utils/classificationBreaks";
+import { buildClassificationSample } from "@/utils/classificationSample";
 import { formatMunicipalReportValue } from "@/utils/municipalReportValue";
 import { buildSequentialColorRamp } from "@/utils/sequentialColorRamp";
 
@@ -17,62 +19,8 @@ export interface DetectedValueLegend {
   method: DetectedLegendMethod;
   /** Municípios com valor no período; os sem dado não entram no cálculo. */
   sampleCount: number;
-  /** Menor que o pedido quando os valores não separam tantas faixas. */
+  /** Menor que o pedido quando a planilha tem menos valores distintos. */
   rangeCount: number;
-}
-
-/** Três dígitos significativos: o bastante para separar 1.050 de 1.040. */
-const READABLE_SIGNIFICANT_DIGITS = 3;
-
-/**
- * Arredonda um limite para um número que alguém leria em voz alta.
- *
- * Um quantil cru sai como 1.046,3178 e vira rótulo de legenda. O
- * arredondamento é pela ordem de grandeza do próprio limite, e não pela do
- * intervalo inteiro: num indicador municipal torto o maior valor é milhares de
- * vezes o mediano, e arredondar os quatro limites pela escala do maior deles
- * colapsaria os três primeiros em zero.
- */
-function roundToReadableBreak(value: number) {
-  if (!Number.isFinite(value) || value === 0) return value;
-  const magnitude = Math.floor(Math.log10(Math.abs(value)));
-  const unit = 10 ** (magnitude - (READABLE_SIGNIFICANT_DIGITS - 1));
-  return Number((Math.round(value / unit) * unit).toPrecision(15));
-}
-
-/**
- * Os limites que deixam mais ou menos o mesmo número de municípios em cada
- * faixa.
- *
- * É o corte que funciona nos dados territoriais brasileiros: quase todo
- * indicador municipal é torto — poucos municípios enormes e milhares
- * pequenos —, e dividir o intervalo em partes iguais joga 95% do país na
- * primeira cor.
- */
-function quantileBreaks(sorted: readonly number[], rangeCount: number) {
-  return Array.from({ length: rangeCount - 1 }, (_entry, position) => {
-    const rank = Math.floor(((position + 1) * sorted.length) / rangeCount);
-    return sorted[Math.min(rank, sorted.length - 1)];
-  });
-}
-
-/** O corte de reserva, para quando os quantis colapsam em valores repetidos. */
-function intervalBreaks(minimum: number, maximum: number, rangeCount: number) {
-  const step = (maximum - minimum) / rangeCount;
-  return Array.from(
-    { length: rangeCount - 1 },
-    (_entry, position) => minimum + step * (position + 1),
-  );
-}
-
-/**
- * Limites estritamente crescentes: dois iguais pintariam uma faixa que nenhum
- * município pode ocupar, e a legenda mostraria uma cor que não existe no mapa.
- */
-function keepIncreasing(breaks: readonly number[]) {
-  return breaks.filter(
-    (value, position) => position === 0 || value > breaks[position - 1],
-  );
 }
 
 function buildRangeLabels(
@@ -98,7 +46,15 @@ function buildRangeLabels(
   ];
 }
 
-function buildRanges(
+/**
+ * As faixas com rótulo e cor para uma lista de limites.
+ *
+ * Exportada porque o bloco de métodos de classificação do catálogo aplica os
+ * limites que calculou pelos mesmos rótulos e pela mesma rampa de cor: os dois
+ * caminhos preenchem a mesma legenda, e duas convenções de rótulo deixariam o
+ * índice com "menos de 6" numa faixa e "0 a 6" na outra.
+ */
+export function buildValueLegendRanges(
   thresholds: readonly number[],
   indicator: MunicipalValueIndicator,
 ): ClassMapping[] {
@@ -141,18 +97,26 @@ export function detectValueLegend(
   }
 
   const rangeCount = Math.min(requestedRangeCount, distinct);
-  const rounded = (breaks: readonly number[]) =>
-    keepIncreasing(breaks.map(roundToReadableBreak));
+  const sample = buildClassificationSample([...sorted]);
+  if (!sample) {
+    throw new Error(
+      `A planilha não trouxe nenhum valor numérico no período lido (${values.length} célula(s)).`,
+    );
+  }
 
-  const byQuantile = rounded(quantileBreaks(sorted, rangeCount));
-  const method: DetectedLegendMethod =
-    byQuantile.length === rangeCount - 1 ? "quantile" : "interval";
+  /**
+   * O quantil é o corte que funciona nos dados territoriais brasileiros: quase
+   * todo indicador municipal é torto — poucos municípios enormes e milhares
+   * pequenos —, e dividir o intervalo em partes iguais joga 95% do país na
+   * primeira cor. Ele só é recusado quando os valores empatam demais para
+   * separar tantas faixas, e aí o intervalo igual é a reserva.
+   */
+  const byQuantile = tryBreaks(sample, "quantile", rangeCount);
+  const method: DetectedLegendMethod = byQuantile ? "quantile" : "interval";
   const thresholds =
-    method === "quantile"
-      ? byQuantile
-      : rounded(intervalBreaks(sorted[0], sorted.at(-1) as number, rangeCount));
+    byQuantile ?? tryBreaks(sample, "equalInterval", rangeCount);
 
-  if (thresholds.length === 0) {
+  if (!thresholds) {
     throw new Error(
       `Os valores do período lido estão concentrados demais para virar faixas (${sorted[0]} a ${sorted.at(-1)}): escreva os limites à mão.`,
     );
@@ -160,9 +124,27 @@ export function detectValueLegend(
 
   return {
     thresholds,
-    ranges: buildRanges(thresholds, indicator),
+    ranges: buildValueLegendRanges(thresholds, indicator),
     method,
     sampleCount: sorted.length,
     rangeCount: thresholds.length + 1,
   };
+}
+
+/**
+ * Os limites de um método, ou `null` quando ele não consegue separar tantas
+ * faixas neste dado. A detecção escolhe o corte pela tentativa, então a recusa
+ * do método é um resultado esperado e não um erro a propagar.
+ */
+function tryBreaks(
+  sample: NonNullable<ReturnType<typeof buildClassificationSample>>,
+  method: "quantile" | "equalInterval",
+  rangeCount: number,
+) {
+  try {
+    return computeClassBreaks(sample, { method, classCount: rangeCount })
+      .thresholds;
+  } catch {
+    return null;
+  }
 }

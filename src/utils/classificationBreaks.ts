@@ -1,4 +1,9 @@
 import type { ClassificationSample } from "@/utils/classificationSample";
+import {
+  isStrictlyIncreasing,
+  READABLE_SIGNIFICANT_DIGITS,
+  roundToReadableBreak,
+} from "@/utils/readableBreaks";
 import { findNaturalBreaks } from "@/utils/naturalBreaks";
 
 /**
@@ -59,7 +64,7 @@ export function computeClassBreaks(
 ): ClassBreaksResult {
   assertUsableSample(sample);
   const raw = computeRawBreaks(sample, request);
-  const thresholds = roundBreaks(raw, sample);
+  const thresholds = roundBreaks(raw);
   assertSeparableBreaks(thresholds, request);
   return { thresholds, classCount: thresholds.length + 1 };
 }
@@ -234,31 +239,21 @@ function rangeOfBreaks(classCount: number) {
 }
 
 /**
- * Arredonda os limites para um número de casas que o operador consiga escrever
- * na legenda, sem colar dois limites no mesmo valor.
+ * Arredonda os limites para números que caibam num rótulo de legenda, sem colar
+ * dois limites no mesmo valor.
  *
  * Um limite de `23,847291953` vira uma linha de legenda ilegível, mas arredondar
- * cedo demais transforma dois limites vizinhos num só e a validação do catálogo
+ * demais transforma dois limites vizinhos num só e a validação do catálogo
  * recusa a gravação ("Informe exatamente N limites"). Por isso a precisão sobe
- * até os limites voltarem a ser estritamente crescentes, e o valor cru é
- * devolvido quando nem seis casas resolvem.
+ * de três dígitos significativos em diante até os limites voltarem a ser
+ * estritamente crescentes, e o valor cru é devolvido quando nem doze resolvem.
  */
-function roundBreaks(breaks: number[], sample: ClassificationSample) {
-  const magnitude = Math.log10((sample.max - sample.min) / breaks.length || 1);
-  const start = Math.min(6, Math.max(0, 2 - Math.floor(magnitude)));
-  for (let decimals = start; decimals <= 6; decimals += 1) {
-    const rounded = breaks.map(
-      (edge) => Math.round(edge * 10 ** decimals) / 10 ** decimals,
-    );
+function roundBreaks(breaks: number[]) {
+  for (let digits = READABLE_SIGNIFICANT_DIGITS; digits <= 12; digits += 1) {
+    const rounded = breaks.map((edge) => roundToReadableBreak(edge, digits));
     if (isStrictlyIncreasing(rounded)) return rounded;
   }
   return breaks;
-}
-
-function isStrictlyIncreasing(values: number[]) {
-  return values.every(
-    (value, index) => index === 0 || value > values[index - 1],
-  );
 }
 
 function formatNumber(value: number) {

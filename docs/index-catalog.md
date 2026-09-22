@@ -782,8 +782,12 @@ cada tentativa seria uma ida ao Earth Engine.
   redução sobre a imagem toda, que é justamente o tipo de chamada que o cache do
   `/api/ee` existe para evitar.
 
-Um índice classificatório cujo raster já guarda o número da classe em cada pixel
-não tem limites a calcular, e a rota responde 404 dizendo isso.
+Quando o mapa vem de uma FeatureCollection sem tabela de valor por município
+não há distribuição a ler, e a rota responde 404 dizendo isso. Num raster a
+amostra é sempre entregue: o catálogo não tem como saber se o dado é contínuo
+antes de o operador dizer, e é justamente ao definir os primeiros limites que a
+leitura serve. Um raster já classificado se reconhece pelo resumo — "menor 0,
+maior 5" são números de classe, não de medida.
 
 **A quantidade de faixas é uma restrição, não um detalhe.** `catalogBuild` exige
 exatamente `classes.length - 1` limites. Num índice de valor único as faixas são
@@ -798,6 +802,19 @@ escolhido, e a pessoa só descobriria olhando a legenda publicada.
 **Limites repetidos são recusados.** Num índice em que a maioria dos municípios
 vale zero, o quantil pede dois limites no mesmo zero; a contagem passaria na
 validação e a legenda ganharia uma faixa que nenhum município pode ocupar.
+
+**"Detectar faixas da planilha" é um atalho deste mesmo motor.** O botão que já
+existia equivale a "mesma quantidade de municípios por cor" com cinco faixas, com
+a reserva de cair em "mesma largura" quando os valores empatam demais. Ele
+continua onde estava porque também escreve rótulos e cores; depois desta
+mudança, `detectValueLegend` chama `computeClassBreaks` em vez de ter a sua
+própria conta, e o arredondamento legível (`roundToReadableBreak`, em
+`src/utils/readableBreaks.ts`) passou a ser o de todos os métodos.
+
+**Num índice de valor único, aplicar um método também escreve rótulos e cores.**
+`buildValueLegendRanges` é a mesma função que a detecção usa, para as duas
+entradas não produzirem legendas com convenções diferentes — "menos de 6" numa
+faixa e "0 a 6" na outra.
 
 **O método não é gravado.** O que vai para o Contentful continua sendo a lista
 `mapVisualization.thresholds`, e um limite sugerido pode ser corrigido à mão

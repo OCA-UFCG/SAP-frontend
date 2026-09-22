@@ -43,7 +43,7 @@ export async function GET(
       return noStoreJson(
         {
           error:
-            "Este índice não tem valores contínuos a classificar: o raster já guarda o número da classe em cada pixel.",
+            "Este índice não tem de onde ler valores: o mapa vem de uma FeatureCollection sem tabela de valor por município, então não há distribuição a classificar.",
         },
         404,
       );

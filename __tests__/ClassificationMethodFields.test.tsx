@@ -40,19 +40,21 @@ function renderFields(
   overrides: Partial<Parameters<typeof ClassificationMethodFields>[0]> = {},
 ) {
   const onApply = vi.fn();
-  render(
+  const { classCount: initialClassCount = 4, ...rest } = overrides;
+  const fields = (classCount: number) => (
     <ClassificationMethodFields
       entryId="entry-1"
       periods={["2024", "2023"]}
-      classCount={4}
+      classCount={classCount}
       canChangeClassCount
       inputClass=""
       buttonClass=""
       onApply={onApply}
-      {...overrides}
-    />,
+      {...rest}
+    />
   );
-  return { onApply };
+  const view = render(fields(initialClassCount));
+  return { onApply, rerender: (count: number) => view.rerender(fields(count)) };
 }
 
 async function loadSample() {
@@ -112,6 +114,26 @@ describe("ClassificationMethodFields", () => {
     expect(apply.disabled).toBe(true);
     fireEvent.click(apply);
     expect(onApply).not.toHaveBeenCalled();
+  });
+
+  /**
+   * Regressão: a quantidade de faixas vinha do `classCount` do primeiro render,
+   * em que a validação ainda não rodou e ele é zero. O campo ficava travado em
+   * "0" depois que as classes apareciam, e todo método recusava o cálculo com
+   * "Quantidade de faixas inválida".
+   */
+  it("acompanha a quantidade de classes que aparece depois da validação", async () => {
+    stubSampleRequest();
+    const { rerender, onApply } = renderFields({ classCount: 0 });
+    await loadSample();
+
+    rerender(4);
+    fireEvent.change(screen.getByLabelText(/Método/u), {
+      target: { value: "equalInterval" },
+    });
+    fireEvent.click(screen.getByText("Usar estes limites"));
+
+    expect(onApply).toHaveBeenCalledWith([25, 50, 75], 4);
   });
 
   it("explica o erro do método em vez de sugerir limites inválidos", async () => {

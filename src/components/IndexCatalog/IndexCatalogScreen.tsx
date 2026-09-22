@@ -35,6 +35,7 @@ import {
   parseNumberList,
 } from "@/utils/indexCatalog";
 import { resizeValueRanges } from "@/utils/municipalValueIndicator";
+import { buildValueLegendRanges } from "@/utils/spreadsheetLegendDetection";
 import type { PublishedPanelLayerReportConfig } from "@/contracts/panelLayerReport";
 import {
   createDefaultReportDraft,
@@ -761,9 +762,17 @@ export function IndexCatalogScreen() {
    */
   function applyClassificationBreaks(thresholds: number[], classCount: number) {
     setThresholdsInput(thresholds.join(", "));
-    if (hasValueIndicator && classCount !== draft.classes.length) {
-      updateDraft("classes", resizeValueRanges(draft.classes, classCount));
-    }
+    if (!hasValueIndicator) return;
+    // Num índice de valor único as faixas são da legenda do mapa, então os
+    // limites novos trazem consigo rótulos e cores — pelos mesmos rótulos que
+    // "Detectar faixas da planilha" escreve, para as duas entradas não
+    // produzirem legendas com convenções diferentes.
+    updateDraft(
+      "classes",
+      draft.valueIndicator
+        ? buildValueLegendRanges(thresholds, draft.valueIndicator)
+        : resizeValueRanges(draft.classes, classCount),
+    );
   }
 
   const spreadsheetSource =
