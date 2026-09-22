@@ -7,9 +7,8 @@ import {
   evaluateGeeObject,
   initializeGee,
 } from "@/infrastructure/earth-engine/client";
-import { selectMunicipalSpreadsheetValues } from "@/repositories/platform/municipalSpreadsheetRepository";
-import { getDraftSpreadsheetSnapshot } from "@/services/indexCatalog/draftSpreadsheetSnapshot";
 import { discoverMunicipalValueTable } from "@/services/indexCatalog/municipalValueTableBuild";
+import { readSpreadsheetClassificationSample } from "@/services/indexCatalog/spreadsheetClassificationSample";
 import type {
   DraftClassificationSample,
   IndexCatalogConfigV2,
@@ -52,6 +51,14 @@ export async function readDraftClassificationSample(
   config: IndexCatalogConfigV2,
   period: string,
 ): Promise<DraftClassificationSample | null> {
+  const source = config.validatedStatisticsSource ?? config.statisticsSource;
+  // A planilha tem um leitor próprio, compartilhado com a rota que responde ao
+  // formulário antes de o rascunho existir: os dois caminhos precisam calcular
+  // os limites sobre exatamente a mesma distribuição.
+  if (isMunicipalSpreadsheetSource(source)) {
+    return readSpreadsheetClassificationSample(source, period);
+  }
+
   const values = await readDraftValues(config, period);
   if (!values) return null;
 
@@ -74,12 +81,6 @@ async function readDraftValues(
   period: string,
 ): Promise<DraftValues | null> {
   const source = config.validatedStatisticsSource ?? config.statisticsSource;
-  if (isMunicipalSpreadsheetSource(source)) {
-    return {
-      origin: "spreadsheet",
-      numbers: await readSpreadsheetValues(source, period),
-    };
-  }
   if (isGeeMunicipalValueTableSource(source)) {
     return {
       origin: "municipalValueTable",
@@ -101,14 +102,6 @@ function isContinuousRaster(config: IndexCatalogConfigV2) {
     config.earthEngine.sourceType === "image" ||
     config.earthEngine.sourceType === "imageCollection"
   );
-}
-
-async function readSpreadsheetValues(
-  source: Parameters<typeof getDraftSpreadsheetSnapshot>[0],
-  period: string,
-) {
-  const snapshot = await getDraftSpreadsheetSnapshot(source);
-  return Object.values(selectMunicipalSpreadsheetValues(snapshot, period));
 }
 
 /**

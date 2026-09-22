@@ -58,7 +58,7 @@ function renderFields(
 }
 
 async function loadSample() {
-  fireEvent.click(screen.getByText("Ler os valores do período"));
+  fireEvent.click(screen.getByText("Ler os valores"));
   await waitFor(() => screen.getByLabelText(/Método/u));
 }
 
@@ -134,6 +134,54 @@ describe("ClassificationMethodFields", () => {
     fireEvent.click(screen.getByText("Usar estes limites"));
 
     expect(onApply).toHaveBeenCalledWith([25, 50, 75], 4);
+  });
+
+  /**
+   * Regressão da unificação dos dois caminhos: o botão "Detectar faixas da
+   * planilha" lia a planilha do próprio formulário, sem rascunho salvo e sem
+   * validação. Ao virar este bloco, a leitura por planilha tinha de continuar
+   * possível nesse mesmo momento, ou publicar um índice novo passaria a exigir
+   * um salvamento a mais.
+   */
+  it("lê a planilha do formulário antes de o rascunho existir", async () => {
+    const fetchMock = stubSampleRequest();
+    renderFields({
+      entryId: null,
+      periods: [],
+      classCount: 0,
+      spreadsheetSource: {
+        kind: "municipal-spreadsheet",
+        spreadsheetUrl: "https://docs.google.com/spreadsheets/d/planilha/edit",
+        fileId: "planilha",
+        valuePrefix: "pib",
+        aggregation: "sum",
+      },
+    });
+
+    await loadSample();
+
+    expect(fetchMock.mock.calls[0][0]).toBe(
+      "/api/index-catalog/classification-sample",
+    );
+    expect(
+      JSON.parse(fetchMock.mock.calls[0][1].body as string).source.fileId,
+    ).toBe("planilha");
+    expect(screen.getByText(/em 2024/u)).toBeTruthy();
+  });
+
+  /**
+   * O quantil era o corte fixo do antigo botão de detecção, e continua sendo o
+   * que a tela sugere sozinha: um índice de planilha novo chega sem nenhuma
+   * faixa, e um `classCount` zero recusava todo cálculo.
+   */
+  it("já sugere cinco faixas por quantil num índice ainda sem legenda", async () => {
+    stubSampleRequest();
+    const { onApply } = renderFields({ classCount: 0 });
+
+    await loadSample();
+    fireEvent.click(screen.getByText("Usar estes limites"));
+
+    expect(onApply).toHaveBeenCalledWith([20, 40, 60, 80], 5);
   });
 
   it("explica o erro do método em vez de sugerir limites inválidos", async () => {

@@ -62,19 +62,22 @@ decimal e a validação devolve o aviso `spreadsheet_ambiguous_decimal` dizendo
 qual coluna e qual célula — em vez de escolher em silêncio e entregar todo
 município multiplicado ou dividido por mil.
 
-### As faixas de cor detectadas da planilha
+### As faixas de cor calculadas da planilha
 
 As faixas da legenda não vêm da planilha como coluna: elas descrevem a
-distribuição dos valores. O botão **"Detectar faixas da planilha"**, na seção
-"Faixas de cor do mapa", pede `POST /api/index-catalog/spreadsheet-legend` com a
-fonte que está no formulário e devolve limites, rótulos e cores prontos.
+distribuição dos valores. Dentro da seção "Faixas de cor do mapa", o bloco
+**"Calcular as faixas pelos dados"** lê a planilha e preenche limites, rótulos e
+cores — é o mesmo bloco de métodos de classificação descrito adiante, e num
+índice de planilha ele pede `POST /api/index-catalog/classification-sample` com
+a fonte que está no formulário.
 
-- O corte é por **quantis** sobre os municípios do período mais recente: cada
-  cor fica com mais ou menos o mesmo número de municípios. Dividir o intervalo
-  em partes iguais não serve para dado municipal brasileiro — o maior PIB é
-  milhares de vezes o mediano, e o país inteiro cairia na primeira cor.
-  `detectValueLegend` só cai no corte por intervalos iguais quando os valores se
-  repetem tanto que os quantis coincidem, e a tela diz qual dos dois usou.
+- A sugestão de partida é o corte por **quantis** sobre os municípios do período
+  mais recente, em cinco faixas: cada cor fica com mais ou menos o mesmo número
+  de municípios. Dividir o intervalo em partes iguais não serve para dado
+  municipal brasileiro — o maior PIB é milhares de vezes o mediano, e o país
+  inteiro cairia na primeira cor. Quando os valores se repetem tanto que os
+  quantis coincidem, a tela **diz isso e recusa**, em vez de trocar de método em
+  silêncio; o operador escolhe "mesma largura" ou menos faixas.
 - Só os municípios entram na conta. O instantâneo também guarda Brasil, UFs,
   regiões, biomas, ASD e semiárido, e uma soma estadual é ordens de grandeza
   maior que a de qualquer município dela.
@@ -84,10 +87,11 @@ fonte que está no formulário e devolve limites, rótulos e cores prontos.
   claro ao mais escuro, para a legenda não exigir cinco escolhas de cor.
 
 A rota **não escreve nada** e não exige rascunho salvo: a fonte vai no corpo,
-porque a detecção acontece enquanto o operador preenche o formulário. O
-resultado substitui os campos e continua editável — quem publica é quem decide
-onde cada faixa começa. Ela reaproveita o instantâneo em memória, então detectar
-faixas depois de validar não relê o Google Drive.
+porque o cálculo acontece enquanto o operador preenche o formulário. Sem período
+no corpo, lê o mais recente da planilha — antes da validação não existe lista de
+períodos a escolher. O resultado substitui os campos e continua editável: quem
+publica é quem decide onde cada faixa começa. Ela reaproveita o instantâneo em
+memória, então calcular as faixas depois de validar não relê o Google Drive.
 
 ### O que a validação faz
 
@@ -749,9 +753,9 @@ como as imagens são escolhidas.
 
 #### Métodos de classificação
 
-Os limites podem ser calculados em vez de digitados. O bloco "Método de
-classificação" lê a distribuição de um período e sugere onde cortar as faixas,
-com os sete métodos do ArcGIS Pro:
+Os limites podem ser calculados em vez de digitados. O bloco **"Calcular as
+faixas pelos dados"** lê a distribuição de um período e sugere onde cortar as
+faixas, com os sete métodos do ArcGIS Pro:
 
 | Método                                    | O que faz                                                | Quem decide a quantidade de faixas |
 | ----------------------------------------- | -------------------------------------------------------- | ---------------------------------- |
@@ -763,6 +767,13 @@ com os sete métodos do ArcGIS Pro:
 | Largura escolhida (Defined Interval)      | faixas de tamanho fixo                                   | o dado                             |
 | Distância da média (Standard Deviation)   | corta na média e a cada fração do desvio                 | o dado                             |
 
+**O bloco mora junto do campo que preenche.** Num índice de valor único ele fica
+dentro de "Faixas de cor do mapa", logo acima de "Limites entre as faixas"; num
+raster contínuo, logo abaixo de "Limites das classes". Enquanto era um bloco
+irmão no fim do formulário, com moldura e título próprios, parecia mais uma
+configuração do índice — e a relação com o campo que ele escreve, que é toda a
+função dele, precisava ser adivinhada.
+
 **A conta roda no navegador; o servidor só entrega a amostra.**
 `GET /api/index-catalog/drafts/[entryId]/classification-sample?year=<período>`
 devolve `ClassificationSample` — os valores ordenados, a contagem, mínimo,
@@ -772,8 +783,11 @@ cada tentativa seria uma ida ao Earth Engine.
 
 **De onde vem a amostra**, por forma de índice:
 
-- **planilha** — os valores municipais do instantâneo do rascunho, os mesmos que
-  a prévia da coropleta usa;
+- **planilha** — os valores municipais do instantâneo, os mesmos que a prévia da
+  coropleta usa. É a única forma que não depende do rascunho gravado: a tela pede
+  `POST /api/index-catalog/classification-sample` com a fonte do formulário, e o
+  leitor é o mesmo dos dois caminhos (`readSpreadsheetClassificationSample`),
+  para os limites nunca saírem de distribuições diferentes;
 - **tabela de valor municipal no GEE** — `aggregate_array` da coluna do período,
   numa leitura só;
 - **raster contínuo** — `ee.Image.sample` sorteia 3.000 pixels dentro da própria
@@ -803,18 +817,19 @@ escolhido, e a pessoa só descobriria olhando a legenda publicada.
 vale zero, o quantil pede dois limites no mesmo zero; a contagem passaria na
 validação e a legenda ganharia uma faixa que nenhum município pode ocupar.
 
-**"Detectar faixas da planilha" é um atalho deste mesmo motor.** O botão que já
-existia equivale a "mesma quantidade de municípios por cor" com cinco faixas, com
-a reserva de cair em "mesma largura" quando os valores empatam demais. Ele
-continua onde estava porque também escreve rótulos e cores; depois desta
-mudança, `detectValueLegend` chama `computeClassBreaks` em vez de ter a sua
-própria conta, e o arredondamento legível (`roundToReadableBreak`, em
-`src/utils/readableBreaks.ts`) passou a ser o de todos os métodos.
+**O antigo botão "Detectar faixas da planilha" virou o estado inicial deste
+bloco.** Ele era um atalho para "mesma quantidade de municípios por cor" com
+cinco faixas, chamando o mesmo `computeClassBreaks`, mas aparecia como um
+recurso à parte — e havia dois caminhos de preenchimento na tela, um deles longe
+do campo que mudava. O bloco abre em quantil com cinco faixas, que é o que
+aquele botão fazia, e a rota `spreadsheet-legend` (com `detectValueLegend` e
+`detectSpreadsheetLegend`) foi removida junto. A perda deliberada é a troca
+silenciosa para "mesma largura" quando os quantis empatam: agora a tela explica
+e o operador escolhe.
 
 **Num índice de valor único, aplicar um método também escreve rótulos e cores.**
-`buildValueLegendRanges` é a mesma função que a detecção usa, para as duas
-entradas não produzirem legendas com convenções diferentes — "menos de 6" numa
-faixa e "0 a 6" na outra.
+`buildValueLegendRanges` (em `src/utils/valueLegendRanges.ts`) transforma cada
+limite numa linha de legenda com rótulo legível e um tom da cor do indicador.
 
 **O método não é gravado.** O que vai para o Contentful continua sendo a lista
 `mapVisualization.thresholds`, e um limite sugerido pode ser corrigido à mão

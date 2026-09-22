@@ -1,5 +1,7 @@
 "use client";
 
+import type { ReactNode } from "react";
+
 import { ClassColorField } from "@/components/IndexCatalog/ClassColorField";
 import type {
   ClassMapping,
@@ -93,33 +95,30 @@ export function MunicipalValueIndicatorFields({
  * por território, e as faixas existem para pintar o município conforme esse
  * número.
  *
- * Num índice de tabela do Earth Engine elas são escritas à mão, porque a
- * tabela não tem uma coluna por faixa que o catálogo pudesse inferir. Num
- * índice de planilha, `onDetectRanges` deduz limites, rótulos e cores dos
- * valores da própria planilha; o resultado cai nos campos abaixo e continua
- * editável, porque quem publica é quem decide onde cada faixa começa.
+ * `methodSlot` é o cálculo das faixas pelos próprios dados, e fica dentro deste
+ * bloco de propósito: é o campo de limites logo abaixo dele que ele preenche.
+ * O que o cálculo escreve continua editável, porque quem publica é quem decide
+ * onde cada faixa começa.
  */
 export function ValueRangeFields({
   ranges,
   thresholdsInput,
   inputClass,
+  methodSlot,
   buttonClass,
-  detecting = false,
   onChangeRange,
   onChangeRanges,
   onChangeThresholds,
-  onDetectRanges,
 }: {
   ranges: ClassMapping[];
   thresholdsInput: string;
   inputClass: string;
   buttonClass: string;
-  detecting?: boolean;
+  /** O cálculo das faixas pelos dados, desenhado acima do campo de limites. */
+  methodSlot?: ReactNode;
   onChangeRange: (index: number, values: Partial<ClassMapping>) => void;
   onChangeRanges: (ranges: ClassMapping[]) => void;
   onChangeThresholds: (value: string) => void;
-  /** Só os índices de planilha têm de onde deduzir as faixas. */
-  onDetectRanges?: () => void;
 }) {
   /**
    * O `id` da faixa não aparece no formulário, mas o cadastro recusa dois iguais
@@ -168,24 +167,7 @@ export function ValueRangeFields({
         Da menor para a maior. Cada faixa é uma cor no mapa e uma linha na
         legenda.
       </p>
-      {onDetectRanges && (
-        <div className="mt-4 rounded-md bg-stone-50 p-3">
-          <button
-            type="button"
-            className={`${buttonClass} border border-stone-300 bg-white`}
-            disabled={detecting}
-            onClick={onDetectRanges}
-          >
-            {detecting ? "Lendo a planilha…" : "Detectar faixas da planilha"}
-          </button>
-          <p className="mt-2 text-xs text-stone-500">
-            Lê os valores municipais do período mais recente e escreve cinco
-            faixas com mais ou menos o mesmo número de municípios em cada cor,
-            em tons da cor do indicador. Os campos abaixo são substituídos e
-            continuam editáveis.
-          </p>
-        </div>
-      )}
+      {methodSlot}
       <label className="mt-4 block text-sm font-medium">
         Limites entre as faixas
         <input
