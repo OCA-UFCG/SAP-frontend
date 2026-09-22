@@ -84,6 +84,32 @@ function draftWith(classes: ClassMapping[]) {
 }
 
 describe("ValueRangeFields", () => {
+  /**
+   * O cálculo das faixas fica dentro deste bloco, acima do campo de limites que
+   * ele preenche: era um bloco irmão no fim do formulário, e nada na tela dizia
+   * que os limites calculados caíam aqui.
+   */
+  it("desenha o cálculo das faixas antes do campo de limites", () => {
+    render(
+      <ValueRangeFields
+        ranges={[]}
+        thresholdsInput=""
+        inputClass=""
+        buttonClass=""
+        methodSlot={<p>Calcular as faixas pelos dados</p>}
+        onChangeRange={() => undefined}
+        onChangeRanges={() => undefined}
+        onChangeThresholds={() => undefined}
+      />,
+    );
+
+    const slot = screen.getByText("Calcular as faixas pelos dados");
+    const limits = screen.getByText(/Limites entre as faixas/u);
+    expect(
+      slot.compareDocumentPosition(limits) & Node.DOCUMENT_POSITION_FOLLOWING,
+    ).toBeTruthy();
+  });
+
   it("numera as faixas novas sem repetir o ID de uma faixa removida", () => {
     // Regressão: `id` saía de `ranges.length + 1`, e a remoção só renumerava a
     // posição. Apagar a faixa do meio de três e acrescentar outra gerava dois

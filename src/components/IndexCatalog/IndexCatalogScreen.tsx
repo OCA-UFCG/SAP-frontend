@@ -35,7 +35,7 @@ import {
   parseNumberList,
 } from "@/utils/indexCatalog";
 import { resizeValueRanges } from "@/utils/municipalValueIndicator";
-import { buildValueLegendRanges } from "@/utils/spreadsheetLegendDetection";
+import { buildValueLegendRanges } from "@/utils/valueLegendRanges";
 import type { PublishedPanelLayerReportConfig } from "@/contracts/panelLayerReport";
 import {
   createDefaultReportDraft,
@@ -63,7 +63,6 @@ import {
 import { SpreadsheetSourceFields } from "@/components/IndexCatalog/SpreadsheetSourceFields";
 import type { MunicipalSpreadsheetStatisticsSource } from "@/contracts/municipalSpreadsheet";
 import { parseGoogleFileId } from "@/utils/municipalSpreadsheetLink";
-import type { DetectedValueLegend } from "@/utils/spreadsheetLegendDetection";
 
 /**
  * O id do arquivo enquanto o operador ainda está digitando o link: um link pela
@@ -682,55 +681,6 @@ export function IndexCatalogScreen() {
     setPreview(null);
   }
 
-  /**
-   * Preenche as faixas de cor a partir dos valores da própria planilha.
-   *
-   * Substitui limites, rótulos e cores de uma vez, e diz na mensagem o que
-   * usou — período, quantos municípios e qual corte —, porque quem revisa a
-   * legenda precisa saber de onde vieram os números antes de aceitá-los. O
-   * resultado é rascunho de formulário: nada é gravado até salvar ou validar.
-   */
-  async function detectSpreadsheetRanges() {
-    const source = spreadsheetSource;
-    if (!source?.fileId || !source.valuePrefix.trim()) {
-      setError(
-        "Cole o link da planilha e escreva o prefixo das colunas de dado antes de detectar as faixas.",
-      );
-      return;
-    }
-    setBusy("detect-ranges");
-    setError("");
-    setMessage("");
-    try {
-      const legend = await apiRequest<
-        DetectedValueLegend & { periodKey: string }
-      >("/api/index-catalog/spreadsheet-legend", {
-        method: "POST",
-        body: JSON.stringify({
-          source,
-          indicator: draft.valueIndicator ?? EMPTY_VALUE_INDICATOR,
-        }),
-      });
-      setThresholdsInput(legend.thresholds.join(", "));
-      updateDraft("classes", legend.ranges);
-      setMessage(
-        `${legend.rangeCount} faixas detectadas em ${legend.periodKey}, a partir de ${legend.sampleCount.toLocaleString("pt-BR")} municípios com valor. ${
-          legend.method === "quantile"
-            ? "Cada cor ficou com mais ou menos o mesmo número de municípios."
-            : "Os valores se repetem demais para dividir por quantidade de municípios, então o intervalo foi cortado em partes iguais."
-        } Ajuste o que quiser e valide para ver no mapa.`,
-      );
-    } catch (reason) {
-      setError(
-        reason instanceof Error
-          ? reason.message
-          : "Falha ao detectar as faixas da planilha.",
-      );
-    } finally {
-      setBusy(null);
-    }
-  }
-
   const statisticsShape: StatisticsShape =
     draft.statisticsSource.kind === "municipal-spreadsheet"
       ? "spreadsheet"
@@ -764,9 +714,8 @@ export function IndexCatalogScreen() {
     setThresholdsInput(thresholds.join(", "));
     if (!hasValueIndicator) return;
     // Num índice de valor único as faixas são da legenda do mapa, então os
-    // limites novos trazem consigo rótulos e cores — pelos mesmos rótulos que
-    // "Detectar faixas da planilha" escreve, para as duas entradas não
-    // produzirem legendas com convenções diferentes.
+    // limites novos trazem consigo rótulos e cores: aplicar um método preenche
+    // a legenda inteira, e não só o campo de limites.
     updateDraft(
       "classes",
       draft.valueIndicator
@@ -1175,6 +1124,25 @@ export function IndexCatalogScreen() {
     "mt-1 w-full rounded-md border border-[#CFD0CA] bg-white px-3 py-2 text-sm outline-none focus:border-[#989F43] focus:ring-2 focus:ring-[#E1E2B4]";
   const buttonClass =
     "cursor-pointer rounded-md px-4 py-2 text-sm font-semibold disabled:cursor-not-allowed disabled:opacity-50";
+
+  /**
+   * O cálculo das faixas pelos dados, desenhado junto do campo de limites que
+   * ele preenche: dentro de "Faixas de cor do mapa" num índice de valor único,
+   * e ao lado de "Limites das classes" num raster contínuo. Um bloco solto no
+   * fim do formulário não deixava ver que era aquele campo que ele mudava.
+   */
+  const classificationMethodBlock = (
+    <ClassificationMethodFields
+      entryId={entryId}
+      spreadsheetSource={spreadsheetSource}
+      periods={classificationPeriods}
+      classCount={draft.classes.length}
+      canChangeClassCount={hasValueIndicator}
+      inputClass={inputClass}
+      buttonClass={buttonClass}
+      onApply={applyClassificationBreaks}
+    />
+  );
 
   return (
     <div className="space-y-6 bg-[#F6F7F3] p-6 text-[#292829]">
@@ -1737,25 +1705,28 @@ export function IndexCatalogScreen() {
                   publicado com `min` 1 e `max` 6 sobre valores em g/kg, e o
                   mapa saía inteiro na cor da última classe. */}
                 {!isValueTable && (
-                  <label className="text-sm font-medium md:col-span-2">
-                    Limites das classes (opcional)
-                    <input
-                      className={inputClass}
-                      placeholder="-90, -30, 0, 30, 90"
-                      value={thresholdsInput}
-                      onChange={(event) =>
-                        setThresholdsInput(event.target.value)
-                      }
-                    />
-                    <span className="mt-1 block text-xs font-normal text-stone-500">
-                      Só para raster contínuo, em que cada classe é uma faixa de
-                      valores: informe os limites na unidade do próprio asset
-                      (g/kg, mm, °C), um a menos que a quantidade de classes e
-                      em ordem crescente — 6 classes exigem 5 limites. Deixe
-                      vazio quando o raster já guarda o número da classe em cada
-                      pixel.
-                    </span>
-                  </label>
+                  <div className="md:col-span-2">
+                    <label className="text-sm font-medium">
+                      Limites das classes (opcional)
+                      <input
+                        className={inputClass}
+                        placeholder="-90, -30, 0, 30, 90"
+                        value={thresholdsInput}
+                        onChange={(event) =>
+                          setThresholdsInput(event.target.value)
+                        }
+                      />
+                      <span className="mt-1 block text-xs font-normal text-stone-500">
+                        Só para raster contínuo, em que cada classe é uma faixa
+                        de valores: informe os limites na unidade do próprio
+                        asset (g/kg, mm, °C), um a menos que a quantidade de
+                        classes e em ordem crescente — 6 classes exigem 5
+                        limites. Deixe vazio quando o raster já guarda o número
+                        da classe em cada pixel.
+                      </span>
+                    </label>
+                    {classificationMethodBlock}
+                  </div>
                 )}
               </div>
             </fieldset>
@@ -1773,15 +1744,10 @@ export function IndexCatalogScreen() {
                 thresholdsInput={thresholdsInput}
                 inputClass={inputClass}
                 buttonClass={buttonClass}
+                methodSlot={classificationMethodBlock}
                 onChangeRange={updateClass}
                 onChangeRanges={(ranges) => updateDraft("classes", ranges)}
                 onChangeThresholds={setThresholdsInput}
-                detecting={busy === "detect-ranges"}
-                onDetectRanges={
-                  isSpreadsheet
-                    ? () => void detectSpreadsheetRanges()
-                    : undefined
-                }
               />
             </>
           ) : (
@@ -1832,16 +1798,6 @@ export function IndexCatalogScreen() {
               </p>
             </fieldset>
           )}
-
-          <ClassificationMethodFields
-            entryId={entryId}
-            periods={classificationPeriods}
-            classCount={draft.classes.length}
-            canChangeClassCount={hasValueIndicator}
-            inputClass={inputClass}
-            buttonClass={buttonClass}
-            onApply={applyClassificationBreaks}
-          />
 
           <IndexCatalogReportFields
             report={report}
