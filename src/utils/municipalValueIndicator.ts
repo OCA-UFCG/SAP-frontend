@@ -67,3 +67,48 @@ export function requireValueThresholds(
   }
   return configured;
 }
+
+/**
+ * Ajusta a lista de faixas de cor para a quantidade que um método de
+ * classificação produziu.
+ *
+ * As faixas existentes são preservadas com rótulo e cor, porque quem já nomeou
+ * "Muito baixo" não quer perder isso ao trocar de método; as que faltam entram
+ * em cinza e sem rótulo, para a pessoa nomear. O `id` é sempre inédito na lista:
+ * o cadastro recusa dois iguais ("As classes não podem ter índices ou IDs
+ * duplicados").
+ *
+ * @example
+ * resizeValueRanges(ranges, 5); // cinco faixas, as três primeiras intactas
+ */
+export function resizeValueRanges(
+  ranges: ClassMapping[],
+  classCount: number,
+): ClassMapping[] {
+  const used = new Set(ranges.map((range) => range.id));
+  const resized = ranges.slice(0, classCount);
+  for (let position = resized.length; position < classCount; position += 1) {
+    resized.push({
+      classIndex: position,
+      id: nextValueRangeId(used),
+      label: "",
+      color: "#CCCCCC",
+      pixelValue: position,
+    });
+  }
+  return resized.map((range, position) => ({
+    ...range,
+    classIndex: position,
+    pixelValue: position,
+  }));
+}
+
+function nextValueRangeId(used: Set<string>) {
+  for (let position = used.size + 1; ; position += 1) {
+    const candidate = `faixa-${position}`;
+    if (!used.has(candidate)) {
+      used.add(candidate);
+      return candidate;
+    }
+  }
+}
