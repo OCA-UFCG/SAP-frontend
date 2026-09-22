@@ -7,6 +7,7 @@ import {
   selectMunicipalSpreadsheetValues,
 } from "@/repositories/platform/municipalSpreadsheetRepository";
 import { getDraftSpreadsheetSnapshot } from "@/services/indexCatalog/draftSpreadsheetSnapshot";
+import { readDraftClassificationSample } from "@/services/indexCatalog/classificationSampleReader";
 import { publishSpreadsheetSnapshot } from "@/services/indexCatalog/spreadsheetSnapshotStorage";
 import { getGeeStatisticsYearPatch } from "@/repositories/platform/geeStatisticsRepository";
 import {
@@ -361,6 +362,23 @@ export async function getIndexCatalogDraftChoroplethValues(
     config.validatedStatisticsSource,
   );
   return selectMunicipalSpreadsheetValues(snapshot, year);
+}
+
+/**
+ * A distribuição de valores de um rascunho num período, para a tela calcular os
+ * limites das faixas por um método de classificação.
+ *
+ * Fica numa leitura própria, e não junto da validação, porque o operador troca
+ * de método e de quantidade de faixas várias vezes seguidas: a amostra é lida
+ * uma vez e todos os métodos rodam sobre ela no navegador.
+ */
+export async function getIndexCatalogDraftClassificationSample(
+  entryId: string,
+  year: string,
+) {
+  const current = await getCatalogEntry(entryId);
+  const config = requireFullyManagedConfig(current);
+  return readDraftClassificationSample(config, year);
 }
 
 /**

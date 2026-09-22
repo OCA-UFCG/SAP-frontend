@@ -13,6 +13,7 @@ import type {
   CompactMapVisualizationConfig,
   CompactTerritorialAnalysisDataset,
 } from "@/utils/analysis";
+import type { ClassificationSample } from "@/utils/classificationSample";
 
 /**
  * A lista mora no contrato `.mjs` porque a adoção em lote, que roda em Node
@@ -435,4 +436,26 @@ export interface IndexCatalogReportVariable {
   token: string;
   description: string;
   example: string;
+}
+
+/**
+ * De onde saíram os valores que alimentaram o cálculo dos limites das faixas.
+ *
+ * A tela mostra a origem junto do resultado porque ela muda o que os limites
+ * significam: `raster` é uma amostra aleatória de pixels e não o dado inteiro,
+ * então dois cliques seguidos podem devolver limites ligeiramente diferentes.
+ */
+export type ClassificationSampleOrigin =
+  "spreadsheet" | "municipalValueTable" | "raster";
+
+/**
+ * A distribuição de valores de um rascunho num período.
+ *
+ * Mora nos tipos, e não no serviço que a lê, porque o formulário do catálogo
+ * consome a resposta: o serviço é `server-only` e importar o tipo de lá levaria
+ * o módulo com credenciais para o bundle do navegador.
+ */
+export interface DraftClassificationSample extends ClassificationSample {
+  origin: ClassificationSampleOrigin;
+  period: string;
 }

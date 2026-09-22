@@ -747,6 +747,80 @@ previsão, embora o formulário sempre o enviasse. Ele aparece em qualquer
 estratégia de asset, porque um raster contínuo precisa dele independentemente de
 como as imagens são escolhidas.
 
+#### Métodos de classificação
+
+Os limites podem ser calculados em vez de digitados. O bloco "Método de
+classificação" lê a distribuição de um período e sugere onde cortar as faixas,
+com os sete métodos do ArcGIS Pro:
+
+| Método                                    | O que faz                                                | Quem decide a quantidade de faixas |
+| ----------------------------------------- | -------------------------------------------------------- | ---------------------------------- |
+| Escrever à mão (Manual Interval)          | o campo de sempre                                        | o operador                         |
+| Mesma largura (Equal Interval)            | divide a amplitude em pedaços iguais                     | o operador                         |
+| Mesma quantidade por cor (Quantile)       | iguala o número de territórios por faixa                 | o operador                         |
+| Quebras naturais (Natural Breaks / Jenks) | corta nos degraus do próprio dado                        | o operador                         |
+| Faixas que crescem (Geometrical Interval) | progressão geométrica, para dado amontoado perto de zero | o operador                         |
+| Largura escolhida (Defined Interval)      | faixas de tamanho fixo                                   | o dado                             |
+| Distância da média (Standard Deviation)   | corta na média e a cada fração do desvio                 | o dado                             |
+
+**A conta roda no navegador; o servidor só entrega a amostra.**
+`GET /api/index-catalog/drafts/[entryId]/classification-sample?year=<período>`
+devolve `ClassificationSample` — os valores ordenados, a contagem, mínimo,
+máximo, média e desvio padrão. Trocar de método ou de quantidade de faixas é
+instantâneo porque não custa uma nova leitura: se o cálculo morasse no servidor,
+cada tentativa seria uma ida ao Earth Engine.
+
+**De onde vem a amostra**, por forma de índice:
+
+- **planilha** — os valores municipais do instantâneo do rascunho, os mesmos que
+  a prévia da coropleta usa;
+- **tabela de valor municipal no GEE** — `aggregate_array` da coluna do período,
+  numa leitura só;
+- **raster contínuo** — `ee.Image.sample` sorteia 3.000 pixels dentro da própria
+  área da imagem, a no mínimo 500 m. É amostra: dois cliques seguidos podem mover
+  os limites um pouco, e a tela avisa disso. Ler o raster inteiro seria uma
+  redução sobre a imagem toda, que é justamente o tipo de chamada que o cache do
+  `/api/ee` existe para evitar.
+
+Quando o mapa vem de uma FeatureCollection sem tabela de valor por município
+não há distribuição a ler, e a rota responde 404 dizendo isso. Num raster a
+amostra é sempre entregue: o catálogo não tem como saber se o dado é contínuo
+antes de o operador dizer, e é justamente ao definir os primeiros limites que a
+leitura serve. Um raster já classificado se reconhece pelo resumo — "menor 0,
+maior 5" são números de classe, não de medida.
+
+**A quantidade de faixas é uma restrição, não um detalhe.** `catalogBuild` exige
+exatamente `classes.length - 1` limites. Num índice de valor único as faixas são
+do operador, então um método pode acrescentá-las (em cinza e sem rótulo) ou
+removê-las do fim. Num índice classificatório as classes vêm das colunas
+`perc_classe_XX` da tabela de estatísticas: ali "Largura escolhida" e "Distância
+da média" só podem ser aplicados quando o parâmetro escolhido gera exatamente a
+quantidade de classes que a tabela tem, e a tela recusa aplicar em vez de cortar
+os limites que sobram — um mapa com os limites truncados não é o mapa do método
+escolhido, e a pessoa só descobriria olhando a legenda publicada.
+
+**Limites repetidos são recusados.** Num índice em que a maioria dos municípios
+vale zero, o quantil pede dois limites no mesmo zero; a contagem passaria na
+validação e a legenda ganharia uma faixa que nenhum município pode ocupar.
+
+**"Detectar faixas da planilha" é um atalho deste mesmo motor.** O botão que já
+existia equivale a "mesma quantidade de municípios por cor" com cinco faixas, com
+a reserva de cair em "mesma largura" quando os valores empatam demais. Ele
+continua onde estava porque também escreve rótulos e cores; depois desta
+mudança, `detectValueLegend` chama `computeClassBreaks` em vez de ter a sua
+própria conta, e o arredondamento legível (`roundToReadableBreak`, em
+`src/utils/readableBreaks.ts`) passou a ser o de todos os métodos.
+
+**Num índice de valor único, aplicar um método também escreve rótulos e cores.**
+`buildValueLegendRanges` é a mesma função que a detecção usa, para as duas
+entradas não produzirem legendas com convenções diferentes — "menos de 6" numa
+faixa e "0 a 6" na outra.
+
+**O método não é gravado.** O que vai para o Contentful continua sendo a lista
+`mapVisualization.thresholds`, e um limite sugerido pode ser corrigido à mão
+depois sem nenhuma amarra. Reabrir o índice mostra os limites, não o método que
+os produziu.
+
 ### Prévia e texto do relatório
 
 `GET /api/index-catalog/entries/[entryId]/presentation` devolve a camada como

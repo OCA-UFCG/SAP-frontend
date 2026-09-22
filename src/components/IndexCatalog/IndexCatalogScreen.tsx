@@ -17,6 +17,7 @@ import {
 import { LegacyIndexEditor } from "@/components/IndexCatalog/LegacyIndexEditor";
 import { CatalogReportPreview } from "@/components/IndexCatalog/CatalogReportPreview";
 import { ClassColorField } from "@/components/IndexCatalog/ClassColorField";
+import { ClassificationMethodFields } from "@/components/IndexCatalog/ClassificationMethodFields";
 import {
   catalogApiRequest as apiRequest,
   catalogIdempotencyKey as idempotencyKey,
@@ -33,6 +34,8 @@ import {
   hasPublishableValidation,
   parseNumberList,
 } from "@/utils/indexCatalog";
+import { resizeValueRanges } from "@/utils/municipalValueIndicator";
+import { buildValueLegendRanges } from "@/utils/spreadsheetLegendDetection";
 import type { PublishedPanelLayerReportConfig } from "@/contracts/panelLayerReport";
 import {
   createDefaultReportDraft,
@@ -738,6 +741,40 @@ export function IndexCatalogScreen() {
   const isSpreadsheet = statisticsShape === "spreadsheet";
   /** O painel mostra um número por território nas duas formas de valor único. */
   const hasValueIndicator = isValueTable || isSpreadsheet;
+  /**
+   * Os períodos que o método de classificação pode ler. Saem da validação
+   * porque é ela que descobre quais períodos a tabela tem; antes dela não há o
+   * que ler, e o campo aparece com a lista vazia.
+   */
+  const classificationPeriods =
+    preview?.validation.inferred.periods ??
+    (editingItem?.catalogConfig?.schemaVersion === 2
+      ? (editingItem.catalogConfig.validation?.inferred.periods ?? [])
+      : []);
+
+  /**
+   * Escreve os limites calculados no mesmo campo que o operador digitaria.
+   *
+   * Num índice de valor único a quantidade de faixas é dele, então o método
+   * pode acrescentar ou remover faixas; num índice classificatório ela vem das
+   * colunas da tabela, e a própria tela já impede aplicar um método que mudaria
+   * esse número.
+   */
+  function applyClassificationBreaks(thresholds: number[], classCount: number) {
+    setThresholdsInput(thresholds.join(", "));
+    if (!hasValueIndicator) return;
+    // Num índice de valor único as faixas são da legenda do mapa, então os
+    // limites novos trazem consigo rótulos e cores — pelos mesmos rótulos que
+    // "Detectar faixas da planilha" escreve, para as duas entradas não
+    // produzirem legendas com convenções diferentes.
+    updateDraft(
+      "classes",
+      draft.valueIndicator
+        ? buildValueLegendRanges(thresholds, draft.valueIndicator)
+        : resizeValueRanges(draft.classes, classCount),
+    );
+  }
+
   const spreadsheetSource =
     draft.statisticsSource.kind === "municipal-spreadsheet"
       ? draft.statisticsSource
@@ -1795,6 +1832,16 @@ export function IndexCatalogScreen() {
               </p>
             </fieldset>
           )}
+
+          <ClassificationMethodFields
+            entryId={entryId}
+            periods={classificationPeriods}
+            classCount={draft.classes.length}
+            canChangeClassCount={hasValueIndicator}
+            inputClass={inputClass}
+            buttonClass={buttonClass}
+            onApply={applyClassificationBreaks}
+          />
 
           <IndexCatalogReportFields
             report={report}
