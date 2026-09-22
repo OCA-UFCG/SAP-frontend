@@ -6,6 +6,7 @@ import {
   GEE_LAYER_ID,
   REF_OVERLAY_LAYER_PREFIX,
   SPATIAL_BOUNDARY_FILL_LAYER_ID,
+  SPATIAL_BOUNDARY_HOVER_LAYER_ID,
   SPATIAL_BOUNDARY_LAYER_ID,
   SPATIAL_BOUNDARY_SOURCE_ID,
   STATES_BORDER_LAYER_ID,
@@ -122,7 +123,7 @@ describe("spatial boundary MapLibre layers", () => {
     ensureSpatialBoundaryLayer(map, boundaryGeoJson, true, new Set(["ba"]));
 
     // Verify that GEE raster is placed BELOW the spatial boundary,
-    // so it doesn't obscure the dark hover preview overlay.
+    // so it doesn't obscure the boundary outline.
     expect(layers.indexOf(GEE_LAYER_ID)).toBeLessThan(
       layers.indexOf(SPATIAL_BOUNDARY_LAYER_ID),
     );
@@ -175,6 +176,54 @@ describe("spatial boundary MapLibre layers", () => {
     expect(layers.indexOf(quilombolasLayerId)).toBeLessThan(
       layers.indexOf(STATES_BORDER_LAYER_ID),
     );
+  });
+
+  // Regressão: o véu escuro do hover se somava à cor do índice e confundia o
+  // recorte sob o cursor com outra faixa da legenda.
+  it("marks the hovered boundary with a black outline and no fill", () => {
+    const { layers, map, rawMap } = createOrderedMapMock();
+
+    ensureMapLayers(map, "platform", true, false, null);
+    ensureSpatialBoundaryLayer(map, boundaryGeoJson, true, new Set(["ba"]));
+
+    const addedLayers = rawMap.addLayer.mock.calls.map(([layer]) => layer);
+    const fillLayer = addedLayers.find(
+      (layer) => layer.id === SPATIAL_BOUNDARY_FILL_LAYER_ID,
+    ) as { paint: Record<string, unknown> };
+    const hoverLayer = addedLayers.find(
+      (layer) => layer.id === SPATIAL_BOUNDARY_HOVER_LAYER_ID,
+    ) as { paint: Record<string, unknown> };
+
+    expect(fillLayer.paint["fill-opacity"]).toBe(0);
+    expect(hoverLayer.paint["line-color"]).toBe("#000000");
+    expect(hoverLayer.paint["line-opacity"]).toEqual([
+      "case",
+      ["boolean", ["feature-state", "hover"], false],
+      0.9,
+      0,
+    ]);
+    // Acima do preenchimento e do contorno da seleção, senão o traço do hover
+    // some sob eles.
+    expect(layers.indexOf(SPATIAL_BOUNDARY_FILL_LAYER_ID)).toBeLessThan(
+      layers.indexOf(SPATIAL_BOUNDARY_HOVER_LAYER_ID),
+    );
+    expect(layers.indexOf(SPATIAL_BOUNDARY_HOVER_LAYER_ID)).toBeLessThan(
+      layers.indexOf(STATES_FILL_LAYER_ID),
+    );
+  });
+
+  it("never paints a fill over the hovered or selected state", () => {
+    const { rawMap, map } = createOrderedMapMock();
+
+    ensureMapLayers(map, "platform", true, false, null);
+
+    const stateFills = rawMap.addLayer.mock.calls
+      .map(([layer]) => layer)
+      .find((layer) => layer.id === STATES_FILL_LAYER_ID) as {
+      paint: Record<string, unknown>;
+    };
+
+    expect(stateFills.paint["fill-opacity"]).toBe(0);
   });
 
   it("hides state borders while boundary data is present", () => {
@@ -239,6 +288,9 @@ describe("spatial boundary MapLibre layers", () => {
     ensureSpatialBoundaryLayer(map, null, true, null);
 
     expect(rawMap.removeLayer).toHaveBeenCalledWith(SPATIAL_BOUNDARY_LAYER_ID);
+    expect(rawMap.removeLayer).toHaveBeenCalledWith(
+      SPATIAL_BOUNDARY_HOVER_LAYER_ID,
+    );
     expect(rawMap.removeSource).toHaveBeenCalledWith(
       SPATIAL_BOUNDARY_SOURCE_ID,
     );

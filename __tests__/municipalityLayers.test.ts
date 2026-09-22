@@ -4,6 +4,7 @@ import {
   ensureMunicipalityLayers,
   MUNICIPALITY_BORDER_MIN_ZOOM,
   MUNICIPALITY_BORDER_LAYER_ID,
+  MUNICIPALITY_HOVER_LAYER_ID,
   MUNICIPALITY_SELECTED_BORDER_MIN_ZOOM,
   MUNICIPALITY_SOURCE_ID,
 } from "@/components/Map/municipalityLayers";
@@ -31,7 +32,7 @@ describe("municipalityLayers", () => {
     ).toBeNull();
   });
 
-  it("uses a black outline for the selected municipality", () => {
+  it("marks hover and selection with a black outline and no fill", () => {
     const addLayer = vi.fn();
     const map = {
       addLayer,
@@ -53,35 +54,53 @@ describe("municipalityLayers", () => {
         }),
       }),
     );
+
+    const highlighted = [
+      "any",
+      ["boolean", ["feature-state", "hover"], false],
+      ["boolean", ["feature-state", "selected"], false],
+    ];
+
     expect(addLayer).toHaveBeenCalledWith(
       expect.objectContaining({
         id: MUNICIPALITY_BORDER_LAYER_ID,
         minzoom: MUNICIPALITY_SELECTED_BORDER_MIN_ZOOM,
         paint: expect.objectContaining({
-          "line-color": [
-            "case",
-            ["boolean", ["feature-state", "selected"], false],
-            "#000000",
-            "#6B7280",
-          ],
+          "line-color": ["case", highlighted, "#000000", "#6B7280"],
           "line-opacity": [
             "step",
             ["zoom"],
-            [
-              "case",
-              ["boolean", ["feature-state", "selected"], false],
-              0.95,
-              0,
-            ],
+            ["case", highlighted, 0.95, 0],
             MUNICIPALITY_BORDER_MIN_ZOOM,
-            [
-              "case",
-              ["boolean", ["feature-state", "selected"], false],
-              0.95,
-              0.25,
-            ],
+            ["case", highlighted, 0.95, 0.25],
           ],
         }),
+      }),
+      "state-borders",
+    );
+  });
+
+  // Regressão: o véu escuro do hover/seleção se somava à cor do índice e fazia
+  // o município parecer de outra faixa da legenda.
+  it("never paints a fill over the hovered or selected municipality", () => {
+    const addLayer = vi.fn();
+    const map = {
+      addLayer,
+      addSource: vi.fn(),
+      getLayer: vi.fn(() => undefined),
+      getSource: vi.fn(() => undefined),
+    };
+
+    ensureMunicipalityLayers(
+      map as unknown as Parameters<typeof ensureMunicipalityLayers>[0],
+      "state-borders",
+    );
+
+    expect(addLayer).toHaveBeenCalledWith(
+      expect.objectContaining({
+        id: MUNICIPALITY_HOVER_LAYER_ID,
+        type: "fill",
+        paint: expect.objectContaining({ "fill-opacity": 0 }),
       }),
       "state-borders",
     );

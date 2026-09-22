@@ -30,12 +30,14 @@ export const GEE_LAYER_ID = "gee-layer";
  * fonte, e adicioná-la de novo derruba a captura seguinte.
  */
 export const REPORT_TERRITORY_OUTLINE_SOURCE_ID = "report-territory-outline";
-export const REPORT_TERRITORY_OUTLINE_LAYER_ID = "report-territory-outline-line";
+export const REPORT_TERRITORY_OUTLINE_LAYER_ID =
+  "report-territory-outline-line";
 export const SPATIAL_BOUNDARY_SOURCE_ID = "spatial-boundary";
 export const SPATIAL_BOUNDARY_LAYER_ID = "spatial-boundary-outline";
 export const REF_OVERLAY_SOURCE_PREFIX = "ref-overlay-src-";
 export const REF_OVERLAY_LAYER_PREFIX = "ref-overlay-lyr-";
 export const SPATIAL_BOUNDARY_FILL_LAYER_ID = "spatial-boundary-fills";
+export const SPATIAL_BOUNDARY_HOVER_LAYER_ID = "spatial-boundary-hover-outline";
 
 const CDI_FILL_EXPRESSION: ExpressionSpecification = [
   "match",
@@ -202,16 +204,13 @@ export const ensureMapLayers = (
       type: "fill",
       source: STATES_SOURCE_ID,
       "source-layer": STATES_SOURCE_LAYER,
+      // Transparente de propósito: a camada serve ao hover e ao clique, não ao
+      // desenho. O véu escuro que ela pintava alterava a cor do índice sob o
+      // estado e o confundia com outra faixa da legenda — quem marca hover e
+      // seleção é o contorno preto de `STATES_BORDER_LAYER_ID`.
       paint: {
         "fill-color": "#000000",
-        "fill-opacity": [
-          "case",
-          ["boolean", ["feature-state", "hover"], false],
-          0.1,
-          ["boolean", ["feature-state", "selected"], false],
-          0.1,
-          0,
-        ],
+        "fill-opacity": 0,
       },
       layout: {
         visibility: "visible",
@@ -346,7 +345,9 @@ export const ensureSpatialBoundaryLayer = (
     }
 
     // Interactive fill layer for click/hover detection on spatial boundaries.
-    // Transparent by default; shows a dark highlight preview on hover.
+    // Always transparent: o recorte sob o cursor é marcado pelo contorno preto
+    // de `SPATIAL_BOUNDARY_HOVER_LAYER_ID`, não por um véu escuro, que somava
+    // à cor do índice e confundia a leitura da legenda.
     if (!map.getLayer(SPATIAL_BOUNDARY_FILL_LAYER_ID)) {
       map.addLayer(
         {
@@ -355,10 +356,29 @@ export const ensureSpatialBoundaryLayer = (
           source: SPATIAL_BOUNDARY_SOURCE_ID,
           paint: {
             "fill-color": "#000000",
-            "fill-opacity": [
+            "fill-opacity": 0,
+          },
+        },
+        map.getLayer(STATES_FILL_LAYER_ID) ? STATES_FILL_LAYER_ID : undefined,
+      );
+    }
+
+    // O contorno do recorte sob o cursor. Precisa de camada própria porque
+    // `SPATIAL_BOUNDARY_LAYER_ID` é filtrado pelo nome da seleção ativa, e o
+    // hover acontece justamente nos recortes que ainda não estão selecionados.
+    if (!map.getLayer(SPATIAL_BOUNDARY_HOVER_LAYER_ID)) {
+      map.addLayer(
+        {
+          id: SPATIAL_BOUNDARY_HOVER_LAYER_ID,
+          type: "line",
+          source: SPATIAL_BOUNDARY_SOURCE_ID,
+          paint: {
+            "line-color": "#000000",
+            "line-width": 3,
+            "line-opacity": [
               "case",
               ["boolean", ["feature-state", "hover"], false],
-              0.22,
+              0.9,
               0,
             ],
           },
@@ -368,6 +388,9 @@ export const ensureSpatialBoundaryLayer = (
     }
   } else {
     // Remove boundary layers when not needed
+    if (map.getLayer(SPATIAL_BOUNDARY_HOVER_LAYER_ID)) {
+      map.removeLayer(SPATIAL_BOUNDARY_HOVER_LAYER_ID);
+    }
     if (map.getLayer(SPATIAL_BOUNDARY_FILL_LAYER_ID)) {
       map.removeLayer(SPATIAL_BOUNDARY_FILL_LAYER_ID);
     }
