@@ -139,7 +139,7 @@
     "tableClass": "Classe",
     "spatialAndTimeSeries": "Distribuição espacial e série temporal",
     "spatialImage": "Imagem espacial: {period}",
-    "rasterDescription": "Raster temático de {title} para {period}, recortado visualmente pelo contorno {boundary}.",
+    "rasterDescription": "Mapa temático de {title} para {period}, recortado visualmente pelo contorno {boundary}.",
     "timeSeriesAlt": "Série temporal — {title}",
     "timeSeriesUnavailable": "Série temporal indisponível para exportação.",
     "historicalAnalysisTitle": "Análise e Interpretação",

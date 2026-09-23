@@ -75,6 +75,7 @@ vi.mock("maplibre-gl", () => {
     setFeatureState = vi.fn(() => this);
     removeFeatureState = vi.fn(() => this);
     setFilter = vi.fn(() => this);
+    moveLayer = vi.fn(() => this);
     getCanvas = vi.fn(() => ({
       toDataURL: vi.fn(() => `data:image/png;base64,${"a".repeat(120)}`),
     }));
@@ -159,6 +160,50 @@ describe("ReportMapPreview", () => {
   afterEach(() => {
     cleanup();
     destroyReportMapPool();
+  });
+
+  // Regressão: um índice de planilha não tem asset no Earth Engine, e o quadro
+  // só sabia desenhar tiles — a prévia do relatório saía com o mapa vazio.
+  it("pinta a coropleta de um índice de planilha, sem URL de tiles", async () => {
+    const onCapture = vi.fn();
+    const { unmount } = render(
+      <ReportMapPreview
+        territory={ABADIA_DE_GOIAS}
+        layerId="pobreza_urbana"
+        period="2025"
+        choropleth={{
+          palette: ["#fee", "#f00"],
+          classByCode: { "5200050": 1 },
+        }}
+        onCapture={onCapture}
+      />,
+    );
+
+    await waitFor(() => expect(mapInstances).toHaveLength(1));
+    emit(0, "load");
+    await waitFor(() =>
+      expect(mapInstances[0].addLayer).toHaveBeenCalledWith(
+        expect.objectContaining({ id: "index-choropleth-fills" }),
+      ),
+    );
+    expect(mapInstances[0].addSource).not.toHaveBeenCalledWith(
+      "gee-tiles",
+      expect.anything(),
+    );
+    expect(mapInstances[0].setFeatureState).toHaveBeenCalledWith(
+      expect.objectContaining({ id: "5200050" }),
+      { indexChoroplethClass: 1 },
+    );
+
+    emit(0, "idle");
+    await waitFor(() =>
+      expect(onCapture).toHaveBeenCalledWith(expect.any(String)),
+    );
+
+    unmount();
+    expect(mapInstances[0].removeLayer).toHaveBeenCalledWith(
+      "index-choropleth-fills",
+    );
   });
 
   it("does not initialize MapLibre when an image is already available", () => {

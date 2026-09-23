@@ -139,7 +139,7 @@
     "tableClass": "Clase",
     "spatialAndTimeSeries": "Distribución espacial y serie temporal",
     "spatialImage": "Imagen espacial: {period}",
-    "rasterDescription": "Mosaico temático de {title} para {period}, recortado visualmente por el contorno {scope} de {territory}.",
+    "rasterDescription": "Mapa temático de {title} para {period}, recortado visualmente por el contorno {scope} de {territory}.",
     "timeSeriesAlt": "Serie temporal — {title}",
     "timeSeriesUnavailable": "Serie temporal no disponible para exportación.",
     "historicalAnalysisTitle": "Análisis de la serie histórica",

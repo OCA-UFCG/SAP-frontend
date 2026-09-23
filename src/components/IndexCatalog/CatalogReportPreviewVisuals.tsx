@@ -6,8 +6,17 @@ import type { EeMapUrlFailure } from "@/contracts/eeMapUrls";
 import type { MunicipalReportAnalysis } from "@/contracts/municipalReport";
 import type { IndexCatalogReportPreview } from "@/types/indexCatalog";
 import { MunicipalReportDynamicChart } from "@/components/MunicipalReport/MunicipalReportDynamicChart";
-import { ReportMapPreview } from "@/components/MunicipalReport/ReportMapPreview";
+import {
+  ReportMapPreview,
+  type ReportMapChoropleth,
+} from "@/components/MunicipalReport/ReportMapPreview";
 import { destroyReportMapPool } from "@/components/MunicipalReport/reportMapPool";
+import {
+  fetchMunicipalValues,
+  resolveChoroplethConfig,
+  toClassByCode,
+  type ChoroplethLayerSource,
+} from "@/components/PlatformMap/useIndexChoroplethValues";
 import { fetchMapURL } from "@/services/mapServices";
 import {
   compactPeriodRange,
@@ -38,11 +47,13 @@ function useDraftTileUrl(
   tileApiPath: string,
   panelLayerId: string,
   period: string,
+  enabled: boolean,
 ) {
   const [tileUrl, setTileUrl] = useState<DraftTileUrl | null>(null);
   const key = `${panelLayerId}:${period}`;
 
   useEffect(() => {
+    if (!enabled) return;
     const controller = new AbortController();
     fetchMapURL(
       panelLayerId,
@@ -62,9 +73,61 @@ function useDraftTileUrl(
         setTileUrl({ key, failure: "error" });
       });
     return () => controller.abort();
-  }, [key, panelLayerId, period, tileApiPath]);
+  }, [enabled, key, panelLayerId, period, tileApiPath]);
 
   return tileUrl?.key === key ? tileUrl : null;
+}
+
+interface DraftChoropleth {
+  key: string;
+  choropleth?: ReportMapChoropleth;
+  failure?: EeMapUrlFailure;
+}
+
+/**
+ * As faixas por município de um índice de planilha, que não tem asset no Earth
+ * Engine: sem elas a prévia pedia um tile que nunca existe e o quadro do mapa
+ * ficava vazio. Os valores vêm da mesma rota que a prévia do Monitoramento usa.
+ */
+function useDraftChoropleth(
+  source: ChoroplethLayerSource | undefined,
+  period: string,
+) {
+  const config = source ? resolveChoroplethConfig(source) : null;
+  const valuesUrl = config?.valuesUrl;
+  const configKey = config ? JSON.stringify(config) : "";
+  const key = `${configKey}:${period}`;
+  const [loaded, setLoaded] = useState<DraftChoropleth | null>(null);
+
+  useEffect(() => {
+    if (!configKey || !valuesUrl) return;
+    const { palette, thresholds } = JSON.parse(configKey) as {
+      palette: string[];
+      thresholds: number[];
+    };
+    const controller = new AbortController();
+    fetchMunicipalValues(valuesUrl, period, controller.signal)
+      .then((values) =>
+        setLoaded({
+          key,
+          choropleth: {
+            palette,
+            classByCode: toClassByCode(values, thresholds),
+          },
+        }),
+      )
+      .catch((reason) => {
+        if (controller.signal.aborted) return;
+        console.error("[catalogReportPreview]", reason);
+        setLoaded({ key, failure: "error" });
+      });
+    return () => controller.abort();
+  }, [configKey, key, period, valuesUrl]);
+
+  return {
+    isChoropleth: Boolean(config),
+    result: loaded?.key === key ? loaded : null,
+  };
 }
 
 /**
@@ -76,12 +139,15 @@ export function ReportPreviewVisuals({
   municipality,
   referencePeriod,
   tileApiPath,
+  choroplethSource,
   translateLabel,
 }: {
   analysis: MunicipalReportAnalysis;
   municipality: IndexCatalogReportPreview["municipality"];
   referencePeriod: string;
   tileApiPath: string;
+  /** A camada do rascunho, para reconhecer um índice de planilha. */
+  choroplethSource?: ChoroplethLayerSource;
   translateLabel: (label: string) => string;
 }) {
   const t = useTranslations("MunicipalReport");
@@ -90,7 +156,13 @@ export function ReportPreviewVisuals({
   const previewTerritory =
     resolveReportTerritory(municipality.code) ??
     resolveReportTerritory(FALLBACK_PREVIEW_MUNICIPALITY_CODE)!;
-  const tileUrl = useDraftTileUrl(tileApiPath, analysis.id, referencePeriod);
+  const draftChoropleth = useDraftChoropleth(choroplethSource, referencePeriod);
+  const tileUrl = useDraftTileUrl(
+    tileApiPath,
+    analysis.id,
+    referencePeriod,
+    !draftChoropleth.isChoropleth,
+  );
   // O mapa volta para a estante do relatório ao sair de cena; sem esvaziá-la o
   // contexto WebGL sobreviveria ao fechamento da prévia.
   useEffect(() => destroyReportMapPool, []);
@@ -123,7 +195,10 @@ export function ReportPreviewVisuals({
             period={referencePeriod}
             className="h-[230px] w-full"
             tileUrl={tileUrl?.url}
-            unavailableReason={tileUrl?.failure}
+            choropleth={draftChoropleth.result?.choropleth}
+            unavailableReason={
+              draftChoropleth.result?.failure ?? tileUrl?.failure
+            }
           />
           <p className="border-t border-[#c8ced1] px-4 py-2 text-xs leading-5 text-neutral-600">
             {t("rasterDescription", {
