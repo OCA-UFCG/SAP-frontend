@@ -31,10 +31,12 @@ export const LanguageSwitcher = () => {
     router.replace(pathname, { locale: nextLocale });
   };
 
+  // A sigla é o que aparece no cabeçalho; o nome por extenso fica para a lista,
+  // onde há espaço para quem não reconhece a sigla do próprio idioma.
   const languages = [
-    { code: "pt", name: "Português" },
-    { code: "en", name: "English" },
-    { code: "es", name: "Español" },
+    { code: "pt", acronym: "PT-BR", name: "Português" },
+    { code: "en", acronym: "EN", name: "English" },
+    { code: "es", acronym: "ES", name: "Español" },
   ] as const;
 
   const activeLanguage =
@@ -67,12 +69,9 @@ export const LanguageSwitcher = () => {
           <path d="M12 2a14.5 14.5 0 0 0 0 20 14.5 14.5 0 0 0 0-20" />
           <path d="M2 12h20" />
         </svg>
-        {/* Em telas de celular o cabeçalho ainda divide espaço com o logo,
-            o Entrar e o menu hambúrguer, e aí só cabe a sigla. */}
-        <span className="hidden sm:inline">{activeLanguage.name}</span>
-        <span className="text-xs font-semibold uppercase sm:hidden">
-          {locale}
-        </span>
+        {/* O cabeçalho divide espaço com o logo, o Entrar e o menu hambúrguer,
+            então o idioma ativo aparece sempre pela sigla, em qualquer tela. */}
+        <span className="text-sm font-semibold">{activeLanguage.acronym}</span>
         <Icon id="chevron-down" size={10} />
       </button>
 
@@ -93,7 +92,10 @@ export const LanguageSwitcher = () => {
                   : "text-stone-700"
               }`}
             >
-              <span>{lang.name}</span>
+              <span>
+                <span className="font-semibold">{lang.acronym}</span>{" "}
+                {lang.name}
+              </span>
               {locale === lang.code && (
                 <Icon id="check" size={14} className="fill-[#777E32]" />
               )}
