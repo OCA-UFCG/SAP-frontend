@@ -85,6 +85,11 @@ export function CatalogPreviewMapCapture({
   const containerRef = useRef<HTMLDivElement | null>(null);
   const mapRef = useRef<maplibregl.Map | null>(null);
   const onSavedRef = useRef(onSaved);
+  // Quem escuta `onSaved` guarda a URL devolvida dentro do próprio
+  // `panelLayer`, criando um objeto novo. Depender dessa identidade punha a
+  // captura num laço: guardar a imagem disparava outra captura, que guardava
+  // outra imagem, indefinidamente.
+  const panelLayerRef = useRef(preview.panelLayer);
   const { entryId, period } = preview;
   const { id: panelLayerId, name, tileApiPath } = preview.panelLayer;
   // A captura é identificada pelo período e pela tentativa: a imagem antiga
@@ -94,7 +99,8 @@ export function CatalogPreviewMapCapture({
 
   useEffect(() => {
     onSavedRef.current = onSaved;
-  }, [onSaved]);
+    panelLayerRef.current = preview.panelLayer;
+  }, [onSaved, preview.panelLayer]);
 
   const releaseMap = useCallback(() => {
     const map = mapRef.current;
@@ -160,7 +166,7 @@ export function CatalogPreviewMapCapture({
       // é a mesma coropleta que o Monitoramento desenha, lida da rota do
       // rascunho.
       const choropleth = await loadCatalogChoroplethPreview(
-        preview.panelLayer,
+        panelLayerRef.current,
         period,
         controller.signal,
       );
@@ -223,15 +229,7 @@ export function CatalogPreviewMapCapture({
       controller.abort();
       releaseMap();
     };
-  }, [
-    captureKey,
-    entryId,
-    panelLayerId,
-    period,
-    preview.panelLayer,
-    releaseMap,
-    tileApiPath,
-  ]);
+  }, [captureKey, entryId, panelLayerId, period, releaseMap, tileApiPath]);
 
   const busy = stage === "capturing" || stage === "saving";
 
