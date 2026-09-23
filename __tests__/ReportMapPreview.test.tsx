@@ -1,4 +1,5 @@
 import { act, cleanup, render, waitFor } from "@testing-library/react";
+import type maplibregl from "maplibre-gl";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 const { mapInstances, MapConstructorMock, prewarmMock } = vi.hoisted(() => ({
@@ -260,6 +261,31 @@ describe("ReportMapPreview", () => {
 
     expect(MapConstructorMock).not.toHaveBeenCalled();
     expect(getByText("Mapa indisponível para exportação.")).toBeTruthy();
+  });
+
+  // Regressão: o estilo do relatório tinha nascido vazio por desempenho, e o
+  // PNG capturado saía com o índice recortado sobre o branco do canvas em todo
+  // recorte — município, estado, bioma, ASD.
+  it("desenha o índice sobre o mapa de fundo, e não sobre o branco do canvas", async () => {
+    render(
+      <ReportMapPreview
+        territory={CAATINGA}
+        layerId="anaseca"
+        period="2024-01"
+        tileUrl={TILE_URL}
+      />,
+    );
+
+    await waitFor(() => expect(MapConstructorMock).toHaveBeenCalled());
+    const { style } = MapConstructorMock.mock.calls[0][0] as {
+      style: maplibregl.StyleSpecification;
+    };
+
+    expect(style.sources["osm-base"]).toBeTruthy();
+    // Primeira camada do estilo: tudo o que o relatório acrescenta depois
+    // — malha municipal, raster do índice, contorno do território — fica
+    // por cima do fundo.
+    expect(style.layers[0].id).toBe("osm-layer");
   });
 
   // Antes cada item do relatório criava e destruía a própria instância: os 20

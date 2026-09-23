@@ -11,7 +11,7 @@ import { REFERENCE_LAYER_IDS } from "@/components/MapLayerContext/mapLayerState"
 
 export type MapMode = "demo" | "platform";
 
-const MAP_SOURCE_ID = "osm-base";
+export const OSM_SOURCE_ID = "osm-base";
 export const OSM_LAYER_ID = "osm-layer";
 export const STATES_SOURCE_ID = "brazil-states";
 export const STATES_SOURCE_LAYER = "brazilstates";
@@ -57,15 +57,33 @@ const CDI_FILL_EXPRESSION: ExpressionSpecification = [
   "transparent",
 ];
 
+/**
+ * O mapa de fundo das telas que desenham um raster do Earth Engine.
+ *
+ * Fica exportado porque o Relatório Automático monta um estilo próprio, sem os
+ * controles e sem a alternância para satélite, e precisa exatamente do mesmo
+ * fundo: sem ele o PNG capturado sai com o índice recortado sobre branco.
+ *
+ * @example
+ * const style = { version: 8, sources: { [OSM_SOURCE_ID]: OSM_RASTER_SOURCE }, layers: [OSM_BASE_LAYER] };
+ */
+export const OSM_RASTER_SOURCE: maplibregl.RasterSourceSpecification = {
+  type: "raster",
+  tiles: ["https://a.tile.openstreetmap.org/{z}/{x}/{y}.png"],
+  tileSize: 256,
+  attribution: "&copy; OpenStreetMap contributors",
+};
+
+export const OSM_BASE_LAYER: maplibregl.RasterLayerSpecification = {
+  id: OSM_LAYER_ID,
+  type: "raster",
+  source: OSM_SOURCE_ID,
+};
+
 export const BASE_STYLE: maplibregl.StyleSpecification = {
   version: 8,
   sources: {
-    [MAP_SOURCE_ID]: {
-      type: "raster",
-      tiles: ["https://a.tile.openstreetmap.org/{z}/{x}/{y}.png"],
-      tileSize: 256,
-      attribution: "&copy; OpenStreetMap contributors",
-    },
+    [OSM_SOURCE_ID]: OSM_RASTER_SOURCE,
     [SATELLITE_SOURCE_ID]: {
       type: "raster",
       tiles: [
@@ -76,11 +94,7 @@ export const BASE_STYLE: maplibregl.StyleSpecification = {
     },
   },
   layers: [
-    {
-      id: OSM_LAYER_ID,
-      type: "raster",
-      source: MAP_SOURCE_ID,
-    },
+    OSM_BASE_LAYER,
     {
       id: SATELLITE_LAYER_ID,
       type: "raster",
