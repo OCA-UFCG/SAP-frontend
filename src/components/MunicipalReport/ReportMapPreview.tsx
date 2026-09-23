@@ -26,6 +26,10 @@ import {
   resolveSpatialFocusBounds,
 } from "@/components/Map/mapBounds";
 import {
+  applyIndexChoroplethStates,
+  ensureIndexChoroplethLayers,
+} from "@/components/Map/indexChoroplethLayers";
+import {
   MUNICIPALITY_BORDER_LAYER_ID,
   MUNICIPALITY_SOURCE_ID,
   MUNICIPALITY_SOURCE_LAYER,
@@ -62,6 +66,28 @@ function addGeeRasterLayer(map: maplibregl.Map, tileUrl: string) {
     },
     MUNICIPALITY_BORDER_LAYER_ID,
   );
+}
+
+/** As faixas de um índice de planilha, pintadas município a município. */
+export interface ReportMapChoropleth {
+  palette: string[];
+  /** Código IBGE de 7 dígitos → posição da faixa de cor. */
+  classByCode: Record<string, number>;
+}
+
+/**
+ * Um índice de planilha não tem asset no Earth Engine: o mapa dele é a mesma
+ * coropleta do Monitoramento. Sem o GeoJSON de visão geral, porque o relatório
+ * enquadra o município num zoom em que os tiles da malha já existem.
+ */
+function addChoroplethLayers(
+  map: maplibregl.Map,
+  { palette, classByCode }: ReportMapChoropleth,
+) {
+  ensureIndexChoroplethLayers(map, palette, null, 0.85);
+  applyIndexChoroplethStates(map, classByCode);
+  // A coropleta entra no topo e cobriria o contorno preto do município.
+  map.moveLayer(MUNICIPALITY_BORDER_LAYER_ID);
 }
 
 type OutlineCollection = FeatureCollection<Geometry, { name: string }>;
@@ -185,8 +211,8 @@ function focusMunicipality(map: maplibregl.Map, municipalityCode: string) {
   }
 }
 
-function isRasterCaptureReady(map: maplibregl.Map) {
-  return map.isSourceLoaded(GEE_SOURCE_ID) && map.areTilesLoaded();
+function isCaptureReady(map: maplibregl.Map, sourceId: string) {
+  return map.isSourceLoaded(sourceId) && map.areTilesLoaded();
 }
 
 /**
@@ -197,23 +223,28 @@ function isRasterCaptureReady(map: maplibregl.Map) {
  * isso a espera exige ter visto dados da fonte do raster **e** todos os tiles
  * carregados, em vez de confiar só no evento.
  *
+ * A coropleta não tem fonte nova: ela pinta a malha municipal que o mapa já
+ * tem, então basta a malha estar carregada quando o mapa parar de desenhar.
+ *
  * Ao desistir, o `signal` é o que garante a remoção dos ouvintes: o mapa volta
  * para a estante e será usado por outra camada, então um ouvinte esquecido aqui
  * ficaria pendurado nele para sempre.
  */
-function waitForRasterCapture(
+function waitForMapCapture(
   map: maplibregl.Map,
   signal: AbortSignal,
+  choropleth: boolean,
 ): Promise<boolean> {
+  const sourceId = choropleth ? MUNICIPALITY_SOURCE_ID : GEE_SOURCE_ID;
   return new Promise((resolve) => {
-    let rasterReported = false;
+    let sourceReported = choropleth;
 
     function handleSourceData(event: maplibregl.MapSourceDataEvent) {
-      if (event.sourceId === GEE_SOURCE_ID) rasterReported = true;
+      if (event.sourceId === sourceId) sourceReported = true;
     }
 
     function handleIdle() {
-      if (rasterReported && isRasterCaptureReady(map)) settle(true);
+      if (sourceReported && isCaptureReady(map, sourceId)) settle(true);
     }
 
     function handleGiveUp() {
@@ -251,6 +282,8 @@ interface ReportMapPreviewProps {
    * tente desenhar o mapa", e escolhe a mensagem que o item mostra.
    */
   unavailableReason?: EeMapUrlFailure;
+  /** Presente num índice de planilha: desenha a coropleta em vez do raster. */
+  choropleth?: ReportMapChoropleth;
   onCapture?: (src: string | null) => void;
   /**
    * Avisa a fila que este quadro entrou ou saiu da área visível, para que os
@@ -270,9 +303,11 @@ export function ReportMapPreview({
   queuedAt,
   tileUrl,
   unavailableReason,
+  choropleth,
   onCapture,
   onVisibilityChange,
 }: ReportMapPreviewProps) {
+  const drawable = Boolean(tileUrl || choropleth);
   const t = useTranslations("MunicipalReport");
   const containerRef = useRef<HTMLDivElement | null>(null);
   const frameRef = useRef<HTMLDivElement | null>(null);
@@ -352,7 +387,7 @@ export function ReportMapPreview({
       }
 
       const slot = containerRef.current;
-      if (aborted || !slot || !tileUrl) return;
+      if (aborted || !slot || !drawable) return;
 
       const finishAcquire = startMunicipalReportStage();
       const acquired = await acquireReportMap(slot, controller.signal);
@@ -374,10 +409,15 @@ export function ReportMapPreview({
       }
 
       const finishTilesAndRender = startMunicipalReportStage();
-      addGeeRasterLayer(acquired.map, tileUrl);
+      if (choropleth) addChoroplethLayers(acquired.map, choropleth);
+      else if (tileUrl) addGeeRasterLayer(acquired.map, tileUrl);
       await focusTerritory(acquired.map, territory, controller.signal);
       if (aborted) return;
-      const ready = await waitForRasterCapture(acquired.map, controller.signal);
+      const ready = await waitForMapCapture(
+        acquired.map,
+        controller.signal,
+        Boolean(choropleth),
+      );
       finishTilesAndRender(`Mapa ${layerId}: tiles e renderização`, {
         detalhes: ready
           ? "Do raster adicionado até o mapa parar de desenhar"
@@ -402,9 +442,10 @@ export function ReportMapPreview({
 
     // Sem URL de tiles não há mapa para capturar: o lote do relatório resolve
     // todas antes, e quem não tem imagem naquele período chega com `unavailable`.
+    // A coropleta de um índice de planilha dispensa a URL.
     if (
       active &&
-      tileUrl &&
+      drawable &&
       !unavailableReason &&
       !resolvedImageSrc &&
       !captureFailed
@@ -434,6 +475,8 @@ export function ReportMapPreview({
     queuedAt,
     resolvedImageSrc,
     tileUrl,
+    choropleth,
+    drawable,
     unavailableReason,
   ]);
 
@@ -463,10 +506,10 @@ export function ReportMapPreview({
           {unavailableMessage}
         </div>
       )}
-      {!resolvedImageSrc && !unavailableMessage && active && tileUrl && (
+      {!resolvedImageSrc && !unavailableMessage && active && drawable && (
         <div ref={containerRef} className="h-full w-full" />
       )}
-      {!resolvedImageSrc && !unavailableMessage && !(active && tileUrl) && (
+      {!resolvedImageSrc && !unavailableMessage && !(active && drawable) && (
         <div className="h-full w-full bg-[#eef1f1]" aria-hidden="true" />
       )}
     </div>

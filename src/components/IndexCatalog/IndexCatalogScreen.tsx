@@ -1905,6 +1905,7 @@ export function IndexCatalogScreen() {
           <CatalogReportPreview
             entryId={preview.entryId}
             tileApiPath={preview.panelLayer.tileApiPath}
+            choroplethSource={preview.panelLayer}
           />
         </section>
       )}

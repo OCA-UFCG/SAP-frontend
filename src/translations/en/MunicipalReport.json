@@ -139,7 +139,7 @@
     "tableClass": "Class",
     "spatialAndTimeSeries": "Spatial distribution and time series",
     "spatialImage": "Spatial map: {period}",
-    "rasterDescription": "Thematic raster of {title} for {period}, visually clipped by the {scope} boundary of {territory}.",
+    "rasterDescription": "Thematic map of {title} for {period}, visually clipped by the {scope} boundary of {territory}.",
     "timeSeriesAlt": "Time series — {title}",
     "timeSeriesUnavailable": "Time series unavailable for export.",
     "historicalAnalysisTitle": "Historical series analysis",
