@@ -29,13 +29,14 @@ describe("LanguageSwitcher", () => {
     cleanup();
   });
 
-  it("renders the language selector with the active language spelled out", () => {
+  it("renders the language selector with the active language as an acronym", () => {
     render(<LanguageSwitcher />);
 
     const langBtn = screen.getByRole("button", { name: /alterar idioma/i });
 
     expect(langBtn).toBeInTheDocument();
-    expect(langBtn).toHaveTextContent("Português");
+    expect(langBtn).toHaveTextContent("PT-BR");
+    expect(langBtn).not.toHaveTextContent("Português");
   });
 
   it("toggles the language menu and shows language options", () => {
@@ -46,8 +47,11 @@ describe("LanguageSwitcher", () => {
 
     const options = screen.getByRole("listbox");
 
+    expect(within(options).getByText("PT-BR")).toBeInTheDocument();
     expect(within(options).getByText("Português")).toBeInTheDocument();
+    expect(within(options).getByText("EN")).toBeInTheDocument();
     expect(within(options).getByText("English")).toBeInTheDocument();
+    expect(within(options).getByText("ES")).toBeInTheDocument();
     expect(within(options).getByText("Español")).toBeInTheDocument();
   });
 
