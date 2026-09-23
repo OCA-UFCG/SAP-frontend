@@ -1,4 +1,8 @@
 import type { MunicipalReportAnalysis } from "@/contracts/municipalReport";
+import {
+  DECIMAL_FRACTION_DIGITS,
+  formatAbsoluteNumber,
+} from "@/utils/formatTerritorialNumber";
 
 type MunicipalReportValueSemantics = Pick<
   MunicipalReportAnalysis,
@@ -12,7 +16,7 @@ function normalizedUnit(analysis: MunicipalReportValueSemantics) {
 export function formatPercentage(
   value: number,
   locale: string,
-  fractionDigits = 1,
+  fractionDigits = DECIMAL_FRACTION_DIGITS,
 ) {
   return new Intl.NumberFormat(locale, {
     minimumFractionDigits: fractionDigits,
@@ -28,9 +32,7 @@ export function formatMunicipalReportValue(
   if (analysis.valueType === "percentage")
     return `${formatPercentage(value, locale)}%`;
 
-  return new Intl.NumberFormat(locale, {
-    maximumFractionDigits: Number.isInteger(value) ? 0 : 1,
-  }).format(value);
+  return formatAbsoluteNumber(value, locale);
 }
 
 function slugifyUnitKey(unit: string) {

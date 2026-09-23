@@ -1,3 +1,4 @@
+import { formatAbsoluteNumber } from "@/utils/formatTerritorialNumber";
 import "server-only";
 
 import type { MunicipalReportAnalysis } from "@/contracts/municipalReport";
@@ -85,7 +86,7 @@ export async function renderMunicipalReportChart(
       const y = yForValue(value, axisMax);
       const label =
         analysis.valueType === "absolute"
-          ? Number(value.toFixed(1)).toLocaleString("pt-BR")
+          ? formatAbsoluteNumber(Number(value.toFixed(1)), "pt-BR")
           : `${value}%`;
       return `
         <line x1="${PADDING_LEFT}" y1="${y.toFixed(1)}" x2="${WIDTH - PADDING_RIGHT}" y2="${y.toFixed(1)}" stroke="#D8D9D4" stroke-width="1" opacity="${value === 0 ? "1" : "0.7"}" />
@@ -157,9 +158,10 @@ export async function renderMunicipalReportChart(
       ? ""
       : `<line x1="${highlightedX.toFixed(1)}" y1="${CHART_TOP}" x2="${highlightedX.toFixed(1)}" y2="${CHART_BOTTOM}" stroke="#292829" stroke-width="2" stroke-dasharray="6 6" opacity="0.42" />`;
 
-  const chartUnit = analysis.valueType === "absolute" && analysis.unit.trim()
-    ? ` (${analysis.unit.trim()})`
-    : "";
+  const chartUnit =
+    analysis.valueType === "absolute" && analysis.unit.trim()
+      ? ` (${analysis.unit.trim()})`
+      : "";
 
   const svg = `<svg xmlns="http://www.w3.org/2000/svg" width="${WIDTH}" height="${HEIGHT}" viewBox="0 0 ${WIDTH} ${HEIGHT}">
     <rect width="100%" height="100%" fill="#FFFFFF" />

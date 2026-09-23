@@ -141,7 +141,7 @@ describe("analysis.mappers", () => {
     ]);
     expect(
       model?.rankingGroups[1]?.items.map((item) => item.trailingLabel),
-    ).toEqual(["65.0%", "60.0%", "55.0%", "40.0%", "20.0%"]);
+    ).toEqual(["65,00%", "60,00%", "55,00%", "40,00%", "20,00%"]);
     expect(model?.rankingGroups[3]?.items.map((item) => item.id)).toEqual([
       "mg",
       "ac",
@@ -155,7 +155,7 @@ describe("analysis.mappers", () => {
     ]);
     expect(
       model?.rankingGroups[4]?.items.map((item) => item.trailingLabel),
-    ).toEqual(["5.0%", "1.0%"]);
+    ).toEqual(["5,00%", "1,00%"]);
   });
 
   it("uses shared municipality labels when compact analysis has no locations map", () => {
@@ -193,7 +193,7 @@ describe("analysis.mappers", () => {
     expect(model).not.toBeNull();
     expect(model?.name).toBe("Abadia de Goiás - GO");
     expect(model?.happening).toBe(
-      "No município de Abadia de Goiás - GO, predomina a classe Classe A com 80.0% da área analisada.",
+      "No município de Abadia de Goiás - GO, predomina a classe Classe A com 80,00% da área analisada.",
     );
     expect(model?.rankingTitle).toBeUndefined();
     expect(model?.rankingGroups).toEqual([]);
@@ -241,25 +241,25 @@ describe("analysis.mappers", () => {
       total: 2,
       totalLabel: "Estados",
       items: [
-        { id: "go", label: "Goiás", trailingLabel: "80.0%" },
-        { id: "df", label: "Distrito Federal", trailingLabel: "25.0%" },
+        { id: "go", label: "Goiás", trailingLabel: "80,00%" },
+        { id: "df", label: "Distrito Federal", trailingLabel: "25,00%" },
       ],
     });
     expect(model?.rankingGroups[0]?.allItems).toEqual([
-      { id: "go", label: "Goiás", trailingLabel: "80.0%" },
-      { id: "df", label: "Distrito Federal", trailingLabel: "25.0%" },
+      { id: "go", label: "Goiás", trailingLabel: "80,00%" },
+      { id: "df", label: "Distrito Federal", trailingLabel: "25,00%" },
     ]);
     expect(model?.rankingGroups[1]).toMatchObject({
       total: 2,
       totalLabel: "Estados",
       items: [
-        { id: "df", label: "Distrito Federal", trailingLabel: "75.0%" },
-        { id: "go", label: "Goiás", trailingLabel: "20.0%" },
+        { id: "df", label: "Distrito Federal", trailingLabel: "75,00%" },
+        { id: "go", label: "Goiás", trailingLabel: "20,00%" },
       ],
     });
     expect(model?.rankingGroups[1]?.allItems).toEqual([
-      { id: "df", label: "Distrito Federal", trailingLabel: "75.0%" },
-      { id: "go", label: "Goiás", trailingLabel: "20.0%" },
+      { id: "df", label: "Distrito Federal", trailingLabel: "75,00%" },
+      { id: "go", label: "Goiás", trailingLabel: "20,00%" },
     ]);
     expect(
       model?.rankingGroups.flatMap((group) =>

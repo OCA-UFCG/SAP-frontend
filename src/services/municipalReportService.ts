@@ -1,3 +1,4 @@
+import { formatAbsoluteNumber } from "@/utils/formatTerritorialNumber";
 import "server-only";
 
 import municipalAvailabilityIndex from "@/data/municipalAvailabilityIndex.json";
@@ -590,7 +591,7 @@ export async function buildMunicipalReport(
     templateVariables[`valor_com_unidade_${analysis.alias}`] =
       dominantValue == null
         ? null
-        : `${dominantValue.toLocaleString("pt-BR", { maximumFractionDigits: 1 })}${analysis.unit ? ` ${analysis.unit}` : ""}`;
+        : `${formatAbsoluteNumber(dominantValue, "pt-BR")}${analysis.unit ? ` ${analysis.unit}` : ""}`;
     templateVariables[`periodo_${analysis.alias}`] = analysis.effectivePeriod;
     // O período por extenso existe para o texto escrito no catálogo: "2024-09"
     // no meio de uma frase lê-se mal, e quem escreve não deve ter que formatar
