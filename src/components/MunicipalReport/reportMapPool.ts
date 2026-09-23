@@ -4,6 +4,9 @@ import maplibregl from "maplibre-gl";
 import {
   GEE_LAYER_ID,
   GEE_SOURCE_ID,
+  OSM_BASE_LAYER,
+  OSM_RASTER_SOURCE,
+  OSM_SOURCE_ID,
   REPORT_TERRITORY_OUTLINE_LAYER_ID,
   REPORT_TERRITORY_OUTLINE_SOURCE_ID,
 } from "@/components/Map/mapDefinitions";
@@ -15,12 +18,13 @@ import {
 } from "@/components/Map/municipalityLayers";
 import { REPORT_MAP_CAPTURE_CONCURRENCY } from "@/components/MunicipalReport/useReportMapCaptureQueue";
 
-// O relatório desenha o índice sobre a malha municipal, sem mapa de fundo: o
-// estilo nasce vazio e `ensureMunicipalityLayers` acrescenta a fonte vetorial.
+// O relatório desenha o índice sobre o mesmo mapa de fundo da plataforma. Sem
+// ele, todo recorte menor que o raster aparecia sobre o branco do canvas, e o
+// leitor perdia a referência geográfica do que está vendo.
 const REPORT_MAP_STYLE: maplibregl.StyleSpecification = {
   version: 8,
-  sources: {},
-  layers: [],
+  sources: { [OSM_SOURCE_ID]: OSM_RASTER_SOURCE },
+  layers: [OSM_BASE_LAYER],
 };
 
 // Nunca há mais mapas em uso do que a concorrência da fila, então guardar essa
