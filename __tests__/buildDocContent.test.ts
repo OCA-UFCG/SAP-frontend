@@ -77,7 +77,7 @@ describe("populateDocContent", () => {
     );
 
     expect(content.DROUGHT_MONITOR[0].text).toBe(
-      "Direto: 42,5%; alias: 42,5%.",
+      "Direto: 42,50%; alias: 42,50%.",
     );
   });
 
@@ -99,7 +99,7 @@ describe("populateDocContent", () => {
     );
 
     expect(content.DEGRADATION_INDEX[0].text).toBe(
-      "Soma: 12,35%; conservado: 42,5%; nível 1: 18,8%.",
+      "Soma: 12,35%; conservado: 42,50%; nível 1: 18,75%.",
     );
   });
 });
@@ -123,7 +123,7 @@ describe("populateDocContent com variáveis por camada", () => {
     );
 
     expect(content["indice-de-aridez-era5-land"][0].text).toBe(
-      "Predomina Semiárido, com 83,4% em setembro de 2024.",
+      "Predomina Semiárido, com 83,42% em setembro de 2024.",
     );
   });
 
@@ -169,7 +169,7 @@ describe("populateDocContent > variáveis de série da própria camada", () => {
     );
 
     expect(content.indice_novo[0].text).toBe(
-      "Antes era Sem seca, com 83,4% da área, e a situação vem agravando desde janeiro de 2020.",
+      "Antes era Sem seca, com 83,42% da área, e a situação vem agravando desde janeiro de 2020.",
     );
   });
 
@@ -181,7 +181,7 @@ describe("populateDocContent > variáveis de série da própria camada", () => {
       { variacao_pontos_indice_novo: 12.34 },
     );
 
-    expect(content.indice_novo[0].text).toBe("12,3 pontos");
+    expect(content.indice_novo[0].text).toBe("12,34 pontos");
   });
 
   // Regressão: num índice legado o apelido das variáveis é escrito à mão em
@@ -207,7 +207,7 @@ describe("populateDocContent > variáveis de série da própria camada", () => {
     );
 
     expect(content.indicearidez[0].text).toBe(
-      "Semiárido em 61,3% da área em 2020, antes Subúmido seco.",
+      "Semiárido em 61,27% da área em 2020, antes Subúmido seco.",
     );
   });
 });

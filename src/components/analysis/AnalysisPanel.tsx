@@ -1,5 +1,9 @@
 "use client";
 
+import {
+  formatAbsoluteNumber,
+  formatPercentageNumber,
+} from "@/utils/formatTerritorialNumber";
 import { useEffect, useRef, useState, useMemo } from "react";
 import dynamic from "next/dynamic";
 import { useTranslations } from "next-intl";
@@ -261,8 +265,8 @@ function DistributionSection({
   const absolute = valueType === "absolute";
   const formatValue = (value: number) =>
     absolute
-      ? `${value.toLocaleString("pt-BR")} ${valueUnit ?? ""}`.trim()
-      : `${value}%`;
+      ? `${formatAbsoluteNumber(value, "pt-BR")} ${valueUnit ?? ""}`.trim()
+      : `${formatPercentageNumber(value, "pt-BR")}%`;
   return (
     <div className="flex flex-col gap-2">
       <h2 className="text-[14px] font-semibold leading-6 text-[#292829]">
