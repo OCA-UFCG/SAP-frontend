@@ -1,4 +1,5 @@
 import { act, cleanup, render, screen, waitFor } from "@testing-library/react";
+import { useState } from "react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 const { mapInstances, MapConstructorMock } = vi.hoisted(() => ({
@@ -237,6 +238,34 @@ describe("CatalogPreviewMapCapture", () => {
     expect(applyIndexChoroplethStates).toHaveBeenCalledWith(expect.anything(), {
       "2504009": 0,
     });
+  });
+
+  // Regressão: a tela do catálogo guarda a URL devolvida dentro do próprio
+  // `panelLayer`, e a captura dependia da identidade desse objeto — guardar a
+  // imagem disparava outra captura, que guardava outra, indefinidamente.
+  it("captures once even when the saved URL is written back into the panelLayer", async () => {
+    function CatalogScreenStub() {
+      const [panelLayer, setPanelLayer] = useState(captureSource.panelLayer);
+
+      return (
+        <CatalogPreviewMapCapture
+          preview={{ ...captureSource, panelLayer }}
+          onSaved={(url) =>
+            setPanelLayer((current) => ({ ...current, previewMap: { url } }))
+          }
+        />
+      );
+    }
+
+    render(<CatalogScreenStub />);
+
+    await waitFor(() => expect(mapInstances).toHaveLength(1));
+    emit(0, "load");
+    emit(0, "idle");
+
+    await screen.findByText(/Imagem guardada/);
+    expect(mapInstances).toHaveLength(1);
+    expect(globalThis.fetch).toHaveBeenCalledTimes(1);
   });
 
   it("reports a capture the browser could not produce", async () => {
