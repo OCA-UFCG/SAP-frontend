@@ -172,10 +172,14 @@
     </symbol>
 
     <symbol id="chevron-down" viewBox="0 0 16 16">
+    <!-- A seta ocupa a largura do viewBox de propósito: desenhada menor, sobrava
+         espaço vazio dentro do ícone e ela aparecia solta, longe da borda da caixa
+         que a contém. `currentColor` deixa quem usa escolher a cor — com o traço
+         fixo, a seta do botão Download saía escura sobre o fundo verde. -->
     <path
-        d="M4 6L8 10L12 6"
-        stroke="#0F172A"
-        stroke-width="1.33333"
+        d="M2 5L8 11L14 5"
+        stroke="currentColor"
+        stroke-width="1.5"
         stroke-linecap="round"
         stroke-linejoin="round"
         fill="none"
