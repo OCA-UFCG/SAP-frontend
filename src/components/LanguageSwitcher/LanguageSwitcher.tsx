@@ -77,7 +77,7 @@ export const LanguageSwitcher = () => {
 
       {isOpen && (
         <div
-          className="absolute right-0 mt-2 w-40 rounded-md border border-stone-200 bg-white py-1 shadow-lg z-50 animate-in fade-in slide-in-from-top-1 duration-100"
+          className="absolute right-0 mt-2 w-48 rounded-md border border-stone-200 bg-white py-1 shadow-lg z-50 animate-in fade-in slide-in-from-top-1 duration-100"
           role="listbox"
           aria-label={t("changeLanguage")}
         >
