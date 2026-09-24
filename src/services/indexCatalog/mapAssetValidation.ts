@@ -7,7 +7,10 @@ import type {
   EarthEngineAssetMapping,
   IndexCatalogConfigV2,
 } from "@/types/indexCatalog";
-import { expandAssetForPeriod } from "@/utils/indexCatalog";
+import {
+  assertAssetPatternVariesByPeriod,
+  expandAssetForPeriod,
+} from "@/utils/indexCatalog";
 
 export interface ValidatedForecastCollection {
   latestValue: string | number;
@@ -127,6 +130,7 @@ export async function validateMapAssets(
   config: IndexCatalogConfigV2,
   periods: string[],
 ): Promise<ValidatedMapAssets> {
+  assertAssetPatternVariesByPeriod(config.earthEngine, periods);
   const assets = new Map<string, string[]>();
   for (const period of periods) {
     const assetId = expandAssetForPeriod(config.earthEngine, period);
