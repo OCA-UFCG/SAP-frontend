@@ -23,7 +23,7 @@ vi.mock("@/data/municipalAvailabilityIndex.json", () => ({
       },
       {
         panelLayerId: "futuro",
-        label: "Índice futuro",
+        label: "Previsão: Índice futuro",
         order: 1,
         periods: ["2028"],
       },
@@ -57,7 +57,7 @@ const panelLayers: PanelLayerI[] = [
   {
     sys: { id: "sys-futuro" },
     id: "futuro",
-    name: "Índice futuro",
+    name: "Previsão: Índice futuro",
     description: "Descricao",
     category: "Dados Climáticos",
     panelPosition: 2,
@@ -96,7 +96,7 @@ describe("MunicipalReportContext", () => {
 
     expect(screen.queryByText("Data da análise")).not.toBeInTheDocument();
     expect(screen.getByRole("checkbox", { name: "Monitor de Secas" })).toBeChecked();
-    expect(screen.getByRole("checkbox", { name: "Índice futuro" })).toBeChecked();
+    expect(screen.getByRole("checkbox", { name: "Previsão: Índice futuro" })).toBeChecked();
     expect(screen.getByRole("checkbox", { name: "Sem dados" })).toBeChecked();
 
     const municipalityInput = screen.getByRole("combobox", {
@@ -109,7 +109,7 @@ describe("MunicipalReportContext", () => {
     await waitFor(() => {
       expect(screen.getByRole("checkbox", { name: "Monitor de Secas" })).toBeChecked();
     });
-    expect(screen.getByRole("checkbox", { name: "Índice futuro" })).toBeChecked();
+    expect(screen.getByRole("checkbox", { name: "Previsão: Índice futuro" })).toBeChecked();
     expect(screen.getByRole("checkbox", { name: "Sem dados" })).not.toBeChecked();
     expect(screen.getByRole("checkbox", { name: "Sem dados" })).toBeDisabled();
     expect(global.fetch).not.toHaveBeenCalled();
@@ -119,6 +119,30 @@ describe("MunicipalReportContext", () => {
     const destination = pushMock.mock.calls[0]?.[0] as string;
     const params = new URL(destination, "https://example.test").searchParams;
     expect(params.get("period")).toBe("2026");
+    expect(params.get("layers")?.split(",")).toEqual(["seca", "futuro"]);
+  });
+
+  it("agrupa a previsão num subacordeão no fim da categoria e gera as seções nessa ordem", async () => {
+    const user = userEvent.setup();
+    const [seca, futuro, semDados] = panelLayers;
+
+    render(<MunicipalReportContext panelLayers={[futuro, seca, semDados]} />);
+
+    const subgroupButton = screen.getByText("Dados de previsão").closest("button");
+    expect(subgroupButton).toHaveAttribute("aria-expanded", "false");
+    const checkboxNames = screen
+      .getAllByRole("checkbox", { hidden: true })
+      .map((checkbox) => checkbox.closest("label")?.textContent);
+    expect(checkboxNames).toEqual(["Monitor de Secas", "Sem dados", "Previsão: Índice futuro"]);
+
+    const municipalityInput = screen.getByRole("combobox", { name: /município/iu });
+    await user.click(municipalityInput);
+    await user.type(municipalityInput, "Abadia");
+    await user.click(screen.getByRole("option", { name: "Abadia de Goiás - GO" }));
+    await user.click(screen.getByRole("button", { name: "Gerar relatório" }));
+
+    const destination = pushMock.mock.calls[0]?.[0] as string;
+    const params = new URL(destination, "https://example.test").searchParams;
     expect(params.get("layers")?.split(",")).toEqual(["seca", "futuro"]);
   });
 });

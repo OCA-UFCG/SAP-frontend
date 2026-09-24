@@ -8,6 +8,9 @@
       "socioeconomic": "Socioeconomic Data",
       "others": "Others"
     },
+    "subgroups": {
+      "forecast": "Forecast data"
+    },
     "Layers": {
       "monitor-de-seca-ana": {
         "title": "Drought Monitor | ANA",

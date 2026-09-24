@@ -17,6 +17,10 @@ import { trackUiEvent } from "@/services/telemetry/client";
 import type { IEEInfo, PanelLayerI } from "@/utils/interfaces";
 import type { SpatialSelection } from "@/utils/spatialScope";
 import { getImageDataLegend } from "@/utils/imageData";
+import {
+  splitIntoLayerSubgroups,
+  type SubgroupedItems,
+} from "@/utils/layerSubgroups";
 import { useMonitoringListState } from "./monitoringListState";
 import cdiData from "../../data/CDI_Janeiro_2024_Vetores.json";
 
@@ -34,6 +38,8 @@ interface DatasetGroup {
   title: string;
   datasets: LayerDataset[];
 }
+
+type SubgroupedDatasetGroup = DatasetGroup & SubgroupedItems<LayerDataset>;
 
 const DATASET_REGISTRY: Record<string, CDIVectorData> = {
   CDI: cdiData as unknown as CDIVectorData,
@@ -206,7 +212,7 @@ export function ModulesContext({
     [panelLayers],
   );
 
-  const groupedDatasets = useMemo<DatasetGroup[]>(() => {
+  const groupedDatasets = useMemo<SubgroupedDatasetGroup[]>(() => {
     const groups = new Map<string, DatasetGroup>();
 
     datasets.forEach((dataset) => {
@@ -226,9 +232,16 @@ export function ModulesContext({
       });
     });
 
-    return Array.from(groups.values()).sort((left, right) => {
-      return compareCategoryTitles(left.title, right.title);
-    });
+    return Array.from(groups.values())
+      .sort((left, right) => compareCategoryTitles(left.title, right.title))
+      .map((group) => ({
+        ...group,
+        ...splitIntoLayerSubgroups(
+          group.title,
+          group.datasets,
+          (dataset) => dataset.title,
+        ),
+      }));
   }, [datasets]);
 
   const layerById = useMemo(() => {
@@ -367,6 +380,30 @@ export function ModulesContext({
     [setSpatialSelection, setSelectedState, setSelectedMunicipalityCode],
   );
 
+  const renderDatasetCard = (dataset: LayerDataset) => {
+    const fileRef = dataset.fileRef ?? "";
+    const vectorData = fileRef ? DATASET_REGISTRY[fileRef] : undefined;
+    const hasEEData = Boolean(fileRef && layerById.get(fileRef)?.imageData);
+    const canApply = Boolean(vectorData) || hasEEData;
+
+    const isActive = vectorData
+      ? activeData === vectorData
+      : hasEEData
+        ? activeEEData?.id === fileRef
+        : false;
+
+    return (
+      <LayerDatasetCard
+        key={fileRef || dataset.id}
+        dataset={dataset}
+        active={isActive}
+        disabled={!canApply}
+        onToggleLayer={handleToggle}
+        onOpenDetails={handleDetails}
+      />
+    );
+  };
+
   return (
     <div
       ref={scrollContainerRef}
@@ -405,31 +442,21 @@ export function ModulesContext({
                     : group.title
                 }
               >
-                {group.datasets.map((dataset) => {
-                  const fileRef = dataset.fileRef ?? "";
-                  const vectorData = fileRef
-                    ? DATASET_REGISTRY[fileRef]
-                    : undefined;
-                  const hasEEData = Boolean(
-                    fileRef && layerById.get(fileRef)?.imageData,
-                  );
-                  const canApply = Boolean(vectorData) || hasEEData;
-
-                  const isActive = vectorData
-                    ? activeData === vectorData
-                    : hasEEData
-                      ? activeEEData?.id === fileRef
-                      : false;
-
+                {group.items.map(renderDatasetCard)}
+                {group.subgroups.map((subgroup) => {
+                  const subgroupKey = `${group.key}/${subgroup.key}`;
                   return (
-                    <LayerDatasetCard
-                      key={fileRef || dataset.id}
-                      dataset={dataset}
-                      active={isActive}
-                      disabled={!canApply}
-                      onToggleLayer={handleToggle}
-                      onOpenDetails={handleDetails}
-                    />
+                    <LayerAccordion
+                      key={subgroupKey}
+                      variant="subgroup"
+                      open={listState?.isCategoryOpen(subgroupKey)}
+                      onOpenChange={(open) =>
+                        listState?.setCategoryOpen(subgroupKey, open)
+                      }
+                      title={t(`subgroups.${subgroup.key}`)}
+                    >
+                      {subgroup.items.map(renderDatasetCard)}
+                    </LayerAccordion>
                   );
                 })}
               </LayerAccordion>

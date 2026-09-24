@@ -26,6 +26,11 @@ import {
   type SpatialSelection,
 } from "@/utils/spatialScope";
 import { resolveReportCategoryKey } from "@/utils/municipalReportCategories";
+import {
+  flattenLayerSubgroups,
+  splitIntoLayerSubgroups,
+  type SubgroupedItems,
+} from "@/utils/layerSubgroups";
 import type { PanelLayerI } from "@/utils/interfaces";
 import { startMunicipalReportMetrics } from "@/utils/municipalReportMetrics";
 import { slugifyTranslationKey } from "@/utils/translations";
@@ -47,11 +52,13 @@ const REPORT_SCOPE_OPTIONS: readonly ReportScope[] = [
   ...SPATIAL_AREA_OPTIONS.map((option) => option.value),
 ];
 
-interface ReportLayerGroup {
+interface ReportCategoryLayers {
   key: string;
   title: string;
   layers: PanelLayerI[];
 }
+
+type ReportLayerGroup = ReportCategoryLayers & SubgroupedItems<PanelLayerI>;
 
 function canonicalCategoryTitle(category: string): string {
   return CATEGORY_ORDER.find(
@@ -125,8 +132,8 @@ export function MunicipalReportContext({ panelLayers = [] }: MunicipalReportCont
     [panelLayers],
   );
 
-  const groups = useMemo(() => {
-    const grouped = new Map<string, ReportLayerGroup>();
+  const groups = useMemo((): ReportLayerGroup[] => {
+    const grouped = new Map<string, ReportCategoryLayers>();
     reportLayers.forEach((layer) => {
       const category = layer.category?.trim() || tModules("categories.others");
       const key = category.toLocaleLowerCase("pt-BR");
@@ -141,16 +148,22 @@ export function MunicipalReportContext({ panelLayers = [] }: MunicipalReportCont
         });
       }
     });
-    return [...grouped.values()].sort((left, right) =>
-      categoryOrder(left.title) - categoryOrder(right.title) || left.title.localeCompare(right.title, "pt-BR"),
-    );
+    return [...grouped.values()]
+      .sort((left, right) =>
+        categoryOrder(left.title) - categoryOrder(right.title) || left.title.localeCompare(right.title, "pt-BR"),
+      )
+      .map((group) => ({
+        ...group,
+        ...splitIntoLayerSubgroups(group.title, group.layers, (layer) => layer.name),
+      }));
   }, [reportLayers, tModules]);
 
   // This is the exact visual order used by the module checkboxes. Keep the
   // generated report request in the same sequence, independently of the order
-  // in which a checkbox was toggled.
+  // in which a checkbox was toggled. Subgroups sit at the end of their
+  // category, so their sections come last too.
   const orderedPanelLayers = useMemo(
-    () => groups.flatMap((group) => group.layers),
+    () => groups.flatMap(flattenLayerSubgroups),
     [groups],
   );
 
@@ -177,6 +190,18 @@ export function MunicipalReportContext({ panelLayers = [] }: MunicipalReportCont
   function translatedLayerTitle(layer: PanelLayerI) {
     const translationKey = `Layers.${slugifyTranslationKey(layer.name)}.title`;
     return tModules.has(translationKey) ? tModules(translationKey) : layer.name;
+  }
+
+  function renderLayerOption(layer: PanelLayerI) {
+    const available = availabilityState === "ready" && availability.get(layer.id) === true;
+    const layerTitle = translatedLayerTitle(layer);
+    return <div key={layer.id} className={`flex h-12 items-center rounded-lg border border-[#EFEFEF] bg-white ${available ? "" : "opacity-50"}`}>
+      <label className={`flex min-w-0 flex-1 items-center gap-1 py-1 pl-2 ${available ? "cursor-pointer" : "cursor-not-allowed"}`}>
+        <span className="flex h-10 w-[30px] items-center justify-center"><input type="checkbox" checked={selectedLayers.has(layer.id)} disabled={!available} onChange={() => toggleLayer(layer.id)} className="h-3.5 w-3.5 rounded-sm accent-[#989F43]" /></span>
+        <span className="min-w-0 flex-1 truncate font-inter text-base font-semibold leading-6 tracking-[-0.015em]" title={layerTitle}>{layerTitle}</span>
+      </label>
+      <button type="button" onClick={() => setInfoLayer(layer)} className="flex h-12 w-10 shrink-0 items-center justify-center border-l border-[#EFEFEF]" aria-label={t("moduleInformation", { title: layerTitle })}><svg className="h-4 w-4 text-[#2C1E1C]" aria-hidden><use href="/sprite.svg#info"/></svg></button>
+    </div>;
   }
 
   useEffect(() => {
@@ -450,17 +475,12 @@ export function MunicipalReportContext({ panelLayers = [] }: MunicipalReportCont
             {groups.map((group, index) => (
               <LayerAccordion key={group.key} title={translatedCategoryTitle(group)} defaultOpen={false}>
                 <div className="flex flex-col gap-2">
-                  {group.layers.map((layer) => {
-                    const available = availabilityState === "ready" && availability.get(layer.id) === true;
-                    const layerTitle = translatedLayerTitle(layer);
-                    return <div key={layer.id} className={`flex h-12 items-center rounded-lg border border-[#EFEFEF] bg-white ${available ? "" : "opacity-50"}`}>
-                      <label className={`flex min-w-0 flex-1 items-center gap-1 py-1 pl-2 ${available ? "cursor-pointer" : "cursor-not-allowed"}`}>
-                        <span className="flex h-10 w-[30px] items-center justify-center"><input type="checkbox" checked={selectedLayers.has(layer.id)} disabled={!available} onChange={() => toggleLayer(layer.id)} className="h-3.5 w-3.5 rounded-sm accent-[#989F43]" /></span>
-                        <span className="min-w-0 flex-1 truncate font-inter text-base font-semibold leading-6 tracking-[-0.015em]" title={layerTitle}>{layerTitle}</span>
-                      </label>
-                      <button type="button" onClick={() => setInfoLayer(layer)} className="flex h-12 w-10 shrink-0 items-center justify-center border-l border-[#EFEFEF]" aria-label={t("moduleInformation", { title: layerTitle })}><svg className="h-4 w-4 text-[#2C1E1C]" aria-hidden><use href="/sprite.svg#info"/></svg></button>
-                    </div>;
-                  })}
+                  {group.items.map(renderLayerOption)}
+                  {group.subgroups.map((subgroup) => (
+                    <LayerAccordion key={subgroup.key} variant="subgroup" title={tModules(`subgroups.${subgroup.key}`)} defaultOpen={false}>
+                      <div className="flex flex-col gap-2">{subgroup.items.map(renderLayerOption)}</div>
+                    </LayerAccordion>
+                  ))}
                 </div>
               </LayerAccordion>
             ))}

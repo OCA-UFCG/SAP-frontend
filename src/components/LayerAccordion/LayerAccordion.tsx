@@ -10,7 +10,17 @@ interface LayerAccordionProps {
   /** Modo controlado: quem monta o acordeão guarda o aberto/fechado. */
   open?: boolean;
   onOpenChange?: (open: boolean) => void;
+  /**
+   * "subgroup" é o subacordeão dentro de uma categoria: cabeçalho mais baixo e
+   * título menor, para ler como parte da categoria e não como uma categoria nova.
+   */
+  variant?: "category" | "subgroup";
 }
+
+const HEADER_STYLE = {
+  category: { height: 56, title: "text-base font-medium" },
+  subgroup: { height: 48, title: "text-sm font-semibold" },
+} as const;
 
 export function LayerAccordion({
   title,
@@ -18,9 +28,11 @@ export function LayerAccordion({
   defaultOpen = false,
   open,
   onOpenChange,
+  variant = "category",
 }: LayerAccordionProps) {
   const [uncontrolledOpen, setUncontrolledOpen] = useState(defaultOpen);
   const isOpen = open ?? uncontrolledOpen;
+  const headerStyle = HEADER_STYLE[variant];
 
   const toggle = () => {
     const next = !isOpen;
@@ -34,11 +46,11 @@ export function LayerAccordion({
         type="button"
         onClick={toggle}
         className="flex flex-row items-center w-full px-4 py-4 gap-[18px] text-left bg-transparent"
-        style={{ height: 56 }}
+        style={{ height: headerStyle.height }}
         aria-expanded={isOpen}
       >
         <span
-          className="flex-1 text-base font-medium text-[#0F172A]"
+          className={`flex-1 ${headerStyle.title} text-[#0F172A]`}
           style={{ fontFamily: "Inter" }}
         >
           {title}
