@@ -100,7 +100,7 @@ const SearchBarPlatform = ({
     <div className="w-full flex gap-2 items-start h-10">
       <div ref={containerRef} className="relative flex-1 flex flex-col h-full">
         <div
-          className={`w-full px-3 py-3 flex items-center rounded-lg shadow-sm bg-[#E4E5E2] overflow-hidden transition border
+          className={`w-full px-2.5 py-3 flex items-center rounded-lg shadow-sm bg-[#E4E5E2] overflow-hidden transition border
                     ${
                       hasError
                         ? "border-red-500 ring-2 ring-red-500"
@@ -108,7 +108,7 @@ const SearchBarPlatform = ({
                     }
                 `}
         >
-          <Icon id="loupe" className="mr-2 shrink-0" fill="#898989" size={16} />
+          <Icon id="loupe" className="mr-1.5 shrink-0" fill="#898989" size={16} />
 
           <input
             ref={inputRef}
@@ -135,7 +135,7 @@ const SearchBarPlatform = ({
             aria-controls="platform-searchbar-state-options"
             aria-expanded={isOptionsOpen}
             aria-haspopup="listbox"
-            className="w-full text-[#292829] text-[13px] placeholder:text-[13px] bg-transparent border-none outline-none ring-0"
+            className="w-full min-w-0 text-ellipsis text-[#292829] text-[13px] placeholder:text-[13px] bg-transparent border-none outline-none ring-0"
             placeholder={t("placeholder")}
           />
 
@@ -143,7 +143,7 @@ const SearchBarPlatform = ({
             type="button"
             aria-label="Mostrar estados"
             onClick={toggleOptions}
-            className="ml-2 shrink-0 text-[#898989] transition-transform"
+            className="ml-1 shrink-0 text-[#898989] transition-transform"
           >
             <svg
               width="16"
@@ -197,7 +197,7 @@ const SearchBarPlatform = ({
         )}
       </div>
       <ButtonUi
-        styles="bg-[#989F43] hover:bg-[#989F43] text-white text-sm px-3 h-full rounded-lg disabled:hover:* active:brightness-95 transition shrink-0"
+        styles="bg-[#989F43] hover:bg-[#989F43] text-white text-sm px-2.5 h-full rounded-lg disabled:hover:* active:brightness-95 transition shrink-0"
         label={t("button")}
         onClick={() => onSubmit("button")}
       />
