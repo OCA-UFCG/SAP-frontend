@@ -61,8 +61,11 @@ export function MainBanner({ data }: MainBannerProps) {
                 {subtitle}
               </p>
 
+              {/* No celular o menu do topo fica recolhido e não dispara o
+                  prefetch completo da plataforma; este botão dispara. */}
               <Link
                 href="/platform"
+                prefetch
                 className="mt-4 flex items-center justify-center w-full md:w-[302px] h-[40px] px-4 py-2 rounded-[8px] bg-[#989F43] hover:bg-[#5B612A] text-white transition-all duration-200 shadow-md"
               >
                 <span className="text-[14px] font-[500] leading-[24px] tracking-normal">

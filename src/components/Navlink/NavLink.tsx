@@ -13,6 +13,7 @@ export const NavLink = ({
 }: {
   href: string;
   exact?: boolean;
+  prefetch?: boolean;
   children?: React.ReactNode;
   className?: string;
   label?: string;
