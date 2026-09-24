@@ -185,6 +185,7 @@ describe("ReportMapPreview", () => {
     await waitFor(() =>
       expect(mapInstances[0].addLayer).toHaveBeenCalledWith(
         expect.objectContaining({ id: "index-choropleth-fills" }),
+        undefined,
       ),
     );
     expect(mapInstances[0].addSource).not.toHaveBeenCalledWith(
