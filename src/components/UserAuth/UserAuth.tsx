@@ -6,6 +6,7 @@ import { usePathname, useRouter } from "next/navigation";
 import { useTranslations } from "next-intl";
 import { Icon } from "../Icon/Icon";
 import { LanguageSwitcher } from "../LanguageSwitcher/LanguageSwitcher";
+import { navigateWithFullReload } from "@/utils/fullPageNavigation";
 
 export const UserAuth = () => {
   const t = useTranslations("UserAuth");
@@ -34,7 +35,9 @@ export const UserAuth = () => {
     if (!user) return;
 
     await signOut();
-    router.push("/login");
+    // Recarrega em vez de `router.push` para descartar a plataforma guardada
+    // no cache do router; ver `navigateWithFullReload`.
+    navigateWithFullReload("/login");
   };
 
   const handleLogin = () => {
