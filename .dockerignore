@@ -9,3 +9,5 @@ __tests__
 coverage
 *.log
 .env*
+# Cache em disco do relatório: estado local, nunca entra na imagem.
+data/runtime

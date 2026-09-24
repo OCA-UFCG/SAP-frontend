@@ -162,6 +162,55 @@ O teto de relatórios em memória é 100 (`MUNICIPAL_REPORT_CACHE_MAX_ENTRIES`),
 com expulsão do menos recentemente usado. Um relatório municipal completo ocupa
 ~430 KiB.
 
+## Cache em disco do relatório
+
+O cache em memória morre com o processo, então todo deploy devolvia **todos** os
+relatórios ao caso frio. Abaixo dele existe um segundo nível em arquivo, na
+mesma chave: território, período, camadas pedidas e a versão dos dados de cada
+camada (`statisticsSource.sourceRevision` nos índices v2). A ordem de consulta é
+memória → disco → Earth Engine.
+
+Cada entrada é um arquivo independente, `<sha256 da chave>.json.gz`. O nome é um
+hash porque a chave inteira tem 1790 caracteres no relatório estadual e o limite
+de um nome de arquivo é 255 bytes. O conteúdo é comprimido porque o relatório
+repete classe, rótulo e cor a cada período: 320 KiB viram 11 KiB, e medindo,
+ler o arquivo pequeno e descomprimir sai na frente de ler o arquivo inteiro
+(2,6 ms contra 3,0 ms). Como o hash não é reversível, o
+arquivo carrega a chave dentro dele e a leitura a confere — é o que impede uma
+colisão de devolver o relatório de outro território:
+
+```json
+{
+  "formatVersion": 1,
+  "key": "5200050::2024-01::cdi,anaseca::anaseca@r7,cdi@v3",
+  "storedAt": 1767225600000,
+  "expiresAt": 1767312000000,
+  "report": { "schemaVersion": 1, "...": "MunicipalReportData" }
+}
+```
+
+`formatVersion` versiona o envelope e `schemaVersion` o relatório; um arquivo
+que não bata em qualquer um dos dois é lido como ausente. A escrita é feita num
+arquivo temporário e renomeada por cima do definitivo, porque `rename` é atômico
+no mesmo sistema de arquivos: quem lê nunca encontra um JSON pela metade.
+
+Um arquivo vencido **não** é descartado na leitura. Se a remontagem falhar, ele
+é servido no lugar do erro — a mesma regra de "servir o valor velho em vez de
+falhar" dos outros caches da plataforma. Publicar um índice pelo catálogo apaga
+o diretório inteiro (`clearMunicipalReportCache`), porque a chave de um índice
+legado não enxerga uma edição no Contentful.
+
+Variáveis: `MUNICIPAL_REPORT_DISK_CACHE_DIR` (`off` desliga),
+`MUNICIPAL_REPORT_DISK_CACHE_TTL_SECONDS` (24 h por padrão, um prazo que só é
+seguro porque a chave versiona os dados) e `MUNICIPAL_REPORT_DISK_CACHE_MAX_FILES`
+(1000 arquivos, ~15 MiB, descarte por data de modificação).
+
+Em produção o diretório precisa ser um volume: o deploy recria o container, e
+sem volume o cache que acabou de ser gravado vai embora junto. Os três workflows
+de deploy montam `/app/data/runtime`. Nada é compartilhado entre instâncias —
+se um dia houver mais de uma, o substituto natural é um Redis com o mesmo
+contrato de chave.
+
 ---
 
 ## Chart API (geração de imagem)

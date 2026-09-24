@@ -119,3 +119,9 @@ vi.mock("@/translations/routing", () => {
     },
   };
 });
+
+// O cache em disco do relatório municipal fica desligado por padrão nos testes:
+// ligado, qualquer teste que monte um relatório gravaria arquivos dentro do
+// repositório. Quem testa o próprio cache aponta a variável para um diretório
+// temporário.
+process.env.MUNICIPAL_REPORT_DISK_CACHE_DIR ||= "off";
