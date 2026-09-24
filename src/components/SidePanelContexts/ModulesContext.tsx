@@ -448,7 +448,6 @@ export function ModulesContext({
                   return (
                     <LayerAccordion
                       key={subgroupKey}
-                      variant="subgroup"
                       open={listState?.isCategoryOpen(subgroupKey)}
                       onOpenChange={(open) =>
                         listState?.setCategoryOpen(subgroupKey, open)

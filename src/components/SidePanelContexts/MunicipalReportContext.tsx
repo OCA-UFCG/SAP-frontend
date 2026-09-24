@@ -477,7 +477,7 @@ export function MunicipalReportContext({ panelLayers = [] }: MunicipalReportCont
                 <div className="flex flex-col gap-2">
                   {group.items.map(renderLayerOption)}
                   {group.subgroups.map((subgroup) => (
-                    <LayerAccordion key={subgroup.key} variant="subgroup" title={tModules(`subgroups.${subgroup.key}`)} defaultOpen={false}>
+                    <LayerAccordion key={subgroup.key} title={tModules(`subgroups.${subgroup.key}`)} defaultOpen={false}>
                       <div className="flex flex-col gap-2">{subgroup.items.map(renderLayerOption)}</div>
                     </LayerAccordion>
                   ))}
