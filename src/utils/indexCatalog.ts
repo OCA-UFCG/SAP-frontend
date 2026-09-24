@@ -564,7 +564,7 @@ export function assertAssetPatternVariesByPeriod(
   throw new Error(
     `O template de mapa ${pattern} não tem {year}, então os períodos ${unlisted.join(", ")} mostrariam todos o mesmo mapa.` +
       (suggestion
-        ? ` Use ${suggestion}.`
+        ? ` Use ${suggestion}, ou escolha “Um asset por ano” e cole o endereço de um dos anos.`
         : " Inclua {year}, {month} ou {period} no endereço."),
   );
 }

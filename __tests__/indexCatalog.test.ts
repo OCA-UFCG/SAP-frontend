@@ -555,7 +555,7 @@ describe("assertAssetPatternVariesByPeriod", () => {
     expect(() =>
       assertAssetPatternVariesByPeriod(idtMapping, ["2001", "2021"]),
     ).toThrow(
-      "Use projects/obscaatinga/assets/ColecaoImagens/Index_Degradacao_v4_{year}.",
+      "Use projects/obscaatinga/assets/ColecaoImagens/Index_Degradacao_v4_{year}, ou escolha",
     );
   });
 
