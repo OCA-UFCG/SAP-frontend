@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import {
+  assertAssetPatternVariesByPeriod,
   catalogLayerClassCount,
   createCatalogPanelLayerId,
   detectYearPartitionedTemplate,
@@ -539,5 +540,43 @@ describe("catalogLayerClassCount", () => {
       catalogLayerClassCount({ kind: "gee-feature-collection" }, ranges),
     ).toBe(2);
     expect(catalogLayerClassCount(undefined, ranges)).toBe(2);
+  });
+});
+
+describe("assertAssetPatternVariesByPeriod", () => {
+  const idtMapping = {
+    strategy: "perPeriod" as const,
+    sourceType: "image" as const,
+    assetPattern:
+      "projects/obscaatinga/assets/ColecaoImagens/Index_Degradacao_v4_2021",
+  };
+
+  it("rejects the IDT pattern that froze every year on the 2021 map", () => {
+    expect(() =>
+      assertAssetPatternVariesByPeriod(idtMapping, ["2001", "2021"]),
+    ).toThrow(
+      "Use projects/obscaatinga/assets/ColecaoImagens/Index_Degradacao_v4_{year}, ou escolha",
+    );
+  });
+
+  it("accepts a templated pattern, a single period or periods listed one by one", () => {
+    expect(() =>
+      assertAssetPatternVariesByPeriod(
+        { ...idtMapping, assetPattern: "projects/x/assets/idt_{year}" },
+        ["2001", "2021"],
+      ),
+    ).not.toThrow();
+    expect(() =>
+      assertAssetPatternVariesByPeriod(idtMapping, ["2021"]),
+    ).not.toThrow();
+    expect(() =>
+      assertAssetPatternVariesByPeriod(
+        {
+          ...idtMapping,
+          assetsByPeriod: { "2001": "projects/x/assets/idt_2001" },
+        },
+        ["2001", "2021"],
+      ),
+    ).not.toThrow();
   });
 });

@@ -539,6 +539,36 @@ export function expandAssetForPeriod(
   );
 }
 
+/**
+ * Recusa um template por período que não muda com o período. Sem `{year}`,
+ * `{month}` ou `{period}`, todos os anos apontam para o mesmo asset e o mapa
+ * fica parado num ano só: o IDT foi publicado com `..._v4_2021` e o 2001
+ * mostrava o mapa de 2021, embora `..._v4_2001` exista no Earth Engine.
+ *
+ * assertAssetPatternVariesByPeriod(mapping, ["2001", "2021"]); // lança
+ */
+export function assertAssetPatternVariesByPeriod(
+  mapping: EarthEngineAssetMapping,
+  periods: readonly string[],
+) {
+  const pattern = mapping.assetPattern;
+  if (mapping.strategy !== "perPeriod" || !pattern) return;
+  if (/\{(?:year|month|period)\}/u.test(pattern)) return;
+
+  const unlisted = periods.filter(
+    (period) => !mapping.assetsByPeriod?.[period],
+  );
+  if (unlisted.length < 2) return;
+
+  const suggestion = detectYearPartitionedTemplate(pattern)?.assetIdTemplate;
+  throw new Error(
+    `O template de mapa ${pattern} não tem {year}, então os períodos ${unlisted.join(", ")} mostrariam todos o mesmo mapa.` +
+      (suggestion
+        ? ` Use ${suggestion}, ou escolha “Um asset por ano” e cole o endereço de um dos anos.`
+        : " Inclua {year}, {month} ou {period} no endereço."),
+  );
+}
+
 interface CategoryPositionEntry {
   entryId: string;
   panelLayerId?: string;
