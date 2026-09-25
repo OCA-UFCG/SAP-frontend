@@ -1,0 +1,9 @@
+{
+  "PendingApproval": {
+    "title": "Registration under review",
+    "description": "Your email is confirmed and your request reached the OCA team. Once they review the intended use you described, you will get an email and be able to access the platform.",
+    "signedInAs": "Signed in as",
+    "logout": "Sign out",
+    "backHome": "Back to the home page"
+  }
+}

@@ -1,0 +1,30 @@
+{
+  "Signup": {
+    "title": "Crear cuenta",
+    "logoAlt": "Logo del SEDES",
+    "emailPlaceholder": "Correo",
+    "passwordPlaceholder": "Contraseña",
+    "confirmPasswordPlaceholder": "Confirmar contraseña",
+    "intentionPlaceholder": "¿Cómo planeas usar la plataforma?",
+    "intentionHint": "Tu descripción se envía al equipo del OCA, que libera el acceso.",
+    "emailRequired": "Ingresa el correo.",
+    "emailInvalid": "Ingresa un correo válido.",
+    "passwordRequired": "Ingresa la contraseña.",
+    "passwordTooShort": "La contraseña necesita al menos 8 caracteres.",
+    "confirmPasswordRequired": "Confirma la contraseña.",
+    "passwordMismatch": "Las contraseñas no coinciden.",
+    "intentionRequired": "Describe cómo planeas usar la plataforma.",
+    "showPassword": "Mostrar contraseña",
+    "hidePassword": "Ocultar contraseña",
+    "submitting": "Creando cuenta...",
+    "submit": "Crear cuenta",
+    "hasAccount": "¿Ya tienes cuenta?",
+    "signIn": "Entrar",
+    "successTitle": "Confirma tu correo",
+    "successDescription": "Enviamos un enlace a la dirección indicada. Ábrelo para confirmar tu registro.",
+    "genericError": "No fue posible completar el registro. Inténtalo de nuevo.",
+    "resend": "Reenviar correo de confirmación",
+    "resending": "Enviando...",
+    "resent": "Si la dirección está registrada, se envió un nuevo correo."
+  }
+}

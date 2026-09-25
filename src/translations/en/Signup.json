@@ -1,0 +1,30 @@
+{
+  "Signup": {
+    "title": "Create account",
+    "logoAlt": "SEDES logo",
+    "emailPlaceholder": "Email",
+    "passwordPlaceholder": "Password",
+    "confirmPasswordPlaceholder": "Confirm password",
+    "intentionPlaceholder": "How do you plan to use the platform?",
+    "intentionHint": "Your description goes to the OCA team, who grants access.",
+    "emailRequired": "Enter your email.",
+    "emailInvalid": "Enter a valid email.",
+    "passwordRequired": "Enter a password.",
+    "passwordTooShort": "The password needs at least 8 characters.",
+    "confirmPasswordRequired": "Confirm the password.",
+    "passwordMismatch": "The passwords do not match.",
+    "intentionRequired": "Describe how you plan to use the platform.",
+    "showPassword": "Show password",
+    "hidePassword": "Hide password",
+    "submitting": "Creating account...",
+    "submit": "Create account",
+    "hasAccount": "Already have an account?",
+    "signIn": "Sign in",
+    "successTitle": "Confirm your email",
+    "successDescription": "We sent a link to the address you gave. Open it to confirm your registration.",
+    "genericError": "We could not complete the registration. Please try again.",
+    "resend": "Resend confirmation email",
+    "resending": "Sending...",
+    "resent": "If the address is registered, a new email was sent."
+  }
+}

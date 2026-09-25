@@ -1,0 +1,18 @@
+{
+  "SignupConfirmation": {
+    "checking": "Confirming your address...",
+    "approvedTitle": "All set",
+    "approvedBody": "Your address is confirmed and your access is open.",
+    "enter": "Enter the platform",
+    "pendingTitle": "Address confirmed",
+    "pendingBody": "Your request went to the OCA team. You will get an email once they review it.",
+    "rejectedTitle": "Request not approved",
+    "rejectedBody": "This access request was not approved.",
+    "failedTitle": "We could not confirm it yet",
+    "failedBody": "The link may have expired, or the address is not confirmed yet. Ask for a new email below.",
+    "resend": "Resend confirmation email",
+    "resending": "Sending...",
+    "resent": "If the address is registered, a new email was sent.",
+    "backHome": "Back to the home page"
+  }
+}

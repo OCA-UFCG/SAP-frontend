@@ -1,0 +1,18 @@
+{
+  "SignupConfirmation": {
+    "checking": "Confirmando seu endereço...",
+    "approvedTitle": "Tudo certo",
+    "approvedBody": "Seu endereço foi confirmado e o acesso está liberado.",
+    "enter": "Entrar na plataforma",
+    "pendingTitle": "Endereço confirmado",
+    "pendingBody": "Sua solicitação foi enviada à equipe do OCA. Você receberá um email quando ela for analisada.",
+    "rejectedTitle": "Pedido não aprovado",
+    "rejectedBody": "Este pedido de acesso não foi aprovado.",
+    "failedTitle": "Ainda não conseguimos confirmar",
+    "failedBody": "O link pode ter expirado, ou o endereço ainda não foi confirmado. Peça um novo email abaixo.",
+    "resend": "Reenviar email de confirmação",
+    "resending": "Enviando...",
+    "resent": "Se o endereço estiver cadastrado, um novo email foi enviado.",
+    "backHome": "Voltar para a página inicial"
+  }
+}

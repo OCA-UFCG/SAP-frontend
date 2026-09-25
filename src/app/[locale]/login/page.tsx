@@ -1,5 +1,6 @@
 import { Suspense } from "react";
 import { getHomePageContent } from "@/repositories/content/siteContentRepository";
+import { isSignupOffered } from "@/lib/access-flag";
 import { LoginPageClient } from "./LoginPageClient";
 
 function normalizeImageUrl(url?: string) {
@@ -24,7 +25,10 @@ export default async function LoginPage({
         </div>
       }
     >
-      <LoginPageClient backgroundImageUrl={backgroundImageUrl} />
+      <LoginPageClient
+        backgroundImageUrl={backgroundImageUrl}
+        signupOffered={isSignupOffered()}
+      />
     </Suspense>
   );
 }
