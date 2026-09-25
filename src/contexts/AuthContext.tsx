@@ -23,11 +23,25 @@ class SessionCreationError extends Error {
   }
 }
 
+/**
+ * Credenciais certas, acesso ainda não liberado. É um desfecho próprio: não é
+ * falha de login nem de infraestrutura, e leva a pessoa à página de espera em
+ * vez de repetir o formulário.
+ */
+class AccessPendingError extends Error {
+  constructor() {
+    super("Cadastro ainda não liberado");
+    this.name = "AccessPendingError";
+  }
+}
+
+export type SignInOutcome = "ok" | "pending" | "failed";
+
 interface AuthContextType {
   user: User | null;
   loading: boolean;
   error?: string;
-  signIn: (email: string, password: string) => Promise<boolean>;
+  signIn: (email: string, password: string) => Promise<SignInOutcome>;
   signOut: () => Promise<void>;
 }
 
@@ -65,11 +79,17 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       });
 
       if (!sessionResponse.ok) {
-        throw new SessionCreationError();
+        const body = (await sessionResponse.json().catch(() => null)) as {
+          code?: string;
+        } | null;
+
+        throw body?.code === "access_pending"
+          ? new AccessPendingError()
+          : new SessionCreationError();
       }
 
       setUser(user);
-      return true;
+      return "ok";
     } catch (err: unknown) {
       if (authenticatedUser) {
         await fetch("/api/session", { method: "DELETE" }).catch(
@@ -77,6 +97,12 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         );
         await firebaseSignOut(auth).catch(() => undefined);
         setUser(null);
+      }
+
+      // A espera não é erro: quem cuida dela é a página de espera, e uma
+      // mensagem vermelha no login só confundiria.
+      if (err instanceof AccessPendingError) {
+        return "pending";
       }
 
       const fbErr = err as { code?: string; message?: string };
@@ -92,7 +118,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           ? messages[fbErr.code] || "Login ou senha inválidos"
           : "Erro ao fazer login",
       );
-      return false;
+      return "failed";
     }
   }, []);
 

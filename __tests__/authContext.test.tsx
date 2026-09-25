@@ -1,3 +1,4 @@
+import { useState } from "react";
 import {
   cleanup,
   fireEvent,
@@ -28,15 +29,20 @@ const signOutMock = vi.mocked(signOut);
 
 function AuthProbe() {
   const { error, loading, signIn, user } = useAuth();
+  const [outcome, setOutcome] = useState("");
 
   if (loading) return <span>Carregando</span>;
 
   return (
     <>
-      <button type="button" onClick={() => void signIn("user@test", "secret")}>
+      <button
+        type="button"
+        onClick={() => void signIn("user@test", "secret").then(setOutcome)}
+      >
         Entrar
       </button>
       <span data-testid="auth-state">{user ? "authenticated" : "anonymous"}</span>
+      <span data-testid="outcome">{outcome}</span>
       <span role="alert">{error}</span>
     </>
   );
@@ -119,6 +125,49 @@ describe("AuthProvider", () => {
     });
     expect(screen.getByTestId("auth-state")).toHaveTextContent("anonymous");
     expect(screen.getByRole("alert")).toHaveTextContent(
+      "Login validado, mas não foi possível criar a sessão da plataforma.",
+    );
+  });
+
+  // Credenciais certas e acesso ainda não liberado é um terceiro desfecho. Sem
+  // distingui-lo, a pessoa veria "erro ao fazer login" e tentaria de novo para
+  // sempre, em vez de ser levada à página de espera.
+  it("reports a pending approval apart from a failed login", async () => {
+    const getIdToken = vi.fn().mockResolvedValue("firebase-id-token");
+    signInWithEmailAndPasswordMock.mockResolvedValue({
+      user: { getIdToken },
+    } as Awaited<ReturnType<typeof signInWithEmailAndPassword>>);
+    vi.mocked(fetch).mockResolvedValueOnce(
+      new Response(
+        JSON.stringify({
+          error: "Cadastro ainda não liberado.",
+          code: "access_pending",
+        }),
+        { status: 403 },
+      ),
+    );
+    vi.mocked(fetch).mockResolvedValueOnce(
+      new Response(JSON.stringify({ success: true }), { status: 200 }),
+    );
+
+    render(
+      <AuthProvider>
+        <AuthProbe />
+      </AuthProvider>,
+    );
+
+    await waitFor(() => expect(screen.getByText("Entrar")).toBeInTheDocument());
+    fireEvent.click(screen.getByText("Entrar"));
+
+    await waitFor(() => {
+      expect(screen.getByTestId("outcome")).toHaveTextContent("pending");
+    });
+
+    // Nada de sessão pendurada no cliente: sem cookie, o Firebase também não
+    // pode continuar achando que a pessoa está logada.
+    expect(signOutMock).toHaveBeenCalledWith(auth);
+    expect(screen.getByTestId("auth-state")).toHaveTextContent("anonymous");
+    expect(screen.getByRole("alert")).not.toHaveTextContent(
       "Login validado, mas não foi possível criar a sessão da plataforma.",
     );
   });

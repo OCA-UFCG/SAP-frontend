@@ -1,0 +1,21 @@
+rules_version = '2';
+
+// O SAP só acessa o Firestore pelo servidor, com credencial de administrador —
+// e o Admin SDK ignora estas regras por definição. Nenhum navegador precisa de
+// acesso, então ninguém tem.
+//
+// Isto existe versionado porque o estado anterior era o modo de teste que o
+// Firebase cria junto com o banco (`if request.time < timestamp.date(...)`):
+// aberto para qualquer um até uma data, e fechado depois dela por expiração, não
+// por decisão. Quem olhasse aquilo e "renovasse a data" abriria o banco inteiro,
+// incluindo as intenções de uso que as pessoas escrevem no cadastro.
+//
+// Publicar: `firebase deploy --only firestore:rules` (ou colar no painel, em
+// Firestore > Rules).
+service cloud.firestore {
+  match /databases/{database}/documents {
+    match /{document=**} {
+      allow read, write: if false;
+    }
+  }
+}
