@@ -1,0 +1,18 @@
+{
+  "SignupEmails": {
+    "verificationSubject": "Confirma tu dirección de correo — SAP",
+    "verificationTitle": "Confirma tu dirección",
+    "verificationBody": "Recibimos un registro en el Sistema de Alerta Temprana con esta dirección. Confirma que el buzón es tuyo para continuar.",
+    "verificationAction": "Confirmar dirección",
+    "decisionApprovedSubject": "Tu acceso al SAP fue liberado",
+    "decisionApprovedTitle": "Acceso liberado",
+    "decisionApprovedBody": "Tu registro fue aprobado. Ya puedes entrar a la plataforma.",
+    "decisionApprovedAction": "Entrar al SAP",
+    "decisionRejectedSubject": "Sobre tu solicitud de acceso al SAP",
+    "decisionRejectedTitle": "Solicitud no aprobada",
+    "decisionRejectedBody": "Revisamos tu solicitud de acceso al Sistema de Alerta Temprana y no fue aprobada esta vez.",
+    "decisionRejectedFollowUp": "Si crees que hubo un error, responde a este correo contando cómo planeas usar la plataforma.",
+    "fallback": "Si el botón no funciona, copia esta dirección en tu navegador:",
+    "footer": "Sistema de Alerta Temprana — SEDES"
+  }
+}

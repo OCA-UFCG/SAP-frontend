@@ -1,0 +1,18 @@
+{
+  "SignupEmails": {
+    "verificationSubject": "Confirme seu endereço de e-mail — SAP",
+    "verificationTitle": "Confirme seu endereço",
+    "verificationBody": "Recebemos um cadastro no Sistema de Alerta Precoce com este endereço. Confirme que a caixa é sua para seguir.",
+    "verificationAction": "Confirmar endereço",
+    "decisionApprovedSubject": "Seu acesso ao SAP foi liberado",
+    "decisionApprovedTitle": "Acesso liberado",
+    "decisionApprovedBody": "Seu cadastro foi aprovado. Já dá para entrar na plataforma.",
+    "decisionApprovedAction": "Entrar no SAP",
+    "decisionRejectedSubject": "Sobre seu pedido de acesso ao SAP",
+    "decisionRejectedTitle": "Pedido não aprovado",
+    "decisionRejectedBody": "Analisamos seu pedido de acesso ao Sistema de Alerta Precoce e ele não foi aprovado desta vez.",
+    "decisionRejectedFollowUp": "Se acredita que houve engano, responda a este e-mail contando como pretende usar a plataforma.",
+    "fallback": "Se o botão não funcionar, copie este endereço no navegador:",
+    "footer": "Sistema de Alerta Precoce — SEDES"
+  }
+}

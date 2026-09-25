@@ -1,0 +1,18 @@
+{
+  "SignupEmails": {
+    "verificationSubject": "Confirm your email address — SAP",
+    "verificationTitle": "Confirm your address",
+    "verificationBody": "We received a registration on the Early Warning System with this address. Confirm the mailbox is yours to continue.",
+    "verificationAction": "Confirm address",
+    "decisionApprovedSubject": "Your SAP access is open",
+    "decisionApprovedTitle": "Access granted",
+    "decisionApprovedBody": "Your registration was approved. You can enter the platform now.",
+    "decisionApprovedAction": "Enter SAP",
+    "decisionRejectedSubject": "About your SAP access request",
+    "decisionRejectedTitle": "Request not approved",
+    "decisionRejectedBody": "We reviewed your request to access the Early Warning System and it was not approved this time.",
+    "decisionRejectedFollowUp": "If you believe this was a mistake, reply to this email describing how you plan to use the platform.",
+    "fallback": "If the button does not work, copy this address into your browser:",
+    "footer": "Early Warning System — SEDES"
+  }
+}
