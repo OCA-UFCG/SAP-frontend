@@ -5,6 +5,7 @@
     "communication": "Communication",
     "logs": "Audit",
     "catalog": "Index catalog",
-    "loading": "Loading"
+    "loading": "Loading",
+    "approvals": "Approvals"
   }
 }

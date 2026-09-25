@@ -1,0 +1,19 @@
+{
+  "Approvals": {
+    "title": "Access requests",
+    "subtitle": "Signups that confirmed their email and are waiting for approval.",
+    "empty": "No requests waiting for a decision.",
+    "emailColumn": "Email",
+    "intentionColumn": "Intended use",
+    "requestedColumn": "Requested on",
+    "actionsColumn": "Decision",
+    "approve": "Approve",
+    "reject": "Refuse",
+    "working": "Saving...",
+    "approved": "Approved",
+    "rejected": "Refused",
+    "failed": "Could not save the decision.",
+    "loadFailed": "We could not load the requests. Tell the technical team: the Firestore index may be missing.",
+    "conflict": "Someone else decided this request before you."
+  }
+}

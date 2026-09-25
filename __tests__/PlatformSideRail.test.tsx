@@ -142,9 +142,9 @@ describe("PlatformSideRail", () => {
     expect(rail).toHaveClass("w-[140px]");
   });
 
-  // Auditoria e catálogo continuam sendo páginas separadas, e ir até elas
-  // espera o servidor. Sem esse aviso a trilha fica parada depois do clique e a
-  // pessoa não sabe se acertou o botão.
+  // Auditoria, catálogo e aprovações continuam sendo páginas separadas, e ir
+  // até elas espera o servidor. Sem esse aviso a trilha fica parada depois do
+  // clique e a pessoa não sabe se acertou o botão.
   it("marks a rail link as loading while its navigation is in flight", () => {
     linkStatusMock.mockReturnValue({ pending: true });
 
@@ -159,7 +159,7 @@ describe("PlatformSideRail", () => {
     );
 
     expect(screen.getAllByRole("status", { name: "Carregando" })).toHaveLength(
-      2,
+      3,
     );
   });
 

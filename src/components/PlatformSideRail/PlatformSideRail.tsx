@@ -4,6 +4,7 @@ import { Link } from "@/translations/routing";
 import { Chevron } from "../Chevron/Chevron";
 import { Icon } from "../Icon/Icon";
 import { PLATFORM_SHELL_HEIGHT_CLASS } from "@/components/PlatformLayout/platformShell";
+import { APPROVALS_PATH } from "@/config/accessRoutes";
 import clsx from "clsx";
 import { useTranslations } from "next-intl";
 
@@ -44,7 +45,7 @@ type PlatformRailItem =
     }
   | {
       kind: "link";
-      id: "logs" | "catalog";
+      id: "logs" | "catalog" | "approvals";
       href: string;
       label: string;
       icon: string;
@@ -141,6 +142,16 @@ export function PlatformSideRail({
       href: "/platform?view=catalog",
       label: t("catalog"),
       icon: "chart",
+    });
+    // Sem este item, a tela de aprovação só era alcançável pelo link dentro do
+    // e-mail de aviso — então uma falha de envio deixava os pedidos invisíveis,
+    // acumulando sem ninguém saber que existiam.
+    items.push({
+      kind: "link",
+      id: "approvals",
+      href: APPROVALS_PATH,
+      label: t("approvals"),
+      icon: "user",
     });
   }
 

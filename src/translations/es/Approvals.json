@@ -1,0 +1,19 @@
+{
+  "Approvals": {
+    "title": "Solicitudes de acceso",
+    "subtitle": "Registros que confirmaron el correo y esperan liberación.",
+    "empty": "Ninguna solicitud esperando decisión.",
+    "emailColumn": "Correo",
+    "intentionColumn": "Intención de uso",
+    "requestedColumn": "Solicitado el",
+    "actionsColumn": "Decisión",
+    "approve": "Aprobar",
+    "reject": "Rechazar",
+    "working": "Guardando...",
+    "approved": "Aprobado",
+    "rejected": "Rechazado",
+    "failed": "No se pudo guardar la decisión.",
+    "loadFailed": "No fue posible cargar las solicitudes. Avisa al equipo técnico: puede faltar el índice de Firestore.",
+    "conflict": "Otra persona decidió esta solicitud antes que tú."
+  }
+}

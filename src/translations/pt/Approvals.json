@@ -1,0 +1,19 @@
+{
+  "Approvals": {
+    "title": "Pedidos de acesso",
+    "subtitle": "Cadastros que confirmaram o email e aguardam liberação.",
+    "empty": "Nenhum pedido aguardando decisão.",
+    "emailColumn": "Email",
+    "intentionColumn": "Intenção de uso",
+    "requestedColumn": "Pedido em",
+    "actionsColumn": "Decisão",
+    "approve": "Aprovar",
+    "reject": "Recusar",
+    "working": "Salvando...",
+    "approved": "Aprovado",
+    "rejected": "Recusado",
+    "failed": "Não foi possível salvar a decisão.",
+    "loadFailed": "Não foi possível carregar os pedidos. Avise a equipe técnica: pode faltar o índice do Firestore.",
+    "conflict": "Outra pessoa decidiu este pedido antes de você."
+  }
+}
