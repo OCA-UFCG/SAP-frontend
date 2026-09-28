@@ -96,9 +96,12 @@ export async function POST(req: NextRequest) {
         headers: { ...rateLimit.headers, "Server-Timing": timing.header() },
       },
     );
-  } catch (error: any) {
+  } catch (error) {
+    // O detalhe do erro fica no log do servidor. Para o cliente vai só uma
+    // mensagem genérica, para não entregar o funcionamento interno a quem sonda.
+    console.error("Falha na rota /api/ee/map-urls.", error);
     return NextResponse.json(
-      { error: error?.message ?? String(error) },
+      { error: "Falha ao gerar as URLs do mapa." },
       { status: 500 },
     );
   }
