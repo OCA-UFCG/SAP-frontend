@@ -15,6 +15,7 @@ export function ConfirmationPageClient() {
   const t = useTranslations("SignupConfirmation");
   const searchParams = useSearchParams();
   const email = searchParams.get("email") ?? "";
+  const code = searchParams.get("code") ?? "";
 
   const [outcome, setOutcome] = useState<Outcome>("checking");
   const [resending, setResending] = useState(false);
@@ -28,7 +29,7 @@ export function ConfirmationPageClient() {
         const response = await fetch("/api/signup/confirm", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ email }),
+          body: JSON.stringify({ email, code }),
         });
 
         if (!active) return;
@@ -54,7 +55,7 @@ export function ConfirmationPageClient() {
     return () => {
       active = false;
     };
-  }, [email]);
+  }, [email, code]);
 
   const handleResend = useCallback(async () => {
     setResending(true);

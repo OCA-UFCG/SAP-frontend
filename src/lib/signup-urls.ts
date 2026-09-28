@@ -17,7 +17,14 @@ function absoluteUrl(path: string) {
   return `${host}${path}`;
 }
 
-export const signupConfirmationUrl = () => absoluteUrl(SIGNUP_CONFIRMATION_PATH);
+/**
+ * Com o idioma no caminho, a pessoa cai direto na página no idioma em que se
+ * cadastrou. Sem ele, o site escolhe o padrão (português).
+ */
+export const signupConfirmationUrl = (locale?: string) =>
+  absoluteUrl(
+    locale ? `/${locale}${SIGNUP_CONFIRMATION_PATH}` : SIGNUP_CONFIRMATION_PATH,
+  );
 export const approvalsUrl = () => absoluteUrl(APPROVALS_PATH);
 export const loginUrl = () => absoluteUrl(LOGIN_PATH);
 export const pendingApprovalUrl = () => absoluteUrl(PENDING_APPROVAL_PATH);

@@ -45,12 +45,16 @@ Sem estes, ou a funcionalidade não é segura, ou não funciona.
 | --- | ---------------------------------------------- | ------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
 | 1   | Authentication → Settings → User actions       | **Desmarcar "Enable create (sign-up)"**     | A `NEXT_PUBLIC_FIREBASE_API_KEY` é pública. Com o cadastro pelo cliente ligado, qualquer pessoa cria conta de qualquer domínio direto na API do Google, sem passar pelo nosso formulário — e a regra de domínio deixa de valer. **Nosso cadastro usa o Admin SDK, que ignora essa trava.** |
 | 2   | Authentication → Settings → Password policy    | Ligar em **Require enforcement**, mínimo 8  | Em "Notify" o Firebase só avisa e aceita a senha mesmo assim.                                                                                                                                                                                                                              |
-| 3   | Authentication → Settings → Authorized domains | `localhost` e o domínio de produção         | É para onde o link de confirmação devolve a pessoa. Sem isso o cadastro trava.                                                                                                                                                                                                             |
-| 4   | Firestore → Rules                              | Publicar o `firestore.rules` do repositório | O estado original era o modo de teste (`if request.time < timestamp.date(...)`): aberto até uma data e fechado depois **por expiração, não por decisão**. Quem "renovasse a data" abriria o banco inteiro, incluindo as intenções de uso.                                                  |
-| 5   | Firestore → Indexes                            | Publicar o `firestore.indexes.json`         | A tela de aprovação filtra por um campo e ordena por outro; sem o índice composto a consulta falha. Gratuito no plano Spark.                                                                                                                                                               |
+| 3   | Firestore → Rules                              | Publicar o `firestore.rules` do repositório | O estado original era o modo de teste (`if request.time < timestamp.date(...)`): aberto até uma data e fechado depois **por expiração, não por decisão**. Quem "renovasse a data" abriria o banco inteiro, incluindo as intenções de uso.                                                  |
+| 4   | Firestore → Indexes                            | Publicar o `firestore.indexes.json`         | A tela de aprovação filtra por um campo e ordena por outro; sem o índice composto a consulta falha. Gratuito no plano Spark.                                                                                                                                                               |
 
-Os arquivos 4 e 5 estão versionados na raiz do repositório e podem ir por
+Os arquivos 3 e 4 estão versionados na raiz do repositório e podem ir por
 `firebase deploy --only firestore:rules,firestore:indexes`.
+
+Não é preciso cadastrar o domínio da plataforma em "Authorized domains": o
+e-mail de confirmação não passa pela página do Firebase. Ele leva o código de
+confirmação direto para `/cadastro/confirmacao`, e o servidor entrega esse
+código ao Firebase por trás.
 
 ## Ordem de implantação
 
