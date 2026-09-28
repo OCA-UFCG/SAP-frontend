@@ -26,6 +26,7 @@ import {
 } from "@/components/IndexCatalog/catalogApiClient";
 import { IndexCatalogGuideModal } from "@/components/IndexCatalog/IndexCatalogGuideModal";
 import { IndexCatalogReportFields } from "@/components/IndexCatalog/IndexCatalogReportFields";
+import { MapAssetStrategyFields } from "@/components/IndexCatalog/MapAssetStrategyFields";
 import { PanelPositionField } from "@/components/IndexCatalog/PanelPositionField";
 import { ImageCollectionForecastGuideModal } from "@/components/IndexCatalog/ImageCollectionForecastGuideModal";
 import {
@@ -284,6 +285,7 @@ export function IndexCatalogScreen() {
   const [statisticsAssetMode, setStatisticsAssetMode] =
     useState<StatisticsAssetMode>("fixed");
   const [yearSampleAssetId, setYearSampleAssetId] = useState("");
+  const [openedLatestYear, setOpenedLatestYear] = useState<string>();
   const [entryId, setEntryId] = useState<string | null>(null);
   const [guideOpen, setGuideOpen] = useState(false);
   const [forecastGuideOpen, setForecastGuideOpen] = useState(false);
@@ -405,6 +407,7 @@ export function IndexCatalogScreen() {
     setReport(createDefaultReportDraft());
     setStatisticsAssetMode("fixed");
     setYearSampleAssetId("");
+    setOpenedLatestYear(undefined);
     setEntryId(null);
     entryIdRef.current = null;
     createKeyRef.current = null;
@@ -455,6 +458,9 @@ export function IndexCatalogScreen() {
       ? inferStatisticsAssetMode(openedGeeSource.asset)
       : "fixed";
     setStatisticsAssetMode(assetMode);
+    setOpenedLatestYear(
+      config.validation?.inferred.periods.at(-1)?.slice(0, 4),
+    );
     // Reexibe o ano que o operador digitou, e não o placeholder gravado.
     setYearSampleAssetId(
       assetMode === "year-siblings" &&
@@ -1561,51 +1567,13 @@ export function IndexCatalogScreen() {
                     </span>
                   </div>
                 )}
-                <label className="text-sm font-medium">
-                  Organização
-                  <select
-                    className={inputClass}
-                    value={draft.earthEngine.strategy}
-                    disabled={Boolean(draft.earthEngine.collectionSelection)}
-                    onChange={(event) =>
-                      updateMap({
-                        strategy: event.target.value as "single" | "perPeriod",
-                      })
-                    }
-                  >
-                    <option value="single">Asset único</option>
-                    <option value="perPeriod">Por período</option>
-                  </select>
-                  {draft.earthEngine.collectionSelection && (
-                    <span className="mt-1 block text-xs font-normal text-stone-500">
-                      Previsões por emissão usam uma única coleção.
-                    </span>
-                  )}
-                </label>
-                {draft.earthEngine.strategy === "single" ? (
-                  <label className="text-sm font-medium md:col-span-2">
-                    ID do asset de mapa
-                    <input
-                      className={inputClass}
-                      value={draft.earthEngine.singleAssetId ?? ""}
-                      onChange={(event) =>
-                        updateMap({ singleAssetId: event.target.value })
-                      }
-                    />
-                  </label>
-                ) : (
-                  <label className="text-sm font-medium md:col-span-2">
-                    Template do asset de mapa
-                    <input
-                      className={inputClass}
-                      placeholder="projects/projeto/assets/mapa_{period}"
-                      value={draft.earthEngine.assetPattern ?? ""}
-                      onChange={(event) =>
-                        updateMap({ assetPattern: event.target.value })
-                      }
-                    />
-                  </label>
-                )}
+                <MapAssetStrategyFields
+                  key={entryId ?? "new"}
+                  mapping={draft.earthEngine}
+                  latestYear={openedLatestYear}
+                  inputClass={inputClass}
+                  onChange={updateMap}
+                />
                 {draft.earthEngine.sourceType === "featureCollection" ? (
                   <label className="text-sm font-medium">
                     Propriedade para renderizar
