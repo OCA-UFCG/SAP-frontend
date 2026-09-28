@@ -111,12 +111,14 @@ describe("POST /api/signup", () => {
 
     expect(generateEmailVerificationLinkMock).toHaveBeenCalledWith(
       "fulano@ufcg.edu.br",
-      expect.objectContaining({
-        url: `${ORIGIN}/cadastro/confirmacao?email=fulano%40ufcg.edu.br`,
-      }),
     );
     expect(sendMailMock).toHaveBeenCalledWith(
-      expect.objectContaining({ to: "fulano@ufcg.edu.br" }),
+      expect.objectContaining({
+        to: "fulano@ufcg.edu.br",
+        text: expect.stringContaining(
+          `${ORIGIN}/pt/cadastro/confirmacao?code=abc&email=fulano%40ufcg.edu.br`,
+        ),
+      }),
     );
   });
 
