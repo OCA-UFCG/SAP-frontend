@@ -116,7 +116,7 @@ export function buildNewRequestEmail({
   const safeIntention = escapeHtml(intention);
 
   return {
-    subject: "Novo pedido de acesso ao SAP",
+    subject: "Novo pedido de acesso ao SEDES",
     html: layout(
       "Novo pedido de acesso",
       paragraph(`<strong>${safeEmail}</strong> confirmou o endereço e aguarda liberação.`) +
@@ -140,7 +140,7 @@ export function buildNewRequestEmail({
       "Decida na tela de aprovação:",
       approvalUrl,
       "",
-      "Sistema de Alerta Precoce — SEDES",
+      MESSAGES.pt.footer,
     ].join("\n"),
   };
 }

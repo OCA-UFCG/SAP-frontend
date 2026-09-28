@@ -14,10 +14,10 @@ describe("signup emails", () => {
   describe("idioma de quem se cadastrou", () => {
     it("writes the verification email in the language of the signup", () => {
       expect(buildVerificationEmail({ link: LINK, locale: "en" }).subject).toBe(
-        "Confirm your email address — SAP",
+        "Confirm your email address — SEDES",
       );
       expect(buildVerificationEmail({ link: LINK, locale: "es" }).subject).toBe(
-        "Confirma tu dirección de correo — SAP",
+        "Confirma tu dirección de correo — SEDES",
       );
     });
 
@@ -35,7 +35,7 @@ describe("signup emails", () => {
     it("falls back to Portuguese for a language it does not have", () => {
       expect(
         buildVerificationEmail({ link: LINK, locale: "fr" }).subject,
-      ).toBe("Confirme seu endereço de e-mail — SAP");
+      ).toBe("Confirme seu endereço de e-mail — SEDES");
     });
   });
 
