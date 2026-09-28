@@ -60,15 +60,22 @@ Os arquivos 4 e 5 estão versionados na raiz do repositório e podem ir por
    plataforma se comporta como antes, e o link de cadastro **não aparece** no
    login.
 2. **Rodar o backfill.** `node scripts/backfill-access-claims.mjs` (simulação) e
-   depois `--apply`. Ele marca como liberadas as contas que já existem.
+   depois `--apply`. Ele marca como liberadas as contas que já existem e desloga
+   cada uma delas: a marca só entra no cookie quando ele é criado, e sem isso
+   quem já estava logado cairia na página de espera ao ligar a flag. Para os
+   usuários, o efeito é pedir login uma vez.
 3. **Ligar a flag.**
 
 Fora dessa ordem, todos os usuários atuais perdem o acesso.
 
-O link de cadastro está amarrado à mesma flag de propósito: com ela desligada, a
-sessão nasce sem conferir a marca nem o e-mail confirmado, então oferecer o
-cadastro nesse estado deixaria a plataforma **mais aberta do que era antes de o
-cadastro existir**.
+O cadastro inteiro está amarrado à mesma flag de propósito — o link no login, as
+páginas `/cadastro` e `/cadastro/confirmacao` e as rotas `/api/signup`,
+`/api/signup/confirm` e `/api/signup/resend`, que respondem 404 com ela
+desligada. Com a flag desligada, a sessão nasce sem conferir a marca nem o
+e-mail confirmado, então qualquer porta de cadastro aberta nesse estado deixaria
+a plataforma **mais aberta do que era antes de o cadastro existir**. Esconder só o
+link não basta: a página e a rota continuariam funcionando para quem digitasse o
+endereço.
 
 ## A conta de envio
 
