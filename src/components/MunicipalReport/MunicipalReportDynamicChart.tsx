@@ -1,5 +1,6 @@
 "use client";
 
+import { formatAbsoluteNumber } from "@/utils/formatTerritorialNumber";
 import { useMemo, useState } from "react";
 import {
   CartesianGrid,
@@ -200,9 +201,7 @@ export function MunicipalReportDynamicChart({
               tickFormatter={(value) =>
                 analysis.valueType === "percentage"
                   ? `${Number(value).toFixed(0)}%`
-                  : new Intl.NumberFormat(locale, {
-                      maximumFractionDigits: 0,
-                    }).format(Number(value))
+                  : formatAbsoluteNumber(Number(value), locale)
               }
               tick={{ fill: "#5F6670", fontSize: 11 }}
               tickLine={false}

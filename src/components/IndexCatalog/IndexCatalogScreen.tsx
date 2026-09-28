@@ -17,6 +17,7 @@ import {
 import { LegacyIndexEditor } from "@/components/IndexCatalog/LegacyIndexEditor";
 import { CatalogReportPreview } from "@/components/IndexCatalog/CatalogReportPreview";
 import { ClassColorField } from "@/components/IndexCatalog/ClassColorField";
+import { ClassificationMethodFields } from "@/components/IndexCatalog/ClassificationMethodFields";
 import {
   catalogApiRequest as apiRequest,
   catalogIdempotencyKey as idempotencyKey,
@@ -33,6 +34,8 @@ import {
   hasPublishableValidation,
   parseNumberList,
 } from "@/utils/indexCatalog";
+import { resizeValueRanges } from "@/utils/municipalValueIndicator";
+import { buildValueLegendRanges } from "@/utils/valueLegendRanges";
 import type { PublishedPanelLayerReportConfig } from "@/contracts/panelLayerReport";
 import {
   createDefaultReportDraft,
@@ -51,6 +54,7 @@ import {
   type IndexCatalogLifecycleImpact,
   type IndexCatalogPreview,
   type MunicipalValueIndicator,
+  type PublishedNewDataScan,
 } from "@/types/indexCatalog";
 import {
   MunicipalValueIndicatorFields,
@@ -269,6 +273,10 @@ function CatalogActionButton({
 
 export function IndexCatalogScreen() {
   const [items, setItems] = useState<IndexCatalogItem[]>([]);
+  const [newDataScan, setNewDataScan] = useState<PublishedNewDataScan | null>(
+    null,
+  );
+  const [scanningNewData, setScanningNewData] = useState(true);
   const [draft, setDraft] = useState<IndexCatalogDraftInput>(EMPTY_DRAFT);
   const [report, setReport] = useState<IndexCatalogReportDraft>(
     createDefaultReportDraft,
@@ -309,19 +317,49 @@ export function IndexCatalogScreen() {
   const validationRunRef = useRef(0);
   const validationCompletionTimerRef = useRef<number | null>(null);
 
+  /**
+   * Pede a verificação de todos os índices publicados de uma vez, que é o que
+   * enche a seção "Publicados sem os dados mais recentes".
+   *
+   * Só vale a pena com a listagem em mãos: sem nenhum índice publicado criado
+   * pelo catálogo não há o que verificar, e a varredura é a parte lenta da tela
+   * (uma listagem de pasta do Earth Engine por índice).
+   */
+  const loadNewDataScan = useCallback((items: IndexCatalogItem[]) => {
+    const scannable = items.some(
+      (item) => item.published && item.managedScope === "full",
+    );
+    if (!scannable) {
+      setNewDataScan(null);
+      setScanningNewData(false);
+      return;
+    }
+    setScanningNewData(true);
+    apiRequest<PublishedNewDataScan>("/api/index-catalog/new-data")
+      .then(setNewDataScan)
+      .catch(() => setNewDataScan(null))
+      .finally(() => setScanningNewData(false));
+  }, []);
+
   const loadItems = useCallback(async () => {
     const result = await apiRequest<{ items: IndexCatalogItem[] }>(
       "/api/index-catalog",
     );
     setItems(result.items);
+    // A varredura acompanha a listagem: publicar, despublicar ou revalidar um
+    // índice muda quem está desatualizado, e a resposta do servidor é
+    // memoizada, então repetir o pedido custa quase nada quando nada mudou.
+    loadNewDataScan(result.items);
     return result.items;
-  }, []);
+  }, [loadNewDataScan]);
 
   useEffect(() => {
     let active = true;
     apiRequest<{ items: IndexCatalogItem[] }>("/api/index-catalog")
       .then((result) => {
-        if (active) setItems(result.items);
+        if (!active) return;
+        setItems(result.items);
+        loadNewDataScan(result.items);
       })
       .catch((reason) => {
         if (active) {
@@ -339,7 +377,7 @@ export function IndexCatalogScreen() {
         window.clearTimeout(validationCompletionTimerRef.current);
       }
     };
-  }, []);
+  }, [loadNewDataScan]);
 
   const editingItem = entryId
     ? items.find((item) => item.entryId === entryId)
@@ -653,6 +691,39 @@ export function IndexCatalogScreen() {
   const isSpreadsheet = statisticsShape === "spreadsheet";
   /** O painel mostra um número por território nas duas formas de valor único. */
   const hasValueIndicator = isValueTable || isSpreadsheet;
+  /**
+   * Os períodos que o método de classificação pode ler. Saem da validação
+   * porque é ela que descobre quais períodos a tabela tem; antes dela não há o
+   * que ler, e o campo aparece com a lista vazia.
+   */
+  const classificationPeriods =
+    preview?.validation.inferred.periods ??
+    (editingItem?.catalogConfig?.schemaVersion === 2
+      ? (editingItem.catalogConfig.validation?.inferred.periods ?? [])
+      : []);
+
+  /**
+   * Escreve os limites calculados no mesmo campo que o operador digitaria.
+   *
+   * Num índice de valor único a quantidade de faixas é dele, então o método
+   * pode acrescentar ou remover faixas; num índice classificatório ela vem das
+   * colunas da tabela, e a própria tela já impede aplicar um método que mudaria
+   * esse número.
+   */
+  function applyClassificationBreaks(thresholds: number[], classCount: number) {
+    setThresholdsInput(thresholds.join(", "));
+    if (!hasValueIndicator) return;
+    // Num índice de valor único as faixas são da legenda do mapa, então os
+    // limites novos trazem consigo rótulos e cores: aplicar um método preenche
+    // a legenda inteira, e não só o campo de limites.
+    updateDraft(
+      "classes",
+      draft.valueIndicator
+        ? buildValueLegendRanges(thresholds, draft.valueIndicator)
+        : resizeValueRanges(draft.classes, classCount),
+    );
+  }
+
   const spreadsheetSource =
     draft.statisticsSource.kind === "municipal-spreadsheet"
       ? draft.statisticsSource
@@ -1054,6 +1125,25 @@ export function IndexCatalogScreen() {
   const buttonClass =
     "cursor-pointer rounded-md px-4 py-2 text-sm font-semibold disabled:cursor-not-allowed disabled:opacity-50";
 
+  /**
+   * O cálculo das faixas pelos dados, desenhado junto do campo de limites que
+   * ele preenche: dentro de "Faixas de cor do mapa" num índice de valor único,
+   * e ao lado de "Limites das classes" num raster contínuo. Um bloco solto no
+   * fim do formulário não deixava ver que era aquele campo que ele mudava.
+   */
+  const classificationMethodBlock = (
+    <ClassificationMethodFields
+      entryId={entryId}
+      spreadsheetSource={spreadsheetSource}
+      periods={classificationPeriods}
+      classCount={draft.classes.length}
+      canChangeClassCount={hasValueIndicator}
+      inputClass={inputClass}
+      buttonClass={buttonClass}
+      onApply={applyClassificationBreaks}
+    />
+  );
+
   return (
     <div className="space-y-6 bg-[#F6F7F3] p-6 text-[#292829]">
       <header className="flex flex-wrap items-start justify-between gap-4">
@@ -1098,6 +1188,9 @@ export function IndexCatalogScreen() {
       <CatalogIndexSections
         items={items}
         loading={busy === "load"}
+        newDataChecks={newDataScan?.checks ?? {}}
+        scanningNewData={scanningNewData}
+        newDataFailures={newDataScan?.failed ?? 0}
         inputClass={inputClass}
         buttonClass={buttonClass}
         onOpenLegacyEditor={openLegacyEditor}
@@ -1612,25 +1705,28 @@ export function IndexCatalogScreen() {
                   publicado com `min` 1 e `max` 6 sobre valores em g/kg, e o
                   mapa saía inteiro na cor da última classe. */}
                 {!isValueTable && (
-                  <label className="text-sm font-medium md:col-span-2">
-                    Limites das classes (opcional)
-                    <input
-                      className={inputClass}
-                      placeholder="-90, -30, 0, 30, 90"
-                      value={thresholdsInput}
-                      onChange={(event) =>
-                        setThresholdsInput(event.target.value)
-                      }
-                    />
-                    <span className="mt-1 block text-xs font-normal text-stone-500">
-                      Só para raster contínuo, em que cada classe é uma faixa de
-                      valores: informe os limites na unidade do próprio asset
-                      (g/kg, mm, °C), um a menos que a quantidade de classes e
-                      em ordem crescente — 6 classes exigem 5 limites. Deixe
-                      vazio quando o raster já guarda o número da classe em cada
-                      pixel.
-                    </span>
-                  </label>
+                  <div className="md:col-span-2">
+                    <label className="text-sm font-medium">
+                      Limites das classes (opcional)
+                      <input
+                        className={inputClass}
+                        placeholder="-90, -30, 0, 30, 90"
+                        value={thresholdsInput}
+                        onChange={(event) =>
+                          setThresholdsInput(event.target.value)
+                        }
+                      />
+                      <span className="mt-1 block text-xs font-normal text-stone-500">
+                        Só para raster contínuo, em que cada classe é uma faixa
+                        de valores: informe os limites na unidade do próprio
+                        asset (g/kg, mm, °C), um a menos que a quantidade de
+                        classes e em ordem crescente — 6 classes exigem 5
+                        limites. Deixe vazio quando o raster já guarda o número
+                        da classe em cada pixel.
+                      </span>
+                    </label>
+                    {classificationMethodBlock}
+                  </div>
                 )}
               </div>
             </fieldset>
@@ -1648,6 +1744,7 @@ export function IndexCatalogScreen() {
                 thresholdsInput={thresholdsInput}
                 inputClass={inputClass}
                 buttonClass={buttonClass}
+                methodSlot={classificationMethodBlock}
                 onChangeRange={updateClass}
                 onChangeRanges={(ranges) => updateDraft("classes", ranges)}
                 onChangeThresholds={setThresholdsInput}
@@ -1808,6 +1905,7 @@ export function IndexCatalogScreen() {
           <CatalogReportPreview
             entryId={preview.entryId}
             tileApiPath={preview.panelLayer.tileApiPath}
+            choroplethSource={preview.panelLayer}
           />
         </section>
       )}

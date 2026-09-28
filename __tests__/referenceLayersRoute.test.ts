@@ -14,9 +14,10 @@ vi.mock("@/infrastructure/earth-engine/client", () => ({
 }));
 
 const getMapId = vi.fn();
+const styleFeatureCollection = vi.fn(() => ({ getMapId }));
 vi.mock("@google/earthengine", () => ({
   default: {
-    FeatureCollection: () => ({ style: () => ({ getMapId }) }),
+    FeatureCollection: () => ({ style: styleFeatureCollection }),
   },
 }));
 
@@ -50,7 +51,7 @@ beforeEach(() => {
   mockedGetAuthenticatedUserId.mockResolvedValue("user-123");
   clearEeRateLimit("user-123");
   for (const layerId of REFERENCE_LAYER_IDS) {
-    removeCacheUrl(`ref-overlay-v1:${layerId}`);
+    removeCacheUrl(`ref-overlay-v2:${layerId}`);
   }
 });
 
@@ -75,6 +76,22 @@ describe("POST /api/ee/reference-layers", () => {
     await expect(response.json()).resolves.toEqual({
       url: "https://earthengine.example/tiles/{z}/{x}/{y}",
     });
+  });
+
+  it("styles each territory with its own color, keeping assentamentos gray", async () => {
+    for (const layerId of REFERENCE_LAYER_IDS) {
+      await POST(createMockRequest(layerId));
+    }
+
+    const fillColors = styleFeatureCollection.mock.calls.map(
+      (call) => (call as unknown as [{ fillColor: string }])[0].fillColor,
+    );
+    expect(fillColors).toEqual([
+      "8E243788",
+      "CCCCCC88",
+      "8B572A88",
+      "2E6B3F88",
+    ]);
   });
 
   it("rejects an unknown layer naming the valid values", async () => {

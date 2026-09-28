@@ -419,6 +419,7 @@ export function LegacyIndexEditor({
           <CatalogReportPreview
             entryId={preview.entryId}
             tileApiPath={preview.panelLayer.tileApiPath}
+            choroplethSource={preview.panelLayer}
           />
         </div>
       )}

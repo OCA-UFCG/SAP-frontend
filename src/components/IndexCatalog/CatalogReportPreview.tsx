@@ -8,6 +8,7 @@ import type { IndexCatalogReportPreview } from "@/types/indexCatalog";
 import { catalogApiRequest } from "@/components/IndexCatalog/catalogApiClient";
 import { MunicipalReportNotes } from "@/components/MunicipalReport/MunicipalReportNotes";
 import { ReportPreviewVisuals } from "@/components/IndexCatalog/CatalogReportPreviewVisuals";
+import type { ChoroplethLayerSource } from "@/components/PlatformMap/useIndexChoroplethValues";
 import { CatalogReportVariablesPanel } from "@/components/IndexCatalog/CatalogReportVariablesPanel";
 import { getContrastTextColor } from "@/utils/functions";
 import { getVisibleChartColor } from "@/utils/municipalReportChart";
@@ -39,6 +40,8 @@ interface CatalogReportPreviewProps {
    * publicadas.
    */
   tileApiPath: string;
+  /** A camada do rascunho: um índice de planilha desenha coropleta, não tile. */
+  choroplethSource?: ChoroplethLayerSource;
 }
 
 function ReportPreviewFrame({ children }: { children: React.ReactNode }) {
@@ -150,9 +153,11 @@ function DistributionTable({
 function ReportPreviewBody({
   preview,
   tileApiPath,
+  choroplethSource,
 }: {
   preview: IndexCatalogReportPreview;
   tileApiPath: string;
+  choroplethSource?: ChoroplethLayerSource;
 }) {
   const t = useTranslations("MunicipalReport");
   const tCaption = useTranslations("PlatformMapCaption");
@@ -253,6 +258,7 @@ function ReportPreviewBody({
             municipality={preview.municipality}
             referencePeriod={referencePeriod}
             tileApiPath={tileApiPath}
+            choroplethSource={choroplethSource}
             translateLabel={translateLabel}
           />
 
@@ -292,6 +298,7 @@ interface ReportPreviewState {
 export function CatalogReportPreview({
   entryId,
   tileApiPath,
+  choroplethSource,
 }: CatalogReportPreviewProps) {
   const [state, setState] = useState<ReportPreviewState | null>(null);
 
@@ -338,6 +345,7 @@ export function CatalogReportPreview({
           <ReportPreviewBody
             preview={current.preview}
             tileApiPath={tileApiPath}
+            choroplethSource={choroplethSource}
           />
         ) : (
           <p className="p-5 text-sm text-stone-500">

@@ -14,6 +14,16 @@ export interface IndexChoropleth {
   overviewGeoJson: MunicipalityOverviewGeoJson | null;
 }
 
+/**
+ * O que basta para saber se uma camada é coropleta e de onde vêm os seus
+ * valores. É menos que `IEEInfo` porque a captura da imagem de prévia do
+ * catálogo monta o mapa a partir da prévia validada, que não é um `IEEInfo`.
+ */
+export type ChoroplethLayerSource = Pick<
+  IEEInfo,
+  "imageData" | "municipalAnalysisApiPath"
+> & { id: string };
+
 interface ChoroplethConfig {
   /** Rota que devolve o valor de cada município do período. */
   valuesUrl: string;
@@ -28,7 +38,9 @@ interface ChoroplethConfig {
  * isso é lido pela rota do próprio rascunho — a mesma divisão que já existe
  * para os tiles e para o painel de análise.
  */
-function resolveChoroplethValuesUrl(activeEEData: IEEInfo): string {
+function resolveChoroplethValuesUrl(
+  activeEEData: ChoroplethLayerSource,
+): string {
   return activeEEData.municipalAnalysisApiPath
     ? `${activeEEData.municipalAnalysisApiPath}/choropleth`
     : `/api/municipal-analysis/${encodeURIComponent(activeEEData.id)}/choropleth`;
@@ -40,7 +52,7 @@ function resolveChoroplethValuesUrl(activeEEData: IEEInfo): string {
  * de planilha.
  */
 export function resolveChoroplethConfig(
-  activeEEData: IEEInfo | null,
+  activeEEData: ChoroplethLayerSource | null,
 ): ChoroplethConfig | null {
   const imageData = activeEEData?.imageData;
   if (!activeEEData || !isCompactImageData(imageData)) return null;
@@ -55,9 +67,16 @@ export function resolveChoroplethConfig(
   };
 }
 
-async function fetchMunicipalValues(valuesUrl: string, year: string) {
+export async function fetchMunicipalValues(
+  valuesUrl: string,
+  year: string,
+  signal?: AbortSignal,
+) {
   const response = await fetch(
     `${valuesUrl}?year=${encodeURIComponent(year)}`,
+    {
+      signal,
+    },
   );
   if (!response.ok) {
     throw new Error(
@@ -75,7 +94,7 @@ async function fetchMunicipalValues(valuesUrl: string, year: string) {
  * para pintar um raster no Earth Engine, para a legenda dizer a verdade nos
  * dois casos.
  */
-function toClassByCode(
+export function toClassByCode(
   values: Record<string, number>,
   thresholds: number[],
 ): Record<string, number> {

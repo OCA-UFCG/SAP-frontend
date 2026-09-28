@@ -1,4 +1,5 @@
 import { act, cleanup, render, waitFor } from "@testing-library/react";
+import type maplibregl from "maplibre-gl";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 const { mapInstances, MapConstructorMock, prewarmMock } = vi.hoisted(() => ({
@@ -75,6 +76,7 @@ vi.mock("maplibre-gl", () => {
     setFeatureState = vi.fn(() => this);
     removeFeatureState = vi.fn(() => this);
     setFilter = vi.fn(() => this);
+    moveLayer = vi.fn(() => this);
     getCanvas = vi.fn(() => ({
       toDataURL: vi.fn(() => `data:image/png;base64,${"a".repeat(120)}`),
     }));
@@ -161,6 +163,51 @@ describe("ReportMapPreview", () => {
     destroyReportMapPool();
   });
 
+  // Regressão: um índice de planilha não tem asset no Earth Engine, e o quadro
+  // só sabia desenhar tiles — a prévia do relatório saía com o mapa vazio.
+  it("pinta a coropleta de um índice de planilha, sem URL de tiles", async () => {
+    const onCapture = vi.fn();
+    const { unmount } = render(
+      <ReportMapPreview
+        territory={ABADIA_DE_GOIAS}
+        layerId="pobreza_urbana"
+        period="2025"
+        choropleth={{
+          palette: ["#fee", "#f00"],
+          classByCode: { "5200050": 1 },
+        }}
+        onCapture={onCapture}
+      />,
+    );
+
+    await waitFor(() => expect(mapInstances).toHaveLength(1));
+    emit(0, "load");
+    await waitFor(() =>
+      expect(mapInstances[0].addLayer).toHaveBeenCalledWith(
+        expect.objectContaining({ id: "index-choropleth-fills" }),
+        undefined,
+      ),
+    );
+    expect(mapInstances[0].addSource).not.toHaveBeenCalledWith(
+      "gee-tiles",
+      expect.anything(),
+    );
+    expect(mapInstances[0].setFeatureState).toHaveBeenCalledWith(
+      expect.objectContaining({ id: "5200050" }),
+      { indexChoroplethClass: 1 },
+    );
+
+    emit(0, "idle");
+    await waitFor(() =>
+      expect(onCapture).toHaveBeenCalledWith(expect.any(String)),
+    );
+
+    unmount();
+    expect(mapInstances[0].removeLayer).toHaveBeenCalledWith(
+      "index-choropleth-fills",
+    );
+  });
+
   it("does not initialize MapLibre when an image is already available", () => {
     render(
       <ReportMapPreview
@@ -215,6 +262,31 @@ describe("ReportMapPreview", () => {
 
     expect(MapConstructorMock).not.toHaveBeenCalled();
     expect(getByText("Mapa indisponível para exportação.")).toBeTruthy();
+  });
+
+  // Regressão: o estilo do relatório tinha nascido vazio por desempenho, e o
+  // PNG capturado saía com o índice recortado sobre o branco do canvas em todo
+  // recorte — município, estado, bioma, ASD.
+  it("desenha o índice sobre o mapa de fundo, e não sobre o branco do canvas", async () => {
+    render(
+      <ReportMapPreview
+        territory={CAATINGA}
+        layerId="anaseca"
+        period="2024-01"
+        tileUrl={TILE_URL}
+      />,
+    );
+
+    await waitFor(() => expect(MapConstructorMock).toHaveBeenCalled());
+    const { style } = MapConstructorMock.mock.calls[0][0] as {
+      style: maplibregl.StyleSpecification;
+    };
+
+    expect(style.sources["osm-base"]).toBeTruthy();
+    // Primeira camada do estilo: tudo o que o relatório acrescenta depois
+    // — malha municipal, raster do índice, contorno do território — fica
+    // por cima do fundo.
+    expect(style.layers[0].id).toBe("osm-layer");
   });
 
   // Antes cada item do relatório criava e destruía a própria instância: os 20

@@ -11,6 +11,10 @@ import {
   type SourceCapableMap,
 } from "@/components/Map/classificationLayers";
 import { MUNICIPALITY_SOURCE_ID } from "@/components/Map/municipalityLayers";
+import {
+  SPATIAL_BOUNDARY_LAYER_ID,
+  STATES_FILL_LAYER_ID,
+} from "@/components/Map/mapDefinitions";
 
 export const INDEX_CHOROPLETH_LAYER_ID = "index-choropleth-fills";
 export const INDEX_CHOROPLETH_OUTLINE_LAYER_ID = "index-choropleth-outline";
@@ -71,6 +75,19 @@ interface ChoroplethZoomRange {
   maxzoom?: number;
 }
 
+/**
+ * A coropleta entra logo abaixo do contorno do recorte. Sem âncora ela ia para
+ * o topo da pilha e cobria o contorno azul da seleção e o preto do hover, que
+ * são inseridos antes de `state-fills`. Se o recorte ainda não existe, ancorar
+ * em `state-fills` basta: as camadas do recorte, quando chegarem, entram entre
+ * a coropleta e `state-fills`, ou seja, por cima dela.
+ */
+function resolveChoroplethBeforeLayerId(map: LayerCapableMap) {
+  if (map.getLayer(SPATIAL_BOUNDARY_LAYER_ID)) return SPATIAL_BOUNDARY_LAYER_ID;
+  if (map.getLayer(STATES_FILL_LAYER_ID)) return STATES_FILL_LAYER_ID;
+  return undefined;
+}
+
 function addChoroplethLayerPair(
   map: LayerCapableMap,
   { source, sourceLayer }: ClassificationSourceRef,
@@ -80,31 +97,38 @@ function addChoroplethLayerPair(
   opacity: number,
 ) {
   const sourceLayerSpec = sourceLayer ? { "source-layer": sourceLayer } : {};
+  const beforeLayerId = resolveChoroplethBeforeLayerId(map);
 
-  map.addLayer({
-    id: ids.fill,
-    type: "fill",
-    source,
-    ...sourceLayerSpec,
-    ...zoomRange,
-    paint: {
-      "fill-color": buildChoroplethFillColor(palette),
-      "fill-opacity": buildChoroplethFillOpacity(palette, opacity),
-    },
-  } as AddLayerObject);
+  map.addLayer(
+    {
+      id: ids.fill,
+      type: "fill",
+      source,
+      ...sourceLayerSpec,
+      ...zoomRange,
+      paint: {
+        "fill-color": buildChoroplethFillColor(palette),
+        "fill-opacity": buildChoroplethFillOpacity(palette, opacity),
+      },
+    } as AddLayerObject,
+    beforeLayerId,
+  );
 
-  map.addLayer({
-    id: ids.outline,
-    type: "line",
-    source,
-    ...sourceLayerSpec,
-    ...zoomRange,
-    paint: {
-      "line-color": OUTLINE_COLOR,
-      "line-opacity": buildChoroplethFillOpacity(palette, OUTLINE_OPACITY),
-      "line-width": 0.6,
-    },
-  } as AddLayerObject);
+  map.addLayer(
+    {
+      id: ids.outline,
+      type: "line",
+      source,
+      ...sourceLayerSpec,
+      ...zoomRange,
+      paint: {
+        "line-color": OUTLINE_COLOR,
+        "line-opacity": buildChoroplethFillOpacity(palette, OUTLINE_OPACITY),
+        "line-width": 0.6,
+      },
+    } as AddLayerObject,
+    beforeLayerId,
+  );
 }
 
 /**

@@ -24,6 +24,7 @@ import {
 } from "@/utils/amfeConsts";
 import ErrorMessage from "./ErrorMessage";
 import SegmentedSlider from "./SegmentedSlider";
+import { SelectField } from "./SelectField";
 import { LayerAccordion } from "@/components/LayerAccordion/LayerAccordion";
 import useCriterias from "@/components/Amfe/useCriterias";
 
@@ -250,7 +251,7 @@ const AnalyzeForm = ({ setFormPayload }: AnalyzeFormProps) => {
                     control={control}
                     rules={{ required: t("interestAreaRequired") }}
                     render={({ field }) => (
-                      <select
+                      <SelectField
                         {...field}
                         className={softSelectClass}
                         style={{ color: text }}
@@ -260,7 +261,7 @@ const AnalyzeForm = ({ setFormPayload }: AnalyzeFormProps) => {
                             {interestAreaLabels[option]}
                           </option>
                         ))}
-                      </select>
+                      </SelectField>
                     )}
                   />
                   {errors.interestArea && (
@@ -282,7 +283,7 @@ const AnalyzeForm = ({ setFormPayload }: AnalyzeFormProps) => {
                     control={control}
                     rules={{ required: t("interestAreaValueRequired") }}
                     render={({ field }) => (
-                      <select
+                      <SelectField
                         {...field}
                         className={softSelectClass}
                         style={{ color: text }}
@@ -294,7 +295,7 @@ const AnalyzeForm = ({ setFormPayload }: AnalyzeFormProps) => {
                             )}
                           </option>
                         ))}
-                      </select>
+                      </SelectField>
                     )}
                   />
                   {errors.interestAreaValue && (
@@ -323,7 +324,7 @@ const AnalyzeForm = ({ setFormPayload }: AnalyzeFormProps) => {
               rules={{ required: t("levelRequired") }}
               render={({ field }) => (
                 <div className="mt-3">
-                  <select
+                  <SelectField
                     {...field}
                     className={selectClass}
                     style={{ color: text }}
@@ -333,7 +334,7 @@ const AnalyzeForm = ({ setFormPayload }: AnalyzeFormProps) => {
                         {rankingLevelLabels[option]}
                       </option>
                     ))}
-                  </select>
+                  </SelectField>
                 </div>
               )}
             />

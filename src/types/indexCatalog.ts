@@ -13,6 +13,7 @@ import type {
   CompactMapVisualizationConfig,
   CompactTerritorialAnalysisDataset,
 } from "@/utils/analysis";
+import type { ClassificationSample } from "@/utils/classificationSample";
 
 /**
  * A lista mora no contrato `.mjs` porque a adoção em lote, que roda em Node
@@ -307,6 +308,40 @@ export interface IndexCatalogItem {
   catalogConfig?: IndexCatalogConfig;
 }
 
+/**
+ * O que o botão "Verificar novos dados" descobriu ao comparar a pasta do Earth
+ * Engine com a última validação do índice.
+ *
+ * `new-data` é a única resposta que pede ação: ou a pasta ganhou períodos que o
+ * índice não tem, ou um asset de período já conhecido foi reescrito depois da
+ * validação.
+ */
+export interface CatalogNewDataCheck {
+  checkedAt: string;
+  status: "up-to-date" | "new-data" | "not-applicable" | "never-validated";
+  /** Frase pronta para a tela, já com períodos e assets citados. */
+  message: string;
+  /** Os períodos que a validação atual do índice cobre. */
+  knownPeriods: string[];
+  newPeriods: string[];
+  updatedAssets: Array<{ assetId: string; updateTime: string }>;
+}
+
+/**
+ * O resultado da verificação de todos os índices publicados de uma vez.
+ *
+ * `checks` é indexado por `entryId`, e um índice cuja verificação falhou fica
+ * de fora dele — por isso `checked` e `failed` vêm junto: sem eles a tela não
+ * teria como distinguir "nenhum índice desatualizado" de "a varredura não
+ * conseguiu olhar".
+ */
+export interface PublishedNewDataScan {
+  checkedAt: string;
+  checked: number;
+  failed: number;
+  checks: Record<string, CatalogNewDataCheck>;
+}
+
 export interface IndexCatalogLifecycleImpact {
   item: IndexCatalogItem;
   linkedEntries: [];
@@ -401,4 +436,26 @@ export interface IndexCatalogReportVariable {
   token: string;
   description: string;
   example: string;
+}
+
+/**
+ * De onde saíram os valores que alimentaram o cálculo dos limites das faixas.
+ *
+ * A tela mostra a origem junto do resultado porque ela muda o que os limites
+ * significam: `raster` é uma amostra aleatória de pixels e não o dado inteiro,
+ * então dois cliques seguidos podem devolver limites ligeiramente diferentes.
+ */
+export type ClassificationSampleOrigin =
+  "spreadsheet" | "municipalValueTable" | "raster";
+
+/**
+ * A distribuição de valores de um rascunho num período.
+ *
+ * Mora nos tipos, e não no serviço que a lê, porque o formulário do catálogo
+ * consome a resposta: o serviço é `server-only` e importar o tipo de lá levaria
+ * o módulo com credenciais para o bundle do navegador.
+ */
+export interface DraftClassificationSample extends ClassificationSample {
+  origin: ClassificationSampleOrigin;
+  period: string;
 }

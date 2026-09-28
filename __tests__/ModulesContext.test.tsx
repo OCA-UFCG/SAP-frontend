@@ -137,6 +137,46 @@ describe("ModulesContext", () => {
     expect(screen.getByText("Camada Livre")).toBeInTheDocument();
   });
 
+  it("mostra os índices de previsão num subacordeão fechado no fim de Dados Climáticos", () => {
+    const climateLayer = (id: string, name: string): PanelLayerI => ({
+      sys: { id: `sys-${id}` },
+      id,
+      name,
+      description: `Descricao ${name}`,
+      category: "Dados Climáticos",
+      previewMap: { url: "https://example.com/preview.png" },
+      imageData: {},
+    });
+
+    render(
+      <ModulesContext
+        activeSection="analysis"
+        panelLayers={[
+          climateLayer("seca", "Monitor de Secas"),
+          climateLayer("prev", "Previsão: Anomalia Precipitação"),
+          climateLayer("aridez", "Índice de Aridez"),
+        ]}
+      />,
+    );
+
+    const subgroupButton = screen
+      .getByText("Dados de previsão")
+      .closest("button");
+    expect(subgroupButton).toHaveAttribute("aria-expanded", "false");
+
+    const titles = screen
+      .getAllByRole("heading", { level: 3 })
+      .map((heading) => heading.textContent);
+    expect(titles).toEqual([
+      "Monitor de Secas",
+      "Índice de Aridez",
+      "Previsão: Anomalia Precipitação",
+    ]);
+    expect(
+      screen.getByText("Previsão: Anomalia Precipitação").closest("[inert]"),
+    ).not.toBeNull();
+  });
+
   it("abre o detalhamento do índice pedido pela URL, ativando a camada no mapa", () => {
     const onRequestSectionChange = vi.fn();
     const panelLayers: PanelLayerI[] = [

@@ -296,7 +296,7 @@ describe("buildIndexCatalogReportPreview", () => {
     const preview = await buildIndexCatalogReportPreview("panel");
 
     expect(preview.docsContent["indice-de-aridez-catalogo"][0].text).toBe(
-      "Em Campina Grande — PB, predomina Semiárido com 83,4% em 2024.",
+      "Em Campina Grande — PB, predomina Semiárido com 83,40% em 2024.",
     );
   });
 
