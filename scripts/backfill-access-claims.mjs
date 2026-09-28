@@ -12,6 +12,12 @@
  *   node scripts/backfill-access-claims.mjs --dry-run
  *   node scripts/backfill-access-claims.mjs --apply
  *
+ * Cada conta liberada é deslogada. O claim entra no cookie de sessão só quando
+ * ele é criado, e o cookie de quem já estava logado vale por 24 h: sem deslogar,
+ * ligar a flag mandaria essas pessoas para a página de espera, apesar de já
+ * liberadas. Rodado com a flag ainda desligada, o efeito visível é um único
+ * pedido de login — o login novo já traz a marca.
+ *
  * É idempotente: contas que já têm um claim válido são puladas, então rodar de
  * novo não revoga a sessão de ninguém.
  */
@@ -47,6 +53,22 @@ export function shouldBackfillUser(user) {
   if (!VALID_TIERS.has(namespaced.tier)) return true;
 
   return false;
+}
+
+/**
+ * Libera uma conta e derruba as sessões abertas dela, na mesma ordem de
+ * `approveAccess` em `src/lib/access-claims.ts`: primeiro o claim, depois a
+ * revogação — o inverso deslogaria a pessoa e o login seguinte ainda viria sem
+ * a marca.
+ *
+ *   await backfillUser(auth, user, atSeconds);
+ */
+export async function backfillUser(auth, user, atSeconds) {
+  await auth.setCustomUserClaims(
+    user.uid,
+    buildBackfillClaims(user.customClaims, atSeconds),
+  );
+  await auth.revokeRefreshTokens(user.uid);
 }
 
 function parseArgs(argv) {
@@ -108,13 +130,12 @@ async function main() {
         continue;
       }
 
-      console.log(`  ${apply ? "gravando" : "gravaria"}: ${user.email ?? user.uid}`);
+      console.log(
+        `  ${apply ? "liberando e deslogando" : "liberaria e deslogaria"}: ${user.email ?? user.uid}`,
+      );
 
       if (apply) {
-        await auth.setCustomUserClaims(
-          user.uid,
-          buildBackfillClaims(user.customClaims, atSeconds),
-        );
+        await backfillUser(auth, user, atSeconds);
       }
 
       updated += 1;
@@ -124,7 +145,7 @@ async function main() {
   } while (pageToken);
 
   console.log(
-    `\n${scanned} conta(s) verificada(s) · ${updated} ${apply ? "liberada(s)" : "seriam liberadas"} · ${skipped} já com claim válido`,
+    `\n${scanned} conta(s) verificada(s) · ${updated} ${apply ? "liberada(s) e deslogada(s)" : "seriam liberadas e deslogadas"} · ${skipped} já com claim válido`,
   );
 
   if (!apply) {
