@@ -9,6 +9,8 @@
     "showPassword": "Mostrar contraseña",
     "hidePassword": "Ocultar contraseña",
     "submitting": "Entrando...",
-    "submit": "Entrar"
+    "submit": "Entrar",
+    "noAccount": "¿No tienes cuenta?",
+    "signUp": "Crear cuenta"
   }
 }

@@ -1,5 +1,11 @@
 import { adminAuth } from "@/lib/firebase-admin";
 import {
+  hasApprovedAccess,
+  readAccessClaim,
+  type AccessClaim,
+} from "@/lib/access-claims";
+import { isAccessGuardEnabled } from "@/lib/access-flag";
+import {
   getVerifiedSession,
   rememberVerifiedSession,
 } from "@/lib/verified-session-cache";
@@ -11,6 +17,9 @@ export const SESSION_COOKIE_MAX_AGE_MS = SESSION_COOKIE_MAX_AGE_SECONDS * 1000;
 export interface AuthenticatedUserSession {
   uid: string;
   email: string | null;
+  // Liberação de acesso, lida do claim que o token já carrega. Não custa
+  // chamada nenhuma: é mais um campo do que `verifySessionCookie` devolve.
+  access: AccessClaim | null;
 }
 
 function normalizeSessionEmail(email: unknown) {
@@ -22,12 +31,52 @@ function normalizeSessionEmail(email: unknown) {
   return normalizedEmail || null;
 }
 
-export async function createFirebaseSessionCookie(token: string) {
-  await adminAuth.verifyIdToken(token);
+export type SessionCreation =
+  | { status: "created"; sessionCookie: string }
+  | {
+      status: "unapproved";
+      /**
+       * Quem foi recusado. Existe para o chamador poder tentar fechar um
+       * cadastro que ficou pendente — quem confirma o endereço e fecha a aba
+       * nunca volta à página de confirmação, e sem isto ficaria de fora para
+       * sempre, inclusive no trilho institucional.
+       */
+      uid: string;
+      email: string | null;
+      emailVerified: boolean;
+    };
 
-  return adminAuth.createSessionCookie(token, {
+/**
+ * Abre a sessão da plataforma — e é aqui que o acesso é barrado.
+ *
+ * O bloqueio vive num ponto só, e é este: sem a marca de liberação na conta não
+ * nasce cookie, e sem cookie não há plataforma. O guard do layout continua
+ * existindo para os cookies emitidos antes de a flag ser ligada, mas quem
+ * decide é esta função.
+ *
+ * O token é verificado uma vez só. Conferir o claim com uma segunda chamada
+ * custaria outra ida ao Identity Toolkit (~330 ms) em todo login — é o mesmo
+ * custo que o `verified-session-cache` existe para evitar.
+ */
+export async function createFirebaseSessionCookie(
+  token: string,
+): Promise<SessionCreation> {
+  const decodedToken = await adminAuth.verifyIdToken(token);
+
+  if (isAccessGuardEnabled() && !hasApprovedAccess(decodedToken)) {
+    return {
+      status: "unapproved",
+      uid: decodedToken.uid,
+      email: normalizeSessionEmail(decodedToken.email),
+      emailVerified: Boolean(decodedToken.email_verified),
+    };
+  }
+
+  const sessionCookie = await adminAuth.createSessionCookie(token, {
     expiresIn: SESSION_COOKIE_MAX_AGE_MS,
   });
+
+  return { status: "created", sessionCookie };
 }
 
 /**
@@ -51,6 +100,7 @@ async function resolveSessionFromCookie(
     const session = {
       uid: decodedToken.uid,
       email: normalizeSessionEmail(decodedToken.email),
+      access: readAccessClaim(decodedToken),
     };
 
     rememberVerifiedSession(sessionCookie, session, decodedToken.exp * 1000);
@@ -112,12 +162,24 @@ export function getSessionCookieFromRequest(request: Request) {
   return getCookieValue(request.headers.get("cookie"), SESSION_COOKIE_NAME);
 }
 
+/**
+ * Porteiro das rotas de dados.
+ *
+ * Checa autenticação **e** liberação. A segunda parte importa porque o guard
+ * das páginas só protege HTML: um cookie emitido antes de o bloqueio ser
+ * ligado continua válido, é barrado nas telas, e antes disto continuava
+ * servindo para chamar as rotas de dados direto.
+ */
 export async function requireAuthenticatedRequest(request: Request) {
-  const isAuthenticated = await verifyFirebaseSessionCookie(
-    getSessionCookieFromRequest(request),
-  );
+  const session = await getAuthenticatedUserSession(request);
 
-  if (isAuthenticated) return null;
+  if (!session) {
+    return Response.json({ error: "Unauthorized access." }, { status: 401 });
+  }
 
-  return Response.json({ error: "Unauthorized access." }, { status: 401 });
+  if (isAccessGuardEnabled() && !session.access) {
+    return Response.json({ error: "Access not granted." }, { status: 403 });
+  }
+
+  return null;
 }

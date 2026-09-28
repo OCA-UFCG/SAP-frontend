@@ -29,6 +29,11 @@
 # Gerador do GeoJSON de visão geral da AMFE: o artefato em public/data é
 # commitado, então a receita para regerá-lo também precisa ser.
 !/scripts/build-cities-overview.mjs
+# Libera as contas existentes antes do bloqueio de acesso ser ligado. Faz parte
+# do procedimento de deploy, não do ambiente de quem desenvolve.
+!/scripts/backfill-access-claims.mjs
+# Prova que a conta de envio funciona, antes de confiar nela em produção.
+!/scripts/send-test-email.mjs
 /scripts/gee/
 /tmp
 mise.toml

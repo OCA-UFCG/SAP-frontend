@@ -87,4 +87,24 @@ describe("Login", () => {
       });
     });
   });
+
+  it("offers the way to the signup page", () => {
+    render(<Login signupOffered />);
+
+    expect(screen.getByRole("link", { name: "Criar conta" })).toHaveAttribute(
+      "href",
+      "/cadastro",
+    );
+  });
+
+  // Com o bloqueio de acesso desligado, quem se cadastrasse entraria direto,
+  // sem confirmar o e-mail e sem aprovação. Oferecer o cadastro nesse estado
+  // deixaria a plataforma mais aberta do que era antes do cadastro existir.
+  it("hides the signup link while the access guard is off", () => {
+    render(<Login />);
+
+    expect(
+      screen.queryByRole("link", { name: "Criar conta" }),
+    ).not.toBeInTheDocument();
+  });
 });

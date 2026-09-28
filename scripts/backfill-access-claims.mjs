@@ -1,0 +1,204 @@
+#!/usr/bin/env node
+/**
+ * Libera todas as contas que já existem, antes de o guard de acesso ser ligado.
+ *
+ * Quem usa a plataforma hoje não tem o claim `sap.access` — ele só passa a ser
+ * gravado pelo cadastro. Ligar `PLATFORM_ACCESS_GUARD_ENABLED` sem rodar isto
+ * antes trancaria todo mundo para fora no deploy.
+ *
+ * A ordem de implantação é: subir com a flag desligada → rodar este script →
+ * ligar a flag.
+ *
+ *   node scripts/backfill-access-claims.mjs --dry-run
+ *   node scripts/backfill-access-claims.mjs --apply
+ *
+ * Cada conta liberada é deslogada. O claim entra no cookie de sessão só quando
+ * ele é criado, e o cookie de quem já estava logado vale por 24 h: sem deslogar,
+ * ligar a flag mandaria essas pessoas para a página de espera, apesar de já
+ * liberadas. Rodado com a flag ainda desligada, o efeito visível é um único
+ * pedido de login — o login novo já traz a marca.
+ *
+ * É idempotente: contas que já têm um claim válido são puladas, então rodar de
+ * novo não revoga a sessão de ninguém.
+ *
+ * Contas que vieram do cadastro também são puladas, porque a decisão sobre elas
+ * é da equipe na tela de Aprovações. Sem isso, rodar o script depois de o
+ * cadastro abrir liberaria todo pedido pendente ou recusado de uma vez.
+ */
+
+// Estas duas constantes espelham `src/lib/access-claims.ts`. Um teste
+// (__tests__/backfillAccessClaims.test.ts) compara os dois formatos e quebra se
+// eles divergirem — um backfill que grava um claim que o guard não reconhece
+// trancaria a plataforma inteira.
+const ACCESS_CLAIM_NAMESPACE = "sap";
+const APPROVED_ACCESS = "approved";
+const LEGACY_TIER = "legacy";
+
+const VALID_TIERS = new Set(["allowed", "common", LEGACY_TIER]);
+
+// Beta, gamma, produção e o ambiente local dividem as mesmas contas do Firebase,
+// então um pedido aberto em qualquer uma dessas listas conta. O id de cada
+// pedido é o uid da conta (`src/lib/access-requests.ts`).
+const SIGNUP_COLLECTIONS = ["access-requests", "access-requests-local"];
+
+export function buildBackfillClaims(existingClaims = {}, atSeconds) {
+  // `setCustomUserClaims` substitui o conjunto inteiro, não mescla: escrever só
+  // o nosso apagaria qualquer claim que a conta já tivesse.
+  return {
+    ...existingClaims,
+    [ACCESS_CLAIM_NAMESPACE]: {
+      access: APPROVED_ACCESS,
+      tier: LEGACY_TIER,
+      at: atSeconds,
+    },
+  };
+}
+
+export function shouldBackfillUser(user, signupUids = new Set()) {
+  if (signupUids.has(user?.uid)) return false;
+
+  const namespaced = user?.customClaims?.[ACCESS_CLAIM_NAMESPACE];
+
+  if (!namespaced || typeof namespaced !== "object") return true;
+  if (namespaced.access !== APPROVED_ACCESS) return true;
+  if (!VALID_TIERS.has(namespaced.tier)) return true;
+
+  return false;
+}
+
+/**
+ * Libera uma conta e derruba as sessões abertas dela, na mesma ordem de
+ * `approveAccess` em `src/lib/access-claims.ts`: primeiro o claim, depois a
+ * revogação — o inverso deslogaria a pessoa e o login seguinte ainda viria sem
+ * a marca.
+ *
+ *   await backfillUser(auth, user, atSeconds);
+ */
+export async function backfillUser(auth, user, atSeconds) {
+  await auth.setCustomUserClaims(
+    user.uid,
+    buildBackfillClaims(user.customClaims, atSeconds),
+  );
+  await auth.revokeRefreshTokens(user.uid);
+}
+
+/**
+ * Junta os uids de quem já abriu um pedido pelo cadastro, em todas as listas.
+ *
+ *   const signupUids = await listSignupUids(db, ["access-requests"]);
+ */
+export async function listSignupUids(db, collections) {
+  const uids = new Set();
+
+  for (const name of collections) {
+    const refs = await db.collection(name).listDocuments();
+    for (const ref of refs) uids.add(ref.id);
+  }
+
+  return uids;
+}
+
+function parseArgs(argv) {
+  return {
+    apply: argv.includes("--apply"),
+    dryRun: !argv.includes("--apply"),
+  };
+}
+
+async function main() {
+  const { apply } = parseArgs(process.argv.slice(2));
+
+  // Importado só aqui para o arquivo poder ser importado por um teste sem
+  // exigir credencial de Firebase Admin no ambiente.
+  const { default: admin } = await import("firebase-admin");
+
+  const privateKey = process.env.FIREBASE_PRIVATE_KEY_BASE64
+    ? Buffer.from(process.env.FIREBASE_PRIVATE_KEY_BASE64, "base64").toString(
+        "utf8",
+      )
+    : process.env.FIREBASE_PRIVATE_KEY?.replace(/\\n/g, "\n");
+  const projectId =
+    process.env.FIREBASE_PROJECT_ID ||
+    process.env.NEXT_PUBLIC_FIREBASE_PROJECT_ID;
+  const clientEmail = process.env.FIREBASE_CLIENT_EMAIL;
+
+  if (!projectId || !clientEmail || !privateKey) {
+    console.error(
+      "Credenciais do Firebase Admin ausentes. Confira FIREBASE_PROJECT_ID, FIREBASE_CLIENT_EMAIL e FIREBASE_PRIVATE_KEY (ou _BASE64).",
+    );
+    process.exit(1);
+  }
+
+  const app = admin.initializeApp({
+    credential: admin.credential.cert({ projectId, clientEmail, privateKey }),
+  });
+  const auth = app.auth();
+  const collections = [
+    ...new Set(
+      [
+        ...SIGNUP_COLLECTIONS,
+        process.env.FIREBASE_ACCESS_REQUESTS_COLLECTION?.trim(),
+      ].filter(Boolean),
+    ),
+  ];
+  const signupUids = await listSignupUids(app.firestore(), collections);
+
+  const atSeconds = Math.floor(Date.now() / 1000);
+  let scanned = 0;
+  let updated = 0;
+  let skipped = 0;
+  let fromSignup = 0;
+  let pageToken;
+
+  console.log(
+    apply
+      ? "Aplicando o claim de acesso nas contas existentes…"
+      : "Simulação (--dry-run). Nada será gravado. Use --apply para valer.",
+  );
+
+  do {
+    const page = await auth.listUsers(1000, pageToken);
+
+    for (const user of page.users) {
+      scanned += 1;
+
+      if (signupUids.has(user.uid)) {
+        fromSignup += 1;
+        continue;
+      }
+
+      if (!shouldBackfillUser(user)) {
+        skipped += 1;
+        continue;
+      }
+
+      console.log(
+        `  ${apply ? "liberando e deslogando" : "liberaria e deslogaria"}: ${user.email ?? user.uid}`,
+      );
+
+      if (apply) {
+        await backfillUser(auth, user, atSeconds);
+      }
+
+      updated += 1;
+    }
+
+    pageToken = page.pageToken;
+  } while (pageToken);
+
+  console.log(
+    `\n${scanned} conta(s) verificada(s) · ${updated} ${apply ? "liberada(s) e deslogada(s)" : "seriam liberadas e deslogadas"} · ${skipped} já com claim válido · ${fromSignup} vinda(s) do cadastro, decididas na tela de Aprovações`,
+  );
+
+  if (!apply) {
+    console.log("\nNada foi gravado. Rode de novo com --apply para aplicar.");
+  }
+}
+
+// Só executa quando chamado direto pelo node; um import (o teste) não dispara.
+if (process.argv[1] && import.meta.url === `file://${process.argv[1]}`) {
+  main().catch((error) => {
+    console.error(error);
+    process.exit(1);
+  });
+}

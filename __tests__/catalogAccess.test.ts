@@ -39,7 +39,7 @@ describe("index catalog access", () => {
       ),
     ).resolves.toEqual({
       allowed: true,
-      user: { uid: "user-1", email: "oca-dev@gmail.com" },
+      user: { uid: "user-1", email: "oca-dev@gmail.com", access: null },
     });
   });
 

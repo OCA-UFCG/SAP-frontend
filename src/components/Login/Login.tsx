@@ -4,6 +4,8 @@ import { useState } from "react";
 import { useForm } from "react-hook-form";
 import { useTranslations } from "next-intl";
 import Image from "next/image";
+import { Link } from "@/translations/routing";
+import { SIGNUP_PATH } from "@/config/accessRoutes";
 import { Icon } from "../Icon/Icon";
 import { LoginField } from "./LoginField";
 import { LoginPhotoPanel } from "./LoginPhotoPanel";
@@ -17,11 +19,22 @@ type LoginProps = {
   onSubmit?: (values: LoginFormValues) => void | Promise<void>;
   backgroundImageUrl?: string;
   error?: string;
+  /**
+   * Se o cadastro está aberto ao público. Vem do servidor, amarrado ao
+   * interruptor do bloqueio de acesso: enquanto ele estiver desligado, quem se
+   * cadastrasse entraria sem confirmar e-mail e sem aprovação.
+   */
+  signupOffered?: boolean;
 };
 
 const BELOW_HEADER = "min-h-[calc(100vh-4.125rem)]";
 
-export const Login = ({ onSubmit, backgroundImageUrl, error }: LoginProps) => {
+export const Login = ({
+  onSubmit,
+  backgroundImageUrl,
+  error,
+  signupOffered = false,
+}: LoginProps) => {
   const t = useTranslations("Login");
   const [passwordVisible, setPasswordVisible] = useState(false);
   const {
@@ -127,6 +140,18 @@ export const Login = ({ onSubmit, backgroundImageUrl, error }: LoginProps) => {
           >
             {isSubmitting ? t("submitting") : t("submit")}
           </button>
+
+          {signupOffered ? (
+            <p className="text-[12px] leading-4 text-[#676264]">
+              {t("noAccount")}{" "}
+              <Link
+                href={SIGNUP_PATH}
+                className="font-medium text-[#777E32] underline underline-offset-2 hover:text-[#5B612A]"
+              >
+                {t("signUp")}
+              </Link>
+            </p>
+          ) : null}
         </form>
       </div>
     </section>

@@ -1,0 +1,17 @@
+{
+  "SignupConfirmation": {
+    "approvedTitle": "Access granted",
+    "approvedBody": "Your email is confirmed and your access has been granted.",
+    "enter": "Enter the platform",
+    "pendingTitle": "Email confirmed",
+    "pendingBody": "Your request went to the OCA team. You will get an email once they review it.",
+    "rejectedTitle": "Request not approved",
+    "rejectedBody": "This access request was not approved.",
+    "failedTitle": "We could not confirm your email",
+    "failedBody": "The link may have expired, or the email has not been confirmed yet. Request a new email below.",
+    "resend": "Resend confirmation email",
+    "resending": "Sending...",
+    "resent": "If the address is registered, a new email was sent.",
+    "backHome": "Back to the home page"
+  }
+}

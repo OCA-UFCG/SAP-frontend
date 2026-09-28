@@ -5,6 +5,8 @@
     "communication": "Comunicación",
     "logs": "Auditoría",
     "catalog": "Catálogo de índices",
-    "loading": "Cargando"
+    "loading": "Cargando",
+    "approvals": "Aprobaciones",
+    "pendingApprovals": "Solicitudes esperando decisión: {count}"
   }
 }

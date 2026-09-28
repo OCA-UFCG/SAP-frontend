@@ -5,6 +5,8 @@
     "communication": "Communication",
     "logs": "Audit",
     "catalog": "Index catalog",
-    "loading": "Loading"
+    "loading": "Loading",
+    "approvals": "Approvals",
+    "pendingApprovals": "Requests awaiting a decision: {count}"
   }
 }

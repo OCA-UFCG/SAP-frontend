@@ -1,0 +1,18 @@
+{
+  "SignupEmails": {
+    "verificationSubject": "Confirma tu dirección de correo — SEDES",
+    "verificationTitle": "Confirma tu dirección",
+    "verificationBody": "Recibimos un registro en el SEDES con esta dirección. Confirma que este correo te pertenece para continuar.",
+    "verificationAction": "Confirmar dirección",
+    "decisionApprovedSubject": "Tu acceso al SEDES fue liberado",
+    "decisionApprovedTitle": "Acceso liberado",
+    "decisionApprovedBody": "Tu registro fue aprobado. La plataforma está disponible para acceso.",
+    "decisionApprovedAction": "Entrar al SEDES",
+    "decisionRejectedSubject": "Sobre tu solicitud de acceso al SEDES",
+    "decisionRejectedTitle": "Solicitud no aprobada",
+    "decisionRejectedBody": "Revisamos tu solicitud de acceso al SEDES y no fue aprobada esta vez.",
+    "decisionRejectedFollowUp": "Si crees que hubo un error, responde a este correo contando cómo planeas usar la plataforma.",
+    "fallback": "Si el botón no funciona, copia esta dirección en tu navegador:",
+    "footer": "SEDES — Sistema Estratégico sobre Desertificação e Seca"
+  }
+}

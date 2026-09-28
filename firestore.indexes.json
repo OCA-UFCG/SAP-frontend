@@ -1,0 +1,25 @@
+{
+  "//": "Índices compostos do Firestore. O Firestore cria sozinho um índice por campo, mas uma consulta que FILTRA por um campo e ORDENA por outro exige um índice composto declarado — sem ele a consulta falha em produção com FAILED_PRECONDITION e a tela de aprovação não carrega. Publicar: `firebase deploy --only firestore:indexes` (ou criar pelo painel, em Firestore > Indexes). É gratuito no plano Spark.",
+  "//2": "Há uma entrada por coleção porque FIREBASE_ACCESS_REQUESTS_COLLECTION separa os ambientes: o padrão é access-requests-local, e produção aponta para access-requests. Se vocês adotarem outro nome, acrescentem a entrada correspondente.",
+  "indexes": [
+    {
+      "//": "Tela de aprovação (/platform/aprovacoes) em produção: pedidos ainda pendentes, mais antigo primeiro.",
+      "collectionGroup": "access-requests",
+      "queryScope": "COLLECTION",
+      "fields": [
+        { "fieldPath": "status", "order": "ASCENDING" },
+        { "fieldPath": "createdAt", "order": "ASCENDING" }
+      ]
+    },
+    {
+      "//": "A mesma consulta no ambiente de desenvolvimento.",
+      "collectionGroup": "access-requests-local",
+      "queryScope": "COLLECTION",
+      "fields": [
+        { "fieldPath": "status", "order": "ASCENDING" },
+        { "fieldPath": "createdAt", "order": "ASCENDING" }
+      ]
+    }
+  ],
+  "fieldOverrides": []
+}

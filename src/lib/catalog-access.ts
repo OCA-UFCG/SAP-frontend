@@ -1,4 +1,7 @@
-import { getAuthenticatedUserSession } from "@/lib/server-session";
+import {
+  getAuthenticatedUserSession,
+  type AuthenticatedUserSession,
+} from "@/lib/server-session";
 import {
   isAllowedLogsViewerEmail,
   resolveLogsViewerAccess,
@@ -7,10 +10,9 @@ import {
 export type CatalogRequestAccess =
   | {
       allowed: true;
-      user: {
-        uid: string;
-        email: string | null;
-      };
+      // A sessão inteira, que é o que `resolveCatalogRequestAccess` já devolvia:
+      // o tipo declarava só `uid` e `email` e escondia o resto.
+      user: AuthenticatedUserSession;
     }
   | {
       allowed: false;
