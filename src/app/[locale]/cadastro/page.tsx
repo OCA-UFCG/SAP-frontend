@@ -1,3 +1,5 @@
+import { notFound } from "next/navigation";
+import { isSignupOffered } from "@/lib/access-flag";
 import { getHomePageContent } from "@/repositories/content/siteContentRepository";
 import { SignupPageClient } from "./SignupPageClient";
 
@@ -11,6 +13,12 @@ export default async function SignupPage({
 }: {
   params: Promise<{ locale: string }>;
 }) {
+  // Mesma regra das rotas de cadastro: com o bloqueio desligado, o formulário
+  // não existe — esconder só o link deixava a página aberta para quem a digitasse.
+  if (!isSignupOffered()) {
+    notFound();
+  }
+
   const { locale } = await params;
   const data = await getHomePageContent(locale);
   const backgroundImageUrl = normalizeImageUrl(data?.mainBanner?.image?.url);

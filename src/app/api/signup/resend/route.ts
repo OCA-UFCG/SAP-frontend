@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { hasTrustedMutationOrigin } from "@/lib/catalog-access";
+import { rejectWhenSignupClosed } from "@/app/api/signup/availability";
 import { sendVerificationEmail } from "@/lib/signup-verification";
 import {
   consumeResendRateLimit,
@@ -22,6 +23,9 @@ const NO_STORE = { "Cache-Control": "no-store" } as const;
  * vira oráculo de quem tem conta se responder coisas diferentes.
  */
 export async function POST(request: Request) {
+  const closed = rejectWhenSignupClosed();
+  if (closed) return closed;
+
   if (!hasTrustedMutationOrigin(request)) {
     return NextResponse.json(
       { error: "Origem da requisição não autorizada." },
@@ -55,5 +59,8 @@ export async function POST(request: Request) {
     await sendVerificationEmail(email.trim().toLowerCase());
   }
 
-  return NextResponse.json({ status: "accepted" }, { status: 202, headers: NO_STORE });
+  return NextResponse.json(
+    { status: "accepted" },
+    { status: 202, headers: NO_STORE },
+  );
 }

@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { adminAuth } from "@/lib/firebase-admin";
 import { hasTrustedMutationOrigin } from "@/lib/catalog-access";
+import { rejectWhenSignupClosed } from "@/app/api/signup/availability";
 import { settleSignup } from "@/lib/signup-settlement";
 import {
   consumeConfirmRateLimit,
@@ -24,6 +25,9 @@ const NO_STORE = { "Cache-Control": "no-store" } as const;
  * dele: quem confirma o endereço e fecha a aba nunca chega aqui.
  */
 export async function POST(request: Request) {
+  const closed = rejectWhenSignupClosed();
+  if (closed) return closed;
+
   if (!hasTrustedMutationOrigin(request)) {
     return NextResponse.json(
       { error: "Origem da requisição não autorizada." },

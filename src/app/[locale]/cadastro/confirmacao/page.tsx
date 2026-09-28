@@ -1,7 +1,13 @@
 import { Suspense } from "react";
+import { notFound } from "next/navigation";
+import { isSignupOffered } from "@/lib/access-flag";
 import { ConfirmationPageClient } from "./ConfirmationPageClient";
 
 export default function SignupConfirmationPage() {
+  if (!isSignupOffered()) {
+    notFound();
+  }
+
   return (
     <Suspense
       fallback={
