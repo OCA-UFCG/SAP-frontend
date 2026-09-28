@@ -1,12 +1,10 @@
 import { NextResponse } from "next/server";
 import { adminAuth } from "@/lib/firebase-admin";
 import { hasTrustedMutationOrigin } from "@/lib/catalog-access";
+import { rejectWhenSignupClosed } from "@/app/api/signup/availability";
 import { resolveSignupTier } from "@/lib/signup-domains";
 import { routing } from "@/translations/routing-config";
-import {
-  createAccessRequest,
-  normalizeIntention,
-} from "@/lib/access-requests";
+import { createAccessRequest, normalizeIntention } from "@/lib/access-requests";
 import {
   consumeSignupRateLimit,
   getSignupClientKey,
@@ -68,6 +66,9 @@ function isEmailAlreadyTaken(error: unknown) {
 }
 
 export async function POST(request: Request) {
+  const closed = rejectWhenSignupClosed();
+  if (closed) return closed;
+
   if (!hasTrustedMutationOrigin(request)) {
     return NextResponse.json(
       { error: "Origem da requisição não autorizada." },

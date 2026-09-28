@@ -92,11 +92,28 @@ describe("POST /api/signup/confirm", () => {
     vi.unstubAllEnvs();
     vi.stubEnv("NEXT_PUBLIC_HOST_URL", ORIGIN);
     vi.stubEnv("OCA_NOTIFICATION_EMAIL", "acesso@lsd.ufcg.edu.br");
+    vi.stubEnv("PLATFORM_ACCESS_GUARD_ENABLED", "true");
+  });
+
+  it("settles nothing while the access guard is off", async () => {
+    vi.stubEnv("PLATFORM_ACCESS_GUARD_ENABLED", "false");
+
+    const response = await confirm(
+      buildRequest({ email: "fulano@ufcg.edu.br" }),
+    );
+
+    expect(response.status).toBe(404);
+    expect(getUserByEmailMock).not.toHaveBeenCalled();
+    expect(approveAccessMock).not.toHaveBeenCalled();
   });
 
   it("grants access to the institutional trail once the address is confirmed", async () => {
     readAccessRequestMock.mockResolvedValue(
-      pendingRequest({ tier: "allowed", email: "fulano@ufcg.edu.br", intention: "" }),
+      pendingRequest({
+        tier: "allowed",
+        email: "fulano@ufcg.edu.br",
+        intention: "",
+      }),
     );
 
     const response = await confirm(
@@ -111,7 +128,9 @@ describe("POST /api/signup/confirm", () => {
   // O documento é explícito: a liberação automática vale a regra de domínio,
   // não um operador.
   it("records the automatic approval as decided by the domain rule", async () => {
-    readAccessRequestMock.mockResolvedValue(pendingRequest({ tier: "allowed" }));
+    readAccessRequestMock.mockResolvedValue(
+      pendingRequest({ tier: "allowed" }),
+    );
 
     await confirm(buildRequest({ email: "fulano@ufcg.edu.br" }));
 
@@ -140,7 +159,9 @@ describe("POST /api/signup/confirm", () => {
       emailVerified: false,
     });
 
-    const response = await confirm(buildRequest({ email: "fulano@ufcg.edu.br" }));
+    const response = await confirm(
+      buildRequest({ email: "fulano@ufcg.edu.br" }),
+    );
 
     expect(response.status).toBe(409);
     expect(approveAccessMock).not.toHaveBeenCalled();
@@ -164,7 +185,9 @@ describe("POST /api/signup/confirm", () => {
       pendingRequest({ tier: "allowed", status: "approved" }),
     );
 
-    const response = await confirm(buildRequest({ email: "fulano@ufcg.edu.br" }));
+    const response = await confirm(
+      buildRequest({ email: "fulano@ufcg.edu.br" }),
+    );
 
     await expect(response.json()).resolves.toEqual({ status: "approved" });
     expect(approveAccessMock).not.toHaveBeenCalled();
@@ -177,7 +200,11 @@ describe("POST /api/signup/confirm", () => {
   it("opens the missing request instead of trapping the person", async () => {
     readAccessRequestMock.mockResolvedValueOnce(null);
     readAccessRequestMock.mockResolvedValueOnce(
-      pendingRequest({ tier: "allowed", email: "fulano@ufcg.edu.br", intention: "" }),
+      pendingRequest({
+        tier: "allowed",
+        email: "fulano@ufcg.edu.br",
+        intention: "",
+      }),
     );
     vi.stubEnv("SIGNUP_ALLOWED_DOMAINS", "ufcg.edu.br");
 

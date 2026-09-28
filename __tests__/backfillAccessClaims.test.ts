@@ -1,10 +1,24 @@
 import { describe, expect, it } from "vitest";
 
 import {
+  backfillUser,
   buildBackfillClaims,
   shouldBackfillUser,
 } from "../scripts/backfill-access-claims.mjs";
 import { buildApprovedAccessClaims } from "@/lib/access-claims";
+
+/** Admin SDK de mentira: registra a ordem das chamadas que o backfill faz. */
+class FakeFirebaseAdminAuth {
+  calls: string[] = [];
+
+  async setCustomUserClaims(uid: string) {
+    this.calls.push(`claims:${uid}`);
+  }
+
+  async revokeRefreshTokens(uid: string) {
+    this.calls.push(`revoke:${uid}`);
+  }
+}
 
 describe("backfill access claims", () => {
   // O script é .mjs e não importa o TypeScript do app, então os dois formatos
@@ -19,7 +33,9 @@ describe("backfill access claims", () => {
 
   it("marks an account without any claim for backfill", () => {
     expect(shouldBackfillUser({ uid: "user-123" })).toBe(true);
-    expect(shouldBackfillUser({ uid: "user-123", customClaims: {} })).toBe(true);
+    expect(shouldBackfillUser({ uid: "user-123", customClaims: {} })).toBe(
+      true,
+    );
   });
 
   // Rodar o script duas vezes não pode revogar a sessão de quem já está certo:
@@ -36,7 +52,10 @@ describe("backfill access claims", () => {
 
   it("marks an account whose claim is malformed for backfill", () => {
     expect(
-      shouldBackfillUser({ uid: "user-123", customClaims: { sap: "approved" } }),
+      shouldBackfillUser({
+        uid: "user-123",
+        customClaims: { sap: "approved" },
+      }),
     ).toBe(true);
     expect(
       shouldBackfillUser({
@@ -55,5 +74,16 @@ describe("backfill access claims", () => {
       outroSistema: { papel: "admin" },
       ...buildApprovedAccessClaims("legacy", 1758585600),
     });
+  });
+
+  // Regressão: sem revogar, quem estava logado quando a flag foi ligada tinha um
+  // cookie sem a marca e caía na página de espera por até 24 h, apesar de já
+  // liberado pelo backfill.
+  it("logs the account out after granting the claim, in that order", async () => {
+    const auth = new FakeFirebaseAdminAuth();
+
+    await backfillUser(auth, { uid: "user-1", customClaims: {} }, 1758585600);
+
+    expect(auth.calls).toEqual(["claims:user-1", "revoke:user-1"]);
   });
 });
