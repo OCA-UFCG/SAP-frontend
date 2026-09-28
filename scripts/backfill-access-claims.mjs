@@ -20,6 +20,10 @@
  *
  * É idempotente: contas que já têm um claim válido são puladas, então rodar de
  * novo não revoga a sessão de ninguém.
+ *
+ * Contas que vieram do cadastro também são puladas, porque a decisão sobre elas
+ * é da equipe na tela de Aprovações. Sem isso, rodar o script depois de o
+ * cadastro abrir liberaria todo pedido pendente ou recusado de uma vez.
  */
 
 // Estas duas constantes espelham `src/lib/access-claims.ts`. Um teste
@@ -31,6 +35,11 @@ const APPROVED_ACCESS = "approved";
 const LEGACY_TIER = "legacy";
 
 const VALID_TIERS = new Set(["allowed", "common", LEGACY_TIER]);
+
+// Beta, gamma, produção e o ambiente local dividem as mesmas contas do Firebase,
+// então um pedido aberto em qualquer uma dessas listas conta. O id de cada
+// pedido é o uid da conta (`src/lib/access-requests.ts`).
+const SIGNUP_COLLECTIONS = ["access-requests", "access-requests-local"];
 
 export function buildBackfillClaims(existingClaims = {}, atSeconds) {
   // `setCustomUserClaims` substitui o conjunto inteiro, não mescla: escrever só
@@ -45,7 +54,9 @@ export function buildBackfillClaims(existingClaims = {}, atSeconds) {
   };
 }
 
-export function shouldBackfillUser(user) {
+export function shouldBackfillUser(user, signupUids = new Set()) {
+  if (signupUids.has(user?.uid)) return false;
+
   const namespaced = user?.customClaims?.[ACCESS_CLAIM_NAMESPACE];
 
   if (!namespaced || typeof namespaced !== "object") return true;
@@ -69,6 +80,22 @@ export async function backfillUser(auth, user, atSeconds) {
     buildBackfillClaims(user.customClaims, atSeconds),
   );
   await auth.revokeRefreshTokens(user.uid);
+}
+
+/**
+ * Junta os uids de quem já abriu um pedido pelo cadastro, em todas as listas.
+ *
+ *   const signupUids = await listSignupUids(db, ["access-requests"]);
+ */
+export async function listSignupUids(db, collections) {
+  const uids = new Set();
+
+  for (const name of collections) {
+    const refs = await db.collection(name).listDocuments();
+    for (const ref of refs) uids.add(ref.id);
+  }
+
+  return uids;
 }
 
 function parseArgs(argv) {
@@ -106,11 +133,21 @@ async function main() {
     credential: admin.credential.cert({ projectId, clientEmail, privateKey }),
   });
   const auth = app.auth();
+  const collections = [
+    ...new Set(
+      [
+        ...SIGNUP_COLLECTIONS,
+        process.env.FIREBASE_ACCESS_REQUESTS_COLLECTION?.trim(),
+      ].filter(Boolean),
+    ),
+  ];
+  const signupUids = await listSignupUids(app.firestore(), collections);
 
   const atSeconds = Math.floor(Date.now() / 1000);
   let scanned = 0;
   let updated = 0;
   let skipped = 0;
+  let fromSignup = 0;
   let pageToken;
 
   console.log(
@@ -124,6 +161,11 @@ async function main() {
 
     for (const user of page.users) {
       scanned += 1;
+
+      if (signupUids.has(user.uid)) {
+        fromSignup += 1;
+        continue;
+      }
 
       if (!shouldBackfillUser(user)) {
         skipped += 1;
@@ -145,7 +187,7 @@ async function main() {
   } while (pageToken);
 
   console.log(
-    `\n${scanned} conta(s) verificada(s) · ${updated} ${apply ? "liberada(s) e deslogada(s)" : "seriam liberadas e deslogadas"} · ${skipped} já com claim válido`,
+    `\n${scanned} conta(s) verificada(s) · ${updated} ${apply ? "liberada(s) e deslogada(s)" : "seriam liberadas e deslogadas"} · ${skipped} já com claim válido · ${fromSignup} vinda(s) do cadastro, decididas na tela de Aprovações`,
   );
 
   if (!apply) {

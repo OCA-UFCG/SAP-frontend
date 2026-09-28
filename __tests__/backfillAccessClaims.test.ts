@@ -3,6 +3,7 @@ import { describe, expect, it } from "vitest";
 import {
   backfillUser,
   buildBackfillClaims,
+  listSignupUids,
   shouldBackfillUser,
 } from "../scripts/backfill-access-claims.mjs";
 import { buildApprovedAccessClaims } from "@/lib/access-claims";
@@ -48,6 +49,33 @@ describe("backfill access claims", () => {
         customClaims: buildApprovedAccessClaims("allowed", 1758585600),
       }),
     ).toBe(false);
+  });
+
+  // Regressão: o script liberava qualquer conta sem a marca, inclusive quem se
+  // cadastrou e ainda espera a decisão da equipe — ou já foi recusado.
+  it("leaves accounts that came from the signup to the approvals screen", () => {
+    expect(
+      shouldBackfillUser({ uid: "pendente-123" }, new Set(["pendente-123"])),
+    ).toBe(false);
+    expect(
+      shouldBackfillUser({ uid: "antiga-456" }, new Set(["pendente-123"])),
+    ).toBe(true);
+  });
+
+  it("collects the signup accounts from every access-request list", async () => {
+    const lists: Record<string, string[]> = {
+      "access-requests": ["beta-1"],
+      "access-requests-local": ["local-1", "beta-1"],
+    };
+    const db = {
+      collection: (name: string) => ({
+        listDocuments: async () => (lists[name] ?? []).map((id) => ({ id })),
+      }),
+    };
+
+    expect(
+      await listSignupUids(db, ["access-requests", "access-requests-local"]),
+    ).toEqual(new Set(["beta-1", "local-1"]));
   });
 
   it("marks an account whose claim is malformed for backfill", () => {
