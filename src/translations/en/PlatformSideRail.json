@@ -6,6 +6,7 @@
     "logs": "Audit",
     "catalog": "Index catalog",
     "loading": "Loading",
-    "approvals": "Approvals"
+    "approvals": "Approvals",
+    "pendingApprovals": "Requests awaiting a decision: {count}"
   }
 }

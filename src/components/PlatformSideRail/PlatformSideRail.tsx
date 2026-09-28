@@ -1,4 +1,5 @@
 "use client";
+import { useEffect, useState } from "react";
 import { useLinkStatus } from "next/link";
 import { Link } from "@/translations/routing";
 import { Chevron } from "../Chevron/Chevron";
@@ -63,19 +64,63 @@ function RailPendingSpinner() {
   );
 }
 
+/**
+ * Quantos pedidos de acesso esperam decisão. Busca depois que a trilha aparece,
+ * e não junto com a plataforma, para a conta nunca atrasar a abertura do mapa.
+ * Falhar aqui só esconde o número: a tela de aprovação continua a um clique.
+ */
+function usePendingApprovalsCount(enabled: boolean) {
+  const [count, setCount] = useState(0);
+
+  useEffect(() => {
+    if (!enabled) return;
+
+    let active = true;
+
+    fetch("/api/signup/pending-count", { cache: "no-store" })
+      .then((response) => (response.ok ? response.json() : null))
+      .then((body: { count?: unknown } | null) => {
+        if (active && typeof body?.count === "number") setCount(body.count);
+      })
+      .catch(() => undefined);
+
+    return () => {
+      active = false;
+    };
+  }, [enabled]);
+
+  return count;
+}
+
+function RailBadge({ count }: { count: number }) {
+  const t = useTranslations("PlatformSideRail");
+
+  return (
+    <span
+      aria-label={t("pendingApprovals", { count })}
+      className="absolute -right-2.5 -top-1.5 flex h-[18px] min-w-[18px] items-center justify-center rounded-full bg-[#B3261E] px-1 text-[10px] font-semibold leading-none text-white"
+    >
+      {count > 99 ? "99+" : count}
+    </span>
+  );
+}
+
 function RailItemContent({
   icon,
   label,
   isPending,
+  badge = 0,
 }: {
   icon: string;
   label: string;
   isPending: boolean;
+  badge?: number;
 }) {
   return (
     <>
-      <div className="flex items-center justify-center">
+      <div className="relative flex items-center justify-center">
         {isPending ? <RailPendingSpinner /> : <Icon id={icon} size={24} />}
+        {badge > 0 && !isPending ? <RailBadge count={badge} /> : null}
       </div>
 
       <div className="text-[12px] leading-[14px] font-medium text-center break-words w-full px-1">
@@ -90,10 +135,25 @@ function RailItemContent({
  * daquele link está em voo. Sem isso a trilha fica parada por perto de um
  * segundo depois do clique, sem sinal nenhum de que algo aconteceu.
  */
-function RailLinkContent({ icon, label }: { icon: string; label: string }) {
+function RailLinkContent({
+  icon,
+  label,
+  badge,
+}: {
+  icon: string;
+  label: string;
+  badge?: number;
+}) {
   const { pending } = useLinkStatus();
 
-  return <RailItemContent icon={icon} label={label} isPending={pending} />;
+  return (
+    <RailItemContent
+      icon={icon}
+      label={label}
+      isPending={pending}
+      badge={badge}
+    />
+  );
 }
 
 /**
@@ -116,6 +176,7 @@ export function PlatformSideRail({
   className,
 }: PlatformSideRailProps) {
   const t = useTranslations("PlatformSideRail");
+  const pendingApprovals = usePendingApprovalsCount(showAuditLink);
 
   const items: PlatformRailItem[] = [
     { kind: "section", id: "monitoring", label: t("monitoring"), icon: "eye" },
@@ -213,7 +274,13 @@ export function PlatformSideRail({
                         : "text-[#292829] hover:bg-[#F8F7F8]",
                     )}
                   >
-                    <RailLinkContent icon={item.icon} label={item.label} />
+                    <RailLinkContent
+                      icon={item.icon}
+                      label={item.label}
+                      badge={
+                        item.id === "approvals" ? pendingApprovals : undefined
+                      }
+                    />
                   </Link>
                 )}
               </div>

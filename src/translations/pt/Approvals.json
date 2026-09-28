@@ -14,6 +14,7 @@
     "rejected": "Recusado",
     "failed": "Não foi possível salvar a decisão.",
     "loadFailed": "Não foi possível carregar os pedidos. Avise a equipe técnica: pode faltar o índice do Firestore.",
-    "conflict": "Outra pessoa decidiu este pedido antes de você."
+    "conflict": "Outra pessoa decidiu este pedido antes de você.",
+    "backToPlatform": "Voltar para a plataforma"
   }
 }

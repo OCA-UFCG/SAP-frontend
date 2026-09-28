@@ -1,5 +1,5 @@
 import { cleanup, render, screen } from "@testing-library/react";
-import { afterEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 const { linkStatusMock } = vi.hoisted(() => ({
   linkStatusMock: vi.fn(() => ({ pending: false })),
@@ -26,10 +26,30 @@ vi.mock("next/link", () => ({
 
 import { PlatformSideRail } from "@/components/PlatformSideRail/PlatformSideRail";
 
+const fetchMock = vi.fn();
+
+beforeEach(() => {
+  fetchMock.mockReset().mockResolvedValue(Response.json({ count: 0 }));
+  vi.stubGlobal("fetch", fetchMock);
+});
+
 afterEach(() => {
   cleanup();
   linkStatusMock.mockReturnValue({ pending: false });
+  vi.unstubAllGlobals();
 });
+
+function renderOperatorRail() {
+  return render(
+    <PlatformSideRail
+      activeSection="monitoring"
+      onSectionChange={() => {}}
+      isPanelOpen={false}
+      onTogglePanel={() => {}}
+      showAuditLink
+    />,
+  );
+}
 
 describe("PlatformSideRail", () => {
   // A trilha continua alta como a viewport nas telas que rolam (catálogo,
@@ -181,5 +201,59 @@ describe("PlatformSideRail", () => {
     expect(
       screen.getByRole("button", { name: /Análise/i }),
     ).not.toHaveAttribute("aria-busy");
+  });
+
+  // Sem o número, pedidos novos só eram notados pelo e-mail de aviso, e uma
+  // falha de envio os deixava esperando sem ninguém saber.
+  it("shows how many access requests are waiting on the approvals item", async () => {
+    fetchMock.mockResolvedValue(Response.json({ count: 3 }));
+
+    renderOperatorRail();
+
+    const badge = await screen.findByLabelText(
+      "Pedidos aguardando decisão: 3",
+    );
+    expect(badge).toHaveTextContent("3");
+    expect(
+      screen.getByRole("link", { name: /Aprovações/i }),
+    ).toContainElement(badge);
+  });
+
+  it("caps the number so it still fits beside the icon", async () => {
+    fetchMock.mockResolvedValue(Response.json({ count: 250 }));
+
+    renderOperatorRail();
+
+    expect(
+      await screen.findByLabelText("Pedidos aguardando decisão: 250"),
+    ).toHaveTextContent("99+");
+  });
+
+  it("shows no number when nothing is waiting or the count fails", async () => {
+    fetchMock.mockResolvedValue(new Response(null, { status: 500 }));
+
+    renderOperatorRail();
+    await Promise.resolve();
+
+    expect(fetchMock).toHaveBeenCalledWith(
+      "/api/signup/pending-count",
+      expect.anything(),
+    );
+    expect(screen.queryByLabelText(/aguardando decisão/)).toBeNull();
+  });
+
+  // Quem não é operador nem vê o item, e não deve disparar a consulta.
+  it("does not ask for the count when the viewer is not an operator", () => {
+    render(
+      <PlatformSideRail
+        activeSection="monitoring"
+        onSectionChange={() => {}}
+        isPanelOpen={false}
+        onTogglePanel={() => {}}
+        showAuditLink={false}
+      />,
+    );
+
+    expect(fetchMock).not.toHaveBeenCalled();
   });
 });

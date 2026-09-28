@@ -129,6 +129,21 @@ export async function listPendingAccessRequests(): Promise<
 }
 
 /**
+ * Quantos pedidos estão esperando decisão, para o número na trilha da
+ * plataforma. Conta no próprio Firestore, sem baixar as fichas: a trilha só
+ * precisa do número, e as intenções de uso não têm por que sair do banco.
+ */
+export async function countPendingAccessRequests() {
+  const snapshot = await adminDb
+    .collection(ACCESS_REQUESTS_COLLECTION)
+    .where("status", "==", "pending")
+    .count()
+    .get();
+
+  return snapshot.data().count;
+}
+
+/**
  * Toma o direito de avisar a equipe, numa transação.
  *
  * O link de confirmação pode ser aberto várias vezes ao mesmo tempo — duplo

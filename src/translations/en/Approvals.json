@@ -14,6 +14,7 @@
     "rejected": "Refused",
     "failed": "Could not save the decision.",
     "loadFailed": "We could not load the requests. Tell the technical team: the Firestore index may be missing.",
-    "conflict": "Someone else decided this request before you."
+    "conflict": "Someone else decided this request before you.",
+    "backToPlatform": "Back to the platform"
   }
 }
