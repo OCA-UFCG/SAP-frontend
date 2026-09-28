@@ -233,7 +233,14 @@ describe("AnalysisContext", () => {
 
     expect(props.selectedState).toBe("4_asd-asd-entorno");
     expect(props.model?.name).toBe("ASD + Entorno");
-    expect(props.model?.distribution[0]).toMatchObject({ value: 20 });
+    expect(
+      props.model?.distribution.find((item) => item.id === "a"),
+    ).toMatchObject({ value: 20 });
+    // Classes vêm da maior para a menor porcentagem, não na ordem da legenda.
+    expect(props.model?.distribution.map((item) => item.id)).toEqual([
+      "b",
+      "a",
+    ]);
   });
 
   it("names an unavailable semiarid scope from the canonical contract", () => {
@@ -611,7 +618,9 @@ describe("AnalysisContext", () => {
         years: Record<string, { values: Record<string, number[]> }>;
       };
 
-      expect(props.model?.distribution[0]).toMatchObject({
+      expect(
+        props.model?.distribution.find((item) => item.id === "a"),
+      ).toMatchObject({
         id: "a",
         value: 0.1,
       });
@@ -650,7 +659,9 @@ describe("AnalysisContext", () => {
         years: Record<string, { values: Record<string, number[]> }>;
       };
 
-      expect(props.model?.distribution[0]).toMatchObject({
+      expect(
+        props.model?.distribution.find((item) => item.id === "a"),
+      ).toMatchObject({
         id: "a",
         value: 72.6,
       });

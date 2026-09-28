@@ -172,12 +172,16 @@ function buildCompactDistributionItems(
 
   const scale = yearData.valuesScale ?? 1;
 
-  return data.classes.map((item, index) => ({
-    id: item.id,
-    label: translate(item.label, tCaption),
-    color: item.color,
-    value: Number((((values[index] ?? 0) as number) / scale).toFixed(1)),
-  }));
+  // Maior porcentagem primeiro, na barra e na legenda. O sort é estável, então
+  // classes empatadas mantêm a ordem da legenda do índice.
+  return data.classes
+    .map((item, index) => ({
+      id: item.id,
+      label: translate(item.label, tCaption),
+      color: item.color,
+      value: Number((((values[index] ?? 0) as number) / scale).toFixed(1)),
+    }))
+    .sort((left, right) => right.value - left.value);
 }
 
 function getDominantDistributionItem(
