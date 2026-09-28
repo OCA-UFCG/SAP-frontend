@@ -119,6 +119,7 @@ desligado fora do seu computador: o link de confirmação é uma credencial.**
 | `OCA_NOTIFICATION_EMAIL`                  | Caixa **da equipe** que recebe os pedidos. Não deve ser o e-mail de uma pessoa.                                                   |
 | `FIREBASE_ACCESS_REQUESTS_COLLECTION`     | Separa a coleção de desenvolvimento da de produção.                                                                               |
 | `SMTP_USER`, `SMTP_PASSWORD`, `SMTP_FROM` | A conta de envio.                                                                                                                 |
+| `EMAIL_LINKS_BASE_URL`                    | Domínio dos links dentro dos e-mails. Só a produção precisa, porque atende por vários domínios; os outros usam `NEXT_PUBLIC_HOST_URL`. |
 | `SIGNUP_SEND_REJECTION_EMAIL`             | Se quem é recusado recebe aviso. Desligado até a equipe decidir.                                                                  |
 | `MAIL_LOG_BODY`                           | Só desenvolvimento. Imprime o corpo dos e-mails no terminal.                                                                      |
 

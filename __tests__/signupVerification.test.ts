@@ -58,6 +58,19 @@ describe("sendVerificationEmail", () => {
     );
   });
 
+  // A produção atende por vários domínios e deixa `NEXT_PUBLIC_HOST_URL` vazia;
+  // o e-mail usa o domínio que a equipe divulga.
+  it("uses the dedicated e-mail domain when one is configured", async () => {
+    vi.stubEnv("NEXT_PUBLIC_HOST_URL", "");
+    vi.stubEnv("EMAIL_LINKS_BASE_URL", "https://sedes.example/");
+
+    await sendVerificationEmail("fulano@ufcg.edu.br", "pt");
+
+    expect(sentLink()).toMatch(
+      /^https:\/\/sedes\.example\/pt\/cadastro\/confirmacao\?/,
+    );
+  });
+
   // Sem `actionCodeSettings` o Firebase não exige que o nosso domínio esteja na
   // lista de domínios autorizados dele.
   it("asks Firebase for the code without a return address", async () => {
