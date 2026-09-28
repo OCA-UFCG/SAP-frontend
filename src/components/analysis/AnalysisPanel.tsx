@@ -70,10 +70,10 @@ interface AnalysisYearSelectProps {
 }
 
 function renderFormattedText(text: string) {
-  const parts = text.split(/(\d+(?:\.\d+)?% [^,.]+)/g);
+  const parts = text.split(/(\d+(?:[.,]\d+)?% [^,.]+)/g);
 
   return parts.map((part, index) =>
-    /\d+(?:\.\d+)?%/.test(part) ? (
+    /\d+(?:[.,]\d+)?%/.test(part) ? (
       <strong key={index} className="font-bold text-[#292829]">
         {part}
       </strong>
