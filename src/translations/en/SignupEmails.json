@@ -2,11 +2,11 @@
   "SignupEmails": {
     "verificationSubject": "Confirm your email address — SEDES",
     "verificationTitle": "Confirm your address",
-    "verificationBody": "We received a registration on SEDES with this address. Confirm the mailbox is yours to continue.",
+    "verificationBody": "We received a registration on SEDES with this address. Please confirm that this email belongs to you to continue.",
     "verificationAction": "Confirm address",
     "decisionApprovedSubject": "Your SEDES access is open",
     "decisionApprovedTitle": "Access granted",
-    "decisionApprovedBody": "Your registration was approved. You can enter the platform now.",
+    "decisionApprovedBody": "Your registration was approved. The platform is available for access.",
     "decisionApprovedAction": "Enter SEDES",
     "decisionRejectedSubject": "About your SEDES access request",
     "decisionRejectedTitle": "Request not approved",

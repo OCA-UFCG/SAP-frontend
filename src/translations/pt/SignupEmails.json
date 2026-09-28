@@ -2,16 +2,16 @@
   "SignupEmails": {
     "verificationSubject": "Confirme seu endereço de e-mail — SEDES",
     "verificationTitle": "Confirme seu endereço",
-    "verificationBody": "Recebemos um cadastro no SEDES (Sistema Estratégico sobre Desertificação e Seca) com este endereço. Confirme que a caixa é sua para seguir.",
+    "verificationBody": "Recebemos um cadastro no SEDES (Sistema Estratégico sobre Desertificação e Seca) com este endereço. Confirme que este e-mail pertence a você para continuar.",
     "verificationAction": "Confirmar endereço",
     "decisionApprovedSubject": "Seu acesso ao SEDES foi liberado",
     "decisionApprovedTitle": "Acesso liberado",
-    "decisionApprovedBody": "Seu cadastro foi aprovado. Já dá para entrar na plataforma.",
+    "decisionApprovedBody": "Seu cadastro foi aprovado. A plataforma está disponível para acesso.",
     "decisionApprovedAction": "Entrar no SEDES",
     "decisionRejectedSubject": "Sobre seu pedido de acesso ao SEDES",
     "decisionRejectedTitle": "Pedido não aprovado",
     "decisionRejectedBody": "Analisamos seu pedido de acesso ao SEDES e ele não foi aprovado desta vez.",
-    "decisionRejectedFollowUp": "Se acredita que houve engano, responda a este e-mail contando como pretende usar a plataforma.",
+    "decisionRejectedFollowUp": "Caso acredite que houve um engano, responda a este e-mail descrevendo como pretende usar a plataforma.",
     "fallback": "Se o botão não funcionar, copie este endereço no navegador:",
     "footer": "SEDES — Sistema Estratégico sobre Desertificação e Seca"
   }

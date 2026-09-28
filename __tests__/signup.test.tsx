@@ -14,11 +14,11 @@ describe("Signup", () => {
     expect(
       screen.getByRole("heading", { level: 1, name: "Criar conta" }),
     ).toBeInTheDocument();
-    expect(screen.getByPlaceholderText("Email")).toBeInTheDocument();
-    expect(screen.getByPlaceholderText("Senha")).toBeInTheDocument();
     expect(
-      screen.getByPlaceholderText("Confirmar senha"),
+      screen.getByPlaceholderText("Email (de preferência institucional)"),
     ).toBeInTheDocument();
+    expect(screen.getByPlaceholderText("Senha")).toBeInTheDocument();
+    expect(screen.getByPlaceholderText("Confirmar senha")).toBeInTheDocument();
   });
 
   // O campo é pedido a todo mundo, inclusive a quem entra por domínio
@@ -28,25 +28,30 @@ describe("Signup", () => {
     render(<Signup />);
 
     expect(
-      screen.getByPlaceholderText("Como pretende usar a plataforma?"),
+      screen.getByPlaceholderText(
+        "Como pretende usar a plataforma? Se tiver vínculo com alguma instituição, informe qual.",
+      ),
     ).toBeInTheDocument();
   });
 
   it("submits the values once the form is valid", async () => {
     const user = userEvent.setup();
     const onSubmit = vi.fn();
-    render(
-      <Signup onSubmit={onSubmit} />,
-    );
+    render(<Signup onSubmit={onSubmit} />);
 
-    await user.type(screen.getByPlaceholderText("Email"), "fulano@ufcg.edu.br");
+    await user.type(
+      screen.getByPlaceholderText("Email (de preferência institucional)"),
+      "fulano@ufcg.edu.br",
+    );
     await user.type(screen.getByPlaceholderText("Senha"), "uma-senha-forte");
     await user.type(
       screen.getByPlaceholderText("Confirmar senha"),
       "uma-senha-forte",
     );
     await user.type(
-      screen.getByPlaceholderText("Como pretende usar a plataforma?"),
+      screen.getByPlaceholderText(
+        "Como pretende usar a plataforma? Se tiver vínculo com alguma instituição, informe qual.",
+      ),
       "Pesquisa sobre seca",
     );
     await user.click(screen.getByRole("button", { name: "Criar conta" }));
@@ -63,11 +68,12 @@ describe("Signup", () => {
   it("refuses to submit when the two passwords differ", async () => {
     const user = userEvent.setup();
     const onSubmit = vi.fn();
-    render(
-      <Signup onSubmit={onSubmit} />,
-    );
+    render(<Signup onSubmit={onSubmit} />);
 
-    await user.type(screen.getByPlaceholderText("Email"), "fulano@ufcg.edu.br");
+    await user.type(
+      screen.getByPlaceholderText("Email (de preferência institucional)"),
+      "fulano@ufcg.edu.br",
+    );
     await user.type(screen.getByPlaceholderText("Senha"), "uma-senha-forte");
     await user.type(
       screen.getByPlaceholderText("Confirmar senha"),
@@ -75,7 +81,9 @@ describe("Signup", () => {
     );
     await user.click(screen.getByRole("button", { name: "Criar conta" }));
 
-    expect(await screen.findByText("As senhas não são iguais.")).toBeInTheDocument();
+    expect(
+      await screen.findByText("As senhas não são iguais."),
+    ).toBeInTheDocument();
     expect(onSubmit).not.toHaveBeenCalled();
   });
 
@@ -84,7 +92,10 @@ describe("Signup", () => {
     const onSubmit = vi.fn();
     render(<Signup onSubmit={onSubmit} />);
 
-    await user.type(screen.getByPlaceholderText("Email"), "fulano@gmail.com");
+    await user.type(
+      screen.getByPlaceholderText("Email (de preferência institucional)"),
+      "fulano@gmail.com",
+    );
     await user.type(screen.getByPlaceholderText("Senha"), "uma-senha-forte");
     await user.type(
       screen.getByPlaceholderText("Confirmar senha"),
@@ -105,7 +116,9 @@ describe("Signup", () => {
     render(<Signup />);
 
     expect(
-      screen.getByPlaceholderText("Como pretende usar a plataforma?"),
+      screen.getByPlaceholderText(
+        "Como pretende usar a plataforma? Se tiver vínculo com alguma instituição, informe qual.",
+      ),
     ).toBeInTheDocument();
   });
 
@@ -113,18 +126,21 @@ describe("Signup", () => {
     const user = userEvent.setup();
     render(<Signup />);
 
-    await user.type(screen.getByPlaceholderText("Email"), "fulano@ufcg.edu.br");
+    await user.type(
+      screen.getByPlaceholderText("Email (de preferência institucional)"),
+      "fulano@ufcg.edu.br",
+    );
     await user.tab();
 
     expect(
-      screen.getByPlaceholderText("Como pretende usar a plataforma?"),
+      screen.getByPlaceholderText(
+        "Como pretende usar a plataforma? Se tiver vínculo com alguma instituição, informe qual.",
+      ),
     ).toBeInTheDocument();
   });
 
   it("shows the error the server sent back", () => {
-    render(
-      <Signup error="Não foi possível concluir o cadastro." />,
-    );
+    render(<Signup error="Não foi possível concluir o cadastro." />);
 
     expect(screen.getByRole("alert")).toHaveTextContent(
       "Não foi possível concluir o cadastro.",
@@ -145,9 +161,7 @@ describe("Signup", () => {
   it("always offers a way to send the email again", async () => {
     const user = userEvent.setup();
     const onResend = vi.fn();
-    render(
-      <Signup onResend={onResend} submitted />,
-    );
+    render(<Signup onResend={onResend} submitted />);
 
     await user.click(
       screen.getByRole("button", { name: "Reenviar email de confirmação" }),
