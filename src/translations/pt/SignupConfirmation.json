@@ -1,6 +1,5 @@
 {
   "SignupConfirmation": {
-    "checking": "Confirmando seu endereço...",
     "approvedTitle": "Tudo certo",
     "approvedBody": "Seu endereço foi confirmado e o acesso está liberado.",
     "enter": "Entrar na plataforma",
