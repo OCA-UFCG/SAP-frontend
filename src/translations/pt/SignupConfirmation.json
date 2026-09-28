@@ -3,7 +3,7 @@
     "approvedTitle": "Tudo certo",
     "approvedBody": "Seu endereço foi confirmado e o acesso está liberado.",
     "enter": "Entrar na plataforma",
-    "pendingTitle": "Endereço confirmado",
+    "pendingTitle": "Email confirmado",
     "pendingBody": "Sua solicitação foi enviada à equipe do OCA. Você receberá um email quando ela for analisada.",
     "rejectedTitle": "Pedido não aprovado",
     "rejectedBody": "Este pedido de acesso não foi aprovado.",
