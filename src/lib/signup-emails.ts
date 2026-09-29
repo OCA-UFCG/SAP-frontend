@@ -26,7 +26,7 @@ function messagesFor(locale: string | undefined) {
 }
 
 /**
- * Os três recados que saem da plataforma.
+ * Os recados que saem da plataforma.
  *
  * Regras que valem para todos, e que existem por motivo, não por estilo:
  *
@@ -192,6 +192,42 @@ export function buildAccessDecisionEmail({
       m.decisionRejectedBody,
       "",
       m.decisionRejectedFollowUp,
+      "",
+      m.footer,
+    ].join("\n"),
+  };
+}
+
+/**
+ * O link de troca de senha. Diz o que fazer se a pessoa não pediu, porque
+ * qualquer um pode digitar o endereço de outra no "esqueci minha senha".
+ */
+export function buildPasswordResetEmail({
+  link,
+  locale,
+}: {
+  link: string;
+  locale?: string;
+}): Omit<MailMessage, "to"> {
+  const m = messagesFor(locale);
+
+  return {
+    subject: m.passwordResetSubject,
+    html: layout(
+      m.passwordResetTitle,
+      paragraph(m.passwordResetBody) +
+        callToAction(m.passwordResetAction, link, m.fallback) +
+        `<p style="margin:22px 0 0;font-size:13px;line-height:1.55;color:${MUTED};">${m.passwordResetIgnore}</p>`,
+      m.footer,
+    ),
+    text: [
+      m.passwordResetTitle,
+      "",
+      m.passwordResetBody,
+      "",
+      link,
+      "",
+      m.passwordResetIgnore,
       "",
       m.footer,
     ].join("\n"),

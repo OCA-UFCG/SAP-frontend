@@ -11,6 +11,7 @@
     "submitting": "Signing in...",
     "submit": "Continue",
     "noAccount": "No account yet?",
-    "signUp": "Create account"
+    "signUp": "Create account",
+    "forgotPassword": "Forgot my password"
   }
 }

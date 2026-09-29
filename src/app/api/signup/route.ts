@@ -3,7 +3,8 @@ import { adminAuth } from "@/lib/firebase-admin";
 import { hasTrustedMutationOrigin } from "@/lib/catalog-access";
 import { rejectWhenSignupClosed } from "@/app/api/signup/availability";
 import { resolveSignupTier } from "@/lib/signup-domains";
-import { routing } from "@/translations/routing-config";
+import { resolveEmailLocale } from "@/lib/email-locale";
+import { MIN_PASSWORD_LENGTH } from "@/config/passwordRules";
 import { createAccessRequest, normalizeIntention } from "@/lib/access-requests";
 import {
   consumeSignupRateLimit,
@@ -14,13 +15,6 @@ import { sendVerificationEmail } from "@/lib/signup-verification";
 export const runtime = "nodejs";
 
 const NO_STORE = { "Cache-Control": "no-store" } as const;
-
-/**
- * Piso local de senha. A regra que vale é a password policy do Firebase Auth,
- * que roda no servidor deles — esta existe para a pessoa receber o erro antes
- * de a conta ser tentada.
- */
-const MIN_PASSWORD_LENGTH = 8;
 
 /**
  * Resposta única do cadastro.
@@ -44,17 +38,6 @@ function serverError() {
     { error: "Não foi possível concluir o cadastro." },
     { status: 500, headers: NO_STORE },
   );
-}
-
-/**
- * Idioma para os e-mails desta pessoa. Vem do navegador, então é validado
- * contra a lista de idiomas do site — um valor qualquer cairia no português.
- */
-function resolveEmailLocale(value: unknown) {
-  return typeof value === "string" &&
-    (routing.locales as readonly string[]).includes(value)
-    ? value
-    : routing.defaultLocale;
 }
 
 function isWellFormedEmail(email: string) {
