@@ -31,8 +31,22 @@ const resendRequests = createRateLimitStore();
 const confirmRequests = createRateLimitStore();
 
 /**
- * Chave de cliente de uma requisição não autenticada, na mesma ordem de
- * cabeçalhos que `api/logs/route.ts` já usa.
+ * Endereço de rede de quem fez a requisição, na mesma ordem de cabeçalhos que
+ * `api/logs/route.ts` já usa. `undefined` quando o proxy não repassou nenhum.
+ */
+export function getSignupClientIp(request: Request) {
+  const forwardedFor = request.headers
+    .get("x-forwarded-for")
+    ?.split(",")[0]
+    ?.trim();
+  const realIp = request.headers.get("x-real-ip")?.trim();
+  const connectingIp = request.headers.get("cf-connecting-ip")?.trim();
+
+  return forwardedFor || realIp || connectingIp || undefined;
+}
+
+/**
+ * Chave de cliente de uma requisição não autenticada.
  *
  * A última saída é o user-agent, não uma chave fixa: um balde único para o
  * mundo inteiro seria um jeito trivial de derrubar o cadastro — bastaria
@@ -41,14 +55,7 @@ const confirmRequests = createRateLimitStore();
  * e precisa aparecer no log.
  */
 export function getSignupClientKey(request: Request) {
-  const forwardedFor = request.headers
-    .get("x-forwarded-for")
-    ?.split(",")[0]
-    ?.trim();
-  const realIp = request.headers.get("x-real-ip")?.trim();
-  const connectingIp = request.headers.get("cf-connecting-ip")?.trim();
-
-  const address = forwardedFor || realIp || connectingIp;
+  const address = getSignupClientIp(request);
 
   if (address) {
     return `ip:${address}`;

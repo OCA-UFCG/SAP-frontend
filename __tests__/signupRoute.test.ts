@@ -7,6 +7,7 @@ const {
   deleteUserMock,
   generateEmailVerificationLinkMock,
   sendMailMock,
+  verifyCaptchaMock,
 } = vi.hoisted(() => ({
   createUserMock: vi.fn(),
   setCustomUserClaimsMock: vi.fn(),
@@ -14,6 +15,7 @@ const {
   deleteUserMock: vi.fn(),
   generateEmailVerificationLinkMock: vi.fn(),
   sendMailMock: vi.fn(),
+  verifyCaptchaMock: vi.fn(),
 }));
 
 vi.mock("@/lib/firebase-admin", () => ({
@@ -36,6 +38,12 @@ vi.mock("@/lib/access-requests", async (importOriginal) => {
   const actual = await importOriginal<typeof import("@/lib/access-requests")>();
 
   return { ...actual, createAccessRequest: createAccessRequestMock };
+});
+
+vi.mock("@/lib/captcha", async (importOriginal) => {
+  const actual = await importOriginal<typeof import("@/lib/captcha")>();
+
+  return { ...actual, verifyCaptcha: verifyCaptchaMock };
 });
 
 import { POST as signup } from "@/app/api/signup/route";
@@ -76,6 +84,7 @@ describe("POST /api/signup", () => {
       .mockReset()
       .mockResolvedValue("https://sap.example/verificar?oobCode=abc");
     sendMailMock.mockReset().mockResolvedValue({ delivered: true });
+    verifyCaptchaMock.mockReset().mockResolvedValue(true);
     vi.unstubAllEnvs();
     vi.stubEnv("SIGNUP_ALLOWED_DOMAINS", "ufcg.edu.br");
     vi.stubEnv("NEXT_PUBLIC_HOST_URL", ORIGIN);
@@ -323,5 +332,57 @@ describe("POST /api/signup", () => {
 
     expect(blocked.status).toBe(429);
     expect(blocked.headers.get("Retry-After")).toBeTruthy();
+  });
+  describe("captcha", () => {
+    const VALID_SIGNUP = {
+      email: "fulano@ufcg.edu.br",
+      password: VALID_PASSWORD,
+      intention: "Pesquisa sobre seca",
+    };
+
+    it("checks the token for the signup screen, from the visitor address", async () => {
+      await signup(buildRequest({ ...VALID_SIGNUP, captchaToken: "token-bom" }));
+
+      expect(verifyCaptchaMock).toHaveBeenCalledWith("token-bom", {
+        action: "signup",
+        remoteIp: "203.0.113.10",
+      });
+    });
+
+    it("refuses a signup whose captcha did not pass, before creating anything", async () => {
+      verifyCaptchaMock.mockResolvedValue(false);
+
+      const response = await signup(
+        buildRequest({ ...VALID_SIGNUP, captchaToken: "token-ruim" }),
+      );
+
+      expect(response.status).toBe(400);
+      await expect(response.json()).resolves.toEqual({
+        error: "Não foi possível confirmar que você não é um robô. Tente novamente.",
+      });
+      expect(createUserMock).not.toHaveBeenCalled();
+      expect(createAccessRequestMock).not.toHaveBeenCalled();
+      expect(sendMailMock).not.toHaveBeenCalled();
+    });
+
+    it("treats a token that is not text as missing", async () => {
+      await signup(buildRequest({ ...VALID_SIGNUP, captchaToken: 123 }));
+
+      expect(verifyCaptchaMock).toHaveBeenCalledWith("", expect.anything());
+    });
+
+    // O token só vale uma vez. Um erro de digitação que já dá para recusar sem
+    // a Cloudflare não pode gastar o captcha da pessoa.
+    it("does not spend the token on a signup it can refuse by itself", async () => {
+      await signup(
+        buildRequest({
+          ...VALID_SIGNUP,
+          email: "isso-nao-e-email",
+          captchaToken: "token-bom",
+        }),
+      );
+
+      expect(verifyCaptchaMock).not.toHaveBeenCalled();
+    });
   });
 });

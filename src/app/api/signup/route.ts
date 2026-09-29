@@ -9,9 +9,11 @@ import {
 } from "@/lib/access-requests";
 import {
   consumeSignupRateLimit,
+  getSignupClientIp,
   getSignupClientKey,
 } from "@/app/api/signup/rate-limit";
 import { sendVerificationEmail } from "@/lib/signup-verification";
+import { CAPTCHA_FAILED_MESSAGE, verifyCaptcha } from "@/lib/captcha";
 
 export const runtime = "nodejs";
 
@@ -95,6 +97,7 @@ export async function POST(request: Request) {
     password?: unknown;
     intention?: unknown;
     locale?: unknown;
+    captchaToken?: string;
   };
   try {
     body = (await request.json()) as typeof body;
@@ -128,6 +131,21 @@ export async function POST(request: Request) {
   // manual.
   if (!intention) {
     return badRequest("Descreva como pretende usar a plataforma.");
+  }
+
+  // Depois das validações que não dependem de ninguém: o token só vale uma vez,
+  // e um erro de digitação não pode gastá-lo. Antes de criar a conta: um bot
+  // barrado aqui não deixa conta, pedido nem e-mail para trás.
+  const captchaToken =
+    typeof body.captchaToken === "string" ? body.captchaToken : "";
+
+  if (
+    !(await verifyCaptcha(captchaToken, {
+      action: "signup",
+      remoteIp: getSignupClientIp(request),
+    }))
+  ) {
+    return badRequest(CAPTCHA_FAILED_MESSAGE);
   }
 
   let user: { uid: string };

@@ -11,7 +11,7 @@ não está escrito em nenhum outro lugar.
 ## O caminho
 
 ```
-formulário → /api/signup valida o domínio NO SERVIDOR → cria a conta
+formulário → /api/signup confere o captcha e valida o domínio NO SERVIDOR → cria a conta
            → grava o pedido → e-mail de confirmação
            → a pessoa clica → /api/signup/confirm relê emailVerified no Firebase
               ├── domínio autorizado → libera na hora
@@ -70,6 +70,38 @@ sessão nasce sem conferir a marca nem o e-mail confirmado, então oferecer o
 cadastro nesse estado deixaria a plataforma **mais aberta do que era antes de o
 cadastro existir**.
 
+## Captcha
+
+O cadastro e o "reenviar e-mail" usam o [Cloudflare Turnstile](https://developers.cloudflare.com/turnstile/).
+O limite por IP continua existindo, mas um programa troca de endereço e passa
+por ele; o captcha pergunta outra coisa: se do outro lado há um navegador de
+verdade.
+
+- **O widget só entrega um token.** Quem decide é o servidor
+  (`src/lib/captcha.ts`), perguntando à Cloudflare com a chave secreta. A
+  verificação acontece antes de criar conta ou mandar e-mail, então um bot
+  barrado não deixa nada para trás.
+- **Cada tela tem a sua action** (`signup`, `resend`), e o servidor confere.
+  Sem isso, um token resolvido para reenviar serviria para criar conta.
+- **O token vale uma vez.** A tela gera outro depois de cada envio. No
+  cadastro, as validações que não dependem da Cloudflare rodam antes, para um
+  erro de digitação não gastar o token.
+- **Falha fechada.** Cloudflare fora do ar, secret ausente ou chave de teste em
+  produção recusam o pedido e registram `error` no log. Quem é gente tenta de
+  novo; deixar passar abriria a porta justamente quando ninguém está olhando.
+- **Ele só vale com o passo 1 acima.** Com "Enable create" ligado no Firebase,
+  um bot cria conta direto na API do Google e nunca vê o captcha.
+
+**Configuração na Cloudflare:** um widget só, em modo _Managed_, com os
+hostnames de produção, beta e gamma (e `localhost`, se quiser testar com a
+chave real). É essa lista que impede o widget de funcionar em outro site. A site
+key vai para a variável do GitHub `NEXT_PUBLIC_TURNSTILE_SITE_KEY`; a secret,
+para o secret `TURNSTILE_SECRET_KEY`.
+
+**Em desenvolvimento** use as chaves de teste do `env.sample.txt`, que sempre
+passam. Para ver a recusa, troque a secret por
+`2x0000000000000000000000000000000AA`.
+
 ## A conta de envio
 
 Os três e-mails (confirmação, aviso à equipe, decisão) saem pelo SMTP do Google
@@ -110,6 +142,8 @@ desligado fora do seu computador: o link de confirmação é uma credencial.**
 | `SMTP_USER`, `SMTP_PASSWORD`, `SMTP_FROM` | A conta de envio.                                                                                                                 |
 | `SIGNUP_SEND_REJECTION_EMAIL`             | Se quem é recusado recebe aviso. Desligado até a equipe decidir.                                                                  |
 | `MAIL_LOG_BODY`                           | Só desenvolvimento. Imprime o corpo dos e-mails no terminal.                                                                      |
+| `NEXT_PUBLIC_TURNSTILE_SITE_KEY`          | Chave pública do widget do captcha. Entra no build (é `NEXT_PUBLIC_`).                                                            |
+| `TURNSTILE_SECRET_KEY`                    | Chave secreta do captcha. **Nunca com prefixo `NEXT_PUBLIC_`**: é ela que decide. Sem ela, todo cadastro e reenvio é recusado.    |
 
 ## Decisões em aberto
 
@@ -117,9 +151,6 @@ desligado fora do seu computador: o link de confirmação é uma credencial.**
   que a caixa é sua, então é possível cadastrar o e-mail de um terceiro com uma
   senha própria e ganhar o acesso quando essa pessoa clicar no link legítimo.
   É defeito de desenho, não de código, e o conserto muda a arquitetura.
-- **Captcha.** O plano pede captcha **e** limite de tentativas. O limite existe;
-  o captcha não. Um programa automático troca de endereço de rede e passa por
-  qualquer limite por IP.
 - **"Esqueci minha senha" não existe.** Com o cadastro pelo cliente desligado, a
   única saída de quem esquecer a senha é intervenção manual.
 - **Não existe caminho no produto para remover o acesso de alguém.** Só pelo

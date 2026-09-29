@@ -8,6 +8,7 @@ import { Link } from "@/translations/routing";
 import { Icon } from "../Icon/Icon";
 import { LoginField } from "../Login/LoginField";
 import { LoginPhotoPanel } from "../Login/LoginPhotoPanel";
+import { Captcha } from "../Captcha/Captcha";
 
 export type SignupFormValues = {
   email: string;
@@ -20,6 +21,7 @@ export type SignupSubmitValues = {
   email: string;
   password: string;
   intention: string;
+  captchaToken: string;
 };
 
 type SignupProps = {
@@ -28,8 +30,13 @@ type SignupProps = {
    * Reenvia o e-mail de confirmação. Precisa existir sempre: o link expira e o
    * envio pode falhar, e sem esta porta a única saída de quem não recebeu é
    * abrir chamado com a equipe.
+   *
+   * Devolve `false` quando o servidor recusou o captcha, para a tela não dizer
+   * que enviou um e-mail que não saiu.
    */
-  onResend?: () => void | Promise<void>;
+  onResend?: (
+    captchaToken: string,
+  ) => boolean | void | Promise<boolean | void>;
   backgroundImageUrl?: string;
   error?: string;
   submitted?: boolean;
@@ -46,21 +53,30 @@ export const Signup = ({
   submitted = false,
 }: SignupProps) => {
   const t = useTranslations("Signup");
+  const tCaptcha = useTranslations("Captcha");
   const [passwordVisible, setPasswordVisible] = useState(false);
-  // A consulta de domínio em andamento, se houver. O envio espera por ela: sem
-  // isso, quem digitava o e-mail e clicava direto enviava antes de o campo de
-  // intenção existir, e recebia um erro sobre um campo que só apareceu depois
-  // do clique.
   const [resending, setResending] = useState(false);
   const [resent, setResent] = useState(false);
+  const [resendRefused, setResendRefused] = useState(false);
+  // O token só vale uma vez. Cada tentativa troca a `key` do widget, que então
+  // resolve um token novo.
+  const [captchaToken, setCaptchaToken] = useState<string | null>(null);
+  const [captchaAttempt, setCaptchaAttempt] = useState(0);
+  const [resendToken, setResendToken] = useState<string | null>(null);
+  const [resendAttempt, setResendAttempt] = useState(0);
 
   async function handleResend() {
+    if (!resendToken) return;
+
     setResending(true);
     try {
-      await onResend?.();
+      const accepted = (await onResend?.(resendToken)) !== false;
+      setResendRefused(!accepted);
+      setResent(accepted);
     } finally {
       setResending(false);
-      setResent(true);
+      setResendToken(null);
+      setResendAttempt((attempt) => attempt + 1);
     }
   }
 
@@ -79,6 +95,8 @@ export const Signup = ({
   });
 
   const submitSignup = handleSubmit(async (values) => {
+    if (!captchaToken) return;
+
     // A intenção vai sempre. O servidor é quem decide se ela era necessária —
     // ele recalcula o domínio e ignora o campo no trilho institucional. Deixar
     // a decisão lá remove a corrida entre o clique e a resposta da consulta de
@@ -88,7 +106,11 @@ export const Signup = ({
       email: values.email,
       password: values.password,
       intention: values.intention,
+      captchaToken,
     });
+
+    setCaptchaToken(null);
+    setCaptchaAttempt((attempt) => attempt + 1);
   });
 
 
@@ -121,10 +143,15 @@ export const Signup = ({
             </p>
 
             <div className="flex w-full flex-col gap-2">
+              <Captcha
+                key={`resend-${resendAttempt}`}
+                action="resend"
+                onToken={setResendToken}
+              />
               <button
                 type="button"
                 onClick={() => void handleResend()}
-                disabled={resending}
+                disabled={resending || !resendToken}
                 className="font-open-sans flex h-[33px] w-full cursor-pointer items-center justify-center rounded-md border border-[#DBE0CC] px-3 py-1.5 text-[11.65px] leading-5 text-[#50554C] transition hover:bg-[#F3F5EE] focus:outline-none focus-visible:ring-2 focus-visible:ring-[#777E32] disabled:cursor-not-allowed disabled:opacity-70"
               >
                 {resending ? t("resending") : t("resend")}
@@ -132,6 +159,11 @@ export const Signup = ({
               {resent ? (
                 <p role="status" className="text-[12px] leading-4 text-[#676264]">
                   {t("resent")}
+                </p>
+              ) : null}
+              {resendRefused ? (
+                <p role="alert" className="text-[12px] leading-4 text-[#B3261E]">
+                  {tCaptcha("failed")}
                 </p>
               ) : null}
             </div>
@@ -261,9 +293,15 @@ export const Signup = ({
               </div>
             </div>
 
+            <Captcha
+              key={`signup-${captchaAttempt}`}
+              action="signup"
+              onToken={setCaptchaToken}
+            />
+
             <button
               type="submit"
-              disabled={isSubmitting}
+              disabled={isSubmitting || !captchaToken}
               className="font-open-sans flex h-[33px] w-full cursor-pointer items-center justify-center rounded-md bg-[#989F43] px-3 py-1.5 text-[11.65px] leading-5 text-white transition hover:bg-[#5B612A] focus:outline-none focus-visible:ring-2 focus-visible:ring-[#777E32] focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-70"
             >
               {isSubmitting ? t("submitting") : t("submit")}

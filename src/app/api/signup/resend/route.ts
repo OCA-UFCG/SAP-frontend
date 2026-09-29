@@ -3,8 +3,10 @@ import { hasTrustedMutationOrigin } from "@/lib/catalog-access";
 import { sendVerificationEmail } from "@/lib/signup-verification";
 import {
   consumeResendRateLimit,
+  getSignupClientIp,
   getSignupClientKey,
 } from "@/app/api/signup/rate-limit";
+import { CAPTCHA_FAILED_MESSAGE, verifyCaptcha } from "@/lib/captcha";
 
 export const runtime = "nodejs";
 
@@ -45,10 +47,28 @@ export async function POST(request: Request) {
   }
 
   let email: unknown;
+  let captchaToken: string | undefined;
   try {
-    ({ email } = (await request.json()) as { email?: unknown });
+    ({ email, captchaToken } = (await request.json()) as {
+      email?: unknown;
+      captchaToken?: string;
+    });
   } catch {
     email = null;
+  }
+
+  // Reenviar manda e-mail para qualquer endereço: sem captcha, é a porta mais
+  // fácil para esgotar a cota de envio da equipe.
+  if (
+    !(await verifyCaptcha(
+      typeof captchaToken === "string" ? captchaToken : "",
+      { action: "resend", remoteIp: getSignupClientIp(request) },
+    ))
+  ) {
+    return NextResponse.json(
+      { error: CAPTCHA_FAILED_MESSAGE },
+      { status: 400, headers: NO_STORE },
+    );
   }
 
   if (typeof email === "string" && email.trim()) {

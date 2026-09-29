@@ -1,9 +1,12 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
-const { generateLinkMock, sendMailMock } = vi.hoisted(() => ({
-  generateLinkMock: vi.fn(),
-  sendMailMock: vi.fn(),
-}));
+const { generateLinkMock, sendMailMock, verifyCaptchaMock } = vi.hoisted(
+  () => ({
+    generateLinkMock: vi.fn(),
+    sendMailMock: vi.fn(),
+    verifyCaptchaMock: vi.fn(),
+  }),
+);
 
 vi.mock("@/lib/firebase-admin", () => ({
   adminAuth: { generateEmailVerificationLink: generateLinkMock },
@@ -13,6 +16,12 @@ vi.mock("@/lib/firebase-admin", () => ({
 vi.mock("@/lib/mailer", async (importOriginal) => {
   const actual = await importOriginal<typeof import("@/lib/mailer")>();
   return { ...actual, sendMail: sendMailMock };
+});
+
+vi.mock("@/lib/captcha", async (importOriginal) => {
+  const actual = await importOriginal<typeof import("@/lib/captcha")>();
+
+  return { ...actual, verifyCaptcha: verifyCaptchaMock };
 });
 
 import { POST as resend } from "@/app/api/signup/resend/route";
@@ -44,6 +53,7 @@ describe("POST /api/signup/resend", () => {
       .mockReset()
       .mockResolvedValue("https://sap.example/verificar?oobCode=abc");
     sendMailMock.mockReset().mockResolvedValue({ delivered: true });
+    verifyCaptchaMock.mockReset().mockResolvedValue(true);
     vi.unstubAllEnvs();
     vi.stubEnv("NEXT_PUBLIC_HOST_URL", ORIGIN);
   });
@@ -97,5 +107,28 @@ describe("POST /api/signup/resend", () => {
     const blocked = await resend(buildRequest({ email: "maisum@ufcg.edu.br" }));
 
     expect(blocked.status).toBe(429);
+  });
+  it("checks the token for the resend screen, from the visitor address", async () => {
+    await resend(
+      buildRequest({ email: "fulano@ufcg.edu.br", captchaToken: "token-bom" }),
+    );
+
+    expect(verifyCaptchaMock).toHaveBeenCalledWith("token-bom", {
+      action: "resend",
+      remoteIp: "203.0.113.10",
+    });
+  });
+
+  // Reenviar manda e-mail para qualquer endereço: é a porta mais fácil para
+  // esgotar a cota do Gmail da equipe.
+  it("sends nothing when the captcha did not pass", async () => {
+    verifyCaptchaMock.mockResolvedValue(false);
+
+    const response = await resend(
+      buildRequest({ email: "fulano@ufcg.edu.br", captchaToken: "token-ruim" }),
+    );
+
+    expect(response.status).toBe(400);
+    expect(sendMailMock).not.toHaveBeenCalled();
   });
 });

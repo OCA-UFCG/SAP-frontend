@@ -1,7 +1,30 @@
+import { useEffect } from "react";
 import { cleanup, render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
-import { afterEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import Signup from "@/components/Signup/Signup";
+
+// O widget real fala com a Cloudflare. No teste ele entrega um token sozinho,
+// como faz para quase todo visitante; `captcha.solves = false` simula quem ainda
+// não passou.
+const captcha = vi.hoisted(() => ({ solves: true, tokens: 0 }));
+
+vi.mock("@/components/Captcha/Captcha", () => ({
+  Captcha: ({ onToken }: { onToken: (token: string | null) => void }) => {
+    useEffect(() => {
+      if (captcha.solves) {
+        captcha.tokens += 1;
+        onToken(`token-${captcha.tokens}`);
+      }
+    }, [onToken]);
+    return null;
+  },
+}));
+
+beforeEach(() => {
+  captcha.solves = true;
+  captcha.tokens = 0;
+});
 
 afterEach(() => {
   cleanup();
@@ -56,8 +79,43 @@ describe("Signup", () => {
         email: "fulano@ufcg.edu.br",
         password: "uma-senha-forte",
         intention: "Pesquisa sobre seca",
+        captchaToken: "token-1",
       });
     });
+  });
+
+  it("does not let anyone submit before the captcha passes", () => {
+    captcha.solves = false;
+    render(<Signup />);
+
+    expect(screen.getByRole("button", { name: "Criar conta" })).toBeDisabled();
+  });
+
+  // O token só vale uma vez. Se o servidor recusou, tentar de novo com o mesmo
+  // token seria recusado de novo.
+  it("asks for a fresh captcha after every attempt", async () => {
+    const user = userEvent.setup();
+    const onSubmit = vi.fn();
+    render(<Signup onSubmit={onSubmit} />);
+
+    await user.type(screen.getByPlaceholderText("Email"), "fulano@ufcg.edu.br");
+    await user.type(screen.getByPlaceholderText("Senha"), "uma-senha-forte");
+    await user.type(
+      screen.getByPlaceholderText("Confirmar senha"),
+      "uma-senha-forte",
+    );
+    await user.type(
+      screen.getByPlaceholderText("Como pretende usar a plataforma?"),
+      "Pesquisa sobre seca",
+    );
+    await user.click(screen.getByRole("button", { name: "Criar conta" }));
+    await waitFor(() => expect(onSubmit).toHaveBeenCalledTimes(1));
+
+    await user.click(screen.getByRole("button", { name: "Criar conta" }));
+    await waitFor(() => expect(onSubmit).toHaveBeenCalledTimes(2));
+
+    expect(onSubmit.mock.calls[0][0].captchaToken).toBe("token-1");
+    expect(onSubmit.mock.calls[1][0].captchaToken).toBe("token-2");
   });
 
   it("refuses to submit when the two passwords differ", async () => {
@@ -153,6 +211,35 @@ describe("Signup", () => {
       screen.getByRole("button", { name: "Reenviar email de confirmação" }),
     );
 
-    expect(onResend).toHaveBeenCalled();
+    expect(onResend).toHaveBeenCalledWith("token-1");
+  });
+
+  it("does not resend before the captcha passes", () => {
+    captcha.solves = false;
+    render(<Signup submitted />);
+
+    expect(
+      screen.getByRole("button", { name: "Reenviar email de confirmação" }),
+    ).toBeDisabled();
+  });
+
+  // Dizer "enviado" quando o servidor recusou o captcha deixaria a pessoa
+  // esperando um e-mail que nunca sai.
+  it("says the resend was refused when the captcha did not pass", async () => {
+    const user = userEvent.setup();
+    render(<Signup onResend={() => false} submitted />);
+
+    await user.click(
+      screen.getByRole("button", { name: "Reenviar email de confirmação" }),
+    );
+
+    expect(await screen.findByRole("alert")).toHaveTextContent(
+      "Não foi possível confirmar que você não é um robô. Tente novamente.",
+    );
+    expect(
+      screen.queryByText(
+        "Se o endereço estiver cadastrado, um novo email foi enviado.",
+      ),
+    ).not.toBeInTheDocument();
   });
 });

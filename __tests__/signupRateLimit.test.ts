@@ -8,6 +8,7 @@ import {
   consumeConfirmRateLimit,
   consumeResendRateLimit,
   consumeSignupRateLimit,
+  getSignupClientIp,
   getSignupClientKey,
 } from "@/app/api/signup/rate-limit";
 
@@ -95,6 +96,21 @@ describe("signup rate limits", () => {
       getSignupClientKey(requestWith({ "user-agent": "Chrome/120" }));
 
       expect(error).toHaveBeenCalled();
+    });
+
+    // O captcha repassa o endereço à Cloudflare. Um user-agent no lugar do IP
+    // seria um dado errado, não a falta dele.
+    it("gives the bare address, and nothing when there is none", () => {
+      vi.spyOn(console, "error").mockImplementation(() => undefined);
+
+      expect(
+        getSignupClientIp(
+          requestWith({ "x-forwarded-for": "203.0.113.10, 70.41.3.18" }),
+        ),
+      ).toBe("203.0.113.10");
+      expect(
+        getSignupClientIp(requestWith({ "user-agent": "Chrome/120" })),
+      ).toBeUndefined();
     });
 
     it("stays quiet when the address is there", () => {
