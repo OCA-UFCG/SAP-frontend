@@ -85,13 +85,13 @@ export function normalizeStackedShares(
 /**
  * Os períodos que o gráfico desenha quando a série não cabe.
  *
- * A amostragem é uniforme e preserva as duas pontas, em vez do `slice(-N)` que
- * o gráfico de linha usa: cortar o começo faria o gráfico contradizer o
- * parágrafo impresso logo abaixo dele, que fala do intervalo inteiro.
+ * São os mais recentes, em sequência: quem abre o relatório quer ver como a
+ * situação evoluiu até agora, e colunas espaçadas pela série inteira pulavam
+ * justamente os meses que antecedem o período atual.
  *
  * O período de referência entra sempre — é o período que o resto da seção
- * descreve —, tomando o lugar do vizinho amostrado mais próximo para a
- * contagem de colunas não mudar.
+ * descreve —, tomando o lugar do período mais antigo da janela quando fica de
+ * fora dela, para a contagem de colunas não mudar.
  *
  * @example
  * selectStackedChartSnapshots(serie, 12, "2026-05");
@@ -107,30 +107,12 @@ export function selectStackedChartSnapshots(
     left.period.localeCompare(right.period),
   );
   if (sorted.length <= maxColumns) return sorted;
-  if (maxColumns === 1) return [sorted[sorted.length - 1]];
 
-  const lastIndex = sorted.length - 1;
-  const picked = new Set<number>();
-  for (let slot = 0; slot < maxColumns; slot += 1) {
-    picked.add(Math.round((slot * lastIndex) / (maxColumns - 1)));
-  }
+  const recent = sorted.slice(-maxColumns);
+  const reference = sorted.find((item) => item.period === referencePeriod);
+  if (!reference || recent.includes(reference)) return recent;
 
-  const referenceIndex = sorted.findIndex(
-    (item) => item.period === referencePeriod,
-  );
-  if (referenceIndex >= 0 && !picked.has(referenceIndex)) {
-    const nearest = [...picked].reduce((closest, index) =>
-      Math.abs(index - referenceIndex) < Math.abs(closest - referenceIndex)
-        ? index
-        : closest,
-    );
-    picked.delete(nearest);
-    picked.add(referenceIndex);
-  }
-
-  return [...picked]
-    .sort((left, right) => left - right)
-    .map((index) => sorted[index]);
+  return [reference, ...recent.slice(1 - maxColumns)].slice(-maxColumns);
 }
 
 /**
