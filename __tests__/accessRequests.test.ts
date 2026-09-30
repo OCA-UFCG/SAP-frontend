@@ -1,6 +1,6 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
-const { fakeDoc, fakeCollection, fakeQuery, fakeTransaction, fakeDb } = vi.hoisted(() => {
+const { fakeDoc, fakeCollection, fakeQuery, fakeTransaction, fakeDb, fakeAuth } = vi.hoisted(() => {
   const doc = {
     set: vi.fn(),
     get: vi.fn(),
@@ -16,6 +16,7 @@ const { fakeDoc, fakeCollection, fakeQuery, fakeTransaction, fakeDb } = vi.hoist
     fakeCollection: collection,
     fakeQuery: query,
     fakeTransaction: transaction,
+    fakeAuth: { getUsers: vi.fn() },
     fakeDb: {
       collection: vi.fn(() => collection),
       runTransaction: vi.fn((work) => work(transaction)),
@@ -23,7 +24,7 @@ const { fakeDoc, fakeCollection, fakeQuery, fakeTransaction, fakeDb } = vi.hoist
   };
 });
 
-vi.mock("@/lib/firebase-admin", () => ({ adminDb: fakeDb }));
+vi.mock("@/lib/firebase-admin", () => ({ adminDb: fakeDb, adminAuth: fakeAuth }));
 
 import {
   ACCESS_REQUESTS_COLLECTION,
@@ -35,6 +36,7 @@ import {
   readAccessRequest,
   resolveAccessRequestsCollectionName,
   listPendingAccessRequests,
+  countPendingAccessRequests,
   claimTeamNotification,
   recordAccessDecision,
 } from "@/lib/access-requests";
@@ -53,6 +55,10 @@ describe("access requests", () => {
     fakeTransaction.get.mockReset();
     fakeTransaction.update.mockReset();
     fakeDb.runTransaction.mockClear();
+    fakeAuth.getUsers.mockReset().mockImplementation(async (ids) => ({
+      users: ids.map(({ uid }: { uid: string }) => ({ uid, emailVerified: true })),
+      notFound: [],
+    }));
   });
 
   // Com o nome fixo no código, cada teste local escrevia na mesma gaveta da
@@ -300,5 +306,43 @@ describe("access requests", () => {
       { uid: "user-1", email: "a@gmail.com", status: "pending" },
       { uid: "user-2", email: "b@gmail.com", status: "pending" },
     ]);
+  });
+
+  // O pedido nasce no envio do formulário, antes da confirmação. Listar quem
+  // não confirmou deixava o operador aprovar um endereço que ninguém provou
+  // ser dono.
+  it("leaves out requests whose e-mail was never confirmed", async () => {
+    fakeQuery.get.mockResolvedValue({
+      docs: ["confirmed", "unconfirmed", "deleted"].map((id) => ({
+        id,
+        data: () => ({ email: `${id}@gmail.com`, status: "pending" }),
+      })),
+    });
+    fakeAuth.getUsers.mockResolvedValue({
+      users: [
+        { uid: "confirmed", emailVerified: true },
+        { uid: "unconfirmed", emailVerified: false },
+      ],
+      notFound: [{ uid: "deleted" }],
+    });
+
+    await expect(listPendingAccessRequests()).resolves.toEqual([
+      { uid: "confirmed", email: "confirmed@gmail.com", status: "pending" },
+    ]);
+    await expect(countPendingAccessRequests()).resolves.toBe(1);
+  });
+
+  it("asks Firebase in batches it accepts", async () => {
+    fakeQuery.get.mockResolvedValue({
+      docs: Array.from({ length: 150 }, (_, index) => ({
+        id: `user-${index}`,
+        data: () => ({ status: "pending" }),
+      })),
+    });
+
+    await expect(listPendingAccessRequests()).resolves.toHaveLength(150);
+    expect(fakeAuth.getUsers).toHaveBeenCalledTimes(2);
+    expect(fakeAuth.getUsers.mock.calls[0][0]).toHaveLength(100);
+    expect(fakeAuth.getUsers.mock.calls[1][0]).toHaveLength(50);
   });
 });
