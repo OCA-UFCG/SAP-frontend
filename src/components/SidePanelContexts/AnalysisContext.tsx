@@ -580,9 +580,10 @@ export function AnalysisContext({
       years={temporalYears}
       classes={temporalClasses}
       selectedState={selectedLocationKey}
-      emptyStateTitle={t("unavailableTitle", {
-        location: unavailableLocationName,
-      })}
+      emptyStateTitle={t(
+        isMunicipalAnalysisLoading ? "loadingTitle" : "unavailableTitle",
+        { location: unavailableLocationName },
+      )}
       emptyStateDescription={
         isMunicipalAnalysisLoading
           ? t("unavailableDescriptionLoading")
