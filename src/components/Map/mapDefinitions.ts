@@ -442,7 +442,7 @@ const REF_OVERLAY_FILL_SUFFIX = "-fill";
  * de perto é o contorno, que fica sempre igual.
  */
 export const REFERENCE_OVERLAY_FILL_OPACITY: maplibregl.ExpressionSpecification =
-  ["interpolate", ["linear"], ["zoom"], 5, 0.45, 8, 0.25, 11, 0.1];
+  ["interpolate", ["linear"], ["zoom"], 5, 0.45, 8, 0.15, 11, 0.03];
 
 const referenceOverlaySourceId = (overlayId: string) =>
   `${REF_OVERLAY_SOURCE_PREFIX}${overlayId}`;
