@@ -90,19 +90,22 @@ describe("selectStackedChartSnapshots", () => {
     expect(selectStackedChartSnapshots(series, 12, null)).toHaveLength(12);
   });
 
-  it("preserva as duas pontas da série", () => {
+  it("desenha os períodos mais recentes, em sequência", () => {
     const picked = selectStackedChartSnapshots(series, 12, null);
 
-    expect(picked[0].period).toBe(series[0].period);
-    expect(picked.at(-1)!.period).toBe(series.at(-1)!.period);
+    expect(picked.map((item) => item.period)).toEqual(
+      series.slice(-12).map((item) => item.period),
+    );
   });
 
-  it("mantém o período de referência mesmo quando a amostragem o pularia", () => {
+  it("mantém o período de referência quando ele fica fora da janela recente", () => {
     const reference = series[13].period;
     const picked = selectStackedChartSnapshots(series, 12, reference);
 
-    expect(picked.map((item) => item.period)).toContain(reference);
-    expect(picked).toHaveLength(12);
+    expect(picked.map((item) => item.period)).toEqual([
+      reference,
+      ...series.slice(-11).map((item) => item.period),
+    ]);
   });
 
   it("não devolve período repetido", () => {

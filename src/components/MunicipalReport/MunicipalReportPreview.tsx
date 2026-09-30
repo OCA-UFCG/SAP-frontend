@@ -41,7 +41,11 @@ import {
   getReportCategoryTokens,
   reportAnalysisAnchorId,
 } from "@/utils/municipalReportCategories";
-import { isStackableAnalysis } from "@/utils/municipalReportStackedChart";
+import {
+  isStackableAnalysis,
+  MUNICIPAL_REPORT_STACKED_MAX_COLUMNS,
+  selectStackedChartSnapshots,
+} from "@/utils/municipalReportStackedChart";
 import { MunicipalReportClassBars } from "./MunicipalReportClassBars";
 import { MunicipalReportNotes } from "./MunicipalReportNotes";
 import { MunicipalReportStackedChart } from "./MunicipalReportStackedChart";
@@ -174,6 +178,17 @@ const AnalysisSection = memo(function AnalysisSection({
   const periodResolution = `${t("analyzedPeriod")}: ${referencePeriodLabel}.`;
   const historyRange = compactPeriodRange(
     analysis.timeSeries,
+    referencePeriod,
+    locale,
+    (key, values) => t(key, values),
+  );
+  // O gráfico desenha só os períodos mais recentes; o título dele diz quais.
+  const chartRange = compactPeriodRange(
+    selectStackedChartSnapshots(
+      analysis.timeSeries,
+      MUNICIPAL_REPORT_STACKED_MAX_COLUMNS,
+      referencePeriod,
+    ),
     referencePeriod,
     locale,
     (key, values) => t(key, values),
@@ -333,7 +348,7 @@ const AnalysisSection = memo(function AnalysisSection({
               </ReportSectionHeading>
               <div className="report-block mt-4 flex flex-col gap-4 overflow-hidden rounded-lg border border-[#EFEFEF] bg-[#F6F7F6] p-4">
                 <p className="font-open-sans text-base font-bold text-[#292829]">
-                  {historyRange}
+                  {chartRange}
                 </p>
                 <div className="report-chart-screen">
                   <MunicipalReportStackedChart
