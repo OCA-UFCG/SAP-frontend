@@ -422,7 +422,27 @@ export const ensureSpatialBoundaryLayer = (
   }
 };
 
-export type ReferenceOverlayTileUrls = ReadonlyMap<string, string | undefined>;
+export interface ReferenceOverlayUrls {
+  outline: string;
+  fill?: string;
+}
+
+export type ReferenceOverlayTileUrls = ReadonlyMap<
+  string,
+  ReferenceOverlayUrls | undefined
+>;
+
+const REF_OVERLAY_FILL_SUFFIX = "-fill";
+
+/**
+ * O interior do território marca bem a área de longe, quando ela é uma mancha
+ * pequena, e atrapalha de perto, quando cobre a tela e o que se quer ler é o
+ * índice por baixo. Por isso desbota conforme o zoom — sem sumir de todo, para
+ * ainda distinguir uma TI de uma UC onde elas se sobrepõem. Quem marca o limite
+ * de perto é o contorno, que fica sempre igual.
+ */
+export const REFERENCE_OVERLAY_FILL_OPACITY: maplibregl.ExpressionSpecification =
+  ["interpolate", ["linear"], ["zoom"], 5, 0.45, 8, 0.25, 11, 0.1];
 
 const referenceOverlaySourceId = (overlayId: string) =>
   `${REF_OVERLAY_SOURCE_PREFIX}${overlayId}`;
@@ -430,15 +450,30 @@ const referenceOverlaySourceId = (overlayId: string) =>
 const referenceOverlayLayerId = (overlayId: string) =>
   `${REF_OVERLAY_LAYER_PREFIX}${overlayId}`;
 
-const removeReferenceOverlay = (map: maplibregl.Map, overlayId: string) => {
-  const sourceId = referenceOverlaySourceId(overlayId);
-  const layerId = referenceOverlayLayerId(overlayId);
+const removeRasterLayer = (
+  map: maplibregl.Map,
+  sourceId: string,
+  layerId: string,
+) => {
   try {
     if (map.getLayer(layerId)) map.removeLayer(layerId);
     if (map.getSource(sourceId)) map.removeSource(sourceId);
   } catch {
     // Best-effort cleanup
   }
+};
+
+const removeReferenceOverlay = (map: maplibregl.Map, overlayId: string) => {
+  removeRasterLayer(
+    map,
+    referenceOverlaySourceId(overlayId),
+    referenceOverlayLayerId(overlayId),
+  );
+  removeRasterLayer(
+    map,
+    referenceOverlaySourceId(overlayId) + REF_OVERLAY_FILL_SUFFIX,
+    referenceOverlayLayerId(overlayId) + REF_OVERLAY_FILL_SUFFIX,
+  );
 };
 
 const buildReferenceOverlaySource = (
@@ -465,20 +500,25 @@ const resolveReferenceOverlayAnchor = (map: maplibregl.Map) => {
   return undefined;
 };
 
-const applyReferenceOverlay = (
+const applyRasterLayer = (
   map: maplibregl.Map,
-  overlayId: string,
-  tileUrl: string,
+  sourceId: string,
+  layerId: string,
+  tileUrl: string | undefined,
+  paint: maplibregl.RasterLayerSpecification["paint"],
 ) => {
-  const sourceId = referenceOverlaySourceId(overlayId);
-  const layerId = referenceOverlayLayerId(overlayId);
   const existingSource = map.getSource(sourceId) as
     maplibregl.RasterTileSource | undefined;
 
   // Trocar a URL exige recriar a source: `tiles` não é editável in-place.
-  if (existingSource && existingSource.tiles?.[0] !== tileUrl) {
-    removeReferenceOverlay(map, overlayId);
+  // A comparação é contra a spec (`serialize()`), e não contra `source.tiles`:
+  // este só é preenchido quando a source termina de carregar, e cada interior
+  // que carrega dispara uma nova sincronização. Comparar contra `tiles` recriava
+  // o contorno ainda carregando a cada vez, e ele nunca chegava a aparecer.
+  if (existingSource && existingSource.serialize().tiles?.[0] !== tileUrl) {
+    removeRasterLayer(map, sourceId, layerId);
   }
+  if (!tileUrl) return;
 
   if (!map.getSource(sourceId)) {
     map.addSource(sourceId, buildReferenceOverlaySource(tileUrl));
@@ -486,10 +526,33 @@ const applyReferenceOverlay = (
 
   if (!map.getLayer(layerId)) {
     map.addLayer(
-      { id: layerId, type: "raster", source: sourceId, paint: {} },
+      { id: layerId, type: "raster", source: sourceId, paint },
       resolveReferenceOverlayAnchor(map),
     );
   }
+};
+
+// O interior entra antes do contorno, e os dois logo abaixo da mesma âncora:
+// assim o contorno fica por cima do interior do próprio território.
+const applyReferenceOverlay = (
+  map: maplibregl.Map,
+  overlayId: string,
+  urls: ReferenceOverlayUrls,
+) => {
+  applyRasterLayer(
+    map,
+    referenceOverlaySourceId(overlayId) + REF_OVERLAY_FILL_SUFFIX,
+    referenceOverlayLayerId(overlayId) + REF_OVERLAY_FILL_SUFFIX,
+    urls.fill,
+    { "raster-opacity": REFERENCE_OVERLAY_FILL_OPACITY },
+  );
+  applyRasterLayer(
+    map,
+    referenceOverlaySourceId(overlayId),
+    referenceOverlayLayerId(overlayId),
+    urls.outline,
+    {},
+  );
 };
 
 /**
@@ -500,7 +563,10 @@ const applyReferenceOverlay = (
  * Retorna `false` quando o MapLibre ainda está montando o estilo e recusou a
  * escrita — nesse caso o chamador deve reagendar em `styledata`/`idle`.
  *
- * const applied = ensureReferenceOverlayLayers(map, new Map([["quilombolas", url]]));
+ * const applied = ensureReferenceOverlayLayers(
+ *   map,
+ *   new Map([["quilombolas", { outline: url, fill: fillUrl }]]),
+ * );
  */
 export const ensureReferenceOverlayLayers = (
   map: maplibregl.Map,
@@ -511,8 +577,8 @@ export const ensureReferenceOverlayLayers = (
   }
 
   try {
-    for (const [overlayId, tileUrl] of activeTileUrls) {
-      if (tileUrl) applyReferenceOverlay(map, overlayId, tileUrl);
+    for (const [overlayId, urls] of activeTileUrls) {
+      if (urls) applyReferenceOverlay(map, overlayId, urls);
     }
     return true;
   } catch {

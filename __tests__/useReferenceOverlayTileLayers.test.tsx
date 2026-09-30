@@ -83,6 +83,32 @@ describe("useReferenceOverlayTileLayers", () => {
     );
   });
 
+  it("keeps the fill tile URL next to the outline one", async () => {
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async () => ({
+        ok: true,
+        status: 200,
+        json: async () => ({
+          url: "https://tiles/ti-outline",
+          fillUrl: "https://tiles/ti-fill",
+        }),
+      })),
+    );
+
+    const { result } = renderHook(() =>
+      useReferenceOverlayTileLayers(overlaySet("terras_indigenas")),
+    );
+
+    await waitFor(() =>
+      expect(result.current.get("terras_indigenas")).toEqual({
+        status: "ready",
+        tileUrl: "https://tiles/ti-outline",
+        fillTileUrl: "https://tiles/ti-fill",
+      }),
+    );
+  });
+
   it("drops deactivated overlays from the returned map", async () => {
     const api = new FakeReferenceLayerApi();
     vi.stubGlobal("fetch", api.fetch);
