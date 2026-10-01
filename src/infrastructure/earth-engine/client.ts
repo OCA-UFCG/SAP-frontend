@@ -21,7 +21,32 @@ interface GoogleOAuthToken {
   tokenType: string;
 }
 
+/**
+ * Quantas leituras vão ao Earth Engine ao mesmo tempo, somando todos os
+ * usuários do processo.
+ *
+ * O SDK do Earth Engine solta um pedido a cada 350 ms de uma fila única do
+ * processo, e o relatório municipal faz algumas dezenas deles: só a espera na
+ * fila passava de 10 s. Mandando os pedidos direto à API eles andam juntos, e
+ * este teto faz o papel que a fila fazia de não estourar a cota de pedidos
+ * simultâneos do projeto.
+ */
+const GEE_COMPUTE_CONCURRENCY = 20;
+/** Prazo de cada tentativa: sem ele uma conexão pendurada ocupa uma vaga do teto para sempre. */
+const GEE_COMPUTE_ATTEMPT_TIMEOUT_MS = 30_000;
+/** 429 é o Earth Engine pedindo calma; 5xx costuma passar na tentativa seguinte. */
+const GEE_COMPUTE_RETRYABLE_STATUS = new Set([429, 500, 502, 503, 504]);
+const GEE_COMPUTE_MAX_ATTEMPTS = 4;
+/** O token é renovado com esta folga, para não expirar no meio de um pedido. */
+const ACCESS_TOKEN_REFRESH_MARGIN_MS = 5 * 60_000;
+
 let geeInitialized: Promise<void> | null = null;
+let geeCredentials: GeeServiceAccountCredentials | null = null;
+let geeProjectId: string | null = null;
+let accessToken: { authorization: string; expiresAt: number } | null = null;
+let accessTokenRefresh: Promise<string> | null = null;
+let activeComputes = 0;
+const waitingComputes: Array<() => void> = [];
 
 function encodeJwtPart(value: object) {
   return Buffer.from(JSON.stringify(value)).toString("base64url");
@@ -149,6 +174,9 @@ async function authenticateAndInitialize(): Promise<void> {
   const credentials = parseGeeCredentials(key);
   const projectId = resolveGeeProjectId(credentials);
   const token = await fetchGoogleOAuthToken(credentials);
+  geeCredentials = credentials;
+  geeProjectId = projectId;
+  rememberAccessToken(token);
 
   ee.data.setAuthToken(
     credentials.client_email,
@@ -180,21 +208,129 @@ export function initializeGee(): Promise<void> {
   return geeInitialized;
 }
 
-export function evaluateGeeObject<T>(value: {
+function rememberAccessToken(token: GoogleOAuthToken) {
+  accessToken = {
+    authorization: `${token.tokenType} ${token.accessToken}`,
+    expiresAt: Date.now() + token.expiresIn * 1000,
+  };
+}
+
+async function getAuthorizationHeader(): Promise<string> {
+  if (
+    accessToken &&
+    accessToken.expiresAt - Date.now() > ACCESS_TOKEN_REFRESH_MARGIN_MS
+  ) {
+    return accessToken.authorization;
+  }
+  if (!geeCredentials) {
+    throw new Error("Earth Engine não inicializado: chame initializeGee().");
+  }
+
+  accessTokenRefresh ??= fetchGoogleOAuthToken(geeCredentials)
+    .then((token) => {
+      rememberAccessToken(token);
+      return accessToken!.authorization;
+    })
+    .finally(() => {
+      accessTokenRefresh = null;
+    });
+
+  return accessTokenRefresh;
+}
+
+async function withComputeSlot<T>(run: () => Promise<T>): Promise<T> {
+  if (activeComputes >= GEE_COMPUTE_CONCURRENCY) {
+    await new Promise<void>((resolve) => waitingComputes.push(resolve));
+  }
+  activeComputes += 1;
+
+  try {
+    return await run();
+  } finally {
+    activeComputes -= 1;
+    waitingComputes.shift()?.();
+  }
+}
+
+function waitBeforeRetry(attempt: number) {
+  const delayMs = 500 * 2 ** (attempt - 1) + Math.random() * 250;
+  return new Promise((resolve) => setTimeout(resolve, delayMs));
+}
+
+/**
+ * Uma ida à API `value:compute` do Earth Engine, com as novas tentativas que o
+ * SDK fazia sozinho: 429, 5xx e falhas de conexão esperam e tentam de novo; o
+ * resto vira erro com a mensagem do Earth Engine, a mesma que o `evaluate` do
+ * SDK entregava.
+ */
+async function computeGeeExpression<T>(expression: unknown): Promise<T> {
+  if (!geeProjectId) {
+    throw new Error("Earth Engine não inicializado: chame initializeGee().");
+  }
+  const url = `https://earthengine.googleapis.com/v1/projects/${geeProjectId}/value:compute`;
+  const body = JSON.stringify({ expression });
+
+  for (let attempt = 1; ; attempt += 1) {
+    const authorization = await getAuthorizationHeader();
+    let response: Response;
+    try {
+      response = await fetch(url, {
+        method: "POST",
+        headers: {
+          Authorization: authorization,
+          "Content-Type": "application/json",
+        },
+        body,
+        cache: "no-store",
+        signal: AbortSignal.timeout(GEE_COMPUTE_ATTEMPT_TIMEOUT_MS),
+      });
+    } catch (error) {
+      // Conexão recusada, queda de rede ou prazo estourado: a leitura não muda
+      // nada no Earth Engine, então repetir é seguro.
+      if (attempt >= GEE_COMPUTE_MAX_ATTEMPTS) throw error;
+      await waitBeforeRetry(attempt);
+      continue;
+    }
+    const payload = (await response.json().catch(() => ({}))) as {
+      result?: T;
+      error?: { message?: unknown };
+    };
+
+    if (response.ok) return payload.result as T;
+
+    if (
+      GEE_COMPUTE_RETRYABLE_STATUS.has(response.status) &&
+      attempt < GEE_COMPUTE_MAX_ATTEMPTS
+    ) {
+      await waitBeforeRetry(attempt);
+      continue;
+    }
+
+    throw new Error(
+      typeof payload.error?.message === "string"
+        ? payload.error.message
+        : `Earth Engine respondeu HTTP ${response.status}.`,
+    );
+  }
+}
+
+/**
+ * O valor de um objeto do Earth Engine, calculado no servidor dele.
+ *
+ * Faz o mesmo que `value.evaluate()`, mas sem passar pela fila do SDK: o objeto
+ * é serializado como o SDK faria e enviado direto à API, dividindo com as
+ * outras leituras do processo um teto de pedidos simultâneos.
+ */
+export async function evaluateGeeObject<T>(value: {
   evaluate: (callback: (result: T, error?: unknown) => void) => void;
 }): Promise<T> {
-  return new Promise<T>((resolve, reject) => {
-    value.evaluate((result, error) => {
-      if (error) {
-        reject(error instanceof Error ? error : new Error(String(error)));
-        return;
-      }
-
-      resolve(result);
-    });
-  });
+  const expression = ee.Serializer.encodeCloudApi(value);
+  return withComputeSlot(() => computeGeeExpression<T>(expression));
 }
 
 export function clearGeeClientForTests() {
   geeInitialized = null;
+  geeCredentials = null;
+  geeProjectId = null;
+  accessToken = null;
 }

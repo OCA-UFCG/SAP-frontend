@@ -74,6 +74,7 @@ import { evaluateGeeObject } from "@/infrastructure/earth-engine/client";
 import {
   clearGeeStatisticsSchemaCacheForTests,
   getGeeStatisticsYearPatch,
+  preloadGeeStatisticsSchema,
 } from "@/repositories/platform/geeStatisticsRepository";
 import { clearGeeStatisticsRowsCache } from "@/repositories/platform/geeStatisticsRowsCache";
 
@@ -212,6 +213,35 @@ describe("leitura em lote da série estatística", () => {
     ).resolves.not.toBeNull();
 
     expect(mockedEvaluate).toHaveBeenCalledTimes(4);
+  });
+});
+
+// Regressão: as colunas ficam só na memória do processo, então o primeiro
+// relatório depois de cada deploy fazia uma ida a mais por camada, e as idas
+// dele esperavam umas pelas outras.
+describe("colunas lidas quando o servidor sobe", () => {
+  it("deixa a primeira leitura da camada só com as linhas", async () => {
+    await preloadGeeStatisticsSchema(source, YEARS);
+    const kindsBeforeRead = mockedEvaluate.mock.calls.map(
+      ([object]) => (object as FakeNode).kind,
+    );
+    mockedEvaluate.mockClear();
+
+    const result = await readPeriod("2020");
+
+    expect(kindsBeforeRead).toEqual(["propertyNames"]);
+    expect(
+      mockedEvaluate.mock.calls.map(([object]) => (object as FakeNode).kind),
+    ).toEqual(["collection", "collection", "collection"]);
+    expect(result?.patch.years?.["2020"]?.values).toEqual({
+      "2507507": [40, 60],
+    });
+  });
+
+  it("não lê nada de uma camada sem períodos publicados", async () => {
+    await preloadGeeStatisticsSchema(source, []);
+
+    expect(mockedEvaluate).not.toHaveBeenCalled();
   });
 });
 
