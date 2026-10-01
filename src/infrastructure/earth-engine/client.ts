@@ -40,13 +40,38 @@ const GEE_COMPUTE_MAX_ATTEMPTS = 4;
 /** O token é renovado com esta folga, para não expirar no meio de um pedido. */
 const ACCESS_TOKEN_REFRESH_MARGIN_MS = 5 * 60_000;
 
-let geeInitialized: Promise<void> | null = null;
-let geeCredentials: GeeServiceAccountCredentials | null = null;
-let geeProjectId: string | null = null;
-let accessToken: { authorization: string; expiresAt: number } | null = null;
-let accessTokenRefresh: Promise<string> | null = null;
-let activeComputes = 0;
-const waitingComputes: Array<() => void> = [];
+interface GeeClientState {
+  initialized: Promise<void> | null;
+  credentials: GeeServiceAccountCredentials | null;
+  projectId: string | null;
+  accessToken: { authorization: string; expiresAt: number } | null;
+  accessTokenRefresh: Promise<string> | null;
+  activeComputes: number;
+  waitingComputes: Array<() => void>;
+}
+
+/**
+ * O estado do cliente fica no `globalThis`, e não em variáveis do módulo.
+ *
+ * O Next empacota a subida do servidor (`instrumentation`) separada das rotas,
+ * e cada pacote recebia a sua cópia deste módulo. Com o estado no módulo, o
+ * Earth Engine inicializado na subida não valia para a rota do relatório, que
+ * refazia login e inicialização (~1,4 s) no primeiro pedido depois do deploy, e
+ * cada cópia tinha o seu próprio teto de leituras simultâneas.
+ * `@google/earthengine` fica fora dos pacotes (`serverExternalPackages`) pelo
+ * mesmo motivo: o objeto `ee` inicializado precisa ser o mesmo nos dois lados.
+ */
+const state = ((
+  globalThis as typeof globalThis & { __geeClientState?: GeeClientState }
+).__geeClientState ??= {
+  initialized: null,
+  credentials: null,
+  projectId: null,
+  accessToken: null,
+  accessTokenRefresh: null,
+  activeComputes: 0,
+  waitingComputes: [],
+});
 
 function encodeJwtPart(value: object) {
   return Buffer.from(JSON.stringify(value)).toString("base64url");
@@ -174,8 +199,8 @@ async function authenticateAndInitialize(): Promise<void> {
   const credentials = parseGeeCredentials(key);
   const projectId = resolveGeeProjectId(credentials);
   const token = await fetchGoogleOAuthToken(credentials);
-  geeCredentials = credentials;
-  geeProjectId = projectId;
+  state.credentials = credentials;
+  state.projectId = projectId;
   rememberAccessToken(token);
 
   ee.data.setAuthToken(
@@ -196,20 +221,20 @@ async function authenticateAndInitialize(): Promise<void> {
 }
 
 export function initializeGee(): Promise<void> {
-  if (geeInitialized) {
-    return geeInitialized;
+  if (state.initialized) {
+    return state.initialized;
   }
 
-  geeInitialized = authenticateAndInitialize().catch((error) => {
-    geeInitialized = null;
+  state.initialized = authenticateAndInitialize().catch((error) => {
+    state.initialized = null;
     throw error;
   });
 
-  return geeInitialized;
+  return state.initialized;
 }
 
 function rememberAccessToken(token: GoogleOAuthToken) {
-  accessToken = {
+  state.accessToken = {
     authorization: `${token.tokenType} ${token.accessToken}`,
     expiresAt: Date.now() + token.expiresIn * 1000,
   };
@@ -217,38 +242,38 @@ function rememberAccessToken(token: GoogleOAuthToken) {
 
 async function getAuthorizationHeader(): Promise<string> {
   if (
-    accessToken &&
-    accessToken.expiresAt - Date.now() > ACCESS_TOKEN_REFRESH_MARGIN_MS
+    state.accessToken &&
+    state.accessToken.expiresAt - Date.now() > ACCESS_TOKEN_REFRESH_MARGIN_MS
   ) {
-    return accessToken.authorization;
+    return state.accessToken.authorization;
   }
-  if (!geeCredentials) {
+  if (!state.credentials) {
     throw new Error("Earth Engine não inicializado: chame initializeGee().");
   }
 
-  accessTokenRefresh ??= fetchGoogleOAuthToken(geeCredentials)
+  state.accessTokenRefresh ??= fetchGoogleOAuthToken(state.credentials)
     .then((token) => {
       rememberAccessToken(token);
-      return accessToken!.authorization;
+      return state.accessToken!.authorization;
     })
     .finally(() => {
-      accessTokenRefresh = null;
+      state.accessTokenRefresh = null;
     });
 
-  return accessTokenRefresh;
+  return state.accessTokenRefresh;
 }
 
 async function withComputeSlot<T>(run: () => Promise<T>): Promise<T> {
-  if (activeComputes >= GEE_COMPUTE_CONCURRENCY) {
-    await new Promise<void>((resolve) => waitingComputes.push(resolve));
+  if (state.activeComputes >= GEE_COMPUTE_CONCURRENCY) {
+    await new Promise<void>((resolve) => state.waitingComputes.push(resolve));
   }
-  activeComputes += 1;
+  state.activeComputes += 1;
 
   try {
     return await run();
   } finally {
-    activeComputes -= 1;
-    waitingComputes.shift()?.();
+    state.activeComputes -= 1;
+    state.waitingComputes.shift()?.();
   }
 }
 
@@ -264,10 +289,10 @@ function waitBeforeRetry(attempt: number) {
  * SDK entregava.
  */
 async function computeGeeExpression<T>(expression: unknown): Promise<T> {
-  if (!geeProjectId) {
+  if (!state.projectId) {
     throw new Error("Earth Engine não inicializado: chame initializeGee().");
   }
-  const url = `https://earthengine.googleapis.com/v1/projects/${geeProjectId}/value:compute`;
+  const url = `https://earthengine.googleapis.com/v1/projects/${state.projectId}/value:compute`;
   const body = JSON.stringify({ expression });
 
   for (let attempt = 1; ; attempt += 1) {
@@ -329,8 +354,8 @@ export async function evaluateGeeObject<T>(value: {
 }
 
 export function clearGeeClientForTests() {
-  geeInitialized = null;
-  geeCredentials = null;
-  geeProjectId = null;
-  accessToken = null;
+  state.initialized = null;
+  state.credentials = null;
+  state.projectId = null;
+  state.accessToken = null;
 }
