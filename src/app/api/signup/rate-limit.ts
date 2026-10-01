@@ -2,6 +2,9 @@ import { createRateLimitStore } from "@/utils/rateLimitStore";
 
 const RATE_LIMIT_WINDOW_MS = 1000 * 60;
 
+/** O cadastro tem janela própria, mais longa: é a ação que um robô mais quer repetir. */
+const SIGNUP_RATE_LIMIT_WINDOW_MS = 1000 * 60 * 5;
+
 /**
  * Um orçamento por ação, não um compartilhado entre todas.
  *
@@ -14,8 +17,12 @@ const RATE_LIMIT_WINDOW_MS = 1000 * 60;
  * Os tetos seguem o custo real de cada ação:
  */
 
-/** Cria conta no Firebase E dispara e-mail. Cabe um treinamento inteiro se cadastrando junto. */
-export const SIGNUP_RATE_LIMIT_MAX_REQUESTS = 20;
+/**
+ * Cria conta no Firebase E dispara e-mail pela conta da equipe: um robô que
+ * cadastre e-mails de terceiros usa o nosso endereço para mandar spam. Duas
+ * tentativas a cada cinco minutos bastam para quem erra o e-mail uma vez.
+ */
+export const SIGNUP_RATE_LIMIT_MAX_REQUESTS = 2;
 
 /** Dispara e-mail a cada chamada: o mais apertado dos três. */
 export const RESEND_RATE_LIMIT_MAX_REQUESTS = 10;
@@ -65,12 +72,13 @@ function consume(
   store: ReturnType<typeof createRateLimitStore>,
   clientKey: string,
   maxRequests: number,
+  windowMs = RATE_LIMIT_WINDOW_MS,
 ) {
   const now = Date.now();
   const current = store.get(clientKey, now);
   const entry = current
     ? { count: current.count + 1, resetAt: current.resetAt }
-    : { count: 1, resetAt: now + RATE_LIMIT_WINDOW_MS };
+    : { count: 1, resetAt: now + windowMs };
 
   store.set(clientKey, entry, now);
 
@@ -81,7 +89,12 @@ function consume(
 }
 
 export function consumeSignupRateLimit(clientKey: string) {
-  return consume(signupRequests, clientKey, SIGNUP_RATE_LIMIT_MAX_REQUESTS);
+  return consume(
+    signupRequests,
+    clientKey,
+    SIGNUP_RATE_LIMIT_MAX_REQUESTS,
+    SIGNUP_RATE_LIMIT_WINDOW_MS,
+  );
 }
 
 export function consumeResendRateLimit(clientKey: string) {
@@ -98,4 +111,4 @@ export function clearSignupRateLimits() {
   confirmRequests.clear();
 }
 
-export { RATE_LIMIT_WINDOW_MS as SIGNUP_RATE_LIMIT_WINDOW_MS };
+export { SIGNUP_RATE_LIMIT_WINDOW_MS };

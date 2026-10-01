@@ -2,8 +2,8 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import {
   CONFIRM_RATE_LIMIT_MAX_REQUESTS,
-  RESEND_RATE_LIMIT_MAX_REQUESTS,
   SIGNUP_RATE_LIMIT_MAX_REQUESTS,
+  SIGNUP_RATE_LIMIT_WINDOW_MS,
   clearSignupRateLimits,
   consumeConfirmRateLimit,
   consumeResendRateLimit,
@@ -38,17 +38,27 @@ describe("signup rate limits", () => {
     expect(consumeResendRateLimit("ip:203.0.113.10").limited).toBe(false);
   });
 
-  it("keeps a budget that fits a whole office signing up together", () => {
-    expect(SIGNUP_RATE_LIMIT_MAX_REQUESTS).toBeGreaterThanOrEqual(20);
+  it("keeps the confirmation looser than the signup", () => {
     // Confirmar precisa da maior folga: programas de e-mail abrem o link
     // sozinhos para checar segurança, em paralelo com o clique da pessoa.
     expect(CONFIRM_RATE_LIMIT_MAX_REQUESTS).toBeGreaterThan(
       SIGNUP_RATE_LIMIT_MAX_REQUESTS,
     );
-    // Reenviar dispara e-mail a cada chamada: é o mais apertado dos três.
-    expect(RESEND_RATE_LIMIT_MAX_REQUESTS).toBeLessThan(
-      SIGNUP_RATE_LIMIT_MAX_REQUESTS,
-    );
+  });
+
+  it("releases the signup only after its five-minute window", () => {
+    vi.useFakeTimers();
+    try {
+      exhaust(consumeSignupRateLimit, SIGNUP_RATE_LIMIT_MAX_REQUESTS);
+
+      vi.advanceTimersByTime(SIGNUP_RATE_LIMIT_WINDOW_MS - 1000);
+      expect(consumeSignupRateLimit("ip:203.0.113.10").limited).toBe(true);
+
+      vi.advanceTimersByTime(1000);
+      expect(consumeSignupRateLimit("ip:203.0.113.10").limited).toBe(false);
+    } finally {
+      vi.useRealTimers();
+    }
   });
 
   it("counts each client separately", () => {
