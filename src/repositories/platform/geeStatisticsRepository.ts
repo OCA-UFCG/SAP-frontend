@@ -65,7 +65,24 @@ interface EvaluatedFeatureCollection {
   features?: EvaluatedFeature[];
 }
 
-const propertyNamesBySourceRevision = new Map<string, Promise<string[]>>();
+/**
+ * As colunas de cada série, guardadas no `globalThis` e não numa variável do
+ * módulo.
+ *
+ * O Next empacota o código da subida do servidor (`instrumentation`) separado
+ * das rotas, e cada pacote recebe a sua própria cópia deste módulo. Numa
+ * variável do módulo, as colunas aquecidas na subida ficavam numa cópia que a
+ * rota do relatório nunca lia: o primeiro relatório depois do deploy lia as 17
+ * de novo e levava 5,1 s, contra 2,5 s do segundo.
+ */
+const sharedState = globalThis as typeof globalThis & {
+  __geeStatisticsPropertyNames?: Map<string, Promise<string[]>>;
+};
+const propertyNamesBySourceRevision =
+  (sharedState.__geeStatisticsPropertyNames ??= new Map<
+    string,
+    Promise<string[]>
+  >());
 
 export interface GeeStatisticsMetrics {
   areaTotalHa?: number;

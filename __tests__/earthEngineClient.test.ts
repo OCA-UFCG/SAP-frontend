@@ -143,6 +143,28 @@ describe("evaluateGeeObject", () => {
     ]);
   });
 
+  // Regressão: a subida do servidor e a rota recebem cópias separadas deste
+  // módulo. Com o estado no módulo, a rota refazia login e inicialização no
+  // primeiro relatório depois do deploy.
+  it("usa a inicialização feita por outra cópia do módulo, como a da subida", async () => {
+    vi.resetModules();
+    const routeCopy = await import("@/infrastructure/earth-engine/client");
+    const oauthCallsBefore = vi
+      .mocked(fetch)
+      .mock.calls.filter(([url]) => String(url).includes("oauth2")).length;
+
+    await routeCopy.initializeGee();
+    await expect(
+      routeCopy.evaluateGeeObject(geeObject("colunas")),
+    ).resolves.toBe("ok");
+
+    expect(
+      vi
+        .mocked(fetch)
+        .mock.calls.filter(([url]) => String(url).includes("oauth2")),
+    ).toHaveLength(oauthCallsBefore);
+  });
+
   it("tenta de novo quando o Earth Engine pede calma com um 429", async () => {
     computeResponses.push(
       async () =>

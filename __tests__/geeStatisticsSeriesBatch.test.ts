@@ -238,6 +238,30 @@ describe("colunas lidas quando o servidor sobe", () => {
     });
   });
 
+  // Regressão: o Next dá à subida do servidor e à rota cópias separadas deste
+  // módulo. Com o cache numa variável do módulo, a rota não via as colunas
+  // aquecidas e o primeiro relatório depois do deploy lia as 17 de novo.
+  it("serve as colunas aquecidas a outra cópia do módulo, como a da rota", async () => {
+    await preloadGeeStatisticsSchema(source, YEARS);
+    mockedEvaluate.mockClear();
+
+    vi.resetModules();
+    const routeCopy =
+      await import("@/repositories/platform/geeStatisticsRepository");
+    await routeCopy.getGeeStatisticsYearPatch(
+      "indicearidez",
+      "2020",
+      "2507507",
+      2,
+      source,
+      YEARS,
+    );
+
+    expect(
+      mockedEvaluate.mock.calls.map(([object]) => (object as FakeNode).kind),
+    ).not.toContain("propertyNames");
+  });
+
   it("não lê nada de uma camada sem períodos publicados", async () => {
     await preloadGeeStatisticsSchema(source, []);
 
