@@ -728,6 +728,44 @@ export async function getGeeStatisticsYearPatch(
   );
 }
 
+/**
+ * Lê de antemão as colunas da série de uma camada, para que o primeiro painel
+ * ou relatório depois de um deploy não pague essa leitura.
+ *
+ * As colunas ficam guardadas na memória do processo, que começa vazia a cada
+ * deploy: antes, o primeiro relatório depois dele perguntava as colunas de cada
+ * camada no próprio clique, uma ida ao Earth Engine por camada antes de ler
+ * qualquer número. A chave do cache é a mesma de `getGeeStatisticsYearPatch`,
+ * então a leitura daqui serve direto para ele.
+ *
+ * @example
+ * await preloadGeeStatisticsSchema(layer.statisticsSource, ["2024", "2025"]);
+ */
+export async function preloadGeeStatisticsSchema(
+  source: PublishedGeeStatisticsSource | GeeStatisticsSource,
+  periodKeys: readonly string[],
+): Promise<void> {
+  const periodKey = periodKeys.at(-1);
+  if (
+    !periodKey ||
+    isMunicipalSpreadsheetSource(source) ||
+    isGeeMunicipalValueTableSource(source)
+  ) {
+    return;
+  }
+
+  await initializeGee();
+
+  const resolvedSource = resolveGeeStatisticsSource(source, periodKey);
+  await getGeeStatisticsSchema(
+    resolvedSource,
+    "sourceRevision" in source && typeof source.sourceRevision === "string"
+      ? source.sourceRevision
+      : undefined,
+    resolveSeriesAssetIds(source, periodKeys, resolvedSource.assetId),
+  );
+}
+
 export function clearGeeStatisticsSchemaCacheForTests(): void {
   propertyNamesBySourceRevision.clear();
 }
