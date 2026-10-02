@@ -30,6 +30,7 @@ import {
   getMunicipalReportClasses,
   resolveMunicipalReportSnapshot,
   stableMunicipalReportAlias,
+  toMunicipalReportMapChoropleth,
   toMunicipalReportPresentation,
 } from "@/utils/municipalReport";
 import { computeReportSeriesVariables } from "@/utils/reportSeriesVariables";
@@ -540,6 +541,9 @@ export async function buildMunicipalReport(
           sourcePeriods,
           spatialPeriods,
         );
+        const mapChoropleth = toMunicipalReportMapChoropleth(
+          config.baseImageData,
+        );
         return {
           id: config.panelLayerId,
           alias: config.alias,
@@ -558,6 +562,7 @@ export async function buildMunicipalReport(
           ...(config.reportPresentation
             ? { presentation: config.reportPresentation }
             : {}),
+          ...(mapChoropleth ? { mapChoropleth } : {}),
         };
       } catch (error) {
         console.error(

@@ -17,6 +17,7 @@ import type { MunicipalReportAnalysis } from "@/contracts/municipalReport";
 import {
   buildMunicipalReportChartData,
   getVisibleChartColor,
+  resolveMunicipalReportChartAxisMax,
 } from "@/utils/municipalReportChart";
 import { formatMunicipalReportValue } from "@/utils/municipalReportValue";
 
@@ -99,10 +100,10 @@ export function MunicipalReportDynamicChart({
       series.points.map((point) => point.value),
     ),
   );
-  const axisMax =
-    analysis.valueType === "absolute"
-      ? Math.max(1, Math.ceil(observedMax / 5) * 5)
-      : 100;
+  const axisMax = resolveMunicipalReportChartAxisMax(
+    analysis.valueType,
+    observedMax,
+  );
   const yTicks = Array.from({ length: 6 }, (_, index) => (axisMax / 5) * index);
   const referenceLinePeriod = chartData.categories.some(
     (category) => category.period === chartData.referencePeriod,

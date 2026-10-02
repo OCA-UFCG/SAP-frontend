@@ -196,6 +196,12 @@ describe("ReportMapPreview", () => {
       expect.objectContaining({ id: "5200050" }),
       { indexChoroplethClass: 1 },
     );
+    // A fonte de visão geral não existe neste mapa: gravar nela era um erro no
+    // console por município.
+    expect(mapInstances[0].setFeatureState).not.toHaveBeenCalledWith(
+      expect.objectContaining({ source: "amfe-cities-overview" }),
+      expect.anything(),
+    );
 
     emit(0, "idle");
     await waitFor(() =>

@@ -84,6 +84,35 @@ export function buildMunicipalReportChartData(
   return { categories, series, referencePeriod };
 }
 
+const NICE_AXIS_STEPS = [1, 2, 2.5, 5, 10];
+
+/**
+ * O topo do eixo Y do gráfico de linha: 100 nos percentuais e, nos valores
+ * absolutos, o menor múltiplo "redondo" que divide o eixo em cinco faixas
+ * acima do maior valor.
+ *
+ * Arredondar para o múltiplo de 5 acima esmagava as séries pequenas: o IDH,
+ * que vai de 0 a 1, ficava numa linha rente ao chão de um eixo até 5.
+ *
+ * @example
+ * resolveMunicipalReportChartAxisMax("absolute", 0.8); // 1
+ * resolveMunicipalReportChartAxisMax("absolute", 3); // 5
+ */
+export function resolveMunicipalReportChartAxisMax(
+  valueType: MunicipalReportAnalysis["valueType"],
+  observedMax: number,
+) {
+  if (valueType === "percentage") return 100;
+  if (!(observedMax > 0)) return 1;
+
+  const roughStep = observedMax / 5;
+  const magnitude = 10 ** Math.floor(Math.log10(roughStep));
+  const step =
+    NICE_AXIS_STEPS.find((candidate) => candidate * magnitude >= roughStep)! *
+    magnitude;
+  return step * 5;
+}
+
 function parseHexColor(color: string) {
   const hex = color.replace("#", "");
   if (!/^[0-9a-f]{6}$/i.test(hex)) return null;

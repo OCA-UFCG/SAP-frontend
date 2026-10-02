@@ -75,6 +75,7 @@
       "classCoverageTitle": "Classes by area coverage (%)",
       "spatialDistributionTitle": "Spatial distribution",
       "timeSeriesTitle": "Time series by class",
+      "valueTimeSeriesTitle": "Time series",
       "timeSeriesAnalysisTitle": "Time series analysis",
       "footerCredits": "MMA/DCDE · OCA · UFCG · INSA"
     },

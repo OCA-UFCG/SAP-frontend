@@ -26,8 +26,8 @@ import {
   resolveSpatialFocusBounds,
 } from "@/components/Map/mapBounds";
 import {
-  applyIndexChoroplethStates,
   ensureIndexChoroplethLayers,
+  INDEX_CHOROPLETH_STATE_KEY,
 } from "@/components/Map/indexChoroplethLayers";
 import {
   MUNICIPALITY_BORDER_LAYER_ID,
@@ -85,7 +85,20 @@ function addChoroplethLayers(
   { palette, classByCode }: ReportMapChoropleth,
 ) {
   ensureIndexChoroplethLayers(map, palette, null, 0.85);
-  applyIndexChoroplethStates(map, classByCode);
+  // Só a malha municipal em tiles: `applyIndexChoroplethStates` grava também na
+  // fonte de visão geral, que aqui não existe, e cada um dos 5.570 municípios
+  // virava um erro no console — o bastante para derrubar a aba com vários
+  // mapas no relatório.
+  for (const [code, classIndex] of Object.entries(classByCode)) {
+    map.setFeatureState(
+      {
+        source: MUNICIPALITY_SOURCE_ID,
+        sourceLayer: MUNICIPALITY_SOURCE_LAYER,
+        id: code,
+      },
+      { [INDEX_CHOROPLETH_STATE_KEY]: classIndex },
+    );
+  }
   // A coropleta entra no topo e cobriria o contorno preto do município.
   map.moveLayer(MUNICIPALITY_BORDER_LAYER_ID);
 }
