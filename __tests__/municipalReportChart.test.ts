@@ -4,6 +4,7 @@ import { renderMunicipalReportChart } from "@/services/municipalReportChartRende
 import {
   buildMunicipalReportChartData,
   MUNICIPAL_REPORT_PDF_CHART_MAX_MEASUREMENTS,
+  resolveMunicipalReportChartAxisMax,
 } from "@/utils/municipalReportChart";
 
 vi.mock("server-only", () => ({}));
@@ -172,5 +173,21 @@ describe("municipal report chart", () => {
     expect(svg).toContain(">410</text>");
     expect(svg).toContain("por classe (registros) - referencia");
     expect(svg).not.toContain(">100%</text>");
+  });
+});
+
+describe("resolveMunicipalReportChartAxisMax", () => {
+  it("mantém 100 nos percentuais", () => {
+    expect(resolveMunicipalReportChartAxisMax("percentage", 52.3)).toBe(100);
+  });
+
+  it("escolhe um topo redondo logo acima do maior valor absoluto", () => {
+    // O IDH (0 a 1) não fica esmagado num eixo até 5.
+    expect(resolveMunicipalReportChartAxisMax("absolute", 0.8)).toBeCloseTo(1);
+    expect(resolveMunicipalReportChartAxisMax("absolute", 3)).toBe(5);
+    expect(resolveMunicipalReportChartAxisMax("absolute", 28_442_130_794)).toBe(
+      50_000_000_000,
+    );
+    expect(resolveMunicipalReportChartAxisMax("absolute", 0)).toBe(1);
   });
 });

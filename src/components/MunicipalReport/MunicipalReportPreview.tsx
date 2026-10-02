@@ -47,6 +47,8 @@ import {
   selectStackedChartSnapshots,
 } from "@/utils/municipalReportStackedChart";
 import { MunicipalReportClassBars } from "./MunicipalReportClassBars";
+import { MunicipalReportDynamicChart } from "./MunicipalReportDynamicChart";
+import { MunicipalReportLinePrintChart } from "./MunicipalReportLinePrintChart";
 import { MunicipalReportNotes } from "./MunicipalReportNotes";
 import { MunicipalReportStackedChart } from "./MunicipalReportStackedChart";
 import { MunicipalReportStackedPrintChart } from "./MunicipalReportStackedPrintChart";
@@ -55,13 +57,17 @@ import { ReportDocumentFooter } from "./ReportDocumentFooter";
 import { ReportHero } from "./ReportHero";
 import { ReportSectionHeading } from "./ReportSectionHeading";
 import { ReportVariableIndex } from "./ReportVariableIndex";
-import { ReportMapPreview } from "./ReportMapPreview";
+import { ReportMapPreview, type ReportMapChoropleth } from "./ReportMapPreview";
 import { destroyReportMapPool } from "./reportMapPool";
 import { useReportMapCaptureQueue } from "./useReportMapCaptureQueue";
 import {
   useReportMapTileUrls,
   type ReportMapTileUrls,
 } from "./useReportMapTileUrls";
+import {
+  useReportMapChoropleths,
+  type ReportMapChoropleths,
+} from "./useReportMapChoropleths";
 import type { EeMapUrlFailure } from "@/contracts/eeMapUrls";
 
 export interface MunicipalReportPreviewProps {
@@ -111,6 +117,7 @@ const AnalysisSection = memo(function AnalysisSection({
   mapQueuedAt,
   onMapVisibility,
   mapTileUrl,
+  mapChoropleth,
   mapUnavailableReason,
   onMapCapture,
   docsContent,
@@ -128,6 +135,7 @@ const AnalysisSection = memo(function AnalysisSection({
   mapQueuedAt?: number | null;
   onMapVisibility?: (key: string, visible: boolean) => void;
   mapTileUrl?: string;
+  mapChoropleth?: ReportMapChoropleth;
   mapUnavailableReason?: EeMapUrlFailure;
   onMapCapture?: (key: string, src: string | null) => void;
   docsContent: MunicipalReportDocsContent | null;
@@ -321,6 +329,7 @@ const AnalysisSection = memo(function AnalysisSection({
                 imageSrc={mapSrc}
                 queuedAt={mapQueuedAt}
                 tileUrl={mapTileUrl}
+                choropleth={mapChoropleth}
                 unavailableReason={mapUnavailableReason}
                 onCapture={(src) => onMapCapture?.(mapKey, src)}
                 onVisibilityChange={(visible) =>
@@ -361,6 +370,39 @@ const AnalysisSection = memo(function AnalysisSection({
                 <div className="report-chart-print hidden">
                   <MunicipalReportStackedPrintChart
                     analysis={analysis}
+                    referencePeriod={referencePeriod}
+                    translateLabel={translateLabel}
+                  />
+                </div>
+              </div>
+            </div>
+          )}
+
+          {/* Pobreza, PIB e IDH são um valor por período, não classes que somam
+              100%: o gráfico empilhado não serve, e eles ficavam sem gráfico. */}
+          {!isStackableAnalysis(analysis) && analysis.timeSeries.length > 0 && (
+            <div className="report-time-series mt-8">
+              <ReportSectionHeading level={3} accent={accent}>
+                {t("document.valueTimeSeriesTitle")}
+              </ReportSectionHeading>
+              <div className="report-block mt-4 flex flex-col gap-4 overflow-hidden rounded-lg border border-[#EFEFEF] bg-[#F6F7F6] p-4">
+                <p className="font-open-sans text-base font-bold text-[#292829]">
+                  {historyRange}
+                </p>
+                {/* O Recharts mede o contêiner: sem altura fixa ele mede zero e
+                    não desenha nada. */}
+                <div className="report-chart-screen h-[340px]">
+                  <MunicipalReportDynamicChart
+                    analysis={analysis}
+                    locale={locale}
+                    referencePeriod={referencePeriod}
+                    translateLabel={translateLabel}
+                  />
+                </div>
+                <div className="report-chart-print hidden">
+                  <MunicipalReportLinePrintChart
+                    analysis={analysis}
+                    locale={locale}
                     referencePeriod={referencePeriod}
                     translateLabel={translateLabel}
                   />
@@ -416,6 +458,7 @@ const ReportDocument = memo(function ReportDocument({
   activeMapKeys,
   mapQueueStartedAt,
   mapTileUrls,
+  mapChoropleths,
   retryAttemptFor,
   onMapCapture,
   onMapVisibility,
@@ -432,6 +475,7 @@ const ReportDocument = memo(function ReportDocument({
   activeMapKeys: ReadonlySet<string>;
   mapQueueStartedAt: number | null;
   mapTileUrls: ReportMapTileUrls;
+  mapChoropleths: ReportMapChoropleths;
   retryAttemptFor: (key: string) => number;
   onMapCapture?: (key: string, src: string | null) => void;
   onMapVisibility?: (key: string, visible: boolean) => void;
@@ -524,7 +568,11 @@ const ReportDocument = memo(function ReportDocument({
                 mapAttempt={retryAttemptFor(mapKey)}
                 mapQueuedAt={mapQueueStartedAt}
                 mapTileUrl={mapTileUrls.tileUrlFor(mapKey)}
-                mapUnavailableReason={mapTileUrls.failureFor(mapKey)}
+                mapChoropleth={mapChoropleths.choroplethFor(mapKey)}
+                mapUnavailableReason={
+                  mapTileUrls.failureFor(mapKey) ??
+                  mapChoropleths.failureFor(mapKey)
+                }
                 onMapCapture={onMapCapture}
                 onMapVisibility={onMapVisibility}
                 docsContent={docsContent}
@@ -602,7 +650,7 @@ export function MunicipalReportPreview({
   const mapQueueMeasuredRef = useRef(false);
   const mapQueuePeakConcurrencyRef = useRef(0);
   const layerIdsKey = useMemo(() => layerIds?.join(",") ?? "", [layerIds]);
-  const requestedMapKeys = useMemo(() => {
+  const requestedMaps = useMemo(() => {
     if (!report) return [];
     const selectedLayerIds = layerIdsKey
       ? new Set(layerIdsKey.split(","))
@@ -615,19 +663,44 @@ export function MunicipalReportPreview({
       .filter(
         (analysis) => analysis.status === "available" && analysis.snapshot,
       )
-      .map(
-        (analysis) =>
-          `${analysis.id}:${analysis.effectivePeriod ?? analysis.snapshot?.period ?? report.requestedPeriod}`,
-      );
+      .map((analysis) => {
+        const period =
+          analysis.effectivePeriod ??
+          analysis.snapshot?.period ??
+          report.requestedPeriod;
+        return { key: `${analysis.id}:${period}`, analysis, period };
+      });
   }, [layerIdsKey, report]);
+  const requestedMapKeys = useMemo(
+    () => requestedMaps.map(({ key }) => key),
+    [requestedMaps],
+  );
+  // Um índice de planilha não tem imagem no Earth Engine: pedir a URL dele só
+  // devolvia um mapa sem cor. Ele é pintado com os valores por município.
+  const eeMapKeys = useMemo(
+    () =>
+      requestedMaps
+        .filter(({ analysis }) => !analysis.mapChoropleth)
+        .map(({ key }) => key),
+    [requestedMaps],
+  );
+  const choroplethRequests = useMemo(
+    () => requestedMaps.filter(({ analysis }) => analysis.mapChoropleth),
+    [requestedMaps],
+  );
   const loadErrorMessage = t("loadError");
-  const mapTileUrls = useReportMapTileUrls(requestedMapKeys);
+  const mapTileUrls = useReportMapTileUrls(eeMapKeys);
+  const mapChoropleths = useReportMapChoropleths(choroplethRequests);
   // A fila de captura recebe cada camada assim que a URL dela chega, e nunca as
   // que não têm imagem no período: montar um MapLibre para uma dessas só
   // gastava contexto WebGL e terminava em captura vazia.
   const reportMapKeys = useMemo(
-    () => requestedMapKeys.filter((key) => mapTileUrls.tileUrlFor(key)),
-    [mapTileUrls, requestedMapKeys],
+    () =>
+      requestedMapKeys.filter(
+        (key) =>
+          mapTileUrls.tileUrlFor(key) || mapChoropleths.choroplethFor(key),
+      ),
+    [mapChoropleths, mapTileUrls, requestedMapKeys],
   );
   const {
     activeMapKeys,
@@ -642,7 +715,8 @@ export function MunicipalReportPreview({
   // Enquanto as URLs não voltam a fila está vazia, e uma fila vazia estaria
   // "pronta": sem esta guarda o botão de exportar liberava antes do primeiro
   // mapa existir.
-  const mapsReady = mapTileUrls.resolved && capturesReady;
+  const mapsReady =
+    mapTileUrls.resolved && mapChoropleths.resolved && capturesReady;
   const reportReadyForExport = mapsReady && docsResolved;
 
   useEffect(() => {
@@ -1028,6 +1102,7 @@ export function MunicipalReportPreview({
                 activeMapKeys={activeMapKeys}
                 mapQueueStartedAt={mapQueueStartedAt}
                 mapTileUrls={mapTileUrls}
+                mapChoropleths={mapChoropleths}
                 retryAttemptFor={retryAttemptFor}
                 onMapCapture={handleMapCapture}
                 onMapVisibility={handleMapVisibility}
@@ -1079,6 +1154,7 @@ export function MunicipalReportPreview({
             activeMapKeys={activeMapKeys}
             mapQueueStartedAt={mapQueueStartedAt}
             mapTileUrls={mapTileUrls}
+            mapChoropleths={mapChoropleths}
             retryAttemptFor={retryAttemptFor}
             onMapCapture={handleMapCapture}
             onMapVisibility={handleMapVisibility}

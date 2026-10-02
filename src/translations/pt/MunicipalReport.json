@@ -75,6 +75,7 @@
       "classCoverageTitle": "Classes por cobertura (%) da área",
       "spatialDistributionTitle": "Distribuição espacial",
       "timeSeriesTitle": "Série temporal por classe",
+      "valueTimeSeriesTitle": "Série temporal",
       "timeSeriesAnalysisTitle": "Análise da série temporal",
       "footerCredits": "MMA/DCDE · OCA · UFCG · INSA"
     },

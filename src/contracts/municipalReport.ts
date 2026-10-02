@@ -39,6 +39,13 @@ export interface MunicipalReportAnalysis {
    * opcional: um consumidor da v1 que o ignore continua correto.
    */
   presentation?: { sectionColor?: string; methodology?: string };
+  /**
+   * As faixas de cor de um índice criado a partir de planilha. Ele não tem
+   * imagem no Earth Engine: o mapa é pintado município a município com estas
+   * faixas, sobre os valores de `/api/municipal-analysis/{id}/choropleth`.
+   * Campo aditivo e opcional, ausente nos índices do Earth Engine.
+   */
+  mapChoropleth?: { palette: string[]; thresholds: number[] };
 }
 
 export type MunicipalReportTemplateValue = string | number | null;

@@ -18,11 +18,17 @@ vi.mock("@/components/MunicipalReport/ReportMapPreview", () => ({
   ReportMapPreview({
     active,
     onCapture,
+    layerId,
+    choropleth,
+    tileUrl,
   }: Pick<ComponentProps<"div">, "className"> & {
     active?: boolean;
     onCapture?: (src: string | null) => void;
+    layerId?: string;
+    choropleth?: unknown;
+    tileUrl?: string;
   }) {
-    reportMapPreviewRenderSpy();
+    reportMapPreviewRenderSpy({ layerId, choropleth, tileUrl });
     const capturedRef = useRef(false);
 
     useEffect(() => {
@@ -234,6 +240,100 @@ describe("MunicipalReportPreview", () => {
         .mocked(global.fetch)
         .mock.calls.some(([input]) => String(input).includes("/chart?")),
     ).toBe(false);
+  });
+
+  it("pinta o mapa do índice de planilha e desenha a série de valor único", async () => {
+    const povertySnapshot = (period: string, percentage: number) => {
+      const item = {
+        id: "pobreza",
+        label: "Famílias em situação de pobreza",
+        color: "#BD0026",
+        percentage,
+      };
+      return {
+        period,
+        label: period,
+        distribution: [item],
+        dominantClass: item,
+      };
+    };
+    const spreadsheetReport: MunicipalReportData = {
+      ...report,
+      analyses: [
+        {
+          id: "percentual-de-pobreza",
+          alias: "pobreza",
+          title: "Percentual de pobreza",
+          category: "Dados Socioeconômicos",
+          unit: "%",
+          valueType: "percentage",
+          status: "available",
+          requestedPeriod: "2026",
+          effectivePeriod: "2025",
+          classes: [
+            {
+              id: "pobreza",
+              label: "Famílias em situação de pobreza",
+              color: "#BD0026",
+            },
+          ],
+          snapshot: povertySnapshot("2025", 52.3),
+          timeSeries: [
+            povertySnapshot("2024", 56.3),
+            povertySnapshot("2025", 52.3),
+          ],
+          mapChoropleth: { palette: ["#FFF", "#F00"], thresholds: [50] },
+        },
+      ],
+    };
+    vi.mocked(global.fetch).mockImplementation(async (input) => {
+      const url = String(input);
+      if (url.includes("/docs?")) return Response.json({ content: {} });
+      if (url.includes("/choropleth?")) {
+        return Response.json({
+          year: "2025",
+          values: { "5200050": 52.3, "5200100": 40 },
+        });
+      }
+      if (url.includes("/api/ee/map-urls")) return Response.json({ maps: [] });
+      return Response.json(spreadsheetReport);
+    });
+
+    render(
+      <MunicipalReportPreview
+        locationKey="5200050"
+        period="2026"
+        layerIds={["percentual-de-pobreza"]}
+        embedded
+      />,
+    );
+
+    expect(await screen.findByText("Série temporal")).toBeInTheDocument();
+    await waitFor(() => {
+      expect(screen.getByRole("button", { name: "Baixar PDF" })).toBeEnabled();
+    });
+    expect(reportMapPreviewRenderSpy).toHaveBeenLastCalledWith({
+      layerId: "percentual-de-pobreza",
+      choropleth: {
+        palette: ["#FFF", "#F00"],
+        classByCode: { "5200050": 1, "5200100": 0 },
+      },
+      tileUrl: undefined,
+    });
+    const requestedUrls = vi
+      .mocked(global.fetch)
+      .mock.calls.map(([input]) => String(input));
+    expect(
+      requestedUrls.some((url) =>
+        url.includes(
+          "/api/municipal-analysis/percentual-de-pobreza/choropleth?year=2025",
+        ),
+      ),
+    ).toBe(true);
+    // Sem imagem no Earth Engine, o índice não entra no pedido de URLs.
+    expect(requestedUrls.some((url) => url.includes("/api/ee/map-urls"))).toBe(
+      false,
+    );
   });
 
   it("leva o pedido do relatório no link Ver monitor, para a volta não perdê-lo", async () => {
