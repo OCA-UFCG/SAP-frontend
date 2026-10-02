@@ -34,6 +34,9 @@
 !/scripts/backfill-access-claims.mjs
 # Prova que a conta de envio funciona, antes de confiar nela em produção.
 !/scripts/send-test-email.mjs
+# Gerador da lista de nomes da busca de Territórios: o artefato em public/data
+# é commitado e precisa ser regerado quando um asset das camadas for trocado.
+!/scripts/build-reference-territories.mjs
 /scripts/gee/
 /tmp
 mise.toml

@@ -24,6 +24,7 @@ export function AmfeMapOverlays() {
     setFillOpacity,
     referenceOverlays,
     toggleReferenceOverlay,
+    focusTerritory,
     municipalityClassification,
     isClassificationBelowZoomFloor,
   } = useAmfeAnalysis();
@@ -42,6 +43,7 @@ export function AmfeMapOverlays() {
         <ReferenceOverlaysControl
           activeOverlays={referenceOverlays}
           onToggle={toggleReferenceOverlay}
+          onSelectTerritory={focusTerritory}
         />
         {municipalityClassification && <AmfeMapLegend />}
       </div>

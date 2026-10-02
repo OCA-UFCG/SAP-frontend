@@ -28,6 +28,7 @@ describe("MapControlDisclosure", () => {
       <ReferenceOverlaysControl
         activeOverlays={new Set()}
         onToggle={() => {}}
+        onSelectTerritory={() => {}}
       />,
     );
     const { container: caption } = render(
@@ -44,6 +45,7 @@ describe("MapControlDisclosure", () => {
       <ReferenceOverlaysControl
         activeOverlays={new Set()}
         onToggle={() => {}}
+        onSelectTerritory={() => {}}
       />,
     );
     fireEvent.click(screen.getByRole("button", { name: "Territórios" }));
