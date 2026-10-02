@@ -26,9 +26,20 @@ export const RESEND_RATE_LIMIT_MAX_REQUESTS = 10;
  */
 export const CONFIRM_RATE_LIMIT_MAX_REQUESTS = 40;
 
+/** "Esqueci minha senha": dispara e-mail a cada chamada, como o reenvio. */
+export const PASSWORD_RESET_REQUEST_RATE_LIMIT_MAX_REQUESTS = 10;
+
+/**
+ * Conferir e usar o código do link de troca de senha. Mesma folga da
+ * confirmação, pelo mesmo motivo: a página confere o código assim que abre.
+ */
+export const PASSWORD_RESET_CODE_RATE_LIMIT_MAX_REQUESTS = 40;
+
 const signupRequests = createRateLimitStore();
 const resendRequests = createRateLimitStore();
 const confirmRequests = createRateLimitStore();
+const passwordResetRequests = createRateLimitStore();
+const passwordResetCodeRequests = createRateLimitStore();
 
 /**
  * Chave de cliente de uma requisição não autenticada, na mesma ordem de
@@ -92,10 +103,28 @@ export function consumeConfirmRateLimit(clientKey: string) {
   return consume(confirmRequests, clientKey, CONFIRM_RATE_LIMIT_MAX_REQUESTS);
 }
 
+export function consumePasswordResetRequestRateLimit(clientKey: string) {
+  return consume(
+    passwordResetRequests,
+    clientKey,
+    PASSWORD_RESET_REQUEST_RATE_LIMIT_MAX_REQUESTS,
+  );
+}
+
+export function consumePasswordResetCodeRateLimit(clientKey: string) {
+  return consume(
+    passwordResetCodeRequests,
+    clientKey,
+    PASSWORD_RESET_CODE_RATE_LIMIT_MAX_REQUESTS,
+  );
+}
+
 export function clearSignupRateLimits() {
   signupRequests.clear();
   resendRequests.clear();
   confirmRequests.clear();
+  passwordResetRequests.clear();
+  passwordResetCodeRequests.clear();
 }
 
 export { RATE_LIMIT_WINDOW_MS as SIGNUP_RATE_LIMIT_WINDOW_MS };

@@ -41,12 +41,12 @@ de o bloqueio ser ligado.
 
 Sem estes, ou a funcionalidade não é segura, ou não funciona.
 
-| #   | Onde                                           | O quê                                       | Por quê                                                                                                                                                                                                                                                                                    |
-| --- | ---------------------------------------------- | ------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
-| 1   | Authentication → Settings → User actions       | **Desmarcar "Enable create (sign-up)"**     | A `NEXT_PUBLIC_FIREBASE_API_KEY` é pública. Com o cadastro pelo cliente ligado, qualquer pessoa cria conta de qualquer domínio direto na API do Google, sem passar pelo nosso formulário — e a regra de domínio deixa de valer. **Nosso cadastro usa o Admin SDK, que ignora essa trava.** |
-| 2   | Authentication → Settings → Password policy    | Ligar em **Require enforcement**, mínimo 8  | Em "Notify" o Firebase só avisa e aceita a senha mesmo assim.                                                                                                                                                                                                                              |
-| 3   | Firestore → Rules                              | Publicar o `firestore.rules` do repositório | O estado original era o modo de teste (`if request.time < timestamp.date(...)`): aberto até uma data e fechado depois **por expiração, não por decisão**. Quem "renovasse a data" abriria o banco inteiro, incluindo as intenções de uso.                                                  |
-| 4   | Firestore → Indexes                            | Publicar o `firestore.indexes.json`         | A tela de aprovação filtra por um campo e ordena por outro; sem o índice composto a consulta falha. Gratuito no plano Spark.                                                                                                                                                               |
+| #   | Onde                                        | O quê                                       | Por quê                                                                                                                                                                                                                                                                                    |
+| --- | ------------------------------------------- | ------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| 1   | Authentication → Settings → User actions    | **Desmarcar "Enable create (sign-up)"**     | A `NEXT_PUBLIC_FIREBASE_API_KEY` é pública. Com o cadastro pelo cliente ligado, qualquer pessoa cria conta de qualquer domínio direto na API do Google, sem passar pelo nosso formulário — e a regra de domínio deixa de valer. **Nosso cadastro usa o Admin SDK, que ignora essa trava.** |
+| 2   | Authentication → Settings → Password policy | Ligar em **Require enforcement**, mínimo 8  | Em "Notify" o Firebase só avisa e aceita a senha mesmo assim.                                                                                                                                                                                                                              |
+| 3   | Firestore → Rules                           | Publicar o `firestore.rules` do repositório | O estado original era o modo de teste (`if request.time < timestamp.date(...)`): aberto até uma data e fechado depois **por expiração, não por decisão**. Quem "renovasse a data" abriria o banco inteiro, incluindo as intenções de uso.                                                  |
+| 4   | Firestore → Indexes                         | Publicar o `firestore.indexes.json`         | A tela de aprovação filtra por um campo e ordena por outro; sem o índice composto a consulta falha. Gratuito no plano Spark.                                                                                                                                                               |
 
 Os arquivos 3 e 4 estão versionados na raiz do repositório e podem ir por
 `firebase deploy --only firestore:rules,firestore:indexes`.
@@ -110,29 +110,56 @@ esse registro sai como `error`; em desenvolvimento, como `info`.
 forma de testar o fluxo inteiro sem SMTP, copiando o link do terminal. **Deixe
 desligado fora do seu computador: o link de confirmação é uma credencial.**
 
+## Esqueci minha senha
+
+```
+/login → "Esqueci minha senha" → /esqueci-senha → POST /api/password-reset
+       → e-mail com o link → /<idioma>/redefinir-senha?code=…
+       → POST /api/password-reset/check    (confere o código, não o gasta)
+       → POST /api/password-reset/confirm  (troca a senha e encerra as sessões)
+```
+
+- **Mesmo desenho da confirmação de endereço.** O servidor gera o link com o
+  Admin SDK, tira dele só o código e manda a pessoa para a nossa página. Quem
+  entrega o código ao Firebase é o servidor (`src/lib/password-reset-code.ts`),
+  pela mesma API REST que confirma o endereço.
+- **A resposta do pedido é sempre a mesma**, com ou sem conta, e o e-mail sai
+  depois da resposta (`after`), para o tempo de resposta também não contar
+  quem tem conta.
+- **Não depende do bloqueio de acesso.** Trocar a senha não cria conta, e quem
+  tem conta feita à mão também esquece a senha.
+- **As sessões abertas com a senha antiga caem.** O Firebase já invalida os
+  tokens quando a senha muda, e a rota ainda chama `revokeRefreshTokens`. Pelo
+  cache de sessão verificada, isso leva até 60 segundos em cada servidor.
+- **A regra da senha nova** é a do cadastro (mínimo 8, conferido também no
+  servidor) mais a password policy do passo 2 acima.
+- **O link vale por uma hora** e uma vez só. Esse prazo é do Firebase.
+- **Ainda sem captcha**: só o limite por IP, com orçamento próprio, separado do
+  cadastro.
+
 ## Variáveis de ambiente
 
-| Variável                                  | Para quê                                                                                                                          |
-| ----------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------- |
-| `SIGNUP_ALLOWED_DOMAINS`                  | Domínios que entram sem aprovação manual. Vazia nega todos. **Nunca com prefixo `NEXT_PUBLIC_`** — a lista iria para o navegador. |
-| `PLATFORM_ACCESS_GUARD_ENABLED`           | O interruptor da ordem de implantação acima.                                                                                      |
-| `OCA_NOTIFICATION_EMAIL`                  | Caixa **da equipe** que recebe os pedidos. Não deve ser o e-mail de uma pessoa.                                                   |
-| `FIREBASE_ACCESS_REQUESTS_COLLECTION`     | Separa a coleção de desenvolvimento da de produção.                                                                               |
-| `SMTP_USER`, `SMTP_PASSWORD`, `SMTP_FROM` | A conta de envio.                                                                                                                 |
+| Variável                                  | Para quê                                                                                                                               |
+| ----------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------- |
+| `SIGNUP_ALLOWED_DOMAINS`                  | Domínios que entram sem aprovação manual. Vazia nega todos. **Nunca com prefixo `NEXT_PUBLIC_`** — a lista iria para o navegador.      |
+| `PLATFORM_ACCESS_GUARD_ENABLED`           | O interruptor da ordem de implantação acima.                                                                                           |
+| `OCA_NOTIFICATION_EMAIL`                  | Caixa **da equipe** que recebe os pedidos. Não deve ser o e-mail de uma pessoa.                                                        |
+| `FIREBASE_ACCESS_REQUESTS_COLLECTION`     | Separa a coleção de desenvolvimento da de produção.                                                                                    |
+| `SMTP_USER`, `SMTP_PASSWORD`, `SMTP_FROM` | A conta de envio.                                                                                                                      |
 | `EMAIL_LINKS_BASE_URL`                    | Domínio dos links dentro dos e-mails. Só a produção precisa, porque atende por vários domínios; os outros usam `NEXT_PUBLIC_HOST_URL`. |
-| `SIGNUP_SEND_REJECTION_EMAIL`             | Se quem é recusado recebe aviso. Desligado até a equipe decidir.                                                                  |
-| `MAIL_LOG_BODY`                           | Só desenvolvimento. Imprime o corpo dos e-mails no terminal.                                                                      |
+| `SIGNUP_SEND_REJECTION_EMAIL`             | Se quem é recusado recebe aviso. Desligado até a equipe decidir.                                                                       |
+| `MAIL_LOG_BODY`                           | Só desenvolvimento. Imprime o corpo dos e-mails no terminal.                                                                           |
 
 ## Decisões em aberto
 
 - **Ocupação de endereço institucional.** A conta nasce antes de alguém provar
   que a caixa é sua, então é possível cadastrar o e-mail de um terceiro com uma
   senha própria e ganhar o acesso quando essa pessoa clicar no link legítimo.
-  É defeito de desenho, não de código, e o conserto muda a arquitetura.
+  É defeito de desenho, não de código, e o conserto muda a arquitetura. O
+  "esqueci minha senha" dá à dona do endereço um jeito de retomar a conta e
+  derrubar as sessões de quem a ocupou, mas só depois que ela percebe.
 - **Captcha.** O plano pede captcha **e** limite de tentativas. O limite existe;
   o captcha não. Um programa automático troca de endereço de rede e passa por
   qualquer limite por IP.
-- **"Esqueci minha senha" não existe.** Com o cadastro pelo cliente desligado, a
-  única saída de quem esquecer a senha é intervenção manual.
 - **Não existe caminho no produto para remover o acesso de alguém.** Só pelo
   painel do Firebase.

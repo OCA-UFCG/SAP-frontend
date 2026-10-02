@@ -12,7 +12,7 @@ import { signupConfirmationUrl } from "@/lib/signup-urls";
  * conteúdo que tentaram mandar, então registrar `error.message` cru vaza o
  * segredo pela porta dos fundos. Aqui o código que vai no link é apagado antes.
  */
-function describeWithoutLink(error: unknown, code: string | null) {
+export function describeWithoutLink(error: unknown, code: string | null) {
   const message =
     error instanceof Error ? error.message : "erro desconhecido";
 

@@ -1,6 +1,7 @@
 import {
   APPROVALS_PATH,
   LOGIN_PATH,
+  PASSWORD_RESET_PATH,
   PENDING_APPROVAL_PATH,
   SIGNUP_PATH,
 } from "@/config/accessRoutes";
@@ -34,6 +35,8 @@ export const signupConfirmationUrl = (locale?: string) =>
   absoluteUrl(
     locale ? `/${locale}${SIGNUP_CONFIRMATION_PATH}` : SIGNUP_CONFIRMATION_PATH,
   );
+export const passwordResetUrl = (locale?: string) =>
+  absoluteUrl(locale ? `/${locale}${PASSWORD_RESET_PATH}` : PASSWORD_RESET_PATH);
 export const approvalsUrl = () => absoluteUrl(APPROVALS_PATH);
 export const loginUrl = () => absoluteUrl(LOGIN_PATH);
 export const pendingApprovalUrl = () => absoluteUrl(PENDING_APPROVAL_PATH);
