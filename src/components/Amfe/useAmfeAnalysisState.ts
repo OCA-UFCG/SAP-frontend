@@ -12,6 +12,7 @@ import {
 } from "@/components/Map/mapBounds";
 import { useSpatialBoundaryOverlay } from "@/components/PlatformMap/useSpatialBoundaryOverlay";
 import { useReferenceOverlayTiles } from "@/components/PlatformMap/useReferenceOverlayTileLayers";
+import { useTerritoryFocus } from "@/components/PlatformMap/useTerritoryFocus";
 import { PLATFORM_MAP_INITIAL_ZOOM } from "@/components/PlatformMap/platformMapView";
 import type { ReferenceLayerId } from "@/components/MapLayerContext/mapLayerState";
 import { getAllowedStateUfs } from "@/utils/interestAreaStates";
@@ -60,6 +61,10 @@ export function useAmfeAnalysisState() {
 
   const { tileUrls: referenceOverlayTileUrls } =
     useReferenceOverlayTiles(referenceOverlays);
+  const { territoryFocus, focusTerritory } = useTerritoryFocus(
+    referenceOverlays,
+    toggleReferenceOverlay,
+  );
 
   const spatialSelection = useMemo(
     () =>
@@ -148,6 +153,8 @@ export function useAmfeAnalysisState() {
     referenceOverlays,
     toggleReferenceOverlay,
     referenceOverlayTileUrls,
+    territoryFocus,
+    focusTerritory,
     spatialSelection,
     municipalityClassification,
     overviewGeoJson,

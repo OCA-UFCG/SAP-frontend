@@ -6,19 +6,22 @@ import { consumeEeRateLimit } from "@/app/api/ee/rate-limit";
 import { getAuthenticatedUserId } from "@/lib/server-session";
 import { initializeGee } from "@/infrastructure/earth-engine/client";
 import { ensureEeCacheWarmupStarted } from "@/app/api/ee/services";
+import referenceLayers from "@/config/referenceLayers.json";
 
 /**
  * Fixed reference overlay layers — FeatureCollections rendered with one style
- * per layer (see `REFERENCE_LAYER_STYLES`). These are **not** managed in Contentful; their GEE asset IDs are
- * hardcoded here.
+ * per layer (see `REFERENCE_LAYER_STYLES`). These are **not** managed in
+ * Contentful; their GEE asset IDs live in `src/config/referenceLayers.json`,
+ * which the territory search script (`scripts/build-reference-territories.mjs`)
+ * also reads — swapping an asset there and rerunning the script keeps the map
+ * and the search on the same data.
  */
-const REFERENCE_LAYER_ASSETS: Record<string, string> = {
-  quilombolas: "projects/obscaatinga/assets/Areas_Quilombolas_INCRA",
-  assentamentos: "projects/obscaatinga/assets/Assentamento_Brasil_INCRA",
-  terras_indigenas: "projects/obscaatinga/assets/TIs_Funai_jul26",
-  unidades_conservacao:
-    "projects/ee-ulissesalencar17/assets/cnuc_2026_03_atualizado",
-};
+const REFERENCE_LAYER_ASSETS: Record<string, string> = Object.fromEntries(
+  Object.entries(referenceLayers).map(([layerId, { assetId }]) => [
+    layerId,
+    assetId,
+  ]),
+);
 
 interface ReferenceLayerStyle {
   color: string;

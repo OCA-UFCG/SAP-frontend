@@ -29,6 +29,7 @@ export function MonitoringMapOverlays({
     setLayerOpacity,
     referenceOverlays,
     toggleReferenceOverlay,
+    focusTerritory,
   } = monitoring;
 
   return (
@@ -55,6 +56,7 @@ export function MonitoringMapOverlays({
           <ReferenceOverlaysControl
             activeOverlays={referenceOverlays}
             onToggle={toggleReferenceOverlay}
+            onSelectTerritory={focusTerritory}
           />
         )}
         {showControls && activeLegend && activeLegend.length > 0 && (

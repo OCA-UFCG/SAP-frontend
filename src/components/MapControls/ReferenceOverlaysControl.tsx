@@ -11,15 +11,19 @@ import {
   MAP_CONTROL_LABEL_CLASS,
   MapControlDisclosure,
 } from "./MapControlCard";
+import type { ReferenceTerritory } from "./referenceTerritories";
+import { TerritorySearch } from "./TerritorySearch";
 
 interface ReferenceOverlaysControlProps {
   activeOverlays: ReadonlySet<ReferenceLayerId>;
   onToggle: (layerId: ReferenceLayerId) => void;
+  onSelectTerritory: (territory: ReferenceTerritory) => void;
 }
 
 export function ReferenceOverlaysControl({
   activeOverlays,
   onToggle,
+  onSelectTerritory,
 }: ReferenceOverlaysControlProps) {
   const t = useTranslations("PlatformMap");
 
@@ -27,6 +31,7 @@ export function ReferenceOverlaysControl({
     <MapControlDisclosure label={t("referenceOverlays")}>
       {() => (
         <div className="flex flex-col gap-1.5">
+          <TerritorySearch onSelect={onSelectTerritory} />
           {REFERENCE_LAYER_IDS.map((layerId) => (
             <label
               key={layerId}
