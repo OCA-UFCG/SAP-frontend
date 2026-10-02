@@ -164,57 +164,6 @@ com expulsão do menos recentemente usado. Um relatório municipal completo ocup
 
 ---
 
-## Chart API (geração de imagem)
-
-`GET /api/municipal-report/{chaveTerritorial}/chart?period=YYYY-MM&analysis=alias` exige sessão autenticada e retorna um **PNG** do gráfico de série temporal.
-
-### Parâmetros
-
-| Parâmetro  | Tipo  | Obrigatório | Descrição                                                                |
-| ---------- | ----- | ----------- | ------------------------------------------------------------------------ |
-| `period`   | query | sim         | Período no formato `YYYY` ou `YYYY-MM`                                   |
-| `analysis` | query | sim         | Um ou mais IDs/aliases separados por vírgula (ex: `seca`, `seca,aridez`) |
-
-### Comportamento
-
-Retorna sempre um objeto JSON contendo as informações do município, o período solicitado e um array com os gráficos gerados codificados em **base64**:
-
-```json
-{
-  "municipality": { "code": "2504009", "name": "Campina Grande", "uf": "PB" },
-  "requestedPeriod": "2024-01",
-  "charts": [
-    {
-      "analysisId": "anaseca",
-      "alias": "seca",
-      "title": "Monitor de Secas",
-      "period": "2024-01",
-      "contentType": "image/png",
-      "base64": "iVBORw0KGgo..."
-    }
-  ]
-}
-```
-
-### Exemplos
-
-```
-GET /api/municipal-report/2504009/chart?period=2024-01&analysis=seca
-GET /api/municipal-report/2504009/chart?period=2024&analysis=seca,aridez,degradacao
-
-```
-
-### Como compor uma imagem no html:
-
-```
-<img
-  src="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAA..."
-  alt="Monitor de Secas"
-/>
-```
-
----
-
 ## URLs de tiles dos mapas (`POST /api/ee/map-urls`)
 
 A imagem espacial de cada item do relatório é capturada no navegador: um mapa

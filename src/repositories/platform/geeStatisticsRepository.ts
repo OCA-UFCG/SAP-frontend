@@ -557,9 +557,9 @@ async function loadSeriesLocationRows(
   locationKey: string,
 ): Promise<Record<string, unknown>[]> {
   const locationFilter = buildLocationFilter(source, locationKey);
-  // Sem limitador de concorrência de propósito: o SDK do Earth Engine já
-  // despacha uma requisição a cada 350 ms de uma fila global do processo, então
-  // um limitador aqui só somaria espera à espera que já existe.
+  // Sem limitador de concorrência de propósito: `evaluateGeeObject` já segura
+  // no máximo 20 leituras simultâneas no processo inteiro
+  // (`GEE_COMPUTE_CONCURRENCY`), então um limitador aqui só somaria espera.
   const { rows, unavailableAssetIds, firstError } = await readStatisticsSeries(
     assetIds.map((assetId) => ({
       assetId,

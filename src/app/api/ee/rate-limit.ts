@@ -1,9 +1,9 @@
-import { createRateLimitStore } from "@/utils/rateLimitStore";
+import { createRateLimiter } from "@/utils/rateLimitStore";
 
 const EE_RATE_LIMIT_WINDOW_MS = 1000 * 60;
 const EE_RATE_LIMIT_MAX_REQUESTS = 30;
 
-const requestsByClient = createRateLimitStore();
+const eeRateLimiter = createRateLimiter({ windowMs: EE_RATE_LIMIT_WINDOW_MS });
 
 /**
  * Reserva vagas da janela do usuário. O custo é o número de idas ao Earth
@@ -23,33 +23,11 @@ const requestsByClient = createRateLimitStore();
  * const { granted } = consumeEeRateLimit(userId, misses.length);
  */
 export function consumeEeRateLimit(clientKey: string, cost = 1) {
-  const now = Date.now();
-  const currentEntry = requestsByClient.get(clientKey, now);
-  const used = currentEntry?.count ?? 0;
-  const resetAt = currentEntry?.resetAt ?? now + EE_RATE_LIMIT_WINDOW_MS;
-  const granted = Math.max(
-    0,
-    Math.min(cost, EE_RATE_LIMIT_MAX_REQUESTS - used),
-  );
-
-  requestsByClient.set(clientKey, { count: used + granted, resetAt }, now);
-
-  return {
-    granted,
-    limited: granted < cost,
-    headers: {
-      "X-RateLimit-Limit": String(EE_RATE_LIMIT_MAX_REQUESTS),
-      "X-RateLimit-Remaining": String(
-        Math.max(0, EE_RATE_LIMIT_MAX_REQUESTS - used - granted),
-      ),
-      "X-RateLimit-Reset": String(Math.ceil(resetAt / 1000)),
-    },
-    retryAfterSeconds: Math.max(1, Math.ceil((resetAt - now) / 1000)),
-  };
+  return eeRateLimiter.consume(clientKey, EE_RATE_LIMIT_MAX_REQUESTS, cost);
 }
 
 export function clearEeRateLimit() {
-  requestsByClient.clear();
+  eeRateLimiter.clear();
 }
 
 export { EE_RATE_LIMIT_MAX_REQUESTS, EE_RATE_LIMIT_WINDOW_MS };
