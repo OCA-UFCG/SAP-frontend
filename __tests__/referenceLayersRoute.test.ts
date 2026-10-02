@@ -25,6 +25,7 @@ import { POST } from "@/app/api/ee/reference-layers/route";
 import { removeCacheUrl } from "@/app/api/ee/cache";
 import { clearEeRateLimit } from "@/app/api/ee/rate-limit";
 import { getAuthenticatedUserId } from "@/lib/server-session";
+import { REFERENCE_LAYER_SWATCHES } from "@/components/MapLayerContext/mapLayerState";
 
 const mockedGetAuthenticatedUserId = vi.mocked(getAuthenticatedUserId);
 
@@ -92,6 +93,21 @@ describe("POST /api/ee/reference-layers", () => {
       "8B572A88",
       "2E6B3F88",
     ]);
+  });
+
+  it("paints each territory with the colors its checkbox shows", async () => {
+    for (const layerId of REFERENCE_LAYER_IDS) {
+      await POST(createMockRequest(layerId));
+    }
+
+    const styles = styleFeatureCollection.mock.calls.map(
+      (call) => (call as unknown as [{ color: string; fillColor: string }])[0],
+    );
+    REFERENCE_LAYER_IDS.forEach((layerId, index) => {
+      const swatch = REFERENCE_LAYER_SWATCHES[layerId];
+      expect(`#${styles[index].color}`).toBe(swatch.outline);
+      expect(`#${styles[index].fillColor.slice(0, 6)}`).toBe(swatch.fill);
+    });
   });
 
   it("rejects an unknown layer naming the valid values", async () => {
