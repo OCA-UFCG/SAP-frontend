@@ -30,6 +30,7 @@ import {
   STATES_SOURCE_ID,
   STATES_SOURCE_LAYER,
   ensureReferenceOverlayLayers,
+  type ReferenceOverlayTileUrls,
   ensureSpatialBoundaryLayer,
 } from "./mapDefinitions";
 import { useMapController } from "./useMapController";
@@ -56,8 +57,7 @@ import {
 import { useSpatialAreaClickSelection } from "./useSpatialAreaClickSelection";
 export type BasemapId = "osm" | "satellite";
 
-const EMPTY_TILE_URL_MAP: globalThis.Map<string, string | undefined> =
-  new globalThis.Map();
+const EMPTY_TILE_URL_MAP: ReferenceOverlayTileUrls = new globalThis.Map();
 
 export interface MapProps {
   mapMode?: MapMode;
@@ -99,7 +99,7 @@ export interface MapProps {
   classificationFillOpacity?: number;
   onZoomChange?: (zoom: number) => void;
   /** Tile URLs for active reference overlay layers (quilombolas, etc.). */
-  referenceOverlayTileUrls?: Map<string, string | undefined>;
+  referenceOverlayTileUrls?: ReferenceOverlayTileUrls;
 }
 
 const Map = ({
@@ -761,7 +761,7 @@ const Map = ({
   ]);
 
   const referenceOverlaySyncRef = useRef<{
-    tileUrls: globalThis.Map<string, string | undefined>;
+    tileUrls: ReferenceOverlayTileUrls;
     disarmRetry: (() => void) | null;
   }>({ tileUrls: EMPTY_TILE_URL_MAP, disarmRetry: null });
 

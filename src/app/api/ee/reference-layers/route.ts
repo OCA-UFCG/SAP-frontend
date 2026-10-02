@@ -9,7 +9,7 @@ import { ensureEeCacheWarmupStarted } from "@/app/api/ee/services";
 
 /**
  * Fixed reference overlay layers — FeatureCollections rendered with one style
- * per layer (see `REFERENCE_LAYER_STYLES`). These are **not** managed in Contentful; their GEE asset IDs are
+ * per layer (see `REFERENCE_LAYER_COLORS`). These are **not** managed in Contentful; their GEE asset IDs are
  * hardcoded here.
  */
 const REFERENCE_LAYER_ASSETS: Record<string, string> = {
@@ -26,30 +26,65 @@ interface ReferenceLayerStyle {
   width: number;
 }
 
-// Com todas as camadas em cinza, não dava para distinguir uma terra indígena de
-// uma UC quando elas se sobrepõem. Assentamentos mantêm o cinza original.
-const REFERENCE_LAYER_STYLES: Record<string, ReferenceLayerStyle> = {
-  quilombolas: { color: "6D1A36", fillColor: "8E243788", width: 0.5 },
-  assentamentos: { color: "888888", fillColor: "CCCCCC88", width: 0.5 },
-  terras_indigenas: { color: "6B3E1F", fillColor: "8B572A88", width: 0.5 },
-  unidades_conservacao: { color: "1B4D2B", fillColor: "2E6B3F88", width: 0.5 },
-};
-
-// v2: a URL do tile carrega o estilo; a chave v1 ainda apontaria para o cinza.
-const CACHE_KEY_PREFIX = "ref-overlay-v2";
-
-function buildRefCacheKey(layerId: string): string {
-  return `${CACHE_KEY_PREFIX}:${layerId}`;
+interface ReferenceLayerColors {
+  outline: string;
+  fill: string;
 }
 
+// Com todas as camadas em cinza, não dava para distinguir uma terra indígena de
+// uma UC quando elas se sobrepõem. Assentamentos mantêm o cinza original.
+const REFERENCE_LAYER_COLORS: Record<string, ReferenceLayerColors> = {
+  quilombolas: { outline: "6D1A36", fill: "8E2437" },
+  assentamentos: { outline: "888888", fill: "CCCCCC" },
+  terras_indigenas: { outline: "6B3E1F", fill: "8B572A" },
+  unidades_conservacao: { outline: "1B4D2B", fill: "2E6B3F" },
+};
+
+const TRANSPARENT = "00000000";
+const OUTLINE_WIDTH_PX = 1.5;
+const OUTLINE_HALO = "FFFFFFCC";
+const OUTLINE_HALO_WIDTH_PX = 3.5;
+
+// Interior e contorno saem em imagens separadas porque o GEE entrega cada uma
+// já pintada: numa imagem só, deixar o interior transparente desbotaria o
+// contorno junto. O interior vai opaco — quem dosa a transparência dele é o
+// cliente, conforme o zoom (`REFERENCE_OVERLAY_FILL_OPACITY`).
+//
+// De perto, sem o interior, é o contorno que marca o território, e a linha
+// escura sozinha some sobre as cores escuras do índice (marrom da TI sobre o
+// verde da produção primária, por exemplo). O halo claro por baixo mantém a
+// linha legível sobre qualquer paleta.
+const buildOutlineStyles = (
+  colors: ReferenceLayerColors,
+): ReferenceLayerStyle[] => [
+  { color: OUTLINE_HALO, fillColor: TRANSPARENT, width: OUTLINE_HALO_WIDTH_PX },
+  { color: colors.outline, fillColor: TRANSPARENT, width: OUTLINE_WIDTH_PX },
+];
+
+const buildFillStyles = (
+  colors: ReferenceLayerColors,
+): ReferenceLayerStyle[] => [
+  { color: TRANSPARENT, fillColor: colors.fill, width: 0 },
+];
+
+// v3: interior e contorno em URLs separadas; a chave v2 guardava a imagem única.
+const CACHE_KEY_PREFIX = "ref-overlay-v3";
+
+function buildRefCacheKey(layerId: string, part: "outline" | "fill"): string {
+  return `${CACHE_KEY_PREFIX}:${layerId}:${part}`;
+}
+
+/** Pinta cada estilo da lista por cima do anterior, numa imagem só. */
 async function getReferenceLayerTileUrl(
   assetId: string,
-  style: ReferenceLayerStyle,
+  styles: ReferenceLayerStyle[],
 ): Promise<string> {
   await initializeGee();
 
   const collection = ee.FeatureCollection(assetId);
-  const styledImage = collection.style(style);
+  const styledImage = styles
+    .map((style) => collection.style(style))
+    .reduce((bottom: any, top: any) => bottom.blend(top));
 
   const mapId = await new Promise<{ urlFormat: string }>((resolve, reject) => {
     styledImage.getMapId({}, (obj: any, error: any) =>
@@ -58,6 +93,22 @@ async function getReferenceLayerTileUrl(
   });
 
   return mapId.urlFormat;
+}
+
+async function resolveCachedTileUrl(
+  cacheKey: string,
+  assetId: string,
+  styles: ReferenceLayerStyle[],
+): Promise<string> {
+  // `getOrCreateCachedUrl` só compartilha requisições simultâneas; sem esta
+  // leitura cada toggle geraria um `getMapId` novo no Earth Engine — a
+  // `unidades_conservacao` sozinha leva ~4,5 s para responder.
+  const cachedUrl = getCachedUrl(cacheKey);
+  if (cachedUrl) return cachedUrl;
+
+  return getOrCreateCachedUrl(cacheKey, () =>
+    getReferenceLayerTileUrl(assetId, styles),
+  );
 }
 
 export async function POST(req: NextRequest) {
@@ -98,20 +149,23 @@ export async function POST(req: NextRequest) {
   }
 
   try {
-    const cacheKey = buildRefCacheKey(layerParam);
-    // `getOrCreateCachedUrl` só compartilha requisições simultâneas; sem esta
-    // leitura cada toggle geraria um `getMapId` novo no Earth Engine — a
-    // `unidades_conservacao` sozinha leva ~4,5 s para responder.
-    const cachedUrl = getCachedUrl(cacheKey);
-    if (cachedUrl) {
-      return NextResponse.json({ url: cachedUrl }, { status: 200 });
-    }
+    const colors = REFERENCE_LAYER_COLORS[layerParam];
+    // As duas imagens são pedidas ao mesmo tempo, então a camada não demora
+    // mais para aparecer do que quando era uma imagem só.
+    const [url, fillUrl] = await Promise.all([
+      resolveCachedTileUrl(
+        buildRefCacheKey(layerParam, "outline"),
+        assetId,
+        buildOutlineStyles(colors),
+      ),
+      resolveCachedTileUrl(
+        buildRefCacheKey(layerParam, "fill"),
+        assetId,
+        buildFillStyles(colors),
+      ),
+    ]);
 
-    const url = await getOrCreateCachedUrl(cacheKey, () =>
-      getReferenceLayerTileUrl(assetId, REFERENCE_LAYER_STYLES[layerParam]),
-    );
-
-    return NextResponse.json({ url }, { status: 200 });
+    return NextResponse.json({ url, fillUrl }, { status: 200 });
   } catch (error: any) {
     return NextResponse.json(
       { error: error?.message ?? String(error) },
