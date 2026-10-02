@@ -9,17 +9,16 @@ vi.mock("@/lib/server-session", () => ({
   getAuthenticatedUserId: vi.fn().mockResolvedValue("user-123"),
 }));
 
+const getGeeMapUrl = vi.hoisted(() => vi.fn());
 vi.mock("@/infrastructure/earth-engine/client", () => ({
   initializeGee: vi.fn().mockResolvedValue(undefined),
+  getGeeMapUrl,
 }));
 
-const getMapId = vi.fn();
 interface FakeStyledImage {
-  getMapId: typeof getMapId;
   blend: (top: FakeStyledImage) => FakeStyledImage;
 }
 const fakeStyledImage = (): FakeStyledImage => ({
-  getMapId,
   blend: () => fakeStyledImage(),
 });
 const styleFeatureCollection = vi.fn(fakeStyledImage);
@@ -52,11 +51,8 @@ function createMockRequest(layer: string): NextRequest {
 }
 
 beforeEach(() => {
-  getMapId.mockReset();
-  getMapId.mockImplementation(
-    (_params: unknown, callback: (obj: unknown, error?: string) => void) =>
-      callback({ urlFormat: "https://earthengine.example/tiles/{z}/{x}/{y}" }),
-  );
+  getGeeMapUrl.mockReset();
+  getGeeMapUrl.mockResolvedValue("https://earthengine.example/tiles/{z}/{x}/{y}");
   mockedGetAuthenticatedUserId.mockResolvedValue("user-123");
   clearEeRateLimit("user-123");
   for (const layerId of REFERENCE_LAYER_IDS) {
@@ -76,15 +72,13 @@ describe("POST /api/ee/reference-layers", () => {
     const response = await POST(createMockRequest("quilombolas"));
 
     expect(response.status).toBe(401);
-    expect(getMapId).not.toHaveBeenCalled();
+    expect(getGeeMapUrl).not.toHaveBeenCalled();
   });
 
   it("returns separate tile URLs for the outline and the fill", async () => {
-    getMapId.mockImplementation(
-      (_params: unknown, callback: (obj: unknown, error?: string) => void) =>
-        callback({
-          urlFormat: `https://earthengine.example/tiles/${getMapId.mock.calls.length}/{z}/{x}/{y}`,
-        }),
+    getGeeMapUrl.mockImplementation(
+      async () =>
+        `https://earthengine.example/tiles/${getGeeMapUrl.mock.calls.length}/{z}/{x}/{y}`,
     );
 
     const response = await POST(createMockRequest("terras_indigenas"));
@@ -162,7 +156,7 @@ describe("POST /api/ee/reference-layers", () => {
     expect(response.status).toBe(400);
     expect(body.error).toContain('"municipios"');
     expect(body.error).toContain("quilombolas");
-    expect(getMapId).not.toHaveBeenCalled();
+    expect(getGeeMapUrl).not.toHaveBeenCalled();
   });
 
   it("serves a repeated request from the cache instead of calling Earth Engine again", async () => {
@@ -170,22 +164,16 @@ describe("POST /api/ee/reference-layers", () => {
     await POST(createMockRequest("assentamentos"));
 
     // Uma chamada para o contorno e outra para o interior, só na primeira vez.
-    expect(getMapId).toHaveBeenCalledTimes(2);
+    expect(getGeeMapUrl).toHaveBeenCalledTimes(2);
   });
 
   it("propagates an Earth Engine failure as a 500 without caching it", async () => {
-    getMapId.mockImplementation(
-      (_params: unknown, callback: (obj: unknown, error?: string) => void) =>
-        callback(null, "Asset not found."),
-    );
+    getGeeMapUrl.mockRejectedValue(new Error("Asset not found."));
 
     const failed = await POST(createMockRequest("unidades_conservacao"));
     expect(failed.status).toBe(500);
 
-    getMapId.mockImplementation(
-      (_params: unknown, callback: (obj: unknown, error?: string) => void) =>
-        callback({ urlFormat: "https://earthengine.example/uc/{z}/{x}/{y}" }),
-    );
+    getGeeMapUrl.mockResolvedValue("https://earthengine.example/uc/{z}/{x}/{y}");
     const retried = await POST(createMockRequest("unidades_conservacao"));
 
     expect(retried.status).toBe(200);

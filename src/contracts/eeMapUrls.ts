@@ -9,15 +9,17 @@
 export const EE_MAP_URLS_MAX_ITEMS = 40;
 
 /**
- * Quanto tempo a rota segura a requisição esperando o Earth Engine. Vinte
- * camadas frias custam cerca de 13 s — o SDK do Earth Engine despacha uma
- * requisição a cada 350 ms de uma fila global — e segurar tudo isso numa
- * requisição só a deixaria à mercê do timeout do proxy, derrubando os vinte
- * mapas de uma vez. Quem não ficar pronto volta como `pending`: a ida ao Earth
- * Engine continua em voo e o cliente pede de novo, sem gastar vaga nem repetir
- * a chamada.
+ * Quanto tempo a rota segura a requisição esperando o Earth Engine. Quem não
+ * ficar pronto volta como `pending`: a ida ao Earth Engine continua em voo e o
+ * cliente pede de novo, sem gastar vaga nem repetir a chamada.
+ *
+ * O prazo é curto porque a resposta é tudo-ou-nada até ele vencer: com 5 s, as
+ * camadas que ficavam prontas em 1 s esperavam a mais lenta, e no frio de um
+ * deploy nenhum mapa do relatório começava a ser desenhado antes de 5 s. Com
+ * 1 s o relatório recebe o que já está pronto e começa a desenhar enquanto o
+ * resto chega.
  */
-export const EE_MAP_URLS_DEADLINE_MS = 5000;
+export const EE_MAP_URLS_DEADLINE_MS = 1000;
 
 export interface EeMapUrlRequestItem {
   name: string;

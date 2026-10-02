@@ -92,7 +92,13 @@ export async function getContent<T>(
   });
 
   if (!response.ok) {
-    throw new Error(`Contentful request failed with status ${response.status}`);
+    // O `status` vai junto para quem chama separar uma query recusada (400,
+    // por exemplo um campo que o ambiente ainda não tem) de um Contentful fora
+    // do ar (5xx), em que tentar outra query não adianta.
+    throw Object.assign(
+      new Error(`Contentful request failed with status ${response.status}`),
+      { status: response.status },
+    );
   }
 
   const json = (await response.json()) as ContentfulGraphQLResponse<T>;

@@ -12,9 +12,10 @@ import { chunk } from "@/utils/chunk";
  * bloco encareceria justamente o dia em que uma tabela está sendo reingerida.
  *
  * O ganho do relatório municipal não vem de blocos maiores, vem de os blocos
- * serem preenchidos com assets de camadas diferentes: o SDK do Earth Engine
- * despacha uma requisição a cada 350 ms de uma fila global do processo, então
- * 16 camadas pedindo ~167 assets pagam no número de idas, não no tamanho delas.
+ * serem preenchidos com assets de camadas diferentes: as idas correm em
+ * paralelo, mas dividem com todos os usuários do processo o teto de 20 leituras
+ * simultâneas do cliente do Earth Engine (`GEE_COMPUTE_CONCURRENCY`), então 16
+ * camadas pedindo ~167 assets pagam no número de idas, não no tamanho delas.
  */
 export const SERIES_ASSETS_PER_REQUEST = 15;
 
@@ -90,9 +91,9 @@ function takeOwnerTag() {
  * As linhas de uma série estatística, lidas junto com as séries que outras
  * camadas pediram na mesma janela.
  *
- * Cada camada do relatório municipal era uma ida própria ao Earth Engine, e as
- * idas não se sobrepõem: o SDK espaça o despacho em 350 ms. Juntar os assets de
- * todas elas troca ~23 idas por ~4 no relatório completo.
+ * Cada camada do relatório municipal era uma ida própria ao Earth Engine, e
+ * cada ida ocupa uma das 20 vagas de leitura simultânea do processo. Juntar os
+ * assets de todas elas troca ~23 idas por ~4 no relatório completo.
  *
  * @example
  * const { rows } = await readStatisticsSeries([

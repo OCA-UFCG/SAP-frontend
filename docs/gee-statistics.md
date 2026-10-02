@@ -260,8 +260,9 @@ quanto trabalho uma falha invalida e, medido, ainda é mais rápido que um pedid
 
 Os blocos não são de uma camada só. `geeStatisticsSeriesBatcher` junta numa
 janela de 20 ms as séries pedidas por camadas diferentes e preenche cada bloco
-com os assets de todas elas, porque o preço é o número de idas: o SDK do Earth
-Engine despacha uma requisição a cada 350 ms de uma fila global do processo. No
+com os assets de todas elas, porque o preço é o número de idas: elas correm em
+paralelo, mas dividem com todos os usuários do processo o teto de 20 leituras
+simultâneas do cliente do Earth Engine (`GEE_COMPUTE_CONCURRENCY`). No
 relatório municipal isso trocou ~23 idas por ~12, e o tempo de montagem caiu de
 10,5 s para 5,8 s num relatório estadual medido em desenvolvimento.
 

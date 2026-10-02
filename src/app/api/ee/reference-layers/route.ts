@@ -4,7 +4,10 @@ import ee from "@google/earthengine";
 import { getCachedUrl, getOrCreateCachedUrl } from "@/app/api/ee/cache";
 import { consumeEeRateLimit } from "@/app/api/ee/rate-limit";
 import { getAuthenticatedUserId } from "@/lib/server-session";
-import { initializeGee } from "@/infrastructure/earth-engine/client";
+import {
+  getGeeMapUrl,
+  initializeGee,
+} from "@/infrastructure/earth-engine/client";
 import { ensureEeCacheWarmupStarted } from "@/app/api/ee/services";
 import referenceLayers from "@/config/referenceLayers.json";
 
@@ -89,13 +92,7 @@ async function getReferenceLayerTileUrl(
     .map((style) => collection.style(style))
     .reduce((bottom: any, top: any) => bottom.blend(top));
 
-  const mapId = await new Promise<{ urlFormat: string }>((resolve, reject) => {
-    styledImage.getMapId({}, (obj: any, error: any) =>
-      error ? reject(new Error(error)) : resolve(obj),
-    );
-  });
-
-  return mapId.urlFormat;
+  return getGeeMapUrl(styledImage, {});
 }
 
 async function resolveCachedTileUrl(

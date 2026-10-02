@@ -2,7 +2,6 @@ import { AboutSection } from "@/components/AboutSection/AboutSection";
 import { MainBanner } from "@/components/MainBanner/MainBanner";
 import { PartnersSection } from "@/components/PartnersSection/PartnersSection";
 import TabsSection from "@/components/TabSection/TabSection";
-import MapSection from "@/components/MapSection/MapSection";
 import { ActionPlanSection } from "@/components/ActionPlanSection/ActionPlanSection";
 import { WorkingGroupSection } from "@/components/WorkingGroupSection/WorkingGroupSection";
 import { PlatformModulesSection } from "@/components/PlatformModulesSection/PlatformModulesSection";
@@ -13,8 +12,6 @@ import {
   MOCK_PLATFORM_MODULES_CONTENT,
   MOCK_WORKING_GROUP_CONTENT,
 } from "./homePage.mocks";
-
-const SHOW_MAP_SECTION = false;
 
 export default async function Home({
   params,
@@ -37,8 +34,6 @@ export default async function Home({
     <div className="flex min-h-screen flex-col">
       <main className="grow">
         {data.mainBanner && <MainBanner data={data.mainBanner} />}
-
-        {SHOW_MAP_SECTION && <MapSection />}
 
         <ActionPlanSection
           id="plano-de-acao-brasileiro"

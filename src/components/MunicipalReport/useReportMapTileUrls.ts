@@ -14,10 +14,18 @@ import {
  * Quanto esperar antes de perguntar de novo pelas camadas que o servidor
  * marcou como `pending`. A ida ao Earth Engine segue em voo lá; perguntar de
  * novo só descobre se ela já terminou, e não custa vaga do limitador.
+ *
+ * A espera é curta porque a própria rota já segura cada pergunta por até
+ * `EE_MAP_URLS_DEADLINE_MS`: somar mais tempo aqui só atrasaria a URL que
+ * ficou pronta logo depois da resposta.
  */
-export const REPORT_MAP_URLS_RETRY_DELAY_MS = 1500;
-/** Teto de tentativas: 20 camadas frias levam cerca de 13 s no total. */
-export const REPORT_MAP_URLS_MAX_ATTEMPTS = 20;
+export const REPORT_MAP_URLS_RETRY_DELAY_MS = 250;
+/**
+ * Teto de tentativas. Cada uma leva até ~1,25 s (o prazo da rota mais a
+ * espera acima), então 60 dão cerca de 75 s a uma camada lenta antes de ela
+ * virar indisponível — folga larga sobre os ~2 s que 18 camadas frias levam.
+ */
+export const REPORT_MAP_URLS_MAX_ATTEMPTS = 60;
 
 export interface ReportMapTileUrls {
   /** Verdadeiro quando toda camada já tem URL ou um motivo para não ter. */

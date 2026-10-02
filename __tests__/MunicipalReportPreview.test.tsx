@@ -28,7 +28,12 @@ vi.mock("@/components/MunicipalReport/ReportMapPreview", () => ({
     choropleth?: unknown;
     tileUrl?: string;
   }) {
-    reportMapPreviewRenderSpy({ layerId, choropleth, tileUrl });
+    reportMapPreviewRenderSpy({
+      layerId,
+      choropleth,
+      tileUrl,
+      ...(active ? { active } : {}),
+    });
     const capturedRef = useRef(false);
 
     useEffect(() => {
@@ -333,6 +338,55 @@ describe("MunicipalReportPreview", () => {
     // Sem imagem no Earth Engine, o índice não entra no pedido de URLs.
     expect(requestedUrls.some((url) => url.includes("/api/ee/map-urls"))).toBe(
       false,
+    );
+  });
+
+  // O índice de planilha não depende do Earth Engine: ele pega uma vaga da
+  // fila assim que os valores municipais chegam, sem esperar a URL das camadas
+  // de imagem, que no frio de um deploy pode levar segundos.
+  it("desenha o mapa de planilha enquanto as URLs do Earth Engine ainda não voltaram", async () => {
+    const spreadsheetAnalysis = {
+      ...report.analyses[0],
+      id: "percentual-de-pobreza",
+      alias: "pobreza",
+      title: "Percentual de pobreza",
+      mapChoropleth: { palette: ["#FFF", "#F00"], thresholds: [50] },
+    };
+    const mixedReport: MunicipalReportData = {
+      ...report,
+      analyses: [report.analyses[0], spreadsheetAnalysis],
+    };
+    vi.mocked(global.fetch).mockImplementation(async (input) => {
+      const url = String(input);
+      if (url.includes("/docs?")) return Response.json({ content: {} });
+      if (url.includes("/choropleth?")) {
+        return Response.json({ year: "2026", values: { "5200050": 52.3 } });
+      }
+      // O Earth Engine nunca responde neste teste.
+      if (url.includes("/api/ee/map-urls")) return new Promise(() => {});
+      return Response.json(mixedReport);
+    });
+
+    render(
+      <MunicipalReportPreview
+        locationKey="5200050"
+        period="2026"
+        layerIds={["anaseca", "percentual-de-pobreza"]}
+        embedded
+      />,
+    );
+
+    await waitFor(() => {
+      expect(reportMapPreviewRenderSpy).toHaveBeenCalledWith(
+        expect.objectContaining({
+          layerId: "percentual-de-pobreza",
+          active: true,
+          choropleth: expect.any(Object),
+        }),
+      );
+    });
+    expect(reportMapPreviewRenderSpy).not.toHaveBeenCalledWith(
+      expect.objectContaining({ layerId: "anaseca", active: true }),
     );
   });
 

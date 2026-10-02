@@ -1,4 +1,4 @@
-import { createRateLimitStore } from "@/utils/rateLimitStore";
+import { createRateLimiter } from "@/utils/rateLimitStore";
 
 /**
  * Guarda de taxa da análise multicritério.
@@ -17,33 +17,19 @@ import { createRateLimitStore } from "@/utils/rateLimitStore";
 const AMFE_ANALYZE_RATE_LIMIT_WINDOW_MS = 1000 * 60;
 const AMFE_ANALYZE_RATE_LIMIT_MAX_REQUESTS = 5;
 
-const requestsByClient = createRateLimitStore();
+const amfeAnalyzeRateLimiter = createRateLimiter({
+  windowMs: AMFE_ANALYZE_RATE_LIMIT_WINDOW_MS,
+});
 
 export function consumeAmfeAnalyzeRateLimit(clientKey: string) {
-  const now = Date.now();
-  const currentEntry = requestsByClient.get(clientKey, now);
-
-  const entry = !currentEntry
-    ? { count: 1, resetAt: now + AMFE_ANALYZE_RATE_LIMIT_WINDOW_MS }
-    : { count: currentEntry.count + 1, resetAt: currentEntry.resetAt };
-
-  requestsByClient.set(clientKey, entry, now);
-
-  return {
-    limited: entry.count > AMFE_ANALYZE_RATE_LIMIT_MAX_REQUESTS,
-    headers: {
-      "X-RateLimit-Limit": String(AMFE_ANALYZE_RATE_LIMIT_MAX_REQUESTS),
-      "X-RateLimit-Remaining": String(
-        Math.max(0, AMFE_ANALYZE_RATE_LIMIT_MAX_REQUESTS - entry.count),
-      ),
-      "X-RateLimit-Reset": String(Math.ceil(entry.resetAt / 1000)),
-    },
-    retryAfterSeconds: Math.max(1, Math.ceil((entry.resetAt - now) / 1000)),
-  };
+  return amfeAnalyzeRateLimiter.consume(
+    clientKey,
+    AMFE_ANALYZE_RATE_LIMIT_MAX_REQUESTS,
+  );
 }
 
 export function clearAmfeAnalyzeRateLimit() {
-  requestsByClient.clear();
+  amfeAnalyzeRateLimiter.clear();
 }
 
 export {

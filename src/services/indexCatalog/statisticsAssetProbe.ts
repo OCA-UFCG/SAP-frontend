@@ -46,10 +46,11 @@ export interface StatisticsAssetProbeRequest {
 // (com o nome dele no erro), e um lote menor invalida menos trabalho.
 const PROBE_BATCH_SIZE = 10;
 
-// Quantos lotes correm ao mesmo tempo. O SDK do Earth Engine despacha uma
-// requisição a cada 350 ms de uma fila global, então mais concorrência rende
-// pouco; o valor existe para um índice com muitos anos não virar uma fila
-// longa de lotes sequenciais.
+// Quantos lotes correm ao mesmo tempo. Cada lote ocupa uma das 20 vagas de
+// leitura simultânea que o processo inteiro divide (`GEE_COMPUTE_CONCURRENCY`),
+// então o valor fica baixo para a sondagem do catálogo não tomar as vagas do
+// mapa e do relatório; ele existe para um índice com muitos anos não virar uma
+// fila longa de lotes sequenciais.
 const PROBE_BATCH_CONCURRENCY = 3;
 
 function requiredProperties(
