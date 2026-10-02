@@ -1,5 +1,5 @@
 import type { Metadata } from "next";
-import { Geist, Geist_Mono, Inter, Open_Sans } from "next/font/google";
+import { Inter, Open_Sans } from "next/font/google";
 import { cache } from "react";
 import { Header } from "@/components/Header/Header";
 import { FooterSlot } from "@/components/Footer/FooterSlot";
@@ -9,16 +9,6 @@ import { AuthProvider } from "@/contexts/AuthContext";
 import { NextIntlClientProvider } from "next-intl";
 import { getMessages, getTranslations } from "next-intl/server";
 import "../globals.css";
-
-const geistSans = Geist({
-  variable: "--font-geist-sans",
-  subsets: ["latin"],
-});
-
-const geistMono = Geist_Mono({
-  variable: "--font-geist-mono",
-  subsets: ["latin"],
-});
 
 const inter = Inter({
   variable: "--font-inter",
@@ -126,7 +116,7 @@ export default async function RootLayout({
     <html lang={locale} data-scroll-behavior="smooth">
       <meta name="apple-mobile-web-app-title" content="Portal SEDES" />
       <body
-        className={`${geistSans.variable} ${geistMono.variable} ${inter.variable} ${openSans.variable} antialiased min-h-screen flex flex-col`}
+        className={`${inter.variable} ${openSans.variable} antialiased min-h-screen flex flex-col`}
       >
         <NextIntlClientProvider messages={messages}>
           <AuthProvider>
