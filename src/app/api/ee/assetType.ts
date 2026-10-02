@@ -1,6 +1,6 @@
 import "server-only";
 
-import ee from "@google/earthengine";
+import { getGeeAsset } from "@/infrastructure/earth-engine/client";
 import type { CompactMapVisualizationConfig } from "@/utils/analysis";
 
 /**
@@ -61,16 +61,12 @@ export function mapVisualizationAssetType(
 function requestAssetType(
   assetId: string,
 ): Promise<NormalizedGeeAssetType> {
-  return new Promise((resolve) => {
-    ee.data.getAsset(
-      assetId,
-      (asset: { type?: unknown } | undefined) =>
-        resolve(normalizeGeeAssetType(asset?.type)),
-      // Fallback seguro: sem tipo, `getEarthEngineUrl` cai no ramo de
-      // `ee.Image`, que é o comportamento histórico das camadas legadas.
-      () => resolve(""),
-    );
-  });
+  return getGeeAsset(assetId).then(
+    (asset) => normalizeGeeAssetType(asset?.type),
+    // Fallback seguro: sem tipo, `getEarthEngineUrl` cai no ramo de
+    // `ee.Image`, que é o comportamento histórico das camadas legadas.
+    () => "",
+  );
 }
 
 function getFreshAssetType(assetId: string) {

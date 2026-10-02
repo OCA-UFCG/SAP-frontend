@@ -282,30 +282,39 @@ function waitBeforeRetry(attempt: number) {
   return new Promise((resolve) => setTimeout(resolve, delayMs));
 }
 
-/**
- * Uma ida à API `value:compute` do Earth Engine, com as novas tentativas que o
- * SDK fazia sozinho: 429, 5xx e falhas de conexão esperam e tentam de novo; o
- * resto vira erro com a mensagem do Earth Engine, a mesma que o `evaluate` do
- * SDK entregava.
- */
-async function computeGeeExpression<T>(expression: unknown): Promise<T> {
+function requireProjectId() {
   if (!state.projectId) {
     throw new Error("Earth Engine não inicializado: chame initializeGee().");
   }
-  const url = `https://earthengine.googleapis.com/v1/projects/${state.projectId}/value:compute`;
-  const body = JSON.stringify({ expression });
+  return state.projectId;
+}
+
+/**
+ * Uma ida à API REST do Earth Engine, com as novas tentativas que o SDK fazia
+ * sozinho: 429, 5xx e falhas de conexão esperam e tentam de novo; o resto vira
+ * erro com a mensagem do Earth Engine, a mesma que o SDK entregava.
+ *
+ * Os pedidos aqui são leituras ou criam um id de mapa novo a cada vez, então
+ * repetir um deles nunca muda nada no Earth Engine.
+ */
+async function requestGeeApi<T>(
+  path: string,
+  { method, body }: { method: "GET" | "POST"; body?: unknown },
+): Promise<T> {
+  const url = `https://earthengine.googleapis.com/v1/${path}`;
+  const serializedBody = body === undefined ? undefined : JSON.stringify(body);
 
   for (let attempt = 1; ; attempt += 1) {
     const authorization = await getAuthorizationHeader();
     let response: Response;
     try {
       response = await fetch(url, {
-        method: "POST",
+        method,
         headers: {
           Authorization: authorization,
-          "Content-Type": "application/json",
+          ...(serializedBody ? { "Content-Type": "application/json" } : {}),
         },
-        body,
+        body: serializedBody,
         cache: "no-store",
         signal: AbortSignal.timeout(GEE_COMPUTE_ATTEMPT_TIMEOUT_MS),
       });
@@ -316,12 +325,11 @@ async function computeGeeExpression<T>(expression: unknown): Promise<T> {
       await waitBeforeRetry(attempt);
       continue;
     }
-    const payload = (await response.json().catch(() => ({}))) as {
-      result?: T;
+    const payload = (await response.json().catch(() => ({}))) as T & {
       error?: { message?: unknown };
     };
 
-    if (response.ok) return payload.result as T;
+    if (response.ok) return payload;
 
     if (
       GEE_COMPUTE_RETRYABLE_STATUS.has(response.status) &&
@@ -350,7 +358,74 @@ export async function evaluateGeeObject<T>(value: {
   evaluate: (callback: (result: T, error?: unknown) => void) => void;
 }): Promise<T> {
   const expression = ee.Serializer.encodeCloudApi(value);
-  return withComputeSlot(() => computeGeeExpression<T>(expression));
+  return withComputeSlot(async () => {
+    const { result } = await requestGeeApi<{ result: T }>(
+      `projects/${requireProjectId()}/value:compute`,
+      { method: "POST", body: { expression } },
+    );
+    return result;
+  });
+}
+
+/**
+ * Os metadados de um asset, no mesmo formato que `ee.data.getAsset` devolvia.
+ *
+ * O SDK passava cada `getAsset` pela mesma fila de um pedido a cada 350 ms que
+ * o `evaluate`, e o relatório pergunta o tipo de várias camadas de uma vez. A
+ * conversão do id para o nome do recurso e da resposta para o formato antigo
+ * usa as próprias funções do SDK, para que nada mude para quem lê o resultado.
+ *
+ * @example
+ * const asset = await getGeeAsset("projects/ee-sedes/assets/anaseca_2024_12");
+ * asset.type; // "Image"
+ */
+export async function getGeeAsset(
+  assetId: string,
+): Promise<Record<string, unknown>> {
+  requireProjectId();
+  const name = ee.rpc_convert.assetIdToAssetName(assetId);
+  const asset = await withComputeSlot(() =>
+    requestGeeApi<Record<string, unknown>>(`${name}?prettyPrint=false`, {
+      method: "GET",
+    }),
+  );
+  return ee.rpc_convert.assetToLegacyResult(asset);
+}
+
+/**
+ * O endereço de tiles de uma imagem, o mesmo `urlFormat` que
+ * `image.getMapId(visParams)` entregava, sem passar pela fila do SDK.
+ *
+ * O corpo do pedido é montado pelas funções que o próprio `getMapId` usa
+ * (`applyVisualization`, o serializador e as conversões de `rpc_convert`): o
+ * que muda é só quem envia, então o mapa gerado é o mesmo.
+ *
+ * @example
+ * const url = await getGeeMapUrl(ee.Image("..."), { min: 0, max: 1, palette });
+ * // "https://earthengine.googleapis.com/v1/projects/.../maps/.../tiles/{z}/{x}/{y}"
+ */
+export async function getGeeMapUrl(
+  image: unknown,
+  visParams?: Record<string, unknown>,
+): Promise<string> {
+  const projectId = requireProjectId();
+  const request = ee.data.images.applyVisualization(image, visParams);
+  const map = new ee.api.EarthEngineMap({
+    name: null,
+    expression: ee.data.expressionAugmenter_(
+      ee.Serializer.encodeCloudApiExpression(request.image),
+    ),
+    fileFormat: ee.rpc_convert.fileFormat(request.format),
+    bandIds: ee.rpc_convert.bandList(request.bands),
+    visualizationOptions: ee.rpc_convert.visualizationOptions(request),
+  });
+  const { name } = await withComputeSlot(() =>
+    requestGeeApi<{ name: string }>(`projects/${projectId}/maps?fields=name`, {
+      method: "POST",
+      body: ee.apiclient.serialize(map),
+    }),
+  );
+  return `${ee.apiclient.getTileBaseUrl()}/${ee.apiclient.VERSION}/${name}/tiles/{z}/{x}/{y}`;
 }
 
 export function clearGeeClientForTests() {

@@ -8,7 +8,7 @@ import {
   type ThresholdClassificationPlan,
 } from "@/app/api/ee/mapVisualization";
 import { getPanelLayers } from "@/repositories/platform/panelLayerRepository";
-import { IMapId, IEEInfo, IImageParam } from "@/utils/interfaces";
+import { IEEInfo, IImageParam } from "@/utils/interfaces";
 import {
   getImageDataDefaultYear,
   resolveImageCollectionPeriod,
@@ -25,6 +25,7 @@ import {
 } from "@/utils/spatialScope";
 import {
   evaluateGeeObject,
+  getGeeMapUrl,
   initializeGee,
 } from "@/infrastructure/earth-engine/client";
 import {
@@ -696,12 +697,11 @@ export const getEarthEngineUrl = async (
           })
         : categorizedImage;
     const clippedMapImage = applySpatialClip(mapImage, spatialSelection);
-    const mapId = (await getMapId(
+
+    return await getGeeMapUrl(
       clippedMapImage,
       shouldUseFeatureCollection ? undefined : visParams,
-    )) as IMapId;
-
-    return mapId.urlFormat;
+    );
   } catch (error: any) {
     console.error("Error in getEarthEngineUrl:", error.message);
     throw error;
@@ -827,20 +827,6 @@ const getImageScale = (
   const visParams = { min: minScale ?? 0, max: maxScale ?? 1, palette };
   return { categorizedImage, visParams };
 };
-
-/**
- * Retrieves the map ID for the given image with visualization parameters.
- * @param {any} image - The Earth Engine image.
- * @param {any} visParams - Visualization parameters for the image.
- * @returns {Promise<Object>} - The map ID object.
- */
-function getMapId(image: any, visParams?: any) {
-  return new Promise((resolve, reject) => {
-    image.getMapId(visParams, (obj: any, error: any) =>
-      error ? reject(new Error(error)) : resolve(obj),
-    );
-  });
-}
 
 /**
  * Períodos que o warmup deve aquecer. Aquecer todos custava 496 idas SEQUENCIAIS
