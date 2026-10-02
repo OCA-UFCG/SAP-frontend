@@ -136,17 +136,23 @@ describe("POST /api/ee/reference-layers", () => {
 
   it("paints each territory with the colors its checkbox shows", async () => {
     for (const layerId of REFERENCE_LAYER_IDS) {
+      styleFeatureCollection.mockClear();
       await POST(createMockRequest(layerId));
-    }
 
-    const styles = styleFeatureCollection.mock.calls.map(
-      (call) => (call as unknown as [{ color: string; fillColor: string }])[0],
-    );
-    REFERENCE_LAYER_IDS.forEach((layerId, index) => {
+      // O contorno é um halo claro com a linha colorida por cima; o interior
+      // é uma imagem à parte. Só a linha e o interior carregam a cor da camada.
+      const styles = styleFeatureCollection.mock.calls.map(
+        (call) =>
+          (call as unknown as [{ color: string; fillColor: string }])[0],
+      );
       const swatch = REFERENCE_LAYER_SWATCHES[layerId];
-      expect(`#${styles[index].color}`).toBe(swatch.outline);
-      expect(`#${styles[index].fillColor.slice(0, 6)}`).toBe(swatch.fill);
-    });
+      expect(styles.map((style) => `#${style.color}`)).toContain(
+        swatch.outline,
+      );
+      expect(
+        styles.map((style) => `#${style.fillColor.slice(0, 6)}`),
+      ).toContain(swatch.fill);
+    }
   });
 
   it("rejects an unknown layer naming the valid values", async () => {
