@@ -92,14 +92,17 @@ const MIN_QUERY_LENGTH = 2;
 
 /**
  * Os territórios que têm todas as palavras digitadas no nome ou no município,
- * com quem começa pelo que foi digitado na frente.
+ * com quem começa pelo que foi digitado na frente. Com alguma camada ligada, só
+ * entram os territórios dela; com todas desligadas, entram todos.
  *
  * @example
- * searchReferenceTerritories(territories, "kiriri") // [{ name: "Kiriri", ... }]
+ * searchReferenceTerritories(territories, "kiriri", new Set(["terras_indigenas"]))
+ * // [{ name: "Kiriri", ... }]
  */
 export function searchReferenceTerritories(
   territories: readonly ReferenceTerritory[],
   query: string,
+  activeLayers: ReadonlySet<ReferenceLayerId>,
   limit = 8,
 ): ReferenceTerritory[] {
   const normalizedQuery = normalizeTerritorySearch(query);
@@ -113,8 +116,10 @@ export function searchReferenceTerritories(
   };
 
   return territories
-    .filter((territory) =>
-      words.every((word) => territory.searchText.includes(word)),
+    .filter(
+      (territory) =>
+        (activeLayers.size === 0 || activeLayers.has(territory.layerId)) &&
+        words.every((word) => territory.searchText.includes(word)),
     )
     .map((territory) => ({ territory, rank: rank(territory) }))
     .sort(

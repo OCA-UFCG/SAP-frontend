@@ -22,15 +22,16 @@ const FILE = {
 } as unknown as Parameters<typeof parseReferenceTerritories>[0];
 
 const territories = parseReferenceTerritories(FILE);
+const ALL_LAYERS = new Set(FILE.layers);
 
 describe("searchReferenceTerritories", () => {
   it("ignora acento e maiúscula no nome e no município", () => {
-    expect(searchReferenceTerritories(territories, "KIRIRÍ")[0].name).toBe("Kiriri");
-    expect(searchReferenceTerritories(territories, "banzae")[0].name).toBe("Kiriri");
+    expect(searchReferenceTerritories(territories, "KIRIRÍ", ALL_LAYERS)[0].name).toBe("Kiriri");
+    expect(searchReferenceTerritories(territories, "banzae", ALL_LAYERS)[0].name).toBe("Kiriri");
   });
 
   it("põe na frente quem começa pelo que foi digitado", () => {
-    const names = searchReferenceTerritories(territories, "lagoa").map((t) => t.name);
+    const names = searchReferenceTerritories(territories, "lagoa", ALL_LAYERS).map((t) => t.name);
     expect(names).toEqual([
       "Lagoa Grande",
       "PA LAGOA DO CAPIM",
@@ -39,12 +40,27 @@ describe("searchReferenceTerritories", () => {
   });
 
   it("exige todas as palavras, em qualquer ordem", () => {
-    const names = searchReferenceTerritories(territories, "lagoa petrolina").map((t) => t.name);
+    const names = searchReferenceTerritories(territories, "lagoa petrolina", ALL_LAYERS).map((t) => t.name);
     expect(names).toEqual(["PA LAGOA DO CAPIM"]);
   });
 
+  it("com alguma camada ligada, só mostra territórios dela", () => {
+    const names = searchReferenceTerritories(
+      territories,
+      "lagoa",
+      new Set(["assentamentos"] as const),
+    ).map((t) => t.name);
+    expect(names).toEqual(["PA LAGOA DO CAPIM"]);
+  });
+
+  it("com todas as camadas desligadas, busca em todas", () => {
+    expect(searchReferenceTerritories(territories, "lagoa", new Set())).toEqual(
+      searchReferenceTerritories(territories, "lagoa", ALL_LAYERS),
+    );
+  });
+
   it("não busca com menos de duas letras", () => {
-    expect(searchReferenceTerritories(territories, "l")).toEqual([]);
+    expect(searchReferenceTerritories(territories, "l", ALL_LAYERS)).toEqual([]);
   });
 });
 
@@ -64,7 +80,7 @@ describe("busca no cartão de Territórios", () => {
 
     render(
       <ReferenceOverlaysControl
-        activeOverlays={new Set()}
+        activeOverlays={new Set(["terras_indigenas"] as const)}
         onToggle={() => {}}
         onSelectTerritory={onSelectTerritory}
       />,
@@ -90,4 +106,5 @@ describe("busca no cartão de Territórios", () => {
     );
     expect(input).toHaveValue("");
   });
+
 });

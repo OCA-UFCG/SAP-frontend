@@ -18,9 +18,10 @@ export interface TerritoryFocus {
 }
 
 /**
- * Escolher um território na busca liga a camada dele, se estiver desligada, e
- * leva o mapa até ele. Sem ligar a camada a pessoa chegaria num pedaço de mapa
- * sem nenhum contorno para mostrar onde está o território.
+ * Escolher um território na busca leva o mapa até ele. Com alguma camada ligada
+ * a busca só mostra territórios dela; com todas desligadas ela mostra todos, e
+ * aí a camada do escolhido é ligada — senão a pessoa chegaria num pedaço de
+ * mapa sem nenhum contorno para mostrar onde está o território.
  */
 export function useTerritoryFocus(
   activeOverlays: ReadonlySet<ReferenceLayerId>,

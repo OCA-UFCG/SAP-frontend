@@ -3,7 +3,10 @@
 import { useId, useMemo, useState } from "react";
 import { useTranslations } from "next-intl";
 import { Icon } from "@/components/Icon/Icon";
-import { REFERENCE_LAYER_SWATCHES } from "@/components/MapLayerContext/mapLayerState";
+import {
+  REFERENCE_LAYER_SWATCHES,
+  type ReferenceLayerId,
+} from "@/components/MapLayerContext/mapLayerState";
 import { MAP_CONTROL_LABEL_CLASS } from "./MapControlCard";
 import {
   loadReferenceTerritories,
@@ -19,15 +22,20 @@ const SECONDARY_TEXT_CLASS =
 type LoadStatus = "idle" | "loading" | "ready" | "error";
 
 interface TerritorySearchProps {
+  activeOverlays: ReadonlySet<ReferenceLayerId>;
   onSelect: (territory: ReferenceTerritory) => void;
 }
 
 /**
- * Campo de busca por nome dentro do cartão de Territórios. A lista só é baixada
- * quando a pessoa clica no campo, e escolher um resultado liga a camada daquele
- * território e leva o mapa até ele.
+ * Campo de busca por nome dentro do cartão de Territórios. Com alguma camada
+ * ligada busca só nela; com todas desligadas busca em todas. A lista só é
+ * baixada quando a pessoa clica no campo, e escolher um resultado leva o mapa
+ * até o território.
  */
-export function TerritorySearch({ onSelect }: TerritorySearchProps) {
+export function TerritorySearch({
+  activeOverlays,
+  onSelect,
+}: TerritorySearchProps) {
   const t = useTranslations("PlatformMap");
   const listId = useId();
   const [query, setQuery] = useState("");
@@ -36,8 +44,8 @@ export function TerritorySearch({ onSelect }: TerritorySearchProps) {
   const [activeIndex, setActiveIndex] = useState(0);
 
   const results = useMemo(
-    () => searchReferenceTerritories(territories, query),
-    [territories, query],
+    () => searchReferenceTerritories(territories, query, activeOverlays),
+    [territories, query, activeOverlays],
   );
   const showResults = query.trim().length >= 2;
 

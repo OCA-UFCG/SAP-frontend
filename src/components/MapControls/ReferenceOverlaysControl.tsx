@@ -31,7 +31,10 @@ export function ReferenceOverlaysControl({
     <MapControlDisclosure label={t("referenceOverlays")}>
       {() => (
         <div className="flex flex-col gap-1.5">
-          <TerritorySearch onSelect={onSelectTerritory} />
+          <TerritorySearch
+            activeOverlays={activeOverlays}
+            onSelect={onSelectTerritory}
+          />
           {REFERENCE_LAYER_IDS.map((layerId) => (
             <label
               key={layerId}
