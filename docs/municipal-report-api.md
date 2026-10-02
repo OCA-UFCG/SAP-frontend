@@ -276,13 +276,15 @@ proteção continua sendo de 30 chamadas ao Earth Engine por minuto por usuário
 
 ### O prazo e o `pending`
 
-Vinte camadas frias custam cerca de 13 s: o SDK do Earth Engine despacha uma
-requisição a cada 350 ms de uma fila global do processo. Segurar tudo isso numa
-requisição só a deixaria à mercê do timeout do proxy, e aí os vinte mapas se
-perderiam de uma vez.
+As URLs são geradas pela API REST do Earth Engine, até 20 pedidos ao mesmo
+tempo no processo (`GEE_COMPUTE_CONCURRENCY`); 18 camadas frias levam cerca de
+2 s. Mesmo assim a rota não segura a requisição até a última: a resposta é
+tudo-ou-nada até o prazo vencer, então quem ficasse pronto cedo esperaria a
+mais lenta, e uma camada pendurada deixaria a requisição à mercê do timeout do
+proxy.
 
-A rota espera no máximo `EE_MAP_URLS_DEADLINE_MS`
-(`src/contracts/eeMapUrls.ts`) e devolve `pending` para o que não ficou pronto.
+A rota espera no máximo `EE_MAP_URLS_DEADLINE_MS` (1 s,
+`src/contracts/eeMapUrls.ts`) e devolve `pending` para o que não ficou pronto.
 A ida ao Earth Engine continua em voo; quem pergunta de novo entra na mesma
 promessa, sem gerar chamada nova nem gastar vaga. O relatório desenha cada mapa
 assim que a URL dele chega, em vez de esperar as vinte.
