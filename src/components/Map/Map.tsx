@@ -30,6 +30,7 @@ import {
   STATES_SOURCE_ID,
   STATES_SOURCE_LAYER,
   ensureReferenceOverlayLayers,
+  type ReferenceOverlayTileUrls,
   ensureSpatialBoundaryLayer,
 } from "./mapDefinitions";
 import { useMapController } from "./useMapController";
@@ -65,8 +66,7 @@ export type BasemapId = "osm" | "satellite";
 // chegar ao nível de rua quando o retângulo do território é quase um ponto.
 const TERRITORY_FOCUS_MAX_ZOOM = 13;
 
-const EMPTY_TILE_URL_MAP: globalThis.Map<string, string | undefined> =
-  new globalThis.Map();
+const EMPTY_TILE_URL_MAP: ReferenceOverlayTileUrls = new globalThis.Map();
 
 export interface MapProps {
   mapMode?: MapMode;
@@ -108,7 +108,7 @@ export interface MapProps {
   classificationFillOpacity?: number;
   onZoomChange?: (zoom: number) => void;
   /** Tile URLs for active reference overlay layers (quilombolas, etc.). */
-  referenceOverlayTileUrls?: Map<string, string | undefined>;
+  referenceOverlayTileUrls?: ReferenceOverlayTileUrls;
   /** Território escolhido na busca de Territórios, para a câmera enquadrar. */
   territoryFocus?: TerritoryFocus | null;
 }
@@ -785,7 +785,7 @@ const Map = ({
   }, [territoryFocus, fitMapToBounds, mapRef]);
 
   const referenceOverlaySyncRef = useRef<{
-    tileUrls: globalThis.Map<string, string | undefined>;
+    tileUrls: ReferenceOverlayTileUrls;
     disarmRetry: (() => void) | null;
   }>({ tileUrls: EMPTY_TILE_URL_MAP, disarmRetry: null });
 

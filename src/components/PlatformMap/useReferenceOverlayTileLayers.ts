@@ -2,6 +2,7 @@
 
 import { useEffect, useMemo, useRef, useState } from "react";
 import type { ReferenceLayerId } from "@/components/MapLayerContext/mapLayerState";
+import type { ReferenceOverlayUrls } from "@/components/Map/mapDefinitions";
 
 const API_BASE_URL = process.env.NEXT_PUBLIC_HOST_URL ?? "";
 
@@ -9,7 +10,15 @@ export type ReferenceOverlayStatus = "loading" | "ready" | "error";
 
 export interface ReferenceOverlayEntry {
   status: ReferenceOverlayStatus;
+  /** O contorno do território. */
   tileUrl: string | undefined;
+  /** O interior, em imagem própria para desbotar com o zoom sem levar o contorno. */
+  fillTileUrl?: string;
+}
+
+interface ReferenceLayerUrls {
+  url: string;
+  fillUrl?: string;
 }
 
 export type ReferenceOverlayTileMap = Map<
@@ -18,7 +27,7 @@ export type ReferenceOverlayTileMap = Map<
 >;
 
 interface CachedTileUrl {
-  url: string;
+  urls: ReferenceLayerUrls;
   fetchedAt: number;
 }
 
@@ -38,7 +47,9 @@ export function clearReferenceOverlayUrlCache() {
   clientUrlCache.clear();
 }
 
-function readFreshCachedUrl(layerId: ReferenceLayerId): string | undefined {
+function readFreshCachedUrl(
+  layerId: ReferenceLayerId,
+): ReferenceLayerUrls | undefined {
   const cached = clientUrlCache.get(layerId);
   if (!cached) return undefined;
 
@@ -47,13 +58,13 @@ function readFreshCachedUrl(layerId: ReferenceLayerId): string | undefined {
     return undefined;
   }
 
-  return cached.url;
+  return cached.urls;
 }
 
 async function fetchReferenceLayerUrl(
   layerId: ReferenceLayerId,
   signal?: AbortSignal,
-): Promise<string | null> {
+): Promise<ReferenceLayerUrls | null> {
   const params = new URLSearchParams({ layer: layerId });
   const response = await fetch(
     `${API_BASE_URL}/api/ee/reference-layers?${params.toString()}`,
@@ -68,8 +79,10 @@ async function fetchReferenceLayerUrl(
     );
   }
 
-  const body = (await response.json()) as { url?: string };
-  return typeof body.url === "string" ? body.url : null;
+  const body = (await response.json()) as { url?: string; fillUrl?: string };
+  if (typeof body.url !== "string") return null;
+  const fillUrl = typeof body.fillUrl === "string" ? body.fillUrl : undefined;
+  return { url: body.url, fillUrl };
 }
 
 /**
@@ -79,13 +92,13 @@ async function fetchReferenceLayerUrl(
 async function resolveReferenceLayerTileUrl(
   layerId: ReferenceLayerId,
   signal: AbortSignal,
-): Promise<string | null> {
-  const cachedUrl = readFreshCachedUrl(layerId);
-  if (cachedUrl) return cachedUrl;
+): Promise<ReferenceLayerUrls | null> {
+  const cachedUrls = readFreshCachedUrl(layerId);
+  if (cachedUrls) return cachedUrls;
 
-  const url = await fetchReferenceLayerUrl(layerId, signal);
-  if (url) clientUrlCache.set(layerId, { url, fetchedAt: Date.now() });
-  return url;
+  const urls = await fetchReferenceLayerUrl(layerId, signal);
+  if (urls) clientUrlCache.set(layerId, { urls, fetchedAt: Date.now() });
+  return urls;
 }
 
 function withEntry(
@@ -94,7 +107,11 @@ function withEntry(
   entry: ReferenceOverlayEntry,
 ): ReferenceOverlayTileMap {
   const previous = current.get(layerId);
-  if (previous?.status === entry.status && previous.tileUrl === entry.tileUrl) {
+  if (
+    previous?.status === entry.status &&
+    previous.tileUrl === entry.tileUrl &&
+    previous.fillTileUrl === entry.fillTileUrl
+  ) {
     return current;
   }
 
@@ -150,12 +167,13 @@ export function useReferenceOverlayTileLayers(
       controllers.set(layerId, controller);
 
       resolveReferenceLayerTileUrl(layerId, controller.signal)
-        .then((url) => {
+        .then((urls) => {
           if (controller.signal.aborted) return;
           setStatusMap((current) =>
             withEntry(current, layerId, {
-              status: url ? "ready" : "error",
-              tileUrl: url ?? undefined,
+              status: urls ? "ready" : "error",
+              tileUrl: urls?.url,
+              fillTileUrl: urls?.fillUrl,
             }),
           );
         })
@@ -204,7 +222,7 @@ export function useReferenceOverlayTileLayers(
 }
 
 export interface ReferenceOverlayTiles {
-  tileUrls: globalThis.Map<string, string | undefined>;
+  tileUrls: globalThis.Map<string, ReferenceOverlayUrls | undefined>;
   isLoading: boolean;
 }
 
@@ -214,12 +232,18 @@ export function useReferenceOverlayTiles(
   const tileMap = useReferenceOverlayTileLayers(activeOverlays);
 
   return useMemo(() => {
-    const tileUrls = new globalThis.Map<string, string | undefined>();
+    const tileUrls = new globalThis.Map<
+      string,
+      ReferenceOverlayUrls | undefined
+    >();
     let isLoading = false;
 
     for (const [layerId, entry] of tileMap) {
       if (entry.status === "ready" && entry.tileUrl) {
-        tileUrls.set(layerId, entry.tileUrl);
+        tileUrls.set(layerId, {
+          outline: entry.tileUrl,
+          fill: entry.fillTileUrl,
+        });
       } else if (entry.status === "loading") {
         isLoading = true;
       }

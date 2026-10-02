@@ -14,7 +14,15 @@ vi.mock("@/infrastructure/earth-engine/client", () => ({
 }));
 
 const getMapId = vi.fn();
-const styleFeatureCollection = vi.fn(() => ({ getMapId }));
+interface FakeStyledImage {
+  getMapId: typeof getMapId;
+  blend: (top: FakeStyledImage) => FakeStyledImage;
+}
+const fakeStyledImage = (): FakeStyledImage => ({
+  getMapId,
+  blend: () => fakeStyledImage(),
+});
+const styleFeatureCollection = vi.fn(fakeStyledImage);
 vi.mock("@google/earthengine", () => ({
   default: {
     FeatureCollection: () => ({ style: styleFeatureCollection }),
@@ -52,7 +60,8 @@ beforeEach(() => {
   mockedGetAuthenticatedUserId.mockResolvedValue("user-123");
   clearEeRateLimit("user-123");
   for (const layerId of REFERENCE_LAYER_IDS) {
-    removeCacheUrl(`ref-overlay-v2:${layerId}`);
+    removeCacheUrl(`ref-overlay-v3:${layerId}:outline`);
+    removeCacheUrl(`ref-overlay-v3:${layerId}:fill`);
   }
 });
 
@@ -70,12 +79,47 @@ describe("POST /api/ee/reference-layers", () => {
     expect(getMapId).not.toHaveBeenCalled();
   });
 
-  it("returns the tile URL of a known reference layer", async () => {
+  it("returns separate tile URLs for the outline and the fill", async () => {
+    getMapId.mockImplementation(
+      (_params: unknown, callback: (obj: unknown, error?: string) => void) =>
+        callback({
+          urlFormat: `https://earthengine.example/tiles/${getMapId.mock.calls.length}/{z}/{x}/{y}`,
+        }),
+    );
+
     const response = await POST(createMockRequest("terras_indigenas"));
 
     expect(response.status).toBe(200);
     await expect(response.json()).resolves.toEqual({
-      url: "https://earthengine.example/tiles/{z}/{x}/{y}",
+      url: "https://earthengine.example/tiles/1/{z}/{x}/{y}",
+      fillUrl: "https://earthengine.example/tiles/2/{z}/{x}/{y}",
+    });
+  });
+
+  // Numa imagem só, o cliente não conseguiria desbotar o interior sem desbotar
+  // o contorno junto.
+  it("paints the outline without fill and the fill without outline", async () => {
+    await POST(createMockRequest("terras_indigenas"));
+
+    const [haloStyle, outlineStyle, fillStyle] =
+      styleFeatureCollection.mock.calls.map(
+        (call) => (call as unknown as [Record<string, unknown>])[0],
+      );
+    // O halo claro por baixo mantém a linha legível sobre índices escuros.
+    expect(haloStyle).toEqual({
+      color: "FFFFFFCC",
+      fillColor: "00000000",
+      width: 3.5,
+    });
+    expect(outlineStyle).toEqual({
+      color: "6B3E1F",
+      fillColor: "00000000",
+      width: 1.5,
+    });
+    expect(fillStyle).toEqual({
+      color: "00000000",
+      fillColor: "8B572A",
+      width: 0,
     });
   });
 
@@ -84,15 +128,10 @@ describe("POST /api/ee/reference-layers", () => {
       await POST(createMockRequest(layerId));
     }
 
-    const fillColors = styleFeatureCollection.mock.calls.map(
-      (call) => (call as unknown as [{ fillColor: string }])[0].fillColor,
-    );
-    expect(fillColors).toEqual([
-      "8E243788",
-      "CCCCCC88",
-      "8B572A88",
-      "2E6B3F88",
-    ]);
+    const fillColors = styleFeatureCollection.mock.calls
+      .map((call) => (call as unknown as [{ fillColor: string }])[0].fillColor)
+      .filter((color) => color !== "00000000");
+    expect(fillColors).toEqual(["8E2437", "CCCCCC", "8B572A", "2E6B3F"]);
   });
 
   it("paints each territory with the colors its checkbox shows", async () => {
@@ -124,7 +163,8 @@ describe("POST /api/ee/reference-layers", () => {
     await POST(createMockRequest("assentamentos"));
     await POST(createMockRequest("assentamentos"));
 
-    expect(getMapId).toHaveBeenCalledTimes(1);
+    // Uma chamada para o contorno e outra para o interior, só na primeira vez.
+    expect(getMapId).toHaveBeenCalledTimes(2);
   });
 
   it("propagates an Earth Engine failure as a 500 without caching it", async () => {
