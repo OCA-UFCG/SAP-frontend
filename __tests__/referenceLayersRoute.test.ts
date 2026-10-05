@@ -103,12 +103,12 @@ describe("POST /api/ee/reference-layers", () => {
     expect(haloStyle).toEqual({
       color: "FFFFFFCC",
       fillColor: "00000000",
-      width: 3.5,
+      width: 4.5,
     });
     expect(outlineStyle).toEqual({
       color: "6B3E1F",
       fillColor: "00000000",
-      width: 1.5,
+      width: 2.5,
     });
     expect(fillStyle).toEqual({
       color: "00000000",
