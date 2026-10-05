@@ -50,6 +50,8 @@ function buildMonitoringMapProps(
     spatialFocusBounds: monitoring.spatialFocusBounds,
     basemap: monitoring.basemap,
     referenceOverlayTileUrls: monitoring.referenceOverlayTileUrls,
+    highlightedReferenceOverlay: monitoring.highlightedReferenceOverlay,
+    referenceOverlayPrefetchUrls: monitoring.referenceOverlayPrefetchUrls,
     territoryFocus: monitoring.territoryFocus,
     spatialArea: monitoring.spatialSelection.spatialArea,
     spatialValue: monitoring.spatialSelection.spatialValue,
@@ -73,6 +75,8 @@ function buildAnalysisMapProps(analysis: AmfeAnalysisState): SectionMapProps {
     classificationFillOpacity: analysis.fillOpacity,
     basemap: analysis.basemap,
     referenceOverlayTileUrls: analysis.referenceOverlayTileUrls,
+    highlightedReferenceOverlay: analysis.highlightedReferenceOverlay,
+    referenceOverlayPrefetchUrls: analysis.referenceOverlayPrefetchUrls,
     territoryFocus: analysis.territoryFocus,
     onZoomChange: analysis.setZoom,
   };

@@ -29,6 +29,9 @@ export function MonitoringMapOverlays({
     setLayerOpacity,
     referenceOverlays,
     toggleReferenceOverlay,
+    highlightedReferenceOverlay,
+    toggleReferenceHighlight,
+    prefetchReferenceOverlays,
     focusTerritory,
   } = monitoring;
 
@@ -56,7 +59,10 @@ export function MonitoringMapOverlays({
           <ReferenceOverlaysControl
             activeOverlays={referenceOverlays}
             onToggle={toggleReferenceOverlay}
+            highlightedOverlay={highlightedReferenceOverlay}
+            onToggleHighlight={toggleReferenceHighlight}
             onSelectTerritory={focusTerritory}
+            onOpen={prefetchReferenceOverlays}
           />
         )}
         {showControls && activeLegend && activeLegend.length > 0 && (

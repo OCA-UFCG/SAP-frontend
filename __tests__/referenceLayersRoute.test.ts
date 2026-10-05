@@ -1,4 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+vi.mock("server-only", () => ({}));
 import type { NextRequest } from "next/server";
 
 vi.mock("@/app/api/ee/services", () => ({
@@ -52,7 +53,9 @@ function createMockRequest(layer: string): NextRequest {
 
 beforeEach(() => {
   getGeeMapUrl.mockReset();
-  getGeeMapUrl.mockResolvedValue("https://earthengine.example/tiles/{z}/{x}/{y}");
+  getGeeMapUrl.mockResolvedValue(
+    "https://earthengine.example/tiles/{z}/{x}/{y}",
+  );
   mockedGetAuthenticatedUserId.mockResolvedValue("user-123");
   clearEeRateLimit("user-123");
   for (const layerId of REFERENCE_LAYER_IDS) {
@@ -173,7 +176,9 @@ describe("POST /api/ee/reference-layers", () => {
     const failed = await POST(createMockRequest("unidades_conservacao"));
     expect(failed.status).toBe(500);
 
-    getGeeMapUrl.mockResolvedValue("https://earthengine.example/uc/{z}/{x}/{y}");
+    getGeeMapUrl.mockResolvedValue(
+      "https://earthengine.example/uc/{z}/{x}/{y}",
+    );
     const retried = await POST(createMockRequest("unidades_conservacao"));
 
     expect(retried.status).toBe(200);

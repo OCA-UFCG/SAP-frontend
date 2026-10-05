@@ -15,7 +15,10 @@ import { getAllowedStateUfs } from "@/utils/interestAreaStates";
 import type { SpatialSelection } from "@/utils/spatialScope";
 import { useEarthEngineTileLayer } from "./useEarthEngineTileLayer";
 import { useIndexChoroplethValues } from "./useIndexChoroplethValues";
-import { useReferenceOverlayTiles } from "./useReferenceOverlayTileLayers";
+import {
+  useReferenceOverlayPrefetch,
+  useReferenceOverlayTiles,
+} from "./useReferenceOverlayTileLayers";
 import { useSpatialBoundaryOverlay } from "./useSpatialBoundaryOverlay";
 import { useTerritoryFocus } from "./useTerritoryFocus";
 
@@ -39,12 +42,14 @@ export function useMonitoringMapLayers() {
     layerOpacity,
     spatialSelection,
     referenceOverlays,
+    highlightedReferenceOverlay,
   } = useMapLayerViewState();
   const {
     setSelectedState,
     setSelectedMunicipalityCode,
     setLayerOpacity,
     toggleReferenceOverlay,
+    toggleReferenceHighlight,
     setSpatialSelection,
   } = useMapLayerActions();
   const { requestKey, status, tileLayerUrl } = useEarthEngineTileLayer(
@@ -69,6 +74,10 @@ export function useMonitoringMapLayers() {
     referenceOverlays,
     toggleReferenceOverlay,
   );
+  const {
+    prefetchUrls: referenceOverlayPrefetchUrls,
+    requestPrefetch: prefetchReferenceOverlays,
+  } = useReferenceOverlayPrefetch();
 
   const handleTileLayerReady = useCallback((readyRequestKey: string) => {
     setReadyRequestKey((current) =>
@@ -138,6 +147,10 @@ export function useMonitoringMapLayers() {
     setLayerOpacity,
     referenceOverlays,
     referenceOverlayTileUrls,
+    highlightedReferenceOverlay,
+    toggleReferenceHighlight,
+    referenceOverlayPrefetchUrls,
+    prefetchReferenceOverlays,
     requestKey,
     selectedMunicipalityCode,
     setSelectedMunicipalityCode,

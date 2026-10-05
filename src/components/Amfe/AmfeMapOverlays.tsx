@@ -24,6 +24,9 @@ export function AmfeMapOverlays() {
     setFillOpacity,
     referenceOverlays,
     toggleReferenceOverlay,
+    highlightedReferenceOverlay,
+    toggleReferenceHighlight,
+    prefetchReferenceOverlays,
     focusTerritory,
     municipalityClassification,
     isClassificationBelowZoomFloor,
@@ -43,7 +46,10 @@ export function AmfeMapOverlays() {
         <ReferenceOverlaysControl
           activeOverlays={referenceOverlays}
           onToggle={toggleReferenceOverlay}
+          highlightedOverlay={highlightedReferenceOverlay}
+          onToggleHighlight={toggleReferenceHighlight}
           onSelectTerritory={focusTerritory}
+          onOpen={prefetchReferenceOverlays}
         />
         {municipalityClassification && <AmfeMapLegend />}
       </div>

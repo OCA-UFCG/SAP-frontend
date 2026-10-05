@@ -12,6 +12,8 @@
     "assentamentos": "Assentamentos",
     "terras_indigenas": "Terras Indígenas",
     "unidades_conservacao": "Unidades de Conservação",
+    "highlightColumn": "Destacar",
+    "highlightTerritory": "Destacar {name}",
     "territorySearchPlaceholder": "Buscar território pelo nome",
     "territorySearchLabel": "Busca de território",
     "territorySearchLoading": "Carregando territórios…",
