@@ -3,10 +3,11 @@ import {
   assertAssetPatternVariesByPeriod,
   catalogLayerClassCount,
   createCatalogPanelLayerId,
-  detectYearPartitionedTemplate,
+  detectPeriodTemplate,
   expandAssetForPeriod,
-  fillYearPlaceholder,
+  fillPeriodTemplate,
   inferTimeScale,
+  isDetectedPeriodTemplate,
   makeUniqueCatalogPanelLayerId,
   parseIndexCatalogDraftInput,
   parseIndexCatalogPresentationInput,
@@ -201,13 +202,16 @@ describe("parseIndexCatalogPresentationInput", () => {
     ).not.toHaveProperty("panelPosition");
   });
 
-  it("recusa unidade em branco, categoria desconhecida e posição negativa", () => {
-    expect(() =>
+  it("aceita unidade em branco, para índices sem unidade como o IDH", () => {
+    expect(
       parseIndexCatalogPresentationInput({
         ...validPresentation,
         measurementUnit: "   ",
-      }),
-    ).toThrow("Unidade de medida");
+      }).measurementUnit,
+    ).toBe("");
+  });
+
+  it("recusa categoria desconhecida e posição negativa", () => {
     expect(() =>
       parseIndexCatalogPresentationInput({
         ...validPresentation,
@@ -262,6 +266,18 @@ describe("index catalog v2 input helpers", () => {
       measurementUnit: "registros",
       valueType: "absolute",
     });
+  });
+
+  it("accepts an indicator without unit, like the HDI", () => {
+    const parsed = parseIndexCatalogDraftInput({
+      ...validValueTableDraft,
+      valueIndicator: {
+        ...validValueTableDraft.valueIndicator,
+        measurementUnit: "  ",
+      },
+    });
+
+    expect(parsed.valueIndicator?.measurementUnit).toBe("");
   });
 
   it("requires an indicator and at least two colour ranges for a value table", () => {
@@ -466,10 +482,10 @@ describe("posição do índice na categoria do Monitoramento", () => {
   });
 });
 
-describe("detectYearPartitionedTemplate", () => {
+describe("detectPeriodTemplate", () => {
   it("turns a concrete year asset into the {year} template the contract expects", () => {
     expect(
-      detectYearPartitionedTemplate(
+      detectPeriodTemplate(
         "projects/obscaatinga/assets/Estatisticas/Estatistica_Multinivel_MonitorANA_2026",
       ),
     ).toEqual({
@@ -481,41 +497,85 @@ describe("detectYearPartitionedTemplate", () => {
 
   it("uses the last year so folders named after a year are preserved", () => {
     expect(
-      detectYearPartitionedTemplate(
-        "projects/x/assets/Estatisticas_2020/ana_2026",
-      )?.assetIdTemplate,
+      detectPeriodTemplate("projects/x/assets/Estatisticas_2020/ana_2026")
+        ?.assetIdTemplate,
     ).toBe("projects/x/assets/Estatisticas_2020/ana_{year}");
   });
 
   it("refuses ids without a four-digit year or already templated", () => {
-    expect(
-      detectYearPartitionedTemplate("projects/x/assets/estatisticas"),
-    ).toBeNull();
-    expect(
-      detectYearPartitionedTemplate("projects/x/assets/ana_202"),
-    ).toBeNull();
-    expect(
-      detectYearPartitionedTemplate("projects/x/assets/ana_{year}"),
-    ).toBeNull();
-    expect(detectYearPartitionedTemplate("   ")).toBeNull();
+    expect(detectPeriodTemplate("projects/x/assets/estatisticas")).toBeNull();
+    expect(detectPeriodTemplate("projects/x/assets/ana_202")).toBeNull();
+    expect(detectPeriodTemplate("projects/x/assets/ana_{year}")).toBeNull();
+    expect(detectPeriodTemplate("   ")).toBeNull();
   });
 
   it("ignores longer digit runs that only look like a year", () => {
+    expect(detectPeriodTemplate("projects/x/assets/ana_20261")).toBeNull();
+  });
+
+  it("turns a month right after the year into {month}", () => {
+    expect(detectPeriodTemplate("projects/x/assets/ana_2026_09")).toEqual({
+      year: "2026",
+      month: "09",
+      assetIdTemplate: "projects/x/assets/ana_{year}_{month}",
+    });
     expect(
-      detectYearPartitionedTemplate("projects/x/assets/ana_20261"),
-    ).toBeNull();
+      detectPeriodTemplate("projects/x/assets/ana_2026-09_v2")?.assetIdTemplate,
+    ).toBe("projects/x/assets/ana_{year}-{month}_v2");
+  });
+
+  it("keeps a number after the year that is not a month as part of the name", () => {
+    for (const assetId of [
+      "projects/x/assets/ana_2026_13",
+      "projects/x/assets/ana_2026_2",
+      "projects/x/assets/ana_2026_10m",
+      "projects/x/assets/ana_2026_v4",
+    ]) {
+      expect(detectPeriodTemplate(assetId)?.month).toBeUndefined();
+    }
   });
 });
 
-describe("fillYearPlaceholder", () => {
+describe("isDetectedPeriodTemplate", () => {
+  it("recognizes the templates the detection produces", () => {
+    expect(isDetectedPeriodTemplate("projects/x/assets/ana_{year}")).toBe(true);
+    expect(
+      isDetectedPeriodTemplate("projects/x/assets/ana_{year}_{month}"),
+    ).toBe(true);
+  });
+
+  it("leaves hand-written templates to the template option", () => {
+    expect(
+      isDetectedPeriodTemplate("projects/x/assets/ana_{month}_{year}"),
+    ).toBe(false);
+    expect(isDetectedPeriodTemplate("projects/x/assets/ana_{period}")).toBe(
+      false,
+    );
+    expect(isDetectedPeriodTemplate("projects/x/assets/ana")).toBe(false);
+  });
+});
+
+describe("fillPeriodTemplate", () => {
   it("shows the operator the concrete year again", () => {
-    expect(fillYearPlaceholder("projects/x/assets/ana_{year}", "2026")).toBe(
+    expect(fillPeriodTemplate("projects/x/assets/ana_{year}", "2026")).toBe(
       "projects/x/assets/ana_2026",
     );
   });
 
+  it("fills the month of a monthly period", () => {
+    expect(
+      fillPeriodTemplate("projects/x/assets/ana_{year}_{month}", "2026-09"),
+    ).toBe("projects/x/assets/ana_2026_09");
+  });
+
+  it("keeps a monthly template when the period has no month", () => {
+    expect(
+      fillPeriodTemplate("projects/x/assets/ana_{year}_{month}", "2026"),
+    ).toBe("projects/x/assets/ana_{year}_{month}");
+  });
+
   it("keeps the template when no year is known yet", () => {
-    expect(fillYearPlaceholder("projects/x/assets/ana_{year}")).toBe(
+    expect(fillPeriodTemplate("projects/x/assets/ana_{year}")).toBe(
       "projects/x/assets/ana_{year}",
     );
   });

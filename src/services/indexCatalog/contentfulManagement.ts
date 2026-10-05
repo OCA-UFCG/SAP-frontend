@@ -400,6 +400,8 @@ export async function deleteManagementEntry(entry: ContentfulManagementEntry) {
   );
 }
 
+const OPTIONAL_PANEL_LAYER_FIELDS = new Set(["previewMap", "measurementUnit"]);
+
 export async function ensureIndexCatalogContentModel() {
   const contentType = await contentfulManagementFetch<ContentfulContentType>(
     "/content_types/panelLayer",
@@ -414,13 +416,21 @@ export async function ensureIndexCatalogContentModel() {
     (field) => field.id === "previewMap",
   );
   const needsOptionalPreview = Boolean(previewMap?.required);
+  // Um índice sem unidade (IDH) grava `measurementUnit` vazio, e o Contentful
+  // recusa publicar uma entry com campo obrigatório em branco.
+  const measurementUnit = contentType.fields.find(
+    (field) => field.id === "measurementUnit",
+  );
+  const needsOptionalUnit = Boolean(measurementUnit?.required);
 
-  if (missing.length === 0 && !needsOptionalPreview) {
+  if (missing.length === 0 && !needsOptionalPreview && !needsOptionalUnit) {
     return { changed: false };
   }
 
   const fields = contentType.fields.map((field) =>
-    field.id === "previewMap" ? { ...field, required: false } : field,
+    OPTIONAL_PANEL_LAYER_FIELDS.has(field.id)
+      ? { ...field, required: false }
+      : field,
   );
   for (const field of missing) {
     fields.push({

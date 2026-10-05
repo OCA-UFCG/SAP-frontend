@@ -295,11 +295,14 @@ São configurações independentes:
   - **Valor único por município** (`gee-municipal-value-table`): uma linha por
     município, uma coluna por período e um número em cada célula — a forma dos
     dados socioeconômicos, descrita adiante;
-  - o formulário oferece **Uma tabela por ano (detectar os anos)**: o operador
-    cola o endereço de um ano concreto (`..._MonitorANA_2026`) e a tela grava o
-    template equivalente (`..._MonitorANA_{year}`). Não é um terceiro contrato,
-    é atalho de digitação. Combinado com granularidade mensal, atende o caso em
-    que cada tabela anual guarda os meses daquele ano — é a forma do `anaseca`;
+  - o formulário oferece **Uma tabela por ano ou mês (detectar pelo
+    endereço)**: o operador cola o endereço de um período concreto
+    (`..._MonitorANA_2026`) e a tela grava o template equivalente
+    (`..._MonitorANA_{year}`). Não é um terceiro contrato, é atalho de
+    digitação. Combinado com granularidade mensal, atende o caso em que cada
+    tabela anual guarda os meses daquele ano — é a forma do `anaseca`. Um mês
+    colado no ano (`..._2026_09`) vira `{year}_{month}` e fixa a granularidade
+    em mensal, porque aí cada tabela é um mês;
 - mapa: Image, ImageCollection ou FeatureCollection, em asset único ou por
   período.
 
