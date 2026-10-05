@@ -37,6 +37,8 @@ export const MAP_CONTROL_LABEL_CLASS =
 /**
  * Um cartão que abre e fecha pelo próprio cabeçalho, com o mesmo chevron e a
  * mesma tipografia em todos os controles. Usado por Territórios e Legendas.
+ * `onOpen` avisa quando a pessoa abre o cartão — Territórios usa isso para
+ * adiantar o download dos grupos que ela provavelmente vai ligar.
  *
  * O conteúdo vem como função porque só deve ser montado com o cartão aberto:
  * uma legenda de vinte classes não precisa existir no DOM enquanto está fechada.
@@ -47,9 +49,11 @@ export const MAP_CONTROL_LABEL_CLASS =
 export function MapControlDisclosure({
   label,
   children,
+  onOpen,
 }: {
   label: string;
   children: () => ReactNode;
+  onOpen?: () => void;
 }) {
   const [isOpen, setIsOpen] = useState(false);
 
@@ -58,7 +62,10 @@ export function MapControlDisclosure({
       <button
         type="button"
         className="flex w-full cursor-pointer items-center justify-between bg-transparent text-left outline-none"
-        onClick={() => setIsOpen(!isOpen)}
+        onClick={() => {
+          if (!isOpen) onOpen?.();
+          setIsOpen(!isOpen);
+        }}
         aria-expanded={isOpen}
       >
         {/* Cabeçalho como heading: o leitor de tela navega pelas caixas do

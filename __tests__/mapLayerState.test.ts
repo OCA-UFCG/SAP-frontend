@@ -7,6 +7,7 @@ import {
   type CDIVectorData,
   createInitialMapLayerState,
   resetPlatformState,
+  toggleReferenceHighlightValue,
   toggleReferenceOverlayValue,
 } from "@/components/MapLayerContext/mapLayerState";
 import type { IEEInfo, IImageParam } from "@/utils/interfaces";
@@ -159,5 +160,99 @@ describe("mapLayerState", () => {
     );
 
     expect(resetPlatformState(state).referenceOverlays.size).toBe(0);
+  });
+
+  describe("destaque de um grupo de territórios", () => {
+    it("destacar um grupo desligado também liga o grupo", () => {
+      const state = toggleReferenceHighlightValue(
+        createInitialMapLayerState(),
+        "terras_indigenas",
+      );
+
+      expect(state.highlightedReferenceOverlay).toBe("terras_indigenas");
+      expect(Array.from(state.referenceOverlays)).toEqual(["terras_indigenas"]);
+    });
+
+    it("destacar outro grupo troca o destaque e mantém os dois ligados", () => {
+      const first = toggleReferenceHighlightValue(
+        createInitialMapLayerState(),
+        "quilombolas",
+      );
+      const second = toggleReferenceHighlightValue(first, "assentamentos");
+
+      expect(second.highlightedReferenceOverlay).toBe("assentamentos");
+      expect(Array.from(second.referenceOverlays).sort()).toEqual([
+        "assentamentos",
+        "quilombolas",
+      ]);
+    });
+
+    it("desligar o destaque mantém o grupo ligado", () => {
+      const highlighted = toggleReferenceHighlightValue(
+        createInitialMapLayerState(),
+        "quilombolas",
+      );
+      const off = toggleReferenceHighlightValue(highlighted, "quilombolas");
+
+      expect(off.highlightedReferenceOverlay).toBeNull();
+      expect(Array.from(off.referenceOverlays)).toEqual(["quilombolas"]);
+    });
+
+    it("desligar o grupo em destaque tira o destaque", () => {
+      const highlighted = toggleReferenceHighlightValue(
+        createInitialMapLayerState(),
+        "unidades_conservacao",
+      );
+      const off = toggleReferenceOverlayValue(
+        highlighted,
+        "unidades_conservacao",
+      );
+
+      expect(off.highlightedReferenceOverlay).toBeNull();
+      expect(off.referenceOverlays.size).toBe(0);
+    });
+
+    it("ligar ou desligar outro grupo não mexe no destaque", () => {
+      const highlighted = toggleReferenceHighlightValue(
+        createInitialMapLayerState(),
+        "quilombolas",
+      );
+      const withOther = toggleReferenceOverlayValue(
+        highlighted,
+        "assentamentos",
+      );
+      const withoutOther = toggleReferenceOverlayValue(
+        withOther,
+        "assentamentos",
+      );
+
+      expect(withOther.highlightedReferenceOverlay).toBe("quilombolas");
+      expect(withoutOther.highlightedReferenceOverlay).toBe("quilombolas");
+    });
+
+    it("resetar o mapa tira o destaque", () => {
+      const highlighted = toggleReferenceHighlightValue(
+        createInitialMapLayerState(),
+        "terras_indigenas",
+      );
+
+      expect(resetPlatformState(highlighted).highlightedReferenceOverlay).toBe(
+        null,
+      );
+    });
+
+    it("vale para qualquer estado com os dois campos, como o da AMFE", () => {
+      const amfeSelection = {
+        referenceOverlays: new Set<"quilombolas">(),
+        highlightedReferenceOverlay: null,
+      };
+
+      const next = toggleReferenceHighlightValue(amfeSelection, "quilombolas");
+
+      expect(next).toEqual({
+        referenceOverlays: new Set(["quilombolas"]),
+        highlightedReferenceOverlay: "quilombolas",
+      });
+    });
   });
 });

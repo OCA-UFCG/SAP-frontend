@@ -56,9 +56,11 @@ import {
 } from "./municipalityLayers";
 import { useSpatialAreaClickSelection } from "./useSpatialAreaClickSelection";
 import {
+  BRAZIL_RASTER_BOUNDS,
   MAP_FOCUS_ANIMATION_DURATION,
   smoothCameraEasing,
 } from "./mapBounds";
+import { prefetchReferenceOverlayViewport } from "./referenceTileStore";
 import type { TerritoryFocus } from "@/components/PlatformMap/useTerritoryFocus";
 export type BasemapId = "osm" | "satellite";
 
@@ -109,6 +111,13 @@ export interface MapProps {
   onZoomChange?: (zoom: number) => void;
   /** Tile URLs for active reference overlay layers (quilombolas, etc.). */
   referenceOverlayTileUrls?: ReferenceOverlayTileUrls;
+  /** O grupo de território em destaque: o resto do mapa escurece. */
+  highlightedReferenceOverlay?: string | null;
+  /**
+   * Os endereços dos quatro grupos, entregues quando a pessoa abre o cartão de
+   * Territórios: o mapa baixa os tiles da área à vista antes do clique.
+   */
+  referenceOverlayPrefetchUrls?: ReferenceOverlayTileUrls | null;
   /** Território escolhido na busca de Territórios, para a câmera enquadrar. */
   territoryFocus?: TerritoryFocus | null;
 }
@@ -143,6 +152,8 @@ const Map = ({
   indexChoropleth = null,
   onZoomChange,
   referenceOverlayTileUrls,
+  highlightedReferenceOverlay = null,
+  referenceOverlayPrefetchUrls = null,
   territoryFocus = null,
 }: MapProps) => {
   const mapContainerRef = useRef<HTMLDivElement | null>(null);
@@ -784,10 +795,29 @@ const Map = ({
     });
   }, [territoryFocus, fitMapToBounds, mapRef]);
 
+  useEffect(() => {
+    const map = mapRef.current;
+    if (!map || !referenceOverlayPrefetchUrls?.size) return;
+
+    const bounds = map.getBounds();
+    prefetchReferenceOverlayViewport(
+      referenceOverlayPrefetchUrls.values(),
+      [
+        bounds.getWest(),
+        bounds.getSouth(),
+        bounds.getEast(),
+        bounds.getNorth(),
+      ],
+      map.getZoom(),
+      BRAZIL_RASTER_BOUNDS,
+    );
+  }, [referenceOverlayPrefetchUrls, mapRef, mapInstanceVersion]);
+
   const referenceOverlaySyncRef = useRef<{
     tileUrls: ReferenceOverlayTileUrls;
+    highlighted: string | null;
     disarmRetry: (() => void) | null;
-  }>({ tileUrls: EMPTY_TILE_URL_MAP, disarmRetry: null });
+  }>({ tileUrls: EMPTY_TILE_URL_MAP, highlighted: null, disarmRetry: null });
 
   useEffect(() => {
     const map = mapRef.current;
@@ -795,12 +825,21 @@ const Map = ({
 
     const syncState = referenceOverlaySyncRef.current;
     syncState.tileUrls = referenceOverlayTileUrls ?? EMPTY_TILE_URL_MAP;
+    syncState.highlighted = highlightedReferenceOverlay;
 
     // `sync` lê as URLs do ref, e não do closure: um retry agendado aqui só roda
     // depois de outros toggles, e precisa aplicar o estado atual das camadas.
     // Reaplicar o estado congelado removeria a camada que o usuário acabou de ligar.
     const sync = () => {
-      if (ensureReferenceOverlayLayers(map, syncState.tileUrls)) return;
+      if (
+        ensureReferenceOverlayLayers(
+          map,
+          syncState.tileUrls,
+          syncState.highlighted,
+        )
+      ) {
+        return;
+      }
       if (syncState.disarmRetry) return;
 
       const retry = () => {
@@ -822,7 +861,12 @@ const Map = ({
       map.off("styledata", sync);
       syncState.disarmRetry?.();
     };
-  }, [referenceOverlayTileUrls, mapRef, mapInstanceVersion]);
+  }, [
+    referenceOverlayTileUrls,
+    highlightedReferenceOverlay,
+    mapRef,
+    mapInstanceVersion,
+  ]);
 
   return (
     <div className="w-full h-full">
