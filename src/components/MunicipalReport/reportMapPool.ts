@@ -169,6 +169,17 @@ export function releaseReportMap(pooled: PooledReportMap) {
   idleMaps.push({ ...pooled, created: false });
 }
 
+/**
+ * Faz o mapa ser destruído quando voltar, em vez de guardado na estante.
+ *
+ * Serve para o mapa de uma captura que estourou o prazo ou lançou erro: não dá
+ * para saber em que estado ele ficou, e a nova tentativa precisa começar de um
+ * mapa limpo.
+ */
+export function markReportMapUnusable(map: maplibregl.Map) {
+  lostMaps.add(map);
+}
+
 /** Descarta a estante inteira. Chamado quando a prévia do relatório sai da tela. */
 export function destroyReportMapPool() {
   for (const pooled of idleMaps.splice(0, idleMaps.length)) {

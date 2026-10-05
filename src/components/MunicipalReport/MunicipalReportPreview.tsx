@@ -120,6 +120,7 @@ const AnalysisSection = memo(function AnalysisSection({
   mapChoropleth,
   mapUnavailableReason,
   onMapCapture,
+  onMapRetry,
   docsContent,
   monitorHref,
   onOpenMonitor,
@@ -138,6 +139,7 @@ const AnalysisSection = memo(function AnalysisSection({
   mapChoropleth?: ReportMapChoropleth;
   mapUnavailableReason?: EeMapUrlFailure;
   onMapCapture?: (key: string, src: string | null) => void;
+  onMapRetry?: (key: string) => void;
   docsContent: MunicipalReportDocsContent | null;
   onOpenMonitor?: (layerId: string) => void;
 }) {
@@ -332,6 +334,7 @@ const AnalysisSection = memo(function AnalysisSection({
                 choropleth={mapChoropleth}
                 unavailableReason={mapUnavailableReason}
                 onCapture={(src) => onMapCapture?.(mapKey, src)}
+                onRetry={onMapRetry && (() => onMapRetry(mapKey))}
                 onVisibilityChange={(visible) =>
                   onMapVisibility?.(mapKey, visible)
                 }
@@ -461,6 +464,7 @@ const ReportDocument = memo(function ReportDocument({
   mapChoropleths,
   retryAttemptFor,
   onMapCapture,
+  onMapRetry,
   onMapVisibility,
   documentRef,
   docsContent,
@@ -478,6 +482,7 @@ const ReportDocument = memo(function ReportDocument({
   mapChoropleths: ReportMapChoropleths;
   retryAttemptFor: (key: string) => number;
   onMapCapture?: (key: string, src: string | null) => void;
+  onMapRetry?: (key: string) => void;
   onMapVisibility?: (key: string, visible: boolean) => void;
   documentRef?: Ref<HTMLElement>;
   docsContent: MunicipalReportDocsContent | null;
@@ -574,6 +579,7 @@ const ReportDocument = memo(function ReportDocument({
                   mapChoropleths.failureFor(mapKey)
                 }
                 onMapCapture={onMapCapture}
+                onMapRetry={onMapRetry}
                 onMapVisibility={onMapVisibility}
                 docsContent={docsContent}
                 monitorHref={buildMonitorHref(analysis.id)}
@@ -711,6 +717,7 @@ export function MunicipalReportPreview({
     pendingMapCount,
     resetMapCaptureQueue,
     retryAttemptFor,
+    retryMapCapture,
   } = useReportMapCaptureQueue(reportMapKeys);
   // Enquanto as URLs não voltam a fila está vazia, e uma fila vazia estaria
   // "pronta": sem esta guarda o botão de exportar liberava antes do primeiro
@@ -1105,6 +1112,7 @@ export function MunicipalReportPreview({
                 mapChoropleths={mapChoropleths}
                 retryAttemptFor={retryAttemptFor}
                 onMapCapture={handleMapCapture}
+                onMapRetry={retryMapCapture}
                 onMapVisibility={handleMapVisibility}
                 documentRef={reportDocumentRef}
                 docsContent={docsContent}
@@ -1157,6 +1165,7 @@ export function MunicipalReportPreview({
             mapChoropleths={mapChoropleths}
             retryAttemptFor={retryAttemptFor}
             onMapCapture={handleMapCapture}
+            onMapRetry={retryMapCapture}
             onMapVisibility={handleMapVisibility}
             docsContent={docsContent}
             onOpenMonitor={onOpenMonitor}
