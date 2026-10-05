@@ -36,9 +36,59 @@ import {
 } from "@/components/Map/municipalityLayers";
 import {
   acquireReportMap,
+  markReportMapUnusable,
   releaseReportMap,
   type PooledReportMap,
 } from "@/components/MunicipalReport/reportMapPool";
+
+/**
+ * Quanto uma tentativa de captura pode levar, da obtenção do mapa até o PNG.
+ *
+ * Um mapa leva de 2 a 4 s nas medições do relatório. Sem prazo, uma única
+ * imagem que a rede nunca entrega — nem com sucesso, nem com erro — segurava o
+ * relatório em "1 mapa restante" para sempre, porque a fila só tentava de novo
+ * quando a captura falhava de forma explícita.
+ */
+export const REPORT_MAP_CAPTURE_TIMEOUT_MS = 30_000;
+
+/**
+ * Chama `onTimeout` depois de `milliseconds` com a aba visível.
+ *
+ * Numa aba em segundo plano o navegador para de desenhar os mapas; contar esse
+ * tempo derrubaria a captura só porque o leitor foi ver outra aba enquanto o
+ * relatório montava.
+ */
+function startVisibleTimeout(milliseconds: number, onTimeout: () => void) {
+  let remaining = milliseconds;
+  let startedAt = 0;
+  let timer: ReturnType<typeof setTimeout> | null = null;
+
+  function resume() {
+    if (timer !== null) return;
+    startedAt = Date.now();
+    timer = setTimeout(onTimeout, remaining);
+  }
+
+  function pause() {
+    if (timer === null) return;
+    clearTimeout(timer);
+    timer = null;
+    remaining -= Date.now() - startedAt;
+  }
+
+  function handleVisibilityChange() {
+    if (document.hidden) pause();
+    else resume();
+  }
+
+  document.addEventListener("visibilitychange", handleVisibilityChange);
+  if (!document.hidden) resume();
+
+  return () => {
+    pause();
+    document.removeEventListener("visibilitychange", handleVisibilityChange);
+  };
+}
 
 /**
  * O `panelLayer` não tem imagem para o período que o relatório resolveu pelos
@@ -239,6 +289,13 @@ function isCaptureReady(map: maplibregl.Map, sourceId: string) {
  * A coropleta não tem fonte nova: ela pinta a malha municipal que o mapa já
  * tem, então basta a malha estar carregada quando o mapa parar de desenhar.
  *
+ * Os ouvintes entram antes de a camada ser adicionada e antes de o território
+ * ser enquadrado, porque o contorno de bioma, semiárido e ASD é buscado na
+ * rede: se o raster terminasse durante essa busca, o aviso dele se perdia e a
+ * espera nunca acabava. A captura, porém, só vale depois de `markFocused`,
+ * senão sairia o Brasil inteiro em vez do território; o redesenho pedido ali
+ * garante um `idle` mesmo quando o mapa já tinha parado.
+ *
  * Ao desistir, o `signal` é o que garante a remoção dos ouvintes: o mapa volta
  * para a estante e será usado por outra camada, então um ouvinte esquecido aqui
  * ficaria pendurado nele para sempre.
@@ -247,29 +304,34 @@ function waitForMapCapture(
   map: maplibregl.Map,
   signal: AbortSignal,
   choropleth: boolean,
-): Promise<boolean> {
+): { ready: Promise<boolean>; markFocused: () => void } {
   const sourceId = choropleth ? MUNICIPALITY_SOURCE_ID : GEE_SOURCE_ID;
-  return new Promise((resolve) => {
-    let sourceReported = choropleth;
+  let sourceReported = choropleth;
+  let territoryFocused = false;
+  let settled = false;
 
+  const ready = new Promise<boolean>((resolve) => {
     function handleSourceData(event: maplibregl.MapSourceDataEvent) {
       if (event.sourceId === sourceId) sourceReported = true;
     }
 
     function handleIdle() {
-      if (sourceReported && isCaptureReady(map, sourceId)) settle(true);
+      if (territoryFocused && sourceReported && isCaptureReady(map, sourceId)) {
+        settle(true);
+      }
     }
 
     function handleGiveUp() {
       settle(false);
     }
 
-    function settle(ready: boolean) {
+    function settle(captured: boolean) {
+      settled = true;
       map.off("sourcedata", handleSourceData);
       map.off("idle", handleIdle);
       map.off("webglcontextlost", handleGiveUp);
       signal.removeEventListener("abort", handleGiveUp);
-      resolve(ready);
+      resolve(captured);
     }
 
     map.on("sourcedata", handleSourceData);
@@ -277,6 +339,15 @@ function waitForMapCapture(
     map.on("webglcontextlost", handleGiveUp);
     signal.addEventListener("abort", handleGiveUp);
   });
+
+  return {
+    ready,
+    markFocused() {
+      if (settled) return;
+      territoryFocused = true;
+      map.triggerRepaint();
+    },
+  };
 }
 
 interface ReportMapPreviewProps {
@@ -299,6 +370,11 @@ interface ReportMapPreviewProps {
   choropleth?: ReportMapChoropleth;
   onCapture?: (src: string | null) => void;
   /**
+   * Pede outra tentativa de um mapa que a fila já deu como indisponível.
+   * Presente, o quadro mostra o botão "Tentar novamente" junto do aviso.
+   */
+  onRetry?: () => void;
+  /**
    * Avisa a fila que este quadro entrou ou saiu da área visível, para que os
    * mapas que o leitor está olhando peguem as vagas primeiro.
    */
@@ -318,6 +394,7 @@ export function ReportMapPreview({
   unavailableReason,
   choropleth,
   onCapture,
+  onRetry,
   onVisibilityChange,
 }: ReportMapPreviewProps) {
   const drawable = Boolean(tileUrl || choropleth);
@@ -366,10 +443,15 @@ export function ReportMapPreview({
     let aborted = false;
     let finishMap: ReturnType<typeof startMunicipalReportStage> | null = null;
     let pooled: PooledReportMap | null = null;
+    let stopTimeout: (() => void) | null = null;
+    // Mapa de uma tentativa que estourou o prazo ou lançou erro: não volta para
+    // a estante, para a próxima tentativa não herdar o que travou esta.
+    let unusable = false;
 
-    const finishCapture = (src: string | null) => {
+    const finishCapture = (src: string | null, failure?: string) => {
       if (aborted || captureCompletedRef.current) return;
       captureCompletedRef.current = true;
+      stopTimeout?.();
       if (src) {
         setImage({ key: imageKey, src });
         setFailedImageKey(null);
@@ -379,9 +461,22 @@ export function ReportMapPreview({
       finishMap?.(`Mapa ${layerId} (${period})`, {
         detalhes: src
           ? "URL do Earth Engine, tiles, renderização e captura PNG"
-          : "Mapa indisponível ou falha na captura",
+          : (failure ?? "Mapa indisponível ou falha na captura"),
       });
       onCaptureRef.current?.(src);
+    };
+
+    // Encerra a tentativa como falha: a fila decide se tenta de novo. Abortar o
+    // `controller` solta as esperas pendentes, que então saem sem fazer nada.
+    const giveUp = (failure: string, error?: unknown) => {
+      if (aborted || captureCompletedRef.current) return;
+      unusable = true;
+      controller.abort();
+      console.warn(
+        `[municipalReport] mapa ${layerId} (${period}): ${failure}`,
+        error ?? "",
+      );
+      finishCapture(null, failure);
     };
 
     async function setupMapPreview() {
@@ -402,6 +497,12 @@ export function ReportMapPreview({
       const slot = containerRef.current;
       if (aborted || !slot || !drawable) return;
 
+      stopTimeout = startVisibleTimeout(REPORT_MAP_CAPTURE_TIMEOUT_MS, () =>
+        giveUp(
+          `Captura passou de ${REPORT_MAP_CAPTURE_TIMEOUT_MS / 1000} s sem terminar`,
+        ),
+      );
+
       const finishAcquire = startMunicipalReportStage();
       const acquired = await acquireReportMap(slot, controller.signal);
       // A limpeza do efeito já rodou e não viu este mapa, então é aqui que ele
@@ -411,6 +512,7 @@ export function ReportMapPreview({
         return;
       }
       pooled = acquired;
+      if (controller.signal.aborted) return;
       finishAcquire(`Mapa ${layerId}: obtenção do mapa`, {
         detalhes: acquired.created
           ? "Instância nova do MapLibre e malha municipal"
@@ -422,21 +524,23 @@ export function ReportMapPreview({
       }
 
       const finishTilesAndRender = startMunicipalReportStage();
-      if (choropleth) addChoroplethLayers(acquired.map, choropleth);
-      else if (tileUrl) addGeeRasterLayer(acquired.map, tileUrl);
-      await focusTerritory(acquired.map, territory, controller.signal);
-      if (aborted) return;
-      const ready = await waitForMapCapture(
+      const capture = waitForMapCapture(
         acquired.map,
         controller.signal,
         Boolean(choropleth),
       );
+      if (choropleth) addChoroplethLayers(acquired.map, choropleth);
+      else if (tileUrl) addGeeRasterLayer(acquired.map, tileUrl);
+      await focusTerritory(acquired.map, territory, controller.signal);
+      if (controller.signal.aborted) return;
+      capture.markFocused();
+      const ready = await capture.ready;
+      if (controller.signal.aborted) return;
       finishTilesAndRender(`Mapa ${layerId}: tiles e renderização`, {
         detalhes: ready
           ? "Do raster adicionado até o mapa parar de desenhar"
           : "Contexto WebGL perdido antes da captura",
       });
-      if (aborted) return;
 
       if (!ready) {
         finishCapture(null);
@@ -463,15 +567,21 @@ export function ReportMapPreview({
       !resolvedImageSrc &&
       !captureFailed
     ) {
-      setupMapPreview();
+      // Um erro no meio da montagem deixava o mapa pendente para sempre: a
+      // promessa rejeitava sem ninguém ouvir e a fila nunca era avisada.
+      setupMapPreview().catch((error) =>
+        giveUp("Erro ao montar o mapa", error),
+      );
     }
 
     return () => {
       aborted = true;
+      stopTimeout?.();
       controller.abort();
       // O mapa volta para a estante em vez de ser destruído: é isso que faz o
       // item seguinte do relatório não recarregar estilo e malha municipal.
       if (pooled) {
+        if (unusable) markReportMapUnusable(pooled.map);
         releaseReportMap(pooled);
         pooled = null;
       }
@@ -515,8 +625,17 @@ export function ReportMapPreview({
         />
       )}
       {!resolvedImageSrc && unavailableMessage && (
-        <div className="flex h-full w-full items-center justify-center bg-[#eef1f1] px-4 text-center text-xs text-neutral-500">
+        <div className="flex h-full w-full flex-col items-center justify-center gap-2 bg-[#eef1f1] px-4 text-center text-xs text-neutral-500">
           {unavailableMessage}
+          {captureFailed && !active && onRetry && (
+            <button
+              type="button"
+              onClick={onRetry}
+              className="font-open-sans rounded-md bg-[#989F43] px-3 py-1 text-xs font-medium leading-5 text-white transition hover:bg-[#868D3B] print:hidden"
+            >
+              {t("mapRetry")}
+            </button>
+          )}
         </div>
       )}
       {!resolvedImageSrc && !unavailableMessage && active && drawable && (

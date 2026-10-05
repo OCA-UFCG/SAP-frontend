@@ -106,6 +106,31 @@ describe("useReportMapCaptureQueue", () => {
     expect([...result.current.activeMapKeys]).toEqual(["map-0", "map-2"]);
   });
 
+  it("devolve à fila, a pedido, um mapa que já tinha desistido", () => {
+    const { result } = renderHook(() =>
+      useReportMapCaptureQueue(["map-0", "map-1"]),
+    );
+
+    act(() => result.current.handleMapCapture("map-1", null));
+    act(() => result.current.handleMapCapture("map-1", null));
+    act(() => result.current.handleMapCapture("map-0", "image-0"));
+    expect(result.current.mapsReady).toBe(true);
+    const attemptBefore = result.current.retryAttemptFor("map-1");
+
+    act(() => result.current.retryMapCapture("map-1"));
+
+    expect(result.current.mapsReady).toBe(false);
+    expect([...result.current.activeMapKeys]).toEqual(["map-1"]);
+    expect(result.current.retryAttemptFor("map-1")).toBeGreaterThan(
+      attemptBefore,
+    );
+
+    // A tentativa manual não reabre a repetição automática em série.
+    act(() => result.current.handleMapCapture("map-1", null));
+    expect(result.current.mapImages.get("map-1")).toBeNull();
+    expect(result.current.mapsReady).toBe(true);
+  });
+
   it("accepts out-of-order successes without exceeding concurrency", () => {
     const { result } = renderHook(() =>
       useReportMapCaptureQueue(["map-0", "map-1", "map-2"]),

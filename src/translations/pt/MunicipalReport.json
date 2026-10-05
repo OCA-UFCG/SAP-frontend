@@ -150,6 +150,7 @@
     "mapCropAlt": "Recorte do mapa do município",
     "mapUnavailableExport": "Mapa indisponível para exportação.",
     "mapPeriodUnavailable": "Sem imagem do mapa para este período.",
+    "mapRetry": "Tentar novamente",
     "periodRange": "{first} a {last}",
     "reportFilenamePrefix": "Relatório",
     "status": {

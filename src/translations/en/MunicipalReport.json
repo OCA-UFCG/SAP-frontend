@@ -150,6 +150,7 @@
     "mapCropAlt": "Cropped municipality map",
     "mapUnavailableExport": "Map unavailable for export.",
     "mapPeriodUnavailable": "No map image for this period.",
+    "mapRetry": "Try again",
     "periodRange": "{first} to {last}",
     "reportFilenamePrefix": "Report",
     "status": {
