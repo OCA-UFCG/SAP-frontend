@@ -2,10 +2,10 @@
   "Signup": {
     "title": "Criar conta",
     "logoAlt": "Logo do SEDES",
-    "emailPlaceholder": "Email",
+    "emailPlaceholder": "Email (de preferência institucional)",
     "passwordPlaceholder": "Senha",
     "confirmPasswordPlaceholder": "Confirmar senha",
-    "intentionPlaceholder": "Como pretende usar a plataforma?",
+    "intentionPlaceholder": "Como pretende usar a plataforma? Se tiver vínculo com alguma instituição, informe qual.",
     "intentionHint": "Sua descrição é enviada à equipe do OCA, que libera o acesso.",
     "emailRequired": "Informe o email.",
     "emailInvalid": "Informe um email válido.",

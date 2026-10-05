@@ -18,11 +18,22 @@ vi.mock("@/components/MunicipalReport/ReportMapPreview", () => ({
   ReportMapPreview({
     active,
     onCapture,
+    layerId,
+    choropleth,
+    tileUrl,
   }: Pick<ComponentProps<"div">, "className"> & {
     active?: boolean;
     onCapture?: (src: string | null) => void;
+    layerId?: string;
+    choropleth?: unknown;
+    tileUrl?: string;
   }) {
-    reportMapPreviewRenderSpy();
+    reportMapPreviewRenderSpy({
+      layerId,
+      choropleth,
+      tileUrl,
+      ...(active ? { active } : {}),
+    });
     const capturedRef = useRef(false);
 
     useEffect(() => {
@@ -234,6 +245,149 @@ describe("MunicipalReportPreview", () => {
         .mocked(global.fetch)
         .mock.calls.some(([input]) => String(input).includes("/chart?")),
     ).toBe(false);
+  });
+
+  it("pinta o mapa do índice de planilha e desenha a série de valor único", async () => {
+    const povertySnapshot = (period: string, percentage: number) => {
+      const item = {
+        id: "pobreza",
+        label: "Famílias em situação de pobreza",
+        color: "#BD0026",
+        percentage,
+      };
+      return {
+        period,
+        label: period,
+        distribution: [item],
+        dominantClass: item,
+      };
+    };
+    const spreadsheetReport: MunicipalReportData = {
+      ...report,
+      analyses: [
+        {
+          id: "percentual-de-pobreza",
+          alias: "pobreza",
+          title: "Percentual de pobreza",
+          category: "Dados Socioeconômicos",
+          unit: "%",
+          valueType: "percentage",
+          status: "available",
+          requestedPeriod: "2026",
+          effectivePeriod: "2025",
+          classes: [
+            {
+              id: "pobreza",
+              label: "Famílias em situação de pobreza",
+              color: "#BD0026",
+            },
+          ],
+          snapshot: povertySnapshot("2025", 52.3),
+          timeSeries: [
+            povertySnapshot("2024", 56.3),
+            povertySnapshot("2025", 52.3),
+          ],
+          mapChoropleth: { palette: ["#FFF", "#F00"], thresholds: [50] },
+        },
+      ],
+    };
+    vi.mocked(global.fetch).mockImplementation(async (input) => {
+      const url = String(input);
+      if (url.includes("/docs?")) return Response.json({ content: {} });
+      if (url.includes("/choropleth?")) {
+        return Response.json({
+          year: "2025",
+          values: { "5200050": 52.3, "5200100": 40 },
+        });
+      }
+      if (url.includes("/api/ee/map-urls")) return Response.json({ maps: [] });
+      return Response.json(spreadsheetReport);
+    });
+
+    render(
+      <MunicipalReportPreview
+        locationKey="5200050"
+        period="2026"
+        layerIds={["percentual-de-pobreza"]}
+        embedded
+      />,
+    );
+
+    expect(await screen.findByText("Série temporal")).toBeInTheDocument();
+    await waitFor(() => {
+      expect(screen.getByRole("button", { name: "Baixar PDF" })).toBeEnabled();
+    });
+    expect(reportMapPreviewRenderSpy).toHaveBeenLastCalledWith({
+      layerId: "percentual-de-pobreza",
+      choropleth: {
+        palette: ["#FFF", "#F00"],
+        classByCode: { "5200050": 1, "5200100": 0 },
+      },
+      tileUrl: undefined,
+    });
+    const requestedUrls = vi
+      .mocked(global.fetch)
+      .mock.calls.map(([input]) => String(input));
+    expect(
+      requestedUrls.some((url) =>
+        url.includes(
+          "/api/municipal-analysis/percentual-de-pobreza/choropleth?year=2025",
+        ),
+      ),
+    ).toBe(true);
+    // Sem imagem no Earth Engine, o índice não entra no pedido de URLs.
+    expect(requestedUrls.some((url) => url.includes("/api/ee/map-urls"))).toBe(
+      false,
+    );
+  });
+
+  // O índice de planilha não depende do Earth Engine: ele pega uma vaga da
+  // fila assim que os valores municipais chegam, sem esperar a URL das camadas
+  // de imagem, que no frio de um deploy pode levar segundos.
+  it("desenha o mapa de planilha enquanto as URLs do Earth Engine ainda não voltaram", async () => {
+    const spreadsheetAnalysis = {
+      ...report.analyses[0],
+      id: "percentual-de-pobreza",
+      alias: "pobreza",
+      title: "Percentual de pobreza",
+      mapChoropleth: { palette: ["#FFF", "#F00"], thresholds: [50] },
+    };
+    const mixedReport: MunicipalReportData = {
+      ...report,
+      analyses: [report.analyses[0], spreadsheetAnalysis],
+    };
+    vi.mocked(global.fetch).mockImplementation(async (input) => {
+      const url = String(input);
+      if (url.includes("/docs?")) return Response.json({ content: {} });
+      if (url.includes("/choropleth?")) {
+        return Response.json({ year: "2026", values: { "5200050": 52.3 } });
+      }
+      // O Earth Engine nunca responde neste teste.
+      if (url.includes("/api/ee/map-urls")) return new Promise(() => {});
+      return Response.json(mixedReport);
+    });
+
+    render(
+      <MunicipalReportPreview
+        locationKey="5200050"
+        period="2026"
+        layerIds={["anaseca", "percentual-de-pobreza"]}
+        embedded
+      />,
+    );
+
+    await waitFor(() => {
+      expect(reportMapPreviewRenderSpy).toHaveBeenCalledWith(
+        expect.objectContaining({
+          layerId: "percentual-de-pobreza",
+          active: true,
+          choropleth: expect.any(Object),
+        }),
+      );
+    });
+    expect(reportMapPreviewRenderSpy).not.toHaveBeenCalledWith(
+      expect.objectContaining({ layerId: "anaseca", active: true }),
+    );
   });
 
   it("leva o pedido do relatório no link Ver monitor, para a volta não perdê-lo", async () => {

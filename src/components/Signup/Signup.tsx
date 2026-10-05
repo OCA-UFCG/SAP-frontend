@@ -5,6 +5,7 @@ import { useForm } from "react-hook-form";
 import { useTranslations } from "next-intl";
 import Image from "next/image";
 import { Link } from "@/translations/routing";
+import { MIN_PASSWORD_LENGTH } from "@/config/passwordRules";
 import { Icon } from "../Icon/Icon";
 import { LoginField } from "../Login/LoginField";
 import { LoginPhotoPanel } from "../Login/LoginPhotoPanel";
@@ -43,7 +44,6 @@ type SignupProps = {
 };
 
 const BELOW_HEADER = "min-h-[calc(100vh-4.125rem)]";
-const MIN_PASSWORD_LENGTH = 8;
 
 export const Signup = ({
   onSubmit,

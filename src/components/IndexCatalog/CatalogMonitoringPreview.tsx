@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { AnalysisContext } from "@/components/SidePanelContexts/AnalysisContext";
 import { ModulesContext } from "@/components/SidePanelContexts/ModulesContext";
 import { useMapLayerActions } from "@/components/MapLayerContext/MapLayerContext";
@@ -36,16 +36,26 @@ export function CatalogMonitoringPreview({
     useMapLayerActions();
   const panelLayer = useMemo(
     () => preview.panelLayer as PanelLayerI,
-    [preview],
+    [preview.panelLayer],
   );
+  // O efeito abaixo desfaz as escolhas do operador (ano, território), então ele
+  // só pode ler a camada, nunca depender da identidade dela.
+  const panelLayerRef = useRef(panelLayer);
+  const { id: panelLayerId, imageData } = panelLayer;
 
   useEffect(() => {
+    panelLayerRef.current = panelLayer;
+  }, [panelLayer]);
+
+  // A prévia é remontada quando muda a camada desenhada — o id e o `imageData`
+  // — e só então. Depender do objeto inteiro fazia a tela voltar ao ano padrão
+  // e perder o município escolhido assim que a captura da imagem do cartão
+  // terminava e gravava a URL dela dentro do mesmo `panelLayer`.
+  useEffect(() => {
     resetPlatformState();
-    const years = getImageDataYearKeys(panelLayer.imageData);
+    const years = getImageDataYearKeys(imageData);
     const initialYear =
-      (isCompactImageData(panelLayer.imageData)
-        ? panelLayer.imageData.defaultYear
-        : undefined) ??
+      (isCompactImageData(imageData) ? imageData.defaultYear : undefined) ??
       years.at(-1) ??
       "";
 
@@ -53,12 +63,18 @@ export function CatalogMonitoringPreview({
       setActiveYear(initialYear);
     }
     activateEeLayer(
-      panelLayer as unknown as IEEInfo,
-      getImageDataLegend(panelLayer.imageData),
+      panelLayerRef.current as unknown as IEEInfo,
+      getImageDataLegend(imageData),
     );
 
     return resetPlatformState;
-  }, [activateEeLayer, panelLayer, resetPlatformState, setActiveYear]);
+  }, [
+    activateEeLayer,
+    imageData,
+    panelLayerId,
+    resetPlatformState,
+    setActiveYear,
+  ]);
 
   return (
     <section

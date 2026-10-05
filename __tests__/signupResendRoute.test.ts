@@ -56,10 +56,24 @@ describe("POST /api/signup/resend", () => {
     verifyCaptchaMock.mockReset().mockResolvedValue(true);
     vi.unstubAllEnvs();
     vi.stubEnv("NEXT_PUBLIC_HOST_URL", ORIGIN);
+    vi.stubEnv("PLATFORM_ACCESS_GUARD_ENABLED", "true");
+  });
+
+  it("sends nothing while the access guard is off", async () => {
+    vi.stubEnv("PLATFORM_ACCESS_GUARD_ENABLED", "false");
+
+    const response = await resend(
+      buildRequest({ email: "fulano@ufcg.edu.br" }),
+    );
+
+    expect(response.status).toBe(404);
+    expect(sendMailMock).not.toHaveBeenCalled();
   });
 
   it("sends the verification email again", async () => {
-    const response = await resend(buildRequest({ email: "fulano@ufcg.edu.br" }));
+    const response = await resend(
+      buildRequest({ email: "fulano@ufcg.edu.br" }),
+    );
 
     expect(response.status).toBe(202);
     expect(sendMailMock).toHaveBeenCalledWith(

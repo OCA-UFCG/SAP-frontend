@@ -8,6 +8,7 @@ const {
   recordAccessDecisionMock,
   claimNotificationMock,
   sendMailMock,
+  applyCodeMock,
 } = vi.hoisted(() => ({
   getUserByEmailMock: vi.fn(),
   approveAccessMock: vi.fn(),
@@ -16,6 +17,11 @@ const {
   recordAccessDecisionMock: vi.fn(),
   claimNotificationMock: vi.fn(),
   sendMailMock: vi.fn(),
+  applyCodeMock: vi.fn(),
+}));
+
+vi.mock("@/lib/email-verification-code", () => ({
+  applyVerificationCode: applyCodeMock,
 }));
 
 vi.mock("@/lib/firebase-admin", () => ({
@@ -89,14 +95,32 @@ describe("POST /api/signup/confirm", () => {
     recordAccessDecisionMock.mockReset().mockResolvedValue(undefined);
     claimNotificationMock.mockReset().mockResolvedValue(true);
     sendMailMock.mockReset().mockResolvedValue({ delivered: true });
+    applyCodeMock.mockReset().mockResolvedValue(null);
     vi.unstubAllEnvs();
     vi.stubEnv("NEXT_PUBLIC_HOST_URL", ORIGIN);
     vi.stubEnv("OCA_NOTIFICATION_EMAIL", "acesso@lsd.ufcg.edu.br");
+    vi.stubEnv("PLATFORM_ACCESS_GUARD_ENABLED", "true");
+  });
+
+  it("settles nothing while the access guard is off", async () => {
+    vi.stubEnv("PLATFORM_ACCESS_GUARD_ENABLED", "false");
+
+    const response = await confirm(
+      buildRequest({ email: "fulano@ufcg.edu.br" }),
+    );
+
+    expect(response.status).toBe(404);
+    expect(getUserByEmailMock).not.toHaveBeenCalled();
+    expect(approveAccessMock).not.toHaveBeenCalled();
   });
 
   it("grants access to the institutional trail once the address is confirmed", async () => {
     readAccessRequestMock.mockResolvedValue(
-      pendingRequest({ tier: "allowed", email: "fulano@ufcg.edu.br", intention: "" }),
+      pendingRequest({
+        tier: "allowed",
+        email: "fulano@ufcg.edu.br",
+        intention: "",
+      }),
     );
 
     const response = await confirm(
@@ -111,7 +135,9 @@ describe("POST /api/signup/confirm", () => {
   // O documento é explícito: a liberação automática vale a regra de domínio,
   // não um operador.
   it("records the automatic approval as decided by the domain rule", async () => {
-    readAccessRequestMock.mockResolvedValue(pendingRequest({ tier: "allowed" }));
+    readAccessRequestMock.mockResolvedValue(
+      pendingRequest({ tier: "allowed" }),
+    );
 
     await confirm(buildRequest({ email: "fulano@ufcg.edu.br" }));
 
@@ -140,7 +166,9 @@ describe("POST /api/signup/confirm", () => {
       emailVerified: false,
     });
 
-    const response = await confirm(buildRequest({ email: "fulano@ufcg.edu.br" }));
+    const response = await confirm(
+      buildRequest({ email: "fulano@ufcg.edu.br" }),
+    );
 
     expect(response.status).toBe(409);
     expect(approveAccessMock).not.toHaveBeenCalled();
@@ -164,7 +192,9 @@ describe("POST /api/signup/confirm", () => {
       pendingRequest({ tier: "allowed", status: "approved" }),
     );
 
-    const response = await confirm(buildRequest({ email: "fulano@ufcg.edu.br" }));
+    const response = await confirm(
+      buildRequest({ email: "fulano@ufcg.edu.br" }),
+    );
 
     await expect(response.json()).resolves.toEqual({ status: "approved" });
     expect(approveAccessMock).not.toHaveBeenCalled();
@@ -177,7 +207,11 @@ describe("POST /api/signup/confirm", () => {
   it("opens the missing request instead of trapping the person", async () => {
     readAccessRequestMock.mockResolvedValueOnce(null);
     readAccessRequestMock.mockResolvedValueOnce(
-      pendingRequest({ tier: "allowed", email: "fulano@ufcg.edu.br", intention: "" }),
+      pendingRequest({
+        tier: "allowed",
+        email: "fulano@ufcg.edu.br",
+        intention: "",
+      }),
     );
     vi.stubEnv("SIGNUP_ALLOWED_DOMAINS", "ufcg.edu.br");
 
@@ -193,6 +227,50 @@ describe("POST /api/signup/confirm", () => {
     });
     expect(response.status).toBe(200);
     await expect(response.json()).resolves.toEqual({ status: "approved" });
+  });
+
+  it("applies the code from the e-mail before checking the account", async () => {
+    applyCodeMock.mockImplementation(async () => {
+      getUserByEmailMock.mockResolvedValue({
+        uid: "user-123",
+        emailVerified: true,
+      });
+      return "fulano@gmail.com";
+    });
+    getUserByEmailMock.mockResolvedValue({
+      uid: "user-123",
+      emailVerified: false,
+    });
+
+    const response = await confirm(
+      buildRequest({ email: "fulano@gmail.com", code: "CODIGO" }),
+    );
+
+    expect(applyCodeMock).toHaveBeenCalledWith("CODIGO");
+    await expect(response.json()).resolves.toEqual({ status: "pending" });
+  });
+
+  // Quem vale é o endereço que o Firebase confirmou com o código, não o que
+  // veio escrito no link.
+  it("settles the address the code confirmed, not the one in the link", async () => {
+    applyCodeMock.mockResolvedValue("fulano@ufcg.edu.br");
+
+    await confirm(
+      buildRequest({ email: "outra-pessoa@ufcg.edu.br", code: "CODIGO" }),
+    );
+
+    expect(getUserByEmailMock).toHaveBeenCalledWith("fulano@ufcg.edu.br");
+  });
+
+  // Abrir o link pela segunda vez: o código já foi usado, mas o endereço já
+  // está confirmado, e a pessoa só precisa ver em que pé está o pedido.
+  it("still answers when the code was already used", async () => {
+    const response = await confirm(
+      buildRequest({ email: "fulano@gmail.com", code: "JA-USADO" }),
+    );
+
+    expect(response.status).toBe(200);
+    await expect(response.json()).resolves.toEqual({ status: "pending" });
   });
 
   it("does not leak whether an address has an account", async () => {

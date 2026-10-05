@@ -1,6 +1,7 @@
 import { cookies } from "next/headers";
 import { notFound } from "next/navigation";
 import { getTranslations } from "next-intl/server";
+import { Link } from "@/translations/routing";
 import { SESSION_COOKIE_NAME } from "@/lib/server-session";
 import { resolveLogsViewerAccess } from "@/lib/logs-access";
 import { listPendingAccessRequests } from "@/lib/access-requests";
@@ -31,6 +32,18 @@ export default async function ApprovalsPage({
 
   const t = await getTranslations("Approvals");
 
+  // A tela fica fora da casca da plataforma, sem a trilha lateral, então sem
+  // este link a única volta era o botão do navegador.
+  const backToPlatform = (
+    <Link
+      href="/platform"
+      className="flex h-[33px] w-fit items-center gap-1.5 rounded-md border border-[#989F43] px-3 text-[12px] font-medium text-[#5B612A] transition hover:bg-[#F4F4E6] focus:outline-none focus-visible:ring-2 focus-visible:ring-[#777E32] focus-visible:ring-offset-2"
+    >
+      <span aria-hidden="true">←</span>
+      {t("backToPlatform")}
+    </Link>
+  );
+
   // A consulta exige um índice composto do Firestore (ver
   // `firestore.indexes.json`). Sem ele, ela falha — e a página inteira ia
   // junto, deixando os pedidos sem nenhuma forma de serem decididos. Um aviso
@@ -49,6 +62,7 @@ export default async function ApprovalsPage({
   if (failed) {
     return (
       <main className="flex w-full flex-col gap-4 px-6 py-10">
+        {backToPlatform}
         <h1 className="font-inter text-[22px] font-medium leading-7 tracking-[-0.36px] text-[#50554C]">
           {t("title")}
         </h1>
@@ -64,6 +78,7 @@ export default async function ApprovalsPage({
 
   return (
     <main className="flex w-full flex-col gap-6 px-6 py-10">
+      {backToPlatform}
       <div className="flex flex-col gap-2">
         <h1 className="font-inter text-[22px] font-medium leading-7 tracking-[-0.36px] text-[#50554C]">
           {t("title")}

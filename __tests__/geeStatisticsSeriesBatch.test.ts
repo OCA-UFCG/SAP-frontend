@@ -74,6 +74,7 @@ import { evaluateGeeObject } from "@/infrastructure/earth-engine/client";
 import {
   clearGeeStatisticsSchemaCacheForTests,
   getGeeStatisticsYearPatch,
+  preloadGeeStatisticsSchema,
 } from "@/repositories/platform/geeStatisticsRepository";
 import { clearGeeStatisticsRowsCache } from "@/repositories/platform/geeStatisticsRowsCache";
 
@@ -212,6 +213,59 @@ describe("leitura em lote da série estatística", () => {
     ).resolves.not.toBeNull();
 
     expect(mockedEvaluate).toHaveBeenCalledTimes(4);
+  });
+});
+
+// Regressão: as colunas ficam só na memória do processo, então o primeiro
+// relatório depois de cada deploy fazia uma ida a mais por camada, e as idas
+// dele esperavam umas pelas outras.
+describe("colunas lidas quando o servidor sobe", () => {
+  it("deixa a primeira leitura da camada só com as linhas", async () => {
+    await preloadGeeStatisticsSchema(source, YEARS);
+    const kindsBeforeRead = mockedEvaluate.mock.calls.map(
+      ([object]) => (object as FakeNode).kind,
+    );
+    mockedEvaluate.mockClear();
+
+    const result = await readPeriod("2020");
+
+    expect(kindsBeforeRead).toEqual(["propertyNames"]);
+    expect(
+      mockedEvaluate.mock.calls.map(([object]) => (object as FakeNode).kind),
+    ).toEqual(["collection", "collection", "collection"]);
+    expect(result?.patch.years?.["2020"]?.values).toEqual({
+      "2507507": [40, 60],
+    });
+  });
+
+  // Regressão: o Next dá à subida do servidor e à rota cópias separadas deste
+  // módulo. Com o cache numa variável do módulo, a rota não via as colunas
+  // aquecidas e o primeiro relatório depois do deploy lia as 17 de novo.
+  it("serve as colunas aquecidas a outra cópia do módulo, como a da rota", async () => {
+    await preloadGeeStatisticsSchema(source, YEARS);
+    mockedEvaluate.mockClear();
+
+    vi.resetModules();
+    const routeCopy =
+      await import("@/repositories/platform/geeStatisticsRepository");
+    await routeCopy.getGeeStatisticsYearPatch(
+      "indicearidez",
+      "2020",
+      "2507507",
+      2,
+      source,
+      YEARS,
+    );
+
+    expect(
+      mockedEvaluate.mock.calls.map(([object]) => (object as FakeNode).kind),
+    ).not.toContain("propertyNames");
+  });
+
+  it("não lê nada de uma camada sem períodos publicados", async () => {
+    await preloadGeeStatisticsSchema(source, []);
+
+    expect(mockedEvaluate).not.toHaveBeenCalled();
   });
 });
 

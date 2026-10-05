@@ -8,6 +8,7 @@ import {
   clearPanelLayersCache,
   PANEL_LAYERS_CACHE_TAG,
 } from "@/repositories/platform/panelLayerRepository";
+import { clearPublishedNewDataScan } from "@/services/indexCatalog/publishedNewDataScan";
 import { clearDocTemplateCache } from "@/services/buildDoc/buildDocTemplate";
 import { clearMunicipalReportCache } from "@/services/municipalReportCache";
 
@@ -46,6 +47,11 @@ export function refreshPublicIndexCaches(panelLayerId: string) {
   // só ganha a sua seção quando alguém acrescenta o bloco ao documento, e
   // publicar é o momento em que isso acabou de acontecer.
   clearDocTemplateCache();
+  // Publicar ou despublicar muda tanto quem entra na varredura quanto os
+  // períodos que o índice passa a publicar; sem isto a seção "Publicados sem os
+  // dados mais recentes" continuaria acusando o índice que acabou de ser
+  // atualizado, até o TTL expirar.
+  clearPublishedNewDataScan();
   // "max" é a forma que o Next 16 aceita fora de Server Actions; sem o
   // segundo argumento a chamada é depreciada.
   revalidateTag(PANEL_LAYERS_CACHE_TAG, "max");

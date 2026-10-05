@@ -30,6 +30,7 @@ import {
   STATES_SOURCE_ID,
   STATES_SOURCE_LAYER,
   ensureReferenceOverlayLayers,
+  type ReferenceOverlayTileUrls,
   ensureSpatialBoundaryLayer,
 } from "./mapDefinitions";
 import { useMapController } from "./useMapController";
@@ -54,10 +55,18 @@ import {
   MUNICIPALITY_SOURCE_LAYER,
 } from "./municipalityLayers";
 import { useSpatialAreaClickSelection } from "./useSpatialAreaClickSelection";
+import {
+  MAP_FOCUS_ANIMATION_DURATION,
+  smoothCameraEasing,
+} from "./mapBounds";
+import type { TerritoryFocus } from "@/components/PlatformMap/useTerritoryFocus";
 export type BasemapId = "osm" | "satellite";
 
-const EMPTY_TILE_URL_MAP: globalThis.Map<string, string | undefined> =
-  new globalThis.Map();
+// Perto o bastante para ver o contorno de um quilombo de poucos quilômetros, sem
+// chegar ao nível de rua quando o retângulo do território é quase um ponto.
+const TERRITORY_FOCUS_MAX_ZOOM = 13;
+
+const EMPTY_TILE_URL_MAP: ReferenceOverlayTileUrls = new globalThis.Map();
 
 export interface MapProps {
   mapMode?: MapMode;
@@ -99,7 +108,9 @@ export interface MapProps {
   classificationFillOpacity?: number;
   onZoomChange?: (zoom: number) => void;
   /** Tile URLs for active reference overlay layers (quilombolas, etc.). */
-  referenceOverlayTileUrls?: Map<string, string | undefined>;
+  referenceOverlayTileUrls?: ReferenceOverlayTileUrls;
+  /** Território escolhido na busca de Territórios, para a câmera enquadrar. */
+  territoryFocus?: TerritoryFocus | null;
 }
 
 const Map = ({
@@ -132,6 +143,7 @@ const Map = ({
   indexChoropleth = null,
   onZoomChange,
   referenceOverlayTileUrls,
+  territoryFocus = null,
 }: MapProps) => {
   const mapContainerRef = useRef<HTMLDivElement | null>(null);
   const {
@@ -760,8 +772,20 @@ const Map = ({
     mapInstanceVersion,
   ]);
 
+  useEffect(() => {
+    const map = mapRef.current;
+    if (!map || !territoryFocus) return;
+
+    fitMapToBounds(map, territoryFocus.bounds, {
+      animate: true,
+      duration: MAP_FOCUS_ANIMATION_DURATION,
+      easing: smoothCameraEasing,
+      maxZoom: TERRITORY_FOCUS_MAX_ZOOM,
+    });
+  }, [territoryFocus, fitMapToBounds, mapRef]);
+
   const referenceOverlaySyncRef = useRef<{
-    tileUrls: globalThis.Map<string, string | undefined>;
+    tileUrls: ReferenceOverlayTileUrls;
     disarmRetry: (() => void) | null;
   }>({ tileUrls: EMPTY_TILE_URL_MAP, disarmRetry: null });
 

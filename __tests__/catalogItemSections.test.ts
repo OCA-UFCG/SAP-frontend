@@ -30,10 +30,12 @@ describe("splitCatalogItemsIntoSections", () => {
 
     expect(sections.map((section) => section.key)).toEqual([
       "unpublished",
+      "published-outdated",
       "published",
     ]);
     expect(sections[0].items).toEqual([draft]);
-    expect(sections[1].items).toEqual([published]);
+    expect(sections[1].items).toEqual([]);
+    expect(sections[2].items).toEqual([published]);
   });
 
   it("não lista um panelLayer que o catálogo não gerencia", () => {
@@ -49,7 +51,7 @@ describe("splitCatalogItemsIntoSections", () => {
 
   it("mantém a seção vazia na lista para a tela poder anunciá-la", () => {
     const sections = splitCatalogItemsIntoSections([]);
-    expect(sections).toHaveLength(2);
+    expect(sections).toHaveLength(3);
     expect(sections.every((section) => section.items.length === 0)).toBe(true);
   });
 
@@ -62,6 +64,54 @@ describe("splitCatalogItemsIntoSections", () => {
     expect(sections.find((s) => s.key === "unpublished")?.items).toEqual([
       wanted,
     ]);
+  });
+});
+
+describe("splitCatalogItemsIntoSections e a varredura de novos dados", () => {
+  it("tira de Publicados o índice que a varredura apontou como desatualizado", () => {
+    const outdated = buildItem({ entryId: "a", published: true });
+    const current = buildItem({ entryId: "b", published: true });
+
+    const sections = splitCatalogItemsIntoSections(
+      [outdated, current],
+      "",
+      new Set(["a"]),
+    );
+
+    expect(sections.find((s) => s.key === "published-outdated")?.items).toEqual(
+      [outdated],
+    );
+    expect(sections.find((s) => s.key === "published")?.items).toEqual([
+      current,
+    ]);
+  });
+
+  // Enquanto a varredura não responde ninguém é acusado de desatualizado: a
+  // seção nova nasce vazia, e não com todos os publicados dentro.
+  it("deixa todo publicado em Publicados enquanto a varredura não responde", () => {
+    const published = buildItem({ entryId: "a", published: true });
+
+    const sections = splitCatalogItemsIntoSections([published]);
+
+    expect(sections.find((s) => s.key === "published-outdated")?.items).toEqual(
+      [],
+    );
+    expect(sections.find((s) => s.key === "published")?.items).toEqual([
+      published,
+    ]);
+  });
+
+  it("nunca manda um rascunho para a seção de publicados desatualizados", () => {
+    const draft = buildItem({ entryId: "a", published: false });
+
+    const sections = splitCatalogItemsIntoSections([draft], "", new Set(["a"]));
+
+    expect(sections.find((s) => s.key === "unpublished")?.items).toEqual([
+      draft,
+    ]);
+    expect(sections.find((s) => s.key === "published-outdated")?.items).toEqual(
+      [],
+    );
   });
 });
 

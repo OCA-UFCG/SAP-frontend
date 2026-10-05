@@ -9,6 +9,7 @@ import {
   withAuditEvent,
 } from "@/services/indexCatalog/catalogConfigAudit";
 import {
+  ensureIndexCatalogContentModel,
   getCatalogEntry,
   getLocalizedEntryField,
   patchManagementEntry,
@@ -47,6 +48,8 @@ export async function updateIndexCatalogPresentation(
   const current = await getCatalogEntry(entryId);
   const previous = requirePresentationConfig(current);
   const input = parseIndexCatalogPresentationInput(rawInput);
+  // A unidade pode chegar em branco, e só publica se o campo for opcional.
+  if (!input.measurementUnit) await ensureIndexCatalogContentModel();
   const config = withAuditEvent(
     {
       ...previous,

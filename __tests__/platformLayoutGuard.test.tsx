@@ -1,3 +1,4 @@
+import type { ReactElement, ReactNode } from "react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 const { cookiesMock, redirectMock, resolvePlatformAccessMock } = vi.hoisted(
@@ -15,6 +16,21 @@ vi.mock("@/lib/platform-access", () => ({
 }));
 
 import PlatformLayout from "@/app/[locale]/platform/layout";
+
+/**
+ * O layout devolve o `Suspense` na hora e deixa a checagem de acesso para o
+ * portão lá dentro; o teste renderiza o portão para chegar nela.
+ */
+async function renderPlatform(locale: string) {
+  const layoutOutput = (await PlatformLayout({
+    children: "conteudo",
+    params: Promise.resolve({ locale }),
+  })) as ReactElement<{ children: ReactElement }>;
+  const gate = layoutOutput.props.children;
+  const renderGate = gate.type as (props: unknown) => Promise<ReactNode>;
+
+  return renderGate(gate.props);
+}
 
 function mockSessionCookie(value?: string) {
   cookiesMock.mockResolvedValue({
@@ -50,10 +66,7 @@ describe("platform layout guard", () => {
     mockSessionCookie("session-cookie");
     resolvePlatformAccessMock.mockResolvedValue("unapproved");
 
-    await PlatformLayout({
-      children: "conteudo",
-      params: Promise.resolve({ locale: "en" }),
-    });
+    await renderPlatform("en");
 
     // O idioma vai junto: sem isso, quem navega em /en cai numa página em
     // português no momento em que mais precisa entender o que houve.
@@ -67,10 +80,7 @@ describe("platform layout guard", () => {
     mockSessionCookie("session-cookie");
     resolvePlatformAccessMock.mockResolvedValue("approved");
 
-    const result = await PlatformLayout({
-      children: "conteudo",
-      params: Promise.resolve({ locale: "en" }),
-    });
+    const result = await renderPlatform("en");
 
     expect(redirectMock).not.toHaveBeenCalled();
     expect(result).toBeTruthy();
@@ -80,10 +90,7 @@ describe("platform layout guard", () => {
     mockSessionCookie("session-cookie");
     resolvePlatformAccessMock.mockResolvedValue("approved");
 
-    await PlatformLayout({
-      children: "conteudo",
-      params: Promise.resolve({ locale: "en" }),
-    });
+    await renderPlatform("en");
 
     expect(resolvePlatformAccessMock).toHaveBeenCalledWith("session-cookie");
   });

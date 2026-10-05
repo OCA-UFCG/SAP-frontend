@@ -1,7 +1,9 @@
 import { NextResponse } from "next/server";
 import { adminAuth } from "@/lib/firebase-admin";
 import { hasTrustedMutationOrigin } from "@/lib/catalog-access";
+import { rejectWhenSignupClosed } from "@/app/api/signup/availability";
 import { settleSignup } from "@/lib/signup-settlement";
+import { applyVerificationCode } from "@/lib/email-verification-code";
 import {
   consumeConfirmRateLimit,
   getSignupClientKey,
@@ -14,6 +16,9 @@ const NO_STORE = { "Cache-Control": "no-store" } as const;
 /**
  * Fecha o cadastro depois que a pessoa abriu o link do e-mail.
  *
+ * O link traz o código de confirmação do Firebase, e é aqui que ele é aplicado
+ * — a pessoa nunca passa pela página do Firebase.
+ *
  * O servidor nunca acredita no navegador: a página de confirmação roda no
  * cliente e pode mentir, então quem decide **relê o usuário no Firebase** e
  * confere `emailVerified` na fonte. É essa confirmação que torna a regra de
@@ -24,6 +29,9 @@ const NO_STORE = { "Cache-Control": "no-store" } as const;
  * dele: quem confirma o endereço e fecha a aba nunca chega aqui.
  */
 export async function POST(request: Request) {
+  const closed = rejectWhenSignupClosed();
+  if (closed) return closed;
+
   if (!hasTrustedMutationOrigin(request)) {
     return NextResponse.json(
       { error: "Origem da requisição não autorizada." },
@@ -47,10 +55,27 @@ export async function POST(request: Request) {
   }
 
   let email: unknown;
+  let code: unknown;
   try {
-    ({ email } = (await request.json()) as { email?: unknown });
+    ({ email, code } = (await request.json()) as {
+      email?: unknown;
+      code?: unknown;
+    });
   } catch {
     email = null;
+  }
+
+  // O código do e-mail é o que confirma o endereço. Quando ele vale, o e-mail
+  // que conta é o que o Firebase diz ter confirmado, não o que veio no link.
+  // Quando não vale (já usado, vencido), segue com o endereço do link: quem abre
+  // o e-mail pela segunda vez já está confirmado e só precisa da resposta.
+  const confirmedEmail =
+    typeof code === "string" && code
+      ? await applyVerificationCode(code)
+      : null;
+
+  if (confirmedEmail) {
+    email = confirmedEmail;
   }
 
   if (typeof email !== "string" || !email.trim()) {

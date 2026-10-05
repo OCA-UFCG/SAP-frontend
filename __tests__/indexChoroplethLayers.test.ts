@@ -6,6 +6,7 @@ import {
   INDEX_CHOROPLETH_LAYER_ID,
   INDEX_CHOROPLETH_OUTLINE_LAYER_ID,
   INDEX_CHOROPLETH_OVERVIEW_LAYER_ID,
+  INDEX_CHOROPLETH_OVERVIEW_OUTLINE_LAYER_ID,
   INDEX_CHOROPLETH_STATE_KEY,
   applyIndexChoroplethStates,
   buildChoroplethFillColor,
@@ -20,6 +21,10 @@ import {
   type MunicipalityOverviewGeoJson,
 } from "@/components/Map/classificationLayers";
 import { MUNICIPALITY_SOURCE_ID } from "@/components/Map/municipalityLayers";
+import {
+  SPATIAL_BOUNDARY_LAYER_ID,
+  STATES_FILL_LAYER_ID,
+} from "@/components/Map/mapDefinitions";
 
 const PALETTE = ["#FEE5D9", "#FC9272", "#DE2D26"];
 
@@ -45,8 +50,11 @@ class FakeChoroplethMap {
   addSource(id: string) {
     this.sources.add(id);
   }
-  addLayer(layer: AddLayerObject) {
+  readonly beforeIds = new Map<string, string | undefined>();
+
+  addLayer(layer: AddLayerObject, beforeId?: string) {
     this.layers.set(layer.id, layer);
+    this.beforeIds.set(layer.id, beforeId);
   }
   removeLayer(id: string) {
     this.layers.delete(id);
@@ -93,6 +101,40 @@ describe("ensureIndexChoroplethLayers", () => {
       maxzoom: CLASSIFICATION_MIN_ZOOM,
     });
     expect(map.sources.has(CLASSIFICATION_OVERVIEW_SOURCE_ID)).toBe(true);
+  });
+
+  // Regressão: sem âncora a coropleta das planilhas ia para o topo e escondia
+  // o contorno do recorte selecionado e o do hover na pré-visualização.
+  it("stays below the spatial boundary outline so the selection stays visible", () => {
+    const map = new FakeChoroplethMap();
+    map.layers.set(STATES_FILL_LAYER_ID, {
+      id: STATES_FILL_LAYER_ID,
+    } as AddLayerObject);
+    map.layers.set(SPATIAL_BOUNDARY_LAYER_ID, {
+      id: SPATIAL_BOUNDARY_LAYER_ID,
+    } as AddLayerObject);
+
+    ensureIndexChoroplethLayers(map, PALETTE, OVERVIEW, 0.85);
+
+    expect(map.beforeIds.get(INDEX_CHOROPLETH_LAYER_ID)).toBe(
+      SPATIAL_BOUNDARY_LAYER_ID,
+    );
+    expect(map.beforeIds.get(INDEX_CHOROPLETH_OVERVIEW_OUTLINE_LAYER_ID)).toBe(
+      SPATIAL_BOUNDARY_LAYER_ID,
+    );
+  });
+
+  it("anchors below the state fills while no boundary is on the map yet", () => {
+    const map = new FakeChoroplethMap();
+    map.layers.set(STATES_FILL_LAYER_ID, {
+      id: STATES_FILL_LAYER_ID,
+    } as AddLayerObject);
+
+    ensureIndexChoroplethLayers(map, PALETTE, OVERVIEW, 0.85);
+
+    expect(map.beforeIds.get(INDEX_CHOROPLETH_LAYER_ID)).toBe(
+      STATES_FILL_LAYER_ID,
+    );
   });
 
   it("does nothing while the municipality tiles are not on the map yet", () => {

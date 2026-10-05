@@ -184,6 +184,13 @@ import {
   MUNICIPALITY_SOURCE_ID,
 } from "@/components/Map/municipalityLayers";
 
+/** Hover e seleção compartilham o mesmo contorno preto no município. */
+const MUNICIPALITY_HIGHLIGHTED = [
+  "any",
+  ["boolean", ["feature-state", "hover"], false],
+  ["boolean", ["feature-state", "selected"], false],
+];
+
 describe("Map lifecycle", () => {
   afterEach(() => {
     cleanup();
@@ -257,19 +264,9 @@ describe("Map lifecycle", () => {
           "line-opacity": [
             "step",
             ["zoom"],
-            [
-              "case",
-              ["boolean", ["feature-state", "selected"], false],
-              0.95,
-              0,
-            ],
+            ["case", MUNICIPALITY_HIGHLIGHTED, 0.95, 0],
             MUNICIPALITY_BORDER_MIN_ZOOM,
-            [
-              "case",
-              ["boolean", ["feature-state", "selected"], false],
-              0.95,
-              0.25,
-            ],
+            ["case", MUNICIPALITY_HIGHLIGHTED, 0.95, 0.25],
           ],
         }),
       }),

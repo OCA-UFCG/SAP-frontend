@@ -17,6 +17,7 @@ import {
 import { LegacyIndexEditor } from "@/components/IndexCatalog/LegacyIndexEditor";
 import { CatalogReportPreview } from "@/components/IndexCatalog/CatalogReportPreview";
 import { ClassColorField } from "@/components/IndexCatalog/ClassColorField";
+import { ClassificationMethodFields } from "@/components/IndexCatalog/ClassificationMethodFields";
 import {
   catalogApiRequest as apiRequest,
   catalogIdempotencyKey as idempotencyKey,
@@ -25,14 +26,18 @@ import {
 } from "@/components/IndexCatalog/catalogApiClient";
 import { IndexCatalogGuideModal } from "@/components/IndexCatalog/IndexCatalogGuideModal";
 import { IndexCatalogReportFields } from "@/components/IndexCatalog/IndexCatalogReportFields";
+import { MapAssetStrategyFields } from "@/components/IndexCatalog/MapAssetStrategyFields";
 import { PanelPositionField } from "@/components/IndexCatalog/PanelPositionField";
 import { ImageCollectionForecastGuideModal } from "@/components/IndexCatalog/ImageCollectionForecastGuideModal";
 import {
-  detectYearPartitionedTemplate,
-  fillYearPlaceholder,
+  detectPeriodTemplate,
+  fillPeriodTemplate,
   hasPublishableValidation,
+  isDetectedPeriodTemplate,
   parseNumberList,
 } from "@/utils/indexCatalog";
+import { resizeValueRanges } from "@/utils/municipalValueIndicator";
+import { buildValueLegendRanges } from "@/utils/valueLegendRanges";
 import type { PublishedPanelLayerReportConfig } from "@/contracts/panelLayerReport";
 import {
   createDefaultReportDraft,
@@ -51,6 +56,7 @@ import {
   type IndexCatalogLifecycleImpact,
   type IndexCatalogPreview,
   type MunicipalValueIndicator,
+  type PublishedNewDataScan,
 } from "@/types/indexCatalog";
 import {
   MunicipalValueIndicatorFields,
@@ -156,22 +162,23 @@ const EMPTY_SPREADSHEET_SOURCE = {
 
 /**
  * "year-siblings" não é uma terceira forma de contrato: ela grava o mesmo
- * `period-template` com `{year}`. A diferença é só de formulário — o operador
- * cola o endereço de um ano concreto em vez de escrever o placeholder.
+ * `period-template` com `{year}` (e `{month}`). A diferença é só de formulário —
+ * o operador cola o endereço de um período concreto em vez de escrever o
+ * placeholder.
  */
 type StatisticsAssetMode = "fixed" | "year-siblings" | "period-template";
 
 const STATISTICS_ASSET_MODE_HINTS: Record<StatisticsAssetMode, string> = {
   fixed: "Uma única tabela reúne todos os períodos disponíveis.",
   "year-siblings":
-    "Existe uma tabela por ano e cada uma guarda os meses daquele ano. Informe o endereço de um ano; o catálogo descobre os demais na mesma pasta.",
+    "Existe uma tabela por ano (que pode guardar os meses daquele ano) ou uma por mês. Informe o endereço de uma delas; o catálogo descobre as demais na mesma pasta.",
   "period-template":
     "Várias tabelas seguem o mesmo padrão de endereço, como uma tabela para cada ano ou mês.",
 };
 
 const STATISTICS_ASSET_FIELD_LABELS: Record<StatisticsAssetMode, string> = {
   fixed: "ID da FeatureCollection",
-  "year-siblings": "ID da FeatureCollection de um dos anos",
+  "year-siblings": "ID da FeatureCollection de um dos períodos",
   "period-template": "Template da FeatureCollection",
 };
 
@@ -191,10 +198,7 @@ function inferStatisticsAssetMode(
   asset: GeeDraftSource["asset"],
 ): StatisticsAssetMode {
   if (asset.type === "fixed") return "fixed";
-  const template = asset.assetIdTemplate;
-  return template.includes("{year}") &&
-    !template.includes("{month}") &&
-    !template.includes("{period}")
+  return isDetectedPeriodTemplate(asset.assetIdTemplate)
     ? "year-siblings"
     : "period-template";
 }
@@ -269,6 +273,10 @@ function CatalogActionButton({
 
 export function IndexCatalogScreen() {
   const [items, setItems] = useState<IndexCatalogItem[]>([]);
+  const [newDataScan, setNewDataScan] = useState<PublishedNewDataScan | null>(
+    null,
+  );
+  const [scanningNewData, setScanningNewData] = useState(true);
   const [draft, setDraft] = useState<IndexCatalogDraftInput>(EMPTY_DRAFT);
   const [report, setReport] = useState<IndexCatalogReportDraft>(
     createDefaultReportDraft,
@@ -276,6 +284,7 @@ export function IndexCatalogScreen() {
   const [statisticsAssetMode, setStatisticsAssetMode] =
     useState<StatisticsAssetMode>("fixed");
   const [yearSampleAssetId, setYearSampleAssetId] = useState("");
+  const [openedLatestPeriod, setOpenedLatestPeriod] = useState<string>();
   const [entryId, setEntryId] = useState<string | null>(null);
   const [guideOpen, setGuideOpen] = useState(false);
   const [forecastGuideOpen, setForecastGuideOpen] = useState(false);
@@ -309,19 +318,49 @@ export function IndexCatalogScreen() {
   const validationRunRef = useRef(0);
   const validationCompletionTimerRef = useRef<number | null>(null);
 
+  /**
+   * Pede a verificação de todos os índices publicados de uma vez, que é o que
+   * enche a seção "Publicados sem os dados mais recentes".
+   *
+   * Só vale a pena com a listagem em mãos: sem nenhum índice publicado criado
+   * pelo catálogo não há o que verificar, e a varredura é a parte lenta da tela
+   * (uma listagem de pasta do Earth Engine por índice).
+   */
+  const loadNewDataScan = useCallback((items: IndexCatalogItem[]) => {
+    const scannable = items.some(
+      (item) => item.published && item.managedScope === "full",
+    );
+    if (!scannable) {
+      setNewDataScan(null);
+      setScanningNewData(false);
+      return;
+    }
+    setScanningNewData(true);
+    apiRequest<PublishedNewDataScan>("/api/index-catalog/new-data")
+      .then(setNewDataScan)
+      .catch(() => setNewDataScan(null))
+      .finally(() => setScanningNewData(false));
+  }, []);
+
   const loadItems = useCallback(async () => {
     const result = await apiRequest<{ items: IndexCatalogItem[] }>(
       "/api/index-catalog",
     );
     setItems(result.items);
+    // A varredura acompanha a listagem: publicar, despublicar ou revalidar um
+    // índice muda quem está desatualizado, e a resposta do servidor é
+    // memoizada, então repetir o pedido custa quase nada quando nada mudou.
+    loadNewDataScan(result.items);
     return result.items;
-  }, []);
+  }, [loadNewDataScan]);
 
   useEffect(() => {
     let active = true;
     apiRequest<{ items: IndexCatalogItem[] }>("/api/index-catalog")
       .then((result) => {
-        if (active) setItems(result.items);
+        if (!active) return;
+        setItems(result.items);
+        loadNewDataScan(result.items);
       })
       .catch((reason) => {
         if (active) {
@@ -339,7 +378,7 @@ export function IndexCatalogScreen() {
         window.clearTimeout(validationCompletionTimerRef.current);
       }
     };
-  }, []);
+  }, [loadNewDataScan]);
 
   const editingItem = entryId
     ? items.find((item) => item.entryId === entryId)
@@ -367,6 +406,7 @@ export function IndexCatalogScreen() {
     setReport(createDefaultReportDraft());
     setStatisticsAssetMode("fixed");
     setYearSampleAssetId("");
+    setOpenedLatestPeriod(undefined);
     setEntryId(null);
     entryIdRef.current = null;
     createKeyRef.current = null;
@@ -417,13 +457,14 @@ export function IndexCatalogScreen() {
       ? inferStatisticsAssetMode(openedGeeSource.asset)
       : "fixed";
     setStatisticsAssetMode(assetMode);
-    // Reexibe o ano que o operador digitou, e não o placeholder gravado.
+    setOpenedLatestPeriod(config.validation?.inferred.periods.at(-1));
+    // Reexibe o período que o operador digitou, e não o placeholder gravado.
     setYearSampleAssetId(
       assetMode === "year-siblings" &&
         openedGeeSource?.asset.type === "period-template"
-        ? fillYearPlaceholder(
+        ? fillPeriodTemplate(
             openedGeeSource.asset.assetIdTemplate,
-            config.validation?.inferred.periods.at(-1)?.slice(0, 4),
+            config.validation?.inferred.periods.at(-1),
           )
         : "",
     );
@@ -487,13 +528,28 @@ export function IndexCatalogScreen() {
       );
       return;
     }
-    // O contrato só entende o template; o ano digitado fica só na tela.
+    // O contrato só entende o template; o período digitado fica só na tela.
+    const detected = detectPeriodTemplate(value);
     setYearSampleAssetId(value);
     updateStatisticsAsset({
       type: "period-template",
-      assetIdTemplate:
-        detectYearPartitionedTemplate(value)?.assetIdTemplate ?? value.trim(),
+      assetIdTemplate: detected?.assetIdTemplate ?? value.trim(),
     });
+    // Uma tabela por mês só tem leitura mensal: o contrato recusa `{month}`
+    // com granularidade anual.
+    if (detected?.month) {
+      setDraft((current) =>
+        current.statisticsSource.kind === "municipal-spreadsheet"
+          ? current
+          : {
+              ...current,
+              statisticsSource: {
+                ...current.statisticsSource,
+                periodGranularity: "month",
+              },
+            },
+      );
+    }
   }
 
   function updateStatisticsProperty(key: string, value: string) {
@@ -653,6 +709,39 @@ export function IndexCatalogScreen() {
   const isSpreadsheet = statisticsShape === "spreadsheet";
   /** O painel mostra um número por território nas duas formas de valor único. */
   const hasValueIndicator = isValueTable || isSpreadsheet;
+  /**
+   * Os períodos que o método de classificação pode ler. Saem da validação
+   * porque é ela que descobre quais períodos a tabela tem; antes dela não há o
+   * que ler, e o campo aparece com a lista vazia.
+   */
+  const classificationPeriods =
+    preview?.validation.inferred.periods ??
+    (editingItem?.catalogConfig?.schemaVersion === 2
+      ? (editingItem.catalogConfig.validation?.inferred.periods ?? [])
+      : []);
+
+  /**
+   * Escreve os limites calculados no mesmo campo que o operador digitaria.
+   *
+   * Num índice de valor único a quantidade de faixas é dele, então o método
+   * pode acrescentar ou remover faixas; num índice classificatório ela vem das
+   * colunas da tabela, e a própria tela já impede aplicar um método que mudaria
+   * esse número.
+   */
+  function applyClassificationBreaks(thresholds: number[], classCount: number) {
+    setThresholdsInput(thresholds.join(", "));
+    if (!hasValueIndicator) return;
+    // Num índice de valor único as faixas são da legenda do mapa, então os
+    // limites novos trazem consigo rótulos e cores: aplicar um método preenche
+    // a legenda inteira, e não só o campo de limites.
+    updateDraft(
+      "classes",
+      draft.valueIndicator
+        ? buildValueLegendRanges(thresholds, draft.valueIndicator)
+        : resizeValueRanges(draft.classes, classCount),
+    );
+  }
+
   const spreadsheetSource =
     draft.statisticsSource.kind === "municipal-spreadsheet"
       ? draft.statisticsSource
@@ -1047,12 +1136,31 @@ export function IndexCatalogScreen() {
 
   const detectedYearPartition =
     statisticsAssetMode === "year-siblings"
-      ? detectYearPartitionedTemplate(yearSampleAssetId)
+      ? detectPeriodTemplate(yearSampleAssetId)
       : null;
   const inputClass =
     "mt-1 w-full rounded-md border border-[#CFD0CA] bg-white px-3 py-2 text-sm outline-none focus:border-[#989F43] focus:ring-2 focus:ring-[#E1E2B4]";
   const buttonClass =
     "cursor-pointer rounded-md px-4 py-2 text-sm font-semibold disabled:cursor-not-allowed disabled:opacity-50";
+
+  /**
+   * O cálculo das faixas pelos dados, desenhado junto do campo de limites que
+   * ele preenche: dentro de "Faixas de cor do mapa" num índice de valor único,
+   * e ao lado de "Limites das classes" num raster contínuo. Um bloco solto no
+   * fim do formulário não deixava ver que era aquele campo que ele mudava.
+   */
+  const classificationMethodBlock = (
+    <ClassificationMethodFields
+      entryId={entryId}
+      spreadsheetSource={spreadsheetSource}
+      periods={classificationPeriods}
+      classCount={draft.classes.length}
+      canChangeClassCount={hasValueIndicator}
+      inputClass={inputClass}
+      buttonClass={buttonClass}
+      onApply={applyClassificationBreaks}
+    />
+  );
 
   return (
     <div className="space-y-6 bg-[#F6F7F3] p-6 text-[#292829]">
@@ -1098,6 +1206,9 @@ export function IndexCatalogScreen() {
       <CatalogIndexSections
         items={items}
         loading={busy === "load"}
+        newDataChecks={newDataScan?.checks ?? {}}
+        scanningNewData={scanningNewData}
+        newDataFailures={newDataScan?.failed ?? 0}
         inputClass={inputClass}
         buttonClass={buttonClass}
         onOpenLegacyEditor={openLegacyEditor}
@@ -1228,7 +1339,7 @@ export function IndexCatalogScreen() {
                     >
                       <option value="fixed">FeatureCollection única</option>
                       <option value="year-siblings">
-                        Uma tabela por ano (detectar os anos)
+                        Uma tabela por ano ou mês (detectar pelo endereço)
                       </option>
                       <option value="period-template">
                         Template por período
@@ -1243,6 +1354,7 @@ export function IndexCatalogScreen() {
                     <select
                       className={inputClass}
                       value={geeSource.periodGranularity}
+                      disabled={Boolean(detectedYearPartition?.month)}
                       onChange={(event) =>
                         updateDraft("statisticsSource", {
                           ...geeSource,
@@ -1255,8 +1367,9 @@ export function IndexCatalogScreen() {
                       <option value="month">Mensal</option>
                     </select>
                     <span className="mt-1 block text-xs font-normal text-stone-500">
-                      Anual gera períodos como 2026; Mensal gera 2026-09.
-                      Precisa bater com os períodos da tabela.
+                      {detectedYearPartition?.month
+                        ? "Mensal, porque o endereço traz o mês: cada tabela é um mês."
+                        : "Anual gera períodos como 2026; Mensal gera 2026-09. Precisa bater com os períodos da tabela."}
                     </span>
                   </label>
                   <label className="text-sm font-medium md:col-span-2">
@@ -1282,7 +1395,7 @@ export function IndexCatalogScreen() {
                         ? "Templates aceitam {year}, {month} e {period}."
                         : statisticsAssetMode === "fixed"
                           ? "Endereço exato da tabela, que precisa conter todos os períodos."
-                          : "Cole o endereço completo de um dos anos; o ano no fim do nome vira a chave de busca."}
+                          : "Cole o endereço completo de um dos anos ou meses; o ano no fim do nome (e o mês logo depois dele) vira a chave de busca."}
                     </span>
                     {statisticsAssetMode === "year-siblings" &&
                       yearSampleAssetId.trim() !== "" && (
@@ -1293,9 +1406,11 @@ export function IndexCatalogScreen() {
                               : "bg-amber-50 text-amber-800"
                           }`}
                         >
-                          {detectedYearPartition
-                            ? `Ano ${detectedYearPartition.year} detectado. O catálogo vai procurar ${detectedYearPartition.assetIdTemplate} no mesmo diretório e reunir todos os anos encontrados. Cada tabela pode guardar vários meses: escolha "Mensal" na granularidade para que os períodos venham de data_img.`
-                            : "Não encontramos um ano de 4 dígitos neste endereço. Inclua o ano (por exemplo, ..._2026) ou use “Template por período”."}
+                          {detectedYearPartition?.month
+                            ? `Mês ${detectedYearPartition.month}/${detectedYearPartition.year} detectado. O catálogo vai procurar ${detectedYearPartition.assetIdTemplate} no mesmo diretório e reunir todos os meses encontrados.`
+                            : detectedYearPartition
+                              ? `Ano ${detectedYearPartition.year} detectado. O catálogo vai procurar ${detectedYearPartition.assetIdTemplate} no mesmo diretório e reunir todos os anos encontrados. Cada tabela pode guardar vários meses: escolha "Mensal" na granularidade para que os períodos venham de data_img.`
+                              : "Não encontramos um ano de 4 dígitos neste endereço. Inclua o ano (por exemplo, ..._2026) ou use “Template por período”."}
                         </span>
                       )}
                   </label>
@@ -1468,51 +1583,13 @@ export function IndexCatalogScreen() {
                     </span>
                   </div>
                 )}
-                <label className="text-sm font-medium">
-                  Organização
-                  <select
-                    className={inputClass}
-                    value={draft.earthEngine.strategy}
-                    disabled={Boolean(draft.earthEngine.collectionSelection)}
-                    onChange={(event) =>
-                      updateMap({
-                        strategy: event.target.value as "single" | "perPeriod",
-                      })
-                    }
-                  >
-                    <option value="single">Asset único</option>
-                    <option value="perPeriod">Por período</option>
-                  </select>
-                  {draft.earthEngine.collectionSelection && (
-                    <span className="mt-1 block text-xs font-normal text-stone-500">
-                      Previsões por emissão usam uma única coleção.
-                    </span>
-                  )}
-                </label>
-                {draft.earthEngine.strategy === "single" ? (
-                  <label className="text-sm font-medium md:col-span-2">
-                    ID do asset de mapa
-                    <input
-                      className={inputClass}
-                      value={draft.earthEngine.singleAssetId ?? ""}
-                      onChange={(event) =>
-                        updateMap({ singleAssetId: event.target.value })
-                      }
-                    />
-                  </label>
-                ) : (
-                  <label className="text-sm font-medium md:col-span-2">
-                    Template do asset de mapa
-                    <input
-                      className={inputClass}
-                      placeholder="projects/projeto/assets/mapa_{period}"
-                      value={draft.earthEngine.assetPattern ?? ""}
-                      onChange={(event) =>
-                        updateMap({ assetPattern: event.target.value })
-                      }
-                    />
-                  </label>
-                )}
+                <MapAssetStrategyFields
+                  key={entryId ?? "new"}
+                  mapping={draft.earthEngine}
+                  latestPeriod={openedLatestPeriod}
+                  inputClass={inputClass}
+                  onChange={updateMap}
+                />
                 {draft.earthEngine.sourceType === "featureCollection" ? (
                   <label className="text-sm font-medium">
                     Propriedade para renderizar
@@ -1612,25 +1689,28 @@ export function IndexCatalogScreen() {
                   publicado com `min` 1 e `max` 6 sobre valores em g/kg, e o
                   mapa saía inteiro na cor da última classe. */}
                 {!isValueTable && (
-                  <label className="text-sm font-medium md:col-span-2">
-                    Limites das classes (opcional)
-                    <input
-                      className={inputClass}
-                      placeholder="-90, -30, 0, 30, 90"
-                      value={thresholdsInput}
-                      onChange={(event) =>
-                        setThresholdsInput(event.target.value)
-                      }
-                    />
-                    <span className="mt-1 block text-xs font-normal text-stone-500">
-                      Só para raster contínuo, em que cada classe é uma faixa de
-                      valores: informe os limites na unidade do próprio asset
-                      (g/kg, mm, °C), um a menos que a quantidade de classes e
-                      em ordem crescente — 6 classes exigem 5 limites. Deixe
-                      vazio quando o raster já guarda o número da classe em cada
-                      pixel.
-                    </span>
-                  </label>
+                  <div className="md:col-span-2">
+                    <label className="text-sm font-medium">
+                      Limites das classes (opcional)
+                      <input
+                        className={inputClass}
+                        placeholder="-90, -30, 0, 30, 90"
+                        value={thresholdsInput}
+                        onChange={(event) =>
+                          setThresholdsInput(event.target.value)
+                        }
+                      />
+                      <span className="mt-1 block text-xs font-normal text-stone-500">
+                        Só para raster contínuo, em que cada classe é uma faixa
+                        de valores: informe os limites na unidade do próprio
+                        asset (g/kg, mm, °C), um a menos que a quantidade de
+                        classes e em ordem crescente — 6 classes exigem 5
+                        limites. Deixe vazio quando o raster já guarda o número
+                        da classe em cada pixel.
+                      </span>
+                    </label>
+                    {classificationMethodBlock}
+                  </div>
                 )}
               </div>
             </fieldset>
@@ -1648,6 +1728,7 @@ export function IndexCatalogScreen() {
                 thresholdsInput={thresholdsInput}
                 inputClass={inputClass}
                 buttonClass={buttonClass}
+                methodSlot={classificationMethodBlock}
                 onChangeRange={updateClass}
                 onChangeRanges={(ranges) => updateDraft("classes", ranges)}
                 onChangeThresholds={setThresholdsInput}
@@ -1808,6 +1889,7 @@ export function IndexCatalogScreen() {
           <CatalogReportPreview
             entryId={preview.entryId}
             tileApiPath={preview.panelLayer.tileApiPath}
+            choroplethSource={preview.panelLayer}
           />
         </section>
       )}

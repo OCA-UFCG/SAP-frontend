@@ -34,11 +34,15 @@ import { IndexCatalogScreen } from "@/components/IndexCatalog/IndexCatalogScreen
  * Todas as seções da listagem abrem fechadas, então um teste que inspeciona os
  * cartões de uma delas precisa expandi-la primeiro.
  */
+/**
+ * Abre a seção pelo título exato, e não pelo nome acessível do cabeçalho:
+ * "Publicados" e "Publicados sem os dados mais recentes" começam igual, e uma
+ * busca por expressão regular casava com as duas.
+ */
 async function expandCatalogSection(title: string) {
-  const header = await screen.findByRole("button", {
-    name: new RegExp(title, "u"),
-  });
-  if (header.getAttribute("aria-expanded") === "false") {
+  const heading = await screen.findByText(title, { exact: true });
+  const header = heading.closest("button");
+  if (header?.getAttribute("aria-expanded") === "false") {
     fireEvent.click(header);
   }
 }
@@ -112,6 +116,46 @@ describe("IndexCatalogScreen v2", () => {
     expect(body).not.toHaveProperty("selectedFiles");
     expect(body).not.toHaveProperty("sourceTag");
     expect(body).not.toHaveProperty("unit");
+  });
+
+  it("lê o mês do endereço colado e fixa a granularidade em Mensal", async () => {
+    const fetchMock = vi.mocked(fetch);
+    fetchMock
+      .mockImplementationOnce(() => jsonResponse({ items: [] }))
+      .mockImplementationOnce(() =>
+        jsonResponse({ entryId: "draft-1", panelLayerId: "indice-gee" }, 201),
+      )
+      .mockImplementationOnce(() => jsonResponse({ requiresRepublish: false }))
+      .mockImplementationOnce(() => jsonResponse({ items: [] }));
+
+    render(<IndexCatalogScreen />);
+    await screen.findByText("Nenhum panelLayer encontrado.");
+    fillMinimumForm();
+    fireEvent.change(screen.getByLabelText(/Organização dos assets/u), {
+      target: { value: "year-siblings" },
+    });
+    fireEvent.change(
+      screen.getByLabelText(/ID da FeatureCollection de um dos períodos/u),
+      { target: { value: "projects/example/assets/estat_2026_09" } },
+    );
+
+    expect(screen.getByText(/Mês 09\/2026 detectado/u)).toBeInTheDocument();
+    const granularity = screen.getByLabelText(/Granularidade/u);
+    expect(granularity).toHaveValue("month");
+    expect(granularity).toBeDisabled();
+
+    fireEvent.click(screen.getByRole("button", { name: "Salvar rascunho" }));
+    await waitFor(() => expect(fetch).toHaveBeenCalledTimes(4));
+    const body = JSON.parse(
+      String((fetchMock.mock.calls[1][1] as RequestInit).body),
+    );
+    expect(body.statisticsSource).toMatchObject({
+      periodGranularity: "month",
+      asset: {
+        type: "period-template",
+        assetIdTemplate: "projects/example/assets/estat_{year}_{month}",
+      },
+    });
   });
 
   it("manda a posição na categoria escrita no formulário", async () => {
@@ -529,6 +573,75 @@ describe("IndexCatalogScreen v2", () => {
     expect(
       screen.queryByRole("button", { name: "Adotar no catálogo" }),
     ).not.toBeInTheDocument();
+  });
+
+  const publishedItem = {
+    entryId: "v2",
+    panelLayerId: "indice-gee",
+    name: "Índice GEE",
+    description: "",
+    published: true,
+    everPublished: true,
+    hasUnpublishedChanges: false,
+    catalogManaged: true,
+    managedScope: "full",
+    status: "published",
+  };
+
+  it("mostra na seção de publicados desatualizados o que a varredura apontou", async () => {
+    const fetchMock = vi.mocked(fetch);
+    fetchMock
+      .mockImplementationOnce(() => jsonResponse({ items: [publishedItem] }))
+      .mockImplementationOnce(() =>
+        jsonResponse({
+          checkedAt: "2026-09-21T12:00:00.000Z",
+          checked: 1,
+          failed: 0,
+          checks: {
+            v2: {
+              checkedAt: "2026-09-21T12:00:00.000Z",
+              status: "new-data",
+              message: "3 período(s) novo(s) na pasta do Earth Engine.",
+              knownPeriods: ["2023"],
+              newPeriods: ["2024", "2025", "2026"],
+              updatedAssets: [],
+            },
+          },
+        }),
+      );
+
+    render(<IndexCatalogScreen />);
+
+    const section = await screen.findByText(
+      "Publicados sem os dados mais recentes",
+      { exact: true },
+    );
+    expect(section.closest("button")).toHaveAttribute("aria-expanded", "true");
+    expect(
+      await screen.findByText("3 período(s) novo(s) na pasta do Earth Engine."),
+    ).toBeInTheDocument();
+    expect(fetchMock.mock.calls[1][0]).toBe("/api/index-catalog/new-data");
+  });
+
+  // A varredura é a parte lenta da tela: sem índice publicado criado pelo
+  // catálogo não há pasta nenhuma para listar, e pedi-la seria desperdício.
+  it("não pede a varredura quando não há índice publicado para verificar", async () => {
+    const fetchMock = vi.mocked(fetch);
+    fetchMock.mockImplementationOnce(() =>
+      jsonResponse({ items: [{ ...publishedItem, published: false }] }),
+    );
+
+    render(<IndexCatalogScreen />);
+    await expandCatalogSection("Publicados sem os dados mais recentes");
+
+    expect(
+      await screen.findByText(
+        "Todo índice publicado está com os dados mais recentes da pasta dele.",
+      ),
+    ).toBeInTheDocument();
+    expect(fetchMock.mock.calls.map(([url]) => url)).not.toContain(
+      "/api/index-catalog/new-data",
+    );
   });
 
   it("oferece Republicar no índice publicado com alteração pendente", async () => {

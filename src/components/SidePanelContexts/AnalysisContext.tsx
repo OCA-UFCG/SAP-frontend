@@ -423,9 +423,10 @@ export function AnalysisContext({
     yearOptions,
   ]);
 
+  // Voltar para a listagem mantém o estado e o município escolhidos: quem
+  // compara índices sobre o mesmo território ativa o próximo índice e continua
+  // olhando o mesmo lugar, sem o mapa voltar para o Brasil inteiro.
   function handleGoBack() {
-    setSelectedState("br");
-    setSelectedMunicipalityCode(null);
     onRequestSectionChange?.("monitoring");
   }
 
@@ -579,9 +580,10 @@ export function AnalysisContext({
       years={temporalYears}
       classes={temporalClasses}
       selectedState={selectedLocationKey}
-      emptyStateTitle={t("unavailableTitle", {
-        location: unavailableLocationName,
-      })}
+      emptyStateTitle={t(
+        isMunicipalAnalysisLoading ? "loadingTitle" : "unavailableTitle",
+        { location: unavailableLocationName },
+      )}
       emptyStateDescription={
         isMunicipalAnalysisLoading
           ? t("unavailableDescriptionLoading")

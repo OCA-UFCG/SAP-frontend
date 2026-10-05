@@ -65,7 +65,24 @@ interface EvaluatedFeatureCollection {
   features?: EvaluatedFeature[];
 }
 
-const propertyNamesBySourceRevision = new Map<string, Promise<string[]>>();
+/**
+ * As colunas de cada série, guardadas no `globalThis` e não numa variável do
+ * módulo.
+ *
+ * O Next empacota o código da subida do servidor (`instrumentation`) separado
+ * das rotas, e cada pacote recebe a sua própria cópia deste módulo. Numa
+ * variável do módulo, as colunas aquecidas na subida ficavam numa cópia que a
+ * rota do relatório nunca lia: o primeiro relatório depois do deploy lia as 17
+ * de novo e levava 5,1 s, contra 2,5 s do segundo.
+ */
+const sharedState = globalThis as typeof globalThis & {
+  __geeStatisticsPropertyNames?: Map<string, Promise<string[]>>;
+};
+const propertyNamesBySourceRevision =
+  (sharedState.__geeStatisticsPropertyNames ??= new Map<
+    string,
+    Promise<string[]>
+  >());
 
 export interface GeeStatisticsMetrics {
   areaTotalHa?: number;
@@ -540,9 +557,9 @@ async function loadSeriesLocationRows(
   locationKey: string,
 ): Promise<Record<string, unknown>[]> {
   const locationFilter = buildLocationFilter(source, locationKey);
-  // Sem limitador de concorrência de propósito: o SDK do Earth Engine já
-  // despacha uma requisição a cada 350 ms de uma fila global do processo, então
-  // um limitador aqui só somaria espera à espera que já existe.
+  // Sem limitador de concorrência de propósito: `evaluateGeeObject` já segura
+  // no máximo 20 leituras simultâneas no processo inteiro
+  // (`GEE_COMPUTE_CONCURRENCY`), então um limitador aqui só somaria espera.
   const { rows, unavailableAssetIds, firstError } = await readStatisticsSeries(
     assetIds.map((assetId) => ({
       assetId,
@@ -725,6 +742,44 @@ export async function getGeeStatisticsYearPatch(
     locationKey,
     rows,
     classCount,
+  );
+}
+
+/**
+ * Lê de antemão as colunas da série de uma camada, para que o primeiro painel
+ * ou relatório depois de um deploy não pague essa leitura.
+ *
+ * As colunas ficam guardadas na memória do processo, que começa vazia a cada
+ * deploy: antes, o primeiro relatório depois dele perguntava as colunas de cada
+ * camada no próprio clique, uma ida ao Earth Engine por camada antes de ler
+ * qualquer número. A chave do cache é a mesma de `getGeeStatisticsYearPatch`,
+ * então a leitura daqui serve direto para ele.
+ *
+ * @example
+ * await preloadGeeStatisticsSchema(layer.statisticsSource, ["2024", "2025"]);
+ */
+export async function preloadGeeStatisticsSchema(
+  source: PublishedGeeStatisticsSource | GeeStatisticsSource,
+  periodKeys: readonly string[],
+): Promise<void> {
+  const periodKey = periodKeys.at(-1);
+  if (
+    !periodKey ||
+    isMunicipalSpreadsheetSource(source) ||
+    isGeeMunicipalValueTableSource(source)
+  ) {
+    return;
+  }
+
+  await initializeGee();
+
+  const resolvedSource = resolveGeeStatisticsSource(source, periodKey);
+  await getGeeStatisticsSchema(
+    resolvedSource,
+    "sourceRevision" in source && typeof source.sourceRevision === "string"
+      ? source.sourceRevision
+      : undefined,
+    resolveSeriesAssetIds(source, periodKeys, resolvedSource.assetId),
   );
 }
 

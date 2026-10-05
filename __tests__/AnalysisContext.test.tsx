@@ -305,7 +305,7 @@ describe("AnalysisContext", () => {
     expect(props.model?.name).toBe("Paraíba");
   });
 
-  it("clears detail selections on back without resetting the chosen scope or layer", () => {
+  it("keeps the selected state and municipality on back so the map keeps its zoom", () => {
     const onRequestSectionChange = vi.fn();
 
     render(
@@ -334,8 +334,8 @@ describe("AnalysisContext", () => {
       setSpatialSelection: ReturnType<typeof vi.fn>;
     };
 
-    expect(actions.setSelectedState).toHaveBeenCalledWith("br");
-    expect(actions.setSelectedMunicipalityCode).toHaveBeenCalledWith(null);
+    expect(actions.setSelectedState).not.toHaveBeenCalled();
+    expect(actions.setSelectedMunicipalityCode).not.toHaveBeenCalled();
     expect(actions.setSpatialSelection).not.toHaveBeenCalled();
     expect(actions.resetPlatformState).not.toHaveBeenCalled();
     expect(onRequestSectionChange).toHaveBeenCalledWith("monitoring");

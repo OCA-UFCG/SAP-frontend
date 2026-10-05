@@ -256,9 +256,46 @@ describe("POST /api/ee/map-urls", () => {
     });
   });
 
-  // Vinte camadas frias custam ~13 s de Earth Engine. Segurar tudo isso numa
-  // requisição só a deixaria à mercê do timeout do proxy, e aí o relatório
-  // inteiro ficaria sem mapa de uma vez.
+  // Antes o prazo era de 5 s: a camada que ficava pronta em 1 s esperava a
+  // mais lenta, e no frio de um deploy nenhum mapa começava antes de 5 s.
+  it("returns a fast layer at the deadline instead of waiting for the slow one", async () => {
+    vi.useFakeTimers();
+    mockedGetEarthEngineUrl.mockImplementation(
+      (imageId: string) =>
+        new Promise((resolve) =>
+          setTimeout(
+            () => resolve(`https://tiles.example/${imageId}`),
+            imageId.includes("anaseca") ? 200 : 4000,
+          ),
+        ),
+    );
+
+    let settled = false;
+    const responsePromise = POST(
+      createMapUrlsRequest([
+        { name: "anaseca", year: "2024-12" },
+        { name: "deg", year: "2024-12" },
+      ]),
+    ).finally(() => {
+      settled = true;
+    });
+    await vi.advanceTimersByTimeAsync(EE_MAP_URLS_DEADLINE_MS + 10);
+
+    expect(EE_MAP_URLS_DEADLINE_MS).toBeLessThanOrEqual(1000);
+    expect(settled).toBe(true);
+    expect(await readMaps(await responsePromise)).toEqual([
+      {
+        name: "anaseca",
+        year: "2024-12",
+        url: "https://tiles.example/projects/example/anaseca-2024-12",
+      },
+      { name: "deg", year: "2024-12", status: "pending" },
+    ]);
+    vi.useRealTimers();
+  });
+
+  // Segurar todas as camadas frias numa requisição só a deixaria à mercê do
+  // timeout do proxy, e aí o relatório inteiro ficaria sem mapa de uma vez.
   it("answers pending instead of holding the request past the deadline", async () => {
     vi.useFakeTimers();
     mockedGetEarthEngineUrl.mockImplementation(() => new Promise(() => {}));

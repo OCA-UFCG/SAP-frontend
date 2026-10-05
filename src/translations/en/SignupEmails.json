@@ -1,18 +1,23 @@
 {
   "SignupEmails": {
-    "verificationSubject": "Confirm your email address — SAP",
+    "verificationSubject": "Confirm your email address — SEDES",
     "verificationTitle": "Confirm your address",
-    "verificationBody": "We received a registration on the Early Warning System with this address. Confirm the mailbox is yours to continue.",
+    "verificationBody": "We received a registration on SEDES with this address. Please confirm that this email belongs to you to continue.",
     "verificationAction": "Confirm address",
-    "decisionApprovedSubject": "Your SAP access is open",
+    "decisionApprovedSubject": "Your SEDES access is open",
     "decisionApprovedTitle": "Access granted",
-    "decisionApprovedBody": "Your registration was approved. You can enter the platform now.",
-    "decisionApprovedAction": "Enter SAP",
-    "decisionRejectedSubject": "About your SAP access request",
+    "decisionApprovedBody": "Your registration was approved. The platform is available for access.",
+    "decisionApprovedAction": "Enter SEDES",
+    "decisionRejectedSubject": "About your SEDES access request",
     "decisionRejectedTitle": "Request not approved",
-    "decisionRejectedBody": "We reviewed your request to access the Early Warning System and it was not approved this time.",
+    "decisionRejectedBody": "We reviewed your request to access SEDES and it was not approved this time.",
     "decisionRejectedFollowUp": "If you believe this was a mistake, reply to this email describing how you plan to use the platform.",
+    "passwordResetSubject": "Reset your password — SEDES",
+    "passwordResetTitle": "Reset your password",
+    "passwordResetBody": "We received a request to change the password of your SEDES account. Use the button below to choose a new password. The link is valid for one hour and can only be used once.",
+    "passwordResetAction": "Choose a new password",
+    "passwordResetIgnore": "If you did not ask for this, ignore this email: your password stays the same.",
     "fallback": "If the button does not work, copy this address into your browser:",
-    "footer": "Early Warning System — SEDES"
+    "footer": "SEDES — Sistema Estratégico sobre Desertificação e Seca"
   }
 }

@@ -11,6 +11,11 @@
     "quilombolas": "Quilombola Territories",
     "assentamentos": "Settlements",
     "terras_indigenas": "Indigenous Lands",
-    "unidades_conservacao": "Conservation Units"
+    "unidades_conservacao": "Conservation Units",
+    "territorySearchPlaceholder": "Search territory by name",
+    "territorySearchLabel": "Territory search",
+    "territorySearchLoading": "Loading territories…",
+    "territorySearchNoResults": "No territory found",
+    "territorySearchError": "Could not load territories"
   }
 }

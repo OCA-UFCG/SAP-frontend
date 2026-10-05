@@ -88,6 +88,25 @@ describe("POST /api/signup", () => {
     vi.unstubAllEnvs();
     vi.stubEnv("SIGNUP_ALLOWED_DOMAINS", "ufcg.edu.br");
     vi.stubEnv("NEXT_PUBLIC_HOST_URL", ORIGIN);
+    vi.stubEnv("PLATFORM_ACCESS_GUARD_ENABLED", "true");
+  });
+
+  // Regressão: com o bloqueio desligado a sessão não confere nem a marca nem
+  // o e-mail confirmado, então uma conta criada aqui entrava na plataforma na
+  // hora — o link escondido no login não impedia ninguém de chamar a rota.
+  it("does not create an account while the access guard is off", async () => {
+    vi.stubEnv("PLATFORM_ACCESS_GUARD_ENABLED", "false");
+
+    const response = await signup(
+      buildRequest({
+        email: "fulano@gmail.com",
+        password: VALID_PASSWORD,
+        intention: "Pesquisa sobre seca",
+      }),
+    );
+
+    expect(response.status).toBe(404);
+    expect(createUserMock).not.toHaveBeenCalled();
   });
 
   it("sends the verification email to the address that signed up", async () => {
@@ -101,12 +120,14 @@ describe("POST /api/signup", () => {
 
     expect(generateEmailVerificationLinkMock).toHaveBeenCalledWith(
       "fulano@ufcg.edu.br",
-      expect.objectContaining({
-        url: `${ORIGIN}/cadastro/confirmacao?email=fulano%40ufcg.edu.br`,
-      }),
     );
     expect(sendMailMock).toHaveBeenCalledWith(
-      expect.objectContaining({ to: "fulano@ufcg.edu.br" }),
+      expect.objectContaining({
+        to: "fulano@ufcg.edu.br",
+        text: expect.stringContaining(
+          `${ORIGIN}/pt/cadastro/confirmacao?code=abc&email=fulano%40ufcg.edu.br`,
+        ),
+      }),
     );
   });
 
@@ -223,10 +244,15 @@ describe("POST /api/signup", () => {
     );
     const freshBody = await fresh.json();
 
-    createUserMock.mockRejectedValue(firebaseError("auth/email-already-exists"));
+    createUserMock.mockRejectedValue(
+      firebaseError("auth/email-already-exists"),
+    );
 
     const repeated = await signup(
-      buildRequest({ email: "existente@ufcg.edu.br", password: VALID_PASSWORD }),
+      buildRequest({
+        email: "existente@ufcg.edu.br",
+        password: VALID_PASSWORD,
+      }),
     );
 
     expect(repeated.status).toBe(fresh.status);
@@ -269,7 +295,9 @@ describe("POST /api/signup", () => {
   // genérico de "e-mail já existe", e nunca mais consegue abrir um pedido nem
   // receber e-mail. Fica presa vendo telas de sucesso.
   it("undoes the account when the access request cannot be stored", async () => {
-    createAccessRequestMock.mockRejectedValue(new Error("firestore fora do ar"));
+    createAccessRequestMock.mockRejectedValue(
+      new Error("firestore fora do ar"),
+    );
 
     const response = await signup(
       buildRequest({
@@ -284,7 +312,9 @@ describe("POST /api/signup", () => {
   });
 
   it("still answers an error when undoing the account also fails", async () => {
-    createAccessRequestMock.mockRejectedValue(new Error("firestore fora do ar"));
+    createAccessRequestMock.mockRejectedValue(
+      new Error("firestore fora do ar"),
+    );
     deleteUserMock.mockRejectedValue(new Error("nem apagar deu"));
 
     const response = await signup(
@@ -311,7 +341,11 @@ describe("POST /api/signup", () => {
   });
 
   it("rate limits a client that floods the signup", async () => {
-    for (let attempt = 0; attempt < SIGNUP_RATE_LIMIT_MAX_REQUESTS; attempt += 1) {
+    for (
+      let attempt = 0;
+      attempt < SIGNUP_RATE_LIMIT_MAX_REQUESTS;
+      attempt += 1
+    ) {
       const allowed = await signup(
         buildRequest({
           email: `pessoa${attempt}@ufcg.edu.br`,

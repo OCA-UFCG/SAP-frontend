@@ -641,6 +641,47 @@ describe("buildMunicipalReport", () => {
       expect(report.analyses[0]?.presentation).toBeUndefined();
     });
 
+    it("leva as faixas de cor do mapa de um índice de planilha, e só dele", async () => {
+      const loadImageData = async (_id: string, period?: string) => ({
+        found: true,
+        imageData: withMunicipalValues(period ?? "2024", [40, 60]),
+        status: "hit" as const,
+      });
+      const layer = {
+        panelLayerId: "indice-catalogo",
+        alias: "indice_catalogo",
+        title: "Índice do Catálogo",
+        order: 1,
+        periods: ["2023", "2024"],
+        statisticsSource,
+      };
+
+      const spreadsheet = await buildMunicipalReport("5200050", "2024", {
+        layers: [{
+          ...layer,
+          baseImageData: {
+            ...catalogImageData,
+            mapVisualization: {
+              sourceType: "municipalChoropleth",
+              palette: ["#fee", "#c00"],
+              thresholds: [50],
+            },
+          },
+        }],
+        loadImageData,
+      });
+      const earthEngine = await buildMunicipalReport("5200050", "2024", {
+        layers: [{ ...layer, baseImageData: catalogImageData }],
+        loadImageData,
+      });
+
+      expect(spreadsheet.analyses[0]?.mapChoropleth).toEqual({
+        palette: ["#fee", "#c00"],
+        thresholds: [50],
+      });
+      expect(earthEngine.analyses[0]).not.toHaveProperty("mapChoropleth");
+    });
+
     it("semeia a série num período publicado quando o pedido não existe na camada", async () => {
       const loadImageData = vi.fn(async (_id: string, period?: string) => ({
         found: true,

@@ -1,5 +1,7 @@
 "use client";
 
+import type { ReactNode } from "react";
+
 import { ClassColorField } from "@/components/IndexCatalog/ClassColorField";
 import type {
   ClassMapping,
@@ -52,7 +54,8 @@ export function MunicipalValueIndicatorFields({
             }
           />
           <span className="mt-1 block text-xs font-normal text-stone-500">
-            Escreva como aparece ao lado do número: %, registros, pessoas.
+            Escreva como aparece ao lado do número: %, registros, pessoas. Deixe
+            em branco se o índice não tem unidade, como o IDH.
           </span>
         </label>
         <label className="text-sm font-medium">
@@ -91,13 +94,18 @@ export function MunicipalValueIndicatorFields({
  *
  * São da legenda do mapa, e não da estatística: o painel mostra um número só
  * por território, e as faixas existem para pintar o município conforme esse
- * número. Por isso elas são escritas à mão — a tabela não tem uma coluna por
- * faixa que o catálogo pudesse inferir.
+ * número.
+ *
+ * `methodSlot` é o cálculo das faixas pelos próprios dados, e fica dentro deste
+ * bloco de propósito: é o campo de limites logo abaixo dele que ele preenche.
+ * O que o cálculo escreve continua editável, porque quem publica é quem decide
+ * onde cada faixa começa.
  */
 export function ValueRangeFields({
   ranges,
   thresholdsInput,
   inputClass,
+  methodSlot,
   buttonClass,
   onChangeRange,
   onChangeRanges,
@@ -107,6 +115,8 @@ export function ValueRangeFields({
   thresholdsInput: string;
   inputClass: string;
   buttonClass: string;
+  /** O cálculo das faixas pelos dados, desenhado acima do campo de limites. */
+  methodSlot?: ReactNode;
   onChangeRange: (index: number, values: Partial<ClassMapping>) => void;
   onChangeRanges: (ranges: ClassMapping[]) => void;
   onChangeThresholds: (value: string) => void;
@@ -158,6 +168,7 @@ export function ValueRangeFields({
         Da menor para a maior. Cada faixa é uma cor no mapa e uma linha na
         legenda.
       </p>
+      {methodSlot}
       <label className="mt-4 block text-sm font-medium">
         Limites entre as faixas
         <input

@@ -11,6 +11,11 @@
     "quilombolas": "Territorios Quilombolas",
     "assentamentos": "Asentamientos",
     "terras_indigenas": "Tierras Indígenas",
-    "unidades_conservacao": "Unidades de Conservación"
+    "unidades_conservacao": "Unidades de Conservación",
+    "territorySearchPlaceholder": "Buscar territorio por nombre",
+    "territorySearchLabel": "Búsqueda de territorio",
+    "territorySearchLoading": "Cargando territorios…",
+    "territorySearchNoResults": "Ningún territorio encontrado",
+    "territorySearchError": "No se pudieron cargar los territorios"
   }
 }

@@ -5,6 +5,9 @@ import createNextIntlPlugin from "next-intl/plugin";
 const withNextIntl = createNextIntlPlugin("./src/translations/request.ts");
 
 const nextConfig: NextConfig = {
+  // Uma cópia só da biblioteca do Earth Engine no processo: a subida do servidor
+  // a inicializa, e as rotas precisam enxergar esse mesmo objeto inicializado.
+  serverExternalPackages: ["@google/earthengine"],
   experimental: {
     // Keep Docker/WSL production builds below the native-memory peak that can
     // otherwise crash Node while Next.js is collecting output-file traces.

@@ -6,6 +6,7 @@
     "logs": "Auditoría",
     "catalog": "Catálogo de índices",
     "loading": "Cargando",
-    "approvals": "Aprobaciones"
+    "approvals": "Aprobaciones",
+    "pendingApprovals": "Solicitudes esperando decisión: {count}"
   }
 }

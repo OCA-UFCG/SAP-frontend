@@ -17,6 +17,7 @@ import { useEarthEngineTileLayer } from "./useEarthEngineTileLayer";
 import { useIndexChoroplethValues } from "./useIndexChoroplethValues";
 import { useReferenceOverlayTiles } from "./useReferenceOverlayTileLayers";
 import { useSpatialBoundaryOverlay } from "./useSpatialBoundaryOverlay";
+import { useTerritoryFocus } from "./useTerritoryFocus";
 
 export type MonitoringMapLayers = ReturnType<typeof useMonitoringMapLayers>;
 
@@ -64,6 +65,10 @@ export function useMonitoringMapLayers() {
     tileUrls: referenceOverlayTileUrls,
     isLoading: isAnyReferenceOverlayLoading,
   } = useReferenceOverlayTiles(referenceOverlays);
+  const { territoryFocus, focusTerritory } = useTerritoryFocus(
+    referenceOverlays,
+    toggleReferenceOverlay,
+  );
 
   const handleTileLayerReady = useCallback((readyRequestKey: string) => {
     setReadyRequestKey((current) =>
@@ -124,6 +129,7 @@ export function useMonitoringMapLayers() {
     setBasemap,
     boundaryGeoJson,
     choropleth,
+    focusTerritory,
     handleSpatialSelectionChange,
     handleTileLayerReady,
     isAnyReferenceOverlayLoading,
@@ -139,6 +145,7 @@ export function useMonitoringMapLayers() {
     setSelectedState,
     spatialFocusBounds,
     spatialSelection,
+    territoryFocus,
     tileLayerUrl,
     toggleReferenceOverlay,
   };

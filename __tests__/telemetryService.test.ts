@@ -11,7 +11,6 @@ vi.mock("@/repositories/platform/panelLayerRepository", () => ({
 
 import {
   buildTelemetryDashboardData,
-  clearTelemetryIngestValidationCache,
   getTelemetryDashboardData,
   ingestTelemetryEvents,
 } from "@/services/telemetry/telemetryService";
@@ -72,7 +71,6 @@ function createEvent(
 
 describe("telemetryService", () => {
   beforeEach(() => {
-    clearTelemetryIngestValidationCache();
     mockedGetRecentTelemetryEvents.mockReset();
     mockedGetPanelLayers.mockReset();
     mockedSaveTelemetryEvents.mockReset();
@@ -138,6 +136,31 @@ describe("telemetryService", () => {
     ).rejects.toThrowError(
       new TelemetryValidationError("Invalid telemetry field: activeLayerId."),
     );
+  });
+
+  it("accepts events for a layer published after an earlier event was validated", async () => {
+    mockedSaveTelemetryEvents.mockResolvedValue();
+    const event = (activeLayerId: string) => ({
+      events: [
+        {
+          eventName: "layer_details_opened",
+          surface: "analysis-panel",
+          anonymousSessionId: "anon-1",
+          activeLayerId,
+        },
+      ],
+    });
+    const context = { now: new Date("2026-05-29T12:00:01.000Z") };
+
+    await ingestTelemetryEvents(event("layer-1"), context);
+    mockedGetPanelLayers.mockResolvedValue([
+      createPanelLayer(),
+      createPanelLayer({ id: "layer-new", name: "Índice recém-publicado" }),
+    ]);
+
+    await expect(
+      ingestTelemetryEvents(event("layer-new"), context),
+    ).resolves.toEqual({ accepted: 1 });
   });
 
   it("rejects analysis telemetry with an unknown active date label", async () => {

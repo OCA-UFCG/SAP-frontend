@@ -88,6 +88,18 @@ describe("Login", () => {
     });
   });
 
+  // Fora do interruptor do cadastro: conta feita à mão também esquece a senha.
+  it.each([true, false])(
+    "offers the way to reset a forgotten password (signup offered: %s)",
+    (signupOffered) => {
+      render(<Login signupOffered={signupOffered} />);
+
+      expect(
+        screen.getByRole("link", { name: "Esqueci minha senha" }),
+      ).toHaveAttribute("href", "/esqueci-senha");
+    },
+  );
+
   it("offers the way to the signup page", () => {
     render(<Login signupOffered />);
 

@@ -62,6 +62,37 @@ decimal e a validação devolve o aviso `spreadsheet_ambiguous_decimal` dizendo
 qual coluna e qual célula — em vez de escolher em silêncio e entregar todo
 município multiplicado ou dividido por mil.
 
+### As faixas de cor calculadas da planilha
+
+As faixas da legenda não vêm da planilha como coluna: elas descrevem a
+distribuição dos valores. Dentro da seção "Faixas de cor do mapa", o bloco
+**"Calcular as faixas pelos dados"** lê a planilha e preenche limites, rótulos e
+cores — é o mesmo bloco de métodos de classificação descrito adiante, e num
+índice de planilha ele pede `POST /api/index-catalog/classification-sample` com
+a fonte que está no formulário.
+
+- A sugestão de partida é o corte por **quantis** sobre os municípios do período
+  mais recente, em cinco faixas: cada cor fica com mais ou menos o mesmo número
+  de municípios. Dividir o intervalo em partes iguais não serve para dado
+  municipal brasileiro — o maior PIB é milhares de vezes o mediano, e o país
+  inteiro cairia na primeira cor. Quando os valores se repetem tanto que os
+  quantis coincidem, a tela **diz isso e recusa**, em vez de trocar de método em
+  silêncio; o operador escolhe "mesma largura" ou menos faixas.
+- Só os municípios entram na conta. O instantâneo também guarda Brasil, UFs,
+  regiões, biomas, ASD e semiárido, e uma soma estadual é ordens de grandeza
+  maior que a de qualquer município dela.
+- Cada limite é arredondado pela sua própria ordem de grandeza (três dígitos
+  significativos), para a legenda dizer "1.130.000.000" e não "1.127.483.219,4".
+- As cores saem de `buildSequentialColorRamp`: tons da cor do indicador, do mais
+  claro ao mais escuro, para a legenda não exigir cinco escolhas de cor.
+
+A rota **não escreve nada** e não exige rascunho salvo: a fonte vai no corpo,
+porque o cálculo acontece enquanto o operador preenche o formulário. Sem período
+no corpo, lê o mais recente da planilha — antes da validação não existe lista de
+períodos a escolher. O resultado substitui os campos e continua editável: quem
+publica é quem decide onde cada faixa começa. Ela reaproveita o instantâneo em
+memória, então calcular as faixas depois de validar não relê o Google Drive.
+
 ### O que a validação faz
 
 `buildSpreadsheetIndexDraft` baixa a planilha, descobre os períodos e agrega
@@ -264,11 +295,14 @@ São configurações independentes:
   - **Valor único por município** (`gee-municipal-value-table`): uma linha por
     município, uma coluna por período e um número em cada célula — a forma dos
     dados socioeconômicos, descrita adiante;
-  - o formulário oferece **Uma tabela por ano (detectar os anos)**: o operador
-    cola o endereço de um ano concreto (`..._MonitorANA_2026`) e a tela grava o
-    template equivalente (`..._MonitorANA_{year}`). Não é um terceiro contrato,
-    é atalho de digitação. Combinado com granularidade mensal, atende o caso em
-    que cada tabela anual guarda os meses daquele ano — é a forma do `anaseca`;
+  - o formulário oferece **Uma tabela por ano ou mês (detectar pelo
+    endereço)**: o operador cola o endereço de um período concreto
+    (`..._MonitorANA_2026`) e a tela grava o template equivalente
+    (`..._MonitorANA_{year}`). Não é um terceiro contrato, é atalho de
+    digitação. Combinado com granularidade mensal, atende o caso em que cada
+    tabela anual guarda os meses daquele ano — é a forma do `anaseca`. Um mês
+    colado no ano (`..._2026_09`) vira `{year}_{month}` e fixa a granularidade
+    em mensal, porque aí cada tabela é um mês;
 - mapa: Image, ImageCollection ou FeatureCollection, em asset único ou por
   período.
 
@@ -389,6 +423,61 @@ Publicar confere `sys.publishedAt` na resposta do Contentful antes de responder
 sucesso, e a tela reconsulta a lista para confirmar que o índice está publicado.
 Uma publicação que não se registra vira erro, não mensagem de sucesso: sem essa
 checagem o índice ficava fora do Monitoramento sem nenhum sinal no catálogo.
+
+### Verificar novos dados
+
+`GET /api/index-catalog/drafts/[entryId]/new-data` responde se a pasta do Earth
+Engine tem dado que o índice ainda não tem, e é o que o botão **Verificar novos
+dados** do cartão chama. A verificação é de leitura: não escreve na entry, não
+recalcula o `sourceRevision` e não passa pelo `Idempotency-Key`.
+
+Ela compara duas coisas com a última validação bem-sucedida gravada em
+`catalogConfig.validation`:
+
+- **Período novo** — a listagem do diretório-pai do template (`listAssets`, a
+  mesma de `getStatisticsAssetIds`) traz os assets irmãos, e `periodFromAssetId`
+  lê o período do próprio nome de cada um. O que não está em
+  `validation.inferred.periods` é período novo.
+- **Asset reescrito** — qualquer asset coberto cujo carimbo de revisão
+  (`updateTime`, ou `version` em microssegundos quando o `updateTime` não vem)
+  seja posterior a `validation.validatedAt`. É o único sinal possível num asset
+  `fixed`, em que o período não está no nome e um período novo é uma linha nova.
+
+Custa uma chamada ao Earth Engine, contra as dezenas de leituras de tabela de
+"Validar assets e gerar prévia": ela responde **se** vale revalidar, e não
+substitui a revalidação. Incorporar o dado continua sendo abrir o índice,
+validar e republicar.
+
+As respostas possíveis são `new-data`, `up-to-date`, `never-validated` (não há
+validação para comparar) e `not-applicable` — esta última para os índices cuja
+fonte não tem asset do Earth Engine, como `municipal-spreadsheet` e
+`amfe-sheet-column`. Um legado adotado no escopo de apresentação não tem o
+botão, porque a origem dos dados dele não é uma pasta do Earth Engine.
+
+### A seção "Publicados sem os dados mais recentes"
+
+A tela do catálogo pede `GET /api/index-catalog/new-data` ao abrir e usa a
+resposta para separar, dentro dos publicados, quem já está com dado velho. O
+índice apontado sai de "Publicados" e aparece na seção nova — que é a única que
+abre expandida, porque é curta, costuma estar vazia e é o aviso que justifica
+abrir o catálogo. O cartão já mostra o motivo, sem precisar clicar no botão.
+
+A varredura verifica apenas os índices `published` de escopo completo, com
+concorrência 4 (o SDK do Earth Engine despacha uma requisição a cada 350 ms de
+uma fila global, então mais que isso só alonga a fila). Um índice cuja
+verificação falha não derruba a varredura: ele fica fora da seção, é contado em
+`failed` — a tela anuncia "N índice(s) não puderam ser verificados" — e o botão
+do cartão dele mostra o erro de perto.
+
+O resultado é memoizado por processo por 10 minutos, guardando a **promessa** e
+não o valor, para dois operadores que abrem a tela ao mesmo tempo dividirem uma
+varredura em vez de disparar duas. Uma varredura que falha inteira não fica
+guardada. `refreshPublicIndexCaches` chama `clearPublishedNewDataScan()`, senão a
+seção continuaria acusando por dez minutos o índice que acabou de ser
+republicado.
+
+A tela não pede a varredura quando não há nenhum índice publicado de escopo
+completo: não existe pasta para listar, e a chamada seria desperdício.
 
 ### Imagem de prévia do mapa
 
@@ -664,6 +753,91 @@ O campo "Limites das classes" ficava visível somente no bloco de coleção de
 previsão, embora o formulário sempre o enviasse. Ele aparece em qualquer
 estratégia de asset, porque um raster contínuo precisa dele independentemente de
 como as imagens são escolhidas.
+
+#### Métodos de classificação
+
+Os limites podem ser calculados em vez de digitados. O bloco **"Calcular as
+faixas pelos dados"** lê a distribuição de um período e sugere onde cortar as
+faixas, com os sete métodos do ArcGIS Pro:
+
+| Método                                    | O que faz                                                | Quem decide a quantidade de faixas |
+| ----------------------------------------- | -------------------------------------------------------- | ---------------------------------- |
+| Escrever à mão (Manual Interval)          | o campo de sempre                                        | o operador                         |
+| Mesma largura (Equal Interval)            | divide a amplitude em pedaços iguais                     | o operador                         |
+| Mesma quantidade por cor (Quantile)       | iguala o número de territórios por faixa                 | o operador                         |
+| Quebras naturais (Natural Breaks / Jenks) | corta nos degraus do próprio dado                        | o operador                         |
+| Faixas que crescem (Geometrical Interval) | progressão geométrica, para dado amontoado perto de zero | o operador                         |
+| Largura escolhida (Defined Interval)      | faixas de tamanho fixo                                   | o dado                             |
+| Distância da média (Standard Deviation)   | corta na média e a cada fração do desvio                 | o dado                             |
+
+**O bloco mora junto do campo que preenche.** Num índice de valor único ele fica
+dentro de "Faixas de cor do mapa", logo acima de "Limites entre as faixas"; num
+raster contínuo, logo abaixo de "Limites das classes". Enquanto era um bloco
+irmão no fim do formulário, com moldura e título próprios, parecia mais uma
+configuração do índice — e a relação com o campo que ele escreve, que é toda a
+função dele, precisava ser adivinhada.
+
+**A conta roda no navegador; o servidor só entrega a amostra.**
+`GET /api/index-catalog/drafts/[entryId]/classification-sample?year=<período>`
+devolve `ClassificationSample` — os valores ordenados, a contagem, mínimo,
+máximo, média e desvio padrão. Trocar de método ou de quantidade de faixas é
+instantâneo porque não custa uma nova leitura: se o cálculo morasse no servidor,
+cada tentativa seria uma ida ao Earth Engine.
+
+**De onde vem a amostra**, por forma de índice:
+
+- **planilha** — os valores municipais do instantâneo, os mesmos que a prévia da
+  coropleta usa. É a única forma que não depende do rascunho gravado: a tela pede
+  `POST /api/index-catalog/classification-sample` com a fonte do formulário, e o
+  leitor é o mesmo dos dois caminhos (`readSpreadsheetClassificationSample`),
+  para os limites nunca saírem de distribuições diferentes;
+- **tabela de valor municipal no GEE** — `aggregate_array` da coluna do período,
+  numa leitura só;
+- **raster contínuo** — `ee.Image.sample` sorteia 3.000 pixels dentro da própria
+  área da imagem, a no mínimo 500 m. É amostra: dois cliques seguidos podem mover
+  os limites um pouco, e a tela avisa disso. Ler o raster inteiro seria uma
+  redução sobre a imagem toda, que é justamente o tipo de chamada que o cache do
+  `/api/ee` existe para evitar.
+
+Quando o mapa vem de uma FeatureCollection sem tabela de valor por município
+não há distribuição a ler, e a rota responde 404 dizendo isso. Num raster a
+amostra é sempre entregue: o catálogo não tem como saber se o dado é contínuo
+antes de o operador dizer, e é justamente ao definir os primeiros limites que a
+leitura serve. Um raster já classificado se reconhece pelo resumo — "menor 0,
+maior 5" são números de classe, não de medida.
+
+**A quantidade de faixas é uma restrição, não um detalhe.** `catalogBuild` exige
+exatamente `classes.length - 1` limites. Num índice de valor único as faixas são
+do operador, então um método pode acrescentá-las (em cinza e sem rótulo) ou
+removê-las do fim. Num índice classificatório as classes vêm das colunas
+`perc_classe_XX` da tabela de estatísticas: ali "Largura escolhida" e "Distância
+da média" só podem ser aplicados quando o parâmetro escolhido gera exatamente a
+quantidade de classes que a tabela tem, e a tela recusa aplicar em vez de cortar
+os limites que sobram — um mapa com os limites truncados não é o mapa do método
+escolhido, e a pessoa só descobriria olhando a legenda publicada.
+
+**Limites repetidos são recusados.** Num índice em que a maioria dos municípios
+vale zero, o quantil pede dois limites no mesmo zero; a contagem passaria na
+validação e a legenda ganharia uma faixa que nenhum município pode ocupar.
+
+**O antigo botão "Detectar faixas da planilha" virou o estado inicial deste
+bloco.** Ele era um atalho para "mesma quantidade de municípios por cor" com
+cinco faixas, chamando o mesmo `computeClassBreaks`, mas aparecia como um
+recurso à parte — e havia dois caminhos de preenchimento na tela, um deles longe
+do campo que mudava. O bloco abre em quantil com cinco faixas, que é o que
+aquele botão fazia, e a rota `spreadsheet-legend` (com `detectValueLegend` e
+`detectSpreadsheetLegend`) foi removida junto. A perda deliberada é a troca
+silenciosa para "mesma largura" quando os quantis empatam: agora a tela explica
+e o operador escolhe.
+
+**Num índice de valor único, aplicar um método também escreve rótulos e cores.**
+`buildValueLegendRanges` (em `src/utils/valueLegendRanges.ts`) transforma cada
+limite numa linha de legenda com rótulo legível e um tom da cor do indicador.
+
+**O método não é gravado.** O que vai para o Contentful continua sendo a lista
+`mapVisualization.thresholds`, e um limite sugerido pode ser corrigido à mão
+depois sem nenhuma amarra. Reabrir o índice mostra os limites, não o método que
+os produziu.
 
 ### Prévia e texto do relatório
 

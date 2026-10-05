@@ -6,6 +6,7 @@ const {
   readAccessRequestMock,
   claimPendingDecisionMock,
   updateUserMock,
+  getUserMock,
   sendMailMock,
 } = vi.hoisted(() => ({
   requireCatalogAccessMock: vi.fn(),
@@ -13,11 +14,12 @@ const {
   readAccessRequestMock: vi.fn(),
   claimPendingDecisionMock: vi.fn(),
   updateUserMock: vi.fn(),
+  getUserMock: vi.fn(),
   sendMailMock: vi.fn(),
 }));
 
 vi.mock("@/lib/firebase-admin", () => ({
-  adminAuth: { updateUser: updateUserMock },
+  adminAuth: { updateUser: updateUserMock, getUser: getUserMock },
   adminDb: {},
 }));
 
@@ -84,6 +86,7 @@ describe("POST /api/signup/approve", () => {
       .mockReset()
       .mockResolvedValue({ claimed: true, tier: "common" });
     updateUserMock.mockReset().mockResolvedValue(undefined);
+    getUserMock.mockReset().mockResolvedValue({ emailVerified: true });
     sendMailMock.mockReset().mockResolvedValue({ delivered: true });
     vi.unstubAllEnvs();
     vi.stubEnv("NEXT_PUBLIC_HOST_URL", ORIGIN);
@@ -221,5 +224,27 @@ describe("POST /api/signup/approve", () => {
 
     expect(response.status).toBe(400);
     expect(approveAccessMock).not.toHaveBeenCalled();
+  });
+
+  // A tela só lista quem confirmou, mas a rota não confia na tela: aprovar sem
+  // confirmação liberaria um endereço que ninguém provou ser dono.
+  it("refuses to approve an account that never confirmed its e-mail", async () => {
+    getUserMock.mockResolvedValue({ emailVerified: false });
+
+    const response = await approve(buildRequest({ uid: "user-1", decision: "approved" }));
+
+    expect(response.status).toBe(409);
+    expect(claimPendingDecisionMock).not.toHaveBeenCalled();
+    expect(approveAccessMock).not.toHaveBeenCalled();
+  });
+
+  it("still lets an operator reject an unconfirmed account", async () => {
+    getUserMock.mockResolvedValue({ emailVerified: false });
+    claimPendingDecisionMock.mockResolvedValue({ claimed: true, tier: "common" });
+
+    const response = await approve(buildRequest({ uid: "user-1", decision: "rejected" }));
+
+    expect(response.status).toBe(200);
+    expect(updateUserMock).toHaveBeenCalledWith("user-1", { disabled: true });
   });
 });

@@ -304,7 +304,8 @@ export function LegacyIndexEditor({
             que aparece na plataforma: a unidade que o painel de análise mostra
             ao lado do número vem do próprio conjunto de dados do índice, e este
             formulário ainda não a edita. Os legados usam “classes”, “%” e
-            “registros” — mantenha o que este índice já tem.
+            “registros” — mantenha o que este índice já tem. Pode ficar em
+            branco quando o índice não tem unidade.
           </p>
         </div>
         <PanelPositionField
@@ -419,6 +420,7 @@ export function LegacyIndexEditor({
           <CatalogReportPreview
             entryId={preview.entryId}
             tileApiPath={preview.panelLayer.tileApiPath}
+            choroplethSource={preview.panelLayer}
           />
         </div>
       )}

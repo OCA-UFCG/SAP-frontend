@@ -6,6 +6,7 @@ import { useTranslations } from "next-intl";
 import { Link } from "@/translations/routing";
 import { LOGIN_PATH } from "@/config/accessRoutes";
 import { Captcha } from "@/components/Captcha/Captcha";
+import PlatformLoading from "@/app/[locale]/platform/loading";
 
 type Outcome = "checking" | "approved" | "pending" | "rejected" | "failed";
 
@@ -17,6 +18,7 @@ export function ConfirmationPageClient() {
   const tCaptcha = useTranslations("Captcha");
   const searchParams = useSearchParams();
   const email = searchParams.get("email") ?? "";
+  const code = searchParams.get("code") ?? "";
 
   const [outcome, setOutcome] = useState<Outcome>("checking");
   const [resending, setResending] = useState(false);
@@ -34,7 +36,7 @@ export function ConfirmationPageClient() {
         const response = await fetch("/api/signup/confirm", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ email }),
+          body: JSON.stringify({ email, code }),
         });
 
         if (!active) return;
@@ -60,7 +62,7 @@ export function ConfirmationPageClient() {
     return () => {
       active = false;
     };
-  }, [email]);
+  }, [email, code]);
 
   const handleResend = useCallback(async () => {
     if (!captchaToken) return;
@@ -89,8 +91,15 @@ export function ConfirmationPageClient() {
     }
   }, [email, captchaToken]);
 
+  if (outcome === "checking") {
+    return (
+      <main className="flex min-h-[calc(100vh-4.125rem)] w-full">
+        <PlatformLoading />
+      </main>
+    );
+  }
+
   const copy = {
-    checking: { title: t("checking"), body: "" },
     approved: { title: t("approvedTitle"), body: t("approvedBody") },
     pending: { title: t("pendingTitle"), body: t("pendingBody") },
     rejected: { title: t("rejectedTitle"), body: t("rejectedBody") },
@@ -142,7 +151,7 @@ export function ConfirmationPageClient() {
           </div>
         ) : null}
 
-        {outcome !== "checking" && outcome !== "approved" ? (
+        {outcome !== "approved" ? (
           <Link
             href="/"
             className="text-[13px] leading-5 text-[#777E32] underline underline-offset-2 hover:text-[#5B612A]"

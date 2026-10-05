@@ -1,4 +1,11 @@
-import { createRateLimitStore } from "@/utils/rateLimitStore";
+import { createRateLimiter, getClientAddress } from "@/utils/rateLimitStore";
+
+/**
+ * Endereço de rede de quem fez a requisição, sem cair para o user-agent: o
+ * captcha repassa esse valor à Cloudflare. `undefined` quando o proxy não
+ * repassou nenhum.
+ */
+export { getClientAddress as getSignupClientIp };
 
 const RATE_LIMIT_WINDOW_MS = 1000 * 60;
 
@@ -26,27 +33,28 @@ export const RESEND_RATE_LIMIT_MAX_REQUESTS = 10;
  */
 export const CONFIRM_RATE_LIMIT_MAX_REQUESTS = 40;
 
-const signupRequests = createRateLimitStore();
-const resendRequests = createRateLimitStore();
-const confirmRequests = createRateLimitStore();
+/** "Esqueci minha senha": dispara e-mail a cada chamada, como o reenvio. */
+export const PASSWORD_RESET_REQUEST_RATE_LIMIT_MAX_REQUESTS = 10;
 
 /**
- * Endereço de rede de quem fez a requisição, na mesma ordem de cabeçalhos que
- * `api/logs/route.ts` já usa. `undefined` quando o proxy não repassou nenhum.
+ * Conferir e usar o código do link de troca de senha. Mesma folga da
+ * confirmação, pelo mesmo motivo: a página confere o código assim que abre.
  */
-export function getSignupClientIp(request: Request) {
-  const forwardedFor = request.headers
-    .get("x-forwarded-for")
-    ?.split(",")[0]
-    ?.trim();
-  const realIp = request.headers.get("x-real-ip")?.trim();
-  const connectingIp = request.headers.get("cf-connecting-ip")?.trim();
+export const PASSWORD_RESET_CODE_RATE_LIMIT_MAX_REQUESTS = 40;
 
-  return forwardedFor || realIp || connectingIp || undefined;
-}
+const signupRequests = createRateLimiter({ windowMs: RATE_LIMIT_WINDOW_MS });
+const resendRequests = createRateLimiter({ windowMs: RATE_LIMIT_WINDOW_MS });
+const confirmRequests = createRateLimiter({ windowMs: RATE_LIMIT_WINDOW_MS });
+const passwordResetRequests = createRateLimiter({
+  windowMs: RATE_LIMIT_WINDOW_MS,
+});
+const passwordResetCodeRequests = createRateLimiter({
+  windowMs: RATE_LIMIT_WINDOW_MS,
+});
 
 /**
- * Chave de cliente de uma requisição não autenticada.
+ * Chave de cliente de uma requisição não autenticada, pelo mesmo
+ * `getClientAddress` que `api/logs/route.ts` usa.
  *
  * A última saída é o user-agent, não uma chave fixa: um balde único para o
  * mundo inteiro seria um jeito trivial de derrubar o cadastro — bastaria
@@ -55,7 +63,7 @@ export function getSignupClientIp(request: Request) {
  * e precisa aparecer no log.
  */
 export function getSignupClientKey(request: Request) {
-  const address = getSignupClientIp(request);
+  const address = getClientAddress(request);
 
   if (address) {
     return `ip:${address}`;
@@ -68,41 +76,38 @@ export function getSignupClientKey(request: Request) {
   return `ua:${request.headers.get("user-agent")?.trim() || "desconhecido"}`;
 }
 
-function consume(
-  store: ReturnType<typeof createRateLimitStore>,
-  clientKey: string,
-  maxRequests: number,
-) {
-  const now = Date.now();
-  const current = store.get(clientKey, now);
-  const entry = current
-    ? { count: current.count + 1, resetAt: current.resetAt }
-    : { count: 1, resetAt: now + RATE_LIMIT_WINDOW_MS };
-
-  store.set(clientKey, entry, now);
-
-  return {
-    limited: entry.count > maxRequests,
-    retryAfterSeconds: Math.max(1, Math.ceil((entry.resetAt - now) / 1000)),
-  };
-}
-
 export function consumeSignupRateLimit(clientKey: string) {
-  return consume(signupRequests, clientKey, SIGNUP_RATE_LIMIT_MAX_REQUESTS);
+  return signupRequests.consume(clientKey, SIGNUP_RATE_LIMIT_MAX_REQUESTS);
 }
 
 export function consumeResendRateLimit(clientKey: string) {
-  return consume(resendRequests, clientKey, RESEND_RATE_LIMIT_MAX_REQUESTS);
+  return resendRequests.consume(clientKey, RESEND_RATE_LIMIT_MAX_REQUESTS);
 }
 
 export function consumeConfirmRateLimit(clientKey: string) {
-  return consume(confirmRequests, clientKey, CONFIRM_RATE_LIMIT_MAX_REQUESTS);
+  return confirmRequests.consume(clientKey, CONFIRM_RATE_LIMIT_MAX_REQUESTS);
+}
+
+export function consumePasswordResetRequestRateLimit(clientKey: string) {
+  return passwordResetRequests.consume(
+    clientKey,
+    PASSWORD_RESET_REQUEST_RATE_LIMIT_MAX_REQUESTS,
+  );
+}
+
+export function consumePasswordResetCodeRateLimit(clientKey: string) {
+  return passwordResetCodeRequests.consume(
+    clientKey,
+    PASSWORD_RESET_CODE_RATE_LIMIT_MAX_REQUESTS,
+  );
 }
 
 export function clearSignupRateLimits() {
   signupRequests.clear();
   resendRequests.clear();
   confirmRequests.clear();
+  passwordResetRequests.clear();
+  passwordResetCodeRequests.clear();
 }
 
 export { RATE_LIMIT_WINDOW_MS as SIGNUP_RATE_LIMIT_WINDOW_MS };

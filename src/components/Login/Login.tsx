@@ -5,7 +5,7 @@ import { useForm } from "react-hook-form";
 import { useTranslations } from "next-intl";
 import Image from "next/image";
 import { Link } from "@/translations/routing";
-import { SIGNUP_PATH } from "@/config/accessRoutes";
+import { FORGOT_PASSWORD_PATH, SIGNUP_PATH } from "@/config/accessRoutes";
 import { Icon } from "../Icon/Icon";
 import { LoginField } from "./LoginField";
 import { LoginPhotoPanel } from "./LoginPhotoPanel";
@@ -130,6 +130,14 @@ export const Login = ({
                   </button>
                 }
               />
+
+              {/* Fora do `signupOffered`: conta feita à mão também esquece a senha. */}
+              <Link
+                href={FORGOT_PASSWORD_PATH}
+                className="self-end text-[12px] leading-4 text-[#777E32] underline underline-offset-2 hover:text-[#5B612A]"
+              >
+                {t("forgotPassword")}
+              </Link>
             </div>
           </div>
 

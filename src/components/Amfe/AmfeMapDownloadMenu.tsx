@@ -139,7 +139,7 @@ export const AmfeMapDownloadMenu = ({
           id="chevron-down"
           size={16}
           aria-hidden="true"
-          className={`transition-transform ${isOpen ? "rotate-180" : ""}`}
+          className={`text-white transition-transform ${isOpen ? "rotate-180" : ""}`}
         />
       </button>
 
