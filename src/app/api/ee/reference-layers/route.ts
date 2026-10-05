@@ -47,9 +47,9 @@ const REFERENCE_LAYER_COLORS: Record<string, ReferenceLayerColors> = {
 };
 
 const TRANSPARENT = "00000000";
-const OUTLINE_WIDTH_PX = 1.5;
+const OUTLINE_WIDTH_PX = 2.5;
 const OUTLINE_HALO = "FFFFFFCC";
-const OUTLINE_HALO_WIDTH_PX = 3.5;
+const OUTLINE_HALO_WIDTH_PX = 4.5;
 
 // Interior e contorno saem em imagens separadas porque o GEE entrega cada uma
 // já pintada: numa imagem só, deixar o interior transparente desbotaria o
