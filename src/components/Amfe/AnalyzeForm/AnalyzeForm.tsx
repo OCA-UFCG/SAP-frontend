@@ -350,6 +350,8 @@ const AnalyzeForm = ({ setFormPayload }: AnalyzeFormProps) => {
               title={t("advancedSettingsTitle")}
               open={advancedSettingsOpen}
               onOpenChange={setAdvancedSettingsOpen}
+              // 19px + 1px de borda = seta a 20px da borda, como a dos selects.
+              headerPaddingClassName="pl-4 pr-[19px]"
             >
               <section>
                 <div className={sectionHeaderClass}>

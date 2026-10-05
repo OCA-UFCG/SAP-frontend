@@ -10,6 +10,8 @@ interface LayerAccordionProps {
   /** Modo controlado: quem monta o acordeão guarda o aberto/fechado. */
   open?: boolean;
   onOpenChange?: (open: boolean) => void;
+  /** Padding horizontal do cabeçalho, para alinhar a seta com a de vizinhos. */
+  headerPaddingClassName?: string;
 }
 
 export function LayerAccordion({
@@ -18,6 +20,7 @@ export function LayerAccordion({
   defaultOpen = false,
   open,
   onOpenChange,
+  headerPaddingClassName = "px-4",
 }: LayerAccordionProps) {
   const [uncontrolledOpen, setUncontrolledOpen] = useState(defaultOpen);
   const isOpen = open ?? uncontrolledOpen;
@@ -33,7 +36,7 @@ export function LayerAccordion({
       <button
         type="button"
         onClick={toggle}
-        className="flex flex-row items-center w-full px-4 py-4 gap-[18px] text-left bg-transparent"
+        className={`flex flex-row items-center w-full ${headerPaddingClassName} py-4 gap-[18px] text-left bg-transparent`}
         style={{ height: 56 }}
         aria-expanded={isOpen}
       >
