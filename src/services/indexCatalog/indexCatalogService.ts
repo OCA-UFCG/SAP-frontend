@@ -153,6 +153,8 @@ export async function updateIndexCatalogDraft(
   const current = await getCatalogEntry(entryId);
   const previous = requireFullyManagedConfig(current);
   const input = parseIndexCatalogDraftInput(rawInput);
+  // A unidade pode chegar em branco, e só publica se o campo for opcional.
+  if (!resolveMeasurementUnit(input)) await ensureIndexCatalogContentModel();
   const panelLayerId = await resolveDraftPanelLayerId(
     current.entry,
     previous,

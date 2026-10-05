@@ -54,7 +54,8 @@ export function MunicipalValueIndicatorFields({
             }
           />
           <span className="mt-1 block text-xs font-normal text-stone-500">
-            Escreva como aparece ao lado do número: %, registros, pessoas.
+            Escreva como aparece ao lado do número: %, registros, pessoas. Deixe
+            em branco se o índice não tem unidade, como o IDH.
           </span>
         </label>
         <label className="text-sm font-medium">

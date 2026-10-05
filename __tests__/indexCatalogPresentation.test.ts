@@ -3,6 +3,7 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 vi.mock("server-only", () => ({}));
 
 const contentful = vi.hoisted(() => ({
+  ensureIndexCatalogContentModel: vi.fn(),
   getCatalogEntry: vi.fn(),
   getLocalizedEntryField: vi.fn(),
   getManagementEntry: vi.fn(),
@@ -174,16 +175,17 @@ describe("updateIndexCatalogPresentation", () => {
     ).rejects.toThrow(/escopo de apresentação/u);
   });
 
-  it("recusa unidade em branco", async () => {
+  it("aceita unidade em branco e deixa o campo opcional no Contentful", async () => {
     stubEntry();
 
-    await expect(
-      updateIndexCatalogPresentation(
-        "entry-legacy",
-        { ...validInput, measurementUnit: "  " },
-        user,
-      ),
-    ).rejects.toThrow(/Unidade de medida/u);
+    await updateIndexCatalogPresentation(
+      "entry-legacy",
+      { ...validInput, measurementUnit: "  " },
+      user,
+    );
+
+    expect(patchedFields().measurementUnit).toBe("");
+    expect(contentful.ensureIndexCatalogContentModel).toHaveBeenCalled();
   });
 });
 

@@ -3,13 +3,14 @@
 import { useState } from "react";
 import type { EarthEngineAssetMapping } from "@/types/indexCatalog";
 import {
-  detectYearPartitionedTemplate,
-  fillYearPlaceholder,
+  detectPeriodTemplate,
+  fillPeriodTemplate,
+  isDetectedPeriodTemplate,
 } from "@/utils/indexCatalog";
 
 /**
  * "year-siblings" não é uma estratégia do contrato: grava o mesmo `perPeriod`
- * com `{year}`. É a mesma opção que as estatísticas já oferecem, porque o IDT
+ * com `{year}` (e `{month}`). É a mesma opção que as estatísticas já oferecem, porque o IDT
  * foi publicado com `..._v4_2021` no template e o mapa ficou parado em 2021 —
  * o operador colou o endereço de um ano, como faz nas estatísticas.
  */
@@ -17,7 +18,7 @@ type MapAssetMode = "single" | "year-siblings" | "perPeriod";
 
 const MAP_ASSET_FIELD_LABELS: Record<MapAssetMode, string> = {
   single: "ID do asset de mapa",
-  "year-siblings": "ID do asset de mapa de um dos anos",
+  "year-siblings": "ID do asset de mapa de um dos períodos",
   perPeriod: "Template do asset de mapa",
 };
 
@@ -31,29 +32,21 @@ const MAP_ASSET_PLACEHOLDERS: Record<MapAssetMode, string> = {
 const MAP_ASSET_HINTS: Record<MapAssetMode, string | null> = {
   single: null,
   "year-siblings":
-    "Cole o endereço completo de um dos anos; o ano no fim do nome vira {year} e cada período usa o asset do seu ano.",
+    "Cole o endereço completo de um dos anos ou meses; o ano no fim do nome vira {year}, o mês logo depois dele vira {month}, e cada período usa o seu asset.",
   perPeriod: "Templates aceitam {year}, {month} e {period}.",
 };
-function isYearOnlyTemplate(pattern?: string) {
-  return Boolean(
-    pattern?.includes("{year}") &&
-    !pattern.includes("{month}") &&
-    !pattern.includes("{period}"),
-  );
-}
-
 /** A opção que um índice já salvo abre marcada, como nas estatísticas. */
 function inferMapAssetMode(mapping: EarthEngineAssetMapping): MapAssetMode {
   if (mapping.strategy === "single") return "single";
-  return isYearOnlyTemplate(mapping.assetPattern)
+  return isDetectedPeriodTemplate(mapping.assetPattern)
     ? "year-siblings"
     : "perPeriod";
 }
 
 interface MapAssetStrategyFieldsProps {
   mapping: EarthEngineAssetMapping;
-  /** Ano do último período validado, para reexibir o endereço concreto. */
-  latestYear?: string;
+  /** Último período validado, para reexibir o endereço concreto. */
+  latestPeriod?: string;
   inputClass: string;
   onChange: (values: Partial<EarthEngineAssetMapping>) => void;
 }
@@ -66,7 +59,7 @@ interface MapAssetStrategyFieldsProps {
  */
 export function MapAssetStrategyFields({
   mapping,
-  latestYear,
+  latestPeriod,
   inputClass,
   onChange,
 }: MapAssetStrategyFieldsProps) {
@@ -74,8 +67,8 @@ export function MapAssetStrategyFields({
     inferMapAssetMode(mapping),
   );
   const [yearSample, setYearSample] = useState(() =>
-    inferMapAssetMode(mapping) === "year-siblings" && latestYear
-      ? fillYearPlaceholder(mapping.assetPattern ?? "", latestYear)
+    inferMapAssetMode(mapping) === "year-siblings" && latestPeriod
+      ? fillPeriodTemplate(mapping.assetPattern ?? "", latestPeriod)
       : "",
   );
   // Outras partes do formulário (previsão, planilha) forçam "single" direto
@@ -104,7 +97,7 @@ export function MapAssetStrategyFields({
     setYearSample(value);
     onChange({
       assetPattern:
-        detectYearPartitionedTemplate(value)?.assetIdTemplate ?? value.trim(),
+        detectPeriodTemplate(value)?.assetIdTemplate ?? value.trim(),
     });
   }
 
@@ -127,7 +120,7 @@ export function MapAssetStrategyFields({
         >
           <option value="single">Asset único</option>
           <option value="year-siblings">
-            Um asset por ano (detectar os anos)
+            Um asset por ano ou mês (detectar pelo endereço)
           </option>
           <option value="perPeriod">Template por período</option>
         </select>
@@ -159,16 +152,18 @@ export function MapAssetStrategyFields({
 }
 
 function YearDetectionNotice({ sample }: { sample: string }) {
-  const detected = detectYearPartitionedTemplate(sample);
+  const detected = detectPeriodTemplate(sample);
   return (
     <span
       className={`mt-2 block rounded-md px-3 py-2 text-xs font-normal ${
         detected ? "bg-[#F4F5D8] text-[#4B4E15]" : "bg-amber-50 text-amber-800"
       }`}
     >
-      {detected
-        ? `Ano ${detected.year} detectado. Cada período vai usar ${detected.assetIdTemplate}, com o ano do período no lugar de {year}.`
-        : "Não encontramos um ano de 4 dígitos neste endereço. Inclua o ano (por exemplo, ..._2026) ou use “Template por período”."}
+      {detected?.month
+        ? `Mês ${detected.month}/${detected.year} detectado. Cada período vai usar ${detected.assetIdTemplate}, com o ano e o mês do período no lugar de {year} e {month}.`
+        : detected
+          ? `Ano ${detected.year} detectado. Cada período vai usar ${detected.assetIdTemplate}, com o ano do período no lugar de {year}.`
+          : "Não encontramos um ano de 4 dígitos neste endereço. Inclua o ano (por exemplo, ..._2026) ou use “Template por período”."}
     </span>
   );
 }
