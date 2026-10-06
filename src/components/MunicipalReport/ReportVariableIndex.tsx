@@ -1,6 +1,6 @@
 "use client";
 
-import type { MouseEvent } from "react";
+import { useId, useState, type MouseEvent } from "react";
 import { useTranslations } from "next-intl";
 import type { MunicipalReportAnalysis } from "@/contracts/municipalReport";
 import {
@@ -10,6 +10,7 @@ import {
   reportAnalysisAnchorId,
 } from "@/utils/municipalReportCategories";
 import { easeScrollTo, findScrollableAncestor } from "@/utils/reportScroll";
+import { ReportSectionHeading } from "./ReportSectionHeading";
 
 function handleAnchorClick(
   event: MouseEvent<HTMLAnchorElement>,
@@ -47,15 +48,47 @@ export function ReportVariableIndex({
   const t = useTranslations("MunicipalReport");
   const tModules = useTranslations("ModulesContext");
   const groups = groupReportAnalysesByCategory(analyses);
+  const [open, setOpen] = useState(false);
+  const contentId = useId();
 
   if (groups.length === 0) return null;
 
+  const title = t("document.variableIndexTitle");
+
   return (
     <nav
-      className="report-variable-index"
-      aria-label={t("document.variableIndexTitle")}
+      className="report-variable-index flex flex-col gap-6"
+      aria-label={title}
     >
-      <div className="grid gap-4 md:grid-cols-3">
+      <ReportSectionHeading level={2} accent="#989F43">
+        <button
+          type="button"
+          aria-expanded={open}
+          aria-controls={contentId}
+          onClick={() => setOpen((value) => !value)}
+          className="flex cursor-pointer items-center gap-2 text-left"
+        >
+          {title}
+          <svg
+            aria-hidden="true"
+            viewBox="0 0 20 20"
+            className={`size-5 text-[#989F43] transition-transform print:hidden ${open ? "rotate-180" : ""}`}
+            fill="none"
+            stroke="currentColor"
+            strokeWidth="1.8"
+          >
+            <path
+              d="M5 7.5L10 12.5L15 7.5"
+              strokeLinecap="round"
+              strokeLinejoin="round"
+            />
+          </svg>
+        </button>
+      </ReportSectionHeading>
+      <div
+        id={contentId}
+        className={`${open ? "grid" : "hidden print:grid"} gap-4 md:grid-cols-3`}
+      >
         {groups.map((group) => {
           const tokens = REPORT_CATEGORY_TOKENS[group.key];
 
