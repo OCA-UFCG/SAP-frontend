@@ -368,15 +368,11 @@ function RankingSectionContent({
       {groups.map((group) => {
         const state = groupStates[group.id] ?? "initial";
         const nonZeroCount = group.allItems?.length ?? group.items.length;
-        const hasItems = (nonZeroCount ?? 0) > 0;
         const headerTextColor = getContrastTextColor(group.tone.color);
         const badgeBackgroundColor = buildRankingBadgeColor(group.tone.color);
         const badgeTextColor = getContrastTextColor(badgeBackgroundColor);
-        const toggleLabel = !hasItems
-          ? t("noStatesWithValue")
-          : state === "all"
-            ? t("hideList")
-            : `${t("seeAll")} (${nonZeroCount})`;
+        const toggleLabel =
+          state === "all" ? t("hideList") : `${t("seeAll")} (${nonZeroCount})`;
 
         const isOpen = state === "all";
 
@@ -412,7 +408,7 @@ function RankingSectionContent({
               </div>
             </div>
 
-            {hasItems && state !== "closed" ? (
+            {state !== "closed" ? (
               <div className="flex flex-col gap-2 bg-white p-2">
                 {(state === "initial"
                   ? group.items
@@ -452,18 +448,9 @@ function RankingSectionContent({
 
             <button
               type="button"
-              disabled={!hasItems}
-              aria-expanded={hasItems ? isOpen : undefined}
-              aria-label={
-                hasItems
-                  ? `${isOpen ? "Ocultar" : "Mostrar"} ${group.label}`
-                  : undefined
-              }
+              aria-expanded={isOpen}
+              aria-label={`${isOpen ? "Ocultar" : "Mostrar"} ${group.label}`}
               onClick={() => {
-                if (!hasItems) {
-                  return;
-                }
-
                 setGroupStates((current) => {
                   const cur = current[group.id] ?? "initial";
                   const next =
@@ -478,12 +465,10 @@ function RankingSectionContent({
                   };
                 });
               }}
-              className="flex min-h-7 w-full items-center justify-center gap-2 bg-[#C8CAC5] px-2 py-1 text-[12px] font-medium leading-5 text-[#292829] transition-colors duration-150 enabled:cursor-pointer enabled:hover:bg-[#BFC2BC] disabled:cursor-default"
+              className="flex min-h-7 w-full cursor-pointer items-center justify-center gap-2 bg-[#C8CAC5] px-2 py-1 text-[12px] font-medium leading-5 text-[#292829] transition-colors duration-150 hover:bg-[#BFC2BC]"
             >
               <span className="font-inter">{toggleLabel}</span>
-              {hasItems ? (
-                <Chevron open={isOpen} from="down" to="up" size={16} />
-              ) : null}
+              <Chevron open={isOpen} from="down" to="up" size={16} />
             </button>
           </div>
         );
@@ -502,13 +487,17 @@ function RankingSection({
   onItemSelect?: (locationKey: string) => void;
 }) {
   const t = useTranslations("AnalysisPanel");
-  if (groups.length === 0) {
+  const visibleGroups = groups.filter(
+    (group) => (group.allItems?.length ?? group.items.length) > 0,
+  );
+
+  if (visibleGroups.length === 0) {
     return (
       <EmptySection title={title} description={t("rankingsNotAvailable")} />
     );
   }
 
-  const rankingGroupsKey = groups
+  const rankingGroupsKey = visibleGroups
     .map(
       (group) =>
         `${group.id}:${group.total}:${group.items.map((item) => item.id).join(",")}`,
@@ -522,7 +511,7 @@ function RankingSection({
       </h2>
       <RankingSectionContent
         key={rankingGroupsKey}
-        groups={groups}
+        groups={visibleGroups}
         onItemSelect={onItemSelect}
       />
     </div>

@@ -49,8 +49,39 @@ const model: TerritorialAnalysisViewModel = {
       totalLabel: "Estados",
       items: [{ id: "mg", label: "Minas Gerais", trailingLabel: "60.0%" }],
     },
+    {
+      id: "classe-c",
+      label: "Classe C",
+      tone: {
+        color: "#3A3D1F",
+        bg: "rgba(58, 61, 31, 0.16)",
+        border: "rgba(58, 61, 31, 0.4)",
+      },
+      total: 0,
+      totalLabel: "Estados",
+      items: [],
+    },
   ],
 };
+
+function renderPanel(panelModel = model) {
+  return render(
+    <AnalysisPanel
+      moduleName="Teste"
+      yearOptions={[{ value: "2024", label: "2024" }]}
+      activeYear="2024"
+      onBack={vi.fn()}
+      onSearch={vi.fn()}
+      searchTelemetryContext={{
+        activeLayerId: "test",
+        activeLayerName: "Test",
+        activeDateLabel: "2024",
+      }}
+      onYearChange={vi.fn()}
+      model={panelModel}
+    />,
+  );
+}
 
 describe("AnalysisPanel", () => {
   it("shows an accessible spinner beside the on-demand loading message", () => {
@@ -156,6 +187,30 @@ describe("AnalysisPanel", () => {
     ).not.toBeInTheDocument();
     expect(
       screen.getByRole("button", { name: "Mostrar Classe A" }),
+    ).toBeVisible();
+  });
+
+  it("hides classes without any state", () => {
+    renderPanel();
+
+    expect(screen.getByText("Classe A")).toBeVisible();
+    expect(screen.queryByText("Classe C")).not.toBeInTheDocument();
+    expect(screen.queryByText("Sem estados com valor")).not.toBeInTheDocument();
+  });
+
+  it("shows the empty message when no class has states", () => {
+    renderPanel({
+      ...model,
+      rankingGroups: model.rankingGroups.map((group) => ({
+        ...group,
+        items: [],
+      })),
+    });
+
+    expect(
+      screen.getByText(
+        "Os agrupamentos por classificação ainda não estão disponíveis para esta camada.",
+      ),
     ).toBeVisible();
   });
 });
