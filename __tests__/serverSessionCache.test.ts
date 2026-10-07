@@ -95,7 +95,7 @@ describe("verified session cache", () => {
     );
 
     await getAuthenticatedUserId(createRequest());
-    vi.advanceTimersByTime(59_000);
+    vi.advanceTimersByTime(299_000);
     await getAuthenticatedUserId(createRequest());
     vi.advanceTimersByTime(2_000);
     await getAuthenticatedUserId(createRequest());
@@ -106,7 +106,7 @@ describe("verified session cache", () => {
   it("never caches a session past the expiry of its own cookie", async () => {
     vi.useFakeTimers();
     vi.setSystemTime(0);
-    // Token com 10 s de vida: o TTL de 60 s do cache não pode estendê-lo.
+    // Token com 10 s de vida: o TTL de 5 min do cache não pode estendê-lo.
     fakeAdminAuth.verifySessionCookie.mockResolvedValue(
       decodedToken({ exp: 10 }),
     );

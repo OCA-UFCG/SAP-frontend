@@ -85,7 +85,7 @@ export function hasApprovedAccess(claims: unknown) {
  * sem revogar, um cookie já emitido continuaria valendo por até 24 h sem o
  * claim, e a pessoa aprovada só entraria no dia seguinte. Com a revogação, o
  * `checkRevoked` que o projeto já usa derruba a sessão antiga dentro do TTL do
- * cache de sessões verificadas (60 s por padrão).
+ * cache de sessões verificadas (5 min por padrão).
  *
  * await approveAccess(uid, tier);
  */
