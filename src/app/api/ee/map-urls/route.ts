@@ -6,7 +6,7 @@ import {
   type LayerMapUrlResolution,
 } from "@/app/api/ee/layerMapUrl";
 import { ensureEeCacheWarmupStarted } from "@/app/api/ee/services";
-import { consumeEeRateLimit } from "../rate-limit";
+import { consumeEeRateLimit, consumeEeThumbnailRateLimit } from "../rate-limit";
 import { getPanelLayers } from "@/repositories/platform/panelLayerRepository";
 import { getAuthenticatedUserId } from "@/lib/server-session";
 import { createServerTiming } from "@/utils/serverTiming";
@@ -28,6 +28,9 @@ import {
  *
  * O recorte espacial é sempre o nacional porque é o que o relatório usa; quem
  * precisa de outro continua pedindo por `/api/ee`.
+ *
+ * Com `thumbnail` no corpo, cada camada volta com a URL de uma imagem só daquele
+ * recorte, e o custo sai da cota de miniaturas em vez da cota do mapa.
  *
  * A requisição não passa de `EE_MAP_URLS_DEADLINE_MS`: o que o Earth Engine não
  * entregar a tempo volta como `pending`, com a chamada seguindo em voo.
@@ -63,13 +66,16 @@ export async function POST(req: NextRequest) {
         item.name,
         item.year,
         DEFAULT_SPATIAL_SELECTION,
+        parsed.thumbnail,
       ),
     }));
 
     const misses = resolutions.filter(
       ({ resolution }) => resolution.status === "miss",
     );
-    const rateLimit = consumeEeRateLimit(authenticatedUserId, misses.length);
+    const rateLimit = (
+      parsed.thumbnail ? consumeEeThumbnailRateLimit : consumeEeRateLimit
+    )(authenticatedUserId, misses.length);
     const allowedMisses = new Set(
       misses.slice(0, rateLimit.granted).map(({ item }) => item),
     );
@@ -86,7 +92,7 @@ export async function POST(req: NextRequest) {
     );
     finishEarthEngine(
       "earth_engine",
-      `Geração de ${rateLimit.granted} URL(s) de tiles no Earth Engine`,
+      `Geração de ${rateLimit.granted} URL(s) de ${parsed.thumbnail ? "miniatura" : "tiles"} no Earth Engine`,
     );
 
     return NextResponse.json(

@@ -59,6 +59,7 @@ import { ReportSectionHeading } from "./ReportSectionHeading";
 import { ReportVariableIndex } from "./ReportVariableIndex";
 import { ReportMapPreview, type ReportMapChoropleth } from "./ReportMapPreview";
 import { destroyReportMapPool } from "./reportMapPool";
+import { resolveReportMapView, type ReportMapThumbnail } from "./reportMapView";
 import { useReportMapCaptureQueue } from "./useReportMapCaptureQueue";
 import {
   useReportMapTileUrls,
@@ -117,6 +118,7 @@ const AnalysisSection = memo(function AnalysisSection({
   mapQueuedAt,
   onMapVisibility,
   mapTileUrl,
+  mapThumbnail,
   mapChoropleth,
   mapUnavailableReason,
   onMapCapture,
@@ -136,6 +138,7 @@ const AnalysisSection = memo(function AnalysisSection({
   mapQueuedAt?: number | null;
   onMapVisibility?: (key: string, visible: boolean) => void;
   mapTileUrl?: string;
+  mapThumbnail?: ReportMapThumbnail;
   mapChoropleth?: ReportMapChoropleth;
   mapUnavailableReason?: EeMapUrlFailure;
   onMapCapture?: (key: string, src: string | null) => void;
@@ -331,6 +334,7 @@ const AnalysisSection = memo(function AnalysisSection({
                 imageSrc={mapSrc}
                 queuedAt={mapQueuedAt}
                 tileUrl={mapTileUrl}
+                thumbnail={mapThumbnail}
                 choropleth={mapChoropleth}
                 unavailableReason={mapUnavailableReason}
                 onCapture={(src) => onMapCapture?.(mapKey, src)}
@@ -568,6 +572,7 @@ const ReportDocument = memo(function ReportDocument({
                 mapAttempt={retryAttemptFor(mapKey)}
                 mapQueuedAt={mapQueueStartedAt}
                 mapTileUrl={mapTileUrls.tileUrlFor(mapKey)}
+                mapThumbnail={mapTileUrls.thumbnailFor(mapKey)}
                 mapChoropleth={mapChoropleths.choroplethFor(mapKey)}
                 mapUnavailableReason={
                   mapTileUrls.failureFor(mapKey) ??
@@ -690,7 +695,18 @@ export function MunicipalReportPreview({
     [requestedMaps],
   );
   const loadErrorMessage = t("loadError");
-  const mapTileUrls = useReportMapTileUrls(eeMapKeys);
+  // No relatório de um município, todos os mapas mostram o mesmo recorte, e
+  // cada camada vem do Earth Engine como uma imagem só dele em vez de tiles.
+  const territoryKey = report
+    ? `${report.territory.level}:${report.territory.locationKey}`
+    : "";
+  const mapView = useMemo(
+    () => (report ? resolveReportMapView(report.territory) : null),
+    // `territoryKey` resume o território: o objeto muda a cada leitura.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [territoryKey],
+  );
+  const mapTileUrls = useReportMapTileUrls(eeMapKeys, mapView);
   const mapChoropleths = useReportMapChoropleths(choroplethRequests);
   // A fila de captura recebe cada camada assim que a URL dela chega, e nunca as
   // que não têm imagem no período: montar um MapLibre para uma dessas só

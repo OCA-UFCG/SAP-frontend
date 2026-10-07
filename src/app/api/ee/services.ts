@@ -26,8 +26,10 @@ import {
 import {
   evaluateGeeObject,
   getGeeMapUrl,
+  getGeeThumbnailUrl,
   initializeGee,
 } from "@/infrastructure/earth-engine/client";
+import type { EeMapThumbnailView } from "@/contracts/eeMapUrls";
 import {
   normalizeGeeAssetType,
   resolveGeeAssetType,
@@ -273,6 +275,8 @@ interface GetEarthEngineUrlOptions {
   spatialSelection?: SpatialSelection;
   imageCollectionSelection?: ImageCollectionSelection;
   imageCollectionPeriod?: ResolvedImageCollectionPeriod;
+  /** Presente, devolve uma imagem só desse recorte em vez da URL de tiles. */
+  thumbnail?: EeMapThumbnailView;
 }
 
 function isFeatureCollectionAsset({
@@ -593,6 +597,7 @@ export const getEarthEngineUrl = async (
       spatialSelection = DEFAULT_SPATIAL_SELECTION,
       imageCollectionSelection,
       imageCollectionPeriod,
+      thumbnail,
     } = options ?? {};
 
     await initializeGee();
@@ -697,11 +702,11 @@ export const getEarthEngineUrl = async (
           })
         : categorizedImage;
     const clippedMapImage = applySpatialClip(mapImage, spatialSelection);
+    const mapVisParams = shouldUseFeatureCollection ? undefined : visParams;
 
-    return await getGeeMapUrl(
-      clippedMapImage,
-      shouldUseFeatureCollection ? undefined : visParams,
-    );
+    return await (thumbnail
+      ? getGeeThumbnailUrl(clippedMapImage, mapVisParams, thumbnail)
+      : getGeeMapUrl(clippedMapImage, mapVisParams));
   } catch (error: any) {
     console.error("Error in getEarthEngineUrl:", error.message);
     throw error;
