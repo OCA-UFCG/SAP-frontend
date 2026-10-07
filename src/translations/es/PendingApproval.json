@@ -1,0 +1,9 @@
+{
+  "PendingApproval": {
+    "title": "Registro en análisis",
+    "description": "Tu correo fue confirmado y tu solicitud llegó al equipo del OCA. Cuando revisen la intención de uso que describiste, recibirás un aviso por correo y podrás acceder a la plataforma.",
+    "signedInAs": "Conectado como",
+    "logout": "Cerrar sesión",
+    "backHome": "Volver a la página de inicio"
+  }
+}

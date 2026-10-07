@@ -8,6 +8,7 @@ import type { PanelLayerI } from "@/utils/interfaces";
 export type SidePanelContextComponent = React.ComponentType<{
   activeSection: PlatformSection;
   panelLayers?: PanelLayerI[];
+  detailLayerId?: string;
   onRequestSectionChange?: (next: PlatformSection) => void;
 }>;
 
@@ -15,6 +16,7 @@ export interface PlatformSidePanelProps {
   activeSection: PlatformSection;
   panelLayers?: PanelLayerI[];
   ContextComponent?: SidePanelContextComponent;
+  detailLayerId?: string;
   onRequestSectionChange?: (next: PlatformSection) => void;
 }
 
@@ -22,6 +24,7 @@ export function PlatformSidePanel({
   activeSection,
   panelLayers,
   ContextComponent = ModulesContext,
+  detailLayerId,
   onRequestSectionChange,
 }: PlatformSidePanelProps) {
   return (
@@ -29,6 +32,7 @@ export function PlatformSidePanel({
       <ContextComponent
         activeSection={activeSection}
         panelLayers={panelLayers}
+        detailLayerId={detailLayerId}
         onRequestSectionChange={onRequestSectionChange}
       />
     </section>

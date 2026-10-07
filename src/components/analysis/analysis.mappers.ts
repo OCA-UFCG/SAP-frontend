@@ -1,3 +1,7 @@
+import {
+  formatAbsoluteNumber,
+  formatPercentageNumber,
+} from "@/utils/formatTerritorialNumber";
 import citiesIndex from "@/data/citiesIndex.json";
 import { statesObj } from "@/utils/constants";
 import type { PanelLayerI } from "@/utils/interfaces";
@@ -13,6 +17,10 @@ import type {
   TerritorialAnalysisViewModel,
 } from "@/utils/analysis";
 import {
+  formatSeasonalPeriodLabel,
+  hasSeasonalPeriods,
+} from "@/utils/seasonalPeriod";
+import {
   getImageDataDefaultYear,
   getImageDataLegend,
   getImageDataYearKeys,
@@ -22,6 +30,15 @@ import {
 
 function getImageDataYearLabel(key: string, dataset?: PanelLayerI): string {
   const entry = resolveImageYearEntry(dataset?.imageData, key);
+  // Numa camada sazonal o mês da chave é o início de um trimestre, e o rótulo
+  // precisa dizer os três meses.
+  const seasonalLabel = hasSeasonalPeriods(dataset)
+    ? formatSeasonalPeriodLabel(key)
+    : null;
+
+  if (seasonalLabel) {
+    return seasonalLabel;
+  }
 
   if (entry?.year?.trim()) {
     return entry.year.trim();
@@ -136,8 +153,8 @@ function formatCompactValue(
   value: number,
 ): string {
   return data.valueConfig?.type === "absolute"
-    ? value.toLocaleString("pt-BR")
-    : value.toFixed(1);
+    ? formatAbsoluteNumber(value, "pt-BR")
+    : formatPercentageNumber(value, "pt-BR");
 }
 
 function buildCompactDistributionItems(
@@ -354,8 +371,8 @@ function buildCompactRankingGroups(
     const allItems = sortedEntries.map(({ numericValue, ...entry }) => ({
       ...entry,
       trailingLabel: isAbsolute
-        ? `${numericValue.toLocaleString("pt-BR")} ${data.valueConfig?.unit ?? ""}`.trim()
-        : `${numericValue.toFixed(1)}%`,
+        ? `${formatAbsoluteNumber(numericValue, "pt-BR")} ${data.valueConfig?.unit ?? ""}`.trim()
+        : `${formatPercentageNumber(numericValue, "pt-BR")}%`,
     }));
 
     return {
@@ -370,8 +387,8 @@ function buildCompactRankingGroups(
       items: topEntries.map(({ numericValue, ...entry }) => ({
         ...entry,
         trailingLabel: isAbsolute
-          ? `${numericValue.toLocaleString("pt-BR")} ${data.valueConfig?.unit ?? ""}`.trim()
-          : `${numericValue.toFixed(1)}%`,
+          ? `${formatAbsoluteNumber(numericValue, "pt-BR")} ${data.valueConfig?.unit ?? ""}`.trim()
+          : `${formatPercentageNumber(numericValue, "pt-BR")}%`,
       })),
       allItems,
     };

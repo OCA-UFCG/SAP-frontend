@@ -1,0 +1,61 @@
+import { NextResponse } from "next/server";
+import { requireAuthenticatedRequest } from "@/lib/server-session";
+import { getMunicipalAnalysisCacheControlHeader } from "@/repositories/platform/municipalAnalysisCache";
+import { MunicipalReportNotFoundError } from "@/services/municipalReportService";
+import { buildCachedMunicipalReport } from "@/services/municipalReportCache";
+import { isReportTerritoryKeyShape } from "@/utils/reportTerritory";
+import { createServerTiming } from "@/utils/serverTiming";
+
+const PERIOD_PATTERN = /^(\d{4})(?:-(0[1-9]|1[0-2]))?$/u;
+const LAYER_ID_PATTERN = /^[A-Za-z0-9_-]{1,80}$/u;
+
+function error(message: string, status: number) {
+  return NextResponse.json({ error: message }, { status, headers: { "Cache-Control": "no-store" } });
+}
+
+export async function GET(request: Request, context: { params: Promise<{ locationKey: string }> }) {
+  const timing = createServerTiming();
+  const finishAuth = timing.start();
+  const unauthorized = await requireAuthenticatedRequest(request);
+  finishAuth("auth", "Autenticação");
+  if (unauthorized) {
+    unauthorized.headers.set("Cache-Control", "no-store");
+    unauthorized.headers.set("Server-Timing", timing.header());
+    return unauthorized;
+  }
+  const { locationKey } = await context.params;
+  const key = decodeURIComponent(locationKey).trim();
+  const url = new URL(request.url);
+  const period = url.searchParams.get("period")?.trim();
+  const layers = url.searchParams.get("layers")
+    ?.split(",")
+    .map((layer) => layer.trim())
+    .filter((layer) => LAYER_ID_PATTERN.test(layer));
+  // A rota valida a forma da chave; quem decide se o território existe é o
+  // serviço, que responde 404 — a mesma separação de antes, quando a forma era
+  // o código IBGE de 7 dígitos.
+  if (!isReportTerritoryKeyShape(key)) return error("Invalid territory key.", 400);
+  if (!period || !PERIOD_PATTERN.test(period)) return error("Invalid or missing period.", 400);
+
+  try {
+    const finishBuild = timing.start();
+    const report = await buildCachedMunicipalReport(key, period, {
+      ...(layers?.length ? { analysisIds: layers } : {}),
+      onTiming: timing.record,
+    });
+    finishBuild("build_report", "Montagem completa do relatório-base");
+    if (
+      !report.analyses.some((analysis) => analysis.status !== "unavailable")
+    ) {
+      return error("Unable to build any report analysis for this territory.", 502);
+    }
+    return NextResponse.json(report, { headers: {
+      "Cache-Control": getMunicipalAnalysisCacheControlHeader(),
+      "Server-Timing": timing.header(),
+    } });
+  } catch (cause) {
+    if (cause instanceof MunicipalReportNotFoundError) return error(cause.message, 404);
+    console.error("Erro ao montar relatório municipal:", cause);
+    return error("Unable to build municipal report.", 502);
+  }
+}

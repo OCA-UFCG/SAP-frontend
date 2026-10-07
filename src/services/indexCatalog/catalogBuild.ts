@@ -1,7 +1,7 @@
 import "server-only";
 
-import ee from "@google/earthengine";
-import { createHash } from "node:crypto";
+import { isGeeMunicipalValueTableSource } from "@/contracts/geeMunicipalValueTable";
+import { isMunicipalSpreadsheetSource } from "@/contracts/municipalSpreadsheet";
 import {
   inferGeeStatisticsSchema,
   type GeeFeatureCollectionStatisticsSource,
@@ -9,18 +9,34 @@ import {
   type PublishedGeeStatisticsSource,
   type ResolvedGeeStatisticsSource,
 } from "@/contracts/geeStatistics";
+import { getStatisticsAssetIds } from "@/services/indexCatalog/statisticsAssetDiscovery";
+import { hashCatalogValue } from "@/services/indexCatalog/catalogFingerprint";
+import { buildMunicipalValueTableDraft } from "@/services/indexCatalog/municipalValueTableDraft";
+import { buildSpreadsheetIndexDraft } from "@/services/indexCatalog/spreadsheetIndexDraft";
 import {
-  inspectEarthEngineAsset,
-  listEarthEngineAssets,
-} from "@/app/api/ee/services";
+  validateMapAssets,
+  type ValidatedForecastCollection,
+} from "@/services/indexCatalog/mapAssetValidation";
+import { initializeGee } from "@/infrastructure/earth-engine/client";
+import { seasonPairsDescribeQuarters } from "@/utils/seasonalPeriod";
 import {
-  evaluateGeeObject,
-  initializeGee,
-} from "@/infrastructure/earth-engine/client";
+  buildStatisticsAssetKey,
+  getOrValidateStatisticsAsset,
+  isStatisticsAssetCached,
+  type DiscoveredStatisticsAsset,
+} from "@/services/indexCatalog/statisticsAssetCache";
+import {
+  readStatisticsAssetProbes,
+  readStatisticsAssetProperties,
+  type StatisticsAssetProbe,
+} from "@/services/indexCatalog/statisticsAssetProbe";
+import {
+  countInvalidPercentageRows,
+  parsePercentageColumns,
+} from "@/utils/catalogPercentageRows";
 import type {
   CatalogValidationReport,
   ClassMapping,
-  EarthEngineAssetMapping,
   IndexCatalogBuildResult,
   IndexCatalogConfigV2,
 } from "@/types/indexCatalog";
@@ -37,32 +53,17 @@ const DEFAULT_CLASS_COLORS = [
   "#184E77",
 ];
 
-interface DiscoveredStatisticsAsset {
-  assetId: string;
-  updateTime?: string;
-  schema: GeeStatisticsSchema;
-  periods: string[];
-  rowCount: number;
-}
-
-interface ValidatedForecastCollection {
-  latestValue: string | number;
-  leadByPeriod: Record<string, number>;
-}
-
-interface ValidatedMapAssets {
-  assets: Array<{ assetId: string; updateTime?: string }>;
-  forecast?: ValidatedForecastCollection;
-}
-
 export interface CatalogStatisticsDiscovery {
   assets: DiscoveredStatisticsAsset[];
   periods: string[];
   classIndexes: number[];
-}
-
-function hash(value: unknown) {
-  return createHash("sha256").update(JSON.stringify(value)).digest("hex");
+  /**
+   * Coluna do trimestre, quando **todos** os assets da fonte a têm. Exigir
+   * unanimidade evita publicar como sazonal um índice cuja série só tem a
+   * coluna em parte dos anos, o que deixaria o seletor de período misturando
+   * rótulos de mês e de trimestre.
+   */
+  seasonProperty?: string;
 }
 
 function normalizePeriod(
@@ -78,47 +79,6 @@ function normalizePeriod(
   return PERIOD_PATTERN.test(period) ? period : null;
 }
 
-function templatePattern(template: string) {
-  const escaped = template.replace(/[.*+?^${}()|[\]\\]/gu, "\\$&");
-  return new RegExp(
-    `^${escaped
-      .replaceAll("\\{year\\}", "\\d{4}")
-      .replaceAll("\\{month\\}", "(?:0[1-9]|1[0-2])")
-      .replaceAll("\\{period\\}", "\\d{4}(?:-(?:0[1-9]|1[0-2]))?")}$`,
-    "u",
-  );
-}
-
-async function getStatisticsAssetIds(
-  source: GeeFeatureCollectionStatisticsSource,
-) {
-  if (source.asset.type === "fixed") {
-    return [
-      {
-        id: source.asset.assetId,
-        updateTime: undefined as string | undefined,
-      },
-    ];
-  }
-
-  const template = source.asset.assetIdTemplate;
-  const separator = template.lastIndexOf("/");
-  if (separator < 1) {
-    throw new Error("O template estatístico precisa ter um diretório-pai.");
-  }
-  const parent = template.slice(0, separator);
-  const pattern = templatePattern(template);
-  const assets = (await listEarthEngineAssets(parent)).filter(
-    (asset) => pattern.test(asset.id) && asset.type.toUpperCase() === "TABLE",
-  );
-  if (assets.length === 0) {
-    throw new Error(
-      `Nenhuma FeatureCollection corresponde ao template ${template}.`,
-    );
-  }
-  return assets.map(({ id, updateTime }) => ({ id, updateTime }));
-}
-
 function resolvedSource(
   source: GeeFeatureCollectionStatisticsSource,
   assetId: string,
@@ -126,118 +86,57 @@ function resolvedSource(
   return { ...source, assetId };
 }
 
-async function validateCollectionRows(
+interface PlannedStatisticsAsset {
+  source: ResolvedGeeStatisticsSource;
+  updateTime?: string;
+  key?: string;
+}
+
+interface PendingStatisticsReading {
+  schema: GeeStatisticsSchema;
+  probe: StatisticsAssetProbe;
+}
+
+function validateProbedRows(
   source: ResolvedGeeStatisticsSource,
   schema: GeeStatisticsSchema,
+  probe: StatisticsAssetProbe,
 ) {
-  const collection = ee.FeatureCollection(source.assetId);
-  const required = [
-    source.properties.level,
-    source.properties.locationName,
-    source.properties.year,
-    source.properties.date,
-    source.properties.totalArea,
-    ...schema.percentageProperties,
-    ...schema.classAreaProperties,
-  ];
-  const rowCountExpression = collection.size();
-  const completeCountExpression = collection
-    .filter(ee.Filter.notNull(required))
-    .size();
-  const distinctCountExpression = collection
-    .distinct([
-      source.properties.level,
-      source.properties.locationName,
-      source.properties.municipalityCode,
-      source.properties.stateCode,
-      source.properties.year,
-      source.properties.date,
-    ])
-    .size();
-  const municipalRows = collection.filter(
-    ee.Filter.eq(source.properties.level, "7_Municipio"),
-  );
-  const completeMunicipalRowsExpression = municipalRows
-    .filter(
-      ee.Filter.notNull([
-        source.properties.municipalityCode,
-        source.properties.stateCode,
-      ]),
-    )
-    .size();
-  const stateRows = collection.filter(
-    ee.Filter.eq(source.properties.level, "6_Estado"),
-  );
-  const completeStateRowsExpression = stateRows
-    .filter(ee.Filter.notNull([source.properties.stateCode]))
-    .size();
-  const checked = collection.map((rawFeature: unknown) => {
-    const feature = ee.Feature(rawFeature);
-    let sum = ee.Number(0);
-    let inRange: any = ee.Number(1).eq(1);
-    let allZero: any = ee.Number(1).eq(1);
-    for (const property of schema.percentageProperties) {
-      const value = ee.Number(feature.get(property));
-      sum = sum.add(value);
-      inRange = inRange.and(value.gte(0)).and(value.lte(100));
-      allZero = allZero.and(value.eq(0));
-    }
-    const sumIsValid = sum
-      .subtract(100)
-      .abs()
-      .lte(PERCENTAGE_TOLERANCE)
-      .or(allZero);
-    return feature.set(
-      "__catalog_invalid_percentage",
-      ee.Algorithms.If(inRange.and(sumIsValid), 0, 1),
-    );
-  });
-  const invalidPercentageExpression = checked.aggregate_sum(
-    "__catalog_invalid_percentage",
-  );
-  const [
-    rowCount,
-    completeCount,
-    distinctCount,
-    invalidPercentageCount,
-    municipalCount,
-    completeMunicipalCount,
-    stateCount,
-    completeStateCount,
-  ] = await Promise.all([
-    evaluateGeeObject<number>(rowCountExpression),
-    evaluateGeeObject<number>(completeCountExpression),
-    evaluateGeeObject<number>(distinctCountExpression),
-    evaluateGeeObject<number>(invalidPercentageExpression),
-    evaluateGeeObject<number>(municipalRows.size()),
-    evaluateGeeObject<number>(completeMunicipalRowsExpression),
-    evaluateGeeObject<number>(stateRows.size()),
-    evaluateGeeObject<number>(completeStateRowsExpression),
-  ]);
-
+  const rowCount = probe.rowCount;
   if (!rowCount) {
     throw new Error(`Asset estatístico ${source.assetId} não possui linhas.`);
   }
-  if (completeCount !== rowCount) {
+  if (probe.completeCount !== rowCount) {
     throw new Error(
-      `Asset estatístico ${source.assetId} possui ${rowCount - completeCount} linha(s) com campos obrigatórios vazios.`,
+      `Asset estatístico ${source.assetId} possui ${rowCount - probe.completeCount} linha(s) com campos obrigatórios vazios.`,
     );
   }
-  if (completeMunicipalCount !== municipalCount) {
+  if (probe.completeMunicipalCount !== probe.municipalCount) {
     throw new Error(
       `Asset estatístico ${source.assetId} possui município(s) sem CD_MUN ou UF.`,
     );
   }
-  if (completeStateCount !== stateCount) {
+  if (probe.completeStateCount !== probe.stateCount) {
     throw new Error(
       `Asset estatístico ${source.assetId} possui estado(s) sem propriedade de UF.`,
     );
   }
-  if (distinctCount !== rowCount) {
+  if (probe.distinctCount !== rowCount) {
     throw new Error(
-      `Asset estatístico ${source.assetId} possui ${rowCount - distinctCount} território(s)/período(s) duplicado(s).`,
+      `Asset estatístico ${source.assetId} possui ${rowCount - probe.distinctCount} território(s)/período(s) duplicado(s).`,
     );
   }
+  // Depois das checagens de nulo: uma coluna com valor ausente sai mais curta de
+  // reduceColumns, e o erro de campo obrigatório vazio explica melhor a causa.
+  const invalidPercentageCount = countInvalidPercentageRows(
+    parsePercentageColumns(
+      probe.percentageColumns,
+      schema.percentageProperties,
+      rowCount,
+      source.assetId,
+    ),
+    PERCENTAGE_TOLERANCE,
+  );
   if (invalidPercentageCount > 0) {
     throw new Error(
       `Asset estatístico ${source.assetId} possui ${invalidPercentageCount} linha(s) com percentuais fora de 0–100 ou sem total 100 ± ${PERCENTAGE_TOLERANCE}.`,
@@ -247,29 +146,54 @@ async function validateCollectionRows(
   return rowCount;
 }
 
-async function inspectStatisticsAsset(
-  source: GeeFeatureCollectionStatisticsSource,
-  assetId: string,
-  listedUpdateTime?: string,
-): Promise<DiscoveredStatisticsAsset> {
-  const inspection = await inspectEarthEngineAsset(assetId);
-  if (inspection.type !== "featureCollection") {
-    throw new Error(
-      `O asset estatístico ${assetId} é ${inspection.type}; esperado FeatureCollection.`,
-    );
+/**
+ * Confirma que a coluna `temporada` descreve o trimestre do próprio período.
+ *
+ * A previsão mensal do INMET também publica essa coluna, mas com a sigla da
+ * emissão repetida em todos os meses (`2026-10`, `2026-11` e `2026-12` todos
+ * como `OND`). Sem esta conferência, um índice mensal seria rotulado como
+ * trimestral no seletor de período.
+ */
+function confirmedSeasonProperty(
+  source: ResolvedGeeStatisticsSource,
+  schema: GeeStatisticsSchema,
+  probe: StatisticsAssetProbe,
+): string | undefined {
+  if (!schema.seasonProperty) return undefined;
+
+  const pairs = probe.seasonPairs;
+  if (!Array.isArray(pairs) || pairs.length !== 2) return undefined;
+
+  const [periodValues, seasonValues] = pairs as [unknown[], unknown[]];
+  if (!Array.isArray(periodValues) || periodValues.length === 0) {
+    return undefined;
   }
-  const resolved = resolvedSource(source, assetId);
-  const schema = inferGeeStatisticsSchema(resolved, inspection.properties);
-  const periodProperty =
+
+  const pairsByPeriod = periodValues.flatMap((value, index) => {
+    const period = normalizePeriod(value, source.periodGranularity);
+    const season = seasonValues?.[index];
+    return period && typeof season === "string"
+      ? [[period, season] as const]
+      : [];
+  });
+  if (pairsByPeriod.length !== periodValues.length) return undefined;
+
+  return seasonPairsDescribeQuarters(pairsByPeriod)
+    ? schema.seasonProperty
+    : undefined;
+}
+
+function probedPeriods(
+  source: ResolvedGeeStatisticsSource,
+  probe: StatisticsAssetProbe,
+) {
+  const property =
     source.periodGranularity === "month"
       ? source.properties.date
       : source.properties.year;
-  const rawPeriods = await evaluateGeeObject<unknown[]>(
-    ee.FeatureCollection(assetId).aggregate_array(periodProperty).distinct(),
-  );
   const periods = [
     ...new Set(
-      (rawPeriods ?? []).flatMap((value) => {
+      (probe.periods ?? []).flatMap((value) => {
         const period = normalizePeriod(value, source.periodGranularity);
         return period ? [period] : [];
       }),
@@ -277,16 +201,75 @@ async function inspectStatisticsAsset(
   ].sort();
   if (periods.length === 0) {
     throw new Error(
-      `Asset estatístico ${assetId} não possui períodos válidos em ${periodProperty}.`,
+      `Asset estatístico ${source.assetId} não possui períodos válidos em ${property}.`,
     );
   }
-  const rowCount = await validateCollectionRows(resolved, schema);
+  return periods;
+}
+
+/**
+ * Lê em lote o schema e as linhas das tabelas que a memoização ainda não tem.
+ *
+ * São dois pedidos ao Earth Engine para o conjunto todo: um traz as colunas de
+ * cada tabela (é delas que sai o schema de classes) e o outro traz as contagens
+ * e os percentuais, que dependem do schema descoberto no primeiro. Antes eram
+ * 10 pedidos por tabela — 350 num índice de 35 anos.
+ */
+async function readPendingStatistics(
+  pending: PlannedStatisticsAsset[],
+): Promise<Map<string, PendingStatisticsReading>> {
+  if (pending.length === 0) return new Map();
+
+  const properties = await readStatisticsAssetProperties(
+    pending.map((item) => item.source.assetId),
+  );
+  const requests = pending.map((item, index) => ({
+    source: item.source,
+    schema: inferGeeStatisticsSchema(item.source, properties[index]),
+  }));
+  const probes = await readStatisticsAssetProbes(requests);
+
+  return new Map(
+    requests.flatMap(({ source, schema }) => {
+      const probe = probes.get(source.assetId);
+      return probe ? [[source.assetId, { schema, probe }] as const] : [];
+    }),
+  );
+}
+
+async function discoverStatisticsAsset(
+  planned: PlannedStatisticsAsset,
+  batched: Promise<Map<string, PendingStatisticsReading>>,
+): Promise<DiscoveredStatisticsAsset> {
+  const { source, updateTime } = planned;
+  // A leitura em lote cobre as tabelas que a memoização não tinha. Uma entrada
+  // memoizada pode ser descartada pelo teto do cache entre o planejamento do
+  // lote e este ponto (num índice com mais tabelas que o teto), e nesse caso a
+  // tabela é lida sozinha em vez de a validação falhar.
+  const reading =
+    (await batched).get(source.assetId) ??
+    (await readPendingStatistics([planned])).get(source.assetId);
+  if (!reading) {
+    throw new Error(
+      `O Earth Engine não devolveu a leitura do asset estatístico ${source.assetId}.`,
+    );
+  }
+  // Períodos antes das linhas: um asset sem período válido tem uma causa mais
+  // específica que "linha com campo vazio", e é a mensagem mais útil.
+  const periods = probedPeriods(source, reading.probe);
+  const rowCount = validateProbedRows(source, reading.schema, reading.probe);
+  const seasonProperty = confirmedSeasonProperty(
+    source,
+    reading.schema,
+    reading.probe,
+  );
   return {
-    assetId,
-    updateTime: inspection.updateTime ?? listedUpdateTime,
-    schema,
+    assetId: source.assetId,
+    updateTime,
+    schema: reading.schema,
     periods,
     rowCount,
+    ...(seasonProperty ? { seasonProperty } : {}),
   };
 }
 
@@ -294,15 +277,31 @@ export async function discoverCatalogStatistics(
   source: GeeFeatureCollectionStatisticsSource,
 ): Promise<CatalogStatisticsDiscovery> {
   await initializeGee();
-  const candidates = await getStatisticsAssetIds(source);
-  const assets: DiscoveredStatisticsAsset[] = [];
-  // Deliberately sequential: validating many large tables at once easily hits
-  // Earth Engine's concurrent aggregation limit.
-  for (const candidate of candidates) {
-    assets.push(
-      await inspectStatisticsAsset(source, candidate.id, candidate.updateTime),
-    );
-  }
+  const candidates = await getStatisticsAssetIds(source.asset);
+  // A chave da memoização sai do endereço e da revisão do asset, e não do
+  // schema: por isso ela é montada antes de qualquer leitura, e uma tabela já
+  // memoizada não custa nem a leitura das colunas.
+  const planned: PlannedStatisticsAsset[] = candidates.map((candidate) => {
+    const resolved = resolvedSource(source, candidate.id);
+    return {
+      source: resolved,
+      updateTime: candidate.updateTime,
+      key: buildStatisticsAssetKey(resolved, candidate.revision),
+    };
+  });
+  // O lote é disparado antes do Promise.all: assim cada tabela já fica
+  // registrada como "em voo" no cache, e duas prévias simultâneas do mesmo
+  // rascunho compartilham a mesma leitura em vez de pedir tudo duas vezes.
+  const batched = readPendingStatistics(
+    planned.filter((item) => !isStatisticsAssetCached(item.key)),
+  );
+  const assets = await Promise.all(
+    planned.map((item) =>
+      getOrValidateStatisticsAsset(item.key, () =>
+        discoverStatisticsAsset(item, batched),
+      ),
+    ),
+  );
 
   const expectedIndexes = assets[0].schema.classIndexes;
   for (const asset of assets.slice(1)) {
@@ -325,13 +324,33 @@ export async function discoverCatalogStatistics(
     }
   }
 
+  const seasonProperty = assets.every((asset) => asset.seasonProperty)
+    ? assets[0].seasonProperty
+    : undefined;
+
   return {
     assets,
     periods: [...periodOwners.keys()].sort(),
     classIndexes: expectedIndexes,
+    ...(seasonProperty ? { seasonProperty } : {}),
   };
 }
 
+/**
+ * Casa o que o operador configurou com as classes que a tabela de estatísticas
+ * realmente tem.
+ *
+ * O normal é casar por `classIndex`, porque num rascunho retomado ele já é o
+ * número da coluna `perc_classe_XX`. Num formulário preenchido a partir de um
+ * índice legado não é: a legenda vem do Contentful e só a tabela sabe se as
+ * colunas são `perc_classe_0..5` ou `perc_classe_1..6`. Quando os dois conjuntos
+ * divergem e a quantidade de classes bate, a posição é a informação confiável —
+ * sem isso o v2 da previsão de anomalia nasceria com a primeira classe como
+ * "Classe 0", num cinza padrão, e todas as cores deslocadas uma casa.
+ *
+ * `pixelValue` continua vindo do que foi configurado: ele é o código no raster,
+ * e não tem obrigação de ser igual ao número da coluna.
+ */
 function buildClasses(
   configured: ClassMapping[],
   classIndexes: number[],
@@ -339,8 +358,13 @@ function buildClasses(
   const configuredByIndex = new Map(
     configured.map((entry) => [entry.classIndex, entry]),
   );
+  const matchByPosition =
+    configured.length === classIndexes.length &&
+    classIndexes.some((classIndex) => !configuredByIndex.has(classIndex));
   return classIndexes.map((classIndex, position) => {
-    const existing = configuredByIndex.get(classIndex);
+    const existing = matchByPosition
+      ? configured[position]
+      : configuredByIndex.get(classIndex);
     return {
       classIndex,
       id: existing?.id || `classe-${classIndex}`,
@@ -400,176 +424,6 @@ function buildMapVisualization(
   };
 }
 
-function normalizeForecastPeriod(value: unknown) {
-  if (value == null) return null;
-  if (typeof value === "string") {
-    const directPeriod = value.match(/^\d{4}-(?:0[1-9]|1[0-2])/u)?.[0];
-    if (directPeriod) return directPeriod;
-  }
-
-  const numeric = Number(value);
-  if (Number.isInteger(numeric) && /^\d{8}$/u.test(String(numeric))) {
-    const compactDate = String(numeric);
-    const period = `${compactDate.slice(0, 4)}-${compactDate.slice(4, 6)}`;
-    return /^\d{4}-(?:0[1-9]|1[0-2])$/u.test(period) ? period : null;
-  }
-  const date = new Date(Number.isFinite(numeric) ? numeric : String(value));
-  if (Number.isNaN(date.getTime())) return null;
-  return `${date.getUTCFullYear()}-${String(date.getUTCMonth() + 1).padStart(2, "0")}`;
-}
-
-async function validateForecastCollection(
-  mapping: EarthEngineAssetMapping,
-  periods: string[],
-  assetId: string,
-): Promise<ValidatedForecastCollection | undefined> {
-  const selection = mapping.collectionSelection;
-  if (!selection) return undefined;
-  if (periods.some((period) => !/^\d{4}-\d{2}$/u.test(period))) {
-    throw new Error(
-      "Previsão por emissão e horizonte exige estatísticas mensais.",
-    );
-  }
-  if (!mapping.band) {
-    throw new Error("Previsão por emissão e horizonte exige uma banda.");
-  }
-  if (!mapping.thresholds?.length) {
-    throw new Error(
-      "Previsão por emissão e horizonte exige os limites das classes.",
-    );
-  }
-
-  const collection = ee.ImageCollection(assetId);
-  const emissionValues = await evaluateGeeObject<Array<string | number>>(
-    collection.aggregate_array(selection.emissionProperty).distinct().sort(),
-  );
-  const latestValue = emissionValues?.at(-1);
-  if (latestValue == null) {
-    throw new Error(
-      `A coleção ${assetId} não possui valores em ${selection.emissionProperty}.`,
-    );
-  }
-
-  const latestCollection = collection
-    .filter(ee.Filter.eq(selection.emissionProperty, latestValue))
-    .sort(selection.leadProperty);
-  const [rawLeads, rawTargetDates] = await Promise.all([
-    evaluateGeeObject<unknown[]>(
-      latestCollection.aggregate_array(selection.leadProperty),
-    ),
-    evaluateGeeObject<unknown[]>(
-      latestCollection.aggregate_array(selection.targetDateProperty),
-    ),
-  ]);
-  if (rawLeads.length !== rawTargetDates.length) {
-    throw new Error(
-      `A coleção ${assetId} retornou horizontes e datas em quantidades diferentes.`,
-    );
-  }
-
-  const rows = rawLeads.map((rawLead, index) => ({
-    lead: Number(rawLead),
-    period: normalizeForecastPeriod(rawTargetDates[index]),
-  }));
-  const leadByPeriod: Record<string, number> = {};
-  for (const expectedLead of selection.leadValues) {
-    const matches = rows.filter((row) => row.lead === expectedLead);
-    if (matches.length !== 1) {
-      throw new Error(
-        `A emissão ${latestValue} de ${assetId} deve possuir exatamente uma imagem com ${selection.leadProperty}=${expectedLead}.`,
-      );
-    }
-    const period = matches[0].period;
-    if (!period) {
-      throw new Error(
-        `A imagem do horizonte ${expectedLead} não possui uma data válida em ${selection.targetDateProperty}.`,
-      );
-    }
-    if (leadByPeriod[period] != null) {
-      throw new Error(
-        `Mais de um horizonte da emissão ${latestValue} aponta para ${period}.`,
-      );
-    }
-    leadByPeriod[period] = expectedLead;
-  }
-
-  const forecastPeriods = Object.keys(leadByPeriod).sort();
-  const expectedPeriods = [...periods].sort();
-  if (forecastPeriods.join(",") !== expectedPeriods.join(",")) {
-    throw new Error(
-      `Os períodos da emissão ${latestValue} (${forecastPeriods.join(", ")}) não correspondem aos períodos estatísticos (${expectedPeriods.join(", ")}).`,
-    );
-  }
-
-  return { latestValue, leadByPeriod };
-}
-
-async function validateMapAssets(
-  config: IndexCatalogConfigV2,
-  periods: string[],
-): Promise<ValidatedMapAssets> {
-  const assets = new Map<string, string[]>();
-  for (const period of periods) {
-    const assetId = expandAssetForPeriod(config.earthEngine, period);
-    if (!assetId) {
-      throw new Error(`Não há asset de mapa para o período ${period}.`);
-    }
-    assets.set(assetId, [...(assets.get(assetId) ?? []), period]);
-  }
-
-  const metadata: Array<{ assetId: string; updateTime?: string }> = [];
-  for (const [assetId, assetPeriods] of assets) {
-    const inspection = await inspectEarthEngineAsset(assetId);
-    if (inspection.type !== config.earthEngine.sourceType) {
-      throw new Error(
-        `O asset de mapa ${assetId} é ${inspection.type}, mas o formulário informa ${config.earthEngine.sourceType}.`,
-      );
-    }
-    for (const period of assetPeriods) {
-      const band = config.earthEngine.band
-        ?.replaceAll("{period}", period)
-        .replaceAll("{year}", period.slice(0, 4))
-        .replaceAll("{month}", period.slice(5, 7));
-      const property = config.earthEngine.property
-        ?.replaceAll("{period}", period)
-        .replaceAll("{year}", period.slice(0, 4))
-        .replaceAll("{month}", period.slice(5, 7));
-      if (band && !inspection.bands.includes(band)) {
-        throw new Error(
-          `A banda ${band} não existe em ${assetId} (${period}).`,
-        );
-      }
-      if (property && !inspection.properties.includes(property)) {
-        throw new Error(
-          `A propriedade ${property} não existe em ${assetId} (${period}).`,
-        );
-      }
-    }
-    if (
-      inspection.type === "featureCollection" &&
-      !config.earthEngine.property
-    ) {
-      throw new Error("FeatureCollection de mapa exige uma propriedade.");
-    }
-    if (
-      inspection.type !== "featureCollection" &&
-      inspection.bands.length > 1 &&
-      !config.earthEngine.band
-    ) {
-      throw new Error("Asset de mapa com várias bandas exige uma banda.");
-    }
-    metadata.push({ assetId, updateTime: inspection.updateTime });
-  }
-  const forecast = config.earthEngine.collectionSelection
-    ? await validateForecastCollection(
-        config.earthEngine,
-        periods,
-        config.earthEngine.singleAssetId ?? "",
-      )
-    : undefined;
-  return { assets: metadata, ...(forecast ? { forecast } : {}) };
-}
-
 function buildValidationError(
   config: IndexCatalogConfigV2,
   error: unknown,
@@ -596,6 +450,17 @@ export async function buildCatalogDraft(
   config: IndexCatalogConfigV2,
 ): Promise<IndexCatalogBuildResult> {
   try {
+    if (isMunicipalSpreadsheetSource(config.statisticsSource)) {
+      return await buildSpreadsheetIndexDraft(config, config.statisticsSource);
+    }
+
+    if (isGeeMunicipalValueTableSource(config.statisticsSource)) {
+      return await buildMunicipalValueTableDraft(
+        config,
+        config.statisticsSource,
+      );
+    }
+
     const discovery = await discoverCatalogStatistics(config.statisticsSource);
     const classes = buildClasses(config.classes, discovery.classIndexes);
     if (
@@ -607,14 +472,24 @@ export async function buildCatalogDraft(
       );
     }
     const mapAssets = await validateMapAssets(config, discovery.periods);
-    const sourceRevision = hash({
+    const sourceRevision = hashCatalogValue({
       source: config.statisticsSource,
       assets: discovery.assets,
       periods: discovery.periods,
       classIndexes: discovery.classIndexes,
     });
+    // A coluna do trimestre é detectada na leitura das colunas do asset e
+    // gravada aqui: é ela que faz o seletor de período do Monitoramento
+    // escrever "Setembro - Outubro - Novembro - 2026". Ninguém preenche isso
+    // no formulário do catálogo.
     const statisticsSource: PublishedGeeStatisticsSource = {
       ...config.statisticsSource,
+      properties: {
+        ...config.statisticsSource.properties,
+        ...(discovery.seasonProperty
+          ? { season: discovery.seasonProperty }
+          : {}),
+      },
       schemaVersion: 1,
       sourceRevision,
     };
@@ -636,12 +511,17 @@ export async function buildCatalogDraft(
         },
       ]),
     );
+    // Numa previsão o período padrão é o primeiro — o mês mais próximo —, e nos
+    // demais índices é o mais recente. Sai daqui para o `imageData` e para o
+    // relatório da validação juntos: quando cada um calculava o seu, a prévia do
+    // relatório e a captura da imagem caíam no horizonte mais distante.
+    const defaultPeriod = mapAssets.forecast
+      ? discovery.periods[0]
+      : discovery.periods.at(-1);
     const panelLayerImageData = {
       schemaVersion: 1,
       type: "territorial-compact" as const,
-      defaultYear: mapAssets.forecast
-        ? discovery.periods[0]
-        : discovery.periods.at(-1),
+      defaultYear: defaultPeriod,
       classes: classes.map(({ id, label, color, pixelValue }) => ({
         id,
         label,
@@ -669,7 +549,7 @@ export async function buildCatalogDraft(
     const imageDataBytes = Buffer.byteLength(
       JSON.stringify(panelLayerImageData),
     );
-    const sourceFingerprint = hash({
+    const sourceFingerprint = hashCatalogValue({
       sourceRevision,
       mapAssets,
       classes,
@@ -684,7 +564,7 @@ export async function buildCatalogDraft(
       inferred: {
         panelLayerId: config.panelLayerId,
         periods: discovery.periods,
-        defaultPeriod: discovery.periods.at(-1),
+        defaultPeriod,
         timeScale: inferTimeScale(discovery.periods),
         classIndexes: discovery.classIndexes,
         statisticsAssetCount: discovery.assets.length,

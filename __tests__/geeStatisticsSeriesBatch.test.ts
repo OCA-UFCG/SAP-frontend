@@ -1,0 +1,348 @@
+import { beforeEach, describe, expect, it, vi } from "vitest";
+
+vi.mock("server-only", () => ({}));
+
+interface FakeNode {
+  kind: "collection" | "feature" | "propertyNames";
+  assetIds: string[];
+  filter: () => FakeNode;
+  map: (mapper: (feature: FakeNode) => unknown) => FakeNode;
+  flatten: () => FakeNode;
+  first: () => FakeNode;
+  toDictionary: () => FakeNode;
+  set: () => FakeNode;
+  propertyNames: () => FakeNode;
+}
+
+/**
+ * Earth Engine falso. Cada nó carrega os assets que representa, para o
+ * `evaluateGeeObject` falso saber quantas tabelas entraram no mesmo pedido —
+ * que é exatamente o que este teste mede. Fica dentro de `vi.hoisted` porque
+ * `vi.mock` é içado para antes das declarações do arquivo.
+ */
+const { fakeEarthEngine } = vi.hoisted(() => {
+  class FakeEarthEngine {
+    FeatureCollection = (input: unknown) => {
+      const assetIds = Array.isArray(input)
+        ? input.flatMap((item) => (item as FakeNode).assetIds)
+        : [String(input)];
+      return this.node(assetIds, "collection");
+    };
+
+    Feature = (value: unknown) =>
+      this.node((value as FakeNode | null)?.assetIds ?? [], "feature");
+
+    Filter = {
+      eq: () => ({}),
+      and: () => ({}),
+      or: () => ({}),
+    };
+
+    private node(assetIds: string[], kind: FakeNode["kind"]): FakeNode {
+      const node: FakeNode = {
+        kind,
+        assetIds,
+        filter: () => node,
+        // Chama o mapeador de verdade: é ele que marca a sub-coleção com o
+        // dono do pedido, e um `map` que ignora o callback esconderia um erro
+        // nessa marcação.
+        map: (mapper: (feature: FakeNode) => unknown) => {
+          mapper(node);
+          return node;
+        },
+        flatten: () => node,
+        first: () => this.node(assetIds, "feature"),
+        toDictionary: () => this.node(assetIds, "feature"),
+        set: () => node,
+        propertyNames: () => ({ ...node, kind: "propertyNames" }),
+      };
+      return node;
+    }
+  }
+
+  return { fakeEarthEngine: new FakeEarthEngine() };
+});
+
+vi.mock("@google/earthengine", () => ({ default: fakeEarthEngine }));
+vi.mock("@/infrastructure/earth-engine/client", () => ({
+  evaluateGeeObject: vi.fn(),
+  initializeGee: vi.fn().mockResolvedValue(undefined),
+}));
+
+import type { GeeFeatureCollectionStatisticsSource } from "@/contracts/geeStatistics";
+import { evaluateGeeObject } from "@/infrastructure/earth-engine/client";
+import {
+  clearGeeStatisticsSchemaCacheForTests,
+  getGeeStatisticsYearPatch,
+  preloadGeeStatisticsSchema,
+} from "@/repositories/platform/geeStatisticsRepository";
+import { clearGeeStatisticsRowsCache } from "@/repositories/platform/geeStatisticsRowsCache";
+
+const ASSET_TEMPLATE = "projects/example/assets/aridez_{year}";
+const YEARS = Array.from({ length: 45 }, (_, index) => String(1980 + index));
+
+const PROPERTY_NAMES = [
+  "NIVEL_AGRUPAMENTO",
+  "NOME_LOCAL",
+  "CD_MUN",
+  "NM_UF",
+  "ano",
+  "data_img",
+  "area_total_ha",
+  "perc_classe_1",
+  "perc_classe_2",
+  "area_ha_classe_1",
+  "area_ha_classe_2",
+];
+
+const source: GeeFeatureCollectionStatisticsSource = {
+  kind: "gee-feature-collection",
+  asset: { type: "period-template", assetIdTemplate: ASSET_TEMPLATE },
+  periodGranularity: "year",
+  properties: {
+    level: "NIVEL_AGRUPAMENTO",
+    locationName: "NOME_LOCAL",
+    municipalityCode: "CD_MUN",
+    stateCode: "NM_UF",
+    year: "ano",
+    date: "data_img",
+    totalArea: "area_total_ha",
+  },
+};
+
+function municipalRow(assetId: string) {
+  return {
+    NIVEL_AGRUPAMENTO: "7_Municipio",
+    NOME_LOCAL: "João Pessoa",
+    CD_MUN: "2507507",
+    NM_UF: "PB",
+    ano: Number(assetId.slice(-4)),
+    perc_classe_1: 40,
+    perc_classe_2: 60,
+  };
+}
+
+const mockedEvaluate = vi.mocked(evaluateGeeObject);
+
+beforeEach(() => {
+  clearGeeStatisticsSchemaCacheForTests();
+  clearGeeStatisticsRowsCache();
+  mockedEvaluate.mockReset();
+  mockedEvaluate.mockImplementation(async (object: unknown) => {
+    const node = object as FakeNode;
+    if (node.kind === "propertyNames") return PROPERTY_NAMES as never;
+    return {
+      features: node.assetIds.map((assetId) => ({
+        properties: municipalRow(assetId),
+      })),
+    } as never;
+  });
+});
+
+function readPeriod(yearKey: string) {
+  return getGeeStatisticsYearPatch(
+    "indicearidez",
+    yearKey,
+    "2507507",
+    2,
+    source,
+    YEARS,
+  );
+}
+
+describe("leitura em lote da série estatística", () => {
+  // Regressão: cada período resolvia um assetId próprio, então abrir o índice
+  // de aridez do ERA5-Land custava 45 leituras de schema e 45 de linhas — 90
+  // idas ao Earth Engine, ~17 s só nas linhas.
+  it("lê os 45 anos em 4 idas ao Earth Engine, não em 90", async () => {
+    const result = await readPeriod("2020");
+
+    expect(mockedEvaluate).toHaveBeenCalledTimes(4);
+    expect(result?.patch.years?.["2020"]?.values).toEqual({
+      "2507507": [40, 60],
+    });
+  });
+
+  it("agrupa os assets em blocos de 15", async () => {
+    await readPeriod("2020");
+
+    const batchSizes = mockedEvaluate.mock.calls
+      .map(([object]) => object as FakeNode)
+      .filter((node) => node.kind !== "propertyNames")
+      .map((node) => node.assetIds.length);
+
+    expect(batchSizes).toEqual([15, 15, 15]);
+  });
+
+  it("serve os outros períodos da mesma leitura, sem voltar ao Earth Engine", async () => {
+    await readPeriod("2020");
+    mockedEvaluate.mockClear();
+
+    const result = await readPeriod("1995");
+
+    expect(mockedEvaluate).not.toHaveBeenCalled();
+    expect(result?.patch.years?.["1995"]?.values).toEqual({
+      "2507507": [40, 60],
+    });
+  });
+
+  it("mantém a leitura de um período só quando os períodos não são informados", async () => {
+    const result = await getGeeStatisticsYearPatch(
+      "indicearidez",
+      "2020",
+      "2507507",
+      2,
+      source,
+    );
+
+    const readAssets = mockedEvaluate.mock.calls
+      .map(([object]) => object as FakeNode)
+      .filter((node) => node.kind !== "propertyNames")
+      .flatMap((node) => node.assetIds);
+
+    expect(readAssets).toEqual(["projects/example/assets/aridez_2020"]);
+    expect(result?.assetId).toBe("projects/example/assets/aridez_2020");
+  });
+
+  it("ignora um período incompatível com a granularidade sem derrubar a série", async () => {
+    await expect(
+      getGeeStatisticsYearPatch("indicearidez", "2020", "2507507", 2, source, [
+        ...YEARS,
+        "2020-07",
+      ]),
+    ).resolves.not.toBeNull();
+
+    expect(mockedEvaluate).toHaveBeenCalledTimes(4);
+  });
+});
+
+// Regressão: as colunas ficam só na memória do processo, então o primeiro
+// relatório depois de cada deploy fazia uma ida a mais por camada, e as idas
+// dele esperavam umas pelas outras.
+describe("colunas lidas quando o servidor sobe", () => {
+  it("deixa a primeira leitura da camada só com as linhas", async () => {
+    await preloadGeeStatisticsSchema(source, YEARS);
+    const kindsBeforeRead = mockedEvaluate.mock.calls.map(
+      ([object]) => (object as FakeNode).kind,
+    );
+    mockedEvaluate.mockClear();
+
+    const result = await readPeriod("2020");
+
+    expect(kindsBeforeRead).toEqual(["propertyNames"]);
+    expect(
+      mockedEvaluate.mock.calls.map(([object]) => (object as FakeNode).kind),
+    ).toEqual(["collection", "collection", "collection"]);
+    expect(result?.patch.years?.["2020"]?.values).toEqual({
+      "2507507": [40, 60],
+    });
+  });
+
+  // Regressão: o Next dá à subida do servidor e à rota cópias separadas deste
+  // módulo. Com o cache numa variável do módulo, a rota não via as colunas
+  // aquecidas e o primeiro relatório depois do deploy lia as 17 de novo.
+  it("serve as colunas aquecidas a outra cópia do módulo, como a da rota", async () => {
+    await preloadGeeStatisticsSchema(source, YEARS);
+    mockedEvaluate.mockClear();
+
+    vi.resetModules();
+    const routeCopy =
+      await import("@/repositories/platform/geeStatisticsRepository");
+    await routeCopy.getGeeStatisticsYearPatch(
+      "indicearidez",
+      "2020",
+      "2507507",
+      2,
+      source,
+      YEARS,
+    );
+
+    expect(
+      mockedEvaluate.mock.calls.map(([object]) => (object as FakeNode).kind),
+    ).not.toContain("propertyNames");
+  });
+
+  it("não lê nada de uma camada sem períodos publicados", async () => {
+    await preloadGeeStatisticsSchema(source, []);
+
+    expect(mockedEvaluate).not.toHaveBeenCalled();
+  });
+});
+
+/**
+ * Regressão: o Monitor de Secas da ANA sumiu do painel e do relatório em todos
+ * os recortes porque a tabela de 2026 estava sendo reingerida e, indo no mesmo
+ * `flatten()` dos outros anos, levava 2024 e 2025 junto.
+ */
+describe("asset indisponível dentro da série", () => {
+  const BROKEN_ASSET = "projects/example/assets/aridez_2024";
+
+  function breakAssets(brokenAssetIds: readonly string[]) {
+    mockedEvaluate.mockImplementation(async (object: unknown) => {
+      const node = object as FakeNode;
+      if (node.assetIds.some((assetId) => brokenAssetIds.includes(assetId))) {
+        throw new Error(
+          `Collection.loadTable: Collection asset '${node.assetIds[0]}' not found.`,
+        );
+      }
+      if (node.kind === "propertyNames") return PROPERTY_NAMES as never;
+      return {
+        features: node.assetIds.map((assetId) => ({
+          properties: municipalRow(assetId),
+        })),
+      } as never;
+    });
+  }
+
+  it("mantém os demais períodos quando um asset da série não responde", async () => {
+    breakAssets([BROKEN_ASSET]);
+
+    const result = await readPeriod("2020");
+
+    expect(result?.patch.years?.["2020"]?.values).toEqual({
+      "2507507": [40, 60],
+    });
+  });
+
+  it("devolve vazio o período do asset indisponível, em vez de falhar", async () => {
+    breakAssets([BROKEN_ASSET]);
+
+    const result = await readPeriod("2024");
+
+    expect(result?.patch.years?.["2024"]?.values).toEqual({});
+  });
+
+  it("lê o schema de outro asset da série quando o do período pedido está fora", async () => {
+    breakAssets([BROKEN_ASSET]);
+
+    await expect(readPeriod("2024")).resolves.not.toBeNull();
+
+    const schemaAssets = mockedEvaluate.mock.calls
+      .map(([object]) => object as FakeNode)
+      .filter((node) => node.kind === "propertyNames")
+      .flatMap((node) => node.assetIds);
+
+    expect(schemaAssets[0]).toBe(BROKEN_ASSET);
+    expect(schemaAssets[1]).toBe("projects/example/assets/aridez_2023");
+  });
+
+  it("relê um asset por vez apenas o bloco que falhou", async () => {
+    breakAssets([BROKEN_ASSET]);
+
+    await readPeriod("2020");
+
+    const rowReads = mockedEvaluate.mock.calls
+      .map(([object]) => object as FakeNode)
+      .filter((node) => node.kind !== "propertyNames");
+
+    // Os 3 blocos de 15 mais a releitura individual dos 15 assets do bloco que
+    // falhou: os outros dois blocos continuam custando uma ida cada.
+    expect(rowReads).toHaveLength(18);
+  });
+
+  it("propaga o erro quando nenhum asset da série responde", async () => {
+    breakAssets(YEARS.map((year) => `projects/example/assets/aridez_${year}`));
+
+    await expect(readPeriod("2020")).rejects.toThrow(/not found/u);
+  });
+});

@@ -1,7 +1,11 @@
 import fs from "node:fs";
 import path from "node:path";
 import type { Feature, FeatureCollection, Geometry } from "geojson";
-import type { SpatialArea, SpatialSelection } from "@/utils/spatialScope";
+import {
+  getActiveBoundaryNames,
+  type SpatialArea,
+  type SpatialSelection,
+} from "@/utils/spatialScope";
 
 type BoundaryArea = Exclude<SpatialArea, "national">;
 export type SpatialBoundaryFeature = Feature<Geometry, { name: string }>;
@@ -179,11 +183,7 @@ export function getSpatialBoundaryFeatures(
     );
   }
 
-  const featureNames =
-    selection.spatialArea === "asd"
-      ? ["ASD", "Entorno"]
-      : [selection.spatialValue];
-  return featureNames.map((name) => {
+  return getActiveBoundaryNames(selection.spatialValue).map((name) => {
     const feature = featuresByName.get(name);
     if (!feature) {
       throw new Error(
@@ -192,4 +192,23 @@ export function getSpatialBoundaryFeatures(
     }
     return feature;
   });
+}
+
+/**
+ * Todas as features de uma área, e não só a selecionada.
+ *
+ * O mapa em modo bioma precisa dos biomas vizinhos desenhados para o hover e o
+ * clique poderem trocar de bioma; quem só quer o recorte ativo usa
+ * `getSpatialBoundaryFeatures`.
+ *
+ * @example getAllSpatialBoundaryFeaturesForArea("biome") // os seis biomas
+ */
+export function getAllSpatialBoundaryFeaturesForArea(
+  area: BoundaryArea,
+): readonly SpatialBoundaryFeature[] {
+  const featuresByName = getBoundaryIndex().get(area);
+  if (!featuresByName) {
+    throw new Error(`No boundary collection configured for ${area}.`);
+  }
+  return Array.from(featuresByName.values());
 }

@@ -1,17 +1,43 @@
-export type GeeStatisticsPeriodGranularity = "year" | "month";
+import {
+  assertGeeStatisticsPeriod,
+  isGeeStatisticsRecord,
+  parseGeeStatisticsAssetSource,
+  requiredGeeStatisticsProperty,
+  resolveGeeStatisticsAssetId,
+} from "@/contracts/geeStatisticsAsset";
+import { buildColumnDiagnosis } from "@/contracts/geeStatisticsColumns";
+import {
+  isGeeMunicipalValueTableSource,
+  parseGeeMunicipalValueTableSource,
+  type GeeMunicipalValueTableStatisticsSource,
+} from "@/contracts/geeMunicipalValueTable";
+import {
+  isMunicipalSpreadsheetSource,
+  parseMunicipalSpreadsheetSource,
+  type MunicipalSpreadsheetStatisticsSource,
+} from "@/contracts/municipalSpreadsheet";
+
+import type {
+  GeeStatisticsAssetSource,
+  GeeStatisticsPeriodGranularity,
+} from "@/contracts/geeStatisticsAsset";
+
+export type {
+  GeeStatisticsAssetSource,
+  GeeStatisticsPeriodGranularity,
+} from "@/contracts/geeStatisticsAsset";
 
 export type GeeStatisticsScalarMetric =
   "mean" | "median" | "mode" | "min" | "max";
 
-export type GeeStatisticsAssetSource =
-  | {
-      type: "fixed";
-      assetId: string;
-    }
-  | {
-      type: "period-template";
-      assetIdTemplate: string;
-    };
+/**
+ * Nome canônico da coluna em que os assets de previsão sazonal do CPTEC/INMET
+ * gravam o trimestre como sigla de três letras — a inicial de cada mês
+ * ("SON" = setembro, outubro, novembro). A publicação do catálogo detecta essa
+ * coluna sozinha e grava `properties.season`; é só por ela que a plataforma
+ * sabe que um período mensal representa, na verdade, um trimestre.
+ */
+export const GEE_SEASON_PROPERTY = "temporada";
 
 export interface GeeStatisticsPropertyMapping {
   level: string;
@@ -21,6 +47,12 @@ export interface GeeStatisticsPropertyMapping {
   year: string;
   date: string;
   totalArea: string;
+  /**
+   * Coluna do trimestre, presente só nos índices de previsão sazonal. Quando
+   * ela existe, o período mensal `2026-09` é exibido como
+   * "Setembro - Outubro - Novembro - 2026".
+   */
+  season?: string;
   scalarMetrics?: Partial<Record<GeeStatisticsScalarMetric, string>>;
 }
 
@@ -32,14 +64,40 @@ export interface GeeFeatureCollectionStatisticsSource {
 }
 
 /**
+ * As formas de tabela que uma camada pode publicar: a distribuição por classes
+ * (`perc_classe_XX` por nível territorial), o valor único por município e a
+ * planilha do Google. A segunda existe porque os dados socioeconômicos chegam
+ * numa FeatureCollection que é, ao mesmo tempo, a estatística e o asset do
+ * mapa; a terceira porque parte dessas bases nunca chega ao Earth Engine —
+ * elas vivem numa planilha, e o operador publica o índice colando o link.
+ *
+ * O nome do tipo continua falando em GEE por compatibilidade: ele é o campo
+ * `panelLayer.statisticsSource` já publicado, e renomeá-lo tocaria em todo o
+ * catálogo sem mudar nada de comportamento.
+ */
+export type GeeStatisticsSource =
+  | GeeFeatureCollectionStatisticsSource
+  | GeeMunicipalValueTableStatisticsSource
+  | MunicipalSpreadsheetStatisticsSource;
+
+interface PublishedStatisticsSourceStamp {
+  schemaVersion: 1;
+  sourceRevision: string;
+}
+
+/**
  * Public, immutable description stored on panelLayer.  The revision is not an
  * arbitrary version number: the catalog recalculates it from the assets,
  * their metadata, schemas and discovered periods every time it validates.
  */
-export interface PublishedGeeStatisticsSource extends GeeFeatureCollectionStatisticsSource {
-  schemaVersion: 1;
-  sourceRevision: string;
-}
+export type PublishedGeeStatisticsSource = GeeStatisticsSource &
+  PublishedStatisticsSourceStamp;
+
+export type PublishedGeeMunicipalValueTableSource =
+  GeeMunicipalValueTableStatisticsSource & PublishedStatisticsSourceStamp;
+
+export type PublishedMunicipalSpreadsheetSource =
+  MunicipalSpreadsheetStatisticsSource & PublishedStatisticsSourceStamp;
 
 export interface ResolvedGeeStatisticsSource extends GeeFeatureCollectionStatisticsSource {
   assetId: string;
@@ -49,41 +107,20 @@ export interface GeeStatisticsSchema {
   classIndexes: number[];
   percentageProperties: string[];
   classAreaProperties: string[];
+  /**
+   * Coluna do trimestre encontrada no asset, quando ela existe. Sai da mesma
+   * leitura de colunas que já descobre as classes, então detectar um índice
+   * sazonal não custa nenhuma ida extra ao Earth Engine.
+   */
+  seasonProperty?: string;
 }
 
-const MONTH_PERIOD_PATTERN = /^\d{4}-(?:0[1-9]|1[0-2])$/u;
-const YEAR_PERIOD_PATTERN = /^\d{4}$/u;
 const PERCENTAGE_PROPERTY_PATTERN = /^perc_classe_(\d+)$/u;
 const CLASS_AREA_PROPERTY_PATTERN = /^area_ha_classe_(\d+)$/u;
-const ASSET_ID_PATTERN = /^[A-Za-z0-9_./{}-]{3,300}$/u;
 const SOURCE_REVISION_PATTERN = /^[a-f0-9]{64}$/u;
 
-function isRecord(value: unknown): value is Record<string, unknown> {
-  return typeof value === "object" && value !== null && !Array.isArray(value);
-}
-
-function requiredProperty(
-  value: unknown,
-  label: string,
-  options: { asset?: boolean; allowTemplate?: boolean } = {},
-): string {
-  if (typeof value !== "string" || !value.trim()) {
-    throw new Error(`${label} é obrigatório.`);
-  }
-
-  const normalized = value.trim();
-  if (
-    normalized.length > 300 ||
-    (options.asset && !ASSET_ID_PATTERN.test(normalized))
-  ) {
-    throw new Error(`${label} é inválido.`);
-  }
-  if (!options.allowTemplate && /[{}]/u.test(normalized)) {
-    throw new Error(`${label} não pode conter placeholders.`);
-  }
-
-  return normalized;
-}
+const isRecord = isGeeStatisticsRecord;
+const requiredProperty = requiredGeeStatisticsProperty;
 
 export function parseGeeFeatureCollectionStatisticsSource(
   value: unknown,
@@ -97,47 +134,14 @@ export function parseGeeFeatureCollectionStatisticsSource(
   ) {
     throw new Error("A granularidade estatística deve ser anual ou mensal.");
   }
-  if (!isRecord(value.asset) || !isRecord(value.properties)) {
+  if (!isRecord(value.properties)) {
     throw new Error("A configuração da fonte estatística está incompleta.");
   }
 
-  const asset =
-    value.asset.type === "fixed"
-      ? {
-          type: "fixed" as const,
-          assetId: requiredProperty(value.asset.assetId, "Asset estatístico", {
-            asset: true,
-          }),
-        }
-      : value.asset.type === "period-template"
-        ? {
-            type: "period-template" as const,
-            assetIdTemplate: requiredProperty(
-              value.asset.assetIdTemplate,
-              "Template do asset estatístico",
-              { asset: true, allowTemplate: true },
-            ),
-          }
-        : null;
-
-  if (!asset) {
-    throw new Error("A estratégia da fonte estatística é inválida.");
-  }
-  if (
-    asset.type === "period-template" &&
-    !/\{(?:year|month|period)\}/u.test(asset.assetIdTemplate)
-  ) {
-    throw new Error(
-      "O template estatístico deve conter {year}, {month} ou {period}.",
-    );
-  }
-  if (
-    asset.type === "period-template" &&
-    asset.assetIdTemplate.includes("{month}") &&
-    value.periodGranularity !== "month"
-  ) {
-    throw new Error("O placeholder {month} exige granularidade mensal.");
-  }
+  const asset = parseGeeStatisticsAssetSource(
+    value.asset,
+    value.periodGranularity,
+  );
 
   const properties = value.properties;
   const scalarMetricProperties = isRecord(properties.scalarMetrics)
@@ -177,11 +181,30 @@ export function parseGeeFeatureCollectionStatisticsSource(
         properties.totalArea,
         "Propriedade de área total",
       ),
+      ...(typeof properties.season === "string" && properties.season.trim()
+        ? { season: properties.season.trim() }
+        : {}),
       ...(scalarMetrics && Object.keys(scalarMetrics).length > 0
         ? { scalarMetrics }
         : {}),
     },
   };
+}
+
+/**
+ * Uma fonte de qualquer das duas formas, escolhida pelo `kind`.
+ *
+ * O `kind` ausente ou desconhecido cai na distribuição por classes, que é a
+ * única forma que existia antes e a que produz a mensagem de erro útil para uma
+ * configuração incompleta.
+ */
+export function parseGeeStatisticsSource(value: unknown): GeeStatisticsSource {
+  if (isMunicipalSpreadsheetSource(value)) {
+    return parseMunicipalSpreadsheetSource(value);
+  }
+  return isGeeMunicipalValueTableSource(value)
+    ? parseGeeMunicipalValueTableSource(value)
+    : parseGeeFeatureCollectionStatisticsSource(value);
 }
 
 export function parsePublishedGeeStatisticsSource(
@@ -198,7 +221,7 @@ export function parsePublishedGeeStatisticsSource(
   }
 
   return {
-    ...parseGeeFeatureCollectionStatisticsSource(value),
+    ...parseGeeStatisticsSource(value),
     schemaVersion: 1,
     sourceRevision: value.sourceRevision,
   };
@@ -248,31 +271,110 @@ function getIndexedProperties(
   return properties;
 }
 
-function validateClassIndexes(assetId: string, classIndexes: number[]): void {
-  if (classIndexes.length === 0) {
-    throw new Error(
-      `Asset estatístico ${assetId} não possui colunas perc_classe_XX.`,
-    );
-  }
+/** O papel de cada coluna mapeada, para o erro dizer o que ela deveria trazer. */
+const SCALAR_METRIC_ROLES: Record<GeeStatisticsScalarMetric, string> = {
+  mean: "média",
+  median: "mediana",
+  mode: "moda",
+  min: "mínimo",
+  max: "máximo",
+};
 
-  const firstIndex = classIndexes[0];
-  if (firstIndex !== 0 && firstIndex !== 1) {
-    throw new Error(
-      `Asset estatístico ${assetId} deve iniciar as classes em 0 ou 1; recebeu ${firstIndex}.`,
-    );
-  }
-
-  for (let position = 1; position < classIndexes.length; position += 1) {
-    if (classIndexes[position] !== classIndexes[position - 1] + 1) {
-      throw new Error(
-        `Asset estatístico ${assetId} possui lacuna na sequência de classes: ${classIndexes.join(
-          ", ",
-        )}.`,
-      );
-    }
-  }
+function getMappedColumns(
+  source: ResolvedGeeStatisticsSource,
+): Array<[string, string]> {
+  const { properties } = source;
+  return [
+    [properties.level, "nível territorial"],
+    [properties.locationName, "nome do território"],
+    [properties.municipalityCode, "código do município"],
+    [properties.stateCode, "UF"],
+    [properties.year, "ano"],
+    [properties.date, "data"],
+    [properties.totalArea, "área total"],
+    ...Object.entries(properties.scalarMetrics ?? {}).flatMap(
+      ([metric, column]): Array<[string, string]> =>
+        typeof column === "string"
+          ? [[column, SCALAR_METRIC_ROLES[metric as GeeStatisticsScalarMetric]]]
+          : [],
+    ),
+  ];
 }
 
+function findMissingMappedColumns(
+  source: ResolvedGeeStatisticsSource,
+  columnNames: string[],
+): string[] {
+  const missing = getMappedColumns(source)
+    .filter(([column]) => !columnNames.includes(column))
+    .map(([column, role]) => `${column} (${role})`);
+  return missing.length > 0
+    ? [`não tem estas colunas do mapeamento: ${missing.join(", ")}`]
+    : [];
+}
+
+/**
+ * O que impede as colunas de classe de virarem um schema, ou uma lista vazia.
+ *
+ * Devolve os problemas em vez de lançar porque a mensagem do catálogo junta
+ * todos: parar no primeiro esconderia que o mapeamento territorial também não
+ * bate, e a pessoa descobriria um erro por vez.
+ */
+function findClassColumnProblems(
+  classIndexes: number[],
+  areaIndexes: number[],
+): string[] {
+  if (classIndexes.length === 0) {
+    return ["não possui colunas perc_classe_XX"];
+  }
+
+  // Nem o índice inicial nem a continuidade da sequência são exigidos, e isso é
+  // deliberado. Assets reais chegam com classes começando em 0, em 1 e em
+  // valores arbitrários (perc_classe_2 em Estatisticas_IA_atlas_BR_DWGD_1990), e
+  // também com lacunas: a cobertura do solo do IBGE
+  // (Estatistica_Multinivel_cobertura_solo_IBGE) usa as classes
+  // 1 a 6 e 9 a 14, porque 7 e 8 não existem na legenda dela — e os pixels 7 e 8
+  // também não existem no raster correspondente.
+  //
+  // Tudo que consome o schema é posicional: `percentageProperties` e
+  // `classAreaProperties` são montados na ordem crescente de `classIndexes`, o
+  // repositório lê as colunas pelo nome nessa mesma ordem, e `buildClasses`
+  // casa classe com cor por posição. O único lugar que dependia de contiguidade
+  // era a paleta do mapa, onde `min`/`max`/`palette` iam direto para o Earth
+  // Engine, que distribui a paleta linearmente no intervalo: com lacunas, as
+  // cores saíam trocadas de classe. Isso passou a ser resolvido em
+  // `resolveMapVisualizationPlan`, que remapeia valores esparsos para posições
+  // densas antes de visualizar.
+  //
+  // O que continua garantido aqui: existe ao menos uma classe, os índices são
+  // únicos (`getIndexedProperties` rejeita duplicata) e o conjunto de colunas
+  // perc_classe_XX é idêntico ao de area_ha_classe_XX (conferido logo abaixo).
+  const unpaired = [
+    ...classIndexes
+      .filter((classIndex) => !areaIndexes.includes(classIndex))
+      .map((classIndex) => `area_ha_classe_${classIndex}`),
+    ...areaIndexes
+      .filter((classIndex) => !classIndexes.includes(classIndex))
+      .map((classIndex) => `perc_classe_${classIndex}`),
+  ];
+  return unpaired.length > 0
+    ? [`não tem o par de todas as classes: ${unpaired.join(", ")}`]
+    : [];
+}
+
+/**
+ * O schema de classes que as colunas do asset descrevem.
+ *
+ * Quando elas não descrevem nenhum, o erro traz **todos** os problemas de uma
+ * vez, as colunas que o asset tem de verdade e a forma de tabela que elas
+ * sugerem. Quem cadastra um índice não abre o Code Editor do Earth Engine: uma
+ * mensagem por problema significava uma validação por problema.
+ *
+ * @example
+ * inferGeeStatisticsSchema(source, ["CD_MUN", "2024"]);
+ * // Error: Asset estatístico projects/x/assets/municipios: não possui colunas
+ * // perc_classe_XX; não tem estas colunas do mapeamento: ano (ano)…
+ */
 export function inferGeeStatisticsSchema(
   source: ResolvedGeeStatisticsSource,
   propertyNames: string[],
@@ -289,42 +391,22 @@ export function inferGeeStatisticsSchema(
   const classIndexes = [...percentageProperties.keys()].sort(
     (left, right) => left - right,
   );
-
-  validateClassIndexes(source.assetId, classIndexes);
-
   const areaIndexes = [...classAreaProperties.keys()].sort(
     (left, right) => left - right,
   );
-  if (
-    classIndexes.length !== areaIndexes.length ||
-    classIndexes.some(
-      (classIndex, position) => classIndex !== areaIndexes[position],
-    )
-  ) {
-    throw new Error(
-      `Asset estatístico ${source.assetId} deve possuir o mesmo conjunto de colunas perc_classe_XX e area_ha_classe_XX.`,
-    );
-  }
 
-  const requiredProperties = [
-    source.properties.level,
-    source.properties.locationName,
-    source.properties.municipalityCode,
-    source.properties.stateCode,
-    source.properties.year,
-    source.properties.date,
-    source.properties.totalArea,
-    ...getScalarMetricPropertyNames(source),
+  const problems = [
+    ...findClassColumnProblems(classIndexes, areaIndexes),
+    ...findMissingMappedColumns(source, uniquePropertyNames),
   ];
-  const missingProperties = requiredProperties.filter(
-    (propertyName) => !uniquePropertyNames.includes(propertyName),
-  );
-
-  if (missingProperties.length > 0) {
+  if (problems.length > 0) {
     throw new Error(
-      `Asset estatístico ${source.assetId} não possui as colunas obrigatórias: ${missingProperties.join(
-        ", ",
-      )}.`,
+      buildColumnDiagnosis({
+        assetId: source.assetId,
+        problems,
+        columnNames: uniquePropertyNames,
+        shape: "classes",
+      }),
     );
   }
 
@@ -336,6 +418,9 @@ export function inferGeeStatisticsSchema(
     classAreaProperties: classIndexes.map((classIndex) =>
       classAreaProperties.get(classIndex)!,
     ),
+    ...(uniquePropertyNames.includes(GEE_SEASON_PROPERTY)
+      ? { seasonProperty: GEE_SEASON_PROPERTY }
+      : {}),
   };
 }
 
@@ -343,42 +428,16 @@ export function resolveGeeStatisticsSource(
   source: GeeFeatureCollectionStatisticsSource,
   periodKey: string,
 ): ResolvedGeeStatisticsSource {
-  const isValidPeriod =
-    source.periodGranularity === "month"
-      ? MONTH_PERIOD_PATTERN.test(periodKey)
-      : YEAR_PERIOD_PATTERN.test(periodKey);
+  assertGeeStatisticsPeriod(periodKey, source.periodGranularity);
 
-  if (!isValidPeriod) {
-    throw new Error(
-      `Período ${periodKey} incompatível com granularidade ${source.periodGranularity} do asset estatístico.`,
-    );
-  }
-
-  const month =
-    source.periodGranularity === "month" ? periodKey.slice(5, 7) : null;
-  if (
-    source.asset.type === "period-template" &&
-    source.asset.assetIdTemplate.includes("{month}") &&
-    !month
-  ) {
-    throw new Error(
-      "Template de asset com {month} exige uma fonte de granularidade mensal.",
-    );
-  }
-
-  const assetId =
-    source.asset.type === "fixed"
-      ? source.asset.assetId
-      : source.asset.assetIdTemplate
-          .replaceAll("{period}", periodKey)
-          .replaceAll("{year}", periodKey.slice(0, 4))
-          .replaceAll("{month}", month ?? "");
-
-  if (!assetId.trim() || /\{[^}]+\}/u.test(assetId)) {
-    throw new Error(`Configuração de asset estatístico inválida: ${assetId}.`);
-  }
-
-  return { ...source, assetId };
+  return {
+    ...source,
+    assetId: resolveGeeStatisticsAssetId(
+      source.asset,
+      periodKey,
+      source.periodGranularity,
+    ),
+  };
 }
 
 export function getGeeStatisticsRequestedProperties(

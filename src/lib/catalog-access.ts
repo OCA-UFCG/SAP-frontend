@@ -1,56 +1,27 @@
-import { getAuthenticatedUserSession } from "@/lib/server-session";
 import {
-  parseAllowedLogsViewerEmails,
+  getAuthenticatedUserSession,
+  type AuthenticatedUserSession,
+} from "@/lib/server-session";
+import {
+  isAllowedLogsViewerEmail,
   resolveLogsViewerAccess,
 } from "@/lib/logs-access";
 
 export type CatalogRequestAccess =
   | {
       allowed: true;
-      user: {
-        uid: string;
-        email: string | null;
-      };
+      // A sessão inteira, que é o que `resolveCatalogRequestAccess` já devolvia:
+      // o tipo declarava só `uid` e `email` e escondia o resto.
+      user: AuthenticatedUserSession;
     }
   | {
       allowed: false;
       status: 401 | 403;
     };
 
-export function hasTrustedMutationOrigin(request: Request) {
-  const requestUrl = new URL(request.url);
-  const origin = request.headers.get("origin");
-  const referer = request.headers.get("referer");
-  const fetchSite = request.headers.get("sec-fetch-site")?.toLowerCase();
-  const configuredHost = process.env.NEXT_PUBLIC_HOST_URL;
-  const trustedOrigins = new Set([requestUrl.origin]);
-
-  if (configuredHost) {
-    try {
-      trustedOrigins.add(new URL(configuredHost).origin);
-    } catch {
-      return false;
-    }
-  }
-
-  if (fetchSite && fetchSite !== "same-origin" && fetchSite !== "none") {
-    return false;
-  }
-
-  for (const value of [origin, referer]) {
-    if (!value) continue;
-
-    try {
-      if (!trustedOrigins.has(new URL(value).origin)) {
-        return false;
-      }
-    } catch {
-      return false;
-    }
-  }
-
-  return Boolean(fetchSite || origin || referer);
-}
+// A regra de origem mora em `trusted-origin`, compartilhada com os logs; o
+// export continua aqui para o catálogo e o cadastro não mudarem de import.
+export { hasTrustedMutationOrigin } from "@/lib/trusted-origin";
 
 export async function resolveCatalogRequestAccess(
   request: Request,
@@ -61,10 +32,7 @@ export async function resolveCatalogRequestAccess(
     return { allowed: false, status: 401 };
   }
 
-  const allowedEmails = parseAllowedLogsViewerEmails();
-  const email = user.email?.trim().toLowerCase() ?? null;
-
-  if (!email || !allowedEmails.has(email)) {
+  if (!isAllowedLogsViewerEmail(user.email)) {
     return { allowed: false, status: 403 };
   }
 

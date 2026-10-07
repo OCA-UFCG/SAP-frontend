@@ -1,5 +1,5 @@
 import type { Metadata } from "next";
-import { Geist, Geist_Mono, Inter, Open_Sans } from "next/font/google";
+import { Inter, Open_Sans } from "next/font/google";
 import { cache } from "react";
 import { Header } from "@/components/Header/Header";
 import { FooterSlot } from "@/components/Footer/FooterSlot";
@@ -9,16 +9,6 @@ import { AuthProvider } from "@/contexts/AuthContext";
 import { NextIntlClientProvider } from "next-intl";
 import { getMessages, getTranslations } from "next-intl/server";
 import "../globals.css";
-
-const geistSans = Geist({
-  variable: "--font-geist-sans",
-  subsets: ["latin"],
-});
-
-const geistMono = Geist_Mono({
-  variable: "--font-geist-mono",
-  subsets: ["latin"],
-});
 
 const inter = Inter({
   variable: "--font-inter",
@@ -64,12 +54,6 @@ export default async function RootLayout({
       id: "1",
       name: t("home"),
       path: "/",
-      appears: true,
-    },
-    "about-section": {
-      id: "3",
-      name: t("about"),
-      path: "#",
       appears: true,
       childrenCollection: {
         items: [
@@ -129,10 +113,10 @@ export default async function RootLayout({
   const footerContent = await getCachedFooterContent();
 
   return (
-    <html lang={locale}>
+    <html lang={locale} data-scroll-behavior="smooth">
       <meta name="apple-mobile-web-app-title" content="Portal SEDES" />
       <body
-        className={`${geistSans.variable} ${geistMono.variable} ${inter.variable} ${openSans.variable} antialiased min-h-screen flex flex-col`}
+        className={`${inter.variable} ${openSans.variable} antialiased min-h-screen flex flex-col`}
       >
         <NextIntlClientProvider messages={messages}>
           <AuthProvider>
@@ -141,7 +125,10 @@ export default async function RootLayout({
                 (item) => item.appears,
               )}
             ></Header>
-            <main className="flex-1 w-full">{children}</main>
+            {/* Sem `min-h-0`: o rodapé fica depois do `main`, então encolher o
+                conteúdo abaixo da altura que ele pede faria o rodapé subir por
+                cima da plataforma em vez de esperar a rolagem. */}
+            <main className="flex flex-col flex-1 w-full">{children}</main>
             <FooterSlot content={footerContent} />
           </AuthProvider>
         </NextIntlClientProvider>

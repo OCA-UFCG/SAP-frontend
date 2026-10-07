@@ -1,0 +1,19 @@
+{
+  "ErrorPage": {
+    "unexpected": {
+      "title": "Something went wrong here",
+      "description": "We could not build this page. This is usually temporary: most of the time one of our data sources did not answer in time.",
+      "retry": "Try again",
+      "home": "Back to home",
+      "digest": "Error code: {digest}"
+    },
+    "notFound": {
+      "title": "Page not found",
+      "home": "Back to home",
+      "platform": "Go to the platform"
+    },
+    "loading": {
+      "platform": "Loading the platform"
+    }
+  }
+}

@@ -9,6 +9,7 @@ import {
 import { BLOCKS } from "@contentful/rich-text-types";
 import { TabsSectionI } from "@/utils/interfaces";
 import { useTranslations } from "next-intl";
+import { Badge } from "@/components/Badge/Badge";
 
 interface TabsSectionProps {
   contentData: TabsSectionI[];
@@ -58,10 +59,8 @@ const TabsSection = ({ contentData }: TabsSectionProps) => {
 
   return (
     <section className="w-full bg-[#F6F7F6] flex flex-col items-center">
-      <div className="w-full max-w-[1440px] mx-auto px-6 pt-8 md:px-10 md:pt-12 lg:px-[78px] lg:pt-[85px] flex flex-col items-start">
-        <p className="mb-1 text-xs font-bold uppercase tracking-wide text-[#989F43] md:text-sm">
-          {footerT("aboutMenu.usuarios")}
-        </p>
+      <div className="w-full max-w-[1440px] mx-auto px-6 pt-12 md:px-10 lg:px-[78px] flex flex-col items-start">
+        <Badge label={footerT("aboutMenu.usuarios")} className="mb-4" />
         <h2 className="text-[24px] md:text-[28px] lg:text-[30px] leading-[28px] md:leading-[32px] lg:leading-[36px] tracking-[-0.0075em] text-[#292829] font-semibold mb-6">
           {sectionTitle}
         </h2>
@@ -74,7 +73,7 @@ const TabsSection = ({ contentData }: TabsSectionProps) => {
               <button
                 key={tab.identifier}
                 onClick={() => setActiveTabIdentifier(tab.identifier)}
-                className={`px-4 md:px-8 py-3 rounded-t-[8px] font-open-sans font-medium text-[13px] md:text-[14px] whitespace-nowrap transition-colors border-b-0 ${
+                className={`px-4 md:px-8 py-3 md:w-[302px] md:shrink-0 rounded-t-[8px] font-open-sans font-medium text-[13px] md:text-[16px] whitespace-nowrap transition-colors border-b-0 ${
                   activeTabIdentifier === tab.identifier
                     ? "bg-[#989F43] text-white"
                     : "bg-[#E4E5E2] text-[#3F4324] hover:bg-[#C8CAC5]"

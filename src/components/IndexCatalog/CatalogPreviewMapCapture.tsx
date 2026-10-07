@@ -10,9 +10,28 @@ import {
 import { captureMapCanvasPng } from "@/components/Map/captureMapCanvas";
 import { BRAZIL_RASTER_BOUNDS } from "@/components/Map/mapBounds";
 import { BASE_STYLE, ensureMapLayers } from "@/components/Map/mapDefinitions";
+import {
+  applyIndexChoroplethStates,
+  ensureIndexChoroplethLayers,
+} from "@/components/Map/indexChoroplethLayers";
+import { loadCatalogChoroplethPreview } from "@/components/IndexCatalog/catalogChoroplethPreview";
 import { fetchMapURL } from "@/services/mapServices";
 import type { IndexCatalogPreview } from "@/types/indexCatalog";
 import { getImageDataYearKeys, isCompactImageData } from "@/utils/imageData";
+
+/**
+ * O mínimo de que a captura precisa: a camada e o período a desenhar. É menos
+ * que uma prévia validada de propósito, porque um índice legado adotado tem
+ * mapa e período sem ter validação nenhuma.
+ */
+export interface CatalogPreviewMapSource {
+  entryId: string;
+  panelLayer: Pick<
+    IndexCatalogPreview["panelLayer"],
+    "id" | "name" | "tileApiPath" | "imageData" | "municipalAnalysisApiPath"
+  >;
+  period: string;
+}
 
 /**
  * A captura sai do canvas do mapa, então a resolução seria a da tela do
@@ -55,7 +74,7 @@ export function CatalogPreviewMapCapture({
   preview,
   onSaved,
 }: {
-  preview: IndexCatalogPreview;
+  preview: CatalogPreviewMapSource;
   onSaved?: (url: string) => void;
 }) {
   const [attempt, setAttempt] = useState(0);
@@ -66,9 +85,13 @@ export function CatalogPreviewMapCapture({
   const containerRef = useRef<HTMLDivElement | null>(null);
   const mapRef = useRef<maplibregl.Map | null>(null);
   const onSavedRef = useRef(onSaved);
-  const { entryId } = preview;
+  // Quem escuta `onSaved` guarda a URL devolvida dentro do próprio
+  // `panelLayer`, criando um objeto novo. Depender dessa identidade punha a
+  // captura num laço: guardar a imagem disparava outra captura, que guardava
+  // outra imagem, indefinidamente.
+  const panelLayerRef = useRef(preview.panelLayer);
+  const { entryId, period } = preview;
   const { id: panelLayerId, name, tileApiPath } = preview.panelLayer;
-  const period = resolvePreviewMapPeriod(preview);
   // A captura é identificada pelo período e pela tentativa: a imagem antiga
   // desaparece sozinha quando a chave muda, sem reset dentro do efeito.
   const captureKey = `${entryId}:${period}:${attempt}`;
@@ -76,7 +99,8 @@ export function CatalogPreviewMapCapture({
 
   useEffect(() => {
     onSavedRef.current = onSaved;
-  }, [onSaved]);
+    panelLayerRef.current = preview.panelLayer;
+  }, [onSaved, preview.panelLayer]);
 
   const releaseMap = useCallback(() => {
     const map = mapRef.current;
@@ -138,14 +162,24 @@ export function CatalogPreviewMapCapture({
     async function capturePreviewMap() {
       setStage("capturing");
       setFailureReason("");
-      const tileUrl = await fetchMapURL(
-        panelLayerId,
+      // Um índice de planilha não tem asset no Earth Engine: o mapa da prévia
+      // é a mesma coropleta que o Monitoramento desenha, lida da rota do
+      // rascunho.
+      const choropleth = await loadCatalogChoroplethPreview(
+        panelLayerRef.current,
         period,
         controller.signal,
-        undefined,
-        undefined,
-        tileApiPath,
       );
+      const tileUrl = choropleth
+        ? null
+        : await fetchMapURL(
+            panelLayerId,
+            period,
+            controller.signal,
+            undefined,
+            undefined,
+            tileApiPath,
+          );
       if (aborted || !containerRef.current) return;
 
       releaseMap();
@@ -164,6 +198,14 @@ export function CatalogPreviewMapCapture({
       map.on("load", () => {
         if (aborted) return;
         ensureMapLayers(map, "platform", true, false, tileUrl);
+        if (!choropleth) return;
+        ensureIndexChoroplethLayers(
+          map,
+          choropleth.palette,
+          choropleth.overviewGeoJson,
+          0.85,
+        );
+        applyIndexChoroplethStates(map, choropleth.classByCode);
       });
       map.on("webglcontextlost", () => void settle(null));
       map.on("idle", () => void settle(captureMapCanvasPng(map)));

@@ -11,6 +11,7 @@ vi.mock("next/image", () => ({
 }));
 
 vi.mock("@/infrastructure/contentful/client", () => ({
+  CONTENTFUL_COLLECTION_LIMIT: 200,
   getContent: vi.fn().mockResolvedValue({
     aboutCollection: {
       items: [
@@ -26,10 +27,6 @@ vi.mock("@/infrastructure/contentful/client", () => ({
       ],
     },
   }),
-}));
-
-vi.mock("@/components/MapSection/MapSection", () => ({
-  default: () => <div data-testid="map-section" />,
 }));
 
 test("Home", async () => {

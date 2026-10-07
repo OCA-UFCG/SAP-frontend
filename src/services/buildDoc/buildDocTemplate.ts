@@ -361,7 +361,11 @@ export async function getDocTemplate(
     return [[theme, parsedTheme.sections] as const];
   });
 
-  if (entries.length === 0) {
+  // O bloco `[report]` sozinho já é um resultado útil: ele carrega o título, as
+  // notas e a referência legal do documento. Falhar aqui derrubava o relatório
+  // inteiro quando todos os índices selecionados traziam o próprio texto do
+  // catálogo e nenhum deles tinha bloco no Google Docs.
+  if (entries.length === 0 && reportEntry.length === 0) {
     throw new Error("Nenhum template do Google Docs pôde ser carregado");
   }
 

@@ -8,14 +8,17 @@ import { IndexCatalogScreen } from "@/components/IndexCatalog/IndexCatalogScreen
 import type { PlatformSidebarInitialSection } from "@/components/PlatformSidebar/PlatformSidebar";
 import { resolveLogsViewerAccess } from "@/lib/logs-access";
 import { SESSION_COOKIE_NAME } from "@/lib/server-session";
-import { getPanelLayers } from "@/repositories/platform/panelLayerRepository";
+import { loadPlatformShellData } from "./platformShellData";
 
 interface PlatformPageSearchParams {
   view?: string | string[];
   section?: string | string[];
+  locationKey?: string | string[];
+  /** Forma antiga do parâmetro, mantida para os links já compartilhados. */
   municipalityCode?: string | string[];
   period?: string | string[];
   layers?: string | string[];
+  layer?: string | string[];
 }
 
 function getSingleSearchParamValue(value?: string | string[]) {
@@ -34,7 +37,7 @@ function normalizePlatformSection(
 ): PlatformSidebarInitialSection {
   const normalizedValue = getSingleSearchParamValue(value);
 
-  if (normalizedValue === "analysis" || normalizedValue === "communication") {
+  if (normalizedValue === "communication" || normalizedValue === "analysis") {
     return normalizedValue;
   }
 
@@ -49,9 +52,18 @@ export default async function PlatformPage({
   const resolvedSearchParams = searchParams ? await searchParams : {};
   const viewMode = normalizePlatformView(resolvedSearchParams.view);
   const initialSection = normalizePlatformSection(resolvedSearchParams.section);
-  const municipalityCode = getSingleSearchParamValue(resolvedSearchParams.municipalityCode) ?? "";
+  const locationKey =
+    getSingleSearchParamValue(resolvedSearchParams.locationKey) ??
+    getSingleSearchParamValue(resolvedSearchParams.municipalityCode) ??
+    "";
   const period = getSingleSearchParamValue(resolvedSearchParams.period) ?? "";
-  const layerIds = (getSingleSearchParamValue(resolvedSearchParams.layers) ?? "").split(",").filter(Boolean);
+  const detailLayerId =
+    getSingleSearchParamValue(resolvedSearchParams.layer)?.trim() || undefined;
+  const layerIds = (
+    getSingleSearchParamValue(resolvedSearchParams.layers) ?? ""
+  )
+    .split(",")
+    .filter(Boolean);
   const sessionCookie =
     (await cookies()).get(SESSION_COOKIE_NAME)?.value ?? null;
 
@@ -95,19 +107,18 @@ export default async function PlatformPage({
     );
   }
 
-  const [panelLayers, logsViewerAccess] = await Promise.all([
-    getPanelLayers(),
-    sessionCookie
-      ? resolveLogsViewerAccess(sessionCookie)
-      : Promise.resolve("unauthenticated" as const),
-  ]);
+  const { panelLayers, showAuditLink } =
+    await loadPlatformShellData(sessionCookie);
 
   return (
     <PlatformLayout
       panelLayers={panelLayers}
-      showAuditLink={logsViewerAccess === "allowed"}
+      showAuditLink={showAuditLink}
       initialSection={initialSection}
-      reportRequest={municipalityCode && period ? { municipalityCode, period, layerIds } : undefined}
+      detailLayerId={detailLayerId}
+      reportRequest={
+        locationKey && period ? { locationKey, period, layerIds } : undefined
+      }
     />
   );
 }

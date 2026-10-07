@@ -1,7 +1,9 @@
 import { describe, expect, it } from "vitest";
 import {
   getImageDataLegend,
+  keepOnlyCurrentSeasonPeriod,
   keepOnlyFutureForecastPeriods,
+  resolveImageCollectionPeriod,
   resolveImageYearEntry,
 } from "@/utils/imageData";
 import type { CompactTerritorialAnalysisDataset } from "@/utils/analysis";
@@ -200,5 +202,122 @@ describe("imageData helpers", () => {
       "2026-08",
       "2026-09",
     ]);
+  });
+});
+
+/**
+ * Regressão: os 35 períodos do Índice de Aridez BR-DWGD apontam para a mesma
+ * `ImageCollection`, então sem uma janela de tempo o mapa exibia sempre a
+ * última imagem empilhada, independente do ano escolhido no painel.
+ */
+describe("resolveImageCollectionPeriod", () => {
+  const baseEntry = {
+    default: false,
+    imageId:
+      "projects/obscaatinga/assets/ColecaoImagens/IA_atlas_BR_DWGD_default_v1",
+    imageParams: [],
+  };
+
+  it("turns an annual period into the UTC window of that year", () => {
+    expect(
+      resolveImageCollectionPeriod({ ...baseEntry, year: "1990" }),
+    ).toEqual({
+      startMillis: Date.UTC(1990, 0, 1),
+      endMillis: Date.UTC(1991, 0, 1),
+    });
+  });
+
+  it("turns a monthly period into the UTC window of that month", () => {
+    expect(
+      resolveImageCollectionPeriod({ ...baseEntry, year: "2024-12" }),
+    ).toEqual({
+      startMillis: Date.UTC(2024, 11, 1),
+      endMillis: Date.UTC(2025, 0, 1),
+    });
+  });
+
+  it("adds the configured year label so assets with unreliable dates still work", () => {
+    expect(
+      resolveImageCollectionPeriod({
+        ...baseEntry,
+        year: "2000",
+        mapVisualization: {
+          sourceType: "imageCollection",
+          imageCollectionPeriodProperty: "ano",
+        },
+      }),
+    ).toEqual({
+      startMillis: Date.UTC(2000, 0, 1),
+      endMillis: Date.UTC(2001, 0, 1),
+      property: "ano",
+      value: "2000",
+    });
+  });
+
+  it("leaves forecast layers to their own selection", () => {
+    expect(
+      resolveImageCollectionPeriod({
+        ...baseEntry,
+        year: "2026-09",
+        leadTime: 1,
+        mapVisualization: {
+          sourceType: "imageCollection",
+          imageCollectionSelection: {
+            latestProperty: "data_emissao",
+            latestValue: 20260801,
+            filterProperty: "lead_time",
+          },
+        },
+      }),
+    ).toBeUndefined();
+  });
+
+  it("ignores period keys that are not datable", () => {
+    expect(
+      resolveImageCollectionPeriod({ ...baseEntry, year: "general" }),
+    ).toBeUndefined();
+    expect(resolveImageCollectionPeriod(baseEntry)).toBeUndefined();
+    expect(
+      resolveImageCollectionPeriod({ ...baseEntry, year: "2024-13" }),
+    ).toBeUndefined();
+  });
+
+  it("keeps a single option for seasonal layers", () => {
+    const imageData: CompactTerritorialAnalysisDataset = {
+      schemaVersion: 1,
+      type: "territorial-compact",
+      defaultYear: "2026-06",
+      classes: [{ id: "a", label: "Classe A", color: "#111111" }],
+      years: {
+        "2026-06": { imageId: "img-jja", values: {} },
+        "2026-09": { imageId: "img-son", values: {} },
+        "2026-10": { imageId: "img-ond", values: {} },
+      },
+    };
+
+    const filtered = keepOnlyCurrentSeasonPeriod(
+      imageData,
+      true,
+      new Date("2026-09-17T12:00:00.000Z"),
+    ) as CompactTerritorialAnalysisDataset;
+
+    expect(Object.keys(filtered.years)).toEqual(["2026-09"]);
+    expect(filtered.defaultYear).toBe("2026-09");
+  });
+
+  it("leaves non-seasonal layers untouched", () => {
+    const imageData: CompactTerritorialAnalysisDataset = {
+      schemaVersion: 1,
+      type: "territorial-compact",
+      defaultYear: "2025",
+      classes: [{ id: "a", label: "Classe A", color: "#111111" }],
+      years: {
+        "2024": { imageId: "img-2024", values: {} },
+        "2025": { imageId: "img-2025", values: {} },
+      },
+    };
+
+    expect(keepOnlyCurrentSeasonPeriod(imageData, false)).toBe(imageData);
+    expect(keepOnlyCurrentSeasonPeriod(imageData, true)).toBe(imageData);
   });
 });

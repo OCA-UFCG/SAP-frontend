@@ -2,11 +2,30 @@ export interface MunicipalReportLayerConfig {
   panelLayerId: string;
   alias: string;
   title: string;
+  /** A categoria do índice no painel, propagada do `panelLayer` para a análise. */
+  category?: string;
   order: number;
   periods?: string[];
   presentation?: MunicipalReportPresentationConfig;
   reportSeriesConfig?: import("@/utils/interfaces").MunicipalReportSeriesConfig | null;
   baseImageData?: import("@/utils/analysis").CompactTerritorialAnalysisDataset;
+  /**
+   * Presente apenas nas camadas publicadas pelo catálogo. É o que diz ao
+   * relatório que os valores territoriais vêm do Earth Engine sob demanda, e
+   * não de partições `municipalAnalysis` no Contentful.
+   */
+  statisticsSource?: import("@/contracts/geeStatistics").PublishedGeeStatisticsSource | null;
+  /**
+   * Cor e nota de metodologia escritas no catálogo. Vencem `presentation`, que
+   * é o registro estático e não tem entrada para um índice do catálogo.
+   */
+  reportPresentation?: { sectionColor?: string; methodology?: string };
+  /**
+   * A ordem de gravidade das classes, quando alguém a declarou. É o que
+   * destrava as variáveis de tendência do relatório — sem ela não há como
+   * dizer que uma classe é pior que outra.
+   */
+  reportSeverity?: import("@/utils/reportVariableProfile").ReportSeveritySpec;
 }
 
 export interface MunicipalReportClassPresentation {

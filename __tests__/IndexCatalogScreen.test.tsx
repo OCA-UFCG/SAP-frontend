@@ -4,6 +4,7 @@ import {
   render,
   screen,
   waitFor,
+  within,
 } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
@@ -16,9 +17,35 @@ vi.mock("@/components/IndexCatalog/CatalogPreviewMapCapture", () => ({
   CatalogPreviewMapCapture: () => (
     <div data-testid="catalog-preview-map-probe" />
   ),
+  resolvePreviewMapPeriod: () => "2025",
+}));
+
+// Idem para a prévia do relatório: ela faz o seu próprio pedido ao servidor, e
+// sem o stub esse pedido consumiria uma das respostas encadeadas dos testes.
+vi.mock("@/components/IndexCatalog/CatalogReportPreview", () => ({
+  CatalogReportPreview: () => (
+    <div data-testid="catalog-report-preview-probe" />
+  ),
 }));
 
 import { IndexCatalogScreen } from "@/components/IndexCatalog/IndexCatalogScreen";
+
+/**
+ * Todas as seções da listagem abrem fechadas, então um teste que inspeciona os
+ * cartões de uma delas precisa expandi-la primeiro.
+ */
+/**
+ * Abre a seção pelo título exato, e não pelo nome acessível do cabeçalho:
+ * "Publicados" e "Publicados sem os dados mais recentes" começam igual, e uma
+ * busca por expressão regular casava com as duas.
+ */
+async function expandCatalogSection(title: string) {
+  const heading = await screen.findByText(title, { exact: true });
+  const header = heading.closest("button");
+  if (header?.getAttribute("aria-expanded") === "false") {
+    fireEvent.click(header);
+  }
+}
 
 function jsonResponse(body: unknown, status = 200) {
   return Promise.resolve(
@@ -67,6 +94,7 @@ describe("IndexCatalogScreen v2", () => {
       .mockImplementationOnce(() =>
         jsonResponse({ entryId: "draft-1", panelLayerId: "indice-gee" }, 201),
       )
+      .mockImplementationOnce(() => jsonResponse({ requiresRepublish: false }))
       .mockImplementationOnce(() => jsonResponse({ items: [] }));
 
     render(<IndexCatalogScreen />);
@@ -88,6 +116,130 @@ describe("IndexCatalogScreen v2", () => {
     expect(body).not.toHaveProperty("selectedFiles");
     expect(body).not.toHaveProperty("sourceTag");
     expect(body).not.toHaveProperty("unit");
+  });
+
+  it("lê o mês do endereço colado e fixa a granularidade em Mensal", async () => {
+    const fetchMock = vi.mocked(fetch);
+    fetchMock
+      .mockImplementationOnce(() => jsonResponse({ items: [] }))
+      .mockImplementationOnce(() =>
+        jsonResponse({ entryId: "draft-1", panelLayerId: "indice-gee" }, 201),
+      )
+      .mockImplementationOnce(() => jsonResponse({ requiresRepublish: false }))
+      .mockImplementationOnce(() => jsonResponse({ items: [] }));
+
+    render(<IndexCatalogScreen />);
+    await screen.findByText("Nenhum panelLayer encontrado.");
+    fillMinimumForm();
+    fireEvent.change(screen.getByLabelText(/Organização dos assets/u), {
+      target: { value: "year-siblings" },
+    });
+    fireEvent.change(
+      screen.getByLabelText(/ID da FeatureCollection de um dos períodos/u),
+      { target: { value: "projects/example/assets/estat_2026_09" } },
+    );
+
+    expect(screen.getByText(/Mês 09\/2026 detectado/u)).toBeInTheDocument();
+    const granularity = screen.getByLabelText(/Granularidade/u);
+    expect(granularity).toHaveValue("month");
+    expect(granularity).toBeDisabled();
+
+    fireEvent.click(screen.getByRole("button", { name: "Salvar rascunho" }));
+    await waitFor(() => expect(fetch).toHaveBeenCalledTimes(4));
+    const body = JSON.parse(
+      String((fetchMock.mock.calls[1][1] as RequestInit).body),
+    );
+    expect(body.statisticsSource).toMatchObject({
+      periodGranularity: "month",
+      asset: {
+        type: "period-template",
+        assetIdTemplate: "projects/example/assets/estat_{year}_{month}",
+      },
+    });
+  });
+
+  it("manda a posição na categoria escrita no formulário", async () => {
+    const fetchMock = vi.mocked(fetch);
+    fetchMock
+      .mockImplementationOnce(() => jsonResponse({ items: [] }))
+      .mockImplementationOnce(() =>
+        jsonResponse({ entryId: "draft-1", panelLayerId: "indice-gee" }, 201),
+      )
+      .mockImplementationOnce(() => jsonResponse({ requiresRepublish: false }))
+      .mockImplementationOnce(() => jsonResponse({ items: [] }));
+
+    render(<IndexCatalogScreen />);
+    await screen.findByText("Nenhum panelLayer encontrado.");
+    fillMinimumForm();
+    fireEvent.change(screen.getByLabelText("Posição na categoria"), {
+      target: { value: "0" },
+    });
+    fireEvent.click(screen.getByRole("button", { name: "Salvar rascunho" }));
+
+    await waitFor(() => expect(fetch).toHaveBeenCalledTimes(4));
+    const body = JSON.parse(
+      String((fetchMock.mock.calls[1][1] as RequestInit).body),
+    );
+    expect(body.panelPosition).toBe(0);
+  });
+
+  it("deixa a posição de fora quando o campo fica vazio", async () => {
+    // Campo vazio significa "onde já está": mandar zero colocaria todo índice
+    // novo brigando pelo primeiro lugar da categoria.
+    const fetchMock = vi.mocked(fetch);
+    fetchMock
+      .mockImplementationOnce(() => jsonResponse({ items: [] }))
+      .mockImplementationOnce(() =>
+        jsonResponse({ entryId: "draft-1", panelLayerId: "indice-gee" }, 201),
+      )
+      .mockImplementationOnce(() => jsonResponse({ requiresRepublish: false }))
+      .mockImplementationOnce(() => jsonResponse({ items: [] }));
+
+    render(<IndexCatalogScreen />);
+    await screen.findByText("Nenhum panelLayer encontrado.");
+    fillMinimumForm();
+    fireEvent.click(screen.getByRole("button", { name: "Salvar rascunho" }));
+
+    await waitFor(() => expect(fetch).toHaveBeenCalledTimes(4));
+    const body = JSON.parse(
+      String((fetchMock.mock.calls[1][1] as RequestInit).body),
+    );
+    expect(body.panelPosition).toBeUndefined();
+  });
+
+  it("salva o texto do relatório junto com o rascunho", async () => {
+    // Regressão: o texto ficava só no navegador porque "Salvar rascunho" mandava
+    // apenas o formulário de dados, e a prévia do relatório caía na frase
+    // automática mesmo depois de o operador escrever o texto.
+    const fetchMock = vi.mocked(fetch);
+    fetchMock
+      .mockImplementationOnce(() => jsonResponse({ items: [] }))
+      .mockImplementationOnce(() =>
+        jsonResponse({ entryId: "draft-1", panelLayerId: "indice-gee" }, 201),
+      )
+      .mockImplementationOnce(() => jsonResponse({ requiresRepublish: false }))
+      .mockImplementationOnce(() => jsonResponse({ items: [] }));
+
+    render(<IndexCatalogScreen />);
+    await screen.findByText("Nenhum panelLayer encontrado.");
+    fillMinimumForm();
+    fireEvent.change(screen.getAllByLabelText("Texto")[1], {
+      target: { value: "TESTE" },
+    });
+    fireEvent.click(screen.getByRole("button", { name: "Salvar rascunho" }));
+
+    await waitFor(() => expect(fetch).toHaveBeenCalledTimes(4));
+    const reportCall = fetchMock.mock.calls.find(([url]) =>
+      String(url).endsWith("/report-text"),
+    );
+    expect(reportCall?.[0]).toBe(
+      "/api/index-catalog/drafts/draft-1/report-text",
+    );
+    const body = JSON.parse(String((reportCall?.[1] as RequestInit).body));
+    expect(body.report.sections).toContainEqual({
+      title: "O que este índice mede",
+      text: "TESTE",
+    });
   });
 
   it("explains the three catalog actions in plain language", async () => {
@@ -202,6 +354,7 @@ describe("IndexCatalogScreen v2", () => {
       .mockImplementationOnce(() =>
         jsonResponse({ entryId: "draft-forecast" }, 201),
       )
+      .mockImplementationOnce(() => jsonResponse({ requiresRepublish: false }))
       .mockImplementationOnce(() => jsonResponse({ items: [] }));
 
     render(<IndexCatalogScreen />);
@@ -275,6 +428,7 @@ describe("IndexCatalogScreen v2", () => {
     fetchMock
       .mockImplementationOnce(() => jsonResponse({ items: [] }))
       .mockImplementationOnce(() => jsonResponse({ entryId: "draft-1" }, 201))
+      .mockImplementationOnce(() => jsonResponse({ requiresRepublish: false }))
       .mockImplementationOnce(() => jsonResponse({ items: [] }))
       .mockImplementationOnce(() => jsonResponse(preview))
       .mockImplementationOnce(() => jsonResponse({ items: [] }));
@@ -296,6 +450,10 @@ describe("IndexCatalogScreen v2", () => {
 
     expect(
       await screen.findByTestId("catalog-preview-probe"),
+    ).toBeInTheDocument();
+    // A prévia gerada mostra o mapa e também como o índice sairia no relatório.
+    expect(
+      screen.getByTestId("catalog-report-preview-probe"),
     ).toBeInTheDocument();
     expect(screen.getAllByLabelText("Índice")).toHaveLength(2);
     expect(screen.getByDisplayValue("Classe 0")).toBeInTheDocument();
@@ -352,6 +510,7 @@ describe("IndexCatalogScreen v2", () => {
     fetchMock
       .mockImplementationOnce(() => jsonResponse({ items: [] }))
       .mockImplementationOnce(() => jsonResponse({ entryId: "draft-1" }, 201))
+      .mockImplementationOnce(() => jsonResponse({ requiresRepublish: false }))
       .mockImplementationOnce(() => jsonResponse({ items: [] }))
       .mockImplementationOnce(() => jsonResponse(preview))
       .mockImplementationOnce(() => jsonResponse({ items: [] }))
@@ -383,7 +542,10 @@ describe("IndexCatalogScreen v2", () => {
     ).not.toBeInTheDocument();
   });
 
-  it("keeps v1 and external panel layers read-only", async () => {
+  it("não lista um panelLayer que o catálogo não gerencia", async () => {
+    // O catálogo deixou de listar legados fora dele junto com a remoção da
+    // adoção: sem "Adotar no catálogo" não sobra nada a fazer com esses
+    // cartões, e eles só afastavam os índices em que o operador trabalha.
     vi.mocked(fetch).mockImplementationOnce(() =>
       jsonResponse({
         items: [
@@ -395,6 +557,7 @@ describe("IndexCatalogScreen v2", () => {
             published: true,
             hasUnpublishedChanges: false,
             catalogManaged: false,
+            managedScope: null,
             status: "legacy",
             catalogConfig: { schemaVersion: 1, panelLayerId: "seca" },
           },
@@ -402,12 +565,268 @@ describe("IndexCatalogScreen v2", () => {
       }),
     );
     render(<IndexCatalogScreen />);
+    await waitFor(() => expect(fetch).toHaveBeenCalledTimes(1));
     expect(
-      await screen.findByText("Legado — somente leitura"),
+      screen.queryByText("Legados fora do catálogo"),
+    ).not.toBeInTheDocument();
+    expect(screen.queryByText("Seca")).not.toBeInTheDocument();
+    expect(
+      screen.queryByRole("button", { name: "Adotar no catálogo" }),
+    ).not.toBeInTheDocument();
+  });
+
+  const publishedItem = {
+    entryId: "v2",
+    panelLayerId: "indice-gee",
+    name: "Índice GEE",
+    description: "",
+    published: true,
+    everPublished: true,
+    hasUnpublishedChanges: false,
+    catalogManaged: true,
+    managedScope: "full",
+    status: "published",
+  };
+
+  it("mostra na seção de publicados desatualizados o que a varredura apontou", async () => {
+    const fetchMock = vi.mocked(fetch);
+    fetchMock
+      .mockImplementationOnce(() => jsonResponse({ items: [publishedItem] }))
+      .mockImplementationOnce(() =>
+        jsonResponse({
+          checkedAt: "2026-09-21T12:00:00.000Z",
+          checked: 1,
+          failed: 0,
+          checks: {
+            v2: {
+              checkedAt: "2026-09-21T12:00:00.000Z",
+              status: "new-data",
+              message: "3 período(s) novo(s) na pasta do Earth Engine.",
+              knownPeriods: ["2023"],
+              newPeriods: ["2024", "2025", "2026"],
+              updatedAssets: [],
+            },
+          },
+        }),
+      );
+
+    render(<IndexCatalogScreen />);
+
+    const section = await screen.findByText(
+      "Publicados sem os dados mais recentes",
+      { exact: true },
+    );
+    expect(section.closest("button")).toHaveAttribute("aria-expanded", "true");
+    expect(
+      await screen.findByText("3 período(s) novo(s) na pasta do Earth Engine."),
+    ).toBeInTheDocument();
+    expect(fetchMock.mock.calls[1][0]).toBe("/api/index-catalog/new-data");
+  });
+
+  // A varredura é a parte lenta da tela: sem índice publicado criado pelo
+  // catálogo não há pasta nenhuma para listar, e pedi-la seria desperdício.
+  it("não pede a varredura quando não há índice publicado para verificar", async () => {
+    const fetchMock = vi.mocked(fetch);
+    fetchMock.mockImplementationOnce(() =>
+      jsonResponse({ items: [{ ...publishedItem, published: false }] }),
+    );
+
+    render(<IndexCatalogScreen />);
+    await expandCatalogSection("Publicados sem os dados mais recentes");
+
+    expect(
+      await screen.findByText(
+        "Todo índice publicado está com os dados mais recentes da pasta dele.",
+      ),
+    ).toBeInTheDocument();
+    expect(fetchMock.mock.calls.map(([url]) => url)).not.toContain(
+      "/api/index-catalog/new-data",
+    );
+  });
+
+  it("oferece Republicar no índice publicado com alteração pendente", async () => {
+    // Regressão: o cartão de um índice v2 publicado só tinha "Despublicar".
+    // Depois de salvar o texto do relatório, a tela pedia para publicar de novo
+    // e não havia botão para isso — a saída era tirar o índice do ar e
+    // republicá-lo.
+    vi.mocked(fetch).mockImplementationOnce(() =>
+      jsonResponse({
+        items: [
+          {
+            entryId: "v2",
+            panelLayerId: "indice-gee",
+            name: "Índice GEE",
+            description: "",
+            published: true,
+            everPublished: true,
+            hasUnpublishedChanges: true,
+            catalogManaged: true,
+            managedScope: "full",
+            status: "published",
+          },
+        ],
+      }),
+    );
+    render(<IndexCatalogScreen />);
+    await expandCatalogSection("Publicados");
+
+    expect(
+      await screen.findByRole("button", { name: "Republicar" }),
     ).toBeInTheDocument();
     expect(
-      screen.queryByRole("button", { name: "Abrir e editar" }),
+      screen.getByRole("button", { name: "Despublicar" }),
+    ).toBeInTheDocument();
+  });
+
+  it("não oferece Republicar quando não há alteração pendente", async () => {
+    vi.mocked(fetch).mockImplementationOnce(() =>
+      jsonResponse({
+        items: [
+          {
+            entryId: "v2",
+            panelLayerId: "indice-gee",
+            name: "Índice GEE",
+            description: "",
+            published: true,
+            everPublished: true,
+            hasUnpublishedChanges: false,
+            catalogManaged: true,
+            managedScope: "full",
+            status: "published",
+          },
+        ],
+      }),
+    );
+    render(<IndexCatalogScreen />);
+    await expandCatalogSection("Publicados");
+
+    expect(
+      await screen.findByRole("button", { name: "Despublicar" }),
+    ).toBeInTheDocument();
+    expect(
+      screen.queryByRole("button", { name: "Republicar" }),
     ).not.toBeInTheDocument();
-    await waitFor(() => expect(fetch).toHaveBeenCalledTimes(1));
+  });
+
+  it("não oferece Republicar quando a edição do rascunho apagou a prévia", async () => {
+    // O `PUT` do rascunho derruba o status para "draft" e apaga a validação, e
+    // a rota de publicação recusa esse estado. Oferecer "Republicar" aqui só
+    // levaria a um "Revalide os assets" depois do clique, sem nada na tela para
+    // o operador corrigir.
+    vi.mocked(fetch).mockImplementationOnce(() =>
+      jsonResponse({
+        items: [
+          {
+            entryId: "v2",
+            panelLayerId: "indice-gee",
+            name: "Índice GEE",
+            description: "",
+            published: true,
+            everPublished: true,
+            hasUnpublishedChanges: true,
+            catalogManaged: true,
+            managedScope: "full",
+            status: "draft",
+          },
+        ],
+      }),
+    );
+    render(<IndexCatalogScreen />);
+    await expandCatalogSection("Publicados");
+
+    expect(
+      await screen.findByRole("button", { name: "Despublicar" }),
+    ).toBeInTheDocument();
+    expect(
+      screen.queryByRole("button", { name: "Republicar" }),
+    ).not.toBeInTheDocument();
+    expect(
+      screen.getByText("Publicado com revisão em rascunho"),
+    ).toBeInTheDocument();
+  });
+
+  it("abre o índice v2 mesmo com um índice legado adotado já aberto", async () => {
+    // Regressão: o formulário do catálogo só é renderizado quando não há índice
+    // legado aberto, e `resumeDraft` não fechava o editor legado. Com um índice
+    // adotado aberto, clicar em "Abrir e editar" num índice v2 carregava o
+    // rascunho numa seção invisível e o botão parecia não funcionar.
+    vi.mocked(fetch).mockImplementationOnce(() =>
+      jsonResponse({
+        items: [
+          {
+            entryId: "adotado",
+            panelLayerId: "s2id_secas_estiagens",
+            name: "Secas e Estiagens",
+            description: "Ocorrências registradas no S2iD.",
+            published: true,
+            everPublished: true,
+            hasUnpublishedChanges: false,
+            catalogManaged: true,
+            managedScope: "presentation",
+            status: "published",
+            catalogConfig: {
+              schemaVersion: 2,
+              managedScope: "presentation",
+              panelLayerId: "s2id_secas_estiagens",
+              status: "published",
+              name: "Secas e Estiagens",
+              description: "Ocorrências registradas no S2iD.",
+              category: "Dados Climáticos",
+            },
+          },
+          {
+            entryId: "v2",
+            panelLayerId: "indice-gee",
+            name: "Índice GEE",
+            description: "Índice classificado",
+            published: false,
+            everPublished: false,
+            hasUnpublishedChanges: true,
+            catalogManaged: true,
+            managedScope: "full",
+            status: "draft",
+            catalogConfig: {
+              schemaVersion: 2,
+              managedScope: "full",
+              panelLayerId: "indice-gee",
+              status: "draft",
+              name: "Índice GEE",
+              description: "Índice classificado",
+              category: "Dados Climáticos",
+              statisticsSource: {
+                asset: {
+                  type: "fixed",
+                  assetId: "projects/example/assets/statistics",
+                },
+              },
+              classes: [],
+              earthEngine: { assetId: "projects/example/assets/map" },
+            },
+          },
+        ],
+      }),
+    );
+    render(<IndexCatalogScreen />);
+    await expandCatalogSection("Publicados");
+    await expandCatalogSection("Não publicados");
+
+    const legacyCard = (await screen.findByText("Secas e Estiagens")).closest(
+      "article",
+    ) as HTMLElement;
+    fireEvent.click(
+      within(legacyCard).getByRole("button", { name: "Abrir e editar" }),
+    );
+    expect(await screen.findByText("Editar índice legado")).toBeInTheDocument();
+
+    const v2Card = screen
+      .getByText("Índice GEE")
+      .closest("article") as HTMLElement;
+    fireEvent.click(
+      within(v2Card).getByRole("button", { name: "Abrir e editar" }),
+    );
+
+    expect(await screen.findByText("Editar índice")).toBeInTheDocument();
+    expect(screen.queryByText("Editar índice legado")).not.toBeInTheDocument();
+    expect(screen.getByDisplayValue("Índice GEE")).toBeInTheDocument();
   });
 });

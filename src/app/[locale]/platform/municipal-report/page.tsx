@@ -1,6 +1,8 @@
 import { MunicipalReportPreview } from "@/components/MunicipalReport/MunicipalReportPreview";
 
 interface MunicipalReportPageParams {
+  locationKey?: string | string[];
+  /** Forma antiga do parâmetro, mantida para os links já compartilhados. */
   municipalityCode?: string | string[];
   period?: string | string[];
   layers?: string | string[];
@@ -19,7 +21,9 @@ export default async function MunicipalReportPage({
 
   return (
     <MunicipalReportPreview
-      municipalityCode={single(params.municipalityCode) ?? ""}
+      locationKey={
+        single(params.locationKey) ?? single(params.municipalityCode) ?? ""
+      }
       period={single(params.period) ?? ""}
       layerIds={(single(params.layers) ?? "").split(",").filter(Boolean)}
     />

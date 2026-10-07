@@ -7,7 +7,7 @@ const mocks = vi.hoisted(() => ({
   getManagementEntry: vi.fn(),
   patchManagementEntry: vi.fn(),
   getContentfulAsset: vi.fn(),
-  saveContentfulPreviewImage: vi.fn(),
+  saveContentfulAsset: vi.fn(),
 }));
 
 vi.mock("@/services/indexCatalog/contentfulManagement", () => ({
@@ -27,7 +27,7 @@ vi.mock("@/services/indexCatalog/contentfulAssets", () => ({
     asset: { fields: { file?: Record<string, { url?: string }> } },
     locale: string,
   ) => asset.fields.file?.[locale]?.url ?? null,
-  saveContentfulPreviewImage: mocks.saveContentfulPreviewImage,
+  saveContentfulAsset: mocks.saveContentfulAsset,
 }));
 
 import {
@@ -61,7 +61,7 @@ function catalogEntry(published: boolean, catalogConfig: unknown = config) {
 describe("saveIndexCatalogPreviewMap", () => {
   beforeEach(() => {
     vi.clearAllMocks();
-    mocks.saveContentfulPreviewImage.mockResolvedValue({
+    mocks.saveContentfulAsset.mockResolvedValue({
       assetId: "asset-1",
       url: "https://images.ctfassets.net/space/asset/previa.png",
     });
@@ -91,7 +91,7 @@ describe("saveIndexCatalogPreviewMap", () => {
       url: "https://images.ctfassets.net/space/asset/previa.png",
       requiresRepublish: false,
     });
-    expect(mocks.saveContentfulPreviewImage).toHaveBeenCalledWith(
+    expect(mocks.saveContentfulAsset).toHaveBeenCalledWith(
       expect.objectContaining({
         assetId: undefined,
         contentType: "image/png",
@@ -128,7 +128,7 @@ describe("saveIndexCatalogPreviewMap", () => {
     );
 
     expect(result.requiresRepublish).toBe(true);
-    expect(mocks.saveContentfulPreviewImage).toHaveBeenCalledWith(
+    expect(mocks.saveContentfulAsset).toHaveBeenCalledWith(
       expect.objectContaining({ assetId: "asset-antigo" }),
     );
   });
@@ -139,18 +139,18 @@ describe("saveIndexCatalogPreviewMap", () => {
     await expect(
       saveIndexCatalogPreviewMap("entry-1", "data:text/plain,oi", user),
     ).rejects.toThrow("data:image/png;base64,");
-    expect(mocks.saveContentfulPreviewImage).not.toHaveBeenCalled();
+    expect(mocks.saveContentfulAsset).not.toHaveBeenCalled();
     expect(mocks.patchManagementEntry).not.toHaveBeenCalled();
   });
 
-  it("refuses legacy entries", async () => {
+  it("refuses entries the catalog has not adopted", async () => {
     mocks.getCatalogEntry.mockResolvedValue(
       catalogEntry(false, { schemaVersion: 1, panelLayerId: "legado" }),
     );
 
     await expect(
       saveIndexCatalogPreviewMap("entry-1", PNG_DATA_URL, user),
-    ).rejects.toThrow("legado");
+    ).rejects.toThrow(/não foi adotado/u);
   });
 });
 

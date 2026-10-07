@@ -82,7 +82,21 @@ describe("ModulesContext", () => {
     cleanup();
   });
 
-  it("groups panel layers by their Contentful category and opens the first visible group", () => {
+  // Regressao: o seletor ficou invisivel em producao porque dependia da flag
+  // NEXT_PUBLIC_ENABLE_SPATIAL_SCOPE, que nao era injetada no build de producao.
+  it("renders the spatial scope selector without depending on any rollout flag", () => {
+    vi.stubEnv("NEXT_PUBLIC_ENABLE_SPATIAL_SCOPE", "");
+
+    render(<ModulesContext activeSection="analysis" panelLayers={[]} />);
+
+    expect(
+      screen.getByRole("button", { name: "Recorte espacial: Nacional" }),
+    ).toBeInTheDocument();
+
+    vi.unstubAllEnvs();
+  });
+
+  it("groups panel layers by their Contentful category and starts every group closed", () => {
     const panelLayers: PanelLayerI[] = [
       {
         sys: { id: "sys-ambiental" },
@@ -117,10 +131,92 @@ describe("ModulesContext", () => {
       .getByText("Categoria Livre")
       .closest("button");
 
-    expect(ambientalAccordion).toHaveAttribute("aria-expanded", "true");
+    expect(ambientalAccordion).toHaveAttribute("aria-expanded", "false");
     expect(livreAccordion).toHaveAttribute("aria-expanded", "false");
     expect(screen.getByText("Camada Ambiental")).toBeInTheDocument();
     expect(screen.getByText("Camada Livre")).toBeInTheDocument();
+  });
+
+  it("mostra os índices de previsão num subacordeão fechado no fim de Dados Climáticos", () => {
+    const climateLayer = (id: string, name: string): PanelLayerI => ({
+      sys: { id: `sys-${id}` },
+      id,
+      name,
+      description: `Descricao ${name}`,
+      category: "Dados Climáticos",
+      previewMap: { url: "https://example.com/preview.png" },
+      imageData: {},
+    });
+
+    render(
+      <ModulesContext
+        activeSection="analysis"
+        panelLayers={[
+          climateLayer("seca", "Monitor de Secas"),
+          climateLayer("prev", "Previsão: Anomalia Precipitação"),
+          climateLayer("aridez", "Índice de Aridez"),
+        ]}
+      />,
+    );
+
+    const subgroupButton = screen
+      .getByText("Dados de previsão")
+      .closest("button");
+    expect(subgroupButton).toHaveAttribute("aria-expanded", "false");
+
+    const titles = screen
+      .getAllByRole("heading", { level: 3 })
+      .map((heading) => heading.textContent);
+    expect(titles).toEqual([
+      "Monitor de Secas",
+      "Índice de Aridez",
+      "Previsão: Anomalia Precipitação",
+    ]);
+    expect(
+      screen.getByText("Previsão: Anomalia Precipitação").closest("[inert]"),
+    ).not.toBeNull();
+  });
+
+  it("abre o detalhamento do índice pedido pela URL, ativando a camada no mapa", () => {
+    const onRequestSectionChange = vi.fn();
+    const panelLayers: PanelLayerI[] = [
+      {
+        sys: { id: "sys-seca" },
+        id: "anaseca",
+        name: "Monitor de Secas",
+        description: "Descricao",
+        category: "Dados Climáticos",
+        panelPosition: 1,
+        previewMap: { url: "https://example.com/seca.png" },
+        imageData: { years: {} },
+      },
+    ];
+
+    render(
+      <ModulesContext
+        activeSection="monitoring"
+        panelLayers={panelLayers}
+        detailLayerId="anaseca"
+        onRequestSectionChange={onRequestSectionChange}
+      />,
+    );
+
+    expect(onRequestSectionChange).toHaveBeenCalledWith("analysis-detail");
+  });
+
+  it("ignora um id de camada que não existe, em vez de abrir painel vazio", () => {
+    const onRequestSectionChange = vi.fn();
+
+    render(
+      <ModulesContext
+        activeSection="monitoring"
+        panelLayers={[]}
+        detailLayerId="camada-inexistente"
+        onRequestSectionChange={onRequestSectionChange}
+      />,
+    );
+
+    expect(onRequestSectionChange).not.toHaveBeenCalled();
   });
 
   it("uses Outros when category is missing and still renders it", () => {
@@ -141,9 +237,34 @@ describe("ModulesContext", () => {
 
     expect(screen.getByText("Outros").closest("button")).toHaveAttribute(
       "aria-expanded",
-      "true",
+      "false",
     );
     expect(screen.getByText("Camada Sem Categoria")).toBeInTheDocument();
+  });
+
+  // Regressão: "Dados Climáticos" é a primeira categoria da ordem fixa e vinha
+  // aberta por default, deixando o painel de Monitoramento já rolado.
+  it("keeps Dados Climáticos closed even though it is the first category", () => {
+    const panelLayers: PanelLayerI[] = [
+      {
+        sys: { id: "sys-climatico" },
+        id: "layer-climatico",
+        name: "Camada Climática",
+        description: "Descricao climatica",
+        category: "Dados Climáticos",
+        panelPosition: 1,
+        previewMap: { url: "https://example.com/climatico.png" },
+        imageData: {},
+      },
+    ];
+
+    render(
+      <ModulesContext activeSection="analysis" panelLayers={panelLayers} />,
+    );
+
+    expect(
+      screen.getByText("Dados Climáticos").closest("button"),
+    ).toHaveAttribute("aria-expanded", "false");
   });
 
   it("tracks vector layer activation when a layer toggle is turned on", async () => {

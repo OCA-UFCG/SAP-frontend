@@ -6,6 +6,13 @@ const SocialChannels = ({
   size,
   displayName = false,
 }: SocialChannelsI) => {
+  // Todas as redes estão comentadas em `@/utils/constants` hoje. Devolver o
+  // contêiner vazio faria o `gap` do rodapé reservar espaço para nada, jogando
+  // os logos para dentro da margem de 80px que o Figma pede.
+  if (channels.length === 0) {
+    return null;
+  }
+
   return (
     <div
       className={`flex flex-wrap flex-row items-center ${

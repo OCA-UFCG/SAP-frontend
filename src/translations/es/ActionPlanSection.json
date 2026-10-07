@@ -3,15 +3,31 @@
     "title": "El plan en que se inserta el SEDES",
     "text": "El SEDES integra el Plan de Acción Brasileño de Combate a la Desertificación y Mitigación de los Efectos de la Sequía (PAB-Brasil), lanzado por el MMA en diciembre de 2025. Es el principal instrumento de implementación de la PNCD, con horizonte hasta 2045. El SEDES corresponde al Objetivo 2.4 del plan, en el eje \"Investigación, innovación y gestión de la información\".",
     "stats": {
-      "0": { "label": "objetivos estratégicos" },
-      "1": { "label": "acciones con indicadores" },
-      "2": { "label": "ejes temáticos" },
-      "3": { "label": "ministerios involucrados" },
-      "4": { "value": "1,6 mil+", "label": "municipios en ASD" },
-      "5": { "value": "39 M", "label": "personas beneficiadas" }
+      "0": {
+        "value": "39 M",
+        "label": "personas beneficiadas"
+      },
+      "1": {
+        "label": "objetivos estratégicos"
+      },
+      "2": {
+        "label": "acciones con indicadores"
+      },
+      "3": {
+        "label": "ejes temáticos"
+      },
+      "4": {
+        "label": "ministerios involucrados"
+      },
+      "5": {
+        "value": "1,6M+",
+        "label": "municipios en ASD"
+      }
     },
     "axesSection": {
       "title": "Ejes temáticos",
+      "description": "Vea los 5 ejes que estructuran el plan y dónde actúa el SEDES.",
+      "actionsLabel": "Acciones",
       "executorLabel": "Ejecutor",
       "partnersLabel": "Socios",
       "actionsSuffix": "acciones",
@@ -24,7 +40,8 @@
           "title": "Adaptación climática y mitigación de los efectos de la sequía"
         },
         "2": {
-          "title": "Investigación, innovación y gestión de la información"
+          "title": "Investigación, innovación y gestión de la información",
+          "description": "Eje responsable de estructurar datos, indicadores y conocimiento técnico-científico para el combate a la desertificación."
         },
         "3": {
           "title": "Mejora de las condiciones de vida de la población"

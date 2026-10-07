@@ -41,6 +41,7 @@ interface UseMapControllerArgs {
   spatialBoundaryGeoJson?: FeatureCollection<Geometry, { name: string }> | null;
   spatialFocusBounds?: LngLatBoundsLike | null;
   allowedStateUfs?: Set<string> | null;
+  spatialValue?: string;
 }
 
 export const useMapController = ({
@@ -61,6 +62,7 @@ export const useMapController = ({
   spatialBoundaryGeoJson = null,
   spatialFocusBounds = null,
   allowedStateUfs = null,
+  spatialValue = "brasil",
 }: UseMapControllerArgs) => {
   const debugEnabled = process.env.NODE_ENV !== "production";
   const mapRef = useRef<maplibregl.Map | null>(null);
@@ -111,6 +113,7 @@ export const useMapController = ({
   const leftOverlayWidthRef = useRef(0);
   const spatialBoundaryGeoJsonRef = useRef<FeatureCollection<Geometry, { name: string }> | null>(spatialBoundaryGeoJson);
   const allowedStateUfsRef = useRef<Set<string> | null>(allowedStateUfs);
+  const spatialValueRef = useRef<string>(spatialValue);
   const leftOverlayWidth = usePlatformSidebarOverlayWidth();
   const normalizedCenter = isValidLatLngTuple(center) ? center : DEFAULT_CENTER;
   const initialViewRef = useRef({
@@ -234,6 +237,7 @@ export const useMapController = ({
     showStatesBorderRef,
     spatialBoundaryGeoJsonRef,
     allowedStateUfsRef,
+    spatialValueRef,
     tileLayerUrlRef,
     layerOpacityRef,
   });
@@ -250,6 +254,8 @@ export const useMapController = ({
     spatialBoundaryGeoJson,
     spatialFocusBounds,
     allowedStateUfs,
+    spatialValue,
+    spatialValueRef,
     fitMapToBounds,
     fitSelectedMunicipalityToBounds,
     fitSelectedStateToBounds,
@@ -318,6 +324,7 @@ export const useMapController = ({
     tileLayerUrlRef,
     hoveredStateIdRef,
     hoveredMunicipalityIdRef,
+    spatialValueRef,
     warn,
   };
 };

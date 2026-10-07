@@ -108,6 +108,28 @@ function validateRanking(value, path, errors) {
   }
 }
 
+/**
+ * `municipalChoropleth` é a única fonte de mapa que não é do Earth Engine: a
+ * camada é pintada no navegador sobre os tiles de município, a partir dos
+ * valores do próprio índice. É o que permite publicar um índice vindo de
+ * planilha, que não tem geometria nem asset.
+ */
+export const MAP_SOURCE_TYPES = [
+  "image",
+  "imageCollection",
+  "featureCollection",
+  "municipalChoropleth",
+];
+
+/** Um mapa desenhado no navegador não tem asset do Earth Engine para apontar. */
+export function isChoroplethImageData(value) {
+  return (
+    isRecord(value) &&
+    isRecord(value.mapVisualization) &&
+    value.mapVisualization.sourceType === "municipalChoropleth"
+  );
+}
+
 function validateMapVisualization(value, path, errors) {
   if (value == null) return;
 
@@ -118,14 +140,12 @@ function validateMapVisualization(value, path, errors) {
 
   if (
     value.sourceType != null &&
-    !["image", "imageCollection", "featureCollection"].includes(
-      value.sourceType,
-    )
+    !MAP_SOURCE_TYPES.includes(value.sourceType)
   ) {
     pushError(
       errors,
       `${path}.sourceType`,
-      "deve ser image, imageCollection ou featureCollection.",
+      `deve ser ${MAP_SOURCE_TYPES.join(", ")}.`,
     );
   }
 
@@ -241,6 +261,21 @@ function validateMapVisualization(value, path, errors) {
         );
       }
     }
+  }
+
+  // Escape hatch para assets cuja `system:time_start` não corresponde ao período
+  // exibido: nomeia a etiqueta de ano das imagens da coleção. Opcional de
+  // propósito — o caminho normal escolhe a imagem pela data e não exige que
+  // quem cadastra o índice conheça as propriedades internas do asset.
+  if (
+    value.imageCollectionPeriodProperty != null &&
+    !isNonEmptyString(value.imageCollectionPeriodProperty)
+  ) {
+    pushError(
+      errors,
+      `${path}.imageCollectionPeriodProperty`,
+      "deve ser string não vazia.",
+    );
   }
 
   if (value.sourceRange != null) {
@@ -388,7 +423,7 @@ function validateCompactDataset(value, context, errors) {
   validateRanking(value.ranking, "ranking", errors);
   validateMapVisualization(value.mapVisualization, "mapVisualization", errors);
   validateYears(value.years, "years", errors, {
-    requireImageId: true,
+    requireImageId: !isChoroplethImageData(value),
     requireValues: !isRuntimeRead,
   });
 }

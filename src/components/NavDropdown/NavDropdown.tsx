@@ -6,31 +6,54 @@ import { cn } from '@/lib/utils';
 
 export const NavDropdown = ({ item }: { item: ISection }) => {
   const children = item.childrenCollection?.items ?? [];
+  // Items like Home point at a real route, so the trigger has to stay
+  // navigable. Purely decorative parents ('#') remain plain buttons.
+  const href = item.path && item.path !== '#' ? item.path : null;
+
+  const triggerClassName =
+    'h-40px flex items-center gap-1.5 border-b-3 border-transparent px-4 py-2 font-medium text-neutral-800 transition duration-300 group-hover:bg-stone-200 group-hover:text-[#777E32] group-focus-within:border-[#777E32] group-focus-within:text-[#777E32]';
+
+  const triggerContent = (
+    <>
+      {item.name}
+      <svg
+        width="10"
+        height="6"
+        viewBox="0 0 10 6"
+        fill="none"
+        className="transition-transform duration-200 group-hover:rotate-180 group-focus-within:rotate-180"
+      >
+        <path
+          d="M1 1L5 5L9 1"
+          stroke="currentColor"
+          strokeWidth="1.5"
+          strokeLinecap="round"
+          strokeLinejoin="round"
+        />
+      </svg>
+    </>
+  );
 
   return (
     <div className="group relative flex flex-col items-center">
-      <button
-        type="button"
-        aria-haspopup="true"
-        className="h-40px flex cursor-default items-center gap-1.5 border-b-3 border-transparent px-4 py-2 font-medium text-neutral-800 transition duration-300 group-hover:bg-stone-200 group-hover:text-[#777E32] group-focus-within:border-[#777E32] group-focus-within:text-[#777E32]"
-      >
-        {item.name}
-        <svg
-          width="10"
-          height="6"
-          viewBox="0 0 10 6"
-          fill="none"
-          className="transition-transform duration-200 group-hover:rotate-180 group-focus-within:rotate-180"
+      {href ? (
+        <Link
+          href={href}
+          aria-haspopup="true"
+          onClick={(event) => event.currentTarget.blur()}
+          className={triggerClassName}
         >
-          <path
-            d="M1 1L5 5L9 1"
-            stroke="currentColor"
-            strokeWidth="1.5"
-            strokeLinecap="round"
-            strokeLinejoin="round"
-          />
-        </svg>
-      </button>
+          {triggerContent}
+        </Link>
+      ) : (
+        <button
+          type="button"
+          aria-haspopup="true"
+          className={cn(triggerClassName, 'cursor-default')}
+        >
+          {triggerContent}
+        </button>
+      )}
 
       {/*
         Static, untransformed hit-area: always full size and flush against the

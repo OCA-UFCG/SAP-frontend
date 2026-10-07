@@ -4,7 +4,10 @@
 
 O runtime pode ler estatísticas de uma `FeatureCollection` do Google Earth
 Engine (GEE) e convertê-las no mesmo patch `territorial-compact` já consumido
-pelo painel. Isso remove, para as camadas migradas, a obrigação de exportar CSV
+pelo painel. São duas formas de tabela: a **distribuição por classes**
+(`gee-feature-collection`, descrita a seguir) e a **tabela municipal de valor
+único** (`gee-municipal-value-table`, mais abaixo), em que a mesma
+FeatureCollection é a estatística e o asset do mapa. Isso remove, para as camadas migradas, a obrigação de exportar CSV
 para o Google Drive e publicar entradas `municipalAnalysis` no Contentful.
 
 As fontes legadas registradas estaticamente são:
@@ -52,6 +55,7 @@ processamento são diferentes:
 seleção de camada/período/território
   -> GET /api/municipal-analysis/{layer}?year={period}&locationKey={key}
   -> cache do servidor (layer + period + location)
+  -> cache de linhas da série (assets + location) -- uma leitura por território
   -> consulta filtrada à FeatureCollection GEE
   -> conversão para patch territorial-compact
   -> merge com os metadados do panelLayer
@@ -93,12 +97,18 @@ exato é:
 
 - `perc_classe_XX` e `area_ha_classe_XX`, com a grafia `classe`;
 - os dois grupos devem conter exatamente os mesmos índices;
-- índices inteiros contíguos, começando em `0` ou `1`;
+- índices inteiros únicos, sem exigência de valor inicial nem de sequência
+  contígua — a cobertura do solo do IBGE usa 1 a 6 e 9 a 14, porque 7 e 8 não
+  existem na legenda dela;
 - `NIVEL_AGRUPAMENTO`, `NOME_LOCAL`, `ano`, `data_img` e `area_total_ha`;
 - `CD_MUN` para linhas municipais e `NM_UF` para linhas estaduais/municipais;
 - uma única linha por período e localidade;
 - percentuais numéricos entre 0 e 100, totalizando `100 ± 0,2` (ou todos zero
   para representar ausência), na ordem semântica das classes do `panelLayer`.
+
+Um asset que não cumpre esse contrato é recusado com uma mensagem que lista
+todos os desvios encontrados, as colunas que ele tem e a forma de tabela que
+elas sugerem — ver "Fonte estatística e fonte de mapa" em `docs/index-catalog.md`.
 
 As quantidades e os nomes das classes visuais permanecem no `panelLayer`; o
 asset fornece os valores. Por isso, o adaptador valida que a quantidade inferida
@@ -117,6 +127,85 @@ O adaptador valida schema, números, quantidade de classes e duplicidade
 territorial. Linhas cujas classes são todas zero são reconhecidas como ausência
 de estatística e não viram distribuição no patch.
 
+## Segunda forma: tabela municipal de valor único
+
+Nem toda estatística é uma distribuição por classes. Os dados socioeconômicos
+chegam numa FeatureCollection **larga e só de municípios**: uma linha por
+município, uma coluna por período (`2004`, `2005`, …, `2025`) e um número em
+cada célula. A mesma FeatureCollection costuma ser também o asset do mapa, que a
+desenha com `reduceToImage` sobre a coluna do período — é o que Ulisses Alencar
+descreveu como "a estatística e o visualizador juntos".
+
+Essa forma tem o `kind` `gee-municipal-value-table`, definido em
+`src/contracts/geeMunicipalValueTable.ts`:
+
+```json
+{
+  "kind": "gee-municipal-value-table",
+  "asset": { "type": "fixed", "assetId": "projects/x/assets/pob_total" },
+  "periodGranularity": "year",
+  "valueProperty": "{year}",
+  "aggregation": "mean",
+  "properties": {
+    "municipalityCode": "CD_MUN",
+    "locationName": "NM_MUN",
+    "stateCode": "SIGLA_UF"
+  }
+}
+```
+
+### Contrato mínimo dos assets
+
+- uma linha por município, sem repetição, com o código IBGE de 7 dígitos;
+- o nome do município e a UF — sigla (`PB`) ou nome (`Paraíba`), as duas grafias
+  são aceitas por `resolveGeeStateCode`;
+- uma coluna por período. `valueProperty` aceita `{year}`, `{month}` e
+  `{period}`; numa FeatureCollection única ele **precisa** ter um placeholder,
+  senão todos os períodos leriam a mesma coluna e a série sairia plana;
+- nenhuma célula vazia nas colunas de período. Um vazio não estraga só aquele
+  período: `reduceColumns` descarta a feature inteira, então o município some de
+  todos os períodos e o total da UF sai menor sem nenhum erro. A validação do
+  catálogo recusa a tabela por isso.
+
+O período também pode vir do nome do asset (`pob_{year}` com uma coluna fixa
+`valor`) ou dos dois lados ao mesmo tempo (`renda_{year}` com colunas
+`mes_{month}`). `resolveValueTablePeriodColumns` junta as duas metades.
+
+### Como Brasil e UFs são calculados
+
+A tabela só tem municípios, então os demais níveis são derivados dentro do Earth
+Engine com `reduceColumns`, agrupando por UF: `sum` para contagens (registros do
+S2ID) e `mean` para percentuais (pobreza do CadÚnico). A escolha é do operador,
+no catálogo, porque só ele sabe o que o número significa.
+
+Conferido contra os valores que hoje estão no Contentful: `pob_total` em 2012 dá
+`br` 70,26653619764559 e `pb` 79,99618240130047 pela média, e
+`Municipios_S2ID_corrigido` em 2004 dá `br` 742 e `pb` 34 pela soma — os mesmos
+números, com todas as casas decimais.
+
+O recorte nacional volta em **uma** ida ao Earth Engine com o Brasil e as 27 UFs
+de todos os períodos: 1,4 s medido em `pob_total` (14 anos) e 1,7 s em
+`Municipios_S2ID_corrigido` (23 anos). Como a resposta é a mesma para qualquer
+recorte agregado, ela fica no cache sob a chave `aggregates`, e trocar de UF ou
+de período depois disso não custa ida nenhuma.
+
+Recortes de **região, bioma, ASD e semiárido ficam sem valor** nesta forma: eles
+exigiriam um cruzamento espacial que a tabela municipal não carrega. É o mesmo
+comportamento que as camadas socioeconômicas legadas já têm hoje, e a validação
+do catálogo devolve um aviso dizendo isso.
+
+Um período incompatível com a granularidade da fonte é recusado quando é ele o
+pedido, com a mesma mensagem do caminho classificatório. Os períodos vizinhos,
+que pegam carona na leitura da série, continuam sendo descartados em silêncio —
+não faz sentido derrubar o período pedido por causa de um vizinho inválido.
+
+### O que o painel mostra
+
+A camada tem **uma classe só** — o próprio indicador —, e `values` é um vetor de
+um valor por território. As faixas coloridas pertencem à legenda do mapa
+(`mapVisualization.legend` + `thresholds`), não à estatística. `valueConfig`
+carrega a unidade (`registros`, `%`) e o formato do número.
+
 ## Fallback e cache
 
 Quando o GEE responde, o resultado é autoritativo, inclusive quando não há
@@ -130,6 +219,67 @@ O cache em memória usa a chave `panelLayerId::year::locationKey`. O TTL padrão
 `MUNICIPAL_ANALYSIS_CACHE_TTL_SECONDS` e
 `MUNICIPAL_ANALYSIS_CACHE_MAX_ENTRIES`. Em uma implantação com múltiplas
 instâncias, cada processo mantém seu próprio cache.
+
+### A leitura no GEE é por território, não por período
+
+Abaixo daquele cache existe um segundo, em `geeStatisticsRowsCache.ts`, cuja
+chave é **a série inteira de assets** mais o território e as propriedades
+pedidas. Ele guarda todas as linhas daquele território, e o período é
+selecionado depois, em JavaScript, por `matchesStatisticsPeriod`.
+
+O motivo é que o preço de uma consulta ao Earth Engine é do round trip, e não do
+volume. Medido no índice de aridez do ERA5-Land, que tem 45 tabelas anuais:
+
+| Como se pede                   | Requisições | `2507507` | `br` (1 260 linhas) |
+| ------------------------------ | ----------: | --------: | ------------------: |
+| um `evaluate` por período      |          45 | 17 103 ms |           17 098 ms |
+| um `evaluate` com os 45 assets |           1 |  3 709 ms |            3 623 ms |
+| três `evaluate` de 15 assets   |           3 |         — |            2 968 ms |
+
+O território continua filtrado no GEE porque é ele que limita o tamanho da
+resposta — sem ele viriam as 5.573 linhas municipais. O período não limita nada,
+então filtrá-lo lá custava uma ida ao Earth Engine por período visível.
+
+As duas formas de fonte convergem para a mesma leitura:
+
+- **`fixed`** — um asset guarda todos os períodos, então a série é ele mesmo.
+- **`period-template`** — cada período resolve um `assetId`, e
+  `ee.FeatureCollection([...]).flatten()` junta os recortes antes de avaliar.
+  A lista costuma ser menor que a de períodos: o template do Monitor de Secas da
+  ANA é anual e a granularidade é mensal, então 30 períodos moram em 3 assets.
+
+O schema segue a mesma chave: o catálogo valida que todas as tabelas de um
+índice têm o mesmo conjunto de colunas, então uma leitura de `propertyNames()`
+responde pela série toda. Antes, abrir o índice de aridez do ERA5-Land custava
+45 leituras de schema **mais** 45 de linhas.
+
+Os assets entram em blocos de 15 (`SERIES_ASSETS_PER_REQUEST`) porque um asset
+inexistente derruba o pedido inteiro — com o nome dele no erro. O bloco limita
+quanto trabalho uma falha invalida e, medido, ainda é mais rápido que um pedido
+único.
+
+Os blocos não são de uma camada só. `geeStatisticsSeriesBatcher` junta numa
+janela de 20 ms as séries pedidas por camadas diferentes e preenche cada bloco
+com os assets de todas elas, porque o preço é o número de idas: elas correm em
+paralelo, mas dividem com todos os usuários do processo o teto de 20 leituras
+simultâneas do cliente do Earth Engine (`GEE_COMPUTE_CONCURRENCY`). No
+relatório municipal isso trocou ~23 idas por ~12, e o tempo de montagem caiu de
+10,5 s para 5,8 s num relatório estadual medido em desenvolvimento.
+
+Cada sub-coleção é marcada com o número do pedido (a coluna sintética
+`__pedido`), e é por ela que as linhas voltam para a camada certa. Se a marcação
+não voltar, o bloco é relido asset a asset em vez de arriscar entregar a linha
+de uma camada para outra — um erro que não apareceria como erro, e sim como
+número trocado no relatório.
+
+Quem passa a lista de períodos é o chamador: `attachMunicipalAnalysisYearToPanelLayer`
+usa as chaves de `imageData.years`, e a prévia do catálogo usa
+`validation.inferred.periods`. Sem essa lista o comportamento é o antigo, uma
+leitura só do período pedido.
+
+A publicação do catálogo limpa esse cache junto com os demais, em
+`refreshPublicIndexCaches`. O limite de entradas pode ser ajustado com
+`GEE_STATISTICS_ROWS_CACHE_MAX_ENTRIES`.
 
 ## Retirada do pipeline legado
 

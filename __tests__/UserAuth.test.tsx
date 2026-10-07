@@ -17,6 +17,12 @@ vi.mock("next/navigation", () => ({
   useRouter: () => ({ push: pushMock }),
 }));
 
+const navigateWithFullReloadMock = vi.fn();
+
+vi.mock("@/utils/fullPageNavigation", () => ({
+  navigateWithFullReload: (path: string) => navigateWithFullReloadMock(path),
+}));
+
 vi.mock("@/contexts/AuthContext", () => ({
   useAuth: vi.fn(),
 }));
@@ -41,6 +47,7 @@ function mockAuthValue(overrides: Partial<ReturnType<typeof useAuth>> = {}) {
 describe("UserAuth", () => {
   beforeEach(() => {
     pushMock.mockReset();
+    navigateWithFullReloadMock.mockReset();
     usePathnameMock.mockReset();
     useAuthMock.mockReset();
     usePathnameMock.mockReturnValue("/");
@@ -50,17 +57,18 @@ describe("UserAuth", () => {
     cleanup();
   });
 
-  it("shows the disconnected status and login action in the dropdown when there is no authenticated user", () => {
+  it("shows a plain Entrar action instead of the user menu when there is no authenticated user", () => {
     mockAuthValue();
 
     render(<UserAuth />);
 
-    fireEvent.click(screen.getByRole("button", { name: /menu do usuário/i }));
-
-    expect(screen.getByText("Status da sessão")).toBeInTheDocument();
-    expect(screen.getByText("Desconectado")).toBeInTheDocument();
     expect(screen.getByRole("button", { name: /entrar/i })).toBeInTheDocument();
-    expect(screen.queryByRole("button", { name: /sair/i })).not.toBeInTheDocument();
+    expect(
+      screen.queryByRole("button", { name: /menu do usuário/i }),
+    ).not.toBeInTheDocument();
+    expect(
+      screen.queryByRole("button", { name: /sair/i }),
+    ).not.toBeInTheDocument();
   });
 
   it("redirects to login when the disconnected user clicks Entrar", () => {
@@ -68,7 +76,6 @@ describe("UserAuth", () => {
 
     render(<UserAuth />);
 
-    fireEvent.click(screen.getByRole("button", { name: /menu do usuário/i }));
     fireEvent.click(screen.getByRole("button", { name: /entrar/i }));
 
     expect(pushMock).toHaveBeenCalledWith("/login");
@@ -93,7 +100,10 @@ describe("UserAuth", () => {
     fireEvent.click(screen.getByRole("button", { name: /sair/i }));
 
     await waitFor(() => expect(signOutMock).toHaveBeenCalledTimes(1));
-    expect(pushMock).toHaveBeenCalledWith("/login");
+    // Regressão: com `router.push`, um clique em "Plataforma" depois de sair
+    // era atendido pelo cache do router e abria a plataforma sem sessão.
+    expect(navigateWithFullReloadMock).toHaveBeenCalledWith("/login");
+    expect(pushMock).not.toHaveBeenCalled();
   });
 
   it("closes the dropdown when the pathname changes", async () => {

@@ -1,10 +1,15 @@
 import { getDocTemplate } from "./buildDocTemplate";
+import { getMunicipalReportLayerConfig } from "@/config/municipalReport";
 import { getTemplateData } from "./buildTemplateData";
 import type { DocsContent } from "./buildDocTemplate";
 import type { TemplateData } from "./buildTemplateData";
 import type { TimingObserver } from "@/utils/serverTiming";
-import type { MunicipalReportData } from "@/contracts/municipalReport";
+import type {
+  MunicipalReportData,
+  MunicipalReportDocsContent,
+} from "@/contracts/municipalReport";
 import { formatPercentage } from "@/utils/municipalReportValue";
+import { REPORT_SERIES_VARIABLE_KEYS } from "@/utils/reportSeriesVariables";
 
 const REPORT_LOCALE = "pt-BR";
 const TWO_DIGIT_PERCENTAGE_KEYS = new Set(["soma_percentual_deg_n3_n4_n5"]);
@@ -13,10 +18,14 @@ function formatTemplateNumber(key: string, value: number): string {
   if (TWO_DIGIT_PERCENTAGE_KEYS.has(key)) {
     return formatPercentage(value, REPORT_LOCALE, 2);
   }
+  // `variacao_` cobre os pontos percentuais de qualquer índice, inclusive o
+  // `variacao_deg_pontos` que antes era caso à parte. A diferença de um
+  // indicador de valor único chama-se `diferenca_valor` justamente para não
+  // cair aqui e ganhar uma casa decimal que ela não tem.
   if (
     key.startsWith("percentual_") ||
     key.startsWith("frequencia_") ||
-    key === "variacao_deg_pontos"
+    key.startsWith("variacao_")
   ) {
     return formatPercentage(value, REPORT_LOCALE);
   }
@@ -33,7 +42,37 @@ type BuildDocContentInput = {
   period: string;
   onTiming?: TimingObserver;
   report?: MunicipalReportData;
+  /**
+   * Texto escrito no catálogo, por camada. Substitui o bloco
+   * `[layer: <id>]` do Google Docs para as camadas que o trouxerem.
+   */
+  catalogSectionsByTheme?: MunicipalReportDocsContent;
 };
+
+/**
+ * As seções do Google Docs, ou nada quando o documento não pôde ser lido e o
+ * catálogo já respondeu pelo texto.
+ *
+ * Um índice cujo texto vem do catálogo não deve depender do documento para
+ * existir no relatório — é justamente o acoplamento que o catálogo veio
+ * remover. Sem texto nenhum do catálogo a falha continua sendo fatal, porque aí
+ * não há relatório a montar.
+ */
+async function loadDocsSections(
+  input: Parameters<typeof getDocTemplate>[0],
+  hasCatalogSections: boolean,
+): Promise<DocsContent> {
+  try {
+    return await getDocTemplate(input);
+  } catch (error) {
+    if (!hasCatalogSections) throw error;
+    console.warn(
+      "[municipalReportDocs] DOCS_DEFAULT indisponível; usando apenas o texto escrito no catálogo.",
+      error,
+    );
+    return {};
+  }
+}
 
 export async function buildDocContent({
   themes,
@@ -45,15 +84,17 @@ export async function buildDocContent({
   period,
   onTiming,
   report,
+  catalogSectionsByTheme,
 }: BuildDocContentInput) {
   const templateStartedAt = performance.now();
-  const baseTemplate = await getDocTemplate({
-    themes,
-    city,
-    state,
-    month,
-    year,
-  });
+  const catalogSections = catalogSectionsByTheme ?? {};
+  const docsSections = await loadDocsSections(
+    { themes, city, state, month, year },
+    Object.keys(catalogSections).length > 0,
+  );
+  // O texto do catálogo entra depois: para uma camada que o publicou, ele
+  // substitui o bloco do documento em vez de se somar a ele.
+  const baseTemplate: DocsContent = { ...docsSections, ...catalogSections };
   onTiming?.(
     "docs_template",
     performance.now() - templateStartedAt,
@@ -198,7 +239,49 @@ function getAliasedTemplateKey(
     return sequence[index] ?? sequence[sequence.length - 1];
   }
 
-  return aliasesByTheme[theme]?.[normalizedKey];
+  return (
+    aliasesByTheme[theme]?.[normalizedKey] ??
+    getLayerScopedTemplateKey(theme, normalizedKey)
+  );
+}
+
+/**
+ * As variáveis do relatório são por camada (`classe_indice_de_aridez`), mas quem
+ * escreve o texto de um índice no catálogo não conhece o id gerado para ele.
+ * Dentro da seção de uma camada, então, `[classe]` significa a classe daquela
+ * camada: é isso que este alias resolve.
+ *
+ * O tema de uma seção do catálogo é o próprio `panelLayer.id`, mas o sufixo das
+ * variáveis é o apelido de relatório daquela camada — que num índice legado é
+ * escrito à mão e difere do id (`indicearidez` -> `aridez`). Por isso o apelido
+ * é resolvido aqui em vez de o id ser normalizado direto: sem isso, as
+ * variáveis por camada de todo índice legado (as 8 de período e as de série)
+ * saíam do relatório com os colchetes literais. Um índice novo do catálogo não
+ * era afetado porque lá o apelido já é o id normalizado. Uma chave que não
+ * exista em `TemplateData` continua devolvendo `undefined`, e o colchete
+ * sobrevive literalmente, como antes.
+ */
+const LAYER_SCOPED_TEMPLATE_KEYS = new Set([
+  "indice",
+  "classe",
+  "percentual",
+  "valor",
+  "valor_com_unidade",
+  "unidade",
+  "periodo",
+  "periodo_extenso",
+  // Derivadas da tabela de variáveis de série, e não repetidas à mão: é o que
+  // impede a tela do catálogo de oferecer um `[classe_anterior]` que o
+  // relatório não produz.
+  ...REPORT_SERIES_VARIABLE_KEYS,
+]);
+
+function getLayerScopedTemplateKey(theme: string, normalizedKey: string) {
+  if (!LAYER_SCOPED_TEMPLATE_KEYS.has(normalizedKey)) return undefined;
+  const alias =
+    getMunicipalReportLayerConfig(theme)?.alias ?? normalizeTemplateKey(theme);
+
+  return alias ? `${normalizedKey}_${alias}` : undefined;
 }
 
 function normalizeTemplateDataKeys(data: TemplateData): TemplateData {

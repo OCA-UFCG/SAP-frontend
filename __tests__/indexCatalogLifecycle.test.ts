@@ -97,6 +97,22 @@ const config = {
   auditLog: [],
 };
 
+/** O `catalogConfig` de um legado adotado: sem estatísticas, mapa ou classes. */
+const presentationConfig = {
+  schemaVersion: 2 as const,
+  managedScope: "presentation" as const,
+  panelLayerId: "seca",
+  status: "published" as const,
+  name: "Seca",
+  description: "Teste",
+  category: "Dados Climáticos" as const,
+  measurementUnit: "classes",
+  createdBy: { ...user, at: "2026-09-01T10:00:00.000Z" },
+  updatedBy: { ...user, at: "2026-09-01T10:00:00.000Z" },
+  adoptedFrom: { at: "2026-09-01T10:00:00.000Z" },
+  auditLog: [],
+};
+
 function managementEntry(
   id: string,
   published = false,
@@ -119,6 +135,12 @@ function currentEntry(
     published?: boolean;
     legacy?: boolean;
     everPublished?: boolean;
+    /** Um legado adotado: config v2 em escopo de apresentação. */
+    presentation?: boolean;
+    /** Publicado, com uma escrita posterior na versão de rascunho. */
+    pendingChanges?: boolean;
+    /** Rascunho cuja validação foi apagada por uma edição da configuração. */
+    stale?: boolean;
   } = {},
 ) {
   const entry = managementEntry(
@@ -137,10 +159,25 @@ function currentEntry(
       description: "Teste",
       published: Boolean(options.published),
       everPublished: options.everPublished ?? Boolean(options.published),
-      hasUnpublishedChanges: false,
+      hasUnpublishedChanges: Boolean(options.pendingChanges),
       catalogManaged: !options.legacy,
       status: options.legacy ? "legacy" : "ready",
-      ...(options.legacy ? {} : { catalogConfig: config }),
+      ...(options.legacy
+        ? {}
+        : {
+            catalogConfig: options.presentation
+              ? presentationConfig
+              : options.stale
+                ? {
+                    ...config,
+                    status: "draft" as const,
+                    validation: undefined,
+                    validatedStatisticsSource: undefined,
+                  }
+                : options.published
+                  ? { ...config, status: "published" as const }
+                  : config,
+          }),
     },
   };
 }
@@ -148,6 +185,10 @@ function currentEntry(
 describe("index catalog v2 lifecycle", () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    // A publicação decide a posição do índice na categoria, e para isso lê a
+    // lista do catálogo.
+    contentful.listCatalogEntries.mockResolvedValue([]);
+    contentful.getLocalizedEntryField.mockReturnValue(undefined);
   });
 
   it("reports that only panelLayer is managed", async () => {
@@ -193,9 +234,52 @@ describe("index catalog v2 lifecycle", () => {
       expect.objectContaining({
         imageData: { years: {} },
         statisticsSource: source,
+        panelPosition: 0,
       }),
     );
     expect(contentful.publishManagementEntry).toHaveBeenCalledTimes(1);
+  });
+
+  it("republica um índice já publicado que recebeu texto do relatório", async () => {
+    // Regressão: `assertPublishable` exigia status "ready", e um índice
+    // publicado guarda "published". Salvar o texto do relatório ou recapturar a
+    // imagem do cartão grava no rascunho sem refazer a validação, então publicar
+    // essa correção caía em "Revalide os assets" — e a única saída era
+    // despublicar o índice e publicá-lo de novo.
+    const current = currentEntry({ published: true, pendingChanges: true });
+    contentful.getCatalogEntry.mockResolvedValue(current);
+    contentful.getManagementEntry.mockResolvedValue(current.entry);
+    contentful.patchManagementEntry.mockResolvedValue(
+      managementEntry("panel", true, 9),
+    );
+    contentful.publishManagementEntry.mockResolvedValue(
+      managementEntry("panel", true, 10),
+    );
+    buildCatalogDraft.mockResolvedValue({
+      panelLayerImageData: { years: {} },
+      validation,
+      statisticsSource: source,
+      classes: config.classes,
+      mapVisualization: {},
+    });
+
+    await expect(publishIndexCatalogEntry("panel", user)).resolves.toEqual({
+      entryId: "panel",
+      panelLayerId: "seca",
+      status: "published",
+    });
+    expect(contentful.publishManagementEntry).toHaveBeenCalledTimes(1);
+  });
+
+  it("continua recusando publicar um rascunho sem prévia validada", async () => {
+    contentful.getCatalogEntry.mockResolvedValue(
+      currentEntry({ published: true, pendingChanges: true, stale: true }),
+    );
+
+    await expect(publishIndexCatalogEntry("panel", user)).rejects.toThrow(
+      /Revalide os assets/u,
+    );
+    expect(buildCatalogDraft).not.toHaveBeenCalled();
   });
 
   it("allows unpublishing v2 and refuses lifecycle mutations for legacy", async () => {
@@ -213,7 +297,7 @@ describe("index catalog v2 lifecycle", () => {
       currentEntry({ legacy: true }),
     );
     await expect(publishIndexCatalogEntry("panel", user)).rejects.toThrow(
-      "apenas para consulta",
+      /não foi adotado/u,
     );
   });
 
@@ -245,6 +329,39 @@ describe("index catalog v2 lifecycle", () => {
       current.entry,
       expect.objectContaining({
         catalogConfig: expect.objectContaining({ status: "ready" }),
+      }),
+    );
+  });
+
+  it("mantém o índice como publicado quando a republicação falha", async () => {
+    // Regressão: o tratamento de erro gravava `status: "ready"` fixo, o que era
+    // certo enquanto publicar só podia partir de "ready". Numa republicação ele
+    // parte de "published", e rebaixar o status dizia que o índice tinha saído
+    // do ar — a versão publicada continua no Monitoramento.
+    const current = currentEntry({ published: true, pendingChanges: true });
+    contentful.getCatalogEntry.mockResolvedValue(current);
+    contentful.getManagementEntry.mockResolvedValue(current.entry);
+    contentful.patchManagementEntry.mockResolvedValue(
+      managementEntry("panel", true, 9),
+    );
+    contentful.publishManagementEntry.mockResolvedValue(
+      managementEntry("panel", false, 10),
+    );
+    buildCatalogDraft.mockResolvedValue({
+      panelLayerImageData: { years: {} },
+      validation,
+      statisticsSource: source,
+      classes: config.classes,
+      mapVisualization: {},
+    });
+
+    await expect(publishIndexCatalogEntry("panel", user)).rejects.toThrow(
+      "não confirmou a publicação",
+    );
+    expect(contentful.patchManagementEntry).toHaveBeenLastCalledWith(
+      current.entry,
+      expect.objectContaining({
+        catalogConfig: expect.objectContaining({ status: "published" }),
       }),
     );
   });
@@ -311,5 +428,70 @@ describe("index catalog v2 lifecycle", () => {
       deleteIndexCatalogEntry("panel", "seca", user),
     ).resolves.toEqual(expect.objectContaining({ deletedEntries: 1 }));
     expect(contentful.deleteManagementEntry).toHaveBeenCalledTimes(1);
+  });
+
+  it("nunca remove a entry de um legado adotado que já foi publicado", async () => {
+    // O `panelLayer` é a única cópia da configuração de um índice cujos valores
+    // moram nas partições `municipalAnalysis`: apagá-lo tiraria o índice da
+    // plataforma sem nada para reconstruí-lo.
+    contentful.getCatalogEntry.mockResolvedValue(
+      currentEntry({ published: true, presentation: true }),
+    );
+
+    await expect(
+      deleteIndexCatalogEntry("panel", "seca", user),
+    ).rejects.toThrow(/não remove a entry/u);
+    expect(contentful.deleteManagementEntry).not.toHaveBeenCalled();
+  });
+
+  it("remove o legado adotado que nunca foi publicado", async () => {
+    contentful.getCatalogEntry.mockResolvedValue(
+      currentEntry({ presentation: true }),
+    );
+    contentful.getManagementEntry.mockResolvedValue(
+      managementEntry("panel", false, 8),
+    );
+
+    await expect(
+      deleteIndexCatalogEntry("panel", "seca", user),
+    ).resolves.toEqual(expect.objectContaining({ deletedEntries: 1 }));
+  });
+
+  it("remove o rascunho de teste que o catálogo nunca adotou nem publicou", async () => {
+    // Os rascunhos com `catalogConfig` v1 não podem ser adotados (não têm
+    // imageData) e ficariam sem nenhuma ação na tela se a remoção exigisse
+    // adoção. Nada nunca foi publicado a partir deles.
+    contentful.getCatalogEntry.mockResolvedValue(
+      currentEntry({ legacy: true }),
+    );
+    contentful.getManagementEntry.mockResolvedValue(
+      managementEntry("panel", false, 8),
+    );
+
+    await expect(
+      deleteIndexCatalogEntry("panel", "seca", user),
+    ).resolves.toEqual(expect.objectContaining({ deletedEntries: 1 }));
+  });
+
+  it("não remove a entry publicada que o catálogo não gerencia", async () => {
+    contentful.getCatalogEntry.mockResolvedValue(
+      currentEntry({ legacy: true, published: true }),
+    );
+
+    await expect(
+      deleteIndexCatalogEntry("panel", "seca", user),
+    ).rejects.toThrow(/não é gerenciado pelo catálogo/u);
+    expect(contentful.deleteManagementEntry).not.toHaveBeenCalled();
+  });
+
+  it("recusa revalidar e reescrever a configuração de um legado adotado", async () => {
+    contentful.getCatalogEntry.mockResolvedValue(
+      currentEntry({ published: true, presentation: true }),
+    );
+
+    await expect(
+      updateIndexCatalogDraft("panel", { name: "Seca" }, user),
+    ).rejects.toThrow(/apenas a apresentação/u);
+    expect(contentful.patchManagementEntry).not.toHaveBeenCalled();
   });
 });

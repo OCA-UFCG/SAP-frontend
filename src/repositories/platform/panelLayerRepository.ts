@@ -1,4 +1,7 @@
-import { getContent } from "@/infrastructure/contentful/client";
+import {
+  CONTENTFUL_COLLECTION_LIMIT,
+  getContent,
+} from "@/infrastructure/contentful/client";
 import {
   attachMunicipalAnalysisToPanelLayer,
   attachMunicipalAnalysisToPanelLayers,
@@ -6,12 +9,20 @@ import {
 } from "@/repositories/platform/municipalAnalysisRepository";
 import { validateImageDataContract } from "@/contracts/imageDataContract.mjs";
 import { PanelLayerI } from "@/utils/interfaces";
-import { keepOnlyFutureForecastPeriods } from "@/utils/imageData";
+import {
+  keepOnlyCurrentSeasonPeriod,
+  keepOnlyFutureForecastPeriods,
+} from "@/utils/imageData";
+import { hasSeasonalPeriods } from "@/utils/seasonalPeriod";
 import { tryParsePublishedGeeStatisticsSource } from "@/contracts/geeStatistics";
+import { tryParsePublishedPanelLayerReportConfig } from "@/contracts/panelLayerReport";
 
+// O Contentful devolve no máximo 100 itens quando a query não pede `limit`, e
+// os que passarem disso somem sem erro nenhum. `CONTENTFUL_COLLECTION_LIMIT` é o
+// teto explícito para a lista continuar completa quando o catálogo crescer.
 const GET_PANEL_LAYER = `
   query GetPanelLayer {
-    panelLayerCollection {
+    panelLayerCollection(limit: ${CONTENTFUL_COLLECTION_LIMIT}) {
       items {
         sys {
           id
@@ -33,35 +44,7 @@ const GET_PANEL_LAYER = `
         timeScale
         reportSeriesConfig
         statisticsSource
-      }
-    }
-  }
-`;
-
-const GET_PANEL_LAYER_BY_ID = `
-  query GetPanelLayerById($id: String!) {
-    panelLayerCollection(limit: 1, where: { id: $id }) {
-      items {
-        sys {
-          id
-        }
-        name
-        id
-        description
-        panelPosition
-        previewMap {
-          url
-          title
-          width
-          height
-        }
-        imageData
-        minScale
-        maxScale
-        category
-        timeScale
-        reportSeriesConfig
-        statisticsSource
+        reportConfig
       }
     }
   }
@@ -81,15 +64,39 @@ const PANEL_LAYERS_FETCH_OPTIONS = {
   next: { revalidate: 3600, tags: [PANEL_LAYERS_CACHE_TAG] },
 };
 
+const OPTIONAL_PANEL_LAYER_FIELDS = [
+  "reportSeriesConfig",
+  "statisticsSource",
+  "reportConfig",
+] as const;
+
+/**
+ * A mesma query com cada combinação de campos opcionais removida, da mais
+ * completa para a mais enxuta.
+ *
+ * Um ambiente cujo content type ainda não recebeu
+ * `npm run contentful:ensure-index-catalog` rejeita a query inteira por causa
+ * de um único campo desconhecido, então a leitura degrada em vez de falhar.
+ * Enumerar as combinações à mão deixou de caber quando os campos opcionais
+ * passaram de dois para três.
+ */
 function queryVariants(query: string) {
-  return [
-    query,
-    query.replace("\n        reportSeriesConfig", ""),
-    query.replace("\n        statisticsSource", ""),
-    query
-      .replace("\n        reportSeriesConfig", "")
-      .replace("\n        statisticsSource", ""),
-  ];
+  const removals = OPTIONAL_PANEL_LAYER_FIELDS.reduce<string[][]>(
+    (combinations, field) => [
+      ...combinations,
+      ...combinations.map((removed) => [...removed, field]),
+    ],
+    [[]],
+  );
+
+  return removals
+    .sort((left, right) => left.length - right.length)
+    .map((removed) =>
+      removed.reduce(
+        (text, field) => text.replace(`\n        ${field}`, ""),
+        query,
+      ),
+    );
 }
 
 interface PanelLayerResponse {
@@ -157,15 +164,39 @@ function normalizePanelLayer(layer: PanelLayerI) {
     );
   }
 
+  const reportConfig = tryParsePublishedPanelLayerReportConfig(
+    layer.reportConfig,
+  );
+  if (layer.reportConfig && !reportConfig) {
+    console.warn(
+      `[panelLayerRepository] reportConfig inválido para panelLayer ${layer.id}; o texto do relatório caiu para o Google Docs.`,
+    );
+  }
+
   return {
     ...layer,
-    imageData: keepOnlyFutureForecastPeriods(layer.id, layer.imageData),
+    imageData: keepOnlyCurrentSeasonPeriod(
+      keepOnlyFutureForecastPeriods(layer.id, layer.imageData),
+      Boolean(statisticsSource && hasSeasonalPeriods({ statisticsSource })),
+    ),
     ...(statisticsSource ? { statisticsSource } : { statisticsSource: null }),
+    ...(reportConfig ? { reportConfig } : { reportConfig: null }),
   };
 }
 
 function normalizePanelLayers(items: Array<PanelLayerI | null> = []) {
   return items.filter(isDefined).map(normalizePanelLayer);
+}
+
+/**
+ * Campo desconhecido volta do Contentful como HTTP 400, e só isso justifica
+ * tentar a variante seguinte da query. Um 5xx é o Contentful fora do ar: as
+ * variantes mais enxutas falhariam igual e só multiplicariam as chamadas
+ * enquanto ele se recupera.
+ */
+function isContentfulUnavailable(error: unknown) {
+  const status = (error as { status?: unknown } | null)?.status;
+  return typeof status === "number" && status >= 500;
 }
 
 async function loadPanelLayersFromContentful(): Promise<PanelLayerI[]> {
@@ -182,6 +213,7 @@ async function loadPanelLayersFromContentful(): Promise<PanelLayerI[]> {
       );
     } catch (error) {
       firstError ??= error;
+      if (isContentfulUnavailable(error)) break;
     }
   }
   console.error(
@@ -284,27 +316,15 @@ export async function getPanelLayerWithMunicipalAnalysisYear(
   );
 }
 
+/**
+ * Procura na mesma lista memoizada de `getPanelLayers`, em vez de uma query
+ * própria por id: os chamadores em paralelo dividem um único carregamento, e um
+ * id ainda não publicado não fica guardado como "não encontrado" — aparece
+ * assim que a lista é recarregada.
+ */
 export async function getPanelLayerById(
   panelLayerId: string,
 ): Promise<PanelLayerI | null> {
-  let firstError: unknown;
-  for (const query of queryVariants(GET_PANEL_LAYER_BY_ID)) {
-    try {
-      const data = await getContent<PanelLayerResponse>(
-        query,
-        { id: panelLayerId },
-        PANEL_LAYERS_FETCH_OPTIONS,
-      );
-      const panelLayer =
-        data.panelLayerCollection?.items?.find(isDefined) ?? null;
-      return panelLayer ? normalizePanelLayer(panelLayer) : null;
-    } catch (error) {
-      firstError ??= error;
-    }
-  }
-  console.error(
-    "Erro ao buscar camada da plataforma no Contentful:",
-    firstError,
-  );
-  return null;
+  const panelLayers = await getCachedPanelLayers();
+  return panelLayers.find((layer) => layer.id === panelLayerId) ?? null;
 }

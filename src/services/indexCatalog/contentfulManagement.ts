@@ -4,11 +4,26 @@ import type {
   IndexCatalogConfig,
   IndexCatalogItem,
 } from "@/types/indexCatalog";
-import { isIndexCatalogConfigV2 } from "@/types/indexCatalog";
+import {
+  isManagedCatalogConfig,
+  isPresentationManagedCatalogConfig,
+} from "@/types/indexCatalog";
 import { reconcileCatalogPublicationStatus } from "@/utils/indexCatalog";
 
 const CONTENTFUL_RETRYABLE_STATUS = new Set([429, 500, 502, 503, 504]);
 const DEFAULT_LOCALE = "en-US";
+
+/**
+ * Campos `Object` que o catálogo escreve no `panelLayer` e que o content type
+ * precisa ter antes da primeira escrita — o Contentful rejeita uma entry com
+ * campo desconhecido, e sem `reportConfig` o índice publicado seguiria
+ * dependendo de uma seção no Google Docs para ter texto no relatório.
+ */
+const CATALOG_PANEL_LAYER_FIELDS = [
+  { id: "catalogConfig", name: "Configuração do catálogo" },
+  { id: "statisticsSource", name: "Fonte estatística GEE" },
+  { id: "reportConfig", name: "Texto do Relatório Automático" },
+] as const;
 
 export interface ContentfulManagementConfig {
   spaceId: string;
@@ -158,7 +173,7 @@ function toReconciledCatalogConfig(
   config: IndexCatalogConfig | undefined,
   published: boolean,
 ) {
-  if (!isIndexCatalogConfigV2(config)) {
+  if (!isManagedCatalogConfig(config)) {
     return null;
   }
 
@@ -186,7 +201,6 @@ function toCatalogItem(
 
   const managedConfig = toReconciledCatalogConfig(config, published);
   const effectiveConfig = managedConfig ?? config;
-
   return {
     entryId: entry.sys.id,
     panelLayerId:
@@ -206,15 +220,29 @@ function toCatalogItem(
     category:
       getLocalizedEntryField<string>(entry, "category", locale) ??
       (typeof config?.category === "string" ? config.category : undefined),
-    panelPosition: getLocalizedEntryField<number>(
-      entry,
-      "panelPosition",
-      locale,
-    ),
+    // A posição pedida no catálogo vem antes da que está publicada: ela é o que
+    // o formulário tem de reabrir mostrando, e é sobre ela que o aviso de
+    // posição ocupada precisa avisar. O número em vigor continua no campo da
+    // entry, e é ele que a publicação troca (`resolvePanelPositionPlan`).
+    panelPosition:
+      (typeof effectiveConfig?.panelPosition === "number"
+        ? effectiveConfig.panelPosition
+        : undefined) ??
+      getLocalizedEntryField<number>(entry, "panelPosition", locale),
     published,
     everPublished: Boolean(entry.sys.firstPublishedAt ?? entry.sys.publishedAt),
     hasUnpublishedChanges,
+    measurementUnit: getLocalizedEntryField<string>(
+      entry,
+      "measurementUnit",
+      locale,
+    ),
     catalogManaged: Boolean(managedConfig),
+    managedScope: managedConfig
+      ? isPresentationManagedCatalogConfig(managedConfig)
+        ? "presentation"
+        : "full"
+      : null,
     status: managedConfig
       ? published && !hasUnpublishedChanges
         ? "published"
@@ -372,52 +400,41 @@ export async function deleteManagementEntry(entry: ContentfulManagementEntry) {
   );
 }
 
+const OPTIONAL_PANEL_LAYER_FIELDS = new Set(["previewMap", "measurementUnit"]);
+
 export async function ensureIndexCatalogContentModel() {
   const contentType = await contentfulManagementFetch<ContentfulContentType>(
     "/content_types/panelLayer",
     { method: "GET" },
     "Leitura do content type panelLayer",
   );
-  const catalogField = contentType.fields.find(
-    (field) => field.id === "catalogConfig",
-  );
-  const statisticsSourceField = contentType.fields.find(
-    (field) => field.id === "statisticsSource",
+  const existing = new Set(contentType.fields.map((field) => field.id));
+  const missing = CATALOG_PANEL_LAYER_FIELDS.filter(
+    (field) => !existing.has(field.id),
   );
   const previewMap = contentType.fields.find(
     (field) => field.id === "previewMap",
   );
-  const needsCatalogField = !catalogField;
-  const needsStatisticsSourceField = !statisticsSourceField;
   const needsOptionalPreview = Boolean(previewMap?.required);
+  // Um índice sem unidade (IDH) grava `measurementUnit` vazio, e o Contentful
+  // recusa publicar uma entry com campo obrigatório em branco.
+  const measurementUnit = contentType.fields.find(
+    (field) => field.id === "measurementUnit",
+  );
+  const needsOptionalUnit = Boolean(measurementUnit?.required);
 
-  if (
-    !needsCatalogField &&
-    !needsStatisticsSourceField &&
-    !needsOptionalPreview
-  ) {
+  if (missing.length === 0 && !needsOptionalPreview && !needsOptionalUnit) {
     return { changed: false };
   }
 
   const fields = contentType.fields.map((field) =>
-    field.id === "previewMap" ? { ...field, required: false } : field,
+    OPTIONAL_PANEL_LAYER_FIELDS.has(field.id)
+      ? { ...field, required: false }
+      : field,
   );
-  if (needsCatalogField) {
+  for (const field of missing) {
     fields.push({
-      id: "catalogConfig",
-      name: "Configuração do catálogo",
-      type: "Object",
-      localized: false,
-      required: false,
-      validations: [],
-      disabled: false,
-      omitted: false,
-    });
-  }
-  if (needsStatisticsSourceField) {
-    fields.push({
-      id: "statisticsSource",
-      name: "Fonte estatística GEE",
+      ...field,
       type: "Object",
       localized: false,
       required: false,

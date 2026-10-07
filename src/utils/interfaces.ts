@@ -4,6 +4,7 @@ import type {
   LayerAnalysisConfig,
 } from "@/utils/analysis";
 import type { PublishedGeeStatisticsSource } from "@/contracts/geeStatistics";
+import type { PublishedPanelLayerReportConfig } from "@/contracts/panelLayerReport";
 
 export interface DataCardsI {
   noDroughtAreaValue: number;
@@ -77,6 +78,7 @@ export interface StatCardI {
 
 export interface ThematicAxisI {
   title: string;
+  description?: string;
   executor: string;
   executorActionsCount: number;
   partners: string[];
@@ -91,6 +93,7 @@ export interface ActionPlanSectionI {
   };
   stats: StatCardI[];
   axesTitle: string;
+  axesDescription: string;
   axes: ThematicAxisI[];
 }
 
@@ -112,6 +115,12 @@ export interface WorkingGroupSectionI {
 export interface PlatformModuleI {
   title: string;
   description: string;
+  image?: string;
+  /** CSS object-position for the background photo. Defaults to "50% 50%". */
+  imagePosition?: string;
+  /** Zoom applied to the photo, anchored to the card's left edge. Defaults to 1. */
+  imageZoom?: number;
+  href?: string;
 }
 
 export interface PlatformModulesSectionI {
@@ -247,6 +256,8 @@ export interface PanelLayerI {
   timeScale?: string;
   reportSeriesConfig?: MunicipalReportSeriesConfig | null;
   statisticsSource?: PublishedGeeStatisticsSource | null;
+  /** Texto do Relatório Automático escrito no catálogo, quando existe. */
+  reportConfig?: PublishedPanelLayerReportConfig | null;
   tileApiPath?: string;
   municipalAnalysisApiPath?: string;
 }

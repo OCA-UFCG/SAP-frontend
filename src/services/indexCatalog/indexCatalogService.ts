@@ -1,6 +1,14 @@
 import "server-only";
 
 import type { AuthenticatedUserSession } from "@/lib/server-session";
+import { isMunicipalSpreadsheetSource } from "@/contracts/municipalSpreadsheet";
+import {
+  buildSpreadsheetYearPatch,
+  selectMunicipalSpreadsheetValues,
+} from "@/repositories/platform/municipalSpreadsheetRepository";
+import { getDraftSpreadsheetSnapshot } from "@/services/indexCatalog/draftSpreadsheetSnapshot";
+import { readDraftClassificationSample } from "@/services/indexCatalog/classificationSampleReader";
+import { publishSpreadsheetSnapshot } from "@/services/indexCatalog/spreadsheetSnapshotStorage";
 import { getGeeStatisticsYearPatch } from "@/repositories/platform/geeStatisticsRepository";
 import {
   buildCatalogDraft,
@@ -21,22 +29,30 @@ import {
 } from "@/services/indexCatalog/contentfulManagement";
 import {
   catalogTimestamp,
+  requireFullyManagedConfig,
   requireManagedConfig,
   withAuditEvent,
 } from "@/services/indexCatalog/catalogConfigAudit";
+import { preparePanelPositionForPublish } from "@/services/indexCatalog/panelPositionPublication";
 import { getIndexCatalogPreviewMapUrl } from "@/services/indexCatalog/previewMapService";
+import { publishIndexCatalogPresentation } from "@/services/indexCatalog/presentationService";
 import {
+  isFullyManagedCatalogConfig,
+  isPresentationManagedCatalogConfig,
   type CatalogValidationReport,
+  type IndexCatalogBuildResult,
   type IndexCatalogConfigV2,
+  type IndexCatalogItem,
   type IndexCatalogDraftInput,
   type IndexCatalogLifecycleImpact,
   type IndexCatalogPreview,
 } from "@/types/indexCatalog";
 import {
+  catalogLayerClassCount,
   createCatalogPanelLayerId,
+  hasPublishableValidation,
   makeUniqueCatalogPanelLayerId,
   parseIndexCatalogDraftInput,
-  resolvePanelPositionInCategory,
 } from "@/utils/indexCatalog";
 
 function toInitialConfig(
@@ -59,6 +75,19 @@ function toInitialConfig(
   });
 }
 
+/**
+ * A unidade que o painel de análise mostra ao lado do valor.
+ *
+ * Uma tabela classificatória é sempre percentual — cada classe ocupa uma fatia
+ * da área —, mas um índice de valor único tem a unidade do próprio indicador:
+ * "registros", "pessoas", "%".
+ */
+function resolveMeasurementUnit(input: {
+  valueIndicator?: { measurementUnit: string };
+}) {
+  return input.valueIndicator?.measurementUnit ?? "%";
+}
+
 export async function createIndexCatalogDraft(
   rawInput: unknown,
   user: AuthenticatedUserSession,
@@ -75,7 +104,7 @@ export async function createIndexCatalogDraft(
     id: panelLayerId,
     name: input.name,
     description: input.description,
-    measurementUnit: "%",
+    measurementUnit: resolveMeasurementUnit(input),
     category: input.category,
     catalogConfig: config,
   });
@@ -119,9 +148,13 @@ export async function updateIndexCatalogDraft(
   rawInput: unknown,
   user: AuthenticatedUserSession,
 ) {
-  const input = parseIndexCatalogDraftInput(rawInput);
+  // O escopo é conferido antes de validar o corpo: um legado adotado enviado
+  // para esta rota tem de ouvir que ela não é dele, e não "Categoria inválida".
   const current = await getCatalogEntry(entryId);
-  const previous = requireManagedConfig(current);
+  const previous = requireFullyManagedConfig(current);
+  const input = parseIndexCatalogDraftInput(rawInput);
+  // A unidade pode chegar em branco, e só publica se o campo for opcional.
+  if (!resolveMeasurementUnit(input)) await ensureIndexCatalogContentModel();
   const panelLayerId = await resolveDraftPanelLayerId(
     current.entry,
     previous,
@@ -144,7 +177,7 @@ export async function updateIndexCatalogDraft(
     id: panelLayerId,
     name: input.name,
     description: input.description,
-    measurementUnit: "%",
+    measurementUnit: resolveMeasurementUnit(input),
     category: input.category,
     catalogConfig: config,
   });
@@ -205,11 +238,10 @@ export async function generateIndexCatalogPreview(
   user: AuthenticatedUserSession,
 ) {
   const current = await getCatalogEntry(entryId);
-  const config = requireManagedConfig(current);
+  const config = requireFullyManagedConfig(current);
 
   try {
     const build = await buildCatalogDraft(config);
-    const entries = await listCatalogEntries();
     const readyConfig = withAuditEvent(
       {
         ...config,
@@ -228,13 +260,11 @@ export async function generateIndexCatalogPreview(
         id: config.panelLayerId,
         name: config.name,
         description: config.description,
-        measurementUnit: "%",
+        measurementUnit: resolveMeasurementUnit(config),
         category: config.category,
-        panelPosition: resolvePanelPositionInCategory(
-          entries,
-          config.category,
-          entryId,
-        ),
+        // A prévia não mexe na ordem do Monitoramento de propósito: o campo
+        // `panelPosition` é escrito na publicação, que é onde a troca com o
+        // índice que já ocupava a posição pode ser aplicada nas duas entries.
         timeScale: build.validation.inferred.timeScale,
         imageData: build.panelLayerImageData,
         statisticsSource: build.statisticsSource,
@@ -272,7 +302,7 @@ export async function generateIndexCatalogPreview(
 
 export async function getIndexCatalogPreview(entryId: string) {
   const current = await getCatalogEntry(entryId);
-  const config = requireManagedConfig(current);
+  const config = requireFullyManagedConfig(current);
   return buildCatalogPreviewResponse(current.entry, current.locale, config);
 }
 
@@ -282,24 +312,121 @@ export async function getIndexCatalogDraftMunicipalData(
   locationKey: string,
 ) {
   const current = await getCatalogEntry(entryId);
-  const config = requireManagedConfig(current);
+  const config = requireFullyManagedConfig(current);
   if (!config.validation?.valid || !config.validatedStatisticsSource) {
     return null;
+  }
+
+  // Um índice de planilha não passa pelo Earth Engine: a prévia lê a própria
+  // planilha, guardada em memória pela validação. O asset publicado fica fora
+  // disso de propósito — ele pertence à versão que está no ar, e um rascunho
+  // que o lesse mostraria os valores antigos como se fossem os novos.
+  if (isMunicipalSpreadsheetSource(config.validatedStatisticsSource)) {
+    const snapshot = await getDraftSpreadsheetSnapshot(
+      config.validatedStatisticsSource,
+    );
+    return {
+      imageData: buildSpreadsheetYearPatch(snapshot, year, locationKey),
+    };
   }
 
   const result = await getGeeStatisticsYearPatch(
     config.panelLayerId,
     year,
     locationKey,
-    config.classes.length,
+    catalogLayerClassCount(config.validatedStatisticsSource, config.classes),
     config.validatedStatisticsSource,
+    // A prévia do catálogo reusa o painel de análise, então ela dispara um
+    // pedido por período do rascunho. Passar os períodos já inferidos na
+    // validação faz essa tela custar uma leitura do Earth Engine em vez de uma
+    // por ano — é onde a espera mais incomoda, porque é onde se publica.
+    config.validation.inferred.periods,
   );
   return result ? { imageData: result.patch } : null;
 }
 
+/**
+ * Os valores municipais de um rascunho de planilha, para a coropleta da prévia.
+ *
+ * Devolve `null` quando o índice não vem de planilha: nas demais formas o mapa
+ * da prévia é um tile do Earth Engine, servido por `drafts/[entryId]/ee`.
+ */
+export async function getIndexCatalogDraftChoroplethValues(
+  entryId: string,
+  year: string,
+) {
+  const current = await getCatalogEntry(entryId);
+  const config = requireFullyManagedConfig(current);
+  if (!isMunicipalSpreadsheetSource(config.validatedStatisticsSource)) {
+    return null;
+  }
+  const snapshot = await getDraftSpreadsheetSnapshot(
+    config.validatedStatisticsSource,
+  );
+  return selectMunicipalSpreadsheetValues(snapshot, year);
+}
+
+/**
+ * A distribuição de valores de um rascunho num período, para a tela calcular os
+ * limites das faixas por um método de classificação.
+ *
+ * Fica numa leitura própria, e não junto da validação, porque o operador troca
+ * de método e de quantidade de faixas várias vezes seguidas: a amostra é lida
+ * uma vez e todos os métodos rodam sobre ela no navegador.
+ */
+export async function getIndexCatalogDraftClassificationSample(
+  entryId: string,
+  year: string,
+) {
+  const current = await getCatalogEntry(entryId);
+  const config = requireFullyManagedConfig(current);
+  return readDraftClassificationSample(config, year);
+}
+
+/**
+ * Publicar exige uma prévia válida gravada — e é isso que se confere, não o
+ * `status` sozinho.
+ *
+ * Um índice já publicado tem `status: "published"`, e exigir `"ready"` tornava
+ * impossível republicá-lo: corrigir o texto do relatório ou recapturar a imagem
+ * do cartão grava na versão de rascunho de propósito, sem tocar na validação,
+ * e a publicação dessa correção caía aqui com "Revalide os assets" mesmo com a
+ * prévia intacta. `draft` e `error` continuam recusados porque nos dois a
+ * validação foi apagada ou marcada inválida, e a conferência que realmente
+ * protege o índice público segue sendo a impressão digital reconferida em
+ * `publishIndexCatalogDraft`.
+ *
+ * A regra de status é `hasPublishableValidation`, compartilhada com a tela: é
+ * ela que decide se o botão "Republicar" aparece, e as duas separadas deixariam
+ * um botão visível para um estado que esta função recusa.
+ */
+/**
+ * A fonte estatística que vai para a entry publicada.
+ *
+ * Para toda forma vinda do Earth Engine ela é a própria saída da validação; só
+ * a planilha precisa de uma escrita, porque os seus valores não moram num asset
+ * do GEE e sim num arquivo JSON que este é o momento de gravar.
+ */
+async function storePublishedStatisticsSource(
+  panelLayerId: string,
+  build: IndexCatalogBuildResult,
+) {
+  if (
+    !isMunicipalSpreadsheetSource(build.statisticsSource) ||
+    !build.spreadsheetSnapshot
+  ) {
+    return build.statisticsSource;
+  }
+  return publishSpreadsheetSnapshot(
+    panelLayerId,
+    build.spreadsheetSnapshot,
+    build.statisticsSource,
+  );
+}
+
 function assertPublishable(config: IndexCatalogConfigV2) {
   if (
-    config.status !== "ready" ||
+    !hasPublishableValidation(config.status) ||
     !config.validation?.valid ||
     !config.validatedStatisticsSource
   ) {
@@ -312,7 +439,7 @@ export async function publishIndexCatalogDraft(
   user: AuthenticatedUserSession,
 ) {
   const current = await getCatalogEntry(entryId);
-  const config = requireManagedConfig(current);
+  const config = requireFullyManagedConfig(current);
   assertPublishable(config);
 
   try {
@@ -325,13 +452,28 @@ export async function publishIndexCatalogDraft(
         "Os assets ou a configuração mudaram desde a última prévia. Revalide antes de publicar.",
       );
     }
+    // Só aqui, com a publicação já decidida, o índice de planilha escreve no
+    // Contentful. Antes da conferência acima, uma publicação recusada teria
+    // trocado o arquivo que a produção lê.
+    const statisticsSource = await storePublishedStatisticsSource(
+      config.panelLayerId,
+      build,
+    );
+    const position = await preparePanelPositionForPublish({
+      entryId,
+      entry: current.entry,
+      locale: current.locale,
+      category: config.category,
+      requestedPosition: config.panelPosition,
+      user,
+    });
     const publishedConfig = withAuditEvent(
       {
         ...config,
         classes: build.classes,
         status: "published",
         validation: build.validation,
-        validatedStatisticsSource: build.statisticsSource,
+        validatedStatisticsSource: statisticsSource,
         updatedBy: { uid: user.uid, email: user.email, at: catalogTimestamp() },
       },
       user,
@@ -340,8 +482,9 @@ export async function publishIndexCatalogDraft(
     const latestPanelLayer = await patchManagementEntry(
       await getManagementEntry(entryId),
       {
+        panelPosition: position.position,
         imageData: build.panelLayerImageData,
-        statisticsSource: build.statisticsSource,
+        statisticsSource,
         catalogConfig: publishedConfig,
       },
     );
@@ -354,16 +497,22 @@ export async function publishIndexCatalogDraft(
         `O Contentful não confirmou a publicação da entry ${entryId}: sys.publishedAt ausente. O índice continuaria em rascunho e fora do Monitoramento.`,
       );
     }
+    const positionNote = await position.applySwap();
     return {
       entryId: published.sys.id,
       panelLayerId: config.panelLayerId,
       status: "published" as const,
+      ...(positionNote ? { positionNote } : {}),
     };
   } catch (error) {
+    // O `status` fica como estava antes da tentativa — o spread de `config` o
+    // preserva de propósito. Escrever `"ready"` aqui era certo enquanto
+    // publicar só podia partir de `"ready"`; numa republicação ele parte de
+    // `"published"`, e rebaixá-lo diria que o índice saiu do ar quando a
+    // versão publicada continua no Monitoramento.
     const failedConfig = withAuditEvent(
       {
         ...config,
-        status: "ready",
         updatedBy: { uid: user.uid, email: user.email, at: catalogTimestamp() },
       },
       user,
@@ -388,7 +537,8 @@ export async function getIndexCatalogLifecycleImpact(
   entryId: string,
 ): Promise<IndexCatalogLifecycleImpact> {
   const current = await getCatalogEntry(entryId);
-  requireManagedConfig(current);
+  // A mesma regra da remoção: esta é a tela que a confirma.
+  requireDeletablePanelLayerId(current.item);
   return {
     item: current.item,
     linkedEntries: [],
@@ -414,7 +564,11 @@ export async function publishIndexCatalogEntry(
       status: "published" as const,
     };
   }
-  return publishIndexCatalogDraft(entryId, user);
+  // Um legado adotado não tem assets a revalidar: publicar é levar ao ar a
+  // versão de rascunho da entry, com o texto e a imagem que já foram gravados.
+  return isPresentationManagedCatalogConfig(config)
+    ? publishIndexCatalogPresentation(entryId, user)
+    : publishIndexCatalogDraft(entryId, user);
 }
 
 export async function unpublishIndexCatalogEntry(
@@ -465,14 +619,53 @@ async function deleteEntryCompletely(entry: ContentfulManagementEntry) {
   }
 }
 
+/**
+ * O catálogo remove a entry de um índice que ele mesmo criou, ou de um rascunho
+ * que nunca foi publicado. Um legado que já esteve no ar é diferente: o
+ * `panelLayer` dele é a única cópia da configuração de um índice cujos valores
+ * moram nas partições `municipalAnalysis`, e apagá-lo tiraria o índice da
+ * plataforma sem nada para reconstruí-lo.
+ */
+function assertDeletable(item: IndexCatalogItem) {
+  if (!item.everPublished) return;
+
+  if (isPresentationManagedCatalogConfig(item.catalogConfig)) {
+    throw new Error(
+      `${item.panelLayerId} é um índice legado que já foi publicado: o catálogo gerencia a apresentação dele, mas não remove a entry. Use “Despublicar” para tirá-lo do Monitoramento.`,
+    );
+  }
+  if (!isFullyManagedCatalogConfig(item.catalogConfig)) {
+    throw new Error(
+      `${item.panelLayerId} já foi publicado e não é gerenciado pelo catálogo, então o catálogo não remove a entry dele.`,
+    );
+  }
+}
+
+/**
+ * O ID técnico que a remoção confere, para qualquer entry que o catálogo possa
+ * remover. Vem do item, e não do `catalogConfig`, porque uma entry que nunca
+ * foi publicada pode ser removida sem ter sido adotada — é o caso dos rascunhos
+ * de teste com `catalogConfig` v1, que de outra forma ficariam sem nenhuma ação
+ * disponível na tela.
+ */
+function requireDeletablePanelLayerId(item: IndexCatalogItem) {
+  assertDeletable(item);
+  if (!item.panelLayerId.trim()) {
+    throw new Error(
+      `A entry ${item.entryId} não tem o campo id preenchido, então não há ID técnico para confirmar a remoção.`,
+    );
+  }
+  return item.panelLayerId;
+}
+
 export async function deleteIndexCatalogEntry(
   entryId: string,
   confirmation: string,
   user: AuthenticatedUserSession,
 ) {
   const current = await getCatalogEntry(entryId);
-  const config = requireManagedConfig(current);
-  if (confirmation.trim() !== config.panelLayerId) {
+  const panelLayerId = requireDeletablePanelLayerId(current.item);
+  if (confirmation.trim() !== panelLayerId) {
     throw new Error(
       "Confirme a remoção informando exatamente o ID técnico do índice.",
     );
@@ -482,7 +675,7 @@ export async function deleteIndexCatalogEntry(
     action: "delete",
     outcome: "success",
     entryId,
-    panelLayerId: config.panelLayerId,
+    panelLayerId,
     deletedEntries: 1,
     uid: user.uid,
     email: user.email,
@@ -490,7 +683,7 @@ export async function deleteIndexCatalogEntry(
   });
   return {
     entryId,
-    panelLayerId: config.panelLayerId,
+    panelLayerId,
     status: "deleted" as const,
     deletedEntries: 1,
   };

@@ -29,14 +29,15 @@ export const MOCK_ACTION_PLAN_CONTENT: ActionPlanSectionI = {
     },
   },
   stats: [
-    { value: "38", label: "objetivos estratégicos" },
-    { value: "186", label: "ações com indicadores" },
-    { value: "5", label: "eixos temáticos" },
-    { value: "18", label: "ministérios envolvidos" },
-    { value: "1,6 mil+", label: "municípios em ASD" },
-    { value: "39 mi", label: "pessoas beneficiadas" },
+    { value: "39M", label: "Pessoas beneficiadas" },
+    { value: "38", label: "Objetivos Estratégicos" },
+    { value: "186", label: "Ações com indicadores" },
+    { value: "05", label: "Eixos Temáticos" },
+    { value: "18", label: "Ministérios envolvidos" },
+    { value: "1,6M+", label: "Municípios em ASD" },
   ],
   axesTitle: "Eixos temáticos",
+  axesDescription: "Veja os 5 eixos que estruturam o plano e onde o SEDES atua.",
   axes: [
     {
       title: "Gestão sustentável e neutralidade da degradação da terra",
@@ -54,10 +55,12 @@ export const MOCK_ACTION_PLAN_CONTENT: ActionPlanSectionI = {
     },
     {
       title: "Pesquisa, inovação e gestão da informação",
+      description:
+        "Eixo responsável por estruturar dados, indicadores e conhecimento técnico-científico para o combate à desertificação.",
       executor: "MMA",
       executorActionsCount: 12,
       partners: ["MEC", "MCTI", "ANA", "INPE", "CEMADEN", "INSA"],
-      actionsCount: 30,
+      actionsCount: 38,
       isSedesAxis: true,
     },
     {
@@ -128,16 +131,27 @@ export const MOCK_PLATFORM_MODULES_CONTENT: PlatformModulesSectionI = {
   modules: [
     {
       title: "Monitoramento",
+      image: "/modules/monitoramento.jpg",
+      imagePosition: "50% 41.8%",
+      imageZoom: 1.372,
+      href: "/platform",
       description:
         "Camadas oficiais de dados, integradas a partir de instituições do GT (ANA, CEMADEN, OCA, IBGE, INPE, Embrapa, CPTEC/INPE). Dados sobre seca, clima, meio ambiente e socioeconômicos.",
     },
     {
       title: "Análise",
+      image: "/modules/analise.jpg",
+      imagePosition: "50% 68%",
+      imageZoom: 1.372,
+      href: "/platform/amfe",
       description:
         "Modelo multicritério com pesos configuráveis, com o objetivo de priorizar ações no território. Os pesos são pactuados coletivamente pelo GT-SEDES.",
     },
     {
       title: "Comunicação",
+      image: "/modules/comunicacao.jpg",
+      imagePosition: "50% 57.6%",
+      href: "/platform?section=communication",
       description:
         "Dois produtos automatizados em PDF: o Relatório Analítico, customizável por variável e escala (Brasil, estado ou município), e o Boletim Oficial, com validação institucional.",
     },

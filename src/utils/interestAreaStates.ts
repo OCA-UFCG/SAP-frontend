@@ -50,3 +50,32 @@ export function getAllowedStateUfs(
 
   return allowed;
 }
+
+/**
+ * Returns the region name for a given state UF (lowercase),
+ * or null if the UF is not found.
+ */
+export function getStateRegion(uf: string): string | null {
+  return stateAreas[uf.toLowerCase()]?.region ?? null;
+}
+
+/**
+ * Returns the biome names a given state UF (lowercase) belongs to,
+ * or an empty array if the UF is not found.
+ */
+export function getStateBiomes(uf: string): string[] {
+  return stateAreas[uf.toLowerCase()]?.biomes ?? [];
+}
+
+/**
+ * Returns all lowercase UFs that belong to a given region name.
+ */
+export function getRegionStateUfs(region: string): string[] {
+  const ufs: string[] = [];
+  for (const [uf, areas] of Object.entries(stateAreas)) {
+    if (areas.region === region) {
+      ufs.push(uf);
+    }
+  }
+  return ufs;
+}

@@ -5,8 +5,9 @@ import {
   noStoreJson,
   requireCatalogAccess,
 } from "@/app/api/index-catalog/http";
-import { getIndexCatalogPreview } from "@/services/indexCatalog/indexCatalogService";
+import { resolveCatalogPreviewTileLayer } from "@/services/indexCatalog/presentationService";
 import {
+  resolveImageCollectionPeriod,
   resolveImageCollectionSelection,
   resolveImageYearEntry,
 } from "@/utils/imageData";
@@ -36,8 +37,12 @@ export async function POST(request: Request, context: DraftEeRouteContext) {
     }
 
     const { entryId } = await context.params;
-    const preview = await getIndexCatalogPreview(decodeURIComponent(entryId));
-    const layer = preview.panelLayer;
+    // Resolve a camada pelos campos da entry, e não pela prévia validada: um
+    // índice legado adotado nunca terá validação, mas tem `imageId` por
+    // período, que é tudo de que o Earth Engine precisa para o tile.
+    const layer = await resolveCatalogPreviewTileLayer(
+      decodeURIComponent(entryId),
+    );
     const yearConfig = resolveImageYearEntry(layer.imageData, year);
 
     if (!yearConfig) {
@@ -48,6 +53,7 @@ export async function POST(request: Request, context: DraftEeRouteContext) {
     }
     const imageCollectionSelection =
       resolveImageCollectionSelection(yearConfig);
+    const imageCollectionPeriod = resolveImageCollectionPeriod(yearConfig);
 
     const cacheKey = buildCacheKey(
       `catalog-preview:${entryId}:${layer.id}`,
@@ -74,6 +80,7 @@ export async function POST(request: Request, context: DraftEeRouteContext) {
         mapVisualization: yearConfig.mapVisualization,
         spatialSelection: spatial.selection,
         ...(imageCollectionSelection ? { imageCollectionSelection } : {}),
+        ...(imageCollectionPeriod ? { imageCollectionPeriod } : {}),
       },
     );
     addUrlToCache(cacheKey, tileUrl);

@@ -2,6 +2,7 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 import { gzipSync } from "node:zlib";
 
 vi.mock("@/infrastructure/contentful/client", () => ({
+  CONTENTFUL_COLLECTION_LIMIT: 200,
   getContent: vi.fn(),
 }));
 
@@ -13,6 +14,7 @@ import { getContent } from "@/infrastructure/contentful/client";
 import { getGeeStatisticsYearPatch } from "@/repositories/platform/geeStatisticsRepository";
 import {
   clearPanelLayersCache,
+  getPanelLayerById,
   getPanelLayers,
   getPanelLayerWithMunicipalAnalysis,
   getPanelLayerWithMunicipalAnalysisYear,
@@ -641,7 +643,7 @@ describe("panelLayerRepository", () => {
     expect(imageData.years["2020-01"]).toBeUndefined();
   });
 
-  it("fetches a single panel layer by id before attaching municipal analysis", async () => {
+  it("finds a single panel layer in the panel layers list before attaching municipal analysis", async () => {
     mockedGetContent.mockImplementation(async (query: string) => {
       if (query.includes("municipalAnalysisCollection")) {
         return buildMunicipalAnalysisResponse([]);
@@ -670,8 +672,8 @@ describe("panelLayerRepository", () => {
 
     expect(layer?.id).toBe("CDI_Test");
     expect(mockedGetContent).toHaveBeenCalledWith(
-      expect.stringContaining("GetPanelLayerById"),
-      { id: "CDI_Test" },
+      expect.stringContaining("query GetPanelLayer "),
+      undefined,
       { next: { revalidate: 3600, tags: ["panel-layers"] } },
     );
     expect(mockedGetContent).toHaveBeenCalledWith(
@@ -818,11 +820,15 @@ describe("panelLayerRepository", () => {
       years: Record<string, { values: Record<string, number[]> }>;
     };
 
+    // Os períodos publicados fecham a chamada: é com eles que o repositório lê
+    // a série inteira numa ida ao Earth Engine em vez de uma por período.
     expect(mockedGetGeeStatisticsYearPatch).toHaveBeenCalledWith(
       "carbonoembrapa",
       "2020-01",
       "2507507",
       2,
+      null,
+      ["2020-01"],
     );
     expect(imageData.years["2020-01"]?.values["2507507"]).toEqual([125, 875]);
   });
@@ -946,6 +952,7 @@ describe("panelLayerRepository", () => {
       "br",
       1,
       source,
+      ["2025"],
     );
     expect(
       mockedGetContent.mock.calls.some(([query]) =>
@@ -1197,5 +1204,78 @@ describe("panelLayerRepository", () => {
 
     expect(failed).toEqual([]);
     expect(recovered[0]?.id).toBe("layer-1");
+  });
+
+  // Regressão: cada uma das oito variantes da query (uma por combinação dos
+  // campos opcionais) era tentada também quando o Contentful respondia 503, e
+  // cada chamador de `getPanelLayerById` fazia a sua própria rodada.
+  it("calls Contentful once when it answers 503, however many callers ask by id", async () => {
+    mockedGetContent.mockRejectedValue(
+      Object.assign(new Error("Contentful request failed with status 503"), {
+        status: 503,
+      }),
+    );
+    vi.spyOn(console, "error").mockImplementation(() => {});
+
+    const layers = await Promise.all(
+      Array.from({ length: 8 }, () => getPanelLayerById("layer-1")),
+    );
+
+    expect(layers).toEqual(Array(8).fill(null));
+    expect(mockedGetContent).toHaveBeenCalledTimes(1);
+  });
+
+  it("still tries the leaner query variants when Contentful rejects a field", async () => {
+    mockedGetContent
+      .mockRejectedValueOnce(
+        Object.assign(new Error("Contentful request failed with status 400"), {
+          status: 400,
+        }),
+      )
+      .mockResolvedValue(
+        buildPanelLayerResponse([
+          {
+            sys: { id: "sys-1" },
+            id: "layer-1",
+            name: "Layer 1",
+            description: "Layer 1",
+            previewMap: { url: "https://example.com/map.png" },
+            imageData: buildValidImageData(),
+          },
+        ]),
+      );
+
+    const layer = await getPanelLayerById("layer-1");
+
+    expect(layer?.id).toBe("layer-1");
+    expect(mockedGetContent).toHaveBeenCalledTimes(2);
+  });
+
+  it("does not remember a layer as missing once the list is reloaded", async () => {
+    const publishedLayer = {
+      sys: { id: "sys-1" },
+      id: "layer-1",
+      name: "Layer 1",
+      description: "Layer 1",
+      previewMap: { url: "https://example.com/map.png" },
+      imageData: buildValidImageData(),
+    };
+    mockedGetContent.mockResolvedValue(
+      buildPanelLayerResponse([{ ...publishedLayer, id: "other-layer" }]),
+    );
+
+    const beforePublish = await getPanelLayerById("layer-1");
+
+    mockedGetContent.mockResolvedValue(
+      buildPanelLayerResponse([
+        { ...publishedLayer, id: "other-layer" },
+        publishedLayer,
+      ]),
+    );
+    clearPanelLayersCache();
+    const afterPublish = await getPanelLayerById("layer-1");
+
+    expect(beforePublish).toBeNull();
+    expect(afterPublish?.id).toBe("layer-1");
   });
 });

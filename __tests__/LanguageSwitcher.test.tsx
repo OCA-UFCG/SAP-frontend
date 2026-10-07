@@ -3,6 +3,7 @@ import {
   fireEvent,
   render,
   screen,
+  within,
 } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { LanguageSwitcher } from "@/components/LanguageSwitcher/LanguageSwitcher";
@@ -28,13 +29,14 @@ describe("LanguageSwitcher", () => {
     cleanup();
   });
 
-  it("renders the language selector with the active locale", () => {
+  it("renders the language selector with the active language as an acronym", () => {
     render(<LanguageSwitcher />);
 
-    expect(
-      screen.getByRole("button", { name: /alterar idioma/i }),
-    ).toBeInTheDocument();
-    expect(screen.getByText("pt")).toBeInTheDocument();
+    const langBtn = screen.getByRole("button", { name: /alterar idioma/i });
+
+    expect(langBtn).toBeInTheDocument();
+    expect(langBtn).toHaveTextContent("PT-BR");
+    expect(langBtn).not.toHaveTextContent("Português");
   });
 
   it("toggles the language menu and shows language options", () => {
@@ -43,9 +45,14 @@ describe("LanguageSwitcher", () => {
     const langBtn = screen.getByRole("button", { name: /alterar idioma/i });
     fireEvent.click(langBtn);
 
-    expect(screen.getByText("Português")).toBeInTheDocument();
-    expect(screen.getByText("English")).toBeInTheDocument();
-    expect(screen.getByText("Español")).toBeInTheDocument();
+    const options = screen.getByRole("listbox");
+
+    expect(within(options).getByText("PT-BR")).toBeInTheDocument();
+    expect(within(options).getByText("Português")).toBeInTheDocument();
+    expect(within(options).getByText("EN")).toBeInTheDocument();
+    expect(within(options).getByText("English")).toBeInTheDocument();
+    expect(within(options).getByText("ES")).toBeInTheDocument();
+    expect(within(options).getByText("Español")).toBeInTheDocument();
   });
 
   it("calls router.replace with selected language when clicked", () => {

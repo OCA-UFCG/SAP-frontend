@@ -1,7 +1,11 @@
 "use client";
+import { useEffect, useState } from "react";
+import { useLinkStatus } from "next/link";
 import { Link } from "@/translations/routing";
 import { Chevron } from "../Chevron/Chevron";
 import { Icon } from "../Icon/Icon";
+import { PLATFORM_SHELL_HEIGHT_CLASS } from "@/components/PlatformLayout/platformShell";
+import { APPROVALS_PATH } from "@/config/accessRoutes";
 import clsx from "clsx";
 import { useTranslations } from "next-intl";
 
@@ -27,6 +31,9 @@ export interface PlatformSideRailProps {
   /** Whether the authenticated viewer can access the logs dashboard. */
   showAuditLink?: boolean;
 
+  /** Seção cuja navegação está em voo, para a trilha dizer que está indo. */
+  pendingSection?: PlatformSection | null;
+
   className?: string;
 }
 
@@ -39,11 +46,115 @@ type PlatformRailItem =
     }
   | {
       kind: "link";
-      id: "logs" | "catalog";
+      id: "logs" | "catalog" | "approvals";
       href: string;
       label: string;
       icon: string;
     };
+
+function RailPendingSpinner() {
+  const t = useTranslations("PlatformSideRail");
+
+  return (
+    <span
+      role="status"
+      aria-label={t("loading")}
+      className="h-6 w-6 animate-spin rounded-full border-2 border-[#E1E2B4] border-t-[#777E32]"
+    />
+  );
+}
+
+/**
+ * Quantos pedidos de acesso esperam decisão. Busca depois que a trilha aparece,
+ * e não junto com a plataforma, para a conta nunca atrasar a abertura do mapa.
+ * Falhar aqui só esconde o número: a tela de aprovação continua a um clique.
+ */
+function usePendingApprovalsCount(enabled: boolean) {
+  const [count, setCount] = useState(0);
+
+  useEffect(() => {
+    if (!enabled) return;
+
+    let active = true;
+
+    fetch("/api/signup/pending-count", { cache: "no-store" })
+      .then((response) => (response.ok ? response.json() : null))
+      .then((body: { count?: unknown } | null) => {
+        if (active && typeof body?.count === "number") setCount(body.count);
+      })
+      .catch(() => undefined);
+
+    return () => {
+      active = false;
+    };
+  }, [enabled]);
+
+  return count;
+}
+
+function RailBadge({ count }: { count: number }) {
+  const t = useTranslations("PlatformSideRail");
+
+  return (
+    <span
+      aria-label={t("pendingApprovals", { count })}
+      className="absolute -right-2.5 -top-1.5 flex h-[18px] min-w-[18px] items-center justify-center rounded-full bg-[#B3261E] px-1 text-[10px] font-semibold leading-none text-white"
+    >
+      {count > 99 ? "99+" : count}
+    </span>
+  );
+}
+
+function RailItemContent({
+  icon,
+  label,
+  isPending,
+  badge = 0,
+}: {
+  icon: string;
+  label: string;
+  isPending: boolean;
+  badge?: number;
+}) {
+  return (
+    <>
+      <div className="relative flex items-center justify-center">
+        {isPending ? <RailPendingSpinner /> : <Icon id={icon} size={24} />}
+        {badge > 0 && !isPending ? <RailBadge count={badge} /> : null}
+      </div>
+
+      <div className="text-[12px] leading-[14px] font-medium text-center break-words w-full px-1">
+        {label}
+      </div>
+    </>
+  );
+}
+
+/**
+ * Auditoria e catálogo são links de verdade, e o Next avisa quando a navegação
+ * daquele link está em voo. Sem isso a trilha fica parada por perto de um
+ * segundo depois do clique, sem sinal nenhum de que algo aconteceu.
+ */
+function RailLinkContent({
+  icon,
+  label,
+  badge,
+}: {
+  icon: string;
+  label: string;
+  badge?: number;
+}) {
+  const { pending } = useLinkStatus();
+
+  return (
+    <RailItemContent
+      icon={icon}
+      label={label}
+      isPending={pending}
+      badge={badge}
+    />
+  );
+}
 
 /**
  * PlatformSideRail
@@ -61,19 +172,21 @@ export function PlatformSideRail({
   isPanelOpen,
   onTogglePanel,
   showAuditLink = false,
+  pendingSection = null,
   className,
 }: PlatformSideRailProps) {
   const t = useTranslations("PlatformSideRail");
+  const pendingApprovals = usePendingApprovalsCount(showAuditLink);
 
   const items: PlatformRailItem[] = [
     { kind: "section", id: "monitoring", label: t("monitoring"), icon: "eye" },
-    { kind: "section", id: "analysis", label: t("analysis"), icon: "chart" },
     {
       kind: "section",
       id: "communication",
       label: t("communication"),
       icon: "calendar",
     },
+    { kind: "section", id: "analysis", label: t("analysis"), icon: "chart" },
   ];
 
   if (showAuditLink) {
@@ -91,12 +204,24 @@ export function PlatformSideRail({
       label: t("catalog"),
       icon: "chart",
     });
+    // Sem este item, a tela de aprovação só era alcançável pelo link dentro do
+    // e-mail de aviso — então uma falha de envio deixava os pedidos invisíveis,
+    // acumulando sem ninguém saber que existiam.
+    items.push({
+      kind: "link",
+      id: "approvals",
+      href: APPROVALS_PATH,
+      label: t("approvals"),
+      icon: "user",
+    });
   }
 
   return (
     <div
       className={clsx(
-        "sticky top-16 relative h-[calc(100vh-64px)] w-[140px] shrink-0 self-start",
+        // `top-16.5` acompanha a altura real do cabeçalho; `max-h-full` impede
+        // que a trilha ultrapasse a casca e invada o rodapé nas telas que rolam.
+        `sticky top-16.5 relative max-h-full w-[140px] shrink-0 self-start ${PLATFORM_SHELL_HEIGHT_CLASS}`,
         className,
       )}
       data-platform-side-rail
@@ -108,18 +233,6 @@ export function PlatformSideRail({
               item.kind === "section"
                 ? item.id === activeSection
                 : activeSection === item.id;
-
-            const itemContent = (
-              <>
-                <div className={clsx("flex items-center justify-center")}>
-                  <Icon id={item.icon} size={24} />
-                </div>
-
-                <div className="text-[12px] leading-[14px] font-medium text-center break-words w-full px-1">
-                  {item.label}
-                </div>
-              </>
-            );
 
             return (
               <div
@@ -136,6 +249,7 @@ export function PlatformSideRail({
                     type="button"
                     onClick={() => onSectionChange(item.id)}
                     aria-current={isActive ? "page" : undefined}
+                    aria-busy={pendingSection === item.id || undefined}
                     className={clsx(
                       "cursor-pointer w-full h-[88px] flex flex-col items-center justify-center gap-[4px] px-[8px] rounded-lg transition-colors duration-150",
                       isActive
@@ -143,7 +257,11 @@ export function PlatformSideRail({
                         : "text-[#292829] hover:bg-[#F8F7F8]",
                     )}
                   >
-                    {itemContent}
+                    <RailItemContent
+                      icon={item.icon}
+                      label={item.label}
+                      isPending={pendingSection === item.id}
+                    />
                   </button>
                 ) : (
                   <Link
@@ -156,7 +274,13 @@ export function PlatformSideRail({
                         : "text-[#292829] hover:bg-[#F8F7F8]",
                     )}
                   >
-                    {itemContent}
+                    <RailLinkContent
+                      icon={item.icon}
+                      label={item.label}
+                      badge={
+                        item.id === "approvals" ? pendingApprovals : undefined
+                      }
+                    />
                   </Link>
                 )}
               </div>
@@ -168,20 +292,20 @@ export function PlatformSideRail({
       {activeSection !== "analysis" &&
         activeSection !== "logs" &&
         activeSection !== "catalog" && (
-        <div
-          className={`absolute top-1/2 -translate-y-1/2 transition-[right] duration-300 ease-in-out ${isPanelOpen ? "-right-[460px]" : "-right-[39px]"}`}
-        >
-          <button
-            type="button"
-            onClick={onTogglePanel}
-            className="h-10 w-10 rounded-r-lg border border-neutral-200 bg-white shadow-sm flex items-center justify-center"
+          <div
+            className={`absolute top-1/2 -translate-y-1/2 transition-[right] duration-300 ease-in-out ${isPanelOpen ? "-right-[460px]" : "-right-[39px]"}`}
           >
-            <span className="cursor-pointer text-sm font-bold">
-              <Chevron open={isPanelOpen} from="left" to="right" />
-            </span>
-          </button>
-        </div>
-      )}
+            <button
+              type="button"
+              onClick={onTogglePanel}
+              className="h-10 w-10 rounded-r-lg border border-neutral-200 bg-white shadow-sm flex items-center justify-center"
+            >
+              <span className="cursor-pointer text-sm font-bold">
+                <Chevron open={isPanelOpen} from="left" to="right" />
+              </span>
+            </button>
+          </div>
+        )}
     </div>
   );
 }

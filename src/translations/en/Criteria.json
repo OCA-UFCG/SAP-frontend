@@ -1,0 +1,44 @@
+{
+  "Criteria": {
+    "ia_mean": {
+      "label": "Aridity Index",
+      "description": "Municipal mean aridity index."
+    },
+    "spe_mean_per": {
+      "label": "Drought Index",
+      "description": "Municipal mean percentage of the SPE indicator."
+    },
+    "area_deg54_mun": {
+      "label": "Degraded Area",
+      "description": "Municipal area classified as degraded."
+    },
+    "pobreza_rural_2021": {
+      "label": "Rural Poverty",
+      "description": "Municipal rural poverty indicator for 2021."
+    },
+    "ips": {
+      "label": "Social Progress Index",
+      "description": "Assesses whether people have what they need to live and thrive, using the Social Progress Imperative methodology."
+    },
+    "ivcm": {
+      "label": "Climate Vulnerability Index",
+      "description": "Residents' risk of being affected by climate events in 2024, estimated by Instituto Votorantim."
+    },
+    "seca_grave_6_meses": {
+      "label": "Recorded Drought",
+      "description": "Percentage of the highest drought classes (severe, extreme, and exceptional) recorded over the last 6 months by ANA's Drought Monitor."
+    },
+    "anomalia_out_2026": {
+      "label": "Precipitation Anomaly",
+      "description": "Precipitation anomaly forecast by CPTEC/INPE for October 2026."
+    },
+    "mulheres_produtoras_2017": {
+      "label": "Women Producers",
+      "description": "Maximum percentage of women producers in the municipality, according to the 2017 Agricultural Census."
+    },
+    "produtores_associados_2017": {
+      "label": "Producers in Cooperatives",
+      "description": "Maximum percentage of producers affiliated with cooperatives by municipality, according to the 2017 Agricultural Census."
+    }
+  }
+}

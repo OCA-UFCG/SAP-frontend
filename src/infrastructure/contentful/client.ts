@@ -1,5 +1,14 @@
 import "server-only";
 
+/**
+ * Teto explícito para as queries de coleção. Sem um `limit`, o Contentful
+ * devolve 100 itens e descarta o resto sem erro nenhum, então uma coleção que
+ * cresce passa a chegar incompleta em silêncio. 200 fica bem acima das maiores
+ * coleções de hoje (20 `panelLayer`, 16 termos de glossário) e bem abaixo do
+ * limite de complexidade da API.
+ */
+export const CONTENTFUL_COLLECTION_LIMIT = 200;
+
 interface ContentfulGraphQLResponse<T> {
   data?: T;
   errors?: Array<{ message?: string }>;
@@ -83,7 +92,13 @@ export async function getContent<T>(
   });
 
   if (!response.ok) {
-    throw new Error(`Contentful request failed with status ${response.status}`);
+    // O `status` vai junto para quem chama separar uma query recusada (400,
+    // por exemplo um campo que o ambiente ainda não tem) de um Contentful fora
+    // do ar (5xx), em que tentar outra query não adianta.
+    throw Object.assign(
+      new Error(`Contentful request failed with status ${response.status}`),
+      { status: response.status },
+    );
   }
 
   const json = (await response.json()) as ContentfulGraphQLResponse<T>;

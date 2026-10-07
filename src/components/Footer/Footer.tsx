@@ -39,18 +39,15 @@ export const Footer = ({ content }: { content: FooterI[] }) => {
           <div className="flex flex-row items-center gap-6 lg:min-h-8 lg:items-center">
             {mainPages.map(({ id, path, name }) => {
               const href =
-                path === "/about"
-                  ? "/"
-                  : path === "/map"
-                    ? "/platform"
-                    : path;
+                path === "/about" ? "/" : path === "/map" ? "/platform" : path;
 
               const translationKey = pathKeyMap[path];
-              const label = translationKey && t.has(translationKey)
-                ? t(translationKey)
-                : path === "/map"
-                  ? t("platform")
-                  : name;
+              const label =
+                translationKey && t.has(translationKey)
+                  ? t(translationKey)
+                  : path === "/map"
+                    ? t("platform")
+                    : name;
 
               const link = (
                 <a
@@ -81,29 +78,25 @@ export const Footer = ({ content }: { content: FooterI[] }) => {
           </div>
         </div>
 
-        <div className="flex w-full flex-col items-center gap-4 lg:ml-auto lg:w-auto lg:items-end">
-          <div className="flex flex-wrap items-center justify-center gap-6 lg:justify-end">
-            <Image
-              width="2442"
-              height="524"
-              src="/partners/mma-logo.png"
-              alt="Ministério do Meio Ambiente e Mudança do Clima"
-              className="h-12 w-auto brightness-0 invert"
-            />
-            <Image
-              width="1485"
-              height="755"
-              src="/partners/oca.png"
-              alt="Observatório da Caatinga e Desertificação"
-              className="h-10 w-auto"
-            />
-          </div>
-
-          <div className="flex flex-col gap-3 lg:items-end">
-            <div className="flex flex-wrap justify-center lg:justify-end">
-              <SocialChannels channels={channels} size={32} />
-            </div>
-          </div>
+        {/* Logos e redes ficam na mesma linha porque o Figma prevê um rodapé de
+            uma faixa só (153px): empilhá-los somava a altura das duas linhas e
+            era o que fazia o rodapé roubar a tela na plataforma. */}
+        <div className="flex w-full flex-wrap items-center justify-center gap-6 lg:ml-auto lg:w-auto lg:justify-end">
+          <Image
+            width="2442"
+            height="524"
+            src="/partners/mma-logo.png"
+            alt="Ministério do Meio Ambiente e Mudança do Clima"
+            className="h-12 w-auto brightness-0 invert"
+          />
+          <Image
+            width="1485"
+            height="755"
+            src="/partners/oca.png"
+            alt="Observatório da Caatinga e Desertificação"
+            className="h-10 w-auto"
+          />
+          <SocialChannels channels={channels} size={32} />
         </div>
       </div>
     </footer>

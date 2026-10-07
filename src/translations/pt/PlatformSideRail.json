@@ -4,6 +4,9 @@
     "analysis": "Análise",
     "communication": "Comunicação",
     "logs": "Auditoria",
-    "catalog": "Catálogo de índices"
+    "catalog": "Catálogo de índices",
+    "loading": "Carregando",
+    "approvals": "Aprovações",
+    "pendingApprovals": "Pedidos aguardando decisão: {count}"
   }
 }

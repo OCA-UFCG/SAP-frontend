@@ -14,6 +14,7 @@ import {
   clearActiveLayerState,
   createInitialMapLayerState,
   MapLayerState,
+  type ReferenceLayerId,
   resetPlatformState as resetPlatformStateValue,
   setActiveLegendValue,
   setActiveYearValue,
@@ -21,6 +22,8 @@ import {
   setSelectedMunicipalityCodeValue,
   setSelectedStateValue,
   setSpatialSelection,
+  toggleReferenceHighlightValue,
+  toggleReferenceOverlayValue,
 } from "@/components/MapLayerContext/mapLayerState";
 import type { CDIVectorData } from "@/lib/geo";
 
@@ -39,6 +42,8 @@ interface MapLayerActions {
   clearActiveLayer: () => void;
   resetPlatformState: () => void;
   setLayerOpacity: (opacity: number) => void;
+  toggleReferenceOverlay: (layerId: ReferenceLayerId) => void;
+  toggleReferenceHighlight: (layerId: ReferenceLayerId) => void;
 }
 
 type MapLayerActiveState = Pick<
@@ -48,7 +53,14 @@ type MapLayerActiveState = Pick<
 
 type MapLayerViewState = Pick<
   MapLayerState,
-  "activeLegend" | "selectedState" | "selectedMunicipalityCode" | "activeYear" | "spatialSelection" | "layerOpacity"
+  | "activeLegend"
+  | "selectedState"
+  | "selectedMunicipalityCode"
+  | "activeYear"
+  | "spatialSelection"
+  | "layerOpacity"
+  | "referenceOverlays"
+  | "highlightedReferenceOverlay"
 >;
 
 interface MapLayerContextValue
@@ -81,8 +93,8 @@ export function MapLayerProvider({ children }: { children: React.ReactNode }) {
   }, []);
 
   const setLayerOpacity = useCallback((opacity: number) => {
-  setState((current) => setLayerOpacityValue(current, opacity));
-}, []);
+    setState((current) => setLayerOpacityValue(current, opacity));
+  }, []);
 
   const setSelectedState = useCallback((selectedState: string) => {
     setState((currentState) =>
@@ -106,9 +118,12 @@ export function MapLayerProvider({ children }: { children: React.ReactNode }) {
     setState((currentState) => setActiveYearValue(currentState, activeYear));
   }, []);
 
-  const setSpatialSelectionCallback = useCallback((selection: SpatialSelection) => {
-    setState((currentState) => setSpatialSelection(currentState, selection));
-  }, []);
+  const setSpatialSelectionCallback = useCallback(
+    (selection: SpatialSelection) => {
+      setState((currentState) => setSpatialSelection(currentState, selection));
+    },
+    [],
+  );
 
   const activateVectorLayer = useCallback(
     (layerId: string, data: CDIVectorData, legend: IImageParam[] | null) => {
@@ -136,6 +151,18 @@ export function MapLayerProvider({ children }: { children: React.ReactNode }) {
     setState((currentState) => resetPlatformStateValue(currentState));
   }, []);
 
+  const toggleReferenceOverlay = useCallback((layerId: ReferenceLayerId) => {
+    setState((currentState) =>
+      toggleReferenceOverlayValue(currentState, layerId),
+    );
+  }, []);
+
+  const toggleReferenceHighlight = useCallback((layerId: ReferenceLayerId) => {
+    setState((currentState) =>
+      toggleReferenceHighlightValue(currentState, layerId),
+    );
+  }, []);
+
   const activeState = useMemo<MapLayerActiveState>(
     () => ({
       activeData: state.activeData,
@@ -153,6 +180,8 @@ export function MapLayerProvider({ children }: { children: React.ReactNode }) {
       activeYear: state.activeYear,
       spatialSelection: state.spatialSelection,
       layerOpacity: state.layerOpacity,
+      referenceOverlays: state.referenceOverlays,
+      highlightedReferenceOverlay: state.highlightedReferenceOverlay,
     }),
     [
       state.activeLegend,
@@ -161,6 +190,8 @@ export function MapLayerProvider({ children }: { children: React.ReactNode }) {
       state.activeYear,
       state.spatialSelection,
       state.layerOpacity,
+      state.referenceOverlays,
+      state.highlightedReferenceOverlay,
     ],
   );
 
@@ -176,6 +207,8 @@ export function MapLayerProvider({ children }: { children: React.ReactNode }) {
       clearActiveLayer,
       resetPlatformState,
       setLayerOpacity,
+      toggleReferenceOverlay,
+      toggleReferenceHighlight,
     }),
     [
       setActiveLegend,
@@ -188,6 +221,8 @@ export function MapLayerProvider({ children }: { children: React.ReactNode }) {
       clearActiveLayer,
       resetPlatformState,
       setLayerOpacity,
+      toggleReferenceOverlay,
+      toggleReferenceHighlight,
     ],
   );
 

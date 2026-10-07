@@ -1,0 +1,106 @@
+import { createRateLimiter, getClientAddress } from "@/utils/rateLimitStore";
+
+const RATE_LIMIT_WINDOW_MS = 1000 * 60;
+
+/**
+ * Um orçamento por ação, não um compartilhado entre todas.
+ *
+ * O cadastro acontece antes de existir sessão, então a chave é o endereço de
+ * rede — e uma repartição inteira costuma sair para a internet com um endereço
+ * só. Com um balde único entre cadastro, confirmação e reenvio, a terceira
+ * pessoa do mesmo prédio era barrada por causa das duas colegas que se
+ * cadastraram antes dela, que é exatamente o público deste sistema.
+ *
+ * Os tetos seguem o custo real de cada ação:
+ */
+
+/** Cria conta no Firebase E dispara e-mail. Cabe um treinamento inteiro se cadastrando junto. */
+export const SIGNUP_RATE_LIMIT_MAX_REQUESTS = 20;
+
+/** Dispara e-mail a cada chamada: o mais apertado dos três. */
+export const RESEND_RATE_LIMIT_MAX_REQUESTS = 10;
+
+/**
+ * Só lê e decide. Precisa da maior folga: programas de e-mail abrem os links
+ * das mensagens sozinhos para checar segurança, em paralelo com o clique.
+ */
+export const CONFIRM_RATE_LIMIT_MAX_REQUESTS = 40;
+
+/** "Esqueci minha senha": dispara e-mail a cada chamada, como o reenvio. */
+export const PASSWORD_RESET_REQUEST_RATE_LIMIT_MAX_REQUESTS = 10;
+
+/**
+ * Conferir e usar o código do link de troca de senha. Mesma folga da
+ * confirmação, pelo mesmo motivo: a página confere o código assim que abre.
+ */
+export const PASSWORD_RESET_CODE_RATE_LIMIT_MAX_REQUESTS = 40;
+
+const signupRequests = createRateLimiter({ windowMs: RATE_LIMIT_WINDOW_MS });
+const resendRequests = createRateLimiter({ windowMs: RATE_LIMIT_WINDOW_MS });
+const confirmRequests = createRateLimiter({ windowMs: RATE_LIMIT_WINDOW_MS });
+const passwordResetRequests = createRateLimiter({
+  windowMs: RATE_LIMIT_WINDOW_MS,
+});
+const passwordResetCodeRequests = createRateLimiter({
+  windowMs: RATE_LIMIT_WINDOW_MS,
+});
+
+/**
+ * Chave de cliente de uma requisição não autenticada, pelo mesmo
+ * `getClientAddress` que `api/logs/route.ts` usa.
+ *
+ * A última saída é o user-agent, não uma chave fixa: um balde único para o
+ * mundo inteiro seria um jeito trivial de derrubar o cadastro — bastaria
+ * alguém gastar as tentativas uma vez por minuto. Cair nele também significa
+ * que o proxy não está repassando o endereço, que é problema de infraestrutura
+ * e precisa aparecer no log.
+ */
+export function getSignupClientKey(request: Request) {
+  const address = getClientAddress(request);
+
+  if (address) {
+    return `ip:${address}`;
+  }
+
+  console.error(
+    "Nenhum cabeçalho de endereço na requisição de cadastro: o limite de tentativas está caindo para o user-agent. Confira se o proxy repassa x-forwarded-for.",
+  );
+
+  return `ua:${request.headers.get("user-agent")?.trim() || "desconhecido"}`;
+}
+
+export function consumeSignupRateLimit(clientKey: string) {
+  return signupRequests.consume(clientKey, SIGNUP_RATE_LIMIT_MAX_REQUESTS);
+}
+
+export function consumeResendRateLimit(clientKey: string) {
+  return resendRequests.consume(clientKey, RESEND_RATE_LIMIT_MAX_REQUESTS);
+}
+
+export function consumeConfirmRateLimit(clientKey: string) {
+  return confirmRequests.consume(clientKey, CONFIRM_RATE_LIMIT_MAX_REQUESTS);
+}
+
+export function consumePasswordResetRequestRateLimit(clientKey: string) {
+  return passwordResetRequests.consume(
+    clientKey,
+    PASSWORD_RESET_REQUEST_RATE_LIMIT_MAX_REQUESTS,
+  );
+}
+
+export function consumePasswordResetCodeRateLimit(clientKey: string) {
+  return passwordResetCodeRequests.consume(
+    clientKey,
+    PASSWORD_RESET_CODE_RATE_LIMIT_MAX_REQUESTS,
+  );
+}
+
+export function clearSignupRateLimits() {
+  signupRequests.clear();
+  resendRequests.clear();
+  confirmRequests.clear();
+  passwordResetRequests.clear();
+  passwordResetCodeRequests.clear();
+}
+
+export { RATE_LIMIT_WINDOW_MS as SIGNUP_RATE_LIMIT_WINDOW_MS };

@@ -1,0 +1,10 @@
+{
+  "Analyze": {
+    "loading": "Carregando dados...",
+    "error": "Erro: {error}",
+    "coverageLabel": "Cobertura:",
+    "coverageMunicipalities": "{count} de {totalCount} municípios",
+    "coverage": "Cobertura: {count} de {totalCount} municípios",
+    "omitted": " ({excludedCount} omitidos por dados ausentes)"
+  }
+}

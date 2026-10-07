@@ -18,9 +18,12 @@ const { mapInstances, MapConstructorMock } = vi.hoisted(() => ({
     handlers: Map<string, Array<(event: unknown) => void>>;
     on: ReturnType<typeof vi.fn>;
     once: ReturnType<typeof vi.fn>;
+    off: ReturnType<typeof vi.fn>;
     remove: ReturnType<typeof vi.fn>;
     setFeatureState: ReturnType<typeof vi.fn>;
+    setFilter: ReturnType<typeof vi.fn>;
     setLayoutProperty: ReturnType<typeof vi.fn>;
+    setPaintProperty: ReturnType<typeof vi.fn>;
     setPadding: ReturnType<typeof vi.fn>;
     sources: Map<string, unknown>;
     sourceFeatures: Array<unknown>;
@@ -87,6 +90,28 @@ vi.mock("maplibre-gl", () => {
       this.handlers.set(eventName, [...currentHandlers, callback]);
       return this;
     });
+    off = vi.fn(
+      (
+        eventName: string,
+        layerOrCallback?: string | MapEventCallback,
+        callback?: MapEventCallback,
+      ) => {
+        const eventKey =
+          typeof layerOrCallback === "string"
+            ? `${eventName}:${layerOrCallback}`
+            : eventName;
+        const eventCallback =
+          typeof layerOrCallback === "string" ? callback : layerOrCallback;
+
+        const currentHandlers = this.handlers.get(eventKey) ?? [];
+        this.handlers.set(
+          eventKey,
+          currentHandlers.filter((handler) => handler !== eventCallback),
+        );
+
+        return this;
+      },
+    );
     getSource = vi.fn((sourceId?: string) =>
       sourceId ? this.sources.get(sourceId) : undefined,
     );
@@ -112,8 +137,10 @@ vi.mock("maplibre-gl", () => {
     querySourceFeatures = vi.fn(() => this.sourceFeatures);
     setPadding = vi.fn(() => this);
     setFeatureState = vi.fn(() => this);
+    setFilter = vi.fn(() => this);
     getFeatureState = vi.fn(() => ({}));
     setLayoutProperty = vi.fn(() => this);
+    setPaintProperty = vi.fn(() => this);
     getContainer = vi.fn(() => ({ clientWidth: 1280 }));
     getCanvas = vi.fn(() => ({ style: { cursor: "" } }));
     remove = vi.fn();
@@ -135,12 +162,14 @@ vi.mock("maplibre-gl", () => {
       Marker: MockMarker,
       AttributionControl: class {},
       NavigationControl: class {},
+      ScaleControl: class {},
     },
     Map: MockMap,
     Popup: MockPopup,
     Marker: MockMarker,
     AttributionControl: class {},
     NavigationControl: class {},
+    ScaleControl: class {},
   };
 });
 
@@ -154,6 +183,13 @@ import {
   MUNICIPALITY_SELECTED_BORDER_MIN_ZOOM,
   MUNICIPALITY_SOURCE_ID,
 } from "@/components/Map/municipalityLayers";
+
+/** Hover e seleção compartilham o mesmo contorno preto no município. */
+const MUNICIPALITY_HIGHLIGHTED = [
+  "any",
+  ["boolean", ["feature-state", "hover"], false],
+  ["boolean", ["feature-state", "selected"], false],
+];
 
 describe("Map lifecycle", () => {
   afterEach(() => {
@@ -185,6 +221,29 @@ describe("Map lifecycle", () => {
     expect(firstInstance.remove).toHaveBeenCalledTimes(1);
   });
 
+  it("reports the current zoom on load and after each zoom gesture", () => {
+    const onZoomChange = vi.fn();
+
+    render(
+      <Map
+        center={[-15.749997, -47.9499962]}
+        estadoSelecionado="BR"
+        onZoomChange={onZoomChange}
+      />,
+    );
+
+    const firstInstance = mapInstances[0];
+    firstInstance.handlers.get("load")?.[0]?.({});
+
+    expect(onZoomChange).toHaveBeenCalledWith(4.2);
+
+    onZoomChange.mockClear();
+    firstInstance.getZoom.mockReturnValue(6.5);
+    firstInstance.handlers.get("zoomend")?.[0]?.({});
+
+    expect(onZoomChange).toHaveBeenCalledWith(6.5);
+  });
+
   it("adds municipality vector source and layers from the state focus zoom", () => {
     render(<Map center={[-15.749997, -47.9499962]} estadoSelecionado="BR" />);
 
@@ -205,19 +264,9 @@ describe("Map lifecycle", () => {
           "line-opacity": [
             "step",
             ["zoom"],
-            [
-              "case",
-              ["boolean", ["feature-state", "selected"], false],
-              0.95,
-              0,
-            ],
+            ["case", MUNICIPALITY_HIGHLIGHTED, 0.95, 0],
             MUNICIPALITY_BORDER_MIN_ZOOM,
-            [
-              "case",
-              ["boolean", ["feature-state", "selected"], false],
-              0.95,
-              0.25,
-            ],
+            ["case", MUNICIPALITY_HIGHLIGHTED, 0.95, 0.25],
           ],
         }),
       }),

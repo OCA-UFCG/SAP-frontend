@@ -10,19 +10,38 @@ import {
 import type {
   GeeFeatureCollectionStatisticsSource,
   GeeStatisticsSchema,
+  GeeStatisticsSource,
   PublishedGeeStatisticsSource,
   ResolvedGeeStatisticsSource,
 } from "@/contracts/geeStatistics";
+import {
+  isGeeMunicipalValueTableSource,
+  type GeeMunicipalValueTableStatisticsSource,
+} from "@/contracts/geeMunicipalValueTable";
+import { isMunicipalSpreadsheetSource } from "@/contracts/municipalSpreadsheet";
+import { getMunicipalValueTableYearPatch } from "@/repositories/platform/geeMunicipalValueTableRepository";
 import { buildSpatialLocationKey } from "@/contracts/spatialLocationKey.mjs";
 import {
   evaluateGeeObject,
   initializeGee,
 } from "@/infrastructure/earth-engine/client";
+import {
+  buildStatisticsRowsCacheKey,
+  getOrLoadStatisticsRows,
+} from "@/repositories/platform/geeStatisticsRowsCache";
+import {
+  readStatisticsSeries,
+  setMergedCollectionsEvaluator,
+  STATISTICS_OWNER_PROPERTY,
+} from "@/repositories/platform/geeStatisticsSeriesBatcher";
+import { resolveGeeStateCode, STATE_KEY_PATTERN } from "@/utils/geeStateCode";
+import {
+  MUNICIPALITY_KEY_PATTERN,
+  shouldIncludeLocation,
+} from "@/utils/statisticsLocationScope";
 import type { CompactTerritorialAnalysisDatasetPatch } from "@/utils/municipalAnalysisMerge";
 import { statesObj } from "@/utils/constants";
 
-const MUNICIPALITY_KEY_PATTERN = /^\d{7}$/u;
-const STATE_KEY_PATTERN = /^[a-z]{2}$/u;
 const AGGREGATE_LOCATION_PATTERN = /^(2_regiao|3_bioma|4_asd|5_semiarido)-/u;
 
 const SOURCE_LEVEL_BY_LOCATION_PREFIX: Record<string, string> = {
@@ -32,6 +51,11 @@ const SOURCE_LEVEL_BY_LOCATION_PREFIX: Record<string, string> = {
   "5_semiarido": "5_Semiarido",
 };
 const PERCENTAGE_SUM_TOLERANCE = 0.2;
+// Quantos assets da série podem ser tentados como amostra do schema antes de a
+// leitura desistir. O teto existe porque a tentativa é sequencial: numa queda
+// geral do Earth Engine, percorrer os 45 anos do índice de aridez somaria 45
+// idas fracassadas antes de responder ao usuário.
+const SCHEMA_ASSET_CANDIDATES = 3;
 
 interface EvaluatedFeature {
   properties?: Record<string, unknown>;
@@ -41,7 +65,24 @@ interface EvaluatedFeatureCollection {
   features?: EvaluatedFeature[];
 }
 
-const propertyNamesBySourceRevision = new Map<string, Promise<string[]>>();
+/**
+ * As colunas de cada série, guardadas no `globalThis` e não numa variável do
+ * módulo.
+ *
+ * O Next empacota o código da subida do servidor (`instrumentation`) separado
+ * das rotas, e cada pacote recebe a sua própria cópia deste módulo. Numa
+ * variável do módulo, as colunas aquecidas na subida ficavam numa cópia que a
+ * rota do relatório nunca lia: o primeiro relatório depois do deploy lia as 17
+ * de novo e levava 5,1 s, contra 2,5 s do segundo.
+ */
+const sharedState = globalThis as typeof globalThis & {
+  __geeStatisticsPropertyNames?: Map<string, Promise<string[]>>;
+};
+const propertyNamesBySourceRevision =
+  (sharedState.__geeStatisticsPropertyNames ??= new Map<
+    string,
+    Promise<string[]>
+  >());
 
 export interface GeeStatisticsMetrics {
   areaTotalHa?: number;
@@ -65,34 +106,14 @@ function normalizeText(value: unknown): string {
   return String(value ?? "").trim();
 }
 
-function normalizeComparableText(value: unknown): string {
-  return normalizeText(value)
-    .normalize("NFD")
-    .replace(/\p{Diacritic}/gu, "")
-    .toLowerCase();
-}
-
-const stateCodeByName = new Map(
-  Object.entries(statesObj).map(([stateCode, stateName]) => [
-    normalizeComparableText(stateName),
-    stateCode,
-  ]),
-);
-
 function getStateCode(
   source: ResolvedGeeStatisticsSource,
   row: Record<string, unknown>,
 ): string | null {
-  const rawStateCode = normalizeText(
+  return resolveGeeStateCode(
     row[source.properties.stateCode],
-  ).toLowerCase();
-
-  if (STATE_KEY_PATTERN.test(rawStateCode) && rawStateCode in statesObj) {
-    return rawStateCode;
-  }
-
-  const name = normalizeComparableText(row[source.properties.locationName]);
-  return stateCodeByName.get(name) ?? null;
+    row[source.properties.locationName],
+  );
 }
 
 function getLocation(
@@ -206,12 +227,6 @@ function getMetrics(
   };
 }
 
-function shouldIncludeLocation(requestedLocationKey: string, rowKey: string) {
-  return requestedLocationKey === "br"
-    ? rowKey === "br" || STATE_KEY_PATTERN.test(rowKey)
-    : requestedLocationKey === rowKey;
-}
-
 function validatePercentageDistribution(
   source: ResolvedGeeStatisticsSource,
   locationKey: string,
@@ -308,20 +323,53 @@ export function mapGeeStatisticsRows(
   };
 }
 
+/**
+ * A identidade da série inteira, e não a de um período. Uma fonte
+ * `period-template` resolve um `assetId` diferente por período, então usar o
+ * asset resolvido como chave de cache criava uma entrada por ano.
+ */
+function getStatisticsSeriesKey(
+  source: GeeFeatureCollectionStatisticsSource,
+): string {
+  return source.asset.type === "fixed"
+    ? source.asset.assetId
+    : source.asset.assetIdTemplate;
+}
+
+/**
+ * Os assets distintos que cobrem os períodos publicados, em ordem estável.
+ *
+ * Costuma ser bem menor que a lista de períodos: o template do Monitor de Secas
+ * da ANA é anual e a granularidade é mensal, então os 30 períodos moram em 3
+ * assets. Numa fonte `fixed` a lista tem sempre um item só.
+ *
+ * @example
+ * resolveSeriesAssetIds(source, ["2020", "2021"], "projects/x/t_2020");
+ * // ["projects/x/t_2020", "projects/x/t_2021"]
+ */
+function resolveSeriesAssetIds(
+  source: GeeFeatureCollectionStatisticsSource,
+  periodKeys: readonly string[],
+  requestedAssetId: string,
+): string[] {
+  const assetIds = new Set<string>([requestedAssetId]);
+
+  for (const periodKey of periodKeys) {
+    try {
+      assetIds.add(resolveGeeStatisticsSource(source, periodKey).assetId);
+    } catch {
+      // Um período publicado incompatível com a granularidade da fonte é um
+      // problema daquele período: ele falha sozinho quando o painel o pede, e
+      // não pode derrubar a leitura de todos os outros.
+    }
+  }
+
+  return [...assetIds].sort();
+}
+
 function getAggregateLevel(locationKey: string): string | null {
   const prefix = locationKey.match(AGGREGATE_LOCATION_PATTERN)?.[1];
   return prefix ? (SOURCE_LEVEL_BY_LOCATION_PREFIX[prefix] ?? null) : null;
-}
-
-function buildPeriodFilter(
-  source: ResolvedGeeStatisticsSource,
-  yearKey: string,
-) {
-  if (source.periodGranularity === "month") {
-    return ee.Filter.eq(source.properties.date, `${yearKey}-01`);
-  }
-
-  return ee.Filter.eq(source.properties.year, Number(yearKey));
 }
 
 function buildLocationFilter(
@@ -357,27 +405,80 @@ function buildLocationFilter(
   throw new Error(`Chave territorial GEE inválida: ${locationKey}.`);
 }
 
-async function getGeeStatisticsSchema(
+/**
+ * A ordem em que os assets da série são tentados como amostra do schema: o do
+ * período pedido primeiro, depois os mais recentes.
+ *
+ * `assetIds` chega ordenado por nome, e o nome de um `period-template` termina
+ * no período — por isso o mais recente é o último.
+ */
+function getSchemaAssetCandidates(
   source: ResolvedGeeStatisticsSource,
-  sourceRevision?: string,
-): Promise<GeeStatisticsSchema> {
-  const cacheKey = `${sourceRevision ?? "legacy"}::${source.assetId}`;
-  let propertyNamesPromise = propertyNamesBySourceRevision.get(cacheKey);
-  if (!propertyNamesPromise) {
-    propertyNamesPromise = (async () => {
-      const collection = ee.FeatureCollection(source.assetId);
+  seriesAssetIds: readonly string[],
+): string[] {
+  const candidates = new Set<string>([source.assetId]);
+
+  for (const assetId of [...seriesAssetIds].reverse()) {
+    if (candidates.size >= SCHEMA_ASSET_CANDIDATES) break;
+    candidates.add(assetId);
+  }
+
+  return [...candidates];
+}
+
+/**
+ * As colunas da série, lidas do primeiro asset que responder.
+ *
+ * Todos os assets de um índice têm as mesmas colunas — o catálogo valida isso
+ * ao publicar —, então qualquer um serve de amostra. Insistir no asset do
+ * período pedido fazia um asset ilegível sozinho (uma reingestão em andamento,
+ * por exemplo) derrubar a camada inteira, inclusive os anos que estavam no ar.
+ */
+async function loadSeriesPropertyNames(
+  assetIds: readonly string[],
+): Promise<string[]> {
+  let firstError: unknown;
+
+  for (const assetId of assetIds) {
+    try {
+      const collection = ee.FeatureCollection(assetId);
       const propertyNames = await evaluateGeeObject<string[]>(
         ee.Feature(collection.first()).propertyNames(),
       );
 
-      if (!Array.isArray(propertyNames)) {
-        throw new Error(
-          `Não foi possível identificar o schema do asset estatístico ${source.assetId}.`,
-        );
-      }
+      if (Array.isArray(propertyNames)) return propertyNames;
 
-      return propertyNames;
-    })();
+      firstError ??= new Error(
+        `Não foi possível identificar o schema do asset estatístico ${assetId}.`,
+      );
+    } catch (error) {
+      firstError ??= error;
+    }
+  }
+
+  throw (
+    firstError ??
+    new Error(
+      `Nenhum asset estatístico informado para identificar o schema da série.`,
+    )
+  );
+}
+
+async function getGeeStatisticsSchema(
+  source: ResolvedGeeStatisticsSource,
+  sourceRevision?: string,
+  seriesAssetIds: readonly string[] = [],
+): Promise<GeeStatisticsSchema> {
+  // A chave é a série, não o asset do período. O catálogo valida que todas as
+  // tabelas de um índice têm o mesmo conjunto de colunas, então ler o schema de
+  // uma responde por todas; antes eram 45 `propertyNames()` ao abrir o índice
+  // de aridez do ERA5-Land, um por ano, além das 45 leituras de linhas.
+  const cacheKey = `${sourceRevision ?? "legacy"}::${getStatisticsSeriesKey(source)}`;
+  let propertyNamesPromise = propertyNamesBySourceRevision.get(cacheKey);
+  if (!propertyNamesPromise) {
+    propertyNamesPromise = loadSeriesPropertyNames(
+      getSchemaAssetCandidates(source, seriesAssetIds),
+    );
     propertyNamesBySourceRevision.set(cacheKey, propertyNamesPromise);
   }
 
@@ -389,39 +490,195 @@ async function getGeeStatisticsSchema(
   }
 }
 
-async function loadGeeStatisticsRows(
-  source: ResolvedGeeStatisticsSource,
-  schema: GeeStatisticsSchema,
-  yearKey: string,
-  locationKey: string,
-): Promise<Record<string, unknown>[]> {
-  const properties = getGeeStatisticsRequestedProperties(source, schema);
-  const collection = ee
-    .FeatureCollection(source.assetId)
-    .filter(buildPeriodFilter(source, yearKey))
-    .filter(buildLocationFilter(source, locationKey))
+/**
+ * A sub-coleção de um asset: filtrada pelo território, reduzida às colunas
+ * pedidas e marcada com o número do pedido.
+ *
+ * A marcação existe porque a leitura viaja junto com a de outras camadas: sem
+ * ela, a resposta conjunta não diria de qual série cada linha veio.
+ */
+function buildAssetRowsCollection(
+  assetId: string,
+  properties: string[],
+  locationFilter: unknown,
+  ownerTag: number,
+) {
+  return ee
+    .FeatureCollection(assetId)
+    .filter(locationFilter)
     .map((feature: unknown) =>
-      ee.Feature(null, ee.Feature(feature).toDictionary(properties)),
+      ee.Feature(
+        null,
+        ee
+          .Feature(feature)
+          .toDictionary(properties)
+          .set(STATISTICS_OWNER_PROPERTY, ownerTag),
+      ),
     );
-  const result =
-    await evaluateGeeObject<EvaluatedFeatureCollection>(collection);
+}
+
+/**
+ * Como as sub-coleções enfileiradas viram uma resposta.
+ *
+ * `ee.FeatureCollection([...]).flatten()` junta os recortes antes de avaliar,
+ * então tudo o que entrou no pedido volta na mesma resposta e no mesmo formato
+ * de um asset sozinho. É essa junção que faz o preço parar de acompanhar o
+ * número de períodos — e agora o de camadas: cada ida ao Earth Engine custa
+ * cerca de um segundo qualquer que seja o tamanho do que se pede.
+ */
+setMergedCollectionsEvaluator(async (collections, assetIds) => {
+  const merged = ee.FeatureCollection([...collections]).flatten();
+  const result = await evaluateGeeObject<EvaluatedFeatureCollection>(merged);
 
   if (!Array.isArray(result?.features)) {
     throw new Error(
-      `Resposta inválida do asset estatístico GEE ${source.assetId}.`,
+      `Resposta inválida do asset estatístico GEE ${assetIds.join(", ")}.`,
     );
   }
 
   return result.features.map((feature) => feature.properties ?? {});
+});
+
+/**
+ * Todas as linhas da série estatística para um território, sem filtrar por
+ * período.
+ *
+ * O filtro territorial fica no Earth Engine porque é ele que limita o tamanho
+ * da resposta: sem ele viriam as 5.573 linhas municipais. O filtro de período
+ * não limita nada — ler um mês do asset do ANA custou 2436 ms e ler os doze
+ * meses do mesmo ano custou 2423 ms, porque o preço é do round trip, não do
+ * volume. Filtrar por período aqui fazia o painel gastar uma ida ao Earth
+ * Engine por período visível ao abrir a camada.
+ */
+async function loadSeriesLocationRows(
+  source: ResolvedGeeStatisticsSource,
+  assetIds: readonly string[],
+  properties: string[],
+  locationKey: string,
+): Promise<Record<string, unknown>[]> {
+  const locationFilter = buildLocationFilter(source, locationKey);
+  // Sem limitador de concorrência de propósito: `evaluateGeeObject` já segura
+  // no máximo 20 leituras simultâneas no processo inteiro
+  // (`GEE_COMPUTE_CONCURRENCY`), então um limitador aqui só somaria espera.
+  const { rows, unavailableAssetIds, firstError } = await readStatisticsSeries(
+    assetIds.map((assetId) => ({
+      assetId,
+      buildCollection: (ownerTag: number) =>
+        buildAssetRowsCollection(assetId, properties, locationFilter, ownerTag),
+    })),
+  );
+
+  // Quando nenhum asset responde não é um período que falta, é a fonte que está
+  // fora: o erro sobe como antes, porque uma série vazia devolvida em silêncio
+  // viraria "sem dados" em toda a camada, sem ninguém notar.
+  if (unavailableAssetIds.length === assetIds.length) {
+    throw (
+      firstError ??
+      new Error(
+        `Nenhum asset estatístico da série respondeu para ${locationKey}: ${assetIds.join(", ")}.`,
+      )
+    );
+  }
+
+  return rows;
 }
 
+/**
+ * Seleciona o período entre as linhas já carregadas do território.
+ *
+ * `data_img` guarda o primeiro dia do mês (`2025-06-01`) nas fontes mensais, e
+ * `ano` guarda o ano como número nas anuais. Errar essa correspondência faz o
+ * painel mostrar o período errado sem nenhum erro, então ela tem teste próprio.
+ */
+export function matchesStatisticsPeriod(
+  source: ResolvedGeeStatisticsSource,
+  row: Record<string, unknown>,
+  yearKey: string,
+): boolean {
+  if (source.periodGranularity === "month") {
+    return row[source.properties.date] === `${yearKey}-01`;
+  }
+
+  return Number(row[source.properties.year]) === Number(yearKey);
+}
+
+async function loadGeeStatisticsRows(
+  source: ResolvedGeeStatisticsSource,
+  schema: GeeStatisticsSchema,
+  assetIds: readonly string[],
+  yearKey: string,
+  locationKey: string,
+): Promise<Record<string, unknown>[]> {
+  const properties = getGeeStatisticsRequestedProperties(source, schema);
+  // Uma série lida sem um asset indisponível também é cacheada: o asset que
+  // voltar entra na próxima leitura, até 10 minutos depois (o TTL deste cache).
+  const rows = await getOrLoadStatisticsRows(
+    buildStatisticsRowsCacheKey(assetIds, locationKey, properties),
+    () => loadSeriesLocationRows(source, assetIds, properties, locationKey),
+  );
+
+  return rows.filter((row) => matchesStatisticsPeriod(source, row, yearKey));
+}
+
+/**
+ * A tabela municipal de valor único adaptada ao mesmo resultado das tabelas
+ * classificatórias.
+ *
+ * A camada precisa ter exatamente uma classe — o indicador em si —, porque o
+ * asset traz um número por município e não uma distribuição. Conferir isso aqui
+ * evita um painel que soma um vetor de um valor em cima de uma legenda de seis.
+ */
+async function readMunicipalValueTablePatch(
+  source: GeeMunicipalValueTableStatisticsSource,
+  yearKey: string,
+  locationKey: string,
+  classCount: number,
+  periodKeys: readonly string[],
+): Promise<GeeStatisticsYearResult> {
+  if (classCount !== 1) {
+    throw new Error(
+      `A camada possui ${classCount} classes, mas uma tabela municipal de valor único produz uma só.`,
+    );
+  }
+
+  const result = await getMunicipalValueTableYearPatch(
+    source,
+    yearKey,
+    locationKey,
+    periodKeys,
+  );
+
+  return {
+    assetId: result.assetIds.join(", "),
+    featureCount: Object.keys(result.patch.locations ?? {}).length,
+    omittedZeroValueLocationKeys: [],
+    patch: result.patch,
+    metrics: {},
+  };
+}
+
+/**
+ * O patch territorial de um período, lendo a série inteira de uma vez.
+ *
+ * `periodKeys` são todos os períodos publicados da camada. Quando vem
+ * preenchido, a leitura cobre a série toda em um punhado de pedidos e os demais
+ * períodos saem do cache — é o que faz abrir o painel custar uma ida ao Earth
+ * Engine em vez de uma por período. Sem ele o comportamento é o antigo, e a
+ * leitura cobre só o período pedido.
+ *
+ * @example
+ * await getGeeStatisticsYearPatch("indicearidez", "2020", "br", 5, source, [
+ *   "2019",
+ *   "2020",
+ * ]);
+ */
 export async function getGeeStatisticsYearPatch(
   panelLayerId: string,
   yearKey: string,
   locationKey: string,
   classCount: number,
-  explicitSource?:
-    PublishedGeeStatisticsSource | GeeFeatureCollectionStatisticsSource | null,
+  explicitSource?: PublishedGeeStatisticsSource | GeeStatisticsSource | null,
+  periodKeys: readonly string[] = [],
 ): Promise<GeeStatisticsYearResult | null> {
   const source = explicitSource ?? getGeeStatisticsSource(panelLayerId);
 
@@ -429,13 +686,40 @@ export async function getGeeStatisticsYearPatch(
     return null;
   }
 
-  const resolvedSource = resolveGeeStatisticsSource(source, yearKey);
+  // Uma planilha não passa por aqui: ela é lida por
+  // `municipalSpreadsheetRepository`, antes de qualquer inicialização do Earth
+  // Engine. Esta recusa existe para o caso de uma fonte de planilha chegar por
+  // um caminho novo — melhor um erro nomeado que um `undefined.assetId`.
+  if (isMunicipalSpreadsheetSource(source)) {
+    throw new Error(
+      `A camada ${panelLayerId} usa uma planilha como fonte estatística e não deve ser lida pelo Earth Engine.`,
+    );
+  }
+
   await initializeGee();
+
+  if (isGeeMunicipalValueTableSource(source)) {
+    return readMunicipalValueTablePatch(
+      source,
+      yearKey,
+      locationKey,
+      classCount,
+      periodKeys,
+    );
+  }
+
+  const resolvedSource = resolveGeeStatisticsSource(source, yearKey);
+  const seriesAssetIds = resolveSeriesAssetIds(
+    source,
+    periodKeys,
+    resolvedSource.assetId,
+  );
   const schema = await getGeeStatisticsSchema(
     resolvedSource,
     "sourceRevision" in source && typeof source.sourceRevision === "string"
       ? source.sourceRevision
       : undefined,
+    seriesAssetIds,
   );
 
   if (schema.percentageProperties.length !== classCount) {
@@ -447,6 +731,7 @@ export async function getGeeStatisticsYearPatch(
   const rows = await loadGeeStatisticsRows(
     resolvedSource,
     schema,
+    seriesAssetIds,
     yearKey,
     locationKey,
   );
@@ -457,6 +742,44 @@ export async function getGeeStatisticsYearPatch(
     locationKey,
     rows,
     classCount,
+  );
+}
+
+/**
+ * Lê de antemão as colunas da série de uma camada, para que o primeiro painel
+ * ou relatório depois de um deploy não pague essa leitura.
+ *
+ * As colunas ficam guardadas na memória do processo, que começa vazia a cada
+ * deploy: antes, o primeiro relatório depois dele perguntava as colunas de cada
+ * camada no próprio clique, uma ida ao Earth Engine por camada antes de ler
+ * qualquer número. A chave do cache é a mesma de `getGeeStatisticsYearPatch`,
+ * então a leitura daqui serve direto para ele.
+ *
+ * @example
+ * await preloadGeeStatisticsSchema(layer.statisticsSource, ["2024", "2025"]);
+ */
+export async function preloadGeeStatisticsSchema(
+  source: PublishedGeeStatisticsSource | GeeStatisticsSource,
+  periodKeys: readonly string[],
+): Promise<void> {
+  const periodKey = periodKeys.at(-1);
+  if (
+    !periodKey ||
+    isMunicipalSpreadsheetSource(source) ||
+    isGeeMunicipalValueTableSource(source)
+  ) {
+    return;
+  }
+
+  await initializeGee();
+
+  const resolvedSource = resolveGeeStatisticsSource(source, periodKey);
+  await getGeeStatisticsSchema(
+    resolvedSource,
+    "sourceRevision" in source && typeof source.sourceRevision === "string"
+      ? source.sourceRevision
+      : undefined,
+    resolveSeriesAssetIds(source, periodKeys, resolvedSource.assetId),
   );
 }
 

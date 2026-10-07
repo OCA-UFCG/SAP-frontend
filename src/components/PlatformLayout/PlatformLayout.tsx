@@ -3,19 +3,28 @@
 import type { ReactNode } from "react";
 import { useState } from "react";
 import { MapLayerProvider } from "@/components/MapLayerContext/MapLayerContext";
+import { AmfeAnalysisProvider } from "@/components/Amfe/AmfeAnalysisContext";
+import { AmfeAnalysisFormColumn } from "@/components/Amfe/AmfeAnalysisFormColumn";
 import { PlatformMap } from "@/components/PlatformMap/PlatformMap";
+import type { PlatformMapSection } from "@/components/PlatformMap/PlatformMap";
 import { PlatformSidebar } from "@/components/PlatformSidebar/PlatformSidebar";
 import type { PlatformSidebarInitialSection } from "@/components/PlatformSidebar/PlatformSidebar";
 import type { PlatformSection } from "@/components/PlatformSideRail/PlatformSideRail";
+import { PLATFORM_SHELL_MIN_HEIGHT_CLASS } from "./platformShell";
 import type { PanelLayerI } from "@/utils/interfaces";
 
 type DefaultPlatformLayoutProps = {
   panelLayers: PanelLayerI[];
+  detailLayerId?: string;
   showAuditLink?: boolean;
   initialSection?: PlatformSidebarInitialSection;
   viewMode?: "default";
   telemetryDashboard?: never;
-  reportRequest?: { municipalityCode: string; period: string; layerIds: string[] };
+  reportRequest?: {
+    locationKey: string;
+    period: string;
+    layerIds: string[];
+  };
 };
 
 type LogsPlatformLayoutProps = {
@@ -42,6 +51,12 @@ type PlatformLayoutProps =
   | LogsPlatformLayoutProps
   | CatalogPlatformLayoutProps;
 
+function resolveMapSection(activeSection: PlatformSection): PlatformMapSection {
+  if (activeSection === "analysis") return "analysis";
+  if (activeSection === "communication") return "communication";
+  return "monitoring";
+}
+
 export function PlatformLayout({
   showAuditLink = false,
   initialSection = "monitoring",
@@ -50,7 +65,6 @@ export function PlatformLayout({
   const viewMode = props.viewMode ?? "default";
   const isLogsView = props.viewMode === "logs";
   const isCatalogView = props.viewMode === "catalog";
-  const isCommunicationView = !isLogsView && initialSection === "communication";
   const sidebarStateKey = `${viewMode}:${initialSection}`;
   const sidebarPanelLayers =
     props.viewMode === "logs" || props.viewMode === "catalog"
@@ -61,39 +75,55 @@ export function PlatformLayout({
 
   return (
     <MapLayerProvider>
-      <div className="relative w-full min-h-[calc(100vh-64px)] bg-neutral-50">
-        {isLogsView ? (
-          <div data-testid="platform-logs-shell" className="w-full">
-            {props.telemetryDashboard}
-          </div>
-        ) : isCatalogView ? (
-          <div
-            data-testid="platform-catalog-shell"
-            className="min-h-[calc(100vh-64px)] w-full pl-[140px]"
-          >
-            {props.catalogDashboard}
-          </div>
-        ) : isCommunicationView ? (
-          <div className="absolute inset-0 bg-[#F6F7F6]" aria-hidden="true" />
-        ) : (
-          <PlatformMap
-            showMonitoringOverlays={activeSection === "monitoring"}
+      <AmfeAnalysisProvider>
+        {/* Toda seção começa na mesma altura: o que sobra da viewport abaixo do
+            cabeçalho. O rodapé vem logo depois, fora da dobra, e só aparece
+            quando a pessoa rola. */}
+        <div
+          className={`relative flex w-full flex-col bg-neutral-50 ${PLATFORM_SHELL_MIN_HEIGHT_CLASS}`}
+        >
+          {isLogsView ? (
+            <div data-testid="platform-logs-shell" className="w-full">
+              {props.telemetryDashboard}
+            </div>
+          ) : isCatalogView ? (
+            <div
+              data-testid="platform-catalog-shell"
+              className={`w-full pl-[140px] ${PLATFORM_SHELL_MIN_HEIGHT_CLASS}`}
+            >
+              {props.catalogDashboard}
+            </div>
+          ) : (
+            <>
+              {/* Monitoramento, Análise e Comunicação compartilham este mapa:
+                  trocar de seção muda as propriedades dele, não a instância. */}
+              <PlatformMap
+                section={resolveMapSection(activeSection)}
+                showMonitoringControls={activeSection === "monitoring"}
+              />
+              {activeSection === "analysis" && <AmfeAnalysisFormColumn />}
+            </>
+          )}
+          <PlatformSidebar
+            key={sidebarStateKey}
+            panelLayers={sidebarPanelLayers}
+            showAuditLink={showAuditLink}
+            initialSection={initialSection}
+            detailLayerId={
+              props.viewMode === "logs" || props.viewMode === "catalog"
+                ? undefined
+                : props.detailLayerId
+            }
+            viewMode={viewMode}
+            reportRequest={
+              props.viewMode === "logs" || props.viewMode === "catalog"
+                ? undefined
+                : props.reportRequest
+            }
+            onActiveSectionChange={setActiveSection}
           />
-        )}
-        <PlatformSidebar
-          key={sidebarStateKey}
-          panelLayers={sidebarPanelLayers}
-          showAuditLink={showAuditLink}
-          initialSection={initialSection}
-          viewMode={viewMode}
-          reportRequest={
-            props.viewMode === "logs" || props.viewMode === "catalog"
-              ? undefined
-              : props.reportRequest
-          }
-          onActiveSectionChange={setActiveSection}
-        />
-      </div>
+        </div>
+      </AmfeAnalysisProvider>
     </MapLayerProvider>
   );
 }

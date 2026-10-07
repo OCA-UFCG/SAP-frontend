@@ -4,12 +4,19 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 
 vi.mock("@/app/api/ee/spatialBoundaries", () => ({
   getSpatialBoundaryFeatures: vi.fn(),
+  getAllSpatialBoundaryFeaturesForArea: vi.fn(),
 }));
 
 import { GET } from "@/app/api/spatial-boundary/route";
-import { getSpatialBoundaryFeatures } from "@/app/api/ee/spatialBoundaries";
+import {
+  getAllSpatialBoundaryFeaturesForArea,
+  getSpatialBoundaryFeatures,
+} from "@/app/api/ee/spatialBoundaries";
 
 const mockedGetSpatialBoundaryFeatures = vi.mocked(getSpatialBoundaryFeatures);
+const mockedGetAllSpatialBoundaryFeaturesForArea = vi.mocked(
+  getAllSpatialBoundaryFeaturesForArea,
+);
 
 const caatingaFeature: Feature<Geometry, { name: string }> = {
   type: "Feature",
@@ -36,6 +43,7 @@ function createRequest(query = ""): NextRequest {
 describe("GET /api/spatial-boundary", () => {
   beforeEach(() => {
     mockedGetSpatialBoundaryFeatures.mockReset();
+    mockedGetAllSpatialBoundaryFeaturesForArea.mockReset();
   });
 
   it("returns the selected boundary as cacheable GeoJSON", async () => {
@@ -57,6 +65,35 @@ describe("GET /api/spatial-boundary", () => {
       spatialArea: "biome",
       spatialValue: "Caatinga",
     });
+    expect(mockedGetAllSpatialBoundaryFeaturesForArea).not.toHaveBeenCalled();
+  });
+
+  it("returns the whole area for scope=area, without asking for a value", async () => {
+    // O mapa em modo bioma precisa dos vizinhos; como a resposta não depende do
+    // valor selecionado, a URL não o inclui e o navegador guarda uma cópia só.
+    mockedGetAllSpatialBoundaryFeaturesForArea.mockReturnValueOnce([
+      caatingaFeature,
+    ]);
+
+    const response = await GET(createRequest("?spatialArea=biome&scope=area"));
+
+    expect(response.status).toBe(200);
+    expect(mockedGetAllSpatialBoundaryFeaturesForArea).toHaveBeenCalledWith(
+      "biome",
+    );
+    expect(mockedGetSpatialBoundaryFeatures).not.toHaveBeenCalled();
+  });
+
+  it("rejects scope=area for an area that has no boundary overlay", async () => {
+    const region = await GET(createRequest("?spatialArea=region&scope=area"));
+    const missing = await GET(createRequest("?scope=area"));
+
+    expect(region.status).toBe(400);
+    expect(missing.status).toBe(400);
+    expect(await region.json()).toEqual({
+      error: expect.stringContaining("region"),
+    });
+    expect(mockedGetAllSpatialBoundaryFeaturesForArea).not.toHaveBeenCalled();
   });
 
   it("rejects incomplete or invalid selections", async () => {
@@ -68,6 +105,7 @@ describe("GET /api/spatial-boundary", () => {
     expect(missingValue.status).toBe(400);
     expect(invalidValue.status).toBe(400);
     expect(mockedGetSpatialBoundaryFeatures).not.toHaveBeenCalled();
+    expect(mockedGetAllSpatialBoundaryFeaturesForArea).not.toHaveBeenCalled();
   });
 
   it("rejects administrative scopes that do not use an overlay", async () => {
@@ -81,6 +119,7 @@ describe("GET /api/spatial-boundary", () => {
     expect(national.status).toBe(400);
     expect(region.status).toBe(400);
     expect(mockedGetSpatialBoundaryFeatures).not.toHaveBeenCalled();
+    expect(mockedGetAllSpatialBoundaryFeaturesForArea).not.toHaveBeenCalled();
   });
 
   it("returns 500 when the boundary repository fails", async () => {

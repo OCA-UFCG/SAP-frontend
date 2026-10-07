@@ -1,6 +1,6 @@
 "use client";
 
-import { memo, useCallback, useMemo } from "react";
+import { memo, useCallback, useEffect, useMemo, useRef } from "react";
 import { useTranslations } from "next-intl";
 import {
   useMapLayerActions,
@@ -17,12 +17,18 @@ import { trackUiEvent } from "@/services/telemetry/client";
 import type { IEEInfo, PanelLayerI } from "@/utils/interfaces";
 import type { SpatialSelection } from "@/utils/spatialScope";
 import { getImageDataLegend } from "@/utils/imageData";
+import {
+  splitIntoLayerSubgroups,
+  type SubgroupedItems,
+} from "@/utils/layerSubgroups";
+import { useMonitoringListState } from "./monitoringListState";
 import cdiData from "../../data/CDI_Janeiro_2024_Vetores.json";
 
 export interface ModulesContextProps {
   activeSection: PlatformSection;
   panelLayers?: PanelLayerI[];
   onRequestSectionChange?: (next: PlatformSection) => void;
+  detailLayerId?: string;
 }
 
 type LayerDataset = IDroughtDataset & { category?: string };
@@ -32,6 +38,8 @@ interface DatasetGroup {
   title: string;
   datasets: LayerDataset[];
 }
+
+type SubgroupedDatasetGroup = DatasetGroup & SubgroupedItems<LayerDataset>;
 
 const DATASET_REGISTRY: Record<string, CDIVectorData> = {
   CDI: cdiData as unknown as CDIVectorData,
@@ -143,6 +151,7 @@ export function ModulesContext({
   activeSection,
   panelLayers = [],
   onRequestSectionChange,
+  detailLayerId,
 }: ModulesContextProps) {
   const t = useTranslations("ModulesContext");
   const { activeData, activeEEData } = useMapLayerActiveState();
@@ -155,16 +164,55 @@ export function ModulesContext({
     setSelectedMunicipalityCode,
   } = useMapLayerActions();
   const { spatialSelection } = useMapLayerViewState();
+  const listState = useMonitoringListState();
+  const scrollContainerRef = useRef<HTMLDivElement | null>(null);
 
-  const isSpatialScopeEnabled =
-    process.env.NEXT_PUBLIC_ENABLE_SPATIAL_SCOPE === "true";
+  // Abrir um índice desmonta esta listagem; ao voltar, devolvemos a rolagem que
+  // o usuário tinha deixado em vez de reabrir a lista no topo. As miniaturas das
+  // camadas chegam depois da primeira pintura, então na montagem o painel ainda
+  // é curto demais para a posição salva e o navegador a limita ao fim atual — daí
+  // reaplicarmos enquanto o conteúdo cresce, até alcançar o alvo.
+  const restoreScrollTop = listState?.getScrollTop;
+  useEffect(() => {
+    const container = scrollContainerRef.current;
+    if (!container || !restoreScrollTop) return;
+
+    const target = restoreScrollTop();
+    if (target <= 0) return;
+
+    const applyTarget = () => {
+      container.scrollTop = target;
+      return container.scrollTop >= target;
+    };
+
+    if (applyTarget()) return;
+
+    const observer = new ResizeObserver(() => {
+      if (applyTarget()) {
+        observer.disconnect();
+      }
+    });
+
+    observer.observe(container);
+    Array.from(container.children).forEach((child) => observer.observe(child));
+
+    return () => observer.disconnect();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  const handleScroll = useCallback(() => {
+    const container = scrollContainerRef.current;
+    if (!container || !listState) return;
+
+    listState.setScrollTop(container.scrollTop);
+  }, [listState]);
 
   const datasets = useMemo(
     () => buildLayerDatasets(panelLayers),
     [panelLayers],
   );
 
-  const groupedDatasets = useMemo<DatasetGroup[]>(() => {
+  const groupedDatasets = useMemo<SubgroupedDatasetGroup[]>(() => {
     const groups = new Map<string, DatasetGroup>();
 
     datasets.forEach((dataset) => {
@@ -184,9 +232,16 @@ export function ModulesContext({
       });
     });
 
-    return Array.from(groups.values()).sort((left, right) => {
-      return compareCategoryTitles(left.title, right.title);
-    });
+    return Array.from(groups.values())
+      .sort((left, right) => compareCategoryTitles(left.title, right.title))
+      .map((group) => ({
+        ...group,
+        ...splitIntoLayerSubgroups(
+          group.title,
+          group.datasets,
+          (dataset) => dataset.title,
+        ),
+      }));
   }, [datasets]);
 
   const layerById = useMemo(() => {
@@ -307,6 +362,15 @@ export function ModulesContext({
     ],
   );
 
+  const openedDetailLayerRef = useRef<string | null>(null);
+  useEffect(() => {
+    if (!detailLayerId || openedDetailLayerRef.current === detailLayerId)
+      return;
+    if (!layerById.has(detailLayerId)) return;
+    openedDetailLayerRef.current = detailLayerId;
+    handleDetails(detailLayerId);
+  }, [detailLayerId, handleDetails, layerById]);
+
   const handleSpatialSelectionChange = useCallback(
     (value: SpatialSelection) => {
       setSpatialSelection(value);
@@ -316,60 +380,82 @@ export function ModulesContext({
     [setSpatialSelection, setSelectedState, setSelectedMunicipalityCode],
   );
 
+  const renderDatasetCard = (dataset: LayerDataset) => {
+    const fileRef = dataset.fileRef ?? "";
+    const vectorData = fileRef ? DATASET_REGISTRY[fileRef] : undefined;
+    const hasEEData = Boolean(fileRef && layerById.get(fileRef)?.imageData);
+    const canApply = Boolean(vectorData) || hasEEData;
+
+    const isActive = vectorData
+      ? activeData === vectorData
+      : hasEEData
+        ? activeEEData?.id === fileRef
+        : false;
+
+    return (
+      <LayerDatasetCard
+        key={fileRef || dataset.id}
+        dataset={dataset}
+        active={isActive}
+        disabled={!canApply}
+        onToggleLayer={handleToggle}
+        onOpenDetails={handleDetails}
+      />
+    );
+  };
+
   return (
-    <div className="h-full overflow-y-auto bg-[#F6F7F6] px-4 pt-12 pb-6">
+    <div
+      ref={scrollContainerRef}
+      onScroll={handleScroll}
+      className="h-full overflow-y-auto bg-[#F6F7F6] px-4 pt-12 pb-6"
+    >
       <div className="flex flex-col gap-6">
         <ContextHeader />
 
-        {isSpatialScopeEnabled ? (
-          <div>
-            <SpatialScopeSelect
-              spatialSelection={spatialSelection}
-              onSpatialSelectionChange={handleSpatialSelectionChange}
-            />
-          </div>
-        ) : null}
+        <div>
+          <SpatialScopeSelect
+            spatialSelection={spatialSelection}
+            onSpatialSelectionChange={handleSpatialSelectionChange}
+          />
+        </div>
 
         <div className="flex flex-col gap-6">
-          {groupedDatasets.map((group, index) => {
+          {groupedDatasets.map((group) => {
             const categoryKeyMap: Record<string, string> = {
               "dados climáticos": "climate",
               "dados ambientais": "environmental",
               "dados socioeconômicos": "socioeconomic",
-              "outros": "others"
+              outros: "others",
             };
 
             return (
               <LayerAccordion
                 key={group.key}
-                title={categoryKeyMap[group.key] ? t(`categories.${categoryKeyMap[group.key]}`) : group.title}
-                defaultOpen={index === 0}
+                open={listState?.isCategoryOpen(group.key)}
+                onOpenChange={(open) =>
+                  listState?.setCategoryOpen(group.key, open)
+                }
+                title={
+                  categoryKeyMap[group.key]
+                    ? t(`categories.${categoryKeyMap[group.key]}`)
+                    : group.title
+                }
               >
-                {group.datasets.map((dataset) => {
-                  const fileRef = dataset.fileRef ?? "";
-                  const vectorData = fileRef
-                    ? DATASET_REGISTRY[fileRef]
-                    : undefined;
-                  const hasEEData = Boolean(
-                    fileRef && layerById.get(fileRef)?.imageData,
-                  );
-                  const canApply = Boolean(vectorData) || hasEEData;
-
-                  const isActive = vectorData
-                    ? activeData === vectorData
-                    : hasEEData
-                      ? activeEEData?.id === fileRef
-                      : false;
-
+                {group.items.map(renderDatasetCard)}
+                {group.subgroups.map((subgroup) => {
+                  const subgroupKey = `${group.key}/${subgroup.key}`;
                   return (
-                    <LayerDatasetCard
-                      key={fileRef || dataset.id}
-                      dataset={dataset}
-                      active={isActive}
-                      disabled={!canApply}
-                      onToggleLayer={handleToggle}
-                      onOpenDetails={handleDetails}
-                    />
+                    <LayerAccordion
+                      key={subgroupKey}
+                      open={listState?.isCategoryOpen(subgroupKey)}
+                      onOpenChange={(open) =>
+                        listState?.setCategoryOpen(subgroupKey, open)
+                      }
+                      title={t(`subgroups.${subgroup.key}`)}
+                    >
+                      {subgroup.items.map(renderDatasetCard)}
+                    </LayerAccordion>
                   );
                 })}
               </LayerAccordion>

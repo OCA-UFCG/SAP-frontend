@@ -1,11 +1,18 @@
 import maplibregl, { ExpressionSpecification } from "maplibre-gl";
 import type { FeatureCollection, Geometry } from "geojson";
 import { BRAZIL_RASTER_BOUNDS } from "./mapBounds";
-import { ensureMunicipalityLayers } from "./municipalityLayers";
+import {
+  MUNICIPALITY_HOVER_LAYER_ID,
+  ensureMunicipalityLayers,
+} from "./municipalityLayers";
+import { ensureClassificationLayer } from "./classificationLayers";
+import { getActiveBoundaryNames } from "@/utils/spatialScope";
+import { syncHighlightMask } from "./referenceHighlightMask";
+import { REFERENCE_LAYER_IDS } from "@/components/MapLayerContext/mapLayerState";
 
 export type MapMode = "demo" | "platform";
 
-const MAP_SOURCE_ID = "osm-base";
+export const OSM_SOURCE_ID = "osm-base";
 export const OSM_LAYER_ID = "osm-layer";
 export const STATES_SOURCE_ID = "brazil-states";
 export const STATES_SOURCE_LAYER = "brazilstates";
@@ -17,8 +24,23 @@ export const STATES_FILL_LAYER_ID = "state-fills";
 export const STATES_BORDER_LAYER_ID = "state-borders";
 export const CDI_LAYER_ID = "cdi-layer";
 export const GEE_LAYER_ID = "gee-layer";
+/**
+ * O contorno do território no mapa do Relatório Automático. Mora aqui, e não no
+ * componente que o desenha, porque quem devolve o mapa para a estante
+ * (`reportMapPool`) precisa removê-lo: uma instância reaproveitada já tem a
+ * fonte, e adicioná-la de novo derruba a captura seguinte.
+ */
+export const REPORT_TERRITORY_OUTLINE_SOURCE_ID = "report-territory-outline";
+export const REPORT_TERRITORY_OUTLINE_LAYER_ID =
+  "report-territory-outline-line";
 export const SPATIAL_BOUNDARY_SOURCE_ID = "spatial-boundary";
 export const SPATIAL_BOUNDARY_LAYER_ID = "spatial-boundary-outline";
+export const REF_OVERLAY_SOURCE_PREFIX = "ref-overlay-src-";
+export const REF_OVERLAY_LAYER_PREFIX = "ref-overlay-lyr-";
+export const REF_HIGHLIGHT_MASK_SOURCE_ID = "ref-highlight-mask-src";
+export const REF_HIGHLIGHT_MASK_LAYER_ID = "ref-highlight-mask-lyr";
+export const SPATIAL_BOUNDARY_FILL_LAYER_ID = "spatial-boundary-fills";
+export const SPATIAL_BOUNDARY_HOVER_LAYER_ID = "spatial-boundary-hover-outline";
 
 const CDI_FILL_EXPRESSION: ExpressionSpecification = [
   "match",
@@ -38,31 +60,44 @@ const CDI_FILL_EXPRESSION: ExpressionSpecification = [
   "transparent",
 ];
 
+/**
+ * O mapa de fundo das telas que desenham um raster do Earth Engine.
+ *
+ * Fica exportado porque o Relatório Automático monta um estilo próprio, sem os
+ * controles e sem a alternância para satélite, e precisa exatamente do mesmo
+ * fundo: sem ele o PNG capturado sai com o índice recortado sobre branco.
+ *
+ * @example
+ * const style = { version: 8, sources: { [OSM_SOURCE_ID]: OSM_RASTER_SOURCE }, layers: [OSM_BASE_LAYER] };
+ */
+export const OSM_RASTER_SOURCE: maplibregl.RasterSourceSpecification = {
+  type: "raster",
+  tiles: ["https://a.tile.openstreetmap.org/{z}/{x}/{y}.png"],
+  tileSize: 256,
+  attribution: "&copy; OpenStreetMap contributors",
+};
+
+export const OSM_BASE_LAYER: maplibregl.RasterLayerSpecification = {
+  id: OSM_LAYER_ID,
+  type: "raster",
+  source: OSM_SOURCE_ID,
+};
+
 export const BASE_STYLE: maplibregl.StyleSpecification = {
   version: 8,
   sources: {
-    [MAP_SOURCE_ID]: {
-      type: "raster",
-      tiles: ["https://a.tile.openstreetmap.org/{z}/{x}/{y}.png"],
-      tileSize: 256,
-      attribution: "&copy; OpenStreetMap contributors",
-    },
+    [OSM_SOURCE_ID]: OSM_RASTER_SOURCE,
     [SATELLITE_SOURCE_ID]: {
       type: "raster",
       tiles: [
         "https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}",
       ],
       tileSize: 256,
-      attribution:
-        "&copy; Esri, Maxar, Earthstar Geographics",
+      attribution: "&copy; Esri, Maxar, Earthstar Geographics",
     },
   },
   layers: [
-    {
-      id: OSM_LAYER_ID,
-      type: "raster",
-      source: MAP_SOURCE_ID,
-    },
+    OSM_BASE_LAYER,
     {
       id: SATELLITE_LAYER_ID,
       type: "raster",
@@ -127,8 +162,7 @@ export const ensureMapLayers = (
       });
     } else {
       const existingSourceSpec = map.getStyle()?.sources?.[GEE_SOURCE_ID] as
-        | { tiles?: string[] }
-        | undefined;
+        { tiles?: string[] } | undefined;
       const existingTileUrl = existingSourceSpec?.tiles?.[0];
 
       if (existingTileUrl !== tileLayerUrl) {
@@ -154,7 +188,13 @@ export const ensureMapLayers = (
             "raster-resampling": "nearest",
           },
         },
-        map.getLayer(STATES_FILL_LAYER_ID) ? STATES_FILL_LAYER_ID : undefined,
+        map.getLayer(SPATIAL_BOUNDARY_LAYER_ID)
+          ? SPATIAL_BOUNDARY_LAYER_ID
+          : map.getLayer(SPATIAL_BOUNDARY_FILL_LAYER_ID)
+            ? SPATIAL_BOUNDARY_FILL_LAYER_ID
+            : map.getLayer(STATES_FILL_LAYER_ID)
+              ? STATES_FILL_LAYER_ID
+              : undefined,
       );
     }
   } else {
@@ -181,16 +221,13 @@ export const ensureMapLayers = (
       type: "fill",
       source: STATES_SOURCE_ID,
       "source-layer": STATES_SOURCE_LAYER,
+      // Transparente de propósito: a camada serve ao hover e ao clique, não ao
+      // desenho. O véu escuro que ela pintava alterava a cor do índice sob o
+      // estado e o confundia com outra faixa da legenda — quem marca hover e
+      // seleção é o contorno preto de `STATES_BORDER_LAYER_ID`.
       paint: {
         "fill-color": "#000000",
-        "fill-opacity": [
-          "case",
-          ["boolean", ["feature-state", "hover"], false],
-          0.1,
-          ["boolean", ["feature-state", "selected"], false],
-          0.1,
-          0,
-        ],
+        "fill-opacity": 0,
       },
       layout: {
         visibility: "visible",
@@ -230,6 +267,7 @@ export const ensureMapLayers = (
   }
 
   ensureMunicipalityLayers(map, STATES_BORDER_LAYER_ID);
+  ensureClassificationLayer(map);
 };
 
 const EMPTY_FEATURE_COLLECTION: FeatureCollection<Geometry> = {
@@ -242,6 +280,7 @@ export const ensureSpatialBoundaryLayer = (
   boundaryGeoJson: FeatureCollection<Geometry, { name: string }> | null,
   showStatesBorder: boolean,
   allowedStateUfs: Set<string> | null = null,
+  spatialValue: string | null = null,
 ) => {
   const hasBoundary =
     boundaryGeoJson !== null && boundaryGeoJson.features.length > 0;
@@ -284,6 +323,7 @@ export const ensureSpatialBoundaryLayer = (
       map.addSource(SPATIAL_BOUNDARY_SOURCE_ID, {
         type: "geojson",
         data: boundaryGeoJson,
+        promoteId: "name",
       });
     } else {
       const source = map.getSource(
@@ -293,7 +333,7 @@ export const ensureSpatialBoundaryLayer = (
     }
 
     if (!map.getLayer(SPATIAL_BOUNDARY_LAYER_ID)) {
-      // Insert the boundary layer right before the state fills,
+      // Insert the boundary outline right before the state fills,
       // so it sits above the GEE raster but below the interactive fills.
       map.addLayer(
         {
@@ -306,13 +346,71 @@ export const ensureSpatialBoundaryLayer = (
             "line-opacity": 0.85,
           },
         },
-        map.getLayer(STATES_FILL_LAYER_ID)
-          ? STATES_FILL_LAYER_ID
-          : undefined,
+        map.getLayer(STATES_FILL_LAYER_ID) ? STATES_FILL_LAYER_ID : undefined,
+      );
+    }
+
+    // A fonte pode trazer a área inteira (os seis biomas) porque a camada de
+    // preenchimento precisa deles para o hover e o clique. O contorno, não: ele
+    // marca o recorte ativo, então filtra pelo nome da seleção.
+    if (spatialValue && map.getLayer(SPATIAL_BOUNDARY_LAYER_ID)) {
+      map.setFilter(SPATIAL_BOUNDARY_LAYER_ID, [
+        "in",
+        ["get", "name"],
+        ["literal", [...getActiveBoundaryNames(spatialValue)]],
+      ]);
+    }
+
+    // Interactive fill layer for click/hover detection on spatial boundaries.
+    // Always transparent: o recorte sob o cursor é marcado pelo contorno preto
+    // de `SPATIAL_BOUNDARY_HOVER_LAYER_ID`, não por um véu escuro, que somava
+    // à cor do índice e confundia a leitura da legenda.
+    if (!map.getLayer(SPATIAL_BOUNDARY_FILL_LAYER_ID)) {
+      map.addLayer(
+        {
+          id: SPATIAL_BOUNDARY_FILL_LAYER_ID,
+          type: "fill",
+          source: SPATIAL_BOUNDARY_SOURCE_ID,
+          paint: {
+            "fill-color": "#000000",
+            "fill-opacity": 0,
+          },
+        },
+        map.getLayer(STATES_FILL_LAYER_ID) ? STATES_FILL_LAYER_ID : undefined,
+      );
+    }
+
+    // O contorno do recorte sob o cursor. Precisa de camada própria porque
+    // `SPATIAL_BOUNDARY_LAYER_ID` é filtrado pelo nome da seleção ativa, e o
+    // hover acontece justamente nos recortes que ainda não estão selecionados.
+    if (!map.getLayer(SPATIAL_BOUNDARY_HOVER_LAYER_ID)) {
+      map.addLayer(
+        {
+          id: SPATIAL_BOUNDARY_HOVER_LAYER_ID,
+          type: "line",
+          source: SPATIAL_BOUNDARY_SOURCE_ID,
+          paint: {
+            "line-color": "#000000",
+            "line-width": 3,
+            "line-opacity": [
+              "case",
+              ["boolean", ["feature-state", "hover"], false],
+              0.9,
+              0,
+            ],
+          },
+        },
+        map.getLayer(STATES_FILL_LAYER_ID) ? STATES_FILL_LAYER_ID : undefined,
       );
     }
   } else {
-    // Remove boundary layer when not needed
+    // Remove boundary layers when not needed
+    if (map.getLayer(SPATIAL_BOUNDARY_HOVER_LAYER_ID)) {
+      map.removeLayer(SPATIAL_BOUNDARY_HOVER_LAYER_ID);
+    }
+    if (map.getLayer(SPATIAL_BOUNDARY_FILL_LAYER_ID)) {
+      map.removeLayer(SPATIAL_BOUNDARY_FILL_LAYER_ID);
+    }
     if (map.getLayer(SPATIAL_BOUNDARY_LAYER_ID)) {
       map.removeLayer(SPATIAL_BOUNDARY_LAYER_ID);
     }
@@ -324,5 +422,297 @@ export const ensureSpatialBoundaryLayer = (
       source.setData(EMPTY_FEATURE_COLLECTION);
       map.removeSource(SPATIAL_BOUNDARY_SOURCE_ID);
     }
+  }
+};
+
+export interface ReferenceOverlayUrls {
+  outline: string;
+  fill?: string;
+}
+
+export type ReferenceOverlayTileUrls = ReadonlyMap<
+  string,
+  ReferenceOverlayUrls | undefined
+>;
+
+const REF_OVERLAY_FILL_SUFFIX = "-fill";
+
+/**
+ * O interior do território marca bem a área de longe, quando ela é uma mancha
+ * pequena, e atrapalha de perto, quando cobre a tela e o que se quer ler é o
+ * índice por baixo. Por isso desbota conforme o zoom — sem sumir de todo, para
+ * ainda distinguir uma TI de uma UC onde elas se sobrepõem. Quem marca o limite
+ * de perto é o contorno, que fica sempre igual.
+ */
+const buildReferenceOverlayFillOpacity = (
+  factor: number,
+): maplibregl.ExpressionSpecification => [
+  "interpolate",
+  ["linear"],
+  ["zoom"],
+  5,
+  0.45 * factor,
+  8,
+  0.15 * factor,
+  11,
+  0.03 * factor,
+];
+
+export const REFERENCE_OVERLAY_FILL_OPACITY =
+  buildReferenceOverlayFillOpacity(1);
+
+// Com um grupo em destaque, os outros grupos ligados continuam visíveis, mas
+// bem mais apagados que ele.
+const DIMMED_OVERLAY_FACTOR = 0.35;
+export const DIMMED_REFERENCE_OVERLAY_FILL_OPACITY =
+  buildReferenceOverlayFillOpacity(DIMMED_OVERLAY_FACTOR);
+
+// Quanto escurece tudo o que fica fora dos territórios do grupo em destaque.
+export const HIGHLIGHT_MASK_OPACITY = 0.6;
+
+const referenceOverlaySourceId = (overlayId: string) =>
+  `${REF_OVERLAY_SOURCE_PREFIX}${overlayId}`;
+
+const referenceOverlayLayerId = (overlayId: string) =>
+  `${REF_OVERLAY_LAYER_PREFIX}${overlayId}`;
+
+const removeRasterLayer = (
+  map: maplibregl.Map,
+  sourceId: string,
+  layerId: string,
+) => {
+  try {
+    if (map.getLayer(layerId)) map.removeLayer(layerId);
+    if (map.getSource(sourceId)) map.removeSource(sourceId);
+  } catch {
+    // Best-effort cleanup
+  }
+};
+
+const removeReferenceOverlay = (map: maplibregl.Map, overlayId: string) => {
+  removeRasterLayer(
+    map,
+    referenceOverlaySourceId(overlayId),
+    referenceOverlayLayerId(overlayId),
+  );
+  removeRasterLayer(
+    map,
+    referenceOverlaySourceId(overlayId) + REF_OVERLAY_FILL_SUFFIX,
+    referenceOverlayLayerId(overlayId) + REF_OVERLAY_FILL_SUFFIX,
+  );
+};
+
+const buildReferenceOverlaySource = (
+  tileUrl: string,
+): maplibregl.RasterSourceSpecification => ({
+  type: "raster",
+  tiles: [tileUrl],
+  tileSize: 256,
+  bounds: BRAZIL_RASTER_BOUNDS,
+});
+
+/**
+ * Camada âncora: o território entra ACIMA de todo dado de análise — o raster do
+ * GEE, o fill do CDI e a coropleta da AMFE, que é empilhada logo abaixo do hover
+ * de município — e abaixo das camadas de hover, seleção e limites, que precisam
+ * continuar legíveis por cima dele. Enquanto o território entrava por baixo,
+ * aplicar um índice o cobria e ele deixava de ser visível.
+ */
+const resolveReferenceOverlayAnchor = (map: maplibregl.Map) => {
+  if (map.getLayer(MUNICIPALITY_HOVER_LAYER_ID)) {
+    return MUNICIPALITY_HOVER_LAYER_ID;
+  }
+  if (map.getLayer(STATES_BORDER_LAYER_ID)) return STATES_BORDER_LAYER_ID;
+  return undefined;
+};
+
+const sameOpacity = (a: unknown, b: unknown) =>
+  JSON.stringify(a ?? 1) === JSON.stringify(b ?? 1);
+
+const applyRasterLayer = (
+  map: maplibregl.Map,
+  sourceId: string,
+  layerId: string,
+  tileUrl: string | undefined,
+  paint: maplibregl.RasterLayerSpecification["paint"],
+) => {
+  const existingSource = map.getSource(sourceId) as
+    maplibregl.RasterTileSource | undefined;
+
+  // Trocar a URL exige recriar a source: `tiles` não é editável in-place.
+  // A comparação é contra a spec (`serialize()`), e não contra `source.tiles`:
+  // este só é preenchido quando a source termina de carregar, e cada interior
+  // que carrega dispara uma nova sincronização. Comparar contra `tiles` recriava
+  // o contorno ainda carregando a cada vez, e ele nunca chegava a aparecer.
+  if (existingSource && existingSource.serialize().tiles?.[0] !== tileUrl) {
+    removeRasterLayer(map, sourceId, layerId);
+  }
+  if (!tileUrl) return;
+
+  if (!map.getSource(sourceId)) {
+    map.addSource(sourceId, buildReferenceOverlaySource(tileUrl));
+  }
+
+  if (!map.getLayer(layerId)) {
+    map.addLayer(
+      { id: layerId, type: "raster", source: sourceId, paint },
+      resolveReferenceOverlayAnchor(map),
+    );
+    return;
+  }
+
+  // Ligar ou desligar o destaque só muda a opacidade das camadas que já estão
+  // no mapa. Comparar antes evita mexer no estilo a cada sincronização — cada
+  // mudança dispara outro `styledata`, que chama esta sincronização de novo.
+  const opacity = paint?.["raster-opacity"];
+  if (!sameOpacity(map.getPaintProperty(layerId, "raster-opacity"), opacity)) {
+    map.setPaintProperty(layerId, "raster-opacity", opacity ?? 1);
+  }
+};
+
+// O interior entra antes do contorno, e os dois logo abaixo da mesma âncora:
+// assim o contorno fica por cima do interior do próprio território.
+const applyReferenceOverlay = (
+  map: maplibregl.Map,
+  overlayId: string,
+  urls: ReferenceOverlayUrls,
+  dimmed: boolean,
+) => {
+  applyRasterLayer(
+    map,
+    referenceOverlaySourceId(overlayId) + REF_OVERLAY_FILL_SUFFIX,
+    referenceOverlayLayerId(overlayId) + REF_OVERLAY_FILL_SUFFIX,
+    urls.fill,
+    {
+      "raster-opacity": dimmed
+        ? DIMMED_REFERENCE_OVERLAY_FILL_OPACITY
+        : REFERENCE_OVERLAY_FILL_OPACITY,
+    },
+  );
+  applyRasterLayer(
+    map,
+    referenceOverlaySourceId(overlayId),
+    referenceOverlayLayerId(overlayId),
+    urls.outline,
+    dimmed ? { "raster-opacity": DIMMED_OVERLAY_FACTOR } : {},
+  );
+};
+
+/**
+ * A máscara do destaque entra logo abaixo do grupo em destaque, e os dois por
+ * cima dos outros grupos: o escuro cobre o mapa base, o índice e os outros
+ * territórios, mas não o grupo destacado. Hover, seleção e limites de estado
+ * continuam acima da âncora, legíveis por cima do escuro.
+ */
+const applyHighlightMask = (
+  map: maplibregl.Map,
+  highlightedId: string | null | undefined,
+  activeTileUrls: ReferenceOverlayTileUrls,
+) => {
+  if (!highlightedId) {
+    removeRasterLayer(
+      map,
+      REF_HIGHLIGHT_MASK_SOURCE_ID,
+      REF_HIGHLIGHT_MASK_LAYER_ID,
+    );
+    return;
+  }
+
+  // Sem o endereço do interior (o grupo acabou de ser ligado), a máscara sai
+  // toda escura e o grupo acende quando o endereço chegar.
+  const tiles = syncHighlightMask(
+    map,
+    REF_HIGHLIGHT_MASK_SOURCE_ID,
+    activeTileUrls.get(highlightedId)?.fill,
+    BRAZIL_RASTER_BOUNDS,
+  );
+  const source = map.getSource(REF_HIGHLIGHT_MASK_SOURCE_ID) as
+    maplibregl.RasterTileSource | undefined;
+  if (!source) {
+    // Sem `bounds`: fora do Brasil a máscara também escurece.
+    map.addSource(REF_HIGHLIGHT_MASK_SOURCE_ID, {
+      type: "raster",
+      tiles: [tiles],
+      tileSize: 256,
+    });
+  } else if (source.serialize().tiles?.[0] !== tiles) {
+    // `setTiles` pede os tiles de novo sem tirar os atuais da tela: a troca de
+    // grupo não pisca.
+    source.setTiles([tiles]);
+  }
+
+  if (!map.getLayer(REF_HIGHLIGHT_MASK_LAYER_ID)) {
+    map.addLayer(
+      {
+        id: REF_HIGHLIGHT_MASK_LAYER_ID,
+        type: "raster",
+        source: REF_HIGHLIGHT_MASK_SOURCE_ID,
+        paint: {
+          "raster-opacity": HIGHLIGHT_MASK_OPACITY,
+          // Sem o esmaecer padrão de 300 ms: o escuro aparece no clique.
+          "raster-fade-duration": 0,
+        },
+      },
+      resolveReferenceOverlayAnchor(map),
+    );
+  }
+
+  const highlightedLayers = [
+    REF_HIGHLIGHT_MASK_LAYER_ID,
+    referenceOverlayLayerId(highlightedId) + REF_OVERLAY_FILL_SUFFIX,
+    referenceOverlayLayerId(highlightedId),
+  ].filter((layerId) => map.getLayer(layerId));
+  const anchor = resolveReferenceOverlayAnchor(map);
+  const order = map.getLayersOrder();
+  const anchorIndex = anchor ? order.indexOf(anchor) : order.length;
+  const current = order.slice(
+    anchorIndex - highlightedLayers.length,
+    anchorIndex,
+  );
+  // Só reordena quando a ordem está errada: `moveLayer` também dispara
+  // `styledata`, e mover sempre faria a sincronização se chamar sem parar.
+  if (current.join() !== highlightedLayers.join()) {
+    for (const layerId of highlightedLayers) map.moveLayer(layerId, anchor);
+  }
+};
+
+/**
+ * Sincroniza as camadas de referência (quilombolas, assentamentos, etc.) com o
+ * conjunto de URLs de tiles ativas: remove as que saíram e adiciona as que
+ * entraram, sempre acima da camada de análise. Com `highlightedId`, escurece o
+ * mapa fora dos territórios desse grupo e apaga os outros grupos.
+ *
+ * Retorna `false` quando o MapLibre ainda está montando o estilo e recusou a
+ * escrita — nesse caso o chamador deve reagendar em `styledata`/`idle`.
+ *
+ * const applied = ensureReferenceOverlayLayers(
+ *   map,
+ *   new Map([["quilombolas", { outline: url, fill: fillUrl }]]),
+ *   "quilombolas",
+ * );
+ */
+export const ensureReferenceOverlayLayers = (
+  map: maplibregl.Map,
+  activeTileUrls: ReferenceOverlayTileUrls,
+  highlightedId?: string | null,
+): boolean => {
+  for (const overlayId of REFERENCE_LAYER_IDS) {
+    if (!activeTileUrls.get(overlayId)) removeReferenceOverlay(map, overlayId);
+  }
+
+  try {
+    for (const [overlayId, urls] of activeTileUrls) {
+      const dimmed = Boolean(highlightedId) && overlayId !== highlightedId;
+      if (urls) applyReferenceOverlay(map, overlayId, urls, dimmed);
+    }
+    applyHighlightMask(map, highlightedId, activeTileUrls);
+    return true;
+  } catch {
+    // `addSource`/`addLayer` lançam "Style is not done loading." enquanto o
+    // MapLibre ainda parseia o estilo (troca de basemap, primeiro render).
+    // Não dá para usar `map.isStyleLoaded()` como guarda aqui: ele também
+    // retorna false enquanto QUALQUER source ainda busca tiles, o que durante
+    // cliques seguidos deixaria a adição bloqueada quase o tempo todo.
+    return false;
   }
 };

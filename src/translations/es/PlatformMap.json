@@ -3,8 +3,21 @@
     "loadingGeeLayer": "Cargando capa de GEE",
     "loadingMapLayer": "Cargando capa de mapa",
     "opacity": "Transparencia",
+    "mapSettings": "Ajustes del mapa",
     "basemap": "Mapa base",
     "satellite": "Satélite",
-    "street": "Calle"
+    "street": "Calle",
+    "referenceOverlays": "Territorios",
+    "quilombolas": "Territorios Quilombolas",
+    "assentamentos": "Asentamientos",
+    "terras_indigenas": "Tierras Indígenas",
+    "unidades_conservacao": "Unidades de Conservación",
+    "highlightColumn": "Destacar",
+    "highlightTerritory": "Destacar {name}",
+    "territorySearchPlaceholder": "Buscar territorio por nombre",
+    "territorySearchLabel": "Búsqueda de territorio",
+    "territorySearchLoading": "Cargando territorios…",
+    "territorySearchNoResults": "Ningún territorio encontrado",
+    "territorySearchError": "No se pudieron cargar los territorios"
   }
 }

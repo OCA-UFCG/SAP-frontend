@@ -77,7 +77,7 @@ describe("populateDocContent", () => {
     );
 
     expect(content.DROUGHT_MONITOR[0].text).toBe(
-      "Direto: 42,5%; alias: 42,5%.",
+      "Direto: 42,50%; alias: 42,50%.",
     );
   });
 
@@ -99,7 +99,115 @@ describe("populateDocContent", () => {
     );
 
     expect(content.DEGRADATION_INDEX[0].text).toBe(
-      "Soma: 12,35%; conservado: 42,5%; nível 1: 18,8%.",
+      "Soma: 12,35%; conservado: 42,50%; nível 1: 18,75%.",
+    );
+  });
+});
+
+describe("populateDocContent com variáveis por camada", () => {
+  it("resolve [classe] e [percentual] para a camada da própria seção", () => {
+    const content = populateDocContent(
+      {
+        "indice-de-aridez-era5-land": [
+          {
+            title: "Situação atual",
+            text: "Predomina [classe], com [percentual]% em [periodo_extenso].",
+          },
+        ],
+      },
+      {
+        classe_indice_de_aridez_era5_land: "Semiárido",
+        percentual_indice_de_aridez_era5_land: 83.42,
+        periodo_extenso_indice_de_aridez_era5_land: "setembro de 2024",
+      },
+    );
+
+    expect(content["indice-de-aridez-era5-land"][0].text).toBe(
+      "Predomina Semiárido, com 83,42% em setembro de 2024.",
+    );
+  });
+
+  it("não mistura camadas: [classe] não pega o valor de outro índice", () => {
+    const content = populateDocContent(
+      { "indice-a": [{ title: "Situação atual", text: "Classe: [classe]." }] },
+      { classe_indice_b: "Semiárido" },
+    );
+
+    expect(content["indice-a"][0].text).toBe("Classe: [classe].");
+  });
+
+  it("mantém o apelido explícito das camadas legadas na frente do genérico", () => {
+    const content = populateDocContent(
+      { ARIDITY_INDEX: [{ title: "Situação", text: "Classe: [classe]." }] },
+      {
+        classe_aridez: "Semiárido",
+        classe_aridity_index: "Valor genérico indevido",
+      },
+    );
+
+    expect(content.ARIDITY_INDEX[0].text).toBe("Classe: Semiárido.");
+  });
+});
+
+describe("populateDocContent > variáveis de série da própria camada", () => {
+  it("resolve as variáveis novas no escopo da seção, sem o operador saber o alias", () => {
+    const content = populateDocContent(
+      {
+        indice_novo: [
+          {
+            title: "Contexto histórico",
+            text: "Antes era [classe_anterior], com [percentual_anterior]% da área, e a situação vem [status_tendencia] desde [periodo_inicial].",
+          },
+        ],
+      },
+      {
+        classe_anterior_indice_novo: "Sem seca",
+        percentual_anterior_indice_novo: 83.42,
+        status_tendencia_indice_novo: "agravando",
+        periodo_inicial_indice_novo: "janeiro de 2020",
+      },
+    );
+
+    expect(content.indice_novo[0].text).toBe(
+      "Antes era Sem seca, com 83,42% da área, e a situação vem agravando desde janeiro de 2020.",
+    );
+  });
+
+  it("formata como pontos percentuais qualquer variação, e não só a da degradação", () => {
+    const content = populateDocContent(
+      {
+        indice_novo: [{ title: "Variação", text: "[variacao_pontos] pontos" }],
+      },
+      { variacao_pontos_indice_novo: 12.34 },
+    );
+
+    expect(content.indice_novo[0].text).toBe("12,34 pontos");
+  });
+
+  // Regressão: num índice legado o apelido das variáveis é escrito à mão em
+  // MUNICIPAL_REPORT_LAYERS ("indicearidez" -> "aridez"), e o texto escrito no
+  // catálogo saía com [classe], [percentual] e as variáveis de série em
+  // colchetes literais, no relatório e na prévia do catálogo.
+  it("resolve as variáveis por camada pelo apelido de relatório de um índice legado", () => {
+    const content = populateDocContent(
+      {
+        indicearidez: [
+          {
+            title: "Situação",
+            text: "[classe] em [percentual]% da área em [periodo_extenso], antes [classe_anterior].",
+          },
+        ],
+      },
+      {
+        classe_aridez: "Semiárido",
+        percentual_aridez: 61.27,
+        periodo_extenso_aridez: "2020",
+        classe_anterior_aridez: "Subúmido seco",
+      },
+    );
+
+    expect(content.indicearidez[0].text).toBe(
+      "Semiárido em 61,27% da área em 2020, antes Subúmido seco.",
     );
   });
 });

@@ -3,8 +3,21 @@
     "loadingGeeLayer": "Loading GEE layer",
     "loadingMapLayer": "Loading map layer",
     "opacity": "Transparency",
+    "mapSettings": "Map settings",
     "basemap": "Base map",
     "satellite": "Satellite",
-    "street": "Street"
+    "street": "Street",
+    "referenceOverlays": "Territories",
+    "quilombolas": "Quilombola Territories",
+    "assentamentos": "Settlements",
+    "terras_indigenas": "Indigenous Lands",
+    "unidades_conservacao": "Conservation Units",
+    "highlightColumn": "Highlight",
+    "highlightTerritory": "Highlight {name}",
+    "territorySearchPlaceholder": "Search territory by name",
+    "territorySearchLabel": "Territory search",
+    "territorySearchLoading": "Loading territories…",
+    "territorySearchNoResults": "No territory found",
+    "territorySearchError": "Could not load territories"
   }
 }

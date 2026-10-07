@@ -1,5 +1,9 @@
 "use client";
 
+import {
+  formatAbsoluteNumber,
+  formatPercentageNumber,
+} from "@/utils/formatTerritorialNumber";
 import { useEffect, useRef, useState, useMemo } from "react";
 import dynamic from "next/dynamic";
 import { useTranslations } from "next-intl";
@@ -66,10 +70,10 @@ interface AnalysisYearSelectProps {
 }
 
 function renderFormattedText(text: string) {
-  const parts = text.split(/(\d+(?:\.\d+)?% [^,.]+)/g);
+  const parts = text.split(/(\d+(?:[.,]\d+)?% [^,.]+)/g);
 
   return parts.map((part, index) =>
-    /\d+(?:\.\d+)?%/.test(part) ? (
+    /\d+(?:[.,]\d+)?%/.test(part) ? (
       <strong key={index} className="font-bold text-[#292829]">
         {part}
       </strong>
@@ -246,7 +250,6 @@ function AnalysisYearSelect({
   );
 }
 
-
 function DistributionSection({
   items,
   valueType,
@@ -262,8 +265,8 @@ function DistributionSection({
   const absolute = valueType === "absolute";
   const formatValue = (value: number) =>
     absolute
-      ? `${value.toLocaleString("pt-BR")} ${valueUnit ?? ""}`.trim()
-      : `${value}%`;
+      ? `${formatAbsoluteNumber(value, "pt-BR")} ${valueUnit ?? ""}`.trim()
+      : `${formatPercentageNumber(value, "pt-BR")}%`;
   return (
     <div className="flex flex-col gap-2">
       <h2 className="text-[14px] font-semibold leading-6 text-[#292829]">
@@ -320,9 +323,9 @@ function parseHexColor(color: string) {
   const expanded =
     normalized.length === 3
       ? normalized
-        .split("")
-        .map((character) => character + character)
-        .join("")
+          .split("")
+          .map((character) => character + character)
+          .join("")
       : normalized;
 
   return {
@@ -365,15 +368,11 @@ function RankingSectionContent({
       {groups.map((group) => {
         const state = groupStates[group.id] ?? "initial";
         const nonZeroCount = group.allItems?.length ?? group.items.length;
-        const hasItems = (nonZeroCount ?? 0) > 0;
         const headerTextColor = getContrastTextColor(group.tone.color);
         const badgeBackgroundColor = buildRankingBadgeColor(group.tone.color);
         const badgeTextColor = getContrastTextColor(badgeBackgroundColor);
-        const toggleLabel = !hasItems
-          ? t("noStatesWithValue")
-          : state === "all"
-            ? t("hideList")
-            : `${t("seeAll")} (${nonZeroCount})`;
+        const toggleLabel =
+          state === "all" ? t("hideList") : `${t("seeAll")} (${nonZeroCount})`;
 
         const isOpen = state === "all";
 
@@ -409,7 +408,7 @@ function RankingSectionContent({
               </div>
             </div>
 
-            {hasItems && state !== "closed" ? (
+            {state !== "closed" ? (
               <div className="flex flex-col gap-2 bg-white p-2">
                 {(state === "initial"
                   ? group.items
@@ -449,18 +448,9 @@ function RankingSectionContent({
 
             <button
               type="button"
-              disabled={!hasItems}
-              aria-expanded={hasItems ? isOpen : undefined}
-              aria-label={
-                hasItems
-                  ? `${isOpen ? "Ocultar" : "Mostrar"} ${group.label}`
-                  : undefined
-              }
+              aria-expanded={isOpen}
+              aria-label={`${isOpen ? "Ocultar" : "Mostrar"} ${group.label}`}
               onClick={() => {
-                if (!hasItems) {
-                  return;
-                }
-
                 setGroupStates((current) => {
                   const cur = current[group.id] ?? "initial";
                   const next =
@@ -475,12 +465,10 @@ function RankingSectionContent({
                   };
                 });
               }}
-              className="flex min-h-7 w-full items-center justify-center gap-2 bg-[#C8CAC5] px-2 py-1 text-[12px] font-medium leading-5 text-[#292829] transition-colors duration-150 enabled:cursor-pointer enabled:hover:bg-[#BFC2BC] disabled:cursor-default"
+              className="flex min-h-7 w-full cursor-pointer items-center justify-center gap-2 bg-[#C8CAC5] px-2 py-1 text-[12px] font-medium leading-5 text-[#292829] transition-colors duration-150 hover:bg-[#BFC2BC]"
             >
               <span className="font-inter">{toggleLabel}</span>
-              {hasItems ? (
-                <Chevron open={isOpen} from="down" to="up" size={16} />
-              ) : null}
+              <Chevron open={isOpen} from="down" to="up" size={16} />
             </button>
           </div>
         );
@@ -499,13 +487,17 @@ function RankingSection({
   onItemSelect?: (locationKey: string) => void;
 }) {
   const t = useTranslations("AnalysisPanel");
-  if (groups.length === 0) {
+  const visibleGroups = groups.filter(
+    (group) => (group.allItems?.length ?? group.items.length) > 0,
+  );
+
+  if (visibleGroups.length === 0) {
     return (
       <EmptySection title={title} description={t("rankingsNotAvailable")} />
     );
   }
 
-  const rankingGroupsKey = groups
+  const rankingGroupsKey = visibleGroups
     .map(
       (group) =>
         `${group.id}:${group.total}:${group.items.map((item) => item.id).join(",")}`,
@@ -519,7 +511,7 @@ function RankingSection({
       </h2>
       <RankingSectionContent
         key={rankingGroupsKey}
-        groups={groups}
+        groups={visibleGroups}
         onItemSelect={onItemSelect}
       />
     </div>
@@ -593,7 +585,7 @@ export function AnalysisPanel({
 
         <header className="flex flex-col gap-2">
           <h1 className="font-inter text-[24px] font-semibold leading-[24px] tracking-[-0.015em]">
-            {t("analysisOfModule")} {moduleName}
+            {moduleName}
           </h1>
           <p className="font-inter text-[16px] font-medium leading-[24px] tracking-[-0.015em]">
             {t("searchStateOrCityToStart")}
@@ -619,8 +611,6 @@ export function AnalysisPanel({
               onYearChange={onYearChange}
             />
           </div>
-
-
         </section>
 
         {model ? (
@@ -648,8 +638,9 @@ export function AnalysisPanel({
                       model.highlight.tone?.color ??
                       model.accentColor ??
                       "#F5F5F5",
-                    border: `1px solid ${model.highlight.tone?.border ?? "#F0F0D7"
-                      }`,
+                    border: `1px solid ${
+                      model.highlight.tone?.border ?? "#F0F0D7"
+                    }`,
                   }}
                 >
                   <span className="font-semibold text-[14px] leading-6 text-[#292829]">

@@ -67,6 +67,7 @@ describe("PlatformMap", () => {
     useSpatialBoundaryOverlayMock.mockReset();
     useSpatialBoundaryOverlayMock.mockReturnValue({
       boundaryGeoJson: null,
+      activeBoundaryGeoJson: null,
       status: "idle",
     });
 
@@ -99,7 +100,7 @@ describe("PlatformMap", () => {
       tileLayerUrl: undefined,
     });
 
-    render(<PlatformMap />);
+    render(<PlatformMap section="monitoring" />);
 
     expect(
       screen.getByRole("status", { name: "Carregando camada do GEE" }),
@@ -114,7 +115,7 @@ describe("PlatformMap", () => {
       tileLayerUrl: "https://tiles.example/2024",
     });
 
-    render(<PlatformMap />);
+    render(<PlatformMap section="monitoring" />);
 
     expect(
       screen.getByRole("status", { name: "Carregando camada do GEE" }),
@@ -132,6 +133,11 @@ describe("PlatformMap", () => {
     });
   });
 
+  /** Mapa base e Transparência agora moram atrás do botão de ajustes do mapa. */
+  function openMapSettings() {
+    fireEvent.click(screen.getByRole("button", { name: "Ajustes do mapa" }));
+  }
+
   it("labels the opacity control for assistive technologies", () => {
     useEarthEngineTileLayerMock.mockReturnValue({
       requestKey: "ee-layer:2024",
@@ -139,11 +145,12 @@ describe("PlatformMap", () => {
       tileLayerUrl: "https://tiles.example/2024",
     });
 
-    render(<PlatformMap />);
+    render(<PlatformMap section="monitoring" />);
+    openMapSettings();
 
-    expect(
-      screen.getByRole("slider", { name: "Transparência" }),
-    ).toHaveValue("0.85");
+    expect(screen.getByRole("slider", { name: "Transparência" })).toHaveValue(
+      "0.85",
+    );
   });
 
   it("switches between street and satellite basemaps", () => {
@@ -153,7 +160,8 @@ describe("PlatformMap", () => {
       tileLayerUrl: "https://tiles.example/2024",
     });
 
-    render(<PlatformMap />);
+    render(<PlatformMap section="monitoring" />);
+    openMapSettings();
 
     const streetButton = screen.getByRole("button", { name: "Rua" });
     const satelliteButton = screen.getByRole("button", { name: "Satélite" });
@@ -189,17 +197,25 @@ describe("PlatformMap", () => {
       },
     });
 
-    const { rerender } = render(<PlatformMap showMonitoringOverlays />);
+    const { rerender } = render(
+      <PlatformMap section="monitoring" showMonitoringControls />,
+    );
+    openMapSettings();
 
-    expect(
-      screen.getByRole("slider", { name: "Transparência" }),
-    ).toHaveValue("0.85");
+    expect(screen.getByRole("slider", { name: "Transparência" })).toHaveValue(
+      "0.85",
+    );
     expect(
       screen.getByRole("heading", { name: "Legendas" }),
     ).toBeInTheDocument();
 
-    rerender(<PlatformMap showMonitoringOverlays={false} />);
+    rerender(
+      <PlatformMap section="monitoring" showMonitoringControls={false} />,
+    );
 
+    expect(
+      screen.queryByRole("button", { name: "Ajustes do mapa" }),
+    ).not.toBeInTheDocument();
     expect(
       screen.queryByRole("group", { name: "Mapa base" }),
     ).not.toBeInTheDocument();
@@ -232,7 +248,7 @@ describe("PlatformMap", () => {
     });
 
     it("frames Brazil for the national area", () => {
-      render(<PlatformMap />);
+      render(<PlatformMap section="monitoring" />);
 
       expect(latestMapProps?.spatialFocusBounds).toEqual(
         resolveSpatialFocusBounds(geoBrasilSource, null, null),
@@ -244,7 +260,7 @@ describe("PlatformMap", () => {
         viewStateFor({ spatialArea: "region", spatialValue: "Nordeste" }),
       );
 
-      render(<PlatformMap />);
+      render(<PlatformMap section="monitoring" />);
 
       expect(latestMapProps?.spatialFocusBounds).toEqual(
         resolveSpatialFocusBounds(
@@ -264,48 +280,54 @@ describe("PlatformMap", () => {
     it("waits for the real boundary instead of framing the composing states", () => {
       useSpatialBoundaryOverlayMock.mockReturnValue({
         boundaryGeoJson: null,
+        activeBoundaryGeoJson: null,
         status: "loading",
       });
       useMapLayerViewStateMock.mockReturnValue(
         viewStateFor({ spatialArea: "biome", spatialValue: "Caatinga" }),
       );
 
-      render(<PlatformMap />);
+      render(<PlatformMap section="monitoring" />);
 
       // Enquadrar agora causaria um movimento grosseiro seguido do correto.
       expect(latestMapProps?.spatialFocusBounds).toBeNull();
     });
 
+    const boundaryFeature = (
+      name: string,
+      [west, south, east, north]: [number, number, number, number],
+    ) => ({
+      type: "Feature" as const,
+      properties: { name },
+      geometry: {
+        type: "Polygon" as const,
+        coordinates: [
+          [
+            [west, south],
+            [east, south],
+            [east, north],
+            [west, north],
+            [west, south],
+          ],
+        ],
+      },
+    });
+
     it("frames the real boundary once it arrives", () => {
+      const caatinga = boundaryFeature("Caatinga", [-44, -16, -36, -3]);
       useSpatialBoundaryOverlayMock.mockReturnValue({
         status: "ready",
-        boundaryGeoJson: {
+        boundaryGeoJson: { type: "FeatureCollection", features: [caatinga] },
+        activeBoundaryGeoJson: {
           type: "FeatureCollection",
-          features: [
-            {
-              type: "Feature",
-              properties: { name: "Caatinga" },
-              geometry: {
-                type: "Polygon",
-                coordinates: [
-                  [
-                    [-44, -16],
-                    [-36, -16],
-                    [-36, -3],
-                    [-44, -3],
-                    [-44, -16],
-                  ],
-                ],
-              },
-            },
-          ],
+          features: [caatinga],
         },
       });
       useMapLayerViewStateMock.mockReturnValue(
         viewStateFor({ spatialArea: "biome", spatialValue: "Caatinga" }),
       );
 
-      render(<PlatformMap />);
+      render(<PlatformMap section="monitoring" />);
 
       expect(latestMapProps?.spatialFocusBounds).toEqual([
         [-44, -16],
@@ -313,16 +335,47 @@ describe("PlatformMap", () => {
       ]);
     });
 
+    it("frames the selected biome, not the whole collection drawn on the map", () => {
+      // Regressão: enquadrar pela coleção inteira dá a caixa do Brasil, e ela é
+      // a mesma para os seis biomas — a câmera parava de se mover na troca.
+      const caatinga = boundaryFeature("Caatinga", [-44, -16, -36, -3]);
+      const pampa = boundaryFeature("Pampa", [-57, -33, -49, -28]);
+      useSpatialBoundaryOverlayMock.mockReturnValue({
+        status: "ready",
+        boundaryGeoJson: {
+          type: "FeatureCollection",
+          features: [caatinga, pampa],
+        },
+        activeBoundaryGeoJson: {
+          type: "FeatureCollection",
+          features: [caatinga],
+        },
+      });
+      useMapLayerViewStateMock.mockReturnValue(
+        viewStateFor({ spatialArea: "biome", spatialValue: "Caatinga" }),
+      );
+
+      render(<PlatformMap section="monitoring" />);
+
+      expect(latestMapProps?.spatialFocusBounds).toEqual([
+        [-44, -16],
+        [-36, -3],
+      ]);
+      // E o mapa continua recebendo a coleção inteira para desenhar e clicar.
+      expect(latestMapProps?.spatialBoundaryGeoJson?.features).toHaveLength(2);
+    });
+
     it("falls back to the composing states when the boundary fetch fails", () => {
       useSpatialBoundaryOverlayMock.mockReturnValue({
         boundaryGeoJson: null,
+        activeBoundaryGeoJson: null,
         status: "error",
       });
       useMapLayerViewStateMock.mockReturnValue(
         viewStateFor({ spatialArea: "biome", spatialValue: "Caatinga" }),
       );
 
-      render(<PlatformMap />);
+      render(<PlatformMap section="monitoring" />);
 
       expect(latestMapProps?.spatialFocusBounds).toEqual(
         resolveSpatialFocusBounds(

@@ -26,35 +26,19 @@ const HOME_TELEMETRY_LAYER = {
   name: "CDI Janeiro 2024",
   activeDateLabel: "31/01/24",
 } as const;
-const TELEMETRY_LAYER_CATALOG_TTL_MS = 1000 * 60 * 5;
-
-let cachedAnalysisLayersById = new Map<string, PanelLayerI>();
-let cachedAnalysisLayersExpiresAt = 0;
 
 function buildAnonymousSessionId() {
   return `server-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 10)}`;
 }
 
+/**
+ * Lê direto de `getPanelLayers`, que já memoiza a lista no processo e é limpa
+ * pelo catálogo ao publicar. Uma cópia própria aqui, com TTL de cinco minutos e
+ * sem essa limpeza, recusava com 400 os eventos de um índice recém-publicado.
+ */
 async function getTrustedAnalysisLayersById() {
-  const now = Date.now();
-
-  if (
-    cachedAnalysisLayersById.size > 0 &&
-    now < cachedAnalysisLayersExpiresAt
-  ) {
-    return cachedAnalysisLayersById;
-  }
-
   const panelLayers = await getPanelLayers();
-
-  if (panelLayers.length > 0) {
-    cachedAnalysisLayersById = new Map(
-      panelLayers.map((layer) => [layer.id, layer]),
-    );
-    cachedAnalysisLayersExpiresAt = now + TELEMETRY_LAYER_CATALOG_TTL_MS;
-  }
-
-  return cachedAnalysisLayersById;
+  return new Map(panelLayers.map((layer) => [layer.id, layer]));
 }
 
 function buildAllowedAnalysisDateLabels(layer: PanelLayerI) {
@@ -282,9 +266,4 @@ export async function getTelemetryDashboardData(
 ): Promise<TelemetryDashboardData> {
   const recentEvents = await getRecentTelemetryEvents(sampleSize);
   return buildTelemetryDashboardData(recentEvents);
-}
-
-export function clearTelemetryIngestValidationCache() {
-  cachedAnalysisLayersById.clear();
-  cachedAnalysisLayersExpiresAt = 0;
 }

@@ -1,16 +1,31 @@
-import { parseGeeFeatureCollectionStatisticsSource } from "@/contracts/geeStatistics";
+import { isMunicipalSpreadsheetSource } from "@/contracts/municipalSpreadsheet";
+import { isGeeMunicipalValueTableSource } from "@/contracts/geeMunicipalValueTable";
+import { parseGeeStatisticsSource } from "@/contracts/geeStatistics";
+import { HEX_COLOR_PATTERN } from "@/utils/hexColor";
 import {
   INDEX_CATEGORIES,
   type ClassMapping,
   type EarthEngineAssetMapping,
   type IndexCatalogConfigV2,
   type IndexCatalogDraftInput,
+  type IndexCatalogItem,
+  type IndexCatalogPresentationInput,
   type IndexCategory,
+  type MunicipalValueIndicator,
 } from "@/types/indexCatalog";
 
-const HEX_COLOR_PATTERN = /^#[0-9a-f]{6}$/iu;
 const ASSET_ID_PATTERN = /^[A-Za-z0-9_./{}-]{3,300}$/u;
 const PERIOD_PATTERN = /^\d{4}(?:-(?:0[1-9]|1[0-2]))?$/u;
+const ASSET_YEAR_PATTERN = /(?<![0-9])(?:19|20|21)\d{2}(?![0-9])/gu;
+const ASSET_MONTH_SUFFIX_PATTERN = /^([_\-.])(0[1-9]|1[0-2])(?=$|[_\-./])/u;
+const PERIOD_CAPTURE_PATTERN = /^(\d{4})(?:-(0[1-9]|1[0-2]))?$/u;
+
+export interface DetectedPeriodTemplate {
+  /** Endereço com `{year}` — e `{month}`, quando houver — no lugar do período. */
+  assetIdTemplate: string;
+  year: string;
+  month?: string;
+}
 const GEE_PROPERTY_PATTERN = /^[A-Za-z_][A-Za-z0-9_:.-]{0,119}$/u;
 
 function isRecord(value: unknown): value is Record<string, unknown> {
@@ -21,6 +36,21 @@ function requiredString(value: unknown, label: string, maxLength: number) {
   if (typeof value !== "string" || !value.trim()) {
     throw new Error(`${label} é obrigatório.`);
   }
+  const normalized = value.trim();
+  if (normalized.length > maxLength) {
+    throw new Error(`${label} deve ter no máximo ${maxLength} caracteres.`);
+  }
+  return normalized;
+}
+
+/**
+ * Um texto que pode ficar em branco, como a unidade de um índice sem unidade
+ * (IDH, Gini). Em branco vira `""`, e não `undefined`, porque é o que a entry
+ * grava e o que o painel trata como "sem unidade".
+ */
+function optionalString(value: unknown, label: string, maxLength: number) {
+  if (value == null) return "";
+  if (typeof value !== "string") throw new Error(`${label} inválido.`);
   const normalized = value.trim();
   if (normalized.length > maxLength) {
     throw new Error(`${label} deve ter no máximo ${maxLength} caracteres.`);
@@ -68,8 +98,9 @@ export function makeUniqueCatalogPanelLayerId(
  * catálogo — despublicada no app do Contentful, ou um "Excluir" que
  * despublicou e falhou ao remover. Sem reconciliar, um índice com
  * `status: "published"` numa entry em rascunho fica impossível de publicar:
- * `assertPublishable` só aceita `ready`, e o operador recebe "Revalide os
- * assets e gere a prévia antes de publicar" mesmo com a prévia validada.
+ * o operador recebe "Revalide os assets e gere a prévia antes de publicar"
+ * mesmo com a prévia validada, porque `hasPublishableValidation` julga o
+ * `status` gravado e ele não descreve mais a entry.
  *
  * @example
  * reconcileCatalogPublicationStatus({ status: "published", validation }, false);
@@ -83,6 +114,49 @@ export function reconcileCatalogPublicationStatus(
     return config.status;
   }
   return config.validation?.valid ? "ready" : "draft";
+}
+
+/**
+ * Quantas classes a camada publicada tem — o número que o repositório
+ * estatístico confere contra o asset antes de ler as linhas.
+ *
+ * Não é `classes.length`: numa tabela municipal de valor único aquela lista
+ * guarda as faixas de cor do mapa (duas ou mais), enquanto a camada tem uma
+ * classe só, o próprio indicador. Existe como função compartilhada porque a
+ * prévia do painel e a prévia do relatório precisam do mesmo número, e quando
+ * cada uma calculava o seu a do relatório ficou para trás.
+ *
+ * @example
+ * catalogLayerClassCount(valueTableSource, config.classes); // 1
+ */
+export function catalogLayerClassCount(
+  statisticsSource: unknown,
+  classes: readonly ClassMapping[],
+) {
+  return isGeeMunicipalValueTableSource(statisticsSource) ||
+    isMunicipalSpreadsheetSource(statisticsSource)
+    ? 1
+    : classes.length;
+}
+
+/**
+ * Se a prévia gravada num índice ainda serve para publicar.
+ *
+ * `draft` e `error` não servem — nos dois a validação foi apagada ou marcada
+ * inválida —, e `ready` e `published` seguem para a reconferência do
+ * fingerprint. Mora aqui, e não só na rota, porque a tela decide com a mesma
+ * regra se oferece "Republicar": um botão que aparece num estado que a rota
+ * recusa só produz "Revalide os assets e gere a prévia antes de publicar"
+ * depois do clique, e o operador não tem o que corrigir na tela.
+ *
+ * @example
+ * hasPublishableValidation("published"); // true
+ * hasPublishableValidation("draft"); // false — salvar o rascunho apaga a prévia
+ */
+export function hasPublishableValidation(
+  status: IndexCatalogItem["status"],
+): boolean {
+  return status === "ready" || status === "published";
 }
 
 function parseClasses(value: unknown): ClassMapping[] {
@@ -128,6 +202,22 @@ function parseClasses(value: unknown): ClassMapping[] {
   return classes.sort((left, right) => left.classIndex - right.classIndex);
 }
 
+/** Os limites que separam as faixas de cor, recusados fora de ordem crescente. */
+function parseThresholds(
+  value: unknown,
+): Pick<EarthEngineAssetMapping, "thresholds"> {
+  const thresholds = Array.isArray(value) ? value.map(Number) : undefined;
+  if (
+    thresholds?.some((threshold) => !Number.isFinite(threshold)) ||
+    thresholds?.some(
+      (threshold, index) => index > 0 && threshold <= thresholds[index - 1],
+    )
+  ) {
+    throw new Error("Os limites do mapa devem ser números crescentes.");
+  }
+  return thresholds?.length ? { thresholds } : {};
+}
+
 function parseEarthEngineMapping(value: unknown): EarthEngineAssetMapping {
   if (!isRecord(value)) {
     throw new Error("O asset de visualização do mapa é obrigatório.");
@@ -140,9 +230,23 @@ function parseEarthEngineMapping(value: unknown): EarthEngineAssetMapping {
   if (
     sourceType !== "image" &&
     sourceType !== "imageCollection" &&
-    sourceType !== "featureCollection"
+    sourceType !== "featureCollection" &&
+    sourceType !== "municipalChoropleth"
   ) {
-    throw new Error("Tipo do asset de mapa inválido.");
+    throw new Error(
+      `Tipo do asset de mapa inválido: ${JSON.stringify(sourceType)}.`,
+    );
+  }
+
+  // A coropleta municipal é desenhada no navegador sobre os tiles que a
+  // plataforma já serve: não há asset a informar, e exigir um faria a única
+  // forma sem Earth Engine pedir um endereço do Earth Engine.
+  if (sourceType === "municipalChoropleth") {
+    return {
+      strategy: "single",
+      sourceType,
+      ...parseThresholds(value.thresholds),
+    };
   }
 
   const singleAssetId =
@@ -181,17 +285,7 @@ function parseEarthEngineMapping(value: unknown): EarthEngineAssetMapping {
     }
   }
 
-  const thresholds = Array.isArray(value.thresholds)
-    ? value.thresholds.map(Number)
-    : undefined;
-  if (
-    thresholds?.some((threshold) => !Number.isFinite(threshold)) ||
-    thresholds?.some(
-      (threshold, index) => index > 0 && threshold <= thresholds[index - 1],
-    )
-  ) {
-    throw new Error("Os limites do mapa devem ser números crescentes.");
-  }
+  const { thresholds } = parseThresholds(value.thresholds);
 
   let collectionSelection: EarthEngineAssetMapping["collectionSelection"];
   if (value.collectionSelection != null) {
@@ -277,6 +371,32 @@ function parseEarthEngineMapping(value: unknown): EarthEngineAssetMapping {
   };
 }
 
+function parseValueIndicator(value: unknown): MunicipalValueIndicator {
+  if (!isRecord(value)) {
+    throw new Error("Descreva o indicador do índice de valor único.");
+  }
+  const color = requiredString(value.color, "Cor do indicador", 7);
+  if (!HEX_COLOR_PATTERN.test(color)) {
+    throw new Error("A cor do indicador deve usar #RRGGBB.");
+  }
+  if (value.valueType !== "percentage" && value.valueType !== "absolute") {
+    throw new Error(
+      "O tipo do valor deve ser percentual ou absoluto (contagens).",
+    );
+  }
+
+  return {
+    label: requiredString(value.label, "Rótulo do indicador", 120),
+    color: color.toUpperCase(),
+    measurementUnit: optionalString(
+      value.measurementUnit,
+      "Unidade do indicador",
+      30,
+    ),
+    valueType: value.valueType,
+  };
+}
+
 export function parseIndexCatalogDraftInput(
   value: unknown,
 ): IndexCatalogDraftInput {
@@ -288,12 +408,27 @@ export function parseIndexCatalogDraftInput(
     throw new Error("Categoria inválida.");
   }
 
-  const statisticsSource = parseGeeFeatureCollectionStatisticsSource(
-    value.statisticsSource,
-  );
-  if (statisticsSource.properties.scalarMetrics) {
+  const statisticsSource = parseGeeStatisticsSource(value.statisticsSource);
+  if (
+    statisticsSource.kind === "gee-feature-collection" &&
+    statisticsSource.properties.scalarMetrics
+  ) {
     throw new Error(
       "O catálogo v2 aceita apenas estatísticas classificatórias nesta versão.",
+    );
+  }
+  // As duas formas de valor único — a tabela do GEE e a planilha — mostram um
+  // número por território e descrevem o mesmo indicador.
+  const isValueTable =
+    isGeeMunicipalValueTableSource(statisticsSource) ||
+    isMunicipalSpreadsheetSource(statisticsSource);
+  const classes = parseClasses(value.classes);
+  // Uma tabela de valor único desenha faixas no mapa, e cada faixa é separada da
+  // seguinte por um limite: sem eles a paleta se espalharia pelo intervalo bruto
+  // do indicador e a legenda passaria a mentir sobre a cor.
+  if (isValueTable && classes.length < 2) {
+    throw new Error(
+      "Informe pelo menos duas faixas de cor para o mapa do indicador.",
     );
   }
 
@@ -302,9 +437,138 @@ export function parseIndexCatalogDraftInput(
     description: requiredString(value.description, "Descrição", 500),
     category: value.category as IndexCategory,
     statisticsSource,
-    classes: parseClasses(value.classes),
+    classes,
     earthEngine: parseEarthEngineMapping(value.earthEngine),
+    ...parsePanelPositionInput(value.panelPosition),
+    ...(isValueTable
+      ? { valueIndicator: parseValueIndicator(value.valueIndicator) }
+      : {}),
   };
+}
+
+/**
+ * O que o formulário de um índice legado adotado pode gravar.
+ *
+ * Deliberadamente não aceita `statisticsSource`, `classes` nem `earthEngine`:
+ * os valores de um legado vêm das partições `municipalAnalysis` ou do registro
+ * estático, e escrever qualquer um dos três mudaria a origem dos números em vez
+ * da apresentação deles.
+ *
+ * A unidade pode ficar em branco e não é normalizada para `%`, como no escopo completo,
+ * porque os legados usam "classes" e "registros" — trocar isso mudaria o rótulo
+ * do painel de análise sem ninguém pedir.
+ *
+ * @example
+ * parseIndexCatalogPresentationInput({
+ *   name: "Registros de Secas e Estiagens",
+ *   description: "…",
+ *   category: "Dados Climáticos",
+ *   measurementUnit: "registros",
+ * });
+ */
+export function parseIndexCatalogPresentationInput(
+  value: unknown,
+): IndexCatalogPresentationInput {
+  if (!isRecord(value)) throw new Error("Edição inválida.");
+  if (
+    typeof value.category !== "string" ||
+    !(INDEX_CATEGORIES as readonly string[]).includes(value.category)
+  ) {
+    throw new Error("Categoria inválida.");
+  }
+
+  return {
+    name: requiredString(value.name, "Nome", 120),
+    description: requiredString(value.description, "Descrição", 500),
+    category: value.category as IndexCategory,
+    measurementUnit: optionalString(
+      value.measurementUnit,
+      "Unidade de medida",
+      40,
+    ),
+    ...parsePanelPositionInput(value.panelPosition),
+  };
+}
+
+/**
+ * A posição escrita no formulário, ou nada.
+ *
+ * Campo vazio não é posição zero: sem número o índice fica onde já está, e um
+ * índice novo entra depois do último da categoria.
+ */
+function parsePanelPositionInput(value: unknown) {
+  if (value == null || value === "") return {};
+
+  const panelPosition = Number(value);
+  if (!Number.isInteger(panelPosition) || panelPosition < 0) {
+    throw new Error(
+      `Posição na categoria deve ser um inteiro maior ou igual a zero, recebido: ${panelPosition}`,
+    );
+  }
+  return { panelPosition };
+}
+
+/**
+ * Descobre o template de partição a partir do endereço de um único período.
+ *
+ * O operador cola `.../Estatistica_Multinivel_MonitorANA_2026` e o catálogo
+ * passa a procurar `.../Estatistica_Multinivel_MonitorANA_{year}` no
+ * diretório-pai, encontrando todos os anos irmãos. Cada tabela pode guardar
+ * vários meses: a granularidade mensal continua sendo resolvida por `data_img`.
+ *
+ * Um mês colado no ano e separado dele (`..._2026_09`, `..._2026-09`) vira
+ * `{month}`, e aí cada asset é um mês. Só conta como mês o que termina ali —
+ * `..._2026_10m` e `..._2026_13` continuam sendo só ano.
+ *
+ * Usa a ÚLTIMA ocorrência de um ano no endereço, porque o caminho até o asset
+ * pode conter outros números (`.../Estatisticas_2020/MonitorANA_2026`).
+ */
+export function detectPeriodTemplate(
+  assetId: string,
+): DetectedPeriodTemplate | null {
+  const normalized = assetId.trim();
+  if (!normalized || /[{}]/u.test(normalized)) return null;
+
+  const lastYear = [...normalized.matchAll(ASSET_YEAR_PATTERN)].at(-1);
+  if (!lastYear || lastYear.index === undefined) return null;
+
+  const prefix = normalized.slice(0, lastYear.index);
+  const suffix = normalized.slice(lastYear.index + 4);
+  const month = ASSET_MONTH_SUFFIX_PATTERN.exec(suffix);
+  if (!month) {
+    return { year: lastYear[0], assetIdTemplate: `${prefix}{year}${suffix}` };
+  }
+
+  return {
+    year: lastYear[0],
+    month: month[2],
+    assetIdTemplate: `${prefix}{year}${month[1]}{month}${suffix.slice(month[0].length)}`,
+  };
+}
+
+/**
+ * Se o template é um que `detectPeriodTemplate` produziria, para reabrir o
+ * índice na opção que detecta o período em vez de no template escrito à mão.
+ */
+export function isDetectedPeriodTemplate(template?: string) {
+  if (!template || template.includes("{period}")) return false;
+  const sample = template
+    .replaceAll("{year}", "2000")
+    .replaceAll("{month}", "01");
+  return detectPeriodTemplate(sample)?.assetIdTemplate === template;
+}
+
+/**
+ * Reexibe o template como o endereço concreto que o operador digitou. Sem o
+ * mês no período, um template com `{month}` volta como está.
+ */
+export function fillPeriodTemplate(template: string, period?: string) {
+  const match = period ? PERIOD_CAPTURE_PATTERN.exec(period) : null;
+  if (!match) return template;
+
+  const [, year, month] = match;
+  if (!month && template.includes("{month}")) return template;
+  return template.replaceAll("{year}", year).replaceAll("{month}", month ?? "");
 }
 
 export function inferTimeScale(periods: readonly string[]) {
@@ -330,47 +594,174 @@ export function expandAssetForPeriod(
   );
 }
 
+/**
+ * Recusa um template por período que não muda com o período. Sem `{year}`,
+ * `{month}` ou `{period}`, todos os anos apontam para o mesmo asset e o mapa
+ * fica parado num ano só: o IDT foi publicado com `..._v4_2021` e o 2001
+ * mostrava o mapa de 2021, embora `..._v4_2001` exista no Earth Engine.
+ *
+ * assertAssetPatternVariesByPeriod(mapping, ["2001", "2021"]); // lança
+ */
+export function assertAssetPatternVariesByPeriod(
+  mapping: EarthEngineAssetMapping,
+  periods: readonly string[],
+) {
+  const pattern = mapping.assetPattern;
+  if (mapping.strategy !== "perPeriod" || !pattern) return;
+  if (/\{(?:year|month|period)\}/u.test(pattern)) return;
+
+  const unlisted = periods.filter(
+    (period) => !mapping.assetsByPeriod?.[period],
+  );
+  if (unlisted.length < 2) return;
+
+  const suggestion = detectPeriodTemplate(pattern)?.assetIdTemplate;
+  throw new Error(
+    `O template de mapa ${pattern} não tem {year}, então os períodos ${unlisted.join(", ")} mostrariam todos o mesmo mapa.` +
+      (suggestion
+        ? ` Use ${suggestion}, ou escolha “Um asset por ano” e cole o endereço de um dos anos.`
+        : " Inclua {year}, {month} ou {period} no endereço."),
+  );
+}
+
 interface CategoryPositionEntry {
   entryId: string;
+  panelLayerId?: string;
+  name?: string;
   category?: string;
   panelPosition?: number;
 }
 
+interface PanelPositionPlanRequest {
+  entryId: string;
+  category: string;
+  /** A posição escrita no formulário, quando o operador escreveu uma. */
+  requestedPosition?: number;
+  /** A posição que este índice ocupa hoje na lista publicada. */
+  currentPosition?: number;
+}
+
+export interface PanelPositionPlan {
+  position: number;
+  /**
+   * O índice que já ocupava a posição pedida e o número que ele recebe em
+   * troca. Ausente quando a posição estava livre.
+   */
+  swap?: {
+    entryId: string;
+    panelLayerId?: string;
+    name?: string;
+    position: number;
+  };
+}
+
 /**
- * Posição do índice na categoria dele no Monitoramento. Um índice novo entra
- * depois do último — a lista é ordenada por essa posição, então repetir um
- * número já usado deixa a ordem por conta da ordem de chegada do Contentful, e
- * foi assim que um índice recém-publicado apareceu como primeiro em Dados
- * Climáticos em vez de último. Por isso uma posição já ocupada por outra camada
- * da mesma categoria é recalculada, em vez de mantida.
+ * A primeira posição livre depois da última ocupada na categoria.
  *
- * @example
- * // anaseca 0, cemadenseca 1, prev_anomalia_precipitacao 10
- * resolvePanelPositionInCategory(entries, "Dados Climáticos", "novo") // 11
+ * `sameCategory.length` no lugar de zero quando ninguém tem posição preserva o
+ * comportamento antigo: uma categoria inteira sem números não deixa todos os
+ * índices empatados em zero.
  */
-export function resolvePanelPositionInCategory(
-  entries: readonly CategoryPositionEntry[],
-  category: string,
-  entryId: string,
-) {
-  const sameCategory = entries.filter(
-    (entry) => entry.entryId !== entryId && entry.category === category,
-  );
+function nextFreePositionInCategory(sameCategory: CategoryPositionEntry[]) {
   const takenPositions = sameCategory.flatMap((entry) =>
     typeof entry.panelPosition === "number" ? [entry.panelPosition] : [],
   );
-  const currentPosition = entries.find(
-    (entry) => entry.entryId === entryId,
-  )?.panelPosition;
-
-  if (
-    typeof currentPosition === "number" &&
-    !takenPositions.includes(currentPosition)
-  ) {
-    return currentPosition;
-  }
-
   return takenPositions.length > 0
     ? Math.max(...takenPositions) + 1
     : sameCategory.length;
+}
+
+/**
+ * Onde o índice entra na lista do Monitoramento, e quem sai do lugar por causa
+ * disso.
+ *
+ * Sem posição escrita no formulário o índice fica onde está, e um índice novo
+ * entra depois do último da categoria. Com uma posição escrita, ela é
+ * respeitada: se outro índice da mesma categoria já estiver nela, os dois
+ * trocam de lugar — o pedido vale para quem pediu e o antigo ocupante recebe a
+ * posição que este índice deixou vazia.
+ *
+ * A troca existe porque a lista é ordenada por esse número: dois índices
+ * empatados caíam na ordem de chegada do Contentful, e foi assim que
+ * `teste-temperatura`, publicado na posição 0 junto com `anaseca`, apareceu
+ * como primeiro em Dados Climáticos. Antes o empate era desfeito jogando o
+ * índice novo para o fim, o que ignorava em silêncio o que o operador pediu.
+ *
+ * @example
+ * // anaseca está na posição 0 e este índice na 15
+ * resolvePanelPositionPlan(entries, {
+ *   entryId: "novo",
+ *   category: "Dados Climáticos",
+ *   requestedPosition: 0,
+ *   currentPosition: 15,
+ * });
+ * // => { position: 0, swap: { entryId: "anaseca", position: 15 } }
+ */
+export function resolvePanelPositionPlan(
+  entries: readonly CategoryPositionEntry[],
+  request: PanelPositionPlanRequest,
+): PanelPositionPlan {
+  const sameCategory = entries.filter(
+    (entry) =>
+      entry.entryId !== request.entryId && entry.category === request.category,
+  );
+  const vacatedPosition =
+    request.currentPosition ?? nextFreePositionInCategory(sameCategory);
+
+  if (request.requestedPosition == null) {
+    return { position: vacatedPosition };
+  }
+
+  const occupant = sameCategory.find(
+    (entry) => entry.panelPosition === request.requestedPosition,
+  );
+
+  // Trocar por um número igual não muda nada e ainda escreveria numa entry de
+  // outro índice sem motivo.
+  if (!occupant || vacatedPosition === request.requestedPosition) {
+    return { position: request.requestedPosition };
+  }
+
+  return {
+    position: request.requestedPosition,
+    swap: {
+      entryId: occupant.entryId,
+      panelLayerId: occupant.panelLayerId,
+      name: occupant.name,
+      position: vacatedPosition,
+    },
+  };
+}
+
+/**
+ * Lista de números separados por vírgula, como os limites das classes e os
+ * lead times aparecem no formulário.
+ *
+ * Vive aqui, e não na tela, porque a edição de aparência de um índice legado
+ * usa a mesma escrita para os limites do mapa.
+ *
+ * @example
+ * parseNumberList("20, 40, 60", "Limites das faixas"); // [20, 40, 60]
+ */
+export function parseNumberList(
+  value: string,
+  label: string,
+  integersOnly = false,
+): number[] {
+  const parts = value
+    .split(",")
+    .map((part) => part.trim())
+    .filter(Boolean);
+  const numbers = parts.map(Number);
+
+  if (
+    numbers.some(
+      (number) =>
+        !Number.isFinite(number) || (integersOnly && !Number.isInteger(number)),
+    )
+  ) {
+    throw new Error(`${label} deve usar números separados por vírgula.`);
+  }
+
+  return numbers;
 }

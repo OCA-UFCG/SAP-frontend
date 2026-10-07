@@ -2,6 +2,7 @@ import { describe, expect, it, vi } from "vitest";
 import { gzipSync } from "node:zlib";
 
 vi.mock("@/infrastructure/contentful/client", () => ({
+  CONTENTFUL_COLLECTION_LIMIT: 200,
   getContent: vi.fn(),
 }));
 

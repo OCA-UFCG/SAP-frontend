@@ -1,4 +1,7 @@
-import maplibregl, { MapGeoJSONFeature } from "maplibre-gl";
+import maplibregl, {
+  ExpressionSpecification,
+  MapGeoJSONFeature,
+} from "maplibre-gl";
 
 export const MUNICIPALITY_SOURCE_ID = "brazil-cities";
 export const MUNICIPALITY_SOURCE_LAYER = "brazilcities";
@@ -44,6 +47,17 @@ const ensureMunicipalitySource = (map: maplibregl.Map) => {
   }
 };
 
+/**
+ * Hover e seleção marcam o município do mesmo jeito: contorno preto, sem
+ * preenchimento. Como o único sinal agora é a linha, ela precisa ser mais
+ * grossa que a divisa comum para ser notada.
+ */
+const MUNICIPALITY_HIGHLIGHTED: ExpressionSpecification = [
+  "any",
+  ["boolean", ["feature-state", "hover"], false],
+  ["boolean", ["feature-state", "selected"], false],
+];
+
 const ensureMunicipalityHoverLayer = (
   map: maplibregl.Map,
   beforeLayerId?: string,
@@ -56,16 +70,14 @@ const ensureMunicipalityHoverLayer = (
         source: MUNICIPALITY_SOURCE_ID,
         "source-layer": MUNICIPALITY_SOURCE_LAYER,
         minzoom: MUNICIPALITY_MIN_ZOOM,
+        // Transparente de propósito. A camada existe só para o
+        // `queryRenderedFeatures` do hover e do clique achar o município; o véu
+        // escuro que ela desenhava antes somava-se à cor do índice e fazia o
+        // município sob o cursor parecer de outra faixa da legenda. Quem marca
+        // a seleção e o hover é o contorno preto, logo abaixo.
         paint: {
           "fill-color": "#000000",
-          "fill-opacity": [
-            "case",
-            ["boolean", ["feature-state", "hover"], false],
-            0.18,
-            ["boolean", ["feature-state", "selected"], false],
-            0.12,
-            0,
-          ],
+          "fill-opacity": 0,
         },
       },
       beforeLayerId,
@@ -88,35 +100,28 @@ const ensureMunicipalityBorderLayer = (
         paint: {
           "line-color": [
             "case",
-            ["boolean", ["feature-state", "selected"], false],
+            MUNICIPALITY_HIGHLIGHTED,
             "#000000",
             "#6B7280",
           ],
           "line-opacity": [
             "step",
             ["zoom"],
-            [
-              "case",
-              ["boolean", ["feature-state", "selected"], false],
-              0.95,
-              0,
-            ],
+            ["case", MUNICIPALITY_HIGHLIGHTED, 0.95, 0],
             MUNICIPALITY_BORDER_MIN_ZOOM,
-            [
-              "case",
-              ["boolean", ["feature-state", "selected"], false],
-              0.95,
-              0.25,
-            ],
+            ["case", MUNICIPALITY_HIGHLIGHTED, 0.95, 0.25],
           ],
+          // O `case` fica dentro das paradas, e não em volta do `interpolate`:
+          // o MapLibre aceita uma única subexpressão de zoom por propriedade e
+          // recusa a camada inteira quando há duas.
           "line-width": [
             "interpolate",
             ["linear"],
             ["zoom"],
             MUNICIPALITY_SELECTED_BORDER_MIN_ZOOM,
-            0.9,
+            ["case", MUNICIPALITY_HIGHLIGHTED, 2, 0.9],
             12,
-            1.8,
+            ["case", MUNICIPALITY_HIGHLIGHTED, 3.2, 1.8],
           ],
         },
       },

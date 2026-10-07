@@ -1,11 +1,14 @@
 "use client";
 
-import { useRouter, useSearchParams } from "next/navigation";
+import { useSearchParams } from "next/navigation";
+import { useRouter } from "@/translations/routing";
 import { useAuth } from "@/contexts/AuthContext";
 import Login, { type LoginFormValues } from "@/components/Login/Login";
+import { PENDING_APPROVAL_PATH } from "@/config/accessRoutes";
 
 type LoginPageClientProps = {
   backgroundImageUrl?: string;
+  signupOffered?: boolean;
 };
 
 export function getPlatformRedirectPath(redirect: string | null) {
@@ -17,14 +20,28 @@ export function getPlatformRedirectPath(redirect: string | null) {
   return "/platform";
 }
 
-export function LoginPageClient({ backgroundImageUrl }: LoginPageClientProps) {
+export function LoginPageClient({
+  backgroundImageUrl,
+  signupOffered,
+}: LoginPageClientProps) {
   const { signIn, loading, error } = useAuth();
   const router = useRouter();
   const searchParams = useSearchParams();
 
   async function handleSubmit(values: LoginFormValues) {
-    const success = await signIn(values.login, values.password);
-    if (!success) return;
+    const outcome = await signIn(values.login, values.password);
+
+    // Senha certa, acesso ainda não liberado: a pessoa vai para a página de
+    // espera, não de volta ao formulário que ela acabou de preencher direito.
+    if (outcome === "pending") {
+      // `useRouter` vem de `@/translations/routing`: o de `next/navigation`
+      // levaria a pessoa para a versão em português da página de espera,
+      // qualquer que fosse o idioma em que ela se cadastrou.
+      router.replace(PENDING_APPROVAL_PATH);
+      return;
+    }
+
+    if (outcome !== "ok") return;
 
     router.replace(getPlatformRedirectPath(searchParams.get("redirect")));
     router.refresh();
@@ -37,6 +54,7 @@ export function LoginPageClient({ backgroundImageUrl }: LoginPageClientProps) {
   ) : (
     <Login
       backgroundImageUrl={backgroundImageUrl}
+      signupOffered={signupOffered}
       error={error}
       onSubmit={handleSubmit}
     />

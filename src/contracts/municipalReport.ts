@@ -23,6 +23,7 @@ export interface MunicipalReportAnalysis {
   id: string;
   alias: string;
   title: string;
+  category?: string;
   unit: string;
   valueType: "percentage" | "absolute";
   status: MunicipalReportAnalysisStatus;
@@ -31,6 +32,20 @@ export interface MunicipalReportAnalysis {
   classes: MunicipalReportClass[];
   snapshot: MunicipalReportPeriodSnapshot | null;
   timeSeries: MunicipalReportPeriodSnapshot[];
+  /**
+   * Cor do cabeçalho e nota de metodologia escritas no catálogo. Presente só
+   * nos índices que as publicaram; os legados seguem lendo
+   * `MUNICIPAL_REPORT_LAYERS`, que o cliente já conhece. Campo aditivo e
+   * opcional: um consumidor da v1 que o ignore continua correto.
+   */
+  presentation?: { sectionColor?: string; methodology?: string };
+  /**
+   * As faixas de cor de um índice criado a partir de planilha. Ele não tem
+   * imagem no Earth Engine: o mapa é pintado município a município com estas
+   * faixas, sobre os valores de `/api/municipal-analysis/{id}/choropleth`.
+   * Campo aditivo e opcional, ausente nos índices do Earth Engine.
+   */
+  mapChoropleth?: { palette: string[]; thresholds: number[] };
 }
 
 export type MunicipalReportTemplateValue = string | number | null;
@@ -95,11 +110,53 @@ export interface MunicipalReportChartImage {
   base64: string;
 }
 
+export type MunicipalReportTerritoryLevel =
+  | "municipality"
+  | "state"
+  | "region"
+  | "biome"
+  | "asd"
+  | "semiarid"
+  | "national";
+
+/**
+ * O território descrito pelo relatório, em todas as grafias que o documento
+ * usa: o título leva `label`, as frases escritas no catálogo levam
+ * `prepositionalLabel` e a leitura no Earth Engine leva `locationKey`.
+ *
+ * @example
+ * const territory: MunicipalReportTerritory = {
+ *   locationKey: "3_bioma-caatinga",
+ *   level: "biome",
+ *   name: "Caatinga",
+ *   label: "Caatinga",
+ *   kindLabel: "bioma",
+ *   prepositionalLabel: "No bioma Caatinga",
+ *   possessiveLabel: "do bioma Caatinga",
+ * };
+ */
+export interface MunicipalReportTerritory {
+  locationKey: string;
+  level: MunicipalReportTerritoryLevel;
+  name: string;
+  label: string;
+  kindLabel: string;
+  prepositionalLabel: string;
+  possessiveLabel: string;
+  uf?: string;
+}
+
 export interface MunicipalReportData {
   schemaVersion: 1;
   generatedAt: string;
   requestedPeriod: string;
-  municipality: { code: string; name: string; uf: string };
+  territory: MunicipalReportTerritory;
+  /**
+   * Presente só no relatório de um município. Campo mantido da v1 para os
+   * consumidores que dependem do código IBGE — o recorte territorial do
+   * relatório está em `territory`, que existe em todos eles.
+   */
+  municipality?: { code: string; name: string; uf: string };
   analyses: MunicipalReportAnalysis[];
   templateVariables: Record<string, MunicipalReportTemplateValue>;
 }

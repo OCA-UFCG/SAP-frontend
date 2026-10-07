@@ -31,22 +31,29 @@ export const LanguageSwitcher = () => {
     router.replace(pathname, { locale: nextLocale });
   };
 
+  // A sigla é o que aparece no cabeçalho; o nome por extenso fica para a lista,
+  // onde há espaço para quem não reconhece a sigla do próprio idioma.
   const languages = [
-    { code: "pt", name: "Português" },
-    { code: "en", name: "English" },
-    { code: "es", name: "Español" },
+    { code: "pt", acronym: "PT-BR", name: "Português" },
+    { code: "en", acronym: "EN", name: "English" },
+    { code: "es", acronym: "ES", name: "Español" },
   ] as const;
+
+  const activeLanguage =
+    languages.find((language) => language.code === locale) ?? languages[0];
 
   return (
     <div className="relative inline-block" ref={containerRef}>
       <button
         type="button"
         onClick={() => setIsOpen((prev) => !prev)}
-        className="flex items-center gap-1.5 px-3 py-2 rounded-full border border-stone-200 hover:bg-stone-100 text-stone-700 hover:text-stone-900 transition-colors focus:outline-none focus:ring-2 focus:ring-[#777E32] cursor-pointer h-10"
+        className="flex items-center gap-2 px-4 py-2 rounded-md hover:bg-stone-200 hover:text-[#777E32] transition-colors focus:outline-none focus:ring-2 focus:ring-[#777E32] cursor-pointer h-10 font-medium text-neutral-800"
         aria-label={t("changeLanguage")}
         aria-expanded={isOpen}
         aria-haspopup="listbox"
       >
+        {/* Globo desenhado inline: o sprite em /sprite.svg não tem um ícone de
+            idioma, e o de carta que estava aqui não representa troca de idioma. */}
         <svg
           xmlns="http://www.w3.org/2000/svg"
           viewBox="0 0 24 24"
@@ -55,21 +62,22 @@ export const LanguageSwitcher = () => {
           strokeWidth="2"
           strokeLinecap="round"
           strokeLinejoin="round"
-          className="w-4 h-4 stroke-[#21240F]"
+          className="w-4 h-4 shrink-0"
+          aria-hidden="true"
         >
           <circle cx="12" cy="12" r="10" />
           <path d="M12 2a14.5 14.5 0 0 0 0 20 14.5 14.5 0 0 0 0-20" />
           <path d="M2 12h20" />
         </svg>
-        <span className="text-xs font-semibold uppercase text-[#21240F]">
-          {locale}
-        </span>
-        <Icon id="chevron-down" size={10} className="fill-[#21240F] ml-0.5" />
+        {/* O cabeçalho divide espaço com o logo, o Entrar e o menu hambúrguer,
+            então o idioma ativo aparece sempre pela sigla, em qualquer tela. */}
+        <span className="text-sm font-semibold">{activeLanguage.acronym}</span>
+        <Icon id="chevron-down" size={10} />
       </button>
 
       {isOpen && (
         <div
-          className="absolute right-0 mt-2 w-40 rounded-md border border-stone-200 bg-white py-1 shadow-lg z-50 animate-in fade-in slide-in-from-top-1 duration-100"
+          className="absolute right-0 mt-2 w-48 rounded-md border border-stone-200 bg-white py-1 shadow-lg z-50 animate-in fade-in slide-in-from-top-1 duration-100"
           role="listbox"
           aria-label={t("changeLanguage")}
         >
@@ -84,7 +92,10 @@ export const LanguageSwitcher = () => {
                   : "text-stone-700"
               }`}
             >
-              <span>{lang.name}</span>
+              <span>
+                <span className="font-semibold">{lang.acronym}</span>{" "}
+                {lang.name}
+              </span>
               {locale === lang.code && (
                 <Icon id="check" size={14} className="fill-[#777E32]" />
               )}

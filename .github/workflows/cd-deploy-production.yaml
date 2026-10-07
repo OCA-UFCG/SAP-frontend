@@ -118,6 +118,15 @@ jobs:
           CONTENTFUL_MANAGEMENT_TOKEN: ${{ secrets.CONTENTFUL_MANAGEMENT_TOKEN }}
           DOCS_DEFAULT: ${{ vars.DOCS_DEFAULT }}
           NEXT_PUBLIC_HOST_URL: ${{ vars.NEXT_PUBLIC_HOST_URL }}
+          API_BASE_URL: ${{ vars.API_BASE_URL }}
+          SMTP_USER: ${{ vars.SMTP_USER }}
+          SMTP_PASSWORD: ${{ secrets.SMTP_PASSWORD }}
+          SMTP_FROM: ${{ vars.SMTP_FROM }}
+          OCA_NOTIFICATION_EMAIL: ${{ vars.OCA_NOTIFICATION_EMAIL }}
+          SIGNUP_ALLOWED_DOMAINS: ${{ vars.SIGNUP_ALLOWED_DOMAINS }}
+          FIREBASE_ACCESS_REQUESTS_COLLECTION: ${{ vars.FIREBASE_ACCESS_REQUESTS_COLLECTION }}
+          PLATFORM_ACCESS_GUARD_ENABLED: ${{ vars.PLATFORM_ACCESS_GUARD_ENABLED_PROD }}
+          EMAIL_LINKS_BASE_URL: ${{ vars.EMAIL_LINKS_BASE_URL_PROD }}
         run: bash ./scripts/deploy-container.sh
 
       - name: Prune unused Docker images

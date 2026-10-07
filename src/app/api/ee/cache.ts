@@ -4,7 +4,7 @@ import {
 } from "@/utils/spatialScope";
 
 const CACHE_TTL_MS = 1000 * 60 * 30;
-const CACHE_KEY_VERSION = "v8";
+const CACHE_KEY_VERSION = "v9";
 // O espaço de chaves é camada x período x recorte espacial (~500 períodos x ~40
 // recortes). Cada entrada é só uma URL, então o teto existe para o mapa não
 // crescer para sempre com chaves que ninguém pede de novo, não por memória.
@@ -15,10 +15,22 @@ interface CacheEntry {
   timestamp: number;
 }
 
-const cacheUrls = new Map<string, CacheEntry>();
+// O aquecimento da subida (`instrumentation-node.ts`) e as rotas não carregam
+// necessariamente a mesma cópia deste módulo: com o cache no módulo, os
+// endereços que a subida preparou não chegavam à rota, e o primeiro pedido
+// esperava o Earth Engine mesmo assim. No `globalThis` o processo tem um só.
+const sharedCache = globalThis as typeof globalThis & {
+  __sapEeUrlCache?: {
+    urls: Map<string, CacheEntry>;
+    pending: Map<string, Promise<string>>;
+  };
+};
+sharedCache.__sapEeUrlCache ??= { urls: new Map(), pending: new Map() };
+
+const cacheUrls = sharedCache.__sapEeUrlCache.urls;
 // Uma promessa por chave em voo: sem isso, N requests simultâneos no mesmo miss
 // viram N getMapId no Earth Engine.
-const pendingUrls = new Map<string, Promise<string>>();
+const pendingUrls = sharedCache.__sapEeUrlCache.pending;
 
 function getMaxEntries() {
   const value = Number(process.env.EE_URL_CACHE_MAX_ENTRIES);
@@ -114,6 +126,12 @@ export const getCachedUrl = (key: string) => {
 };
 
 export const removeCacheUrl = (key: string) => cacheUrls.delete(key);
+
+/**
+ * Se a chave já tem uma ida ao Earth Engine em voo. Quem entra numa promessa
+ * existente não gera chamada nova, e por isso não deve gastar vaga do limitador.
+ */
+export const hasPendingUrl = (key: string) => pendingUrls.has(key);
 
 export const addUrlToCache = (key: string, url: string | null) => {
   if (url) {

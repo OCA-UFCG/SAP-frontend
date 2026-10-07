@@ -1,17 +1,25 @@
 import type {
-  GeeFeatureCollectionStatisticsSource,
+  GeeStatisticsSource,
   PublishedGeeStatisticsSource,
 } from "@/contracts/geeStatistics";
+import { INDEX_CATALOG_CATEGORIES } from "@/contracts/indexCatalogAdoption.mjs";
+import type {
+  MunicipalReportData,
+  MunicipalReportDocsContent,
+} from "@/contracts/municipalReport";
+import type { MunicipalSpreadsheetSnapshot } from "@/contracts/municipalSpreadsheetSnapshot";
+import type { PublishedPanelLayerReportConfig } from "@/contracts/panelLayerReport";
 import type {
   CompactMapVisualizationConfig,
   CompactTerritorialAnalysisDataset,
 } from "@/utils/analysis";
+import type { ClassificationSample } from "@/utils/classificationSample";
 
-export const INDEX_CATEGORIES = [
-  "Dados Climáticos",
-  "Dados Ambientais",
-  "Dados Socioeconômicos",
-] as const;
+/**
+ * A lista mora no contrato `.mjs` porque a adoção em lote, que roda em Node
+ * puro, precisa resolver a categoria de um legado exatamente como a tela.
+ */
+export const INDEX_CATEGORIES = INDEX_CATALOG_CATEGORIES;
 
 export type IndexCategory = (typeof INDEX_CATEGORIES)[number];
 
@@ -25,7 +33,15 @@ export interface ClassMapping {
 }
 
 export type EarthEngineSourceType =
-  "image" | "imageCollection" | "featureCollection";
+  | "image"
+  | "imageCollection"
+  | "featureCollection"
+  /**
+   * O mapa não vem do Earth Engine: é pintado no navegador sobre os tiles de
+   * município, a partir dos valores do próprio índice. É a forma dos índices
+   * criados a partir de planilha, que não têm asset nem geometria.
+   */
+  | "municipalChoropleth";
 
 export interface ForecastImageCollectionSelection {
   type: "latest-emission-leads";
@@ -72,13 +88,46 @@ export interface CatalogValidationReport {
   sourceFingerprint: string;
 }
 
+/**
+ * O indicador de um índice cuja tabela traz um valor por município, e não uma
+ * distribuição por classes.
+ *
+ * O painel mostra um número só por território — 742 registros, 70,3% —, então a
+ * camada tem uma única "classe" (o próprio indicador) e as faixas coloridas
+ * pertencem ao mapa, não à estatística.
+ */
+export interface MunicipalValueIndicator {
+  label: string;
+  color: string;
+  /** Rótulo da unidade no painel: `%`, `registros`, `pessoas`. */
+  measurementUnit: string;
+  /** `percentage` arredonda para uma casa; `absolute` formata como contagem. */
+  valueType: "percentage" | "absolute";
+}
+
 export interface IndexCatalogDraftInput {
   name: string;
   description: string;
   category: IndexCategory;
-  statisticsSource: GeeFeatureCollectionStatisticsSource;
+  statisticsSource: GeeStatisticsSource;
   classes: ClassMapping[];
   earthEngine: EarthEngineAssetMapping;
+  /**
+   * Obrigatório quando `statisticsSource.kind` é `gee-municipal-value-table` e
+   * ignorado nas demais formas, em que a unidade é sempre `%` e cada classe da
+   * tabela já tem rótulo e cor próprios.
+   */
+  valueIndicator?: MunicipalValueIndicator;
+  /**
+   * Onde o índice deve ficar na lista da categoria dele no Monitoramento.
+   *
+   * É um pedido, não o número em vigor: o campo `panelLayer.panelPosition` só
+   * recebe este valor na publicação, porque é lá que a troca com o índice que
+   * já ocupava a posição pode ser aplicada nas duas entries de uma vez
+   * (`resolvePanelPositionPlan`). Ausente enquanto ninguém escolheu uma
+   * posição, e aí o índice novo entra depois do último da categoria.
+   */
+  panelPosition?: number;
 }
 
 interface IndexCatalogAuditData {
@@ -93,13 +142,24 @@ interface IndexCatalogAuditData {
    * de deixar um rastro de imagens órfãs no espaço.
    */
   previewMap?: { assetId: string; capturedAt: string };
+  /**
+   * Texto do Relatório Automático escrito no catálogo. Fica aqui, e não em
+   * `IndexCatalogDraftInput`, porque não descreve os dados: mudar uma frase não
+   * pode invalidar a prévia nem entrar no `sourceFingerprint` conferido na
+   * publicação. É a mesma razão pela qual `previewMap` mora aqui.
+   */
+  report?: PublishedPanelLayerReportConfig;
   auditLog?: Array<{
     action:
       | "create"
+      | "adopt"
       | "update"
+      | "appearance"
       | "revalidate"
       | "preview"
       | "preview-map"
+      | "map-asset"
+      | "report-text"
       | "publish"
       | "unpublish";
     outcome: "success" | "failure";
@@ -110,12 +170,76 @@ interface IndexCatalogAuditData {
   }>;
 }
 
+/**
+ * O que o catálogo gerencia numa entry.
+ *
+ * `full` é o índice que o próprio catálogo criou: os valores vivem numa
+ * FeatureCollection do Earth Engine e o formulário controla estatísticas,
+ * mapa, classes e períodos. `presentation` é um índice legado adotado: os
+ * valores continuam vindo de onde já vinham — partições `municipalAnalysis`
+ * escritas pela pipeline de CSV ou o registro estático de `geeStatisticsLayers`
+ * — e o catálogo gerencia apenas o que mora na própria entry.
+ *
+ * A separação existe porque a trava antiga era do formulário, não dos dados:
+ * nome, unidade, imagem de prévia e texto do relatório nunca dependeram do
+ * Earth Engine, mas ficavam inacessíveis junto com a configuração de dados.
+ */
+export type IndexCatalogManagedScope = "full" | "presentation";
+
+/** O que o escopo de apresentação deixa editar num índice legado. */
+export interface IndexCatalogPresentationInput {
+  name: string;
+  description: string;
+  category: IndexCategory;
+  /**
+   * Editável, e não fixada em `%` como no escopo completo, porque os legados
+   * usam "classes", "%" e "registros".
+   *
+   * Vale só como ficha do índice: `panelLayer.measurementUnit` não entra na
+   * consulta de `panelLayerRepository` e nenhuma tela da plataforma o lê. A
+   * unidade que o painel de análise mostra é `imageData.valueConfig.unit`, que
+   * este escopo não escreve — editá-la exigiria tocar o campo que também guarda
+   * os valores territoriais do legado.
+   */
+  measurementUnit: string;
+  panelPosition?: number;
+}
+
 export interface IndexCatalogConfigV2
   extends IndexCatalogDraftInput, IndexCatalogAuditData {
   schemaVersion: 2;
+  /**
+   * Ausente nas entries publicadas antes de o escopo existir; todas elas são
+   * `full`, então a ausência é lida como `full`.
+   */
+  managedScope?: "full";
   /** Filled by validation and copied to panelLayer.statisticsSource. */
   validatedStatisticsSource?: PublishedGeeStatisticsSource;
 }
+
+/**
+ * Índice legado adotado pelo catálogo.
+ *
+ * Não tem `statisticsSource`, `classes` nem `earthEngine` de propósito: gravar
+ * qualquer um dos três mudaria a origem dos números do índice. Em especial,
+ * gravar `panelLayer.statisticsSource` desliga o fallback do Contentful sem
+ * volta (`municipalAnalysisRepository` relança o erro do GEE em vez de cair
+ * para as partições), então a adoção nunca o escreve.
+ */
+export interface IndexCatalogPresentationConfigV2
+  extends IndexCatalogPresentationInput, IndexCatalogAuditData {
+  schemaVersion: 2;
+  managedScope: "presentation";
+  /** Como o índice estava quando foi adotado, para a auditoria da adoção. */
+  adoptedFrom: {
+    at: string;
+    /** `1` quando o legado já tinha um `catalogConfig` v1 sobrescrito aqui. */
+    previousSchemaVersion?: 1;
+  };
+}
+
+export type ManagedIndexCatalogConfig =
+  IndexCatalogConfigV2 | IndexCatalogPresentationConfigV2;
 
 /** Only enough of v1 is retained to identify and display it safely. */
 export interface LegacyIndexCatalogConfigV1 {
@@ -131,11 +255,28 @@ export interface LegacyIndexCatalogConfigV1 {
 }
 
 export type IndexCatalogConfig =
-  IndexCatalogConfigV2 | LegacyIndexCatalogConfigV1;
+  ManagedIndexCatalogConfig | LegacyIndexCatalogConfigV1;
 
-export function isIndexCatalogConfigV2(
+/**
+ * Um índice que o catálogo criou, com dados no Earth Engine. É o único escopo
+ * em que validação, prévia com fingerprint e remoção da entry fazem sentido.
+ */
+export function isFullyManagedCatalogConfig(
   config: IndexCatalogConfig | null | undefined,
 ): config is IndexCatalogConfigV2 {
+  return config?.schemaVersion === 2 && config.managedScope !== "presentation";
+}
+
+/** Um índice legado adotado: só o que mora na entry é editável. */
+export function isPresentationManagedCatalogConfig(
+  config: IndexCatalogConfig | null | undefined,
+): config is IndexCatalogPresentationConfigV2 {
+  return config?.schemaVersion === 2 && config.managedScope === "presentation";
+}
+
+export function isManagedCatalogConfig(
+  config: IndexCatalogConfig | null | undefined,
+): config is ManagedIndexCatalogConfig {
   return config?.schemaVersion === 2;
 }
 
@@ -153,10 +294,52 @@ export interface IndexCatalogItem {
    */
   everPublished: boolean;
   hasUnpublishedChanges: boolean;
-  /** True only for v2. V1 and entries without catalogConfig are read-only. */
+  /** True para qualquer config v2, em escopo completo ou de apresentação. */
   catalogManaged: boolean;
+  /** `null` enquanto a entry não foi adotada pelo catálogo. */
+  managedScope: IndexCatalogManagedScope | null;
+  /**
+   * Unidade gravada no `panelLayer`. Vem na listagem porque o formulário de
+   * apresentação a edita, e um formulário que abrisse com o campo vazio a
+   * apagaria no primeiro salvamento.
+   */
+  measurementUnit?: string;
   status: "legacy" | IndexCatalogConfigV2["status"];
   catalogConfig?: IndexCatalogConfig;
+}
+
+/**
+ * O que o botão "Verificar novos dados" descobriu ao comparar a pasta do Earth
+ * Engine com a última validação do índice.
+ *
+ * `new-data` é a única resposta que pede ação: ou a pasta ganhou períodos que o
+ * índice não tem, ou um asset de período já conhecido foi reescrito depois da
+ * validação.
+ */
+export interface CatalogNewDataCheck {
+  checkedAt: string;
+  status: "up-to-date" | "new-data" | "not-applicable" | "never-validated";
+  /** Frase pronta para a tela, já com períodos e assets citados. */
+  message: string;
+  /** Os períodos que a validação atual do índice cobre. */
+  knownPeriods: string[];
+  newPeriods: string[];
+  updatedAssets: Array<{ assetId: string; updateTime: string }>;
+}
+
+/**
+ * O resultado da verificação de todos os índices publicados de uma vez.
+ *
+ * `checks` é indexado por `entryId`, e um índice cuja verificação falhou fica
+ * de fora dele — por isso `checked` e `failed` vêm junto: sem eles a tela não
+ * teria como distinguir "nenhum índice desatualizado" de "a varredura não
+ * conseguiu olhar".
+ */
+export interface PublishedNewDataScan {
+  checkedAt: string;
+  checked: number;
+  failed: number;
+  checks: Record<string, CatalogNewDataCheck>;
 }
 
 export interface IndexCatalogLifecycleImpact {
@@ -184,11 +367,33 @@ export interface IndexCatalogPreview {
     minScale?: number;
     maxScale?: number;
     timeScale?: string;
-    statisticsSource: PublishedGeeStatisticsSource;
+    /** Ausente na prévia de um legado adotado: os valores não vêm do GEE. */
+    statisticsSource?: PublishedGeeStatisticsSource;
     tileApiPath: string;
-    municipalAnalysisApiPath: string;
+    /**
+     * Ausente na prévia de um legado adotado, e é a ausência que importa: sem
+     * ela o painel de análise usa a rota de produção do índice, que é
+     * justamente quem sabe ler as partições `municipalAnalysis`.
+     */
+    municipalAnalysisApiPath?: string;
   };
   validation: CatalogValidationReport;
+}
+
+/**
+ * Prévia de um índice legado adotado no escopo de apresentação.
+ *
+ * Não tem `validation` nem `statisticsSource` porque não há assets a validar:
+ * o mapa vem do `imageId` que já está publicado no `imageData` e os valores
+ * continuam vindo de onde vinham. Serve para capturar a imagem do cartão e
+ * conferir o texto do relatório antes de republicar.
+ */
+export interface IndexCatalogPresentationPreview {
+  entryId: string;
+  managedScope: "presentation";
+  panelLayer: IndexCatalogPreview["panelLayer"];
+  /** Período que o mapa da prévia desenha: o padrão do próprio `imageData`. */
+  defaultPeriod: string;
 }
 
 export interface IndexCatalogBuildResult {
@@ -197,4 +402,60 @@ export interface IndexCatalogBuildResult {
   mapVisualization: CompactMapVisualizationConfig;
   statisticsSource: PublishedGeeStatisticsSource;
   classes: ClassMapping[];
+  /**
+   * Os valores lidos da planilha, só para um índice de planilha. Viajam em
+   * memória porque a validação não os grava: quem escreve o asset é a
+   * publicação, depois de conferir a impressão digital.
+   */
+  spreadsheetSnapshot?: MunicipalSpreadsheetSnapshot;
+}
+
+/**
+ * Como um índice em rascunho apareceria no Relatório Automático.
+ *
+ * Vive nos tipos, e não no serviço, porque a tela do catálogo consome a
+ * resposta: o serviço é `server-only` e importar o tipo de lá acoplaria o
+ * bundle do navegador a um módulo que não pode entrar nele.
+ */
+export interface IndexCatalogReportPreview {
+  municipality: { code: string; name: string; uf: string };
+  period: string;
+  report: MunicipalReportData;
+  /** As seções escritas no catálogo, já com as variáveis trocadas pelos dados. */
+  docsContent: MunicipalReportDocsContent;
+  /**
+   * As variáveis que **este** índice comporta, com o valor que cada uma teria
+   * no município da prévia. Varia por índice: um índice anual não recebe a
+   * janela de 12 meses, e um sem ordem de gravidade declarada não recebe a
+   * tendência.
+   */
+  variables: IndexCatalogReportVariable[];
+}
+
+export interface IndexCatalogReportVariable {
+  token: string;
+  description: string;
+  example: string;
+}
+
+/**
+ * De onde saíram os valores que alimentaram o cálculo dos limites das faixas.
+ *
+ * A tela mostra a origem junto do resultado porque ela muda o que os limites
+ * significam: `raster` é uma amostra aleatória de pixels e não o dado inteiro,
+ * então dois cliques seguidos podem devolver limites ligeiramente diferentes.
+ */
+export type ClassificationSampleOrigin =
+  "spreadsheet" | "municipalValueTable" | "raster";
+
+/**
+ * A distribuição de valores de um rascunho num período.
+ *
+ * Mora nos tipos, e não no serviço que a lê, porque o formulário do catálogo
+ * consome a resposta: o serviço é `server-only` e importar o tipo de lá levaria
+ * o módulo com credenciais para o bundle do navegador.
+ */
+export interface DraftClassificationSample extends ClassificationSample {
+  origin: ClassificationSampleOrigin;
+  period: string;
 }

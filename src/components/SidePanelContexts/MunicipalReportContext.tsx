@@ -5,12 +5,32 @@ import { useLocale, useTranslations } from "next-intl";
 import { useRouter } from "next/navigation";
 import { InfoModal } from "@/components/InfoModal/InfoModal";
 import { LayerAccordion } from "@/components/LayerAccordion/LayerAccordion";
+import { PanelDropdown } from "@/components/PanelDropdown/PanelDropdown";
 import citiesIndex from "@/data/citiesIndex.json";
 import municipalAvailabilityIndex from "@/data/municipalAvailabilityIndex.json";
+import type { MunicipalAvailabilityIndex } from "@/utils/municipalAvailability";
 import {
-  getResolvableReportLayers,
-  type MunicipalAvailabilityIndex,
-} from "@/utils/municipalAvailability";
+  getSelectableReportLayerIds,
+  isReportEnabledLayer,
+} from "@/utils/reportLayerAvailability";
+import {
+  getReportTerritoryForSelection,
+  resolveReportTerritory,
+  type ReportTerritory,
+} from "@/utils/reportTerritory";
+import {
+  getDefaultSpatialValue,
+  SPATIAL_AREA_OPTIONS,
+  SPATIAL_VALUE_OPTIONS,
+  type SpatialArea,
+  type SpatialSelection,
+} from "@/utils/spatialScope";
+import { resolveReportCategoryKey } from "@/utils/municipalReportCategories";
+import {
+  flattenLayerSubgroups,
+  splitIntoLayerSubgroups,
+  type SubgroupedItems,
+} from "@/utils/layerSubgroups";
 import type { PanelLayerI } from "@/utils/interfaces";
 import { startMunicipalReportMetrics } from "@/utils/municipalReportMetrics";
 import { slugifyTranslationKey } from "@/utils/translations";
@@ -20,18 +40,25 @@ interface MunicipalReportContextProps { panelLayers?: PanelLayerI[] }
 const CATEGORY_ORDER = ["Dados Climáticos", "Dados Ambientais", "Dados Socioeconômicos"];
 const REPORT_DEFAULT_PERIOD = "2026";
 
-const CATEGORY_TRANSLATION_KEYS: Record<string, string> = {
-  "dados climáticos": "climate",
-  "dados ambientais": "environmental",
-  "dados socioeconômicos": "socioeconomic",
-  outros: "others",
-};
+/**
+ * O recorte do relatório. "municipality" não é uma área de interesse do painel
+ * de Monitoramento — é a malha municipal —, por isso ele entra aqui ao lado das
+ * áreas em vez de dentro delas. Fica primeiro porque é o relatório mais pedido.
+ */
+type ReportScope = "municipality" | SpatialArea;
 
-interface ReportLayerGroup {
+const REPORT_SCOPE_OPTIONS: readonly ReportScope[] = [
+  "municipality",
+  ...SPATIAL_AREA_OPTIONS.map((option) => option.value),
+];
+
+interface ReportCategoryLayers {
   key: string;
   title: string;
   layers: PanelLayerI[];
 }
+
+type ReportLayerGroup = ReportCategoryLayers & SubgroupedItems<PanelLayerI>;
 
 function canonicalCategoryTitle(category: string): string {
   return CATEGORY_ORDER.find(
@@ -49,7 +76,10 @@ export function MunicipalReportContext({ panelLayers = [] }: MunicipalReportCont
   const tModules = useTranslations("ModulesContext");
   const locale = useLocale();
   const router = useRouter();
+  const tAnalysis = useTranslations("AnalysisPanel");
   const municipalityPickerRef = useRef<HTMLDivElement>(null);
+  const [scope, setScope] = useState<ReportScope>("municipality");
+  const [spatialValue, setSpatialValue] = useState("");
   const [municipalityCode, setMunicipalityCode] = useState("");
   const [municipalityQuery, setMunicipalityQuery] = useState("");
   const [isMunicipalityOptionsOpen, setIsMunicipalityOptionsOpen] = useState(false);
@@ -78,9 +108,33 @@ export function MunicipalReportContext({ panelLayers = [] }: MunicipalReportCont
   }, [municipalities, municipalityQuery]);
   const validPeriod = /^\d{4}(-\d{2})?$/.test(period);
 
-  const groups = useMemo(() => {
-    const grouped = new Map<string, ReportLayerGroup>();
-    panelLayers.forEach((layer) => {
+  /**
+   * O território do relatório: o município escolhido na busca ou o recorte
+   * escolhido nos dois seletores. É ele que vira a chave territorial do pedido,
+   * e é dele que sai a lista de índices disponíveis.
+   */
+  const territory = useMemo((): ReportTerritory | null => {
+    if (scope === "municipality") {
+      return municipalityCode ? resolveReportTerritory(municipalityCode) : null;
+    }
+    if (!spatialValue) return null;
+
+    return getReportTerritoryForSelection({
+      spatialArea: scope,
+      spatialValue,
+    } as SpatialSelection);
+  }, [municipalityCode, scope, spatialValue]);
+
+  // Um índice que o catálogo tirou do relatório não aparece nem desabilitado:
+  // ele não é uma opção indisponível para este território, ele não é opção.
+  const reportLayers = useMemo(
+    () => panelLayers.filter(isReportEnabledLayer),
+    [panelLayers],
+  );
+
+  const groups = useMemo((): ReportLayerGroup[] => {
+    const grouped = new Map<string, ReportCategoryLayers>();
+    reportLayers.forEach((layer) => {
       const category = layer.category?.trim() || tModules("categories.others");
       const key = category.toLocaleLowerCase("pt-BR");
       const existingGroup = grouped.get(key);
@@ -94,45 +148,60 @@ export function MunicipalReportContext({ panelLayers = [] }: MunicipalReportCont
         });
       }
     });
-    return [...grouped.values()].sort((left, right) =>
-      categoryOrder(left.title) - categoryOrder(right.title) || left.title.localeCompare(right.title, "pt-BR"),
-    );
-  }, [panelLayers, tModules]);
+    return [...grouped.values()]
+      .sort((left, right) =>
+        categoryOrder(left.title) - categoryOrder(right.title) || left.title.localeCompare(right.title, "pt-BR"),
+      )
+      .map((group) => ({
+        ...group,
+        ...splitIntoLayerSubgroups(group.title, group.layers, (layer) => layer.name),
+      }));
+  }, [reportLayers, tModules]);
 
   // This is the exact visual order used by the module checkboxes. Keep the
   // generated report request in the same sequence, independently of the order
-  // in which a checkbox was toggled.
+  // in which a checkbox was toggled. Subgroups sit at the end of their
+  // category, so their sections come last too.
   const orderedPanelLayers = useMemo(
-    () => groups.flatMap((group) => group.layers),
+    () => groups.flatMap(flattenLayerSubgroups),
     [groups],
   );
 
   const availableLayerIds = useMemo(() => {
-    if (!municipalityCode || !validPeriod) return new Set<string>();
-    const availableIds = new Set(
-      getResolvableReportLayers(
-        municipalAvailabilityIndex as MunicipalAvailabilityIndex,
-        municipalityCode,
-        period,
-      ),
+    if (!territory || !validPeriod) return new Set<string>();
+    return getSelectableReportLayerIds(
+      reportLayers,
+      municipalAvailabilityIndex as MunicipalAvailabilityIndex,
+      territory,
+      period,
     );
-    return new Set(panelLayers.filter((layer) => availableIds.has(layer.id)).map((layer) => layer.id));
-  }, [municipalityCode, panelLayers, period, validPeriod]);
+  }, [period, reportLayers, territory, validPeriod]);
 
   const availability = useMemo(
-    () => new Map(panelLayers.map((layer) => [layer.id, availableLayerIds.has(layer.id)])),
-    [availableLayerIds, panelLayers],
+    () => new Map(reportLayers.map((layer) => [layer.id, availableLayerIds.has(layer.id)])),
+    [availableLayerIds, reportLayers],
   );
-  const availabilityState = municipalityCode && validPeriod ? "ready" : "idle";
+  const availabilityState = territory && validPeriod ? "ready" : "idle";
 
   function translatedCategoryTitle(group: ReportLayerGroup) {
-    const translationKey = CATEGORY_TRANSLATION_KEYS[group.key];
-    return translationKey ? tModules(`categories.${translationKey}`) : group.title;
+    return tModules(`categories.${resolveReportCategoryKey(group.title)}`);
   }
 
   function translatedLayerTitle(layer: PanelLayerI) {
     const translationKey = `Layers.${slugifyTranslationKey(layer.name)}.title`;
     return tModules.has(translationKey) ? tModules(translationKey) : layer.name;
+  }
+
+  function renderLayerOption(layer: PanelLayerI) {
+    const available = availabilityState === "ready" && availability.get(layer.id) === true;
+    const layerTitle = translatedLayerTitle(layer);
+    return <div key={layer.id} className={`flex h-12 items-center rounded-lg border border-[#EFEFEF] bg-white ${available ? "" : "opacity-50"}`}>
+      <label className={`flex min-w-0 flex-1 items-center gap-1 py-1 pl-2 ${available ? "cursor-pointer" : "cursor-not-allowed"}`}>
+        <span className="flex h-10 w-[30px] items-center justify-center"><input type="checkbox" checked={selectedLayers.has(layer.id)} disabled={!available} onChange={() => toggleLayer(layer.id)} className="h-3.5 w-3.5 rounded-sm accent-[#989F43]" /></span>
+        <span className="min-w-0 flex-1 truncate font-inter text-base font-semibold leading-6 tracking-[-0.015em]" title={layerTitle}>{layerTitle}</span>
+      </label>
+      <button type="button" onClick={() => setInfoLayer(layer)} className="flex h-12 w-10 shrink-0 items-center justify-center border-l border-[#EFEFEF]" aria-label={t("moduleInformation", { title: layerTitle })}><svg className="h-4 w-4 text-[#2C1E1C]" aria-hidden><use href="/sprite.svg#info"/></svg></button>
+    </div>;
   }
 
   useEffect(() => {
@@ -161,23 +230,70 @@ export function MunicipalReportContext({ panelLayers = [] }: MunicipalReportCont
     setSelectedLayers(new Set());
   }
 
-  function getDefaultSelectedLayers(code: string, selectedPeriod: string) {
+  function getDefaultSelectedLayers(
+    selectedTerritory: ReportTerritory | null,
+    selectedPeriod: string,
+  ) {
+    if (!selectedTerritory) return new Set<string>();
     if (!/^\d{4}(-\d{2})?$/.test(selectedPeriod)) return new Set<string>();
-    const availableIds = new Set(
-      getResolvableReportLayers(
-        municipalAvailabilityIndex as MunicipalAvailabilityIndex,
-        code,
-        selectedPeriod,
-      ),
+    return getSelectableReportLayerIds(
+      reportLayers,
+      municipalAvailabilityIndex as MunicipalAvailabilityIndex,
+      selectedTerritory,
+      selectedPeriod,
     );
-    return new Set(panelLayers.filter((layer) => availableIds.has(layer.id)).map((layer) => layer.id));
   }
 
   function selectMunicipality(code: string, label: string) {
     setMunicipalityCode(code);
     setMunicipalityQuery(label);
     setIsMunicipalityOptionsOpen(false);
-    setSelectedLayers(getDefaultSelectedLayers(code, period));
+    setSelectedLayers(
+      getDefaultSelectedLayers(resolveReportTerritory(code), period),
+    );
+  }
+
+  /**
+   * Trocar de recorte zera o território: um estado não é um município, e manter
+   * a seleção anterior deixaria o formulário descrevendo um lugar que o novo
+   * recorte não tem. O Brasil é a exceção, porque tem um valor só.
+   */
+  function selectScope(nextScope: ReportScope) {
+    setScope(nextScope);
+    setMunicipalityCode("");
+    setMunicipalityQuery("");
+    const nextValue =
+      nextScope === "municipality"
+        ? ""
+        : SPATIAL_VALUE_OPTIONS[nextScope].length === 1
+          ? getDefaultSpatialValue(nextScope)
+          : "";
+    setSpatialValue(nextValue);
+    setSelectedLayers(
+      getDefaultSelectedLayers(
+        nextValue
+          ? getReportTerritoryForSelection({
+              spatialArea: nextScope,
+              spatialValue: nextValue,
+            } as SpatialSelection)
+          : null,
+        period,
+      ),
+    );
+  }
+
+  function selectSpatialValue(value: string) {
+    if (scope === "municipality") return;
+    setSpatialValue(value);
+    setSelectedLayers(
+      getDefaultSelectedLayers(
+        getReportTerritoryForSelection({
+          spatialArea: scope,
+          spatialValue: value,
+        } as SpatialSelection),
+        period,
+      ),
+    );
   }
 
   function clearMunicipalityQuery() {
@@ -197,13 +313,14 @@ export function MunicipalReportContext({ panelLayers = [] }: MunicipalReportCont
 
   function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
-    if (!canSubmit) return;
+    if (!canSubmit || !territory) return;
     startMunicipalReportMetrics({
-      municipio: municipalityCode,
+      territorio: territory.locationKey,
+      recorte: territory.level,
       periodo: period,
       camadas: selectedAvailableLayers.join(","),
     });
-    const params = new URLSearchParams({ municipalityCode, period, layers: selectedAvailableLayers.join(",") });
+    const params = new URLSearchParams({ locationKey: territory.locationKey, period, layers: selectedAvailableLayers.join(",") });
     params.set("section", "communication");
     startGenerating(() => router.push(`/${locale}/platform?${params.toString()}`));
   }
@@ -219,8 +336,30 @@ export function MunicipalReportContext({ panelLayers = [] }: MunicipalReportCont
         <fieldset className="space-y-3">
           <legend className="font-open-sans text-lg font-semibold leading-6">{t("selectArea")}</legend>
           <p className="font-inter text-xs font-medium leading-[18px] tracking-[-0.015em]">{t("selectAreaHint")}</p>
-          <div className="space-y-6">
-            <div ref={municipalityPickerRef} className="relative min-w-0 flex-1">
+          <div className="flex w-full flex-col items-start gap-[6px]">
+            <span id="municipal-report-scope-label" className="text-[14px] font-medium leading-[20px] text-[#292829]">{t("scope")}</span>
+            {/* Recorte em cima, território embaixo: o segundo campo só faz sentido
+                depois de escolher o primeiro, e empilhado ele cabe inteiro. */}
+            <div className="flex w-full flex-col gap-2">
+              <PanelDropdown
+                labelledBy="municipal-report-scope-label"
+                ariaLabelPrefix={t("scope")}
+                options={REPORT_SCOPE_OPTIONS.map((option) => ({ value: option, label: t(`scopes.${option}`) }))}
+                value={scope}
+                placeholder={t("scope")}
+                onChange={(value) => selectScope(value as ReportScope)}
+              />
+              {scope !== "municipality" && scope !== "national" && (
+                <PanelDropdown
+                  labelledBy="municipal-report-scope-label"
+                  ariaLabelPrefix={t(`scopes.${scope}`)}
+                  options={SPATIAL_VALUE_OPTIONS[scope].map((option) => ({ value: option.value, label: tAnalysis(option.labelKey) }))}
+                  value={spatialValue}
+                  placeholder={t("selectTerritory")}
+                  onChange={selectSpatialValue}
+                />
+              )}
+            <div ref={municipalityPickerRef} className={`relative min-w-0 flex-1 ${scope === "municipality" ? "" : "hidden"}`}>
               <span className="sr-only">{t("municipality")}</span>
               <div className="flex h-10 w-full items-center overflow-hidden rounded-lg border border-transparent bg-[#E4E5E2] px-3 py-3 shadow-sm transition hover:border-neutral-400 focus-within:border-neutral-600 focus-within:ring-2 focus-within:ring-neutral-600">
                 <svg aria-hidden="true" viewBox="0 0 24 24" className="mr-2 h-4 w-4 shrink-0 text-[#898989]" fill="none" stroke="currentColor" strokeWidth="2"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/></svg>
@@ -234,11 +373,12 @@ export function MunicipalReportContext({ panelLayers = [] }: MunicipalReportCont
                   }}
                   onFocus={() => setIsMunicipalityOptionsOpen(true)}
                   role="combobox"
+                  aria-label={t("municipality")}
                   aria-autocomplete="list"
                   aria-controls="municipal-report-municipality-options"
                   aria-expanded={isMunicipalityOptionsOpen}
                   aria-haspopup="listbox"
-                  className="min-w-0 flex-1 border-none bg-transparent p-0 text-[13px] leading-5 text-[#292829] outline-none ring-0 placeholder:text-[13px] placeholder:text-[#292829]"
+                  className="min-w-0 flex-1 border-none bg-transparent p-0 text-[13px] leading-5 text-[#292829] outline-none ring-0 placeholder:text-[12px] placeholder:text-[#292829]"
                   placeholder={t("searchMunicipality")}
                 />
                 {(municipalityQuery || municipalityCode) && (
@@ -270,6 +410,7 @@ export function MunicipalReportContext({ panelLayers = [] }: MunicipalReportCont
                   )}
                 </div>
               )}
+            </div>
             </div>
             {/* Seletor de data temporariamente desativado. O período padrão do relatório é 2026.
             <label className="flex w-full max-w-[392px] flex-col items-start gap-[6px]">
@@ -334,17 +475,12 @@ export function MunicipalReportContext({ panelLayers = [] }: MunicipalReportCont
             {groups.map((group, index) => (
               <LayerAccordion key={group.key} title={translatedCategoryTitle(group)} defaultOpen={false}>
                 <div className="flex flex-col gap-2">
-                  {group.layers.map((layer) => {
-                    const available = availabilityState === "ready" && availability.get(layer.id) === true;
-                    const layerTitle = translatedLayerTitle(layer);
-                    return <div key={layer.id} className={`flex h-12 items-center rounded-lg border border-[#EFEFEF] bg-white ${available ? "" : "opacity-50"}`}>
-                      <label className={`flex min-w-0 flex-1 items-center gap-1 py-1 pl-2 ${available ? "cursor-pointer" : "cursor-not-allowed"}`}>
-                        <span className="flex h-10 w-[30px] items-center justify-center"><input type="checkbox" checked={selectedLayers.has(layer.id)} disabled={!available} onChange={() => toggleLayer(layer.id)} className="h-3.5 w-3.5 rounded-sm accent-[#989F43]" /></span>
-                        <span className="min-w-0 flex-1 truncate font-inter text-base font-semibold leading-6 tracking-[-0.015em]" title={layerTitle}>{layerTitle}</span>
-                      </label>
-                      <button type="button" onClick={() => setInfoLayer(layer)} className="flex h-12 w-10 shrink-0 items-center justify-center border-l border-[#EFEFEF]" aria-label={t("moduleInformation", { title: layerTitle })}><svg className="h-4 w-4" aria-hidden><use href="/sprite.svg#info"/></svg></button>
-                    </div>;
-                  })}
+                  {group.items.map(renderLayerOption)}
+                  {group.subgroups.map((subgroup) => (
+                    <LayerAccordion key={subgroup.key} title={tModules(`subgroups.${subgroup.key}`)} defaultOpen={false}>
+                      <div className="flex flex-col gap-2">{subgroup.items.map(renderLayerOption)}</div>
+                    </LayerAccordion>
+                  ))}
                 </div>
               </LayerAccordion>
             ))}

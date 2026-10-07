@@ -1,26 +1,39 @@
+import { isChoroplethImageData } from "@/contracts/imageDataContract.mjs";
 import ee from "@google/earthengine";
 import { addUrlToCache, buildCacheKey } from "@/app/api/ee/cache";
 import { getSpatialBoundaryFeatures } from "@/app/api/ee/spatialBoundaries";
 import {
+  isCategoricalMapVisualization,
   resolveMapVisualizationPlan,
   type ThresholdClassificationPlan,
 } from "@/app/api/ee/mapVisualization";
 import { getPanelLayers } from "@/repositories/platform/panelLayerRepository";
-import { IMapId, IEEInfo, IImageParam } from "@/utils/interfaces";
+import { IEEInfo, IImageParam } from "@/utils/interfaces";
 import {
   getImageDataDefaultYear,
+  resolveImageCollectionPeriod,
   resolveImageCollectionSelection,
   resolveImageYearEntry,
 } from "@/utils/imageData";
-import type { CompactMapVisualizationConfig } from "@/utils/analysis";
+import type {
+  CompactMapVisualizationConfig,
+  ResolvedImageCollectionPeriod,
+} from "@/utils/analysis";
 import {
   DEFAULT_SPATIAL_SELECTION,
   type SpatialSelection,
 } from "@/utils/spatialScope";
 import {
   evaluateGeeObject,
+  getGeeMapUrl,
   initializeGee,
 } from "@/infrastructure/earth-engine/client";
+import {
+  normalizeGeeAssetType,
+  resolveGeeAssetType,
+} from "@/app/api/ee/assetType";
+
+export { normalizeGeeAssetType };
 
 let brazilBoundary: any | null = null;
 
@@ -30,6 +43,14 @@ export interface EarthEngineAssetInspection {
   bands: string[];
   properties: string[];
   updateTime?: string;
+  /**
+   * Carimbo de revisão do asset. Ao contrário de `updateTime`, o `version` do
+   * `ee.data.getAsset` vem preenchido em todos os assets que medimos, e é o
+   * mesmo instante em microssegundos: `1787861735398000` para um `updateTime`
+   * de `2026-08-27T20:15:35.398639Z`. Serve de chave de revisão nos assets em
+   * que o `updateTime` simplesmente não vem na resposta.
+   */
+  version?: string;
 }
 
 export interface EarthEngineListedAsset {
@@ -38,21 +59,21 @@ export interface EarthEngineListedAsset {
   updateTime?: string;
 }
 
-export async function listEarthEngineAssets(
-  parent: string,
-): Promise<EarthEngineListedAsset[]> {
-  await initializeGee();
+interface ListAssetsPage {
+  assets?: Array<Record<string, unknown>>;
+  nextPageToken?: string;
+}
 
-  const response = await new Promise<{
-    assets?: Array<Record<string, unknown>>;
-  }>((resolve, reject) => {
+// Teto alto o bastante para nenhum diretório real alcançar, e que ainda impede
+// um `nextPageToken` que não avança de virar laço infinito.
+const MAX_ASSET_PAGES = 100;
+
+function requestAssetPage(parent: string, pageToken?: string) {
+  return new Promise<ListAssetsPage>((resolve, reject) => {
     ee.data.listAssets(
       parent,
-      {},
-      (
-        result: { assets?: Array<Record<string, unknown>> } | undefined,
-        error?: unknown,
-      ) => {
+      pageToken ? { pageToken } : {},
+      (result: ListAssetsPage | undefined, error?: unknown) => {
         if (error) {
           reject(error);
           return;
@@ -61,8 +82,31 @@ export async function listEarthEngineAssets(
       },
     );
   });
+}
 
-  return (response.assets ?? []).flatMap((asset) => {
+/**
+ * Todos os assets de um diretório do Earth Engine, seguindo a paginação.
+ *
+ * Seguir o `nextPageToken` não é otimização: a API pagina de verdade (com
+ * `pageSize: 10` ela devolve 10 assets e um token), e ler só a primeira página
+ * fazia o catálogo publicar um índice com anos faltando **sem nenhum erro** —
+ * a validação confirmava os anos que tinham sobrado como se fossem todos.
+ */
+export async function listEarthEngineAssets(
+  parent: string,
+): Promise<EarthEngineListedAsset[]> {
+  await initializeGee();
+
+  const listedAssets: Array<Record<string, unknown>> = [];
+  let pageToken: string | undefined;
+  for (let page = 0; page < MAX_ASSET_PAGES; page++) {
+    const response = await requestAssetPage(parent, pageToken);
+    listedAssets.push(...(response.assets ?? []));
+    pageToken = response.nextPageToken;
+    if (!pageToken) break;
+  }
+
+  return listedAssets.flatMap((asset) => {
     const id = String(asset.id ?? asset.name ?? "").trim();
     if (!id) return [];
     return [
@@ -103,10 +147,12 @@ export async function inspectEarthEngineAsset(
     },
   );
   const rawType = normalizeGeeAssetType(asset.type);
-  const metadata =
-    asset.updateTime || asset.update_time
+  const metadata = {
+    ...(asset.updateTime || asset.update_time
       ? { updateTime: String(asset.updateTime ?? asset.update_time) }
-      : {};
+      : {}),
+    ...(asset.version ? { version: String(asset.version) } : {}),
+  };
 
   if (rawType === "TABLE") {
     const collection = ee.FeatureCollection(assetId);
@@ -226,14 +272,7 @@ interface GetEarthEngineUrlOptions {
   mapVisualization?: CompactMapVisualizationConfig;
   spatialSelection?: SpatialSelection;
   imageCollectionSelection?: ImageCollectionSelection;
-}
-
-export function normalizeGeeAssetType(type?: unknown) {
-  return type
-    ? String(type)
-        .toUpperCase()
-        .replace(/[_\s-]/g, "")
-    : "";
+  imageCollectionPeriod?: ResolvedImageCollectionPeriod;
 }
 
 function isFeatureCollectionAsset({
@@ -263,13 +302,69 @@ function isImageCollectionAsset({
   );
 }
 
+/**
+ * A coleção reduzida às imagens do período pedido.
+ *
+ * A mesma etiqueta de ano aparece como número num asset (`ano_fim_janela: 1990`)
+ * e como texto em outro (`ano: "2000"`), então o filtro por etiqueta aceita as
+ * duas formas em vez de exigir que o catálogo saiba o tipo.
+ */
+function filterCollectionByPeriod(
+  collection: any,
+  period: ResolvedImageCollectionPeriod,
+) {
+  if (!period.property || !period.value) {
+    return collection.filterDate(period.startMillis, period.endMillis);
+  }
+
+  const numericValue = Number(period.value);
+
+  return collection.filter(
+    Number.isFinite(numericValue)
+      ? ee.Filter.or(
+          ee.Filter.eq(period.property, numericValue),
+          ee.Filter.eq(period.property, period.value),
+        )
+      : ee.Filter.eq(period.property, period.value),
+  );
+}
+
+/**
+ * Mosaico apenas das imagens do período pedido, caindo para a coleção inteira
+ * quando nenhuma imagem casa com o período.
+ *
+ * O `ee.Algorithms.If` decide isso dentro da própria expressão do Earth Engine:
+ * medir o tamanho da coleção aqui custaria uma ida extra de ~1 s em cada miss de
+ * cache. O fallback preserva o comportamento antigo para coleções que são
+ * pedaços de um mesmo período e evita mapa em branco quando a data do asset não
+ * corresponde ao período publicado.
+ */
+function selectPeriodMosaic(
+  collection: any,
+  period: ResolvedImageCollectionPeriod,
+) {
+  const periodCollection = filterCollectionByPeriod(collection, period);
+
+  return ee.Image(
+    ee.Algorithms.If(
+      periodCollection.size().gt(0),
+      periodCollection.mosaic(),
+      collection.mosaic(),
+    ),
+  );
+}
+
 export function selectImageCollectionImage(
   collection: any,
   selection?: ImageCollectionSelection,
+  period?: ResolvedImageCollectionPeriod,
 ) {
   if (!selection) {
     const projection = collection.first().projection();
-    return collection.mosaic().setDefaultProjection(projection);
+    const mosaic = period
+      ? selectPeriodMosaic(collection, period)
+      : collection.mosaic();
+    return mosaic.setDefaultProjection(projection);
   }
 
   const latestValue =
@@ -310,7 +405,12 @@ function applyThresholdClassification(
   return classifiedImage.updateMask(image.mask());
 }
 
-function applyMapVisualization(
+/**
+ * Aplica o plano de visualização à imagem: seleciona a banda, classifica por
+ * limites quando houver, e densifica classes esparsas. Exportada para o teste
+ * poder afirmar que o remapeamento chega à imagem, e não só ao plano.
+ */
+export function applyMapVisualization(
   image: any,
   mapVisualization: CompactMapVisualizationConfig,
   imageParams: IImageParam[],
@@ -332,7 +432,85 @@ function applyMapVisualization(
     );
   }
 
+  // Classes esparsas (1 a 6 e 9 a 14 na cobertura do solo do IBGE) viram
+  // posições densas antes de visualizar, senão o Earth Engine espalha as 12
+  // cores por 14 valores e cada classe recebe a cor da vizinha.
+  if (plan.categoricalRemap) {
+    // `round().int()` antes do remap por causa do zoom. Longe, o Earth Engine
+    // serve a pirâmide do asset, e num raster `float` ela é feita de MÉDIAS: o
+    // pixel que mistura as classes 2 e 6 chega como 4,3. Como `remap` mascara
+    // todo valor fora da lista, sem arredondar a camada some quando o mapa está
+    // afastado — medido no semiárido, 90% dos pixels sumiam na escala de ~40 km
+    // e 100% voltam com o arredondamento. A correção de raiz é reexportar o
+    // asset como inteiro com pyramidingPolicy MODE; isto é a rede de proteção
+    // para quando ela não existir.
+    selectedImage = selectedImage
+      .round()
+      .int()
+      .remap(plan.categoricalRemap.from, plan.categoricalRemap.to);
+  }
+
   return { image: selectedImage, visParams: plan.visParams };
+}
+
+/**
+ * Acima desta escala nativa a pirâmide do asset não chega a ser usada nos zooms
+ * que a plataforma abre, então forçar a escala nativa seria custo sem ganho.
+ *
+ * O corte é generoso de propósito: os assets categóricos do catálogo se dividem
+ * entre ~500 m, que sofrem o problema, e ~11 km, que não sofrem em zoom nenhum
+ * (conferido até z2, com o Brasil inteiro na tela). Qualquer valor nessa folga
+ * de 20x separa os dois grupos.
+ */
+const FINE_ASSET_SCALE_LIMIT_METERS = 1000;
+
+/**
+ * A projeção nativa da banda que vai ser desenhada, para servir de referência a
+ * `renderAtNativeScale`.
+ */
+function resolveNativeProjection(
+  image: any,
+  mapVisualization: CompactMapVisualizationConfig,
+) {
+  const band = mapVisualization.sourceBand ?? mapVisualization.band;
+  return (band ? image.select(band) : image.select(0)).projection();
+}
+
+/**
+ * Prende a imagem à escala nativa do asset, tirando a pirâmide do caminho — ver
+ * `isCategoricalMapVisualization` para o porquê.
+ *
+ * O teste de escala roda dentro da própria expressão do Earth Engine, e não com
+ * um `evaluate()` antes: ler `nominalScale()` no cliente custaria um round trip
+ * de ~1 s em cada miss de cache, que é o custo dominante ao abrir uma camada.
+ * É o mesmo padrão de `selectPeriodMosaic`.
+ *
+ * Medido em z5 no semiárido: sem isto, 67,7% dos pixels do Índice de Degradação
+ * da Terra saíam numa cor que não existe na legenda; com isto, 0%.
+ */
+function renderAtNativeScale(image: any, nativeProjection: any) {
+  const scale = nativeProjection.nominalScale();
+
+  return ee.Image(
+    ee.Algorithms.If(
+      scale.lte(FINE_ASSET_SCALE_LIMIT_METERS),
+      image.reproject({ crs: nativeProjection, scale }),
+      image,
+    ),
+  );
+}
+
+/**
+ * A última banda da imagem, escolhida por uma expressão do Earth Engine em vez
+ * de um `bandNames().evaluate()` no cliente. As duas formas dão a mesma banda;
+ * esta não gasta um round trip, que é o custo dominante ao abrir uma camada.
+ *
+ * @example
+ * selectLastBand(ee.Image("...cdi_v1_2026_01")); // banda "CDI"
+ */
+export function selectLastBand(image: any) {
+  const bandNames = image.bandNames();
+  return image.select([bandNames.get(bandNames.size().subtract(1))]);
 }
 
 function buildFeatureCollectionImage(
@@ -414,24 +592,18 @@ export const getEarthEngineUrl = async (
       mapVisualization,
       spatialSelection = DEFAULT_SPATIAL_SELECTION,
       imageCollectionSelection,
+      imageCollectionPeriod,
     } = options ?? {};
 
     await initializeGee();
 
-    // 1. Fetch asset metadata dynamically to check if it's an Image or ImageCollection
-    const assetMeta: any = await new Promise((resolve) => {
-      ee.data.getAsset(
-        imageId,
-        (asset: any) => resolve(asset),
-        () => resolve(null), // Safe fallback
-      );
-    });
+    // 1. Descobrir se o asset é Image, ImageCollection ou FeatureCollection.
+    // `resolveGeeAssetType` só vai à rede quando o `mapVisualization` não
+    // declara `sourceType` e nenhum outro período do mesmo asset já perguntou.
+    const assetType = await resolveGeeAssetType(imageId, mapVisualization);
 
     // 2. Instantiate correctly based on type
     let GEEImage: any;
-
-    // GEE api might return "ImageCollection" or "IMAGE_COLLECTION" depending on the endpoint version
-    const assetType = normalizeGeeAssetType(assetMeta?.type);
     const shouldUseFeatureCollection = isFeatureCollectionAsset({
       assetType,
       mapVisualization,
@@ -460,6 +632,7 @@ export const getEarthEngineUrl = async (
       GEEImage = selectImageCollectionImage(
         collection,
         imageCollectionSelection,
+        imageCollectionPeriod,
       );
     } else {
       // Default behavior
@@ -467,6 +640,14 @@ export const getEarthEngineUrl = async (
     }
 
     let configuredVisParams: any;
+    // Lida antes de `applyMapVisualization` porque o remap e a classificação
+    // trocam as bandas da imagem, e a referência tem de ser a do asset.
+    const nativeProjection =
+      mapVisualization &&
+      !shouldUseFeatureCollection &&
+      isCategoricalMapVisualization(mapVisualization)
+        ? resolveNativeProjection(GEEImage, mapVisualization)
+        : null;
 
     if (mapVisualization) {
       const configuredImage = applyMapVisualization(
@@ -480,23 +661,11 @@ export const getEarthEngineUrl = async (
       GEEImage = configuredImage.image;
       configuredVisParams = configuredImage.visParams;
     } else {
-      // 3. Fetch the list of available bands and automatically select one.
-      try {
-        const bandNames = await new Promise((resolve, reject) => {
-          GEEImage.bandNames().evaluate(
-            (bands: any) => resolve(bands),
-            (err: any) => reject(err),
-          );
-        });
-        if (bandNames && Array.isArray(bandNames) && bandNames.length > 0) {
-          GEEImage = GEEImage.select(bandNames[bandNames.length - 1]);
-        }
-      } catch (bandErr) {
-        console.error(
-          `[GEE] -> Failed to fetch bands for ${imageId}:`,
-          bandErr,
-        );
-      }
+      // 3. Camada legada, sem `mapVisualization`: a banda visualizada é a
+      // última do asset. A escolha é feita dentro da própria expressão, e não
+      // com um `evaluate()` antes do `getMapId`, porque cada ida ao Earth
+      // Engine custa cerca de um segundo e essa custava uma por período aberto.
+      GEEImage = selectLastBand(GEEImage);
     }
 
     if (
@@ -509,6 +678,10 @@ export const getEarthEngineUrl = async (
       })
     ) {
       GEEImage = GEEImage.selfMask();
+    }
+
+    if (nativeProjection) {
+      GEEImage = renderAtNativeScale(GEEImage, nativeProjection);
     }
 
     const { categorizedImage, visParams } = configuredVisParams
@@ -524,12 +697,11 @@ export const getEarthEngineUrl = async (
           })
         : categorizedImage;
     const clippedMapImage = applySpatialClip(mapImage, spatialSelection);
-    const mapId = (await getMapId(
+
+    return await getGeeMapUrl(
       clippedMapImage,
       shouldUseFeatureCollection ? undefined : visParams,
-    )) as IMapId;
-
-    return mapId.urlFormat;
+    );
   } catch (error: any) {
     console.error("Error in getEarthEngineUrl:", error.message);
     throw error;
@@ -657,20 +829,6 @@ const getImageScale = (
 };
 
 /**
- * Retrieves the map ID for the given image with visualization parameters.
- * @param {any} image - The Earth Engine image.
- * @param {any} visParams - Visualization parameters for the image.
- * @returns {Promise<Object>} - The map ID object.
- */
-function getMapId(image: any, visParams?: any) {
-  return new Promise((resolve, reject) => {
-    image.getMapId(visParams, (obj: any, error: any) =>
-      error ? reject(new Error(error)) : resolve(obj),
-    );
-  });
-}
-
-/**
  * Períodos que o warmup deve aquecer. Aquecer todos custava 496 idas SEQUENCIAIS
  * ao Earth Engine (301 só do CDI_Test), disparadas pelo primeiro request após
  * cada restart e repetidas a cada 12 h, competindo com os usuários pela mesma
@@ -682,6 +840,10 @@ function getMapId(image: any, visParams?: any) {
 export function getWarmupYearKeys(
   imageData: IEEInfo["imageData"] | undefined,
 ): string[] {
+  // Uma coropleta municipal não tem asset para aquecer: o mapa dela é pintado
+  // no navegador a partir dos valores do próprio índice.
+  if (isChoroplethImageData(imageData)) return [];
+
   const defaultYear = getImageDataDefaultYear(imageData);
 
   return defaultYear ? [defaultYear] : [];
@@ -712,6 +874,7 @@ export const cacheMapData = async () => {
         if (!yearConfig) continue;
         const imageCollectionSelection =
           resolveImageCollectionSelection(yearConfig);
+        const imageCollectionPeriod = resolveImageCollectionPeriod(yearConfig);
 
         const cacheKey = buildCacheKey(
           id,
@@ -732,6 +895,7 @@ export const cacheMapData = async () => {
           {
             mapVisualization: yearConfig.mapVisualization,
             ...(imageCollectionSelection ? { imageCollectionSelection } : {}),
+            ...(imageCollectionPeriod ? { imageCollectionPeriod } : {}),
           },
         );
         addUrlToCache(cacheKey, url);

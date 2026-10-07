@@ -1,15 +1,21 @@
 import type { FeatureCollection, Geometry } from "geojson";
 import type maplibregl from "maplibre-gl";
 import { describe, expect, it, vi } from "vitest";
+import { CLASSIFICATION_LAYER_ID } from "@/components/Map/classificationLayers";
 import {
   GEE_LAYER_ID,
+  REF_OVERLAY_LAYER_PREFIX,
+  SPATIAL_BOUNDARY_FILL_LAYER_ID,
+  SPATIAL_BOUNDARY_HOVER_LAYER_ID,
   SPATIAL_BOUNDARY_LAYER_ID,
   SPATIAL_BOUNDARY_SOURCE_ID,
   STATES_BORDER_LAYER_ID,
   STATES_FILL_LAYER_ID,
   ensureMapLayers,
+  ensureReferenceOverlayLayers,
   ensureSpatialBoundaryLayer,
 } from "@/components/Map/mapDefinitions";
+import { MUNICIPALITY_HOVER_LAYER_ID } from "@/components/Map/municipalityLayers";
 
 const boundaryGeoJson: FeatureCollection<Geometry, { name: string }> = {
   type: "FeatureCollection",
@@ -91,8 +97,11 @@ describe("spatial boundary MapLibre layers", () => {
     ensureMapLayers(map, "platform", true, false, null);
     ensureSpatialBoundaryLayer(map, boundaryGeoJson, true, new Set(["ba"]));
 
-    expect(layers.indexOf(SPATIAL_BOUNDARY_LAYER_ID)).toBe(
-      layers.indexOf(STATES_FILL_LAYER_ID) - 1,
+    expect(layers.indexOf(SPATIAL_BOUNDARY_LAYER_ID)).toBeLessThan(
+      layers.indexOf(STATES_FILL_LAYER_ID),
+    );
+    expect(layers.indexOf(SPATIAL_BOUNDARY_FILL_LAYER_ID)).toBeLessThan(
+      layers.indexOf(STATES_FILL_LAYER_ID),
     );
   });
 
@@ -113,14 +122,120 @@ describe("spatial boundary MapLibre layers", () => {
     );
     ensureSpatialBoundaryLayer(map, boundaryGeoJson, true, new Set(["ba"]));
 
-    // This verifies ordering only. A clipped/transparent raster can still
-    // leave the boundary visible, so this is not inherently a visual defect.
-    expect(layers.indexOf(GEE_LAYER_ID)).toBeGreaterThan(
+    // Verify that GEE raster is placed BELOW the spatial boundary,
+    // so it doesn't obscure the boundary outline.
+    expect(layers.indexOf(GEE_LAYER_ID)).toBeLessThan(
       layers.indexOf(SPATIAL_BOUNDARY_LAYER_ID),
     );
     expect(layers.indexOf(GEE_LAYER_ID)).toBeLessThan(
       layers.indexOf(STATES_FILL_LAYER_ID),
     );
+  });
+
+  it("keeps the territory overlays above every analysis layer", () => {
+    const { layers, map } = createOrderedMapMock();
+    const quilombolasLayerId = `${REF_OVERLAY_LAYER_PREFIX}quilombolas`;
+
+    ensureMapLayers(map, "platform", true, false, null);
+    ensureReferenceOverlayLayers(
+      map,
+      new Map([
+        [
+          "quilombolas",
+          {
+            outline: "https://tiles.example/q/{z}/{x}/{y}",
+            fill: "https://tiles.example/q-fill/{z}/{x}/{y}",
+          },
+        ],
+      ]),
+    );
+
+    // Sequência real da UI: o usuário liga o território e só depois aplica um
+    // índice ou troca de período, o que readiciona o raster do GEE.
+    ensureMapLayers(
+      map,
+      "platform",
+      true,
+      false,
+      "https://tiles.example/2020/{z}/{x}/{y}",
+      1,
+    );
+    ensureMapLayers(
+      map,
+      "platform",
+      true,
+      false,
+      "https://tiles.example/2021/{z}/{x}/{y}",
+      1,
+    );
+
+    expect(layers).toContain(CLASSIFICATION_LAYER_ID);
+    expect(layers.indexOf(GEE_LAYER_ID)).toBeLessThan(
+      layers.indexOf(quilombolasLayerId),
+    );
+    // A coropleta da AMFE é pintada com 85% de opacidade: abaixo dela o
+    // território não apareceria no mapa da análise multicritério.
+    expect(layers.indexOf(CLASSIFICATION_LAYER_ID)).toBeLessThan(
+      layers.indexOf(quilombolasLayerId),
+    );
+    expect(layers.indexOf(quilombolasLayerId)).toBeLessThan(
+      layers.indexOf(MUNICIPALITY_HOVER_LAYER_ID),
+    );
+    // O interior do território também fica acima do índice.
+    expect(layers.indexOf(GEE_LAYER_ID)).toBeLessThan(
+      layers.indexOf(`${quilombolasLayerId}-fill`),
+    );
+    expect(layers.indexOf(quilombolasLayerId)).toBeLessThan(
+      layers.indexOf(STATES_BORDER_LAYER_ID),
+    );
+  });
+
+  // Regressão: o véu escuro do hover se somava à cor do índice e confundia o
+  // recorte sob o cursor com outra faixa da legenda.
+  it("marks the hovered boundary with a black outline and no fill", () => {
+    const { layers, map, rawMap } = createOrderedMapMock();
+
+    ensureMapLayers(map, "platform", true, false, null);
+    ensureSpatialBoundaryLayer(map, boundaryGeoJson, true, new Set(["ba"]));
+
+    const addedLayers = rawMap.addLayer.mock.calls.map(([layer]) => layer);
+    const fillLayer = addedLayers.find(
+      (layer) => layer.id === SPATIAL_BOUNDARY_FILL_LAYER_ID,
+    ) as { paint: Record<string, unknown> };
+    const hoverLayer = addedLayers.find(
+      (layer) => layer.id === SPATIAL_BOUNDARY_HOVER_LAYER_ID,
+    ) as { paint: Record<string, unknown> };
+
+    expect(fillLayer.paint["fill-opacity"]).toBe(0);
+    expect(hoverLayer.paint["line-color"]).toBe("#000000");
+    expect(hoverLayer.paint["line-opacity"]).toEqual([
+      "case",
+      ["boolean", ["feature-state", "hover"], false],
+      0.9,
+      0,
+    ]);
+    // Acima do preenchimento e do contorno da seleção, senão o traço do hover
+    // some sob eles.
+    expect(layers.indexOf(SPATIAL_BOUNDARY_FILL_LAYER_ID)).toBeLessThan(
+      layers.indexOf(SPATIAL_BOUNDARY_HOVER_LAYER_ID),
+    );
+    expect(layers.indexOf(SPATIAL_BOUNDARY_HOVER_LAYER_ID)).toBeLessThan(
+      layers.indexOf(STATES_FILL_LAYER_ID),
+    );
+  });
+
+  it("never paints a fill over the hovered or selected state", () => {
+    const { rawMap, map } = createOrderedMapMock();
+
+    ensureMapLayers(map, "platform", true, false, null);
+
+    const stateFills = rawMap.addLayer.mock.calls
+      .map(([layer]) => layer)
+      .find((layer) => layer.id === STATES_FILL_LAYER_ID) as {
+      paint: Record<string, unknown>;
+    };
+
+    expect(stateFills.paint["fill-opacity"]).toBe(0);
   });
 
   it("hides state borders while boundary data is present", () => {
@@ -185,6 +300,9 @@ describe("spatial boundary MapLibre layers", () => {
     ensureSpatialBoundaryLayer(map, null, true, null);
 
     expect(rawMap.removeLayer).toHaveBeenCalledWith(SPATIAL_BOUNDARY_LAYER_ID);
+    expect(rawMap.removeLayer).toHaveBeenCalledWith(
+      SPATIAL_BOUNDARY_HOVER_LAYER_ID,
+    );
     expect(rawMap.removeSource).toHaveBeenCalledWith(
       SPATIAL_BOUNDARY_SOURCE_ID,
     );

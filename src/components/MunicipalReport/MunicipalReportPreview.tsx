@@ -1,27 +1,16 @@
 "use client";
 
 import {
+  useCallback,
   useEffect,
   memo,
   useMemo,
   useRef,
   useState,
-  type CSSProperties,
   type Ref,
 } from "react";
 import Link from "next/link";
 import { useLocale, useTranslations } from "next-intl";
-import {
-  CartesianGrid,
-  Line,
-  LineChart,
-  ReferenceLine,
-  ResponsiveContainer,
-  Tooltip,
-  XAxis,
-  YAxis,
-} from "recharts";
-import type { TooltipContentProps } from "recharts";
 import type {
   MunicipalReportAnalysis,
   MunicipalReportData,
@@ -31,6 +20,7 @@ import { getMunicipalReportPresentation } from "@/config/municipalReport";
 import {
   buildAnalysisNarrativeSections,
   buildSituationNarrative,
+  compactPeriodRange,
   formatReportPeriod,
   getReportDocsText,
 } from "@/utils/municipalReportNarrative";
@@ -44,27 +34,50 @@ import {
   getMunicipalReportValueLabels,
 } from "@/utils/municipalReportValue";
 import {
-  buildMunicipalReportChartData,
-  MUNICIPAL_REPORT_PDF_CHART_MAX_MEASUREMENTS,
-  selectMunicipalReportChartSnapshots,
-} from "@/utils/municipalReportChart";
-import { slugifyTranslationKey } from "@/utils/translations";
-import { ReportMapPreview } from "./ReportMapPreview";
+  translateAnalysisTitle,
+  translateClassLabel,
+} from "@/utils/municipalReportTranslations";
+import {
+  getReportCategoryTokens,
+  reportAnalysisAnchorId,
+} from "@/utils/municipalReportCategories";
+import {
+  isStackableAnalysis,
+  MUNICIPAL_REPORT_STACKED_MAX_COLUMNS,
+  selectStackedChartSnapshots,
+} from "@/utils/municipalReportStackedChart";
+import { MunicipalReportClassBars } from "./MunicipalReportClassBars";
+import { MunicipalReportDynamicChart } from "./MunicipalReportDynamicChart";
+import { MunicipalReportLinePrintChart } from "./MunicipalReportLinePrintChart";
+import { MunicipalReportNotes } from "./MunicipalReportNotes";
+import { MunicipalReportStackedChart } from "./MunicipalReportStackedChart";
+import { MunicipalReportStackedPrintChart } from "./MunicipalReportStackedPrintChart";
+import { ReportBackToTop } from "./ReportBackToTop";
+import { ReportDocumentFooter } from "./ReportDocumentFooter";
+import { ReportHero } from "./ReportHero";
+import { ReportSectionHeading } from "./ReportSectionHeading";
+import { ReportVariableIndex } from "./ReportVariableIndex";
+import { ReportMapPreview, type ReportMapChoropleth } from "./ReportMapPreview";
+import { destroyReportMapPool } from "./reportMapPool";
 import { useReportMapCaptureQueue } from "./useReportMapCaptureQueue";
+import {
+  useReportMapTileUrls,
+  type ReportMapTileUrls,
+} from "./useReportMapTileUrls";
+import {
+  useReportMapChoropleths,
+  type ReportMapChoropleths,
+} from "./useReportMapChoropleths";
+import type { EeMapUrlFailure } from "@/contracts/eeMapUrls";
 
-interface MunicipalReportPreviewProps {
-  municipalityCode: string;
+export interface MunicipalReportPreviewProps {
+  /** Chave territorial do relatório: código IBGE, UF, "br" ou recorte agregado. */
+  locationKey: string;
   period: string;
   layerIds?: string[];
   embedded?: boolean;
+  onOpenMonitor?: (layerId: string) => void;
 }
-
-type DynamicChartRow = {
-  period: string;
-  label: string;
-  highlighted: boolean;
-  [seriesId: string]: string | number | boolean;
-};
 
 function textColorForBackground(color: string) {
   const hex = color.replace("#", "");
@@ -77,46 +90,8 @@ function textColorForBackground(color: string) {
     : "#ffffff";
 }
 
-function parseHexColor(color: string) {
-  const hex = color.replace("#", "");
-  if (!/^[0-9a-f]{6}$/i.test(hex)) return null;
-  const [red, green, blue] = [0, 2, 4].map((offset) =>
-    Number.parseInt(hex.slice(offset, offset + 2), 16),
-  );
-  return { red, green, blue };
-}
-
-function toHex(value: number) {
-  return Math.max(0, Math.min(255, Math.round(value)))
-    .toString(16)
-    .padStart(2, "0");
-}
-
-function getVisibleChartColor(color: string) {
-  const parsed = parseHexColor(color);
-  if (!parsed) return "#536E7B";
-
-  const luminance =
-    parsed.red * 0.299 + parsed.green * 0.587 + parsed.blue * 0.114;
-  if (luminance <= 190) return color;
-
-  return `#${toHex(parsed.red * 0.72)}${toHex(parsed.green * 0.72)}${toHex(parsed.blue * 0.72)}`;
-}
-
-function compactPeriodRange(
-  timeSeries: MunicipalReportAnalysis["timeSeries"],
-  fallback: string,
-  locale: string,
-  t?: (key: string, values?: Record<string, string>) => string,
-) {
-  const firstPeriod = timeSeries[0]?.period ?? fallback;
-  const lastPeriod = timeSeries.at(-1)?.period ?? fallback;
-  const firstLabel = formatReportPeriod(firstPeriod, locale);
-  const lastLabel = formatReportPeriod(lastPeriod, locale);
-  if (firstPeriod === lastPeriod) return firstLabel;
-  if (t) return t("periodRange", { first: firstLabel, last: lastLabel });
-  return `${firstLabel} a ${lastLabel}`;
-}
+/** Fontes declaradas em `src/app/[locale]/layout.tsx` e usadas pelo documento. */
+const FONT_VARIABLE_NAMES = ["--font-open-sans", "--font-inter"];
 
 function buildReportFilename(
   report: MunicipalReportData | null,
@@ -125,554 +100,48 @@ function buildReportFilename(
   prefix: string,
 ) {
   if (!report) return fallback;
-  const municipality = report.municipality.name.trim().replace(/\s+/g, "-");
-  return `${prefix}-${municipality}-${period}.pdf`;
+  // O nome, e não o rótulo: o rótulo do município leva "— UF", e um travessão
+  // no meio do nome do arquivo não ajuda ninguém.
+  const territory = report.territory.name.trim().replace(/\s+/g, "-");
+  return `${prefix}-${territory}-${period}.pdf`;
 }
 
-function slugifyLabelKey(label: string): string {
-  return label
-    .toLowerCase()
-    .normalize("NFD")
-    .replace(/[\u0300-\u036f]/g, "")
-    .replace(/</g, "menor-que")
-    .replace(/>/g, "maior-que")
-    .replace(/[^a-z0-9]+/g, "-")
-    .replace(/(^-|-$)+/g, "");
-}
-
-function translateAnalysisTitle(
-  analysis: MunicipalReportAnalysis,
-  tReport: (key: string) => string,
-  tReportHas: (key: string) => boolean,
-  tModules: (key: string) => string,
-  tModulesHas: (key: string) => boolean,
-) {
-  if (tReportHas(`indicators.${analysis.id}.title`)) {
-    return tReport(`indicators.${analysis.id}.title`);
-  }
-  const slug = slugifyTranslationKey(analysis.title);
-  if (tReportHas(`indicators.${slug}.title`)) {
-    return tReport(`indicators.${slug}.title`);
-  }
-  const moduleKey = `Layers.${slug}.title`;
-  if (tModulesHas(moduleKey)) {
-    return tModules(moduleKey);
-  }
-  return analysis.title;
-}
-
-function translateClassLabel(
-  label: string,
-  tReport: (key: string) => string,
-  tReportHas: (key: string) => boolean,
-  tCaption: (key: string) => string,
-  tCaptionHas: (key: string) => boolean,
-) {
-  const slug = slugifyLabelKey(label);
-  if (tCaptionHas(`labels.${slug}`)) {
-    return tCaption(`labels.${slug}`);
-  }
-  if (tReportHas(`classes.${slug}`)) {
-    return tReport(`classes.${slug}`);
-  }
-  return label;
-}
-
-function translateAnalysisMethodology(
-  analysis: MunicipalReportAnalysis,
-  docsContent: MunicipalReportDocsContent | null,
-  presentationMethodology: string,
-  tReport: (key: string) => string,
-  tReportHas: (key: string) => boolean,
-  tModules: (key: string) => string,
-  tModulesHas: (key: string) => boolean,
-  locale?: string,
-) {
-  const docsText = getReportDocsText(docsContent, analysis.title, locale);
-  if (docsText) return docsText;
-
-  if (tReportHas(`indicators.${analysis.id}.methodology`)) {
-    return tReport(`indicators.${analysis.id}.methodology`);
-  }
-  const slug = slugifyTranslationKey(analysis.title);
-  if (tReportHas(`indicators.${slug}.methodology`)) {
-    return tReport(`indicators.${slug}.methodology`);
-  }
-  const moduleKey = `Layers.${slug}.description`;
-  if (tModulesHas(moduleKey)) {
-    return tModules(moduleKey);
-  }
-  if (
-    presentationMethodology ===
-    "Indicador territorial disponibilizado na plataforma SEDES." &&
-    tReportHas("indicators.defaultMethodology")
-  ) {
-    return tReport("indicators.defaultMethodology");
-  }
-  return presentationMethodology;
-}
-
-function MunicipalReportDynamicChart({
-  analysis,
-  locale,
-  referencePeriod,
-  translateLabel,
-}: {
-  analysis: MunicipalReportAnalysis;
-  locale: string;
-  referencePeriod: string;
-  translateLabel: (label: string) => string;
-}) {
-  const chartData = useMemo(
-    () => buildMunicipalReportChartData(analysis, referencePeriod),
-    [analysis, referencePeriod],
-  );
-  const [activeSeries, setActiveSeries] = useState(
-    () => new Set(chartData.series.map((series) => series.id)),
-  );
-  const seriesById = useMemo(
-    () => new Map(chartData.series.map((series) => [series.id, series])),
-    [chartData.series],
-  );
-  const rows = useMemo(
-    () =>
-      chartData.categories.map((category, index) => {
-        const row: DynamicChartRow = {
-          period: category.period,
-          label: category.label,
-          highlighted: category.highlighted,
-        };
-        chartData.series.forEach((series) => {
-          row[series.id] = series.points[index]?.value ?? 0;
-        });
-        return row;
-      }),
-    [chartData.categories, chartData.series],
-  );
-  const periodLabels = useMemo(
-    () =>
-      new Map(
-        chartData.categories.map((category) => [
-          category.period,
-          category.label,
-        ]),
-      ),
-    [chartData.categories],
-  );
-  const visibleSeries = chartData.series.filter((series) =>
-    activeSeries.has(series.id),
-  );
-  const observedMax = Math.max(
-    0,
-    ...chartData.series.flatMap((series) =>
-      series.points.map((point) => point.value),
-    ),
-  );
-  const axisMax =
-    analysis.valueType === "absolute"
-      ? Math.max(1, Math.ceil(observedMax / 5) * 5)
-      : 100;
-  const yTicks = Array.from({ length: 6 }, (_, index) => (axisMax / 5) * index);
-  const referenceLinePeriod = chartData.categories.some(
-    (category) => category.period === chartData.referencePeriod,
-  )
-    ? chartData.referencePeriod
-    : null;
-
-  function toggleSeries(seriesId: string) {
-    setActiveSeries((current) => {
-      const next = new Set(current);
-      if (next.has(seriesId)) {
-        if (next.size > 1) next.delete(seriesId);
-      } else {
-        next.add(seriesId);
-      }
-      return next;
-    });
-  }
-
-  function renderTooltip({ active, label, payload }: TooltipContentProps) {
-    if (!active || !payload?.length) return null;
-    const period = label == null ? "" : String(label);
-    const periodLabel = periodLabels.get(period) ?? period;
-
-    return (
-      <div className="rounded border border-[#d9e0e3] bg-white px-3 py-2 text-xs shadow-lg">
-        <p className="font-bold text-[#536e7b]">{periodLabel}</p>
-        <div className="mt-2 space-y-1">
-          {payload
-            .filter((entry) => typeof entry.dataKey === "string")
-            .map((entry) => {
-              const series = seriesById.get(String(entry.dataKey));
-              if (!series) return null;
-              const numericValue = Number(entry.value ?? 0);
-              const visibleColor = getVisibleChartColor(series.color);
-              return (
-                <p
-                  key={series.id}
-                  className="flex items-center justify-between gap-4 text-neutral-700"
-                >
-                  <span className="inline-flex items-center gap-2">
-                    <span
-                      className="h-2.5 w-2.5 rounded-full"
-                      style={{ backgroundColor: visibleColor }}
-                    />
-                    {translateLabel(series.label)}
-                  </span>
-                  <strong>
-                    {formatMunicipalReportValue(numericValue, analysis, locale)}
-                  </strong>
-                </p>
-              );
-            })}
-        </div>
-      </div>
-    );
-  }
-
-  if (rows.length === 0 || chartData.series.length === 0) {
-    return (
-      <span className="text-sm text-neutral-500">
-        Série temporal indisponível para visualização dinâmica.
-      </span>
-    );
-  }
-
-  return (
-    <div className="flex h-full min-h-[320px] w-full flex-col gap-3">
-      <div className="min-h-[255px] flex-1">
-        <ResponsiveContainer width="100%" height="100%">
-          <LineChart
-            data={rows}
-            margin={{ top: 20, right: 28, bottom: 18, left: 8 }}
-          >
-            <CartesianGrid
-              stroke="#E3E7EA"
-              strokeDasharray="4 6"
-              vertical={false}
-            />
-            <XAxis
-              dataKey="period"
-              tickFormatter={(value) =>
-                periodLabels.get(String(value)) ?? String(value)
-              }
-              tick={{ fill: "#5F6670", fontSize: 11 }}
-              tickLine={false}
-              axisLine={{ stroke: "#B8C0C5" }}
-              minTickGap={12}
-              height={38}
-              tickMargin={10}
-              interval="preserveStartEnd"
-            />
-            <YAxis
-              domain={[0, axisMax]}
-              ticks={yTicks}
-              tickFormatter={(value) =>
-                analysis.valueType === "percentage"
-                  ? `${Number(value).toFixed(0)}%`
-                  : new Intl.NumberFormat(locale, {
-                    maximumFractionDigits: 0,
-                  }).format(Number(value))
-              }
-              tick={{ fill: "#5F6670", fontSize: 11 }}
-              tickLine={false}
-              axisLine={{ stroke: "#B8C0C5" }}
-              width={62}
-              tickMargin={8}
-            />
-            {referenceLinePeriod && (
-              <ReferenceLine
-                x={referenceLinePeriod}
-                stroke="#989F43"
-                strokeDasharray="4 4"
-                strokeWidth={2}
-              />
-            )}
-            <Tooltip
-              content={renderTooltip}
-              cursor={{ stroke: "#8A9340", strokeWidth: 1.25 }}
-            />
-            {visibleSeries.map((series) => (
-              <Line
-                key={series.id}
-                type="linear"
-                dataKey={series.id}
-                name={translateLabel(series.label)}
-                stroke={getVisibleChartColor(series.color)}
-                strokeWidth={2}
-                strokeOpacity={0.92}
-                dot={{ r: 2.2, strokeWidth: 1.6, fill: "#FFFFFF" }}
-                activeDot={{ r: 4.4, strokeWidth: 2, fill: "#FFFFFF" }}
-                isAnimationActive={false}
-              />
-            ))}
-          </LineChart>
-        </ResponsiveContainer>
-      </div>
-      <div className="flex flex-wrap gap-2">
-        {chartData.series.map((series) => {
-          const enabled = activeSeries.has(series.id);
-          return (
-            <button
-              key={series.id}
-              type="button"
-              aria-pressed={enabled}
-              onClick={() => toggleSeries(series.id)}
-              className={`inline-flex items-center gap-2 rounded border px-2.5 py-1.5 text-xs font-semibold transition ${enabled
-                ? "border-[#c8ced1] bg-white text-[#292829]"
-                : "border-[#d9e0e3] bg-[#f4f6f8] text-neutral-500"
-                }`}
-            >
-              <span
-                className="h-2.5 w-2.5 rounded-full"
-                style={{ backgroundColor: getVisibleChartColor(series.color) }}
-              />
-              {translateLabel(series.label)}
-            </button>
-          );
-        })}
-      </div>
-    </div>
-  );
-}
-
-const PRINT_CHART_WIDTH = 640;
-const PRINT_CHART_HEIGHT = 280;
-const PRINT_CHART_LEFT = 58;
-const PRINT_CHART_RIGHT = 16;
-const PRINT_CHART_TOP = 14;
-const PRINT_CHART_BOTTOM = 232;
-
-function MunicipalReportPrintChart({
-  analysis,
-  locale,
-  referencePeriod,
-  translateLabel,
-}: {
-  analysis: MunicipalReportAnalysis;
-  locale: string;
-  referencePeriod: string;
-  translateLabel: (label: string) => string;
-}) {
-  const chartData = useMemo(
-    () =>
-      buildMunicipalReportChartData(analysis, referencePeriod, {
-        maxMeasurements: MUNICIPAL_REPORT_PDF_CHART_MAX_MEASUREMENTS,
-      }),
-    [analysis, referencePeriod],
-  );
-  const observedMax = Math.max(
-    0,
-    ...chartData.series.flatMap((series) =>
-      series.points.map((point) => point.value),
-    ),
-  );
-  const axisMax =
-    analysis.valueType === "absolute"
-      ? Math.max(1, Math.ceil(observedMax / 5) * 5)
-      : 100;
-  const yTicks = Array.from({ length: 6 }, (_, index) => (axisMax / 5) * index);
-  const plotWidth = PRINT_CHART_WIDTH - PRINT_CHART_LEFT - PRINT_CHART_RIGHT;
-  const categoryCount = chartData.categories.length;
-
-  const xForIndex = (index: number) =>
-    categoryCount <= 1
-      ? PRINT_CHART_LEFT + plotWidth / 2
-      : PRINT_CHART_LEFT + (index / (categoryCount - 1)) * plotWidth;
-  const yForValue = (value: number) => {
-    const clampedValue = Math.max(0, Math.min(axisMax, value));
-    return (
-      PRINT_CHART_BOTTOM -
-      (clampedValue / axisMax) * (PRINT_CHART_BOTTOM - PRINT_CHART_TOP)
-    );
-  };
-  const visiblePeriodIndexes = new Set(
-    chartData.categories
-      .map((_, index) => index)
-      .filter(
-        (index) =>
-          categoryCount <= 5 ||
-          index === 0 ||
-          index === categoryCount - 1 ||
-          index % 3 === 0,
-      ),
-  );
-  const referenceIndex = chartData.categories.findIndex(
-    (category) => category.period === chartData.referencePeriod,
-  );
-
-  if (categoryCount === 0 || chartData.series.length === 0) {
-    return (
-      <span className="text-sm text-neutral-500">
-        Série temporal indisponível para impressão.
-      </span>
-    );
-  }
-
-  return (
-    <div
-      className="w-full"
-      data-report-pdf-measurements={categoryCount}
-      data-report-pdf-first-period={chartData.categories[0]?.period}
-      data-report-pdf-last-period={chartData.categories.at(-1)?.period}
-    >
-      <svg
-        className="report-print-chart-svg block h-auto w-full"
-        viewBox={`0 0 ${PRINT_CHART_WIDTH} ${PRINT_CHART_HEIGHT}`}
-        preserveAspectRatio="xMidYMid meet"
-        role="img"
-        aria-label={`${analysis.title}: ${chartData.categories[0]?.period} a ${chartData.categories.at(-1)?.period}`}
-      >
-        {yTicks.map((value) => {
-          const y = yForValue(value);
-          const label =
-            analysis.valueType === "percentage"
-              ? `${Number(value).toFixed(0)}%`
-              : new Intl.NumberFormat(locale, {
-                maximumFractionDigits: 0,
-              }).format(value);
-
-          return (
-            <g key={value}>
-              <line
-                x1={PRINT_CHART_LEFT}
-                y1={y}
-                x2={PRINT_CHART_WIDTH - PRINT_CHART_RIGHT}
-                y2={y}
-                stroke="#E3E7EA"
-                strokeDasharray="4 6"
-              />
-              <text
-                x={PRINT_CHART_LEFT - 10}
-                y={y + 4}
-                textAnchor="end"
-                fontSize="14"
-                fill="#5F6670"
-              >
-                {label}
-              </text>
-            </g>
-          );
-        })}
-        <line
-          x1={PRINT_CHART_LEFT}
-          y1={PRINT_CHART_TOP}
-          x2={PRINT_CHART_LEFT}
-          y2={PRINT_CHART_BOTTOM}
-          stroke="#B8C0C5"
-        />
-        <line
-          x1={PRINT_CHART_LEFT}
-          y1={PRINT_CHART_BOTTOM}
-          x2={PRINT_CHART_WIDTH - PRINT_CHART_RIGHT}
-          y2={PRINT_CHART_BOTTOM}
-          stroke="#B8C0C5"
-        />
-        {referenceIndex >= 0 && (
-          <line
-            x1={xForIndex(referenceIndex)}
-            y1={PRINT_CHART_TOP}
-            x2={xForIndex(referenceIndex)}
-            y2={PRINT_CHART_BOTTOM}
-            stroke="#989F43"
-            strokeDasharray="5 5"
-            strokeWidth="2"
-          />
-        )}
-        {chartData.series.map((series) => {
-          const color = getVisibleChartColor(series.color);
-          const points = series.points
-            .map(
-              (point, index) =>
-                `${xForIndex(index).toFixed(1)},${yForValue(point.value).toFixed(1)}`,
-            )
-            .join(" ");
-
-          return (
-            <g key={series.id}>
-              <polyline
-                points={points}
-                fill="none"
-                stroke={color}
-                strokeWidth="2.5"
-                strokeLinecap="round"
-                strokeLinejoin="round"
-              />
-              {series.points.map((point, index) => (
-                <circle
-                  key={point.period}
-                  cx={xForIndex(index)}
-                  cy={yForValue(point.value)}
-                  r={point.highlighted ? 3.8 : 2.5}
-                  fill="#FFFFFF"
-                  stroke={color}
-                  strokeWidth={point.highlighted ? 2.5 : 1.8}
-                />
-              ))}
-            </g>
-          );
-        })}
-        {chartData.categories.map((category, index) => {
-          if (!visiblePeriodIndexes.has(index)) return null;
-          const textAnchor =
-            index === 0
-              ? "start"
-              : index === categoryCount - 1
-                ? "end"
-                : "middle";
-
-          return (
-            <text
-              key={category.period}
-              x={xForIndex(index)}
-              y={PRINT_CHART_BOTTOM + 28}
-              textAnchor={textAnchor}
-              fontSize="14"
-              fontWeight={category.highlighted ? 700 : 400}
-              fill="#5F6670"
-            >
-              {category.period}
-            </text>
-          );
-        })}
-      </svg>
-      <div className="mt-1 flex flex-wrap justify-center gap-x-3 gap-y-1 text-[10px] font-semibold text-[#292829]">
-        {chartData.series.map((series) => (
-          <span key={series.id} className="inline-flex items-center gap-1.5">
-            <span
-              className="inline-block h-2 w-2 rounded-full"
-              style={{ backgroundColor: getVisibleChartColor(series.color) }}
-            />
-            {translateLabel(series.label)}
-          </span>
-        ))}
-      </div>
-    </div>
-  );
-}
-
-function AnalysisSection({
+const AnalysisSection = memo(function AnalysisSection({
   analysis,
   report,
-  index,
   locale,
+  mapKey,
   mapSrc,
   mapActive,
   mapAttempt,
   mapQueuedAt,
+  onMapVisibility,
+  mapTileUrl,
+  mapChoropleth,
+  mapUnavailableReason,
   onMapCapture,
+  onMapRetry,
   docsContent,
+  monitorHref,
+  onOpenMonitor,
 }: {
   analysis: MunicipalReportAnalysis;
   report: MunicipalReportData;
-  index: number;
   locale: string;
+  mapKey: string;
+  monitorHref: string;
   mapSrc?: string;
   mapActive?: boolean;
   mapAttempt?: number;
   mapQueuedAt?: number | null;
-  onMapCapture?: (src: string | null) => void;
+  onMapVisibility?: (key: string, visible: boolean) => void;
+  mapTileUrl?: string;
+  mapChoropleth?: ReportMapChoropleth;
+  mapUnavailableReason?: EeMapUrlFailure;
+  onMapCapture?: (key: string, src: string | null) => void;
+  onMapRetry?: (key: string) => void;
   docsContent: MunicipalReportDocsContent | null;
+  onOpenMonitor?: (layerId: string) => void;
 }) {
   const t = useTranslations("MunicipalReport");
   const tModules = useTranslations("ModulesContext");
@@ -688,6 +157,8 @@ function AnalysisSection({
     tModules,
     tModulesHas,
   );
+  const translateLabel = (label: string) =>
+    translateClassLabel(label, t, tHas, tCaption, tCaptionHas);
   const dominant = analysis.snapshot?.dominantClass;
   const presentation = getMunicipalReportPresentation(analysis.id);
   const situationText = buildSituationNarrative(
@@ -697,7 +168,7 @@ function AnalysisSection({
     presentation,
     locale,
     (key, values) => t(key, values),
-    (label) => translateClassLabel(label, t, tHas, tCaption, tCaptionHas),
+    translateLabel,
     (title, id) =>
       translateAnalysisTitle(
         { ...analysis, title, id },
@@ -708,7 +179,7 @@ function AnalysisSection({
       ),
     tHas,
   );
-  const sectionColor = presentation.sectionColor;
+  const accent = getReportCategoryTokens(analysis.category).accent;
   const effectivePeriod = analysis.effectivePeriod ?? analysis.snapshot?.period;
   const referencePeriod =
     effectivePeriod ?? analysis.snapshot?.period ?? analysis.requestedPeriod;
@@ -721,10 +192,12 @@ function AnalysisSection({
     locale,
     (key, values) => t(key, values),
   );
-  const pdfChartHistoryRange = compactPeriodRange(
-    selectMunicipalReportChartSnapshots(
+  // O gráfico desenha só os períodos mais recentes; o título dele diz quais.
+  const chartRange = compactPeriodRange(
+    selectStackedChartSnapshots(
       analysis.timeSeries,
-      MUNICIPAL_REPORT_PDF_CHART_MAX_MEASUREMENTS,
+      MUNICIPAL_REPORT_STACKED_MAX_COLUMNS,
+      referencePeriod,
     ),
     referencePeriod,
     locale,
@@ -740,16 +213,42 @@ function AnalysisSection({
   );
 
   return (
-    <section className="report-section">
-      <h2
-        className="px-5 py-2.5 text-xl font-bold text-white"
-        style={{ backgroundColor: sectionColor }}
+    <section
+      id={reportAnalysisAnchorId(analysis.alias)}
+      className="report-section scroll-mt-16"
+    >
+      <div
+        className="report-analysis-header report-block flex flex-wrap items-center justify-between gap-4 rounded-r-lg border-l-[3px] bg-[#F8F7F8] px-4 py-2"
+        style={{ borderLeftColor: accent }}
       >
-        {index + 1}. {translatedTitle}
-      </h2>
+        <div className="min-w-0">
+          <h2 className="font-open-sans text-[18px] font-bold leading-[1.5] tracking-[-0.216px] text-[#292829]">
+            {translatedTitle}
+          </h2>
+          <p className="font-open-sans flex flex-wrap gap-1 text-xs leading-5 text-[#292829]">
+            <strong className="font-semibold">{t("availableSeries")}:</strong>
+            {historyRange}
+          </p>
+        </div>
+        <Link
+          href={monitorHref}
+          onClick={(event) => {
+            // Dentro da plataforma a troca é estado de cliente: instantânea, e
+            // sem descartar o CSS do chunk do relatório como a navegação fazia.
+            // O `href` continua servindo o clique do meio, o "abrir em nova
+            // aba" e a página autônoma.
+            if (!onOpenMonitor || event.metaKey || event.ctrlKey) return;
+            event.preventDefault();
+            onOpenMonitor(analysis.id);
+          }}
+          className="font-open-sans shrink-0 rounded-md bg-[#989F43] px-4 py-2 text-sm leading-6 text-white transition hover:bg-[#868D3B] print:hidden"
+        >
+          {t("document.viewMonitor")}
+        </Link>
+      </div>
 
       {analysis.status !== "available" || !analysis.snapshot ? (
-        <div className="report-analysis-summary report-block mt-7 border border-[#d9e0e3] p-5">
+        <div className="report-analysis-summary report-block mt-6 border border-[#d9e0e3] p-5">
           <p className="font-bold text-[#536e7b]">
             {t(`status.${analysis.status}`)}
           </p>
@@ -762,230 +261,198 @@ function AnalysisSection({
         </div>
       ) : (
         <>
-          <div className="report-analysis-summary report-block mt-7 grid border border-[#d9e0e3] md:grid-cols-[1fr_226px]">
-            <div className="p-5 text-[15px] leading-6 text-neutral-800">
-              <p className="font-bold">
-                {t("currentSituation")}{" "}
-                <span className="font-normal text-[#536e7b]">
-                  {report.municipality.name} — {report.municipality.uf}
-                </span>
-              </p>
+          <div className="report-situation mt-7">
+            <ReportSectionHeading level={3} accent={accent}>
+              {t("document.situationTitle")}
+            </ReportSectionHeading>
+            <div className="mt-4 grid gap-6 md:grid-cols-[1fr_320px]">
               {situationText && (
-                <p className="mt-2 whitespace-pre-line text-justify">
+                <p className="whitespace-pre-line text-[15px] leading-7 text-[#2C3A31]">
                   {situationText}
                 </p>
               )}
-              <dl className="mt-4 grid gap-2 border-t border-[#d9e0e3] pt-3 text-sm sm:grid-cols-2">
-                <div>
-                  <dt className="font-bold text-[#536e7b]">
-                    {t("analyzedPeriod")}
-                  </dt>
-                  <dd>{referencePeriodLabel}</dd>
+              {dominant && (
+                <div className="report-block flex items-stretch overflow-hidden rounded-lg border border-[#E4EBE5] bg-white">
+                  <div className="flex flex-1 flex-col justify-center px-4 py-3">
+                    <strong className="text-base text-[#2C3A31]">
+                      {translateLabel(dominant.label)}
+                    </strong>
+                    <span className="mt-0.5 text-xs text-[#58655C]">
+                      {t("analyzedPeriod")}: {referencePeriodLabel}
+                    </span>
+                  </div>
+                  <div
+                    className="flex w-[150px] shrink-0 items-center justify-center px-3 text-center text-lg font-bold"
+                    style={{
+                      backgroundColor: dominant.color || accent,
+                      color: textColorForBackground(dominant.color || accent),
+                    }}
+                  >
+                    {formatMunicipalReportValue(
+                      dominant.percentage,
+                      analysis,
+                      locale,
+                    )}{" "}
+                    {valueLabels.cardContext}
+                  </div>
                 </div>
-                <div>
-                  <dt className="font-bold text-[#536e7b]">
-                    {t("availableSeries")}
-                  </dt>
-                  <dd>{historyRange}</dd>
-                </div>
-              </dl>
+              )}
             </div>
-            {dominant && (
-              <div
-                className="flex min-h-40 flex-col items-center justify-center px-5 py-7 text-center text-white"
-                style={{
-                  backgroundColor: dominant.color || sectionColor,
-                  color: textColorForBackground(dominant.color || sectionColor),
-                }}
-              >
-                <strong className="text-lg">
-                  {translateClassLabel(
-                    dominant.label,
-                    t,
-                    tHas,
-                    tCaption,
-                    tCaptionHas,
-                  )}
-                </strong>
-                <span className="mt-1 text-3xl font-bold">
-                  {formatMunicipalReportValue(
-                    dominant.percentage,
-                    analysis,
-                    locale,
-                  )}
-                </span>
-                <span className="mt-2 text-xs">{valueLabels.cardContext}</span>
-              </div>
-            )}
           </div>
 
-          <h3 className="report-data-heading report-heading mt-8 text-lg font-bold text-[#536e7b]">
-            {t("sectionTitleOf", {
-              sectionTitle: valueLabels.sectionTitle,
-              title: translatedTitle,
-            })}
-          </h3>
-          <div className="report-data-table report-block mt-3 overflow-hidden border border-[#c8ced1]">
-            <table className="w-full border-collapse text-sm">
-              <thead className="bg-[#176b39] text-white">
-                <tr>
-                  <th className="border-r border-white/40 px-4 py-2.5 text-left">
-                    {t("tableClass")}
-                  </th>
-                  <th className="w-36 px-4 py-2.5 text-right">
-                    {valueLabels.tableValue}
-                  </th>
-                </tr>
-              </thead>
-              <tbody>
-                {analysis.snapshot.distribution.map((item) => {
-                  const visibleColor = getVisibleChartColor(item.color);
-                  const rowBackground = `${visibleColor}33`;
-                  const rowHoverBackground = `${visibleColor}4d`;
+          <div className="report-class-coverage mt-8">
+            <ReportSectionHeading level={3} accent={accent}>
+              {t("document.classCoverageTitle")}
+            </ReportSectionHeading>
+            <div className="report-block mt-4 flex flex-col gap-2 overflow-hidden rounded-lg border border-[#EFEFEF] bg-[#F6F7F6] p-4">
+              <MunicipalReportClassBars
+                analysis={analysis}
+                locale={locale}
+                translateLabel={translateLabel}
+              />
+            </div>
+          </div>
 
-                  return (
-                    <tr
-                      key={item.id}
-                      className="report-data-row border-t border-[#c8ced1]"
-                      style={
-                        {
-                          "--report-row-bg": rowBackground,
-                          "--report-row-hover-bg": rowHoverBackground,
-                        } as CSSProperties
-                      }
-                    >
-                      <td
-                        className="border-r border-[#c8ced1] px-4 py-2.5 font-medium"
-                        style={{ backgroundColor: rowBackground }}
-                      >
-                        <span
-                          className="mr-2 inline-block h-2.5 w-2.5 rounded-full border border-black/10"
-                          style={{ backgroundColor: visibleColor }}
-                        />
-                        {translateClassLabel(
-                          item.label,
-                          t,
-                          tHas,
-                          tCaption,
-                          tCaptionHas,
-                        )}
-                      </td>
-                      <td
-                        className="px-4 py-2.5 text-right font-semibold"
-                        style={{ backgroundColor: rowBackground }}
-                      >
-                        {formatMunicipalReportValue(
-                          item.percentage,
-                          analysis,
-                          locale,
-                        )}
-                      </td>
-                    </tr>
-                  );
+          <div className="report-spatial mt-8">
+            <ReportSectionHeading level={3} accent={accent}>
+              {t("document.spatialDistributionTitle")}
+            </ReportSectionHeading>
+            <div className="report-block mt-4 flex flex-col gap-4 overflow-hidden rounded-lg border border-[#EFEFEF] bg-[#F6F7F6] p-4">
+              <p className="font-open-sans text-base font-bold text-[#292829]">
+                {t("spatialImage", { period: snapshotPeriodLabel })}
+              </p>
+              <ReportMapPreview
+                territory={report.territory}
+                layerId={analysis.id}
+                period={referencePeriod}
+                className="report-map-frame aspect-[696/322] w-full rounded-lg bg-white"
+                active={mapActive}
+                attempt={mapAttempt}
+                imageSrc={mapSrc}
+                queuedAt={mapQueuedAt}
+                tileUrl={mapTileUrl}
+                choropleth={mapChoropleth}
+                unavailableReason={mapUnavailableReason}
+                onCapture={(src) => onMapCapture?.(mapKey, src)}
+                onRetry={onMapRetry && (() => onMapRetry(mapKey))}
+                onVisibilityChange={(visible) =>
+                  onMapVisibility?.(mapKey, visible)
+                }
+              />
+              <p className="font-open-sans text-xs leading-5 text-[#292829]">
+                {t("rasterDescription", {
+                  title: translatedTitle,
+                  period: referencePeriodLabel,
+                  territory: report.territory.label,
+                  scope: report.territory.kindLabel,
+                  // O pt-BR usa a forma com preposição ("do bioma Caatinga");
+                  // as outras línguas montam a frase com {territory}.
+                  boundary: report.territory.possessiveLabel,
                 })}
-              </tbody>
-            </table>
+              </p>
+            </div>
           </div>
 
-          <div className="report-visual-block mt-8">
-            <h3 className="report-heading text-lg font-bold text-[#536e7b]">
-              {t("spatialAndTimeSeries")}
-            </h3>
-            <div className="report-visual-grid mt-3 grid overflow-hidden border border-[#c8ced1] bg-[#fbfcfd] md:grid-cols-2">
-              <div className="report-visual-panel flex flex-col border-b border-[#c8ced1] md:border-b-0 md:border-r">
-                <div className="report-visual-title border-b border-[#c8ced1] bg-[#f8fafb] px-4 py-2.5 text-center text-sm font-semibold text-[#536e7b]">
-                  {t("spatialImage", { period: snapshotPeriodLabel })}
-                </div>
-                <ReportMapPreview
-                  municipalityCode={report.municipality.code}
-                  layerId={analysis.id}
-                  period={referencePeriod}
-                  className="report-map-frame h-[230px] w-full"
-                  active={mapActive}
-                  attempt={mapAttempt}
-                  imageSrc={mapSrc}
-                  queuedAt={mapQueuedAt}
-                  onCapture={onMapCapture}
-                />
-                <p className="border-t border-[#c8ced1] px-4 py-2 text-xs leading-5 text-neutral-600">
-                  {t("rasterDescription", {
-                    title: translatedTitle,
-                    period: referencePeriodLabel,
-                    municipality: report.municipality.name,
-                    uf: report.municipality.uf,
-                  })}
+          {isStackableAnalysis(analysis) && analysis.timeSeries.length > 0 && (
+            <div className="report-time-series mt-8">
+              <ReportSectionHeading level={3} accent={accent}>
+                {t("document.timeSeriesTitle")}
+              </ReportSectionHeading>
+              <div className="report-block mt-4 flex flex-col gap-4 overflow-hidden rounded-lg border border-[#EFEFEF] bg-[#F6F7F6] p-4">
+                <p className="font-open-sans text-base font-bold text-[#292829]">
+                  {chartRange}
                 </p>
+                <div className="report-chart-screen">
+                  <MunicipalReportStackedChart
+                    analysis={analysis}
+                    locale={locale}
+                    referencePeriod={referencePeriod}
+                    translateLabel={translateLabel}
+                  />
+                </div>
+                <div className="report-chart-print hidden">
+                  <MunicipalReportStackedPrintChart
+                    analysis={analysis}
+                    referencePeriod={referencePeriod}
+                    translateLabel={translateLabel}
+                  />
+                </div>
               </div>
-              <div className="report-visual-panel flex flex-col">
-                <div className="report-visual-title report-chart-screen border-b border-[#c8ced1] bg-[#f8fafb] px-4 py-2.5 text-center text-sm font-semibold text-[#536e7b]">
-                  {valueLabels.chartSeries}: {historyRange}
-                </div>
-                <div className="report-visual-title report-chart-print hidden border-b border-[#c8ced1] bg-[#f8fafb] px-4 py-2.5 text-center text-sm font-semibold text-[#536e7b]">
-                  {valueLabels.chartSeries}: {pdfChartHistoryRange}
-                </div>
-                <div className="report-chart-frame report-chart-screen flex min-h-[260px] flex-1 items-center justify-center bg-[#fbfcfd] p-3">
+            </div>
+          )}
+
+          {/* Pobreza, PIB e IDH são um valor por período, não classes que somam
+              100%: o gráfico empilhado não serve, e eles ficavam sem gráfico. */}
+          {!isStackableAnalysis(analysis) && analysis.timeSeries.length > 0 && (
+            <div className="report-time-series mt-8">
+              <ReportSectionHeading level={3} accent={accent}>
+                {t("document.valueTimeSeriesTitle")}
+              </ReportSectionHeading>
+              <div className="report-block mt-4 flex flex-col gap-4 overflow-hidden rounded-lg border border-[#EFEFEF] bg-[#F6F7F6] p-4">
+                <p className="font-open-sans text-base font-bold text-[#292829]">
+                  {historyRange}
+                </p>
+                {/* O Recharts mede o contêiner: sem altura fixa ele mede zero e
+                    não desenha nada. */}
+                <div className="report-chart-screen h-[340px]">
                   <MunicipalReportDynamicChart
                     analysis={analysis}
                     locale={locale}
                     referencePeriod={referencePeriod}
-                    translateLabel={(label) =>
-                      translateClassLabel(label, t, tHas, tCaption, tCaptionHas)
-                    }
+                    translateLabel={translateLabel}
                   />
                 </div>
-                <div className="report-chart-frame report-chart-print hidden items-center justify-center bg-[#fbfcfd] p-3">
-                  <MunicipalReportPrintChart
+                <div className="report-chart-print hidden">
+                  <MunicipalReportLinePrintChart
                     analysis={analysis}
                     locale={locale}
                     referencePeriod={referencePeriod}
-                    translateLabel={(label) =>
-                      translateClassLabel(label, t, tHas, tCaption, tCaptionHas)
-                    }
+                    translateLabel={translateLabel}
                   />
                 </div>
-                <p className="border-t border-[#c8ced1] px-4 py-2 text-xs leading-5 text-neutral-600">
-                  {periodResolution}
-                </p>
               </div>
             </div>
-          </div>
-
-          {narrativeSections.length > 0 ? (
-            <div className="report-narrative report-block mt-7 border border-[#d9e0e3] p-5 text-[15px] leading-6">
-              <h3 className="report-heading font-bold text-[#536e7b]">
-                {t("historicalAnalysisTitle")}
-              </h3>
-              {narrativeSections.map((section, sectionIndex) => (
-                <p
-                  key={`${section.title}:${sectionIndex}`}
-                  className="mt-3 whitespace-pre-line text-justify text-neutral-800"
-                >
-                  <strong>{section.title}:</strong> {section.text}
-                </p>
-              ))}
-              <p className="mt-3 text-justify text-neutral-800">
-                <strong>{t("sectionReferenceLabel")}</strong> {periodResolution}
-              </p>
-            </div>
-          ) : (
-            <div className="report-narrative report-block mt-7 border border-[#d9e0e3] p-5 text-[15px] leading-6">
-              <h3 className="report-heading font-bold text-[#536e7b]">
-                {t("historicalNoteTitle")}
-              </h3>
-              <p className="mt-1 text-justify text-neutral-800">
-                {t("historicalNoteText", {
-                  count: String(analysis.timeSeries.length),
-                  range: historyRange,
-                  resolution: periodResolution,
-                })}
-              </p>
-            </div>
           )}
+
+          <div className="report-narrative mt-8">
+            <ReportSectionHeading level={3} accent={accent}>
+              {t("document.timeSeriesAnalysisTitle")}
+            </ReportSectionHeading>
+            <div className="mt-4 text-[15px] leading-7">
+              {narrativeSections.length > 0 ? (
+                narrativeSections.map((section, sectionIndex) => (
+                  <p
+                    key={`${section.title}:${sectionIndex}`}
+                    className="mt-3 whitespace-pre-line text-[#2C3A31] first:mt-0"
+                  >
+                    <strong className="block text-sm font-semibold text-[#2C3A31]">
+                      {section.title}
+                    </strong>
+                    {section.text}
+                  </p>
+                ))
+              ) : (
+                <p className="text-[#2C3A31]">
+                  {t("historicalNoteText", {
+                    count: String(analysis.timeSeries.length),
+                    range: historyRange,
+                    resolution: periodResolution,
+                  })}
+                </p>
+              )}
+              <p className="mt-3 text-[#2C3A31]">
+                <strong className="block text-sm font-semibold text-[#2C3A31]">
+                  {t("sectionReferenceLabel")}
+                </strong>
+                {periodResolution}
+              </p>
+            </div>
+          </div>
         </>
       )}
     </section>
   );
-}
+});
 
 const ReportDocument = memo(function ReportDocument({
   report,
@@ -993,20 +460,36 @@ const ReportDocument = memo(function ReportDocument({
   mapImages,
   activeMapKeys,
   mapQueueStartedAt,
+  mapTileUrls,
+  mapChoropleths,
   retryAttemptFor,
   onMapCapture,
+  onMapRetry,
+  onMapVisibility,
   documentRef,
   docsContent,
+  onDownload,
+  downloadDisabled,
+  downloadLabel,
+  onOpenMonitor,
 }: {
   report: MunicipalReportData;
   layerIds?: string[];
   mapImages: Map<string, string | null>;
   activeMapKeys: ReadonlySet<string>;
   mapQueueStartedAt: number | null;
+  mapTileUrls: ReportMapTileUrls;
+  mapChoropleths: ReportMapChoropleths;
   retryAttemptFor: (key: string) => number;
   onMapCapture?: (key: string, src: string | null) => void;
+  onMapRetry?: (key: string) => void;
+  onMapVisibility?: (key: string, visible: boolean) => void;
   documentRef?: Ref<HTMLElement>;
   docsContent: MunicipalReportDocsContent | null;
+  onDownload?: () => void;
+  downloadDisabled?: boolean;
+  downloadLabel?: string;
+  onOpenMonitor?: (layerId: string) => void;
 }) {
   const t = useTranslations("MunicipalReport");
   const tModules = useTranslations("ModulesContext");
@@ -1017,24 +500,32 @@ const ReportDocument = memo(function ReportDocument({
   const selected = layerIds.length
     ? report.analyses.filter(({ id }) => layerIds.includes(id))
     : report.analyses;
-  const availableTitles = selected
-    .map((analysis) =>
-      translateAnalysisTitle(analysis, t, tHas, tModules, tModulesHas),
-    )
-    .join(" · ");
-  const availableAnalyses = selected.filter(
-    (analysis) => analysis.status === "available" && analysis.snapshot,
-  );
-  const effectivePeriodSummary = availableAnalyses
-    .map(
-      (analysis) =>
-        analysis.effectivePeriod ??
-        analysis.snapshot?.period ??
-        report.requestedPeriod,
-    )
-    .filter((period, index, periods) => periods.indexOf(period) === index)
-    .map((period) => formatReportPeriod(period, locale))
-    .join(" · ");
+
+  /**
+   * O link "Ver monitor" de uma seção.
+   *
+   * `?layer=` chega ao `ModulesContext`, que ativa a camada no mapa e abre o
+   * detalhamento dela — o mesmo caminho de quem clica no índice pelo painel.
+   *
+   * O pedido do relatório viaja junto porque este link é uma navegação, e é a
+   * URL que guarda o relatório: trocar de seção pelo trilho lateral é estado de
+   * cliente e a preserva, mas sair daqui sem ela faria a aba Comunicação voltar
+   * vazia quando o leitor retornasse.
+   */
+  function buildMonitorHref(analysisId: string) {
+    const params = new URLSearchParams({
+      section: "monitoring",
+      layer: analysisId,
+      locationKey: report.territory.locationKey,
+      period: report.requestedPeriod,
+    });
+    const selectedIds = selected.map(({ id }) => id);
+    if (selectedIds.length) params.set("layers", selectedIds.join(","));
+
+    return `/${locale}/platform?${params.toString()}`;
+  }
+  // O documento do Google Docs continua podendo sobrescrever os textos de
+  // moldura, como fazia no cabeçalho antigo.
   const reportText = (section: string, fallback: string) =>
     getReportDocsText(docsContent, section, locale) ?? fallback;
 
@@ -1043,163 +534,67 @@ const ReportDocument = memo(function ReportDocument({
       ref={documentRef}
       className="report-paper report-paper-html min-h-full bg-white text-[#202020]"
     >
-      <header>
-        <div className="flex flex-wrap items-start justify-between gap-4 text-xs text-[#0f5a2d]">
-          <strong>
-            {reportText(
-              "Identificação do sistema",
-              t("document.systemIdentification"),
-            )}
-          </strong>
-          <span className="text-[#536e7b]">
-            {reportText("Tipo do relatório", t("document.reportType"))}
-          </span>
-          <div className="text-right">
-            <strong>
-              {reportText("Instituições", t("document.institutions"))}
-            </strong>
-            <div className="mt-1 text-[10px] font-normal text-[#536e7b]">
-              {reportText("Site", t("document.website"))}
-            </div>
-          </div>
-        </div>
+      <ReportHero
+        report={report}
+        period={formatReportPeriod(report.requestedPeriod, locale)}
+        onDownload={onDownload}
+        downloadDisabled={downloadDisabled}
+        downloadLabel={downloadLabel}
+        title={reportText("Título principal", t("document.mainTitle"))}
+        subtitle={reportText("Subtítulo", t("document.subtitle"))}
+      />
+      <ReportBackToTop />
 
-        <div className="mt-6 bg-[#125c2d] px-6 py-3 text-center text-white">
-          <h1 className="text-[22px] font-bold uppercase leading-tight">
-            {reportText("Título principal", t("document.mainTitle"))}
-          </h1>
-          <p className="mt-2 text-sm text-white/80">
-            {reportText("Subtítulo", t("document.subtitle"))}
-          </p>
-        </div>
+      <div className="flex flex-col gap-6 px-10 py-6">
+        <ReportVariableIndex
+          analyses={selected}
+          translateTitle={(analysis) =>
+            translateAnalysisTitle(analysis, t, tHas, tModules, tModulesHas)
+          }
+        />
 
-        <div className="report-block mt-6 border border-[#c8ced1] text-sm">
-          <div className="grid grid-cols-[175px_1fr] border-b border-[#c8ced1] sm:grid-cols-[175px_1fr_105px_115px]">
-            <strong className="bg-[#f1f2f2] px-3 py-2.5 text-[#536e7b]">
-              {reportText(
-                "Rótulo área de análise",
-                t("document.analysisAreaLabel"),
-              )}
-            </strong>
-            <span className="border-l border-[#c8ced1] px-3 py-2.5 font-bold">
-              {report.municipality.name} — {report.municipality.uf}
-            </span>
-            <strong className="border-l border-[#c8ced1] bg-[#f1f2f2] px-3 py-2.5 text-center text-[#536e7b]">
-              {reportText("Rótulo escala", t("document.scaleLabel"))}
-            </strong>
-            <span className="border-l border-[#c8ced1] px-3 py-2.5 text-center">
-              {t("document.scaleValue")}
-            </span>
-          </div>
-          <div className="grid grid-cols-[175px_1fr] sm:grid-cols-[175px_1fr_105px_115px]">
-            <strong className="bg-[#f1f2f2] px-3 py-2.5 text-[#536e7b]">
-              {reportText(
-                "Rótulo data de geração",
-                t("document.generationDateLabel"),
-              )}
-            </strong>
-            <span className="border-l border-[#c8ced1] px-3 py-2.5">
-              {generatedAt}
-            </span>
-            <strong className="border-l border-[#c8ced1] bg-[#f1f2f2] px-3 py-2.5 text-center text-[#536e7b]">
-              {reportText("Rótulo referência", t("document.referenceLabel"))}
-            </strong>
-            <span className="border-l border-[#c8ced1] px-3 py-2.5 text-center">
-              {formatReportPeriod(report.requestedPeriod, locale)}
-            </span>
-          </div>
-        </div>
-
-        <div className="report-block mt-5 grid border border-[#c8ced1] text-sm sm:grid-cols-[175px_1fr]">
-          <strong className="bg-[#f1f2f2] px-3 py-2.5 text-[#536e7b]">
-            {reportText(
-              "Rótulo variáveis selecionadas",
-              t("document.selectedVariablesLabel"),
-            )}
-          </strong>
-          <span className="border-l border-[#c8ced1] px-3 py-2.5">
-            {availableTitles}
-          </span>
-        </div>
-        {effectivePeriodSummary && (
-          <div className="report-block mt-3 grid border border-[#c8ced1] text-sm sm:grid-cols-[175px_1fr]">
-            <strong className="bg-[#f1f2f2] px-3 py-2.5 text-[#536e7b]">
-              {reportText(
-                "Rótulo períodos analisados",
-                t("document.analyzedPeriodsLabel"),
-              )}
-            </strong>
-            <span className="border-l border-[#c8ced1] px-3 py-2.5">
-              {effectivePeriodSummary}
-            </span>
-          </div>
-        )}
-      </header>
-
-      <div className="report-sections mt-10 space-y-12">
-        {selected.map((analysis, index) => {
-          const mapKey = `${analysis.id}:${analysis.effectivePeriod ?? analysis.snapshot?.period ?? report.requestedPeriod}`;
-          return (
-            <AnalysisSection
-              key={analysis.id}
-              analysis={analysis}
-              report={report}
-              index={index}
-              locale={locale}
-              mapSrc={mapImages.get(mapKey) ?? undefined}
-              mapActive={activeMapKeys.has(mapKey)}
-              mapAttempt={retryAttemptFor(mapKey)}
-              mapQueuedAt={mapQueueStartedAt}
-              onMapCapture={(src) => onMapCapture?.(mapKey, src)}
-              docsContent={docsContent}
-            />
-          );
-        })}
-      </div>
-
-      <section className="report-notes mt-12 border-t border-[#d9e0e3] pt-8">
-        <h2 className="report-heading text-xl font-bold text-[#536e7b]">
-          {reportText("Título das notas", t("document.notesTitle"))}
-        </h2>
-        <div className="mt-5 space-y-2 text-sm leading-5 text-neutral-800">
+        <div className="report-sections space-y-12">
           {selected.map((analysis) => {
-            const presentation = getMunicipalReportPresentation(analysis.id);
-            const title = translateAnalysisTitle(
-              analysis,
-              t,
-              tHas,
-              tModules,
-              tModulesHas,
-            );
-            const methodology = translateAnalysisMethodology(
-              analysis,
-              docsContent,
-              presentation.methodology,
-              t,
-              tHas,
-              tModules,
-              tModulesHas,
-              locale,
-            );
+            const mapKey = `${analysis.id}:${analysis.effectivePeriod ?? analysis.snapshot?.period ?? report.requestedPeriod}`;
             return (
-              <p key={analysis.id} className="whitespace-pre-line">
-                <strong>{title}:</strong> {methodology}
-              </p>
+              <AnalysisSection
+                key={analysis.id}
+                analysis={analysis}
+                report={report}
+                locale={locale}
+                mapKey={mapKey}
+                mapSrc={mapImages.get(mapKey) ?? undefined}
+                mapActive={activeMapKeys.has(mapKey)}
+                mapAttempt={retryAttemptFor(mapKey)}
+                mapQueuedAt={mapQueueStartedAt}
+                mapTileUrl={mapTileUrls.tileUrlFor(mapKey)}
+                mapChoropleth={mapChoropleths.choroplethFor(mapKey)}
+                mapUnavailableReason={
+                  mapTileUrls.failureFor(mapKey) ??
+                  mapChoropleths.failureFor(mapKey)
+                }
+                onMapCapture={onMapCapture}
+                onMapRetry={onMapRetry}
+                onMapVisibility={onMapVisibility}
+                docsContent={docsContent}
+                monitorHref={buildMonitorHref(analysis.id)}
+                onOpenMonitor={onOpenMonitor}
+              />
             );
           })}
-          <p className="whitespace-pre-line">
-            <strong>{t("document.legalReferenceLabel")}:</strong>{" "}
-            {reportText("Referência legal", t("document.legalReferenceValue"))}
-          </p>
         </div>
-        <p className="mt-8 text-sm leading-5 text-[#536e7b]">
-          {reportText("Aviso automático", t("document.automatedNotice"))}
-        </p>
-      </section>
 
-      <footer className="mt-16 border-t border-[#d9e0e3] pt-3 text-[11px] text-[#536e7b]">
-        {reportText("Rodapé", t("document.footer", { generatedAt }))}
-      </footer>
+        <MunicipalReportNotes
+          analyses={selected}
+          docsContent={docsContent}
+          locale={locale}
+        />
+
+        <ReportDocumentFooter
+          generatedAt={generatedAt}
+          text={getReportDocsText(docsContent, "Rodapé", locale) ?? undefined}
+        />
+      </div>
     </article>
   );
 });
@@ -1227,17 +622,21 @@ function EmptyReportPreview() {
 }
 
 export function MunicipalReportPreview({
-  municipalityCode,
+  locationKey,
   period,
   layerIds,
   embedded = false,
+  onOpenMonitor,
 }: MunicipalReportPreviewProps) {
   const t = useTranslations("MunicipalReport");
   const locale = useLocale();
-  const hasRequiredParameters = Boolean(municipalityCode && period);
+  const hasRequiredParameters = Boolean(locationKey && period);
   const [report, setReport] = useState<MunicipalReportData | null>(null);
   const [docsContent, setDocsContent] =
     useState<MunicipalReportDocsContent | null>(null);
+  // Os textos chegam depois do relatório, em paralelo com os mapas. O download
+  // espera por eles: um PDF exportado no meio do caminho sairia sem texto.
+  const [docsResolved, setDocsResolved] = useState(false);
   const [mapQueueStartedAt, setMapQueueStartedAt] = useState<number | null>(
     null,
   );
@@ -1252,7 +651,7 @@ export function MunicipalReportPreview({
   const mapQueueMeasuredRef = useRef(false);
   const mapQueuePeakConcurrencyRef = useRef(0);
   const layerIdsKey = useMemo(() => layerIds?.join(",") ?? "", [layerIds]);
-  const reportMapKeys = useMemo(() => {
+  const requestedMaps = useMemo(() => {
     if (!report) return [];
     const selectedLayerIds = layerIdsKey
       ? new Set(layerIdsKey.split(","))
@@ -1265,26 +664,72 @@ export function MunicipalReportPreview({
       .filter(
         (analysis) => analysis.status === "available" && analysis.snapshot,
       )
-      .map(
-        (analysis) =>
-          `${analysis.id}:${analysis.effectivePeriod ?? analysis.snapshot?.period ?? report.requestedPeriod}`,
-      );
+      .map((analysis) => {
+        const period =
+          analysis.effectivePeriod ??
+          analysis.snapshot?.period ??
+          report.requestedPeriod;
+        return { key: `${analysis.id}:${period}`, analysis, period };
+      });
   }, [layerIdsKey, report]);
+  const requestedMapKeys = useMemo(
+    () => requestedMaps.map(({ key }) => key),
+    [requestedMaps],
+  );
+  // Um índice de planilha não tem imagem no Earth Engine: pedir a URL dele só
+  // devolvia um mapa sem cor. Ele é pintado com os valores por município.
+  const eeMapKeys = useMemo(
+    () =>
+      requestedMaps
+        .filter(({ analysis }) => !analysis.mapChoropleth)
+        .map(({ key }) => key),
+    [requestedMaps],
+  );
+  const choroplethRequests = useMemo(
+    () => requestedMaps.filter(({ analysis }) => analysis.mapChoropleth),
+    [requestedMaps],
+  );
   const loadErrorMessage = t("loadError");
+  const mapTileUrls = useReportMapTileUrls(eeMapKeys);
+  const mapChoropleths = useReportMapChoropleths(choroplethRequests);
+  // A fila de captura recebe cada camada assim que a URL dela chega, e nunca as
+  // que não têm imagem no período: montar um MapLibre para uma dessas só
+  // gastava contexto WebGL e terminava em captura vazia.
+  const reportMapKeys = useMemo(
+    () =>
+      requestedMapKeys.filter(
+        (key) =>
+          mapTileUrls.tileUrlFor(key) || mapChoropleths.choroplethFor(key),
+      ),
+    [mapChoropleths, mapTileUrls, requestedMapKeys],
+  );
   const {
     activeMapKeys,
     handleMapCapture,
+    handleMapVisibility,
     mapImages,
-    mapsReady,
+    mapsReady: capturesReady,
+    pendingMapCount,
     resetMapCaptureQueue,
     retryAttemptFor,
+    retryMapCapture,
   } = useReportMapCaptureQueue(reportMapKeys);
+  // Enquanto as URLs não voltam a fila está vazia, e uma fila vazia estaria
+  // "pronta": sem esta guarda o botão de exportar liberava antes do primeiro
+  // mapa existir.
+  const mapsReady =
+    mapTileUrls.resolved && mapChoropleths.resolved && capturesReady;
+  const reportReadyForExport = mapsReady && docsResolved;
 
   useEffect(() => {
     if (!hasRequiredParameters || navigationMeasuredRef.current) return;
     navigationMeasuredRef.current = true;
     recordMunicipalReportNavigation();
   }, [hasRequiredParameters]);
+
+  // Cinco contextos WebGL guardados são baratos enquanto o relatório está
+  // aberto, e desperdício depois que ele sai da tela.
+  useEffect(() => destroyReportMapPool, []);
 
   useEffect(() => {
     if (!report || loading || previewMeasuredRef.current) return;
@@ -1337,8 +782,15 @@ export function MunicipalReportPreview({
     return () => window.cancelAnimationFrame(frame);
   }, [loading, mapsReady, report, reportMapKeys.length]);
 
+  // `printReport` é redeclarado a cada render, e passá-lo direto ao
+  // `ReportDocument` quebraria o `memo` dele — o zoom voltaria a remontar os
+  // vinte mapas. Esta referência é estável e sempre chama a versão atual.
+  const printReportRef = useRef<() => void>(() => {});
+  const handleDownload = useCallback(() => printReportRef.current(), []);
+
   function printReport() {
-    if (!reportDocumentRef.current || exporting || !mapsReady) return;
+    if (!reportDocumentRef.current || exporting || !reportReadyForExport)
+      return;
 
     setExporting(true);
     setError(null);
@@ -1355,6 +807,16 @@ export function MunicipalReportPreview({
       .map((element) => element.outerHTML)
       .join("\n");
     const baseUrl = `${window.location.origin}/`;
+    // As variáveis de fonte do next/font vivem na className do <body> do app
+    // (src/app/[locale]/layout.tsx). A janela de impressão monta um <body> novo,
+    // sem essa classe, e o PDF saía numa fonte de sistema em vez de Open Sans —
+    // o que muda a largura do texto e a quebra de página junto. Vão como regra
+    // CSS, e não como atributo style: o valor resolvido traz aspas duplas
+    // (`"Open Sans", "Open Sans Fallback"`) que truncariam o atributo.
+    const appBodyStyle = getComputedStyle(document.body);
+    const printFontVariables = FONT_VARIABLE_NAMES.map(
+      (name) => `${name}:${appBodyStyle.getPropertyValue(name)}`,
+    ).join(";");
     const filename = buildReportFilename(
       report,
       period,
@@ -1363,44 +825,40 @@ export function MunicipalReportPreview({
     );
     const printOverrides = `
       <style>
-        @page{size:A4;margin:14mm 15mm}
+        @page{size:A4;margin:12mm 14mm}
+        body{${printFontVariables}}
         html,body{width:auto;margin:0;background:#fff}
         body{-webkit-print-color-adjust:exact;print-color-adjust:exact}
         .report-paper{box-sizing:border-box;width:auto!important;min-height:auto!important;margin:0!important;padding:0!important;overflow:visible;box-shadow:none!important}
-        .report-sections{margin-top:8mm!important}
-        .report-section+.report-section{margin-top:8mm!important}
-        .report-analysis-summary{margin-top:5mm!important}
-        .report-data-heading{margin-top:5mm!important}
-        .report-data-table{margin-top:3mm!important}
-        .report-visual-block,.report-narrative{margin-top:5mm!important}
-        .report-notes{margin-top:8mm!important;padding-top:5mm!important}
-        .report-paper footer{margin-top:6mm!important}
-        .report-visual-grid{display:grid;grid-template-columns:minmax(0,.84fr) minmax(0,1.16fr)}
-        .report-visual-panel{min-width:0}
-        .report-visual-panel:first-child{border-right:1px solid #c8ced1;border-bottom:0}
-        .report-map-frame{height:230px}
-        .report-chart-frame{min-height:230px}
-        .report-chart-print{display:none!important}
+        .report-paper>div{padding:0!important}
+        .report-hero>div{padding-left:0!important;padding-right:0!important}
+        .report-back-to-top{display:none!important}
         @media print{
-          .report-visual-grid{display:grid!important;grid-template-columns:minmax(0,.84fr) minmax(0,1.16fr)!important}
-          .report-visual-panel{display:flex!important;flex-direction:column!important;min-width:0}
-          .report-visual-title{box-sizing:border-box;display:flex!important;min-height:16mm;align-items:center;justify-content:center}
-          .report-map-frame{height:230px!important}
-          .report-chart-frame{min-height:230px!important}
           .report-chart-screen{display:none!important}
           .report-chart-print{display:block!important}
-          .report-visual-title.report-chart-print{display:flex!important}
-          .report-chart-frame.report-chart-print{display:flex!important;min-height:0!important;overflow:visible!important}
           .report-print-chart-svg{display:block;width:100%!important;height:auto!important;overflow:visible!important}
-          .report-map-frame img{object-fit:contain!important;object-position:center!important}
-          .report-paper img{break-inside:avoid;page-break-inside:avoid}
-          .report-paper table{break-inside:auto;page-break-inside:auto}
-          .report-paper tr,.report-block,.report-visual-panel{break-inside:avoid;page-break-inside:avoid}
-          .report-narrative{break-inside:auto!important;page-break-inside:auto!important}
-          .report-heading{break-after:avoid;page-break-after:avoid}
+          .report-map-frame{aspect-ratio:auto!important;height:70mm!important}
+          .report-map-frame img{width:100%;height:100%;object-fit:contain!important;object-position:center!important}
+          .report-sections{margin-top:8mm!important}
+          .report-section+.report-section{margin-top:10mm!important}
           .report-section{break-inside:auto;page-break-inside:auto}
-          .report-visual-block{break-inside:avoid;page-break-inside:avoid}
-          .report-notes{break-inside:auto;page-break-inside:auto}
+          .report-analysis-header{break-after:avoid;page-break-after:avoid}
+          .report-heading{break-after:avoid;page-break-after:avoid}
+          .report-block{break-inside:avoid;page-break-inside:avoid}
+          .report-class-bar-row{break-inside:avoid;page-break-inside:avoid}
+          .report-variable-index{break-inside:avoid;page-break-inside:avoid}
+          /* Mapa, gráfico e barras de classe medem 435, 506 e até 530px numa
+             página A4 de 1032px úteis: dois cabem, três nunca. Enquanto o cartão
+             inteiro era indivisível, o terceiro pulava de página e deixava um
+             vão de 300 a 500px no pé da anterior, seção após seção. O que de
+             fato não pode ser cortado ao meio é a imagem do mapa e o SVG do
+             gráfico; o cabeçalho, a legenda e a tabela de classes podem fluir. */
+          .report-time-series,.report-spatial,.report-class-coverage{break-inside:auto;page-break-inside:auto}
+          .report-time-series>.report-block,.report-spatial>.report-block,.report-class-coverage>.report-block{break-inside:auto;page-break-inside:auto}
+          .report-map-frame,.report-chart-print{break-inside:avoid;page-break-inside:avoid}
+          .report-narrative{break-inside:auto;page-break-inside:auto}
+          .report-notes{break-inside:auto;page-break-inside:auto;margin-top:8mm!important;padding-top:5mm!important}
+          .report-document-footer{break-inside:avoid;page-break-inside:avoid}
           .report-paper p,.report-notes p{orphans:3;widows:3}
         }
       </style>`;
@@ -1431,6 +889,12 @@ export function MunicipalReportPreview({
     }
   }
 
+  // Fora do render: o React Compiler não permite escrever em ref durante ele, e
+  // o clique no botão só acontece depois que os efeitos rodaram.
+  useEffect(() => {
+    printReportRef.current = printReport;
+  });
+
   useEffect(() => {
     if (!hasRequiredParameters) return;
     const controller = new AbortController();
@@ -1441,6 +905,7 @@ export function MunicipalReportPreview({
       summaryMeasuredRef.current = false;
       resetMapCaptureQueue();
       setMapQueueStartedAt(null);
+      setDocsResolved(false);
       setLoading(true);
       setError(null);
       try {
@@ -1448,7 +913,7 @@ export function MunicipalReportPreview({
         const reportParams = new URLSearchParams({ period });
         if (layerIdsKey) reportParams.set("layers", layerIdsKey);
         const response = await fetch(
-          `/api/municipal-report/${encodeURIComponent(municipalityCode)}?${reportParams.toString()}`,
+          `/api/municipal-report/${encodeURIComponent(locationKey)}?${reportParams.toString()}`,
           { credentials: "same-origin", signal: controller.signal },
         );
         const payload = await response.json();
@@ -1462,30 +927,32 @@ export function MunicipalReportPreview({
         setDocsContent(null);
 
         const reportData = payload as MunicipalReportData;
-        const selectedLayerIds = layerIdsKey
-          ? new Set(layerIdsKey.split(","))
-          : null;
-        const selectedLayerIdsForDocs = (
-          selectedLayerIds
-            ? reportData.analyses.filter(({ id }) => selectedLayerIds.has(id))
-            : reportData.analyses
-        )
-          .filter((analysis) => analysis.status === "available")
-          .map((analysis) => analysis.id);
+        const hasAvailableAnalysis = reportData.analyses.some(
+          (analysis) => analysis.status === "available",
+        );
 
         const docsTask = async () => {
-          if (selectedLayerIdsForDocs.length === 0) return;
+          if (!hasAvailableAnalysis) {
+            setDocsResolved(true);
+            return;
+          }
           const finishDocs = startMunicipalReportStage();
           let docsResponse: Response | undefined;
           try {
+            // As mesmas camadas pedidas no relatório-base: a chave do cache do
+            // relatório inclui a lista pedida, então mandar aqui só as
+            // disponíveis fazia esta chamada errar o cache e remontar o
+            // relatório inteiro. Quem filtra o que vira seção é o servidor.
+            const docsParams = new URLSearchParams({ period });
+            if (layerIdsKey) docsParams.set("layers", layerIdsKey);
             docsResponse = await fetch(
-              `/api/municipal-report/${encodeURIComponent(municipalityCode)}/docs?period=${encodeURIComponent(period)}&layers=${encodeURIComponent(selectedLayerIdsForDocs.join(","))}`,
+              `/api/municipal-report/${encodeURIComponent(locationKey)}/docs?${docsParams.toString()}`,
               { credentials: "same-origin", signal: controller.signal },
             );
             const docsPayload = await docsResponse.json();
             finishDocs("Textos do Google Docs", {
               response: docsResponse,
-              detalhes: `${selectedLayerIdsForDocs.length} tema(s)`,
+              detalhes: `${layerIdsKey ? layerIdsKey.split(",").length : "todas"} camada(s) solicitada(s)`,
             });
             if (!docsResponse.ok)
               throw new Error(docsPayload.error ?? loadErrorMessage);
@@ -1496,16 +963,23 @@ export function MunicipalReportPreview({
                 detalhes: "Falha antes de receber a resposta",
               });
             }
-            if (controller.signal.aborted) throw docsError;
+            if (controller.signal.aborted) return;
             console.warn(
               "Não foi possível carregar os textos do relatório; mantendo os dados e gráficos disponíveis.",
               docsError,
             );
             setDocsContent(null);
+          } finally {
+            if (!controller.signal.aborted) setDocsResolved(true);
           }
         };
 
-        await docsTask();
+        // Os textos não entram no caminho crítico: a captura dos mapas só
+        // começa quando `loading` vira falso, e esperar o Google Docs aqui
+        // somava a latência dele (1,3 s quente, mais no primeiro acesso) antes
+        // do primeiro mapa sair. O download continua bloqueado até os textos
+        // resolverem, então nenhum PDF sai sem eles.
+        void docsTask();
       } catch (reason) {
         if (reason instanceof DOMException && reason.name === "AbortError")
           return;
@@ -1524,7 +998,7 @@ export function MunicipalReportPreview({
     hasRequiredParameters,
     layerIdsKey,
     loadErrorMessage,
-    municipalityCode,
+    locationKey,
     period,
     resetMapCaptureQueue,
   ]);
@@ -1533,7 +1007,7 @@ export function MunicipalReportPreview({
 
   if (embedded) {
     const previewTitle = report
-      ? `${t("reportLabel")} - ${report.municipality.name} - ${formatReportPeriod(period, locale)}`
+      ? `${t("reportLabel")} - ${report.territory.label} - ${formatReportPeriod(period, locale)}`
       : t("reportLabel");
 
     return (
@@ -1595,34 +1069,6 @@ export function MunicipalReportPreview({
                   </svg>
                 </button>
               </div>
-              <button
-                type="button"
-                disabled={!report || exporting || !mapsReady}
-                onClick={printReport}
-                className="flex h-10 shrink-0 items-center justify-center gap-2 rounded bg-[#989F43] px-4 font-inter text-sm font-medium text-white transition hover:bg-[#818836] disabled:cursor-not-allowed disabled:opacity-50"
-              >
-                {exporting ? (
-                  <span
-                    aria-hidden="true"
-                    className="h-4 w-4 animate-spin rounded-full border-2 border-white/40 border-t-white"
-                  />
-                ) : (
-                  <svg
-                    className="h-4 w-4"
-                    aria-hidden
-                    viewBox="0 0 24 24"
-                    fill="none"
-                    stroke="currentColor"
-                    strokeWidth="2"
-                  >
-                    <path d="M12 3v12m0 0 4-4m-4 4-4-4" />
-                    <path d="M5 20h14" />
-                  </svg>
-                )}
-                {exporting || (report && !mapsReady)
-                  ? t("preparingDownload")
-                  : t("downloadPdf")}
-              </button>
             </div>
           </div>
         </div>
@@ -1657,10 +1103,24 @@ export function MunicipalReportPreview({
                 mapImages={mapImages}
                 activeMapKeys={activeMapKeys}
                 mapQueueStartedAt={mapQueueStartedAt}
+                mapTileUrls={mapTileUrls}
+                mapChoropleths={mapChoropleths}
                 retryAttemptFor={retryAttemptFor}
                 onMapCapture={handleMapCapture}
+                onMapRetry={retryMapCapture}
+                onMapVisibility={handleMapVisibility}
                 documentRef={reportDocumentRef}
                 docsContent={docsContent}
+                onOpenMonitor={onOpenMonitor}
+                onDownload={handleDownload}
+                downloadDisabled={exporting || !reportReadyForExport}
+                downloadLabel={
+                  exporting
+                    ? t("preparingDownload")
+                    : reportReadyForExport
+                      ? t("downloadPdf")
+                      : t("preparingDownloadMaps", { count: pendingMapCount })
+                }
               />
             </div>
           )}
@@ -1696,9 +1156,24 @@ export function MunicipalReportPreview({
             mapImages={mapImages}
             activeMapKeys={activeMapKeys}
             mapQueueStartedAt={mapQueueStartedAt}
+            mapTileUrls={mapTileUrls}
+            mapChoropleths={mapChoropleths}
             retryAttemptFor={retryAttemptFor}
             onMapCapture={handleMapCapture}
+            onMapRetry={retryMapCapture}
+            onMapVisibility={handleMapVisibility}
             docsContent={docsContent}
+            onOpenMonitor={onOpenMonitor}
+            documentRef={reportDocumentRef}
+            onDownload={handleDownload}
+            downloadDisabled={exporting || !reportReadyForExport}
+            downloadLabel={
+              exporting
+                ? t("preparingDownload")
+                : reportReadyForExport
+                  ? t("downloadPdf")
+                  : t("preparingDownloadMaps", { count: pendingMapCount })
+            }
           />
         )}
       </div>

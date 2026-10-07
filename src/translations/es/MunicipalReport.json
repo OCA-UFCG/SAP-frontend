@@ -5,7 +5,7 @@
     "description": "Consulte los datos consolidados disponibles para un municipio y período.",
     "selectionDescription": "Seleccione la información al lado para generar un informe",
     "selectArea": "Seleccione el área de análisis",
-    "selectAreaHint": "Elija el municipio que se analizará en el informe.",
+    "selectAreaHint": "Elija el recorte y el territorio que se analizarán en el informe.",
     "searchMunicipality": "Busque o seleccione un municipio",
     "noMunicipalityResults": "No se encontraron municipios",
     "selectModules": "Seleccione los módulos de monitoreo",
@@ -20,7 +20,7 @@
     "analysisDate": "Fecha del análisis",
     "periodHint": "Ingrese un año (2024) o mes (2024-01).",
     "invalidPeriod": "Ingrese un período con formato AAAA o AAAA-MM.",
-    "availabilityIdle": "Seleccione un municipio y un período para consultar los módulos.",
+    "availabilityIdle": "Seleccione un territorio y un período para consultar los módulos.",
     "checkingAvailability": "Consultando módulos disponibles para el período...",
     "availabilityError": "No fue posible consultar la disponibilidad de los módulos.",
     "noModulesAvailable": "Ningún módulo tiene datos para este período.",
@@ -29,6 +29,7 @@
     "zoomOut": "Disminuir zoom",
     "downloadPdf": "Descargar PDF",
     "preparingDownload": "Preparando PDF...",
+    "preparingDownloadMaps": "Preparando PDF... ({count} mapa(s) restante(s))",
     "popupBlocked": "El navegador bloqueó la ventana de impresión. Permita ventanas emergentes para descargar el informe en PDF.",
     "emptyPreviewTitle": "Vista previa del informe",
     "emptyPreviewDescription": "Seleccione el municipio, el período y los módulos disponibles para generar el informe.",
@@ -39,7 +40,7 @@
     "loadingHint": "Esto puede tardar unos segundos, según los módulos seleccionados.",
     "loadError": "No se pudo cargar el informe",
     "missingParameters": "Municipio y período son obligatorios.",
-    "reportLabel": "Informe analítico municipal",
+    "reportLabel": "Informe analítico territorial",
     "ibgeCode": "Código IBGE",
     "generatedAt": "Generado el",
     "effectivePeriod": "Período efectivo",
@@ -51,7 +52,7 @@
       "reportType": "Informe Analítico Automatizado",
       "institutions": "OCA / UFCG / INSA",
       "website": "beta-sap.lsd.ufcg.edu.br",
-      "mainTitle": "Informe Analítico del Sistema Estratégico sobre Desertificación",
+      "mainTitle": "Informe analítico del sistema de alerta temprana de sequía y desertificación",
       "subtitle": "Ley Nº 13.153/2015 · Política Nacional de Lucha contra la Desertificación",
       "analysisAreaLabel": "Área de análisis",
       "scaleLabel": "Escala",
@@ -64,7 +65,19 @@
       "legalReferenceLabel": "Referencia legal",
       "legalReferenceValue": "Ley Nº 13.153/2015 — Política Nacional de Lucha contra la Desertificación y Mitigación de los Efectos de la Sequía.",
       "automatedNotice": "Este informe fue generado automáticamente por el Sistema Estratégico sobre Desertificación (SEDES). Los valores presentados son producidos a partir de los datos disponibles en la plataforma.",
-      "footer": "SEDES — Informe Analítico | Generado el: {generatedAt} | MMA/DCDE · OCA · UFCG · INSA"
+      "footer": "SEDES — Informe Analítico | Generado el: {generatedAt} | MMA/DCDE · OCA · UFCG · INSA",
+      "generatedLabel": "Informe automático generado: {date}",
+      "variableIndexTitle": "Índice de las variables seleccionadas",
+      "backToTop": "Volver arriba",
+      "goToSection": "Ir a la sección de {title}",
+      "viewMonitor": "Ver monitor",
+      "situationTitle": "Situación",
+      "classCoverageTitle": "Clases por cobertura (%) del área",
+      "spatialDistributionTitle": "Distribución espacial",
+      "timeSeriesTitle": "Serie temporal por clase",
+      "valueTimeSeriesTitle": "Serie temporal",
+      "timeSeriesAnalysisTitle": "Análisis de la serie temporal",
+      "footerCredits": "MMA/DCDE · OCA · UFCG · INSA"
     },
     "valueLabels": {
       "percentageCardContext": "del área analizada",
@@ -79,8 +92,8 @@
       "absoluteChartSeries": "Serie temporal de valores"
     },
     "narrative": {
-      "absoluteFallback": "En el municipio de {place}, el valor de {className} es {value}, según los datos de {title} para el período de {period}.",
-      "percentageFallback": "En el municipio de {place}, predomina la clase {className}, con {percentage}% del área analizada {coverageContext}, según los datos de {title} para el período de {period}."
+      "absoluteFallback": "En {place}, el valor de {className} es {value}, según los datos de {title} para el período de {period}.",
+      "percentageFallback": "En {place}, predomina la clase {className}, con {percentage}% del área analizada {coverageContext}, según los datos de {title} para el período de {period}."
     },
     "coverageContexts": {
       "anaseca": "clasificada en este nivel de severidad",
@@ -127,7 +140,7 @@
     "tableClass": "Clase",
     "spatialAndTimeSeries": "Distribución espacial y serie temporal",
     "spatialImage": "Imagen espacial: {period}",
-    "rasterDescription": "Mosaico temático de {title} para {period}, recortado visualmente por el contorno municipal de {municipality} — {uf}.",
+    "rasterDescription": "Mapa temático de {title} para {period}, recortado visualmente por el contorno {scope} de {territory}.",
     "timeSeriesAlt": "Serie temporal — {title}",
     "timeSeriesUnavailable": "Serie temporal no disponible para exportación.",
     "historicalAnalysisTitle": "Análisis de la serie histórica",
@@ -136,6 +149,8 @@
     "historicalNoteText": "La serie disponible para este indicador reúne {count} período(s), cubriendo {range}. {resolution}",
     "mapCropAlt": "Recorte del mapa del municipio",
     "mapUnavailableExport": "Mapa no disponible para exportación.",
+    "mapPeriodUnavailable": "Sin imagen del mapa para este período.",
+    "mapRetry": "Intentar de nuevo",
     "periodRange": "{first} a {last}",
     "reportFilenamePrefix": "Informe",
     "status": {
@@ -312,6 +327,17 @@
       "pobreza-rural": "Pobreza rural",
       "registros-de-secas-e-estiagens": "Registros de sequías y estiajes",
       "registros": "registros"
-    }
+    },
+    "scope": "Recorte territorial",
+    "scopes": {
+      "municipality": "Municipio",
+      "national": "Brasil",
+      "region": "Región",
+      "state": "Estado",
+      "biome": "Bioma",
+      "semiarid": "Semiárido",
+      "asd": "ASD y entorno"
+    },
+    "selectTerritory": "Seleccione el territorio"
   }
 }

@@ -1,0 +1,165 @@
+"use client";
+
+import { useCallback, useMemo, useState } from "react";
+import type { BasemapId } from "@/components/Map/Map";
+import {
+  geoBrasilSource,
+  resolveSpatialFocusBounds,
+} from "@/components/Map/mapBounds";
+import {
+  useMapLayerActions,
+  useMapLayerActiveState,
+  useMapLayerViewState,
+} from "@/components/MapLayerContext/MapLayerContext";
+import { getAllowedStateUfs } from "@/utils/interestAreaStates";
+import type { SpatialSelection } from "@/utils/spatialScope";
+import { useEarthEngineTileLayer } from "./useEarthEngineTileLayer";
+import { useIndexChoroplethValues } from "./useIndexChoroplethValues";
+import {
+  useReferenceOverlayPrefetch,
+  useReferenceOverlayTiles,
+} from "./useReferenceOverlayTileLayers";
+import { useSpatialBoundaryOverlay } from "./useSpatialBoundaryOverlay";
+import { useTerritoryFocus } from "./useTerritoryFocus";
+
+export type MonitoringMapLayers = ReturnType<typeof useMonitoringMapLayers>;
+
+/**
+ * Tudo o que a seção de Monitoramento pinta no mapa: a camada do Earth Engine
+ * escolhida no painel, o contorno do recorte territorial e as camadas de
+ * referência.
+ *
+ * Mora fora do componente do mapa pelo mesmo motivo do estado da AMFE: o mapa é
+ * um só, e precisa ler as duas seções sem remontar ao trocar entre elas.
+ */
+export function useMonitoringMapLayers() {
+  const { activeData, activeEEData } = useMapLayerActiveState();
+  const {
+    activeLegend,
+    selectedState,
+    selectedMunicipalityCode,
+    activeYear,
+    layerOpacity,
+    spatialSelection,
+    referenceOverlays,
+    highlightedReferenceOverlay,
+  } = useMapLayerViewState();
+  const {
+    setSelectedState,
+    setSelectedMunicipalityCode,
+    setLayerOpacity,
+    toggleReferenceOverlay,
+    toggleReferenceHighlight,
+    setSpatialSelection,
+  } = useMapLayerActions();
+  const { requestKey, status, tileLayerUrl } = useEarthEngineTileLayer(
+    activeEEData,
+    activeYear,
+    spatialSelection,
+  );
+  // Índice criado a partir de planilha: o mapa não vem do Earth Engine, é
+  // pintado sobre os tiles de município a partir dos valores do próprio índice.
+  const { choropleth, status: choroplethStatus } = useIndexChoroplethValues(
+    activeEEData,
+    activeYear,
+  );
+  const [readyRequestKey, setReadyRequestKey] = useState<string | null>(null);
+  const [basemap, setBasemap] = useState<BasemapId>("osm");
+
+  const {
+    tileUrls: referenceOverlayTileUrls,
+    isLoading: isAnyReferenceOverlayLoading,
+  } = useReferenceOverlayTiles(referenceOverlays);
+  const { territoryFocus, focusTerritory } = useTerritoryFocus(
+    referenceOverlays,
+    toggleReferenceOverlay,
+  );
+  const {
+    prefetchUrls: referenceOverlayPrefetchUrls,
+    requestPrefetch: prefetchReferenceOverlays,
+  } = useReferenceOverlayPrefetch();
+
+  const handleTileLayerReady = useCallback((readyRequestKey: string) => {
+    setReadyRequestKey((current) =>
+      current === readyRequestKey ? current : readyRequestKey,
+    );
+  }, []);
+
+  const allowedStateUfs = useMemo(
+    () => getAllowedStateUfs(spatialSelection),
+    [spatialSelection],
+  );
+
+  const {
+    boundaryGeoJson,
+    activeBoundaryGeoJson,
+    status: boundaryStatus,
+  } = useSpatialBoundaryOverlay(spatialSelection);
+
+  const spatialFocusBounds = useMemo(() => {
+    // Enquanto o contorno exato está em voo, não enquadrar pela união dos
+    // estados: renderizaria um movimento grosseiro seguido de outro correto.
+    if (boundaryStatus === "loading") return null;
+
+    // Enquadrar pelo recorte ativo, não pela coleção inteira: em bioma a rota
+    // devolve os seis biomas, cuja caixa envolvente é o Brasil — e é a mesma
+    // para todos, então a câmera nem se moveria ao trocar de bioma.
+    return resolveSpatialFocusBounds(
+      geoBrasilSource,
+      allowedStateUfs,
+      activeBoundaryGeoJson,
+    );
+  }, [allowedStateUfs, activeBoundaryGeoJson, boundaryStatus]);
+
+  const handleSpatialSelectionChange = useCallback(
+    (selection: SpatialSelection) => {
+      setSpatialSelection(selection);
+      setSelectedState("br");
+      setSelectedMunicipalityCode(null);
+    },
+    [setSpatialSelection, setSelectedState, setSelectedMunicipalityCode],
+  );
+
+  const hasRenderedCurrentRequest =
+    status === "ready" && Boolean(requestKey) && readyRequestKey === requestKey;
+
+  const isGeeLayerLoading =
+    (Boolean(activeEEData) &&
+      (status === "loading" ||
+        (status === "ready" && !hasRenderedCurrentRequest))) ||
+    choroplethStatus === "loading";
+
+  return {
+    activeData,
+    activeEEData,
+    activeLegend,
+    allowedStateUfs,
+    basemap,
+    setBasemap,
+    boundaryGeoJson,
+    choropleth,
+    focusTerritory,
+    handleSpatialSelectionChange,
+    handleTileLayerReady,
+    isAnyReferenceOverlayLoading,
+    isGeeLayerLoading,
+    layerOpacity,
+    setLayerOpacity,
+    referenceOverlays,
+    referenceOverlayTileUrls,
+    highlightedReferenceOverlay,
+    toggleReferenceHighlight,
+    referenceOverlayPrefetchUrls,
+    prefetchReferenceOverlays,
+    requestKey,
+    selectedMunicipalityCode,
+    setSelectedMunicipalityCode,
+    selectedState,
+    setSelectedState,
+    spatialFocusBounds,
+    spatialSelection,
+    territoryFocus,
+    tileLayerUrl,
+    toggleReferenceOverlay,
+  };
+}

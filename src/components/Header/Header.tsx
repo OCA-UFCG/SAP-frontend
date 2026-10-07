@@ -31,6 +31,7 @@ export const Header = ({ content }: { content: ISection[] }) => {
               className="flex gap-6"
               content={content}
             ></NavItems>
+            <span aria-hidden="true" className="h-8 w-px bg-[#C9C6C0]" />
             <UserAuth />
           </div>
 
