@@ -1,5 +1,12 @@
 import { createRateLimiter, getClientAddress } from "@/utils/rateLimitStore";
 
+/**
+ * Endereço de rede de quem fez a requisição, sem cair para o user-agent: o
+ * captcha repassa esse valor à Cloudflare. `undefined` quando o proxy não
+ * repassou nenhum.
+ */
+export { getClientAddress as getSignupClientIp };
+
 const RATE_LIMIT_WINDOW_MS = 1000 * 60;
 
 /**

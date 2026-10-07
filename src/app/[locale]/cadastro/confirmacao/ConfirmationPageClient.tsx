@@ -5,6 +5,7 @@ import { useSearchParams } from "next/navigation";
 import { useTranslations } from "next-intl";
 import { Link } from "@/translations/routing";
 import { LOGIN_PATH } from "@/config/accessRoutes";
+import { Captcha } from "@/components/Captcha/Captcha";
 import PlatformLoading from "@/app/[locale]/platform/loading";
 
 type Outcome = "checking" | "approved" | "pending" | "rejected" | "failed";
@@ -14,6 +15,7 @@ const PRIMARY_BUTTON =
 
 export function ConfirmationPageClient() {
   const t = useTranslations("SignupConfirmation");
+  const tCaptcha = useTranslations("Captcha");
   const searchParams = useSearchParams();
   const email = searchParams.get("email") ?? "";
   const code = searchParams.get("code") ?? "";
@@ -21,6 +23,10 @@ export function ConfirmationPageClient() {
   const [outcome, setOutcome] = useState<Outcome>("checking");
   const [resending, setResending] = useState(false);
   const [resent, setResent] = useState(false);
+  const [resendRefused, setResendRefused] = useState(false);
+  // O token só vale uma vez: cada reenvio troca a `key` do widget.
+  const [captchaToken, setCaptchaToken] = useState<string | null>(null);
+  const [captchaAttempt, setCaptchaAttempt] = useState(0);
 
   useEffect(() => {
     let active = true;
@@ -59,22 +65,31 @@ export function ConfirmationPageClient() {
   }, [email, code]);
 
   const handleResend = useCallback(async () => {
+    if (!captchaToken) return;
+
     setResending(true);
+    let refused = false;
 
     try {
-      await fetch("/api/signup/resend", {
+      const response = await fetch("/api/signup/resend", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ email }),
+        body: JSON.stringify({ email, captchaToken }),
       });
+      // Só a recusa do captcha é contada: dizer "enviado" deixaria a pessoa
+      // esperando um e-mail que não saiu.
+      refused = response.status === 400;
     } catch {
       // A resposta é sempre genérica de qualquer forma; falhar em silêncio aqui
       // mostra a mesma mensagem que o sucesso, que é o comportamento desejado.
     } finally {
       setResending(false);
-      setResent(true);
+      setResendRefused(refused);
+      setResent(!refused);
+      setCaptchaToken(null);
+      setCaptchaAttempt((attempt) => attempt + 1);
     }
-  }, [email]);
+  }, [email, captchaToken]);
 
   if (outcome === "checking") {
     return (
@@ -109,11 +124,16 @@ export function ConfirmationPageClient() {
         ) : null}
 
         {outcome === "failed" ? (
-          <div className="flex flex-col gap-3">
+          <div className="flex max-w-[342px] flex-col gap-3">
+            <Captcha
+              key={captchaAttempt}
+              action="resend"
+              onToken={setCaptchaToken}
+            />
             <button
               type="button"
               onClick={handleResend}
-              disabled={resending || !email}
+              disabled={resending || !email || !captchaToken}
               className={`${PRIMARY_BUTTON} cursor-pointer`}
             >
               {resending ? t("resending") : t("resend")}
@@ -121,6 +141,11 @@ export function ConfirmationPageClient() {
             {resent ? (
               <p role="status" className="text-[13px] leading-5 text-[#50554C]">
                 {t("resent")}
+              </p>
+            ) : null}
+            {resendRefused ? (
+              <p role="alert" className="text-[13px] leading-5 text-[#B3261E]">
+                {tCaptcha("failed")}
               </p>
             ) : null}
           </div>
