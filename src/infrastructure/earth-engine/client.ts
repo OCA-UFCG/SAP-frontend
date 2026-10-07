@@ -2,6 +2,7 @@ import "server-only";
 
 import ee from "@google/earthengine";
 import { createSign } from "node:crypto";
+import type { EeMapThumbnailView } from "@/contracts/eeMapUrls";
 
 const GOOGLE_OAUTH_TOKEN_URL = "https://oauth2.googleapis.com/token";
 const GEE_AUTH_SCOPES = [
@@ -426,6 +427,83 @@ export async function getGeeMapUrl(
     }),
   );
   return `${ee.apiclient.getTileBaseUrl()}/${ee.apiclient.VERSION}/${name}/tiles/{z}/{x}/{y}`;
+}
+
+const WEB_MERCATOR_RADIUS_M = 6378137;
+
+/** Graus para metros em Web Mercator (EPSG:3857), a projeção do MapLibre. */
+function toWebMercator(longitude: number, latitude: number) {
+  return {
+    x: (WEB_MERCATOR_RADIUS_M * longitude * Math.PI) / 180,
+    y:
+      WEB_MERCATOR_RADIUS_M *
+      Math.log(Math.tan(Math.PI / 4 + (latitude * Math.PI) / 360)),
+  };
+}
+
+/**
+ * O endereço de **uma imagem** do recorte, o mesmo que `image.getThumbURL`
+ * entregava, sem passar pela fila do SDK.
+ *
+ * A imagem sai na grade exata do recorte em Web Mercator: cada pixel cai onde o
+ * MapLibre desenharia o tile, então ela encaixa no mapa de fundo sem
+ * deslocamento. O endereço é público como o dos tiles — o navegador baixa a
+ * imagem direto do Google, sem passar pelo nosso servidor.
+ *
+ * @example
+ * const url = await getGeeThumbnailUrl(image, visParams, {
+ *   bbox: [-36.4, -7.5, -35.6, -7.1], width: 1448, height: 670,
+ * });
+ * // "https://earthengine.googleapis.com/v1/projects/.../thumbnails/...:getPixels"
+ */
+export async function getGeeThumbnailUrl(
+  image: unknown,
+  visParams: Record<string, unknown> | undefined,
+  { bbox: [west, south, east, north], width, height }: EeMapThumbnailView,
+): Promise<string> {
+  const projectId = requireProjectId();
+  const topLeft = toWebMercator(west, north);
+  const bottomRight = toWebMercator(east, south);
+  // Os mesmos passos de `image.getThumbId`, com `crsTransform` e `dimensions`:
+  // o SDK reprojeta para a grade e recorta exatamente aqueles pixels.
+  const params: Record<string, unknown> = {
+    ...visParams,
+    crs: "EPSG:3857",
+    crsTransform: [
+      (bottomRight.x - topLeft.x) / width,
+      0,
+      topLeft.x,
+      0,
+      -(topLeft.y - bottomRight.y) / height,
+      topLeft.y,
+    ],
+    dimensions: [width, height],
+    format: "png",
+  };
+  const extraParams: Record<string, unknown> = {};
+  const gridImage = ee.data.images.applySelectionAndScale(
+    ee.data.images.applyCrsAndTransform(image, params),
+    params,
+    extraParams,
+  );
+  const request = ee.data.images.applyVisualization(gridImage, extraParams);
+  const thumbnail = new ee.api.Thumbnail({
+    name: null,
+    expression: ee.data.expressionAugmenter_(
+      ee.Serializer.encodeCloudApiExpression(request.image),
+    ),
+    fileFormat: ee.rpc_convert.fileFormat(request.format),
+    bandIds: ee.rpc_convert.bandList(request.bands),
+    visualizationOptions: ee.rpc_convert.visualizationOptions(request),
+    grid: null,
+  });
+  const { name } = await withComputeSlot(() =>
+    requestGeeApi<{ name: string }>(
+      `projects/${projectId}/thumbnails?fields=name`,
+      { method: "POST", body: ee.apiclient.serialize(thumbnail) },
+    ),
+  );
+  return `${ee.apiclient.getTileBaseUrl()}/${ee.apiclient.VERSION}/${name}:getPixels`;
 }
 
 export function clearGeeClientForTests() {

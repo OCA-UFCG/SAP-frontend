@@ -8,10 +8,14 @@ import type { AuthenticatedUserSession } from "@/lib/server-session";
 // mapa paga esse custo várias vezes. Guardar a sessão já verificada por uma
 // janela curta troca a ida à rede por um lookup em memória.
 //
+// A janela é de 5 minutos: com 1 minuto, cada pessoa no mapa voltava ao Firebase
+// a cada minuto, e todas as rotas que a tela dispara juntas naquele instante
+// pagavam a ida ao mesmo tempo.
+//
 // A contrapartida é explícita: dentro da janela, uma conta revogada ou
 // desabilitada continua sendo aceita naquele processo. A expiração do próprio
 // cookie nunca é estendida (ver rememberVerifiedSession).
-const DEFAULT_TTL_MS = 60_000;
+const DEFAULT_TTL_MS = 5 * 60_000;
 // Uma entrada por sessão ativa. O teto existe para um pico de logins não fazer o
 // mapa crescer sem limite, não por consumo de memória.
 const DEFAULT_MAX_ENTRIES = 5000;

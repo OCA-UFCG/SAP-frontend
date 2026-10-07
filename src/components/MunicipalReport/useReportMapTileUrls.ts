@@ -5,10 +5,15 @@ import { fetchReportMapURLs } from "@/services/mapServices";
 import { startMunicipalReportStage } from "@/utils/municipalReportMetrics";
 import {
   buildEeMapUrlKey,
+  type EeMapThumbnailView,
   type EeMapUrlEntry,
   type EeMapUrlFailure,
   type EeMapUrlRequestItem,
 } from "@/contracts/eeMapUrls";
+import type {
+  ReportMapThumbnail,
+  ReportMapView,
+} from "@/components/MunicipalReport/reportMapView";
 
 /**
  * Quanto esperar antes de perguntar de novo pelas camadas que o servidor
@@ -31,6 +36,8 @@ export interface ReportMapTileUrls {
   /** Verdadeiro quando toda camada já tem URL ou um motivo para não ter. */
   resolved: boolean;
   tileUrlFor: (key: string) => string | undefined;
+  /** A camada como uma imagem só do recorte, quando o pedido foi de miniatura. */
+  thumbnailFor: (key: string) => ReportMapThumbnail | undefined;
   /** Por que a camada não trouxe URL, quando não trouxe. */
   failureFor: (key: string) => EeMapUrlFailure | undefined;
   unavailableKeys: ReadonlySet<string>;
@@ -39,6 +46,7 @@ export interface ReportMapTileUrls {
 interface ResolvedTileUrls {
   signature: string;
   tileUrls: ReadonlyMap<string, string>;
+  thumbnails: ReadonlyMap<string, ReportMapThumbnail>;
   failures: ReadonlyMap<string, EeMapUrlFailure>;
   pendingCount: number;
 }
@@ -46,6 +54,7 @@ interface ResolvedTileUrls {
 const EMPTY: ResolvedTileUrls = {
   signature: "",
   tileUrls: new Map(),
+  thumbnails: new Map(),
   failures: new Map(),
   pendingCount: 0,
 };
@@ -91,49 +100,64 @@ function describeProgress(
  * camada que não tem imagem naquele período, e deixa cada mapa começar assim
  * que a sua URL chega, em vez de esperar as vinte.
  *
+ * Com `view`, cada camada vem como uma imagem só daquele recorte, e não como
+ * tiles.
+ *
  * @example
- * const { resolved, tileUrlFor } = useReportMapTileUrls(["anaseca:2024-12"]);
+ * const { resolved, thumbnailFor } = useReportMapTileUrls(["anaseca:2024-12"], view);
  */
 export function useReportMapTileUrls(
   mapKeys: readonly string[],
+  view?: ReportMapView | null,
 ): ReportMapTileUrls {
   const mapKeysSignature = mapKeys.join(",");
+  const thumbnail = view?.thumbnail;
+  const signature = thumbnail
+    ? `${mapKeysSignature}|${JSON.stringify(thumbnail)}`
+    : mapKeysSignature;
   const [state, setState] = useState<ResolvedTileUrls>(EMPTY);
   const measuredSignatureRef = useRef<string | null>(null);
 
   useEffect(() => {
     if (!mapKeysSignature) return;
     const controller = new AbortController();
-    const shouldMeasure = measuredSignatureRef.current !== mapKeysSignature;
-    measuredSignatureRef.current = mapKeysSignature;
+    const shouldMeasure = measuredSignatureRef.current !== signature;
+    measuredSignatureRef.current = signature;
 
     void resolveTileUrls({
-      signature: mapKeysSignature,
+      signature,
+      mapKeysSignature,
+      view: view ?? undefined,
       signal: controller.signal,
       publish: setState,
       finishStage: shouldMeasure ? startMunicipalReportStage() : null,
     });
 
     return () => controller.abort();
-  }, [mapKeysSignature]);
+    // `signature` já resume as camadas e o recorte da miniatura.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [signature]);
 
-  const current = state.signature === mapKeysSignature ? state : EMPTY;
+  const current = state.signature === signature ? state : EMPTY;
 
   return useMemo(
     () => ({
       resolved:
         !mapKeysSignature ||
-        (current.signature === mapKeysSignature && current.pendingCount === 0),
+        (current.signature === signature && current.pendingCount === 0),
       tileUrlFor: (key: string) => current.tileUrls.get(key),
+      thumbnailFor: (key: string) => current.thumbnails.get(key),
       failureFor: (key: string) => current.failures.get(key),
       unavailableKeys: new Set(current.failures.keys()),
     }),
-    [current, mapKeysSignature],
+    [current, mapKeysSignature, signature],
   );
 }
 
 interface ResolveTileUrlsOptions {
   signature: string;
+  mapKeysSignature: string;
+  view?: ReportMapView;
   signal: AbortSignal;
   publish: (state: ResolvedTileUrls) => void;
   finishStage: ReturnType<typeof startMunicipalReportStage> | null;
@@ -145,13 +169,18 @@ interface ResolveTileUrlsOptions {
  */
 async function resolveTileUrls({
   signature,
+  mapKeysSignature,
+  view,
   signal,
   publish,
   finishStage,
 }: ResolveTileUrlsOptions) {
   const tileUrls = new Map<string, string>();
+  // O mesmo objeto de uma resposta para a outra: um objeto novo a cada
+  // `pending` respondido faria o mapa daquela camada recomeçar a captura.
+  const thumbnails = new Map<string, ReportMapThumbnail>();
   const failures = new Map<string, EeMapUrlFailure>();
-  let waiting = signature.split(",").map(parseMapKey);
+  let waiting = mapKeysSignature.split(",").map(parseMapKey);
   let attempts = 0;
 
   while (waiting.length > 0 && attempts < REPORT_MAP_URLS_MAX_ATTEMPTS) {
@@ -159,13 +188,19 @@ async function resolveTileUrls({
     if (signal.aborted) return;
 
     attempts += 1;
-    const entries = await requestTileUrls(waiting, signal);
+    const entries = await requestTileUrls(waiting, signal, view?.thumbnail);
     if (signal.aborted) return;
 
     waiting = collectEntries(entries, tileUrls, failures);
+    if (view) {
+      for (const [key, url] of tileUrls) {
+        if (!thumbnails.has(key)) thumbnails.set(key, { url, view });
+      }
+    }
     publish({
       signature,
       tileUrls: new Map(tileUrls),
+      thumbnails: new Map(thumbnails),
       failures: new Map(failures),
       pendingCount: waiting.length,
     });
@@ -178,6 +213,7 @@ async function resolveTileUrls({
   publish({
     signature,
     tileUrls: new Map(tileUrls),
+    thumbnails: new Map(thumbnails),
     failures: new Map(failures),
     pendingCount: 0,
   });
@@ -189,9 +225,10 @@ async function resolveTileUrls({
 async function requestTileUrls(
   items: readonly EeMapUrlRequestItem[],
   signal: AbortSignal,
+  thumbnail?: EeMapThumbnailView,
 ): Promise<EeMapUrlEntry[]> {
   try {
-    return await fetchReportMapURLs(items, signal);
+    return await fetchReportMapURLs(items, signal, thumbnail);
   } catch (reason) {
     if (signal.aborted) return [];
     console.error(

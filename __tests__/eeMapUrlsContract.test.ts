@@ -69,4 +69,47 @@ describe("parseEeMapUrlRequest", () => {
   it("builds the same key the report uses for a layer and period", () => {
     expect(buildEeMapUrlKey("anaseca", "2024-12")).toBe("anaseca:2024-12");
   });
+
+  it("accepts a thumbnail view next to the layers", () => {
+    const thumbnail = {
+      bbox: [-36.4, -7.6, -35.6, -7.1],
+      width: 1448,
+      height: 670,
+    };
+
+    expect(
+      parseEeMapUrlRequest({
+        maps: [{ name: "anaseca", year: "2024-12" }],
+        thumbnail,
+      }),
+    ).toEqual({
+      ok: true,
+      items: [{ name: "anaseca", year: "2024-12" }],
+      thumbnail,
+    });
+  });
+
+  it.each([
+    [
+      "west after east",
+      { bbox: [-35, -7.6, -36, -7.1], width: 10, height: 10 },
+    ],
+    [
+      "beyond Web Mercator",
+      { bbox: [-36, -89, -35, -7], width: 10, height: 10 },
+    ],
+    ["a side too large", { bbox: [-36, -8, -35, -7], width: 4096, height: 10 }],
+    [
+      "a fractional side",
+      { bbox: [-36, -8, -35, -7], width: 10.5, height: 10 },
+    ],
+    ["a missing corner", { bbox: [-36, -8, -35], width: 10, height: 10 }],
+  ])("rejects a thumbnail with %s", (_case, thumbnail) => {
+    const parsed = parseEeMapUrlRequest({
+      maps: [{ name: "anaseca", year: "2024-12" }],
+      thumbnail,
+    });
+
+    expect(parsed.ok).toBe(false);
+  });
 });

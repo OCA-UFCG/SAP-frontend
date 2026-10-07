@@ -7,7 +7,11 @@ import {
 import type { PanelLayerI } from "@/utils/interfaces";
 
 const DEFAULT_CACHE_TTL_SECONDS = 600;
-const DEFAULT_CACHE_MAX_ENTRIES = 200;
+// Medido em relatórios reais: ~2 KB por item de município e ~5 KB pelo Brasil,
+// então 5.000 itens ficam abaixo de 30 MB. Com 200, cabia menos que um único
+// relatório de município novo (~240 itens), e cada um empurrava para fora o
+// que os outros usuários tinham acabado de ler.
+const DEFAULT_CACHE_MAX_ENTRIES = 5000;
 const STALE_WHILE_REVALIDATE_SECONDS = 3600;
 
 interface MunicipalAnalysisCacheValue {
