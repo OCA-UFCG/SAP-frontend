@@ -40,6 +40,16 @@ FORWARDED_ENV_VARS=(
   CONTENTFUL_MANAGEMENT_TOKEN
   DOCS_DEFAULT
   NEXT_PUBLIC_HOST_URL
+  API_BASE_URL
+  SMTP_USER
+  SMTP_PASSWORD
+  SMTP_FROM
+  OCA_NOTIFICATION_EMAIL
+  SIGNUP_ALLOWED_DOMAINS
+  FIREBASE_ACCESS_REQUESTS_COLLECTION
+  PLATFORM_ACCESS_GUARD_ENABLED
+  # Só produção define; nos outros ambientes fica de fora do container.
+  EMAIL_LINKS_BASE_URL
 )
 
 # Os runners self-hosted exigem sudo para falar com o daemon; um ambiente onde o
@@ -111,7 +121,7 @@ start_container() {
     -p "${HOST_PORT}:${CONTAINER_PORT}" \
     "${env_flags[@]}" \
     -d "$IMAGE"
-   }
+}
 
 wait_until_healthy() {
   local url
@@ -175,8 +185,14 @@ roll_back_to_previous() {
 }
 
 retire_current_container() {
-  # Sobra de um deploy interrompido: sem remover, o rename abaixo falha.
+  # Sobra de um deploy interrompido (o beta e o gamma cancelam o deploy em
+  # andamento a cada push). Se o atual não existe, o anterior é a última versão
+  # boa e continua sendo o alvo do rollback; senão, sem remover, o rename falha.
   if container_exists "$PREVIOUS_CONTAINER"; then
+    if ! container_exists "$CONTAINER_NAME"; then
+      echo "Deploy anterior interrompido; ${PREVIOUS_CONTAINER} fica para o rollback."
+      return
+    fi
     docker_as_root rm -f "$PREVIOUS_CONTAINER"
   fi
 
@@ -201,9 +217,9 @@ main() {
 
   ensure_network
   retire_current_container
-  start_container
-
-  if ! wait_until_healthy; then
+  # O antigo já está parado: se o próprio `docker run` falhar, também precisa
+  # voltar, em vez de o `set -e` encerrar o script com o site fora do ar.
+  if ! start_container || ! wait_until_healthy; then
     roll_back_to_previous
   fi
 
