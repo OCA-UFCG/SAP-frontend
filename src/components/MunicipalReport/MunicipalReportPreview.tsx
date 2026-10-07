@@ -546,17 +546,12 @@ const ReportDocument = memo(function ReportDocument({
       <ReportBackToTop />
 
       <div className="flex flex-col gap-6 px-10 py-6">
-        <ReportSectionHeading level={2} accent="#989F43">
-          {t("document.variableIndexTitle")}
-        </ReportSectionHeading>
-        <div>
-          <ReportVariableIndex
-            analyses={selected}
-            translateTitle={(analysis) =>
-              translateAnalysisTitle(analysis, t, tHas, tModules, tModulesHas)
-            }
-          />
-        </div>
+        <ReportVariableIndex
+          analyses={selected}
+          translateTitle={(analysis) =>
+            translateAnalysisTitle(analysis, t, tHas, tModules, tModulesHas)
+          }
+        />
 
         <div className="report-sections space-y-12">
           {selected.map((analysis) => {

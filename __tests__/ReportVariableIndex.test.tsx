@@ -74,6 +74,26 @@ describe("ReportVariableIndex", () => {
     expect(scope.getByText("2020")).toBeTruthy();
   });
 
+  it("começa recolhido e abre pelo título", () => {
+    const { container } = renderIndex([
+      analysis("seca", "Monitor de seca | ANA", "Dados Climáticos"),
+    ]);
+    const toggle = within(container).getByRole("button", {
+      name: "Índice das variáveis selecionadas",
+    });
+    const content = container.querySelector(
+      `#${toggle.getAttribute("aria-controls")}`,
+    );
+
+    expect(toggle.getAttribute("aria-expanded")).toBe("false");
+    expect(content?.className).toContain("hidden");
+
+    fireEvent.click(toggle);
+
+    expect(toggle.getAttribute("aria-expanded")).toBe("true");
+    expect(content?.className).not.toMatch(/(^|\s)hidden(\s|$)/);
+  });
+
   it("não renderiza nada sem análises", () => {
     const { container } = renderIndex([]);
 
