@@ -2,7 +2,13 @@
 
 import { useCallback, useEffect, useRef } from "react";
 import { useTranslations } from "next-intl";
-import { driver, type Driver, type DriveStep } from "driver.js";
+import {
+  driver,
+  type Config,
+  type Driver,
+  type DriveStep,
+  type PopoverDOM,
+} from "driver.js";
 import "driver.js/dist/driver.css";
 import "./platformTour.css";
 
@@ -64,6 +70,33 @@ export function revealFirstLayerCard() {
 }
 
 type Translate = ReturnType<typeof useTranslations<"PlatformTour">>;
+type HookOptions = Parameters<NonNullable<Config["onPopoverRender"]>>[1];
+
+/**
+ * Troca o "3/7" do rodapé por uma fileira de pontos, com o passo atual
+ * alongado. O texto continua lá, escondido da vista, para leitores de tela.
+ */
+function renderProgressDots(dom: PopoverDOM, { config, index }: HookOptions) {
+  const total = config.steps?.length ?? 0;
+  if (index === undefined || total === 0) return;
+
+  const label = document.createElement("span");
+  label.className = "sedes-tour-sr-only";
+  label.textContent = dom.progress.textContent;
+
+  const dots = document.createElement("span");
+  dots.className = "sedes-tour-dots";
+  dots.setAttribute("aria-hidden", "true");
+  for (let step = 0; step < total; step++) {
+    const dot = document.createElement("span");
+    dot.className = "sedes-tour-dot";
+    if (step < index) dot.classList.add("sedes-tour-dot-done");
+    if (step === index) dot.classList.add("sedes-tour-dot-current");
+    dots.append(dot);
+  }
+
+  dom.progress.replaceChildren(label, dots);
+}
 
 function buildSteps(t: Translate): DriveStep[] {
   const popover = (key: string) => ({
@@ -77,12 +110,23 @@ function buildSteps(t: Translate): DriveStep[] {
         ...popover("welcome"),
         nextBtnText: t("start"),
         showButtons: ["next", "close"],
-        onPopoverRender: (dom, { driver: tour }) => {
+        onPopoverRender: (dom, options) => {
+          // O onPopoverRender do passo substitui o da configuração geral.
+          renderProgressDots(dom, options);
+
+          const logo = document.createElement("img");
+          logo.src = "/green-sedes-logo.svg";
+          logo.alt = "SEDES";
+          logo.width = 89;
+          logo.height = 32;
+          logo.className = "sedes-tour-logo";
+          dom.title.before(logo);
+
           const skipButton = document.createElement("button");
           skipButton.type = "button";
           skipButton.className = "driver-popover-footer-btn sedes-tour-skip-btn";
           skipButton.textContent = t("skip");
-          skipButton.addEventListener("click", () => tour.destroy());
+          skipButton.addEventListener("click", () => options.driver.destroy());
           dom.footerButtons.prepend(skipButton);
         },
       },
@@ -170,6 +214,7 @@ export function usePlatformTour({
           doneBtnText: t("done"),
           closeBtnLabel: t("close"),
           popoverClass: "sedes-tour",
+          onPopoverRender: renderProgressDots,
           // Um clique sem querer fora do balão não deve encerrar o tutorial;
           // para sair há o "×", o Esc e o "Pular".
           overlayClickBehavior: "none",
@@ -177,8 +222,14 @@ export function usePlatformTour({
           // Earth Engine por trás do balão.
           disableActiveInteraction: true,
           waitForElement: WAIT_FOR_ELEMENT_MS,
-          stagePadding: 6,
-          stageRadius: 8,
+          // Escurece com o verde-oliva mais fundo da marca, não com preto.
+          overlayColor: "#21240F",
+          overlayOpacity: 0.6,
+          // O destaque ganha folga em volta do elemento, e o balão fica a 16 px
+          // dele: a seta cabe no vão sem encostar em nenhum dos dois.
+          stagePadding: 8,
+          stageRadius: 12,
+          popoverOffset: 16,
         });
         tourRef.current = tour;
         tour.drive();
