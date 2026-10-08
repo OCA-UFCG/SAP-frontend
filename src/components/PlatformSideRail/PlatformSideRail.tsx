@@ -34,6 +34,9 @@ export interface PlatformSideRailProps {
   /** Seção cuja navegação está em voo, para a trilha dizer que está indo. */
   pendingSection?: PlatformSection | null;
 
+  /** Reabre o tutorial da plataforma. Sem ele, o botão "Tutorial" não aparece. */
+  onReplayTour?: () => void;
+
   className?: string;
 }
 
@@ -130,6 +133,26 @@ function RailItemContent({
   );
 }
 
+function HelpIcon() {
+  return (
+    <svg
+      width="20"
+      height="20"
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="2"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      aria-hidden
+    >
+      <circle cx="12" cy="12" r="10" />
+      <path d="M9.1 9a3 3 0 0 1 5.8 1c0 2-3 3-3 3" />
+      <path d="M12 17h.01" />
+    </svg>
+  );
+}
+
 /**
  * Auditoria e catálogo são links de verdade, e o Next avisa quando a navegação
  * daquele link está em voo. Sem isso a trilha fica parada por perto de um
@@ -173,9 +196,11 @@ export function PlatformSideRail({
   onTogglePanel,
   showAuditLink = false,
   pendingSection = null,
+  onReplayTour,
   className,
 }: PlatformSideRailProps) {
   const t = useTranslations("PlatformSideRail");
+  const tTour = useTranslations("PlatformTour");
   const pendingApprovals = usePendingApprovalsCount(showAuditLink);
 
   const items: PlatformRailItem[] = [
@@ -227,7 +252,7 @@ export function PlatformSideRail({
       data-platform-side-rail
     >
       <nav className="flex h-full w-full flex-col border-r border-neutral-200 bg-white px-[16px] pb-[18px] pt-[48px]">
-        <div className="w-[114px] flex flex-col">
+        <div className="w-[114px] flex flex-col" data-tour="platform-sections">
           {items.map((item, index) => {
             const isActive =
               item.kind === "section"
@@ -287,6 +312,21 @@ export function PlatformSideRail({
             );
           })}
         </div>
+
+        {onReplayTour && (
+          <button
+            type="button"
+            onClick={onReplayTour}
+            aria-label={tTour("replayLabel")}
+            data-tour="platform-tour-replay"
+            className="mt-auto flex w-[114px] cursor-pointer flex-col items-center justify-center gap-[4px] rounded-lg px-[8px] py-[10px] text-[#292829] transition-colors duration-150 hover:bg-[#F8F7F8]"
+          >
+            <HelpIcon />
+            <span className="text-[12px] leading-[14px] font-medium">
+              {tTour("replay")}
+            </span>
+          </button>
+        )}
       </nav>
 
       {activeSection !== "analysis" &&

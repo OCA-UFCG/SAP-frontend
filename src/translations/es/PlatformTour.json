@@ -1,0 +1,42 @@
+{
+  "PlatformTour": {
+    "start": "Comenzar",
+    "skip": "Omitir",
+    "next": "Siguiente",
+    "previous": "Atrás",
+    "done": "Finalizar",
+    "close": "Cerrar tutorial",
+    "replay": "Tutorial",
+    "replayLabel": "Ver el tutorial de la plataforma",
+    "steps": {
+      "welcome": {
+        "title": "Bienvenida a SEDES",
+        "description": "En menos de un minuto te mostramos lo esencial para seguir la sequía y la desertificación en Brasil."
+      },
+      "sections": {
+        "title": "Tres áreas de trabajo",
+        "description": "Monitoreo: ve los índices en el mapa. Comunicación: genera el informe de un municipio. Análisis: arma un análisis multicriterio."
+      },
+      "spatialScope": {
+        "title": "Elige dónde mirar",
+        "description": "Filtra por Brasil, región, estado, bioma, región semiárida o ASD y entorno."
+      },
+      "layerCard": {
+        "title": "Cada tarjeta es un índice",
+        "description": "Usa el interruptor para mostrarlo en el mapa (la leyenda aparece en la esquina inferior derecha). El botón “i” explica qué mide el índice, y Detalles abre gráficos, ranking y la búsqueda por municipio."
+      },
+      "mapSettings": {
+        "title": "Ajustes del mapa",
+        "description": "Cambia el mapa base entre Satélite y Calle. Con un índice activo, ajusta también la transparencia."
+      },
+      "territories": {
+        "title": "Territorios",
+        "description": "Superpone Tierras Indígenas, Territorios Quilombolas, Asentamientos y Unidades de Conservación, o busca un territorio por su nombre."
+      },
+      "replay": {
+        "title": "Todo listo",
+        "description": "Cuando quieras volver a ver este recorrido, haz clic aquí."
+      }
+    }
+  }
+}

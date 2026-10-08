@@ -1,0 +1,42 @@
+{
+  "PlatformTour": {
+    "start": "Start",
+    "skip": "Skip",
+    "next": "Next",
+    "previous": "Back",
+    "done": "Finish",
+    "close": "Close tour",
+    "replay": "Tour",
+    "replayLabel": "Show the platform tour",
+    "steps": {
+      "welcome": {
+        "title": "Welcome to SEDES",
+        "description": "In less than a minute we'll show you the essentials for tracking drought and desertification in Brazil."
+      },
+      "sections": {
+        "title": "Three work areas",
+        "description": "Monitoring: see the indices on the map. Communication: generate a municipality report. Analysis: build a multicriteria analysis."
+      },
+      "spatialScope": {
+        "title": "Choose where to look",
+        "description": "Filter by Brazil, region, state, biome, the Semi-arid region or ASD and surroundings."
+      },
+      "layerCard": {
+        "title": "Each card is an index",
+        "description": "Use the switch to show it on the map (the legend appears in the bottom right corner). The “i” button explains what the index measures, and Details opens charts, the ranking and the municipality search."
+      },
+      "mapSettings": {
+        "title": "Map settings",
+        "description": "Switch the basemap between Satellite and Street. With an index on, you can also adjust its transparency."
+      },
+      "territories": {
+        "title": "Territories",
+        "description": "Overlay Indigenous Lands, Quilombola Territories, Settlements and Conservation Units, or search for a territory by name."
+      },
+      "replay": {
+        "title": "All set",
+        "description": "Whenever you want to see this walkthrough again, click here."
+      }
+    }
+  }
+}
