@@ -209,7 +209,7 @@ export function PlatformSideRail({
       kind: "section",
       id: "communication",
       label: t("communication"),
-      icon: "calendar",
+      icon: "report",
     },
     { kind: "section", id: "analysis", label: t("analysis"), icon: "chart" },
   ];
