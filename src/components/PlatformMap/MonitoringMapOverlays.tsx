@@ -56,14 +56,16 @@ export function MonitoringMapOverlays({
 
       <div className="absolute bottom-0 right-6 z-[1000] box-border flex min-h-[124px] w-[302px] flex-col items-end justify-center gap-[10px] pb-6">
         {showControls && (
-          <ReferenceOverlaysControl
-            activeOverlays={referenceOverlays}
-            onToggle={toggleReferenceOverlay}
-            highlightedOverlay={highlightedReferenceOverlay}
-            onToggleHighlight={toggleReferenceHighlight}
-            onSelectTerritory={focusTerritory}
-            onOpen={prefetchReferenceOverlays}
-          />
+          <div data-tour="reference-overlays">
+            <ReferenceOverlaysControl
+              activeOverlays={referenceOverlays}
+              onToggle={toggleReferenceOverlay}
+              highlightedOverlay={highlightedReferenceOverlay}
+              onToggleHighlight={toggleReferenceHighlight}
+              onSelectTerritory={focusTerritory}
+              onOpen={prefetchReferenceOverlays}
+            />
+          </div>
         )}
         {showControls && activeLegend && activeLegend.length > 0 && (
           <PlatformMapCaption legend={activeLegend} />

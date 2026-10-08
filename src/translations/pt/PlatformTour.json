@@ -1,0 +1,42 @@
+{
+  "PlatformTour": {
+    "start": "Começar",
+    "skip": "Pular",
+    "next": "Próximo",
+    "previous": "Voltar",
+    "done": "Concluir",
+    "close": "Fechar tutorial",
+    "replay": "Tutorial",
+    "replayLabel": "Ver o tutorial da plataforma",
+    "steps": {
+      "welcome": {
+        "title": "Boas-vindas ao SEDES",
+        "description": "Em menos de um minuto mostramos o essencial para você acompanhar a seca e a desertificação no Brasil."
+      },
+      "sections": {
+        "title": "Três áreas de trabalho",
+        "description": "Monitoramento: veja os índices no mapa. Comunicação: gere o relatório de um município. Análise: monte uma análise multicritério."
+      },
+      "spatialScope": {
+        "title": "Escolha onde olhar",
+        "description": "Filtre por Brasil, região, estado, bioma, Semiárido ou ASD e Entorno."
+      },
+      "layerCard": {
+        "title": "Cada cartão é um índice",
+        "description": "Use a chave para mostrá-lo no mapa (a legenda aparece no canto inferior direito). O botão “i” explica o que o índice mede, e Detalhamento abre gráficos, ranking e a busca por município."
+      },
+      "mapSettings": {
+        "title": "Ajustes do mapa",
+        "description": "Troque o mapa base entre Satélite e Rua. Com um índice ligado, ajuste também a transparência."
+      },
+      "territories": {
+        "title": "Territórios",
+        "description": "Sobreponha Terras Indígenas, Territórios Quilombolas, Assentamentos e Unidades de Conservação, ou busque um território pelo nome."
+      },
+      "replay": {
+        "title": "Tudo pronto",
+        "description": "Quando quiser rever este passo a passo, clique aqui."
+      }
+    }
+  }
+}

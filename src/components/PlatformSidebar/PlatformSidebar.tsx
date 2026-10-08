@@ -14,6 +14,7 @@ import { MunicipalReportContext } from "@/components/SidePanelContexts/Municipal
 import { MonitoringListStateProvider } from "@/components/SidePanelContexts/monitoringListState";
 import { PanelLayerI } from "@/utils/interfaces";
 import { useMapLayerActions } from "@/components/MapLayerContext/MapLayerContext";
+import { usePlatformTour } from "@/components/PlatformTour/usePlatformTour";
 import type { MunicipalReportPreviewProps } from "@/components/MunicipalReport/MunicipalReportPreview";
 
 // O relatório municipal carrega o `recharts` junto. Ele só aparece na seção de
@@ -193,6 +194,15 @@ export function PlatformSidebar({
     }
   }
 
+  // O tutorial parte da listagem de Monitoramento: só abre sozinho quando é
+  // por ela que a pessoa entra, e não quando chega por um link de relatório ou
+  // de detalhamento de um índice.
+  const replayTour = usePlatformTour({
+    autoStart:
+      !isUtilityView && initialSection === "monitoring" && !detailLayerId,
+    showMonitoringList: () => handleSectionChange("monitoring"),
+  });
+
   const openLayerMonitoring = useCallback((layerId: string) => {
     setRequestedDetailLayerId(layerId);
     setActiveSection("monitoring");
@@ -226,6 +236,7 @@ export function PlatformSidebar({
           onTogglePanel={() => setIsPanelOpen((v) => !v)}
           showAuditLink={showAuditLink}
           pendingSection={isLeavingUtilityView ? utilityViewExitTarget : null}
+          onReplayTour={isUtilityView ? undefined : replayTour}
         />
 
         {!isUtilityView && (

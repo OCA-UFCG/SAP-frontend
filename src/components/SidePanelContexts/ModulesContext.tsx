@@ -413,7 +413,7 @@ export function ModulesContext({
       <div className="flex flex-col gap-6">
         <ContextHeader />
 
-        <div>
+        <div data-tour="spatial-scope">
           <SpatialScopeSelect
             spatialSelection={spatialSelection}
             onSpatialSelectionChange={handleSpatialSelectionChange}
