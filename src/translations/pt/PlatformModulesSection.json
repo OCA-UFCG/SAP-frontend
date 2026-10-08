@@ -1,6 +1,20 @@
 {
   "PlatformModulesSection": {
-    "title": "{title}",
-    "learnMore": "Saiba mais"
+    "title": "Como o SEDES apoia o planejamento e a gestão territorial",
+    "access": "Acessar módulo",
+    "modules": {
+      "monitoring": {
+        "title": "Monitoramento",
+        "description": "Reúne camadas oficiais sobre seca, clima, vegetação e condições socioeconômicas para acompanhar o território ao longo do tempo."
+      },
+      "communication": {
+        "title": "Comunicação",
+        "description": "Gera relatórios automáticos em PDF por variável e escala (Brasil, estado ou município) para divulgar a situação do território."
+      },
+      "analysis": {
+        "title": "Análise",
+        "description": "Integra indicadores em uma análise multicritério com pesos configuráveis para identificar áreas prioritárias e orientar estratégias no território."
+      }
+    }
   }
 }

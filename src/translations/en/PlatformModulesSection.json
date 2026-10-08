@@ -1,20 +1,20 @@
 {
   "PlatformModulesSection": {
-    "title": "Modules",
+    "title": "How SEDES supports territorial planning and management",
+    "access": "Open module",
     "modules": {
-      "0": {
+      "monitoring": {
         "title": "Monitoring",
-        "description": "Official data layers, integrated from the working group's institutions (ANA, CEMADEN, OCA, IBGE, INPE, Embrapa, CPTEC/INPE). Data on drought, climate, environment and socioeconomics."
+        "description": "Brings together official layers on drought, climate, vegetation and socioeconomic conditions to follow the territory over time."
       },
-      "1": {
-        "title": "Analysis",
-        "description": "Multi-criteria model with configurable weights, aimed at prioritizing actions across the territory. Weights are collectively agreed upon by the GT-SEDES."
-      },
-      "2": {
+      "communication": {
         "title": "Communication",
-        "description": "Two automated PDF products: the Analytical Report, customizable by variable and scale (Brazil, state or municipality), and the Official Bulletin, with institutional validation."
+        "description": "Generates automatic PDF reports by variable and scale (Brazil, state or municipality) to share the situation of the territory."
+      },
+      "analysis": {
+        "title": "Analysis",
+        "description": "Combines indicators in a multi-criteria analysis with configurable weights to identify priority areas and guide strategies in the territory."
       }
-    },
-    "learnMore": "Learn more"
+    }
   }
 }

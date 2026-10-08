@@ -1,0 +1,31 @@
+{
+  "BigNumbersSection": {
+    "items": {
+      "municipalities": {
+        "value": "5.570",
+        "label": "Municípios",
+        "description": "com acesso a dados de secas, cobertura vegetal, degradação da terra e desertificação"
+      },
+      "area": {
+        "value": "8,5 mi km²",
+        "label": "Monitorados",
+        "description": "acompanhados pelo SEDES"
+      },
+      "products": {
+        "value": "+20",
+        "label": "Produtos",
+        "description": "climáticos, ambientais e socioeconômicos na plataforma"
+      },
+      "report": {
+        "value": "5 s",
+        "label": "Por relatório",
+        "description": "tempo médio para gerar um relatório personalizado do seu município"
+      },
+      "combinations": {
+        "value": "+45 mil",
+        "label": "Combinações",
+        "description": "possíveis na análise multicritério para priorizar áreas"
+      }
+    }
+  }
+}

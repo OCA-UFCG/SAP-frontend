@@ -1,20 +1,20 @@
 {
   "PlatformModulesSection": {
-    "title": "Módulos",
+    "title": "Cómo el SEDES apoya la planificación y la gestión territorial",
+    "access": "Acceder al módulo",
     "modules": {
-      "0": {
+      "monitoring": {
         "title": "Monitoreo",
-        "description": "Capas oficiales de datos, integradas a partir de instituciones del GT (ANA, CEMADEN, OCA, IBGE, INPE, Embrapa, CPTEC/INPE). Datos sobre sequía, clima, medio ambiente y socioeconómicos."
+        "description": "Reúne capas oficiales sobre sequía, clima, vegetación y condiciones socioeconómicas para acompañar el territorio a lo largo del tiempo."
       },
-      "1": {
-        "title": "Análisis",
-        "description": "Modelo multicriterio con pesos configurables, con el objetivo de priorizar acciones en el territorio. Los pesos son pactados colectivamente por el GT-SEDES."
-      },
-      "2": {
+      "communication": {
         "title": "Comunicación",
-        "description": "Dos productos automatizados en PDF: el Informe Analítico, personalizable por variable y escala (Brasil, estado o municipio), y el Boletín Oficial, con validación institucional."
+        "description": "Genera informes automáticos en PDF por variable y escala (Brasil, estado o municipio) para divulgar la situación del territorio."
+      },
+      "analysis": {
+        "title": "Análisis",
+        "description": "Integra indicadores en un análisis multicriterio con pesos configurables para identificar áreas prioritarias y orientar estrategias en el territorio."
       }
-    },
-    "learnMore": "Saber más"
+    }
   }
 }

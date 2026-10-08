@@ -1,0 +1,22 @@
+{
+  "UseCasesSection": {
+    "title": "Quais são as possibilidades de uso do SEDES?",
+    "profiles": {
+      "public-management": {
+        "name": "Gestão pública",
+        "audience": "Prefeituras, governos estaduais e órgãos federais",
+        "text": "Reconhecer municípios e populações prioritárias, antecipar situações críticas e direcionar políticas, investimentos e medidas de resposta à seca."
+      },
+      "researchers": {
+        "name": "Técnicos e pesquisadores",
+        "audience": "Universidades, institutos e equipes técnicas",
+        "text": "Combinar séries climáticas, indicadores ambientais e dados socioeconômicos para acompanhar tendências, avaliar impactos e delimitar áreas vulneráveis."
+      },
+      "communities": {
+        "name": "Sociedade e comunidades",
+        "audience": "Comunidades, associações e organizações locais",
+        "text": "Compreender as transformações do território, reconhecer situações de risco e fortalecer a convivência com a seca e o uso sustentável dos recursos naturais."
+      }
+    }
+  }
+}
