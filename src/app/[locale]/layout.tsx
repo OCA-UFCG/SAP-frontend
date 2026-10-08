@@ -59,20 +59,20 @@ export default async function RootLayout({
         items: [
           {
             id: "3-1",
-            name: t("aboutMenu.planoDeAcaoBrasileiro"),
-            path: "/#plano-de-acao-brasileiro",
+            name: t("aboutMenu.novidades"),
+            path: "/#novidades",
             appears: true,
           },
           {
             id: "3-2",
-            name: t("aboutMenu.grupoDeTrabalho"),
-            path: "/#grupo-de-trabalho",
+            name: t("aboutMenu.aPlataforma"),
+            path: "/#a-plataforma",
             appears: true,
           },
           {
             id: "3-3",
-            name: t("aboutMenu.aPlataforma"),
-            path: "/#a-plataforma",
+            name: t("aboutMenu.politicaPublica"),
+            path: "/#politica-publica",
             appears: true,
           },
           {
@@ -83,8 +83,8 @@ export default async function RootLayout({
           },
           {
             id: "3-5",
-            name: t("aboutMenu.financiamento"),
-            path: "/#financiamento",
+            name: t("aboutMenu.instituicoes"),
+            path: "/#instituicoes",
             appears: true,
           },
         ],

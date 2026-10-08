@@ -113,19 +113,23 @@ export interface WorkingGroupSectionI {
 }
 
 export interface PlatformModuleI {
-  title: string;
-  description: string;
-  image?: string;
-  /** CSS object-position for the background photo. Defaults to "50% 50%". */
-  imagePosition?: string;
-  /** Zoom applied to the photo, anchored to the card's left edge. Defaults to 1. */
-  imageZoom?: number;
-  href?: string;
+  /** Chave dos textos em `PlatformModulesSection.modules.<id>`. */
+  id: "monitoring" | "communication" | "analysis";
+  image: string;
+  href: string;
 }
 
 export interface PlatformModulesSectionI {
-  title: string;
   modules: PlatformModuleI[];
+}
+
+/** Novidade da home; título e texto ficam em `NewsSection.items.<id>`. */
+export interface HomeNewsItemI {
+  id: string;
+  module: PlatformModuleI["id"];
+  /** Data no formato AAAA-MM-DD. */
+  date: string;
+  href: string;
 }
 
 export interface BrazilianState {

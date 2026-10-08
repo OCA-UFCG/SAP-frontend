@@ -1,0 +1,7 @@
+{
+  "HomeCarousel": {
+    "previous": "Anterior",
+    "next": "Próximo",
+    "goToPage": "Ir para a página {page}"
+  }
+}

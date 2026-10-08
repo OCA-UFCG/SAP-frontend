@@ -1,0 +1,24 @@
+{
+  "NewsSection": {
+    "title": "What's new?",
+    "learnMore": "Learn more",
+    "items": {
+      "territorios-em-destaque": {
+        "title": "Highlighted territories",
+        "description": "Highlight quilombola lands, settlements, Indigenous lands or protected areas: the rest of the map dims and the group stands out."
+      },
+      "busca-por-territorio": {
+        "title": "Search by territory",
+        "description": "Type part of a territory name and the map goes straight to it, in Monitoring and Analysis."
+      },
+      "relatorio-mais-rapido": {
+        "title": "Faster report",
+        "description": "The municipal report now appears in a few seconds. It used to take more than 15."
+      },
+      "relatorio-da-analise": {
+        "title": "Analysis report",
+        "description": "Download the multi-criteria analysis result as a PDF, with every parameter used to build the map."
+      }
+    }
+  }
+}
