@@ -9,6 +9,7 @@ import type {
 } from "@/contracts/municipalReport";
 import type { MunicipalSpreadsheetSnapshot } from "@/contracts/municipalSpreadsheetSnapshot";
 import type { PublishedPanelLayerReportConfig } from "@/contracts/panelLayerReport";
+import type { PanelLayerForecastFacets } from "@/contracts/panelLayerForecast";
 import type {
   CompactMapVisualizationConfig,
   CompactTerritorialAnalysisDataset,
@@ -128,6 +129,12 @@ export interface IndexCatalogDraftInput {
    * posição, e aí o índice novo entra depois do último da categoria.
    */
   panelPosition?: number;
+  /**
+   * Fonte, variável e tipo de uma previsão climática, que põem o índice nos
+   * filtros do cartão "Previsão climática" do Monitoramento. Só existe no modo
+   * de previsão por emissão e horizonte (`earthEngine.collectionSelection`).
+   */
+  forecastFacets?: PanelLayerForecastFacets;
 }
 
 interface IndexCatalogAuditData {

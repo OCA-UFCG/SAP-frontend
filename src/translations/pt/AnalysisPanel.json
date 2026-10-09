@@ -11,6 +11,19 @@
     "backToList": "Voltar para listagem",
     "searchStateOrCityToStart": "Pesquise um estado ou cidade para iniciar análise",
     "analysisDate": "Data da análise",
+    "forecastFilters": {
+      "dimensions": {
+        "source": "Fonte dos dados",
+        "variable": "Variável",
+        "periodicity": "Periodicidade",
+        "kind": "Tipo"
+      },
+      "periodicities": {
+        "monthly": "Mensal",
+        "quarterly": "Trimestral"
+      },
+      "unavailable": "{label}: sem previsão para a combinação escolhida acima"
+    },
     "spatialScope": "Recorte espacial",
     "selectArea": "Selecione a área",
     "selectValue": "Selecione o recorte",

@@ -4,7 +4,7 @@ import {
   formatAbsoluteNumber,
   formatPercentageNumber,
 } from "@/utils/formatTerritorialNumber";
-import { useEffect, useRef, useState, useMemo } from "react";
+import { useEffect, useRef, useState, useMemo, type ReactNode } from "react";
 import dynamic from "next/dynamic";
 import { useTranslations } from "next-intl";
 import { Chevron } from "@/components/Chevron/Chevron";
@@ -38,6 +38,8 @@ interface AnalysisPanelProps {
   emptyStateTitle?: string;
   emptyStateDescription?: string;
   emptyStateLoading?: boolean;
+  /** Filtros que trocam a camada, entre a pesquisa e a data (previsão climática). */
+  layerFilters?: ReactNode;
 }
 
 interface TemporalVisionProps {
@@ -534,6 +536,7 @@ export function AnalysisPanel({
   emptyStateTitle,
   emptyStateDescription,
   emptyStateLoading,
+  layerFilters,
 }: AnalysisPanelProps) {
   const t = useTranslations("AnalysisPanel");
   const hasTemporalData = Boolean(
@@ -599,6 +602,8 @@ export function AnalysisPanel({
               searchTelemetryContext={searchTelemetryContext}
             />
           </div>
+
+          {layerFilters}
 
           <div className="flex w-full max-w-[392px] flex-col items-start gap-[6px]">
             <label className="text-[14px] font-medium leading-[20px] text-[#292829]">

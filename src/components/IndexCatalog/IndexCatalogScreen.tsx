@@ -28,6 +28,7 @@ import { IndexCatalogGuideModal } from "@/components/IndexCatalog/IndexCatalogGu
 import { IndexCatalogReportFields } from "@/components/IndexCatalog/IndexCatalogReportFields";
 import { MapAssetStrategyFields } from "@/components/IndexCatalog/MapAssetStrategyFields";
 import { PanelPositionField } from "@/components/IndexCatalog/PanelPositionField";
+import { ForecastFacetsFields } from "@/components/IndexCatalog/ForecastFacetsFields";
 import { ImageCollectionForecastGuideModal } from "@/components/IndexCatalog/ImageCollectionForecastGuideModal";
 import {
   detectPeriodTemplate,
@@ -442,6 +443,9 @@ export function IndexCatalogScreen() {
       earthEngine: { ...config.earthEngine, assetsByPeriod: undefined },
       ...(config.valueIndicator
         ? { valueIndicator: config.valueIndicator }
+        : {}),
+      ...(config.forecastFacets
+        ? { forecastFacets: config.forecastFacets }
         : {}),
     });
     // Um rascunho sem texto salvo recebe o padrão, e não campos vazios: é o
@@ -1714,6 +1718,15 @@ export function IndexCatalogScreen() {
                 )}
               </div>
             </fieldset>
+          )}
+
+          {!isSpreadsheet && draft.earthEngine.collectionSelection && (
+            <ForecastFacetsFields
+              value={draft.forecastFacets}
+              onChange={(value) => updateDraft("forecastFacets", value)}
+              items={items}
+              inputClass={inputClass}
+            />
           )}
 
           {hasValueIndicator ? (

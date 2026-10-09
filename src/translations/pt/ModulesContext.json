@@ -11,6 +11,10 @@
     "subgroups": {
       "forecast": "Dados de previsão"
     },
+    "forecastGroup": {
+      "title": "Previsão climática",
+      "description": "Previsões de precipitação e temperatura de diferentes fontes. No detalhamento, escolha a fonte dos dados, a variável, a periodicidade e o tipo."
+    },
     "Layers": {
       "monitor-de-seca-ana": {
         "title": "Monitor de seca | ANA",
