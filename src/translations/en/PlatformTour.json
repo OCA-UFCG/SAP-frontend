@@ -15,7 +15,11 @@
       },
       "sections": {
         "title": "Three work areas",
-        "description": "Monitoring: see the indices on the map. Communication: generate a municipality report. Analysis: combine several indices in a multicriteria analysis."
+        "items": {
+          "monitoring": "See the indices on the map.",
+          "communication": "Generate a municipality report.",
+          "analysis": "Combine several indices in a multicriteria analysis."
+        }
       },
       "spatialScope": {
         "title": "Choose where to look",
