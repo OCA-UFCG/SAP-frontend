@@ -5,6 +5,7 @@ import type {
 } from "@/utils/analysis";
 import type { PublishedGeeStatisticsSource } from "@/contracts/geeStatistics";
 import type { PublishedPanelLayerReportConfig } from "@/contracts/panelLayerReport";
+import type { PanelLayerForecastFacets } from "@/contracts/panelLayerForecast";
 
 export interface DataCardsI {
   noDroughtAreaValue: number;
@@ -262,6 +263,8 @@ export interface PanelLayerI {
   statisticsSource?: PublishedGeeStatisticsSource | null;
   /** Texto do Relatório Automático escrito no catálogo, quando existe. */
   reportConfig?: PublishedPanelLayerReportConfig | null;
+  /** Filtros da previsão climática, quando o índice é uma delas. */
+  forecastFacets?: PanelLayerForecastFacets | null;
   tileApiPath?: string;
   municipalAnalysisApiPath?: string;
 }

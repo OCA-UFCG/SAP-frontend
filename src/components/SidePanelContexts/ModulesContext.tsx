@@ -21,6 +21,11 @@ import {
   splitIntoLayerSubgroups,
   type SubgroupedItems,
 } from "@/utils/layerSubgroups";
+import {
+  getForecastMembers,
+  resolveForecastSelection,
+} from "@/utils/forecastGroup";
+import { DEFAULT_FORECAST_SELECTION } from "@/config/forecastGroup";
 import { useMonitoringListState } from "./monitoringListState";
 import cdiData from "../../data/CDI_Janeiro_2024_Vetores.json";
 
@@ -31,7 +36,11 @@ export interface ModulesContextProps {
   detailLayerId?: string;
 }
 
-type LayerDataset = IDroughtDataset & { category?: string };
+type LayerDataset = IDroughtDataset & {
+  category?: string;
+  /** O cartão "Previsão climática", que representa todas as previsões. */
+  forecastGroup?: boolean;
+};
 
 interface DatasetGroup {
   key: string;
@@ -207,10 +216,45 @@ export function ModulesContext({
     listState.setScrollTop(container.scrollTop);
   }, [listState]);
 
-  const datasets = useMemo(
-    () => buildLayerDatasets(panelLayers),
+  const forecastMembers = useMemo(
+    () => getForecastMembers(panelLayers),
     [panelLayers],
   );
+
+  // O cartão das previsões liga a previsão que já está no mapa ou, sem
+  // nenhuma, a padrão; o detalhamento abre nela e os filtros trocam a partir
+  // dali.
+  const forecastCardLayer = useMemo(() => {
+    const activeMember = forecastMembers.find(
+      (member) => member.layer.id === activeEEData?.id,
+    );
+    return (
+      activeMember ??
+      resolveForecastSelection(forecastMembers, DEFAULT_FORECAST_SELECTION)
+    )?.layer;
+  }, [forecastMembers, activeEEData?.id]);
+
+  const datasets = useMemo(() => {
+    const forecastIds = new Set(
+      forecastMembers.map((member) => member.layer.id),
+    );
+    const layerDatasets = buildLayerDatasets(
+      panelLayers.filter((layer) => !forecastIds.has(layer.id)),
+    );
+    if (!forecastCardLayer) return layerDatasets;
+
+    // Entra por último na categoria, onde ficava o acordeão das previsões.
+    return [
+      ...layerDatasets,
+      {
+        ...buildLayerDatasets([forecastCardLayer])[0],
+        id: layerDatasets.length + 1,
+        title: t("forecastGroup.title"),
+        description: t("forecastGroup.description"),
+        forecastGroup: true,
+      },
+    ];
+  }, [panelLayers, forecastMembers, forecastCardLayer, t]);
 
   const groupedDatasets = useMemo<SubgroupedDatasetGroup[]>(() => {
     const groups = new Map<string, DatasetGroup>();
@@ -239,7 +283,8 @@ export function ModulesContext({
         ...splitIntoLayerSubgroups(
           group.title,
           group.datasets,
-          (dataset) => dataset.title,
+          // "Previsão climática" casaria com o prefixo do subgrupo de previsão.
+          (dataset) => (dataset.forecastGroup ? "" : dataset.title),
         ),
       }));
   }, [datasets]);

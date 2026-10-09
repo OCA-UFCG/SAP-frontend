@@ -106,6 +106,7 @@ export async function createIndexCatalogDraft(
     description: input.description,
     measurementUnit: resolveMeasurementUnit(input),
     category: input.category,
+    forecastFacets: input.forecastFacets,
     catalogConfig: config,
   });
 
@@ -153,8 +154,11 @@ export async function updateIndexCatalogDraft(
   const current = await getCatalogEntry(entryId);
   const previous = requireFullyManagedConfig(current);
   const input = parseIndexCatalogDraftInput(rawInput);
-  // A unidade pode chegar em branco, e só publica se o campo for opcional.
-  if (!resolveMeasurementUnit(input)) await ensureIndexCatalogContentModel();
+  // A unidade pode chegar em branco, e só publica se o campo for opcional; os
+  // filtros da previsão exigem o campo `forecastFacets` no content type.
+  if (!resolveMeasurementUnit(input) || input.forecastFacets) {
+    await ensureIndexCatalogContentModel();
+  }
   const panelLayerId = await resolveDraftPanelLayerId(
     current.entry,
     previous,
@@ -164,6 +168,9 @@ export async function updateIndexCatalogDraft(
     {
       ...previous,
       ...input,
+      // Ausente no corpo é "deixou de ser previsão", e o spread de `previous`
+      // manteria os filtros antigos.
+      forecastFacets: input.forecastFacets,
       panelLayerId,
       status: "draft",
       validation: undefined,
@@ -179,6 +186,7 @@ export async function updateIndexCatalogDraft(
     description: input.description,
     measurementUnit: resolveMeasurementUnit(input),
     category: input.category,
+    forecastFacets: input.forecastFacets,
     catalogConfig: config,
   });
 

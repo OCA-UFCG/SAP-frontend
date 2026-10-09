@@ -50,6 +50,17 @@ const REPORT_CONFIG_FIELD = {
   required: false,
 };
 
+/**
+ * Fonte, variável e tipo de um índice de previsão climática, que o
+ * Monitoramento usa para juntar as previsões num cartão só com filtros.
+ */
+const FORECAST_FACETS_FIELD = {
+  id: "forecastFacets",
+  name: "Filtros da previsão climática",
+  type: "Object",
+  required: false,
+};
+
 function normalizeField(field) {
   return {
     ...field,
@@ -281,6 +292,9 @@ export async function ensureIndexCatalogContentModel(config) {
   const hasReportConfig = (contentType.fields ?? []).some(
     (field) => field.id === REPORT_CONFIG_FIELD.id,
   );
+  const hasForecastFacets = (contentType.fields ?? []).some(
+    (field) => field.id === FORECAST_FACETS_FIELD.id,
+  );
   const previewMapIsRequired = (contentType.fields ?? []).some(
     (field) => field.id === "previewMap" && field.required,
   );
@@ -289,6 +303,7 @@ export async function ensureIndexCatalogContentModel(config) {
     hasCatalogConfig &&
     hasStatisticsSource &&
     hasReportConfig &&
+    hasForecastFacets &&
     !previewMapIsRequired
   ) {
     return { changed: false };
@@ -305,6 +320,9 @@ export async function ensureIndexCatalogContentModel(config) {
   }
   if (!hasReportConfig) {
     fields.push(normalizeField(REPORT_CONFIG_FIELD));
+  }
+  if (!hasForecastFacets) {
+    fields.push(normalizeField(FORECAST_FACETS_FIELD));
   }
 
   const updated = await contentfulFetch(

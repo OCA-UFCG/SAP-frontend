@@ -11,6 +11,19 @@
     "backToList": "Back to list",
     "searchStateOrCityToStart": "Search for a state or city to start analysis",
     "analysisDate": "Analysis date",
+    "forecastFilters": {
+      "dimensions": {
+        "source": "Data source",
+        "variable": "Variable",
+        "periodicity": "Periodicity",
+        "kind": "Type"
+      },
+      "periodicities": {
+        "monthly": "Monthly",
+        "quarterly": "Quarterly"
+      },
+      "unavailable": "{label}: no forecast for the combination chosen above"
+    },
     "spatialScope": "Spatial scope",
     "selectArea": "Select area",
     "selectValue": "Select scope",
