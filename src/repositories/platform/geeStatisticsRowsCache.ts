@@ -7,7 +7,11 @@ const CACHE_TTL_MS = 1000 * 60 * 10;
 // ~1260 linhas para `br` no índice de aridez do ERA5-Land (Brasil + 27 estados
 // x 45 anos, ~390 KiB) e 45 para um município. O teto existe para uma navegação
 // longa por municípios não fazer o mapa crescer sem fim.
-const DEFAULT_MAX_ENTRIES = 200;
+//
+// Medido em relatórios reais: ~5 KB por município e ~110 KB por estado ou
+// Brasil. Só ~45 recortes são grandes, então 5.000 entradas ficam em ~150 MB no
+// pior caso e bem menos no uso normal, que é de municípios.
+const DEFAULT_MAX_ENTRIES = 5000;
 
 interface StatisticsRowsEntry {
   rows: Record<string, unknown>[];

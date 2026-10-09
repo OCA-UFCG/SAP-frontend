@@ -2,8 +2,18 @@ import { createRateLimiter } from "@/utils/rateLimitStore";
 
 const EE_RATE_LIMIT_WINDOW_MS = 1000 * 60;
 const EE_RATE_LIMIT_MAX_REQUESTS = 30;
+/**
+ * Miniaturas do relatório por minuto, por usuário: ~6 relatórios de territórios
+ * novos. Elas têm cota própria porque, ao contrário da URL de tiles, a miniatura
+ * é de um recorte só e quase nunca está em cache — na cota do mapa, o segundo
+ * relatório do minuto já saía com mapas faltando.
+ */
+const EE_THUMBNAIL_RATE_LIMIT_MAX_REQUESTS = 120;
 
 const eeRateLimiter = createRateLimiter({ windowMs: EE_RATE_LIMIT_WINDOW_MS });
+const eeThumbnailRateLimiter = createRateLimiter({
+  windowMs: EE_RATE_LIMIT_WINDOW_MS,
+});
 
 /**
  * Reserva vagas da janela do usuário. O custo é o número de idas ao Earth
@@ -26,8 +36,22 @@ export function consumeEeRateLimit(clientKey: string, cost = 1) {
   return eeRateLimiter.consume(clientKey, EE_RATE_LIMIT_MAX_REQUESTS, cost);
 }
 
-export function clearEeRateLimit() {
-  eeRateLimiter.clear();
+/** Mesma reserva parcial de `consumeEeRateLimit`, na cota das miniaturas. */
+export function consumeEeThumbnailRateLimit(clientKey: string, cost = 1) {
+  return eeThumbnailRateLimiter.consume(
+    clientKey,
+    EE_THUMBNAIL_RATE_LIMIT_MAX_REQUESTS,
+    cost,
+  );
 }
 
-export { EE_RATE_LIMIT_MAX_REQUESTS, EE_RATE_LIMIT_WINDOW_MS };
+export function clearEeRateLimit() {
+  eeRateLimiter.clear();
+  eeThumbnailRateLimiter.clear();
+}
+
+export {
+  EE_RATE_LIMIT_MAX_REQUESTS,
+  EE_RATE_LIMIT_WINDOW_MS,
+  EE_THUMBNAIL_RATE_LIMIT_MAX_REQUESTS,
+};

@@ -33,5 +33,13 @@ test("Home", async () => {
   const HomeResolved = await Home({ params: Promise.resolve({ locale: "pt" }) });
   render(HomeResolved);
 
-  expect(screen.getByText("Sobre Nós")).toBeDefined();
+  expect(screen.getByText("O que há de novo?")).toBeDefined();
+  expect(screen.getByText("Territórios em destaque")).toBeDefined();
+  expect(
+    screen.getByText("Como o SEDES apoia o planejamento e a gestão territorial"),
+  ).toBeDefined();
+  expect(screen.getByText("Um instrumento de política pública")).toBeDefined();
+  expect(
+    screen.getByText("Quais são as possibilidades de uso do SEDES?"),
+  ).toBeDefined();
 });

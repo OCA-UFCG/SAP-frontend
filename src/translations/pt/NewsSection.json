@@ -1,0 +1,24 @@
+{
+  "NewsSection": {
+    "title": "O que há de novo?",
+    "learnMore": "Saiba Mais",
+    "items": {
+      "territorios-em-destaque": {
+        "title": "Territórios em destaque",
+        "description": "Destaque quilombolas, assentamentos, terras indígenas ou unidades de conservação: o resto do mapa escurece e o grupo fica em evidência."
+      },
+      "busca-por-territorio": {
+        "title": "Busca por território",
+        "description": "Digite parte do nome de um território e o mapa vai direto até ele, no Monitoramento e na Análise."
+      },
+      "relatorio-mais-rapido": {
+        "title": "Relatório mais rápido",
+        "description": "O relatório do município agora aparece em poucos segundos. Antes, a espera passava de 15."
+      },
+      "relatorio-da-analise": {
+        "title": "Relatório da análise",
+        "description": "Baixe em PDF o resultado da análise multicritério, com todos os parâmetros usados para montar o mapa."
+      }
+    }
+  }
+}

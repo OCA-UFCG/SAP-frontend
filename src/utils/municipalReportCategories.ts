@@ -107,21 +107,3 @@ export function groupReportAnalysesByCategory(
 export function reportAnalysisAnchorId(alias: string) {
   return `report-analysis-${alias}`;
 }
-
-/**
- * O período como ele aparece na pílula do índice: `05/2026` para uma série
- * mensal, `2021` para uma anual.
- *
- * As duas formas convivem na mesma coluna — o Monitor de Secas é mensal e o
- * Índice de Aridez é decenal —, então a pílula precisa aceitar as duas em vez
- * de assumir que todo índice do relatório tem o mesmo período.
- *
- * @example
- * formatReportPeriodPill("2026-05"); // "05/2026"
- */
-export function formatReportPeriodPill(period: string | null | undefined) {
-  if (!period) return "—";
-  const monthly = /^(\d{4})-(\d{2})$/u.exec(period);
-
-  return monthly ? `${monthly[2]}/${monthly[1]}` : period;
-}

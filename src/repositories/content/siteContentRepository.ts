@@ -30,7 +30,7 @@ const GET_FOOTER_PAGE = `
 
 const GET_HOME_PAGE = `
   query GetHomePage($locale: String!) {
-    bannerCollection(limit: 1, locale: $locale) {
+    bannerCollection(limit: 5, locale: $locale, order: sys_firstPublishedAt_ASC) {
       items {
         title
         subtitle
@@ -258,6 +258,8 @@ export interface GlossaryTermI {
 
 export interface HomePageContent {
   mainBanner?: IMainBanner;
+  /** Slides do carrossel da home, do banner mais antigo para o mais novo. */
+  banners: IMainBanner[];
   aboutSection?: AboutSectionI;
   partnersHeader?: SectionHeaderI;
   partners: PartnerI[];
@@ -324,6 +326,7 @@ export async function getHomePageContent(locale?: string): Promise<HomePageConte
 
     return {
       mainBanner: bannerItems[0],
+      banners: bannerItems,
       aboutSection: aboutItems[0],
       partnersHeader: headerItems[0],
       partners: partnerItems,

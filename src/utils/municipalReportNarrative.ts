@@ -127,6 +127,7 @@ export function buildSituationNarrative(
       analysis,
       locale,
       t,
+      tHas,
     );
     if (t) {
       return t("narrative.absoluteFallback", {

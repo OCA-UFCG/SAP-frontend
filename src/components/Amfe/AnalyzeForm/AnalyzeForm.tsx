@@ -43,7 +43,8 @@ const softSelectClass =
 
 const AnalyzeForm = ({ setFormPayload }: AnalyzeFormProps) => {
   const t = useTranslations("AnalyzeForm");
-  const { criterias: availableCriterias } = useCriterias();
+  const { criterias: availableCriterias, error: criteriasError } =
+    useCriterias();
   const hasInitializedCriterias = useRef(false);
   const {
     handleSubmit,
@@ -134,6 +135,10 @@ const AnalyzeForm = ({ setFormPayload }: AnalyzeFormProps) => {
     name: "criteria",
     rules: {
       validate: (criteria) => {
+        // Sem critério o backend recusa a análise com 422, e quem clicou não
+        // via motivo nenhum: o aviso aparece aqui, antes de sair o pedido.
+        if (criteria.length === 0) return t("criteriaRequired");
+
         const sum = criteria.reduce(
           (acc, el) => acc + Number(el.value),
           0,
@@ -213,6 +218,9 @@ const AnalyzeForm = ({ setFormPayload }: AnalyzeFormProps) => {
                 <ErrorMessage>
                   {errors.criteria?.root?.message as string}
                 </ErrorMessage>
+              )}
+              {criteriasError && (
+                <ErrorMessage>{t("criteriaLoadError")}</ErrorMessage>
               )}
               <p className={sectionDescriptionClass} style={{ color: text }}>
                 {t("criteriasDesc")}
@@ -480,10 +488,13 @@ const AnalyzeForm = ({ setFormPayload }: AnalyzeFormProps) => {
             </LayerAccordion>
           </div>
 
+          {/* Até o catálogo chegar a lista de critérios está vazia; um clique
+              nesse intervalo mandava a análise sem nenhum critério. */}
           <ButtonUi
             type="submit"
             label={t("submitButton")}
-            styles="mt-8 flex w-full items-center justify-center gap-2 bg-[#989F43] text-white hover:bg-[#858C38] hover:text-white"
+            disabled={availableCriterias.length === 0}
+            styles="mt-8 flex w-full items-center justify-center gap-2 bg-[#989F43] text-white hover:bg-[#858C38] hover:text-white disabled:opacity-50 disabled:hover:bg-[#989F43]"
           />
         </form>
       </div>

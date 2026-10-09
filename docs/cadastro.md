@@ -130,7 +130,7 @@ desligado fora do seu computador: o link de confirmação é uma credencial.**
   tem conta feita à mão também esquece a senha.
 - **As sessões abertas com a senha antiga caem.** O Firebase já invalida os
   tokens quando a senha muda, e a rota ainda chama `revokeRefreshTokens`. Pelo
-  cache de sessão verificada, isso leva até 60 segundos em cada servidor.
+  cache de sessão verificada, isso leva até 5 minutos em cada servidor.
 - **A regra da senha nova** é a do cadastro (mínimo 8, conferido também no
   servidor) mais a password policy do passo 2 acima.
 - **O link vale por uma hora** e uma vez só. Esse prazo é do Firebase.

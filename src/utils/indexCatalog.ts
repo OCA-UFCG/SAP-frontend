@@ -1,6 +1,7 @@
 import { isMunicipalSpreadsheetSource } from "@/contracts/municipalSpreadsheet";
 import { isGeeMunicipalValueTableSource } from "@/contracts/geeMunicipalValueTable";
 import { parseGeeStatisticsSource } from "@/contracts/geeStatistics";
+import { parseForecastFacetsInput } from "@/contracts/panelLayerForecast";
 import { HEX_COLOR_PATTERN } from "@/utils/hexColor";
 import {
   INDEX_CATEGORIES,
@@ -432,14 +433,22 @@ export function parseIndexCatalogDraftInput(
     );
   }
 
+  const earthEngine = parseEarthEngineMapping(value.earthEngine);
+  // Os filtros só valem para a previsão por emissão e horizonte: um índice que
+  // saiu desse modo não pode continuar aparecendo como previsão no painel.
+  const forecastFacets = earthEngine.collectionSelection
+    ? parseForecastFacetsInput(value.forecastFacets)
+    : undefined;
+
   return {
     name: requiredString(value.name, "Nome", 120),
     description: requiredString(value.description, "Descrição", 500),
     category: value.category as IndexCategory,
     statisticsSource,
     classes,
-    earthEngine: parseEarthEngineMapping(value.earthEngine),
+    earthEngine,
     ...parsePanelPositionInput(value.panelPosition),
+    ...(forecastFacets ? { forecastFacets } : {}),
     ...(isValueTable
       ? { valueIndicator: parseValueIndicator(value.valueIndicator) }
       : {}),

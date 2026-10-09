@@ -1,0 +1,256 @@
+/* Balão do tutorial da plataforma nas cores e fontes do SEDES. Todo seletor
+   começa por `.driver-popover.sedes-tour` para vencer a folha do driver.js por
+   especificidade, e não pela ordem em que as duas entram no bundle. */
+
+.driver-popover.sedes-tour {
+  --sedes-tour-olive: #989f43;
+  --sedes-tour-olive-dark: #777e32;
+  --sedes-tour-olive-deep: #21240f;
+  --sedes-tour-cream: #f6f3f0;
+  --sedes-tour-ease: cubic-bezier(0.22, 1, 0.36, 1);
+
+  font-family: var(--font-open-sans), sans-serif;
+  color: #292829;
+  min-width: 300px;
+  max-width: 340px;
+  padding: 22px 22px 18px;
+  border-radius: 16px;
+  box-shadow:
+    0 0 0 1px rgba(33, 36, 15, 0.06),
+    0 24px 48px -16px rgba(33, 36, 15, 0.45);
+}
+
+/* O balão é recriado a cada passo: a entrada dele é a transição entre passos.
+   Ele desliza a partir do elemento destacado, no lado em que ficou. */
+.driver-fade .driver-popover.sedes-tour {
+  animation: sedes-tour-enter 360ms var(--sedes-tour-ease) both;
+}
+
+.driver-fade .driver-popover.sedes-tour.driver-popover-side-right {
+  --sedes-tour-from: translateX(-8px);
+}
+
+.driver-fade .driver-popover.sedes-tour.driver-popover-side-left {
+  --sedes-tour-from: translateX(8px);
+}
+
+.driver-fade .driver-popover.sedes-tour.driver-popover-side-top {
+  --sedes-tour-from: translateY(8px);
+}
+
+.driver-fade .driver-popover.sedes-tour.driver-popover-side-bottom {
+  --sedes-tour-from: translateY(-8px);
+}
+
+.driver-fade .driver-popover.sedes-tour.driver-popover-side-over {
+  --sedes-tour-from: scale(0.96);
+}
+
+@keyframes sedes-tour-enter {
+  from {
+    opacity: 0;
+    transform: var(--sedes-tour-from, none);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+/* A seta do driver.js é um triângulo de bordas de 5 px; aqui ela cresce para
+   alcançar o destaque por cima do vão de 16 px. */
+.driver-popover.sedes-tour .driver-popover-arrow {
+  border-width: 8px;
+}
+
+.driver-popover.sedes-tour .sedes-tour-logo {
+  display: block;
+  height: 32px;
+  width: auto;
+  margin-bottom: 16px;
+}
+
+.driver-popover.sedes-tour .driver-popover-title {
+  font-family: var(--font-inter), sans-serif;
+  font-size: 17px;
+  font-weight: 600;
+  line-height: 24px;
+  letter-spacing: -0.015em;
+  color: var(--sedes-tour-olive-deep);
+  padding-right: 28px;
+}
+
+.driver-popover.sedes-tour .driver-popover-description {
+  margin-top: 6px;
+  font-size: 14px;
+  line-height: 21px;
+  color: #4b4a4b;
+}
+
+/* Passo das três áreas: uma por linha, com o ícone da trilha lateral. */
+.driver-popover.sedes-tour .sedes-tour-sections {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  margin: 14px 0 0;
+  padding: 0;
+  list-style: none;
+}
+
+.driver-popover.sedes-tour .sedes-tour-sections li {
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+}
+
+.driver-popover.sedes-tour .sedes-tour-section-icon {
+  flex-shrink: 0;
+  width: 36px;
+  height: 36px;
+  padding: 8px;
+  border-radius: 10px;
+  background-color: var(--sedes-tour-cream);
+  color: var(--sedes-tour-olive-dark);
+}
+
+.driver-popover.sedes-tour .sedes-tour-sections strong {
+  display: block;
+  font-family: var(--font-inter), sans-serif;
+  font-size: 14px;
+  font-weight: 600;
+  line-height: 20px;
+  color: var(--sedes-tour-olive-deep);
+}
+
+.driver-popover.sedes-tour .sedes-tour-sections strong + span {
+  display: block;
+  font-size: 13px;
+  line-height: 18px;
+}
+
+.driver-popover.sedes-tour .driver-popover-close-btn {
+  top: 14px;
+  right: 14px;
+  width: 28px;
+  height: 28px;
+  border-radius: 50%;
+  font-size: 20px;
+  line-height: 28px;
+  color: #7e797b;
+  transition:
+    color 150ms ease,
+    background-color 150ms ease;
+}
+
+.driver-popover.sedes-tour .driver-popover-close-btn:hover,
+.driver-popover.sedes-tour .driver-popover-close-btn:focus-visible {
+  color: var(--sedes-tour-olive-deep);
+  background-color: var(--sedes-tour-cream);
+}
+
+.driver-popover.sedes-tour .driver-popover-footer {
+  margin-top: 20px;
+  gap: 12px;
+}
+
+.driver-popover.sedes-tour .driver-popover-progress-text {
+  display: flex;
+  align-items: center;
+}
+
+.driver-popover.sedes-tour .sedes-tour-dots {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+}
+
+.driver-popover.sedes-tour .sedes-tour-dot {
+  width: 6px;
+  height: 6px;
+  border-radius: 999px;
+  background-color: #dedcd8;
+}
+
+.driver-popover.sedes-tour .sedes-tour-dot-done {
+  background-color: #c5c98a;
+}
+
+.driver-popover.sedes-tour .sedes-tour-dot-current {
+  width: 18px;
+  background-color: var(--sedes-tour-olive);
+  animation: sedes-tour-dot-grow 360ms var(--sedes-tour-ease) both;
+}
+
+@keyframes sedes-tour-dot-grow {
+  from {
+    width: 6px;
+  }
+}
+
+.driver-popover.sedes-tour .sedes-tour-sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
+}
+
+.driver-popover.sedes-tour .driver-popover-navigation-btns {
+  gap: 8px;
+}
+
+.driver-popover.sedes-tour .driver-popover-navigation-btns button + button {
+  margin-left: 0;
+}
+
+.driver-popover.sedes-tour .driver-popover-footer-btn {
+  height: 36px;
+  padding: 0 16px;
+  border: 1px solid #e4e5e2;
+  border-radius: 8px;
+  background-color: #ffffff;
+  color: #292829;
+  font-size: 14px;
+  font-weight: 500;
+  line-height: 34px;
+  text-shadow: none;
+  transition:
+    background-color 150ms ease,
+    border-color 150ms ease,
+    color 150ms ease;
+}
+
+.driver-popover.sedes-tour .driver-popover-footer-btn:hover {
+  background-color: var(--sedes-tour-cream);
+}
+
+/* O driver.js foca o "×" ao abrir cada balão; nele o foco fica só no fundo,
+   para não acender um anel em toda abertura. */
+.driver-popover.sedes-tour .driver-popover-footer-btn:focus-visible {
+  outline: 2px solid var(--sedes-tour-olive);
+  outline-offset: 2px;
+}
+
+.driver-popover.sedes-tour .driver-popover-next-btn {
+  border-color: var(--sedes-tour-olive);
+  background-color: var(--sedes-tour-olive);
+  color: #ffffff;
+}
+
+.driver-popover.sedes-tour .driver-popover-next-btn:hover {
+  border-color: var(--sedes-tour-olive-dark);
+  background-color: var(--sedes-tour-olive-dark);
+}
+
+.driver-popover.sedes-tour .sedes-tour-skip-btn {
+  border-color: transparent;
+  color: #5b612a;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .driver-fade .driver-popover.sedes-tour,
+  .driver-popover.sedes-tour .sedes-tour-dot-current {
+    animation: none;
+  }
+}

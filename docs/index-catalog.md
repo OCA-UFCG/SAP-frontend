@@ -535,6 +535,27 @@ na ordem em que o Contentful devolvia as entries e o índice novo apareceu como
 primeiro. O desempate por nome em `comparePanelLayers` continua como rede de
 segurança, para a lista não mudar de ordem a cada publicação.
 
+### Filtros da previsão climática
+
+No Monitoramento, as previsões aparecem num cartão só, "Previsão climática", e
+o detalhamento troca a camada por quatro filtros: fonte dos dados, variável,
+periodicidade e tipo. Cada combinação continua sendo um `panelLayer` próprio.
+
+Um índice no modo "Previsão por emissão e horizonte" mostra no formulário o
+bloco "Previsão climática", com fonte, variável e tipo. Os três são gravados
+em `panelLayer.forecastFacets` (contrato em `src/contracts/panelLayerForecast.ts`)
+e no `catalogConfig`. Os três vazios deixam o índice como um cartão comum;
+preencher só parte deles é recusado. A periodicidade não é perguntada: vem da
+coluna `temporada` da fonte estatística (`hasSeasonalPeriods`). Os campos
+sugerem os valores que outras previsões já usam, porque o filtro junta opções
+pelo texto (ignorando acento e caixa) e "CPTEC INPE" ao lado de "CPTEC" viraria
+duas fontes.
+
+Uma opção sem camada para o que está escolhido nos filtros de cima aparece
+apagada; quando a escolha atual deixa de existir, vale a primeira opção
+disponível (`resolveForecastSelection` em `src/utils/forecastGroup.ts`). O
+cartão liga a previsão definida em `src/config/forecastGroup.ts`.
+
 ### ID técnico do panelLayer
 
 O formulário não pede o ID técnico: ele é o slug do nome (`Previsão: Anomalia
@@ -907,7 +928,8 @@ recém-publicado não aparecia no mapa.
 ## Content model e ambiente
 
 O content type `panelLayer` precisa dos campos Object opcionais
-`catalogConfig` e `statisticsSource`; `previewMap` também é opcional. A criação
+`catalogConfig`, `statisticsSource`, `reportConfig` e `forecastFacets`;
+`previewMap` também é opcional. A criação
 do primeiro draft aplica a alteração de modo idempotente, ou ela pode ser
 executada antes:
 

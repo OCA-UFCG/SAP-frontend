@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState } from "react";
+import React, { useId, useState } from "react";
 import { Chevron } from "@/components/Chevron/Chevron";
 
 interface LayerAccordionProps {
@@ -24,6 +24,7 @@ export function LayerAccordion({
 }: LayerAccordionProps) {
   const [uncontrolledOpen, setUncontrolledOpen] = useState(defaultOpen);
   const isOpen = open ?? uncontrolledOpen;
+  const contentId = useId();
 
   const toggle = () => {
     const next = !isOpen;
@@ -39,6 +40,7 @@ export function LayerAccordion({
         className={`flex flex-row items-center w-full ${headerPaddingClassName} py-4 gap-[18px] text-left bg-transparent`}
         style={{ height: 56 }}
         aria-expanded={isOpen}
+        aria-controls={contentId}
       >
         <span
           className="flex-1 text-base font-medium text-[#0F172A]"
@@ -59,6 +61,7 @@ export function LayerAccordion({
         {/* Fechado, o conteúdo continua montado (para não perder estado), então
             `inert` é o que impede o Tab de parar em campos invisíveis. */}
         <div
+          id={contentId}
           inert={!isOpen}
           className="overflow-hidden flex flex-col gap-6 px-4 pt-1"
         >

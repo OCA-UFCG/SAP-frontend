@@ -40,6 +40,7 @@ export function MapSettingsControl({
     // e o `right-2.5` empata com a margem de 10px que a folha deles usa.
     <div
       ref={containerRef}
+      data-tour="map-settings"
       className="absolute right-2.5 top-[202px] z-[1000] flex flex-col items-end gap-2"
     >
       <button

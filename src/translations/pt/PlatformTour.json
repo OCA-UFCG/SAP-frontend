@@ -1,0 +1,46 @@
+{
+  "PlatformTour": {
+    "start": "Começar",
+    "skip": "Pular",
+    "next": "Próximo",
+    "previous": "Voltar",
+    "done": "Concluir",
+    "close": "Fechar tutorial",
+    "replay": "Tutorial",
+    "replayLabel": "Ver o tutorial da plataforma",
+    "steps": {
+      "welcome": {
+        "title": "Boas-vindas ao SEDES",
+        "description": "Em menos de um minuto mostramos o essencial para você acompanhar a seca e a desertificação no Brasil."
+      },
+      "sections": {
+        "title": "Três áreas de trabalho",
+        "items": {
+          "monitoring": "Veja os índices no mapa.",
+          "communication": "Gere o relatório de um município.",
+          "analysis": "Combine vários índices numa análise multicritério."
+        }
+      },
+      "spatialScope": {
+        "title": "Escolha onde olhar",
+        "description": "Escolha a área do mapa: o país todo, uma região, um estado, um bioma, o Semiárido ou ASD e Entorno. O índice ligado aparece só dentro dela."
+      },
+      "layerCard": {
+        "title": "Cada cartão é um índice",
+        "description": "Use o botão de ligar à esquerda para mostrar o índice no mapa; a legenda aparece no canto inferior direito. O “i” explica o que o índice mede, e Detalhamento abre gráficos, ranking e a busca por estado ou município."
+      },
+      "mapSettings": {
+        "title": "Ajustes do mapa",
+        "description": "Troque o mapa base entre Satélite e Rua. Com um índice ligado, ajuste também a transparência."
+      },
+      "territories": {
+        "title": "Territórios",
+        "description": "Mostre no mapa Terras Indígenas, Territórios Quilombolas, Assentamentos e Unidades de Conservação, ou busque um território pelo nome."
+      },
+      "replay": {
+        "title": "Tudo pronto",
+        "description": "Para rever este passo a passo, é só clicar em Tutorial."
+      }
+    }
+  }
+}

@@ -1,5 +1,6 @@
 import {
   ActionPlanSectionI,
+  HomeNewsItemI,
   PlatformModulesSectionI,
   WorkingGroupSectionI,
 } from "@/utils/interfaces";
@@ -126,34 +127,51 @@ export const MOCK_WORKING_GROUP_CONTENT: WorkingGroupSectionI = {
   ],
 };
 
+// Fotos recortadas do design da home (Figma). Os textos ficam nas traduções.
 export const MOCK_PLATFORM_MODULES_CONTENT: PlatformModulesSectionI = {
-  title: "Módulos",
   modules: [
     {
-      title: "Monitoramento",
-      image: "/modules/monitoramento.jpg",
-      imagePosition: "50% 41.8%",
-      imageZoom: 1.372,
+      id: "monitoring",
+      image: "/home/modulo-monitoramento.jpg",
       href: "/platform",
-      description:
-        "Camadas oficiais de dados, integradas a partir de instituições do GT (ANA, CEMADEN, OCA, IBGE, INPE, Embrapa, CPTEC/INPE). Dados sobre seca, clima, meio ambiente e socioeconômicos.",
     },
     {
-      title: "Análise",
-      image: "/modules/analise.jpg",
-      imagePosition: "50% 68%",
-      imageZoom: 1.372,
-      href: "/platform/amfe",
-      description:
-        "Modelo multicritério com pesos configuráveis, com o objetivo de priorizar ações no território. Os pesos são pactuados coletivamente pelo GT-SEDES.",
-    },
-    {
-      title: "Comunicação",
-      image: "/modules/comunicacao.jpg",
-      imagePosition: "50% 57.6%",
+      id: "communication",
+      image: "/home/modulo-comunicacao.jpg",
       href: "/platform?section=communication",
-      description:
-        "Dois produtos automatizados em PDF: o Relatório Analítico, customizável por variável e escala (Brasil, estado ou município), e o Boletim Oficial, com validação institucional.",
+    },
+    {
+      id: "analysis",
+      image: "/home/modulo-analise.jpg",
+      href: "/platform/amfe",
     },
   ],
 };
+
+// Novidades mais recentes primeiro, tiradas das PRs que entraram na `main`.
+export const MOCK_NEWS_CONTENT: HomeNewsItemI[] = [
+  {
+    id: "territorios-em-destaque",
+    module: "monitoring",
+    date: "2026-10-05",
+    href: "/platform",
+  },
+  {
+    id: "busca-por-territorio",
+    module: "monitoring",
+    date: "2026-10-02",
+    href: "/platform",
+  },
+  {
+    id: "relatorio-mais-rapido",
+    module: "communication",
+    date: "2026-10-01",
+    href: "/platform?section=communication",
+  },
+  {
+    id: "relatorio-da-analise",
+    module: "analysis",
+    date: "2026-09-21",
+    href: "/platform/amfe",
+  },
+];

@@ -3,6 +3,9 @@
     "imageAlt": "{imageAlt}",
     "title": "{title}",
     "subtitle": "{subtitle}",
-    "linkText": "{linkText}"
+    "linkText": "{linkText}",
+    "previous": "Banner anterior",
+    "next": "Próximo banner",
+    "goToSlide": "Ir para o banner {slide}"
   }
 }

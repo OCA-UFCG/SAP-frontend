@@ -39,6 +39,7 @@ import {
 } from "@/utils/municipalReportTranslations";
 import {
   getReportCategoryTokens,
+  groupReportAnalysesByCategory,
   reportAnalysisAnchorId,
 } from "@/utils/municipalReportCategories";
 import {
@@ -56,9 +57,11 @@ import { ReportBackToTop } from "./ReportBackToTop";
 import { ReportDocumentFooter } from "./ReportDocumentFooter";
 import { ReportHero } from "./ReportHero";
 import { ReportSectionHeading } from "./ReportSectionHeading";
-import { ReportVariableIndex } from "./ReportVariableIndex";
+import { ReportSummary } from "./ReportSummary";
 import { ReportMapPreview, type ReportMapChoropleth } from "./ReportMapPreview";
 import { destroyReportMapPool } from "./reportMapPool";
+import { buildReportPrintHtml, measureReportPages } from "./reportPrint";
+import { resolveReportMapView, type ReportMapThumbnail } from "./reportMapView";
 import { useReportMapCaptureQueue } from "./useReportMapCaptureQueue";
 import {
   useReportMapTileUrls,
@@ -90,9 +93,6 @@ function textColorForBackground(color: string) {
     : "#ffffff";
 }
 
-/** Fontes declaradas em `src/app/[locale]/layout.tsx` e usadas pelo documento. */
-const FONT_VARIABLE_NAMES = ["--font-open-sans", "--font-inter"];
-
 function buildReportFilename(
   report: MunicipalReportData | null,
   period: string,
@@ -117,6 +117,7 @@ const AnalysisSection = memo(function AnalysisSection({
   mapQueuedAt,
   onMapVisibility,
   mapTileUrl,
+  mapThumbnail,
   mapChoropleth,
   mapUnavailableReason,
   onMapCapture,
@@ -136,6 +137,7 @@ const AnalysisSection = memo(function AnalysisSection({
   mapQueuedAt?: number | null;
   onMapVisibility?: (key: string, visible: boolean) => void;
   mapTileUrl?: string;
+  mapThumbnail?: ReportMapThumbnail;
   mapChoropleth?: ReportMapChoropleth;
   mapUnavailableReason?: EeMapUrlFailure;
   onMapCapture?: (key: string, src: string | null) => void;
@@ -331,6 +333,7 @@ const AnalysisSection = memo(function AnalysisSection({
                 imageSrc={mapSrc}
                 queuedAt={mapQueuedAt}
                 tileUrl={mapTileUrl}
+                thumbnail={mapThumbnail}
                 choropleth={mapChoropleth}
                 unavailableReason={mapUnavailableReason}
                 onCapture={(src) => onMapCapture?.(mapKey, src)}
@@ -472,6 +475,7 @@ const ReportDocument = memo(function ReportDocument({
   downloadDisabled,
   downloadLabel,
   onOpenMonitor,
+  summaryPages,
 }: {
   report: MunicipalReportData;
   layerIds?: string[];
@@ -490,6 +494,7 @@ const ReportDocument = memo(function ReportDocument({
   downloadDisabled?: boolean;
   downloadLabel?: string;
   onOpenMonitor?: (layerId: string) => void;
+  summaryPages?: ReadonlyMap<string, number> | null;
 }) {
   const t = useTranslations("MunicipalReport");
   const tModules = useTranslations("ModulesContext");
@@ -497,9 +502,13 @@ const ReportDocument = memo(function ReportDocument({
   const tModulesHas = (key: string) => tModules.has(key);
   const locale = useLocale();
   const generatedAt = new Date(report.generatedAt).toLocaleDateString(locale);
-  const selected = layerIds.length
-    ? report.analyses.filter(({ id }) => layerIds.includes(id))
-    : report.analyses;
+  // As seções seguem a ordem do sumário — por categoria, e dentro dela a ordem
+  // do formulário —, para que os números de página do sumário só cresçam.
+  const selected = groupReportAnalysesByCategory(
+    layerIds.length
+      ? report.analyses.filter(({ id }) => layerIds.includes(id))
+      : report.analyses,
+  ).flatMap((group) => group.analyses);
 
   /**
    * O link "Ver monitor" de uma seção.
@@ -546,11 +555,12 @@ const ReportDocument = memo(function ReportDocument({
       <ReportBackToTop />
 
       <div className="flex flex-col gap-6 px-10 py-6">
-        <ReportVariableIndex
+        <ReportSummary
           analyses={selected}
           translateTitle={(analysis) =>
             translateAnalysisTitle(analysis, t, tHas, tModules, tModulesHas)
           }
+          pages={summaryPages}
         />
 
         <div className="report-sections space-y-12">
@@ -568,6 +578,7 @@ const ReportDocument = memo(function ReportDocument({
                 mapAttempt={retryAttemptFor(mapKey)}
                 mapQueuedAt={mapQueueStartedAt}
                 mapTileUrl={mapTileUrls.tileUrlFor(mapKey)}
+                mapThumbnail={mapTileUrls.thumbnailFor(mapKey)}
                 mapChoropleth={mapChoropleths.choroplethFor(mapKey)}
                 mapUnavailableReason={
                   mapTileUrls.failureFor(mapKey) ??
@@ -690,7 +701,18 @@ export function MunicipalReportPreview({
     [requestedMaps],
   );
   const loadErrorMessage = t("loadError");
-  const mapTileUrls = useReportMapTileUrls(eeMapKeys);
+  // No relatório de um município, todos os mapas mostram o mesmo recorte, e
+  // cada camada vem do Earth Engine como uma imagem só dele em vez de tiles.
+  const territoryKey = report
+    ? `${report.territory.level}:${report.territory.locationKey}`
+    : "";
+  const mapView = useMemo(
+    () => (report ? resolveReportMapView(report.territory) : null),
+    // `territoryKey` resume o território: o objeto muda a cada leitura.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [territoryKey],
+  );
+  const mapTileUrls = useReportMapTileUrls(eeMapKeys, mapView);
   const mapChoropleths = useReportMapChoropleths(choroplethRequests);
   // A fila de captura recebe cada camada assim que a URL dela chega, e nunca as
   // que não têm imagem no período: montar um MapLibre para uma dessas só
@@ -719,7 +741,21 @@ export function MunicipalReportPreview({
   // mapa existir.
   const mapsReady =
     mapTileUrls.resolved && mapChoropleths.resolved && capturesReady;
-  const reportReadyForExport = mapsReady && docsResolved;
+  // As páginas valem para o documento que foi medido: com outro relatório ou
+  // outros textos, o sumário volta a ficar sem número até a nova medição.
+  const [summaryPagination, setSummaryPagination] = useState<{
+    report: MunicipalReportData;
+    docsContent: MunicipalReportDocsContent | null;
+    pages: ReadonlyMap<string, number>;
+  } | null>(null);
+  const summaryPages =
+    summaryPagination &&
+    summaryPagination.report === report &&
+    summaryPagination.docsContent === docsContent
+      ? summaryPagination.pages
+      : null;
+  const reportReadyForExport =
+    mapsReady && docsResolved && Boolean(summaryPages);
 
   useEffect(() => {
     if (!hasRequiredParameters || navigationMeasuredRef.current) return;
@@ -782,6 +818,45 @@ export function MunicipalReportPreview({
     return () => window.cancelAnimationFrame(frame);
   }, [loading, mapsReady, report, reportMapKeys.length]);
 
+  // Os números do sumário só dependem do texto, não dos mapas: o quadro do mapa
+  // tem altura fixa no PDF. Então a medição roda assim que os textos chegam, em
+  // paralelo com a fila de mapas, e não atrasa o "Baixar PDF".
+  useEffect(() => {
+    const paper = reportDocumentRef.current;
+    if (!report || loading || !docsResolved || !paper) return;
+    let cancelled = false;
+    const finishPagination = startMunicipalReportStage();
+
+    Promise.race([
+      measureReportPages(paper, locale),
+      new Promise<never>((_, reject) =>
+        window.setTimeout(
+          () => reject(new Error("A medição passou de 15 s.")),
+          15_000,
+        ),
+      ),
+    ])
+      .catch((reason) => {
+        // Sem a medição o sumário sai sem números, mas o PDF não fica preso.
+        console.warn(
+          "Não foi possível paginar o sumário do relatório.",
+          reason,
+        );
+        return new Map<string, number>();
+      })
+      .then((pages) => {
+        if (cancelled) return;
+        finishPagination("Páginas do sumário", {
+          detalhes: `${pages.size} seção(ões) medida(s)`,
+        });
+        setSummaryPagination({ report, docsContent, pages });
+      });
+
+    return () => {
+      cancelled = true;
+    };
+  }, [docsContent, docsResolved, loading, locale, report]);
+
   // `printReport` é redeclarado a cada render, e passá-lo direto ao
   // `ReportDocument` quebraria o `memo` dele — o zoom voltaria a remontar os
   // vinte mapas. Esta referência é estável e sempre chama a versão atual.
@@ -801,71 +876,16 @@ export function MunicipalReportPreview({
       return;
     }
 
-    const styles = [
-      ...document.querySelectorAll('link[rel="stylesheet"], style'),
-    ]
-      .map((element) => element.outerHTML)
-      .join("\n");
-    const baseUrl = `${window.location.origin}/`;
-    // As variáveis de fonte do next/font vivem na className do <body> do app
-    // (src/app/[locale]/layout.tsx). A janela de impressão monta um <body> novo,
-    // sem essa classe, e o PDF saía numa fonte de sistema em vez de Open Sans —
-    // o que muda a largura do texto e a quebra de página junto. Vão como regra
-    // CSS, e não como atributo style: o valor resolvido traz aspas duplas
-    // (`"Open Sans", "Open Sans Fallback"`) que truncariam o atributo.
-    const appBodyStyle = getComputedStyle(document.body);
-    const printFontVariables = FONT_VARIABLE_NAMES.map(
-      (name) => `${name}:${appBodyStyle.getPropertyValue(name)}`,
-    ).join(";");
     const filename = buildReportFilename(
       report,
       period,
       t("reportLabel"),
       t("reportFilenamePrefix"),
     );
-    const printOverrides = `
-      <style>
-        @page{size:A4;margin:12mm 14mm}
-        body{${printFontVariables}}
-        html,body{width:auto;margin:0;background:#fff}
-        body{-webkit-print-color-adjust:exact;print-color-adjust:exact}
-        .report-paper{box-sizing:border-box;width:auto!important;min-height:auto!important;margin:0!important;padding:0!important;overflow:visible;box-shadow:none!important}
-        .report-paper>div{padding:0!important}
-        .report-hero>div{padding-left:0!important;padding-right:0!important}
-        .report-back-to-top{display:none!important}
-        @media print{
-          .report-chart-screen{display:none!important}
-          .report-chart-print{display:block!important}
-          .report-print-chart-svg{display:block;width:100%!important;height:auto!important;overflow:visible!important}
-          .report-map-frame{aspect-ratio:auto!important;height:70mm!important}
-          .report-map-frame img{width:100%;height:100%;object-fit:contain!important;object-position:center!important}
-          .report-sections{margin-top:8mm!important}
-          .report-section+.report-section{margin-top:10mm!important}
-          .report-section{break-inside:auto;page-break-inside:auto}
-          .report-analysis-header{break-after:avoid;page-break-after:avoid}
-          .report-heading{break-after:avoid;page-break-after:avoid}
-          .report-block{break-inside:avoid;page-break-inside:avoid}
-          .report-class-bar-row{break-inside:avoid;page-break-inside:avoid}
-          .report-variable-index{break-inside:avoid;page-break-inside:avoid}
-          /* Mapa, gráfico e barras de classe medem 435, 506 e até 530px numa
-             página A4 de 1032px úteis: dois cabem, três nunca. Enquanto o cartão
-             inteiro era indivisível, o terceiro pulava de página e deixava um
-             vão de 300 a 500px no pé da anterior, seção após seção. O que de
-             fato não pode ser cortado ao meio é a imagem do mapa e o SVG do
-             gráfico; o cabeçalho, a legenda e a tabela de classes podem fluir. */
-          .report-time-series,.report-spatial,.report-class-coverage{break-inside:auto;page-break-inside:auto}
-          .report-time-series>.report-block,.report-spatial>.report-block,.report-class-coverage>.report-block{break-inside:auto;page-break-inside:auto}
-          .report-map-frame,.report-chart-print{break-inside:avoid;page-break-inside:avoid}
-          .report-narrative{break-inside:auto;page-break-inside:auto}
-          .report-notes{break-inside:auto;page-break-inside:auto;margin-top:8mm!important;padding-top:5mm!important}
-          .report-document-footer{break-inside:avoid;page-break-inside:avoid}
-          .report-paper p,.report-notes p{orphans:3;widows:3}
-        }
-      </style>`;
 
     printWindow.document.open();
     printWindow.document.write(
-      `<!doctype html><html lang="${locale}"><head><meta charset="utf-8"><base href="${baseUrl}"><title></title>${styles}${printOverrides}</head><body>${reportDocumentRef.current.outerHTML}</body></html>`,
+      buildReportPrintHtml(reportDocumentRef.current, locale),
     );
     printWindow.document.close();
     printWindow.document.title = filename;
@@ -1112,6 +1132,7 @@ export function MunicipalReportPreview({
                 documentRef={reportDocumentRef}
                 docsContent={docsContent}
                 onOpenMonitor={onOpenMonitor}
+                summaryPages={summaryPages}
                 onDownload={handleDownload}
                 downloadDisabled={exporting || !reportReadyForExport}
                 downloadLabel={
@@ -1164,6 +1185,7 @@ export function MunicipalReportPreview({
             onMapVisibility={handleMapVisibility}
             docsContent={docsContent}
             onOpenMonitor={onOpenMonitor}
+            summaryPages={summaryPages}
             documentRef={reportDocumentRef}
             onDownload={handleDownload}
             downloadDisabled={exporting || !reportReadyForExport}

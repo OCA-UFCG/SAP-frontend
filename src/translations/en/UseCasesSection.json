@@ -1,0 +1,22 @@
+{
+  "UseCasesSection": {
+    "title": "How can SEDES be used?",
+    "profiles": {
+      "public-management": {
+        "name": "Public management",
+        "audience": "Municipalities, state governments and federal agencies",
+        "text": "Identify priority municipalities and populations, anticipate critical situations and direct policies, investments and drought response measures."
+      },
+      "researchers": {
+        "name": "Technicians and researchers",
+        "audience": "Universities, institutes and technical teams",
+        "text": "Combine climate series, environmental indicators and socioeconomic data to follow trends, assess impacts and delimit vulnerable areas."
+      },
+      "communities": {
+        "name": "Society and communities",
+        "audience": "Communities, associations and local organizations",
+        "text": "Understand how the territory is changing, recognize risk situations and strengthen living with drought and the sustainable use of natural resources."
+      }
+    }
+  }
+}

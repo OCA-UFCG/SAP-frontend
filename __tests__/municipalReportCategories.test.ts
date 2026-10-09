@@ -1,6 +1,5 @@
 import { describe, expect, it } from "vitest";
 import {
-  formatReportPeriodPill,
   getReportCategoryTokens,
   groupReportAnalysesByCategory,
   REPORT_CATEGORY_TOKENS,
@@ -98,21 +97,6 @@ describe("groupReportAnalysesByCategory", () => {
     ]);
 
     expect(groups.map((group) => group.key)).toEqual(["climate", "others"]);
-  });
-});
-
-describe("formatReportPeriodPill", () => {
-  it("mostra mês/ano para período mensal", () => {
-    expect(formatReportPeriodPill("2026-05")).toBe("05/2026");
-  });
-
-  it("mostra só o ano para período anual", () => {
-    expect(formatReportPeriodPill("2021")).toBe("2021");
-  });
-
-  it("devolve travessão quando não há período", () => {
-    expect(formatReportPeriodPill(null)).toBe("—");
-    expect(formatReportPeriodPill(undefined)).toBe("—");
   });
 });
 

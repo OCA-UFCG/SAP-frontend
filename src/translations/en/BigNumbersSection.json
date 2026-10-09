@@ -1,0 +1,31 @@
+{
+  "BigNumbersSection": {
+    "items": {
+      "municipalities": {
+        "value": "5,570",
+        "label": "Municipalities",
+        "description": "with access to data on droughts, vegetation cover, land degradation and desertification"
+      },
+      "area": {
+        "value": "8.5M km²",
+        "label": "Monitored",
+        "description": "tracked by SEDES"
+      },
+      "products": {
+        "value": "+20",
+        "label": "Products",
+        "description": "climate, environmental and socioeconomic products on the platform"
+      },
+      "report": {
+        "value": "5 s",
+        "label": "Per report",
+        "description": "average time to generate a custom report for your municipality"
+      },
+      "combinations": {
+        "value": "+45k",
+        "label": "Combinations",
+        "description": "possible in the multi-criteria analysis to prioritize areas"
+      }
+    }
+  }
+}

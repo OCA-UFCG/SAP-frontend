@@ -1,4 +1,5 @@
 import type {
+  EeMapThumbnailView,
   EeMapUrlEntry,
   EeMapUrlRequestItem,
   EeMapUrlsResponse,
@@ -65,13 +66,16 @@ export async function fetchMapURL(
 export async function fetchReportMapURLs(
   items: readonly EeMapUrlRequestItem[],
   signal?: AbortSignal,
+  thumbnail?: EeMapThumbnailView,
 ): Promise<EeMapUrlEntry[]> {
   const response = await fetch(`${API_BASE_URL}/api/ee/map-urls`, {
     method: "POST",
     signal,
     credentials: "include",
     headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ maps: items }),
+    body: JSON.stringify(
+      thumbnail ? { maps: items, thumbnail } : { maps: items },
+    ),
   });
 
   const data = (await parseEarthEngineResponse(response)) as

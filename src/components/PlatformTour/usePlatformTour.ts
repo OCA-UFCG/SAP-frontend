@@ -1,0 +1,324 @@
+"use client";
+
+import { useCallback, useEffect, useRef } from "react";
+import { useTranslations } from "next-intl";
+import {
+  driver,
+  type Config,
+  type Driver,
+  type DriveStep,
+  type PopoverDOM,
+} from "driver.js";
+import "driver.js/dist/driver.css";
+import "./platformTour.css";
+
+/**
+ * Guardado no navegador, não na conta: é o bastante para o tutorial não voltar
+ * a cada visita, sem criar uma preferência por usuário no servidor. Trocar o
+ * sufixo faz todo mundo ver de novo — útil se o tutorial mudar bastante.
+ */
+export const PLATFORM_TOUR_SEEN_KEY = "sedes.platformTour.v1.seen";
+
+/** Espera a página assentar antes de escurecer a tela de quem acabou de chegar. */
+const AUTO_START_DELAY_MS = 800;
+/** O painel lateral e os acordeões da listagem animam em 300 ms. */
+const LAYOUT_TRANSITION_MS = 350;
+/** Os controles do mapa montam depois do mapa; o passo espera por eles. */
+const WAIT_FOR_ELEMENT_MS = 3000;
+
+export function hasSeenPlatformTour() {
+  try {
+    return window.localStorage.getItem(PLATFORM_TOUR_SEEN_KEY) === "1";
+  } catch {
+    // Sem acesso ao armazenamento não há como lembrar que já viu: melhor não
+    // abrir sozinho do que abrir em toda visita. O botão continua funcionando.
+    return true;
+  }
+}
+
+function markPlatformTourSeen() {
+  try {
+    window.localStorage.setItem(PLATFORM_TOUR_SEEN_KEY, "1");
+  } catch {
+    // Ver de novo na próxima visita é o pior que acontece.
+  }
+}
+
+/**
+ * As categorias da listagem começam fechadas, e o cartão que o tutorial aponta
+ * fica escondido dentro delas. Abre, de fora para dentro, cada acordeão fechado
+ * (o conteúdo fechado é `inert`) que está no caminho do primeiro cartão.
+ *
+ * @returns se algum acordeão precisou abrir, para quem chama esperar a animação.
+ */
+export function revealFirstLayerCard() {
+  const card = document.querySelector('[data-tour="layer-card"]');
+  const closedTogglers: HTMLElement[] = [];
+  let region = card?.closest<HTMLElement>("[inert]");
+
+  while (region) {
+    const regionId = region.id;
+    const toggler = Array.from(
+      document.querySelectorAll<HTMLElement>("[aria-controls]"),
+    ).find((element) => element.getAttribute("aria-controls") === regionId);
+    if (toggler) closedTogglers.unshift(toggler);
+    region = region.parentElement?.closest<HTMLElement>("[inert]");
+  }
+
+  closedTogglers.forEach((toggler) => toggler.click());
+  return closedTogglers.length > 0;
+}
+
+type Translate = ReturnType<typeof useTranslations<"PlatformTour">>;
+type TranslateRail = ReturnType<typeof useTranslations<"PlatformSideRail">>;
+type HookOptions = Parameters<NonNullable<Config["onPopoverRender"]>>[1];
+
+/**
+ * Troca o "3/7" do rodapé por uma fileira de pontos, com o passo atual
+ * alongado. O texto continua lá, escondido da vista, para leitores de tela.
+ */
+function renderProgressDots(dom: PopoverDOM, { config, index }: HookOptions) {
+  const total = config.steps?.length ?? 0;
+  if (index === undefined || total === 0) return;
+
+  const label = document.createElement("span");
+  label.className = "sedes-tour-sr-only";
+  label.textContent = dom.progress.textContent;
+
+  const dots = document.createElement("span");
+  dots.className = "sedes-tour-dots";
+  dots.setAttribute("aria-hidden", "true");
+  for (let step = 0; step < total; step++) {
+    const dot = document.createElement("span");
+    dot.className = "sedes-tour-dot";
+    if (step < index) dot.classList.add("sedes-tour-dot-done");
+    if (step === index) dot.classList.add("sedes-tour-dot-current");
+    dots.append(dot);
+  }
+
+  dom.progress.replaceChildren(label, dots);
+}
+
+/** As três áreas da trilha lateral, com os mesmos ícones que ela usa. */
+const PLATFORM_SECTIONS = [
+  { id: "monitoring", icon: "eye" },
+  { id: "communication", icon: "report" },
+  { id: "analysis", icon: "chart" },
+] as const;
+
+/**
+ * Lista as áreas uma por linha, com ícone, nome e explicação, no lugar do
+ * parágrafo único do passo — que emendava as três explicações em sequência.
+ */
+function renderSectionList(
+  dom: PopoverDOM,
+  sections: { icon: string; name: string; description: string }[],
+) {
+  const list = document.createElement("ul");
+  list.className = "sedes-tour-sections";
+
+  for (const section of sections) {
+    const item = document.createElement("li");
+
+    const icon = document.createElementNS("http://www.w3.org/2000/svg", "svg");
+    icon.setAttribute("class", "sedes-tour-section-icon");
+    icon.setAttribute("aria-hidden", "true");
+    const use = document.createElementNS("http://www.w3.org/2000/svg", "use");
+    use.setAttribute("href", `/sprite.svg#${section.icon}`);
+    icon.append(use);
+
+    const name = document.createElement("strong");
+    name.textContent = section.name;
+    const description = document.createElement("span");
+    description.textContent = section.description;
+    const text = document.createElement("span");
+    text.append(name, description);
+
+    item.append(icon, text);
+    list.append(item);
+  }
+
+  dom.description.replaceChildren(list);
+  dom.description.style.display = "block";
+}
+
+function buildSteps(t: Translate, tRail: TranslateRail): DriveStep[] {
+  const popover = (key: string) => ({
+    title: t(`steps.${key}.title`),
+    description: t(`steps.${key}.description`),
+  });
+
+  return [
+    {
+      popover: {
+        ...popover("welcome"),
+        nextBtnText: t("start"),
+        showButtons: ["next", "close"],
+        onPopoverRender: (dom, options) => {
+          // O onPopoverRender do passo substitui o da configuração geral.
+          renderProgressDots(dom, options);
+
+          const logo = document.createElement("img");
+          logo.src = "/green-sedes-logo.svg";
+          logo.alt = "SEDES";
+          logo.width = 89;
+          logo.height = 32;
+          logo.className = "sedes-tour-logo";
+          dom.title.before(logo);
+
+          const skipButton = document.createElement("button");
+          skipButton.type = "button";
+          skipButton.className = "driver-popover-footer-btn sedes-tour-skip-btn";
+          skipButton.textContent = t("skip");
+          skipButton.addEventListener("click", () => options.driver.destroy());
+          dom.footerButtons.prepend(skipButton);
+        },
+      },
+    },
+    {
+      element: '[data-tour="platform-sections"]',
+      popover: {
+        title: t("steps.sections.title"),
+        side: "right",
+        align: "start",
+        onPopoverRender: (dom, options) => {
+          renderProgressDots(dom, options);
+          renderSectionList(
+            dom,
+            PLATFORM_SECTIONS.map(({ id, icon }) => ({
+              icon,
+              name: tRail(id),
+              description: t(`steps.sections.items.${id}`),
+            })),
+          );
+        },
+      },
+    },
+    {
+      element: '[data-tour="spatial-scope"]',
+      popover: {
+        ...popover("spatialScope"),
+        side: "right",
+        align: "start",
+        onNextClick: (_element, _step, { driver: tour }) => {
+          const opened = revealFirstLayerCard();
+          window.setTimeout(
+            () => tour.moveNext(),
+            opened ? LAYOUT_TRANSITION_MS : 0,
+          );
+        },
+      },
+    },
+    {
+      element: '[data-tour="layer-card"]',
+      popover: { ...popover("layerCard"), side: "right", align: "start" },
+    },
+    {
+      element: '[data-tour="map-settings"]',
+      popover: { ...popover("mapSettings"), side: "left", align: "start" },
+    },
+    {
+      element: '[data-tour="reference-overlays"]',
+      popover: { ...popover("territories"), side: "left", align: "end" },
+    },
+    {
+      element: '[data-tour="platform-tour-replay"]',
+      popover: { ...popover("replay"), side: "right", align: "end" },
+    },
+  ];
+}
+
+interface UsePlatformTourOptions {
+  /** Abre sozinho na primeira visita. */
+  autoStart: boolean;
+  /**
+   * Leva a tela para a listagem de Monitoramento com o painel aberto, de onde o
+   * tutorial parte quando a pessoa pede para rever.
+   */
+  showMonitoringList: () => void;
+}
+
+/**
+ * O passo a passo da plataforma: abre sozinho na primeira visita à listagem de
+ * Monitoramento e pode ser revisto pelo botão "Tutorial" da trilha lateral.
+ *
+ * @example
+ * const replayTour = usePlatformTour({ autoStart, showMonitoringList });
+ * <PlatformSideRail onReplayTour={replayTour} />
+ */
+export function usePlatformTour({
+  autoStart,
+  showMonitoringList,
+}: UsePlatformTourOptions) {
+  const t = useTranslations("PlatformTour");
+  const tRail = useTranslations("PlatformSideRail");
+  const tourRef = useRef<Driver | null>(null);
+  const timerRef = useRef<number | undefined>(undefined);
+
+  const startTour = useCallback(
+    (delayMs: number) => {
+      window.clearTimeout(timerRef.current);
+      tourRef.current?.destroy();
+
+      timerRef.current = window.setTimeout(() => {
+        // Marca ao abrir, não ao concluir: quem recarrega no meio do tutorial
+        // não é surpreendido por ele de novo, e o botão continua lá.
+        markPlatformTourSeen();
+
+        const tour = driver({
+          steps: buildSteps(t, tRail),
+          showProgress: true,
+          progressText: "{{current}}/{{total}}",
+          nextBtnText: t("next"),
+          prevBtnText: t("previous"),
+          doneBtnText: t("done"),
+          closeBtnLabel: t("close"),
+          popoverClass: "sedes-tour",
+          onPopoverRender: renderProgressDots,
+          // Um clique sem querer fora do balão não deve encerrar o tutorial;
+          // para sair há o "×", o Esc e o "Pular".
+          overlayClickBehavior: "none",
+          // Ligar uma camada no meio do tutorial dispararia o carregamento do
+          // Earth Engine por trás do balão.
+          disableActiveInteraction: true,
+          waitForElement: WAIT_FOR_ELEMENT_MS,
+          // Escurece com o verde-oliva mais fundo da marca, não com preto.
+          overlayColor: "#21240F",
+          overlayOpacity: 0.6,
+          // O destaque ganha folga em volta do elemento, e o balão fica a 16 px
+          // dele: a seta cabe no vão sem encostar em nenhum dos dois.
+          stagePadding: 8,
+          stageRadius: 12,
+          popoverOffset: 16,
+        });
+        tourRef.current = tour;
+        tour.drive();
+      }, delayMs);
+    },
+    [t, tRail],
+  );
+
+  const startTourRef = useRef(startTour);
+  useEffect(() => {
+    startTourRef.current = startTour;
+  }, [startTour]);
+
+  useEffect(() => {
+    if (!autoStart || hasSeenPlatformTour()) return;
+
+    startTourRef.current(AUTO_START_DELAY_MS);
+  }, [autoStart]);
+
+  useEffect(
+    () => () => {
+      window.clearTimeout(timerRef.current);
+      tourRef.current?.destroy();
+    },
+    [],
+  );
+
+  return useCallback(() => {
+    showMonitoringList();
+    startTour(LAYOUT_TRANSITION_MS);
+  }, [showMonitoringList, startTour]);
+}

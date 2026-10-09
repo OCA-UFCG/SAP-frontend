@@ -166,6 +166,66 @@ describe("ReportMapPreview", () => {
     destroyReportMapPool();
   });
 
+  // ~15 tiles por mapa somavam ~300 pedidos ao Earth Engine por relatório, e
+  // com 20 pessoas gerando relatórios o Google recusava quase metade.
+  it("desenha a camada como uma imagem só, presa aos cantos do recorte", async () => {
+    const onCapture = vi.fn();
+    const view = {
+      frame: [-47.3, -16.2, -46.7, -15.8] as [number, number, number, number],
+      thumbnail: {
+        bbox: [-47.32, -16.21, -46.68, -15.79] as [
+          number,
+          number,
+          number,
+          number,
+        ],
+        width: 1448,
+        height: 670,
+      },
+    };
+    render(
+      <ReportMapPreview
+        territory={ABADIA_DE_GOIAS}
+        layerId="anaseca"
+        period="2024-01"
+        thumbnail={{ url: "https://ee.example/thumb:getPixels", view }}
+        onCapture={onCapture}
+      />,
+    );
+
+    await waitFor(() => expect(mapInstances).toHaveLength(1));
+    emit(0, "load");
+    await waitFor(() =>
+      expect(mapInstances[0].addSource).toHaveBeenCalledWith("gee-tiles", {
+        type: "image",
+        url: "https://ee.example/thumb:getPixels",
+        coordinates: [
+          [-47.32, -15.79],
+          [-46.68, -15.79],
+          [-46.68, -16.21],
+          [-47.32, -16.21],
+        ],
+      }),
+    );
+    // A câmera vai para o recorte que a imagem cobre, por último.
+    await waitFor(() =>
+      expect(mapInstances[0].fitBounds).toHaveBeenLastCalledWith(
+        [
+          [-47.3, -16.2],
+          [-46.7, -15.8],
+        ],
+        { padding: 0, animate: false },
+      ),
+    );
+
+    emitRasterReady(0);
+    await waitFor(() =>
+      expect(onCapture).toHaveBeenCalledWith(
+        expect.stringMatching(/^data:image\/png;base64,/),
+      ),
+    );
+  });
+
   // Regressão: um índice de planilha não tem asset no Earth Engine, e o quadro
   // só sabia desenhar tiles — a prévia do relatório saía com o mapa vazio.
   it("pinta a coropleta de um índice de planilha, sem URL de tiles", async () => {

@@ -17,22 +17,34 @@ afterEach(() => {
   cleanup();
 });
 
+const criteriasState = vi.hoisted(() => ({
+  loaded: true,
+  error: null as string | null,
+}));
+
+afterEach(() => {
+  criteriasState.loaded = true;
+  criteriasState.error = null;
+});
+
 vi.mock("@/components/Amfe/useCriterias", () => ({
   default: () => ({
     // Deliberately return a new array on every render to guard against the
     // regression that caused the default criteria effect to loop.
-    criterias: [
-      {
-        name: "default-criterion",
-        label: "Default criterion",
-        is_benefit: true,
-        unit: null,
-        description: null,
-        default: true,
-      },
-    ],
-    loading: false,
-    error: null,
+    criterias: criteriasState.loaded
+      ? [
+          {
+            name: "default-criterion",
+            label: "Default criterion",
+            is_benefit: true,
+            unit: null,
+            description: null,
+            default: true,
+          },
+        ]
+      : [],
+    loading: !criteriasState.loaded && !criteriasState.error,
+    error: criteriasState.error,
   }),
 }));
 
@@ -61,6 +73,9 @@ vi.mock("@/components/Amfe/AnalyzeForm/SegmentedSlider", () => ({
         }
       >
         Apply user criterion
+      </button>
+      <button type="button" onClick={() => setValue("criteria", [])}>
+        Clear criteria
       </button>
     </div>
   ),
@@ -180,4 +195,46 @@ test("keeps the advanced settings open while the reader fixes the value", async 
     expect(screen.queryByText("indifferenceRequired")).toBeNull();
   });
   expect(toggle).toHaveAttribute("aria-expanded", "true");
+});
+
+test("keeps Analyze disabled until the criteria catalog arrives", () => {
+  criteriasState.loaded = false;
+  const setFormPayload = vi.fn();
+  render(<AnalyzeForm setFormPayload={setFormPayload} />);
+
+  const submit = screen.getByRole("button", { name: "submitButton" });
+  expect(submit).toBeDisabled();
+
+  fireEvent.click(submit);
+  expect(setFormPayload).not.toHaveBeenCalled();
+});
+
+test("refuses to analyze without any criterion", async () => {
+  const setFormPayload = vi.fn();
+  render(<AnalyzeForm setFormPayload={setFormPayload} />);
+
+  await waitFor(() => {
+    expect(screen.getByTestId("selected-criteria").textContent).toBe(
+      "default-criterion",
+    );
+  });
+
+  fireEvent.click(screen.getByRole("button", { name: "Clear criteria" }));
+  fireEvent.click(screen.getByRole("button", { name: "submitButton" }));
+
+  await waitFor(() => {
+    expect(screen.getByText("criteriaRequired")).toBeTruthy();
+  });
+  expect(setFormPayload).not.toHaveBeenCalled();
+});
+
+// Sem o catálogo o botão fica desativado; sem este aviso, não havia como saber
+// por quê.
+test("says why Analyze stays disabled when the criteria fail to load", () => {
+  criteriasState.loaded = false;
+  criteriasState.error = "fetch failed";
+  render(<AnalyzeForm setFormPayload={vi.fn()} />);
+
+  expect(screen.getByText("criteriaLoadError")).toBeTruthy();
+  expect(screen.getByRole("button", { name: "submitButton" })).toBeDisabled();
 });

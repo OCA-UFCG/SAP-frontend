@@ -40,6 +40,7 @@ import {
   releaseReportMap,
   type PooledReportMap,
 } from "@/components/MunicipalReport/reportMapPool";
+import type { ReportMapThumbnail } from "@/components/MunicipalReport/reportMapView";
 
 /**
  * Quanto uma tentativa de captura pode levar, da obtenção do mapa até o PNG.
@@ -99,13 +100,12 @@ function isMissingPeriod(reason?: EeMapUrlFailure) {
   return reason === "year_not_found" || reason === "layer_not_found";
 }
 
-function addGeeRasterLayer(map: maplibregl.Map, tileUrl: string) {
-  map.addSource(GEE_SOURCE_ID, {
-    type: "raster",
-    tiles: [tileUrl],
-    tileSize: 256,
-    bounds: BRAZIL_RASTER_BOUNDS,
-  });
+function addGeeRasterLayer(
+  map: maplibregl.Map,
+  source:
+    maplibregl.RasterSourceSpecification | maplibregl.ImageSourceSpecification,
+) {
+  map.addSource(GEE_SOURCE_ID, source);
 
   map.addLayer(
     {
@@ -116,6 +116,36 @@ function addGeeRasterLayer(map: maplibregl.Map, tileUrl: string) {
     },
     MUNICIPALITY_BORDER_LAYER_ID,
   );
+}
+
+function tileSource(tileUrl: string): maplibregl.RasterSourceSpecification {
+  return {
+    type: "raster",
+    tiles: [tileUrl],
+    tileSize: 256,
+    bounds: BRAZIL_RASTER_BOUNDS,
+  };
+}
+
+/**
+ * A camada inteira numa imagem só, presa aos quatro cantos do recorte. Troca os
+ * ~15 tiles de cada mapa por um pedido ao Earth Engine.
+ */
+function thumbnailSource({
+  url,
+  view,
+}: ReportMapThumbnail): maplibregl.ImageSourceSpecification {
+  const [west, south, east, north] = view.thumbnail.bbox;
+  return {
+    type: "image",
+    url,
+    coordinates: [
+      [west, north],
+      [east, north],
+      [east, south],
+      [west, south],
+    ],
+  };
 }
 
 /** As faixas de um índice de planilha, pintadas município a município. */
@@ -361,6 +391,8 @@ interface ReportMapPreviewProps {
   queuedAt?: number | null;
   /** URL de tiles já resolvida pelo lote do relatório. */
   tileUrl?: string;
+  /** A camada como uma imagem só do recorte, no relatório de um município. */
+  thumbnail?: ReportMapThumbnail;
   /**
    * Por que essa camada não trouxe URL de tiles. Preenchido significa "não
    * tente desenhar o mapa", e escolhe a mensagem que o item mostra.
@@ -391,13 +423,14 @@ export function ReportMapPreview({
   imageSrc: capturedImageSrc,
   queuedAt,
   tileUrl,
+  thumbnail,
   unavailableReason,
   choropleth,
   onCapture,
   onRetry,
   onVisibilityChange,
 }: ReportMapPreviewProps) {
-  const drawable = Boolean(tileUrl || choropleth);
+  const drawable = Boolean(tileUrl || thumbnail || choropleth);
   const t = useTranslations("MunicipalReport");
   const containerRef = useRef<HTMLDivElement | null>(null);
   const frameRef = useRef<HTMLDivElement | null>(null);
@@ -530,9 +563,23 @@ export function ReportMapPreview({
         Boolean(choropleth),
       );
       if (choropleth) addChoroplethLayers(acquired.map, choropleth);
-      else if (tileUrl) addGeeRasterLayer(acquired.map, tileUrl);
+      else if (thumbnail) {
+        addGeeRasterLayer(acquired.map, thumbnailSource(thumbnail));
+      } else if (tileUrl) addGeeRasterLayer(acquired.map, tileSource(tileUrl));
       await focusTerritory(acquired.map, territory, controller.signal);
       if (controller.signal.aborted) return;
+      // A miniatura cobre só o recorte calculado para o quadro: a câmera vai
+      // exatamente para ele, em qualquer tamanho de tela.
+      if (thumbnail) {
+        const [west, south, east, north] = thumbnail.view.frame;
+        acquired.map.fitBounds(
+          [
+            [west, south],
+            [east, north],
+          ],
+          { padding: 0, animate: false },
+        );
+      }
       capture.markFocused();
       const ready = await capture.ready;
       if (controller.signal.aborted) return;
@@ -598,6 +645,7 @@ export function ReportMapPreview({
     queuedAt,
     resolvedImageSrc,
     tileUrl,
+    thumbnail,
     choropleth,
     drawable,
     unavailableReason,

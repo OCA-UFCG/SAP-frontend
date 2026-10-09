@@ -1,16 +1,15 @@
-import { AboutSection } from "@/components/AboutSection/AboutSection";
 import { MainBanner } from "@/components/MainBanner/MainBanner";
-import { PartnersSection } from "@/components/PartnersSection/PartnersSection";
-import TabsSection from "@/components/TabSection/TabSection";
-import { ActionPlanSection } from "@/components/ActionPlanSection/ActionPlanSection";
-import { WorkingGroupSection } from "@/components/WorkingGroupSection/WorkingGroupSection";
+import { BigNumbersSection } from "@/components/BigNumbersSection/BigNumbersSection";
+import { NewsSection } from "@/components/NewsSection/NewsSection";
 import { PlatformModulesSection } from "@/components/PlatformModulesSection/PlatformModulesSection";
+import { PublicPolicySection } from "@/components/PublicPolicySection/PublicPolicySection";
+import { UseCasesSection } from "@/components/UseCasesSection/UseCasesSection";
+import { InstitutionsSection } from "@/components/InstitutionsSection/InstitutionsSection";
 import { getHomePageContent } from "@/repositories/content/siteContentRepository";
 import { getTranslations } from "next-intl/server";
 import {
-  MOCK_ACTION_PLAN_CONTENT,
+  MOCK_NEWS_CONTENT,
   MOCK_PLATFORM_MODULES_CONTENT,
-  MOCK_WORKING_GROUP_CONTENT,
 } from "./homePage.mocks";
 
 export default async function Home({
@@ -30,40 +29,20 @@ export default async function Home({
     );
   }
 
+  // Os ids das seções são os destinos do menu "Home" do topo (layout.tsx).
   return (
     <div className="flex min-h-screen flex-col">
       <main className="grow">
-        {data.mainBanner && <MainBanner data={data.mainBanner} />}
-
-        <ActionPlanSection
-          id="plano-de-acao-brasileiro"
-          content={MOCK_ACTION_PLAN_CONTENT}
-        />
-        <WorkingGroupSection
-          id="grupo-de-trabalho"
-          content={MOCK_WORKING_GROUP_CONTENT}
-          className="bg-[#F6F7F6]"
-        />
+        <MainBanner banners={data.banners} />
+        <BigNumbersSection />
+        <NewsSection id="novidades" items={MOCK_NEWS_CONTENT} />
         <PlatformModulesSection
           id="a-plataforma"
           content={MOCK_PLATFORM_MODULES_CONTENT}
         />
-
-        {data.tabs.length > 0 && (
-          <div id="usuarios" className="w-full scroll-mt-16.5">
-            <TabsSection contentData={data.tabs} />
-          </div>
-        )}
-
-        {data.aboutSection && (
-          <AboutSection id="financiamento" content={data.aboutSection} />
-        )}
-        {data.partnersHeader && (
-          <PartnersSection
-            header={data.partnersHeader}
-            partners={data.partners}
-          />
-        )}
+        <PublicPolicySection id="politica-publica" />
+        <UseCasesSection id="usuarios" />
+        <InstitutionsSection id="instituicoes" partners={data.partners} />
       </main>
     </div>
   );
