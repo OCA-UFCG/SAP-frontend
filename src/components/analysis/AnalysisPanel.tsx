@@ -298,12 +298,12 @@ function DistributionSection({
 
         <div className="mt-4 grid grid-cols-2 gap-x-4 gap-y-2">
           {items.map((item) => (
-            <div key={item.id} className="flex items-center gap-2">
+            <div key={item.id} className="flex items-start gap-2">
               <div
-                className="h-3 w-3 shrink-0 rounded-full"
+                className="mt-[2px] h-3 w-3 shrink-0 rounded-full"
                 style={{ backgroundColor: item.color }}
               />
-              <span className="truncate text-[12px] text-neutral-600">
+              <span className="min-w-0 break-words text-[12px] leading-4 text-neutral-600">
                 {item.label}:{" "}
                 <span className="font-bold">{formatValue(item.value)}</span>
               </span>
@@ -636,7 +636,7 @@ export function AnalysisPanel({
 
               {model.highlight ? (
                 <div
-                  className="flex h-[40px] w-full items-center px-4 rounded-lg"
+                  className="flex min-h-[40px] w-full items-center rounded-lg px-4 py-3"
                   style={{
                     backgroundColor:
                       model.highlight.tone?.bg ??
@@ -648,7 +648,7 @@ export function AnalysisPanel({
                     }`,
                   }}
                 >
-                  <span className="font-semibold text-[14px] leading-6 text-[#292829]">
+                  <span className="font-semibold text-[14px] leading-5 text-[#292829]">
                     {model.highlight.text}
                   </span>
                 </div>
