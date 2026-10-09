@@ -1,6 +1,6 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { cleanup, fireEvent, render, within } from "@testing-library/react";
-import { ReportVariableIndex } from "@/components/MunicipalReport/ReportVariableIndex";
+import { ReportSummary } from "@/components/MunicipalReport/ReportSummary";
 import type { MunicipalReportAnalysis } from "@/contracts/municipalReport";
 
 function analysis(
@@ -25,18 +25,22 @@ function analysis(
   };
 }
 
-function renderIndex(analyses: MunicipalReportAnalysis[]) {
+function renderSummary(
+  analyses: MunicipalReportAnalysis[],
+  pages?: ReadonlyMap<string, number> | null,
+) {
   return render(
-    <ReportVariableIndex
+    <ReportSummary
       analyses={analyses}
       translateTitle={(item) => item.title}
+      pages={pages}
     />,
   );
 }
 
-describe("ReportVariableIndex", () => {
-  it("monta uma coluna por categoria presente, e nenhuma vazia", () => {
-    const { container } = renderIndex([
+describe("ReportSummary", () => {
+  it("monta um bloco por categoria presente, e nenhum vazio", () => {
+    const { container } = renderSummary([
       analysis("seca", "Monitor de seca | ANA", "Dados Climáticos"),
       analysis("pobreza", "Percentual de pobreza", "Dados Socioeconômicos"),
     ]);
@@ -54,50 +58,85 @@ describe("ReportVariableIndex", () => {
   });
 
   it("aponta cada item para a âncora da seção", () => {
-    const { container } = renderIndex([
+    const { container } = renderSummary([
+      analysis("seca", "Monitor de seca | ANA", "Dados Climáticos"),
+    ]);
+
+    expect(within(container).getByRole("link").getAttribute("href")).toBe(
+      "#report-analysis-seca",
+    );
+  });
+
+  it("mostra a página de cada seção quando a medição chega", () => {
+    const analyses = [
+      analysis("seca", "Monitor de seca | ANA", "Dados Climáticos"),
+      analysis("aridez", "Índice de Aridez", "Dados Climáticos"),
+    ];
+    const { container, rerender } = renderSummary(analyses, null);
+    const links = within(container).getAllByRole("link");
+
+    expect(links.map((link) => link.lastElementChild?.textContent)).toEqual([
+      "",
+      "",
+    ]);
+
+    rerender(
+      <ReportSummary
+        analyses={analyses}
+        translateTitle={(item) => item.title}
+        pages={
+          new Map([
+            ["report-analysis-seca", 3],
+            ["report-analysis-aridez", 5],
+          ])
+        }
+      />,
+    );
+
+    expect(links.map((link) => link.lastElementChild?.textContent)).toEqual([
+      "3",
+      "5",
+    ]);
+  });
+
+  it("deixa os climáticos à esquerda e empilha as outras categorias à direita", () => {
+    const { container } = renderSummary([
+      analysis("seca", "Monitor de seca | ANA", "Dados Climáticos"),
+      analysis("cdi", "Índice Composto de Seca", "Dados Climáticos"),
+      analysis("solo", "Carbono Orgânico do Solo", "Dados Ambientais"),
+      analysis("pib", "Produto Interno Bruto", "Dados Socioeconômicos"),
+    ]);
+    const columns = [
+      ...(container.querySelector(".report-summary > div")?.children ?? []),
+    ];
+
+    expect(
+      columns.map((column) =>
+        [...column.querySelectorAll("h3")].map(
+          (heading) => heading.textContent,
+        ),
+      ),
+    ).toEqual([
+      ["Dados Climáticos"],
+      ["Dados Ambientais", "Dados Socioeconômicos"],
+    ]);
+  });
+
+  it("fica sempre aberto, com o título Sumário", () => {
+    const { container } = renderSummary([
       analysis("seca", "Monitor de seca | ANA", "Dados Climáticos"),
     ]);
 
     expect(
-      within(container).getByRole("link").getAttribute("href"),
-    ).toBe("#report-analysis-seca");
-  });
-
-  it("mostra o período efetivo na pílula, aceitando mensal e anual lado a lado", () => {
-    const { container } = renderIndex([
-      analysis("seca", "Monitor de seca | ANA", "Dados Climáticos"),
-      analysis("aridez", "Índice de Aridez", "Dados Climáticos", "2020"),
-    ]);
-    const scope = within(container);
-
-    expect(scope.getByText("05/2026")).toBeTruthy();
-    expect(scope.getByText("2020")).toBeTruthy();
-  });
-
-  it("começa recolhido e abre pelo título", () => {
-    const { container } = renderIndex([
-      analysis("seca", "Monitor de seca | ANA", "Dados Climáticos"),
-    ]);
-    const toggle = within(container).getByRole("button", {
-      name: "Índice das variáveis selecionadas",
-    });
-    const content = container.querySelector(
-      `#${toggle.getAttribute("aria-controls")}`,
-    );
-
-    expect(toggle.getAttribute("aria-expanded")).toBe("false");
-    expect(content?.className).toContain("hidden");
-
-    fireEvent.click(toggle);
-
-    expect(toggle.getAttribute("aria-expanded")).toBe("true");
-    expect(content?.className).not.toMatch(/(^|\s)hidden(\s|$)/);
+      within(container).getByRole("heading", { name: "Sumário" }),
+    ).toBeTruthy();
+    expect(within(container).queryByRole("button")).toBeNull();
   });
 
   it("não renderiza nada sem análises", () => {
-    const { container } = renderIndex([]);
+    const { container } = renderSummary([]);
 
-    expect(container.querySelector(".report-variable-index")).toBeNull();
+    expect(container.querySelector(".report-summary")).toBeNull();
   });
 });
 
@@ -126,8 +165,14 @@ function renderEmbeddedReport({
 }: { scrollable?: boolean; stickyHeight?: number } = {}) {
   const viewport = document.createElement("div");
   viewport.style.overflowY = scrollable ? "auto" : "visible";
-  Object.defineProperty(viewport, "scrollHeight", { value: 2000, configurable: true });
-  Object.defineProperty(viewport, "clientHeight", { value: 600, configurable: true });
+  Object.defineProperty(viewport, "scrollHeight", {
+    value: 2000,
+    configurable: true,
+  });
+  Object.defineProperty(viewport, "clientHeight", {
+    value: 600,
+    configurable: true,
+  });
   viewport.scrollTop = 0;
   stubRect(viewport, 100, 600);
   document.body.appendChild(viewport);
@@ -148,7 +193,7 @@ function renderEmbeddedReport({
   viewport.appendChild(section);
 
   const view = render(
-    <ReportVariableIndex
+    <ReportSummary
       analyses={[analysis("seca", "Monitor de seca | ANA", "Dados Climáticos")]}
       translateTitle={(item) => item.title}
     />,
@@ -176,7 +221,7 @@ function runFrame(timestamp: number) {
   frame?.(timestamp);
 }
 
-describe("ReportVariableIndex — rolagem até a seção", () => {
+describe("ReportSummary — rolagem até a seção", () => {
   afterEach(() => {
     cleanup();
     vi.unstubAllGlobals();
