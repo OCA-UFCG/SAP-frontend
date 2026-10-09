@@ -67,7 +67,7 @@
       "automatedNotice": "Este informe fue generado automáticamente por el Sistema Estratégico sobre Desertificación (SEDES). Los valores presentados son producidos a partir de los datos disponibles en la plataforma.",
       "footer": "SEDES — Informe Analítico | Generado el: {generatedAt} | MMA/DCDE · OCA · UFCG · INSA",
       "generatedLabel": "Informe automático generado: {date}",
-      "variableIndexTitle": "Índice de las variables seleccionadas",
+      "summaryTitle": "Índice",
       "backToTop": "Volver arriba",
       "goToSection": "Ir a la sección de {title}",
       "viewMonitor": "Ver monitor",
