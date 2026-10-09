@@ -87,6 +87,47 @@
   color: #4b4a4b;
 }
 
+/* Passo das três áreas: uma por linha, com o ícone da trilha lateral. */
+.driver-popover.sedes-tour .sedes-tour-sections {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  margin: 14px 0 0;
+  padding: 0;
+  list-style: none;
+}
+
+.driver-popover.sedes-tour .sedes-tour-sections li {
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+}
+
+.driver-popover.sedes-tour .sedes-tour-section-icon {
+  flex-shrink: 0;
+  width: 36px;
+  height: 36px;
+  padding: 8px;
+  border-radius: 10px;
+  background-color: var(--sedes-tour-cream);
+  color: var(--sedes-tour-olive-dark);
+}
+
+.driver-popover.sedes-tour .sedes-tour-sections strong {
+  display: block;
+  font-family: var(--font-inter), sans-serif;
+  font-size: 14px;
+  font-weight: 600;
+  line-height: 20px;
+  color: var(--sedes-tour-olive-deep);
+}
+
+.driver-popover.sedes-tour .sedes-tour-sections strong + span {
+  display: block;
+  font-size: 13px;
+  line-height: 18px;
+}
+
 .driver-popover.sedes-tour .driver-popover-close-btn {
   top: 14px;
   right: 14px;

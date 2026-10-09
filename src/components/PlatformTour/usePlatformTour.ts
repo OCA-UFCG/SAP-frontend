@@ -70,6 +70,7 @@ export function revealFirstLayerCard() {
 }
 
 type Translate = ReturnType<typeof useTranslations<"PlatformTour">>;
+type TranslateRail = ReturnType<typeof useTranslations<"PlatformSideRail">>;
 type HookOptions = Parameters<NonNullable<Config["onPopoverRender"]>>[1];
 
 /**
@@ -98,7 +99,50 @@ function renderProgressDots(dom: PopoverDOM, { config, index }: HookOptions) {
   dom.progress.replaceChildren(label, dots);
 }
 
-function buildSteps(t: Translate): DriveStep[] {
+/** As três áreas da trilha lateral, com os mesmos ícones que ela usa. */
+const PLATFORM_SECTIONS = [
+  { id: "monitoring", icon: "eye" },
+  { id: "communication", icon: "report" },
+  { id: "analysis", icon: "chart" },
+] as const;
+
+/**
+ * Lista as áreas uma por linha, com ícone, nome e explicação, no lugar do
+ * parágrafo único do passo — que emendava as três explicações em sequência.
+ */
+function renderSectionList(
+  dom: PopoverDOM,
+  sections: { icon: string; name: string; description: string }[],
+) {
+  const list = document.createElement("ul");
+  list.className = "sedes-tour-sections";
+
+  for (const section of sections) {
+    const item = document.createElement("li");
+
+    const icon = document.createElementNS("http://www.w3.org/2000/svg", "svg");
+    icon.setAttribute("class", "sedes-tour-section-icon");
+    icon.setAttribute("aria-hidden", "true");
+    const use = document.createElementNS("http://www.w3.org/2000/svg", "use");
+    use.setAttribute("href", `/sprite.svg#${section.icon}`);
+    icon.append(use);
+
+    const name = document.createElement("strong");
+    name.textContent = section.name;
+    const description = document.createElement("span");
+    description.textContent = section.description;
+    const text = document.createElement("span");
+    text.append(name, description);
+
+    item.append(icon, text);
+    list.append(item);
+  }
+
+  dom.description.replaceChildren(list);
+  dom.description.style.display = "block";
+}
+
+function buildSteps(t: Translate, tRail: TranslateRail): DriveStep[] {
   const popover = (key: string) => ({
     title: t(`steps.${key}.title`),
     description: t(`steps.${key}.description`),
@@ -133,7 +177,22 @@ function buildSteps(t: Translate): DriveStep[] {
     },
     {
       element: '[data-tour="platform-sections"]',
-      popover: { ...popover("sections"), side: "right", align: "start" },
+      popover: {
+        title: t("steps.sections.title"),
+        side: "right",
+        align: "start",
+        onPopoverRender: (dom, options) => {
+          renderProgressDots(dom, options);
+          renderSectionList(
+            dom,
+            PLATFORM_SECTIONS.map(({ id, icon }) => ({
+              icon,
+              name: tRail(id),
+              description: t(`steps.sections.items.${id}`),
+            })),
+          );
+        },
+      },
     },
     {
       element: '[data-tour="spatial-scope"]',
@@ -192,6 +251,7 @@ export function usePlatformTour({
   showMonitoringList,
 }: UsePlatformTourOptions) {
   const t = useTranslations("PlatformTour");
+  const tRail = useTranslations("PlatformSideRail");
   const tourRef = useRef<Driver | null>(null);
   const timerRef = useRef<number | undefined>(undefined);
 
@@ -206,7 +266,7 @@ export function usePlatformTour({
         markPlatformTourSeen();
 
         const tour = driver({
-          steps: buildSteps(t),
+          steps: buildSteps(t, tRail),
           showProgress: true,
           progressText: "{{current}}/{{total}}",
           nextBtnText: t("next"),
@@ -235,7 +295,7 @@ export function usePlatformTour({
         tour.drive();
       }, delayMs);
     },
-    [t],
+    [t, tRail],
   );
 
   const startTourRef = useRef(startTour);

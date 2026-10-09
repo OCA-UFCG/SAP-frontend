@@ -15,7 +15,11 @@
       },
       "sections": {
         "title": "Tres áreas de trabajo",
-        "description": "Monitoreo: ve los índices en el mapa. Comunicación: genera el informe de un municipio. Análisis: combina varios índices en un análisis multicriterio."
+        "items": {
+          "monitoring": "Ve los índices en el mapa.",
+          "communication": "Genera el informe de un municipio.",
+          "analysis": "Combina varios índices en un análisis multicriterio."
+        }
       },
       "spatialScope": {
         "title": "Elige dónde mirar",
