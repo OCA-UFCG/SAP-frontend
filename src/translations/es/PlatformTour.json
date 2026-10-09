@@ -15,15 +15,15 @@
       },
       "sections": {
         "title": "Tres áreas de trabajo",
-        "description": "Monitoreo: ve los índices en el mapa. Comunicación: genera el informe de un municipio. Análisis: arma un análisis multicriterio."
+        "description": "Monitoreo: ve los índices en el mapa. Comunicación: genera el informe de un municipio. Análisis: combina varios índices en un análisis multicriterio."
       },
       "spatialScope": {
         "title": "Elige dónde mirar",
-        "description": "Filtra por Brasil, región, estado, bioma, región semiárida o ASD y entorno."
+        "description": "Elige el área del mapa: el país entero, una región, un estado, un bioma, la región semiárida o ASD y entorno. El índice activo aparece solo dentro de ella."
       },
       "layerCard": {
         "title": "Cada tarjeta es un índice",
-        "description": "Usa el interruptor para mostrarlo en el mapa (la leyenda aparece en la esquina inferior derecha). El botón “i” explica qué mide el índice, y Detalles abre gráficos, ranking y la búsqueda por municipio."
+        "description": "Usa el botón de encendido a la izquierda para mostrar el índice en el mapa; la leyenda aparece en la esquina inferior derecha. La “i” explica qué mide el índice, y Detalles abre gráficos, ranking y la búsqueda por estado o municipio."
       },
       "mapSettings": {
         "title": "Ajustes del mapa",
@@ -31,11 +31,11 @@
       },
       "territories": {
         "title": "Territorios",
-        "description": "Superpone Tierras Indígenas, Territorios Quilombolas, Asentamientos y Unidades de Conservación, o busca un territorio por su nombre."
+        "description": "Muestra en el mapa Tierras Indígenas, Territorios Quilombolas, Asentamientos y Unidades de Conservación, o busca un territorio por su nombre."
       },
       "replay": {
         "title": "Todo listo",
-        "description": "Cuando quieras volver a ver este recorrido, haz clic aquí."
+        "description": "Para volver a ver este recorrido, solo haz clic en Tutorial."
       }
     }
   }

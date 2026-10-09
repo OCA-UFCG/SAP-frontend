@@ -15,15 +15,15 @@
       },
       "sections": {
         "title": "Three work areas",
-        "description": "Monitoring: see the indices on the map. Communication: generate a municipality report. Analysis: build a multicriteria analysis."
+        "description": "Monitoring: see the indices on the map. Communication: generate a municipality report. Analysis: combine several indices in a multicriteria analysis."
       },
       "spatialScope": {
         "title": "Choose where to look",
-        "description": "Filter by Brazil, region, state, biome, the Semi-arid region or ASD and surroundings."
+        "description": "Choose the map area: the whole country, a region, a state, a biome, the Semi-arid region or ASD and surroundings. The active index is shown only inside it."
       },
       "layerCard": {
         "title": "Each card is an index",
-        "description": "Use the switch to show it on the map (the legend appears in the bottom right corner). The “i” button explains what the index measures, and Details opens charts, the ranking and the municipality search."
+        "description": "Use the on/off toggle on the left to show the index on the map; the legend appears in the bottom right corner. The “i” explains what the index measures, and Details opens charts, the ranking and the search by state or municipality."
       },
       "mapSettings": {
         "title": "Map settings",
@@ -31,11 +31,11 @@
       },
       "territories": {
         "title": "Territories",
-        "description": "Overlay Indigenous Lands, Quilombola Territories, Settlements and Conservation Units, or search for a territory by name."
+        "description": "Show Indigenous Lands, Quilombola Territories, Settlements and Conservation Units on the map, or search for a territory by name."
       },
       "replay": {
         "title": "All set",
-        "description": "Whenever you want to see this walkthrough again, click here."
+        "description": "To see this walkthrough again, just click Tour."
       }
     }
   }

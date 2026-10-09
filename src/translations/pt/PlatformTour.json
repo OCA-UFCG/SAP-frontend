@@ -15,15 +15,15 @@
       },
       "sections": {
         "title": "Três áreas de trabalho",
-        "description": "Monitoramento: veja os índices no mapa. Comunicação: gere o relatório de um município. Análise: monte uma análise multicritério."
+        "description": "Monitoramento: veja os índices no mapa. Comunicação: gere o relatório de um município. Análise: combine vários índices numa análise multicritério."
       },
       "spatialScope": {
         "title": "Escolha onde olhar",
-        "description": "Filtre por Brasil, região, estado, bioma, Semiárido ou ASD e Entorno."
+        "description": "Escolha a área do mapa: o país todo, uma região, um estado, um bioma, o Semiárido ou ASD e Entorno. O índice ligado aparece só dentro dela."
       },
       "layerCard": {
         "title": "Cada cartão é um índice",
-        "description": "Use a chave para mostrá-lo no mapa (a legenda aparece no canto inferior direito). O botão “i” explica o que o índice mede, e Detalhamento abre gráficos, ranking e a busca por município."
+        "description": "Use o botão de ligar à esquerda para mostrar o índice no mapa; a legenda aparece no canto inferior direito. O “i” explica o que o índice mede, e Detalhamento abre gráficos, ranking e a busca por estado ou município."
       },
       "mapSettings": {
         "title": "Ajustes do mapa",
@@ -31,11 +31,11 @@
       },
       "territories": {
         "title": "Territórios",
-        "description": "Sobreponha Terras Indígenas, Territórios Quilombolas, Assentamentos e Unidades de Conservação, ou busque um território pelo nome."
+        "description": "Mostre no mapa Terras Indígenas, Territórios Quilombolas, Assentamentos e Unidades de Conservação, ou busque um território pelo nome."
       },
       "replay": {
         "title": "Tudo pronto",
-        "description": "Quando quiser rever este passo a passo, clique aqui."
+        "description": "Para rever este passo a passo, é só clicar em Tutorial."
       }
     }
   }
