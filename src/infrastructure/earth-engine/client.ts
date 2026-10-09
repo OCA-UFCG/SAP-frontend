@@ -358,7 +358,20 @@ async function requestGeeApi<T>(
 export async function evaluateGeeObject<T>(value: {
   evaluate: (callback: (result: T, error?: unknown) => void) => void;
 }): Promise<T> {
-  const expression = ee.Serializer.encodeCloudApi(value);
+  return evaluateGeeExpression<T>(ee.Serializer.encodeCloudApi(value));
+}
+
+/**
+ * O valor de uma expressão já no formato da API do Earth Engine
+ * (`{ result, values }`, o mesmo que `ee.Serializer.encodeCloudApi` produz).
+ *
+ * Existe para quem monta a expressão sem passar pelo serializador do SDK: ele
+ * percorre a árvore e calcula um MD5 por nó, e isso chegou a ocupar ~25% da
+ * thread do servidor sob carga nas leituras de estatística.
+ */
+export async function evaluateGeeExpression<T>(
+  expression: unknown,
+): Promise<T> {
   return withComputeSlot(async () => {
     const { result } = await requestGeeApi<{ result: T }>(
       `projects/${requireProjectId()}/value:compute`,

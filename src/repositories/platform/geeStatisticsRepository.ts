@@ -1,4 +1,5 @@
 import "server-only";
+import { isDeepStrictEqual } from "node:util";
 
 import ee from "@google/earthengine";
 import { getGeeStatisticsSource } from "@/config/geeStatistics";
@@ -22,6 +23,7 @@ import { isMunicipalSpreadsheetSource } from "@/contracts/municipalSpreadsheet";
 import { getMunicipalValueTableYearPatch } from "@/repositories/platform/geeMunicipalValueTableRepository";
 import { buildSpatialLocationKey } from "@/contracts/spatialLocationKey.mjs";
 import {
+  evaluateGeeExpression,
   evaluateGeeObject,
   initializeGee,
 } from "@/infrastructure/earth-engine/client";
@@ -29,6 +31,14 @@ import {
   buildStatisticsRowsCacheKey,
   getOrLoadStatisticsRows,
 } from "@/repositories/platform/geeStatisticsRowsCache";
+import {
+  buildMergedRowsExpression,
+  inlineCloudApiExpression,
+  isAssetRowsRead,
+  type AssetRowsRead,
+  type CloudApiExpression,
+  type CloudApiNode,
+} from "@/repositories/platform/geeStatisticsRowsExpression";
 import {
   readStatisticsSeries,
   setMergedCollectionsEvaluator,
@@ -517,6 +527,63 @@ function buildAssetRowsCollection(
     );
 }
 
+let rowsTemplateVerdict: boolean | null = null;
+
+/**
+ * Se o molde de `geeStatisticsRowsExpression` descreve a mesma computação que
+ * o SDK serializaria. Verificado uma vez por processo, com o filtro da primeira
+ * leitura, antes de qualquer pedido usar o molde.
+ *
+ * O molde copia o formato que o SDK produz hoje. Se uma versão nova do SDK
+ * mudar esse formato, a leitura volta ao serializador do SDK e o log avisa,
+ * em vez de mandar ao Earth Engine uma expressão que ele leia de outro jeito.
+ */
+function rowsTemplateMatchesSdk(
+  locationFilter: unknown,
+  filterNode: CloudApiNode,
+): boolean {
+  if (rowsTemplateVerdict !== null) return rowsTemplateVerdict;
+
+  const sample = [
+    { assetId: "projects/sedes/molde/a", ownerTag: 1 },
+    { assetId: "projects/sedes/molde/b", ownerTag: 2 },
+  ];
+  const properties = ["ano", "valor"];
+  try {
+    const fromSdk = ee.Serializer.encodeCloudApi(
+      ee
+        .FeatureCollection(
+          sample.map(({ assetId, ownerTag }) =>
+            buildAssetRowsCollection(
+              assetId,
+              properties,
+              locationFilter,
+              ownerTag,
+            ),
+          ),
+        )
+        .flatten(),
+    ) as CloudApiExpression;
+    const fromTemplate = buildMergedRowsExpression(
+      sample.map((read) => ({ ...read, properties, filter: filterNode })),
+    );
+    rowsTemplateVerdict = isDeepStrictEqual(
+      inlineCloudApiExpression(fromSdk),
+      inlineCloudApiExpression(fromTemplate),
+    );
+  } catch (error) {
+    console.error("[geeStatistics] falha ao conferir o molde da leitura:", error);
+    rowsTemplateVerdict = false;
+  }
+
+  if (!rowsTemplateVerdict) {
+    console.error(
+      "[geeStatistics] o molde da leitura em lote diverge do SDK do Earth Engine; usando o serializador do SDK.",
+    );
+  }
+  return rowsTemplateVerdict;
+}
+
 /**
  * Como as sub-coleções enfileiradas viram uma resposta.
  *
@@ -527,8 +594,20 @@ function buildAssetRowsCollection(
  * cerca de um segundo qualquer que seja o tamanho do que se pede.
  */
 setMergedCollectionsEvaluator(async (collections, assetIds) => {
-  const merged = ee.FeatureCollection([...collections]).flatten();
-  const result = await evaluateGeeObject<EvaluatedFeatureCollection>(merged);
+  const templateReads = collections.filter(isAssetRowsRead);
+  if (templateReads.length > 0 && templateReads.length !== collections.length) {
+    throw new Error(
+      "Leitura em lote do Earth Engine misturou o molde com coleções do SDK.",
+    );
+  }
+  const result =
+    templateReads.length > 0
+      ? await evaluateGeeExpression<EvaluatedFeatureCollection>(
+          buildMergedRowsExpression(templateReads),
+        )
+      : await evaluateGeeObject<EvaluatedFeatureCollection>(
+          ee.FeatureCollection([...collections]).flatten(),
+        );
 
   if (!Array.isArray(result?.features)) {
     throw new Error(
@@ -557,14 +636,28 @@ async function loadSeriesLocationRows(
   locationKey: string,
 ): Promise<Record<string, unknown>[]> {
   const locationFilter = buildLocationFilter(source, locationKey);
+  // O filtro é o mesmo para todos os assets da série: serializado uma vez aqui
+  // e reaproveitado no molde de cada um, em vez de o SDK montar e serializar
+  // uma sub-coleção inteira por asset (ver `geeStatisticsRowsExpression`).
+  const filterNode = inlineCloudApiExpression(
+    ee.Serializer.encodeCloudApi(locationFilter) as CloudApiExpression,
+  );
+  const useTemplate = rowsTemplateMatchesSdk(locationFilter, filterNode);
   // Sem limitador de concorrência de propósito: `evaluateGeeObject` já segura
   // no máximo 20 leituras simultâneas no processo inteiro
   // (`GEE_COMPUTE_CONCURRENCY`), então um limitador aqui só somaria espera.
   const { rows, unavailableAssetIds, firstError } = await readStatisticsSeries(
     assetIds.map((assetId) => ({
       assetId,
-      buildCollection: (ownerTag: number) =>
-        buildAssetRowsCollection(assetId, properties, locationFilter, ownerTag),
+      buildCollection: (ownerTag: number): AssetRowsRead | unknown =>
+        useTemplate
+          ? { assetId, properties, filter: filterNode, ownerTag }
+          : buildAssetRowsCollection(
+              assetId,
+              properties,
+              locationFilter,
+              ownerTag,
+            ),
     })),
   );
 
@@ -785,6 +878,15 @@ export async function preloadGeeStatisticsSchema(
 
 export function clearGeeStatisticsSchemaCacheForTests(): void {
   propertyNamesBySourceRevision.clear();
+}
+
+/**
+ * Fixa a conferência do molde da leitura em lote. Os testes usam um Earth
+ * Engine falso, sem serializador de verdade para comparar; `null` volta a
+ * conferir na próxima leitura.
+ */
+export function setRowsTemplateVerdictForTests(verdict: boolean | null): void {
+  rowsTemplateVerdict = verdict;
 }
 
 export function clearGeeStatisticsSchemaCache(sourceRevision?: string): void {

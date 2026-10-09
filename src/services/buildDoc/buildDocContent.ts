@@ -123,9 +123,9 @@ function populateTemplate(
   theme: string,
   template: string,
   data: TemplateData,
+  normalizedData: TemplateData,
 ): string {
   const regex = /\[([^\]]+)\]/g;
-  const normalizedData = normalizeTemplateDataKeys(data);
   const placeholderCounters = new Map<string, number>();
 
   return template.replace(regex, (match, key: string) => {
@@ -161,15 +161,22 @@ export function populateDocContent(
   template: DocsContent,
   data: TemplateData,
 ): DocsContent {
+  const normalizedData = normalizeTemplateDataKeys(data);
+
   return Object.fromEntries(
     Object.entries(template).map(([theme, sections]) => [
       theme,
       sections.map((section) => {
-        const title = populateTemplate(theme, section.title, data);
+        const title = populateTemplate(
+          theme,
+          section.title,
+          data,
+          normalizedData,
+        );
 
         return {
           title,
-          text: populateTemplate(theme, section.text, data),
+          text: populateTemplate(theme, section.text, data, normalizedData),
         };
       }),
     ]),

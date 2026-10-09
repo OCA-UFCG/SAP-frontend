@@ -26,6 +26,27 @@ describe("populateDocContent", () => {
     );
   });
 
+  // O relatório tem centenas de variáveis e dezenas de seções. Normalizar todas
+  // as chaves de novo em cada título e texto ocupava ~7% da thread do servidor
+  // sob carga; elas não mudam entre seções.
+  it("normalizes the template data keys once per report, not once per section", () => {
+    const data = Object.fromEntries(
+      Array.from({ length: 50 }, (_, i) => [`Variável ${i}`, `valor ${i}`]),
+    );
+    const sections = Array.from({ length: 10 }, (_, i) => ({
+      title: `Seção ${i}`,
+      text: `Valor: [variavel_${i}]`,
+    }));
+    const normalize = vi.spyOn(String.prototype, "normalize");
+
+    const content = populateDocContent({ ARIDITY_INDEX: sections }, data);
+
+    // 50 chaves normalizadas uma vez + 10 placeholders, um por texto.
+    expect(normalize.mock.calls.length).toBeLessThanOrEqual(50 + 10);
+    expect(content.ARIDITY_INDEX[3].text).toBe("Valor: valor 3");
+    normalize.mockRestore();
+  });
+
   it("does not fabricate a value for an unknown placeholder", () => {
     const content = populateDocContent(
       {

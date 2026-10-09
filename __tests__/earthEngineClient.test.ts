@@ -50,6 +50,7 @@ vi.mock("@google/earthengine", () => ({
 
 import {
   clearGeeClientForTests,
+  evaluateGeeExpression,
   evaluateGeeObject,
   getGeeAsset,
   getGeeMapUrl,
@@ -177,6 +178,17 @@ describe("evaluateGeeObject", () => {
         body: { expression: { serialized: "colunas" } },
         authorization: "Bearer token-1",
       },
+    ]);
+  });
+
+  it("envia uma expressão já serializada como está, pela mesma fila de leituras", async () => {
+    const expression = { result: "0", values: { "0": { constantValue: 1 } } };
+    computeResponses.push(async () => jsonResponse({ result: 1 }));
+
+    await expect(evaluateGeeExpression(expression)).resolves.toBe(1);
+
+    expect(computeCalls).toEqual([
+      { body: { expression }, authorization: "Bearer token-1" },
     ]);
   });
 

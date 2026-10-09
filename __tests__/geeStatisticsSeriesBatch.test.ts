@@ -38,6 +38,14 @@ const { fakeEarthEngine } = vi.hoisted(() => {
       or: () => ({}),
     };
 
+    // Só o filtro do território passa pelo serializador no caminho do molde.
+    Serializer = {
+      encodeCloudApi: () => ({
+        result: "0",
+        values: { "0": { constantValue: "filtro" } },
+      }),
+    };
+
     private node(assetIds: string[], kind: FakeNode["kind"]): FakeNode {
       const node: FakeNode = {
         kind,
@@ -65,16 +73,21 @@ const { fakeEarthEngine } = vi.hoisted(() => {
 
 vi.mock("@google/earthengine", () => ({ default: fakeEarthEngine }));
 vi.mock("@/infrastructure/earth-engine/client", () => ({
+  evaluateGeeExpression: vi.fn(),
   evaluateGeeObject: vi.fn(),
   initializeGee: vi.fn().mockResolvedValue(undefined),
 }));
 
 import type { GeeFeatureCollectionStatisticsSource } from "@/contracts/geeStatistics";
-import { evaluateGeeObject } from "@/infrastructure/earth-engine/client";
+import {
+  evaluateGeeExpression,
+  evaluateGeeObject,
+} from "@/infrastructure/earth-engine/client";
 import {
   clearGeeStatisticsSchemaCacheForTests,
   getGeeStatisticsYearPatch,
   preloadGeeStatisticsSchema,
+  setRowsTemplateVerdictForTests,
 } from "@/repositories/platform/geeStatisticsRepository";
 import { clearGeeStatisticsRowsCache } from "@/repositories/platform/geeStatisticsRowsCache";
 
@@ -123,11 +136,28 @@ function municipalRow(assetId: string) {
 }
 
 const mockedEvaluate = vi.mocked(evaluateGeeObject);
+const mockedEvaluateExpression = vi.mocked(evaluateGeeExpression);
+
+/** Os assets de uma expressão do molde, na ordem em que aparecem. */
+function tableIdsOf(expression: unknown): string[] {
+  return [...JSON.stringify(expression).matchAll(/"tableId":\{"constantValue":"([^"]+)"\}/g)].map(
+    ([, id]) => id,
+  );
+}
 
 beforeEach(() => {
   clearGeeStatisticsSchemaCacheForTests();
   clearGeeStatisticsRowsCache();
+  setRowsTemplateVerdictForTests(true);
   mockedEvaluate.mockReset();
+  mockedEvaluateExpression.mockReset();
+  // O molde vira um nó falso com os mesmos assets e passa pelo mesmo
+  // `evaluateGeeObject` falso: as contagens de idas valem para os dois caminhos.
+  mockedEvaluateExpression.mockImplementation(async (expression: unknown) =>
+    mockedEvaluate(fakeEarthEngine.FeatureCollection(
+      tableIdsOf(expression).map((id) => fakeEarthEngine.FeatureCollection(id)),
+    ) as never),
+  );
   mockedEvaluate.mockImplementation(async (object: unknown) => {
     const node = object as FakeNode;
     if (node.kind === "propertyNames") return PROPERTY_NAMES as never;
@@ -149,6 +179,29 @@ function readPeriod(yearKey: string) {
     YEARS,
   );
 }
+
+describe("molde da leitura em lote", () => {
+  it("monta a leitura das linhas pelo molde, sem serializar sub-coleções no SDK", async () => {
+    await readPeriod("2020");
+
+    const batches = mockedEvaluateExpression.mock.calls.map(([expression]) =>
+      tableIdsOf(expression),
+    );
+    expect(batches.map((ids) => ids.length)).toEqual([15, 15, 15]);
+    expect(batches.flat()).toContain("projects/example/assets/aridez_2020");
+  });
+
+  it("volta ao serializador do SDK quando o molde não confere", async () => {
+    setRowsTemplateVerdictForTests(false);
+
+    const result = await readPeriod("2020");
+
+    expect(mockedEvaluateExpression).not.toHaveBeenCalled();
+    expect(result?.patch.years?.["2020"]?.values).toEqual({
+      "2507507": [40, 60],
+    });
+  });
+});
 
 describe("leitura em lote da série estatística", () => {
   // Regressão: cada período resolvia um assetId próprio, então abrir o índice
