@@ -1,9 +1,11 @@
 import Image from "next/image";
-import { useTranslations } from "next-intl";
 import { Link } from "@/translations/routing";
 
 type Props = {
   id?: string;
+  title: string;
+  text: string;
+  buttonText: string;
 };
 
 // Fotos recortadas do design da home (Figma), duas colunas de duas fotos.
@@ -20,9 +22,12 @@ const COLUMNS = [
 ];
 
 /** "Um instrumento de política pública": colagem de fotos e o texto da lei. */
-export const PublicPolicySection = ({ id }: Props) => {
-  const t = useTranslations("PublicPolicySection");
-
+export const PublicPolicySection = ({
+  id,
+  title,
+  text,
+  buttonText,
+}: Props) => {
   return (
     <section id={id} className="w-full scroll-mt-16.5 bg-white">
       <div className="mx-auto grid w-full max-w-[1440px] items-center gap-6 px-4 py-12 md:px-10 lg:grid-cols-[790fr_466fr] lg:px-20">
@@ -46,14 +51,14 @@ export const PublicPolicySection = ({ id }: Props) => {
 
         <div className="flex flex-col gap-4 font-inter text-[#292829]">
           <h2 className="text-[30px] font-semibold leading-9 tracking-[-0.0075em]">
-            {t("title")}
+            {title}
           </h2>
-          <p className="text-sm leading-6">{t("text")}</p>
+          <p className="text-sm leading-6">{text}</p>
           <Link
             href="/platform"
             className="mt-2 flex h-10 w-full items-center justify-center rounded-md bg-[#989F43] px-4 py-2 text-sm font-medium leading-6 text-[#F8F7F8] transition-colors hover:bg-[#5B612A]"
           >
-            {t("button")}
+            {buttonText}
           </Link>
         </div>
       </div>

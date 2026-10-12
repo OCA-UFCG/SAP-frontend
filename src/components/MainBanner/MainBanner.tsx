@@ -28,7 +28,7 @@ export function MainBanner({ banners }: MainBannerProps) {
     <section className="relative w-full min-h-[532px] overflow-hidden bg-[#4A4E26]">
       {banners.map((data, index) => (
         <div
-          key={data.image.url}
+          key={`${index}-${data.image.url}`}
           aria-hidden={index !== active}
           className={cn(
             "absolute inset-0 z-0 transition-opacity duration-500",
@@ -74,7 +74,7 @@ export function MainBanner({ banners }: MainBannerProps) {
         <div className="grid flex-1 self-stretch">
           {banners.map((data, index) => (
             <div
-              key={data.image.url}
+              key={`${index}-${data.image.url}`}
               aria-hidden={index !== active}
               inert={index !== active}
               className={cn(
@@ -92,9 +92,10 @@ export function MainBanner({ banners }: MainBannerProps) {
               </div>
 
               {/* No celular o menu do topo fica recolhido e não dispara o
-                  prefetch completo da plataforma; este botão dispara. */}
+                  prefetch completo da plataforma; este botão dispara. O
+                  destino vem do campo "link" do banner. */}
               <Link
-                href="/platform"
+                href={data.link?.trim() || "/platform"}
                 prefetch
                 className="flex h-10 w-full items-center justify-center rounded-md bg-[#989F43] px-4 py-2 font-inter text-sm font-medium leading-6 text-[#F8F7F8] transition-colors hover:bg-[#5B612A] md:w-[302px]"
               >

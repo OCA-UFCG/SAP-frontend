@@ -4,27 +4,27 @@
       "municipalities": {
         "value": "5.570",
         "label": "Municípios",
-        "description": "com acesso a dados de secas, cobertura vegetal, degradação da terra e desertificação"
+        "description": "com dados de seca, vegetação, degradação da terra e condições sociais"
       },
-      "area": {
-        "value": "8,5 mi km²",
-        "label": "Monitorados",
-        "description": "acompanhados pelo SEDES"
+      "institutions": {
+        "value": "7",
+        "label": "Instituições",
+        "description": "bases oficiais de ANA, INMET, INPE, IBGE, Embrapa, INSA e Defesa Civil em um só lugar"
       },
       "products": {
         "value": "+20",
         "label": "Produtos",
-        "description": "climáticos, ambientais e socioeconômicos na plataforma"
+        "description": "climáticos, ambientais e socioeconômicos disponíveis na plataforma"
       },
-      "report": {
-        "value": "5 s",
-        "label": "Por relatório",
-        "description": "tempo médio para gerar um relatório personalizado do seu município"
+      "territories": {
+        "value": "6",
+        "label": "Recortes territoriais",
+        "description": "município, estado, região, Semiárido, ASD e bioma, para consulta e relatório"
       },
-      "combinations": {
-        "value": "+45 mil",
-        "label": "Combinações",
-        "description": "possíveis na análise multicritério para priorizar áreas"
+      "law": {
+        "value": "2015",
+        "label": "Previsto em lei",
+        "description": "sistema de informações da Política Nacional de Combate à Desertificação, assumido no PAB-Brasil"
       }
     }
   }

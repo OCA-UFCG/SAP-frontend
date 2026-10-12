@@ -1,19 +1,27 @@
 {
   "PlatformModulesSection": {
-    "title": "Cómo el SEDES apoya la planificación y la gestión territorial",
-    "access": "Acceder al módulo",
+    "title": "Qué puede hacer en el SEDES",
+    "subtitle": "Conocer el territorio, llevar la información más allá y decidir con criterio: tres herramientas, un mismo recorrido.",
+    "seeMore": "Ver más",
+    "seeLess": "Ver menos",
     "modules": {
       "monitoring": {
         "title": "Monitoreo",
-        "description": "Reúne capas oficiales sobre sequía, clima, vegetación y condiciones socioeconómicas para acompañar el territorio a lo largo del tiempo."
+        "description": "Mapas, series históricas y estadísticas de clima, sequía, vegetación, suelo, uso de la tierra y condiciones sociales, a partir de las bases oficiales, para todo Brasil.",
+        "fullText": "Integra las bases de ANA, INMET, CPTEC/INPE, IBGE, Embrapa, INSA y Defensa Civil en un mismo entorno de consulta, sin crear un monitoreo paralelo. Donde hay vacíos, el OCA/UFCG calcula indicadores complementarios adaptados a Brasil: el Indicador Combinado de Sequía (CDI), según la metodología del Observatorio Europeo de la Sequía, y el Índice de Degradación de la Tierra (IDT), desarrollado para el PAB-Brasil con base en el enfoque de la CNULD, que permite evaluar el historial y el estado actual de la degradación. Las capas de Tierras Indígenas, Territorios Quilombolas, Asentamientos y Unidades de Conservación permiten situar estos territorios en relación con las áreas críticas.",
+        "button": "Explore el Monitoreo"
       },
       "communication": {
         "title": "Comunicación",
-        "description": "Genera informes automáticos en PDF por variable y escala (Brasil, estado o municipio) para divulgar la situación del territorio."
+        "description": "Informes generados automáticamente para el territorio y las variables que usted elija, listos para descargar, imprimir y compartir.",
+        "fullText": "El sistema identifica lo que es común y lo que es específico de cada territorio y compone el diagnóstico adecuado para municipio, estado, región, ASD, Semiárido o bioma, en cualquier momento y por iniciativa del usuario. El informe reúne los indicadores climáticos, ambientales y socioeconómicos seleccionados, con mapas, gráficos y textos de lectura directa, y sirve para planes municipales, proyectos, dictámenes técnicos, clases y reuniones con la gestión pública.",
+        "button": "Explore la Comunicación"
       },
       "analysis": {
-        "title": "Análisis",
-        "description": "Integra indicadores en un análisis multicriterio con pesos configurables para identificar áreas prioritarias y orientar estrategias en el territorio."
+        "title": "Priorización",
+        "description": "Análisis multicriterio que combina indicadores territoriales, con pesos definidos por usted, para indicar qué municipios deben atenderse primero.",
+        "fullText": "Cada priorización parte de una pregunta de política pública. El usuario elige, entre los indicadores de sequía, degradación de la tierra, vegetación, suelo y condiciones socioeconómicas disponibles en el SEDES, todos de bases oficiales y ya integrados a escala municipal, los que responden a la pregunta, define el peso de cada uno, y el sistema presenta los municipios clasificados en niveles de prioridad, en el mapa y en tabla, con exportación a hoja de cálculo, imagen y PDF. El método es transparente y reproducible: la misma pregunta, con los mismos indicadores y pesos, produce siempre el mismo resultado, lo que permite fundamentar la decisión y dejar que otros la verifiquen.",
+        "button": "Explore la Priorización"
       }
     }
   }

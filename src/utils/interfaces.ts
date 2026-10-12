@@ -128,9 +128,52 @@ export interface PlatformModulesSectionI {
 export interface HomeNewsItemI {
   id: string;
   module: PlatformModuleI["id"];
-  /** Data no formato AAAA-MM-DD. */
-  date: string;
+  /** Data no formato AAAA-MM-DD; sem ela o card não mostra o calendário. */
+  date?: string;
   href: string;
+}
+
+/** Card da faixa de números logo abaixo do carrossel. */
+export interface HomeHighlightI {
+  value: string;
+  label: string;
+  description: string;
+}
+
+/** Textos do card de uma ferramenta; foto e link ficam no código. */
+export interface HomeToolTextI {
+  id: PlatformModuleI["id"];
+  name: string;
+  shortText: string;
+  /** Texto do "Ver mais"; vazio, o card não mostra o "Ver mais". */
+  fullText?: string;
+  buttonText: string;
+}
+
+/** Card de "Recursos em destaque" / "O que há de novo?". */
+export interface HomeFeatureI {
+  id: string;
+  module: PlatformModuleI["id"];
+  title: string;
+  description: string;
+  href: string;
+  /** Data no formato AAAA-MM-DD. */
+  date?: string;
+}
+
+export interface HomeTestimonialI {
+  quote: string;
+  author: string;
+  authorDetail?: string;
+}
+
+/** Textos editáveis da home, já resolvidos para o idioma da página. */
+export interface HomeTextsI {
+  highlights: HomeHighlightI[];
+  tools: { title: string; subtitle?: string; items: HomeToolTextI[] };
+  publicPolicy: { title: string; text: string; buttonText: string };
+  features: { title: string; items: HomeFeatureI[] };
+  testimonials: { title: string; items: HomeTestimonialI[] };
 }
 
 export interface BrazilianState {

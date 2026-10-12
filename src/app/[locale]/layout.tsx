@@ -58,12 +58,6 @@ export default async function RootLayout({
       childrenCollection: {
         items: [
           {
-            id: "3-1",
-            name: t("aboutMenu.novidades"),
-            path: "/#novidades",
-            appears: true,
-          },
-          {
             id: "3-2",
             name: t("aboutMenu.aPlataforma"),
             path: "/#a-plataforma",
@@ -73,6 +67,12 @@ export default async function RootLayout({
             id: "3-3",
             name: t("aboutMenu.politicaPublica"),
             path: "/#politica-publica",
+            appears: true,
+          },
+          {
+            id: "3-1",
+            name: t("aboutMenu.novidades"),
+            path: "/#novidades",
             appears: true,
           },
           {

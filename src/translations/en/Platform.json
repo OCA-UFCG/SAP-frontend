@@ -2,7 +2,7 @@
   "Platform": {
     "SideRail": {
       "monitoring": "Monitoring",
-      "analysis": "Analysis",
+      "analysis": "Prioritization",
       "communication": "Communication",
       "logs": "Audit"
     },

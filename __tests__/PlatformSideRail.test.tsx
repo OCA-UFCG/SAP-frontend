@@ -199,7 +199,7 @@ describe("PlatformSideRail", () => {
       screen.getByRole("button", { name: /Monitoramento/i }),
     ).toHaveAttribute("aria-busy", "true");
     expect(
-      screen.getByRole("button", { name: /Análise/i }),
+      screen.getByRole("button", { name: /Priorização/i }),
     ).not.toHaveAttribute("aria-busy");
   });
 

@@ -71,6 +71,30 @@ describe("Footer", () => {
     expect(logosRow).toContainElement(screen.getByTestId("social-channels"));
   });
 
+  // Os links seguem o menu do topo; "Sobre o SEDES" levava à própria home e saiu.
+  it("shows the same links as the top menu, plus the institutional line", () => {
+    render(
+      <Footer
+        content={[
+          { id: "home", name: "Home", path: "/", appears: true },
+          { id: "about", name: "Sobre o SAP", path: "/about", appears: true },
+          { id: "map", name: "Mapas", path: "/map", appears: true },
+          { id: "contact", name: "Contatos", path: "/contact", appears: true },
+        ]}
+      />,
+    );
+
+    expect(
+      screen.getAllByRole("link").map((link) => link.textContent),
+    ).toEqual(["Home", "Glossário", "Plataforma"]);
+    expect(screen.queryByText("Sobre o SEDES")).not.toBeInTheDocument();
+    expect(
+      screen.getByText(
+        "Ministério do Meio Ambiente e Mudança do Clima | Universidade Federal de Campina Grande | Observatório da Caatinga e Desertificação",
+      ),
+    ).toBeInTheDocument();
+  });
+
   // O rodapé faz parte da plataforma. O caminho vem com o prefixo de locale
   // (`localePrefix: "always"`), então qualquer regra por rota precisa ser
   // exercitada com o caminho real, e não com um "/platform" que nunca ocorre.
