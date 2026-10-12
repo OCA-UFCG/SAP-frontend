@@ -1,23 +1,23 @@
 {
   "NewsSection": {
-    "title": "¿Qué hay de nuevo?",
+    "title": "Recursos destacados",
     "learnMore": "Saber más",
     "items": {
-      "territorios-em-destaque": {
-        "title": "Territorios destacados",
-        "description": "Destaque quilombolas, asentamientos, tierras indígenas o unidades de conservación: el resto del mapa se oscurece y el grupo queda en evidencia."
+      "indice-combinado-de-seca": {
+        "title": "La sequía en una sola clasificación",
+        "description": "El Indicador Combinado de Sequía reúne lluvia, humedad del suelo y vegetación en un único mapa, con la metodología del Observatorio Europeo de la Sequía adaptada a Brasil."
       },
-      "busca-por-territorio": {
-        "title": "Búsqueda por territorio",
-        "description": "Escriba parte del nombre de un territorio y el mapa va directo a él, en Monitoreo y en Análisis."
+      "territorios-tradicionais": {
+        "title": "Territorios tradicionales en el mapa",
+        "description": "Tierras Indígenas, Territorios Quilombolas, Asentamientos y Unidades de Conservación como capas, para ver cómo la sequía y la degradación los atraviesan."
       },
-      "relatorio-mais-rapido": {
-        "title": "Informe más rápido",
-        "description": "El informe del municipio ahora aparece en pocos segundos. Antes, la espera superaba los 15."
+      "relatorio-por-municipio": {
+        "title": "Un informe para cada uno de los 5.570 municipios",
+        "description": "Escriba el nombre, elija los temas y obtenga el diagnóstico de su municipio en segundos."
       },
-      "relatorio-da-analise": {
-        "title": "Informe del análisis",
-        "description": "Descargue en PDF el resultado del análisis multicriterio, con todos los parámetros usados para construir el mapa."
+      "priorizacao-por-recorte": {
+        "title": "Prioridades para el recorte que usted elija",
+        "description": "Brasil, región, estado, bioma, Semiárido o ASD: combine indicadores con los pesos que tengan sentido para su pregunta y vea, en el mapa, qué municipios necesitan acción primero, con el resultado exportable a hoja de cálculo y PDF."
       }
     }
   }

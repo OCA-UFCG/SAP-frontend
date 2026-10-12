@@ -30,7 +30,8 @@ const GET_FOOTER_PAGE = `
 
 const GET_HOME_PAGE = `
   query GetHomePage($locale: String!) {
-    bannerCollection(limit: 5, locale: $locale, order: sys_firstPublishedAt_ASC) {
+    # Pelo campo "Ordem"; banners sem ordem vêm depois, do mais antigo ao mais novo.
+    bannerCollection(limit: 5, locale: $locale, order: [order_ASC, sys_firstPublishedAt_ASC]) {
       items {
         title
         subtitle
@@ -258,7 +259,7 @@ export interface GlossaryTermI {
 
 export interface HomePageContent {
   mainBanner?: IMainBanner;
-  /** Slides do carrossel da home, do banner mais antigo para o mais novo. */
+  /** Slides do carrossel da home, na ordem do campo "Ordem" do Contentful. */
   banners: IMainBanner[];
   aboutSection?: AboutSectionI;
   partnersHeader?: SectionHeaderI;

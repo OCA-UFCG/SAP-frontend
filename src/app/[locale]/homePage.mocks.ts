@@ -148,30 +148,27 @@ export const MOCK_PLATFORM_MODULES_CONTENT: PlatformModulesSectionI = {
   ],
 };
 
-// Novidades mais recentes primeiro, tiradas das PRs que entraram na `main`.
+// Recursos em destaque quando o Contentful não tiver nenhum publicado (e em
+// inglês e espanhol). Sem data: não são novidades, e sim o que já existe.
 export const MOCK_NEWS_CONTENT: HomeNewsItemI[] = [
   {
-    id: "territorios-em-destaque",
+    id: "indice-combinado-de-seca",
     module: "monitoring",
-    date: "2026-10-05",
     href: "/platform",
   },
   {
-    id: "busca-por-territorio",
+    id: "territorios-tradicionais",
     module: "monitoring",
-    date: "2026-10-02",
     href: "/platform",
   },
   {
-    id: "relatorio-mais-rapido",
+    id: "relatorio-por-municipio",
     module: "communication",
-    date: "2026-10-01",
     href: "/platform?section=communication",
   },
   {
-    id: "relatorio-da-analise",
+    id: "priorizacao-por-recorte",
     module: "analysis",
-    date: "2026-09-21",
     href: "/platform/amfe",
   },
 ];

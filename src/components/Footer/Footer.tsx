@@ -10,16 +10,15 @@ import { useTranslations } from "next-intl";
 export const Footer = ({ content }: { content: FooterI[] }) => {
   const t = useTranslations("Footer");
 
+  // Os mesmos links do menu do topo: Home, Glossário e Plataforma.
   const mainPages = sortContentByDesiredOrder<FooterI>(content, [
     "/",
-    "/about",
     "/map",
   ]).filter((item) => item.appears);
 
   const pathKeyMap: Record<string, string> = {
     "/": "home",
     "/map": "platform",
-    "/about": "about",
     "/contact": "contact",
   };
 
@@ -35,11 +34,10 @@ export const Footer = ({ content }: { content: FooterI[] }) => {
             className="h-[57px] w-auto"
           />
         </div>
-        <div className="hidden w-full items-start lg:flex lg:min-h-8 lg:flex-1 lg:px-2">
-          <div className="flex flex-row items-center gap-6 lg:min-h-8 lg:items-center">
+        <div className="flex w-full flex-col items-center gap-2 lg:min-h-8 lg:flex-1 lg:items-start lg:px-2">
+          <div className="hidden flex-row items-center gap-6 lg:flex lg:min-h-8 lg:items-center">
             {mainPages.map(({ id, path, name }) => {
-              const href =
-                path === "/about" ? "/" : path === "/map" ? "/platform" : path;
+              const href = path === "/map" ? "/platform" : path;
 
               const translationKey = pathKeyMap[path];
               const label =
@@ -59,7 +57,7 @@ export const Footer = ({ content }: { content: FooterI[] }) => {
                 </a>
               );
 
-              if (path !== "/about") {
+              if (path !== "/") {
                 return link;
               }
 
@@ -76,6 +74,9 @@ export const Footer = ({ content }: { content: FooterI[] }) => {
               );
             })}
           </div>
+          <p className="text-center text-xs leading-4 text-white lg:text-left">
+            {t("institutions")}
+          </p>
         </div>
 
         {/* Logos e redes ficam na mesma linha porque o Figma prevê um rodapé de
