@@ -42,21 +42,21 @@ export const PublicPolicySection = ({
                   width={photo.width}
                   height={photo.height}
                   sizes="(max-width: 1024px) 50vw, 440px"
-                  className="h-auto w-full rounded-md object-cover"
+                  className="h-auto w-full rounded-lg border border-[#EFEFEF] object-cover"
                 />
               ))}
             </div>
           ))}
         </div>
 
-        <div className="flex flex-col gap-4 font-inter text-[#292829]">
+        <div className="flex flex-col gap-6 font-inter text-[#292829]">
           <h2 className="text-[30px] font-semibold leading-9 tracking-[-0.0075em]">
             {title}
           </h2>
           <p className="text-sm leading-6">{text}</p>
           <Link
             href="/platform"
-            className="mt-2 flex h-10 w-full items-center justify-center rounded-md bg-[#989F43] px-4 py-2 text-sm font-medium leading-6 text-[#F8F7F8] transition-colors hover:bg-[#5B612A]"
+            className="flex h-10 w-full items-center justify-center rounded-md bg-[#989F43] px-4 py-2 text-sm leading-6 text-[#F8F7F8] transition-colors hover:bg-[#5B612A]"
           >
             {buttonText}
           </Link>

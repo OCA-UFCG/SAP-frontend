@@ -6,8 +6,10 @@ import Image from "next/image";
 import { Link } from "@/translations/routing";
 import { useTranslations } from "next-intl";
 import { cn } from "@/lib/utils";
-import { ArrowBackIcon, ArrowForwardIcon } from "@/components/HomeIcons/HomeIcons";
-import { CarouselTracker } from "@/components/HomeCarousel/HomeCarousel";
+import {
+  CarouselArrow,
+  CarouselTracker,
+} from "@/components/HomeCarousel/HomeCarousel";
 
 interface MainBannerProps {
   /** Um slide por entrada `banner` do Contentful. */
@@ -19,13 +21,12 @@ export function MainBanner({ banners }: MainBannerProps) {
   const [active, setActive] = useState(0);
 
   if (!banners.length) return null;
-  // Setas e traços só fazem sentido com mais de um banner publicado.
   const hasSlides = banners.length > 1;
   const goTo = (index: number) =>
     setActive((index + banners.length) % banners.length);
 
   return (
-    <section className="relative w-full min-h-[532px] overflow-hidden bg-[#4A4E26]">
+    <section className="relative w-full min-h-[512px] overflow-hidden bg-black">
       {banners.map((data, index) => (
         <div
           key={`${index}-${data.image.url}`}
@@ -47,7 +48,7 @@ export function MainBanner({ banners }: MainBannerProps) {
             className="absolute inset-0"
             style={{
               background:
-                "linear-gradient(270deg, rgba(0, 0, 0, 0.05) 19.23%, #4A4E26 65.38%)",
+                "linear-gradient(270deg, rgba(0, 0, 0, 0.05) 1.66%, #000000 113.85%)",
             }}
           />
         </div>
@@ -63,15 +64,10 @@ export function MainBanner({ banners }: MainBannerProps) {
         />
       </div>
 
-      <div className="relative z-20 mx-auto flex min-h-[532px] w-full max-w-[1440px] items-center gap-6 px-4 py-12 md:px-10 md:py-16">
-        <HeroArrow
-          direction="back"
-          label={t("previous")}
-          hidden={!hasSlides}
-          onClick={() => goTo(active - 1)}
-        />
-
-        <div className="grid flex-1 self-stretch">
+      {/* O padding de baixo deixa espaço para o card de números, que sobe
+          80 px por cima do banner (BigNumbersSection). */}
+      <div className="relative z-20 mx-auto flex min-h-[512px] w-full max-w-[1440px] flex-col justify-end gap-6 px-4 pt-12 pb-[120px] md:px-10 md:pt-20 lg:px-20">
+        <div className="grid">
           {banners.map((data, index) => (
             <div
               key={`${index}-${data.image.url}`}
@@ -83,10 +79,10 @@ export function MainBanner({ banners }: MainBannerProps) {
               )}
             >
               <div className="flex flex-col gap-4">
-                <h1 className="max-w-[579px] font-open-sans text-[40px] font-bold leading-[44px] text-[#F8F7F8] md:text-[64px] md:leading-[68px]">
+                <h1 className="max-w-[784px] font-open-sans text-[36px] font-bold leading-[1.2] text-[#F8F7F8] md:text-5xl">
                   {t("title", { title: data.title })}
                 </h1>
-                <p className="max-w-[578px] font-open-sans text-base leading-6 text-white">
+                <p className="max-w-[784px] font-open-sans text-sm leading-6 text-white">
                   {t("subtitle", { subtitle: data.subtitle })}
                 </p>
               </div>
@@ -103,9 +99,12 @@ export function MainBanner({ banners }: MainBannerProps) {
               </Link>
             </div>
           ))}
+        </div>
 
-          {hasSlides && (
-            <div className="-ml-2 mt-6">
+        {/* Setas e traços só fazem sentido com mais de um banner publicado. */}
+        {hasSlides && (
+          <div className="flex items-center justify-between gap-6">
+            <div className="-ml-2">
               <CarouselTracker
                 count={banners.length}
                 active={active}
@@ -114,45 +113,23 @@ export function MainBanner({ banners }: MainBannerProps) {
                 label={(index) => t("goToSlide", { slide: index + 1 })}
               />
             </div>
-          )}
-        </div>
-
-        <HeroArrow
-          direction="forward"
-          label={t("next")}
-          hidden={!hasSlides}
-          onClick={() => goTo(active + 1)}
-        />
+            <div className="flex gap-2">
+              <CarouselArrow
+                direction="back"
+                label={t("previous")}
+                onClick={() => goTo(active - 1)}
+                className="h-9 w-9 border-[#EFEFEF] bg-[#191B18] text-[#F8F7F8] hover:bg-[#3F4324]"
+              />
+              <CarouselArrow
+                direction="forward"
+                label={t("next")}
+                onClick={() => goTo(active + 1)}
+                className="h-9 w-9 border-[#EFEFEF] bg-[#191B18] text-[#F8F7F8] hover:bg-[#3F4324]"
+              />
+            </div>
+          </div>
+        )}
       </div>
     </section>
-  );
-}
-
-// Com um banner só as setas ficam invisíveis, mas seguram o espaço para o
-// texto continuar alinhado onde o design o coloca.
-function HeroArrow({
-  direction,
-  label,
-  hidden,
-  onClick,
-}: {
-  direction: "back" | "forward";
-  label: string;
-  hidden: boolean;
-  onClick: () => void;
-}) {
-  const Icon = direction === "back" ? ArrowBackIcon : ArrowForwardIcon;
-  return (
-    <button
-      type="button"
-      aria-label={label}
-      onClick={onClick}
-      className={cn(
-        "hidden h-12 w-12 shrink-0 items-center justify-center rounded-lg border border-[#EFEFEF] bg-[#21240F] text-[#F8F7F8] transition-colors hover:bg-[#3F4324] md:flex",
-        hidden && "invisible",
-      )}
-    >
-      <Icon size={16} />
-    </button>
   );
 }
