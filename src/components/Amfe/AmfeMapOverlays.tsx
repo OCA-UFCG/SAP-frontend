@@ -28,6 +28,8 @@ export function AmfeMapOverlays() {
     toggleReferenceHighlight,
     prefetchReferenceOverlays,
     focusTerritory,
+    clearTerritoryFocus,
+    territoryFocus,
     municipalityClassification,
     isClassificationBelowZoomFloor,
   } = useAmfeAnalysis();
@@ -49,6 +51,8 @@ export function AmfeMapOverlays() {
           highlightedOverlay={highlightedReferenceOverlay}
           onToggleHighlight={toggleReferenceHighlight}
           onSelectTerritory={focusTerritory}
+          selectedTerritory={territoryFocus?.territory}
+          onClearTerritory={clearTerritoryFocus}
           onOpen={prefetchReferenceOverlays}
         />
         {municipalityClassification && <AmfeMapLegend />}
