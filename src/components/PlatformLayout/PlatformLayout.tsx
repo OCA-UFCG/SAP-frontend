@@ -72,6 +72,15 @@ export function PlatformLayout({
       : props.panelLayers;
   const [activeSection, setActiveSection] =
     useState<PlatformSection>(initialSection);
+  // Ir para Auditoria ou Catálogo e voltar é a mesma página com outros
+  // parâmetros, então este estado sobrevive à ida. A barra lateral recomeça
+  // pela `key`; a seção do mapa precisa recomeçar junto, ou a Análise que
+  // estava aberta antes reaparece sobre o Monitoramento.
+  const [sectionStateKey, setSectionStateKey] = useState(sidebarStateKey);
+  if (sectionStateKey !== sidebarStateKey) {
+    setSectionStateKey(sidebarStateKey);
+    setActiveSection(initialSection);
+  }
 
   return (
     <MapLayerProvider>
