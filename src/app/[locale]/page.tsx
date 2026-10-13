@@ -30,7 +30,7 @@ export default async function Home({
     );
   }
 
-  // Os ids das seções são os destinos do menu "Home" do topo (layout.tsx).
+  // Os ids das seções são os destinos do menu "Sobre" do topo (layout.tsx).
   return (
     <div className="flex min-h-screen flex-col">
       <main className="grow">
