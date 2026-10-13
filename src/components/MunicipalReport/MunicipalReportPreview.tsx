@@ -1026,10 +1026,6 @@ export function MunicipalReportPreview({
   const visibleError = hasRequiredParameters ? error : null;
 
   if (embedded) {
-    const previewTitle = report
-      ? `${t("reportLabel")} - ${report.territory.label} - ${formatReportPeriod(period, locale)}`
-      : t("reportLabel");
-
     return (
       <div className="flex h-full min-w-0 flex-col bg-white">
         <div className="shrink-0 border-b border-[#D9E0E3] bg-white px-4 py-4 sm:px-6">
@@ -1038,9 +1034,6 @@ export function MunicipalReportPreview({
               <p className="font-inter text-xs font-semibold uppercase tracking-[0.08em] text-[#536E7B]">
                 {t("preview")}
               </p>
-              <h1 className="mt-1 truncate font-inter text-base font-semibold text-[#292829]">
-                {previewTitle}
-              </h1>
             </div>
             <div className="flex shrink-0 flex-wrap items-center gap-3">
               <div className="flex shrink-0 items-center gap-2">
