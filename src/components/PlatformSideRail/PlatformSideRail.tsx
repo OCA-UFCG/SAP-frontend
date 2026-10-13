@@ -202,6 +202,11 @@ export function PlatformSideRail({
   const t = useTranslations("PlatformSideRail");
   const tTour = useTranslations("PlatformTour");
   const pendingApprovals = usePendingApprovalsCount(showAuditLink);
+  // Admin vê seis itens em vez de três: com o espaçamento folgado do layout
+  // padrão eles não cabem num notebook comum e a lista vazava por cima do
+  // rodapé. Aperta o espaço entre eles, e a lista rola se ainda faltar altura.
+  const compact = showAuditLink;
+  const itemHeightClass = compact ? "h-[72px]" : "h-[88px]";
 
   const items: PlatformRailItem[] = [
     { kind: "section", id: "monitoring", label: t("monitoring"), icon: "eye" },
@@ -251,8 +256,16 @@ export function PlatformSideRail({
       )}
       data-platform-side-rail
     >
-      <nav className="flex h-full w-full flex-col border-r border-neutral-200 bg-white px-[16px] pb-[18px] pt-[48px]">
-        <div className="w-[114px] flex flex-col" data-tour="platform-sections">
+      <nav
+        className={clsx(
+          "flex h-full w-full flex-col border-r border-neutral-200 bg-white px-[16px] pb-[18px]",
+          compact ? "pt-[24px]" : "pt-[48px]",
+        )}
+      >
+        <div
+          className="w-[114px] min-h-0 flex-1 flex flex-col overflow-y-auto [scrollbar-width:thin]"
+          data-tour="platform-sections"
+        >
           {items.map((item, index) => {
             const isActive =
               item.kind === "section"
@@ -264,9 +277,14 @@ export function PlatformSideRail({
                 key={item.kind === "section" ? item.id : item.href}
                 //clsx eh uma função pra montar classes CSS dinamicamente
                 className={clsx(
-                  "w-full flex flex-col items-center",
-                  index !== 0 && "border-t border-[#ECECEC] pt-[24px]",
-                  index !== items.length - 1 && "pb-[24px]",
+                  "w-full shrink-0 flex flex-col items-center",
+                  index !== 0 &&
+                    clsx(
+                      "border-t border-[#ECECEC]",
+                      compact ? "pt-[8px]" : "pt-[24px]",
+                    ),
+                  index !== items.length - 1 &&
+                    (compact ? "pb-[8px]" : "pb-[24px]"),
                 )}
               >
                 {item.kind === "section" ? (
@@ -276,7 +294,8 @@ export function PlatformSideRail({
                     aria-current={isActive ? "page" : undefined}
                     aria-busy={pendingSection === item.id || undefined}
                     className={clsx(
-                      "cursor-pointer w-full h-[88px] flex flex-col items-center justify-center gap-[4px] px-[8px] rounded-lg transition-colors duration-150",
+                      "cursor-pointer w-full flex flex-col items-center justify-center gap-[4px] px-[8px] rounded-lg transition-colors duration-150",
+                      itemHeightClass,
                       isActive
                         ? "bg-[#E1E2B4] text-[#5B612A]"
                         : "text-[#292829] hover:bg-[#F8F7F8]",
@@ -293,7 +312,8 @@ export function PlatformSideRail({
                     href={item.href}
                     aria-current={isActive ? "page" : undefined}
                     className={clsx(
-                      "w-full h-[88px] flex flex-col items-center justify-center gap-[4px] px-[8px] rounded-lg transition-colors duration-150",
+                      "w-full flex flex-col items-center justify-center gap-[4px] px-[8px] rounded-lg transition-colors duration-150",
+                      itemHeightClass,
                       isActive
                         ? "bg-[#E1E2B4] text-[#5B612A]"
                         : "text-[#292829] hover:bg-[#F8F7F8]",
@@ -319,7 +339,7 @@ export function PlatformSideRail({
             onClick={onReplayTour}
             aria-label={tTour("replayLabel")}
             data-tour="platform-tour-replay"
-            className="mt-auto flex w-[114px] cursor-pointer flex-col items-center justify-center gap-[4px] rounded-lg px-[8px] py-[10px] text-[#292829] transition-colors duration-150 hover:bg-[#F8F7F8]"
+            className="mt-3 flex w-[114px] shrink-0 cursor-pointer flex-col items-center justify-center gap-[4px] rounded-lg px-[8px] py-[10px] text-[#292829] transition-colors duration-150 hover:bg-[#F8F7F8]"
           >
             <HelpIcon />
             <span className="text-[12px] leading-[14px] font-medium">
