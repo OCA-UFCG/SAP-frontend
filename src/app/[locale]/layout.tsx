@@ -52,7 +52,7 @@ export default async function RootLayout({
   const headerContent: ISections = {
     "home-section": {
       id: "1",
-      name: t("home"),
+      name: t("aboutShort"),
       path: "/",
       appears: true,
       childrenCollection: {
