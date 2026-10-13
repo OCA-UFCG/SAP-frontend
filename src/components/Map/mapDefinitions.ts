@@ -440,9 +440,9 @@ const REF_OVERLAY_FILL_SUFFIX = "-fill";
 /**
  * O interior do território marca bem a área de longe, quando ela é uma mancha
  * pequena, e atrapalha de perto, quando cobre a tela e o que se quer ler é o
- * índice por baixo. Por isso desbota conforme o zoom — sem sumir de todo, para
- * ainda distinguir uma TI de uma UC onde elas se sobrepõem. Quem marca o limite
- * de perto é o contorno, que fica sempre igual.
+ * índice por baixo. Por isso desbota conforme o zoom até sumir de vez: mesmo
+ * 3% ainda tingia o índice de perto e não agradou. Quem marca o limite de perto
+ * é o contorno, que fica sempre igual.
  */
 const buildReferenceOverlayFillOpacity = (
   factor: number,
@@ -455,7 +455,7 @@ const buildReferenceOverlayFillOpacity = (
   8,
   0.15 * factor,
   11,
-  0.03 * factor,
+  0,
 ];
 
 export const REFERENCE_OVERLAY_FILL_OPACITY =
