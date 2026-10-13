@@ -297,18 +297,20 @@ function DistributionSection({
         ) : null}
 
         <div className="mt-4 grid grid-cols-2 gap-x-4 gap-y-2">
-          {items.map((item) => (
-            <div key={item.id} className="flex items-start gap-2">
-              <div
-                className="mt-[2px] h-3 w-3 shrink-0 rounded-full"
-                style={{ backgroundColor: item.color }}
-              />
-              <span className="min-w-0 break-words text-[12px] leading-4 text-neutral-600">
-                {item.label}:{" "}
-                <span className="font-bold">{formatValue(item.value)}</span>
-              </span>
-            </div>
-          ))}
+          {items
+            .filter((item) => absolute || item.value > 0)
+            .map((item) => (
+              <div key={item.id} className="flex items-start gap-2">
+                <div
+                  className="mt-[2px] h-3 w-3 shrink-0 rounded-full"
+                  style={{ backgroundColor: item.color }}
+                />
+                <span className="min-w-0 break-words text-[12px] leading-4 text-neutral-600">
+                  {item.label}:{" "}
+                  <span className="font-bold">{formatValue(item.value)}</span>
+                </span>
+              </div>
+            ))}
         </div>
       </div>
     </div>
