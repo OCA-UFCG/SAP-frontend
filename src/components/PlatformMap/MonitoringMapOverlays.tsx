@@ -33,6 +33,8 @@ export function MonitoringMapOverlays({
     toggleReferenceHighlight,
     prefetchReferenceOverlays,
     focusTerritory,
+    clearTerritoryFocus,
+    territoryFocus,
   } = monitoring;
 
   return (
@@ -63,6 +65,8 @@ export function MonitoringMapOverlays({
               highlightedOverlay={highlightedReferenceOverlay}
               onToggleHighlight={toggleReferenceHighlight}
               onSelectTerritory={focusTerritory}
+              selectedTerritory={territoryFocus?.territory}
+              onClearTerritory={clearTerritoryFocus}
               onOpen={prefetchReferenceOverlays}
             />
           </div>

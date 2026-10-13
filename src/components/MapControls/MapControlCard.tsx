@@ -42,6 +42,8 @@ export const MAP_CONTROL_LABEL_CLASS =
  *
  * O conteúdo vem como função porque só deve ser montado com o cartão aberto:
  * uma legenda de vinte classes não precisa existir no DOM enquanto está fechada.
+ * `summary` é o contrário: fica logo abaixo do cabeçalho mesmo com o cartão
+ * fechado — Territórios mostra ali o território escolhido na busca.
  *
  * @example
  * <MapControlDisclosure label="Legendas">{() => itens}</MapControlDisclosure>
@@ -50,10 +52,12 @@ export function MapControlDisclosure({
   label,
   children,
   onOpen,
+  summary,
 }: {
   label: string;
   children: () => ReactNode;
   onOpen?: () => void;
+  summary?: ReactNode;
 }) {
   const [isOpen, setIsOpen] = useState(false);
 
@@ -75,6 +79,7 @@ export function MapControlDisclosure({
           <Chevron open={isOpen} from="down" to="up" size={16} />
         </span>
       </button>
+      {summary}
       {isOpen && children()}
     </MapControlCard>
   );

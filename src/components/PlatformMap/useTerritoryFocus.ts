@@ -10,9 +10,11 @@ import type {
 /**
  * Para onde o mapa deve ir depois de uma busca de território. `key` muda a cada
  * escolha, para que buscar de novo o mesmo território — depois de a pessoa ter
- * arrastado o mapa para longe — volte a mover a câmera.
+ * arrastado o mapa para longe — volte a mover a câmera. `territory` é o que o
+ * cartão de Territórios mostra como selecionado.
  */
 export interface TerritoryFocus {
+  territory: ReferenceTerritory;
   bounds: TerritoryBounds;
   key: number;
 }
@@ -37,6 +39,7 @@ export function useTerritoryFocus(
         toggleOverlay(territory.layerId);
       }
       setTerritoryFocus((current) => ({
+        territory,
         bounds: territory.bounds,
         key: (current?.key ?? 0) + 1,
       }));
@@ -44,5 +47,8 @@ export function useTerritoryFocus(
     [activeOverlays, toggleOverlay],
   );
 
-  return { territoryFocus, focusTerritory };
+  // Desmarcar só tira o nome do cartão: o mapa fica onde está.
+  const clearTerritoryFocus = useCallback(() => setTerritoryFocus(null), []);
+
+  return { territoryFocus, focusTerritory, clearTerritoryFocus };
 }

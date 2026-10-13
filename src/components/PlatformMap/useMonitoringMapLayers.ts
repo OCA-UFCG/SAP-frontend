@@ -70,10 +70,8 @@ export function useMonitoringMapLayers() {
     tileUrls: referenceOverlayTileUrls,
     isLoading: isAnyReferenceOverlayLoading,
   } = useReferenceOverlayTiles(referenceOverlays);
-  const { territoryFocus, focusTerritory } = useTerritoryFocus(
-    referenceOverlays,
-    toggleReferenceOverlay,
-  );
+  const { territoryFocus, focusTerritory, clearTerritoryFocus } =
+    useTerritoryFocus(referenceOverlays, toggleReferenceOverlay);
   const {
     prefetchUrls: referenceOverlayPrefetchUrls,
     requestPrefetch: prefetchReferenceOverlays,
@@ -139,6 +137,7 @@ export function useMonitoringMapLayers() {
     boundaryGeoJson,
     choropleth,
     focusTerritory,
+    clearTerritoryFocus,
     handleSpatialSelectionChange,
     handleTileLayerReady,
     isAnyReferenceOverlayLoading,
