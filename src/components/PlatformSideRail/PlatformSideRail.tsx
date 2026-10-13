@@ -209,9 +209,9 @@ export function PlatformSideRail({
       kind: "section",
       id: "communication",
       label: t("communication"),
-      icon: "report",
+      icon: "chat-bubble",
     },
-    { kind: "section", id: "analysis", label: t("analysis"), icon: "chart" },
+    { kind: "section", id: "analysis", label: t("analysis"), icon: "target" },
   ];
 
   if (showAuditLink) {

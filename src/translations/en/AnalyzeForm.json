@@ -1,6 +1,6 @@
 {
   "AnalyzeForm": {
-    "title": "Multicriteria Analysis",
+    "title": "Prioritization",
     "description": "Fill in the details below to run the analysis.",
     "criteriasTitle": "Criteria",
     "criteriasDesc": "Select and adjust the relative importance of each criterion for decision making. The assigned weight (1 to 10) will be automatically normalized so that the total sum equals 100%.",

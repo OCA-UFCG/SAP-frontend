@@ -1,6 +1,6 @@
 {
   "AnalyzeForm": {
-    "title": "Análise Multicriterial",
+    "title": "Priorização",
     "description": "Preencha os dados abaixo para executar a análise.",
     "criteriasTitle": "Critérios",
     "criteriasDesc": "Selecione e ajuste a importância relativa de cada critério para a tomada de decisão. O peso atribuído (de 1 a 10) será normalizado automaticamente para que a soma total seja igual a 100%.",
