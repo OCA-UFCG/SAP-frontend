@@ -1,4 +1,4 @@
-import { cleanup, render, screen } from "@testing-library/react";
+import { act, cleanup, render, screen } from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
 const { platformSidebarMock, platformMapMock } = vi.hoisted(() => ({
@@ -106,6 +106,40 @@ describe("PlatformLayout", () => {
         showAuditLink: true,
         initialSection: "communication",
         viewMode: "default",
+      }),
+    );
+  });
+
+  // Regressão: a seção escolhida na trilha vivia num estado do layout que
+  // sobrevivia à ida para Auditoria. Quem saía da Análise, passava pela
+  // Auditoria e voltava para Monitoramento via o formulário da análise
+  // multicritério aberto, mesmo com Monitoramento selecionado.
+  it("follows the requested section after leaving a utility view", () => {
+    const { rerender } = render(
+      <PlatformLayout panelLayers={[]} initialSection="monitoring" />,
+    );
+
+    const { onActiveSectionChange } = platformSidebarMock.mock.calls[0]?.[0] as {
+      onActiveSectionChange: (section: string) => void;
+    };
+    act(() => onActiveSectionChange("analysis"));
+    expect(screen.getByTestId("amfe-form-probe")).toBeInTheDocument();
+
+    rerender(
+      <PlatformLayout
+        showAuditLink
+        viewMode="logs"
+        telemetryDashboard={<div />}
+      />,
+    );
+    platformMapMock.mockClear();
+    rerender(<PlatformLayout panelLayers={[]} initialSection="monitoring" />);
+
+    expect(screen.queryByTestId("amfe-form-probe")).not.toBeInTheDocument();
+    expect(platformMapMock.mock.calls.at(-1)?.[0]).toEqual(
+      expect.objectContaining({
+        section: "monitoring",
+        showMonitoringControls: true,
       }),
     );
   });
