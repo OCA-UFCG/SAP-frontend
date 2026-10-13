@@ -102,8 +102,8 @@ function renderProgressDots(dom: PopoverDOM, { config, index }: HookOptions) {
 /** As três áreas da trilha lateral, com os mesmos ícones que ela usa. */
 const PLATFORM_SECTIONS = [
   { id: "monitoring", icon: "eye" },
-  { id: "communication", icon: "report" },
-  { id: "analysis", icon: "chart" },
+  { id: "communication", icon: "chat-bubble" },
+  { id: "analysis", icon: "target" },
 ] as const;
 
 /**
