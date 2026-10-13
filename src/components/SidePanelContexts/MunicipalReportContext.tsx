@@ -195,12 +195,12 @@ export function MunicipalReportContext({ panelLayers = [] }: MunicipalReportCont
   function renderLayerOption(layer: PanelLayerI) {
     const available = availabilityState === "ready" && availability.get(layer.id) === true;
     const layerTitle = translatedLayerTitle(layer);
-    return <div key={layer.id} className={`flex h-12 items-center rounded-lg border border-[#EFEFEF] bg-white ${available ? "" : "opacity-50"}`}>
+    return <div key={layer.id} className={`flex min-h-12 items-stretch rounded-lg border border-[#EFEFEF] bg-white ${available ? "" : "opacity-50"}`}>
       <label className={`flex min-w-0 flex-1 items-center gap-1 py-1 pl-2 ${available ? "cursor-pointer" : "cursor-not-allowed"}`}>
         <span className="flex h-10 w-[30px] items-center justify-center"><input type="checkbox" checked={selectedLayers.has(layer.id)} disabled={!available} onChange={() => toggleLayer(layer.id)} className="h-3.5 w-3.5 rounded-sm accent-[#989F43]" /></span>
-        <span className="min-w-0 flex-1 truncate font-inter text-base font-semibold leading-6 tracking-[-0.015em]" title={layerTitle}>{layerTitle}</span>
+        <span className="min-w-0 flex-1 break-words font-inter text-base font-semibold leading-6 tracking-[-0.015em]" title={layerTitle}>{layerTitle}</span>
       </label>
-      <button type="button" onClick={() => setInfoLayer(layer)} className="flex h-12 w-10 shrink-0 items-center justify-center border-l border-[#EFEFEF]" aria-label={t("moduleInformation", { title: layerTitle })}><svg className="h-4 w-4 text-[#2C1E1C]" aria-hidden><use href="/sprite.svg#info"/></svg></button>
+      <button type="button" onClick={() => setInfoLayer(layer)} className="flex w-10 shrink-0 items-center justify-center border-l border-[#EFEFEF]" aria-label={t("moduleInformation", { title: layerTitle })}><svg className="h-4 w-4 text-[#2C1E1C]" aria-hidden><use href="/sprite.svg#info"/></svg></button>
     </div>;
   }
 
