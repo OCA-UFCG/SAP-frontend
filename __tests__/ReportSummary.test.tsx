@@ -133,6 +133,46 @@ describe("ReportSummary", () => {
     expect(within(container).queryByRole("button")).toBeNull();
   });
 
+  it("na tela, mostra 3 por categoria e o resto no Ver mais; no PDF, todos", () => {
+    const { container } = renderSummary([
+      analysis("seca", "Monitor de seca | ANA", "Dados Climáticos"),
+      analysis("cdi", "Índice Composto de Seca", "Dados Climáticos"),
+      analysis("aridez", "Índice de Aridez", "Dados Climáticos"),
+      analysis("chuva", "Previsão: Anomalia Precipitação", "Dados Climáticos"),
+      analysis("temp", "Previsão: Anomalia Temperatura", "Dados Climáticos"),
+      analysis("solo", "Carbono Orgânico do Solo", "Dados Ambientais"),
+    ]);
+    const scope = within(container);
+    const hiddenOnScreen = () =>
+      [...container.querySelectorAll("li")]
+        .filter((item) => item.classList.contains("hidden"))
+        .map((item) => item.textContent);
+
+    // As escondidas continuam no HTML, que é o que vai para o PDF.
+    expect(scope.getAllByRole("link")).toHaveLength(6);
+    expect(hiddenOnScreen()).toEqual([
+      "Previsão: Anomalia Precipitação",
+      "Previsão: Anomalia Temperatura",
+    ]);
+    expect(
+      [...container.querySelectorAll("li.hidden")].every((item) =>
+        item.classList.contains("print:block"),
+      ),
+    ).toBe(true);
+
+    // Só a categoria com mais de 3 ganha o botão.
+    const toggle = scope.getByRole("button", { name: "Ver mais (2)" });
+    expect(toggle.getAttribute("aria-expanded")).toBe("false");
+
+    fireEvent.click(toggle);
+    expect(hiddenOnScreen()).toEqual([]);
+    expect(toggle.textContent).toBe("Ver menos");
+    expect(toggle.getAttribute("aria-expanded")).toBe("true");
+
+    fireEvent.click(toggle);
+    expect(hiddenOnScreen()).toHaveLength(2);
+  });
+
   it("não renderiza nada sem análises", () => {
     const { container } = renderSummary([]);
 
