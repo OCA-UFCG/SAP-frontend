@@ -623,10 +623,7 @@ export function AnalysisPanel({
         {model ? (
           <section className="flex flex-col gap-4">
             <div className="mb-4 flex flex-col">
-              <div
-                className="text-[18px] font-semibold leading-6"
-                style={{ color: "#989F43" }}
-              >
+              <div className="w-full max-w-[392px] rounded-lg bg-[#777E32] px-4 py-2 text-[18px] font-bold leading-6 text-white">
                 {model.name}
               </div>
             </div>
