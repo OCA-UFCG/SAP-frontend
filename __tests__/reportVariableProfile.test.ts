@@ -42,6 +42,27 @@ describe("describeReportVariableProfile", () => {
     expect(historical.nature).toBe("historical");
   });
 
+  // O decêndio corrente (15/06 cai no 2º) separa histórico de previsão; sem a
+  // granularidade própria, "2025-06-11" > "2025" marcava a série inteira como
+  // previsão e o relatório perdia todas as variáveis de série.
+  it("trata a série decendial pelo decêndio corrente", () => {
+    const profile = describeReportVariableProfile({
+      periods: ["2025-06-01", "2025-06-11"],
+      classCount: 5,
+      now: NOW,
+    });
+
+    expect(profile.granularity).toBe("dekad");
+    expect(profile.nature).toBe("historical");
+    expect(
+      describeReportVariableProfile({
+        periods: ["2025-06-11", "2025-06-21"],
+        classCount: 5,
+        now: NOW,
+      }).nature,
+    ).toBe("forecast");
+  });
+
   it("reconhece o indicador de valor único pela classe solitária", () => {
     expect(
       describeReportVariableProfile({

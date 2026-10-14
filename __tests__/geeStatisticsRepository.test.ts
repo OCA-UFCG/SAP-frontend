@@ -258,6 +258,18 @@ describe("seleção do período entre as linhas do território", () => {
     );
   });
 
+  it("casa o decêndio pela data inteira em fontes decendiais", () => {
+    const dekadSource: ResolvedGeeStatisticsSource = {
+      ...source,
+      periodGranularity: "dekad",
+    };
+    const row = { data_img: "2001-01-11" };
+
+    expect(matchesStatisticsPeriod(dekadSource, row, "2001-01-11")).toBe(true);
+    expect(matchesStatisticsPeriod(dekadSource, row, "2001-01-01")).toBe(false);
+    expect(matchesStatisticsPeriod(dekadSource, row, "2001-01")).toBe(false);
+  });
+
   it("descarta a linha quando a propriedade do período não veio", () => {
     expect(matchesStatisticsPeriod(source, {}, "2025-06")).toBe(false);
   });

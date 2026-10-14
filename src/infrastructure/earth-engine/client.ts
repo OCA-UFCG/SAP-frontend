@@ -326,9 +326,20 @@ async function requestGeeApi<T>(
       await waitBeforeRetry(attempt);
       continue;
     }
-    const payload = (await response.json().catch(() => ({}))) as T & {
-      error?: { message?: unknown };
-    };
+    let payload: T & { error?: { message?: unknown } };
+    try {
+      payload = await response.json();
+    } catch (error) {
+      // O prazo da tentativa vale também para baixar a resposta. Uma resposta
+      // grande demais cortada no meio não pode virar um `{}` de sucesso: quem
+      // chamou leria "o Earth Engine não devolveu nada" no lugar da causa.
+      if (response.ok) {
+        throw new Error(
+          `A resposta do Earth Engine não pôde ser lida até o fim (${error instanceof Error ? error.message : String(error)}). Ela pode ser grande demais para o prazo de ${GEE_COMPUTE_ATTEMPT_TIMEOUT_MS / 1000} s.`,
+        );
+      }
+      payload = {} as typeof payload;
+    }
 
     if (response.ok) return payload;
 

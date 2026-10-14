@@ -41,6 +41,10 @@ import {
 import { isGeeStatisticsLayerId } from "@/config/geeStatisticsLayers";
 import { getForecastMembers, type ForecastMember } from "@/utils/forecastGroup";
 import { getImageDataLegend, getImageDataYearKeys } from "@/utils/imageData";
+import { parseDekadPeriod } from "@/utils/dekadPeriod";
+
+/** Quantos decêndios entram no gráfico temporal do painel: o último ano. */
+const DEKADS_IN_TEMPORAL_CHART = 36;
 
 interface MunicipalAnalysisApiResponse {
   imageData?: PanelLayerI["imageData"] | null;
@@ -172,8 +176,16 @@ export function AnalysisContext({
     }
 
     const temporalLocationKey = selectedMunicipalityCode ?? selectedLocationKey;
+    // O gráfico pede um período por requisição. Uma série decendial tem 36
+    // períodos por ano (926 no CDI de 2001 a 2026), e pedir todos de uma vez
+    // deixava metade sem resposta; por isso ela entra só com o último ano.
+    const temporalOptions = yearOptions.some((option) =>
+      parseDekadPeriod(option.value),
+    )
+      ? yearOptions.slice(-DEKADS_IN_TEMPORAL_CHART)
+      : yearOptions;
 
-    return yearOptions.map((option) =>
+    return temporalOptions.map((option) =>
       getMunicipalAnalysisRequestKey(
         dataset.id,
         option.value,

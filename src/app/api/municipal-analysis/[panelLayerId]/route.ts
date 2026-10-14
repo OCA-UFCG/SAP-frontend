@@ -12,7 +12,7 @@ interface MunicipalAnalysisRouteContext {
 }
 
 const PANEL_LAYER_ID_PATTERN = /^[A-Za-z0-9_-]{1,80}$/u;
-const YEAR_KEY_PATTERN = /^(\d{4})(?:-(0[1-9]|1[0-2]))?$/u;
+const YEAR_KEY_PATTERN = /^(\d{4})(?:-(0[1-9]|1[0-2])(?:-(?:01|11|21))?)?$/u;
 const LOCATION_KEY_PATTERN =
   /^(?:br|[a-z]{2}|\d{7}|(?:2_regiao|3_bioma|4_asd|5_semiarido)-[a-z0-9-]+)$/u;
 

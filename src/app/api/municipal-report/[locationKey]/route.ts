@@ -6,7 +6,7 @@ import { buildCachedMunicipalReport } from "@/services/municipalReportCache";
 import { isReportTerritoryKeyShape } from "@/utils/reportTerritory";
 import { createServerTiming } from "@/utils/serverTiming";
 
-const PERIOD_PATTERN = /^(\d{4})(?:-(0[1-9]|1[0-2]))?$/u;
+const PERIOD_PATTERN = /^(\d{4})(?:-(0[1-9]|1[0-2])(?:-(?:01|11|21))?)?$/u;
 const LAYER_ID_PATTERN = /^[A-Za-z0-9_-]{1,80}$/u;
 
 function error(message: string, status: number) {

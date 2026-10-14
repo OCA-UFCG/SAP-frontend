@@ -130,9 +130,12 @@ export function parseGeeFeatureCollectionStatisticsSource(
   }
   if (
     value.periodGranularity !== "year" &&
-    value.periodGranularity !== "month"
+    value.periodGranularity !== "month" &&
+    value.periodGranularity !== "dekad"
   ) {
-    throw new Error("A granularidade estatística deve ser anual ou mensal.");
+    throw new Error(
+      "A granularidade estatística deve ser anual, mensal ou decendial.",
+    );
   }
   if (!isRecord(value.properties)) {
     throw new Error("A configuração da fonte estatística está incompleta.");

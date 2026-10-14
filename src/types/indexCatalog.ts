@@ -81,7 +81,7 @@ export interface CatalogValidationReport {
     panelLayerId: string;
     periods: string[];
     defaultPeriod?: string;
-    timeScale?: "Anual" | "Mensal";
+    timeScale?: "Anual" | "Mensal" | "Decendial";
     classIndexes: number[];
     statisticsAssetCount: number;
     imageDataBytes?: number;

@@ -26,14 +26,11 @@ import {
   type DiscoveredStatisticsAsset,
 } from "@/services/indexCatalog/statisticsAssetCache";
 import {
+  PERCENTAGE_TOLERANCE,
   readStatisticsAssetProbes,
   readStatisticsAssetProperties,
   type StatisticsAssetProbe,
 } from "@/services/indexCatalog/statisticsAssetProbe";
-import {
-  countInvalidPercentageRows,
-  parsePercentageColumns,
-} from "@/utils/catalogPercentageRows";
 import type {
   CatalogValidationReport,
   ClassMapping,
@@ -41,9 +38,9 @@ import type {
   IndexCatalogConfigV2,
 } from "@/types/indexCatalog";
 import { expandAssetForPeriod, inferTimeScale } from "@/utils/indexCatalog";
+import { DEKAD_PERIOD_PATTERN } from "@/contracts/geeStatisticsAsset";
 
 const PERIOD_PATTERN = /^\d{4}(?:-(?:0[1-9]|1[0-2]))?$/u;
-const PERCENTAGE_TOLERANCE = 0.2;
 const DEFAULT_CLASS_COLORS = [
   "#D9ED92",
   "#B5E48C",
@@ -75,6 +72,10 @@ function normalizePeriod(
     return /^\d{4}$/u.test(year) ? year : null;
   }
   const date = String(value ?? "").trim();
+  if (granularity === "dekad") {
+    const day = date.slice(0, 10);
+    return DEKAD_PERIOD_PATTERN.test(day) ? day : null;
+  }
   const period = date.match(/^\d{4}-(?:0[1-9]|1[0-2])/u)?.[0] ?? "";
   return PERIOD_PATTERN.test(period) ? period : null;
 }
@@ -99,7 +100,6 @@ interface PendingStatisticsReading {
 
 function validateProbedRows(
   source: ResolvedGeeStatisticsSource,
-  schema: GeeStatisticsSchema,
   probe: StatisticsAssetProbe,
 ) {
   const rowCount = probe.rowCount;
@@ -126,20 +126,9 @@ function validateProbedRows(
       `Asset estatístico ${source.assetId} possui ${rowCount - probe.distinctCount} território(s)/período(s) duplicado(s).`,
     );
   }
-  // Depois das checagens de nulo: uma coluna com valor ausente sai mais curta de
-  // reduceColumns, e o erro de campo obrigatório vazio explica melhor a causa.
-  const invalidPercentageCount = countInvalidPercentageRows(
-    parsePercentageColumns(
-      probe.percentageColumns,
-      schema.percentageProperties,
-      rowCount,
-      source.assetId,
-    ),
-    PERCENTAGE_TOLERANCE,
-  );
-  if (invalidPercentageCount > 0) {
+  if (probe.invalidPercentageCount > 0) {
     throw new Error(
-      `Asset estatístico ${source.assetId} possui ${invalidPercentageCount} linha(s) com percentuais fora de 0–100 ou sem total 100 ± ${PERCENTAGE_TOLERANCE}.`,
+      `Asset estatístico ${source.assetId} possui ${probe.invalidPercentageCount} linha(s) com percentuais fora de 0–100 ou sem total 100 ± ${PERCENTAGE_TOLERANCE}.`,
     );
   }
 
@@ -188,9 +177,9 @@ function probedPeriods(
   probe: StatisticsAssetProbe,
 ) {
   const property =
-    source.periodGranularity === "month"
-      ? source.properties.date
-      : source.properties.year;
+    source.periodGranularity === "year"
+      ? source.properties.year
+      : source.properties.date;
   const periods = [
     ...new Set(
       (probe.periods ?? []).flatMap((value) => {
@@ -204,7 +193,43 @@ function probedPeriods(
       `Asset estatístico ${source.assetId} não possui períodos válidos em ${property}.`,
     );
   }
+  assertOneDatePerMonth(source, probe, property);
   return periods;
+}
+
+/**
+ * Uma tabela mensal precisa ter uma data só por mês.
+ *
+ * Uma tabela decendial (`2001-01-01`, `2001-01-11`, `2001-01-21`) cadastrada
+ * como mensal passaria em todas as outras conferências, mas os três decêndios
+ * virariam um único `2001-01`, e o painel e o relatório misturariam os três sem
+ * erro nenhum. Por isso o catálogo recusa e diz qual granularidade escolher.
+ */
+function assertOneDatePerMonth(
+  source: ResolvedGeeStatisticsSource,
+  probe: StatisticsAssetProbe,
+  property: string,
+) {
+  if (source.periodGranularity !== "month") return;
+
+  const datesByMonth = new Map<string, Set<string>>();
+  for (const value of probe.periods ?? []) {
+    const month = normalizePeriod(value, "month");
+    if (!month) continue;
+    const dates = datesByMonth.get(month) ?? new Set<string>();
+    dates.add(String(value).trim().slice(0, 10));
+    datesByMonth.set(month, dates);
+  }
+  const repeated = [...datesByMonth.values()].find((dates) => dates.size > 1);
+  if (!repeated) return;
+
+  const example = [...repeated].sort().join(", ");
+  const looksLikeDekads = [...repeated].every((date) =>
+    DEKAD_PERIOD_PATTERN.test(date),
+  );
+  throw new Error(
+    `Asset estatístico ${source.assetId} tem mais de uma data no mesmo mês em ${property} (${example}), mas está cadastrado como mensal.${looksLikeDekads ? " As datas são de decêndios: escolha a granularidade decendial." : ""}`,
+  );
 }
 
 /**
@@ -257,7 +282,7 @@ async function discoverStatisticsAsset(
   // Períodos antes das linhas: um asset sem período válido tem uma causa mais
   // específica que "linha com campo vazio", e é a mensagem mais útil.
   const periods = probedPeriods(source, reading.probe);
-  const rowCount = validateProbedRows(source, reading.schema, reading.probe);
+  const rowCount = validateProbedRows(source, reading.probe);
   const seasonProperty = confirmedSeasonProperty(
     source,
     reading.schema,

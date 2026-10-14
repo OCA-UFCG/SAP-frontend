@@ -236,6 +236,22 @@ describe("resolveImageCollectionPeriod", () => {
     });
   });
 
+  it("turns a dekad into the UTC window of its ten days", () => {
+    expect(
+      resolveImageCollectionPeriod({ ...baseEntry, year: "2001-01-11" }),
+    ).toEqual({
+      startMillis: Date.UTC(2001, 0, 11),
+      endMillis: Date.UTC(2001, 0, 21),
+    });
+    // O terceiro decêndio vai até o fim do mês, tenha ele 28, 30 ou 31 dias.
+    expect(
+      resolveImageCollectionPeriod({ ...baseEntry, year: "2024-02-21" }),
+    ).toEqual({
+      startMillis: Date.UTC(2024, 1, 21),
+      endMillis: Date.UTC(2024, 2, 1),
+    });
+  });
+
   it("adds the configured year label so assets with unreliable dates still work", () => {
     expect(
       resolveImageCollectionPeriod({

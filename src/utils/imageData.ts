@@ -64,12 +64,13 @@ export function resolveImageCollectionSelection(
 
 const YEAR_PERIOD_PATTERN = /^(\d{4})$/u;
 const MONTH_PERIOD_PATTERN = /^(\d{4})-(\d{2})$/u;
+const DEKAD_PERIOD_PATTERN = /^(\d{4})-(0[1-9]|1[0-2])-(01|11|21)$/u;
 
 /**
  * Janela UTC do período, ou `undefined` para chaves que não são um período
  * datável (`general`, rótulos livres).
  */
-function resolvePeriodRange(period: string) {
+export function resolvePeriodRange(period: string) {
   const yearMatch = YEAR_PERIOD_PATTERN.exec(period);
 
   if (yearMatch) {
@@ -77,6 +78,21 @@ function resolvePeriodRange(period: string) {
     return {
       startMillis: Date.UTC(year, 0, 1),
       endMillis: Date.UTC(year + 1, 0, 1),
+    };
+  }
+
+  // Decêndio: do dia 1 ao 10, do 11 ao 20 e do 21 ao fim do mês.
+  const dekadMatch = DEKAD_PERIOD_PATTERN.exec(period);
+  if (dekadMatch) {
+    const year = Number(dekadMatch[1]);
+    const month = Number(dekadMatch[2]);
+    const day = Number(dekadMatch[3]);
+    return {
+      startMillis: Date.UTC(year, month - 1, day),
+      endMillis:
+        day === 21
+          ? Date.UTC(year, month, 1)
+          : Date.UTC(year, month - 1, day + 10),
     };
   }
 

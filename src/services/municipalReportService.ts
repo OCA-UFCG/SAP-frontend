@@ -146,7 +146,7 @@ function limitLegacyLoad<T>(
 }
 
 function getCalendarYear(period: string) {
-  return period.match(/^(\d{4})(?:-\d{2})?$/u)?.[1] ?? null;
+  return period.match(/^(\d{4})(?:-\d{2}){0,2}$/u)?.[1] ?? null;
 }
 
 function resolveCanonicalReportPeriod(

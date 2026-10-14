@@ -40,6 +40,7 @@ import {
 import { resizeValueRanges } from "@/utils/municipalValueIndicator";
 import { buildValueLegendRanges } from "@/utils/valueLegendRanges";
 import type { PublishedPanelLayerReportConfig } from "@/contracts/panelLayerReport";
+import type { GeeStatisticsPeriodGranularity } from "@/contracts/geeStatisticsAsset";
 import {
   createDefaultReportDraft,
   isStoredReportText,
@@ -1362,18 +1363,21 @@ export function IndexCatalogScreen() {
                       onChange={(event) =>
                         updateDraft("statisticsSource", {
                           ...geeSource,
-                          periodGranularity: event.target.value as
-                            "year" | "month",
+                          periodGranularity: event.target
+                            .value as GeeStatisticsPeriodGranularity,
                         })
                       }
                     >
                       <option value="year">Anual</option>
                       <option value="month">Mensal</option>
+                      {geeSource.kind === "gee-feature-collection" && (
+                        <option value="dekad">Decendial (10 em 10 dias)</option>
+                      )}
                     </select>
                     <span className="mt-1 block text-xs font-normal text-stone-500">
                       {detectedYearPartition?.month
                         ? "Mensal, porque o endereço traz o mês: cada tabela é um mês."
-                        : "Anual gera períodos como 2026; Mensal gera 2026-09. Precisa bater com os períodos da tabela."}
+                        : "Anual gera períodos como 2026; Mensal gera 2026-09; Decendial gera 2026-09-01, 2026-09-11 e 2026-09-21. Precisa bater com as datas da tabela."}
                     </span>
                   </label>
                   <label className="text-sm font-medium md:col-span-2">

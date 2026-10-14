@@ -24,6 +24,7 @@ import {
   formatReportPeriod,
   getReportDocsText,
 } from "@/utils/municipalReportNarrative";
+import { formatDekadPeriod } from "@/utils/dekadPeriod";
 import {
   finishMunicipalReportMetrics,
   recordMunicipalReportNavigation,
@@ -186,7 +187,11 @@ const AnalysisSection = memo(function AnalysisSection({
   const referencePeriod =
     effectivePeriod ?? analysis.snapshot?.period ?? analysis.requestedPeriod;
   const referencePeriodLabel = formatReportPeriod(referencePeriod, locale);
-  const snapshotPeriodLabel = analysis.snapshot?.label || referencePeriodLabel;
+  const rawSnapshotLabel = analysis.snapshot?.label;
+  const snapshotPeriodLabel =
+    (rawSnapshotLabel && formatDekadPeriod(rawSnapshotLabel, locale)) ||
+    rawSnapshotLabel ||
+    referencePeriodLabel;
   const periodResolution = `${t("analyzedPeriod")}: ${referencePeriodLabel}.`;
   const historyRange = compactPeriodRange(
     analysis.timeSeries,
