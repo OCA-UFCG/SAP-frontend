@@ -245,7 +245,7 @@ describe("telemetryService", () => {
 
     const data = await getTelemetryDashboardData(120);
 
-    expect(mockedGetRecentTelemetryEvents).toHaveBeenCalledWith(120);
+    expect(mockedGetRecentTelemetryEvents).toHaveBeenCalledWith(120, undefined);
     expect(data.sampledEventCount).toBe(1);
     expect(data.topSearchQueries).toEqual([
       { label: "brasil | Camada de teste | 2024", count: 1 },

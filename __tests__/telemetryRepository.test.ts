@@ -6,6 +6,7 @@ vi.mock("@/lib/firebase-admin", () => ({
 
 import {
   DEFAULT_TELEMETRY_COLLECTION_NAME,
+  resolveProductionTelemetryCollectionName,
   resolveTelemetryCollectionName,
 } from "@/repositories/telemetry/telemetryRepository";
 
@@ -26,5 +27,13 @@ describe("telemetryRepository", () => {
     expect(resolveTelemetryCollectionName("telemetry-events-beta")).toBe(
       "telemetry-events-beta",
     );
+  });
+
+  it("only reads the production collection where it is configured", () => {
+    expect(resolveProductionTelemetryCollectionName(undefined)).toBeNull();
+    expect(resolveProductionTelemetryCollectionName("  ")).toBeNull();
+    expect(
+      resolveProductionTelemetryCollectionName("telemetry-events-prod"),
+    ).toBe("telemetry-events-prod");
   });
 });
