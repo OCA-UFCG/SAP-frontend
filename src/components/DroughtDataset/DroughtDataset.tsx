@@ -49,87 +49,60 @@ export function DroughtDataset({
   const slug = slugifyTranslationKey(card.title);
 
   const displayTitle = tModules.has(`${slug}.title`) ? tModules(`${slug}.title`, { title: card.title }) : card.title;
-  const displayDescription = tModules.has(`${slug}.description`) ? tModules(`${slug}.description`, { description: card.description }) : card.description;
 
   return (
     <>
       <div
         data-tour="layer-card"
-        className="flex flex-row items-start w-full h-[198px] bg-white border border-[#EFEFEF] shadow-sm rounded-lg overflow-hidden shrink-0"
+        className="flex flex-row items-center gap-3 w-full p-3 bg-white border border-[#EFEFEF] shadow-sm rounded-lg shrink-0"
       >
-        <div className="flex flex-col items-start w-full">
-          {/* card header */}
-          <div
-            className="flex flex-row items-center pr-4 gap-2 w-full"
-            style={{ height: 126 }}
-          >
-            <div
-              className="relative shrink-0"
-              style={{ width: "115.51px", height: 126 }}
-            >
-              {card.image ? (
-                <Image
-                  src={normalizeContentfulImage(card.image)}
-                  alt={displayTitle}
-                  fill
-                  sizes="116px"
-                  className="object-cover"
-                />
-              ) : (
-                <div className="absolute inset-0 bg-[#E4E5E2]" />
-              )}
-            </div>
+        <div className="relative shrink-0 size-24 overflow-hidden rounded-md">
+          {card.image ? (
+            <Image
+              src={normalizeContentfulImage(card.image)}
+              alt={displayTitle}
+              fill
+              sizes="96px"
+              className="object-cover"
+            />
+          ) : (
+            <div className="absolute inset-0 bg-[#E4E5E2]" />
+          )}
+        </div>
 
-            <div
-              className="flex flex-col items-start py-2 gap-[6px] flex-1"
-              style={{ height: 126 }}
-            >
-              <div className="flex items-center w-full" style={{ height: 24 }}>
-                <span className="w-full font-inter font-semibold text-[16px] leading-[24px] tracking-[-0.015em] text-[#292829] line-clamp-1" title={displayTitle}>
-                  {displayTitle}
-                </span>
-              </div>
-              <div className="flex items-start w-full flex-1">
-                <span className="w-full font-inter font-normal text-[14px] leading-[20px] text-[#7E797B] line-clamp-3 break-words" title={displayDescription}>
-                  {displayDescription}
-                </span>
-              </div>
-            </div>
-          </div>
+        {/* Título inteiro e, embaixo, os botões; a descrição fica no "i" */}
+        <div className="flex flex-col gap-3 flex-1 min-w-0">
+          <span className="font-inter font-semibold text-[16px] leading-[22px] tracking-[-0.015em] text-[#292829] break-words">
+            {displayTitle}
+          </span>
 
-          {/* card footer */}
-          <div
-            className="flex flex-row items-center w-full p-4 gap-4 border-t border-[#EFEFEF]"
-            style={{ height: 72 }}
-          >
+          <div className="flex flex-row items-center gap-1.5">
             {/* Toggle (apply/unapply layer) */}
-            <div className="flex flex-row justify-center items-center p-2 gap-2 w-[60px] h-10">
-              <button
-                type="button"
-                role="switch"
-                aria-checked={active}
-                aria-label={
-                  active
-                    ? t("deactivateLayer", { title: displayTitle })
-                    : t("activateLayer", { title: displayTitle })
-                }
-                onClick={onToggle}
-                disabled={disabled}
+            <button
+              type="button"
+              role="switch"
+              aria-checked={active}
+              aria-label={
+                active
+                  ? t("deactivateLayer", { title: displayTitle })
+                  : t("activateLayer", { title: displayTitle })
+              }
+              onClick={onToggle}
+              disabled={disabled}
+              className={clsx(
+                "relative w-11 h-6 shrink-0 rounded-full transition-colors",
+                active ? "bg-[#989F43]" : "bg-[#E4E5E2]",
+                disabled ? "cursor-not-allowed opacity-70" : "cursor-pointer",
+                "focus:outline-none focus-visible:ring-2 focus-visible:ring-[#989F43] focus-visible:ring-offset-2",
+              )}
+            >
+              <span
                 className={clsx(
-                  "relative w-11 h-6 rounded-full transition-colors",
-                  active ? "bg-[#989F43]" : "bg-[#E4E5E2]",
-                  disabled ? "cursor-not-allowed opacity-70" : "cursor-pointer",
-                  "focus:outline-none focus-visible:ring-2 focus-visible:ring-[#989F43] focus-visible:ring-offset-2",
+                  "absolute top-0.5 left-0.5 h-5 w-5 rounded-full bg-white transition-transform duration-200",
+                  active ? "translate-x-5" : "translate-x-0",
                 )}
-              >
-                <span
-                  className={clsx(
-                    "absolute top-0.5 left-0.5 h-5 w-5 rounded-full bg-white transition-transform duration-200",
-                    active ? "translate-x-5" : "translate-x-0",
-                  )}
-                />
-              </button>
-            </div>
+              />
+            </button>
 
             {/* Detalhamento (open analysis context) */}
             <button
@@ -137,12 +110,11 @@ export function DroughtDataset({
               onClick={onDetails}
               disabled={disabled}
               className={clsx(
-                "flex flex-row justify-center items-center px-4 py-2 gap-[10px] h-10 bg-[#989F43] rounded-[6px]",
-                "flex-1",
+                "flex flex-row justify-center items-center px-3 h-10 min-w-0 flex-1 bg-[#989F43] rounded-[6px]",
                 disabled ? "cursor-not-allowed opacity-60" : "cursor-pointer",
               )}
             >
-              <span className="font-open-sans text-[14px] leading-[24px] font-normal text-white">
+              <span className="font-open-sans text-[14px] leading-[24px] font-normal text-white truncate">
                 {t("details")}
               </span>
             </button>
@@ -154,7 +126,7 @@ export function DroughtDataset({
               disabled={disabled}
               aria-label={t("moreInformation", { title: displayTitle })}
               className={clsx(
-                "box-border flex flex-row justify-center items-center p-2 gap-2 w-10 h-10 bg-white border border-[#E4E5E2] rounded-[6px] shrink-0",
+                "box-border flex flex-row justify-center items-center p-2 w-10 h-10 bg-white border border-[#E4E5E2] rounded-[6px] shrink-0",
                 disabled ? "cursor-not-allowed opacity-60" : "cursor-pointer hover:bg-[#F5F6EE] transition-colors",
                 "focus:outline-none focus-visible:ring-2 focus-visible:ring-[#989F43] focus-visible:ring-offset-2",
               )}
