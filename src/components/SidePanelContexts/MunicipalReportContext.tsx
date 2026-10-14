@@ -466,7 +466,6 @@ export function MunicipalReportContext({ panelLayers = [] }: MunicipalReportCont
             </div>
             <p className="font-inter text-xs font-medium leading-[18px] tracking-[-0.015em]">{t("selectModulesHint")}</p>
             <div className="flex min-h-[18px] items-center gap-2 font-inter text-xs leading-[18px] text-[#7E797B]" aria-live="polite">
-              {availabilityState === "idle" && t("availabilityIdle")}
               {availabilityState === "ready" && availableLayers.length === 0 && t("noModulesAvailable")}
             </div>
           </div>
