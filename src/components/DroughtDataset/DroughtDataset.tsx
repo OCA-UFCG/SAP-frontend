@@ -55,17 +55,17 @@ export function DroughtDataset({
     <>
       <div
         data-tour="layer-card"
-        className="flex flex-row items-start w-full h-[198px] bg-white border border-[#EFEFEF] shadow-sm rounded-lg overflow-hidden shrink-0"
+        className="flex flex-row items-start w-full min-h-[198px] bg-white border border-[#EFEFEF] shadow-sm rounded-lg overflow-hidden shrink-0"
       >
         <div className="flex flex-col items-start w-full">
           {/* card header */}
           <div
-            className="flex flex-row items-center pr-4 gap-2 w-full"
-            style={{ height: 126 }}
+            className="flex flex-row items-stretch pr-4 gap-2 w-full"
+            style={{ minHeight: 126 }}
           >
             <div
               className="relative shrink-0"
-              style={{ width: "115.51px", height: 126 }}
+              style={{ width: "115.51px", minHeight: 126 }}
             >
               {card.image ? (
                 <Image
@@ -82,10 +82,10 @@ export function DroughtDataset({
 
             <div
               className="flex flex-col items-start py-2 gap-[6px] flex-1"
-              style={{ height: 126 }}
+              style={{ minHeight: 126 }}
             >
-              <div className="flex items-center w-full" style={{ height: 24 }}>
-                <span className="w-full font-inter font-semibold text-[16px] leading-[24px] tracking-[-0.015em] text-[#292829] line-clamp-1" title={displayTitle}>
+              <div className="flex items-center w-full" style={{ minHeight: 24 }}>
+                <span className="w-full font-inter font-semibold text-[16px] leading-[24px] tracking-[-0.015em] text-[#292829] break-words">
                   {displayTitle}
                 </span>
               </div>
