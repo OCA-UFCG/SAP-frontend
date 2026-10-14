@@ -11,6 +11,7 @@ import {
   assertAssetPatternVariesByPeriod,
   expandAssetForPeriod,
 } from "@/utils/indexCatalog";
+import { resolvePeriodRange } from "@/utils/imageData";
 
 export interface ValidatedForecastCollection {
   latestValue: string | number;
@@ -126,6 +127,38 @@ async function validateForecastCollection(
   return { latestValue, leadByPeriod };
 }
 
+/**
+ * Uma ImageCollection que serve vários períodos precisa ter imagem em cada um.
+ *
+ * O mapa escolhe a imagem do período filtrando a coleção pela data, e quando o
+ * filtro não acha nada ele cai no mosaico da coleção inteira: o período sem
+ * imagem mostraria a última imagem da coleção sem erro nenhum. Por isso a falta
+ * é acusada aqui, com os períodos que estão sem imagem.
+ */
+async function assertCollectionCoversPeriods(
+  assetId: string,
+  periods: string[],
+) {
+  const startTimes = await evaluateGeeObject<number[]>(
+    ee.ImageCollection(assetId).aggregate_array("system:time_start"),
+  );
+  const missing = periods.filter((period) => {
+    const range = resolvePeriodRange(period);
+    return (
+      range &&
+      !(startTimes ?? []).some(
+        (time) => time >= range.startMillis && time < range.endMillis,
+      )
+    );
+  });
+  if (missing.length === 0) return;
+
+  const listed = missing.slice(0, 5).join(", ");
+  throw new Error(
+    `A coleção de mapa ${assetId} não tem imagem para ${missing.length} período(s) das estatísticas (${listed}${missing.length > 5 ? ", …" : ""}). O mapa desses períodos mostraria outra imagem.`,
+  );
+}
+
 export async function validateMapAssets(
   config: IndexCatalogConfigV2,
   periods: string[],
@@ -180,6 +213,13 @@ export async function validateMapAssets(
       !config.earthEngine.band
     ) {
       throw new Error("Asset de mapa com várias bandas exige uma banda.");
+    }
+    if (
+      inspection.type === "imageCollection" &&
+      assetPeriods.length > 1 &&
+      !config.earthEngine.collectionSelection
+    ) {
+      await assertCollectionCoversPeriods(assetId, assetPeriods);
     }
     metadata.push({ assetId, updateTime: inspection.updateTime });
   }

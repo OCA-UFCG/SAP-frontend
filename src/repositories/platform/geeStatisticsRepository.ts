@@ -586,8 +586,9 @@ async function loadSeriesLocationRows(
 /**
  * Seleciona o período entre as linhas já carregadas do território.
  *
- * `data_img` guarda o primeiro dia do mês (`2025-06-01`) nas fontes mensais, e
- * `ano` guarda o ano como número nas anuais. Errar essa correspondência faz o
+ * `data_img` guarda o primeiro dia do mês (`2025-06-01`) nas fontes mensais, o
+ * primeiro dia do decêndio (`2025-06-11`, que já é a própria chave) nas
+ * decendiais, e `ano` guarda o ano como número nas anuais. Errar essa correspondência faz o
  * painel mostrar o período errado sem nenhum erro, então ela tem teste próprio.
  */
 export function matchesStatisticsPeriod(
@@ -597,6 +598,9 @@ export function matchesStatisticsPeriod(
 ): boolean {
   if (source.periodGranularity === "month") {
     return row[source.properties.date] === `${yearKey}-01`;
+  }
+  if (source.periodGranularity === "dekad") {
+    return row[source.properties.date] === yearKey;
   }
 
   return Number(row[source.properties.year]) === Number(yearKey);

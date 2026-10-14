@@ -38,6 +38,7 @@ import type {
   IndexCatalogConfigV2,
 } from "@/types/indexCatalog";
 import { expandAssetForPeriod, inferTimeScale } from "@/utils/indexCatalog";
+import { DEKAD_PERIOD_PATTERN } from "@/contracts/geeStatisticsAsset";
 
 const PERIOD_PATTERN = /^\d{4}(?:-(?:0[1-9]|1[0-2]))?$/u;
 const DEFAULT_CLASS_COLORS = [
@@ -71,6 +72,10 @@ function normalizePeriod(
     return /^\d{4}$/u.test(year) ? year : null;
   }
   const date = String(value ?? "").trim();
+  if (granularity === "dekad") {
+    const day = date.slice(0, 10);
+    return DEKAD_PERIOD_PATTERN.test(day) ? day : null;
+  }
   const period = date.match(/^\d{4}-(?:0[1-9]|1[0-2])/u)?.[0] ?? "";
   return PERIOD_PATTERN.test(period) ? period : null;
 }
@@ -172,9 +177,9 @@ function probedPeriods(
   probe: StatisticsAssetProbe,
 ) {
   const property =
-    source.periodGranularity === "month"
-      ? source.properties.date
-      : source.properties.year;
+    source.periodGranularity === "year"
+      ? source.properties.year
+      : source.properties.date;
   const periods = [
     ...new Set(
       (probe.periods ?? []).flatMap((value) => {
@@ -188,7 +193,43 @@ function probedPeriods(
       `Asset estatístico ${source.assetId} não possui períodos válidos em ${property}.`,
     );
   }
+  assertOneDatePerMonth(source, probe, property);
   return periods;
+}
+
+/**
+ * Uma tabela mensal precisa ter uma data só por mês.
+ *
+ * Uma tabela decendial (`2001-01-01`, `2001-01-11`, `2001-01-21`) cadastrada
+ * como mensal passaria em todas as outras conferências, mas os três decêndios
+ * virariam um único `2001-01`, e o painel e o relatório misturariam os três sem
+ * erro nenhum. Por isso o catálogo recusa e diz qual granularidade escolher.
+ */
+function assertOneDatePerMonth(
+  source: ResolvedGeeStatisticsSource,
+  probe: StatisticsAssetProbe,
+  property: string,
+) {
+  if (source.periodGranularity !== "month") return;
+
+  const datesByMonth = new Map<string, Set<string>>();
+  for (const value of probe.periods ?? []) {
+    const month = normalizePeriod(value, "month");
+    if (!month) continue;
+    const dates = datesByMonth.get(month) ?? new Set<string>();
+    dates.add(String(value).trim().slice(0, 10));
+    datesByMonth.set(month, dates);
+  }
+  const repeated = [...datesByMonth.values()].find((dates) => dates.size > 1);
+  if (!repeated) return;
+
+  const example = [...repeated].sort().join(", ");
+  const looksLikeDekads = [...repeated].every((date) =>
+    DEKAD_PERIOD_PATTERN.test(date),
+  );
+  throw new Error(
+    `Asset estatístico ${source.assetId} tem mais de uma data no mesmo mês em ${property} (${example}), mas está cadastrado como mensal.${looksLikeDekads ? " As datas são de decêndios: escolha a granularidade decendial." : ""}`,
+  );
 }
 
 /**

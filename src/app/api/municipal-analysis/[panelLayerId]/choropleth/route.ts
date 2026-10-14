@@ -10,7 +10,7 @@ interface ChoroplethRouteContext {
 }
 
 const PANEL_LAYER_ID_PATTERN = /^[A-Za-z0-9_-]{1,80}$/u;
-const YEAR_KEY_PATTERN = /^(\d{4})(?:-(0[1-9]|1[0-2]))?$/u;
+const YEAR_KEY_PATTERN = /^(\d{4})(?:-(0[1-9]|1[0-2])(?:-(?:01|11|21))?)?$/u;
 
 function jsonError(message: string, status: number) {
   return NextResponse.json(

@@ -6,7 +6,8 @@ import {
 } from "@/utils/formatTerritorialNumber";
 import { useEffect, useRef, useState, useMemo, type ReactNode } from "react";
 import dynamic from "next/dynamic";
-import { useTranslations } from "next-intl";
+import { useLocale, useTranslations } from "next-intl";
+import { formatDekadPeriod } from "@/utils/dekadPeriod";
 import { Chevron } from "@/components/Chevron/Chevron";
 import SearchBarPlatform from "@/components/SidePanelContexts/SearchBarPlatform";
 import type {
@@ -85,8 +86,15 @@ function renderFormattedText(text: string) {
   );
 }
 
-function formatAnalysisYearLabel(text: string, t?: (key: string) => string) {
+function formatAnalysisYearLabel(
+  text: string,
+  t?: (key: string) => string,
+  locale = "pt-BR",
+) {
   if (!text) return text;
+
+  const dekad = formatDekadPeriod(text, locale);
+  if (dekad) return `${dekad.charAt(0).toUpperCase()}${dekad.slice(1)}`;
 
   // matches formats like "2001-07", "2001-07-01", or "2001/07"
   const match = text.match(/^(\d{4})[\/-](\d{2})(?:[\/-]\d{2})?$/);
@@ -158,6 +166,7 @@ function AnalysisYearSelect({
   onYearChange,
 }: AnalysisYearSelectProps) {
   const t = useTranslations("AnalysisPanel");
+  const locale = useLocale();
   const containerRef = useRef<HTMLDivElement>(null);
   const [isOptionsOpen, setIsOptionsOpen] = useState(false);
 
@@ -165,10 +174,10 @@ function AnalysisYearSelect({
     const map = new Map<string, string>();
     yearOptions.forEach((opt) => {
       const raw = opt.label ?? opt.value;
-      map.set(opt.value, formatAnalysisYearLabel(raw, t));
+      map.set(opt.value, formatAnalysisYearLabel(raw, t, locale));
     });
     return map;
-  }, [yearOptions, t]);
+  }, [yearOptions, t, locale]);
 
   const activeOption =
     yearOptions.find((option) => option.value === activeYear) ?? yearOptions[0];

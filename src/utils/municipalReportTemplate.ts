@@ -1,3 +1,4 @@
+import { formatDekadPeriod } from "@/utils/dekadPeriod";
 import {
   formatAbsoluteNumber,
   formatPercentageNumber,
@@ -41,6 +42,8 @@ export function formatMunicipalReportTemplateValue(
   if (type === "number" && typeof value === "number")
     return formatAbsoluteNumber(value, locale);
   if (type === "period" && typeof value === "string") {
+    const dekad = formatDekadPeriod(value, locale);
+    if (dekad) return dekad;
     const match = /^(\d{4})-(\d{2})$/u.exec(value);
     if (match) {
       return new Intl.DateTimeFormat(locale, {

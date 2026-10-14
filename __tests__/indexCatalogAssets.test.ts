@@ -220,6 +220,9 @@ function resolveLeaf(expression: Expression): unknown {
     return assetProperties(expression.assetId);
   }
   if (expression.tag === "periods") {
+    if (expression.assetId.endsWith("dekad-statistics")) {
+      return ["2001-01-01", "2001-01-11", "2001-01-21"];
+    }
     if (expression.assetId.endsWith("forecast-statistics")) {
       return ["2026-09-01", "2026-10-01", "2026-11-01", "2026-12-01"];
     }
@@ -430,6 +433,33 @@ describe("index catalog GEE asset discovery", () => {
       "projects/x/assets/stats_2024",
       "projects/x/assets/stats_2025",
     ]);
+  });
+
+  it("keeps the three dekads of a month as separate periods", async () => {
+    const result = await discoverCatalogStatistics({
+      kind: "gee-feature-collection",
+      asset: { type: "fixed", assetId: "projects/x/assets/dekad-statistics" },
+      periodGranularity: "dekad",
+      properties,
+    });
+
+    expect(result.periods).toEqual(["2001-01-01", "2001-01-11", "2001-01-21"]);
+  });
+
+  // Regressão: o CDI decendial cadastrado como mensal passava em todas as
+  // conferências, e os três decêndios de cada mês viravam um único período.
+  it("rejects a dekadal table registered as monthly, pointing to dekad", async () => {
+    await expect(
+      discoverCatalogStatistics({
+        kind: "gee-feature-collection",
+        asset: {
+          type: "fixed",
+          assetId: "projects/x/assets/dekad-statistics",
+        },
+        periodGranularity: "month",
+        properties,
+      }),
+    ).rejects.toThrow(/escolha a granularidade decendial/u);
   });
 
   it("builds lightweight imageData and a deterministic published source", async () => {

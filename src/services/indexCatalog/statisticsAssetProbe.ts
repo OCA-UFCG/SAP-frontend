@@ -77,9 +77,9 @@ function requiredProperties(
 }
 
 function periodProperty(source: ResolvedGeeStatisticsSource) {
-  return source.periodGranularity === "month"
-    ? source.properties.date
-    : source.properties.year;
+  return source.periodGranularity === "year"
+    ? source.properties.year
+    : source.properties.date;
 }
 
 /**

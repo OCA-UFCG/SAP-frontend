@@ -106,7 +106,7 @@ export function MunicipalReportContext({ panelLayers = [] }: MunicipalReportCont
 
     return options.slice(0, 80);
   }, [municipalities, municipalityQuery]);
-  const validPeriod = /^\d{4}(-\d{2})?$/.test(period);
+  const validPeriod = /^\d{4}(-\d{2}){0,2}$/.test(period);
 
   /**
    * O território do relatório: o município escolhido na busca ou o recorte
@@ -235,7 +235,7 @@ export function MunicipalReportContext({ panelLayers = [] }: MunicipalReportCont
     selectedPeriod: string,
   ) {
     if (!selectedTerritory) return new Set<string>();
-    if (!/^\d{4}(-\d{2})?$/.test(selectedPeriod)) return new Set<string>();
+    if (!/^\d{4}(-\d{2}){0,2}$/.test(selectedPeriod)) return new Set<string>();
     return getSelectableReportLayerIds(
       reportLayers,
       municipalAvailabilityIndex as MunicipalAvailabilityIndex,
