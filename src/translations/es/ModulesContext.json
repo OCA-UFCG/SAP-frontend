@@ -1,7 +1,7 @@
 {
   "ModulesContext": {
     "title": "¿Qué desea monitorear?",
-    "subtitle": "Seleccione qué monitor desea analizar",
+    "subtitle": "Seleccione qué producto desea analizar",
     "categories": {
       "climate": "Datos Climáticos",
       "environmental": "Datos Ambientales",

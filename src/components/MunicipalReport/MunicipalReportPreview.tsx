@@ -511,7 +511,7 @@ const ReportDocument = memo(function ReportDocument({
   ).flatMap((group) => group.analyses);
 
   /**
-   * O link "Ver monitor" de uma seção.
+   * O link "Ver produto" de uma seção.
    *
    * `?layer=` chega ao `ModulesContext`, que ativa a camada no mapa e abre o
    * detalhamento dela — o mesmo caminho de quem clica no índice pelo painel.

@@ -390,7 +390,7 @@ describe("MunicipalReportPreview", () => {
     );
   });
 
-  it("leva o pedido do relatório no link Ver monitor, para a volta não perdê-lo", async () => {
+  it("leva o pedido do relatório no link Ver produto, para a volta não perdê-lo", async () => {
     render(
       <MunicipalReportPreview
         locationKey="5200050"
@@ -400,7 +400,7 @@ describe("MunicipalReportPreview", () => {
       />,
     );
 
-    const link = await screen.findByRole("link", { name: "Ver monitor" });
+    const link = await screen.findByRole("link", { name: "Ver produto" });
     const href = link.getAttribute("href") ?? "";
 
     // Trocar de seção pelo trilho lateral preserva a URL; este link navega e a
@@ -425,7 +425,7 @@ describe("MunicipalReportPreview", () => {
       />,
     );
 
-    await user.click(await screen.findByRole("link", { name: "Ver monitor" }));
+    await user.click(await screen.findByRole("link", { name: "Ver produto" }));
 
     // Navegar descartava o CSS do chunk do relatório e o custo era uma ida ao
     // servidor; dentro da plataforma a troca é estado de cliente.

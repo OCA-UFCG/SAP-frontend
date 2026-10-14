@@ -12,7 +12,7 @@
     },
     "Modules": {
       "title": "O que você deseja monitorar?",
-      "subtitle": "Selecione que monitor você deseja analisar",
+      "subtitle": "Selecione que produto você deseja analisar",
       "categories": {
         "climate": "Dados Climáticos",
         "environmental": "Dados Ambientais",
