@@ -98,6 +98,34 @@ function forecastCollection(assetId: string) {
   return collectionMock;
 }
 
+/**
+ * A conta de percentuais acontece no Earth Engine sobre uma matriz; o mock
+ * guarda só de que tabela ela veio e quantas colunas entraram, e devolve a
+ * contagem de linhas inválidas no fim da cadeia.
+ */
+function invalidPercentagesExpression(columns: Expression): unknown {
+  const self: Record<string, unknown> = {};
+  for (const method of [
+    "lt",
+    "gt",
+    "or",
+    "and",
+    "not",
+    "neq",
+    "reduce",
+    "subtract",
+    "abs",
+  ]) {
+    self[method] = () => self;
+  }
+  self.get = () => ({
+    tag: "invalid-percentages",
+    assetId: columns.assetId,
+    propertyCount: (columns as { propertyCount?: number }).propertyCount,
+  });
+  return self;
+}
+
 vi.mock("@google/earthengine", () => ({
   default: {
     FeatureCollection: (assetId: string) => collection(assetId),
@@ -125,7 +153,11 @@ vi.mock("@google/earthengine", () => ({
       toList: () => ({
         repeat: (count: number) => ({ tag: "to-list", count }),
       }),
+      max: () => ({ tag: "max" }),
+      sum: () => ({ tag: "sum" }),
     },
+    Array: (columns: Expression) => invalidPercentagesExpression(columns),
+    Number: (value: Expression) => value,
   },
 }));
 vi.mock("@/app/api/ee/services", () => ({
@@ -181,8 +213,7 @@ function percentageColumns(propertyCount: number, rowTotal = 100) {
   );
 }
 
-let percentageColumnsBuilder: (propertyCount: number) => number[][] =
-  percentageColumns;
+let invalidPercentageCount = 0;
 
 function resolveLeaf(expression: Expression): unknown {
   if (expression.tag === "property-names") {
@@ -208,8 +239,9 @@ function resolveLeaf(expression: Expression): unknown {
       Date.UTC(2026, 11, 1),
     ];
   }
+  if (expression.tag === "invalid-percentages") return invalidPercentageCount;
   if (expression.tag === "percentage-columns") {
-    const columns = percentageColumnsBuilder(expression.propertyCount ?? 1);
+    const columns = percentageColumns(expression.propertyCount ?? 1);
     return "unwrapped" in expression && expression.unwrapped
       ? columns
       : { list: columns };
@@ -252,16 +284,10 @@ function probedAssetIds() {
 }
 
 describe("index catalog GEE asset discovery", () => {
-  function overridePercentageColumns(
-    build: (propertyCount: number) => number[][],
-  ) {
-    percentageColumnsBuilder = build;
-  }
-
   beforeEach(() => {
     vi.clearAllMocks();
     clearStatisticsAssetCache();
-    percentageColumnsBuilder = percentageColumns;
+    invalidPercentageCount = 0;
     mocks.evaluateGeeObject.mockImplementation(async (expression: Expression) =>
       resolveExpression(expression),
     );
@@ -367,12 +393,8 @@ describe("index catalog GEE asset discovery", () => {
     expect(probedAssetIds()).toEqual(["projects/x/assets/statistics"]);
   });
 
-  // A checagem por linha dos percentuais saiu do Earth Engine e passou a rodar
-  // no Node; estes dois casos fixam que a guarda continua valendo.
   it("rejects an asset whose percentages do not add up to 100", async () => {
-    overridePercentageColumns((propertyCount) =>
-      percentageColumns(propertyCount, 90),
-    );
+    invalidPercentageCount = 10;
     await expect(
       discoverCatalogStatistics({
         kind: "gee-feature-collection",
@@ -381,20 +403,6 @@ describe("index catalog GEE asset discovery", () => {
         properties,
       }),
     ).rejects.toThrow(/possui 10 linha\(s\) com percentuais fora de 0–100/u);
-  });
-
-  it("rejects percentage columns that come back misaligned with the row count", async () => {
-    overridePercentageColumns((propertyCount) =>
-      percentageColumns(propertyCount).map((column) => column.slice(1)),
-    );
-    await expect(
-      discoverCatalogStatistics({
-        kind: "gee-feature-collection",
-        asset: { type: "fixed", assetId: "projects/x/assets/statistics" },
-        periodGranularity: "year",
-        properties,
-      }),
-    ).rejects.toThrow(/retornou 9 valor\(es\); esperado 10, um por linha/u);
   });
 
   it("lists the template parent and discovers monthly assets only", async () => {

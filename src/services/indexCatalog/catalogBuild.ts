@@ -26,14 +26,11 @@ import {
   type DiscoveredStatisticsAsset,
 } from "@/services/indexCatalog/statisticsAssetCache";
 import {
+  PERCENTAGE_TOLERANCE,
   readStatisticsAssetProbes,
   readStatisticsAssetProperties,
   type StatisticsAssetProbe,
 } from "@/services/indexCatalog/statisticsAssetProbe";
-import {
-  countInvalidPercentageRows,
-  parsePercentageColumns,
-} from "@/utils/catalogPercentageRows";
 import type {
   CatalogValidationReport,
   ClassMapping,
@@ -43,7 +40,6 @@ import type {
 import { expandAssetForPeriod, inferTimeScale } from "@/utils/indexCatalog";
 
 const PERIOD_PATTERN = /^\d{4}(?:-(?:0[1-9]|1[0-2]))?$/u;
-const PERCENTAGE_TOLERANCE = 0.2;
 const DEFAULT_CLASS_COLORS = [
   "#D9ED92",
   "#B5E48C",
@@ -99,7 +95,6 @@ interface PendingStatisticsReading {
 
 function validateProbedRows(
   source: ResolvedGeeStatisticsSource,
-  schema: GeeStatisticsSchema,
   probe: StatisticsAssetProbe,
 ) {
   const rowCount = probe.rowCount;
@@ -126,20 +121,9 @@ function validateProbedRows(
       `Asset estatístico ${source.assetId} possui ${rowCount - probe.distinctCount} território(s)/período(s) duplicado(s).`,
     );
   }
-  // Depois das checagens de nulo: uma coluna com valor ausente sai mais curta de
-  // reduceColumns, e o erro de campo obrigatório vazio explica melhor a causa.
-  const invalidPercentageCount = countInvalidPercentageRows(
-    parsePercentageColumns(
-      probe.percentageColumns,
-      schema.percentageProperties,
-      rowCount,
-      source.assetId,
-    ),
-    PERCENTAGE_TOLERANCE,
-  );
-  if (invalidPercentageCount > 0) {
+  if (probe.invalidPercentageCount > 0) {
     throw new Error(
-      `Asset estatístico ${source.assetId} possui ${invalidPercentageCount} linha(s) com percentuais fora de 0–100 ou sem total 100 ± ${PERCENTAGE_TOLERANCE}.`,
+      `Asset estatístico ${source.assetId} possui ${probe.invalidPercentageCount} linha(s) com percentuais fora de 0–100 ou sem total 100 ± ${PERCENTAGE_TOLERANCE}.`,
     );
   }
 
@@ -257,7 +241,7 @@ async function discoverStatisticsAsset(
   // Períodos antes das linhas: um asset sem período válido tem uma causa mais
   // específica que "linha com campo vazio", e é a mensagem mais útil.
   const periods = probedPeriods(source, reading.probe);
-  const rowCount = validateProbedRows(source, reading.schema, reading.probe);
+  const rowCount = validateProbedRows(source, reading.probe);
   const seasonProperty = confirmedSeasonProperty(
     source,
     reading.schema,

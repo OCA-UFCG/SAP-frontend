@@ -16,7 +16,8 @@ vi.mock("@google/earthengine", () => ({
       },
     },
     rpc_convert: {
-      assetIdToAssetName: (id: string) => `projects/earthengine-legacy/assets/${id}`,
+      assetIdToAssetName: (id: string) =>
+        `projects/earthengine-legacy/assets/${id}`,
       assetToLegacyResult: (asset: { type: string }) => ({
         ...asset,
         type: asset.type === "IMAGE" ? "Image" : asset.type,
@@ -225,6 +226,23 @@ describe("evaluateGeeObject", () => {
       "Collection asset 'x' not found.",
     );
     expect(computeCalls).toHaveLength(1);
+  });
+
+  // Regressão: o prazo da tentativa cortava o download de uma resposta grande,
+  // e o `{}` de sucesso que sobrava virava "o Earth Engine não devolveu a
+  // leitura" no catálogo, sem nenhuma pista da causa.
+  it("acusa a resposta cortada no meio em vez de devolver vazio", async () => {
+    computeResponses.push(
+      async () =>
+        new Response('{"result": [1, 2', {
+          status: 200,
+          headers: { "Content-Type": "application/json" },
+        }),
+    );
+
+    await expect(evaluateGeeObject(geeObject("linhas"))).rejects.toThrow(
+      /não pôde ser lida até o fim/u,
+    );
   });
 
   it("não passa de 20 leituras simultâneas no processo", async () => {

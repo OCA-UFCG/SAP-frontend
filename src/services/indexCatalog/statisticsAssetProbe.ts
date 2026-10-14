@@ -31,8 +31,16 @@ export interface StatisticsAssetProbe {
   completeMunicipalCount: number;
   stateCount: number;
   completeStateCount: number;
-  percentageColumns: unknown;
+  /**
+   * Linhas cujos percentuais saem de 0–100 ou não somam
+   * `100 ± PERCENTAGE_TOLERANCE`. Uma linha toda zerada é ausência de dado e
+   * conta como válida.
+   */
+  invalidPercentageCount: number;
 }
+
+/** Folga aceita na soma dos percentuais de uma linha. */
+export const PERCENTAGE_TOLERANCE = 0.2;
 
 export interface StatisticsAssetProbeRequest {
   source: ResolvedGeeStatisticsSource;
@@ -72,6 +80,48 @@ function periodProperty(source: ResolvedGeeStatisticsSource) {
   return source.periodGranularity === "month"
     ? source.properties.date
     : source.properties.year;
+}
+
+/**
+ * Conta, dentro do Earth Engine, as linhas com percentuais inválidos.
+ *
+ * As colunas viram uma matriz (uma linha por classe, uma coluna por linha da
+ * tabela) e a conta inteira acontece sobre ela, devolvendo só um número. Antes
+ * as colunas desciam cruas para a conferência rodar no Node: numa tabela
+ * decendial (202 mil linhas por ano) isso dava ~70 MB por lote de 10 tabelas,
+ * e o download estourava o prazo de 30 s de cada pedido. Com a matriz o lote
+ * de 10 responde em ~13 s. Um `map()` por linha, a outra forma de fazer a conta
+ * no Earth Engine, custava ~38 s numa tabela de 67 mil linhas.
+ *
+ * As linhas com algum percentual nulo ficam de fora (a matriz exige todas as
+ * colunas do mesmo tamanho); quem acusa essas linhas é o `completeCount`.
+ */
+function invalidPercentageRowCount(
+  collection: ReturnType<typeof ee.FeatureCollection>,
+  percentageProperties: string[],
+) {
+  const columns = ee.Array(
+    collection
+      .reduceColumns(
+        ee.Reducer.toList().repeat(percentageProperties.length),
+        percentageProperties,
+      )
+      .get("list"),
+  );
+  const outOfRange = columns
+    .lt(0)
+    .or(columns.gt(100))
+    .reduce(ee.Reducer.max(), [0]);
+  const allZero = columns.neq(0).reduce(ee.Reducer.max(), [0]).not();
+  const wrongTotal = columns
+    .reduce(ee.Reducer.sum(), [0])
+    .subtract(100)
+    .abs()
+    .gt(PERCENTAGE_TOLERANCE)
+    .and(allZero.not());
+  return ee.Number(
+    outOfRange.or(wrongTotal).reduce(ee.Reducer.sum(), [0, 1]).get([0, 0]),
+  );
 }
 
 function buildProbeExpression({ source, schema }: StatisticsAssetProbeRequest) {
@@ -125,17 +175,10 @@ function buildProbeExpression({ source, schema }: StatisticsAssetProbeRequest) {
     completeStateCount: stateRows
       .filter(ee.Filter.notNull([source.properties.stateCode]))
       .size(),
-    // As colunas de percentual vêm cruas e a checagem por linha acontece no
-    // Node. Pedir o mesmo ao GEE (um map() por linha somando as classes)
-    // custava ~38 s numa tabela de 67 mil linhas contra ~2,7 s aqui, e era o
-    // que fazia a prévia de um índice com vários anos estourar o timeout do
-    // proxy no ambiente Beta.
-    percentageColumns: collection
-      .reduceColumns(
-        ee.Reducer.toList().repeat(schema.percentageProperties.length),
-        schema.percentageProperties,
-      )
-      .get("list"),
+    invalidPercentageCount: invalidPercentageRowCount(
+      collection.filter(ee.Filter.notNull(schema.percentageProperties)),
+      schema.percentageProperties,
+    ),
   });
 }
 
@@ -188,7 +231,7 @@ export async function readStatisticsAssetProperties(
 }
 
 /**
- * Lê em lote as contagens e as colunas de percentual das tabelas pedidas.
+ * Lê em lote as contagens e a conferência de percentuais das tabelas pedidas.
  * Devolve um mapa por `assetId` para o chamador conferir cada tabela em Node.
  *
  * @example
