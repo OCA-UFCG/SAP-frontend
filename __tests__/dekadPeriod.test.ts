@@ -15,21 +15,29 @@ describe("dekad periods", () => {
     expect(parseDekadPeriod("2001-01")).toBeNull();
   });
 
-  it("writes the dekad out in each platform language", () => {
-    expect(formatDekadPeriod("2001-01-11", "pt-BR")).toBe(
-      "2º decêndio de janeiro de 2001",
+  it("writes the days of the dekad in each platform language", () => {
+    expect(formatDekadPeriod("2026-09-01", "pt-BR")).toBe(
+      "1 a 10 de setembro de 2026",
     );
-    expect(formatDekadPeriod("2001-01-21", "en")).toBe(
-      "3rd dekad of January 2001",
+    expect(formatDekadPeriod("2026-09-11", "en")).toBe("September 11–20, 2026");
+    expect(formatDekadPeriod("2026-09-21", "es")).toBe(
+      "21 al 30 de septiembre de 2026",
     );
-    expect(formatDekadPeriod("2001-01-01", "es")).toBe(
-      "1.ª década de enero de 2001",
+  });
+
+  // O terceiro decêndio vai até o fim do mês, que muda de tamanho.
+  it("ends the third dekad on the last day of the month", () => {
+    expect(formatDekadPeriod("2024-02-21", "pt-BR")).toBe(
+      "21 a 29 de fevereiro de 2024",
+    );
+    expect(formatDekadPeriod("2026-01-21", "pt-BR")).toBe(
+      "21 a 31 de janeiro de 2026",
     );
   });
 
   it("names the dekad in the report text instead of the raw key", () => {
     expect(formatReportPeriod("2026-09-21", "pt-BR")).toBe(
-      "3º decêndio de setembro de 2026",
+      "21 a 30 de setembro de 2026",
     );
   });
 

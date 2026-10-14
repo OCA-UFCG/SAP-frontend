@@ -28,21 +28,21 @@ export function parseDekadPeriod(period: string): DekadPeriod | null {
   };
 }
 
-function dekadPrefix(dekad: 1 | 2 | 3, locale: string) {
-  const language = locale.slice(0, 2).toLowerCase();
-  if (language === "en") {
-    return `${["1st", "2nd", "3rd"][dekad - 1]} dekad of `;
-  }
-  if (language === "es") return `${dekad}.ª década de `;
-  return `${dekad}º decêndio de `;
+/** O último dia do decêndio: 10, 20 ou o fim do mês (28 a 31). */
+function dekadLastDay({ year, month, dekad }: DekadPeriod) {
+  if (dekad < 3) return dekad * 10;
+  return new Date(Date.UTC(year, month, 0)).getUTCDate();
 }
 
 /**
- * O decêndio por extenso, ou `null` quando a chave não é de decêndio.
+ * Os dias do decêndio por extenso, ou `null` quando a chave não é de decêndio.
+ * Mostrar os dias, e não "2º decêndio", dispensa quem lê de saber o que é um
+ * decêndio.
  *
  * @example
- * formatDekadPeriod("2001-01-11", "pt-BR"); // "2º decêndio de janeiro de 2001"
- * formatDekadPeriod("2001-01-21", "en"); // "3rd dekad of January 2001"
+ * formatDekadPeriod("2026-09-11", "pt-BR"); // "11 a 20 de setembro de 2026"
+ * formatDekadPeriod("2026-02-21", "pt-BR"); // "21 a 28 de fevereiro de 2026"
+ * formatDekadPeriod("2026-09-01", "en"); // "September 1–10, 2026"
  */
 export function formatDekadPeriod(
   period: string,
@@ -50,10 +50,19 @@ export function formatDekadPeriod(
 ): string | null {
   const parsed = parseDekadPeriod(period);
   if (!parsed) return null;
-  const monthYear = new Intl.DateTimeFormat(locale, {
+  const firstDay = (parsed.dekad - 1) * 10 + 1;
+  const lastDay = dekadLastDay(parsed);
+  const monthName = new Intl.DateTimeFormat(locale, {
     month: "long",
-    year: "numeric",
     timeZone: "UTC",
   }).format(new Date(Date.UTC(parsed.year, parsed.month - 1, 1)));
-  return `${dekadPrefix(parsed.dekad, locale)}${monthYear}`;
+
+  const language = locale.slice(0, 2).toLowerCase();
+  if (language === "en") {
+    return `${monthName} ${firstDay}–${lastDay}, ${parsed.year}`;
+  }
+  if (language === "es") {
+    return `${firstDay} al ${lastDay} de ${monthName} de ${parsed.year}`;
+  }
+  return `${firstDay} a ${lastDay} de ${monthName} de ${parsed.year}`;
 }
