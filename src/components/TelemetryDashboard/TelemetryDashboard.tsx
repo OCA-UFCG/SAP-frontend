@@ -1,4 +1,5 @@
 import type { ReactNode } from "react";
+import Link from "next/link";
 
 import type {
   PersistedTelemetryEvent,
@@ -269,7 +270,54 @@ function EventTable({ events }: { events: PersistedTelemetryEvent[] }) {
   );
 }
 
-export function TelemetryDashboard({ data }: { data: TelemetryDashboardData }) {
+/** De qual ambiente vêm os logs: o próprio (beta) ou a produção. */
+export type TelemetrySource = "current" | "production";
+
+const SOURCE_OPTIONS: {
+  source: TelemetrySource;
+  label: string;
+  href: string;
+}[] = [
+  { source: "current", label: "Este ambiente", href: "?view=logs" },
+  {
+    source: "production",
+    label: "Produção",
+    href: "?view=logs&origem=producao",
+  },
+];
+
+function SourceSwitch({ source }: { source: TelemetrySource }) {
+  return (
+    <nav
+      aria-label="Origem dos logs"
+      className="mt-6 inline-flex rounded-full bg-white p-1 ring-1 ring-[#E4E5E2]"
+    >
+      {SOURCE_OPTIONS.map((option) => (
+        <Link
+          key={option.source}
+          href={option.href}
+          aria-current={option.source === source ? "page" : undefined}
+          className={
+            option.source === source
+              ? "rounded-full bg-[#777E32] px-4 py-1.5 text-sm font-semibold text-white"
+              : "rounded-full px-4 py-1.5 text-sm font-semibold text-[#5F5A5C] hover:text-[#292829]"
+          }
+        >
+          {option.label}
+        </Link>
+      ))}
+    </nav>
+  );
+}
+
+export function TelemetryDashboard({
+  data,
+  source,
+}: {
+  data: TelemetryDashboardData;
+  /** Ausente quando o ambiente não tem acesso aos logs da produção. */
+  source?: TelemetrySource;
+}) {
   return (
     <div className="min-h-[calc(100vh-64px)] bg-[#F6F7F6] px-4 py-10 md:px-8 lg:px-12">
       <div className="mx-auto flex w-full max-w-7xl flex-col gap-8">
@@ -285,6 +333,7 @@ export function TelemetryDashboard({ data }: { data: TelemetryDashboardData }) {
             destaca os termos buscados, consultas sem resultado e os layers com
             mais ativações e aberturas de detalhamento.
           </p>
+          {source ? <SourceSwitch source={source} /> : null}
         </header>
 
         <section className="grid gap-4 md:grid-cols-3">
