@@ -11,6 +11,7 @@ vi.mock("@/components/SidePanelContexts/SearchBarPlatform", () => ({
 
 afterEach(() => {
   cleanup();
+  vi.restoreAllMocks();
 });
 
 const model: TerritorialAnalysisViewModel = {
@@ -84,6 +85,42 @@ function renderPanel(panelModel = model) {
 }
 
 describe("AnalysisPanel", () => {
+  it("opens the date list scrolled to the selected date", async () => {
+    const user = userEvent.setup();
+    vi.spyOn(HTMLElement.prototype, "offsetTop", "get").mockImplementation(
+      function (this: HTMLElement) {
+        return this.getAttribute("aria-selected") === "true" ? 400 : 0;
+      },
+    );
+    render(
+      <AnalysisPanel
+        moduleName="Teste"
+        yearOptions={["2001", "2006", "2012", "2018"].map((year) => ({
+          value: year,
+          label: year,
+        }))}
+        activeYear="2012"
+        onBack={vi.fn()}
+        onSearch={vi.fn()}
+        searchTelemetryContext={{
+          activeLayerId: "test",
+          activeLayerName: "Test",
+          activeDateLabel: "2012",
+        }}
+        onYearChange={vi.fn()}
+        model={model}
+      />,
+    );
+
+    await user.click(screen.getByRole("button", { name: "2012" }));
+
+    expect(screen.getByRole("option", { name: "2012" })).toHaveAttribute(
+      "aria-selected",
+      "true",
+    );
+    expect(screen.getByRole("listbox").scrollTop).toBe(400);
+  });
+
   it("shows an accessible spinner beside the on-demand loading message", () => {
     render(
       <AnalysisPanel
@@ -121,7 +158,11 @@ describe("AnalysisPanel", () => {
         activeYear="2024"
         onBack={vi.fn()}
         onSearch={vi.fn()}
-        searchTelemetryContext={{ activeLayerId: "test", activeLayerName: "Test", activeDateLabel: "2024" }}
+        searchTelemetryContext={{
+          activeLayerId: "test",
+          activeLayerName: "Test",
+          activeDateLabel: "2024",
+        }}
         onYearChange={vi.fn()}
         onRankingItemSelect={vi.fn()}
         model={model}

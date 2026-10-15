@@ -1,6 +1,7 @@
 "use client";
 
-import { useEffect, useId, useRef, useState } from "react";
+import { useEffect, useId, useLayoutEffect, useRef, useState } from "react";
+import { scrollSelectedOptionIntoView } from "@/utils/scrollSelectedOption";
 
 export interface PanelDropdownOption {
   value: string;
@@ -36,6 +37,7 @@ export function PanelDropdown({
   onChange: (value: string) => void;
 }) {
   const containerRef = useRef<HTMLDivElement>(null);
+  const optionsRef = useRef<HTMLDivElement>(null);
   const [isOpen, setIsOpen] = useState(false);
   const generatedId = useId();
   const labelId = labelledBy ?? `${generatedId}-label`;
@@ -49,6 +51,10 @@ export function PanelDropdown({
     };
     document.addEventListener("mousedown", closeOnOutsideClick);
     return () => document.removeEventListener("mousedown", closeOnOutsideClick);
+  }, [isOpen]);
+
+  useLayoutEffect(() => {
+    if (isOpen) scrollSelectedOptionIntoView(optionsRef.current);
   }, [isOpen]);
 
   const selectedLabel =
@@ -97,6 +103,7 @@ export function PanelDropdown({
         </button>
         {isOpen && (
           <div
+            ref={optionsRef}
             id={optionsId}
             role="listbox"
             aria-labelledby={labelId}
