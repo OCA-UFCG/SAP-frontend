@@ -1,6 +1,12 @@
 "use client";
 
-import { useDeferredValue, useEffect, useLayoutEffect, useRef } from "react";
+import {
+  useDeferredValue,
+  useEffect,
+  useLayoutEffect,
+  useMemo,
+  useRef,
+} from "react";
 import * as am5 from "@amcharts/amcharts5";
 import * as am5xy from "@amcharts/amcharts5/xy";
 import am5themes_Animated from "@amcharts/amcharts5/themes/Animated";
@@ -23,6 +29,26 @@ const MAX_VISIBLE_YEARS = 8;
 // Uma série decendial abre no último ano: 8 decêndios seriam pouco mais de dois
 // meses, e a alça da barra ficaria minúscula diante dos 926 do CDI.
 const MAX_VISIBLE_DEKADS = 36;
+// No eixo de datas, a mesma data ISO das chaves, cortada no nível que cabe: o
+// ano com a série toda aberta, o mês num zoom de um ano, o dia mais perto.
+const DEKAD_AXIS_DATE_FORMATS = {
+  day: "yyyy-MM-dd",
+  week: "yyyy-MM-dd",
+  month: "yyyy-MM",
+  year: "yyyy",
+};
+// Sem o passo de 10 anos, a série inteira do CDI marca 2005, 2010, 2015...
+// em vez de só 2010 e 2020.
+const DEKAD_AXIS_GRID_INTERVALS: am5.time.ITimeInterval[] = [
+  { timeUnit: "day", count: 1 },
+  { timeUnit: "day", count: 10 },
+  { timeUnit: "month", count: 1 },
+  { timeUnit: "month", count: 3 },
+  { timeUnit: "month", count: 6 },
+  { timeUnit: "year", count: 1 },
+  { timeUnit: "year", count: 2 },
+  { timeUnit: "year", count: 5 },
+];
 
 function isTestEnvironment() {
   return (
@@ -46,6 +72,13 @@ function buildYearCategories(
   return sortedYearEntries.map(([yearKey, yearData]) => ({
     year: yearData.year ?? yearKey,
   }));
+}
+
+function dekadTimestamp(period: string) {
+  const parsed = parseDekadPeriod(period);
+  return parsed
+    ? Date.UTC(parsed.year, parsed.month - 1, (parsed.dekad - 1) * 10 + 1)
+    : null;
 }
 
 export function buildSeriesData(
@@ -80,10 +113,17 @@ export function TemporalVision({
   const containerRef = useRef<HTMLDivElement | null>(null);
   const rootRef = useRef<am5.Root | null>(null);
   const chartRef = useRef<am5xy.XYChart | null>(null);
-  const xAxisRef = useRef<am5xy.CategoryAxis<am5xy.AxisRenderer> | null>(null);
+  const xAxisRef = useRef<am5xy.Axis<am5xy.AxisRenderer> | null>(null);
   const legendRef = useRef<am5.Legend | null>(null);
   const seriesRef = useRef(new Map<string, am5xy.LineSeries>());
   const deferredSelectedState = useDeferredValue(selectedState);
+  // Centenas de decêndios não cabem como categorias: as datas inteiras se
+  // atropelam. A série decendial vai num eixo de datas, que escolhe sozinho
+  // entre mostrar anos ou meses conforme o zoom.
+  const isDekadSeries = useMemo(
+    () => Object.keys(years ?? {}).some((key) => parseDekadPeriod(key)),
+    [years],
+  );
 
   useLayoutEffect(() => {
     if (isTestEnvironment() || !containerRef.current || rootRef.current) {
@@ -91,6 +131,7 @@ export function TemporalVision({
     }
 
     const root = am5.Root.new(containerRef.current);
+    root.utc = true;
     const theme = am5.Theme.new(root);
 
     theme.rule("AxisLabel", ["minor"]).setAll({ dy: 1 });
@@ -116,11 +157,21 @@ export function TemporalVision({
     xRenderer.labels.template.setAll({ paddingTop: 12 });
 
     const xAxis = chart.xAxes.push(
-      am5xy.CategoryAxis.new(root, {
-        categoryField: "year",
-        renderer: xRenderer,
-        tooltip: am5.Tooltip.new(root, {}),
-      }),
+      isDekadSeries
+        ? am5xy.DateAxis.new(root, {
+            baseInterval: { timeUnit: "day", count: 1 },
+            gridIntervals: DEKAD_AXIS_GRID_INTERVALS,
+            dateFormats: DEKAD_AXIS_DATE_FORMATS,
+            periodChangeDateFormats: DEKAD_AXIS_DATE_FORMATS,
+            tooltipDateFormat: "yyyy-MM-dd",
+            renderer: xRenderer,
+            tooltip: am5.Tooltip.new(root, {}),
+          })
+        : am5xy.CategoryAxis.new(root, {
+            categoryField: "year",
+            renderer: xRenderer,
+            tooltip: am5.Tooltip.new(root, {}),
+          }),
     );
 
     const yAxis = chart.yAxes.push(
@@ -242,7 +293,7 @@ export function TemporalVision({
       rootRef.current = null;
       root.dispose();
     };
-  }, [valueType]);
+  }, [valueType, isDekadSeries]);
 
   useEffect(() => {
     const root = rootRef.current;
@@ -258,11 +309,11 @@ export function TemporalVision({
     const sortedYearEntries = sortYearEntries(years);
     const categories = buildYearCategories(sortedYearEntries);
 
-    xAxis.data.setAll(categories);
+    if (!isDekadSeries) {
+      (xAxis as am5xy.CategoryAxis<am5xy.AxisRenderer>).data.setAll(categories);
+    }
 
-    const maxVisiblePeriods = sortedYearEntries.some(([yearKey]) =>
-      parseDekadPeriod(yearKey),
-    )
+    const maxVisiblePeriods = isDekadSeries
       ? MAX_VISIBLE_DEKADS
       : MAX_VISIBLE_YEARS;
 
@@ -301,7 +352,9 @@ export function TemporalVision({
             xAxis,
             yAxis,
             valueYField: "value",
-            categoryXField: "year",
+            ...(isDekadSeries
+              ? { valueXField: "date" }
+              : { categoryXField: "year" }),
             stroke: am5.color(cls.color),
             fill: am5.color(cls.color),
             tooltip: (() => {
@@ -330,8 +383,19 @@ export function TemporalVision({
         seriesRef.current.set(seriesKey, series);
       }
 
+      const seriesData = buildSeriesData(
+        sortedYearEntries,
+        deferredSelectedState,
+        classIndex,
+      );
+
       series.data.setAll(
-        buildSeriesData(sortedYearEntries, deferredSelectedState, classIndex),
+        isDekadSeries
+          ? seriesData.map((item) => ({
+              ...item,
+              date: dekadTimestamp(item.year),
+            }))
+          : seriesData,
       );
     });
 
@@ -346,7 +410,23 @@ export function TemporalVision({
     }
 
     legend.data.setAll(chart.series.values);
-  }, [years, classes, deferredSelectedState, valueType, valueUnit]);
+
+    if (isDekadSeries) {
+      // No eixo de datas o cursor anda dia a dia; preso aos pontos, a dica do
+      // eixo mostra o decêndio, e não o dia sob o mouse.
+      chart.get("cursor")?.setAll({
+        snapToSeries: chart.series.values,
+        snapToSeriesBy: "x",
+      });
+    }
+  }, [
+    years,
+    classes,
+    deferredSelectedState,
+    valueType,
+    valueUnit,
+    isDekadSeries,
+  ]);
 
   return (
     <div className="flex flex-col gap-2">
