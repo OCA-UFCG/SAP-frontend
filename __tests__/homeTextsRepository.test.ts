@@ -22,6 +22,8 @@ describe("getHomeTexts", () => {
           {
             identifier: "politica-publica",
             title: "Um instrumento de política pública",
+            titleEn: "A public policy instrument",
+            titleEs: "  ",
             subtitle: null,
             text: "O SEDES é o sistema...",
             buttonText: "Conheça o SEDES",
@@ -78,7 +80,15 @@ describe("getHomeTexts", () => {
       },
       homeTestimonialCollection: {
         items: [
-          { quote: "Citação", author: "Pesquisador", authorDetail: null },
+          {
+            quote: "Citação",
+            quoteEn: "Quote",
+            quoteEs: null,
+            author: "Pesquisador",
+            authorEn: "Researcher",
+            authorDetail: null,
+            photo: { url: "https://img/depoimento.jpg" },
+          },
         ],
       },
     });
@@ -88,6 +98,8 @@ describe("getHomeTexts", () => {
     expect(texts?.sections).toEqual({
       "politica-publica": {
         title: "Um instrumento de política pública",
+        // Tradução em branco conta como não preenchida.
+        titleTranslations: { en: "A public policy instrument", es: undefined },
         subtitle: undefined,
         text: "O SEDES é o sistema...",
         buttonText: "Conheça o SEDES",
@@ -127,7 +139,16 @@ describe("getHomeTexts", () => {
       },
     ]);
     expect(texts?.testimonials).toEqual([
-      { quote: "Citação", author: "Pesquisador", authorDetail: undefined },
+      {
+        quote: "Citação",
+        author: "Pesquisador",
+        authorDetail: undefined,
+        image: "https://img/depoimento.jpg",
+        translations: {
+          en: { quote: "Quote", author: "Researcher", authorDetail: undefined },
+          es: { quote: undefined, author: undefined, authorDetail: undefined },
+        },
+      },
     ]);
   });
 

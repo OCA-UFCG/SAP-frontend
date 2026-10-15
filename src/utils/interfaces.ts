@@ -167,6 +167,8 @@ export interface HomeTestimonialI {
   quote: string;
   author: string;
   authorDetail?: string;
+  /** Foto do Contentful; sem ela, o card fica com a cor do design. */
+  image?: string;
 }
 
 /** Textos editáveis da home, já resolvidos para o idioma da página. */
