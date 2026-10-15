@@ -62,8 +62,11 @@ const OUTLINE_HALO = "rgba(255, 255, 255, 0.8)";
 const OUTLINE_HALO_WIDTH_PX = 4.5;
 const SELECTED_OUTLINE_WIDTH_PX = 5;
 
-// De longe só cabem os nomes dos maiores; a disputa por espaço deixa o maior.
-const LABEL_MIN_ZOOM = 5;
+// Com o Brasil inteiro à vista os nomes poluem o mapa: aparecem a partir de
+// uma região, e o mouse e o clique só pegam o território já de perto. Antes
+// disso, valem os do estado e do município, como sem os territórios.
+const LABEL_MIN_ZOOM = 7;
+export const TERRITORY_INTERACTION_MIN_ZOOM = 8;
 export const LABEL_FONT = "Noto Sans Bold";
 
 const TILE_BOUNDS = territoryVectorTiles.maskBounds as [
@@ -209,7 +212,7 @@ export function applyVectorReferenceOverlay(
       layout: {
         "text-field": ["get", "name"],
         "text-font": [LABEL_FONT],
-        "text-size": ["interpolate", ["linear"], ["zoom"], 5, 10, 10, 13],
+        "text-size": ["interpolate", ["linear"], ["zoom"], 7, 10, 10, 13],
         "text-max-width": 8,
         "symbol-sort-key": ["-", ["get", "area"]],
       },
@@ -402,8 +405,8 @@ export interface ClickedReferenceTerritory {
 }
 
 /**
- * O território vetorial sob o ponto, se algum grupo vetorial estiver ligado.
- * Com dois sobrepostos, vale o de cima.
+ * O território vetorial sob o ponto, se algum grupo vetorial estiver ligado e
+ * o mapa estiver perto o bastante. Com dois sobrepostos, vale o de cima.
  *
  * const territory = findReferenceTerritoryAtPoint(map, event.point);
  */
@@ -411,6 +414,8 @@ export function findReferenceTerritoryAtPoint(
   map: maplibregl.Map,
   point: maplibregl.PointLike,
 ): ClickedReferenceTerritory | null {
+  if (map.getZoom() < TERRITORY_INTERACTION_MIN_ZOOM) return null;
+
   const layers = [...VECTOR_REFERENCE_LAYER_IDS]
     .map(vectorFillLayerId)
     .filter((layerId) => map.getLayer(layerId));

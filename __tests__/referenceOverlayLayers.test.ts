@@ -31,7 +31,9 @@ import {
   VECTOR_MASK_LAYER_ID,
   VECTOR_MASK_OUTSIDE_LAYER_ID,
   VECTOR_MASK_WORLD_LAYER_ID,
+  TERRITORY_INTERACTION_MIN_ZOOM,
   applyVectorHighlightMask,
+  findReferenceTerritoryAtPoint,
 } from "@/components/Map/territoryVectorLayers";
 
 interface AddedLayer {
@@ -769,6 +771,42 @@ describe("ensureReferenceOverlayLayers", () => {
 
       expect(map.moves).toBe(moves);
       expect(map.createdSources).toBe(created);
+    });
+  });
+});
+
+describe("findReferenceTerritoryAtPoint", () => {
+  const mapAtZoom = (zoom: number) =>
+    ({
+      getZoom: () => zoom,
+      getLayer: () => ({}),
+      queryRenderedFeatures: () => [
+        {
+          sourceLayer: "terras_indigenas",
+          properties: { name: "Yanomami", municipio: "Alto Alegre" },
+        },
+      ],
+    }) as unknown as maplibregl.Map;
+
+  it("de longe não pega o território: o clique segue para o estado", () => {
+    expect(
+      findReferenceTerritoryAtPoint(
+        mapAtZoom(TERRITORY_INTERACTION_MIN_ZOOM - 0.1),
+        [0, 0],
+      ),
+    ).toBeNull();
+  });
+
+  it("de perto pega o território sob o ponto", () => {
+    expect(
+      findReferenceTerritoryAtPoint(
+        mapAtZoom(TERRITORY_INTERACTION_MIN_ZOOM),
+        [0, 0],
+      ),
+    ).toEqual({
+      layerId: "terras_indigenas",
+      name: "Yanomami",
+      municipality: "Alto Alegre",
     });
   });
 });

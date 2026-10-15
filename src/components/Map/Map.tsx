@@ -64,6 +64,7 @@ import {
 import { prefetchReferenceOverlayViewport } from "./referenceTileStore";
 import {
   findReferenceTerritoryAtPoint,
+  TERRITORY_INTERACTION_MIN_ZOOM,
   VECTOR_REFERENCE_LAYER_IDS,
   vectorFillLayerId,
 } from "./territoryVectorLayers";
@@ -727,6 +728,7 @@ const Map = ({
         (event) => {
           const name = event.features?.[0]?.properties?.name;
           if (
+            map.getZoom() < TERRITORY_INTERACTION_MIN_ZOOM ||
             typeof name !== "string" ||
             !onReferenceTerritoryClickRef.current
           ) {
