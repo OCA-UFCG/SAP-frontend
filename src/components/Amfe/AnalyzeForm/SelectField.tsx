@@ -11,7 +11,7 @@ import { Icon } from "@/components/Icon/Icon";
  * cada uma a uma distância diferente da borda.
  *
  * @example
- *   <SelectField className={softSelectClass} {...field}>
+ *   <SelectField className={selectClass} {...field}>
  *     <option value="state">Estadual</option>
  *   </SelectField>
  */
@@ -23,7 +23,7 @@ export const SelectField = forwardRef<
     <div className="relative">
       <select
         ref={ref}
-        className={`${className} appearance-none pr-12`}
+        className={`${className} appearance-none pr-9`}
         {...selectProps}
       >
         {children}
@@ -33,7 +33,7 @@ export const SelectField = forwardRef<
         id="chevron-down"
         size={16}
         aria-hidden="true"
-        className="pointer-events-none absolute top-1/2 right-5 -translate-y-1/2"
+        className="pointer-events-none absolute top-1/2 right-3 -translate-y-1/2 text-[#7E797B]"
       />
     </div>
   );

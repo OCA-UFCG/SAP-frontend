@@ -24,10 +24,10 @@ export type PlatformMapSection = "monitoring" | "analysis" | "communication";
 /** `estadoSelecionado` é obrigatório no mapa; o resto cada seção preenche. */
 type SectionMapProps = Partial<MapProps> & Pick<MapProps, "estadoSelecionado">;
 
-// Em Análise o mapa começa depois da trilha (140px) e do formulário (600px), e
+// Em Análise o mapa começa depois da trilha (140px) e do formulário (531px), e
 // repete a moldura arredondada que a tela da AMFE sempre teve.
 const ANALYSIS_AREA_CLASS =
-  "absolute inset-y-0 left-[740px] right-0 flex min-h-0 flex-col overflow-hidden p-6";
+  "absolute inset-y-0 left-[671px] right-0 flex min-h-0 flex-col overflow-hidden p-6";
 const ANALYSIS_FRAME_CLASS =
   "relative min-h-[520px] w-full flex-1 overflow-hidden rounded-xl border border-neutral-200";
 const FULL_BLEED_AREA_CLASS = "absolute inset-0";
