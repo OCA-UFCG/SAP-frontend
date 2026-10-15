@@ -22,6 +22,11 @@ const GET_HOME_TEXTS = `
         subtitle
         text
         buttonText
+        imagesCollection(limit: 4) {
+          items {
+            url
+          }
+        }
       }
     }
 
@@ -40,6 +45,9 @@ const GET_HOME_TEXTS = `
         shortText
         fullText
         buttonText
+        image {
+          url
+        }
       }
     }
 
@@ -81,16 +89,15 @@ export const HOME_TOOL_HREFS: Record<PlatformModuleI["id"], string> = {
 };
 
 export type HomeSectionId =
-  | "ferramentas"
-  | "politica-publica"
-  | "recursos-em-destaque"
-  | "depoimentos";
+  "ferramentas" | "politica-publica" | "recursos-em-destaque" | "depoimentos";
 
 export interface HomeSectionTextI {
   title: string;
   subtitle?: string;
   text?: string;
   buttonText?: string;
+  /** Fotos da seção; hoje só a "politica-publica" usa, na colagem. */
+  images?: string[];
 }
 
 /** O que o Contentful tem publicado; uma lista vazia é seção sem entradas. */
@@ -104,7 +111,13 @@ export interface HomeTextsContent {
 
 interface HomeTextsResponse {
   homeSectionCollection: {
-    items: Array<(HomeSectionTextI & { identifier: HomeSectionId }) | null>;
+    items: Array<
+      | (Omit<HomeSectionTextI, "images"> & {
+          identifier: HomeSectionId;
+          imagesCollection?: { items: Array<AssetUrl | null> } | null;
+        })
+      | null
+    >;
   };
   homeHighlightCollection: { items: Array<HomeHighlightI | null> };
   homeToolCollection: {
@@ -114,6 +127,7 @@ interface HomeTextsResponse {
       shortText: string;
       fullText?: string | null;
       buttonText: string;
+      image?: AssetUrl | null;
     } | null>;
   };
   homeFeatureCollection: {
@@ -135,6 +149,10 @@ interface HomeTextsResponse {
   };
 }
 
+interface AssetUrl {
+  url?: string | null;
+}
+
 function isDefined<T>(value: T | null | undefined): value is T {
   return value != null;
 }
@@ -154,13 +172,15 @@ export async function getHomeTexts(): Promise<HomeTextsContent | null> {
         subtitle: section.subtitle ?? undefined,
         text: section.text ?? undefined,
         buttonText: section.buttonText ?? undefined,
+        images: section.imagesCollection?.items
+          ?.map((image) => image?.url)
+          .filter((url): url is string => !!url),
       };
     }
 
     return {
       sections,
-      highlights:
-        data.homeHighlightCollection?.items?.filter(isDefined) ?? [],
+      highlights: data.homeHighlightCollection?.items?.filter(isDefined) ?? [],
       tools: (data.homeToolCollection?.items ?? [])
         .filter(isDefined)
         .filter((item) => TOOL_IDS[item.tool])
@@ -170,6 +190,7 @@ export async function getHomeTexts(): Promise<HomeTextsContent | null> {
           shortText: item.shortText,
           fullText: item.fullText ?? undefined,
           buttonText: item.buttonText,
+          image: item.image?.url ?? undefined,
         })),
       features: (data.homeFeatureCollection?.items ?? [])
         .filter(isDefined)

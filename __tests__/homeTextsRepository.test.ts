@@ -25,6 +25,13 @@ describe("getHomeTexts", () => {
             subtitle: null,
             text: "O SEDES é o sistema...",
             buttonText: "Conheça o SEDES",
+            imagesCollection: {
+              items: [
+                { url: "https://img/c1.jpg" },
+                null,
+                { url: "https://img/c3.jpg" },
+              ],
+            },
           },
         ],
       },
@@ -39,6 +46,7 @@ describe("getHomeTexts", () => {
             shortText: "curto",
             fullText: null,
             buttonText: "Explore a Priorização",
+            image: { url: "https://img/priorizacao.jpg" },
           },
           {
             tool: "outra",
@@ -69,7 +77,9 @@ describe("getHomeTexts", () => {
         ],
       },
       homeTestimonialCollection: {
-        items: [{ quote: "Citação", author: "Pesquisador", authorDetail: null }],
+        items: [
+          { quote: "Citação", author: "Pesquisador", authorDetail: null },
+        ],
       },
     });
 
@@ -81,6 +91,8 @@ describe("getHomeTexts", () => {
         subtitle: undefined,
         text: "O SEDES é o sistema...",
         buttonText: "Conheça o SEDES",
+        // Foto despublicada chega como null e sai da lista.
+        images: ["https://img/c1.jpg", "https://img/c3.jpg"],
       },
     });
     expect(texts?.highlights).toHaveLength(1);
@@ -92,6 +104,7 @@ describe("getHomeTexts", () => {
         shortText: "curto",
         fullText: undefined,
         buttonText: "Explore a Priorização",
+        image: "https://img/priorizacao.jpg",
       },
     ]);
     expect(texts?.features).toEqual([

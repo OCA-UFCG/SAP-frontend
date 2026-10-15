@@ -97,6 +97,7 @@ export function mergeHomeTexts(
       title: policy?.title ?? base.publicPolicy.title,
       text: policy?.text ?? base.publicPolicy.text,
       buttonText: policy?.buttonText ?? base.publicPolicy.buttonText,
+      images: policy?.images,
     },
     features: {
       title: features?.title ?? base.features.title,
@@ -111,16 +112,42 @@ export function mergeHomeTexts(
   };
 }
 
+/** Só as fotos do Contentful, que valem para qualquer idioma. */
+export function mergeHomeImages(
+  base: HomeTextsI,
+  cms: HomeTextsContent,
+): HomeTextsI {
+  return {
+    ...base,
+    tools: {
+      ...base.tools,
+      items: base.tools.items.map((item) => ({
+        ...item,
+        image: cms.tools.find((tool) => tool.id === item.id)?.image,
+      })),
+    },
+    publicPolicy: {
+      ...base.publicPolicy,
+      images: cms.sections["politica-publica"]?.images,
+    },
+  };
+}
+
 /**
  * Textos da home para o idioma da página. O Contentful guarda uma versão só,
- * em português; inglês e espanhol continuam nos arquivos de tradução.
+ * em português; inglês e espanhol continuam nos arquivos de tradução e só
+ * levam as fotos do Contentful.
  */
 export async function getHomeTextsForLocale(
   locale: string,
 ): Promise<HomeTextsI> {
-  const translated = await getTranslatedHomeTexts();
-  if (locale !== routing.defaultLocale) return translated;
+  const [translated, cms] = await Promise.all([
+    getTranslatedHomeTexts(),
+    getHomeTexts(),
+  ]);
+  if (!cms) return translated;
 
-  const cms = await getHomeTexts();
-  return cms ? mergeHomeTexts(translated, cms) : translated;
+  return locale === routing.defaultLocale
+    ? mergeHomeTexts(translated, cms)
+    : mergeHomeImages(translated, cms);
 }

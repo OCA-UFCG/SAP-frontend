@@ -140,10 +140,12 @@ export interface HomeHighlightI {
   description: string;
 }
 
-/** Textos do card de uma ferramenta; foto e link ficam no código. */
+/** Textos do card de uma ferramenta; o link fica no código. */
 export interface HomeToolTextI {
   id: PlatformModuleI["id"];
   name: string;
+  /** Foto do Contentful; vazia, o card usa a foto do código. */
+  image?: string;
   shortText: string;
   /** Texto do "Ver mais"; vazio, o card não mostra o "Ver mais". */
   fullText?: string;
@@ -171,7 +173,13 @@ export interface HomeTestimonialI {
 export interface HomeTextsI {
   highlights: HomeHighlightI[];
   tools: { title: string; subtitle?: string; items: HomeToolTextI[] };
-  publicPolicy: { title: string; text: string; buttonText: string };
+  publicPolicy: {
+    title: string;
+    text: string;
+    buttonText: string;
+    /** Fotos da colagem, na ordem dos espaços; o que faltar usa a do código. */
+    images?: string[];
+  };
   features: { title: string; items: HomeFeatureI[] };
   testimonials: { title: string; items: HomeTestimonialI[] };
 }
