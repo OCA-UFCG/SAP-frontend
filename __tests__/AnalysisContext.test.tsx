@@ -832,4 +832,85 @@ describe("AnalysisContext", () => {
     expect(requestedPeriods).toHaveLength(periodKeys.length);
     expect([...new Set(requestedPeriods)]).toHaveLength(periodKeys.length);
   });
+
+  // Regressão: o CDI tem 926 decêndios. O gráfico pedia só os 36 últimos, um
+  // por requisição, e quem abria a barra via de 2001 a 2025 em branco.
+  it("traz a série decendial inteira num pedido só", async () => {
+    const periodKeys = Array.from({ length: 40 }, (_, index) => {
+      const month = String(Math.floor(index / 3) + 1).padStart(2, "0");
+      return `2025-${month}-${["01", "11", "21"][index % 3]}`;
+    });
+    const activePeriod = periodKeys.at(-1)!;
+    useMapLayerViewStateMock.mockReturnValue({
+      selectedState: "br",
+      selectedMunicipalityCode: null,
+      activeYear: activePeriod,
+      spatialSelection: {
+        spatialArea: "national",
+        spatialValue: "brasil",
+      },
+    });
+    const layer = buildPanelLayer(
+      {},
+      Object.fromEntries(
+        periodKeys.map((period) => [
+          period,
+          { imageId: "img-cdi", valuesScale: 1, values: {} },
+        ]),
+      ),
+    );
+    layer.statisticsSource = {
+      kind: "gee-feature-collection",
+      periodGranularity: "dekad",
+      sourceRevision: "rev-1",
+    } as PanelLayerI["statisticsSource"];
+    global.fetch = vi.fn().mockImplementation(async (url: string) => {
+      const requestUrl = new URL(url);
+      const isSeries = requestUrl.pathname.endsWith("/series");
+      const years = isSeries
+        ? periodKeys
+        : [requestUrl.searchParams.get("year") ?? ""];
+      return {
+        ok: true,
+        json: async () => ({
+          imageData: {
+            schemaVersion: 1,
+            type: "territorial-compact",
+            years: Object.fromEntries(
+              years.map((period) => [
+                period,
+                { valuesScale: 1, values: { br: [30, 70] } },
+              ]),
+            ),
+          },
+        }),
+      } as Response;
+    });
+
+    render(
+      <AnalysisContext activeSection="analysis-detail" panelLayers={[layer]} />,
+    );
+
+    await waitFor(() => {
+      const props = analysisPanelMock.mock.calls.at(-1)?.[0] as {
+        years: Record<string, { values: Record<string, number[]> }>;
+      };
+      periodKeys.forEach((period) =>
+        expect(props.years[period]?.values.br).toEqual([30, 70]),
+      );
+    });
+
+    const requests = vi
+      .mocked(global.fetch)
+      .mock.calls.map(([url]) => new URL(url as string))
+      .map((url) => `${url.pathname}?${url.searchParams}`);
+
+    expect(requests).toHaveLength(2);
+    expect(requests).toEqual(
+      expect.arrayContaining([
+        `/api/municipal-analysis/layer-1?year=${activePeriod}&locationKey=br`,
+        "/api/municipal-analysis/layer-1/series?locationKey=br",
+      ]),
+    );
+  });
 });
