@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { IMainBanner } from "@/utils/interfaces";
 import Image from "next/image";
 import { Link } from "@/translations/routing";
@@ -11,6 +11,9 @@ import {
   CarouselTracker,
 } from "@/components/HomeCarousel/HomeCarousel";
 
+/** Tempo de cada slide antes de passar sozinho para o próximo. */
+const AUTOPLAY_MS = 7000;
+
 interface MainBannerProps {
   /** Um slide por entrada `banner` do Contentful. */
   banners: IMainBanner[];
@@ -19,14 +22,36 @@ interface MainBannerProps {
 export function MainBanner({ banners }: MainBannerProps) {
   const t = useTranslations("MainBanner");
   const [active, setActive] = useState(0);
+  const [paused, setPaused] = useState(false);
+  const hasSlides = banners.length > 1;
+
+  // Passa sozinho; para enquanto o mouse ou o foco do teclado estão no banner
+  // e não roda para quem pediu menos movimento no sistema. Como depende de
+  // `active`, clicar numa seta ou num traço recomeça a contagem.
+  useEffect(() => {
+    if (!hasSlides || paused) return;
+    if (window.matchMedia("(prefers-reduced-motion: reduce)").matches) return;
+    const timer = window.setTimeout(
+      () => setActive((current) => (current + 1) % banners.length),
+      AUTOPLAY_MS,
+    );
+    return () => window.clearTimeout(timer);
+  }, [active, paused, hasSlides, banners.length]);
 
   if (!banners.length) return null;
-  const hasSlides = banners.length > 1;
   const goTo = (index: number) =>
     setActive((index + banners.length) % banners.length);
 
   return (
-    <section className="relative w-full min-h-[512px] overflow-hidden bg-black">
+    <section
+      className="relative w-full min-h-[512px] overflow-hidden bg-black"
+      onMouseEnter={() => setPaused(true)}
+      onMouseLeave={() => setPaused(false)}
+      onFocus={() => setPaused(true)}
+      onBlur={(event) => {
+        if (!event.currentTarget.contains(event.relatedTarget)) setPaused(false);
+      }}
+    >
       {banners.map((data, index) => (
         <div
           key={`${index}-${data.image.url}`}
