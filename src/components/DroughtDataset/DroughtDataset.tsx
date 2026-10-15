@@ -56,13 +56,15 @@ export function DroughtDataset({
         data-tour="layer-card"
         className="flex flex-row items-center gap-3 w-full p-3 bg-white border border-[#EFEFEF] shadow-sm rounded-lg shrink-0"
       >
-        <div className="relative shrink-0 size-24 overflow-hidden rounded-md">
+        {/* 80px, e não 96: no Windows a barra de rolagem do painel come 17px e,
+            com a imagem maior, o "Detalhamento" saía cortado. */}
+        <div className="relative shrink-0 size-20 overflow-hidden rounded-md">
           {card.image ? (
             <Image
               src={normalizeContentfulImage(card.image)}
               alt={displayTitle}
               fill
-              sizes="96px"
+              sizes="80px"
               className="object-cover"
             />
           ) : (
@@ -110,7 +112,7 @@ export function DroughtDataset({
               onClick={onDetails}
               disabled={disabled}
               className={clsx(
-                "flex flex-row justify-center items-center px-3 h-10 min-w-0 flex-1 bg-[#989F43] rounded-[6px]",
+                "flex flex-row justify-center items-center px-2 h-10 min-w-0 flex-1 bg-[#989F43] rounded-[6px]",
                 disabled ? "cursor-not-allowed opacity-60" : "cursor-pointer",
               )}
             >
