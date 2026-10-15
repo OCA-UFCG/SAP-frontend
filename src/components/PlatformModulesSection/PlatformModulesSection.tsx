@@ -1,7 +1,6 @@
 import Image from "next/image";
 import { Link } from "@/translations/routing";
 import { HomeTextsI, PlatformModulesSectionI } from "@/utils/interfaces";
-import { useTranslations } from "next-intl";
 import { cn } from "@/lib/utils";
 import {
   ChevronRightIcon,
@@ -21,8 +20,6 @@ export const PlatformModulesSection = ({
   texts,
   className = "bg-[#E4E5E2]",
 }: Props) => {
-  const t = useTranslations("PlatformModulesSection");
-
   return (
     <section
       id={id}
@@ -71,19 +68,6 @@ export const PlatformModulesSection = ({
                   <p className="font-inter text-sm leading-6">
                     {text.shortText}
                   </p>
-                  {text.fullText && (
-                    <details className="group/more font-inter">
-                      <summary className="w-fit cursor-pointer list-none text-sm font-semibold leading-6 text-[#777E32] hover:underline [&::-webkit-details-marker]:hidden">
-                        <span className="group-open/more:hidden">
-                          {t("seeMore")}
-                        </span>
-                        <span className="hidden group-open/more:inline">
-                          {t("seeLess")}
-                        </span>
-                      </summary>
-                      <p className="pt-2 text-sm leading-6">{text.fullText}</p>
-                    </details>
-                  )}
                 </div>
 
                 <div className="mt-auto px-6 pt-3 pb-6">
