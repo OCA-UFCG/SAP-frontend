@@ -8,6 +8,14 @@ import {
 import { ensureClassificationLayer } from "./classificationLayers";
 import { getActiveBoundaryNames } from "@/utils/spatialScope";
 import { syncHighlightMask } from "./referenceHighlightMask";
+import {
+  applyVectorHighlightMask,
+  applyVectorReferenceOverlay,
+  isVectorReferenceLayer,
+  removeVectorHighlightMask,
+  removeVectorReferenceOverlay,
+  vectorOverlayLayerIds,
+} from "./territoryVectorLayers";
 import { REFERENCE_LAYER_IDS } from "@/components/MapLayerContext/mapLayerState";
 
 export type MapMode = "demo" | "platform";
@@ -83,8 +91,15 @@ export const OSM_BASE_LAYER: maplibregl.RasterLayerSpecification = {
   source: OSM_SOURCE_ID,
 };
 
+// As letras dos nomes dos territórios, servidas daqui mesmo.
+const GLYPHS_PATH = "/fonts/{fontstack}/{range}.pbf";
+
 export const BASE_STYLE: maplibregl.StyleSpecification = {
   version: 8,
+  glyphs:
+    typeof window === "undefined"
+      ? GLYPHS_PATH
+      : `${window.location.origin}${GLYPHS_PATH}`,
   sources: {
     [OSM_SOURCE_ID]: OSM_RASTER_SOURCE,
     [SATELLITE_SOURCE_ID]: {
@@ -435,6 +450,16 @@ export type ReferenceOverlayTileUrls = ReadonlyMap<
   ReferenceOverlayUrls | undefined
 >;
 
+/**
+ * O território marcado na busca ou no clique. O município separa os que têm o
+ * mesmo nome: 2.598 dos 8.215 assentamentos dividem o nome com outro.
+ */
+export interface SelectedReferenceTerritory {
+  layerId: string;
+  name: string;
+  municipality: string;
+}
+
 const REF_OVERLAY_FILL_SUFFIX = "-fill";
 
 /**
@@ -490,6 +515,10 @@ const removeRasterLayer = (
 };
 
 const removeReferenceOverlay = (map: maplibregl.Map, overlayId: string) => {
+  if (isVectorReferenceLayer(overlayId)) {
+    removeVectorReferenceOverlay(map, overlayId);
+    return;
+  }
   removeRasterLayer(
     map,
     referenceOverlaySourceId(overlayId),
@@ -577,7 +606,20 @@ const applyReferenceOverlay = (
   overlayId: string,
   urls: ReferenceOverlayUrls,
   dimmed: boolean,
+  selected: SelectedReferenceTerritory | null,
 ) => {
+  if (isVectorReferenceLayer(overlayId)) {
+    applyVectorReferenceOverlay(map, overlayId, {
+      fillOpacity: dimmed
+        ? DIMMED_REFERENCE_OVERLAY_FILL_OPACITY
+        : REFERENCE_OVERLAY_FILL_OPACITY,
+      lineOpacity: dimmed ? DIMMED_OVERLAY_FACTOR : 1,
+      labelOpacity: dimmed ? 0 : 1,
+      selected,
+      beforeId: resolveReferenceOverlayAnchor(map),
+    });
+    return;
+  }
   applyRasterLayer(
     map,
     referenceOverlaySourceId(overlayId) + REF_OVERLAY_FILL_SUFFIX,
@@ -609,15 +651,38 @@ const applyHighlightMask = (
   highlightedId: string | null | undefined,
   activeTileUrls: ReferenceOverlayTileUrls,
 ) => {
-  if (!highlightedId) {
+  if (!highlightedId || isVectorReferenceLayer(highlightedId)) {
     removeRasterLayer(
       map,
       REF_HIGHLIGHT_MASK_SOURCE_ID,
       REF_HIGHLIGHT_MASK_LAYER_ID,
     );
-    return;
   }
+  if (!highlightedId || !isVectorReferenceLayer(highlightedId)) {
+    removeVectorHighlightMask(map);
+  }
+  if (!highlightedId) return;
 
+  const highlightedLayers = isVectorReferenceLayer(highlightedId)
+    ? [
+        ...applyVectorHighlightMask(
+          map,
+          highlightedId,
+          HIGHLIGHT_MASK_OPACITY,
+          resolveReferenceOverlayAnchor(map),
+        ),
+        ...vectorOverlayLayerIds(highlightedId),
+      ]
+    : applyRasterHighlightMask(map, highlightedId, activeTileUrls);
+  moveAboveOtherOverlays(map, highlightedLayers);
+};
+
+/** A máscara feita do interior do grupo em imagem; devolve as camadas do grupo. */
+const applyRasterHighlightMask = (
+  map: maplibregl.Map,
+  highlightedId: string,
+  activeTileUrls: ReferenceOverlayTileUrls,
+) => {
   // Sem o endereço do interior (o grupo acabou de ser ligado), a máscara sai
   // toda escura e o grupo acende quando o endereço chegar.
   const tiles = syncHighlightMask(
@@ -657,11 +722,16 @@ const applyHighlightMask = (
     );
   }
 
-  const highlightedLayers = [
+  return [
     REF_HIGHLIGHT_MASK_LAYER_ID,
     referenceOverlayLayerId(highlightedId) + REF_OVERLAY_FILL_SUFFIX,
     referenceOverlayLayerId(highlightedId),
-  ].filter((layerId) => map.getLayer(layerId));
+  ];
+};
+
+/** Leva as camadas, nessa ordem, para logo abaixo da âncora. */
+const moveAboveOtherOverlays = (map: maplibregl.Map, layerIds: string[]) => {
+  const highlightedLayers = layerIds.filter((layerId) => map.getLayer(layerId));
   const anchor = resolveReferenceOverlayAnchor(map);
   const order = map.getLayersOrder();
   const anchorIndex = anchor ? order.indexOf(anchor) : order.length;
@@ -695,6 +765,7 @@ export const ensureReferenceOverlayLayers = (
   map: maplibregl.Map,
   activeTileUrls: ReferenceOverlayTileUrls,
   highlightedId?: string | null,
+  selected: SelectedReferenceTerritory | null = null,
 ): boolean => {
   for (const overlayId of REFERENCE_LAYER_IDS) {
     if (!activeTileUrls.get(overlayId)) removeReferenceOverlay(map, overlayId);
@@ -703,7 +774,15 @@ export const ensureReferenceOverlayLayers = (
   try {
     for (const [overlayId, urls] of activeTileUrls) {
       const dimmed = Boolean(highlightedId) && overlayId !== highlightedId;
-      if (urls) applyReferenceOverlay(map, overlayId, urls, dimmed);
+      if (urls) {
+        applyReferenceOverlay(
+          map,
+          overlayId,
+          urls,
+          dimmed,
+          selected?.layerId === overlayId ? selected : null,
+        );
+      }
     }
     applyHighlightMask(map, highlightedId, activeTileUrls);
     return true;

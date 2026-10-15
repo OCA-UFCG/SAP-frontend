@@ -72,8 +72,12 @@ export function useAmfeAnalysisState() {
 
   const { tileUrls: referenceOverlayTileUrls } =
     useReferenceOverlayTiles(referenceOverlays);
-  const { territoryFocus, focusTerritory, clearTerritoryFocus } =
-    useTerritoryFocus(referenceOverlays, toggleReferenceOverlay);
+  const {
+    territoryFocus,
+    focusTerritory,
+    selectClickedTerritory,
+    clearTerritoryFocus,
+  } = useTerritoryFocus(referenceOverlays, toggleReferenceOverlay);
   const {
     prefetchUrls: referenceOverlayPrefetchUrls,
     requestPrefetch: prefetchReferenceOverlays,
@@ -172,6 +176,7 @@ export function useAmfeAnalysisState() {
     prefetchReferenceOverlays,
     territoryFocus,
     focusTerritory,
+    selectClickedTerritory,
     clearTerritoryFocus,
     spatialSelection,
     municipalityClassification,

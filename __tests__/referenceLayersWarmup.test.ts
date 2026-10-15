@@ -2,6 +2,16 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 vi.mock("server-only", () => ({}));
 
+// Os quatro grupos saem dos tiles vetoriais. Aqui só as terras indígenas, para
+// que os outros exercitem o caminho das imagens do Earth Engine, que continua
+// valendo para um grupo tirado de `territoryVectorTiles.json`.
+vi.mock("@/config/territoryVectorTiles.json", async (importOriginal) => {
+  const { default: config } = await importOriginal<{
+    default: Record<string, unknown>;
+  }>();
+  return { default: { ...config, layers: ["terras_indigenas"] } };
+});
+
 const getGeeMapUrl = vi.hoisted(() => vi.fn());
 vi.mock("@/infrastructure/earth-engine/client", () => ({
   initializeGee: vi.fn().mockResolvedValue(undefined),
@@ -30,7 +40,11 @@ import {
   resolveReferenceLayerUrls,
 } from "@/app/api/ee/referenceLayers";
 
-const LAYER_IDS = Object.keys(REFERENCE_LAYER_ASSETS);
+// As terras indígenas saem dos tiles vetoriais: o servidor não prepara mais
+// o endereço delas no Earth Engine.
+const LAYER_IDS = Object.keys(REFERENCE_LAYER_ASSETS).filter(
+  (layerId) => layerId !== "terras_indigenas",
+);
 
 beforeEach(() => {
   let next = 0;
@@ -38,7 +52,7 @@ beforeEach(() => {
   getGeeMapUrl.mockImplementation(
     async () => `https://ee/maps/${++next}/tiles/{z}/{x}/{y}`,
   );
-  for (const layerId of LAYER_IDS) {
+  for (const layerId of Object.keys(REFERENCE_LAYER_ASSETS)) {
     removeCacheUrl(`ref-overlay-v3:${layerId}:outline`);
     removeCacheUrl(`ref-overlay-v3:${layerId}:fill`);
   }
@@ -49,7 +63,7 @@ afterEach(() => {
 });
 
 describe("endereços dos territórios prontos no servidor", () => {
-  it("prepara o interior e o contorno dos quatro grupos", async () => {
+  it("prepara o interior e o contorno dos grupos do Earth Engine", async () => {
     await refreshReferenceLayerUrls();
 
     expect(getGeeMapUrl).toHaveBeenCalledTimes(LAYER_IDS.length * 2);
@@ -57,13 +71,16 @@ describe("endereços dos territórios prontos no servidor", () => {
       expect(getCachedUrl(`ref-overlay-v3:${layerId}:outline`)).toBeDefined();
       expect(getCachedUrl(`ref-overlay-v3:${layerId}:fill`)).toBeDefined();
     }
+    expect(
+      getCachedUrl("ref-overlay-v3:terras_indigenas:fill"),
+    ).toBeUndefined();
   });
 
   it("depois de preparar, ligar um grupo não vai ao Earth Engine", async () => {
     await refreshReferenceLayerUrls();
     getGeeMapUrl.mockClear();
 
-    const urls = await resolveReferenceLayerUrls("terras_indigenas");
+    const urls = await resolveReferenceLayerUrls("unidades_conservacao");
 
     expect(getGeeMapUrl).not.toHaveBeenCalled();
     expect(urls.url).not.toBe(urls.fillUrl);

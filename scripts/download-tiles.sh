@@ -26,5 +26,11 @@ mkdir -p "${TILES_DIR}"
 
 download_tile "brazil-states.mbtiles"
 download_tile "brazil-cities.mbtiles"
+# Um arquivo por grupo de Territórios, de scripts/build-territory-tiles.mjs —
+# os mesmos de src/config/territoryVectorTiles.json.
+download_tile "brazil-territories-terras_indigenas.mbtiles"
+download_tile "brazil-territories-unidades_conservacao.mbtiles"
+download_tile "brazil-territories-quilombolas.mbtiles"
+download_tile "brazil-territories-assentamentos.mbtiles"
 
 ls -lh "${TILES_DIR}"/*.mbtiles

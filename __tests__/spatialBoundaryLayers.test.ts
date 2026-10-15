@@ -1,6 +1,16 @@
 import type { FeatureCollection, Geometry } from "geojson";
 import type maplibregl from "maplibre-gl";
 import { describe, expect, it, vi } from "vitest";
+
+// Os quatro grupos saem dos tiles vetoriais. Aqui só as terras indígenas, para
+// que os quilombolas exercitem o caminho das imagens do Earth Engine, que
+// continua valendo para um grupo tirado de `territoryVectorTiles.json`.
+vi.mock("@/config/territoryVectorTiles.json", async (importOriginal) => {
+  const { default: config } = await importOriginal<{
+    default: Record<string, unknown>;
+  }>();
+  return { default: { ...config, layers: ["terras_indigenas"] } };
+});
 import { CLASSIFICATION_LAYER_ID } from "@/components/Map/classificationLayers";
 import {
   GEE_LAYER_ID,
