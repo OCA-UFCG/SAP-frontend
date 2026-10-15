@@ -53,7 +53,7 @@ export const PlatformModulesSection = ({
               >
                 <div className="relative h-[258px] w-full shrink-0">
                   <Image
-                    src={module.image}
+                    src={text.image ?? module.image}
                     alt=""
                     fill
                     sizes="(max-width: 768px) 100vw, 33vw"

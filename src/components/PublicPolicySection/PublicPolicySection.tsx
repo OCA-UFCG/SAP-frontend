@@ -6,10 +6,13 @@ type Props = {
   title: string;
   text: string;
   buttonText: string;
+  /** Fotos do Contentful, na ordem dos espaços; o que faltar usa a do código. */
+  images?: string[];
 };
 
 // Fotos recortadas do design da home (Figma), duas colunas de duas fotos.
-// width/height são o tamanho do arquivo; a proporção é a do design.
+// width/height dão a proporção de cada espaço; uma foto do Contentful com
+// outra proporção é cortada para caber.
 const COLUMNS = [
   [
     { src: "/home/colagem-1.jpg", width: 872, height: 346 },
@@ -27,6 +30,7 @@ export const PublicPolicySection = ({
   title,
   text,
   buttonText,
+  images = [],
 }: Props) => {
   return (
     <section id={id} className="w-full scroll-mt-16.5 bg-white">
@@ -34,16 +38,20 @@ export const PublicPolicySection = ({
         <div className="grid grid-cols-[439fr_327fr] gap-6">
           {COLUMNS.map((photos, column) => (
             <div key={column} className="flex flex-col gap-6">
-              {photos.map((photo) => (
-                <Image
+              {photos.map((photo, row) => (
+                <div
                   key={photo.src}
-                  src={photo.src}
-                  alt=""
-                  width={photo.width}
-                  height={photo.height}
-                  sizes="(max-width: 1024px) 50vw, 440px"
-                  className="h-auto w-full rounded-lg border border-[#EFEFEF] object-cover"
-                />
+                  className="relative w-full overflow-hidden rounded-lg border border-[#EFEFEF]"
+                  style={{ aspectRatio: `${photo.width} / ${photo.height}` }}
+                >
+                  <Image
+                    src={images[column * photos.length + row] ?? photo.src}
+                    alt=""
+                    fill
+                    sizes="(max-width: 1024px) 50vw, 440px"
+                    className="object-cover"
+                  />
+                </div>
               ))}
             </div>
           ))}

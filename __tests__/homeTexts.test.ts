@@ -68,12 +68,41 @@ describe("getHomeTextsForLocale", () => {
     );
   });
 
-  it("keeps English and Spanish on the translation files", async () => {
+  it("keeps English and Spanish on the translation files, with the Contentful photos", async () => {
+    mockedGetHomeTexts.mockResolvedValue({
+      sections: {
+        ferramentas: { title: "Título do CMS" },
+        "politica-publica": {
+          title: "Política do CMS",
+          images: ["https://img/c1.jpg"],
+        },
+      },
+      highlights: [{ value: "7", label: "Instituições", description: "d" }],
+      tools: [
+        {
+          id: "analysis",
+          name: "Priorização",
+          shortText: "curto",
+          buttonText: "Explore a Priorização",
+          image: "https://img/priorizacao.jpg",
+        },
+      ],
+      features: [],
+      testimonials: [],
+    });
+
     const texts = await getHomeTextsForLocale("en");
 
-    expect(mockedGetHomeTexts).not.toHaveBeenCalled();
     expect(texts.tools.title).toBe("PlatformModulesSection.title");
     expect(texts.highlights).toHaveLength(5);
+    expect(texts.tools.items[2].name).toBe(
+      "PlatformModulesSection.modules.analysis.title",
+    );
+    expect(texts.tools.items[2].image).toBe("https://img/priorizacao.jpg");
+    // Sem foto no CMS, o card fica com a do código.
+    expect(texts.tools.items[0].image).toBeUndefined();
+    expect(texts.publicPolicy.title).toBe("PublicPolicySection.title");
+    expect(texts.publicPolicy.images).toEqual(["https://img/c1.jpg"]);
   });
 
   it("falls back to the translations when Contentful fails", async () => {
