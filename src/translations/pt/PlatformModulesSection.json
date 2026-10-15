@@ -2,8 +2,6 @@
   "PlatformModulesSection": {
     "title": "O que você pode fazer no SEDES",
     "subtitle": "Conhecer o território, levar a informação adiante e decidir com critério: três ferramentas, um mesmo percurso.",
-    "seeMore": "Ver mais",
-    "seeLess": "Ver menos",
     "modules": {
       "monitoring": {
         "title": "Monitoramento",

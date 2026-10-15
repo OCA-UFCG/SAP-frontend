@@ -2,8 +2,6 @@
   "PlatformModulesSection": {
     "title": "What you can do in SEDES",
     "subtitle": "Know the territory, take the information further and decide with clear criteria: three tools, one path.",
-    "seeMore": "See more",
-    "seeLess": "See less",
     "modules": {
       "monitoring": {
         "title": "Monitoring",
