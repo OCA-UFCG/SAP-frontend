@@ -27,7 +27,7 @@ function Checkbox({ checked }: { checked: boolean }) {
   );
 }
 
-function InfoTooltip({
+export function InfoTooltip({
   name,
   description,
   open,

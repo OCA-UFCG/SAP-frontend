@@ -8,7 +8,7 @@ import { useAmfeAnalysis } from "./AmfeAnalysisContext";
 // mundo baixa ao abrir Monitoramento.
 const LazyAnalyzeForm = dynamic(() => import("./AnalyzeForm/AnalyzeForm"), {
   ssr: false,
-  loading: () => <div className="h-full w-full animate-pulse bg-[#efefef]" />,
+  loading: () => <div className="h-full w-full animate-pulse bg-[#F6F7F6]" />,
 });
 
 /**
@@ -22,7 +22,7 @@ export function AmfeAnalysisFormColumn() {
   return (
     <aside
       data-testid="platform-amfe-form"
-      className="absolute inset-y-0 left-[140px] z-[6] w-[600px] overflow-y-auto overscroll-contain border-r border-gray-200 bg-[#efefef]"
+      className="absolute inset-y-0 left-[140px] z-[6] w-[531px] overflow-y-auto overscroll-contain border-r border-gray-200 bg-[#F6F7F6]"
     >
       <LazyAnalyzeForm setFormPayload={setFormPayload} />
     </aside>
