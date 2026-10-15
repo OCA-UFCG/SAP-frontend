@@ -41,10 +41,6 @@ import {
 import { isGeeStatisticsLayerId } from "@/config/geeStatisticsLayers";
 import { getForecastMembers, type ForecastMember } from "@/utils/forecastGroup";
 import { getImageDataLegend, getImageDataYearKeys } from "@/utils/imageData";
-import { parseDekadPeriod } from "@/utils/dekadPeriod";
-
-/** Quantos decêndios entram no gráfico temporal do painel: o último ano. */
-const DEKADS_IN_TEMPORAL_CHART = 36;
 
 interface MunicipalAnalysisApiResponse {
   imageData?: PanelLayerI["imageData"] | null;
@@ -159,33 +155,39 @@ export function AnalysisContext({
     dataset?.statisticsSource ||
     (dataset?.id && isGeeStatisticsLayerId(dataset.id)),
   );
-  const municipalSeriesRequestKey =
-    dataset?.id &&
-    dataset.reportSeriesConfig?.datasetVersion &&
-    selectedMunicipalityCode
+  // O gráfico pede um período por requisição. Uma série decendial tem 36
+  // períodos por ano (926 no CDI de 2001 a 2026), e pedir todos deixava metade
+  // sem resposta; por isso ela vem inteira num pedido só, pela rota da série.
+  const dekadSeriesRevision =
+    dataset?.statisticsSource &&
+    "periodGranularity" in dataset.statisticsSource &&
+    dataset.statisticsSource.periodGranularity === "dekad"
+      ? dataset.statisticsSource.sourceRevision
+      : null;
+  const municipalSeriesRequestKey = !dataset?.id
+    ? null
+    : dataset.reportSeriesConfig?.datasetVersion && selectedMunicipalityCode
       ? getMunicipalSeriesRequestKey(
           dataset.id,
           dataset.reportSeriesConfig.datasetVersion,
           selectedMunicipalityCode,
         )
-      : null;
+      : dekadSeriesRevision
+        ? getMunicipalSeriesRequestKey(
+            dataset.id,
+            dekadSeriesRevision,
+            selectedLocationKey,
+          )
+        : null;
 
   const temporalMunicipalAnalysisRequestKeys = useMemo(() => {
-    if (!dataset?.id || !usesGeeStatistics) {
+    if (!dataset?.id || !usesGeeStatistics || dekadSeriesRevision) {
       return [];
     }
 
     const temporalLocationKey = selectedMunicipalityCode ?? selectedLocationKey;
-    // O gráfico pede um período por requisição. Uma série decendial tem 36
-    // períodos por ano (926 no CDI de 2001 a 2026), e pedir todos de uma vez
-    // deixava metade sem resposta; por isso ela entra só com o último ano.
-    const temporalOptions = yearOptions.some((option) =>
-      parseDekadPeriod(option.value),
-    )
-      ? yearOptions.slice(-DEKADS_IN_TEMPORAL_CHART)
-      : yearOptions;
 
-    return temporalOptions.map((option) =>
+    return yearOptions.map((option) =>
       getMunicipalAnalysisRequestKey(
         dataset.id,
         option.value,
@@ -195,6 +197,7 @@ export function AnalysisContext({
     );
   }, [
     dataset,
+    dekadSeriesRevision,
     selectedLocationKey,
     selectedMunicipalityCode,
     usesGeeStatistics,
@@ -314,9 +317,13 @@ export function AnalysisContext({
   ]);
 
   useEffect(() => {
+    const seriesLocationKey = municipalSeriesRequestKey
+      ? getMunicipalAnalysisRequestLocation(municipalSeriesRequestKey)
+      : undefined;
+
     if (
       !dataset?.id ||
-      !selectedMunicipalityCode ||
+      !seriesLocationKey ||
       !municipalSeriesRequestKey ||
       seriesImageDataByRequestKey[municipalSeriesRequestKey] !== undefined
     ) {
@@ -328,7 +335,7 @@ export function AnalysisContext({
       `/api/municipal-analysis/${encodeURIComponent(dataset.id)}/series`,
       window.location.origin,
     );
-    requestUrl.searchParams.set("locationKey", selectedMunicipalityCode);
+    requestUrl.searchParams.set("locationKey", seriesLocationKey);
 
     const fetchMunicipalSeries = async () => {
       let imageData: PanelLayerI["imageData"] | null = null;
@@ -361,12 +368,7 @@ export function AnalysisContext({
     void fetchMunicipalSeries();
 
     return () => controller.abort();
-  }, [
-    dataset?.id,
-    municipalSeriesRequestKey,
-    selectedMunicipalityCode,
-    seriesImageDataByRequestKey,
-  ]);
+  }, [dataset?.id, municipalSeriesRequestKey, seriesImageDataByRequestKey]);
 
   const enrichedDataset = useMemo(() => {
     if (!dataset?.id) {

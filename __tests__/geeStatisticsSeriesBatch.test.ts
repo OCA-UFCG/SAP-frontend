@@ -73,6 +73,7 @@ import type { GeeFeatureCollectionStatisticsSource } from "@/contracts/geeStatis
 import { evaluateGeeObject } from "@/infrastructure/earth-engine/client";
 import {
   clearGeeStatisticsSchemaCacheForTests,
+  getGeeStatisticsSeriesPatch,
   getGeeStatisticsYearPatch,
   preloadGeeStatisticsSchema,
 } from "@/repositories/platform/geeStatisticsRepository";
@@ -344,5 +345,60 @@ describe("asset indisponível dentro da série", () => {
     breakAssets(YEARS.map((year) => `projects/example/assets/aridez_${year}`));
 
     await expect(readPeriod("2020")).rejects.toThrow(/not found/u);
+  });
+});
+
+describe("série inteira de um território para o gráfico temporal", () => {
+  const publishedSource = {
+    ...source,
+    schemaVersion: 1 as const,
+    sourceRevision: "rev-1",
+  };
+
+  // Regressão: o gráfico do CDI pedia um período por requisição, e com 926
+  // decêndios só os do último ano entravam; os anteriores ficavam em branco.
+  it("devolve todos os períodos num patch só, nas mesmas 4 idas", async () => {
+    const patch = await getGeeStatisticsSeriesPatch(
+      "indicearidez",
+      "2507507",
+      2,
+      publishedSource,
+      YEARS,
+    );
+
+    expect(mockedEvaluate).toHaveBeenCalledTimes(4);
+    expect(Object.keys(patch.years ?? {})).toEqual(YEARS);
+    expect(patch.years?.["1980"]).toEqual({
+      valuesScale: 1,
+      values: { "2507507": [40, 60] },
+    });
+  });
+
+  it("deixa de fora só o período que não se converte", async () => {
+    mockedEvaluate.mockImplementation(async (object: unknown) => {
+      const node = object as FakeNode;
+      if (node.kind === "propertyNames") return PROPERTY_NAMES as never;
+      return {
+        features: node.assetIds.map((assetId) => ({
+          properties: assetId.endsWith("2000")
+            ? { ...municipalRow(assetId), perc_classe_1: "sem valor" }
+            : municipalRow(assetId),
+        })),
+      } as never;
+    });
+    const warn = vi.spyOn(console, "warn").mockImplementation(() => {});
+
+    const patch = await getGeeStatisticsSeriesPatch(
+      "indicearidez",
+      "2507507",
+      2,
+      publishedSource,
+      YEARS,
+    );
+
+    expect(patch.years?.["2000"]).toBeUndefined();
+    expect(Object.keys(patch.years ?? {})).toHaveLength(YEARS.length - 1);
+    expect(warn).toHaveBeenCalledOnce();
+    warn.mockRestore();
   });
 });

@@ -9,6 +9,7 @@ import type {
   CompactAnalysisClass,
   CompactAnalysisYearData,
 } from "@/utils/analysis";
+import { parseDekadPeriod } from "@/utils/dekadPeriod";
 
 interface TemporalVisionProps {
   years?: Record<string, CompactAnalysisYearData>;
@@ -19,6 +20,9 @@ interface TemporalVisionProps {
 }
 
 const MAX_VISIBLE_YEARS = 8;
+// Uma série decendial abre no último ano: 8 decêndios seriam pouco mais de dois
+// meses, e a alça da barra ficaria minúscula diante dos 926 do CDI.
+const MAX_VISIBLE_DEKADS = 36;
 
 function isTestEnvironment() {
   return (
@@ -256,8 +260,14 @@ export function TemporalVision({
 
     xAxis.data.setAll(categories);
 
-    if (categories.length > MAX_VISIBLE_YEARS) {
-      xAxis.set("start", 1 - MAX_VISIBLE_YEARS / categories.length);
+    const maxVisiblePeriods = sortedYearEntries.some(([yearKey]) =>
+      parseDekadPeriod(yearKey),
+    )
+      ? MAX_VISIBLE_DEKADS
+      : MAX_VISIBLE_YEARS;
+
+    if (categories.length > maxVisiblePeriods) {
+      xAxis.set("start", 1 - maxVisiblePeriods / categories.length);
       xAxis.set("end", 1);
     } else {
       xAxis.set("start", 0);

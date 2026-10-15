@@ -606,6 +606,52 @@ export function matchesStatisticsPeriod(
   return Number(row[source.properties.year]) === Number(yearKey);
 }
 
+/**
+ * As linhas da série separadas por período numa passada só.
+ *
+ * O índice segue a convenção de `matchesStatisticsPeriod`, que continua sendo
+ * quem decide: ele só evita testar cada linha contra cada período. Com o Brasil
+ * e os 27 estados em 926 decêndios do CDI são 26 mil linhas, e filtrar a série
+ * inteira por período levava 7 s de CPU a cada gráfico.
+ */
+function groupStatisticsRowsByPeriod(
+  source: ResolvedGeeStatisticsSource,
+  rows: Record<string, unknown>[],
+): Map<string, Record<string, unknown>[]> {
+  const rowsByPeriod = new Map<string, Record<string, unknown>[]>();
+
+  for (const row of rows) {
+    const date = String(row[source.properties.date]);
+    const periodKey =
+      source.periodGranularity === "year"
+        ? String(Number(row[source.properties.year]))
+        : source.periodGranularity === "month"
+          ? date.replace(/-01$/u, "")
+          : date;
+    const periodRows = rowsByPeriod.get(periodKey);
+
+    if (periodRows) periodRows.push(row);
+    else rowsByPeriod.set(periodKey, [row]);
+  }
+
+  return rowsByPeriod;
+}
+
+async function loadCachedSeriesLocationRows(
+  source: ResolvedGeeStatisticsSource,
+  schema: GeeStatisticsSchema,
+  assetIds: readonly string[],
+  locationKey: string,
+): Promise<Record<string, unknown>[]> {
+  const properties = getGeeStatisticsRequestedProperties(source, schema);
+  // Uma série lida sem um asset indisponível também é cacheada: o asset que
+  // voltar entra na próxima leitura, até 10 minutos depois (o TTL deste cache).
+  return getOrLoadStatisticsRows(
+    buildStatisticsRowsCacheKey(assetIds, locationKey, properties),
+    () => loadSeriesLocationRows(source, assetIds, properties, locationKey),
+  );
+}
+
 async function loadGeeStatisticsRows(
   source: ResolvedGeeStatisticsSource,
   schema: GeeStatisticsSchema,
@@ -613,12 +659,11 @@ async function loadGeeStatisticsRows(
   yearKey: string,
   locationKey: string,
 ): Promise<Record<string, unknown>[]> {
-  const properties = getGeeStatisticsRequestedProperties(source, schema);
-  // Uma série lida sem um asset indisponível também é cacheada: o asset que
-  // voltar entra na próxima leitura, até 10 minutos depois (o TTL deste cache).
-  const rows = await getOrLoadStatisticsRows(
-    buildStatisticsRowsCacheKey(assetIds, locationKey, properties),
-    () => loadSeriesLocationRows(source, assetIds, properties, locationKey),
+  const rows = await loadCachedSeriesLocationRows(
+    source,
+    schema,
+    assetIds,
+    locationKey,
   );
 
   return rows.filter((row) => matchesStatisticsPeriod(source, row, yearKey));
@@ -747,6 +792,104 @@ export async function getGeeStatisticsYearPatch(
     rows,
     classCount,
   );
+}
+
+/**
+ * A série inteira de um território num patch só, para o gráfico temporal.
+ *
+ * O gráfico pedia um período por requisição. Numa série decendial são 926
+ * períodos (o CDI, de 2001 a 2026), e pedir todos deixava metade sem resposta;
+ * só que a leitura no Earth Engine já é da série inteira, então o custo estava
+ * nas requisições, não nos dados. Cada período leva apenas os valores do
+ * território pedido: com os 27 estados que acompanham o Brasil, a resposta
+ * passaria de 1 MB.
+ *
+ * Um período que não se converte (classe que não soma 100%, localidade
+ * duplicada) fica de fora do gráfico em vez de derrubar os outros, do mesmo
+ * jeito que falharia sozinho no pedido por período.
+ *
+ * @example
+ * await getGeeStatisticsSeriesPatch("cdi", "br", 6, source, ["2026-09-01"]);
+ */
+export async function getGeeStatisticsSeriesPatch(
+  panelLayerId: string,
+  locationKey: string,
+  classCount: number,
+  source: PublishedGeeStatisticsSource,
+  periodKeys: readonly string[],
+): Promise<CompactTerritorialAnalysisDatasetPatch> {
+  const latestPeriodKey = periodKeys.at(-1);
+
+  if (
+    !latestPeriodKey ||
+    isMunicipalSpreadsheetSource(source) ||
+    isGeeMunicipalValueTableSource(source)
+  ) {
+    throw new Error(
+      `A camada ${panelLayerId} não tem uma série do Earth Engine para o gráfico temporal.`,
+    );
+  }
+
+  await initializeGee();
+
+  const latestSource = resolveGeeStatisticsSource(source, latestPeriodKey);
+  const seriesAssetIds = resolveSeriesAssetIds(
+    source,
+    periodKeys,
+    latestSource.assetId,
+  );
+  const schema = await getGeeStatisticsSchema(
+    latestSource,
+    source.sourceRevision,
+    seriesAssetIds,
+  );
+
+  if (schema.percentageProperties.length !== classCount) {
+    throw new Error(
+      `Asset estatístico ${latestSource.assetId} possui ${schema.percentageProperties.length} classes, mas a camada possui ${classCount}.`,
+    );
+  }
+
+  const rows = await loadCachedSeriesLocationRows(
+    latestSource,
+    schema,
+    seriesAssetIds,
+    locationKey,
+  );
+  const rowsByPeriod = groupStatisticsRowsByPeriod(latestSource, rows);
+  const years: NonNullable<CompactTerritorialAnalysisDatasetPatch["years"]> =
+    {};
+
+  for (const periodKey of periodKeys) {
+    try {
+      const periodSource = resolveGeeStatisticsSource(source, periodKey);
+      const { patch } = mapGeeStatisticsRows(
+        periodSource,
+        schema,
+        periodKey,
+        locationKey,
+        (rowsByPeriod.get(periodKey) ?? []).filter((row) =>
+          matchesStatisticsPeriod(periodSource, row, periodKey),
+        ),
+        classCount,
+      );
+      const values = patch.years?.[periodKey]?.values?.[locationKey];
+
+      if (values) {
+        years[periodKey] = {
+          valuesScale: 1,
+          values: { [locationKey]: values },
+        };
+      }
+    } catch (error) {
+      console.warn(
+        `[geeStatistics] Período ${panelLayerId}/${periodKey}/${locationKey} fora do gráfico temporal.`,
+        error,
+      );
+    }
+  }
+
+  return { schemaVersion: 1, type: "territorial-compact", years };
 }
 
 /**
