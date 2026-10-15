@@ -24,7 +24,7 @@ import {
 } from "@/utils/amfeConsts";
 import ErrorMessage from "./ErrorMessage";
 import SegmentedSlider from "./SegmentedSlider";
-import { SelectField } from "./SelectField";
+import { PanelDropdown } from "@/components/PanelDropdown/PanelDropdown";
 import { LayerAccordion } from "@/components/LayerAccordion/LayerAccordion";
 import useCriterias from "@/components/Amfe/useCriterias";
 
@@ -36,10 +36,6 @@ const sectionMarkerClass = "h-6 w-1 rounded-full bg-[#989F43]";
 const sectionDescriptionClass = "mt-2 text-sm leading-6 opacity-75";
 const inputGroupCardClass =
   "mt-3 rounded-xl border border-neutral-200 bg-white p-4 shadow-[0_1px_2px_rgba(0,0,0,0.04)]";
-const selectClass =
-  "w-full cursor-pointer rounded-xl border border-neutral-200 bg-white px-5 py-4 font-medium shadow-[inset_0_1px_0_rgba(255,255,255,0.65)] transition-colors focus:border-[#989F43] focus:outline-none focus:ring-2 focus:ring-[#989F43]/20";
-const softSelectClass =
-  "w-full cursor-pointer rounded-xl border border-neutral-200 bg-[#fbfbfa] px-5 py-4 font-medium shadow-[inset_0_1px_0_rgba(255,255,255,0.8)] transition-colors focus:border-[#989F43] focus:bg-white focus:outline-none focus:ring-2 focus:ring-[#989F43]/20";
 
 const AnalyzeForm = ({ setFormPayload }: AnalyzeFormProps) => {
   const t = useTranslations("AnalyzeForm");
@@ -249,6 +245,7 @@ const AnalyzeForm = ({ setFormPayload }: AnalyzeFormProps) => {
               <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
                 <div className="flex flex-col">
                   <label
+                    id="amfe-interest-area-label"
                     className="mb-2 text-sm font-bold"
                     style={{ color: text }}
                   >
@@ -259,17 +256,17 @@ const AnalyzeForm = ({ setFormPayload }: AnalyzeFormProps) => {
                     control={control}
                     rules={{ required: t("interestAreaRequired") }}
                     render={({ field }) => (
-                      <SelectField
-                        {...field}
-                        className={softSelectClass}
-                        style={{ color: text }}
-                      >
-                        {interestAreas.map((option) => (
-                          <option key={option} value={option}>
-                            {interestAreaLabels[option]}
-                          </option>
-                        ))}
-                      </SelectField>
+                      <PanelDropdown
+                        labelledBy="amfe-interest-area-label"
+                        ariaLabelPrefix={t("interestAreaFieldLabel")}
+                        options={interestAreas.map((option) => ({
+                          value: option,
+                          label: interestAreaLabels[option],
+                        }))}
+                        value={field.value}
+                        placeholder={t("interestAreaFieldLabel")}
+                        onChange={field.onChange}
+                      />
                     )}
                   />
                   {errors.interestArea && (
@@ -281,6 +278,7 @@ const AnalyzeForm = ({ setFormPayload }: AnalyzeFormProps) => {
 
                 <div className="flex flex-col">
                   <label
+                    id="amfe-interest-area-value-label"
                     className="mb-2 text-sm font-bold"
                     style={{ color: text }}
                   >
@@ -291,19 +289,19 @@ const AnalyzeForm = ({ setFormPayload }: AnalyzeFormProps) => {
                     control={control}
                     rules={{ required: t("interestAreaValueRequired") }}
                     render={({ field }) => (
-                      <SelectField
-                        {...field}
-                        className={softSelectClass}
-                        style={{ color: text }}
-                      >
-                        {interestAreaValueOptions.map((option) => (
-                          <option key={option} value={option}>
-                            {t(
-                              `interestAreaOptions.${selectedInterestArea}.${option}`,
-                            )}
-                          </option>
-                        ))}
-                      </SelectField>
+                      <PanelDropdown
+                        labelledBy="amfe-interest-area-value-label"
+                        ariaLabelPrefix={t("interestAreaValueTitle")}
+                        options={interestAreaValueOptions.map((option) => ({
+                          value: option,
+                          label: t(
+                            `interestAreaOptions.${selectedInterestArea}.${option}`,
+                          ),
+                        }))}
+                        value={field.value}
+                        placeholder={t("interestAreaValueTitle")}
+                        onChange={field.onChange}
+                      />
                     )}
                   />
                   {errors.interestAreaValue && (
@@ -320,7 +318,9 @@ const AnalyzeForm = ({ setFormPayload }: AnalyzeFormProps) => {
             <div className={sectionHeaderClass}>
               <h2 className={sectionTitleClass} style={{ color: text }}>
                 <span className={sectionMarkerClass} />
-                <span>{t("analysisLevelTitle")}</span>
+                <span id="amfe-analysis-level-label">
+                  {t("analysisLevelTitle")}
+                </span>
               </h2>
               <p className={sectionDescriptionClass} style={{ color: text }}>
                 {t("analysisLevelDesc")}
@@ -332,17 +332,17 @@ const AnalyzeForm = ({ setFormPayload }: AnalyzeFormProps) => {
               rules={{ required: t("levelRequired") }}
               render={({ field }) => (
                 <div className="mt-3">
-                  <SelectField
-                    {...field}
-                    className={selectClass}
-                    style={{ color: text }}
-                  >
-                    {availableRankings.map((option) => (
-                      <option key={option} value={option}>
-                        {rankingLevelLabels[option]}
-                      </option>
-                    ))}
-                  </SelectField>
+                  <PanelDropdown
+                    labelledBy="amfe-analysis-level-label"
+                    ariaLabelPrefix={t("analysisLevelTitle")}
+                    options={availableRankings.map((option) => ({
+                      value: option,
+                      label: rankingLevelLabels[option],
+                    }))}
+                    value={field.value}
+                    placeholder={t("analysisLevelTitle")}
+                    onChange={field.onChange}
+                  />
                 </div>
               )}
             />
@@ -358,8 +358,8 @@ const AnalyzeForm = ({ setFormPayload }: AnalyzeFormProps) => {
               title={t("advancedSettingsTitle")}
               open={advancedSettingsOpen}
               onOpenChange={setAdvancedSettingsOpen}
-              // 19px + 1px de borda = seta a 20px da borda, como a dos selects.
-              headerPaddingClassName="pl-4 pr-[19px]"
+              // 12px + 1px de borda = seta a 13px da borda, como a dos dropdowns.
+              headerPaddingClassName="pl-4 pr-3"
             >
               <section>
                 <div className={sectionHeaderClass}>
@@ -451,7 +451,11 @@ const AnalyzeForm = ({ setFormPayload }: AnalyzeFormProps) => {
                         (option) => (
                           <label
                             key={option}
-                            className={`flex cursor-pointer items-center gap-3 rounded-lg px-4 py-3 font-medium transition-colors ${
+                            // `relative` prende o rádio `sr-only` (absoluto)
+                            // dentro do acordeão: sem ele, com o acordeão
+                            // fechado, o rádio escapava do recorte e deixava
+                            // a coluna rolar até um espaço vazio.
+                            className={`relative flex cursor-pointer items-center gap-3 rounded-lg px-4 py-3 font-medium transition-colors ${
                               field.value === option
                                 ? "bg-[#989F43]/10"
                                 : "hover:bg-neutral-50"

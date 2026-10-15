@@ -8,6 +8,7 @@ import {
 import { afterEach, expect, test, vi } from "vitest";
 
 import AnalyzeForm from "@/components/Amfe/AnalyzeForm/AnalyzeForm";
+import { interestAreaOptionsByLevel } from "@/utils/amfeConsts";
 
 vi.mock("next-intl", () => ({
   useTranslations: () => (key: string) => key,
@@ -237,4 +238,34 @@ test("says why Analyze stays disabled when the criteria fail to load", () => {
 
   expect(screen.getByText("criteriaLoadError")).toBeTruthy();
   expect(screen.getByRole("button", { name: "submitButton" })).toBeDisabled();
+});
+
+// Os seletores são o mesmo dropdown de Monitoramento e Comunicação, e não um
+// `<select>` nativo: a escolha tem que chegar à análise do mesmo jeito.
+test("sends the area chosen in the panel dropdown", async () => {
+  const setFormPayload = vi.fn();
+  render(<AnalyzeForm setFormPayload={setFormPayload} />);
+
+  await waitFor(() => {
+    expect(screen.getByTestId("selected-criteria").textContent).toBe(
+      "default-criterion",
+    );
+  });
+
+  fireEvent.click(
+    screen.getByRole("button", { name: "interestAreaFieldLabel: estadual" }),
+  );
+  fireEvent.click(screen.getByRole("option", { name: "regional" }));
+  fireEvent.click(screen.getByRole("button", { name: "submitButton" }));
+
+  await waitFor(() => {
+    expect(setFormPayload).toHaveBeenCalledWith(
+      expect.objectContaining({
+        interestArea: {
+          type: "region",
+          value: interestAreaOptionsByLevel.region[0],
+        },
+      }),
+    );
+  });
 });
