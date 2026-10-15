@@ -4,10 +4,18 @@ import {
   formatAbsoluteNumber,
   formatPercentageNumber,
 } from "@/utils/formatTerritorialNumber";
-import { useEffect, useRef, useState, useMemo, type ReactNode } from "react";
+import {
+  useEffect,
+  useLayoutEffect,
+  useRef,
+  useState,
+  useMemo,
+  type ReactNode,
+} from "react";
 import dynamic from "next/dynamic";
 import { useLocale, useTranslations } from "next-intl";
 import { formatDekadPeriod } from "@/utils/dekadPeriod";
+import { scrollSelectedOptionIntoView } from "@/utils/scrollSelectedOption";
 import { Chevron } from "@/components/Chevron/Chevron";
 import SearchBarPlatform from "@/components/SidePanelContexts/SearchBarPlatform";
 import type {
@@ -168,7 +176,12 @@ function AnalysisYearSelect({
   const t = useTranslations("AnalysisPanel");
   const locale = useLocale();
   const containerRef = useRef<HTMLDivElement>(null);
+  const optionsRef = useRef<HTMLDivElement>(null);
   const [isOptionsOpen, setIsOptionsOpen] = useState(false);
+
+  useLayoutEffect(() => {
+    if (isOptionsOpen) scrollSelectedOptionIntoView(optionsRef.current);
+  }, [isOptionsOpen]);
 
   const formattedLabelMap = useMemo(() => {
     const map = new Map<string, string>();
@@ -236,6 +249,7 @@ function AnalysisYearSelect({
 
       {isOptionsOpen && (
         <div
+          ref={optionsRef}
           id="analysis-year-options"
           role="listbox"
           className="absolute top-[calc(100%+8px)] z-20 max-h-64 w-full overflow-y-auto rounded-xl border border-neutral-200 bg-white p-2 shadow-lg"
