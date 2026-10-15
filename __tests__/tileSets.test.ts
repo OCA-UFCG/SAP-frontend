@@ -22,10 +22,20 @@ describe("tileSets", () => {
     });
   });
 
+  it("resolves the territories tileset", () => {
+    expect(resolveTileSet("territories")).toEqual({
+      ok: true,
+      tileSet: expect.objectContaining({
+        id: "territories",
+        relativePath: expect.stringContaining("brazil-territories.mbtiles"),
+      }),
+    });
+  });
+
   it("rejects unknown tilesets with the received value", () => {
     expect(resolveTileSet("neighborhoods")).toEqual({
       message:
-        "Invalid tileset received neighborhoods; expected one of states,cities",
+        "Invalid tileset received neighborhoods; expected one of cities,states,territories",
       ok: false,
     });
   });

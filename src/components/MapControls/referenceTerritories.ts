@@ -88,6 +88,49 @@ export function loadReferenceTerritories(): Promise<ReferenceTerritory[]> {
   return territoriesPromise;
 }
 
+/** Um clique num território do mapa: o grupo, o nome e o ponto [lng, lat]. */
+export interface ReferenceTerritoryClick {
+  layerId: ReferenceLayerId;
+  name: string;
+  lngLat: [number, number];
+}
+
+/**
+ * O território da lista que foi clicado no mapa: mesmo grupo e mesmo nome e,
+ * entre nomes repetidos ("Buriti" existe em dois estados), o que contém o
+ * ponto. Se a lista não tiver o nome, o território sai só com o nome e o
+ * ponto — o cartão mostra o nome do mesmo jeito.
+ *
+ * resolveClickedTerritory(territories, {
+ *   layerId: "terras_indigenas", name: "Kiriri", lngLat: [-38.6, -10.4],
+ * });
+ */
+export function resolveClickedTerritory(
+  territories: readonly ReferenceTerritory[],
+  { layerId, name, lngLat: [lng, lat] }: ReferenceTerritoryClick,
+): ReferenceTerritory {
+  const matches = territories.filter(
+    (territory) => territory.layerId === layerId && territory.name === name,
+  );
+  const containsClick = ({
+    bounds: [west, south, east, north],
+  }: ReferenceTerritory) =>
+    lng >= west && lng <= east && lat >= south && lat <= north;
+  const match = matches.find(containsClick) ?? matches[0];
+  if (match) return match;
+
+  const normalizedName = normalizeTerritorySearch(name);
+  return {
+    layerId,
+    name,
+    uf: "",
+    municipality: "",
+    bounds: [lng, lat, lng, lat],
+    normalizedName,
+    searchText: normalizedName,
+  };
+}
+
 const MIN_QUERY_LENGTH = 2;
 
 /**

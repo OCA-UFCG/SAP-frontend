@@ -1,6 +1,6 @@
 import path from "node:path";
 
-export type TileSetId = "cities" | "states";
+export type TileSetId = "cities" | "states" | "territories";
 
 export interface TileSetConfig {
   id: TileSetId;
@@ -28,10 +28,15 @@ const TILE_SETS: Record<TileSetId, TileSetConfig> = {
     id: "states",
     relativePath: path.join("public", "tiles", "brazil-states.mbtiles"),
   },
+  // Gerado por scripts/build-territory-tiles.mjs.
+  territories: {
+    id: "territories",
+    relativePath: path.join("public", "tiles", "brazil-territories.mbtiles"),
+  },
 };
 
 const isTileSetId = (value: string): value is TileSetId =>
-  value === "cities" || value === "states";
+  Object.hasOwn(TILE_SETS, value);
 
 export const resolveTileSet = (rawTileSet: string | null): TileSetResult => {
   if (!rawTileSet) {
@@ -41,7 +46,7 @@ export const resolveTileSet = (rawTileSet: string | null): TileSetResult => {
   if (!isTileSetId(rawTileSet)) {
     return {
       ok: false,
-      message: `Invalid tileset received ${rawTileSet}; expected one of states,cities`,
+      message: `Invalid tileset received ${rawTileSet}; expected one of ${Object.keys(TILE_SETS).join(",")}`,
     };
   }
 

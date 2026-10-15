@@ -26,5 +26,7 @@ mkdir -p "${TILES_DIR}"
 
 download_tile "brazil-states.mbtiles"
 download_tile "brazil-cities.mbtiles"
+# Terras indígenas, de scripts/build-territory-tiles.mjs.
+download_tile "brazil-territories.mbtiles"
 
 ls -lh "${TILES_DIR}"/*.mbtiles

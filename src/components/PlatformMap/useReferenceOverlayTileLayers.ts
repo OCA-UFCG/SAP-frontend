@@ -9,6 +9,10 @@ import type {
   ReferenceOverlayTileUrls,
   ReferenceOverlayUrls,
 } from "@/components/Map/mapDefinitions";
+import {
+  isVectorReferenceLayer,
+  resolveTerritoryTilesUrl,
+} from "@/components/Map/territoryVectorLayers";
 
 const API_BASE_URL = process.env.NEXT_PUBLIC_HOST_URL ?? "";
 
@@ -106,6 +110,11 @@ async function resolveReferenceLayerTileUrl(
   layerId: ReferenceLayerId,
   signal?: AbortSignal,
 ): Promise<ReferenceLayerUrls | null> {
+  // Os tiles vetoriais saem do nosso servidor, com endereço fixo: nada a pedir.
+  if (isVectorReferenceLayer(layerId)) {
+    return Promise.resolve({ url: resolveTerritoryTilesUrl() });
+  }
+
   const cachedUrls = readFreshCachedUrl(layerId);
   if (cachedUrls) return cachedUrls;
 
@@ -278,11 +287,16 @@ export function useReferenceOverlayTiles(
   }, [tileMap]);
 }
 
+// Os grupos vetoriais não entram: o tile deles tem poucos KB e chega na hora.
+const PREFETCH_LAYER_IDS = REFERENCE_LAYER_IDS.filter(
+  (layerId) => !isVectorReferenceLayer(layerId),
+);
+
 /**
- * Pré-carregamento dos quatro grupos de território, pedido quando a pessoa abre
- * o cartão de Territórios. Cada tile do Earth Engine leva de 1,4 s a 2,6 s, então
- * para um grupo aparecer no clique os tiles precisam estar no navegador antes
- * dele. Quem nunca abre o cartão não baixa nada.
+ * Pré-carregamento dos grupos de território do Earth Engine, pedido quando a
+ * pessoa abre o cartão de Territórios. Cada tile do Earth Engine leva de 1,4 s
+ * a 2,6 s, então para um grupo aparecer no clique os tiles precisam estar no
+ * navegador antes dele. Quem nunca abre o cartão não baixa nada.
  *
  * Aqui saem só os endereços; quem baixa os tiles é o mapa, que sabe qual área
  * está à vista. Cada abertura do cartão entrega um Map novo, para o mapa
@@ -296,14 +310,14 @@ export function useReferenceOverlayPrefetch() {
 
   const requestPrefetch = useCallback(() => {
     void Promise.all(
-      REFERENCE_LAYER_IDS.map((layerId) =>
+      PREFETCH_LAYER_IDS.map((layerId) =>
         resolveReferenceLayerTileUrl(layerId).catch(() => null),
       ),
     ).then((resolved) => {
       const urls = new globalThis.Map<string, ReferenceOverlayUrls>();
       resolved.forEach((layerUrls, index) => {
         if (!layerUrls) return;
-        urls.set(REFERENCE_LAYER_IDS[index], {
+        urls.set(PREFETCH_LAYER_IDS[index], {
           outline: layerUrls.url,
           fill: layerUrls.fillUrl,
         });

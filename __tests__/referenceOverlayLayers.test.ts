@@ -17,12 +17,19 @@ import {
   ensureReferenceOverlayLayers,
 } from "@/components/Map/mapDefinitions";
 import { MUNICIPALITY_HOVER_LAYER_ID } from "@/components/Map/municipalityLayers";
+import {
+  VECTOR_MASK_LAYER_ID,
+  VECTOR_MASK_OUTSIDE_LAYER_ID,
+  VECTOR_MASK_WORLD_LAYER_ID,
+} from "@/components/Map/territoryVectorLayers";
 
 interface AddedLayer {
   id: string;
   source: string;
   paint?: Record<string, unknown>;
+  filter?: unknown;
   beforeId?: string;
+  sourceLayer?: string;
 }
 
 /**
@@ -83,9 +90,16 @@ class FakeMapLibreMap {
   order: string[] = [];
   moves = 0;
 
-  addLayer(layer: { id: string; source: string }, beforeId?: string) {
+  addLayer(
+    layer: { id: string; source: string; "source-layer"?: string },
+    beforeId?: string,
+  ) {
     if (!this.styleParsed) throw new Error("Style is not done loading.");
-    this.layers.set(layer.id, { ...layer, beforeId });
+    this.layers.set(layer.id, {
+      ...layer,
+      beforeId,
+      sourceLayer: layer["source-layer"],
+    });
     this.addedLayerOrder.push(layer.id);
     this.insert(layer.id, beforeId);
   }
@@ -102,6 +116,14 @@ class FakeMapLibreMap {
 
   getPaintProperty(id: string, name: string) {
     return this.layers.get(id)?.paint?.[name];
+  }
+
+  getFilter(id: string) {
+    return this.layers.get(id)?.filter;
+  }
+
+  setFilter(id: string, filter: unknown) {
+    this.layers.get(id)!.filter = filter;
   }
 
   setPaintProperty(id: string, name: string, value: unknown) {
@@ -139,6 +161,7 @@ const sourceIdOf = (overlayId: string) =>
   `${REF_OVERLAY_SOURCE_PREFIX}${overlayId}`;
 const layerIdOf = (overlayId: string) =>
   `${REF_OVERLAY_LAYER_PREFIX}${overlayId}`;
+const fillLayerOfRaster = (overlayId: string) => `${layerIdOf(overlayId)}-fill`;
 
 describe("ensureReferenceOverlayLayers", () => {
   it("adds a raster source and layer for each active overlay", () => {
@@ -194,14 +217,14 @@ describe("ensureReferenceOverlayLayers", () => {
       map.asMapLibre(),
       new Map([
         [
-          "terras_indigenas",
-          { outline: "https://tiles.example/ti/{z}/{x}/{y}" },
+          "unidades_conservacao",
+          { outline: "https://tiles.example/uc/{z}/{x}/{y}" },
         ],
       ]),
     );
 
     expect(applied).toBe(true);
-    expect(map.getLayer(layerIdOf("terras_indigenas"))).toBeDefined();
+    expect(map.getLayer(layerIdOf("unidades_conservacao"))).toBeDefined();
   });
 
   it("reports a failed write so the caller can retry when the style is parsed", () => {
@@ -330,23 +353,25 @@ describe("ensureReferenceOverlayLayers", () => {
 
   describe("interior e contorno em camadas separadas", () => {
     const urls = {
-      outline: "https://tiles.example/ti-outline/{z}/{x}/{y}",
-      fill: "https://tiles.example/ti-fill/{z}/{x}/{y}",
+      outline: "https://tiles.example/uc-outline/{z}/{x}/{y}",
+      fill: "https://tiles.example/uc-fill/{z}/{x}/{y}",
     };
-    const fillLayerId = `${layerIdOf("terras_indigenas")}-fill`;
+    const fillLayerId = `${layerIdOf("unidades_conservacao")}-fill`;
 
     it("desbota só o interior conforme o zoom, deixando o contorno intacto", () => {
       const map = new FakeMapLibreMap();
 
       ensureReferenceOverlayLayers(
         map.asMapLibre(),
-        new Map([["terras_indigenas", urls]]),
+        new Map([["unidades_conservacao", urls]]),
       );
 
       expect(map.getLayer(fillLayerId)?.paint).toEqual({
         "raster-opacity": REFERENCE_OVERLAY_FILL_OPACITY,
       });
-      expect(map.getLayer(layerIdOf("terras_indigenas"))?.paint).toEqual({});
+      expect(map.getLayer(layerIdOf("unidades_conservacao"))?.paint).toEqual(
+        {},
+      );
     });
 
     it("desenha o contorno por cima do interior do mesmo território", () => {
@@ -358,13 +383,13 @@ describe("ensureReferenceOverlayLayers", () => {
 
       ensureReferenceOverlayLayers(
         map.asMapLibre(),
-        new Map([["terras_indigenas", urls]]),
+        new Map([["unidades_conservacao", urls]]),
       );
 
       // As duas entram logo abaixo da mesma âncora: a que entra depois fica em cima.
       expect(map.addedLayerOrder).toEqual([
         fillLayerId,
-        layerIdOf("terras_indigenas"),
+        layerIdOf("unidades_conservacao"),
       ]);
       expect(map.getLayer(fillLayerId)?.beforeId).toBe(
         MUNICIPALITY_HOVER_LAYER_ID,
@@ -375,7 +400,7 @@ describe("ensureReferenceOverlayLayers", () => {
       const map = new FakeMapLibreMap();
       ensureReferenceOverlayLayers(
         map.asMapLibre(),
-        new Map([["terras_indigenas", urls]]),
+        new Map([["unidades_conservacao", urls]]),
       );
 
       ensureReferenceOverlayLayers(map.asMapLibre(), new Map());
@@ -392,7 +417,7 @@ describe("ensureReferenceOverlayLayers", () => {
     });
     const twoGroups = new Map([
       ["quilombolas", urlsOf("quilombolas")],
-      ["terras_indigenas", urlsOf("terras_indigenas")],
+      ["unidades_conservacao", urlsOf("unidades_conservacao")],
     ]);
     const fillLayerOf = (overlayId: string) => `${layerIdOf(overlayId)}-fill`;
 
@@ -410,8 +435,8 @@ describe("ensureReferenceOverlayLayers", () => {
 
       expect(map.getLayersOrder()).toEqual([
         GEE_LAYER_ID,
-        fillLayerOf("terras_indigenas"),
-        layerIdOf("terras_indigenas"),
+        fillLayerOf("unidades_conservacao"),
+        layerIdOf("unidades_conservacao"),
         REF_HIGHLIGHT_MASK_LAYER_ID,
         fillLayerOf("quilombolas"),
         layerIdOf("quilombolas"),
@@ -438,11 +463,13 @@ describe("ensureReferenceOverlayLayers", () => {
 
       ensureReferenceOverlayLayers(map.asMapLibre(), twoGroups, "quilombolas");
 
-      expect(map.getLayer(fillLayerOf("terras_indigenas"))?.paint).toEqual({
+      expect(map.getLayer(fillLayerOf("unidades_conservacao"))?.paint).toEqual({
         "raster-opacity": DIMMED_REFERENCE_OVERLAY_FILL_OPACITY,
       });
       expect(
-        map.getLayer(layerIdOf("terras_indigenas"))?.paint?.["raster-opacity"],
+        map.getLayer(layerIdOf("unidades_conservacao"))?.paint?.[
+          "raster-opacity"
+        ],
       ).toBeLessThan(1);
       expect(map.getLayer(fillLayerOf("quilombolas"))?.paint).toEqual({
         "raster-opacity": REFERENCE_OVERLAY_FILL_OPACITY,
@@ -458,10 +485,16 @@ describe("ensureReferenceOverlayLayers", () => {
       expect(map.getSource(REF_HIGHLIGHT_MASK_SOURCE_ID)).toBeUndefined();
       expect(map.getLayer(REF_HIGHLIGHT_MASK_LAYER_ID)).toBeUndefined();
       expect(
-        map.getPaintProperty(fillLayerOf("terras_indigenas"), "raster-opacity"),
+        map.getPaintProperty(
+          fillLayerOf("unidades_conservacao"),
+          "raster-opacity",
+        ),
       ).toEqual(REFERENCE_OVERLAY_FILL_OPACITY);
       expect(
-        map.getPaintProperty(layerIdOf("terras_indigenas"), "raster-opacity"),
+        map.getPaintProperty(
+          layerIdOf("unidades_conservacao"),
+          "raster-opacity",
+        ),
       ).toBe(1);
     });
 
@@ -475,7 +508,7 @@ describe("ensureReferenceOverlayLayers", () => {
       ensureReferenceOverlayLayers(
         map.asMapLibre(),
         twoGroups,
-        "terras_indigenas",
+        "unidades_conservacao",
       );
 
       expect(map.createdSources).toBe(createdBefore);
@@ -484,8 +517,8 @@ describe("ensureReferenceOverlayLayers", () => {
       ).not.toBe(firstTiles);
       expect(map.getLayersOrder().slice(-4)).toEqual([
         REF_HIGHLIGHT_MASK_LAYER_ID,
-        fillLayerOf("terras_indigenas"),
-        layerIdOf("terras_indigenas"),
+        fillLayerOf("unidades_conservacao"),
+        layerIdOf("unidades_conservacao"),
         MUNICIPALITY_HOVER_LAYER_ID,
       ]);
     });
@@ -517,7 +550,7 @@ describe("ensureReferenceOverlayLayers", () => {
       ensureReferenceOverlayLayers(map.asMapLibre(), twoGroups, "quilombolas");
 
       const order = map.getLayersOrder();
-      expect(order.indexOf(layerIdOf("terras_indigenas"))).toBeLessThan(
+      expect(order.indexOf(layerIdOf("unidades_conservacao"))).toBeLessThan(
         order.indexOf(REF_HIGHLIGHT_MASK_LAYER_ID),
       );
     });
@@ -536,6 +569,161 @@ describe("ensureReferenceOverlayLayers", () => {
       expect(map.getSource(REF_HIGHLIGHT_MASK_SOURCE_ID)?.spec.tiles[0]).toBe(
         tiles,
       );
+    });
+  });
+
+  describe("terras indígenas desenhadas dos tiles vetoriais", () => {
+    const TI = "terras_indigenas";
+    const TI_URLS = {
+      outline: "http://localhost/api/tiles/{z}/{x}/{y}?tileset=territories",
+    };
+    const ti = (part: string) => `ref-vector-${TI}-${part}`;
+    const quilombolaUrls = {
+      outline: "https://tiles.example/q-outline/{z}/{x}/{y}",
+      fill: "https://tiles.example/q-fill/{z}/{x}/{y}",
+    };
+
+    function mapWithAnchor() {
+      const map = new FakeMapLibreMap();
+      map.addExistingLayer(GEE_LAYER_ID);
+      map.addExistingLayer(MUNICIPALITY_HOVER_LAYER_ID);
+      return map;
+    }
+
+    it("desenha interior e contorno abaixo do hover, e o nome por cima de tudo", () => {
+      const map = mapWithAnchor();
+
+      ensureReferenceOverlayLayers(map.asMapLibre(), new Map([[TI, TI_URLS]]));
+
+      expect(map.getLayersOrder()).toEqual([
+        GEE_LAYER_ID,
+        ti("fill"),
+        ti("halo"),
+        ti("outline"),
+        ti("selected"),
+        MUNICIPALITY_HOVER_LAYER_ID,
+        ti("label"),
+      ]);
+      expect(map.getLayer(ti("label"))?.sourceLayer).toBe(`${TI}_rotulos`);
+      expect(map.getLayer(ti("fill"))?.paint?.["fill-opacity"]).toEqual(
+        REFERENCE_OVERLAY_FILL_OPACITY,
+      );
+      // Nenhuma imagem do Earth Engine para as terras indígenas.
+      expect(map.getLayer(layerIdOf(TI))).toBeUndefined();
+    });
+
+    it("engrossa o contorno só do território marcado no grupo dele", () => {
+      const map = mapWithAnchor();
+      const groups = new Map<string, typeof TI_URLS>([[TI, TI_URLS]]);
+
+      ensureReferenceOverlayLayers(map.asMapLibre(), groups, null, {
+        layerId: TI,
+        name: "Kiriri",
+      });
+      expect(map.getFilter(ti("selected"))).toEqual([
+        "==",
+        ["get", "name"],
+        "Kiriri",
+      ]);
+
+      ensureReferenceOverlayLayers(map.asMapLibre(), groups, null, {
+        layerId: "quilombolas",
+        name: "Kiriri",
+      });
+      expect(map.getFilter(ti("selected"))).toEqual([
+        "==",
+        ["get", "name"],
+        "",
+      ]);
+    });
+
+    it("em destaque, escurece com a máscara dos tiles e o resto do mundo", () => {
+      const map = mapWithAnchor();
+
+      ensureReferenceOverlayLayers(
+        map.asMapLibre(),
+        new Map<string, { outline: string; fill?: string }>([
+          ["quilombolas", quilombolaUrls],
+          [TI, TI_URLS],
+        ]),
+        TI,
+      );
+
+      expect(map.getLayer(REF_HIGHLIGHT_MASK_LAYER_ID)).toBeUndefined();
+      expect(map.getLayer(VECTOR_MASK_LAYER_ID)?.sourceLayer).toBe(
+        `${TI}_mascara`,
+      );
+      expect(map.getLayersOrder()).toEqual([
+        GEE_LAYER_ID,
+        fillLayerOfRaster("quilombolas"),
+        layerIdOf("quilombolas"),
+        VECTOR_MASK_OUTSIDE_LAYER_ID,
+        VECTOR_MASK_WORLD_LAYER_ID,
+        VECTOR_MASK_LAYER_ID,
+        ti("fill"),
+        ti("halo"),
+        ti("outline"),
+        ti("selected"),
+        MUNICIPALITY_HOVER_LAYER_ID,
+        ti("label"),
+      ]);
+      expect(map.getLayer(VECTOR_MASK_LAYER_ID)?.paint).toMatchObject({
+        "fill-opacity": HIGHLIGHT_MASK_OPACITY,
+        "fill-antialias": false,
+      });
+    });
+
+    it("com outro grupo em destaque, apaga as terras indígenas e o nome delas", () => {
+      const map = mapWithAnchor();
+
+      ensureReferenceOverlayLayers(
+        map.asMapLibre(),
+        new Map<string, { outline: string; fill?: string }>([
+          ["quilombolas", quilombolaUrls],
+          [TI, TI_URLS],
+        ]),
+        "quilombolas",
+      );
+
+      expect(map.getLayer(VECTOR_MASK_LAYER_ID)).toBeUndefined();
+      expect(map.getLayer(REF_HIGHLIGHT_MASK_LAYER_ID)).toBeDefined();
+      expect(map.getPaintProperty(ti("fill"), "fill-opacity")).toEqual(
+        DIMMED_REFERENCE_OVERLAY_FILL_OPACITY,
+      );
+      expect(map.getPaintProperty(ti("outline"), "line-opacity")).toBeLessThan(
+        1,
+      );
+      expect(map.getPaintProperty(ti("label"), "text-opacity")).toBeLessThan(1);
+    });
+
+    it("desligar o grupo tira as camadas, a fonte e a máscara", () => {
+      const map = mapWithAnchor();
+      ensureReferenceOverlayLayers(
+        map.asMapLibre(),
+        new Map([[TI, TI_URLS]]),
+        TI,
+      );
+
+      ensureReferenceOverlayLayers(map.asMapLibre(), new Map(), null);
+
+      expect(map.getLayersOrder()).toEqual([
+        GEE_LAYER_ID,
+        MUNICIPALITY_HOVER_LAYER_ID,
+      ]);
+      expect(map.sources.size).toBe(0);
+    });
+
+    it("não reordena nem repinta quando nada mudou", () => {
+      const map = mapWithAnchor();
+      const groups = new Map([[TI, TI_URLS]]);
+      ensureReferenceOverlayLayers(map.asMapLibre(), groups, TI);
+      const moves = map.moves;
+      const created = map.createdSources;
+
+      ensureReferenceOverlayLayers(map.asMapLibre(), groups, TI);
+
+      expect(map.moves).toBe(moves);
+      expect(map.createdSources).toBe(created);
     });
   });
 });
