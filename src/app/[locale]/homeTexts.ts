@@ -2,9 +2,12 @@ import { getTranslations } from "next-intl/server";
 import { routing } from "@/translations/routing-config";
 import {
   getHomeTexts,
+  HomeSectionId,
+  HomeTestimonialContent,
   HomeTextsContent,
+  HomeTranslatedLocale,
 } from "@/repositories/content/homeTextsRepository";
-import { HomeTextsI } from "@/utils/interfaces";
+import { HomeTestimonialI, HomeTextsI } from "@/utils/interfaces";
 import { MOCK_NEWS_CONTENT } from "./homePage.mocks";
 
 const HIGHLIGHT_KEYS = [
@@ -70,6 +73,20 @@ async function getTranslatedHomeTexts(): Promise<HomeTextsI> {
   };
 }
 
+/** O depoimento no idioma pedido; o texto que faltar fica o de português. */
+function localizeTestimonial(
+  { translations, ...item }: HomeTestimonialContent,
+  locale?: HomeTranslatedLocale,
+): HomeTestimonialI {
+  const translated = locale ? translations[locale] : undefined;
+  return {
+    ...item,
+    quote: translated?.quote ?? item.quote,
+    author: translated?.author ?? item.author,
+    authorDetail: translated?.authorDetail ?? item.authorDetail,
+  };
+}
+
 /**
  * Põe o que está publicado no Contentful por cima das traduções: cada texto ou
  * lista que o Contentful não tiver continua vindo da tradução.
@@ -106,7 +123,7 @@ export function mergeHomeTexts(
     testimonials: {
       title: testimonials?.title ?? base.testimonials.title,
       items: cms.testimonials.length
-        ? cms.testimonials
+        ? cms.testimonials.map((item) => localizeTestimonial(item))
         : base.testimonials.items,
     },
   };
@@ -134,9 +151,49 @@ export function mergeHomeImages(
 }
 
 /**
- * Textos da home para o idioma da página. O Contentful guarda uma versão só,
- * em português; inglês e espanhol continuam nos arquivos de tradução e só
- * levam as fotos do Contentful.
+ * Inglês e espanhol: do Contentful vêm as fotos, os títulos das seções e os
+ * depoimentos, cada um no campo do idioma ("Título (inglês)", "Citação
+ * (espanhol)"...). Os demais textos continuam nos arquivos de tradução.
+ */
+export function mergeTranslatedHomeTexts(
+  base: HomeTextsI,
+  cms: HomeTextsContent,
+  locale: HomeTranslatedLocale,
+): HomeTextsI {
+  const withImages = mergeHomeImages(base, cms);
+  const title = (id: HomeSectionId, fallback: string) =>
+    cms.sections[id]?.titleTranslations?.[locale] ?? fallback;
+
+  return {
+    ...withImages,
+    tools: {
+      ...withImages.tools,
+      title: title("ferramentas", base.tools.title),
+    },
+    publicPolicy: {
+      ...withImages.publicPolicy,
+      title: title("politica-publica", base.publicPolicy.title),
+    },
+    features: {
+      ...base.features,
+      title: title("recursos-em-destaque", base.features.title),
+    },
+    testimonials: {
+      title: title("depoimentos", base.testimonials.title),
+      items: cms.testimonials.length
+        ? cms.testimonials.map((item) => localizeTestimonial(item, locale))
+        : base.testimonials.items,
+    },
+  };
+}
+
+function isTranslatedLocale(locale: string): locale is HomeTranslatedLocale {
+  return locale === "en" || locale === "es";
+}
+
+/**
+ * Textos da home para o idioma da página. O português vem dos campos
+ * principais do Contentful; inglês e espanhol, dos campos de cada idioma.
  */
 export async function getHomeTextsForLocale(
   locale: string,
@@ -147,7 +204,8 @@ export async function getHomeTextsForLocale(
   ]);
   if (!cms) return translated;
 
-  return locale === routing.defaultLocale
-    ? mergeHomeTexts(translated, cms)
+  if (locale === routing.defaultLocale) return mergeHomeTexts(translated, cms);
+  return isTranslatedLocale(locale)
+    ? mergeTranslatedHomeTexts(translated, cms, locale)
     : mergeHomeImages(translated, cms);
 }

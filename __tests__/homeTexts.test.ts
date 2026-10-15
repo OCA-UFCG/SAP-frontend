@@ -36,7 +36,13 @@ describe("getHomeTextsForLocale", () => {
         },
       ],
       features: [],
-      testimonials: [{ quote: "Citação", author: "Pesquisador" }],
+      testimonials: [
+        {
+          quote: "Citação",
+          author: "Pesquisador",
+          translations: { en: { quote: "Quote" } },
+        },
+      ],
     });
 
     const texts = await getHomeTextsForLocale("pt");
@@ -68,7 +74,62 @@ describe("getHomeTextsForLocale", () => {
     );
   });
 
-  it("keeps English and Spanish on the translation files, with the Contentful photos", async () => {
+  it("takes the English and Spanish testimonials and titles from their own Contentful fields", async () => {
+    mockedGetHomeTexts.mockResolvedValue({
+      sections: {
+        depoimentos: {
+          title: "O que dizem sobre o SEDES",
+          titleTranslations: { en: "What people say about SEDES" },
+        },
+      },
+      highlights: [],
+      tools: [],
+      features: [],
+      testimonials: [
+        {
+          quote: "Citação",
+          author: "Extensionista rural",
+          authorDetail: "OCA",
+          image: "https://img/depoimento.jpg",
+          translations: {
+            en: { quote: "Quote", author: "Rural extension agent" },
+            es: {},
+          },
+        },
+      ],
+    });
+
+    const english = await getHomeTextsForLocale("en");
+    expect(english.testimonials).toEqual({
+      title: "What people say about SEDES",
+      items: [
+        {
+          quote: "Quote",
+          author: "Rural extension agent",
+          // Sem tradução, fica o de português.
+          authorDetail: "OCA",
+          image: "https://img/depoimento.jpg",
+        },
+      ],
+    });
+    // Seção sem título em inglês continua com o da tradução.
+    expect(english.tools.title).toBe("PlatformModulesSection.title");
+
+    const spanish = await getHomeTextsForLocale("es");
+    expect(spanish.testimonials).toEqual({
+      title: "UseCasesSection.title",
+      items: [
+        {
+          quote: "Citação",
+          author: "Extensionista rural",
+          authorDetail: "OCA",
+          image: "https://img/depoimento.jpg",
+        },
+      ],
+    });
+  });
+
+  it("keeps the other English and Spanish texts on the translation files, with the Contentful photos", async () => {
     mockedGetHomeTexts.mockResolvedValue({
       sections: {
         ferramentas: { title: "Título do CMS" },

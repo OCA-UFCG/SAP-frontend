@@ -19,6 +19,8 @@ const GET_HOME_TEXTS = `
       items {
         identifier
         title
+        titleEn
+        titleEs
         subtitle
         text
         buttonText
@@ -67,8 +69,17 @@ const GET_HOME_TEXTS = `
     homeTestimonialCollection(limit: ${CONTENTFUL_COLLECTION_LIMIT}, locale: $locale, order: order_ASC) {
       items {
         quote
+        quoteEn
+        quoteEs
         author
+        authorEn
+        authorEs
         authorDetail
+        authorDetailEn
+        authorDetailEs
+        photo {
+          url
+        }
       }
     }
   }
@@ -91,13 +102,30 @@ export const HOME_TOOL_HREFS: Record<PlatformModuleI["id"], string> = {
 export type HomeSectionId =
   "ferramentas" | "politica-publica" | "recursos-em-destaque" | "depoimentos";
 
+/**
+ * Idiomas da página que têm campos próprios no Contentful ("Título (inglês)",
+ * "Citação (espanhol)"...). O português fica nos campos principais.
+ */
+export type HomeTranslatedLocale = "en" | "es";
+
+type Translations<T> = Partial<Record<HomeTranslatedLocale, T>>;
+
 export interface HomeSectionTextI {
   title: string;
+  /** Título em inglês e espanhol; vazio, a página usa o da tradução. */
+  titleTranslations?: Translations<string>;
   subtitle?: string;
   text?: string;
   buttonText?: string;
   /** Fotos da seção; hoje só a "politica-publica" usa, na colagem. */
   images?: string[];
+}
+
+/** Depoimento com os textos de inglês e espanhol; o que faltar fica o português. */
+export interface HomeTestimonialContent extends HomeTestimonialI {
+  translations: Translations<
+    Partial<Pick<HomeTestimonialI, "quote" | "author" | "authorDetail">>
+  >;
 }
 
 /** O que o Contentful tem publicado; uma lista vazia é seção sem entradas. */
@@ -106,14 +134,16 @@ export interface HomeTextsContent {
   highlights: HomeHighlightI[];
   tools: HomeToolTextI[];
   features: HomeFeatureI[];
-  testimonials: HomeTestimonialI[];
+  testimonials: HomeTestimonialContent[];
 }
 
 interface HomeTextsResponse {
   homeSectionCollection: {
     items: Array<
-      | (Omit<HomeSectionTextI, "images"> & {
+      | (Omit<HomeSectionTextI, "images" | "titleTranslations"> & {
           identifier: HomeSectionId;
+          titleEn?: string | null;
+          titleEs?: string | null;
           imagesCollection?: { items: Array<AssetUrl | null> } | null;
         })
       | null
@@ -143,8 +173,15 @@ interface HomeTextsResponse {
   homeTestimonialCollection: {
     items: Array<{
       quote: string;
+      quoteEn?: string | null;
+      quoteEs?: string | null;
       author: string;
+      authorEn?: string | null;
+      authorEs?: string | null;
       authorDetail?: string | null;
+      authorDetailEn?: string | null;
+      authorDetailEs?: string | null;
+      photo?: AssetUrl | null;
     } | null>;
   };
 }
@@ -155,6 +192,11 @@ interface AssetUrl {
 
 function isDefined<T>(value: T | null | undefined): value is T {
   return value != null;
+}
+
+/** Campo de tradução em branco conta como não preenchido. */
+function filled(value?: string | null): string | undefined {
+  return value?.trim() || undefined;
 }
 
 export async function getHomeTexts(): Promise<HomeTextsContent | null> {
@@ -169,6 +211,10 @@ export async function getHomeTexts(): Promise<HomeTextsContent | null> {
       if (!section) continue;
       sections[section.identifier] = {
         title: section.title,
+        titleTranslations: {
+          en: filled(section.titleEn),
+          es: filled(section.titleEs),
+        },
         subtitle: section.subtitle ?? undefined,
         text: section.text ?? undefined,
         buttonText: section.buttonText ?? undefined,
@@ -213,6 +259,19 @@ export async function getHomeTexts(): Promise<HomeTextsContent | null> {
           quote: item.quote,
           author: item.author,
           authorDetail: item.authorDetail ?? undefined,
+          image: item.photo?.url ?? undefined,
+          translations: {
+            en: {
+              quote: filled(item.quoteEn),
+              author: filled(item.authorEn),
+              authorDetail: filled(item.authorDetailEn),
+            },
+            es: {
+              quote: filled(item.quoteEs),
+              author: filled(item.authorEs),
+              authorDetail: filled(item.authorDetailEs),
+            },
+          },
         })),
     };
   } catch (error) {

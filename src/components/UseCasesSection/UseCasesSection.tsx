@@ -15,15 +15,21 @@ type CardStyle = {
   quote: string;
   /** Cor do texto. */
   text: string;
+  /** Card grande: aspas maiores e texto no pé do card. */
+  large?: boolean;
 };
 
+// Com foto, qualquer card fica com texto claro sobre um degradê escuro.
+const PHOTO_COLORS = { quote: "text-[#CCCF87]", text: "text-[#F8F7F8]" };
+
 // Mosaico do design da home (Figma), na ordem dos depoimentos: no alto, o card
-// com foto, dois cards empilhados e um card alto; embaixo, dois cards largos.
+// grande (com foto no design), dois cards empilhados e um card alto; embaixo,
+// dois cards largos.
 const TOP_CARDS: CardStyle[] = [
   {
-    card: "min-h-[360px] justify-end md:col-span-2 lg:col-span-1 lg:row-span-2",
-    quote: "text-[#CCCF87]",
-    text: "text-[#F8F7F8]",
+    card: "min-h-[360px] bg-[#3F4324] md:col-span-2 lg:col-span-1 lg:row-span-2",
+    ...PHOTO_COLORS,
+    large: true,
   },
   {
     card: "bg-[#F8F7F8] lg:col-start-2 lg:row-start-1",
@@ -52,48 +58,55 @@ const BOTTOM_CARDS: CardStyle[] = [
 const TestimonialCard = ({
   item,
   style,
-  photo = false,
 }: {
   item: HomeTestimonialI;
   style: CardStyle;
-  photo?: boolean;
-}) => (
-  <figure
-    className={`relative flex flex-col overflow-hidden rounded-lg p-6 font-inter text-sm leading-6 ${style.card} ${style.text}`}
-  >
-    {photo && (
-      <>
-        <Image
-          src="/home/colagem-3.jpg"
-          alt=""
-          fill
-          sizes="(max-width: 1024px) 100vw, 625px"
-          className="object-cover"
-        />
-        <div className="absolute inset-0 bg-[linear-gradient(0deg,#000000_0%,rgba(0,0,0,0)_112.5%)]" />
-      </>
-    )}
+}) => {
+  const colors = item.image ? PHOTO_COLORS : style;
+  // Sobre a foto o texto vai para o pé do card, onde o degradê é mais escuro.
+  const atBottom = style.large || !!item.image;
 
-    <div className="relative flex flex-1 flex-col gap-4">
-      <QuoteIcon
-        size={photo ? 40 : 24}
-        className={`shrink-0 ${style.quote} ${photo ? "mt-auto" : ""}`}
-      />
-      <blockquote>{item.quote}</blockquote>
-      <figcaption
-        className={`flex items-center gap-2 ${photo ? "" : "mt-auto"}`}
-      >
-        <span className="flex size-12 shrink-0 items-center justify-center rounded-full bg-[#E1E2B4] p-2 text-[#5B612A]">
-          <PersonIcon size={32} />
-        </span>
-        <span className="flex min-w-0 flex-col">
-          <span className="font-bold">{item.author}</span>
-          {item.authorDetail && <span>{item.authorDetail}</span>}
-        </span>
-      </figcaption>
-    </div>
-  </figure>
-);
+  return (
+    <figure
+      className={`relative flex flex-col overflow-hidden rounded-lg p-6 font-inter text-sm leading-6 ${style.card} ${colors.text}`}
+    >
+      {item.image && (
+        <>
+          <Image
+            src={item.image}
+            alt=""
+            fill
+            sizes="(max-width: 1024px) 100vw, 625px"
+            className="object-cover"
+          />
+          {/* Card baixo tem pouca altura para o degradê: a foto escurece mais. */}
+          <div
+            className={`absolute inset-0 bg-[linear-gradient(0deg,#000000_0%,rgba(0,0,0,0)_112.5%)] ${style.large ? "" : "bg-black/40"}`}
+          />
+        </>
+      )}
+
+      <div className="relative flex flex-1 flex-col gap-4">
+        <QuoteIcon
+          size={style.large ? 40 : 24}
+          className={`shrink-0 ${colors.quote} ${atBottom ? "mt-auto" : ""}`}
+        />
+        <blockquote>{item.quote}</blockquote>
+        <figcaption
+          className={`flex items-center gap-2 ${atBottom ? "" : "mt-auto"}`}
+        >
+          <span className="flex size-12 shrink-0 items-center justify-center rounded-full bg-[#E1E2B4] p-2 text-[#5B612A]">
+            <PersonIcon size={32} />
+          </span>
+          <span className="flex min-w-0 flex-col">
+            <span className="font-bold">{item.author}</span>
+            {item.authorDetail && <span>{item.authorDetail}</span>}
+          </span>
+        </figcaption>
+      </div>
+    </figure>
+  );
+};
 
 /** "O que dizem sobre o SEDES": os depoimentos num mosaico de cards. */
 export const UseCasesSection = ({ id, title, items }: Props) => {
@@ -115,7 +128,6 @@ export const UseCasesSection = ({ id, title, items }: Props) => {
               key={`${item.author}-${item.quote}`}
               item={item}
               style={TOP_CARDS[index]}
-              photo={index === 0}
             />
           ))}
         </div>
