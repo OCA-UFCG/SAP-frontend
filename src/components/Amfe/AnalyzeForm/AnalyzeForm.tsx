@@ -15,12 +15,10 @@ import {
   AnalysisLevel,
   interestArea,
 } from "@/utils/amfeInterfaces";
-import { ButtonUi } from "@/components/ButtonUI/ButtonUI";
 import {
   interestAreas,
   interestAreaOptionsByLevel,
   rankingLevelsByInterestArea,
-  text,
 } from "@/utils/amfeConsts";
 import ErrorMessage from "./ErrorMessage";
 import SegmentedSlider from "./SegmentedSlider";
@@ -28,14 +26,17 @@ import { PanelDropdown } from "@/components/PanelDropdown/PanelDropdown";
 import { LayerAccordion } from "@/components/LayerAccordion/LayerAccordion";
 import useCriterias from "@/components/Amfe/useCriterias";
 
-const sectionClass = "mt-8";
-const sectionHeaderClass = "mb-4";
-const sectionTitleClass =
-  "flex items-center gap-3 text-xl font-semibold tracking-tight";
-const sectionMarkerClass = "h-6 w-1 rounded-full bg-[#989F43]";
-const sectionDescriptionClass = "mt-2 text-sm leading-6 opacity-75";
-const inputGroupCardClass =
-  "mt-3 rounded-xl border border-neutral-200 bg-white p-4 shadow-[0_1px_2px_rgba(0,0,0,0.04)]";
+// Mesmos estilos do painel de Comunicação, para as três abas da plataforma
+// falarem a mesma língua visual.
+const titleClass =
+  "font-inter text-2xl leading-6 font-semibold tracking-[-0.015em]";
+const subtitleClass =
+  "font-inter text-base leading-6 font-medium tracking-[-0.015em]";
+const sectionClass = "space-y-3";
+const legendClass = "font-open-sans text-lg leading-6 font-semibold";
+const subLegendClass = "font-open-sans text-base leading-6 font-semibold";
+const hintClass =
+  "font-inter text-xs leading-[18px] font-medium tracking-[-0.015em]";
 
 const AnalyzeForm = ({ setFormPayload }: AnalyzeFormProps) => {
   const t = useTranslations("AnalyzeForm");
@@ -180,329 +181,227 @@ const AnalyzeForm = ({ setFormPayload }: AnalyzeFormProps) => {
   };
 
   return (
-    <>
-      <div className="flex w-full justify-center p-4 md:p-6">
-        <form
-          style={{
-            color: text,
-          }}
-          className="w-full max-w-4xl p-2 md:p-4"
-          onSubmit={handleSubmit(onSubmit, openAdvancedSettingsOnError)}
-        >
-          <div>
-            <h1
-              className="text-[28px] leading-tight font-semibold tracking-tight"
-              style={{ color: text }}
-            >
-              {t("title")}
-            </h1>
-            <p
-              className="mt-2 text-sm leading-6 opacity-75"
-              style={{ color: text }}
-            >
-              {t("description")}
-            </p>
-          </div>
+    <div className="min-h-full w-full px-6 py-12 text-[#292829]">
+      <form
+        className="flex w-full flex-col gap-6"
+        onSubmit={handleSubmit(onSubmit, openAdvancedSettingsOnError)}
+      >
+        <header className="flex flex-col gap-2">
+          <h2 className={titleClass}>{t("title")}</h2>
+          <p className={subtitleClass}>{t("description")}</p>
+        </header>
 
-          <section className={sectionClass}>
-            <div className={sectionHeaderClass}>
-              <h2 className={sectionTitleClass} style={{ color: text }}>
-                <span className={sectionMarkerClass} />
-                <span>{t("criteriasTitle")}</span>
-              </h2>
-              {errors.criteria?.root?.message && (
-                <ErrorMessage>
-                  {errors.criteria?.root?.message as string}
-                </ErrorMessage>
-              )}
-              {criteriasError && (
-                <ErrorMessage>{t("criteriaLoadError")}</ErrorMessage>
-              )}
-              <p className={sectionDescriptionClass} style={{ color: text }}>
-                {t("criteriasDesc")}
-              </p>
-            </div>
-            <div>
-              <SegmentedSlider
-                fields={fields}
+        <fieldset className={sectionClass}>
+          <legend className={legendClass}>{t("criteriasTitle")}</legend>
+          <p className={hintClass}>{t("criteriasDesc")}</p>
+          {errors.criteria?.root?.message && (
+            <ErrorMessage>
+              {errors.criteria?.root?.message as string}
+            </ErrorMessage>
+          )}
+          {criteriasError && (
+            <ErrorMessage>{t("criteriaLoadError")}</ErrorMessage>
+          )}
+          <SegmentedSlider
+            fields={fields}
+            control={control}
+            setValue={setValue}
+          />
+        </fieldset>
+
+        <fieldset className={sectionClass}>
+          <legend className={legendClass}>{t("interestAreaTitle")}</legend>
+          <p className={hintClass}>{t("interestAreaDesc")}</p>
+          <div className="flex w-full gap-2">
+            <div className="flex min-w-0 flex-1 flex-col">
+              <Controller
+                name="interestArea"
                 control={control}
-                setValue={setValue}
-              />
-            </div>
-          </section>
-
-          <section className={sectionClass}>
-            <div className={sectionHeaderClass}>
-              <h2 className={sectionTitleClass} style={{ color: text }}>
-                <span className={sectionMarkerClass} />
-                <span>{t("interestAreaTitle")}</span>
-              </h2>
-              <p className={sectionDescriptionClass} style={{ color: text }}>
-                {t("interestAreaDesc")}
-              </p>
-            </div>
-            <div className={inputGroupCardClass}>
-              <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
-                <div className="flex flex-col">
-                  <label
-                    id="amfe-interest-area-label"
-                    className="mb-2 text-sm font-bold"
-                    style={{ color: text }}
-                  >
-                    {t("interestAreaFieldLabel")}
-                  </label>
-                  <Controller
-                    name="interestArea"
-                    control={control}
-                    rules={{ required: t("interestAreaRequired") }}
-                    render={({ field }) => (
-                      <PanelDropdown
-                        labelledBy="amfe-interest-area-label"
-                        ariaLabelPrefix={t("interestAreaFieldLabel")}
-                        options={interestAreas.map((option) => ({
-                          value: option,
-                          label: interestAreaLabels[option],
-                        }))}
-                        value={field.value}
-                        placeholder={t("interestAreaFieldLabel")}
-                        onChange={field.onChange}
-                      />
-                    )}
-                  />
-                  {errors.interestArea && (
-                    <p className="mt-1 text-sm text-red-500">
-                      {errors.interestArea.message as string}
-                    </p>
-                  )}
-                </div>
-
-                <div className="flex flex-col">
-                  <label
-                    id="amfe-interest-area-value-label"
-                    className="mb-2 text-sm font-bold"
-                    style={{ color: text }}
-                  >
-                    {t("interestAreaValueTitle")}
-                  </label>
-                  <Controller
-                    name="interestAreaValue"
-                    control={control}
-                    rules={{ required: t("interestAreaValueRequired") }}
-                    render={({ field }) => (
-                      <PanelDropdown
-                        labelledBy="amfe-interest-area-value-label"
-                        ariaLabelPrefix={t("interestAreaValueTitle")}
-                        options={interestAreaValueOptions.map((option) => ({
-                          value: option,
-                          label: t(
-                            `interestAreaOptions.${selectedInterestArea}.${option}`,
-                          ),
-                        }))}
-                        value={field.value}
-                        placeholder={t("interestAreaValueTitle")}
-                        onChange={field.onChange}
-                      />
-                    )}
-                  />
-                  {errors.interestAreaValue && (
-                    <p className="mt-1 text-sm text-red-500">
-                      {errors.interestAreaValue.message as string}
-                    </p>
-                  )}
-                </div>
-              </div>
-            </div>
-          </section>
-
-          <section className={sectionClass}>
-            <div className={sectionHeaderClass}>
-              <h2 className={sectionTitleClass} style={{ color: text }}>
-                <span className={sectionMarkerClass} />
-                <span id="amfe-analysis-level-label">
-                  {t("analysisLevelTitle")}
-                </span>
-              </h2>
-              <p className={sectionDescriptionClass} style={{ color: text }}>
-                {t("analysisLevelDesc")}
-              </p>
-            </div>
-            <Controller
-              name="level"
-              control={control}
-              rules={{ required: t("levelRequired") }}
-              render={({ field }) => (
-                <div className="mt-3">
+                rules={{ required: t("interestAreaRequired") }}
+                render={({ field }) => (
                   <PanelDropdown
-                    labelledBy="amfe-analysis-level-label"
-                    ariaLabelPrefix={t("analysisLevelTitle")}
-                    options={availableRankings.map((option) => ({
+                    label={t("interestAreaFieldLabel")}
+                    options={interestAreas.map((option) => ({
                       value: option,
-                      label: rankingLevelLabels[option],
+                      label: interestAreaLabels[option],
                     }))}
                     value={field.value}
-                    placeholder={t("analysisLevelTitle")}
+                    placeholder={t("interestAreaFieldLabel")}
                     onChange={field.onChange}
                   />
+                )}
+              />
+              {errors.interestArea && (
+                <ErrorMessage>
+                  {errors.interestArea.message as string}
+                </ErrorMessage>
+              )}
+            </div>
+            <div className="flex min-w-0 flex-1 flex-col">
+              <Controller
+                name="interestAreaValue"
+                control={control}
+                rules={{ required: t("interestAreaValueRequired") }}
+                render={({ field }) => (
+                  <PanelDropdown
+                    label={t("interestAreaValueTitle")}
+                    options={interestAreaValueOptions.map((option) => ({
+                      value: option,
+                      label: t(
+                        `interestAreaOptions.${selectedInterestArea}.${option}`,
+                      ),
+                    }))}
+                    value={field.value}
+                    placeholder={t("interestAreaValueTitle")}
+                    onChange={field.onChange}
+                  />
+                )}
+              />
+              {errors.interestAreaValue && (
+                <ErrorMessage>
+                  {errors.interestAreaValue.message as string}
+                </ErrorMessage>
+              )}
+            </div>
+          </div>
+        </fieldset>
+
+        <fieldset className={sectionClass}>
+          <legend id="amfe-analysis-level-label" className={legendClass}>
+            {t("analysisLevelTitle")}
+          </legend>
+          <p className={hintClass}>{t("analysisLevelDesc")}</p>
+          <Controller
+            name="level"
+            control={control}
+            rules={{ required: t("levelRequired") }}
+            render={({ field }) => (
+              <PanelDropdown
+                labelledBy="amfe-analysis-level-label"
+                ariaLabelPrefix={t("analysisLevelTitle")}
+                options={availableRankings.map((option) => ({
+                  value: option,
+                  label: rankingLevelLabels[option],
+                }))}
+                value={field.value}
+                placeholder={t("analysisLevelTitle")}
+                onChange={field.onChange}
+              />
+            )}
+          />
+          {errors.level && (
+            <ErrorMessage>{errors.level.message as string}</ErrorMessage>
+          )}
+        </fieldset>
+
+        <LayerAccordion
+          title={t("advancedSettingsTitle")}
+          open={advancedSettingsOpen}
+          onOpenChange={setAdvancedSettingsOpen}
+        >
+          <fieldset className={sectionClass}>
+            <legend className={subLegendClass}>{t("thresholdsTitle")}</legend>
+            <p className={hintClass}>{t("thresholdsDesc")}</p>
+            <div className="flex flex-col gap-2">
+              <InputForm
+                error={errors.indifference?.message as string}
+                fieldLabel={t("indifferenceLabel")}
+                inputProps={{
+                  placeholder: t("indifferencePlaceholder"),
+                  type: "number",
+                  step: 0.01,
+                }}
+                formProps={{
+                  name: "indifference",
+                  control: control,
+                  rules: { required: t("indifferenceRequired") },
+                  defaultValue: 0.02,
+                }}
+              />
+              <InputForm
+                error={errors.preference?.message as string}
+                fieldLabel={t("preferenceLabel")}
+                inputProps={{
+                  placeholder: t("preferencePlaceholder"),
+                  type: "number",
+                  step: 0.1,
+                }}
+                formProps={{
+                  name: "preference",
+                  control: control,
+                  rules: { required: t("preferenceRequired") },
+                  defaultValue: 0.1,
+                }}
+              />
+              <InputForm
+                error={errors.veto?.message as string}
+                fieldLabel={t("vetoLabel")}
+                inputProps={{
+                  placeholder: t("vetoPlaceholder"),
+                  type: "number",
+                  step: 0.1,
+                }}
+                formProps={{
+                  name: "veto",
+                  control: control,
+                  rules: { required: t("vetoRequired") },
+                  defaultValue: 0.5,
+                }}
+              />
+            </div>
+          </fieldset>
+
+          <fieldset className={sectionClass}>
+            <legend className={subLegendClass}>{t("scenariosTitle")}</legend>
+            <p className={hintClass}>{t("scenariosDesc")}</p>
+            <Controller
+              name="typeScenario"
+              control={control}
+              rules={{ required: t("scenarioRequired") }}
+              render={({ field }) => (
+                <div className="flex flex-col gap-2">
+                  {(["optimistic", "pessimistic"] as const).map((option) => (
+                    <label
+                      key={option}
+                      className="flex min-h-12 cursor-pointer items-center gap-3 rounded-lg border border-[#EFEFEF] bg-white py-1 pl-4"
+                    >
+                      <input
+                        type="radio"
+                        name={field.name}
+                        value={option}
+                        checked={field.value === option}
+                        onChange={() => field.onChange(option)}
+                        className="h-3.5 w-3.5 shrink-0 accent-[#989F43]"
+                      />
+                      <span className="font-inter text-base leading-6 font-semibold tracking-[-0.015em]">
+                        {option === "optimistic"
+                          ? t("optimistic")
+                          : t("pessimistic")}
+                      </span>
+                    </label>
+                  ))}
                 </div>
               )}
             />
-            {errors.level && (
-              <p className="mt-1 text-sm text-red-500">
-                {errors.level.message as string}
-              </p>
+            {errors.typeScenario && (
+              <ErrorMessage>
+                {errors.typeScenario.message as string}
+              </ErrorMessage>
             )}
-          </section>
+          </fieldset>
+        </LayerAccordion>
 
-          <div className={sectionClass}>
-            <LayerAccordion
-              title={t("advancedSettingsTitle")}
-              open={advancedSettingsOpen}
-              onOpenChange={setAdvancedSettingsOpen}
-              // 12px + 1px de borda = seta a 13px da borda, como a dos dropdowns.
-              headerPaddingClassName="pl-4 pr-3"
-            >
-              <section>
-                <div className={sectionHeaderClass}>
-                  <h2 className={sectionTitleClass} style={{ color: text }}>
-                    <span className={sectionMarkerClass} />
-                    <span>{t("thresholdsTitle")}</span>
-                  </h2>
-                  <p
-                    className={sectionDescriptionClass}
-                    style={{ color: text }}
-                  >
-                    {t("thresholdsDesc")}
-                  </p>
-                </div>
-                <div className={inputGroupCardClass}>
-                  <div className="grid grid-cols-1 gap-4 md:grid-cols-3">
-                    <InputForm
-                      error={errors.indifference?.message as string}
-                      fieldLabel={t("indifferenceLabel")}
-                      inputProps={{
-                        placeholder: t("indifferencePlaceholder"),
-                        type: "number",
-                        step: 0.01,
-                      }}
-                      formProps={{
-                        name: "indifference",
-                        control: control,
-                        rules: { required: t("indifferenceRequired") },
-                        defaultValue: 0.02,
-                      }}
-                    />
-                    <InputForm
-                      error={errors.preference?.message as string}
-                      fieldLabel={t("preferenceLabel")}
-                      inputProps={{
-                        placeholder: t("preferencePlaceholder"),
-                        type: "number",
-                        step: 0.1,
-                      }}
-                      formProps={{
-                        name: "preference",
-                        control: control,
-                        rules: { required: t("preferenceRequired") },
-                        defaultValue: 0.1,
-                      }}
-                    />
-                    <InputForm
-                      error={errors.veto?.message as string}
-                      fieldLabel={t("vetoLabel")}
-                      inputProps={{
-                        placeholder: t("vetoPlaceholder"),
-                        type: "number",
-                        step: 0.1,
-                      }}
-                      formProps={{
-                        name: "veto",
-                        control: control,
-                        rules: { required: t("vetoRequired") },
-                        defaultValue: 0.5,
-                      }}
-                    />
-                  </div>
-                </div>
-              </section>
-
-              <section>
-                <div className={sectionHeaderClass}>
-                  <h2 className={sectionTitleClass} style={{ color: text }}>
-                    <span className={sectionMarkerClass} />
-                    <span>{t("scenariosTitle")}</span>
-                  </h2>
-                  <p
-                    className={sectionDescriptionClass}
-                    style={{ color: text }}
-                  >
-                    {t("scenariosDesc")}
-                  </p>
-                </div>
-                <Controller
-                  name="typeScenario"
-                  control={control}
-                  rules={{ required: t("scenarioRequired") }}
-                  render={({ field }) => (
-                    <div
-                      className="grid grid-cols-1 gap-3 rounded-xl border bg-white p-2 shadow-[0_1px_2px_rgba(0,0,0,0.04)] sm:grid-cols-2"
-                      style={{ borderColor: "rgba(0,0,0,0.08)" }}
-                    >
-                      {(["optimistic", "pessimistic"] as const).map(
-                        (option) => (
-                          <label
-                            key={option}
-                            // `relative` prende o rádio `sr-only` (absoluto)
-                            // dentro do acordeão: sem ele, com o acordeão
-                            // fechado, o rádio escapava do recorte e deixava
-                            // a coluna rolar até um espaço vazio.
-                            className={`relative flex cursor-pointer items-center gap-3 rounded-lg px-4 py-3 font-medium transition-colors ${
-                              field.value === option
-                                ? "bg-[#989F43]/10"
-                                : "hover:bg-neutral-50"
-                            }`}
-                            style={{ color: text }}
-                          >
-                            <input
-                              type="radio"
-                              value={option}
-                              checked={field.value === option}
-                              onChange={() => field.onChange(option)}
-                              className="sr-only"
-                            />
-                            <span className="flex h-5 w-5 items-center justify-center rounded-full border-2 border-[#ccc]">
-                              {field.value === option && (
-                                <span className="block h-2.5 w-2.5 rounded-full bg-[#989F43]" />
-                              )}
-                            </span>
-                            {option === "optimistic"
-                              ? t("optimistic")
-                              : t("pessimistic")}
-                          </label>
-                        ),
-                      )}
-                    </div>
-                  )}
-                />
-                {errors.typeScenario && (
-                  <p className="mt-1 text-sm text-red-500">
-                    {errors.typeScenario.message as string}
-                  </p>
-                )}
-              </section>
-            </LayerAccordion>
-          </div>
-
-          {/* Até o catálogo chegar a lista de critérios está vazia; um clique
-              nesse intervalo mandava a análise sem nenhum critério. */}
-          <ButtonUi
-            type="submit"
-            label={t("submitButton")}
-            disabled={availableCriterias.length === 0}
-            styles="mt-8 flex w-full items-center justify-center gap-2 bg-[#989F43] text-white hover:bg-[#858C38] hover:text-white disabled:opacity-50 disabled:hover:bg-[#989F43]"
-          />
-        </form>
-      </div>
-    </>
+        {/* Até o catálogo chegar a lista de critérios está vazia; um clique
+            nesse intervalo mandava a análise sem nenhum critério. */}
+        <button
+          type="submit"
+          disabled={availableCriterias.length === 0}
+          className="font-open-sans flex h-10 w-full shrink-0 items-center justify-center gap-2 rounded bg-[#989F43] px-4 text-sm text-white hover:bg-[#858c39] disabled:cursor-not-allowed disabled:opacity-70"
+        >
+          {t("submitButton")}
+        </button>
+      </form>
+    </div>
   );
 };
 

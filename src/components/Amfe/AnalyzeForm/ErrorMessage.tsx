@@ -1,5 +1,5 @@
 const ErrorMessage = ({ children }: { children: React.ReactNode }) => {
-  return <p className="mt-2 mr-1 text-sm text-red-600">{children}</p>;
+  return <p className="mt-1 text-xs text-red-700">{children}</p>;
 };
 
 export default ErrorMessage;

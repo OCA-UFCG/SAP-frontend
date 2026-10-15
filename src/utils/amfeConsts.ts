@@ -1,7 +1,6 @@
 import { AnalysisLevel, interestArea } from "./amfeInterfaces";
 
 export const accent = "#989F43";
-export const inputBg = "#d7d7d6";
 export const text = "#292829";
 
 export const rankingLevelsByInterestArea: Record<

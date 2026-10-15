@@ -64,9 +64,9 @@ const SegmentedBar = ({ fields, control, setValue }: CriteriaCardI) => {
   if (fields.length === 0) return null;
 
   return (
-    <div className="mt-3 rounded-2xl border border-neutral-100 bg-white p-6 shadow-sm">
+    <div className="flex flex-col gap-2">
       <div
-        className="relative flex h-24 overflow-hidden rounded-xl"
+        className="relative flex h-10 overflow-hidden rounded-lg"
         role="group"
         aria-label={t("ariaLabel")}
       >
@@ -83,7 +83,7 @@ const SegmentedBar = ({ fields, control, setValue }: CriteriaCardI) => {
           return (
             <div
               key={i}
-              className="relative flex items-center justify-end pr-4 transition-all duration-300"
+              className="relative flex items-center justify-end pr-3 transition-all duration-300"
               style={{
                 width: `${pct}%`,
                 background: color,
@@ -91,7 +91,7 @@ const SegmentedBar = ({ fields, control, setValue }: CriteriaCardI) => {
               }}
             >
               {pct > 10 && (
-                <span className="text-base font-semibold text-white drop-shadow-sm">
+                <span className="font-inter text-xs font-semibold text-white drop-shadow-sm">
                   {pct.toFixed(0)}%
                 </span>
               )}
@@ -100,70 +100,67 @@ const SegmentedBar = ({ fields, control, setValue }: CriteriaCardI) => {
         })}
       </div>
 
-      <div className="mt-10 grid grid-cols-1 gap-x-8 gap-y-6 xl:grid-cols-2">
-        {fields.map((field, i) => (
-          <div
-            key={i}
-            className="grid min-w-0 grid-cols-[minmax(0,1fr)_88px] items-center gap-2"
-          >
-            <div className="flex min-w-0 items-center gap-1">
-              <div
-                className="h-[14px] w-[14px] flex-shrink-0 rounded-full"
-                style={{ backgroundColor: COLORS[i % COLORS.length] }}
-              />
-              <span className="min-w-0 text-[12px] leading-tight font-semibold break-normal whitespace-normal text-gray-800">
-                {metadataByName.get(field.name)?.label || field.name}
-              </span>
-            </div>
-            <input
-              type="number"
-              step="1"
-              min={MIN_CRITERIA_INPUT_VALUE}
-              max={MAX_CRITERIA_INPUT_VALUE}
-              className="h-[36px] w-full rounded-lg border border-gray-300 px-3 text-[14px] font-normal text-slate-400 transition-colors outline-none focus:border-[#989F43]"
-              value={localValues[i] ?? ""}
-              onChange={(e) => {
-                const raw = e.target.value;
-                const newLocalValues = [...localValues];
-                newLocalValues[i] = raw;
-                setLocalInputs({
-                  criteriaNamesKey,
-                  values: newLocalValues,
-                });
-              }}
-              onBlur={() => {
-                const clamped = String(
-                  normalizeCriteriaInputValue(localValues[i] ?? ""),
-                );
-                const newLocalValues = [...localValues];
-                newLocalValues[i] = clamped;
-                setLocalInputs({
-                  criteriaNamesKey,
-                  values: newLocalValues,
-                });
+      {fields.map((field, i) => (
+        <label
+          key={i}
+          className="flex min-h-12 items-center gap-3 rounded-lg border border-[#EFEFEF] bg-white py-1 pr-1 pl-4"
+        >
+          <span
+            aria-hidden="true"
+            className="h-3 w-3 shrink-0 rounded-full"
+            style={{ backgroundColor: COLORS[i % COLORS.length] }}
+          />
+          <span className="font-inter min-w-0 flex-1 text-base leading-6 font-semibold tracking-[-0.015em] break-words text-[#292829]">
+            {metadataByName.get(field.name)?.label || field.name}
+          </span>
+          <input
+            type="number"
+            step="1"
+            min={MIN_CRITERIA_INPUT_VALUE}
+            max={MAX_CRITERIA_INPUT_VALUE}
+            className="h-10 w-24 shrink-0 rounded-lg border border-transparent bg-[#E4E5E2] px-3 text-right text-sm text-[#292829] shadow-sm transition outline-none hover:border-neutral-400 focus-visible:border-neutral-600 focus-visible:ring-2 focus-visible:ring-neutral-600"
+            value={localValues[i] ?? ""}
+            onChange={(e) => {
+              const raw = e.target.value;
+              const newLocalValues = [...localValues];
+              newLocalValues[i] = raw;
+              setLocalInputs({
+                criteriaNamesKey,
+                values: newLocalValues,
+              });
+            }}
+            onBlur={() => {
+              const clamped = String(
+                normalizeCriteriaInputValue(localValues[i] ?? ""),
+              );
+              const newLocalValues = [...localValues];
+              newLocalValues[i] = clamped;
+              setLocalInputs({
+                criteriaNamesKey,
+                values: newLocalValues,
+              });
 
-                const numericValues = newLocalValues.map(
-                  (val) => parseFloat(val) || 0,
-                );
-                const normalizedValues = normalizeCriteriaValues(numericValues);
+              const numericValues = newLocalValues.map(
+                (val) => parseFloat(val) || 0,
+              );
+              const normalizedValues = normalizeCriteriaValues(numericValues);
 
-                normalizedValues.forEach((normalizedVal, idx) => {
-                  setValue(`criteria.${idx}.value`, normalizedVal, {
-                    shouldDirty: true,
-                    shouldValidate: true,
-                  });
+              normalizedValues.forEach((normalizedVal, idx) => {
+                setValue(`criteria.${idx}.value`, normalizedVal, {
+                  shouldDirty: true,
+                  shouldValidate: true,
                 });
-              }}
-              onKeyDown={(e) => {
-                if (e.key === "Enter") {
-                  e.preventDefault();
-                  (e.target as HTMLInputElement).blur();
-                }
-              }}
-            />
-          </div>
-        ))}
-      </div>
+              });
+            }}
+            onKeyDown={(e) => {
+              if (e.key === "Enter") {
+                e.preventDefault();
+                (e.target as HTMLInputElement).blur();
+              }
+            }}
+          />
+        </label>
+      ))}
 
       <CriteriaModal
         options={(availableCriterias || []).map((criterion) => ({
@@ -216,9 +213,9 @@ const SegmentedBar = ({ fields, control, setValue }: CriteriaCardI) => {
             onClick={openModal}
             aria-label={t("editButtonAria", { count: fields.length })}
             title={t("editButtonAria", { count: fields.length })}
-            className="mt-10 flex w-full cursor-pointer items-center justify-center gap-2 rounded-xl border border-gray-300 py-3 text-[14px] font-medium text-gray-700 transition-colors hover:bg-gray-50"
+            className="font-inter flex min-h-12 w-full cursor-pointer items-center justify-center gap-2 rounded-lg border border-[#EFEFEF] bg-white px-4 text-base font-medium text-[#0F172A] transition-colors duration-150 hover:bg-[#E4E5E2]"
           >
-            <Icon id="addIcon" size={20} />
+            <Icon id="addIcon" size={18} />
             <span>{t("editButton")}</span>
           </button>
         )}
