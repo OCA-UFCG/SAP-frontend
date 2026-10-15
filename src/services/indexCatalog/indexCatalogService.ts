@@ -449,6 +449,10 @@ export async function publishIndexCatalogDraft(
   const current = await getCatalogEntry(entryId);
   const config = requireFullyManagedConfig(current);
   assertPublishable(config);
+  // Um rascunho criado antes de o content type aceitar a escala dele (o
+  // decendial, por exemplo) só tropeça na publicação, que é onde o Contentful
+  // valida os campos.
+  await ensureIndexCatalogContentModel();
 
   try {
     const build = await buildCatalogDraft(config);
