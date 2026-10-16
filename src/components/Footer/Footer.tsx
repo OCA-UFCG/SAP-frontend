@@ -84,11 +84,11 @@ export const Footer = ({ content }: { content: FooterI[] }) => {
             era o que fazia o rodapé roubar a tela na plataforma. */}
         <div className="flex w-full flex-wrap items-center justify-center gap-6 lg:ml-auto lg:w-auto lg:justify-end">
           <Image
-            width="2442"
-            height="524"
+            width="1004"
+            height="325"
             src="/partners/mma-logo.png"
             alt="Ministério do Meio Ambiente e Mudança do Clima"
-            className="h-12 w-auto brightness-0 invert"
+            className="h-10 w-auto brightness-0 invert"
           />
           <Image
             width="1485"
