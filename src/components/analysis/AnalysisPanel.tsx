@@ -139,11 +139,10 @@ function formatAnalysisYearLabel(
   return text;
 }
 
-/** "2026-10-01" → "01/10/2026" (ou "10/01/2026" em inglês). */
+/** "2026-10-01" → "outubro de 2026" (ou "October 2026" em inglês). */
 function formatEmissionDate(isoDate: string, locale: string) {
   return new Intl.DateTimeFormat(locale, {
-    day: "2-digit",
-    month: "2-digit",
+    month: "long",
     year: "numeric",
     timeZone: "UTC",
   }).format(new Date(`${isoDate}T00:00:00Z`));
@@ -646,7 +645,7 @@ export function AnalysisPanel({
 
           <div className="flex w-full max-w-[392px] flex-col items-start gap-[6px]">
             {forecastEmissionDate ? (
-              <p className="mb-2 text-[12px] leading-5 text-neutral-600">
+              <p className="-mb-[2px] text-[12px] leading-5 text-neutral-600">
                 {t("forecastEmissionDate", {
                   date: formatEmissionDate(forecastEmissionDate, locale),
                 })}

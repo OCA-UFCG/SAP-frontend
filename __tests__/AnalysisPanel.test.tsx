@@ -172,7 +172,7 @@ describe("AnalysisPanel", () => {
       />,
     );
 
-    const emission = screen.getByText("Previsão emitida em 01/10/2026");
+    const emission = screen.getByText("Previsão emitida em outubro de 2026");
     expect(
       emission.compareDocumentPosition(screen.getByText("Data da análise")),
     ).toBe(Node.DOCUMENT_POSITION_FOLLOWING);
