@@ -1,5 +1,7 @@
 import Image from "next/image";
+import { ArrowForwardIcon } from "@/components/HomeIcons/HomeIcons";
 import { Link } from "@/translations/routing";
+import { Reveal, revealOrder } from "@/components/HomeMotion/HomeMotion";
 
 type Props = {
   id?: string;
@@ -34,22 +36,25 @@ export const PublicPolicySection = ({
 }: Props) => {
   return (
     <section id={id} className="w-full scroll-mt-16.5 bg-white">
-      <div className="mx-auto grid w-full max-w-[1440px] items-center gap-6 px-4 py-12 md:px-10 lg:grid-cols-[790fr_466fr] lg:px-20">
+      <Reveal className="mx-auto grid w-full max-w-[1440px] items-center gap-6 px-4 py-12 md:px-10 lg:grid-cols-[790fr_466fr] lg:px-20">
         <div className="grid grid-cols-[439fr_327fr] gap-6">
           {COLUMNS.map((photos, column) => (
             <div key={column} className="flex flex-col gap-6">
               {photos.map((photo, row) => (
                 <div
                   key={photo.src}
-                  className="relative w-full overflow-hidden rounded-lg border border-[#EFEFEF]"
-                  style={{ aspectRatio: `${photo.width} / ${photo.height}` }}
+                  className="reveal-item group relative w-full overflow-hidden rounded-lg border border-[#EFEFEF] transition-[translate,box-shadow] duration-300 hover:shadow-[0_16px_32px_rgba(63,67,36,0.2)] motion-safe:hover:-translate-y-1"
+                  style={{
+                    aspectRatio: `${photo.width} / ${photo.height}`,
+                    ...revealOrder(column + row * 2),
+                  }}
                 >
                   <Image
                     src={images[column * photos.length + row] ?? photo.src}
                     alt=""
                     fill
                     sizes="(max-width: 1024px) 50vw, 440px"
-                    className="object-cover"
+                    className="object-cover transition-[scale] duration-700 ease-out motion-safe:group-hover:scale-110"
                   />
                 </div>
               ))}
@@ -57,19 +62,26 @@ export const PublicPolicySection = ({
           ))}
         </div>
 
-        <div className="flex flex-col gap-6 font-inter text-[#292829]">
+        <div
+          className="reveal-item flex flex-col gap-6 font-inter text-[#292829]"
+          style={revealOrder(2)}
+        >
           <h2 className="text-[30px] font-semibold leading-9 tracking-[-0.0075em]">
             {title}
           </h2>
           <p className="text-sm leading-6">{text}</p>
           <Link
             href="/platform"
-            className="flex h-10 w-full items-center justify-center rounded-md bg-[#989F43] px-4 py-2 text-sm leading-6 text-[#F8F7F8] transition-colors hover:bg-[#5B612A]"
+            className="shine group/cta flex h-10 w-full items-center justify-center gap-2 rounded-md bg-[#989F43] px-4 py-2 text-sm leading-6 text-[#F8F7F8] transition-[background-color,box-shadow,scale] hover:bg-[#5B612A] hover:shadow-[0_8px_24px_rgba(152,159,67,0.45)] active:scale-[0.97] motion-safe:hover:scale-[1.02]"
           >
             {buttonText}
+            <ArrowForwardIcon
+              size={16}
+              className="transition-transform motion-safe:group-hover/cta:translate-x-1"
+            />
           </Link>
         </div>
-      </div>
+      </Reveal>
     </section>
   );
 };

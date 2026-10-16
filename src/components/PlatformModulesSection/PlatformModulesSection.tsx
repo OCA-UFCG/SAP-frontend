@@ -6,6 +6,7 @@ import {
   ChevronRightIcon,
   MODULE_ICONS,
 } from "@/components/HomeIcons/HomeIcons";
+import { Reveal, revealOrder } from "@/components/HomeMotion/HomeMotion";
 
 type Props = {
   id?: string;
@@ -25,8 +26,8 @@ export const PlatformModulesSection = ({
       id={id}
       className={cn("w-full scroll-mt-16.5", className)}
     >
-      <div className="mx-auto flex w-full max-w-[1440px] flex-col gap-9 px-4 py-12 md:px-10 lg:px-20">
-        <div className="flex flex-col gap-2">
+      <Reveal className="mx-auto flex w-full max-w-[1440px] flex-col gap-9 px-4 py-12 md:px-10 lg:px-20">
+        <div className="reveal-item flex flex-col gap-2">
           <h2 className="font-open-sans text-[30px] font-semibold leading-9 tracking-[-0.0075em] text-[#292829]">
             {texts.title}
           </h2>
@@ -38,29 +39,36 @@ export const PlatformModulesSection = ({
         </div>
 
         <div className="grid grid-cols-1 gap-6 md:grid-cols-3">
-          {content.modules.map((module) => {
+          {content.modules.map((module, index) => {
             const ModuleIcon = MODULE_ICONS[module.id];
             const text = texts.items.find((item) => item.id === module.id);
             if (!text) return null;
 
             return (
+              // O card inteiro sobe e cresce no hover; a foto aproxima e o
+              // ícone dá um giro curto, para puxar o olho para o botão.
               <article
                 key={module.id}
-                className="flex flex-col overflow-hidden rounded-lg border border-[#EFEFEF] bg-white shadow-sm"
+                style={revealOrder(index + 1)}
+                className="reveal-item group flex flex-col overflow-hidden rounded-lg border border-[#EFEFEF] bg-white shadow-sm transition-[translate,scale,box-shadow,border-color] duration-300 ease-out hover:border-[#CCCF87] hover:shadow-[0_20px_40px_rgba(63,67,36,0.18)] motion-safe:hover:-translate-y-2 motion-safe:hover:scale-[1.02]"
               >
-                <div className="relative h-[258px] w-full shrink-0">
+                <div className="relative h-[258px] w-full shrink-0 overflow-hidden">
                   <Image
                     src={text.image ?? module.image}
                     alt=""
                     fill
                     sizes="(max-width: 768px) 100vw, 33vw"
-                    className="object-cover"
+                    className="object-cover transition-[scale] duration-700 ease-out motion-safe:group-hover:scale-110"
+                  />
+                  <div
+                    aria-hidden
+                    className="absolute inset-0 bg-[linear-gradient(0deg,rgba(63,67,36,0.45),transparent_60%)] opacity-0 transition-opacity duration-500 group-hover:opacity-100"
                   />
                 </div>
 
                 <div className="flex flex-col gap-4 px-6 pt-4 pb-6 text-[#0F172A]">
                   <h3 className="flex items-center gap-4 font-open-sans text-2xl font-bold leading-[33px] text-[#292829]">
-                    <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-[#5B612A] p-1 text-[#F8F7F8]">
+                    <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-[#5B612A] p-1 text-[#F8F7F8] transition-[rotate,scale,background-color] duration-300 group-hover:bg-[#777E32] motion-safe:group-hover:-rotate-6 motion-safe:group-hover:scale-110">
                       <ModuleIcon size={32} />
                     </span>
                     {text.name}
@@ -73,17 +81,20 @@ export const PlatformModulesSection = ({
                 <div className="mt-auto px-6 pt-3 pb-6">
                   <Link
                     href={module.href}
-                    className="flex h-10 w-full items-center justify-center gap-2 rounded-md bg-[#989F43] px-4 py-2 font-inter text-sm leading-6 text-[#F8F7F8] transition-colors hover:bg-[#5B612A]"
+                    className="shine flex h-10 w-full items-center justify-center gap-2 rounded-md bg-[#989F43] px-4 py-2 font-inter text-sm leading-6 text-[#F8F7F8] transition-[background-color,scale] group-hover:bg-[#5B612A] active:scale-[0.97]"
                   >
                     {text.buttonText}
-                    <ChevronRightIcon size={16} />
+                    <ChevronRightIcon
+                      size={16}
+                      className="transition-transform motion-safe:group-hover:translate-x-1"
+                    />
                   </Link>
                 </div>
               </article>
             );
           })}
         </div>
-      </div>
+      </Reveal>
     </section>
   );
 };

@@ -1,6 +1,11 @@
 import Image from "next/image";
 import { PersonIcon, QuoteIcon } from "@/components/HomeIcons/HomeIcons";
 import { HomeTestimonialI } from "@/utils/interfaces";
+import {
+  Reveal,
+  revealOrder,
+  Spotlight,
+} from "@/components/HomeMotion/HomeMotion";
 
 type Props = {
   id?: string;
@@ -58,17 +63,23 @@ const BOTTOM_CARDS: CardStyle[] = [
 const TestimonialCard = ({
   item,
   style,
+  order,
 }: {
   item: HomeTestimonialI;
   style: CardStyle;
+  /** Posição na cascata de entrada. */
+  order: number;
 }) => {
   const colors = item.image ? PHOTO_COLORS : style;
   // Sobre a foto o texto vai para o pé do card, onde o degradê é mais escuro.
   const atBottom = style.large || !!item.image;
 
   return (
+    // O brilho que segue o mouse vem do Spotlight da seção (spotlight-card).
     <figure
-      className={`relative flex flex-col overflow-hidden rounded-lg p-6 font-inter text-sm leading-6 ${style.card} ${colors.text}`}
+      data-spotlight
+      style={revealOrder(order)}
+      className={`reveal-item spotlight-card group relative flex flex-col overflow-hidden rounded-lg p-6 font-inter text-sm leading-6 transition-[translate,scale,box-shadow] duration-300 ease-out hover:shadow-[0_20px_40px_rgba(0,0,0,0.35)] motion-safe:hover:-translate-y-1.5 motion-safe:hover:scale-[1.02] ${style.card} ${colors.text}`}
     >
       {item.image && (
         <>
@@ -77,7 +88,7 @@ const TestimonialCard = ({
             alt=""
             fill
             sizes="(max-width: 1024px) 100vw, 625px"
-            className="object-cover"
+            className="object-cover transition-[scale] duration-700 ease-out motion-safe:group-hover:scale-105"
           />
           {/* Card baixo tem pouca altura para o degradê: a foto escurece mais. */}
           <div
@@ -89,7 +100,7 @@ const TestimonialCard = ({
       <div className="relative flex flex-1 flex-col gap-4">
         <QuoteIcon
           size={style.large ? 40 : 24}
-          className={`shrink-0 ${colors.quote} ${atBottom ? "mt-auto" : ""}`}
+          className={`shrink-0 origin-bottom-left transition-[rotate,scale] duration-300 motion-safe:group-hover:-rotate-12 motion-safe:group-hover:scale-125 ${colors.quote} ${atBottom ? "mt-auto" : ""}`}
         />
         <blockquote>{item.quote}</blockquote>
         <figcaption
@@ -117,33 +128,37 @@ export const UseCasesSection = ({ id, title, items }: Props) => {
 
   return (
     <section id={id} className="w-full scroll-mt-16.5 bg-[#21240F]">
-      <div className="mx-auto flex w-full max-w-[1440px] flex-col gap-6 px-4 py-12 md:px-10 lg:gap-9 lg:px-20">
-        <h2 className="pb-2 font-open-sans text-[30px] font-semibold leading-9 tracking-[-0.0075em] text-[#F8F7F8]">
+      <Reveal className="mx-auto flex w-full max-w-[1440px] flex-col gap-6 px-4 py-12 md:px-10 lg:gap-9 lg:px-20">
+        <h2 className="reveal-item pb-2 font-open-sans text-[30px] font-semibold leading-9 tracking-[-0.0075em] text-[#F8F7F8]">
           {title}
         </h2>
 
-        <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-[625fr_279.5fr_327.5fr] lg:grid-rows-[minmax(248px,auto)_minmax(248px,auto)]">
-          {top.map((item, index) => (
-            <TestimonialCard
-              key={`${item.author}-${item.quote}`}
-              item={item}
-              style={TOP_CARDS[index]}
-            />
-          ))}
-        </div>
-
-        {bottom.length > 0 && (
-          <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-[482fr_774fr] lg:auto-rows-[minmax(200px,auto)]">
-            {bottom.map((item, index) => (
+        <Spotlight className="spotlight-group flex flex-col gap-6 lg:gap-9">
+          <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-[625fr_279.5fr_327.5fr] lg:grid-rows-[minmax(248px,auto)_minmax(248px,auto)]">
+            {top.map((item, index) => (
               <TestimonialCard
                 key={`${item.author}-${item.quote}`}
                 item={item}
-                style={BOTTOM_CARDS[index % BOTTOM_CARDS.length]}
+                style={TOP_CARDS[index]}
+                order={index + 1}
               />
             ))}
           </div>
-        )}
-      </div>
+
+          {bottom.length > 0 && (
+            <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-[482fr_774fr] lg:auto-rows-[minmax(200px,auto)]">
+              {bottom.map((item, index) => (
+                <TestimonialCard
+                  key={`${item.author}-${item.quote}`}
+                  item={item}
+                  style={BOTTOM_CARDS[index % BOTTOM_CARDS.length]}
+                  order={top.length + index + 1}
+                />
+              ))}
+            </div>
+          )}
+        </Spotlight>
+      </Reveal>
     </section>
   );
 };

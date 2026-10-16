@@ -30,6 +30,128 @@ textarea {
   font-family: var(--font-inter), sans-serif;
 }
 
+/* Movimento da home. Quem pediu menos movimento no sistema vê tudo parado e
+   já no lugar; sem JavaScript também (`scripting`), para nada ficar oculto. */
+@keyframes reveal-up {
+  from {
+    opacity: 0;
+    transform: translateY(28px);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+/* O sol do fundo do banner gira devagar; a escala vem antes do giro para ele
+   continuar achatado como no design. */
+@keyframes sun-spin {
+  from {
+    transform: scale(0.9, 0.75) rotate(0deg);
+  }
+  to {
+    transform: scale(0.9, 0.75) rotate(360deg);
+  }
+}
+
+@keyframes shine {
+  from {
+    transform: translateX(-120%) skewX(-20deg);
+  }
+  to {
+    transform: translateX(320%) skewX(-20deg);
+  }
+}
+
+@media (prefers-reduced-motion: no-preference) and (scripting: enabled) {
+  /* Usa `transform`, e não `translate`/`scale`, para não brigar com o hover
+     dos cards, que usa as propriedades separadas do Tailwind. */
+  .reveal-item {
+    opacity: 0;
+  }
+
+  [data-shown] .reveal-item {
+    animation: reveal-up 700ms cubic-bezier(0.2, 0.7, 0.2, 1) both;
+    animation-delay: calc(var(--i, 0) * 110ms);
+  }
+
+  .sun-spin {
+    animation: sun-spin 140s linear infinite;
+  }
+}
+
+.sun-spin {
+  transform: scale(0.9, 0.75);
+}
+
+/* Faixa de luz que atravessa o botão no hover. */
+.shine {
+  position: relative;
+  overflow: hidden;
+  isolation: isolate;
+}
+
+.shine::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  width: 35%;
+  background: linear-gradient(
+    90deg,
+    transparent,
+    rgba(255, 255, 255, 0.35),
+    transparent
+  );
+  transform: translateX(-120%) skewX(-20deg);
+  pointer-events: none;
+  z-index: -1;
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  .shine:hover::after {
+    animation: shine 800ms ease-out;
+  }
+}
+
+/* Brilho que segue o mouse (componente Spotlight): um halo no card e um aro
+   na borda, que acende também nos cards vizinhos. */
+.spotlight-card::before,
+.spotlight-card::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  pointer-events: none;
+  opacity: 0;
+  transition: opacity 300ms ease;
+  z-index: 1;
+}
+
+.spotlight-card::before {
+  background: radial-gradient(
+    420px circle at var(--mx, 50%) var(--my, 50%),
+    rgba(204, 207, 135, 0.18),
+    transparent 60%
+  );
+}
+
+.spotlight-card::after {
+  padding: 1.5px;
+  background: radial-gradient(
+    320px circle at var(--mx, 50%) var(--my, 50%),
+    rgba(204, 207, 135, 0.9),
+    transparent 65%
+  );
+  mask:
+    linear-gradient(#000 0 0) content-box exclude,
+    linear-gradient(#000 0 0);
+}
+
+.spotlight-group:hover .spotlight-card::after,
+.spotlight-card:hover::before {
+  opacity: 1;
+}
+
 .maplibregl-ctrl-top-right {
   margin-top: 50px;
   justify-content: center;
