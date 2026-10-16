@@ -1,11 +1,8 @@
 import Image from "next/image";
 import { PersonIcon, QuoteIcon } from "@/components/HomeIcons/HomeIcons";
 import { HomeTestimonialI } from "@/utils/interfaces";
-import {
-  Reveal,
-  revealOrder,
-  Spotlight,
-} from "@/components/HomeMotion/HomeMotion";
+import { Reveal, Spotlight } from "@/components/HomeMotion/HomeMotion";
+import { revealOrder } from "@/components/HomeMotion/revealOrder";
 
 type Props = {
   id?: string;

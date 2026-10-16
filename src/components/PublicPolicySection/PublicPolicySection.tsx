@@ -1,7 +1,8 @@
 import Image from "next/image";
 import { ArrowForwardIcon } from "@/components/HomeIcons/HomeIcons";
 import { Link } from "@/translations/routing";
-import { Reveal, revealOrder } from "@/components/HomeMotion/HomeMotion";
+import { Reveal } from "@/components/HomeMotion/HomeMotion";
+import { revealOrder } from "@/components/HomeMotion/revealOrder";
 
 type Props = {
   id?: string;

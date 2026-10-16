@@ -2,7 +2,8 @@ import Image from "next/image";
 import { useTranslations } from "next-intl";
 import { PartnerI } from "@/utils/interfaces";
 import { normalizeContentfulImage } from "@/utils/functions";
-import { Reveal, revealOrder } from "@/components/HomeMotion/HomeMotion";
+import { Reveal } from "@/components/HomeMotion/HomeMotion";
+import { revealOrder } from "@/components/HomeMotion/revealOrder";
 
 type Props = {
   id?: string;

@@ -6,7 +6,7 @@ import Image from "next/image";
 import { Link } from "@/translations/routing";
 import { useTranslations } from "next-intl";
 import { cn } from "@/lib/utils";
-import { revealOrder } from "@/components/HomeMotion/HomeMotion";
+import { revealOrder } from "@/components/HomeMotion/revealOrder";
 import {
   CarouselArrow,
   CarouselTracker,
@@ -113,7 +113,7 @@ export function MainBanner({ banners }: MainBannerProps) {
           alt=""
           width={750}
           height={750}
-          className="sun-spin max-w-none w-[800px] lg:w-[1000px] h-auto"
+          className="max-w-none w-[800px] lg:w-[1000px] h-auto scale-y-75 scale-x-90"
         />
       </div>
 

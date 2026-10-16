@@ -1,25 +1,33 @@
 "use client";
 
 import {
-  CSSProperties,
   ElementType,
   PointerEvent,
   ReactNode,
   useEffect,
   useRef,
   useState,
+  useSyncExternalStore,
 } from "react";
 
 const REDUCED_MOTION = "(prefers-reduced-motion: reduce)";
+
+const noSubscription = () => () => {};
 
 /** Avisa uma vez quando o elemento entra na tela e para de observar. */
 const useOnScreen = <T extends Element>(threshold = 0.15) => {
   const ref = useRef<T>(null);
   const [shown, setShown] = useState(false);
+  // Sem o observador (navegador antigo, ambiente de teste), mostra já.
+  const noObserver = useSyncExternalStore(
+    noSubscription,
+    () => typeof IntersectionObserver === "undefined",
+    () => false,
+  );
 
   useEffect(() => {
     const element = ref.current;
-    if (!element) return;
+    if (!element || noObserver) return;
     const observer = new IntersectionObserver(
       ([entry]) => {
         if (!entry.isIntersecting) return;
@@ -30,9 +38,9 @@ const useOnScreen = <T extends Element>(threshold = 0.15) => {
     );
     observer.observe(element);
     return () => observer.disconnect();
-  }, [threshold]);
+  }, [threshold, noObserver]);
 
-  return [ref, shown] as const;
+  return [ref, shown || noObserver] as const;
 };
 
 type RevealProps = {
@@ -58,10 +66,6 @@ export const Reveal = ({
     </Tag>
   );
 };
-
-/** Atalho para o atraso da cascata do `reveal-item`. */
-export const revealOrder = (index: number) =>
-  ({ "--i": index }) as CSSProperties;
 
 type CountUpProps = {
   /** Texto do número como vem da tradução, por exemplo "5.570" ou "+20". */
@@ -128,15 +132,18 @@ type SpotlightProps = {
 };
 
 /**
- * Passa a posição do mouse a cada `[data-spotlight]` de dentro, em coordenadas
- * do próprio card, para o brilho do `spotlight-card` (globals.css) seguir o
- * ponteiro — inclusive acendendo a borda dos cards vizinhos.
+ * Passa a posição do mouse ao próprio bloco e a cada `[data-spotlight]` de
+ * dentro, em coordenadas de cada um, para a luz entre os cards e o halo do
+ * card (globals.css) seguirem o ponteiro.
  */
 export const Spotlight = ({ className, children }: SpotlightProps) => {
   const onPointerMove = (event: PointerEvent<HTMLDivElement>) => {
     if (event.pointerType !== "mouse") return;
-    const cards =
-      event.currentTarget.querySelectorAll<HTMLElement>("[data-spotlight]");
+    const group = event.currentTarget;
+    const groupRect = group.getBoundingClientRect();
+    group.style.setProperty("--mx", `${event.clientX - groupRect.left}px`);
+    group.style.setProperty("--my", `${event.clientY - groupRect.top}px`);
+    const cards = group.querySelectorAll<HTMLElement>("[data-spotlight]");
     cards.forEach((card) => {
       const rect = card.getBoundingClientRect();
       card.style.setProperty("--mx", `${event.clientX - rect.left}px`);

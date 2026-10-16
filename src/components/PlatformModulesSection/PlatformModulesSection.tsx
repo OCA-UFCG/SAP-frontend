@@ -6,7 +6,8 @@ import {
   ChevronRightIcon,
   MODULE_ICONS,
 } from "@/components/HomeIcons/HomeIcons";
-import { Reveal, revealOrder } from "@/components/HomeMotion/HomeMotion";
+import { Reveal } from "@/components/HomeMotion/HomeMotion";
+import { revealOrder } from "@/components/HomeMotion/revealOrder";
 
 type Props = {
   id?: string;

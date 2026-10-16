@@ -1,9 +1,6 @@
 import { HomeHighlightI } from "@/utils/interfaces";
-import {
-  CountUp,
-  Reveal,
-  revealOrder,
-} from "@/components/HomeMotion/HomeMotion";
+import { CountUp, Reveal } from "@/components/HomeMotion/HomeMotion";
+import { revealOrder } from "@/components/HomeMotion/revealOrder";
 
 type Props = {
   items: HomeHighlightI[];
