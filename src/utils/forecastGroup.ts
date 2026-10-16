@@ -1,3 +1,4 @@
+import type { CompactMapVisualizationConfig } from "@/utils/analysis";
 import type { PanelLayerI } from "@/utils/interfaces";
 import { hasSeasonalPeriods } from "@/utils/seasonalPeriod";
 
@@ -176,4 +177,36 @@ export function getForecastFilterOptions(
   }
 
   return options;
+}
+
+const EMISSION_DATE_PATTERN = /^(\d{4})-?(\d{2})-?(\d{2})$/u;
+
+/**
+ * A data em que foi emitida a previsão que a camada mostra, em `AAAA-MM-DD`.
+ *
+ * Vem da emissão que o catálogo fixou ao publicar (`latestValue` da
+ * `imageCollectionSelection`), a mesma que o mapa desenha — não a mais recente
+ * do Earth Engine, que pode já ser outra. O asset grava `data_emissao` como
+ * `20261001`; um valor em outro formato devolve `null` e a data não aparece.
+ *
+ * @example getForecastEmissionDate(inmetPrecipitacaoMensal) // "2026-09-01"
+ */
+export function getForecastEmissionDate(
+  layer: Pick<PanelLayerI, "imageData"> | null | undefined,
+): string | null {
+  const imageData = layer?.imageData as
+    { mapVisualization?: CompactMapVisualizationConfig } | undefined;
+  const latestValue =
+    imageData?.mapVisualization?.imageCollectionSelection?.latestValue;
+  const match = EMISSION_DATE_PATTERN.exec(String(latestValue ?? "").trim());
+  if (!match) return null;
+
+  const [, year, month, day] = match;
+  const date = new Date(Date.UTC(Number(year), Number(month) - 1, Number(day)));
+  const isRealDate =
+    date.getUTCFullYear() === Number(year) &&
+    date.getUTCMonth() === Number(month) - 1 &&
+    date.getUTCDate() === Number(day);
+
+  return isRealDate ? `${year}-${month}-${day}` : null;
 }

@@ -39,7 +39,11 @@ import {
   mergePartialMunicipalImageData,
 } from "@/utils/municipalAnalysisMerge";
 import { isGeeStatisticsLayerId } from "@/config/geeStatisticsLayers";
-import { getForecastMembers, type ForecastMember } from "@/utils/forecastGroup";
+import {
+  getForecastEmissionDate,
+  getForecastMembers,
+  type ForecastMember,
+} from "@/utils/forecastGroup";
 import { getImageDataLegend, getImageDataYearKeys } from "@/utils/imageData";
 
 interface MunicipalAnalysisApiResponse {
@@ -625,6 +629,9 @@ export function AnalysisContext({
             onSelect={handleForecastSelect}
           />
         ) : undefined
+      }
+      forecastEmissionDate={
+        forecastMember ? getForecastEmissionDate(forecastMember.layer) : null
       }
       yearOptions={yearOptions}
       activeYear={activeAnalysisYear}

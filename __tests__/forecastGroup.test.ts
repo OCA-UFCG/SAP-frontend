@@ -5,6 +5,7 @@ import {
 } from "@/contracts/panelLayerForecast";
 import { DEFAULT_FORECAST_SELECTION } from "@/config/forecastGroup";
 import {
+  getForecastEmissionDate,
   getForecastFilterOptions,
   getForecastMembers,
   resolveForecastSelection,
@@ -187,5 +188,40 @@ describe("parseForecastFacetsInput", () => {
   it("na leitura do publicado, um valor inválido vira null em vez de erro", () => {
     expect(tryParsePanelLayerForecastFacets({ source: "INMET" })).toBeNull();
     expect(tryParsePanelLayerForecastFacets("INMET")).toBeNull();
+  });
+});
+
+describe("getForecastEmissionDate", () => {
+  function withEmission(latestValue: unknown): Pick<PanelLayerI, "imageData"> {
+    return {
+      imageData: {
+        mapVisualization: {
+          imageCollectionSelection: {
+            latestProperty: "data_emissao",
+            latestValue,
+            filterProperty: "lead_time",
+          },
+        },
+      } as unknown as PanelLayerI["imageData"],
+    };
+  }
+
+  it("lê a emissão que o catálogo fixou, no formato do asset", () => {
+    expect(getForecastEmissionDate(withEmission(20260901))).toBe("2026-09-01");
+    expect(getForecastEmissionDate(withEmission("20261001"))).toBe(
+      "2026-10-01",
+    );
+    expect(getForecastEmissionDate(withEmission("2026-10-01"))).toBe(
+      "2026-10-01",
+    );
+  });
+
+  it("não inventa data quando a camada não fixou emissão ou o valor não é uma data", () => {
+    expect(getForecastEmissionDate(LAYERS[0])).toBeNull();
+    expect(getForecastEmissionDate(withEmission(undefined))).toBeNull();
+    expect(getForecastEmissionDate(withEmission(20261301))).toBeNull();
+    expect(getForecastEmissionDate(withEmission(20260231))).toBeNull();
+    expect(getForecastEmissionDate(withEmission(1790000000000))).toBeNull();
+    expect(getForecastEmissionDate(null)).toBeNull();
   });
 });

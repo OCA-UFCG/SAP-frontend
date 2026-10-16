@@ -49,6 +49,8 @@ interface AnalysisPanelProps {
   emptyStateLoading?: boolean;
   /** Filtros que trocam a camada, entre a pesquisa e a data (previsão climática). */
   layerFilters?: ReactNode;
+  /** Quando a previsão do mapa foi emitida (`AAAA-MM-DD`), mostrada antes da data. */
+  forecastEmissionDate?: string | null;
 }
 
 interface TemporalVisionProps {
@@ -135,6 +137,15 @@ function formatAnalysisYearLabel(
   }
 
   return text;
+}
+
+/** "2026-10-01" → "outubro de 2026" (ou "October 2026" em inglês). */
+function formatEmissionDate(isoDate: string, locale: string) {
+  return new Intl.DateTimeFormat(locale, {
+    month: "long",
+    year: "numeric",
+    timeZone: "UTC",
+  }).format(new Date(`${isoDate}T00:00:00Z`));
 }
 
 function EmptySection({
@@ -562,8 +573,10 @@ export function AnalysisPanel({
   emptyStateDescription,
   emptyStateLoading,
   layerFilters,
+  forecastEmissionDate,
 }: AnalysisPanelProps) {
   const t = useTranslations("AnalysisPanel");
+  const locale = useLocale();
   const hasTemporalData = Boolean(
     years && classes && Object.keys(years).length > 0 && classes.length > 0,
   );
@@ -631,6 +644,14 @@ export function AnalysisPanel({
           {layerFilters}
 
           <div className="flex w-full max-w-[392px] flex-col items-start gap-[6px]">
+            {forecastEmissionDate ? (
+              <p className="-mb-[2px] text-[12px] leading-5 text-neutral-600">
+                {t("forecastEmissionDate", {
+                  date: formatEmissionDate(forecastEmissionDate, locale),
+                })}
+              </p>
+            ) : null}
+
             <label className="text-[14px] font-medium leading-[20px] text-[#292829]">
               {t("analysisDate")}
             </label>
