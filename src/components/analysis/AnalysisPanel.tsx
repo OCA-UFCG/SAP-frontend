@@ -49,7 +49,7 @@ interface AnalysisPanelProps {
   emptyStateLoading?: boolean;
   /** Filtros que trocam a camada, entre a pesquisa e a data (previsão climática). */
   layerFilters?: ReactNode;
-  /** Quando a previsão do mapa foi emitida (`AAAA-MM-DD`), mostrada sob a data. */
+  /** Quando a previsão do mapa foi emitida (`AAAA-MM-DD`), mostrada antes da data. */
   forecastEmissionDate?: string | null;
 }
 
@@ -645,6 +645,14 @@ export function AnalysisPanel({
           {layerFilters}
 
           <div className="flex w-full max-w-[392px] flex-col items-start gap-[6px]">
+            {forecastEmissionDate ? (
+              <p className="mb-2 text-[12px] leading-5 text-neutral-600">
+                {t("forecastEmissionDate", {
+                  date: formatEmissionDate(forecastEmissionDate, locale),
+                })}
+              </p>
+            ) : null}
+
             <label className="text-[14px] font-medium leading-[20px] text-[#292829]">
               {t("analysisDate")}
             </label>
@@ -654,14 +662,6 @@ export function AnalysisPanel({
               yearOptions={yearOptions}
               onYearChange={onYearChange}
             />
-
-            {forecastEmissionDate ? (
-              <p className="text-[12px] leading-5 text-neutral-600">
-                {t("forecastEmissionDate", {
-                  date: formatEmissionDate(forecastEmissionDate, locale),
-                })}
-              </p>
-            ) : null}
           </div>
         </section>
 

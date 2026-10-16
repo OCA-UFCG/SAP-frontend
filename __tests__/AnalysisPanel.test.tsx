@@ -150,7 +150,7 @@ describe("AnalysisPanel", () => {
     expect(status.querySelector(".animate-spin")).toBeInTheDocument();
   });
 
-  it("shows when the forecast was issued, below the analysis date", () => {
+  it("shows when the forecast was issued, above the analysis date", () => {
     const { rerender } = renderPanel();
     expect(screen.queryByText(/emitida em/i)).not.toBeInTheDocument();
 
@@ -172,9 +172,10 @@ describe("AnalysisPanel", () => {
       />,
     );
 
+    const emission = screen.getByText("Previsão emitida em 01/10/2026");
     expect(
-      screen.getByText("Previsão emitida em 01/10/2026"),
-    ).toBeInTheDocument();
+      emission.compareDocumentPosition(screen.getByText("Data da análise")),
+    ).toBe(Node.DOCUMENT_POSITION_FOLLOWING);
   });
 
   it("keeps the back action pinned at the top of the scrollable panel", () => {
