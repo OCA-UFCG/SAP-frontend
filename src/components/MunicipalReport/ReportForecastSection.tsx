@@ -455,6 +455,7 @@ export const ReportForecastSection = memo(function ReportForecastSection({
                         tileUrl={map.mapTileUrl}
                         thumbnail={map.mapThumbnail}
                         choropleth={map.mapChoropleth}
+                        clipToTerritory
                         unavailableReason={map.mapUnavailableReason}
                         onCapture={(src) => onMapCapture?.(map.mapKey, src)}
                         onRetry={onMapRetry && (() => onMapRetry(map.mapKey))}
