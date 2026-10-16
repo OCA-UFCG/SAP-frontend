@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useState, useSyncExternalStore } from "react";
 import { IMainBanner } from "@/utils/interfaces";
 import Image from "next/image";
 import { Link } from "@/translations/routing";
@@ -10,9 +10,17 @@ import {
   CarouselArrow,
   CarouselTracker,
 } from "@/components/HomeCarousel/HomeCarousel";
+import { PauseIcon, PlayIcon } from "@/components/HomeIcons/HomeIcons";
 
 /** Tempo de cada slide antes de passar sozinho para o próximo. */
 const AUTOPLAY_MS = 7000;
+
+const REDUCED_MOTION = "(prefers-reduced-motion: reduce)";
+const subscribeReducedMotion = (onChange: () => void) => {
+  const query = window.matchMedia(REDUCED_MOTION);
+  query.addEventListener("change", onChange);
+  return () => query.removeEventListener("change", onChange);
+};
 
 interface MainBannerProps {
   /** Um slide por entrada `banner` do Contentful. */
@@ -23,20 +31,28 @@ export function MainBanner({ banners }: MainBannerProps) {
   const t = useTranslations("MainBanner");
   const [active, setActive] = useState(0);
   const [paused, setPaused] = useState(false);
+  // Parado pelo botão de pausar: só volta a passar quando a pessoa aperta de
+  // novo. Até ela apertar, quem pediu menos movimento no sistema vê parado.
+  const reducedMotion = useSyncExternalStore(
+    subscribeReducedMotion,
+    () => window.matchMedia(REDUCED_MOTION).matches,
+    () => false,
+  );
+  const [userStopped, setUserStopped] = useState<boolean | null>(null);
+  const stopped = userStopped ?? reducedMotion;
   const hasSlides = banners.length > 1;
 
-  // Passa sozinho; para enquanto o mouse ou o foco do teclado estão no banner
-  // e não roda para quem pediu menos movimento no sistema. Como depende de
-  // `active`, clicar numa seta ou num traço recomeça a contagem.
+  // Passa sozinho; para enquanto o mouse ou o foco do teclado estão no banner.
+  // Como depende de `active`, clicar numa seta ou num traço recomeça a
+  // contagem.
   useEffect(() => {
-    if (!hasSlides || paused) return;
-    if (window.matchMedia("(prefers-reduced-motion: reduce)").matches) return;
+    if (!hasSlides || paused || stopped) return;
     const timer = window.setTimeout(
       () => setActive((current) => (current + 1) % banners.length),
       AUTOPLAY_MS,
     );
     return () => window.clearTimeout(timer);
-  }, [active, paused, hasSlides, banners.length]);
+  }, [active, paused, stopped, hasSlides, banners.length]);
 
   if (!banners.length) return null;
   const goTo = (index: number) =>
@@ -107,7 +123,7 @@ export function MainBanner({ banners }: MainBannerProps) {
                 <h1 className="max-w-[784px] font-open-sans text-[36px] font-bold leading-[1.2] text-[#F8F7F8] md:text-5xl">
                   {t("title", { title: data.title })}
                 </h1>
-                <p className="max-w-[784px] font-open-sans text-sm leading-6 text-white">
+                <p className="max-w-[784px] font-open-sans text-sm leading-6 text-white xl:max-w-[960px] xl:text-base">
                   {t("subtitle", { subtitle: data.subtitle })}
                 </p>
               </div>
@@ -145,6 +161,14 @@ export function MainBanner({ banners }: MainBannerProps) {
                 onClick={() => goTo(active - 1)}
                 className="h-9 w-9 border-[#EFEFEF] bg-[#191B18] text-[#F8F7F8] hover:bg-[#3F4324]"
               />
+              <button
+                type="button"
+                aria-label={stopped ? t("resume") : t("pause")}
+                onClick={() => setUserStopped(!stopped)}
+                className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg border border-[#EFEFEF] bg-[#191B18] text-[#F8F7F8] transition-opacity hover:bg-[#3F4324]"
+              >
+                {stopped ? <PlayIcon size={16} /> : <PauseIcon size={16} />}
+              </button>
               <CarouselArrow
                 direction="forward"
                 label={t("next")}
