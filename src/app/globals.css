@@ -43,6 +43,17 @@ textarea {
   }
 }
 
+/* Onda das letras da logo no hover (SedesLogo): cada uma pula e volta. */
+@keyframes logo-wave {
+  0%,
+  100% {
+    transform: none;
+  }
+  45% {
+    transform: translateY(-4px);
+  }
+}
+
 @keyframes shine {
   from {
     transform: translateX(-120%) skewX(-20deg);
