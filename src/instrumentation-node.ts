@@ -3,6 +3,7 @@ import {
   warmGeeStatisticsSchemas,
 } from "@/services/geeStatisticsWarmup";
 import { startReferenceLayerUrlRefresh } from "@/app/api/ee/referenceLayers";
+import { ensureEeCacheWarmupStarted } from "@/app/api/ee/services";
 
 /**
  * Aquece as colunas das tabelas do Earth Engine para que o primeiro relatório
@@ -19,6 +20,9 @@ export function warmUpOnStartup() {
   if (!process.env.GEE_PRIVATE_KEY) return;
 
   startReferenceLayerUrlRefresh();
+  // Os endereços do período padrão de cada camada, preparados já na subida e
+  // não no primeiro pedido ao mapa.
+  ensureEeCacheWarmupStarted();
 
   const startedAt = Date.now();
   void warmGeeStatisticsSchemas()

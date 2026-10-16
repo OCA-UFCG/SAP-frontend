@@ -20,6 +20,7 @@ vi.mock("next/cache", () => ({
   revalidateTag: mocks.revalidateTag,
 }));
 vi.mock("@/app/api/ee/cache", () => ({
+  CACHE_TTL_MS: 30 * 60 * 1000,
   clearEarthEngineCacheForLayer: mocks.clearEarthEngineCacheForLayer,
 }));
 vi.mock("@/repositories/platform/municipalAnalysisCache", () => ({
