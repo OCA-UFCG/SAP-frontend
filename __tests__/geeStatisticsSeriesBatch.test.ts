@@ -402,3 +402,170 @@ describe("série inteira de um território para o gráfico temporal", () => {
     warn.mockRestore();
   });
 });
+
+describe("estados e níveis agregados dividem a mesma leitura", () => {
+  function territorialRow(
+    assetId: string,
+    level: string,
+    name: string,
+    uf = "",
+  ) {
+    return {
+      NIVEL_AGRUPAMENTO: level,
+      NOME_LOCAL: name,
+      CD_MUN: "",
+      NM_UF: uf,
+      ano: Number(assetId.slice(-4)),
+      perc_classe_1: 40,
+      perc_classe_2: 60,
+    };
+  }
+
+  beforeEach(() => {
+    mockedEvaluate.mockImplementation(async (object: unknown) => {
+      const node = object as FakeNode;
+      if (node.kind === "propertyNames") return PROPERTY_NAMES as never;
+      return {
+        features: node.assetIds.flatMap((assetId) =>
+          [
+            territorialRow(assetId, "1_BR", "Brasil"),
+            territorialRow(assetId, "6_Estado", "Pernambuco", "PE"),
+            territorialRow(assetId, "6_Estado", "Paraíba", "PB"),
+            territorialRow(assetId, "3_Bioma", "Caatinga"),
+            territorialRow(assetId, "3_Bioma", "Cerrado"),
+          ].map((properties) => ({ properties })),
+        ),
+      } as never;
+    });
+  });
+
+  function rowReads() {
+    return mockedEvaluate.mock.calls.filter(
+      ([object]) => (object as FakeNode).kind !== "propertyNames",
+    ).length;
+  }
+
+  // Regressão: o estado lia as 27 UFs de novo, embora a leitura do Brasil já
+  // trouxesse as mesmas linhas — ~2 s a cada estado escolhido no Detalhamento.
+  it("serve o estado da leitura do Brasil, sem voltar ao Earth Engine", async () => {
+    await getGeeStatisticsYearPatch(
+      "indicearidez",
+      "2020",
+      "br",
+      2,
+      source,
+      YEARS,
+    );
+    const readsForBrazil = rowReads();
+
+    const result = await getGeeStatisticsYearPatch(
+      "indicearidez",
+      "2020",
+      "pe",
+      2,
+      source,
+      YEARS,
+    );
+
+    expect(rowReads()).toBe(readsForBrazil);
+    expect(result?.patch.locations).toEqual({ pe: "Pernambuco" });
+    expect(result?.patch.years?.["2020"]?.values).toEqual({ pe: [40, 60] });
+  });
+
+  it("serve um estado depois do outro com uma leitura só", async () => {
+    await getGeeStatisticsYearPatch(
+      "indicearidez",
+      "2020",
+      "pe",
+      2,
+      source,
+      YEARS,
+    );
+    const readsForFirstState = rowReads();
+
+    const result = await getGeeStatisticsYearPatch(
+      "indicearidez",
+      "2020",
+      "pb",
+      2,
+      source,
+      YEARS,
+    );
+
+    expect(rowReads()).toBe(readsForFirstState);
+    expect(result?.patch.years?.["2020"]?.values).toEqual({ pb: [40, 60] });
+  });
+
+  it("mantém o Brasil com o ranking das UFs quando o estado foi lido antes", async () => {
+    await getGeeStatisticsYearPatch(
+      "indicearidez",
+      "2020",
+      "pe",
+      2,
+      source,
+      YEARS,
+    );
+
+    const result = await getGeeStatisticsYearPatch(
+      "indicearidez",
+      "2020",
+      "br",
+      2,
+      source,
+      YEARS,
+    );
+
+    expect(
+      Object.keys(result?.patch.years?.["2020"]?.values ?? {}).sort(),
+    ).toEqual(["br", "pb", "pe"]);
+  });
+
+  it("serve os biomas de uma leitura só do nível", async () => {
+    await getGeeStatisticsYearPatch(
+      "indicearidez",
+      "2020",
+      "3_bioma-caatinga",
+      2,
+      source,
+      YEARS,
+    );
+    const readsForCaatinga = rowReads();
+
+    const result = await getGeeStatisticsYearPatch(
+      "indicearidez",
+      "2020",
+      "3_bioma-cerrado",
+      2,
+      source,
+      YEARS,
+    );
+
+    expect(rowReads()).toBe(readsForCaatinga);
+    expect(result?.patch.years?.["2020"]?.values).toEqual({
+      "3_bioma-cerrado": [40, 60],
+    });
+  });
+
+  it("continua lendo cada município à parte", async () => {
+    await getGeeStatisticsYearPatch(
+      "indicearidez",
+      "2020",
+      "br",
+      2,
+      source,
+      YEARS,
+    );
+    const readsForBrazil = rowReads();
+
+    await getGeeStatisticsYearPatch(
+      "indicearidez",
+      "2020",
+      "2507507",
+      2,
+      source,
+      YEARS,
+    );
+
+    expect(rowReads()).toBeGreaterThan(readsForBrazil);
+  });
+});

@@ -405,6 +405,54 @@ export async function getGeeAsset(
 }
 
 /**
+ * Quando cada asset de uma pasta foi alterado pela última vez, em milissegundos.
+ *
+ * É só metadado: não calcula nada no Earth Engine e por isso não ocupa uma das
+ * vagas de leitura. Medido na pasta de estatísticas da produção: 179 tabelas
+ * numa página só, em 0,7–1,5 s.
+ *
+ * @example
+ * const updatedAt = await listGeeFolderAssetUpdateTimes(
+ *   "projects/obscaatinga/assets/Estatisticas",
+ * );
+ * updatedAt.get("projects/obscaatinga/assets/Estatisticas/Tabela_2024");
+ */
+export async function listGeeFolderAssetUpdateTimes(
+  folderId: string,
+): Promise<Map<string, number>> {
+  requireProjectId();
+  const name = ee.rpc_convert.assetIdToAssetName(folderId);
+  const updatedAt = new Map<string, number>();
+  let pageToken: string | undefined;
+
+  do {
+    const query = new URLSearchParams({
+      pageSize: "1000",
+      prettyPrint: "false",
+      ...(pageToken ? { pageToken } : {}),
+    });
+    const page = await requestGeeApi<{
+      assets?: Array<{ name?: string; updateTime?: string }>;
+      nextPageToken?: string;
+    }>(`${name}:listAssets?${query}`, { method: "GET" });
+
+    for (const asset of page.assets ?? []) {
+      // A mesma conversão que o SDK usa, para o id sair no formato em que as
+      // fontes estatísticas o guardam (`projects/<projeto>/assets/...`).
+      const assetId = asset.name
+        ? ee.rpc_convert.assetNameToAssetId(asset.name)
+        : null;
+      const time = Date.parse(asset.updateTime ?? "");
+      if (assetId && Number.isFinite(time)) updatedAt.set(assetId, time);
+    }
+
+    pageToken = page.nextPageToken || undefined;
+  } while (pageToken);
+
+  return updatedAt;
+}
+
+/**
  * O endereço de tiles de uma imagem, o mesmo `urlFormat` que
  * `image.getMapId(visParams)` entregava, sem passar pela fila do SDK.
  *
