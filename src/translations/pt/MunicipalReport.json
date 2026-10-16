@@ -337,6 +337,30 @@
       "semiarid": "Semiárido",
       "asd": "ASD e Entorno"
     },
-    "selectTerritory": "Selecione o território"
+    "selectTerritory": "Selecione o território",
+    "forecast": {
+      "title": "Previsão: {variable} ({source})",
+      "titleWithPeriodicity": "Previsão: {variable} {periodicity} ({source})",
+      "referencePeriod": "período de referência: {period}",
+      "sourceLabel": "Fonte dos dados",
+      "variableLabel": "Variável",
+      "periodicityLabel": "Periodicidade",
+      "periodicity": {
+        "monthly": "Mensal",
+        "quarterly": "Trimestral"
+      },
+      "situation": "{prepositional}, para {period}, a previsão de {variable} do {source} indica {items}.",
+      "situationItem": "{kind} na faixa {className}, em {value} {context}",
+      "situationItemPeriod": "{kind} na faixa {className}, em {value} {context} ({period})",
+      "spatialCaption": "Mapas recortados pelo contorno {boundary}, para {period}.",
+      "coverageCaption": "Cada barra é um período da série disponível. A do período de referência ({period}) está destacada, e é ela que a legenda descreve.",
+      "methodologyTitle": "O que este indicador mede",
+      "kindDescriptions": {
+        "anomalia": "A Anomalia indica o desvio em relação à média histórica.",
+        "acumulado": "O Acumulado indica o total previsto para o período.",
+        "probabilidade": "A Probabilidade indica a chance de ocorrência da categoria mais provável, em relação à normal climatológica."
+      },
+      "noData": "Sem dado para este período."
+    }
   }
 }

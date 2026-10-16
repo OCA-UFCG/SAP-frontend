@@ -25,6 +25,7 @@ const PRINT_OVERRIDES = `
           .report-print-chart-svg{display:block;width:100%!important;height:auto!important;overflow:visible!important}
           .report-map-frame{aspect-ratio:auto!important;height:70mm!important}
           .report-map-frame img{width:100%;height:100%;object-fit:contain!important;object-position:center!important}
+          .report-forecast-maps .report-map-frame{aspect-ratio:696/322!important;height:auto!important}
           .report-sections{margin-top:8mm!important}
           .report-section+.report-section{margin-top:10mm!important}
           .report-section{break-inside:auto;page-break-inside:auto}

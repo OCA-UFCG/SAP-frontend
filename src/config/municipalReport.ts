@@ -26,6 +26,8 @@ export interface MunicipalReportLayerConfig {
    * dizer que uma classe é pior que outra.
    */
   reportSeverity?: import("@/utils/reportVariableProfile").ReportSeveritySpec;
+  /** Os filtros da previsão climática, quando o índice é uma delas. */
+  forecast?: import("@/contracts/municipalReport").MunicipalReportForecastFacets;
 }
 
 export interface MunicipalReportClassPresentation {

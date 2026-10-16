@@ -48,6 +48,7 @@ import {
   MUNICIPAL_REPORT_STACKED_MAX_COLUMNS,
   selectStackedChartSnapshots,
 } from "@/utils/municipalReportStackedChart";
+import { buildReportDocumentSections } from "@/utils/municipalReportForecast";
 import { MunicipalReportClassBars } from "./MunicipalReportClassBars";
 import { MunicipalReportDynamicChart } from "./MunicipalReportDynamicChart";
 import { MunicipalReportLinePrintChart } from "./MunicipalReportLinePrintChart";
@@ -55,6 +56,11 @@ import { MunicipalReportNotes } from "./MunicipalReportNotes";
 import { MunicipalReportStackedChart } from "./MunicipalReportStackedChart";
 import { MunicipalReportStackedPrintChart } from "./MunicipalReportStackedPrintChart";
 import { ReportBackToTop } from "./ReportBackToTop";
+import {
+  forecastGroupMethodologies,
+  forecastGroupTitle,
+  ReportForecastSection,
+} from "./ReportForecastSection";
 import { ReportDocumentFooter } from "./ReportDocumentFooter";
 import { ReportHero } from "./ReportHero";
 import { ReportSectionHeading } from "./ReportSectionHeading";
@@ -514,6 +520,48 @@ const ReportDocument = memo(function ReportDocument({
       ? report.analyses.filter(({ id }) => layerIds.includes(id))
       : report.analyses,
   ).flatMap((group) => group.analyses);
+  // As previsões da mesma fonte, variável e periodicidade viram uma seção só.
+  const sections = buildReportDocumentSections(selected);
+  const summaryItems = sections.map((section) =>
+    section.type === "analysis"
+      ? {
+          id: section.analysis.id,
+          alias: section.analysis.alias,
+          category: section.analysis.category,
+          title: translateAnalysisTitle(
+            section.analysis,
+            t,
+            tHas,
+            tModules,
+            tModulesHas,
+          ),
+        }
+      : {
+          id: section.group.alias,
+          alias: section.group.alias,
+          category: section.group.category,
+          title: forecastGroupTitle(section.group, t),
+        },
+  );
+  const forecastNotes = sections.flatMap((section) =>
+    section.type === "forecast"
+      ? [
+          {
+            key: section.group.alias,
+            title: forecastGroupTitle(section.group, t),
+            text: forecastGroupMethodologies(
+              section.group,
+              docsContent,
+              locale,
+              t,
+              tModules,
+            ).join(" "),
+          },
+        ]
+      : [],
+  );
+  const mapKeyFor = (analysis: MunicipalReportAnalysis) =>
+    `${analysis.id}:${analysis.effectivePeriod ?? analysis.snapshot?.period ?? report.requestedPeriod}`;
 
   /**
    * O link "Ver produto" de uma seção.
@@ -561,16 +609,47 @@ const ReportDocument = memo(function ReportDocument({
 
       <div className="flex flex-col gap-6 px-10 py-6">
         <ReportSummary
-          analyses={selected}
-          translateTitle={(analysis) =>
-            translateAnalysisTitle(analysis, t, tHas, tModules, tModulesHas)
-          }
+          analyses={summaryItems}
+          translateTitle={(item) => item.title}
           pages={summaryPages}
         />
 
         <div className="report-sections space-y-12">
-          {selected.map((analysis) => {
-            const mapKey = `${analysis.id}:${analysis.effectivePeriod ?? analysis.snapshot?.period ?? report.requestedPeriod}`;
+          {sections.map((section) => {
+            if (section.type === "forecast") {
+              return (
+                <ReportForecastSection
+                  key={section.group.alias}
+                  group={section.group}
+                  report={report}
+                  locale={locale}
+                  docsContent={docsContent}
+                  mapPropsFor={(analysis) => {
+                    const mapKey = mapKeyFor(analysis);
+                    return {
+                      mapKey,
+                      mapSrc: mapImages.get(mapKey) ?? undefined,
+                      mapActive: activeMapKeys.has(mapKey),
+                      mapAttempt: retryAttemptFor(mapKey),
+                      mapTileUrl: mapTileUrls.tileUrlFor(mapKey),
+                      mapThumbnail: mapTileUrls.thumbnailFor(mapKey),
+                      mapChoropleth: mapChoropleths.choroplethFor(mapKey),
+                      mapUnavailableReason:
+                        mapTileUrls.failureFor(mapKey) ??
+                        mapChoropleths.failureFor(mapKey),
+                    };
+                  }}
+                  mapQueuedAt={mapQueueStartedAt}
+                  onMapCapture={onMapCapture}
+                  onMapRetry={onMapRetry}
+                  onMapVisibility={onMapVisibility}
+                  monitorHref={buildMonitorHref}
+                  onOpenMonitor={onOpenMonitor}
+                />
+              );
+            }
+            const { analysis } = section;
+            const mapKey = mapKeyFor(analysis);
             return (
               <AnalysisSection
                 key={analysis.id}
@@ -601,7 +680,8 @@ const ReportDocument = memo(function ReportDocument({
         </div>
 
         <MunicipalReportNotes
-          analyses={selected}
+          analyses={selected.filter((analysis) => !analysis.forecast)}
+          extraNotes={forecastNotes}
           docsContent={docsContent}
           locale={locale}
         />

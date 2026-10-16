@@ -70,9 +70,11 @@ export function getReportCategoryTokens(category?: string) {
   return REPORT_CATEGORY_TOKENS[resolveReportCategoryKey(category)];
 }
 
-export interface ReportCategoryGroup {
+export interface ReportCategoryGroup<
+  T extends Pick<MunicipalReportAnalysis, "category"> = MunicipalReportAnalysis,
+> {
   key: ReportCategoryKey;
-  analyses: MunicipalReportAnalysis[];
+  analyses: T[];
 }
 
 /**
@@ -85,10 +87,10 @@ export interface ReportCategoryGroup {
  * @example
  * groupReportAnalysesByCategory(report.analyses);
  */
-export function groupReportAnalysesByCategory(
-  analyses: readonly MunicipalReportAnalysis[],
-): ReportCategoryGroup[] {
-  const grouped = new Map<ReportCategoryKey, MunicipalReportAnalysis[]>();
+export function groupReportAnalysesByCategory<
+  T extends Pick<MunicipalReportAnalysis, "category">,
+>(analyses: readonly T[]): ReportCategoryGroup<T>[] {
+  const grouped = new Map<ReportCategoryKey, T[]>();
 
   for (const analysis of analyses) {
     const key = resolveReportCategoryKey(analysis.category);
