@@ -150,6 +150,33 @@ describe("AnalysisPanel", () => {
     expect(status.querySelector(".animate-spin")).toBeInTheDocument();
   });
 
+  it("shows when the forecast was issued, below the analysis date", () => {
+    const { rerender } = renderPanel();
+    expect(screen.queryByText(/emitida em/i)).not.toBeInTheDocument();
+
+    rerender(
+      <AnalysisPanel
+        moduleName="Previsão climática"
+        yearOptions={[{ value: "2026-11", label: "2026-11" }]}
+        activeYear="2026-11"
+        onBack={vi.fn()}
+        onSearch={vi.fn()}
+        searchTelemetryContext={{
+          activeLayerId: "test",
+          activeLayerName: "Test",
+          activeDateLabel: "2026-11",
+        }}
+        onYearChange={vi.fn()}
+        model={model}
+        forecastEmissionDate="2026-10-01"
+      />,
+    );
+
+    expect(
+      screen.getByText("Previsão emitida em 01/10/2026"),
+    ).toBeInTheDocument();
+  });
+
   it("keeps the back action pinned at the top of the scrollable panel", () => {
     render(
       <AnalysisPanel

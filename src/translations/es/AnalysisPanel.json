@@ -11,6 +11,7 @@
     "backToList": "Volver a la lista",
     "searchStateOrCityToStart": "Busque un estado o ciudad para iniciar el análisis",
     "analysisDate": "Fecha de análisis",
+    "forecastEmissionDate": "Pronóstico emitido el {date}",
     "forecastFilters": {
       "dimensions": {
         "source": "Fuente de datos",
