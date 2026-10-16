@@ -637,6 +637,28 @@ function groupStatisticsRowsByPeriod(
   return rowsByPeriod;
 }
 
+/**
+ * Qual leitura do Earth Engine responde por um território.
+ *
+ * Um estado lê a camada estadual inteira (as 27 UFs) e o Brasil lê o Brasil
+ * junto com as mesmas 27 UFs, então o estado sai da leitura do Brasil: quem
+ * troca de UF, ou abre o painel nacional e depois escolhe uma, não volta ao
+ * Earth Engine. Do mesmo jeito, todos os biomas (ou regiões, ASDs, semiárido)
+ * vêm de uma leitura só do nível. `mapGeeStatisticsRows` separa depois só o
+ * território pedido.
+ *
+ * @example
+ * getSeriesRowsScope("pe"); // "br"
+ * getSeriesRowsScope("3_bioma-caatinga"); // "3_bioma"
+ */
+function getSeriesRowsScope(locationKey: string): string {
+  if (STATE_KEY_PATTERN.test(locationKey) && locationKey in statesObj) {
+    return "br";
+  }
+
+  return locationKey.match(AGGREGATE_LOCATION_PATTERN)?.[1] ?? locationKey;
+}
+
 async function loadCachedSeriesLocationRows(
   source: ResolvedGeeStatisticsSource,
   schema: GeeStatisticsSchema,
@@ -644,11 +666,18 @@ async function loadCachedSeriesLocationRows(
   locationKey: string,
 ): Promise<Record<string, unknown>[]> {
   const properties = getGeeStatisticsRequestedProperties(source, schema);
+  const scope = getSeriesRowsScope(locationKey);
+  // O filtro de um nível agregado não depende de qual território do nível foi
+  // pedido; o de um estado é o do Brasil, que traz as UFs junto.
+  const filterLocationKey = scope === "br" ? "br" : locationKey;
   // Uma série lida sem um asset indisponível também é cacheada: o asset que
-  // voltar entra na próxima leitura, até 10 minutos depois (o TTL deste cache).
+  // voltar é percebido pela checagem de alterações das tabelas, que descarta a
+  // entrada para a próxima leitura incluí-lo.
   return getOrLoadStatisticsRows(
-    buildStatisticsRowsCacheKey(assetIds, locationKey, properties),
-    () => loadSeriesLocationRows(source, assetIds, properties, locationKey),
+    buildStatisticsRowsCacheKey(assetIds, scope, properties),
+    () =>
+      loadSeriesLocationRows(source, assetIds, properties, filterLocationKey),
+    assetIds,
   );
 }
 
