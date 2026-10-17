@@ -67,6 +67,8 @@
       "footer": "SEDES — Analytical Report | Generated at: {generatedAt} | MMA/DCDE · OCA · UFCG · INSA",
       "generatedLabel": "Automatic report generated: {date}",
       "summaryTitle": "Contents",
+      "summaryShowMore": "Show more ({count})",
+      "summaryShowLess": "Show less",
       "backToTop": "Back to top",
       "goToSection": "Go to the {title} section",
       "viewMonitor": "View product",
