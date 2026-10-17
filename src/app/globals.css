@@ -54,11 +54,23 @@ textarea {
   }
 }
 
-/* Abertura dos menus do topo (idioma e conta). */
+/* Abertura dos menus do topo (idioma e conta), como o de "Início": desce da
+   barra e os itens entram da esquerda, em cascata. */
 @keyframes menu-in {
   from {
     opacity: 0;
-    transform: translateY(-4px) scale(0.97);
+    transform: translateY(-4px) scaleY(0.95);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+@keyframes menu-item-in {
+  from {
+    opacity: 0;
+    transform: translateX(-8px);
   }
   to {
     opacity: 1;

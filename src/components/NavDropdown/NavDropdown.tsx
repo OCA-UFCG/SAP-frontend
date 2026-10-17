@@ -13,7 +13,7 @@ export const NavDropdown = ({ item }: { item: ISection }) => {
   const href = item.path && item.path !== '#' ? item.path : null;
 
   const triggerClassName =
-    'h-40px flex items-center gap-1.5 border-b-3 border-transparent px-4 py-2 font-medium text-neutral-800 transition duration-300 group-hover:bg-stone-200 group-hover:text-[#777E32] group-focus-within:border-[#777E32] group-focus-within:text-[#777E32]';
+    'h-40px flex items-center gap-1.5 border-b-3 border-transparent px-4 py-2 font-medium text-neutral-800 transition duration-300 group-hover:bg-stone-200 group-hover:text-[#777E32] group-focus-within:text-[#777E32]';
 
   const triggerContent = (
     <>
@@ -56,7 +56,8 @@ export const NavDropdown = ({ item }: { item: ISection }) => {
           {triggerContent}
         </button>
       )}
-      <NavUnderline />
+      {/* O traço fica aceso enquanto o menu está aberto pelo teclado. */}
+      <NavUnderline className="group-focus-within:scale-x-100" />
 
       {/*
         Static, untransformed hit-area: always full size and flush against the

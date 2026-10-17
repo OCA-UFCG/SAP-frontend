@@ -80,21 +80,29 @@ export const LanguageSwitcher = () => {
 
       {isOpen && (
         <div
-          className="absolute right-0 mt-2 w-48 origin-top-right rounded-md border border-stone-200 bg-white py-1 shadow-[0_16px_32px_rgba(33,36,15,0.14)] z-50 motion-safe:animate-[menu-in_180ms_ease-out]"
+          // Mesmo padrão do menu de "Início" (NavDropdown): pendurado logo
+          // abaixo da linha verde da barra (o botão de 40 px fica a 13 px
+          // dela) e alinhado à direita, para não sair da tela no canto.
+          className="absolute right-0 top-full z-50 mt-[13px] flex w-60 origin-top flex-col overflow-hidden rounded-b-lg border border-t-0 border-[#E4E5E2] bg-white py-1.5 shadow-[0_16px_32px_rgba(33,36,15,0.14)] motion-safe:animate-[menu-in_200ms_ease-out]"
           role="listbox"
           aria-label={t("changeLanguage")}
         >
-          {languages.map((lang) => (
+          {languages.map((lang, index) => (
             <button
               key={lang.code}
               type="button"
               onClick={() => handleLocaleChange(lang.code)}
-              className={`group/lang w-full text-left cursor-pointer px-4 py-2 text-sm transition-colors hover:bg-stone-100 flex items-center justify-between ${
-                locale === lang.code
-                  ? "font-semibold text-[#777E32] bg-stone-50"
-                  : "text-stone-700"
+              style={{ animationDelay: `${60 + index * 40}ms` }}
+              className={`group/lang relative flex w-full cursor-pointer items-center justify-between gap-6 px-4 py-2.5 text-left text-sm font-medium transition-colors hover:bg-[#F6F7F6] hover:text-[#5B612A] motion-safe:animate-[menu-item-in_300ms_ease-out_both] ${
+                locale === lang.code ? "text-[#777E32]" : "text-neutral-800"
               }`}
             >
+              <span
+                aria-hidden
+                className={`absolute inset-y-1 left-0 w-[3px] origin-center rounded-r-full bg-[#777E32] transition-[scale] duration-200 group-hover/lang:scale-y-100 ${
+                  locale === lang.code ? "scale-y-100" : "scale-y-0"
+                }`}
+              />
               <span className="transition-[translate] duration-200 motion-safe:group-hover/lang:translate-x-1">
                 <span className="font-semibold">{lang.acronym}</span>{" "}
                 {lang.name}
