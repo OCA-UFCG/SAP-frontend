@@ -201,7 +201,10 @@ function RailItemContent({
         {badge > 0 && !isPending ? <RailBadge count={badge} /> : null}
       </div>
 
-      <div className="text-[12px] leading-[14px] font-medium text-center break-words w-full max-md:text-[11px]">
+      {/* Na barra de baixo do celular cabem até seis itens de ~62 px: com 11 px
+          "Comunicação" e "Priorização" quebravam no meio ("Comunica/ção"). Com
+          10 px cabem inteiras; se ainda faltar espaço, a quebra leva hífen. */}
+      <div className="text-[12px] leading-[14px] font-medium text-center break-words w-full max-md:text-[10px] max-md:leading-3 max-md:hyphens-auto">
         {label}
       </div>
     </>

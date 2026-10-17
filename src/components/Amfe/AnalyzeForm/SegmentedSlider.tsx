@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useSyncExternalStore } from "react";
 import { useTranslations } from "next-intl";
 import {
   CriteriaCardI,
@@ -16,6 +16,14 @@ import {
   normalizeCriteriaValues,
   preserveCriteriaInputValues,
 } from "@/utils/normalizeCriteriaValues";
+
+// Abaixo disto os critérios ficam um por linha (`sm:grid-cols-2` no grid).
+const TWO_COLUMNS = "(min-width: 640px)";
+const subscribeTwoColumns = (onChange: () => void) => {
+  const query = window.matchMedia(TWO_COLUMNS);
+  query.addEventListener("change", onChange);
+  return () => query.removeEventListener("change", onChange);
+};
 
 const COLORS = [
   "#3EBCD2",
@@ -46,6 +54,11 @@ const SegmentedBar = ({ fields, control, setValue }: CriteriaCardI) => {
   const watchedCriteria = useWatch({ control, name: "criteria" });
 
   const [openInfo, setOpenInfo] = useState<string | null>(null);
+  const twoColumns = useSyncExternalStore(
+    subscribeTwoColumns,
+    () => window.matchMedia(TWO_COLUMNS).matches,
+    () => true,
+  );
   const [localInputs, setLocalInputs] = useState({
     criteriaNamesKey: "",
     values: [] as string[],
@@ -111,7 +124,9 @@ const SegmentedBar = ({ fields, control, setValue }: CriteriaCardI) => {
         })}
       </div>
 
-      <div className="grid grid-cols-2 gap-x-6 gap-y-3">
+      {/* No celular, em duas colunas o nome do critério ficava com ~55 px e
+          quebrava palavra por palavra ao lado do campo. */}
+      <div className="grid grid-cols-1 gap-x-6 gap-y-3 sm:grid-cols-2">
         {fields.map((field, i) => {
           const metadata = metadataByName.get(field.name);
           const label = metadata?.label || field.name;
@@ -141,7 +156,9 @@ const SegmentedBar = ({ fields, control, setValue }: CriteriaCardI) => {
                 onOpen={() => setOpenInfo(field.name)}
                 onClose={() => setOpenInfo(null)}
                 placement="above"
-                align={i % 2 === 0 ? "left" : "right"}
+                // Em uma coluna o ícone fica perto da borda direita, então a
+                // dica abre para a esquerda.
+                align={twoColumns && i % 2 === 0 ? "left" : "right"}
               />
               <input
                 type="number"

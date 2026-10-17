@@ -50,7 +50,11 @@ export const UserAuth = () => {
 
   return (
     <div className="flex items-center gap-4 max-sm:gap-1">
-      <LanguageSwitcher />
+      {/* No celular o idioma fica no menu (MenuModal): ao lado da logo ele
+          não cabia e ficava escondido atrás dela. */}
+      <div className="max-sm:hidden">
+        <LanguageSwitcher />
+      </div>
 
       {!user ? (
         <button
