@@ -469,10 +469,12 @@ html[data-section-transition="grow"]::view-transition-old(platform-stage) {
   transition: margin-left 300ms ease-in-out;
 }
 
-/* No celular o painel cobre o mapa inteiro ou nada dele, nunca so a esquerda. */
+/* No celular o painel cobre o mapa inteiro ou nada dele, nunca so a esquerda:
+   quem se apoia na borda do mapa visivel (escala, aviso de carregamento) comeca
+   na borda da tela. O `!important` vence o valor que PlatformMap poe inline. */
 @media (max-width: 767.98px) {
-  .maplibregl-map .maplibregl-ctrl-bottom-left {
-    margin-left: 0;
+  [data-platform-map-area] {
+    --platform-map-scale-offset: 0px !important;
   }
 }
 

@@ -270,9 +270,9 @@ export function PlatformSidebar({
           >
             <div
               // Largura fixa: o conteúdo desliza enquanto o painel abre, em vez
-            // de se espremer.
+            // de se espremer. No celular, a da tela.
             className={`
-            absolute left-0 top-0 h-full w-[424px]
+            absolute left-0 top-0 h-full w-[424px] max-md:w-screen
             transform transition-transform duration-300 ease-in-out
             ${isPanelOpen ? "translate-x-0" : "-translate-x-full"}
           `}
