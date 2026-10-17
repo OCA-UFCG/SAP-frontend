@@ -2,6 +2,8 @@
   "PlatformMap": {
     "loadingGeeLayer": "Carregando camada do GEE",
     "loadingMapLayer": "Carregando camada do mapa",
+    "loadingLayer": "Carregando",
+    "layerReady": "no mapa",
     "opacity": "Transparência",
     "mapSettings": "Ajustes do mapa",
     "basemap": "Mapa base",
