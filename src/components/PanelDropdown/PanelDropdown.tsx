@@ -77,7 +77,7 @@ export function PanelDropdown({
         <button
           type="button"
           onClick={() => setIsOpen((current) => !current)}
-          className="flex h-10 w-full items-center justify-between rounded-lg border border-transparent bg-[#E4E5E2] px-3 py-3 text-left text-sm shadow-sm transition hover:border-neutral-400 focus-visible:border-neutral-600 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-neutral-600"
+          className="flex h-10 w-full items-center justify-between rounded-md border border-[#DCDBDC] bg-white px-3 py-2 text-left text-sm leading-6 transition hover:border-neutral-400 focus-visible:border-neutral-600 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-neutral-600"
           aria-haspopup="listbox"
           aria-expanded={isOpen}
           aria-controls={optionsId}
@@ -89,7 +89,7 @@ export function PanelDropdown({
             height="16"
             viewBox="0 0 20 20"
             fill="none"
-            className={`ml-2 shrink-0 text-[#898989] transition-transform ${isOpen ? "rotate-180" : ""}`}
+            className={`ml-2 shrink-0 text-[#7E797B] transition-transform ${isOpen ? "rotate-180" : ""}`}
             aria-hidden="true"
           >
             <path

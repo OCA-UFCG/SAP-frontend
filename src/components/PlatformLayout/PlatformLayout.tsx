@@ -99,7 +99,7 @@ export function PlatformLayout({
           ) : isCatalogView ? (
             <div
               data-testid="platform-catalog-shell"
-              className={`w-full pl-[140px] ${PLATFORM_SHELL_MIN_HEIGHT_CLASS}`}
+              className={`w-full pl-[124px] ${PLATFORM_SHELL_MIN_HEIGHT_CLASS}`}
             >
               {props.catalogDashboard}
             </div>

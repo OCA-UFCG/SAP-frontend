@@ -34,7 +34,7 @@ export function LayerAccordion({
 
   return (
     <div
-      className={`flex flex-col w-full bg-white hover:bg-[#E4E5E2] border rounded-lg transition-[background-color,border-color,box-shadow] duration-200 ${
+      className={`flex flex-col w-full py-1 bg-white hover:bg-[#E4E5E2] border rounded-lg transition-[background-color,border-color,box-shadow] duration-200 ${
         isOpen ? "border-[#E1E2B4] shadow-sm" : "border-[#EFEFEF]"
       }`}
     >
@@ -65,7 +65,7 @@ export function LayerAccordion({
       <div
         className={`grid transition-all duration-300 ease-in-out ${
           isOpen
-            ? "grid-rows-[1fr] opacity-100 pb-4"
+            ? "grid-rows-[1fr] opacity-100 pb-3"
             : "grid-rows-[0fr] opacity-0"
         }`}
       >
@@ -74,9 +74,9 @@ export function LayerAccordion({
         <div
           id={contentId}
           inert={!isOpen}
-          className={`overflow-hidden flex flex-col gap-6 px-4 pt-1 ${isOpen ? "accordion-cascade" : ""}`}
+          className={`overflow-hidden flex flex-col gap-4 px-4 pt-1 ${isOpen ? "accordion-cascade" : ""}`}
         >
-          <hr className="w-full border-t border-[#EFEFEF]" />
+          <hr className="mt-3 w-full border-t border-[#EFEFEF]" />
           {children}
         </div>
       </div>

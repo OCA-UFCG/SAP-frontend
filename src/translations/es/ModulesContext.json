@@ -2,6 +2,14 @@
   "ModulesContext": {
     "title": "¿Qué desea monitorear?",
     "subtitle": "Seleccione qué producto desea analizar",
+    "areaSection": {
+      "title": "Área de Interés",
+      "description": "Define el recorte geográfico donde se aplicará el análisis"
+    },
+    "indicatorsSection": {
+      "title": "Indicadores",
+      "description": "Seleccione los indicadores que desea visualizar en el área de interés."
+    },
     "categories": {
       "climate": "Datos Climáticos",
       "environmental": "Datos Ambientales",

@@ -138,15 +138,15 @@ export function PlatformSidebar({
   const [isLeavingUtilityView, startUtilityViewExit] = useTransition();
   const [utilityViewExitTarget, setUtilityViewExitTarget] =
     useState<PlatformSection | null>(null);
-  const defaultPanelOpenOffset = "560px";
-  const sidePanelWidthClass = isPanelOpen ? "w-[420px]" : "w-0";
+  const defaultPanelOpenOffset = "548px";
+  const sidePanelWidthClass = isPanelOpen ? "w-[424px]" : "w-0";
 
   // A lateral flutua por cima do mapa full-bleed, entao quem desenha algo no
   // canto inferior esquerdo do mapa (a escala) precisa saber quanto dele esta
   // coberto. Publicar a medida evita subir `isPanelOpen` ate o layout so para
   // isso; quem consome le `--platform-side-overlay-width`.
   useEffect(() => {
-    const overlayWidth = isPanelOpen ? defaultPanelOpenOffset : "140px";
+    const overlayWidth = isPanelOpen ? defaultPanelOpenOffset : "124px";
     document.documentElement.style.setProperty(
       "--platform-side-overlay-width",
       overlayWidth,
@@ -267,7 +267,7 @@ export function PlatformSidebar({
               // Largura fixa: o conteúdo desliza enquanto o painel abre, em vez
             // de se espremer.
             className={`
-            absolute left-0 top-0 h-full w-[420px]
+            absolute left-0 top-0 h-full w-[424px]
             transform transition-transform duration-300 ease-in-out
             ${isPanelOpen ? "translate-x-0" : "-translate-x-full"}
           `}
@@ -293,7 +293,7 @@ export function PlatformSidebar({
           <div
             data-stage="main"
             className="absolute inset-y-0 right-0 z-10 bg-[#F6F7F6] transition-[left] duration-300 ease-in-out"
-            style={{ left: isPanelOpen ? defaultPanelOpenOffset : "140px" }}
+            style={{ left: isPanelOpen ? defaultPanelOpenOffset : "124px" }}
           >
             <LazyMunicipalReportPreview
               locationKey={reportRequest?.locationKey ?? ""}

@@ -25,7 +25,8 @@
       },
       "unavailable": "{label}: no forecast for the combination chosen above"
     },
-    "spatialScope": "Spatial scope",
+    "areaLabel": "Area",
+    "scopeLabel": "Boundary",
     "selectArea": "Select area",
     "selectValue": "Select scope",
     "spatialAreas": {
