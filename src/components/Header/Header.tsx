@@ -3,24 +3,21 @@ import { NavItems } from '../NavItems/NavItems';
 import { MenuModal } from '../MenuModal/MenuModal';
 import { ISection } from '@/utils/interfaces';
 import { Icon } from '../Icon/Icon';
-import Image from 'next/image';
 import { UserAuth } from '../UserAuth/UserAuth';
 import { HeaderFrame } from './HeaderFrame';
+import { SedesLogo } from './SedesLogo';
 
 export const Header = ({ content }: { content: ISection[] }) => {
   return (
     <HeaderFrame>
       <div className="w-full max-w-360 mx-auto px-4 md:px-10 lg:px-19.5 group-data-[platform]/header:max-w-none">
         <div className="relative h-16.5 flex items-center justify-end">
-          <div className="absolute flex items-center justify-center top-0 left-0 z-50 h-20.5 bg-[#989F43] w-44">
-            <Link href="/" className="relative z-10">
-              <Image
-                alt="SEDES Logo"
-                src="/logo-sedes.svg"
-                width={128}
-                height={46}
-                className="h-12 w-auto"
-              />
+          <div className="absolute flex items-center justify-center top-0 left-0 z-50 h-20.5 bg-[#989F43] w-44 transition-colors duration-300 has-[a:hover]:bg-[#777E32]">
+            <Link
+              href="/"
+              className="group/logo relative z-10 transition-[scale] duration-300 ease-out motion-safe:hover:scale-105"
+            >
+              <SedesLogo className="h-12 w-auto overflow-visible" />
             </Link>
           </div>
         <Icon

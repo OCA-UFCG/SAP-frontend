@@ -6,11 +6,16 @@ import Image from "next/image";
 import { Link } from "@/translations/routing";
 import { useTranslations } from "next-intl";
 import { cn } from "@/lib/utils";
+import { revealOrder } from "@/components/HomeMotion/revealOrder";
 import {
   CarouselArrow,
   CarouselTracker,
 } from "@/components/HomeCarousel/HomeCarousel";
-import { PauseIcon, PlayIcon } from "@/components/HomeIcons/HomeIcons";
+import {
+  ArrowForwardIcon,
+  PauseIcon,
+  PlayIcon,
+} from "@/components/HomeIcons/HomeIcons";
 
 /** Tempo de cada slide antes de passar sozinho para o próximo. */
 const AUTOPLAY_MS = 7000;
@@ -31,6 +36,9 @@ export function MainBanner({ banners }: MainBannerProps) {
   const t = useTranslations("MainBanner");
   const [active, setActive] = useState(0);
   const [paused, setPaused] = useState(false);
+  // O zoom lento da foto só começa quando ela carregou, para não começar
+  // "andando" sobre o fundo preto.
+  const [loaded, setLoaded] = useState(false);
   // Parado pelo botão de pausar: só volta a passar quando a pessoa aperta de
   // novo. Até ela apertar, quem pediu menos movimento no sistema vê parado.
   const reducedMotion = useSyncExternalStore(
@@ -83,7 +91,11 @@ export function MainBanner({ banners }: MainBannerProps) {
             fill
             priority={index === 0}
             unoptimized
-            className="object-cover object-center"
+            onLoad={() => setLoaded(true)}
+            className={cn(
+              "object-cover object-center ease-out motion-safe:transition-[scale] motion-safe:duration-[9000ms]",
+              index === active && loaded && "motion-safe:scale-[1.08]",
+            )}
           />
           <div
             className="absolute inset-0"
@@ -107,7 +119,10 @@ export function MainBanner({ banners }: MainBannerProps) {
 
       {/* O padding de baixo deixa espaço para o card de números, que sobe
           80 px por cima do banner (BigNumbersSection). */}
-      <div className="relative z-20 mx-auto flex min-h-[512px] w-full max-w-[1440px] flex-col justify-end gap-6 px-4 pt-12 pb-[120px] md:px-10 md:pt-20 lg:px-20">
+      <div
+        data-shown
+        className="relative z-20 mx-auto flex min-h-[512px] w-full max-w-[1440px] flex-col justify-end gap-6 px-4 pt-12 pb-[120px] md:px-10 md:pt-20 lg:px-20"
+      >
         <div className="grid">
           {banners.map((data, index) => (
             <div
@@ -119,11 +134,23 @@ export function MainBanner({ banners }: MainBannerProps) {
                 index === active ? "opacity-100" : "opacity-0",
               )}
             >
+              {/* Ao trocar de slide, título, texto e botão entram em cascata. */}
               <div className="flex flex-col gap-4">
-                <h1 className="max-w-[784px] font-open-sans text-[36px] font-bold leading-[1.2] text-[#F8F7F8] md:text-5xl">
+                <h1
+                  className={cn(
+                    "max-w-[784px] font-open-sans text-[36px] font-bold leading-[1.2] text-[#F8F7F8] md:text-5xl",
+                    index === active && "reveal-item",
+                  )}
+                >
                   {t("title", { title: data.title })}
                 </h1>
-                <p className="max-w-[784px] font-open-sans text-sm leading-6 text-white xl:max-w-[960px] xl:text-base">
+                <p
+                  className={cn(
+                    "max-w-[784px] font-open-sans text-sm leading-6 text-white xl:max-w-[960px] xl:text-base",
+                    index === active && "reveal-item",
+                  )}
+                  style={revealOrder(1)}
+                >
                   {t("subtitle", { subtitle: data.subtitle })}
                 </p>
               </div>
@@ -134,9 +161,17 @@ export function MainBanner({ banners }: MainBannerProps) {
               <Link
                 href={data.link?.trim() || "/platform"}
                 prefetch
-                className="flex h-10 w-full items-center justify-center rounded-md bg-[#989F43] px-4 py-2 font-inter text-sm font-medium leading-6 text-[#F8F7F8] transition-colors hover:bg-[#5B612A] md:w-[302px]"
+                style={revealOrder(2)}
+                className={cn(
+                  "shine group/cta flex h-10 w-full items-center justify-center gap-2 rounded-md bg-[#989F43] px-4 py-2 font-inter text-sm font-medium leading-6 text-[#F8F7F8] transition-[background-color,box-shadow,scale] hover:bg-[#5B612A] hover:shadow-[0_8px_24px_rgba(152,159,67,0.45)] active:scale-[0.97] md:w-[302px] motion-safe:hover:scale-[1.03]",
+                  index === active && "reveal-item",
+                )}
               >
                 {t("linkText", { linkText: data.linkText })}
+                <ArrowForwardIcon
+                  size={16}
+                  className="transition-transform motion-safe:group-hover/cta:translate-x-1"
+                />
               </Link>
             </div>
           ))}

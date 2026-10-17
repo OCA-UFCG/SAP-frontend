@@ -56,7 +56,7 @@ export const UserAuth = () => {
         <button
           type="button"
           onClick={handleLogin}
-          className="flex h-10 cursor-pointer items-center rounded-md px-4 py-2 font-medium text-neutral-800 transition-colors hover:bg-stone-200 hover:text-[#777E32] focus:outline-none focus:ring-2 focus:ring-[#777E32]"
+          className="flex h-10 cursor-pointer items-center rounded-md px-4 py-2 font-medium text-neutral-800 transition-[background-color,color,box-shadow,scale] duration-300 hover:bg-[#989F43] hover:text-[#F8F7F8] hover:shadow-[0_6px_16px_rgba(152,159,67,0.35)] focus:outline-none focus:ring-2 focus:ring-[#777E32] active:scale-[0.97]"
         >
           {t("login")}
         </button>
@@ -69,7 +69,7 @@ export const UserAuth = () => {
                 currentPathname === pathname ? null : pathname,
               )
             }
-            className="flex items-center justify-center cursor-pointer w-10 h-10 rounded-full hover:bg-stone-200 focus:outline-none focus:ring-2 focus:ring-[#777E32] transition-colors"
+            className="flex items-center justify-center cursor-pointer w-10 h-10 rounded-full hover:bg-stone-200 hover:ring-2 hover:ring-[#B4BA61] focus:outline-none focus:ring-2 focus:ring-[#777E32] transition-[background-color,box-shadow,scale] duration-300 motion-safe:hover:scale-110"
             aria-label={t("menuLabel")}
             aria-expanded={isOpen}
             aria-haspopup="dialog"
@@ -79,7 +79,7 @@ export const UserAuth = () => {
 
           {isOpen && (
             <div
-              className="absolute right-0 mt-2 w-56 rounded-md border border-stone-200 bg-white py-1 shadow-lg z-50"
+              className="absolute right-0 mt-2 w-56 origin-top-right rounded-md border border-stone-200 bg-white py-1 shadow-[0_16px_32px_rgba(33,36,15,0.14)] z-50 motion-safe:animate-[menu-in_180ms_ease-out]"
               role="dialog"
               aria-label={t("statusLabel")}
             >
