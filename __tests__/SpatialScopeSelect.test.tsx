@@ -22,10 +22,10 @@ describe("SpatialScopeSelect", () => {
     );
 
     await user.click(
-      screen.getByRole("button", { name: "Recorte espacial: Nacional" })
+      screen.getByRole("button", { name: "Área: Nacional" })
     );
     expect(
-      screen.getByRole("listbox", { name: "Recorte espacial" })
+      screen.getByRole("listbox", { name: "Área" })
     ).toBeVisible();
     await user.click(screen.getByRole("option", { name: "Regional" }));
 

@@ -201,7 +201,7 @@ function RailItemContent({
         {badge > 0 && !isPending ? <RailBadge count={badge} /> : null}
       </div>
 
-      <div className="text-[12px] leading-[14px] font-medium text-center break-words w-full px-1">
+      <div className="text-[12px] leading-[14px] font-medium text-center break-words w-full">
         {label}
       </div>
     </>
@@ -357,20 +357,23 @@ export function PlatformSideRail({
       className={clsx(
         // `top-16.5` acompanha a altura real do cabeçalho; `max-h-full` impede
         // que a trilha ultrapasse a casca e invada o rodapé nas telas que rolam.
-        `sticky top-16.5 relative max-h-full w-[140px] shrink-0 self-start ${PLATFORM_SHELL_HEIGHT_CLASS}`,
+        `sticky top-16.5 relative max-h-full w-[124px] shrink-0 self-start ${PLATFORM_SHELL_HEIGHT_CLASS}`,
         className,
       )}
       data-platform-side-rail
     >
       <nav
         className={clsx(
-          "flex h-full w-full flex-col border-r border-neutral-200 bg-white px-[16px] pb-[18px]",
+          "flex h-full w-full flex-col border-r border-[#EFEFEF] bg-white px-[16px] pb-[18px]",
           compact ? "pt-[24px]" : "pt-[48px]",
         )}
       >
         <div
           ref={listRef}
-          className="relative w-[114px] min-h-0 flex-1 flex flex-col overflow-y-auto [scrollbar-width:thin]"
+          className={clsx(
+            "relative w-[92px] min-h-0 flex-1 flex flex-col overflow-y-auto [scrollbar-width:thin]",
+            compact ? "gap-2" : "gap-4",
+          )}
           data-tour="platform-sections"
         >
           <span
@@ -390,13 +393,7 @@ export function PlatformSideRail({
                 //clsx eh uma função pra montar classes CSS dinamicamente
                 className={clsx(
                   "w-full shrink-0 flex flex-col items-center",
-                  index !== 0 &&
-                    clsx(
-                      "border-t border-[#ECECEC]",
-                      compact ? "pt-[8px]" : "pt-[24px]",
-                    ),
-                  index !== items.length - 1 &&
-                    (compact ? "pb-[8px]" : "pb-[24px]"),
+                  index !== 0 && "border-t border-[#ECECEC]",
                 )}
               >
                 {item.kind === "section" ? (
@@ -408,7 +405,7 @@ export function PlatformSideRail({
                     aria-current={isActive ? "page" : undefined}
                     aria-busy={pendingSection === item.id || undefined}
                     className={clsx(
-                      "group relative cursor-pointer w-full flex flex-col items-center justify-center gap-[4px] px-[8px] rounded-lg transition-colors duration-150",
+                      "group relative cursor-pointer w-full flex flex-col items-center justify-center gap-[4px] px-[4px] rounded-lg transition-colors duration-150",
                       itemHeightClass,
                       isActive
                         ? "text-[#5B612A]"
@@ -427,7 +424,7 @@ export function PlatformSideRail({
                     href={item.href}
                     aria-current={isActive ? "page" : undefined}
                     className={clsx(
-                      "group relative w-full flex flex-col items-center justify-center gap-[4px] px-[8px] rounded-lg transition-colors duration-150",
+                      "group relative w-full flex flex-col items-center justify-center gap-[4px] px-[4px] rounded-lg transition-colors duration-150",
                       itemHeightClass,
                       isActive
                         ? "text-[#5B612A]"
@@ -455,7 +452,7 @@ export function PlatformSideRail({
             onClick={onReplayTour}
             aria-label={tTour("replayLabel")}
             data-tour="platform-tour-replay"
-            className="group mt-3 flex w-[114px] shrink-0 cursor-pointer flex-col items-center justify-center gap-[4px] rounded-lg px-[8px] py-[10px] text-[#292829] transition-colors duration-150 hover:bg-[#F8F7F8]"
+            className="group mt-3 flex w-[92px] shrink-0 cursor-pointer flex-col items-center justify-center gap-[4px] rounded-lg px-[8px] py-[10px] text-[#292829] transition-colors duration-150 hover:bg-[#F8F7F8]"
           >
             <span className="flex motion-safe:group-hover:animate-[icon-wiggle_600ms_ease-in-out]">
               <HelpIcon />
@@ -471,7 +468,7 @@ export function PlatformSideRail({
         activeSection !== "logs" &&
         activeSection !== "catalog" && (
           <div
-            className={`absolute top-1/2 -translate-y-1/2 transition-[right] duration-300 ease-in-out ${isPanelOpen ? "-right-[460px]" : "-right-[39px]"}`}
+            className={`absolute top-1/2 -translate-y-1/2 transition-[right] duration-300 ease-in-out ${isPanelOpen ? "-right-[464px]" : "-right-[39px]"}`}
           >
             <button
               type="button"

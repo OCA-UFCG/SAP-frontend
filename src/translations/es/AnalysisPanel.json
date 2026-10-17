@@ -25,7 +25,8 @@
       },
       "unavailable": "{label}: sin pronóstico para la combinación elegida arriba"
     },
-    "spatialScope": "Recorte espacial",
+    "areaLabel": "Área",
+    "scopeLabel": "Recorte",
     "selectArea": "Seleccione el área",
     "selectValue": "Seleccione el recorte",
     "spatialAreas": {

@@ -44,37 +44,27 @@ export function SpatialScopeSelect({
   };
 
   return (
-    <div className="flex w-full max-w-[392px] flex-col items-start gap-[6px]">
-      <span
-        id="spatial-scope-label"
-        className="text-[14px] font-medium leading-[20px] text-[#292829]"
-      >
-        {t("spatialScope")}
-      </span>
-      <div className="flex w-full gap-2">
-        <PanelDropdown
-          labelledBy="spatial-scope-label"
-          ariaLabelPrefix={t("spatialScope")}
-          options={SPATIAL_AREA_OPTIONS.map((area) => ({
-            value: area.value,
-            label: t(area.labelKey),
-          }))}
-          value={spatialSelection.spatialArea}
-          placeholder={t("selectArea")}
-          onChange={selectArea}
-        />
-        <PanelDropdown
-          labelledBy="spatial-scope-label"
-          ariaLabelPrefix={t("selectValue")}
-          options={valueOptions.map((option) => ({
-            value: option.value,
-            label: t(option.labelKey),
-          }))}
-          value={selectedValue?.value ?? ""}
-          placeholder={t("selectValue")}
-          onChange={selectValue}
-        />
-      </div>
+    <div className="flex w-full max-w-[392px] gap-4">
+      <PanelDropdown
+        label={t("areaLabel")}
+        options={SPATIAL_AREA_OPTIONS.map((area) => ({
+          value: area.value,
+          label: t(area.labelKey),
+        }))}
+        value={spatialSelection.spatialArea}
+        placeholder={t("selectArea")}
+        onChange={selectArea}
+      />
+      <PanelDropdown
+        label={t("scopeLabel")}
+        options={valueOptions.map((option) => ({
+          value: option.value,
+          label: t(option.labelKey),
+        }))}
+        value={selectedValue?.value ?? ""}
+        placeholder={t("selectValue")}
+        onChange={selectValue}
+      />
     </div>
   );
 }

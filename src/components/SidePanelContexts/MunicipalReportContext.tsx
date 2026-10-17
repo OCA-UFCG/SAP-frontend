@@ -362,7 +362,7 @@ export function MunicipalReportContext({ panelLayers = [] }: MunicipalReportCont
               )}
             <div ref={municipalityPickerRef} className={`relative min-w-0 flex-1 ${scope === "municipality" ? "" : "hidden"}`}>
               <span className="sr-only">{t("municipality")}</span>
-              <div className="flex h-10 w-full items-center overflow-hidden rounded-lg border border-transparent bg-[#E4E5E2] px-3 py-3 shadow-sm transition hover:border-neutral-400 focus-within:border-neutral-600 focus-within:ring-2 focus-within:ring-neutral-600">
+              <div className="flex h-10 w-full items-center overflow-hidden rounded-md border border-[#DCDBDC] bg-white px-3 py-2 transition hover:border-neutral-400 focus-within:border-neutral-600 focus-within:ring-2 focus-within:ring-neutral-600">
                 <svg aria-hidden="true" viewBox="0 0 24 24" className="mr-2 h-4 w-4 shrink-0 text-[#898989]" fill="none" stroke="currentColor" strokeWidth="2"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/></svg>
                 <input
                   value={selectedMunicipality && municipalityQuery === "" ? selectedMunicipality.label : municipalityQuery}
@@ -387,7 +387,7 @@ export function MunicipalReportContext({ panelLayers = [] }: MunicipalReportCont
                     ×
                   </button>
                 )}
-                <button type="button" onClick={() => setIsMunicipalityOptionsOpen((current) => !current)} className="ml-2 shrink-0 text-[#898989]" aria-label={t("selectMunicipality")}>
+                <button type="button" onClick={() => setIsMunicipalityOptionsOpen((current) => !current)} className="ml-2 shrink-0 text-[#7E797B]" aria-label={t("selectMunicipality")}>
                   <svg width="16" height="16" viewBox="0 0 20 20" fill="none" xmlns="http://www.w3.org/2000/svg" className={`transition-transform ${isMunicipalityOptionsOpen ? "rotate-180" : ""}`} aria-hidden="true">
                     <path d="M5 7.5L10 12.5L15 7.5" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" />
                   </svg>
