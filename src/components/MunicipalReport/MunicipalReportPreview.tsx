@@ -620,15 +620,16 @@ function EmptyReportPreview() {
 
   return (
     <div className="flex h-full min-h-[620px] flex-col items-center justify-center gap-6 px-8 py-12 text-center">
+      {/* A ilustração flutua devagar enquanto espera a seleção. */}
       <svg
-        className="h-auto w-full max-w-[488px]"
+        className="h-auto w-full max-w-[488px] motion-safe:animate-[float_6s_ease-in-out_infinite]"
         viewBox="0 0 488 488"
         fill="none"
         aria-hidden="true"
       >
         <use href="/sprite.svg#municipal-report-empty-illustration" />
       </svg>
-      <div className="flex w-full max-w-[602px] items-center justify-center rounded-2xl bg-[#E1E2B4] p-9">
+      <div className="flex w-full max-w-[602px] items-center justify-center rounded-2xl bg-[#E1E2B4] p-9 motion-safe:animate-[panel-in_600ms_200ms_cubic-bezier(0.2,0.7,0.2,1)_both]">
         <p className="font-open-sans text-2xl font-bold leading-[1.5] text-[#777E32]">
           {t("emptyPreviewInstruction")}
         </p>

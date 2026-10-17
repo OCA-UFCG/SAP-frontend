@@ -3,6 +3,7 @@
 import { FormEvent, useEffect, useMemo, useRef, useState, useTransition } from "react";
 import { useLocale, useTranslations } from "next-intl";
 import { useRouter } from "next/navigation";
+import { ArrowForwardIcon } from "@/components/HomeIcons/HomeIcons";
 import { InfoModal } from "@/components/InfoModal/InfoModal";
 import { LayerAccordion } from "@/components/LayerAccordion/LayerAccordion";
 import { PanelDropdown } from "@/components/PanelDropdown/PanelDropdown";
@@ -195,12 +196,12 @@ export function MunicipalReportContext({ panelLayers = [] }: MunicipalReportCont
   function renderLayerOption(layer: PanelLayerI) {
     const available = availabilityState === "ready" && availability.get(layer.id) === true;
     const layerTitle = translatedLayerTitle(layer);
-    return <div key={layer.id} className={`flex min-h-12 items-stretch rounded-lg border border-[#EFEFEF] bg-white ${available ? "" : "opacity-50"}`}>
+    return <div key={layer.id} className={`group/layer flex min-h-12 items-stretch rounded-lg border bg-white transition-[border-color,background-color,translate] duration-200 ${available ? "border-[#EFEFEF] hover:border-[#CCCF87] motion-safe:hover:translate-x-0.5 has-[:checked]:border-[#989F43] has-[:checked]:bg-[#F5F6EE]" : "border-[#EFEFEF] opacity-50"}`}>
       <label className={`flex min-w-0 flex-1 items-center gap-1 py-1 pl-2 ${available ? "cursor-pointer" : "cursor-not-allowed"}`}>
-        <span className="flex h-10 w-[30px] items-center justify-center"><input type="checkbox" checked={selectedLayers.has(layer.id)} disabled={!available} onChange={() => toggleLayer(layer.id)} className="h-3.5 w-3.5 rounded-sm accent-[#989F43]" /></span>
+        <span className="flex h-10 w-[30px] items-center justify-center"><input type="checkbox" checked={selectedLayers.has(layer.id)} disabled={!available} onChange={() => toggleLayer(layer.id)} className="h-3.5 w-3.5 rounded-sm accent-[#989F43] motion-safe:checked:animate-[pop-in_300ms_cubic-bezier(0.34,1.56,0.64,1)]" /></span>
         <span className="min-w-0 flex-1 break-words font-inter text-base font-semibold leading-6 tracking-[-0.015em]" title={layerTitle}>{layerTitle}</span>
       </label>
-      <button type="button" onClick={() => setInfoLayer(layer)} className="flex w-10 shrink-0 items-center justify-center border-l border-[#EFEFEF]" aria-label={t("moduleInformation", { title: layerTitle })}><svg className="h-4 w-4 text-[#2C1E1C]" aria-hidden><use href="/sprite.svg#info"/></svg></button>
+      <button type="button" onClick={() => setInfoLayer(layer)} className="group/info flex w-10 shrink-0 items-center justify-center border-l border-[#EFEFEF]" aria-label={t("moduleInformation", { title: layerTitle })}><svg className="h-4 w-4 text-[#2C1E1C] transition-[scale] duration-200 motion-safe:group-hover/info:scale-125" aria-hidden><use href="/sprite.svg#info"/></svg></button>
     </div>;
   }
 
@@ -327,7 +328,7 @@ export function MunicipalReportContext({ panelLayers = [] }: MunicipalReportCont
 
   return (
     <section className="h-full w-full overflow-y-auto bg-[#F6F7F6] px-4 py-12 text-[#292829]">
-      <form onSubmit={handleSubmit} className="mx-auto flex min-h-full w-full max-w-96 flex-col gap-6">
+      <form onSubmit={handleSubmit} className="panel-cascade mx-auto flex min-h-full w-full max-w-96 flex-col gap-6">
         <header className="space-y-2">
           <h2 className="font-inter text-2xl font-semibold leading-6 tracking-[-0.015em]">{t("section")}</h2>
           <p className="font-inter text-base font-medium leading-6 tracking-[-0.015em]">{t("selectionDescription")}</p>
@@ -393,7 +394,7 @@ export function MunicipalReportContext({ panelLayers = [] }: MunicipalReportCont
                 </button>
               </div>
               {isMunicipalityOptionsOpen && (
-                <div id="municipal-report-municipality-options" role="listbox" className="absolute top-[calc(100%+8px)] z-30 max-h-64 w-full overflow-y-auto rounded-xl border border-neutral-200 bg-white p-2 shadow-lg">
+                <div id="municipal-report-municipality-options" role="listbox" className="absolute top-[calc(100%+8px)] z-30 max-h-64 w-full origin-top overflow-y-auto rounded-xl border border-neutral-200 bg-white p-2 shadow-lg motion-safe:animate-[menu-in_180ms_ease-out]">
                   {filteredMunicipalities.length > 0 ? filteredMunicipalities.map((municipality) => (
                     <button
                       key={municipality.code}
@@ -401,7 +402,7 @@ export function MunicipalReportContext({ panelLayers = [] }: MunicipalReportCont
                       role="option"
                       aria-selected={municipalityCode === municipality.code}
                       onClick={() => selectMunicipality(municipality.code, municipality.label)}
-                      className="flex w-full rounded-lg px-3 py-2 text-left text-sm text-[#292829] transition hover:bg-[#F6F7F6]"
+                      className="flex w-full rounded-lg px-3 py-2 text-left text-sm text-[#292829] transition hover:bg-[#F6F7F6] hover:text-[#5B612A] aria-selected:bg-[#F5F6EE] aria-selected:font-medium aria-selected:text-[#5B612A]"
                     >
                       {municipality.label}
                     </button>
@@ -430,7 +431,7 @@ export function MunicipalReportContext({ panelLayers = [] }: MunicipalReportCont
                   </svg>
                 </button>
                 {isPeriodOptionsOpen && (
-                  <div id="municipal-report-period-options" role="listbox" className="absolute top-[calc(100%+8px)] z-20 max-h-64 w-full overflow-y-auto rounded-xl border border-neutral-200 bg-white p-2 shadow-lg">
+                  <div id="municipal-report-period-options" role="listbox" className="absolute top-[calc(100%+8px)] z-20 max-h-64 w-full origin-top overflow-y-auto rounded-xl border border-neutral-200 bg-white p-2 shadow-lg motion-safe:animate-[menu-in_180ms_ease-out]">
                     {periodOptions.map((option) => (
                       <button
                         key={option}
@@ -444,7 +445,7 @@ export function MunicipalReportContext({ panelLayers = [] }: MunicipalReportCont
                             municipalityCode ? getDefaultSelectedLayers(municipalityCode, option) : new Set(),
                           );
                         }}
-                        className="flex w-full rounded-lg px-3 py-2 text-left text-sm text-[#292829] transition hover:bg-[#F6F7F6]"
+                        className="flex w-full rounded-lg px-3 py-2 text-left text-sm text-[#292829] transition hover:bg-[#F6F7F6] hover:text-[#5B612A] aria-selected:bg-[#F5F6EE] aria-selected:font-medium aria-selected:text-[#5B612A]"
                       >
                         {option}
                       </button>
@@ -473,11 +474,11 @@ export function MunicipalReportContext({ panelLayers = [] }: MunicipalReportCont
           <div className="space-y-4">
             {groups.map((group, index) => (
               <LayerAccordion key={group.key} title={translatedCategoryTitle(group)} defaultOpen={false}>
-                <div className="flex flex-col gap-2">
+                <div data-cascade className="flex flex-col gap-2">
                   {group.items.map(renderLayerOption)}
                   {group.subgroups.map((subgroup) => (
                     <LayerAccordion key={subgroup.key} title={tModules(`subgroups.${subgroup.key}`)} defaultOpen={false}>
-                      <div className="flex flex-col gap-2">{subgroup.items.map(renderLayerOption)}</div>
+                      <div data-cascade className="flex flex-col gap-2">{subgroup.items.map(renderLayerOption)}</div>
                     </LayerAccordion>
                   ))}
                 </div>
@@ -486,7 +487,9 @@ export function MunicipalReportContext({ panelLayers = [] }: MunicipalReportCont
           </div>
         </fieldset>
 
-        <button type="submit" disabled={!canSubmit || isGenerating} className="mt-auto flex h-10 w-full shrink-0 items-center justify-center gap-2 rounded bg-[#989F43] px-4 font-open-sans text-sm text-white hover:bg-[#858c39] disabled:cursor-not-allowed disabled:opacity-70">{isGenerating && <span aria-hidden="true" className="h-4 w-4 animate-spin rounded-full border-2 border-white/40 border-t-white" />}{isGenerating ? t("generatingReport") : t("generateReport")}</button>
+        {/* Quando a seleção fica completa o botão "acorda" com um anel verde; no
+            hover, a faixa de luz atravessa e a seta anda. */}
+        <button type="submit" disabled={!canSubmit || isGenerating} className={`group/submit mt-auto flex h-10 w-full shrink-0 items-center justify-center gap-2 rounded bg-[#989F43] px-4 font-open-sans text-sm text-white transition-[background-color,box-shadow,scale] duration-200 hover:bg-[#858c39] disabled:cursor-not-allowed disabled:opacity-70 ${canSubmit && !isGenerating ? "shine hover:shadow-[0_8px_20px_rgba(91,97,42,0.3)] active:scale-[0.98] motion-safe:animate-[ready-ring_900ms_ease-out_2]" : ""}`}>{isGenerating && <span aria-hidden="true" className="h-4 w-4 animate-spin rounded-full border-2 border-white/40 border-t-white" />}{isGenerating ? t("generatingReport") : t("generateReport")}{canSubmit && !isGenerating && <ArrowForwardIcon size={16} className="transition-[translate] duration-200 motion-safe:group-hover/submit:translate-x-1" />}</button>
       </form>
       {infoLayer && <InfoModal card={{ id: 0, title: infoLayer.name, description: infoLayer.description, image: infoLayer.previewMap?.url, fileRef: infoLayer.id, imageData: infoLayer.imageData, timeScale: infoLayer.timeScale }} imageData={infoLayer.imageData} open onClose={() => setInfoLayer(null)} />}
     </section>

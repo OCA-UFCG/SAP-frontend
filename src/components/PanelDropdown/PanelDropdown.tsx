@@ -107,23 +107,41 @@ export function PanelDropdown({
             id={optionsId}
             role="listbox"
             aria-labelledby={labelId}
-            className="absolute top-[calc(100%+8px)] z-30 max-h-64 w-full overflow-y-auto rounded-xl border border-neutral-200 bg-white p-2 shadow-lg"
+            className="absolute top-[calc(100%+8px)] z-30 max-h-64 w-full origin-top overflow-y-auto rounded-xl border border-neutral-200 bg-white p-2 shadow-lg motion-safe:animate-[menu-in_180ms_ease-out]"
           >
-            {options.map((option) => (
-              <button
-                key={option.value}
-                type="button"
-                role="option"
-                aria-selected={option.value === value}
-                onClick={() => {
-                  setIsOpen(false);
-                  onChange(option.value);
-                }}
-                className="flex w-full rounded-lg px-3 py-2 text-left text-sm text-[#292829] transition hover:bg-[#F6F7F6]"
-              >
-                {option.label}
-              </button>
-            ))}
+            {options.map((option, index) => {
+              const selected = option.value === value;
+              return (
+                <button
+                  key={option.value}
+                  type="button"
+                  role="option"
+                  aria-selected={selected}
+                  onClick={() => {
+                    setIsOpen(false);
+                    onChange(option.value);
+                  }}
+                  // Só os primeiros entram em cascata; numa lista longa o
+                  // resto chegaria tarde demais.
+                  style={{ animationDelay: `${40 + Math.min(index, 8) * 30}ms` }}
+                  className={`group/option relative flex w-full rounded-lg px-3 py-2 text-left text-sm transition-colors hover:bg-[#F6F7F6] hover:text-[#5B612A] motion-safe:animate-[menu-item-in_260ms_ease-out_both] ${
+                    selected
+                      ? "bg-[#F5F6EE] font-medium text-[#5B612A]"
+                      : "text-[#292829]"
+                  }`}
+                >
+                  <span
+                    aria-hidden
+                    className={`absolute inset-y-2 left-0.5 w-[3px] rounded-full bg-[#989F43] transition-[scale] duration-200 group-hover/option:scale-y-100 ${
+                      selected ? "scale-y-100" : "scale-y-0"
+                    }`}
+                  />
+                  <span className="transition-[translate] duration-200 group-hover/option:translate-x-1">
+                    {option.label}
+                  </span>
+                </button>
+              );
+            })}
           </div>
         )}
       </div>

@@ -65,7 +65,7 @@ export function MapControlDisclosure({
     <MapControlCard ariaLabel={label}>
       <button
         type="button"
-        className="flex w-full cursor-pointer items-center justify-between bg-transparent text-left outline-none"
+        className="group flex w-full cursor-pointer items-center justify-between bg-transparent text-left outline-none"
         onClick={() => {
           if (!isOpen) onOpen?.();
           setIsOpen(!isOpen);
@@ -75,7 +75,9 @@ export function MapControlDisclosure({
         {/* Cabeçalho como heading: o leitor de tela navega pelas caixas do
             mapa, e antes só Legendas tinha esse título. */}
         <h2 className={`${MAP_CONTROL_LABEL_CLASS} font-semibold`}>{label}</h2>
-        <span className="flex shrink-0 items-center justify-center text-[#292829]">
+        <span
+          className={`-m-1 flex size-6 shrink-0 items-center justify-center rounded-full text-[#292829] transition-colors duration-200 group-hover:bg-[#E1E2B4] group-hover:text-[#5B612A] ${isOpen ? "bg-[#F5F6EE]" : ""}`}
+        >
           <Chevron open={isOpen} from="down" to="up" size={16} />
         </span>
       </button>

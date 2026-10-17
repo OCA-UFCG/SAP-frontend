@@ -1,5 +1,5 @@
 "use client";
-import { useEffect, useState } from "react";
+import { useEffect, useLayoutEffect, useRef, useState } from "react";
 import { useLinkStatus } from "next/link";
 import { Link } from "@/translations/routing";
 import { Chevron } from "../Chevron/Chevron";
@@ -95,6 +95,26 @@ function usePendingApprovalsCount(enabled: boolean) {
   return count;
 }
 
+/**
+ * O gesto de cada ícone no hover e quando a seção é escolhida: o olho pisca, o
+ * balão de conversa balança e o alvo pulsa. Os demais pulsam.
+ */
+const ICON_GESTURE: Record<string, string> = {
+  eye: "motion-safe:group-hover:animate-[icon-blink_450ms_ease-in-out]",
+  "chat-bubble": "motion-safe:group-hover:animate-[icon-wiggle_600ms_ease-in-out]",
+  target: "motion-safe:group-hover:animate-[icon-pulse_550ms_ease-in-out]",
+};
+const DEFAULT_ICON_GESTURE =
+  "motion-safe:group-hover:animate-[icon-pulse_550ms_ease-in-out]";
+
+const ICON_GESTURE_ON_SELECT: Record<string, string> = {
+  eye: "motion-safe:animate-[icon-blink_450ms_ease-in-out]",
+  "chat-bubble": "motion-safe:animate-[icon-wiggle_600ms_ease-in-out]",
+  target: "motion-safe:animate-[icon-pulse_550ms_ease-in-out]",
+};
+const DEFAULT_ICON_GESTURE_ON_SELECT =
+  "motion-safe:animate-[icon-pulse_550ms_ease-in-out]";
+
 function RailBadge({ count }: { count: number }) {
   const t = useTranslations("PlatformSideRail");
 
@@ -112,17 +132,33 @@ function RailItemContent({
   icon,
   label,
   isPending,
+  isActive = false,
   badge = 0,
 }: {
   icon: string;
   label: string;
   isPending: boolean;
+  isActive?: boolean;
   badge?: number;
 }) {
   return (
     <>
       <div className="relative flex items-center justify-center">
-        {isPending ? <RailPendingSpinner /> : <Icon id={icon} size={24} />}
+        {isPending ? (
+          <RailPendingSpinner />
+        ) : (
+          <span
+            className={clsx(
+              "flex transition-[translate] duration-300 ease-out group-hover:-translate-y-0.5",
+              isActive
+                ? (ICON_GESTURE_ON_SELECT[icon] ??
+                    DEFAULT_ICON_GESTURE_ON_SELECT)
+                : (ICON_GESTURE[icon] ?? DEFAULT_ICON_GESTURE),
+            )}
+          >
+            <Icon id={icon} size={24} />
+          </span>
+        )}
         {badge > 0 && !isPending ? <RailBadge count={badge} /> : null}
       </div>
 
@@ -161,10 +197,12 @@ function HelpIcon() {
 function RailLinkContent({
   icon,
   label,
+  isActive,
   badge,
 }: {
   icon: string;
   label: string;
+  isActive: boolean;
   badge?: number;
 }) {
   const { pending } = useLinkStatus();
@@ -174,6 +212,7 @@ function RailLinkContent({
       icon={icon}
       label={label}
       isPending={pending}
+      isActive={isActive}
       badge={badge}
     />
   );
@@ -207,6 +246,33 @@ export function PlatformSideRail({
   // rodapé. Aperta o espaço entre eles, e a lista rola se ainda faltar altura.
   const compact = showAuditLink;
   const itemHeightClass = compact ? "h-[72px]" : "h-[88px]";
+  const listRef = useRef<HTMLDivElement>(null);
+  const indicatorRef = useRef<HTMLSpanElement>(null);
+
+  // Um destaque só, que desliza até a seção escolhida, em vez de um fundo que
+  // some num item e aparece no outro. Mede o item atual e move o destaque por
+  // estilo direto, sem estado, para não renderizar a trilha duas vezes.
+  useLayoutEffect(() => {
+    const indicator = indicatorRef.current;
+    const current = listRef.current?.querySelector<HTMLElement>(
+      '[aria-current="page"]',
+    );
+    if (!indicator) return;
+
+    if (!current) {
+      indicator.style.opacity = "0";
+      return;
+    }
+
+    indicator.style.translate = `0 ${current.offsetTop}px`;
+    indicator.style.height = `${current.offsetHeight}px`;
+    indicator.style.opacity = "1";
+    // Na primeira medida o destaque já nasce no lugar; só depois ele desliza.
+    if (!indicator.dataset.ready) {
+      void indicator.offsetHeight;
+      indicator.dataset.ready = "true";
+    }
+  }, [activeSection, compact]);
 
   const items: PlatformRailItem[] = [
     { kind: "section", id: "monitoring", label: t("monitoring"), icon: "eye" },
@@ -263,9 +329,15 @@ export function PlatformSideRail({
         )}
       >
         <div
-          className="w-[114px] min-h-0 flex-1 flex flex-col overflow-y-auto [scrollbar-width:thin]"
+          ref={listRef}
+          className="relative w-[114px] min-h-0 flex-1 flex flex-col overflow-y-auto [scrollbar-width:thin]"
           data-tour="platform-sections"
         >
+          <span
+            ref={indicatorRef}
+            aria-hidden
+            className="pointer-events-none absolute left-0 top-0 w-full rounded-lg bg-[#E1E2B4] opacity-0 shadow-[inset_0_0_0_1px_rgba(152,159,67,0.25)] data-[ready]:transition-[translate,height,opacity] data-[ready]:duration-500 data-[ready]:ease-[cubic-bezier(0.34,1.4,0.64,1)]"
+          />
           {items.map((item, index) => {
             const isActive =
               item.kind === "section"
@@ -294,10 +366,10 @@ export function PlatformSideRail({
                     aria-current={isActive ? "page" : undefined}
                     aria-busy={pendingSection === item.id || undefined}
                     className={clsx(
-                      "cursor-pointer w-full flex flex-col items-center justify-center gap-[4px] px-[8px] rounded-lg transition-colors duration-150",
+                      "group relative cursor-pointer w-full flex flex-col items-center justify-center gap-[4px] px-[8px] rounded-lg transition-colors duration-150",
                       itemHeightClass,
                       isActive
-                        ? "bg-[#E1E2B4] text-[#5B612A]"
+                        ? "text-[#5B612A]"
                         : "text-[#292829] hover:bg-[#F8F7F8]",
                     )}
                   >
@@ -305,6 +377,7 @@ export function PlatformSideRail({
                       icon={item.icon}
                       label={item.label}
                       isPending={pendingSection === item.id}
+                      isActive={isActive}
                     />
                   </button>
                 ) : (
@@ -312,16 +385,17 @@ export function PlatformSideRail({
                     href={item.href}
                     aria-current={isActive ? "page" : undefined}
                     className={clsx(
-                      "w-full flex flex-col items-center justify-center gap-[4px] px-[8px] rounded-lg transition-colors duration-150",
+                      "group relative w-full flex flex-col items-center justify-center gap-[4px] px-[8px] rounded-lg transition-colors duration-150",
                       itemHeightClass,
                       isActive
-                        ? "bg-[#E1E2B4] text-[#5B612A]"
+                        ? "text-[#5B612A]"
                         : "text-[#292829] hover:bg-[#F8F7F8]",
                     )}
                   >
                     <RailLinkContent
                       icon={item.icon}
                       label={item.label}
+                      isActive={isActive}
                       badge={
                         item.id === "approvals" ? pendingApprovals : undefined
                       }
@@ -339,9 +413,11 @@ export function PlatformSideRail({
             onClick={onReplayTour}
             aria-label={tTour("replayLabel")}
             data-tour="platform-tour-replay"
-            className="mt-3 flex w-[114px] shrink-0 cursor-pointer flex-col items-center justify-center gap-[4px] rounded-lg px-[8px] py-[10px] text-[#292829] transition-colors duration-150 hover:bg-[#F8F7F8]"
+            className="group mt-3 flex w-[114px] shrink-0 cursor-pointer flex-col items-center justify-center gap-[4px] rounded-lg px-[8px] py-[10px] text-[#292829] transition-colors duration-150 hover:bg-[#F8F7F8]"
           >
-            <HelpIcon />
+            <span className="flex motion-safe:group-hover:animate-[icon-wiggle_600ms_ease-in-out]">
+              <HelpIcon />
+            </span>
             <span className="text-[12px] leading-[14px] font-medium">
               {tTour("replay")}
             </span>
@@ -358,9 +434,11 @@ export function PlatformSideRail({
             <button
               type="button"
               onClick={onTogglePanel}
-              className="h-10 w-10 rounded-r-lg border border-neutral-200 bg-white shadow-sm flex items-center justify-center"
+              className="group h-10 w-10 rounded-r-lg border border-neutral-200 bg-white shadow-sm flex items-center justify-center transition-[background-color,box-shadow] duration-200 hover:bg-[#F5F6EE] hover:shadow-md"
             >
-              <span className="cursor-pointer text-sm font-bold">
+              <span
+                className={`cursor-pointer text-sm font-bold transition-[translate] duration-200 ${isPanelOpen ? "group-hover:-translate-x-0.5" : "group-hover:translate-x-0.5"}`}
+              >
                 <Chevron open={isPanelOpen} from="left" to="right" />
               </span>
             </button>
