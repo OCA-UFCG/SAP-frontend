@@ -108,7 +108,7 @@ describe("PlatformMap", () => {
     expect(latestMapProps?.tileLayerRequestKey).toBe("ee-layer:2024");
   });
 
-  it("keeps the overlay visible until the map reports the first tile is ready", async () => {
+  it("keeps the overlay visible until the map reports the layer is ready", async () => {
     useEarthEngineTileLayerMock.mockReturnValue({
       requestKey: "ee-layer:2024",
       status: "ready",
@@ -130,6 +130,59 @@ describe("PlatformMap", () => {
       expect(
         screen.queryByRole("status", { name: "Carregando camada do GEE" }),
       ).not.toBeInTheDocument();
+    });
+  });
+
+  describe("when the layer takes long enough to show the notice", () => {
+    beforeEach(() => {
+      vi.useFakeTimers();
+      useMapLayerActiveStateMock.mockReturnValue({
+        activeData: null,
+        activeEEData: { id: "ee-layer", name: "Índice de Aridez" },
+      });
+      useEarthEngineTileLayerMock.mockReturnValue({
+        requestKey: "ee-layer:2024",
+        status: "ready",
+        tileLayerUrl: "https://tiles.example/2024",
+      });
+    });
+
+    afterEach(() => {
+      vi.useRealTimers();
+    });
+
+    it("says the layer is on the map, then leaves", () => {
+      render(<PlatformMap section="monitoring" />);
+      expect(screen.getByText("Índice de Aridez")).toBeInTheDocument();
+
+      act(() => {
+        vi.advanceTimersByTime(300);
+      });
+      act(() => {
+        latestMapProps?.onTileLayerReady?.("ee-layer:2024");
+      });
+
+      expect(
+        screen.queryByRole("status", { name: "Carregando camada do GEE" }),
+      ).not.toBeInTheDocument();
+      expect(screen.getByRole("status")).toHaveTextContent(
+        "Índice de Aridez no mapa",
+      );
+
+      act(() => {
+        vi.advanceTimersByTime(1200);
+      });
+      expect(screen.queryByRole("status")).not.toBeInTheDocument();
+    });
+
+    it("stays silent when the layer arrives before the notice appears", () => {
+      render(<PlatformMap section="monitoring" />);
+
+      act(() => {
+        latestMapProps?.onTileLayerReady?.("ee-layer:2024");
+      });
+
+      expect(screen.queryByRole("status")).not.toBeInTheDocument();
     });
   });
 

@@ -268,6 +268,52 @@ textarea {
   }
 }
 
+/* Camada do mapa carregando: o aviso entra e sai só pela opacidade, então o
+   atraso que esconde as cargas rápidas vale também com movimento reduzido. */
+@keyframes map-loading-in {
+  from {
+    opacity: 0;
+  }
+}
+
+@keyframes map-loading-out {
+  to {
+    opacity: 0;
+  }
+}
+
+/* O fio da borda de cima, que corre enquanto não se sabe quanto falta. */
+@keyframes map-loading-bar {
+  from {
+    transform: translateX(-100%);
+  }
+  to {
+    transform: translateX(250%);
+  }
+}
+
+@keyframes map-loading-dot {
+  0%,
+  100% {
+    opacity: 0.55;
+    transform: scale(0.7);
+  }
+  50% {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+/* O anel do "Gerar relatório" (`ready-ring`), voltado para dentro da moldura. */
+@keyframes map-ready-ring {
+  from {
+    box-shadow: inset 0 0 0 3px rgba(152, 159, 67, 0.85);
+  }
+  to {
+    box-shadow: inset 0 0 0 14px rgba(152, 159, 67, 0);
+  }
+}
+
 @media (prefers-reduced-motion: no-preference) {
   /* Ao trocar de seção, o conteúdo do painel sobe em cascata. O preenchimento
      é `backwards`, e não `both`: uma animação que fica presa no fim cria uma

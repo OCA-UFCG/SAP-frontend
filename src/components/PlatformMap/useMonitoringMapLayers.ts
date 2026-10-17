@@ -130,6 +130,8 @@ export function useMonitoringMapLayers() {
       (status === "loading" ||
         (status === "ready" && !hasRenderedCurrentRequest))) ||
     choroplethStatus === "loading";
+  const hasGeeLayerFailed =
+    status === "error" || choroplethStatus === "error";
 
   return {
     activeData,
@@ -147,6 +149,7 @@ export function useMonitoringMapLayers() {
     handleTileLayerReady,
     isAnyReferenceOverlayLoading,
     isGeeLayerLoading,
+    hasGeeLayerFailed,
     layerOpacity,
     setLayerOpacity,
     referenceOverlays,
