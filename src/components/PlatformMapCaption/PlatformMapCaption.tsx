@@ -31,7 +31,7 @@ export function PlatformMapCaption({ legend }: { legend: IImageParam[] }) {
     <MapControlDisclosure label={t("title")}>
       {() => (
         <div
-          className={`flex flex-col gap-1.5 ${shouldScroll ? "max-h-[168px] overflow-y-auto pr-2" : ""}`}
+          className={`legend-cascade flex flex-col gap-1.5 ${shouldScroll ? "max-h-[168px] overflow-y-auto pr-2" : ""}`}
         >
           {legend.map((item) => {
             const slug = toLabelSlug(item.label);

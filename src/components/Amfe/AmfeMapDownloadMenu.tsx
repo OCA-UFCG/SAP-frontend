@@ -126,7 +126,7 @@ export const AmfeMapDownloadMenu = ({
         onClick={() => setIsOpen((open) => !open)}
         aria-expanded={isOpen}
         aria-busy={isExportingImage || isExportingReport}
-        className="flex min-h-12 items-center gap-2 rounded-full border border-white/50 bg-[#989F43] px-5 py-3.5 text-sm font-semibold text-white shadow-[0_10px_24px_rgba(0,0,0,0.20)] transition-colors hover:bg-[#858C38]"
+        className="shine flex min-h-12 items-center gap-2 rounded-full border border-white/50 bg-[#989F43] px-5 py-3.5 text-sm font-semibold text-white shadow-[0_10px_24px_rgba(0,0,0,0.20)] transition-[background-color,translate,box-shadow,scale] duration-200 hover:bg-[#858C38] hover:shadow-[0_14px_30px_rgba(33,36,15,0.30)] motion-safe:hover:-translate-y-0.5 active:scale-[0.97]"
       >
         {(isExportingImage || isExportingReport) && (
           <span
@@ -144,7 +144,7 @@ export const AmfeMapDownloadMenu = ({
       </button>
 
       {isOpen && (
-        <div className="absolute top-full left-0 mt-2 min-w-36 overflow-hidden rounded-xl border border-gray-200 bg-white p-1 shadow-[0_14px_34px_rgba(0,0,0,0.18)]">
+        <div className="absolute top-full left-0 mt-2 min-w-36 origin-top overflow-hidden rounded-xl border border-gray-200 bg-white p-1 shadow-[0_14px_34px_rgba(0,0,0,0.18)] motion-safe:animate-[menu-in_180ms_ease-out] [&>*]:motion-safe:animate-[menu-item-in_260ms_ease-out_both] [&>:nth-child(2)]:[animation-delay:50ms] [&>:nth-child(3)]:[animation-delay:100ms]">
           <button
             type="button"
             onClick={handleWorkbook}

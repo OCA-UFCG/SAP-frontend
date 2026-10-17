@@ -44,7 +44,7 @@ export function MonitoringMapOverlays({
           <div
             aria-live="polite"
             aria-label={t("loadingGeeLayer")}
-            className="flex items-center gap-3 rounded-full border border-white/25 bg-stone-950/78 px-5 py-3 text-sm font-medium text-white shadow-[0_18px_60px_rgba(0,0,0,0.35)] backdrop-blur-sm"
+            className="flex items-center gap-3 rounded-full border border-white/25 bg-stone-950/78 px-5 py-3 text-sm font-medium text-white shadow-[0_18px_60px_rgba(0,0,0,0.35)] backdrop-blur-sm motion-safe:animate-[panel-in_300ms_ease-out]"
             role="status"
           >
             <span
@@ -72,7 +72,13 @@ export function MonitoringMapOverlays({
           </div>
         )}
         {showControls && activeLegend && activeLegend.length > 0 && (
-          <PlatformMapCaption legend={activeLegend} />
+          // Trocar de índice remonta a legenda, que entra de novo subindo.
+          <div
+            key={activeEEData?.id ?? "legend"}
+            className="motion-safe:animate-[panel-in_420ms_cubic-bezier(0.2,0.7,0.2,1)]"
+          >
+            <PlatformMapCaption legend={activeLegend} />
+          </div>
         )}
       </div>
 

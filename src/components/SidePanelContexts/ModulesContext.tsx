@@ -455,7 +455,10 @@ export function ModulesContext({
       onScroll={handleScroll}
       className="h-full overflow-y-auto bg-[#F6F7F6] px-4 pt-12 pb-6"
     >
-      <div className="flex flex-col gap-6">
+      {/* Cada bloco sobe em cascata ao abrir a seção. A lista de categorias usa
+          `contents` para que cada acordeão entre na cascata por conta própria;
+          o espaçamento é o mesmo `gap-6` do pai. */}
+      <div className="panel-cascade flex flex-col gap-6">
         <ContextHeader />
 
         <div data-tour="spatial-scope">
@@ -465,7 +468,7 @@ export function ModulesContext({
           />
         </div>
 
-        <div className="flex flex-col gap-6">
+        <div className="contents">
           {groupedDatasets.map((group) => {
             const categoryKeyMap: Record<string, string> = {
               "dados climáticos": "climate",
