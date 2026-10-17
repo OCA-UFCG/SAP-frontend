@@ -90,6 +90,12 @@ export default async function RootLayout({
         ],
       },
     },
+    "about-section": {
+      id: "3",
+      name: t("about"),
+      path: "/sobre-o-sedes",
+      appears: true,
+    },
     "glossary-section": {
       id: "5",
       name: t("glossary"),
