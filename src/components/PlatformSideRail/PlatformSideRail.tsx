@@ -96,11 +96,11 @@ function usePendingApprovalsCount(enabled: boolean) {
 }
 
 /**
- * O gesto de cada ícone no hover e quando a seção é escolhida: o olho pisca, o
- * balão de conversa balança e o alvo pulsa. Os demais pulsam.
+ * O gesto de cada ícone no hover e quando a seção é escolhida: o balão de
+ * conversa balança e o alvo pulsa. Os demais pulsam; o olho pisca, em
+ * `BlinkingEyeIcon`.
  */
 const ICON_GESTURE: Record<string, string> = {
-  eye: "motion-safe:group-hover:animate-[icon-blink_450ms_ease-in-out]",
   "chat-bubble": "motion-safe:group-hover:animate-[icon-wiggle_600ms_ease-in-out]",
   target: "motion-safe:group-hover:animate-[icon-pulse_550ms_ease-in-out]",
 };
@@ -108,12 +108,45 @@ const DEFAULT_ICON_GESTURE =
   "motion-safe:group-hover:animate-[icon-pulse_550ms_ease-in-out]";
 
 const ICON_GESTURE_ON_SELECT: Record<string, string> = {
-  eye: "motion-safe:animate-[icon-blink_450ms_ease-in-out]",
   "chat-bubble": "motion-safe:animate-[icon-wiggle_600ms_ease-in-out]",
   target: "motion-safe:animate-[icon-pulse_550ms_ease-in-out]",
 };
 const DEFAULT_ICON_GESTURE_ON_SELECT =
   "motion-safe:animate-[icon-pulse_550ms_ease-in-out]";
+
+/**
+ * O olho de Monitoramento desenhado aqui, e não pelo sprite, para poder piscar:
+ * o contorno e a pupila achatam até sumir enquanto uma linha reta aparece no
+ * meio, como a pálpebra fechada, e depois o olho abre de novo.
+ */
+function BlinkingEyeIcon({ blinkNow }: { blinkNow: boolean }) {
+  const close = blinkNow
+    ? "motion-safe:animate-[eye-close_500ms_ease-in-out]"
+    : "motion-safe:group-hover:animate-[eye-close_500ms_ease-in-out]";
+  const lid = blinkNow
+    ? "motion-safe:animate-[eye-lid_500ms_ease-in-out]"
+    : "motion-safe:group-hover:animate-[eye-lid_500ms_ease-in-out]";
+
+  return (
+    <svg width={24} height={24} viewBox="0 0 22 15" aria-hidden>
+      <path
+        className={clsx("origin-center [transform-box:fill-box]", close)}
+        d="M11 2C14.79 2 18.17 4.13 19.82 7.5C18.17 10.87 14.8 13 11 13C7.2 13 3.83 10.87 2.18 7.5C3.83 4.13 7.21 2 11 2ZM11 0C6 0 1.73 3.11 0 7.5C1.73 11.89 6 15 11 15C16 15 20.27 11.89 22 7.5C20.27 3.11 16 0 11 0ZM11 5C12.38 5 13.5 6.12 13.5 7.5C13.5 8.88 12.38 10 11 10C9.62 10 8.5 8.88 8.5 7.5C8.5 6.12 9.62 5 11 5ZM11 3C8.52 3 6.5 5.02 6.5 7.5C6.5 9.98 8.52 12 11 12C13.48 12 15.5 9.98 15.5 7.5C15.5 5.02 13.48 3 11 3Z"
+        fill="currentColor"
+      />
+      <line
+        className={clsx("opacity-0", lid)}
+        x1={1}
+        y1={7.5}
+        x2={21}
+        y2={7.5}
+        stroke="currentColor"
+        strokeWidth={2}
+        strokeLinecap="round"
+      />
+    </svg>
+  );
+}
 
 function RailBadge({ count }: { count: number }) {
   const t = useTranslations("PlatformSideRail");
@@ -146,6 +179,10 @@ function RailItemContent({
       <div className="relative flex items-center justify-center">
         {isPending ? (
           <RailPendingSpinner />
+        ) : icon === "eye" ? (
+          <span className="flex transition-[translate] duration-300 ease-out group-hover:-translate-y-0.5">
+            <BlinkingEyeIcon blinkNow={isActive} />
+          </span>
         ) : (
           <span
             className={clsx(

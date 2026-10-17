@@ -165,15 +165,30 @@ textarea {
   }
 }
 
-/* Ícones da trilha lateral: cada seção tem um gesto próprio. */
-@keyframes icon-blink {
+/* Ícones da trilha lateral: cada seção tem um gesto próprio. A piscada do
+   olho tem duas partes: o olho fecha achatando até sumir e, nesse instante,
+   uma linha reta faz o papel da pálpebra fechada. */
+@keyframes eye-close {
   0%,
   100% {
     transform: none;
   }
-  35%,
-  50% {
-    transform: scaleY(0.1);
+  40%,
+  60% {
+    transform: scaleY(0);
+  }
+}
+
+@keyframes eye-lid {
+  0%,
+  30%,
+  70%,
+  100% {
+    opacity: 0;
+  }
+  40%,
+  60% {
+    opacity: 1;
   }
 }
 
