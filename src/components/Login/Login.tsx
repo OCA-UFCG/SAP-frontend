@@ -134,7 +134,7 @@ export const Login = ({
               {/* Fora do `signupOffered`: conta feita à mão também esquece a senha. */}
               <Link
                 href={FORGOT_PASSWORD_PATH}
-                className="self-end text-[12px] leading-4 text-[#777E32] underline underline-offset-2 hover:text-[#5B612A]"
+                className="self-end text-[12px] leading-4 text-[#5B612A] underline underline-offset-2 hover:text-[#21240F]"
               >
                 {t("forgotPassword")}
               </Link>
@@ -154,7 +154,7 @@ export const Login = ({
               {t("noAccount")}{" "}
               <Link
                 href={SIGNUP_PATH}
-                className="font-medium text-[#777E32] underline underline-offset-2 hover:text-[#5B612A]"
+                className="font-medium text-[#5B612A] underline underline-offset-2 hover:text-[#21240F]"
               >
                 {t("signUp")}
               </Link>

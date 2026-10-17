@@ -22,7 +22,9 @@ export const NavLink = ({
 }) => {
   const pathname = usePathname();
   const isActive = exact ? pathname === href : pathname.startsWith(href);
-  const newClassName = cn(className, isActive && 'text-[#777E32]');
+  // #5B612A e não #777E32: sobre o bege da barra o verde mais claro dava
+  // contraste 3,9 e reprovava no mínimo de 4,5 para texto deste tamanho.
+  const newClassName = cn(className, isActive && 'text-[#5B612A]');
 
   // A página atual é marcada pelo NavUnderline, e não pela borda do botão:
   // com as duas, o item atual mostrava dois traços no hover (e o foco do

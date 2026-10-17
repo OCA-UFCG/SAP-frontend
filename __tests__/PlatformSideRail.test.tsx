@@ -52,6 +52,27 @@ function renderOperatorRail() {
 }
 
 describe("PlatformSideRail", () => {
+  // O botão da setinha que recolhe o painel não tinha nome: o leitor de tela
+  // anunciava só "botão", sem dizer o que ele fazia.
+  it("diz no botão da setinha se ele recolhe ou abre o painel", () => {
+    const props = {
+      activeSection: "monitoring" as const,
+      onSectionChange: vi.fn(),
+      onTogglePanel: vi.fn(),
+    };
+    const { rerender } = render(<PlatformSideRail {...props} isPanelOpen />);
+
+    expect(
+      screen.getByRole("button", { name: "Recolher painel" }),
+    ).toHaveAttribute("aria-expanded", "true");
+
+    rerender(<PlatformSideRail {...props} isPanelOpen={false} />);
+
+    expect(
+      screen.getByRole("button", { name: "Abrir painel" }),
+    ).toHaveAttribute("aria-expanded", "false");
+  });
+
   // A trilha continua alta como a viewport nas telas que rolam (catálogo,
   // auditoria), mas não pode ultrapassar o container nas que cabem inteiras —
   // senão ela invade o rodapé que fica logo abaixo da plataforma.

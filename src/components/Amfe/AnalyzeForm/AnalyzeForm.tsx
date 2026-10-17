@@ -247,7 +247,11 @@ const AnalyzeForm = ({ setFormPayload }: AnalyzeFormProps) => {
             </div>
             <div className="grid grid-cols-2 gap-4">
               <div className="flex min-w-0 flex-col gap-1.5">
-                <label className={fieldLabelClass} style={{ color: text }}>
+                <label
+                  htmlFor="analyze-interest-area"
+                  className={fieldLabelClass}
+                  style={{ color: text }}
+                >
                   {t("interestAreaFieldLabel")}
                 </label>
                 <Controller
@@ -257,6 +261,7 @@ const AnalyzeForm = ({ setFormPayload }: AnalyzeFormProps) => {
                   render={({ field }) => (
                     <SelectField
                       {...field}
+                      id="analyze-interest-area"
                       className={selectClass}
                       style={{ color: text }}
                     >
@@ -276,7 +281,11 @@ const AnalyzeForm = ({ setFormPayload }: AnalyzeFormProps) => {
               </div>
 
               <div className="flex min-w-0 flex-col gap-1.5">
-                <label className={fieldLabelClass} style={{ color: text }}>
+                <label
+                  htmlFor="analyze-interest-area-value"
+                  className={fieldLabelClass}
+                  style={{ color: text }}
+                >
                   {t("interestAreaValueTitle")}
                 </label>
                 <Controller
@@ -286,6 +295,7 @@ const AnalyzeForm = ({ setFormPayload }: AnalyzeFormProps) => {
                   render={({ field }) => (
                     <SelectField
                       {...field}
+                      id="analyze-interest-area-value"
                       className={selectClass}
                       style={{ color: text }}
                     >
@@ -312,7 +322,7 @@ const AnalyzeForm = ({ setFormPayload }: AnalyzeFormProps) => {
             <div className={sectionHeaderClass}>
               <h2 className={sectionTitleClass} style={{ color: text }}>
                 <span className={sectionMarkerClass} />
-                <span>{t("analysisLevelTitle")}</span>
+                <span id="analyze-level-title">{t("analysisLevelTitle")}</span>
               </h2>
               <p className={sectionDescriptionClass} style={{ color: text }}>
                 {t("analysisLevelDesc")}
@@ -325,6 +335,7 @@ const AnalyzeForm = ({ setFormPayload }: AnalyzeFormProps) => {
               render={({ field }) => (
                 <SelectField
                   {...field}
+                  aria-labelledby="analyze-level-title"
                   className={selectClass}
                   style={{ color: text }}
                 >

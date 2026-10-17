@@ -273,7 +273,7 @@ export const Signup = ({
               {t("hasAccount")}{" "}
               <Link
                 href="/login"
-                className="font-medium text-[#777E32] underline underline-offset-2 hover:text-[#5B612A]"
+                className="font-medium text-[#5B612A] underline underline-offset-2 hover:text-[#21240F]"
               >
                 {t("signIn")}
               </Link>

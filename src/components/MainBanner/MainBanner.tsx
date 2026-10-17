@@ -107,16 +107,6 @@ export function MainBanner({ banners }: MainBannerProps) {
         </div>
       ))}
 
-      <div className="absolute opacity-[0.05] left-0 -translate-x-[38%] -translate-y-[32%] pointer-events-none">
-        <Image
-          src="/solar_icon.png"
-          alt=""
-          width={750}
-          height={750}
-          className="max-w-none w-[800px] lg:w-[1000px] h-auto scale-y-75 scale-x-90"
-        />
-      </div>
-
       {/* O padding de baixo deixa espaço para o card de números, que sobe
           80 px por cima do banner (BigNumbersSection). */}
       <div
