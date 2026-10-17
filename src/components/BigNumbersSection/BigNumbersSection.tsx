@@ -1,5 +1,5 @@
 import { HomeHighlightI } from "@/utils/interfaces";
-import { CountUp, Reveal } from "@/components/HomeMotion/HomeMotion";
+import { CountUp } from "@/components/HomeMotion/HomeMotion";
 import { revealOrder } from "@/components/HomeMotion/revealOrder";
 
 type Props = {
@@ -15,7 +15,13 @@ export const BigNumbersSection = ({ items }: Props) => {
   return (
     <section className="relative z-30 -mt-20 w-full bg-[linear-gradient(transparent_80px,#E4E5E2_80px)]">
       <div className="mx-auto w-full max-w-[1440px] px-4 md:px-10 lg:px-20">
-        <Reveal className="grid grid-cols-1 rounded-lg border border-[#EFEFEF] bg-white px-6 shadow-[0_12px_32px_rgba(33,36,15,0.08)] sm:grid-cols-2 lg:flex">
+        {/* Já nasce com `data-shown`, como o banner: o card está sempre na
+            primeira tela, e com o `Reveal` ele ficava em branco até o
+            JavaScript carregar (3,5 s num celular com 4G fraco). */}
+        <div
+          data-shown
+          className="grid grid-cols-1 rounded-lg border border-[#EFEFEF] bg-white px-6 shadow-[0_12px_32px_rgba(33,36,15,0.08)] sm:grid-cols-2 lg:flex"
+        >
           {items.map((item, index) => (
             <div
               key={item.label}
@@ -40,7 +46,7 @@ export const BigNumbersSection = ({ items }: Props) => {
               </div>
             </div>
           ))}
-        </Reveal>
+        </div>
       </div>
     </section>
   );

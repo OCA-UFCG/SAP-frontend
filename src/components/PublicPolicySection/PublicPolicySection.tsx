@@ -44,7 +44,7 @@ export const PublicPolicySection = ({
               {photos.map((photo, row) => (
                 <div
                   key={photo.src}
-                  className="reveal-item group relative w-full overflow-hidden rounded-lg border border-[#EFEFEF] transition-[translate,box-shadow] duration-300 hover:shadow-[0_16px_32px_rgba(63,67,36,0.2)] motion-safe:hover:-translate-y-1"
+                  className="reveal-item group relative w-full overflow-hidden rounded-lg border border-[#EFEFEF] bg-[#E4E5E2] transition-[translate,box-shadow] duration-300 hover:shadow-[0_16px_32px_rgba(63,67,36,0.2)] motion-safe:hover:-translate-y-1"
                   style={{
                     aspectRatio: `${photo.width} / ${photo.height}`,
                     ...revealOrder(column + row * 2),

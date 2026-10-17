@@ -77,14 +77,38 @@ type CountUpProps = {
 const isYear = (digits: string) => /^(19|20)\d{2}$/.test(digits);
 
 /**
+ * Se a página só fica interativa depois disto (celular lento, rede fraca), o
+ * número já apareceu sozinho pelo `.count-up-pending` do globals.css, e
+ * voltar a 0 para contar pareceria um erro.
+ */
+const LATE_HYDRATION_MS = 1000;
+
+/**
  * Conta de 0 até o valor quando o número entra na tela, mantendo o que vem
  * antes e depois (o "+" de "+20") e o separador de milhar do idioma.
+ *
+ * O HTML do servidor já traz o valor final, escondido até o JavaScript
+ * decidir: se ele chega rápido, conta; se demora, o valor aparece sozinho
+ * depois de 1 s. Antes o card mostrava "0" até a página ficar interativa.
  */
 export const CountUp = ({ value, durationMs = 1400 }: CountUpProps) => {
   const match = value.match(/^(\D*)([\d.,]+)(.*)$/);
   const digits = match?.[2].replace(/[.,]/g, "") ?? "";
   const target = Number(digits);
-  const animated = !!match && digits.length > 0 && !isYear(match[2]);
+  const hydrating = useSyncExternalStore(
+    noSubscription,
+    () => false,
+    () => true,
+  );
+  // Só na hidratação da página: vindo de outra página do site, sempre conta.
+  const [late] = useState(
+    () =>
+      typeof window !== "undefined" &&
+      hydrating &&
+      performance.now() > LATE_HYDRATION_MS,
+  );
+  const animated =
+    !!match && digits.length > 0 && !isYear(match[2]) && !hydrating && !late;
   const separator = match?.[2].match(/\d([.,])\d{3}\b/)?.[1];
 
   const [ref, shown] = useOnScreen<HTMLSpanElement>(0.6);
@@ -121,7 +145,9 @@ export const CountUp = ({ value, durationMs = 1400 }: CountUpProps) => {
   return (
     <span ref={ref} className="tabular-nums">
       <span className="sr-only">{value}</span>
-      <span aria-hidden>{shownValue}</span>
+      <span aria-hidden className={hydrating ? "count-up-pending" : undefined}>
+        {shownValue}
+      </span>
     </span>
   );
 };

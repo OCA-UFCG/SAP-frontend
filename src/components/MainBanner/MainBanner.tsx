@@ -6,6 +6,7 @@ import Image from "next/image";
 import { Link } from "@/translations/routing";
 import { useTranslations } from "next-intl";
 import { cn } from "@/lib/utils";
+import { contentfulImageLoader } from "@/utils/contentfulImageLoader";
 import { revealOrder } from "@/components/HomeMotion/revealOrder";
 import {
   CarouselArrow,
@@ -36,9 +37,9 @@ export function MainBanner({ banners }: MainBannerProps) {
   const t = useTranslations("MainBanner");
   const [active, setActive] = useState(0);
   const [paused, setPaused] = useState(false);
-  // O zoom lento da foto só começa quando ela carregou, para não começar
-  // "andando" sobre o fundo preto.
-  const [loaded, setLoaded] = useState(false);
+  // Fotos que já chegaram. O zoom lento só começa depois, para não "andar"
+  // sobre o fundo preto; as seguintes também só aparecem inteiras, em fade.
+  const [loaded, setLoaded] = useState<ReadonlySet<number>>(() => new Set());
   // Parado pelo botão de pausar: só volta a passar quando a pessoa aperta de
   // novo. Até ela apertar, quem pediu menos movimento no sistema vê parado.
   const reducedMotion = useSyncExternalStore(
@@ -65,6 +66,14 @@ export function MainBanner({ banners }: MainBannerProps) {
   if (!banners.length) return null;
   const goTo = (index: number) =>
     setActive((index + banners.length) % banners.length);
+  // Só a foto da vez baixa de início; a seguinte começa quando ela chega. Antes
+  // as cinco baixavam juntas e disputavam a rede com o resto da home no
+  // celular: fotos dos módulos e logos dos parceiros esperavam o banner.
+  const next = (active + 1) % banners.length;
+  const shouldMount = (index: number) =>
+    index === active ||
+    loaded.has(index) ||
+    (index === next && loaded.has(active));
 
   return (
     <section
@@ -85,18 +94,28 @@ export function MainBanner({ banners }: MainBannerProps) {
             index === active ? "opacity-100" : "opacity-0",
           )}
         >
-          <Image
-            src={data.image.url}
-            alt={t("imageAlt", { imageAlt: data.title || "" })}
-            fill
-            priority={index === 0}
-            unoptimized
-            onLoad={() => setLoaded(true)}
-            className={cn(
-              "object-cover object-center ease-out motion-safe:transition-[scale] motion-safe:duration-[9000ms]",
-              index === active && loaded && "motion-safe:scale-[1.08]",
-            )}
-          />
+          {shouldMount(index) && (
+            <Image
+              src={data.image.url}
+              loader={contentfulImageLoader}
+              sizes="100vw"
+              alt={t("imageAlt", { imageAlt: data.title || "" })}
+              fill
+              preload={index === 0}
+              onLoad={() =>
+                setLoaded((current) => new Set(current).add(index))
+              }
+              // A primeira não espera o JavaScript para aparecer: no celular
+              // ele pode levar segundos, e ela já chega leve.
+              className={cn(
+                "object-cover object-center [transition:opacity_600ms_ease-out,scale_9000ms_ease-out]",
+                index !== 0 && !loaded.has(index) && "opacity-0",
+                index === active &&
+                  loaded.has(index) &&
+                  "motion-safe:scale-[1.08]",
+              )}
+            />
+          )}
           <div
             className="absolute inset-0"
             style={{

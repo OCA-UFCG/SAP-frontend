@@ -5,6 +5,17 @@ import { usePathname, useRouter } from "@/translations/routing";
 import { useTranslations, useLocale } from "next-intl";
 import { Icon } from "../Icon/Icon";
 
+// A sigla é o que aparece no cabeçalho; o nome por extenso fica para a lista,
+// onde há espaço para quem não reconhece a sigla do próprio idioma. O menu do
+// celular (MenuModal) usa a mesma lista.
+export const LANGUAGES = [
+  { code: "pt", acronym: "PT-BR", name: "Português" },
+  { code: "en", acronym: "EN", name: "English" },
+  { code: "es", acronym: "ES", name: "Español" },
+] as const;
+
+export type LanguageCode = (typeof LANGUAGES)[number]["code"];
+
 export const LanguageSwitcher = () => {
   const t = useTranslations("LanguageSwitcher");
   const locale = useLocale();
@@ -26,21 +37,13 @@ export const LanguageSwitcher = () => {
     return () => document.removeEventListener("mousedown", handleClickOutside);
   }, []);
 
-  const handleLocaleChange = (nextLocale: "pt" | "en" | "es") => {
+  const handleLocaleChange = (nextLocale: LanguageCode) => {
     setIsOpen(false);
     router.replace(pathname, { locale: nextLocale });
   };
 
-  // A sigla é o que aparece no cabeçalho; o nome por extenso fica para a lista,
-  // onde há espaço para quem não reconhece a sigla do próprio idioma.
-  const languages = [
-    { code: "pt", acronym: "PT-BR", name: "Português" },
-    { code: "en", acronym: "EN", name: "English" },
-    { code: "es", acronym: "ES", name: "Español" },
-  ] as const;
-
   const activeLanguage =
-    languages.find((language) => language.code === locale) ?? languages[0];
+    LANGUAGES.find((language) => language.code === locale) ?? LANGUAGES[0];
 
   return (
     <div className="relative inline-block" ref={containerRef}>
@@ -87,7 +90,7 @@ export const LanguageSwitcher = () => {
           role="listbox"
           aria-label={t("changeLanguage")}
         >
-          {languages.map((lang, index) => (
+          {LANGUAGES.map((lang, index) => (
             <button
               key={lang.code}
               type="button"
