@@ -130,7 +130,7 @@ export const UseCasesSection = ({ id, title, items }: Props) => {
           {title}
         </h2>
 
-        <Spotlight className="spotlight-group flex flex-col gap-6 lg:gap-9">
+        <Spotlight className="flex flex-col gap-6 lg:gap-9">
           <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-[625fr_279.5fr_327.5fr] lg:grid-rows-[minmax(248px,auto)_minmax(248px,auto)]">
             {top.map((item, index) => (
               <TestimonialCard

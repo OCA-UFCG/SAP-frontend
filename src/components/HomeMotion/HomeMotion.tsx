@@ -132,18 +132,15 @@ type SpotlightProps = {
 };
 
 /**
- * Passa a posição do mouse ao próprio bloco e a cada `[data-spotlight]` de
- * dentro, em coordenadas de cada um, para a luz entre os cards e o halo do
- * card (globals.css) seguirem o ponteiro.
+ * Passa a posição do mouse a cada `[data-spotlight]` de dentro, em coordenadas
+ * do próprio card, para o halo do `spotlight-card` (globals.css) seguir o
+ * ponteiro.
  */
 export const Spotlight = ({ className, children }: SpotlightProps) => {
   const onPointerMove = (event: PointerEvent<HTMLDivElement>) => {
     if (event.pointerType !== "mouse") return;
-    const group = event.currentTarget;
-    const groupRect = group.getBoundingClientRect();
-    group.style.setProperty("--mx", `${event.clientX - groupRect.left}px`);
-    group.style.setProperty("--my", `${event.clientY - groupRect.top}px`);
-    const cards = group.querySelectorAll<HTMLElement>("[data-spotlight]");
+    const cards =
+      event.currentTarget.querySelectorAll<HTMLElement>("[data-spotlight]");
     cards.forEach((card) => {
       const rect = card.getBoundingClientRect();
       card.style.setProperty("--mx", `${event.clientX - rect.left}px`);

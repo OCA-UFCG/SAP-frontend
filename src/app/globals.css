@@ -117,33 +117,14 @@ textarea {
   }
 }
 
-/* Brilho que segue o mouse (componente Spotlight): uma luz no vão escuro
-   entre os cards e um halo dentro do card que está sob o ponteiro. */
-.spotlight-group {
-  position: relative;
-  isolation: isolate;
-}
-
-.spotlight-group::before,
+/* Brilho que segue o mouse (componente Spotlight): um halo dentro do card
+   que está sob o ponteiro. */
 .spotlight-card::before {
   content: "";
   position: absolute;
   pointer-events: none;
   opacity: 0;
   transition: opacity 400ms ease;
-}
-
-.spotlight-group::before {
-  inset: -24px;
-  z-index: -1;
-  background: radial-gradient(
-    360px circle at calc(var(--mx, 50%) + 24px) calc(var(--my, 50%) + 24px),
-    rgba(204, 207, 135, 0.55),
-    transparent 70%
-  );
-}
-
-.spotlight-card::before {
   inset: 0;
   z-index: 1;
   border-radius: inherit;
@@ -154,7 +135,6 @@ textarea {
   );
 }
 
-.spotlight-group:hover::before,
 .spotlight-card:hover::before {
   opacity: 1;
 }
