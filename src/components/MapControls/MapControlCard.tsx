@@ -44,6 +44,8 @@ export const MAP_CONTROL_LABEL_CLASS =
  * uma legenda de vinte classes não precisa existir no DOM enquanto está fechada.
  * `summary` é o contrário: fica logo abaixo do cabeçalho mesmo com o cartão
  * fechado — Territórios mostra ali o território escolhido na busca.
+ * `defaultOpen` faz o cartão nascer aberto — Legendas usa isso para aparecer
+ * junto com o índice que a pessoa acabou de ligar.
  *
  * @example
  * <MapControlDisclosure label="Legendas">{() => itens}</MapControlDisclosure>
@@ -53,13 +55,15 @@ export function MapControlDisclosure({
   children,
   onOpen,
   summary,
+  defaultOpen = false,
 }: {
   label: string;
   children: () => ReactNode;
   onOpen?: () => void;
   summary?: ReactNode;
+  defaultOpen?: boolean;
 }) {
-  const [isOpen, setIsOpen] = useState(false);
+  const [isOpen, setIsOpen] = useState(defaultOpen);
 
   return (
     <MapControlCard ariaLabel={label}>
