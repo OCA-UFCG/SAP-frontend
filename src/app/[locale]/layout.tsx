@@ -25,7 +25,6 @@ const openSans = Open_Sans({
 export const metadata: Metadata = {
   title: "Portal SEDES",
   description: "Portal SEDES criado por OCA",
-  manifest: "/manifest.json",
   icons: {
     icon: [
       { url: "/favicon.svg", type: "image/svg+xml" },
