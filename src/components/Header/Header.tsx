@@ -15,7 +15,7 @@ export const Header = ({ content }: { content: ISection[] }) => {
           <div className="absolute flex items-center justify-center top-0 left-0 z-50 h-20.5 bg-[#989F43] w-44 transition-colors duration-300 has-[a:hover]:bg-[#777E32]">
             <Link
               href="/"
-              className="group/logo relative z-10 transition-[scale] duration-300 ease-out motion-safe:hover:scale-105"
+              className="group/logo relative z-10"
             >
               <SedesLogo className="h-12 w-auto overflow-visible" />
             </Link>
