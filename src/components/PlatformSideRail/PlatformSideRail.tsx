@@ -201,7 +201,7 @@ function RailItemContent({
         {badge > 0 && !isPending ? <RailBadge count={badge} /> : null}
       </div>
 
-      <div className="text-[12px] leading-[14px] font-medium text-center break-words w-full">
+      <div className="text-[12px] leading-[14px] font-medium text-center break-words w-full max-md:text-[11px]">
         {label}
       </div>
     </>
@@ -291,27 +291,38 @@ export function PlatformSideRail({
 
   // Um destaque só, que desliza até a seção escolhida, em vez de um fundo que
   // some num item e aparece no outro. Mede o item atual e move o destaque por
-  // estilo direto, sem estado, para não renderizar a trilha duas vezes.
+  // estilo direto, sem estado, para não renderizar a trilha duas vezes. Mede
+  // nos dois eixos porque no celular a trilha vira a barra de baixo, e mede de
+  // novo quando a lista muda de tamanho (girar o celular troca o layout).
   useLayoutEffect(() => {
     const indicator = indicatorRef.current;
-    const current = listRef.current?.querySelector<HTMLElement>(
-      '[aria-current="page"]',
-    );
-    if (!indicator) return;
+    const list = listRef.current;
+    if (!indicator || !list) return;
 
-    if (!current) {
-      indicator.style.opacity = "0";
-      return;
-    }
+    const place = () => {
+      const current = list.querySelector<HTMLElement>('[aria-current="page"]');
 
-    indicator.style.translate = `0 ${current.offsetTop}px`;
-    indicator.style.height = `${current.offsetHeight}px`;
-    indicator.style.opacity = "1";
-    // Na primeira medida o destaque já nasce no lugar; só depois ele desliza.
-    if (!indicator.dataset.ready) {
-      void indicator.offsetHeight;
-      indicator.dataset.ready = "true";
-    }
+      if (!current) {
+        indicator.style.opacity = "0";
+        return;
+      }
+
+      indicator.style.translate = `${current.offsetLeft}px ${current.offsetTop}px`;
+      indicator.style.width = `${current.offsetWidth}px`;
+      indicator.style.height = `${current.offsetHeight}px`;
+      indicator.style.opacity = "1";
+      // Na primeira medida o destaque já nasce no lugar; só depois ele desliza.
+      if (!indicator.dataset.ready) {
+        void indicator.offsetHeight;
+        indicator.dataset.ready = "true";
+      }
+    };
+
+    place();
+    if (typeof ResizeObserver === "undefined") return;
+    const observer = new ResizeObserver(place);
+    observer.observe(list);
+    return () => observer.disconnect();
   }, [activeSection, compact]);
 
   const items: PlatformRailItem[] = [
@@ -357,7 +368,10 @@ export function PlatformSideRail({
       className={clsx(
         // `top-16.5` acompanha a altura real do cabeçalho; `max-h-full` impede
         // que a trilha ultrapasse a casca e invada o rodapé nas telas que rolam.
+        // No celular não cabe uma coluna de 124px ao lado do painel: a trilha
+        // vira uma barra presa embaixo da tela, como as abas de um app.
         `sticky top-16.5 relative max-h-full w-[124px] shrink-0 self-start ${PLATFORM_SHELL_HEIGHT_CLASS}`,
+        "max-md:fixed max-md:inset-x-0 max-md:bottom-0 max-md:top-auto max-md:z-40 max-md:h-16 max-md:max-h-none max-md:w-full",
         className,
       )}
       data-platform-side-rail
@@ -366,6 +380,7 @@ export function PlatformSideRail({
         className={clsx(
           "flex h-full w-full flex-col border-r border-[#EFEFEF] bg-white px-[16px] pb-[18px]",
           compact ? "pt-[24px]" : "pt-[48px]",
+          "max-md:flex-row max-md:border-r-0 max-md:border-t max-md:p-1 max-md:shadow-[0_-4px_16px_rgba(33,36,15,0.06)]",
         )}
       >
         <div
@@ -373,13 +388,14 @@ export function PlatformSideRail({
           className={clsx(
             "relative w-[92px] min-h-0 flex-1 flex flex-col overflow-y-auto [scrollbar-width:thin]",
             compact ? "gap-2" : "gap-4",
+            "max-md:w-auto max-md:min-w-0 max-md:flex-row max-md:gap-0 max-md:overflow-x-auto max-md:overflow-y-hidden",
           )}
           data-tour="platform-sections"
         >
           <span
             ref={indicatorRef}
             aria-hidden
-            className="pointer-events-none absolute left-0 top-0 w-full rounded-lg bg-[#E1E2B4] opacity-0 shadow-[inset_0_0_0_1px_rgba(152,159,67,0.25)] data-[ready]:transition-[translate,height,opacity] data-[ready]:duration-500 data-[ready]:ease-[cubic-bezier(0.34,1.4,0.64,1)]"
+            className="pointer-events-none absolute left-0 top-0 w-full rounded-lg bg-[#E1E2B4] opacity-0 shadow-[inset_0_0_0_1px_rgba(152,159,67,0.25)] data-[ready]:transition-[translate,width,height,opacity] data-[ready]:duration-500 data-[ready]:ease-[cubic-bezier(0.34,1.4,0.64,1)]"
           />
           {items.map((item, index) => {
             const isActive =
@@ -394,6 +410,7 @@ export function PlatformSideRail({
                 className={clsx(
                   "w-full shrink-0 flex flex-col items-center",
                   index !== 0 && "border-t border-[#ECECEC]",
+                  "max-md:w-auto max-md:min-w-16 max-md:flex-1 max-md:border-t-0",
                 )}
               >
                 {item.kind === "section" ? (
@@ -405,8 +422,9 @@ export function PlatformSideRail({
                     aria-current={isActive ? "page" : undefined}
                     aria-busy={pendingSection === item.id || undefined}
                     className={clsx(
-                      "group relative cursor-pointer w-full flex flex-col items-center justify-center gap-[4px] px-[4px] rounded-lg transition-colors duration-150",
+                      "group relative cursor-pointer w-full flex flex-col items-center justify-center gap-[4px] px-[4px] max-md:px-0.5 rounded-lg transition-colors duration-150",
                       itemHeightClass,
+                      "max-md:h-full",
                       isActive
                         ? "text-[#5B612A]"
                         : "text-[#292829] hover:bg-[#F8F7F8]",
@@ -424,8 +442,9 @@ export function PlatformSideRail({
                     href={item.href}
                     aria-current={isActive ? "page" : undefined}
                     className={clsx(
-                      "group relative w-full flex flex-col items-center justify-center gap-[4px] px-[4px] rounded-lg transition-colors duration-150",
+                      "group relative w-full flex flex-col items-center justify-center gap-[4px] px-[4px] max-md:px-0.5 rounded-lg transition-colors duration-150",
                       itemHeightClass,
+                      "max-md:h-full",
                       isActive
                         ? "text-[#5B612A]"
                         : "text-[#292829] hover:bg-[#F8F7F8]",
@@ -452,7 +471,7 @@ export function PlatformSideRail({
             onClick={onReplayTour}
             aria-label={tTour("replayLabel")}
             data-tour="platform-tour-replay"
-            className="group mt-3 flex w-[92px] shrink-0 cursor-pointer flex-col items-center justify-center gap-[4px] rounded-lg px-[8px] py-[10px] text-[#292829] transition-colors duration-150 hover:bg-[#F8F7F8]"
+            className="group mt-3 flex w-[92px] shrink-0 cursor-pointer flex-col items-center justify-center gap-[4px] rounded-lg px-[8px] py-[10px] text-[#292829] transition-colors duration-150 hover:bg-[#F8F7F8] max-md:mt-0 max-md:w-auto max-md:min-w-16 max-md:py-0"
           >
             <span className="flex motion-safe:group-hover:animate-[icon-wiggle_600ms_ease-in-out]">
               <HelpIcon />
@@ -468,7 +487,7 @@ export function PlatformSideRail({
         activeSection !== "logs" &&
         activeSection !== "catalog" && (
           <div
-            className={`absolute top-1/2 -translate-y-1/2 transition-[right] duration-300 ease-in-out ${isPanelOpen ? "-right-[464px]" : "-right-[39px]"}`}
+            className={`absolute top-1/2 -translate-y-1/2 transition-[right] duration-300 ease-in-out max-md:hidden ${isPanelOpen ? "-right-[464px]" : "-right-[39px]"}`}
           >
             <button
               type="button"

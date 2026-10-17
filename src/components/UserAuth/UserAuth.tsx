@@ -49,14 +49,14 @@ export const UserAuth = () => {
   const sessionValue = user?.email || t("disconnected");
 
   return (
-    <div className="flex items-center gap-4">
+    <div className="flex items-center gap-4 max-sm:gap-1">
       <LanguageSwitcher />
 
       {!user ? (
         <button
           type="button"
           onClick={handleLogin}
-          className="flex h-10 cursor-pointer items-center rounded-md px-4 py-2 font-medium text-neutral-800 transition-[background-color,color,box-shadow,scale] duration-300 hover:bg-[#989F43] hover:text-[#F8F7F8] hover:shadow-[0_6px_16px_rgba(152,159,67,0.35)] focus:outline-none focus:ring-2 focus:ring-[#777E32] active:scale-[0.97]"
+          className="flex h-10 cursor-pointer items-center rounded-md px-4 max-sm:px-3 py-2 font-medium text-neutral-800 transition-[background-color,color,box-shadow,scale] duration-300 hover:bg-[#989F43] hover:text-[#F8F7F8] hover:shadow-[0_6px_16px_rgba(152,159,67,0.35)] focus:outline-none focus:ring-2 focus:ring-[#777E32] active:scale-[0.97]"
         >
           {t("login")}
         </button>

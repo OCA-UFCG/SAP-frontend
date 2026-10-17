@@ -2,6 +2,7 @@
 
 import type { ReactNode } from "react";
 import { useState } from "react";
+import { useTranslations } from "next-intl";
 import { MapLayerProvider } from "@/components/MapLayerContext/MapLayerContext";
 import { AmfeAnalysisProvider } from "@/components/Amfe/AmfeAnalysisContext";
 import { AmfeAnalysisFormColumn } from "@/components/Amfe/AmfeAnalysisFormColumn";
@@ -57,6 +58,64 @@ function resolveMapSection(activeSection: PlatformSection): PlatformMapSection {
   return "monitoring";
 }
 
+/**
+ * No celular não cabem as opções e o resultado lado a lado, então a tela mostra
+ * um de cada vez: "options" é o painel (ou o formulário da Priorização) e
+ * "result" é o que está por baixo dele — o mapa, ou o relatório na Comunicação.
+ */
+type MobileView = "options" | "result";
+
+/**
+ * O botão flutuante que troca entre as opções e o resultado no celular. Some no
+ * computador, onde os dois já aparecem juntos.
+ */
+function MobileViewToggle({
+  section,
+  view,
+  onChange,
+}: {
+  section: PlatformSection;
+  view: MobileView;
+  onChange: (next: MobileView) => void;
+}) {
+  const t = useTranslations("PlatformSideRail");
+  const showsOptions = view === "options";
+  const label = !showsOptions
+    ? t("mobileShowOptions")
+    : section === "communication"
+      ? t("mobileShowReport")
+      : t("mobileShowMap");
+
+  return (
+    <button
+      type="button"
+      onClick={() => onChange(showsOptions ? "result" : "options")}
+      className="fixed bottom-20 left-1/2 z-40 flex h-11 -translate-x-1/2 cursor-pointer items-center gap-2 rounded-full bg-[#5B612A] px-5 text-sm font-semibold text-white shadow-[0_8px_24px_rgba(33,36,15,0.3)] transition-[scale] duration-200 active:scale-95 md:hidden"
+    >
+      <svg
+        width="18"
+        height="18"
+        viewBox="0 0 24 24"
+        fill="none"
+        stroke="currentColor"
+        strokeWidth="2"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+        aria-hidden
+      >
+        {showsOptions ? (
+          // Mapa dobrado: vai para o mapa (ou para o relatório).
+          <path d="M9 4 3 6v14l6-2 6 2 6-2V4l-6 2-6-2Zm0 0v14m6-12v14" />
+        ) : (
+          // Lista: volta para as opções.
+          <path d="M8 6h13M8 12h13M8 18h13M3 6h.01M3 12h.01M3 18h.01" />
+        )}
+      </svg>
+      {label}
+    </button>
+  );
+}
+
 export function PlatformLayout({
   showAuditLink = false,
   initialSection = "monitoring",
@@ -82,15 +141,41 @@ export function PlatformLayout({
     setActiveSection(initialSection);
   }
 
+  // Quem chega por um link de relatório quer ver o relatório; os demais
+  // começam pelas opções. Um relatório novo pedido pelo formulário chega como
+  // outra URL, e aí a tela vai sozinha para ele.
+  const reportRequest =
+    props.viewMode === "logs" || props.viewMode === "catalog"
+      ? undefined
+      : props.reportRequest;
+  const reportKey = reportRequest ? JSON.stringify(reportRequest) : "";
+  const [mobileView, setMobileView] = useState<MobileView>(
+    reportKey && initialSection === "communication" ? "result" : "options",
+  );
+  const [seenReportKey, setSeenReportKey] = useState(reportKey);
+  if (seenReportKey !== reportKey) {
+    setSeenReportKey(reportKey);
+    if (reportKey) setMobileView("result");
+  }
+
+  function handleActiveSectionChange(next: PlatformSection) {
+    setActiveSection(next);
+    setMobileView("options");
+  }
+
   return (
     <MapLayerProvider>
       <AmfeAnalysisProvider>
         {/* Toda seção começa na mesma altura: o que sobra da viewport abaixo do
             cabeçalho. O rodapé vem logo depois, fora da dobra, e só aparece
             quando a pessoa rola. */}
+        {/* No celular a casca termina onde começa a barra de seções (h-16),
+            e `dvh` acompanha a barra de endereço do navegador, que aparece e
+            some ao rolar. */}
         <div
           data-platform-shell
-          className={`relative flex w-full flex-col bg-neutral-50 ${PLATFORM_SHELL_MIN_HEIGHT_CLASS}`}
+          data-mobile-view={mobileView}
+          className={`group/shell relative flex w-full flex-col bg-neutral-50 ${PLATFORM_SHELL_MIN_HEIGHT_CLASS} max-md:min-h-[calc(100dvh-66px-4rem)]`}
         >
           {isLogsView ? (
             <div data-testid="platform-logs-shell" className="w-full">
@@ -111,7 +196,11 @@ export function PlatformLayout({
                 section={resolveMapSection(activeSection)}
                 showMonitoringControls={activeSection === "monitoring"}
               />
-              {activeSection === "analysis" && <AmfeAnalysisFormColumn />}
+              {activeSection === "analysis" && (
+                <AmfeAnalysisFormColumn
+                  onAnalyze={() => setMobileView("result")}
+                />
+              )}
             </>
           )}
           <PlatformSidebar
@@ -130,8 +219,15 @@ export function PlatformLayout({
                 ? undefined
                 : props.reportRequest
             }
-            onActiveSectionChange={setActiveSection}
+            onActiveSectionChange={handleActiveSectionChange}
           />
+          {!isLogsView && !isCatalogView && (
+            <MobileViewToggle
+              section={activeSection}
+              view={mobileView}
+              onChange={setMobileView}
+            />
+          )}
         </div>
       </AmfeAnalysisProvider>
     </MapLayerProvider>
