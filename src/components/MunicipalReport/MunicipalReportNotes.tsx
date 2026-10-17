@@ -26,10 +26,16 @@ import {
  */
 export function MunicipalReportNotes({
   analyses,
+  extraNotes = [],
   docsContent,
   locale,
 }: {
   analyses: readonly MunicipalReportAnalysis[];
+  /**
+   * Notas que não são de uma análise só — a de uma previsão climática cobre
+   * todos os tipos da seção dela, em vez de repetir o texto por tipo.
+   */
+  extraNotes?: readonly { key: string; title: string; text: string }[];
   docsContent: MunicipalReportDocsContent | null;
   locale: string;
 }) {
@@ -71,6 +77,11 @@ export function MunicipalReportNotes({
             </p>
           );
         })}
+        {extraNotes.map((note) => (
+          <p key={note.key} className="whitespace-pre-line">
+            <strong>{note.title}:</strong> {note.text}
+          </p>
+        ))}
         <p className="whitespace-pre-line">
           <strong>{t("document.legalReferenceLabel")}:</strong>{" "}
           {reportText("Referência legal", t("document.legalReferenceValue"))}

@@ -390,6 +390,114 @@ describe("MunicipalReportPreview", () => {
     );
   });
 
+  it("junta as previsões da mesma fonte, variável e periodicidade numa seção só", async () => {
+    const forecastClasses = [
+      { id: "abaixo", label: "Levemente abaixo", color: "#F5E199" },
+      { id: "acima", label: "Levemente acima", color: "#B9D8E7" },
+    ];
+    const forecastSnapshot = (
+      period: string,
+      abaixo: number,
+    ): MunicipalReportPeriodSnapshot => {
+      const distribution = [
+        { ...forecastClasses[0], percentage: abaixo },
+        { ...forecastClasses[1], percentage: 100 - abaixo },
+      ];
+      return {
+        period,
+        label: period,
+        distribution,
+        dominantClass: abaixo >= 50 ? distribution[0] : distribution[1],
+      };
+    };
+    const forecast = (id: string, kind: string, abaixo: number) => ({
+      id,
+      alias: id,
+      title: `Previsão: ${kind} Precipitação Mensal | INMET`,
+      category: "Dados Climáticos",
+      unit: "%",
+      valueType: "percentage" as const,
+      status: "available" as const,
+      requestedPeriod: "2026-12",
+      effectivePeriod: "2026-12",
+      classes: forecastClasses,
+      snapshot: forecastSnapshot("2026-12", abaixo),
+      timeSeries: [
+        forecastSnapshot("2026-11", 40),
+        forecastSnapshot("2026-12", abaixo),
+      ],
+      presentation: { methodology: "Modelo atmosférico do INMET." },
+      forecast: {
+        source: "INMET",
+        variable: "Precipitação",
+        kind,
+        periodicity: "monthly" as const,
+      },
+    });
+    const forecastReport: MunicipalReportData = {
+      ...report,
+      requestedPeriod: "2026-12",
+      analyses: [
+        forecast("prob", "Probabilidade", 10),
+        forecast("anom", "Anomalia", 71.7),
+        report.analyses[0],
+        forecast("acum", "Acumulado", 0),
+      ],
+    };
+    vi.mocked(global.fetch).mockImplementation(async (input) => {
+      const url = String(input);
+      if (url.includes("/docs?")) return Response.json({ content: {} });
+      if (url.includes("/api/ee/map-urls")) return Response.json({ maps: [] });
+      return Response.json(forecastReport);
+    });
+
+    render(
+      <MunicipalReportPreview locationKey="5200050" period="2026-12" embedded />,
+    );
+
+    expect(await screen.findByRole("article")).toBeInTheDocument();
+    const sections = document.querySelectorAll(".report-section");
+    expect([...sections].map((section) => section.id)).toEqual([
+      "report-analysis-previsao_inmet_precipitacao_monthly",
+      "report-analysis-seca",
+    ]);
+    // Uma linha no sumário e um título na seção, no lugar de três de cada.
+    expect(screen.getAllByText("Previsão: Precipitação (INMET)")).toHaveLength(
+      2,
+    );
+    expect(
+      screen.getByRole("link", {
+        name: /Ir para a seção de Previsão: Precipitação \(INMET\)/,
+      }),
+    ).toHaveAttribute(
+      "href",
+      "#report-analysis-previsao_inmet_precipitacao_monthly",
+    );
+
+    const group = sections[0] as HTMLElement;
+    expect(group.textContent).toContain(
+      "No município de Abadia de Goiás — GO, para dezembro de 2026, a previsão de precipitação do INMET indica anomalia na faixa Levemente abaixo, em 71,70% da área analisada, acumulado na faixa Levemente acima, em 100,00% da área analisada e probabilidade na faixa Levemente acima, em 90,00% da área analisada.",
+    );
+    // Uma barra por período em cada tipo, com o de referência destacado.
+    expect(group.querySelectorAll("[data-report-forecast-bar]")).toHaveLength(
+      6,
+    );
+    expect(
+      group.querySelectorAll('[data-report-forecast-bar="2026-12"][data-reference]'),
+    ).toHaveLength(3);
+    // A nota que os três tipos dividem aparece uma vez na seção e uma nas notas.
+    expect(screen.getAllByText(/Modelo atmosférico do INMET\./)).toHaveLength(
+      2,
+    );
+    await waitFor(() => {
+      expect(
+        new Set(
+          reportMapPreviewRenderSpy.mock.calls.map(([props]) => props.layerId),
+        ),
+      ).toEqual(new Set(["anaseca", "anom", "acum", "prob"]));
+    });
+  });
+
   it("leva o pedido do relatório no link Ver produto, para a volta não perdê-lo", async () => {
     render(
       <MunicipalReportPreview

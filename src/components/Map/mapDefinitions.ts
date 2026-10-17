@@ -41,6 +41,11 @@ export const GEE_LAYER_ID = "gee-layer";
 export const REPORT_TERRITORY_OUTLINE_SOURCE_ID = "report-territory-outline";
 export const REPORT_TERRITORY_OUTLINE_LAYER_ID =
   "report-territory-outline-line";
+/**
+ * O véu sobre os municípios vizinhos, que recorta o mapa pelo contorno do
+ * município do relatório. Sai junto com o contorno ao devolver o mapa.
+ */
+export const REPORT_TERRITORY_MASK_LAYER_ID = "report-territory-mask";
 export const SPATIAL_BOUNDARY_SOURCE_ID = "spatial-boundary";
 export const SPATIAL_BOUNDARY_LAYER_ID = "spatial-boundary-outline";
 export const REF_OVERLAY_SOURCE_PREFIX = "ref-overlay-src-";

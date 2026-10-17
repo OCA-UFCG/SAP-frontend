@@ -43,6 +43,7 @@ import {
   resolveReportSeverity,
 } from "@/utils/reportVariableProfile";
 import type { TimingObserver } from "@/utils/serverTiming";
+import { hasSeasonalPeriods } from "@/utils/seasonalPeriod";
 
 export interface MunicipalReportServiceDependencies {
   layers?: readonly MunicipalReportLayerConfig[];
@@ -110,6 +111,14 @@ async function resolveReportLayers(
       baseImageData: isCompactImageData(layer.imageData)
         ? layer.imageData
         : undefined,
+      ...(layer.forecastFacets
+        ? {
+            forecast: {
+              ...layer.forecastFacets,
+              periodicity: hasSeasonalPeriods(layer) ? "quarterly" : "monthly",
+            },
+          }
+        : {}),
     };
   });
 }
@@ -274,6 +283,7 @@ function unavailable(
     ...(config.reportPresentation
       ? { presentation: config.reportPresentation }
       : {}),
+    ...(config.forecast ? { forecast: config.forecast } : {}),
   };
 }
 
@@ -563,6 +573,7 @@ export async function buildMunicipalReport(
             ? { presentation: config.reportPresentation }
             : {}),
           ...(mapChoropleth ? { mapChoropleth } : {}),
+          ...(config.forecast ? { forecast: config.forecast } : {}),
         };
       } catch (error) {
         console.error(

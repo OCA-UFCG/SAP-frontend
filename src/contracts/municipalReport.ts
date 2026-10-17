@@ -46,6 +46,19 @@ export interface MunicipalReportAnalysis {
    * Campo aditivo e opcional, ausente nos índices do Earth Engine.
    */
   mapChoropleth?: { palette: string[]; thresholds: number[] };
+  /**
+   * Onde a análise fica entre as previsões climáticas: as camadas com a mesma
+   * fonte, variável e periodicidade viram uma seção só no documento, com um
+   * painel por tipo. Campo aditivo e opcional, ausente fora das previsões.
+   */
+  forecast?: MunicipalReportForecastFacets;
+}
+
+export interface MunicipalReportForecastFacets {
+  source: string;
+  variable: string;
+  kind: string;
+  periodicity: "monthly" | "quarterly";
 }
 
 export type MunicipalReportTemplateValue = string | number | null;

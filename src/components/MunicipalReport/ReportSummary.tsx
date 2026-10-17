@@ -43,7 +43,9 @@ function handleAnchorClick(
  * desenho do design: climáticos à esquerda, ambientais e socioeconômicos à
  * direita.
  */
-function splitIntoColumns(groups: readonly ReportCategoryGroup[]) {
+function splitIntoColumns<T extends ReportSummaryItem>(
+  groups: readonly ReportCategoryGroup<T>[],
+) {
   const total = groups.reduce((sum, group) => sum + group.analyses.length, 0);
   let leftCount = 0;
   let leftGroups = 0;
@@ -59,13 +61,22 @@ function splitIntoColumns(groups: readonly ReportCategoryGroup[]) {
   return [groups.slice(0, leftGroups), groups.slice(leftGroups)];
 }
 
-export function ReportSummary({
+/**
+ * Uma linha do sumário: uma análise, ou a seção que junta as previsões de uma
+ * mesma fonte e variável.
+ */
+export type ReportSummaryItem = Pick<
+  MunicipalReportAnalysis,
+  "id" | "alias" | "category"
+>;
+
+export function ReportSummary<T extends ReportSummaryItem>({
   analyses,
   translateTitle,
   pages,
 }: {
-  analyses: readonly MunicipalReportAnalysis[];
-  translateTitle: (analysis: MunicipalReportAnalysis) => string;
+  analyses: readonly T[];
+  translateTitle: (analysis: T) => string;
   /**
    * A página do PDF em que cada seção começa, pelo id da âncora. Fica vazia
    * até a medição terminar; a coluna do número tem largura fixa para que
