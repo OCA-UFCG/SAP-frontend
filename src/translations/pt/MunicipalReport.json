@@ -38,6 +38,7 @@
     "loading": "Carregando dados do relatório...",
     "loadingHint": "Isso pode levar alguns segundos, dependendo dos módulos selecionados.",
     "loadError": "Não foi possível carregar o relatório",
+    "serverError": "O servidor não respondeu a tempo. Tente de novo em alguns instantes.",
     "missingParameters": "Município e período são obrigatórios.",
     "reportLabel": "Relatório analítico territorial",
     "ibgeCode": "Código IBGE",

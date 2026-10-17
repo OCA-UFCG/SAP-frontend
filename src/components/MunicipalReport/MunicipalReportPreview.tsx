@@ -787,6 +787,7 @@ export function MunicipalReportPreview({
     [requestedMaps],
   );
   const loadErrorMessage = t("loadError");
+  const serverErrorMessage = t("serverError");
   // No relatório de um município, todos os mapas mostram o mesmo recorte, e
   // cada camada vem do Earth Engine como uma imagem só dele em vez de tiles.
   const territoryKey = report
@@ -1022,7 +1023,11 @@ export function MunicipalReportPreview({
           `/api/municipal-report/${encodeURIComponent(locationKey)}?${reportParams.toString()}`,
           { credentials: "same-origin", signal: controller.signal },
         );
-        const payload = await response.json();
+        // Um erro do proxy (502, 504) chega como página HTML: lida como JSON,
+        // virava "Unexpected token '<'" na tela de quem pediu o relatório.
+        const payload = await response.json().catch(() => {
+          throw new Error(serverErrorMessage);
+        });
         finishBaseReport("Relatório-base", {
           response,
           detalhes: `${layerIdsKey ? layerIdsKey.split(",").length : "todas"} camada(s) solicitada(s)`,
@@ -1107,6 +1112,7 @@ export function MunicipalReportPreview({
     locationKey,
     period,
     resetMapCaptureQueue,
+    serverErrorMessage,
   ]);
 
   const visibleError = hasRequiredParameters ? error : null;

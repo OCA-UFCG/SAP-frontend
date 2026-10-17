@@ -176,6 +176,37 @@ describe("MunicipalReportPreview", () => {
     vi.restoreAllMocks();
   });
 
+  // Regressão: com 39 camadas o nginx do beta devolvia uma página HTML de 502,
+  // e a tela mostrava "Unexpected token '<' ... is not valid JSON".
+  it("explica o erro do servidor em vez de mostrar a falha de leitura do JSON", async () => {
+    global.fetch = vi.fn(
+      async () =>
+        new Response(
+          "<html><head><title>502 Bad Gateway</title></head></html>",
+          {
+            status: 502,
+            headers: { "Content-Type": "text/html" },
+          },
+        ),
+    );
+
+    render(
+      <MunicipalReportPreview
+        locationKey="5200050"
+        period="2026"
+        layerIds={["anaseca"]}
+        embedded
+      />,
+    );
+
+    expect(
+      await screen.findByText(
+        "O servidor não respondeu a tempo. Tente de novo em alguns instantes.",
+      ),
+    ).toBeInTheDocument();
+    expect(screen.queryByText(/Unexpected token/)).not.toBeInTheDocument();
+  });
+
   it("renders the report with PDF download and zoom controls", async () => {
     const user = userEvent.setup();
 
