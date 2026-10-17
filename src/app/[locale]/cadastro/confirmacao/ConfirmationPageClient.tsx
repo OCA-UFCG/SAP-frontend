@@ -129,7 +129,7 @@ export function ConfirmationPageClient() {
         {outcome !== "approved" ? (
           <Link
             href="/"
-            className="text-[13px] leading-5 text-[#777E32] underline underline-offset-2 hover:text-[#5B612A]"
+            className="text-[13px] leading-5 text-[#5B612A] underline underline-offset-2 hover:text-[#21240F]"
           >
             {t("backHome")}
           </Link>

@@ -472,6 +472,8 @@ export function PlatformSideRail({
           >
             <button
               type="button"
+              aria-label={isPanelOpen ? t("collapsePanel") : t("expandPanel")}
+              aria-expanded={isPanelOpen}
               onClick={onTogglePanel}
               className="group h-10 w-10 rounded-r-lg border border-neutral-200 bg-white shadow-sm flex items-center justify-center transition-[background-color,box-shadow] duration-200 hover:bg-[#F5F6EE] hover:shadow-md"
             >

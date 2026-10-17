@@ -238,8 +238,11 @@ export function PlatformSidebar({
 
   return (
     <MonitoringListStateProvider>
+      {/* As listas do painel rolam sozinhas: ao chegar ao fim, a rolagem
+          para ali em vez de passar para a página, que descia junto e tirava
+          o cabeçalho e o mapa do lugar para mostrar o rodapé. */}
       <aside
-        className="absolute left-0 top-0 z-20 flex h-full"
+        className="absolute left-0 top-0 z-20 flex h-full [&_.overflow-y-auto]:overscroll-contain"
         data-platform-sidebar-overlay
       >
         <PlatformSideRail
