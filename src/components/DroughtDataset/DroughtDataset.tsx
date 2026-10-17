@@ -125,7 +125,7 @@ export function DroughtDataset({
                 "flex flex-row justify-center items-center gap-1 px-2 h-10 min-w-0 flex-1 bg-[#989F43] rounded-[6px]",
                 disabled
                   ? "cursor-not-allowed opacity-60"
-                  : "shine cursor-pointer transition-[background-color,scale] duration-200 hover:bg-[#858c39] active:scale-[0.97]",
+                  : "cursor-pointer transition-[background-color,scale] duration-200 hover:bg-[#858c39] active:scale-[0.97]",
               )}
             >
               <span className="font-open-sans text-[14px] leading-[24px] font-normal text-white truncate">
