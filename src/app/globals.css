@@ -338,6 +338,72 @@ textarea {
   animation-delay: 300ms;
 }
 
+/* Troca de seção (PlatformSidebar/sectionTransition.ts). Durante a troca, a
+   casca da plataforma vira uma foto que afunda por cima da tela nova, e a
+   trilha fica fora da foto para o destaque dela seguir deslizando ao vivo. Os
+   nomes só existem enquanto `data-section-transition` está no <html>. */
+html[data-section-transition] [data-platform-shell] {
+  view-transition-name: platform-stage;
+}
+html[data-section-transition] [data-platform-side-rail] {
+  view-transition-name: platform-rail;
+}
+::view-transition-group(root),
+::view-transition-old(root),
+::view-transition-new(root),
+::view-transition-group(platform-stage),
+::view-transition-new(platform-stage),
+::view-transition-group(platform-rail),
+::view-transition-new(platform-rail) {
+  animation: none;
+}
+::view-transition-old(platform-rail) {
+  display: none;
+}
+::view-transition-old(platform-stage),
+::view-transition-new(platform-stage) {
+  mix-blend-mode: normal;
+}
+/* A foto fica por cima da tela nova, que é opaca, até terminar de sair. */
+::view-transition-old(platform-stage) {
+  z-index: 1;
+  animation: section-sink 170ms ease-in both;
+}
+/* Quando o mapa muda de moldura, a foto só esmaece: afundar puxaria junto o
+   mapa antigo e brigaria com o que encolhe por baixo. */
+html[data-section-transition="shrink"]::view-transition-old(platform-stage),
+html[data-section-transition="grow"]::view-transition-old(platform-stage) {
+  animation: section-fade 160ms ease-in both;
+}
+
+@keyframes section-sink {
+  to {
+    opacity: 0;
+    transform: translateY(10px) scale(0.985);
+  }
+}
+
+@keyframes section-fade {
+  to {
+    opacity: 0;
+  }
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  /* De Monitoramento para Priorização, a moldura do mapa encolhe até o cartão
+     ao lado do formulário. */
+  html[data-section-transition="shrink"] [data-platform-map-area] {
+    transition:
+      left 560ms cubic-bezier(0.65, 0, 0.35, 1),
+      padding 560ms cubic-bezier(0.65, 0, 0.35, 1);
+  }
+  html[data-section-transition="shrink"]
+    [data-platform-map-area]
+    > [data-stage="main"] {
+    transition: border-radius 560ms cubic-bezier(0.65, 0, 0.35, 1);
+  }
+}
+
 .maplibregl-ctrl-top-right {
   margin-top: 50px;
   justify-content: center;

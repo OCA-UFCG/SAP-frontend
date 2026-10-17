@@ -109,6 +109,7 @@ export function PlatformMap({
   return (
     <div
       data-testid="platform-map-area"
+      data-platform-map-area
       className={isAnalysis ? ANALYSIS_AREA_CLASS : FULL_BLEED_AREA_CLASS}
       // A escala do mapa se apoia nesta medida para nascer na borda esquerda do
       // mapa *visivel*. Em Analise o mapa ja comeca depois do formulario; nas
@@ -129,6 +130,7 @@ export function PlatformMap({
           MapLibre viva ao trocar de seção, em vez de destruir uma e construir
           outra — o que media perto de um segundo por troca. */}
       <div
+        data-stage="main"
         className={isAnalysis ? ANALYSIS_FRAME_CLASS : FULL_BLEED_FRAME_CLASS}
       >
         <MapComponent
