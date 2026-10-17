@@ -89,6 +89,7 @@ export function PlatformLayout({
             cabeçalho. O rodapé vem logo depois, fora da dobra, e só aparece
             quando a pessoa rola. */}
         <div
+          data-platform-shell
           className={`relative flex w-full flex-col bg-neutral-50 ${PLATFORM_SHELL_MIN_HEIGHT_CLASS}`}
         >
           {isLogsView ? (

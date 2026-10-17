@@ -22,6 +22,8 @@ export interface PlatformSideRailProps {
   activeSection: PlatformSection;
   /** Called when user selects a different section. */
   onSectionChange: (next: PlatformSection) => void;
+  /** O mouse ou o foco chegou no item, antes do clique. */
+  onSectionIntent?: (next: PlatformSection) => void;
 
   /** Controlled state: whether the side panel is currently visible. */
   isPanelOpen: boolean;
@@ -268,6 +270,7 @@ function RailLinkContent({
 export function PlatformSideRail({
   activeSection,
   onSectionChange,
+  onSectionIntent,
   isPanelOpen,
   onTogglePanel,
   showAuditLink = false,
@@ -400,6 +403,8 @@ export function PlatformSideRail({
                   <button
                     type="button"
                     onClick={() => onSectionChange(item.id)}
+                    onPointerEnter={() => onSectionIntent?.(item.id)}
+                    onFocus={() => onSectionIntent?.(item.id)}
                     aria-current={isActive ? "page" : undefined}
                     aria-busy={pendingSection === item.id || undefined}
                     className={clsx(

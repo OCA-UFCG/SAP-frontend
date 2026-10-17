@@ -16,15 +16,19 @@ import { PanelLayerI } from "@/utils/interfaces";
 import { useMapLayerActions } from "@/components/MapLayerContext/MapLayerContext";
 import { usePlatformTour } from "@/components/PlatformTour/usePlatformTour";
 import type { MunicipalReportPreviewProps } from "@/components/MunicipalReport/MunicipalReportPreview";
+import { preloadAnalyzeForm } from "@/components/Amfe/AmfeAnalysisFormColumn";
+import { runSectionTransition } from "./sectionTransition";
 
 // O relatório municipal carrega o `recharts` junto. Ele só aparece na seção de
 // Comunicação, então importá-lo sob demanda tira essa biblioteca do pacote que
 // todo mundo baixa ao abrir a plataforma.
+const loadMunicipalReportPreview = () =>
+  import("@/components/MunicipalReport/MunicipalReportPreview").then(
+    (module) => ({ default: module.MunicipalReportPreview }),
+  );
+
 const LazyMunicipalReportPreview = dynamic<MunicipalReportPreviewProps>(
-  () =>
-    import("@/components/MunicipalReport/MunicipalReportPreview").then(
-      (module) => ({ default: module.MunicipalReportPreview }),
-    ),
+  loadMunicipalReportPreview,
   {
     ssr: false,
     loading: () => <div className="h-full w-full animate-pulse bg-[#F6F7F6]" />,
@@ -180,18 +184,27 @@ export function PlatformSidebar({
       return;
     }
 
-    if (next === "analysis") {
-      // A legenda do Monitoramento não descreve a coropleta da análise.
-      setActiveLegend(null);
-    }
+    runSectionTransition(activeSection, next, () => {
+      if (next === "analysis") {
+        // A legenda do Monitoramento não descreve a coropleta da análise.
+        setActiveLegend(null);
+      }
 
-    setActiveSection(next);
-    onActiveSectionChange?.(next);
-    setIsPanelOpen(next !== "analysis");
+      setActiveSection(next);
+      onActiveSectionChange?.(next);
+      setIsPanelOpen(next !== "analysis");
 
-    if (next !== "analysis") {
-      setPanelSection(next);
-    }
+      if (next !== "analysis") {
+        setPanelSection(next);
+      }
+    });
+  }
+
+  // O mouse chegou no item da trilha: o relatório e o formulário começam a
+  // baixar já, para estarem prontos quando a seção pousar.
+  function handleSectionIntent(next: PlatformSection) {
+    if (next === "communication") void loadMunicipalReportPreview();
+    if (next === "analysis") preloadAnalyzeForm();
   }
 
   // O tutorial parte da listagem de Monitoramento: só abre sozinho quando é
@@ -232,6 +245,7 @@ export function PlatformSidebar({
         <PlatformSideRail
           activeSection={activeSection}
           onSectionChange={handleSectionChange}
+          onSectionIntent={handleSectionIntent}
           isPanelOpen={isPanelOpen}
           onTogglePanel={() => setIsPanelOpen((v) => !v)}
           showAuditLink={showAuditLink}
@@ -242,6 +256,7 @@ export function PlatformSidebar({
         {!isUtilityView && (
           <div
             data-platform-side-panel
+            data-panel-open={isPanelOpen}
             className={`
         relative h-full overflow-hidden
           transition-[width] duration-300 ease-in-out
@@ -249,8 +264,10 @@ export function PlatformSidebar({
         `}
           >
             <div
-              className={`
-            absolute left-0 top-0 h-full w-full
+              // Largura fixa: o conteúdo desliza enquanto o painel abre, em vez
+            // de se espremer.
+            className={`
+            absolute left-0 top-0 h-full w-[420px]
             transform transition-transform duration-300 ease-in-out
             ${isPanelOpen ? "translate-x-0" : "-translate-x-full"}
           `}
@@ -274,6 +291,7 @@ export function PlatformSidebar({
             aria-hidden="true"
           />
           <div
+            data-stage="main"
             className="absolute inset-y-0 right-0 z-10 bg-[#F6F7F6] transition-[left] duration-300 ease-in-out"
             style={{ left: isPanelOpen ? defaultPanelOpenOffset : "140px" }}
           >

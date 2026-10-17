@@ -11,6 +11,11 @@ const LazyAnalyzeForm = dynamic(() => import("./AnalyzeForm/AnalyzeForm"), {
   loading: () => <div className="h-full w-full animate-pulse bg-[#F6F7F6]" />,
 });
 
+/** Começa a baixar o formulário antes do clique (hover na trilha). */
+export function preloadAnalyzeForm() {
+  void import("./AnalyzeForm/AnalyzeForm");
+}
+
 /**
  * Coluna do formulário da análise multicritério. Fica ao lado do mapa da
  * plataforma em vez de contê-lo: é o que permite entrar e sair de Análise sem
@@ -21,6 +26,7 @@ export function AmfeAnalysisFormColumn() {
 
   return (
     <aside
+      data-stage="form"
       data-testid="platform-amfe-form"
       className="absolute inset-y-0 left-[140px] z-[6] w-[531px] overflow-y-auto overscroll-contain border-r border-gray-200 bg-[#F6F7F6]"
     >

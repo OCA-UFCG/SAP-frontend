@@ -56,7 +56,7 @@ export function MonitoringMapOverlays({
         </div>
       )}
 
-      <div className="absolute bottom-0 right-6 z-[1000] box-border flex min-h-[124px] w-[302px] flex-col items-end justify-center gap-[10px] pb-6">
+      <div data-stage-pop className="absolute bottom-0 right-6 z-[1000] box-border flex min-h-[124px] w-[302px] flex-col items-end justify-center gap-[10px] pb-6">
         {showControls && (
           <div data-tour="reference-overlays">
             <ReferenceOverlaysControl

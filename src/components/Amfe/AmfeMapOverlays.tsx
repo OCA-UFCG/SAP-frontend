@@ -45,7 +45,7 @@ export function AmfeMapOverlays() {
         imageOptions={imageOptions}
       />
 
-      <div className="absolute bottom-0 right-6 z-[1000] box-border flex w-[302px] flex-col items-end gap-[10px] pb-6">
+      <div data-stage-pop className="absolute bottom-0 right-6 z-[1000] box-border flex w-[302px] flex-col items-end gap-[10px] pb-6">
         <ReferenceOverlaysControl
           activeOverlays={referenceOverlays}
           onToggle={toggleReferenceOverlay}
