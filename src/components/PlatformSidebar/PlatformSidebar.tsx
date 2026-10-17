@@ -139,7 +139,8 @@ export function PlatformSidebar({
   const [utilityViewExitTarget, setUtilityViewExitTarget] =
     useState<PlatformSection | null>(null);
   const defaultPanelOpenOffset = "548px";
-  const sidePanelWidthClass = isPanelOpen ? "w-[424px]" : "w-0";
+  // No celular o painel aberto ocupa a largura toda, por cima do mapa.
+  const sidePanelWidthClass = isPanelOpen ? "w-[424px] max-md:w-screen" : "w-0";
 
   // A lateral flutua por cima do mapa full-bleed, entao quem desenha algo no
   // canto inferior esquerdo do mapa (a escala) precisa saber quanto dele esta
@@ -264,6 +265,7 @@ export function PlatformSidebar({
         relative h-full overflow-hidden
           transition-[width] duration-300 ease-in-out
           ${sidePanelWidthClass}
+          group-data-[mobile-view=result]/shell:max-md:hidden
         `}
           >
             <div
@@ -293,9 +295,11 @@ export function PlatformSidebar({
             className="absolute inset-0 z-[5] bg-[#F6F7F6]"
             aria-hidden="true"
           />
+          {/* No celular não há trilha à esquerda: o relatório começa na borda
+              e fica por baixo do painel até a pessoa pedir para vê-lo. */}
           <div
             data-stage="main"
-            className="absolute inset-y-0 right-0 z-10 bg-[#F6F7F6] transition-[left] duration-300 ease-in-out"
+            className="absolute inset-y-0 right-0 z-10 bg-[#F6F7F6] transition-[left] duration-300 ease-in-out max-md:left-0!"
             style={{ left: isPanelOpen ? defaultPanelOpenOffset : "124px" }}
           >
             <LazyMunicipalReportPreview

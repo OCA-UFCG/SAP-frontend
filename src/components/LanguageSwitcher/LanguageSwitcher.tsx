@@ -47,7 +47,7 @@ export const LanguageSwitcher = () => {
       <button
         type="button"
         onClick={() => setIsOpen((prev) => !prev)}
-        className="group flex items-center justify-center gap-2 px-4 py-2 rounded-md hover:bg-stone-200 transition-colors focus:outline-none focus:ring-2 focus:ring-[#777E32] cursor-pointer h-10"
+        className="group flex items-center justify-center gap-2 px-4 max-sm:gap-1.5 max-sm:px-2 py-2 rounded-md hover:bg-stone-200 transition-colors focus:outline-none focus:ring-2 focus:ring-[#777E32] cursor-pointer h-10"
         aria-label={t("changeLanguage")}
         aria-expanded={isOpen}
         aria-haspopup="listbox"
@@ -71,7 +71,7 @@ export const LanguageSwitcher = () => {
         <svg
           xmlns="http://www.w3.org/2000/svg"
           viewBox="0 0 24 24"
-          className={`w-6 h-6 shrink-0 fill-[#989F43] transition-[rotate] duration-200 ${isOpen ? "rotate-180" : ""}`}
+          className={`w-6 h-6 shrink-0 fill-[#989F43] transition-[rotate] duration-200 max-sm:hidden ${isOpen ? "rotate-180" : ""}`}
           aria-hidden="true"
         >
           <path d="M7.41 8.59 12 13.17l4.59-4.58L18 10l-6 6-6-6 1.41-1.41z" />

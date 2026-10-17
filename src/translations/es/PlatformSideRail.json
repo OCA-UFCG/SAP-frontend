@@ -9,6 +9,9 @@
     "expandPanel": "Abrir panel",
     "loading": "Cargando",
     "approvals": "Aprobaciones",
-    "pendingApprovals": "Solicitudes esperando decisión: {count}"
+    "pendingApprovals": "Solicitudes esperando decisión: {count}",
+    "mobileShowMap": "Ver mapa",
+    "mobileShowReport": "Ver informe",
+    "mobileShowOptions": "Mostrar opciones"
   }
 }

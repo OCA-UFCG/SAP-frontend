@@ -45,7 +45,8 @@ export function AmfeMapOverlays() {
         imageOptions={imageOptions}
       />
 
-      <div data-stage-pop className="absolute bottom-0 right-6 z-[1000] box-border flex w-[302px] flex-col items-end gap-[10px] pb-6">
+      {/* No celular sobe acima do botão "Mostrar opções", que flutua embaixo. */}
+      <div data-stage-pop className="absolute bottom-0 right-6 z-[1000] box-border flex w-[302px] flex-col items-end gap-[10px] pb-6 max-md:right-2 max-md:pb-[64px]">
         <ReferenceOverlaysControl
           activeOverlays={referenceOverlays}
           onToggle={toggleReferenceOverlay}
@@ -75,7 +76,7 @@ export function AmfeMapOverlays() {
       {isClassificationBelowZoomFloor && (
         <p
           role="status"
-          className="absolute bottom-4 left-4 z-[1000] max-w-xs rounded-lg bg-white/90 p-3 text-xs text-[#364153] shadow-lg"
+          className="absolute bottom-4 left-4 z-[1000] max-w-xs rounded-lg bg-white/90 p-3 text-xs text-[#364153] shadow-lg max-md:top-16 max-md:bottom-auto max-md:left-2 max-md:right-2"
         >
           {tMap("zoomInForClassification")}
         </p>

@@ -482,7 +482,7 @@ export function ModulesContext({
     <div
       ref={scrollContainerRef}
       onScroll={handleScroll}
-      className="h-full overflow-y-auto bg-[#F6F7F6] px-4 pt-12 pb-6"
+      className="h-full overflow-y-auto bg-[#F6F7F6] px-4 pt-12 pb-6 max-md:pt-6 max-md:pb-24"
     >
       {/* Cada bloco sobe em cascata ao abrir a seção, e os acordeões de
           Indicadores, numa cascata própria, um depois do outro. */}

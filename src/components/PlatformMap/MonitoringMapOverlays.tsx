@@ -46,7 +46,8 @@ export function MonitoringMapOverlays({
         failed={hasGeeLayerFailed}
       />
 
-      <div data-stage-pop className="absolute bottom-0 right-6 z-[1000] box-border flex min-h-[124px] w-[302px] flex-col items-end justify-center gap-[10px] pb-6">
+      {/* No celular sobe acima do botão "Mostrar opções", que flutua embaixo. */}
+      <div data-stage-pop className="absolute bottom-0 right-6 z-[1000] box-border flex min-h-[124px] w-[302px] flex-col items-end justify-center gap-[10px] pb-6 max-md:right-2 max-md:pb-[72px]">
         {showControls && (
           <div data-tour="reference-overlays">
             <ReferenceOverlaysControl

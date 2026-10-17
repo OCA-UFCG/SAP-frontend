@@ -469,6 +469,13 @@ html[data-section-transition="grow"]::view-transition-old(platform-stage) {
   transition: margin-left 300ms ease-in-out;
 }
 
+/* No celular o painel cobre o mapa inteiro ou nada dele, nunca so a esquerda. */
+@media (max-width: 767.98px) {
+  .maplibregl-map .maplibregl-ctrl-bottom-left {
+    margin-left: 0;
+  }
+}
+
 .maplibregl-ctrl-bottom-left .maplibregl-ctrl.maplibregl-ctrl-scale {
   background: none;
   border: 2px solid #313131;

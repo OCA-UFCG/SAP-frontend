@@ -327,7 +327,7 @@ export function MunicipalReportContext({ panelLayers = [] }: MunicipalReportCont
   }
 
   return (
-    <section className="h-full w-full overflow-y-auto bg-[#F6F7F6] px-4 py-12 text-[#292829]">
+    <section className="h-full w-full overflow-y-auto bg-[#F6F7F6] px-4 py-12 text-[#292829] max-md:pt-6 max-md:pb-24">
       <form onSubmit={handleSubmit} className="panel-cascade mx-auto flex min-h-full w-full max-w-96 flex-col gap-6">
         <header className="space-y-2">
           <h2 className="font-inter text-2xl font-semibold leading-6 tracking-[-0.015em]">{t("section")}</h2>
