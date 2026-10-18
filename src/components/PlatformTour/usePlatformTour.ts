@@ -149,7 +149,25 @@ function renderSectionList(
   dom.description.style.display = "block";
 }
 
-function buildSteps(t: Translate, tRail: TranslateRail): DriveStep[] {
+/**
+ * No celular, para quem tem itens de administração, o botão "Tutorial" mora
+ * dentro do "Mais" e fica escondido na barra. O último passo apontava para ele
+ * e o balão abria no canto da tela, sem alvo.
+ */
+function isReplayInsideMore() {
+  const replay = document.querySelector('[data-tour="platform-tour-replay"]');
+  return (
+    replay !== null &&
+    replay.getClientRects().length === 0 &&
+    document.querySelector('[data-tour="platform-more"]') !== null
+  );
+}
+
+function buildSteps(
+  t: Translate,
+  tRail: TranslateRail,
+  replayInMore: boolean,
+): DriveStep[] {
   const popover = (key: string) => ({
     title: t(`steps.${key}.title`),
     description: t(`steps.${key}.description`),
@@ -228,10 +246,15 @@ function buildSteps(t: Translate, tRail: TranslateRail): DriveStep[] {
       element: '[data-tour="reference-overlays"]',
       popover: { ...popover("territories"), side: "left", align: "end" },
     },
-    {
-      element: '[data-tour="platform-tour-replay"]',
-      popover: { ...popover("replay"), side: "right", align: "end" },
-    },
+    replayInMore
+      ? {
+          element: '[data-tour="platform-more"]',
+          popover: { ...popover("replayInMore"), side: "top", align: "end" },
+        }
+      : {
+          element: '[data-tour="platform-tour-replay"]',
+          popover: { ...popover("replay"), side: "right", align: "end" },
+        },
   ];
 }
 
@@ -275,7 +298,7 @@ export function usePlatformTour({
         // No celular o painel cobre o mapa: os passos dos controles do mapa
         // apontariam para algo escondido atrás dele, então ficam de fora.
         const isPhone = isPhoneViewport();
-        const steps = buildSteps(t, tRail).filter(
+        const steps = buildSteps(t, tRail, isPhone && isReplayInsideMore()).filter(
           (step) =>
             !isPhone ||
             typeof step.element !== "string" ||

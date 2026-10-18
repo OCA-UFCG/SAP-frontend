@@ -2,7 +2,7 @@
 
 import { FormEvent, useEffect, useMemo, useRef, useState, useTransition } from "react";
 import { useLocale, useTranslations } from "next-intl";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import { ArrowForwardIcon } from "@/components/HomeIcons/HomeIcons";
 import { InfoModal } from "@/components/InfoModal/InfoModal";
 import { LayerAccordion } from "@/components/LayerAccordion/LayerAccordion";
@@ -35,6 +35,8 @@ import {
 import type { PanelLayerI } from "@/utils/interfaces";
 import { startMunicipalReportMetrics } from "@/utils/municipalReportMetrics";
 import { slugifyTranslationKey } from "@/utils/translations";
+import { normalize } from "@/utils/functions";
+import { searchMatchRank } from "@/utils/searchMatch";
 
 interface MunicipalReportContextProps { panelLayers?: PanelLayerI[] }
 
@@ -79,30 +81,70 @@ export function MunicipalReportContext({ panelLayers = [] }: MunicipalReportCont
   const router = useRouter();
   const tAnalysis = useTranslations("AnalysisPanel");
   const municipalityPickerRef = useRef<HTMLDivElement>(null);
-  const [scope, setScope] = useState<ReportScope>("municipality");
-  const [spatialValue, setSpatialValue] = useState("");
-  const [municipalityCode, setMunicipalityCode] = useState("");
-  const [municipalityQuery, setMunicipalityQuery] = useState("");
+  // Gerar o relatório troca a URL e remonta este painel. Sem ler a URL de
+  // volta, quem voltava ao formulário para tirar um índice encontrava o
+  // território vazio e todos os índices marcados de novo.
+  const searchParams = useSearchParams();
+  const [openReport] = useState(() => {
+    const territory = resolveReportTerritory(searchParams.get("locationKey") ?? "");
+    const layers = searchParams.get("layers")?.split(",").filter(Boolean) ?? [];
+    const municipality = territory?.municipalityCode
+      ? citiesIndex.find((city) => city.code === territory.municipalityCode)
+      : undefined;
+    return { territory, layers, municipality };
+  });
+  const [scope, setScope] = useState<ReportScope>(
+    openReport.territory?.selection?.spatialArea ?? "municipality",
+  );
+  const [spatialValue, setSpatialValue] = useState<string>(
+    openReport.territory?.selection?.spatialValue ?? "",
+  );
+  const [municipalityCode, setMunicipalityCode] = useState(openReport.municipality?.code ?? "");
+  const [municipalityQuery, setMunicipalityQuery] = useState(openReport.municipality?.label ?? "");
   const [isMunicipalityOptionsOpen, setIsMunicipalityOptionsOpen] = useState(false);
   const period = REPORT_DEFAULT_PERIOD;
   const [selectedLayers, setSelectedLayers] = useState<Set<string>>(
-    () => new Set(panelLayers.map((layer) => layer.id)),
+    () =>
+      new Set(
+        openReport.territory && openReport.layers.length > 0
+          ? openReport.layers
+          : panelLayers.map((layer) => layer.id),
+      ),
   );
   const [infoLayer, setInfoLayer] = useState<PanelLayerI | null>(null);
   const [isGenerating, startGenerating] = useTransition();
 
   const municipalities = useMemo(
-    () => [...citiesIndex].sort((left, right) => left.label.localeCompare(right.label, "pt-BR")),
+    () =>
+      [...citiesIndex]
+        .sort((left, right) => left.label.localeCompare(right.label, "pt-BR"))
+        .map((municipality) => ({
+          ...municipality,
+          normalizedName: normalize(municipality.name),
+          normalizedLabel: normalize(municipality.label),
+        })),
     [],
   );
   const selectedMunicipality = useMemo(
     () => municipalities.find((municipality) => municipality.code === municipalityCode),
     [municipalities, municipalityCode],
   );
+  // Sem acento, como a busca do Monitoramento: no celular quase ninguém digita
+  // "João Pessoa" com til. E o nome exato vem antes de quem só o contém.
   const filteredMunicipalities = useMemo(() => {
-    const normalizedQuery = municipalityQuery.trim().toLocaleLowerCase("pt-BR");
+    const normalizedQuery = normalize(municipalityQuery.trim());
     const options = normalizedQuery
-      ? municipalities.filter((municipality) => municipality.label.toLocaleLowerCase("pt-BR").includes(normalizedQuery))
+      ? municipalities
+          .map((municipality) => ({
+            municipality,
+            rank: searchMatchRank(normalizedQuery, [
+              municipality.normalizedName,
+              municipality.normalizedLabel,
+            ]),
+          }))
+          .filter((entry) => entry.rank !== null)
+          .sort((left, right) => (left.rank ?? 2) - (right.rank ?? 2))
+          .map(({ municipality }) => municipality)
       : municipalities;
 
     return options.slice(0, 80);

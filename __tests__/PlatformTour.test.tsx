@@ -115,6 +115,26 @@ describe("platform tour", () => {
     expect(driveMock).toHaveBeenCalledTimes(1);
   });
 
+  // No celular, quem tem itens de administração encontra o "Tutorial" dentro
+  // do "Mais": o último passo aponta para lá, não para o botão escondido.
+  it("points the last step at the 'Mais' button on a phone with admin items", () => {
+    vi.stubGlobal("fetch", vi.fn().mockResolvedValue(Response.json({ count: 0 })));
+    vi.stubGlobal(
+      "matchMedia",
+      vi.fn(() => ({ matches: true, addEventListener: vi.fn(), removeEventListener: vi.fn() })),
+    );
+
+    try {
+      render(<PlatformSidebar panelLayers={[]} showAuditLink />);
+      waitPastAutoStart();
+
+      const steps = (driverMock.mock.calls[0][0] as { steps: { element?: string }[] }).steps;
+      expect(steps.at(-1)?.element).toBe('[data-tour="platform-more"]');
+    } finally {
+      vi.unstubAllGlobals();
+    }
+  });
+
   it("hides the replay button on the audit and catalog views", () => {
     render(<PlatformSidebar panelLayers={[]} viewMode="logs" />);
 

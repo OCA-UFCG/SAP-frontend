@@ -40,6 +40,10 @@
       "replay": {
         "title": "Tudo pronto",
         "description": "Para rever este passo a passo, é só clicar em Tutorial."
+      },
+      "replayInMore": {
+        "title": "Tudo pronto",
+        "description": "Para rever este passo a passo, toque em Mais e depois em Tutorial."
       }
     }
   }

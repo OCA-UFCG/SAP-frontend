@@ -26,6 +26,10 @@ export const LoginField = ({
   errorMessage,
   trailing,
 }: LoginFieldProps) => {
+  // O campo de e-mail é `type="text"`, e no celular isso abria o teclado sem
+  // "@", com a primeira letra maiúscula e o corretor trocando o endereço.
+  const isEmail = autoComplete === "email" || autoComplete === "username";
+
   return (
     <div className="flex w-full flex-col gap-1">
       <div className="relative w-full">
@@ -33,6 +37,12 @@ export const LoginField = ({
           id={id}
           type={type}
           autoComplete={autoComplete}
+          {...(isEmail && {
+            inputMode: "email",
+            autoCapitalize: "none",
+            autoCorrect: "off",
+            spellCheck: false,
+          })}
           placeholder={placeholder}
           aria-label={placeholder}
           aria-invalid={Boolean(errorMessage)}

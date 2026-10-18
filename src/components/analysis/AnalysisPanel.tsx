@@ -322,9 +322,12 @@ function DistributionSection({
                     backgroundColor: item.color,
                   }}
                   className="flex items-center justify-center border-r border-white/20 text-[12px] font-bold text-[#292829] transition-all duration-500 last:border-0"
-                  title={`${item.label}: ${item.value}%`}
+                  title={`${item.label}: ${formatValue(item.value)}`}
                 >
-                  {item.value > 10 && `${item.value}%`}
+                  {/* Uma casa só, com vírgula como a legenda logo abaixo: a
+                      fatia mais estreita que ganha rótulo tem 10% da barra. */}
+                  {item.value > 10 &&
+                    `${item.value.toLocaleString("pt-BR", { maximumFractionDigits: 1 })}%`}
                 </div>
               ))}
           </div>
