@@ -46,6 +46,11 @@ function getTransporter() {
   return transporter;
 }
 
+/** Faz login no SMTP sem enviar nada, para o `/api/health`. */
+export async function verifyMailer() {
+  await getTransporter().verify();
+}
+
 /** Existe para o teste poder trocar as credenciais entre casos. */
 export function resetMailer() {
   transporter = null;

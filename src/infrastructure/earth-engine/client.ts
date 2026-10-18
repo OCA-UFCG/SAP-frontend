@@ -380,6 +380,23 @@ export async function evaluateGeeObject<T>(value: {
 }
 
 /**
+ * Confirma que o Earth Engine responde com as credenciais do servidor, para o
+ * `/api/health`.
+ *
+ * Calcula uma constante, sem ler asset nenhum, e passa por fora do teto de
+ * leituras simultâneas de propósito: num pico de relatórios o teto fica cheio,
+ * e a verificação esperando na fila acusaria o Earth Engine de fora do ar
+ * quando ele só está ocupado.
+ */
+export async function pingGee(): Promise<void> {
+  await initializeGee();
+  await requestGeeApi(`projects/${requireProjectId()}/value:compute`, {
+    method: "POST",
+    body: { expression: ee.Serializer.encodeCloudApi(ee.Number(1)) },
+  });
+}
+
+/**
  * Os metadados de um asset, no mesmo formato que `ee.data.getAsset` devolvia.
  *
  * O SDK passava cada `getAsset` pela mesma fila de um pedido a cada 350 ms que
