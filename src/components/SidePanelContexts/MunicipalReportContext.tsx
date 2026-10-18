@@ -2,7 +2,7 @@
 
 import { FormEvent, useEffect, useMemo, useRef, useState, useTransition } from "react";
 import { useLocale, useTranslations } from "next-intl";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import { ArrowForwardIcon } from "@/components/HomeIcons/HomeIcons";
 import { InfoModal } from "@/components/InfoModal/InfoModal";
 import { LayerAccordion } from "@/components/LayerAccordion/LayerAccordion";
@@ -81,14 +81,35 @@ export function MunicipalReportContext({ panelLayers = [] }: MunicipalReportCont
   const router = useRouter();
   const tAnalysis = useTranslations("AnalysisPanel");
   const municipalityPickerRef = useRef<HTMLDivElement>(null);
-  const [scope, setScope] = useState<ReportScope>("municipality");
-  const [spatialValue, setSpatialValue] = useState("");
-  const [municipalityCode, setMunicipalityCode] = useState("");
-  const [municipalityQuery, setMunicipalityQuery] = useState("");
+  // Gerar o relatório troca a URL e remonta este painel. Sem ler a URL de
+  // volta, quem voltava ao formulário para tirar um índice encontrava o
+  // território vazio e todos os índices marcados de novo.
+  const searchParams = useSearchParams();
+  const [openReport] = useState(() => {
+    const territory = resolveReportTerritory(searchParams.get("locationKey") ?? "");
+    const layers = searchParams.get("layers")?.split(",").filter(Boolean) ?? [];
+    const municipality = territory?.municipalityCode
+      ? citiesIndex.find((city) => city.code === territory.municipalityCode)
+      : undefined;
+    return { territory, layers, municipality };
+  });
+  const [scope, setScope] = useState<ReportScope>(
+    openReport.territory?.selection?.spatialArea ?? "municipality",
+  );
+  const [spatialValue, setSpatialValue] = useState<string>(
+    openReport.territory?.selection?.spatialValue ?? "",
+  );
+  const [municipalityCode, setMunicipalityCode] = useState(openReport.municipality?.code ?? "");
+  const [municipalityQuery, setMunicipalityQuery] = useState(openReport.municipality?.label ?? "");
   const [isMunicipalityOptionsOpen, setIsMunicipalityOptionsOpen] = useState(false);
   const period = REPORT_DEFAULT_PERIOD;
   const [selectedLayers, setSelectedLayers] = useState<Set<string>>(
-    () => new Set(panelLayers.map((layer) => layer.id)),
+    () =>
+      new Set(
+        openReport.territory && openReport.layers.length > 0
+          ? openReport.layers
+          : panelLayers.map((layer) => layer.id),
+      ),
   );
   const [infoLayer, setInfoLayer] = useState<PanelLayerI | null>(null);
   const [isGenerating, startGenerating] = useTransition();

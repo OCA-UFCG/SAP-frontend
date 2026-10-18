@@ -5,9 +5,11 @@ import { MunicipalReportContext } from "@/components/SidePanelContexts/Municipal
 import type { PanelLayerI } from "@/utils/interfaces";
 
 const pushMock = vi.fn();
+let mockSearchParams = new URLSearchParams();
 
 vi.mock("next/navigation", () => ({
   useRouter: () => ({ push: pushMock }),
+  useSearchParams: () => mockSearchParams,
 }));
 
 vi.mock("@/data/municipalAvailabilityIndex.json", () => ({
@@ -81,6 +83,7 @@ describe("MunicipalReportContext", () => {
 
   beforeEach(() => {
     pushMock.mockReset();
+    mockSearchParams = new URLSearchParams();
     global.fetch = vi.fn();
   });
 
@@ -160,5 +163,23 @@ describe("MunicipalReportContext", () => {
     const options = screen.getAllByRole("option");
     expect(options[0]).toHaveTextContent("João Pessoa - PB");
     expect(options[1]).toHaveTextContent("Coronel João Pessoa - RN");
+  });
+
+  it("volta ao formulário com o território e os índices do relatório aberto", () => {
+    mockSearchParams = new URLSearchParams({
+      locationKey: "5200050",
+      period: "2026",
+      layers: "seca",
+      section: "communication",
+    });
+
+    render(<MunicipalReportContext panelLayers={panelLayers} />);
+
+    expect(
+      screen.getByRole("combobox", { name: /município/iu }),
+    ).toHaveValue("Abadia de Goiás - GO");
+    expect(screen.getByRole("checkbox", { name: "Monitor de Secas" })).toBeChecked();
+    expect(screen.getByRole("checkbox", { name: "Previsão: Índice futuro" })).not.toBeChecked();
+    expect(screen.getByRole("button", { name: "Gerar relatório" })).toBeEnabled();
   });
 });
