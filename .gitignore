@@ -39,6 +39,9 @@
 !/scripts/build-reference-territories.mjs
 # Gerador dos tiles dos territórios, anexados à release `tiles-2025`.
 !/scripts/build-territory-tiles.mjs
+# Vigia que avisa o OCA por e-mail quando o SEDES cai, instalado nas VMs pelo
+# workflow watchdog.yaml.
+!/scripts/watchdog/
 /scripts/gee/
 /tmp
 mise.toml
