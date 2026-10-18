@@ -1,0 +1,6 @@
+{
+  "Captcha": {
+    "unavailable": "Não foi possível carregar a verificação anti-robô. Recarregue a página ou desative bloqueadores de anúncio para este site.",
+    "failed": "Não foi possível confirmar que você não é um robô. Tente novamente."
+  }
+}
