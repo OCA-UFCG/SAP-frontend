@@ -24,6 +24,7 @@ import {
   formatReportPeriod,
   getReportDocsText,
 } from "@/utils/municipalReportNarrative";
+import { formatDekadPeriod } from "@/utils/dekadPeriod";
 import {
   finishMunicipalReportMetrics,
   recordMunicipalReportNavigation,
@@ -47,6 +48,7 @@ import {
   MUNICIPAL_REPORT_STACKED_MAX_COLUMNS,
   selectStackedChartSnapshots,
 } from "@/utils/municipalReportStackedChart";
+import { buildReportDocumentSections } from "@/utils/municipalReportForecast";
 import { MunicipalReportClassBars } from "./MunicipalReportClassBars";
 import { MunicipalReportDynamicChart } from "./MunicipalReportDynamicChart";
 import { MunicipalReportLinePrintChart } from "./MunicipalReportLinePrintChart";
@@ -54,6 +56,11 @@ import { MunicipalReportNotes } from "./MunicipalReportNotes";
 import { MunicipalReportStackedChart } from "./MunicipalReportStackedChart";
 import { MunicipalReportStackedPrintChart } from "./MunicipalReportStackedPrintChart";
 import { ReportBackToTop } from "./ReportBackToTop";
+import {
+  forecastGroupMethodologies,
+  forecastGroupTitle,
+  ReportForecastSection,
+} from "./ReportForecastSection";
 import { ReportDocumentFooter } from "./ReportDocumentFooter";
 import { ReportHero } from "./ReportHero";
 import { ReportSectionHeading } from "./ReportSectionHeading";
@@ -186,7 +193,11 @@ const AnalysisSection = memo(function AnalysisSection({
   const referencePeriod =
     effectivePeriod ?? analysis.snapshot?.period ?? analysis.requestedPeriod;
   const referencePeriodLabel = formatReportPeriod(referencePeriod, locale);
-  const snapshotPeriodLabel = analysis.snapshot?.label || referencePeriodLabel;
+  const rawSnapshotLabel = analysis.snapshot?.label;
+  const snapshotPeriodLabel =
+    (rawSnapshotLabel && formatDekadPeriod(rawSnapshotLabel, locale)) ||
+    rawSnapshotLabel ||
+    referencePeriodLabel;
   const periodResolution = `${t("analyzedPeriod")}: ${referencePeriodLabel}.`;
   const historyRange = compactPeriodRange(
     analysis.timeSeries,
@@ -509,9 +520,51 @@ const ReportDocument = memo(function ReportDocument({
       ? report.analyses.filter(({ id }) => layerIds.includes(id))
       : report.analyses,
   ).flatMap((group) => group.analyses);
+  // As previsões da mesma fonte, variável e periodicidade viram uma seção só.
+  const sections = buildReportDocumentSections(selected);
+  const summaryItems = sections.map((section) =>
+    section.type === "analysis"
+      ? {
+          id: section.analysis.id,
+          alias: section.analysis.alias,
+          category: section.analysis.category,
+          title: translateAnalysisTitle(
+            section.analysis,
+            t,
+            tHas,
+            tModules,
+            tModulesHas,
+          ),
+        }
+      : {
+          id: section.group.alias,
+          alias: section.group.alias,
+          category: section.group.category,
+          title: forecastGroupTitle(section.group, t),
+        },
+  );
+  const forecastNotes = sections.flatMap((section) =>
+    section.type === "forecast"
+      ? [
+          {
+            key: section.group.alias,
+            title: forecastGroupTitle(section.group, t),
+            text: forecastGroupMethodologies(
+              section.group,
+              docsContent,
+              locale,
+              t,
+              tModules,
+            ).join(" "),
+          },
+        ]
+      : [],
+  );
+  const mapKeyFor = (analysis: MunicipalReportAnalysis) =>
+    `${analysis.id}:${analysis.effectivePeriod ?? analysis.snapshot?.period ?? report.requestedPeriod}`;
 
   /**
-   * O link "Ver monitor" de uma seção.
+   * O link "Ver produto" de uma seção.
    *
    * `?layer=` chega ao `ModulesContext`, que ativa a camada no mapa e abre o
    * detalhamento dela — o mesmo caminho de quem clica no índice pelo painel.
@@ -556,16 +609,47 @@ const ReportDocument = memo(function ReportDocument({
 
       <div className="flex flex-col gap-6 px-10 py-6">
         <ReportSummary
-          analyses={selected}
-          translateTitle={(analysis) =>
-            translateAnalysisTitle(analysis, t, tHas, tModules, tModulesHas)
-          }
+          analyses={summaryItems}
+          translateTitle={(item) => item.title}
           pages={summaryPages}
         />
 
         <div className="report-sections space-y-12">
-          {selected.map((analysis) => {
-            const mapKey = `${analysis.id}:${analysis.effectivePeriod ?? analysis.snapshot?.period ?? report.requestedPeriod}`;
+          {sections.map((section) => {
+            if (section.type === "forecast") {
+              return (
+                <ReportForecastSection
+                  key={section.group.alias}
+                  group={section.group}
+                  report={report}
+                  locale={locale}
+                  docsContent={docsContent}
+                  mapPropsFor={(analysis) => {
+                    const mapKey = mapKeyFor(analysis);
+                    return {
+                      mapKey,
+                      mapSrc: mapImages.get(mapKey) ?? undefined,
+                      mapActive: activeMapKeys.has(mapKey),
+                      mapAttempt: retryAttemptFor(mapKey),
+                      mapTileUrl: mapTileUrls.tileUrlFor(mapKey),
+                      mapThumbnail: mapTileUrls.thumbnailFor(mapKey),
+                      mapChoropleth: mapChoropleths.choroplethFor(mapKey),
+                      mapUnavailableReason:
+                        mapTileUrls.failureFor(mapKey) ??
+                        mapChoropleths.failureFor(mapKey),
+                    };
+                  }}
+                  mapQueuedAt={mapQueueStartedAt}
+                  onMapCapture={onMapCapture}
+                  onMapRetry={onMapRetry}
+                  onMapVisibility={onMapVisibility}
+                  monitorHref={buildMonitorHref}
+                  onOpenMonitor={onOpenMonitor}
+                />
+              );
+            }
+            const { analysis } = section;
+            const mapKey = mapKeyFor(analysis);
             return (
               <AnalysisSection
                 key={analysis.id}
@@ -596,7 +680,8 @@ const ReportDocument = memo(function ReportDocument({
         </div>
 
         <MunicipalReportNotes
-          analyses={selected}
+          analyses={selected.filter((analysis) => !analysis.forecast)}
+          extraNotes={forecastNotes}
           docsContent={docsContent}
           locale={locale}
         />
@@ -615,15 +700,16 @@ function EmptyReportPreview() {
 
   return (
     <div className="flex h-full min-h-[620px] flex-col items-center justify-center gap-6 px-8 py-12 text-center">
+      {/* A ilustração flutua devagar enquanto espera a seleção. */}
       <svg
-        className="h-auto w-full max-w-[488px]"
+        className="h-auto w-full max-w-[488px] motion-safe:animate-[float_6s_ease-in-out_infinite]"
         viewBox="0 0 488 488"
         fill="none"
         aria-hidden="true"
       >
         <use href="/sprite.svg#municipal-report-empty-illustration" />
       </svg>
-      <div className="flex w-full max-w-[602px] items-center justify-center rounded-2xl bg-[#E1E2B4] p-9">
+      <div className="flex w-full max-w-[602px] items-center justify-center rounded-2xl bg-[#E1E2B4] p-9 motion-safe:animate-[panel-in_600ms_200ms_cubic-bezier(0.2,0.7,0.2,1)_both]">
         <p className="font-open-sans text-2xl font-bold leading-[1.5] text-[#777E32]">
           {t("emptyPreviewInstruction")}
         </p>
@@ -701,6 +787,7 @@ export function MunicipalReportPreview({
     [requestedMaps],
   );
   const loadErrorMessage = t("loadError");
+  const serverErrorMessage = t("serverError");
   // No relatório de um município, todos os mapas mostram o mesmo recorte, e
   // cada camada vem do Earth Engine como uma imagem só dele em vez de tiles.
   const territoryKey = report
@@ -936,7 +1023,11 @@ export function MunicipalReportPreview({
           `/api/municipal-report/${encodeURIComponent(locationKey)}?${reportParams.toString()}`,
           { credentials: "same-origin", signal: controller.signal },
         );
-        const payload = await response.json();
+        // Um erro do proxy (502, 504) chega como página HTML: lida como JSON,
+        // virava "Unexpected token '<'" na tela de quem pediu o relatório.
+        const payload = await response.json().catch(() => {
+          throw new Error(serverErrorMessage);
+        });
         finishBaseReport("Relatório-base", {
           response,
           detalhes: `${layerIdsKey ? layerIdsKey.split(",").length : "todas"} camada(s) solicitada(s)`,
@@ -1021,15 +1112,12 @@ export function MunicipalReportPreview({
     locationKey,
     period,
     resetMapCaptureQueue,
+    serverErrorMessage,
   ]);
 
   const visibleError = hasRequiredParameters ? error : null;
 
   if (embedded) {
-    const previewTitle = report
-      ? `${t("reportLabel")} - ${report.territory.label} - ${formatReportPeriod(period, locale)}`
-      : t("reportLabel");
-
     return (
       <div className="flex h-full min-w-0 flex-col bg-white">
         <div className="shrink-0 border-b border-[#D9E0E3] bg-white px-4 py-4 sm:px-6">
@@ -1038,9 +1126,6 @@ export function MunicipalReportPreview({
               <p className="font-inter text-xs font-semibold uppercase tracking-[0.08em] text-[#536E7B]">
                 {t("preview")}
               </p>
-              <h1 className="mt-1 truncate font-inter text-base font-semibold text-[#292829]">
-                {previewTitle}
-              </h1>
             </div>
             <div className="flex shrink-0 flex-wrap items-center gap-3">
               <div className="flex shrink-0 items-center gap-2">

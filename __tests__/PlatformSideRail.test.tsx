@@ -1,4 +1,10 @@
-import { cleanup, render, screen } from "@testing-library/react";
+import {
+  cleanup,
+  fireEvent,
+  render,
+  screen,
+  within,
+} from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 const { linkStatusMock } = vi.hoisted(() => ({
@@ -52,6 +58,27 @@ function renderOperatorRail() {
 }
 
 describe("PlatformSideRail", () => {
+  // O botão da setinha que recolhe o painel não tinha nome: o leitor de tela
+  // anunciava só "botão", sem dizer o que ele fazia.
+  it("diz no botão da setinha se ele recolhe ou abre o painel", () => {
+    const props = {
+      activeSection: "monitoring" as const,
+      onSectionChange: vi.fn(),
+      onTogglePanel: vi.fn(),
+    };
+    const { rerender } = render(<PlatformSideRail {...props} isPanelOpen />);
+
+    expect(
+      screen.getByRole("button", { name: "Recolher painel" }),
+    ).toHaveAttribute("aria-expanded", "true");
+
+    rerender(<PlatformSideRail {...props} isPanelOpen={false} />);
+
+    expect(
+      screen.getByRole("button", { name: "Abrir painel" }),
+    ).toHaveAttribute("aria-expanded", "false");
+  });
+
   // A trilha continua alta como a viewport nas telas que rolam (catálogo,
   // auditoria), mas não pode ultrapassar o container nas que cabem inteiras —
   // senão ela invade o rodapé que fica logo abaixo da plataforma.
@@ -159,7 +186,7 @@ describe("PlatformSideRail", () => {
     // borda). Os antigos 64px deixavam a trilha 2px fora de lugar.
     expect(rail).toHaveClass("top-16.5");
     expect(rail).toHaveClass("h-[calc(100vh-66px)]");
-    expect(rail).toHaveClass("w-[140px]");
+    expect(rail).toHaveClass("w-[124px]");
   });
 
   // Auditoria, catálogo e aprovações continuam sendo páginas separadas, e ir
@@ -196,10 +223,10 @@ describe("PlatformSideRail", () => {
     );
 
     expect(
-      screen.getByRole("button", { name: /Monitoramento/i }),
+      screen.getByRole("button", { name: /Monitor$/i }),
     ).toHaveAttribute("aria-busy", "true");
     expect(
-      screen.getByRole("button", { name: /Análise/i }),
+      screen.getByRole("button", { name: /Priorização/i }),
     ).not.toHaveAttribute("aria-busy");
   });
 
@@ -255,5 +282,92 @@ describe("PlatformSideRail", () => {
     );
 
     expect(fetchMock).not.toHaveBeenCalled();
+  });
+
+  // No celular a trilha vira a barra de baixo, e sete itens não cabiam em 360
+  // px: "Catálogo de índices" saía cortado na borda da tela.
+  describe("Mais, na barra do celular", () => {
+    function renderWithTour(
+      activeSection: "monitoring" | "catalog" = "monitoring",
+    ) {
+      const onReplayTour = vi.fn();
+      render(
+        <PlatformSideRail
+          activeSection={activeSection}
+          onSectionChange={() => {}}
+          isPanelOpen={false}
+          onTogglePanel={() => {}}
+          showAuditLink
+          onReplayTour={onReplayTour}
+        />,
+      );
+      return { onReplayTour };
+    }
+
+    it("guarda Auditoria, Catálogo, Aprovações e Tutorial numa lista", () => {
+      renderWithTour();
+      const more = screen.getByRole("button", { name: "Mais" });
+      expect(more).toHaveAttribute("aria-expanded", "false");
+
+      fireEvent.click(more);
+
+      expect(more).toHaveAttribute("aria-expanded", "true");
+      const menu = within(screen.getByRole("navigation", { name: "Mais" }));
+      expect(menu.getByRole("link", { name: "Auditoria" })).toHaveAttribute(
+        "href",
+        "/platform?view=logs",
+      );
+      expect(
+        menu.getByRole("link", { name: "Catálogo de índices" }),
+      ).toHaveAttribute("href", "/platform?view=catalog");
+      expect(
+        menu.getByRole("link", { name: "Aprovações" }),
+      ).toBeInTheDocument();
+      expect(
+        menu.getByRole("button", { name: "Tutorial" }),
+      ).toBeInTheDocument();
+    });
+
+    it("fecha com Esc e ao escolher um item", () => {
+      const { onReplayTour } = renderWithTour();
+      const more = screen.getByRole("button", { name: "Mais" });
+
+      fireEvent.click(more);
+      fireEvent.keyDown(window, { key: "Escape" });
+      expect(screen.queryByRole("navigation", { name: "Mais" })).toBeNull();
+
+      fireEvent.click(more);
+      fireEvent.click(
+        within(screen.getByRole("navigation", { name: "Mais" })).getByRole(
+          "button",
+          { name: "Tutorial" },
+        ),
+      );
+      expect(onReplayTour).toHaveBeenCalledOnce();
+      expect(screen.queryByRole("navigation", { name: "Mais" })).toBeNull();
+    });
+
+    it("destaca o Mais quando a tela aberta está dentro dele", () => {
+      renderWithTour("catalog");
+
+      expect(screen.getByRole("button", { name: "Mais" })).toHaveAttribute(
+        "data-rail-more-current",
+        "true",
+      );
+    });
+
+    it("não aparece para quem só vê as três seções", () => {
+      render(
+        <PlatformSideRail
+          activeSection="monitoring"
+          onSectionChange={() => {}}
+          isPanelOpen={false}
+          onTogglePanel={() => {}}
+          onReplayTour={() => {}}
+        />,
+      );
+
+      expect(screen.queryByRole("button", { name: "Mais" })).toBeNull();
+    });
   });
 });

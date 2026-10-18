@@ -95,8 +95,10 @@ function ReportSeverityFields({
       <p className="mt-1 text-xs text-stone-500">
         Só com essa resposta o relatório consegue dizer que a situação está
         agravando, amenizando ou se mantendo, e qual foi a pior condição já
-        registrada. Um índice sem ordem — cobertura da terra, por exemplo —
-        simplesmente fica sem essas frases.
+        registrada. Ela também ordena as classes em “Estados por classe
+        predominante”, no Monitoramento, com a mais grave em cima. Um índice
+        sem ordem — cobertura da terra, por exemplo — fica sem essas frases e
+        mostra as classes na ordem da legenda.
       </p>
       {choice === "stale" && (
         <p className="mt-2 text-xs text-red-700">

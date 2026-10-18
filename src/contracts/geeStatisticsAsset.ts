@@ -7,7 +7,12 @@
  * validadores, e um importar o outro fecharia um ciclo.
  */
 
-export type GeeStatisticsPeriodGranularity = "year" | "month";
+/**
+ * `dekad` é o decêndio: três períodos por mês, que começam nos dias 1, 11 e 21.
+ * A chave dele é a data do primeiro dia (`2001-01-11`), a mesma que a coluna de
+ * data das tabelas decendiais guarda, e que já ordena certo como texto.
+ */
+export type GeeStatisticsPeriodGranularity = "year" | "month" | "dekad";
 
 export type GeeStatisticsAssetSource =
   | {
@@ -21,6 +26,10 @@ export type GeeStatisticsAssetSource =
 
 export const MONTH_PERIOD_PATTERN = /^\d{4}-(?:0[1-9]|1[0-2])$/u;
 export const YEAR_PERIOD_PATTERN = /^\d{4}$/u;
+export const DEKAD_PERIOD_PATTERN = /^\d{4}-(?:0[1-9]|1[0-2])-(?:01|11|21)$/u;
+/** Qualquer chave de período válida: ano, mês ou decêndio. */
+export const ANY_PERIOD_PATTERN =
+  /^\d{4}(?:-(?:0[1-9]|1[0-2])(?:-(?:01|11|21))?)?$/u;
 export const PERIOD_PLACEHOLDER_PATTERN = /\{(?:year|month|period)\}/u;
 
 const ASSET_ID_PATTERN = /^[A-Za-z0-9_./{}-]{3,300}$/u;
@@ -95,7 +104,7 @@ export function parseGeeStatisticsAssetSource(
       "O template estatístico deve conter {year}, {month} ou {period}.",
     );
   }
-  if (assetIdTemplate.includes("{month}") && periodGranularity !== "month") {
+  if (assetIdTemplate.includes("{month}") && periodGranularity === "year") {
     throw new Error("O placeholder {month} exige granularidade mensal.");
   }
 
@@ -106,10 +115,13 @@ export function assertGeeStatisticsPeriod(
   periodKey: string,
   periodGranularity: GeeStatisticsPeriodGranularity,
 ): void {
-  const isValidPeriod =
-    periodGranularity === "month"
-      ? MONTH_PERIOD_PATTERN.test(periodKey)
-      : YEAR_PERIOD_PATTERN.test(periodKey);
+  const pattern =
+    periodGranularity === "dekad"
+      ? DEKAD_PERIOD_PATTERN
+      : periodGranularity === "month"
+        ? MONTH_PERIOD_PATTERN
+        : YEAR_PERIOD_PATTERN;
+  const isValidPeriod = pattern.test(periodKey);
 
   if (!isValidPeriod) {
     throw new Error(
@@ -135,7 +147,7 @@ export function expandGeeStatisticsPeriodTemplate(
   periodGranularity: GeeStatisticsPeriodGranularity,
   messages: { templateLabel: string; invalidMessage: string },
 ): string {
-  const month = periodGranularity === "month" ? periodKey.slice(5, 7) : null;
+  const month = periodGranularity === "year" ? null : periodKey.slice(5, 7);
   if (template.includes("{month}") && !month) {
     throw new Error(
       `${messages.templateLabel} com {month} exige uma fonte de granularidade mensal.`,

@@ -2,6 +2,8 @@
   "PlatformMap": {
     "loadingGeeLayer": "Cargando capa de GEE",
     "loadingMapLayer": "Cargando capa de mapa",
+    "loadingLayer": "Cargando",
+    "layerReady": "en el mapa",
     "opacity": "Transparencia",
     "mapSettings": "Ajustes del mapa",
     "basemap": "Mapa base",
@@ -18,6 +20,8 @@
     "territorySearchLabel": "Búsqueda de territorio",
     "territorySearchLoading": "Cargando territorios…",
     "territorySearchNoResults": "Ningún territorio encontrado",
-    "territorySearchError": "No se pudieron cargar los territorios"
+    "territorySearchError": "No se pudieron cargar los territorios",
+    "selectedTerritoryFocus": "Volver el mapa a este territorio",
+    "selectedTerritoryClear": "Desmarcar {name}"
   }
 }

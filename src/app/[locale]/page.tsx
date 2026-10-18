@@ -6,11 +6,10 @@ import { PublicPolicySection } from "@/components/PublicPolicySection/PublicPoli
 import { UseCasesSection } from "@/components/UseCasesSection/UseCasesSection";
 import { InstitutionsSection } from "@/components/InstitutionsSection/InstitutionsSection";
 import { getHomePageContent } from "@/repositories/content/siteContentRepository";
+import { getBlurPreviews } from "@/services/blurPreviews";
 import { getTranslations } from "next-intl/server";
-import {
-  MOCK_NEWS_CONTENT,
-  MOCK_PLATFORM_MODULES_CONTENT,
-} from "./homePage.mocks";
+import { MOCK_PLATFORM_MODULES_CONTENT } from "./homePage.mocks";
+import { getHomeTextsForLocale } from "./homeTexts";
 
 export default async function Home({
   params,
@@ -18,7 +17,10 @@ export default async function Home({
   params: Promise<{ locale: string }>;
 }) {
   const { locale } = await params;
-  const data = await getHomePageContent(locale);
+  const [data, texts] = await Promise.all([
+    getHomePageContent(locale),
+    getHomeTextsForLocale(locale),
+  ]);
   const t = await getTranslations("HomePage");
 
   if (!data) {
@@ -29,19 +31,48 @@ export default async function Home({
     );
   }
 
-  // Os ids das seções são os destinos do menu "Home" do topo (layout.tsx).
+  const previews = await getBlurPreviews([
+    ...data.banners.map((banner) => banner.image.url),
+    ...texts.tools.items.map((tool) => tool.image),
+    ...(texts.publicPolicy.images ?? []),
+    ...texts.testimonials.items.map((testimonial) => testimonial.image),
+  ]);
+
+  // Os ids das seções são os destinos do menu "Início" do topo (layout.tsx).
   return (
     <div className="flex min-h-screen flex-col">
       <main className="grow">
-        <MainBanner banners={data.banners} />
-        <BigNumbersSection />
-        <NewsSection id="novidades" items={MOCK_NEWS_CONTENT} />
+        <MainBanner
+          banners={data.banners}
+          // Só as dos slides: o banner é componente de cliente, e o que ele
+          // recebe vai para a página uma segunda vez, para o React montar.
+          previews={data.banners.map((banner) => previews[banner.image.url])}
+        />
+        <BigNumbersSection items={texts.highlights} />
         <PlatformModulesSection
           id="a-plataforma"
           content={MOCK_PLATFORM_MODULES_CONTENT}
+          texts={texts.tools}
+          previews={previews}
         />
-        <PublicPolicySection id="politica-publica" />
-        <UseCasesSection id="usuarios" />
+        <PublicPolicySection
+          id="politica-publica"
+          {...texts.publicPolicy}
+          previews={previews}
+        />
+        <NewsSection
+          id="novidades"
+          title={texts.features.title}
+          items={texts.features.items}
+          toolNames={Object.fromEntries(
+            texts.tools.items.map((tool) => [tool.id, tool.name]),
+          )}
+        />
+        <UseCasesSection
+          id="usuarios"
+          {...texts.testimonials}
+          previews={previews}
+        />
         <InstitutionsSection id="instituicoes" partners={data.partners} />
       </main>
     </div>

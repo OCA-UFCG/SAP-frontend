@@ -1,9 +1,11 @@
 import type { MunicipalReportPeriodSnapshot } from "@/contracts/municipalReport";
 import { formatReportPeriod } from "@/utils/municipalReportNarrative";
+import { parseDekadPeriod } from "@/utils/dekadPeriod";
 import {
   severityRank,
   type ReportSeveritySpec,
   type ReportVariableProfile,
+  type ReportSeriesGranularity,
 } from "@/utils/reportVariableProfile";
 
 /**
@@ -24,6 +26,12 @@ export const REPORT_SERIES_NO_DATA = "sem dados";
 const VARIATION_DEAD_ZONE = 0.1;
 
 const MONTHS_IN_YEAR = 12;
+const DEKADS_IN_YEAR = 36;
+
+/** Quantos períodos da série cabem em um ano: 12 meses ou 36 decêndios. */
+function periodsInYear(granularity: ReportSeriesGranularity) {
+  return granularity === "dekad" ? DEKADS_IN_YEAR : MONTHS_IN_YEAR;
+}
 
 export type ReportSeriesVariableRequirement =
   "series" | "classes" | "value" | "monthly-year" | "severity" | "neutral";
@@ -168,7 +176,8 @@ function satisfies(
   if (requirement === "value") return profile.shape === "municipal-value";
   if (requirement === "monthly-year") {
     return (
-      profile.granularity === "month" && profile.periodCount > MONTHS_IN_YEAR
+      profile.granularity !== "year" &&
+      profile.periodCount > periodsInYear(profile.granularity)
     );
   }
   if (requirement === "severity") {
@@ -282,9 +291,12 @@ function frequencyValues(
   };
 }
 
-/** O período doze meses antes, na mesma forma `AAAA-MM` da série. */
+/**
+ * O período doze meses antes, na mesma forma da série: `AAAA-MM`, ou
+ * `AAAA-MM-DD` quando a série é decendial (o mesmo decêndio do ano anterior).
+ */
 function twelveMonthsBefore(period: string) {
-  const match = /^(\d{4})-(\d{2})$/u.exec(period);
+  const match = /^(\d{4})-(\d{2}(?:-\d{2})?)$/u.exec(period);
   if (!match) return null;
   return `${Number(match[1]) - 1}-${match[2]}`;
 }
@@ -296,7 +308,9 @@ function yearOverYearValues(
   const last = series.at(-1);
   if (!last?.dominantClass) return {};
 
-  const windowStart = series.at(-MONTHS_IN_YEAR);
+  const windowStart = series.at(
+    -periodsInYear(parseDekadPeriod(last.period) ? "dekad" : "month"),
+  );
   const sameMonthPeriod = twelveMonthsBefore(last.period);
   const sameMonth = series.find(
     (snapshot) => snapshot.period === sameMonthPeriod,

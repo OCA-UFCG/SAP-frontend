@@ -25,7 +25,7 @@ export const AmfeMapLegend = () => {
       <p className={`${MAP_CONTROL_LABEL_CLASS} font-semibold`}>
         {t("classification")}
       </p>
-      <div className="flex flex-col gap-1.5">
+      <div className="legend-cascade flex flex-col gap-1.5">
         {LEGEND_ORDER.map((level) => (
           <div key={level} className="flex items-center gap-3">
             <div

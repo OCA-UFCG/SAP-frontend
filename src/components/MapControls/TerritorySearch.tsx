@@ -163,47 +163,92 @@ function TerritorySearchResults({
       role="listbox"
       className="flex max-h-56 flex-col overflow-y-auto border-b border-[#EFEFEF] pb-1.5"
     >
-      {results.map((territory, index) => {
-        const swatch = REFERENCE_LAYER_SWATCHES[territory.layerId];
-        const place = [territory.municipality, territory.uf]
-          .filter(Boolean)
-          .join(" · ");
-
-        return (
-          <li
-            key={`${territory.layerId}-${territory.name}-${territory.bounds.join()}`}
-            id={`${listId}-${index}`}
-            role="option"
-            aria-selected={index === activeIndex}
-            onMouseEnter={() => onHover(index)}
-            // mousedown, e não click: o campo não perde o foco antes da escolha.
-            onMouseDown={(event) => {
-              event.preventDefault();
-              onSelect(territory);
-            }}
-            className={`flex cursor-pointer items-start gap-2 rounded px-1 py-1 ${
-              index === activeIndex ? "bg-[#F1F2EC]" : ""
-            }`}
-          >
-            <span
-              aria-hidden="true"
-              className="mt-[3px] h-3 w-3 shrink-0 rounded-[2px] border-[1.5px]"
-              style={{ borderColor: swatch.outline, background: swatch.fill }}
-            />
-            <span className="flex min-w-0 flex-col">
-              <span
-                className={`${MAP_CONTROL_LABEL_CLASS} truncate font-semibold`}
-              >
-                {territory.name}
-              </span>
-              <span className={`${SECONDARY_TEXT_CLASS} truncate`}>
-                {t(territory.layerId)}
-                {place && ` · ${place}`}
-              </span>
-            </span>
-          </li>
-        );
-      })}
+      {results.map((territory, index) => (
+        <li
+          key={`${territory.layerId}-${territory.name}-${territory.bounds.join()}`}
+          id={`${listId}-${index}`}
+          role="option"
+          aria-selected={index === activeIndex}
+          onMouseEnter={() => onHover(index)}
+          // mousedown, e não click: o campo não perde o foco antes da escolha.
+          onMouseDown={(event) => {
+            event.preventDefault();
+            onSelect(territory);
+          }}
+          className={`flex cursor-pointer items-start gap-2 rounded px-1 py-1 ${
+            index === activeIndex ? "bg-[#F1F2EC]" : ""
+          }`}
+        >
+          <TerritoryLabel territory={territory} />
+        </li>
+      ))}
     </ul>
+  );
+}
+
+/**
+ * O território escolhido na busca, fixo no cartão de Territórios — inclusive
+ * com o cartão fechado. Depois que o mapa se move a pessoa pode esquecer o que
+ * buscou: o nome continua ali, clicar nele leva o mapa de volta e o "×" desmarca.
+ */
+export function SelectedTerritory({
+  territory,
+  onFocus,
+  onClear,
+}: {
+  territory: ReferenceTerritory;
+  onFocus: (territory: ReferenceTerritory) => void;
+  onClear: () => void;
+}) {
+  const t = useTranslations("PlatformMap");
+
+  return (
+    <div className="flex items-start gap-1 rounded-md bg-[#F1F2EC] px-1.5 py-1">
+      <button
+        type="button"
+        onClick={() => onFocus(territory)}
+        title={t("selectedTerritoryFocus")}
+        className="flex min-w-0 flex-1 cursor-pointer items-start gap-2 text-left"
+      >
+        <TerritoryLabel territory={territory} />
+      </button>
+      <button
+        type="button"
+        onClick={onClear}
+        aria-label={t("selectedTerritoryClear", { name: territory.name })}
+        title={t("selectedTerritoryClear", { name: territory.name })}
+        className="flex h-[18px] w-[18px] shrink-0 cursor-pointer items-center justify-center rounded opacity-60 hover:bg-white hover:opacity-100"
+      >
+        <Icon id="close-modal" size={8} />
+      </button>
+    </div>
+  );
+}
+
+/** Amostra da camada, nome e "camada · município · UF" — na lista e no selecionado. */
+function TerritoryLabel({ territory }: { territory: ReferenceTerritory }) {
+  const t = useTranslations("PlatformMap");
+  const swatch = REFERENCE_LAYER_SWATCHES[territory.layerId];
+  const place = [territory.municipality, territory.uf]
+    .filter(Boolean)
+    .join(" · ");
+
+  return (
+    <>
+      <span
+        aria-hidden="true"
+        className="mt-[3px] h-3 w-3 shrink-0 rounded-[2px] border-[1.5px]"
+        style={{ borderColor: swatch.outline, background: swatch.fill }}
+      />
+      <span className="flex min-w-0 flex-col">
+        <span className={`${MAP_CONTROL_LABEL_CLASS} truncate font-semibold`}>
+          {territory.name}
+        </span>
+        <span className={`${SECONDARY_TEXT_CLASS} truncate`}>
+          {t(territory.layerId)}
+          {place && ` · ${place}`}
+        </span>
+      </span>
+    </>
   );
 }

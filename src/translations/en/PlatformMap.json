@@ -2,6 +2,8 @@
   "PlatformMap": {
     "loadingGeeLayer": "Loading GEE layer",
     "loadingMapLayer": "Loading map layer",
+    "loadingLayer": "Loading",
+    "layerReady": "on the map",
     "opacity": "Transparency",
     "mapSettings": "Map settings",
     "basemap": "Base map",
@@ -18,6 +20,8 @@
     "territorySearchLabel": "Territory search",
     "territorySearchLoading": "Loading territories…",
     "territorySearchNoResults": "No territory found",
-    "territorySearchError": "Could not load territories"
+    "territorySearchError": "Could not load territories",
+    "selectedTerritoryFocus": "Move the map back to this territory",
+    "selectedTerritoryClear": "Clear {name}"
   }
 }

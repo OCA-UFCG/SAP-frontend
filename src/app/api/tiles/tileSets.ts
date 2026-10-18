@@ -1,6 +1,7 @@
 import path from "node:path";
+import territoryVectorTiles from "@/config/territoryVectorTiles.json";
 
-export type TileSetId = "cities" | "states";
+export type TileSetId = "cities" | "states" | `territories-${string}`;
 
 export interface TileSetConfig {
   id: TileSetId;
@@ -28,10 +29,25 @@ const TILE_SETS: Record<TileSetId, TileSetConfig> = {
     id: "states",
     relativePath: path.join("public", "tiles", "brazil-states.mbtiles"),
   },
+  // Um arquivo por grupo de Territórios, de scripts/build-territory-tiles.mjs:
+  // quem liga um grupo só baixa os tiles dele.
+  ...Object.fromEntries(
+    territoryVectorTiles.layers.map((layerId) => [
+      `territories-${layerId}`,
+      {
+        id: `territories-${layerId}`,
+        relativePath: path.join(
+          "public",
+          "tiles",
+          `brazil-territories-${layerId}.mbtiles`,
+        ),
+      },
+    ]),
+  ),
 };
 
 const isTileSetId = (value: string): value is TileSetId =>
-  value === "cities" || value === "states";
+  Object.hasOwn(TILE_SETS, value);
 
 export const resolveTileSet = (rawTileSet: string | null): TileSetResult => {
   if (!rawTileSet) {
@@ -41,7 +57,7 @@ export const resolveTileSet = (rawTileSet: string | null): TileSetResult => {
   if (!isTileSetId(rawTileSet)) {
     return {
       ok: false,
-      message: `Invalid tileset received ${rawTileSet}; expected one of states,cities`,
+      message: `Invalid tileset received ${rawTileSet}; expected one of ${Object.keys(TILE_SETS).join(",")}`,
     };
   }
 

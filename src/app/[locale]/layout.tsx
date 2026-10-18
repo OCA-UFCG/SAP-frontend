@@ -25,7 +25,6 @@ const openSans = Open_Sans({
 export const metadata: Metadata = {
   title: "Portal SEDES",
   description: "Portal SEDES criado por OCA",
-  manifest: "/manifest.json",
   icons: {
     icon: [
       { url: "/favicon.svg", type: "image/svg+xml" },
@@ -52,17 +51,11 @@ export default async function RootLayout({
   const headerContent: ISections = {
     "home-section": {
       id: "1",
-      name: t("home"),
+      name: t("aboutShort"),
       path: "/",
       appears: true,
       childrenCollection: {
         items: [
-          {
-            id: "3-1",
-            name: t("aboutMenu.novidades"),
-            path: "/#novidades",
-            appears: true,
-          },
           {
             id: "3-2",
             name: t("aboutMenu.aPlataforma"),
@@ -73,6 +66,12 @@ export default async function RootLayout({
             id: "3-3",
             name: t("aboutMenu.politicaPublica"),
             path: "/#politica-publica",
+            appears: true,
+          },
+          {
+            id: "3-1",
+            name: t("aboutMenu.novidades"),
+            path: "/#novidades",
             appears: true,
           },
           {
@@ -89,6 +88,12 @@ export default async function RootLayout({
           },
         ],
       },
+    },
+    "about-section": {
+      id: "3",
+      name: t("about"),
+      path: "/sobre-o-sedes",
+      appears: true,
     },
     "glossary-section": {
       id: "5",

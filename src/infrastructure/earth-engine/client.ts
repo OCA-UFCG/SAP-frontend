@@ -326,9 +326,20 @@ async function requestGeeApi<T>(
       await waitBeforeRetry(attempt);
       continue;
     }
-    const payload = (await response.json().catch(() => ({}))) as T & {
-      error?: { message?: unknown };
-    };
+    let payload: T & { error?: { message?: unknown } };
+    try {
+      payload = await response.json();
+    } catch (error) {
+      // O prazo da tentativa vale também para baixar a resposta. Uma resposta
+      // grande demais cortada no meio não pode virar um `{}` de sucesso: quem
+      // chamou leria "o Earth Engine não devolveu nada" no lugar da causa.
+      if (response.ok) {
+        throw new Error(
+          `A resposta do Earth Engine não pôde ser lida até o fim (${error instanceof Error ? error.message : String(error)}). Ela pode ser grande demais para o prazo de ${GEE_COMPUTE_ATTEMPT_TIMEOUT_MS / 1000} s.`,
+        );
+      }
+      payload = {} as typeof payload;
+    }
 
     if (response.ok) return payload;
 
@@ -369,6 +380,23 @@ export async function evaluateGeeObject<T>(value: {
 }
 
 /**
+ * Confirma que o Earth Engine responde com as credenciais do servidor, para o
+ * `/api/health`.
+ *
+ * Calcula uma constante, sem ler asset nenhum, e passa por fora do teto de
+ * leituras simultâneas de propósito: num pico de relatórios o teto fica cheio,
+ * e a verificação esperando na fila acusaria o Earth Engine de fora do ar
+ * quando ele só está ocupado.
+ */
+export async function pingGee(): Promise<void> {
+  await initializeGee();
+  await requestGeeApi(`projects/${requireProjectId()}/value:compute`, {
+    method: "POST",
+    body: { expression: ee.Serializer.encodeCloudApi(ee.Number(1)) },
+  });
+}
+
+/**
  * Os metadados de um asset, no mesmo formato que `ee.data.getAsset` devolvia.
  *
  * O SDK passava cada `getAsset` pela mesma fila de um pedido a cada 350 ms que
@@ -391,6 +419,54 @@ export async function getGeeAsset(
     }),
   );
   return ee.rpc_convert.assetToLegacyResult(asset);
+}
+
+/**
+ * Quando cada asset de uma pasta foi alterado pela última vez, em milissegundos.
+ *
+ * É só metadado: não calcula nada no Earth Engine e por isso não ocupa uma das
+ * vagas de leitura. Medido na pasta de estatísticas da produção: 179 tabelas
+ * numa página só, em 0,7–1,5 s.
+ *
+ * @example
+ * const updatedAt = await listGeeFolderAssetUpdateTimes(
+ *   "projects/obscaatinga/assets/Estatisticas",
+ * );
+ * updatedAt.get("projects/obscaatinga/assets/Estatisticas/Tabela_2024");
+ */
+export async function listGeeFolderAssetUpdateTimes(
+  folderId: string,
+): Promise<Map<string, number>> {
+  requireProjectId();
+  const name = ee.rpc_convert.assetIdToAssetName(folderId);
+  const updatedAt = new Map<string, number>();
+  let pageToken: string | undefined;
+
+  do {
+    const query = new URLSearchParams({
+      pageSize: "1000",
+      prettyPrint: "false",
+      ...(pageToken ? { pageToken } : {}),
+    });
+    const page = await requestGeeApi<{
+      assets?: Array<{ name?: string; updateTime?: string }>;
+      nextPageToken?: string;
+    }>(`${name}:listAssets?${query}`, { method: "GET" });
+
+    for (const asset of page.assets ?? []) {
+      // A mesma conversão que o SDK usa, para o id sair no formato em que as
+      // fontes estatísticas o guardam (`projects/<projeto>/assets/...`).
+      const assetId = asset.name
+        ? ee.rpc_convert.assetNameToAssetId(asset.name)
+        : null;
+      const time = Date.parse(asset.updateTime ?? "");
+      if (assetId && Number.isFinite(time)) updatedAt.set(assetId, time);
+    }
+
+    pageToken = page.nextPageToken || undefined;
+  } while (pageToken);
+
+  return updatedAt;
 }
 
 /**

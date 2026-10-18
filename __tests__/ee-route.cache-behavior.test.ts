@@ -227,7 +227,7 @@ describe("POST /api/ee cache behavior", () => {
     const body = (await res.json()) as { error?: string };
 
     expect(res.status).toBe(500);
-    expect(body.error).toBe("Earth Engine initialization failed");
+    expect(body.error).toBe("Falha ao gerar a URL de tiles.");
   });
 
   it("recomputes the URL when the server-side layer config changes", async () => {

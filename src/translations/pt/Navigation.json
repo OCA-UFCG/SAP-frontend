@@ -3,6 +3,11 @@
     "home": "Home",
     "platform": "Plataforma",
     "about": "Sobre o SEDES",
-    "contact": "Contatos"
+    "contact": "Contatos",
+    "openMenu": "Abrir menu",
+    "closeMenu": "Fechar menu",
+    "showSections": "Mostrar as seções de {name}",
+    "hideSections": "Esconder as seções de {name}",
+    "language": "Idioma"
   }
 }

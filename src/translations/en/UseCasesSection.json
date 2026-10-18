@@ -1,21 +1,30 @@
 {
   "UseCasesSection": {
-    "title": "How can SEDES be used?",
-    "profiles": {
-      "public-management": {
-        "name": "Public management",
-        "audience": "Municipalities, state governments and federal agencies",
-        "text": "Identify priority municipalities and populations, anticipate critical situations and direct policies, investments and drought response measures."
+    "title": "What people say about SEDES",
+    "items": {
+      "1": {
+        "quote": "Gathering climate, soil and vegetation data for a municipality used to take days. With SEDES, the report comes out in seconds, ready for the meeting.",
+        "author": "Municipal environment department technician"
       },
-      "researchers": {
-        "name": "Technicians and researchers",
-        "audience": "Universities, institutes and technical teams",
-        "text": "Combine climate series, environmental indicators and socioeconomic data to follow trends, assess impacts and delimit vulnerable areas."
+      "2": {
+        "quote": "The drought map together with land cover helps guide farmers in the region.",
+        "author": "Rural extension agent"
       },
-      "communities": {
-        "name": "Society and communities",
-        "audience": "Communities, associations and local organizations",
-        "text": "Understand how the territory is changing, recognize risk situations and strengthen living with drought and the sustainable use of natural resources."
+      "3": {
+        "quote": "As a manager, I need to justify priorities with data. Prioritization by municipality gives technical grounding to the drought resilience plan.",
+        "author": "State public manager"
+      },
+      "4": {
+        "quote": "In class, students look up their own municipality, compare it with neighbors and understand why the topic matters where they live.",
+        "author": "Geography teacher"
+      },
+      "5": {
+        "quote": "Multi-criteria analysis makes it clear why some areas are prioritized.",
+        "author": "Researcher"
+      },
+      "6": {
+        "quote": "The report has become a standard attachment to our fundraising projects.",
+        "author": "Farmers' association coordination"
       }
     }
   }

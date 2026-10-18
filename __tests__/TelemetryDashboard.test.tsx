@@ -96,4 +96,31 @@ describe("TelemetryDashboard", () => {
       screen.queryByRole("columnheader", { name: "Camada" }),
     ).not.toBeInTheDocument();
   });
+
+  it("shows no source switch unless the environment can read production", () => {
+    render(<TelemetryDashboard data={dashboardData} />);
+
+    expect(
+      screen.queryByRole("navigation", { name: "Origem dos logs" }),
+    ).not.toBeInTheDocument();
+  });
+
+  it("lets the beta switch between its own logs and production", () => {
+    render(<TelemetryDashboard data={dashboardData} source="production" />);
+
+    const sourceSwitch = screen.getByRole("navigation", {
+      name: "Origem dos logs",
+    });
+    const production = within(sourceSwitch).getByRole("link", {
+      name: "Produção",
+    });
+    const current = within(sourceSwitch).getByRole("link", {
+      name: "Este ambiente",
+    });
+
+    expect(production).toHaveAttribute("aria-current", "page");
+    expect(production).toHaveAttribute("href", "?view=logs&origem=producao");
+    expect(current).not.toHaveAttribute("aria-current");
+    expect(current).toHaveAttribute("href", "?view=logs");
+  });
 });

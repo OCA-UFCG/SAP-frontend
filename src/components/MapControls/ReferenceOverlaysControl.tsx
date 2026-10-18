@@ -12,7 +12,7 @@ import {
   MapControlDisclosure,
 } from "./MapControlCard";
 import type { ReferenceTerritory } from "./referenceTerritories";
-import { TerritorySearch } from "./TerritorySearch";
+import { SelectedTerritory, TerritorySearch } from "./TerritorySearch";
 
 interface ReferenceOverlaysControlProps {
   activeOverlays: ReadonlySet<ReferenceLayerId>;
@@ -20,6 +20,9 @@ interface ReferenceOverlaysControlProps {
   highlightedOverlay: ReferenceLayerId | null;
   onToggleHighlight: (layerId: ReferenceLayerId) => void;
   onSelectTerritory: (territory: ReferenceTerritory) => void;
+  /** O último território escolhido na busca, até a pessoa desmarcar. */
+  selectedTerritory?: ReferenceTerritory | null;
+  onClearTerritory?: () => void;
   /** O cartão foi aberto: a pessoa provavelmente vai mexer em territórios. */
   onOpen?: () => void;
 }
@@ -30,12 +33,27 @@ export function ReferenceOverlaysControl({
   highlightedOverlay,
   onToggleHighlight,
   onSelectTerritory,
+  selectedTerritory,
+  onClearTerritory,
   onOpen,
 }: ReferenceOverlaysControlProps) {
   const t = useTranslations("PlatformMap");
 
   return (
-    <MapControlDisclosure label={t("referenceOverlays")} onOpen={onOpen}>
+    <MapControlDisclosure
+      label={t("referenceOverlays")}
+      onOpen={onOpen}
+      summary={
+        selectedTerritory &&
+        onClearTerritory && (
+          <SelectedTerritory
+            territory={selectedTerritory}
+            onFocus={onSelectTerritory}
+            onClear={onClearTerritory}
+          />
+        )
+      }
+    >
       {() => (
         <div className="flex flex-col gap-1.5">
           <TerritorySearch

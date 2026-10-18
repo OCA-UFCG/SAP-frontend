@@ -11,6 +11,7 @@
     "backToList": "Volver a la lista",
     "searchStateOrCityToStart": "Busque un estado o ciudad para iniciar el análisis",
     "analysisDate": "Fecha de análisis",
+    "forecastEmissionDate": "Pronóstico emitido en {date}",
     "forecastFilters": {
       "dimensions": {
         "source": "Fuente de datos",
@@ -24,7 +25,8 @@
       },
       "unavailable": "{label}: sin pronóstico para la combinación elegida arriba"
     },
-    "spatialScope": "Recorte espacial",
+    "areaLabel": "Área",
+    "scopeLabel": "Recorte",
     "selectArea": "Seleccione el área",
     "selectValue": "Seleccione el recorte",
     "spatialAreas": {

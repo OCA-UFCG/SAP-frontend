@@ -1,5 +1,12 @@
 import { createRateLimiter, getClientAddress } from "@/utils/rateLimitStore";
 
+/**
+ * Endereço de rede de quem fez a requisição, sem cair para o user-agent: o
+ * captcha repassa esse valor à Cloudflare. `undefined` quando o proxy não
+ * repassou nenhum.
+ */
+export { getClientAddress as getSignupClientIp };
+
 const RATE_LIMIT_WINDOW_MS = 1000 * 60;
 
 /**
@@ -63,7 +70,7 @@ export function getSignupClientKey(request: Request) {
   }
 
   console.error(
-    "Nenhum cabeçalho de endereço na requisição de cadastro: o limite de tentativas está caindo para o user-agent. Confira se o proxy repassa x-forwarded-for.",
+    "Nenhum cabeçalho de endereço na requisição de cadastro: o limite de tentativas está caindo para o user-agent. Confira se o proxy repassa x-real-ip.",
   );
 
   return `ua:${request.headers.get("user-agent")?.trim() || "desconhecido"}`;

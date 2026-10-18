@@ -1,6 +1,6 @@
 import type { PublishedPanelLayerReportSeverity } from "@/contracts/panelLayerReport";
 
-export type ReportSeriesGranularity = "year" | "month";
+export type ReportSeriesGranularity = "year" | "month" | "dekad";
 
 /**
  * O que a série de um índice representa no tempo. Um índice de previsão tem
@@ -40,12 +40,16 @@ export interface ReportVariableProfileInput {
 }
 
 const MONTHLY_PERIOD_PATTERN = /^\d{4}-(?:0[1-9]|1[0-2])$/u;
+const DEKAD_PERIOD_PATTERN = /^\d{4}-(?:0[1-9]|1[0-2])-(?:01|11|21)$/u;
 
 /** A chave do período em que hoje cai, na mesma forma da série do índice. */
 function currentPeriodKey(now: Date, granularity: ReportSeriesGranularity) {
   const year = now.getUTCFullYear();
   if (granularity === "year") return String(year);
-  return `${year}-${String(now.getUTCMonth() + 1).padStart(2, "0")}`;
+  const month = `${year}-${String(now.getUTCMonth() + 1).padStart(2, "0")}`;
+  if (granularity === "month") return month;
+  const day = now.getUTCDate();
+  return `${month}-${day < 11 ? "01" : day < 21 ? "11" : "21"}`;
 }
 
 /**
@@ -56,6 +60,9 @@ function currentPeriodKey(now: Date, granularity: ReportSeriesGranularity) {
 function resolveGranularity(
   periods: readonly string[],
 ): ReportSeriesGranularity {
+  if (periods.some((period) => DEKAD_PERIOD_PATTERN.test(period))) {
+    return "dekad";
+  }
   return periods.some((period) => MONTHLY_PERIOD_PATTERN.test(period))
     ? "month"
     : "year";

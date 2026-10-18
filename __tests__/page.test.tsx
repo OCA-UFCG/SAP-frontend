@@ -10,6 +10,11 @@ vi.mock("next/image", () => ({
   ),
 }));
 
+// As prévias borradas das fotos vêm do Contentful; aqui a home fica sem elas.
+vi.mock("@/services/blurPreviews", () => ({
+  getBlurPreviews: vi.fn().mockResolvedValue({}),
+}));
+
 vi.mock("@/infrastructure/contentful/client", () => ({
   CONTENTFUL_COLLECTION_LIMIT: 200,
   getContent: vi.fn().mockResolvedValue({
@@ -33,13 +38,11 @@ test("Home", async () => {
   const HomeResolved = await Home({ params: Promise.resolve({ locale: "pt" }) });
   render(HomeResolved);
 
-  expect(screen.getByText("O que há de novo?")).toBeDefined();
-  expect(screen.getByText("Territórios em destaque")).toBeDefined();
-  expect(
-    screen.getByText("Como o SEDES apoia o planejamento e a gestão territorial"),
-  ).toBeDefined();
+  // Sem os textos no Contentful, a home usa as traduções em português.
+  expect(screen.getByText("Recursos em destaque")).toBeDefined();
+  expect(screen.getByText("Seca em uma só classificação")).toBeDefined();
+  expect(screen.getByText("O que você pode fazer no SEDES")).toBeDefined();
   expect(screen.getByText("Um instrumento de política pública")).toBeDefined();
-  expect(
-    screen.getByText("Quais são as possibilidades de uso do SEDES?"),
-  ).toBeDefined();
+  expect(screen.getByText("O que dizem sobre o SEDES")).toBeDefined();
+  expect(screen.getByText("Previsto em lei")).toBeDefined();
 });

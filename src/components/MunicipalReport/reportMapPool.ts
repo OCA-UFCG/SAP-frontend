@@ -7,6 +7,7 @@ import {
   OSM_BASE_LAYER,
   OSM_RASTER_SOURCE,
   OSM_SOURCE_ID,
+  REPORT_TERRITORY_MASK_LAYER_ID,
   REPORT_TERRITORY_OUTLINE_LAYER_ID,
   REPORT_TERRITORY_OUTLINE_SOURCE_ID,
 } from "@/components/Map/mapDefinitions";
@@ -142,6 +143,9 @@ export function releaseReportMap(pooled: PooledReportMap) {
       if (map.getSource(GEE_SOURCE_ID)) map.removeSource(GEE_SOURCE_ID);
       // O estado das faixas sai junto com o `selected` logo abaixo.
       removeIndexChoroplethLayers(map);
+      if (map.getLayer(REPORT_TERRITORY_MASK_LAYER_ID)) {
+        map.removeLayer(REPORT_TERRITORY_MASK_LAYER_ID);
+      }
       if (map.getLayer(REPORT_TERRITORY_OUTLINE_LAYER_ID)) {
         map.removeLayer(REPORT_TERRITORY_OUTLINE_LAYER_ID);
       }

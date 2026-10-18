@@ -1,23 +1,23 @@
 {
   "NewsSection": {
-    "title": "O que há de novo?",
+    "title": "Recursos em destaque",
     "learnMore": "Saiba Mais",
     "items": {
-      "territorios-em-destaque": {
-        "title": "Territórios em destaque",
-        "description": "Destaque quilombolas, assentamentos, terras indígenas ou unidades de conservação: o resto do mapa escurece e o grupo fica em evidência."
+      "indice-combinado-de-seca": {
+        "title": "Seca em uma só classificação",
+        "description": "O Índice Combinado de Seca junta chuva, umidade do solo e vegetação em um único mapa, com a metodologia do Observatório Europeu de Seca adaptada ao Brasil."
       },
-      "busca-por-territorio": {
-        "title": "Busca por território",
-        "description": "Digite parte do nome de um território e o mapa vai direto até ele, no Monitoramento e na Análise."
+      "territorios-tradicionais": {
+        "title": "Territórios tradicionais no mapa",
+        "description": "Terras Indígenas, Territórios Quilombolas, Assentamentos e Unidades de Conservação como camadas, para ver como a seca e a degradação os atravessam."
       },
-      "relatorio-mais-rapido": {
-        "title": "Relatório mais rápido",
-        "description": "O relatório do município agora aparece em poucos segundos. Antes, a espera passava de 15."
+      "relatorio-por-municipio": {
+        "title": "Um relatório para cada um dos 5.570 municípios",
+        "description": "Digite o nome, escolha os temas e saia com o diagnóstico do seu município em segundos."
       },
-      "relatorio-da-analise": {
-        "title": "Relatório da análise",
-        "description": "Baixe em PDF o resultado da análise multicritério, com todos os parâmetros usados para montar o mapa."
+      "priorizacao-por-recorte": {
+        "title": "Prioridades para o recorte que você escolher",
+        "description": "Brasil, região, estado, bioma, Semiárido ou ASD: combine indicadores com os pesos que fizerem sentido para a sua pergunta e veja, no mapa, quais municípios precisam de ação primeiro, com o resultado exportável para planilha e PDF."
       }
     }
   }

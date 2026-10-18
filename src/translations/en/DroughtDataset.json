@@ -1,8 +1,8 @@
 {
   "DroughtDataset": {
     "details": "Details",
-    "deactivateLayer": "Deactivate layer {title}",
-    "activateLayer": "Activate layer {title}",
+    "deactivateLayer": "Deactivate product {title}",
+    "activateLayer": "Activate product {title}",
     "moreInformation": "More information about {title}"
   }
 }

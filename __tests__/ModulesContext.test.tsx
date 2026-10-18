@@ -90,7 +90,7 @@ describe("ModulesContext", () => {
     render(<ModulesContext activeSection="analysis" panelLayers={[]} />);
 
     expect(
-      screen.getByRole("button", { name: "Recorte espacial: Nacional" }),
+      screen.getByRole("button", { name: "Área: Nacional" }),
     ).toBeInTheDocument();
 
     vi.unstubAllEnvs();
@@ -168,6 +168,8 @@ describe("ModulesContext", () => {
       .getAllByRole("heading", { level: 3 })
       .map((heading) => heading.textContent);
     expect(titles).toEqual([
+      "Área de Interesse",
+      "Produtos",
       "Monitor de Secas",
       "Índice de Aridez",
       "Previsão: Anomalia Precipitação",

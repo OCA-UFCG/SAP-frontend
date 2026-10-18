@@ -1,7 +1,15 @@
 {
   "ModulesContext": {
     "title": "¿Qué desea monitorear?",
-    "subtitle": "Seleccione qué monitor desea analizar",
+    "subtitle": "Seleccione qué producto desea analizar",
+    "areaSection": {
+      "title": "Área de Interés",
+      "description": "Define el recorte del mapa en el que aparece el producto."
+    },
+    "productsSection": {
+      "title": "Productos",
+      "description": "Active un producto para verlo en el mapa. En Detalles, vea gráficos y rankings."
+    },
     "categories": {
       "climate": "Datos Climáticos",
       "environmental": "Datos Ambientales",

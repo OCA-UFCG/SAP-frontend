@@ -33,12 +33,6 @@ export const TargetIcon = (props: IconProps) => (
   </svg>
 );
 
-export const CalendarIcon = (props: IconProps) => (
-  <svg {...base(props)}>
-    <path d="M19 4h-1V2h-2v2H8V2H6v2H5c-1.11 0-1.99.9-1.99 2L3 20a2 2 0 0 0 2 2h14c1.1 0 2-.9 2-2V6c0-1.1-.9-2-2-2zm0 16H5V10h14v10zm0-12H5V6h14v2zM9 14H7v-2h2v2zm4 0h-2v-2h2v2zm4 0h-2v-2h2v2zm-8 4H7v-2h2v2zm4 0h-2v-2h2v2zm4 0h-2v-2h2v2z" />
-  </svg>
-);
-
 export const ArrowForwardIcon = (props: IconProps) => (
   <svg {...base(props)}>
     <path d="M12 4l-1.41 1.41L16.17 11H4v2h12.17l-5.58 5.59L12 20l8-8z" />
@@ -51,9 +45,33 @@ export const ArrowBackIcon = (props: IconProps) => (
   </svg>
 );
 
+export const PauseIcon = (props: IconProps) => (
+  <svg {...base(props)}>
+    <path d="M6 19h4V5H6v14zm8-14v14h4V5h-4z" />
+  </svg>
+);
+
+export const PlayIcon = (props: IconProps) => (
+  <svg {...base(props)}>
+    <path d="M8 5v14l11-7z" />
+  </svg>
+);
+
+export const ChevronRightIcon = (props: IconProps) => (
+  <svg {...base(props)}>
+    <path d="M8.59 16.59 13.17 12 8.59 7.41 10 6l6 6-6 6-1.41-1.41z" />
+  </svg>
+);
+
 export const QuoteIcon = (props: IconProps) => (
   <svg {...base(props)}>
     <path d="M6 17h3l2-4V7H5v6h3zm8 0h3l2-4V7h-6v6h3z" />
+  </svg>
+);
+
+export const PersonIcon = (props: IconProps) => (
+  <svg {...base(props)}>
+    <path d="M12 12c2.21 0 4-1.79 4-4s-1.79-4-4-4-4 1.79-4 4 1.79 4 4 4zm0 2c-2.67 0-8 1.34-8 4v2h16v-2c0-2.66-5.33-4-8-4z" />
   </svg>
 );
 

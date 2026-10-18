@@ -6,6 +6,8 @@
     "linkText": "{linkText}",
     "previous": "Banner anterior",
     "next": "Próximo banner",
+    "pause": "Pausar banners",
+    "resume": "Retomar banners",
     "goToSlide": "Ir para o banner {slide}"
   }
 }

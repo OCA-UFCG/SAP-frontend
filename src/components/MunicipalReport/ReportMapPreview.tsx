@@ -15,6 +15,7 @@ import { startMunicipalReportStage } from "@/utils/municipalReportMetrics";
 import {
   GEE_LAYER_ID,
   GEE_SOURCE_ID,
+  REPORT_TERRITORY_MASK_LAYER_ID,
   REPORT_TERRITORY_OUTLINE_LAYER_ID,
   REPORT_TERRITORY_OUTLINE_SOURCE_ID,
 } from "@/components/Map/mapDefinitions";
@@ -260,9 +261,13 @@ async function focusTerritory(
   map: maplibregl.Map,
   territory: MunicipalReportTerritory,
   signal: AbortSignal,
+  clipPadding: number | null,
 ) {
   if (territory.level === "municipality") {
-    focusMunicipality(map, territory.locationKey);
+    focusMunicipality(map, territory.locationKey, clipPadding ?? 36);
+    if (clipPadding !== null) {
+      maskOtherMunicipalities(map, territory.locationKey);
+    }
     return;
   }
 
@@ -280,11 +285,15 @@ async function focusTerritory(
   if (bounds) map.fitBounds(bounds, { padding: 24, animate: false });
 }
 
-function focusMunicipality(map: maplibregl.Map, municipalityCode: string) {
+function focusMunicipality(
+  map: maplibregl.Map,
+  municipalityCode: string,
+  padding: number,
+) {
   const bounds = getIndexedMunicipalityBounds(municipalityCode);
   if (bounds) {
     map.fitBounds(bounds, {
-      padding: 36,
+      padding,
       maxZoom: MAP_MUNICIPALITY_FOCUS_MAX_ZOOM,
       animate: false,
     });
@@ -302,6 +311,43 @@ function focusMunicipality(map: maplibregl.Map, municipalityCode: string) {
       { selected: true },
     );
   }
+}
+
+/** Cor do véu: um cinza um tom abaixo do cartão, para o quadro se destacar. */
+const REPORT_TERRITORY_MASK_COLOR = "#ECEFEC";
+/**
+ * A folga em volta do município recortado, como fração do lado menor do
+ * quadro. Os 36 px fixos do mapa inteiro deixavam a cidade encostada nas
+ * bordas de um quadro pequeno.
+ */
+const REPORT_CLIPPED_MAP_PADDING_RATIO = 0.14;
+
+/**
+ * Cobre os municípios vizinhos com um véu opaco, para o índice aparecer só
+ * dentro do município e o formato dele ficar visível no quadro.
+ *
+ * Usa a malha municipal que o mapa já carrega, em vez de pedir ao Earth
+ * Engine uma imagem recortada. Fica abaixo das divisas, então o contorno preto
+ * do município e o traço fino dos vizinhos continuam por cima.
+ */
+function maskOtherMunicipalities(
+  map: maplibregl.Map,
+  municipalityCode: string,
+) {
+  map.addLayer(
+    {
+      id: REPORT_TERRITORY_MASK_LAYER_ID,
+      type: "fill",
+      source: MUNICIPALITY_SOURCE_ID,
+      "source-layer": MUNICIPALITY_SOURCE_LAYER,
+      filter: ["!=", ["to-string", ["get", "CD_MUN"]], municipalityCode],
+      paint: {
+        "fill-color": REPORT_TERRITORY_MASK_COLOR,
+        "fill-opacity": 1,
+      },
+    },
+    MUNICIPALITY_BORDER_LAYER_ID,
+  );
 }
 
 function isCaptureReady(map: maplibregl.Map, sourceId: string) {
@@ -400,6 +446,11 @@ interface ReportMapPreviewProps {
   unavailableReason?: EeMapUrlFailure;
   /** Presente num índice de planilha: desenha a coropleta em vez do raster. */
   choropleth?: ReportMapChoropleth;
+  /**
+   * Mostra o índice só dentro do município, com os vizinhos cobertos. Fora de
+   * município o mapa sai como antes, com o contorno sobre o raster inteiro.
+   */
+  clipToTerritory?: boolean;
   onCapture?: (src: string | null) => void;
   /**
    * Pede outra tentativa de um mapa que a fila já deu como indisponível.
@@ -426,6 +477,7 @@ export function ReportMapPreview({
   thumbnail,
   unavailableReason,
   choropleth,
+  clipToTerritory = false,
   onCapture,
   onRetry,
   onVisibilityChange,
@@ -566,11 +618,23 @@ export function ReportMapPreview({
       else if (thumbnail) {
         addGeeRasterLayer(acquired.map, thumbnailSource(thumbnail));
       } else if (tileUrl) addGeeRasterLayer(acquired.map, tileSource(tileUrl));
-      await focusTerritory(acquired.map, territory, controller.signal);
+      const clipPadding = clipToTerritory
+        ? Math.round(
+            Math.min(slot.clientWidth, slot.clientHeight) *
+              REPORT_CLIPPED_MAP_PADDING_RATIO,
+          )
+        : null;
+      await focusTerritory(
+        acquired.map,
+        territory,
+        controller.signal,
+        clipPadding,
+      );
       if (controller.signal.aborted) return;
       // A miniatura cobre só o recorte calculado para o quadro: a câmera vai
-      // exatamente para ele, em qualquer tamanho de tela.
-      if (thumbnail) {
+      // exatamente para ele, em qualquer tamanho de tela. Recortado, o mapa
+      // fica com a folga própria: o que passa da miniatura está sob o véu.
+      if (thumbnail && clipPadding === null) {
         const [west, south, east, north] = thumbnail.view.frame;
         acquired.map.fitBounds(
           [
@@ -647,6 +711,7 @@ export function ReportMapPreview({
     tileUrl,
     thumbnail,
     choropleth,
+    clipToTerritory,
     drawable,
     unavailableReason,
   ]);

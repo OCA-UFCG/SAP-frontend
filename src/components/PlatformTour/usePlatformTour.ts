@@ -9,6 +9,7 @@ import {
   type DriveStep,
   type PopoverDOM,
 } from "driver.js";
+import { isPhoneViewport } from "@/components/PlatformMap/platformMapView";
 import "driver.js/dist/driver.css";
 import "./platformTour.css";
 
@@ -99,11 +100,17 @@ function renderProgressDots(dom: PopoverDOM, { config, index }: HookOptions) {
   dom.progress.replaceChildren(label, dots);
 }
 
+/** Passos que apontam para controles por cima do mapa. */
+const MAP_CONTROL_STEP_ELEMENTS = [
+  '[data-tour="map-settings"]',
+  '[data-tour="reference-overlays"]',
+];
+
 /** As três áreas da trilha lateral, com os mesmos ícones que ela usa. */
 const PLATFORM_SECTIONS = [
   { id: "monitoring", icon: "eye" },
-  { id: "communication", icon: "report" },
-  { id: "analysis", icon: "chart" },
+  { id: "communication", icon: "chat-bubble" },
+  { id: "analysis", icon: "target" },
 ] as const;
 
 /**
@@ -142,7 +149,25 @@ function renderSectionList(
   dom.description.style.display = "block";
 }
 
-function buildSteps(t: Translate, tRail: TranslateRail): DriveStep[] {
+/**
+ * No celular, para quem tem itens de administração, o botão "Tutorial" mora
+ * dentro do "Mais" e fica escondido na barra. O último passo apontava para ele
+ * e o balão abria no canto da tela, sem alvo.
+ */
+function isReplayInsideMore() {
+  const replay = document.querySelector('[data-tour="platform-tour-replay"]');
+  return (
+    replay !== null &&
+    replay.getClientRects().length === 0 &&
+    document.querySelector('[data-tour="platform-more"]') !== null
+  );
+}
+
+function buildSteps(
+  t: Translate,
+  tRail: TranslateRail,
+  replayInMore: boolean,
+): DriveStep[] {
   const popover = (key: string) => ({
     title: t(`steps.${key}.title`),
     description: t(`steps.${key}.description`),
@@ -221,10 +246,15 @@ function buildSteps(t: Translate, tRail: TranslateRail): DriveStep[] {
       element: '[data-tour="reference-overlays"]',
       popover: { ...popover("territories"), side: "left", align: "end" },
     },
-    {
-      element: '[data-tour="platform-tour-replay"]',
-      popover: { ...popover("replay"), side: "right", align: "end" },
-    },
+    replayInMore
+      ? {
+          element: '[data-tour="platform-more"]',
+          popover: { ...popover("replayInMore"), side: "top", align: "end" },
+        }
+      : {
+          element: '[data-tour="platform-tour-replay"]',
+          popover: { ...popover("replay"), side: "right", align: "end" },
+        },
   ];
 }
 
@@ -265,8 +295,18 @@ export function usePlatformTour({
         // não é surpreendido por ele de novo, e o botão continua lá.
         markPlatformTourSeen();
 
+        // No celular o painel cobre o mapa: os passos dos controles do mapa
+        // apontariam para algo escondido atrás dele, então ficam de fora.
+        const isPhone = isPhoneViewport();
+        const steps = buildSteps(t, tRail, isPhone && isReplayInsideMore()).filter(
+          (step) =>
+            !isPhone ||
+            typeof step.element !== "string" ||
+            !MAP_CONTROL_STEP_ELEMENTS.includes(step.element),
+        );
+
         const tour = driver({
-          steps: buildSteps(t, tRail),
+          steps,
           showProgress: true,
           progressText: "{{current}}/{{total}}",
           nextBtnText: t("next"),

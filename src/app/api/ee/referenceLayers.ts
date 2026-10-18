@@ -11,6 +11,7 @@ import {
   initializeGee,
 } from "@/infrastructure/earth-engine/client";
 import referenceLayers from "@/config/referenceLayers.json";
+import territoryVectorTiles from "@/config/territoryVectorTiles.json";
 
 /**
  * Fixed reference overlay layers — FeatureCollections rendered with one style
@@ -146,12 +147,15 @@ export async function resolveReferenceLayerUrls(layerId: string) {
 export const REFERENCE_LAYER_REFRESH_MS = Math.round((CACHE_TTL_MS * 2) / 3);
 
 /**
- * Gera de novo os endereços dos quatro grupos e guarda no cache, um por vez
- * para não disputar a fila do Earth Engine com quem está usando a plataforma.
+ * Gera de novo os endereços dos grupos do Earth Engine e guarda no cache, um
+ * por vez para não disputar a fila do Earth Engine com quem está usando a
+ * plataforma.
  * Cada parte é isolada: um asset com problema não impede os outros.
  */
 export async function refreshReferenceLayerUrls() {
   for (const layerId of Object.keys(REFERENCE_LAYER_ASSETS)) {
+    // Desenhado dos tiles vetoriais: o mapa não pede mais esse endereço.
+    if (territoryVectorTiles.layers.includes(layerId)) continue;
     for (const part of ["fill", "outline"] as const) {
       try {
         const url = await getReferenceLayerTileUrl(

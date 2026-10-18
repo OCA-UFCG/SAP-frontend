@@ -238,3 +238,20 @@ test("says why Analyze stays disabled when the criteria fail to load", () => {
   expect(screen.getByText("criteriaLoadError")).toBeTruthy();
   expect(screen.getByRole("button", { name: "submitButton" })).toBeDisabled();
 });
+
+// O axe acusava os três seletores sem nome: os rótulos "Área" e "Recorte"
+// estavam na tela, mas soltos, e o leitor de tela anunciava só "caixa de
+// seleção". Ligados, clicar no rótulo também foca o seletor.
+test("dá a cada seletor da área de interesse o nome do seu rótulo", () => {
+  render(<AnalyzeForm setFormPayload={vi.fn()} />);
+
+  expect(
+    screen.getByRole("combobox", { name: "interestAreaFieldLabel" }),
+  ).toHaveAttribute("name", "interestArea");
+  expect(
+    screen.getByRole("combobox", { name: "interestAreaValueTitle" }),
+  ).toHaveAttribute("name", "interestAreaValue");
+  expect(
+    screen.getByRole("combobox", { name: "analysisLevelTitle" }),
+  ).toHaveAttribute("name", "level");
+});

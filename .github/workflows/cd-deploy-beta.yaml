@@ -98,6 +98,7 @@ jobs:
             NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET=${{ secrets.NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET }}
             NEXT_PUBLIC_FIREBASE_MESSAGING_SENDER_ID=${{ secrets.NEXT_PUBLIC_FIREBASE_MESSAGING_SENDER_ID }}
             NEXT_PUBLIC_FIREBASE_APP_ID=${{ secrets.NEXT_PUBLIC_FIREBASE_APP_ID }}
+            NEXT_PUBLIC_TURNSTILE_SITE_KEY=${{ vars.NEXT_PUBLIC_TURNSTILE_SITE_KEY }}
 
   promote-latest:
     needs: [verify, build-image]
@@ -139,7 +140,10 @@ jobs:
           FIREBASE_PROJECT_ID: ${{ secrets.FIREBASE_PROJECT_ID }}
           FIREBASE_CLIENT_EMAIL: ${{ secrets.FIREBASE_CLIENT_EMAIL }}
           FIREBASE_PRIVATE_KEY_BASE64: ${{ secrets.FIREBASE_PRIVATE_KEY_BASE64 }}
+          TURNSTILE_SECRET_KEY: ${{ secrets.TURNSTILE_SECRET_KEY }}
           FIREBASE_TELEMETRY_COLLECTION: ${{ vars.FIREBASE_TELEMETRY_COLLECTION_BETA }}
+          # A Auditoria só existe no beta e também mostra o uso da produção.
+          FIREBASE_TELEMETRY_COLLECTION_PRODUCTION: ${{ vars.FIREBASE_TELEMETRY_COLLECTION_PROD }}
           LOGS_ALLOWED_EMAILS: ${{ vars.LOGS_ALLOWED_EMAILS }}
           CONTENTFUL_MANAGEMENT_TOKEN: ${{ secrets.CONTENTFUL_MANAGEMENT_TOKEN }}
           DOCS_DEFAULT: ${{ vars.DOCS_DEFAULT }}
@@ -152,6 +156,11 @@ jobs:
           SIGNUP_ALLOWED_DOMAINS: ${{ vars.SIGNUP_ALLOWED_DOMAINS }}
           FIREBASE_ACCESS_REQUESTS_COLLECTION: ${{ vars.FIREBASE_ACCESS_REQUESTS_COLLECTION }}
           PLATFORM_ACCESS_GUARD_ENABLED: ${{ vars.PLATFORM_ACCESS_GUARD_ENABLED_BETA }}
+          # O aviso de acesso aprovado leva a pessoa para a produção.
+          PUBLIC_LINKS_BASE_URL: ${{ vars.EMAIL_LINKS_BASE_URL_PROD }}
+          # Conteúdo do Contentful (home, rodapé, glossário) atualiza em 10 s no
+          # beta, para conferir uma publicação sem esperar a 1 hora da produção.
+          CONTENTFUL_REVALIDATE_SECONDS: "10"
         run: bash ./scripts/deploy-container.sh
 
       - name: Prune unused Docker images

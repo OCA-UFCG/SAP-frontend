@@ -97,6 +97,7 @@ jobs:
             NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET=${{ secrets.NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET }}
             NEXT_PUBLIC_FIREBASE_MESSAGING_SENDER_ID=${{ secrets.NEXT_PUBLIC_FIREBASE_MESSAGING_SENDER_ID }}
             NEXT_PUBLIC_FIREBASE_APP_ID=${{ secrets.NEXT_PUBLIC_FIREBASE_APP_ID }}
+            NEXT_PUBLIC_TURNSTILE_SITE_KEY=${{ vars.NEXT_PUBLIC_TURNSTILE_SITE_KEY }}
 
   promote-latest:
     needs: [verify, build-image]
@@ -139,8 +140,11 @@ jobs:
           FIREBASE_PROJECT_ID: ${{ secrets.FIREBASE_PROJECT_ID }}
           FIREBASE_CLIENT_EMAIL: ${{ secrets.FIREBASE_CLIENT_EMAIL }}
           FIREBASE_PRIVATE_KEY_BASE64: ${{ secrets.FIREBASE_PRIVATE_KEY_BASE64 }}
+          TURNSTILE_SECRET_KEY: ${{ secrets.TURNSTILE_SECRET_KEY }}
           FIREBASE_TELEMETRY_COLLECTION: ${{ vars.FIREBASE_TELEMETRY_COLLECTION_PROD }}
-          LOGS_ALLOWED_EMAILS: ${{ vars.LOGS_ALLOWED_EMAILS }}
+          # Auditoria, Catálogo e Aprovações ficam só no beta. Sem ninguém na
+          # lista, a produção esconde os botões e recusa as rotas.
+          LOGS_ALLOWED_EMAILS: ""
           CONTENTFUL_MANAGEMENT_TOKEN: ${{ secrets.CONTENTFUL_MANAGEMENT_TOKEN }}
           DOCS_DEFAULT: ${{ vars.DOCS_DEFAULT }}
           NEXT_PUBLIC_HOST_URL: ${{ vars.NEXT_PUBLIC_HOST_URL }}
@@ -153,6 +157,8 @@ jobs:
           FIREBASE_ACCESS_REQUESTS_COLLECTION: ${{ vars.FIREBASE_ACCESS_REQUESTS_COLLECTION }}
           PLATFORM_ACCESS_GUARD_ENABLED: ${{ vars.PLATFORM_ACCESS_GUARD_ENABLED_PROD }}
           EMAIL_LINKS_BASE_URL: ${{ vars.EMAIL_LINKS_BASE_URL_PROD }}
+          # O aviso de pedido de acesso leva o OCA às Aprovações do beta.
+          ADMIN_LINKS_BASE_URL: ${{ vars.NEXT_PUBLIC_HOST_URL_BETA }}
         run: bash ./scripts/deploy-container.sh
 
       - name: Prune unused Docker images

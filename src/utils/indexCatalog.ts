@@ -2,6 +2,10 @@ import { isMunicipalSpreadsheetSource } from "@/contracts/municipalSpreadsheet";
 import { isGeeMunicipalValueTableSource } from "@/contracts/geeMunicipalValueTable";
 import { parseGeeStatisticsSource } from "@/contracts/geeStatistics";
 import { parseForecastFacetsInput } from "@/contracts/panelLayerForecast";
+import {
+  ANY_PERIOD_PATTERN,
+  DEKAD_PERIOD_PATTERN,
+} from "@/contracts/geeStatisticsAsset";
 import { HEX_COLOR_PATTERN } from "@/utils/hexColor";
 import {
   INDEX_CATEGORIES,
@@ -16,10 +20,11 @@ import {
 } from "@/types/indexCatalog";
 
 const ASSET_ID_PATTERN = /^[A-Za-z0-9_./{}-]{3,300}$/u;
-const PERIOD_PATTERN = /^\d{4}(?:-(?:0[1-9]|1[0-2]))?$/u;
+const PERIOD_PATTERN = ANY_PERIOD_PATTERN;
 const ASSET_YEAR_PATTERN = /(?<![0-9])(?:19|20|21)\d{2}(?![0-9])/gu;
 const ASSET_MONTH_SUFFIX_PATTERN = /^([_\-.])(0[1-9]|1[0-2])(?=$|[_\-./])/u;
-const PERIOD_CAPTURE_PATTERN = /^(\d{4})(?:-(0[1-9]|1[0-2]))?$/u;
+const PERIOD_CAPTURE_PATTERN =
+  /^(\d{4})(?:-(0[1-9]|1[0-2])(?:-(?:01|11|21))?)?$/u;
 
 export interface DetectedPeriodTemplate {
   /** Endereço com `{year}` — e `{month}`, quando houver — no lugar do período. */
@@ -581,11 +586,13 @@ export function fillPeriodTemplate(template: string, period?: string) {
 }
 
 export function inferTimeScale(periods: readonly string[]) {
-  return periods.some((period) => /^\d{4}-\d{2}$/u.test(period))
-    ? ("Mensal" as const)
-    : periods.some((period) => /^\d{4}$/u.test(period))
-      ? ("Anual" as const)
-      : undefined;
+  return periods.some((period) => DEKAD_PERIOD_PATTERN.test(period))
+    ? ("Decendial" as const)
+    : periods.some((period) => /^\d{4}-\d{2}$/u.test(period))
+      ? ("Mensal" as const)
+      : periods.some((period) => /^\d{4}$/u.test(period))
+        ? ("Anual" as const)
+        : undefined;
 }
 
 export function expandAssetForPeriod(
@@ -617,6 +624,9 @@ export function assertAssetPatternVariesByPeriod(
 ) {
   const pattern = mapping.assetPattern;
   if (mapping.strategy !== "perPeriod" || !pattern) return;
+  // Uma ImageCollection única é filtrada pela data de cada período no mapa; a
+  // cobertura dela é conferida contra o Earth Engine na validação do mapa.
+  if (mapping.sourceType === "imageCollection") return;
   if (/\{(?:year|month|period)\}/u.test(pattern)) return;
 
   const unlisted = periods.filter(

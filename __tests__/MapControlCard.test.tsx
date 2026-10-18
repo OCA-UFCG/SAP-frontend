@@ -38,6 +38,30 @@ describe("MapControlDisclosure", () => {
     expect(onOpen).toHaveBeenCalledTimes(1);
   });
 
+  it("nasce aberto com defaultOpen e ainda fecha pelo cabeçalho", () => {
+    render(
+      <MapControlDisclosure label="Legendas" defaultOpen>
+        {() => <p>conteúdo</p>}
+      </MapControlDisclosure>,
+    );
+
+    expect(screen.getByText("conteúdo")).toBeInTheDocument();
+    fireEvent.click(screen.getByRole("button", { name: "Legendas" }));
+    expect(screen.queryByText("conteúdo")).not.toBeInTheDocument();
+  });
+
+  it("mostra a legenda aberta assim que um índice é ligado", () => {
+    render(
+      <PlatformMapCaption legend={[{ label: "Seca fraca", color: "#ff0" }]} />,
+    );
+
+    expect(screen.getByRole("button", { name: "Legendas" })).toHaveAttribute(
+      "aria-expanded",
+      "true",
+    );
+    expect(screen.getByText("Seca fraca")).toBeInTheDocument();
+  });
+
   it("gives Territórios and Legendas the same card, so they stop diverging", () => {
     const { container: overlays } = render(
       <ReferenceOverlaysControl
@@ -51,6 +75,8 @@ describe("MapControlDisclosure", () => {
     const { container: caption } = render(
       <PlatformMapCaption legend={[{ label: "Seca fraca", color: "#ff0" }]} />,
     );
+    // Legendas nasce aberta; fechado, o cartão encolhe no celular.
+    fireEvent.click(screen.getByRole("button", { name: "Territórios" }));
 
     expect(overlays.firstElementChild?.className).toBe(
       caption.firstElementChild?.className,

@@ -1,23 +1,32 @@
 "use client";
 
-import { useTranslations } from "next-intl";
+import { useEffect, useRef } from "react";
 import { PlatformMapCaption } from "@/components/PlatformMapCaption/PlatformMapCaption";
 import { MapSettingsControl } from "@/components/MapControls/MapSettingsControl";
 import { ReferenceOverlaysControl } from "@/components/MapControls/ReferenceOverlaysControl";
+import { MapLayerLoading } from "./MapLayerLoading";
+import { usePhoneViewport } from "./platformMapView";
 import type { MonitoringMapLayers } from "./useMonitoringMapLayers";
 
 interface MonitoringMapOverlaysProps {
   monitoring: MonitoringMapLayers;
   /** Comunicação mantém o mapa montado por baixo do relatório, sem controles. */
   showControls: boolean;
+  /**
+   * Quanto da borda de baixo do mapa os controles cobrem, em px. Só conta no
+   * celular, onde a legenda e o botão "Mostrar opções" ocupam a largura toda.
+   */
+  onBottomInsetChange?: (inset: number) => void;
 }
 
 /** Controles e avisos que ficam por cima do mapa em Monitoramento. */
 export function MonitoringMapOverlays({
   monitoring,
   showControls,
+  onBottomInsetChange,
 }: MonitoringMapOverlaysProps) {
-  const t = useTranslations("PlatformMap");
+  const isPhone = usePhoneViewport();
+  const bottomStackRef = useBottomInset(isPhone, onBottomInsetChange);
   const {
     activeEEData,
     activeLegend,
@@ -25,6 +34,7 @@ export function MonitoringMapOverlays({
     setBasemap,
     isAnyReferenceOverlayLoading,
     isGeeLayerLoading,
+    hasGeeLayerFailed,
     layerOpacity,
     setLayerOpacity,
     referenceOverlays,
@@ -33,42 +43,55 @@ export function MonitoringMapOverlays({
     toggleReferenceHighlight,
     prefetchReferenceOverlays,
     focusTerritory,
+    clearTerritoryFocus,
+    territoryFocus,
   } = monitoring;
+
+  const referenceOverlaysControl = (
+    <div data-tour="reference-overlays">
+      <ReferenceOverlaysControl
+        activeOverlays={referenceOverlays}
+        onToggle={toggleReferenceOverlay}
+        highlightedOverlay={highlightedReferenceOverlay}
+        onToggleHighlight={toggleReferenceHighlight}
+        onSelectTerritory={focusTerritory}
+        selectedTerritory={territoryFocus?.territory}
+        onClearTerritory={clearTerritoryFocus}
+        onOpen={prefetchReferenceOverlays}
+      />
+    </div>
+  );
 
   return (
     <>
-      {(isGeeLayerLoading || isAnyReferenceOverlayLoading) && (
-        <div className="pointer-events-none absolute inset-0 z-20 flex items-center justify-center px-6">
-          <div
-            aria-live="polite"
-            aria-label={t("loadingGeeLayer")}
-            className="flex items-center gap-3 rounded-full border border-white/25 bg-stone-950/78 px-5 py-3 text-sm font-medium text-white shadow-[0_18px_60px_rgba(0,0,0,0.35)] backdrop-blur-sm"
-            role="status"
-          >
-            <span
-              aria-hidden="true"
-              className="h-4 w-4 animate-spin rounded-full border-2 border-white/35 border-t-white"
-            />
-            <span>{t("loadingMapLayer")}</span>
-          </div>
+      <MapLayerLoading
+        isLoading={isGeeLayerLoading || isAnyReferenceOverlayLoading}
+        dimMap={isGeeLayerLoading}
+        layerName={activeEEData?.name}
+        failed={hasGeeLayerFailed}
+      />
+
+      {/* No celular Territórios sobe para o canto de cima à direita, fechado
+          do tamanho do rótulo: embaixo, empilhado com a legenda, cobria o Sul
+          e o Nordeste. Ali em cima é oceano — a costa do Nordeste começa mais
+          abaixo — e à esquerda a aba do logo do SEDES desce sobre o mapa. */}
+      {showControls && isPhone && (
+        <div className="absolute right-2.5 top-2 z-[1000] flex max-w-[calc(100%-20px)] flex-col items-end">
+          {referenceOverlaysControl}
         </div>
       )}
 
-      <div className="absolute bottom-0 right-6 z-[1000] box-border flex min-h-[124px] w-[302px] flex-col items-end justify-center gap-[10px] pb-6">
-        {showControls && (
-          <div data-tour="reference-overlays">
-            <ReferenceOverlaysControl
-              activeOverlays={referenceOverlays}
-              onToggle={toggleReferenceOverlay}
-              highlightedOverlay={highlightedReferenceOverlay}
-              onToggleHighlight={toggleReferenceHighlight}
-              onSelectTerritory={focusTerritory}
-              onOpen={prefetchReferenceOverlays}
-            />
-          </div>
-        )}
+      {/* No celular sobe acima do botão "Mostrar opções", que flutua embaixo. */}
+      <div ref={bottomStackRef} data-stage-pop className="absolute bottom-0 right-6 z-[1000] box-border flex min-h-[124px] w-[302px] flex-col items-end justify-center gap-[10px] pb-6 max-md:right-2 max-md:min-h-0 max-md:gap-2 max-md:pb-[72px]">
+        {showControls && !isPhone && referenceOverlaysControl}
         {showControls && activeLegend && activeLegend.length > 0 && (
-          <PlatformMapCaption legend={activeLegend} />
+          // Trocar de índice remonta a legenda, que entra de novo subindo.
+          <div
+            key={activeEEData?.id ?? "legend"}
+            className="motion-safe:animate-[panel-in_420ms_cubic-bezier(0.2,0.7,0.2,1)] max-md:flex max-md:w-full max-md:flex-col max-md:items-end"
+          >
+            <PlatformMapCaption legend={activeLegend} />
+          </div>
         )}
       </div>
 
@@ -82,4 +105,37 @@ export function MonitoringMapOverlays({
       )}
     </>
   );
+}
+
+/**
+ * Mede a pilha de baixo e avisa a altura que ela cobre, para o mapa enquadrar
+ * o Brasil acima dela. Fora do celular avisa zero: no computador a pilha fica
+ * no canto e o país cabe ao lado.
+ */
+function useBottomInset(
+  isPhone: boolean,
+  onBottomInsetChange?: (inset: number) => void,
+) {
+  const ref = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    const element = ref.current;
+    if (!onBottomInsetChange) return;
+    if (!isPhone || !element || typeof ResizeObserver === "undefined") {
+      onBottomInsetChange(0);
+      return;
+    }
+
+    const report = () =>
+      onBottomInsetChange(Math.round(element.getBoundingClientRect().height));
+    report();
+    const observer = new ResizeObserver(report);
+    observer.observe(element);
+    return () => {
+      observer.disconnect();
+      onBottomInsetChange(0);
+    };
+  }, [isPhone, onBottomInsetChange]);
+
+  return ref;
 }

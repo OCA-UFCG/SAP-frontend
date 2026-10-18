@@ -307,3 +307,49 @@ describe("municipalAnalysisCache", () => {
     );
   });
 });
+
+describe("municipalAnalysisCache e as tabelas alteradas no Earth Engine", () => {
+  beforeEach(() => {
+    clearMunicipalAnalysisCacheForTests();
+    mockedGetPanelLayerWithMunicipalAnalysisYear.mockReset();
+  });
+
+  // As linhas descartadas porque a tabela mudou não podem continuar valendo
+  // aqui, já montadas, até o fim do prazo deste cache.
+  it("monta de novo o período depois que linhas estatísticas são descartadas", async () => {
+    const { invalidateStatisticsRows, getOrLoadStatisticsRows } =
+      await import("@/repositories/platform/geeStatisticsRowsCache");
+    await getOrLoadStatisticsRows("chave", () => Promise.resolve([]), ["a"]);
+    mockedGetPanelLayerWithMunicipalAnalysisYear
+      .mockResolvedValueOnce(buildLayer("ana", { br: [1] }))
+      .mockResolvedValueOnce(buildLayer("ana", { br: [2] }));
+
+    await getCachedMunicipalAnalysisImageData("ana", "2026", "br");
+    invalidateStatisticsRows((assetId) => assetId === "a");
+    const result = await getCachedMunicipalAnalysisImageData(
+      "ana",
+      "2026",
+      "br",
+    );
+
+    expect(result.status).toBe("miss");
+    expect(mockedGetPanelLayerWithMunicipalAnalysisYear).toHaveBeenCalledTimes(
+      2,
+    );
+  });
+
+  it("continua servindo o período montado quando nada foi descartado", async () => {
+    mockedGetPanelLayerWithMunicipalAnalysisYear.mockResolvedValue(
+      buildLayer("ana", { br: [1] }),
+    );
+
+    await getCachedMunicipalAnalysisImageData("ana", "2026", "br");
+    const result = await getCachedMunicipalAnalysisImageData(
+      "ana",
+      "2026",
+      "br",
+    );
+
+    expect(result.status).toBe("hit");
+  });
+});

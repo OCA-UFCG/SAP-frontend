@@ -126,19 +126,22 @@ export function createRateLimiter({ windowMs }: { windowMs: number }) {
 
 /**
  * Endereço do cliente para a chave do limitador, ou `undefined` quando nenhum
- * proxy repassou um. Do `x-forwarded-for` vale o primeiro da cadeia, depois
- * `x-real-ip` e `cf-connecting-ip`. O que fazer sem endereço fica com quem
- * chama: os logs caem para o user-agent calados, o cadastro avisa no log.
+ * proxy repassou um. Vale só o que o nosso nginx escreve: ele sobrescreve o
+ * `x-real-ip` com quem abriu a conexão e acrescenta esse endereço no fim do
+ * `x-forwarded-for`. O começo da cadeia e o `cf-connecting-ip` (não há
+ * Cloudflare na frente) vêm do próprio cliente, e trocá-los a cada tentativa
+ * bastava para fugir do limite. O que fazer sem endereço fica com quem chama:
+ * os logs caem para o user-agent calados, o cadastro avisa no log.
  */
 export function getClientAddress(request: Request) {
-  const forwardedFor = request.headers
-    .get("x-forwarded-for")
-    ?.split(",")[0]
-    ?.trim();
   const realIp = request.headers.get("x-real-ip")?.trim();
-  const connectingIp = request.headers.get("cf-connecting-ip")?.trim();
+  const lastForwarded = request.headers
+    .get("x-forwarded-for")
+    ?.split(",")
+    .at(-1)
+    ?.trim();
 
-  return forwardedFor || realIp || connectingIp || undefined;
+  return realIp || lastForwarded || undefined;
 }
 
 export { SWEEP_THRESHOLD as RATE_LIMIT_STORE_SWEEP_THRESHOLD };

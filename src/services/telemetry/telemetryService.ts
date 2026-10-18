@@ -263,7 +263,11 @@ export function buildTelemetryDashboardData(
 
 export async function getTelemetryDashboardData(
   sampleSize = 200,
+  collectionName?: string,
 ): Promise<TelemetryDashboardData> {
-  const recentEvents = await getRecentTelemetryEvents(sampleSize);
+  const recentEvents = await getRecentTelemetryEvents(
+    sampleSize,
+    collectionName,
+  );
   return buildTelemetryDashboardData(recentEvents);
 }

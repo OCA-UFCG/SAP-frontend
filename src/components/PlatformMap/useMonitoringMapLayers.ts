@@ -70,10 +70,12 @@ export function useMonitoringMapLayers() {
     tileUrls: referenceOverlayTileUrls,
     isLoading: isAnyReferenceOverlayLoading,
   } = useReferenceOverlayTiles(referenceOverlays);
-  const { territoryFocus, focusTerritory } = useTerritoryFocus(
-    referenceOverlays,
-    toggleReferenceOverlay,
-  );
+  const {
+    territoryFocus,
+    focusTerritory,
+    selectClickedTerritory,
+    clearTerritoryFocus,
+  } = useTerritoryFocus(referenceOverlays, toggleReferenceOverlay);
   const {
     prefetchUrls: referenceOverlayPrefetchUrls,
     requestPrefetch: prefetchReferenceOverlays,
@@ -128,6 +130,8 @@ export function useMonitoringMapLayers() {
       (status === "loading" ||
         (status === "ready" && !hasRenderedCurrentRequest))) ||
     choroplethStatus === "loading";
+  const hasGeeLayerFailed =
+    status === "error" || choroplethStatus === "error";
 
   return {
     activeData,
@@ -139,10 +143,13 @@ export function useMonitoringMapLayers() {
     boundaryGeoJson,
     choropleth,
     focusTerritory,
+    selectClickedTerritory,
+    clearTerritoryFocus,
     handleSpatialSelectionChange,
     handleTileLayerReady,
     isAnyReferenceOverlayLoading,
     isGeeLayerLoading,
+    hasGeeLayerFailed,
     layerOpacity,
     setLayerOpacity,
     referenceOverlays,

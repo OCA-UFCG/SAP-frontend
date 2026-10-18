@@ -1,8 +1,8 @@
 {
   "Platform": {
     "SideRail": {
-      "monitoring": "Monitoring",
-      "analysis": "Analysis",
+      "monitoring": "Monitor",
+      "analysis": "Prioritization",
       "communication": "Communication",
       "logs": "Audit"
     },
@@ -12,7 +12,7 @@
     },
     "Modules": {
       "title": "What do you want to monitor?",
-      "subtitle": "Select which monitor you want to analyze",
+      "subtitle": "Select which product you want to analyze",
       "categories": {
         "climate": "Climate Data",
         "environmental": "Environmental Data",

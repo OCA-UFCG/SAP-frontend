@@ -73,6 +73,25 @@ describe("buildOverlayAwareFitBoundsPadding", () => {
     });
   });
 
+  it("reserves the bottom strip the phone controls cover, keeping some map free", () => {
+    expect(
+      buildOverlayAwareMapPadding({
+        containerWidth: 390,
+        containerHeight: 534,
+        bottomOverlayHeight: 176,
+      }),
+    ).toEqual({ top: 0, right: 0, bottom: 176, left: 0 });
+
+    // Num mapa baixo a legenda não pode tomar tudo: sobram 160px livres.
+    expect(
+      buildOverlayAwareMapPadding({
+        containerWidth: 390,
+        containerHeight: 300,
+        bottomOverlayHeight: 250,
+      }).bottom,
+    ).toBe(140);
+  });
+
   it("explicitly sums the side rail and panel widths", () => {
     document.body.innerHTML = `
       <aside data-platform-sidebar-overlay>
@@ -105,4 +124,29 @@ describe("buildOverlayAwareFitBoundsPadding", () => {
 
     expect(resolvePlatformSidebarOverlayWidth(document)).toBe(560);
   });
+
+  // No celular a trilha vira a barra de baixo e o painel cobre o mapa inteiro:
+  // descontar a largura deles empurrava o Brasil para a borda da tela.
+  it("não desconta trilha nem painel no celular", () => {
+    vi.stubGlobal(
+      "matchMedia",
+      vi.fn(() => ({ matches: true }) as unknown as MediaQueryList),
+    );
+    document.body.innerHTML = `
+      <div data-platform-side-rail></div>
+      <div data-platform-side-panel></div>
+    `;
+    mockElementWidth(
+      document.querySelector<HTMLElement>("[data-platform-side-rail]")!,
+      390,
+    );
+    mockElementWidth(
+      document.querySelector<HTMLElement>("[data-platform-side-panel]")!,
+      390,
+    );
+
+    expect(resolvePlatformSidebarOverlayWidth(document)).toBe(0);
+    vi.unstubAllGlobals();
+  });
 });
+

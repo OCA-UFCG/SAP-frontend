@@ -40,6 +40,12 @@
 # Gerador da lista de nomes da busca de Territórios: o artefato em public/data
 # é commitado e precisa ser regerado quando um asset das camadas for trocado.
 !/scripts/build-reference-territories.mjs
+# Gerador dos tiles dos territórios, anexados à release `tiles-2025`.
+!/scripts/build-territory-tiles.mjs
+# Vigia que avisa o OCA por e-mail quando o SEDES cai, instalado nas VMs pelo
+# workflow watchdog.yaml.
+!/scripts/watchdog/
+/scripts/watchdog/__pycache__/
 /scripts/gee/
 /tmp
 mise.toml

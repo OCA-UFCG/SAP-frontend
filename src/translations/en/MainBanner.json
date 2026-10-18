@@ -6,6 +6,8 @@
     "linkText": "Explore the Platform",
     "previous": "Previous banner",
     "next": "Next banner",
+    "pause": "Pause banners",
+    "resume": "Resume banners",
     "goToSlide": "Go to banner {slide}"
   }
 }

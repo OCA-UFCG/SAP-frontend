@@ -11,6 +11,7 @@
     "backToList": "Back to list",
     "searchStateOrCityToStart": "Search for a state or city to start analysis",
     "analysisDate": "Analysis date",
+    "forecastEmissionDate": "Forecast issued in {date}",
     "forecastFilters": {
       "dimensions": {
         "source": "Data source",
@@ -24,7 +25,8 @@
       },
       "unavailable": "{label}: no forecast for the combination chosen above"
     },
-    "spatialScope": "Spatial scope",
+    "areaLabel": "Area",
+    "scopeLabel": "Boundary",
     "selectArea": "Select area",
     "selectValue": "Select scope",
     "spatialAreas": {

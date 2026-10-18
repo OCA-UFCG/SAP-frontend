@@ -3,12 +3,12 @@
     "section": "Communication",
     "title": "Municipal report",
     "description": "View the consolidated data available for a municipality and period.",
-    "selectionDescription": "Select the information on the side to generate a report",
+    "selectionDescription": "Select the information to generate the automatic report",
     "selectArea": "Select the analysis area",
     "selectAreaHint": "Choose the scope and the territory to be analyzed in the report.",
     "searchMunicipality": "Search or select a municipality",
     "noMunicipalityResults": "No municipalities found",
-    "selectModules": "Select monitoring modules",
+    "selectModules": "Select the monitoring products",
     "selectModulesHint": "Choose the indicators to include in the report.",
     "selectAll": "Select all",
     "clearAll": "Clear selection",
@@ -20,7 +20,6 @@
     "analysisDate": "Analysis date",
     "periodHint": "Enter a year (2024) or month (2024-01).",
     "invalidPeriod": "Enter a period in YYYY or YYYY-MM format.",
-    "availabilityIdle": "Select a territory and period to check the modules.",
     "checkingAvailability": "Checking modules available for the period...",
     "availabilityError": "Could not check module availability.",
     "noModulesAvailable": "No modules have data for this period.",
@@ -33,12 +32,13 @@
     "popupBlocked": "The browser blocked the print window. Allow pop-ups to download the report as a PDF.",
     "emptyPreviewTitle": "Report preview",
     "emptyPreviewDescription": "Select the municipality, period, and available modules to generate the report.",
-    "emptyPreviewInstruction": "Select the information on the side to generate a report",
+    "emptyPreviewInstruction": "Select the information to generate the automatic report",
     "preview": "Preview report",
     "back": "Back to Communication",
     "loading": "Loading report data...",
     "loadingHint": "This may take a few seconds, depending on the selected modules.",
     "loadError": "The report could not be loaded",
+    "serverError": "The server did not respond in time. Please try again in a moment.",
     "missingParameters": "Municipality and period are required.",
     "reportLabel": "Territorial analytical report",
     "ibgeCode": "IBGE code",
@@ -70,7 +70,7 @@
       "summaryTitle": "Contents",
       "backToTop": "Back to top",
       "goToSection": "Go to the {title} section",
-      "viewMonitor": "View monitor",
+      "viewMonitor": "View product",
       "situationTitle": "Situation",
       "classCoverageTitle": "Classes by area coverage (%)",
       "spatialDistributionTitle": "Spatial distribution",
@@ -338,6 +338,37 @@
       "semiarid": "Semi-arid",
       "asd": "ASD and surroundings"
     },
-    "selectTerritory": "Select the territory"
+    "selectTerritory": "Select the territory",
+    "forecast": {
+      "title": "Forecast: {variable} ({source})",
+      "titleWithPeriodicity": "Forecast: {periodicity} {variable} ({source})",
+      "referencePeriod": "reference period: {period}",
+      "sourceLabel": "Data source",
+      "variableLabel": "Variable",
+      "periodicityLabel": "Periodicity",
+      "periodicity": {
+        "monthly": "Monthly",
+        "quarterly": "Quarterly"
+      },
+      "situation": "In {territory}, for {period}, the {source} {variable} forecast indicates {items}.",
+      "situationItem": "{kind} in the {className} range, over {value} {context}",
+      "situationItemPeriod": "{kind} in the {className} range, over {value} {context} ({period})",
+      "spatialCaption": "Maps clipped to the boundary of {territory}, for {period}.",
+      "coverageCaption": "Each bar is one period of the available series. The reference period ({period}) is highlighted, and it is the one the legend describes.",
+      "methodologyTitle": "What this indicator measures",
+      "kindDescriptions": {
+        "anomalia": "The Anomaly shows the deviation from the historical average.",
+        "acumulado": "The Accumulated value shows the total forecast for the period.",
+        "probabilidade": "The Probability shows the chance of the most likely category occurring, relative to the climatological normal."
+      },
+      "noData": "No data for this period.",
+      "facets": {
+        "anomalia": "Anomaly",
+        "acumulado": "Accumulated",
+        "probabilidade": "Probability",
+        "precipitacao": "Precipitation",
+        "temperatura": "Temperature"
+      }
+    }
   }
 }

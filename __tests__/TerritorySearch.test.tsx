@@ -107,4 +107,28 @@ describe("busca no cartão de Territórios", () => {
     expect(input).toHaveValue("");
   });
 
+  it("mostra o território escolhido mesmo com o cartão fechado", () => {
+    const onSelectTerritory = vi.fn();
+    const onClearTerritory = vi.fn();
+    const kiriri = territories[0];
+    render(
+      <ReferenceOverlaysControl
+        activeOverlays={new Set(["terras_indigenas"] as const)}
+        onToggle={() => {}}
+        onSelectTerritory={onSelectTerritory}
+        selectedTerritory={kiriri}
+        onClearTerritory={onClearTerritory}
+      />,
+    );
+
+    expect(
+      screen.queryByRole("combobox", { name: "Busca de território" }),
+    ).not.toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole("button", { name: /^Kiriri/ }));
+    expect(onSelectTerritory).toHaveBeenCalledWith(kiriri);
+
+    fireEvent.click(screen.getByRole("button", { name: "Desmarcar Kiriri" }));
+    expect(onClearTerritory).toHaveBeenCalledTimes(1);
+  });
 });

@@ -449,6 +449,36 @@ describe("ReportMapPreview", () => {
     expect(mapInstances[0].removeFeatureState).toHaveBeenCalled();
   });
 
+  // O raster cobria o quadro inteiro e o formato do município se perdia nele.
+  it("recorta o mapa pelo município cobrindo só os vizinhos, e tira o véu ao devolver", async () => {
+    const { unmount } = render(
+      <ReportMapPreview
+        territory={ABADIA_DE_GOIAS}
+        layerId="anaseca"
+        period="2024-01"
+        tileUrl={TILE_URL}
+        clipToTerritory
+      />,
+    );
+
+    await waitFor(() => expect(mapInstances).toHaveLength(1));
+    emit(0, "load");
+    await waitFor(() =>
+      expect(mapInstances[0].addLayer).toHaveBeenCalledWith(
+        expect.objectContaining({
+          id: "report-territory-mask",
+          filter: ["!=", ["to-string", ["get", "CD_MUN"]], "5200050"],
+        }),
+        "municipality-borders",
+      ),
+    );
+
+    unmount();
+    expect(mapInstances[0].removeLayer).toHaveBeenCalledWith(
+      "report-territory-mask",
+    );
+  });
+
   // Regressão: o contorno do território ficava no mapa devolvido para a
   // estante, e a captura seguinte morria em `Source "report-territory-outline"
   // already exists`, deixando o relatório sem mapa a partir do segundo índice.

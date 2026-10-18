@@ -19,15 +19,22 @@ export function SignupPageClient({ backgroundImageUrl }: SignupPageClientProps) 
   // botão aparece, então o valor não está mais em nenhum campo.
   const [submittedEmail, setSubmittedEmail] = useState("");
 
-  const handleResend = useCallback(async () => {
-    if (!submittedEmail) return;
+  const handleResend = useCallback(
+    async (captchaToken: string) => {
+      if (!submittedEmail) return;
 
-    await fetch("/api/signup/resend", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ email: submittedEmail }),
-    }).catch(() => undefined);
-  }, [submittedEmail]);
+      const response = await fetch("/api/signup/resend", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ email: submittedEmail, captchaToken }),
+      }).catch(() => undefined);
+
+      // Só a recusa do captcha é contada. O resto continua com a resposta
+      // genérica, para o reenviar não virar oráculo de quem tem conta.
+      return response?.status !== 400;
+    },
+    [submittedEmail],
+  );
 
   const handleSubmit = useCallback(
     async (values: SignupSubmitValues) => {
