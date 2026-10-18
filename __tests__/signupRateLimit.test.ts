@@ -89,24 +89,40 @@ describe("signup rate limits", () => {
   });
 
   describe("quem é o cliente", () => {
-    it("prefers the first hop of the forwarded chain", () => {
+    // O nginx sobrescreve o x-real-ip com quem abriu a conexão e acrescenta
+    // esse endereço no fim do x-forwarded-for. O começo da cadeia o próprio
+    // cliente escreve, e trocá-lo a cada tentativa bastava para fugir do limite.
+    it("trusts the address nginx writes, not the one the client sends", () => {
       expect(
         getSignupClientKey(
           requestWith({
             "x-forwarded-for": "203.0.113.10, 70.41.3.18",
-            "x-real-ip": "198.51.100.7",
+            "x-real-ip": "70.41.3.18",
           }),
         ),
-      ).toBe("ip:203.0.113.10");
+      ).toBe("ip:70.41.3.18");
     });
 
-    it("falls through the other headers the project already reads", () => {
-      expect(getSignupClientKey(requestWith({ "x-real-ip": "198.51.100.7" }))).toBe(
-        "ip:198.51.100.7",
+    it("keeps the same key when the client forges the forwarded chain", () => {
+      const first = getSignupClientKey(
+        requestWith({ "x-forwarded-for": "1.1.1.1, 70.41.3.18" }),
       );
+      const second = getSignupClientKey(
+        requestWith({ "x-forwarded-for": "2.2.2.2, 70.41.3.18" }),
+      );
+
+      expect(first).toBe("ip:70.41.3.18");
+      expect(second).toBe(first);
+    });
+
+    // Não há Cloudflare na frente da plataforma: esse cabeçalho só chega se o
+    // próprio cliente mandar.
+    it("ignores cf-connecting-ip", () => {
+      vi.spyOn(console, "error").mockImplementation(() => undefined);
+
       expect(
-        getSignupClientKey(requestWith({ "cf-connecting-ip": "198.51.100.8" })),
-      ).toBe("ip:198.51.100.8");
+        getSignupClientIp(requestWith({ "cf-connecting-ip": "198.51.100.8" })),
+      ).toBeUndefined();
     });
 
     // Um balde único para o mundo inteiro é um jeito trivial de derrubar o
@@ -137,7 +153,7 @@ describe("signup rate limits", () => {
         getSignupClientIp(
           requestWith({ "x-forwarded-for": "203.0.113.10, 70.41.3.18" }),
         ),
-      ).toBe("203.0.113.10");
+      ).toBe("70.41.3.18");
       expect(
         getSignupClientIp(requestWith({ "user-agent": "Chrome/120" })),
       ).toBeUndefined();
