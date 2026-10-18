@@ -145,4 +145,20 @@ describe("MunicipalReportContext", () => {
     const params = new URL(destination, "https://example.test").searchParams;
     expect(params.get("layers")?.split(",")).toEqual(["seca", "futuro"]);
   });
+
+  it("acha o município sem acento e põe o nome exato antes de quem só o contém", async () => {
+    const user = userEvent.setup();
+
+    render(<MunicipalReportContext panelLayers={panelLayers} />);
+
+    const municipalityInput = screen.getByRole("combobox", {
+      name: /município/iu,
+    });
+    await user.click(municipalityInput);
+    await user.type(municipalityInput, "joao pessoa");
+
+    const options = screen.getAllByRole("option");
+    expect(options[0]).toHaveTextContent("João Pessoa - PB");
+    expect(options[1]).toHaveTextContent("Coronel João Pessoa - RN");
+  });
 });

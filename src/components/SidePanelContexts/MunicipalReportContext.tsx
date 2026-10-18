@@ -35,6 +35,8 @@ import {
 import type { PanelLayerI } from "@/utils/interfaces";
 import { startMunicipalReportMetrics } from "@/utils/municipalReportMetrics";
 import { slugifyTranslationKey } from "@/utils/translations";
+import { normalize } from "@/utils/functions";
+import { searchMatchRank } from "@/utils/searchMatch";
 
 interface MunicipalReportContextProps { panelLayers?: PanelLayerI[] }
 
@@ -92,17 +94,36 @@ export function MunicipalReportContext({ panelLayers = [] }: MunicipalReportCont
   const [isGenerating, startGenerating] = useTransition();
 
   const municipalities = useMemo(
-    () => [...citiesIndex].sort((left, right) => left.label.localeCompare(right.label, "pt-BR")),
+    () =>
+      [...citiesIndex]
+        .sort((left, right) => left.label.localeCompare(right.label, "pt-BR"))
+        .map((municipality) => ({
+          ...municipality,
+          normalizedName: normalize(municipality.name),
+          normalizedLabel: normalize(municipality.label),
+        })),
     [],
   );
   const selectedMunicipality = useMemo(
     () => municipalities.find((municipality) => municipality.code === municipalityCode),
     [municipalities, municipalityCode],
   );
+  // Sem acento, como a busca do Monitoramento: no celular quase ninguém digita
+  // "João Pessoa" com til. E o nome exato vem antes de quem só o contém.
   const filteredMunicipalities = useMemo(() => {
-    const normalizedQuery = municipalityQuery.trim().toLocaleLowerCase("pt-BR");
+    const normalizedQuery = normalize(municipalityQuery.trim());
     const options = normalizedQuery
-      ? municipalities.filter((municipality) => municipality.label.toLocaleLowerCase("pt-BR").includes(normalizedQuery))
+      ? municipalities
+          .map((municipality) => ({
+            municipality,
+            rank: searchMatchRank(normalizedQuery, [
+              municipality.normalizedName,
+              municipality.normalizedLabel,
+            ]),
+          }))
+          .filter((entry) => entry.rank !== null)
+          .sort((left, right) => (left.rank ?? 2) - (right.rank ?? 2))
+          .map(({ municipality }) => municipality)
       : municipalities;
 
     return options.slice(0, 80);

@@ -3,6 +3,7 @@ import { createPortal } from "react-dom";
 import { useTranslations } from "next-intl";
 import { CriterionOption } from "@/utils/amfeInterfaces";
 import { Icon } from "@/components/Icon/Icon";
+import { normalize } from "@/utils/functions";
 
 export interface CriteriaModalProps {
   options?: CriterionOption[];
@@ -106,8 +107,9 @@ function ModalOverlay({
   const [search, setSearch] = useState("");
   const [infoOption, setInfoOption] = useState<string | null>(null);
 
+  // Sem acento: "precipitacao" acha "Anomalia de Precipitação".
   const filtered = options.filter((o) =>
-    o.name.toLowerCase().includes(search.toLowerCase()),
+    normalize(o.name).includes(normalize(search)),
   );
 
   const MIN_SELECTED = 1;
