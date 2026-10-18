@@ -31,6 +31,15 @@ type SiteverifyResponse = {
   metadata?: { result_with_testing_key?: boolean };
 };
 
+/**
+ * Recusas que não são do visitante, e sim da nossa configuração: com elas, o
+ * cadastro e o reenvio recusam todo mundo até alguém trocar a chave.
+ */
+const CONFIG_ERROR_CODES = new Set([
+  "missing-input-secret",
+  "invalid-input-secret",
+]);
+
 type VerifyCaptchaOptions = {
   action: CaptchaAction;
   remoteIp?: string;
@@ -73,7 +82,22 @@ export async function verifyCaptcha(
     return false;
   }
 
-  if (!result.success) return false;
+  if (!result.success) {
+    const codes = result["error-codes"] ?? [];
+
+    // Nem o token nem o IP vão para o log: os códigos já dizem o motivo.
+    if (codes.some((code) => CONFIG_ERROR_CODES.has(code))) {
+      console.error(
+        `A Cloudflare recusou a TURNSTILE_SECRET_KEY (${codes.join(", ")}): o cadastro e o reenvio estão recusando todo mundo.`,
+      );
+    } else {
+      console.warn(
+        `Captcha recusado pela Cloudflare (action ${action}): ${codes.join(", ") || "sem código"}.`,
+      );
+    }
+
+    return false;
+  }
 
   // A chave de teste aprova qualquer token e não devolve action. Fora de
   // produção é o que faz o desenvolvimento local funcionar; em produção é o
@@ -89,5 +113,12 @@ export async function verifyCaptcha(
     return true;
   }
 
-  return result.action === action;
+  if (result.action !== action) {
+    console.warn(
+      `Captcha resolvido para outra tela: esperava ${action}, veio ${result.action ?? "nenhuma"} (${result.hostname ?? "hostname desconhecido"}).`,
+    );
+    return false;
+  }
+
+  return true;
 }

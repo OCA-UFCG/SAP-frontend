@@ -13,6 +13,7 @@ describe("verifyCaptcha", () => {
   beforeEach(() => {
     vi.stubEnv("TURNSTILE_SECRET_KEY", SECRET);
     vi.spyOn(console, "error").mockImplementation(() => undefined);
+    vi.spyOn(console, "warn").mockImplementation(() => undefined);
   });
 
   afterEach(() => {
@@ -59,6 +60,42 @@ describe("verifyCaptcha", () => {
     await expect(
       verifyCaptcha("token-ruim", { action: "signup" }),
     ).resolves.toBe(false);
+    expect(console.warn).toHaveBeenCalledWith(
+      expect.stringContaining("invalid-input-response"),
+    );
+    expect(console.error).not.toHaveBeenCalled();
+  });
+
+  // Chave secreta errada recusa todo mundo, e sem log ninguém percebe: para
+  // quem tenta se cadastrar, parece só um captcha chato.
+  it("logs an error when Cloudflare refuses our secret", async () => {
+    siteverifyAnswers({
+      success: false,
+      "error-codes": ["invalid-input-secret"],
+    });
+
+    await expect(
+      verifyCaptcha("token-bom", { action: "signup" }),
+    ).resolves.toBe(false);
+    expect(console.error).toHaveBeenCalledWith(
+      expect.stringContaining("invalid-input-secret"),
+    );
+  });
+
+  it("never logs the token or the visitor address", async () => {
+    siteverifyAnswers({
+      success: false,
+      "error-codes": ["timeout-or-duplicate"],
+    });
+
+    await verifyCaptcha("token-secreto", {
+      action: "signup",
+      remoteIp: "203.0.113.10",
+    });
+
+    const logged = JSON.stringify(vi.mocked(console.warn).mock.calls);
+    expect(logged).not.toContain("token-secreto");
+    expect(logged).not.toContain("203.0.113.10");
   });
 
   // Sem conferir a action, um token resolvido na tela de reenviar serviria
@@ -69,6 +106,9 @@ describe("verifyCaptcha", () => {
     await expect(
       verifyCaptcha("token-bom", { action: "signup" }),
     ).resolves.toBe(false);
+    expect(console.warn).toHaveBeenCalledWith(
+      expect.stringContaining("resend"),
+    );
   });
 
   // Com Cloudflare fora do ar, deixar passar abriria a porta justamente quando
