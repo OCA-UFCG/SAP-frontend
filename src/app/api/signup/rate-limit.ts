@@ -70,7 +70,7 @@ export function getSignupClientKey(request: Request) {
   }
 
   console.error(
-    "Nenhum cabeçalho de endereço na requisição de cadastro: o limite de tentativas está caindo para o user-agent. Confira se o proxy repassa x-forwarded-for.",
+    "Nenhum cabeçalho de endereço na requisição de cadastro: o limite de tentativas está caindo para o user-agent. Confira se o proxy repassa x-real-ip.",
   );
 
   return `ua:${request.headers.get("user-agent")?.trim() || "desconhecido"}`;
