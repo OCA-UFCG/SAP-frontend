@@ -69,6 +69,11 @@ export const AboutPartnersTabs = ({
   const heroSideGradient = isDesktop
     ? "linear-gradient(93.7deg, #000000 29.73%, rgba(152, 159, 67, 0) 117.14%)"
     : "linear-gradient(93.7deg, rgba(0, 0, 0, 0.9) 29.73%, rgba(152, 159, 67, 0) 117.14%)";
+  // No desktop a foto ocupa só os 65% da direita; este preto cobre a borda
+  // esquerda dela (em 35%) e some aos poucos, para a foto não aparecer cortada.
+  const heroImageEdgeFade = isDesktop
+    ? "linear-gradient(90deg, #000000 35%, rgba(0, 0, 0, 0) 50%)"
+    : "linear-gradient(transparent, transparent)";
 
   useEffect(() => {
     const mediaQuery = window.matchMedia("(min-width: 1024px)");
@@ -96,13 +101,13 @@ export const AboutPartnersTabs = ({
       <div
         className="w-full flex justify-center items-center px-6 sm:px-10 lg:px-[80px] py-16 lg:py-[96px]"
         style={{
-          backgroundImage: `linear-gradient(96.47deg, rgba(0, 0, 0, 0) 45.64%, rgba(0, 0, 0, 0.56) 93.72%), ${heroSideGradient}${heroImageUrl ? `, url(${heroImageUrl})` : ""}`,
+          backgroundImage: `linear-gradient(96.47deg, rgba(0, 0, 0, 0) 45.64%, rgba(0, 0, 0, 0.56) 93.72%), ${heroSideGradient}, ${heroImageEdgeFade}${heroImageUrl ? `, url(${heroImageUrl})` : ""}`,
           backgroundSize: isDesktop
-            ? "cover, cover, 65% auto"
-            : "cover, cover, 150% auto",
+            ? "cover, cover, cover, 65% auto"
+            : "cover, cover, cover, 150% auto",
           backgroundPosition: isDesktop
-            ? "center, center, 100% 60%"
-            : "center, center, 72% 40%",
+            ? "center, center, center, 100% 60%"
+            : "center, center, center, 72% 40%",
           backgroundRepeat: "no-repeat",
         }}
       >
