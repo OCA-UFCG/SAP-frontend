@@ -42,6 +42,7 @@
 # Vigia que avisa o OCA por e-mail quando o SEDES cai, instalado nas VMs pelo
 # workflow watchdog.yaml.
 !/scripts/watchdog/
+/scripts/watchdog/__pycache__/
 /scripts/gee/
 /tmp
 mise.toml
