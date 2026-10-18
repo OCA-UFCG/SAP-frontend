@@ -1,80 +1,232 @@
+"use client";
+
+import { useEffect, useState, useSyncExternalStore } from "react";
 import { IMainBanner } from "@/utils/interfaces";
 import Image from "next/image";
 import { Link } from "@/translations/routing";
 import { useTranslations } from "next-intl";
+import { cn } from "@/lib/utils";
+import { contentfulImageLoader } from "@/utils/contentfulImageLoader";
+import { revealOrder } from "@/components/HomeMotion/revealOrder";
+import { BlurPreview } from "@/components/BlurPreview/BlurPreview";
+import {
+  CarouselArrow,
+  CarouselTracker,
+} from "@/components/HomeCarousel/HomeCarousel";
+import {
+  ArrowForwardIcon,
+  PauseIcon,
+  PlayIcon,
+} from "@/components/HomeIcons/HomeIcons";
+
+/** Tempo de cada slide antes de passar sozinho para o próximo. */
+const AUTOPLAY_MS = 7000;
+
+const REDUCED_MOTION = "(prefers-reduced-motion: reduce)";
+const subscribeReducedMotion = (onChange: () => void) => {
+  const query = window.matchMedia(REDUCED_MOTION);
+  query.addEventListener("change", onChange);
+  return () => query.removeEventListener("change", onChange);
+};
 
 interface MainBannerProps {
-  data: IMainBanner;
+  /** Um slide por entrada `banner` do Contentful. */
+  banners: IMainBanner[];
+  /** Prévia borrada de cada slide, na ordem dos banners (`getBlurPreviews`). */
+  previews?: Array<string | undefined>;
 }
 
-export function MainBanner({ data }: MainBannerProps) {
+export function MainBanner({ banners, previews = [] }: MainBannerProps) {
   const t = useTranslations("MainBanner");
+  const [active, setActive] = useState(0);
+  const [paused, setPaused] = useState(false);
+  // Fotos que já chegaram. O zoom lento só começa depois, para não "andar"
+  // sobre o fundo preto; as seguintes também só aparecem inteiras, em fade.
+  const [loaded, setLoaded] = useState<ReadonlySet<number>>(() => new Set());
+  // Parado pelo botão de pausar: só volta a passar quando a pessoa aperta de
+  // novo. Até ela apertar, quem pediu menos movimento no sistema vê parado.
+  const reducedMotion = useSyncExternalStore(
+    subscribeReducedMotion,
+    () => window.matchMedia(REDUCED_MOTION).matches,
+    () => false,
+  );
+  const [userStopped, setUserStopped] = useState<boolean | null>(null);
+  const stopped = userStopped ?? reducedMotion;
+  const hasSlides = banners.length > 1;
 
-  if (!data) return null;
-  const { image } = data;
+  // Passa sozinho; para enquanto o mouse ou o foco do teclado estão no banner.
+  // Como depende de `active`, clicar numa seta ou num traço recomeça a
+  // contagem.
+  useEffect(() => {
+    if (!hasSlides || paused || stopped) return;
+    const timer = window.setTimeout(
+      () => setActive((current) => (current + 1) % banners.length),
+      AUTOPLAY_MS,
+    );
+    return () => window.clearTimeout(timer);
+  }, [active, paused, stopped, hasSlides, banners.length]);
 
-  const title = t("title", { title: data.title });
-  const subtitle = t("subtitle", { subtitle: data.subtitle });
-  const linkText = t("linkText", { linkText: data.linkText });
-  const imageAlt = t("imageAlt", { imageAlt: (data.title || "") });
+  if (!banners.length) return null;
+  const goTo = (index: number) =>
+    setActive((index + banners.length) % banners.length);
+  // Só a foto da vez baixa de início; a seguinte começa quando ela chega. Antes
+  // as cinco baixavam juntas e disputavam a rede com o resto da home no
+  // celular: fotos dos módulos e logos dos parceiros esperavam o banner.
+  const next = (active + 1) % banners.length;
+  const shouldMount = (index: number) =>
+    index === active ||
+    loaded.has(index) ||
+    (index === next && loaded.has(active));
 
   return (
-    <section className="relative w-full min-h-[492px] overflow-hidden">
-      <div className="absolute inset-0 w-full h-full z-0 overflow-hidden">
-        <Image
-          src={image.url}
-          alt={imageAlt}
-          fill
-          priority
-          unoptimized
-          className="object-cover object-center"
-        />
-
+    <section
+      className="relative w-full min-h-[512px] overflow-hidden bg-black"
+      onMouseEnter={() => setPaused(true)}
+      onMouseLeave={() => setPaused(false)}
+      onFocus={() => setPaused(true)}
+      onBlur={(event) => {
+        if (!event.currentTarget.contains(event.relatedTarget)) setPaused(false);
+      }}
+    >
+      {banners.map((data, index) => (
         <div
-          className="absolute inset-0 z-10"
-          style={{
-            background:
-              "linear-gradient(270deg, rgba(0, 0, 0, 0.05) 19.23%, #4A4E26 65.38%)",
-          }}
-        />
-      </div>
+          key={`${index}-${data.image.url}`}
+          aria-hidden={index !== active}
+          className={cn(
+            "absolute inset-0 z-0 transition-opacity duration-500",
+            index === active ? "opacity-100" : "opacity-0",
+          )}
+        >
+          {/* No celular lento, a prévia aparece com a página, e não o preto. */}
+          <BlurPreview src={previews[index]} />
+          {shouldMount(index) && (
+            <Image
+              src={data.image.url}
+              loader={contentfulImageLoader}
+              sizes="100vw"
+              alt={t("imageAlt", { imageAlt: data.title || "" })}
+              fill
+              preload={index === 0}
+              onLoad={() =>
+                setLoaded((current) => new Set(current).add(index))
+              }
+              // A primeira não espera o JavaScript para aparecer: no celular
+              // ele pode levar segundos, e ela já chega leve.
+              className={cn(
+                "object-cover object-center [transition:opacity_600ms_ease-out,scale_9000ms_ease-out]",
+                index !== 0 && !loaded.has(index) && "opacity-0",
+                index === active &&
+                  loaded.has(index) &&
+                  "motion-safe:scale-[1.08]",
+              )}
+            />
+          )}
+          <div
+            className="absolute inset-0"
+            style={{
+              background:
+                "linear-gradient(270deg, rgba(0, 0, 0, 0.05) 1.66%, #000000 113.85%)",
+            }}
+          />
+        </div>
+      ))}
 
-      <div className="absolute opacity-[0.05] left-0 -translate-x-[38%] -translate-y-[32%] pointer-events-none">
-        <Image
-          src="/solar_icon.png"
-          alt=""
-          width={750}
-          height={750}
-          className="max-w-none w-[800px] lg:w-[1000px] h-auto scale-y-75 scale-x-90"
-        />
-      </div>
-
-      <div className="relative z-20 w-full flex justify-center">
-        <div className="w-full max-w-[1440px] mx-auto px-4 py-12 md:px-10 md:py-16 lg:px-[78px] lg:py-[85px] flex items-center min-h-[492px]">
-          <div className="w-full">
-            <div className="flex flex-col gap-[24px] max-w-[800px] items-start text-left">
-              <h1 className="font-[700] text-white text-3xl md:text-5xl lg:text-[64px] leading-tight drop-shadow-sm">
-                {title}
-              </h1>
-
-              <p className="font-[400] text-white text-base md:text-[16px] leading-relaxed max-w-[600px]">
-                {subtitle}
-              </p>
+      {/* O padding de baixo deixa espaço para o card de números, que sobe
+          80 px por cima do banner (BigNumbersSection). */}
+      <div
+        data-shown
+        className="relative z-20 mx-auto flex min-h-[512px] w-full max-w-[1440px] flex-col justify-end gap-6 px-4 pt-12 pb-[120px] md:px-10 md:pt-20 lg:px-20"
+      >
+        <div className="grid">
+          {banners.map((data, index) => (
+            <div
+              key={`${index}-${data.image.url}`}
+              aria-hidden={index !== active}
+              inert={index !== active}
+              className={cn(
+                "col-start-1 row-start-1 flex flex-col justify-end gap-8 transition-opacity duration-500",
+                index === active ? "opacity-100" : "opacity-0",
+              )}
+            >
+              {/* Ao trocar de slide, título, texto e botão entram em cascata. */}
+              <div className="flex flex-col gap-4">
+                <h1
+                  className={cn(
+                    "max-w-[784px] font-open-sans text-[36px] font-bold leading-[1.2] text-[#F8F7F8] md:text-5xl",
+                    index === active && "reveal-item",
+                  )}
+                >
+                  {t("title", { title: data.title })}
+                </h1>
+                <p
+                  className={cn(
+                    "max-w-[784px] font-open-sans text-sm leading-6 text-white xl:max-w-[960px] xl:text-base",
+                    index === active && "reveal-item",
+                  )}
+                  style={revealOrder(1)}
+                >
+                  {t("subtitle", { subtitle: data.subtitle })}
+                </p>
+              </div>
 
               {/* No celular o menu do topo fica recolhido e não dispara o
-                  prefetch completo da plataforma; este botão dispara. */}
+                  prefetch completo da plataforma; este botão dispara. O
+                  destino vem do campo "link" do banner. */}
               <Link
-                href="/platform"
+                href={data.link?.trim() || "/platform"}
                 prefetch
-                className="mt-4 flex items-center justify-center w-full md:w-[302px] h-[40px] px-4 py-2 rounded-[8px] bg-[#989F43] hover:bg-[#5B612A] text-white transition-all duration-200 shadow-md"
+                style={revealOrder(2)}
+                className={cn(
+                  "shine group/cta flex h-10 w-full items-center justify-center gap-2 rounded-md bg-[#989F43] px-4 py-2 font-inter text-sm font-medium leading-6 text-[#F8F7F8] transition-[background-color,box-shadow,scale] hover:bg-[#5B612A] hover:shadow-[0_8px_24px_rgba(152,159,67,0.45)] active:scale-[0.97] md:w-[302px] motion-safe:hover:scale-[1.03]",
+                  index === active && "reveal-item",
+                )}
               >
-                <span className="text-[14px] font-[500] leading-[24px] tracking-normal">
-                  {linkText}
-                </span>
+                {t("linkText", { linkText: data.linkText })}
+                <ArrowForwardIcon
+                  size={16}
+                  className="transition-transform motion-safe:group-hover/cta:translate-x-1"
+                />
               </Link>
             </div>
-          </div>
+          ))}
         </div>
+
+        {/* Setas e traços só fazem sentido com mais de um banner publicado. */}
+        {hasSlides && (
+          <div className="flex items-center justify-between gap-6">
+            <div className="-ml-2">
+              <CarouselTracker
+                count={banners.length}
+                active={active}
+                variant="dark"
+                onSelect={goTo}
+                label={(index) => t("goToSlide", { slide: index + 1 })}
+              />
+            </div>
+            <div className="flex gap-2">
+              <CarouselArrow
+                direction="back"
+                label={t("previous")}
+                onClick={() => goTo(active - 1)}
+                className="h-9 w-9 border-[#EFEFEF] bg-[#191B18] text-[#F8F7F8] hover:bg-[#3F4324]"
+              />
+              <button
+                type="button"
+                aria-label={stopped ? t("resume") : t("pause")}
+                onClick={() => setUserStopped(!stopped)}
+                className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg border border-[#EFEFEF] bg-[#191B18] text-[#F8F7F8] transition-opacity hover:bg-[#3F4324]"
+              >
+                {stopped ? <PlayIcon size={16} /> : <PauseIcon size={16} />}
+              </button>
+              <CarouselArrow
+                direction="forward"
+                label={t("next")}
+                onClick={() => goTo(active + 1)}
+                className="h-9 w-9 border-[#EFEFEF] bg-[#191B18] text-[#F8F7F8] hover:bg-[#3F4324]"
+              />
+            </div>
+          </div>
+        )}
       </div>
     </section>
   );

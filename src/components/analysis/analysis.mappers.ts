@@ -296,6 +296,7 @@ function buildCompactRankingGroups(
   yearKey: string,
   locationKey: string,
   tCaption?: TranslateFunction,
+  severityOrder?: readonly string[],
 ): AnalysisRankingGroup[] {
   if (locationKey !== "br") {
     return [];
@@ -361,7 +362,7 @@ function buildCompactRankingGroups(
     );
   }
 
-  return data.classes.map((item, classIndex) => {
+  const groups = data.classes.map((item, classIndex) => {
     const sortedEntries = (entriesByClass[classIndex] ?? [])
       .slice()
       .sort((left, right) => right.numericValue - left.numericValue);
@@ -393,6 +394,39 @@ function buildCompactRankingGroups(
       allItems,
     };
   });
+
+  return sortGroupsBySeverity(groups, severityOrder);
+}
+
+/**
+ * Põe a classe mais grave no topo do ranking, pela ordem de gravidade declarada
+ * no catálogo (da melhor para a pior). Sem ordem declarada — cobertura da terra,
+ * por exemplo — o ranking segue a ordem da legenda. Uma classe que ficou fora
+ * da ordem vai para o fim, sem embaralhar as demais.
+ */
+function sortGroupsBySeverity(
+  groups: AnalysisRankingGroup[],
+  severityOrder?: readonly string[],
+): AnalysisRankingGroup[] {
+  if (!severityOrder || severityOrder.length < 2) {
+    return groups;
+  }
+
+  const rankOf = (id: string) => severityOrder.indexOf(id);
+
+  return groups
+    .map((group, legendIndex) => ({ group, legendIndex }))
+    .sort((left, right) => {
+      const leftRank = rankOf(left.group.id);
+      const rightRank = rankOf(right.group.id);
+
+      if (leftRank !== rightRank) {
+        return rightRank - leftRank;
+      }
+
+      return left.legendIndex - right.legendIndex;
+    })
+    .map(({ group }) => group);
 }
 
 function buildCompactTerritorialAnalysisViewModel(
@@ -400,6 +434,7 @@ function buildCompactTerritorialAnalysisViewModel(
   yearKey: string,
   locationKey: string,
   tCaption?: TranslateFunction,
+  severityOrder?: readonly string[],
 ): TerritorialAnalysisViewModel | null {
   if (!data.years[yearKey]?.values[locationKey]) {
     return null;
@@ -458,6 +493,7 @@ function buildCompactTerritorialAnalysisViewModel(
       yearKey,
       resolvedLocationKey,
       tCaption,
+      severityOrder,
     ),
     valueType: data.valueConfig?.type ?? "percentage",
     valueUnit: data.valueConfig?.unit,
@@ -518,6 +554,7 @@ export function buildEmbeddedTerritorialAnalysisViewModel(
     effectiveYear,
     locationKey,
     tCaption,
+    dataset?.reportConfig?.severity?.order,
   );
 }
 

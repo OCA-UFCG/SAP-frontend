@@ -350,6 +350,39 @@ describe("index catalog v2 input helpers", () => {
     );
   });
 
+  it("guarda os filtros da previsão climática só no modo de previsão", () => {
+    const forecastFacets = {
+      source: "INMET",
+      variable: "Precipitação",
+      kind: "Anomalia",
+    };
+    const forecastEarthEngine = {
+      strategy: "single",
+      sourceType: "imageCollection",
+      singleAssetId: "projects/example/assets/forecast",
+      collectionSelection: {
+        type: "latest-emission-leads",
+        emissionProperty: "data_emissao",
+        leadProperty: "lead_time",
+        targetDateProperty: "system:time_start",
+        leadValues: [1, 2, 3, 4],
+      },
+    };
+
+    expect(
+      parseIndexCatalogDraftInput({
+        ...validDraft,
+        earthEngine: forecastEarthEngine,
+        forecastFacets,
+      }).forecastFacets,
+    ).toEqual(forecastFacets);
+    // Um índice que saiu do modo de previsão deixa de aparecer como previsão.
+    expect(
+      parseIndexCatalogDraftInput({ ...validDraft, forecastFacets })
+        .forecastFacets,
+    ).toBeUndefined();
+  });
+
   it("rejects forecast selection for a per-period asset", () => {
     expect(() =>
       parseIndexCatalogDraftInput({

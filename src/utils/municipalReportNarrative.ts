@@ -5,9 +5,12 @@ import {
   type MunicipalReportDocsContent,
 } from "@/contracts/municipalReport";
 import { type MunicipalReportPresentationConfig } from "@/config/municipalReport";
+import { formatDekadPeriod } from "@/utils/dekadPeriod";
 import { formatMunicipalReportValueWithUnit, formatPercentage } from "@/utils/municipalReportValue";
 
 export function formatReportPeriod(period: string, locale: string) {
+  const dekad = formatDekadPeriod(period, locale);
+  if (dekad) return dekad;
   const match = /^(\d{4})-(\d{2})$/.exec(period);
   if (!match) return period;
   return new Intl.DateTimeFormat(locale, { month: "long", year: "numeric", timeZone: "UTC" })
@@ -127,6 +130,7 @@ export function buildSituationNarrative(
       analysis,
       locale,
       t,
+      tHas,
     );
     if (t) {
       return t("narrative.absoluteFallback", {

@@ -215,7 +215,8 @@ se houver resposta antiga no cache ela pode ser servida como stale; sem cache,
 a rota responde indisponibilidade.
 
 O cache em memória usa a chave `panelLayerId::year::locationKey`. O TTL padrão
-é 10 minutos e o limite padrão é 200 entradas. Eles podem ser ajustados com
+é 10 minutos e o limite padrão é 5.000 entradas (~2 KB por município e ~5 KB
+pelo Brasil, medidos). Eles podem ser ajustados com
 `MUNICIPAL_ANALYSIS_CACHE_TTL_SECONDS` e
 `MUNICIPAL_ANALYSIS_CACHE_MAX_ENTRIES`. Em uma implantação com múltiplas
 instâncias, cada processo mantém seu próprio cache.

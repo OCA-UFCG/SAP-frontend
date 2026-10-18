@@ -228,7 +228,7 @@ export const Signup = ({
                       aria-label={toggleLabel}
                       aria-pressed={passwordVisible}
                       aria-controls="password"
-                      className="flex cursor-pointer items-center rounded-sm p-0.5 focus:outline-none focus-visible:ring-2 focus-visible:ring-[#989F43]"
+                      className="flex cursor-pointer items-center -m-2 rounded-sm p-2.5 focus:outline-none focus-visible:ring-2 focus-visible:ring-[#989F43]"
                     >
                       <Icon
                         id="eye"
@@ -311,7 +311,7 @@ export const Signup = ({
               {t("hasAccount")}{" "}
               <Link
                 href="/login"
-                className="font-medium text-[#777E32] underline underline-offset-2 hover:text-[#5B612A]"
+                className="font-medium text-[#5B612A] underline underline-offset-2 hover:text-[#21240F]"
               >
                 {t("signIn")}
               </Link>

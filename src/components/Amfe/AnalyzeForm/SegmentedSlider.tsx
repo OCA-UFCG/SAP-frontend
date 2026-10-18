@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useSyncExternalStore } from "react";
 import { useTranslations } from "next-intl";
 import {
   CriteriaCardI,
@@ -6,7 +6,7 @@ import {
   Criteria,
 } from "@/utils/amfeInterfaces";
 import { useWatch } from "react-hook-form";
-import CriteriaModal from "../CriteriaModal/CriteriaModal";
+import CriteriaModal, { InfoTooltip } from "../CriteriaModal/CriteriaModal";
 import { Icon } from "@/components/Icon/Icon";
 import useCriterias from "@/components/Amfe/useCriterias";
 import {
@@ -16,6 +16,14 @@ import {
   normalizeCriteriaValues,
   preserveCriteriaInputValues,
 } from "@/utils/normalizeCriteriaValues";
+
+// Abaixo disto os critérios ficam um por linha (`sm:grid-cols-2` no grid).
+const TWO_COLUMNS = "(min-width: 640px)";
+const subscribeTwoColumns = (onChange: () => void) => {
+  const query = window.matchMedia(TWO_COLUMNS);
+  query.addEventListener("change", onChange);
+  return () => query.removeEventListener("change", onChange);
+};
 
 const COLORS = [
   "#3EBCD2",
@@ -28,11 +36,29 @@ const COLORS = [
   "#ef4444",
 ];
 
+// Cor do número dentro de cada faixa: escuro nas faixas claras, claro nas escuras.
+const LABEL_COLORS = [
+  "#292829",
+  "#F8F7F8",
+  "#292829",
+  "#F8F7F8",
+  "#F8F7F8",
+  "#292829",
+  "#292829",
+  "#F8F7F8",
+];
+
 const SegmentedBar = ({ fields, control, setValue }: CriteriaCardI) => {
   const t = useTranslations("SegmentedSlider");
   const { criterias: availableCriterias } = useCriterias();
   const watchedCriteria = useWatch({ control, name: "criteria" });
 
+  const [openInfo, setOpenInfo] = useState<string | null>(null);
+  const twoColumns = useSyncExternalStore(
+    subscribeTwoColumns,
+    () => window.matchMedia(TWO_COLUMNS).matches,
+    () => true,
+  );
   const [localInputs, setLocalInputs] = useState({
     criteriaNamesKey: "",
     values: [] as string[],
@@ -64,9 +90,9 @@ const SegmentedBar = ({ fields, control, setValue }: CriteriaCardI) => {
   if (fields.length === 0) return null;
 
   return (
-    <div className="mt-3 rounded-2xl border border-neutral-100 bg-white p-6 shadow-sm">
+    <div className="flex flex-col gap-6 rounded-lg border border-[#EFEFEF] bg-white p-4 shadow-sm">
       <div
-        className="relative flex h-24 overflow-hidden rounded-xl"
+        className="relative flex h-[60px] gap-px overflow-hidden rounded-lg"
         role="group"
         aria-label={t("ariaLabel")}
       >
@@ -76,22 +102,20 @@ const SegmentedBar = ({ fields, control, setValue }: CriteriaCardI) => {
 
           if (pct === 0) return null;
 
-          const isLastVisible =
-            fields.findIndex((_, idx) => idx > i && percentages[idx] > 0) ===
-            -1;
-
           return (
             <div
               key={i}
-              className="relative flex items-center justify-end pr-4 transition-all duration-300"
+              className="relative flex items-center justify-end p-2 transition-all duration-300"
               style={{
                 width: `${pct}%`,
                 background: color,
-                borderRight: isLastVisible ? "none" : "2px solid white",
               }}
             >
               {pct > 10 && (
-                <span className="text-base font-semibold text-white drop-shadow-sm">
+                <span
+                  className="font-open-sans text-[10px] leading-6 font-semibold"
+                  style={{ color: LABEL_COLORS[i % LABEL_COLORS.length] }}
+                >
                   {pct.toFixed(0)}%
                 </span>
               )}
@@ -100,69 +124,92 @@ const SegmentedBar = ({ fields, control, setValue }: CriteriaCardI) => {
         })}
       </div>
 
-      <div className="mt-10 grid grid-cols-1 gap-x-8 gap-y-6 xl:grid-cols-2">
-        {fields.map((field, i) => (
-          <div
-            key={i}
-            className="grid min-w-0 grid-cols-[minmax(0,1fr)_88px] items-center gap-2"
-          >
-            <div className="flex min-w-0 items-center gap-1">
-              <div
-                className="h-[14px] w-[14px] flex-shrink-0 rounded-full"
-                style={{ backgroundColor: COLORS[i % COLORS.length] }}
+      {/* No celular, em duas colunas o nome do critério ficava com ~55 px e
+          quebrava palavra por palavra ao lado do campo. */}
+      <div className="grid grid-cols-1 gap-x-6 gap-y-3 sm:grid-cols-2">
+        {fields.map((field, i) => {
+          const metadata = metadataByName.get(field.name);
+          const label = metadata?.label || field.name;
+
+          return (
+            <div key={i} className="flex min-w-0 items-center gap-2">
+              <div className="flex min-w-0 flex-1 items-center gap-1">
+                <div
+                  className="h-[14px] w-[14px] flex-shrink-0 rounded-full"
+                  style={{ backgroundColor: COLORS[i % COLORS.length] }}
+                />
+                <span className="min-w-0 font-open-sans text-xs leading-4 font-semibold break-normal whitespace-normal text-[#292829]">
+                  {label}
+                </span>
+              </div>
+              <InfoTooltip
+                id={field.name}
+                name={label}
+                description={metadata?.description || undefined}
+                open={openInfo === field.name}
+                onToggle={(e) => {
+                  e.stopPropagation();
+                  setOpenInfo((current) =>
+                    current === field.name ? null : field.name,
+                  );
+                }}
+                onOpen={() => setOpenInfo(field.name)}
+                onClose={() => setOpenInfo(null)}
+                placement="above"
+                // Em uma coluna o ícone fica perto da borda direita, então a
+                // dica abre para a esquerda.
+                align={twoColumns && i % 2 === 0 ? "left" : "right"}
               />
-              <span className="min-w-0 text-[12px] leading-tight font-semibold break-normal whitespace-normal text-gray-800">
-                {metadataByName.get(field.name)?.label || field.name}
-              </span>
-            </div>
-            <input
-              type="number"
-              step="1"
-              min={MIN_CRITERIA_INPUT_VALUE}
-              max={MAX_CRITERIA_INPUT_VALUE}
-              className="h-[36px] w-full rounded-lg border border-gray-300 px-3 text-[14px] font-normal text-slate-400 transition-colors outline-none focus:border-[#989F43]"
-              value={localValues[i] ?? ""}
-              onChange={(e) => {
-                const raw = e.target.value;
-                const newLocalValues = [...localValues];
-                newLocalValues[i] = raw;
-                setLocalInputs({
-                  criteriaNamesKey,
-                  values: newLocalValues,
-                });
-              }}
-              onBlur={() => {
-                const clamped = String(
-                  normalizeCriteriaInputValue(localValues[i] ?? ""),
-                );
-                const newLocalValues = [...localValues];
-                newLocalValues[i] = clamped;
-                setLocalInputs({
-                  criteriaNamesKey,
-                  values: newLocalValues,
-                });
-
-                const numericValues = newLocalValues.map(
-                  (val) => parseFloat(val) || 0,
-                );
-                const normalizedValues = normalizeCriteriaValues(numericValues);
-
-                normalizedValues.forEach((normalizedVal, idx) => {
-                  setValue(`criteria.${idx}.value`, normalizedVal, {
-                    shouldDirty: true,
-                    shouldValidate: true,
+              <input
+                type="number"
+                step="1"
+                min={MIN_CRITERIA_INPUT_VALUE}
+                max={MAX_CRITERIA_INPUT_VALUE}
+                className="h-9 w-20 shrink-0 rounded-md border border-[#CBD5E1] bg-white px-3 font-open-sans text-sm leading-5 font-normal text-slate-400 transition-colors outline-none focus:border-[#989F43]"
+                value={localValues[i] ?? ""}
+                onChange={(e) => {
+                  const raw = e.target.value;
+                  const newLocalValues = [...localValues];
+                  newLocalValues[i] = raw;
+                  setLocalInputs({
+                    criteriaNamesKey,
+                    values: newLocalValues,
                   });
-                });
-              }}
-              onKeyDown={(e) => {
-                if (e.key === "Enter") {
-                  e.preventDefault();
-                  (e.target as HTMLInputElement).blur();
-                }
-              }}
-            />
-          </div>
-        ))}
+                }}
+                onBlur={() => {
+                  const clamped = String(
+                    normalizeCriteriaInputValue(localValues[i] ?? ""),
+                  );
+                  const newLocalValues = [...localValues];
+                  newLocalValues[i] = clamped;
+                  setLocalInputs({
+                    criteriaNamesKey,
+                    values: newLocalValues,
+                  });
+
+                  const numericValues = newLocalValues.map(
+                    (val) => parseFloat(val) || 0,
+                  );
+                  const normalizedValues =
+                    normalizeCriteriaValues(numericValues);
+
+                  normalizedValues.forEach((normalizedVal, idx) => {
+                    setValue(`criteria.${idx}.value`, normalizedVal, {
+                      shouldDirty: true,
+                      shouldValidate: true,
+                    });
+                  });
+                }}
+                onKeyDown={(e) => {
+                  if (e.key === "Enter") {
+                    e.preventDefault();
+                    (e.target as HTMLInputElement).blur();
+                  }
+                }}
+              />
+            </div>
+          );
+        })}
       </div>
 
       <CriteriaModal
@@ -216,9 +263,9 @@ const SegmentedBar = ({ fields, control, setValue }: CriteriaCardI) => {
             onClick={openModal}
             aria-label={t("editButtonAria", { count: fields.length })}
             title={t("editButtonAria", { count: fields.length })}
-            className="mt-10 flex w-full cursor-pointer items-center justify-center gap-2 rounded-xl border border-gray-300 py-3 text-[14px] font-medium text-gray-700 transition-colors hover:bg-gray-50"
+            className="flex h-10 w-full cursor-pointer items-center justify-center gap-2 rounded-md border border-[#E4E5E2] px-4 py-2 font-open-sans text-sm leading-6 font-normal text-[#292829] transition-colors hover:bg-gray-50"
           >
-            <Icon id="addIcon" size={20} />
+            <Icon id="addIcon" size={20} className="m-0.5" />
             <span>{t("editButton")}</span>
           </button>
         )}

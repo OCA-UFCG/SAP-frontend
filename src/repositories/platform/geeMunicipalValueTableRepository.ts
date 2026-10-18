@@ -316,6 +316,7 @@ export async function getMunicipalValueTableYearPatch(
     ]),
     async () =>
       toCachedRows(await readValueTableRows(source, plans, locationKey)),
+    assetIds,
   );
 
   return {

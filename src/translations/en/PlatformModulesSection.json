@@ -1,20 +1,26 @@
 {
   "PlatformModulesSection": {
-    "title": "Modules",
+    "title": "What you can do in SEDES",
+    "subtitle": "Know the territory, take the information further and decide with clear criteria: three tools, one path.",
     "modules": {
-      "0": {
+      "monitoring": {
         "title": "Monitoring",
-        "description": "Official data layers, integrated from the working group's institutions (ANA, CEMADEN, OCA, IBGE, INPE, Embrapa, CPTEC/INPE). Data on drought, climate, environment and socioeconomics."
+        "description": "Maps, time series and statistics on climate, drought, vegetation, soil, land use and social conditions, from official sources, for all of Brazil.",
+        "fullText": "Brings together data from ANA, INMET, CPTEC/INPE, IBGE, Embrapa, INSA and Civil Defense in a single consultation environment, without creating parallel monitoring. Where there are gaps, OCA/UFCG computes complementary indicators adapted to Brazil: the Combined Drought Indicator (CDI), following the methodology of the European Drought Observatory, and the Land Degradation Index (IDT), developed for the PAB-Brasil based on the UNCCD approach, which shows the history and current state of degradation. The layers of Indigenous Lands, Quilombola Territories, Settlements and Protected Areas place these territories in relation to critical areas.",
+        "button": "Explore Monitoring"
       },
-      "1": {
-        "title": "Analysis",
-        "description": "Multi-criteria model with configurable weights, aimed at prioritizing actions across the territory. Weights are collectively agreed upon by the GT-SEDES."
-      },
-      "2": {
+      "communication": {
         "title": "Communication",
-        "description": "Two automated PDF products: the Analytical Report, customizable by variable and scale (Brazil, state or municipality), and the Official Bulletin, with institutional validation."
+        "description": "Automatically generated reports for the territory and variables you choose, ready to download, print and share.",
+        "fullText": "The system identifies what is common and what is specific to each territory and builds the right diagnosis for a municipality, state, region, ASD, Semi-arid or biome, at any time and at the user's initiative. The report brings together the selected climate, environmental and socioeconomic indicators, with maps, charts and plain-language text, and serves municipal plans, projects, technical opinions, classes and meetings with public managers.",
+        "button": "Explore Communication"
+      },
+      "analysis": {
+        "title": "Prioritization",
+        "description": "Multi-criteria analysis that combines territorial indicators, with weights you define, to show which municipalities should be served first.",
+        "fullText": "Each prioritization starts from a public policy question. The user chooses, among the drought, land degradation, vegetation, soil and socioeconomic indicators available in SEDES, all from official sources and already integrated at the municipal scale, those that answer the question, sets the weight of each one, and the system presents the municipalities ranked into priority levels, on the map and in a table, with export to spreadsheet, image and PDF. The method is transparent and reproducible: the same question, with the same indicators and weights, always produces the same result, which makes it possible to ground the decision and let others verify it.",
+        "button": "Explore Prioritization"
       }
-    },
-    "learnMore": "Learn more"
+    }
   }
 }

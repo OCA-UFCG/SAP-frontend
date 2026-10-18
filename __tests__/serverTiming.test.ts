@@ -85,3 +85,37 @@ describe("createServerTiming", () => {
     expect(header).not.toContain("total;dur=");
   });
 });
+
+describe("createServerTiming com muitas medições", () => {
+  // Regressão: "Selecionar todos" na Comunicação pede 39 camadas; num município
+  // fora do cache, cada uma virava uma medição e o cabeçalho passava de 4,5 KB.
+  // O nginx da frente só aceita 4 KB de cabeçalhos e respondia 502.
+  it("cabe no buffer do nginx mesmo com 39 camadas", () => {
+    const timing = createServerTiming();
+    for (let i = 0; i < 39; i++) {
+      timing.record(
+        `analysis_previsao_precipitacao_trimestral_probabilidade_${i}`,
+        100 + i,
+        `Previsão de precipitação trimestral (probabilidade) ${i}`,
+      );
+    }
+    const header = timing.header();
+
+    expect(header.length).toBeLessThanOrEqual(2048);
+    expect(header).toContain("total;dur=");
+    expect(header).toMatch(/omitted;dur=0\.0;desc="\d+ medicoes omitidas/u);
+    // As mais lentas ficam: são elas que explicam a demora.
+    expect(header).toContain("_38;dur=138.0");
+    expect(header).not.toContain("_0;dur=100.0");
+  });
+
+  it("não mexe no cabeçalho quando tudo cabe", () => {
+    const timing = createServerTiming();
+    timing.record("auth", 1);
+    timing.record("analysis_seca", 2, "Monitor de Secas");
+
+    expect(timing.header()).toMatch(
+      /^auth;dur=1\.0, analysis_seca;dur=2\.0;desc="Monitor de Secas", total;dur=/u,
+    );
+  });
+});

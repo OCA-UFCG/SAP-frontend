@@ -28,7 +28,7 @@ export function isMunicipalLayerIndexed(
 }
 
 function getPeriodYear(period: string) {
-  return period.match(/^(\d{4})(?:-\d{2})?$/u)?.[1] ?? null;
+  return period.match(/^(\d{4})(?:-\d{2}){0,2}$/u)?.[1] ?? null;
 }
 
 function periodMatchesRequest(availablePeriod: string, requestedPeriod: string) {
@@ -82,7 +82,7 @@ export function resolveNearestReportPeriod(
   requestedPeriod: string,
 ): string | null {
   const periods = [...new Set(availablePeriods)]
-    .filter((period) => /^\d{4}(?:-(?:0[1-9]|1[0-2]))?$/u.test(period))
+    .filter((period) => /^\d{4}(?:-(?:0[1-9]|1[0-2])(?:-(?:01|11|21))?)?$/u.test(period))
     .sort((left, right) => left.localeCompare(right));
 
   if (periods.includes(requestedPeriod)) return requestedPeriod;

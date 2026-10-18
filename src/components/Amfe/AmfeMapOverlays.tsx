@@ -6,6 +6,7 @@ import { ReferenceOverlaysControl } from "@/components/MapControls/ReferenceOver
 import { AmfeMapDownloadMenu } from "./AmfeMapDownloadMenu";
 import { AmfeMapLegend } from "./AmfeMapLegend";
 import { useAmfeAnalysis } from "./AmfeAnalysisContext";
+import { Icon } from "@/components/Icon/Icon";
 
 /** Controles e avisos que ficam por cima do mapa enquanto Análise está aberta. */
 export function AmfeMapOverlays() {
@@ -24,7 +25,12 @@ export function AmfeMapOverlays() {
     setFillOpacity,
     referenceOverlays,
     toggleReferenceOverlay,
+    highlightedReferenceOverlay,
+    toggleReferenceHighlight,
+    prefetchReferenceOverlays,
     focusTerritory,
+    clearTerritoryFocus,
+    territoryFocus,
     municipalityClassification,
     isClassificationBelowZoomFloor,
   } = useAmfeAnalysis();
@@ -39,13 +45,23 @@ export function AmfeMapOverlays() {
         imageOptions={imageOptions}
       />
 
-      <div className="absolute bottom-0 right-6 z-[1000] box-border flex w-[302px] flex-col items-end gap-[10px] pb-6">
+      {/* No celular sobe acima do botão "Mostrar opções", que flutua embaixo. */}
+      <div data-stage-pop className="absolute bottom-0 right-6 z-[1000] box-border flex w-[302px] flex-col items-end gap-[10px] pb-6 max-md:right-2 max-md:pb-[64px]">
         <ReferenceOverlaysControl
           activeOverlays={referenceOverlays}
           onToggle={toggleReferenceOverlay}
+          highlightedOverlay={highlightedReferenceOverlay}
+          onToggleHighlight={toggleReferenceHighlight}
           onSelectTerritory={focusTerritory}
+          selectedTerritory={territoryFocus?.territory}
+          onClearTerritory={clearTerritoryFocus}
+          onOpen={prefetchReferenceOverlays}
         />
-        {municipalityClassification && <AmfeMapLegend />}
+        {municipalityClassification && (
+          <div className="motion-safe:animate-[panel-in_420ms_cubic-bezier(0.2,0.7,0.2,1)]">
+            <AmfeMapLegend />
+          </div>
+        )}
       </div>
 
       <MapSettingsControl
@@ -60,7 +76,7 @@ export function AmfeMapOverlays() {
       {isClassificationBelowZoomFloor && (
         <p
           role="status"
-          className="absolute bottom-4 left-4 z-[1000] max-w-xs rounded-lg bg-white/90 p-3 text-xs text-[#364153] shadow-lg"
+          className="absolute bottom-4 left-4 z-[1000] max-w-xs rounded-lg bg-white/90 p-3 text-xs text-[#364153] shadow-lg max-md:top-16 max-md:bottom-auto max-md:left-2 max-md:right-2"
         >
           {tMap("zoomInForClassification")}
         </p>
@@ -68,7 +84,20 @@ export function AmfeMapOverlays() {
 
       {loading && (
         <div className="absolute inset-0 z-[1100] flex flex-col items-center justify-center bg-white/70 backdrop-blur-[1px]">
-          <div className="h-10 w-10 animate-spin rounded-full border-[3px] border-[#f3f3f3] border-t-[#989f43]" />
+          {/* Um radar no lugar do spinner: anéis saem do alvo, o ícone da
+              Priorização, enquanto os municípios são comparados. */}
+          <div aria-hidden="true" className="relative flex h-24 w-24 items-center justify-center">
+            {[0, 600, 1200].map((delay) => (
+              <span
+                key={delay}
+                className="absolute inset-0 rounded-full border-2 border-[#989F43] opacity-0 motion-safe:animate-[radar_1800ms_ease-out_infinite]"
+                style={{ animationDelay: `${delay}ms` }}
+              />
+            ))}
+            <span className="flex h-12 w-12 items-center justify-center rounded-full bg-[#989F43] text-white shadow-[0_8px_20px_rgba(91,97,42,0.35)] motion-reduce:animate-pulse">
+              <Icon id="target" size={24} />
+            </span>
+          </div>
           <p className="mt-4 text-gray-600">{t("loading")}</p>
         </div>
       )}

@@ -3,12 +3,12 @@
     "section": "Comunicación",
     "title": "Informe municipal",
     "description": "Consulte los datos consolidados disponibles para un municipio y período.",
-    "selectionDescription": "Seleccione la información al lado para generar un informe",
+    "selectionDescription": "Seleccione la información para generar el informe automático",
     "selectArea": "Seleccione el área de análisis",
     "selectAreaHint": "Elija el recorte y el territorio que se analizarán en el informe.",
     "searchMunicipality": "Busque o seleccione un municipio",
     "noMunicipalityResults": "No se encontraron municipios",
-    "selectModules": "Seleccione los módulos de monitoreo",
+    "selectModules": "Seleccione los productos del monitoreo",
     "selectModulesHint": "Elija los indicadores que se incluirán en el informe.",
     "selectAll": "Seleccionar todos",
     "clearAll": "Limpiar selección",
@@ -20,7 +20,6 @@
     "analysisDate": "Fecha del análisis",
     "periodHint": "Ingrese un año (2024) o mes (2024-01).",
     "invalidPeriod": "Ingrese un período con formato AAAA o AAAA-MM.",
-    "availabilityIdle": "Seleccione un territorio y un período para consultar los módulos.",
     "checkingAvailability": "Consultando módulos disponibles para el período...",
     "availabilityError": "No fue posible consultar la disponibilidad de los módulos.",
     "noModulesAvailable": "Ningún módulo tiene datos para este período.",
@@ -33,12 +32,13 @@
     "popupBlocked": "El navegador bloqueó la ventana de impresión. Permita ventanas emergentes para descargar el informe en PDF.",
     "emptyPreviewTitle": "Vista previa del informe",
     "emptyPreviewDescription": "Seleccione el municipio, el período y los módulos disponibles para generar el informe.",
-    "emptyPreviewInstruction": "Seleccione la información del panel lateral para generar un informe",
+    "emptyPreviewInstruction": "Seleccione la información para generar el informe automático",
     "preview": "Ver informe",
     "back": "Volver a Comunicación",
     "loading": "Cargando datos del informe...",
     "loadingHint": "Esto puede tardar unos segundos, según los módulos seleccionados.",
     "loadError": "No se pudo cargar el informe",
+    "serverError": "El servidor no respondió a tiempo. Inténtelo de nuevo en unos instantes.",
     "missingParameters": "Municipio y período son obligatorios.",
     "reportLabel": "Informe analítico territorial",
     "ibgeCode": "Código IBGE",
@@ -67,10 +67,10 @@
       "automatedNotice": "Este informe fue generado automáticamente por el Sistema Estratégico sobre Desertificación (SEDES). Los valores presentados son producidos a partir de los datos disponibles en la plataforma.",
       "footer": "SEDES — Informe Analítico | Generado el: {generatedAt} | MMA/DCDE · OCA · UFCG · INSA",
       "generatedLabel": "Informe automático generado: {date}",
-      "variableIndexTitle": "Índice de las variables seleccionadas",
+      "summaryTitle": "Índice",
       "backToTop": "Volver arriba",
       "goToSection": "Ir a la sección de {title}",
-      "viewMonitor": "Ver monitor",
+      "viewMonitor": "Ver producto",
       "situationTitle": "Situación",
       "classCoverageTitle": "Clases por cobertura (%) del área",
       "spatialDistributionTitle": "Distribución espacial",
@@ -150,6 +150,7 @@
     "mapCropAlt": "Recorte del mapa del municipio",
     "mapUnavailableExport": "Mapa no disponible para exportación.",
     "mapPeriodUnavailable": "Sin imagen del mapa para este período.",
+    "mapRetry": "Intentar de nuevo",
     "periodRange": "{first} a {last}",
     "reportFilenamePrefix": "Informe",
     "status": {
@@ -337,6 +338,37 @@
       "semiarid": "Semiárido",
       "asd": "ASD y entorno"
     },
-    "selectTerritory": "Seleccione el territorio"
+    "selectTerritory": "Seleccione el territorio",
+    "forecast": {
+      "title": "Pronóstico: {variable} ({source})",
+      "titleWithPeriodicity": "Pronóstico: {variable} {periodicity} ({source})",
+      "referencePeriod": "período de referencia: {period}",
+      "sourceLabel": "Fuente de los datos",
+      "variableLabel": "Variable",
+      "periodicityLabel": "Periodicidad",
+      "periodicity": {
+        "monthly": "Mensual",
+        "quarterly": "Trimestral"
+      },
+      "situation": "En {territory}, para {period}, el pronóstico de {variable} del {source} indica {items}.",
+      "situationItem": "{kind} en el rango {className}, en {value} {context}",
+      "situationItemPeriod": "{kind} en el rango {className}, en {value} {context} ({period})",
+      "spatialCaption": "Mapas recortados por el contorno de {territory}, para {period}.",
+      "coverageCaption": "Cada barra es un período de la serie disponible. La del período de referencia ({period}) está destacada, y es la que describe la leyenda.",
+      "methodologyTitle": "Qué mide este indicador",
+      "kindDescriptions": {
+        "anomalia": "La Anomalía indica la desviación respecto al promedio histórico.",
+        "acumulado": "El Acumulado indica el total previsto para el período.",
+        "probabilidade": "La Probabilidad indica la posibilidad de ocurrencia de la categoría más probable, respecto a la normal climatológica."
+      },
+      "noData": "Sin datos para este período.",
+      "facets": {
+        "anomalia": "Anomalía",
+        "acumulado": "Acumulado",
+        "probabilidade": "Probabilidad",
+        "precipitacao": "Precipitación",
+        "temperatura": "Temperatura"
+      }
+    }
   }
 }

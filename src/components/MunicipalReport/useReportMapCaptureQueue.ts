@@ -14,6 +14,8 @@ interface ReportMapCaptureQueue {
   pendingMapCount: number;
   resetMapCaptureQueue: () => void;
   retryAttemptFor: (key: string) => number;
+  /** Devolve à fila um mapa que já desistiu, a pedido de quem lê. */
+  retryMapCapture: (key: string) => void;
 }
 
 interface ReportMapPriorityOptions {
@@ -134,6 +136,28 @@ export function useReportMapCaptureQueue(
     setSerialRetryKey((current) => (current === key ? null : current));
   }, []);
 
+  // A tentativa ganha número novo para o quadro esquecer a falha anterior e
+  // montar o mapa de novo; como o orçamento automático já foi gasto, uma nova
+  // falha vai direto para "indisponível" em vez de prender a fila em série.
+  const retryMapCapture = useCallback((key: string) => {
+    const nextRetryAttempts = new Map(retryAttemptsRef.current);
+    nextRetryAttempts.set(
+      key,
+      Math.max(
+        REPORT_MAP_CAPTURE_MAX_RETRIES,
+        retryAttemptsRef.current.get(key) ?? 0,
+      ) + 1,
+    );
+    retryAttemptsRef.current = nextRetryAttempts;
+    setRetryAttempts(nextRetryAttempts);
+    setMapImages((current) => {
+      if (!current.has(key)) return current;
+      const next = new Map(current);
+      next.delete(key);
+      return next;
+    });
+  }, []);
+
   const retryAttemptFor = useCallback(
     (key: string) => retryAttempts.get(key) ?? 0,
     [retryAttempts],
@@ -148,5 +172,6 @@ export function useReportMapCaptureQueue(
     pendingMapCount,
     resetMapCaptureQueue,
     retryAttemptFor,
+    retryMapCapture,
   };
 }

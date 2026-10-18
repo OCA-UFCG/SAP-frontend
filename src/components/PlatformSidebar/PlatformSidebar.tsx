@@ -14,16 +14,21 @@ import { MunicipalReportContext } from "@/components/SidePanelContexts/Municipal
 import { MonitoringListStateProvider } from "@/components/SidePanelContexts/monitoringListState";
 import { PanelLayerI } from "@/utils/interfaces";
 import { useMapLayerActions } from "@/components/MapLayerContext/MapLayerContext";
+import { usePlatformTour } from "@/components/PlatformTour/usePlatformTour";
 import type { MunicipalReportPreviewProps } from "@/components/MunicipalReport/MunicipalReportPreview";
+import { preloadAnalyzeForm } from "@/components/Amfe/AmfeAnalysisFormColumn";
+import { runSectionTransition } from "./sectionTransition";
 
 // O relatório municipal carrega o `recharts` junto. Ele só aparece na seção de
 // Comunicação, então importá-lo sob demanda tira essa biblioteca do pacote que
 // todo mundo baixa ao abrir a plataforma.
+const loadMunicipalReportPreview = () =>
+  import("@/components/MunicipalReport/MunicipalReportPreview").then(
+    (module) => ({ default: module.MunicipalReportPreview }),
+  );
+
 const LazyMunicipalReportPreview = dynamic<MunicipalReportPreviewProps>(
-  () =>
-    import("@/components/MunicipalReport/MunicipalReportPreview").then(
-      (module) => ({ default: module.MunicipalReportPreview }),
-    ),
+  loadMunicipalReportPreview,
   {
     ssr: false,
     loading: () => <div className="h-full w-full animate-pulse bg-[#F6F7F6]" />,
@@ -133,15 +138,16 @@ export function PlatformSidebar({
   const [isLeavingUtilityView, startUtilityViewExit] = useTransition();
   const [utilityViewExitTarget, setUtilityViewExitTarget] =
     useState<PlatformSection | null>(null);
-  const defaultPanelOpenOffset = "560px";
-  const sidePanelWidthClass = isPanelOpen ? "w-[420px]" : "w-0";
+  const defaultPanelOpenOffset = "548px";
+  // No celular o painel aberto ocupa a largura toda, por cima do mapa.
+  const sidePanelWidthClass = isPanelOpen ? "w-[424px] max-md:w-screen" : "w-0";
 
   // A lateral flutua por cima do mapa full-bleed, entao quem desenha algo no
   // canto inferior esquerdo do mapa (a escala) precisa saber quanto dele esta
   // coberto. Publicar a medida evita subir `isPanelOpen` ate o layout so para
   // isso; quem consome le `--platform-side-overlay-width`.
   useEffect(() => {
-    const overlayWidth = isPanelOpen ? defaultPanelOpenOffset : "140px";
+    const overlayWidth = isPanelOpen ? defaultPanelOpenOffset : "124px";
     document.documentElement.style.setProperty(
       "--platform-side-overlay-width",
       overlayWidth,
@@ -179,19 +185,37 @@ export function PlatformSidebar({
       return;
     }
 
-    if (next === "analysis") {
-      // A legenda do Monitoramento não descreve a coropleta da análise.
-      setActiveLegend(null);
-    }
+    runSectionTransition(activeSection, next, () => {
+      if (next === "analysis") {
+        // A legenda do Monitoramento não descreve a coropleta da análise.
+        setActiveLegend(null);
+      }
 
-    setActiveSection(next);
-    onActiveSectionChange?.(next);
-    setIsPanelOpen(next !== "analysis");
+      setActiveSection(next);
+      onActiveSectionChange?.(next);
+      setIsPanelOpen(next !== "analysis");
 
-    if (next !== "analysis") {
-      setPanelSection(next);
-    }
+      if (next !== "analysis") {
+        setPanelSection(next);
+      }
+    });
   }
+
+  // O mouse chegou no item da trilha: o relatório e o formulário começam a
+  // baixar já, para estarem prontos quando a seção pousar.
+  function handleSectionIntent(next: PlatformSection) {
+    if (next === "communication") void loadMunicipalReportPreview();
+    if (next === "analysis") preloadAnalyzeForm();
+  }
+
+  // O tutorial parte da listagem de Monitoramento: só abre sozinho quando é
+  // por ela que a pessoa entra, e não quando chega por um link de relatório ou
+  // de detalhamento de um índice.
+  const replayTour = usePlatformTour({
+    autoStart:
+      !isUtilityView && initialSection === "monitoring" && !detailLayerId,
+    showMonitoringList: () => handleSectionChange("monitoring"),
+  });
 
   const openLayerMonitoring = useCallback((layerId: string) => {
     setRequestedDetailLayerId(layerId);
@@ -215,31 +239,40 @@ export function PlatformSidebar({
 
   return (
     <MonitoringListStateProvider>
+      {/* As listas do painel rolam sozinhas: ao chegar ao fim, a rolagem
+          para ali em vez de passar para a página, que descia junto e tirava
+          o cabeçalho e o mapa do lugar para mostrar o rodapé. */}
       <aside
-        className="absolute left-0 top-0 z-20 flex h-full"
+        className="absolute left-0 top-0 z-20 flex h-full [&_.overflow-y-auto]:overscroll-contain"
         data-platform-sidebar-overlay
       >
         <PlatformSideRail
           activeSection={activeSection}
           onSectionChange={handleSectionChange}
+          onSectionIntent={handleSectionIntent}
           isPanelOpen={isPanelOpen}
           onTogglePanel={() => setIsPanelOpen((v) => !v)}
           showAuditLink={showAuditLink}
           pendingSection={isLeavingUtilityView ? utilityViewExitTarget : null}
+          onReplayTour={isUtilityView ? undefined : replayTour}
         />
 
         {!isUtilityView && (
           <div
             data-platform-side-panel
+            data-panel-open={isPanelOpen}
             className={`
         relative h-full overflow-hidden
           transition-[width] duration-300 ease-in-out
           ${sidePanelWidthClass}
+          group-data-[mobile-view=result]/shell:max-md:hidden
         `}
           >
             <div
-              className={`
-            absolute left-0 top-0 h-full w-full
+              // Largura fixa: o conteúdo desliza enquanto o painel abre, em vez
+            // de se espremer. No celular, a da tela.
+            className={`
+            absolute left-0 top-0 h-full w-[424px] max-md:w-screen
             transform transition-transform duration-300 ease-in-out
             ${isPanelOpen ? "translate-x-0" : "-translate-x-full"}
           `}
@@ -262,9 +295,12 @@ export function PlatformSidebar({
             className="absolute inset-0 z-[5] bg-[#F6F7F6]"
             aria-hidden="true"
           />
+          {/* No celular não há trilha à esquerda: o relatório começa na borda
+              e fica por baixo do painel até a pessoa pedir para vê-lo. */}
           <div
-            className="absolute inset-y-0 right-0 z-10 bg-[#F6F7F6] transition-[left] duration-300 ease-in-out"
-            style={{ left: isPanelOpen ? defaultPanelOpenOffset : "140px" }}
+            data-stage="main"
+            className="absolute inset-y-0 right-0 z-10 bg-[#F6F7F6] transition-[left] duration-300 ease-in-out max-md:left-0!"
+            style={{ left: isPanelOpen ? defaultPanelOpenOffset : "124px" }}
           >
             <LazyMunicipalReportPreview
               locationKey={reportRequest?.locationKey ?? ""}

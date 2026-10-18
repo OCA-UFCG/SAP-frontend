@@ -28,22 +28,23 @@ import { SelectField } from "./SelectField";
 import { LayerAccordion } from "@/components/LayerAccordion/LayerAccordion";
 import useCriterias from "@/components/Amfe/useCriterias";
 
-const sectionClass = "mt-8";
-const sectionHeaderClass = "mb-4";
+const sectionClass = "flex flex-col gap-4";
+const sectionHeaderClass = "flex flex-col gap-2";
 const sectionTitleClass =
-  "flex items-center gap-3 text-xl font-semibold tracking-tight";
-const sectionMarkerClass = "h-6 w-1 rounded-full bg-[#989F43]";
-const sectionDescriptionClass = "mt-2 text-sm leading-6 opacity-75";
+  "flex items-center gap-3 font-open-sans text-lg leading-6 font-semibold";
+const sectionMarkerClass = "h-6 w-1 shrink-0 bg-[#989F43]";
+const sectionDescriptionClass =
+  "font-inter text-xs leading-[18px] font-medium tracking-[-0.015em]";
 const inputGroupCardClass =
-  "mt-3 rounded-xl border border-neutral-200 bg-white p-4 shadow-[0_1px_2px_rgba(0,0,0,0.04)]";
+  "rounded-lg border border-[#EFEFEF] bg-white p-4 shadow-sm";
+const fieldLabelClass = "font-inter text-sm leading-5 font-medium";
 const selectClass =
-  "w-full cursor-pointer rounded-xl border border-neutral-200 bg-white px-5 py-4 font-medium shadow-[inset_0_1px_0_rgba(255,255,255,0.65)] transition-colors focus:border-[#989F43] focus:outline-none focus:ring-2 focus:ring-[#989F43]/20";
-const softSelectClass =
-  "w-full cursor-pointer rounded-xl border border-neutral-200 bg-[#fbfbfa] px-5 py-4 font-medium shadow-[inset_0_1px_0_rgba(255,255,255,0.8)] transition-colors focus:border-[#989F43] focus:bg-white focus:outline-none focus:ring-2 focus:ring-[#989F43]/20";
+  "h-10 w-full cursor-pointer rounded-md border border-[#DCDBDC] bg-white py-2 pl-3 font-inter text-sm leading-6 font-normal transition-colors focus:border-[#989F43] focus:outline-none focus:ring-2 focus:ring-[#989F43]/20";
 
 const AnalyzeForm = ({ setFormPayload }: AnalyzeFormProps) => {
   const t = useTranslations("AnalyzeForm");
-  const { criterias: availableCriterias } = useCriterias();
+  const { criterias: availableCriterias, error: criteriasError } =
+    useCriterias();
   const hasInitializedCriterias = useRef(false);
   const {
     handleSubmit,
@@ -134,6 +135,10 @@ const AnalyzeForm = ({ setFormPayload }: AnalyzeFormProps) => {
     name: "criteria",
     rules: {
       validate: (criteria) => {
+        // Sem critério o backend recusa a análise com 422, e quem clicou não
+        // via motivo nenhum: o aviso aparece aqui, antes de sair o pedido.
+        if (criteria.length === 0) return t("criteriaRequired");
+
         const sum = criteria.reduce(
           (acc, el) => acc + Number(el.value),
           0,
@@ -180,23 +185,23 @@ const AnalyzeForm = ({ setFormPayload }: AnalyzeFormProps) => {
 
   return (
     <>
-      <div className="flex w-full justify-center p-4 md:p-6">
+      <div className="w-full px-4 py-12">
         <form
           style={{
             color: text,
           }}
-          className="w-full max-w-4xl p-2 md:p-4"
+          className="flex w-full flex-col gap-6"
           onSubmit={handleSubmit(onSubmit, openAdvancedSettingsOnError)}
         >
-          <div>
+          <div className="flex flex-col gap-2">
             <h1
-              className="text-[28px] leading-tight font-semibold tracking-tight"
+              className="font-inter text-2xl leading-6 font-semibold tracking-[-0.015em]"
               style={{ color: text }}
             >
               {t("title")}
             </h1>
             <p
-              className="mt-2 text-sm leading-6 opacity-75"
+              className="font-inter text-base leading-6 font-medium tracking-[-0.015em]"
               style={{ color: text }}
             >
               {t("description")}
@@ -213,6 +218,9 @@ const AnalyzeForm = ({ setFormPayload }: AnalyzeFormProps) => {
                 <ErrorMessage>
                   {errors.criteria?.root?.message as string}
                 </ErrorMessage>
+              )}
+              {criteriasError && (
+                <ErrorMessage>{t("criteriaLoadError")}</ErrorMessage>
               )}
               <p className={sectionDescriptionClass} style={{ color: text }}>
                 {t("criteriasDesc")}
@@ -237,73 +245,75 @@ const AnalyzeForm = ({ setFormPayload }: AnalyzeFormProps) => {
                 {t("interestAreaDesc")}
               </p>
             </div>
-            <div className={inputGroupCardClass}>
-              <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
-                <div className="flex flex-col">
-                  <label
-                    className="mb-2 text-sm font-bold"
-                    style={{ color: text }}
-                  >
-                    {t("interestAreaFieldLabel")}
-                  </label>
-                  <Controller
-                    name="interestArea"
-                    control={control}
-                    rules={{ required: t("interestAreaRequired") }}
-                    render={({ field }) => (
-                      <SelectField
-                        {...field}
-                        className={softSelectClass}
-                        style={{ color: text }}
-                      >
-                        {interestAreas.map((option) => (
-                          <option key={option} value={option}>
-                            {interestAreaLabels[option]}
-                          </option>
-                        ))}
-                      </SelectField>
-                    )}
-                  />
-                  {errors.interestArea && (
-                    <p className="mt-1 text-sm text-red-500">
-                      {errors.interestArea.message as string}
-                    </p>
+            <div className="grid grid-cols-2 gap-4">
+              <div className="flex min-w-0 flex-col gap-1.5">
+                <label
+                  htmlFor="analyze-interest-area"
+                  className={fieldLabelClass}
+                  style={{ color: text }}
+                >
+                  {t("interestAreaFieldLabel")}
+                </label>
+                <Controller
+                  name="interestArea"
+                  control={control}
+                  rules={{ required: t("interestAreaRequired") }}
+                  render={({ field }) => (
+                    <SelectField
+                      {...field}
+                      id="analyze-interest-area"
+                      className={selectClass}
+                      style={{ color: text }}
+                    >
+                      {interestAreas.map((option) => (
+                        <option key={option} value={option}>
+                          {interestAreaLabels[option]}
+                        </option>
+                      ))}
+                    </SelectField>
                   )}
-                </div>
+                />
+                {errors.interestArea && (
+                  <p className="mt-1 text-sm text-red-500">
+                    {errors.interestArea.message as string}
+                  </p>
+                )}
+              </div>
 
-                <div className="flex flex-col">
-                  <label
-                    className="mb-2 text-sm font-bold"
-                    style={{ color: text }}
-                  >
-                    {t("interestAreaValueTitle")}
-                  </label>
-                  <Controller
-                    name="interestAreaValue"
-                    control={control}
-                    rules={{ required: t("interestAreaValueRequired") }}
-                    render={({ field }) => (
-                      <SelectField
-                        {...field}
-                        className={softSelectClass}
-                        style={{ color: text }}
-                      >
-                        {interestAreaValueOptions.map((option) => (
-                          <option key={option} value={option}>
-                            {t(
-                              `interestAreaOptions.${selectedInterestArea}.${option}`,
-                            )}
-                          </option>
-                        ))}
-                      </SelectField>
-                    )}
-                  />
-                  {errors.interestAreaValue && (
-                    <p className="mt-1 text-sm text-red-500">
-                      {errors.interestAreaValue.message as string}
-                    </p>
+              <div className="flex min-w-0 flex-col gap-1.5">
+                <label
+                  htmlFor="analyze-interest-area-value"
+                  className={fieldLabelClass}
+                  style={{ color: text }}
+                >
+                  {t("interestAreaValueTitle")}
+                </label>
+                <Controller
+                  name="interestAreaValue"
+                  control={control}
+                  rules={{ required: t("interestAreaValueRequired") }}
+                  render={({ field }) => (
+                    <SelectField
+                      {...field}
+                      id="analyze-interest-area-value"
+                      className={selectClass}
+                      style={{ color: text }}
+                    >
+                      {interestAreaValueOptions.map((option) => (
+                        <option key={option} value={option}>
+                          {t(
+                            `interestAreaOptions.${selectedInterestArea}.${option}`,
+                          )}
+                        </option>
+                      ))}
+                    </SelectField>
                   )}
-                </div>
+                />
+                {errors.interestAreaValue && (
+                  <p className="mt-1 text-sm text-red-500">
+                    {errors.interestAreaValue.message as string}
+                  </p>
+                )}
               </div>
             </div>
           </section>
@@ -312,7 +322,7 @@ const AnalyzeForm = ({ setFormPayload }: AnalyzeFormProps) => {
             <div className={sectionHeaderClass}>
               <h2 className={sectionTitleClass} style={{ color: text }}>
                 <span className={sectionMarkerClass} />
-                <span>{t("analysisLevelTitle")}</span>
+                <span id="analyze-level-title">{t("analysisLevelTitle")}</span>
               </h2>
               <p className={sectionDescriptionClass} style={{ color: text }}>
                 {t("analysisLevelDesc")}
@@ -323,19 +333,18 @@ const AnalyzeForm = ({ setFormPayload }: AnalyzeFormProps) => {
               control={control}
               rules={{ required: t("levelRequired") }}
               render={({ field }) => (
-                <div className="mt-3">
-                  <SelectField
-                    {...field}
-                    className={selectClass}
-                    style={{ color: text }}
-                  >
-                    {availableRankings.map((option) => (
-                      <option key={option} value={option}>
-                        {rankingLevelLabels[option]}
-                      </option>
-                    ))}
-                  </SelectField>
-                </div>
+                <SelectField
+                  {...field}
+                  aria-labelledby="analyze-level-title"
+                  className={selectClass}
+                  style={{ color: text }}
+                >
+                  {availableRankings.map((option) => (
+                    <option key={option} value={option}>
+                      {rankingLevelLabels[option]}
+                    </option>
+                  ))}
+                </SelectField>
               )}
             />
             {errors.level && (
@@ -345,15 +354,13 @@ const AnalyzeForm = ({ setFormPayload }: AnalyzeFormProps) => {
             )}
           </section>
 
-          <div className={sectionClass}>
+          <div>
             <LayerAccordion
               title={t("advancedSettingsTitle")}
               open={advancedSettingsOpen}
               onOpenChange={setAdvancedSettingsOpen}
-              // 19px + 1px de borda = seta a 20px da borda, como a dos selects.
-              headerPaddingClassName="pl-4 pr-[19px]"
             >
-              <section>
+              <section className={sectionClass}>
                 <div className={sectionHeaderClass}>
                   <h2 className={sectionTitleClass} style={{ color: text }}>
                     <span className={sectionMarkerClass} />
@@ -417,7 +424,7 @@ const AnalyzeForm = ({ setFormPayload }: AnalyzeFormProps) => {
                 </div>
               </section>
 
-              <section>
+              <section className={sectionClass}>
                 <div className={sectionHeaderClass}>
                   <h2 className={sectionTitleClass} style={{ color: text }}>
                     <span className={sectionMarkerClass} />
@@ -443,7 +450,7 @@ const AnalyzeForm = ({ setFormPayload }: AnalyzeFormProps) => {
                         (option) => (
                           <label
                             key={option}
-                            className={`flex cursor-pointer items-center gap-3 rounded-lg px-4 py-3 font-medium transition-colors ${
+                            className={`relative flex cursor-pointer items-center gap-3 rounded-lg px-4 py-3 font-medium transition-colors ${
                               field.value === option
                                 ? "bg-[#989F43]/10"
                                 : "hover:bg-neutral-50"
@@ -480,10 +487,13 @@ const AnalyzeForm = ({ setFormPayload }: AnalyzeFormProps) => {
             </LayerAccordion>
           </div>
 
+          {/* Até o catálogo chegar a lista de critérios está vazia; um clique
+              nesse intervalo mandava a análise sem nenhum critério. */}
           <ButtonUi
             type="submit"
             label={t("submitButton")}
-            styles="mt-8 flex w-full items-center justify-center gap-2 bg-[#989F43] text-white hover:bg-[#858C38] hover:text-white"
+            disabled={availableCriterias.length === 0}
+            styles="flex h-10 w-full items-center justify-center gap-2 rounded-md border-0 bg-[#989F43] font-open-sans text-sm leading-6 font-normal text-white hover:bg-[#858C38] hover:text-white focus:text-white disabled:opacity-50 disabled:hover:bg-[#989F43]"
           />
         </form>
       </div>

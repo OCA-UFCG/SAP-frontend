@@ -11,6 +11,7 @@ vi.mock("@/components/SidePanelContexts/SearchBarPlatform", () => ({
 
 afterEach(() => {
   cleanup();
+  vi.restoreAllMocks();
 });
 
 const model: TerritorialAnalysisViewModel = {
@@ -49,10 +50,77 @@ const model: TerritorialAnalysisViewModel = {
       totalLabel: "Estados",
       items: [{ id: "mg", label: "Minas Gerais", trailingLabel: "60.0%" }],
     },
+    {
+      id: "classe-c",
+      label: "Classe C",
+      tone: {
+        color: "#3A3D1F",
+        bg: "rgba(58, 61, 31, 0.16)",
+        border: "rgba(58, 61, 31, 0.4)",
+      },
+      total: 0,
+      totalLabel: "Estados",
+      items: [],
+    },
   ],
 };
 
+function renderPanel(panelModel = model) {
+  return render(
+    <AnalysisPanel
+      moduleName="Teste"
+      yearOptions={[{ value: "2024", label: "2024" }]}
+      activeYear="2024"
+      onBack={vi.fn()}
+      onSearch={vi.fn()}
+      searchTelemetryContext={{
+        activeLayerId: "test",
+        activeLayerName: "Test",
+        activeDateLabel: "2024",
+      }}
+      onYearChange={vi.fn()}
+      model={panelModel}
+    />,
+  );
+}
+
 describe("AnalysisPanel", () => {
+  it("opens the date list scrolled to the selected date", async () => {
+    const user = userEvent.setup();
+    vi.spyOn(HTMLElement.prototype, "offsetTop", "get").mockImplementation(
+      function (this: HTMLElement) {
+        return this.getAttribute("aria-selected") === "true" ? 400 : 0;
+      },
+    );
+    render(
+      <AnalysisPanel
+        moduleName="Teste"
+        yearOptions={["2001", "2006", "2012", "2018"].map((year) => ({
+          value: year,
+          label: year,
+        }))}
+        activeYear="2012"
+        onBack={vi.fn()}
+        onSearch={vi.fn()}
+        searchTelemetryContext={{
+          activeLayerId: "test",
+          activeLayerName: "Test",
+          activeDateLabel: "2012",
+        }}
+        onYearChange={vi.fn()}
+        model={model}
+      />,
+    );
+
+    await user.click(screen.getByRole("button", { name: "2012" }));
+
+    expect(screen.getByRole("option", { name: "2012" })).toHaveAttribute(
+      "aria-selected",
+      "true",
+    );
+    expect(screen.getByRole("listbox").scrollTop).toBe(400);
+  });
+
   it("shows an accessible spinner beside the on-demand loading message", () => {
     render(
       <AnalysisPanel
@@ -82,6 +150,34 @@ describe("AnalysisPanel", () => {
     expect(status.querySelector(".animate-spin")).toBeInTheDocument();
   });
 
+  it("shows when the forecast was issued, above the analysis date", () => {
+    const { rerender } = renderPanel();
+    expect(screen.queryByText(/emitida em/i)).not.toBeInTheDocument();
+
+    rerender(
+      <AnalysisPanel
+        moduleName="Previsão climática"
+        yearOptions={[{ value: "2026-11", label: "2026-11" }]}
+        activeYear="2026-11"
+        onBack={vi.fn()}
+        onSearch={vi.fn()}
+        searchTelemetryContext={{
+          activeLayerId: "test",
+          activeLayerName: "Test",
+          activeDateLabel: "2026-11",
+        }}
+        onYearChange={vi.fn()}
+        model={model}
+        forecastEmissionDate="2026-10-01"
+      />,
+    );
+
+    const emission = screen.getByText("Previsão emitida em outubro de 2026");
+    expect(
+      emission.compareDocumentPosition(screen.getByText("Data da análise")),
+    ).toBe(Node.DOCUMENT_POSITION_FOLLOWING);
+  });
+
   it("keeps the back action pinned at the top of the scrollable panel", () => {
     render(
       <AnalysisPanel
@@ -90,7 +186,11 @@ describe("AnalysisPanel", () => {
         activeYear="2024"
         onBack={vi.fn()}
         onSearch={vi.fn()}
-        searchTelemetryContext={{ activeLayerId: "test", activeLayerName: "Test", activeDateLabel: "2024" }}
+        searchTelemetryContext={{
+          activeLayerId: "test",
+          activeLayerName: "Test",
+          activeDateLabel: "2024",
+        }}
         onYearChange={vi.fn()}
         onRankingItemSelect={vi.fn()}
         model={model}
@@ -156,6 +256,30 @@ describe("AnalysisPanel", () => {
     ).not.toBeInTheDocument();
     expect(
       screen.getByRole("button", { name: "Mostrar Classe A" }),
+    ).toBeVisible();
+  });
+
+  it("hides classes without any state", () => {
+    renderPanel();
+
+    expect(screen.getByText("Classe A")).toBeVisible();
+    expect(screen.queryByText("Classe C")).not.toBeInTheDocument();
+    expect(screen.queryByText("Sem estados com valor")).not.toBeInTheDocument();
+  });
+
+  it("shows the empty message when no class has states", () => {
+    renderPanel({
+      ...model,
+      rankingGroups: model.rankingGroups.map((group) => ({
+        ...group,
+        items: [],
+      })),
+    });
+
+    expect(
+      screen.getByText(
+        "Os agrupamentos por classificação ainda não estão disponíveis para esta camada.",
+      ),
     ).toBeVisible();
   });
 });

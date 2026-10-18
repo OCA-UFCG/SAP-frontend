@@ -1,17 +1,15 @@
-import { AboutSection } from "@/components/AboutSection/AboutSection";
 import { MainBanner } from "@/components/MainBanner/MainBanner";
-import { PartnersSection } from "@/components/PartnersSection/PartnersSection";
-import TabsSection from "@/components/TabSection/TabSection";
-import { ActionPlanSection } from "@/components/ActionPlanSection/ActionPlanSection";
-import { WorkingGroupSection } from "@/components/WorkingGroupSection/WorkingGroupSection";
+import { BigNumbersSection } from "@/components/BigNumbersSection/BigNumbersSection";
+import { NewsSection } from "@/components/NewsSection/NewsSection";
 import { PlatformModulesSection } from "@/components/PlatformModulesSection/PlatformModulesSection";
+import { PublicPolicySection } from "@/components/PublicPolicySection/PublicPolicySection";
+import { UseCasesSection } from "@/components/UseCasesSection/UseCasesSection";
+import { InstitutionsSection } from "@/components/InstitutionsSection/InstitutionsSection";
 import { getHomePageContent } from "@/repositories/content/siteContentRepository";
+import { getBlurPreviews } from "@/services/blurPreviews";
 import { getTranslations } from "next-intl/server";
-import {
-  MOCK_ACTION_PLAN_CONTENT,
-  MOCK_PLATFORM_MODULES_CONTENT,
-  MOCK_WORKING_GROUP_CONTENT,
-} from "./homePage.mocks";
+import { MOCK_PLATFORM_MODULES_CONTENT } from "./homePage.mocks";
+import { getHomeTextsForLocale } from "./homeTexts";
 
 export default async function Home({
   params,
@@ -19,7 +17,10 @@ export default async function Home({
   params: Promise<{ locale: string }>;
 }) {
   const { locale } = await params;
-  const data = await getHomePageContent(locale);
+  const [data, texts] = await Promise.all([
+    getHomePageContent(locale),
+    getHomeTextsForLocale(locale),
+  ]);
   const t = await getTranslations("HomePage");
 
   if (!data) {
@@ -30,40 +31,49 @@ export default async function Home({
     );
   }
 
+  const previews = await getBlurPreviews([
+    ...data.banners.map((banner) => banner.image.url),
+    ...texts.tools.items.map((tool) => tool.image),
+    ...(texts.publicPolicy.images ?? []),
+    ...texts.testimonials.items.map((testimonial) => testimonial.image),
+  ]);
+
+  // Os ids das seções são os destinos do menu "Início" do topo (layout.tsx).
   return (
     <div className="flex min-h-screen flex-col">
       <main className="grow">
-        {data.mainBanner && <MainBanner data={data.mainBanner} />}
-
-        <ActionPlanSection
-          id="plano-de-acao-brasileiro"
-          content={MOCK_ACTION_PLAN_CONTENT}
+        <MainBanner
+          banners={data.banners}
+          // Só as dos slides: o banner é componente de cliente, e o que ele
+          // recebe vai para a página uma segunda vez, para o React montar.
+          previews={data.banners.map((banner) => previews[banner.image.url])}
         />
-        <WorkingGroupSection
-          id="grupo-de-trabalho"
-          content={MOCK_WORKING_GROUP_CONTENT}
-          className="bg-[#F6F7F6]"
-        />
+        <BigNumbersSection items={texts.highlights} />
         <PlatformModulesSection
           id="a-plataforma"
           content={MOCK_PLATFORM_MODULES_CONTENT}
+          texts={texts.tools}
+          previews={previews}
         />
-
-        {data.tabs.length > 0 && (
-          <div id="usuarios" className="w-full scroll-mt-16.5">
-            <TabsSection contentData={data.tabs} />
-          </div>
-        )}
-
-        {data.aboutSection && (
-          <AboutSection id="financiamento" content={data.aboutSection} />
-        )}
-        {data.partnersHeader && (
-          <PartnersSection
-            header={data.partnersHeader}
-            partners={data.partners}
-          />
-        )}
+        <PublicPolicySection
+          id="politica-publica"
+          {...texts.publicPolicy}
+          previews={previews}
+        />
+        <NewsSection
+          id="novidades"
+          title={texts.features.title}
+          items={texts.features.items}
+          toolNames={Object.fromEntries(
+            texts.tools.items.map((tool) => [tool.id, tool.name]),
+          )}
+        />
+        <UseCasesSection
+          id="usuarios"
+          {...texts.testimonials}
+          previews={previews}
+        />
+        <InstitutionsSection id="instituicoes" partners={data.partners} />
       </main>
     </div>
   );

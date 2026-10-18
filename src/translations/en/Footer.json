@@ -3,14 +3,19 @@
     "home": "Home",
     "platform": "Platform",
     "about": "About SEDES",
+    "aboutShort": "Home",
     "glossary": "Glossary",
     "contact": "Contacts",
+    "institutions": "Ministry of the Environment and Climate Change | Federal University of Campina Grande | Caatinga and Desertification Observatory",
     "aboutMenu": {
       "planoDeAcaoBrasileiro": "Brazilian Action Plan",
       "grupoDeTrabalho": "Working Group",
       "aPlataforma": "The Platform",
       "usuarios": "Users",
-      "financiamento": "Funding and Execution"
+      "financiamento": "Funding and Execution",
+      "novidades": "What's new",
+      "politicaPublica": "Public policy",
+      "instituicoes": "Institutions"
     }
   }
 }

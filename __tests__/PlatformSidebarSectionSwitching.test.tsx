@@ -55,7 +55,7 @@ describe("PlatformSidebar section switching", () => {
       />,
     );
 
-    await user.click(screen.getByRole("button", { name: /Análise/i }));
+    await user.click(screen.getByRole("button", { name: /Priorização/i }));
 
     expect(pushMock).not.toHaveBeenCalled();
     expect(onActiveSectionChange).toHaveBeenCalledWith("analysis");
@@ -73,7 +73,7 @@ describe("PlatformSidebar section switching", () => {
       />,
     );
 
-    await user.click(screen.getByRole("button", { name: /Monitoramento/i }));
+    await user.click(screen.getByRole("button", { name: /^Monitor$/i }));
 
     expect(pushMock).not.toHaveBeenCalled();
     expect(onActiveSectionChange).toHaveBeenCalledWith("monitoring");
@@ -86,7 +86,7 @@ describe("PlatformSidebar section switching", () => {
 
     render(<PlatformSidebar panelLayers={[]} initialSection="communication" />);
 
-    await user.click(screen.getByRole("button", { name: /Monitoramento/i }));
+    await user.click(screen.getByRole("button", { name: /^Monitor$/i }));
 
     expect(pushMock).not.toHaveBeenCalled();
   });
@@ -97,10 +97,10 @@ describe("PlatformSidebar section switching", () => {
 
     render(<PlatformSidebar panelLayers={[]} viewMode="logs" />);
 
-    await user.click(screen.getByRole("button", { name: /Análise/i }));
+    await user.click(screen.getByRole("button", { name: /Priorização/i }));
     expect(pushMock).toHaveBeenCalledWith("/platform/amfe");
 
-    await user.click(screen.getByRole("button", { name: /Monitoramento/i }));
+    await user.click(screen.getByRole("button", { name: /^Monitor$/i }));
     expect(pushMock).toHaveBeenCalledWith("/platform");
   });
 });

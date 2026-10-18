@@ -12,6 +12,18 @@ export function resolveTelemetryCollectionName(
 
 const TELEMETRY_COLLECTION_NAME = resolveTelemetryCollectionName();
 
+/**
+ * Coleção em que a produção grava o uso. Só o beta define
+ * `FIREBASE_TELEMETRY_COLLECTION_PRODUCTION`: a Auditoria fica só no beta e,
+ * com ela, também mostra o uso da produção. Sem a variável, a Auditoria lê só
+ * o próprio ambiente.
+ */
+export function resolveProductionTelemetryCollectionName(
+  value = process.env.FIREBASE_TELEMETRY_COLLECTION_PRODUCTION,
+) {
+  return value?.trim() || null;
+}
+
 function stripUndefinedFields<T extends object>(value: T): DocumentData {
   return Object.fromEntries(
     Object.entries(value).filter(([, entryValue]) => entryValue !== undefined),
@@ -33,9 +45,10 @@ export async function saveTelemetryEvents(
 
 export async function getRecentTelemetryEvents(
   limitCount = 200,
+  collectionName = TELEMETRY_COLLECTION_NAME,
 ): Promise<PersistedTelemetryEvent[]> {
   const snapshot = await adminDb
-    .collection(TELEMETRY_COLLECTION_NAME)
+    .collection(collectionName)
     .orderBy("receivedAt", "desc")
     .limit(limitCount)
     .get();

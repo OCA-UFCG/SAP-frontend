@@ -70,9 +70,11 @@ export function getReportCategoryTokens(category?: string) {
   return REPORT_CATEGORY_TOKENS[resolveReportCategoryKey(category)];
 }
 
-export interface ReportCategoryGroup {
+export interface ReportCategoryGroup<
+  T extends Pick<MunicipalReportAnalysis, "category"> = MunicipalReportAnalysis,
+> {
   key: ReportCategoryKey;
-  analyses: MunicipalReportAnalysis[];
+  analyses: T[];
 }
 
 /**
@@ -85,10 +87,10 @@ export interface ReportCategoryGroup {
  * @example
  * groupReportAnalysesByCategory(report.analyses);
  */
-export function groupReportAnalysesByCategory(
-  analyses: readonly MunicipalReportAnalysis[],
-): ReportCategoryGroup[] {
-  const grouped = new Map<ReportCategoryKey, MunicipalReportAnalysis[]>();
+export function groupReportAnalysesByCategory<
+  T extends Pick<MunicipalReportAnalysis, "category">,
+>(analyses: readonly T[]): ReportCategoryGroup<T>[] {
+  const grouped = new Map<ReportCategoryKey, T[]>();
 
   for (const analysis of analyses) {
     const key = resolveReportCategoryKey(analysis.category);
@@ -106,22 +108,4 @@ export function groupReportAnalysesByCategory(
 /** O id da âncora da seção de um índice, usado pelo índice navegável. */
 export function reportAnalysisAnchorId(alias: string) {
   return `report-analysis-${alias}`;
-}
-
-/**
- * O período como ele aparece na pílula do índice: `05/2026` para uma série
- * mensal, `2021` para uma anual.
- *
- * As duas formas convivem na mesma coluna — o Monitor de Secas é mensal e o
- * Índice de Aridez é decenal —, então a pílula precisa aceitar as duas em vez
- * de assumir que todo índice do relatório tem o mesmo período.
- *
- * @example
- * formatReportPeriodPill("2026-05"); // "05/2026"
- */
-export function formatReportPeriodPill(period: string | null | undefined) {
-  if (!period) return "—";
-  const monthly = /^(\d{4})-(\d{2})$/u.exec(period);
-
-  return monthly ? `${monthly[2]}/${monthly[1]}` : period;
 }

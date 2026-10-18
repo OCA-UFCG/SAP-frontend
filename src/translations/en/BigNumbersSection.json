@@ -1,0 +1,31 @@
+{
+  "BigNumbersSection": {
+    "items": {
+      "municipalities": {
+        "value": "5,570",
+        "label": "Municipalities",
+        "description": "with data on drought, vegetation, land degradation and social conditions"
+      },
+      "institutions": {
+        "value": "7",
+        "label": "Institutions",
+        "description": "official data from ANA, INMET, INPE, IBGE, Embrapa, INSA and Civil Defense in one place"
+      },
+      "products": {
+        "value": "+20",
+        "label": "Products",
+        "description": "climate, environmental and socioeconomic, available on the platform"
+      },
+      "territories": {
+        "value": "6",
+        "label": "Territorial units",
+        "description": "municipality, state, region, Semi-arid, ASD and biome, for queries and reports"
+      },
+      "law": {
+        "value": "2015",
+        "label": "Provided for by law",
+        "description": "information system of the National Policy to Combat Desertification, adopted in the PAB-Brasil"
+      }
+    }
+  }
+}

@@ -31,6 +31,7 @@ import {
   STATES_SOURCE_LAYER,
   ensureReferenceOverlayLayers,
   type ReferenceOverlayTileUrls,
+  type SelectedReferenceTerritory,
   ensureSpatialBoundaryLayer,
 } from "./mapDefinitions";
 import { useMapController } from "./useMapController";
@@ -56,10 +57,19 @@ import {
 } from "./municipalityLayers";
 import { useSpatialAreaClickSelection } from "./useSpatialAreaClickSelection";
 import {
+  BRAZIL_RASTER_BOUNDS,
   MAP_FOCUS_ANIMATION_DURATION,
   smoothCameraEasing,
 } from "./mapBounds";
+import { prefetchReferenceOverlayViewport } from "./referenceTileStore";
+import {
+  findReferenceTerritoryAtPoint,
+  TERRITORY_INTERACTION_MIN_ZOOM,
+  VECTOR_REFERENCE_LAYER_IDS,
+  vectorFillLayerId,
+} from "./territoryVectorLayers";
 import type { TerritoryFocus } from "@/components/PlatformMap/useTerritoryFocus";
+import type { ReferenceTerritoryClick } from "@/components/MapControls/referenceTerritories";
 export type BasemapId = "osm" | "satellite";
 
 // Perto o bastante para ver o contorno de um quilombo de poucos quilômetros, sem
@@ -109,8 +119,20 @@ export interface MapProps {
   onZoomChange?: (zoom: number) => void;
   /** Tile URLs for active reference overlay layers (quilombolas, etc.). */
   referenceOverlayTileUrls?: ReferenceOverlayTileUrls;
+  /** O grupo de território em destaque: o resto do mapa escurece. */
+  highlightedReferenceOverlay?: string | null;
+  /**
+   * Os endereços dos quatro grupos, entregues quando a pessoa abre o cartão de
+   * Territórios: o mapa baixa os tiles da área à vista antes do clique.
+   */
+  referenceOverlayPrefetchUrls?: ReferenceOverlayTileUrls | null;
   /** Território escolhido na busca de Territórios, para a câmera enquadrar. */
   territoryFocus?: TerritoryFocus | null;
+  /**
+   * Clique num território do cartão de Territórios, quando ligado. O clique
+   * fica com o território: não seleciona o estado nem o município por baixo.
+   */
+  onReferenceTerritoryClick?: (click: ReferenceTerritoryClick) => void;
 }
 
 const Map = ({
@@ -143,7 +165,10 @@ const Map = ({
   indexChoropleth = null,
   onZoomChange,
   referenceOverlayTileUrls,
+  highlightedReferenceOverlay = null,
+  referenceOverlayPrefetchUrls = null,
   territoryFocus = null,
+  onReferenceTerritoryClick,
 }: MapProps) => {
   const mapContainerRef = useRef<HTMLDivElement | null>(null);
   const {
@@ -212,6 +237,7 @@ const Map = ({
   );
   const allowedStateUfsRef = useRef(allowedStateUfs);
   const onZoomChangeRef = useRef(onZoomChange);
+  const onReferenceTerritoryClickRef = useRef(onReferenceTerritoryClick);
   const spatialAreaRef = useRef<SpatialArea>(spatialArea);
   const onSpatialSelectionChangeRef = useRef(onSpatialSelectionChange);
   const hoveredBoundaryRef = useRef<string | null>(null);
@@ -220,6 +246,10 @@ const Map = ({
   useEffect(() => {
     onZoomChangeRef.current = onZoomChange;
   }, [onZoomChange]);
+
+  useEffect(() => {
+    onReferenceTerritoryClickRef.current = onReferenceTerritoryClick;
+  }, [onReferenceTerritoryClick]);
 
   useEffect(() => {
     spatialAreaRef.current = spatialArea;
@@ -487,6 +517,18 @@ const Map = ({
       });
 
       map.on("click", (event) => {
+        const clickedTerritory = onReferenceTerritoryClickRef.current
+          ? findReferenceTerritoryAtPoint(map, event.point)
+          : null;
+        if (clickedTerritory) {
+          log("reference territory click", clickedTerritory);
+          onReferenceTerritoryClickRef.current?.({
+            ...clickedTerritory,
+            lngLat: [event.lngLat.lng, event.lngLat.lat],
+          });
+          return;
+        }
+
         const clickedMunicipality =
           mapModeRef.current === "platform" &&
           map.getLayer(MUNICIPALITY_HOVER_LAYER_ID)
@@ -674,6 +716,44 @@ const Map = ({
           hoveredMunicipalityIdRef.current = null;
         });
       }
+
+      // Registrado por último de propósito: o MapLibre chama os handlers de
+      // mousemove na ordem do registro, e este desfaz o hover de estado e de
+      // município que os de cima acabaram de aplicar — sobre o território, o
+      // clique marca o território, não o estado. Um handler só para todos os
+      // grupos: com dois sobrepostos, o nome é o do de cima, o mesmo do clique.
+      map.on(
+        "mousemove",
+        [...VECTOR_REFERENCE_LAYER_IDS].map(vectorFillLayerId),
+        (event) => {
+          const name = event.features?.[0]?.properties?.name;
+          if (
+            map.getZoom() < TERRITORY_INTERACTION_MIN_ZOOM ||
+            typeof name !== "string" ||
+            !onReferenceTerritoryClickRef.current
+          ) {
+            return;
+          }
+
+          clearStateHoverPreview(map, hoveredStateIdRef);
+          clearRegionHoverPreview(map, hoveredRegionRef);
+          clearBiomeHoverPreview(map, hoveredBoundaryRef);
+          if (hoveredMunicipalityIdRef.current !== null) {
+            map.setFeatureState(
+              {
+                source: MUNICIPALITY_SOURCE_ID,
+                sourceLayer: MUNICIPALITY_SOURCE_LAYER,
+                id: hoveredMunicipalityIdRef.current,
+              },
+              { hover: false },
+            );
+            hoveredMunicipalityIdRef.current = null;
+          }
+
+          map.getCanvas().style.cursor = "pointer";
+          popup.setLngLat(event.lngLat).setText(name).addTo(map);
+        },
+      );
     });
 
     setMapInstance(map);
@@ -774,7 +854,7 @@ const Map = ({
 
   useEffect(() => {
     const map = mapRef.current;
-    if (!map || !territoryFocus) return;
+    if (!map || !territoryFocus?.moveMap) return;
 
     fitMapToBounds(map, territoryFocus.bounds, {
       animate: true,
@@ -784,10 +864,39 @@ const Map = ({
     });
   }, [territoryFocus, fitMapToBounds, mapRef]);
 
+  useEffect(() => {
+    const map = mapRef.current;
+    if (!map || !referenceOverlayPrefetchUrls?.size) return;
+
+    const bounds = map.getBounds();
+    prefetchReferenceOverlayViewport(
+      referenceOverlayPrefetchUrls.values(),
+      [
+        bounds.getWest(),
+        bounds.getSouth(),
+        bounds.getEast(),
+        bounds.getNorth(),
+      ],
+      map.getZoom(),
+      BRAZIL_RASTER_BOUNDS,
+    );
+  }, [referenceOverlayPrefetchUrls, mapRef, mapInstanceVersion]);
+
   const referenceOverlaySyncRef = useRef<{
     tileUrls: ReferenceOverlayTileUrls;
+    highlighted: string | null;
+    selected: SelectedReferenceTerritory | null;
     disarmRetry: (() => void) | null;
-  }>({ tileUrls: EMPTY_TILE_URL_MAP, disarmRetry: null });
+  }>({
+    tileUrls: EMPTY_TILE_URL_MAP,
+    highlighted: null,
+    selected: null,
+    disarmRetry: null,
+  });
+  const selectedTerritoryLayerId = territoryFocus?.territory.layerId ?? null;
+  const selectedTerritoryName = territoryFocus?.territory.name ?? null;
+  const selectedTerritoryMunicipality =
+    territoryFocus?.territory.municipality ?? "";
 
   useEffect(() => {
     const map = mapRef.current;
@@ -795,12 +904,30 @@ const Map = ({
 
     const syncState = referenceOverlaySyncRef.current;
     syncState.tileUrls = referenceOverlayTileUrls ?? EMPTY_TILE_URL_MAP;
+    syncState.highlighted = highlightedReferenceOverlay;
+    syncState.selected =
+      selectedTerritoryLayerId && selectedTerritoryName
+        ? {
+            layerId: selectedTerritoryLayerId,
+            name: selectedTerritoryName,
+            municipality: selectedTerritoryMunicipality,
+          }
+        : null;
 
     // `sync` lê as URLs do ref, e não do closure: um retry agendado aqui só roda
     // depois de outros toggles, e precisa aplicar o estado atual das camadas.
     // Reaplicar o estado congelado removeria a camada que o usuário acabou de ligar.
     const sync = () => {
-      if (ensureReferenceOverlayLayers(map, syncState.tileUrls)) return;
+      if (
+        ensureReferenceOverlayLayers(
+          map,
+          syncState.tileUrls,
+          syncState.highlighted,
+          syncState.selected,
+        )
+      ) {
+        return;
+      }
       if (syncState.disarmRetry) return;
 
       const retry = () => {
@@ -822,7 +949,15 @@ const Map = ({
       map.off("styledata", sync);
       syncState.disarmRetry?.();
     };
-  }, [referenceOverlayTileUrls, mapRef, mapInstanceVersion]);
+  }, [
+    referenceOverlayTileUrls,
+    highlightedReferenceOverlay,
+    selectedTerritoryLayerId,
+    selectedTerritoryName,
+    selectedTerritoryMunicipality,
+    mapRef,
+    mapInstanceVersion,
+  ]);
 
   return (
     <div className="w-full h-full">

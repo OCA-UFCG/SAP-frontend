@@ -24,9 +24,11 @@ export const GlossarySection = ({ terms }: Props) => {
         {terms.length === 0 ? (
           <p className="text-[16px] text-[#292829]">{t("empty")}</p>
         ) : (
+          // No celular cada termo vira um bloco, com a definição embaixo: em duas
+          // colunas a definição ficava espremida e cortada na lateral.
           <div className="overflow-x-auto rounded-lg border border-[#E4E5E2]">
-            <table className="w-full text-left border-collapse">
-              <thead>
+            <table className="w-full text-left border-collapse max-sm:block">
+              <thead className="max-sm:hidden">
                 <tr className="bg-[#F6F7F6]">
                   <th className="px-5 py-4 text-sm font-bold uppercase tracking-wide text-[#989F43] w-1/3">
                     {t("term")}
@@ -36,7 +38,7 @@ export const GlossarySection = ({ terms }: Props) => {
                   </th>
                 </tr>
               </thead>
-              <tbody>
+              <tbody className="max-sm:block">
                 {terms.map((term) => {
                   const translationKey = `entries.${term.id}`;
                   const translatedTerm = t.has(`${translationKey}.term`)
@@ -49,11 +51,14 @@ export const GlossarySection = ({ terms }: Props) => {
                     : term.definition;
 
                   return (
-                    <tr key={term.id} className="border-t border-[#E4E5E2]">
-                      <td className="px-5 py-4 align-top font-bold text-[#21240F]">
+                    <tr
+                      key={term.id}
+                      className="border-t border-[#E4E5E2] max-sm:block max-sm:first:border-t-0"
+                    >
+                      <td className="px-5 py-4 align-top font-bold text-[#21240F] max-sm:block max-sm:pb-1">
                         {translatedTerm}
                       </td>
-                      <td className="px-5 py-4 align-top text-[15px] leading-[150%] text-[#292829]">
+                      <td className="px-5 py-4 align-top text-[15px] leading-[150%] text-[#292829] max-sm:block max-sm:pt-0">
                         {translatedDefinition}
                       </td>
                     </tr>

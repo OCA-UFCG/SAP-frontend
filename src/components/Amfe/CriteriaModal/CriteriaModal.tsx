@@ -3,6 +3,7 @@ import { createPortal } from "react-dom";
 import { useTranslations } from "next-intl";
 import { CriterionOption } from "@/utils/amfeInterfaces";
 import { Icon } from "@/components/Icon/Icon";
+import { normalize } from "@/utils/functions";
 
 export interface CriteriaModalProps {
   options?: CriterionOption[];
@@ -27,7 +28,7 @@ function Checkbox({ checked }: { checked: boolean }) {
   );
 }
 
-function InfoTooltip({
+export function InfoTooltip({
   name,
   description,
   open,
@@ -106,8 +107,9 @@ function ModalOverlay({
   const [search, setSearch] = useState("");
   const [infoOption, setInfoOption] = useState<string | null>(null);
 
+  // Sem acento: "precipitacao" acha "Anomalia de Precipitação".
   const filtered = options.filter((o) =>
-    o.name.toLowerCase().includes(search.toLowerCase()),
+    normalize(o.name).includes(normalize(search)),
   );
 
   const MIN_SELECTED = 1;
@@ -200,7 +202,7 @@ function ModalOverlay({
                   className={`flex min-h-9 items-center gap-2 rounded-[6px] px-2 py-1 text-left transition-colors ${disabled ? "cursor-not-allowed opacity-40" : "cursor-pointer hover:bg-[#F8F8F7]"}`}
                 >
                   <Checkbox checked={checked} />
-                  <span className="min-w-0 truncate font-['Open_Sans'] text-[16px] leading-5 font-normal text-black">
+                  <span className="min-w-0 break-words font-['Open_Sans'] text-[16px] leading-5 font-normal text-black">
                     {option.name}
                   </span>
 

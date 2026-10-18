@@ -142,4 +142,98 @@ describe("useReportMapTileUrls", () => {
       { name: "cobertura-da-terra-ibge-s", year: "2020" },
     ]);
   });
+
+  describe("with the report view", () => {
+    const VIEW = {
+      frame: [-36.3, -7.5, -35.7, -7.0] as [number, number, number, number],
+      thumbnail: {
+        bbox: [-36.32, -7.52, -35.68, -6.98] as [
+          number,
+          number,
+          number,
+          number,
+        ],
+        width: 1448,
+        height: 670,
+      },
+    };
+
+    it("sends the view along with the layers", async () => {
+      mockedFetchReportMapURLs.mockResolvedValue([]);
+
+      renderHook(() => useReportMapTileUrls(MAP_KEYS, VIEW));
+
+      await waitFor(() =>
+        expect(mockedFetchReportMapURLs).toHaveBeenCalledTimes(1),
+      );
+      expect(mockedFetchReportMapURLs.mock.calls[0][2]).toEqual(VIEW.thumbnail);
+    });
+
+    // Fora do município não há recorte: o relatório continua em tiles.
+    it("asks for tiles when the report has no view", async () => {
+      mockedFetchReportMapURLs.mockResolvedValue([
+        { name: "anaseca", year: "2024-12", url: "https://tiles.example/a" },
+      ]);
+
+      const { result } = renderHook(() => useReportMapTileUrls(MAP_KEYS, null));
+
+      await waitFor(() =>
+        expect(result.current.tileUrlFor("anaseca:2024-12")).toBeDefined(),
+      );
+      expect(mockedFetchReportMapURLs.mock.calls[0][2]).toBeUndefined();
+      expect(result.current.thumbnailFor("anaseca:2024-12")).toBeUndefined();
+    });
+
+    it("hands each layer over as one image of the view", async () => {
+      mockedFetchReportMapURLs.mockResolvedValue([
+        { name: "anaseca", year: "2024-12", url: "https://ee.example/a" },
+        {
+          name: "prev_precipitacao",
+          year: "2026-05",
+          status: "year_not_found",
+        },
+        { name: "deg", year: "2021", url: "https://ee.example/d" },
+      ]);
+
+      const { result } = renderHook(() => useReportMapTileUrls(MAP_KEYS, VIEW));
+
+      await waitFor(() => expect(result.current.resolved).toBe(true));
+      expect(result.current.thumbnailFor("anaseca:2024-12")).toEqual({
+        url: "https://ee.example/a",
+        view: VIEW,
+      });
+      expect(
+        result.current.thumbnailFor("prev_precipitacao:2026-05"),
+      ).toBeUndefined();
+    });
+
+    // Regressão: um objeto novo a cada resposta fazia o mapa da camada que já
+    // estava pronta recomeçar a captura e baixar a imagem de novo.
+    it("keeps handing the same image over while other layers arrive", async () => {
+      mockedFetchReportMapURLs
+        .mockResolvedValueOnce([
+          { name: "anaseca", year: "2024-12", url: "https://ee.example/a" },
+          { name: "prev_precipitacao", year: "2026-05", status: "pending" },
+          { name: "deg", year: "2021", status: "pending" },
+        ])
+        .mockResolvedValueOnce([
+          {
+            name: "prev_precipitacao",
+            year: "2026-05",
+            url: "https://ee.example/p",
+          },
+          { name: "deg", year: "2021", url: "https://ee.example/d" },
+        ]);
+
+      const { result } = renderHook(() => useReportMapTileUrls(MAP_KEYS, VIEW));
+
+      await waitFor(() =>
+        expect(result.current.thumbnailFor("anaseca:2024-12")).toBeDefined(),
+      );
+      const first = result.current.thumbnailFor("anaseca:2024-12");
+
+      await waitFor(() => expect(result.current.resolved).toBe(true));
+      expect(result.current.thumbnailFor("anaseca:2024-12")).toBe(first);
+    });
+  });
 });

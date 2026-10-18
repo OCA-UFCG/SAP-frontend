@@ -11,10 +11,18 @@ import {
   resolveSpatialFocusBounds,
 } from "@/components/Map/mapBounds";
 import { useSpatialBoundaryOverlay } from "@/components/PlatformMap/useSpatialBoundaryOverlay";
-import { useReferenceOverlayTiles } from "@/components/PlatformMap/useReferenceOverlayTileLayers";
+import {
+  useReferenceOverlayPrefetch,
+  useReferenceOverlayTiles,
+} from "@/components/PlatformMap/useReferenceOverlayTileLayers";
 import { useTerritoryFocus } from "@/components/PlatformMap/useTerritoryFocus";
 import { PLATFORM_MAP_INITIAL_ZOOM } from "@/components/PlatformMap/platformMapView";
-import type { ReferenceLayerId } from "@/components/MapLayerContext/mapLayerState";
+import {
+  type ReferenceLayerId,
+  type ReferenceOverlaySelection,
+  toggleReferenceHighlightValue,
+  toggleReferenceOverlayValue,
+} from "@/components/MapLayerContext/mapLayerState";
 import { getAllowedStateUfs } from "@/utils/interestAreaStates";
 import { DEFAULT_SPATIAL_SELECTION } from "@/utils/spatialScope";
 import { toSpatialSelection } from "@/utils/amfeSpatialSelection";
@@ -40,31 +48,40 @@ export function useAmfeAnalysisState() {
   const [zoom, setZoom] = useState(PLATFORM_MAP_INITIAL_ZOOM);
   const [basemap, setBasemap] = useState<BasemapId>("osm");
   const [fillOpacity, setFillOpacity] = useState(INITIAL_FILL_OPACITY);
-  const [referenceOverlays, setReferenceOverlays] = useState(
-    () => new Set<ReferenceLayerId>(),
-  );
+  const [referenceSelection, setReferenceSelection] =
+    useState<ReferenceOverlaySelection>(() => ({
+      referenceOverlays: new Set<ReferenceLayerId>(),
+      highlightedReferenceOverlay: null,
+    }));
+  const { referenceOverlays, highlightedReferenceOverlay } = referenceSelection;
 
   const { cities, excludedCities, coverage, loading, error } =
     useCities(formPayload);
 
   const toggleReferenceOverlay = useCallback((layerId: ReferenceLayerId) => {
-    setReferenceOverlays((current) => {
-      const next = new Set(current);
-      if (next.has(layerId)) {
-        next.delete(layerId);
-      } else {
-        next.add(layerId);
-      }
-      return next;
-    });
+    setReferenceSelection((current) =>
+      toggleReferenceOverlayValue(current, layerId),
+    );
+  }, []);
+
+  const toggleReferenceHighlight = useCallback((layerId: ReferenceLayerId) => {
+    setReferenceSelection((current) =>
+      toggleReferenceHighlightValue(current, layerId),
+    );
   }, []);
 
   const { tileUrls: referenceOverlayTileUrls } =
     useReferenceOverlayTiles(referenceOverlays);
-  const { territoryFocus, focusTerritory } = useTerritoryFocus(
-    referenceOverlays,
-    toggleReferenceOverlay,
-  );
+  const {
+    territoryFocus,
+    focusTerritory,
+    selectClickedTerritory,
+    clearTerritoryFocus,
+  } = useTerritoryFocus(referenceOverlays, toggleReferenceOverlay);
+  const {
+    prefetchUrls: referenceOverlayPrefetchUrls,
+    requestPrefetch: prefetchReferenceOverlays,
+  } = useReferenceOverlayPrefetch();
 
   const spatialSelection = useMemo(
     () =>
@@ -152,9 +169,15 @@ export function useAmfeAnalysisState() {
     setFillOpacity,
     referenceOverlays,
     toggleReferenceOverlay,
+    highlightedReferenceOverlay,
+    toggleReferenceHighlight,
     referenceOverlayTileUrls,
+    referenceOverlayPrefetchUrls,
+    prefetchReferenceOverlays,
     territoryFocus,
     focusTerritory,
+    selectClickedTerritory,
+    clearTerritoryFocus,
     spatialSelection,
     municipalityClassification,
     overviewGeoJson,

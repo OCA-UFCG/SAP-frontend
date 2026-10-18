@@ -3,14 +3,19 @@
     "home": "Home",
     "platform": "Plataforma",
     "about": "Sobre o SEDES",
+    "aboutShort": "Início",
     "glossary": "Glossário",
     "contact": "Contatos",
+    "institutions": "Ministério do Meio Ambiente e Mudança do Clima | Universidade Federal de Campina Grande | Observatório da Caatinga e Desertificação",
     "aboutMenu": {
       "planoDeAcaoBrasileiro": "Plano de Ação Brasileiro",
       "grupoDeTrabalho": "Grupo de Trabalho",
       "aPlataforma": "A Plataforma",
       "usuarios": "Usuários",
-      "financiamento": "Financiamento e Execução"
+      "financiamento": "Financiamento e Execução",
+      "novidades": "Novidades",
+      "politicaPublica": "Política pública",
+      "instituicoes": "Instituições"
     }
   }
 }

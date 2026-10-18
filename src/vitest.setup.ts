@@ -4,6 +4,22 @@ import fs from "fs";
 import path from "path";
 import React from "react";
 
+// O jsdom não implementa matchMedia; aqui ele responde que nenhuma media query
+// casa (ex.: ninguém pediu menos movimento), como um navegador sem preferências.
+if (typeof window !== "undefined" && !window.matchMedia) {
+  window.matchMedia = (query: string) =>
+    ({
+      matches: false,
+      media: query,
+      onchange: null,
+      addEventListener: () => {},
+      removeEventListener: () => {},
+      addListener: () => {},
+      removeListener: () => {},
+      dispatchEvent: () => false,
+    }) as MediaQueryList;
+}
+
 type TranslationMessage = string | { [key: string]: TranslationMessage };
 type TranslationDictionary = Record<string, TranslationMessage>;
 

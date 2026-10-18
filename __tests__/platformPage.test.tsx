@@ -111,6 +111,21 @@ describe("PlatformPage", () => {
     );
   });
 
+  it("asks the audit for production logs with origem=producao", async () => {
+    resolveLogsViewerAccessMock.mockResolvedValueOnce("allowed");
+
+    const result = await PlatformPage({
+      searchParams: Promise.resolve({ view: "logs", origem: "producao" }),
+    });
+    render(result);
+
+    const telemetryDashboard = platformLayoutMock.mock.calls[0]?.[0]
+      ?.telemetryDashboard as {
+      props: { children: { props: { source: string } } };
+    };
+    expect(telemetryDashboard.props.children.props.source).toBe("production");
+  });
+
   it("renders the catalog only for the same allowlisted viewers", async () => {
     resolveLogsViewerAccessMock.mockResolvedValueOnce("allowed");
 

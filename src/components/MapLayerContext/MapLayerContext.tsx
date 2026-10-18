@@ -22,6 +22,7 @@ import {
   setSelectedMunicipalityCodeValue,
   setSelectedStateValue,
   setSpatialSelection,
+  toggleReferenceHighlightValue,
   toggleReferenceOverlayValue,
 } from "@/components/MapLayerContext/mapLayerState";
 import type { CDIVectorData } from "@/lib/geo";
@@ -42,6 +43,7 @@ interface MapLayerActions {
   resetPlatformState: () => void;
   setLayerOpacity: (opacity: number) => void;
   toggleReferenceOverlay: (layerId: ReferenceLayerId) => void;
+  toggleReferenceHighlight: (layerId: ReferenceLayerId) => void;
 }
 
 type MapLayerActiveState = Pick<
@@ -58,6 +60,7 @@ type MapLayerViewState = Pick<
   | "spatialSelection"
   | "layerOpacity"
   | "referenceOverlays"
+  | "highlightedReferenceOverlay"
 >;
 
 interface MapLayerContextValue
@@ -154,6 +157,12 @@ export function MapLayerProvider({ children }: { children: React.ReactNode }) {
     );
   }, []);
 
+  const toggleReferenceHighlight = useCallback((layerId: ReferenceLayerId) => {
+    setState((currentState) =>
+      toggleReferenceHighlightValue(currentState, layerId),
+    );
+  }, []);
+
   const activeState = useMemo<MapLayerActiveState>(
     () => ({
       activeData: state.activeData,
@@ -172,6 +181,7 @@ export function MapLayerProvider({ children }: { children: React.ReactNode }) {
       spatialSelection: state.spatialSelection,
       layerOpacity: state.layerOpacity,
       referenceOverlays: state.referenceOverlays,
+      highlightedReferenceOverlay: state.highlightedReferenceOverlay,
     }),
     [
       state.activeLegend,
@@ -181,6 +191,7 @@ export function MapLayerProvider({ children }: { children: React.ReactNode }) {
       state.spatialSelection,
       state.layerOpacity,
       state.referenceOverlays,
+      state.highlightedReferenceOverlay,
     ],
   );
 
@@ -197,6 +208,7 @@ export function MapLayerProvider({ children }: { children: React.ReactNode }) {
       resetPlatformState,
       setLayerOpacity,
       toggleReferenceOverlay,
+      toggleReferenceHighlight,
     }),
     [
       setActiveLegend,
@@ -210,6 +222,7 @@ export function MapLayerProvider({ children }: { children: React.ReactNode }) {
       resetPlatformState,
       setLayerOpacity,
       toggleReferenceOverlay,
+      toggleReferenceHighlight,
     ],
   );
 

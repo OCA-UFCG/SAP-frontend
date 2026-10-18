@@ -1,6 +1,6 @@
 import { isChoroplethImageData } from "@/contracts/imageDataContract.mjs";
 import ee from "@google/earthengine";
-import { addUrlToCache, buildCacheKey } from "@/app/api/ee/cache";
+import { addUrlToCache, buildCacheKey, CACHE_TTL_MS } from "@/app/api/ee/cache";
 import { getSpatialBoundaryFeatures } from "@/app/api/ee/spatialBoundaries";
 import {
   isCategoricalMapVisualization,
@@ -26,8 +26,10 @@ import {
 import {
   evaluateGeeObject,
   getGeeMapUrl,
+  getGeeThumbnailUrl,
   initializeGee,
 } from "@/infrastructure/earth-engine/client";
+import type { EeMapThumbnailView } from "@/contracts/eeMapUrls";
 import {
   normalizeGeeAssetType,
   resolveGeeAssetType,
@@ -273,6 +275,8 @@ interface GetEarthEngineUrlOptions {
   spatialSelection?: SpatialSelection;
   imageCollectionSelection?: ImageCollectionSelection;
   imageCollectionPeriod?: ResolvedImageCollectionPeriod;
+  /** Presente, devolve uma imagem só desse recorte em vez da URL de tiles. */
+  thumbnail?: EeMapThumbnailView;
 }
 
 function isFeatureCollectionAsset({
@@ -593,6 +597,7 @@ export const getEarthEngineUrl = async (
       spatialSelection = DEFAULT_SPATIAL_SELECTION,
       imageCollectionSelection,
       imageCollectionPeriod,
+      thumbnail,
     } = options ?? {};
 
     await initializeGee();
@@ -697,11 +702,11 @@ export const getEarthEngineUrl = async (
           })
         : categorizedImage;
     const clippedMapImage = applySpatialClip(mapImage, spatialSelection);
+    const mapVisParams = shouldUseFeatureCollection ? undefined : visParams;
 
-    return await getGeeMapUrl(
-      clippedMapImage,
-      shouldUseFeatureCollection ? undefined : visParams,
-    );
+    return await (thumbnail
+      ? getGeeThumbnailUrl(clippedMapImage, mapVisParams, thumbnail)
+      : getGeeMapUrl(clippedMapImage, mapVisParams));
   } catch (error: any) {
     console.error("Error in getEarthEngineUrl:", error.message);
     throw error;
@@ -849,27 +854,40 @@ export function getWarmupYearKeys(
   return defaultYear ? [defaultYear] : [];
 }
 
-let warmupStarted = false;
+// O endereço guardado vale 30 min (`CACHE_TTL_MS`). Renovar aos 20 min troca o
+// endereço antes de ele vencer, como já acontece com os territórios. Antes a
+// renovação era a cada 12 h, então em 11 h30 de cada 12 h quem ligava uma camada
+// esperava o Earth Engine preparar a imagem (0,7 s na produção, 1,4 s no beta).
+export const EE_URL_REFRESH_MS = Math.round((CACHE_TTL_MS * 2) / 3);
+
 /**
- * Fetches and caches map data from Contentful/GEE API sources.
- * Runs recursively every 12 hours to keep the cache updated.
+ * Gera de novo o endereço de tiles do período padrão de cada camada e guarda no
+ * cache, uma camada por vez para não disputar a fila do Earth Engine com quem
+ * está usando a plataforma. Uma camada com problema não impede as outras.
  */
 export const cacheMapData = async () => {
+  let panelLayers;
   try {
-    const panelLayers = await getPanelLayers();
+    panelLayers = await getPanelLayers();
+  } catch (error) {
+    // Don’t crash the server on startup if Contentful/GEE is misconfigured.
+    console.error("Error caching EE map data:", error);
+    return;
+  }
 
-    for (const layer of panelLayers) {
-      const id = layer.id;
-      const imageData = layer.imageData as IEEInfo["imageData"] | undefined;
+  for (const layer of panelLayers) {
+    const id = layer.id;
+    const imageData = layer.imageData as IEEInfo["imageData"] | undefined;
 
-      if (!id || !imageData || typeof imageData !== "object") {
-        continue;
-      }
+    if (!id || !imageData || typeof imageData !== "object") {
+      continue;
+    }
 
-      const minScale = layer.minScale;
-      const maxScale = layer.maxScale;
+    const minScale = layer.minScale;
+    const maxScale = layer.maxScale;
 
-      for (const year of getWarmupYearKeys(imageData)) {
+    for (const year of getWarmupYearKeys(imageData)) {
+      try {
         const yearConfig = resolveImageYearEntry(imageData, year);
         if (!yearConfig) continue;
         const imageCollectionSelection =
@@ -899,21 +917,33 @@ export const cacheMapData = async () => {
           },
         );
         addUrlToCache(cacheKey, url);
+      } catch (error) {
+        console.error(`Error caching EE map data for ${id}/${year}:`, error);
       }
     }
-  } catch (error) {
-    // Don’t crash the server on startup if Contentful/GEE is misconfigured.
-    console.error("Error caching EE map data:", error);
   }
 };
 
+// No `globalThis`: a subida do servidor e as rotas recebem cópias separadas
+// deste módulo, e cada cópia abriria a sua própria renovação.
+const warmupState = globalThis as typeof globalThis & {
+  __sapEeUrlWarmupStarted?: boolean;
+};
+
+/**
+ * Prepara os endereços do período padrão de cada camada e os renova antes de
+ * vencerem. Chamado na subida do servidor; as rotas também chamam, e aí não faz
+ * nada porque já começou.
+ */
 export function ensureEeCacheWarmupStarted() {
-  if (warmupStarted) {
+  if (warmupState.__sapEeUrlWarmupStarted) {
     return;
   }
 
-  warmupStarted = true;
+  warmupState.__sapEeUrlWarmupStarted = true;
 
   void cacheMapData();
-  setInterval(cacheMapData, 1000 * 60 * 60 * 12);
+  setInterval(() => {
+    void cacheMapData();
+  }, EE_URL_REFRESH_MS).unref?.();
 }

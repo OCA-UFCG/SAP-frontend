@@ -2,6 +2,7 @@ import "server-only";
 
 import ee from "@google/earthengine";
 import { createSign } from "node:crypto";
+import type { EeMapThumbnailView } from "@/contracts/eeMapUrls";
 
 const GOOGLE_OAUTH_TOKEN_URL = "https://oauth2.googleapis.com/token";
 const GEE_AUTH_SCOPES = [
@@ -325,9 +326,20 @@ async function requestGeeApi<T>(
       await waitBeforeRetry(attempt);
       continue;
     }
-    const payload = (await response.json().catch(() => ({}))) as T & {
-      error?: { message?: unknown };
-    };
+    let payload: T & { error?: { message?: unknown } };
+    try {
+      payload = await response.json();
+    } catch (error) {
+      // O prazo da tentativa vale também para baixar a resposta. Uma resposta
+      // grande demais cortada no meio não pode virar um `{}` de sucesso: quem
+      // chamou leria "o Earth Engine não devolveu nada" no lugar da causa.
+      if (response.ok) {
+        throw new Error(
+          `A resposta do Earth Engine não pôde ser lida até o fim (${error instanceof Error ? error.message : String(error)}). Ela pode ser grande demais para o prazo de ${GEE_COMPUTE_ATTEMPT_TIMEOUT_MS / 1000} s.`,
+        );
+      }
+      payload = {} as typeof payload;
+    }
 
     if (response.ok) return payload;
 
@@ -393,6 +405,54 @@ export async function getGeeAsset(
 }
 
 /**
+ * Quando cada asset de uma pasta foi alterado pela última vez, em milissegundos.
+ *
+ * É só metadado: não calcula nada no Earth Engine e por isso não ocupa uma das
+ * vagas de leitura. Medido na pasta de estatísticas da produção: 179 tabelas
+ * numa página só, em 0,7–1,5 s.
+ *
+ * @example
+ * const updatedAt = await listGeeFolderAssetUpdateTimes(
+ *   "projects/obscaatinga/assets/Estatisticas",
+ * );
+ * updatedAt.get("projects/obscaatinga/assets/Estatisticas/Tabela_2024");
+ */
+export async function listGeeFolderAssetUpdateTimes(
+  folderId: string,
+): Promise<Map<string, number>> {
+  requireProjectId();
+  const name = ee.rpc_convert.assetIdToAssetName(folderId);
+  const updatedAt = new Map<string, number>();
+  let pageToken: string | undefined;
+
+  do {
+    const query = new URLSearchParams({
+      pageSize: "1000",
+      prettyPrint: "false",
+      ...(pageToken ? { pageToken } : {}),
+    });
+    const page = await requestGeeApi<{
+      assets?: Array<{ name?: string; updateTime?: string }>;
+      nextPageToken?: string;
+    }>(`${name}:listAssets?${query}`, { method: "GET" });
+
+    for (const asset of page.assets ?? []) {
+      // A mesma conversão que o SDK usa, para o id sair no formato em que as
+      // fontes estatísticas o guardam (`projects/<projeto>/assets/...`).
+      const assetId = asset.name
+        ? ee.rpc_convert.assetNameToAssetId(asset.name)
+        : null;
+      const time = Date.parse(asset.updateTime ?? "");
+      if (assetId && Number.isFinite(time)) updatedAt.set(assetId, time);
+    }
+
+    pageToken = page.nextPageToken || undefined;
+  } while (pageToken);
+
+  return updatedAt;
+}
+
+/**
  * O endereço de tiles de uma imagem, o mesmo `urlFormat` que
  * `image.getMapId(visParams)` entregava, sem passar pela fila do SDK.
  *
@@ -426,6 +486,83 @@ export async function getGeeMapUrl(
     }),
   );
   return `${ee.apiclient.getTileBaseUrl()}/${ee.apiclient.VERSION}/${name}/tiles/{z}/{x}/{y}`;
+}
+
+const WEB_MERCATOR_RADIUS_M = 6378137;
+
+/** Graus para metros em Web Mercator (EPSG:3857), a projeção do MapLibre. */
+function toWebMercator(longitude: number, latitude: number) {
+  return {
+    x: (WEB_MERCATOR_RADIUS_M * longitude * Math.PI) / 180,
+    y:
+      WEB_MERCATOR_RADIUS_M *
+      Math.log(Math.tan(Math.PI / 4 + (latitude * Math.PI) / 360)),
+  };
+}
+
+/**
+ * O endereço de **uma imagem** do recorte, o mesmo que `image.getThumbURL`
+ * entregava, sem passar pela fila do SDK.
+ *
+ * A imagem sai na grade exata do recorte em Web Mercator: cada pixel cai onde o
+ * MapLibre desenharia o tile, então ela encaixa no mapa de fundo sem
+ * deslocamento. O endereço é público como o dos tiles — o navegador baixa a
+ * imagem direto do Google, sem passar pelo nosso servidor.
+ *
+ * @example
+ * const url = await getGeeThumbnailUrl(image, visParams, {
+ *   bbox: [-36.4, -7.5, -35.6, -7.1], width: 1448, height: 670,
+ * });
+ * // "https://earthengine.googleapis.com/v1/projects/.../thumbnails/...:getPixels"
+ */
+export async function getGeeThumbnailUrl(
+  image: unknown,
+  visParams: Record<string, unknown> | undefined,
+  { bbox: [west, south, east, north], width, height }: EeMapThumbnailView,
+): Promise<string> {
+  const projectId = requireProjectId();
+  const topLeft = toWebMercator(west, north);
+  const bottomRight = toWebMercator(east, south);
+  // Os mesmos passos de `image.getThumbId`, com `crsTransform` e `dimensions`:
+  // o SDK reprojeta para a grade e recorta exatamente aqueles pixels.
+  const params: Record<string, unknown> = {
+    ...visParams,
+    crs: "EPSG:3857",
+    crsTransform: [
+      (bottomRight.x - topLeft.x) / width,
+      0,
+      topLeft.x,
+      0,
+      -(topLeft.y - bottomRight.y) / height,
+      topLeft.y,
+    ],
+    dimensions: [width, height],
+    format: "png",
+  };
+  const extraParams: Record<string, unknown> = {};
+  const gridImage = ee.data.images.applySelectionAndScale(
+    ee.data.images.applyCrsAndTransform(image, params),
+    params,
+    extraParams,
+  );
+  const request = ee.data.images.applyVisualization(gridImage, extraParams);
+  const thumbnail = new ee.api.Thumbnail({
+    name: null,
+    expression: ee.data.expressionAugmenter_(
+      ee.Serializer.encodeCloudApiExpression(request.image),
+    ),
+    fileFormat: ee.rpc_convert.fileFormat(request.format),
+    bandIds: ee.rpc_convert.bandList(request.bands),
+    visualizationOptions: ee.rpc_convert.visualizationOptions(request),
+    grid: null,
+  });
+  const { name } = await withComputeSlot(() =>
+    requestGeeApi<{ name: string }>(
+      `projects/${projectId}/thumbnails?fields=name`,
+      { method: "POST", body: ee.apiclient.serialize(thumbnail) },
+    ),
+  );
+  return `${ee.apiclient.getTileBaseUrl()}/${ee.apiclient.VERSION}/${name}:getPixels`;
 }
 
 export function clearGeeClientForTests() {

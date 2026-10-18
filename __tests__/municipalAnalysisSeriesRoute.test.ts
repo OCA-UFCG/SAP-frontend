@@ -3,11 +3,13 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 vi.mock("server-only", () => ({}));
 
 const {
+  getGeeStatisticsSeriesPatchMock,
   getMunicipalAnalysisCacheControlHeaderMock,
   getMunicipalReportSeriesMock,
   getPanelLayerByIdMock,
   requireAuthenticatedRequestMock,
 } = vi.hoisted(() => ({
+  getGeeStatisticsSeriesPatchMock: vi.fn(),
   getMunicipalAnalysisCacheControlHeaderMock: vi.fn(),
   getMunicipalReportSeriesMock: vi.fn(),
   getPanelLayerByIdMock: vi.fn(),
@@ -38,6 +40,10 @@ vi.mock("@/repositories/platform/panelLayerRepository", () => ({
   getPanelLayerById: getPanelLayerByIdMock,
 }));
 
+vi.mock("@/repositories/platform/geeStatisticsRepository", () => ({
+  getGeeStatisticsSeriesPatch: getGeeStatisticsSeriesPatchMock,
+}));
+
 import { GET } from "@/app/api/municipal-analysis/[panelLayerId]/series/route";
 
 const reportSeriesConfig = {
@@ -47,6 +53,35 @@ const reportSeriesConfig = {
   shardStrategy: "ibge-modulo" as const,
   firstPeriod: "2023",
   lastPeriod: "2024",
+};
+
+const dekadSource = {
+  kind: "gee-feature-collection" as const,
+  asset: {
+    type: "period-template" as const,
+    assetIdTemplate: "projects/x/Estatistica_CDI_{year}",
+  },
+  periodGranularity: "dekad" as const,
+  properties: {},
+  schemaVersion: 1 as const,
+  sourceRevision: "rev-1",
+};
+
+const dekadLayer = {
+  reportSeriesConfig: null,
+  statisticsSource: dekadSource,
+  imageData: {
+    schemaVersion: 1,
+    type: "territorial-compact",
+    classes: [
+      { id: "1", label: "A", color: "#000" },
+      { id: "2", label: "B", color: "#fff" },
+    ],
+    years: {
+      "2026-09-11": { imageId: "img", values: {} },
+      "2001-01-01": { imageId: "img", values: {} },
+    },
+  },
 };
 
 function callRoute(panelLayerId: string, locationKey?: string) {
@@ -66,6 +101,7 @@ describe("municipal analysis series route", () => {
     requireAuthenticatedRequestMock.mockReset();
     getPanelLayerByIdMock.mockReset();
     getMunicipalReportSeriesMock.mockReset();
+    getGeeStatisticsSeriesPatchMock.mockReset();
     getMunicipalAnalysisCacheControlHeaderMock.mockReset();
     requireAuthenticatedRequestMock.mockResolvedValue(null);
     getMunicipalAnalysisCacheControlHeaderMock.mockReturnValue(
@@ -112,12 +148,54 @@ describe("municipal analysis series route", () => {
     );
   });
 
-  it("rejects invalid municipality codes before Contentful access", async () => {
-    const response = await callRoute("layer-1", "pb");
+  it("rejects invalid location keys before Contentful access", async () => {
+    const response = await callRoute("layer-1", "../pb");
 
     expect(response.status).toBe(400);
     expect(getPanelLayerByIdMock).not.toHaveBeenCalled();
     expect(getMunicipalReportSeriesMock).not.toHaveBeenCalled();
+  });
+
+  it("serves the pre-built report series to municipalities only", async () => {
+    const response = await callRoute("layer-1", "pb");
+
+    expect(response.status).toBe(400);
+    expect(getMunicipalReportSeriesMock).not.toHaveBeenCalled();
+  });
+
+  it("reads the whole Earth Engine series of any territory in one request", async () => {
+    getPanelLayerByIdMock.mockResolvedValue(dekadLayer);
+    const patch = {
+      schemaVersion: 1,
+      type: "territorial-compact",
+      years: { "2001-01-01": { valuesScale: 1, values: { pb: [40, 60] } } },
+    };
+    getGeeStatisticsSeriesPatchMock.mockResolvedValue(patch);
+
+    const response = await callRoute("cdi", "pb");
+
+    expect(response.status).toBe(200);
+    await expect(response.json()).resolves.toEqual({ imageData: patch });
+    expect(getGeeStatisticsSeriesPatchMock).toHaveBeenCalledWith(
+      "cdi",
+      "pb",
+      2,
+      dekadSource,
+      ["2001-01-01", "2026-09-11"],
+    );
+    expect(getMunicipalReportSeriesMock).not.toHaveBeenCalled();
+  });
+
+  it("returns 404 for a spreadsheet source, which has no Earth Engine series", async () => {
+    getPanelLayerByIdMock.mockResolvedValue({
+      ...dekadLayer,
+      statisticsSource: { kind: "municipal-spreadsheet" },
+    });
+
+    const response = await callRoute("planilha", "br");
+
+    expect(response.status).toBe(404);
+    expect(getGeeStatisticsSeriesPatchMock).not.toHaveBeenCalled();
   });
 
   it("returns 404 when the layer has no active report series", async () => {

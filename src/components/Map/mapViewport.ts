@@ -1,4 +1,5 @@
 import type { PaddingOptions } from "maplibre-gl";
+import { isPhoneViewport } from "@/components/PlatformMap/platformMapView";
 
 export const MAP_FIT_BOUNDS_BASE_PADDING = 200;
 export const PLATFORM_SIDEBAR_OVERLAY_SELECTOR =
@@ -32,6 +33,13 @@ function getMeasuredWidth(
 }
 
 export function resolvePlatformSidebarOverlayWidth(root: ParentNode): number {
+  // No celular a trilha vira a barra de baixo e o painel cobre o mapa inteiro
+  // ou nada dele: nenhum dos dois fica à esquerda do mapa. Contar a largura
+  // deles empurrava o Brasil para uma faixa de 160px na borda direita.
+  if (isPhoneViewport()) {
+    return 0;
+  }
+
   const sideRail = root.querySelector<HTMLElement>(PLATFORM_SIDE_RAIL_SELECTOR);
   const sidePanel = root.querySelector<HTMLElement>(
     PLATFORM_SIDE_PANEL_SELECTOR,

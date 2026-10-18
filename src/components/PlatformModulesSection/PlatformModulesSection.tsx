@@ -1,96 +1,110 @@
 import Image from "next/image";
 import { Link } from "@/translations/routing";
-import { PlatformModulesSectionI } from "@/utils/interfaces";
-import { useTranslations } from "next-intl";
-import { Badge } from "@/components/Badge/Badge";
+import { HomeTextsI, PlatformModulesSectionI } from "@/utils/interfaces";
 import { cn } from "@/lib/utils";
+import {
+  ChevronRightIcon,
+  MODULE_ICONS,
+} from "@/components/HomeIcons/HomeIcons";
+import { Reveal } from "@/components/HomeMotion/HomeMotion";
+import { revealOrder } from "@/components/HomeMotion/revealOrder";
+import { BlurPreview } from "@/components/BlurPreview/BlurPreview";
+import type { BlurPreviews } from "@/services/blurPreviews";
 
 type Props = {
   id?: string;
   content: PlatformModulesSectionI;
+  texts: HomeTextsI["tools"];
+  /** Prévias borradas das fotos, por endereço (`getBlurPreviews`). */
+  previews?: BlurPreviews;
   className?: string;
 };
 
 export const PlatformModulesSection = ({
   id,
   content,
-  className = "bg-white",
+  texts,
+  previews = {},
+  className = "bg-[#E4E5E2]",
 }: Props) => {
-  const t = useTranslations("PlatformModulesSection");
-  const footerT = useTranslations("Footer");
-  const title = t("title", { title: content.title });
-
   return (
     <section
       id={id}
-      className={cn(
-        "w-full scroll-mt-16.5 flex flex-col items-center",
-        className,
-      )}
+      className={cn("w-full scroll-mt-16.5", className)}
     >
-      <div className="w-full max-w-[1440px] mx-auto px-4 py-12 md:px-10 lg:px-[80px] flex flex-col gap-6">
-        <div className="flex flex-col items-start gap-4">
-          <Badge label={footerT("aboutMenu.aPlataforma")} />
-          <h2 className="text-[24px] md:text-[28px] lg:text-[30px] leading-[28px] md:leading-[32px] lg:leading-[36px] tracking-[-0.0075em] font-semibold text-[#292829]">
-            {title}
+      <Reveal className="mx-auto flex w-full max-w-[1440px] flex-col gap-9 px-4 py-12 md:px-10 lg:px-20">
+        <div className="reveal-item flex flex-col gap-2">
+          <h2 className="font-open-sans text-[30px] font-semibold leading-9 tracking-[-0.0075em] text-[#292829]">
+            {texts.title}
           </h2>
+          {texts.subtitle && (
+            <p className="font-open-sans text-base leading-6 text-[#292829]">
+              {texts.subtitle}
+            </p>
+          )}
         </div>
 
-        <div className="grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-3">
+        <div className="grid grid-cols-1 gap-6 md:grid-cols-3">
           {content.modules.map((module, index) => {
-            const moduleTitle = t.has(`modules.${index}.title`)
-              ? t(`modules.${index}.title`)
-              : module.title;
-            const description = t.has(`modules.${index}.description`)
-              ? t(`modules.${index}.description`)
-              : module.description;
+            const ModuleIcon = MODULE_ICONS[module.id];
+            const text = texts.items.find((item) => item.id === module.id);
+            if (!text) return null;
+            const photo = text.image ?? module.image;
 
             return (
+              // O card inteiro sobe e cresce no hover; a foto aproxima e o
+              // ícone dá um giro curto, para puxar o olho para o botão.
               <article
-                key={`${module.title}-${index}`}
-                className="relative flex min-h-[190px] flex-col justify-end gap-4 overflow-hidden rounded-md bg-[#292829] p-6 text-left"
+                key={module.id}
+                style={revealOrder(index + 1)}
+                className="reveal-item group flex flex-col overflow-hidden rounded-lg border border-[#EFEFEF] bg-white shadow-sm transition-[translate,scale,box-shadow,border-color] duration-300 ease-out hover:border-[#CCCF87] hover:shadow-[0_20px_40px_rgba(63,67,36,0.18)] motion-safe:hover:-translate-y-2 motion-safe:hover:scale-[1.02]"
               >
-                {module.image && (
+                {/* A prévia borrada (ou o cinza, sem ela) ocupa o lugar da foto
+                    enquanto ela chega no celular. */}
+                <div className="relative h-[258px] w-full shrink-0 overflow-hidden bg-[#E4E5E2]">
+                  <BlurPreview src={previews[photo]} />
                   <Image
-                    src={module.image}
+                    src={photo}
                     alt=""
                     fill
-                    sizes="(max-width: 640px) 140vw, (max-width: 1024px) 70vw, 46vw"
-                    className="object-cover"
-                    style={{
-                      objectPosition: module.imagePosition ?? "50% 50%",
-                      transform: module.imageZoom
-                        ? `scale(${module.imageZoom})`
-                        : undefined,
-                      transformOrigin: "left center",
-                    }}
+                    sizes="(max-width: 768px) 100vw, 33vw"
+                    className="object-cover transition-[scale] duration-700 ease-out motion-safe:group-hover:scale-110"
                   />
-                )}
-                <div
-                  aria-hidden
-                  className="absolute inset-0 bg-gradient-to-r from-black from-[34%] to-[#666666]/0 to-[114%]"
-                />
-
-                <div className="relative flex flex-col gap-2 text-[#F8F7F8]">
-                  <h3 className="text-[28px] font-extrabold leading-tight">
-                    {moduleTitle}
-                  </h3>
-                  <p className="text-xs leading-normal">{description}</p>
+                  <div
+                    aria-hidden
+                    className="absolute inset-0 bg-[linear-gradient(0deg,rgba(63,67,36,0.45),transparent_60%)] opacity-0 transition-opacity duration-500 group-hover:opacity-100"
+                  />
                 </div>
 
-                {module.href && (
+                <div className="flex flex-col gap-4 px-6 pt-4 pb-6 text-[#0F172A]">
+                  <h3 className="flex items-center gap-4 font-open-sans text-2xl font-bold leading-[33px] text-[#292829]">
+                    <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-[#5B612A] p-1 text-[#F8F7F8] transition-[rotate,scale,background-color] duration-300 group-hover:bg-[#777E32] motion-safe:group-hover:-rotate-6 motion-safe:group-hover:scale-110">
+                      <ModuleIcon size={32} />
+                    </span>
+                    {text.name}
+                  </h3>
+                  <p className="font-inter text-sm leading-6">
+                    {text.shortText}
+                  </p>
+                </div>
+
+                <div className="mt-auto px-6 pt-3 pb-6">
                   <Link
                     href={module.href}
-                    className="relative flex w-full items-center justify-center rounded bg-[#989F43] px-4 py-2 text-sm font-medium text-[#F8F7F8] transition-colors hover:bg-[#7F8639]"
+                    className="shine flex h-10 w-full items-center justify-center gap-2 rounded-md bg-[#989F43] px-4 py-2 font-inter text-sm leading-6 text-[#F8F7F8] transition-[background-color,scale] group-hover:bg-[#5B612A] active:scale-[0.97]"
                   >
-                    {t("learnMore")}
+                    {text.buttonText}
+                    <ChevronRightIcon
+                      size={16}
+                      className="transition-transform motion-safe:group-hover:translate-x-1"
+                    />
                   </Link>
-                )}
+                </div>
               </article>
             );
           })}
         </div>
-      </div>
+      </Reveal>
     </section>
   );
 };

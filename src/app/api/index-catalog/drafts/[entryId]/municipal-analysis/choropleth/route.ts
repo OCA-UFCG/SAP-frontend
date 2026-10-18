@@ -5,7 +5,7 @@ import {
 } from "@/app/api/index-catalog/http";
 import { getIndexCatalogDraftChoroplethValues } from "@/services/indexCatalog/indexCatalogService";
 
-const YEAR_PATTERN = /^\d{4}(?:-(?:0[1-9]|1[0-2]))?$/u;
+const YEAR_PATTERN = /^\d{4}(?:-(?:0[1-9]|1[0-2])(?:-(?:01|11|21))?)?$/u;
 
 interface DraftChoroplethRouteContext {
   params: Promise<{ entryId: string }>;

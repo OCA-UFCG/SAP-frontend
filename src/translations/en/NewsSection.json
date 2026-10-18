@@ -1,0 +1,24 @@
+{
+  "NewsSection": {
+    "title": "Featured resources",
+    "learnMore": "Learn more",
+    "items": {
+      "indice-combinado-de-seca": {
+        "title": "Drought in a single classification",
+        "description": "The Combined Drought Indicator brings together rainfall, soil moisture and vegetation in a single map, using the European Drought Observatory methodology adapted to Brazil."
+      },
+      "territorios-tradicionais": {
+        "title": "Traditional territories on the map",
+        "description": "Indigenous Lands, Quilombola Territories, Settlements and Protected Areas as layers, to see how drought and degradation cross them."
+      },
+      "relatorio-por-municipio": {
+        "title": "A report for each of the 5,570 municipalities",
+        "description": "Type the name, choose the themes and get a diagnosis of your municipality in seconds."
+      },
+      "priorizacao-por-recorte": {
+        "title": "Priorities for the area you choose",
+        "description": "Brazil, region, state, biome, Semi-arid or ASD: combine indicators with the weights that make sense for your question and see, on the map, which municipalities need action first, with results exportable to spreadsheet and PDF."
+      }
+    }
+  }
+}

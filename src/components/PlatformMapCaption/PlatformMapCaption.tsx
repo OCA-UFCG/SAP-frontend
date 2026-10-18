@@ -22,16 +22,22 @@ const toLabelSlug = (label: string) =>
  * A legenda do índice ativo, no mesmo cartão de Territórios, Mapa base e
  * Transparência — antes ela usava outra fonte, outro tamanho e um cabeçalho
  * próprio, e destoava das caixas vizinhas.
+ *
+ * Nasce aberta: quem liga um índice vê o mapa mudar de cor e precisa saber na
+ * hora o que cada cor quer dizer. O mapa remonta a legenda a cada índice
+ * ligado, então ela reabre mesmo que a pessoa a tenha fechado no anterior.
  */
 export function PlatformMapCaption({ legend }: { legend: IImageParam[] }) {
   const t = useTranslations("PlatformMapCaption");
   const shouldScroll = legend.length > 6;
 
   return (
-    <MapControlDisclosure label={t("title")}>
+    <MapControlDisclosure label={t("title")} defaultOpen>
+      {/* No celular, em duas colunas: numa coluna só, Legendas e Territórios
+          cobriam a metade de baixo do mapa — justamente o Nordeste. */}
       {() => (
         <div
-          className={`flex flex-col gap-1.5 ${shouldScroll ? "max-h-[168px] overflow-y-auto pr-2" : ""}`}
+          className={`legend-cascade flex flex-col gap-1.5 max-md:grid max-md:grid-cols-2 max-md:gap-x-3 ${shouldScroll ? "max-h-[168px] overflow-y-auto pr-2" : ""}`}
         >
           {legend.map((item) => {
             const slug = toLabelSlug(item.label);

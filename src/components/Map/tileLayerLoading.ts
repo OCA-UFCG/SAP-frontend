@@ -13,11 +13,14 @@ export function isTileLayerReadyEvent(
     return false;
   }
 
-  // A tile-attached source event is the closest signal to the first visible
-  // raster response. Some runtimes don't emit that shape consistently, so keep
-  // `idle` as a terminal fallback.
+  // Pronta é quando o último bloco da vista chegou, não o primeiro: com o
+  // primeiro, o aviso sumia e o Brasil ainda aparecia em blocos por um ou dois
+  // segundos. O evento de cada bloco traz `isSourceLoaded`, que só fica
+  // verdadeiro quando não falta nenhum (bloco com erro também conta como
+  // resolvido). Alguns runtimes não emitem esse formato sempre, então `idle`
+  // continua como saída final.
   if (Boolean(event.tile)) {
-    return true;
+    return event.isSourceLoaded;
   }
 
   return event.sourceDataType === "idle" && event.isSourceLoaded;

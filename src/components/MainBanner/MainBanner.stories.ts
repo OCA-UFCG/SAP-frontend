@@ -5,15 +5,17 @@ const meta: Meta<typeof MainBanner> = {
   title: "Components/MainBanner",
   component: MainBanner,
   args: {
-    data: {
-      title: "Sistema Estratégico Sobre Desertificação",
-      subtitle: "Monitoramento de seca e desertificação.",
-      linkText: "Explorar Mapa",
-      link: "/platform",
-      image: {
-        url: "https://images.ctfassets.net/ltku4sobsen2/5F33iWSe0kcsJi4loCAGNq/aa417ec6735744009d57de04017a740f/297efe92c527cd9c7d5dec693cc5a887347e39ec.jpg",
+    banners: [
+      {
+        title: "Sistema Estratégico Sobre Desertificação",
+        subtitle: "Monitoramento de seca e desertificação.",
+        linkText: "Explorar Mapa",
+        link: "/platform",
+        image: {
+          url: "https://images.ctfassets.net/ltku4sobsen2/5F33iWSe0kcsJi4loCAGNq/aa417ec6735744009d57de04017a740f/297efe92c527cd9c7d5dec693cc5a887347e39ec.jpg",
+        },
       },
-    },
+    ],
   },
 };
 

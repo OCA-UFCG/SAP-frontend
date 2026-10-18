@@ -2,26 +2,59 @@ import "server-only";
 
 import { createHash } from "node:crypto";
 
-const CACHE_TTL_MS = 1000 * 60 * 10;
+// As tabelas estatísticas mudam numa cadência de semanas, e uma tabela trocada
+// no Earth Engine é percebida pela checagem de `updateTime`
+// (`geeStatisticsAssetRevisions`), que descarta só as entradas daquela tabela.
+// O prazo é a rede de segurança para o que a checagem não vê. Com 10 min, três
+// em cada quatro aberturas do Detalhamento na produção achavam o cache vazio
+// (telemetria de set–out/2026) e esperavam 2–4 s pelo Earth Engine.
+const CACHE_TTL_MS = 1000 * 60 * 60 * 24;
 // Uma entrada é o recorte de um território dentro de uma série de assets:
 // ~1260 linhas para `br` no índice de aridez do ERA5-Land (Brasil + 27 estados
 // x 45 anos, ~390 KiB) e 45 para um município. O teto existe para uma navegação
 // longa por municípios não fazer o mapa crescer sem fim.
-const DEFAULT_MAX_ENTRIES = 200;
+//
+// Medido em relatórios reais: ~5 KB por município e ~110 KB por estado ou
+// Brasil. Só ~45 recortes são grandes, então 5.000 entradas ficam em ~150 MB no
+// pior caso e bem menos no uso normal, que é de municípios.
+const DEFAULT_MAX_ENTRIES = 5000;
 
 interface StatisticsRowsEntry {
   rows: Record<string, unknown>[];
   timestamp: number;
+  /** Os assets lidos, para descartar a entrada quando um deles mudar. */
+  assetIds: readonly string[];
 }
 
-const rowsByAssetLocation = new Map<string, StatisticsRowsEntry>();
+interface PendingStatisticsRows {
+  request: Promise<Record<string, unknown>[]>;
+  assetIds: readonly string[];
+}
+
+interface StatisticsRowsCacheState {
+  rows: Map<string, StatisticsRowsEntry>;
+  pending: Map<string, PendingStatisticsRows>;
+  generation: number;
+}
+
+// No `globalThis` pelo mesmo motivo das colunas e das URLs do Earth Engine: o
+// aquecimento da subida (`instrumentation`) e as rotas recebem cópias separadas
+// deste módulo, e numa variável do módulo o que a subida lia não chegava à rota.
+const sharedState = globalThis as typeof globalThis & {
+  __geeStatisticsRowsCache?: StatisticsRowsCacheState;
+};
+const state: StatisticsRowsCacheState =
+  (sharedState.__geeStatisticsRowsCache ??= {
+    rows: new Map(),
+    pending: new Map(),
+    generation: 0,
+  });
+
+const rowsByAssetLocation = state.rows;
 // Uma promessa por chave em voo. É o ponto principal deste cache: ao abrir uma
 // camada, o painel dispara um pedido HTTP por período ao mesmo tempo, e sem o
 // dedupe os 45 pedidos viram 45 leituras simultâneas no Earth Engine.
-const pendingRowsByAssetLocation = new Map<
-  string,
-  Promise<Record<string, unknown>[]>
->();
+const pendingRowsByAssetLocation = state.pending;
 
 function getMaxEntries() {
   const value = Number(process.env.GEE_STATISTICS_ROWS_CACHE_MAX_ENTRIES);
@@ -81,58 +114,137 @@ function evictLeastRecentlyUsed() {
   }
 }
 
-function getFreshRows(key: string) {
-  const entry = rowsByAssetLocation.get(key);
-  if (!entry) {
-    return null;
+function startLoad(
+  key: string,
+  loadRows: () => Promise<Record<string, unknown>[]>,
+  assetIds: readonly string[],
+): Promise<Record<string, unknown>[]> {
+  const pending = pendingRowsByAssetLocation.get(key);
+  if (pending) {
+    return pending.request;
   }
 
-  if (Date.now() - entry.timestamp > CACHE_TTL_MS) {
-    rowsByAssetLocation.delete(key);
-    return null;
-  }
+  const request = loadRows()
+    .then((rows) => {
+      // Uma invalidação no meio da leitura apagou a promessa: o resultado pode
+      // ser da tabela antiga, então serve a quem pediu mas não fica guardado.
+      if (pendingRowsByAssetLocation.get(key)?.request === request) {
+        markAsRecentlyUsed(key, { rows, timestamp: Date.now(), assetIds });
+        evictLeastRecentlyUsed();
+      }
+      return rows;
+    })
+    .finally(() => {
+      if (pendingRowsByAssetLocation.get(key)?.request === request) {
+        pendingRowsByAssetLocation.delete(key);
+      }
+    });
 
-  markAsRecentlyUsed(key, entry);
-  return entry.rows;
+  pendingRowsByAssetLocation.set(key, { request, assetIds });
+  return request;
 }
 
 /**
  * Linhas de um asset estatístico para um território, lidas uma única vez por
  * chave mesmo quando vários períodos são pedidos ao mesmo tempo.
  *
- * const rows = await getOrLoadStatisticsRows(key, () => readFromEarthEngine());
+ * Passado o prazo, a entrada vencida ainda responde na hora e a releitura corre
+ * em segundo plano: quem abre o painel não espera o Earth Engine por causa de
+ * um prazo, só quando a tabela de fato mudou.
+ *
+ * const rows = await getOrLoadStatisticsRows(key, () => readFromEarthEngine(), assetIds);
  */
 export function getOrLoadStatisticsRows(
   key: string,
   loadRows: () => Promise<Record<string, unknown>[]>,
+  assetIds: readonly string[] = [],
 ): Promise<Record<string, unknown>[]> {
-  const cachedRows = getFreshRows(key);
-  if (cachedRows) {
-    return Promise.resolve(cachedRows);
+  const entry = rowsByAssetLocation.get(key);
+
+  if (entry) {
+    markAsRecentlyUsed(key, entry);
+
+    if (Date.now() - entry.timestamp > CACHE_TTL_MS) {
+      startLoad(key, loadRows, assetIds).catch((error: unknown) => {
+        console.warn(
+          `[geeStatistics] releitura em segundo plano falhou; a entrada vencida continua servindo: ${key}`,
+          error,
+        );
+      });
+    }
+
+    return Promise.resolve(entry.rows);
   }
 
-  const pending = pendingRowsByAssetLocation.get(key);
-  if (pending) {
-    return pending;
+  return startLoad(key, loadRows, assetIds);
+}
+
+/**
+ * Os assets lidos pelas entradas guardadas e o momento da leitura mais antiga
+ * de cada um — o que a checagem de `updateTime` precisa comparar.
+ */
+export function getCachedStatisticsAssetReadTimes(): Map<string, number> {
+  const readTimes = new Map<string, number>();
+
+  for (const entry of rowsByAssetLocation.values()) {
+    for (const assetId of entry.assetIds) {
+      const current = readTimes.get(assetId);
+      if (current === undefined || entry.timestamp < current) {
+        readTimes.set(assetId, entry.timestamp);
+      }
+    }
   }
 
-  const request = loadRows()
-    .then((rows) => {
-      markAsRecentlyUsed(key, { rows, timestamp: Date.now() });
-      evictLeastRecentlyUsed();
-      return rows;
-    })
-    .finally(() => {
+  return readTimes;
+}
+
+/**
+ * Descarta as entradas que leram algum asset para o qual `isStale` responde
+ * `true`, e as leituras em voo desses mesmos assets. Devolve quantas entradas
+ * saíram.
+ *
+ * @example
+ * invalidateStatisticsRows((assetId, readAt) => updatedAt(assetId) > readAt);
+ */
+export function invalidateStatisticsRows(
+  isStale: (assetId: string, readAt: number) => boolean,
+): number {
+  let removed = 0;
+
+  for (const [key, entry] of rowsByAssetLocation) {
+    if (entry.assetIds.some((assetId) => isStale(assetId, entry.timestamp))) {
+      rowsByAssetLocation.delete(key);
       pendingRowsByAssetLocation.delete(key);
-    });
+      removed += 1;
+    }
+  }
 
-  pendingRowsByAssetLocation.set(key, request);
-  return request;
+  // Uma leitura em voo começou agora e pode ter visto a tabela antiga.
+  const now = Date.now();
+  for (const [key, pending] of pendingRowsByAssetLocation) {
+    if (pending.assetIds.some((assetId) => isStale(assetId, now))) {
+      pendingRowsByAssetLocation.delete(key);
+      removed += 1;
+    }
+  }
+
+  if (removed > 0) state.generation += 1;
+  return removed;
+}
+
+/**
+ * Um número que muda sempre que linhas guardadas são descartadas. Os caches
+ * montados em cima destas linhas (o Detalhamento já pronto de cada período)
+ * comparam com ele para não servir a versão montada com a tabela antiga.
+ */
+export function getStatisticsRowsGeneration(): number {
+  return state.generation;
 }
 
 export function clearGeeStatisticsRowsCache() {
   rowsByAssetLocation.clear();
   pendingRowsByAssetLocation.clear();
+  state.generation += 1;
 }
 
 export { CACHE_TTL_MS as GEE_STATISTICS_ROWS_CACHE_TTL_MS };

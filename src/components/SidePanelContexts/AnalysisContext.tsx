@@ -1,8 +1,9 @@
 "use client";
 
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useTranslations } from "next-intl";
 import { AnalysisPanel } from "@/components/analysis/AnalysisPanel";
+import { ForecastFilters } from "@/components/analysis/ForecastFilters";
 import type { SearchSubmissionMetadata } from "@/components/SearchBar/types";
 import {
   getSpatialScopeLocationKey,
@@ -38,6 +39,12 @@ import {
   mergePartialMunicipalImageData,
 } from "@/utils/municipalAnalysisMerge";
 import { isGeeStatisticsLayerId } from "@/config/geeStatisticsLayers";
+import {
+  getForecastEmissionDate,
+  getForecastMembers,
+  type ForecastMember,
+} from "@/utils/forecastGroup";
+import { getImageDataLegend, getImageDataYearKeys } from "@/utils/imageData";
 
 interface MunicipalAnalysisApiResponse {
   imageData?: PanelLayerI["imageData"] | null;
@@ -86,8 +93,10 @@ export function AnalysisContext({
 }: AnalysisContextProps) {
   const t = useTranslations("AnalysisContext");
   const tCaption = useTranslations("PlatformMapCaption");
+  const tModules = useTranslations("ModulesContext");
   const { activeLayerId } = useMapLayerActiveState();
   const {
+    activateEeLayer,
     setSelectedState,
     setSelectedMunicipalityCode,
     setActiveLegend,
@@ -103,6 +112,13 @@ export function AnalysisContext({
   const dataset = useMemo(() => {
     return panelLayers?.find((p) => p.id === activeLayerId) ?? panelLayers?.[0];
   }, [panelLayers, activeLayerId]);
+  const forecastMembers = useMemo(
+    () => getForecastMembers(panelLayers ?? []),
+    [panelLayers],
+  );
+  const forecastMember = forecastMembers.find(
+    (member) => member.layer.id === dataset?.id,
+  );
   const [analysisImageDataByRequestKey, setAnalysisImageDataByRequestKey] =
     useState<Record<string, PanelLayerI["imageData"] | null>>({});
   // Chaves já disparadas. O efeito que busca os períodos NÃO pode depender de
@@ -143,19 +159,33 @@ export function AnalysisContext({
     dataset?.statisticsSource ||
     (dataset?.id && isGeeStatisticsLayerId(dataset.id)),
   );
-  const municipalSeriesRequestKey =
-    dataset?.id &&
-    dataset.reportSeriesConfig?.datasetVersion &&
-    selectedMunicipalityCode
+  // O gráfico pede um período por requisição. Uma série decendial tem 36
+  // períodos por ano (926 no CDI de 2001 a 2026), e pedir todos deixava metade
+  // sem resposta; por isso ela vem inteira num pedido só, pela rota da série.
+  const dekadSeriesRevision =
+    dataset?.statisticsSource &&
+    "periodGranularity" in dataset.statisticsSource &&
+    dataset.statisticsSource.periodGranularity === "dekad"
+      ? dataset.statisticsSource.sourceRevision
+      : null;
+  const municipalSeriesRequestKey = !dataset?.id
+    ? null
+    : dataset.reportSeriesConfig?.datasetVersion && selectedMunicipalityCode
       ? getMunicipalSeriesRequestKey(
           dataset.id,
           dataset.reportSeriesConfig.datasetVersion,
           selectedMunicipalityCode,
         )
-      : null;
+      : dekadSeriesRevision
+        ? getMunicipalSeriesRequestKey(
+            dataset.id,
+            dekadSeriesRevision,
+            selectedLocationKey,
+          )
+        : null;
 
   const temporalMunicipalAnalysisRequestKeys = useMemo(() => {
-    if (!dataset?.id || !usesGeeStatistics) {
+    if (!dataset?.id || !usesGeeStatistics || dekadSeriesRevision) {
       return [];
     }
 
@@ -171,6 +201,7 @@ export function AnalysisContext({
     );
   }, [
     dataset,
+    dekadSeriesRevision,
     selectedLocationKey,
     selectedMunicipalityCode,
     usesGeeStatistics,
@@ -290,9 +321,13 @@ export function AnalysisContext({
   ]);
 
   useEffect(() => {
+    const seriesLocationKey = municipalSeriesRequestKey
+      ? getMunicipalAnalysisRequestLocation(municipalSeriesRequestKey)
+      : undefined;
+
     if (
       !dataset?.id ||
-      !selectedMunicipalityCode ||
+      !seriesLocationKey ||
       !municipalSeriesRequestKey ||
       seriesImageDataByRequestKey[municipalSeriesRequestKey] !== undefined
     ) {
@@ -304,7 +339,7 @@ export function AnalysisContext({
       `/api/municipal-analysis/${encodeURIComponent(dataset.id)}/series`,
       window.location.origin,
     );
-    requestUrl.searchParams.set("locationKey", selectedMunicipalityCode);
+    requestUrl.searchParams.set("locationKey", seriesLocationKey);
 
     const fetchMunicipalSeries = async () => {
       let imageData: PanelLayerI["imageData"] | null = null;
@@ -337,12 +372,7 @@ export function AnalysisContext({
     void fetchMunicipalSeries();
 
     return () => controller.abort();
-  }, [
-    dataset?.id,
-    municipalSeriesRequestKey,
-    selectedMunicipalityCode,
-    seriesImageDataByRequestKey,
-  ]);
+  }, [dataset?.id, municipalSeriesRequestKey, seriesImageDataByRequestKey]);
 
   const enrichedDataset = useMemo(() => {
     if (!dataset?.id) {
@@ -429,6 +459,30 @@ export function AnalysisContext({
   function handleGoBack() {
     onRequestSectionChange?.("monitoring");
   }
+
+  // Trocar de previsão mantém o mês escolhido quando a camada nova também o
+  // tem; ativar a camada sozinha voltaria a data para a padrão dela.
+  const handleForecastSelect = useCallback(
+    ({ layer }: ForecastMember) => {
+      activateEeLayer(
+        layer as unknown as IEEInfo,
+        getImageDataLegend(layer.imageData),
+      );
+      if (getImageDataYearKeys(layer.imageData).includes(activeAnalysisYear)) {
+        setActiveYear(activeAnalysisYear);
+      }
+      trackUiEvent({
+        eventName: "layer_toggled",
+        surface: "analysis-panel",
+        activeLayerId: layer.id,
+        activeLayerName: layer.name,
+        layerKind: "ee",
+        action: "activated",
+        activeSection,
+      });
+    },
+    [activateEeLayer, activeAnalysisYear, activeSection, setActiveYear],
+  );
 
   const activeDateLabel =
     yearOptions.find((option) => option.value === activeAnalysisYear)?.label ??
@@ -564,7 +618,21 @@ export function AnalysisContext({
 
   return (
     <AnalysisPanel
-      moduleName={dataset?.name}
+      moduleName={
+        forecastMember ? tModules("forecastGroup.title") : dataset?.name
+      }
+      layerFilters={
+        forecastMember ? (
+          <ForecastFilters
+            members={forecastMembers}
+            current={forecastMember}
+            onSelect={handleForecastSelect}
+          />
+        ) : undefined
+      }
+      forecastEmissionDate={
+        forecastMember ? getForecastEmissionDate(forecastMember.layer) : null
+      }
       yearOptions={yearOptions}
       activeYear={activeAnalysisYear}
       onBack={handleGoBack}

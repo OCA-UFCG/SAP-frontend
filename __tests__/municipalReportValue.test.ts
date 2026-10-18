@@ -31,6 +31,26 @@ describe("municipal report value presentation", () => {
       chartSeries: "Série temporal de valores",
     });
   });
+
+  it("keeps the catalog unit when it has no translation", () => {
+    const analysis = { valueType: "absolute" as const, unit: "de reais" };
+    const t = (key: string) => `MunicipalReport.${key}`;
+    const tHas = () => false;
+
+    expect(
+      formatMunicipalReportValueWithUnit(1234, analysis, "pt-BR", t, tHas),
+    ).toBe("1.234 de reais");
+  });
+
+  it("translates the unit when the key exists", () => {
+    const analysis = { valueType: "absolute" as const, unit: "registros" };
+    const t = (key: string) => (key === "classes.registros" ? "records" : key);
+    const tHas = (key: string) => key === "classes.registros";
+
+    expect(
+      formatMunicipalReportValueWithUnit(1234, analysis, "en-US", t, tHas),
+    ).toBe("1,234 records");
+  });
 });
 
 describe("formatPercentage", () => {
