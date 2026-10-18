@@ -2,7 +2,7 @@
   "AnalysisContext": {
     "unavailableTitle": "Análise indisponível para {location}",
     "loadingTitle": "Carregando análise de {location}",
-    "unavailableDescriptionLoading": "Os dados desta camada estão chegando. Isso pode levar alguns segundos.",
-    "unavailableDescription": "Os dados de análise para {location} ainda não estão disponíveis neste módulo."
+    "unavailableDescriptionLoading": "Os dados deste produto estão chegando. Isso pode levar alguns segundos.",
+    "unavailableDescription": "Os dados de análise para {location} ainda não estão disponíveis para este produto."
   }
 }

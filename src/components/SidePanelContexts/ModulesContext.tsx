@@ -485,7 +485,7 @@ export function ModulesContext({
       className="h-full overflow-y-auto bg-[#F6F7F6] px-4 pt-12 pb-6 max-md:pt-6 max-md:pb-24"
     >
       {/* Cada bloco sobe em cascata ao abrir a seção, e os acordeões de
-          Indicadores, numa cascata própria, um depois do outro. */}
+          Produtos, numa cascata própria, um depois do outro. */}
       <div className="panel-cascade flex flex-col gap-6">
         <ContextHeader />
 
@@ -501,8 +501,8 @@ export function ModulesContext({
         </PanelSection>
 
         <PanelSection
-          title={t("indicatorsSection.title")}
-          description={t("indicatorsSection.description")}
+          title={t("productsSection.title")}
+          description={t("productsSection.description")}
         >
           <div className="panel-cascade flex flex-col gap-4">
             {groupedDatasets.map((group) => {
