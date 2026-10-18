@@ -9,6 +9,7 @@
     "expandPanel": "Open panel",
     "loading": "Loading",
     "approvals": "Approvals",
+    "more": "More",
     "pendingApprovals": "Requests awaiting a decision: {count}",
     "mobileShowMap": "View map",
     "mobileShowReport": "View report",

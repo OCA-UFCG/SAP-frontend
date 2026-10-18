@@ -184,7 +184,9 @@ export function PlatformLayout({
           ) : isCatalogView ? (
             <div
               data-testid="platform-catalog-shell"
-              className={`w-full pl-[124px] ${PLATFORM_SHELL_MIN_HEIGHT_CLASS}`}
+              // No celular a trilha vira a barra de baixo: o recuo de 124 px
+              // que abre espaço para ela deixava uma faixa vazia à esquerda.
+              className={`w-full pl-[124px] max-md:pl-0 ${PLATFORM_SHELL_MIN_HEIGHT_CLASS}`}
             >
               {props.catalogDashboard}
             </div>

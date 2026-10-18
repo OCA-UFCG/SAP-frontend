@@ -58,6 +58,10 @@ export function DroughtDataset({
         data-tour="layer-card"
         className={clsx(
           "group/card flex flex-row items-center gap-3 w-full p-3 bg-white border shadow-sm rounded-lg shrink-0 transition-[translate,box-shadow,border-color] duration-300 ease-out",
+          // No celular os botões descem para uma linha só deles, com a largura
+          // do cartão: ao lado da imagem, em 360 px, sobravam 64 px para o
+          // "Detalhamento", que saía "Detalha...".
+          "max-sm:grid max-sm:grid-cols-[auto_minmax(0,1fr)]",
           !disabled &&
             "motion-safe:hover:-translate-y-0.5 hover:shadow-[0_10px_24px_rgba(33,36,15,0.10)]",
           active
@@ -67,7 +71,7 @@ export function DroughtDataset({
       >
         {/* 80px, e não 96: no Windows a barra de rolagem do painel come 17px e,
             com a imagem maior, o "Detalhamento" saía cortado. */}
-        <div className="relative shrink-0 size-20 overflow-hidden rounded-md">
+        <div className="relative shrink-0 size-20 overflow-hidden rounded-md max-sm:size-16">
           {card.image ? (
             <Image
               src={normalizeContentfulImage(card.image)}
@@ -82,12 +86,12 @@ export function DroughtDataset({
         </div>
 
         {/* Título inteiro e, embaixo, os botões; a descrição fica no "i" */}
-        <div className="flex flex-col gap-3 flex-1 min-w-0">
+        <div className="flex flex-col gap-3 flex-1 min-w-0 max-sm:contents">
           <span className="font-inter font-semibold text-[16px] leading-[22px] tracking-[-0.015em] text-[#292829] break-words">
             {displayTitle}
           </span>
 
-          <div className="flex flex-row items-center gap-1.5">
+          <div className="flex flex-row items-center gap-1.5 max-sm:col-span-2">
             {/* Toggle (apply/unapply layer) */}
             <button
               type="button"

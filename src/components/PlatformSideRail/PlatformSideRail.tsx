@@ -1,5 +1,6 @@
 "use client";
-import { useEffect, useLayoutEffect, useRef, useState } from "react";
+import { useEffect, useId, useLayoutEffect, useRef, useState } from "react";
+import { createPortal } from "react-dom";
 import { useLinkStatus } from "next/link";
 import { Link } from "@/translations/routing";
 import { Chevron } from "../Chevron/Chevron";
@@ -201,10 +202,10 @@ function RailItemContent({
         {badge > 0 && !isPending ? <RailBadge count={badge} /> : null}
       </div>
 
-      {/* Na barra de baixo do celular cabem até seis itens de ~62 px: com 11 px
-          "Comunicação" e "Priorização" quebravam no meio ("Comunica/ção"). Com
-          10 px cabem inteiras; se ainda faltar espaço, a quebra leva hífen. */}
-      <div className="text-[12px] leading-[14px] font-medium text-center break-words w-full max-md:text-[10px] max-md:leading-3 max-md:hyphens-auto">
+      {/* Na barra de baixo do celular ficam no máximo quatro itens (o resto vai
+          para "Mais"), cada um com ~80 px num celular de 320 px: "Comunicação"
+          cabe inteira em 11 px, sem quebrar no meio da palavra. */}
+      <div className="text-[12px] leading-[14px] font-medium text-center break-words w-full max-md:text-[11px] max-md:leading-[13px]">
         {label}
       </div>
     </>
@@ -227,6 +228,22 @@ function HelpIcon() {
       <circle cx="12" cy="12" r="10" />
       <path d="M9.1 9a3 3 0 0 1 5.8 1c0 2-3 3-3 3" />
       <path d="M12 17h.01" />
+    </svg>
+  );
+}
+
+function MoreIcon() {
+  return (
+    <svg
+      width="24"
+      height="24"
+      viewBox="0 0 24 24"
+      fill="currentColor"
+      aria-hidden
+    >
+      <circle cx="5" cy="12" r="2" />
+      <circle cx="12" cy="12" r="2" />
+      <circle cx="19" cy="12" r="2" />
     </svg>
   );
 }
@@ -291,6 +308,26 @@ export function PlatformSideRail({
   const itemHeightClass = compact ? "h-[72px]" : "h-[88px]";
   const listRef = useRef<HTMLDivElement>(null);
   const indicatorRef = useRef<HTMLSpanElement>(null);
+  // No celular a trilha vira a barra de baixo, e sete itens não cabem em 360
+  // px ("Catálogo de índices" saía cortado na borda). Quem administra vê as
+  // três seções e um "Mais" que abre o resto numa lista acima da barra.
+  const hasOverflow = showAuditLink;
+  const [moreOpen, setMoreOpen] = useState(false);
+  const moreMenuId = useId();
+  const [moreSection, setMoreSection] = useState(activeSection);
+  if (moreSection !== activeSection) {
+    setMoreSection(activeSection);
+    setMoreOpen(false);
+  }
+
+  useEffect(() => {
+    if (!moreOpen) return;
+    const onKeyDown = (event: KeyboardEvent) => {
+      if (event.key === "Escape") setMoreOpen(false);
+    };
+    window.addEventListener("keydown", onKeyDown);
+    return () => window.removeEventListener("keydown", onKeyDown);
+  }, [moreOpen]);
 
   // Um destaque só, que desliza até a seção escolhida, em vez de um fundo que
   // some num item e aparece no outro. Mede o item atual e move o destaque por
@@ -303,7 +340,13 @@ export function PlatformSideRail({
     if (!indicator || !list) return;
 
     const place = () => {
-      const current = list.querySelector<HTMLElement>('[aria-current="page"]');
+      // No celular o item ativo pode estar dentro do "Mais", escondido: aí o
+      // destaque vai para o próprio "Mais".
+      const current = [
+        ...list.querySelectorAll<HTMLElement>(
+          '[aria-current="page"], [data-rail-more-current]',
+        ),
+      ].find((element) => element.offsetWidth > 0);
 
       if (!current) {
         indicator.style.opacity = "0";
@@ -326,7 +369,7 @@ export function PlatformSideRail({
     const observer = new ResizeObserver(place);
     observer.observe(list);
     return () => observer.disconnect();
-  }, [activeSection, compact]);
+  }, [activeSection, compact, hasOverflow]);
 
   const items: PlatformRailItem[] = [
     { kind: "section", id: "monitoring", label: t("monitoring"), icon: "eye" },
@@ -365,6 +408,8 @@ export function PlatformSideRail({
       icon: "user",
     });
   }
+
+  const overflowItems = items.filter((item) => item.kind === "link");
 
   return (
     <div
@@ -414,6 +459,7 @@ export function PlatformSideRail({
                   "w-full shrink-0 flex flex-col items-center",
                   index !== 0 && "border-t border-[#ECECEC]",
                   "max-md:w-auto max-md:min-w-16 max-md:flex-1 max-md:border-t-0",
+                  item.kind === "link" && "max-md:hidden",
                 )}
               >
                 {item.kind === "section" ? (
@@ -466,6 +512,48 @@ export function PlatformSideRail({
               </div>
             );
           })}
+
+          {hasOverflow && (
+            <div className="hidden max-md:flex max-md:min-w-16 max-md:flex-1 flex-col items-center">
+              <button
+                type="button"
+                onClick={() => setMoreOpen((open) => !open)}
+                aria-label={
+                  pendingApprovals > 0
+                    ? `${t("more")}. ${t("pendingApprovals", { count: pendingApprovals })}`
+                    : undefined
+                }
+                aria-expanded={moreOpen}
+                aria-controls={moreMenuId}
+                data-rail-more-current={
+                  overflowItems.some((item) => item.id === activeSection) ||
+                  undefined
+                }
+                className={clsx(
+                  "group relative flex h-full w-full cursor-pointer flex-col items-center justify-center gap-[4px] rounded-lg px-0.5 transition-colors duration-150",
+                  moreOpen ||
+                    overflowItems.some((item) => item.id === activeSection)
+                    ? "text-[#5B612A]"
+                    : "text-[#292829]",
+                )}
+              >
+                <div className="relative flex items-center justify-center">
+                  <MoreIcon />
+                  {pendingApprovals > 0 ? (
+                    <span
+                      aria-hidden
+                      className="absolute -right-2.5 -top-1.5 flex h-[18px] min-w-[18px] items-center justify-center rounded-full bg-[#B3261E] px-1 text-[10px] font-semibold leading-none text-white"
+                    >
+                      {pendingApprovals > 99 ? "99+" : pendingApprovals}
+                    </span>
+                  ) : null}
+                </div>
+                <div className="w-full text-center text-[11px] font-medium leading-[13px]">
+                  {t("more")}
+                </div>
+              </button>
+            </div>
+          )}
         </div>
 
         {onReplayTour && (
@@ -474,17 +562,80 @@ export function PlatformSideRail({
             onClick={onReplayTour}
             aria-label={tTour("replayLabel")}
             data-tour="platform-tour-replay"
-            className="group mt-3 flex w-[92px] shrink-0 cursor-pointer flex-col items-center justify-center gap-[4px] rounded-lg px-[8px] py-[10px] text-[#292829] transition-colors duration-150 hover:bg-[#F8F7F8] max-md:mt-0 max-md:w-auto max-md:min-w-16 max-md:py-0"
+            className={clsx(
+              "group mt-3 flex w-[92px] shrink-0 cursor-pointer flex-col items-center justify-center gap-[4px] rounded-lg px-[8px] py-[10px] text-[#292829] transition-colors duration-150 hover:bg-[#F8F7F8] max-md:mt-0 max-md:w-auto max-md:min-w-16 max-md:flex-1 max-md:py-0",
+              hasOverflow && "max-md:hidden",
+            )}
           >
             <span className="flex motion-safe:group-hover:animate-[icon-wiggle_600ms_ease-in-out]">
               <HelpIcon />
             </span>
-            <span className="text-[12px] leading-[14px] font-medium">
+            <span className="text-[12px] leading-[14px] font-medium max-md:text-[11px] max-md:leading-[13px]">
               {tTour("replay")}
             </span>
           </button>
         )}
       </nav>
+
+      {moreOpen &&
+        createPortal(
+          <div className="md:hidden">
+            <div
+              aria-hidden
+              onClick={() => setMoreOpen(false)}
+              className="fixed inset-x-0 top-0 bottom-16 z-50 bg-[#21240F]/40"
+            />
+            <nav
+              id={moreMenuId}
+              aria-label={t("more")}
+              className="fixed inset-x-2 bottom-[4.5rem] z-50 rounded-xl bg-white p-2 shadow-[0_12px_32px_rgba(33,36,15,0.24)] motion-safe:animate-[menu-in_180ms_ease-out]"
+            >
+              <ul className="flex flex-col">
+                {overflowItems.map((item) => (
+                  <li key={item.id}>
+                    <Link
+                      href={item.href}
+                      onClick={() => setMoreOpen(false)}
+                      aria-current={
+                        item.id === activeSection ? "page" : undefined
+                      }
+                      className={clsx(
+                        "flex min-h-12 items-center gap-3 rounded-lg px-3 text-[15px] font-medium",
+                        item.id === activeSection
+                          ? "bg-[#E1E2B4] text-[#5B612A]"
+                          : "text-[#292829] active:bg-[#F5F6EE]",
+                      )}
+                    >
+                      <Icon id={item.icon} size={22} />
+                      <span className="flex-1">{item.label}</span>
+                      {item.id === "approvals" && pendingApprovals > 0 ? (
+                        <span className="flex h-5 min-w-5 items-center justify-center rounded-full bg-[#B3261E] px-1.5 text-[11px] font-semibold text-white">
+                          {pendingApprovals > 99 ? "99+" : pendingApprovals}
+                        </span>
+                      ) : null}
+                    </Link>
+                  </li>
+                ))}
+                {onReplayTour && (
+                  <li>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setMoreOpen(false);
+                        onReplayTour();
+                      }}
+                      className="flex min-h-12 w-full cursor-pointer items-center gap-3 rounded-lg px-3 text-left text-[15px] font-medium text-[#292829] active:bg-[#F5F6EE]"
+                    >
+                      <HelpIcon />
+                      {tTour("replay")}
+                    </button>
+                  </li>
+                )}
+              </ul>
+            </nav>
+          </div>,
+          document.body,
+        )}
 
       {activeSection !== "analysis" &&
         activeSection !== "logs" &&

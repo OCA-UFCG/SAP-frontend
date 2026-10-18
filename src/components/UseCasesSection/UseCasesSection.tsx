@@ -1,6 +1,8 @@
 import Image from "next/image";
 import { PersonIcon, QuoteIcon } from "@/components/HomeIcons/HomeIcons";
 import { HomeTestimonialI } from "@/utils/interfaces";
+import { BlurPreview } from "@/components/BlurPreview/BlurPreview";
+import type { BlurPreviews } from "@/services/blurPreviews";
 import { Reveal, Spotlight } from "@/components/HomeMotion/HomeMotion";
 import { revealOrder } from "@/components/HomeMotion/revealOrder";
 
@@ -8,6 +10,8 @@ type Props = {
   id?: string;
   title: string;
   items: HomeTestimonialI[];
+  /** Prévias borradas das fotos, por endereço (`getBlurPreviews`). */
+  previews?: BlurPreviews;
 };
 
 type CardStyle = {
@@ -61,11 +65,13 @@ const TestimonialCard = ({
   item,
   style,
   order,
+  preview,
 }: {
   item: HomeTestimonialI;
   style: CardStyle;
   /** Posição na cascata de entrada. */
   order: number;
+  preview?: string;
 }) => {
   const colors = item.image ? PHOTO_COLORS : style;
   // Sobre a foto o texto vai para o pé do card, onde o degradê é mais escuro.
@@ -80,6 +86,7 @@ const TestimonialCard = ({
     >
       {item.image && (
         <>
+          <BlurPreview src={preview} />
           <Image
             src={item.image}
             alt=""
@@ -117,7 +124,7 @@ const TestimonialCard = ({
 };
 
 /** "O que dizem sobre o SEDES": os depoimentos num mosaico de cards. */
-export const UseCasesSection = ({ id, title, items }: Props) => {
+export const UseCasesSection = ({ id, title, items, previews = {} }: Props) => {
   if (!items.length) return null;
 
   const top = items.slice(0, TOP_CARDS.length);
@@ -138,6 +145,7 @@ export const UseCasesSection = ({ id, title, items }: Props) => {
                 item={item}
                 style={TOP_CARDS[index]}
                 order={index + 1}
+                preview={item.image && previews[item.image]}
               />
             ))}
           </div>
@@ -150,6 +158,7 @@ export const UseCasesSection = ({ id, title, items }: Props) => {
                   item={item}
                   style={BOTTOM_CARDS[index % BOTTOM_CARDS.length]}
                   order={top.length + index + 1}
+                  preview={item.image && previews[item.image]}
                 />
               ))}
             </div>

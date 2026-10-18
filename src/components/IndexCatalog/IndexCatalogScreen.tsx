@@ -265,7 +265,10 @@ function CatalogActionButton({
       <span
         id={descriptionId}
         role="tooltip"
-        className="pointer-events-none invisible absolute bottom-[calc(100%+0.5rem)] left-0 z-30 w-72 max-w-[calc(100vw-3rem)] rounded-md bg-stone-800 px-3 py-2 text-left text-xs font-normal leading-relaxed text-white opacity-0 shadow-lg transition-opacity group-hover:visible group-hover:opacity-100 group-focus-within:visible group-focus-within:opacity-100"
+        // `hidden`, e não `invisible`: escondida mas ocupando lugar, a dica de
+        // 288 px passava da borda no celular e a página inteira ficava mais
+        // larga que a tela (457 px num celular de 360).
+        className="pointer-events-none absolute bottom-[calc(100%+0.5rem)] left-0 z-30 hidden w-72 max-w-[calc(100vw-3rem)] rounded-md bg-stone-800 px-3 py-2 text-left text-xs font-normal leading-relaxed text-white shadow-lg group-hover:block group-focus-within:block"
       >
         {description}
       </span>

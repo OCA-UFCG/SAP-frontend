@@ -3,6 +3,8 @@ import { ArrowForwardIcon } from "@/components/HomeIcons/HomeIcons";
 import { Link } from "@/translations/routing";
 import { Reveal } from "@/components/HomeMotion/HomeMotion";
 import { revealOrder } from "@/components/HomeMotion/revealOrder";
+import { BlurPreview } from "@/components/BlurPreview/BlurPreview";
+import type { BlurPreviews } from "@/services/blurPreviews";
 
 type Props = {
   id?: string;
@@ -11,6 +13,8 @@ type Props = {
   buttonText: string;
   /** Fotos do Contentful, na ordem dos espaços; o que faltar usa a do código. */
   images?: string[];
+  /** Prévias borradas das fotos, por endereço (`getBlurPreviews`). */
+  previews?: BlurPreviews;
 };
 
 // Fotos recortadas do design da home (Figma), duas colunas de duas fotos.
@@ -34,6 +38,7 @@ export const PublicPolicySection = ({
   text,
   buttonText,
   images = [],
+  previews = {},
 }: Props) => {
   return (
     <section id={id} className="w-full scroll-mt-16.5 bg-white">
@@ -50,6 +55,9 @@ export const PublicPolicySection = ({
                     ...revealOrder(column + row * 2),
                   }}
                 >
+                  <BlurPreview
+                    src={previews[images[column * photos.length + row] ?? ""]}
+                  />
                   <Image
                     src={images[column * photos.length + row] ?? photo.src}
                     alt=""

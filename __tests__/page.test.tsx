@@ -10,6 +10,11 @@ vi.mock("next/image", () => ({
   ),
 }));
 
+// As prévias borradas das fotos vêm do Contentful; aqui a home fica sem elas.
+vi.mock("@/services/blurPreviews", () => ({
+  getBlurPreviews: vi.fn().mockResolvedValue({}),
+}));
+
 vi.mock("@/infrastructure/contentful/client", () => ({
   CONTENTFUL_COLLECTION_LIMIT: 200,
   getContent: vi.fn().mockResolvedValue({
