@@ -73,6 +73,25 @@ describe("buildOverlayAwareFitBoundsPadding", () => {
     });
   });
 
+  it("reserves the bottom strip the phone controls cover, keeping some map free", () => {
+    expect(
+      buildOverlayAwareMapPadding({
+        containerWidth: 390,
+        containerHeight: 534,
+        bottomOverlayHeight: 176,
+      }),
+    ).toEqual({ top: 0, right: 0, bottom: 176, left: 0 });
+
+    // Num mapa baixo a legenda não pode tomar tudo: sobram 160px livres.
+    expect(
+      buildOverlayAwareMapPadding({
+        containerWidth: 390,
+        containerHeight: 300,
+        bottomOverlayHeight: 250,
+      }).bottom,
+    ).toBe(140);
+  });
+
   it("explicitly sums the side rail and panel widths", () => {
     document.body.innerHTML = `
       <aside data-platform-sidebar-overlay>

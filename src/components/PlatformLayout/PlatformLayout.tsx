@@ -90,7 +90,8 @@ function MobileViewToggle({
     <button
       type="button"
       onClick={() => onChange(showsOptions ? "result" : "options")}
-      className="fixed bottom-20 left-1/2 z-40 flex h-11 -translate-x-1/2 cursor-pointer items-center gap-2 rounded-full bg-[#5B612A] px-5 text-sm font-semibold text-white shadow-[0_8px_24px_rgba(33,36,15,0.3)] transition-[scale] duration-200 active:scale-95 md:hidden"
+      data-mobile-view-toggle
+      className="fixed bottom-20 left-1/2 z-40 flex h-11 -translate-x-1/2 cursor-pointer items-center gap-2 whitespace-nowrap rounded-full bg-[#5B612A] px-5 text-sm font-semibold text-white shadow-[0_8px_24px_rgba(33,36,15,0.3)] transition-[scale] duration-200 active:scale-95 md:hidden"
     >
       <svg
         width="18"

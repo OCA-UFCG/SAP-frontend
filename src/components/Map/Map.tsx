@@ -103,6 +103,8 @@ export interface MapProps {
   onSpatialSelectionChange?: (selection: SpatialSelection) => void;
   /** Limites da área de interesse a enquadrar quando a seleção muda. */
   spatialFocusBounds?: LngLatBoundsLike | null;
+  /** Altura que os controles cobrem na borda de baixo do mapa (só no celular). */
+  bottomOverlayInset?: number;
   /**
    * Resultado da análise multicritério a pintar como coropleta. `null` deixa o
    * mapa sem coropleta — é o comportamento dos demais modos.
@@ -159,6 +161,7 @@ const Map = ({
   spatialValue = "brasil",
   onSpatialSelectionChange,
   spatialFocusBounds = null,
+  bottomOverlayInset = 0,
   municipalityClassification = null,
   municipalityOverviewGeoJson = null,
   classificationFillOpacity = 0.85,
@@ -213,6 +216,7 @@ const Map = ({
     showStatesBorder,
     spatialBoundaryGeoJson,
     spatialFocusBounds,
+    bottomOverlayInset,
     allowedStateUfs,
     spatialValue,
     tileLayerRequestKey,
