@@ -38,6 +38,7 @@
     "loading": "Loading report data...",
     "loadingHint": "This may take a few seconds, depending on the selected modules.",
     "loadError": "The report could not be loaded",
+    "serverError": "The server did not respond in time. Please try again in a moment.",
     "missingParameters": "Municipality and period are required.",
     "reportLabel": "Territorial analytical report",
     "ibgeCode": "IBGE code",
