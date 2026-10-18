@@ -1,4 +1,10 @@
-import { cleanup, render, screen } from "@testing-library/react";
+import {
+  cleanup,
+  fireEvent,
+  render,
+  screen,
+  within,
+} from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 const { linkStatusMock } = vi.hoisted(() => ({
@@ -276,5 +282,92 @@ describe("PlatformSideRail", () => {
     );
 
     expect(fetchMock).not.toHaveBeenCalled();
+  });
+
+  // No celular a trilha vira a barra de baixo, e sete itens não cabiam em 360
+  // px: "Catálogo de índices" saía cortado na borda da tela.
+  describe("Mais, na barra do celular", () => {
+    function renderWithTour(
+      activeSection: "monitoring" | "catalog" = "monitoring",
+    ) {
+      const onReplayTour = vi.fn();
+      render(
+        <PlatformSideRail
+          activeSection={activeSection}
+          onSectionChange={() => {}}
+          isPanelOpen={false}
+          onTogglePanel={() => {}}
+          showAuditLink
+          onReplayTour={onReplayTour}
+        />,
+      );
+      return { onReplayTour };
+    }
+
+    it("guarda Auditoria, Catálogo, Aprovações e Tutorial numa lista", () => {
+      renderWithTour();
+      const more = screen.getByRole("button", { name: "Mais" });
+      expect(more).toHaveAttribute("aria-expanded", "false");
+
+      fireEvent.click(more);
+
+      expect(more).toHaveAttribute("aria-expanded", "true");
+      const menu = within(screen.getByRole("navigation", { name: "Mais" }));
+      expect(menu.getByRole("link", { name: "Auditoria" })).toHaveAttribute(
+        "href",
+        "/platform?view=logs",
+      );
+      expect(
+        menu.getByRole("link", { name: "Catálogo de índices" }),
+      ).toHaveAttribute("href", "/platform?view=catalog");
+      expect(
+        menu.getByRole("link", { name: "Aprovações" }),
+      ).toBeInTheDocument();
+      expect(
+        menu.getByRole("button", { name: "Tutorial" }),
+      ).toBeInTheDocument();
+    });
+
+    it("fecha com Esc e ao escolher um item", () => {
+      const { onReplayTour } = renderWithTour();
+      const more = screen.getByRole("button", { name: "Mais" });
+
+      fireEvent.click(more);
+      fireEvent.keyDown(window, { key: "Escape" });
+      expect(screen.queryByRole("navigation", { name: "Mais" })).toBeNull();
+
+      fireEvent.click(more);
+      fireEvent.click(
+        within(screen.getByRole("navigation", { name: "Mais" })).getByRole(
+          "button",
+          { name: "Tutorial" },
+        ),
+      );
+      expect(onReplayTour).toHaveBeenCalledOnce();
+      expect(screen.queryByRole("navigation", { name: "Mais" })).toBeNull();
+    });
+
+    it("destaca o Mais quando a tela aberta está dentro dele", () => {
+      renderWithTour("catalog");
+
+      expect(screen.getByRole("button", { name: "Mais" })).toHaveAttribute(
+        "data-rail-more-current",
+        "true",
+      );
+    });
+
+    it("não aparece para quem só vê as três seções", () => {
+      render(
+        <PlatformSideRail
+          activeSection="monitoring"
+          onSectionChange={() => {}}
+          isPanelOpen={false}
+          onTogglePanel={() => {}}
+          onReplayTour={() => {}}
+        />,
+      );
+
+      expect(screen.queryByRole("button", { name: "Mais" })).toBeNull();
+    });
   });
 });
