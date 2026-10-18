@@ -202,7 +202,7 @@ function ModalOverlay({
                   className={`flex min-h-9 items-center gap-2 rounded-[6px] px-2 py-1 text-left transition-colors ${disabled ? "cursor-not-allowed opacity-40" : "cursor-pointer hover:bg-[#F8F8F7]"}`}
                 >
                   <Checkbox checked={checked} />
-                  <span className="min-w-0 truncate font-['Open_Sans'] text-[16px] leading-5 font-normal text-black">
+                  <span className="min-w-0 break-words font-['Open_Sans'] text-[16px] leading-5 font-normal text-black">
                     {option.name}
                   </span>
 
