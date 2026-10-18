@@ -1,6 +1,6 @@
 import type { CDIVectorData } from "@/lib/geo";
 import maplibregl, { LngLatBoundsLike } from "maplibre-gl";
-import { useCallback, useId, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useId, useMemo, useRef, useState } from "react";
 import type { FeatureCollection, Geometry } from "geojson";
 import { BASE_STYLE, type MapMode } from "./mapDefinitions";
 import {
@@ -17,7 +17,9 @@ import {
   buildOverlayAwareFitBoundsPadding,
   buildOverlayAwareMapPadding,
   MAP_FIT_BOUNDS_BASE_PADDING,
+  PHONE_FIT_BOUNDS_PADDING,
 } from "./mapViewport";
+import { isPhoneViewport } from "@/components/PlatformMap/platformMapView";
 import { BRAZIL_TERRITORY_CODE } from "./stateSelection";
 import { useMapControllerEffects } from "./useMapControllerEffects";
 import { useMapSelectionRuntime } from "./useMapSelectionRuntime";
@@ -42,6 +44,14 @@ interface UseMapControllerArgs {
   spatialFocusBounds?: LngLatBoundsLike | null;
   allowedStateUfs?: Set<string> | null;
   spatialValue?: string;
+  /** Altura que os controles cobrem na borda de baixo do mapa (só no celular). */
+  bottomOverlayInset?: number;
+}
+
+/** O último enquadramento pedido, para refazê-lo quando a borda livre muda. */
+interface LastFit {
+  bounds: LngLatBoundsLike;
+  options: Omit<MapFitBoundsOptions, "padding"> & { basePadding?: number };
 }
 
 export const useMapController = ({
@@ -63,6 +73,7 @@ export const useMapController = ({
   spatialFocusBounds = null,
   allowedStateUfs = null,
   spatialValue = "brasil",
+  bottomOverlayInset = 0,
 }: UseMapControllerArgs) => {
   const debugEnabled = process.env.NODE_ENV !== "production";
   const mapRef = useRef<maplibregl.Map | null>(null);
@@ -111,6 +122,9 @@ export const useMapController = ({
   const pendingStyleSyncRef = useRef(false);
   const pendingSelectedSyncRef = useRef(false);
   const leftOverlayWidthRef = useRef(0);
+  const bottomOverlayInsetRef = useRef(bottomOverlayInset);
+  const lastFitRef = useRef<LastFit | null>(null);
+  const userMovedSinceFitRef = useRef(false);
   const spatialBoundaryGeoJsonRef = useRef<FeatureCollection<Geometry, { name: string }> | null>(spatialBoundaryGeoJson);
   const allowedStateUfsRef = useRef<Set<string> | null>(allowedStateUfs);
   const spatialValueRef = useRef<string>(spatialValue);
@@ -142,10 +156,16 @@ export const useMapController = ({
       options: Omit<MapFitBoundsOptions, "padding"> & { basePadding?: number } = {},
     ) => {
       const { basePadding = MAP_FIT_BOUNDS_BASE_PADDING, ...restOptions } = options;
+      lastFitRef.current = { bounds, options };
+      userMovedSinceFitRef.current = false;
       map.fitBounds(bounds, {
         ...restOptions,
         padding: buildOverlayAwareFitBoundsPadding({
-          basePadding,
+          // A folga de 200px do computador, num celular de 390px, deixava o
+          // Brasil (ou o estado) espremido numa faixa de 160px no meio.
+          basePadding: isPhoneViewport()
+            ? Math.min(basePadding, PHONE_FIT_BOUNDS_PADDING)
+            : basePadding,
           containerWidth: map.getContainer().clientWidth,
           leftOverlayWidth: leftOverlayWidthRef.current,
         }),
@@ -199,10 +219,42 @@ export const useMapController = ({
       buildOverlayAwareMapPadding({
         basePadding: MAP_FIT_BOUNDS_BASE_PADDING,
         containerWidth: map.getContainer().clientWidth,
+        containerHeight: map.getContainer().clientHeight,
         leftOverlayWidth: leftOverlayWidthRef.current,
+        bottomOverlayHeight: bottomOverlayInsetRef.current,
       }),
     );
   }, []);
+
+  // Quem arrasta, pinça ou usa o zoom escolheu outro enquadramento: a partir
+  // daí a legenda abrir ou fechar não deve tirar o mapa de onde a pessoa o pôs.
+  useEffect(() => {
+    const map = mapRef.current;
+    if (!map) return;
+
+    const onMoveStart = (event: { originalEvent?: unknown }) => {
+      if (event.originalEvent) userMovedSinceFitRef.current = true;
+    };
+    map.on("movestart", onMoveStart);
+    return () => {
+      map.off("movestart", onMoveStart);
+    };
+  }, [mapInstanceVersion]);
+
+  // No celular a legenda e o botão "Mostrar opções" cobrem a borda de baixo.
+  // A folga do mapa acompanha essa altura, e, enquanto a pessoa não mexeu no
+  // mapa, o último enquadramento é refeito para caber acima deles.
+  useEffect(() => {
+    bottomOverlayInsetRef.current = bottomOverlayInset;
+    const map = mapRef.current;
+    if (!map) return;
+
+    syncMapPadding(map);
+    const lastFit = lastFitRef.current;
+    if (lastFit && !userMovedSinceFitRef.current) {
+      fitMapToBounds(map, lastFit.bounds, { ...lastFit.options, animate: false });
+    }
+  }, [bottomOverlayInset, fitMapToBounds, mapInstanceVersion, syncMapPadding]);
 
   const {
     applySelectedFeatureState,

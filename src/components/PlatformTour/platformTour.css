@@ -254,3 +254,9 @@
     animation: none;
   }
 }
+
+/* No celular o botão "Ver mapa" flutua sobre a listagem e cobria o cartão que
+   o tutorial destaca. Durante o tutorial ele não tem o que fazer. */
+body.driver-active [data-mobile-view-toggle] {
+  visibility: hidden;
+}

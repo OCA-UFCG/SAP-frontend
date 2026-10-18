@@ -203,9 +203,11 @@ function RailItemContent({
       </div>
 
       {/* Na barra de baixo do celular ficam no máximo quatro itens (o resto vai
-          para "Mais"), cada um com ~80 px num celular de 320 px: "Comunicação"
-          cabe inteira em 11 px, sem quebrar no meio da palavra. */}
-      <div className="text-[12px] leading-[14px] font-medium text-center break-words w-full max-md:text-[11px] max-md:leading-[13px]">
+          para "Mais"), cada um com ~78 px num celular de 320 px. "Comunicação"
+          em 11 px mede ~74 px e passava por pouco do espaço sem o recuo do
+          botão, quebrando em "Comunicaçã/o": fica numa linha só, e abaixo de
+          360 px desce para 10 px para não encostar em "Priorização". */}
+      <div className="text-[12px] leading-[14px] font-medium text-center break-words w-full max-md:text-[11px] max-md:leading-[13px] max-md:whitespace-nowrap max-[359px]:text-[10px]">
         {label}
       </div>
     </>
@@ -410,6 +412,13 @@ export function PlatformSideRail({
   }
 
   const overflowItems = items.filter((item) => item.kind === "link");
+  // No celular a lista divide a barra com o botão Tutorial. Crescendo na
+  // proporção dos itens que mostra, cada botão fica com a mesma largura; com
+  // `flex-1` nos dois, as três seções se espremiam em meia barra e
+  // "Comunicação" quebrava em duas linhas.
+  const phoneListItemCount =
+    items.filter((item) => item.kind === "section").length +
+    (hasOverflow ? 1 : 0);
 
   return (
     <div
@@ -439,6 +448,7 @@ export function PlatformSideRail({
             "max-md:w-auto max-md:min-w-0 max-md:flex-row max-md:gap-0 max-md:overflow-x-auto max-md:overflow-y-hidden",
           )}
           data-tour="platform-sections"
+          style={{ flexGrow: phoneListItemCount }}
         >
           <span
             ref={indicatorRef}

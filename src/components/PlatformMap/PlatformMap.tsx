@@ -110,6 +110,7 @@ export function PlatformMap({
   const monitoring = useMonitoringMapLayers();
   const analysis = useOptionalAmfeAnalysis();
   const isAnalysis = section === "analysis" && analysis !== null;
+  const [monitoringBottomInset, setMonitoringBottomInset] = useState(0);
   // Só vale para o enquadramento de abertura: depois a pessoa move o mapa.
   const [initialView] = useState(() =>
     isPhoneViewport()
@@ -161,7 +162,10 @@ export function PlatformMap({
           className="h-full w-full"
           {...(isAnalysis && analysis
             ? buildAnalysisMapProps(analysis)
-            : buildMonitoringMapProps(monitoring))}
+            : {
+                ...buildMonitoringMapProps(monitoring),
+                bottomOverlayInset: monitoringBottomInset,
+              })}
         />
 
         {isAnalysis ? (
@@ -170,6 +174,7 @@ export function PlatformMap({
           <MonitoringMapOverlays
             monitoring={monitoring}
             showControls={showMonitoringControls}
+            onBottomInsetChange={setMonitoringBottomInset}
           />
         )}
       </div>

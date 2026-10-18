@@ -75,6 +75,8 @@ describe("MapControlDisclosure", () => {
     const { container: caption } = render(
       <PlatformMapCaption legend={[{ label: "Seca fraca", color: "#ff0" }]} />,
     );
+    // Legendas nasce aberta; fechado, o cartão encolhe no celular.
+    fireEvent.click(screen.getByRole("button", { name: "Territórios" }));
 
     expect(overlays.firstElementChild?.className).toBe(
       caption.firstElementChild?.className,

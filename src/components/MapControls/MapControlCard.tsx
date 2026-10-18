@@ -15,13 +15,16 @@ import { Chevron } from "@/components/Chevron/Chevron";
 export function MapControlCard({
   children,
   ariaLabel,
+  collapsed = false,
 }: {
   children: ReactNode;
   ariaLabel?: string;
+  /** Fechado, no celular o cartão encolhe até o tamanho do próprio rótulo. */
+  collapsed?: boolean;
 }) {
   return (
     <div
-      className="box-border flex w-[302px] shrink-0 flex-col gap-2.5 self-stretch rounded-lg border border-[#EFEFEF] bg-white px-4 py-3"
+      className={`box-border flex w-[302px] shrink-0 flex-col gap-2.5 self-stretch rounded-lg border border-[#EFEFEF] bg-white px-4 py-3 max-md:gap-1.5 max-md:py-2 ${collapsed ? "max-md:w-auto max-md:self-end" : ""}`}
       role={ariaLabel ? "group" : undefined}
       aria-label={ariaLabel}
     >
@@ -30,9 +33,12 @@ export function MapControlCard({
   );
 }
 
-/** A tipografia única dos rótulos dos controles do mapa. */
+/**
+ * A tipografia única dos rótulos dos controles do mapa. No celular sobe para
+ * 12px: 10px se lê com a tela na mesa, não com ela na mão.
+ */
 export const MAP_CONTROL_LABEL_CLASS =
-  "font-open-sans text-[10px] leading-[18px] tracking-[-0.006em] text-[#292829]";
+  "font-open-sans text-[10px] leading-[18px] tracking-[-0.006em] text-[#292829] max-md:text-xs max-md:leading-4";
 
 /**
  * Um cartão que abre e fecha pelo próprio cabeçalho, com o mesmo chevron e a
@@ -66,10 +72,10 @@ export function MapControlDisclosure({
   const [isOpen, setIsOpen] = useState(defaultOpen);
 
   return (
-    <MapControlCard ariaLabel={label}>
+    <MapControlCard ariaLabel={label} collapsed={!isOpen}>
       <button
         type="button"
-        className="group flex w-full cursor-pointer items-center justify-between bg-transparent text-left outline-none"
+        className="group flex w-full cursor-pointer items-center justify-between gap-2 bg-transparent text-left outline-none"
         onClick={() => {
           if (!isOpen) onOpen?.();
           setIsOpen(!isOpen);

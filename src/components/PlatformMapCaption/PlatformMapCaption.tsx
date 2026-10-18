@@ -37,7 +37,7 @@ export function PlatformMapCaption({ legend }: { legend: IImageParam[] }) {
           cobriam a metade de baixo do mapa — justamente o Nordeste. */}
       {() => (
         <div
-          className={`legend-cascade flex flex-col gap-1.5 max-md:grid max-md:grid-cols-2 max-md:gap-x-3 ${shouldScroll ? "max-h-[168px] overflow-y-auto pr-2" : ""}`}
+          className={`legend-cascade flex flex-col gap-1.5 max-md:grid max-md:grid-cols-2 max-md:gap-x-3 max-md:gap-y-1 ${shouldScroll ? "max-h-[168px] overflow-y-auto pr-2 max-md:max-h-[104px]" : ""}`}
         >
           {legend.map((item) => {
             const slug = toLabelSlug(item.label);
@@ -46,9 +46,9 @@ export function PlatformMapCaption({ legend }: { legend: IImageParam[] }) {
               : item.label;
 
             return (
-              <div key={item.label} className="flex items-center gap-3">
+              <div key={item.label} className="flex items-center gap-3 max-md:gap-2">
                 <span
-                  className="h-4 w-4 shrink-0 rounded-full border border-[#C4C4C4]"
+                  className="h-4 w-4 shrink-0 rounded-full border border-[#C4C4C4] max-md:h-3 max-md:w-3"
                   style={{ backgroundColor: item.color }}
                 />
                 <span className={MAP_CONTROL_LABEL_CLASS}>{displayLabel}</span>
