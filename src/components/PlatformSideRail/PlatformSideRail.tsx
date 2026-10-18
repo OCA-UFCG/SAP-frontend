@@ -525,6 +525,7 @@ export function PlatformSideRail({
                 }
                 aria-expanded={moreOpen}
                 aria-controls={moreMenuId}
+                data-tour="platform-more"
                 data-rail-more-current={
                   overflowItems.some((item) => item.id === activeSection) ||
                   undefined

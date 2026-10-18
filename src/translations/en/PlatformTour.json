@@ -40,6 +40,10 @@
       "replay": {
         "title": "All set",
         "description": "To see this walkthrough again, just click Tour."
+      },
+      "replayInMore": {
+        "title": "All set",
+        "description": "To see this walkthrough again, tap More and then Tour."
       }
     }
   }

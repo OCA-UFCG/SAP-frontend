@@ -40,6 +40,10 @@
       "replay": {
         "title": "Todo listo",
         "description": "Para volver a ver este recorrido, solo haz clic en Tutorial."
+      },
+      "replayInMore": {
+        "title": "Todo listo",
+        "description": "Para volver a ver este recorrido, toca Más y luego Tutorial."
       }
     }
   }
