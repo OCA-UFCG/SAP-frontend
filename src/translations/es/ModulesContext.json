@@ -4,11 +4,11 @@
     "subtitle": "Seleccione qué producto desea analizar",
     "areaSection": {
       "title": "Área de Interés",
-      "description": "Define el recorte geográfico donde se aplicará el análisis"
+      "description": "Define el recorte del mapa en el que aparece el producto."
     },
-    "indicatorsSection": {
-      "title": "Indicadores",
-      "description": "Seleccione los indicadores que desea visualizar en el área de interés."
+    "productsSection": {
+      "title": "Productos",
+      "description": "Active un producto para verlo en el mapa. En Detalles, vea gráficos y rankings."
     },
     "categories": {
       "climate": "Datos Climáticos",

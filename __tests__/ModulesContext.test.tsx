@@ -169,7 +169,7 @@ describe("ModulesContext", () => {
       .map((heading) => heading.textContent);
     expect(titles).toEqual([
       "Área de Interesse",
-      "Indicadores",
+      "Produtos",
       "Monitor de Secas",
       "Índice de Aridez",
       "Previsão: Anomalia Precipitação",

@@ -16,22 +16,22 @@
       "sections": {
         "title": "Três áreas de trabalho",
         "items": {
-          "monitoring": "Veja os índices no mapa.",
+          "monitoring": "Veja os produtos no mapa.",
           "communication": "Gere o relatório de um município.",
           "analysis": "Combine vários índices numa análise multicritério."
         }
       },
       "spatialScope": {
         "title": "Escolha onde olhar",
-        "description": "Escolha a área do mapa: o país todo, uma região, um estado, um bioma, o Semiárido ou ASD e Entorno. O índice ligado aparece só dentro dela."
+        "description": "Escolha a área do mapa: o país todo, uma região, um estado, um bioma, o Semiárido ou ASD e Entorno. O produto ligado aparece só dentro dela."
       },
       "layerCard": {
-        "title": "Cada cartão é um índice",
-        "description": "Use o botão de ligar à esquerda para mostrar o índice no mapa; a legenda aparece no canto inferior direito. O “i” explica o que o índice mede, e Detalhamento abre gráficos, ranking e a busca por estado ou município."
+        "title": "Cada cartão é um produto",
+        "description": "Use o botão de ligar à esquerda para mostrar o produto no mapa; a legenda aparece no canto inferior direito. O “i” explica o que o produto mede, e Detalhamento abre gráficos, ranking e a busca por estado ou município."
       },
       "mapSettings": {
         "title": "Ajustes do mapa",
-        "description": "Troque o mapa base entre Satélite e Rua. Com um índice ligado, ajuste também a transparência."
+        "description": "Troque o mapa base entre Satélite e Rua. Com um produto ligado, ajuste também a transparência."
       },
       "territories": {
         "title": "Territórios",

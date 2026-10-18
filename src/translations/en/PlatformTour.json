@@ -16,22 +16,22 @@
       "sections": {
         "title": "Three work areas",
         "items": {
-          "monitoring": "See the indices on the map.",
+          "monitoring": "See the products on the map.",
           "communication": "Generate a municipality report.",
           "analysis": "Combine several indices in a multicriteria analysis."
         }
       },
       "spatialScope": {
         "title": "Choose where to look",
-        "description": "Choose the map area: the whole country, a region, a state, a biome, the Semi-arid region or ASD and surroundings. The active index is shown only inside it."
+        "description": "Choose the map area: the whole country, a region, a state, a biome, the Semi-arid region or ASD and surroundings. The active product is shown only inside it."
       },
       "layerCard": {
-        "title": "Each card is an index",
-        "description": "Use the on/off toggle on the left to show the index on the map; the legend appears in the bottom right corner. The “i” explains what the index measures, and Details opens charts, the ranking and the search by state or municipality."
+        "title": "Each card is a product",
+        "description": "Use the on/off toggle on the left to show the product on the map; the legend appears in the bottom right corner. The “i” explains what the product measures, and Details opens charts, the ranking and the search by state or municipality."
       },
       "mapSettings": {
         "title": "Map settings",
-        "description": "Switch the basemap between Satellite and Street. With an index on, you can also adjust its transparency."
+        "description": "Switch the basemap between Satellite and Street. With a product on, you can also adjust its transparency."
       },
       "territories": {
         "title": "Territories",

@@ -4,11 +4,11 @@
     "subtitle": "Select which product you want to analyze",
     "areaSection": {
       "title": "Area of Interest",
-      "description": "Defines the geographic area where the analysis will be applied"
+      "description": "Defines the map area where the product is shown."
     },
-    "indicatorsSection": {
-      "title": "Indicators",
-      "description": "Select the indicators you want to view in the area of interest."
+    "productsSection": {
+      "title": "Products",
+      "description": "Turn on a product to see it on the map. Open Details for charts and rankings."
     },
     "categories": {
       "climate": "Climate Data",
