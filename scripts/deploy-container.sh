@@ -20,9 +20,10 @@ set -euo pipefail
 : "${NETWORK_NAME:?NETWORK_NAME é obrigatório (ex.: sap-network)}"
 
 PREVIOUS_CONTAINER="${CONTAINER_NAME}-previous"
-# Tile z0/0/0 do brazil-states: existe de verdade, não exige login e exercita
-# rota + leitura do MBTiles, então prova bem mais que "o processo subiu".
-HEALTH_PATH="${HEALTH_PATH:-/api/tiles/0/0/0?tileset=states}"
+# Testa GEE, Contentful, Firebase, backend multicritério e SMTP com as
+# variáveis do container novo, e responde 503 se algum falhar. Uma credencial
+# errada ou faltando reprova a versão aqui, antes de o usuário encontrar.
+HEALTH_PATH="${HEALTH_PATH:-/api/health}"
 HEALTH_TIMEOUT_SECONDS="${HEALTH_TIMEOUT_SECONDS:-120}"
 # Teto para o container antigo encerrar sozinho. Só vira espera real se o processo
 # travar: com o Next como PID 1 o desligamento medido foi de 739ms.
@@ -35,7 +36,9 @@ FORWARDED_ENV_VARS=(
   FIREBASE_PROJECT_ID
   FIREBASE_CLIENT_EMAIL
   FIREBASE_PRIVATE_KEY_BASE64
+  TURNSTILE_SECRET_KEY
   FIREBASE_TELEMETRY_COLLECTION
+  FIREBASE_TELEMETRY_COLLECTION_PRODUCTION
   LOGS_ALLOWED_EMAILS
   CONTENTFUL_MANAGEMENT_TOKEN
   DOCS_DEFAULT
@@ -48,8 +51,11 @@ FORWARDED_ENV_VARS=(
   SIGNUP_ALLOWED_DOMAINS
   FIREBASE_ACCESS_REQUESTS_COLLECTION
   PLATFORM_ACCESS_GUARD_ENABLED
-  # Só produção define; nos outros ambientes fica de fora do container.
+  # As de baixo só um ambiente define; nos outros ficam de fora do container.
   EMAIL_LINKS_BASE_URL
+  ADMIN_LINKS_BASE_URL
+  PUBLIC_LINKS_BASE_URL
+  CONTENTFUL_REVALIDATE_SECONDS
 )
 
 # Os runners self-hosted exigem sudo para falar com o daemon; um ambiente onde o
@@ -204,7 +210,7 @@ retire_current_container() {
   docker_as_root rename "$CONTAINER_NAME" "$PREVIOUS_CONTAINER"
   # stop, e não rm: é este container que volta se a nova imagem falhar. Encerrar
   # com sinal, em vez de matar, deixa os requests em andamento terminarem.
-  docker_as_root stop --time "$STOP_TIMEOUT_SECONDS" "$PREVIOUS_CONTAINER"
+  docker_as_root stop -t "$STOP_TIMEOUT_SECONDS" "$PREVIOUS_CONTAINER"
 }
 
 main() {
