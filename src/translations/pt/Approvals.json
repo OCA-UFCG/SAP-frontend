@@ -15,6 +15,24 @@
     "failed": "Não foi possível salvar a decisão.",
     "loadFailed": "Não foi possível carregar os pedidos. Avise a equipe técnica: pode faltar o índice do Firestore.",
     "conflict": "Outra pessoa decidiu este pedido antes de você.",
-    "backToPlatform": "Voltar para a plataforma"
+    "backToPlatform": "Voltar para a plataforma",
+    "accountsTitle": "Quem tem acesso",
+    "accountsSubtitle": "Contas liberadas, pelo cadastro ou de antes dele. Remover o acesso derruba as sessões abertas em até 5 minutos e pode ser desfeito; excluir apaga a conta e o registro do cadastro.",
+    "accountsEmpty": "Nenhuma conta com acesso.",
+    "accountsLoadFailed": "Não foi possível carregar as contas. Avise a equipe técnica.",
+    "originColumn": "Origem",
+    "statusColumn": "Situação",
+    "originSignup": "Cadastro",
+    "originLegacy": "Conta antiga",
+    "statusActive": "Com acesso",
+    "statusRevoked": "Acesso removido",
+    "since": "desde {date}",
+    "revoke": "Remover acesso",
+    "restore": "Devolver acesso",
+    "delete": "Excluir conta",
+    "confirmDelete": "Confirmar exclusão",
+    "cancel": "Cancelar",
+    "deleted": "Conta excluída",
+    "yourAccount": "Sua conta"
   }
 }

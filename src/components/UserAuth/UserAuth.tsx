@@ -7,6 +7,7 @@ import { useTranslations } from "next-intl";
 import { Icon } from "../Icon/Icon";
 import { LanguageSwitcher } from "../LanguageSwitcher/LanguageSwitcher";
 import { navigateWithFullReload } from "@/utils/fullPageNavigation";
+import { Link } from "@/translations/routing";
 
 export const UserAuth = () => {
   const t = useTranslations("UserAuth");
@@ -98,6 +99,16 @@ export const UserAuth = () => {
                   {sessionValue}
                 </p>
               </div>
+
+              {/* Fica no menu de quem está logado, perto do "Sair", porque é
+                  onde se procura o que fazer com a própria conta. */}
+              <Link
+                href="/excluir-conta"
+                onClick={() => setOpenPathname(null)}
+                className="block w-full px-4 py-2 text-sm text-stone-600 transition-colors hover:bg-stone-100"
+              >
+                {t("deleteAccount")}
+              </Link>
 
               <button
                 type="button"

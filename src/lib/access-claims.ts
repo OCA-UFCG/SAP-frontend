@@ -11,6 +11,13 @@ export { isAccessGuardEnabled } from "@/lib/access-flag";
  */
 export const ACCESS_CLAIM_NAMESPACE = "sap";
 export const APPROVED_ACCESS = "approved";
+/**
+ * Acesso removido pela equipe. O claim continua na conta, em vez de sumir, por
+ * dois motivos: guarda o `tier` para o acesso poder ser devolvido como era, e
+ * é o que a tela de Aprovações usa para listar quem já teve acesso.
+ * `readAccessClaim` não reconhece este valor, então o guard nega.
+ */
+export const REVOKED_ACCESS = "revoked";
 
 /**
  * Como a pessoa ganhou acesso. `allowed` e `common` vêm do cadastro; `legacy`
@@ -107,4 +114,65 @@ export async function approveAccess(
   });
 
   await adminAuth.revokeRefreshTokens(uid);
+}
+
+export interface StoredAccess {
+  access: typeof APPROVED_ACCESS | typeof REVOKED_ACCESS;
+  tier: AccessTier;
+  at: number;
+}
+
+/**
+ * Como `readAccessClaim`, mas também reconhece o acesso removido. Serve à tela
+ * de Aprovações, que lista os dois. Nunca use para autorizar.
+ */
+export function readStoredAccess(claims: unknown): StoredAccess | null {
+  if (!claims || typeof claims !== "object") return null;
+
+  const namespaced = (claims as Record<string, unknown>)[
+    ACCESS_CLAIM_NAMESPACE
+  ];
+  if (!namespaced || typeof namespaced !== "object") return null;
+
+  const { access, tier, at } = namespaced as Record<string, unknown>;
+
+  if (access !== APPROVED_ACCESS && access !== REVOKED_ACCESS) return null;
+  if (!ACCESS_TIERS.includes(tier as AccessTier)) return null;
+
+  return {
+    access,
+    tier: tier as AccessTier,
+    at: typeof at === "number" ? at : 0,
+  };
+}
+
+/**
+ * Tira o acesso de alguém e derruba as sessões abertas dela. O efeito chega em
+ * até 5 minutos, o TTL do cache de sessões verificadas — o mesmo prazo da
+ * aprovação, pelo mesmo motivo.
+ *
+ * Devolve o `tier` que a conta tinha, para quem chama registrar na trilha.
+ *
+ * const tier = await revokeAccess(uid);
+ */
+export async function revokeAccess(
+  uid: string,
+  atSeconds = nowInSeconds(),
+): Promise<AccessTier> {
+  const { customClaims } = await adminAuth.getUser(uid);
+  const tier = readStoredAccess(customClaims)?.tier ?? "legacy";
+
+  // Mesmo cuidado de `approveAccess`: `setCustomUserClaims` substitui tudo.
+  await adminAuth.setCustomUserClaims(uid, {
+    ...customClaims,
+    [ACCESS_CLAIM_NAMESPACE]: {
+      access: REVOKED_ACCESS,
+      tier,
+      at: atSeconds,
+    },
+  });
+
+  await adminAuth.revokeRefreshTokens(uid);
+
+  return tier;
 }

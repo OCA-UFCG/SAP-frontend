@@ -6,6 +6,7 @@
     "logout": "Logout",
     "login": "Login",
     "menuLabel": "User menu",
-    "statusLabel": "User status"
+    "statusLabel": "User status",
+    "deleteAccount": "Delete my account"
   }
 }

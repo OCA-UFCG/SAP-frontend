@@ -1,6 +1,7 @@
 import { adminAuth, adminDb } from "@/lib/firebase-admin";
 import type { SignupTier } from "@/lib/signup-domains";
 import type { AccessTier } from "@/lib/access-claims";
+import { routing } from "@/translations/routing-config";
 
 /**
  * A trilha de auditoria do cadastro: um registro por pedido, com quem pediu, o
@@ -39,7 +40,13 @@ export function resolveAccessRequestsCollectionName(
 export const ACCESS_REQUESTS_COLLECTION = resolveAccessRequestsCollectionName();
 export const INTENTION_MAX_LENGTH = 1000;
 
-export type AccessRequestStatus = "pending" | "approved" | "rejected";
+/**
+ * `revoked` é o acesso que a equipe tirou depois de liberado. Ele precisa ficar
+ * aqui, e não só no claim: sem ele, o login de uma conta institucional sem
+ * pedido registrado abriria um pedido novo e a liberaria de novo sozinho
+ * (`settleSignup`).
+ */
+export type AccessRequestStatus = "pending" | "approved" | "rejected" | "revoked";
 
 export interface AccessRequestInput {
   email: string;
@@ -53,7 +60,9 @@ export interface AccessRequestInput {
   locale: string;
 }
 
-export interface AccessRequest extends AccessRequestInput {
+export interface AccessRequest extends Omit<AccessRequestInput, "tier"> {
+  /** `legacy` só aparece no registro aberto ao remover o acesso de uma conta antiga. */
+  tier: AccessTier;
   status: AccessRequestStatus;
   createdAt: string;
   decidedAt: string | null;
@@ -274,4 +283,75 @@ export async function recordAccessDecision(
     decidedBy,
     decidedAt: new Date().toISOString(),
   });
+}
+
+/**
+ * Registra na trilha que a equipe tirou (ou devolveu) o acesso de alguém.
+ *
+ * Contas antigas, de antes do cadastro, não têm registro nenhum. Para elas o
+ * registro é aberto agora, já decidido — e com `notifiedAt` preenchido, porque
+ * não é um pedido e a equipe não precisa ser avisada de nada.
+ */
+export async function recordAccessChange(
+  uid: string,
+  {
+    status,
+    email,
+    tier,
+    decidedBy,
+  }: {
+    status: Extract<AccessRequestStatus, "approved" | "revoked">;
+    email: string;
+    tier: AccessTier;
+    decidedBy: string | null;
+  },
+) {
+  const now = new Date().toISOString();
+  const existing = await requestDoc(uid).get();
+
+  if (existing.exists) {
+    await requestDoc(uid).update({ status, decidedBy, decidedAt: now });
+    return;
+  }
+
+  await requestDoc(uid).set({
+    email,
+    tier,
+    intention: "",
+    locale: routing.defaultLocale,
+    status,
+    createdAt: now,
+    decidedAt: now,
+    decidedBy,
+    notifiedAt: now,
+  });
+}
+
+/**
+ * Os registros de várias contas de uma vez, para a lista de quem tem acesso.
+ * Uma leitura só, em vez de uma por linha.
+ */
+export async function readAccessRequests(uids: string[]) {
+  const found = new Map<string, AccessRequest>();
+
+  if (uids.length === 0) return found;
+
+  const snapshots = await adminDb.getAll(...uids.map((uid) => requestDoc(uid)));
+
+  snapshots
+    .filter((snapshot) => snapshot.exists)
+    .forEach((snapshot) =>
+      found.set(snapshot.id, snapshot.data() as AccessRequest),
+    );
+
+  return found;
+}
+
+/**
+ * Apaga o registro de uma conta que está sendo excluída. Ele guarda o e-mail e
+ * a intenção de uso, que a pessoa escreveu com as próprias palavras — não faz
+ * sentido manter isso depois de ela pedir para sair.
+ */
+export async function deleteAccessRequest(uid: string) {
+  await requestDoc(uid).delete();
 }

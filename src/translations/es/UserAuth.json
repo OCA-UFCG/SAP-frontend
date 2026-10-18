@@ -6,6 +6,7 @@
     "logout": "Salir",
     "login": "Entrar",
     "menuLabel": "Menú del usuario",
-    "statusLabel": "Estado del usuario"
+    "statusLabel": "Estado del usuario",
+    "deleteAccount": "Eliminar mi cuenta"
   }
 }

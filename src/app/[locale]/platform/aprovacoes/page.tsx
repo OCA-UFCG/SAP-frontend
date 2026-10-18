@@ -2,10 +2,18 @@ import { cookies } from "next/headers";
 import { notFound } from "next/navigation";
 import { getTranslations } from "next-intl/server";
 import { Link } from "@/translations/routing";
-import { SESSION_COOKIE_NAME } from "@/lib/server-session";
+import {
+  SESSION_COOKIE_NAME,
+  getAuthenticatedSessionFromCookie,
+} from "@/lib/server-session";
 import { resolveLogsViewerAccess } from "@/lib/logs-access";
 import { listPendingAccessRequests } from "@/lib/access-requests";
+import {
+  listAccountsWithAccess,
+  type AccountWithAccess,
+} from "@/lib/account-management";
 import { ApprovalsTable } from "./ApprovalsTable";
+import { AccountsTable } from "./AccountsTable";
 
 /**
  * Tela de decisão sobre pedidos de acesso.
@@ -76,6 +84,21 @@ export default async function ApprovalsPage({
     );
   }
 
+  // A lista de contas lê todas as contas do Firebase; se ela falhar, os pedidos
+  // pendentes continuam decidíveis.
+  const viewer = await getAuthenticatedSessionFromCookie(sessionCookie);
+  let accounts: AccountWithAccess[] = [];
+  let accountsFailed = false;
+
+  try {
+    accounts = await listAccountsWithAccess();
+  } catch (error) {
+    accountsFailed = true;
+    console.error("Falha ao listar as contas com acesso.", error);
+  }
+
+  const formatDate = new Intl.DateTimeFormat(locale, { dateStyle: "short" });
+
   return (
     <main className="flex w-full flex-col gap-6 px-6 py-10">
       {backToPlatform}
@@ -98,6 +121,37 @@ export default async function ApprovalsPage({
           }).format(new Date(request.createdAt)),
         }))}
       />
+
+      <div className="mt-6 flex flex-col gap-2">
+        <h2 className="font-inter text-[18px] font-medium leading-7 tracking-[-0.36px] text-[#50554C]">
+          {t("accountsTitle")}
+        </h2>
+        <p className="max-w-[46rem] text-[14px] leading-6 text-[#676264]">
+          {t("accountsSubtitle")}
+        </p>
+      </div>
+
+      {accountsFailed ? (
+        <p
+          role="alert"
+          className="max-w-[46rem] rounded-[7px] bg-[#FCE8E6] px-3 py-2.5 text-[14px] leading-6 text-[#B3261E]"
+        >
+          {t("accountsLoadFailed")}
+        </p>
+      ) : (
+        <AccountsTable
+          rows={accounts.map((account) => ({
+            uid: account.uid,
+            email: account.email,
+            revoked: account.access === "revoked",
+            origin:
+              account.tier === "legacy" ? t("originLegacy") : t("originSignup"),
+            since: account.at ? formatDate.format(new Date(account.at * 1000)) : "—",
+            intention: account.intention,
+            self: account.uid === viewer?.uid,
+          }))}
+        />
+      )}
     </main>
   );
 }
