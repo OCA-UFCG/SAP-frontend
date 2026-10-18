@@ -22,12 +22,457 @@ textarea {
   font-family: inherit;
 }
 
+/* No iPhone, tocar num campo com letra menor que 16 px amplia a página sozinho,
+   e ela continua ampliada depois (o login e o cadastro abriam "com zoom"). Em
+   tela de toque os campos ficam com 16 px; no computador, com o do design. */
+@media (pointer: coarse) {
+  input:not([type="checkbox"], [type="radio"], [type="range"]),
+  select,
+  textarea {
+    font-size: 16px;
+  }
+}
+
 .font-open-sans {
   font-family: var(--font-open-sans), sans-serif;
 }
 
 .font-inter {
   font-family: var(--font-inter), sans-serif;
+}
+
+/* Movimento da home. Quem pediu menos movimento no sistema vê tudo parado e
+   já no lugar; sem JavaScript também (`scripting`), para nada ficar oculto. */
+@keyframes reveal-up {
+  from {
+    opacity: 0;
+    transform: translateY(28px);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+/* Onda das letras da logo no hover (SedesLogo): cada uma pula e volta. */
+@keyframes logo-wave {
+  0%,
+  100% {
+    transform: none;
+  }
+  45% {
+    transform: translateY(-4px);
+  }
+}
+
+/* Abertura dos menus do topo (idioma e conta), como o de "Início": desce da
+   barra e os itens entram da esquerda, em cascata. */
+@keyframes menu-in {
+  from {
+    opacity: 0;
+    transform: translateY(-4px) scaleY(0.95);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+@keyframes menu-item-in {
+  from {
+    opacity: 0;
+    transform: translateX(-8px);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+@keyframes shine {
+  from {
+    transform: translateX(-120%) skewX(-20deg);
+  }
+  to {
+    transform: translateX(320%) skewX(-20deg);
+  }
+}
+
+@media (prefers-reduced-motion: no-preference) and (scripting: enabled) {
+  /* Usa `transform`, e não `translate`/`scale`, para não brigar com o hover
+     dos cards, que usa as propriedades separadas do Tailwind. */
+  .reveal-item {
+    opacity: 0;
+  }
+
+  [data-shown] .reveal-item {
+    animation: reveal-up 700ms cubic-bezier(0.2, 0.7, 0.2, 1) both;
+    animation-delay: calc(var(--i, 0) * 110ms);
+  }
+
+  /* Número do CountUp antes de a página ficar interativa: escondido, para não
+     piscar o valor final antes da contagem; se o JavaScript demora mais de
+     1 s, aparece sozinho. */
+  .count-up-pending {
+    opacity: 0;
+    animation: count-up-fallback 0s 1s forwards;
+  }
+}
+
+@keyframes count-up-fallback {
+  to {
+    opacity: 1;
+  }
+}
+
+/* Faixa de luz que atravessa o botão no hover. */
+.shine {
+  position: relative;
+  overflow: hidden;
+  isolation: isolate;
+}
+
+.shine::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  width: 35%;
+  background: linear-gradient(
+    90deg,
+    transparent,
+    rgba(255, 255, 255, 0.35),
+    transparent
+  );
+  transform: translateX(-120%) skewX(-20deg);
+  pointer-events: none;
+  z-index: -1;
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  .shine:hover::after {
+    animation: shine 800ms ease-out;
+  }
+}
+
+/* Brilho que segue o mouse (componente Spotlight): um halo dentro do card
+   que está sob o ponteiro. */
+.spotlight-card::before {
+  content: "";
+  position: absolute;
+  pointer-events: none;
+  opacity: 0;
+  transition: opacity 400ms ease;
+  inset: 0;
+  z-index: 1;
+  border-radius: inherit;
+  background: radial-gradient(
+    420px circle at var(--mx, 50%) var(--my, 50%),
+    rgba(240, 240, 215, 0.22),
+    transparent 60%
+  );
+}
+
+.spotlight-card:hover::before {
+  opacity: 1;
+}
+
+/* Movimento da plataforma. Mesmo combinado da home: tudo dentro de
+   `prefers-reduced-motion: no-preference`, e nada fica escondido se a animação
+   não rodar, porque o estado final de cada uma é o próprio elemento parado. */
+@keyframes panel-in {
+  from {
+    opacity: 0;
+    transform: translateY(14px);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+/* Ícones da trilha lateral: cada seção tem um gesto próprio. A piscada do
+   olho tem duas partes: o olho fecha achatando até sumir e, nesse instante,
+   uma linha reta faz o papel da pálpebra fechada. */
+@keyframes eye-close {
+  0%,
+  100% {
+    transform: none;
+  }
+  40%,
+  60% {
+    transform: scaleY(0);
+  }
+}
+
+@keyframes eye-lid {
+  0%,
+  30%,
+  70%,
+  100% {
+    opacity: 0;
+  }
+  40%,
+  60% {
+    opacity: 1;
+  }
+}
+
+@keyframes icon-wiggle {
+  0%,
+  100% {
+    transform: none;
+  }
+  25% {
+    transform: rotate(-14deg) scale(1.1);
+  }
+  50% {
+    transform: rotate(10deg) scale(1.1);
+  }
+  75% {
+    transform: rotate(-5deg);
+  }
+}
+
+@keyframes icon-pulse {
+  0%,
+  100% {
+    transform: none;
+  }
+  40% {
+    transform: scale(1.28);
+  }
+  70% {
+    transform: scale(0.94);
+  }
+}
+
+/* Anel que se espalha a partir de um botão ou cartão que acabou de "acordar". */
+@keyframes ready-ring {
+  from {
+    box-shadow: 0 0 0 0 rgba(152, 159, 67, 0.55);
+  }
+  to {
+    box-shadow: 0 0 0 12px rgba(152, 159, 67, 0);
+  }
+}
+
+@keyframes pop-in {
+  0% {
+    opacity: 0;
+    transform: scale(0);
+  }
+  70% {
+    opacity: 1;
+    transform: scale(1.2);
+  }
+  100% {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+@keyframes float {
+  0%,
+  100% {
+    transform: none;
+  }
+  50% {
+    transform: translateY(-10px);
+  }
+}
+
+/* Radar da Priorização: anéis que saem do centro enquanto a análise roda. */
+@keyframes radar {
+  from {
+    opacity: 0.7;
+    transform: scale(0.2);
+  }
+  to {
+    opacity: 0;
+    transform: scale(1);
+  }
+}
+
+/* Camada do mapa carregando: o aviso entra e sai só pela opacidade, então o
+   atraso que esconde as cargas rápidas vale também com movimento reduzido. */
+@keyframes map-loading-in {
+  from {
+    opacity: 0;
+  }
+}
+
+@keyframes map-loading-out {
+  to {
+    opacity: 0;
+  }
+}
+
+/* O fio da borda de cima, que corre enquanto não se sabe quanto falta. */
+@keyframes map-loading-bar {
+  from {
+    transform: translateX(-100%);
+  }
+  to {
+    transform: translateX(250%);
+  }
+}
+
+@keyframes map-loading-dot {
+  0%,
+  100% {
+    opacity: 0.55;
+    transform: scale(0.7);
+  }
+  50% {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+/* O anel do "Gerar relatório" (`ready-ring`), voltado para dentro da moldura. */
+@keyframes map-ready-ring {
+  from {
+    box-shadow: inset 0 0 0 3px rgba(152, 159, 67, 0.85);
+  }
+  to {
+    box-shadow: inset 0 0 0 14px rgba(152, 159, 67, 0);
+  }
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  /* Ao trocar de seção, o conteúdo do painel sobe em cascata. O preenchimento
+     é `backwards`, e não `both`: uma animação que fica presa no fim cria uma
+     camada própria para o elemento, e o dropdown do recorte passava a abrir
+     por baixo dos acordeões. */
+  .panel-cascade > * {
+    animation: panel-in 520ms cubic-bezier(0.2, 0.7, 0.2, 1) backwards;
+  }
+
+  /* Ao abrir um acordeão, os itens entram da esquerda, um depois do outro.
+     `[data-cascade]` marca o invólucro de lista que alguns acordeões usam,
+     para a cascata pular para os itens dele. */
+  .accordion-cascade > :not([data-cascade]),
+  .accordion-cascade > [data-cascade] > * {
+    animation: menu-item-in 380ms ease-out backwards;
+  }
+
+  /* Bolinhas de legenda aparecem uma por uma. */
+  .legend-cascade > * > :first-child {
+    animation: pop-in 420ms cubic-bezier(0.34, 1.56, 0.64, 1) backwards;
+  }
+}
+
+.panel-cascade > :nth-child(2) {
+  animation-delay: 70ms;
+}
+.panel-cascade > :nth-child(3) {
+  animation-delay: 140ms;
+}
+.panel-cascade > :nth-child(4) {
+  animation-delay: 210ms;
+}
+.panel-cascade > :nth-child(5) {
+  animation-delay: 280ms;
+}
+.panel-cascade > :nth-child(n + 6) {
+  animation-delay: 350ms;
+}
+
+.accordion-cascade > :nth-child(2),
+.accordion-cascade > [data-cascade] > :nth-child(2),
+.legend-cascade > :nth-child(2) > :first-child {
+  animation-delay: 50ms;
+}
+.accordion-cascade > :nth-child(3),
+.accordion-cascade > [data-cascade] > :nth-child(3),
+.legend-cascade > :nth-child(3) > :first-child {
+  animation-delay: 100ms;
+}
+.accordion-cascade > :nth-child(4),
+.accordion-cascade > [data-cascade] > :nth-child(4),
+.legend-cascade > :nth-child(4) > :first-child {
+  animation-delay: 150ms;
+}
+.accordion-cascade > :nth-child(5),
+.accordion-cascade > [data-cascade] > :nth-child(5),
+.legend-cascade > :nth-child(5) > :first-child {
+  animation-delay: 200ms;
+}
+.accordion-cascade > :nth-child(6),
+.accordion-cascade > [data-cascade] > :nth-child(6),
+.legend-cascade > :nth-child(6) > :first-child {
+  animation-delay: 250ms;
+}
+.accordion-cascade > :nth-child(n + 7),
+.accordion-cascade > [data-cascade] > :nth-child(n + 7),
+.legend-cascade > :nth-child(n + 7) > :first-child {
+  animation-delay: 300ms;
+}
+
+/* Troca de seção (PlatformSidebar/sectionTransition.ts). Durante a troca, a
+   casca da plataforma vira uma foto que afunda por cima da tela nova, e a
+   trilha fica fora da foto para o destaque dela seguir deslizando ao vivo. Os
+   nomes só existem enquanto `data-section-transition` está no <html>. */
+html[data-section-transition] [data-platform-shell] {
+  view-transition-name: platform-stage;
+}
+html[data-section-transition] [data-platform-side-rail] {
+  view-transition-name: platform-rail;
+}
+::view-transition-group(root),
+::view-transition-old(root),
+::view-transition-new(root),
+::view-transition-group(platform-stage),
+::view-transition-new(platform-stage),
+::view-transition-group(platform-rail),
+::view-transition-new(platform-rail) {
+  animation: none;
+}
+::view-transition-old(platform-rail) {
+  display: none;
+}
+::view-transition-old(platform-stage),
+::view-transition-new(platform-stage) {
+  mix-blend-mode: normal;
+}
+/* A foto fica por cima da tela nova, que é opaca, até terminar de sair. */
+::view-transition-old(platform-stage) {
+  z-index: 1;
+  animation: section-sink 170ms ease-in both;
+}
+/* Quando o mapa muda de moldura, a foto só esmaece: afundar puxaria junto o
+   mapa antigo e brigaria com o que encolhe por baixo. */
+html[data-section-transition="shrink"]::view-transition-old(platform-stage),
+html[data-section-transition="grow"]::view-transition-old(platform-stage) {
+  animation: section-fade 160ms ease-in both;
+}
+
+@keyframes section-sink {
+  to {
+    opacity: 0;
+    transform: translateY(10px) scale(0.985);
+  }
+}
+
+@keyframes section-fade {
+  to {
+    opacity: 0;
+  }
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  /* De Monitoramento para Priorização, a moldura do mapa encolhe até o cartão
+     ao lado do formulário. */
+  html[data-section-transition="shrink"] [data-platform-map-area] {
+    transition:
+      left 560ms cubic-bezier(0.65, 0, 0.35, 1),
+      padding 560ms cubic-bezier(0.65, 0, 0.35, 1);
+  }
+  html[data-section-transition="shrink"]
+    [data-platform-map-area]
+    > [data-stage="main"] {
+    transition: border-radius 560ms cubic-bezier(0.65, 0, 0.35, 1);
+  }
 }
 
 .maplibregl-ctrl-top-right {
@@ -47,6 +492,15 @@ textarea {
   /* Acompanha a borda esquerda do mapa visivel; o painel lateral cobre o resto. */
   margin-left: var(--platform-map-scale-offset, 0px);
   transition: margin-left 300ms ease-in-out;
+}
+
+/* No celular o painel cobre o mapa inteiro ou nada dele, nunca so a esquerda:
+   quem se apoia na borda do mapa visivel (escala, aviso de carregamento) comeca
+   na borda da tela. O `!important` vence o valor que PlatformMap poe inline. */
+@media (max-width: 767.98px) {
+  [data-platform-map-area] {
+    --platform-map-scale-offset: 0px !important;
+  }
 }
 
 .maplibregl-ctrl-bottom-left .maplibregl-ctrl.maplibregl-ctrl-scale {

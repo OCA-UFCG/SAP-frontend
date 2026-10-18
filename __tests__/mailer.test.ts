@@ -18,6 +18,11 @@ import { escapeHtml, isMailerConfigured, resetMailer, sendMail } from "@/lib/mai
 describe("mailer", () => {
   beforeEach(() => {
     vi.unstubAllEnvs();
+    // O .env de quem roda os testes pode ter a conta de envio configurada.
+    vi.stubEnv("SMTP_USER", undefined);
+    vi.stubEnv("SMTP_PASSWORD", undefined);
+    vi.stubEnv("SMTP_FROM", undefined);
+    vi.stubEnv("MAIL_LOG_BODY", undefined);
     resetMailer();
     createTransportMock.mockClear();
     sendMailMock.mockReset().mockResolvedValue({ messageId: "abc" });

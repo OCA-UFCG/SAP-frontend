@@ -5,6 +5,7 @@ import { useForm } from "react-hook-form";
 import { useTranslations } from "next-intl";
 import Image from "next/image";
 import { Link } from "@/translations/routing";
+import { MIN_PASSWORD_LENGTH } from "@/config/passwordRules";
 import { Icon } from "../Icon/Icon";
 import { LoginField } from "../Login/LoginField";
 import { LoginPhotoPanel } from "../Login/LoginPhotoPanel";
@@ -36,7 +37,6 @@ type SignupProps = {
 };
 
 const BELOW_HEADER = "min-h-[calc(100vh-4.125rem)]";
-const MIN_PASSWORD_LENGTH = 8;
 
 export const Signup = ({
   onSubmit,
@@ -196,7 +196,7 @@ export const Signup = ({
                       aria-label={toggleLabel}
                       aria-pressed={passwordVisible}
                       aria-controls="password"
-                      className="flex cursor-pointer items-center rounded-sm p-0.5 focus:outline-none focus-visible:ring-2 focus-visible:ring-[#989F43]"
+                      className="flex cursor-pointer items-center -m-2 rounded-sm p-2.5 focus:outline-none focus-visible:ring-2 focus-visible:ring-[#989F43]"
                     >
                       <Icon
                         id="eye"
@@ -273,7 +273,7 @@ export const Signup = ({
               {t("hasAccount")}{" "}
               <Link
                 href="/login"
-                className="font-medium text-[#777E32] underline underline-offset-2 hover:text-[#5B612A]"
+                className="font-medium text-[#5B612A] underline underline-offset-2 hover:text-[#21240F]"
               >
                 {t("signIn")}
               </Link>

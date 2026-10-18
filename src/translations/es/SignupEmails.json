@@ -12,6 +12,11 @@
     "decisionRejectedTitle": "Solicitud no aprobada",
     "decisionRejectedBody": "Revisamos tu solicitud de acceso al SEDES y no fue aprobada esta vez.",
     "decisionRejectedFollowUp": "Si crees que hubo un error, responde a este correo contando cómo planeas usar la plataforma.",
+    "passwordResetSubject": "Restablece tu contraseña — SEDES",
+    "passwordResetTitle": "Restablecer contraseña",
+    "passwordResetBody": "Recibimos una solicitud para cambiar la contraseña de tu cuenta en el SEDES. Usa el botón de abajo para elegir una nueva contraseña. El enlace vale por una hora y solo se puede usar una vez.",
+    "passwordResetAction": "Elegir nueva contraseña",
+    "passwordResetIgnore": "Si no pediste el cambio, ignora este correo: tu contraseña sigue siendo la misma.",
     "fallback": "Si el botón no funciona, copia esta dirección en tu navegador:",
     "footer": "SEDES — Sistema Estratégico sobre Desertificação e Seca"
   }

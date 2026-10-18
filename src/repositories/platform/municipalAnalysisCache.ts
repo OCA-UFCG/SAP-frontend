@@ -4,10 +4,15 @@ import {
   getPanelLayerWithMunicipalAnalysis,
   getPanelLayerWithMunicipalAnalysisYear,
 } from "@/repositories/platform/panelLayerRepository";
+import { getStatisticsRowsGeneration } from "@/repositories/platform/geeStatisticsRowsCache";
 import type { PanelLayerI } from "@/utils/interfaces";
 
 const DEFAULT_CACHE_TTL_SECONDS = 600;
-const DEFAULT_CACHE_MAX_ENTRIES = 200;
+// Medido em relatórios reais: ~2 KB por item de município e ~5 KB pelo Brasil,
+// então 5.000 itens ficam abaixo de 30 MB. Com 200, cabia menos que um único
+// relatório de município novo (~240 itens), e cada um empurrava para fora o
+// que os outros usuários tinham acabado de ler.
+const DEFAULT_CACHE_MAX_ENTRIES = 5000;
 const STALE_WHILE_REVALIDATE_SECONDS = 3600;
 
 interface MunicipalAnalysisCacheValue {
@@ -17,6 +22,12 @@ interface MunicipalAnalysisCacheValue {
 
 interface MunicipalAnalysisCacheEntry {
   expiresAt: number;
+  /**
+   * A geração das linhas estatísticas quando o valor foi montado. Se uma tabela
+   * mudou no Earth Engine e as linhas dela foram descartadas, o valor montado
+   * com a versão antiga deixa de valer na hora, em vez de durar até o prazo.
+   */
+  rowsGeneration: number;
   value?: MunicipalAnalysisCacheValue;
   pending?: Promise<MunicipalAnalysisCacheValue>;
 }
@@ -133,7 +144,11 @@ export async function getCachedMunicipalAnalysisImageData(
   const cacheKey = getCacheKey(panelLayerId, yearKey, locationKey);
   const currentEntry = cache.get(cacheKey);
 
-  if (currentEntry?.value && currentEntry.expiresAt > now) {
+  if (
+    currentEntry?.value &&
+    currentEntry.expiresAt > now &&
+    currentEntry.rowsGeneration === getStatisticsRowsGeneration()
+  ) {
     markAsRecentlyUsed(cacheKey, currentEntry);
     logCacheEvent("hit", cacheKey);
 
@@ -155,9 +170,11 @@ export async function getCachedMunicipalAnalysisImageData(
 
   logCacheEvent("miss", cacheKey);
 
+  const rowsGeneration = getStatisticsRowsGeneration();
   const pending = loadMunicipalAnalysis(panelLayerId, yearKey, locationKey);
   const entry: MunicipalAnalysisCacheEntry = {
     expiresAt: now + getMunicipalAnalysisCacheTtlSeconds() * 1000,
+    rowsGeneration,
     pending,
   };
   markAsRecentlyUsed(cacheKey, entry);
@@ -169,6 +186,7 @@ export async function getCachedMunicipalAnalysisImageData(
 
     markAsRecentlyUsed(cacheKey, {
       expiresAt: completedAt + getMunicipalAnalysisCacheTtlSeconds() * 1000,
+      rowsGeneration,
       value,
     });
     enforceCacheLimit();
@@ -183,6 +201,7 @@ export async function getCachedMunicipalAnalysisImageData(
 
       markAsRecentlyUsed(cacheKey, {
         expiresAt: failedAt,
+        rowsGeneration: currentEntry.rowsGeneration,
         value: currentEntry.value,
       });
 

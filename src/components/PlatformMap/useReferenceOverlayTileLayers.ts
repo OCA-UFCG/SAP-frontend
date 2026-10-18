@@ -1,7 +1,18 @@
 "use client";
 
-import { useEffect, useMemo, useRef, useState } from "react";
-import type { ReferenceLayerId } from "@/components/MapLayerContext/mapLayerState";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import {
+  REFERENCE_LAYER_IDS,
+  type ReferenceLayerId,
+} from "@/components/MapLayerContext/mapLayerState";
+import type {
+  ReferenceOverlayTileUrls,
+  ReferenceOverlayUrls,
+} from "@/components/Map/mapDefinitions";
+import {
+  isVectorReferenceLayer,
+  resolveTerritoryTilesUrl,
+} from "@/components/Map/territoryVectorLayers";
 
 const API_BASE_URL = process.env.NEXT_PUBLIC_HOST_URL ?? "";
 
@@ -9,7 +20,15 @@ export type ReferenceOverlayStatus = "loading" | "ready" | "error";
 
 export interface ReferenceOverlayEntry {
   status: ReferenceOverlayStatus;
+  /** O contorno do território. */
   tileUrl: string | undefined;
+  /** O interior, em imagem própria para desbotar com o zoom sem levar o contorno. */
+  fillTileUrl?: string;
+}
+
+interface ReferenceLayerUrls {
+  url: string;
+  fillUrl?: string;
 }
 
 export type ReferenceOverlayTileMap = Map<
@@ -18,7 +37,7 @@ export type ReferenceOverlayTileMap = Map<
 >;
 
 interface CachedTileUrl {
-  url: string;
+  urls: ReferenceLayerUrls;
   fetchedAt: number;
 }
 
@@ -30,15 +49,24 @@ interface CachedTileUrl {
 const CLIENT_URL_CACHE_TTL_MS = 1000 * 60 * 25;
 
 const clientUrlCache = new Map<ReferenceLayerId, CachedTileUrl>();
+// O pré-carregamento e o clique no grupo podem pedir o mesmo endereço quase ao
+// mesmo tempo; um só pedido serve aos dois.
+const pendingUrlRequests = new Map<
+  ReferenceLayerId,
+  Promise<ReferenceLayerUrls | null>
+>();
 
 const EMPTY_SET = new Set<ReferenceLayerId>();
 
 /** Somente para testes: o cache vive no módulo e precisa ser zerado entre casos. */
 export function clearReferenceOverlayUrlCache() {
   clientUrlCache.clear();
+  pendingUrlRequests.clear();
 }
 
-function readFreshCachedUrl(layerId: ReferenceLayerId): string | undefined {
+function readFreshCachedUrl(
+  layerId: ReferenceLayerId,
+): ReferenceLayerUrls | undefined {
   const cached = clientUrlCache.get(layerId);
   if (!cached) return undefined;
 
@@ -47,13 +75,13 @@ function readFreshCachedUrl(layerId: ReferenceLayerId): string | undefined {
     return undefined;
   }
 
-  return cached.url;
+  return cached.urls;
 }
 
 async function fetchReferenceLayerUrl(
   layerId: ReferenceLayerId,
   signal?: AbortSignal,
-): Promise<string | null> {
+): Promise<ReferenceLayerUrls | null> {
   const params = new URLSearchParams({ layer: layerId });
   const response = await fetch(
     `${API_BASE_URL}/api/ee/reference-layers?${params.toString()}`,
@@ -68,8 +96,10 @@ async function fetchReferenceLayerUrl(
     );
   }
 
-  const body = (await response.json()) as { url?: string };
-  return typeof body.url === "string" ? body.url : null;
+  const body = (await response.json()) as { url?: string; fillUrl?: string };
+  if (typeof body.url !== "string") return null;
+  const fillUrl = typeof body.fillUrl === "string" ? body.fillUrl : undefined;
+  return { url: body.url, fillUrl };
 }
 
 /**
@@ -78,14 +108,31 @@ async function fetchReferenceLayerUrl(
  */
 async function resolveReferenceLayerTileUrl(
   layerId: ReferenceLayerId,
-  signal: AbortSignal,
-): Promise<string | null> {
-  const cachedUrl = readFreshCachedUrl(layerId);
-  if (cachedUrl) return cachedUrl;
+  signal?: AbortSignal,
+): Promise<ReferenceLayerUrls | null> {
+  // Os tiles vetoriais saem do nosso servidor, com endereço fixo: nada a pedir.
+  if (isVectorReferenceLayer(layerId)) {
+    return Promise.resolve({ url: resolveTerritoryTilesUrl(layerId) });
+  }
 
-  const url = await fetchReferenceLayerUrl(layerId, signal);
-  if (url) clientUrlCache.set(layerId, { url, fetchedAt: Date.now() });
-  return url;
+  const cachedUrls = readFreshCachedUrl(layerId);
+  if (cachedUrls) return cachedUrls;
+
+  const pending = pendingUrlRequests.get(layerId);
+  if (pending) return pending;
+
+  const request = fetchReferenceLayerUrl(layerId, signal)
+    .then((urls) => {
+      if (urls) clientUrlCache.set(layerId, { urls, fetchedAt: Date.now() });
+      return urls;
+    })
+    .finally(() => {
+      if (pendingUrlRequests.get(layerId) === request) {
+        pendingUrlRequests.delete(layerId);
+      }
+    });
+  pendingUrlRequests.set(layerId, request);
+  return request;
 }
 
 function withEntry(
@@ -94,7 +141,11 @@ function withEntry(
   entry: ReferenceOverlayEntry,
 ): ReferenceOverlayTileMap {
   const previous = current.get(layerId);
-  if (previous?.status === entry.status && previous.tileUrl === entry.tileUrl) {
+  if (
+    previous?.status === entry.status &&
+    previous.tileUrl === entry.tileUrl &&
+    previous.fillTileUrl === entry.fillTileUrl
+  ) {
     return current;
   }
 
@@ -150,12 +201,13 @@ export function useReferenceOverlayTileLayers(
       controllers.set(layerId, controller);
 
       resolveReferenceLayerTileUrl(layerId, controller.signal)
-        .then((url) => {
+        .then((urls) => {
           if (controller.signal.aborted) return;
           setStatusMap((current) =>
             withEntry(current, layerId, {
-              status: url ? "ready" : "error",
-              tileUrl: url ?? undefined,
+              status: urls ? "ready" : "error",
+              tileUrl: urls?.url,
+              fillTileUrl: urls?.fillUrl,
             }),
           );
         })
@@ -204,7 +256,7 @@ export function useReferenceOverlayTileLayers(
 }
 
 export interface ReferenceOverlayTiles {
-  tileUrls: globalThis.Map<string, string | undefined>;
+  tileUrls: globalThis.Map<string, ReferenceOverlayUrls | undefined>;
   isLoading: boolean;
 }
 
@@ -214,12 +266,18 @@ export function useReferenceOverlayTiles(
   const tileMap = useReferenceOverlayTileLayers(activeOverlays);
 
   return useMemo(() => {
-    const tileUrls = new globalThis.Map<string, string | undefined>();
+    const tileUrls = new globalThis.Map<
+      string,
+      ReferenceOverlayUrls | undefined
+    >();
     let isLoading = false;
 
     for (const [layerId, entry] of tileMap) {
       if (entry.status === "ready" && entry.tileUrl) {
-        tileUrls.set(layerId, entry.tileUrl);
+        tileUrls.set(layerId, {
+          outline: entry.tileUrl,
+          fill: entry.fillTileUrl,
+        });
       } else if (entry.status === "loading") {
         isLoading = true;
       }
@@ -227,4 +285,46 @@ export function useReferenceOverlayTiles(
 
     return { tileUrls, isLoading };
   }, [tileMap]);
+}
+
+// Os grupos vetoriais não entram: o tile deles tem poucos KB e chega na hora.
+const PREFETCH_LAYER_IDS = REFERENCE_LAYER_IDS.filter(
+  (layerId) => !isVectorReferenceLayer(layerId),
+);
+
+/**
+ * Pré-carregamento dos grupos de território do Earth Engine, pedido quando a
+ * pessoa abre o cartão de Territórios. Cada tile do Earth Engine leva de 1,4 s
+ * a 2,6 s, então para um grupo aparecer no clique os tiles precisam estar no
+ * navegador antes dele. Quem nunca abre o cartão não baixa nada.
+ *
+ * Aqui saem só os endereços; quem baixa os tiles é o mapa, que sabe qual área
+ * está à vista. Cada abertura do cartão entrega um Map novo, para o mapa
+ * pré-carregar também a área para onde a pessoa tiver ido depois.
+ *
+ * const { prefetchUrls, requestPrefetch } = useReferenceOverlayPrefetch();
+ */
+export function useReferenceOverlayPrefetch() {
+  const [prefetchUrls, setPrefetchUrls] =
+    useState<ReferenceOverlayTileUrls | null>(null);
+
+  const requestPrefetch = useCallback(() => {
+    void Promise.all(
+      PREFETCH_LAYER_IDS.map((layerId) =>
+        resolveReferenceLayerTileUrl(layerId).catch(() => null),
+      ),
+    ).then((resolved) => {
+      const urls = new globalThis.Map<string, ReferenceOverlayUrls>();
+      resolved.forEach((layerUrls, index) => {
+        if (!layerUrls) return;
+        urls.set(PREFETCH_LAYER_IDS[index], {
+          outline: layerUrls.url,
+          fill: layerUrls.fillUrl,
+        });
+      });
+      if (urls.size) setPrefetchUrls(urls);
+    });
+  }, []);
+
+  return { prefetchUrls, requestPrefetch };
 }

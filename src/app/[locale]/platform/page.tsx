@@ -19,6 +19,8 @@ interface PlatformPageSearchParams {
   period?: string | string[];
   layers?: string | string[];
   layer?: string | string[];
+  /** Na Auditoria, `producao` mostra os logs da produção. */
+  origem?: string | string[];
 }
 
 function getSingleSearchParamValue(value?: string | string[]) {
@@ -93,14 +95,22 @@ export default async function PlatformPage({
       );
     }
 
+    const telemetrySource =
+      getSingleSearchParamValue(resolvedSearchParams.origem) === "producao"
+        ? "production"
+        : "current";
+
     return (
       <PlatformLayout
         showAuditLink
         viewMode="logs"
         initialSection={initialSection}
         telemetryDashboard={
-          <Suspense fallback={<TelemetryDashboardLoading />}>
-            <TelemetryDashboardServer />
+          <Suspense
+            key={telemetrySource}
+            fallback={<TelemetryDashboardLoading />}
+          >
+            <TelemetryDashboardServer source={telemetrySource} />
           </Suspense>
         }
       />

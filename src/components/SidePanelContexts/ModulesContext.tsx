@@ -1,6 +1,7 @@
 "use client";
 
 import { memo, useCallback, useEffect, useMemo, useRef } from "react";
+import type { ReactNode } from "react";
 import { useTranslations } from "next-intl";
 import {
   useMapLayerActions,
@@ -21,6 +22,11 @@ import {
   splitIntoLayerSubgroups,
   type SubgroupedItems,
 } from "@/utils/layerSubgroups";
+import {
+  getForecastMembers,
+  resolveForecastSelection,
+} from "@/utils/forecastGroup";
+import { DEFAULT_FORECAST_SELECTION } from "@/config/forecastGroup";
 import { useMonitoringListState } from "./monitoringListState";
 import cdiData from "../../data/CDI_Janeiro_2024_Vetores.json";
 
@@ -31,7 +37,11 @@ export interface ModulesContextProps {
   detailLayerId?: string;
 }
 
-type LayerDataset = IDroughtDataset & { category?: string };
+type LayerDataset = IDroughtDataset & {
+  category?: string;
+  /** O cartão "Previsão climática", que representa todas as previsões. */
+  forecastGroup?: boolean;
+};
 
 interface DatasetGroup {
   key: string;
@@ -147,6 +157,34 @@ function ContextHeader() {
   );
 }
 
+/** Bloco do painel com título marcado pela barra verde e texto de apoio. */
+function PanelSection({
+  title,
+  description,
+  children,
+  ...rest
+}: {
+  title: string;
+  description: string;
+  children: ReactNode;
+  "data-tour"?: string;
+}) {
+  return (
+    <section className="flex flex-col gap-4" {...rest}>
+      <div className="flex flex-col gap-2">
+        <h3 className="flex items-center gap-3 font-open-sans text-lg font-semibold leading-6 text-[#292829]">
+          <span aria-hidden className="h-6 w-1 shrink-0 bg-[#989F43]" />
+          {title}
+        </h3>
+        <p className="font-inter text-xs font-medium leading-[18px] tracking-[-0.015em] text-[#292829]">
+          {description}
+        </p>
+      </div>
+      {children}
+    </section>
+  );
+}
+
 export function ModulesContext({
   activeSection,
   panelLayers = [],
@@ -207,10 +245,45 @@ export function ModulesContext({
     listState.setScrollTop(container.scrollTop);
   }, [listState]);
 
-  const datasets = useMemo(
-    () => buildLayerDatasets(panelLayers),
+  const forecastMembers = useMemo(
+    () => getForecastMembers(panelLayers),
     [panelLayers],
   );
+
+  // O cartão das previsões liga a previsão que já está no mapa ou, sem
+  // nenhuma, a padrão; o detalhamento abre nela e os filtros trocam a partir
+  // dali.
+  const forecastCardLayer = useMemo(() => {
+    const activeMember = forecastMembers.find(
+      (member) => member.layer.id === activeEEData?.id,
+    );
+    return (
+      activeMember ??
+      resolveForecastSelection(forecastMembers, DEFAULT_FORECAST_SELECTION)
+    )?.layer;
+  }, [forecastMembers, activeEEData?.id]);
+
+  const datasets = useMemo(() => {
+    const forecastIds = new Set(
+      forecastMembers.map((member) => member.layer.id),
+    );
+    const layerDatasets = buildLayerDatasets(
+      panelLayers.filter((layer) => !forecastIds.has(layer.id)),
+    );
+    if (!forecastCardLayer) return layerDatasets;
+
+    // Entra por último na categoria, onde ficava o acordeão das previsões.
+    return [
+      ...layerDatasets,
+      {
+        ...buildLayerDatasets([forecastCardLayer])[0],
+        id: layerDatasets.length + 1,
+        title: t("forecastGroup.title"),
+        description: t("forecastGroup.description"),
+        forecastGroup: true,
+      },
+    ];
+  }, [panelLayers, forecastMembers, forecastCardLayer, t]);
 
   const groupedDatasets = useMemo<SubgroupedDatasetGroup[]>(() => {
     const groups = new Map<string, DatasetGroup>();
@@ -239,7 +312,8 @@ export function ModulesContext({
         ...splitIntoLayerSubgroups(
           group.title,
           group.datasets,
-          (dataset) => dataset.title,
+          // "Previsão climática" casaria com o prefixo do subgrupo de previsão.
+          (dataset) => (dataset.forecastGroup ? "" : dataset.title),
         ),
       }));
   }, [datasets]);
@@ -408,60 +482,71 @@ export function ModulesContext({
     <div
       ref={scrollContainerRef}
       onScroll={handleScroll}
-      className="h-full overflow-y-auto bg-[#F6F7F6] px-4 pt-12 pb-6"
+      className="h-full overflow-y-auto bg-[#F6F7F6] px-4 pt-12 pb-6 max-md:pt-6 max-md:pb-24"
     >
-      <div className="flex flex-col gap-6">
+      {/* Cada bloco sobe em cascata ao abrir a seção, e os acordeões de
+          Indicadores, numa cascata própria, um depois do outro. */}
+      <div className="panel-cascade flex flex-col gap-6">
         <ContextHeader />
 
-        <div>
+        <PanelSection
+          title={t("areaSection.title")}
+          description={t("areaSection.description")}
+          data-tour="spatial-scope"
+        >
           <SpatialScopeSelect
             spatialSelection={spatialSelection}
             onSpatialSelectionChange={handleSpatialSelectionChange}
           />
-        </div>
+        </PanelSection>
 
-        <div className="flex flex-col gap-6">
-          {groupedDatasets.map((group) => {
-            const categoryKeyMap: Record<string, string> = {
-              "dados climáticos": "climate",
-              "dados ambientais": "environmental",
-              "dados socioeconômicos": "socioeconomic",
-              outros: "others",
-            };
+        <PanelSection
+          title={t("indicatorsSection.title")}
+          description={t("indicatorsSection.description")}
+        >
+          <div className="panel-cascade flex flex-col gap-4">
+            {groupedDatasets.map((group) => {
+              const categoryKeyMap: Record<string, string> = {
+                "dados climáticos": "climate",
+                "dados ambientais": "environmental",
+                "dados socioeconômicos": "socioeconomic",
+                outros: "others",
+              };
 
-            return (
-              <LayerAccordion
-                key={group.key}
-                open={listState?.isCategoryOpen(group.key)}
-                onOpenChange={(open) =>
-                  listState?.setCategoryOpen(group.key, open)
-                }
-                title={
-                  categoryKeyMap[group.key]
-                    ? t(`categories.${categoryKeyMap[group.key]}`)
-                    : group.title
-                }
-              >
-                {group.items.map(renderDatasetCard)}
-                {group.subgroups.map((subgroup) => {
-                  const subgroupKey = `${group.key}/${subgroup.key}`;
-                  return (
-                    <LayerAccordion
-                      key={subgroupKey}
-                      open={listState?.isCategoryOpen(subgroupKey)}
-                      onOpenChange={(open) =>
-                        listState?.setCategoryOpen(subgroupKey, open)
-                      }
-                      title={t(`subgroups.${subgroup.key}`)}
-                    >
-                      {subgroup.items.map(renderDatasetCard)}
-                    </LayerAccordion>
-                  );
-                })}
-              </LayerAccordion>
-            );
-          })}
-        </div>
+              return (
+                <LayerAccordion
+                  key={group.key}
+                  open={listState?.isCategoryOpen(group.key)}
+                  onOpenChange={(open) =>
+                    listState?.setCategoryOpen(group.key, open)
+                  }
+                  title={
+                    categoryKeyMap[group.key]
+                      ? t(`categories.${categoryKeyMap[group.key]}`)
+                      : group.title
+                  }
+                >
+                  {group.items.map(renderDatasetCard)}
+                  {group.subgroups.map((subgroup) => {
+                    const subgroupKey = `${group.key}/${subgroup.key}`;
+                    return (
+                      <LayerAccordion
+                        key={subgroupKey}
+                        open={listState?.isCategoryOpen(subgroupKey)}
+                        onOpenChange={(open) =>
+                          listState?.setCategoryOpen(subgroupKey, open)
+                        }
+                        title={t(`subgroups.${subgroup.key}`)}
+                      >
+                        {subgroup.items.map(renderDatasetCard)}
+                      </LayerAccordion>
+                    );
+                  })}
+                </LayerAccordion>
+              );
+            })}
+          </div>
+        </PanelSection>
       </div>
     </div>
   );

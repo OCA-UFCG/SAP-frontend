@@ -44,8 +44,6 @@ function fakeImage(label: string) {
       get: () => "última",
       size: () => ({ subtract: () => 0 }),
     }),
-    getMapId: (_visParams: unknown, callback: (mapId: unknown) => void) =>
-      callback({ urlFormat: `https://tiles.test/${label}` }),
   };
   return image;
 }
@@ -69,19 +67,17 @@ vi.mock("@google/earthengine", () => ({
         return whenTrue;
       },
     },
-    data: {
-      // A camada legada, sem `mapVisualization`, ainda pergunta o tipo do asset.
-      getAsset: (
-        _assetId: string,
-        onSuccess: (asset: { type: string }) => void,
-      ) => queueMicrotask(() => onSuccess({ type: "Image" })),
-    },
   },
 }));
 
 vi.mock("@/infrastructure/earth-engine/client", () => ({
   initializeGee: vi.fn(),
   evaluateGeeObject: vi.fn(),
+  // A camada legada, sem `mapVisualization`, ainda pergunta o tipo do asset.
+  getGeeAsset: vi.fn(async () => ({ type: "Image" })),
+  getGeeMapUrl: vi.fn(
+    async (image: { label: string }) => `https://tiles.test/${image.label}`,
+  ),
 }));
 
 vi.mock("@/app/api/ee/spatialBoundaries", () => ({

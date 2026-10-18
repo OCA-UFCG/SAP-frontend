@@ -269,7 +269,7 @@ export function toDatasetPatch(
 }
 
 function getCalendarYear(yearKey: string) {
-  return yearKey.match(/^(\d{4})(?:-\d{2})?$/u)?.[1] ?? null;
+  return yearKey.match(/^(\d{4})(?:-\d{2}){0,2}$/u)?.[1] ?? null;
 }
 
 function buildPartitionTitle(

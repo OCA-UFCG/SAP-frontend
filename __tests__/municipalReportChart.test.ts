@@ -1,12 +1,10 @@
-import { describe, expect, it, vi } from "vitest";
+import { describe, expect, it } from "vitest";
 import type { MunicipalReportAnalysis } from "@/contracts/municipalReport";
-import { renderMunicipalReportChart } from "@/services/municipalReportChartRenderer";
 import {
   buildMunicipalReportChartData,
   MUNICIPAL_REPORT_PDF_CHART_MAX_MEASUREMENTS,
+  resolveMunicipalReportChartAxisMax,
 } from "@/utils/municipalReportChart";
-
-vi.mock("server-only", () => ({}));
 
 const analysis: MunicipalReportAnalysis = {
   id: "layer-a",
@@ -123,54 +121,20 @@ describe("municipal report chart", () => {
       Array.from({ length: 10 }, (_, index) => index + 15),
     );
   });
+});
 
-  it("renders an escaped SVG line chart with every class", async () => {
-    const svg = (
-      await renderMunicipalReportChart(analysis, {
-        highlightPeriod: "2024-03",
-      })
-    ).toString("utf8");
-
-    expect(svg).toContain("<polyline");
-    expect(svg.match(/<polyline/g)).toHaveLength(3);
-    expect(svg).toContain("Neutro");
-    expect(svg).toContain("Moderado");
-    expect(svg).toContain("Severo");
-    expect(svg).toContain("Jan 2024");
-    expect(svg).toContain("Mar 2024");
-    expect(svg).toContain("Seca &amp; Aridez &lt;Teste&gt;");
-    expect(svg).toContain("stroke-dasharray");
-    expect(svg).not.toContain("<rect x=");
+describe("resolveMunicipalReportChartAxisMax", () => {
+  it("mantém 100 nos percentuais", () => {
+    expect(resolveMunicipalReportChartAxisMax("percentage", 52.3)).toBe(100);
   });
 
-  it("uses the observed range and absolute unit instead of a percentage axis", async () => {
-    const absoluteAnalysis: MunicipalReportAnalysis = {
-      ...analysis,
-      title: "Registros de seca e estiagem",
-      unit: "registros",
-      valueType: "absolute",
-      timeSeries: analysis.timeSeries.map((snapshot, index) => ({
-        ...snapshot,
-        distribution: [
-          {
-            id: "neutral",
-            label: "Registros",
-            color: "#687076",
-            percentage: [120, 260, 410][index]!,
-          },
-        ],
-      })),
-      classes: [{ id: "neutral", label: "Registros", color: "#687076" }],
-    };
-
-    const svg = (
-      await renderMunicipalReportChart(absoluteAnalysis, {
-        highlightPeriod: "2024-03",
-      })
-    ).toString("utf8");
-
-    expect(svg).toContain(">410</text>");
-    expect(svg).toContain("por classe (registros) - referencia");
-    expect(svg).not.toContain(">100%</text>");
+  it("escolhe um topo redondo logo acima do maior valor absoluto", () => {
+    // O IDH (0 a 1) não fica esmagado num eixo até 5.
+    expect(resolveMunicipalReportChartAxisMax("absolute", 0.8)).toBeCloseTo(1);
+    expect(resolveMunicipalReportChartAxisMax("absolute", 3)).toBe(5);
+    expect(resolveMunicipalReportChartAxisMax("absolute", 28_442_130_794)).toBe(
+      50_000_000_000,
+    );
+    expect(resolveMunicipalReportChartAxisMax("absolute", 0)).toBe(1);
   });
 });

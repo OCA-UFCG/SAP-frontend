@@ -127,3 +127,24 @@ export function toMunicipalReportPresentation(
       : {}),
   };
 }
+
+/**
+ * As faixas de cor do mapa de um índice de planilha, ou `undefined` quando o
+ * mapa vem do Earth Engine. É a mesma configuração que o Monitoramento lê para
+ * pintar a coropleta.
+ *
+ * @example
+ * toMunicipalReportMapChoropleth(layer.imageData);
+ * // { palette: ["#fee", "#c00"], thresholds: [50] }
+ */
+export function toMunicipalReportMapChoropleth(
+  imageData: CompactTerritorialAnalysisDataset | undefined,
+) {
+  const mapVisualization = imageData?.mapVisualization;
+  if (mapVisualization?.sourceType !== "municipalChoropleth") return undefined;
+
+  return {
+    palette: mapVisualization.palette ?? [],
+    thresholds: mapVisualization.thresholds ?? [],
+  };
+}

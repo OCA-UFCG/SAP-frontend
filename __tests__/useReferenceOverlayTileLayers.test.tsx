@@ -1,6 +1,16 @@
 import { act, renderHook, waitFor } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
+// Os quatro grupos saem dos tiles vetoriais. Aqui só as terras indígenas, para
+// que os outros exercitem o caminho das imagens do Earth Engine, que continua
+// valendo para um grupo tirado de `territoryVectorTiles.json`.
+vi.mock("@/config/territoryVectorTiles.json", async (importOriginal) => {
+  const { default: config } = await importOriginal<{
+    default: Record<string, unknown>;
+  }>();
+  return { default: { ...config, layers: ["terras_indigenas"] } };
+});
+
 import type { ReferenceLayerId } from "@/components/MapLayerContext/mapLayerState";
 import {
   clearReferenceOverlayUrlCache,
@@ -83,6 +93,49 @@ describe("useReferenceOverlayTileLayers", () => {
     );
   });
 
+  it("keeps the fill tile URL next to the outline one", async () => {
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async () => ({
+        ok: true,
+        status: 200,
+        json: async () => ({
+          url: "https://tiles/uc-outline",
+          fillUrl: "https://tiles/uc-fill",
+        }),
+      })),
+    );
+
+    const { result } = renderHook(() =>
+      useReferenceOverlayTileLayers(overlaySet("unidades_conservacao")),
+    );
+
+    await waitFor(() =>
+      expect(result.current.get("unidades_conservacao")).toEqual({
+        status: "ready",
+        tileUrl: "https://tiles/uc-outline",
+        fillTileUrl: "https://tiles/uc-fill",
+      }),
+    );
+  });
+
+  it("serve as terras indígenas dos tiles vetoriais, sem ir ao Earth Engine", async () => {
+    const api = new FakeReferenceLayerApi();
+    vi.stubGlobal("fetch", api.fetch);
+
+    const { result } = renderHook(() =>
+      useReferenceOverlayTileLayers(overlaySet("terras_indigenas")),
+    );
+
+    await waitFor(() =>
+      expect(result.current.get("terras_indigenas")?.status).toBe("ready"),
+    );
+    expect(result.current.get("terras_indigenas")?.tileUrl).toMatch(
+      /\/api\/tiles\/\{z\}\/\{x\}\/\{y\}\?tileset=territories-terras_indigenas$/,
+    );
+    expect(api.calls).toEqual([]);
+  });
+
   it("drops deactivated overlays from the returned map", async () => {
     const api = new FakeReferenceLayerApi();
     vi.stubGlobal("fetch", api.fetch);
@@ -132,20 +185,23 @@ describe("useReferenceOverlayTileLayers", () => {
 
     const { result, rerender } = renderHook(
       ({ overlays }) => useReferenceOverlayTileLayers(overlays),
-      { initialProps: { overlays: overlaySet("terras_indigenas") } },
+      { initialProps: { overlays: overlaySet("unidades_conservacao") } },
     );
     await waitFor(() =>
-      expect(result.current.get("terras_indigenas")?.status).toBe("ready"),
+      expect(result.current.get("unidades_conservacao")?.status).toBe("ready"),
     );
 
     rerender({ overlays: overlaySet() });
     await act(async () => {
       vi.advanceTimersByTime(1000 * 60 * 26);
     });
-    rerender({ overlays: overlaySet("terras_indigenas") });
+    rerender({ overlays: overlaySet("unidades_conservacao") });
 
     await waitFor(() =>
-      expect(api.calls).toEqual(["terras_indigenas", "terras_indigenas"]),
+      expect(api.calls).toEqual([
+        "unidades_conservacao",
+        "unidades_conservacao",
+      ]),
     );
   });
 

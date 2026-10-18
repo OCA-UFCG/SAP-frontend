@@ -1,0 +1,31 @@
+{
+  "UseCasesSection": {
+    "title": "O que dizem sobre o SEDES",
+    "items": {
+      "1": {
+        "quote": "Antes, reunir dados de clima, solo e vegetação de um município levava dias. Com o SEDES, o relatório sai em segundos, pronto para a reunião.",
+        "author": "Técnico de secretaria municipal de meio ambiente"
+      },
+      "2": {
+        "quote": "O mapa de seca junto com a cobertura da terra ajuda a orientar os agricultores da região.",
+        "author": "Extensionista rural"
+      },
+      "3": {
+        "quote": "Como gestora, preciso justificar prioridades com dados. A priorização por município dá base técnica ao plano de convivência com a seca.",
+        "author": "Gestora pública estadual"
+      },
+      "4": {
+        "quote": "Nas aulas, os alunos procuram o próprio município, comparam com os vizinhos e entendem por que o tema importa para onde vivem.",
+        "author": "Professora de geografia"
+      },
+      "5": {
+        "quote": "A análise multicritério deixa transparente por que algumas áreas entram como prioridade.",
+        "author": "Pesquisador"
+      },
+      "6": {
+        "quote": "O relatório virou anexo padrão dos nossos projetos para captação de recursos.",
+        "author": "Coordenação de associação de agricultores"
+      }
+    }
+  }
+}

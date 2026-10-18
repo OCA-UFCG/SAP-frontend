@@ -1,9 +1,19 @@
-import { createRateLimitStore } from "@/utils/rateLimitStore";
+import { createRateLimiter } from "@/utils/rateLimitStore";
 
 const EE_RATE_LIMIT_WINDOW_MS = 1000 * 60;
 const EE_RATE_LIMIT_MAX_REQUESTS = 30;
+/**
+ * Miniaturas do relatório por minuto, por usuário: ~6 relatórios de territórios
+ * novos. Elas têm cota própria porque, ao contrário da URL de tiles, a miniatura
+ * é de um recorte só e quase nunca está em cache — na cota do mapa, o segundo
+ * relatório do minuto já saía com mapas faltando.
+ */
+const EE_THUMBNAIL_RATE_LIMIT_MAX_REQUESTS = 120;
 
-const requestsByClient = createRateLimitStore();
+const eeRateLimiter = createRateLimiter({ windowMs: EE_RATE_LIMIT_WINDOW_MS });
+const eeThumbnailRateLimiter = createRateLimiter({
+  windowMs: EE_RATE_LIMIT_WINDOW_MS,
+});
 
 /**
  * Reserva vagas da janela do usuário. O custo é o número de idas ao Earth
@@ -23,33 +33,25 @@ const requestsByClient = createRateLimitStore();
  * const { granted } = consumeEeRateLimit(userId, misses.length);
  */
 export function consumeEeRateLimit(clientKey: string, cost = 1) {
-  const now = Date.now();
-  const currentEntry = requestsByClient.get(clientKey, now);
-  const used = currentEntry?.count ?? 0;
-  const resetAt = currentEntry?.resetAt ?? now + EE_RATE_LIMIT_WINDOW_MS;
-  const granted = Math.max(
-    0,
-    Math.min(cost, EE_RATE_LIMIT_MAX_REQUESTS - used),
+  return eeRateLimiter.consume(clientKey, EE_RATE_LIMIT_MAX_REQUESTS, cost);
+}
+
+/** Mesma reserva parcial de `consumeEeRateLimit`, na cota das miniaturas. */
+export function consumeEeThumbnailRateLimit(clientKey: string, cost = 1) {
+  return eeThumbnailRateLimiter.consume(
+    clientKey,
+    EE_THUMBNAIL_RATE_LIMIT_MAX_REQUESTS,
+    cost,
   );
-
-  requestsByClient.set(clientKey, { count: used + granted, resetAt }, now);
-
-  return {
-    granted,
-    limited: granted < cost,
-    headers: {
-      "X-RateLimit-Limit": String(EE_RATE_LIMIT_MAX_REQUESTS),
-      "X-RateLimit-Remaining": String(
-        Math.max(0, EE_RATE_LIMIT_MAX_REQUESTS - used - granted),
-      ),
-      "X-RateLimit-Reset": String(Math.ceil(resetAt / 1000)),
-    },
-    retryAfterSeconds: Math.max(1, Math.ceil((resetAt - now) / 1000)),
-  };
 }
 
 export function clearEeRateLimit() {
-  requestsByClient.clear();
+  eeRateLimiter.clear();
+  eeThumbnailRateLimiter.clear();
 }
 
-export { EE_RATE_LIMIT_MAX_REQUESTS, EE_RATE_LIMIT_WINDOW_MS };
+export {
+  EE_RATE_LIMIT_MAX_REQUESTS,
+  EE_RATE_LIMIT_WINDOW_MS,
+  EE_THUMBNAIL_RATE_LIMIT_MAX_REQUESTS,
+};

@@ -106,6 +106,47 @@ describe("buildMunicipalReport", () => {
     expect(byId.get("sem-categoria")?.category).toBeUndefined();
   });
 
+  it("leva os filtros da previsão para a análise, com a periodicidade da fonte", async () => {
+    const forecastFacets = {
+      source: "INMET",
+      variable: "Precipitação",
+      kind: "Anomalia",
+    };
+    const report = await buildMunicipalReport("5200050", "2024", {
+      listPanelLayers: async () =>
+        [
+          { id: "mensal", name: "Mensal", forecastFacets },
+          {
+            id: "trimestral",
+            name: "Trimestral",
+            forecastFacets,
+            statisticsSource: {
+              kind: "gee-feature-collection",
+              properties: { season: "temporada" },
+            },
+          },
+          { id: "anaseca", name: "Monitor de Secas" },
+        ] as never,
+      loadImageData: async (panelLayerId: string) =>
+        panelLayerId === "trimestral"
+          ? { found: false, status: "miss" }
+          : { found: true, imageData, status: "hit" },
+    });
+
+    const byId = new Map(report.analyses.map((item) => [item.id, item]));
+    expect(byId.get("mensal")?.forecast).toEqual({
+      ...forecastFacets,
+      periodicity: "monthly",
+    });
+    // Indisponível continua no grupo: o painel dele diz que não há dado.
+    expect(byId.get("trimestral")?.status).toBe("unavailable");
+    expect(byId.get("trimestral")?.forecast).toEqual({
+      ...forecastFacets,
+      periodicity: "quarterly",
+    });
+    expect(byId.get("anaseca")).not.toHaveProperty("forecast");
+  });
+
   it("keeps configured order, partial failures and stable template variables", async () => {
     const report = await buildMunicipalReport("5200050", "2024", {
       now: () => new Date("2026-01-01T00:00:00.000Z"),
@@ -639,6 +680,47 @@ describe("buildMunicipalReport", () => {
       });
 
       expect(report.analyses[0]?.presentation).toBeUndefined();
+    });
+
+    it("leva as faixas de cor do mapa de um índice de planilha, e só dele", async () => {
+      const loadImageData = async (_id: string, period?: string) => ({
+        found: true,
+        imageData: withMunicipalValues(period ?? "2024", [40, 60]),
+        status: "hit" as const,
+      });
+      const layer = {
+        panelLayerId: "indice-catalogo",
+        alias: "indice_catalogo",
+        title: "Índice do Catálogo",
+        order: 1,
+        periods: ["2023", "2024"],
+        statisticsSource,
+      };
+
+      const spreadsheet = await buildMunicipalReport("5200050", "2024", {
+        layers: [{
+          ...layer,
+          baseImageData: {
+            ...catalogImageData,
+            mapVisualization: {
+              sourceType: "municipalChoropleth",
+              palette: ["#fee", "#c00"],
+              thresholds: [50],
+            },
+          },
+        }],
+        loadImageData,
+      });
+      const earthEngine = await buildMunicipalReport("5200050", "2024", {
+        layers: [{ ...layer, baseImageData: catalogImageData }],
+        loadImageData,
+      });
+
+      expect(spreadsheet.analyses[0]?.mapChoropleth).toEqual({
+        palette: ["#fee", "#c00"],
+        thresholds: [50],
+      });
+      expect(earthEngine.analyses[0]).not.toHaveProperty("mapChoropleth");
     });
 
     it("semeia a série num período publicado quando o pedido não existe na camada", async () => {

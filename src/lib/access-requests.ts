@@ -1,4 +1,4 @@
-import { adminDb } from "@/lib/firebase-admin";
+import { adminAuth, adminDb } from "@/lib/firebase-admin";
 import type { SignupTier } from "@/lib/signup-domains";
 import type { AccessTier } from "@/lib/access-claims";
 
@@ -110,8 +110,40 @@ export interface PendingAccessRequest extends AccessRequest {
 }
 
 /**
- * O que a tela de aprovação mostra: só quem está esperando, mais antigo
- * primeiro — quem pediu há mais tempo é quem está esperando há mais tempo.
+ * Quantas contas o Firebase aceita consultar de uma vez em `getUsers`.
+ */
+const GET_USERS_BATCH_SIZE = 100;
+
+/**
+ * Das contas informadas, as que já confirmaram o e-mail.
+ *
+ * O pedido nasce "pendente" no envio do formulário, antes da confirmação — e a
+ * fonte de verdade sobre a confirmação é o Firebase Auth, não o pedido. Uma
+ * conta que não existe mais também fica de fora.
+ */
+async function filterConfirmedUids(uids: string[]) {
+  const confirmed = new Set<string>();
+
+  for (let start = 0; start < uids.length; start += GET_USERS_BATCH_SIZE) {
+    const batch = uids.slice(start, start + GET_USERS_BATCH_SIZE);
+    const { users } = await adminAuth.getUsers(batch.map((uid) => ({ uid })));
+
+    users
+      .filter((user) => user.emailVerified)
+      .forEach((user) => confirmed.add(user.uid));
+  }
+
+  return confirmed;
+}
+
+/**
+ * O que a tela de aprovação mostra: só quem está esperando e já confirmou o
+ * e-mail, mais antigo primeiro — quem pediu há mais tempo é quem está esperando
+ * há mais tempo.
+ *
+ * Sem o filtro de confirmação, a tela listava quem só enviou o formulário. Um
+ * operador podia então aprovar um endereço que ninguém provou ser dono — por
+ * exemplo, alguém que se cadastrou com o e-mail de outra pessoa.
  */
 export async function listPendingAccessRequests(): Promise<
   PendingAccessRequest[]
@@ -122,25 +154,27 @@ export async function listPendingAccessRequests(): Promise<
     .orderBy("createdAt", "asc")
     .get();
 
-  return snapshot.docs.map((doc) => ({
+  const requests = snapshot.docs.map((doc) => ({
     uid: doc.id,
     ...(doc.data() as AccessRequest),
   }));
+
+  if (requests.length === 0) return requests;
+
+  const confirmed = await filterConfirmedUids(
+    requests.map((request) => request.uid),
+  );
+
+  return requests.filter((request) => confirmed.has(request.uid));
 }
 
 /**
  * Quantos pedidos estão esperando decisão, para o número na trilha da
- * plataforma. Conta no próprio Firestore, sem baixar as fichas: a trilha só
- * precisa do número, e as intenções de uso não têm por que sair do banco.
+ * plataforma. Conta os mesmos pedidos que a tela mostra: um número que inclui
+ * cadastros sem e-mail confirmado apontaria para pedidos que a tela não lista.
  */
 export async function countPendingAccessRequests() {
-  const snapshot = await adminDb
-    .collection(ACCESS_REQUESTS_COLLECTION)
-    .where("status", "==", "pending")
-    .count()
-    .get();
-
-  return snapshot.data().count;
+  return (await listPendingAccessRequests()).length;
 }
 
 /**

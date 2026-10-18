@@ -28,16 +28,19 @@ import { IndexCatalogGuideModal } from "@/components/IndexCatalog/IndexCatalogGu
 import { IndexCatalogReportFields } from "@/components/IndexCatalog/IndexCatalogReportFields";
 import { MapAssetStrategyFields } from "@/components/IndexCatalog/MapAssetStrategyFields";
 import { PanelPositionField } from "@/components/IndexCatalog/PanelPositionField";
+import { ForecastFacetsFields } from "@/components/IndexCatalog/ForecastFacetsFields";
 import { ImageCollectionForecastGuideModal } from "@/components/IndexCatalog/ImageCollectionForecastGuideModal";
 import {
-  detectYearPartitionedTemplate,
-  fillYearPlaceholder,
+  detectPeriodTemplate,
+  fillPeriodTemplate,
   hasPublishableValidation,
+  isDetectedPeriodTemplate,
   parseNumberList,
 } from "@/utils/indexCatalog";
 import { resizeValueRanges } from "@/utils/municipalValueIndicator";
 import { buildValueLegendRanges } from "@/utils/valueLegendRanges";
 import type { PublishedPanelLayerReportConfig } from "@/contracts/panelLayerReport";
+import type { GeeStatisticsPeriodGranularity } from "@/contracts/geeStatisticsAsset";
 import {
   createDefaultReportDraft,
   isStoredReportText,
@@ -161,22 +164,23 @@ const EMPTY_SPREADSHEET_SOURCE = {
 
 /**
  * "year-siblings" não é uma terceira forma de contrato: ela grava o mesmo
- * `period-template` com `{year}`. A diferença é só de formulário — o operador
- * cola o endereço de um ano concreto em vez de escrever o placeholder.
+ * `period-template` com `{year}` (e `{month}`). A diferença é só de formulário —
+ * o operador cola o endereço de um período concreto em vez de escrever o
+ * placeholder.
  */
 type StatisticsAssetMode = "fixed" | "year-siblings" | "period-template";
 
 const STATISTICS_ASSET_MODE_HINTS: Record<StatisticsAssetMode, string> = {
   fixed: "Uma única tabela reúne todos os períodos disponíveis.",
   "year-siblings":
-    "Existe uma tabela por ano e cada uma guarda os meses daquele ano. Informe o endereço de um ano; o catálogo descobre os demais na mesma pasta.",
+    "Existe uma tabela por ano (que pode guardar os meses daquele ano) ou uma por mês. Informe o endereço de uma delas; o catálogo descobre as demais na mesma pasta.",
   "period-template":
     "Várias tabelas seguem o mesmo padrão de endereço, como uma tabela para cada ano ou mês.",
 };
 
 const STATISTICS_ASSET_FIELD_LABELS: Record<StatisticsAssetMode, string> = {
   fixed: "ID da FeatureCollection",
-  "year-siblings": "ID da FeatureCollection de um dos anos",
+  "year-siblings": "ID da FeatureCollection de um dos períodos",
   "period-template": "Template da FeatureCollection",
 };
 
@@ -196,10 +200,7 @@ function inferStatisticsAssetMode(
   asset: GeeDraftSource["asset"],
 ): StatisticsAssetMode {
   if (asset.type === "fixed") return "fixed";
-  const template = asset.assetIdTemplate;
-  return template.includes("{year}") &&
-    !template.includes("{month}") &&
-    !template.includes("{period}")
+  return isDetectedPeriodTemplate(asset.assetIdTemplate)
     ? "year-siblings"
     : "period-template";
 }
@@ -264,7 +265,10 @@ function CatalogActionButton({
       <span
         id={descriptionId}
         role="tooltip"
-        className="pointer-events-none invisible absolute bottom-[calc(100%+0.5rem)] left-0 z-30 w-72 max-w-[calc(100vw-3rem)] rounded-md bg-stone-800 px-3 py-2 text-left text-xs font-normal leading-relaxed text-white opacity-0 shadow-lg transition-opacity group-hover:visible group-hover:opacity-100 group-focus-within:visible group-focus-within:opacity-100"
+        // `hidden`, e não `invisible`: escondida mas ocupando lugar, a dica de
+        // 288 px passava da borda no celular e a página inteira ficava mais
+        // larga que a tela (457 px num celular de 360).
+        className="pointer-events-none absolute bottom-[calc(100%+0.5rem)] left-0 z-30 hidden w-72 max-w-[calc(100vw-3rem)] rounded-md bg-stone-800 px-3 py-2 text-left text-xs font-normal leading-relaxed text-white shadow-lg group-hover:block group-focus-within:block"
       >
         {description}
       </span>
@@ -285,7 +289,7 @@ export function IndexCatalogScreen() {
   const [statisticsAssetMode, setStatisticsAssetMode] =
     useState<StatisticsAssetMode>("fixed");
   const [yearSampleAssetId, setYearSampleAssetId] = useState("");
-  const [openedLatestYear, setOpenedLatestYear] = useState<string>();
+  const [openedLatestPeriod, setOpenedLatestPeriod] = useState<string>();
   const [entryId, setEntryId] = useState<string | null>(null);
   const [guideOpen, setGuideOpen] = useState(false);
   const [forecastGuideOpen, setForecastGuideOpen] = useState(false);
@@ -407,7 +411,7 @@ export function IndexCatalogScreen() {
     setReport(createDefaultReportDraft());
     setStatisticsAssetMode("fixed");
     setYearSampleAssetId("");
-    setOpenedLatestYear(undefined);
+    setOpenedLatestPeriod(undefined);
     setEntryId(null);
     entryIdRef.current = null;
     createKeyRef.current = null;
@@ -444,6 +448,9 @@ export function IndexCatalogScreen() {
       ...(config.valueIndicator
         ? { valueIndicator: config.valueIndicator }
         : {}),
+      ...(config.forecastFacets
+        ? { forecastFacets: config.forecastFacets }
+        : {}),
     });
     // Um rascunho sem texto salvo recebe o padrão, e não campos vazios: é o
     // mesmo ponto de partida de um índice novo, inclusive para os que foram
@@ -458,16 +465,14 @@ export function IndexCatalogScreen() {
       ? inferStatisticsAssetMode(openedGeeSource.asset)
       : "fixed";
     setStatisticsAssetMode(assetMode);
-    setOpenedLatestYear(
-      config.validation?.inferred.periods.at(-1)?.slice(0, 4),
-    );
-    // Reexibe o ano que o operador digitou, e não o placeholder gravado.
+    setOpenedLatestPeriod(config.validation?.inferred.periods.at(-1));
+    // Reexibe o período que o operador digitou, e não o placeholder gravado.
     setYearSampleAssetId(
       assetMode === "year-siblings" &&
         openedGeeSource?.asset.type === "period-template"
-        ? fillYearPlaceholder(
+        ? fillPeriodTemplate(
             openedGeeSource.asset.assetIdTemplate,
-            config.validation?.inferred.periods.at(-1)?.slice(0, 4),
+            config.validation?.inferred.periods.at(-1),
           )
         : "",
     );
@@ -531,13 +536,28 @@ export function IndexCatalogScreen() {
       );
       return;
     }
-    // O contrato só entende o template; o ano digitado fica só na tela.
+    // O contrato só entende o template; o período digitado fica só na tela.
+    const detected = detectPeriodTemplate(value);
     setYearSampleAssetId(value);
     updateStatisticsAsset({
       type: "period-template",
-      assetIdTemplate:
-        detectYearPartitionedTemplate(value)?.assetIdTemplate ?? value.trim(),
+      assetIdTemplate: detected?.assetIdTemplate ?? value.trim(),
     });
+    // Uma tabela por mês só tem leitura mensal: o contrato recusa `{month}`
+    // com granularidade anual.
+    if (detected?.month) {
+      setDraft((current) =>
+        current.statisticsSource.kind === "municipal-spreadsheet"
+          ? current
+          : {
+              ...current,
+              statisticsSource: {
+                ...current.statisticsSource,
+                periodGranularity: "month",
+              },
+            },
+      );
+    }
   }
 
   function updateStatisticsProperty(key: string, value: string) {
@@ -1124,7 +1144,7 @@ export function IndexCatalogScreen() {
 
   const detectedYearPartition =
     statisticsAssetMode === "year-siblings"
-      ? detectYearPartitionedTemplate(yearSampleAssetId)
+      ? detectPeriodTemplate(yearSampleAssetId)
       : null;
   const inputClass =
     "mt-1 w-full rounded-md border border-[#CFD0CA] bg-white px-3 py-2 text-sm outline-none focus:border-[#989F43] focus:ring-2 focus:ring-[#E1E2B4]";
@@ -1327,7 +1347,7 @@ export function IndexCatalogScreen() {
                     >
                       <option value="fixed">FeatureCollection única</option>
                       <option value="year-siblings">
-                        Uma tabela por ano (detectar os anos)
+                        Uma tabela por ano ou mês (detectar pelo endereço)
                       </option>
                       <option value="period-template">
                         Template por período
@@ -1342,20 +1362,25 @@ export function IndexCatalogScreen() {
                     <select
                       className={inputClass}
                       value={geeSource.periodGranularity}
+                      disabled={Boolean(detectedYearPartition?.month)}
                       onChange={(event) =>
                         updateDraft("statisticsSource", {
                           ...geeSource,
-                          periodGranularity: event.target.value as
-                            "year" | "month",
+                          periodGranularity: event.target
+                            .value as GeeStatisticsPeriodGranularity,
                         })
                       }
                     >
                       <option value="year">Anual</option>
                       <option value="month">Mensal</option>
+                      {geeSource.kind === "gee-feature-collection" && (
+                        <option value="dekad">Decendial (10 em 10 dias)</option>
+                      )}
                     </select>
                     <span className="mt-1 block text-xs font-normal text-stone-500">
-                      Anual gera períodos como 2026; Mensal gera 2026-09.
-                      Precisa bater com os períodos da tabela.
+                      {detectedYearPartition?.month
+                        ? "Mensal, porque o endereço traz o mês: cada tabela é um mês."
+                        : "Anual gera períodos como 2026; Mensal gera 2026-09; Decendial gera 2026-09-01, 2026-09-11 e 2026-09-21. Precisa bater com as datas da tabela."}
                     </span>
                   </label>
                   <label className="text-sm font-medium md:col-span-2">
@@ -1381,7 +1406,7 @@ export function IndexCatalogScreen() {
                         ? "Templates aceitam {year}, {month} e {period}."
                         : statisticsAssetMode === "fixed"
                           ? "Endereço exato da tabela, que precisa conter todos os períodos."
-                          : "Cole o endereço completo de um dos anos; o ano no fim do nome vira a chave de busca."}
+                          : "Cole o endereço completo de um dos anos ou meses; o ano no fim do nome (e o mês logo depois dele) vira a chave de busca."}
                     </span>
                     {statisticsAssetMode === "year-siblings" &&
                       yearSampleAssetId.trim() !== "" && (
@@ -1392,9 +1417,11 @@ export function IndexCatalogScreen() {
                               : "bg-amber-50 text-amber-800"
                           }`}
                         >
-                          {detectedYearPartition
-                            ? `Ano ${detectedYearPartition.year} detectado. O catálogo vai procurar ${detectedYearPartition.assetIdTemplate} no mesmo diretório e reunir todos os anos encontrados. Cada tabela pode guardar vários meses: escolha "Mensal" na granularidade para que os períodos venham de data_img.`
-                            : "Não encontramos um ano de 4 dígitos neste endereço. Inclua o ano (por exemplo, ..._2026) ou use “Template por período”."}
+                          {detectedYearPartition?.month
+                            ? `Mês ${detectedYearPartition.month}/${detectedYearPartition.year} detectado. O catálogo vai procurar ${detectedYearPartition.assetIdTemplate} no mesmo diretório e reunir todos os meses encontrados.`
+                            : detectedYearPartition
+                              ? `Ano ${detectedYearPartition.year} detectado. O catálogo vai procurar ${detectedYearPartition.assetIdTemplate} no mesmo diretório e reunir todos os anos encontrados. Cada tabela pode guardar vários meses: escolha "Mensal" na granularidade para que os períodos venham de data_img.`
+                              : "Não encontramos um ano de 4 dígitos neste endereço. Inclua o ano (por exemplo, ..._2026) ou use “Template por período”."}
                         </span>
                       )}
                   </label>
@@ -1570,7 +1597,7 @@ export function IndexCatalogScreen() {
                 <MapAssetStrategyFields
                   key={entryId ?? "new"}
                   mapping={draft.earthEngine}
-                  latestYear={openedLatestYear}
+                  latestPeriod={openedLatestPeriod}
                   inputClass={inputClass}
                   onChange={updateMap}
                 />
@@ -1698,6 +1725,15 @@ export function IndexCatalogScreen() {
                 )}
               </div>
             </fieldset>
+          )}
+
+          {!isSpreadsheet && draft.earthEngine.collectionSelection && (
+            <ForecastFacetsFields
+              value={draft.forecastFacets}
+              onChange={(value) => updateDraft("forecastFacets", value)}
+              items={items}
+              inputClass={inputClass}
+            />
           )}
 
           {hasValueIndicator ? (

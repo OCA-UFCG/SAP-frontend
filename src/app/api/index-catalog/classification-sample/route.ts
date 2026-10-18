@@ -7,7 +7,7 @@ import {
 import { parseMunicipalSpreadsheetSource } from "@/contracts/municipalSpreadsheet";
 import { readSpreadsheetClassificationSample } from "@/services/indexCatalog/spreadsheetClassificationSample";
 
-const PERIOD_PATTERN = /^\d{4}(?:-(?:0[1-9]|1[0-2]))?$/u;
+const PERIOD_PATTERN = /^\d{4}(?:-(?:0[1-9]|1[0-2])(?:-(?:01|11|21))?)?$/u;
 
 function parsePeriod(value: unknown) {
   if (value === undefined || value === null || value === "") return undefined;

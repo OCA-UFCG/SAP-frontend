@@ -2,7 +2,8 @@
 
 import { FormEvent, useEffect, useMemo, useRef, useState, useTransition } from "react";
 import { useLocale, useTranslations } from "next-intl";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
+import { ArrowForwardIcon } from "@/components/HomeIcons/HomeIcons";
 import { InfoModal } from "@/components/InfoModal/InfoModal";
 import { LayerAccordion } from "@/components/LayerAccordion/LayerAccordion";
 import { PanelDropdown } from "@/components/PanelDropdown/PanelDropdown";
@@ -34,6 +35,8 @@ import {
 import type { PanelLayerI } from "@/utils/interfaces";
 import { startMunicipalReportMetrics } from "@/utils/municipalReportMetrics";
 import { slugifyTranslationKey } from "@/utils/translations";
+import { normalize } from "@/utils/functions";
+import { searchMatchRank } from "@/utils/searchMatch";
 
 interface MunicipalReportContextProps { panelLayers?: PanelLayerI[] }
 
@@ -78,35 +81,75 @@ export function MunicipalReportContext({ panelLayers = [] }: MunicipalReportCont
   const router = useRouter();
   const tAnalysis = useTranslations("AnalysisPanel");
   const municipalityPickerRef = useRef<HTMLDivElement>(null);
-  const [scope, setScope] = useState<ReportScope>("municipality");
-  const [spatialValue, setSpatialValue] = useState("");
-  const [municipalityCode, setMunicipalityCode] = useState("");
-  const [municipalityQuery, setMunicipalityQuery] = useState("");
+  // Gerar o relatório troca a URL e remonta este painel. Sem ler a URL de
+  // volta, quem voltava ao formulário para tirar um índice encontrava o
+  // território vazio e todos os índices marcados de novo.
+  const searchParams = useSearchParams();
+  const [openReport] = useState(() => {
+    const territory = resolveReportTerritory(searchParams.get("locationKey") ?? "");
+    const layers = searchParams.get("layers")?.split(",").filter(Boolean) ?? [];
+    const municipality = territory?.municipalityCode
+      ? citiesIndex.find((city) => city.code === territory.municipalityCode)
+      : undefined;
+    return { territory, layers, municipality };
+  });
+  const [scope, setScope] = useState<ReportScope>(
+    openReport.territory?.selection?.spatialArea ?? "municipality",
+  );
+  const [spatialValue, setSpatialValue] = useState<string>(
+    openReport.territory?.selection?.spatialValue ?? "",
+  );
+  const [municipalityCode, setMunicipalityCode] = useState(openReport.municipality?.code ?? "");
+  const [municipalityQuery, setMunicipalityQuery] = useState(openReport.municipality?.label ?? "");
   const [isMunicipalityOptionsOpen, setIsMunicipalityOptionsOpen] = useState(false);
   const period = REPORT_DEFAULT_PERIOD;
   const [selectedLayers, setSelectedLayers] = useState<Set<string>>(
-    () => new Set(panelLayers.map((layer) => layer.id)),
+    () =>
+      new Set(
+        openReport.territory && openReport.layers.length > 0
+          ? openReport.layers
+          : panelLayers.map((layer) => layer.id),
+      ),
   );
   const [infoLayer, setInfoLayer] = useState<PanelLayerI | null>(null);
   const [isGenerating, startGenerating] = useTransition();
 
   const municipalities = useMemo(
-    () => [...citiesIndex].sort((left, right) => left.label.localeCompare(right.label, "pt-BR")),
+    () =>
+      [...citiesIndex]
+        .sort((left, right) => left.label.localeCompare(right.label, "pt-BR"))
+        .map((municipality) => ({
+          ...municipality,
+          normalizedName: normalize(municipality.name),
+          normalizedLabel: normalize(municipality.label),
+        })),
     [],
   );
   const selectedMunicipality = useMemo(
     () => municipalities.find((municipality) => municipality.code === municipalityCode),
     [municipalities, municipalityCode],
   );
+  // Sem acento, como a busca do Monitoramento: no celular quase ninguém digita
+  // "João Pessoa" com til. E o nome exato vem antes de quem só o contém.
   const filteredMunicipalities = useMemo(() => {
-    const normalizedQuery = municipalityQuery.trim().toLocaleLowerCase("pt-BR");
+    const normalizedQuery = normalize(municipalityQuery.trim());
     const options = normalizedQuery
-      ? municipalities.filter((municipality) => municipality.label.toLocaleLowerCase("pt-BR").includes(normalizedQuery))
+      ? municipalities
+          .map((municipality) => ({
+            municipality,
+            rank: searchMatchRank(normalizedQuery, [
+              municipality.normalizedName,
+              municipality.normalizedLabel,
+            ]),
+          }))
+          .filter((entry) => entry.rank !== null)
+          .sort((left, right) => (left.rank ?? 2) - (right.rank ?? 2))
+          .map(({ municipality }) => municipality)
       : municipalities;
 
     return options.slice(0, 80);
   }, [municipalities, municipalityQuery]);
-  const validPeriod = /^\d{4}(-\d{2})?$/.test(period);
+  const validPeriod = /^\d{4}(-\d{2}){0,2}$/.test(period);
 
   /**
    * O território do relatório: o município escolhido na busca ou o recorte
@@ -195,12 +238,12 @@ export function MunicipalReportContext({ panelLayers = [] }: MunicipalReportCont
   function renderLayerOption(layer: PanelLayerI) {
     const available = availabilityState === "ready" && availability.get(layer.id) === true;
     const layerTitle = translatedLayerTitle(layer);
-    return <div key={layer.id} className={`flex h-12 items-center rounded-lg border border-[#EFEFEF] bg-white ${available ? "" : "opacity-50"}`}>
+    return <div key={layer.id} className={`group/layer flex min-h-12 items-stretch rounded-lg border bg-white transition-[border-color,background-color,translate] duration-200 ${available ? "border-[#EFEFEF] hover:border-[#CCCF87] motion-safe:hover:translate-x-0.5 has-[:checked]:border-[#989F43] has-[:checked]:bg-[#F5F6EE]" : "border-[#EFEFEF] opacity-50"}`}>
       <label className={`flex min-w-0 flex-1 items-center gap-1 py-1 pl-2 ${available ? "cursor-pointer" : "cursor-not-allowed"}`}>
-        <span className="flex h-10 w-[30px] items-center justify-center"><input type="checkbox" checked={selectedLayers.has(layer.id)} disabled={!available} onChange={() => toggleLayer(layer.id)} className="h-3.5 w-3.5 rounded-sm accent-[#989F43]" /></span>
-        <span className="min-w-0 flex-1 truncate font-inter text-base font-semibold leading-6 tracking-[-0.015em]" title={layerTitle}>{layerTitle}</span>
+        <span className="flex h-10 w-[30px] items-center justify-center"><input type="checkbox" checked={selectedLayers.has(layer.id)} disabled={!available} onChange={() => toggleLayer(layer.id)} className="h-3.5 w-3.5 rounded-sm accent-[#989F43] motion-safe:checked:animate-[pop-in_300ms_cubic-bezier(0.34,1.56,0.64,1)]" /></span>
+        <span className="min-w-0 flex-1 break-words font-inter text-base font-semibold leading-6 tracking-[-0.015em]" title={layerTitle}>{layerTitle}</span>
       </label>
-      <button type="button" onClick={() => setInfoLayer(layer)} className="flex h-12 w-10 shrink-0 items-center justify-center border-l border-[#EFEFEF]" aria-label={t("moduleInformation", { title: layerTitle })}><svg className="h-4 w-4 text-[#2C1E1C]" aria-hidden><use href="/sprite.svg#info"/></svg></button>
+      <button type="button" onClick={() => setInfoLayer(layer)} className="group/info flex w-10 shrink-0 items-center justify-center border-l border-[#EFEFEF]" aria-label={t("moduleInformation", { title: layerTitle })}><svg className="h-4 w-4 text-[#2C1E1C] transition-[scale] duration-200 motion-safe:group-hover/info:scale-125" aria-hidden><use href="/sprite.svg#info"/></svg></button>
     </div>;
   }
 
@@ -235,7 +278,7 @@ export function MunicipalReportContext({ panelLayers = [] }: MunicipalReportCont
     selectedPeriod: string,
   ) {
     if (!selectedTerritory) return new Set<string>();
-    if (!/^\d{4}(-\d{2})?$/.test(selectedPeriod)) return new Set<string>();
+    if (!/^\d{4}(-\d{2}){0,2}$/.test(selectedPeriod)) return new Set<string>();
     return getSelectableReportLayerIds(
       reportLayers,
       municipalAvailabilityIndex as MunicipalAvailabilityIndex,
@@ -326,8 +369,8 @@ export function MunicipalReportContext({ panelLayers = [] }: MunicipalReportCont
   }
 
   return (
-    <section className="h-full w-full overflow-y-auto bg-[#F6F7F6] px-4 py-12 text-[#292829]">
-      <form onSubmit={handleSubmit} className="mx-auto flex min-h-full w-full max-w-96 flex-col gap-6">
+    <section className="h-full w-full overflow-y-auto bg-[#F6F7F6] px-4 py-12 text-[#292829] max-md:pt-6 max-md:pb-24">
+      <form onSubmit={handleSubmit} className="panel-cascade mx-auto flex min-h-full w-full max-w-96 flex-col gap-6">
         <header className="space-y-2">
           <h2 className="font-inter text-2xl font-semibold leading-6 tracking-[-0.015em]">{t("section")}</h2>
           <p className="font-inter text-base font-medium leading-6 tracking-[-0.015em]">{t("selectionDescription")}</p>
@@ -361,7 +404,7 @@ export function MunicipalReportContext({ panelLayers = [] }: MunicipalReportCont
               )}
             <div ref={municipalityPickerRef} className={`relative min-w-0 flex-1 ${scope === "municipality" ? "" : "hidden"}`}>
               <span className="sr-only">{t("municipality")}</span>
-              <div className="flex h-10 w-full items-center overflow-hidden rounded-lg border border-transparent bg-[#E4E5E2] px-3 py-3 shadow-sm transition hover:border-neutral-400 focus-within:border-neutral-600 focus-within:ring-2 focus-within:ring-neutral-600">
+              <div className="flex h-10 w-full items-center overflow-hidden rounded-md border border-[#DCDBDC] bg-white px-3 py-2 transition hover:border-neutral-400 focus-within:border-neutral-600 focus-within:ring-2 focus-within:ring-neutral-600">
                 <svg aria-hidden="true" viewBox="0 0 24 24" className="mr-2 h-4 w-4 shrink-0 text-[#898989]" fill="none" stroke="currentColor" strokeWidth="2"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/></svg>
                 <input
                   value={selectedMunicipality && municipalityQuery === "" ? selectedMunicipality.label : municipalityQuery}
@@ -386,14 +429,14 @@ export function MunicipalReportContext({ panelLayers = [] }: MunicipalReportCont
                     ×
                   </button>
                 )}
-                <button type="button" onClick={() => setIsMunicipalityOptionsOpen((current) => !current)} className="ml-2 shrink-0 text-[#898989]" aria-label={t("selectMunicipality")}>
+                <button type="button" onClick={() => setIsMunicipalityOptionsOpen((current) => !current)} className="ml-2 shrink-0 text-[#7E797B]" aria-label={t("selectMunicipality")}>
                   <svg width="16" height="16" viewBox="0 0 20 20" fill="none" xmlns="http://www.w3.org/2000/svg" className={`transition-transform ${isMunicipalityOptionsOpen ? "rotate-180" : ""}`} aria-hidden="true">
                     <path d="M5 7.5L10 12.5L15 7.5" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" />
                   </svg>
                 </button>
               </div>
               {isMunicipalityOptionsOpen && (
-                <div id="municipal-report-municipality-options" role="listbox" className="absolute top-[calc(100%+8px)] z-30 max-h-64 w-full overflow-y-auto rounded-xl border border-neutral-200 bg-white p-2 shadow-lg">
+                <div id="municipal-report-municipality-options" role="listbox" className="absolute top-[calc(100%+8px)] z-30 max-h-64 w-full origin-top overflow-y-auto rounded-xl border border-neutral-200 bg-white p-2 shadow-lg motion-safe:animate-[menu-in_180ms_ease-out]">
                   {filteredMunicipalities.length > 0 ? filteredMunicipalities.map((municipality) => (
                     <button
                       key={municipality.code}
@@ -401,7 +444,7 @@ export function MunicipalReportContext({ panelLayers = [] }: MunicipalReportCont
                       role="option"
                       aria-selected={municipalityCode === municipality.code}
                       onClick={() => selectMunicipality(municipality.code, municipality.label)}
-                      className="flex w-full rounded-lg px-3 py-2 text-left text-sm text-[#292829] transition hover:bg-[#F6F7F6]"
+                      className="flex w-full rounded-lg px-3 py-2 text-left text-sm text-[#292829] transition hover:bg-[#F6F7F6] hover:text-[#5B612A] aria-selected:bg-[#F5F6EE] aria-selected:font-medium aria-selected:text-[#5B612A]"
                     >
                       {municipality.label}
                     </button>
@@ -430,7 +473,7 @@ export function MunicipalReportContext({ panelLayers = [] }: MunicipalReportCont
                   </svg>
                 </button>
                 {isPeriodOptionsOpen && (
-                  <div id="municipal-report-period-options" role="listbox" className="absolute top-[calc(100%+8px)] z-20 max-h-64 w-full overflow-y-auto rounded-xl border border-neutral-200 bg-white p-2 shadow-lg">
+                  <div id="municipal-report-period-options" role="listbox" className="absolute top-[calc(100%+8px)] z-20 max-h-64 w-full origin-top overflow-y-auto rounded-xl border border-neutral-200 bg-white p-2 shadow-lg motion-safe:animate-[menu-in_180ms_ease-out]">
                     {periodOptions.map((option) => (
                       <button
                         key={option}
@@ -444,7 +487,7 @@ export function MunicipalReportContext({ panelLayers = [] }: MunicipalReportCont
                             municipalityCode ? getDefaultSelectedLayers(municipalityCode, option) : new Set(),
                           );
                         }}
-                        className="flex w-full rounded-lg px-3 py-2 text-left text-sm text-[#292829] transition hover:bg-[#F6F7F6]"
+                        className="flex w-full rounded-lg px-3 py-2 text-left text-sm text-[#292829] transition hover:bg-[#F6F7F6] hover:text-[#5B612A] aria-selected:bg-[#F5F6EE] aria-selected:font-medium aria-selected:text-[#5B612A]"
                       >
                         {option}
                       </button>
@@ -466,7 +509,6 @@ export function MunicipalReportContext({ panelLayers = [] }: MunicipalReportCont
             </div>
             <p className="font-inter text-xs font-medium leading-[18px] tracking-[-0.015em]">{t("selectModulesHint")}</p>
             <div className="flex min-h-[18px] items-center gap-2 font-inter text-xs leading-[18px] text-[#7E797B]" aria-live="polite">
-              {availabilityState === "idle" && t("availabilityIdle")}
               {availabilityState === "ready" && availableLayers.length === 0 && t("noModulesAvailable")}
             </div>
           </div>
@@ -474,11 +516,11 @@ export function MunicipalReportContext({ panelLayers = [] }: MunicipalReportCont
           <div className="space-y-4">
             {groups.map((group, index) => (
               <LayerAccordion key={group.key} title={translatedCategoryTitle(group)} defaultOpen={false}>
-                <div className="flex flex-col gap-2">
+                <div data-cascade className="flex flex-col gap-2">
                   {group.items.map(renderLayerOption)}
                   {group.subgroups.map((subgroup) => (
                     <LayerAccordion key={subgroup.key} title={tModules(`subgroups.${subgroup.key}`)} defaultOpen={false}>
-                      <div className="flex flex-col gap-2">{subgroup.items.map(renderLayerOption)}</div>
+                      <div data-cascade className="flex flex-col gap-2">{subgroup.items.map(renderLayerOption)}</div>
                     </LayerAccordion>
                   ))}
                 </div>
@@ -487,7 +529,9 @@ export function MunicipalReportContext({ panelLayers = [] }: MunicipalReportCont
           </div>
         </fieldset>
 
-        <button type="submit" disabled={!canSubmit || isGenerating} className="mt-auto flex h-10 w-full shrink-0 items-center justify-center gap-2 rounded bg-[#989F43] px-4 font-open-sans text-sm text-white hover:bg-[#858c39] disabled:cursor-not-allowed disabled:opacity-70">{isGenerating && <span aria-hidden="true" className="h-4 w-4 animate-spin rounded-full border-2 border-white/40 border-t-white" />}{isGenerating ? t("generatingReport") : t("generateReport")}</button>
+        {/* Quando a seleção fica completa o botão "acorda" com um anel verde; no
+            hover, a seta anda. */}
+        <button type="submit" disabled={!canSubmit || isGenerating} className={`group/submit mt-auto flex h-10 w-full shrink-0 items-center justify-center gap-2 rounded bg-[#989F43] px-4 font-open-sans text-sm text-white transition-[background-color,box-shadow,scale] duration-200 hover:bg-[#858c39] disabled:cursor-not-allowed disabled:opacity-70 ${canSubmit && !isGenerating ? "hover:shadow-[0_8px_20px_rgba(91,97,42,0.3)] active:scale-[0.98] motion-safe:animate-[ready-ring_900ms_ease-out_2]" : ""}`}>{isGenerating && <span aria-hidden="true" className="h-4 w-4 animate-spin rounded-full border-2 border-white/40 border-t-white" />}{isGenerating ? t("generatingReport") : t("generateReport")}{canSubmit && !isGenerating && <ArrowForwardIcon size={16} className="transition-[translate] duration-200 motion-safe:group-hover/submit:translate-x-1" />}</button>
       </form>
       {infoLayer && <InfoModal card={{ id: 0, title: infoLayer.name, description: infoLayer.description, image: infoLayer.previewMap?.url, fileRef: infoLayer.id, imageData: infoLayer.imageData, timeScale: infoLayer.timeScale }} imageData={infoLayer.imageData} open onClose={() => setInfoLayer(null)} />}
     </section>

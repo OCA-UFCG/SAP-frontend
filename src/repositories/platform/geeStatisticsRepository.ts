@@ -65,7 +65,24 @@ interface EvaluatedFeatureCollection {
   features?: EvaluatedFeature[];
 }
 
-const propertyNamesBySourceRevision = new Map<string, Promise<string[]>>();
+/**
+ * As colunas de cada série, guardadas no `globalThis` e não numa variável do
+ * módulo.
+ *
+ * O Next empacota o código da subida do servidor (`instrumentation`) separado
+ * das rotas, e cada pacote recebe a sua própria cópia deste módulo. Numa
+ * variável do módulo, as colunas aquecidas na subida ficavam numa cópia que a
+ * rota do relatório nunca lia: o primeiro relatório depois do deploy lia as 17
+ * de novo e levava 5,1 s, contra 2,5 s do segundo.
+ */
+const sharedState = globalThis as typeof globalThis & {
+  __geeStatisticsPropertyNames?: Map<string, Promise<string[]>>;
+};
+const propertyNamesBySourceRevision =
+  (sharedState.__geeStatisticsPropertyNames ??= new Map<
+    string,
+    Promise<string[]>
+  >());
 
 export interface GeeStatisticsMetrics {
   areaTotalHa?: number;
@@ -540,9 +557,9 @@ async function loadSeriesLocationRows(
   locationKey: string,
 ): Promise<Record<string, unknown>[]> {
   const locationFilter = buildLocationFilter(source, locationKey);
-  // Sem limitador de concorrência de propósito: o SDK do Earth Engine já
-  // despacha uma requisição a cada 350 ms de uma fila global do processo, então
-  // um limitador aqui só somaria espera à espera que já existe.
+  // Sem limitador de concorrência de propósito: `evaluateGeeObject` já segura
+  // no máximo 20 leituras simultâneas no processo inteiro
+  // (`GEE_COMPUTE_CONCURRENCY`), então um limitador aqui só somaria espera.
   const { rows, unavailableAssetIds, firstError } = await readStatisticsSeries(
     assetIds.map((assetId) => ({
       assetId,
@@ -569,8 +586,9 @@ async function loadSeriesLocationRows(
 /**
  * Seleciona o período entre as linhas já carregadas do território.
  *
- * `data_img` guarda o primeiro dia do mês (`2025-06-01`) nas fontes mensais, e
- * `ano` guarda o ano como número nas anuais. Errar essa correspondência faz o
+ * `data_img` guarda o primeiro dia do mês (`2025-06-01`) nas fontes mensais, o
+ * primeiro dia do decêndio (`2025-06-11`, que já é a própria chave) nas
+ * decendiais, e `ano` guarda o ano como número nas anuais. Errar essa correspondência faz o
  * painel mostrar o período errado sem nenhum erro, então ela tem teste próprio.
  */
 export function matchesStatisticsPeriod(
@@ -581,8 +599,86 @@ export function matchesStatisticsPeriod(
   if (source.periodGranularity === "month") {
     return row[source.properties.date] === `${yearKey}-01`;
   }
+  if (source.periodGranularity === "dekad") {
+    return row[source.properties.date] === yearKey;
+  }
 
   return Number(row[source.properties.year]) === Number(yearKey);
+}
+
+/**
+ * As linhas da série separadas por período numa passada só.
+ *
+ * O índice segue a convenção de `matchesStatisticsPeriod`, que continua sendo
+ * quem decide: ele só evita testar cada linha contra cada período. Com o Brasil
+ * e os 27 estados em 926 decêndios do CDI são 26 mil linhas, e filtrar a série
+ * inteira por período levava 7 s de CPU a cada gráfico.
+ */
+function groupStatisticsRowsByPeriod(
+  source: ResolvedGeeStatisticsSource,
+  rows: Record<string, unknown>[],
+): Map<string, Record<string, unknown>[]> {
+  const rowsByPeriod = new Map<string, Record<string, unknown>[]>();
+
+  for (const row of rows) {
+    const date = String(row[source.properties.date]);
+    const periodKey =
+      source.periodGranularity === "year"
+        ? String(Number(row[source.properties.year]))
+        : source.periodGranularity === "month"
+          ? date.replace(/-01$/u, "")
+          : date;
+    const periodRows = rowsByPeriod.get(periodKey);
+
+    if (periodRows) periodRows.push(row);
+    else rowsByPeriod.set(periodKey, [row]);
+  }
+
+  return rowsByPeriod;
+}
+
+/**
+ * Qual leitura do Earth Engine responde por um território.
+ *
+ * Um estado lê a camada estadual inteira (as 27 UFs) e o Brasil lê o Brasil
+ * junto com as mesmas 27 UFs, então o estado sai da leitura do Brasil: quem
+ * troca de UF, ou abre o painel nacional e depois escolhe uma, não volta ao
+ * Earth Engine. Do mesmo jeito, todos os biomas (ou regiões, ASDs, semiárido)
+ * vêm de uma leitura só do nível. `mapGeeStatisticsRows` separa depois só o
+ * território pedido.
+ *
+ * @example
+ * getSeriesRowsScope("pe"); // "br"
+ * getSeriesRowsScope("3_bioma-caatinga"); // "3_bioma"
+ */
+function getSeriesRowsScope(locationKey: string): string {
+  if (STATE_KEY_PATTERN.test(locationKey) && locationKey in statesObj) {
+    return "br";
+  }
+
+  return locationKey.match(AGGREGATE_LOCATION_PATTERN)?.[1] ?? locationKey;
+}
+
+async function loadCachedSeriesLocationRows(
+  source: ResolvedGeeStatisticsSource,
+  schema: GeeStatisticsSchema,
+  assetIds: readonly string[],
+  locationKey: string,
+): Promise<Record<string, unknown>[]> {
+  const properties = getGeeStatisticsRequestedProperties(source, schema);
+  const scope = getSeriesRowsScope(locationKey);
+  // O filtro de um nível agregado não depende de qual território do nível foi
+  // pedido; o de um estado é o do Brasil, que traz as UFs junto.
+  const filterLocationKey = scope === "br" ? "br" : locationKey;
+  // Uma série lida sem um asset indisponível também é cacheada: o asset que
+  // voltar é percebido pela checagem de alterações das tabelas, que descarta a
+  // entrada para a próxima leitura incluí-lo.
+  return getOrLoadStatisticsRows(
+    buildStatisticsRowsCacheKey(assetIds, scope, properties),
+    () =>
+      loadSeriesLocationRows(source, assetIds, properties, filterLocationKey),
+    assetIds,
+  );
 }
 
 async function loadGeeStatisticsRows(
@@ -592,12 +688,11 @@ async function loadGeeStatisticsRows(
   yearKey: string,
   locationKey: string,
 ): Promise<Record<string, unknown>[]> {
-  const properties = getGeeStatisticsRequestedProperties(source, schema);
-  // Uma série lida sem um asset indisponível também é cacheada: o asset que
-  // voltar entra na próxima leitura, até 10 minutos depois (o TTL deste cache).
-  const rows = await getOrLoadStatisticsRows(
-    buildStatisticsRowsCacheKey(assetIds, locationKey, properties),
-    () => loadSeriesLocationRows(source, assetIds, properties, locationKey),
+  const rows = await loadCachedSeriesLocationRows(
+    source,
+    schema,
+    assetIds,
+    locationKey,
   );
 
   return rows.filter((row) => matchesStatisticsPeriod(source, row, yearKey));
@@ -725,6 +820,142 @@ export async function getGeeStatisticsYearPatch(
     locationKey,
     rows,
     classCount,
+  );
+}
+
+/**
+ * A série inteira de um território num patch só, para o gráfico temporal.
+ *
+ * O gráfico pedia um período por requisição. Numa série decendial são 926
+ * períodos (o CDI, de 2001 a 2026), e pedir todos deixava metade sem resposta;
+ * só que a leitura no Earth Engine já é da série inteira, então o custo estava
+ * nas requisições, não nos dados. Cada período leva apenas os valores do
+ * território pedido: com os 27 estados que acompanham o Brasil, a resposta
+ * passaria de 1 MB.
+ *
+ * Um período que não se converte (classe que não soma 100%, localidade
+ * duplicada) fica de fora do gráfico em vez de derrubar os outros, do mesmo
+ * jeito que falharia sozinho no pedido por período.
+ *
+ * @example
+ * await getGeeStatisticsSeriesPatch("cdi", "br", 6, source, ["2026-09-01"]);
+ */
+export async function getGeeStatisticsSeriesPatch(
+  panelLayerId: string,
+  locationKey: string,
+  classCount: number,
+  source: PublishedGeeStatisticsSource,
+  periodKeys: readonly string[],
+): Promise<CompactTerritorialAnalysisDatasetPatch> {
+  const latestPeriodKey = periodKeys.at(-1);
+
+  if (
+    !latestPeriodKey ||
+    isMunicipalSpreadsheetSource(source) ||
+    isGeeMunicipalValueTableSource(source)
+  ) {
+    throw new Error(
+      `A camada ${panelLayerId} não tem uma série do Earth Engine para o gráfico temporal.`,
+    );
+  }
+
+  await initializeGee();
+
+  const latestSource = resolveGeeStatisticsSource(source, latestPeriodKey);
+  const seriesAssetIds = resolveSeriesAssetIds(
+    source,
+    periodKeys,
+    latestSource.assetId,
+  );
+  const schema = await getGeeStatisticsSchema(
+    latestSource,
+    source.sourceRevision,
+    seriesAssetIds,
+  );
+
+  if (schema.percentageProperties.length !== classCount) {
+    throw new Error(
+      `Asset estatístico ${latestSource.assetId} possui ${schema.percentageProperties.length} classes, mas a camada possui ${classCount}.`,
+    );
+  }
+
+  const rows = await loadCachedSeriesLocationRows(
+    latestSource,
+    schema,
+    seriesAssetIds,
+    locationKey,
+  );
+  const rowsByPeriod = groupStatisticsRowsByPeriod(latestSource, rows);
+  const years: NonNullable<CompactTerritorialAnalysisDatasetPatch["years"]> =
+    {};
+
+  for (const periodKey of periodKeys) {
+    try {
+      const periodSource = resolveGeeStatisticsSource(source, periodKey);
+      const { patch } = mapGeeStatisticsRows(
+        periodSource,
+        schema,
+        periodKey,
+        locationKey,
+        (rowsByPeriod.get(periodKey) ?? []).filter((row) =>
+          matchesStatisticsPeriod(periodSource, row, periodKey),
+        ),
+        classCount,
+      );
+      const values = patch.years?.[periodKey]?.values?.[locationKey];
+
+      if (values) {
+        years[periodKey] = {
+          valuesScale: 1,
+          values: { [locationKey]: values },
+        };
+      }
+    } catch (error) {
+      console.warn(
+        `[geeStatistics] Período ${panelLayerId}/${periodKey}/${locationKey} fora do gráfico temporal.`,
+        error,
+      );
+    }
+  }
+
+  return { schemaVersion: 1, type: "territorial-compact", years };
+}
+
+/**
+ * Lê de antemão as colunas da série de uma camada, para que o primeiro painel
+ * ou relatório depois de um deploy não pague essa leitura.
+ *
+ * As colunas ficam guardadas na memória do processo, que começa vazia a cada
+ * deploy: antes, o primeiro relatório depois dele perguntava as colunas de cada
+ * camada no próprio clique, uma ida ao Earth Engine por camada antes de ler
+ * qualquer número. A chave do cache é a mesma de `getGeeStatisticsYearPatch`,
+ * então a leitura daqui serve direto para ele.
+ *
+ * @example
+ * await preloadGeeStatisticsSchema(layer.statisticsSource, ["2024", "2025"]);
+ */
+export async function preloadGeeStatisticsSchema(
+  source: PublishedGeeStatisticsSource | GeeStatisticsSource,
+  periodKeys: readonly string[],
+): Promise<void> {
+  const periodKey = periodKeys.at(-1);
+  if (
+    !periodKey ||
+    isMunicipalSpreadsheetSource(source) ||
+    isGeeMunicipalValueTableSource(source)
+  ) {
+    return;
+  }
+
+  await initializeGee();
+
+  const resolvedSource = resolveGeeStatisticsSource(source, periodKey);
+  await getGeeStatisticsSchema(
+    resolvedSource,
+    "sourceRevision" in source && typeof source.sourceRevision === "string"
+      ? source.sourceRevision
+      : undefined,
+    resolveSeriesAssetIds(source, periodKeys, resolvedSource.assetId),
   );
 }
 

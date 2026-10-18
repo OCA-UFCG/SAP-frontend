@@ -5,7 +5,7 @@ import { useForm } from "react-hook-form";
 import { useTranslations } from "next-intl";
 import Image from "next/image";
 import { Link } from "@/translations/routing";
-import { SIGNUP_PATH } from "@/config/accessRoutes";
+import { FORGOT_PASSWORD_PATH, SIGNUP_PATH } from "@/config/accessRoutes";
 import { Icon } from "../Icon/Icon";
 import { LoginField } from "./LoginField";
 import { LoginPhotoPanel } from "./LoginPhotoPanel";
@@ -116,7 +116,7 @@ export const Login = ({
                     aria-label={toggleLabel}
                     aria-pressed={passwordVisible}
                     aria-controls="password"
-                    className="flex cursor-pointer items-center rounded-sm p-0.5 focus:outline-none focus-visible:ring-2 focus-visible:ring-[#989F43]"
+                    className="flex cursor-pointer items-center -m-2 rounded-sm p-2.5 focus:outline-none focus-visible:ring-2 focus-visible:ring-[#989F43]"
                   >
                     <Icon
                       id="eye"
@@ -130,6 +130,14 @@ export const Login = ({
                   </button>
                 }
               />
+
+              {/* Fora do `signupOffered`: conta feita à mão também esquece a senha. */}
+              <Link
+                href={FORGOT_PASSWORD_PATH}
+                className="self-end text-[12px] leading-4 text-[#5B612A] underline underline-offset-2 hover:text-[#21240F]"
+              >
+                {t("forgotPassword")}
+              </Link>
             </div>
           </div>
 
@@ -146,7 +154,7 @@ export const Login = ({
               {t("noAccount")}{" "}
               <Link
                 href={SIGNUP_PATH}
-                className="font-medium text-[#777E32] underline underline-offset-2 hover:text-[#5B612A]"
+                className="font-medium text-[#5B612A] underline underline-offset-2 hover:text-[#21240F]"
               >
                 {t("signUp")}
               </Link>

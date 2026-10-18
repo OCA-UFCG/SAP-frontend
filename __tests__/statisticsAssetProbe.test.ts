@@ -22,6 +22,26 @@ function fakeCollection(assetId: string) {
   return self;
 }
 
+/** A conta de percentuais em matriz, reduzida a uma folha só no fim. */
+function arrayExpression(): unknown {
+  const self: Record<string, unknown> = {};
+  for (const method of [
+    "lt",
+    "gt",
+    "or",
+    "and",
+    "not",
+    "neq",
+    "reduce",
+    "subtract",
+    "abs",
+  ]) {
+    self[method] = () => self;
+  }
+  self.get = () => ({ tag: "invalid-percentages" });
+  return self;
+}
+
 vi.mock("@google/earthengine", () => ({
   default: {
     FeatureCollection: fakeCollection,
@@ -35,7 +55,13 @@ vi.mock("@google/earthengine", () => ({
     }),
     List: (items: Expression[]) => ({ tag: "list", items }),
     Filter: { notNull: () => ({ tag: "not-null" }), eq: () => ({ tag: "eq" }) },
-    Reducer: { toList: () => ({ repeat: () => ({ tag: "to-list" }) }) },
+    Reducer: {
+      toList: () => ({ repeat: () => ({ tag: "to-list" }) }),
+      max: () => ({ tag: "max" }),
+      sum: () => ({ tag: "sum" }),
+    },
+    Array: arrayExpression,
+    Number: (value: Expression) => value,
   },
 }));
 
@@ -73,7 +99,7 @@ function source(assetId: string): ResolvedGeeStatisticsSource {
   } as ResolvedGeeStatisticsSource;
 }
 
-function probeFor(assetId: string) {
+function probeFor() {
   return {
     periods: [2024],
     rowCount: 10,
@@ -83,7 +109,7 @@ function probeFor(assetId: string) {
     completeMunicipalCount: 5,
     stateCount: 2,
     completeStateCount: 2,
-    percentageColumns: [[assetId.length]],
+    invalidPercentageCount: 0,
   };
 }
 
@@ -93,7 +119,7 @@ function resolveList(expression: Expression) {
   return expression.items.map((item) =>
     item.tag === "property-names"
       ? ["system:index", "NOME_LOCAL", "perc_classe_1"]
-      : probeFor((item as { assetId: string }).assetId),
+      : probeFor(),
   );
 }
 
@@ -174,7 +200,7 @@ describe("readStatisticsAssetProbes", () => {
   });
 
   it("nomeia a tabela quando o lote volta sem a leitura dela", async () => {
-    mocks.evaluateGeeObject.mockResolvedValue([probeFor("t_1")]);
+    mocks.evaluateGeeObject.mockResolvedValue([probeFor()]);
 
     await expect(
       readStatisticsAssetProbes([

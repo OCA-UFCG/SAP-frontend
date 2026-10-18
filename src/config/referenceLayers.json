@@ -1,0 +1,18 @@
+{
+  "quilombolas": {
+    "assetId": "projects/obscaatinga/assets/Areas_Quilombolas_INCRA_ISO88591",
+    "fields": { "name": "nm_comunid", "uf": "cd_uf", "municipality": "nm_municip" }
+  },
+  "assentamentos": {
+    "assetId": "projects/obscaatinga/assets/Assentamento_Brasil_INCRA_ISO8859",
+    "fields": { "name": "nome_proje", "uf": "uf", "municipality": "municipio" }
+  },
+  "terras_indigenas": {
+    "assetId": "projects/obscaatinga/assets/TIs_Funai_jul26_WINDOWS1252",
+    "fields": { "name": "terrai_nom", "uf": "uf_sigla", "municipality": "municipio_" }
+  },
+  "unidades_conservacao": {
+    "assetId": "projects/ee-ulissesalencar17/assets/cnuc_2026_03_atualizado",
+    "fields": { "name": "nome_uc", "uf": "uf", "municipality": "municipio" }
+  }
+}

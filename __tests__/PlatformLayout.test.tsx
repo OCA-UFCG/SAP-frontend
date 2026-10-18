@@ -1,10 +1,18 @@
-import { cleanup, render, screen } from "@testing-library/react";
+import {
+  act,
+  cleanup,
+  fireEvent,
+  render,
+  screen,
+} from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
-const { platformSidebarMock, platformMapMock } = vi.hoisted(() => ({
-  platformSidebarMock: vi.fn(),
-  platformMapMock: vi.fn(),
-}));
+const { platformSidebarMock, platformMapMock, amfeFormColumnMock } =
+  vi.hoisted(() => ({
+    platformSidebarMock: vi.fn(),
+    platformMapMock: vi.fn(),
+    amfeFormColumnMock: vi.fn(),
+  }));
 
 vi.mock("@/components/MapLayerContext/MapLayerContext", () => ({
   MapLayerProvider: ({ children }: { children: React.ReactNode }) => children,
@@ -23,7 +31,10 @@ vi.mock("@/components/PlatformMap/PlatformMap", () => ({
 }));
 
 vi.mock("@/components/Amfe/AmfeAnalysisFormColumn", () => ({
-  AmfeAnalysisFormColumn: () => <div data-testid="amfe-form-probe" />,
+  AmfeAnalysisFormColumn: (props: Record<string, unknown>) => {
+    amfeFormColumnMock(props);
+    return <div data-testid="amfe-form-probe" />;
+  },
 }));
 
 vi.mock("@/components/PlatformSidebar/PlatformSidebar", () => ({
@@ -39,6 +50,7 @@ afterEach(() => {
   cleanup();
   platformSidebarMock.mockReset();
   platformMapMock.mockReset();
+  amfeFormColumnMock.mockReset();
 });
 
 describe("PlatformLayout", () => {
@@ -110,6 +122,40 @@ describe("PlatformLayout", () => {
     );
   });
 
+  // Regressão: a seção escolhida na trilha vivia num estado do layout que
+  // sobrevivia à ida para Auditoria. Quem saía da Análise, passava pela
+  // Auditoria e voltava para Monitoramento via o formulário da análise
+  // multicritério aberto, mesmo com Monitoramento selecionado.
+  it("follows the requested section after leaving a utility view", () => {
+    const { rerender } = render(
+      <PlatformLayout panelLayers={[]} initialSection="monitoring" />,
+    );
+
+    const { onActiveSectionChange } = platformSidebarMock.mock.calls[0]?.[0] as {
+      onActiveSectionChange: (section: string) => void;
+    };
+    act(() => onActiveSectionChange("analysis"));
+    expect(screen.getByTestId("amfe-form-probe")).toBeInTheDocument();
+
+    rerender(
+      <PlatformLayout
+        showAuditLink
+        viewMode="logs"
+        telemetryDashboard={<div />}
+      />,
+    );
+    platformMapMock.mockClear();
+    rerender(<PlatformLayout panelLayers={[]} initialSection="monitoring" />);
+
+    expect(screen.queryByTestId("amfe-form-probe")).not.toBeInTheDocument();
+    expect(platformMapMock.mock.calls.at(-1)?.[0]).toEqual(
+      expect.objectContaining({
+        section: "monitoring",
+        showMonitoringControls: true,
+      }),
+    );
+  });
+
   it("replaces the map with the logs dashboard when the logs view is active", () => {
     render(
       <PlatformLayout
@@ -122,7 +168,7 @@ describe("PlatformLayout", () => {
     expect(screen.queryByTestId("platform-map-probe")).not.toBeInTheDocument();
     expect(screen.getByTestId("telemetry-dashboard-probe")).toBeInTheDocument();
     expect(screen.getByTestId("platform-logs-shell")).not.toHaveClass(
-      "pl-[140px]",
+      "pl-[124px]",
     );
     expect(platformSidebarMock.mock.calls[0]?.[0]).toEqual(
       expect.objectContaining({
@@ -145,7 +191,7 @@ describe("PlatformLayout", () => {
     expect(screen.queryByTestId("platform-map-probe")).not.toBeInTheDocument();
     expect(screen.getByTestId("catalog-dashboard-probe")).toBeInTheDocument();
     expect(screen.getByTestId("platform-catalog-shell")).toHaveClass(
-      "pl-[140px]",
+      "pl-[124px]",
     );
     expect(platformSidebarMock.mock.calls[0]?.[0]).toEqual(
       expect.objectContaining({
@@ -181,5 +227,93 @@ describe("PlatformLayout", () => {
     ).parentElement;
 
     expect(catalogShell).toHaveClass("min-h-[calc(100vh-66px)]");
+  });
+});
+
+// No celular as opções e o resultado não cabem lado a lado: a casca marca qual
+// dos dois está na tela (`data-mobile-view`) e o CSS esconde o outro.
+describe("PlatformLayout no celular", () => {
+  const shellOf = () =>
+    screen.getByTestId("platform-sidebar-probe").parentElement;
+
+  it("alterna entre as opções e o mapa pelo botão flutuante", () => {
+    render(<PlatformLayout panelLayers={[]} initialSection="monitoring" />);
+
+    expect(shellOf()).toHaveAttribute("data-mobile-view", "options");
+    fireEvent.click(screen.getByRole("button", { name: "Ver mapa" }));
+
+    expect(shellOf()).toHaveAttribute("data-mobile-view", "result");
+    fireEvent.click(screen.getByRole("button", { name: "Mostrar opções" }));
+    expect(shellOf()).toHaveAttribute("data-mobile-view", "options");
+  });
+
+  it("chama o resultado da Comunicação de relatório", () => {
+    render(<PlatformLayout panelLayers={[]} initialSection="communication" />);
+
+    expect(
+      screen.getByRole("button", { name: "Ver relatório" }),
+    ).toBeInTheDocument();
+  });
+
+  it("abre direto no relatório quem chega por um link de relatório", () => {
+    render(
+      <PlatformLayout
+        panelLayers={[]}
+        initialSection="communication"
+        reportRequest={{ locationKey: "2504009", period: "2026-08", layerIds: [] }}
+      />,
+    );
+
+    expect(shellOf()).toHaveAttribute("data-mobile-view", "result");
+  });
+
+  it("vai para o relatório quando o formulário pede um novo", () => {
+    const { rerender } = render(
+      <PlatformLayout panelLayers={[]} initialSection="communication" />,
+    );
+    expect(shellOf()).toHaveAttribute("data-mobile-view", "options");
+
+    rerender(
+      <PlatformLayout
+        panelLayers={[]}
+        initialSection="communication"
+        reportRequest={{ locationKey: "2504009", period: "2026-08", layerIds: [] }}
+      />,
+    );
+
+    expect(shellOf()).toHaveAttribute("data-mobile-view", "result");
+  });
+
+  it("vai para o mapa quando a pessoa pede a análise da Priorização", () => {
+    render(<PlatformLayout panelLayers={[]} initialSection="analysis" />);
+
+    const { onAnalyze } = amfeFormColumnMock.mock.calls.at(-1)?.[0] as {
+      onAnalyze: () => void;
+    };
+    act(() => onAnalyze());
+
+    expect(shellOf()).toHaveAttribute("data-mobile-view", "result");
+  });
+
+  it("volta para as opções ao trocar de seção", () => {
+    render(<PlatformLayout panelLayers={[]} initialSection="monitoring" />);
+    fireEvent.click(screen.getByRole("button", { name: "Ver mapa" }));
+
+    const { onActiveSectionChange } = platformSidebarMock.mock.calls.at(-1)?.[0] as {
+      onActiveSectionChange: (section: string) => void;
+    };
+    act(() => onActiveSectionChange("communication"));
+
+    expect(shellOf()).toHaveAttribute("data-mobile-view", "options");
+  });
+
+  it("não mostra o botão na Auditoria nem no Catálogo", () => {
+    render(
+      <PlatformLayout viewMode="catalog" catalogDashboard={<div />} />,
+    );
+
+    expect(
+      screen.queryByRole("button", { name: "Ver mapa" }),
+    ).not.toBeInTheDocument();
   });
 });

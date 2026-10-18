@@ -5,6 +5,7 @@ import type {
 } from "@/utils/analysis";
 import type { PublishedGeeStatisticsSource } from "@/contracts/geeStatistics";
 import type { PublishedPanelLayerReportConfig } from "@/contracts/panelLayerReport";
+import type { PanelLayerForecastFacets } from "@/contracts/panelLayerForecast";
 
 export interface DataCardsI {
   noDroughtAreaValue: number;
@@ -113,19 +114,76 @@ export interface WorkingGroupSectionI {
 }
 
 export interface PlatformModuleI {
-  title: string;
-  description: string;
-  image?: string;
-  /** CSS object-position for the background photo. Defaults to "50% 50%". */
-  imagePosition?: string;
-  /** Zoom applied to the photo, anchored to the card's left edge. Defaults to 1. */
-  imageZoom?: number;
-  href?: string;
+  /** Chave dos textos em `PlatformModulesSection.modules.<id>`. */
+  id: "monitoring" | "communication" | "analysis";
+  image: string;
+  href: string;
 }
 
 export interface PlatformModulesSectionI {
-  title: string;
   modules: PlatformModuleI[];
+}
+
+/** Novidade da home; título e texto ficam em `NewsSection.items.<id>`. */
+export interface HomeNewsItemI {
+  id: string;
+  module: PlatformModuleI["id"];
+  /** Data no formato AAAA-MM-DD; sem ela o card não mostra o calendário. */
+  date?: string;
+  href: string;
+}
+
+/** Card da faixa de números logo abaixo do carrossel. */
+export interface HomeHighlightI {
+  value: string;
+  label: string;
+  description: string;
+}
+
+/** Textos do card de uma ferramenta; o link fica no código. */
+export interface HomeToolTextI {
+  id: PlatformModuleI["id"];
+  name: string;
+  /** Foto do Contentful; vazia, o card usa a foto do código. */
+  image?: string;
+  shortText: string;
+  /** Texto do "Ver mais"; vazio, o card não mostra o "Ver mais". */
+  fullText?: string;
+  buttonText: string;
+}
+
+/** Card de "Recursos em destaque" / "O que há de novo?". */
+export interface HomeFeatureI {
+  id: string;
+  module: PlatformModuleI["id"];
+  title: string;
+  description: string;
+  href: string;
+  /** Data no formato AAAA-MM-DD. */
+  date?: string;
+}
+
+export interface HomeTestimonialI {
+  quote: string;
+  author: string;
+  authorDetail?: string;
+  /** Foto do Contentful; sem ela, o card fica com a cor do design. */
+  image?: string;
+}
+
+/** Textos editáveis da home, já resolvidos para o idioma da página. */
+export interface HomeTextsI {
+  highlights: HomeHighlightI[];
+  tools: { title: string; subtitle?: string; items: HomeToolTextI[] };
+  publicPolicy: {
+    title: string;
+    text: string;
+    buttonText: string;
+    /** Fotos da colagem, na ordem dos espaços; o que faltar usa a do código. */
+    images?: string[];
+  };
+  features: { title: string; items: HomeFeatureI[] };
+  testimonials: { title: string; items: HomeTestimonialI[] };
 }
 
 export interface BrazilianState {
@@ -258,6 +316,8 @@ export interface PanelLayerI {
   statisticsSource?: PublishedGeeStatisticsSource | null;
   /** Texto do Relatório Automático escrito no catálogo, quando existe. */
   reportConfig?: PublishedPanelLayerReportConfig | null;
+  /** Filtros da previsão climática, quando o índice é uma delas. */
+  forecastFacets?: PanelLayerForecastFacets | null;
   tileApiPath?: string;
   municipalAnalysisApiPath?: string;
 }

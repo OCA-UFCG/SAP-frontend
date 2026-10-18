@@ -2,10 +2,14 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import {
   CONFIRM_RATE_LIMIT_MAX_REQUESTS,
+  PASSWORD_RESET_CODE_RATE_LIMIT_MAX_REQUESTS,
+  PASSWORD_RESET_REQUEST_RATE_LIMIT_MAX_REQUESTS,
   RESEND_RATE_LIMIT_MAX_REQUESTS,
   SIGNUP_RATE_LIMIT_MAX_REQUESTS,
   clearSignupRateLimits,
   consumeConfirmRateLimit,
+  consumePasswordResetCodeRateLimit,
+  consumePasswordResetRequestRateLimit,
   consumeResendRateLimit,
   consumeSignupRateLimit,
   getSignupClientKey,
@@ -36,6 +40,32 @@ describe("signup rate limits", () => {
 
     expect(consumeConfirmRateLimit("ip:203.0.113.10").limited).toBe(false);
     expect(consumeResendRateLimit("ip:203.0.113.10").limited).toBe(false);
+  });
+
+  // Quem esqueceu a senha não pode ser barrado porque colegas do mesmo prédio
+  // acabaram de se cadastrar, nem o contrário.
+  it("keeps the password reset out of the signup budgets", () => {
+    exhaust(consumeResendRateLimit, RESEND_RATE_LIMIT_MAX_REQUESTS);
+
+    expect(consumePasswordResetRequestRateLimit("ip:203.0.113.10").limited).toBe(false);
+    expect(consumePasswordResetCodeRateLimit("ip:203.0.113.10").limited).toBe(false);
+
+    expect(
+      exhaust(
+        consumePasswordResetRequestRateLimit,
+        PASSWORD_RESET_REQUEST_RATE_LIMIT_MAX_REQUESTS - 1,
+      ).limited,
+    ).toBe(true);
+    expect(consumeSignupRateLimit("ip:203.0.113.10").limited).toBe(false);
+  });
+
+  it("gives the reset link check the same room as the signup confirmation", () => {
+    expect(PASSWORD_RESET_CODE_RATE_LIMIT_MAX_REQUESTS).toBe(
+      CONFIRM_RATE_LIMIT_MAX_REQUESTS,
+    );
+    expect(PASSWORD_RESET_REQUEST_RATE_LIMIT_MAX_REQUESTS).toBe(
+      RESEND_RATE_LIMIT_MAX_REQUESTS,
+    );
   });
 
   it("keeps a budget that fits a whole office signing up together", () => {

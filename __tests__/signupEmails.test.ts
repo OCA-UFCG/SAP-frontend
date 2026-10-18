@@ -3,6 +3,7 @@ import { describe, expect, it } from "vitest";
 import {
   buildAccessDecisionEmail,
   buildNewRequestEmail,
+  buildPasswordResetEmail,
   buildVerificationEmail,
 } from "@/lib/signup-emails";
 
@@ -123,6 +124,47 @@ describe("signup emails", () => {
 
       expect(email.subject.length).toBeGreaterThan(0);
       expect(email.html).not.toContain("https://sap.example/login");
+    });
+  });
+
+  describe("troca de senha", () => {
+    const RESET_LINK = "https://sap.example/pt/redefinir-senha?code=abc123";
+
+    it("carries the link as a button and spelled out under it", () => {
+      const email = buildPasswordResetEmail({ link: RESET_LINK, locale: "pt" });
+
+      expect(email.html).toContain(`href="${RESET_LINK}"`);
+      expect(email.html.replace(`href="${RESET_LINK}"`, "")).toContain(RESET_LINK);
+      expect(email.text).toContain(RESET_LINK);
+    });
+
+    // Qualquer um pode digitar o endereço de outra pessoa no "esqueci minha
+    // senha". Quem recebe sem ter pedido precisa saber que pode ignorar.
+    it("tells whoever did not ask for it that nothing changes", () => {
+      const email = buildPasswordResetEmail({ link: RESET_LINK, locale: "pt" });
+
+      expect(email.text).toContain("ignore este e-mail");
+      expect(email.html).toContain("ignore este e-mail");
+    });
+
+    it("writes the email in the language of the request", () => {
+      expect(buildPasswordResetEmail({ link: RESET_LINK, locale: "en" }).subject).toBe(
+        "Reset your password — SEDES",
+      );
+      expect(buildPasswordResetEmail({ link: RESET_LINK, locale: "es" }).subject).toBe(
+        "Restablece tu contraseña — SEDES",
+      );
+      expect(buildPasswordResetEmail({ link: RESET_LINK, locale: "fr" }).subject).toBe(
+        "Redefina sua senha — SEDES",
+      );
+    });
+
+    it("does not depend on images or stylesheets", () => {
+      const email = buildPasswordResetEmail({ link: RESET_LINK });
+
+      expect(email.html).not.toContain("<img");
+      expect(email.html).not.toContain("<style");
+      expect(email.text).not.toContain("<");
     });
   });
 });

@@ -30,6 +30,7 @@ import {
   getMunicipalReportClasses,
   resolveMunicipalReportSnapshot,
   stableMunicipalReportAlias,
+  toMunicipalReportMapChoropleth,
   toMunicipalReportPresentation,
 } from "@/utils/municipalReport";
 import { computeReportSeriesVariables } from "@/utils/reportSeriesVariables";
@@ -42,6 +43,7 @@ import {
   resolveReportSeverity,
 } from "@/utils/reportVariableProfile";
 import type { TimingObserver } from "@/utils/serverTiming";
+import { hasSeasonalPeriods } from "@/utils/seasonalPeriod";
 
 export interface MunicipalReportServiceDependencies {
   layers?: readonly MunicipalReportLayerConfig[];
@@ -109,6 +111,14 @@ async function resolveReportLayers(
       baseImageData: isCompactImageData(layer.imageData)
         ? layer.imageData
         : undefined,
+      ...(layer.forecastFacets
+        ? {
+            forecast: {
+              ...layer.forecastFacets,
+              periodicity: hasSeasonalPeriods(layer) ? "quarterly" : "monthly",
+            },
+          }
+        : {}),
     };
   });
 }
@@ -145,7 +155,7 @@ function limitLegacyLoad<T>(
 }
 
 function getCalendarYear(period: string) {
-  return period.match(/^(\d{4})(?:-\d{2})?$/u)?.[1] ?? null;
+  return period.match(/^(\d{4})(?:-\d{2}){0,2}$/u)?.[1] ?? null;
 }
 
 function resolveCanonicalReportPeriod(
@@ -273,6 +283,7 @@ function unavailable(
     ...(config.reportPresentation
       ? { presentation: config.reportPresentation }
       : {}),
+    ...(config.forecast ? { forecast: config.forecast } : {}),
   };
 }
 
@@ -540,6 +551,9 @@ export async function buildMunicipalReport(
           sourcePeriods,
           spatialPeriods,
         );
+        const mapChoropleth = toMunicipalReportMapChoropleth(
+          config.baseImageData,
+        );
         return {
           id: config.panelLayerId,
           alias: config.alias,
@@ -558,6 +572,8 @@ export async function buildMunicipalReport(
           ...(config.reportPresentation
             ? { presentation: config.reportPresentation }
             : {}),
+          ...(mapChoropleth ? { mapChoropleth } : {}),
+          ...(config.forecast ? { forecast: config.forecast } : {}),
         };
       } catch (error) {
         console.error(

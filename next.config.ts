@@ -55,6 +55,9 @@ const nextConfig: NextConfig = {
   // Remove o cabeçalho "X-Powered-By: Next.js", que só entrega para um atacante
   // qual tecnologia mirar.
   poweredByHeader: false,
+  // Uma cópia só da biblioteca do Earth Engine no processo: a subida do servidor
+  // a inicializa, e as rotas precisam enxergar esse mesmo objeto inicializado.
+  serverExternalPackages: ["@google/earthengine"],
   experimental: {
     // Keep Docker/WSL production builds below the native-memory peak that can
     // otherwise crash Node while Next.js is collecting output-file traces.

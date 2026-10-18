@@ -65,6 +65,16 @@ export async function POST(request: Request) {
     );
   }
 
+  // A tela só lista quem confirmou o e-mail, mas a rota não confia na tela.
+  // Aprovar sem confirmação liberaria um endereço que ninguém provou ser dono.
+  // Recusar continua permitido: fechar um cadastro suspeito não depende dele.
+  if (decision === "approved" && !(await hasConfirmedEmail(uid))) {
+    return NextResponse.json(
+      { error: "Esta pessoa ainda não confirmou o e-mail." },
+      { status: 409, headers: NO_STORE },
+    );
+  }
+
   // Duas pessoas podem abrir a tela ao mesmo tempo. A transação é o que faz o
   // segundo a chegar desistir de verdade — sem ela, os dois passavam, e um
   // aprovando enquanto o outro recusa deixava a pessoa com acesso e a trilha
@@ -107,6 +117,14 @@ export async function POST(request: Request) {
   await notifyApplicant(accessRequest.email, decision, accessRequest.locale);
 
   return NextResponse.json({ status: decision }, { headers: NO_STORE });
+}
+
+async function hasConfirmedEmail(uid: string) {
+  try {
+    return (await adminAuth.getUser(uid)).emailVerified;
+  } catch {
+    return false;
+  }
 }
 
 /**

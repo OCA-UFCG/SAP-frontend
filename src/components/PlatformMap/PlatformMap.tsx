@@ -1,7 +1,7 @@
 "use client";
 
 import MapComponent from "../Map/MapComponent";
-import type { CSSProperties } from "react";
+import { useState, type CSSProperties } from "react";
 import type { MapProps } from "../Map/Map";
 import { BRAZIL_TERRITORY_CODE } from "../Map/stateSelection";
 import { useOptionalAmfeAnalysis } from "@/components/Amfe/AmfeAnalysisContext";
@@ -13,6 +13,10 @@ import {
   PLATFORM_MAP_CENTER,
   PLATFORM_MAP_INITIAL_ZOOM,
   PLATFORM_MAP_MIN_ZOOM,
+  PLATFORM_MAP_PHONE_CENTER,
+  PLATFORM_MAP_PHONE_INITIAL_ZOOM,
+  PLATFORM_MAP_PHONE_MIN_ZOOM,
+  isPhoneViewport,
 } from "./platformMapView";
 import {
   useMonitoringMapLayers,
@@ -24,12 +28,13 @@ export type PlatformMapSection = "monitoring" | "analysis" | "communication";
 /** `estadoSelecionado` é obrigatório no mapa; o resto cada seção preenche. */
 type SectionMapProps = Partial<MapProps> & Pick<MapProps, "estadoSelecionado">;
 
-// Em Análise o mapa começa depois da trilha (140px) e do formulário (600px), e
-// repete a moldura arredondada que a tela da AMFE sempre teve.
+// Em Análise o mapa começa depois da trilha (124px) e do formulário (531px), e
+// repete a moldura arredondada que a tela da AMFE sempre teve. No celular o
+// formulário fica por cima do mapa, então o mapa ocupa a tela toda.
 const ANALYSIS_AREA_CLASS =
-  "absolute inset-y-0 left-[740px] right-0 flex min-h-0 flex-col overflow-hidden p-6";
+  "absolute inset-y-0 left-[655px] right-0 isolate flex min-h-0 flex-col overflow-hidden p-6 max-md:left-0 max-md:p-2";
 const ANALYSIS_FRAME_CLASS =
-  "relative min-h-[520px] w-full flex-1 overflow-hidden rounded-xl border border-neutral-200";
+  "relative min-h-[520px] w-full flex-1 overflow-hidden rounded-xl border border-neutral-200 max-md:min-h-0";
 const FULL_BLEED_AREA_CLASS = "absolute inset-0";
 const FULL_BLEED_FRAME_CLASS = "relative z-10 flex h-full w-full";
 
@@ -50,6 +55,10 @@ function buildMonitoringMapProps(
     spatialFocusBounds: monitoring.spatialFocusBounds,
     basemap: monitoring.basemap,
     referenceOverlayTileUrls: monitoring.referenceOverlayTileUrls,
+    highlightedReferenceOverlay: monitoring.highlightedReferenceOverlay,
+    referenceOverlayPrefetchUrls: monitoring.referenceOverlayPrefetchUrls,
+    territoryFocus: monitoring.territoryFocus,
+    onReferenceTerritoryClick: monitoring.selectClickedTerritory,
     spatialArea: monitoring.spatialSelection.spatialArea,
     spatialValue: monitoring.spatialSelection.spatialValue,
     onStateSelect: (uf: string) =>
@@ -72,6 +81,10 @@ function buildAnalysisMapProps(analysis: AmfeAnalysisState): SectionMapProps {
     classificationFillOpacity: analysis.fillOpacity,
     basemap: analysis.basemap,
     referenceOverlayTileUrls: analysis.referenceOverlayTileUrls,
+    highlightedReferenceOverlay: analysis.highlightedReferenceOverlay,
+    referenceOverlayPrefetchUrls: analysis.referenceOverlayPrefetchUrls,
+    territoryFocus: analysis.territoryFocus,
+    onReferenceTerritoryClick: analysis.selectClickedTerritory,
     onZoomChange: analysis.setZoom,
   };
 }
@@ -97,10 +110,25 @@ export function PlatformMap({
   const monitoring = useMonitoringMapLayers();
   const analysis = useOptionalAmfeAnalysis();
   const isAnalysis = section === "analysis" && analysis !== null;
+  // Só vale para o enquadramento de abertura: depois a pessoa move o mapa.
+  const [initialView] = useState(() =>
+    isPhoneViewport()
+      ? {
+          center: PLATFORM_MAP_PHONE_CENTER,
+          zoom: PLATFORM_MAP_PHONE_INITIAL_ZOOM,
+          minZoom: PLATFORM_MAP_PHONE_MIN_ZOOM,
+        }
+      : {
+          center: PLATFORM_MAP_CENTER,
+          zoom: PLATFORM_MAP_INITIAL_ZOOM,
+          minZoom: PLATFORM_MAP_MIN_ZOOM,
+        },
+  );
 
   return (
     <div
       data-testid="platform-map-area"
+      data-platform-map-area
       className={isAnalysis ? ANALYSIS_AREA_CLASS : FULL_BLEED_AREA_CLASS}
       // A escala do mapa se apoia nesta medida para nascer na borda esquerda do
       // mapa *visivel*. Em Analise o mapa ja comeca depois do formulario; nas
@@ -110,7 +138,7 @@ export function PlatformMap({
         {
           "--platform-map-scale-offset": isAnalysis
             ? "0px"
-            : "var(--platform-side-overlay-width, 140px)",
+            : "var(--platform-side-overlay-width, 124px)",
         } as CSSProperties
       }
     >
@@ -121,13 +149,14 @@ export function PlatformMap({
           MapLibre viva ao trocar de seção, em vez de destruir uma e construir
           outra — o que media perto de um segundo por troca. */}
       <div
+        data-stage="main"
         className={isAnalysis ? ANALYSIS_FRAME_CLASS : FULL_BLEED_FRAME_CLASS}
       >
         <MapComponent
           mapMode="platform"
-          center={PLATFORM_MAP_CENTER}
-          zoom={PLATFORM_MAP_INITIAL_ZOOM}
-          minZoom={PLATFORM_MAP_MIN_ZOOM}
+          center={initialView.center}
+          zoom={initialView.zoom}
+          minZoom={initialView.minZoom}
           showStatesBorder
           className="h-full w-full"
           {...(isAnalysis && analysis

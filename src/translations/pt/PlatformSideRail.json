@@ -1,12 +1,18 @@
 {
   "PlatformSideRail": {
-    "monitoring": "Monitoramento",
-    "analysis": "Análise",
+    "monitoring": "Monitor",
+    "analysis": "Priorização",
     "communication": "Comunicação",
     "logs": "Auditoria",
     "catalog": "Catálogo de índices",
+    "collapsePanel": "Recolher painel",
+    "expandPanel": "Abrir painel",
     "loading": "Carregando",
     "approvals": "Aprovações",
-    "pendingApprovals": "Pedidos aguardando decisão: {count}"
+    "more": "Mais",
+    "pendingApprovals": "Pedidos aguardando decisão: {count}",
+    "mobileShowMap": "Ver mapa",
+    "mobileShowReport": "Ver relatório",
+    "mobileShowOptions": "Mostrar opções"
   }
 }

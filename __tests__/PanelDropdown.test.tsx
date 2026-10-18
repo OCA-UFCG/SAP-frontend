@@ -1,12 +1,16 @@
 import { render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
-import { describe, expect, it, vi } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
 import { PanelDropdown } from "@/components/PanelDropdown/PanelDropdown";
 
 const OPTIONS = [
   { value: "municipality", label: "Município" },
   { value: "state", label: "Estado" },
 ];
+
+afterEach(() => {
+  vi.restoreAllMocks();
+});
 
 describe("PanelDropdown", () => {
   it("shows the selected label and emits the chosen value", async () => {
@@ -22,7 +26,9 @@ describe("PanelDropdown", () => {
       />,
     );
 
-    await user.click(screen.getByRole("button", { name: "Recorte: Município" }));
+    await user.click(
+      screen.getByRole("button", { name: "Recorte: Município" }),
+    );
     await user.click(screen.getByRole("option", { name: "Estado" }));
 
     expect(onChange).toHaveBeenCalledWith("state");
@@ -42,5 +48,27 @@ describe("PanelDropdown", () => {
     expect(
       screen.getByRole("button", { name: "Recorte: Selecione o território" }),
     ).toBeInTheDocument();
+  });
+
+  it("opens the list scrolled to the selected option", async () => {
+    const user = userEvent.setup();
+    vi.spyOn(HTMLElement.prototype, "offsetTop", "get").mockImplementation(
+      function (this: HTMLElement) {
+        return this.getAttribute("aria-selected") === "true" ? 400 : 0;
+      },
+    );
+    render(
+      <PanelDropdown
+        label="Recorte"
+        options={OPTIONS}
+        value="state"
+        placeholder="Selecione"
+        onChange={vi.fn()}
+      />,
+    );
+
+    await user.click(screen.getByRole("button", { name: "Recorte: Estado" }));
+
+    expect(screen.getByRole("listbox").scrollTop).toBe(400);
   });
 });

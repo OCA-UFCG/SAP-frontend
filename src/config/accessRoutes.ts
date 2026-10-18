@@ -15,3 +15,10 @@ export const PENDING_APPROVAL_PATH = "/aguardando-liberacao";
 export const LOGIN_PATH = "/login";
 export const SIGNUP_PATH = "/cadastro";
 export const APPROVALS_PATH = "/platform/aprovacoes";
+
+/**
+ * As duas pontas do "esqueci minha senha": onde se pede o link e para onde o
+ * link do e-mail leva. Ficam fora de `/platform`, então são públicas.
+ */
+export const FORGOT_PASSWORD_PATH = "/esqueci-senha";
+export const PASSWORD_RESET_PATH = "/redefinir-senha";

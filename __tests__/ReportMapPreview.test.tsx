@@ -21,6 +21,7 @@ const { mapInstances, MapConstructorMock, prewarmMock } = vi.hoisted(() => ({
     removeSource: ReturnType<typeof vi.fn>;
     resize: ReturnType<typeof vi.fn>;
     setFeatureState: ReturnType<typeof vi.fn>;
+    triggerRepaint: ReturnType<typeof vi.fn>;
   }>,
   MapConstructorMock: vi.fn(),
   prewarmMock: vi.fn(),
@@ -77,6 +78,7 @@ vi.mock("maplibre-gl", () => {
     removeFeatureState = vi.fn(() => this);
     setFilter = vi.fn(() => this);
     moveLayer = vi.fn(() => this);
+    triggerRepaint = vi.fn();
     getCanvas = vi.fn(() => ({
       toDataURL: vi.fn(() => `data:image/png;base64,${"a".repeat(120)}`),
     }));
@@ -123,6 +125,7 @@ import {
   countIdleReportMaps,
   destroyReportMapPool,
 } from "@/components/MunicipalReport/reportMapPool";
+import { REPORT_MAP_CAPTURE_TIMEOUT_MS } from "@/components/MunicipalReport/ReportMapPreview";
 
 const TILE_URL = "https://tiles.example/{z}/{x}/{y}";
 
@@ -163,6 +166,66 @@ describe("ReportMapPreview", () => {
     destroyReportMapPool();
   });
 
+  // ~15 tiles por mapa somavam ~300 pedidos ao Earth Engine por relatório, e
+  // com 20 pessoas gerando relatórios o Google recusava quase metade.
+  it("desenha a camada como uma imagem só, presa aos cantos do recorte", async () => {
+    const onCapture = vi.fn();
+    const view = {
+      frame: [-47.3, -16.2, -46.7, -15.8] as [number, number, number, number],
+      thumbnail: {
+        bbox: [-47.32, -16.21, -46.68, -15.79] as [
+          number,
+          number,
+          number,
+          number,
+        ],
+        width: 1448,
+        height: 670,
+      },
+    };
+    render(
+      <ReportMapPreview
+        territory={ABADIA_DE_GOIAS}
+        layerId="anaseca"
+        period="2024-01"
+        thumbnail={{ url: "https://ee.example/thumb:getPixels", view }}
+        onCapture={onCapture}
+      />,
+    );
+
+    await waitFor(() => expect(mapInstances).toHaveLength(1));
+    emit(0, "load");
+    await waitFor(() =>
+      expect(mapInstances[0].addSource).toHaveBeenCalledWith("gee-tiles", {
+        type: "image",
+        url: "https://ee.example/thumb:getPixels",
+        coordinates: [
+          [-47.32, -15.79],
+          [-46.68, -15.79],
+          [-46.68, -16.21],
+          [-47.32, -16.21],
+        ],
+      }),
+    );
+    // A câmera vai para o recorte que a imagem cobre, por último.
+    await waitFor(() =>
+      expect(mapInstances[0].fitBounds).toHaveBeenLastCalledWith(
+        [
+          [-47.3, -16.2],
+          [-46.7, -15.8],
+        ],
+        { padding: 0, animate: false },
+      ),
+    );
+
+    emitRasterReady(0);
+    await waitFor(() =>
+      expect(onCapture).toHaveBeenCalledWith(
+        expect.stringMatching(/^data:image\/png;base64,/),
+      ),
+    );
+  });
+
   // Regressão: um índice de planilha não tem asset no Earth Engine, e o quadro
   // só sabia desenhar tiles — a prévia do relatório saía com o mapa vazio.
   it("pinta a coropleta de um índice de planilha, sem URL de tiles", async () => {
@@ -195,6 +258,12 @@ describe("ReportMapPreview", () => {
     expect(mapInstances[0].setFeatureState).toHaveBeenCalledWith(
       expect.objectContaining({ id: "5200050" }),
       { indexChoroplethClass: 1 },
+    );
+    // A fonte de visão geral não existe neste mapa: gravar nela era um erro no
+    // console por município.
+    expect(mapInstances[0].setFeatureState).not.toHaveBeenCalledWith(
+      expect.objectContaining({ source: "amfe-cities-overview" }),
+      expect.anything(),
     );
 
     emit(0, "idle");
@@ -378,6 +447,36 @@ describe("ReportMapPreview", () => {
     expect(mapInstances[0].removeLayer).toHaveBeenCalledWith("gee-layer");
     expect(mapInstances[0].removeSource).toHaveBeenCalledWith("gee-tiles");
     expect(mapInstances[0].removeFeatureState).toHaveBeenCalled();
+  });
+
+  // O raster cobria o quadro inteiro e o formato do município se perdia nele.
+  it("recorta o mapa pelo município cobrindo só os vizinhos, e tira o véu ao devolver", async () => {
+    const { unmount } = render(
+      <ReportMapPreview
+        territory={ABADIA_DE_GOIAS}
+        layerId="anaseca"
+        period="2024-01"
+        tileUrl={TILE_URL}
+        clipToTerritory
+      />,
+    );
+
+    await waitFor(() => expect(mapInstances).toHaveLength(1));
+    emit(0, "load");
+    await waitFor(() =>
+      expect(mapInstances[0].addLayer).toHaveBeenCalledWith(
+        expect.objectContaining({
+          id: "report-territory-mask",
+          filter: ["!=", ["to-string", ["get", "CD_MUN"]], "5200050"],
+        }),
+        "municipality-borders",
+      ),
+    );
+
+    unmount();
+    expect(mapInstances[0].removeLayer).toHaveBeenCalledWith(
+      "report-territory-mask",
+    );
   });
 
   // Regressão: o contorno do território ficava no mapa devolvido para a
@@ -612,5 +711,215 @@ describe("ReportMapPreview", () => {
     );
     expect(mapInstances).toHaveLength(1);
     expect(mapInstances[0].remove).not.toHaveBeenCalled();
+  });
+
+  // Regressão: sem prazo, uma imagem que a rede nunca entregava deixava o
+  // relatório de São Paulo em "1 mapa restante" para sempre.
+  describe("quando a captura não termina", () => {
+    afterEach(() => {
+      vi.useRealTimers();
+      vi.restoreAllMocks();
+    });
+
+    it("desiste depois do prazo e não devolve o mapa travado para a estante", async () => {
+      vi.useFakeTimers({ shouldAdvanceTime: true });
+      vi.spyOn(console, "warn").mockImplementation(() => {});
+      const onCapture = vi.fn();
+      const { rerender } = render(
+        <ReportMapPreview
+          territory={ABADIA_DE_GOIAS}
+          layerId="anaseca"
+          period="2024-01"
+          tileUrl={TILE_URL}
+          attempt={0}
+          onCapture={onCapture}
+        />,
+      );
+
+      await waitFor(() => expect(mapInstances).toHaveLength(1));
+      emit(0, "load");
+      await waitFor(() => expect(mapInstances[0].addLayer).toHaveBeenCalled());
+
+      act(() => {
+        vi.advanceTimersByTime(REPORT_MAP_CAPTURE_TIMEOUT_MS - 1000);
+      });
+      expect(onCapture).not.toHaveBeenCalled();
+
+      act(() => {
+        vi.advanceTimersByTime(1000);
+      });
+      expect(onCapture).toHaveBeenCalledWith(null);
+
+      // A fila manda a nova tentativa: ela precisa de um mapa novo.
+      rerender(
+        <ReportMapPreview
+          territory={ABADIA_DE_GOIAS}
+          layerId="anaseca"
+          period="2024-01"
+          tileUrl={TILE_URL}
+          attempt={1}
+          onCapture={onCapture}
+        />,
+      );
+
+      expect(mapInstances[0].remove).toHaveBeenCalledTimes(1);
+      await waitFor(() => expect(mapInstances).toHaveLength(2));
+    });
+
+    it("não conta o tempo em que a aba ficou em segundo plano", async () => {
+      vi.useFakeTimers({ shouldAdvanceTime: true });
+      let hidden = false;
+      vi.spyOn(document, "hidden", "get").mockImplementation(() => hidden);
+      const onCapture = vi.fn();
+      render(
+        <ReportMapPreview
+          territory={ABADIA_DE_GOIAS}
+          layerId="anaseca"
+          period="2024-01"
+          tileUrl={TILE_URL}
+          onCapture={onCapture}
+        />,
+      );
+
+      await waitFor(() => expect(mapInstances).toHaveLength(1));
+      hidden = true;
+      act(() => {
+        document.dispatchEvent(new Event("visibilitychange"));
+        vi.advanceTimersByTime(REPORT_MAP_CAPTURE_TIMEOUT_MS * 3);
+      });
+      expect(onCapture).not.toHaveBeenCalled();
+
+      hidden = false;
+      act(() => {
+        document.dispatchEvent(new Event("visibilitychange"));
+      });
+      emit(0, "load");
+      await waitFor(() => expect(mapInstances[0].addLayer).toHaveBeenCalled());
+      emitRasterReady(0);
+
+      await waitFor(() =>
+        expect(onCapture).toHaveBeenCalledWith(
+          expect.stringMatching(/^data:image\/png;base64,/),
+        ),
+      );
+    });
+
+    it("avisa a fila quando a montagem do mapa lança erro", async () => {
+      vi.spyOn(console, "warn").mockImplementation(() => {});
+      const onCapture = vi.fn();
+      render(
+        <ReportMapPreview
+          territory={ABADIA_DE_GOIAS}
+          layerId="anaseca"
+          period="2024-01"
+          tileUrl={TILE_URL}
+          onCapture={onCapture}
+        />,
+      );
+
+      await waitFor(() => expect(mapInstances).toHaveLength(1));
+      mapInstances[0].addSource.mockImplementationOnce(() => {
+        throw new Error("There is already a source with this ID");
+      });
+      emit(0, "load");
+
+      await waitFor(() => expect(onCapture).toHaveBeenCalledWith(null));
+    });
+  });
+
+  // Regressão: o contorno de bioma, semiárido e ASD é buscado na rede. Se o
+  // raster terminasse durante a busca, o aviso dele se perdia e o mapa
+  // esperava para sempre.
+  it("captura o raster que terminou enquanto o contorno ainda chegava", async () => {
+    let deliverOutline: () => void = () => {};
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(
+        () =>
+          new Promise((resolve) => {
+            deliverOutline = () =>
+              resolve({
+                ok: true,
+                json: async () => ({
+                  type: "FeatureCollection",
+                  features: [
+                    {
+                      type: "Feature",
+                      properties: { name: "Caatinga" },
+                      geometry: { type: "Point", coordinates: [-38, -7] },
+                    },
+                  ],
+                }),
+              });
+          }),
+      ),
+    );
+    const onCapture = vi.fn();
+    render(
+      <ReportMapPreview
+        territory={CAATINGA}
+        layerId="anaseca"
+        period="2024-01"
+        tileUrl={TILE_URL}
+        onCapture={onCapture}
+      />,
+    );
+
+    await waitFor(() => expect(mapInstances).toHaveLength(1));
+    emit(0, "load");
+    await waitFor(() => expect(fetch).toHaveBeenCalled());
+
+    // O raster carrega e o mapa para antes de o contorno voltar.
+    emitRasterReady(0);
+    expect(onCapture).not.toHaveBeenCalled();
+
+    await act(async () => deliverOutline());
+    await waitFor(() =>
+      expect(mapInstances[0].triggerRepaint).toHaveBeenCalled(),
+    );
+    emit(0, "idle");
+
+    await waitFor(() =>
+      expect(onCapture).toHaveBeenCalledWith(
+        expect.stringMatching(/^data:image\/png;base64,/),
+      ),
+    );
+    expect(mapInstances[0].fitBounds).toHaveBeenCalled();
+    vi.unstubAllGlobals();
+  });
+
+  it("oferece tentar de novo um mapa que a fila deu como indisponível", async () => {
+    const onRetry = vi.fn();
+    const onCapture = vi.fn();
+    const props = {
+      territory: ABADIA_DE_GOIAS,
+      layerId: "anaseca",
+      period: "2024-01",
+      tileUrl: TILE_URL,
+      onCapture,
+      onRetry,
+    };
+    const { rerender, getByRole, queryByRole } = render(
+      <ReportMapPreview {...props} />,
+    );
+
+    await waitFor(() => expect(mapInstances).toHaveLength(1));
+    mapInstances[0].getCanvas.mockReturnValueOnce({
+      toDataURL: vi.fn(() => {
+        throw new Error("context lost");
+      }),
+    });
+    emit(0, "load");
+    await waitFor(() => expect(mapInstances[0].addLayer).toHaveBeenCalled());
+    emitRasterReady(0);
+    await waitFor(() => expect(onCapture).toHaveBeenCalledWith(null));
+
+    // Enquanto a fila ainda vai tentar sozinha, o botão não aparece.
+    expect(queryByRole("button", { name: "Tentar novamente" })).toBeNull();
+
+    rerender(<ReportMapPreview {...props} active={false} />);
+    getByRole("button", { name: "Tentar novamente" }).click();
+
+    expect(onRetry).toHaveBeenCalledTimes(1);
   });
 });

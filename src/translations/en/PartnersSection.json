@@ -8,9 +8,13 @@
         "name": "MMA",
         "description": "Institutional Coordination of GT-SEDES"
       },
+      "49SlEcTfNFpRqUmlR9xl9L": {
+        "name": "UFCG",
+        "description": "Executing institution"
+      },
       "4GDCyf7c7AeAE2vIUmz1wU": {
         "name": "OCA",
-        "description": "Technical Coordination"
+        "description": "Technical coordination"
       },
       "3R3Duiu6pBVsPrbKHZMa8U": {
         "name": "ANA",
@@ -22,7 +26,7 @@
       },
       "69kRxk7I8kj3kgA33DfBnX": {
         "name": "INPE",
-        "description": "Climate Series and Deforestation"
+        "description": "CPTEC/INPE, climate series and seasonal forecasts"
       },
       "1lekqxyD8cyUmJqNzx9Z0B": {
         "name": "IBGE",

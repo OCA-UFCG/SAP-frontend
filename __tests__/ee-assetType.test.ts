@@ -6,8 +6,8 @@ const eeMocks = vi.hoisted(() => ({
   getAsset: vi.fn(),
 }));
 
-vi.mock("@google/earthengine", () => ({
-  default: { data: { getAsset: eeMocks.getAsset } },
+vi.mock("@/infrastructure/earth-engine/client", () => ({
+  getGeeAsset: eeMocks.getAsset,
 }));
 
 import {
@@ -17,17 +17,15 @@ import {
   resolveGeeAssetType,
 } from "@/app/api/ee/assetType";
 
-/** `ee.data.getAsset` falso que responde no próximo tick, como o SDK real. */
+/** `getGeeAsset` falso que responde no próximo tick, como a API real. */
 class FakeAssetDirectory {
   constructor(private readonly typesById: Record<string, string>) {}
 
-  respond = (
-    assetId: string,
-    onSuccess: (asset: { type: string }) => void,
-    onError: () => void,
-  ) => {
+  respond = async (assetId: string) => {
+    await Promise.resolve();
     const type = this.typesById[assetId];
-    queueMicrotask(() => (type ? onSuccess({ type }) : onError()));
+    if (!type) throw new Error(`Asset ${assetId} not found.`);
+    return { type };
   };
 }
 

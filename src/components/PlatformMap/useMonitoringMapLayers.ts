@@ -15,8 +15,12 @@ import { getAllowedStateUfs } from "@/utils/interestAreaStates";
 import type { SpatialSelection } from "@/utils/spatialScope";
 import { useEarthEngineTileLayer } from "./useEarthEngineTileLayer";
 import { useIndexChoroplethValues } from "./useIndexChoroplethValues";
-import { useReferenceOverlayTiles } from "./useReferenceOverlayTileLayers";
+import {
+  useReferenceOverlayPrefetch,
+  useReferenceOverlayTiles,
+} from "./useReferenceOverlayTileLayers";
 import { useSpatialBoundaryOverlay } from "./useSpatialBoundaryOverlay";
+import { useTerritoryFocus } from "./useTerritoryFocus";
 
 export type MonitoringMapLayers = ReturnType<typeof useMonitoringMapLayers>;
 
@@ -38,12 +42,14 @@ export function useMonitoringMapLayers() {
     layerOpacity,
     spatialSelection,
     referenceOverlays,
+    highlightedReferenceOverlay,
   } = useMapLayerViewState();
   const {
     setSelectedState,
     setSelectedMunicipalityCode,
     setLayerOpacity,
     toggleReferenceOverlay,
+    toggleReferenceHighlight,
     setSpatialSelection,
   } = useMapLayerActions();
   const { requestKey, status, tileLayerUrl } = useEarthEngineTileLayer(
@@ -64,6 +70,16 @@ export function useMonitoringMapLayers() {
     tileUrls: referenceOverlayTileUrls,
     isLoading: isAnyReferenceOverlayLoading,
   } = useReferenceOverlayTiles(referenceOverlays);
+  const {
+    territoryFocus,
+    focusTerritory,
+    selectClickedTerritory,
+    clearTerritoryFocus,
+  } = useTerritoryFocus(referenceOverlays, toggleReferenceOverlay);
+  const {
+    prefetchUrls: referenceOverlayPrefetchUrls,
+    requestPrefetch: prefetchReferenceOverlays,
+  } = useReferenceOverlayPrefetch();
 
   const handleTileLayerReady = useCallback((readyRequestKey: string) => {
     setReadyRequestKey((current) =>
@@ -114,6 +130,8 @@ export function useMonitoringMapLayers() {
       (status === "loading" ||
         (status === "ready" && !hasRenderedCurrentRequest))) ||
     choroplethStatus === "loading";
+  const hasGeeLayerFailed =
+    status === "error" || choroplethStatus === "error";
 
   return {
     activeData,
@@ -124,14 +142,22 @@ export function useMonitoringMapLayers() {
     setBasemap,
     boundaryGeoJson,
     choropleth,
+    focusTerritory,
+    selectClickedTerritory,
+    clearTerritoryFocus,
     handleSpatialSelectionChange,
     handleTileLayerReady,
     isAnyReferenceOverlayLoading,
     isGeeLayerLoading,
+    hasGeeLayerFailed,
     layerOpacity,
     setLayerOpacity,
     referenceOverlays,
     referenceOverlayTileUrls,
+    highlightedReferenceOverlay,
+    toggleReferenceHighlight,
+    referenceOverlayPrefetchUrls,
+    prefetchReferenceOverlays,
     requestKey,
     selectedMunicipalityCode,
     setSelectedMunicipalityCode,
@@ -139,6 +165,7 @@ export function useMonitoringMapLayers() {
     setSelectedState,
     spatialFocusBounds,
     spatialSelection,
+    territoryFocus,
     tileLayerUrl,
     toggleReferenceOverlay,
   };

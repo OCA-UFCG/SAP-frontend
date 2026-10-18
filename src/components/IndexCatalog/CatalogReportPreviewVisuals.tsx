@@ -22,6 +22,7 @@ import {
   compactPeriodRange,
   formatReportPeriod,
 } from "@/utils/municipalReportNarrative";
+import { formatDekadPeriod } from "@/utils/dekadPeriod";
 import { getMunicipalReportValueLabels } from "@/utils/municipalReportValue";
 import { resolveReportTerritory } from "@/utils/reportTerritory";
 
@@ -186,7 +187,11 @@ export function ReportPreviewVisuals({
         <div className="flex flex-col border-b border-[#c8ced1] md:border-b-0 md:border-r">
           <div className="border-b border-[#c8ced1] bg-[#f8fafb] px-4 py-2.5 text-center text-sm font-semibold text-[#536e7b]">
             {t("spatialImage", {
-              period: analysis.snapshot?.label || referencePeriodLabel,
+              period:
+                (analysis.snapshot?.label &&
+                  formatDekadPeriod(analysis.snapshot.label, PREVIEW_LOCALE)) ||
+                analysis.snapshot?.label ||
+                referencePeriodLabel,
             })}
           </div>
           <ReportMapPreview

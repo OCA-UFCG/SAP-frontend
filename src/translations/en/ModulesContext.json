@@ -1,7 +1,15 @@
 {
   "ModulesContext": {
     "title": "What do you want to monitor?",
-    "subtitle": "Select which monitor you want to analyze",
+    "subtitle": "Select which product you want to analyze",
+    "areaSection": {
+      "title": "Area of Interest",
+      "description": "Defines the geographic area where the analysis will be applied"
+    },
+    "indicatorsSection": {
+      "title": "Indicators",
+      "description": "Select the indicators you want to view in the area of interest."
+    },
     "categories": {
       "climate": "Climate Data",
       "environmental": "Environmental Data",
@@ -10,6 +18,10 @@
     },
     "subgroups": {
       "forecast": "Forecast data"
+    },
+    "forecastGroup": {
+      "title": "Climate forecast",
+      "description": "Precipitation and temperature forecasts from different sources. In the details, choose the data source, variable, periodicity and type."
     },
     "Layers": {
       "monitor-de-seca-ana": {

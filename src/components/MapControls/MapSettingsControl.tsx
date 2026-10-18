@@ -40,6 +40,7 @@ export function MapSettingsControl({
     // e o `right-2.5` empata com a margem de 10px que a folha deles usa.
     <div
       ref={containerRef}
+      data-tour="map-settings"
       className="absolute right-2.5 top-[202px] z-[1000] flex flex-col items-end gap-2"
     >
       <button
@@ -48,7 +49,7 @@ export function MapSettingsControl({
         aria-expanded={isOpen}
         aria-label={t("mapSettings")}
         title={t("mapSettings")}
-        className={`flex h-[29px] w-[29px] items-center justify-center rounded border border-[#EFEFEF] shadow-[0_0_0_2px_rgba(0,0,0,0.1)] transition-colors ${
+        className={`group flex h-[29px] w-[29px] items-center justify-center rounded border border-[#EFEFEF] shadow-[0_0_0_2px_rgba(0,0,0,0.1)] transition-colors ${
           isOpen
             ? "bg-[#989F43] text-white"
             : "bg-white text-[#292829] hover:bg-[#E4E5E2]"
@@ -57,7 +58,7 @@ export function MapSettingsControl({
         <MapSettingsIcon />
       </button>
       {isOpen && (
-        <div className="flex flex-col items-end gap-2.5">
+        <div className="flex origin-top-right flex-col items-end gap-2.5 motion-safe:animate-[menu-in_180ms_ease-out]">
           <BasemapControl basemap={basemap} onChange={onBasemapChange} />
           {opacity !== undefined && onOpacityChange && (
             <LayerOpacityControl opacity={opacity} onChange={onOpacityChange} />
@@ -103,7 +104,9 @@ function MapSettingsIcon(): ReactNode {
         strokeWidth="1.5"
         strokeLinecap="round"
       />
+      {/* No hover os dois botões do controle deslizam, como num mixer. */}
       <circle
+        className="transition-[translate] duration-300 ease-out motion-safe:group-hover:-translate-x-[2px]"
         cx="8.75"
         cy="4.5"
         r="1.75"
@@ -111,6 +114,7 @@ function MapSettingsIcon(): ReactNode {
         strokeWidth="1.5"
       />
       <circle
+        className="transition-[translate] duration-300 ease-out motion-safe:group-hover:translate-x-[2px]"
         cx="7.25"
         cy="11.5"
         r="1.75"

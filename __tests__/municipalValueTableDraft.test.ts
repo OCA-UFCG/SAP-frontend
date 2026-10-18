@@ -112,6 +112,17 @@ describe("buildValueTemplates", () => {
       }).state,
     ).toBe("Registros em {name}: {value} registros.");
   });
+
+  it("ends the sentence at the number when the indicator has no unit", () => {
+    expect(
+      buildValueTemplates({
+        label: "IDH",
+        color: "#8C2D04",
+        measurementUnit: "",
+        valueType: "absolute",
+      }).state,
+    ).toBe("IDH em {name}: {value}.");
+  });
 });
 
 describe("buildMunicipalValueTableDraft", () => {

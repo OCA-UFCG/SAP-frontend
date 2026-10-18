@@ -29,6 +29,8 @@ describe("platform access guard", () => {
     mockedAdminAuth.verifySessionCookie.mockReset();
     clearVerifiedSessionCache();
     vi.unstubAllEnvs();
+    // O .env de quem roda os testes pode ter o guard ligado.
+    vi.stubEnv("PLATFORM_ACCESS_GUARD_ENABLED", undefined);
   });
 
   it("returns unauthenticated when there is no session cookie", async () => {

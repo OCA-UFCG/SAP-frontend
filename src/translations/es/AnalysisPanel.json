@@ -4,7 +4,6 @@
     "temporalAnalysis": "Análisis Temporal",
     "selectPeriod": "Seleccione un período",
     "areaPercentageByClass": "Porcentaje de área por clasificación",
-    "noStatesWithValue": "Sin estados con valor",
     "hideList": "Ocultar lista",
     "seeAll": "Ver todos",
     "seeMoreInRanking": "Ver más en el ranking",
@@ -12,7 +11,22 @@
     "backToList": "Volver a la lista",
     "searchStateOrCityToStart": "Busque un estado o ciudad para iniciar el análisis",
     "analysisDate": "Fecha de análisis",
-    "spatialScope": "Recorte espacial",
+    "forecastEmissionDate": "Pronóstico emitido en {date}",
+    "forecastFilters": {
+      "dimensions": {
+        "source": "Fuente de datos",
+        "variable": "Variable",
+        "periodicity": "Periodicidad",
+        "kind": "Tipo"
+      },
+      "periodicities": {
+        "monthly": "Mensual",
+        "quarterly": "Trimestral"
+      },
+      "unavailable": "{label}: sin pronóstico para la combinación elegida arriba"
+    },
+    "areaLabel": "Área",
+    "scopeLabel": "Recorte",
     "selectArea": "Seleccione el área",
     "selectValue": "Seleccione el recorte",
     "spatialAreas": {

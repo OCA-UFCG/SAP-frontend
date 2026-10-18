@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import {
+  createRateLimiter,
   createRateLimitStore,
   RATE_LIMIT_STORE_SWEEP_THRESHOLD,
 } from "@/utils/rateLimitStore";
@@ -66,5 +67,30 @@ describe("createRateLimitStore", () => {
     store.set("uid-novo", { count: 1, resetAt: 120_000 }, 60_000);
 
     expect(store.size()).toBe(RATE_LIMIT_STORE_SWEEP_THRESHOLD + 1);
+  });
+});
+
+describe("createRateLimiter", () => {
+  it("concede só o que cabe na janela e marca o resto como limitado", () => {
+    const limiter = createRateLimiter({ windowMs: 60_000 });
+    limiter.consume("uid-1", 30, 25);
+
+    const decision = limiter.consume("uid-1", 30, 10);
+
+    expect(decision.granted).toBe(5);
+    expect(decision.limited).toBe(true);
+    expect(decision.headers["X-RateLimit-Remaining"]).toBe("0");
+  });
+
+  // Os logs barram o lote inteiro quando ele passa do teto. A reserva parcial
+  // tem de decidir igual ao contador que só somava: barrado uma vez, a janela
+  // fica cheia até vencer, mesmo para um lote pequeno.
+  it("mantém a janela cheia depois de barrar um lote", () => {
+    const limiter = createRateLimiter({ windowMs: 60_000 });
+
+    expect(limiter.consume("ip:1", 60, 55).limited).toBe(false);
+    expect(limiter.consume("ip:1", 60, 10).limited).toBe(true);
+    expect(limiter.consume("ip:1", 60, 1).limited).toBe(true);
+    expect(limiter.consume("ip:2", 60, 1).limited).toBe(false);
   });
 });

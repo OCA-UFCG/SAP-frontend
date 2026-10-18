@@ -61,7 +61,8 @@ beforeEach(() => {
 
 describe("leitura conjunta de séries estatísticas", () => {
   // Regressão de desempenho: cada camada do relatório municipal era uma ida
-  // própria ao Earth Engine, e o SDK espaça o despacho em 350 ms.
+  // própria ao Earth Engine, e cada ida ocupa uma vaga do teto de leituras
+  // simultâneas do processo.
   it("junta numa ida só as séries pedidas na mesma janela", async () => {
     const [aridez, seca] = await Promise.all([
       readSeries(["aridez_2023", "aridez_2024"]),

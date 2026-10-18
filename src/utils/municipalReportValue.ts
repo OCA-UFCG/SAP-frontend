@@ -47,10 +47,14 @@ function slugifyUnitKey(unit: string) {
 export function translateUnit(
   analysis: MunicipalReportValueSemantics,
   t?: (key: string, values?: Record<string, string>) => string,
+  tHas?: (key: string) => boolean,
 ) {
   const unit = normalizedUnit(analysis);
   if (!unit || !t) return unit;
   const slug = slugifyUnitKey(unit);
+  // Sem tradução, o next-intl devolve a chave com o namespace na frente
+  // ("MunicipalReport.classes.de-reais"), que a checagem abaixo não pega.
+  if (tHas && !tHas(`classes.${slug}`)) return unit;
   try {
     const translated = t(`classes.${slug}`);
     if (
@@ -71,9 +75,10 @@ export function formatMunicipalReportValueWithUnit(
   analysis: MunicipalReportValueSemantics,
   locale: string,
   t?: (key: string, values?: Record<string, string>) => string,
+  tHas?: (key: string) => boolean,
 ) {
   const formattedValue = formatMunicipalReportValue(value, analysis, locale);
-  const unit = translateUnit(analysis, t);
+  const unit = translateUnit(analysis, t, tHas);
   return analysis.valueType === "absolute" && unit
     ? `${formattedValue} ${unit}`
     : formattedValue;

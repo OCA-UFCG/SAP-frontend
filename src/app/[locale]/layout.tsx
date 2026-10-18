@@ -1,5 +1,5 @@
 import type { Metadata } from "next";
-import { Geist, Geist_Mono, Inter, Open_Sans } from "next/font/google";
+import { Inter, Open_Sans } from "next/font/google";
 import { cache } from "react";
 import { Header } from "@/components/Header/Header";
 import { FooterSlot } from "@/components/Footer/FooterSlot";
@@ -9,16 +9,6 @@ import { AuthProvider } from "@/contexts/AuthContext";
 import { NextIntlClientProvider } from "next-intl";
 import { getMessages, getTranslations } from "next-intl/server";
 import "../globals.css";
-
-const geistSans = Geist({
-  variable: "--font-geist-sans",
-  subsets: ["latin"],
-});
-
-const geistMono = Geist_Mono({
-  variable: "--font-geist-mono",
-  subsets: ["latin"],
-});
 
 const inter = Inter({
   variable: "--font-inter",
@@ -35,7 +25,6 @@ const openSans = Open_Sans({
 export const metadata: Metadata = {
   title: "Portal SEDES",
   description: "Portal SEDES criado por OCA",
-  manifest: "/manifest.json",
   icons: {
     icon: [
       { url: "/favicon.svg", type: "image/svg+xml" },
@@ -62,27 +51,27 @@ export default async function RootLayout({
   const headerContent: ISections = {
     "home-section": {
       id: "1",
-      name: t("home"),
+      name: t("aboutShort"),
       path: "/",
       appears: true,
       childrenCollection: {
         items: [
           {
-            id: "3-1",
-            name: t("aboutMenu.planoDeAcaoBrasileiro"),
-            path: "/#plano-de-acao-brasileiro",
-            appears: true,
-          },
-          {
             id: "3-2",
-            name: t("aboutMenu.grupoDeTrabalho"),
-            path: "/#grupo-de-trabalho",
+            name: t("aboutMenu.aPlataforma"),
+            path: "/#a-plataforma",
             appears: true,
           },
           {
             id: "3-3",
-            name: t("aboutMenu.aPlataforma"),
-            path: "/#a-plataforma",
+            name: t("aboutMenu.politicaPublica"),
+            path: "/#politica-publica",
+            appears: true,
+          },
+          {
+            id: "3-1",
+            name: t("aboutMenu.novidades"),
+            path: "/#novidades",
             appears: true,
           },
           {
@@ -93,12 +82,18 @@ export default async function RootLayout({
           },
           {
             id: "3-5",
-            name: t("aboutMenu.financiamento"),
-            path: "/#financiamento",
+            name: t("aboutMenu.instituicoes"),
+            path: "/#instituicoes",
             appears: true,
           },
         ],
       },
+    },
+    "about-section": {
+      id: "3",
+      name: t("about"),
+      path: "/sobre-o-sedes",
+      appears: true,
     },
     "glossary-section": {
       id: "5",
@@ -126,7 +121,7 @@ export default async function RootLayout({
     <html lang={locale} data-scroll-behavior="smooth">
       <meta name="apple-mobile-web-app-title" content="Portal SEDES" />
       <body
-        className={`${geistSans.variable} ${geistMono.variable} ${inter.variable} ${openSans.variable} antialiased min-h-screen flex flex-col`}
+        className={`${inter.variable} ${openSans.variable} antialiased min-h-screen flex flex-col`}
       >
         <NextIntlClientProvider messages={messages}>
           <AuthProvider>

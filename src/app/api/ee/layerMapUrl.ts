@@ -13,6 +13,7 @@ import {
 } from "@/utils/imageData";
 import type { PanelLayerI } from "@/utils/interfaces";
 import type { SpatialSelection } from "@/utils/spatialScope";
+import type { EeMapThumbnailView } from "@/contracts/eeMapUrls";
 
 /**
  * Por que uma camada não virou URL de tiles. `year_not_found` é o caso comum e
@@ -34,8 +35,9 @@ function buildLayerCacheKey(
   year: string,
   yearConfig: NonNullable<ReturnType<typeof resolveImageYearEntry>>,
   spatialSelection: SpatialSelection,
+  thumbnail?: EeMapThumbnailView,
 ) {
-  return buildCacheKey(
+  const key = buildCacheKey(
     layer.id,
     year,
     yearConfig.imageId,
@@ -46,12 +48,18 @@ function buildLayerCacheKey(
     spatialSelection,
     resolveImageCollectionSelection(yearConfig),
   );
+  // A miniatura vale só para aquele recorte e tamanho; a URL de tiles serve
+  // para qualquer um, então as duas nunca dividem a mesma entrada.
+  return thumbnail
+    ? `${key}:thumbnail:${thumbnail.bbox.join(",")}:${thumbnail.width}x${thumbnail.height}`
+    : key;
 }
 
 function buildEarthEngineLoader(
   layer: PanelLayerI,
   yearConfig: NonNullable<ReturnType<typeof resolveImageYearEntry>>,
   spatialSelection: SpatialSelection,
+  thumbnail?: EeMapThumbnailView,
 ) {
   const imageCollectionSelection = resolveImageCollectionSelection(yearConfig);
   const imageCollectionPeriod = resolveImageCollectionPeriod(yearConfig);
@@ -67,6 +75,7 @@ function buildEarthEngineLoader(
         spatialSelection,
         ...(imageCollectionSelection ? { imageCollectionSelection } : {}),
         ...(imageCollectionPeriod ? { imageCollectionPeriod } : {}),
+        ...(thumbnail ? { thumbnail } : {}),
       },
     );
 }
@@ -86,6 +95,7 @@ export function resolveLayerMapUrl(
   name: string,
   year: string,
   spatialSelection: SpatialSelection,
+  thumbnail?: EeMapThumbnailView,
 ): LayerMapUrlResolution {
   const layer = panelLayers.find((item) => item.id === name);
   if (!layer) return { status: "unavailable", reason: "layer_not_found" };
@@ -98,6 +108,7 @@ export function resolveLayerMapUrl(
     year,
     yearConfig,
     spatialSelection,
+    thumbnail,
   );
   const cachedUrl = getCachedUrl(cacheKey);
   if (hasKey(cacheKey) && cachedUrl) {
@@ -110,7 +121,12 @@ export function resolveLayerMapUrl(
     // O `imageCollectionPeriod` é derivado de `year` e do `mapVisualization`,
     // que já entram na chave de cache — por isso não é preciso somá-lo à
     // assinatura.
-    loadUrl: buildEarthEngineLoader(layer, yearConfig, spatialSelection),
+    loadUrl: buildEarthEngineLoader(
+      layer,
+      yearConfig,
+      spatialSelection,
+      thumbnail,
+    ),
   };
 }
 

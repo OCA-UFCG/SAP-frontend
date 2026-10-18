@@ -32,12 +32,12 @@ function StatefulFields({
   );
 }
 
-function renderFields(mapping: EarthEngineAssetMapping, latestYear?: string) {
+function renderFields(mapping: EarthEngineAssetMapping, latestPeriod?: string) {
   const onChange = vi.fn();
   render(
     <MapAssetStrategyFields
       mapping={mapping}
-      latestYear={latestYear}
+      latestPeriod={latestPeriod}
       inputClass=""
       onChange={onChange}
     />,
@@ -85,11 +85,29 @@ describe("MapAssetStrategyFields", () => {
     );
   });
 
-  it("keeps templates with {month} in the explicit template option", () => {
+  it("reopens a {year}_{month} template showing the concrete latest month", () => {
+    renderFields(
+      {
+        strategy: "perPeriod",
+        sourceType: "image",
+        assetPattern: "projects/x/assets/mapa_{year}_{month}",
+      },
+      "2026-09",
+    );
+
+    expect((screen.getByRole("combobox") as HTMLSelectElement).value).toBe(
+      "year-siblings",
+    );
+    expect(screen.getByRole("textbox")).toHaveValue(
+      "projects/x/assets/mapa_2026_09",
+    );
+  });
+
+  it("keeps templates the detection would not produce in the explicit template option", () => {
     renderFields({
       strategy: "perPeriod",
       sourceType: "image",
-      assetPattern: "projects/x/assets/mapa_{year}_{month}",
+      assetPattern: "projects/x/assets/mapa_{month}_{year}",
     });
 
     expect((screen.getByRole("combobox") as HTMLSelectElement).value).toBe(

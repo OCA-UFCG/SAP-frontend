@@ -310,15 +310,13 @@ describe("LegacyIndexEditor", () => {
 
   it("mostra o erro do servidor sem perder o que estava na tela", async () => {
     vi.mocked(fetch).mockImplementationOnce(() =>
-      jsonResponse({ error: "Unidade de medida é obrigatório." }, 400),
+      jsonResponse({ error: "Nome é obrigatório." }, 400),
     );
     renderEditor();
 
     fireEvent.click(screen.getByRole("button", { name: "Salvar alterações" }));
 
-    expect(
-      await screen.findByText("Unidade de medida é obrigatório."),
-    ).toBeInTheDocument();
+    expect(await screen.findByText("Nome é obrigatório.")).toBeInTheDocument();
     expect(screen.getByLabelText("Unidade de medida")).toHaveValue("registros");
   });
 });

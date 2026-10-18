@@ -118,6 +118,46 @@ describe("IndexCatalogScreen v2", () => {
     expect(body).not.toHaveProperty("unit");
   });
 
+  it("lê o mês do endereço colado e fixa a granularidade em Mensal", async () => {
+    const fetchMock = vi.mocked(fetch);
+    fetchMock
+      .mockImplementationOnce(() => jsonResponse({ items: [] }))
+      .mockImplementationOnce(() =>
+        jsonResponse({ entryId: "draft-1", panelLayerId: "indice-gee" }, 201),
+      )
+      .mockImplementationOnce(() => jsonResponse({ requiresRepublish: false }))
+      .mockImplementationOnce(() => jsonResponse({ items: [] }));
+
+    render(<IndexCatalogScreen />);
+    await screen.findByText("Nenhum panelLayer encontrado.");
+    fillMinimumForm();
+    fireEvent.change(screen.getByLabelText(/Organização dos assets/u), {
+      target: { value: "year-siblings" },
+    });
+    fireEvent.change(
+      screen.getByLabelText(/ID da FeatureCollection de um dos períodos/u),
+      { target: { value: "projects/example/assets/estat_2026_09" } },
+    );
+
+    expect(screen.getByText(/Mês 09\/2026 detectado/u)).toBeInTheDocument();
+    const granularity = screen.getByLabelText(/Granularidade/u);
+    expect(granularity).toHaveValue("month");
+    expect(granularity).toBeDisabled();
+
+    fireEvent.click(screen.getByRole("button", { name: "Salvar rascunho" }));
+    await waitFor(() => expect(fetch).toHaveBeenCalledTimes(4));
+    const body = JSON.parse(
+      String((fetchMock.mock.calls[1][1] as RequestInit).body),
+    );
+    expect(body.statisticsSource).toMatchObject({
+      periodGranularity: "month",
+      asset: {
+        type: "period-template",
+        assetIdTemplate: "projects/example/assets/estat_{year}_{month}",
+      },
+    });
+  });
+
   it("manda a posição na categoria escrita no formulário", async () => {
     const fetchMock = vi.mocked(fetch);
     fetchMock

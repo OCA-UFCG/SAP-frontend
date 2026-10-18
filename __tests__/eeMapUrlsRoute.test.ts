@@ -19,7 +19,9 @@ import { clearEarthEngineCacheForLayer } from "@/app/api/ee/cache";
 import {
   clearEeRateLimit,
   consumeEeRateLimit,
+  consumeEeThumbnailRateLimit,
   EE_RATE_LIMIT_MAX_REQUESTS,
+  EE_THUMBNAIL_RATE_LIMIT_MAX_REQUESTS,
 } from "@/app/api/ee/rate-limit";
 import { EE_MAP_URLS_DEADLINE_MS } from "@/contracts/eeMapUrls";
 import { getEarthEngineUrl } from "@/app/api/ee/services";
@@ -55,12 +57,22 @@ function createReportLayer(id: string) {
   };
 }
 
-function createMapUrlsRequest(maps: unknown) {
+function createMapUrlsRequest(maps: unknown, thumbnail?: unknown) {
   return {
     headers: new Headers({ Cookie: "session=mock-session-cookie" }),
-    json: vi.fn().mockResolvedValue({ maps }),
+    json: vi
+      .fn()
+      .mockResolvedValue(
+        thumbnail === undefined ? { maps } : { maps, thumbnail },
+      ),
   } as unknown as NextRequest;
 }
+
+const THUMBNAIL = {
+  bbox: [-36.4, -7.6, -35.6, -7.1],
+  width: 1448,
+  height: 670,
+};
 
 async function readMaps(response: Response) {
   const body = (await response.json()) as { maps?: EeMapUrlEntry[] };
@@ -256,9 +268,46 @@ describe("POST /api/ee/map-urls", () => {
     });
   });
 
-  // Vinte camadas frias custam ~13 s de Earth Engine. Segurar tudo isso numa
-  // requisição só a deixaria à mercê do timeout do proxy, e aí o relatório
-  // inteiro ficaria sem mapa de uma vez.
+  // Antes o prazo era de 5 s: a camada que ficava pronta em 1 s esperava a
+  // mais lenta, e no frio de um deploy nenhum mapa começava antes de 5 s.
+  it("returns a fast layer at the deadline instead of waiting for the slow one", async () => {
+    vi.useFakeTimers();
+    mockedGetEarthEngineUrl.mockImplementation(
+      (imageId: string) =>
+        new Promise((resolve) =>
+          setTimeout(
+            () => resolve(`https://tiles.example/${imageId}`),
+            imageId.includes("anaseca") ? 200 : 4000,
+          ),
+        ),
+    );
+
+    let settled = false;
+    const responsePromise = POST(
+      createMapUrlsRequest([
+        { name: "anaseca", year: "2024-12" },
+        { name: "deg", year: "2024-12" },
+      ]),
+    ).finally(() => {
+      settled = true;
+    });
+    await vi.advanceTimersByTimeAsync(EE_MAP_URLS_DEADLINE_MS + 10);
+
+    expect(EE_MAP_URLS_DEADLINE_MS).toBeLessThanOrEqual(1000);
+    expect(settled).toBe(true);
+    expect(await readMaps(await responsePromise)).toEqual([
+      {
+        name: "anaseca",
+        year: "2024-12",
+        url: "https://tiles.example/projects/example/anaseca-2024-12",
+      },
+      { name: "deg", year: "2024-12", status: "pending" },
+    ]);
+    vi.useRealTimers();
+  });
+
+  // Segurar todas as camadas frias numa requisição só a deixaria à mercê do
+  // timeout do proxy, e aí o relatório inteiro ficaria sem mapa de uma vez.
   it("answers pending instead of holding the request past the deadline", async () => {
     vi.useFakeTimers();
     mockedGetEarthEngineUrl.mockImplementation(() => new Promise(() => {}));
@@ -319,5 +368,68 @@ describe("POST /api/ee/map-urls", () => {
 
     expect(res.status).toBe(400);
     expect(mockedGetEarthEngineUrl).not.toHaveBeenCalled();
+  });
+
+  describe("with a thumbnail view", () => {
+    it("asks the Earth Engine for an image of that view", async () => {
+      const res = await POST(
+        createMapUrlsRequest([{ name: "anaseca", year: "2024-12" }], THUMBNAIL),
+      );
+
+      expect(res.status).toBe(200);
+      expect(mockedGetEarthEngineUrl).toHaveBeenCalledWith(
+        "projects/example/anaseca-2024-12",
+        expect.anything(),
+        0,
+        1,
+        expect.objectContaining({ thumbnail: THUMBNAIL }),
+      );
+    });
+
+    // A URL de tiles serve para qualquer recorte; a miniatura, só para o dela.
+    it("never serves a cached tile URL as the thumbnail, nor the reverse", async () => {
+      const items = [{ name: "anaseca", year: "2024-12" }];
+      await POST(createMapUrlsRequest(items));
+      await POST(createMapUrlsRequest(items, THUMBNAIL));
+      await POST(
+        createMapUrlsRequest(items, { ...THUMBNAIL, bbox: [-40, -8, -39, -7] }),
+      );
+
+      expect(mockedGetEarthEngineUrl).toHaveBeenCalledTimes(3);
+    });
+
+    // Regressão: na cota do mapa, o segundo relatório de um território novo no
+    // mesmo minuto já saía com metade dos mapas "indisponíveis".
+    it("spends the thumbnail budget instead of the map budget", async () => {
+      consumeEeRateLimit("user-123", EE_RATE_LIMIT_MAX_REQUESTS);
+
+      const res = await POST(
+        createMapUrlsRequest(
+          [
+            { name: "anaseca", year: "2024-12" },
+            { name: "deg", year: "2024-12" },
+          ],
+          THUMBNAIL,
+        ),
+      );
+
+      expect((await readMaps(res)).every((entry) => entry.url)).toBe(true);
+      const { headers } = consumeEeThumbnailRateLimit("user-123", 0);
+      expect(headers["X-RateLimit-Remaining"]).toBe(
+        String(EE_THUMBNAIL_RATE_LIMIT_MAX_REQUESTS - 2),
+      );
+    });
+
+    it("rejects a view the Earth Engine could not draw", async () => {
+      const res = await POST(
+        createMapUrlsRequest([{ name: "anaseca", year: "2024-12" }], {
+          ...THUMBNAIL,
+          width: 10_000,
+        }),
+      );
+
+      expect(res.status).toBe(400);
+      expect(mockedGetEarthEngineUrl).not.toHaveBeenCalled();
+    });
   });
 });

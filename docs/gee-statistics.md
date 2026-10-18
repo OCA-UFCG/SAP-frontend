@@ -215,7 +215,8 @@ se houver resposta antiga no cache ela pode ser servida como stale; sem cache,
 a rota responde indisponibilidade.
 
 O cache em memória usa a chave `panelLayerId::year::locationKey`. O TTL padrão
-é 10 minutos e o limite padrão é 200 entradas. Eles podem ser ajustados com
+é 10 minutos e o limite padrão é 5.000 entradas (~2 KB por município e ~5 KB
+pelo Brasil, medidos). Eles podem ser ajustados com
 `MUNICIPAL_ANALYSIS_CACHE_TTL_SECONDS` e
 `MUNICIPAL_ANALYSIS_CACHE_MAX_ENTRIES`. Em uma implantação com múltiplas
 instâncias, cada processo mantém seu próprio cache.
@@ -260,8 +261,9 @@ quanto trabalho uma falha invalida e, medido, ainda é mais rápido que um pedid
 
 Os blocos não são de uma camada só. `geeStatisticsSeriesBatcher` junta numa
 janela de 20 ms as séries pedidas por camadas diferentes e preenche cada bloco
-com os assets de todas elas, porque o preço é o número de idas: o SDK do Earth
-Engine despacha uma requisição a cada 350 ms de uma fila global do processo. No
+com os assets de todas elas, porque o preço é o número de idas: elas correm em
+paralelo, mas dividem com todos os usuários do processo o teto de 20 leituras
+simultâneas do cliente do Earth Engine (`GEE_COMPUTE_CONCURRENCY`). No
 relatório municipal isso trocou ~23 idas por ~12, e o tempo de montagem caiu de
 10,5 s para 5,8 s num relatório estadual medido em desenvolvimento.
 

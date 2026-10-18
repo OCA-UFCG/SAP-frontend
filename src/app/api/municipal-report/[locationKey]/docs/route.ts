@@ -10,7 +10,7 @@ import {
 } from "@/utils/reportTerritory";
 import { createServerTiming } from "@/utils/serverTiming";
 
-const PERIOD_PATTERN = /^(\d{4})(?:-(0[1-9]|1[0-2]))?$/u;
+const PERIOD_PATTERN = /^(\d{4})(?:-(0[1-9]|1[0-2])(?:-(?:01|11|21))?)?$/u;
 
 function error(message: string, status: number) {
   return NextResponse.json({ error: message }, { status, headers: { "Cache-Control": "no-store" } });

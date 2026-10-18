@@ -2,6 +2,8 @@
   "PlatformMap": {
     "loadingGeeLayer": "Carregando camada do GEE",
     "loadingMapLayer": "Carregando camada do mapa",
+    "loadingLayer": "Carregando",
+    "layerReady": "no mapa",
     "opacity": "Transparência",
     "mapSettings": "Ajustes do mapa",
     "basemap": "Mapa base",
@@ -11,6 +13,15 @@
     "quilombolas": "Territórios Quilombolas",
     "assentamentos": "Assentamentos",
     "terras_indigenas": "Terras Indígenas",
-    "unidades_conservacao": "Unidades de Conservação"
+    "unidades_conservacao": "Unidades de Conservação",
+    "highlightColumn": "Destacar",
+    "highlightTerritory": "Destacar {name}",
+    "territorySearchPlaceholder": "Buscar território pelo nome",
+    "territorySearchLabel": "Busca de território",
+    "territorySearchLoading": "Carregando territórios…",
+    "territorySearchNoResults": "Nenhum território encontrado",
+    "territorySearchError": "Não foi possível carregar os territórios",
+    "selectedTerritoryFocus": "Voltar o mapa para este território",
+    "selectedTerritoryClear": "Desmarcar {name}"
   }
 }

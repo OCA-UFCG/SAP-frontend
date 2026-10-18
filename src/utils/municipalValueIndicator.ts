@@ -7,8 +7,10 @@ import type { CompactAnalysisTemplates } from "@/utils/analysis";
 /**
  * Como a unidade entra no fim da frase: `%` cola no número e o resto vem
  * separado por espaço, senão o painel escreveria "70,3 %" e "742registros".
+ * Sem unidade (IDH), a frase termina no número.
  */
 function unitSuffix(measurementUnit: string) {
+  if (!measurementUnit) return "";
   return measurementUnit === "%" ? "%" : ` ${measurementUnit}`;
 }
 

@@ -24,6 +24,7 @@ import {
   formatReportPeriod,
   getReportDocsText,
 } from "@/utils/municipalReportNarrative";
+import { formatDekadPeriod } from "@/utils/dekadPeriod";
 import {
   finishMunicipalReportMetrics,
   recordMunicipalReportNavigation,
@@ -39,25 +40,44 @@ import {
 } from "@/utils/municipalReportTranslations";
 import {
   getReportCategoryTokens,
+  groupReportAnalysesByCategory,
   reportAnalysisAnchorId,
 } from "@/utils/municipalReportCategories";
-import { isStackableAnalysis } from "@/utils/municipalReportStackedChart";
+import {
+  isStackableAnalysis,
+  MUNICIPAL_REPORT_STACKED_MAX_COLUMNS,
+  selectStackedChartSnapshots,
+} from "@/utils/municipalReportStackedChart";
+import { buildReportDocumentSections } from "@/utils/municipalReportForecast";
 import { MunicipalReportClassBars } from "./MunicipalReportClassBars";
+import { MunicipalReportDynamicChart } from "./MunicipalReportDynamicChart";
+import { MunicipalReportLinePrintChart } from "./MunicipalReportLinePrintChart";
 import { MunicipalReportNotes } from "./MunicipalReportNotes";
 import { MunicipalReportStackedChart } from "./MunicipalReportStackedChart";
 import { MunicipalReportStackedPrintChart } from "./MunicipalReportStackedPrintChart";
 import { ReportBackToTop } from "./ReportBackToTop";
+import {
+  forecastGroupMethodologies,
+  forecastGroupTitle,
+  ReportForecastSection,
+} from "./ReportForecastSection";
 import { ReportDocumentFooter } from "./ReportDocumentFooter";
 import { ReportHero } from "./ReportHero";
 import { ReportSectionHeading } from "./ReportSectionHeading";
-import { ReportVariableIndex } from "./ReportVariableIndex";
-import { ReportMapPreview } from "./ReportMapPreview";
+import { ReportSummary } from "./ReportSummary";
+import { ReportMapPreview, type ReportMapChoropleth } from "./ReportMapPreview";
 import { destroyReportMapPool } from "./reportMapPool";
+import { buildReportPrintHtml, measureReportPages } from "./reportPrint";
+import { resolveReportMapView, type ReportMapThumbnail } from "./reportMapView";
 import { useReportMapCaptureQueue } from "./useReportMapCaptureQueue";
 import {
   useReportMapTileUrls,
   type ReportMapTileUrls,
 } from "./useReportMapTileUrls";
+import {
+  useReportMapChoropleths,
+  type ReportMapChoropleths,
+} from "./useReportMapChoropleths";
 import type { EeMapUrlFailure } from "@/contracts/eeMapUrls";
 
 export interface MunicipalReportPreviewProps {
@@ -79,9 +99,6 @@ function textColorForBackground(color: string) {
     ? "#202020"
     : "#ffffff";
 }
-
-/** Fontes declaradas em `src/app/[locale]/layout.tsx` e usadas pelo documento. */
-const FONT_VARIABLE_NAMES = ["--font-open-sans", "--font-inter"];
 
 function buildReportFilename(
   report: MunicipalReportData | null,
@@ -107,8 +124,11 @@ const AnalysisSection = memo(function AnalysisSection({
   mapQueuedAt,
   onMapVisibility,
   mapTileUrl,
+  mapThumbnail,
+  mapChoropleth,
   mapUnavailableReason,
   onMapCapture,
+  onMapRetry,
   docsContent,
   monitorHref,
   onOpenMonitor,
@@ -124,8 +144,11 @@ const AnalysisSection = memo(function AnalysisSection({
   mapQueuedAt?: number | null;
   onMapVisibility?: (key: string, visible: boolean) => void;
   mapTileUrl?: string;
+  mapThumbnail?: ReportMapThumbnail;
+  mapChoropleth?: ReportMapChoropleth;
   mapUnavailableReason?: EeMapUrlFailure;
   onMapCapture?: (key: string, src: string | null) => void;
+  onMapRetry?: (key: string) => void;
   docsContent: MunicipalReportDocsContent | null;
   onOpenMonitor?: (layerId: string) => void;
 }) {
@@ -170,10 +193,25 @@ const AnalysisSection = memo(function AnalysisSection({
   const referencePeriod =
     effectivePeriod ?? analysis.snapshot?.period ?? analysis.requestedPeriod;
   const referencePeriodLabel = formatReportPeriod(referencePeriod, locale);
-  const snapshotPeriodLabel = analysis.snapshot?.label || referencePeriodLabel;
+  const rawSnapshotLabel = analysis.snapshot?.label;
+  const snapshotPeriodLabel =
+    (rawSnapshotLabel && formatDekadPeriod(rawSnapshotLabel, locale)) ||
+    rawSnapshotLabel ||
+    referencePeriodLabel;
   const periodResolution = `${t("analyzedPeriod")}: ${referencePeriodLabel}.`;
   const historyRange = compactPeriodRange(
     analysis.timeSeries,
+    referencePeriod,
+    locale,
+    (key, values) => t(key, values),
+  );
+  // O gráfico desenha só os períodos mais recentes; o título dele diz quais.
+  const chartRange = compactPeriodRange(
+    selectStackedChartSnapshots(
+      analysis.timeSeries,
+      MUNICIPAL_REPORT_STACKED_MAX_COLUMNS,
+      referencePeriod,
+    ),
     referencePeriod,
     locale,
     (key, values) => t(key, values),
@@ -306,8 +344,11 @@ const AnalysisSection = memo(function AnalysisSection({
                 imageSrc={mapSrc}
                 queuedAt={mapQueuedAt}
                 tileUrl={mapTileUrl}
+                thumbnail={mapThumbnail}
+                choropleth={mapChoropleth}
                 unavailableReason={mapUnavailableReason}
                 onCapture={(src) => onMapCapture?.(mapKey, src)}
+                onRetry={onMapRetry && (() => onMapRetry(mapKey))}
                 onVisibilityChange={(visible) =>
                   onMapVisibility?.(mapKey, visible)
                 }
@@ -333,7 +374,7 @@ const AnalysisSection = memo(function AnalysisSection({
               </ReportSectionHeading>
               <div className="report-block mt-4 flex flex-col gap-4 overflow-hidden rounded-lg border border-[#EFEFEF] bg-[#F6F7F6] p-4">
                 <p className="font-open-sans text-base font-bold text-[#292829]">
-                  {historyRange}
+                  {chartRange}
                 </p>
                 <div className="report-chart-screen">
                   <MunicipalReportStackedChart
@@ -346,6 +387,39 @@ const AnalysisSection = memo(function AnalysisSection({
                 <div className="report-chart-print hidden">
                   <MunicipalReportStackedPrintChart
                     analysis={analysis}
+                    referencePeriod={referencePeriod}
+                    translateLabel={translateLabel}
+                  />
+                </div>
+              </div>
+            </div>
+          )}
+
+          {/* Pobreza, PIB e IDH são um valor por período, não classes que somam
+              100%: o gráfico empilhado não serve, e eles ficavam sem gráfico. */}
+          {!isStackableAnalysis(analysis) && analysis.timeSeries.length > 0 && (
+            <div className="report-time-series mt-8">
+              <ReportSectionHeading level={3} accent={accent}>
+                {t("document.valueTimeSeriesTitle")}
+              </ReportSectionHeading>
+              <div className="report-block mt-4 flex flex-col gap-4 overflow-hidden rounded-lg border border-[#EFEFEF] bg-[#F6F7F6] p-4">
+                <p className="font-open-sans text-base font-bold text-[#292829]">
+                  {historyRange}
+                </p>
+                {/* O Recharts mede o contêiner: sem altura fixa ele mede zero e
+                    não desenha nada. */}
+                <div className="report-chart-screen h-[340px]">
+                  <MunicipalReportDynamicChart
+                    analysis={analysis}
+                    locale={locale}
+                    referencePeriod={referencePeriod}
+                    translateLabel={translateLabel}
+                  />
+                </div>
+                <div className="report-chart-print hidden">
+                  <MunicipalReportLinePrintChart
+                    analysis={analysis}
+                    locale={locale}
                     referencePeriod={referencePeriod}
                     translateLabel={translateLabel}
                   />
@@ -401,8 +475,10 @@ const ReportDocument = memo(function ReportDocument({
   activeMapKeys,
   mapQueueStartedAt,
   mapTileUrls,
+  mapChoropleths,
   retryAttemptFor,
   onMapCapture,
+  onMapRetry,
   onMapVisibility,
   documentRef,
   docsContent,
@@ -410,6 +486,7 @@ const ReportDocument = memo(function ReportDocument({
   downloadDisabled,
   downloadLabel,
   onOpenMonitor,
+  summaryPages,
 }: {
   report: MunicipalReportData;
   layerIds?: string[];
@@ -417,8 +494,10 @@ const ReportDocument = memo(function ReportDocument({
   activeMapKeys: ReadonlySet<string>;
   mapQueueStartedAt: number | null;
   mapTileUrls: ReportMapTileUrls;
+  mapChoropleths: ReportMapChoropleths;
   retryAttemptFor: (key: string) => number;
   onMapCapture?: (key: string, src: string | null) => void;
+  onMapRetry?: (key: string) => void;
   onMapVisibility?: (key: string, visible: boolean) => void;
   documentRef?: Ref<HTMLElement>;
   docsContent: MunicipalReportDocsContent | null;
@@ -426,6 +505,7 @@ const ReportDocument = memo(function ReportDocument({
   downloadDisabled?: boolean;
   downloadLabel?: string;
   onOpenMonitor?: (layerId: string) => void;
+  summaryPages?: ReadonlyMap<string, number> | null;
 }) {
   const t = useTranslations("MunicipalReport");
   const tModules = useTranslations("ModulesContext");
@@ -433,12 +513,58 @@ const ReportDocument = memo(function ReportDocument({
   const tModulesHas = (key: string) => tModules.has(key);
   const locale = useLocale();
   const generatedAt = new Date(report.generatedAt).toLocaleDateString(locale);
-  const selected = layerIds.length
-    ? report.analyses.filter(({ id }) => layerIds.includes(id))
-    : report.analyses;
+  // As seções seguem a ordem do sumário — por categoria, e dentro dela a ordem
+  // do formulário —, para que os números de página do sumário só cresçam.
+  const selected = groupReportAnalysesByCategory(
+    layerIds.length
+      ? report.analyses.filter(({ id }) => layerIds.includes(id))
+      : report.analyses,
+  ).flatMap((group) => group.analyses);
+  // As previsões da mesma fonte, variável e periodicidade viram uma seção só.
+  const sections = buildReportDocumentSections(selected);
+  const summaryItems = sections.map((section) =>
+    section.type === "analysis"
+      ? {
+          id: section.analysis.id,
+          alias: section.analysis.alias,
+          category: section.analysis.category,
+          title: translateAnalysisTitle(
+            section.analysis,
+            t,
+            tHas,
+            tModules,
+            tModulesHas,
+          ),
+        }
+      : {
+          id: section.group.alias,
+          alias: section.group.alias,
+          category: section.group.category,
+          title: forecastGroupTitle(section.group, t),
+        },
+  );
+  const forecastNotes = sections.flatMap((section) =>
+    section.type === "forecast"
+      ? [
+          {
+            key: section.group.alias,
+            title: forecastGroupTitle(section.group, t),
+            text: forecastGroupMethodologies(
+              section.group,
+              docsContent,
+              locale,
+              t,
+              tModules,
+            ).join(" "),
+          },
+        ]
+      : [],
+  );
+  const mapKeyFor = (analysis: MunicipalReportAnalysis) =>
+    `${analysis.id}:${analysis.effectivePeriod ?? analysis.snapshot?.period ?? report.requestedPeriod}`;
 
   /**
-   * O link "Ver monitor" de uma seção.
+   * O link "Ver produto" de uma seção.
    *
    * `?layer=` chega ao `ModulesContext`, que ativa a camada no mapa e abre o
    * detalhamento dela — o mesmo caminho de quem clica no índice pelo painel.
@@ -482,21 +608,48 @@ const ReportDocument = memo(function ReportDocument({
       <ReportBackToTop />
 
       <div className="flex flex-col gap-6 px-10 py-6">
-        <ReportSectionHeading level={2} accent="#989F43">
-          {t("document.variableIndexTitle")}
-        </ReportSectionHeading>
-        <div>
-          <ReportVariableIndex
-            analyses={selected}
-            translateTitle={(analysis) =>
-              translateAnalysisTitle(analysis, t, tHas, tModules, tModulesHas)
-            }
-          />
-        </div>
+        <ReportSummary
+          analyses={summaryItems}
+          translateTitle={(item) => item.title}
+          pages={summaryPages}
+        />
 
         <div className="report-sections space-y-12">
-          {selected.map((analysis) => {
-            const mapKey = `${analysis.id}:${analysis.effectivePeriod ?? analysis.snapshot?.period ?? report.requestedPeriod}`;
+          {sections.map((section) => {
+            if (section.type === "forecast") {
+              return (
+                <ReportForecastSection
+                  key={section.group.alias}
+                  group={section.group}
+                  report={report}
+                  locale={locale}
+                  docsContent={docsContent}
+                  mapPropsFor={(analysis) => {
+                    const mapKey = mapKeyFor(analysis);
+                    return {
+                      mapKey,
+                      mapSrc: mapImages.get(mapKey) ?? undefined,
+                      mapActive: activeMapKeys.has(mapKey),
+                      mapAttempt: retryAttemptFor(mapKey),
+                      mapTileUrl: mapTileUrls.tileUrlFor(mapKey),
+                      mapThumbnail: mapTileUrls.thumbnailFor(mapKey),
+                      mapChoropleth: mapChoropleths.choroplethFor(mapKey),
+                      mapUnavailableReason:
+                        mapTileUrls.failureFor(mapKey) ??
+                        mapChoropleths.failureFor(mapKey),
+                    };
+                  }}
+                  mapQueuedAt={mapQueueStartedAt}
+                  onMapCapture={onMapCapture}
+                  onMapRetry={onMapRetry}
+                  onMapVisibility={onMapVisibility}
+                  monitorHref={buildMonitorHref}
+                  onOpenMonitor={onOpenMonitor}
+                />
+              );
+            }
+            const { analysis } = section;
+            const mapKey = mapKeyFor(analysis);
             return (
               <AnalysisSection
                 key={analysis.id}
@@ -509,8 +662,14 @@ const ReportDocument = memo(function ReportDocument({
                 mapAttempt={retryAttemptFor(mapKey)}
                 mapQueuedAt={mapQueueStartedAt}
                 mapTileUrl={mapTileUrls.tileUrlFor(mapKey)}
-                mapUnavailableReason={mapTileUrls.failureFor(mapKey)}
+                mapThumbnail={mapTileUrls.thumbnailFor(mapKey)}
+                mapChoropleth={mapChoropleths.choroplethFor(mapKey)}
+                mapUnavailableReason={
+                  mapTileUrls.failureFor(mapKey) ??
+                  mapChoropleths.failureFor(mapKey)
+                }
                 onMapCapture={onMapCapture}
+                onMapRetry={onMapRetry}
                 onMapVisibility={onMapVisibility}
                 docsContent={docsContent}
                 monitorHref={buildMonitorHref(analysis.id)}
@@ -521,7 +680,8 @@ const ReportDocument = memo(function ReportDocument({
         </div>
 
         <MunicipalReportNotes
-          analyses={selected}
+          analyses={selected.filter((analysis) => !analysis.forecast)}
+          extraNotes={forecastNotes}
           docsContent={docsContent}
           locale={locale}
         />
@@ -540,15 +700,16 @@ function EmptyReportPreview() {
 
   return (
     <div className="flex h-full min-h-[620px] flex-col items-center justify-center gap-6 px-8 py-12 text-center">
+      {/* A ilustração flutua devagar enquanto espera a seleção. */}
       <svg
-        className="h-auto w-full max-w-[488px]"
+        className="h-auto w-full max-w-[488px] motion-safe:animate-[float_6s_ease-in-out_infinite]"
         viewBox="0 0 488 488"
         fill="none"
         aria-hidden="true"
       >
         <use href="/sprite.svg#municipal-report-empty-illustration" />
       </svg>
-      <div className="flex w-full max-w-[602px] items-center justify-center rounded-2xl bg-[#E1E2B4] p-9">
+      <div className="flex w-full max-w-[602px] items-center justify-center rounded-2xl bg-[#E1E2B4] p-9 motion-safe:animate-[panel-in_600ms_200ms_cubic-bezier(0.2,0.7,0.2,1)_both]">
         <p className="font-open-sans text-2xl font-bold leading-[1.5] text-[#777E32]">
           {t("emptyPreviewInstruction")}
         </p>
@@ -587,7 +748,7 @@ export function MunicipalReportPreview({
   const mapQueueMeasuredRef = useRef(false);
   const mapQueuePeakConcurrencyRef = useRef(0);
   const layerIdsKey = useMemo(() => layerIds?.join(",") ?? "", [layerIds]);
-  const requestedMapKeys = useMemo(() => {
+  const requestedMaps = useMemo(() => {
     if (!report) return [];
     const selectedLayerIds = layerIdsKey
       ? new Set(layerIdsKey.split(","))
@@ -600,19 +761,56 @@ export function MunicipalReportPreview({
       .filter(
         (analysis) => analysis.status === "available" && analysis.snapshot,
       )
-      .map(
-        (analysis) =>
-          `${analysis.id}:${analysis.effectivePeriod ?? analysis.snapshot?.period ?? report.requestedPeriod}`,
-      );
+      .map((analysis) => {
+        const period =
+          analysis.effectivePeriod ??
+          analysis.snapshot?.period ??
+          report.requestedPeriod;
+        return { key: `${analysis.id}:${period}`, analysis, period };
+      });
   }, [layerIdsKey, report]);
+  const requestedMapKeys = useMemo(
+    () => requestedMaps.map(({ key }) => key),
+    [requestedMaps],
+  );
+  // Um índice de planilha não tem imagem no Earth Engine: pedir a URL dele só
+  // devolvia um mapa sem cor. Ele é pintado com os valores por município.
+  const eeMapKeys = useMemo(
+    () =>
+      requestedMaps
+        .filter(({ analysis }) => !analysis.mapChoropleth)
+        .map(({ key }) => key),
+    [requestedMaps],
+  );
+  const choroplethRequests = useMemo(
+    () => requestedMaps.filter(({ analysis }) => analysis.mapChoropleth),
+    [requestedMaps],
+  );
   const loadErrorMessage = t("loadError");
-  const mapTileUrls = useReportMapTileUrls(requestedMapKeys);
+  const serverErrorMessage = t("serverError");
+  // No relatório de um município, todos os mapas mostram o mesmo recorte, e
+  // cada camada vem do Earth Engine como uma imagem só dele em vez de tiles.
+  const territoryKey = report
+    ? `${report.territory.level}:${report.territory.locationKey}`
+    : "";
+  const mapView = useMemo(
+    () => (report ? resolveReportMapView(report.territory) : null),
+    // `territoryKey` resume o território: o objeto muda a cada leitura.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [territoryKey],
+  );
+  const mapTileUrls = useReportMapTileUrls(eeMapKeys, mapView);
+  const mapChoropleths = useReportMapChoropleths(choroplethRequests);
   // A fila de captura recebe cada camada assim que a URL dela chega, e nunca as
   // que não têm imagem no período: montar um MapLibre para uma dessas só
   // gastava contexto WebGL e terminava em captura vazia.
   const reportMapKeys = useMemo(
-    () => requestedMapKeys.filter((key) => mapTileUrls.tileUrlFor(key)),
-    [mapTileUrls, requestedMapKeys],
+    () =>
+      requestedMapKeys.filter(
+        (key) =>
+          mapTileUrls.tileUrlFor(key) || mapChoropleths.choroplethFor(key),
+      ),
+    [mapChoropleths, mapTileUrls, requestedMapKeys],
   );
   const {
     activeMapKeys,
@@ -623,12 +821,28 @@ export function MunicipalReportPreview({
     pendingMapCount,
     resetMapCaptureQueue,
     retryAttemptFor,
+    retryMapCapture,
   } = useReportMapCaptureQueue(reportMapKeys);
   // Enquanto as URLs não voltam a fila está vazia, e uma fila vazia estaria
   // "pronta": sem esta guarda o botão de exportar liberava antes do primeiro
   // mapa existir.
-  const mapsReady = mapTileUrls.resolved && capturesReady;
-  const reportReadyForExport = mapsReady && docsResolved;
+  const mapsReady =
+    mapTileUrls.resolved && mapChoropleths.resolved && capturesReady;
+  // As páginas valem para o documento que foi medido: com outro relatório ou
+  // outros textos, o sumário volta a ficar sem número até a nova medição.
+  const [summaryPagination, setSummaryPagination] = useState<{
+    report: MunicipalReportData;
+    docsContent: MunicipalReportDocsContent | null;
+    pages: ReadonlyMap<string, number>;
+  } | null>(null);
+  const summaryPages =
+    summaryPagination &&
+    summaryPagination.report === report &&
+    summaryPagination.docsContent === docsContent
+      ? summaryPagination.pages
+      : null;
+  const reportReadyForExport =
+    mapsReady && docsResolved && Boolean(summaryPages);
 
   useEffect(() => {
     if (!hasRequiredParameters || navigationMeasuredRef.current) return;
@@ -691,6 +905,45 @@ export function MunicipalReportPreview({
     return () => window.cancelAnimationFrame(frame);
   }, [loading, mapsReady, report, reportMapKeys.length]);
 
+  // Os números do sumário só dependem do texto, não dos mapas: o quadro do mapa
+  // tem altura fixa no PDF. Então a medição roda assim que os textos chegam, em
+  // paralelo com a fila de mapas, e não atrasa o "Baixar PDF".
+  useEffect(() => {
+    const paper = reportDocumentRef.current;
+    if (!report || loading || !docsResolved || !paper) return;
+    let cancelled = false;
+    const finishPagination = startMunicipalReportStage();
+
+    Promise.race([
+      measureReportPages(paper, locale),
+      new Promise<never>((_, reject) =>
+        window.setTimeout(
+          () => reject(new Error("A medição passou de 15 s.")),
+          15_000,
+        ),
+      ),
+    ])
+      .catch((reason) => {
+        // Sem a medição o sumário sai sem números, mas o PDF não fica preso.
+        console.warn(
+          "Não foi possível paginar o sumário do relatório.",
+          reason,
+        );
+        return new Map<string, number>();
+      })
+      .then((pages) => {
+        if (cancelled) return;
+        finishPagination("Páginas do sumário", {
+          detalhes: `${pages.size} seção(ões) medida(s)`,
+        });
+        setSummaryPagination({ report, docsContent, pages });
+      });
+
+    return () => {
+      cancelled = true;
+    };
+  }, [docsContent, docsResolved, loading, locale, report]);
+
   // `printReport` é redeclarado a cada render, e passá-lo direto ao
   // `ReportDocument` quebraria o `memo` dele — o zoom voltaria a remontar os
   // vinte mapas. Esta referência é estável e sempre chama a versão atual.
@@ -710,71 +963,16 @@ export function MunicipalReportPreview({
       return;
     }
 
-    const styles = [
-      ...document.querySelectorAll('link[rel="stylesheet"], style'),
-    ]
-      .map((element) => element.outerHTML)
-      .join("\n");
-    const baseUrl = `${window.location.origin}/`;
-    // As variáveis de fonte do next/font vivem na className do <body> do app
-    // (src/app/[locale]/layout.tsx). A janela de impressão monta um <body> novo,
-    // sem essa classe, e o PDF saía numa fonte de sistema em vez de Open Sans —
-    // o que muda a largura do texto e a quebra de página junto. Vão como regra
-    // CSS, e não como atributo style: o valor resolvido traz aspas duplas
-    // (`"Open Sans", "Open Sans Fallback"`) que truncariam o atributo.
-    const appBodyStyle = getComputedStyle(document.body);
-    const printFontVariables = FONT_VARIABLE_NAMES.map(
-      (name) => `${name}:${appBodyStyle.getPropertyValue(name)}`,
-    ).join(";");
     const filename = buildReportFilename(
       report,
       period,
       t("reportLabel"),
       t("reportFilenamePrefix"),
     );
-    const printOverrides = `
-      <style>
-        @page{size:A4;margin:12mm 14mm}
-        body{${printFontVariables}}
-        html,body{width:auto;margin:0;background:#fff}
-        body{-webkit-print-color-adjust:exact;print-color-adjust:exact}
-        .report-paper{box-sizing:border-box;width:auto!important;min-height:auto!important;margin:0!important;padding:0!important;overflow:visible;box-shadow:none!important}
-        .report-paper>div{padding:0!important}
-        .report-hero>div{padding-left:0!important;padding-right:0!important}
-        .report-back-to-top{display:none!important}
-        @media print{
-          .report-chart-screen{display:none!important}
-          .report-chart-print{display:block!important}
-          .report-print-chart-svg{display:block;width:100%!important;height:auto!important;overflow:visible!important}
-          .report-map-frame{aspect-ratio:auto!important;height:70mm!important}
-          .report-map-frame img{width:100%;height:100%;object-fit:contain!important;object-position:center!important}
-          .report-sections{margin-top:8mm!important}
-          .report-section+.report-section{margin-top:10mm!important}
-          .report-section{break-inside:auto;page-break-inside:auto}
-          .report-analysis-header{break-after:avoid;page-break-after:avoid}
-          .report-heading{break-after:avoid;page-break-after:avoid}
-          .report-block{break-inside:avoid;page-break-inside:avoid}
-          .report-class-bar-row{break-inside:avoid;page-break-inside:avoid}
-          .report-variable-index{break-inside:avoid;page-break-inside:avoid}
-          /* Mapa, gráfico e barras de classe medem 435, 506 e até 530px numa
-             página A4 de 1032px úteis: dois cabem, três nunca. Enquanto o cartão
-             inteiro era indivisível, o terceiro pulava de página e deixava um
-             vão de 300 a 500px no pé da anterior, seção após seção. O que de
-             fato não pode ser cortado ao meio é a imagem do mapa e o SVG do
-             gráfico; o cabeçalho, a legenda e a tabela de classes podem fluir. */
-          .report-time-series,.report-spatial,.report-class-coverage{break-inside:auto;page-break-inside:auto}
-          .report-time-series>.report-block,.report-spatial>.report-block,.report-class-coverage>.report-block{break-inside:auto;page-break-inside:auto}
-          .report-map-frame,.report-chart-print{break-inside:avoid;page-break-inside:avoid}
-          .report-narrative{break-inside:auto;page-break-inside:auto}
-          .report-notes{break-inside:auto;page-break-inside:auto;margin-top:8mm!important;padding-top:5mm!important}
-          .report-document-footer{break-inside:avoid;page-break-inside:avoid}
-          .report-paper p,.report-notes p{orphans:3;widows:3}
-        }
-      </style>`;
 
     printWindow.document.open();
     printWindow.document.write(
-      `<!doctype html><html lang="${locale}"><head><meta charset="utf-8"><base href="${baseUrl}"><title></title>${styles}${printOverrides}</head><body>${reportDocumentRef.current.outerHTML}</body></html>`,
+      buildReportPrintHtml(reportDocumentRef.current, locale),
     );
     printWindow.document.close();
     printWindow.document.title = filename;
@@ -825,7 +1023,11 @@ export function MunicipalReportPreview({
           `/api/municipal-report/${encodeURIComponent(locationKey)}?${reportParams.toString()}`,
           { credentials: "same-origin", signal: controller.signal },
         );
-        const payload = await response.json();
+        // Um erro do proxy (502, 504) chega como página HTML: lida como JSON,
+        // virava "Unexpected token '<'" na tela de quem pediu o relatório.
+        const payload = await response.json().catch(() => {
+          throw new Error(serverErrorMessage);
+        });
         finishBaseReport("Relatório-base", {
           response,
           detalhes: `${layerIdsKey ? layerIdsKey.split(",").length : "todas"} camada(s) solicitada(s)`,
@@ -910,15 +1112,12 @@ export function MunicipalReportPreview({
     locationKey,
     period,
     resetMapCaptureQueue,
+    serverErrorMessage,
   ]);
 
   const visibleError = hasRequiredParameters ? error : null;
 
   if (embedded) {
-    const previewTitle = report
-      ? `${t("reportLabel")} - ${report.territory.label} - ${formatReportPeriod(period, locale)}`
-      : t("reportLabel");
-
     return (
       <div className="flex h-full min-w-0 flex-col bg-white">
         <div className="shrink-0 border-b border-[#D9E0E3] bg-white px-4 py-4 sm:px-6">
@@ -927,9 +1126,6 @@ export function MunicipalReportPreview({
               <p className="font-inter text-xs font-semibold uppercase tracking-[0.08em] text-[#536E7B]">
                 {t("preview")}
               </p>
-              <h1 className="mt-1 truncate font-inter text-base font-semibold text-[#292829]">
-                {previewTitle}
-              </h1>
             </div>
             <div className="flex shrink-0 flex-wrap items-center gap-3">
               <div className="flex shrink-0 items-center gap-2">
@@ -1013,12 +1209,15 @@ export function MunicipalReportPreview({
                 activeMapKeys={activeMapKeys}
                 mapQueueStartedAt={mapQueueStartedAt}
                 mapTileUrls={mapTileUrls}
+                mapChoropleths={mapChoropleths}
                 retryAttemptFor={retryAttemptFor}
                 onMapCapture={handleMapCapture}
+                onMapRetry={retryMapCapture}
                 onMapVisibility={handleMapVisibility}
                 documentRef={reportDocumentRef}
                 docsContent={docsContent}
                 onOpenMonitor={onOpenMonitor}
+                summaryPages={summaryPages}
                 onDownload={handleDownload}
                 downloadDisabled={exporting || !reportReadyForExport}
                 downloadLabel={
@@ -1064,11 +1263,14 @@ export function MunicipalReportPreview({
             activeMapKeys={activeMapKeys}
             mapQueueStartedAt={mapQueueStartedAt}
             mapTileUrls={mapTileUrls}
+            mapChoropleths={mapChoropleths}
             retryAttemptFor={retryAttemptFor}
             onMapCapture={handleMapCapture}
+            onMapRetry={retryMapCapture}
             onMapVisibility={handleMapVisibility}
             docsContent={docsContent}
             onOpenMonitor={onOpenMonitor}
+            summaryPages={summaryPages}
             documentRef={reportDocumentRef}
             onDownload={handleDownload}
             downloadDisabled={exporting || !reportReadyForExport}

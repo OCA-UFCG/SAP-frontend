@@ -1,8 +1,8 @@
 {
   "Platform": {
     "SideRail": {
-      "monitoring": "Monitoring",
-      "analysis": "Analysis",
+      "monitoring": "Monitor",
+      "analysis": "Prioritization",
       "communication": "Communication",
       "logs": "Audit"
     },
@@ -12,7 +12,7 @@
     },
     "Modules": {
       "title": "What do you want to monitor?",
-      "subtitle": "Select which monitor you want to analyze",
+      "subtitle": "Select which product you want to analyze",
       "categories": {
         "climate": "Climate Data",
         "environmental": "Environmental Data",
@@ -56,7 +56,8 @@
     },
     "Analysis": {
       "unavailableTitle": "Analysis unavailable for {location}",
-      "unavailableDescriptionLoading": "Municipal data for this layer is being loaded on demand.",
+      "loadingTitle": "Loading analysis for {location}",
+      "unavailableDescriptionLoading": "The data for this layer is on its way. This may take a few seconds.",
       "unavailableDescription": "Analysis data for {location} is not yet available in this module."
     },
     "SearchBar": {

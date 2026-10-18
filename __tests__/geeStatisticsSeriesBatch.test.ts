@@ -73,7 +73,9 @@ import type { GeeFeatureCollectionStatisticsSource } from "@/contracts/geeStatis
 import { evaluateGeeObject } from "@/infrastructure/earth-engine/client";
 import {
   clearGeeStatisticsSchemaCacheForTests,
+  getGeeStatisticsSeriesPatch,
   getGeeStatisticsYearPatch,
+  preloadGeeStatisticsSchema,
 } from "@/repositories/platform/geeStatisticsRepository";
 import { clearGeeStatisticsRowsCache } from "@/repositories/platform/geeStatisticsRowsCache";
 
@@ -215,6 +217,59 @@ describe("leitura em lote da série estatística", () => {
   });
 });
 
+// Regressão: as colunas ficam só na memória do processo, então o primeiro
+// relatório depois de cada deploy fazia uma ida a mais por camada, e as idas
+// dele esperavam umas pelas outras.
+describe("colunas lidas quando o servidor sobe", () => {
+  it("deixa a primeira leitura da camada só com as linhas", async () => {
+    await preloadGeeStatisticsSchema(source, YEARS);
+    const kindsBeforeRead = mockedEvaluate.mock.calls.map(
+      ([object]) => (object as FakeNode).kind,
+    );
+    mockedEvaluate.mockClear();
+
+    const result = await readPeriod("2020");
+
+    expect(kindsBeforeRead).toEqual(["propertyNames"]);
+    expect(
+      mockedEvaluate.mock.calls.map(([object]) => (object as FakeNode).kind),
+    ).toEqual(["collection", "collection", "collection"]);
+    expect(result?.patch.years?.["2020"]?.values).toEqual({
+      "2507507": [40, 60],
+    });
+  });
+
+  // Regressão: o Next dá à subida do servidor e à rota cópias separadas deste
+  // módulo. Com o cache numa variável do módulo, a rota não via as colunas
+  // aquecidas e o primeiro relatório depois do deploy lia as 17 de novo.
+  it("serve as colunas aquecidas a outra cópia do módulo, como a da rota", async () => {
+    await preloadGeeStatisticsSchema(source, YEARS);
+    mockedEvaluate.mockClear();
+
+    vi.resetModules();
+    const routeCopy =
+      await import("@/repositories/platform/geeStatisticsRepository");
+    await routeCopy.getGeeStatisticsYearPatch(
+      "indicearidez",
+      "2020",
+      "2507507",
+      2,
+      source,
+      YEARS,
+    );
+
+    expect(
+      mockedEvaluate.mock.calls.map(([object]) => (object as FakeNode).kind),
+    ).not.toContain("propertyNames");
+  });
+
+  it("não lê nada de uma camada sem períodos publicados", async () => {
+    await preloadGeeStatisticsSchema(source, []);
+
+    expect(mockedEvaluate).not.toHaveBeenCalled();
+  });
+});
+
 /**
  * Regressão: o Monitor de Secas da ANA sumiu do painel e do relatório em todos
  * os recortes porque a tabela de 2026 estava sendo reingerida e, indo no mesmo
@@ -290,5 +345,227 @@ describe("asset indisponível dentro da série", () => {
     breakAssets(YEARS.map((year) => `projects/example/assets/aridez_${year}`));
 
     await expect(readPeriod("2020")).rejects.toThrow(/not found/u);
+  });
+});
+
+describe("série inteira de um território para o gráfico temporal", () => {
+  const publishedSource = {
+    ...source,
+    schemaVersion: 1 as const,
+    sourceRevision: "rev-1",
+  };
+
+  // Regressão: o gráfico do CDI pedia um período por requisição, e com 926
+  // decêndios só os do último ano entravam; os anteriores ficavam em branco.
+  it("devolve todos os períodos num patch só, nas mesmas 4 idas", async () => {
+    const patch = await getGeeStatisticsSeriesPatch(
+      "indicearidez",
+      "2507507",
+      2,
+      publishedSource,
+      YEARS,
+    );
+
+    expect(mockedEvaluate).toHaveBeenCalledTimes(4);
+    expect(Object.keys(patch.years ?? {})).toEqual(YEARS);
+    expect(patch.years?.["1980"]).toEqual({
+      valuesScale: 1,
+      values: { "2507507": [40, 60] },
+    });
+  });
+
+  it("deixa de fora só o período que não se converte", async () => {
+    mockedEvaluate.mockImplementation(async (object: unknown) => {
+      const node = object as FakeNode;
+      if (node.kind === "propertyNames") return PROPERTY_NAMES as never;
+      return {
+        features: node.assetIds.map((assetId) => ({
+          properties: assetId.endsWith("2000")
+            ? { ...municipalRow(assetId), perc_classe_1: "sem valor" }
+            : municipalRow(assetId),
+        })),
+      } as never;
+    });
+    const warn = vi.spyOn(console, "warn").mockImplementation(() => {});
+
+    const patch = await getGeeStatisticsSeriesPatch(
+      "indicearidez",
+      "2507507",
+      2,
+      publishedSource,
+      YEARS,
+    );
+
+    expect(patch.years?.["2000"]).toBeUndefined();
+    expect(Object.keys(patch.years ?? {})).toHaveLength(YEARS.length - 1);
+    expect(warn).toHaveBeenCalledOnce();
+    warn.mockRestore();
+  });
+});
+
+describe("estados e níveis agregados dividem a mesma leitura", () => {
+  function territorialRow(
+    assetId: string,
+    level: string,
+    name: string,
+    uf = "",
+  ) {
+    return {
+      NIVEL_AGRUPAMENTO: level,
+      NOME_LOCAL: name,
+      CD_MUN: "",
+      NM_UF: uf,
+      ano: Number(assetId.slice(-4)),
+      perc_classe_1: 40,
+      perc_classe_2: 60,
+    };
+  }
+
+  beforeEach(() => {
+    mockedEvaluate.mockImplementation(async (object: unknown) => {
+      const node = object as FakeNode;
+      if (node.kind === "propertyNames") return PROPERTY_NAMES as never;
+      return {
+        features: node.assetIds.flatMap((assetId) =>
+          [
+            territorialRow(assetId, "1_BR", "Brasil"),
+            territorialRow(assetId, "6_Estado", "Pernambuco", "PE"),
+            territorialRow(assetId, "6_Estado", "Paraíba", "PB"),
+            territorialRow(assetId, "3_Bioma", "Caatinga"),
+            territorialRow(assetId, "3_Bioma", "Cerrado"),
+          ].map((properties) => ({ properties })),
+        ),
+      } as never;
+    });
+  });
+
+  function rowReads() {
+    return mockedEvaluate.mock.calls.filter(
+      ([object]) => (object as FakeNode).kind !== "propertyNames",
+    ).length;
+  }
+
+  // Regressão: o estado lia as 27 UFs de novo, embora a leitura do Brasil já
+  // trouxesse as mesmas linhas — ~2 s a cada estado escolhido no Detalhamento.
+  it("serve o estado da leitura do Brasil, sem voltar ao Earth Engine", async () => {
+    await getGeeStatisticsYearPatch(
+      "indicearidez",
+      "2020",
+      "br",
+      2,
+      source,
+      YEARS,
+    );
+    const readsForBrazil = rowReads();
+
+    const result = await getGeeStatisticsYearPatch(
+      "indicearidez",
+      "2020",
+      "pe",
+      2,
+      source,
+      YEARS,
+    );
+
+    expect(rowReads()).toBe(readsForBrazil);
+    expect(result?.patch.locations).toEqual({ pe: "Pernambuco" });
+    expect(result?.patch.years?.["2020"]?.values).toEqual({ pe: [40, 60] });
+  });
+
+  it("serve um estado depois do outro com uma leitura só", async () => {
+    await getGeeStatisticsYearPatch(
+      "indicearidez",
+      "2020",
+      "pe",
+      2,
+      source,
+      YEARS,
+    );
+    const readsForFirstState = rowReads();
+
+    const result = await getGeeStatisticsYearPatch(
+      "indicearidez",
+      "2020",
+      "pb",
+      2,
+      source,
+      YEARS,
+    );
+
+    expect(rowReads()).toBe(readsForFirstState);
+    expect(result?.patch.years?.["2020"]?.values).toEqual({ pb: [40, 60] });
+  });
+
+  it("mantém o Brasil com o ranking das UFs quando o estado foi lido antes", async () => {
+    await getGeeStatisticsYearPatch(
+      "indicearidez",
+      "2020",
+      "pe",
+      2,
+      source,
+      YEARS,
+    );
+
+    const result = await getGeeStatisticsYearPatch(
+      "indicearidez",
+      "2020",
+      "br",
+      2,
+      source,
+      YEARS,
+    );
+
+    expect(
+      Object.keys(result?.patch.years?.["2020"]?.values ?? {}).sort(),
+    ).toEqual(["br", "pb", "pe"]);
+  });
+
+  it("serve os biomas de uma leitura só do nível", async () => {
+    await getGeeStatisticsYearPatch(
+      "indicearidez",
+      "2020",
+      "3_bioma-caatinga",
+      2,
+      source,
+      YEARS,
+    );
+    const readsForCaatinga = rowReads();
+
+    const result = await getGeeStatisticsYearPatch(
+      "indicearidez",
+      "2020",
+      "3_bioma-cerrado",
+      2,
+      source,
+      YEARS,
+    );
+
+    expect(rowReads()).toBe(readsForCaatinga);
+    expect(result?.patch.years?.["2020"]?.values).toEqual({
+      "3_bioma-cerrado": [40, 60],
+    });
+  });
+
+  it("continua lendo cada município à parte", async () => {
+    await getGeeStatisticsYearPatch(
+      "indicearidez",
+      "2020",
+      "br",
+      2,
+      source,
+      YEARS,
+    );
+    const readsForBrazil = rowReads();
+
+    await getGeeStatisticsYearPatch(
+      "indicearidez",
+      "2020",
+      "2507507",
+      2,
+      source,
+      YEARS,
+    );
+
+    expect(rowReads()).toBeGreaterThan(readsForBrazil);
   });
 });

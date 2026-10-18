@@ -18,11 +18,22 @@ vi.mock("@/components/MunicipalReport/ReportMapPreview", () => ({
   ReportMapPreview({
     active,
     onCapture,
+    layerId,
+    choropleth,
+    tileUrl,
   }: Pick<ComponentProps<"div">, "className"> & {
     active?: boolean;
     onCapture?: (src: string | null) => void;
+    layerId?: string;
+    choropleth?: unknown;
+    tileUrl?: string;
   }) {
-    reportMapPreviewRenderSpy();
+    reportMapPreviewRenderSpy({
+      layerId,
+      choropleth,
+      tileUrl,
+      ...(active ? { active } : {}),
+    });
     const capturedRef = useRef(false);
 
     useEffect(() => {
@@ -165,6 +176,37 @@ describe("MunicipalReportPreview", () => {
     vi.restoreAllMocks();
   });
 
+  // Regressão: com 39 camadas o nginx do beta devolvia uma página HTML de 502,
+  // e a tela mostrava "Unexpected token '<' ... is not valid JSON".
+  it("explica o erro do servidor em vez de mostrar a falha de leitura do JSON", async () => {
+    global.fetch = vi.fn(
+      async () =>
+        new Response(
+          "<html><head><title>502 Bad Gateway</title></head></html>",
+          {
+            status: 502,
+            headers: { "Content-Type": "text/html" },
+          },
+        ),
+    );
+
+    render(
+      <MunicipalReportPreview
+        locationKey="5200050"
+        period="2026"
+        layerIds={["anaseca"]}
+        embedded
+      />,
+    );
+
+    expect(
+      await screen.findByText(
+        "O servidor não respondeu a tempo. Tente de novo em alguns instantes.",
+      ),
+    ).toBeInTheDocument();
+    expect(screen.queryByText(/Unexpected token/)).not.toBeInTheDocument();
+  });
+
   it("renders the report with PDF download and zoom controls", async () => {
     const user = userEvent.setup();
 
@@ -236,7 +278,258 @@ describe("MunicipalReportPreview", () => {
     ).toBe(false);
   });
 
-  it("leva o pedido do relatório no link Ver monitor, para a volta não perdê-lo", async () => {
+  it("pinta o mapa do índice de planilha e desenha a série de valor único", async () => {
+    const povertySnapshot = (period: string, percentage: number) => {
+      const item = {
+        id: "pobreza",
+        label: "Famílias em situação de pobreza",
+        color: "#BD0026",
+        percentage,
+      };
+      return {
+        period,
+        label: period,
+        distribution: [item],
+        dominantClass: item,
+      };
+    };
+    const spreadsheetReport: MunicipalReportData = {
+      ...report,
+      analyses: [
+        {
+          id: "percentual-de-pobreza",
+          alias: "pobreza",
+          title: "Percentual de pobreza",
+          category: "Dados Socioeconômicos",
+          unit: "%",
+          valueType: "percentage",
+          status: "available",
+          requestedPeriod: "2026",
+          effectivePeriod: "2025",
+          classes: [
+            {
+              id: "pobreza",
+              label: "Famílias em situação de pobreza",
+              color: "#BD0026",
+            },
+          ],
+          snapshot: povertySnapshot("2025", 52.3),
+          timeSeries: [
+            povertySnapshot("2024", 56.3),
+            povertySnapshot("2025", 52.3),
+          ],
+          mapChoropleth: { palette: ["#FFF", "#F00"], thresholds: [50] },
+        },
+      ],
+    };
+    vi.mocked(global.fetch).mockImplementation(async (input) => {
+      const url = String(input);
+      if (url.includes("/docs?")) return Response.json({ content: {} });
+      if (url.includes("/choropleth?")) {
+        return Response.json({
+          year: "2025",
+          values: { "5200050": 52.3, "5200100": 40 },
+        });
+      }
+      if (url.includes("/api/ee/map-urls")) return Response.json({ maps: [] });
+      return Response.json(spreadsheetReport);
+    });
+
+    render(
+      <MunicipalReportPreview
+        locationKey="5200050"
+        period="2026"
+        layerIds={["percentual-de-pobreza"]}
+        embedded
+      />,
+    );
+
+    expect(await screen.findByText("Série temporal")).toBeInTheDocument();
+    await waitFor(() => {
+      expect(screen.getByRole("button", { name: "Baixar PDF" })).toBeEnabled();
+    });
+    expect(reportMapPreviewRenderSpy).toHaveBeenLastCalledWith({
+      layerId: "percentual-de-pobreza",
+      choropleth: {
+        palette: ["#FFF", "#F00"],
+        classByCode: { "5200050": 1, "5200100": 0 },
+      },
+      tileUrl: undefined,
+    });
+    const requestedUrls = vi
+      .mocked(global.fetch)
+      .mock.calls.map(([input]) => String(input));
+    expect(
+      requestedUrls.some((url) =>
+        url.includes(
+          "/api/municipal-analysis/percentual-de-pobreza/choropleth?year=2025",
+        ),
+      ),
+    ).toBe(true);
+    // Sem imagem no Earth Engine, o índice não entra no pedido de URLs.
+    expect(requestedUrls.some((url) => url.includes("/api/ee/map-urls"))).toBe(
+      false,
+    );
+  });
+
+  // O índice de planilha não depende do Earth Engine: ele pega uma vaga da
+  // fila assim que os valores municipais chegam, sem esperar a URL das camadas
+  // de imagem, que no frio de um deploy pode levar segundos.
+  it("desenha o mapa de planilha enquanto as URLs do Earth Engine ainda não voltaram", async () => {
+    const spreadsheetAnalysis = {
+      ...report.analyses[0],
+      id: "percentual-de-pobreza",
+      alias: "pobreza",
+      title: "Percentual de pobreza",
+      mapChoropleth: { palette: ["#FFF", "#F00"], thresholds: [50] },
+    };
+    const mixedReport: MunicipalReportData = {
+      ...report,
+      analyses: [report.analyses[0], spreadsheetAnalysis],
+    };
+    vi.mocked(global.fetch).mockImplementation(async (input) => {
+      const url = String(input);
+      if (url.includes("/docs?")) return Response.json({ content: {} });
+      if (url.includes("/choropleth?")) {
+        return Response.json({ year: "2026", values: { "5200050": 52.3 } });
+      }
+      // O Earth Engine nunca responde neste teste.
+      if (url.includes("/api/ee/map-urls")) return new Promise(() => {});
+      return Response.json(mixedReport);
+    });
+
+    render(
+      <MunicipalReportPreview
+        locationKey="5200050"
+        period="2026"
+        layerIds={["anaseca", "percentual-de-pobreza"]}
+        embedded
+      />,
+    );
+
+    await waitFor(() => {
+      expect(reportMapPreviewRenderSpy).toHaveBeenCalledWith(
+        expect.objectContaining({
+          layerId: "percentual-de-pobreza",
+          active: true,
+          choropleth: expect.any(Object),
+        }),
+      );
+    });
+    expect(reportMapPreviewRenderSpy).not.toHaveBeenCalledWith(
+      expect.objectContaining({ layerId: "anaseca", active: true }),
+    );
+  });
+
+  it("junta as previsões da mesma fonte, variável e periodicidade numa seção só", async () => {
+    const forecastClasses = [
+      { id: "abaixo", label: "Levemente abaixo", color: "#F5E199" },
+      { id: "acima", label: "Levemente acima", color: "#B9D8E7" },
+    ];
+    const forecastSnapshot = (
+      period: string,
+      abaixo: number,
+    ): MunicipalReportPeriodSnapshot => {
+      const distribution = [
+        { ...forecastClasses[0], percentage: abaixo },
+        { ...forecastClasses[1], percentage: 100 - abaixo },
+      ];
+      return {
+        period,
+        label: period,
+        distribution,
+        dominantClass: abaixo >= 50 ? distribution[0] : distribution[1],
+      };
+    };
+    const forecast = (id: string, kind: string, abaixo: number) => ({
+      id,
+      alias: id,
+      title: `Previsão: ${kind} Precipitação Mensal | INMET`,
+      category: "Dados Climáticos",
+      unit: "%",
+      valueType: "percentage" as const,
+      status: "available" as const,
+      requestedPeriod: "2026-12",
+      effectivePeriod: "2026-12",
+      classes: forecastClasses,
+      snapshot: forecastSnapshot("2026-12", abaixo),
+      timeSeries: [
+        forecastSnapshot("2026-11", 40),
+        forecastSnapshot("2026-12", abaixo),
+      ],
+      presentation: { methodology: "Modelo atmosférico do INMET." },
+      forecast: {
+        source: "INMET",
+        variable: "Precipitação",
+        kind,
+        periodicity: "monthly" as const,
+      },
+    });
+    const forecastReport: MunicipalReportData = {
+      ...report,
+      requestedPeriod: "2026-12",
+      analyses: [
+        forecast("prob", "Probabilidade", 10),
+        forecast("anom", "Anomalia", 71.7),
+        report.analyses[0],
+        forecast("acum", "Acumulado", 0),
+      ],
+    };
+    vi.mocked(global.fetch).mockImplementation(async (input) => {
+      const url = String(input);
+      if (url.includes("/docs?")) return Response.json({ content: {} });
+      if (url.includes("/api/ee/map-urls")) return Response.json({ maps: [] });
+      return Response.json(forecastReport);
+    });
+
+    render(
+      <MunicipalReportPreview locationKey="5200050" period="2026-12" embedded />,
+    );
+
+    expect(await screen.findByRole("article")).toBeInTheDocument();
+    const sections = document.querySelectorAll(".report-section");
+    expect([...sections].map((section) => section.id)).toEqual([
+      "report-analysis-previsao_inmet_precipitacao_monthly",
+      "report-analysis-seca",
+    ]);
+    // Uma linha no sumário e um título na seção, no lugar de três de cada.
+    expect(screen.getAllByText("Previsão: Precipitação (INMET)")).toHaveLength(
+      2,
+    );
+    expect(
+      screen.getByRole("link", {
+        name: /Ir para a seção de Previsão: Precipitação \(INMET\)/,
+      }),
+    ).toHaveAttribute(
+      "href",
+      "#report-analysis-previsao_inmet_precipitacao_monthly",
+    );
+
+    const group = sections[0] as HTMLElement;
+    expect(group.textContent).toContain(
+      "No município de Abadia de Goiás — GO, para dezembro de 2026, a previsão de precipitação do INMET indica anomalia na faixa Levemente abaixo, em 71,70% da área analisada, acumulado na faixa Levemente acima, em 100,00% da área analisada e probabilidade na faixa Levemente acima, em 90,00% da área analisada.",
+    );
+    // Uma barra por período em cada tipo, com o de referência destacado.
+    expect(group.querySelectorAll("[data-report-forecast-bar]")).toHaveLength(
+      6,
+    );
+    expect(
+      group.querySelectorAll('[data-report-forecast-bar="2026-12"][data-reference]'),
+    ).toHaveLength(3);
+    // A nota que os três tipos dividem aparece uma vez na seção e uma nas notas.
+    expect(screen.getAllByText(/Modelo atmosférico do INMET\./)).toHaveLength(
+      2,
+    );
+    await waitFor(() => {
+      expect(
+        new Set(
+          reportMapPreviewRenderSpy.mock.calls.map(([props]) => props.layerId),
+        ),
+      ).toEqual(new Set(["anaseca", "anom", "acum", "prob"]));
+    });
+  });
+
+  it("leva o pedido do relatório no link Ver produto, para a volta não perdê-lo", async () => {
     render(
       <MunicipalReportPreview
         locationKey="5200050"
@@ -246,7 +539,7 @@ describe("MunicipalReportPreview", () => {
       />,
     );
 
-    const link = await screen.findByRole("link", { name: "Ver monitor" });
+    const link = await screen.findByRole("link", { name: "Ver produto" });
     const href = link.getAttribute("href") ?? "";
 
     // Trocar de seção pelo trilho lateral preserva a URL; este link navega e a
@@ -271,7 +564,7 @@ describe("MunicipalReportPreview", () => {
       />,
     );
 
-    await user.click(await screen.findByRole("link", { name: "Ver monitor" }));
+    await user.click(await screen.findByRole("link", { name: "Ver produto" }));
 
     // Navegar descartava o CSS do chunk do relatório e o custo era uma ida ao
     // servidor; dentro da plataforma a troca é estado de cliente.

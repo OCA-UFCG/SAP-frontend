@@ -70,6 +70,17 @@ function getContentfulConfig() {
   };
 }
 
+/**
+ * Validade padrão do conteúdo do Contentful no Data Cache. O beta passa
+ * `CONTENTFUL_REVALIDATE_SECONDS=10` no `docker run` para quem edita ver a
+ * publicação quase na hora; sem a variável (produção) continua 1 hora. Não
+ * afeta as consultas que passam o próprio `next` ou `cache: "no-store"`.
+ */
+function getDefaultRevalidateSeconds(): number {
+  const seconds = Number(process.env.CONTENTFUL_REVALIDATE_SECONDS);
+  return Number.isFinite(seconds) && seconds > 0 ? seconds : 3600;
+}
+
 export async function getContent<T>(
   query: string,
   variables?: Record<string, unknown>,
@@ -79,7 +90,7 @@ export async function getContent<T>(
   const cacheOptions =
     options.cache === "no-store"
       ? { cache: options.cache }
-      : { next: options.next ?? { revalidate: 3600 } };
+      : { next: options.next ?? { revalidate: getDefaultRevalidateSeconds() } };
 
   const response = await fetch(endpoint, {
     method: "POST",
@@ -92,7 +103,13 @@ export async function getContent<T>(
   });
 
   if (!response.ok) {
-    throw new Error(`Contentful request failed with status ${response.status}`);
+    // O `status` vai junto para quem chama separar uma query recusada (400,
+    // por exemplo um campo que o ambiente ainda não tem) de um Contentful fora
+    // do ar (5xx), em que tentar outra query não adianta.
+    throw Object.assign(
+      new Error(`Contentful request failed with status ${response.status}`),
+      { status: response.status },
+    );
   }
 
   const json = (await response.json()) as ContentfulGraphQLResponse<T>;

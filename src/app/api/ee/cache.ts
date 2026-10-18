@@ -15,10 +15,22 @@ interface CacheEntry {
   timestamp: number;
 }
 
-const cacheUrls = new Map<string, CacheEntry>();
+// O aquecimento da subida (`instrumentation-node.ts`) e as rotas não carregam
+// necessariamente a mesma cópia deste módulo: com o cache no módulo, os
+// endereços que a subida preparou não chegavam à rota, e o primeiro pedido
+// esperava o Earth Engine mesmo assim. No `globalThis` o processo tem um só.
+const sharedCache = globalThis as typeof globalThis & {
+  __sapEeUrlCache?: {
+    urls: Map<string, CacheEntry>;
+    pending: Map<string, Promise<string>>;
+  };
+};
+sharedCache.__sapEeUrlCache ??= { urls: new Map(), pending: new Map() };
+
+const cacheUrls = sharedCache.__sapEeUrlCache.urls;
 // Uma promessa por chave em voo: sem isso, N requests simultâneos no mesmo miss
 // viram N getMapId no Earth Engine.
-const pendingUrls = new Map<string, Promise<string>>();
+const pendingUrls = sharedCache.__sapEeUrlCache.pending;
 
 function getMaxEntries() {
   const value = Number(process.env.EE_URL_CACHE_MAX_ENTRIES);

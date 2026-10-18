@@ -1,4 +1,5 @@
 import { normalize } from "@/utils/functions";
+import { searchMatchRank } from "@/utils/searchMatch";
 import { states, ufs, statesObj } from "@/utils/constants";
 import citiesIndex from "@/data/citiesIndex.json";
 
@@ -59,17 +60,22 @@ export const searchOptionsMetadata = [
 function filterOptions(options: SearchOptionMetadata[], value: string) {
   const normalizedValue = normalize(value.trim());
 
-  return options
-    .filter((option) => {
-      if (!normalizedValue) return true;
+  if (!normalizedValue) return options.map((option) => option.label);
 
-      return (
-        option.normalizedLabel.includes(normalizedValue) ||
-        option.normalizedName?.includes(normalizedValue) ||
-        option.normalizedUf.includes(normalizedValue)
-      );
-    })
-    .map((option) => option.label);
+  // Nome exato primeiro, depois quem começa com o texto: é a primeira opção
+  // que o Enter escolhe. A UF continua valendo, mas só no fim da lista.
+  return options
+    .map((option) => ({
+      option,
+      rank:
+        searchMatchRank(normalizedValue, [
+          option.normalizedName,
+          option.normalizedLabel,
+        ]) ?? (option.normalizedUf.includes(normalizedValue) ? 2 : null),
+    }))
+    .filter((entry) => entry.rank !== null)
+    .sort((left, right) => (left.rank ?? 2) - (right.rank ?? 2))
+    .map(({ option }) => option.label);
 }
 
 export function filterSearchOptions(value: string) {

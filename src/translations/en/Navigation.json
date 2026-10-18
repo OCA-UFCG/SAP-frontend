@@ -3,6 +3,11 @@
     "home": "Home",
     "platform": "Platform",
     "about": "About SEDES",
-    "contact": "Contacts"
+    "contact": "Contacts",
+    "openMenu": "Open menu",
+    "closeMenu": "Close menu",
+    "showSections": "Show the {name} sections",
+    "hideSections": "Hide the {name} sections",
+    "language": "Language"
   }
 }

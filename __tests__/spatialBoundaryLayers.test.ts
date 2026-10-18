@@ -1,6 +1,16 @@
 import type { FeatureCollection, Geometry } from "geojson";
 import type maplibregl from "maplibre-gl";
 import { describe, expect, it, vi } from "vitest";
+
+// Os quatro grupos saem dos tiles vetoriais. Aqui só as terras indígenas, para
+// que os quilombolas exercitem o caminho das imagens do Earth Engine, que
+// continua valendo para um grupo tirado de `territoryVectorTiles.json`.
+vi.mock("@/config/territoryVectorTiles.json", async (importOriginal) => {
+  const { default: config } = await importOriginal<{
+    default: Record<string, unknown>;
+  }>();
+  return { default: { ...config, layers: ["terras_indigenas"] } };
+});
 import { CLASSIFICATION_LAYER_ID } from "@/components/Map/classificationLayers";
 import {
   GEE_LAYER_ID,
@@ -139,7 +149,15 @@ describe("spatial boundary MapLibre layers", () => {
     ensureMapLayers(map, "platform", true, false, null);
     ensureReferenceOverlayLayers(
       map,
-      new Map([["quilombolas", "https://tiles.example/q/{z}/{x}/{y}"]]),
+      new Map([
+        [
+          "quilombolas",
+          {
+            outline: "https://tiles.example/q/{z}/{x}/{y}",
+            fill: "https://tiles.example/q-fill/{z}/{x}/{y}",
+          },
+        ],
+      ]),
     );
 
     // Sequência real da UI: o usuário liga o território e só depois aplica um
@@ -172,6 +190,10 @@ describe("spatial boundary MapLibre layers", () => {
     );
     expect(layers.indexOf(quilombolasLayerId)).toBeLessThan(
       layers.indexOf(MUNICIPALITY_HOVER_LAYER_ID),
+    );
+    // O interior do território também fica acima do índice.
+    expect(layers.indexOf(GEE_LAYER_ID)).toBeLessThan(
+      layers.indexOf(`${quilombolasLayerId}-fill`),
     );
     expect(layers.indexOf(quilombolasLayerId)).toBeLessThan(
       layers.indexOf(STATES_BORDER_LAYER_ID),

@@ -1,0 +1,31 @@
+{
+  "BigNumbersSection": {
+    "items": {
+      "municipalities": {
+        "value": "5.570",
+        "label": "Municipios",
+        "description": "con datos de sequía, vegetación, degradación de la tierra y condiciones sociales"
+      },
+      "institutions": {
+        "value": "7",
+        "label": "Instituciones",
+        "description": "bases oficiales de ANA, INMET, INPE, IBGE, Embrapa, INSA y Defensa Civil en un solo lugar"
+      },
+      "products": {
+        "value": "+20",
+        "label": "Productos",
+        "description": "climáticos, ambientales y socioeconómicos disponibles en la plataforma"
+      },
+      "territories": {
+        "value": "6",
+        "label": "Recortes territoriales",
+        "description": "municipio, estado, región, Semiárido, ASD y bioma, para consulta e informe"
+      },
+      "law": {
+        "value": "2015",
+        "label": "Previsto en ley",
+        "description": "sistema de información de la Política Nacional de Combate a la Desertificación, asumido en el PAB-Brasil"
+      }
+    }
+  }
+}

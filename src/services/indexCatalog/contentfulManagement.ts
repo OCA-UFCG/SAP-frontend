@@ -23,6 +23,7 @@ const CATALOG_PANEL_LAYER_FIELDS = [
   { id: "catalogConfig", name: "Configuração do catálogo" },
   { id: "statisticsSource", name: "Fonte estatística GEE" },
   { id: "reportConfig", name: "Texto do Relatório Automático" },
+  { id: "forecastFacets", name: "Filtros da previsão climática" },
 ] as const;
 
 export interface ContentfulManagementConfig {
@@ -400,6 +401,36 @@ export async function deleteManagementEntry(entry: ContentfulManagementEntry) {
   );
 }
 
+const OPTIONAL_PANEL_LAYER_FIELDS = new Set(["previewMap", "measurementUnit"]);
+
+/**
+ * Escalas que `inferTimeScale` pode gravar em `timeScale`. O campo nasceu com
+ * uma lista fechada ("Mensal" e "Anual"), e o Contentful recusa publicar uma
+ * entry com valor fora dela — foi o que barrou o primeiro índice decendial.
+ */
+const CATALOG_TIME_SCALES = ["Anual", "Mensal", "Decendial"];
+
+function missingTimeScales(field: Record<string, unknown> | undefined) {
+  const validations = (field?.validations ?? []) as Array<{ in?: unknown[] }>;
+  const allowed = validations.find((validation) =>
+    Array.isArray(validation.in),
+  )?.in;
+  if (!allowed) return [];
+  return CATALOG_TIME_SCALES.filter((scale) => !allowed.includes(scale));
+}
+
+function withTimeScales(field: Record<string, unknown>, scales: string[]) {
+  const validations = (field.validations ?? []) as Array<{ in?: unknown[] }>;
+  return {
+    ...field,
+    validations: validations.map((validation) =>
+      Array.isArray(validation.in)
+        ? { ...validation, in: [...validation.in, ...scales] }
+        : validation,
+    ),
+  };
+}
+
 export async function ensureIndexCatalogContentModel() {
   const contentType = await contentfulManagementFetch<ContentfulContentType>(
     "/content_types/panelLayer",
@@ -414,14 +445,34 @@ export async function ensureIndexCatalogContentModel() {
     (field) => field.id === "previewMap",
   );
   const needsOptionalPreview = Boolean(previewMap?.required);
+  // Um índice sem unidade (IDH) grava `measurementUnit` vazio, e o Contentful
+  // recusa publicar uma entry com campo obrigatório em branco.
+  const measurementUnit = contentType.fields.find(
+    (field) => field.id === "measurementUnit",
+  );
+  const needsOptionalUnit = Boolean(measurementUnit?.required);
+  const timeScalesToAllow = missingTimeScales(
+    contentType.fields.find((field) => field.id === "timeScale"),
+  );
 
-  if (missing.length === 0 && !needsOptionalPreview) {
+  if (
+    missing.length === 0 &&
+    !needsOptionalPreview &&
+    !needsOptionalUnit &&
+    timeScalesToAllow.length === 0
+  ) {
     return { changed: false };
   }
 
-  const fields = contentType.fields.map((field) =>
-    field.id === "previewMap" ? { ...field, required: false } : field,
-  );
+  const fields = contentType.fields.map((field) => {
+    if (OPTIONAL_PANEL_LAYER_FIELDS.has(field.id)) {
+      return { ...field, required: false };
+    }
+    if (field.id === "timeScale" && timeScalesToAllow.length > 0) {
+      return withTimeScales(field, timeScalesToAllow);
+    }
+    return field;
+  });
   for (const field of missing) {
     fields.push({
       ...field,

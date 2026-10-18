@@ -4,9 +4,18 @@ import {
   formatAbsoluteNumber,
   formatPercentageNumber,
 } from "@/utils/formatTerritorialNumber";
-import { useEffect, useRef, useState, useMemo } from "react";
+import {
+  useEffect,
+  useLayoutEffect,
+  useRef,
+  useState,
+  useMemo,
+  type ReactNode,
+} from "react";
 import dynamic from "next/dynamic";
-import { useTranslations } from "next-intl";
+import { useLocale, useTranslations } from "next-intl";
+import { formatDekadPeriod } from "@/utils/dekadPeriod";
+import { scrollSelectedOptionIntoView } from "@/utils/scrollSelectedOption";
 import { Chevron } from "@/components/Chevron/Chevron";
 import SearchBarPlatform from "@/components/SidePanelContexts/SearchBarPlatform";
 import type {
@@ -38,6 +47,10 @@ interface AnalysisPanelProps {
   emptyStateTitle?: string;
   emptyStateDescription?: string;
   emptyStateLoading?: boolean;
+  /** Filtros que trocam a camada, entre a pesquisa e a data (previsão climática). */
+  layerFilters?: ReactNode;
+  /** Quando a previsão do mapa foi emitida (`AAAA-MM-DD`), mostrada antes da data. */
+  forecastEmissionDate?: string | null;
 }
 
 interface TemporalVisionProps {
@@ -83,8 +96,15 @@ function renderFormattedText(text: string) {
   );
 }
 
-function formatAnalysisYearLabel(text: string, t?: (key: string) => string) {
+function formatAnalysisYearLabel(
+  text: string,
+  t?: (key: string) => string,
+  locale = "pt-BR",
+) {
   if (!text) return text;
+
+  const dekad = formatDekadPeriod(text, locale);
+  if (dekad) return `${dekad.charAt(0).toUpperCase()}${dekad.slice(1)}`;
 
   // matches formats like "2001-07", "2001-07-01", or "2001/07"
   const match = text.match(/^(\d{4})[\/-](\d{2})(?:[\/-]\d{2})?$/);
@@ -117,6 +137,15 @@ function formatAnalysisYearLabel(text: string, t?: (key: string) => string) {
   }
 
   return text;
+}
+
+/** "2026-10-01" → "outubro de 2026" (ou "October 2026" em inglês). */
+function formatEmissionDate(isoDate: string, locale: string) {
+  return new Intl.DateTimeFormat(locale, {
+    month: "long",
+    year: "numeric",
+    timeZone: "UTC",
+  }).format(new Date(`${isoDate}T00:00:00Z`));
 }
 
 function EmptySection({
@@ -156,17 +185,23 @@ function AnalysisYearSelect({
   onYearChange,
 }: AnalysisYearSelectProps) {
   const t = useTranslations("AnalysisPanel");
+  const locale = useLocale();
   const containerRef = useRef<HTMLDivElement>(null);
+  const optionsRef = useRef<HTMLDivElement>(null);
   const [isOptionsOpen, setIsOptionsOpen] = useState(false);
+
+  useLayoutEffect(() => {
+    if (isOptionsOpen) scrollSelectedOptionIntoView(optionsRef.current);
+  }, [isOptionsOpen]);
 
   const formattedLabelMap = useMemo(() => {
     const map = new Map<string, string>();
     yearOptions.forEach((opt) => {
       const raw = opt.label ?? opt.value;
-      map.set(opt.value, formatAnalysisYearLabel(raw, t));
+      map.set(opt.value, formatAnalysisYearLabel(raw, t, locale));
     });
     return map;
-  }, [yearOptions, t]);
+  }, [yearOptions, t, locale]);
 
   const activeOption =
     yearOptions.find((option) => option.value === activeYear) ?? yearOptions[0];
@@ -225,6 +260,7 @@ function AnalysisYearSelect({
 
       {isOptionsOpen && (
         <div
+          ref={optionsRef}
           id="analysis-year-options"
           role="listbox"
           className="absolute top-[calc(100%+8px)] z-20 max-h-64 w-full overflow-y-auto rounded-xl border border-neutral-200 bg-white p-2 shadow-lg"
@@ -286,27 +322,32 @@ function DistributionSection({
                     backgroundColor: item.color,
                   }}
                   className="flex items-center justify-center border-r border-white/20 text-[12px] font-bold text-[#292829] transition-all duration-500 last:border-0"
-                  title={`${item.label}: ${item.value}%`}
+                  title={`${item.label}: ${formatValue(item.value)}`}
                 >
-                  {item.value > 10 && `${item.value}%`}
+                  {/* Uma casa só, com vírgula como a legenda logo abaixo: a
+                      fatia mais estreita que ganha rótulo tem 10% da barra. */}
+                  {item.value > 10 &&
+                    `${item.value.toLocaleString("pt-BR", { maximumFractionDigits: 1 })}%`}
                 </div>
               ))}
           </div>
         ) : null}
 
         <div className="mt-4 grid grid-cols-2 gap-x-4 gap-y-2">
-          {items.map((item) => (
-            <div key={item.id} className="flex items-center gap-2">
-              <div
-                className="h-3 w-3 shrink-0 rounded-full"
-                style={{ backgroundColor: item.color }}
-              />
-              <span className="truncate text-[12px] text-neutral-600">
-                {item.label}:{" "}
-                <span className="font-bold">{formatValue(item.value)}</span>
-              </span>
-            </div>
-          ))}
+          {items
+            .filter((item) => absolute || item.value > 0)
+            .map((item) => (
+              <div key={item.id} className="flex items-start gap-2">
+                <div
+                  className="mt-[2px] h-3 w-3 shrink-0 rounded-full"
+                  style={{ backgroundColor: item.color }}
+                />
+                <span className="min-w-0 break-words text-[12px] leading-4 text-neutral-600">
+                  {item.label}:{" "}
+                  <span className="font-bold">{formatValue(item.value)}</span>
+                </span>
+              </div>
+            ))}
         </div>
       </div>
     </div>
@@ -368,15 +409,11 @@ function RankingSectionContent({
       {groups.map((group) => {
         const state = groupStates[group.id] ?? "initial";
         const nonZeroCount = group.allItems?.length ?? group.items.length;
-        const hasItems = (nonZeroCount ?? 0) > 0;
         const headerTextColor = getContrastTextColor(group.tone.color);
         const badgeBackgroundColor = buildRankingBadgeColor(group.tone.color);
         const badgeTextColor = getContrastTextColor(badgeBackgroundColor);
-        const toggleLabel = !hasItems
-          ? t("noStatesWithValue")
-          : state === "all"
-            ? t("hideList")
-            : `${t("seeAll")} (${nonZeroCount})`;
+        const toggleLabel =
+          state === "all" ? t("hideList") : `${t("seeAll")} (${nonZeroCount})`;
 
         const isOpen = state === "all";
 
@@ -412,7 +449,7 @@ function RankingSectionContent({
               </div>
             </div>
 
-            {hasItems && state !== "closed" ? (
+            {state !== "closed" ? (
               <div className="flex flex-col gap-2 bg-white p-2">
                 {(state === "initial"
                   ? group.items
@@ -452,18 +489,9 @@ function RankingSectionContent({
 
             <button
               type="button"
-              disabled={!hasItems}
-              aria-expanded={hasItems ? isOpen : undefined}
-              aria-label={
-                hasItems
-                  ? `${isOpen ? "Ocultar" : "Mostrar"} ${group.label}`
-                  : undefined
-              }
+              aria-expanded={isOpen}
+              aria-label={`${isOpen ? "Ocultar" : "Mostrar"} ${group.label}`}
               onClick={() => {
-                if (!hasItems) {
-                  return;
-                }
-
                 setGroupStates((current) => {
                   const cur = current[group.id] ?? "initial";
                   const next =
@@ -478,12 +506,10 @@ function RankingSectionContent({
                   };
                 });
               }}
-              className="flex min-h-7 w-full items-center justify-center gap-2 bg-[#C8CAC5] px-2 py-1 text-[12px] font-medium leading-5 text-[#292829] transition-colors duration-150 enabled:cursor-pointer enabled:hover:bg-[#BFC2BC] disabled:cursor-default"
+              className="flex min-h-7 w-full cursor-pointer items-center justify-center gap-2 bg-[#C8CAC5] px-2 py-1 text-[12px] font-medium leading-5 text-[#292829] transition-colors duration-150 hover:bg-[#BFC2BC]"
             >
               <span className="font-inter">{toggleLabel}</span>
-              {hasItems ? (
-                <Chevron open={isOpen} from="down" to="up" size={16} />
-              ) : null}
+              <Chevron open={isOpen} from="down" to="up" size={16} />
             </button>
           </div>
         );
@@ -502,13 +528,17 @@ function RankingSection({
   onItemSelect?: (locationKey: string) => void;
 }) {
   const t = useTranslations("AnalysisPanel");
-  if (groups.length === 0) {
+  const visibleGroups = groups.filter(
+    (group) => (group.allItems?.length ?? group.items.length) > 0,
+  );
+
+  if (visibleGroups.length === 0) {
     return (
       <EmptySection title={title} description={t("rankingsNotAvailable")} />
     );
   }
 
-  const rankingGroupsKey = groups
+  const rankingGroupsKey = visibleGroups
     .map(
       (group) =>
         `${group.id}:${group.total}:${group.items.map((item) => item.id).join(",")}`,
@@ -522,7 +552,7 @@ function RankingSection({
       </h2>
       <RankingSectionContent
         key={rankingGroupsKey}
-        groups={groups}
+        groups={visibleGroups}
         onItemSelect={onItemSelect}
       />
     </div>
@@ -545,8 +575,11 @@ export function AnalysisPanel({
   emptyStateTitle,
   emptyStateDescription,
   emptyStateLoading,
+  layerFilters,
+  forecastEmissionDate,
 }: AnalysisPanelProps) {
   const t = useTranslations("AnalysisPanel");
+  const locale = useLocale();
   const hasTemporalData = Boolean(
     years && classes && Object.keys(years).length > 0 && classes.length > 0,
   );
@@ -611,7 +644,17 @@ export function AnalysisPanel({
             />
           </div>
 
+          {layerFilters}
+
           <div className="flex w-full max-w-[392px] flex-col items-start gap-[6px]">
+            {forecastEmissionDate ? (
+              <p className="-mb-[2px] text-[12px] leading-5 text-neutral-600">
+                {t("forecastEmissionDate", {
+                  date: formatEmissionDate(forecastEmissionDate, locale),
+                })}
+              </p>
+            ) : null}
+
             <label className="text-[14px] font-medium leading-[20px] text-[#292829]">
               {t("analysisDate")}
             </label>
@@ -627,10 +670,7 @@ export function AnalysisPanel({
         {model ? (
           <section className="flex flex-col gap-4">
             <div className="mb-4 flex flex-col">
-              <div
-                className="text-[18px] font-semibold leading-6"
-                style={{ color: "#989F43" }}
-              >
+              <div className="w-full max-w-[392px] rounded-lg bg-[#777E32] px-4 py-2 text-[18px] font-bold leading-6 text-white">
                 {model.name}
               </div>
             </div>
@@ -642,7 +682,7 @@ export function AnalysisPanel({
 
               {model.highlight ? (
                 <div
-                  className="flex h-[40px] w-full items-center px-4 rounded-lg"
+                  className="flex min-h-[40px] w-full items-center rounded-lg px-4 py-3"
                   style={{
                     backgroundColor:
                       model.highlight.tone?.bg ??
@@ -654,7 +694,7 @@ export function AnalysisPanel({
                     }`,
                   }}
                 >
-                  <span className="font-semibold text-[14px] leading-6 text-[#292829]">
+                  <span className="font-semibold text-[14px] leading-5 text-[#292829]">
                     {model.highlight.text}
                   </span>
                 </div>

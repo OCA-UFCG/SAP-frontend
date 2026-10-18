@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { getAuthenticatedUserSession } from "@/lib/server-session";
+import { hasTrustedMutationOrigin } from "@/lib/trusted-origin";
 import {
   LOGS_RATE_LIMIT_MAX_ANONYMOUS_EVENTS,
   LOGS_RATE_LIMIT_MAX_AUTHENTICATED_EVENTS,
@@ -10,176 +11,20 @@ import {
   parseTelemetryIngestRequest,
   TelemetryValidationError,
 } from "@/types/telemetry";
-
-const TRUSTED_SEC_FETCH_SITES = new Set(["same-origin", "none"]);
-
-function parseOrigin(value?: string | null) {
-  if (!value) {
-    return null;
-  }
-
-  try {
-    return new URL(value).origin;
-  } catch {
-    return null;
-  }
-}
-
-function getForwardedHeaderValue(value?: string | null) {
-  return value?.split(",")[0]?.trim().replace(/\/$/, "");
-}
-
-function buildOrigin(protocol: string, host?: string | null) {
-  if (!host) {
-    return null;
-  }
-
-  return parseOrigin(`${protocol}://${host}`);
-}
-
-function getConfiguredPublicOrigin() {
-  return parseOrigin(process.env.NEXT_PUBLIC_HOST_URL);
-}
-
-function getTrustedRequestHosts(req: Request) {
-  const trustedHosts = new Set<string>();
-  const requestUrl = new URL(req.url);
-  const forwardedHost = getForwardedHeaderValue(
-    req.headers.get("x-forwarded-host"),
-  );
-  const host = getForwardedHeaderValue(req.headers.get("host"));
-  const configuredPublicOrigin = getConfiguredPublicOrigin();
-
-  trustedHosts.add(requestUrl.host);
-
-  if (configuredPublicOrigin) {
-    trustedHosts.add(new URL(configuredPublicOrigin).host);
-  }
-
-  if (forwardedHost) {
-    trustedHosts.add(forwardedHost);
-  }
-
-  if (host) {
-    trustedHosts.add(host);
-  }
-
-  return trustedHosts;
-}
-
-function matchesTrustedRequestOrigin(
-  value: string,
-  trustedOrigins: Set<string>,
-  trustedHosts: Set<string>,
-) {
-  const parsedOrigin = parseOrigin(value);
-
-  if (!parsedOrigin) {
-    return false;
-  }
-
-  if (trustedOrigins.has(parsedOrigin)) {
-    return true;
-  }
-
-  const protocol = new URL(parsedOrigin).protocol.replace(/:$/, "");
-
-  for (const trustedHost of trustedHosts) {
-    if (buildOrigin(protocol, trustedHost) === parsedOrigin) {
-      return true;
-    }
-  }
-
-  return false;
-}
-
-function getTrustedRequestOrigins(req: Request) {
-  const trustedOrigins = new Set<string>();
-  const requestUrl = new URL(req.url);
-  const forwardedHost = getForwardedHeaderValue(
-    req.headers.get("x-forwarded-host"),
-  );
-  const host = getForwardedHeaderValue(req.headers.get("host"));
-  const forwardedProto = getForwardedHeaderValue(
-    req.headers.get("x-forwarded-proto"),
-  );
-  const protocol = forwardedProto || requestUrl.protocol.replace(/:$/, "");
-
-  trustedOrigins.add(requestUrl.origin);
-
-  const configuredPublicOrigin = getConfiguredPublicOrigin();
-
-  if (configuredPublicOrigin) {
-    trustedOrigins.add(configuredPublicOrigin);
-  }
-
-  const forwardedOrigin = buildOrigin(protocol, forwardedHost);
-
-  if (forwardedOrigin) {
-    trustedOrigins.add(forwardedOrigin);
-  }
-
-  const hostOrigin = buildOrigin(protocol, host);
-
-  if (hostOrigin) {
-    trustedOrigins.add(hostOrigin);
-  }
-
-  return trustedOrigins;
-}
-
-function hasTrustedTelemetryOrigin(req: Request) {
-  const trustedOrigins = getTrustedRequestOrigins(req);
-  const trustedHosts = getTrustedRequestHosts(req);
-  const origin = req.headers.get("origin")?.trim();
-  const referer = req.headers.get("referer")?.trim();
-  const fetchSite = req.headers.get("sec-fetch-site")?.trim().toLowerCase();
-
-  if (fetchSite && !TRUSTED_SEC_FETCH_SITES.has(fetchSite)) {
-    return false;
-  }
-
-  if (origin) {
-    if (!matchesTrustedRequestOrigin(origin, trustedOrigins, trustedHosts)) {
-      return false;
-    }
-  }
-
-  if (referer) {
-    if (!matchesTrustedRequestOrigin(referer, trustedOrigins, trustedHosts)) {
-      return false;
-    }
-  }
-
-  return Boolean(fetchSite || origin || referer);
-}
+import { getClientAddress } from "@/utils/rateLimitStore";
 
 function getRequestClientKey(req: Request, uid?: string | null) {
   if (uid) {
     return `uid:${uid}`;
   }
 
-  const forwardedFor = req.headers
-    .get("x-forwarded-for")
-    ?.split(",")[0]
-    ?.trim();
-  const realIp = req.headers.get("x-real-ip")?.trim();
-  const connectingIp = req.headers.get("cf-connecting-ip")?.trim();
-  const userAgent = req.headers.get("user-agent")?.trim();
+  const address = getClientAddress(req);
 
-  if (forwardedFor) {
-    return `ip:${forwardedFor}`;
+  if (address) {
+    return `ip:${address}`;
   }
 
-  if (realIp) {
-    return `ip:${realIp}`;
-  }
-
-  if (connectingIp) {
-    return `ip:${connectingIp}`;
-  }
-
-  return `ua:${userAgent || "unknown"}`;
+  return `ua:${req.headers.get("user-agent")?.trim() || "unknown"}`;
 }
 
 function isFirebaseAdminConfigurationError(error: unknown) {
@@ -193,7 +38,7 @@ function isFirebaseAdminConfigurationError(error: unknown) {
 }
 
 export async function POST(req: Request) {
-  if (!hasTrustedTelemetryOrigin(req)) {
+  if (!hasTrustedMutationOrigin(req, { trustHostHeaders: true })) {
     return NextResponse.json(
       { error: "Untrusted logs origin." },
       { status: 403 },
