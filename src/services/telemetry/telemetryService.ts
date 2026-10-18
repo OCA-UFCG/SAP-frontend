@@ -16,8 +16,7 @@ import {
 import type { PanelLayerI } from "@/utils/interfaces";
 
 interface IngestTelemetryEventsOptions {
-  uid?: string | null;
-  userEmail?: string | null;
+  authenticated?: boolean;
   now?: Date;
 }
 
@@ -139,8 +138,7 @@ export async function ingestTelemetryEvents(
         `${buildAnonymousSessionId()}-${index.toString(36)}`,
       occurredAt: receivedAt,
       receivedAt,
-      uid: options.uid ?? null,
-      userEmail: options.userEmail ?? null,
+      authenticated: options.authenticated ?? false,
     });
   });
 
