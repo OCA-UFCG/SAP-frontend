@@ -206,8 +206,9 @@ function RailItemContent({
           para "Mais"), cada um com ~78 px num celular de 320 px. "Comunicação"
           em 11 px mede ~74 px e passava por pouco do espaço sem o recuo do
           botão, quebrando em "Comunicaçã/o": fica numa linha só, e abaixo de
-          360 px desce para 10 px para não encostar em "Priorização". */}
-      <div className="text-[12px] leading-[14px] font-medium text-center break-words w-full max-md:text-[11px] max-md:leading-[13px] max-md:whitespace-nowrap max-[359px]:text-[10px]">
+          ~350 px encolhe com a tela (10 px a 320 px) para não encostar em
+          "Priorização". */}
+      <div className="text-[12px] leading-[14px] font-medium text-center break-words w-full max-md:text-[min(11px,3.125vw)] max-md:leading-[13px] max-md:whitespace-nowrap">
         {label}
       </div>
     </>
