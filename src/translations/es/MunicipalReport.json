@@ -68,6 +68,8 @@
       "footer": "SEDES — Informe Analítico | Generado el: {generatedAt} | MMA/DCDE · OCA · UFCG · INSA",
       "generatedLabel": "Informe automático generado: {date}",
       "summaryTitle": "Índice",
+      "summaryShowMore": "Ver más ({count})",
+      "summaryShowLess": "Ver menos",
       "backToTop": "Volver arriba",
       "goToSection": "Ir a la sección de {title}",
       "viewMonitor": "Ver producto",

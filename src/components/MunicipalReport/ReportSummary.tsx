@@ -1,14 +1,22 @@
 "use client";
 
-import type { MouseEvent } from "react";
+import { useState, type MouseEvent } from "react";
 import { useTranslations } from "next-intl";
 import type { MunicipalReportAnalysis } from "@/contracts/municipalReport";
 import {
   groupReportAnalysesByCategory,
   reportAnalysisAnchorId,
   type ReportCategoryGroup,
+  type ReportCategoryKey,
 } from "@/utils/municipalReportCategories";
 import { easeScrollTo, findScrollableAncestor } from "@/utils/reportScroll";
+
+/**
+ * Quantas entradas cada categoria mostra na tela antes do "Ver mais". O PDF
+ * mostra sempre todas: as escondidas continuam no HTML, com `print:block`, e a
+ * medição das páginas também as enxerga, porque liga as regras de impressão.
+ */
+const COLLAPSED_ENTRIES = 3;
 
 function handleAnchorClick(
   event: MouseEvent<HTMLAnchorElement>,
@@ -87,6 +95,18 @@ export function ReportSummary<T extends ReportSummaryItem>({
   const t = useTranslations("MunicipalReport");
   const tModules = useTranslations("ModulesContext");
   const groups = groupReportAnalysesByCategory(analyses);
+  const [expanded, setExpanded] = useState<ReadonlySet<ReportCategoryKey>>(
+    () => new Set(),
+  );
+
+  function toggleGroup(key: ReportCategoryKey) {
+    setExpanded((current) => {
+      const next = new Set(current);
+      if (next.has(key)) next.delete(key);
+      else next.add(key);
+      return next;
+    });
+  }
 
   if (groups.length === 0) return null;
 
@@ -100,45 +120,88 @@ export function ReportSummary<T extends ReportSummaryItem>({
       <div className="grid gap-x-10 gap-y-8 md:grid-cols-2">
         {splitIntoColumns(groups).map((column, columnIndex) => (
           <div key={columnIndex} className="flex min-w-0 flex-col gap-8">
-            {column.map((group) => (
-              <section key={group.key} className="flex min-w-0 flex-col gap-2">
-                <h3 className="report-heading font-inter border-b-2 border-[#989F43] pb-2 text-xs font-semibold uppercase leading-5 tracking-[0.08em] text-[#777E32]">
-                  {tModules(`categories.${group.key}`)}
-                </h3>
-                <ul className="flex flex-col">
-                  {group.analyses.map((analysis) => {
-                    const entryTitle = translateTitle(analysis);
-                    const anchorId = reportAnalysisAnchorId(analysis.alias);
+            {column.map((group) => {
+              const isExpanded = expanded.has(group.key);
+              const hiddenCount = group.analyses.length - COLLAPSED_ENTRIES;
+              const listId = `report-summary-${group.key}`;
 
-                    return (
-                      <li key={analysis.id} className="report-summary-entry">
-                        <a
-                          href={`#${anchorId}`}
-                          onClick={(event) =>
-                            handleAnchorClick(event, anchorId)
-                          }
-                          aria-label={t("document.goToSection", {
-                            title: entryTitle,
-                          })}
-                          className="-mx-2 flex items-end gap-3 rounded-lg px-2 py-1.5 transition hover:bg-[#F3F4EC] print:mx-0 print:px-0"
+              return (
+                <section
+                  key={group.key}
+                  className="flex min-w-0 flex-col gap-2"
+                >
+                  <h3 className="report-heading font-inter border-b-2 border-[#989F43] pb-2 text-xs font-semibold uppercase leading-5 tracking-[0.08em] text-[#777E32]">
+                    {tModules(`categories.${group.key}`)}
+                  </h3>
+                  <ul id={listId} className="flex flex-col">
+                    {group.analyses.map((analysis, index) => {
+                      const entryTitle = translateTitle(analysis);
+                      const anchorId = reportAnalysisAnchorId(analysis.alias);
+
+                      return (
+                        <li
+                          key={analysis.id}
+                          className={`report-summary-entry ${
+                            !isExpanded && index >= COLLAPSED_ENTRIES
+                              ? "hidden print:block"
+                              : ""
+                          }`}
                         >
-                          <span className="font-inter min-w-0 text-[13px] leading-5 text-[#292829]">
-                            {entryTitle}
-                          </span>
-                          <span
-                            aria-hidden="true"
-                            className="mb-[5px] min-w-6 flex-1 border-b border-dotted border-[#C8CAC5]"
-                          />
-                          <span className="font-inter w-7 shrink-0 text-right text-[13px] leading-5 tabular-nums text-[#7E797B]">
-                            {pages?.get(anchorId)}
-                          </span>
-                        </a>
-                      </li>
-                    );
-                  })}
-                </ul>
-              </section>
-            ))}
+                          <a
+                            href={`#${anchorId}`}
+                            onClick={(event) =>
+                              handleAnchorClick(event, anchorId)
+                            }
+                            aria-label={t("document.goToSection", {
+                              title: entryTitle,
+                            })}
+                            className="-mx-2 flex items-end gap-3 rounded-lg px-2 py-1.5 transition hover:bg-[#F3F4EC] print:mx-0 print:px-0"
+                          >
+                            <span className="font-inter min-w-0 text-[13px] leading-5 text-[#292829]">
+                              {entryTitle}
+                            </span>
+                            <span
+                              aria-hidden="true"
+                              className="mb-[5px] min-w-6 flex-1 border-b border-dotted border-[#C8CAC5]"
+                            />
+                            <span className="font-inter w-7 shrink-0 text-right text-[13px] leading-5 tabular-nums text-[#7E797B]">
+                              {pages?.get(anchorId)}
+                            </span>
+                          </a>
+                        </li>
+                      );
+                    })}
+                  </ul>
+                  {hiddenCount > 0 && (
+                    <button
+                      type="button"
+                      aria-expanded={isExpanded}
+                      aria-controls={listId}
+                      onClick={() => toggleGroup(group.key)}
+                      className="font-inter flex cursor-pointer items-center gap-1 self-start text-[13px] font-semibold leading-5 text-[#777E32] hover:text-[#5F6528] print:hidden"
+                    >
+                      {isExpanded
+                        ? t("document.summaryShowLess")
+                        : t("document.summaryShowMore", { count: hiddenCount })}
+                      <svg
+                        aria-hidden="true"
+                        viewBox="0 0 20 20"
+                        className={`size-4 transition-transform ${isExpanded ? "rotate-180" : ""}`}
+                        fill="none"
+                        stroke="currentColor"
+                        strokeWidth="1.8"
+                      >
+                        <path
+                          d="M5 7.5L10 12.5L15 7.5"
+                          strokeLinecap="round"
+                          strokeLinejoin="round"
+                        />
+                      </svg>
+                    </button>
+                  )}
+                </section>
+              );
+            })}
           </div>
         ))}
       </div>
