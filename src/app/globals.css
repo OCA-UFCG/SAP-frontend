@@ -54,17 +54,6 @@ textarea {
   }
 }
 
-/* Onda das letras da logo no hover (SedesLogo): cada uma pula e volta. */
-@keyframes logo-wave {
-  0%,
-  100% {
-    transform: none;
-  }
-  45% {
-    transform: translateY(-4px);
-  }
-}
-
 /* Abertura dos menus do topo (idioma e conta), como o de "Início": desce da
    barra e os itens entram da esquerda, em cascata. */
 @keyframes menu-in {

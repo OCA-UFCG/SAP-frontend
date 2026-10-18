@@ -1,7 +1,6 @@
 /**
- * A logo do SEDES desenhada inline para cada parte reagir ao hover do link
- * (`group/logo`): o arco sobe como um sol, as linhas do chão se deslocam e as
- * letras pulam em onda (globals.css).
+ * A logo do SEDES desenhada inline. O hover não mexe nas partes dela: quem se
+ * move é a aba verde em volta, que desce como uma etiqueta puxada (Header).
  *
  * Os traços são os de `public/logo-sedes.svg` redesenhados numa grade de
  * 130x48, o tamanho em que o cabeçalho a mostra: cada borda reta cai num pixel
@@ -19,43 +18,14 @@ export const SedesLogo = ({ className }: { className?: string }) => (
     aria-label="SEDES Logo"
     className={className}
   >
-    <path
-      className="transition-[translate] duration-300 ease-out motion-safe:group-hover/logo:-translate-y-[2px]"
-      d="M34 17.125V27H30V17.125C30 9.876 24.255 4 17 4C9.745 4 4 9.876 4 17.125V27H0V15.56C0.01 15.456 0.021 15.353 0.035 15.25C1.048 6.813 8.341 0 17 0C25.659 0 32.895 6.813 33.889 15.25C33.963 15.866 34 16.491 34 17.125Z"
-    />
+    <path d="M34 17.125V27H30V17.125C30 9.876 24.255 4 17 4C9.745 4 4 9.876 4 17.125V27H0V15.56C0.01 15.456 0.021 15.353 0.035 15.25C1.048 6.813 8.341 0 17 0C25.659 0 32.895 6.813 33.889 15.25C33.963 15.866 34 16.491 34 17.125Z" />
     <path d="M34 30V34H0V30H15V19H19V22.464C20.096 21.773 20.833 20.481 20.833 19C20.833 18.063 20.498 17.207 19.943 16.55L19.859 16.454L17 13.375L14.128 16.469L14.057 16.551C13.502 17.208 13.167 18.064 13.167 19V25.929C10.974 24.547 9.5 21.961 9.5 19C9.5 16.923 10.326 15.043 11.659 13.685L17 7.75L22.425 13.774C23.71 15.124 24.5 16.968 24.5 19C24.5 22.728 22.163 25.86 19 26.748V30H34Z" />
-    <path
-      className="transition-[translate] duration-300 ease-out motion-safe:group-hover/logo:translate-x-[3px]"
-      d="M34 37H0V41H34V37Z"
-    />
-    <path
-      className="transition-[translate] duration-300 ease-out motion-safe:group-hover/logo:-translate-x-[3px]"
-      d="M34 44H0V48H34V44Z"
-    />
-    <path
-      className="motion-safe:group-hover/logo:animate-[logo-wave_450ms_ease-in-out_both]"
-      style={{ animationDelay: "0ms" }}
-      d="M46 34V40.688C46 42.896 46.995 44 48.984 44H50.016C52.005 44 53 43.134 53 41.403L52.943 28.346L43.811 23.69C42.604 23.202 42 22.315 42 21.029V6.661C42 2.34 44.642 0 48.984 0H50.533C54.585 0.252 57 2.868 57 7.392V16.639L53 16.239V7.392C53 5.131 52.005 4 50.016 4H48.984C46.995 4 46 4.887 46 6.661L46.057 20.896L55.189 25.619C56.396 26.106 57 26.993 57 28.279V41.403C57 45.66 54.358 48 50.016 48H48.467C44.415 47.748 42 45.132 42 40.688V34H46Z"
-    />
-    <path
-      className="motion-safe:group-hover/logo:animate-[logo-wave_450ms_ease-in-out_both]"
-      style={{ animationDelay: "70ms" }}
-      d="M75 44L74.608 48H61V4H60L60.556 0H75L74.608 4H65V22H75L74.608 26H65V44H75Z"
-    />
-    <path
-      className="motion-safe:group-hover/logo:animate-[logo-wave_450ms_ease-in-out_both]"
-      style={{ animationDelay: "140ms" }}
-      d="M94 40.606C94 45.384 91.358 48 86.862 48H79V4H78L78.556 0H86.862C91.358 0 94 2.616 94 7.394V40.606ZM86.862 4H83V44H86.862C88.954 44 90 42.869 90 40.606V7.394C90 5.131 88.954 4 86.862 4Z"
-    />
-    <path
-      className="motion-safe:group-hover/logo:animate-[logo-wave_450ms_ease-in-out_both]"
-      style={{ animationDelay: "210ms" }}
-      d="M112 44L111.608 48H98V4H97L97.556 0H112L111.608 4H102V22H112L111.608 26H102V44H112Z"
-    />
-    <path
-      className="motion-safe:group-hover/logo:animate-[logo-wave_450ms_ease-in-out_both]"
-      style={{ animationDelay: "280ms" }}
-      d="M119 34V40.688C119 42.896 119.995 44 121.983 44H123.016C125.006 44 126 43.134 126 41.403L125.943 28.346L116.812 23.69C115.604 23.202 115 22.315 115 21.029V6.661C115 2.34 117.641 0 121.983 0H123.532C127.585 0.252 130 2.868 130 7.392V16.639L126 16.239V7.392C126 5.131 125.006 4 123.016 4H121.983C119.995 4 119 4.887 119 6.661L119.057 20.896L128.189 25.619C129.396 26.106 130 26.993 130 28.279V41.403C130 45.66 127.358 48 123.016 48H121.467C117.416 47.748 115 45.132 115 40.688V34H119Z"
-    />
+    <path d="M34 37H0V41H34V37Z" />
+    <path d="M34 44H0V48H34V44Z" />
+    <path d="M46 34V40.688C46 42.896 46.995 44 48.984 44H50.016C52.005 44 53 43.134 53 41.403L52.943 28.346L43.811 23.69C42.604 23.202 42 22.315 42 21.029V6.661C42 2.34 44.642 0 48.984 0H50.533C54.585 0.252 57 2.868 57 7.392V16.639L53 16.239V7.392C53 5.131 52.005 4 50.016 4H48.984C46.995 4 46 4.887 46 6.661L46.057 20.896L55.189 25.619C56.396 26.106 57 26.993 57 28.279V41.403C57 45.66 54.358 48 50.016 48H48.467C44.415 47.748 42 45.132 42 40.688V34H46Z" />
+    <path d="M75 44L74.608 48H61V4H60L60.556 0H75L74.608 4H65V22H75L74.608 26H65V44H75Z" />
+    <path d="M94 40.606C94 45.384 91.358 48 86.862 48H79V4H78L78.556 0H86.862C91.358 0 94 2.616 94 7.394V40.606ZM86.862 4H83V44H86.862C88.954 44 90 42.869 90 40.606V7.394C90 5.131 88.954 4 86.862 4Z" />
+    <path d="M112 44L111.608 48H98V4H97L97.556 0H112L111.608 4H102V22H112L111.608 26H102V44H112Z" />
+    <path d="M119 34V40.688C119 42.896 119.995 44 121.983 44H123.016C125.006 44 126 43.134 126 41.403L125.943 28.346L116.812 23.69C115.604 23.202 115 22.315 115 21.029V6.661C115 2.34 117.641 0 121.983 0H123.532C127.585 0.252 130 2.868 130 7.392V16.639L126 16.239V7.392C126 5.131 125.006 4 123.016 4H121.983C119.995 4 119 4.887 119 6.661L119.057 20.896L128.189 25.619C129.396 26.106 130 26.993 130 28.279V41.403C130 45.66 127.358 48 123.016 48H121.467C117.416 47.748 115 45.132 115 40.688V34H119Z" />
   </svg>
 );
