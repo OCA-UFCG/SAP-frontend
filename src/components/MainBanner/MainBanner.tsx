@@ -8,6 +8,7 @@ import { useTranslations } from "next-intl";
 import { cn } from "@/lib/utils";
 import { contentfulImageLoader } from "@/utils/contentfulImageLoader";
 import { revealOrder } from "@/components/HomeMotion/revealOrder";
+import { BlurPreview } from "@/components/BlurPreview/BlurPreview";
 import {
   CarouselArrow,
   CarouselTracker,
@@ -31,9 +32,11 @@ const subscribeReducedMotion = (onChange: () => void) => {
 interface MainBannerProps {
   /** Um slide por entrada `banner` do Contentful. */
   banners: IMainBanner[];
+  /** Prévia borrada de cada slide, na ordem dos banners (`getBlurPreviews`). */
+  previews?: Array<string | undefined>;
 }
 
-export function MainBanner({ banners }: MainBannerProps) {
+export function MainBanner({ banners, previews = [] }: MainBannerProps) {
   const t = useTranslations("MainBanner");
   const [active, setActive] = useState(0);
   const [paused, setPaused] = useState(false);
@@ -94,6 +97,8 @@ export function MainBanner({ banners }: MainBannerProps) {
             index === active ? "opacity-100" : "opacity-0",
           )}
         >
+          {/* No celular lento, a prévia aparece com a página, e não o preto. */}
+          <BlurPreview src={previews[index]} />
           {shouldMount(index) && (
             <Image
               src={data.image.url}

@@ -8,11 +8,15 @@ import {
 } from "@/components/HomeIcons/HomeIcons";
 import { Reveal } from "@/components/HomeMotion/HomeMotion";
 import { revealOrder } from "@/components/HomeMotion/revealOrder";
+import { BlurPreview } from "@/components/BlurPreview/BlurPreview";
+import type { BlurPreviews } from "@/services/blurPreviews";
 
 type Props = {
   id?: string;
   content: PlatformModulesSectionI;
   texts: HomeTextsI["tools"];
+  /** Prévias borradas das fotos, por endereço (`getBlurPreviews`). */
+  previews?: BlurPreviews;
   className?: string;
 };
 
@@ -20,6 +24,7 @@ export const PlatformModulesSection = ({
   id,
   content,
   texts,
+  previews = {},
   className = "bg-[#E4E5E2]",
 }: Props) => {
   return (
@@ -44,6 +49,7 @@ export const PlatformModulesSection = ({
             const ModuleIcon = MODULE_ICONS[module.id];
             const text = texts.items.find((item) => item.id === module.id);
             if (!text) return null;
+            const photo = text.image ?? module.image;
 
             return (
               // O card inteiro sobe e cresce no hover; a foto aproxima e o
@@ -53,10 +59,12 @@ export const PlatformModulesSection = ({
                 style={revealOrder(index + 1)}
                 className="reveal-item group flex flex-col overflow-hidden rounded-lg border border-[#EFEFEF] bg-white shadow-sm transition-[translate,scale,box-shadow,border-color] duration-300 ease-out hover:border-[#CCCF87] hover:shadow-[0_20px_40px_rgba(63,67,36,0.18)] motion-safe:hover:-translate-y-2 motion-safe:hover:scale-[1.02]"
               >
-                {/* O cinza ocupa o lugar da foto enquanto ela chega no celular. */}
+                {/* A prévia borrada (ou o cinza, sem ela) ocupa o lugar da foto
+                    enquanto ela chega no celular. */}
                 <div className="relative h-[258px] w-full shrink-0 overflow-hidden bg-[#E4E5E2]">
+                  <BlurPreview src={previews[photo]} />
                   <Image
-                    src={text.image ?? module.image}
+                    src={photo}
                     alt=""
                     fill
                     sizes="(max-width: 768px) 100vw, 33vw"

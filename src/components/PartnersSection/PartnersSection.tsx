@@ -64,6 +64,10 @@ export const PartnersSection = ({
                     alt={partner.image.title || translatedName}
                     width={partner.image.width ?? 300}
                     height={partner.image.height ?? 100}
+                    // A logo aparece com no máximo ~240 px de largura. Sem isto,
+                    // o navegador pedia a largura do arquivo original vezes dois
+                    // (até 3.840 px) para um desenho de 95 px de altura.
+                    sizes="(max-width: 640px) 40vw, 240px"
                     className="max-h-[95px] w-auto max-w-full object-contain"
                   />
                 </div>

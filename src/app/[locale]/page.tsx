@@ -6,6 +6,7 @@ import { PublicPolicySection } from "@/components/PublicPolicySection/PublicPoli
 import { UseCasesSection } from "@/components/UseCasesSection/UseCasesSection";
 import { InstitutionsSection } from "@/components/InstitutionsSection/InstitutionsSection";
 import { getHomePageContent } from "@/repositories/content/siteContentRepository";
+import { getBlurPreviews } from "@/services/blurPreviews";
 import { getTranslations } from "next-intl/server";
 import { MOCK_PLATFORM_MODULES_CONTENT } from "./homePage.mocks";
 import { getHomeTextsForLocale } from "./homeTexts";
@@ -30,18 +31,35 @@ export default async function Home({
     );
   }
 
+  const previews = await getBlurPreviews([
+    ...data.banners.map((banner) => banner.image.url),
+    ...texts.tools.items.map((tool) => tool.image),
+    ...(texts.publicPolicy.images ?? []),
+    ...texts.testimonials.items.map((testimonial) => testimonial.image),
+  ]);
+
   // Os ids das seções são os destinos do menu "Início" do topo (layout.tsx).
   return (
     <div className="flex min-h-screen flex-col">
       <main className="grow">
-        <MainBanner banners={data.banners} />
+        <MainBanner
+          banners={data.banners}
+          // Só as dos slides: o banner é componente de cliente, e o que ele
+          // recebe vai para a página uma segunda vez, para o React montar.
+          previews={data.banners.map((banner) => previews[banner.image.url])}
+        />
         <BigNumbersSection items={texts.highlights} />
         <PlatformModulesSection
           id="a-plataforma"
           content={MOCK_PLATFORM_MODULES_CONTENT}
           texts={texts.tools}
+          previews={previews}
         />
-        <PublicPolicySection id="politica-publica" {...texts.publicPolicy} />
+        <PublicPolicySection
+          id="politica-publica"
+          {...texts.publicPolicy}
+          previews={previews}
+        />
         <NewsSection
           id="novidades"
           title={texts.features.title}
@@ -50,7 +68,11 @@ export default async function Home({
             texts.tools.items.map((tool) => [tool.id, tool.name]),
           )}
         />
-        <UseCasesSection id="usuarios" {...texts.testimonials} />
+        <UseCasesSection
+          id="usuarios"
+          {...texts.testimonials}
+          previews={previews}
+        />
         <InstitutionsSection id="instituicoes" partners={data.partners} />
       </main>
     </div>
