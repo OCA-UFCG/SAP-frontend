@@ -49,9 +49,12 @@ export async function POST(req: NextRequest) {
     const { url, fillUrl } = await resolveReferenceLayerUrls(layerParam);
 
     return NextResponse.json({ url, fillUrl }, { status: 200 });
-  } catch (error: any) {
+  } catch (error) {
+    // O detalhe do erro fica no log do servidor. Para o cliente vai só uma
+    // mensagem genérica, para não entregar o funcionamento interno a quem sonda.
+    console.error("Falha na rota /api/ee/reference-layers.", error);
     return NextResponse.json(
-      { error: error?.message ?? String(error) },
+      { error: "Falha ao carregar as camadas de referência." },
       { status: 500 },
     );
   }

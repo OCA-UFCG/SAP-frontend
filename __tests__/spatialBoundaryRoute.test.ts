@@ -133,7 +133,7 @@ describe("GET /api/spatial-boundary", () => {
 
     expect(response.status).toBe(500);
     await expect(response.json()).resolves.toEqual({
-      error: "boundary unavailable",
+      error: "Falha ao carregar o limite territorial.",
     });
   });
 });

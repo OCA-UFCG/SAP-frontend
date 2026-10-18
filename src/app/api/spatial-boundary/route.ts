@@ -101,9 +101,12 @@ export async function GET(req: NextRequest) {
         "Cache-Control": "public, max-age=86400, s-maxage=86400",
       },
     });
-  } catch (error: any) {
+  } catch (error) {
+    // O detalhe do erro fica no log do servidor. Para o cliente vai só uma
+    // mensagem genérica, para não entregar o funcionamento interno a quem sonda.
+    console.error("Falha na rota /api/spatial-boundary.", error);
     return NextResponse.json(
-      { error: error?.message ?? String(error) },
+      { error: "Falha ao carregar o limite territorial." },
       { status: 500 },
     );
   }
