@@ -358,13 +358,13 @@
       "methodologyTitle": "What this indicator measures",
       "kindDescriptions": {
         "anomalia": "The Anomaly shows the deviation from the historical average.",
-        "acumulado": "The Accumulated value shows the total forecast for the period.",
+        "acumulado": "The Forecast value shows the total forecast for the period.",
         "probabilidade": "The Probability shows the chance of the most likely category occurring, relative to the climatological normal."
       },
       "noData": "No data for this period.",
       "facets": {
         "anomalia": "Anomaly",
-        "acumulado": "Accumulated",
+        "acumulado": "Forecast value",
         "probabilidade": "Probability",
         "precipitacao": "Precipitation",
         "temperatura": "Temperature"
