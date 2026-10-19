@@ -23,6 +23,9 @@
         "monthly": "Mensal",
         "quarterly": "Trimestral"
       },
+      "kinds": {
+        "Acumulado": "Valor previsto"
+      },
       "unavailable": "{label}: sem previsão para a combinação escolhida acima"
     },
     "areaLabel": "Área",

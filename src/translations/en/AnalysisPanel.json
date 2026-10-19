@@ -23,6 +23,9 @@
         "monthly": "Monthly",
         "quarterly": "Quarterly"
       },
+      "kinds": {
+        "Acumulado": "Forecast value"
+      },
       "unavailable": "{label}: no forecast for the combination chosen above"
     },
     "areaLabel": "Area",
