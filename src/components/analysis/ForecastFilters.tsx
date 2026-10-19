@@ -33,7 +33,11 @@ export function ForecastFilters({
   const options = getForecastFilterOptions(members, current);
 
   const optionLabel = (dimension: ForecastDimension, value: string) =>
-    dimension === "periodicity" ? t(`periodicities.${value}`) : value;
+    dimension === "periodicity"
+      ? t(`periodicities.${value}`)
+      : dimension === "kind" && t.has(`kinds.${value}`)
+        ? t(`kinds.${value}`)
+        : value;
 
   const handleSelect = (dimension: ForecastDimension, value: string) => {
     const next = resolveForecastSelection(members, {
