@@ -36,12 +36,25 @@ export function buildSpreadsheetYearPatch(
   const locations: Record<string, string> = {};
   const values: Record<string, number[]> = {};
 
-  for (const [locationKey, label] of Object.entries(snapshot.locations)) {
-    if (!shouldIncludeLocation(requestedLocationKey, locationKey)) continue;
+  const include = (locationKey: string, label: string) => {
     locations[locationKey] = label;
     const value =
       position < 0 ? null : snapshot.values[locationKey]?.[position];
     if (value !== null && value !== undefined) values[locationKey] = [value];
+  };
+
+  // Só `br` junta várias linhas (o Brasil e as UFs). Qualquer outro recorte é
+  // uma linha só, lida pela chave: varrer os ~5.570 municípios a cada pedido
+  // ocupava ~10% da thread do servidor sob carga. `Object.hasOwn` porque a
+  // chave vem da URL, e `locations["constructor"]` acharia o protótipo.
+  if (requestedLocationKey === "br") {
+    for (const [locationKey, label] of Object.entries(snapshot.locations)) {
+      if (shouldIncludeLocation(requestedLocationKey, locationKey)) {
+        include(locationKey, label);
+      }
+    }
+  } else if (Object.hasOwn(snapshot.locations, requestedLocationKey)) {
+    include(requestedLocationKey, snapshot.locations[requestedLocationKey]);
   }
 
   return { locations, years: { [yearKey]: { valuesScale: 1, values } } };
