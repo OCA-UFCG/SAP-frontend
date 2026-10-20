@@ -43,6 +43,7 @@ export function ReferenceOverlaysControl({
     <MapControlDisclosure
       label={t("referenceOverlays")}
       onOpen={onOpen}
+      animated
       summary={
         selectedTerritory &&
         onClearTerritory && (
@@ -55,7 +56,7 @@ export function ReferenceOverlaysControl({
       }
     >
       {() => (
-        <div className="flex flex-col gap-1.5">
+        <div data-cascade className="flex flex-col gap-1.5">
           <TerritorySearch
             activeOverlays={activeOverlays}
             onSelect={onSelectTerritory}

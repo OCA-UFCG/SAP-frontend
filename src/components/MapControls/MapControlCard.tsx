@@ -52,6 +52,10 @@ export const MAP_CONTROL_LABEL_CLASS =
  * fechado — Territórios mostra ali o território escolhido na busca.
  * `defaultOpen` faz o cartão nascer aberto — Legendas usa isso para aparecer
  * junto com o índice que a pessoa acabou de ligar.
+ * `animated` faz o cartão abrir e fechar deslizando, com os itens entrando em
+ * cascata, como os acordeões do painel da esquerda — Territórios usa isso.
+ * Para dar tempo de fechar deslizando, o conteúdo continua montado depois da
+ * primeira abertura.
  *
  * @example
  * <MapControlDisclosure label="Legendas">{() => itens}</MapControlDisclosure>
@@ -62,14 +66,17 @@ export function MapControlDisclosure({
   onOpen,
   summary,
   defaultOpen = false,
+  animated = false,
 }: {
   label: string;
   children: () => ReactNode;
   onOpen?: () => void;
   summary?: ReactNode;
   defaultOpen?: boolean;
+  animated?: boolean;
 }) {
   const [isOpen, setIsOpen] = useState(defaultOpen);
+  const [hasOpened, setHasOpened] = useState(defaultOpen);
 
   return (
     <MapControlCard ariaLabel={label} collapsed={!isOpen}>
@@ -79,12 +86,21 @@ export function MapControlDisclosure({
         onClick={() => {
           if (!isOpen) onOpen?.();
           setIsOpen(!isOpen);
+          setHasOpened(true);
         }}
         aria-expanded={isOpen}
       >
         {/* Cabeçalho como heading: o leitor de tela navega pelas caixas do
             mapa, e antes só Legendas tinha esse título. */}
-        <h2 className={`${MAP_CONTROL_LABEL_CLASS} font-semibold`}>{label}</h2>
+        <h2
+          className={`${MAP_CONTROL_LABEL_CLASS} font-semibold ${
+            animated
+              ? "transition-[translate] duration-200 ease-out motion-safe:group-hover:translate-x-1"
+              : ""
+          }`}
+        >
+          {label}
+        </h2>
         <span
           className={`-m-1 flex size-6 shrink-0 items-center justify-center rounded-full text-[#292829] transition-colors duration-200 group-hover:bg-[#E1E2B4] group-hover:text-[#5B612A] ${isOpen ? "bg-[#F5F6EE]" : ""}`}
         >
@@ -92,7 +108,30 @@ export function MapControlDisclosure({
         </span>
       </button>
       {summary}
-      {isOpen && children()}
+      {animated ? (
+        // A linha da grade vai de 0 à altura do conteúdo; a margem negativa
+        // devolve o espaço entre os itens do cartão enquanto ele está fechado.
+        // `contain` impede o conteúdo escondido de alargar o cartão, que no
+        // celular encolhe até o rótulo quando fechado.
+        <div
+          className={`grid [contain:inline-size] transition-[grid-template-rows,opacity,margin] duration-300 ease-in-out motion-reduce:transition-none ${
+            isOpen
+              ? "grid-rows-[1fr] opacity-100"
+              : "-mt-2.5 grid-rows-[0fr] opacity-0 max-md:-mt-1.5"
+          }`}
+        >
+          {/* Fechado, o conteúdo continua montado, então `inert` é o que
+              impede o Tab de parar em campos invisíveis. */}
+          <div
+            inert={!isOpen}
+            className={`min-h-0 overflow-hidden ${isOpen ? "accordion-cascade" : ""}`}
+          >
+            {hasOpened && children()}
+          </div>
+        </div>
+      ) : (
+        isOpen && children()
+      )}
     </MapControlCard>
   );
 }

@@ -611,6 +611,7 @@ const applyReferenceOverlay = (
   overlayId: string,
   urls: ReferenceOverlayUrls,
   dimmed: boolean,
+  highlighted: boolean,
   selected: SelectedReferenceTerritory | null,
 ) => {
   if (isVectorReferenceLayer(overlayId)) {
@@ -620,6 +621,7 @@ const applyReferenceOverlay = (
         : REFERENCE_OVERLAY_FILL_OPACITY,
       lineOpacity: dimmed ? DIMMED_OVERLAY_FACTOR : 1,
       labelOpacity: dimmed ? 0 : 1,
+      highlighted,
       selected,
       beforeId: resolveReferenceOverlayAnchor(map),
     });
@@ -785,6 +787,7 @@ export const ensureReferenceOverlayLayers = (
           overlayId,
           urls,
           dimmed,
+          overlayId === highlightedId,
           selected?.layerId === overlayId ? selected : null,
         );
       }
