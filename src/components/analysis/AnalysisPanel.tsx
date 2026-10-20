@@ -641,6 +641,7 @@ export function AnalysisPanel({
             <SearchBarPlatform
               onSearch={onSearch}
               searchTelemetryContext={searchTelemetryContext}
+              selectedLocationKey={selectedState}
             />
           </div>
 

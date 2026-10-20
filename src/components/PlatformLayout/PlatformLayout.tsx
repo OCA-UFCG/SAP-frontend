@@ -86,12 +86,14 @@ function MobileViewToggle({
       ? t("mobileShowReport")
       : t("mobileShowMap");
 
+  // Enquanto a pessoa digita numa busca ou escolhe na lista dela, o botão
+  // some: ele ficava por cima das opções e, com o teclado aberto, do campo.
   return (
     <button
       type="button"
       onClick={() => onChange(showsOptions ? "result" : "options")}
       data-mobile-view-toggle
-      className="fixed bottom-20 left-1/2 z-40 flex h-11 -translate-x-1/2 cursor-pointer items-center gap-2 whitespace-nowrap rounded-full bg-[#5B612A] px-5 text-sm font-semibold text-white shadow-[0_8px_24px_rgba(33,36,15,0.3)] transition-[scale] duration-200 active:scale-95 md:hidden"
+      className="fixed bottom-20 left-1/2 z-40 flex h-11 -translate-x-1/2 cursor-pointer items-center gap-2 whitespace-nowrap rounded-full bg-[#5B612A] px-5 text-sm font-semibold text-white shadow-[0_8px_24px_rgba(33,36,15,0.3)] transition-[scale] duration-200 active:scale-95 md:hidden group-has-[[role=combobox]:focus]/shell:hidden group-has-[[role=combobox][aria-expanded=true]]/shell:hidden"
     >
       <svg
         width="18"
