@@ -41,19 +41,29 @@ describe("SearchBarPlatform", () => {
 
   const mockedTrackUiEvent = vi.mocked(trackUiEvent);
 
-  const renderComponent = () => {
+  const renderComponent = (selectedLocationKey?: string) => {
     const onSearch = vi.fn();
-    render(
+    const telemetryContext = {
+      activeLayerId: "layer-1",
+      activeLayerName: "Camada Teste",
+      activeDateLabel: "2024",
+    };
+    const { rerender } = render(
       <SearchBarPlatform
         onSearch={onSearch}
-        searchTelemetryContext={{
-          activeLayerId: "layer-1",
-          activeLayerName: "Camada Teste",
-          activeDateLabel: "2024",
-        }}
+        searchTelemetryContext={telemetryContext}
+        selectedLocationKey={selectedLocationKey}
       />,
     );
-    return { onSearch };
+    const selectLocation = (key: string) =>
+      rerender(
+        <SearchBarPlatform
+          onSearch={onSearch}
+          searchTelemetryContext={telemetryContext}
+          selectedLocationKey={key}
+        />,
+      );
+    return { onSearch, selectLocation };
   };
 
   it("filters dropdown options while typing", async () => {
@@ -72,7 +82,7 @@ describe("SearchBarPlatform", () => {
     ).not.toBeInTheDocument();
   });
 
-  it("submits and clears the input when an option is selected", async () => {
+  it("keeps the chosen name and closes the keyboard when an option is selected", async () => {
     const user = userEvent.setup();
     const { onSearch } = renderComponent();
 
@@ -88,8 +98,35 @@ describe("SearchBarPlatform", () => {
       }),
     );
     expect(onSearch).toHaveBeenCalledTimes(1);
-    expect(input).toHaveValue("");
+    expect(input).toHaveValue("rio de janeiro");
+    expect(input).not.toHaveFocus();
     expect(screen.queryByRole("listbox")).not.toBeInTheDocument();
+  });
+
+  it("keeps the name when the panel confirms the chosen location", async () => {
+    const user = userEvent.setup();
+    const { selectLocation } = renderComponent("br");
+
+    await user.type(screen.getByRole("combobox"), "camp");
+    await user.click(
+      screen.getByRole("option", { name: "Campina Grande - PB" }),
+    );
+    selectLocation("2504009");
+
+    expect(screen.getByRole("combobox")).toHaveValue("Campina Grande - PB");
+  });
+
+  it("clears the name when another location is chosen outside the search", async () => {
+    const user = userEvent.setup();
+    const { selectLocation } = renderComponent("br");
+
+    await user.type(screen.getByRole("combobox"), "rio");
+    await user.click(screen.getByRole("option", { name: "rio de janeiro" }));
+    selectLocation("rj");
+    expect(screen.getByRole("combobox")).toHaveValue("rio de janeiro");
+
+    selectLocation("sp");
+    expect(screen.getByRole("combobox")).toHaveValue("");
   });
 
   it("selects the first suggestion when Enter is pressed", async () => {
