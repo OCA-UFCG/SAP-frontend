@@ -73,6 +73,9 @@ const TabsSection = ({ contentData }: TabsSectionProps) => {
               <button
                 key={tab.identifier}
                 onClick={() => setActiveTabIdentifier(tab.identifier)}
+                // Sem isto, a aba escolhida só se distinguia pela cor, que o
+                // leitor de tela não anuncia.
+                aria-pressed={activeTabIdentifier === tab.identifier}
                 className={`px-4 md:px-8 py-3 md:w-[302px] md:shrink-0 rounded-t-[8px] font-open-sans font-medium text-[13px] md:text-[16px] whitespace-nowrap transition-colors border-b-0 ${
                   activeTabIdentifier === tab.identifier
                     ? "bg-[#989F43] text-white"
