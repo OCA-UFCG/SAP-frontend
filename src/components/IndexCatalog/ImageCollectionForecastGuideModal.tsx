@@ -1,6 +1,7 @@
 "use client";
 
-import { useEffect, type ReactNode } from "react";
+import { useEffect, useRef, type ReactNode } from "react";
+import { useDialogFocus } from "@/hooks/useDialogFocus";
 
 interface ForecastGuideFieldProps {
   label: string;
@@ -29,18 +30,16 @@ export function ImageCollectionForecastGuideModal({
 }: {
   onClose: () => void;
 }) {
+  const dialogRef = useRef<HTMLElement>(null);
   useEffect(() => {
     const previousOverflow = document.body.style.overflow;
     document.body.style.overflow = "hidden";
-    const closeOnEscape = (event: KeyboardEvent) => {
-      if (event.key === "Escape") onClose();
-    };
-    document.addEventListener("keydown", closeOnEscape);
     return () => {
       document.body.style.overflow = previousOverflow;
-      document.removeEventListener("keydown", closeOnEscape);
     };
-  }, [onClose]);
+  }, []);
+  // Esc fecha, o Tab fica preso no diálogo e o foco volta a quem o abriu.
+  useDialogFocus(dialogRef, { onClose });
 
   return (
     <div
@@ -53,8 +52,10 @@ export function ImageCollectionForecastGuideModal({
       <section
         role="dialog"
         aria-modal="true"
+        ref={dialogRef}
+        tabIndex={-1}
         aria-labelledby="forecast-collection-guide-title"
-        className="max-h-[calc(100vh-2rem)] w-full max-w-4xl overflow-y-auto rounded-xl bg-white p-6 shadow-2xl"
+        className="max-h-[calc(100vh-2rem)] w-full max-w-4xl overflow-y-auto rounded-xl bg-white p-6 shadow-2xl focus:outline-none"
       >
         <header className="flex items-start justify-between gap-4 border-b border-stone-200 pb-4">
           <div>

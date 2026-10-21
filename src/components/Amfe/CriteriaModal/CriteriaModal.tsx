@@ -1,9 +1,10 @@
-import React, { useState } from "react";
+import React, { useId, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import { useTranslations } from "next-intl";
 import { CriterionOption } from "@/utils/amfeInterfaces";
 import { Icon } from "@/components/Icon/Icon";
 import { normalize } from "@/utils/functions";
+import { useDialogFocus } from "@/hooks/useDialogFocus";
 
 export interface CriteriaModalProps {
   options?: CriterionOption[];
@@ -24,6 +25,7 @@ function Checkbox({ checked }: { checked: boolean }) {
       id={checked ? "checkboxChecked" : "checkboxUnchecked"}
       size={16}
       className="shrink-0"
+      aria-hidden
     />
   );
 }
@@ -49,8 +51,12 @@ export function InfoTooltip({
   align: "left" | "right";
 }) {
   const t = useTranslations("CriteriaModal");
+  const tooltipId = useId();
   return (
+    // O passar do mouse só repete o que o foco do botão já faz pelo teclado,
+    // então o invólucro em si não é um controle.
     <div
+      role="presentation"
       className="relative inline-block shrink-0"
       onMouseEnter={onOpen}
       onMouseLeave={onClose}
@@ -61,14 +67,16 @@ export function InfoTooltip({
         onFocus={onOpen}
         onBlur={onClose}
         aria-label={t("infoAriaLabel", { name })}
+        aria-describedby={open ? tooltipId : undefined}
         title={t("infoTitle")}
         className="flex items-center justify-center p-1"
       >
-        <Icon id="info" size={20} className="text-[#989D93]" />
+        <Icon id="info" size={20} className="text-[#989D93]" aria-hidden />
       </button>
 
       {open && (
         <div
+          id={tooltipId}
           role="tooltip"
           className={`absolute z-[200] w-[260px] max-w-[calc(100vw-48px)] rounded-[8px] border border-[#E4E5E2] bg-white p-3 text-left shadow-[0_4px_20px_rgba(0,0,0,0.13)] ${placement === "below" ? "top-[calc(100%+10px)]" : "bottom-[calc(100%+10px)]"} ${align === "right" ? "right-[-26px]" : "left-[-26px]"}`}
         >
@@ -106,6 +114,11 @@ function ModalOverlay({
   );
   const [search, setSearch] = useState("");
   const [infoOption, setInfoOption] = useState<string | null>(null);
+  const dialogRef = useRef<HTMLDivElement>(null);
+  const titleId = useId();
+  const descriptionId = useId();
+  // Esc fecha, o Tab fica preso no modal e o foco volta ao botão que o abriu.
+  useDialogFocus(dialogRef, { onClose });
 
   // Sem acento: "precipitacao" acha "Anomalia de Precipitação".
   const filtered = options.filter((o) =>
@@ -134,42 +147,63 @@ function ModalOverlay({
   };
 
   return (
+    // O fundo só fecha pelo mouse; pelo teclado quem fecha é o Esc.
     <div
-      onClick={() => {
+      role="presentation"
+      onMouseDown={(e) => {
+        if (e.target !== e.currentTarget) return;
         setInfoOption(null);
         onClose();
       }}
       className="fixed inset-0 z-[99999] flex items-center justify-center bg-black/35 p-4"
     >
       <div
-        onClick={(e) => e.stopPropagation()}
-        className="relative flex max-h-[calc(100vh-32px)] w-[880px] max-w-full flex-col overflow-hidden rounded-[12px] bg-white shadow-[0_8px_40px_rgba(0,0,0,0.15)]"
+        ref={dialogRef}
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby={titleId}
+        aria-describedby={descriptionId}
+        tabIndex={-1}
+        className="relative flex max-h-[calc(100vh-32px)] w-[880px] max-w-full flex-col overflow-hidden rounded-[12px] bg-white shadow-[0_8px_40px_rgba(0,0,0,0.15)] focus:outline-none"
       >
         <div className="flex shrink-0 flex-col gap-4 border-b border-[#B4BA61] px-6 py-4 text-left">
           <div className="flex min-h-6 w-full items-start justify-between gap-4">
-            <h2 className="font-inter text-[24px] leading-7 font-semibold tracking-[-0.015em] text-black">
+            <h2
+              id={titleId}
+              className="font-inter text-[24px] leading-7 font-semibold tracking-[-0.015em] text-black">
               {t("title")}
             </h2>
 
             <button
               type="button"
               onClick={onClose}
+              aria-label={t("close")}
               className="flex h-7 w-7 shrink-0 items-center justify-center"
             >
-              <Icon id="close-modal" size={18} />
+              <Icon id="close-modal" size={18} aria-hidden />
             </button>
           </div>
 
-          <p className="font-inter max-w-[460px] text-[16px] leading-6 font-normal tracking-[-0.015em] text-[#5F6268]">
+          <p
+            id={descriptionId}
+            className="font-inter max-w-[460px] text-[16px] leading-6 font-normal tracking-[-0.015em] text-[#5F6268]">
             {t("description")}
           </p>
         </div>
 
         <div className="flex min-h-0 flex-col gap-4 px-5 py-4">
           <div className="flex h-14 w-full shrink-0 items-center gap-3 rounded-[10px] bg-[#EFEFED] px-5">
-            <Icon id="loupe" size={20} className="shrink-0" fill="#8C9189" />
+            <Icon
+              id="loupe"
+              size={20}
+              className="shrink-0"
+              fill="#8C9189"
+              aria-hidden
+            />
             <input
               type="text"
+              aria-label={t("searchLabel")}
+              data-autofocus
               placeholder={t("searchPlaceholder")}
               value={search}
               onChange={(e) => setSearch(e.target.value)}
@@ -184,27 +218,30 @@ function ModalOverlay({
                 (!checked && selected.size >= MAX_SELECTED) ||
                 (checked && selected.size <= MIN_SELECTED);
               return (
+                // O botão de informação fica ao lado da caixa, não dentro
+                // dela: um controle dentro do outro confundia o leitor de tela.
                 <div
                   key={option.id}
-                  role="button"
-                  tabIndex={0}
-                  onClick={() => {
-                    setInfoOption(null);
-                    if (!disabled) toggle(option.id);
-                  }}
-                  onKeyDown={(e) => {
-                    if (disabled) return;
-                    if (e.key === "Enter" || e.key === " ") {
-                      e.preventDefault();
-                      toggle(option.id);
-                    }
-                  }}
-                  className={`flex min-h-9 items-center gap-2 rounded-[6px] px-2 py-1 text-left transition-colors ${disabled ? "cursor-not-allowed opacity-40" : "cursor-pointer hover:bg-[#F8F8F7]"}`}
+                  className={`flex min-h-9 items-center gap-2 rounded-[6px] px-2 py-1 transition-colors ${disabled ? "opacity-40" : "hover:bg-[#F8F8F7]"}`}
                 >
-                  <Checkbox checked={checked} />
-                  <span className="min-w-0 break-words font-['Open_Sans'] text-[16px] leading-5 font-normal text-black">
-                    {option.name}
-                  </span>
+                  {/* `aria-disabled` em vez de `disabled`: a opção continua
+                      no Tab, e o leitor de tela diz que ela está bloqueada. */}
+                  <button
+                    type="button"
+                    role="checkbox"
+                    aria-checked={checked}
+                    aria-disabled={disabled}
+                    onClick={() => {
+                      setInfoOption(null);
+                      if (!disabled) toggle(option.id);
+                    }}
+                    className={`flex min-w-0 flex-1 items-center gap-2 text-left ${disabled ? "cursor-not-allowed" : "cursor-pointer"}`}
+                  >
+                    <Checkbox checked={checked} />
+                    <span className="min-w-0 break-words font-['Open_Sans'] text-[16px] leading-5 font-normal text-black">
+                      {option.name}
+                    </span>
+                  </button>
 
                   <InfoTooltip
                     id={option.id}
