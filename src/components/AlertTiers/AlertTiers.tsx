@@ -27,59 +27,64 @@ type PieShapeProps = {
 
 export const AlertTiers = ({ items }: Props) => {
   const t = useTranslations("AlertTiers");
+  const tA11y = useTranslations("ChartAccessibility");
   return (
     <div className="w-full p-4 bg-[#F6F7F6] border border-[#E4E5E2] rounded-lg flex flex-col gap-6">
       <h1 className="text-xl font-bold ">{t("title")}</h1>
 
       <div className="flex flex-col md:flex-row justify-between items-center gap-12">
-        <PieChart width={279} height={279}>
-          <Pie
-            data={items}
-            dataKey="value"
-            cx="50%"
-            cy="50%"
-            outerRadius={139}
-            strokeWidth={0}
-            isAnimationActive
-            shape={(props: PieShapeProps) => {
-              const {
-                cx,
-                cy,
-                innerRadius,
-                outerRadius,
-                startAngle,
-                endAngle,
-                index,
-              } = props;
-              return (
-                <Sector
-                  cx={cx}
-                  cy={cy}
-                  innerRadius={innerRadius}
-                  outerRadius={outerRadius}
-                  startAngle={startAngle}
-                  endAngle={endAngle}
-                  fill={items[index].color}
-                />
-              );
-            }}
-          />
-          <Tooltip
-            labelFormatter={() => ""}
-            formatter={(value, _name, props) => {
-              const { payload } = props as unknown as TooltipPayloadShape;
-              const label = payload?.label ?? "";
-              return `${label} - ${value}%`;
-            }}
-            contentStyle={{ borderRadius: 8 }}
-          />
-        </PieChart>
+        {/* A pizza só repete a lista ao lado; o nome avisa disso para quem usa
+            leitor de tela não procurar valores que o desenho não fala. */}
+        <div role="img" aria-label={tA11y("alertTiersLabel")}>
+          <PieChart width={279} height={279}>
+            <Pie
+              data={items}
+              dataKey="value"
+              cx="50%"
+              cy="50%"
+              outerRadius={139}
+              strokeWidth={0}
+              isAnimationActive
+              shape={(props: PieShapeProps) => {
+                const {
+                  cx,
+                  cy,
+                  innerRadius,
+                  outerRadius,
+                  startAngle,
+                  endAngle,
+                  index,
+                } = props;
+                return (
+                  <Sector
+                    cx={cx}
+                    cy={cy}
+                    innerRadius={innerRadius}
+                    outerRadius={outerRadius}
+                    startAngle={startAngle}
+                    endAngle={endAngle}
+                    fill={items[index].color}
+                  />
+                );
+              }}
+            />
+            <Tooltip
+              labelFormatter={() => ""}
+              formatter={(value, _name, props) => {
+                const { payload } = props as unknown as TooltipPayloadShape;
+                const label = payload?.label ?? "";
+                return `${label} - ${value}%`;
+              }}
+              contentStyle={{ borderRadius: 8 }}
+            />
+          </PieChart>
+        </div>
 
-        <div className="flex flex-col gap-2 w-full">
+        <ul aria-label={t("title")} className="flex flex-col gap-2 w-full">
           {items.map((item) => (
             <StatusRow key={item.id} item={item} />
           ))}
-        </div>
+        </ul>
       </div>
     </div>
   );

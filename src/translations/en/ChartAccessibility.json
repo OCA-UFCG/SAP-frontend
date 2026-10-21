@@ -1,0 +1,15 @@
+{
+  "ChartAccessibility": {
+    "legendLabel": "Legend",
+    "showTable": "View data as a table",
+    "hideTable": "Hide data table",
+    "period": "Period",
+    "noValue": "No data",
+    "range": "Data from {first} to {last}, {count} classes.",
+    "peak": "Highest value: {series}, {value} in {period}.",
+    "latest": "In {period}, the class with the highest value is {series}, at {value}.",
+    "temporalVisionLabel": "Time series chart by class",
+    "reportChartLabel": "Chart of {title}",
+    "alertTiersLabel": "Pie chart with the distribution by class. The same values are in the list next to it."
+  }
+}
