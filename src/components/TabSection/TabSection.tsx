@@ -78,7 +78,7 @@ const TabsSection = ({ contentData }: TabsSectionProps) => {
                 aria-pressed={activeTabIdentifier === tab.identifier}
                 className={`px-4 md:px-8 py-3 md:w-[302px] md:shrink-0 rounded-t-[8px] font-open-sans font-medium text-[13px] md:text-[16px] whitespace-nowrap transition-colors border-b-0 ${
                   activeTabIdentifier === tab.identifier
-                    ? "bg-[#989F43] text-white"
+                    ? "bg-[#646B2D] text-white"
                     : "bg-[#E4E5E2] text-[#3F4324] hover:bg-[#C8CAC5]"
                 }`}
               >
@@ -89,7 +89,7 @@ const TabsSection = ({ contentData }: TabsSectionProps) => {
         </div>
       </div>
 
-      <div className="w-full min-h-[550px] relative border-[4px] border-[#989F43] rounded-[8px] bg-black overflow-hidden flex flex-col md:justify-center">
+      <div className="w-full min-h-[550px] relative border-[4px] border-[#646B2D] rounded-[8px] bg-black overflow-hidden flex flex-col md:justify-center">
         <div className="relative w-full h-[250px] z-0 flex items-center justify-center md:absolute md:top-0 md:left-0 md:w-[80%] md:h-full lg:w-[40%]">
           {currentTab.image?.url && (
             <Image
@@ -124,7 +124,7 @@ const TabsSection = ({ contentData }: TabsSectionProps) => {
 
         <div className="relative z-20 w-full max-w-[1440px] mx-auto px-6 md:px-10 lg:px-[78px] py-[32px] md:py-[48px] flex flex-col items-center text-center md:flex-row md:justify-end md:items-center md:text-left">
           <div className="w-full max-w-[90%] md:w-[60%] md:max-w-[795px] flex flex-col gap-[16px] md:gap-[24px]">
-            <h3 className="text-[#989F43] font-open-sans font-semibold text-[20px] md:text-[24px] leading-[32px] tracking-[-0.006em]">
+            <h3 className="text-[#646B2D] font-open-sans font-semibold text-[20px] md:text-[24px] leading-[32px] tracking-[-0.006em]">
               {t(`tabs.${currentTab.identifier}`)}
             </h3>
 

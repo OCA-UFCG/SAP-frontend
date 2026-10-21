@@ -47,7 +47,7 @@ const ShortcutTable = () => {
   return (
     <table className="w-full max-w-2xl border-collapse text-left">
       <thead>
-        <tr className="border-b-2 border-[#777E32]">
+        <tr className="border-b-2 border-[#5B612A]">
           <th scope="col" className="py-2 pr-6 font-semibold">
             {t("keyColumn")}
           </th>

@@ -173,7 +173,7 @@ function PanelSection({
     <section className="flex flex-col gap-4" {...rest}>
       <div className="flex flex-col gap-2">
         <h3 className="flex items-center gap-3 font-open-sans text-lg font-semibold leading-6 text-[#292829]">
-          <span aria-hidden className="h-6 w-1 shrink-0 bg-[#989F43]" />
+          <span aria-hidden className="h-6 w-1 shrink-0 bg-[#646B2D]" />
           {title}
         </h3>
         <p className="font-inter text-xs font-medium leading-[18px] tracking-[-0.015em] text-[#292829]">

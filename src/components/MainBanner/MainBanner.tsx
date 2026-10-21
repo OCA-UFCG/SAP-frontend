@@ -177,7 +177,7 @@ export function MainBanner({ banners, previews = [] }: MainBannerProps) {
                 prefetch
                 style={revealOrder(2)}
                 className={cn(
-                  "shine group/cta flex h-10 w-full items-center justify-center gap-2 rounded-md bg-[#989F43] px-4 py-2 font-inter text-sm font-medium leading-6 text-[#F8F7F8] transition-[background-color,box-shadow,scale] hover:bg-[#5B612A] hover:shadow-[0_8px_24px_rgba(152,159,67,0.45)] active:scale-[0.97] md:w-[302px] motion-safe:hover:scale-[1.03]",
+                  "shine group/cta flex h-10 w-full items-center justify-center gap-2 rounded-md bg-[#646B2D] px-4 py-2 font-inter text-sm font-medium leading-6 text-[#F8F7F8] transition-[background-color,box-shadow,scale] hover:bg-[#4F5424] hover:shadow-[0_8px_24px_rgba(152,159,67,0.45)] active:scale-[0.97] md:w-[302px] motion-safe:hover:scale-[1.03]",
                   index === active && "reveal-item",
                 )}
               >

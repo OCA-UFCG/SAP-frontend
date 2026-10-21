@@ -27,7 +27,7 @@ const InputForm = ({
   formProps,
   inputProps,
   error,
-  className = "w-full rounded-lg px-4 py-3 outline-none focus-visible:ring-2 focus-visible:ring-[#777E32]",
+  className = "w-full rounded-lg px-4 py-3 outline-none focus-visible:ring-2 focus-visible:ring-[#5B612A]",
 }: InputFormI) => {
   const inputId = useId();
   const errorId = `${inputId}-error`;

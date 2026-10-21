@@ -16,7 +16,7 @@ export default function PlatformLoading() {
     >
       <div
         aria-hidden="true"
-        className="h-10 w-10 animate-spin rounded-full border-2 border-[#E1E2B4] border-t-[#777E32]"
+        className="h-10 w-10 animate-spin rounded-full border-2 border-[#E1E2B4] border-t-[#5B612A]"
       />
       <p className="text-[15px] text-neutral-600">{t("loading.platform")}</p>
     </div>

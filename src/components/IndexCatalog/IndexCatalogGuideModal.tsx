@@ -404,7 +404,7 @@ export function IndexCatalogGuideModal({
           {step < STEPS.length - 1 ? (
             <button
               type="button"
-              className="cursor-pointer rounded-md bg-[#989F43] px-4 py-2 text-sm font-semibold text-white"
+              className="cursor-pointer rounded-md bg-[#646B2D] px-4 py-2 text-sm font-semibold text-white"
               onClick={() => setStep((currentStep) => currentStep + 1)}
             >
               Próxima etapa

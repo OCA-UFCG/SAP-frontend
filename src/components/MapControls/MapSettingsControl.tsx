@@ -51,7 +51,7 @@ export function MapSettingsControl({
         title={t("mapSettings")}
         className={`group flex h-[29px] w-[29px] items-center justify-center rounded border border-[#EFEFEF] shadow-[0_0_0_2px_rgba(0,0,0,0.1)] transition-colors ${
           isOpen
-            ? "bg-[#989F43] text-white"
+            ? "bg-[#646B2D] text-white"
             : "bg-white text-[#292829] hover:bg-[#E4E5E2]"
         }`}
       >

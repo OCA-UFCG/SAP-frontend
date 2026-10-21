@@ -11,7 +11,7 @@ import PlatformLoading from "@/app/[locale]/platform/loading";
 type Outcome = "checking" | "approved" | "pending" | "rejected" | "failed";
 
 const PRIMARY_BUTTON =
-  "font-open-sans flex h-[33px] w-fit items-center justify-center rounded-md bg-[#989F43] px-4 py-1.5 text-[11.65px] leading-5 text-white transition hover:bg-[#5B612A] focus:outline-none focus-visible:ring-2 focus-visible:ring-[#777E32] focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-70";
+  "font-open-sans flex h-[33px] w-fit items-center justify-center rounded-md bg-[#646B2D] px-4 py-1.5 text-[11.65px] leading-5 text-white transition hover:bg-[#4F5424] focus:outline-none focus-visible:ring-2 focus-visible:ring-[#5B612A] focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-70";
 
 export function ConfirmationPageClient() {
   const t = useTranslations("SignupConfirmation");

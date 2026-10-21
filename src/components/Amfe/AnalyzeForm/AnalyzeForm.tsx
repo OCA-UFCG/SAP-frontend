@@ -32,14 +32,14 @@ const sectionClass = "flex flex-col gap-4";
 const sectionHeaderClass = "flex flex-col gap-2";
 const sectionTitleClass =
   "flex items-center gap-3 font-open-sans text-lg leading-6 font-semibold";
-const sectionMarkerClass = "h-6 w-1 shrink-0 bg-[#989F43]";
+const sectionMarkerClass = "h-6 w-1 shrink-0 bg-[#646B2D]";
 const sectionDescriptionClass =
   "font-inter text-xs leading-[18px] font-medium tracking-[-0.015em]";
 const inputGroupCardClass =
   "rounded-lg border border-[#EFEFEF] bg-white p-4 shadow-sm";
 const fieldLabelClass = "font-inter text-sm leading-5 font-medium";
 const selectClass =
-  "h-10 w-full cursor-pointer rounded-md border border-[#DCDBDC] bg-white py-2 pl-3 font-inter text-sm leading-6 font-normal transition-colors focus:border-[#989F43] focus:outline-none focus:ring-2 focus:ring-[#989F43]/20";
+  "h-10 w-full cursor-pointer rounded-md border border-[#DCDBDC] bg-white py-2 pl-3 font-inter text-sm leading-6 font-normal transition-colors focus:border-[#646B2D] focus:outline-none focus:ring-2 focus:ring-[#646B2D]/20";
 
 const AnalyzeForm = ({ setFormPayload }: AnalyzeFormProps) => {
   const t = useTranslations("AnalyzeForm");
@@ -452,7 +452,7 @@ const AnalyzeForm = ({ setFormPayload }: AnalyzeFormProps) => {
                             key={option}
                             className={`relative flex cursor-pointer items-center gap-3 rounded-lg px-4 py-3 font-medium transition-colors ${
                               field.value === option
-                                ? "bg-[#989F43]/10"
+                                ? "bg-[#646B2D]/10"
                                 : "hover:bg-neutral-50"
                             }`}
                             style={{ color: text }}
@@ -466,7 +466,7 @@ const AnalyzeForm = ({ setFormPayload }: AnalyzeFormProps) => {
                             />
                             <span className="flex h-5 w-5 items-center justify-center rounded-full border-2 border-[#ccc]">
                               {field.value === option && (
-                                <span className="block h-2.5 w-2.5 rounded-full bg-[#989F43]" />
+                                <span className="block h-2.5 w-2.5 rounded-full bg-[#646B2D]" />
                               )}
                             </span>
                             {option === "optimistic"
@@ -493,7 +493,7 @@ const AnalyzeForm = ({ setFormPayload }: AnalyzeFormProps) => {
             type="submit"
             label={t("submitButton")}
             disabled={availableCriterias.length === 0}
-            styles="flex h-10 w-full items-center justify-center gap-2 rounded-md border-0 bg-[#989F43] font-open-sans text-sm leading-6 font-normal text-white hover:bg-[#858C38] hover:text-white focus:text-white disabled:opacity-50 disabled:hover:bg-[#989F43]"
+            styles="flex h-10 w-full items-center justify-center gap-2 rounded-md border-0 bg-[#646B2D] font-open-sans text-sm leading-6 font-normal text-white hover:bg-[#4F5424] hover:text-white focus:text-white disabled:opacity-50 disabled:hover:bg-[#646B2D]"
           />
         </form>
       </div>

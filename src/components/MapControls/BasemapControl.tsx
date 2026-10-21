@@ -15,7 +15,7 @@ export function BasemapControl({ basemap, onChange }: BasemapControlProps) {
   const optionClassName = (option: BasemapId) =>
     `flex min-w-0 flex-1 items-center justify-center rounded-[4px] px-2 font-open-sans text-[10px] font-medium leading-[18px] transition-colors ${
       basemap === option
-        ? "bg-[#989F43] text-white shadow-sm"
+        ? "bg-[#646B2D] text-white shadow-sm"
         : "text-[#292829] hover:bg-[#E4E5E2]"
     }`;
 

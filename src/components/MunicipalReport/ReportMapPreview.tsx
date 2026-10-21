@@ -751,7 +751,7 @@ export function ReportMapPreview({
             <button
               type="button"
               onClick={onRetry}
-              className="font-open-sans rounded-md bg-[#989F43] px-3 py-1 text-xs font-medium leading-5 text-white transition hover:bg-[#868D3B] print:hidden"
+              className="font-open-sans rounded-md bg-[#646B2D] px-3 py-1 text-xs font-medium leading-5 text-white transition hover:bg-[#4F5424] print:hidden"
             >
               {t("mapRetry")}
             </button>

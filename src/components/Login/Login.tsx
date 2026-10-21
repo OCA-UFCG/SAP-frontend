@@ -116,7 +116,7 @@ export const Login = ({
                     aria-label={toggleLabel}
                     aria-pressed={passwordVisible}
                     aria-controls="password"
-                    className="flex cursor-pointer items-center -m-2 rounded-sm p-2.5 focus:outline-none focus-visible:ring-2 focus-visible:ring-[#989F43]"
+                    className="flex cursor-pointer items-center -m-2 rounded-sm p-2.5 focus:outline-none focus-visible:ring-2 focus-visible:ring-[#646B2D]"
                   >
                     <Icon
                       id="eye"
@@ -144,7 +144,7 @@ export const Login = ({
           <button
             type="submit"
             disabled={isSubmitting}
-            className="font-open-sans flex h-[33px] w-full cursor-pointer items-center justify-center rounded-md bg-[#989F43] px-3 py-1.5 text-[11.65px] leading-5 text-white transition hover:bg-[#5B612A] focus:outline-none focus-visible:ring-2 focus-visible:ring-[#777E32] focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-70"
+            className="font-open-sans flex h-[33px] w-full cursor-pointer items-center justify-center rounded-md bg-[#646B2D] px-3 py-1.5 text-[11.65px] leading-5 text-white transition hover:bg-[#4F5424] focus:outline-none focus-visible:ring-2 focus-visible:ring-[#5B612A] focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-70"
           >
             {isSubmitting ? t("submitting") : t("submit")}
           </button>

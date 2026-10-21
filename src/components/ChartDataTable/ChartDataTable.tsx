@@ -48,7 +48,7 @@ export function ChartDataTable({
         aria-expanded={open}
         aria-controls={tableId}
         onClick={() => setOpen((current) => !current)}
-        className="w-fit cursor-pointer rounded text-xs font-semibold text-[#5B612A] underline underline-offset-2 focus:outline-none focus-visible:ring-2 focus-visible:ring-[#777E32]"
+        className="w-fit cursor-pointer rounded text-xs font-semibold text-[#5B612A] underline underline-offset-2 focus:outline-none focus-visible:ring-2 focus-visible:ring-[#5B612A]"
       >
         {open ? t("hideTable") : t("showTable")}
       </button>

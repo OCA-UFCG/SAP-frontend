@@ -39,7 +39,7 @@ const TOP_CARDS: CardStyle[] = [
   },
   {
     card: "bg-[#F8F7F8] lg:col-start-2 lg:row-start-1",
-    quote: "text-[#989F43]",
+    quote: "text-[#646B2D]",
     text: "text-[#292829]",
   },
   {
@@ -57,8 +57,8 @@ const TOP_CARDS: CardStyle[] = [
 // Os cards de baixo alternam entre os dois tons claros quando há mais de seis
 // depoimentos.
 const BOTTOM_CARDS: CardStyle[] = [
-  { card: "bg-[#F8F7ED]", quote: "text-[#989F43]", text: "text-[#292829]" },
-  { card: "bg-[#F8F7F8]", quote: "text-[#989F43]", text: "text-[#292829]" },
+  { card: "bg-[#F8F7ED]", quote: "text-[#646B2D]", text: "text-[#292829]" },
+  { card: "bg-[#F8F7F8]", quote: "text-[#646B2D]", text: "text-[#292829]" },
 ];
 
 const TestimonialCard = ({

@@ -41,7 +41,7 @@ export const InstitutionsSection = ({ id, partners }: Props) => {
                 style={revealOrder(index + 1)}
                 className="reveal-item group flex min-h-[190px] flex-col overflow-hidden rounded-lg bg-white transition-[translate,scale,box-shadow] duration-300 ease-out hover:shadow-[0_16px_32px_rgba(63,67,36,0.16)] motion-safe:hover:-translate-y-1.5 motion-safe:hover:scale-[1.04]"
               >
-                <div className="flex min-h-[50px] items-center justify-center bg-[#E4E5E2] px-4 py-2 transition-colors duration-300 group-hover:bg-[#5B612A]">
+                <div className="flex min-h-[50px] items-center justify-center bg-[#E4E5E2] px-4 py-2 transition-colors duration-300 group-hover:bg-[#4F5424]">
                   <span className="text-center font-inter text-xs leading-[18px] text-[#292829] transition-colors duration-300 group-hover:text-[#F8F7F8]">
                     {description}
                   </span>

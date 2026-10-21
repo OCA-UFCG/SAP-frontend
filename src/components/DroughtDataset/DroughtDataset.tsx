@@ -65,7 +65,7 @@ export function DroughtDataset({
           !disabled &&
             "motion-safe:hover:-translate-y-0.5 hover:shadow-[0_10px_24px_rgba(33,36,15,0.10)]",
           active
-            ? "border-[#989F43] motion-safe:animate-[ready-ring_700ms_ease-out]"
+            ? "border-[#646B2D] motion-safe:animate-[ready-ring_700ms_ease-out]"
             : "border-[#EFEFEF] hover:border-[#CCCF87]",
         )}
       >
@@ -106,9 +106,9 @@ export function DroughtDataset({
               disabled={disabled}
               className={clsx(
                 "relative w-11 h-6 shrink-0 rounded-full transition-colors",
-                active ? "bg-[#989F43]" : "bg-[#E4E5E2]",
+                active ? "bg-[#646B2D]" : "bg-[#E4E5E2]",
                 disabled ? "cursor-not-allowed opacity-70" : "cursor-pointer",
-                "focus:outline-none focus-visible:ring-2 focus-visible:ring-[#989F43] focus-visible:ring-offset-2",
+                "focus:outline-none focus-visible:ring-2 focus-visible:ring-[#646B2D] focus-visible:ring-offset-2",
               )}
             >
               {/* Bolinha com mola: passa um pouco do ponto e volta. */}
@@ -126,10 +126,10 @@ export function DroughtDataset({
               onClick={onDetails}
               disabled={disabled}
               className={clsx(
-                "flex flex-row justify-center items-center gap-1 px-2 h-10 min-w-0 flex-1 bg-[#989F43] rounded-[6px]",
+                "flex flex-row justify-center items-center gap-1 px-2 h-10 min-w-0 flex-1 bg-[#646B2D] rounded-[6px]",
                 disabled
                   ? "cursor-not-allowed opacity-60"
-                  : "cursor-pointer transition-[background-color,scale] duration-200 hover:bg-[#858c39] active:scale-[0.97]",
+                  : "cursor-pointer transition-[background-color,scale] duration-200 hover:bg-[#4F5424] active:scale-[0.97]",
               )}
             >
               <span className="font-open-sans text-[14px] leading-[24px] font-normal text-white truncate">
@@ -146,7 +146,7 @@ export function DroughtDataset({
               className={clsx(
                 "group/info box-border flex flex-row justify-center items-center p-2 w-10 h-10 bg-white border border-[#E4E5E2] rounded-[6px] shrink-0",
                 disabled ? "cursor-not-allowed opacity-60" : "cursor-pointer hover:bg-[#F5F6EE] transition-colors",
-                "focus:outline-none focus-visible:ring-2 focus-visible:ring-[#989F43] focus-visible:ring-offset-2",
+                "focus:outline-none focus-visible:ring-2 focus-visible:ring-[#646B2D] focus-visible:ring-offset-2",
               )}
             >
               <span className="flex transition-[scale] duration-200 motion-safe:group-hover/info:scale-125">

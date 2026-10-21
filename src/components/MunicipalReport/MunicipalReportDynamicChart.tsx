@@ -260,7 +260,7 @@ export function MunicipalReportDynamicChart({
             {referenceLinePeriod && (
               <ReferenceLine
                 x={referenceLinePeriod}
-                stroke="#989F43"
+                stroke="#646B2D"
                 strokeDasharray="4 4"
                 strokeWidth={2}
               />

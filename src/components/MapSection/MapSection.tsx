@@ -169,7 +169,7 @@ export default function DroughtSection() {
               <div className="absolute bottom-6 left-6 z-30 w-full sm:w-auto flex justify-start">
                 <Link
                   href="/platform"
-                  className="w-full sm:w-[582px] bg-[#989F43] text-white rounded-[6px] px-4 py-3 flex items-center justify-center gap-2 hover:opacity-90 transition"
+                  className="w-full sm:w-[582px] bg-[#646B2D] text-white rounded-[6px] px-4 py-3 flex items-center justify-center gap-2 hover:opacity-90 transition"
                 >
                   <span className="text-[14px] font-medium">{t("seeMore")}</span>
 

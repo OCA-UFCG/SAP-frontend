@@ -82,7 +82,7 @@ export function MapControlDisclosure({
     <MapControlCard ariaLabel={label} collapsed={!isOpen}>
       <button
         type="button"
-        className="group flex w-full cursor-pointer items-center justify-between gap-2 rounded bg-transparent text-left outline-none focus-visible:ring-2 focus-visible:ring-[#777E32] focus-visible:ring-offset-2"
+        className="group flex w-full cursor-pointer items-center justify-between gap-2 rounded bg-transparent text-left outline-none focus-visible:ring-2 focus-visible:ring-[#5B612A] focus-visible:ring-offset-2"
         onClick={() => {
           if (!isOpen) onOpen?.();
           setIsOpen(!isOpen);
@@ -102,7 +102,7 @@ export function MapControlDisclosure({
           {label}
         </h2>
         <span
-          className={`-m-1 flex size-6 shrink-0 items-center justify-center rounded-full text-[#292829] transition-colors duration-200 group-hover:bg-[#E1E2B4] group-hover:text-[#5B612A] ${isOpen ? "bg-[#F5F6EE]" : ""}`}
+          className={`-m-1 flex size-6 shrink-0 items-center justify-center rounded-full text-[#292829] transition-colors duration-200 group-hover:bg-[#E1E2B4] group-hover:text-[#4F5424] ${isOpen ? "bg-[#F5F6EE]" : ""}`}
         >
           <Chevron open={isOpen} from="down" to="up" size={16} />
         </span>

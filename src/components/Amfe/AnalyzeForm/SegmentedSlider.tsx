@@ -165,7 +165,7 @@ const SegmentedBar = ({ fields, control, setValue }: CriteriaCardI) => {
                 step="1"
                 min={MIN_CRITERIA_INPUT_VALUE}
                 max={MAX_CRITERIA_INPUT_VALUE}
-                className="h-9 w-20 shrink-0 rounded-md border border-[#CBD5E1] bg-white px-3 font-open-sans text-sm leading-5 font-normal text-slate-400 transition-colors outline-none focus:border-[#989F43]"
+                className="h-9 w-20 shrink-0 rounded-md border border-[#CBD5E1] bg-white px-3 font-open-sans text-sm leading-5 font-normal text-slate-400 transition-colors outline-none focus:border-[#646B2D]"
                 value={localValues[i] ?? ""}
                 onChange={(e) => {
                   const raw = e.target.value;

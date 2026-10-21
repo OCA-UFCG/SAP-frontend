@@ -121,7 +121,7 @@ export const MenuModal = ({ content }: { content: ISection[] }) => {
                     {active && (
                       <span
                         aria-hidden
-                        className="absolute inset-y-2 left-0 w-1 rounded-r-full bg-[#777E32]"
+                        className="absolute inset-y-2 left-0 w-1 rounded-r-full bg-[#5B612A]"
                       />
                     )}
                     {item.name}
@@ -136,7 +136,7 @@ export const MenuModal = ({ content }: { content: ISection[] }) => {
                         isExpanded ? "hideSections" : "showSections",
                         { name: item.name ?? "" },
                       )}
-                      className="flex w-14 shrink-0 cursor-pointer items-center justify-center border-l border-[#E4E5E2] text-[#777E32] transition-colors active:bg-[#E4E5E2]"
+                      className="flex w-14 shrink-0 cursor-pointer items-center justify-center border-l border-[#E4E5E2] text-[#5B612A] transition-colors active:bg-[#E4E5E2]"
                     >
                       <svg
                         width="12"

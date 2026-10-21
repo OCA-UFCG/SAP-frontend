@@ -84,8 +84,8 @@ export function TerritorySearch({
 
   return (
     <div className="flex flex-col gap-1.5">
-      <div className="flex items-center gap-1.5 rounded-md border border-[#E4E4E4] bg-[#F7F7F6] px-2 py-1.5 focus-within:border-[#777E32] focus-within:ring-2 focus-within:ring-[#777E32]">
-        <Icon id="loupe" className="shrink-0" fill="#898989" size={12} />
+      <div className="flex items-center gap-1.5 rounded-md border border-[#E4E4E4] bg-[#F7F7F6] px-2 py-1.5 focus-within:border-[#5B612A] focus-within:ring-2 focus-within:ring-[#5B612A]">
+        <Icon id="loupe" className="shrink-0" fill="#6F6F6F" size={12} />
         <input
           type="search"
           value={query}
@@ -106,7 +106,7 @@ export function TerritorySearch({
               : undefined
           }
           placeholder={t("territorySearchPlaceholder")}
-          className="w-full min-w-0 bg-transparent font-open-sans text-[11px] text-[#292829] outline-none placeholder:text-[#898989]"
+          className="w-full min-w-0 bg-transparent font-open-sans text-[11px] text-[#292829] outline-none placeholder:text-[#6F6F6F]"
         />
       </div>
 

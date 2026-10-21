@@ -393,7 +393,7 @@ export function LegacyIndexEditor({
         </button>
         <button
           type="button"
-          className={`${buttonClass} bg-[#989F43] text-white`}
+          className={`${buttonClass} bg-[#646B2D] text-white`}
           disabled={Boolean(busy)}
           onClick={() => void publish()}
         >

@@ -1154,7 +1154,7 @@ export function IndexCatalogScreen() {
       ? detectPeriodTemplate(yearSampleAssetId)
       : null;
   const inputClass =
-    "mt-1 w-full rounded-md border border-[#CFD0CA] bg-white px-3 py-2 text-sm outline-none focus:border-[#989F43] focus:ring-2 focus:ring-[#E1E2B4]";
+    "mt-1 w-full rounded-md border border-[#CFD0CA] bg-white px-3 py-2 text-sm outline-none focus:border-[#646B2D] focus:ring-2 focus:ring-[#E1E2B4]";
   const buttonClass =
     "cursor-pointer rounded-md px-4 py-2 text-sm font-semibold disabled:cursor-not-allowed disabled:opacity-50";
 
@@ -1189,7 +1189,7 @@ export function IndexCatalogScreen() {
         </div>
         <button
           type="button"
-          className={`${buttonClass} border border-[#989F43] bg-white text-[#62672D]`}
+          className={`${buttonClass} border border-[#646B2D] bg-white text-[#62672D]`}
           onClick={() => setGuideOpen(true)}
         >
           GUIA
@@ -1553,7 +1553,7 @@ export function IndexCatalogScreen() {
                       </label>
                       <button
                         type="button"
-                        className="grid size-6 cursor-pointer place-items-center rounded-full border border-[#989F43] bg-white text-xs font-bold text-[#62672D] hover:bg-[#F4F5D8]"
+                        className="grid size-6 cursor-pointer place-items-center rounded-full border border-[#646B2D] bg-white text-xs font-bold text-[#62672D] hover:bg-[#F4F5D8]"
                         aria-label="Ajuda sobre previsão por emissão e horizonte"
                         onClick={() => setForecastGuideOpen(true)}
                       >
@@ -1838,7 +1838,7 @@ export function IndexCatalogScreen() {
               Validar assets e gerar prévia
             </CatalogActionButton>
             <CatalogActionButton
-              className={`${buttonClass} bg-[#989F43] text-white`}
+              className={`${buttonClass} bg-[#646B2D] text-white`}
               disabled={Boolean(busy) || !canPublishDraft}
               onClick={() => void publishDraft()}
               description="Faz uma última conferência e disponibiliza o índice no Monitoramento. Os dados continuam guardados no Google Earth Engine."
@@ -1864,7 +1864,7 @@ export function IndexCatalogScreen() {
                 aria-valuenow={validationProgress.percent}
               >
                 <div
-                  className="h-full rounded-full bg-[#989F43] transition-[width] duration-500 ease-out"
+                  className="h-full rounded-full bg-[#646B2D] transition-[width] duration-500 ease-out"
                   style={{ width: `${validationProgress.percent}%` }}
                 />
               </div>

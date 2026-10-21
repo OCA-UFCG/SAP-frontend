@@ -197,7 +197,7 @@ function ModalOverlay({
               id="loupe"
               size={20}
               className="shrink-0"
-              fill="#8C9189"
+              fill="#6B7068"
               aria-hidden
             />
             <input
@@ -207,7 +207,7 @@ function ModalOverlay({
               placeholder={t("searchPlaceholder")}
               value={search}
               onChange={(e) => setSearch(e.target.value)}
-              className="h-full min-w-0 flex-1 bg-transparent font-['Open_Sans'] text-[16px] leading-6 text-[#292829] outline-none placeholder:text-[#8C9189]"
+              className="h-full min-w-0 flex-1 bg-transparent font-['Open_Sans'] text-[16px] leading-6 text-[#292829] outline-none placeholder:text-[#6B7068]"
             />
           </div>
 
@@ -267,7 +267,7 @@ function ModalOverlay({
           <button
             type="button"
             onClick={handleApply}
-            className="flex h-11 w-full cursor-pointer items-center justify-center rounded-[8px] bg-[#989F43] px-4 py-2 transition-colors hover:bg-[#8b923d]"
+            className="flex h-11 w-full cursor-pointer items-center justify-center rounded-[8px] bg-[#646B2D] px-4 py-2 transition-colors hover:bg-[#4F5424]"
           >
             <span className="font-['Open_Sans'] text-[16px] leading-6 font-semibold text-white">
               {t("applyButton")}

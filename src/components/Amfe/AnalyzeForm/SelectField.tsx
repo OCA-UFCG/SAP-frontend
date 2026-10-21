@@ -33,7 +33,7 @@ export const SelectField = forwardRef<
         id="chevron-down"
         size={16}
         aria-hidden="true"
-        className="pointer-events-none absolute top-1/2 right-3 -translate-y-1/2 text-[#7E797B]"
+        className="pointer-events-none absolute top-1/2 right-3 -translate-y-1/2 text-[#6E696B]"
       />
     </div>
   );

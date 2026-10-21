@@ -130,7 +130,7 @@ export function MunicipalReportLinePrintChart({
             y1={PLOT_TOP}
             x2={xForIndex(referenceIndex)}
             y2={PLOT_BOTTOM}
-            stroke="#989F43"
+            stroke="#646B2D"
             strokeDasharray="5 5"
             strokeWidth="2"
           />

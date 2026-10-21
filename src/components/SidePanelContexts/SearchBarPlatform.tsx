@@ -143,7 +143,7 @@ const SearchBarPlatform = ({
           <Icon
             id="loupe"
             className="mr-1.5 shrink-0"
-            fill="#898989"
+            fill="#6F6F6F"
             size={16}
           />
 
@@ -189,7 +189,7 @@ const SearchBarPlatform = ({
             type="button"
             aria-label="Mostrar estados"
             onClick={toggleOptions}
-            className="ml-1 shrink-0 text-[#898989] transition-transform"
+            className="ml-1 shrink-0 text-[#6F6F6F] transition-transform"
           >
             <svg
               width="16"
@@ -246,7 +246,7 @@ const SearchBarPlatform = ({
         )}
       </div>
       <ButtonUi
-        styles="bg-[#989F43] hover:bg-[#989F43] text-white text-sm px-2.5 h-full rounded-lg disabled:hover:* active:brightness-95 transition shrink-0"
+        styles="bg-[#646B2D] hover:bg-[#646B2D] text-white text-sm px-2.5 h-full rounded-lg disabled:hover:* active:brightness-95 transition shrink-0"
         label={t("button")}
         onClick={() => onSubmit("button")}
       />

@@ -56,7 +56,7 @@ export function ReportHero({
             <p className="font-open-sans text-base font-semibold leading-6 text-[#292829]">
               {title ?? t("document.mainTitle")}
             </p>
-            <h1 className="font-open-sans text-[40px] font-bold leading-[68px] text-[#989F43]">
+            <h1 className="font-open-sans text-[40px] font-bold leading-[68px] text-[#646B2D]">
               {report.territory.label}
             </h1>
             <p className="font-open-sans text-base leading-6 text-[#292829]">
@@ -64,7 +64,7 @@ export function ReportHero({
             </p>
           </div>
 
-          <div className="flex w-full items-start justify-between border-t border-[#989F43] pt-4">
+          <div className="flex w-full items-start justify-between border-t border-[#646B2D] pt-4">
             <dl className="font-open-sans flex items-center gap-6 text-xs leading-5 text-[#292829]">
               <div className="flex flex-col items-start">
                 <dt className="font-semibold">
@@ -83,7 +83,7 @@ export function ReportHero({
                 type="button"
                 onClick={onDownload}
                 disabled={downloadDisabled}
-                className="font-inter flex items-center justify-center gap-2 rounded bg-[#989F43] px-4 py-2 text-sm font-medium leading-6 text-[#F8F7F8] transition hover:bg-[#868D3B] disabled:cursor-not-allowed disabled:opacity-50 print:hidden"
+                className="font-inter flex items-center justify-center gap-2 rounded bg-[#646B2D] px-4 py-2 text-sm font-medium leading-6 text-[#F8F7F8] transition hover:bg-[#4F5424] disabled:cursor-not-allowed disabled:opacity-50 print:hidden"
               >
                 <svg
                   aria-hidden="true"

@@ -40,7 +40,7 @@ export default async function ApprovalsPage({
   const backToPlatform = (
     <Link
       href="/platform"
-      className="flex h-[33px] w-fit items-center gap-1.5 rounded-md border border-[#989F43] px-3 text-[12px] font-medium text-[#5B612A] transition hover:bg-[#F4F4E6] focus:outline-none focus-visible:ring-2 focus-visible:ring-[#777E32] focus-visible:ring-offset-2"
+      className="flex h-[33px] w-fit items-center gap-1.5 rounded-md border border-[#646B2D] px-3 text-[12px] font-medium text-[#5B612A] transition hover:bg-[#F4F4E6] focus:outline-none focus-visible:ring-2 focus-visible:ring-[#5B612A] focus-visible:ring-offset-2"
     >
       <span aria-hidden="true">←</span>
       {t("backToPlatform")}

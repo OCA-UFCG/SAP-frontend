@@ -135,7 +135,7 @@ export const AboutPartnersTabs = ({
                   "h-[44px] px-4 md:px-8 rounded-t-[8px] flex items-center justify-center transition-colors cursor-pointer",
                   tab.id === "about" && "pt-1 mb-[2px] md:mb-0",
                   isActive
-                    ? "bg-[#989F43] text-[#F8F7F8] text-[15px] md:text-[18px] leading-[20px] md:leading-[28px] font-semibold"
+                    ? "bg-[#646B2D] text-[#F8F7F8] text-[15px] md:text-[18px] leading-[20px] md:leading-[28px] font-semibold"
                     : "bg-[#E4E5E2] text-[#292829] text-[16px] md:text-[20px] leading-[20px] md:leading-[28px] font-normal tracking-[-0.005em]",
                 )}
               >
@@ -166,7 +166,7 @@ export const AboutPartnersTabs = ({
                   className={cn(
                     "absolute inset-x-0 top-0 bg-[#E1E2B4] z-0",
                     hasBorderTop
-                      ? "h-[236px] border-t-[5px] border-[#989F43]"
+                      ? "h-[236px] border-t-[5px] border-[#646B2D]"
                       : "h-[240px]",
                   )}
                 />
@@ -210,7 +210,7 @@ export const AboutPartnersTabs = ({
         <PartnersSection
           header={partnersHeader}
           partners={partners}
-          className="border-t-[5px] border-[#989F43]"
+          className="border-t-[5px] border-[#646B2D]"
         />
       )}
     </section>

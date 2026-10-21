@@ -29,7 +29,7 @@ interface AmfeMapDownloadMenuProps {
 }
 
 const ITEM_CLASS =
-  "block w-full cursor-pointer rounded-lg px-4 py-2.5 text-left text-sm font-medium text-gray-700 transition-colors hover:bg-[#989F43]/10 hover:text-[#5f6528] disabled:cursor-not-allowed disabled:opacity-50 disabled:hover:bg-transparent disabled:hover:text-gray-700";
+  "block w-full cursor-pointer rounded-lg px-4 py-2.5 text-left text-sm font-medium text-gray-700 transition-colors hover:bg-[#646B2D]/10 hover:text-[#4F5424] disabled:cursor-not-allowed disabled:opacity-50 disabled:hover:bg-transparent disabled:hover:text-gray-700";
 
 export const AmfeMapDownloadMenu = ({
   cities,
@@ -126,7 +126,7 @@ export const AmfeMapDownloadMenu = ({
         onClick={() => setIsOpen((open) => !open)}
         aria-expanded={isOpen}
         aria-busy={isExportingImage || isExportingReport}
-        className="shine flex min-h-12 items-center gap-2 rounded-full border border-white/50 bg-[#989F43] px-5 py-3.5 text-sm font-semibold text-white shadow-[0_10px_24px_rgba(0,0,0,0.20)] transition-[background-color,translate,box-shadow,scale] duration-200 hover:bg-[#858C38] hover:shadow-[0_14px_30px_rgba(33,36,15,0.30)] motion-safe:hover:-translate-y-0.5 active:scale-[0.97]"
+        className="shine flex min-h-12 items-center gap-2 rounded-full border border-white/50 bg-[#646B2D] px-5 py-3.5 text-sm font-semibold text-white shadow-[0_10px_24px_rgba(0,0,0,0.20)] transition-[background-color,translate,box-shadow,scale] duration-200 hover:bg-[#4F5424] hover:shadow-[0_14px_30px_rgba(33,36,15,0.30)] motion-safe:hover:-translate-y-0.5 active:scale-[0.97]"
       >
         {(isExportingImage || isExportingReport) && (
           <span

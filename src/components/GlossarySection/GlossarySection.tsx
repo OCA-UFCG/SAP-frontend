@@ -30,10 +30,10 @@ export const GlossarySection = ({ terms }: Props) => {
             <table className="w-full text-left border-collapse max-sm:block">
               <thead className="max-sm:hidden">
                 <tr className="bg-[#F6F7F6]">
-                  <th className="px-5 py-4 text-sm font-bold uppercase tracking-wide text-[#989F43] w-1/3">
+                  <th className="px-5 py-4 text-sm font-bold uppercase tracking-wide text-[#646B2D] w-1/3">
                     {t("term")}
                   </th>
-                  <th className="px-5 py-4 text-sm font-bold uppercase tracking-wide text-[#989F43]">
+                  <th className="px-5 py-4 text-sm font-bold uppercase tracking-wide text-[#646B2D]">
                     {t("definition")}
                   </th>
                 </tr>

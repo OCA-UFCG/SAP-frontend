@@ -238,9 +238,9 @@ export function MunicipalReportContext({ panelLayers = [] }: MunicipalReportCont
   function renderLayerOption(layer: PanelLayerI) {
     const available = availabilityState === "ready" && availability.get(layer.id) === true;
     const layerTitle = translatedLayerTitle(layer);
-    return <div key={layer.id} className={`group/layer flex min-h-12 items-stretch rounded-lg border bg-white transition-[border-color,background-color,translate] duration-200 ${available ? "border-[#EFEFEF] hover:border-[#CCCF87] motion-safe:hover:translate-x-0.5 has-[:checked]:border-[#989F43] has-[:checked]:bg-[#F5F6EE]" : "border-[#EFEFEF] opacity-50"}`}>
+    return <div key={layer.id} className={`group/layer flex min-h-12 items-stretch rounded-lg border bg-white transition-[border-color,background-color,translate] duration-200 ${available ? "border-[#EFEFEF] hover:border-[#CCCF87] motion-safe:hover:translate-x-0.5 has-[:checked]:border-[#646B2D] has-[:checked]:bg-[#F5F6EE]" : "border-[#EFEFEF] opacity-50"}`}>
       <label className={`flex min-w-0 flex-1 items-center gap-1 py-1 pl-2 ${available ? "cursor-pointer" : "cursor-not-allowed"}`}>
-        <span className="flex h-10 w-[30px] items-center justify-center"><input type="checkbox" checked={selectedLayers.has(layer.id)} disabled={!available} onChange={() => toggleLayer(layer.id)} className="h-3.5 w-3.5 rounded-sm accent-[#989F43] motion-safe:checked:animate-[pop-in_300ms_cubic-bezier(0.34,1.56,0.64,1)]" /></span>
+        <span className="flex h-10 w-[30px] items-center justify-center"><input type="checkbox" checked={selectedLayers.has(layer.id)} disabled={!available} onChange={() => toggleLayer(layer.id)} className="h-3.5 w-3.5 rounded-sm accent-[#646B2D] motion-safe:checked:animate-[pop-in_300ms_cubic-bezier(0.34,1.56,0.64,1)]" /></span>
         <span className="min-w-0 flex-1 break-words font-inter text-base font-semibold leading-6 tracking-[-0.015em]" title={layerTitle}>{layerTitle}</span>
       </label>
       <button type="button" onClick={() => setInfoLayer(layer)} className="group/info flex w-10 shrink-0 items-center justify-center border-l border-[#EFEFEF]" aria-label={t("moduleInformation", { title: layerTitle })}><svg className="h-4 w-4 text-[#2C1E1C] transition-[scale] duration-200 motion-safe:group-hover/info:scale-125" aria-hidden><use href="/sprite.svg#info"/></svg></button>
@@ -405,7 +405,7 @@ export function MunicipalReportContext({ panelLayers = [] }: MunicipalReportCont
             <div ref={municipalityPickerRef} className={`relative min-w-0 flex-1 ${scope === "municipality" ? "" : "hidden"}`}>
               <span className="sr-only">{t("municipality")}</span>
               <div className="flex h-10 w-full items-center overflow-hidden rounded-md border border-[#DCDBDC] bg-white px-3 py-2 transition hover:border-neutral-400 focus-within:border-neutral-600 focus-within:ring-2 focus-within:ring-neutral-600">
-                <svg aria-hidden="true" viewBox="0 0 24 24" className="mr-2 h-4 w-4 shrink-0 text-[#898989]" fill="none" stroke="currentColor" strokeWidth="2"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/></svg>
+                <svg aria-hidden="true" viewBox="0 0 24 24" className="mr-2 h-4 w-4 shrink-0 text-[#6F6F6F]" fill="none" stroke="currentColor" strokeWidth="2"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/></svg>
                 <input
                   value={selectedMunicipality && municipalityQuery === "" ? selectedMunicipality.label : municipalityQuery}
                   onChange={(event) => {
@@ -425,11 +425,11 @@ export function MunicipalReportContext({ panelLayers = [] }: MunicipalReportCont
                   placeholder={t("searchMunicipality")}
                 />
                 {(municipalityQuery || municipalityCode) && (
-                  <button type="button" onClick={clearMunicipalityQuery} className="ml-2 shrink-0 rounded text-[#898989] hover:text-[#292829]" aria-label={t("selectMunicipality")}>
+                  <button type="button" onClick={clearMunicipalityQuery} className="ml-2 shrink-0 rounded text-[#6F6F6F] hover:text-[#292829]" aria-label={t("selectMunicipality")}>
                     ×
                   </button>
                 )}
-                <button type="button" onClick={() => setIsMunicipalityOptionsOpen((current) => !current)} className="ml-2 shrink-0 text-[#7E797B]" aria-label={t("selectMunicipality")}>
+                <button type="button" onClick={() => setIsMunicipalityOptionsOpen((current) => !current)} className="ml-2 shrink-0 text-[#6E696B]" aria-label={t("selectMunicipality")}>
                   <svg width="16" height="16" viewBox="0 0 20 20" fill="none" xmlns="http://www.w3.org/2000/svg" className={`transition-transform ${isMunicipalityOptionsOpen ? "rotate-180" : ""}`} aria-hidden="true">
                     <path d="M5 7.5L10 12.5L15 7.5" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" />
                   </svg>
@@ -444,7 +444,7 @@ export function MunicipalReportContext({ panelLayers = [] }: MunicipalReportCont
                       role="option"
                       aria-selected={municipalityCode === municipality.code}
                       onClick={() => selectMunicipality(municipality.code, municipality.label)}
-                      className="flex w-full rounded-lg px-3 py-2 text-left text-sm text-[#292829] transition hover:bg-[#F6F7F6] hover:text-[#5B612A] aria-selected:bg-[#F5F6EE] aria-selected:font-medium aria-selected:text-[#5B612A]"
+                      className="flex w-full rounded-lg px-3 py-2 text-left text-sm text-[#292829] transition hover:bg-[#F6F7F6] hover:text-[#4F5424] aria-selected:bg-[#F5F6EE] aria-selected:font-medium aria-selected:text-[#5B612A]"
                     >
                       {municipality.label}
                     </button>
@@ -468,7 +468,7 @@ export function MunicipalReportContext({ panelLayers = [] }: MunicipalReportCont
                   aria-controls="municipal-report-period-options"
                 >
                   <span className="truncate text-sm text-[#292829]">{period}</span>
-                  <svg width="16" height="16" viewBox="0 0 20 20" fill="none" xmlns="http://www.w3.org/2000/svg" className={`ml-2 shrink-0 text-[#898989] transition-transform ${isPeriodOptionsOpen ? "rotate-180" : ""}`} aria-hidden="true">
+                  <svg width="16" height="16" viewBox="0 0 20 20" fill="none" xmlns="http://www.w3.org/2000/svg" className={`ml-2 shrink-0 text-[#6F6F6F] transition-transform ${isPeriodOptionsOpen ? "rotate-180" : ""}`} aria-hidden="true">
                     <path d="M5 7.5L10 12.5L15 7.5" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" />
                   </svg>
                 </button>
@@ -487,7 +487,7 @@ export function MunicipalReportContext({ panelLayers = [] }: MunicipalReportCont
                             municipalityCode ? getDefaultSelectedLayers(municipalityCode, option) : new Set(),
                           );
                         }}
-                        className="flex w-full rounded-lg px-3 py-2 text-left text-sm text-[#292829] transition hover:bg-[#F6F7F6] hover:text-[#5B612A] aria-selected:bg-[#F5F6EE] aria-selected:font-medium aria-selected:text-[#5B612A]"
+                        className="flex w-full rounded-lg px-3 py-2 text-left text-sm text-[#292829] transition hover:bg-[#F6F7F6] hover:text-[#4F5424] aria-selected:bg-[#F5F6EE] aria-selected:font-medium aria-selected:text-[#5B612A]"
                       >
                         {option}
                       </button>
@@ -505,10 +505,10 @@ export function MunicipalReportContext({ panelLayers = [] }: MunicipalReportCont
           <div className="space-y-2">
             <div className="flex items-center justify-between gap-3">
               <legend className="font-open-sans text-lg font-semibold leading-6">{t("selectModules")}</legend>
-              {availabilityState === "ready" && availableLayers.length > 0 && <button type="button" onClick={() => setSelectedLayers(allAvailableSelected ? new Set() : new Set(availableLayers.map((layer) => layer.id)))} className="text-xs font-semibold text-[#777E32] hover:underline">{allAvailableSelected ? t("clearAll") : t("selectAll")}</button>}
+              {availabilityState === "ready" && availableLayers.length > 0 && <button type="button" onClick={() => setSelectedLayers(allAvailableSelected ? new Set() : new Set(availableLayers.map((layer) => layer.id)))} className="text-xs font-semibold text-[#5B612A] hover:underline">{allAvailableSelected ? t("clearAll") : t("selectAll")}</button>}
             </div>
             <p className="font-inter text-xs font-medium leading-[18px] tracking-[-0.015em]">{t("selectModulesHint")}</p>
-            <div className="flex min-h-[18px] items-center gap-2 font-inter text-xs leading-[18px] text-[#7E797B]" aria-live="polite">
+            <div className="flex min-h-[18px] items-center gap-2 font-inter text-xs leading-[18px] text-[#6E696B]" aria-live="polite">
               {availabilityState === "ready" && availableLayers.length === 0 && t("noModulesAvailable")}
             </div>
           </div>
@@ -531,7 +531,7 @@ export function MunicipalReportContext({ panelLayers = [] }: MunicipalReportCont
 
         {/* Quando a seleção fica completa o botão "acorda" com um anel verde; no
             hover, a seta anda. */}
-        <button type="submit" disabled={!canSubmit || isGenerating} className={`group/submit mt-auto flex h-10 w-full shrink-0 items-center justify-center gap-2 rounded bg-[#989F43] px-4 font-open-sans text-sm text-white transition-[background-color,box-shadow,scale] duration-200 hover:bg-[#858c39] disabled:cursor-not-allowed disabled:opacity-70 ${canSubmit && !isGenerating ? "hover:shadow-[0_8px_20px_rgba(91,97,42,0.3)] active:scale-[0.98] motion-safe:animate-[ready-ring_900ms_ease-out_2]" : ""}`}>{isGenerating && <span aria-hidden="true" className="h-4 w-4 animate-spin rounded-full border-2 border-white/40 border-t-white" />}{isGenerating ? t("generatingReport") : t("generateReport")}{canSubmit && !isGenerating && <ArrowForwardIcon size={16} className="transition-[translate] duration-200 motion-safe:group-hover/submit:translate-x-1" />}</button>
+        <button type="submit" disabled={!canSubmit || isGenerating} className={`group/submit mt-auto flex h-10 w-full shrink-0 items-center justify-center gap-2 rounded bg-[#646B2D] px-4 font-open-sans text-sm text-white transition-[background-color,box-shadow,scale] duration-200 hover:bg-[#4F5424] disabled:cursor-not-allowed disabled:opacity-70 ${canSubmit && !isGenerating ? "hover:shadow-[0_8px_20px_rgba(91,97,42,0.3)] active:scale-[0.98] motion-safe:animate-[ready-ring_900ms_ease-out_2]" : ""}`}>{isGenerating && <span aria-hidden="true" className="h-4 w-4 animate-spin rounded-full border-2 border-white/40 border-t-white" />}{isGenerating ? t("generatingReport") : t("generateReport")}{canSubmit && !isGenerating && <ArrowForwardIcon size={16} className="transition-[translate] duration-200 motion-safe:group-hover/submit:translate-x-1" />}</button>
       </form>
       {infoLayer && <InfoModal card={{ id: 0, title: infoLayer.name, description: infoLayer.description, image: infoLayer.previewMap?.url, fileRef: infoLayer.id, imageData: infoLayer.imageData, timeScale: infoLayer.timeScale }} imageData={infoLayer.imageData} open onClose={() => setInfoLayer(null)} />}
     </section>

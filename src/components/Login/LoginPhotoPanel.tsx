@@ -3,7 +3,7 @@
 const PHOTO_OVERLAY =
   "linear-gradient(129.48deg, rgba(0, 0, 0, 0) 20.57%, rgba(0, 0, 0, 0.8) 89.12%)";
 
-const FALLBACK_PHOTO = "linear-gradient(129.48deg, #989F43, #4A4E26)";
+const FALLBACK_PHOTO = "linear-gradient(129.48deg, #646B2D, #4A4E26)";
 
 export const LoginPhotoPanel = ({ photoUrl }: { photoUrl?: string }) => {
   const backgroundImage = photoUrl

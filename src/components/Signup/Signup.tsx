@@ -152,7 +152,7 @@ export const Signup = ({
                 type="button"
                 onClick={() => void handleResend()}
                 disabled={resending || !resendToken}
-                className="font-open-sans flex h-[33px] w-full cursor-pointer items-center justify-center rounded-md border border-[#DBE0CC] px-3 py-1.5 text-[11.65px] leading-5 text-[#50554C] transition hover:bg-[#F3F5EE] focus:outline-none focus-visible:ring-2 focus-visible:ring-[#777E32] disabled:cursor-not-allowed disabled:opacity-70"
+                className="font-open-sans flex h-[33px] w-full cursor-pointer items-center justify-center rounded-md border border-[#DBE0CC] px-3 py-1.5 text-[11.65px] leading-5 text-[#50554C] transition hover:bg-[#F3F5EE] focus:outline-none focus-visible:ring-2 focus-visible:ring-[#5B612A] disabled:cursor-not-allowed disabled:opacity-70"
               >
                 {resending ? t("resending") : t("resend")}
               </button>
@@ -228,7 +228,7 @@ export const Signup = ({
                       aria-label={toggleLabel}
                       aria-pressed={passwordVisible}
                       aria-controls="password"
-                      className="flex cursor-pointer items-center -m-2 rounded-sm p-2.5 focus:outline-none focus-visible:ring-2 focus-visible:ring-[#989F43]"
+                      className="flex cursor-pointer items-center -m-2 rounded-sm p-2.5 focus:outline-none focus-visible:ring-2 focus-visible:ring-[#646B2D]"
                     >
                       <Icon
                         id="eye"
@@ -268,7 +268,7 @@ export const Signup = ({
                       aria-describedby={
                         errors.intention ? "intention-error" : "intention-hint"
                       }
-                      className="font-inter w-full resize-y rounded-[7px] bg-[#E4E5E2] px-2.5 py-2 text-[13px] font-medium leading-5 tracking-[-0.2px] text-[#292829] outline-none transition placeholder:text-[#676264] focus:ring-2 focus:ring-[#989F43] aria-[invalid=true]:ring-2 aria-[invalid=true]:ring-[#B3261E]"
+                      className="font-inter w-full resize-y rounded-[7px] bg-[#E4E5E2] px-2.5 py-2 text-[13px] font-medium leading-5 tracking-[-0.2px] text-[#292829] outline-none transition placeholder:text-[#676264] focus:ring-2 focus:ring-[#646B2D] aria-[invalid=true]:ring-2 aria-[invalid=true]:ring-[#B3261E]"
                       {...register("intention", {
                         required: t("intentionRequired"),
                       })}
@@ -302,7 +302,7 @@ export const Signup = ({
             <button
               type="submit"
               disabled={isSubmitting || !captchaToken}
-              className="font-open-sans flex h-[33px] w-full cursor-pointer items-center justify-center rounded-md bg-[#989F43] px-3 py-1.5 text-[11.65px] leading-5 text-white transition hover:bg-[#5B612A] focus:outline-none focus-visible:ring-2 focus-visible:ring-[#777E32] focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-70"
+              className="font-open-sans flex h-[33px] w-full cursor-pointer items-center justify-center rounded-md bg-[#646B2D] px-3 py-1.5 text-[11.65px] leading-5 text-white transition hover:bg-[#4F5424] focus:outline-none focus-visible:ring-2 focus-visible:ring-[#5B612A] focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-70"
             >
               {isSubmitting ? t("submitting") : t("submit")}
             </button>

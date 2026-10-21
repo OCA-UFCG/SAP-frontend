@@ -50,7 +50,7 @@ export const PartnersSection = ({
             return (
               <div
                 key={partner.sys.id}
-                className="flex min-h-[190px] flex-col overflow-hidden rounded-lg bg-[#989F43]"
+                className="flex min-h-[190px] flex-col overflow-hidden rounded-lg bg-[#646B2D]"
               >
                 <div className="flex min-h-[43px] items-center justify-center px-4 py-2">
                   <span className="text-center font-inter text-xs font-medium leading-normal text-[#F8F7F8]">

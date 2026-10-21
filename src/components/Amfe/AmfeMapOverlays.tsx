@@ -90,11 +90,11 @@ export function AmfeMapOverlays() {
             {[0, 600, 1200].map((delay) => (
               <span
                 key={delay}
-                className="absolute inset-0 rounded-full border-2 border-[#989F43] opacity-0 motion-safe:animate-[radar_1800ms_ease-out_infinite]"
+                className="absolute inset-0 rounded-full border-2 border-[#646B2D] opacity-0 motion-safe:animate-[radar_1800ms_ease-out_infinite]"
                 style={{ animationDelay: `${delay}ms` }}
               />
             ))}
-            <span className="flex h-12 w-12 items-center justify-center rounded-full bg-[#989F43] text-white shadow-[0_8px_20px_rgba(91,97,42,0.35)] motion-reduce:animate-pulse">
+            <span className="flex h-12 w-12 items-center justify-center rounded-full bg-[#646B2D] text-white shadow-[0_8px_20px_rgba(91,97,42,0.35)] motion-reduce:animate-pulse">
               <Icon id="target" size={24} />
             </span>
           </div>

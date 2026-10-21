@@ -118,7 +118,7 @@ export function ApprovalsTable({ rows }: { rows: ApprovalRow[] }) {
                         type="button"
                         disabled={state === "working"}
                         onClick={() => void decide(row.uid, "approved")}
-                        className={`${BUTTON} bg-[#989F43] text-white hover:bg-[#5B612A] focus-visible:ring-[#777E32]`}
+                        className={`${BUTTON} bg-[#646B2D] text-white hover:bg-[#4F5424] focus-visible:ring-[#5B612A]`}
                       >
                         {state === "working" ? t("working") : t("approve")}
                       </button>

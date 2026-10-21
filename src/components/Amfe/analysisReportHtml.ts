@@ -31,7 +31,7 @@ const DOCUMENT_CSS = `
     font-size: 13px;
     text-transform: uppercase;
     letter-spacing: 0.04em;
-    border-bottom: 2px solid #989F43;
+    border-bottom: 2px solid #646B2D;
     padding-bottom: 4px;
   }
   h3 { margin: 10px 0 4px; font-size: 11px; font-weight: 600; }

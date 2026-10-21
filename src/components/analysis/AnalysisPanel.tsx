@@ -172,7 +172,7 @@ function EmptySection({
         {loading ? (
           <span
             aria-hidden="true"
-            className="h-4 w-4 shrink-0 animate-spin rounded-full border-2 border-[#989F43]/30 border-t-[#989F43]"
+            className="h-4 w-4 shrink-0 animate-spin rounded-full border-2 border-[#646B2D]/30 border-t-[#646B2D]"
           />
         ) : null}
         <span>{description}</span>
@@ -249,7 +249,7 @@ function AnalysisYearSelect({
           viewBox="0 0 20 20"
           fill="none"
           xmlns="http://www.w3.org/2000/svg"
-          className={`ml-2 shrink-0 text-[#898989] transition-transform ${isOptionsOpen ? "rotate-180" : ""}`}
+          className={`ml-2 shrink-0 text-[#6F6F6F] transition-transform ${isOptionsOpen ? "rotate-180" : ""}`}
           aria-hidden="true"
         >
           <path
@@ -681,7 +681,7 @@ export function AnalysisPanel({
         {model ? (
           <section className="flex flex-col gap-4">
             <div className="mb-4 flex flex-col">
-              <div className="w-full max-w-[392px] rounded-lg bg-[#777E32] px-4 py-2 text-[18px] font-bold leading-6 text-white">
+              <div className="w-full max-w-[392px] rounded-lg bg-[#5B612A] px-4 py-2 text-[18px] font-bold leading-6 text-white">
                 {model.name}
               </div>
             </div>

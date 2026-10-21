@@ -81,7 +81,7 @@ export const PublicPolicySection = ({
           <p className="text-sm leading-6">{text}</p>
           <Link
             href="/platform"
-            className="shine group/cta flex h-10 w-full items-center justify-center gap-2 rounded-md bg-[#989F43] px-4 py-2 text-sm leading-6 text-[#F8F7F8] transition-[background-color,box-shadow,scale] hover:bg-[#5B612A] hover:shadow-[0_8px_24px_rgba(152,159,67,0.45)] active:scale-[0.97] motion-safe:hover:scale-[1.02]"
+            className="shine group/cta flex h-10 w-full items-center justify-center gap-2 rounded-md bg-[#646B2D] px-4 py-2 text-sm leading-6 text-[#F8F7F8] transition-[background-color,box-shadow,scale] hover:bg-[#4F5424] hover:shadow-[0_8px_24px_rgba(152,159,67,0.45)] active:scale-[0.97] motion-safe:hover:scale-[1.02]"
           >
             {buttonText}
             <ArrowForwardIcon

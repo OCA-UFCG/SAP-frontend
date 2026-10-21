@@ -28,12 +28,12 @@ export function ErrorScreen({
       <div className="flex w-full max-w-[656px] flex-col items-center gap-6 text-center">
         <span
           aria-hidden="true"
-          className="flex h-16 w-16 items-center justify-center rounded-full bg-[#E1E2B4] text-[32px] font-bold text-[#777E32]"
+          className="flex h-16 w-16 items-center justify-center rounded-full bg-[#E1E2B4] text-[32px] font-bold text-[#5B612A]"
         >
           !
         </span>
 
-        <h1 className="text-[28px] leading-[130%] font-bold text-[#777E32] lg:text-[32px]">
+        <h1 className="text-[28px] leading-[130%] font-bold text-[#5B612A] lg:text-[32px]">
           {title}
         </h1>
 

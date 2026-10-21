@@ -98,7 +98,7 @@ function CatalogIndexCard({
           {(!item.published || item.hasUnpublishedChanges) && (
             <button
               type="button"
-              className={`${buttonClass} bg-[#989F43] text-white`}
+              className={`${buttonClass} bg-[#646B2D] text-white`}
               onClick={() => onChangePublication(item, "publish")}
             >
               {item.published ? "Republicar" : "Publicar"}
@@ -150,7 +150,7 @@ function CatalogIndexCard({
               hasPublishableValidation(item.status))) && (
             <button
               type="button"
-              className={`${buttonClass} bg-[#989F43] text-white`}
+              className={`${buttonClass} bg-[#646B2D] text-white`}
               onClick={() => onChangePublication(item, "publish")}
             >
               {item.published ? "Republicar" : "Publicar"}

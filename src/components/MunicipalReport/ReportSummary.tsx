@@ -102,7 +102,7 @@ export function ReportSummary<T extends ReportSummaryItem>({
           <div key={columnIndex} className="flex min-w-0 flex-col gap-8">
             {column.map((group) => (
               <section key={group.key} className="flex min-w-0 flex-col gap-2">
-                <h3 className="report-heading font-inter border-b-2 border-[#989F43] pb-2 text-xs font-semibold uppercase leading-5 tracking-[0.08em] text-[#777E32]">
+                <h3 className="report-heading font-inter border-b-2 border-[#646B2D] pb-2 text-xs font-semibold uppercase leading-5 tracking-[0.08em] text-[#5B612A]">
                   {tModules(`categories.${group.key}`)}
                 </h3>
                 <ul className="flex flex-col">
@@ -129,7 +129,7 @@ export function ReportSummary<T extends ReportSummaryItem>({
                             aria-hidden="true"
                             className="mb-[5px] min-w-6 flex-1 border-b border-dotted border-[#C8CAC5]"
                           />
-                          <span className="font-inter w-7 shrink-0 text-right text-[13px] leading-5 tabular-nums text-[#7E797B]">
+                          <span className="font-inter w-7 shrink-0 text-right text-[13px] leading-5 tabular-nums text-[#6E696B]">
                             {pages?.get(anchorId)}
                           </span>
                         </a>

@@ -13,7 +13,7 @@ export const NavDropdown = ({ item }: { item: ISection }) => {
   const href = item.path && item.path !== '#' ? item.path : null;
 
   const triggerClassName =
-    'h-40px flex items-center gap-1.5 border-b-3 border-transparent px-4 py-2 font-medium text-neutral-800 transition duration-300 group-hover:bg-stone-200 group-hover:text-[#777E32] group-focus-within:text-[#777E32]';
+    'h-40px flex items-center gap-1.5 border-b-3 border-transparent px-4 py-2 font-medium text-neutral-800 transition duration-300 group-hover:bg-stone-200 group-hover:text-[#5B612A] group-focus-within:text-[#5B612A]';
 
   const triggerContent = (
     <>
@@ -87,18 +87,18 @@ export const NavDropdown = ({ item }: { item: ISection }) => {
               href={child.path || '#'}
               onClick={(event) => event.currentTarget.blur()}
               style={{ transitionDelay: `${60 + index * 40}ms` }}
-              className="group/item relative flex items-center justify-between gap-6 px-4 py-2.5 text-sm font-medium text-neutral-800 opacity-0 transition-[opacity,translate,background-color,color] duration-300 hover:bg-[#F6F7F6] hover:text-[#5B612A] hover:delay-0! group-hover:opacity-100 group-focus-within:opacity-100 motion-safe:-translate-x-2 motion-safe:group-hover:translate-x-0 motion-safe:group-focus-within:translate-x-0"
+              className="group/item relative flex items-center justify-between gap-6 px-4 py-2.5 text-sm font-medium text-neutral-800 opacity-0 transition-[opacity,translate,background-color,color] duration-300 hover:bg-[#F6F7F6] hover:text-[#4F5424] hover:delay-0! group-hover:opacity-100 group-focus-within:opacity-100 motion-safe:-translate-x-2 motion-safe:group-hover:translate-x-0 motion-safe:group-focus-within:translate-x-0"
             >
               <span
                 aria-hidden
-                className="absolute inset-y-1 left-0 w-[3px] origin-center scale-y-0 rounded-r-full bg-[#777E32] transition-[scale] duration-200 group-hover/item:scale-y-100"
+                className="absolute inset-y-1 left-0 w-[3px] origin-center scale-y-0 rounded-r-full bg-[#5B612A] transition-[scale] duration-200 group-hover/item:scale-y-100"
               />
               <span className="transition-[translate] duration-200 motion-safe:group-hover/item:translate-x-1">
                 {child.name}
               </span>
               <ArrowForwardIcon
                 size={14}
-                className="text-[#989F43] opacity-0 transition-[opacity,translate] duration-200 group-hover/item:opacity-100 motion-safe:-translate-x-1 motion-safe:group-hover/item:translate-x-0"
+                className="text-[#646B2D] opacity-0 transition-[opacity,translate] duration-200 group-hover/item:opacity-100 motion-safe:-translate-x-1 motion-safe:group-hover/item:translate-x-0"
               />
             </Link>
           ))}

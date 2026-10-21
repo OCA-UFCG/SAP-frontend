@@ -76,7 +76,7 @@ export const WorkingGroupSection = ({
                     key={`dot-${milestone.title}-${index}`}
                     className="relative flex min-w-0 shrink basis-[228px] justify-center"
                   >
-                    <span className="h-[19px] w-[19px] rounded-full bg-[#989F43] ring-4 ring-[#F6F7F6]" />
+                    <span className="h-[19px] w-[19px] rounded-full bg-[#646B2D] ring-4 ring-[#F6F7F6]" />
                   </span>
                 ))}
               </div>
@@ -114,7 +114,7 @@ export const WorkingGroupSection = ({
                     className="flex gap-4"
                   >
                     <div className="flex flex-col items-center">
-                      <span className="h-[19px] w-[19px] shrink-0 rounded-full bg-[#989F43] ring-4 ring-[#F6F7F6]" />
+                      <span className="h-[19px] w-[19px] shrink-0 rounded-full bg-[#646B2D] ring-4 ring-[#F6F7F6]" />
                       {!isLast && (
                         <span className="mt-2 w-0.5 flex-1 bg-[#684B40]" />
                       )}

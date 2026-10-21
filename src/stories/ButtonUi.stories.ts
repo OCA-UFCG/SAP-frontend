@@ -28,7 +28,7 @@ type Story = StoryObj<typeof meta>;
 export const Active: Story = {
   args: {
     label: 'Selecionado',
-    styles: 'text-[#777E32] border-[#777E32] rounded-none hover:border-transparent',
+    styles: 'text-[#5B612A] border-[#5B612A] rounded-none hover:border-transparent',
   },
 };
 

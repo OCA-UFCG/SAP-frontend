@@ -48,7 +48,7 @@ export const AboutSection = ({ id, content, className = "" }: Props) => {
           <div className="flex w-full flex-1 flex-col justify-center gap-5">
             {INFO_ROW_KEYS.map((key) => (
               <div key={key} className="flex min-h-[64px] items-stretch gap-px">
-                <div className="flex w-1/3 shrink-0 items-center rounded-l-lg bg-[#777E32] px-5 py-2 sm:w-1/4">
+                <div className="flex w-1/3 shrink-0 items-center rounded-l-lg bg-[#5B612A] px-5 py-2 sm:w-1/4">
                   <span className="text-base sm:text-xl font-semibold leading-6 text-[#F8F7F8]">
                     {INFO_ROW_LABELS[key]}
                   </span>

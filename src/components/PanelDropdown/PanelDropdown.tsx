@@ -89,7 +89,7 @@ export function PanelDropdown({
             height="16"
             viewBox="0 0 20 20"
             fill="none"
-            className={`ml-2 shrink-0 text-[#7E797B] transition-transform ${isOpen ? "rotate-180" : ""}`}
+            className={`ml-2 shrink-0 text-[#6E696B] transition-transform ${isOpen ? "rotate-180" : ""}`}
             aria-hidden="true"
           >
             <path
@@ -124,7 +124,7 @@ export function PanelDropdown({
                   // Só os primeiros entram em cascata; numa lista longa o
                   // resto chegaria tarde demais.
                   style={{ animationDelay: `${40 + Math.min(index, 8) * 30}ms` }}
-                  className={`group/option relative flex w-full rounded-lg px-3 py-2 text-left text-sm transition-colors hover:bg-[#F6F7F6] hover:text-[#5B612A] motion-safe:animate-[menu-item-in_260ms_ease-out_both] ${
+                  className={`group/option relative flex w-full rounded-lg px-3 py-2 text-left text-sm transition-colors hover:bg-[#F6F7F6] hover:text-[#4F5424] motion-safe:animate-[menu-item-in_260ms_ease-out_both] ${
                     selected
                       ? "bg-[#F5F6EE] font-medium text-[#5B612A]"
                       : "text-[#292829]"
@@ -132,7 +132,7 @@ export function PanelDropdown({
                 >
                   <span
                     aria-hidden
-                    className={`absolute inset-y-2 left-0.5 w-[3px] rounded-full bg-[#989F43] transition-[scale] duration-200 group-hover/option:scale-y-100 ${
+                    className={`absolute inset-y-2 left-0.5 w-[3px] rounded-full bg-[#646B2D] transition-[scale] duration-200 group-hover/option:scale-y-100 ${
                       selected ? "scale-y-100" : "scale-y-0"
                     }`}
                   />

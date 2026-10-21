@@ -3,8 +3,8 @@
    especificidade, e não pela ordem em que as duas entram no bundle. */
 
 .driver-popover.sedes-tour {
-  --sedes-tour-olive: #989f43;
-  --sedes-tour-olive-dark: #777e32;
+  --sedes-tour-olive: #646B2D;
+  --sedes-tour-olive-dark: #5B612A;
   --sedes-tour-olive-deep: #21240f;
   --sedes-tour-cream: #f6f3f0;
   --sedes-tour-ease: cubic-bezier(0.22, 1, 0.36, 1);
@@ -136,7 +136,7 @@
   border-radius: 50%;
   font-size: 20px;
   line-height: 28px;
-  color: #7e797b;
+  color: #6E696B;
   transition:
     color 150ms ease,
     background-color 150ms ease;

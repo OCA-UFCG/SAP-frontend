@@ -189,7 +189,7 @@ const SearchBar = ({ onSearch, searchTelemetryContext }: SearchBarProps) => {
       </div>
       <ButtonUi
         // disabled={!search}
-        styles="bg-[#989F43] text-white min-w-30 h-full rounded-xl hover:brightness-110 active:brightness-95 transition not:disabled:hover:opacity-90 disabled:hover:opacity-100 hover:bg-[#989F43]"
+        styles="bg-[#646B2D] text-white min-w-30 h-full rounded-xl hover:brightness-110 active:brightness-95 transition not:disabled:hover:opacity-90 disabled:hover:opacity-100 hover:bg-[#646B2D]"
         label={t("button")}
         onClick={() => onSubmit("button")}
       />

@@ -66,7 +66,7 @@ function RailPendingSpinner() {
     <span
       role="status"
       aria-label={t("loading")}
-      className="h-6 w-6 animate-spin rounded-full border-2 border-[#E1E2B4] border-t-[#777E32]"
+      className="h-6 w-6 animate-spin rounded-full border-2 border-[#E1E2B4] border-t-[#5B612A]"
     />
   );
 }
