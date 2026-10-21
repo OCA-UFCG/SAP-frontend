@@ -78,7 +78,7 @@ export const PlatformModulesSection = ({
 
                 <div className="flex flex-col gap-4 px-6 pt-4 pb-6 text-[#0F172A]">
                   <h3 className="flex items-center gap-4 font-open-sans text-2xl font-bold leading-[33px] text-[#292829]">
-                    <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-[#5B612A] p-1 text-[#F8F7F8] transition-[rotate,scale,background-color] duration-300 group-hover:bg-[#5B612A] motion-safe:group-hover:-rotate-6 motion-safe:group-hover:scale-110">
+                    <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-[#5B612A] p-1 text-[#F8F7F8] transition-[rotate,scale,background-color] duration-300 group-hover:bg-[#4F5424] motion-safe:group-hover:-rotate-6 motion-safe:group-hover:scale-110">
                       <ModuleIcon size={32} />
                     </span>
                     {text.name}

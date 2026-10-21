@@ -124,7 +124,9 @@ const TabsSection = ({ contentData }: TabsSectionProps) => {
 
         <div className="relative z-20 w-full max-w-[1440px] mx-auto px-6 md:px-10 lg:px-[78px] py-[32px] md:py-[48px] flex flex-col items-center text-center md:flex-row md:justify-end md:items-center md:text-left">
           <div className="w-full max-w-[90%] md:w-[60%] md:max-w-[795px] flex flex-col gap-[16px] md:gap-[24px]">
-            <h3 className="text-[#646B2D] font-open-sans font-semibold text-[1.25rem] md:text-[1.5rem] leading-[32px] tracking-[-0.006em]">
+            {/* Fica o verde claro: sobre o fundo preto ele dá 7,4:1, e o
+                #646B2D dos botões daria só 3,7. */}
+            <h3 className="text-[#989F43] font-open-sans font-semibold text-[1.25rem] md:text-[1.5rem] leading-[32px] tracking-[-0.006em]">
               {t(`tabs.${currentTab.identifier}`)}
             </h3>
 
