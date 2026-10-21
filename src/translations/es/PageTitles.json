@@ -1,0 +1,21 @@
+{
+  "PageTitles": {
+    "site": "Portal SEDES",
+    "description": "Sistema Estratégico sobre Desertificación y Sequía (SEDES)",
+    "accessibility": "Accesibilidad",
+    "glossary": "Glosario",
+    "contact": "Contactos",
+    "about": "Sobre SEDES",
+    "login": "Iniciar sesión",
+    "signup": "Registro",
+    "signupConfirmation": "Confirmación del registro",
+    "forgotPassword": "Olvidé mi contraseña",
+    "resetPassword": "Restablecer la contraseña",
+    "pendingApproval": "Esperando aprobación",
+    "platform": "Plataforma",
+    "analysis": "Priorización",
+    "municipalReport": "Informe municipal",
+    "approvals": "Aprobaciones",
+    "comingSoon": "Próximamente"
+  }
+}
