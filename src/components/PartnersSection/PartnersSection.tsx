@@ -28,7 +28,7 @@ export const PartnersSection = ({
         <div className="flex flex-col gap-4 text-center lg:text-left items-center lg:items-start">
           <Badge label={t("badge")} />
 
-          <h2 className="text-2xl md:text-[30px] leading-[36px] tracking-[-0.0075em] font-semibold text-[#292829]">
+          <h2 className="text-2xl md:text-[1.875rem] leading-[36px] tracking-[-0.0075em] font-semibold text-[#292829]">
             {title}
           </h2>
 

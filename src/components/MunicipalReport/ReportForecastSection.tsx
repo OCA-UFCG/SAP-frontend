@@ -177,7 +177,7 @@ function ForecastCoverage({
               className={`flex items-center gap-2 ${isReference ? "" : "opacity-55"}`}
             >
               <span
-                className={`w-[58px] shrink-0 text-[11px] leading-4 tabular-nums text-[#292829] ${isReference ? "font-bold" : ""}`}
+                className={`w-[58px] shrink-0 text-[0.6875rem] leading-4 tabular-nums text-[#292829] ${isReference ? "font-bold" : ""}`}
               >
                 {formatShortPeriod(snapshot.period, locale)}
               </span>
@@ -356,7 +356,7 @@ export const ReportForecastSection = memo(function ReportForecastSection({
         style={{ borderLeftColor: accent }}
       >
         <div className="min-w-0">
-          <h2 className="font-open-sans text-[18px] font-bold leading-[1.5] tracking-[-0.216px] text-[#292829]">
+          <h2 className="font-open-sans text-[1.125rem] font-bold leading-[1.5] tracking-[-0.216px] text-[#292829]">
             {title}
           </h2>
           <p className="font-open-sans flex flex-wrap gap-1 text-xs leading-5 text-[#292829]">
@@ -409,7 +409,7 @@ export const ReportForecastSection = memo(function ReportForecastSection({
               <ReportSectionHeading level={3} accent={accent}>
                 {t("document.situationTitle")}
               </ReportSectionHeading>
-              <p className="mt-4 text-[15px] leading-7 text-[#2C3A31]">
+              <p className="mt-4 text-[0.9375rem] leading-7 text-[#2C3A31]">
                 {situationText}
               </p>
             </div>
@@ -524,7 +524,7 @@ export const ReportForecastSection = memo(function ReportForecastSection({
           <ReportSectionHeading level={3} accent={accent}>
             {t("forecast.methodologyTitle")}
           </ReportSectionHeading>
-          <p className="mt-4 whitespace-pre-line text-[15px] leading-7 text-[#2C3A31]">
+          <p className="mt-4 whitespace-pre-line text-[0.9375rem] leading-7 text-[#2C3A31]">
             {[...kindDescriptions, ...methodologies].join(" ")}
           </p>
         </div>

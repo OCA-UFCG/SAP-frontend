@@ -40,7 +40,7 @@ export default async function ApprovalsPage({
   const backToPlatform = (
     <Link
       href="/platform"
-      className="flex h-[33px] w-fit items-center gap-1.5 rounded-md border border-[#646B2D] px-3 text-[12px] font-medium text-[#5B612A] transition hover:bg-[#F4F4E6] focus:outline-none focus-visible:ring-2 focus-visible:ring-[#5B612A] focus-visible:ring-offset-2"
+      className="flex h-[33px] w-fit items-center gap-1.5 rounded-md border border-[#646B2D] px-3 text-[0.75rem] font-medium text-[#5B612A] transition hover:bg-[#F4F4E6] focus:outline-none focus-visible:ring-2 focus-visible:ring-[#5B612A] focus-visible:ring-offset-2"
     >
       <span aria-hidden="true">←</span>
       {t("backToPlatform")}
@@ -66,12 +66,12 @@ export default async function ApprovalsPage({
     return (
       <div className="flex w-full flex-col gap-4 px-6 py-10">
         {backToPlatform}
-        <h1 className="font-inter text-[22px] font-medium leading-7 tracking-[-0.36px] text-[#50554C]">
+        <h1 className="font-inter text-[1.375rem] font-medium leading-7 tracking-[-0.36px] text-[#50554C]">
           {t("title")}
         </h1>
         <p
           role="alert"
-          className="max-w-[46rem] rounded-[7px] bg-[#FCE8E6] px-3 py-2.5 text-[14px] leading-6 text-[#B3261E]"
+          className="max-w-[46rem] rounded-[7px] bg-[#FCE8E6] px-3 py-2.5 text-[0.875rem] leading-6 text-[#B3261E]"
         >
           {t("loadFailed")}
         </p>
@@ -83,10 +83,10 @@ export default async function ApprovalsPage({
     <div className="flex w-full flex-col gap-6 px-6 py-10">
       {backToPlatform}
       <div className="flex flex-col gap-2">
-        <h1 className="font-inter text-[22px] font-medium leading-7 tracking-[-0.36px] text-[#50554C]">
+        <h1 className="font-inter text-[1.375rem] font-medium leading-7 tracking-[-0.36px] text-[#50554C]">
           {t("title")}
         </h1>
-        <p className="max-w-[46rem] text-[14px] leading-6 text-[#676264]">
+        <p className="max-w-[46rem] text-[0.875rem] leading-6 text-[#676264]">
           {t("subtitle")}
         </p>
       </div>

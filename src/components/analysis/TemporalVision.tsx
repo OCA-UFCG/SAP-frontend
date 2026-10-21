@@ -446,7 +446,7 @@ export function TemporalVision({
   return (
     <div className="flex flex-col gap-2">
       <div className="h-6 w-[132px]">
-        <h2 className="text-[18px] font-semibold leading-6 text-[#292829]">
+        <h2 className="text-[1.125rem] font-semibold leading-6 text-[#292829]">
           {t("temporalVision")}
         </h2>
       </div>

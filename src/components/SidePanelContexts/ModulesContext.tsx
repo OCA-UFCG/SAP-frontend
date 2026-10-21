@@ -147,10 +147,10 @@ function ContextHeader() {
   const t = useTranslations("ModulesContext");
   return (
     <header className="flex flex-col gap-2">
-      <h2 className="font-inter font-semibold text-[24px] leading-[24px] tracking-[-0.015em] text-[#292829]">
+      <h2 className="font-inter font-semibold text-[1.5rem] leading-[24px] tracking-[-0.015em] text-[#292829]">
         {t("title")}
       </h2>
-      <p className="font-inter font-medium text-[16px] leading-[24px] tracking-[-0.015em] text-[#292829]">
+      <p className="font-inter font-medium text-[1rem] leading-[24px] tracking-[-0.015em] text-[#292829]">
         {t("subtitle")}
       </p>
     </header>

@@ -113,7 +113,7 @@ const SegmentedBar = ({ fields, control, setValue }: CriteriaCardI) => {
             >
               {pct > 10 && (
                 <span
-                  className="font-open-sans text-[10px] leading-6 font-semibold"
+                  className="font-open-sans text-[0.625rem] leading-6 font-semibold"
                   style={{ color: LABEL_COLORS[i % LABEL_COLORS.length] }}
                 >
                   {pct.toFixed(0)}%

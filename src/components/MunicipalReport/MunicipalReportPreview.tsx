@@ -235,7 +235,7 @@ const AnalysisSection = memo(function AnalysisSection({
         style={{ borderLeftColor: accent }}
       >
         <div className="min-w-0">
-          <h2 className="font-open-sans text-[18px] font-bold leading-[1.5] tracking-[-0.216px] text-[#292829]">
+          <h2 className="font-open-sans text-[1.125rem] font-bold leading-[1.5] tracking-[-0.216px] text-[#292829]">
             {translatedTitle}
           </h2>
           <p className="font-open-sans flex flex-wrap gap-1 text-xs leading-5 text-[#292829]">
@@ -280,7 +280,7 @@ const AnalysisSection = memo(function AnalysisSection({
             </ReportSectionHeading>
             <div className="mt-4 grid gap-6 md:grid-cols-[1fr_320px]">
               {situationText && (
-                <p className="whitespace-pre-line text-[15px] leading-7 text-[#2C3A31]">
+                <p className="whitespace-pre-line text-[0.9375rem] leading-7 text-[#2C3A31]">
                   {situationText}
                 </p>
               )}
@@ -437,7 +437,7 @@ const AnalysisSection = memo(function AnalysisSection({
             <ReportSectionHeading level={3} accent={accent}>
               {t("document.timeSeriesAnalysisTitle")}
             </ReportSectionHeading>
-            <div className="mt-4 text-[15px] leading-7">
+            <div className="mt-4 text-[0.9375rem] leading-7">
               {narrativeSections.length > 0 ? (
                 narrativeSections.map((section, sectionIndex) => (
                   <p

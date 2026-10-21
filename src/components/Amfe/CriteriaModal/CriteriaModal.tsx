@@ -84,11 +84,11 @@ export function InfoTooltip({
             className={`absolute block h-3 w-3 rotate-45 bg-white ${placement === "below" ? "-top-[6px] border-t border-l border-[#E4E5E2]" : "-bottom-[6px] border-r border-b border-[#E4E5E2]"} ${align === "right" ? "right-[34px]" : "left-[34px]"}`}
           />
 
-          <p className="mb-1 text-[13px] leading-[18px] font-semibold text-black">
+          <p className="mb-1 text-[0.8125rem] leading-[18px] font-semibold text-black">
             {name}
           </p>
 
-          <p className="text-[12px] leading-[1.55] text-[#292829]">
+          <p className="text-[0.75rem] leading-[1.55] text-[#292829]">
             {description || t("defaultDescription", { name })}
           </p>
         </div>
@@ -170,7 +170,7 @@ function ModalOverlay({
           <div className="flex min-h-6 w-full items-start justify-between gap-4">
             <h2
               id={titleId}
-              className="font-inter text-[24px] leading-7 font-semibold tracking-[-0.015em] text-black">
+              className="font-inter text-[1.5rem] leading-7 font-semibold tracking-[-0.015em] text-black">
               {t("title")}
             </h2>
 
@@ -186,7 +186,7 @@ function ModalOverlay({
 
           <p
             id={descriptionId}
-            className="font-inter max-w-[460px] text-[16px] leading-6 font-normal tracking-[-0.015em] text-[#5F6268]">
+            className="font-inter max-w-[460px] text-[1rem] leading-6 font-normal tracking-[-0.015em] text-[#5F6268]">
             {t("description")}
           </p>
         </div>
@@ -207,7 +207,7 @@ function ModalOverlay({
               placeholder={t("searchPlaceholder")}
               value={search}
               onChange={(e) => setSearch(e.target.value)}
-              className="h-full min-w-0 flex-1 bg-transparent font-['Open_Sans'] text-[16px] leading-6 text-[#292829] outline-none placeholder:text-[#6B7068]"
+              className="h-full min-w-0 flex-1 bg-transparent font-['Open_Sans'] text-[1rem] leading-6 text-[#292829] outline-none placeholder:text-[#6B7068]"
             />
           </div>
 
@@ -238,7 +238,7 @@ function ModalOverlay({
                     className={`flex min-w-0 flex-1 items-center gap-2 text-left ${disabled ? "cursor-not-allowed" : "cursor-pointer"}`}
                   >
                     <Checkbox checked={checked} />
-                    <span className="min-w-0 break-words font-['Open_Sans'] text-[16px] leading-5 font-normal text-black">
+                    <span className="min-w-0 break-words font-['Open_Sans'] text-[1rem] leading-5 font-normal text-black">
                       {option.name}
                     </span>
                   </button>
@@ -269,7 +269,7 @@ function ModalOverlay({
             onClick={handleApply}
             className="flex h-11 w-full cursor-pointer items-center justify-center rounded-[8px] bg-[#646B2D] px-4 py-2 transition-colors hover:bg-[#4F5424]"
           >
-            <span className="font-['Open_Sans'] text-[16px] leading-6 font-semibold text-white">
+            <span className="font-['Open_Sans'] text-[1rem] leading-6 font-semibold text-white">
               {t("applyButton")}
             </span>
           </button>

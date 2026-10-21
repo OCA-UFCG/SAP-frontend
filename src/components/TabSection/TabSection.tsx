@@ -61,7 +61,7 @@ const TabsSection = ({ contentData }: TabsSectionProps) => {
     <section className="w-full bg-[#F6F7F6] flex flex-col items-center">
       <div className="w-full max-w-[1440px] mx-auto px-6 pt-12 md:px-10 lg:px-[78px] flex flex-col items-start">
         <Badge label={footerT("aboutMenu.usuarios")} className="mb-4" />
-        <h2 className="text-[24px] md:text-[28px] lg:text-[30px] leading-[28px] md:leading-[32px] lg:leading-[36px] tracking-[-0.0075em] text-[#292829] font-semibold mb-6">
+        <h2 className="text-[1.5rem] md:text-[1.75rem] lg:text-[1.875rem] leading-[28px] md:leading-[32px] lg:leading-[36px] tracking-[-0.0075em] text-[#292829] font-semibold mb-6">
           {sectionTitle}
         </h2>
 
@@ -76,7 +76,7 @@ const TabsSection = ({ contentData }: TabsSectionProps) => {
                 // Sem isto, a aba escolhida só se distinguia pela cor, que o
                 // leitor de tela não anuncia.
                 aria-pressed={activeTabIdentifier === tab.identifier}
-                className={`px-4 md:px-8 py-3 md:w-[302px] md:shrink-0 rounded-t-[8px] font-open-sans font-medium text-[13px] md:text-[16px] whitespace-nowrap transition-colors border-b-0 ${
+                className={`px-4 md:px-8 py-3 md:w-[302px] md:shrink-0 rounded-t-[8px] font-open-sans font-medium text-[0.8125rem] md:text-[1rem] whitespace-nowrap transition-colors border-b-0 ${
                   activeTabIdentifier === tab.identifier
                     ? "bg-[#646B2D] text-white"
                     : "bg-[#E4E5E2] text-[#3F4324] hover:bg-[#C8CAC5]"
@@ -124,11 +124,11 @@ const TabsSection = ({ contentData }: TabsSectionProps) => {
 
         <div className="relative z-20 w-full max-w-[1440px] mx-auto px-6 md:px-10 lg:px-[78px] py-[32px] md:py-[48px] flex flex-col items-center text-center md:flex-row md:justify-end md:items-center md:text-left">
           <div className="w-full max-w-[90%] md:w-[60%] md:max-w-[795px] flex flex-col gap-[16px] md:gap-[24px]">
-            <h3 className="text-[#646B2D] font-open-sans font-semibold text-[20px] md:text-[24px] leading-[32px] tracking-[-0.006em]">
+            <h3 className="text-[#646B2D] font-open-sans font-semibold text-[1.25rem] md:text-[1.5rem] leading-[32px] tracking-[-0.006em]">
               {t(`tabs.${currentTab.identifier}`)}
             </h3>
 
-            <div className="flex flex-col gap-[16px] md:gap-[24px] text-[#F8F7F8] font-open-sans font-normal text-[14px] md:text-[16px] leading-[1.5]">
+            <div className="flex flex-col gap-[16px] md:gap-[24px] text-[#F8F7F8] font-open-sans font-normal text-[0.875rem] md:text-[1rem] leading-[1.5]">
               {t.has(`texts.${currentTab.identifier}`) ? (
                 t(`texts.${currentTab.identifier}`)
               ) : (

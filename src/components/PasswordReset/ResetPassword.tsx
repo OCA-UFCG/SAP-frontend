@@ -60,7 +60,7 @@ export const ResetPassword = ({
         logoAlt={t("logoAlt")}
         title={t("invalidTitle")}
       >
-        <p className="w-full text-[13px] leading-5 text-[#676264]">
+        <p className="w-full text-[0.8125rem] leading-5 text-[#676264]">
           {t("invalidBody")}
         </p>
         <Link href={FORGOT_PASSWORD_PATH} className={PRIMARY_BUTTON}>
@@ -77,7 +77,7 @@ export const ResetPassword = ({
         logoAlt={t("logoAlt")}
         title={t("doneTitle")}
       >
-        <p className="w-full text-[13px] leading-5 text-[#676264]">
+        <p className="w-full text-[0.8125rem] leading-5 text-[#676264]">
           {t("doneBody")}
         </p>
         <Link href={LOGIN_PATH} className={PRIMARY_BUTTON}>
@@ -102,7 +102,7 @@ export const ResetPassword = ({
       >
         <div className="flex w-full flex-col gap-4">
           {email ? (
-            <p className="text-[13px] leading-5 text-[#676264]">
+            <p className="text-[0.8125rem] leading-5 text-[#676264]">
               {t("account", { email })}
             </p>
           ) : null}

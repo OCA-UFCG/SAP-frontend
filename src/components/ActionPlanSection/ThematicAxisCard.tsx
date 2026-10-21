@@ -29,7 +29,7 @@ export const ThematicAxisCard = ({
       <div className="flex h-full flex-col gap-4 rounded-lg bg-[#59403A] p-6">
         <div className="flex flex-col items-start gap-2">
           <Badge label={labels.sedesHere} variant="primary" />
-          <h4 className="text-[22px] font-bold leading-tight text-[#F8F7F8]">
+          <h4 className="text-[1.375rem] font-bold leading-tight text-[#F8F7F8]">
             {title}
           </h4>
           {description && (

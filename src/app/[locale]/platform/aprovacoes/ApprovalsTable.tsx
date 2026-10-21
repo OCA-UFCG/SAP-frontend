@@ -25,7 +25,7 @@ type RowState =
   | "failed";
 
 const BUTTON =
-  "cursor-pointer rounded-md px-3 py-1.5 text-[12px] font-medium transition focus:outline-none focus-visible:ring-2 focus-visible:ring-offset-1 disabled:cursor-not-allowed disabled:opacity-60";
+  "cursor-pointer rounded-md px-3 py-1.5 text-[0.75rem] font-medium transition focus:outline-none focus-visible:ring-2 focus-visible:ring-offset-1 disabled:cursor-not-allowed disabled:opacity-60";
 
 export function ApprovalsTable({ rows }: { rows: ApprovalRow[] }) {
   const t = useTranslations("Approvals");
@@ -68,13 +68,13 @@ export function ApprovalsTable({ rows }: { rows: ApprovalRow[] }) {
 
   if (rows.length === 0) {
     return (
-      <p className="text-[14px] leading-6 text-[#676264]">{t("empty")}</p>
+      <p className="text-[0.875rem] leading-6 text-[#676264]">{t("empty")}</p>
     );
   }
 
   return (
     <div className="w-full overflow-x-auto rounded-md border border-[#DBE0CC]">
-      <table className="w-full min-w-[42rem] border-collapse text-left text-[13px]">
+      <table className="w-full min-w-[42rem] border-collapse text-left text-[0.8125rem]">
         <thead>
           <tr className="border-b border-[#DBE0CC] bg-[#F3F5EE]">
             <th className="px-4 py-3 font-medium text-[#50554C]">
@@ -109,7 +109,7 @@ export function ApprovalsTable({ rows }: { rows: ApprovalRow[] }) {
                 </td>
                 <td className="whitespace-nowrap px-4 py-3 align-top">
                   {decided ? (
-                    <span className="text-[12px] font-medium text-[#50554C]">
+                    <span className="text-[0.75rem] font-medium text-[#50554C]">
                       {t(state)}
                     </span>
                   ) : (
@@ -131,7 +131,7 @@ export function ApprovalsTable({ rows }: { rows: ApprovalRow[] }) {
                         {t("reject")}
                       </button>
                       {state === "failed" || state === "conflict" ? (
-                        <span role="alert" className="text-[12px] text-[#B3261E]">
+                        <span role="alert" className="text-[0.75rem] text-[#B3261E]">
                           {state === "conflict" ? t("conflict") : t("failed")}
                         </span>
                       ) : null}

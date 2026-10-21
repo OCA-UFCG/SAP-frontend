@@ -68,7 +68,7 @@ export function PanelDropdown({
       {label && (
         <span
           id={labelId}
-          className="text-[14px] font-medium leading-[20px] text-[#292829]"
+          className="text-[0.875rem] font-medium leading-[20px] text-[#292829]"
         >
           {label}
         </span>

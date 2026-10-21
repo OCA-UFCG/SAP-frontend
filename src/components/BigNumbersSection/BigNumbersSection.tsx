@@ -33,7 +33,7 @@ export const BigNumbersSection = ({ items }: Props) => {
                 aria-hidden
                 className="absolute inset-x-4 bottom-3 h-0.5 origin-left scale-x-0 rounded-full bg-[#B4BA61] transition-[scale] duration-300 group-hover:scale-x-100"
               />
-              <span className="origin-left font-open-sans text-[32px] font-extrabold leading-[44px] text-[#5B612A] transition-[scale,color] duration-300 group-hover:text-[#4F5424] motion-safe:group-hover:scale-110">
+              <span className="origin-left font-open-sans text-[2rem] font-extrabold leading-[44px] text-[#5B612A] transition-[scale,color] duration-300 group-hover:text-[#4F5424] motion-safe:group-hover:scale-110">
                 <CountUp value={item.value} />
               </span>
               <div className="flex flex-col font-open-sans">

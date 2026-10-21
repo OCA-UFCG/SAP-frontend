@@ -36,10 +36,10 @@ function TableRow({
 }) {
   return (
     <tr className="border-t border-[#B4BA61] odd:bg-[#F0F0D7] even:bg-white">
-      <td className="w-[180px] px-10 py-2 align-top font-inter text-[16px] font-medium leading-6 tracking-[-0.015em] text-black whitespace-pre-line">
+      <td className="w-[180px] px-10 py-2 align-top font-inter text-[1rem] font-medium leading-6 tracking-[-0.015em] text-black whitespace-pre-line">
         {label}
       </td>
-      <td className="px-10 py-2 align-top font-inter text-[16px] font-normal leading-6 tracking-[-0.015em] text-[#4A4E26] whitespace-pre-line break-words">
+      <td className="px-10 py-2 align-top font-inter text-[1rem] font-normal leading-6 tracking-[-0.015em] text-[#4A4E26] whitespace-pre-line break-words">
         {children}
       </td>
     </tr>
@@ -100,7 +100,7 @@ export function InfoModal({
       >
         <div className="shrink-0 border-b border-[#B4BA61]/40">
           <div className="relative flex flex-col gap-4 bg-white px-10 py-4">
-            <h3 className="font-inter text-[24px] font-semibold leading-6 tracking-[-0.015em] text-black">
+            <h3 className="font-inter text-[1.5rem] font-semibold leading-6 tracking-[-0.015em] text-black">
               {displayTitle}
             </h3>
 
@@ -117,11 +117,11 @@ export function InfoModal({
 
         <div className="flex-1 overflow-y-auto">
           <div className="border-t border-[#B4BA61]/40 bg-white px-10 py-4">
-            <h3 className="mb-2 font-inter text-[20px] font-medium leading-6 tracking-[-0.015em] text-black">
+            <h3 className="mb-2 font-inter text-[1.25rem] font-medium leading-6 tracking-[-0.015em] text-black">
               {t("overview")}
             </h3>
 
-            <p className="font-inter text-[16px] font-normal leading-6 tracking-[-0.015em] text-[#4A4E26]">
+            <p className="font-inter text-[1rem] font-normal leading-6 tracking-[-0.015em] text-[#4A4E26]">
               {displayDescription}
             </p>
           </div>

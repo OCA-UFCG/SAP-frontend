@@ -380,7 +380,7 @@ export function MunicipalReportContext({ panelLayers = [] }: MunicipalReportCont
           <legend className="font-open-sans text-lg font-semibold leading-6">{t("selectArea")}</legend>
           <p className="font-inter text-xs font-medium leading-[18px] tracking-[-0.015em]">{t("selectAreaHint")}</p>
           <div className="flex w-full flex-col items-start gap-[6px]">
-            <span id="municipal-report-scope-label" className="text-[14px] font-medium leading-[20px] text-[#292829]">{t("scope")}</span>
+            <span id="municipal-report-scope-label" className="text-[0.875rem] font-medium leading-[20px] text-[#292829]">{t("scope")}</span>
             {/* Recorte em cima, território embaixo: o segundo campo só faz sentido
                 depois de escolher o primeiro, e empilhado ele cabe inteiro. */}
             <div className="flex w-full flex-col gap-2">
@@ -421,7 +421,7 @@ export function MunicipalReportContext({ panelLayers = [] }: MunicipalReportCont
                   aria-controls="municipal-report-municipality-options"
                   aria-expanded={isMunicipalityOptionsOpen}
                   aria-haspopup="listbox"
-                  className="min-w-0 flex-1 border-none bg-transparent p-0 text-[13px] leading-5 text-[#292829] outline-none ring-0 placeholder:text-[12px] placeholder:text-[#292829]"
+                  className="min-w-0 flex-1 border-none bg-transparent p-0 text-[0.8125rem] leading-5 text-[#292829] outline-none ring-0 placeholder:text-[0.75rem] placeholder:text-[#292829]"
                   placeholder={t("searchMunicipality")}
                 />
                 {(municipalityQuery || municipalityCode) && (
@@ -457,7 +457,7 @@ export function MunicipalReportContext({ panelLayers = [] }: MunicipalReportCont
             </div>
             {/* Seletor de data temporariamente desativado. O período padrão do relatório é 2026.
             <label className="flex w-full max-w-[392px] flex-col items-start gap-[6px]">
-              <span className="text-[14px] font-medium leading-[20px] text-[#292829]">{t("analysisDate")}</span>
+              <span className="text-[0.875rem] font-medium leading-[20px] text-[#292829]">{t("analysisDate")}</span>
               <span ref={periodPickerRef} className="relative w-full">
                 <button
                   type="button"

@@ -161,13 +161,13 @@ function EmptySection({
 }) {
   return (
     <div className="flex flex-col gap-2">
-      <h2 className="text-[14px] font-semibold leading-6 text-[#292829]">
+      <h2 className="text-[0.875rem] font-semibold leading-6 text-[#292829]">
         {title}
       </h2>
       <div
         role={loading ? "status" : undefined}
         aria-busy={loading || undefined}
-        className="flex items-center gap-2 rounded-lg border border-[#EFEFEF] bg-white p-4 text-[12px] leading-5 text-neutral-600 shadow-sm"
+        className="flex items-center gap-2 rounded-lg border border-[#EFEFEF] bg-white p-4 text-[0.75rem] leading-5 text-neutral-600 shadow-sm"
       >
         {loading ? (
           <span
@@ -309,7 +309,7 @@ function DistributionSection({
       : `${formatPercentageNumber(value, "pt-BR")}%`;
   return (
     <div className="flex flex-col gap-2">
-      <h2 className="text-[14px] font-semibold leading-6 text-[#292829]">
+      <h2 className="text-[0.875rem] font-semibold leading-6 text-[#292829]">
         {title ?? t("areaPercentageByClass")}
       </h2>
 
@@ -325,7 +325,7 @@ function DistributionSection({
                     width: `${item.value}%`,
                     backgroundColor: item.color,
                   }}
-                  className="flex items-center justify-center border-r border-white/20 text-[12px] font-bold text-[#292829] transition-all duration-500 last:border-0"
+                  className="flex items-center justify-center border-r border-white/20 text-[0.75rem] font-bold text-[#292829] transition-all duration-500 last:border-0"
                   title={`${item.label}: ${formatValue(item.value)}`}
                 >
                   {/* Uma casa só, com vírgula como a legenda logo abaixo: a
@@ -346,7 +346,7 @@ function DistributionSection({
                   className="mt-[2px] h-3 w-3 shrink-0 rounded-full"
                   style={{ backgroundColor: item.color }}
                 />
-                <span className="min-w-0 break-words text-[12px] leading-4 text-neutral-600">
+                <span className="min-w-0 break-words text-[0.75rem] leading-4 text-neutral-600">
                   {item.label}:{" "}
                   <span className="font-bold">{formatValue(item.value)}</span>
                 </span>
@@ -431,7 +431,7 @@ function RankingSectionContent({
               style={{ backgroundColor: group.tone.color }}
             >
               <span
-                className="flex items-center pr-4 text-[16px] font-semibold leading-[22px] tracking-[-0.03em]"
+                className="flex items-center pr-4 text-[1rem] font-semibold leading-[22px] tracking-[-0.03em]"
                 style={{ color: headerTextColor }}
               >
                 {group.label}
@@ -444,10 +444,10 @@ function RankingSectionContent({
                   color: badgeTextColor,
                 }}
               >
-                <span className="text-[24px] font-semibold leading-5 tracking-[-0.03em]">
+                <span className="text-[1.5rem] font-semibold leading-5 tracking-[-0.03em]">
                   {nonZeroCount}
                 </span>
-                <span className="text-[12px] font-semibold leading-6">
+                <span className="text-[0.75rem] font-semibold leading-6">
                   {group.totalLabel}
                 </span>
               </div>
@@ -476,11 +476,11 @@ function RankingSectionContent({
                     className="flex min-h-8 items-center justify-between gap-2 rounded-lg bg-[#E4E5E2] px-2 py-1.5 text-left transition-colors duration-150 hover:bg-[#D7D9D4]"
                   >
                     <span className="flex min-w-0 flex-1 items-center justify-between gap-3">
-                      <span className="truncate text-[14px] leading-5 text-[#292829]">
+                      <span className="truncate text-[0.875rem] leading-5 text-[#292829]">
                         {item.label}
                       </span>
                       {item.trailingLabel ? (
-                        <span className="shrink-0 text-[12px] font-medium leading-5 text-[#292829]">
+                        <span className="shrink-0 text-[0.75rem] font-medium leading-5 text-[#292829]">
                           {item.trailingLabel}
                         </span>
                       ) : null}
@@ -510,7 +510,7 @@ function RankingSectionContent({
                   };
                 });
               }}
-              className="flex min-h-7 w-full cursor-pointer items-center justify-center gap-2 bg-[#C8CAC5] px-2 py-1 text-[12px] font-medium leading-5 text-[#292829] transition-colors duration-150 hover:bg-[#BFC2BC]"
+              className="flex min-h-7 w-full cursor-pointer items-center justify-center gap-2 bg-[#C8CAC5] px-2 py-1 text-[0.75rem] font-medium leading-5 text-[#292829] transition-colors duration-150 hover:bg-[#BFC2BC]"
             >
               <span className="font-inter">{toggleLabel}</span>
               <Chevron open={isOpen} from="down" to="up" size={16} />
@@ -551,7 +551,7 @@ function RankingSection({
 
   return (
     <div className="flex flex-col gap-2">
-      <h2 className="text-[18px] font-semibold leading-6 text-[#292829]">
+      <h2 className="text-[1.125rem] font-semibold leading-6 text-[#292829]">
         {title}
       </h2>
       <RankingSectionContent
@@ -620,7 +620,7 @@ export function AnalysisPanel({
           <button
             type="button"
             onClick={onBack}
-            className="flex w-[194px] h-8 cursor-pointer items-center gap-2 rounded-[8px] bg-transparent px-2 py-1.5 text-[14px] font-medium text-[#21240F] transition-colors duration-150 focus-visible:ring-2 focus-visible:ring-neutral-600 focus-visible:outline-none"
+            className="flex w-[194px] h-8 cursor-pointer items-center gap-2 rounded-[8px] bg-transparent px-2 py-1.5 text-[0.875rem] font-medium text-[#21240F] transition-colors duration-150 focus-visible:ring-2 focus-visible:ring-neutral-600 focus-visible:outline-none"
           >
             <Chevron open={false} from="right" to="left" size={16} />
             <span>{t("backToList")}</span>
@@ -632,10 +632,10 @@ export function AnalysisPanel({
         </div>
 
         <header className="flex flex-col gap-2">
-          <h1 className="font-inter text-[24px] font-semibold leading-[24px] tracking-[-0.015em]">
+          <h1 className="font-inter text-[1.5rem] font-semibold leading-[24px] tracking-[-0.015em]">
             {moduleName}
           </h1>
-          <p className="font-inter text-[16px] font-medium leading-[24px] tracking-[-0.015em]">
+          <p className="font-inter text-[1rem] font-medium leading-[24px] tracking-[-0.015em]">
             {t("searchStateOrCityToStart")}
           </p>
         </header>
@@ -653,7 +653,7 @@ export function AnalysisPanel({
 
           <div className="flex w-full max-w-[392px] flex-col items-start gap-[6px]">
             {forecastEmissionDate ? (
-              <p className="-mb-[2px] text-[12px] leading-5 text-neutral-600">
+              <p className="-mb-[2px] text-[0.75rem] leading-5 text-neutral-600">
                 {t("forecastEmissionDate", {
                   date: formatEmissionDate(forecastEmissionDate, locale),
                 })}
@@ -664,7 +664,7 @@ export function AnalysisPanel({
                 de formulário, e o rótulo solto não chegava ao leitor de tela. */}
             <span
               id="analysis-year-label"
-              className="text-[14px] font-medium leading-[20px] text-[#292829]"
+              className="text-[0.875rem] font-medium leading-[20px] text-[#292829]"
             >
               {t("analysisDate")}
             </span>
@@ -681,13 +681,13 @@ export function AnalysisPanel({
         {model ? (
           <section className="flex flex-col gap-4">
             <div className="mb-4 flex flex-col">
-              <div className="w-full max-w-[392px] rounded-lg bg-[#5B612A] px-4 py-2 text-[18px] font-bold leading-6 text-white">
+              <div className="w-full max-w-[392px] rounded-lg bg-[#5B612A] px-4 py-2 text-[1.125rem] font-bold leading-6 text-white">
                 {model.name}
               </div>
             </div>
 
             <div className="flex w-full max-w-[392px] flex-col gap-2">
-              <div className="text-[18px] font-semibold leading-6 text-[#292829]">
+              <div className="text-[1.125rem] font-semibold leading-6 text-[#292829]">
                 {t("generalInformation")}
               </div>
 
@@ -705,7 +705,7 @@ export function AnalysisPanel({
                     }`,
                   }}
                 >
-                  <span className="font-semibold text-[14px] leading-5 text-[#292829]">
+                  <span className="font-semibold text-[0.875rem] leading-5 text-[#292829]">
                     {model.highlight.text}
                   </span>
                 </div>
@@ -713,11 +713,11 @@ export function AnalysisPanel({
             </div>
 
             <div className="flex flex-col gap-2">
-              <h2 className="text-[18px] font-semibold leading-6 text-[#292829]">
+              <h2 className="text-[1.125rem] font-semibold leading-6 text-[#292829]">
                 {t("whatIsHappening")}
               </h2>
               <div className="rounded-lg">
-                <p className="mt-1 text-[12px] text-sm leading-relaxed text-neutral-600">
+                <p className="mt-1 text-[0.75rem] text-sm leading-relaxed text-neutral-600">
                   {renderFormattedText(model.happening)}
                 </p>
               </div>

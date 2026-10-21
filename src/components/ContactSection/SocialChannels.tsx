@@ -29,7 +29,7 @@ const SocialChannels = ({
         >
           <Icon id={icon} size={size} className="text-grey-900" />
           {displayName && (
-            <p className="text-[16px] font-normal text-[#292829]">{name}</p>
+            <p className="text-[1rem] font-normal text-[#292829]">{name}</p>
           )}
         </a>
       ))}

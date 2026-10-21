@@ -55,7 +55,7 @@ export function ForecastFilters({
           <div key={dimension} className="flex flex-col items-start gap-[6px]">
             <span
               id={labelId}
-              className="text-[14px] font-medium leading-[20px] text-[#292829]"
+              className="text-[0.875rem] font-medium leading-[20px] text-[#292829]"
             >
               {t(`dimensions.${dimension}`)}
             </span>

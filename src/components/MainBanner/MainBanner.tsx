@@ -152,7 +152,7 @@ export function MainBanner({ banners, previews = [] }: MainBannerProps) {
               <div className="flex flex-col gap-4">
                 <h1
                   className={cn(
-                    "max-w-[784px] font-open-sans text-[36px] font-bold leading-[1.2] text-[#F8F7F8] md:text-5xl",
+                    "max-w-[784px] font-open-sans text-[2.25rem] font-bold leading-[1.2] text-[#F8F7F8] md:text-5xl",
                     index === active && "reveal-item",
                   )}
                 >

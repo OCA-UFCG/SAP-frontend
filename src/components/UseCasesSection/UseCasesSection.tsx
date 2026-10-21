@@ -133,7 +133,7 @@ export const UseCasesSection = ({ id, title, items, previews = {} }: Props) => {
   return (
     <section id={id} className="w-full scroll-mt-16.5 bg-[#21240F]">
       <Reveal className="mx-auto flex w-full max-w-[1440px] flex-col gap-6 px-4 py-12 md:px-10 lg:gap-9 lg:px-20">
-        <h2 className="reveal-item pb-2 font-open-sans text-[30px] font-semibold leading-9 tracking-[-0.0075em] text-[#F8F7F8]">
+        <h2 className="reveal-item pb-2 font-open-sans text-[1.875rem] font-semibold leading-9 tracking-[-0.0075em] text-[#F8F7F8]">
           {title}
         </h2>
 

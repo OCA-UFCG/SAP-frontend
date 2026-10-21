@@ -181,7 +181,7 @@ const SearchBarPlatform = ({
             autoComplete="off"
             autoCorrect="off"
             spellCheck={false}
-            className="w-full min-w-0 text-ellipsis text-[#292829] text-[13px] placeholder:text-[13px] bg-transparent border-none outline-none ring-0"
+            className="w-full min-w-0 text-ellipsis text-[#292829] text-[0.8125rem] placeholder:text-[0.8125rem] bg-transparent border-none outline-none ring-0"
             placeholder={t("placeholder")}
           />
 

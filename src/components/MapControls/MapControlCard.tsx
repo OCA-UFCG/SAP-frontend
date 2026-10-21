@@ -38,7 +38,7 @@ export function MapControlCard({
  * 12px: 10px se lê com a tela na mesa, não com ela na mão.
  */
 export const MAP_CONTROL_LABEL_CLASS =
-  "font-open-sans text-[10px] leading-[18px] tracking-[-0.006em] text-[#292829] max-md:text-xs max-md:leading-4";
+  "font-open-sans text-[0.625rem] leading-[18px] tracking-[-0.006em] text-[#292829] max-md:text-xs max-md:leading-4";
 
 /**
  * Um cartão que abre e fecha pelo próprio cabeçalho, com o mesmo chevron e a

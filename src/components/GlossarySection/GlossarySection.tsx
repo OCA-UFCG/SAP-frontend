@@ -13,7 +13,7 @@ export const GlossarySection = ({ terms }: Props) => {
       <div className="w-full bg-[#E1E2B4]">
         <div className="w-full max-w-[1440px] mx-auto">
           <div className="w-full bg-[#E1E2B4] h-[117px] px-6 sm:px-10 lg:px-[80px] flex items-center">
-            <h1 className="font-bold text-[32px] sm:text-[40px] lg:text-[48px] leading-tight text-[#3F4324]">
+            <h1 className="font-bold text-[2rem] sm:text-[2.5rem] lg:text-[3rem] leading-tight text-[#3F4324]">
               {t("title")}
             </h1>
           </div>
@@ -22,7 +22,7 @@ export const GlossarySection = ({ terms }: Props) => {
 
       <div className="w-full max-w-[1440px] mx-auto px-6 sm:px-10 lg:px-[80px] pt-[36px] pb-[36px]">
         {terms.length === 0 ? (
-          <p className="text-[16px] text-[#292829]">{t("empty")}</p>
+          <p className="text-[1rem] text-[#292829]">{t("empty")}</p>
         ) : (
           // No celular cada termo vira um bloco, com a definição embaixo: em duas
           // colunas a definição ficava espremida e cortada na lateral.
@@ -58,7 +58,7 @@ export const GlossarySection = ({ terms }: Props) => {
                       <td className="px-5 py-4 align-top font-bold text-[#21240F] max-sm:block max-sm:pb-1">
                         {translatedTerm}
                       </td>
-                      <td className="px-5 py-4 align-top text-[15px] leading-[150%] text-[#292829] max-sm:block max-sm:pt-0">
+                      <td className="px-5 py-4 align-top text-[0.9375rem] leading-[150%] text-[#292829] max-sm:block max-sm:pt-0">
                         {translatedDefinition}
                       </td>
                     </tr>

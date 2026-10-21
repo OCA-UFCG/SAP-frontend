@@ -72,7 +72,7 @@ function CatalogIndexCard({
     <article className="rounded-lg border border-stone-200 p-4">
       <div className="flex items-start justify-between gap-3">
         <h3 className="font-semibold">{item.name}</h3>
-        <span className="rounded-full bg-stone-100 px-2 py-1 text-[11px]">
+        <span className="rounded-full bg-stone-100 px-2 py-1 text-[0.6875rem]">
           {statusLabel(item)}
         </span>
       </div>
@@ -251,7 +251,7 @@ export function CatalogIndexSections({
                 >
                   <span>
                     <span className="font-semibold">{section.title}</span>
-                    <span className="ml-2 rounded-full bg-stone-100 px-2 py-0.5 text-[11px]">
+                    <span className="ml-2 rounded-full bg-stone-100 px-2 py-0.5 text-[0.6875rem]">
                       {section.items.length}
                     </span>
                     <span className="block text-xs text-stone-500">

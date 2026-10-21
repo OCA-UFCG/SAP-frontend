@@ -34,7 +34,7 @@ export const PlatformModulesSection = ({
     >
       <Reveal className="mx-auto flex w-full max-w-[1440px] flex-col gap-9 px-4 py-12 md:px-10 lg:px-20">
         <div className="reveal-item flex flex-col gap-2">
-          <h2 className="font-open-sans text-[30px] font-semibold leading-9 tracking-[-0.0075em] text-[#292829]">
+          <h2 className="font-open-sans text-[1.875rem] font-semibold leading-9 tracking-[-0.0075em] text-[#292829]">
             {texts.title}
           </h2>
           {texts.subtitle && (

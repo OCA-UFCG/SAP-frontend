@@ -87,7 +87,7 @@ export function DroughtDataset({
 
         {/* Título inteiro e, embaixo, os botões; a descrição fica no "i" */}
         <div className="flex flex-col gap-3 flex-1 min-w-0 max-sm:contents">
-          <span className="font-inter font-semibold text-[16px] leading-[22px] tracking-[-0.015em] text-[#292829] break-words">
+          <span className="font-inter font-semibold text-[1rem] leading-[22px] tracking-[-0.015em] text-[#292829] break-words">
             {displayTitle}
           </span>
 
@@ -132,7 +132,7 @@ export function DroughtDataset({
                   : "cursor-pointer transition-[background-color,scale] duration-200 hover:bg-[#4F5424] active:scale-[0.97]",
               )}
             >
-              <span className="font-open-sans text-[14px] leading-[24px] font-normal text-white truncate">
+              <span className="font-open-sans text-[0.875rem] leading-[24px] font-normal text-white truncate">
                 {t("details")}
               </span>
             </button>

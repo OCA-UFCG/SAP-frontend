@@ -74,7 +74,7 @@ export const ForgotPassword = ({
       >
         {/* A mesma frase com ou sem conta: dizer "não achamos esse
             e-mail" revelaria quem é usuário da plataforma. */}
-        <p className="w-full text-[13px] leading-5 text-[#676264]">
+        <p className="w-full text-[0.8125rem] leading-5 text-[#676264]">
           {t("sentDescription", { email: submittedEmail })}
         </p>
 
@@ -88,7 +88,7 @@ export const ForgotPassword = ({
             {resending ? t("resending") : t("resend")}
           </button>
           {resent ? (
-            <p role="status" className="text-[12px] leading-4 text-[#676264]">
+            <p role="status" className="text-[0.75rem] leading-4 text-[#676264]">
               {t("resent")}
             </p>
           ) : null}
@@ -111,7 +111,7 @@ export const ForgotPassword = ({
         noValidate
       >
         <div className="flex w-full flex-col gap-4">
-          <p className="text-[13px] leading-5 text-[#676264]">
+          <p className="text-[0.8125rem] leading-5 text-[#676264]">
             {t("description")}
           </p>
 

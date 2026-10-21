@@ -168,7 +168,7 @@ export const MenuModal = ({ content }: { content: ISection[] }) => {
                         <Link
                           href={child.path || "#"}
                           onClick={close}
-                          className="flex min-h-11 items-center pr-6 pl-10 text-[15px] text-[#3F4324] transition-colors active:bg-[#E4E5E2]"
+                          className="flex min-h-11 items-center pr-6 pl-10 text-[0.9375rem] text-[#3F4324] transition-colors active:bg-[#E4E5E2]"
                         >
                           {child.name}
                         </Link>

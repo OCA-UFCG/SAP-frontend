@@ -56,7 +56,7 @@ export function ReportHero({
             <p className="font-open-sans text-base font-semibold leading-6 text-[#292829]">
               {title ?? t("document.mainTitle")}
             </p>
-            <h1 className="font-open-sans text-[40px] font-bold leading-[68px] text-[#646B2D]">
+            <h1 className="font-open-sans text-[2.5rem] font-bold leading-[68px] text-[#646B2D]">
               {report.territory.label}
             </h1>
             <p className="font-open-sans text-base leading-6 text-[#292829]">

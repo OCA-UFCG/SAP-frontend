@@ -70,10 +70,10 @@ export const ActionPlanSection = ({
       <div className="w-full max-w-[1440px] mx-auto px-4 py-12 md:px-10 lg:px-[80px] flex flex-col gap-6">
         <div className="flex flex-col items-start gap-4">
           <Badge label={footerT("aboutMenu.planoDeAcaoBrasileiro")} />
-          <h2 className="text-[24px] md:text-[28px] lg:text-[30px] leading-[28px] md:leading-[32px] lg:leading-[36px] tracking-[-0.0075em] font-semibold text-[#292829] text-left">
+          <h2 className="text-[1.5rem] md:text-[1.75rem] lg:text-[1.875rem] leading-[28px] md:leading-[32px] lg:leading-[36px] tracking-[-0.0075em] font-semibold text-[#292829] text-left">
             {title}
           </h2>
-          <div className="text-[15px] md:text-[16px] leading-[150%] text-[#292829] text-left">
+          <div className="text-[0.9375rem] md:text-[1rem] leading-[150%] text-[#292829] text-left">
             {text}
           </div>
         </div>
@@ -94,8 +94,8 @@ export const ActionPlanSection = ({
                   className={cn(
                     "font-extrabold leading-tight",
                     isFeatured
-                      ? "text-[48px] lg:text-[64px] text-[#684B40]"
-                      : "text-[28px] lg:text-4xl text-[#96755C]",
+                      ? "text-[3rem] lg:text-[4rem] text-[#684B40]"
+                      : "text-[1.75rem] lg:text-4xl text-[#96755C]",
                   )}
                 >
                   {statValue(index, stat.value)}
@@ -109,7 +109,7 @@ export const ActionPlanSection = ({
         </div>
 
         <div className="flex flex-col gap-4">
-          <h3 className="text-[24px] md:text-[28px] lg:text-[30px] leading-[28px] md:leading-[32px] lg:leading-[36px] tracking-[-0.0075em] font-semibold text-[#292829] text-left">
+          <h3 className="text-[1.5rem] md:text-[1.75rem] lg:text-[1.875rem] leading-[28px] md:leading-[32px] lg:leading-[36px] tracking-[-0.0075em] font-semibold text-[#292829] text-left">
             {axesTitle}
           </h3>
           <p className="text-base leading-normal text-[#292829]">

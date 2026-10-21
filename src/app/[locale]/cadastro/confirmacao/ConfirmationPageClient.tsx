@@ -11,7 +11,7 @@ import PlatformLoading from "@/app/[locale]/platform/loading";
 type Outcome = "checking" | "approved" | "pending" | "rejected" | "failed";
 
 const PRIMARY_BUTTON =
-  "font-open-sans flex h-[33px] w-fit items-center justify-center rounded-md bg-[#646B2D] px-4 py-1.5 text-[11.65px] leading-5 text-white transition hover:bg-[#4F5424] focus:outline-none focus-visible:ring-2 focus-visible:ring-[#5B612A] focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-70";
+  "font-open-sans flex h-[33px] w-fit items-center justify-center rounded-md bg-[#646B2D] px-4 py-1.5 text-[0.7281rem] leading-5 text-white transition hover:bg-[#4F5424] focus:outline-none focus-visible:ring-2 focus-visible:ring-[#5B612A] focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-70";
 
 export function ConfirmationPageClient() {
   const t = useTranslations("SignupConfirmation");
@@ -109,12 +109,12 @@ export function ConfirmationPageClient() {
   return (
     <div className="flex min-h-[calc(100vh-4.125rem)] w-full items-center justify-center bg-white px-6 py-16">
       <div className="flex w-full max-w-[520px] flex-col gap-6">
-        <h1 className="font-inter text-[24px] font-medium leading-8 tracking-[-0.36px] text-[#50554C]">
+        <h1 className="font-inter text-[1.5rem] font-medium leading-8 tracking-[-0.36px] text-[#50554C]">
           {copy.title}
         </h1>
 
         {copy.body ? (
-          <p className="text-[15px] leading-6 text-[#676264]">{copy.body}</p>
+          <p className="text-[0.9375rem] leading-6 text-[#676264]">{copy.body}</p>
         ) : null}
 
         {outcome === "approved" ? (
@@ -139,12 +139,12 @@ export function ConfirmationPageClient() {
               {resending ? t("resending") : t("resend")}
             </button>
             {resent ? (
-              <p role="status" className="text-[13px] leading-5 text-[#50554C]">
+              <p role="status" className="text-[0.8125rem] leading-5 text-[#50554C]">
                 {t("resent")}
               </p>
             ) : null}
             {resendRefused ? (
-              <p role="alert" className="text-[13px] leading-5 text-[#B3261E]">
+              <p role="alert" className="text-[0.8125rem] leading-5 text-[#B3261E]">
                 {tCaptcha("failed")}
               </p>
             ) : null}
@@ -154,7 +154,7 @@ export function ConfirmationPageClient() {
         {outcome !== "approved" ? (
           <Link
             href="/"
-            className="text-[13px] leading-5 text-[#5B612A] underline underline-offset-2 hover:text-[#21240F]"
+            className="text-[0.8125rem] leading-5 text-[#5B612A] underline underline-offset-2 hover:text-[#21240F]"
           >
             {t("backHome")}
           </Link>

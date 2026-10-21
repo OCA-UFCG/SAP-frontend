@@ -17,7 +17,7 @@ import {
 // O cinza do texto de apoio. Não sai de MAP_CONTROL_LABEL_CLASS porque as duas
 // cores de texto disputariam a mesma propriedade.
 const SECONDARY_TEXT_CLASS =
-  "font-open-sans text-[10px] leading-[14px] tracking-[-0.006em] text-[#6B6B6B]";
+  "font-open-sans text-[0.625rem] leading-[14px] tracking-[-0.006em] text-[#6B6B6B]";
 
 type LoadStatus = "idle" | "loading" | "ready" | "error";
 
@@ -106,7 +106,7 @@ export function TerritorySearch({
               : undefined
           }
           placeholder={t("territorySearchPlaceholder")}
-          className="w-full min-w-0 bg-transparent font-open-sans text-[11px] text-[#292829] outline-none placeholder:text-[#6F6F6F]"
+          className="w-full min-w-0 bg-transparent font-open-sans text-[0.6875rem] text-[#292829] outline-none placeholder:text-[#6F6F6F]"
         />
       </div>
 

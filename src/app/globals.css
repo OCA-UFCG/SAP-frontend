@@ -520,7 +520,7 @@ html[data-section-transition="grow"]::view-transition-old(platform-stage) {
   box-shadow: none;
   color: #313131;
   font-family: var(--font-open-sans), sans-serif;
-  font-size: 11px;
+  font-size: 0.6875rem;
   font-weight: 600;
   line-height: 1.2;
   margin: 0 0 16px 16px;

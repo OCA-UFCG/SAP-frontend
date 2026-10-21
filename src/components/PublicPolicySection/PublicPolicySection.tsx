@@ -75,7 +75,7 @@ export const PublicPolicySection = ({
           className="reveal-item flex flex-col gap-6 font-inter text-[#292829]"
           style={revealOrder(2)}
         >
-          <h2 className="text-[30px] font-semibold leading-9 tracking-[-0.0075em]">
+          <h2 className="text-[1.875rem] font-semibold leading-9 tracking-[-0.0075em]">
             {title}
           </h2>
           <p className="text-sm leading-6">{text}</p>

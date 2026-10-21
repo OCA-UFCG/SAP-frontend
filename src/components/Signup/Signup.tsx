@@ -135,10 +135,10 @@ export const Signup = ({
               priority
               className="h-[110px] w-auto"
             />
-            <h1 className="font-inter w-full text-[24px] font-medium leading-7 tracking-[-0.36px] text-[#50554C]">
+            <h1 className="font-inter w-full text-[1.5rem] font-medium leading-7 tracking-[-0.36px] text-[#50554C]">
               {t("successTitle")}
             </h1>
-            <p className="w-full text-[13px] leading-5 text-[#676264]">
+            <p className="w-full text-[0.8125rem] leading-5 text-[#676264]">
               {t("successDescription")}
             </p>
 
@@ -152,17 +152,17 @@ export const Signup = ({
                 type="button"
                 onClick={() => void handleResend()}
                 disabled={resending || !resendToken}
-                className="font-open-sans flex h-[33px] w-full cursor-pointer items-center justify-center rounded-md border border-[#DBE0CC] px-3 py-1.5 text-[11.65px] leading-5 text-[#50554C] transition hover:bg-[#F3F5EE] focus:outline-none focus-visible:ring-2 focus-visible:ring-[#5B612A] disabled:cursor-not-allowed disabled:opacity-70"
+                className="font-open-sans flex h-[33px] w-full cursor-pointer items-center justify-center rounded-md border border-[#DBE0CC] px-3 py-1.5 text-[0.7281rem] leading-5 text-[#50554C] transition hover:bg-[#F3F5EE] focus:outline-none focus-visible:ring-2 focus-visible:ring-[#5B612A] disabled:cursor-not-allowed disabled:opacity-70"
               >
                 {resending ? t("resending") : t("resend")}
               </button>
               {resent ? (
-                <p role="status" className="text-[12px] leading-4 text-[#676264]">
+                <p role="status" className="text-[0.75rem] leading-4 text-[#676264]">
                   {t("resent")}
                 </p>
               ) : null}
               {resendRefused ? (
-                <p role="alert" className="text-[12px] leading-4 text-[#B3261E]">
+                <p role="alert" className="text-[0.75rem] leading-4 text-[#B3261E]">
                   {tCaptcha("failed")}
                 </p>
               ) : null}
@@ -184,7 +184,7 @@ export const Signup = ({
                   priority
                   className="h-[110px] w-auto"
                 />
-                <h1 className="font-inter w-full text-[24px] font-medium leading-5 tracking-[-0.36px] text-[#50554C]">
+                <h1 className="font-inter w-full text-[1.5rem] font-medium leading-5 tracking-[-0.36px] text-[#50554C]">
                   {t("title")}
                 </h1>
               </div>
@@ -193,7 +193,7 @@ export const Signup = ({
                 {error ? (
                   <p
                     role="alert"
-                    className="rounded-[7px] bg-[#FCE8E6] px-2.5 py-2 text-[13px] leading-5 text-[#B3261E]"
+                    className="rounded-[7px] bg-[#FCE8E6] px-2.5 py-2 text-[0.8125rem] leading-5 text-[#B3261E]"
                   >
                     {error}
                   </p>
@@ -268,7 +268,7 @@ export const Signup = ({
                       aria-describedby={
                         errors.intention ? "intention-error" : "intention-hint"
                       }
-                      className="font-inter w-full resize-y rounded-[7px] bg-[#E4E5E2] px-2.5 py-2 text-[13px] font-medium leading-5 tracking-[-0.2px] text-[#292829] outline-none transition placeholder:text-[#676264] focus:ring-2 focus:ring-[#646B2D] aria-[invalid=true]:ring-2 aria-[invalid=true]:ring-[#B3261E]"
+                      className="font-inter w-full resize-y rounded-[7px] bg-[#E4E5E2] px-2.5 py-2 text-[0.8125rem] font-medium leading-5 tracking-[-0.2px] text-[#292829] outline-none transition placeholder:text-[#676264] focus:ring-2 focus:ring-[#646B2D] aria-[invalid=true]:ring-2 aria-[invalid=true]:ring-[#B3261E]"
                       {...register("intention", {
                         required: t("intentionRequired"),
                       })}
@@ -276,14 +276,14 @@ export const Signup = ({
                     {errors.intention ? (
                       <p
                         id="intention-error"
-                        className="text-[12px] leading-4 text-[#B3261E]"
+                        className="text-[0.75rem] leading-4 text-[#B3261E]"
                       >
                         {errors.intention.message}
                       </p>
                     ) : (
                       <p
                         id="intention-hint"
-                        className="text-[12px] leading-4 text-[#676264]"
+                        className="text-[0.75rem] leading-4 text-[#676264]"
                       >
                         {t("intentionHint")}
                       </p>
@@ -302,12 +302,12 @@ export const Signup = ({
             <button
               type="submit"
               disabled={isSubmitting || !captchaToken}
-              className="font-open-sans flex h-[33px] w-full cursor-pointer items-center justify-center rounded-md bg-[#646B2D] px-3 py-1.5 text-[11.65px] leading-5 text-white transition hover:bg-[#4F5424] focus:outline-none focus-visible:ring-2 focus-visible:ring-[#5B612A] focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-70"
+              className="font-open-sans flex h-[33px] w-full cursor-pointer items-center justify-center rounded-md bg-[#646B2D] px-3 py-1.5 text-[0.7281rem] leading-5 text-white transition hover:bg-[#4F5424] focus:outline-none focus-visible:ring-2 focus-visible:ring-[#5B612A] focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-70"
             >
               {isSubmitting ? t("submitting") : t("submit")}
             </button>
 
-            <p className="text-[12px] leading-4 text-[#676264]">
+            <p className="text-[0.75rem] leading-4 text-[#676264]">
               {t("hasAccount")}{" "}
               <Link
                 href="/login"
