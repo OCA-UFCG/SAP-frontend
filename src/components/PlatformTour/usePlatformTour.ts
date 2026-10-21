@@ -186,7 +186,7 @@ function buildSteps(
           const logo = document.createElement("img");
           logo.src = "/green-sedes-logo.svg";
           logo.alt = "SEDES";
-          logo.width = 89;
+          logo.width = 95;
           logo.height = 32;
           logo.className = "sedes-tour-logo";
           dom.title.before(logo);

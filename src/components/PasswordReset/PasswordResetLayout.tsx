@@ -44,7 +44,7 @@ export function PasswordResetLayout({
             <Image
               src="/green-sedes-logo.svg"
               alt={logoAlt}
-              width={128}
+              width={136}
               height={46}
               priority
               className="h-[110px] w-auto"
