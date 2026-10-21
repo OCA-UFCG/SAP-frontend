@@ -33,6 +33,10 @@ const eslintConfig = defineConfig([
       // plugin importa o default, que a v10 não exporta mais. Rótulos de campo
       // ficam cobertos pelo axe nos testes do Storybook.
       "jsx-a11y/label-has-associated-control": "off",
+      // O eMAG 3.1 (recomendação 1.5) pede os atalhos accesskey 1 a 4 no topo
+      // da página, que os sites do governo seguem. A regra proíbe qualquer
+      // accesskey; as quatro teclas ficam num lugar só (skipTargets.ts).
+      "jsx-a11y/no-access-key": "off",
     },
   },
 
