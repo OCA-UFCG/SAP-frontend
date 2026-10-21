@@ -148,6 +148,7 @@
     "historicalNoteTitle": "Note on the historical series",
     "historicalNoteText": "The available series for this indicator includes {count} period(s), covering {range}. {resolution}",
     "mapCropAlt": "Cropped municipality map",
+    "mapAlt": "Map of {layer} in {territory}, {period}",
     "mapUnavailableExport": "Map unavailable for export.",
     "mapPeriodUnavailable": "No map image for this period.",
     "mapRetry": "Try again",

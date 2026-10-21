@@ -445,6 +445,14 @@ export const ReportForecastSection = memo(function ReportForecastSection({
                     {isAvailable(analysis) && (
                       <ReportMapPreview
                         territory={report.territory}
+                        imageAlt={t("mapAlt", {
+                          layer: kindOf(analysis),
+                          territory: report.territory.label,
+                          period: formatReportPeriod(
+                            period ?? referencePeriod,
+                            locale,
+                          ),
+                        })}
                         layerId={analysis.id}
                         period={period ?? referencePeriod}
                         className="report-map-frame aspect-[696/322] w-full rounded-lg bg-white"
