@@ -1,11 +1,30 @@
 import type { Meta, StoryObj } from "@storybook/nextjs-vite";
 import { Header } from "./Header";
 import { ISections } from "@/utils/interfaces";
+import { createElement } from "react";
+import { AuthContext, type AuthContextType } from "@/contexts/AuthContext";
+
+const signedOutSession: AuthContextType = {
+  user: null,
+  loading: false,
+  signIn: async () => "failed",
+  signOut: async () => {},
+};
 
 const meta: Meta<typeof Header> = {
   title: "Layout/Header",
   component: Header,
   tags: ["autodocs"],
+  // O botão de entrar (UserAuth) lê a sessão do AuthProvider, que no
+  // Storybook não tem Firebase: aqui ninguém está logado.
+  decorators: [
+    (Story) =>
+      createElement(
+        AuthContext.Provider,
+        { value: signedOutSession },
+        createElement(Story),
+      ),
+  ],
 
   parameters: {
     layout: "fullscreen", // Remove o padding padrão do Storybook para ocupar a tela toda

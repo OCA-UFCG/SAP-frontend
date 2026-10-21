@@ -112,9 +112,13 @@ export const AboutPartnersTabs = ({
         }}
       >
         <div className="w-full max-w-[1280px] flex flex-col gap-[16px]">
-          <h1 className="font-bold text-3xl md:text-[3rem] md:leading-[68px] text-white">
-            {resolvedHeroTitle}
-          </h1>
+          {/* Sem título no Contentful, nada de <h1> vazio: o leitor de tela
+              anunciaria um título sem texto. */}
+          {resolvedHeroTitle.trim() && (
+            <h1 className="font-bold text-3xl md:text-[3rem] md:leading-[68px] text-white">
+              {resolvedHeroTitle}
+            </h1>
+          )}
           <div className="text-base leading-[24px] text-white max-w-[891px]">
             {resolvedHeroDescription}
           </div>
