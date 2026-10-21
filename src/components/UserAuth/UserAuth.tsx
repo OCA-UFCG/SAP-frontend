@@ -7,12 +7,14 @@ import { useTranslations } from "next-intl";
 import { Icon } from "../Icon/Icon";
 import { LanguageSwitcher } from "../LanguageSwitcher/LanguageSwitcher";
 import { navigateWithFullReload } from "@/utils/fullPageNavigation";
+import { useDialogFocus } from "@/hooks/useDialogFocus";
 
 export const UserAuth = () => {
   const t = useTranslations("UserAuth");
   const { user, loading, signOut } = useAuth();
   const [openPathname, setOpenPathname] = useState<string | null>(null);
   const menuRef = useRef<HTMLDivElement>(null);
+  const popoverRef = useRef<HTMLDivElement>(null);
   const pathname = usePathname();
   const router = useRouter();
   const isOpen = openPathname === pathname;
@@ -26,6 +28,14 @@ export const UserAuth = () => {
     document.addEventListener("mousedown", handleClickOutside);
     return () => document.removeEventListener("mousedown", handleClickOutside);
   }, []);
+
+  // Esc fecha e devolve o foco ao botão do usuário. O Tab não fica preso: o
+  // menu não bloqueia a página, então sair dele com o Tab é o esperado.
+  useDialogFocus(popoverRef, {
+    open: isOpen,
+    onClose: () => setOpenPathname(null),
+    trapFocus: false,
+  });
 
   if (loading) return null;
 
@@ -83,7 +93,9 @@ export const UserAuth = () => {
 
           {isOpen && (
             <div
-              className="absolute right-0 mt-2 w-56 origin-top-right rounded-md border border-stone-200 bg-white py-1 shadow-[0_16px_32px_rgba(33,36,15,0.14)] z-50 motion-safe:animate-[menu-in_180ms_ease-out]"
+              ref={popoverRef}
+              tabIndex={-1}
+              className="absolute right-0 mt-2 w-56 origin-top-right rounded-md border border-stone-200 bg-white py-1 shadow-[0_16px_32px_rgba(33,36,15,0.14)] z-50 motion-safe:animate-[menu-in_180ms_ease-out] focus:outline-none"
               role="dialog"
               aria-label={t("statusLabel")}
             >

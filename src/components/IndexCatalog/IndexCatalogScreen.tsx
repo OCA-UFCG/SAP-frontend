@@ -8,6 +8,7 @@ import {
   useRef,
   useState,
 } from "react";
+import { useDialogFocus } from "@/hooks/useDialogFocus";
 import { CatalogIndexSections } from "@/components/IndexCatalog/CatalogIndexSections";
 import { CatalogMonitoringPreview } from "@/components/IndexCatalog/CatalogMonitoringPreview";
 import {
@@ -304,6 +305,12 @@ export function IndexCatalogScreen() {
   const [deleteImpact, setDeleteImpact] =
     useState<IndexCatalogLifecycleImpact | null>(null);
   const [deleteConfirmation, setDeleteConfirmation] = useState("");
+  const deleteDialogRef = useRef<HTMLDivElement>(null);
+  // Esc cancela, o Tab fica na confirmação e o foco volta ao "Remover" da lista.
+  useDialogFocus(deleteDialogRef, {
+    open: deleteImpact !== null,
+    onClose: () => setDeleteImpact(null),
+  });
   const [message, setMessage] = useState("");
   const [error, setError] = useState("");
   const [busy, setBusy] = useState<string | null>("load");
@@ -1916,11 +1923,22 @@ export function IndexCatalogScreen() {
 
       {deleteImpact && (
         <div className="fixed inset-0 z-[110] grid place-items-center bg-black/40 p-4">
-          <div className="max-w-lg rounded-xl bg-white p-6 shadow-xl">
-            <h2 className="text-lg font-bold">
+          <div
+            ref={deleteDialogRef}
+            role="alertdialog"
+            aria-modal="true"
+            aria-labelledby="catalog-delete-title"
+            aria-describedby="catalog-delete-description"
+            tabIndex={-1}
+            className="max-w-lg rounded-xl bg-white p-6 shadow-xl focus:outline-none"
+          >
+            <h2 id="catalog-delete-title" className="text-lg font-bold">
               Remover {deleteImpact.item.name}?
             </h2>
-            <p className="mt-3 text-sm text-stone-600">
+            <p
+              id="catalog-delete-description"
+              className="mt-3 text-sm text-stone-600"
+            >
               Somente o panelLayer será removido do Contentful. Os assets GEE
               nunca serão apagados. Digite o ID técnico para confirmar:
             </p>
@@ -1929,6 +1947,8 @@ export function IndexCatalogScreen() {
             </code>
             <input
               className={inputClass}
+              aria-label="ID técnico para confirmar a remoção"
+              data-autofocus
               value={deleteConfirmation}
               onChange={(event) => setDeleteConfirmation(event.target.value)}
             />

@@ -1,6 +1,7 @@
 "use client";
 
-import { useEffect, useState, type ReactNode } from "react";
+import { useEffect, useRef, useState, type ReactNode } from "react";
+import { useDialogFocus } from "@/hooks/useDialogFocus";
 
 const ANA_STATISTICS_ASSET =
   "projects/obscaatinga/assets/Estatisticas/Estatistica_Multinivel_MonitorANA_2025";
@@ -339,18 +340,16 @@ export function IndexCatalogGuideModal({
   const [step, setStep] = useState(0);
   const current = STEPS[step];
 
+  const dialogRef = useRef<HTMLElement>(null);
   useEffect(() => {
     const previousOverflow = document.body.style.overflow;
     document.body.style.overflow = "hidden";
-    const closeOnEscape = (event: KeyboardEvent) => {
-      if (event.key === "Escape") onClose();
-    };
-    document.addEventListener("keydown", closeOnEscape);
     return () => {
       document.body.style.overflow = previousOverflow;
-      document.removeEventListener("keydown", closeOnEscape);
     };
-  }, [onClose]);
+  }, []);
+  // Esc fecha, o Tab fica preso no diálogo e o foco volta a quem o abriu.
+  useDialogFocus(dialogRef, { onClose });
 
   return (
     <div
@@ -363,8 +362,10 @@ export function IndexCatalogGuideModal({
       <section
         role="dialog"
         aria-modal="true"
+        ref={dialogRef}
+        tabIndex={-1}
         aria-labelledby="index-catalog-guide-title"
-        className="max-h-[calc(100vh-2rem)] w-full max-w-4xl overflow-y-auto rounded-xl bg-white p-6 shadow-2xl"
+        className="max-h-[calc(100vh-2rem)] w-full max-w-4xl overflow-y-auto rounded-xl bg-white p-6 shadow-2xl focus:outline-none"
       >
         <header className="flex items-start justify-between gap-4 border-b border-stone-200 pb-4">
           <div>
