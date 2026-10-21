@@ -1,0 +1,39 @@
+{
+  "Accessibility": {
+    "title": "Accessibility",
+    "intro": "The SEDES Portal is meant to be used by everyone, with or without a disability. This page explains what is already available, what still has limits, and how to tell the team when something gets in your way.",
+    "commitment": {
+      "heading": "Our commitment",
+      "body": "We follow the Brazilian Law for the Inclusion of Persons with Disabilities (Law No. 13,146/2015), whose article 63 requires websites run by government bodies to be accessible. To do so we adopt the Web Content Accessibility Guidelines (WCAG 2.1, level AA) and the Brazilian e-Government Accessibility Model (eMAG 3.1)."
+    },
+    "shortcuts": {
+      "heading": "Keyboard shortcuts",
+      "intro": "At the top of every page there are links that jump straight to the main parts. They show up when you press Tab and also respond to the keys below:",
+      "keyColumn": "Key",
+      "actionColumn": "Takes you to",
+      "content": "The page content",
+      "menu": "The main menu",
+      "search": "The state or municipality search, on pages that have one",
+      "footer": "The footer",
+      "browsers": "The combination depends on the browser: in Chrome and Edge, Alt + number; in Firefox, Alt + Shift + number; in Safari and other macOS browsers, Control + Option + number."
+    },
+    "resources": {
+      "heading": "Available features",
+      "vlibras": "Translation into Brazilian Sign Language (Libras) through VLibras, from the Federal Government: click the hands icon on the side of the screen and pick an avatar.",
+      "keyboard": "Everything works with the keyboard: Tab moves forward, Shift + Tab moves back, Enter and Space activate, and Esc closes menus and dialogs.",
+      "zoom": "Zoom: use Ctrl and + (Cmd and + on macOS) to enlarge the page up to 200% without losing content.",
+      "contrast": "High contrast: the portal respects your operating system's high contrast mode and its reduce motion setting.",
+      "tables": "Charts and maps come with tables and text holding the same values, for screen reader users."
+    },
+    "limitations": {
+      "heading": "Known limitations",
+      "maps": "Satellite maps are visual by nature. We offer each municipality's values as tables and text, but reading spatial patterns (for example, where drought is spreading) still depends on the image.",
+      "cms": "Text, images and descriptions in news and institutional pages are published by the editorial team. When an image arrives without a description, the screen reader has nothing to read.",
+      "documents": "PDF reports may not keep the same reading structure as the on-screen version. Whenever possible, prefer the report on the portal itself."
+    },
+    "report": {
+      "heading": "Found a barrier?",
+      "body": "Tell the team at <email>{address}</email>. Say which page you were on, what you tried to do and, if you use one, which assistive technology (screen reader, magnifier, voice control). We will reply and fix what is within our reach."
+    }
+  }
+}

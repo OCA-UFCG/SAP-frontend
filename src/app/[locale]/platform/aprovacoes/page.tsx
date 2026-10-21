@@ -6,6 +6,9 @@ import { SESSION_COOKIE_NAME } from "@/lib/server-session";
 import { resolveLogsViewerAccess } from "@/lib/logs-access";
 import { listPendingAccessRequests } from "@/lib/access-requests";
 import { ApprovalsTable } from "./ApprovalsTable";
+import { pageTitleMetadata } from "@/lib/page-metadata";
+
+export const generateMetadata = pageTitleMetadata("approvals");
 
 /**
  * Tela de decisão sobre pedidos de acesso.
@@ -61,7 +64,7 @@ export default async function ApprovalsPage({
 
   if (failed) {
     return (
-      <main className="flex w-full flex-col gap-4 px-6 py-10">
+      <div className="flex w-full flex-col gap-4 px-6 py-10">
         {backToPlatform}
         <h1 className="font-inter text-[22px] font-medium leading-7 tracking-[-0.36px] text-[#50554C]">
           {t("title")}
@@ -72,12 +75,12 @@ export default async function ApprovalsPage({
         >
           {t("loadFailed")}
         </p>
-      </main>
+      </div>
     );
   }
 
   return (
-    <main className="flex w-full flex-col gap-6 px-6 py-10">
+    <div className="flex w-full flex-col gap-6 px-6 py-10">
       {backToPlatform}
       <div className="flex flex-col gap-2">
         <h1 className="font-inter text-[22px] font-medium leading-7 tracking-[-0.36px] text-[#50554C]">
@@ -98,6 +101,6 @@ export default async function ApprovalsPage({
           }).format(new Date(request.createdAt)),
         }))}
       />
-    </main>
+    </div>
   );
 }

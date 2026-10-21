@@ -117,9 +117,9 @@ export function ResetPasswordPageClient({
 
   if (status === "checking") {
     return (
-      <main className="flex min-h-[calc(100vh-4.125rem)] w-full">
+      <div className="flex min-h-[calc(100vh-4.125rem)] w-full">
         <PlatformLoading />
-      </main>
+      </div>
     );
   }
 

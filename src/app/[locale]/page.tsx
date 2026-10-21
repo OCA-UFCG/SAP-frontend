@@ -41,7 +41,7 @@ export default async function Home({
   // Os ids das seções são os destinos do menu "Início" do topo (layout.tsx).
   return (
     <div className="flex min-h-screen flex-col">
-      <main className="grow">
+      <div className="grow">
         <MainBanner
           banners={data.banners}
           // Só as dos slides: o banner é componente de cliente, e o que ele
@@ -74,7 +74,7 @@ export default async function Home({
           previews={previews}
         />
         <InstitutionsSection id="instituicoes" partners={data.partners} />
-      </main>
+      </div>
     </div>
   );
 }

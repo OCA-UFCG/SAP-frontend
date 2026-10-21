@@ -1,4 +1,7 @@
 import { MunicipalReportPreview } from "@/components/MunicipalReport/MunicipalReportPreview";
+import { pageTitleMetadata } from "@/lib/page-metadata";
+
+export const generateMetadata = pageTitleMetadata("municipalReport");
 
 interface MunicipalReportPageParams {
   locationKey?: string | string[];

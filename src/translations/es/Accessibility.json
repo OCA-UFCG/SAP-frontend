@@ -1,0 +1,39 @@
+{
+  "Accessibility": {
+    "title": "Accesibilidad",
+    "intro": "El Portal SEDES quiere ser usado por todas las personas, con o sin discapacidad. Esta página explica lo que ya está disponible, lo que todavía tiene límites y cómo avisar al equipo cuando algo dificulte su uso.",
+    "commitment": {
+      "heading": "Nuestro compromiso",
+      "body": "Seguimos la Ley Brasileña de Inclusión de la Persona con Discapacidad (Ley n.º 13.146/2015), cuyo art. 63 obliga a los sitios mantenidos por órganos de gobierno a ser accesibles. Para ello adoptamos las Pautas de Accesibilidad para el Contenido Web (WCAG 2.1, nivel AA) y el Modelo de Accesibilidad en Gobierno Electrónico de Brasil (eMAG 3.1)."
+    },
+    "shortcuts": {
+      "heading": "Atajos de teclado",
+      "intro": "En la parte superior de todas las páginas hay enlaces para saltar directamente a las partes principales. Aparecen al pulsar Tab y también responden a las teclas siguientes:",
+      "keyColumn": "Tecla",
+      "actionColumn": "Lleva a",
+      "content": "El contenido de la página",
+      "menu": "El menú principal",
+      "search": "La búsqueda de estado o municipio, en las páginas que la tienen",
+      "footer": "El pie de página",
+      "browsers": "La combinación cambia según el navegador: en Chrome y Edge, Alt + número; en Firefox, Alt + Shift + número; en Safari y otros navegadores de macOS, Control + Option + número."
+    },
+    "resources": {
+      "heading": "Recursos disponibles",
+      "vlibras": "Traducción a la Lengua Brasileña de Señas (Libras) con VLibras, del Gobierno Federal: haga clic en el icono de manos al costado de la pantalla y elija un avatar.",
+      "keyboard": "Toda la navegación funciona con el teclado: Tab avanza, Shift + Tab retrocede, Enter y Espacio activan, y Esc cierra menús y ventanas.",
+      "zoom": "Ampliación: use Ctrl y + (Cmd y + en macOS) para aumentar la página hasta el 200 % sin perder contenido.",
+      "contrast": "Alto contraste: el portal respeta el modo de alto contraste y la opción de reducir animaciones de su sistema operativo.",
+      "tables": "Los gráficos y mapas vienen acompañados de tablas y textos con los mismos valores, para quienes usan lector de pantalla."
+    },
+    "limitations": {
+      "heading": "Limitaciones conocidas",
+      "maps": "Los mapas satelitales son, por naturaleza, visuales. Ofrecemos los valores de cada municipio en tablas y textos, pero la lectura de patrones espaciales (por ejemplo, dónde avanza la sequía) todavía depende de la imagen.",
+      "cms": "Los textos, imágenes y descripciones de las noticias y páginas institucionales los publica el equipo editorial. Cuando una imagen llega sin descripción, el lector de pantalla no tiene qué leer.",
+      "documents": "Los informes en PDF pueden no tener la misma estructura de lectura que la versión en pantalla. Siempre que sea posible, prefiera la versión del informe en el propio portal."
+    },
+    "report": {
+      "heading": "¿Encontró una barrera?",
+      "body": "Cuénteselo al equipo por el correo <email>{address}</email>. Diga en qué página estaba, qué intentó hacer y, si la usa, qué tecnología de apoyo (lector de pantalla, ampliador, control por voz). Responderemos y corregiremos lo que esté a nuestro alcance."
+    }
+  }
+}

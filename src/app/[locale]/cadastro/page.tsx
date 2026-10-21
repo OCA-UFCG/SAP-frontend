@@ -2,6 +2,9 @@ import { notFound } from "next/navigation";
 import { isSignupOffered } from "@/lib/access-flag";
 import { getHomePageContent } from "@/repositories/content/siteContentRepository";
 import { SignupPageClient } from "./SignupPageClient";
+import { pageTitleMetadata } from "@/lib/page-metadata";
+
+export const generateMetadata = pageTitleMetadata("signup");
 
 function normalizeImageUrl(url?: string) {
   if (!url) return undefined;

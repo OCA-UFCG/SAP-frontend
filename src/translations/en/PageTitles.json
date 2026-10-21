@@ -1,0 +1,21 @@
+{
+  "PageTitles": {
+    "site": "SEDES Portal",
+    "description": "Strategic System on Desertification and Drought (SEDES)",
+    "accessibility": "Accessibility",
+    "glossary": "Glossary",
+    "contact": "Contacts",
+    "about": "About SEDES",
+    "login": "Sign in",
+    "signup": "Sign up",
+    "signupConfirmation": "Sign-up confirmation",
+    "forgotPassword": "Forgot password",
+    "resetPassword": "Reset password",
+    "pendingApproval": "Awaiting approval",
+    "platform": "Platform",
+    "analysis": "Prioritization",
+    "municipalReport": "Municipal report",
+    "approvals": "Approvals",
+    "comingSoon": "Coming soon"
+  }
+}

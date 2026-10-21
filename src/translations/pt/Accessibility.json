@@ -1,0 +1,39 @@
+{
+  "Accessibility": {
+    "title": "Acessibilidade",
+    "intro": "O Portal SEDES quer ser usado por todas as pessoas, com ou sem deficiência. Esta página explica o que já está disponível, o que ainda tem limites e como avisar a equipe quando algo atrapalhar o seu uso.",
+    "commitment": {
+      "heading": "Nosso compromisso",
+      "body": "Seguimos a Lei Brasileira de Inclusão da Pessoa com Deficiência (Lei nº 13.146/2015), que no art. 63 obriga os sites mantidos por órgãos de governo a serem acessíveis. Para isso adotamos as Diretrizes de Acessibilidade para Conteúdo Web (WCAG 2.1, nível AA) e o Modelo de Acessibilidade em Governo Eletrônico (eMAG 3.1)."
+    },
+    "shortcuts": {
+      "heading": "Atalhos de teclado",
+      "intro": "No topo de todas as páginas há links para pular direto às partes principais. Eles aparecem ao apertar Tab e também respondem às teclas abaixo:",
+      "keyColumn": "Tecla",
+      "actionColumn": "Leva para",
+      "content": "O conteúdo da página",
+      "menu": "O menu principal",
+      "search": "A busca de estado ou município, nas páginas que têm busca",
+      "footer": "O rodapé",
+      "browsers": "A combinação muda com o navegador: no Chrome e no Edge, Alt + número; no Firefox, Alt + Shift + número; no Safari e em outros navegadores do macOS, Control + Option + número."
+    },
+    "resources": {
+      "heading": "Recursos disponíveis",
+      "vlibras": "Tradução para Libras pelo VLibras, do Governo Federal: clique no ícone de mãos no canto da tela e escolha um avatar.",
+      "keyboard": "Toda a navegação funciona pelo teclado: Tab avança, Shift + Tab volta, Enter e Espaço ativam, e Esc fecha menus e janelas.",
+      "zoom": "Ampliação: use Ctrl e + (Cmd e + no macOS) para aumentar a página até 200% sem perder conteúdo.",
+      "contrast": "Alto contraste: o portal respeita o modo de alto contraste e a opção de reduzir animações do seu sistema operacional.",
+      "tables": "Gráficos e mapas vêm acompanhados de tabelas e textos com os mesmos valores, para quem usa leitor de tela."
+    },
+    "limitations": {
+      "heading": "Limitações conhecidas",
+      "maps": "Os mapas de satélite são, por natureza, visuais. Oferecemos os valores de cada município em tabelas e textos, mas a leitura de padrões espaciais (por exemplo, onde a seca avança) ainda depende da imagem.",
+      "cms": "Textos, imagens e descrições das notícias e páginas institucionais são publicados pela equipe editorial. Quando uma imagem chega sem descrição, o leitor de tela não tem o que ler.",
+      "documents": "Os relatórios em PDF podem não ter a mesma estrutura de leitura da versão na tela. Sempre que possível, prefira a versão do relatório no próprio portal."
+    },
+    "report": {
+      "heading": "Encontrou uma barreira?",
+      "body": "Conte para a equipe pelo e-mail <email>{address}</email>. Diga em qual página estava, o que tentou fazer e, se usar, qual tecnologia assistiva (leitor de tela, ampliador, navegação por voz). Vamos responder e corrigir o que estiver ao nosso alcance."
+    }
+  }
+}

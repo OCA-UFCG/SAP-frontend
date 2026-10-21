@@ -8,6 +8,7 @@
     "closeMenu": "Cerrar menú",
     "showSections": "Mostrar las secciones de {name}",
     "hideSections": "Ocultar las secciones de {name}",
-    "language": "Idioma"
+    "language": "Idioma",
+    "mainMenu": "Menú principal"
   }
 }
