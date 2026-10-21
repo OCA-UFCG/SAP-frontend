@@ -1,0 +1,16 @@
+{
+  "MapAccessibility": {
+    "mapTitle": "Mapa",
+    "zoomIn": "Aproximar",
+    "zoomOut": "Afastar",
+    "resetBearing": "Arraste para girar o mapa; clique para voltar o norte para cima",
+    "toggleAttribution": "Mostrar ou esconder os créditos do mapa",
+    "mapFeedback": "Enviar comentário sobre o mapa",
+    "closePopup": "Fechar",
+    "marker": "Marcador no mapa",
+    "keyboardHint": "Com o mapa em foco, use as setas para mover, as teclas + e − para aproximar e afastar. Os valores do local escolhido aparecem em texto no painel Detalhamento.",
+    "analysisLayer": "Resultado da análise multicritério",
+    "noLayer": "nenhum índice ligado",
+    "brazil": "Brasil"
+  }
+}

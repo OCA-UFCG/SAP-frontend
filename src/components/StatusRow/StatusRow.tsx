@@ -7,7 +7,7 @@ type Props = {
 
 export const StatusRow = ({ item }: Props) => {
   return (
-    <div className="flex justify-between items-center min-h-10 pl-2 pr-0 bg-white rounded-lg gap-4 w-full">
+    <li className="flex justify-between items-center min-h-10 pl-2 pr-0 bg-white rounded-lg gap-4 w-full">
       <div className="flex items-center gap-2">
         <span className="text-[14px] font-semibold">{item.label}</span>
       </div>
@@ -21,6 +21,6 @@ export const StatusRow = ({ item }: Props) => {
       >
         {item.value}%
       </div>
-    </div>
+    </li>
   );
 };

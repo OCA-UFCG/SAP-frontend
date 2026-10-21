@@ -36,7 +36,8 @@ export function PlatformMapCaption({ legend }: { legend: IImageParam[] }) {
       {/* No celular, em duas colunas: numa coluna só, Legendas e Territórios
           cobriam a metade de baixo do mapa — justamente o Nordeste. */}
       {() => (
-        <div
+        <ul
+          aria-label={t("title")}
           className={`legend-cascade flex flex-col gap-1.5 max-md:grid max-md:grid-cols-2 max-md:gap-x-3 max-md:gap-y-1 ${shouldScroll ? "max-h-[168px] overflow-y-auto pr-2 max-md:max-h-[104px]" : ""}`}
         >
           {legend.map((item) => {
@@ -46,16 +47,20 @@ export function PlatformMapCaption({ legend }: { legend: IImageParam[] }) {
               : item.label;
 
             return (
-              <div key={item.label} className="flex items-center gap-3 max-md:gap-2">
+              <li
+                key={item.label}
+                className="flex items-center gap-3 max-md:gap-2"
+              >
                 <span
+                  aria-hidden="true"
                   className="h-4 w-4 shrink-0 rounded-full border border-[#C4C4C4] max-md:h-3 max-md:w-3"
                   style={{ backgroundColor: item.color }}
                 />
                 <span className={MAP_CONTROL_LABEL_CLASS}>{displayLabel}</span>
-              </div>
+              </li>
             );
           })}
-        </div>
+        </ul>
       )}
     </MapControlDisclosure>
   );

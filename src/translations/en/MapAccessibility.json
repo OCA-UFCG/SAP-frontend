@@ -1,0 +1,16 @@
+{
+  "MapAccessibility": {
+    "mapTitle": "Map",
+    "zoomIn": "Zoom in",
+    "zoomOut": "Zoom out",
+    "resetBearing": "Drag to rotate the map; click to reset north",
+    "toggleAttribution": "Show or hide map credits",
+    "mapFeedback": "Send map feedback",
+    "closePopup": "Close",
+    "marker": "Map marker",
+    "keyboardHint": "With the map focused, use the arrow keys to move and the + and − keys to zoom in and out. The values for the chosen place are shown as text in the Details panel.",
+    "analysisLayer": "Multi-criteria analysis result",
+    "noLayer": "no index turned on",
+    "brazil": "Brazil"
+  }
+}

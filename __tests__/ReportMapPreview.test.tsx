@@ -922,4 +922,23 @@ describe("ReportMapPreview", () => {
 
     expect(onRetry).toHaveBeenCalledTimes(1);
   });
+
+  it("usa a descrição do índice e do recorte como texto alternativo da imagem", () => {
+    const { getByRole } = render(
+      <ReportMapPreview
+        territory={ABADIA_DE_GOIAS}
+        imageAlt="Mapa de Monitor de Secas em Abadia de Goiás, maio de 2024"
+        layerId="anaseca"
+        period="2024-05"
+        tileUrl={TILE_URL}
+        imageSrc="data:image/png;base64,ready"
+      />,
+    );
+
+    expect(
+      getByRole("img", {
+        name: "Mapa de Monitor de Secas em Abadia de Goiás, maio de 2024",
+      }),
+    ).toBeTruthy();
+  });
 });

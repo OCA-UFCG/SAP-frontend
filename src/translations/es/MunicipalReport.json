@@ -148,6 +148,7 @@
     "historicalNoteTitle": "Nota sobre la serie histórica",
     "historicalNoteText": "La serie disponible para este indicador reúne {count} período(s), cubriendo {range}. {resolution}",
     "mapCropAlt": "Recorte del mapa del municipio",
+    "mapAlt": "Mapa de {layer} en {territory}, {period}",
     "mapUnavailableExport": "Mapa no disponible para exportación.",
     "mapPeriodUnavailable": "Sin imagen del mapa para este período.",
     "mapRetry": "Intentar de nuevo",

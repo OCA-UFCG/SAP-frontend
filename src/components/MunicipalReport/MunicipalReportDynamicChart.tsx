@@ -1,7 +1,8 @@
 "use client";
 
 import { formatAbsoluteNumber } from "@/utils/formatTerritorialNumber";
-import { useMemo, useState } from "react";
+import { useCallback, useId, useMemo, useState } from "react";
+import { useTranslations } from "next-intl";
 import {
   CartesianGrid,
   Line,
@@ -20,6 +21,15 @@ import {
   resolveMunicipalReportChartAxisMax,
 } from "@/utils/municipalReportChart";
 import { formatMunicipalReportValue } from "@/utils/municipalReportValue";
+import {
+  ChartDataTable,
+  ChartDescription,
+  useChartSummaryText,
+} from "@/components/ChartDataTable/ChartDataTable";
+import type {
+  ChartTableRow,
+  ChartTableSeries,
+} from "@/utils/chartAccessibility";
 
 type DynamicChartRow = {
   period: string;
@@ -55,10 +65,39 @@ export function MunicipalReportDynamicChart({
   referencePeriod: string;
   translateLabel: (label: string) => string;
 }) {
+  const tA11y = useTranslations("ChartAccessibility");
+  const descriptionId = useId();
   const chartData = useMemo(
     () => buildMunicipalReportChartData(analysis, referencePeriod),
     [analysis, referencePeriod],
   );
+  const tableSeries = useMemo<ChartTableSeries[]>(
+    () =>
+      chartData.series.map((series) => ({
+        id: series.id,
+        label: translateLabel(series.label),
+      })),
+    [chartData.series, translateLabel],
+  );
+  const tableRows = useMemo<ChartTableRow[]>(
+    () =>
+      chartData.categories.map((category, index) => ({
+        period: category.period,
+        label: category.label,
+        values: Object.fromEntries(
+          chartData.series.map((series) => [
+            series.id,
+            series.points[index]?.value ?? null,
+          ]),
+        ),
+      })),
+    [chartData.categories, chartData.series],
+  );
+  const formatValue = useCallback(
+    (value: number) => formatMunicipalReportValue(value, analysis, locale),
+    [analysis, locale],
+  );
+  const description = useChartSummaryText(tableRows, tableSeries, formatValue);
   const [activeSeries, setActiveSeries] = useState(
     () => new Set(chartData.series.map((series) => series.id)),
   );
@@ -171,7 +210,15 @@ export function MunicipalReportDynamicChart({
   }
 
   return (
-    <div className="flex h-full min-h-[320px] w-full flex-col gap-3">
+    // `figure`, e não `img`: os botões da legenda precisam continuar
+    // alcançáveis pelo teclado e pelo leitor de tela.
+    <div
+      role="figure"
+      aria-label={tA11y("reportChartLabel", { title: analysis.title })}
+      aria-describedby={description ? descriptionId : undefined}
+      className="flex h-full min-h-[320px] w-full flex-col gap-3"
+    >
+      <ChartDescription id={descriptionId} text={description} />
       <div className="min-h-[255px] flex-1">
         <ResponsiveContainer width="100%" height="100%">
           <LineChart
@@ -254,15 +301,30 @@ export function MunicipalReportDynamicChart({
                   : "border-[#d9e0e3] bg-[#f4f6f8] text-neutral-500"
               }`}
             >
+              {/* Desligada, a bolinha fica vazada: o estado não depende só de
+                  o botão ficar acinzentado, que some para quem não distingue
+                  bem as cores. */}
               <span
-                className="h-2.5 w-2.5 rounded-full"
-                style={{ backgroundColor: getVisibleChartColor(series.color) }}
+                aria-hidden="true"
+                className="h-2.5 w-2.5 rounded-full border-2"
+                style={{
+                  borderColor: getVisibleChartColor(series.color),
+                  backgroundColor: enabled
+                    ? getVisibleChartColor(series.color)
+                    : "transparent",
+                }}
               />
               {translateLabel(series.label)}
             </button>
           );
         })}
       </div>
+      <ChartDataTable
+        caption={analysis.title}
+        series={tableSeries}
+        rows={tableRows}
+        formatValue={formatValue}
+      />
     </div>
   );
 }

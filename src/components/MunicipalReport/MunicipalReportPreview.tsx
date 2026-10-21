@@ -336,6 +336,11 @@ const AnalysisSection = memo(function AnalysisSection({
               </p>
               <ReportMapPreview
                 territory={report.territory}
+                imageAlt={t("mapAlt", {
+                  layer: translatedTitle,
+                  territory: report.territory.label,
+                  period: snapshotPeriodLabel,
+                })}
                 layerId={analysis.id}
                 period={referencePeriod}
                 className="report-map-frame aspect-[696/322] w-full rounded-lg bg-white"
