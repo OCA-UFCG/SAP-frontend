@@ -142,7 +142,10 @@ vi.mock("maplibre-gl", () => {
     setLayoutProperty = vi.fn(() => this);
     setPaintProperty = vi.fn(() => this);
     getContainer = vi.fn(() => ({ clientWidth: 1280 }));
-    getCanvas = vi.fn(() => ({ style: { cursor: "" } }));
+    // Um canvas de verdade: o mapa escreve nele o nome e a descrição para o
+    // leitor de tela, além do cursor.
+    canvas = document.createElement("canvas");
+    getCanvas = vi.fn(() => this.canvas);
     remove = vi.fn();
     scrollZoom = {
       disable: vi.fn(),
@@ -372,6 +375,33 @@ describe("Map lifecycle", () => {
         paint: expect.objectContaining({ "raster-opacity": 0.3 }),
       }),
     );
+  });
+
+  it("names the map canvas and points it to the keyboard hint", () => {
+    const { getByText } = render(
+      <Map
+        center={[-15.749997, -47.9499962]}
+        estadoSelecionado="BR"
+        accessibleLabel="Mapa: Monitor de Secas, Brasil"
+      />,
+    );
+
+    const canvas = mapInstances[0].canvas;
+    const hint = getByText(/use as setas para mover/i);
+
+    expect(canvas.getAttribute("aria-label")).toBe(
+      "Mapa: Monitor de Secas, Brasil",
+    );
+    expect(canvas.getAttribute("aria-describedby")).toBe(hint.id);
+  });
+
+  it("hands MapLibre its button labels in the page language", () => {
+    render(<Map center={[-15.749997, -47.9499962]} estadoSelecionado="BR" />);
+
+    const options = MapConstructorMock.mock.calls[0][0];
+
+    expect(options.locale["Map.Title"]).toBe("Mapa");
+    expect(options.locale["NavigationControl.ZoomIn"]).toBe("Aproximar");
   });
 
   it("documents that a boundary update waits for a later sync while the style is loading", async () => {

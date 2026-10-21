@@ -2,6 +2,9 @@
 
 import MapComponent from "../Map/MapComponent";
 import { useState, type CSSProperties } from "react";
+import { useTranslations } from "next-intl";
+import { describeMapView } from "../Map/mapAccessibility";
+import type { SpatialSelection } from "@/utils/spatialScope";
 import type { MapProps } from "../Map/Map";
 import { BRAZIL_TERRITORY_CODE } from "../Map/stateSelection";
 import { useOptionalAmfeAnalysis } from "@/components/Amfe/AmfeAnalysisContext";
@@ -89,6 +92,17 @@ function buildAnalysisMapProps(analysis: AmfeAnalysisState): SectionMapProps {
   };
 }
 
+/** O recorte em palavras: "Brasil", "Nordeste", "Paraíba", "PB"... */
+function territoryName(
+  selection: SpatialSelection,
+  selectedUf: string,
+  t: (key: "brazil") => string,
+) {
+  if (selection.spatialArea !== "national") return selection.spatialValue;
+  const uf = selectedUf.toUpperCase();
+  return uf && uf !== BRAZIL_TERRITORY_CODE ? uf : t("brazil");
+}
+
 interface PlatformMapProps {
   section: PlatformMapSection;
   /** Os controles do mapa somem quando o painel abre os detalhes da camada. */
@@ -111,6 +125,23 @@ export function PlatformMap({
   const analysis = useOptionalAmfeAnalysis();
   const isAnalysis = section === "analysis" && analysis !== null;
   const [monitoringBottomInset, setMonitoringBottomInset] = useState(0);
+  const tA11y = useTranslations("MapAccessibility");
+  const accessibleLabel =
+    isAnalysis && analysis
+      ? describeMapView({
+          base: tA11y("mapTitle"),
+          layerName: tA11y("analysisLayer"),
+          territoryName: territoryName(analysis.spatialSelection, "", tA11y),
+        })
+      : describeMapView({
+          base: tA11y("mapTitle"),
+          layerName: monitoring.activeEEData?.name ?? tA11y("noLayer"),
+          territoryName: territoryName(
+            monitoring.spatialSelection,
+            monitoring.selectedState,
+            tA11y,
+          ),
+        });
   // Só vale para o enquadramento de abertura: depois a pessoa move o mapa.
   const [initialView] = useState(() =>
     isPhoneViewport()
@@ -160,6 +191,7 @@ export function PlatformMap({
           minZoom={initialView.minZoom}
           showStatesBorder
           className="h-full w-full"
+          accessibleLabel={accessibleLabel}
           {...(isAnalysis && analysis
             ? buildAnalysisMapProps(analysis)
             : {
