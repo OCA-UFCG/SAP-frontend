@@ -20,10 +20,10 @@
     "resources": {
       "heading": "Available features",
       "vlibras": "Translation into Brazilian Sign Language (Libras) through VLibras, from the Federal Government: click the hands icon on the side of the screen and pick an avatar.",
-      "keyboard": "Everything works with the keyboard: Tab moves forward, Shift + Tab moves back, Enter and Space activate, and Esc closes menus and dialogs.",
+      "keyboard": "Navigation works with the keyboard: Tab moves forward, Shift + Tab moves back, Enter and Space activate, and Esc closes menus and dialogs.",
       "zoom": "Zoom: use Ctrl and + (Cmd and + on macOS) to enlarge the page up to 200% without losing content.",
-      "contrast": "High contrast: the portal respects your operating system's high contrast mode and its reduce motion setting.",
-      "tables": "Charts and maps come with tables and text holding the same values, for screen reader users."
+      "contrast": "Contrast and motion: text and buttons meet the WCAG minimum contrast (level AA), and the portal respects your operating system's reduce motion setting.",
+      "tables": "Charts include a text summary and a \"View data as a table\" button with the same values. The map tells screen readers which index and place it is showing, and each place's values are in the Details panel."
     },
     "limitations": {
       "heading": "Known limitations",

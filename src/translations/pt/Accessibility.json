@@ -20,10 +20,10 @@
     "resources": {
       "heading": "Recursos disponíveis",
       "vlibras": "Tradução para Libras pelo VLibras, do Governo Federal: clique no ícone de mãos no canto da tela e escolha um avatar.",
-      "keyboard": "Toda a navegação funciona pelo teclado: Tab avança, Shift + Tab volta, Enter e Espaço ativam, e Esc fecha menus e janelas.",
+      "keyboard": "A navegação funciona pelo teclado: Tab avança, Shift + Tab volta, Enter e Espaço ativam, e Esc fecha menus e janelas.",
       "zoom": "Ampliação: use Ctrl e + (Cmd e + no macOS) para aumentar a página até 200% sem perder conteúdo.",
-      "contrast": "Alto contraste: o portal respeita o modo de alto contraste e a opção de reduzir animações do seu sistema operacional.",
-      "tables": "Gráficos e mapas vêm acompanhados de tabelas e textos com os mesmos valores, para quem usa leitor de tela."
+      "contrast": "Contraste e movimento: textos e botões seguem o contraste mínimo da WCAG (nível AA), e o portal respeita a opção de reduzir animações do seu sistema operacional.",
+      "tables": "Os gráficos trazem um resumo em texto e um botão \"Ver dados em tabela\" com os mesmos valores. O mapa informa ao leitor de tela qual índice e qual local está mostrando, e os valores de cada local ficam no painel de Detalhamento."
     },
     "limitations": {
       "heading": "Limitações conhecidas",

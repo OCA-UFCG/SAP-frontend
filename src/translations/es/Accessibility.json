@@ -20,10 +20,10 @@
     "resources": {
       "heading": "Recursos disponibles",
       "vlibras": "Traducción a la Lengua Brasileña de Señas (Libras) con VLibras, del Gobierno Federal: haga clic en el icono de manos al costado de la pantalla y elija un avatar.",
-      "keyboard": "Toda la navegación funciona con el teclado: Tab avanza, Shift + Tab retrocede, Enter y Espacio activan, y Esc cierra menús y ventanas.",
+      "keyboard": "La navegación funciona con el teclado: Tab avanza, Shift + Tab retrocede, Enter y Espacio activan, y Esc cierra menús y ventanas.",
       "zoom": "Ampliación: use Ctrl y + (Cmd y + en macOS) para aumentar la página hasta el 200 % sin perder contenido.",
-      "contrast": "Alto contraste: el portal respeta el modo de alto contraste y la opción de reducir animaciones de su sistema operativo.",
-      "tables": "Los gráficos y mapas vienen acompañados de tablas y textos con los mismos valores, para quienes usan lector de pantalla."
+      "contrast": "Contraste y movimiento: los textos y botones cumplen el contraste mínimo de las WCAG (nivel AA), y el portal respeta la opción de reducir animaciones de su sistema operativo.",
+      "tables": "Los gráficos incluyen un resumen en texto y un botón \"Ver datos en tabla\" con los mismos valores. El mapa informa al lector de pantalla qué índice y qué lugar muestra, y los valores de cada lugar están en el panel de Detalles."
     },
     "limitations": {
       "heading": "Limitaciones conocidas",
