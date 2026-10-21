@@ -82,7 +82,7 @@ export function MapControlDisclosure({
     <MapControlCard ariaLabel={label} collapsed={!isOpen}>
       <button
         type="button"
-        className="group flex w-full cursor-pointer items-center justify-between gap-2 bg-transparent text-left outline-none"
+        className="group flex w-full cursor-pointer items-center justify-between gap-2 rounded bg-transparent text-left outline-none focus-visible:ring-2 focus-visible:ring-[#777E32] focus-visible:ring-offset-2"
         onClick={() => {
           if (!isOpen) onOpen?.();
           setIsOpen(!isOpen);

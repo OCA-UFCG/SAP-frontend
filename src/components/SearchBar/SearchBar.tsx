@@ -118,6 +118,8 @@ const SearchBar = ({ onSearch, searchTelemetryContext }: SearchBarProps) => {
               setIsOptionsOpen(nextValue.trim().length > 0);
             }}
             role="combobox"
+            aria-label={t("placeholder")}
+            aria-invalid={hasError}
             aria-autocomplete="list"
             aria-controls="searchbar-state-options"
             aria-expanded={isOptionsOpen}

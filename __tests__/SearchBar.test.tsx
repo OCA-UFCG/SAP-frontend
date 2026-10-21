@@ -57,7 +57,10 @@ describe("SearchBar", () => {
   it("renders input and button", () => {
     renderComponent();
 
-    expect(screen.getByRole("combobox")).toBeInTheDocument();
+    // O placeholder some ao digitar: o campo precisa de nome próprio.
+    expect(
+      screen.getByRole("combobox", { name: "Pesquise um estado" }),
+    ).toBeInTheDocument();
 
     expect(
       screen.getByRole("button", { name: /pesquisar/i }),

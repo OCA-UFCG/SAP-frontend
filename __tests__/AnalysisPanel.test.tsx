@@ -112,7 +112,10 @@ describe("AnalysisPanel", () => {
       />,
     );
 
-    await user.click(screen.getByRole("button", { name: "2012" }));
+    // O botão se anuncia com o rótulo e o ano escolhido.
+    await user.click(
+      screen.getByRole("button", { name: "Data da análise 2012" }),
+    );
 
     expect(screen.getByRole("option", { name: "2012" })).toHaveAttribute(
       "aria-selected",

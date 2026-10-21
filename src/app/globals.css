@@ -9,6 +9,26 @@ html {
   scroll-behavior: smooth;
 }
 
+/* Quem pediu menos movimento no sistema (vestibular, enxaqueca, TDAH) não
+   recebe rolagem suave nem as transições soltas do Tailwind (`transition`,
+   `duration-500`) que não passam por `motion-safe:`. As animações escritas
+   aqui já ficam em `no-preference`; isto cobre o resto. A duração quase zero,
+   em vez de `none`, mantém os `transitionend`/`animationend` disparando. */
+@media (prefers-reduced-motion: reduce) {
+  html {
+    scroll-behavior: auto;
+  }
+
+  *,
+  ::before,
+  ::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+}
+
 body {
   background: var(--background);
   color: var(--foreground);

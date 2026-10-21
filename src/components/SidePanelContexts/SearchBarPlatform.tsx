@@ -171,6 +171,8 @@ const SearchBarPlatform = ({
               }
             }}
             role="combobox"
+            aria-label={t("placeholder")}
+            aria-invalid={hasError}
             aria-autocomplete="list"
             aria-controls="platform-searchbar-state-options"
             aria-expanded={isOptionsOpen}

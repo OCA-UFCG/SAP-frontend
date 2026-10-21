@@ -84,7 +84,7 @@ export function TerritorySearch({
 
   return (
     <div className="flex flex-col gap-1.5">
-      <div className="flex items-center gap-1.5 rounded-md border border-[#E4E4E4] bg-[#F7F7F6] px-2 py-1.5 focus-within:border-[#989F43]">
+      <div className="flex items-center gap-1.5 rounded-md border border-[#E4E4E4] bg-[#F7F7F6] px-2 py-1.5 focus-within:border-[#777E32] focus-within:ring-2 focus-within:ring-[#777E32]">
         <Icon id="loupe" className="shrink-0" fill="#898989" size={12} />
         <input
           type="search"
@@ -151,7 +151,9 @@ function TerritorySearchResults({
 
   if (message) {
     return (
-      <p className={`${SECONDARY_TEXT_CLASS} px-1`}>
+      // Carregando, erro ou "nada encontrado" mudam sem foco nenhum: sem a
+      // região viva, quem usa leitor de tela digita e não ouve resposta.
+      <p role="status" className={`${SECONDARY_TEXT_CLASS} px-1`}>
         {message}
       </p>
     );

@@ -80,6 +80,8 @@ interface AnalysisYearSelectProps {
   activeYear: string;
   yearOptions: AnalysisYearOption[];
   onYearChange: (year: string) => void;
+  /** `id` do texto "Data da análise": o botão se anuncia com esse nome. */
+  labelId: string;
 }
 
 function renderFormattedText(text: string) {
@@ -183,6 +185,7 @@ function AnalysisYearSelect({
   activeYear,
   yearOptions,
   onYearChange,
+  labelId,
 }: AnalysisYearSelectProps) {
   const t = useTranslations("AnalysisPanel");
   const locale = useLocale();
@@ -234,8 +237,9 @@ function AnalysisYearSelect({
         aria-haspopup="listbox"
         aria-expanded={isOptionsOpen}
         aria-controls="analysis-year-options"
+        aria-labelledby={`${labelId} analysis-year-value`}
       >
-        <span className="truncate text-sm text-[#292829]">
+        <span id="analysis-year-value" className="truncate text-sm text-[#292829]">
           {activeDisplayLabel}
         </span>
 
@@ -656,11 +660,17 @@ export function AnalysisPanel({
               </p>
             ) : null}
 
-            <label className="text-[14px] font-medium leading-[20px] text-[#292829]">
+            {/* Não é `<label>`: o seletor é um botão com lista, não um campo
+                de formulário, e o rótulo solto não chegava ao leitor de tela. */}
+            <span
+              id="analysis-year-label"
+              className="text-[14px] font-medium leading-[20px] text-[#292829]"
+            >
               {t("analysisDate")}
-            </label>
+            </span>
 
             <AnalysisYearSelect
+              labelId="analysis-year-label"
               activeYear={activeYear}
               yearOptions={yearOptions}
               onYearChange={onYearChange}
