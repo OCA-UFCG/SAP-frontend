@@ -4,6 +4,7 @@ import { useEffect, useRef, useState } from "react";
 import { useTranslations } from "next-intl";
 import { Icon } from "../Icon/Icon";
 import { ButtonUi } from "../ButtonUI/ButtonUI";
+import { SEARCH_ACCESS_KEY } from "../SkipLinks/skipTargets";
 import { trackUiEvent } from "@/services/telemetry/client";
 import type {
   SearchSubmissionMetadata,
@@ -109,6 +110,7 @@ const SearchBar = ({ onSearch, searchTelemetryContext }: SearchBarProps) => {
 
           <input
             ref={inputRef}
+            accessKey={SEARCH_ACCESS_KEY}
             value={value}
             onChange={(event) => {
               const nextValue = event.target.value;

@@ -9,6 +9,9 @@ import type { PlatformSidebarInitialSection } from "@/components/PlatformSidebar
 import { resolveLogsViewerAccess } from "@/lib/logs-access";
 import { SESSION_COOKIE_NAME } from "@/lib/server-session";
 import { loadPlatformShellData } from "./platformShellData";
+import { pageTitleMetadata } from "@/lib/page-metadata";
+
+export const generateMetadata = pageTitleMetadata("platform");
 
 interface PlatformPageSearchParams {
   view?: string | string[];

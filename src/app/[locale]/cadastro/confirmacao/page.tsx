@@ -3,6 +3,9 @@ import { notFound } from "next/navigation";
 import { isSignupOffered } from "@/lib/access-flag";
 import PlatformLoading from "@/app/[locale]/platform/loading";
 import { ConfirmationPageClient } from "./ConfirmationPageClient";
+import { pageTitleMetadata } from "@/lib/page-metadata";
+
+export const generateMetadata = pageTitleMetadata("signupConfirmation");
 
 export default function SignupConfirmationPage() {
   if (!isSignupOffered()) {
@@ -12,9 +15,9 @@ export default function SignupConfirmationPage() {
   return (
     <Suspense
       fallback={
-        <main className="flex min-h-[calc(100vh-4.125rem)] w-full">
+        <div className="flex min-h-[calc(100vh-4.125rem)] w-full">
           <PlatformLoading />
-        </main>
+        </div>
       }
     >
       <ConfirmationPageClient />

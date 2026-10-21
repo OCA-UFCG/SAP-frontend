@@ -5,6 +5,9 @@ import {
   SESSION_COOKIE_NAME,
   getAuthenticatedSessionFromCookie,
 } from "@/lib/server-session";
+import { pageTitleMetadata } from "@/lib/page-metadata";
+
+export const generateMetadata = pageTitleMetadata("pendingApproval");
 
 /**
  * Destino de quem está autenticado mas ainda não foi liberado pelo OCA. Não faz
@@ -17,7 +20,7 @@ export default async function PendingApprovalPage() {
   const session = await getAuthenticatedSessionFromCookie(sessionCookie);
 
   return (
-    <main className="flex min-h-[calc(100vh-4.125rem)] w-full items-center justify-center bg-white px-6 py-16">
+    <div className="flex min-h-[calc(100vh-4.125rem)] w-full items-center justify-center bg-white px-6 py-16">
       <div className="flex w-full max-w-[520px] flex-col gap-6">
         <h1 className="font-inter text-[24px] font-medium leading-8 tracking-[-0.36px] text-[#50554C]">
           {t("title")}
@@ -41,6 +44,6 @@ export default async function PendingApprovalPage() {
           {t("backHome")}
         </Link>
       </div>
-    </main>
+    </div>
   );
 }

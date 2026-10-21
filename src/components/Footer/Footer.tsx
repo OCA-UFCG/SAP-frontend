@@ -6,6 +6,8 @@ import Image from "next/image";
 import Link from "next/link";
 import SocialChannels from "../ContactSection/SocialChannels";
 import { useTranslations } from "next-intl";
+import { AccessibilitySymbol } from "../AccessibilitySymbol/AccessibilitySymbol";
+import { SKIP_TARGETS } from "../SkipLinks/skipTargets";
 
 export const Footer = ({ content }: { content: FooterI[] }) => {
   const t = useTranslations("Footer");
@@ -23,7 +25,11 @@ export const Footer = ({ content }: { content: FooterI[] }) => {
   };
 
   return (
-    <footer className="flex justify-center w-full bg-[#989F43]">
+    <footer
+      id={SKIP_TARGETS.footer.id}
+      tabIndex={-1}
+      className="flex justify-center w-full bg-[#989F43] focus:outline-none"
+    >
       <div className="mx-auto flex w-full max-w-[1440px] flex-col items-start justify-between gap-6 box-border px-6 py-10 md:px-10 md:py-12 lg:flex-row lg:items-center lg:gap-[60px] lg:px-20 lg:py-12">
         <div className="flex justify-center w-full lg:w-auto">
           <Image
@@ -77,6 +83,16 @@ export const Footer = ({ content }: { content: FooterI[] }) => {
           <p className="text-center text-xs leading-4 text-white lg:text-left">
             {t("institutions")}
           </p>
+          {/* Fora da linha de links, que some no celular: o símbolo de
+              acessibilidade precisa estar em destaque em qualquer tela
+              (LBI, art. 63, §1º). */}
+          <Link
+            href="/acessibilidade"
+            className="mt-1 flex items-center gap-2 rounded text-sm font-bold leading-5 text-white transition-opacity hover:opacity-60 focus:outline-none focus-visible:ring-2 focus-visible:ring-white"
+          >
+            <AccessibilitySymbol className="h-6 w-6 shrink-0" />
+            {t("accessibility")}
+          </Link>
         </div>
 
         {/* Logos e redes ficam na mesma linha porque o Figma prevê um rodapé de

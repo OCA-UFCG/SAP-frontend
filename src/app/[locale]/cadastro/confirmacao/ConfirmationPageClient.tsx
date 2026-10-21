@@ -93,9 +93,9 @@ export function ConfirmationPageClient() {
 
   if (outcome === "checking") {
     return (
-      <main className="flex min-h-[calc(100vh-4.125rem)] w-full">
+      <div className="flex min-h-[calc(100vh-4.125rem)] w-full">
         <PlatformLoading />
-      </main>
+      </div>
     );
   }
 
@@ -107,7 +107,7 @@ export function ConfirmationPageClient() {
   }[outcome];
 
   return (
-    <main className="flex min-h-[calc(100vh-4.125rem)] w-full items-center justify-center bg-white px-6 py-16">
+    <div className="flex min-h-[calc(100vh-4.125rem)] w-full items-center justify-center bg-white px-6 py-16">
       <div className="flex w-full max-w-[520px] flex-col gap-6">
         <h1 className="font-inter text-[24px] font-medium leading-8 tracking-[-0.36px] text-[#50554C]">
           {copy.title}
@@ -160,7 +160,7 @@ export function ConfirmationPageClient() {
           </Link>
         ) : null}
       </div>
-    </main>
+    </div>
   );
 }
 

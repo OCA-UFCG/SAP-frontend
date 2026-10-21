@@ -86,13 +86,34 @@ describe("Footer", () => {
 
     expect(
       screen.getAllByRole("link").map((link) => link.textContent),
-    ).toEqual(["Home", "Glossário", "Plataforma"]);
+    ).toEqual(["Home", "Glossário", "Plataforma", "Acessibilidade"]);
     expect(screen.queryByText("Sobre o SEDES")).not.toBeInTheDocument();
     expect(
       screen.getByText(
         "Ministério do Meio Ambiente e Mudança do Clima | Universidade Federal de Campina Grande | Observatório da Caatinga e Desertificação",
       ),
     ).toBeInTheDocument();
+  });
+
+  // LBI, art. 63, §1º: o símbolo de acessibilidade fica em destaque. Ele não
+  // entra na linha de links, que some no celular.
+  it("shows the accessibility symbol linking to the accessibility page", () => {
+    render(<Footer content={footerContent} />);
+
+    const link = screen.getByRole("link", { name: "Acessibilidade" });
+
+    expect(link).toHaveAttribute("href", "/acessibilidade");
+    expect(link.querySelector("svg")).toHaveAttribute("aria-hidden", "true");
+    expect(link.closest(".hidden")).toBeNull();
+  });
+
+  it("is the target of the skip-to-footer shortcut", () => {
+    const { container } = render(<Footer content={footerContent} />);
+
+    const footer = container.querySelector("footer");
+
+    expect(footer).toHaveAttribute("id", "rodape");
+    expect(footer).toHaveAttribute("tabindex", "-1");
   });
 
   // O rodapé faz parte da plataforma. O caminho vem com o prefixo de locale

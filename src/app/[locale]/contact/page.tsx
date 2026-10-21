@@ -1,9 +1,12 @@
 import ContactSection from "@/components/ContactSection/ContactSection";
+import { pageTitleMetadata } from "@/lib/page-metadata";
+
+export const generateMetadata = pageTitleMetadata("contact");
 
 export default function ContactPage() {
   return (
-    <main className="w-full flex justify-center bg-white">
+    <div className="w-full flex justify-center bg-white">
       <ContactSection />
-    </main>
+    </div>
   );
 }
