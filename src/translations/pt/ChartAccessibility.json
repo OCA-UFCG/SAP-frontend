@@ -10,6 +10,7 @@
     "latest": "Em {period}, a classe de maior valor é {series}, com {value}.",
     "temporalVisionLabel": "Gráfico da série histórica por classe",
     "reportChartLabel": "Gráfico de {title}",
-    "alertTiersLabel": "Gráfico de pizza com a distribuição por classe. Os mesmos valores estão na lista ao lado."
+    "alertTiersLabel": "Gráfico de pizza com a distribuição por classe. Os mesmos valores estão na lista ao lado.",
+    "seriesUnavailable": "Série temporal indisponível para visualização dinâmica."
   }
 }

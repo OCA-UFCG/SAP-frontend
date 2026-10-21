@@ -10,6 +10,7 @@
     "latest": "In {period}, the class with the highest value is {series}, at {value}.",
     "temporalVisionLabel": "Time series chart by class",
     "reportChartLabel": "Chart of {title}",
-    "alertTiersLabel": "Pie chart with the distribution by class. The same values are in the list next to it."
+    "alertTiersLabel": "Pie chart with the distribution by class. The same values are in the list next to it.",
+    "seriesUnavailable": "Time series unavailable for the dynamic view."
   }
 }

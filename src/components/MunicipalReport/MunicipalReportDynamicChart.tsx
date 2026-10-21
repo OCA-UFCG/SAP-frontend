@@ -204,7 +204,7 @@ export function MunicipalReportDynamicChart({
   if (rows.length === 0 || chartData.series.length === 0) {
     return (
       <span className="text-sm text-neutral-500">
-        Série temporal indisponível para visualização dinâmica.
+        {tA11y("seriesUnavailable")}
       </span>
     );
   }
