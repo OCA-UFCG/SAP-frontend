@@ -1,5 +1,5 @@
 "use client";
-import { useEffect, useId, useState } from "react";
+import { useEffect, useId, useRef, useState } from "react";
 import { useLocale, useTranslations } from "next-intl";
 import { Link, usePathname, useRouter } from "@/translations/routing";
 import { cn } from "@/lib/utils";
@@ -7,6 +7,7 @@ import { ISection } from "@/utils/interfaces";
 import { Hamburguer } from "../HamburguerButton/HamburguerButton";
 import { LANGUAGES } from "../LanguageSwitcher/LanguageSwitcher";
 import { shouldPrefetchFullRoute } from "../NavItems/NavItems";
+import { useDialogFocus } from "@/hooks/useDialogFocus";
 
 /** A partir daqui o menu do topo aparece inteiro na barra (`xl:` no Header). */
 const DESKTOP_MENU = "(min-width: 1280px)";
@@ -37,11 +38,13 @@ export const MenuModal = ({ content }: { content: ISection[] }) => {
 
   const close = () => setIsOpen(false);
 
+  // Esc fecha o menu e devolve o foco ao botão de três traços; sem isso o foco
+  // caía no `body` e o teclado recomeçava do topo da página.
+  const menuRef = useRef<HTMLDivElement>(null);
+  useDialogFocus(menuRef, { open: isOpen, onClose: close, trapFocus: false });
+
   useEffect(() => {
     if (!isOpen) return;
-    const onKeyDown = (event: KeyboardEvent) => {
-      if (event.key === "Escape") setIsOpen(false);
-    };
     // Girar o tablet até o menu da barra aparecer esconde este; sem fechar,
     // a página ficaria sem rolar.
     const desktop = window.matchMedia(DESKTOP_MENU);
@@ -49,11 +52,9 @@ export const MenuModal = ({ content }: { content: ISection[] }) => {
     // Sem isso a página rola por trás do menu quando o dedo arrasta nele.
     const { overflow } = document.body.style;
     document.body.style.overflow = "hidden";
-    document.addEventListener("keydown", onKeyDown);
     desktop.addEventListener("change", onDesktop);
     return () => {
       document.body.style.overflow = overflow;
-      document.removeEventListener("keydown", onKeyDown);
       desktop.removeEventListener("change", onDesktop);
     };
   }, [isOpen]);
@@ -85,6 +86,7 @@ export const MenuModal = ({ content }: { content: ISection[] }) => {
       {/* O `pt-5` deixa a ponta da aba da logo, que desce 16 px abaixo da
           barra, por cima de um respiro e não do primeiro item. */}
       <div
+        ref={menuRef}
         id={menuId}
         inert={!isOpen}
         className={cn(

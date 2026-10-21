@@ -1,5 +1,6 @@
 "use client";
 import { useEffect, useId, useLayoutEffect, useRef, useState } from "react";
+import { useDialogFocus } from "@/hooks/useDialogFocus";
 import { createPortal } from "react-dom";
 import { useLinkStatus } from "next/link";
 import { Link } from "@/translations/routing";
@@ -323,14 +324,14 @@ export function PlatformSideRail({
     setMoreOpen(false);
   }
 
-  useEffect(() => {
-    if (!moreOpen) return;
-    const onKeyDown = (event: KeyboardEvent) => {
-      if (event.key === "Escape") setMoreOpen(false);
-    };
-    window.addEventListener("keydown", onKeyDown);
-    return () => window.removeEventListener("keydown", onKeyDown);
-  }, [moreOpen]);
+  // Esc fecha e o foco volta ao "Mais"; o Tab não fica preso, porque a lista
+  // não bloqueia a barra.
+  const moreMenuRef = useRef<HTMLElement>(null);
+  useDialogFocus(moreMenuRef, {
+    open: moreOpen,
+    onClose: () => setMoreOpen(false),
+    trapFocus: false,
+  });
 
   // Um destaque só, que desliza até a seção escolhida, em vez de um fundo que
   // some num item e aparece no outro. Mede o item atual e move o destaque por
@@ -598,6 +599,7 @@ export function PlatformSideRail({
               className="fixed inset-x-0 top-0 bottom-16 z-50 bg-[#21240F]/40"
             />
             <nav
+              ref={moreMenuRef}
               id={moreMenuId}
               aria-label={t("more")}
               className="fixed inset-x-2 bottom-[4.5rem] z-50 rounded-xl bg-white p-2 shadow-[0_12px_32px_rgba(33,36,15,0.24)] motion-safe:animate-[menu-in_180ms_ease-out]"
