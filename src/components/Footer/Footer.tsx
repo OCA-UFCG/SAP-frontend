@@ -8,6 +8,11 @@ import SocialChannels from "../ContactSection/SocialChannels";
 import { useTranslations } from "next-intl";
 import { AccessibilitySymbol } from "../AccessibilitySymbol/AccessibilitySymbol";
 import { SKIP_TARGETS } from "../SkipLinks/skipTargets";
+import { openCookiePreferences } from "@/lib/analytics-consent";
+
+// O mesmo ID que liga o aviso de cookies no layout: sem Analytics, não há o
+// que escolher.
+const HAS_ANALYTICS = Boolean(process.env.NEXT_PUBLIC_GA_ID);
 
 export const Footer = ({ content }: { content: FooterI[] }) => {
   const t = useTranslations("Footer");
@@ -86,13 +91,24 @@ export const Footer = ({ content }: { content: FooterI[] }) => {
           {/* Fora da linha de links, que some no celular: o símbolo de
               acessibilidade precisa estar em destaque em qualquer tela
               (LBI, art. 63, §1º). */}
-          <Link
-            href="/acessibilidade"
-            className="mt-1 flex items-center gap-2 rounded text-sm font-bold leading-5 text-white transition-opacity hover:opacity-60 focus:outline-none focus-visible:ring-2 focus-visible:ring-white"
-          >
-            <AccessibilitySymbol className="h-6 w-6 shrink-0" />
-            {t("accessibility")}
-          </Link>
+          <div className="mt-1 flex flex-wrap items-center justify-center gap-x-6 gap-y-2 lg:justify-start">
+            <Link
+              href="/acessibilidade"
+              className="flex items-center gap-2 rounded text-sm font-bold leading-5 text-white transition-opacity hover:opacity-60 focus:outline-none focus-visible:ring-2 focus-visible:ring-white"
+            >
+              <AccessibilitySymbol className="h-6 w-6 shrink-0" />
+              {t("accessibility")}
+            </Link>
+            {HAS_ANALYTICS && (
+              <button
+                type="button"
+                onClick={openCookiePreferences}
+                className="cursor-pointer rounded text-sm font-bold leading-5 text-white transition-opacity hover:opacity-60 focus:outline-none focus-visible:ring-2 focus-visible:ring-white"
+              >
+                {t("cookies")}
+              </button>
+            )}
+          </div>
         </div>
 
         {/* Logos e redes ficam na mesma linha porque o Figma prevê um rodapé de
