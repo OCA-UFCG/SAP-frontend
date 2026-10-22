@@ -13,11 +13,7 @@ import {
   CarouselArrow,
   CarouselTracker,
 } from "@/components/HomeCarousel/HomeCarousel";
-import {
-  ArrowForwardIcon,
-  PauseIcon,
-  PlayIcon,
-} from "@/components/HomeIcons/HomeIcons";
+import { PauseIcon, PlayIcon } from "@/components/HomeIcons/HomeIcons";
 
 /** Tempo de cada slide antes de passar sozinho para o próximo. */
 const AUTOPLAY_MS = 7000;
@@ -173,15 +169,11 @@ export function MainBanner({ banners, previews = [] }: MainBannerProps) {
                 prefetch
                 style={revealOrder(2)}
                 className={cn(
-                  "shine group/cta flex h-10 w-full items-center justify-center gap-2 rounded-md bg-[#646B2D] px-4 py-2 font-inter text-sm font-medium leading-6 text-[#F8F7F8] transition-colors hover:bg-[#4F5424] md:w-[302px]",
+                  "flex h-10 w-full items-center justify-center gap-2 rounded-md bg-[#646B2D] px-4 py-2 font-inter text-sm font-medium leading-6 text-[#F8F7F8] transition-colors hover:bg-[#4F5424] md:w-[302px]",
                   index === active && "reveal-item",
                 )}
               >
                 {t("linkText", { linkText: data.linkText })}
-                <ArrowForwardIcon
-                  size={16}
-                  className="transition-transform motion-safe:group-hover/cta:translate-x-1"
-                />
               </Link>
             </div>
           ))}

@@ -135,7 +135,7 @@ export const AmfeMapDownloadMenu = ({
         onClick={() => setIsOpen((open) => !open)}
         aria-expanded={isOpen}
         aria-busy={isExportingImage || isExportingReport}
-        className="shine flex min-h-12 items-center gap-2 rounded-full border border-white/50 bg-[#646B2D] px-5 py-3.5 text-sm font-semibold text-white shadow-[0_10px_24px_rgba(0,0,0,0.20)] transition-[background-color,translate,box-shadow,scale] duration-200 hover:bg-[#4F5424] hover:shadow-[0_14px_30px_rgba(33,36,15,0.30)] motion-safe:hover:-translate-y-0.5 active:scale-[0.97]"
+        className="flex min-h-12 items-center gap-2 rounded-full border border-white/50 bg-[#646B2D] px-5 py-3.5 text-sm font-semibold text-white shadow-[0_10px_24px_rgba(0,0,0,0.20)] transition-[background-color,translate,box-shadow,scale] duration-200 hover:bg-[#4F5424] hover:shadow-[0_14px_30px_rgba(33,36,15,0.30)] motion-safe:hover:-translate-y-0.5 active:scale-[0.97]"
       >
         {(isExportingImage || isExportingReport) && (
           <span

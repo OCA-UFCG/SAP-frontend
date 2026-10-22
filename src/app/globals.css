@@ -98,15 +98,6 @@ textarea {
   }
 }
 
-@keyframes shine {
-  from {
-    transform: translateX(-120%) skewX(-20deg);
-  }
-  to {
-    transform: translateX(320%) skewX(-20deg);
-  }
-}
-
 @media (prefers-reduced-motion: no-preference) and (scripting: enabled) {
   /* Usa `transform`, e não `translate`/`scale`, para não brigar com o hover
      dos cards, que usa as propriedades separadas do Tailwind. */
@@ -131,35 +122,6 @@ textarea {
 @keyframes count-up-fallback {
   to {
     opacity: 1;
-  }
-}
-
-/* Faixa de luz que atravessa o botão no hover. */
-.shine {
-  position: relative;
-  overflow: hidden;
-  isolation: isolate;
-}
-
-.shine::after {
-  content: "";
-  position: absolute;
-  inset: 0;
-  width: 35%;
-  background: linear-gradient(
-    90deg,
-    transparent,
-    rgba(255, 255, 255, 0.35),
-    transparent
-  );
-  transform: translateX(-120%) skewX(-20deg);
-  pointer-events: none;
-  z-index: -1;
-}
-
-@media (prefers-reduced-motion: no-preference) {
-  .shine:hover::after {
-    animation: shine 800ms ease-out;
   }
 }
 

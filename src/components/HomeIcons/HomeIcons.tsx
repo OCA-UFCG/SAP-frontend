@@ -57,12 +57,6 @@ export const PlayIcon = (props: IconProps) => (
   </svg>
 );
 
-export const ChevronRightIcon = (props: IconProps) => (
-  <svg {...base(props)}>
-    <path d="M8.59 16.59 13.17 12 8.59 7.41 10 6l6 6-6 6-1.41-1.41z" />
-  </svg>
-);
-
 export const QuoteIcon = (props: IconProps) => (
   <svg {...base(props)}>
     <path d="M6 17h3l2-4V7H5v6h3zm8 0h3l2-4V7h-6v6h3z" />

@@ -2,10 +2,7 @@ import Image from "next/image";
 import { Link } from "@/translations/routing";
 import { HomeTextsI, PlatformModulesSectionI } from "@/utils/interfaces";
 import { cn } from "@/lib/utils";
-import {
-  ChevronRightIcon,
-  MODULE_ICONS,
-} from "@/components/HomeIcons/HomeIcons";
+import { MODULE_ICONS } from "@/components/HomeIcons/HomeIcons";
 import { Reveal } from "@/components/HomeMotion/HomeMotion";
 import { revealOrder } from "@/components/HomeMotion/revealOrder";
 import { BlurPreview } from "@/components/BlurPreview/BlurPreview";
@@ -91,13 +88,9 @@ export const PlatformModulesSection = ({
                 <div className="mt-auto px-6 pt-3 pb-6">
                   <Link
                     href={module.href}
-                    className="shine flex h-10 w-full items-center justify-center gap-2 rounded-md bg-[#646B2D] px-4 py-2 font-inter text-sm leading-6 text-[#F8F7F8] transition-[background-color,scale] group-hover:bg-[#4F5424] active:scale-[0.97]"
+                    className="flex h-10 w-full items-center justify-center gap-2 rounded-md bg-[#646B2D] px-4 py-2 font-inter text-sm leading-6 text-[#F8F7F8] transition-[background-color,scale] group-hover:bg-[#4F5424] active:scale-[0.97]"
                   >
                     {text.buttonText}
-                    <ChevronRightIcon
-                      size={16}
-                      className="transition-transform motion-safe:group-hover:translate-x-1"
-                    />
                   </Link>
                 </div>
               </article>
