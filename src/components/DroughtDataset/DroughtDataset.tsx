@@ -125,6 +125,9 @@ export function DroughtDataset({
               type="button"
               onClick={onDetails}
               disabled={disabled}
+              // Com o nome do produto: numa lista de "Detalhamento" iguais, o
+              // leitor de tela não dizia de qual produto era cada um.
+              aria-label={t("detailsFor", { title: displayTitle })}
               className={clsx(
                 "flex flex-row justify-center items-center gap-1 px-2 h-10 min-w-0 flex-1 bg-[#646B2D] rounded-[6px]",
                 disabled

@@ -1,7 +1,6 @@
 'use client';
 
 import { Link, usePathname } from '@/translations/routing';
-import { ButtonUi } from '../ButtonUI/ButtonUI';
 import { NavUnderline } from '../NavItems/NavUnderline';
 import { cn } from '@/lib/utils';
 
@@ -39,10 +38,16 @@ export const NavLink = ({
         children
       ) : (
         <>
-          <ButtonUi
-            label={label}
-            styles={cn(newClassName, 'focus:border-transparent')}
-          ></ButtonUi>
+          {/* Um <span>, e não o ButtonUi: botão dentro de link fazia o Tab
+              parar duas vezes em cada item e o leitor de tela ler os dois. */}
+          <span
+            className={cn(
+              'h-40px border-b-3 border-transparent px-4 py-2 font-medium text-neutral-800 transition duration-300 hover:bg-stone-200 group-focus-visible:text-[#5B612A]',
+              newClassName,
+            )}
+          >
+            {label}
+          </span>
           <NavUnderline active={isActive} />
         </>
       )}
