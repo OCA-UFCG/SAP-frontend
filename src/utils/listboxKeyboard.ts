@@ -1,4 +1,4 @@
-import type { KeyboardEvent } from "react";
+import type { FocusEvent, KeyboardEvent } from "react";
 
 /** As teclas que andam pela lista e para onde cada uma leva, a partir da opção atual. */
 const MOVES: Record<string, (current: number, last: number) => number> = {
@@ -123,4 +123,21 @@ export function handleComboboxListKeyDown(
     return;
   }
   handleListboxKeyDown(event);
+}
+
+/**
+ * O `onBlur` do bloco que contém o campo e a lista: fecha a lista quando o Tab
+ * leva o foco para fora dele. Aberta, ela ficava por cima dos controles
+ * seguintes, escondendo o foco de quem navega pelo teclado. Sem `relatedTarget`
+ * (clique fora, troca de janela) quem decide é o clique fora: no Safari o
+ * botão clicado não recebe foco, e fechar aqui engoliria a escolha.
+ *
+ * @example
+ * <div ref={pickerRef} onBlur={closeWhenFocusLeaves(() => setOpen(false))}>…</div>
+ */
+export function closeWhenFocusLeaves(close: () => void) {
+  return (event: FocusEvent<HTMLElement>) => {
+    const next = event.relatedTarget;
+    if (next instanceof Node && !event.currentTarget.contains(next)) close();
+  };
 }

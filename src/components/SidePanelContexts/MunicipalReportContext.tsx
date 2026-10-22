@@ -37,7 +37,7 @@ import { startMunicipalReportMetrics } from "@/utils/municipalReportMetrics";
 import { slugifyTranslationKey } from "@/utils/translations";
 import { normalize } from "@/utils/functions";
 import { searchMatchRank } from "@/utils/searchMatch";
-import { handleComboboxInputKey, handleComboboxListKeyDown } from "@/utils/listboxKeyboard";
+import { closeWhenFocusLeaves, handleComboboxInputKey, handleComboboxListKeyDown } from "@/utils/listboxKeyboard";
 
 interface MunicipalReportContextProps { panelLayers?: PanelLayerI[] }
 
@@ -405,7 +405,7 @@ export function MunicipalReportContext({ panelLayers = [] }: MunicipalReportCont
                   onChange={selectSpatialValue}
                 />
               )}
-            <div ref={municipalityPickerRef} className={`relative min-w-0 flex-1 ${scope === "municipality" ? "" : "hidden"}`}>
+            <div ref={municipalityPickerRef} onBlur={closeWhenFocusLeaves(() => setIsMunicipalityOptionsOpen(false))} className={`relative min-w-0 flex-1 ${scope === "municipality" ? "" : "hidden"}`}>
               <span className="sr-only">{t("municipality")}</span>
               <div className="flex h-10 w-full items-center overflow-hidden rounded-md border border-[#DCDBDC] bg-white px-3 py-2 transition hover:border-neutral-400 focus-within:border-neutral-600 focus-within:ring-2 focus-within:ring-neutral-600">
                 <svg aria-hidden="true" viewBox="0 0 24 24" className="mr-2 h-4 w-4 shrink-0 text-[#6F6F6F]" fill="none" stroke="currentColor" strokeWidth="2"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/></svg>
@@ -449,8 +449,15 @@ export function MunicipalReportContext({ panelLayers = [] }: MunicipalReportCont
                       key={municipality.code}
                       type="button"
                       role="option"
+                      // Fora do Tab: as setas andam pela lista, e o Tab sai dela.
+                      tabIndex={-1}
                       aria-selected={municipalityCode === municipality.code}
-                      onClick={() => selectMunicipality(municipality.code, municipality.label)}
+                      onClick={() => {
+                        // A opção some com a lista: sem devolver o foco ao campo,
+                        // ele caía no topo da página. Focar antes de fechar, como no Esc.
+                        municipalityInputRef.current?.focus();
+                        selectMunicipality(municipality.code, municipality.label);
+                      }}
                       className="flex w-full rounded-lg px-3 py-2 text-left text-sm text-[#292829] transition hover:bg-[#F6F7F6] hover:text-[#4F5424] aria-selected:bg-[#F5F6EE] aria-selected:font-medium aria-selected:text-[#5B612A]"
                     >
                       {municipality.label}

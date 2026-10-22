@@ -16,7 +16,7 @@ import dynamic from "next/dynamic";
 import { useLocale, useTranslations } from "next-intl";
 import { formatDekadPeriod } from "@/utils/dekadPeriod";
 import { useDialogFocus } from "@/hooks/useDialogFocus";
-import { handleListboxKeyDown } from "@/utils/listboxKeyboard";
+import { closeWhenFocusLeaves, handleListboxKeyDown } from "@/utils/listboxKeyboard";
 import { scrollSelectedOptionIntoView } from "@/utils/scrollSelectedOption";
 import { Chevron } from "@/components/Chevron/Chevron";
 import SearchBarPlatform from "@/components/SidePanelContexts/SearchBarPlatform";
@@ -237,7 +237,11 @@ function AnalysisYearSelect({
   }, []);
 
   return (
-    <div ref={containerRef} className="relative w-full">
+    <div
+      ref={containerRef}
+      onBlur={closeWhenFocusLeaves(() => setIsOptionsOpen(false))}
+      className="relative w-full"
+    >
       <button
         type="button"
         onClick={() => setIsOptionsOpen((current) => !current)}
@@ -284,6 +288,8 @@ function AnalysisYearSelect({
               key={option.value}
               type="button"
               role="option"
+              // Fora do Tab: as setas andam pela lista, e o Tab sai dela.
+              tabIndex={-1}
               aria-selected={activeYear === option.value}
               data-autofocus={activeYear === option.value || undefined}
               onClick={() => {

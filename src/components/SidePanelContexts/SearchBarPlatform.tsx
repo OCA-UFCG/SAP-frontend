@@ -6,6 +6,7 @@ import { Icon } from "../Icon/Icon";
 import { ButtonUi } from "../ButtonUI/ButtonUI";
 import { trackUiEvent } from "@/services/telemetry/client";
 import {
+  closeWhenFocusLeaves,
   handleComboboxInputKey,
   handleComboboxListKeyDown,
 } from "@/utils/listboxKeyboard";
@@ -135,7 +136,7 @@ const SearchBarPlatform = ({
 
   return (
     <div className="w-full flex gap-2 items-start h-10">
-      <div ref={containerRef} className="relative flex-1 flex flex-col h-full">
+      <div ref={containerRef} onBlur={closeWhenFocusLeaves(() => setIsOptionsOpen(false))} className="relative flex-1 flex flex-col h-full">
         <div
           className={`w-full px-2.5 py-3 flex items-center rounded-lg shadow-sm bg-[#E4E5E2] overflow-hidden transition border
                     ${
@@ -245,6 +246,8 @@ const SearchBarPlatform = ({
                   key={option}
                   type="button"
                   role="option"
+                  // Fora do Tab: as setas andam pela lista, e o Tab sai dela.
+                  tabIndex={-1}
                   aria-selected={value === option}
                   // O campo continua com o foco até a escolha; sem isso o
                   // teclado do celular fecha no toque e reabre logo depois.

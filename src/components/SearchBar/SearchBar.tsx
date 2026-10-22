@@ -6,6 +6,7 @@ import { Icon } from "../Icon/Icon";
 import { ButtonUi } from "../ButtonUI/ButtonUI";
 import { SEARCH_ACCESS_KEY } from "../SkipLinks/skipTargets";
 import {
+  closeWhenFocusLeaves,
   handleComboboxInputKey,
   handleComboboxListKeyDown,
 } from "@/utils/listboxKeyboard";
@@ -101,7 +102,7 @@ const SearchBar = ({ onSearch, searchTelemetryContext }: SearchBarProps) => {
 
   return (
     <div className="w-full flex justify-between gap-5 items-start h-14">
-      <div ref={containerRef} className="relative flex-1 flex flex-col h-full">
+      <div ref={containerRef} onBlur={closeWhenFocusLeaves(() => setIsOptionsOpen(false))} className="relative flex-1 flex flex-col h-full">
         <div
           className={`min-w-40 w-full p-4 flex items-center text-lg rounded-xl shadow-sm bg-[#E4E5E2] overflow-hidden transition border
                     ${
@@ -199,6 +200,8 @@ const SearchBar = ({ onSearch, searchTelemetryContext }: SearchBarProps) => {
                 key={option}
                 type="button"
                 role="option"
+                // Fora do Tab: as setas andam pela lista, e o Tab sai dela.
+                tabIndex={-1}
                 aria-selected={value === option}
                 onClick={() => handleOptionSelect(option, "option-click")}
                 className="flex w-full rounded-lg px-3 py-2 text-left text-sm text-[#292829] transition hover:bg-[#F6F7F6]"
