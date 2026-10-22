@@ -10,7 +10,11 @@ import { useEffect, useId, useRef } from "react";
 import { useTranslations } from "next-intl";
 import type { FeatureCollection, Geometry } from "geojson";
 import type { CDIVectorData } from "@/lib/geo";
-import type { SpatialArea, SpatialSelection } from "@/utils/spatialScope";
+import {
+  DEFAULT_SPATIAL_SELECTION,
+  type SpatialArea,
+  type SpatialSelection,
+} from "@/utils/spatialScope";
 import { getStateRegion } from "@/utils/interestAreaStates";
 import { resolveBiomeAtPoint } from "./resolveBiomeAtPoint";
 import {
@@ -590,6 +594,23 @@ const Map = ({
           (typeof clickedFeature?.id === "string"
             ? clickedFeature.id
             : undefined);
+
+        if (
+          !uf &&
+          mapModeRef.current === "platform" &&
+          map.isSourceLoaded(STATES_SOURCE_ID)
+        ) {
+          log("click outside Brazil: back to the national scope");
+          clearSelectedMunicipalitySelection(map);
+
+          if (spatialAreaRef.current !== "national") {
+            onSpatialSelectionChangeRef.current?.(DEFAULT_SPATIAL_SELECTION);
+          } else if (selectedStateRef.current !== BRAZIL_TERRITORY_CODE) {
+            onStateSelectRef.current?.(BRAZIL_TERRITORY_CODE);
+          }
+
+          return;
+        }
 
         // --- Spatial area click interception ---
         // Before processing as a state click, check if the click should
