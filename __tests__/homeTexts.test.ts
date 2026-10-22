@@ -68,10 +68,42 @@ describe("getHomeTextsForLocale", () => {
     });
     // Seção sem entrada no CMS continua inteira na tradução.
     expect(texts.publicPolicy.title).toBe("PublicPolicySection.title");
-    expect(texts.features.items).toHaveLength(4);
+    expect(texts.features.items.map((item) => item.module)).toEqual([
+      "monitoring",
+      "communication",
+      "analysis",
+    ]);
     expect(texts.features.items[0].title).toBe(
       "NewsSection.items.indice-combinado-de-seca.title",
     );
+  });
+
+  it("keeps the first featured resource of each tool, in the tools order", async () => {
+    const feature = (id: string, module: "monitoring" | "analysis") => ({
+      id,
+      module,
+      title: id,
+      description: "",
+      href: "/platform",
+    });
+    mockedGetHomeTexts.mockResolvedValue({
+      sections: {},
+      highlights: [],
+      tools: [],
+      features: [
+        feature("priorizacao", "analysis"),
+        feature("seca", "monitoring"),
+        feature("territorios", "monitoring"),
+      ],
+      testimonials: [],
+    });
+
+    const texts = await getHomeTextsForLocale("pt");
+
+    expect(texts.features.items.map((item) => item.id)).toEqual([
+      "seca",
+      "priorizacao",
+    ]);
   });
 
   it("takes the English and Spanish testimonials and titles from their own Contentful fields", async () => {

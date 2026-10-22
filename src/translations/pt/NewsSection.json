@@ -1,15 +1,10 @@
 {
   "NewsSection": {
     "title": "Recursos em destaque",
-    "learnMore": "Saiba Mais",
     "items": {
       "indice-combinado-de-seca": {
         "title": "Seca em uma só classificação",
         "description": "O Índice Combinado de Seca junta chuva, umidade do solo e vegetação em um único mapa, com a metodologia do Observatório Europeu de Seca adaptada ao Brasil."
-      },
-      "territorios-tradicionais": {
-        "title": "Territórios tradicionais no mapa",
-        "description": "Terras Indígenas, Territórios Quilombolas, Assentamentos e Unidades de Conservação como camadas, para ver como a seca e a degradação os atravessam."
       },
       "relatorio-por-municipio": {
         "title": "Um relatório para cada um dos 5.570 municípios",

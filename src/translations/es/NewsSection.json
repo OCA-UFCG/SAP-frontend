@@ -1,15 +1,10 @@
 {
   "NewsSection": {
     "title": "Recursos destacados",
-    "learnMore": "Saber más",
     "items": {
       "indice-combinado-de-seca": {
         "title": "La sequía en una sola clasificación",
         "description": "El Indicador Combinado de Sequía reúne lluvia, humedad del suelo y vegetación en un único mapa, con la metodología del Observatorio Europeo de la Sequía adaptada a Brasil."
-      },
-      "territorios-tradicionais": {
-        "title": "Territorios tradicionales en el mapa",
-        "description": "Tierras Indígenas, Territorios Quilombolas, Asentamientos y Unidades de Conservación como capas, para ver cómo la sequía y la degradación los atraviesan."
       },
       "relatorio-por-municipio": {
         "title": "Un informe para cada uno de los 5.570 municipios",
