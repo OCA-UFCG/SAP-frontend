@@ -181,12 +181,20 @@ export function PlatformLayout({
           className={`group/shell relative flex w-full flex-col bg-neutral-50 ${PLATFORM_SHELL_MIN_HEIGHT_CLASS} max-md:min-h-[calc(100dvh-66px-4rem)]`}
         >
           {isLogsView ? (
-            <div data-testid="platform-logs-shell" className="w-full">
+            // Telemetria e catálogo são telas internas escritas só em
+            // português: o `lang` evita que o leitor de tela as leia com a
+            // pronúncia do inglês ou do espanhol quando o site está nesses idiomas.
+            <div
+              data-testid="platform-logs-shell"
+              lang="pt-BR"
+              className="w-full"
+            >
               {props.telemetryDashboard}
             </div>
           ) : isCatalogView ? (
             <div
               data-testid="platform-catalog-shell"
+              lang="pt-BR"
               // No celular a trilha vira a barra de baixo: o recuo de 124 px
               // que abre espaço para ela deixava uma faixa vazia à esquerda.
               className={`w-full pl-[124px] max-md:pl-0 ${PLATFORM_SHELL_MIN_HEIGHT_CLASS}`}

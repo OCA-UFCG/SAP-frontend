@@ -239,12 +239,18 @@ export function LegacyIndexEditor({
       </div>
 
       {error && (
-        <p className="mt-4 rounded-md border border-red-300 bg-red-50 p-3 text-sm text-red-900">
+        <p
+          role="alert"
+          className="mt-4 rounded-md border border-red-300 bg-red-50 p-3 text-sm text-red-900"
+        >
           {error}
         </p>
       )}
       {message && (
-        <p className="mt-4 rounded-md border border-[#D6D89A] bg-[#F4F5D8] p-3 text-sm">
+        <p
+          role="status"
+          className="mt-4 rounded-md border border-[#D6D89A] bg-[#F4F5D8] p-3 text-sm"
+        >
           {message}
         </p>
       )}

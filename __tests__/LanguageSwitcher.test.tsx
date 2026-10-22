@@ -90,4 +90,17 @@ describe("LanguageSwitcher", () => {
     fireEvent.keyDown(options[0], { key: "ArrowDown" });
     expect(options[1]).toHaveFocus();
   });
+
+  it("names the button by what it shows and each language in its own tongue", () => {
+    render(<LanguageSwitcher />);
+    const langBtn = screen.getByRole("button", { name: "PT-BR, Alterar idioma" });
+    fireEvent.click(langBtn);
+
+    const options = within(screen.getByRole("listbox")).getAllByRole("option");
+    expect(options.map((option) => option.getAttribute("lang"))).toEqual([
+      "pt",
+      "en",
+      "es",
+    ]);
+  });
 });

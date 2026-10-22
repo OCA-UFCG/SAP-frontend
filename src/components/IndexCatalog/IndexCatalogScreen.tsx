@@ -1213,7 +1213,10 @@ export function IndexCatalogScreen() {
         </div>
       )}
       {message && (
-        <p className="rounded-md border border-[#D6D89A] bg-[#F4F5D8] p-3 text-sm">
+        <p
+          role="status"
+          className="rounded-md border border-[#D6D89A] bg-[#F4F5D8] p-3 text-sm"
+        >
           {message}
         </p>
       )}

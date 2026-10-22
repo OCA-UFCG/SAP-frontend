@@ -1,5 +1,6 @@
 'use client';
 
+import { useRef, useState, type KeyboardEvent } from 'react';
 import { Link } from '@/translations/routing';
 import { ISection } from '@/utils/interfaces';
 import { cn } from '@/lib/utils';
@@ -11,6 +12,20 @@ export const NavDropdown = ({ item }: { item: ISection }) => {
   // Items like Home point at a real route, so the trigger has to stay
   // navigable. Purely decorative parents ('#') remain plain buttons.
   const href = item.path && item.path !== '#' ? item.path : null;
+  // O menu abre pelo CSS (hover e foco); o estado só existe para o leitor de
+  // tela saber se ele está aberto e para o Esc conseguir fechá-lo.
+  const [hovered, setHovered] = useState(false);
+  const [focused, setFocused] = useState(false);
+  const [dismissed, setDismissed] = useState(false);
+  const triggerRef = useRef<HTMLAnchorElement & HTMLButtonElement>(null);
+  const expanded = (hovered || focused) && !dismissed;
+
+  const handleKeyDown = (event: KeyboardEvent) => {
+    if (event.key !== 'Escape' || !expanded) return;
+    event.preventDefault();
+    setDismissed(true);
+    triggerRef.current?.focus();
+  };
 
   const triggerClassName =
     'h-40px flex items-center gap-1.5 border-b-3 border-transparent px-4 py-2 font-medium text-neutral-800 transition duration-300 group-hover:bg-stone-200 group-hover:text-[#5B612A] group-focus-within:text-[#5B612A]';
@@ -37,11 +52,27 @@ export const NavDropdown = ({ item }: { item: ISection }) => {
   );
 
   return (
-    <div className="group relative flex flex-col items-center">
+    // eslint-disable-next-line jsx-a11y/no-static-element-interactions -- só repassa o Esc dos links de dentro
+    <div
+      className="group relative flex flex-col items-center"
+      onMouseEnter={() => setHovered(true)}
+      onMouseLeave={() => {
+        setHovered(false);
+        setDismissed(false);
+      }}
+      onFocus={() => setFocused(true)}
+      onBlur={(event) => {
+        if (event.currentTarget.contains(event.relatedTarget)) return;
+        setFocused(false);
+        setDismissed(false);
+      }}
+      onKeyDown={handleKeyDown}
+    >
       {href ? (
         <Link
+          ref={triggerRef}
           href={href}
-          aria-haspopup="true"
+          aria-expanded={expanded}
           onClick={(event) => event.currentTarget.blur()}
           className={triggerClassName}
         >
@@ -49,8 +80,9 @@ export const NavDropdown = ({ item }: { item: ISection }) => {
         </Link>
       ) : (
         <button
+          ref={triggerRef}
           type="button"
-          aria-haspopup="true"
+          aria-expanded={expanded}
           className={cn(triggerClassName, 'cursor-default')}
         >
           {triggerContent}
@@ -70,7 +102,12 @@ export const NavDropdown = ({ item }: { item: ISection }) => {
         linha verde da barra (o pt-3 cobre a distância do botão até ela).
         Centralizado, ele era mais largo que o botão e vazava para a esquerda.
       */}
-      <div className="pointer-events-none absolute top-full left-0 z-50 pt-3 group-hover:pointer-events-auto group-focus-within:pointer-events-auto">
+      <div
+        className={cn(
+          'pointer-events-none absolute top-full left-0 z-50 pt-3 group-hover:pointer-events-auto group-focus-within:pointer-events-auto',
+          dismissed && 'hidden',
+        )}
+      >
         <div
           className={cn(
             'flex w-max min-w-60 flex-col overflow-hidden rounded-b-lg border border-t-0 border-[#E4E5E2] bg-white py-1.5 shadow-[0_16px_32px_rgba(33,36,15,0.14)]',

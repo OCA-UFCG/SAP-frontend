@@ -21,15 +21,52 @@ export function moveOptionFocus(
   listbox: HTMLElement | null,
   key: string,
 ): boolean {
-  const move = MOVES[key];
-  const options = listbox
-    ? [...listbox.querySelectorAll<HTMLElement>('[role="option"]')]
-    : [];
-  if (!move || options.length === 0) return false;
+  return moveFocus(listbox, key, '[role="option"]') !== null;
+}
 
-  const current = options.indexOf(document.activeElement as HTMLElement);
-  options[move(current, options.length - 1)].focus();
-  return true;
+function moveFocus(
+  container: HTMLElement | null,
+  key: string,
+  selector: string,
+): HTMLElement | null {
+  const move = MOVES[key];
+  const items = container
+    ? [...container.querySelectorAll<HTMLElement>(selector)]
+    : [];
+  if (!move || items.length === 0) return null;
+
+  const current = items.indexOf(document.activeElement as HTMLElement);
+  const target = items[move(current, items.length - 1)];
+  target.focus();
+  return target;
+}
+
+/** Num grupo de opções lado a lado, as setas para os lados andam como as de cima e de baixo. */
+const RADIO_KEYS: Record<string, string> = {
+  ArrowRight: "ArrowDown",
+  ArrowLeft: "ArrowUp",
+};
+
+/**
+ * O `onKeyDown` de um grupo de opções (`role="radiogroup"`): as setas levam o
+ * foco à próxima opção disponível e já a escolhem, como num grupo de rádios do
+ * navegador. Assim o Tab entra e sai do grupo de uma vez, em vez de parar em
+ * cada opção.
+ *
+ * @example
+ * <div role="radiogroup" onKeyDown={handleRadioGroupKeyDown}>…</div>
+ */
+export function handleRadioGroupKeyDown(
+  event: KeyboardEvent<HTMLElement>,
+): void {
+  const target = moveFocus(
+    event.currentTarget,
+    RADIO_KEYS[event.key] ?? event.key,
+    '[role="radio"]:not(:disabled)',
+  );
+  if (!target) return;
+  event.preventDefault();
+  target.click();
 }
 
 /**

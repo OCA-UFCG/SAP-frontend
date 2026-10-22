@@ -60,7 +60,9 @@ export const LanguageSwitcher = () => {
         type="button"
         onClick={() => setIsOpen((prev) => !prev)}
         className="group flex items-center justify-center gap-2 px-4 max-sm:gap-1.5 max-sm:px-2 py-2 rounded-md hover:bg-stone-200 transition-colors focus:outline-none focus:ring-2 focus:ring-[#5B612A] cursor-pointer h-10"
-        aria-label={t("changeLanguage")}
+        // O nome começa pela sigla que aparece no botão: quem usa comando de
+        // voz fala o que vê ("PT-BR"), e o leitor de tela diz o idioma atual.
+        aria-label={`${activeLanguage.acronym}, ${t("changeLanguage")}`}
         aria-expanded={isOpen}
         aria-haspopup="listbox"
       >
@@ -108,6 +110,8 @@ export const LanguageSwitcher = () => {
               type="button"
               // Sem `role="option"` a lista era anunciada vazia.
               role="option"
+              // Cada nome é lido na pronúncia do próprio idioma.
+              lang={lang.code}
               aria-selected={locale === lang.code}
               data-autofocus={locale === lang.code || undefined}
               onClick={() => handleLocaleChange(lang.code)}

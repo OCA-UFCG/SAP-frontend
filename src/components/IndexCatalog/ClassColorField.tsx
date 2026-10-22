@@ -107,6 +107,10 @@ export const ClassColorField = ({
         >
           {copied ? "Copiado" : "Copiar"}
         </button>
+        {/* O nome do botão é fixo; o "Copiado" chega ao leitor de tela por aqui. */}
+        <span role="status" className="sr-only">
+          {copied ? "Copiado" : ""}
+        </span>
       </div>
       {invalid && (
         <p className="mt-1 font-normal text-[#B3261E]">

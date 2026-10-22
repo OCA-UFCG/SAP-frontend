@@ -10,6 +10,7 @@ import {
   type ForecastDimension,
   type ForecastMember,
 } from "@/utils/forecastGroup";
+import { handleRadioGroupKeyDown } from "@/utils/listboxKeyboard";
 
 interface ForecastFiltersProps {
   members: readonly ForecastMember[];
@@ -62,6 +63,8 @@ export function ForecastFilters({
             <div
               role="radiogroup"
               aria-labelledby={labelId}
+              tabIndex={-1}
+              onKeyDown={handleRadioGroupKeyDown}
               className="flex h-10 w-full gap-1 rounded-lg bg-[#E4E5E2] p-1 shadow-sm"
             >
               {options[dimension].map((option) => {
@@ -72,6 +75,8 @@ export function ForecastFilters({
                     type="button"
                     role="radio"
                     aria-checked={option.selected}
+                    // Só a opção escolhida entra no Tab; as setas andam entre as outras.
+                    tabIndex={option.selected ? 0 : -1}
                     disabled={!option.enabled}
                     title={option.enabled ? label : t("unavailable", { label })}
                     onClick={() => handleSelect(dimension, option.value)}

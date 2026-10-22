@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useTransition } from "react";
+import { useRef, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { useTranslations } from "next-intl";
 
@@ -32,8 +32,17 @@ export function ApprovalsTable({ rows }: { rows: ApprovalRow[] }) {
   const router = useRouter();
   const [, startTransition] = useTransition();
   const [states, setStates] = useState<Record<string, RowState>>({});
+  // Aprovar troca os botões da linha por "Aprovado": o foco ia parar no topo
+  // da página e o leitor de tela não dizia nada. Agora o foco fica na tabela e
+  // a decisão é anunciada.
+  const [announcement, setAnnouncement] = useState("");
+  const tableRef = useRef<HTMLDivElement>(null);
 
-  async function decide(uid: string, decision: "approved" | "rejected") {
+  async function decide(
+    uid: string,
+    email: string,
+    decision: "approved" | "rejected",
+  ) {
     setStates((current) => ({ ...current, [uid]: "working" }));
 
     try {
@@ -45,6 +54,8 @@ export function ApprovalsTable({ rows }: { rows: ApprovalRow[] }) {
 
       if (response.ok) {
         setStates((current) => ({ ...current, [uid]: decision }));
+        setAnnouncement(`${email}: ${t(decision)}`);
+        tableRef.current?.focus();
         // Recarrega a lista do servidor: sem isso, um pedido decidido por outro
         // operador continuava aparecendo aqui como se estivesse esperando.
         startTransition(() => router.refresh());
@@ -66,14 +77,28 @@ export function ApprovalsTable({ rows }: { rows: ApprovalRow[] }) {
     }
   }
 
+  const status = (
+    <p role="status" className="sr-only">
+      {announcement}
+    </p>
+  );
+
   if (rows.length === 0) {
     return (
-      <p className="text-[0.875rem] leading-6 text-[#676264]">{t("empty")}</p>
+      <>
+        <p className="text-[0.875rem] leading-6 text-[#676264]">{t("empty")}</p>
+        {status}
+      </>
     );
   }
 
   return (
-    <div className="w-full overflow-x-auto rounded-md border border-[#DBE0CC]">
+    <div
+      ref={tableRef}
+      tabIndex={-1}
+      className="w-full overflow-x-auto rounded-md border border-[#DBE0CC] focus:outline-none"
+    >
+      {status}
       <table className="w-full min-w-[42rem] border-collapse text-left text-[0.8125rem]">
         <thead>
           <tr className="border-b border-[#DBE0CC] bg-[#F3F5EE]">
@@ -117,7 +142,7 @@ export function ApprovalsTable({ rows }: { rows: ApprovalRow[] }) {
                       <button
                         type="button"
                         disabled={state === "working"}
-                        onClick={() => void decide(row.uid, "approved")}
+                        onClick={() => void decide(row.uid, row.email, "approved")}
                         className={`${BUTTON} bg-[#646B2D] text-white hover:bg-[#4F5424] focus-visible:ring-[#5B612A]`}
                       >
                         {state === "working" ? t("working") : t("approve")}
@@ -125,7 +150,7 @@ export function ApprovalsTable({ rows }: { rows: ApprovalRow[] }) {
                       <button
                         type="button"
                         disabled={state === "working"}
-                        onClick={() => void decide(row.uid, "rejected")}
+                        onClick={() => void decide(row.uid, row.email, "rejected")}
                         className={`${BUTTON} border border-[#DBE0CC] text-[#B3261E] hover:bg-[#FCE8E6] focus-visible:ring-[#B3261E]`}
                       >
                         {t("reject")}
