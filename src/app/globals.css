@@ -125,28 +125,6 @@ textarea {
   }
 }
 
-/* Brilho que segue o mouse (componente Spotlight): um halo dentro do card
-   que está sob o ponteiro. */
-.spotlight-card::before {
-  content: "";
-  position: absolute;
-  pointer-events: none;
-  opacity: 0;
-  transition: opacity 400ms ease;
-  inset: 0;
-  z-index: 1;
-  border-radius: inherit;
-  background: radial-gradient(
-    420px circle at var(--mx, 50%) var(--my, 50%),
-    rgba(240, 240, 215, 0.22),
-    transparent 60%
-  );
-}
-
-.spotlight-card:hover::before {
-  opacity: 1;
-}
-
 /* Movimento da plataforma. Mesmo combinado da home: tudo dentro de
    `prefers-reduced-motion: no-preference`, e nada fica escondido se a animação
    não rodar, porque o estado final de cada uma é o próprio elemento parado. */

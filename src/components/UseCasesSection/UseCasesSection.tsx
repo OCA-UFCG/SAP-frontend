@@ -3,7 +3,7 @@ import { PersonIcon, QuoteIcon } from "@/components/HomeIcons/HomeIcons";
 import { HomeTestimonialI } from "@/utils/interfaces";
 import { BlurPreview } from "@/components/BlurPreview/BlurPreview";
 import type { BlurPreviews } from "@/services/blurPreviews";
-import { Reveal, Spotlight } from "@/components/HomeMotion/HomeMotion";
+import { Reveal } from "@/components/HomeMotion/HomeMotion";
 import { revealOrder } from "@/components/HomeMotion/revealOrder";
 
 type Props = {
@@ -78,11 +78,9 @@ const TestimonialCard = ({
   const atBottom = style.large || !!item.image;
 
   return (
-    // O brilho que segue o mouse vem do Spotlight da seção (spotlight-card).
     <figure
-      data-spotlight
       style={revealOrder(order)}
-      className={`reveal-item spotlight-card group relative flex flex-col overflow-hidden rounded-lg p-6 font-inter text-sm leading-6 transition-[translate,scale,box-shadow] duration-300 ease-out hover:shadow-[0_20px_40px_rgba(0,0,0,0.35)] motion-safe:hover:-translate-y-1.5 motion-safe:hover:scale-[1.02] ${style.card} ${colors.text}`}
+      className={`reveal-item group relative flex flex-col overflow-hidden rounded-lg p-6 font-inter text-sm leading-6 transition-[translate,scale,box-shadow] duration-300 ease-out hover:shadow-[0_20px_40px_rgba(0,0,0,0.35)] motion-safe:hover:-translate-y-1.5 motion-safe:hover:scale-[1.02] ${style.card} ${colors.text}`}
     >
       {item.image && (
         <>
@@ -137,7 +135,7 @@ export const UseCasesSection = ({ id, title, items, previews = {} }: Props) => {
           {title}
         </h2>
 
-        <Spotlight className="flex flex-col gap-6 lg:gap-9">
+        <div className="flex flex-col gap-6 lg:gap-9">
           <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-[625fr_279.5fr_327.5fr] lg:grid-rows-[minmax(248px,auto)_minmax(248px,auto)]">
             {top.map((item, index) => (
               <TestimonialCard
@@ -163,7 +161,7 @@ export const UseCasesSection = ({ id, title, items, previews = {} }: Props) => {
               ))}
             </div>
           )}
-        </Spotlight>
+        </div>
       </Reveal>
     </section>
   );
