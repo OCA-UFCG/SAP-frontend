@@ -69,7 +69,7 @@ export const Login = ({
               <Image
                 src="/green-sedes-logo.svg"
                 alt={t("logoAlt")}
-                width={128}
+                width={136}
                 height={46}
                 priority
                 className="h-[110px] w-auto"
