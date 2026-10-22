@@ -1,6 +1,7 @@
 "use client";
 
-import { useMemo } from "react";
+import { useCallback, useId, useMemo } from "react";
+import { useTranslations } from "next-intl";
 import {
   Bar,
   BarChart,
@@ -16,6 +17,15 @@ import {
   buildStackedChartData,
   MUNICIPAL_REPORT_STACKED_MAX_COLUMNS,
 } from "@/utils/municipalReportStackedChart";
+import {
+  ChartDataTable,
+  ChartDescription,
+  useChartSummaryText,
+} from "@/components/ChartDataTable/ChartDataTable";
+import type {
+  ChartTableRow,
+  ChartTableSeries,
+} from "@/utils/chartAccessibility";
 
 const Y_TICKS = [0, 10, 20, 30, 40, 50, 60, 70, 80, 90, 100];
 
@@ -57,6 +67,37 @@ export function MunicipalReportStackedChart({
     () => new Map(data.series.map((series) => [series.id, series])),
     [data],
   );
+
+  const tA11y = useTranslations("ChartAccessibility");
+  const descriptionId = useId();
+  const tableSeries = useMemo<ChartTableSeries[]>(
+    () =>
+      data.series.map((series) => ({
+        id: series.id,
+        label: translateLabel(series.label),
+      })),
+    [data, translateLabel],
+  );
+  // A tabela traz o percentual como o serviço produziu, o mesmo do tooltip, e
+  // não as fatias arredondadas para fechar 100 no desenho.
+  const tableRows = useMemo<ChartTableRow[]>(
+    () =>
+      data.rows.map((row) => ({
+        period: row.period,
+        label: row.period,
+        values: row.raw,
+      })),
+    [data],
+  );
+  const formatValue = useCallback(
+    (value: number) =>
+      `${new Intl.NumberFormat(locale, {
+        minimumFractionDigits: 1,
+        maximumFractionDigits: 1,
+      }).format(value)}%`,
+    [locale],
+  );
+  const description = useChartSummaryText(tableRows, tableSeries, formatValue);
 
   function renderTooltip({ active, label, payload }: TooltipContentProps) {
     if (!active || !payload?.length) return null;
@@ -102,14 +143,20 @@ export function MunicipalReportStackedChart({
   if (rows.length === 0 || data.series.length === 0) return null;
 
   return (
-    <div
-      role="img"
-      aria-label={`${analysis.title}: ${data.firstPeriod} a ${data.lastPeriod}`}
-      className="w-full"
-    >
-      <div className="aspect-[696/322] w-full">
+    <div className="w-full">
+      {/* Só o desenho é `img`: com o papel no contêiner inteiro, a legenda e a
+          tabela abaixo virariam parte da imagem e sumiriam do leitor de tela. */}
+      <div
+        role="img"
+        aria-label={`${tA11y("reportChartLabel", { title: analysis.title })}: ${data.firstPeriod} – ${data.lastPeriod}`}
+        aria-describedby={description ? descriptionId : undefined}
+        className="aspect-[696/322] w-full"
+      >
         <ResponsiveContainer width="100%" height="100%">
-          <BarChart data={rows} margin={{ top: 8, right: 8, bottom: 8, left: 0 }}>
+          <BarChart
+            data={rows}
+            margin={{ top: 8, right: 8, bottom: 8, left: 0 }}
+          >
             <CartesianGrid stroke="#E4EBE5" vertical={false} />
             <XAxis
               dataKey="axisLabel"
@@ -152,7 +199,12 @@ export function MunicipalReportStackedChart({
         </ResponsiveContainer>
       </div>
 
-      <ul className="mt-4 flex flex-wrap content-center items-center gap-x-4 gap-y-2">
+      <ChartDescription id={descriptionId} text={description} />
+
+      <ul
+        aria-label={tA11y("legendLabel")}
+        className="mt-4 flex flex-wrap content-center items-center gap-x-4 gap-y-2"
+      >
         {[...seriesById.values()].map((series) => (
           <li
             key={series.id}
@@ -167,6 +219,14 @@ export function MunicipalReportStackedChart({
           </li>
         ))}
       </ul>
+      <div className="mt-3">
+        <ChartDataTable
+          caption={analysis.title}
+          series={tableSeries}
+          rows={tableRows}
+          formatValue={formatValue}
+        />
+      </div>
     </div>
   );
 }

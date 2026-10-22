@@ -1,0 +1,16 @@
+{
+  "MapAccessibility": {
+    "mapTitle": "Mapa",
+    "zoomIn": "Acercar",
+    "zoomOut": "Alejar",
+    "resetBearing": "Arrastre para girar el mapa; haga clic para volver el norte hacia arriba",
+    "toggleAttribution": "Mostrar u ocultar los créditos del mapa",
+    "mapFeedback": "Enviar comentarios sobre el mapa",
+    "closePopup": "Cerrar",
+    "marker": "Marcador en el mapa",
+    "keyboardHint": "Con el mapa enfocado, use las flechas para moverse y las teclas + y − para acercar y alejar. Los valores del lugar elegido aparecen como texto en el panel Detalles.",
+    "analysisLayer": "Resultado del análisis multicriterio",
+    "noLayer": "ningún índice activado",
+    "brazil": "Brasil"
+  }
+}

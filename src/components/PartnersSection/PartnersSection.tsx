@@ -28,7 +28,7 @@ export const PartnersSection = ({
         <div className="flex flex-col gap-4 text-center lg:text-left items-center lg:items-start">
           <Badge label={t("badge")} />
 
-          <h2 className="text-2xl md:text-[30px] leading-[36px] tracking-[-0.0075em] font-semibold text-[#292829]">
+          <h2 className="text-2xl md:text-[1.875rem] leading-[36px] tracking-[-0.0075em] font-semibold text-[#292829]">
             {title}
           </h2>
 
@@ -50,7 +50,7 @@ export const PartnersSection = ({
             return (
               <div
                 key={partner.sys.id}
-                className="flex min-h-[190px] flex-col overflow-hidden rounded-lg bg-[#989F43]"
+                className="flex min-h-[190px] flex-col overflow-hidden rounded-lg bg-[#646B2D]"
               >
                 <div className="flex min-h-[43px] items-center justify-center px-4 py-2">
                   <span className="text-center font-inter text-xs font-medium leading-normal text-[#F8F7F8]">

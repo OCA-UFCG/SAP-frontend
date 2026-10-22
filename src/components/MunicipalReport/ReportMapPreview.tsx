@@ -428,6 +428,12 @@ function waitForMapCapture(
 
 interface ReportMapPreviewProps {
   territory: MunicipalReportTerritory;
+  /**
+   * O texto alternativo da imagem do mapa: qual índice, onde e quando. Vai para
+   * o PDF também — sem ele, quem lê o relatório com leitor de tela ouvia só
+   * "recorte do mapa" em todos os mapas.
+   */
+  imageAlt?: string;
   layerId: string;
   period: string;
   className?: string;
@@ -466,6 +472,7 @@ interface ReportMapPreviewProps {
 
 export function ReportMapPreview({
   territory,
+  imageAlt,
   layerId,
   period,
   className,
@@ -733,7 +740,7 @@ export function ReportMapPreview({
       {resolvedImageSrc && (
         <img
           src={resolvedImageSrc}
-          alt={t("mapCropAlt")}
+          alt={imageAlt ?? t("mapCropAlt")}
           className="h-full w-full object-cover"
         />
       )}
@@ -744,7 +751,7 @@ export function ReportMapPreview({
             <button
               type="button"
               onClick={onRetry}
-              className="font-open-sans rounded-md bg-[#989F43] px-3 py-1 text-xs font-medium leading-5 text-white transition hover:bg-[#868D3B] print:hidden"
+              className="font-open-sans rounded-md bg-[#646B2D] px-3 py-1 text-xs font-medium leading-5 text-white transition hover:bg-[#4F5424] print:hidden"
             >
               {t("mapRetry")}
             </button>

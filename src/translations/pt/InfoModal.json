@@ -6,7 +6,7 @@
     "endDate": "Data fim",
     "timeScale": "Escala\ntemporal",
     "legend": "Legenda",
-    "learnMore": "Saiba mais",
-    "ariaLabel": "Informações sobre {title}"
+    "ariaLabel": "Informações sobre {title}",
+    "close": "Fechar"
   }
 }

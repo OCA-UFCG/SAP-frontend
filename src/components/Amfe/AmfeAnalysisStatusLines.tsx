@@ -13,7 +13,7 @@ export function AmfeAnalysisStatusLines() {
     <>
       {error && !loading && (
         <div className="flex h-64 items-center justify-center">
-          <p className="text-center font-medium text-red-600">
+          <p role="alert" className="text-center font-medium text-red-600">
             {t("error", { error })}
           </p>
         </div>
@@ -22,7 +22,7 @@ export function AmfeAnalysisStatusLines() {
       {!loading && coverage && (
         <p className="mb-2 text-sm text-gray-600">
           <span>{t("coverageLabel")} </span>
-          <span className="text-[#989F43]">
+          <span className="text-[#646B2D]">
             {t("coverageMunicipalities", {
               count: coverage.count.toLocaleString(locale),
               totalCount: coverage.totalCount.toLocaleString(locale),

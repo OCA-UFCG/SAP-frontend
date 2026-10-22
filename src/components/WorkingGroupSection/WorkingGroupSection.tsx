@@ -46,10 +46,10 @@ export const WorkingGroupSection = ({
       <div className="w-full max-w-[1440px] mx-auto px-4 py-12 md:px-10 lg:px-[80px] flex flex-col gap-6">
         <div className="flex flex-col items-start gap-4">
           <Badge label={footerT("aboutMenu.grupoDeTrabalho")} />
-          <h2 className="text-[24px] md:text-[28px] lg:text-[30px] leading-[28px] md:leading-[32px] lg:leading-[36px] tracking-[-0.0075em] font-semibold text-[#292829]">
+          <h2 className="text-[1.5rem] md:text-[1.75rem] lg:text-[1.875rem] leading-[28px] md:leading-[32px] lg:leading-[36px] tracking-[-0.0075em] font-semibold text-[#292829]">
             {title}
           </h2>
-          <div className="text-[15px] md:text-[16px] leading-[150%] text-[#292829]">
+          <div className="text-[0.9375rem] md:text-[1rem] leading-[150%] text-[#292829]">
             {text}
           </div>
         </div>
@@ -76,7 +76,7 @@ export const WorkingGroupSection = ({
                     key={`dot-${milestone.title}-${index}`}
                     className="relative flex min-w-0 shrink basis-[228px] justify-center"
                   >
-                    <span className="h-[19px] w-[19px] rounded-full bg-[#989F43] ring-4 ring-[#F6F7F6]" />
+                    <span className="h-[19px] w-[19px] rounded-full bg-[#646B2D] ring-4 ring-[#F6F7F6]" />
                   </span>
                 ))}
               </div>
@@ -93,7 +93,7 @@ export const WorkingGroupSection = ({
                       <p className="text-base font-semibold text-[#292829]">
                         {copy.title}
                       </p>
-                      <p className="text-[11px] leading-normal text-[#292829]">
+                      <p className="text-[0.6875rem] leading-normal text-[#292829]">
                         {copy.description}
                       </p>
                     </div>
@@ -114,7 +114,7 @@ export const WorkingGroupSection = ({
                     className="flex gap-4"
                   >
                     <div className="flex flex-col items-center">
-                      <span className="h-[19px] w-[19px] shrink-0 rounded-full bg-[#989F43] ring-4 ring-[#F6F7F6]" />
+                      <span className="h-[19px] w-[19px] shrink-0 rounded-full bg-[#646B2D] ring-4 ring-[#F6F7F6]" />
                       {!isLast && (
                         <span className="mt-2 w-0.5 flex-1 bg-[#684B40]" />
                       )}
@@ -128,7 +128,7 @@ export const WorkingGroupSection = ({
                         <p className="text-base font-semibold text-[#292829]">
                           {copy.title}
                         </p>
-                        <p className="text-[11px] leading-normal text-[#292829]">
+                        <p className="text-[0.6875rem] leading-normal text-[#292829]">
                           {copy.description}
                         </p>
                       </div>

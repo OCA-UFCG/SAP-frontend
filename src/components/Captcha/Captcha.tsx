@@ -45,7 +45,7 @@ export function Captcha({ action, onToken }: CaptchaProps) {
         scriptOptions={{ onError: () => setUnavailable(true) }}
       />
       {unavailable ? (
-        <p role="alert" className="text-[12px] leading-4 text-[#B3261E]">
+        <p role="alert" className="text-[0.75rem] leading-4 text-[#B3261E]">
           {t("unavailable")}
         </p>
       ) : null}

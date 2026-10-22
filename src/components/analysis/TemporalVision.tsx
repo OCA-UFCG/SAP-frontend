@@ -1,8 +1,10 @@
 "use client";
 
 import {
+  useCallback,
   useDeferredValue,
   useEffect,
+  useId,
   useLayoutEffect,
   useMemo,
   useRef,
@@ -16,6 +18,20 @@ import type {
   CompactAnalysisYearData,
 } from "@/utils/analysis";
 import { parseDekadPeriod } from "@/utils/dekadPeriod";
+import {
+  ChartDataTable,
+  ChartDescription,
+  useChartSummaryText,
+} from "@/components/ChartDataTable/ChartDataTable";
+import type { ChartTableSeries } from "@/utils/chartAccessibility";
+import {
+  buildSeriesData,
+  buildTemporalTableRows,
+  sortYearEntries,
+  toClassLabelSlug,
+} from "./temporalVisionData";
+
+export { buildSeriesData, buildTemporalTableRows } from "./temporalVisionData";
 
 interface TemporalVisionProps {
   years?: Record<string, CompactAnalysisYearData>;
@@ -60,12 +76,6 @@ function isTestEnvironment() {
   );
 }
 
-function sortYearEntries(years: Record<string, CompactAnalysisYearData>) {
-  return Object.entries(years).sort(([left], [right]) =>
-    left.localeCompare(right),
-  );
-}
-
 function buildYearCategories(
   sortedYearEntries: Array<[string, CompactAnalysisYearData]>,
 ) {
@@ -79,26 +89,6 @@ function dekadTimestamp(period: string) {
   return parsed
     ? Date.UTC(parsed.year, parsed.month - 1, (parsed.dekad - 1) * 10 + 1)
     : null;
-}
-
-export function buildSeriesData(
-  sortedYearEntries: Array<[string, CompactAnalysisYearData]>,
-  selectedState: string,
-  classIndex: number,
-) {
-  return sortedYearEntries.map(([yearKey, yearData]) => {
-    const locationValues = yearData.values[selectedState];
-    const scale = yearData.valuesScale ?? 1;
-    const rawValue = locationValues?.[classIndex];
-
-    return {
-      year: yearData.year ?? yearKey,
-      value:
-        typeof rawValue === "number"
-          ? Number((rawValue / scale).toFixed(1))
-          : null,
-    };
-  });
 }
 
 export function TemporalVision({
@@ -117,6 +107,40 @@ export function TemporalVision({
   const legendRef = useRef<am5.Legend | null>(null);
   const seriesRef = useRef(new Map<string, am5xy.LineSeries>());
   const deferredSelectedState = useDeferredValue(selectedState);
+  const tA11y = useTranslations("ChartAccessibility");
+  const descriptionId = useId();
+  const translateClassLabel = useCallback(
+    (label: string) => {
+      const slug = toClassLabelSlug(label);
+      return tCaption.has(`labels.${slug}`)
+        ? tCaption(`labels.${slug}`)
+        : label;
+    },
+    [tCaption],
+  );
+  const tableSeries = useMemo<ChartTableSeries[]>(
+    () =>
+      (classes ?? []).map((cls, classIndex) => ({
+        id: String(classIndex),
+        label: translateClassLabel(cls.label),
+      })),
+    [classes, translateClassLabel],
+  );
+  const tableRows = useMemo(
+    () =>
+      years && classes
+        ? buildTemporalTableRows(years, classes, deferredSelectedState)
+        : [],
+    [years, classes, deferredSelectedState],
+  );
+  const formatValue = useCallback(
+    (value: number) =>
+      valueType === "absolute"
+        ? `${value} ${valueUnit ?? ""}`.trim()
+        : `${value}%`,
+    [valueType, valueUnit],
+  );
+  const description = useChartSummaryText(tableRows, tableSeries, formatValue);
   // Centenas de decêndios não cabem como categorias: as datas inteiras se
   // atropelam. A série decendial vai num eixo de datas, que escolhe sozinho
   // entre mostrar anos ou meses conforme o zoom.
@@ -328,17 +352,7 @@ export function TemporalVision({
     const activeSeriesKeys = new Set<string>();
 
     classes.forEach((cls, classIndex) => {
-      const labelSlug = cls.label
-        .toLowerCase()
-        .normalize("NFD")
-        .replace(/[\u0300-\u036f]/g, "")
-        .replace(/</g, "menor-que")
-        .replace(/>/g, "maior-que")
-        .replace(/[^a-z0-9]+/g, "-")
-        .replace(/(^-|-$)+/g, "");
-      const translatedLabel = tCaption.has(`labels.${labelSlug}`)
-        ? tCaption(`labels.${labelSlug}`)
-        : cls.label;
+      const translatedLabel = translateClassLabel(cls.label);
 
       const seriesKey = `${cls.id}:${cls.label}:${cls.color}`;
       activeSeriesKeys.add(seriesKey);
@@ -426,17 +440,33 @@ export function TemporalVision({
     valueType,
     valueUnit,
     isDekadSeries,
+    translateClassLabel,
   ]);
 
   return (
     <div className="flex flex-col gap-2">
       <div className="h-6 w-[132px]">
-        <h2 className="text-[18px] font-semibold leading-6 text-[#292829]">
+        <h2 className="text-[1.125rem] font-semibold leading-6 text-[#292829]">
           {t("temporalVision")}
         </h2>
       </div>
 
-      <div ref={containerRef} className="min-h-[500px] rounded-lg bg-white" />
+      {/* `figure`, e não `img`: a barra de rolagem do amCharts recebe foco e
+          precisa continuar alcançável pelo teclado. */}
+      <div
+        ref={containerRef}
+        role="figure"
+        aria-label={tA11y("temporalVisionLabel")}
+        aria-describedby={description ? descriptionId : undefined}
+        className="min-h-[500px] rounded-lg bg-white"
+      />
+      <ChartDescription id={descriptionId} text={description} />
+      <ChartDataTable
+        caption={t("temporalVision")}
+        series={tableSeries}
+        rows={tableRows}
+        formatValue={formatValue}
+      />
     </div>
   );
 }

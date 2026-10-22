@@ -3,6 +3,7 @@
 import { useEffect, useRef, useState, type ReactNode } from "react";
 import { useTranslations } from "next-intl";
 import type { BasemapId } from "@/components/Map/Map";
+import { useDialogFocus } from "@/hooks/useDialogFocus";
 import { BasemapControl } from "./BasemapControl";
 import { LayerOpacityControl } from "./LayerOpacityControl";
 
@@ -32,7 +33,15 @@ export function MapSettingsControl({
   const [isOpen, setIsOpen] = useState(false);
   const containerRef = useRef<HTMLDivElement>(null);
 
+  const panelRef = useRef<HTMLDivElement>(null);
+
   useOutsideClose(containerRef, isOpen, () => setIsOpen(false));
+  // O foco entra no painel ao abrir, e Esc fecha com o foco de volta no botão.
+  useDialogFocus(panelRef, {
+    open: isOpen,
+    onClose: () => setIsOpen(false),
+    trapFocus: false,
+  });
 
   return (
     // O `top` acompanha a pilha de controles do MapLibre no canto superior
@@ -51,14 +60,17 @@ export function MapSettingsControl({
         title={t("mapSettings")}
         className={`group flex h-[29px] w-[29px] items-center justify-center rounded border border-[#EFEFEF] shadow-[0_0_0_2px_rgba(0,0,0,0.1)] transition-colors ${
           isOpen
-            ? "bg-[#989F43] text-white"
+            ? "bg-[#646B2D] text-white"
             : "bg-white text-[#292829] hover:bg-[#E4E5E2]"
         }`}
       >
         <MapSettingsIcon />
       </button>
       {isOpen && (
-        <div className="flex origin-top-right flex-col items-end gap-2.5 motion-safe:animate-[menu-in_180ms_ease-out]">
+        <div
+          ref={panelRef}
+          className="flex origin-top-right flex-col items-end gap-2.5 motion-safe:animate-[menu-in_180ms_ease-out]"
+        >
           <BasemapControl basemap={basemap} onChange={onBasemapChange} />
           {opacity !== undefined && onOpacityChange && (
             <LayerOpacityControl opacity={opacity} onChange={onOpacityChange} />

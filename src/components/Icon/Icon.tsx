@@ -10,8 +10,11 @@ export const Icon = ({
   width?: number;
   height?: number;
 } & React.SVGProps<SVGSVGElement>) => {
+  // Decorativo por padrão: quase sempre vem ao lado de um texto ou dentro de
+  // um botão que já tem nome. Quem passa `aria-label` torna o ícone legível.
   return (
     <svg
+      aria-hidden={props["aria-label"] ? undefined : true}
       {...props}
       width={size ?? width}
       height={size ?? height}

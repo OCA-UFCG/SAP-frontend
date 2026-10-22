@@ -51,7 +51,7 @@ export function ComingSoonContext({ activeSection }: ComingSoonContextProps) {
 
       <div className="w-full bg-[#E1E2B4]">
         <div className="w-full flex items-center justify-center p-6 min-h-[120px]">
-          <p className="max-w-[320px] text-center font-bold text-[18px] leading-[150%] text-[#777E32]">
+          <p className="max-w-[320px] text-center font-bold text-[1.125rem] leading-[150%] text-[#5B612A]">
             {tSoon("description")}
           </p>
         </div>

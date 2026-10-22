@@ -94,7 +94,7 @@ export function ReportSummary<T extends ReportSummaryItem>({
 
   return (
     <nav className="report-summary flex flex-col gap-6" aria-label={title}>
-      <h2 className="font-open-sans text-[28px] font-bold leading-[1.25] text-[#292829]">
+      <h2 className="font-open-sans text-[1.75rem] font-bold leading-[1.25] text-[#292829]">
         {title}
       </h2>
       <div className="grid gap-x-10 gap-y-8 md:grid-cols-2">
@@ -102,7 +102,7 @@ export function ReportSummary<T extends ReportSummaryItem>({
           <div key={columnIndex} className="flex min-w-0 flex-col gap-8">
             {column.map((group) => (
               <section key={group.key} className="flex min-w-0 flex-col gap-2">
-                <h3 className="report-heading font-inter border-b-2 border-[#989F43] pb-2 text-xs font-semibold uppercase leading-5 tracking-[0.08em] text-[#777E32]">
+                <h3 className="report-heading font-inter border-b-2 border-[#646B2D] pb-2 text-xs font-semibold uppercase leading-5 tracking-[0.08em] text-[#5B612A]">
                   {tModules(`categories.${group.key}`)}
                 </h3>
                 <ul className="flex flex-col">
@@ -122,14 +122,14 @@ export function ReportSummary<T extends ReportSummaryItem>({
                           })}
                           className="-mx-2 flex items-end gap-3 rounded-lg px-2 py-1.5 transition hover:bg-[#F3F4EC] print:mx-0 print:px-0"
                         >
-                          <span className="font-inter min-w-0 text-[13px] leading-5 text-[#292829]">
+                          <span className="font-inter min-w-0 text-[0.8125rem] leading-5 text-[#292829]">
                             {entryTitle}
                           </span>
                           <span
                             aria-hidden="true"
                             className="mb-[5px] min-w-6 flex-1 border-b border-dotted border-[#C8CAC5]"
                           />
-                          <span className="font-inter w-7 shrink-0 text-right text-[13px] leading-5 tabular-nums text-[#7E797B]">
+                          <span className="font-inter w-7 shrink-0 text-right text-[0.8125rem] leading-5 tabular-nums text-[#6E696B]">
                             {pages?.get(anchorId)}
                           </span>
                         </a>

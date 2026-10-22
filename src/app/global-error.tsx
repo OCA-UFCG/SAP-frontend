@@ -44,7 +44,7 @@ export default function GlobalError({
               margin: "0 0 16px",
               fontSize: "28px",
               lineHeight: 1.3,
-              color: "#777E32",
+              color: "#5B612A",
             }}
           >
             O Portal SEDES está fora do ar no momento
@@ -72,7 +72,7 @@ export default function GlobalError({
               cursor: "pointer",
               border: "none",
               borderRadius: "2px",
-              backgroundColor: "#777E32",
+              backgroundColor: "#5B612A",
               color: "#ffffff",
               fontSize: "16px",
               fontWeight: 500,

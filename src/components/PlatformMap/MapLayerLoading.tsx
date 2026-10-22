@@ -121,7 +121,7 @@ export function MapLayerLoading({
         }`}
       >
         <span
-          className={`absolute inset-y-0 left-0 bg-[#989F43] shadow-[0_0_10px_rgba(152,159,67,0.8)] ${
+          className={`absolute inset-y-0 left-0 bg-[#646B2D] shadow-[0_0_10px_rgba(152,159,67,0.8)] ${
             isDone
               ? "w-full"
               : "w-2/5 motion-safe:animate-[map-loading-bar_1.25s_cubic-bezier(0.45,0,0.55,1)_infinite]"
@@ -149,7 +149,7 @@ export function MapLayerLoading({
         {isDone ? (
           <span
             aria-hidden="true"
-            className="flex h-4 w-4 shrink-0 items-center justify-center rounded-full bg-[#989F43] text-white motion-safe:animate-[pop-in_380ms_cubic-bezier(0.2,0.7,0.2,1)]"
+            className="flex h-4 w-4 shrink-0 items-center justify-center rounded-full bg-[#646B2D] text-white motion-safe:animate-[pop-in_380ms_cubic-bezier(0.2,0.7,0.2,1)]"
           >
             <svg
               width="10"
@@ -167,7 +167,7 @@ export function MapLayerLoading({
         ) : (
           <span
             aria-hidden="true"
-            className="h-2 w-2 shrink-0 rounded-full bg-[#989F43] motion-safe:animate-[map-loading-dot_1s_ease-in-out_infinite]"
+            className="h-2 w-2 shrink-0 rounded-full bg-[#646B2D] motion-safe:animate-[map-loading-dot_1s_ease-in-out_infinite]"
           />
         )}
         <span className="truncate">

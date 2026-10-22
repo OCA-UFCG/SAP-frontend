@@ -25,19 +25,25 @@ export const AmfeMapLegend = () => {
       <p className={`${MAP_CONTROL_LABEL_CLASS} font-semibold`}>
         {t("classification")}
       </p>
-      <div className="legend-cascade flex flex-col gap-1.5">
+      {/* Lista com nome: o leitor de tela anuncia "Nível de prioridade, lista
+          de 5 itens" e lê cada nível; a bolinha de cor é só reforço visual. */}
+      <ul
+        aria-label={t("classification")}
+        className="legend-cascade flex flex-col gap-1.5"
+      >
         {LEGEND_ORDER.map((level) => (
-          <div key={level} className="flex items-center gap-3">
-            <div
+          <li key={level} className="flex items-center gap-3">
+            <span
+              aria-hidden="true"
               className="h-4 w-4 shrink-0 rounded-full border border-[#C4C4C4]"
               style={{ backgroundColor: CLASSIFICATION_COLORS[level] }}
             />
             <span className={MAP_CONTROL_LABEL_CLASS}>
               {t(PRIORITY_LABEL_KEYS[level])}
             </span>
-          </div>
+          </li>
         ))}
-      </div>
+      </ul>
     </MapControlCard>
   );
 };

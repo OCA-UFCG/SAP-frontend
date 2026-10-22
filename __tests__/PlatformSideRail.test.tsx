@@ -332,9 +332,12 @@ describe("PlatformSideRail", () => {
       const { onReplayTour } = renderWithTour();
       const more = screen.getByRole("button", { name: "Mais" });
 
+      more.focus();
       fireEvent.click(more);
-      fireEvent.keyDown(window, { key: "Escape" });
+      fireEvent.keyDown(document, { key: "Escape" });
       expect(screen.queryByRole("navigation", { name: "Mais" })).toBeNull();
+      // Sem isso o foco caía no `body` e o teclado recomeçava do topo.
+      expect(more).toHaveFocus();
 
       fireEvent.click(more);
       fireEvent.click(

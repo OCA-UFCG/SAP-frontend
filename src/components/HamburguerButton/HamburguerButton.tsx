@@ -24,7 +24,7 @@ export const Hamburguer: FC<IProps> = ({ open, label, controls, onClick }) => {
       aria-label={label}
       aria-expanded={open}
       aria-controls={controls}
-      className="flex h-11 w-11 cursor-pointer items-center justify-center rounded-md transition-colors hover:bg-stone-200 focus:outline-none focus-visible:ring-2 focus-visible:ring-[#777E32]"
+      className="flex h-11 w-11 cursor-pointer items-center justify-center rounded-md transition-colors hover:bg-stone-200 focus:outline-none focus-visible:ring-2 focus-visible:ring-[#5B612A]"
     >
       <span aria-hidden className="relative block h-5 w-7.5">
         <span className={cn(bar, "top-0", open && "translate-y-2 rotate-45")} />

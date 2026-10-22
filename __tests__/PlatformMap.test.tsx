@@ -442,4 +442,40 @@ describe("PlatformMap", () => {
       );
     });
   });
+
+  it("names the map with the active layer and the selected area", () => {
+    useMapLayerActiveStateMock.mockReturnValue({
+      activeData: null,
+      activeEEData: { id: "ee-layer", name: "Monitor de Secas" },
+    });
+    useEarthEngineTileLayerMock.mockReturnValue({
+      requestKey: "ee-layer:2024",
+      status: "ready",
+      tileLayerUrl: "https://tiles.example/2024",
+    });
+
+    render(<PlatformMap section="monitoring" />);
+
+    expect(latestMapProps?.accessibleLabel).toBe(
+      "Mapa: Monitor de Secas, Brasil",
+    );
+  });
+
+  it("says no index is on when the map shows only the basemap", () => {
+    useMapLayerActiveStateMock.mockReturnValue({
+      activeData: null,
+      activeEEData: null,
+    });
+    useEarthEngineTileLayerMock.mockReturnValue({
+      requestKey: null,
+      status: "idle",
+      tileLayerUrl: undefined,
+    });
+
+    render(<PlatformMap section="monitoring" />);
+
+    expect(latestMapProps?.accessibleLabel).toBe(
+      "Mapa: nenhum índice ligado, Brasil",
+    );
+  });
 });

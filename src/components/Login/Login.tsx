@@ -74,7 +74,7 @@ export const Login = ({
                 priority
                 className="h-[110px] w-auto"
               />
-              <h1 className="font-inter w-full text-[24px] font-medium leading-5 tracking-[-0.36px] text-[#50554C]">
+              <h1 className="font-inter w-full text-[1.5rem] font-medium leading-5 tracking-[-0.36px] text-[#50554C]">
                 {t("title")}
               </h1>
             </div>
@@ -83,7 +83,7 @@ export const Login = ({
               {error ? (
                 <p
                   role="alert"
-                  className="rounded-[7px] bg-[#FCE8E6] px-2.5 py-2 text-[13px] leading-5 text-[#B3261E]"
+                  className="rounded-[7px] bg-[#FCE8E6] px-2.5 py-2 text-[0.8125rem] leading-5 text-[#B3261E]"
                 >
                   {error}
                 </p>
@@ -116,7 +116,7 @@ export const Login = ({
                     aria-label={toggleLabel}
                     aria-pressed={passwordVisible}
                     aria-controls="password"
-                    className="flex cursor-pointer items-center -m-2 rounded-sm p-2.5 focus:outline-none focus-visible:ring-2 focus-visible:ring-[#989F43]"
+                    className="flex cursor-pointer items-center -m-2 rounded-sm p-2.5 focus:outline-none focus-visible:ring-2 focus-visible:ring-[#646B2D]"
                   >
                     <Icon
                       id="eye"
@@ -134,7 +134,7 @@ export const Login = ({
               {/* Fora do `signupOffered`: conta feita à mão também esquece a senha. */}
               <Link
                 href={FORGOT_PASSWORD_PATH}
-                className="self-end text-[12px] leading-4 text-[#5B612A] underline underline-offset-2 hover:text-[#21240F]"
+                className="self-end text-[0.75rem] leading-4 text-[#5B612A] underline underline-offset-2 hover:text-[#21240F]"
               >
                 {t("forgotPassword")}
               </Link>
@@ -144,13 +144,13 @@ export const Login = ({
           <button
             type="submit"
             disabled={isSubmitting}
-            className="font-open-sans flex h-[33px] w-full cursor-pointer items-center justify-center rounded-md bg-[#989F43] px-3 py-1.5 text-[11.65px] leading-5 text-white transition hover:bg-[#5B612A] focus:outline-none focus-visible:ring-2 focus-visible:ring-[#777E32] focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-70"
+            className="font-open-sans flex h-[33px] w-full cursor-pointer items-center justify-center rounded-md bg-[#646B2D] px-3 py-1.5 text-[0.7281rem] leading-5 text-white transition hover:bg-[#4F5424] focus:outline-none focus-visible:ring-2 focus-visible:ring-[#5B612A] focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-70"
           >
             {isSubmitting ? t("submitting") : t("submit")}
           </button>
 
           {signupOffered ? (
-            <p className="text-[12px] leading-4 text-[#676264]">
+            <p className="text-[0.75rem] leading-4 text-[#676264]">
               {t("noAccount")}{" "}
               <Link
                 href={SIGNUP_PATH}

@@ -130,7 +130,7 @@ export function MunicipalReportLinePrintChart({
             y1={PLOT_TOP}
             x2={xForIndex(referenceIndex)}
             y2={PLOT_BOTTOM}
-            stroke="#989F43"
+            stroke="#646B2D"
             strokeDasharray="5 5"
             strokeWidth="2"
           />
@@ -191,7 +191,7 @@ export function MunicipalReportLinePrintChart({
           );
         })}
       </svg>
-      <div className="mt-1 flex flex-wrap justify-center gap-x-3 gap-y-1 text-[10px] font-semibold text-[#292829]">
+      <div className="mt-1 flex flex-wrap justify-center gap-x-3 gap-y-1 text-[0.625rem] font-semibold text-[#292829]">
         {chartData.series.map((series) => (
           <span key={series.id} className="inline-flex items-center gap-1.5">
             <span

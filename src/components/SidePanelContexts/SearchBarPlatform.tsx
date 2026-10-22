@@ -5,6 +5,10 @@ import { useTranslations } from "next-intl";
 import { Icon } from "../Icon/Icon";
 import { ButtonUi } from "../ButtonUI/ButtonUI";
 import { trackUiEvent } from "@/services/telemetry/client";
+import {
+  handleComboboxInputKey,
+  handleComboboxListKeyDown,
+} from "@/utils/listboxKeyboard";
 import type {
   SearchSubmissionMetadata,
   SearchTelemetryContext,
@@ -41,6 +45,7 @@ const SearchBarPlatform = ({
 }: SearchBarProps) => {
   const containerRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
+  const listRef = useRef<HTMLDivElement>(null);
   const [hasError, setHasError] = useState(false);
   const [isOptionsOpen, setIsOptionsOpen] = useState(false);
   const [value, setValue] = useState("");
@@ -143,7 +148,7 @@ const SearchBarPlatform = ({
           <Icon
             id="loupe"
             className="mr-1.5 shrink-0"
-            fill="#898989"
+            fill="#6F6F6F"
             size={16}
           />
 
@@ -161,6 +166,17 @@ const SearchBarPlatform = ({
             // digitar já começa uma busca nova.
             onFocus={(event) => event.target.select()}
             onKeyDown={(e) => {
+              if (
+                handleComboboxInputKey(
+                  e.key,
+                  listRef.current,
+                  isOptionsOpen,
+                  setIsOptionsOpen,
+                )
+              ) {
+                e.preventDefault();
+                return;
+              }
               if (e.key === "Enter") {
                 e.preventDefault();
                 if (filteredSearchOptions.length > 0) {
@@ -171,6 +187,8 @@ const SearchBarPlatform = ({
               }
             }}
             role="combobox"
+            aria-label={t("placeholder")}
+            aria-invalid={hasError}
             aria-autocomplete="list"
             aria-controls="platform-searchbar-state-options"
             aria-expanded={isOptionsOpen}
@@ -179,15 +197,15 @@ const SearchBarPlatform = ({
             autoComplete="off"
             autoCorrect="off"
             spellCheck={false}
-            className="w-full min-w-0 text-ellipsis text-[#292829] text-[13px] placeholder:text-[13px] bg-transparent border-none outline-none ring-0"
+            className="w-full min-w-0 text-ellipsis text-[#292829] text-[0.8125rem] placeholder:text-[0.8125rem] bg-transparent border-none outline-none ring-0"
             placeholder={t("placeholder")}
           />
 
           <button
             type="button"
-            aria-label="Mostrar estados"
+            aria-label={t("showOptions")}
             onClick={toggleOptions}
-            className="ml-1 shrink-0 text-[#898989] transition-transform"
+            className="ml-1 shrink-0 text-[#6F6F6F] transition-transform"
           >
             <svg
               width="16"
@@ -210,8 +228,15 @@ const SearchBarPlatform = ({
         </div>
         {isOptionsOpen && (
           <div
+            ref={listRef}
             id="platform-searchbar-state-options"
             role="listbox"
+            tabIndex={-1}
+            onKeyDown={(event) =>
+              handleComboboxListKeyDown(event, inputRef.current, () =>
+                setIsOptionsOpen(false),
+              )
+            }
             className="absolute top-[calc(100%+8px)] z-20 max-h-64 w-full overflow-y-auto rounded-xl border border-neutral-200 bg-white p-2 shadow-lg"
           >
             {filteredSearchOptions.length > 0 ? (
@@ -244,7 +269,7 @@ const SearchBarPlatform = ({
         )}
       </div>
       <ButtonUi
-        styles="bg-[#989F43] hover:bg-[#989F43] text-white text-sm px-2.5 h-full rounded-lg disabled:hover:* active:brightness-95 transition shrink-0"
+        styles="bg-[#646B2D] hover:bg-[#646B2D] text-white text-sm px-2.5 h-full rounded-lg disabled:hover:* active:brightness-95 transition shrink-0"
         label={t("button")}
         onClick={() => onSubmit("button")}
       />

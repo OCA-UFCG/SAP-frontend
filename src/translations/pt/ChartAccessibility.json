@@ -1,0 +1,16 @@
+{
+  "ChartAccessibility": {
+    "legendLabel": "Legenda",
+    "showTable": "Ver dados em tabela",
+    "hideTable": "Esconder tabela de dados",
+    "period": "Período",
+    "noValue": "Sem dado",
+    "range": "Dados de {first} a {last}, {count} classes.",
+    "peak": "Maior valor: {series}, {value} em {period}.",
+    "latest": "Em {period}, a classe de maior valor é {series}, com {value}.",
+    "temporalVisionLabel": "Gráfico da série histórica por classe",
+    "reportChartLabel": "Gráfico de {title}",
+    "alertTiersLabel": "Gráfico de pizza com a distribuição por classe. Os mesmos valores estão na lista ao lado.",
+    "seriesUnavailable": "Série temporal indisponível para visualização dinâmica."
+  }
+}

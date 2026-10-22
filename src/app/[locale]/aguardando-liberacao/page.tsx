@@ -5,6 +5,9 @@ import {
   SESSION_COOKIE_NAME,
   getAuthenticatedSessionFromCookie,
 } from "@/lib/server-session";
+import { pageTitleMetadata } from "@/lib/page-metadata";
+
+export const generateMetadata = pageTitleMetadata("pendingApproval");
 
 /**
  * Destino de quem está autenticado mas ainda não foi liberado pelo OCA. Não faz
@@ -17,18 +20,18 @@ export default async function PendingApprovalPage() {
   const session = await getAuthenticatedSessionFromCookie(sessionCookie);
 
   return (
-    <main className="flex min-h-[calc(100vh-4.125rem)] w-full items-center justify-center bg-white px-6 py-16">
+    <div className="flex min-h-[calc(100vh-4.125rem)] w-full items-center justify-center bg-white px-6 py-16">
       <div className="flex w-full max-w-[520px] flex-col gap-6">
-        <h1 className="font-inter text-[24px] font-medium leading-8 tracking-[-0.36px] text-[#50554C]">
+        <h1 className="font-inter text-[1.5rem] font-medium leading-8 tracking-[-0.36px] text-[#50554C]">
           {t("title")}
         </h1>
 
-        <p className="text-[15px] leading-6 text-[#676264]">
+        <p className="text-[0.9375rem] leading-6 text-[#676264]">
           {t("description")}
         </p>
 
         {session?.email ? (
-          <p className="text-[13px] leading-5 text-[#838B77]">
+          <p className="text-[0.8125rem] leading-5 text-[#838B77]">
             {t("signedInAs")}{" "}
             <span className="font-medium text-[#50554C]">{session.email}</span>
           </p>
@@ -36,11 +39,11 @@ export default async function PendingApprovalPage() {
 
         <Link
           href="/"
-          className="font-open-sans flex h-[33px] w-fit items-center justify-center rounded-md bg-[#989F43] px-4 py-1.5 text-[11.65px] leading-5 text-white transition hover:bg-[#5B612A] focus:outline-none focus-visible:ring-2 focus-visible:ring-[#777E32] focus-visible:ring-offset-2"
+          className="font-open-sans flex h-[33px] w-fit items-center justify-center rounded-md bg-[#646B2D] px-4 py-1.5 text-[0.7281rem] leading-5 text-white transition hover:bg-[#4F5424] focus:outline-none focus-visible:ring-2 focus-visible:ring-[#5B612A] focus-visible:ring-offset-2"
         >
           {t("backHome")}
         </Link>
       </div>
-    </main>
+    </div>
   );
 }

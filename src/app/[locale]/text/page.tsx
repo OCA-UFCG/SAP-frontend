@@ -2,8 +2,8 @@ import { GoogleDocsRegexReaderTestHarness } from "@/components/GoogleDocsRegexRe
 
 export default function TextPage() {
   return (
-    <main className="flex min-h-screen items-center justify-center p-6">
+    <div className="flex min-h-screen items-center justify-center p-6">
       <GoogleDocsRegexReaderTestHarness />
-    </main>
+    </div>
   );
 }

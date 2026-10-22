@@ -10,6 +10,7 @@ import {
   type ForecastDimension,
   type ForecastMember,
 } from "@/utils/forecastGroup";
+import { handleRadioGroupKeyDown } from "@/utils/listboxKeyboard";
 
 interface ForecastFiltersProps {
   members: readonly ForecastMember[];
@@ -55,13 +56,15 @@ export function ForecastFilters({
           <div key={dimension} className="flex flex-col items-start gap-[6px]">
             <span
               id={labelId}
-              className="text-[14px] font-medium leading-[20px] text-[#292829]"
+              className="text-[0.875rem] font-medium leading-[20px] text-[#292829]"
             >
               {t(`dimensions.${dimension}`)}
             </span>
             <div
               role="radiogroup"
               aria-labelledby={labelId}
+              tabIndex={-1}
+              onKeyDown={handleRadioGroupKeyDown}
               className="flex h-10 w-full gap-1 rounded-lg bg-[#E4E5E2] p-1 shadow-sm"
             >
               {options[dimension].map((option) => {
@@ -72,14 +75,16 @@ export function ForecastFilters({
                     type="button"
                     role="radio"
                     aria-checked={option.selected}
+                    // Só a opção escolhida entra no Tab; as setas andam entre as outras.
+                    tabIndex={option.selected ? 0 : -1}
                     disabled={!option.enabled}
                     title={option.enabled ? label : t("unavailable", { label })}
                     onClick={() => handleSelect(dimension, option.value)}
                     className={clsx(
                       "min-w-0 flex-1 truncate rounded-md px-2 text-sm transition-colors duration-150",
-                      "focus-visible:ring-2 focus-visible:ring-[#989F43] focus-visible:outline-none",
+                      "focus-visible:ring-2 focus-visible:ring-[#646B2D] focus-visible:ring-offset-2 focus-visible:outline-none",
                       option.selected
-                        ? "bg-[#989F43] font-medium text-white"
+                        ? "bg-[#646B2D] font-medium text-white"
                         : option.enabled
                           ? "cursor-pointer text-[#292829] hover:bg-[#F0F0D7]"
                           : "cursor-not-allowed text-[#A9A6A7]",

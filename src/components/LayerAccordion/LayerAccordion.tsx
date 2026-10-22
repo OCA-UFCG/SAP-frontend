@@ -54,7 +54,7 @@ export function LayerAccordion({
         </span>
         {/* A seta ganha um círculo verde no hover, como um botão de verdade. */}
         <span
-          className={`-m-1.5 flex size-7 shrink-0 items-center justify-center rounded-full transition-colors duration-200 group-hover:bg-[#E1E2B4] group-hover:text-[#5B612A] ${
+          className={`-m-1.5 flex size-7 shrink-0 items-center justify-center rounded-full transition-colors duration-200 group-hover:bg-[#E1E2B4] group-hover:text-[#4F5424] ${
             isOpen ? "bg-[#F5F6EE] text-[#5B612A]" : ""
           }`}
         >

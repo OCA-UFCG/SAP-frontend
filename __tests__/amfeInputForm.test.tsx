@@ -8,9 +8,12 @@ import { AnalyzeFormData } from "@/utils/amfeInterfaces";
 const ThresholdFormHarness = ({
   onSubmitted,
   type = "number",
+  ariaLabel = "indifference",
 }: {
   onSubmitted: (data: AnalyzeFormData) => void;
   type?: string;
+  /** `null` deixa o campo só com o `<label>` visível, como na tela real. */
+  ariaLabel?: string | null;
 }) => {
   const {
     handleSubmit,
@@ -23,7 +26,11 @@ const ThresholdFormHarness = ({
       <InputForm
         error={errors.indifference?.message as string}
         fieldLabel="Indiferença"
-        inputProps={{ type, step: 0.01, "aria-label": "indifference" }}
+        inputProps={{
+          type,
+          step: 0.01,
+          ...(ariaLabel ? { "aria-label": ariaLabel } : {}),
+        }}
         formProps={{
           name: "indifference",
           control,
@@ -77,5 +84,26 @@ describe("InputForm", () => {
 
     await screen.findByText("campo obrigatório");
     expect(onSubmitted).not.toHaveBeenCalled();
+  });
+
+  it("names the field with its visible label", () => {
+    render(<ThresholdFormHarness onSubmitted={vi.fn()} ariaLabel={null} />);
+
+    expect(screen.getByLabelText("Indiferença")).toHaveAttribute(
+      "type",
+      "number",
+    );
+  });
+
+  it("marks the field invalid and points it at the error message", async () => {
+    render(<ThresholdFormHarness onSubmitted={vi.fn()} ariaLabel={null} />);
+
+    fireEvent.click(screen.getByText("enviar"));
+
+    const field = screen.getByLabelText("Indiferença");
+    await vi.waitFor(() =>
+      expect(field).toHaveAttribute("aria-invalid", "true"),
+    );
+    expect(field).toHaveAccessibleDescription("campo obrigatório");
   });
 });

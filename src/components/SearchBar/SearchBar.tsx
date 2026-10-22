@@ -4,6 +4,11 @@ import { useEffect, useRef, useState } from "react";
 import { useTranslations } from "next-intl";
 import { Icon } from "../Icon/Icon";
 import { ButtonUi } from "../ButtonUI/ButtonUI";
+import { SEARCH_ACCESS_KEY } from "../SkipLinks/skipTargets";
+import {
+  handleComboboxInputKey,
+  handleComboboxListKeyDown,
+} from "@/utils/listboxKeyboard";
 import { trackUiEvent } from "@/services/telemetry/client";
 import type {
   SearchSubmissionMetadata,
@@ -23,6 +28,7 @@ interface SearchBarProps {
 const SearchBar = ({ onSearch, searchTelemetryContext }: SearchBarProps) => {
   const containerRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
+  const listRef = useRef<HTMLDivElement>(null);
   const [hasError, setHasError] = useState(false);
   const [isOptionsOpen, setIsOptionsOpen] = useState(false);
   const [value, setValue] = useState("");
@@ -109,6 +115,7 @@ const SearchBar = ({ onSearch, searchTelemetryContext }: SearchBarProps) => {
 
           <input
             ref={inputRef}
+            accessKey={SEARCH_ACCESS_KEY}
             value={value}
             onChange={(event) => {
               const nextValue = event.target.value;
@@ -118,11 +125,24 @@ const SearchBar = ({ onSearch, searchTelemetryContext }: SearchBarProps) => {
               setIsOptionsOpen(nextValue.trim().length > 0);
             }}
             role="combobox"
+            aria-label={t("placeholder")}
+            aria-invalid={hasError}
             aria-autocomplete="list"
             aria-controls="searchbar-state-options"
             aria-expanded={isOptionsOpen}
             aria-haspopup="listbox"
             onKeyDown={(e) => {
+              if (
+                handleComboboxInputKey(
+                  e.key,
+                  listRef.current,
+                  isOptionsOpen,
+                  setIsOptionsOpen,
+                )
+              ) {
+                e.preventDefault();
+                return;
+              }
               if (e.key === "Enter") {
                 e.preventDefault();
                 if (filteredSearchOptions.length > 0) {
@@ -138,7 +158,7 @@ const SearchBar = ({ onSearch, searchTelemetryContext }: SearchBarProps) => {
 
           <button
             type="button"
-            aria-label="Mostrar estados"
+            aria-label={t("showOptions")}
             onClick={toggleOptions}
             className="ml-3 shrink-0 text-[#292829] transition-transform"
           >
@@ -163,8 +183,15 @@ const SearchBar = ({ onSearch, searchTelemetryContext }: SearchBarProps) => {
         </div>
         {isOptionsOpen && (
           <div
+            ref={listRef}
             id="searchbar-state-options"
             role="listbox"
+            tabIndex={-1}
+            onKeyDown={(event) =>
+              handleComboboxListKeyDown(event, inputRef.current, () =>
+                setIsOptionsOpen(false),
+              )
+            }
             className="absolute top-[calc(100%+8px)] z-20 max-h-64 w-full overflow-y-auto rounded-xl border border-neutral-200 bg-white p-2 shadow-lg"
           >
             {filteredSearchOptions.map((option) => (
@@ -185,7 +212,7 @@ const SearchBar = ({ onSearch, searchTelemetryContext }: SearchBarProps) => {
       </div>
       <ButtonUi
         // disabled={!search}
-        styles="bg-[#989F43] text-white min-w-30 h-full rounded-xl hover:brightness-110 active:brightness-95 transition not:disabled:hover:opacity-90 disabled:hover:opacity-100 hover:bg-[#989F43]"
+        styles="bg-[#646B2D] text-white min-w-30 h-full rounded-xl hover:brightness-110 active:brightness-95 transition not:disabled:hover:opacity-90 disabled:hover:opacity-100 hover:bg-[#646B2D]"
         label={t("button")}
         onClick={() => onSubmit("button")}
       />

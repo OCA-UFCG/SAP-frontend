@@ -6,6 +6,8 @@
     "applyButton": "Apply",
     "infoAriaLabel": "Information about {name}",
     "infoTitle": "Information",
-    "defaultDescription": "Description of {name}"
+    "defaultDescription": "Description of {name}",
+    "close": "Close",
+    "searchLabel": "Search criteria"
   }
 }

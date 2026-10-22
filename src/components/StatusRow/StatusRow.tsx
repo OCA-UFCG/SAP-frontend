@@ -7,9 +7,9 @@ type Props = {
 
 export const StatusRow = ({ item }: Props) => {
   return (
-    <div className="flex justify-between items-center min-h-10 pl-2 pr-0 bg-white rounded-lg gap-4 w-full">
+    <li className="flex justify-between items-center min-h-10 pl-2 pr-0 bg-white rounded-lg gap-4 w-full">
       <div className="flex items-center gap-2">
-        <span className="text-[14px] font-semibold">{item.label}</span>
+        <span className="text-[0.875rem] font-semibold">{item.label}</span>
       </div>
 
       <div
@@ -17,10 +17,10 @@ export const StatusRow = ({ item }: Props) => {
           backgroundColor: item.color,
           color: getContrastTextColor(item.color),
         }}
-        className="font-open-sans flex items-center justify-center min-w-17 min-h-10 rounded-lg text-[16px] font-semibold"
+        className="font-open-sans flex items-center justify-center min-w-17 min-h-10 rounded-lg text-[1rem] font-semibold"
       >
         {item.value}%
       </div>
-    </div>
+    </li>
   );
 };

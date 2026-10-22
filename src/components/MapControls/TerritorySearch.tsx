@@ -17,7 +17,7 @@ import {
 // O cinza do texto de apoio. Não sai de MAP_CONTROL_LABEL_CLASS porque as duas
 // cores de texto disputariam a mesma propriedade.
 const SECONDARY_TEXT_CLASS =
-  "font-open-sans text-[10px] leading-[14px] tracking-[-0.006em] text-[#6B6B6B]";
+  "font-open-sans text-[0.625rem] leading-[14px] tracking-[-0.006em] text-[#6B6B6B]";
 
 type LoadStatus = "idle" | "loading" | "ready" | "error";
 
@@ -84,8 +84,8 @@ export function TerritorySearch({
 
   return (
     <div className="flex flex-col gap-1.5">
-      <div className="flex items-center gap-1.5 rounded-md border border-[#E4E4E4] bg-[#F7F7F6] px-2 py-1.5 focus-within:border-[#989F43]">
-        <Icon id="loupe" className="shrink-0" fill="#898989" size={12} />
+      <div className="flex items-center gap-1.5 rounded-md border border-[#E4E4E4] bg-[#F7F7F6] px-2 py-1.5 focus-within:border-[#5B612A] focus-within:ring-2 focus-within:ring-[#5B612A]">
+        <Icon id="loupe" className="shrink-0" fill="#6F6F6F" size={12} />
         <input
           type="search"
           value={query}
@@ -106,7 +106,7 @@ export function TerritorySearch({
               : undefined
           }
           placeholder={t("territorySearchPlaceholder")}
-          className="w-full min-w-0 bg-transparent font-open-sans text-[11px] text-[#292829] outline-none placeholder:text-[#898989]"
+          className="w-full min-w-0 bg-transparent font-open-sans text-[0.6875rem] text-[#292829] outline-none placeholder:text-[#6F6F6F]"
         />
       </div>
 
@@ -151,7 +151,9 @@ function TerritorySearchResults({
 
   if (message) {
     return (
-      <p className={`${SECONDARY_TEXT_CLASS} px-1`}>
+      // Carregando, erro ou "nada encontrado" mudam sem foco nenhum: sem a
+      // região viva, quem usa leitor de tela digita e não ouve resposta.
+      <p role="status" className={`${SECONDARY_TEXT_CLASS} px-1`}>
         {message}
       </p>
     );

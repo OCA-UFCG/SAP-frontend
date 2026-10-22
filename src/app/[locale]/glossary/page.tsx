@@ -1,5 +1,8 @@
 import { GlossarySection } from "@/components/GlossarySection/GlossarySection";
 import { getGlossaryTerms } from "@/repositories/content/siteContentRepository";
+import { pageTitleMetadata } from "@/lib/page-metadata";
+
+export const generateMetadata = pageTitleMetadata("glossary");
 
 export default async function GlossaryPage({
   params,
@@ -10,8 +13,8 @@ export default async function GlossaryPage({
   const terms = await getGlossaryTerms(locale);
 
   return (
-    <main className="w-full flex justify-center bg-white">
+    <div className="w-full flex justify-center bg-white">
       <GlossarySection terms={terms} />
-    </main>
+    </div>
   );
 }

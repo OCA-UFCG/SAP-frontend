@@ -2,6 +2,9 @@ import { Suspense } from "react";
 import { getHomePageContent } from "@/repositories/content/siteContentRepository";
 import { isSignupOffered } from "@/lib/access-flag";
 import { LoginPageClient } from "./LoginPageClient";
+import { pageTitleMetadata } from "@/lib/page-metadata";
+
+export const generateMetadata = pageTitleMetadata("login");
 
 function normalizeImageUrl(url?: string) {
   if (!url) return undefined;

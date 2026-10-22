@@ -1,4 +1,4 @@
-import { render, screen } from "@testing-library/react";
+import { render, screen, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { PanelDropdown } from "@/components/PanelDropdown/PanelDropdown";
@@ -70,5 +70,37 @@ describe("PanelDropdown", () => {
     await user.click(screen.getByRole("button", { name: "Recorte: Estado" }));
 
     expect(screen.getByRole("listbox").scrollTop).toBe(400);
+  });
+
+  it("works from the keyboard: arrows move, Escape closes and returns focus", async () => {
+    const user = userEvent.setup();
+    const onChange = vi.fn();
+    const { container } = render(
+      <PanelDropdown
+        label="Recorte"
+        options={OPTIONS}
+        value="municipality"
+        placeholder="Selecione"
+        onChange={onChange}
+      />,
+    );
+    const view = within(container);
+    const trigger = view.getByRole("button", { name: "Recorte: Município" });
+
+    trigger.focus();
+    await user.keyboard("{Enter}");
+    expect(view.getByRole("option", { name: "Município" })).toHaveFocus();
+
+    await user.keyboard("{ArrowDown}");
+    expect(view.getByRole("option", { name: "Estado" })).toHaveFocus();
+    await user.keyboard("{ArrowDown}");
+    expect(view.getByRole("option", { name: "Município" })).toHaveFocus();
+    await user.keyboard("{End}");
+    expect(view.getByRole("option", { name: "Estado" })).toHaveFocus();
+
+    await user.keyboard("{Escape}");
+    expect(view.queryByRole("listbox")).not.toBeInTheDocument();
+    expect(trigger).toHaveFocus();
+    expect(onChange).not.toHaveBeenCalled();
   });
 });

@@ -6,7 +6,8 @@ import maplibregl, {
   MapGeoJSONFeature,
 } from "maplibre-gl";
 import "maplibre-gl/dist/maplibre-gl.css";
-import { useEffect, useRef } from "react";
+import { useEffect, useId, useRef } from "react";
+import { useTranslations } from "next-intl";
 import type { FeatureCollection, Geometry } from "geojson";
 import type { CDIVectorData } from "@/lib/geo";
 import type { SpatialArea, SpatialSelection } from "@/utils/spatialScope";
@@ -35,6 +36,7 @@ import {
   ensureSpatialBoundaryLayer,
 } from "./mapDefinitions";
 import { useMapController } from "./useMapController";
+import { buildMapLibreLocale, useMapCanvasLabel } from "./mapAccessibility";
 import { useMapMarkers } from "./useMapMarkers";
 import { useMunicipalityClassification } from "./useMunicipalityClassification";
 import { useIndexChoroplethPaint } from "./useIndexChoroplethPaint";
@@ -135,6 +137,11 @@ export interface MapProps {
    * fica com o território: não seleciona o estado nem o município por baixo.
    */
   onReferenceTerritoryClick?: (click: ReferenceTerritoryClick) => void;
+  /**
+   * O que o mapa mostra, para o leitor de tela (ex.: "Mapa: Monitor de Secas,
+   * Paraíba"). Sem ele fica o título genérico "Mapa".
+   */
+  accessibleLabel?: string;
 }
 
 const Map = ({
@@ -172,8 +179,14 @@ const Map = ({
   referenceOverlayPrefetchUrls = null,
   territoryFocus = null,
   onReferenceTerritoryClick,
+  accessibleLabel,
 }: MapProps) => {
   const mapContainerRef = useRef<HTMLDivElement | null>(null);
+  const tA11y = useTranslations("MapAccessibility");
+  const keyboardHintId = useId();
+  // Lido só na criação do mapa: o MapLibre não troca o idioma depois, e trocar
+  // de idioma no SEDES já remonta a página.
+  const mapLibreLocaleRef = useRef(buildMapLibreLocale((key) => tA11y(key)));
   const {
     BASE_STYLE,
     applySelectedFeatureState,
@@ -312,6 +325,7 @@ const Map = ({
       scrollZoom: getSelectionAwareScrollZoomOptions(selectedStateRef.current),
       attributionControl: false,
       maxPitch: 0,
+      locale: mapLibreLocaleRef.current,
     });
 
     map.addControl(
@@ -963,9 +977,16 @@ const Map = ({
     mapInstanceVersion,
   ]);
 
+  useMapCanvasLabel(mapRef, mapInstanceVersion, accessibleLabel, keyboardHintId);
+
   return (
     <div className="w-full h-full">
       <div className={className} ref={mapContainerRef} />
+      {/* O MapLibre já aceita o teclado no canvas focado; sem esta dica,
+          ninguém fica sabendo. */}
+      <p id={keyboardHintId} className="sr-only">
+        {tA11y("keyboardHint")}
+      </p>
     </div>
   );
 };
