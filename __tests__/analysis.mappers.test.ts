@@ -37,9 +37,6 @@ describe("analysis.mappers", () => {
         },
       ],
       locations: { br: "Brasil", pe: "Pernambuco" },
-      templates: {
-        country: "Total de registros em {name} no ano: {value}.",
-      },
       years: {
         "2025": {
           imageId: "s2id",
@@ -56,7 +53,7 @@ describe("analysis.mappers", () => {
     );
 
     expect(model?.distribution[0]?.value).toBe(247);
-    expect(model?.happening).toBe("Total de registros em Brasil no ano: 247.");
+    expect(model?.highlight?.value).toBe(247);
     expect(model?.valueType).toBe("absolute");
     expect(model?.valueUnit).toBe("registros");
     expect(model?.rankingGroups[0]?.items[0]?.trailingLabel).toBe(
@@ -167,10 +164,6 @@ describe("analysis.mappers", () => {
         { id: "a", label: "Classe A", color: "#111111" },
         { id: "b", label: "Classe B", color: "#222222" },
       ],
-      templates: {
-        municipality:
-          "No município de {name}, predomina a classe {label} com {value}% da área analisada.",
-      },
       years: {
         "2024": {
           imageId: "img-2024",
@@ -192,9 +185,11 @@ describe("analysis.mappers", () => {
 
     expect(model).not.toBeNull();
     expect(model?.name).toBe("Abadia de Goiás - GO");
-    expect(model?.happening).toBe(
-      "No município de Abadia de Goiás - GO, predomina a classe Classe A com 80,00% da área analisada.",
-    );
+    expect(model?.highlight).toMatchObject({
+      label: "Classe A",
+      text: "Região maioritariamente Classe A",
+      value: 80,
+    });
     expect(model?.rankingTitle).toBeUndefined();
     expect(model?.rankingGroups).toEqual([]);
   });

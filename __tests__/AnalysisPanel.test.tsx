@@ -19,7 +19,6 @@ const model: TerritorialAnalysisViewModel = {
   name: "Brasil",
   accentColor: "#B4BA61",
   highlight: null,
-  happening: "",
   distribution: [],
   rankingTitle: "Estados por classificação",
   rankingGroups: [
@@ -260,6 +259,57 @@ describe("AnalysisPanel", () => {
     expect(
       screen.getByRole("button", { name: "Mostrar Classe A" }),
     ).toBeVisible();
+  });
+
+  it("shows the dominant class and its share in a single overview box", () => {
+    renderPanel({
+      ...model,
+      highlight: {
+        label: "Úmido",
+        text: "Região majoritariamente classificada como: Úmido",
+        value: 86.7,
+        tone: {
+          color: "#3A3D1F",
+          bg: "rgba(58, 61, 31, 0.16)",
+          border: "rgba(58, 61, 31, 0.4)",
+        },
+      },
+    });
+
+    expect(
+      screen.getByRole("heading", { name: "Panorama geral" }),
+    ).toBeInTheDocument();
+    expect(
+      screen.getByText(
+        "Região majoritariamente classificada como: Úmido (86,70% da área analisada)",
+      ),
+    ).toBeInTheDocument();
+    expect(screen.queryByText("Informações gerais")).not.toBeInTheDocument();
+    expect(
+      screen.queryByText("O que está acontecendo?"),
+    ).not.toBeInTheDocument();
+  });
+
+  it("shows absolute values with their unit in the overview box", () => {
+    renderPanel({
+      ...model,
+      valueType: "absolute",
+      valueUnit: "registros",
+      highlight: {
+        label: "Registros de secas e estiagens",
+        text: "Registros de secas e estiagens",
+        value: 247,
+        tone: {
+          color: "#8c2d04",
+          bg: "rgba(140, 45, 4, 0.16)",
+          border: "rgba(140, 45, 4, 0.4)",
+        },
+      },
+    });
+
+    expect(
+      screen.getByText("Registros de secas e estiagens (247 registros)"),
+    ).toBeInTheDocument();
   });
 
   it("hides classes without any state", () => {

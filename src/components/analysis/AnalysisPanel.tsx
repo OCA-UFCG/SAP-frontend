@@ -86,18 +86,14 @@ interface AnalysisYearSelectProps {
   labelId: string;
 }
 
-function renderFormattedText(text: string) {
-  const parts = text.split(/(\d+(?:[.,]\d+)?% [^,.]+)/g);
-
-  return parts.map((part, index) =>
-    /\d+(?:[.,]\d+)?%/.test(part) ? (
-      <strong key={index} className="font-bold text-[#292829]">
-        {part}
-      </strong>
-    ) : (
-      part
-    ),
-  );
+function formatAnalysisValue(
+  value: number,
+  valueType?: "percentage" | "absolute",
+  valueUnit?: string,
+) {
+  return valueType === "absolute"
+    ? `${formatAbsoluteNumber(value, "pt-BR")} ${valueUnit ?? ""}`.trim()
+    : `${formatPercentageNumber(value, "pt-BR")}%`;
 }
 
 function formatAnalysisYearLabel(
@@ -247,7 +243,10 @@ function AnalysisYearSelect({
         aria-controls="analysis-year-options"
         aria-labelledby={`${labelId} analysis-year-value`}
       >
-        <span id="analysis-year-value" className="truncate text-sm text-[#292829]">
+        <span
+          id="analysis-year-value"
+          className="truncate text-sm text-[#292829]"
+        >
           {activeDisplayLabel}
         </span>
 
@@ -315,9 +314,7 @@ function DistributionSection({
   const t = useTranslations("AnalysisPanel");
   const absolute = valueType === "absolute";
   const formatValue = (value: number) =>
-    absolute
-      ? `${formatAbsoluteNumber(value, "pt-BR")} ${valueUnit ?? ""}`.trim()
-      : `${formatPercentageNumber(value, "pt-BR")}%`;
+    formatAnalysisValue(value, valueType, valueUnit);
   return (
     <div className="flex flex-col gap-2">
       <h2 className="text-[0.875rem] font-semibold leading-6 text-[#292829]">
@@ -618,6 +615,18 @@ export function AnalysisPanel({
     onRankingItemSelect?.(locationKey);
   };
 
+  const highlightValue =
+    model?.highlight &&
+    (model.valueType === "absolute"
+      ? formatAnalysisValue(
+          model.highlight.value,
+          model.valueType,
+          model.valueUnit,
+        )
+      : t("dominantShare", {
+          value: formatAnalysisValue(model.highlight.value),
+        }));
+
   return (
     <div
       ref={panelRef}
@@ -698,9 +707,9 @@ export function AnalysisPanel({
             </div>
 
             <div className="flex w-full max-w-[392px] flex-col gap-2">
-              <div className="text-[1.125rem] font-semibold leading-6 text-[#292829]">
-                {t("generalInformation")}
-              </div>
+              <h2 className="text-[1.125rem] font-semibold leading-6 text-[#292829]">
+                {t("generalOverview")}
+              </h2>
 
               {model.highlight ? (
                 <div
@@ -717,21 +726,10 @@ export function AnalysisPanel({
                   }}
                 >
                   <span className="font-semibold text-[0.875rem] leading-5 text-[#292829]">
-                    {model.highlight.text}
+                    {`${model.highlight.text} (${highlightValue})`}
                   </span>
                 </div>
               ) : null}
-            </div>
-
-            <div className="flex flex-col gap-2">
-              <h2 className="text-[1.125rem] font-semibold leading-6 text-[#292829]">
-                {t("whatIsHappening")}
-              </h2>
-              <div className="rounded-lg">
-                <p className="mt-1 text-[0.75rem] text-sm leading-relaxed text-neutral-600">
-                  {renderFormattedText(model.happening)}
-                </p>
-              </div>
             </div>
 
             <DistributionSection

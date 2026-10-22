@@ -83,8 +83,8 @@
       "semiarid": "Región semiárida",
       "asdAndSurroundings": "ASD y entorno"
     },
-    "generalInformation": "Información general",
-    "whatIsHappening": "¿Qué está pasando?",
+    "generalOverview": "Panorama general",
+    "dominantShare": "{value} del área analizada",
     "territoriesByClassification": "Territorios por clasificación",
     "analysisUnavailable": "Análisis no disponible",
     "analysisDataNotAvailable": "Los datos de análisis aún no están disponibles para esta ubicación en este módulo.",

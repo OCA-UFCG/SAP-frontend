@@ -47,15 +47,7 @@ function getImageDataYearLabel(key: string, dataset?: PanelLayerI): string {
   return key === "general" ? "Padrão" : key;
 }
 
-const DEFAULT_HAPPENING_TEMPLATES = {
-  country:
-    "No Brasil, predomina a classe {label} com {value}% da área analisada.",
-  state:
-    "Em {name}, predomina a classe {label} com {value}% da área analisada.",
-  municipality:
-    "Em {name}, predomina a classe {label} com {value}% da área analisada.",
-  highlight: "Região maioritariamente {label}",
-};
+const DEFAULT_HIGHLIGHT_TEMPLATE = "Região maioritariamente {label}";
 
 const DEFAULT_RANKING_TITLE = "Estados por classificação";
 const DEFAULT_RANKING_TOTAL_LABEL = "Estados";
@@ -146,15 +138,6 @@ function formatTemplate(
   return template.replace(/\{(\w+)\}/g, (_, token: string) => {
     return replacements[token] ?? "";
   });
-}
-
-function formatCompactValue(
-  data: CompactTerritorialAnalysisDataset,
-  value: number,
-): string {
-  return data.valueConfig?.type === "absolute"
-    ? formatAbsoluteNumber(value, "pt-BR")
-    : formatPercentageNumber(value, "pt-BR");
 }
 
 function buildCompactDistributionItems(
@@ -278,8 +261,7 @@ function buildCompactHighlight(
   }
 
   const translatedLabel = translate(compactClass.label, tCaption);
-  const rawTemplate =
-    data.templates?.highlight ?? DEFAULT_HAPPENING_TEMPLATES.highlight;
+  const rawTemplate = data.templates?.highlight ?? DEFAULT_HIGHLIGHT_TEMPLATE;
   const translatedTemplate = translate(rawTemplate, tCaption, {
     label: translatedLabel,
   });
@@ -287,6 +269,7 @@ function buildCompactHighlight(
   return {
     label: translatedLabel,
     text: formatTemplate(translatedTemplate, { label: translatedLabel }),
+    value: dominant.value,
     tone: getCompactClassTone(compactClass),
   };
 }
@@ -450,26 +433,6 @@ function buildCompactTerritorialAnalysisViewModel(
   const dominant = getDominantDistributionItem(distribution);
   const highlight = buildCompactHighlight(data, dominant, tCaption);
   const name = getCompactLocationName(data, resolvedLocationKey);
-  const rawTemplate =
-    resolvedLocationKey === "br"
-      ? (data.templates?.country ?? DEFAULT_HAPPENING_TEMPLATES.country)
-      : isMunicipalityLocationKey(resolvedLocationKey)
-        ? (data.templates?.municipality ??
-          data.templates?.state ??
-          DEFAULT_HAPPENING_TEMPLATES.municipality)
-        : (data.templates?.state ?? DEFAULT_HAPPENING_TEMPLATES.state);
-  const translatedTemplate = translate(
-    rawTemplate,
-    tCaption,
-    dominant
-      ? {
-          name,
-          label: dominant.label,
-          value: formatCompactValue(data, dominant.value),
-        }
-      : undefined,
-  );
-
   const rawRankingTitle = data.ranking?.title ?? DEFAULT_RANKING_TITLE;
   const translatedRankingTitle = translate(rawRankingTitle, tCaption);
 
@@ -478,13 +441,6 @@ function buildCompactTerritorialAnalysisViewModel(
     name,
     accentColor: dominant?.color ?? "#292829",
     highlight,
-    happening: dominant
-      ? formatTemplate(translatedTemplate, {
-          name,
-          label: dominant.label,
-          value: formatCompactValue(data, dominant.value),
-        })
-      : "",
     distribution,
     rankingTitle:
       resolvedLocationKey === "br" ? translatedRankingTitle : undefined,
