@@ -26,26 +26,14 @@ const subscribeTwoColumns = (onChange: () => void) => {
 };
 
 const COLORS = [
-  "#3EBCD2",
-  "#933497",
-  "#B4BA61",
-  "#86620D",
-  "#3b82f6",
-  "#10b981",
-  "#f59e0b",
-  "#ef4444",
-];
-
-// Cor do número dentro de cada faixa: escuro nas faixas claras, claro nas escuras.
-const LABEL_COLORS = [
-  "#292829",
-  "#F8F7F8",
-  "#292829",
-  "#F8F7F8",
-  "#F8F7F8",
-  "#292829",
-  "#292829",
-  "#F8F7F8",
+  "#DADDAD",
+  "#E7D4CD",
+  "#C8D9D9",
+  "#C8B49A",
+  "#C89A9A",
+  "#9AC8AE",
+  "#C89AB3",
+  "#9A9FC8",
 ];
 
 const SegmentedBar = ({ fields, control, setValue }: CriteriaCardI) => {
@@ -120,8 +108,7 @@ const SegmentedBar = ({ fields, control, setValue }: CriteriaCardI) => {
               {pct > 10 && (
                 <span
                   aria-hidden="true"
-                  className="font-open-sans text-[0.625rem] leading-6 font-semibold"
-                  style={{ color: LABEL_COLORS[i % LABEL_COLORS.length] }}
+                  className="font-open-sans text-[0.625rem] leading-6 font-semibold text-[#292829]"
                 >
                   {pct.toFixed(0)}%
                 </span>
