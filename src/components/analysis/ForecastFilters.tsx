@@ -82,7 +82,7 @@ export function ForecastFilters({
                     onClick={() => handleSelect(dimension, option.value)}
                     className={clsx(
                       "min-w-0 flex-1 truncate rounded-md px-2 text-sm transition-colors duration-150",
-                      "focus-visible:ring-2 focus-visible:ring-[#646B2D] focus-visible:outline-none",
+                      "focus-visible:ring-2 focus-visible:ring-[#646B2D] focus-visible:ring-offset-2 focus-visible:outline-none",
                       option.selected
                         ? "bg-[#646B2D] font-medium text-white"
                         : option.enabled
