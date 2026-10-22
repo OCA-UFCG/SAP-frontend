@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import { GoogleAnalytics } from "@next/third-parties/google";
 import { Inter, Open_Sans } from "next/font/google";
 import { cache } from "react";
 import { Header } from "@/components/Header/Header";
@@ -45,6 +46,9 @@ const SITE_ICONS: Metadata["icons"] = {
 };
 
 const getCachedFooterContent = cache(getFooterContent);
+
+// Só a imagem da produção recebe o ID; beta e máquina local não enviam visitas.
+const GA_ID = process.env.NEXT_PUBLIC_GA_ID;
 
 export default async function RootLayout({
   children,
@@ -158,6 +162,7 @@ export default async function RootLayout({
         </NextIntlClientProvider>
         <VLibras />
       </body>
+      {GA_ID && <GoogleAnalytics gaId={GA_ID} />}
     </html>
   );
 }

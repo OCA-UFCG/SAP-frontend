@@ -49,6 +49,7 @@
     "@contentful/rich-text-types": "^17.2.7",
     "@google/earthengine": "^1.7.21",
     "@marsidev/react-turnstile": "^1.6.1",
+    "@next/third-parties": "^16.4.2",
     "@turf/bbox": "^7.4.0",
     "clsx": "^2.1.1",
     "driver.js": "^1.9.0",
