@@ -3,6 +3,7 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useLocale, useTranslations } from "next-intl";
 import { Icon } from "@/components/Icon/Icon";
+import { useDialogFocus } from "@/hooks/useDialogFocus";
 import type {
   AnalysisCoverage,
   AnalyzePayload,
@@ -53,6 +54,14 @@ export const AmfeMapDownloadMenu = ({
   const [isExportingReport, setIsExportingReport] = useState(false);
   const [imageError, setImageError] = useState<string | null>(null);
   const containerRef = useRef<HTMLDivElement | null>(null);
+  const menuRef = useRef<HTMLDivElement | null>(null);
+
+  // O foco entra nas opções ao abrir, e Esc fecha com o foco de volta no botão.
+  useDialogFocus(menuRef, {
+    open: isOpen,
+    onClose: () => setIsOpen(false),
+    trapFocus: false,
+  });
 
   useEffect(() => {
     if (!isOpen) return;
@@ -144,7 +153,10 @@ export const AmfeMapDownloadMenu = ({
       </button>
 
       {isOpen && (
-        <div className="absolute top-full left-0 mt-2 min-w-36 origin-top overflow-hidden rounded-xl border border-gray-200 bg-white p-1 shadow-[0_14px_34px_rgba(0,0,0,0.18)] motion-safe:animate-[menu-in_180ms_ease-out] [&>*]:motion-safe:animate-[menu-item-in_260ms_ease-out_both] [&>:nth-child(2)]:[animation-delay:50ms] [&>:nth-child(3)]:[animation-delay:100ms]">
+        <div
+          ref={menuRef}
+          className="absolute top-full left-0 mt-2 min-w-36 origin-top overflow-hidden rounded-xl border border-gray-200 bg-white p-1 shadow-[0_14px_34px_rgba(0,0,0,0.18)] motion-safe:animate-[menu-in_180ms_ease-out] [&>*]:motion-safe:animate-[menu-item-in_260ms_ease-out_both] [&>:nth-child(2)]:[animation-delay:50ms] [&>:nth-child(3)]:[animation-delay:100ms]"
+        >
           <button
             type="button"
             onClick={handleWorkbook}

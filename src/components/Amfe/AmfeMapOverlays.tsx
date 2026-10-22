@@ -83,7 +83,7 @@ export function AmfeMapOverlays() {
       )}
 
       {loading && (
-        <div className="absolute inset-0 z-[1100] flex flex-col items-center justify-center bg-white/70 backdrop-blur-[1px]">
+        <div role="status" className="absolute inset-0 z-[1100] flex flex-col items-center justify-center bg-white/70 backdrop-blur-[1px]">
           {/* Um radar no lugar do spinner: anéis saem do alvo, o ícone da
               Priorização, enquanto os municípios são comparados. */}
           <div aria-hidden="true" className="relative flex h-24 w-24 items-center justify-center">

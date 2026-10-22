@@ -1185,7 +1185,10 @@ export function MunicipalReportPreview({
         <div className="min-h-0 flex-1 overflow-auto bg-white">
           {!hasRequiredParameters && <EmptyReportPreview />}
           {loading && (
-            <div className="mx-auto flex min-h-56 max-w-[749px] flex-col items-center justify-center gap-4 bg-white p-10 text-center text-neutral-600 shadow-sm">
+            <div
+              role="status"
+              className="mx-auto flex min-h-56 max-w-[749px] flex-col items-center justify-center gap-4 bg-white p-10 text-center text-neutral-600 shadow-sm"
+            >
               <span
                 aria-hidden="true"
                 className="h-9 w-9 animate-spin rounded-full border-4 border-[#646B2D]/25 border-t-[#646B2D]"
@@ -1199,7 +1202,9 @@ export function MunicipalReportPreview({
           {visibleError && !loading && (
             <div className="mx-auto max-w-[749px] border border-red-200 bg-white p-8 shadow-sm">
               <h1 className="text-xl font-semibold">{t("loadError")}</h1>
-              <p className="mt-2 text-sm text-red-700">{visibleError}</p>
+              <p role="alert" className="mt-2 text-sm text-red-700">
+                {visibleError}
+              </p>
             </div>
           )}
           {report && !loading && (
@@ -1250,14 +1255,19 @@ export function MunicipalReportPreview({
           ← {t("back")}
         </Link>
         {loading && (
-          <div className="mt-6 bg-white p-10 text-center text-neutral-600 shadow-sm">
+          <div
+            role="status"
+            className="mt-6 bg-white p-10 text-center text-neutral-600 shadow-sm"
+          >
             {t("loading")}
           </div>
         )}
         {visibleError && !loading && (
           <div className="mt-6 border border-red-200 bg-white p-8 shadow-sm">
             <h1 className="text-xl font-semibold">{t("loadError")}</h1>
-            <p className="mt-2 text-sm text-red-700">{visibleError}</p>
+            <p role="alert" className="mt-2 text-sm text-red-700">
+              {visibleError}
+            </p>
           </div>
         )}
         {report && !loading && (

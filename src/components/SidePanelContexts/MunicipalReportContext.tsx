@@ -375,7 +375,7 @@ export function MunicipalReportContext({ panelLayers = [] }: MunicipalReportCont
     <section className="h-full w-full overflow-y-auto bg-[#F6F7F6] px-4 py-12 text-[#292829] max-md:pt-6 max-md:pb-24">
       <form onSubmit={handleSubmit} className="panel-cascade mx-auto flex min-h-full w-full max-w-96 flex-col gap-6">
         <header className="space-y-2">
-          <h2 className="font-inter text-2xl font-semibold leading-6 tracking-[-0.015em]">{t("section")}</h2>
+          <h1 className="font-inter text-2xl font-semibold leading-6 tracking-[-0.015em]">{t("section")}</h1>
           <p className="font-inter text-base font-medium leading-6 tracking-[-0.015em]">{t("selectionDescription")}</p>
         </header>
 
@@ -539,6 +539,9 @@ export function MunicipalReportContext({ panelLayers = [] }: MunicipalReportCont
         {/* Quando a seleção fica completa o botão "acorda" com um anel verde; no
             hover, a seta anda. */}
         <button type="submit" disabled={!canSubmit || isGenerating} className={`group/submit mt-auto flex h-10 w-full shrink-0 items-center justify-center gap-2 rounded bg-[#646B2D] px-4 font-open-sans text-sm text-white transition-[background-color,box-shadow,scale] duration-200 hover:bg-[#4F5424] disabled:cursor-not-allowed disabled:opacity-70 ${canSubmit && !isGenerating ? "hover:shadow-[0_8px_20px_rgba(91,97,42,0.3)] active:scale-[0.98] motion-safe:animate-[ready-ring_900ms_ease-out_2]" : ""}`}>{isGenerating && <span aria-hidden="true" className="h-4 w-4 animate-spin rounded-full border-2 border-white/40 border-t-white" />}{isGenerating ? t("generatingReport") : t("generateReport")}{canSubmit && !isGenerating && <ArrowForwardIcon size={16} className="transition-[translate] duration-200 motion-safe:group-hover/submit:translate-x-1" />}</button>
+        {/* O botão fica desabilitado enquanto gera e o foco sai dele; sem esta
+            região, quem usa leitor de tela não ouve que o relatório está vindo. */}
+        <p role="status" className="sr-only">{isGenerating ? t("generatingReport") : ""}</p>
       </form>
       {infoLayer && <InfoModal card={{ id: 0, title: infoLayer.name, description: infoLayer.description, image: infoLayer.previewMap?.url, fileRef: infoLayer.id, imageData: infoLayer.imageData, timeScale: infoLayer.timeScale }} imageData={infoLayer.imageData} open onClose={() => setInfoLayer(null)} />}
     </section>

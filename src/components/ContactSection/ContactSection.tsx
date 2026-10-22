@@ -9,9 +9,9 @@ const ContactSection = () => {
       <div className="w-full bg-[#E1E2B4]">
         <div className="w-full max-w-[1440px] mx-auto">
           <div className="bg-[#E1E2B4] h-[117px] px-6 sm:px-10 lg:px-[80px] flex items-center">
-            <h2 className="font-bold text-[2rem] sm:text-[2.5rem] lg:text-[3rem] leading-tight text-[#3F4324]">
+            <h1 className="font-bold text-[2rem] sm:text-[2.5rem] lg:text-[3rem] leading-tight text-[#3F4324]">
               {t("title")}
-            </h2>
+            </h1>
           </div>
         </div>
       </div>

@@ -27,6 +27,8 @@ export function LayerOpacityControl({
           step={0.05}
           value={opacity}
           aria-label={t("opacity")}
+          // Sem isto o leitor de tela lê "0,85" em vez de "85%".
+          aria-valuetext={`${Math.round(opacity * 100)}%`}
           onChange={(e) => onChange(parseFloat(e.target.value))}
           className="h-2 min-w-0 flex-1 cursor-pointer appearance-none rounded-[40px] bg-[#F1F5F9] [&::-moz-range-thumb]:h-5 [&::-moz-range-thumb]:w-5 [&::-moz-range-thumb]:appearance-none [&::-moz-range-thumb]:rounded-full [&::-moz-range-thumb]:border-2 [&::-moz-range-thumb]:border-[#646B2D] [&::-moz-range-thumb]:bg-white [&::-moz-range-track]:h-2 [&::-moz-range-track]:rounded-[40px] [&::-moz-range-track]:bg-[#F1F5F9] [&::-webkit-slider-thumb]:h-5 [&::-webkit-slider-thumb]:w-5 [&::-webkit-slider-thumb]:appearance-none [&::-webkit-slider-thumb]:rounded-full [&::-webkit-slider-thumb]:border-2 [&::-webkit-slider-thumb]:border-[#646B2D] [&::-webkit-slider-thumb]:bg-white"
         />

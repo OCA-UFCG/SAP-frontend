@@ -80,33 +80,36 @@ export function MapControlDisclosure({
 
   return (
     <MapControlCard ariaLabel={label} collapsed={!isOpen}>
-      <button
-        type="button"
-        className="group flex w-full cursor-pointer items-center justify-between gap-2 rounded bg-transparent text-left outline-none focus-visible:ring-2 focus-visible:ring-[#5B612A] focus-visible:ring-offset-2"
-        onClick={() => {
-          if (!isOpen) onOpen?.();
-          setIsOpen(!isOpen);
-          setHasOpened(true);
-        }}
-        aria-expanded={isOpen}
-      >
-        {/* Cabeçalho como heading: o leitor de tela navega pelas caixas do
-            mapa, e antes só Legendas tinha esse título. */}
-        <h2
-          className={`${MAP_CONTROL_LABEL_CLASS} font-semibold ${
-            animated
-              ? "transition-[translate] duration-200 ease-out motion-safe:group-hover:translate-x-1"
-              : ""
-          }`}
+      {/* O heading por fora do botão: dentro dele o conteúdo vira texto puro
+          e o leitor de tela não achava o título ao navegar pelas caixas do
+          mapa. */}
+      <h2>
+        <button
+          type="button"
+          className="group flex w-full cursor-pointer items-center justify-between gap-2 rounded bg-transparent text-left outline-none focus-visible:ring-2 focus-visible:ring-[#5B612A] focus-visible:ring-offset-2"
+          onClick={() => {
+            if (!isOpen) onOpen?.();
+            setIsOpen(!isOpen);
+            setHasOpened(true);
+          }}
+          aria-expanded={isOpen}
         >
-          {label}
-        </h2>
-        <span
-          className={`-m-1 flex size-6 shrink-0 items-center justify-center rounded-full text-[#292829] transition-colors duration-200 group-hover:bg-[#E1E2B4] group-hover:text-[#4F5424] ${isOpen ? "bg-[#F5F6EE]" : ""}`}
-        >
-          <Chevron open={isOpen} from="down" to="up" size={16} />
-        </span>
-      </button>
+          <span
+            className={`${MAP_CONTROL_LABEL_CLASS} font-semibold ${
+              animated
+                ? "transition-[translate] duration-200 ease-out motion-safe:group-hover:translate-x-1"
+                : ""
+            }`}
+          >
+            {label}
+          </span>
+          <span
+            className={`-m-1 flex size-6 shrink-0 items-center justify-center rounded-full text-[#292829] transition-colors duration-200 group-hover:bg-[#E1E2B4] group-hover:text-[#4F5424] ${isOpen ? "bg-[#F5F6EE]" : ""}`}
+          >
+            <Chevron open={isOpen} from="down" to="up" size={16} />
+          </span>
+        </button>
+      </h2>
       {summary}
       {animated ? (
         // A linha da grade vai de 0 à altura do conteúdo; a margem negativa

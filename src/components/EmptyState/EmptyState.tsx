@@ -16,9 +16,9 @@ export const EmptyState = () => {
 
       <div className="w-full bg-[#E1E2B4]">
         <div className="w-full max-w-[1440px] mx-auto flex items-center justify-center p-[36px] min-h-[168px]">
-          <p className="max-w-[656px] text-center font-bold text-[1.375rem] sm:text-[1.75rem] lg:text-[2rem] leading-[150%] text-[#5B612A]">
+          <h1 className="max-w-[656px] text-center font-bold text-[1.375rem] sm:text-[1.75rem] lg:text-[2rem] leading-[150%] text-[#5B612A]">
             {t("workingOnIt")}
-          </p>
+          </h1>
         </div>
       </div>
     </section>

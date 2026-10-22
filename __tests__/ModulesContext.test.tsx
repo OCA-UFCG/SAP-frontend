@@ -164,12 +164,12 @@ describe("ModulesContext", () => {
       .closest("button");
     expect(subgroupButton).toHaveAttribute("aria-expanded", "false");
 
-    const titles = screen
-      .getAllByRole("heading", { level: 3 })
-      .map((heading) => heading.textContent);
-    expect(titles).toEqual([
-      "Área de Interesse",
-      "Produtos",
+    const headingTexts = (level: number) =>
+      screen
+        .getAllByRole("heading", { level })
+        .map((heading) => heading.textContent);
+    expect(headingTexts(2)).toEqual(["Área de Interesse", "Produtos"]);
+    expect(headingTexts(3)).toEqual([
       "Monitor de Secas",
       "Índice de Aridez",
       "Previsão: Anomalia Precipitação",

@@ -13,7 +13,7 @@ export function AmfeAnalysisStatusLines() {
     <>
       {error && !loading && (
         <div className="flex h-64 items-center justify-center">
-          <p className="text-center font-medium text-red-600">
+          <p role="alert" className="text-center font-medium text-red-600">
             {t("error", { error })}
           </p>
         </div>
