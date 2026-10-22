@@ -1,0 +1,77 @@
+# Alertas do SEDES no Prometheus da VM de monitoramento (oca-monitor).
+#
+# Cada alerta leva três anotações que o Alertmanager usa no e-mail: titulo
+# (assunto enquanto dura), resolvido (assunto quando acaba) e descricao.
+groups:
+  - name: sedes
+    rules:
+      # Com a coleta a cada minuto, `for: 1m` é a segunda falha seguida
+      # (~2 min fora até o e-mail): a troca de container de um deploy, que
+      # derruba o site por alguns segundos, não vira alerta.
+      - alert: SedesForaDoAr
+        expr: up{job="sedes", ambiente="produção"} == 0
+        for: 1m
+        labels: &fora-do-ar
+          severity: critical
+        annotations: &fora-do-ar-texto
+          titulo: fora do ar
+          resolvido: voltou ao ar
+          descricao: >-
+            O SEDES {{ $labels.ambiente }} não respondeu em
+            https://{{ $labels.instance }}/api/metrics. Se o site abre
+            normalmente no navegador, o METRICS_TOKEN do container e o da VM
+            de monitoramento podem ter ficado diferentes.
+      # O beta cai em todo deploy e é de teste: avisa só na terceira falha.
+      - alert: SedesForaDoAr
+        expr: up{job="sedes", ambiente="beta"} == 0
+        for: 2m
+        labels: *fora-do-ar
+        annotations: *fora-do-ar-texto
+
+      # O site responde, mas um serviço de que ele depende não. Espera 3 min
+      # porque uma lentidão de 2 min do Earth Engine em 21/10/2026 virou um
+      # par de e-mails "fora" e "voltou" sem ninguém precisar agir.
+      - alert: SedesServicoComProblema
+        expr: sedes_dependency_up == 0
+        for: 3m
+        labels:
+          severity: critical
+        annotations:
+          titulo: serviço com problema
+          resolvido: serviços normalizados
+          descricao: >-
+            O site está no ar, mas {{ $labels.servico }} {{ $labels.falha }}.
+            O erro completo fica no log do container (docker logs), nas linhas
+            com [health].
+
+      # Disco cheio para os containers e derruba o site. Avisa a partir de
+      # 85% e só considera resolvido abaixo de 80%, para um disco oscilando
+      # em volta do limite não virar um e-mail por minuto.
+      - alert: SedesDiscoQuaseCheio
+        expr: >-
+          sedes_disk_used_ratio >= 0.85
+          or (sedes_disk_used_ratio >= 0.80
+            and on(instance) ALERTS{alertname="SedesDiscoQuaseCheio", alertstate="firing"})
+        for: 5m
+        annotations:
+          titulo: disco quase cheio
+          resolvido: disco voltou ao normal
+          descricao: >-
+            O disco da VM do SEDES {{ $labels.ambiente }} está com
+            {{ $value | humanizePercentage }} usado. O que costuma ocupar
+            espaço são as imagens antigas do Docker (sudo docker system df) e
+            os logs dos containers (sudo du -sh /var/lib/docker/containers/*).
+
+      # Em 18/10/2026 o certificado da produção venceu sem aviso e o site
+      # ficou 38 h fora. 14 dias dão tempo de renovar à mão se o automático
+      # falhar.
+      - alert: SedesCertificadoVencendo
+        expr: probe_ssl_earliest_cert_expiry{job="sedes-certificado"} - time() < 14 * 86400
+        for: 10m
+        annotations:
+          titulo: certificado HTTPS perto de vencer
+          resolvido: certificado HTTPS renovado
+          descricao: >-
+            O certificado HTTPS de {{ $labels.instance }} vence em
+            {{ $value | humanizeDuration }}. A renovação da produção é o
+            sedes-oca-cert-renew.timer; a do beta, o certbot.timer.
