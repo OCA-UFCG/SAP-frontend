@@ -59,7 +59,7 @@ function createEvent(
     occurredAt: "2026-05-29T12:00:00.000Z",
     receivedAt: "2026-05-29T12:00:01.000Z",
     receivedDay: "2026-05-29",
-    uid: null,
+    authenticated: false,
     query: "sao paulo",
     selectionMethod: "button",
     activeLayerId: "layer-1",
@@ -77,7 +77,7 @@ describe("telemetryService", () => {
     mockedGetPanelLayers.mockResolvedValue([createPanelLayer()]);
   });
 
-  it("persists the authenticated user email with server-controlled telemetry metadata", async () => {
+  it("records only whether the person was signed in, never who they are", async () => {
     mockedSaveTelemetryEvents.mockResolvedValueOnce();
 
     const result = await ingestTelemetryEvents(
@@ -96,17 +96,18 @@ describe("telemetryService", () => {
         ],
       },
       {
-        uid: "user-123",
-        userEmail: "oca@gmail.com",
+        authenticated: true,
         now: new Date("2026-05-29T12:00:01.000Z"),
       },
     );
 
     expect(result).toEqual({ accepted: 1 });
+    const [saved] = mockedSaveTelemetryEvents.mock.calls[0][0];
+    expect(saved).not.toHaveProperty("uid");
+    expect(saved).not.toHaveProperty("userEmail");
     expect(mockedSaveTelemetryEvents).toHaveBeenCalledWith([
       expect.objectContaining({
-        uid: "user-123",
-        userEmail: "oca@gmail.com",
+        authenticated: true,
         anonymousSessionId: "anon-1",
         occurredAt: "2026-05-29T12:00:01.000Z",
         receivedAt: "2026-05-29T12:00:01.000Z",

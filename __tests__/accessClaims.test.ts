@@ -13,6 +13,8 @@ import {
   buildApprovedAccessClaims,
   hasApprovedAccess,
   readAccessClaim,
+  readStoredAccess,
+  revokeAccess,
 } from "@/lib/access-claims";
 import { adminAuth } from "@/lib/firebase-admin";
 
@@ -105,5 +107,40 @@ describe("access claims", () => {
 
     await expect(approveAccess("user-123", "allowed")).rejects.toThrow("boom");
     expect(mockedAdminAuth.revokeRefreshTokens).not.toHaveBeenCalled();
+  });
+
+  it("keeps the tier and the other claims when removing someone's access", async () => {
+    mockedAdminAuth.getUser.mockResolvedValue({
+      customClaims: {
+        other: true,
+        ...buildApprovedAccessClaims("common", 1),
+      },
+    } as never);
+
+    const tier = await revokeAccess("uid-1", 1758585600);
+
+    expect(tier).toBe("common");
+    expect(mockedAdminAuth.setCustomUserClaims).toHaveBeenCalledWith("uid-1", {
+      other: true,
+      sap: { access: "revoked", tier: "common", at: 1758585600 },
+    });
+    expect(mockedAdminAuth.revokeRefreshTokens).toHaveBeenCalledWith("uid-1");
+  });
+
+  it("denies a removed access, but still lists it", () => {
+    const revoked = { sap: { access: "revoked", tier: "legacy", at: 5 } };
+
+    expect(hasApprovedAccess(revoked)).toBe(false);
+    expect(readStoredAccess(revoked)).toEqual({
+      access: "revoked",
+      tier: "legacy",
+      at: 5,
+    });
+  });
+
+  it("treats an account without the SAP claim as removed from the legacy tier", async () => {
+    mockedAdminAuth.getUser.mockResolvedValue({ customClaims: undefined } as never);
+
+    expect(await revokeAccess("uid-2", 1)).toBe("legacy");
   });
 });

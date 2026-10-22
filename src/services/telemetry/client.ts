@@ -19,16 +19,24 @@ function createAnonymousSessionId() {
   return `anon-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 10)}`;
 }
 
+/**
+ * Um id por aba, que some quando ela fecha. Ele existe para agrupar os eventos
+ * de uma mesma visita; guardado no `localStorage`, como era antes, ele
+ * sobrevivia para sempre e virava um rastreador fixo daquele navegador.
+ */
 function getAnonymousSessionId() {
   try {
-    const storedSessionId = window.localStorage.getItem(SESSION_STORAGE_KEY);
+    // Apaga o id permanente que versões anteriores deixaram no navegador.
+    window.localStorage.removeItem(SESSION_STORAGE_KEY);
+
+    const storedSessionId = window.sessionStorage.getItem(SESSION_STORAGE_KEY);
 
     if (storedSessionId) {
       return storedSessionId;
     }
 
     const nextSessionId = createAnonymousSessionId();
-    window.localStorage.setItem(SESSION_STORAGE_KEY, nextSessionId);
+    window.sessionStorage.setItem(SESSION_STORAGE_KEY, nextSessionId);
     return nextSessionId;
   } catch {
     return createAnonymousSessionId();

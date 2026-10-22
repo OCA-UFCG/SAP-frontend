@@ -1,0 +1,8 @@
+{
+  "CookieConsent": {
+    "title": "Cookies",
+    "body": "Com a sua permissão, usamos o Google Analytics para contar as visitas e saber quais páginas são mais usadas. Ele grava cookies no seu navegador e envia ao Google dados da visita, como o endereço IP. Se você recusar, nada é enviado. Dá para mudar a escolha em \"Cookies\", no rodapé.",
+    "accept": "Aceitar",
+    "decline": "Recusar"
+  }
+}

@@ -1,0 +1,26 @@
+{
+  "MyAccount": {
+    "title": "My account",
+    "emailLabel": "E-mail",
+    "deleteTitle": "Delete account",
+    "deleteSummary": "Erases your login and your sign-up data. This cannot be undone.",
+    "openDelete": "Delete my account",
+    "whatIsDeleted": "Deleting the account erases:",
+    "deletedLogin": "your login and password;",
+    "deletedSignup": "the e-mail and the intended use you wrote when signing up.",
+    "usageNote": "The platform's usage records do not store who you are, so there is nothing of yours in them to erase.",
+    "irreversible": "This cannot be undone. To use the platform again, you will need to sign up again.",
+    "passwordLabel": "Enter your password to confirm",
+    "submit": "Delete my account",
+    "working": "Deleting...",
+    "cancel": "Cancel",
+    "wrongPassword": "Wrong password.",
+    "tooManyAttempts": "Too many attempts. Wait a few minutes and try again.",
+    "failed": "The account could not be deleted right now. Try again later.",
+    "askTeam": "This account was created by the OCA team and may be used by more than one person, so it cannot be deleted here. To delete it, contact the team.",
+    "contactTeam": "Contact the team",
+    "doneTitle": "Account deleted",
+    "doneBody": "Your account and your sign-up data were erased.",
+    "backHome": "Back to home"
+  }
+}

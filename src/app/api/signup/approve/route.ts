@@ -15,7 +15,7 @@ export const runtime = "nodejs";
 
 const NO_STORE = { "Cache-Control": "no-store" } as const;
 
-type Decision = Exclude<AccessRequestStatus, "pending">;
+type Decision = Extract<AccessRequestStatus, "approved" | "rejected">;
 
 function isDecision(value: unknown): value is Decision {
   return value === "approved" || value === "rejected";

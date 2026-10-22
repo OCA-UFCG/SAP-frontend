@@ -30,8 +30,7 @@ const dashboardData: TelemetryDashboardData = {
       occurredAt: "2026-05-29T12:09:59.000Z",
       receivedAt: "2026-05-29T12:10:00.000Z",
       receivedDay: "2026-05-29",
-      uid: null,
-      userEmail: "oca@gmail.com",
+      authenticated: true,
       query: "cidade sem dado",
       selectionMethod: "button",
       activeLayerId: "layer-1",
@@ -46,8 +45,7 @@ const dashboardData: TelemetryDashboardData = {
       occurredAt: "2026-05-29T12:08:59.000Z",
       receivedAt: "2026-05-29T12:09:00.000Z",
       receivedDay: "2026-05-29",
-      uid: null,
-      userEmail: null,
+      authenticated: false,
       activeLayerId: "CDI",
       activeLayerName: "CDI Jan 2024",
       activeDateLabel: "31/01/24",
@@ -89,9 +87,10 @@ describe("TelemetryDashboard", () => {
       screen.getByRole("columnheader", { name: "Layer" }),
     ).toBeInTheDocument();
     expect(
-      screen.getByRole("columnheader", { name: "Usuário" }),
+      screen.getByRole("columnheader", { name: "Sessão" }),
     ).toBeInTheDocument();
-    expect(screen.getByText("oca@gmail.com")).toBeInTheDocument();
+    expect(screen.getByText("Logado")).toBeInTheDocument();
+    expect(screen.getByText("Visitante")).toBeInTheDocument();
     expect(
       screen.queryByRole("columnheader", { name: "Camada" }),
     ).not.toBeInTheDocument();
