@@ -1,0 +1,49 @@
+# Rota, receptores e inibição do SEDES no Alertmanager da VM de monitoramento
+# (oca-monitor). O Alertmanager não lê mais de um arquivo, então o
+# merge_alertmanager.py junta este trecho ao alertmanager.yml de lá, que também
+# atende o DataNE e o OCA, sem mexer no resto.
+
+# Entra como a primeira rota filha: o que tem project="sedes" para aqui.
+route:
+  matchers: ['project="sedes"']
+  receiver: sedes-email
+  group_by: [alertname, ambiente]
+  group_wait: 30s
+  group_interval: 5m
+  # Lembrete enquanto o problema durar.
+  repeat_interval: 3h
+  routes:
+    # A regra genérica do OCA (probe_success == 0) também pegaria a sonda do
+    # certificado; o SedesForaDoAr já cobre o site fora do ar.
+    - matchers: ['alertname="ServiceDown"']
+      receiver: sedes-silencio
+    # O beta é de teste: avisa quando cai e quando volta, sem lembrete.
+    - matchers: ['ambiente="beta"', 'alertname=~"SedesForaDoAr|SedesServicoComProblema"']
+      repeat_interval: 8760h
+    - matchers: ['alertname=~"SedesDiscoQuaseCheio|SedesCertificadoVencendo"']
+      repeat_interval: 24h
+
+# Com o site inteiro fora, a falha de cada serviço é consequência, não notícia.
+inhibit_rules:
+  - source_matchers: ['alertname="SedesForaDoAr"']
+    target_matchers: ['alertname="SedesServicoComProblema"']
+    equal: [ambiente]
+
+receivers:
+  - name: sedes-email
+    email_configs:
+      # Quem recebe: o mesmo e-mail do OCA que recebe os pedidos de acesso.
+      - to: oca@lsd.ufcg.edu.br
+        send_resolved: true
+        headers:
+          Subject: '[SEDES {{ .CommonLabels.ambiente }}] {{ if eq .Status "firing" }}{{ .CommonAnnotations.titulo }}{{ else }}{{ .CommonAnnotations.resolvido }}{{ end }}'
+        html: ""
+        text: |-
+          {{ range .Alerts.Firing }}{{ .Annotations.descricao }}
+          Desde {{ (.StartsAt | tz "America/Sao_Paulo").Format "02/01 às 15:04" }} (horário de Brasília).
+
+          {{ end }}{{ range .Alerts.Resolved }}Resolvido depois de {{ (.EndsAt.Sub .StartsAt).Seconds | humanizeDuration }}, desde {{ (.StartsAt | tz "America/Sao_Paulo").Format "02/01 às 15:04" }} (horário de Brasília): {{ .Annotations.descricao }}
+
+          {{ end }}Quem verificou: a VM de monitoramento (oca-monitor), a cada minuto.
+          Alertas ativos: http://34.200.5.32:9093
+  - name: sedes-silencio

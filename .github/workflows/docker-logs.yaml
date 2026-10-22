@@ -1,0 +1,26 @@
+name: Rotação dos logs do Docker nas VMs
+
+# Instala a rotação dos logs dos containers nas VMs do beta e da produção. Roda
+# quando ela muda na main ou quando alguém dispara à mão (aba Actions → Run
+# workflow). Quem vigia os ambientes é a VM de monitoramento; veja
+# scripts/monitoring/deploy.sh.
+on:
+  push:
+    branches: [main]
+    paths:
+      - "scripts/docker-logs/**"
+      - ".github/workflows/docker-logs.yaml"
+  workflow_dispatch:
+
+jobs:
+  install:
+    strategy:
+      fail-fast: false
+      matrix:
+        runner: [sap-beta-runner, sap-prod-runner]
+    runs-on: [self-hosted, "${{ matrix.runner }}"]
+    steps:
+      - uses: actions/checkout@v5
+
+      - name: Install the Docker log rotation
+        run: sudo bash scripts/docker-logs/install.sh
