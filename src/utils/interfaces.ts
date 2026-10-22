@@ -12,13 +12,6 @@ export interface DataCardsI {
   watchAreaValue: number;
   recoveryAreaValue: number;
 }
-export interface FooterI {
-  id: string;
-  name: string;
-  path: string;
-  appears: boolean;
-}
-
 export interface SedesChannelI {
   name: string;
   href: string;

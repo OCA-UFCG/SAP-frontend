@@ -21,7 +21,6 @@ import {
 } from "@/infrastructure/contentful/client";
 import {
   getAboutPageContent,
-  getFooterContent,
   getGlossaryTerms,
   getHomePageContent,
 } from "@/repositories/content/siteContentRepository";
@@ -47,7 +46,6 @@ async function sentQueries() {
   mockedGetContent.mockResolvedValue({});
   clearPanelLayersCache();
   await Promise.all([
-    getFooterContent(),
     getHomePageContent(),
     getAboutPageContent(),
     getGlossaryTerms(),

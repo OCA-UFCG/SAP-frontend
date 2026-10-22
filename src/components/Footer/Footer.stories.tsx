@@ -1,22 +1,12 @@
 import type { Meta, StoryObj } from '@storybook/nextjs-vite';
 import Footer from './Footer';
-import type { FooterI } from '@/utils/interfaces';
+import type { ISection } from '@/utils/interfaces';
 
-const mockContent: FooterI[] = [
-  // main pages (appears = true)
-  { id: 'home', name: 'Home', path: '/', appears: true },
-  { id: 'map', name: 'Mapas', path: '/platform', appears: true },
-  { id: 'about', name: 'Sobre o SEDES', path: '/about', appears: true },
-  { id: 'contact', name: 'Contatos', path: '/contact', appears: true },
-
-  // macro themes
-  { id: 'analysis-1', name: 'Análise 1', path: '/a1', appears: false },
-  { id: 'analysis-2', name: 'Análise 2', path: '/a2', appears: false },
-  { id: 'analysis-3', name: 'Análise 3', path: '/a3', appears: false },
-  { id: 'analysis-4', name: 'Análise 4', path: '/a4', appears: false },
-  { id: 'analysis-5', name: 'Análise 5', path: '/a5', appears: false },
-  { id: 'analysis-6', name: 'Análise 6', path: '/a6', appears: false },
-  { id: 'analysis-7', name: 'Análise 7', path: '/a7', appears: false },
+const mockContent: ISection[] = [
+  { id: '1', name: 'Início', path: '/', appears: true },
+  { id: '3', name: 'Sobre', path: '/sobre-o-sedes', appears: true },
+  { id: '5', name: 'Glossário', path: '/glossary', appears: true },
+  { id: '2', name: 'Plataforma', path: '/platform', appears: true },
 ];
 
 const meta: Meta<typeof Footer> = {
@@ -27,7 +17,7 @@ const meta: Meta<typeof Footer> = {
   argTypes: {
     content: {
       description:
-        'Lista de links exibidos no footer. Itens com appears=true são páginas principais.',
+        'Os links do menu do topo, repetidos no rodapé.',
       control: 'object',
     },
   },

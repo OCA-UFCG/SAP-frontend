@@ -20,17 +20,6 @@ export function normalizeContentfulImage(url: string) {
   }
 }
 
-export const sortContentByDesiredOrder = <T extends { path: string }>(
-  content: T[],
-  desiredOrder: string[],
-): T[] => {
-  return [...content]
-    .filter((item) => desiredOrder.includes(item.path)) // ← filtra antes
-    .sort(
-      (a, b) => desiredOrder.indexOf(a.path) - desiredOrder.indexOf(b.path),
-    );
-};
-
 /**
  * Returns either '#292829' or '#FFFFFF'
  * depending on which has better contrast with the background.
