@@ -40,8 +40,7 @@ export function MainBanner({ banners, previews = [] }: MainBannerProps) {
   const t = useTranslations("MainBanner");
   const [active, setActive] = useState(0);
   const [paused, setPaused] = useState(false);
-  // Fotos que já chegaram. O zoom lento só começa depois, para não "andar"
-  // sobre o fundo preto; as seguintes também só aparecem inteiras, em fade.
+  // Fotos que já chegaram: as seguintes só aparecem inteiras, em fade.
   const [loaded, setLoaded] = useState<ReadonlySet<number>>(() => new Set());
   // Parado pelo botão de pausar: só volta a passar quando a pessoa aperta de
   // novo. Até ela apertar, quem pediu menos movimento no sistema vê parado.
@@ -113,11 +112,8 @@ export function MainBanner({ banners, previews = [] }: MainBannerProps) {
               // A primeira não espera o JavaScript para aparecer: no celular
               // ele pode levar segundos, e ela já chega leve.
               className={cn(
-                "object-cover object-center [transition:opacity_600ms_ease-out,scale_9000ms_ease-out]",
+                "object-cover object-center transition-opacity duration-[600ms] ease-out",
                 index !== 0 && !loaded.has(index) && "opacity-0",
-                index === active &&
-                  loaded.has(index) &&
-                  "motion-safe:scale-[1.08]",
               )}
             />
           )}
