@@ -73,7 +73,7 @@
     "@storybook/addon-a11y": "^10.2.7",
     "@storybook/addon-docs": "^10.2.7",
     "@storybook/addon-styling-webpack": "^3.0.0",
-    "@storybook/addon-vitest": "^10.2.7",
+    "@storybook/addon-vitest": "^10.6.2",
     "@storybook/nextjs": "^10.2.8",
     "@storybook/nextjs-vite": "^10.2.7",
     "@svgr/webpack": "^8.1.0",
