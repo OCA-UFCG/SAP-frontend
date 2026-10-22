@@ -112,14 +112,14 @@ export const UserAuth = () => {
                 </p>
               </div>
 
-              {/* Fica no menu de quem está logado, perto do "Sair", porque é
-                  onde se procura o que fazer com a própria conta. */}
+              {/* Excluir a conta fica dentro de "Minha conta", e não solto no
+                  menu, onde ficava a um clique por engano. */}
               <Link
-                href="/excluir-conta"
+                href="/minha-conta"
                 onClick={() => setOpenPathname(null)}
                 className="block w-full px-4 py-2 text-sm text-stone-600 transition-colors hover:bg-stone-100"
               >
-                {t("deleteAccount")}
+                {t("myAccount")}
               </Link>
 
               <button

@@ -5,14 +5,17 @@ import {
   getAuthenticatedSessionFromCookie,
 } from "@/lib/server-session";
 import { canDeleteOwnAccount } from "@/lib/account-deletion-policy";
-import { DeleteAccountClient } from "./DeleteAccountClient";
+import { MyAccountClient } from "./MyAccountClient";
+import { pageTitleMetadata } from "@/lib/page-metadata";
+
+export const generateMetadata = pageTitleMetadata("myAccount");
 
 /**
- * Onde a pessoa exclui a própria conta. A regra de quem pode (só contas que
- * vieram do cadastro) é a mesma da rota, e a rota confere de novo: a página só
- * decide o que mostrar.
+ * A conta de quem está logado; é daqui que a pessoa exclui a própria conta. A
+ * regra de quem pode (só contas que vieram do cadastro) é a mesma da rota, e a
+ * rota confere de novo: a página só decide o que mostrar.
  */
-export default async function DeleteAccountPage({
+export default async function MyAccountPage({
   params,
 }: {
   params: Promise<{ locale: string }>;
@@ -26,7 +29,7 @@ export default async function DeleteAccountPage({
   }
 
   return (
-    <DeleteAccountClient
+    <MyAccountClient
       email={session.email}
       canDelete={canDeleteOwnAccount(session.access)}
     />

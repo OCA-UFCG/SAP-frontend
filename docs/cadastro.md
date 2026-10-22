@@ -202,8 +202,8 @@ desligado fora do seu computador: o link de confirmação é uma credencial.**
 - **Remover o acesso também grava `revoked` no pedido**, e cria o pedido se a
   conta antiga não tinha um. Sem isso, o login de uma conta de domínio
   autorizado abriria um pedido novo e a liberaria de novo sozinho.
-- **Pela própria pessoa**, em "Excluir minha conta" no menu do usuário, com a
-  senha de novo. Vale só para contas do cadastro: contas antigas podem ser
+- **Pela própria pessoa**, em "Minha conta" no menu do usuário (`/minha-conta`),
+  na seção "Excluir conta", com a senha de novo. Vale só para contas do cadastro: contas antigas podem ser
   divididas entre várias pessoas de outros órgãos, e para elas a página manda
   falar com a equipe.
 - **Excluir apaga** a conta do Firebase e o pedido (e-mail e intenção de uso).

@@ -1,7 +1,10 @@
 {
-  "DeleteAccount": {
-    "title": "Excluir minha conta",
-    "signedInAs": "Conta:",
+  "MyAccount": {
+    "title": "Minha conta",
+    "emailLabel": "E-mail",
+    "deleteTitle": "Excluir conta",
+    "deleteSummary": "Apaga seu login e os dados do seu cadastro. Não dá para desfazer.",
+    "openDelete": "Excluir minha conta",
     "whatIsDeleted": "Ao excluir a conta, apagamos:",
     "deletedLogin": "seu login e sua senha;",
     "deletedSignup": "o e-mail e a descrição de uso que você enviou no cadastro.",
@@ -10,7 +13,7 @@
     "passwordLabel": "Digite sua senha para confirmar",
     "submit": "Excluir minha conta",
     "working": "Excluindo...",
-    "cancel": "Voltar para a plataforma",
+    "cancel": "Cancelar",
     "wrongPassword": "Senha incorreta.",
     "tooManyAttempts": "Muitas tentativas. Espere alguns minutos e tente de novo.",
     "failed": "Não foi possível excluir a conta agora. Tente de novo mais tarde.",

@@ -1,7 +1,10 @@
 {
-  "DeleteAccount": {
-    "title": "Delete my account",
-    "signedInAs": "Account:",
+  "MyAccount": {
+    "title": "My account",
+    "emailLabel": "E-mail",
+    "deleteTitle": "Delete account",
+    "deleteSummary": "Erases your login and your sign-up data. This cannot be undone.",
+    "openDelete": "Delete my account",
     "whatIsDeleted": "Deleting the account erases:",
     "deletedLogin": "your login and password;",
     "deletedSignup": "the e-mail and the intended use you wrote when signing up.",
@@ -10,7 +13,7 @@
     "passwordLabel": "Enter your password to confirm",
     "submit": "Delete my account",
     "working": "Deleting...",
-    "cancel": "Back to the platform",
+    "cancel": "Cancel",
     "wrongPassword": "Wrong password.",
     "tooManyAttempts": "Too many attempts. Wait a few minutes and try again.",
     "failed": "The account could not be deleted right now. Try again later.",
