@@ -6,6 +6,7 @@ import {
 } from "@/components/analysis/analysis.mappers";
 import type { CompactTerritorialAnalysisDataset } from "@/utils/analysis";
 import type { PanelLayerI } from "@/utils/interfaces";
+import { buildValueTemplates } from "@/utils/municipalValueIndicator";
 
 function buildLayer(imageData: CompactTerritorialAnalysisDataset): PanelLayerI {
   return {
@@ -101,6 +102,53 @@ describe("analysis.mappers", () => {
     );
     expect(model?.highlight?.areaShare).toBeUndefined();
   });
+
+  it.each([
+    {
+      indicator: { label: "PIB", measurementUnit: "de reais", value: 1.93e9 },
+      expected: "PIB em Quixeramobim - CE: 1,93 bilhão de reais.",
+    },
+    {
+      indicator: { label: "IDH", measurementUnit: "", value: 0.65 },
+      expected: "IDH em Quixeramobim - CE: 0,65.",
+    },
+  ])(
+    "summarizes the $indicator.label spreadsheet indicator in the highlight",
+    ({ indicator, expected }) => {
+      const layer = buildLayer({
+        schemaVersion: 1,
+        type: "territorial-compact",
+        defaultYear: "2023",
+        classes: [
+          { id: "indicator", label: indicator.label, color: "#f6c26b" },
+        ],
+        locations: { "2311306": "Quixeramobim - CE" },
+        templates: buildValueTemplates({
+          label: indicator.label,
+          color: "#f6c26b",
+          measurementUnit: indicator.measurementUnit,
+          valueType: "absolute",
+        }),
+        valueConfig: { type: "absolute", unit: indicator.measurementUnit },
+        years: {
+          "2023": {
+            imageId: "indicator",
+            valuesScale: 1,
+            values: { "2311306": [indicator.value] },
+          },
+        },
+      });
+
+      const model = buildEmbeddedTerritorialAnalysisViewModel(
+        layer,
+        "2023",
+        "2311306",
+      );
+
+      expect(model?.highlight?.text).toBe(expected);
+      expect(model?.highlight?.areaShare).toBeUndefined();
+    },
+  );
 
   it("shows all classes and ranks each one by its own top 5 positive states", () => {
     const layer = buildLayer({

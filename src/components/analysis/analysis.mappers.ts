@@ -1,6 +1,7 @@
 import {
   formatAbsoluteNumber,
   formatPercentageNumber,
+  roundToDisplayedDecimals,
 } from "@/utils/formatTerritorialNumber";
 import citiesIndex from "@/data/citiesIndex.json";
 import { statesObj } from "@/utils/constants";
@@ -183,7 +184,7 @@ function buildCompactDistributionItems(
     id: item.id,
     label: translate(item.label, tCaption),
     color: item.color,
-    value: Number((((values[index] ?? 0) as number) / scale).toFixed(1)),
+    value: roundToDisplayedDecimals(((values[index] ?? 0) as number) / scale),
   }));
 }
 
@@ -363,8 +364,8 @@ function buildCompactRankingGroups(
       classIndex < data.classes.length;
       classIndex += 1
     ) {
-      const numericValue = Number(
-        (((values[classIndex] ?? 0) as number) / scale).toFixed(1),
+      const numericValue = roundToDisplayedDecimals(
+        ((values[classIndex] ?? 0) as number) / scale,
       );
 
       if (numericValue > dominantValue) {

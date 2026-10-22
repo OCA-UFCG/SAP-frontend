@@ -52,6 +52,10 @@ function scaleLanguage(locale: string): "pt" | "en" | "es" {
 
 export const DECIMAL_FRACTION_DIGITS = 2;
 
+export function roundToDisplayedDecimals(value: number) {
+  return Number(value.toFixed(DECIMAL_FRACTION_DIGITS));
+}
+
 export function formatDecimalNumber(value: number, locale: string) {
   const fractionDigits = Number.isInteger(value) ? 0 : DECIMAL_FRACTION_DIGITS;
   return new Intl.NumberFormat(locale, {
