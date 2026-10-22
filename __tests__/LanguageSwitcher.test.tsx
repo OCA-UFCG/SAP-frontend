@@ -77,4 +77,17 @@ describe("LanguageSwitcher", () => {
     fireEvent.mouseDown(document.body);
     expect(screen.queryByText("English")).not.toBeInTheDocument();
   });
+
+  it("exposes the languages as options and focuses the active one", () => {
+    render(<LanguageSwitcher />);
+    fireEvent.click(screen.getByRole("button", { name: /alterar idioma/i }));
+
+    const options = within(screen.getByRole("listbox")).getAllByRole("option");
+    expect(options).toHaveLength(3);
+    expect(options[0]).toHaveAttribute("aria-selected", "true");
+    expect(options[0]).toHaveFocus();
+
+    fireEvent.keyDown(options[0], { key: "ArrowDown" });
+    expect(options[1]).toHaveFocus();
+  });
 });

@@ -15,6 +15,8 @@ import {
 import dynamic from "next/dynamic";
 import { useLocale, useTranslations } from "next-intl";
 import { formatDekadPeriod } from "@/utils/dekadPeriod";
+import { useDialogFocus } from "@/hooks/useDialogFocus";
+import { handleListboxKeyDown } from "@/utils/listboxKeyboard";
 import { scrollSelectedOptionIntoView } from "@/utils/scrollSelectedOption";
 import { Chevron } from "@/components/Chevron/Chevron";
 import SearchBarPlatform from "@/components/SidePanelContexts/SearchBarPlatform";
@@ -197,6 +199,12 @@ function AnalysisYearSelect({
     if (isOptionsOpen) scrollSelectedOptionIntoView(optionsRef.current);
   }, [isOptionsOpen]);
 
+  useDialogFocus(optionsRef, {
+    open: isOptionsOpen,
+    onClose: () => setIsOptionsOpen(false),
+    trapFocus: false,
+  });
+
   const formattedLabelMap = useMemo(() => {
     const map = new Map<string, string>();
     yearOptions.forEach((opt) => {
@@ -267,6 +275,8 @@ function AnalysisYearSelect({
           ref={optionsRef}
           id="analysis-year-options"
           role="listbox"
+          tabIndex={-1}
+          onKeyDown={handleListboxKeyDown}
           className="absolute top-[calc(100%+8px)] z-20 max-h-64 w-full overflow-y-auto rounded-xl border border-neutral-200 bg-white p-2 shadow-lg"
         >
           {yearOptions.map((option) => (
@@ -275,6 +285,7 @@ function AnalysisYearSelect({
               type="button"
               role="option"
               aria-selected={activeYear === option.value}
+              data-autofocus={activeYear === option.value || undefined}
               onClick={() => {
                 setIsOptionsOpen(false);
                 onYearChange(option.value);

@@ -5,6 +5,10 @@ import { useTranslations } from "next-intl";
 import { Icon } from "../Icon/Icon";
 import { ButtonUi } from "../ButtonUI/ButtonUI";
 import { trackUiEvent } from "@/services/telemetry/client";
+import {
+  handleComboboxInputKey,
+  handleComboboxListKeyDown,
+} from "@/utils/listboxKeyboard";
 import type {
   SearchSubmissionMetadata,
   SearchTelemetryContext,
@@ -41,6 +45,7 @@ const SearchBarPlatform = ({
 }: SearchBarProps) => {
   const containerRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
+  const listRef = useRef<HTMLDivElement>(null);
   const [hasError, setHasError] = useState(false);
   const [isOptionsOpen, setIsOptionsOpen] = useState(false);
   const [value, setValue] = useState("");
@@ -161,6 +166,17 @@ const SearchBarPlatform = ({
             // digitar já começa uma busca nova.
             onFocus={(event) => event.target.select()}
             onKeyDown={(e) => {
+              if (
+                handleComboboxInputKey(
+                  e.key,
+                  listRef.current,
+                  isOptionsOpen,
+                  setIsOptionsOpen,
+                )
+              ) {
+                e.preventDefault();
+                return;
+              }
               if (e.key === "Enter") {
                 e.preventDefault();
                 if (filteredSearchOptions.length > 0) {
@@ -187,7 +203,7 @@ const SearchBarPlatform = ({
 
           <button
             type="button"
-            aria-label="Mostrar estados"
+            aria-label={t("showOptions")}
             onClick={toggleOptions}
             className="ml-1 shrink-0 text-[#6F6F6F] transition-transform"
           >
@@ -212,8 +228,15 @@ const SearchBarPlatform = ({
         </div>
         {isOptionsOpen && (
           <div
+            ref={listRef}
             id="platform-searchbar-state-options"
             role="listbox"
+            tabIndex={-1}
+            onKeyDown={(event) =>
+              handleComboboxListKeyDown(event, inputRef.current, () =>
+                setIsOptionsOpen(false),
+              )
+            }
             className="absolute top-[calc(100%+8px)] z-20 max-h-64 w-full overflow-y-auto rounded-xl border border-neutral-200 bg-white p-2 shadow-lg"
           >
             {filteredSearchOptions.length > 0 ? (

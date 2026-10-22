@@ -200,4 +200,24 @@ describe("SearchBar", () => {
 
     expect(options[0]).toHaveTextContent("Brasil");
   });
+
+  it("walks the options with the arrows and Escape goes back to the field", async () => {
+    const user = userEvent.setup();
+    renderComponent();
+    const input = screen.getByRole("combobox");
+
+    await user.click(input);
+    await user.keyboard("{ArrowDown}");
+    expect(screen.getByRole("listbox")).toBeInTheDocument();
+
+    await user.keyboard("{ArrowDown}");
+    const options = screen.getAllByRole("option");
+    expect(options[0]).toHaveFocus();
+    await user.keyboard("{ArrowDown}");
+    expect(options[1]).toHaveFocus();
+
+    await user.keyboard("{Escape}");
+    expect(screen.queryByRole("listbox")).not.toBeInTheDocument();
+    expect(input).toHaveFocus();
+  });
 });

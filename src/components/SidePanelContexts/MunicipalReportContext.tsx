@@ -37,6 +37,7 @@ import { startMunicipalReportMetrics } from "@/utils/municipalReportMetrics";
 import { slugifyTranslationKey } from "@/utils/translations";
 import { normalize } from "@/utils/functions";
 import { searchMatchRank } from "@/utils/searchMatch";
+import { handleComboboxInputKey, handleComboboxListKeyDown } from "@/utils/listboxKeyboard";
 
 interface MunicipalReportContextProps { panelLayers?: PanelLayerI[] }
 
@@ -81,6 +82,8 @@ export function MunicipalReportContext({ panelLayers = [] }: MunicipalReportCont
   const router = useRouter();
   const tAnalysis = useTranslations("AnalysisPanel");
   const municipalityPickerRef = useRef<HTMLDivElement>(null);
+  const municipalityInputRef = useRef<HTMLInputElement>(null);
+  const municipalityListRef = useRef<HTMLDivElement>(null);
   // Gerar o relatório troca a URL e remonta este painel. Sem ler a URL de
   // volta, quem voltava ao formulário para tirar um índice encontrava o
   // território vazio e todos os índices marcados de novo.
@@ -407,6 +410,7 @@ export function MunicipalReportContext({ panelLayers = [] }: MunicipalReportCont
               <div className="flex h-10 w-full items-center overflow-hidden rounded-md border border-[#DCDBDC] bg-white px-3 py-2 transition hover:border-neutral-400 focus-within:border-neutral-600 focus-within:ring-2 focus-within:ring-neutral-600">
                 <svg aria-hidden="true" viewBox="0 0 24 24" className="mr-2 h-4 w-4 shrink-0 text-[#6F6F6F]" fill="none" stroke="currentColor" strokeWidth="2"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/></svg>
                 <input
+                  ref={municipalityInputRef}
                   value={selectedMunicipality && municipalityQuery === "" ? selectedMunicipality.label : municipalityQuery}
                   onChange={(event) => {
                     setMunicipalityQuery(event.target.value);
@@ -415,6 +419,9 @@ export function MunicipalReportContext({ panelLayers = [] }: MunicipalReportCont
                     resetAvailability();
                   }}
                   onFocus={() => setIsMunicipalityOptionsOpen(true)}
+                  onKeyDown={(event) => {
+                    if (handleComboboxInputKey(event.key, municipalityListRef.current, isMunicipalityOptionsOpen, setIsMunicipalityOptionsOpen)) event.preventDefault();
+                  }}
                   role="combobox"
                   aria-label={t("municipality")}
                   aria-autocomplete="list"
@@ -425,7 +432,7 @@ export function MunicipalReportContext({ panelLayers = [] }: MunicipalReportCont
                   placeholder={t("searchMunicipality")}
                 />
                 {(municipalityQuery || municipalityCode) && (
-                  <button type="button" onClick={clearMunicipalityQuery} className="ml-2 shrink-0 rounded text-[#6F6F6F] hover:text-[#292829]" aria-label={t("selectMunicipality")}>
+                  <button type="button" onClick={clearMunicipalityQuery} className="ml-2 shrink-0 rounded text-[#6F6F6F] hover:text-[#292829]" aria-label={t("clearMunicipality")}>
                     ×
                   </button>
                 )}
@@ -436,7 +443,7 @@ export function MunicipalReportContext({ panelLayers = [] }: MunicipalReportCont
                 </button>
               </div>
               {isMunicipalityOptionsOpen && (
-                <div id="municipal-report-municipality-options" role="listbox" className="absolute top-[calc(100%+8px)] z-30 max-h-64 w-full origin-top overflow-y-auto rounded-xl border border-neutral-200 bg-white p-2 shadow-lg motion-safe:animate-[menu-in_180ms_ease-out]">
+                <div ref={municipalityListRef} id="municipal-report-municipality-options" role="listbox" tabIndex={-1} onKeyDown={(event) => handleComboboxListKeyDown(event, municipalityInputRef.current, () => setIsMunicipalityOptionsOpen(false))} className="absolute top-[calc(100%+8px)] z-30 max-h-64 w-full origin-top overflow-y-auto rounded-xl border border-neutral-200 bg-white p-2 shadow-lg motion-safe:animate-[menu-in_180ms_ease-out]">
                   {filteredMunicipalities.length > 0 ? filteredMunicipalities.map((municipality) => (
                     <button
                       key={municipality.code}

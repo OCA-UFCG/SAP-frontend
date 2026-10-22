@@ -16,6 +16,7 @@
     "generatingReport": "Gerando relatório...",
     "municipality": "Município",
     "selectMunicipality": "Selecione um município",
+    "clearMunicipality": "Limpar município",
     "period": "Período",
     "analysisDate": "Data da análise",
     "periodHint": "Informe um ano (2024) ou mês (2024-01).",

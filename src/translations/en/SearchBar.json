@@ -1,6 +1,7 @@
 {
   "SearchBar": {
     "placeholder": "Search a state",
-    "button": "Search"
+    "button": "Search",
+    "showOptions": "Show states"
   }
 }

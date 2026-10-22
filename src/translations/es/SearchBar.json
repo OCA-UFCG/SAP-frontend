@@ -1,6 +1,7 @@
 {
   "SearchBar": {
     "placeholder": "Busque un estado",
-    "button": "Buscar"
+    "button": "Buscar",
+    "showOptions": "Mostrar estados"
   }
 }

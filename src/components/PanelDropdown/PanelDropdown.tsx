@@ -1,6 +1,8 @@
 "use client";
 
 import { useEffect, useId, useLayoutEffect, useRef, useState } from "react";
+import { useDialogFocus } from "@/hooks/useDialogFocus";
+import { handleListboxKeyDown } from "@/utils/listboxKeyboard";
 import { scrollSelectedOptionIntoView } from "@/utils/scrollSelectedOption";
 
 export interface PanelDropdownOption {
@@ -57,6 +59,13 @@ export function PanelDropdown({
     if (isOpen) scrollSelectedOptionIntoView(optionsRef.current);
   }, [isOpen]);
 
+  // Abre com o foco na opção marcada, Esc fecha e o foco volta ao botão.
+  useDialogFocus(optionsRef, {
+    open: isOpen,
+    onClose: () => setIsOpen(false),
+    trapFocus: false,
+  });
+
   const selectedLabel =
     options.find((option) => option.value === value)?.label ?? placeholder;
 
@@ -107,6 +116,8 @@ export function PanelDropdown({
             id={optionsId}
             role="listbox"
             aria-labelledby={labelId}
+            tabIndex={-1}
+            onKeyDown={handleListboxKeyDown}
             className="absolute top-[calc(100%+8px)] z-30 max-h-64 w-full origin-top overflow-y-auto rounded-xl border border-neutral-200 bg-white p-2 shadow-lg motion-safe:animate-[menu-in_180ms_ease-out]"
           >
             {options.map((option, index) => {
@@ -117,6 +128,7 @@ export function PanelDropdown({
                   type="button"
                   role="option"
                   aria-selected={selected}
+                  data-autofocus={selected || undefined}
                   onClick={() => {
                     setIsOpen(false);
                     onChange(option.value);

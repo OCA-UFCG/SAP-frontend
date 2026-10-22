@@ -4,6 +4,8 @@ import { useState, useRef, useEffect } from "react";
 import { usePathname, useRouter } from "@/translations/routing";
 import { useTranslations, useLocale } from "next-intl";
 import { Icon } from "../Icon/Icon";
+import { useDialogFocus } from "@/hooks/useDialogFocus";
+import { handleListboxKeyDown } from "@/utils/listboxKeyboard";
 
 // A sigla é o que aparece no cabeçalho; o nome por extenso fica para a lista,
 // onde há espaço para quem não reconhece a sigla do próprio idioma. O menu do
@@ -23,6 +25,13 @@ export const LanguageSwitcher = () => {
   const router = useRouter();
   const [isOpen, setIsOpen] = useState(false);
   const containerRef = useRef<HTMLDivElement>(null);
+  const listRef = useRef<HTMLDivElement>(null);
+
+  useDialogFocus(listRef, {
+    open: isOpen,
+    onClose: () => setIsOpen(false),
+    trapFocus: false,
+  });
 
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
@@ -83,17 +92,24 @@ export const LanguageSwitcher = () => {
 
       {isOpen && (
         <div
+          ref={listRef}
           // Mesmo padrão do menu de "Início" (NavDropdown): pendurado logo
           // abaixo da linha verde da barra (o botão de 40 px fica a 13 px
           // dela) e alinhado à direita, para não sair da tela no canto.
           className="absolute right-0 top-full z-50 mt-[13px] flex w-60 origin-top flex-col overflow-hidden rounded-b-lg border border-t-0 border-[#E4E5E2] bg-white py-1.5 shadow-[0_16px_32px_rgba(33,36,15,0.14)] motion-safe:animate-[menu-in_200ms_ease-out]"
           role="listbox"
           aria-label={t("changeLanguage")}
+          tabIndex={-1}
+          onKeyDown={handleListboxKeyDown}
         >
           {LANGUAGES.map((lang, index) => (
             <button
               key={lang.code}
               type="button"
+              // Sem `role="option"` a lista era anunciada vazia.
+              role="option"
+              aria-selected={locale === lang.code}
+              data-autofocus={locale === lang.code || undefined}
               onClick={() => handleLocaleChange(lang.code)}
               style={{ animationDelay: `${60 + index * 40}ms` }}
               className={`group/lang relative flex w-full cursor-pointer items-center justify-between gap-6 px-4 py-2.5 text-left text-sm font-medium transition-colors hover:bg-[#F6F7F6] hover:text-[#4F5424] motion-safe:animate-[menu-item-in_300ms_ease-out_both] ${
