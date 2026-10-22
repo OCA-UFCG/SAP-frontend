@@ -112,9 +112,13 @@ export const AboutPartnersTabs = ({
         }}
       >
         <div className="w-full max-w-[1280px] flex flex-col gap-[16px]">
-          <h1 className="font-bold text-3xl md:text-[48px] md:leading-[68px] text-white">
-            {resolvedHeroTitle}
-          </h1>
+          {/* Sem título no Contentful, nada de <h1> vazio: o leitor de tela
+              anunciaria um título sem texto. */}
+          {resolvedHeroTitle.trim() && (
+            <h1 className="font-bold text-3xl md:text-[3rem] md:leading-[68px] text-white">
+              {resolvedHeroTitle}
+            </h1>
+          )}
           <div className="text-base leading-[24px] text-white max-w-[891px]">
             {resolvedHeroDescription}
           </div>
@@ -135,8 +139,8 @@ export const AboutPartnersTabs = ({
                   "h-[44px] px-4 md:px-8 rounded-t-[8px] flex items-center justify-center transition-colors cursor-pointer",
                   tab.id === "about" && "pt-1 mb-[2px] md:mb-0",
                   isActive
-                    ? "bg-[#989F43] text-[#F8F7F8] text-[15px] md:text-[18px] leading-[20px] md:leading-[28px] font-semibold"
-                    : "bg-[#E4E5E2] text-[#292829] text-[16px] md:text-[20px] leading-[20px] md:leading-[28px] font-normal tracking-[-0.005em]",
+                    ? "bg-[#646B2D] text-[#F8F7F8] text-[0.9375rem] md:text-[1.125rem] leading-[20px] md:leading-[28px] font-semibold"
+                    : "bg-[#E4E5E2] text-[#292829] text-[1rem] md:text-[1.25rem] leading-[20px] md:leading-[28px] font-normal tracking-[-0.005em]",
                 )}
               >
                 {tab.label}
@@ -166,7 +170,7 @@ export const AboutPartnersTabs = ({
                   className={cn(
                     "absolute inset-x-0 top-0 bg-[#E1E2B4] z-0",
                     hasBorderTop
-                      ? "h-[236px] border-t-[5px] border-[#989F43]"
+                      ? "h-[236px] border-t-[5px] border-[#646B2D]"
                       : "h-[240px]",
                   )}
                 />
@@ -190,12 +194,12 @@ export const AboutPartnersTabs = ({
 
                     <div className="w-full flex flex-col justify-center items-end gap-[64px] lg:w-[628px] lg:h-[470px] lg:pt-[18px]">
                       <div className="flex items-center w-full lg:w-[628px] lg:h-[95px]">
-                        <h3 className="w-full lg:w-[624px] text-[36px] md:text-[48px] lg:text-[64px] leading-[49px] font-light text-[#3F4324]">
+                        <h3 className="w-full lg:w-[624px] text-[2.25rem] md:text-[3rem] lg:text-[4rem] leading-[49px] font-light text-[#3F4324]">
                           {resolvedSectionTitle}
                         </h3>
                       </div>
                       <div className="flex items-center w-full lg:w-[628px] lg:h-[246px]">
-                        <div className="w-full lg:w-[624px] lg:h-[216px] text-[16px] leading-[24px] font-normal text-[#3F4324]">
+                        <div className="w-full lg:w-[624px] lg:h-[216px] text-[1rem] leading-[24px] font-normal text-[#3F4324]">
                           {resolvedSectionText}
                         </div>
                       </div>
@@ -210,7 +214,7 @@ export const AboutPartnersTabs = ({
         <PartnersSection
           header={partnersHeader}
           partners={partners}
-          className="border-t-[5px] border-[#989F43]"
+          className="border-t-[5px] border-[#646B2D]"
         />
       )}
     </section>

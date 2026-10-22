@@ -37,7 +37,7 @@ class AccessPendingError extends Error {
 
 export type SignInOutcome = "ok" | "pending" | "failed";
 
-interface AuthContextType {
+export interface AuthContextType {
   user: User | null;
   loading: boolean;
   error?: string;
@@ -45,7 +45,14 @@ interface AuthContextType {
   signOut: () => Promise<void>;
 }
 
-const AuthContext = createContext<AuthContextType | null>(null);
+/**
+ * Exportado só para stories e testes darem uma sessão falsa: o AuthProvider
+ * de verdade precisa do Firebase configurado.
+ *
+ * @example
+ * <AuthContext.Provider value={signedOutSession}>{children}</AuthContext.Provider>
+ */
+export const AuthContext = createContext<AuthContextType | null>(null);
 
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<User | null>(null);

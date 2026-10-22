@@ -2,6 +2,9 @@ import { cookies } from "next/headers";
 import { PlatformLayout } from "@/components/PlatformLayout/PlatformLayout";
 import { SESSION_COOKIE_NAME } from "@/lib/server-session";
 import { loadPlatformShellData } from "../platformShellData";
+import { pageTitleMetadata } from "@/lib/page-metadata";
+
+export const generateMetadata = pageTitleMetadata("analysis");
 
 /**
  * URL própria da análise multicritério, mantida porque é linkável e está em uso.

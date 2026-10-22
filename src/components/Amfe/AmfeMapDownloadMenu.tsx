@@ -3,6 +3,7 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useLocale, useTranslations } from "next-intl";
 import { Icon } from "@/components/Icon/Icon";
+import { useDialogFocus } from "@/hooks/useDialogFocus";
 import type {
   AnalysisCoverage,
   AnalyzePayload,
@@ -29,7 +30,7 @@ interface AmfeMapDownloadMenuProps {
 }
 
 const ITEM_CLASS =
-  "block w-full cursor-pointer rounded-lg px-4 py-2.5 text-left text-sm font-medium text-gray-700 transition-colors hover:bg-[#989F43]/10 hover:text-[#5f6528] disabled:cursor-not-allowed disabled:opacity-50 disabled:hover:bg-transparent disabled:hover:text-gray-700";
+  "block w-full cursor-pointer rounded-lg px-4 py-2.5 text-left text-sm font-medium text-gray-700 transition-colors hover:bg-[#646B2D]/10 hover:text-[#4F5424] disabled:cursor-not-allowed disabled:opacity-50 disabled:hover:bg-transparent disabled:hover:text-gray-700";
 
 export const AmfeMapDownloadMenu = ({
   cities,
@@ -53,6 +54,14 @@ export const AmfeMapDownloadMenu = ({
   const [isExportingReport, setIsExportingReport] = useState(false);
   const [imageError, setImageError] = useState<string | null>(null);
   const containerRef = useRef<HTMLDivElement | null>(null);
+  const menuRef = useRef<HTMLDivElement | null>(null);
+
+  // O foco entra nas opções ao abrir, e Esc fecha com o foco de volta no botão.
+  useDialogFocus(menuRef, {
+    open: isOpen,
+    onClose: () => setIsOpen(false),
+    trapFocus: false,
+  });
 
   useEffect(() => {
     if (!isOpen) return;
@@ -126,7 +135,7 @@ export const AmfeMapDownloadMenu = ({
         onClick={() => setIsOpen((open) => !open)}
         aria-expanded={isOpen}
         aria-busy={isExportingImage || isExportingReport}
-        className="shine flex min-h-12 items-center gap-2 rounded-full border border-white/50 bg-[#989F43] px-5 py-3.5 text-sm font-semibold text-white shadow-[0_10px_24px_rgba(0,0,0,0.20)] transition-[background-color,translate,box-shadow,scale] duration-200 hover:bg-[#858C38] hover:shadow-[0_14px_30px_rgba(33,36,15,0.30)] motion-safe:hover:-translate-y-0.5 active:scale-[0.97]"
+        className="shine flex min-h-12 items-center gap-2 rounded-full border border-white/50 bg-[#646B2D] px-5 py-3.5 text-sm font-semibold text-white shadow-[0_10px_24px_rgba(0,0,0,0.20)] transition-[background-color,translate,box-shadow,scale] duration-200 hover:bg-[#4F5424] hover:shadow-[0_14px_30px_rgba(33,36,15,0.30)] motion-safe:hover:-translate-y-0.5 active:scale-[0.97]"
       >
         {(isExportingImage || isExportingReport) && (
           <span
@@ -144,7 +153,10 @@ export const AmfeMapDownloadMenu = ({
       </button>
 
       {isOpen && (
-        <div className="absolute top-full left-0 mt-2 min-w-36 origin-top overflow-hidden rounded-xl border border-gray-200 bg-white p-1 shadow-[0_14px_34px_rgba(0,0,0,0.18)] motion-safe:animate-[menu-in_180ms_ease-out] [&>*]:motion-safe:animate-[menu-item-in_260ms_ease-out_both] [&>:nth-child(2)]:[animation-delay:50ms] [&>:nth-child(3)]:[animation-delay:100ms]">
+        <div
+          ref={menuRef}
+          className="absolute top-full left-0 mt-2 min-w-36 origin-top overflow-hidden rounded-xl border border-gray-200 bg-white p-1 shadow-[0_14px_34px_rgba(0,0,0,0.18)] motion-safe:animate-[menu-in_180ms_ease-out] [&>*]:motion-safe:animate-[menu-item-in_260ms_ease-out_both] [&>:nth-child(2)]:[animation-delay:50ms] [&>:nth-child(3)]:[animation-delay:100ms]"
+        >
           <button
             type="button"
             onClick={handleWorkbook}

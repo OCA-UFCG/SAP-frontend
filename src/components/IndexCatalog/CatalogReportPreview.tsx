@@ -220,7 +220,7 @@ function ReportPreviewBody({
       ) : (
         <>
           <div className="m-5 grid border border-[#d9e0e3] md:grid-cols-[1fr_226px]">
-            <div className="p-5 text-[15px] leading-6 text-neutral-800">
+            <div className="p-5 text-[0.9375rem] leading-6 text-neutral-800">
               <p className="font-bold">
                 Situação atual{" "}
                 <span className="font-normal text-[#536e7b]">
@@ -263,7 +263,7 @@ function ReportPreviewBody({
           />
 
           {narrativeSections.length > 0 && (
-            <div className="m-5 border border-[#d9e0e3] p-5 text-[15px] leading-6">
+            <div className="m-5 border border-[#d9e0e3] p-5 text-[0.9375rem] leading-6">
               <h3 className="font-bold text-[#536e7b]">Análise</h3>
               {narrativeSections.map((section) => (
                 <p

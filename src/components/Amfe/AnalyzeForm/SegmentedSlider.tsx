@@ -99,6 +99,7 @@ const SegmentedBar = ({ fields, control, setValue }: CriteriaCardI) => {
         {fields.map((field, i) => {
           const color = COLORS[i % COLORS.length];
           const pct = percentages[i];
+          const label = metadataByName.get(field.name)?.label || field.name;
 
           if (pct === 0) return null;
 
@@ -111,9 +112,15 @@ const SegmentedBar = ({ fields, control, setValue }: CriteriaCardI) => {
                 background: color,
               }}
             >
+              {/* Sem o nome, o leitor de tela lia só "40%", e as fatias
+                  estreitas nem isso: a cor é que diz de qual critério é. */}
+              <span className="sr-only">
+                {t("segmentAria", { label, percent: pct.toFixed(0) })}
+              </span>
               {pct > 10 && (
                 <span
-                  className="font-open-sans text-[10px] leading-6 font-semibold"
+                  aria-hidden="true"
+                  className="font-open-sans text-[0.625rem] leading-6 font-semibold"
                   style={{ color: LABEL_COLORS[i % LABEL_COLORS.length] }}
                 >
                   {pct.toFixed(0)}%
@@ -165,7 +172,8 @@ const SegmentedBar = ({ fields, control, setValue }: CriteriaCardI) => {
                 step="1"
                 min={MIN_CRITERIA_INPUT_VALUE}
                 max={MAX_CRITERIA_INPUT_VALUE}
-                className="h-9 w-20 shrink-0 rounded-md border border-[#CBD5E1] bg-white px-3 font-open-sans text-sm leading-5 font-normal text-slate-400 transition-colors outline-none focus:border-[#989F43]"
+                aria-label={t("weightInputAria", { label })}
+                className="h-9 w-20 shrink-0 rounded-md border border-[#CBD5E1] bg-white px-3 font-open-sans text-sm leading-5 font-normal text-[#292829] transition-colors outline-none focus:border-[#646B2D] focus:ring-2 focus:ring-[#646B2D]"
                 value={localValues[i] ?? ""}
                 onChange={(e) => {
                   const raw = e.target.value;

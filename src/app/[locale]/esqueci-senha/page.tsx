@@ -1,5 +1,8 @@
 import { getHomePageContent } from "@/repositories/content/siteContentRepository";
 import { ForgotPasswordPageClient } from "./ForgotPasswordPageClient";
+import { pageTitleMetadata } from "@/lib/page-metadata";
+
+export const generateMetadata = pageTitleMetadata("forgotPassword");
 
 function normalizeImageUrl(url?: string) {
   if (!url) return undefined;

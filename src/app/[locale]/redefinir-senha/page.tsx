@@ -2,6 +2,9 @@ import { Suspense } from "react";
 import { getHomePageContent } from "@/repositories/content/siteContentRepository";
 import PlatformLoading from "@/app/[locale]/platform/loading";
 import { ResetPasswordPageClient } from "./ResetPasswordPageClient";
+import { pageTitleMetadata } from "@/lib/page-metadata";
+
+export const generateMetadata = pageTitleMetadata("resetPassword");
 
 function normalizeImageUrl(url?: string) {
   if (!url) return undefined;
@@ -21,9 +24,9 @@ export default async function ResetPasswordPage({
   return (
     <Suspense
       fallback={
-        <main className="flex min-h-[calc(100vh-4.125rem)] w-full">
+        <div className="flex min-h-[calc(100vh-4.125rem)] w-full">
           <PlatformLoading />
-        </main>
+        </div>
       }
     >
       <ResetPasswordPageClient backgroundImageUrl={backgroundImageUrl} />

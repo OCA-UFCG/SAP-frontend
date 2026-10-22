@@ -57,7 +57,10 @@ describe("SearchBar", () => {
   it("renders input and button", () => {
     renderComponent();
 
-    expect(screen.getByRole("combobox")).toBeInTheDocument();
+    // O placeholder some ao digitar: o campo precisa de nome próprio.
+    expect(
+      screen.getByRole("combobox", { name: "Pesquise um estado" }),
+    ).toBeInTheDocument();
 
     expect(
       screen.getByRole("button", { name: /pesquisar/i }),
@@ -196,5 +199,25 @@ describe("SearchBar", () => {
     const options = screen.getAllByRole("option");
 
     expect(options[0]).toHaveTextContent("Brasil");
+  });
+
+  it("walks the options with the arrows and Escape goes back to the field", async () => {
+    const user = userEvent.setup();
+    renderComponent();
+    const input = screen.getByRole("combobox");
+
+    await user.click(input);
+    await user.keyboard("{ArrowDown}");
+    expect(screen.getByRole("listbox")).toBeInTheDocument();
+
+    await user.keyboard("{ArrowDown}");
+    const options = screen.getAllByRole("option");
+    expect(options[0]).toHaveFocus();
+    await user.keyboard("{ArrowDown}");
+    expect(options[1]).toHaveFocus();
+
+    await user.keyboard("{Escape}");
+    expect(screen.queryByRole("listbox")).not.toBeInTheDocument();
+    expect(input).toHaveFocus();
   });
 });

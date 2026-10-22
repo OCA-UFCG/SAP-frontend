@@ -12,10 +12,10 @@ import {
 type Status = "idle" | "working" | "done" | "ask-team";
 
 const DANGER_BUTTON =
-  "font-open-sans flex h-[33px] w-full cursor-pointer items-center justify-center rounded-md bg-[#B3261E] px-3 py-1.5 text-[11.65px] leading-5 text-white transition hover:bg-[#8C1D18] focus:outline-none focus-visible:ring-2 focus-visible:ring-[#B3261E] focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-70";
+  "font-open-sans flex h-[33px] w-full cursor-pointer items-center justify-center rounded-md bg-[#B3261E] px-3 py-1.5 text-[0.728125rem] leading-5 text-white transition hover:bg-[#8C1D18] focus:outline-none focus-visible:ring-2 focus-visible:ring-[#B3261E] focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-70";
 
 const INPUT_CLASS =
-  "font-inter w-full rounded-[7px] bg-[#E4E5E2] px-2.5 py-2 text-[13px] font-medium leading-5 tracking-[-0.2px] text-[#292829] outline-none transition placeholder:text-[#676264] focus:ring-2 focus:ring-[#989F43]";
+  "font-inter w-full rounded-[7px] bg-[#E4E5E2] px-2.5 py-2 text-[0.8125rem] font-medium leading-5 tracking-[-0.2px] text-[#292829] outline-none transition placeholder:text-[#676264] focus:ring-2 focus:ring-[#989F43]";
 
 const ERROR_KEYS: Record<string, string> = {
   wrong_password: "wrongPassword",
@@ -74,13 +74,13 @@ export function DeleteAccountClient({
   return (
     <main className="flex min-h-[calc(100vh-4.125rem)] w-full items-center justify-center bg-white px-6 py-16">
       <div className="flex w-full max-w-[520px] flex-col gap-6">
-        <h1 className="font-inter text-[24px] font-medium leading-8 tracking-[-0.36px] text-[#50554C]">
+        <h1 className="font-inter text-[1.5rem] font-medium leading-8 tracking-[-0.36px] text-[#50554C]">
           {status === "done" ? t("doneTitle") : t("title")}
         </h1>
 
         {status === "done" ? (
           <>
-            <p className="text-[15px] leading-6 text-[#676264]">
+            <p className="text-[0.9375rem] leading-6 text-[#676264]">
               {t("doneBody")}
             </p>
             <Link href="/" className={`${SECONDARY_BUTTON} w-fit px-4`}>
@@ -89,7 +89,7 @@ export function DeleteAccountClient({
           </>
         ) : status === "ask-team" ? (
           <>
-            <p className="text-[15px] leading-6 text-[#676264]">
+            <p className="text-[0.9375rem] leading-6 text-[#676264]">
               {t("askTeam")}
             </p>
             <Link href="/contact" className={`${SECONDARY_BUTTON} w-fit px-4`}>
@@ -98,12 +98,12 @@ export function DeleteAccountClient({
           </>
         ) : (
           <form onSubmit={handleSubmit} className="flex flex-col gap-5">
-            <p className="text-[13px] leading-5 text-[#838B77]">
+            <p className="text-[0.8125rem] leading-5 text-[#838B77]">
               {t("signedInAs")}{" "}
               <span className="font-medium text-[#50554C]">{email}</span>
             </p>
 
-            <div className="flex flex-col gap-2 text-[15px] leading-6 text-[#676264]">
+            <div className="flex flex-col gap-2 text-[0.9375rem] leading-6 text-[#676264]">
               <p>{t("whatIsDeleted")}</p>
               <ul className="list-disc pl-5">
                 <li>{t("deletedLogin")}</li>
@@ -116,7 +116,7 @@ export function DeleteAccountClient({
             <div className="flex flex-col gap-1.5">
               <label
                 htmlFor="password"
-                className="text-[13px] font-medium leading-5 text-[#50554C]"
+                className="text-[0.8125rem] font-medium leading-5 text-[#50554C]"
               >
                 {t("passwordLabel")}
               </label>

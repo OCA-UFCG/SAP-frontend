@@ -42,7 +42,7 @@ function messagesFor(locale: string | undefined) {
 
 const INK = "#21240F";
 const MUTED = "#50554C";
-const ACCENT = "#777E32";
+const ACCENT = "#5B612A";
 const BORDER = "#DBE0CC";
 
 function layout(title: string, body: string, footer: string) {

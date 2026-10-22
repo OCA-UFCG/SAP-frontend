@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import { GoogleAnalytics } from "@next/third-parties/google";
 import { Inter, Open_Sans } from "next/font/google";
 import { cache } from "react";
 import { Header } from "@/components/Header/Header";
@@ -8,6 +9,10 @@ import { ISections } from "@/utils/interfaces";
 import { AuthProvider } from "@/contexts/AuthContext";
 import { NextIntlClientProvider } from "next-intl";
 import { getMessages, getTranslations } from "next-intl/server";
+import { SkipLinks } from "@/components/SkipLinks/SkipLinks";
+import { SKIP_TARGETS } from "@/components/SkipLinks/skipTargets";
+import { VLibras } from "@/components/VLibras/VLibras";
+import { siteTitleMetadata } from "@/lib/page-metadata";
 import "../globals.css";
 
 const inter = Inter({
@@ -22,20 +27,28 @@ const openSans = Open_Sans({
   weight: ["300", "400", "500", "600", "700"],
 });
 
-export const metadata: Metadata = {
-  title: "Portal SEDES",
-  description: "Portal SEDES criado por OCA",
-  icons: {
-    icon: [
-      { url: "/favicon.svg", type: "image/svg+xml" },
-      { url: "/favicon-512x512.png", sizes: "512x512", type: "image/png" },
-      { url: "/favicon.ico", sizes: "any" },
-    ],
-    apple: [{ url: "/apple-icon.png", sizes: "180x180", type: "image/png" }],
-  },
+export async function generateMetadata({
+  params,
+}: {
+  params: Promise<{ locale: string }>;
+}): Promise<Metadata> {
+  const { locale } = await params;
+  return { ...(await siteTitleMetadata(locale)), icons: SITE_ICONS };
+}
+
+const SITE_ICONS: Metadata["icons"] = {
+  icon: [
+    { url: "/favicon.svg", type: "image/svg+xml" },
+    { url: "/favicon-512x512.png", sizes: "512x512", type: "image/png" },
+    { url: "/favicon.ico", sizes: "any" },
+  ],
+  apple: [{ url: "/apple-icon.png", sizes: "180x180", type: "image/png" }],
 };
 
 const getCachedFooterContent = cache(getFooterContent);
+
+// Só a imagem da produção recebe o ID; beta e máquina local não enviam visitas.
+const GA_ID = process.env.NEXT_PUBLIC_GA_ID;
 
 export default async function RootLayout({
   children,
@@ -124,6 +137,7 @@ export default async function RootLayout({
         className={`${inter.variable} ${openSans.variable} antialiased min-h-screen flex flex-col`}
       >
         <NextIntlClientProvider messages={messages}>
+          <SkipLinks />
           <AuthProvider>
             <Header
               content={Object.values(headerContent).filter(
@@ -133,11 +147,22 @@ export default async function RootLayout({
             {/* Sem `min-h-0`: o rodapé fica depois do `main`, então encolher o
                 conteúdo abaixo da altura que ele pede faria o rodapé subir por
                 cima da plataforma em vez de esperar a rolagem. */}
-            <main className="flex flex-col flex-1 w-full">{children}</main>
+            {/* `tabIndex={-1}` deixa o "Ir para o conteúdo" pôr o foco aqui:
+                sem ele o navegador rola a página, mas o próximo Tab volta ao
+                cabeçalho. */}
+            <main
+              id={SKIP_TARGETS.content.id}
+              tabIndex={-1}
+              className="flex flex-col flex-1 w-full focus:outline-none"
+            >
+              {children}
+            </main>
             <FooterSlot content={footerContent} />
           </AuthProvider>
         </NextIntlClientProvider>
+        <VLibras />
       </body>
+      {GA_ID && <GoogleAnalytics gaId={GA_ID} />}
     </html>
   );
 }

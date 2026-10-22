@@ -43,6 +43,7 @@ export function ReferenceOverlaysControl({
     <MapControlDisclosure
       label={t("referenceOverlays")}
       onOpen={onOpen}
+      animated
       summary={
         selectedTerritory &&
         onClearTerritory && (
@@ -55,7 +56,7 @@ export function ReferenceOverlaysControl({
       }
     >
       {() => (
-        <div className="flex flex-col gap-1.5">
+        <div data-cascade className="flex flex-col gap-1.5">
           <TerritorySearch
             activeOverlays={activeOverlays}
             onSelect={onSelectTerritory}
@@ -77,7 +78,7 @@ export function ReferenceOverlaysControl({
                   className="relative h-4 w-4 shrink-0 cursor-pointer appearance-none rounded-[3px] border-[1.5px] border-(--swatch-outline) bg-[color-mix(in_srgb,var(--swatch-fill)_22%,white)] transition-colors checked:bg-(--swatch-fill)
                         focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-(--swatch-outline)
                         after:absolute after:inset-0 after:flex after:items-center after:justify-center after:content-['']
-                        checked:after:content-['✓'] after:text-center after:text-[10px] after:font-bold after:leading-none after:text-(--swatch-check)"
+                        checked:after:content-['✓'] after:text-center after:text-[0.625rem] after:font-bold after:leading-none after:text-(--swatch-check)"
                 />
                 <span className={`${MAP_CONTROL_LABEL_CLASS} select-none`}>
                   {t(layerId)}

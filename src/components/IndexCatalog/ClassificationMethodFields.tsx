@@ -219,7 +219,11 @@ export function ClassificationMethodFields({
           já guardado.
         </p>
       )}
-      {loadError && <p className="mt-3 text-sm text-red-700">{loadError}</p>}
+      {loadError && (
+        <p role="alert" className="mt-3 text-sm text-red-700">
+          {loadError}
+        </p>
+      )}
 
       {sample && (
         <>
@@ -303,7 +307,9 @@ export function ClassificationMethodFields({
           </div>
 
           {outcome?.error && (
-            <p className="mt-3 text-sm text-red-700">{outcome.error}</p>
+            <p role="alert" className="mt-3 text-sm text-red-700">
+              {outcome.error}
+            </p>
           )}
           {outcome?.result && (
             <BreaksOutcome

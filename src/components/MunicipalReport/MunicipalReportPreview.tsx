@@ -235,7 +235,7 @@ const AnalysisSection = memo(function AnalysisSection({
         style={{ borderLeftColor: accent }}
       >
         <div className="min-w-0">
-          <h2 className="font-open-sans text-[18px] font-bold leading-[1.5] tracking-[-0.216px] text-[#292829]">
+          <h2 className="font-open-sans text-[1.125rem] font-bold leading-[1.5] tracking-[-0.216px] text-[#292829]">
             {translatedTitle}
           </h2>
           <p className="font-open-sans flex flex-wrap gap-1 text-xs leading-5 text-[#292829]">
@@ -254,7 +254,7 @@ const AnalysisSection = memo(function AnalysisSection({
             event.preventDefault();
             onOpenMonitor(analysis.id);
           }}
-          className="font-open-sans shrink-0 rounded-md bg-[#989F43] px-4 py-2 text-sm leading-6 text-white transition hover:bg-[#868D3B] print:hidden"
+          className="font-open-sans shrink-0 rounded-md bg-[#646B2D] px-4 py-2 text-sm leading-6 text-white transition hover:bg-[#4F5424] print:hidden"
         >
           {t("document.viewMonitor")}
         </Link>
@@ -280,7 +280,7 @@ const AnalysisSection = memo(function AnalysisSection({
             </ReportSectionHeading>
             <div className="mt-4 grid gap-6 md:grid-cols-[1fr_320px]">
               {situationText && (
-                <p className="whitespace-pre-line text-[15px] leading-7 text-[#2C3A31]">
+                <p className="whitespace-pre-line text-[0.9375rem] leading-7 text-[#2C3A31]">
                   {situationText}
                 </p>
               )}
@@ -336,6 +336,11 @@ const AnalysisSection = memo(function AnalysisSection({
               </p>
               <ReportMapPreview
                 territory={report.territory}
+                imageAlt={t("mapAlt", {
+                  layer: translatedTitle,
+                  territory: report.territory.label,
+                  period: snapshotPeriodLabel,
+                })}
                 layerId={analysis.id}
                 period={referencePeriod}
                 className="report-map-frame aspect-[696/322] w-full rounded-lg bg-white"
@@ -432,7 +437,7 @@ const AnalysisSection = memo(function AnalysisSection({
             <ReportSectionHeading level={3} accent={accent}>
               {t("document.timeSeriesAnalysisTitle")}
             </ReportSectionHeading>
-            <div className="mt-4 text-[15px] leading-7">
+            <div className="mt-4 text-[0.9375rem] leading-7">
               {narrativeSections.length > 0 ? (
                 narrativeSections.map((section, sectionIndex) => (
                   <p
@@ -710,7 +715,7 @@ function EmptyReportPreview() {
         <use href="/sprite.svg#municipal-report-empty-illustration" />
       </svg>
       <div className="flex w-full max-w-[602px] items-center justify-center rounded-2xl bg-[#E1E2B4] p-9 motion-safe:animate-[panel-in_600ms_200ms_cubic-bezier(0.2,0.7,0.2,1)_both]">
-        <p className="font-open-sans text-2xl font-bold leading-[1.5] text-[#777E32]">
+        <p className="font-open-sans text-2xl font-bold leading-[1.5] text-[#5B612A]">
           {t("emptyPreviewInstruction")}
         </p>
       </div>
@@ -1133,7 +1138,7 @@ export function MunicipalReportPreview({
                   type="button"
                   onClick={() => setZoom((value) => Math.max(50, value - 10))}
                   disabled={!report || zoom <= 50}
-                  className="flex h-10 w-10 items-center justify-center rounded border border-[#D9E0E3] bg-white text-[#989F43] transition hover:bg-[#F6F7F6] disabled:cursor-not-allowed disabled:opacity-40"
+                  className="flex h-10 w-10 items-center justify-center rounded border border-[#D9E0E3] bg-white text-[#646B2D] transition hover:bg-[#F6F7F6] disabled:cursor-not-allowed disabled:opacity-40"
                   aria-label={t("zoomOut")}
                 >
                   <svg
@@ -1149,7 +1154,7 @@ export function MunicipalReportPreview({
                   </svg>
                 </button>
                 <output
-                  className="flex h-10 w-[60px] items-center justify-center rounded-md border border-[#DCDBDC] bg-white px-2 font-inter text-sm text-[#7E797B]"
+                  className="flex h-10 w-[60px] items-center justify-center rounded-md border border-[#DCDBDC] bg-white px-2 font-inter text-sm text-[#6E696B]"
                   aria-live="polite"
                 >
                   {zoom}%
@@ -1158,7 +1163,7 @@ export function MunicipalReportPreview({
                   type="button"
                   onClick={() => setZoom((value) => Math.min(150, value + 10))}
                   disabled={!report || zoom >= 150}
-                  className="flex h-10 w-10 items-center justify-center rounded border border-[#D9E0E3] bg-white text-[#989F43] transition hover:bg-[#F6F7F6] disabled:cursor-not-allowed disabled:opacity-40"
+                  className="flex h-10 w-10 items-center justify-center rounded border border-[#D9E0E3] bg-white text-[#646B2D] transition hover:bg-[#F6F7F6] disabled:cursor-not-allowed disabled:opacity-40"
                   aria-label={t("zoomIn")}
                 >
                   <svg
@@ -1180,10 +1185,13 @@ export function MunicipalReportPreview({
         <div className="min-h-0 flex-1 overflow-auto bg-white">
           {!hasRequiredParameters && <EmptyReportPreview />}
           {loading && (
-            <div className="mx-auto flex min-h-56 max-w-[749px] flex-col items-center justify-center gap-4 bg-white p-10 text-center text-neutral-600 shadow-sm">
+            <div
+              role="status"
+              className="mx-auto flex min-h-56 max-w-[749px] flex-col items-center justify-center gap-4 bg-white p-10 text-center text-neutral-600 shadow-sm"
+            >
               <span
                 aria-hidden="true"
-                className="h-9 w-9 animate-spin rounded-full border-4 border-[#989F43]/25 border-t-[#989F43]"
+                className="h-9 w-9 animate-spin rounded-full border-4 border-[#646B2D]/25 border-t-[#646B2D]"
               />
               <strong className="text-base font-semibold text-[#536e7b]">
                 {t("loading")}
@@ -1194,7 +1202,9 @@ export function MunicipalReportPreview({
           {visibleError && !loading && (
             <div className="mx-auto max-w-[749px] border border-red-200 bg-white p-8 shadow-sm">
               <h1 className="text-xl font-semibold">{t("loadError")}</h1>
-              <p className="mt-2 text-sm text-red-700">{visibleError}</p>
+              <p role="alert" className="mt-2 text-sm text-red-700">
+                {visibleError}
+              </p>
             </div>
           )}
           {report && !loading && (
@@ -1245,14 +1255,19 @@ export function MunicipalReportPreview({
           ← {t("back")}
         </Link>
         {loading && (
-          <div className="mt-6 bg-white p-10 text-center text-neutral-600 shadow-sm">
+          <div
+            role="status"
+            className="mt-6 bg-white p-10 text-center text-neutral-600 shadow-sm"
+          >
             {t("loading")}
           </div>
         )}
         {visibleError && !loading && (
           <div className="mt-6 border border-red-200 bg-white p-8 shadow-sm">
             <h1 className="text-xl font-semibold">{t("loadError")}</h1>
-            <p className="mt-2 text-sm text-red-700">{visibleError}</p>
+            <p role="alert" className="mt-2 text-sm text-red-700">
+              {visibleError}
+            </p>
           </div>
         )}
         {report && !loading && (

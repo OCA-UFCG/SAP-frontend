@@ -5,7 +5,7 @@ export type BadgeSize = "sm" | "md";
 
 const VARIANT_CLASSES: Record<BadgeVariant, string> = {
   neutral: "bg-[#E4E5E2] text-[#292829]",
-  primary: "bg-[#989F43] text-[#F8F7F8]",
+  primary: "bg-[#646B2D] text-[#F8F7F8]",
   accent: "bg-[#E1E2B4] text-[#292829]",
   subtle: "bg-[#F6F7F6] text-[#292829]",
 };

@@ -61,7 +61,7 @@ export const CarouselArrow = ({ direction, label, disabled, onClick, className }
       disabled={disabled}
       onClick={onClick}
       className={cn(
-        "flex h-12 w-12 shrink-0 items-center justify-center rounded-lg border border-[#EFEFEF] bg-white text-[#989F43] transition-opacity hover:bg-[#F6F7F6] disabled:cursor-default disabled:opacity-50 disabled:hover:bg-white",
+        "flex h-12 w-12 shrink-0 items-center justify-center rounded-lg border border-[#EFEFEF] bg-white text-[#646B2D] transition-opacity hover:bg-[#F6F7F6] disabled:cursor-default disabled:opacity-50 disabled:hover:bg-white",
         className,
       )}
     >

@@ -86,12 +86,14 @@ function MobileViewToggle({
       ? t("mobileShowReport")
       : t("mobileShowMap");
 
+  // Enquanto a pessoa digita numa busca ou escolhe na lista dela, o botão
+  // some: ele ficava por cima das opções e, com o teclado aberto, do campo.
   return (
     <button
       type="button"
       onClick={() => onChange(showsOptions ? "result" : "options")}
       data-mobile-view-toggle
-      className="fixed bottom-20 left-1/2 z-40 flex h-11 -translate-x-1/2 cursor-pointer items-center gap-2 whitespace-nowrap rounded-full bg-[#5B612A] px-5 text-sm font-semibold text-white shadow-[0_8px_24px_rgba(33,36,15,0.3)] transition-[scale] duration-200 active:scale-95 md:hidden"
+      className="fixed bottom-20 left-1/2 z-40 flex h-11 -translate-x-1/2 cursor-pointer items-center gap-2 whitespace-nowrap rounded-full bg-[#5B612A] px-5 text-sm font-semibold text-white shadow-[0_8px_24px_rgba(33,36,15,0.3)] transition-[scale] duration-200 active:scale-95 md:hidden group-has-[[role=combobox]:focus]/shell:hidden group-has-[[role=combobox][aria-expanded=true]]/shell:hidden"
     >
       <svg
         width="18"
@@ -179,12 +181,20 @@ export function PlatformLayout({
           className={`group/shell relative flex w-full flex-col bg-neutral-50 ${PLATFORM_SHELL_MIN_HEIGHT_CLASS} max-md:min-h-[calc(100dvh-66px-4rem)]`}
         >
           {isLogsView ? (
-            <div data-testid="platform-logs-shell" className="w-full">
+            // Telemetria e catálogo são telas internas escritas só em
+            // português: o `lang` evita que o leitor de tela as leia com a
+            // pronúncia do inglês ou do espanhol quando o site está nesses idiomas.
+            <div
+              data-testid="platform-logs-shell"
+              lang="pt-BR"
+              className="w-full"
+            >
               {props.telemetryDashboard}
             </div>
           ) : isCatalogView ? (
             <div
               data-testid="platform-catalog-shell"
+              lang="pt-BR"
               // No celular a trilha vira a barra de baixo: o recuo de 124 px
               // que abre espaço para ela deixava uma faixa vazia à esquerda.
               className={`w-full pl-[124px] max-md:pl-0 ${PLATFORM_SHELL_MIN_HEIGHT_CLASS}`}

@@ -16,6 +16,7 @@
     "generatingReport": "Gerando relatório...",
     "municipality": "Município",
     "selectMunicipality": "Selecione um município",
+    "clearMunicipality": "Limpar município",
     "period": "Período",
     "analysisDate": "Data da análise",
     "periodHint": "Informe um ano (2024) ou mês (2024-01).",
@@ -148,6 +149,7 @@
     "historicalNoteTitle": "Nota sobre a série histórica",
     "historicalNoteText": "A série disponível para este indicador reúne {count} período(s), cobrindo {range}. {resolution}",
     "mapCropAlt": "Recorte do mapa do município",
+    "mapAlt": "Mapa de {layer} em {territory}, {period}",
     "mapUnavailableExport": "Mapa indisponível para exportação.",
     "mapPeriodUnavailable": "Sem imagem do mapa para este período.",
     "mapRetry": "Tentar novamente",
@@ -358,10 +360,13 @@
       "methodologyTitle": "O que este indicador mede",
       "kindDescriptions": {
         "anomalia": "A Anomalia indica o desvio em relação à média histórica.",
-        "acumulado": "O Acumulado indica o total previsto para o período.",
+        "acumulado": "O Valor previsto indica o total previsto para o período.",
         "probabilidade": "A Probabilidade indica a chance de ocorrência da categoria mais provável, em relação à normal climatológica."
       },
-      "noData": "Sem dado para este período."
+      "noData": "Sem dado para este período.",
+      "facets": {
+        "acumulado": "Valor previsto"
+      }
     }
   }
 }

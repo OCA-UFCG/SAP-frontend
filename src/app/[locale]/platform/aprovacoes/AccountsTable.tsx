@@ -21,7 +21,7 @@ type Action = "revoke" | "restore" | "delete";
 type RowState = "idle" | "working" | "confirm-delete" | "deleted" | "failed";
 
 const BUTTON =
-  "cursor-pointer rounded-md px-3 py-1.5 text-[12px] font-medium transition focus:outline-none focus-visible:ring-2 focus-visible:ring-offset-1 disabled:cursor-not-allowed disabled:opacity-60";
+  "cursor-pointer rounded-md px-3 py-1.5 text-[0.75rem] font-medium transition focus:outline-none focus-visible:ring-2 focus-visible:ring-offset-1 disabled:cursor-not-allowed disabled:opacity-60";
 const NEUTRAL = `${BUTTON} border border-[#DBE0CC] text-[#50554C] hover:bg-[#F3F5EE] focus-visible:ring-[#777E32]`;
 const DANGER = `${BUTTON} border border-[#DBE0CC] text-[#B3261E] hover:bg-[#FCE8E6] focus-visible:ring-[#B3261E]`;
 const DANGER_SOLID = `${BUTTON} bg-[#B3261E] text-white hover:bg-[#8C1D18] focus-visible:ring-[#B3261E]`;
@@ -60,7 +60,7 @@ export function AccountsTable({ rows }: { rows: AccountRow[] }) {
 
   if (rows.length === 0) {
     return (
-      <p className="text-[14px] leading-6 text-[#676264]">
+      <p className="text-[0.875rem] leading-6 text-[#676264]">
         {t("accountsEmpty")}
       </p>
     );
@@ -68,7 +68,7 @@ export function AccountsTable({ rows }: { rows: AccountRow[] }) {
 
   return (
     <div className="w-full overflow-x-auto rounded-md border border-[#DBE0CC]">
-      <table className="w-full min-w-[48rem] border-collapse text-left text-[13px]">
+      <table className="w-full min-w-[48rem] border-collapse text-left text-[0.8125rem]">
         <thead>
           <tr className="border-b border-[#DBE0CC] bg-[#F3F5EE]">
             <th className="px-4 py-3 font-medium text-[#50554C]">
@@ -117,17 +117,17 @@ export function AccountsTable({ rows }: { rows: AccountRow[] }) {
                   >
                     {row.revoked ? t("statusRevoked") : t("statusActive")}
                   </span>
-                  <span className="block text-[12px] text-[#838B77]">
+                  <span className="block text-[0.75rem] text-[#838B77]">
                     {t("since", { date: row.since })}
                   </span>
                 </td>
                 <td className="whitespace-nowrap px-4 py-3 align-top">
                   {row.self ? (
-                    <span className="text-[12px] text-[#838B77]">
+                    <span className="text-[0.75rem] text-[#838B77]">
                       {t("yourAccount")}
                     </span>
                   ) : state === "deleted" ? (
-                    <span className="text-[12px] font-medium text-[#50554C]">
+                    <span className="text-[0.75rem] font-medium text-[#50554C]">
                       {t("deleted")}
                     </span>
                   ) : state === "confirm-delete" ? (
@@ -174,7 +174,7 @@ export function AccountsTable({ rows }: { rows: AccountRow[] }) {
                       {state === "failed" ? (
                         <span
                           role="alert"
-                          className="text-[12px] text-[#B3261E]"
+                          className="text-[0.75rem] text-[#B3261E]"
                         >
                           {t("failed")}
                         </span>

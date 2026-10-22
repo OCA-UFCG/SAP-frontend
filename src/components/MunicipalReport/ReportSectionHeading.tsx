@@ -10,7 +10,7 @@ export function ReportSectionHeading({
   children: ReactNode;
 }) {
   const Tag = level === 2 ? "h2" : "h3";
-  const size = level === 2 ? "text-[18px]" : "text-base";
+  const size = level === 2 ? "text-[1.125rem]" : "text-base";
 
   return (
     <div className="report-heading flex items-center gap-3">

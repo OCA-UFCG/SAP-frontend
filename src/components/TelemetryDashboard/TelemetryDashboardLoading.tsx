@@ -11,7 +11,7 @@ export function TelemetryDashboardLoading() {
     >
       <div className="mx-auto flex w-full max-w-7xl flex-col gap-8">
         <header className="rounded-[28px] bg-[linear-gradient(135deg,#E1E2B4_0%,#F6F7F6_55%,#FFFFFF_100%)] p-8 shadow-sm ring-1 ring-[#E4E5E2]">
-          <p className="text-sm font-semibold uppercase tracking-[0.14em] text-[#777E32]">
+          <p className="text-sm font-semibold uppercase tracking-[0.14em] text-[#5B612A]">
             Carregando auditoria
           </p>
           <div className="h-4 w-32 animate-pulse rounded-full bg-[#D1D4A6]" />

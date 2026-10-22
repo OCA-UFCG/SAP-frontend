@@ -221,8 +221,9 @@ export function getImageDataYearKeys(
 }
 
 /**
- * Uma camada sazonal descreve a previsão de um trimestre: o seletor de período
- * do Monitoramento fica com uma opção só, o trimestre que ainda não terminou.
+ * Uma camada sazonal descreve a previsão de trimestres: o seletor de período
+ * do Monitoramento mostra só os trimestres que ainda não terminaram, e abre no
+ * mais próximo.
  * Quem diz que a camada é sazonal é a coluna `temporada` do asset, detectada na
  * publicação do catálogo — nenhum índice declara isso à mão.
  */
@@ -251,17 +252,23 @@ export function keepOnlyCurrentSeasonPeriod(
     );
   // Sem trimestre em curso resta o mais recente, para a camada não ficar sem
   // nenhum período enquanto o asset não recebe a previsão seguinte.
-  const [selectedPeriod] =
-    ongoing[0] ?? seasonEnds[seasonEnds.length - 1] ?? [];
+  const visiblePeriods = (
+    ongoing.length > 0 ? ongoing : seasonEnds.slice(-1)
+  ).map(([periodKey]) => periodKey);
 
-  if (!selectedPeriod) {
+  if (visiblePeriods.length === 0) {
     return imageData;
   }
 
   return {
     ...imageData,
-    defaultYear: selectedPeriod,
-    years: { [selectedPeriod]: imageData.years[selectedPeriod] },
+    defaultYear: visiblePeriods[0],
+    years: Object.fromEntries(
+      visiblePeriods.map((periodKey) => [
+        periodKey,
+        imageData.years[periodKey],
+      ]),
+    ),
   };
 }
 

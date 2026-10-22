@@ -298,7 +298,7 @@ describe("resolveImageCollectionPeriod", () => {
     ).toBeUndefined();
   });
 
-  it("keeps a single option for seasonal layers", () => {
+  it("keeps every season that has not ended yet", () => {
     const imageData: CompactTerritorialAnalysisDataset = {
       schemaVersion: 1,
       type: "territorial-compact",
@@ -317,8 +317,17 @@ describe("resolveImageCollectionPeriod", () => {
       new Date("2026-09-17T12:00:00.000Z"),
     ) as CompactTerritorialAnalysisDataset;
 
-    expect(Object.keys(filtered.years)).toEqual(["2026-09"]);
+    expect(Object.keys(filtered.years)).toEqual(["2026-09", "2026-10"]);
     expect(filtered.defaultYear).toBe("2026-09");
+
+    const afterAllEnded = keepOnlyCurrentSeasonPeriod(
+      imageData,
+      true,
+      new Date("2027-02-10T12:00:00.000Z"),
+    ) as CompactTerritorialAnalysisDataset;
+
+    expect(Object.keys(afterAllEnded.years)).toEqual(["2026-10"]);
+    expect(afterAllEnded.defaultYear).toBe("2026-10");
   });
 
   it("leaves non-seasonal layers untouched", () => {

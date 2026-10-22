@@ -3,7 +3,7 @@
 import json
 import unittest
 
-from sedes_watchdog import compose, decide, describe_health_failure
+from sedes_watchdog import compose, compose_disk, decide, decide_disk, describe_health_failure
 
 CONFIG = {
     "WATCHDOG_TARGET_NAME": "SEDES produção",
@@ -44,6 +44,27 @@ class DecideTest(unittest.TestCase):
         )
 
 
+def run_disk(percents, minutes_apart=1):
+    """Passa uma sequência de leituras do disco e junta os e-mails."""
+    state, sent = {}, []
+    for index, percent in enumerate(percents):
+        state, kind = decide_disk(state, percent, index * minutes_apart * 60.0)
+        if kind:
+            sent.append((index, kind))
+    return sent
+
+
+class DecideDiskTest(unittest.TestCase):
+    def test_alerts_once_when_it_crosses_the_limit_and_when_it_goes_down(self):
+        self.assertEqual(
+            run_disk([50, 86, 90, 84, 86, 79]), [(1, "disk_full"), (5, "disk_ok")]
+        )
+
+    def test_reminds_once_a_day_while_it_stays_full(self):
+        sent = run_disk([90, 90, 90, 90], minutes_apart=12 * 60)
+        self.assertEqual(sent, [(0, "disk_full"), (2, "disk_reminder")])
+
+
 class DescribeTest(unittest.TestCase):
     def test_names_the_dependencies_that_failed(self):
         body = json.dumps(
@@ -73,6 +94,11 @@ class ComposeTest(unittest.TestCase):
         )
         self.assertEqual(subject, "[SEDES produção] voltou ao ar")
         self.assertIn("por 1 h 35 min", body)
+
+    def test_disk_alert_names_the_vm_and_the_free_space(self):
+        subject, body = compose_disk("disk_full", 87.4, 6_200_000_000, CONFIG)
+        self.assertEqual(subject, "[SEDES] disco quase cheio na VM do beta (LSD)")
+        self.assertIn("87% usado; restam 6.2 GB", body)
 
 
 if __name__ == "__main__":

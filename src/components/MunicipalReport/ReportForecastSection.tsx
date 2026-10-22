@@ -177,7 +177,7 @@ function ForecastCoverage({
               className={`flex items-center gap-2 ${isReference ? "" : "opacity-55"}`}
             >
               <span
-                className={`w-[58px] shrink-0 text-[11px] leading-4 tabular-nums text-[#292829] ${isReference ? "font-bold" : ""}`}
+                className={`w-[58px] shrink-0 text-[0.6875rem] leading-4 tabular-nums text-[#292829] ${isReference ? "font-bold" : ""}`}
               >
                 {formatShortPeriod(snapshot.period, locale)}
               </span>
@@ -356,7 +356,7 @@ export const ReportForecastSection = memo(function ReportForecastSection({
         style={{ borderLeftColor: accent }}
       >
         <div className="min-w-0">
-          <h2 className="font-open-sans text-[18px] font-bold leading-[1.5] tracking-[-0.216px] text-[#292829]">
+          <h2 className="font-open-sans text-[1.125rem] font-bold leading-[1.5] tracking-[-0.216px] text-[#292829]">
             {title}
           </h2>
           <p className="font-open-sans flex flex-wrap gap-1 text-xs leading-5 text-[#292829]">
@@ -372,7 +372,7 @@ export const ReportForecastSection = memo(function ReportForecastSection({
             event.preventDefault();
             onOpenMonitor(firstAvailable.id);
           }}
-          className="font-open-sans shrink-0 rounded-md bg-[#989F43] px-4 py-2 text-sm leading-6 text-white transition hover:bg-[#868D3B] print:hidden"
+          className="font-open-sans shrink-0 rounded-md bg-[#646B2D] px-4 py-2 text-sm leading-6 text-white transition hover:bg-[#4F5424] print:hidden"
         >
           {t("document.viewMonitor")}
         </Link>
@@ -390,7 +390,7 @@ export const ReportForecastSection = memo(function ReportForecastSection({
           ] as const
         ).map(([label, value]) => (
           <div key={label} className="flex gap-1.5">
-            <dt className="text-[#7E797B]">{t(`forecast.${label}`)}</dt>
+            <dt className="text-[#6E696B]">{t(`forecast.${label}`)}</dt>
             <dd className="font-semibold">{value}</dd>
           </div>
         ))}
@@ -409,7 +409,7 @@ export const ReportForecastSection = memo(function ReportForecastSection({
               <ReportSectionHeading level={3} accent={accent}>
                 {t("document.situationTitle")}
               </ReportSectionHeading>
-              <p className="mt-4 text-[15px] leading-7 text-[#2C3A31]">
+              <p className="mt-4 text-[0.9375rem] leading-7 text-[#2C3A31]">
                 {situationText}
               </p>
             </div>
@@ -445,6 +445,14 @@ export const ReportForecastSection = memo(function ReportForecastSection({
                     {isAvailable(analysis) && (
                       <ReportMapPreview
                         territory={report.territory}
+                        imageAlt={t("mapAlt", {
+                          layer: kindOf(analysis),
+                          territory: report.territory.label,
+                          period: formatReportPeriod(
+                            period ?? referencePeriod,
+                            locale,
+                          ),
+                        })}
                         layerId={analysis.id}
                         period={period ?? referencePeriod}
                         className="report-map-frame aspect-[696/322] w-full rounded-lg bg-white"
@@ -468,7 +476,7 @@ export const ReportForecastSection = memo(function ReportForecastSection({
                 );
               })}
             </div>
-            <p className="font-open-sans mt-2 text-xs leading-5 text-[#7E797B]">
+            <p className="font-open-sans mt-2 text-xs leading-5 text-[#6E696B]">
               {t("forecast.spatialCaption", {
                 boundary: report.territory.possessiveLabel,
                 territory: report.territory.label,
@@ -504,7 +512,7 @@ export const ReportForecastSection = memo(function ReportForecastSection({
                 </div>
               ))}
             </div>
-            <p className="font-open-sans mt-2 text-xs leading-5 text-[#7E797B]">
+            <p className="font-open-sans mt-2 text-xs leading-5 text-[#6E696B]">
               {t("forecast.coverageCaption", { period: referenceLabel })}
             </p>
           </div>
@@ -516,7 +524,7 @@ export const ReportForecastSection = memo(function ReportForecastSection({
           <ReportSectionHeading level={3} accent={accent}>
             {t("forecast.methodologyTitle")}
           </ReportSectionHeading>
-          <p className="mt-4 whitespace-pre-line text-[15px] leading-7 text-[#2C3A31]">
+          <p className="mt-4 whitespace-pre-line text-[0.9375rem] leading-7 text-[#2C3A31]">
             {[...kindDescriptions, ...methodologies].join(" ")}
           </p>
         </div>

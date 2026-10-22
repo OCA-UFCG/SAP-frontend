@@ -21,7 +21,7 @@ export const InstitutionsSection = ({ id, partners }: Props) => {
   return (
     <section id={id} className="w-full scroll-mt-16.5 bg-[#F6F7F6]">
       <Reveal className="mx-auto flex w-full max-w-[1440px] flex-col gap-6 px-4 py-12 md:px-10 lg:px-20">
-        <h2 className="reveal-item pb-2 font-inter text-[30px] font-semibold leading-9 tracking-[-0.0075em] text-[#292829]">
+        <h2 className="reveal-item pb-2 font-inter text-[1.875rem] font-semibold leading-9 tracking-[-0.0075em] text-[#292829]">
           {t("title")}
         </h2>
 
@@ -41,7 +41,7 @@ export const InstitutionsSection = ({ id, partners }: Props) => {
                 style={revealOrder(index + 1)}
                 className="reveal-item group flex min-h-[190px] flex-col overflow-hidden rounded-lg bg-white transition-[translate,scale,box-shadow] duration-300 ease-out hover:shadow-[0_16px_32px_rgba(63,67,36,0.16)] motion-safe:hover:-translate-y-1.5 motion-safe:hover:scale-[1.04]"
               >
-                <div className="flex min-h-[50px] items-center justify-center bg-[#E4E5E2] px-4 py-2 transition-colors duration-300 group-hover:bg-[#5B612A]">
+                <div className="flex min-h-[50px] items-center justify-center bg-[#E4E5E2] px-4 py-2 transition-colors duration-300 group-hover:bg-[#4F5424]">
                   <span className="text-center font-inter text-xs leading-[18px] text-[#292829] transition-colors duration-300 group-hover:text-[#F8F7F8]">
                     {description}
                   </span>

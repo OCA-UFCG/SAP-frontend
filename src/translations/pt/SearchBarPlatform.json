@@ -3,6 +3,7 @@
     "placeholder": "Pesquise um estado ou município",
     "noResults": "Nenhum estado ou município encontrado.",
     "error": "Estado ou município não identificado.",
-    "button": "Pesquisar"
+    "button": "Pesquisar",
+    "showOptions": "Mostrar estados e municípios"
   }
 }

@@ -185,7 +185,10 @@ export function LegacyMapAssetFields({
     <fieldset className="mt-7 rounded-lg border border-stone-200 p-4">
       <legend className="px-2 font-bold">Asset do mapa</legend>
       {error && (
-        <p className="mb-3 rounded-md border border-red-300 bg-red-50 p-3 text-sm text-red-900">
+        <p
+          role="alert"
+          className="mb-3 rounded-md border border-red-300 bg-red-50 p-3 text-sm text-red-900"
+        >
           {error}
         </p>
       )}
@@ -224,7 +227,9 @@ export function LegacyMapAssetFields({
             >
               Salvar assets do mapa
             </button>
-            {status && <span className="text-sm text-stone-600">{status}</span>}
+            <span role="status" className="text-sm text-stone-600">
+              {status}
+            </span>
           </div>
         </>
       )}

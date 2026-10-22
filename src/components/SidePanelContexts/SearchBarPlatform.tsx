@@ -5,6 +5,10 @@ import { useTranslations } from "next-intl";
 import { Icon } from "../Icon/Icon";
 import { ButtonUi } from "../ButtonUI/ButtonUI";
 import { trackUiEvent } from "@/services/telemetry/client";
+import {
+  handleComboboxInputKey,
+  handleComboboxListKeyDown,
+} from "@/utils/listboxKeyboard";
 import type {
   SearchSubmissionMetadata,
   SearchTelemetryContext,
@@ -14,22 +18,52 @@ import {
   filterStateOptions,
   validateSearch,
 } from "@/components/SearchBar/searchBarUtils";
+import { resolveStateKeyFromSearch } from "@/lib/geo";
+import { statesObj } from "@/utils/constants";
 
 interface SearchBarProps {
   onSearch: (value: string, metadata: SearchSubmissionMetadata) => void;
   searchTelemetryContext: SearchTelemetryContext;
+  selectedLocationKey?: string;
+}
+
+// A mesma chave que o Detalhamento usa: código do município ou UF.
+function getLocationKey(value: string) {
+  const result = resolveStateKeyFromSearch(value, statesObj);
+  return result.type === "city" ? result.city.code : result.key;
+}
+
+// No celular, focar o campo abre o teclado por cima da lista e do resultado.
+function isTouchScreen() {
+  return window.matchMedia("(pointer: coarse)").matches;
 }
 
 const SearchBarPlatform = ({
   onSearch,
   searchTelemetryContext,
+  selectedLocationKey,
 }: SearchBarProps) => {
   const containerRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
+  const listRef = useRef<HTMLDivElement>(null);
   const [hasError, setHasError] = useState(false);
   const [isOptionsOpen, setIsOptionsOpen] = useState(false);
   const [value, setValue] = useState("");
   const t = useTranslations("SearchBarPlatform");
+
+  // O campo mostra o local escolhido. Se outro local for escolhido fora dele
+  // (no ranking ou no mapa), o nome antigo sai em vez de ficar errado.
+  const [shownLocationKey, setShownLocationKey] = useState(selectedLocationKey);
+  if (shownLocationKey !== selectedLocationKey) {
+    setShownLocationKey(selectedLocationKey);
+    if (
+      selectedLocationKey &&
+      value &&
+      getLocationKey(value) !== selectedLocationKey
+    ) {
+      setValue("");
+    }
+  }
 
   const filteredSearchOptions = filterStateOptions(value);
 
@@ -59,6 +93,7 @@ const SearchBarPlatform = ({
       validateSearch(currentValue);
       setHasError(false);
       setIsOptionsOpen(false);
+      inputRef.current?.blur();
       onSearch(currentValue, {
         selectionMethod,
         visibleOptionCount,
@@ -79,7 +114,7 @@ const SearchBarPlatform = ({
   const toggleOptions = () => {
     setHasError(false);
     setIsOptionsOpen((current) => !current);
-    inputRef.current?.focus();
+    if (!isTouchScreen()) inputRef.current?.focus();
   };
 
   const handleOptionSelect = (
@@ -90,10 +125,12 @@ const SearchBarPlatform = ({
       selectionMethod,
       visibleOptionCount: filteredSearchOptions.length,
     });
-    setValue("");
+    // Escolher um local encerra a busca: o nome fica no campo e o teclado
+    // fecha, para a análise aparecer sem nada por cima.
+    setValue(option);
     setHasError(false);
     setIsOptionsOpen(false);
-    inputRef.current?.focus();
+    inputRef.current?.blur();
   };
 
   return (
@@ -108,7 +145,12 @@ const SearchBarPlatform = ({
                     }
                 `}
         >
-          <Icon id="loupe" className="mr-1.5 shrink-0" fill="#898989" size={16} />
+          <Icon
+            id="loupe"
+            className="mr-1.5 shrink-0"
+            fill="#6F6F6F"
+            size={16}
+          />
 
           <input
             ref={inputRef}
@@ -120,7 +162,21 @@ const SearchBarPlatform = ({
               setHasError(false);
               setIsOptionsOpen(nextValue.trim().length > 0);
             }}
+            // Tocar no campo com um local já escolhido seleciona o nome, e
+            // digitar já começa uma busca nova.
+            onFocus={(event) => event.target.select()}
             onKeyDown={(e) => {
+              if (
+                handleComboboxInputKey(
+                  e.key,
+                  listRef.current,
+                  isOptionsOpen,
+                  setIsOptionsOpen,
+                )
+              ) {
+                e.preventDefault();
+                return;
+              }
               if (e.key === "Enter") {
                 e.preventDefault();
                 if (filteredSearchOptions.length > 0) {
@@ -131,19 +187,25 @@ const SearchBarPlatform = ({
               }
             }}
             role="combobox"
+            aria-label={t("placeholder")}
+            aria-invalid={hasError}
             aria-autocomplete="list"
             aria-controls="platform-searchbar-state-options"
             aria-expanded={isOptionsOpen}
             aria-haspopup="listbox"
-            className="w-full min-w-0 text-ellipsis text-[#292829] text-[13px] placeholder:text-[13px] bg-transparent border-none outline-none ring-0"
+            enterKeyHint="search"
+            autoComplete="off"
+            autoCorrect="off"
+            spellCheck={false}
+            className="w-full min-w-0 text-ellipsis text-[#292829] text-[0.8125rem] placeholder:text-[0.8125rem] bg-transparent border-none outline-none ring-0"
             placeholder={t("placeholder")}
           />
 
           <button
             type="button"
-            aria-label="Mostrar estados"
+            aria-label={t("showOptions")}
             onClick={toggleOptions}
-            className="ml-1 shrink-0 text-[#898989] transition-transform"
+            className="ml-1 shrink-0 text-[#6F6F6F] transition-transform"
           >
             <svg
               width="16"
@@ -166,8 +228,15 @@ const SearchBarPlatform = ({
         </div>
         {isOptionsOpen && (
           <div
+            ref={listRef}
             id="platform-searchbar-state-options"
             role="listbox"
+            tabIndex={-1}
+            onKeyDown={(event) =>
+              handleComboboxListKeyDown(event, inputRef.current, () =>
+                setIsOptionsOpen(false),
+              )
+            }
             className="absolute top-[calc(100%+8px)] z-20 max-h-64 w-full overflow-y-auto rounded-xl border border-neutral-200 bg-white p-2 shadow-lg"
           >
             {filteredSearchOptions.length > 0 ? (
@@ -177,6 +246,9 @@ const SearchBarPlatform = ({
                   type="button"
                   role="option"
                   aria-selected={value === option}
+                  // O campo continua com o foco até a escolha; sem isso o
+                  // teclado do celular fecha no toque e reabre logo depois.
+                  onMouseDown={(event) => event.preventDefault()}
                   onClick={() => handleOptionSelect(option, "option-click")}
                   className="flex w-full rounded-lg px-3 py-2 text-left text-sm text-[#292829] transition hover:bg-[#F6F7F6]"
                 >
@@ -197,7 +269,7 @@ const SearchBarPlatform = ({
         )}
       </div>
       <ButtonUi
-        styles="bg-[#989F43] hover:bg-[#989F43] text-white text-sm px-2.5 h-full rounded-lg disabled:hover:* active:brightness-95 transition shrink-0"
+        styles="bg-[#646B2D] hover:bg-[#646B2D] text-white text-sm px-2.5 h-full rounded-lg disabled:hover:* active:brightness-95 transition shrink-0"
         label={t("button")}
         onClick={() => onSubmit("button")}
       />

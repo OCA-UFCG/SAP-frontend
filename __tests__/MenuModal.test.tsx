@@ -80,13 +80,16 @@ describe("MenuModal", () => {
     expect(document.body.style.overflow).toBe("");
   });
 
-  it("closes with Escape", () => {
+  it("closes with Escape and gives focus back to the menu button", () => {
     render(<MenuModal content={content} />);
+    // O clique de verdade foca o botão antes de abrir; o fireEvent não.
+    menuButton().focus();
     fireEvent.click(menuButton());
 
     fireEvent.keyDown(document, { key: "Escape" });
 
     expect(isOpen()).toBe(false);
+    expect(menuButton()).toHaveFocus();
   });
 
   it("keeps the home sections folded until asked", () => {

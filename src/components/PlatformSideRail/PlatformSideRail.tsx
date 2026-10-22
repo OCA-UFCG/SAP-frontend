@@ -1,5 +1,6 @@
 "use client";
 import { useEffect, useId, useLayoutEffect, useRef, useState } from "react";
+import { useDialogFocus } from "@/hooks/useDialogFocus";
 import { createPortal } from "react-dom";
 import { useLinkStatus } from "next/link";
 import { Link } from "@/translations/routing";
@@ -65,7 +66,7 @@ function RailPendingSpinner() {
     <span
       role="status"
       aria-label={t("loading")}
-      className="h-6 w-6 animate-spin rounded-full border-2 border-[#E1E2B4] border-t-[#777E32]"
+      className="h-6 w-6 animate-spin rounded-full border-2 border-[#E1E2B4] border-t-[#5B612A]"
     />
   );
 }
@@ -157,7 +158,7 @@ function RailBadge({ count }: { count: number }) {
   return (
     <span
       aria-label={t("pendingApprovals", { count })}
-      className="absolute -right-2.5 -top-1.5 flex h-[18px] min-w-[18px] items-center justify-center rounded-full bg-[#B3261E] px-1 text-[10px] font-semibold leading-none text-white"
+      className="absolute -right-2.5 -top-1.5 flex h-[18px] min-w-[18px] items-center justify-center rounded-full bg-[#B3261E] px-1 text-[0.625rem] font-semibold leading-none text-white"
     >
       {count > 99 ? "99+" : count}
     </span>
@@ -208,7 +209,7 @@ function RailItemContent({
           botão, quebrando em "Comunicaçã/o": fica numa linha só, e abaixo de
           ~350 px encolhe com a tela (10 px a 320 px) para não encostar em
           "Priorização". */}
-      <div className="text-[12px] leading-[14px] font-medium text-center break-words w-full max-md:text-[min(11px,3.125vw)] max-md:leading-[13px] max-md:whitespace-nowrap">
+      <div className="text-[0.75rem] leading-[14px] font-medium text-center break-words w-full max-md:text-[min(11px,3.125vw)] max-md:leading-[13px] max-md:whitespace-nowrap">
         {label}
       </div>
     </>
@@ -323,14 +324,14 @@ export function PlatformSideRail({
     setMoreOpen(false);
   }
 
-  useEffect(() => {
-    if (!moreOpen) return;
-    const onKeyDown = (event: KeyboardEvent) => {
-      if (event.key === "Escape") setMoreOpen(false);
-    };
-    window.addEventListener("keydown", onKeyDown);
-    return () => window.removeEventListener("keydown", onKeyDown);
-  }, [moreOpen]);
+  // Esc fecha e o foco volta ao "Mais"; o Tab não fica preso, porque a lista
+  // não bloqueia a barra.
+  const moreMenuRef = useRef<HTMLElement>(null);
+  useDialogFocus(moreMenuRef, {
+    open: moreOpen,
+    onClose: () => setMoreOpen(false),
+    trapFocus: false,
+  });
 
   // Um destaque só, que desliza até a seção escolhida, em vez de um fundo que
   // some num item e aparece no outro. Mede o item atual e move o destaque por
@@ -554,13 +555,13 @@ export function PlatformSideRail({
                   {pendingApprovals > 0 ? (
                     <span
                       aria-hidden
-                      className="absolute -right-2.5 -top-1.5 flex h-[18px] min-w-[18px] items-center justify-center rounded-full bg-[#B3261E] px-1 text-[10px] font-semibold leading-none text-white"
+                      className="absolute -right-2.5 -top-1.5 flex h-[18px] min-w-[18px] items-center justify-center rounded-full bg-[#B3261E] px-1 text-[0.625rem] font-semibold leading-none text-white"
                     >
                       {pendingApprovals > 99 ? "99+" : pendingApprovals}
                     </span>
                   ) : null}
                 </div>
-                <div className="w-full text-center text-[11px] font-medium leading-[13px]">
+                <div className="w-full text-center text-[0.6875rem] font-medium leading-[13px]">
                   {t("more")}
                 </div>
               </button>
@@ -582,7 +583,7 @@ export function PlatformSideRail({
             <span className="flex motion-safe:group-hover:animate-[icon-wiggle_600ms_ease-in-out]">
               <HelpIcon />
             </span>
-            <span className="text-[12px] leading-[14px] font-medium max-md:text-[11px] max-md:leading-[13px]">
+            <span className="text-[0.75rem] leading-[14px] font-medium max-md:text-[0.6875rem] max-md:leading-[13px]">
               {tTour("replay")}
             </span>
           </button>
@@ -598,6 +599,7 @@ export function PlatformSideRail({
               className="fixed inset-x-0 top-0 bottom-16 z-50 bg-[#21240F]/40"
             />
             <nav
+              ref={moreMenuRef}
               id={moreMenuId}
               aria-label={t("more")}
               className="fixed inset-x-2 bottom-[4.5rem] z-50 rounded-xl bg-white p-2 shadow-[0_12px_32px_rgba(33,36,15,0.24)] motion-safe:animate-[menu-in_180ms_ease-out]"
@@ -612,7 +614,7 @@ export function PlatformSideRail({
                         item.id === activeSection ? "page" : undefined
                       }
                       className={clsx(
-                        "flex min-h-12 items-center gap-3 rounded-lg px-3 text-[15px] font-medium",
+                        "flex min-h-12 items-center gap-3 rounded-lg px-3 text-[0.9375rem] font-medium",
                         item.id === activeSection
                           ? "bg-[#E1E2B4] text-[#5B612A]"
                           : "text-[#292829] active:bg-[#F5F6EE]",
@@ -621,7 +623,7 @@ export function PlatformSideRail({
                       <Icon id={item.icon} size={22} />
                       <span className="flex-1">{item.label}</span>
                       {item.id === "approvals" && pendingApprovals > 0 ? (
-                        <span className="flex h-5 min-w-5 items-center justify-center rounded-full bg-[#B3261E] px-1.5 text-[11px] font-semibold text-white">
+                        <span className="flex h-5 min-w-5 items-center justify-center rounded-full bg-[#B3261E] px-1.5 text-[0.6875rem] font-semibold text-white">
                           {pendingApprovals > 99 ? "99+" : pendingApprovals}
                         </span>
                       ) : null}
@@ -636,7 +638,7 @@ export function PlatformSideRail({
                         setMoreOpen(false);
                         onReplayTour();
                       }}
-                      className="flex min-h-12 w-full cursor-pointer items-center gap-3 rounded-lg px-3 text-left text-[15px] font-medium text-[#292829] active:bg-[#F5F6EE]"
+                      className="flex min-h-12 w-full cursor-pointer items-center gap-3 rounded-lg px-3 text-left text-[0.9375rem] font-medium text-[#292829] active:bg-[#F5F6EE]"
                     >
                       <HelpIcon />
                       {tTour("replay")}

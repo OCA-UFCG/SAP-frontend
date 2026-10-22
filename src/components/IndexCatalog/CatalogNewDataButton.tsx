@@ -77,7 +77,10 @@ export function CatalogNewDataButton({
         {checking ? "Verificando…" : "Verificar novos dados"}
       </button>
       {error && (
-        <p className="order-last mt-1 w-full rounded-md bg-red-50 p-2 text-xs text-red-800">
+        <p
+          role="alert"
+          className="order-last mt-1 w-full rounded-md bg-red-50 p-2 text-xs text-red-800"
+        >
           {error}
         </p>
       )}

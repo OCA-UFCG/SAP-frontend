@@ -6,6 +6,10 @@ Roda pelo cron a cada minuto (veja install.sh). Cada execução chama o
 anteriores (guardado num arquivo de estado) e manda e-mail em três momentos:
 quando o ambiente cai, quando o que falha muda e quando ele volta.
 
+Na mesma execução, confere o disco da própria VM e avisa quando ele está
+quase cheio: disco cheio derruba os containers, e aí o alerta chegaria só
+depois da queda.
+
 Cada VM vigia o ambiente da OUTRA: a do beta vigia a produção e a da produção
 vigia o beta. Assim a queda da VM inteira também chega à equipe, o que um vigia
 rodando na própria VM nunca conseguiria avisar.
@@ -21,6 +25,7 @@ from __future__ import annotations
 import argparse
 import json
 import os
+import shutil
 import smtplib
 import ssl
 import sys
@@ -36,6 +41,12 @@ SMTP_HOST = "smtp.gmail.com"
 SMTP_PORT = 465
 REQUEST_TIMEOUT_SECONDS = 25
 BRASILIA = ZoneInfo("America/Sao_Paulo")
+
+DISK_ALERT_PERCENT = 85
+# O aviso de que o disco voltou ao normal só sai abaixo disso, para um disco
+# oscilando em volta do limite não virar um e-mail por minuto.
+DISK_RECOVERED_PERCENT = 80
+DISK_REMINDER_MINUTES = 24 * 60
 
 DEPENDENCY_LABELS = {
     "gee": "Earth Engine",
@@ -145,6 +156,26 @@ def decide(
     return new_state, None
 
 
+def decide_disk(state: dict, used_percent: float, now: float) -> tuple[dict, str | None]:
+    """O estado novo do disco desta VM e qual e-mail mandar agora, se algum.
+
+    Os e-mails são "disk_full", "disk_reminder" (um por dia enquanto durar) e
+    "disk_ok".
+    """
+    if "alerted_at" not in state:
+        if used_percent >= DISK_ALERT_PERCENT:
+            return {"alerted_at": now, "notified_at": now}, "disk_full"
+        return {}, None
+
+    if used_percent < DISK_RECOVERED_PERCENT:
+        return {}, "disk_ok"
+
+    if now - state["notified_at"] >= DISK_REMINDER_MINUTES * 60:
+        return {**state, "notified_at": now}, "disk_reminder"
+
+    return state, None
+
+
 def format_time(timestamp: float) -> str:
     return datetime.fromtimestamp(timestamp, BRASILIA).strftime("%d/%m às %H:%M")
 
@@ -188,6 +219,33 @@ def compose(kind: str, state: dict, config: dict[str, str], now: float) -> tuple
     return subjects[kind], body + footer
 
 
+def compose_disk(
+    kind: str, used_percent: float, free_bytes: int, config: dict[str, str]
+) -> tuple[str, str]:
+    # WATCHDOG_WATCHER vem com artigo: "a VM do beta (LSD)".
+    vm = config["WATCHDOG_WATCHER"].removeprefix("a ")
+    subjects = {
+        "disk_full": f"[SEDES] disco quase cheio na {vm}",
+        "disk_reminder": f"[SEDES] disco continua quase cheio na {vm}",
+        "disk_ok": f"[SEDES] disco voltou ao normal na {vm}",
+    }
+    usage = (
+        f"O disco da {vm} está com {used_percent:.0f}% usado; "
+        f"restam {free_bytes / 1e9:.1f} GB."
+    )
+    if kind == "disk_ok":
+        return subjects[kind], usage
+
+    body = (
+        f"{usage}\n\n"
+        "Com o disco cheio, os containers param e o site cai. O que costuma ocupar "
+        "espaço são as imagens antigas do Docker (sudo docker system df) e os logs "
+        "dos containers (sudo du -sh /var/lib/docker/containers/*).\n\n"
+        f"Outro e-mail chega quando o uso cair abaixo de {DISK_RECOVERED_PERCENT}%."
+    )
+    return subjects[kind], body
+
+
 def send(config: dict[str, str], subject: str, body: str) -> None:
     message = EmailMessage()
     message["From"] = config.get("SMTP_FROM") or config["SMTP_USER"]
@@ -219,6 +277,31 @@ def write_state(path: str, state: dict) -> None:
     os.replace(temporary, path)
 
 
+def check_disk(config: dict[str, str], now: float) -> None:
+    """Confere o disco da própria VM, onde ficam as imagens e os logs do Docker."""
+    path = "/var/lib/docker" if os.path.isdir("/var/lib/docker") else "/"
+    usage = shutil.disk_usage(path)
+    # A mesma conta do `df`: o espaço reservado ao root não conta como livre.
+    used_percent = usage.used / (usage.used + usage.free) * 100
+
+    state_path = os.path.join(os.path.dirname(config["WATCHDOG_STATE_FILE"]), "disk.json")
+    state = read_state(state_path)
+    new_state, kind = decide_disk(state, used_percent, now)
+
+    if kind:
+        subject, body = compose_disk(kind, used_percent, usage.free, config)
+        try:
+            send(config, subject, body)
+            print(f"e-mail enviado: {subject}")
+        except Exception as error:  # noqa: BLE001
+            # O estado antigo fica, para a próxima execução tentar de novo.
+            print(f"não consegui mandar o e-mail '{subject}': {error}", file=sys.stderr)
+            return
+
+    if new_state != state:
+        write_state(state_path, new_state)
+
+
 def main() -> int:
     parser = argparse.ArgumentParser()
     parser.add_argument("--env", required=True)
@@ -237,7 +320,8 @@ def main() -> int:
             f"[{name}] alerta por e-mail ligado",
             f"A partir de agora, {config['WATCHDOG_WATCHER']} confere o {name} a cada "
             f"minuto em {config['WATCHDOG_URL']} e avisa este endereço quando ele cair "
-            "e quando voltar.\n\nEste e-mail é só a confirmação de que o envio funciona.",
+            "e quando voltar. Também avisa quando o disco desta VM passar de "
+            f"{DISK_ALERT_PERCENT}%.\n\nEste e-mail é só a confirmação de que o envio funciona.",
         )
         print(f"e-mail de teste enviado para {config['ALERT_EMAIL_TO']}")
         return 0
@@ -276,6 +360,7 @@ def main() -> int:
             }
 
     write_state(state_path, new_state)
+    check_disk(config, now)
     return 0
 
 

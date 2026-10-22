@@ -32,7 +32,7 @@ export const NewsSection = ({ id, title, items, toolNames }: Props) => {
   return (
     <section id={id} className="w-full scroll-mt-16.5 bg-[#E4E5E2]">
       <Reveal className="mx-auto flex w-full max-w-[1440px] flex-col gap-6 px-4 py-12 md:px-10 lg:px-20">
-        <h2 className="reveal-item pt-[3px] font-inter text-[30px] font-semibold leading-9 tracking-[-0.0075em] text-[#292829]">
+        <h2 className="reveal-item pt-[3px] font-inter text-[1.875rem] font-semibold leading-9 tracking-[-0.0075em] text-[#292829]">
           {title}
         </h2>
 
@@ -53,10 +53,10 @@ export const NewsSection = ({ id, title, items, toolNames }: Props) => {
                 >
                   <span
                     aria-hidden
-                    className="absolute inset-y-0 left-0 w-1 origin-top scale-y-0 bg-[#777E32] transition-[scale] duration-300 group-hover:scale-y-100"
+                    className="absolute inset-y-0 left-0 w-1 origin-top scale-y-0 bg-[#5B612A] transition-[scale] duration-300 group-hover:scale-y-100"
                   />
                   <div className="flex flex-1 flex-col gap-2 transition-[translate] duration-300 sm:flex-row sm:items-center sm:gap-4 motion-safe:group-hover:translate-x-2">
-                    <span className="flex w-fit shrink-0 items-center gap-2 rounded-full bg-[#989F43] px-2.5 py-0.5 font-inter text-xs font-semibold leading-4 text-[#F8F7F8] transition-colors group-hover:bg-[#5B612A]">
+                    <span className="flex w-fit shrink-0 items-center gap-2 rounded-full bg-[#646B2D] px-2.5 py-0.5 font-inter text-xs font-semibold leading-4 text-[#F8F7F8] transition-colors group-hover:bg-[#4F5424]">
                       <ModuleIcon size={20} />
                       {toolNames[item.module]}
                     </span>
@@ -66,13 +66,13 @@ export const NewsSection = ({ id, title, items, toolNames }: Props) => {
                     {item.date && (
                       <time
                         dateTime={item.date}
-                        className="font-inter text-sm font-medium leading-6 text-[#777E32] sm:ml-auto"
+                        className="font-inter text-sm font-medium leading-6 text-[#5B612A] sm:ml-auto"
                       >
                         {formatDate.format(new Date(item.date))}
                       </time>
                     )}
                   </div>
-                  <span className="flex shrink-0 px-4 py-2 text-[#989F43] transition-[translate,color] duration-300 group-hover:text-[#5B612A] motion-safe:group-hover:translate-x-2">
+                  <span className="flex shrink-0 px-4 py-2 text-[#646B2D] transition-[translate,color] duration-300 group-hover:text-[#4F5424] motion-safe:group-hover:translate-x-2">
                     <span className="sr-only">{t("learnMore")}</span>
                     <ArrowForwardIcon size={16} />
                   </span>

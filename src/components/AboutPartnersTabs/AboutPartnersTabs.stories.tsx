@@ -79,6 +79,7 @@ const partners: PartnerI[] = [
 
 export const Default: Story = {
   args: {
+    hero: { title: "Sobre o SEDES", description: "" },
     partnersHeader,
     partners,
     defaultTab: "about",

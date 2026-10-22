@@ -169,9 +169,9 @@ export default function DroughtSection() {
               <div className="absolute bottom-6 left-6 z-30 w-full sm:w-auto flex justify-start">
                 <Link
                   href="/platform"
-                  className="w-full sm:w-[582px] bg-[#989F43] text-white rounded-[6px] px-4 py-3 flex items-center justify-center gap-2 hover:opacity-90 transition"
+                  className="w-full sm:w-[582px] bg-[#646B2D] text-white rounded-[6px] px-4 py-3 flex items-center justify-center gap-2 hover:opacity-90 transition"
                 >
-                  <span className="text-[14px] font-medium">{t("seeMore")}</span>
+                  <span className="text-[0.875rem] font-medium">{t("seeMore")}</span>
 
                   <svg
                     xmlns="http://www.w3.org/2000/svg"
@@ -200,7 +200,7 @@ export default function DroughtSection() {
                   <h1 className="text-4xl font-bold tracking-tight">
                     {currentState.nome}
                   </h1>
-                  <div className="text-[10px] text-neutral-500 mt-2 uppercase font-semibold space-y-0.5">
+                  <div className="text-[0.625rem] text-neutral-500 mt-2 uppercase font-semibold space-y-0.5">
                     <p>{t("analysisDate", { date: "31/01/24" })}</p>
                   </div>
                 </div>

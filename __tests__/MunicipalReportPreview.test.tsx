@@ -507,7 +507,7 @@ describe("MunicipalReportPreview", () => {
 
     const group = sections[0] as HTMLElement;
     expect(group.textContent).toContain(
-      "No município de Abadia de Goiás — GO, para dezembro de 2026, a previsão de precipitação do INMET indica anomalia na faixa Levemente abaixo, em 71,70% da área analisada, acumulado na faixa Levemente acima, em 100,00% da área analisada e probabilidade na faixa Levemente acima, em 90,00% da área analisada.",
+      "No município de Abadia de Goiás — GO, para dezembro de 2026, a previsão de precipitação do INMET indica anomalia na faixa Levemente abaixo, em 71,70% da área analisada, valor previsto na faixa Levemente acima, em 100,00% da área analisada e probabilidade na faixa Levemente acima, em 90,00% da área analisada.",
     );
     // Uma barra por período em cada tipo, com o de referência destacado.
     expect(group.querySelectorAll("[data-report-forecast-bar]")).toHaveLength(

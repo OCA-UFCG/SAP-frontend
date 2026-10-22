@@ -1,5 +1,5 @@
 "use client";
-import { useEffect, useId, useState } from "react";
+import { useEffect, useId, useRef, useState } from "react";
 import { useLocale, useTranslations } from "next-intl";
 import { Link, usePathname, useRouter } from "@/translations/routing";
 import { cn } from "@/lib/utils";
@@ -7,6 +7,7 @@ import { ISection } from "@/utils/interfaces";
 import { Hamburguer } from "../HamburguerButton/HamburguerButton";
 import { LANGUAGES } from "../LanguageSwitcher/LanguageSwitcher";
 import { shouldPrefetchFullRoute } from "../NavItems/NavItems";
+import { useDialogFocus } from "@/hooks/useDialogFocus";
 
 /** A partir daqui o menu do topo aparece inteiro na barra (`xl:` no Header). */
 const DESKTOP_MENU = "(min-width: 1280px)";
@@ -37,11 +38,13 @@ export const MenuModal = ({ content }: { content: ISection[] }) => {
 
   const close = () => setIsOpen(false);
 
+  // Esc fecha o menu e devolve o foco ao botão de três traços; sem isso o foco
+  // caía no `body` e o teclado recomeçava do topo da página.
+  const menuRef = useRef<HTMLDivElement>(null);
+  useDialogFocus(menuRef, { open: isOpen, onClose: close, trapFocus: false });
+
   useEffect(() => {
     if (!isOpen) return;
-    const onKeyDown = (event: KeyboardEvent) => {
-      if (event.key === "Escape") setIsOpen(false);
-    };
     // Girar o tablet até o menu da barra aparecer esconde este; sem fechar,
     // a página ficaria sem rolar.
     const desktop = window.matchMedia(DESKTOP_MENU);
@@ -49,11 +52,9 @@ export const MenuModal = ({ content }: { content: ISection[] }) => {
     // Sem isso a página rola por trás do menu quando o dedo arrasta nele.
     const { overflow } = document.body.style;
     document.body.style.overflow = "hidden";
-    document.addEventListener("keydown", onKeyDown);
     desktop.addEventListener("change", onDesktop);
     return () => {
       document.body.style.overflow = overflow;
-      document.removeEventListener("keydown", onKeyDown);
       desktop.removeEventListener("change", onDesktop);
     };
   }, [isOpen]);
@@ -85,6 +86,7 @@ export const MenuModal = ({ content }: { content: ISection[] }) => {
       {/* O `pt-5` deixa a ponta da aba da logo, que desce 16 px abaixo da
           barra, por cima de um respiro e não do primeiro item. */}
       <div
+        ref={menuRef}
         id={menuId}
         inert={!isOpen}
         className={cn(
@@ -119,7 +121,7 @@ export const MenuModal = ({ content }: { content: ISection[] }) => {
                     {active && (
                       <span
                         aria-hidden
-                        className="absolute inset-y-2 left-0 w-1 rounded-r-full bg-[#777E32]"
+                        className="absolute inset-y-2 left-0 w-1 rounded-r-full bg-[#5B612A]"
                       />
                     )}
                     {item.name}
@@ -134,7 +136,7 @@ export const MenuModal = ({ content }: { content: ISection[] }) => {
                         isExpanded ? "hideSections" : "showSections",
                         { name: item.name ?? "" },
                       )}
-                      className="flex w-14 shrink-0 cursor-pointer items-center justify-center border-l border-[#E4E5E2] text-[#777E32] transition-colors active:bg-[#E4E5E2]"
+                      className="flex w-14 shrink-0 cursor-pointer items-center justify-center border-l border-[#E4E5E2] text-[#5B612A] transition-colors active:bg-[#E4E5E2]"
                     >
                       <svg
                         width="12"
@@ -166,7 +168,7 @@ export const MenuModal = ({ content }: { content: ISection[] }) => {
                         <Link
                           href={child.path || "#"}
                           onClick={close}
-                          className="flex min-h-11 items-center pr-6 pl-10 text-[15px] text-[#3F4324] transition-colors active:bg-[#E4E5E2]"
+                          className="flex min-h-11 items-center pr-6 pl-10 text-[0.9375rem] text-[#3F4324] transition-colors active:bg-[#E4E5E2]"
                         >
                           {child.name}
                         </Link>

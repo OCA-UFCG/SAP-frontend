@@ -31,7 +31,7 @@ const DOCUMENT_CSS = `
     font-size: 13px;
     text-transform: uppercase;
     letter-spacing: 0.04em;
-    border-bottom: 2px solid #989F43;
+    border-bottom: 2px solid #646B2D;
     padding-bottom: 4px;
   }
   h3 { margin: 10px 0 4px; font-size: 11px; font-weight: 600; }
@@ -40,6 +40,8 @@ const DOCUMENT_CSS = `
   table.thresholds { width: 60mm; }
   th, td { text-align: left; padding: 3px 6px 3px 0; vertical-align: top; }
   thead th { border-bottom: 1px solid #d9d9d9; font-weight: 600; }
+  tbody th { font-weight: 400; }
+  .sr-only { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
   .numeric { text-align: right; }
   .paramLine { margin: 4px 0; }
   .map { width: 100%; height: auto; border: 1px solid #d9d9d9; }
@@ -94,7 +96,7 @@ export const renderAnalysisReportHtml = (
   const criteria = model.criteria
     .map(
       (criterion) => `<tr>
-        <td>${escapeHtml(criterion.label)}</td>
+        <th scope="row">${escapeHtml(criterion.label)}</th>
         <td class="numeric">${decimal.format(criterion.weight)}</td>
         <td>${escapeHtml(criterion.direction)}</td>
       </tr>`,
@@ -104,7 +106,7 @@ export const renderAnalysisReportHtml = (
   const thresholds = model.thresholds
     .map(
       (threshold) => `<tr>
-        <td>${escapeHtml(threshold.label)}</td>
+        <th scope="row">${escapeHtml(threshold.label)}</th>
         <td class="numeric">${decimal.format(threshold.value)}</td>
       </tr>`,
     )
@@ -113,9 +115,9 @@ export const renderAnalysisReportHtml = (
   const distribution = model.distribution
     .map(
       (item) => `<tr>
-        <td><span class="swatch" style="background:${escapeHtml(
+        <th scope="row"><span class="swatch" aria-hidden="true" style="background:${escapeHtml(
           item.color,
-        )}"></span>${escapeHtml(item.label)}</td>
+        )}"></span>${escapeHtml(item.label)}</th>
         <td class="numeric">${number.format(item.count)}</td>
         <td class="numeric">${share.format(item.share)}%</td>
       </tr>`,
@@ -134,6 +136,14 @@ export const renderAnalysisReportHtml = (
   const excluded = model.excluded.shown
     .map((city) => `<li>${escapeHtml(city.name)}</li>`)
     .join("");
+
+  // O alt diz o recorte, e não só "Resultado no mapa": as cores de cada
+  // município estão na tabela de distribuição logo abaixo.
+  const mapAlt = `${t("reportMap")}. ${t("reportScope", {
+    area: model.scope.area,
+    value: model.scope.value,
+    level: model.scope.level,
+  })}`;
 
   const coverage = model.coverage
     ? `<p>${escapeHtml(
@@ -169,18 +179,20 @@ export const renderAnalysisReportHtml = (
     <h2>${escapeHtml(t("reportParameters"))}</h2>
 
     <table>
+      <caption class="sr-only">${escapeHtml(t("criterios"))}</caption>
       <thead><tr>
-        <th>${escapeHtml(t("reportCriterionColumn"))}</th>
-        <th class="numeric">${escapeHtml(t("reportWeightColumn"))}</th>
-        <th>${escapeHtml(t("reportDirectionColumn"))}</th>
+        <th scope="col">${escapeHtml(t("reportCriterionColumn"))}</th>
+        <th scope="col" class="numeric">${escapeHtml(t("reportWeightColumn"))}</th>
+        <th scope="col">${escapeHtml(t("reportDirectionColumn"))}</th>
       </tr></thead>
       <tbody>${criteria}</tbody>
     </table>
 
     <table class="thresholds">
+      <caption class="sr-only">${escapeHtml(t("limiares"))}</caption>
       <thead><tr>
-        <th>${escapeHtml(t("reportThresholdColumn"))}</th>
-        <th class="numeric">${escapeHtml(t("reportValueColumn"))}</th>
+        <th scope="col">${escapeHtml(t("reportThresholdColumn"))}</th>
+        <th scope="col" class="numeric">${escapeHtml(t("reportValueColumn"))}</th>
       </tr></thead>
       <tbody>${thresholds}</tbody>
     </table>
@@ -193,17 +205,18 @@ export const renderAnalysisReportHtml = (
 
   <section>
     <h2>${escapeHtml(t("reportMap"))}</h2>
-    <img class="map" src="${escapeHtml(mapPng)}" alt="${escapeHtml(t("reportMap"))}">
+    <img class="map" src="${escapeHtml(mapPng)}" alt="${escapeHtml(mapAlt)}">
   </section>
 
   <section>
     <h2>${escapeHtml(t("reportDistribution"))}</h2>
     ${coverage}
     <table>
+      <caption class="sr-only">${escapeHtml(t("reportDistribution"))}</caption>
       <thead><tr>
-        <th>${escapeHtml(t("reportClassColumn"))}</th>
-        <th class="numeric">${escapeHtml(t("reportCountColumn"))}</th>
-        <th class="numeric">${escapeHtml(t("reportShareColumn"))}</th>
+        <th scope="col">${escapeHtml(t("reportClassColumn"))}</th>
+        <th scope="col" class="numeric">${escapeHtml(t("reportCountColumn"))}</th>
+        <th scope="col" class="numeric">${escapeHtml(t("reportShareColumn"))}</th>
       </tr></thead>
       <tbody>${distribution}</tbody>
     </table>

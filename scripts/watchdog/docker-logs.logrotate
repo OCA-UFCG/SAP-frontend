@@ -1,0 +1,16 @@
+# Rotação dos logs dos containers Docker, instalada em /etc/logrotate.d/ pelo
+# install.sh. Sem ela o log do nginx cresce para sempre (passava de 1 GB no
+# beta em 10/2026).
+#
+# Só gira o log que passou de 100 MB, então o de container pequeno fica
+# intacto. Cada container ocupa no máximo ~100 MB mais 5 cópias comprimidas.
+# O copytruncate deixa o Docker continuar escrevendo no mesmo arquivo, sem
+# reiniciar container nenhum.
+/var/lib/docker/containers/*/*-json.log {
+    size 100M
+    rotate 5
+    compress
+    copytruncate
+    missingok
+    notifempty
+}

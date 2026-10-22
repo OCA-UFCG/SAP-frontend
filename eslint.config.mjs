@@ -1,5 +1,6 @@
 // For more info, see https://github.com/storybookjs/eslint-plugin-storybook#configuration-flat-config-format
 import storybook from "eslint-plugin-storybook";
+import jsxA11y from "eslint-plugin-jsx-a11y";
 
 import { defineConfig, globalIgnores } from "eslint/config";
 import nextVitals from "eslint-config-next/core-web-vitals";
@@ -20,6 +21,24 @@ const eslintConfig = defineConfig([
     ".claude/**",
   ]),
   ...storybook.configs["flat/recommended"],
+
+  // Acessibilidade (LBI, art. 63): o eslint-config-next liga só meia dúzia de
+  // regras do jsx-a11y, como aviso. Aqui o conjunto recomendado vira erro, para
+  // que um clique sem teclado ou uma imagem sem alt não cheguem à main.
+  {
+    files: ["src/**/*.tsx"],
+    rules: {
+      ...jsxA11y.flatConfigs.recommended.rules,
+      // Quebra com o `minimatch@10` forçado em `overrides` no package.json: o
+      // plugin importa o default, que a v10 não exporta mais. Rótulos de campo
+      // ficam cobertos pelo axe nos testes do Storybook.
+      "jsx-a11y/label-has-associated-control": "off",
+      // O eMAG 3.1 (recomendação 1.5) pede os atalhos accesskey 1 a 4 no topo
+      // da página, que os sites do governo seguem. A regra proíbe qualquer
+      // accesskey; as quatro teclas ficam num lugar só (skipTargets.ts).
+      "jsx-a11y/no-access-key": "off",
+    },
+  },
 
   // Keep lint strict for the app, but relax a few rules for server/API glue code
   // and integration layers where `any` is sometimes unavoidable.

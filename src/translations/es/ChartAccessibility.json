@@ -1,0 +1,16 @@
+{
+  "ChartAccessibility": {
+    "legendLabel": "Leyenda",
+    "showTable": "Ver datos en tabla",
+    "hideTable": "Ocultar tabla de datos",
+    "period": "Período",
+    "noValue": "Sin dato",
+    "range": "Datos de {first} a {last}, {count} clases.",
+    "peak": "Valor más alto: {series}, {value} en {period}.",
+    "latest": "En {period}, la clase con el valor más alto es {series}, con {value}.",
+    "temporalVisionLabel": "Gráfico de la serie histórica por clase",
+    "reportChartLabel": "Gráfico de {title}",
+    "alertTiersLabel": "Gráfico circular con la distribución por clase. Los mismos valores están en la lista al lado.",
+    "seriesUnavailable": "Serie temporal no disponible para la visualización dinámica."
+  }
+}

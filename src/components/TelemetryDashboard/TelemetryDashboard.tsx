@@ -95,11 +95,11 @@ function SummaryCard({
 }) {
   return (
     <article className="rounded-2xl border border-[#E4E5E2] bg-white p-5 shadow-sm">
-      <p className="text-sm font-semibold uppercase tracking-[0.08em] text-[#7E797B]">
+      <p className="text-sm font-semibold uppercase tracking-[0.08em] text-[#6E696B]">
         {title}
       </p>
       <p className="mt-3 text-3xl font-semibold text-[#292829]">{value}</p>
-      <p className="mt-2 text-sm text-[#7E797B]">{helper}</p>
+      <p className="mt-2 text-sm text-[#6E696B]">{helper}</p>
     </article>
   );
 }
@@ -120,7 +120,7 @@ function SurfaceSummaryCard({ entries }: { entries: TelemetryCountEntry[] }) {
 
   return (
     <article className="rounded-2xl border border-[#E4E5E2] bg-white p-5 shadow-sm">
-      <p className="text-sm font-semibold uppercase tracking-[0.08em] text-[#7E797B]">
+      <p className="text-sm font-semibold uppercase tracking-[0.08em] text-[#6E696B]">
         Logs por superfície
       </p>
       <div className="mt-4 grid grid-cols-2 gap-3">
@@ -138,7 +138,7 @@ function SurfaceSummaryCard({ entries }: { entries: TelemetryCountEntry[] }) {
           </div>
         ))}
       </div>
-      <p className="mt-3 text-sm text-[#7E797B]">
+      <p className="mt-3 text-sm text-[#6E696B]">
         Quantidade de logs recentes por origem.
       </p>
     </article>
@@ -166,7 +166,7 @@ function RankedList({
     <section className="rounded-2xl border border-[#E4E5E2] bg-white p-5 shadow-sm">
       <h2 className="text-lg font-semibold text-[#292829]">{title}</h2>
       {entries.length === 0 ? (
-        <p className="mt-4 text-sm text-[#7E797B]">{emptyLabel}</p>
+        <p className="mt-4 text-sm text-[#6E696B]">{emptyLabel}</p>
       ) : (
         <ul className="mt-4 space-y-3">
           {entries.map((entry) => (
@@ -195,7 +195,7 @@ function formatEventTimestamp(value: string) {
 function EventTable({ events }: { events: PersistedTelemetryEvent[] }) {
   if (events.length === 0) {
     return (
-      <section className="rounded-2xl border border-dashed border-[#D6D8D2] bg-[#F6F7F6] p-6 text-sm text-[#7E797B]">
+      <section className="rounded-2xl border border-dashed border-[#D6D8D2] bg-[#F6F7F6] p-6 text-sm text-[#6E696B]">
         Nenhum log persistido ainda. Depois que a busca e os toggles forem
         usados, esta tabela passa a mostrar os registros mais recentes.
       </section>
@@ -211,7 +211,7 @@ function EventTable({ events }: { events: PersistedTelemetryEvent[] }) {
       </div>
       <div className="overflow-x-auto">
         <table className="min-w-full divide-y divide-[#E4E5E2] text-left text-sm">
-          <thead className="bg-[#F6F7F6] text-[#7E797B]">
+          <thead className="bg-[#F6F7F6] text-[#6E696B]">
             <tr>
               <th className="px-5 py-3 font-medium">Recebido</th>
               <th className="px-5 py-3 font-medium">Evento</th>
@@ -226,7 +226,7 @@ function EventTable({ events }: { events: PersistedTelemetryEvent[] }) {
           <tbody className="divide-y divide-[#EFEFEF]">
             {events.map((event, index) => (
               <tr key={`${event.receivedAt}-${event.eventName}-${index}`}>
-                <td className="px-5 py-3 text-[#7E797B]">
+                <td className="px-5 py-3 text-[#6E696B]">
                   {formatEventTimestamp(event.receivedAt)}
                 </td>
                 <td className="px-5 py-3 font-medium text-[#292829]">
@@ -251,7 +251,7 @@ function EventTable({ events }: { events: PersistedTelemetryEvent[] }) {
                 <td className="px-5 py-3 text-[#292829]">
                   {event.activeDateLabel ?? "-"}
                 </td>
-                <td className="px-5 py-3 text-[#7E797B]">
+                <td className="px-5 py-3 text-[#6E696B]">
                   {[
                     event.selectionMethod,
                     event.resolvedLocationType,
@@ -299,7 +299,7 @@ function SourceSwitch({ source }: { source: TelemetrySource }) {
           aria-current={option.source === source ? "page" : undefined}
           className={
             option.source === source
-              ? "rounded-full bg-[#777E32] px-4 py-1.5 text-sm font-semibold text-white"
+              ? "rounded-full bg-[#5B612A] px-4 py-1.5 text-sm font-semibold text-white"
               : "rounded-full px-4 py-1.5 text-sm font-semibold text-[#5F5A5C] hover:text-[#292829]"
           }
         >
@@ -322,7 +322,7 @@ export function TelemetryDashboard({
     <div className="min-h-[calc(100vh-64px)] bg-[#F6F7F6] px-4 py-10 md:px-8 lg:px-12">
       <div className="mx-auto flex w-full max-w-7xl flex-col gap-8">
         <header className="rounded-[28px] bg-[linear-gradient(135deg,#E1E2B4_0%,#F6F7F6_55%,#FFFFFF_100%)] p-8 shadow-sm ring-1 ring-[#E4E5E2]">
-          <p className="text-sm font-semibold uppercase tracking-[0.14em] text-[#777E32]">
+          <p className="text-sm font-semibold uppercase tracking-[0.14em] text-[#5B612A]">
             Logs da plataforma
           </p>
           <h1 className="mt-3 text-3xl font-semibold tracking-tight text-[#292829] md:text-4xl">

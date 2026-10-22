@@ -66,6 +66,10 @@ const SELECTED_OUTLINE_WIDTH_PX = 5;
 // uma região, e o mouse e o clique só pegam o território já de perto. Antes
 // disso, valem os do estado e do município, como sem os territórios.
 const LABEL_MIN_ZOOM = 7;
+// Em destaque, o grupo é o assunto do mapa: os nomes dele aparecem desde o
+// Brasil inteiro, e a disputa por espaço deixa só os maiores territórios. Sem
+// isso, os únicos nomes à vista eram os de país e cidade do mapa base.
+const HIGHLIGHTED_LABEL_MIN_ZOOM = territoryVectorTiles.minZoom;
 export const TERRITORY_INTERACTION_MIN_ZOOM = 8;
 export const LABEL_FONT = "Noto Sans Bold";
 
@@ -84,6 +88,8 @@ export interface VectorOverlayPaint {
    * grupo em destaque, os deste somem em vez de poluir o escuro.
    */
   labelOpacity: number;
+  /** O grupo está em destaque: os nomes aparecem já de longe. */
+  highlighted: boolean;
   /** O território marcado (busca ou clique), com o contorno mais grosso. */
   selected: { name: string; municipality: string } | null;
   beforeId: string | undefined;
@@ -130,7 +136,7 @@ const selectedFilter = (
  * ajusta a opacidade e o marcado, se ele já está no mapa.
  *
  * applyVectorReferenceOverlay(map, "terras_indigenas", {
- *   fillOpacity: 0.45, lineOpacity: 1, labelOpacity: 1,
+ *   fillOpacity: 0.45, lineOpacity: 1, labelOpacity: 1, highlighted: false,
  *   selected: { name: "Kiriri", municipality: "Banzaê" },
  *   beforeId: anchor,
  * });
@@ -149,6 +155,9 @@ export function applyVectorReferenceOverlay(
   const selectedId = vectorSelectedLayerId(layerId);
   const labelId = vectorLabelLayerId(layerId);
   const common = { source: vectorSourceId(layerId), "source-layer": layerId };
+  const labelMinZoom = paint.highlighted
+    ? HIGHLIGHTED_LABEL_MIN_ZOOM
+    : LABEL_MIN_ZOOM;
 
   if (!map.getLayer(fillId)) {
     map.addLayer(
@@ -208,7 +217,7 @@ export function applyVectorReferenceOverlay(
       type: "symbol",
       source: vectorSourceId(layerId),
       "source-layer": `${layerId}_rotulos`,
-      minzoom: LABEL_MIN_ZOOM,
+      minzoom: labelMinZoom,
       layout: {
         "text-field": ["get", "name"],
         "text-font": [LABEL_FONT],
@@ -230,6 +239,9 @@ export function applyVectorReferenceOverlay(
   setPaint(map, haloId, "line-opacity", paint.lineOpacity);
   setPaint(map, outlineId, "line-opacity", paint.lineOpacity);
   setPaint(map, labelId, "text-opacity", paint.labelOpacity);
+  if (map.getLayer(labelId)?.minzoom !== labelMinZoom) {
+    map.setLayerZoomRange(labelId, labelMinZoom, 24);
+  }
   const filter = selectedFilter(paint.selected);
   if (!samePaint(map.getFilter(selectedId), filter)) {
     map.setFilter(selectedId, filter);

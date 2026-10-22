@@ -1,6 +1,7 @@
 #!/usr/bin/env bash
-# Instala (ou atualiza) o vigia na VM em que roda. Chamado pelo workflow
-# watchdog.yaml, com sudo, a partir da raiz do repositório.
+# Instala (ou atualiza) o vigia na VM em que roda, junto com a rotação dos logs
+# dos containers. Chamado pelo workflow watchdog.yaml, com sudo, a partir da
+# raiz do repositório.
 #
 # Lê do ambiente: WATCHDOG_TARGET_NAME, WATCHDOG_URL, WATCHDOG_WATCHER,
 # WATCHDOG_FAILURES_BEFORE_ALERT, WATCHDOG_REMINDER_MINUTES, ALERT_EMAIL_TO,
@@ -39,5 +40,9 @@ umask 022
 cat > /etc/cron.d/sedes-watchdog <<'EOF'
 * * * * * root flock -n /run/sedes-watchdog.lock /usr/bin/python3 /opt/sedes-watchdog/sedes_watchdog.py --env /etc/sedes-watchdog/env 2>&1 | logger -t sedes-watchdog
 EOF
+
+# Já gira agora o que passou do limite, em vez de esperar a rodada diária.
+install -m 644 scripts/watchdog/docker-logs.logrotate /etc/logrotate.d/docker-containers
+logrotate /etc/logrotate.d/docker-containers
 
 /usr/bin/python3 /opt/sedes-watchdog/sedes_watchdog.py --env /etc/sedes-watchdog/env --test-email

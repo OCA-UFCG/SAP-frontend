@@ -15,7 +15,7 @@ export const NavUnderline = ({
   <span
     aria-hidden
     className={cn(
-      "pointer-events-none absolute inset-x-4 bottom-0 h-[3px] origin-center rounded-full bg-[#777E32] transition-[scale] duration-300 ease-out",
+      "pointer-events-none absolute inset-x-4 bottom-0 h-[3px] origin-center rounded-full bg-[#5B612A] transition-[scale] duration-300 ease-out",
       active
         ? "scale-x-100"
         : "scale-x-0 group-hover:scale-x-100 group-has-[:focus-visible]:scale-x-100",
