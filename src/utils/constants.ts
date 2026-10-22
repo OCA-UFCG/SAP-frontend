@@ -31,7 +31,7 @@ export const channels: SedesChannelI[] = [
   // },
 ];
 
-export const sedesEmail = "sap.ufcg@gmail.com";
+export const sedesEmail = "oca@lsd.ufcg.edu.br";
 
 export const statesObj = {
   ac: "Acre",
