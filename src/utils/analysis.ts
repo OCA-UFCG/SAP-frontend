@@ -19,7 +19,7 @@ export interface AnalysisDistributionItem {
 export interface AnalysisHighlight {
   label: string;
   text: string;
-  value: number;
+  areaShare?: number;
   tone: AnalysisTone;
 }
 

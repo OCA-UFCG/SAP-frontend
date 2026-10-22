@@ -615,17 +615,14 @@ export function AnalysisPanel({
     onRankingItemSelect?.(locationKey);
   };
 
-  const highlightValue =
+  const areaShare = model?.highlight?.areaShare;
+  const highlightText =
     model?.highlight &&
-    (model.valueType === "absolute"
-      ? formatAnalysisValue(
-          model.highlight.value,
-          model.valueType,
-          model.valueUnit,
-        )
-      : t("dominantShare", {
-          value: formatAnalysisValue(model.highlight.value),
-        }));
+    (areaShare === undefined
+      ? model.highlight.text
+      : `${model.highlight.text} (${t("dominantShare", {
+          value: formatAnalysisValue(areaShare),
+        })})`);
 
   return (
     <div
@@ -726,18 +723,20 @@ export function AnalysisPanel({
                   }}
                 >
                   <span className="font-semibold text-[0.875rem] leading-5 text-[#292829]">
-                    {`${model.highlight.text} (${highlightValue})`}
+                    {highlightText}
                   </span>
                 </div>
               ) : null}
             </div>
 
-            <DistributionSection
-              items={model.distribution}
-              valueType={model.valueType}
-              valueUnit={model.valueUnit}
-              title={model.distributionTitle}
-            />
+            {model.distribution.length > 1 ? (
+              <DistributionSection
+                items={model.distribution}
+                valueType={model.valueType}
+                valueUnit={model.valueUnit}
+                title={model.distributionTitle}
+              />
+            ) : null}
             <RankingSection
               title={model.rankingTitle ?? t("territoriesByClassification")}
               groups={model.rankingGroups}

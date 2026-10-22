@@ -267,7 +267,7 @@ describe("AnalysisPanel", () => {
       highlight: {
         label: "Úmido",
         text: "Região majoritariamente classificada como: Úmido",
-        value: 86.7,
+        areaShare: 86.7,
         tone: {
           color: "#3A3D1F",
           bg: "rgba(58, 61, 31, 0.16)",
@@ -290,15 +290,23 @@ describe("AnalysisPanel", () => {
     ).not.toBeInTheDocument();
   });
 
-  it("shows absolute values with their unit in the overview box", () => {
+  it("shows only the location sentence for a single-indicator layer", () => {
     renderPanel({
       ...model,
       valueType: "absolute",
       valueUnit: "registros",
+      distributionTitle: "Quantidade de registros no ano",
+      distribution: [
+        {
+          id: "registros-secas-estiagens",
+          label: "Registros de Secas e Estiagens do S2ID",
+          value: 2,
+          color: "#8c2d04",
+        },
+      ],
       highlight: {
-        label: "Registros de secas e estiagens",
-        text: "Registros de secas e estiagens",
-        value: 247,
+        label: "Registros de Secas e Estiagens do S2ID",
+        text: "Registros de Secas e Estiagens do S2ID em Mato Grosso: 2 registros.",
         tone: {
           color: "#8c2d04",
           bg: "rgba(140, 45, 4, 0.16)",
@@ -308,8 +316,13 @@ describe("AnalysisPanel", () => {
     });
 
     expect(
-      screen.getByText("Registros de secas e estiagens (247 registros)"),
+      screen.getByText(
+        "Registros de Secas e Estiagens do S2ID em Mato Grosso: 2 registros.",
+      ),
     ).toBeInTheDocument();
+    expect(
+      screen.queryByText("Quantidade de registros no ano"),
+    ).not.toBeInTheDocument();
   });
 
   it("hides classes without any state", () => {

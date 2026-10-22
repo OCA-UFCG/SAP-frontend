@@ -140,6 +140,30 @@ function formatTemplate(
   });
 }
 
+function formatCompactValue(
+  data: CompactTerritorialAnalysisDataset,
+  value: number,
+): string {
+  return data.valueConfig?.type === "absolute"
+    ? formatAbsoluteNumber(value, "pt-BR")
+    : formatPercentageNumber(value, "pt-BR");
+}
+
+function getLocationSummaryTemplate(
+  data: CompactTerritorialAnalysisDataset,
+  locationKey: string,
+): string | undefined {
+  if (locationKey === "br") {
+    return data.templates?.country;
+  }
+
+  if (isMunicipalityLocationKey(locationKey)) {
+    return data.templates?.municipality ?? data.templates?.state;
+  }
+
+  return data.templates?.state;
+}
+
 function buildCompactDistributionItems(
   data: CompactTerritorialAnalysisDataset,
   locationKey: string,
@@ -248,6 +272,8 @@ function getCompactAnalysisDataset(
 function buildCompactHighlight(
   data: CompactTerritorialAnalysisDataset,
   dominant: AnalysisDistributionItem | null,
+  name: string,
+  locationKey: string,
   tCaption?: TranslateFunction,
 ): AnalysisHighlight | null {
   if (!dominant) {
@@ -261,16 +287,41 @@ function buildCompactHighlight(
   }
 
   const translatedLabel = translate(compactClass.label, tCaption);
+  const tone = getCompactClassTone(compactClass);
+  const summaryTemplate =
+    data.classes.length === 1
+      ? getLocationSummaryTemplate(data, locationKey)
+      : undefined;
+
+  if (summaryTemplate) {
+    const values = {
+      name,
+      label: translatedLabel,
+      value: formatCompactValue(data, dominant.value),
+    };
+
+    return {
+      label: translatedLabel,
+      text: formatTemplate(
+        translate(summaryTemplate, tCaption, values),
+        values,
+      ),
+      tone,
+    };
+  }
+
   const rawTemplate = data.templates?.highlight ?? DEFAULT_HIGHLIGHT_TEMPLATE;
   const translatedTemplate = translate(rawTemplate, tCaption, {
     label: translatedLabel,
   });
+  const isAreaShare =
+    data.classes.length > 1 && data.valueConfig?.type !== "absolute";
 
   return {
     label: translatedLabel,
     text: formatTemplate(translatedTemplate, { label: translatedLabel }),
-    value: dominant.value,
-    tone: getCompactClassTone(compactClass),
+    areaShare: isAreaShare ? dominant.value : undefined,
+    tone,
   };
 }
 
@@ -431,8 +482,14 @@ function buildCompactTerritorialAnalysisViewModel(
     tCaption,
   );
   const dominant = getDominantDistributionItem(distribution);
-  const highlight = buildCompactHighlight(data, dominant, tCaption);
   const name = getCompactLocationName(data, resolvedLocationKey);
+  const highlight = buildCompactHighlight(
+    data,
+    dominant,
+    name,
+    resolvedLocationKey,
+    tCaption,
+  );
   const rawRankingTitle = data.ranking?.title ?? DEFAULT_RANKING_TITLE;
   const translatedRankingTitle = translate(rawRankingTitle, tCaption);
 

@@ -37,6 +37,10 @@ describe("analysis.mappers", () => {
         },
       ],
       locations: { br: "Brasil", pe: "Pernambuco" },
+      templates: {
+        country: "Total de registros em {name} no ano: {value}.",
+        highlight: "Registros de secas e estiagens",
+      },
       years: {
         "2025": {
           imageId: "s2id",
@@ -53,12 +57,49 @@ describe("analysis.mappers", () => {
     );
 
     expect(model?.distribution[0]?.value).toBe(247);
-    expect(model?.highlight?.value).toBe(247);
+    expect(model?.highlight?.text).toBe(
+      "Total de registros em Brasil no ano: 247.",
+    );
+    expect(model?.highlight?.areaShare).toBeUndefined();
     expect(model?.valueType).toBe("absolute");
     expect(model?.valueUnit).toBe("registros");
     expect(model?.rankingGroups[0]?.items[0]?.trailingLabel).toBe(
       "31 registros",
     );
+  });
+
+  it("puts the location sentence of a single-indicator layer in the highlight", () => {
+    const layer = buildLayer({
+      schemaVersion: 1,
+      type: "territorial-compact",
+      defaultYear: "2024",
+      classes: [
+        { id: "pobreza-rural", label: "Pobreza rural", color: "#7f0000" },
+      ],
+      locations: { br: "Brasil", pe: "Pernambuco" },
+      templates: {
+        state: "Percentual de pobreza rural em {name}: {value}%.",
+        highlight: "Pobreza rural",
+      },
+      years: {
+        "2024": {
+          imageId: "pob-rural",
+          valuesScale: 1,
+          values: { br: [20], pe: [35] },
+        },
+      },
+    });
+
+    const model = buildEmbeddedTerritorialAnalysisViewModel(
+      layer,
+      "2024",
+      "pe",
+    );
+
+    expect(model?.highlight?.text).toBe(
+      "Percentual de pobreza rural em Pernambuco: 35,00%.",
+    );
+    expect(model?.highlight?.areaShare).toBeUndefined();
   });
 
   it("shows all classes and ranks each one by its own top 5 positive states", () => {
@@ -188,7 +229,7 @@ describe("analysis.mappers", () => {
     expect(model?.highlight).toMatchObject({
       label: "Classe A",
       text: "Região maioritariamente Classe A",
-      value: 80,
+      areaShare: 80,
     });
     expect(model?.rankingTitle).toBeUndefined();
     expect(model?.rankingGroups).toEqual([]);
