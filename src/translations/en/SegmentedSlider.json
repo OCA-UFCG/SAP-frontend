@@ -1,9 +1,9 @@
 {
   "SegmentedSlider": {
-    "ariaLabel": "Criteria distribution",
+    "ariaLabel": "Indicator distribution",
     "weightInputAria": "Weight of {label}",
     "segmentAria": "{label}: {percent}%",
-    "editButton": "Add or edit criteria",
-    "editButtonAria": "Edit criteria, {count} selected"
+    "editButton": "Add or edit indicators",
+    "editButtonAria": "Edit indicators, {count} selected"
   }
 }
