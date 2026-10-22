@@ -23,7 +23,7 @@ const logo = readFileSync(
 describe("public/logo-sedes.svg", () => {
   it("é o vetor original, não um traçado de bitmap", () => {
     const paths = logo.match(/<path/g) ?? [];
-    expect(paths.length).toBe(9);
+    expect(paths.length).toBe(15);
   });
 
   it("usa curvas de Bézier, que um traçado por pixel nunca produz", () => {
@@ -36,6 +36,6 @@ describe("public/logo-sedes.svg", () => {
   });
 
   it("mantém o viewBox que Header e Footer assumem", () => {
-    expect(logo).toContain('viewBox="0 0 128 46"');
+    expect(logo).toContain('viewBox="0 0 2671 902"');
   });
 });
