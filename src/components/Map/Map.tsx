@@ -598,6 +598,7 @@ const Map = ({
         if (
           !uf &&
           mapModeRef.current === "platform" &&
+          map.getSource(STATES_SOURCE_ID) &&
           map.isSourceLoaded(STATES_SOURCE_ID)
         ) {
           log("click outside Brazil: back to the national scope");

@@ -302,6 +302,7 @@ describe("Map lifecycle", () => {
       "brazil-states",
       expect.objectContaining({
         tiles: [expect.stringContaining("/api/tiles/{z}/{x}/{y}")],
+        maxzoom: 6,
       }),
     );
     expect(firstInstance.addSource).toHaveBeenCalledWith(
@@ -931,6 +932,27 @@ describe("Map lifecycle", () => {
       spatialArea: "national",
       spatialValue: "brasil",
     });
+    expect(onStateSelect).not.toHaveBeenCalled();
+  });
+
+  it("keeps the selection while the states source is missing", () => {
+    const onStateSelect = vi.fn();
+
+    render(
+      <Map
+        center={[-15.749997, -47.9499962]}
+        estadoSelecionado="PB"
+        onStateSelect={onStateSelect}
+      />,
+    );
+
+    const firstInstance = mapInstances[0];
+    firstInstance.handlers.get("load")?.[0]?.({});
+    firstInstance.sources.delete("brazil-states");
+
+    firstInstance.handlers.get("click")?.[0]?.({ point: { x: 10, y: 10 } });
+
+    expect(firstInstance.isSourceLoaded).not.toHaveBeenCalled();
     expect(onStateSelect).not.toHaveBeenCalled();
   });
 

@@ -24,6 +24,7 @@ export const OSM_SOURCE_ID = "osm-base";
 export const OSM_LAYER_ID = "osm-layer";
 export const STATES_SOURCE_ID = "brazil-states";
 export const STATES_SOURCE_LAYER = "brazilstates";
+export const STATES_TILES_MAX_ZOOM = 6;
 export const CDI_SOURCE_ID = "cdi-data";
 export const GEE_SOURCE_ID = "gee-tiles";
 export const SATELLITE_SOURCE_ID = "satellite-base";
@@ -231,6 +232,7 @@ export const ensureMapLayers = (
     map.addSource(STATES_SOURCE_ID, {
       type: "vector",
       tiles: [statesTilesUrl],
+      maxzoom: STATES_TILES_MAX_ZOOM,
       promoteId: { [STATES_SOURCE_LAYER]: "SIGLA_UF" },
     });
   }
