@@ -5,28 +5,12 @@ import {
 import type { Document } from "@contentful/rich-text-types";
 import {
   AboutSectionI,
-  FooterI,
   IMainBanner,
   PartnerI,
   SectionHeaderI,
   TabsSectionI,
 } from "@/utils/interfaces";
 import { normalizeContentfulImage } from "@/utils/functions";
-
-const GET_FOOTER_PAGE = `
-  query GetFooterPage($locale: String!) {
-    footerCollection(limit: ${CONTENTFUL_COLLECTION_LIMIT}, locale: $locale) {
-      items {
-        sys {
-          id
-        }
-        name
-        path
-        appears
-      }
-    }
-  }
-`;
 
 const GET_HOME_PAGE = `
   query GetHomePage($locale: String!) {
@@ -185,19 +169,6 @@ const HOME_TAB_ORDER = [
 const ABOUT_HERO_IDENTIFIER = "sobre-nos";
 const ABOUT_SECTION_ORDER = ["sobre-seca", "sobre-desertificacao"] as const;
 
-interface FooterContentResponse {
-  footerCollection: {
-    items: Array<FooterEntry | null>;
-  };
-}
-
-interface FooterEntry {
-  sys: { id: string };
-  name: string;
-  path: string;
-  appears: boolean;
-}
-
 interface HomeContentResponse {
   bannerCollection: { items: Array<IMainBanner | null> };
   aboutCollection: { items: Array<AboutSectionI | null> };
@@ -286,30 +257,6 @@ export interface AboutPageContent {
 // Function to map the app locale to Contentful. This may be useful in the future. Currently, all content is mapped to 'en-US' in Contentful.
 function mapLocaleToContentful(locale?: string): string {
   return "en-US";
-}
-
-function mapFooterItem(item: FooterEntry): FooterI {
-  return {
-    id: item.sys.id,
-    name: item.name,
-    path: item.path,
-    appears: item.appears,
-  };
-}
-
-export async function getFooterContent(locale?: string): Promise<FooterI[]> {
-  try {
-    const data = await getContent<FooterContentResponse>(GET_FOOTER_PAGE, {
-      locale: mapLocaleToContentful(locale),
-    });
-
-    return (
-      data.footerCollection?.items.filter(isDefined).map(mapFooterItem) ?? []
-    );
-  } catch (error) {
-    console.error("Erro ao buscar footer no Contentful:", error);
-    return [];
-  }
 }
 
 export async function getHomePageContent(locale?: string): Promise<HomePageContent | null> {

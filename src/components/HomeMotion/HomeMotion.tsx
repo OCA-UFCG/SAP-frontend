@@ -2,7 +2,6 @@
 
 import {
   ElementType,
-  PointerEvent,
   ReactNode,
   useEffect,
   useRef,
@@ -149,34 +148,5 @@ export const CountUp = ({ value, durationMs = 1400 }: CountUpProps) => {
         {shownValue}
       </span>
     </span>
-  );
-};
-
-type SpotlightProps = {
-  className?: string;
-  children: ReactNode;
-};
-
-/**
- * Passa a posição do mouse a cada `[data-spotlight]` de dentro, em coordenadas
- * do próprio card, para o halo do `spotlight-card` (globals.css) seguir o
- * ponteiro.
- */
-export const Spotlight = ({ className, children }: SpotlightProps) => {
-  const onPointerMove = (event: PointerEvent<HTMLDivElement>) => {
-    if (event.pointerType !== "mouse") return;
-    const cards =
-      event.currentTarget.querySelectorAll<HTMLElement>("[data-spotlight]");
-    cards.forEach((card) => {
-      const rect = card.getBoundingClientRect();
-      card.style.setProperty("--mx", `${event.clientX - rect.left}px`);
-      card.style.setProperty("--my", `${event.clientY - rect.top}px`);
-    });
-  };
-
-  return (
-    <div className={className} onPointerMove={onPointerMove}>
-      {children}
-    </div>
   );
 };

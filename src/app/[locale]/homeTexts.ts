@@ -118,7 +118,11 @@ export function mergeHomeTexts(
     },
     features: {
       title: features?.title ?? base.features.title,
-      items: cms.features.length ? cms.features : base.features.items,
+      items: base.features.items.map(
+        (item) =>
+          cms.features.find((feature) => feature.module === item.module) ??
+          item,
+      ),
     },
     testimonials: {
       title: testimonials?.title ?? base.testimonials.title,

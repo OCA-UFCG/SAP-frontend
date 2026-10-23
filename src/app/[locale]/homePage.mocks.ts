@@ -157,11 +157,6 @@ export const MOCK_NEWS_CONTENT: HomeNewsItemI[] = [
     href: "/platform",
   },
   {
-    id: "territorios-tradicionais",
-    module: "monitoring",
-    href: "/platform",
-  },
-  {
     id: "relatorio-por-municipio",
     module: "communication",
     href: "/platform?section=communication",

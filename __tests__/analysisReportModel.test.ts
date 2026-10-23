@@ -105,7 +105,7 @@ describe("buildAnalysisReportModel", () => {
   it("dá a cada classe a cor que o mapa usa", () => {
     const { distribution } = model(citiesAtLevel(4, 1));
 
-    expect(distribution[0].color).toBe("#00FF00");
+    expect(distribution[0].color).toBe("#0094FF");
     expect(distribution[4].color).toBe("#FF0000");
     expect(distribution[4].label).toBe("priorityVeryHigh");
   });

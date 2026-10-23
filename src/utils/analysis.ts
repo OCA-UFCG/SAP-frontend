@@ -19,6 +19,7 @@ export interface AnalysisDistributionItem {
 export interface AnalysisHighlight {
   label: string;
   text: string;
+  areaShare?: number;
   tone: AnalysisTone;
 }
 
@@ -162,7 +163,6 @@ export interface TerritorialAnalysisViewModel {
   name: string;
   accentColor: string;
   highlight: AnalysisHighlight | null;
-  happening: string;
   distribution: AnalysisDistributionItem[];
   rankingTitle?: string;
   rankingGroups: AnalysisRankingGroup[];

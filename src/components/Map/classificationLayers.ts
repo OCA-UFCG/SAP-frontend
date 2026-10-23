@@ -83,10 +83,10 @@ export type MunicipalityOverviewGeoJson = FeatureCollection<
 
 /** Prioridade 0 (muito baixa) → 4 (muito alta), na ordem devolvida pelo backend. */
 export const CLASSIFICATION_COLORS = [
-  "#00FF00",
-  "#7FFF00",
-  "#FFFF00",
-  "#FFA500",
+  "#0094FF",
+  "#00FF03",
+  "#FFF500",
+  "#FFA100",
   "#FF0000",
 ] as const;
 

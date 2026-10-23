@@ -8,7 +8,7 @@
     },
     "productsSection": {
       "title": "Products",
-      "description": "Turn on a product to see it on the map. Open Details for charts and rankings."
+      "description": "Enable a product to see it on the map. Open Details for charts and rankings."
     },
     "categories": {
       "climate": "Climate Data",

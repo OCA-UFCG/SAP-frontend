@@ -1,13 +1,13 @@
 {
   "CriteriaModal": {
-    "title": "Agregar o editar criterios",
-    "description": "Agregue o retire los criterios que desee para componer el análisis. Puede agregar un máximo de 8.",
-    "searchPlaceholder": "Busque un criterio",
+    "title": "Agregar o editar indicadores",
+    "description": "Agregue o retire los indicadores que desee para componer el análisis. Puede agregar un máximo de 8.",
+    "searchPlaceholder": "Busque un indicador",
     "applyButton": "Aplicar",
     "infoAriaLabel": "Información sobre {name}",
     "infoTitle": "Información",
     "defaultDescription": "Descripción de {name}",
     "close": "Cerrar",
-    "searchLabel": "Buscar criterios"
+    "searchLabel": "Buscar indicadores"
   }
 }

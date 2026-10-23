@@ -39,6 +39,16 @@ describe("buildSeriesData", () => {
       { year: "2025", value: 2780 },
     ]);
   });
+
+  it("keeps the two decimals of indices between zero and one", () => {
+    const years: Array<[string, CompactAnalysisYearData]> = [
+      ["2010", { valuesScale: 1, values: { "2311306": [0.6512] } }],
+    ];
+
+    expect(buildSeriesData(years, "2311306", 0)).toEqual([
+      { year: "2010", value: 0.65 },
+    ]);
+  });
 });
 
 describe("buildTemporalTableRows", () => {

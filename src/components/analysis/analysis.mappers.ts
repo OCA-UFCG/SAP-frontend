@@ -1,6 +1,7 @@
 import {
   formatAbsoluteNumber,
   formatPercentageNumber,
+  roundToDisplayedDecimals,
 } from "@/utils/formatTerritorialNumber";
 import citiesIndex from "@/data/citiesIndex.json";
 import { statesObj } from "@/utils/constants";
@@ -47,15 +48,8 @@ function getImageDataYearLabel(key: string, dataset?: PanelLayerI): string {
   return key === "general" ? "Padrão" : key;
 }
 
-const DEFAULT_HAPPENING_TEMPLATES = {
-  country:
-    "No Brasil, predomina a classe {label} com {value}% da área analisada.",
-  state:
-    "Em {name}, predomina a classe {label} com {value}% da área analisada.",
-  municipality:
-    "Em {name}, predomina a classe {label} com {value}% da área analisada.",
-  highlight: "Região maioritariamente {label}",
-};
+const DEFAULT_HIGHLIGHT_TEMPLATE = "Região maioritariamente {label}";
+const DEFAULT_SUMMARY_TEMPLATE = "{label} em {name}: {value}.";
 
 const DEFAULT_RANKING_TITLE = "Estados por classificação";
 const DEFAULT_RANKING_TOTAL_LABEL = "Estados";
@@ -157,6 +151,34 @@ function formatCompactValue(
     : formatPercentageNumber(value, "pt-BR");
 }
 
+function formatCompactValueWithUnit(
+  data: CompactTerritorialAnalysisDataset,
+  value: number,
+): string {
+  const formatted = formatCompactValue(data, value);
+  const unit =
+    data.valueConfig?.unit ??
+    (data.valueConfig?.type === "absolute" ? "" : "%");
+
+  if (!unit) return formatted;
+  return unit === "%" ? `${formatted}%` : `${formatted} ${unit}`;
+}
+
+function getLocationSummaryTemplate(
+  data: CompactTerritorialAnalysisDataset,
+  locationKey: string,
+): string | undefined {
+  if (locationKey === "br") {
+    return data.templates?.country;
+  }
+
+  if (isMunicipalityLocationKey(locationKey)) {
+    return data.templates?.municipality ?? data.templates?.state;
+  }
+
+  return data.templates?.state;
+}
+
 function buildCompactDistributionItems(
   data: CompactTerritorialAnalysisDataset,
   locationKey: string,
@@ -176,7 +198,7 @@ function buildCompactDistributionItems(
     id: item.id,
     label: translate(item.label, tCaption),
     color: item.color,
-    value: Number((((values[index] ?? 0) as number) / scale).toFixed(1)),
+    value: roundToDisplayedDecimals(((values[index] ?? 0) as number) / scale),
   }));
 }
 
@@ -265,6 +287,8 @@ function getCompactAnalysisDataset(
 function buildCompactHighlight(
   data: CompactTerritorialAnalysisDataset,
   dominant: AnalysisDistributionItem | null,
+  name: string,
+  locationKey: string,
   tCaption?: TranslateFunction,
 ): AnalysisHighlight | null {
   if (!dominant) {
@@ -278,16 +302,42 @@ function buildCompactHighlight(
   }
 
   const translatedLabel = translate(compactClass.label, tCaption);
-  const rawTemplate =
-    data.templates?.highlight ?? DEFAULT_HAPPENING_TEMPLATES.highlight;
+  const tone = getCompactClassTone(compactClass);
+
+  if (data.classes.length === 1) {
+    const summaryTemplate = getLocationSummaryTemplate(data, locationKey);
+    const values = {
+      name,
+      label: translatedLabel,
+      value: summaryTemplate
+        ? formatCompactValue(data, dominant.value)
+        : formatCompactValueWithUnit(data, dominant.value),
+    };
+
+    return {
+      label: translatedLabel,
+      text: formatTemplate(
+        translate(
+          summaryTemplate ?? DEFAULT_SUMMARY_TEMPLATE,
+          tCaption,
+          values,
+        ),
+        values,
+      ),
+      tone,
+    };
+  }
+
+  const rawTemplate = data.templates?.highlight ?? DEFAULT_HIGHLIGHT_TEMPLATE;
   const translatedTemplate = translate(rawTemplate, tCaption, {
     label: translatedLabel,
   });
-
   return {
     label: translatedLabel,
     text: formatTemplate(translatedTemplate, { label: translatedLabel }),
-    tone: getCompactClassTone(compactClass),
+    areaShare:
+      data.valueConfig?.type === "absolute" ? undefined : dominant.value,
+    tone,
   };
 }
 
@@ -329,8 +379,8 @@ function buildCompactRankingGroups(
       classIndex < data.classes.length;
       classIndex += 1
     ) {
-      const numericValue = Number(
-        (((values[classIndex] ?? 0) as number) / scale).toFixed(1),
+      const numericValue = roundToDisplayedDecimals(
+        ((values[classIndex] ?? 0) as number) / scale,
       );
 
       if (numericValue > dominantValue) {
@@ -448,28 +498,14 @@ function buildCompactTerritorialAnalysisViewModel(
     tCaption,
   );
   const dominant = getDominantDistributionItem(distribution);
-  const highlight = buildCompactHighlight(data, dominant, tCaption);
   const name = getCompactLocationName(data, resolvedLocationKey);
-  const rawTemplate =
-    resolvedLocationKey === "br"
-      ? (data.templates?.country ?? DEFAULT_HAPPENING_TEMPLATES.country)
-      : isMunicipalityLocationKey(resolvedLocationKey)
-        ? (data.templates?.municipality ??
-          data.templates?.state ??
-          DEFAULT_HAPPENING_TEMPLATES.municipality)
-        : (data.templates?.state ?? DEFAULT_HAPPENING_TEMPLATES.state);
-  const translatedTemplate = translate(
-    rawTemplate,
+  const highlight = buildCompactHighlight(
+    data,
+    dominant,
+    name,
+    resolvedLocationKey,
     tCaption,
-    dominant
-      ? {
-          name,
-          label: dominant.label,
-          value: formatCompactValue(data, dominant.value),
-        }
-      : undefined,
   );
-
   const rawRankingTitle = data.ranking?.title ?? DEFAULT_RANKING_TITLE;
   const translatedRankingTitle = translate(rawRankingTitle, tCaption);
 
@@ -478,13 +514,6 @@ function buildCompactTerritorialAnalysisViewModel(
     name,
     accentColor: dominant?.color ?? "#292829",
     highlight,
-    happening: dominant
-      ? formatTemplate(translatedTemplate, {
-          name,
-          label: dominant.label,
-          value: formatCompactValue(data, dominant.value),
-        })
-      : "",
     distribution,
     rankingTitle:
       resolvedLocationKey === "br" ? translatedRankingTitle : undefined,

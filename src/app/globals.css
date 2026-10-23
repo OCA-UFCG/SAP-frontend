@@ -98,15 +98,6 @@ textarea {
   }
 }
 
-@keyframes shine {
-  from {
-    transform: translateX(-120%) skewX(-20deg);
-  }
-  to {
-    transform: translateX(320%) skewX(-20deg);
-  }
-}
-
 @media (prefers-reduced-motion: no-preference) and (scripting: enabled) {
   /* Usa `transform`, e não `translate`/`scale`, para não brigar com o hover
      dos cards, que usa as propriedades separadas do Tailwind. */
@@ -132,57 +123,6 @@ textarea {
   to {
     opacity: 1;
   }
-}
-
-/* Faixa de luz que atravessa o botão no hover. */
-.shine {
-  position: relative;
-  overflow: hidden;
-  isolation: isolate;
-}
-
-.shine::after {
-  content: "";
-  position: absolute;
-  inset: 0;
-  width: 35%;
-  background: linear-gradient(
-    90deg,
-    transparent,
-    rgba(255, 255, 255, 0.35),
-    transparent
-  );
-  transform: translateX(-120%) skewX(-20deg);
-  pointer-events: none;
-  z-index: -1;
-}
-
-@media (prefers-reduced-motion: no-preference) {
-  .shine:hover::after {
-    animation: shine 800ms ease-out;
-  }
-}
-
-/* Brilho que segue o mouse (componente Spotlight): um halo dentro do card
-   que está sob o ponteiro. */
-.spotlight-card::before {
-  content: "";
-  position: absolute;
-  pointer-events: none;
-  opacity: 0;
-  transition: opacity 400ms ease;
-  inset: 0;
-  z-index: 1;
-  border-radius: inherit;
-  background: radial-gradient(
-    420px circle at var(--mx, 50%) var(--my, 50%),
-    rgba(240, 240, 215, 0.22),
-    transparent 60%
-  );
-}
-
-.spotlight-card:hover::before {
-  opacity: 1;
 }
 
 /* Movimento da plataforma. Mesmo combinado da home: tudo dentro de

@@ -83,8 +83,8 @@
       "semiarid": "Semi-arid region",
       "asdAndSurroundings": "ASD and surroundings"
     },
-    "generalInformation": "General information",
-    "whatIsHappening": "What is happening?",
+    "generalOverview": "General overview",
+    "dominantShare": "{value} of the analyzed area",
     "territoriesByClassification": "Territories by classification",
     "analysisUnavailable": "Analysis unavailable",
     "analysisDataNotAvailable": "Analysis data is not yet available for this location in this module.",

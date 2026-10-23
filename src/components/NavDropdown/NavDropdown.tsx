@@ -4,7 +4,6 @@ import { useRef, useState, type KeyboardEvent } from 'react';
 import { Link } from '@/translations/routing';
 import { ISection } from '@/utils/interfaces';
 import { cn } from '@/lib/utils';
-import { ArrowForwardIcon } from '@/components/HomeIcons/HomeIcons';
 import { NavUnderline } from '../NavItems/NavUnderline';
 
 export const NavDropdown = ({ item }: { item: ISection }) => {
@@ -118,13 +117,13 @@ export const NavDropdown = ({ item }: { item: ISection }) => {
         >
           {children.map((child, index) => (
             // Os itens entram em cascata ao abrir; no hover ganham a barra
-            // verde à esquerda e a seta, como as linhas de "Novidades".
+            // verde à esquerda, como as linhas de "Novidades".
             <Link
               key={child.id}
               href={child.path || '#'}
               onClick={(event) => event.currentTarget.blur()}
               style={{ transitionDelay: `${60 + index * 40}ms` }}
-              className="group/item relative flex items-center justify-between gap-6 px-4 py-2.5 text-sm font-medium text-neutral-800 opacity-0 transition-[opacity,translate,background-color,color] duration-300 hover:bg-[#F6F7F6] hover:text-[#4F5424] hover:delay-0! group-hover:opacity-100 group-focus-within:opacity-100 motion-safe:-translate-x-2 motion-safe:group-hover:translate-x-0 motion-safe:group-focus-within:translate-x-0"
+              className="group/item relative flex items-center px-4 py-2.5 text-sm font-medium text-neutral-800 opacity-0 transition-[opacity,translate,background-color,color] duration-300 hover:bg-[#F6F7F6] hover:text-[#4F5424] hover:delay-0! group-hover:opacity-100 group-focus-within:opacity-100 motion-safe:-translate-x-2 motion-safe:group-hover:translate-x-0 motion-safe:group-focus-within:translate-x-0"
             >
               <span
                 aria-hidden
@@ -133,10 +132,6 @@ export const NavDropdown = ({ item }: { item: ISection }) => {
               <span className="transition-[translate] duration-200 motion-safe:group-hover/item:translate-x-1">
                 {child.name}
               </span>
-              <ArrowForwardIcon
-                size={14}
-                className="text-[#646B2D] opacity-0 transition-[opacity,translate] duration-200 group-hover/item:opacity-100 motion-safe:-translate-x-1 motion-safe:group-hover/item:translate-x-0"
-              />
             </Link>
           ))}
         </div>

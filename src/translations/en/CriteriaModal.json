@@ -1,13 +1,13 @@
 {
   "CriteriaModal": {
-    "title": "Add or edit criteria",
-    "description": "Add or remove the criteria you want to compose the analysis. You can add up to 8.",
-    "searchPlaceholder": "Search for a criterion",
+    "title": "Add or edit indicators",
+    "description": "Add or remove the indicators you want to compose the analysis. You can add up to 8.",
+    "searchPlaceholder": "Search for an indicator",
     "applyButton": "Apply",
     "infoAriaLabel": "Information about {name}",
     "infoTitle": "Information",
     "defaultDescription": "Description of {name}",
     "close": "Close",
-    "searchLabel": "Search criteria"
+    "searchLabel": "Search indicators"
   }
 }
