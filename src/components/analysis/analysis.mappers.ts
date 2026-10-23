@@ -49,6 +49,7 @@ function getImageDataYearLabel(key: string, dataset?: PanelLayerI): string {
 }
 
 const DEFAULT_HIGHLIGHT_TEMPLATE = "Região maioritariamente {label}";
+const DEFAULT_SUMMARY_TEMPLATE = "{label} em {name}: {value}.";
 
 const DEFAULT_RANKING_TITLE = "Estados por classificação";
 const DEFAULT_RANKING_TOTAL_LABEL = "Estados";
@@ -148,6 +149,19 @@ function formatCompactValue(
   return data.valueConfig?.type === "absolute"
     ? formatAbsoluteNumber(value, "pt-BR")
     : formatPercentageNumber(value, "pt-BR");
+}
+
+function formatCompactValueWithUnit(
+  data: CompactTerritorialAnalysisDataset,
+  value: number,
+): string {
+  const formatted = formatCompactValue(data, value);
+  const unit =
+    data.valueConfig?.unit ??
+    (data.valueConfig?.type === "absolute" ? "" : "%");
+
+  if (!unit) return formatted;
+  return unit === "%" ? `${formatted}%` : `${formatted} ${unit}`;
 }
 
 function getLocationSummaryTemplate(
@@ -289,22 +303,25 @@ function buildCompactHighlight(
 
   const translatedLabel = translate(compactClass.label, tCaption);
   const tone = getCompactClassTone(compactClass);
-  const summaryTemplate =
-    data.classes.length === 1
-      ? getLocationSummaryTemplate(data, locationKey)
-      : undefined;
 
-  if (summaryTemplate) {
+  if (data.classes.length === 1) {
+    const summaryTemplate = getLocationSummaryTemplate(data, locationKey);
     const values = {
       name,
       label: translatedLabel,
-      value: formatCompactValue(data, dominant.value),
+      value: summaryTemplate
+        ? formatCompactValue(data, dominant.value)
+        : formatCompactValueWithUnit(data, dominant.value),
     };
 
     return {
       label: translatedLabel,
       text: formatTemplate(
-        translate(summaryTemplate, tCaption, values),
+        translate(
+          summaryTemplate ?? DEFAULT_SUMMARY_TEMPLATE,
+          tCaption,
+          values,
+        ),
         values,
       ),
       tone,
@@ -315,13 +332,11 @@ function buildCompactHighlight(
   const translatedTemplate = translate(rawTemplate, tCaption, {
     label: translatedLabel,
   });
-  const isAreaShare =
-    data.classes.length > 1 && data.valueConfig?.type !== "absolute";
-
   return {
     label: translatedLabel,
     text: formatTemplate(translatedTemplate, { label: translatedLabel }),
-    areaShare: isAreaShare ? dominant.value : undefined,
+    areaShare:
+      data.valueConfig?.type === "absolute" ? undefined : dominant.value,
     tone,
   };
 }

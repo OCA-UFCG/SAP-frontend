@@ -150,6 +150,49 @@ describe("analysis.mappers", () => {
     },
   );
 
+  it.each([
+    {
+      valueConfig: undefined,
+      value: 35,
+      expected: "Pobreza rural em Pernambuco: 35,00%.",
+    },
+    {
+      valueConfig: { type: "absolute" as const, unit: "registros" },
+      value: 31,
+      expected: "Pobreza rural em Pernambuco: 31 registros.",
+    },
+  ])(
+    "keeps the value of a single-indicator layer without location sentences ($expected)",
+    ({ valueConfig, value, expected }) => {
+      const layer = buildLayer({
+        schemaVersion: 1,
+        type: "territorial-compact",
+        defaultYear: "2024",
+        classes: [
+          { id: "pobreza-rural", label: "Pobreza rural", color: "#7f0000" },
+        ],
+        locations: { pe: "Pernambuco" },
+        valueConfig,
+        years: {
+          "2024": {
+            imageId: "pob-rural",
+            valuesScale: 1,
+            values: { pe: [value] },
+          },
+        },
+      });
+
+      const model = buildEmbeddedTerritorialAnalysisViewModel(
+        layer,
+        "2024",
+        "pe",
+      );
+
+      expect(model?.highlight?.text).toBe(expected);
+      expect(model?.highlight?.areaShare).toBeUndefined();
+    },
+  );
+
   it("shows all classes and ranks each one by its own top 5 positive states", () => {
     const layer = buildLayer({
       schemaVersion: 1,
