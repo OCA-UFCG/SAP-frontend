@@ -78,7 +78,7 @@ describe("getHomeTextsForLocale", () => {
     );
   });
 
-  it("keeps the first featured resource of each tool, in the tools order", async () => {
+  it("keeps one featured resource per tool, filling the missing ones from the translations", async () => {
     const feature = (id: string, module: "monitoring" | "analysis") => ({
       id,
       module,
@@ -102,6 +102,7 @@ describe("getHomeTextsForLocale", () => {
 
     expect(texts.features.items.map((item) => item.id)).toEqual([
       "seca",
+      "relatorio-por-municipio",
       "priorizacao",
     ]);
   });

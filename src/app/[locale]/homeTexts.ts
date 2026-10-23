@@ -7,7 +7,7 @@ import {
   HomeTextsContent,
   HomeTranslatedLocale,
 } from "@/repositories/content/homeTextsRepository";
-import { HomeFeatureI, HomeTestimonialI, HomeTextsI } from "@/utils/interfaces";
+import { HomeTestimonialI, HomeTextsI } from "@/utils/interfaces";
 import { MOCK_NEWS_CONTENT } from "./homePage.mocks";
 
 const HIGHLIGHT_KEYS = [
@@ -22,12 +22,6 @@ const HIGHLIGHT_KEYS = [
 const TOOL_IDS = ["monitoring", "communication", "analysis"] as const;
 
 const TESTIMONIAL_KEYS = ["1", "2", "3", "4", "5", "6"] as const;
-
-function oneFeaturePerTool(items: HomeFeatureI[]): HomeFeatureI[] {
-  return TOOL_IDS.flatMap(
-    (id) => items.find((item) => item.module === id) ?? [],
-  );
-}
 
 /** Os textos da home vindos dos arquivos de tradução do idioma da página. */
 async function getTranslatedHomeTexts(): Promise<HomeTextsI> {
@@ -124,9 +118,11 @@ export function mergeHomeTexts(
     },
     features: {
       title: features?.title ?? base.features.title,
-      items: cms.features.length
-        ? oneFeaturePerTool(cms.features)
-        : base.features.items,
+      items: base.features.items.map(
+        (item) =>
+          cms.features.find((feature) => feature.module === item.module) ??
+          item,
+      ),
     },
     testimonials: {
       title: testimonials?.title ?? base.testimonials.title,
