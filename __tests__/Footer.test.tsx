@@ -2,13 +2,6 @@ import { describe, expect, it, vi, beforeEach } from "vitest";
 import { cleanup, render, screen } from "@testing-library/react";
 import type { ISection } from "@/utils/interfaces";
 import { Footer } from "@/components/Footer/Footer";
-import { FooterSlot } from "@/components/Footer/FooterSlot";
-
-const usePathnameMock = vi.fn();
-
-vi.mock("next/navigation", () => ({
-  usePathname: () => usePathnameMock(),
-}));
 
 vi.mock("next/image", () => ({
   default: (props: React.ImgHTMLAttributes<HTMLImageElement>) => (
@@ -31,8 +24,6 @@ const footerContent: ISection[] = [
 describe("Footer", () => {
   beforeEach(() => {
     cleanup();
-    usePathnameMock.mockReset();
-    usePathnameMock.mockReturnValue("/");
   });
 
   it("uses the reduced large-screen spacing from the Figma footer", () => {
@@ -106,31 +97,5 @@ describe("Footer", () => {
 
     expect(footer).toHaveAttribute("id", "rodape");
     expect(footer).toHaveAttribute("tabindex", "-1");
-  });
-
-  // O rodapé faz parte da plataforma. O caminho vem com o prefixo de locale
-  // (`localePrefix: "always"`), então qualquer regra por rota precisa ser
-  // exercitada com o caminho real, e não com um "/platform" que nunca ocorre.
-  it("renders on the platform route", () => {
-    usePathnameMock.mockReturnValue("/pt/platform");
-
-    render(<FooterSlot content={footerContent} />);
-
-    expect(screen.getByAltText("SEDES")).toBeInTheDocument();
-  });
-
-  it("renders on the multicriteria route", () => {
-    usePathnameMock.mockReturnValue("/pt/platform/amfe");
-
-    render(<FooterSlot content={footerContent} />);
-
-    expect(screen.getByAltText("SEDES")).toBeInTheDocument();
-  });
-
-  it("renders on non-platform routes", () => {
-    render(<FooterSlot content={footerContent} />);
-
-    expect(screen.getByAltText("SEDES")).toBeInTheDocument();
-    expect(screen.getByTestId("social-channels")).toBeInTheDocument();
   });
 });

@@ -1,7 +1,7 @@
 import type { Metadata } from "next";
 import { Inter, Open_Sans } from "next/font/google";
 import { Header } from "@/components/Header/Header";
-import { FooterSlot } from "@/components/Footer/FooterSlot";
+import { Footer } from "@/components/Footer/Footer";
 import { ISections } from "@/utils/interfaces";
 import { AuthProvider } from "@/contexts/AuthContext";
 import { NextIntlClientProvider } from "next-intl";
@@ -147,7 +147,7 @@ export default async function RootLayout({
             >
               {children}
             </main>
-            <FooterSlot content={navigation} />
+            <Footer content={navigation} />
           </AuthProvider>
         </NextIntlClientProvider>
         <VLibras />
