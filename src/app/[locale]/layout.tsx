@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import { GoogleAnalytics } from "@next/third-parties/google";
 import { Inter, Open_Sans } from "next/font/google";
 import { Header } from "@/components/Header/Header";
 import { Footer } from "@/components/Footer/Footer";
@@ -41,6 +42,9 @@ const SITE_ICONS: Metadata["icons"] = {
   ],
   apple: [{ url: "/apple-icon.png", sizes: "180x180", type: "image/png" }],
 };
+
+// Só a imagem da produção recebe o ID; beta e máquina local não enviam visitas.
+const GA_ID = process.env.NEXT_PUBLIC_GA_ID;
 
 export default async function RootLayout({
   children,
@@ -152,6 +156,7 @@ export default async function RootLayout({
         </NextIntlClientProvider>
         <VLibras />
       </body>
+      {GA_ID && <GoogleAnalytics gaId={GA_ID} />}
     </html>
   );
 }
