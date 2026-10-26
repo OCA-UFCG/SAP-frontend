@@ -11,6 +11,7 @@ import { SkipLinks } from "@/components/SkipLinks/SkipLinks";
 import { SKIP_TARGETS } from "@/components/SkipLinks/skipTargets";
 import { VLibras } from "@/components/VLibras/VLibras";
 import { siteTitleMetadata } from "@/lib/page-metadata";
+import { htmlLang } from "@/translations/htmlLang";
 import "../globals.css";
 
 const inter = Inter({
@@ -129,7 +130,7 @@ export default async function RootLayout({
   );
 
   return (
-    <html lang={locale} data-scroll-behavior="smooth">
+    <html lang={htmlLang(locale)} data-scroll-behavior="smooth">
       <meta name="apple-mobile-web-app-title" content="Portal SEDES" />
       <body
         className={`${inter.variable} ${openSans.variable} antialiased min-h-screen flex flex-col`}

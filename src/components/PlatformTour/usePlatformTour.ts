@@ -100,6 +100,30 @@ function renderProgressDots(dom: PopoverDOM, { config, index }: HookOptions) {
   dom.progress.replaceChildren(label, dots);
 }
 
+/**
+ * Arruma o balão a cada passo. O rodapé do balão é uma tag `<footer>` fora do
+ * `<main>`, e por isso contava como um segundo rodapé da página: o atalho
+ * "Ir para o rodapé" e os leitores de tela ficavam com dois para escolher.
+ */
+function renderPopover(dom: PopoverDOM, options: HookOptions) {
+  dom.footer.setAttribute("role", "none");
+  renderProgressDots(dom, options);
+}
+
+/**
+ * O passo de boas-vindas não aponta para nada: o driver.js centraliza o balão
+ * num `div` vazio e marca esse `div` como "abre um diálogo", atributos que um
+ * `div` sem papel não pode ter. Ninguém chega nele pelo teclado, mas a marcação
+ * fica inválida. Roda depois do destaque, quando os atributos já foram postos.
+ */
+function clearDummyElementAria(element: Element | undefined) {
+  if (element) return;
+  const dummy = document.getElementById("driver-dummy-element");
+  dummy?.removeAttribute("aria-haspopup");
+  dummy?.removeAttribute("aria-expanded");
+  dummy?.removeAttribute("aria-controls");
+}
+
 /** Passos que apontam para controles por cima do mapa. */
 const MAP_CONTROL_STEP_ELEMENTS = [
   '[data-tour="map-settings"]',
@@ -181,7 +205,7 @@ function buildSteps(
         showButtons: ["next", "close"],
         onPopoverRender: (dom, options) => {
           // O onPopoverRender do passo substitui o da configuração geral.
-          renderProgressDots(dom, options);
+          renderPopover(dom, options);
 
           const logo = document.createElement("img");
           logo.src = "/green-sedes-logo.svg";
@@ -207,7 +231,7 @@ function buildSteps(
         side: "right",
         align: "start",
         onPopoverRender: (dom, options) => {
-          renderProgressDots(dom, options);
+          renderPopover(dom, options);
           renderSectionList(
             dom,
             PLATFORM_SECTIONS.map(({ id, icon }) => ({
@@ -314,7 +338,8 @@ export function usePlatformTour({
           doneBtnText: t("done"),
           closeBtnLabel: t("close"),
           popoverClass: "sedes-tour",
-          onPopoverRender: renderProgressDots,
+          onPopoverRender: renderPopover,
+          onHighlighted: clearDummyElementAria,
           // Um clique sem querer fora do balão não deve encerrar o tutorial;
           // para sair há o "×", o Esc e o "Pular".
           overlayClickBehavior: "none",

@@ -1,3 +1,5 @@
+import { htmlLang } from "@/translations/htmlLang";
+
 /** Fontes declaradas em `src/app/[locale]/layout.tsx` e usadas pelo documento. */
 const FONT_VARIABLE_NAMES = ["--font-open-sans", "--font-inter"];
 
@@ -73,7 +75,7 @@ export function buildReportPrintHtml(paper: HTMLElement, locale: string) {
     (name) => `${name}:${appBodyStyle.getPropertyValue(name)}`,
   ).join(";");
 
-  return `<!doctype html><html lang="${locale}"><head><meta charset="utf-8"><base href="${baseUrl}"><title></title>${styles}<style>body{${printFontVariables}}</style>${PRINT_OVERRIDES}</head><body>${paper.outerHTML}</body></html>`;
+  return `<!doctype html><html lang="${htmlLang(locale)}"><head><meta charset="utf-8"><base href="${baseUrl}"><title></title>${styles}<style>body{${printFontVariables}}</style>${PRINT_OVERRIDES}</head><body>${paper.outerHTML}</body></html>`;
 }
 
 /**

@@ -1,3 +1,4 @@
+import { htmlLang } from "@/translations/htmlLang";
 import type {
   AnalysisReportModel,
   CappedList,
@@ -156,7 +157,7 @@ export const renderAnalysisReportHtml = (
     : "";
 
   return `<!doctype html>
-<html lang="${escapeHtml(locale)}">
+<html lang="${escapeHtml(htmlLang(locale))}">
 <head>
   <meta charset="utf-8">
   <title>${escapeHtml(t("reportTitle"))}</title>

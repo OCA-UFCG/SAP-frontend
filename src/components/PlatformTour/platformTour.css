@@ -3,8 +3,8 @@
    especificidade, e não pela ordem em que as duas entram no bundle. */
 
 .driver-popover.sedes-tour {
-  --sedes-tour-olive: #646B2D;
-  --sedes-tour-olive-dark: #5B612A;
+  --sedes-tour-olive: #646b2d;
+  --sedes-tour-olive-dark: #5b612a;
   --sedes-tour-olive-deep: #21240f;
   --sedes-tour-cream: #f6f3f0;
   --sedes-tour-ease: cubic-bezier(0.22, 1, 0.36, 1);
@@ -136,7 +136,7 @@
   border-radius: 50%;
   font-size: 1.25rem;
   line-height: 28px;
-  color: #6E696B;
+  color: #6e696b;
   transition:
     color 150ms ease,
     background-color 150ms ease;
@@ -146,6 +146,13 @@
 .driver-popover.sedes-tour .driver-popover-close-btn:focus-visible {
   color: var(--sedes-tour-olive-deep);
   background-color: var(--sedes-tour-cream);
+}
+
+/* O driver.js foca o "×" ao abrir cada balão. Só o fundo creme quase não se
+   distingue do branco, e quem navega pelo teclado não via onde estava. */
+.driver-popover.sedes-tour .driver-popover-close-btn:focus-visible {
+  outline: 2px solid var(--sedes-tour-olive);
+  outline-offset: 2px;
 }
 
 .driver-popover.sedes-tour .driver-popover-footer {
@@ -225,8 +232,6 @@
   background-color: var(--sedes-tour-cream);
 }
 
-/* O driver.js foca o "×" ao abrir cada balão; nele o foco fica só no fundo,
-   para não acender um anel em toda abertura. */
 .driver-popover.sedes-tour .driver-popover-footer-btn:focus-visible {
   outline: 2px solid var(--sedes-tour-olive);
   outline-offset: 2px;
