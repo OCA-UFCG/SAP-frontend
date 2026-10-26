@@ -43,6 +43,21 @@ function compareKinds(left: string, right: string) {
   return kindRank(left) - kindRank(right) || left.localeCompare(right, "pt-BR");
 }
 
+const PERIODICITY_ORDER = ["monthly", "quarterly"];
+
+/** Variável, depois mensal antes de trimestral, depois fonte. */
+function compareForecastGroups(
+  left: ReportForecastGroup,
+  right: ReportForecastGroup,
+) {
+  return (
+    left.variable.localeCompare(right.variable, "pt-BR") ||
+    PERIODICITY_ORDER.indexOf(left.periodicity) -
+      PERIODICITY_ORDER.indexOf(right.periodicity) ||
+    left.source.localeCompare(right.source, "pt-BR")
+  );
+}
+
 function forecastGroupAlias(
   facets: Omit<MunicipalReportForecastFacets, "kind">,
 ) {
@@ -53,7 +68,9 @@ function forecastGroupAlias(
 
 /**
  * As seções do documento, na ordem das análises: cada previsão entra no lugar
- * da primeira análise do seu grupo, e as outras se juntam a ela.
+ * da primeira análise do seu grupo, e as outras se juntam a ela. Entre si, as
+ * previsões ficam por variável, periodicidade e fonte (Precipitação mensal
+ * CPTEC, INMET; Precipitação trimestral CPTEC, INMET; Temperatura...).
  *
  * @example
  * buildReportDocumentSections([anomaliaInmet, seca, acumuladoInmet]);
@@ -108,7 +125,13 @@ export function buildReportDocumentSections(
     );
   }
 
-  return sections;
+  const sortedGroups = [...all].sort(compareForecastGroups);
+  let next = 0;
+  return sections.map((section) =>
+    section.type === "forecast"
+      ? { type: "forecast", group: sortedGroups[next++] }
+      : section,
+  );
 }
 
 /**
