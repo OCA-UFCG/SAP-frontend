@@ -1,10 +1,7 @@
-import { useLocale, useTranslations } from "next-intl";
+import { useLocale } from "next-intl";
 import { Link } from "@/translations/routing";
 import { HomeFeatureI, PlatformModuleI } from "@/utils/interfaces";
-import {
-  ArrowForwardIcon,
-  MODULE_ICONS,
-} from "@/components/HomeIcons/HomeIcons";
+import { MODULE_ICONS } from "@/components/HomeIcons/HomeIcons";
 import { Reveal } from "@/components/HomeMotion/HomeMotion";
 import { revealOrder } from "@/components/HomeMotion/revealOrder";
 
@@ -18,7 +15,6 @@ type Props = {
 
 /** "Recursos em destaque": lista com a ferramenta, o recurso e o link. */
 export const NewsSection = ({ id, title, items, toolNames }: Props) => {
-  const t = useTranslations("NewsSection");
   // As datas são AAAA-MM-DD; em UTC o dia não muda com o fuso de quem lê.
   const formatDate = new Intl.DateTimeFormat(useLocale(), {
     day: "2-digit",
@@ -45,8 +41,7 @@ export const NewsSection = ({ id, title, items, toolNames }: Props) => {
                 style={revealOrder(index + 1)}
                 className="reveal-item border-b border-[#C8CAC5]"
               >
-                {/* No hover a linha clareia, ganha uma barra verde à esquerda
-                    e a seta corre para a direita. */}
+                {/* No hover a linha clareia e ganha uma barra verde à esquerda. */}
                 <Link
                   href={item.href}
                   className="group relative flex items-center gap-4 p-6 text-[#292829] transition-colors hover:bg-[#D9DBD6]"
@@ -72,10 +67,6 @@ export const NewsSection = ({ id, title, items, toolNames }: Props) => {
                       </time>
                     )}
                   </div>
-                  <span className="flex shrink-0 px-4 py-2 text-[#646B2D] transition-[translate,color] duration-300 group-hover:text-[#4F5424] motion-safe:group-hover:translate-x-2">
-                    <span className="sr-only">{t("learnMore")}</span>
-                    <ArrowForwardIcon size={16} />
-                  </span>
                 </Link>
               </li>
             );

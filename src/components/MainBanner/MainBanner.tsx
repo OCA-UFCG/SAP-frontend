@@ -13,11 +13,7 @@ import {
   CarouselArrow,
   CarouselTracker,
 } from "@/components/HomeCarousel/HomeCarousel";
-import {
-  ArrowForwardIcon,
-  PauseIcon,
-  PlayIcon,
-} from "@/components/HomeIcons/HomeIcons";
+import { PauseIcon, PlayIcon } from "@/components/HomeIcons/HomeIcons";
 
 /** Tempo de cada slide antes de passar sozinho para o próximo. */
 const AUTOPLAY_MS = 7000;
@@ -40,8 +36,7 @@ export function MainBanner({ banners, previews = [] }: MainBannerProps) {
   const t = useTranslations("MainBanner");
   const [active, setActive] = useState(0);
   const [paused, setPaused] = useState(false);
-  // Fotos que já chegaram. O zoom lento só começa depois, para não "andar"
-  // sobre o fundo preto; as seguintes também só aparecem inteiras, em fade.
+  // Fotos que já chegaram: as seguintes só aparecem inteiras, em fade.
   const [loaded, setLoaded] = useState<ReadonlySet<number>>(() => new Set());
   // Parado pelo botão de pausar: só volta a passar quando a pessoa aperta de
   // novo. Até ela apertar, quem pediu menos movimento no sistema vê parado.
@@ -113,11 +108,8 @@ export function MainBanner({ banners, previews = [] }: MainBannerProps) {
               // A primeira não espera o JavaScript para aparecer: no celular
               // ele pode levar segundos, e ela já chega leve.
               className={cn(
-                "object-cover object-center [transition:opacity_600ms_ease-out,scale_9000ms_ease-out]",
+                "object-cover object-center transition-opacity duration-[600ms] ease-out",
                 index !== 0 && !loaded.has(index) && "opacity-0",
-                index === active &&
-                  loaded.has(index) &&
-                  "motion-safe:scale-[1.08]",
               )}
             />
           )}
@@ -152,7 +144,7 @@ export function MainBanner({ banners, previews = [] }: MainBannerProps) {
               <div className="flex flex-col gap-4">
                 <h1
                   className={cn(
-                    "max-w-[784px] font-open-sans text-[2.25rem] font-bold leading-[1.2] text-[#F8F7F8] md:text-5xl",
+                    "max-w-[960px] font-open-sans text-[2.25rem] font-bold leading-[1.2] text-[#F8F7F8] md:text-5xl lg:text-[3.25rem] xl:text-[3.5rem]",
                     index === active && "reveal-item",
                   )}
                 >
@@ -177,15 +169,11 @@ export function MainBanner({ banners, previews = [] }: MainBannerProps) {
                 prefetch
                 style={revealOrder(2)}
                 className={cn(
-                  "shine group/cta flex h-10 w-full items-center justify-center gap-2 rounded-md bg-[#646B2D] px-4 py-2 font-inter text-sm font-medium leading-6 text-[#F8F7F8] transition-[background-color,box-shadow,scale] hover:bg-[#4F5424] hover:shadow-[0_8px_24px_rgba(152,159,67,0.45)] active:scale-[0.97] md:w-[302px] motion-safe:hover:scale-[1.03]",
+                  "flex h-10 w-full items-center justify-center gap-2 rounded-md bg-[#646B2D] px-4 py-2 font-inter text-sm font-medium leading-6 text-[#F8F7F8] transition-colors hover:bg-[#4F5424] md:w-[302px]",
                   index === active && "reveal-item",
                 )}
               >
                 {t("linkText", { linkText: data.linkText })}
-                <ArrowForwardIcon
-                  size={16}
-                  className="transition-transform motion-safe:group-hover/cta:translate-x-1"
-                />
               </Link>
             </div>
           ))}

@@ -1,9 +1,7 @@
 import type { Metadata } from "next";
 import { Inter, Open_Sans } from "next/font/google";
-import { cache } from "react";
 import { Header } from "@/components/Header/Header";
-import { FooterSlot } from "@/components/Footer/FooterSlot";
-import { getFooterContent } from "@/repositories/content/siteContentRepository";
+import { Footer } from "@/components/Footer/Footer";
 import { ISections } from "@/utils/interfaces";
 import { AuthProvider } from "@/contexts/AuthContext";
 import { NextIntlClientProvider } from "next-intl";
@@ -44,8 +42,6 @@ const SITE_ICONS: Metadata["icons"] = {
   ],
   apple: [{ url: "/apple-icon.png", sizes: "180x180", type: "image/png" }],
 };
-
-const getCachedFooterContent = cache(getFooterContent);
 
 // Só a imagem da produção recebe o ID; beta e máquina local não enviam visitas.
 const GA_ID = process.env.NEXT_PUBLIC_GA_ID;
@@ -128,7 +124,9 @@ export default async function RootLayout({
     },
   };
 
-  const footerContent = await getCachedFooterContent();
+  const navigation = Object.values(headerContent).filter(
+    (item) => item.appears,
+  );
 
   return (
     <html lang={locale} data-scroll-behavior="smooth">
@@ -139,11 +137,7 @@ export default async function RootLayout({
         <NextIntlClientProvider messages={messages}>
           <SkipLinks />
           <AuthProvider>
-            <Header
-              content={Object.values(headerContent).filter(
-                (item) => item.appears,
-              )}
-            ></Header>
+            <Header content={navigation}></Header>
             {/* Sem `min-h-0`: o rodapé fica depois do `main`, então encolher o
                 conteúdo abaixo da altura que ele pede faria o rodapé subir por
                 cima da plataforma em vez de esperar a rolagem. */}
@@ -157,7 +151,7 @@ export default async function RootLayout({
             >
               {children}
             </main>
-            <FooterSlot content={footerContent} />
+            <Footer content={navigation} />
           </AuthProvider>
           {GA_ID && <CookieConsent gaId={GA_ID} />}
         </NextIntlClientProvider>

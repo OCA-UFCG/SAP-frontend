@@ -3,6 +3,7 @@ import type {
   CompactAnalysisYearData,
 } from "@/utils/analysis";
 import type { ChartTableRow } from "@/utils/chartAccessibility";
+import { roundToDisplayedDecimals } from "@/utils/formatTerritorialNumber";
 
 /**
  * Os dados do gráfico de Visão temporal, fora do componente para que a tabela
@@ -75,7 +76,7 @@ export function buildSeriesData(
       year: yearData.year ?? yearKey,
       value:
         typeof rawValue === "number"
-          ? Number((rawValue / scale).toFixed(1))
+          ? roundToDisplayedDecimals(rawValue / scale)
           : null,
     };
   });

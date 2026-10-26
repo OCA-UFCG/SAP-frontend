@@ -1,9 +1,7 @@
-import { Fragment } from "react";
-import { FooterI } from "@/utils/interfaces";
+import { ISection } from "@/utils/interfaces";
 import { channels } from "@/utils/constants";
-import { sortContentByDesiredOrder } from "@/utils/functions";
 import Image from "next/image";
-import Link from "next/link";
+import { Link } from "@/translations/routing";
 import SocialChannels from "../ContactSection/SocialChannels";
 import { useTranslations } from "next-intl";
 import { AccessibilitySymbol } from "../AccessibilitySymbol/AccessibilitySymbol";
@@ -14,20 +12,8 @@ import { openCookiePreferences } from "@/lib/analytics-consent";
 // que escolher.
 const HAS_ANALYTICS = Boolean(process.env.NEXT_PUBLIC_GA_ID);
 
-export const Footer = ({ content }: { content: FooterI[] }) => {
+export const Footer = ({ content }: { content: ISection[] }) => {
   const t = useTranslations("Footer");
-
-  // Os mesmos links do menu do topo: Home, Glossário e Plataforma.
-  const mainPages = sortContentByDesiredOrder<FooterI>(content, [
-    "/",
-    "/map",
-  ]).filter((item) => item.appears);
-
-  const pathKeyMap: Record<string, string> = {
-    "/": "home",
-    "/map": "platform",
-    "/contact": "contact",
-  };
 
   return (
     <footer
@@ -47,43 +33,15 @@ export const Footer = ({ content }: { content: FooterI[] }) => {
         </div>
         <div className="flex w-full flex-col items-center gap-2 lg:min-h-8 lg:flex-1 lg:items-start lg:px-2">
           <div className="hidden flex-row items-center gap-6 lg:flex lg:min-h-8 lg:items-center">
-            {mainPages.map(({ id, path, name }) => {
-              const href = path === "/map" ? "/platform" : path;
-
-              const translationKey = pathKeyMap[path];
-              const label =
-                translationKey && t.has(translationKey)
-                  ? t(translationKey)
-                  : path === "/map"
-                    ? t("platform")
-                    : name;
-
-              const link = (
-                <a
-                  href={href}
-                  key={id}
-                  className="text-sm font-bold leading-5 text-white transition-opacity hover:opacity-60"
-                >
-                  {label}
-                </a>
-              );
-
-              if (path !== "/") {
-                return link;
-              }
-
-              return (
-                <Fragment key={id}>
-                  {link}
-                  <Link
-                    href="/glossary"
-                    className="text-sm font-bold leading-5 text-white transition-opacity hover:opacity-60"
-                  >
-                    {t("glossary")}
-                  </Link>
-                </Fragment>
-              );
-            })}
+            {content.map(({ id, name, path }) => (
+              <Link
+                key={id}
+                href={path}
+                className="text-sm font-bold leading-5 text-white transition-opacity hover:opacity-60"
+              >
+                {name}
+              </Link>
+            ))}
           </div>
           <p className="text-center text-xs leading-4 text-white lg:text-left">
             {t("institutions")}

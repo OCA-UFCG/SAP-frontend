@@ -8,7 +8,6 @@ vi.mock("@/infrastructure/contentful/client", () => ({
 import { getContent } from "@/infrastructure/contentful/client";
 import {
   getAboutPageContent,
-  getFooterContent,
   getHomePageContent,
 } from "@/repositories/content/siteContentRepository";
 
@@ -17,72 +16,6 @@ const mockedGetContent = vi.mocked(getContent);
 describe("siteContentRepository", () => {
   beforeEach(() => {
     mockedGetContent.mockReset();
-  });
-
-  it("maps footer entries to the footer contract used by the layout", async () => {
-    mockedGetContent.mockResolvedValue({
-      footerCollection: {
-        items: [
-          {
-            sys: { id: "footer-1" },
-            name: "Contato",
-            path: "/contact",
-            appears: true,
-          },
-        ],
-      },
-    });
-
-    const footer = await getFooterContent();
-
-    expect(footer).toEqual([
-      {
-        id: "footer-1",
-        name: "Contato",
-        path: "/contact",
-        appears: true,
-      },
-    ]);
-  });
-
-  it("returns an empty footer when the CMS request fails", async () => {
-    const consoleErrorSpy = vi
-      .spyOn(console, "error")
-      .mockImplementation(() => undefined);
-    mockedGetContent.mockRejectedValue(new Error("Contentful unavailable"));
-
-    const footer = await getFooterContent();
-
-    expect(footer).toEqual([]);
-
-    consoleErrorSpy.mockRestore();
-  });
-
-  it("ignores null footer items returned by Contentful", async () => {
-    mockedGetContent.mockResolvedValue({
-      footerCollection: {
-        items: [
-          null,
-          {
-            sys: { id: "footer-1" },
-            name: "Contato",
-            path: "/contact",
-            appears: true,
-          },
-        ],
-      },
-    });
-
-    const footer = await getFooterContent();
-
-    expect(footer).toEqual([
-      {
-        id: "footer-1",
-        name: "Contato",
-        path: "/contact",
-        appears: true,
-      },
-    ]);
   });
 
   it("returns home tabs in the page order instead of the CMS order", async () => {

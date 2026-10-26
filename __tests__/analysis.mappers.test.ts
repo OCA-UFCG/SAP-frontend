@@ -6,6 +6,7 @@ import {
 } from "@/components/analysis/analysis.mappers";
 import type { CompactTerritorialAnalysisDataset } from "@/utils/analysis";
 import type { PanelLayerI } from "@/utils/interfaces";
+import { buildValueTemplates } from "@/utils/municipalValueIndicator";
 
 function buildLayer(imageData: CompactTerritorialAnalysisDataset): PanelLayerI {
   return {
@@ -39,6 +40,7 @@ describe("analysis.mappers", () => {
       locations: { br: "Brasil", pe: "Pernambuco" },
       templates: {
         country: "Total de registros em {name} no ano: {value}.",
+        highlight: "Registros de secas e estiagens",
       },
       years: {
         "2025": {
@@ -56,13 +58,140 @@ describe("analysis.mappers", () => {
     );
 
     expect(model?.distribution[0]?.value).toBe(247);
-    expect(model?.happening).toBe("Total de registros em Brasil no ano: 247.");
+    expect(model?.highlight?.text).toBe(
+      "Total de registros em Brasil no ano: 247.",
+    );
+    expect(model?.highlight?.areaShare).toBeUndefined();
     expect(model?.valueType).toBe("absolute");
     expect(model?.valueUnit).toBe("registros");
     expect(model?.rankingGroups[0]?.items[0]?.trailingLabel).toBe(
       "31 registros",
     );
   });
+
+  it("puts the location sentence of a single-indicator layer in the highlight", () => {
+    const layer = buildLayer({
+      schemaVersion: 1,
+      type: "territorial-compact",
+      defaultYear: "2024",
+      classes: [
+        { id: "pobreza-rural", label: "Pobreza rural", color: "#7f0000" },
+      ],
+      locations: { br: "Brasil", pe: "Pernambuco" },
+      templates: {
+        state: "Percentual de pobreza rural em {name}: {value}%.",
+        highlight: "Pobreza rural",
+      },
+      years: {
+        "2024": {
+          imageId: "pob-rural",
+          valuesScale: 1,
+          values: { br: [20], pe: [35] },
+        },
+      },
+    });
+
+    const model = buildEmbeddedTerritorialAnalysisViewModel(
+      layer,
+      "2024",
+      "pe",
+    );
+
+    expect(model?.highlight?.text).toBe(
+      "Percentual de pobreza rural em Pernambuco: 35,00%.",
+    );
+    expect(model?.highlight?.areaShare).toBeUndefined();
+  });
+
+  it.each([
+    {
+      indicator: { label: "PIB", measurementUnit: "de reais", value: 1.93e9 },
+      expected: "PIB em Quixeramobim - CE: 1,93 bilhão de reais.",
+    },
+    {
+      indicator: { label: "IDH", measurementUnit: "", value: 0.65 },
+      expected: "IDH em Quixeramobim - CE: 0,65.",
+    },
+  ])(
+    "summarizes the $indicator.label spreadsheet indicator in the highlight",
+    ({ indicator, expected }) => {
+      const layer = buildLayer({
+        schemaVersion: 1,
+        type: "territorial-compact",
+        defaultYear: "2023",
+        classes: [
+          { id: "indicator", label: indicator.label, color: "#f6c26b" },
+        ],
+        locations: { "2311306": "Quixeramobim - CE" },
+        templates: buildValueTemplates({
+          label: indicator.label,
+          color: "#f6c26b",
+          measurementUnit: indicator.measurementUnit,
+          valueType: "absolute",
+        }),
+        valueConfig: { type: "absolute", unit: indicator.measurementUnit },
+        years: {
+          "2023": {
+            imageId: "indicator",
+            valuesScale: 1,
+            values: { "2311306": [indicator.value] },
+          },
+        },
+      });
+
+      const model = buildEmbeddedTerritorialAnalysisViewModel(
+        layer,
+        "2023",
+        "2311306",
+      );
+
+      expect(model?.highlight?.text).toBe(expected);
+      expect(model?.highlight?.areaShare).toBeUndefined();
+    },
+  );
+
+  it.each([
+    {
+      valueConfig: undefined,
+      value: 35,
+      expected: "Pobreza rural em Pernambuco: 35,00%.",
+    },
+    {
+      valueConfig: { type: "absolute" as const, unit: "registros" },
+      value: 31,
+      expected: "Pobreza rural em Pernambuco: 31 registros.",
+    },
+  ])(
+    "keeps the value of a single-indicator layer without location sentences ($expected)",
+    ({ valueConfig, value, expected }) => {
+      const layer = buildLayer({
+        schemaVersion: 1,
+        type: "territorial-compact",
+        defaultYear: "2024",
+        classes: [
+          { id: "pobreza-rural", label: "Pobreza rural", color: "#7f0000" },
+        ],
+        locations: { pe: "Pernambuco" },
+        valueConfig,
+        years: {
+          "2024": {
+            imageId: "pob-rural",
+            valuesScale: 1,
+            values: { pe: [value] },
+          },
+        },
+      });
+
+      const model = buildEmbeddedTerritorialAnalysisViewModel(
+        layer,
+        "2024",
+        "pe",
+      );
+
+      expect(model?.highlight?.text).toBe(expected);
+      expect(model?.highlight?.areaShare).toBeUndefined();
+    },
+  );
 
   it("shows all classes and ranks each one by its own top 5 positive states", () => {
     const layer = buildLayer({
@@ -167,10 +296,6 @@ describe("analysis.mappers", () => {
         { id: "a", label: "Classe A", color: "#111111" },
         { id: "b", label: "Classe B", color: "#222222" },
       ],
-      templates: {
-        municipality:
-          "No município de {name}, predomina a classe {label} com {value}% da área analisada.",
-      },
       years: {
         "2024": {
           imageId: "img-2024",
@@ -192,9 +317,11 @@ describe("analysis.mappers", () => {
 
     expect(model).not.toBeNull();
     expect(model?.name).toBe("Abadia de Goiás - GO");
-    expect(model?.happening).toBe(
-      "No município de Abadia de Goiás - GO, predomina a classe Classe A com 80,00% da área analisada.",
-    );
+    expect(model?.highlight).toMatchObject({
+      label: "Classe A",
+      text: "Região maioritariamente Classe A",
+      areaShare: 80,
+    });
     expect(model?.rankingTitle).toBeUndefined();
     expect(model?.rankingGroups).toEqual([]);
   });

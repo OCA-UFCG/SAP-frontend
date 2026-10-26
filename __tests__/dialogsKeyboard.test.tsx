@@ -102,24 +102,24 @@ describe("dialogs keyboard behaviour", () => {
       >
         {(open) => (
           <button type="button" onClick={open}>
-            Editar critérios
+            Editar indicadores
           </button>
         )}
       </CriteriaModal>,
     );
-    const opener = openWith("Editar critérios");
+    const opener = openWith("Editar indicadores");
 
     expect(
-      screen.getByRole("dialog", { name: "Adicionar ou editar critérios" }),
+      screen.getByRole("dialog", { name: "Adicionar ou editar indicadores" }),
     ).toBeTruthy();
     expect(
-      screen.getByRole("textbox", { name: "Pesquisar critérios" }),
+      screen.getByRole("textbox", { name: "Pesquisar indicadores" }),
     ).toHaveFocus();
 
     const chuva = screen.getByRole("checkbox", { name: "Chuva" });
     const seca = screen.getByRole("checkbox", { name: "Seca" });
     expect(chuva).toHaveAttribute("aria-checked", "true");
-    // A única marcada não pode sair (mínimo de um critério).
+    // A única marcada não pode sair (mínimo de um indicador).
     expect(chuva).toHaveAttribute("aria-disabled", "true");
 
     fireEvent.click(seca);

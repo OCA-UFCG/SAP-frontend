@@ -1,14 +1,7 @@
 import { describe, expect, it, vi, beforeEach } from "vitest";
 import { cleanup, render, screen } from "@testing-library/react";
-import type { FooterI } from "@/utils/interfaces";
+import type { ISection } from "@/utils/interfaces";
 import { Footer } from "@/components/Footer/Footer";
-import { FooterSlot } from "@/components/Footer/FooterSlot";
-
-const usePathnameMock = vi.fn();
-
-vi.mock("next/navigation", () => ({
-  usePathname: () => usePathnameMock(),
-}));
 
 vi.mock("next/image", () => ({
   default: (props: React.ImgHTMLAttributes<HTMLImageElement>) => (
@@ -21,23 +14,16 @@ vi.mock("@/components/ContactSection/SocialChannels", () => ({
   default: () => <div data-testid="social-channels" />,
 }));
 
-const footerContent: FooterI[] = [
-  { id: "home", name: "Home", path: "/", appears: true },
-  { id: "platform", name: "Plataforma", path: "/platform", appears: true },
-  {
-    id: "about",
-    name: "Sobre o SEDES",
-    path: "/sobre-o-sedes",
-    appears: true,
-  },
-  { id: "contact", name: "Contato", path: "/contact", appears: true },
+const footerContent: ISection[] = [
+  { id: "1", name: "Início", path: "/", appears: true },
+  { id: "3", name: "Sobre", path: "/sobre-o-sedes", appears: true },
+  { id: "5", name: "Glossário", path: "/glossary", appears: true },
+  { id: "2", name: "Plataforma", path: "/platform", appears: true },
 ];
 
 describe("Footer", () => {
   beforeEach(() => {
     cleanup();
-    usePathnameMock.mockReset();
-    usePathnameMock.mockReturnValue("/");
   });
 
   it("uses the reduced large-screen spacing from the Figma footer", () => {
@@ -71,23 +57,20 @@ describe("Footer", () => {
     expect(logosRow).toContainElement(screen.getByTestId("social-channels"));
   });
 
-  // Os links seguem o menu do topo; "Sobre o SEDES" levava à própria home e saiu.
   it("shows the same links as the top menu, plus the institutional line", () => {
-    render(
-      <Footer
-        content={[
-          { id: "home", name: "Home", path: "/", appears: true },
-          { id: "about", name: "Sobre o SAP", path: "/about", appears: true },
-          { id: "map", name: "Mapas", path: "/map", appears: true },
-          { id: "contact", name: "Contatos", path: "/contact", appears: true },
-        ]}
-      />,
-    );
+    render(<Footer content={footerContent} />);
 
     expect(
-      screen.getAllByRole("link").map((link) => link.textContent),
-    ).toEqual(["Home", "Glossário", "Plataforma", "Acessibilidade"]);
-    expect(screen.queryByText("Sobre o SEDES")).not.toBeInTheDocument();
+      screen
+        .getAllByRole("link")
+        .map((link) => [link.textContent, link.getAttribute("href")]),
+    ).toEqual([
+      ["Início", "/"],
+      ["Sobre", "/sobre-o-sedes"],
+      ["Glossário", "/glossary"],
+      ["Plataforma", "/platform"],
+      ["Acessibilidade", "/acessibilidade"],
+    ]);
     expect(
       screen.getByText(
         "Ministério do Meio Ambiente e Mudança do Clima | Universidade Federal de Campina Grande | Observatório da Caatinga e Desertificação",
@@ -114,31 +97,5 @@ describe("Footer", () => {
 
     expect(footer).toHaveAttribute("id", "rodape");
     expect(footer).toHaveAttribute("tabindex", "-1");
-  });
-
-  // O rodapé faz parte da plataforma. O caminho vem com o prefixo de locale
-  // (`localePrefix: "always"`), então qualquer regra por rota precisa ser
-  // exercitada com o caminho real, e não com um "/platform" que nunca ocorre.
-  it("renders on the platform route", () => {
-    usePathnameMock.mockReturnValue("/pt/platform");
-
-    render(<FooterSlot content={footerContent} />);
-
-    expect(screen.getByAltText("SEDES")).toBeInTheDocument();
-  });
-
-  it("renders on the multicriteria route", () => {
-    usePathnameMock.mockReturnValue("/pt/platform/amfe");
-
-    render(<FooterSlot content={footerContent} />);
-
-    expect(screen.getByAltText("SEDES")).toBeInTheDocument();
-  });
-
-  it("renders on non-platform routes", () => {
-    render(<FooterSlot content={footerContent} />);
-
-    expect(screen.getByAltText("SEDES")).toBeInTheDocument();
-    expect(screen.getByTestId("social-channels")).toBeInTheDocument();
   });
 });
