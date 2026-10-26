@@ -379,7 +379,7 @@ export function MunicipalReportContext({ panelLayers = [] }: MunicipalReportCont
           <p className="font-inter text-base font-medium leading-6 tracking-[-0.015em]">{t("selectionDescription")}</p>
         </header>
 
-        <fieldset className="space-y-3">
+        <fieldset className="space-y-3" data-tour="report-area">
           <legend className="font-open-sans text-lg font-semibold leading-6">{t("selectArea")}</legend>
           <p className="font-inter text-xs font-medium leading-[18px] tracking-[-0.015em]">{t("selectAreaHint")}</p>
           <div className="flex w-full flex-col items-start gap-[6px]">
@@ -515,7 +515,7 @@ export function MunicipalReportContext({ panelLayers = [] }: MunicipalReportCont
           {!validPeriod && <p className="text-xs text-red-700">{t("invalidPeriod")}</p>}
         </fieldset>
 
-        <fieldset className="space-y-4">
+        <fieldset className="space-y-4" data-tour="report-layers">
           <div className="space-y-2">
             <div className="flex items-center justify-between gap-3">
               <legend className="font-open-sans text-lg font-semibold leading-6">{t("selectModules")}</legend>
@@ -545,7 +545,7 @@ export function MunicipalReportContext({ panelLayers = [] }: MunicipalReportCont
 
         {/* Quando a seleção fica completa o botão "acorda" com um anel verde; no
             hover, a seta anda. */}
-        <button type="submit" disabled={!canSubmit || isGenerating} className={`group/submit mt-auto flex h-10 w-full shrink-0 items-center justify-center gap-2 rounded bg-[#646B2D] px-4 font-open-sans text-sm text-white transition-[background-color,box-shadow,scale] duration-200 hover:bg-[#4F5424] disabled:cursor-not-allowed disabled:opacity-70 ${canSubmit && !isGenerating ? "hover:shadow-[0_8px_20px_rgba(91,97,42,0.3)] active:scale-[0.98] motion-safe:animate-[ready-ring_900ms_ease-out_2]" : ""}`}>{isGenerating && <span aria-hidden="true" className="h-4 w-4 animate-spin rounded-full border-2 border-white/40 border-t-white" />}{isGenerating ? t("generatingReport") : t("generateReport")}{canSubmit && !isGenerating && <ArrowForwardIcon size={16} className="transition-[translate] duration-200 motion-safe:group-hover/submit:translate-x-1" />}</button>
+        <button type="submit" data-tour="report-submit" disabled={!canSubmit || isGenerating} className={`group/submit mt-auto flex h-10 w-full shrink-0 items-center justify-center gap-2 rounded bg-[#646B2D] px-4 font-open-sans text-sm text-white transition-[background-color,box-shadow,scale] duration-200 hover:bg-[#4F5424] disabled:cursor-not-allowed disabled:opacity-70 ${canSubmit && !isGenerating ? "hover:shadow-[0_8px_20px_rgba(91,97,42,0.3)] active:scale-[0.98] motion-safe:animate-[ready-ring_900ms_ease-out_2]" : ""}`}>{isGenerating && <span aria-hidden="true" className="h-4 w-4 animate-spin rounded-full border-2 border-white/40 border-t-white" />}{isGenerating ? t("generatingReport") : t("generateReport")}{canSubmit && !isGenerating && <ArrowForwardIcon size={16} className="transition-[translate] duration-200 motion-safe:group-hover/submit:translate-x-1" />}</button>
         {/* O botão fica desabilitado enquanto gera e o foco sai dele; sem esta
             região, quem usa leitor de tela não ouve que o relatório está vindo. */}
         <p role="status" className="sr-only">{isGenerating ? t("generatingReport") : ""}</p>

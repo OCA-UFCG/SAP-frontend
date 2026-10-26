@@ -208,13 +208,13 @@ export function PlatformSidebar({
     if (next === "analysis") preloadAnalyzeForm();
   }
 
-  // O tutorial parte da listagem de Monitoramento: só abre sozinho quando é
-  // por ela que a pessoa entra, e não quando chega por um link de relatório ou
-  // de detalhamento de um índice.
   const replayTour = usePlatformTour({
-    autoStart:
-      !isUtilityView && initialSection === "monitoring" && !detailLayerId,
-    showMonitoringList: () => handleSectionChange("monitoring"),
+    section:
+      activeSection === "analysis" || activeSection === "communication"
+        ? activeSection
+        : "monitoring",
+    autoStart: !isUtilityView && !detailLayerId && !reportRequest,
+    showSection: handleSectionChange,
   });
 
   const openLayerMonitoring = useCallback((layerId: string) => {

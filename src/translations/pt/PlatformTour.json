@@ -44,6 +44,46 @@
       "replayInMore": {
         "title": "Tudo pronto",
         "description": "Para rever este passo a passo, toque em Mais e depois em Tutorial."
+      },
+      "analysis": {
+        "intro": {
+          "title": "Priorização",
+          "description": "Combine indicadores para descobrir quais municípios precisam de atenção primeiro."
+        },
+        "criteria": {
+          "title": "Escolha os indicadores",
+          "description": "Em Adicionar ou editar indicadores, escolha até oito e dê um peso a cada um. A barra mostra quanto cada indicador pesa na análise, e o “i” explica o que ele mede."
+        },
+        "area": {
+          "title": "Defina a área de interesse",
+          "description": "Escolha onde comparar os municípios: o país todo, uma região, um estado, um bioma, o Semiárido ou ASD e Entorno."
+        },
+        "level": {
+          "title": "Granularidade do rankeamento",
+          "description": "Escolha se os municípios são comparados todos juntos ou dentro de cada estado, região ou bioma."
+        },
+        "submit": {
+          "title": "Analise",
+          "description": "Clique em Analisar para ver os municípios classificados por nível de prioridade no mapa. Depois, baixe o mapa, a planilha ou o relatório."
+        }
+      },
+      "communication": {
+        "intro": {
+          "title": "Comunicação",
+          "description": "Gere um relatório pronto para compartilhar, com mapas, gráficos e notas sobre o território que você escolher."
+        },
+        "area": {
+          "title": "Escolha o território",
+          "description": "Busque um município ou escolha um recorte maior: um estado, uma região, um bioma, o Semiárido ou ASD e Entorno."
+        },
+        "layers": {
+          "title": "Escolha os produtos",
+          "description": "Marque os produtos do monitoramento que entram no relatório. Os que não têm dado para o território escolhido ficam desabilitados."
+        },
+        "submit": {
+          "title": "Gere o relatório",
+          "description": "Clique em Gerar relatório para ver a prévia ao lado, de onde você baixa o PDF."
+        }
       }
     }
   }

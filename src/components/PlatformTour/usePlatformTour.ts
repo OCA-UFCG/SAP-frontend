@@ -20,6 +20,13 @@ import "./platformTour.css";
  */
 export const PLATFORM_TOUR_SEEN_KEY = "sedes.platformTour.v1.seen";
 
+export type PlatformTourSection = "monitoring" | "analysis" | "communication";
+
+const seenKey = (section: PlatformTourSection) =>
+  section === "monitoring"
+    ? PLATFORM_TOUR_SEEN_KEY
+    : `sedes.platformTour.${section}.v1.seen`;
+
 /** Espera a página assentar antes de escurecer a tela de quem acabou de chegar. */
 const AUTO_START_DELAY_MS = 800;
 /** O painel lateral e os acordeões da listagem animam em 300 ms. */
@@ -27,9 +34,11 @@ const LAYOUT_TRANSITION_MS = 350;
 /** Os controles do mapa montam depois do mapa; o passo espera por eles. */
 const WAIT_FOR_ELEMENT_MS = 3000;
 
-export function hasSeenPlatformTour() {
+export function hasSeenPlatformTour(
+  section: PlatformTourSection = "monitoring",
+) {
   try {
-    return window.localStorage.getItem(PLATFORM_TOUR_SEEN_KEY) === "1";
+    return window.localStorage.getItem(seenKey(section)) === "1";
   } catch {
     // Sem acesso ao armazenamento não há como lembrar que já viu: melhor não
     // abrir sozinho do que abrir em toda visita. O botão continua funcionando.
@@ -37,9 +46,9 @@ export function hasSeenPlatformTour() {
   }
 }
 
-function markPlatformTourSeen() {
+function markPlatformTourSeen(section: PlatformTourSection) {
   try {
-    window.localStorage.setItem(PLATFORM_TOUR_SEEN_KEY, "1");
+    window.localStorage.setItem(seenKey(section), "1");
   } catch {
     // Ver de novo na próxima visita é o pior que acontece.
   }
@@ -190,12 +199,49 @@ function isReplayInsideMore() {
 function buildSteps(
   t: Translate,
   tRail: TranslateRail,
+  section: PlatformTourSection,
   replayInMore: boolean,
 ): DriveStep[] {
   const popover = (key: string) => ({
     title: t(`steps.${key}.title`),
     description: t(`steps.${key}.description`),
   });
+
+  const formStep = (element: string, key: string): DriveStep => ({
+    element: `[data-tour="${element}"]`,
+    popover: { ...popover(key), side: "right", align: "start" },
+  });
+
+  const replayStep: DriveStep = replayInMore
+    ? {
+        element: '[data-tour="platform-more"]',
+        popover: { ...popover("replayInMore"), side: "top", align: "end" },
+      }
+    : {
+        element: '[data-tour="platform-tour-replay"]',
+        popover: { ...popover("replay"), side: "right", align: "end" },
+      };
+
+  if (section === "analysis") {
+    return [
+      { popover: popover("analysis.intro") },
+      formStep("analysis-criteria", "analysis.criteria"),
+      formStep("analysis-area", "analysis.area"),
+      formStep("analysis-level", "analysis.level"),
+      formStep("analysis-submit", "analysis.submit"),
+      replayStep,
+    ];
+  }
+
+  if (section === "communication") {
+    return [
+      { popover: popover("communication.intro") },
+      formStep("report-area", "communication.area"),
+      formStep("report-layers", "communication.layers"),
+      formStep("report-submit", "communication.submit"),
+      replayStep,
+    ];
+  }
 
   return [
     {
@@ -270,39 +316,29 @@ function buildSteps(
       element: '[data-tour="reference-overlays"]',
       popover: { ...popover("territories"), side: "left", align: "end" },
     },
-    replayInMore
-      ? {
-          element: '[data-tour="platform-more"]',
-          popover: { ...popover("replayInMore"), side: "top", align: "end" },
-        }
-      : {
-          element: '[data-tour="platform-tour-replay"]',
-          popover: { ...popover("replay"), side: "right", align: "end" },
-        },
+    replayStep,
   ];
 }
 
 interface UsePlatformTourOptions {
+  section: PlatformTourSection;
   /** Abre sozinho na primeira visita. */
   autoStart: boolean;
-  /**
-   * Leva a tela para a listagem de Monitoramento com o painel aberto, de onde o
-   * tutorial parte quando a pessoa pede para rever.
-   */
-  showMonitoringList: () => void;
+  showSection: (section: PlatformTourSection) => void;
 }
 
 /**
- * O passo a passo da plataforma: abre sozinho na primeira visita à listagem de
- * Monitoramento e pode ser revisto pelo botão "Tutorial" da trilha lateral.
+ * O passo a passo de cada seção da plataforma: abre sozinho na primeira visita
+ * à seção e pode ser revisto pelo botão "Tutorial" da trilha lateral.
  *
  * @example
- * const replayTour = usePlatformTour({ autoStart, showMonitoringList });
+ * const replayTour = usePlatformTour({ section, autoStart, showSection });
  * <PlatformSideRail onReplayTour={replayTour} />
  */
 export function usePlatformTour({
+  section,
   autoStart,
-  showMonitoringList,
+  showSection,
 }: UsePlatformTourOptions) {
   const t = useTranslations("PlatformTour");
   const tRail = useTranslations("PlatformSideRail");
@@ -310,19 +346,24 @@ export function usePlatformTour({
   const timerRef = useRef<number | undefined>(undefined);
 
   const startTour = useCallback(
-    (delayMs: number) => {
+    (tourSection: PlatformTourSection, delayMs: number) => {
       window.clearTimeout(timerRef.current);
       tourRef.current?.destroy();
 
       timerRef.current = window.setTimeout(() => {
         // Marca ao abrir, não ao concluir: quem recarrega no meio do tutorial
         // não é surpreendido por ele de novo, e o botão continua lá.
-        markPlatformTourSeen();
+        markPlatformTourSeen(tourSection);
 
         // No celular o painel cobre o mapa: os passos dos controles do mapa
         // apontariam para algo escondido atrás dele, então ficam de fora.
         const isPhone = isPhoneViewport();
-        const steps = buildSteps(t, tRail, isPhone && isReplayInsideMore()).filter(
+        const steps = buildSteps(
+          t,
+          tRail,
+          tourSection,
+          isPhone && isReplayInsideMore(),
+        ).filter(
           (step) =>
             !isPhone ||
             typeof step.element !== "string" ||
@@ -369,10 +410,11 @@ export function usePlatformTour({
   }, [startTour]);
 
   useEffect(() => {
-    if (!autoStart || hasSeenPlatformTour()) return;
+    if (!autoStart || hasSeenPlatformTour(section)) return;
 
-    startTourRef.current(AUTO_START_DELAY_MS);
-  }, [autoStart]);
+    startTourRef.current(section, AUTO_START_DELAY_MS);
+    return () => window.clearTimeout(timerRef.current);
+  }, [autoStart, section]);
 
   useEffect(
     () => () => {
@@ -383,7 +425,7 @@ export function usePlatformTour({
   );
 
   return useCallback(() => {
-    showMonitoringList();
-    startTour(LAYOUT_TRANSITION_MS);
-  }, [showMonitoringList, startTour]);
+    showSection(section);
+    startTour(section, LAYOUT_TRANSITION_MS);
+  }, [section, showSection, startTour]);
 }
