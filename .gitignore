@@ -45,10 +45,11 @@
 !/scripts/build-reference-territories.mjs
 # Gerador dos tiles dos territórios, anexados à release `tiles-2025`.
 !/scripts/build-territory-tiles.mjs
-# Vigia que avisa o OCA por e-mail quando o SEDES cai, instalado nas VMs pelo
-# workflow watchdog.yaml.
-!/scripts/watchdog/
-/scripts/watchdog/__pycache__/
+# Configuração do SEDES na VM de monitoramento, aplicada pelo deploy.sh.
+!/scripts/monitoring/
+/scripts/monitoring/__pycache__/
+# Rotação dos logs do Docker, instalada nas VMs pelo workflow docker-logs.yaml.
+!/scripts/docker-logs/
 /scripts/gee/
 /tmp
 mise.toml
