@@ -922,6 +922,152 @@ export async function getGeeStatisticsSeriesPatch(
 }
 
 /**
+ * O filtro do Earth Engine que separa um período, pela mesma convenção de
+ * `matchesStatisticsPeriod`. O ano aceita número ou texto porque a coluna
+ * `ano` não tem o mesmo tipo em todas as tabelas.
+ */
+function buildPeriodFilter(
+  source: ResolvedGeeStatisticsSource,
+  yearKey: string,
+) {
+  if (source.periodGranularity === "month") {
+    return ee.Filter.eq(source.properties.date, `${yearKey}-01`);
+  }
+  if (source.periodGranularity === "dekad") {
+    return ee.Filter.eq(source.properties.date, yearKey);
+  }
+
+  return ee.Filter.or(
+    ee.Filter.eq(source.properties.year, Number(yearKey)),
+    ee.Filter.eq(source.properties.year, yearKey),
+  );
+}
+
+/**
+ * As linhas municipais de um período, numa ida só ao Earth Engine.
+ *
+ * Vai por `reduceColumns`, e não pela coleção: o Brasil tem 5.573 linhas
+ * municipais e o Earth Engine recusa devolver uma coleção com mais de 5.000. A
+ * resposta em colunas também sai menor — ~300 KB no Monitor de Secas, medido
+ * em outubro de 2026. Uma linha com célula vazia é descartada pelo redutor, o
+ * que aqui só tira aquele município da lista.
+ */
+async function loadPeriodMunicipalityRows(
+  source: ResolvedGeeStatisticsSource,
+  yearKey: string,
+  columns: string[],
+): Promise<Record<string, unknown>[]> {
+  const result = await evaluateGeeObject<{ list?: unknown[][] }>(
+    ee
+      .FeatureCollection(source.assetId)
+      .filter(
+        ee.Filter.and(
+          ee.Filter.eq(source.properties.level, "7_Municipio"),
+          buildPeriodFilter(source, yearKey),
+        ),
+      )
+      .reduceColumns(ee.Reducer.toList(columns.length), columns),
+  );
+
+  if (!Array.isArray(result?.list)) {
+    throw new Error(
+      `Resposta inválida do asset estatístico GEE ${source.assetId} ao ler os municípios de ${yearKey}.`,
+    );
+  }
+
+  return result.list.map((cells) =>
+    Object.fromEntries(columns.map((column, index) => [column, cells[index]])),
+  );
+}
+
+/**
+ * A distribuição de cada município num período, para a lista "Territórios por
+ * classificação" de um estado, bioma, Semiárido ou ASD.
+ *
+ * Lê o país inteiro e não só o recorte pedido: custa o mesmo (~2 s, medido no
+ * ANA e no CDI) e fica no cache de linhas, então trocar de recorte no mesmo
+ * período não volta ao Earth Engine. Um município com linha inválida fica fora
+ * da lista em vez de derrubá-la — no painel do município o mesmo erro continua
+ * aparecendo.
+ *
+ * @example
+ * (await getGeeStatisticsMunicipalitiesYearValues("anaseca", "2025-06", 6, source))?.["2507507"];
+ * // [0, 100, 0, 0, 0, 0]
+ */
+export async function getGeeStatisticsMunicipalitiesYearValues(
+  panelLayerId: string,
+  yearKey: string,
+  classCount: number,
+  explicitSource?: PublishedGeeStatisticsSource | GeeStatisticsSource | null,
+  periodKeys: readonly string[] = [],
+): Promise<Record<string, number[]> | null> {
+  const source = explicitSource ?? getGeeStatisticsSource(panelLayerId);
+
+  if (
+    !source ||
+    isMunicipalSpreadsheetSource(source) ||
+    isGeeMunicipalValueTableSource(source)
+  ) {
+    return null;
+  }
+
+  await initializeGee();
+
+  const resolvedSource = resolveGeeStatisticsSource(source, yearKey);
+  const schema = await getGeeStatisticsSchema(
+    resolvedSource,
+    "sourceRevision" in source && typeof source.sourceRevision === "string"
+      ? source.sourceRevision
+      : undefined,
+    resolveSeriesAssetIds(source, periodKeys, resolvedSource.assetId),
+  );
+
+  if (schema.percentageProperties.length !== classCount) {
+    throw new Error(
+      `Asset estatístico ${resolvedSource.assetId} possui ${schema.percentageProperties.length} classes, mas a camada possui ${classCount}.`,
+    );
+  }
+
+  const codeProperty = resolvedSource.properties.municipalityCode;
+  const columns = [codeProperty, ...schema.percentageProperties];
+  const rows = await getOrLoadStatisticsRows(
+    buildStatisticsRowsCacheKey(
+      [resolvedSource.assetId],
+      `7_municipio@${yearKey}`,
+      columns,
+    ),
+    () => loadPeriodMunicipalityRows(resolvedSource, yearKey, columns),
+    [resolvedSource.assetId],
+  );
+
+  const values: Record<string, number[]> = {};
+  for (const row of rows) {
+    const code = normalizeText(row[codeProperty]);
+    if (!MUNICIPALITY_KEY_PATTERN.test(code)) continue;
+
+    try {
+      const distribution = schema.percentageProperties.map((property) =>
+        toFiniteNumber(row[property], `${code}/${yearKey}/${property}`),
+      );
+      if (
+        validatePercentageDistribution(
+          resolvedSource,
+          code,
+          yearKey,
+          distribution,
+        )
+      ) {
+        values[code] = distribution;
+      }
+    } catch {
+      continue;
+    }
+  }
+
+  return values;
+}
+
+/**
  * Lê de antemão as colunas da série de uma camada, para que o primeiro painel
  * ou relatório depois de um deploy não pague essa leitura.
  *

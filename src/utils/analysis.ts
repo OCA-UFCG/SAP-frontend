@@ -158,6 +158,31 @@ export interface LayerAnalysisConfig {
   data?: CompactTerritorialAnalysisDataset;
 }
 
+/**
+ * Os valores dos territórios listados em "Territórios por classificação" de um
+ * recorte: os estados de uma região ou os municípios de um estado, bioma,
+ * Semiárido ou ASD. Os valores seguem a ordem das classes da camada.
+ */
+export interface TerritoryRankingData {
+  entity: "states" | "municipalities";
+  values: Record<string, number[]>;
+}
+
+export type TerritoryRankingState =
+  | { status: "loading" }
+  | { status: "error" }
+  | ({ status: "ready" } & TerritoryRankingData);
+
+/**
+ * `hidden`: o recorte não tem lista (município). `loading` e `unavailable`
+ * descrevem a busca da lista; `ready` vale também para lista vazia.
+ */
+export type AnalysisRankingStatus =
+  | "ready"
+  | "loading"
+  | "unavailable"
+  | "hidden";
+
 export interface TerritorialAnalysisViewModel {
   kind: "territorial";
   name: string;
@@ -166,6 +191,7 @@ export interface TerritorialAnalysisViewModel {
   distribution: AnalysisDistributionItem[];
   rankingTitle?: string;
   rankingGroups: AnalysisRankingGroup[];
+  rankingStatus: AnalysisRankingStatus;
   valueType?: "percentage" | "absolute";
   valueUnit?: string;
   distributionTitle?: string;

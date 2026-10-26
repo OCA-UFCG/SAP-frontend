@@ -42,6 +42,9 @@
 !/scripts/build-reference-territories.mjs
 # Gerador dos tiles dos territórios, anexados à release `tiles-2025`.
 !/scripts/build-territory-tiles.mjs
+# Gerador da lista município → bioma/Semiárido/ASD usada em "Territórios por
+# classificação": o artefato em src/data é commitado.
+!/scripts/build-municipality-territories.mjs
 # Vigia que avisa o OCA por e-mail quando o SEDES cai, instalado nas VMs pelo
 # workflow watchdog.yaml.
 !/scripts/watchdog/

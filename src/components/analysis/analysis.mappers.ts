@@ -14,8 +14,10 @@ import type {
   AnalysisTone,
   AnalysisYearOption,
   CompactAnalysisClass,
+  AnalysisRankingStatus,
   CompactTerritorialAnalysisDataset,
   TerritorialAnalysisViewModel,
+  TerritoryRankingState,
 } from "@/utils/analysis";
 import {
   formatSeasonalPeriodLabel,
@@ -53,6 +55,8 @@ const DEFAULT_SUMMARY_TEMPLATE = "{label} em {name}: {value}.";
 
 const DEFAULT_RANKING_TITLE = "Estados por classificação";
 const DEFAULT_RANKING_TOTAL_LABEL = "Estados";
+const DEFAULT_MUNICIPAL_RANKING_TITLE = "Municípios por classificação";
+const MUNICIPAL_RANKING_TOTAL_LABEL = "Municípios";
 const MAX_RANKING_ITEMS = 5;
 const municipalitiesByCode = new Map(
   citiesIndex.map((city) => [city.code, city.label]),
@@ -341,35 +345,95 @@ function buildCompactHighlight(
   };
 }
 
-function buildCompactRankingGroups(
+type RankingSource =
+  | { status: Exclude<AnalysisRankingStatus, "ready"> }
+  | {
+      status: "ready";
+      entity: "states" | "municipalities";
+      entries: Array<[string, (number | null)[]]>;
+      scale: number;
+    };
+
+/**
+ * De onde sai a lista de "Territórios por classificação" de um recorte.
+ *
+ * No Brasil os estados já chegam junto com o recorte nacional. Nos demais
+ * recortes a lista é buscada à parte (`territoryRanking`), e um município não
+ * tem lista.
+ */
+function resolveRankingSource(
   data: CompactTerritorialAnalysisDataset,
   yearKey: string,
   locationKey: string,
+  territoryRanking?: TerritoryRankingState,
+): RankingSource {
+  if (isMunicipalityLocationKey(locationKey)) {
+    return { status: "hidden" };
+  }
+
+  if (locationKey === "br") {
+    const yearData = data.years[yearKey];
+
+    return {
+      status: "ready",
+      entity: "states",
+      entries: Object.entries(yearData?.values ?? {}).filter(
+        ([entryKey]) => entryKey !== "br" && isStateLocationKey(entryKey),
+      ),
+      scale: yearData?.valuesScale ?? 1,
+    };
+  }
+
+  if (!territoryRanking || territoryRanking.status === "loading") {
+    return { status: "loading" };
+  }
+
+  if (territoryRanking.status === "error") {
+    return { status: "unavailable" };
+  }
+
+  return {
+    status: "ready",
+    entity: territoryRanking.entity,
+    entries: Object.entries(territoryRanking.values),
+    scale: 1,
+  };
+}
+
+/**
+ * O título da lista. O catálogo escreve o de estados ("Estados por classe
+ * predominante"); numa lista de municípios a primeira palavra é trocada.
+ */
+function getRawRankingTitle(
+  data: CompactTerritorialAnalysisDataset,
+  entity: "states" | "municipalities",
+): string {
+  const statesTitle = data.ranking?.title ?? DEFAULT_RANKING_TITLE;
+
+  if (entity === "states") {
+    return statesTitle;
+  }
+
+  return /^Estados\b/u.test(statesTitle)
+    ? statesTitle.replace(/^Estados\b/u, "Municípios")
+    : DEFAULT_MUNICIPAL_RANKING_TITLE;
+}
+
+function buildCompactRankingGroups(
+  data: CompactTerritorialAnalysisDataset,
+  rankingEntries: Array<[string, (number | null)[]]>,
+  scale: number,
+  rawTotalLabel: string,
   tCaption?: TranslateFunction,
   severityOrder?: readonly string[],
 ): AnalysisRankingGroup[] {
-  if (locationKey !== "br") {
-    return [];
-  }
-
-  const yearData = data.years[yearKey];
-
-  if (!yearData) {
-    return [];
-  }
-
-  const scale = yearData.valuesScale ?? 1;
   const isAbsolute = data.valueConfig?.type === "absolute";
   const dominantCounts = new Map<string, number>();
   const entriesByClass = data.classes.map(
     () => [] as Array<AnalysisRankingEntry & { numericValue: number }>,
   );
 
-  for (const [entryKey, values] of Object.entries(yearData.values)) {
-    if (entryKey === "br" || !isStateLocationKey(entryKey)) {
-      continue;
-    }
-
+  for (const [entryKey, values] of rankingEntries) {
     const label = getCompactLocationName(data, entryKey);
     let dominantIndex = -1;
     let dominantValue = Number.NEGATIVE_INFINITY;
@@ -431,10 +495,7 @@ function buildCompactRankingGroups(
       label: translate(item.label, tCaption),
       tone: getCompactClassTone(item),
       total: sortedEntries.length,
-      totalLabel: translate(
-        data.ranking?.totalLabel ?? DEFAULT_RANKING_TOTAL_LABEL,
-        tCaption,
-      ),
+      totalLabel: translate(rawTotalLabel, tCaption),
       items: topEntries.map(({ numericValue, ...entry }) => ({
         ...entry,
         trailingLabel: isAbsolute
@@ -485,6 +546,7 @@ function buildCompactTerritorialAnalysisViewModel(
   locationKey: string,
   tCaption?: TranslateFunction,
   severityOrder?: readonly string[],
+  territoryRanking?: TerritoryRankingState,
 ): TerritorialAnalysisViewModel | null {
   if (!data.years[yearKey]?.values[locationKey]) {
     return null;
@@ -506,8 +568,12 @@ function buildCompactTerritorialAnalysisViewModel(
     resolvedLocationKey,
     tCaption,
   );
-  const rawRankingTitle = data.ranking?.title ?? DEFAULT_RANKING_TITLE;
-  const translatedRankingTitle = translate(rawRankingTitle, tCaption);
+  const rankingSource = resolveRankingSource(
+    data,
+    yearKey,
+    resolvedLocationKey,
+    territoryRanking,
+  );
 
   return {
     kind: "territorial",
@@ -516,14 +582,23 @@ function buildCompactTerritorialAnalysisViewModel(
     highlight,
     distribution,
     rankingTitle:
-      resolvedLocationKey === "br" ? translatedRankingTitle : undefined,
-    rankingGroups: buildCompactRankingGroups(
-      data,
-      yearKey,
-      resolvedLocationKey,
-      tCaption,
-      severityOrder,
-    ),
+      rankingSource.status === "ready"
+        ? translate(getRawRankingTitle(data, rankingSource.entity), tCaption)
+        : undefined,
+    rankingGroups:
+      rankingSource.status === "ready"
+        ? buildCompactRankingGroups(
+            data,
+            rankingSource.entries,
+            rankingSource.scale,
+            rankingSource.entity === "states"
+              ? (data.ranking?.totalLabel ?? DEFAULT_RANKING_TOTAL_LABEL)
+              : MUNICIPAL_RANKING_TOTAL_LABEL,
+            tCaption,
+            severityOrder,
+          )
+        : [],
+    rankingStatus: rankingSource.status,
     valueType: data.valueConfig?.type ?? "percentage",
     valueUnit: data.valueConfig?.unit,
     distributionTitle: data.valueConfig?.distributionTitle,
@@ -571,6 +646,7 @@ export function buildEmbeddedTerritorialAnalysisViewModel(
   effectiveYear: string | null,
   locationKey: string,
   tCaption?: TranslateFunction,
+  territoryRanking?: TerritoryRankingState,
 ): TerritorialAnalysisViewModel | null {
   const compactAnalysis = getCompactAnalysisDataset(dataset, effectiveYear);
 
@@ -584,6 +660,7 @@ export function buildEmbeddedTerritorialAnalysisViewModel(
     locationKey,
     tCaption,
     dataset?.reportConfig?.severity?.order,
+    territoryRanking,
   );
 }
 

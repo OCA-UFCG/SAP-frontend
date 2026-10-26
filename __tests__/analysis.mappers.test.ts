@@ -324,6 +324,7 @@ describe("analysis.mappers", () => {
     });
     expect(model?.rankingTitle).toBeUndefined();
     expect(model?.rankingGroups).toEqual([]);
+    expect(model?.rankingStatus).toBe("hidden");
   });
 
   it("counts only states in Brazil ranking when municipal analysis data is merged", () => {
@@ -438,5 +439,95 @@ describe("analysis.mappers", () => {
     expect(getAnalysisYearOptions(layer)).toEqual([
       { value: "2026-09", label: "2026-09" },
     ]);
+  });
+
+  describe("territory ranking outside Brazil", () => {
+    const rankingLayer = buildLayer({
+      schemaVersion: 1,
+      type: "territorial-compact",
+      defaultYear: "2024",
+      ranking: { title: "Estados por classe predominante", totalLabel: "Estados" },
+      classes: [
+        { id: "a", label: "Classe A", color: "#111111" },
+        { id: "b", label: "Classe B", color: "#222222" },
+      ],
+      years: {
+        "2024": {
+          imageId: "img-2024",
+          valuesScale: 1,
+          values: {
+            br: [45, 55],
+            go: [35, 65],
+            "3_bioma-caatinga": [70, 30],
+            "2_regiao-centro-oeste": [40, 60],
+          },
+        },
+      },
+    });
+
+    it("waits for the list of the selected area", () => {
+      const model = buildEmbeddedTerritorialAnalysisViewModel(
+        rankingLayer,
+        "2024",
+        "3_bioma-caatinga",
+      );
+
+      expect(model?.rankingStatus).toBe("loading");
+      expect(model?.rankingTitle).toBeUndefined();
+      expect(model?.rankingGroups).toEqual([]);
+    });
+
+    it("reports a failed list as unavailable", () => {
+      const model = buildEmbeddedTerritorialAnalysisViewModel(
+        rankingLayer,
+        "2024",
+        "3_bioma-caatinga",
+        undefined,
+        { status: "error" },
+      );
+
+      expect(model?.rankingStatus).toBe("unavailable");
+    });
+
+    it("ranks the municipalities of the area under a municipal title", () => {
+      const model = buildEmbeddedTerritorialAnalysisViewModel(
+        rankingLayer,
+        "2024",
+        "3_bioma-caatinga",
+        undefined,
+        {
+          status: "ready",
+          entity: "municipalities",
+          values: { "5200050": [80, 20], "3100104": [10, 90] },
+        },
+      );
+
+      expect(model?.rankingStatus).toBe("ready");
+      expect(model?.rankingTitle).toBe("Municípios por classe predominante");
+      expect(model?.rankingGroups[0]).toMatchObject({
+        totalLabel: "Municípios",
+        total: 2,
+        items: [
+          { id: "5200050", label: "Abadia de Goiás - GO" },
+          { id: "3100104", label: "Abadia dos Dourados - MG" },
+        ],
+      });
+    });
+
+    it("keeps the states title for a region", () => {
+      const model = buildEmbeddedTerritorialAnalysisViewModel(
+        rankingLayer,
+        "2024",
+        "2_regiao-centro-oeste",
+        undefined,
+        { status: "ready", entity: "states", values: { go: [35, 65] } },
+      );
+
+      expect(model?.rankingTitle).toBe("Estados por classe predominante");
+      expect(model?.rankingGroups[1]).toMatchObject({
+        totalLabel: "Estados",
+        items: [{ id: "go", label: "Goiás" }],
+      });
+    });
   });
 });

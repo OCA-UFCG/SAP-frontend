@@ -21,6 +21,7 @@ const model: TerritorialAnalysisViewModel = {
   highlight: null,
   distribution: [],
   rankingTitle: "Estados por classificação",
+  rankingStatus: "ready",
   rankingGroups: [
     {
       id: "classe-a",
@@ -343,8 +344,46 @@ describe("AnalysisPanel", () => {
     });
 
     expect(
+      screen.getByText("Nenhum território deste recorte tem valor nesta data."),
+    ).toBeVisible();
+  });
+
+  it("hides the section when the location has no territory list", () => {
+    renderPanel({ ...model, rankingStatus: "hidden", rankingGroups: [] });
+
+    expect(
+      screen.queryByText("Estados por classificação"),
+    ).not.toBeInTheDocument();
+    expect(
+      screen.queryByText("Territórios por classificação"),
+    ).not.toBeInTheDocument();
+  });
+
+  it("shows a loading state while the territory list arrives", () => {
+    renderPanel({
+      ...model,
+      rankingTitle: undefined,
+      rankingStatus: "loading",
+      rankingGroups: [],
+    });
+
+    expect(screen.getByText("Territórios por classificação")).toBeVisible();
+    expect(screen.getByRole("status")).toHaveTextContent(
+      "Carregando os territórios deste recorte…",
+    );
+  });
+
+  it("does not blame the layer when the territory list fails", () => {
+    renderPanel({
+      ...model,
+      rankingTitle: undefined,
+      rankingStatus: "unavailable",
+      rankingGroups: [],
+    });
+
+    expect(
       screen.getByText(
-        "Os agrupamentos por classificação ainda não estão disponíveis para esta camada.",
+        "Não foi possível carregar a lista de territórios agora. Tente de novo em instantes.",
       ),
     ).toBeVisible();
   });

@@ -691,6 +691,69 @@ describe("AnalysisContext", () => {
     });
   });
 
+  it("asks the ranking route for the municipalities of a biome and selects one on click", async () => {
+    const setSelectedState = vi.fn();
+    const setSelectedMunicipalityCode = vi.fn();
+    useMapLayerActionsMock.mockReturnValue({
+      setSelectedState,
+      setSelectedMunicipalityCode,
+      setActiveLegend: vi.fn(),
+      setActiveYear: vi.fn(),
+      resetPlatformState: vi.fn(),
+      setSpatialSelection: vi.fn(),
+    });
+    useMapLayerViewStateMock.mockReturnValue({
+      selectedState: "br",
+      selectedMunicipalityCode: null,
+      activeYear: "2024",
+      spatialSelection: { spatialArea: "biome", spatialValue: "Caatinga" },
+    });
+    const layer = buildPanelLayer(
+      {},
+      {
+        "2024": {
+          imageId: "img-2024",
+          valuesScale: 1,
+          values: { "3_bioma-caatinga": [40, 60] },
+        },
+      },
+    );
+    global.fetch = vi.fn().mockImplementation(async (url: string) => ({
+      ok: true,
+      json: async () =>
+        new URL(url).pathname.endsWith("/ranking")
+          ? { entity: "municipalities", values: { "2504009": [10, 90] } }
+          : { imageData: null },
+    }));
+
+    render(
+      <AnalysisContext activeSection="analysis-detail" panelLayers={[layer]} />,
+    );
+
+    await waitFor(() => {
+      const props = analysisPanelMock.mock.calls.at(-1)?.[0] as {
+        model: { rankingStatus: string; rankingGroups: { items: { id: string }[] }[] };
+      };
+      expect(props.model.rankingStatus).toBe("ready");
+      expect(props.model.rankingGroups[1].items.map((item) => item.id)).toEqual([
+        "2504009",
+      ]);
+    });
+    const rankingUrl = vi
+      .mocked(global.fetch)
+      .mock.calls.map(([url]) => new URL(url as string))
+      .find((url) => url.pathname.endsWith("/ranking"));
+    expect(rankingUrl?.searchParams.get("locationKey")).toBe("3_bioma-caatinga");
+    expect(rankingUrl?.searchParams.get("year")).toBe("2024");
+
+    const props = analysisPanelMock.mock.calls.at(-1)?.[0] as {
+      onRankingItemSelect: (locationKey: string) => void;
+    };
+    props.onRankingItemSelect("2504009");
+    expect(setSelectedState).toHaveBeenCalledWith("pb");
+    expect(setSelectedMunicipalityCode).toHaveBeenCalledWith("2504009");
+  });
+
   it("loads every temporal period for a non-municipal GEE selection", async () => {
     useMapLayerViewStateMock.mockReturnValue({
       selectedState: "br",

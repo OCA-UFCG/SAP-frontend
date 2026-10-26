@@ -28,6 +28,7 @@ import { getContrastTextColor } from "@/utils/functions";
 import type {
   AnalysisDistributionItem,
   AnalysisRankingGroup,
+  AnalysisRankingStatus,
   AnalysisYearOption,
   CompactAnalysisClass,
   CompactAnalysisYearData,
@@ -538,10 +539,12 @@ function RankingSectionContent({
 
 function RankingSection({
   title,
+  status,
   groups,
   onItemSelect,
 }: {
   title: string;
+  status: AnalysisRankingStatus;
   groups: AnalysisRankingGroup[];
   onItemSelect?: (locationKey: string) => void;
 }) {
@@ -550,10 +553,24 @@ function RankingSection({
     (group) => (group.allItems?.length ?? group.items.length) > 0,
   );
 
-  if (visibleGroups.length === 0) {
+  if (status === "hidden") {
+    return null;
+  }
+
+  if (status === "loading") {
     return (
-      <EmptySection title={title} description={t("rankingsNotAvailable")} />
+      <EmptySection title={title} description={t("rankingsLoading")} loading />
     );
+  }
+
+  if (status === "unavailable") {
+    return (
+      <EmptySection title={title} description={t("rankingsUnavailable")} />
+    );
+  }
+
+  if (visibleGroups.length === 0) {
+    return <EmptySection title={title} description={t("rankingsEmpty")} />;
   }
 
   const rankingGroupsKey = visibleGroups
@@ -745,6 +762,7 @@ export function AnalysisPanel({
             ) : null}
             <RankingSection
               title={model.rankingTitle ?? t("territoriesByClassification")}
+              status={model.rankingStatus}
               groups={model.rankingGroups}
               onItemSelect={handleRankingItemSelect}
             />

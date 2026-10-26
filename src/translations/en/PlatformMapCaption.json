@@ -82,7 +82,10 @@
       "no-brasil-predomina-a-faixa-label-com-value-da-area-analisada": "Range {label} predominates with {value}% of the analyzed area.",
       "regiao-maioritariamente-na-faixa-label": "Region mostly in the range {label}",
       "menor-que-90": "< -90 mm",
-      "maior-que-90": "> 90 mm"
+      "maior-que-90": "> 90 mm",
+      "municipios": "Municipalities",
+      "municipios-por-classe-predominante": "Municipalities by predominant class",
+      "municipios-por-classificacao": "Municipalities by classification"
     }
   }
 }
