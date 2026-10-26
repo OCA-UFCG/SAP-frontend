@@ -1,7 +1,7 @@
 {
   "CookieConsent": {
     "title": "Cookies",
-    "body": "Con su permiso, usamos Google Analytics para contar las visitas y saber qué páginas se usan más. Guarda cookies en su navegador y envía a Google datos de la visita, como la dirección IP. Si lo rechaza, no se envía nada. Puede cambiar su elección en \"Cookies\", en el pie de página.",
+    "body": "Con su permiso, usamos cookies para contar las visitas y saber qué páginas se usan más. Si lo rechaza, estas cookies no se usan. Puede cambiar su elección en \"Cookies\", en el pie de página.",
     "accept": "Aceptar",
     "decline": "Rechazar"
   }

@@ -1,7 +1,7 @@
 {
   "CookieConsent": {
     "title": "Cookies",
-    "body": "With your permission, we use Google Analytics to count visits and learn which pages are used the most. It stores cookies in your browser and sends visit data to Google, such as your IP address. If you decline, nothing is sent. You can change your choice under \"Cookies\" in the footer.",
+    "body": "With your permission, we use cookies to count visits and learn which pages are used the most. If you decline, these cookies are not used. You can change your choice under \"Cookies\" in the footer.",
     "accept": "Accept",
     "decline": "Decline"
   }
