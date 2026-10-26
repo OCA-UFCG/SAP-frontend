@@ -7,6 +7,7 @@
     "priorityMedium": "Média",
     "priorityHigh": "Alta",
     "priorityVeryHigh": "Muito alta",
+    "noData": "Sem dados",
     "zoomInForClassification": "Aproxime o mapa para ver a classificação por município.",
     "errorPng": "Erro ao gerar a imagem PNG:",
     "dadosSheet": "Dados",

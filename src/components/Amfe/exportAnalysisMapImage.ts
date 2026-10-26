@@ -175,7 +175,10 @@ export const buildAnalysisMapPng = async (
   const composed = composeAnalysisMapImage(canvas, image, {
     title: t("classification"),
     entries: options.classification
-      ? buildLegendEntries(PRIORITY_LABEL_KEYS.map((key) => t(key)))
+      ? buildLegendEntries(
+          PRIORITY_LABEL_KEYS.map((key) => t(key)),
+          t("noData"),
+        )
       : [],
     attribution: OSM_ATTRIBUTION,
     scale: CAPTURE_PIXEL_RATIO,

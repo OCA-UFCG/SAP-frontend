@@ -1,7 +1,10 @@
 "use client";
 
 import { useTranslations } from "next-intl";
-import { CLASSIFICATION_COLORS } from "@/components/Map/classificationLayers";
+import {
+  CLASSIFICATION_COLORS,
+  NO_DATA_COLOR,
+} from "@/components/Map/classificationLayers";
 import {
   MAP_CONTROL_LABEL_CLASS,
   MapControlCard,
@@ -26,7 +29,7 @@ export const AmfeMapLegend = () => {
         {t("classification")}
       </p>
       {/* Lista com nome: o leitor de tela anuncia "Nível de prioridade, lista
-          de 5 itens" e lê cada nível; a bolinha de cor é só reforço visual. */}
+          de 6 itens" e lê cada nível; a bolinha de cor é só reforço visual. */}
       <ul
         aria-label={t("classification")}
         className="legend-cascade flex flex-col gap-1.5"
@@ -43,6 +46,14 @@ export const AmfeMapLegend = () => {
             </span>
           </li>
         ))}
+        <li className="flex items-center gap-3">
+          <span
+            aria-hidden="true"
+            className="h-4 w-4 shrink-0 rounded-full border border-[#C4C4C4]"
+            style={{ backgroundColor: NO_DATA_COLOR }}
+          />
+          <span className={MAP_CONTROL_LABEL_CLASS}>{t("noData")}</span>
+        </li>
       </ul>
     </MapControlCard>
   );

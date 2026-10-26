@@ -1,4 +1,7 @@
-import { CLASSIFICATION_COLORS } from "@/components/Map/classificationLayers";
+import {
+  CLASSIFICATION_COLORS,
+  NO_DATA_COLOR,
+} from "@/components/Map/classificationLayers";
 
 export interface LegendEntry {
   color: string;
@@ -50,11 +53,14 @@ const LABEL_WIDTH_RATIO = 0.62;
 
 export const buildLegendEntries = (
   labels: readonly string[],
-): LegendEntry[] =>
-  CLASSIFICATION_COLORS.map((color, level) => ({
+  noDataLabel: string,
+): LegendEntry[] => [
+  ...CLASSIFICATION_COLORS.map((color, level) => ({
     color,
     label: labels[level] ?? "",
-  })).reverse();
+  })).reverse(),
+  { color: NO_DATA_COLOR, label: noDataLabel },
+];
 
 export const buildAnalysisImageOverlay = ({
   width,
