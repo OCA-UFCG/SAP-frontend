@@ -1,0 +1,909 @@
+<!doctype html>
+<!--
+  Fonte do docs/privacidade-e-lgpd.pdf. Ao mudar o texto, gere o PDF de novo
+  (na raiz do repositório):
+
+  node -e "const{chromium}=require('playwright');(async()=>{const b=await chromium.launch();const p=await b.newPage();await p.goto('file://'+require('path').resolve('docs/privacidade-e-lgpd.html'));await p.pdf({path:'docs/privacidade-e-lgpd.pdf',format:'A4',printBackground:true,displayHeaderFooter:true,headerTemplate:'<span></span>',footerTemplate:'<div style=\'font:8px sans-serif;color:#777;width:100%;padding:0 18mm;display:flex;justify-content:space-between\'><span>SEDES · Relatório de conformidade com a LGPD</span><span>Página <span class=pageNumber></span> de <span class=totalPages></span></span></div>',margin:{top:'18mm',bottom:'20mm',left:'18mm',right:'18mm'}});await b.close()})()"
+-->
+<html lang="pt-BR">
+  <head>
+    <meta charset="utf-8" />
+    <title>SEDES — Relatório de conformidade com a LGPD</title>
+    <style>
+      :root {
+        --ink: #23261c;
+        --muted: #5d6157;
+        --accent: #4f5622;
+        --rule: #c9cbbf;
+        --tint: #f3f4ee;
+      }
+      @page {
+        size: A4;
+      }
+      * {
+        box-sizing: border-box;
+      }
+      body {
+        margin: 0;
+        background: #fff;
+        color: var(--ink);
+        font-family: "Charter", "Bitstream Charter", "Liberation Serif", Georgia, serif;
+        font-size: 10.5pt;
+        line-height: 1.5;
+      }
+      h1,
+      h2,
+      h3,
+      .meta,
+      table,
+      .label {
+        font-family: "Lato", "Liberation Sans", Arial, sans-serif;
+      }
+      h1 {
+        font-size: 22pt;
+        line-height: 1.2;
+        margin: 0 0 4mm;
+        color: var(--accent);
+      }
+      h2 {
+        font-size: 13pt;
+        color: var(--accent);
+        margin: 9mm 0 3mm;
+        padding-bottom: 1.5mm;
+        border-bottom: 1px solid var(--rule);
+        break-after: avoid;
+      }
+      h3 {
+        font-size: 11pt;
+        margin: 5mm 0 2mm;
+        break-after: avoid;
+      }
+      p {
+        margin: 0 0 2.5mm;
+        text-align: justify;
+        hyphens: auto;
+      }
+      ul,
+      ol {
+        margin: 0 0 3mm;
+        padding-left: 6mm;
+      }
+      li {
+        margin-bottom: 1.2mm;
+      }
+      code {
+        font-family: "DejaVu Sans Mono", "Liberation Mono", monospace;
+        font-size: 8.5pt;
+        background: var(--tint);
+        padding: 0 1mm;
+        border-radius: 2px;
+      }
+      table {
+        width: 100%;
+        border-collapse: collapse;
+        font-size: 8.6pt;
+        line-height: 1.35;
+        margin: 2mm 0 4mm;
+      }
+      th,
+      td {
+        border: 1px solid var(--rule);
+        padding: 1.6mm 2mm;
+        vertical-align: top;
+        text-align: left;
+      }
+      th {
+        background: var(--tint);
+        font-weight: 700;
+      }
+      tr {
+        break-inside: avoid;
+      }
+      .cover {
+        border-top: 3mm solid var(--accent);
+        padding-top: 8mm;
+        margin-bottom: 6mm;
+      }
+      .kicker {
+        font-family: "Lato", "Liberation Sans", Arial, sans-serif;
+        text-transform: uppercase;
+        letter-spacing: 0.08em;
+        font-size: 8.5pt;
+        color: var(--muted);
+        margin-bottom: 2mm;
+      }
+      .meta td:first-child {
+        width: 38mm;
+        font-weight: 700;
+        background: var(--tint);
+      }
+      .box {
+        border: 1px solid var(--rule);
+        border-left: 1.2mm solid var(--accent);
+        background: var(--tint);
+        padding: 3mm 4mm;
+        margin: 3mm 0 4mm;
+        break-inside: avoid;
+      }
+      .box p:last-child {
+        margin-bottom: 0;
+      }
+      .status {
+        font-weight: 700;
+        white-space: nowrap;
+      }
+      .ok {
+        color: #2f6b2a;
+      }
+      .pend {
+        color: #8a5a00;
+      }
+      .toc {
+        columns: 2;
+        column-gap: 8mm;
+        font-family: "Lato", "Liberation Sans", Arial, sans-serif;
+        font-size: 9.5pt;
+      }
+      .toc li {
+        margin-bottom: 0.8mm;
+      }
+      .small {
+        font-size: 8.8pt;
+        color: var(--muted);
+      }
+      .page-break {
+        break-before: page;
+      }
+    </style>
+  </head>
+  <body>
+    <section class="cover">
+      <div class="kicker">Documento de conformidade e privacidade</div>
+      <h1>SEDES — Relatório de conformidade com a Lei Geral de Proteção de Dados Pessoais</h1>
+      <p>
+        Descreve quais dados pessoais a plataforma SEDES trata, com que finalidade, quem pode
+        acessá-los, por quanto tempo ficam guardados e como são protegidos. Registra também as
+        decisões tomadas e as limitações conhecidas.
+      </p>
+      <table class="meta">
+        <tr>
+          <td>Sistema</td>
+          <td>SEDES — plataforma de monitoramento de seca e desertificação (https://sedes.oca-portal.com)</td>
+        </tr>
+        <tr>
+          <td>Instituições</td>
+          <td>
+            Ministério do Meio Ambiente e Mudança do Clima · Universidade Federal de Campina Grande ·
+            Observatório da Caatinga e Desertificação (OCA)
+          </td>
+        </tr>
+        <tr>
+          <td>Versão avaliada</td>
+          <td>v7.10, em produção desde 26/10/2026</td>
+        </tr>
+        <tr>
+          <td>Data da verificação</td>
+          <td>26 de outubro de 2026</td>
+        </tr>
+        <tr>
+          <td>Referência legal</td>
+          <td>
+            Lei nº 13.709/2018 (LGPD) e, quanto aos registros de acesso, Lei nº 12.965/2014
+            (Marco Civil da Internet)
+          </td>
+        </tr>
+        <tr>
+          <td>Natureza</td>
+          <td>
+            Avaliação técnica interna, feita pela equipe técnica do SEDES (LSD/UFCG). Não é certificação
+            nem auditoria independente.
+          </td>
+        </tr>
+        <tr>
+          <td>Revisão jurídica</td>
+          <td>Pendente</td>
+        </tr>
+        <tr>
+          <td>Contato da equipe</td>
+          <td>oca@lsd.ufcg.edu.br</td>
+        </tr>
+      </table>
+
+      <div class="label" style="font-weight: 700; margin: 4mm 0 1.5mm">Sumário</div>
+      <ol class="toc">
+        <li>Objetivo e escopo</li>
+        <li>Síntese</li>
+        <li>O sistema e onde os dados ficam</li>
+        <li>Inventário de dados pessoais</li>
+        <li>Quem acessa os dados</li>
+        <li>Serviços de terceiros</li>
+        <li>Prazos de guarda e eliminação</li>
+        <li>Direitos dos titulares</li>
+        <li>Medidas de segurança</li>
+        <li>Decisões registradas</li>
+        <li>Limitações conhecidas e pendências</li>
+        <li>Verificação realizada</li>
+        <li>Conclusão</li>
+        <li>Anexo — onde cada medida está no código</li>
+      </ol>
+    </section>
+
+    <h2>1. Objetivo e escopo</h2>
+    <p>
+      Este relatório documenta o tratamento de dados pessoais feito pela plataforma SEDES, nos termos
+      da Lei nº 13.709/2018 (LGPD). Ele serve de base para o registro das operações de tratamento
+      (art. 37), para a resposta a titulares e para a análise jurídica dos pontos que não dependem de
+      tecnologia.
+    </p>
+    <p>
+      O escopo é o código do repositório <code>OCA-UFCG/SAP-frontend</code> na versão v7.10 e os
+      ambientes em que ele roda: produção, homologação (beta) e desenvolvimento. Os dados geográficos
+      e estatísticos que a plataforma exibe (índices de seca, municípios, mapas) não são dados
+      pessoais e ficam fora deste documento. O projeto do Firebase é compartilhado com outros
+      sistemas; as contas e coleções desses sistemas não fazem parte deste escopo.
+    </p>
+
+    <h2>2. Síntese</h2>
+    <div class="box">
+      <p>
+        <strong>A plataforma coleta apenas o necessário para controlar quem acessa a área
+        restrita:</strong> e-mail, senha (guardada somente como hash pelo provedor de autenticação) e
+        uma descrição livre de como a pessoa pretende usar a plataforma. O formulário não pede nome,
+        CPF, telefone, endereço nem dado sensível (art. 5º, II). Como a descrição é texto livre, a
+        pessoa pode escrever ali algum dado pessoal por conta própria (seção 11.3).
+      </p>
+      <p>
+        Os dados pessoais guardados têm prazo, ou uma finalidade de auditoria que justifica mantê-los.
+        A exceção é o pedido de acesso que aguarda a decisão da equipe, que não vence (seção 7).
+        A eliminação é automática, feita pelo próprio servidor uma vez por dia. Os registros de uso
+        da plataforma não identificam a pessoa. O Google Analytics só é carregado depois que a pessoa
+        aceita. A própria pessoa pode excluir a conta, e quem ainda aguarda liberação pode desistir do
+        pedido.
+      </p>
+      <p>
+        <strong>As medidas técnicas estão implementadas e foram verificadas em produção em
+        26/10/2026.</strong> A conformidade plena depende ainda de itens institucionais, como a
+        política de privacidade, a definição do controlador e do encarregado e a transferência
+        internacional. Esses itens estão na seção 11 e não se resolvem por código.
+      </p>
+    </div>
+
+    <h2>3. O sistema e onde os dados ficam</h2>
+    <p>
+      O SEDES tem uma parte pública (home, glossário, páginas institucionais) e uma área restrita, a
+      “plataforma”, que exige conta. Quem tem e-mail de domínio institucional autorizado entra assim
+      que confirma o endereço. As demais pessoas descrevem a intenção de uso e aguardam a decisão da
+      equipe do OCA.
+    </p>
+    <table>
+      <thead><tr>
+        <th style="width: 24%">Componente</th>
+        <th style="width: 40%">Função</th>
+        <th>Localização</th>
+      </tr></thead>
+      <tr>
+        <td>Aplicação de produção</td>
+        <td>Atende o público em sedes.oca-portal.com</td>
+        <td>Amazon Web Services, região us-east-1 (Estados Unidos)</td>
+      </tr>
+      <tr>
+        <td>Aplicação de homologação (beta)</td>
+        <td>Testes e telas administrativas (aprovações, auditoria)</td>
+        <td>Máquina virtual do LSD/UFCG, Campina Grande (Brasil)</td>
+      </tr>
+      <tr>
+        <td>Banco de dados (Cloud Firestore)</td>
+        <td>Pedidos de acesso e registros de uso</td>
+        <td>Google Cloud, região southamerica-east1 (São Paulo, Brasil)</td>
+      </tr>
+      <tr>
+        <td>Autenticação (Firebase Authentication)</td>
+        <td>Contas, senhas (hash) e sessões</td>
+        <td>Infraestrutura global do Google, sem garantia de permanência no Brasil</td>
+      </tr>
+      <tr>
+        <td>Envio de e-mail</td>
+        <td>Confirmação de endereço, aviso à equipe e decisão do pedido</td>
+        <td>Servidor SMTP do Google, pela conta institucional da equipe do OCA</td>
+      </tr>
+      <tr>
+        <td>Monitoramento (VM oca-monitor)</td>
+        <td>Verifica se os ambientes respondem</td>
+        <td>Amazon Web Services; não recebe dado pessoal</td>
+      </tr>
+    </table>
+
+    <h2>4. Inventário de dados pessoais</h2>
+    <p>
+      As bases legais da coluna “Base legal proposta” são uma sugestão técnica e precisam ser
+      confirmadas pelo jurídico (ver seção 11).
+    </p>
+    <table>
+      <thead><tr>
+        <th style="width: 17%">Dado</th>
+        <th style="width: 13%">Titular</th>
+        <th style="width: 25%">Finalidade</th>
+        <th style="width: 17%">Onde fica</th>
+        <th style="width: 13%">Prazo</th>
+        <th>Base legal proposta</th>
+      </tr></thead>
+      <tr>
+        <td>E-mail e hash da senha</td>
+        <td>Quem cria conta</td>
+        <td>Identificar a pessoa no login e controlar o acesso à plataforma</td>
+        <td>Firebase Authentication</td>
+        <td>Enquanto a conta existir (ver seção 7)</td>
+        <td>Art. 7º, III (políticas públicas) ou V (procedimento a pedido do titular)</td>
+      </tr>
+      <tr>
+        <td>Pedido de acesso: e-mail, descrição de uso, idioma, situação, datas e e-mail de quem decidiu</td>
+        <td>Quem pede acesso; integrante da equipe que decide</td>
+        <td>Permitir a decisão da equipe e manter a trilha de “quem liberou quem”</td>
+        <td>Firestore, coleção <code>access-requests</code></td>
+        <td>30 dias se não confirmado; 6 meses se recusado; enquanto houver acesso se aprovado</td>
+        <td>Art. 7º, III ou V</td>
+      </tr>
+      <tr>
+        <td>E-mails de aviso (e-mail e descrição de uso)</td>
+        <td>Quem pede acesso</td>
+        <td>Avisar a equipe de um pedido novo e informar a pessoa da decisão</td>
+        <td>Caixa de e-mail da equipe do OCA</td>
+        <td>Sem prazo definido (ver seção 11)</td>
+        <td>Art. 7º, III ou V</td>
+      </tr>
+      <tr>
+        <td>Registros de uso: buscas, camadas ligadas, seções abertas, data, se havia login e um identificador da aba</td>
+        <td>Visitante (não identificado)</td>
+        <td>Painel de auditoria do uso da plataforma</td>
+        <td>Firestore, coleções <code>telemetry-events-*</code></td>
+        <td>90 dias</td>
+        <td>Não identificam a pessoa: sem e-mail, uid ou IP</td>
+      </tr>
+      <tr>
+        <td>Endereço IP, data, página pedida e navegador</td>
+        <td>Visitante</td>
+        <td>Segurança, diagnóstico e registro de acesso</td>
+        <td>Log do servidor web (nginx) de cada ambiente</td>
+        <td>Rotação por volume: cerca de um ano no ritmo atual da produção</td>
+        <td>Art. 7º, II (Marco Civil, art. 15) ou IX (legítimo interesse)</td>
+      </tr>
+      <tr>
+        <td>Endereço IP ou uid, contagem de tentativas</td>
+        <td>Visitante</td>
+        <td>Limitar tentativas de cadastro, de recuperação de senha e consultas pesadas</td>
+        <td>Memória do servidor</td>
+        <td>Cerca de 1 minuto; nunca gravado</td>
+        <td>Art. 7º, IX</td>
+      </tr>
+      <tr>
+        <td>Cookie de sessão</td>
+        <td>Quem faz login</td>
+        <td>Manter a pessoa logada</td>
+        <td>Navegador</td>
+        <td>24 horas, ou até sair</td>
+        <td>Estritamente necessário; art. 7º, V</td>
+      </tr>
+      <tr>
+        <td>Cookies do Google Analytics (<code>_ga*</code>) e dados da visita</td>
+        <td>Visitante que aceitou</td>
+        <td>Contar visitas e páginas mais usadas</td>
+        <td>Navegador e Google</td>
+        <td>Definido pelo Google; apagados se a pessoa recusar depois</td>
+        <td>Art. 7º, I (consentimento)</td>
+      </tr>
+      <tr>
+        <td>Escolha sobre cookies</td>
+        <td>Visitante</td>
+        <td>Lembrar a escolha</td>
+        <td>Navegador (<code>localStorage</code>)</td>
+        <td>Até a pessoa limpar o navegador</td>
+        <td>Não sai do navegador</td>
+      </tr>
+    </table>
+
+    <h2>5. Quem acessa os dados</h2>
+    <ul>
+      <li>
+        <strong>Equipe administrativa.</strong> Só os e-mails de uma lista definida na configuração
+        do ambiente (hoje, duas pessoas) entram nas telas de Aprovações e de Auditoria. Essas telas
+        existem apenas no beta: em produção a lista está vazia de propósito. A equipe vê os pedidos
+        (e-mail, descrição de uso e datas), a lista de quem tem acesso (e-mail) e os registros de uso,
+        que não identificam ninguém. Tirar alguém da lista vale na requisição seguinte.
+      </li>
+      <li>
+        <strong>Caixa da equipe do OCA.</strong> Recebe o aviso de cada pedido novo, com o e-mail e a
+        descrição de uso.
+      </li>
+      <li>
+        <strong>Banco de dados.</strong> As regras de segurança publicadas no Firestore negam
+        qualquer leitura ou escrita feita pelo navegador. Só o servidor da aplicação acessa o banco,
+        com credencial de serviço.
+      </li>
+      <li>
+        <strong>Usuários comuns</strong> não veem dados de outras pessoas.
+      </li>
+      <li>
+        <strong>Desenvolvedores</strong> com acesso às credenciais dos ambientes podem acessar o banco
+        para manutenção. Esse acesso é restrito à equipe técnica do projeto.
+      </li>
+    </ul>
+
+    <h2>6. Serviços de terceiros</h2>
+    <p>
+      Os serviços abaixo recebem dados da plataforma ou do navegador do visitante. A descrição de uso
+      chega a dois serviços do Google: ao Firestore, onde o pedido fica guardado, e ao SMTP, porque o
+      aviso de pedido novo enviado à equipe leva o e-mail e a descrição da pessoa. O Google Analytics,
+      quando aceito, recebe as páginas visitadas, mas não o e-mail nem a descrição de uso.
+    </p>
+    <table>
+      <thead><tr>
+        <th style="width: 22%">Serviço</th>
+        <th style="width: 30%">O que recebe</th>
+        <th style="width: 26%">Quando</th>
+        <th>Papel</th>
+      </tr></thead>
+      <tr>
+        <td>Google (Firebase e Firestore)</td>
+        <td>Conta, pedidos de acesso e registros de uso</td>
+        <td>Cadastro, login e uso da plataforma</td>
+        <td>Operador (infraestrutura)</td>
+      </tr>
+      <tr>
+        <td>Google (SMTP)</td>
+        <td>E-mail do destinatário e conteúdo da mensagem</td>
+        <td>A cada e-mail enviado</td>
+        <td>Operador (infraestrutura)</td>
+      </tr>
+      <tr>
+        <td>Amazon Web Services</td>
+        <td>Todo o tráfego da produção, inclusive IP</td>
+        <td>Sempre (hospedagem)</td>
+        <td>Operador (infraestrutura)</td>
+      </tr>
+      <tr>
+        <td>Cloudflare Turnstile</td>
+        <td>IP e características do navegador</td>
+        <td>Só nas telas de cadastro e de reenvio de e-mail (antirrobô)</td>
+        <td>Serviço de segurança</td>
+      </tr>
+      <tr>
+        <td>Google Analytics</td>
+        <td>IP, páginas visitadas, cookies <code>_ga*</code></td>
+        <td>Só depois de “Aceitar” no aviso de cookies</td>
+        <td>Consentimento do visitante</td>
+      </tr>
+      <tr>
+        <td>OpenStreetMap e Esri (mapas de fundo)</td>
+        <td>IP e a região do mapa visualizada</td>
+        <td>Ao exibir o mapa</td>
+        <td>Requisição técnica do navegador</td>
+      </tr>
+      <tr>
+        <td>VLibras (Governo Federal)</td>
+        <td>IP</td>
+        <td>Ao carregar as páginas (tradutor de Libras, exigido pela Lei Brasileira de Inclusão)</td>
+        <td>Requisição técnica do navegador</td>
+      </tr>
+    </table>
+    <p class="small">
+      As fontes tipográficas são servidas pelo próprio site, sem chamada ao Google Fonts. O conteúdo
+      editorial (Contentful) e os dados geográficos (Google Earth Engine) são consultados pelo
+      servidor, sem dado pessoal.
+    </p>
+
+    <h2>7. Prazos de guarda e eliminação</h2>
+    <p>
+      A eliminação é feita pelo próprio servidor da aplicação, na inicialização e depois uma vez por
+      dia. Cada ambiente cuida dos próprios dados. Não se usa o recurso de expiração automática (TTL)
+      do Firestore porque ele não existe no plano gratuito em que o projeto está; o campo de
+      vencimento já é gravado de forma compatível, caso o projeto mude de plano.
+    </p>
+    <table>
+      <thead><tr>
+        <th style="width: 30%">Situação</th>
+        <th style="width: 18%">Prazo</th>
+        <th>O que é apagado</th>
+      </tr></thead>
+      <tr>
+        <td>Cadastro com e-mail não confirmado</td>
+        <td>30 dias</td>
+        <td>A conta e o pedido de acesso</td>
+      </tr>
+      <tr>
+        <td>Pedido recusado</td>
+        <td>6 meses após a recusa</td>
+        <td>A conta (desabilitada desde a recusa) e o pedido. Até lá, a conta impede um novo pedido
+          repetido.</td>
+      </tr>
+      <tr>
+        <td>Pedido confirmado aguardando decisão</td>
+        <td>Não vence</td>
+        <td>Nada. A pessoa ainda espera uma resposta, e apagar o pedido equivaleria a negá-lo sem
+          decisão. Ela pode desistir a qualquer momento na própria página de espera. Falta um prazo
+          para a equipe decidir (seção 11.3).</td>
+      </tr>
+      <tr>
+        <td>Pedido aprovado ou acesso removido</td>
+        <td>Enquanto a conta existir</td>
+        <td>Mantido como trilha de auditoria. Sai junto com a exclusão da conta.</td>
+      </tr>
+      <tr>
+        <td>Exclusão de conta (pela pessoa ou pela equipe)</td>
+        <td>Imediato</td>
+        <td>A conta no Firebase e o pedido de acesso</td>
+      </tr>
+      <tr>
+        <td>Registros de uso</td>
+        <td>90 dias</td>
+        <td>O evento inteiro</td>
+      </tr>
+      <tr>
+        <td>Log do servidor web</td>
+        <td>Por volume</td>
+        <td>Cada arquivo gira ao passar de 100 MB e são mantidas 5 cópias compactadas; a mais antiga é
+          descartada</td>
+      </tr>
+      <tr>
+        <td>Log da aplicação</td>
+        <td>Até a próxima versão</td>
+        <td>Removido junto com o contêiner antigo a cada implantação</td>
+      </tr>
+    </table>
+    <p>
+      Contas que não pertencem ao SEDES no projeto compartilhado do Firebase nunca são tocadas pela
+      eliminação automática: ela só age sobre contas que têm um pedido na coleção do próprio
+      ambiente.
+    </p>
+
+    <h2>8. Direitos dos titulares (art. 18)</h2>
+    <table>
+      <thead><tr>
+        <th style="width: 34%">Direito</th>
+        <th>Como é atendido</th>
+      </tr></thead>
+      <tr>
+        <td>Confirmação e acesso (I e II)</td>
+        <td>Pedido à equipe pelo e-mail oca@lsd.ufcg.edu.br. Os dados de cada pessoa se resumem a
+          e-mail, descrição de uso e datas do pedido, que a equipe consegue informar.</td>
+      </tr>
+      <tr>
+        <td>Correção (III)</td>
+        <td>Pedido à equipe. A senha a própria pessoa troca em “Esqueci minha senha”.</td>
+      </tr>
+      <tr>
+        <td>Eliminação (IV e VI)</td>
+        <td>Pela própria pessoa em “Minha conta” → “Excluir conta”, confirmando a senha. Quem aguarda
+          liberação usa “Desistir do pedido” na página de espera. Contas antigas, que podem ser
+          compartilhadas entre pessoas de um órgão, e contas com acesso removido são excluídas pela
+          equipe, a pedido.</td>
+      </tr>
+      <tr>
+        <td>Portabilidade (V)</td>
+        <td>Pedido à equipe; os dados cabem numa mensagem de e-mail.</td>
+      </tr>
+      <tr>
+        <td>Informação sobre compartilhamento (VII)</td>
+        <td>Seção 6 deste documento; deve constar da política de privacidade.</td>
+      </tr>
+      <tr>
+        <td>Não consentir e revogar o consentimento (VIII e IX)</td>
+        <td>O aviso de cookies tem “Aceitar” e “Recusar” com o mesmo destaque. O link “Cookies” no
+          rodapé reabre o aviso. Ao recusar depois de ter aceitado, o Analytics é desligado e os
+          cookies <code>_ga*</code> são apagados.</td>
+      </tr>
+    </table>
+
+    <h2>9. Medidas de segurança (art. 46)</h2>
+    <ul>
+      <li><strong>Transporte:</strong> todo acesso em HTTPS.</li>
+      <li>
+        <strong>Senhas:</strong> nunca guardadas pela aplicação. O Firebase guarda apenas o hash
+        (scrypt). A plataforma exige no mínimo 8 caracteres, conferidos no servidor.
+      </li>
+      <li>
+        <strong>Sessão:</strong> cookie <code>HttpOnly</code>, <code>Secure</code> e
+        <code>SameSite=Lax</code>, válido por 24 horas. Trocar a senha, remover o acesso ou excluir
+        a conta encerra as sessões abertas.
+      </li>
+      <li>
+        <strong>Banco de dados:</strong> regras do Firestore negam todo acesso direto pelo navegador;
+        só o servidor lê e escreve.
+      </li>
+      <li>
+        <strong>Cadastro:</strong> a criação de conta direto na API do Google está desligada no
+        Firebase; a conta só nasce pelo servidor da plataforma, depois de verificação antirrobô
+        (Cloudflare Turnstile) e de limite de tentativas por IP.
+      </li>
+      <li>
+        <strong>Links enviados por e-mail:</strong> o link de confirmação não leva o e-mail da pessoa
+        na URL; vale uma vez e por tempo limitado.
+      </li>
+      <li>
+        <strong>Respostas neutras:</strong> “Esqueci minha senha” e “Reenviar e-mail” respondem da
+        mesma forma, exista a conta ou não, para não revelar quem tem cadastro.
+      </li>
+      <li>
+        <strong>Menor privilégio:</strong> as telas administrativas existem só no beta e só para a lista
+        de e-mails autorizados; segredos ficam nos cofres do GitHub, nunca no código.
+      </li>
+      <li>
+        <strong>Disponibilidade:</strong> a VM de monitoramento avisa a equipe por e-mail quando um
+        ambiente para de responder.
+      </li>
+    </ul>
+
+    <h2>10. Decisões registradas</h2>
+    <ol>
+      <li>
+        <strong>Registros de uso sem identificação (outubro de 2026).</strong> Até então, cada evento
+        guardava o e-mail de quem estava logado, sem prazo. Nada na plataforma dependia disso. Hoje o
+        evento guarda só se havia login. O identificador da aba fica no <code>sessionStorage</code> e
+        some ao fechá-la. Os cerca de 14 mil eventos antigos tiveram e-mail e uid removidos, e as três
+        coleções de teste foram apagadas.
+      </li>
+      <li>
+        <strong>Eliminação pelo servidor, e não pela TTL do Firestore.</strong> A TTL exige o plano
+        pago; a cota gratuita de exclusões sobra para o volume atual.
+      </li>
+      <li>
+        <strong>Pedidos aprovados ficam enquanto a conta existir.</strong> São a trilha de auditoria de
+        quem liberou o acesso; sem ela, não há como responder por que alguém tem acesso.
+      </li>
+      <li>
+        <strong>Pedidos recusados ficam 6 meses.</strong> Nesse período, a conta desabilitada impede a
+        mesma pessoa de repetir o pedido em seguida.
+      </li>
+      <li>
+        <strong>Analytics só com consentimento, com as duas opções no mesmo peso.</strong> Destacar só
+        o “Aceitar” tornaria o consentimento menos livre.
+      </li>
+      <li>
+        <strong>Cadastro mínimo.</strong> Não se pede nome, órgão ou telefone; a descrição de uso é o
+        único texto livre, e a tela informa que ela vai para a equipe do OCA.
+      </li>
+      <li>
+        <strong>Rotação dos logs do servidor web.</strong> Antes cresciam sem limite (passavam de 1 GB
+        no beta); agora giram por volume.
+      </li>
+    </ol>
+
+    <h2>11. Limitações conhecidas e pendências</h2>
+    <h3>11.1 Ação prioritária</h3>
+    <div class="box">
+      <p>
+        <strong>Ambiente gamma desatualizado.</strong> O endereço gamma-sap.oca-portal.com continua
+        acessível e roda uma versão de 31/08/2026, anterior a todas as medidas deste documento. O
+        certificado dele venceu em 14/10/2026. Hoje esse ambiente não guarda dado algum, mas, se for
+        usado, volta a gravar o e-mail nos registros de uso, sem prazo de eliminação. Ele deve ser
+        desligado ou atualizado para a versão atual.
+      </p>
+    </div>
+
+    <h3>11.2 Dependem do jurídico ou da coordenação</h3>
+    <table>
+      <thead><tr>
+        <th style="width: 30%">Item</th>
+        <th>Situação</th>
+      </tr></thead>
+      <tr>
+        <td>Controlador e encarregado (arts. 5º, VI; 23, III; 41)</td>
+        <td><span class="status pend">Pendente.</span> Definir qual instituição é a controladora
+          (UFCG, Ministério ou ambas) e nomear o encarregado, com contato publicado no site.</td>
+      </tr>
+      <tr>
+        <td>Política de privacidade e termos de uso (arts. 9º e 23, I)</td>
+        <td><span class="status pend">Pendente.</span> Não há página publicada. Este documento contém
+          as informações de que ela precisa; falta o texto jurídico, o link no rodapé e na tela de
+          cadastro.</td>
+      </tr>
+      <tr>
+        <td>Bases legais (art. 7º)</td>
+        <td><span class="status pend">Pendente.</span> As propostas da seção 4 precisam ser
+          confirmadas.</td>
+      </tr>
+      <tr>
+        <td>Transferência internacional (art. 33)</td>
+        <td><span class="status pend">Pendente.</span> Fluxos para fora do Brasil identificados:
+          <ul style="margin: 1mm 0">
+            <li>a produção, na AWS dos Estados Unidos, recebe todo o tráfego, inclusive o e-mail, a
+              senha em trânsito, a descrição de uso e o IP;</li>
+            <li>a autenticação do Google guarda a conta e o hash da senha sem garantia de permanecer
+              no Brasil;</li>
+            <li>o Google Analytics (só com consentimento), a Cloudflare e a Esri recebem IP e dados
+              do navegador;</li>
+            <li>o OpenStreetMap recebe IP e a região do mapa visualizada.</li>
+          </ul>
+          Para cada fluxo é preciso indicar o mecanismo do art. 33 que se aplica, por exemplo as
+          cláusulas-padrão contratuais da Resolução CD/ANPD nº 19/2024, e conferir se os termos dos
+          provedores as contemplam. Levar a produção para uma região no Brasil elimina o maior desses
+          fluxos, mas não os demais.</td>
+      </tr>
+      <tr>
+        <td>Prazo dos registros de acesso (Marco Civil, art. 15)</td>
+        <td><span class="status pend">Pendente.</span> Confirmar se a obrigação de guardar 6 meses se
+          aplica a uma instituição pública sem fins econômicos e fixar o prazo; a rotação pode passar a
+          ser por data.</td>
+      </tr>
+      <tr>
+        <td>Caixa de e-mail da equipe</td>
+        <td><span class="status pend">Pendente.</span> Os avisos de pedido recebidos ficam fora do
+          alcance do código. Definir um prazo para apagá-los.</td>
+      </tr>
+      <tr>
+        <td>Resposta a incidentes (art. 48)</td>
+        <td><span class="status pend">Pendente.</span> Não há procedimento escrito para comunicar um
+          incidente à ANPD e aos titulares.</td>
+      </tr>
+    </table>
+
+    <h3>11.3 Técnicas, de baixo impacto</h3>
+    <ul>
+      <li>
+        <strong>Pedido sem prazo de decisão.</strong> O pedido confirmado que aguarda a equipe não
+        vence. Recomenda-se fixar um prazo de resposta, por exemplo 30 dias, e acompanhar os pedidos
+        que passarem dele. Em 26/10/2026 não havia nenhum pedido nessa situação.
+      </li>
+      <li>
+        <strong>E-mail em mensagens de erro.</strong> Quando o envio de e-mail falha, o log da
+        aplicação registra o endereço do destinatário, para a equipe poder agir. Esse log é removido
+        na implantação seguinte.
+      </li>
+      <li>
+        <strong>Senha mínima no projeto compartilhado.</strong> A plataforma exige 8 caracteres, mas a
+        regra do projeto do Firebase, que vale também para os outros sistemas, é 6.
+      </li>
+      <li>
+        <strong>Ocupação de endereço.</strong> A conta é criada antes de a pessoa provar que o e-mail é
+        seu. Alguém poderia cadastrar o endereço de um terceiro; a dona do endereço retoma a conta por
+        “Esqueci minha senha”, que encerra as sessões de quem a ocupou.
+      </li>
+      <li>
+        <strong>Texto livre.</strong> A descrição de uso e o termo digitado na busca são livres; uma
+        pessoa pode escrever ali um dado pessoal por conta própria.
+      </li>
+    </ul>
+
+    <h2>12. Verificação realizada</h2>
+    <p>
+      Verificações feitas pela equipe técnica em 26/10/2026, sobre a versão v7.10 em produção:
+    </p>
+    <table>
+      <thead><tr>
+        <th style="width: 27%">Verificação</th>
+        <th style="width: 37%">Método</th>
+        <th>Resultado</th>
+      </tr></thead>
+      <tr>
+        <td>Registros de uso com e-mail ou uid, nos três ambientes</td>
+        <td>Consulta de contagem no Firestore, por coleção, filtrando pelos campos de e-mail e uid</td>
+        <td><span class="status ok">Nenhum</span> (produção 1.362, beta 4.215 e desenvolvimento 7.352
+          eventos conferidos)</td>
+      </tr>
+      <tr>
+        <td>Registros de uso vencidos (mais de 90 dias) na produção e no beta</td>
+        <td>Contagem pelo campo de vencimento, antes e depois da implantação</td>
+        <td><span class="status ok">Nenhum.</span> A primeira passada da eliminação apagou 256
+          eventos na produção e 770 no beta.</td>
+      </tr>
+      <tr>
+        <td>Registros de uso sem data de vencimento</td>
+        <td>Contagem dos que têm o campo de vencimento, comparada ao total</td>
+        <td><span class="status ok">Nenhum</span></td>
+      </tr>
+      <tr>
+        <td>Coleções de teste com dados antigos</td>
+        <td>Listagem das coleções do banco</td>
+        <td><span class="status ok">Apagadas</span></td>
+      </tr>
+      <tr>
+        <td>Regras do Firestore publicadas</td>
+        <td>Leitura da versão publicada pela API do Firebase e comparação com
+          <code>firestore.rules</code></td>
+        <td><span class="status ok">Iguais às do repositório:</span> todo acesso pelo navegador
+          negado</td>
+      </tr>
+      <tr>
+        <td>Criação de conta direto na API do Google</td>
+        <td>Leitura da configuração do Firebase Authentication</td>
+        <td><span class="status ok">Desligada</span></td>
+      </tr>
+      <tr>
+        <td>Pedidos de acesso guardados</td>
+        <td>Contagem por situação e idade do pedido pendente</td>
+        <td>3: 1 com e-mail ainda não confirmado, há 9 dias (vence aos 30), 1 aprovado e 1 recusado.
+          Nenhum confirmado esperando a equipe.</td>
+      </tr>
+      <tr>
+        <td>Saúde da produção após a implantação</td>
+        <td>Três consultas a <code>/api/health</code></td>
+        <td><span class="status ok">Normal</span> em todas as dependências</td>
+      </tr>
+      <tr>
+        <td>Testes automatizados de eliminação</td>
+        <td>Integração contínua do GitHub</td>
+        <td><span class="status ok">Aprovados</span> (PRs #492 e #494)</td>
+      </tr>
+    </table>
+    <p class="small">
+      As contagens foram feitas por consultas de contagem, sem leitura do conteúdo dos registros.
+      No ambiente de desenvolvimento ainda havia 647 eventos vencidos no momento da contagem; eles
+      são apagados na próxima vez que esse ambiente subir com a versão v7.10.
+    </p>
+
+    <div style="break-inside: avoid">
+    <h2>13. Conclusão</h2>
+    <p>
+      O SEDES trata um conjunto pequeno de dados pessoais, limitado ao necessário para controlar o
+      acesso à área restrita, e atende aos princípios da finalidade, da adequação e da necessidade
+      (art. 6º, I a III). Os dados têm prazo de guarda ou justificativa de auditoria, com a exceção
+      registrada na seção 7, e a eliminação é automática. Os registros de uso não identificam as
+      pessoas. O consentimento para o Analytics é livre e revogável, e o titular exclui a própria
+      conta sem depender da equipe. As medidas de segurança da seção 9 estão em vigor.
+    </p>
+    <p>
+      Esta avaliação técnica interna da versão v7.10 encontrou os controles e os resultados descritos
+      neste relatório. Ela não substitui a análise jurídica. A conformidade integral depende de
+      desligar ou atualizar o ambiente gamma (seção 11.1) e de resolver as pendências da seção 11.2.
+      A ordem recomendada é esta: definir o controlador e o encarregado, publicar a política de
+      privacidade e decidir sobre as transferências internacionais.
+    </p>
+    </div>
+
+    <h2>Anexo — onde cada medida está no código</h2>
+    <table>
+      <thead><tr>
+        <th style="width: 38%">Medida</th>
+        <th>Arquivo</th>
+      </tr></thead>
+      <tr>
+        <td>Eliminação diária (cadastros e registros de uso)</td>
+        <td><code>src/lib/retention-sweep.ts</code>, <code>src/lib/signup-retention.ts</code>,
+          <code>src/instrumentation-node.ts</code></td>
+      </tr>
+      <tr>
+        <td>Registros de uso e prazo de 90 dias</td>
+        <td><code>src/repositories/telemetry/telemetryRepository.ts</code>,
+          <code>src/types/telemetry.ts</code>, <code>docs/telemetria.md</code></td>
+      </tr>
+      <tr>
+        <td>Remoção de e-mail e uid dos eventos antigos</td>
+        <td><code>scripts/telemetry-remove-personal-data.mjs</code></td>
+      </tr>
+      <tr>
+        <td>Cadastro, liberação, remoção de acesso e exclusão de conta</td>
+        <td><code>src/lib/access-requests.ts</code>, <code>src/lib/account-management.ts</code>,
+          <code>src/app/api/account/</code>, <code>docs/cadastro.md</code></td>
+      </tr>
+      <tr>
+        <td>Aviso de cookies e Google Analytics</td>
+        <td><code>src/components/CookieConsent/</code>, <code>src/lib/analytics-consent.ts</code></td>
+      </tr>
+      <tr>
+        <td>Sessão</td>
+        <td><code>src/app/api/session/route.ts</code>, <code>src/lib/server-session.ts</code></td>
+      </tr>
+      <tr>
+        <td>Lista de acesso administrativo</td>
+        <td><code>src/lib/logs-access.ts</code> (variável <code>LOGS_ALLOWED_EMAILS</code>)</td>
+      </tr>
+      <tr>
+        <td>Regras do banco de dados</td>
+        <td><code>firestore.rules</code></td>
+      </tr>
+      <tr>
+        <td>Captcha e limite de tentativas</td>
+        <td><code>src/lib/captcha.ts</code>, <code>src/app/api/signup/rate-limit.ts</code>,
+          <code>src/utils/rateLimitStore.ts</code></td>
+      </tr>
+      <tr>
+        <td>Rotação dos logs do servidor</td>
+        <td><code>scripts/docker-logs/</code>, <code>.github/workflows/docker-logs.yaml</code></td>
+      </tr>
+    </table>
+    <p class="small">
+      Este documento deve ser revisto sempre que a plataforma passar a coletar um dado novo ou a usar
+      um serviço de terceiros novo. A fonte editável é <code>docs/privacidade-e-lgpd.html</code>; o
+      comando que gera o PDF está no início dela.
+    </p>
+  </body>
+</html>
