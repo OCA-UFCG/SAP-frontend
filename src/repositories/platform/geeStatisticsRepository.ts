@@ -19,7 +19,10 @@ import {
   type GeeMunicipalValueTableStatisticsSource,
 } from "@/contracts/geeMunicipalValueTable";
 import { isMunicipalSpreadsheetSource } from "@/contracts/municipalSpreadsheet";
-import { getMunicipalValueTableYearPatch } from "@/repositories/platform/geeMunicipalValueTableRepository";
+import {
+  getMunicipalValueTableMunicipalitiesYearValues,
+  getMunicipalValueTableYearPatch,
+} from "@/repositories/platform/geeMunicipalValueTableRepository";
 import { buildSpatialLocationKey } from "@/contracts/spatialLocationKey.mjs";
 import {
   evaluateGeeObject,
@@ -28,6 +31,7 @@ import {
 import {
   buildStatisticsRowsCacheKey,
   getOrLoadStatisticsRows,
+  MUNICIPALITIES_BY_PERIOD_LIMIT,
 } from "@/repositories/platform/geeStatisticsRowsCache";
 import {
   readStatisticsSeries,
@@ -990,6 +994,9 @@ async function loadPeriodMunicipalityRows(
  * da lista em vez de derrubá-la — no painel do município o mesmo erro continua
  * aparecendo.
  *
+ * Uma tabela de valor único devolve um valor por município, lido por
+ * `getMunicipalValueTableMunicipalitiesYearValues`.
+ *
  * @example
  * (await getGeeStatisticsMunicipalitiesYearValues("anaseca", "2025-06", 6, source))?.["2507507"];
  * // [0, 100, 0, 0, 0, 0]
@@ -1003,15 +1010,15 @@ export async function getGeeStatisticsMunicipalitiesYearValues(
 ): Promise<Record<string, number[]> | null> {
   const source = explicitSource ?? getGeeStatisticsSource(panelLayerId);
 
-  if (
-    !source ||
-    isMunicipalSpreadsheetSource(source) ||
-    isGeeMunicipalValueTableSource(source)
-  ) {
+  if (!source || isMunicipalSpreadsheetSource(source)) {
     return null;
   }
 
   await initializeGee();
+
+  if (isGeeMunicipalValueTableSource(source)) {
+    return getMunicipalValueTableMunicipalitiesYearValues(source, yearKey);
+  }
 
   const resolvedSource = resolveGeeStatisticsSource(source, yearKey);
   const schema = await getGeeStatisticsSchema(
@@ -1038,6 +1045,7 @@ export async function getGeeStatisticsMunicipalitiesYearValues(
     ),
     () => loadPeriodMunicipalityRows(resolvedSource, yearKey, columns),
     [resolvedSource.assetId],
+    MUNICIPALITIES_BY_PERIOD_LIMIT,
   );
 
   const values: Record<string, number[]> = {};

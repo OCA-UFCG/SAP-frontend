@@ -6,12 +6,24 @@ describe("getTerritoryRankingScope", () => {
   it("lists the states of a region", () => {
     expect(getTerritoryRankingScope("2_regiao-nordeste")).toEqual({
       entity: "states",
-      locationKeys: expect.arrayContaining(["al", "ba", "ce", "ma", "pb", "pe", "pi", "rn", "se"]),
+      locationKeys: expect.arrayContaining([
+        "al",
+        "ba",
+        "ce",
+        "ma",
+        "pb",
+        "pe",
+        "pi",
+        "rn",
+        "se",
+      ]),
     });
-    expect(getTerritoryRankingScope("2_regiao-nordeste")?.locationKeys).toHaveLength(9);
-    expect(getTerritoryRankingScope("2_regiao-centro-oeste")?.locationKeys).toEqual(
-      expect.arrayContaining(["df", "go", "ms", "mt"]),
-    );
+    expect(
+      getTerritoryRankingScope("2_regiao-nordeste")?.locationKeys,
+    ).toHaveLength(9);
+    expect(
+      getTerritoryRankingScope("2_regiao-centro-oeste")?.locationKeys,
+    ).toEqual(expect.arrayContaining(["df", "go", "ms", "mt"]));
   });
 
   it("lists the municipalities of a state", () => {
@@ -33,8 +45,23 @@ describe("getTerritoryRankingScope", () => {
   });
 
   it("lists Semiárido and ASD + Entorno", () => {
-    expect(getTerritoryRankingScope("5_semiarido-semiarido-total")?.locationKeys).toHaveLength(1477);
-    expect(getTerritoryRankingScope("4_asd-asd-entorno")?.locationKeys).toHaveLength(1649);
+    expect(
+      getTerritoryRankingScope("5_semiarido-semiarido-total")?.locationKeys,
+    ).toHaveLength(1477);
+    expect(
+      getTerritoryRankingScope("4_asd-asd-entorno")?.locationKeys,
+    ).toHaveLength(1649);
+  });
+
+  it("leaves the lagoon operational areas out of RS and Pampa", () => {
+    for (const locationKey of ["rs", "3_bioma-pampa"]) {
+      expect(getTerritoryRankingScope(locationKey)?.locationKeys).not.toContain(
+        "4300001",
+      );
+      expect(getTerritoryRankingScope(locationKey)?.locationKeys).not.toContain(
+        "4300002",
+      );
+    }
   });
 
   it("has no list for Brazil or a municipality", () => {

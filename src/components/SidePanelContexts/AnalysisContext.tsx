@@ -95,6 +95,23 @@ function getTerritoryRankingRequestKey(
     : `${layerId}::${yearKey}::${locationKey}`;
 }
 
+// Quem passa pelos períodos um atrás do outro não dispara uma leitura do país
+// inteiro no Earth Engine por período: só o período em que parar.
+const TERRITORY_RANKING_REQUEST_DELAY_MS = 400;
+// Uma falha passageira (Earth Engine frio logo depois de um deploy) ganha mais
+// uma tentativa antes de virar a mensagem de erro.
+const TERRITORY_RANKING_RETRY_DELAY_MS = 2000;
+
+function wait(delayMs: number, signal: AbortSignal) {
+  return new Promise<void>((resolve) => {
+    const timer = window.setTimeout(resolve, delayMs);
+    signal.addEventListener("abort", () => {
+      window.clearTimeout(timer);
+      resolve();
+    });
+  });
+}
+
 function getMunicipalSeriesRequestKey(
   layerId: string,
   datasetVersion: string,
@@ -439,23 +456,34 @@ export function AnalysisContext({
     const fetchTerritoryRanking = async () => {
       let ranking: TerritoryRankingData | null = null;
 
-      try {
-        const response = await fetch(requestUrl.toString(), {
-          credentials: "same-origin",
-          signal: controller.signal,
-        });
+      await wait(TERRITORY_RANKING_REQUEST_DELAY_MS, controller.signal);
 
-        if (!response.ok) {
-          throw new Error(
-            `Territory ranking request failed with status ${response.status}`,
-          );
-        }
-
-        ranking = (await response.json()) as TerritoryRankingData;
-      } catch (error) {
+      for (let attempt = 1; attempt <= 2 && !ranking; attempt += 1) {
         if (controller.signal.aborted) return;
-        console.warn("Falha ao carregar a lista de territórios.", error);
+
+        try {
+          const response = await fetch(requestUrl.toString(), {
+            credentials: "same-origin",
+            signal: controller.signal,
+          });
+
+          if (!response.ok) {
+            throw new Error(
+              `Territory ranking request failed with status ${response.status}`,
+            );
+          }
+
+          ranking = (await response.json()) as TerritoryRankingData;
+        } catch (error) {
+          if (controller.signal.aborted) return;
+          console.warn("Falha ao carregar a lista de territórios.", error);
+          if (attempt === 1) {
+            await wait(TERRITORY_RANKING_RETRY_DELAY_MS, controller.signal);
+          }
+        }
       }
+
+      if (controller.signal.aborted) return;
 
       setTerritoryRankingByRequestKey((current) => ({
         ...current,
@@ -473,6 +501,22 @@ export function AnalysisContext({
     territoryRankingByRequestKey,
     territoryRankingRequestKey,
   ]);
+
+  // Uma falha não fica guardada: ao sair do recorte ela é esquecida, e quem
+  // volta a ele (ou volta ao período) tem a lista buscada de novo, como a
+  // mensagem de erro promete.
+  useEffect(() => {
+    if (!territoryRankingRequestKey) return;
+
+    const requestKey = territoryRankingRequestKey;
+    return () =>
+      setTerritoryRankingByRequestKey((current) => {
+        if (current[requestKey] !== null) return current;
+        const next = { ...current };
+        delete next[requestKey];
+        return next;
+      });
+  }, [territoryRankingRequestKey]);
 
   const territoryRanking = useMemo((): TerritoryRankingState | undefined => {
     if (!territoryRankingRequestKey) return undefined;

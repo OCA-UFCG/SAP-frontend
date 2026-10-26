@@ -30,8 +30,14 @@ function groupBy(entries: Iterable<[string, string]>) {
   return groups;
 }
 
+// As áreas operacionais das lagoas Mirim e dos Patos têm código IBGE, mas não
+// são municípios: ficam fora das listas do RS e do Pampa.
+const NON_MUNICIPALITY_CODES = new Set(["4300001", "4300002"]);
+
 const municipalityCodesByState = groupBy(
-  citiesIndex.map((city): [string, string] => [city.uf, city.code]),
+  citiesIndex
+    .filter((city) => !NON_MUNICIPALITY_CODES.has(city.code))
+    .map((city): [string, string] => [city.uf, city.code]),
 );
 
 const statesByRegion = groupBy(
@@ -46,9 +52,14 @@ const statesByRegion = groupBy(
 const municipalityCodesByTerritory = groupBy(
   Object.entries(
     municipalityTerritories.municipalities as Record<string, string[]>,
-  ).flatMap(([code, territoryKeys]) =>
-    territoryKeys.map((territoryKey): [string, string] => [territoryKey, code]),
-  ),
+  )
+    .filter(([code]) => !NON_MUNICIPALITY_CODES.has(code))
+    .flatMap(([code, territoryKeys]) =>
+      territoryKeys.map((territoryKey): [string, string] => [
+        territoryKey,
+        code,
+      ]),
+    ),
 );
 
 /**

@@ -19,11 +19,31 @@ const CACHE_TTL_MS = 1000 * 60 * 60 * 24;
 // pior caso e bem menos no uso normal, que é de municípios.
 const DEFAULT_MAX_ENTRIES = 5000;
 
+/**
+ * Um teto próprio para um tipo de entrada muito maior que as outras.
+ *
+ * Os municípios do Brasil num período ("Territórios por classificação") são
+ * 5.573 linhas, ~1,1 MB por entrada: sob o teto geral, pensado para entradas de
+ * 5 a 110 KB, eles poderiam passar de 5 GB. O grupo limita só essas entradas e
+ * descarta a menos usada delas, sem tirar do cache as entradas pequenas.
+ */
+export interface StatisticsRowsGroupLimit {
+  group: string;
+  maxEntries: number;
+}
+
+/** 100 períodos de camadas diferentes, ~115 MB no pior caso. */
+export const MUNICIPALITIES_BY_PERIOD_LIMIT: StatisticsRowsGroupLimit = {
+  group: "municipios-do-periodo",
+  maxEntries: 100,
+};
+
 interface StatisticsRowsEntry {
   rows: Record<string, unknown>[];
   timestamp: number;
   /** Os assets lidos, para descartar a entrada quando um deles mudar. */
   assetIds: readonly string[];
+  group?: string;
 }
 
 interface PendingStatisticsRows {
@@ -114,10 +134,27 @@ function evictLeastRecentlyUsed() {
   }
 }
 
+function evictLeastRecentlyUsedOfGroup({
+  group,
+  maxEntries,
+}: StatisticsRowsGroupLimit) {
+  const groupKeys = [...rowsByAssetLocation]
+    .filter(([, entry]) => entry.group === group)
+    .map(([key]) => key);
+
+  for (const key of groupKeys.slice(
+    0,
+    Math.max(0, groupKeys.length - maxEntries),
+  )) {
+    rowsByAssetLocation.delete(key);
+  }
+}
+
 function startLoad(
   key: string,
   loadRows: () => Promise<Record<string, unknown>[]>,
   assetIds: readonly string[],
+  limit?: StatisticsRowsGroupLimit,
 ): Promise<Record<string, unknown>[]> {
   const pending = pendingRowsByAssetLocation.get(key);
   if (pending) {
@@ -129,8 +166,14 @@ function startLoad(
       // Uma invalidação no meio da leitura apagou a promessa: o resultado pode
       // ser da tabela antiga, então serve a quem pediu mas não fica guardado.
       if (pendingRowsByAssetLocation.get(key)?.request === request) {
-        markAsRecentlyUsed(key, { rows, timestamp: Date.now(), assetIds });
+        markAsRecentlyUsed(key, {
+          rows,
+          timestamp: Date.now(),
+          assetIds,
+          group: limit?.group,
+        });
         evictLeastRecentlyUsed();
+        if (limit) evictLeastRecentlyUsedOfGroup(limit);
       }
       return rows;
     })
@@ -152,12 +195,15 @@ function startLoad(
  * em segundo plano: quem abre o painel não espera o Earth Engine por causa de
  * um prazo, só quando a tabela de fato mudou.
  *
+ * `limit` dá a um tipo de entrada grande um teto próprio, além do geral.
+ *
  * const rows = await getOrLoadStatisticsRows(key, () => readFromEarthEngine(), assetIds);
  */
 export function getOrLoadStatisticsRows(
   key: string,
   loadRows: () => Promise<Record<string, unknown>[]>,
   assetIds: readonly string[] = [],
+  limit?: StatisticsRowsGroupLimit,
 ): Promise<Record<string, unknown>[]> {
   const entry = rowsByAssetLocation.get(key);
 
@@ -165,7 +211,7 @@ export function getOrLoadStatisticsRows(
     markAsRecentlyUsed(key, entry);
 
     if (Date.now() - entry.timestamp > CACHE_TTL_MS) {
-      startLoad(key, loadRows, assetIds).catch((error: unknown) => {
+      startLoad(key, loadRows, assetIds, limit).catch((error: unknown) => {
         console.warn(
           `[geeStatistics] releitura em segundo plano falhou; a entrada vencida continua servindo: ${key}`,
           error,
@@ -176,7 +222,7 @@ export function getOrLoadStatisticsRows(
     return Promise.resolve(entry.rows);
   }
 
-  return startLoad(key, loadRows, assetIds);
+  return startLoad(key, loadRows, assetIds, limit);
 }
 
 /**

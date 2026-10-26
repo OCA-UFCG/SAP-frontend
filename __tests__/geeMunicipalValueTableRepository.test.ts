@@ -45,6 +45,7 @@ const { fakeEarthEngine, requests } = vi.hoisted(() => {
     Reducer = {
       sum: () => new FakeReducer("sum"),
       mean: () => new FakeReducer("mean"),
+      toList: () => new FakeReducer("toList"),
     };
     Algorithms = { If: (_condition: unknown, value: unknown) => value };
     Dictionary = (value: unknown) => {
@@ -65,6 +66,7 @@ vi.mock("@/infrastructure/earth-engine/client", () => ({
 import type { GeeMunicipalValueTableStatisticsSource } from "@/contracts/geeMunicipalValueTable";
 import { evaluateGeeObject } from "@/infrastructure/earth-engine/client";
 import {
+  getMunicipalValueTableMunicipalitiesYearValues,
   getMunicipalValueTableYearPatch,
   planValueTableReads,
 } from "@/repositories/platform/geeMunicipalValueTableRepository";
@@ -254,5 +256,27 @@ describe("getMunicipalValueTableYearPatch", () => {
 
     expect(evaluate).not.toHaveBeenCalled();
     expect(result.patch.years?.["2013"]?.values).toEqual({});
+  });
+});
+
+describe("getMunicipalValueTableMunicipalitiesYearValues", () => {
+  it("lists every municipality of the period in one read, skipping the ones without value", async () => {
+    evaluate.mockResolvedValue({
+      list: [
+        [2507507, 79.9],
+        ["2504009", "64.5"],
+        ["2500106", null],
+        ["", 10],
+      ],
+    });
+
+    const values = await getMunicipalValueTableMunicipalitiesYearValues(
+      source,
+      "2013",
+    );
+    await getMunicipalValueTableMunicipalitiesYearValues(source, "2013");
+
+    expect(evaluate).toHaveBeenCalledTimes(1);
+    expect(values).toEqual({ "2507507": [79.9], "2504009": [64.5] });
   });
 });
