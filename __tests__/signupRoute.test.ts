@@ -125,10 +125,11 @@ describe("POST /api/signup", () => {
       expect.objectContaining({
         to: "fulano@ufcg.edu.br",
         text: expect.stringContaining(
-          `${ORIGIN}/pt/cadastro/confirmacao?code=abc&email=fulano%40ufcg.edu.br`,
+          `${ORIGIN}/pt/cadastro/confirmacao?code=abc`,
         ),
       }),
     );
+    expect(JSON.stringify(sendMailMock.mock.calls)).not.toContain("email=");
   });
 
   // O pedido já está registrado quando o envio acontece. Derrubar o cadastro

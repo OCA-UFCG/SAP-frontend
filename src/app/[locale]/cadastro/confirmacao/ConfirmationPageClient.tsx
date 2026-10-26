@@ -3,9 +3,11 @@
 import { useCallback, useEffect, useState } from "react";
 import { useSearchParams } from "next/navigation";
 import { useTranslations } from "next-intl";
+import { useForm, useWatch } from "react-hook-form";
 import { Link } from "@/translations/routing";
 import { LOGIN_PATH } from "@/config/accessRoutes";
 import { Captcha } from "@/components/Captcha/Captcha";
+import { LoginField } from "@/components/Login/LoginField";
 import PlatformLoading from "@/app/[locale]/platform/loading";
 
 type Outcome = "checking" | "approved" | "pending" | "rejected" | "failed";
@@ -13,12 +15,21 @@ type Outcome = "checking" | "approved" | "pending" | "rejected" | "failed";
 const PRIMARY_BUTTON =
   "font-open-sans flex h-[33px] w-fit items-center justify-center rounded-md bg-[#646B2D] px-4 py-1.5 text-[0.7281rem] leading-5 text-white transition hover:bg-[#4F5424] focus:outline-none focus-visible:ring-2 focus-visible:ring-[#5B612A] focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-70";
 
+const TEXT_LINK =
+  "text-[0.8125rem] leading-5 text-[#5B612A] underline underline-offset-2 hover:text-[#21240F]";
+
 export function ConfirmationPageClient() {
   const t = useTranslations("SignupConfirmation");
   const tCaptcha = useTranslations("Captcha");
   const searchParams = useSearchParams();
-  const email = searchParams.get("email") ?? "";
+  // Só os links enviados antes de o endereço sair da URL ainda trazem o
+  // e-mail. Os novos trazem só o código, e o reenvio pede o e-mail no campo.
+  const linkEmail = searchParams.get("email") ?? "";
   const code = searchParams.get("code") ?? "";
+  const { register, control } = useForm<{ email: string }>({
+    defaultValues: { email: linkEmail },
+  });
+  const email = useWatch({ control, name: "email" }).trim();
 
   const [outcome, setOutcome] = useState<Outcome>("checking");
   const [resending, setResending] = useState(false);
@@ -36,7 +47,7 @@ export function ConfirmationPageClient() {
         const response = await fetch("/api/signup/confirm", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ email, code }),
+          body: JSON.stringify({ email: linkEmail, code }),
         });
 
         if (!active) return;
@@ -62,7 +73,7 @@ export function ConfirmationPageClient() {
     return () => {
       active = false;
     };
-  }, [email, code]);
+  }, [linkEmail, code]);
 
   const handleResend = useCallback(async () => {
     if (!captchaToken) return;
@@ -123,8 +134,22 @@ export function ConfirmationPageClient() {
           </Link>
         ) : null}
 
+        {/* O login também fecha o cadastro de quem já confirmou o e-mail. */}
+        {outcome === "failed" ? (
+          <Link href={LOGIN_PATH} className={TEXT_LINK}>
+            {t("enter")}
+          </Link>
+        ) : null}
+
         {outcome === "failed" ? (
           <div className="flex max-w-[342px] flex-col gap-3">
+            <LoginField
+              id="email"
+              type="text"
+              autoComplete="email"
+              placeholder={t("emailPlaceholder")}
+              registration={register("email")}
+            />
             <Captcha
               key={captchaAttempt}
               action="resend"
@@ -152,10 +177,7 @@ export function ConfirmationPageClient() {
         ) : null}
 
         {outcome !== "approved" ? (
-          <Link
-            href="/"
-            className="text-[0.8125rem] leading-5 text-[#5B612A] underline underline-offset-2 hover:text-[#21240F]"
-          >
+          <Link href="/" className={TEXT_LINK}>
             {t("backHome")}
           </Link>
         ) : null}
