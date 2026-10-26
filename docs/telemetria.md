@@ -21,27 +21,21 @@ nada na plataforma que dependesse disso.
 
 Cada evento é gravado com um campo `expireAt` (Timestamp), 90 dias depois de
 chegar (`TELEMETRY_RETENTION_DAYS` em
-`src/repositories/telemetry/telemetryRepository.ts`). Quem apaga é a **política
-de TTL do Firestore**, que precisa estar ligada em cada coleção:
+`src/repositories/telemetry/telemetryRepository.ts`). Quem apaga é o **próprio
+servidor**, na subida e uma vez por dia (`src/lib/retention-sweep.ts`): cada
+ambiente apaga os eventos vencidos da própria coleção.
 
-```bash
-# as coleções existentes em outubro de 2026; confira em Firestore → Data
-for c in telemetry-events-prod telemetry-events-beta telemetry-events-local; do
-  gcloud firestore fields ttls update expireAt \
-    --collection-group="$c" --enable-ttl --project=<id-do-projeto> --async
-done
-```
-
-Ou pelo painel: Firestore → TTL → Create policy → coleção + campo `expireAt`.
-
-Sem a política, o campo existe e nada é apagado. A TTL costuma apagar em até
-24 h depois da data, e não é instantânea.
+A TTL do Firestore faria o mesmo, mas só existe no plano pago (Blaze), e o
+projeto está no gratuito: em 26/10/2026 o `gcloud firestore fields ttls update`
+respondeu "billing disabled". A cota gratuita (20 mil exclusões por dia) sobra
+para o volume de eventos. Se o projeto for para o plano pago, dá para ligar a
+TTL em `expireAt` e tirar a limpeza do servidor.
 
 ## Eventos gravados antes da mudança
 
 `scripts/telemetry-remove-personal-data.mjs` tira `uid` e `userEmail` dos
 eventos antigos e dá a cada um o seu `expireAt` (os que já passaram dos 90 dias
-recebem uma data vencida e a TTL os apaga na passada seguinte).
+recebem uma data vencida e saem na passada seguinte da limpeza).
 
 ```bash
 node scripts/telemetry-remove-personal-data.mjs          # simulação
