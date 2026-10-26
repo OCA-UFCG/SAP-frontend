@@ -42,6 +42,12 @@ export const PASSWORD_RESET_REQUEST_RATE_LIMIT_MAX_REQUESTS = 10;
  */
 export const PASSWORD_RESET_CODE_RATE_LIMIT_MAX_REQUESTS = 40;
 
+/**
+ * Desistir do pedido confere a senha sem sessão nenhuma, então é por aqui que
+ * alguém tentaria adivinhar senhas. O Firebase também barra, mas mais tarde.
+ */
+export const WITHDRAW_RATE_LIMIT_MAX_REQUESTS = 10;
+
 const signupRequests = createRateLimiter({ windowMs: RATE_LIMIT_WINDOW_MS });
 const resendRequests = createRateLimiter({ windowMs: RATE_LIMIT_WINDOW_MS });
 const confirmRequests = createRateLimiter({ windowMs: RATE_LIMIT_WINDOW_MS });
@@ -51,6 +57,7 @@ const passwordResetRequests = createRateLimiter({
 const passwordResetCodeRequests = createRateLimiter({
   windowMs: RATE_LIMIT_WINDOW_MS,
 });
+const withdrawRequests = createRateLimiter({ windowMs: RATE_LIMIT_WINDOW_MS });
 
 /**
  * Chave de cliente de uma requisição não autenticada, pelo mesmo
@@ -102,12 +109,17 @@ export function consumePasswordResetCodeRateLimit(clientKey: string) {
   );
 }
 
+export function consumeWithdrawRateLimit(clientKey: string) {
+  return withdrawRequests.consume(clientKey, WITHDRAW_RATE_LIMIT_MAX_REQUESTS);
+}
+
 export function clearSignupRateLimits() {
   signupRequests.clear();
   resendRequests.clear();
   confirmRequests.clear();
   passwordResetRequests.clear();
   passwordResetCodeRequests.clear();
+  withdrawRequests.clear();
 }
 
 export { RATE_LIMIT_WINDOW_MS as SIGNUP_RATE_LIMIT_WINDOW_MS };

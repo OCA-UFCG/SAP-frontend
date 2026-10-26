@@ -12,13 +12,13 @@ import {
 
 type Status = "closed" | "idle" | "working" | "done";
 
-const DANGER_OUTLINE_BUTTON =
+export const DANGER_OUTLINE_BUTTON =
   "font-open-sans flex h-[33px] w-fit cursor-pointer items-center justify-center rounded-md border border-[#B3261E] px-4 py-1.5 text-[0.728125rem] leading-5 text-[#B3261E] transition hover:bg-[#FCE8E6] focus:outline-none focus-visible:ring-2 focus-visible:ring-[#B3261E] focus-visible:ring-offset-2";
 
-const DANGER_BUTTON =
+export const DANGER_BUTTON =
   "font-open-sans flex h-[33px] w-full cursor-pointer items-center justify-center rounded-md bg-[#B3261E] px-3 py-1.5 text-[0.728125rem] leading-5 text-white transition hover:bg-[#8C1D18] focus:outline-none focus-visible:ring-2 focus-visible:ring-[#B3261E] focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-70";
 
-const INPUT_CLASS =
+export const INPUT_CLASS =
   "font-inter w-full rounded-[7px] bg-[#E4E5E2] px-2.5 py-2 text-[0.8125rem] font-medium leading-5 tracking-[-0.2px] text-[#292829] outline-none transition placeholder:text-[#676264] focus:ring-2 focus:ring-[#989F43]";
 
 const ERROR_KEYS: Record<string, string> = {

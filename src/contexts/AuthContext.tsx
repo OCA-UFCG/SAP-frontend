@@ -29,13 +29,13 @@ class SessionCreationError extends Error {
  * vez de repetir o formulário.
  */
 class AccessPendingError extends Error {
-  constructor() {
-    super("Cadastro ainda não liberado");
+  constructor(readonly revoked = false) {
+    super(revoked ? "Acesso removido" : "Cadastro ainda não liberado");
     this.name = "AccessPendingError";
   }
 }
 
-export type SignInOutcome = "ok" | "pending" | "failed";
+export type SignInOutcome = "ok" | "pending" | "revoked" | "failed";
 
 export interface AuthContextType {
   user: User | null;
@@ -92,6 +92,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
         throw body?.code === "access_pending"
           ? new AccessPendingError()
+          : body?.code === "access_revoked"
+          ? new AccessPendingError(true)
           : new SessionCreationError();
       }
 
@@ -109,7 +111,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       // A espera não é erro: quem cuida dela é a página de espera, e uma
       // mensagem vermelha no login só confundiria.
       if (err instanceof AccessPendingError) {
-        return "pending";
+        return err.revoked ? "revoked" : "pending";
       }
 
       const fbErr = err as { code?: string; message?: string };

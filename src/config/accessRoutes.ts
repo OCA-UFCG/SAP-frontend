@@ -12,6 +12,12 @@
  */
 export const PENDING_APPROVAL_PATH = "/aguardando-liberacao";
 
+/**
+ * Leva à página de espera quem teve o acesso removido pela equipe. Só muda o
+ * texto: quem forjar o parâmetro vê outra mensagem e nada mais.
+ */
+export const ACCESS_REVOKED_PARAM = "removido";
+
 export const LOGIN_PATH = "/login";
 export const SIGNUP_PATH = "/cadastro";
 export const APPROVALS_PATH = "/platform/aprovacoes";

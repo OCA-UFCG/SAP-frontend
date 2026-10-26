@@ -4,6 +4,24 @@
     "description": "Tu correo fue confirmado y tu solicitud llegó al equipo del OCA. Cuando revisen la intención de uso que describiste, recibirás un aviso por correo y podrás acceder a la plataforma.",
     "signedInAs": "Conectado como",
     "logout": "Cerrar sesión",
-    "backHome": "Volver a la página de inicio"
+    "backHome": "Volver a la página de inicio",
+    "revokedTitle": "Acceso retirado",
+    "revokedDescription": "El equipo del OCA retiró tu acceso a la plataforma. Si crees que fue un error, o si quieres eliminar tu cuenta, contacta al equipo.",
+    "contactTeam": "Contactar al equipo",
+    "withdrawTitle": "Desistir de la solicitud",
+    "withdrawSummary": "Borra tu acceso y los datos de tu registro. No se puede deshacer.",
+    "openWithdraw": "Desistir y borrar mis datos",
+    "withdrawExplain": "Borramos tu acceso, tu contraseña, el correo y la descripción de uso que enviaste en el registro. Para usar la plataforma después, tendrás que registrarte de nuevo. Para confirmar, escribe tu correo y tu contraseña.",
+    "emailLabel": "Correo",
+    "passwordLabel": "Contraseña",
+    "submit": "Borrar mis datos",
+    "working": "Borrando...",
+    "cancel": "Cancelar",
+    "wrongCredentials": "Correo o contraseña incorrectos.",
+    "tooManyAttempts": "Demasiados intentos. Espera unos minutos e inténtalo de nuevo.",
+    "failed": "No fue posible borrarlo ahora. Inténtalo más tarde.",
+    "askTeam": "Este registro no está esperando aprobación. Si ya tienes acceso, elimina la cuenta en \"Mi cuenta\", dentro de la plataforma. Si no, contacta al equipo.",
+    "doneTitle": "Solicitud cancelada",
+    "doneBody": "Tu acceso y los datos de tu registro fueron borrados."
   }
 }

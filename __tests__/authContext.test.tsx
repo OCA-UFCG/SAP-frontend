@@ -171,4 +171,37 @@ describe("AuthProvider", () => {
       "Login validado, mas não foi possível criar a sessão da plataforma.",
     );
   });
+
+  it("reports a removed access apart from a pending approval", async () => {
+    const getIdToken = vi.fn().mockResolvedValue("firebase-id-token");
+    signInWithEmailAndPasswordMock.mockResolvedValue({
+      user: { getIdToken },
+    } as Awaited<ReturnType<typeof signInWithEmailAndPassword>>);
+    vi.mocked(fetch).mockResolvedValueOnce(
+      new Response(
+        JSON.stringify({
+          error: "Acesso removido pela equipe.",
+          code: "access_revoked",
+        }),
+        { status: 403 },
+      ),
+    );
+    vi.mocked(fetch).mockResolvedValueOnce(
+      new Response(JSON.stringify({ success: true }), { status: 200 }),
+    );
+
+    render(
+      <AuthProvider>
+        <AuthProbe />
+      </AuthProvider>,
+    );
+
+    await waitFor(() => expect(screen.getByText("Entrar")).toBeInTheDocument());
+    fireEvent.click(screen.getByText("Entrar"));
+
+    await waitFor(() => {
+      expect(screen.getByTestId("outcome")).toHaveTextContent("revoked");
+    });
+    expect(signOutMock).toHaveBeenCalledWith(auth);
+  });
 });

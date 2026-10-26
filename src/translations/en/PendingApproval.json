@@ -4,6 +4,24 @@
     "description": "Your email is confirmed and your request reached the OCA team. Once they review the intended use you described, you will get an email and be able to access the platform.",
     "signedInAs": "Signed in as",
     "logout": "Sign out",
-    "backHome": "Back to the home page"
+    "backHome": "Back to the home page",
+    "revokedTitle": "Access removed",
+    "revokedDescription": "The OCA team removed your access to the platform. If you think this was a mistake, or if you want to delete your account, contact the team.",
+    "contactTeam": "Contact the team",
+    "withdrawTitle": "Withdraw your request",
+    "withdrawSummary": "Deletes your login and your registration data. This cannot be undone.",
+    "openWithdraw": "Withdraw and delete my data",
+    "withdrawExplain": "We delete your login, your password, and the email and intended use you sent when registering. To use the platform later, you will need to register again. To confirm, enter your email and password.",
+    "emailLabel": "Email",
+    "passwordLabel": "Password",
+    "submit": "Delete my data",
+    "working": "Deleting...",
+    "cancel": "Cancel",
+    "wrongCredentials": "Incorrect email or password.",
+    "tooManyAttempts": "Too many attempts. Wait a few minutes and try again.",
+    "failed": "We could not delete it right now. Try again later.",
+    "askTeam": "This registration is not awaiting approval. If you already have access, delete the account under \"My account\" on the platform. Otherwise, contact the team.",
+    "doneTitle": "Request withdrawn",
+    "doneBody": "Your login and your registration data were deleted."
   }
 }

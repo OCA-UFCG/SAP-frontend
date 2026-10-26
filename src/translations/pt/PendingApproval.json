@@ -4,6 +4,24 @@
     "description": "Seu e-mail foi confirmado e sua solicitação chegou ao OCA. Assim que a equipe analisar a intenção de uso que você descreveu, você receberá um aviso por e-mail e poderá acessar a plataforma.",
     "signedInAs": "Conectado como",
     "logout": "Sair",
-    "backHome": "Voltar para a página inicial"
+    "backHome": "Voltar para a página inicial",
+    "revokedTitle": "Acesso removido",
+    "revokedDescription": "A equipe do OCA removeu o seu acesso à plataforma. Se você acha que foi um engano, ou se quiser excluir a sua conta, fale com a equipe.",
+    "contactTeam": "Falar com a equipe",
+    "withdrawTitle": "Desistir do pedido",
+    "withdrawSummary": "Apaga seu login e os dados do seu cadastro. Não dá para desfazer.",
+    "openWithdraw": "Desistir e apagar meus dados",
+    "withdrawExplain": "Apagamos seu login, sua senha, o e-mail e a descrição de uso que você enviou no cadastro. Para usar a plataforma depois, será preciso se cadastrar de novo. Para confirmar, digite seu e-mail e sua senha.",
+    "emailLabel": "E-mail",
+    "passwordLabel": "Senha",
+    "submit": "Apagar meus dados",
+    "working": "Apagando...",
+    "cancel": "Cancelar",
+    "wrongCredentials": "E-mail ou senha incorretos.",
+    "tooManyAttempts": "Muitas tentativas. Espere alguns minutos e tente de novo.",
+    "failed": "Não foi possível apagar agora. Tente de novo mais tarde.",
+    "askTeam": "Este cadastro não está aguardando liberação. Se você já tem acesso, exclua a conta em \"Minha conta\", dentro da plataforma. Se não, fale com a equipe.",
+    "doneTitle": "Pedido cancelado",
+    "doneBody": "Seu login e os dados do seu cadastro foram apagados."
   }
 }
