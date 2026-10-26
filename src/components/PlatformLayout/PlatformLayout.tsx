@@ -216,9 +216,9 @@ export function PlatformLayout({
             <div
               data-testid="platform-catalog-shell"
               lang="pt-BR"
-              // No celular a trilha vira a barra de baixo: o recuo de 124 px
+              // No celular a trilha vira a barra de baixo: o recuo de 132 px
               // que abre espaço para ela deixava uma faixa vazia à esquerda.
-              className={`w-full pl-[124px] max-md:pl-0 ${PLATFORM_SHELL_MIN_HEIGHT_CLASS}`}
+              className={`w-full pl-[132px] max-md:pl-0 ${PLATFORM_SHELL_MIN_HEIGHT_CLASS}`}
             >
               {props.catalogDashboard}
             </div>
