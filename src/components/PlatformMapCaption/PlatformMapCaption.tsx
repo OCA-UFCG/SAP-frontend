@@ -20,7 +20,7 @@ const toLabelSlug = (label: string) =>
 
 /**
  * A legenda do índice ativo, no mesmo cartão de Territórios, Mapa base e
- * Transparência — antes ela usava outra fonte, outro tamanho e um cabeçalho
+ * Opacidade — antes ela usava outra fonte, outro tamanho e um cabeçalho
  * próprio, e destoava das caixas vizinhas.
  *
  * Nasce aberta: quem liga um índice vê o mapa mudar de cor e precisa saber na

@@ -5,7 +5,7 @@ import { Chevron } from "@/components/Chevron/Chevron";
 
 /**
  * O cartão branco dos controles sobre o mapa. Mora aqui para que Territórios,
- * Mapa base, Transparência e Legendas nasçam do mesmo lugar: enquanto cada um
+ * Mapa base, Opacidade e Legendas nasçam do mesmo lugar: enquanto cada um
  * repetia as próprias classes, a caixa de Legendas acabou com outra fonte, outro
  * tamanho de rótulo e outro cabeçalho que as demais.
  *

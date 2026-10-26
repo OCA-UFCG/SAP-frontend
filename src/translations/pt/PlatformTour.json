@@ -31,7 +31,7 @@
       },
       "mapSettings": {
         "title": "Ajustes do mapa",
-        "description": "Troque o mapa base entre Satélite e Rua. Com um produto ligado, ajuste também a transparência."
+        "description": "Troque o mapa base entre Satélite e Rua. Com um produto ligado, ajuste também a opacidade."
       },
       "territories": {
         "title": "Territórios",

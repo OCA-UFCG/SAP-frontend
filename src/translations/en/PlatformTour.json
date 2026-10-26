@@ -31,7 +31,7 @@
       },
       "mapSettings": {
         "title": "Map settings",
-        "description": "Switch the basemap between Satellite and Street. With a product on, you can also adjust its transparency."
+        "description": "Switch the basemap between Satellite and Street. With a product on, you can also adjust its opacity."
       },
       "territories": {
         "title": "Territories",

@@ -28,7 +28,7 @@ describe("MapSettingsControl", () => {
     fireEvent.click(screen.getByRole("button", { name: "Ajustes do mapa" }));
 
     expect(
-      screen.queryByRole("slider", { name: "Transparência" }),
+      screen.queryByRole("slider", { name: "Opacidade" }),
     ).not.toBeInTheDocument();
 
     rerender(
@@ -40,7 +40,7 @@ describe("MapSettingsControl", () => {
       />,
     );
 
-    expect(screen.getByRole("slider", { name: "Transparência" })).toHaveValue(
+    expect(screen.getByRole("slider", { name: "Opacidade" })).toHaveValue(
       "0.5",
     );
   });
