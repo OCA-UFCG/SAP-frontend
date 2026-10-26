@@ -2,6 +2,7 @@ import { isMunicipalSpreadsheetSource } from "@/contracts/municipalSpreadsheet";
 import { isGeeMunicipalValueTableSource } from "@/contracts/geeMunicipalValueTable";
 import { parseGeeStatisticsSource } from "@/contracts/geeStatistics";
 import { parseForecastFacetsInput } from "@/contracts/panelLayerForecast";
+import { parseSourceGroupInput } from "@/contracts/panelLayerSourceGroup";
 import {
   ANY_PERIOD_PATTERN,
   DEKAD_PERIOD_PATTERN,
@@ -444,6 +445,10 @@ export function parseIndexCatalogDraftInput(
   const forecastFacets = earthEngine.collectionSelection
     ? parseForecastFacetsInput(value.forecastFacets)
     : undefined;
+  // A previsão já fica no cartão "Previsão climática", com a fonte como filtro.
+  const sourceGroup = earthEngine.collectionSelection
+    ? undefined
+    : parseSourceGroupInput(value.sourceGroup);
 
   return {
     name: requiredString(value.name, "Nome", 120),
@@ -454,6 +459,7 @@ export function parseIndexCatalogDraftInput(
     earthEngine,
     ...parsePanelPositionInput(value.panelPosition),
     ...(forecastFacets ? { forecastFacets } : {}),
+    ...(sourceGroup ? { sourceGroup } : {}),
     ...(isValueTable
       ? { valueIndicator: parseValueIndicator(value.valueIndicator) }
       : {}),

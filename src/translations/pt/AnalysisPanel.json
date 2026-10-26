@@ -28,6 +28,9 @@
       },
       "unavailable": "{label}: sem previsão para a combinação escolhida acima"
     },
+    "sourceGroupFilter": {
+      "label": "Fonte dos dados"
+    },
     "areaLabel": "Área",
     "scopeLabel": "Recorte",
     "selectArea": "Selecione a área",

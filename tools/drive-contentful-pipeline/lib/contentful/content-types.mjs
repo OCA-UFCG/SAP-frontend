@@ -61,6 +61,18 @@ const FORECAST_FACETS_FIELD = {
   required: false,
 };
 
+/**
+ * O nome do grupo e a fonte dos dados de um índice que existe com mais de uma
+ * base, como o Índice de Aridez (BR-DWGD e ERA5 Land), que o Monitoramento
+ * junta num cartão só com a fonte como opção.
+ */
+const SOURCE_GROUP_FIELD = {
+  id: "sourceGroup",
+  name: "Mesmo índice, outras fontes",
+  type: "Object",
+  required: false,
+};
+
 function normalizeField(field) {
   return {
     ...field,
@@ -295,6 +307,9 @@ export async function ensureIndexCatalogContentModel(config) {
   const hasForecastFacets = (contentType.fields ?? []).some(
     (field) => field.id === FORECAST_FACETS_FIELD.id,
   );
+  const hasSourceGroup = (contentType.fields ?? []).some(
+    (field) => field.id === SOURCE_GROUP_FIELD.id,
+  );
   const previewMapIsRequired = (contentType.fields ?? []).some(
     (field) => field.id === "previewMap" && field.required,
   );
@@ -304,6 +319,7 @@ export async function ensureIndexCatalogContentModel(config) {
     hasStatisticsSource &&
     hasReportConfig &&
     hasForecastFacets &&
+    hasSourceGroup &&
     !previewMapIsRequired
   ) {
     return { changed: false };
@@ -323,6 +339,9 @@ export async function ensureIndexCatalogContentModel(config) {
   }
   if (!hasForecastFacets) {
     fields.push(normalizeField(FORECAST_FACETS_FIELD));
+  }
+  if (!hasSourceGroup) {
+    fields.push(normalizeField(SOURCE_GROUP_FIELD));
   }
 
   const updated = await contentfulFetch(

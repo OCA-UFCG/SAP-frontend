@@ -4,6 +4,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useTranslations } from "next-intl";
 import { AnalysisPanel } from "@/components/analysis/AnalysisPanel";
 import { ForecastFilters } from "@/components/analysis/ForecastFilters";
+import { SourceGroupFilter } from "@/components/analysis/SourceGroupFilter";
 import type { SearchSubmissionMetadata } from "@/components/SearchBar/types";
 import {
   getSpatialScopeLocationKey,
@@ -42,8 +43,8 @@ import { isGeeStatisticsLayerId } from "@/config/geeStatisticsLayers";
 import {
   getForecastEmissionDate,
   getForecastMembers,
-  type ForecastMember,
 } from "@/utils/forecastGroup";
+import { groupBySource } from "@/utils/sourceGroup";
 import { getImageDataLegend, getImageDataYearKeys } from "@/utils/imageData";
 
 interface MunicipalAnalysisApiResponse {
@@ -118,6 +119,13 @@ export function AnalysisContext({
   );
   const forecastMember = forecastMembers.find(
     (member) => member.layer.id === dataset?.id,
+  );
+  const sourceGroupMembers = useMemo(
+    () =>
+      groupBySource(panelLayers ?? [], (layer) => layer.sourceGroup).find(
+        (members) => members.some(({ item }) => item.id === dataset?.id),
+      ),
+    [panelLayers, dataset?.id],
   );
   const [analysisImageDataByRequestKey, setAnalysisImageDataByRequestKey] =
     useState<Record<string, PanelLayerI["imageData"] | null>>({});
@@ -460,10 +468,11 @@ export function AnalysisContext({
     onRequestSectionChange?.("monitoring");
   }
 
-  // Trocar de previsão mantém o mês escolhido quando a camada nova também o
-  // tem; ativar a camada sozinha voltaria a data para a padrão dela.
-  const handleForecastSelect = useCallback(
-    ({ layer }: ForecastMember) => {
+  // Trocar de previsão, ou de fonte, mantém o mês escolhido quando a camada
+  // nova também o tem; ativar a camada sozinha voltaria a data para a padrão
+  // dela.
+  const handleLayerSwitch = useCallback(
+    (layer: PanelLayerI) => {
       activateEeLayer(
         layer as unknown as IEEInfo,
         getImageDataLegend(layer.imageData),
@@ -619,14 +628,22 @@ export function AnalysisContext({
   return (
     <AnalysisPanel
       moduleName={
-        forecastMember ? tModules("forecastGroup.title") : dataset?.name
+        forecastMember
+          ? tModules("forecastGroup.title")
+          : (sourceGroupMembers?.[0].group ?? dataset?.name)
       }
       layerFilters={
         forecastMember ? (
           <ForecastFilters
             members={forecastMembers}
             current={forecastMember}
-            onSelect={handleForecastSelect}
+            onSelect={({ layer }) => handleLayerSwitch(layer)}
+          />
+        ) : sourceGroupMembers && dataset ? (
+          <SourceGroupFilter
+            members={sourceGroupMembers}
+            currentLayerId={dataset.id}
+            onSelect={handleLayerSwitch}
           />
         ) : undefined
       }

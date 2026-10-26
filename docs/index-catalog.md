@@ -556,6 +556,26 @@ apagada; quando a escolha atual deixa de existir, vale a primeira opção
 disponível (`resolveForecastSelection` em `src/utils/forecastGroup.ts`). O
 cartão liga a previsão definida em `src/config/forecastGroup.ts`.
 
+### Mesmo índice, outras fontes
+
+Quando o mesmo índice é calculado com bases de dados diferentes — o Índice de
+Aridez com BR-DWGD e com ERA5 Land —, o Monitoramento mostra um cartão só, com
+o nome do grupo, e o detalhamento troca a camada pelo seletor "Fonte dos
+dados". Cada fonte continua sendo um `panelLayer` próprio, e o Relatório
+Automático continua listando cada uma separada.
+
+Fora do modo de previsão, o formulário mostra o bloco "Mesmo índice, outras
+fontes", com o nome do índice no Monitoramento e a fonte dos dados. Os dois são
+gravados em `panelLayer.sourceGroup` (contrato em
+`src/contracts/panelLayerSourceGroup.ts`) e no `catalogConfig`. Os dois vazios
+deixam o índice como um cartão comum; preencher só um é recusado. Os índices se
+juntam pelo nome do grupo, ignorando acento e caixa (`groupBySource` em
+`src/utils/sourceGroup.ts`), e o bloco mostra quem já está no grupo digitado e
+avisa quando a fonte se repete. Um grupo com um índice só não junta nada.
+
+O cartão fica na posição do primeiro índice do grupo e liga a fonte que já está
+no mapa ou, sem nenhuma, a primeira.
+
 ### ID técnico do panelLayer
 
 O formulário não pede o ID técnico: ele é o slug do nome (`Previsão: Anomalia
@@ -928,7 +948,8 @@ recém-publicado não aparecia no mapa.
 ## Content model e ambiente
 
 O content type `panelLayer` precisa dos campos Object opcionais
-`catalogConfig`, `statisticsSource`, `reportConfig` e `forecastFacets`;
+`catalogConfig`, `statisticsSource`, `reportConfig`, `forecastFacets` e
+`sourceGroup`;
 `previewMap` também é opcional. A criação
 do primeiro draft aplica a alteração de modo idempotente, ou ela pode ser
 executada antes:

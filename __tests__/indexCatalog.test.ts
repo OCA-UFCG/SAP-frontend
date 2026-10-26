@@ -383,6 +383,46 @@ describe("index catalog v2 input helpers", () => {
     ).toBeUndefined();
   });
 
+  it("guarda o grupo de fontes fora do modo de previsão", () => {
+    const sourceGroup = { group: "Índice de Aridez", source: "BR-DWGD" };
+
+    expect(
+      parseIndexCatalogDraftInput({ ...validDraft, sourceGroup }).sourceGroup,
+    ).toEqual(sourceGroup);
+    // Os dois vazios são "não está em grupo nenhum".
+    expect(
+      parseIndexCatalogDraftInput({
+        ...validDraft,
+        sourceGroup: { group: " ", source: "" },
+      }).sourceGroup,
+    ).toBeUndefined();
+    expect(() =>
+      parseIndexCatalogDraftInput({
+        ...validDraft,
+        sourceGroup: { group: "Índice de Aridez", source: "" },
+      }),
+    ).toThrow("Preencha também Fonte dos dados.");
+    // A previsão já fica no cartão dela, com a fonte como filtro.
+    expect(
+      parseIndexCatalogDraftInput({
+        ...validDraft,
+        earthEngine: {
+          strategy: "single",
+          sourceType: "imageCollection",
+          singleAssetId: "projects/example/assets/forecast",
+          collectionSelection: {
+            type: "latest-emission-leads",
+            emissionProperty: "data_emissao",
+            leadProperty: "lead_time",
+            targetDateProperty: "system:time_start",
+            leadValues: [1, 2, 3, 4],
+          },
+        },
+        sourceGroup,
+      }).sourceGroup,
+    ).toBeUndefined();
+  });
+
   it("rejects forecast selection for a per-period asset", () => {
     expect(() =>
       parseIndexCatalogDraftInput({
