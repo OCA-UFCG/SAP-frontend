@@ -10,6 +10,7 @@ import type {
 import type { MunicipalSpreadsheetSnapshot } from "@/contracts/municipalSpreadsheetSnapshot";
 import type { PublishedPanelLayerReportConfig } from "@/contracts/panelLayerReport";
 import type { PanelLayerForecastFacets } from "@/contracts/panelLayerForecast";
+import type { PanelLayerSourceGroup } from "@/contracts/panelLayerSourceGroup";
 import type {
   CompactMapVisualizationConfig,
   CompactTerritorialAnalysisDataset,
@@ -135,6 +136,12 @@ export interface IndexCatalogDraftInput {
    * de previsão por emissão e horizonte (`earthEngine.collectionSelection`).
    */
   forecastFacets?: PanelLayerForecastFacets;
+  /**
+   * O nome do grupo e a fonte dos dados quando o mesmo índice existe com mais
+   * de uma base: os índices do mesmo grupo viram um cartão só no
+   * Monitoramento. Não vale para previsão, que já fica no cartão dela.
+   */
+  sourceGroup?: PanelLayerSourceGroup;
 }
 
 interface IndexCatalogAuditData {

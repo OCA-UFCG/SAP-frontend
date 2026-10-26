@@ -107,6 +107,7 @@ export async function createIndexCatalogDraft(
     measurementUnit: resolveMeasurementUnit(input),
     category: input.category,
     forecastFacets: input.forecastFacets,
+    sourceGroup: input.sourceGroup,
     catalogConfig: config,
   });
 
@@ -155,8 +156,13 @@ export async function updateIndexCatalogDraft(
   const previous = requireFullyManagedConfig(current);
   const input = parseIndexCatalogDraftInput(rawInput);
   // A unidade pode chegar em branco, e só publica se o campo for opcional; os
-  // filtros da previsão exigem o campo `forecastFacets` no content type.
-  if (!resolveMeasurementUnit(input) || input.forecastFacets) {
+  // filtros da previsão e o grupo de fontes exigem os campos `forecastFacets`
+  // e `sourceGroup` no content type.
+  if (
+    !resolveMeasurementUnit(input) ||
+    input.forecastFacets ||
+    input.sourceGroup
+  ) {
     await ensureIndexCatalogContentModel();
   }
   const panelLayerId = await resolveDraftPanelLayerId(
@@ -168,9 +174,10 @@ export async function updateIndexCatalogDraft(
     {
       ...previous,
       ...input,
-      // Ausente no corpo é "deixou de ser previsão", e o spread de `previous`
-      // manteria os filtros antigos.
+      // Ausente no corpo é "deixou de ser previsão" (ou "saiu do grupo"), e o
+      // spread de `previous` manteria os valores antigos.
       forecastFacets: input.forecastFacets,
+      sourceGroup: input.sourceGroup,
       panelLayerId,
       status: "draft",
       validation: undefined,
@@ -187,6 +194,7 @@ export async function updateIndexCatalogDraft(
     measurementUnit: resolveMeasurementUnit(input),
     category: input.category,
     forecastFacets: input.forecastFacets,
+    sourceGroup: input.sourceGroup,
     catalogConfig: config,
   });
 

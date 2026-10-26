@@ -9,6 +9,7 @@ const CATALOG_FIELDS = [
   "statisticsSource",
   "reportConfig",
   "forecastFacets",
+  "sourceGroup",
 ].map((id) => ({ id, type: "Object" }));
 
 function contentType(timeScaleValidations: unknown[]) {

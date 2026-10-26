@@ -6,6 +6,7 @@ import type {
 import type { PublishedGeeStatisticsSource } from "@/contracts/geeStatistics";
 import type { PublishedPanelLayerReportConfig } from "@/contracts/panelLayerReport";
 import type { PanelLayerForecastFacets } from "@/contracts/panelLayerForecast";
+import type { PanelLayerSourceGroup } from "@/contracts/panelLayerSourceGroup";
 
 export interface DataCardsI {
   noDroughtAreaValue: number;
@@ -311,6 +312,8 @@ export interface PanelLayerI {
   reportConfig?: PublishedPanelLayerReportConfig | null;
   /** Filtros da previsão climática, quando o índice é uma delas. */
   forecastFacets?: PanelLayerForecastFacets | null;
+  /** O grupo do mesmo índice com outras fontes de dados, quando existe. */
+  sourceGroup?: PanelLayerSourceGroup | null;
   tileApiPath?: string;
   municipalAnalysisApiPath?: string;
 }

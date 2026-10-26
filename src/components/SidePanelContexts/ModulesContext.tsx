@@ -27,6 +27,7 @@ import {
   resolveForecastSelection,
 } from "@/utils/forecastGroup";
 import { DEFAULT_FORECAST_SELECTION } from "@/config/forecastGroup";
+import { groupBySource } from "@/utils/sourceGroup";
 import { useMonitoringListState } from "./monitoringListState";
 import cdiData from "../../data/CDI_Janeiro_2024_Vetores.json";
 
@@ -263,13 +264,44 @@ export function ModulesContext({
     )?.layer;
   }, [forecastMembers, activeEEData?.id]);
 
+  // O mesmo índice com outras fontes vira um cartão só, com o nome do grupo,
+  // no lugar do primeiro deles. Como nas previsões, o cartão liga a fonte que
+  // já está no mapa ou, sem nenhuma, a primeira; o detalhamento troca dali.
+  const sourceGroupCards = useMemo(() => {
+    const cards = new Map<string, { layer: PanelLayerI; title?: string }>();
+    const hidden = new Set<string>();
+
+    for (const members of groupBySource(
+      panelLayers,
+      (layer) => layer.sourceGroup,
+    )) {
+      const [first, ...rest] = members;
+      const active = members.find(({ item }) => item.id === activeEEData?.id);
+      cards.set(first.item.id, {
+        layer: (active ?? first).item,
+        title: first.group,
+      });
+      rest.forEach(({ item }) => hidden.add(item.id));
+    }
+
+    return { cards, hidden };
+  }, [panelLayers, activeEEData?.id]);
+
   const datasets = useMemo(() => {
     const forecastIds = new Set(
       forecastMembers.map((member) => member.layer.id),
     );
-    const layerDatasets = buildLayerDatasets(
-      panelLayers.filter((layer) => !forecastIds.has(layer.id)),
+    const listed = panelLayers.flatMap((layer) =>
+      forecastIds.has(layer.id) || sourceGroupCards.hidden.has(layer.id)
+        ? []
+        : [sourceGroupCards.cards.get(layer.id) ?? { layer }],
     );
+    const layerDatasets = buildLayerDatasets(
+      listed.map(({ layer }) => layer),
+    ).map((dataset, index) => {
+      const title = listed[index].title;
+      return title ? { ...dataset, title } : dataset;
+    });
     if (!forecastCardLayer) return layerDatasets;
 
     // Entra por último na categoria, onde ficava o acordeão das previsões.
@@ -283,7 +315,7 @@ export function ModulesContext({
         forecastGroup: true,
       },
     ];
-  }, [panelLayers, forecastMembers, forecastCardLayer, t]);
+  }, [panelLayers, forecastMembers, forecastCardLayer, sourceGroupCards, t]);
 
   const groupedDatasets = useMemo<SubgroupedDatasetGroup[]>(() => {
     const groups = new Map<string, DatasetGroup>();

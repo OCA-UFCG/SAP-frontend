@@ -30,6 +30,7 @@ import { IndexCatalogReportFields } from "@/components/IndexCatalog/IndexCatalog
 import { MapAssetStrategyFields } from "@/components/IndexCatalog/MapAssetStrategyFields";
 import { PanelPositionField } from "@/components/IndexCatalog/PanelPositionField";
 import { ForecastFacetsFields } from "@/components/IndexCatalog/ForecastFacetsFields";
+import { SourceGroupFields } from "@/components/IndexCatalog/SourceGroupFields";
 import { ImageCollectionForecastGuideModal } from "@/components/IndexCatalog/ImageCollectionForecastGuideModal";
 import {
   detectPeriodTemplate,
@@ -458,6 +459,7 @@ export function IndexCatalogScreen() {
       ...(config.forecastFacets
         ? { forecastFacets: config.forecastFacets }
         : {}),
+      ...(config.sourceGroup ? { sourceGroup: config.sourceGroup } : {}),
     });
     // Um rascunho sem texto salvo recebe o padrão, e não campos vazios: é o
     // mesmo ponto de partida de um índice novo, inclusive para os que foram
@@ -1737,11 +1739,19 @@ export function IndexCatalogScreen() {
             </fieldset>
           )}
 
-          {!isSpreadsheet && draft.earthEngine.collectionSelection && (
+          {!isSpreadsheet && draft.earthEngine.collectionSelection ? (
             <ForecastFacetsFields
               value={draft.forecastFacets}
               onChange={(value) => updateDraft("forecastFacets", value)}
               items={items}
+              inputClass={inputClass}
+            />
+          ) : (
+            <SourceGroupFields
+              value={draft.sourceGroup}
+              onChange={(value) => updateDraft("sourceGroup", value)}
+              items={items}
+              entryId={entryId}
               inputClass={inputClass}
             />
           )}

@@ -57,8 +57,7 @@
         "description": "Gross Primary Production | MODIS"
       },
       "indice-de-aridez": {
-        "title": "Aridity Index",
-        "description": "Indicates the aridity classes of the region, implemented by OCA using data from Xavier et al. 2021."
+        "title": "Aridity Index"
       },
       "carbono-organico-do-solo-embrapa": {
         "title": "Soil Organic Carbon | Embrapa",

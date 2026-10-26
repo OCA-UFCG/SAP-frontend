@@ -17,6 +17,7 @@ import { hasSeasonalPeriods } from "@/utils/seasonalPeriod";
 import { tryParsePublishedGeeStatisticsSource } from "@/contracts/geeStatistics";
 import { tryParsePublishedPanelLayerReportConfig } from "@/contracts/panelLayerReport";
 import { tryParsePanelLayerForecastFacets } from "@/contracts/panelLayerForecast";
+import { tryParsePanelLayerSourceGroup } from "@/contracts/panelLayerSourceGroup";
 
 // O Contentful devolve no máximo 100 itens quando a query não pede `limit`, e
 // os que passarem disso somem sem erro nenhum. `CONTENTFUL_COLLECTION_LIMIT` é o
@@ -47,6 +48,7 @@ const GET_PANEL_LAYER = `
         statisticsSource
         reportConfig
         forecastFacets
+        sourceGroup
       }
     }
   }
@@ -71,6 +73,7 @@ const OPTIONAL_PANEL_LAYER_FIELDS = [
   "statisticsSource",
   "reportConfig",
   "forecastFacets",
+  "sourceGroup",
 ] as const;
 
 /**
@@ -183,6 +186,13 @@ function normalizePanelLayer(layer: PanelLayerI) {
     );
   }
 
+  const sourceGroup = tryParsePanelLayerSourceGroup(layer.sourceGroup);
+  if (layer.sourceGroup && !sourceGroup) {
+    console.warn(
+      `[panelLayerRepository] sourceGroup inválido para panelLayer ${layer.id}; o índice ficou num cartão próprio.`,
+    );
+  }
+
   return {
     ...layer,
     imageData: keepOnlyCurrentSeasonPeriod(
@@ -192,6 +202,7 @@ function normalizePanelLayer(layer: PanelLayerI) {
     ...(statisticsSource ? { statisticsSource } : { statisticsSource: null }),
     ...(reportConfig ? { reportConfig } : { reportConfig: null }),
     forecastFacets,
+    sourceGroup,
   };
 }
 

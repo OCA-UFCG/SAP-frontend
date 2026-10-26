@@ -24,6 +24,7 @@ const CATALOG_PANEL_LAYER_FIELDS = [
   { id: "statisticsSource", name: "Fonte estatística GEE" },
   { id: "reportConfig", name: "Texto do Relatório Automático" },
   { id: "forecastFacets", name: "Filtros da previsão climática" },
+  { id: "sourceGroup", name: "Mesmo índice, outras fontes" },
 ] as const;
 
 export interface ContentfulManagementConfig {

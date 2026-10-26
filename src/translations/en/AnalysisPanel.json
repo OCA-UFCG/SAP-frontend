@@ -28,6 +28,9 @@
       },
       "unavailable": "{label}: no forecast for the combination chosen above"
     },
+    "sourceGroupFilter": {
+      "label": "Data source"
+    },
     "areaLabel": "Area",
     "scopeLabel": "Boundary",
     "selectArea": "Select area",

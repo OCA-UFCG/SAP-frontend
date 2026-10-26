@@ -57,8 +57,7 @@
         "description": "Producción Primaria Bruta | MODIS"
       },
       "indice-de-aridez": {
-        "title": "Índice de Aridez",
-        "description": "Indica las clases de aridez de la región, implementado por OCA con datos de Xavier et al. 2021."
+        "title": "Índice de Aridez"
       },
       "carbono-organico-do-solo-embrapa": {
         "title": "Carbono Orgánico del Suelo | Embrapa",
