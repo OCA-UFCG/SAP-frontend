@@ -19,6 +19,7 @@ import {
 import {
   buildStatisticsRowsCacheKey,
   getOrLoadStatisticsRows,
+  MUNICIPALITIES_BY_PERIOD_LIMIT,
 } from "@/repositories/platform/geeStatisticsRowsCache";
 import type { CompactTerritorialAnalysisDatasetPatch } from "@/utils/municipalAnalysisMerge";
 import { STATE_KEY_PATTERN } from "@/utils/geeStateCode";
@@ -323,4 +324,60 @@ export async function getMunicipalValueTableYearPatch(
     assetIds,
     patch: mapMunicipalValueRows(fromCachedRows(rows), yearKey, locationKey),
   };
+}
+
+/**
+ * O valor de cada município num período, para a lista "Territórios por
+ * classificação" de um estado, bioma, Semiárido ou ASD.
+ *
+ * Como na tabela por classes, lê o país inteiro numa ida só: `reduceColumns`
+ * porque são mais de 5.000 linhas. Um município sem valor no período fica fora
+ * da lista, como no painel dele.
+ *
+ * @example
+ * (await getMunicipalValueTableMunicipalitiesYearValues(source, "2024"))["2507507"];
+ * // [12]
+ */
+export async function getMunicipalValueTableMunicipalitiesYearValues(
+  source: GeeMunicipalValueTableStatisticsSource,
+  yearKey: string,
+): Promise<Record<string, number[]>> {
+  const resolved = resolveGeeMunicipalValueTableSource(source, yearKey);
+  const columns = [source.properties.municipalityCode, resolved.valueColumn];
+  const rows = await getOrLoadStatisticsRows(
+    buildStatisticsRowsCacheKey(
+      [resolved.assetId],
+      `7_municipio@${yearKey}`,
+      columns,
+    ),
+    async () => {
+      const result = await evaluateGeeObject<{ list?: unknown[][] }>(
+        ee
+          .FeatureCollection(resolved.assetId)
+          .reduceColumns(ee.Reducer.toList(columns.length), columns),
+      );
+
+      if (!Array.isArray(result?.list)) {
+        throw new Error(
+          `Resposta inválida da tabela municipal GEE ${resolved.assetId} ao ler os municípios de ${yearKey}.`,
+        );
+      }
+
+      return result.list.map(([code, value]) => ({ code, value }));
+    },
+    [resolved.assetId],
+    MUNICIPALITIES_BY_PERIOD_LIMIT,
+  );
+
+  const values: Record<string, number[]> = {};
+  for (const row of rows) {
+    const code = String(row.code ?? "").trim();
+    const value = toSingleValuesByPeriod([yearKey], row, {
+      [yearKey]: "value",
+    })[yearKey];
+    if (MUNICIPALITY_KEY_PATTERN.test(code) && value !== null) {
+      values[code] = [value];
+    }
+  }
+  return values;
 }

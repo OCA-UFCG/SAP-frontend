@@ -33,7 +33,12 @@ import {
 } from "@/utils/municipalAvailability";
 import type { PlatformSection } from "@/components/PlatformSideRail/PlatformSideRail";
 import type { PanelLayerI, IEEInfo } from "@/utils/interfaces";
-import type { CompactTerritorialAnalysisDataset } from "@/utils/analysis";
+import type {
+  CompactTerritorialAnalysisDataset,
+  TerritoryRankingData,
+  TerritoryRankingState,
+} from "@/utils/analysis";
+import citiesIndex from "@/data/citiesIndex.json";
 import { statesObj } from "@/utils/constants";
 import {
   mergeMultiplePartialMunicipalImageData,
@@ -70,6 +75,41 @@ function getMunicipalAnalysisRequestLocation(
   requestKey: string,
 ): string | undefined {
   return requestKey.split("::").at(-1);
+}
+
+const stateKeyByMunicipalityCode = new Map(
+  citiesIndex.map((city) => [city.code, city.uf]),
+);
+
+/**
+ * Os recortes cuja lista de "Territórios por classificação" é buscada à parte:
+ * tudo menos o Brasil, que já traz os estados, e o município, que não tem lista.
+ */
+function getTerritoryRankingRequestKey(
+  layerId: string,
+  yearKey: string,
+  locationKey: string,
+): string | null {
+  return locationKey === "br" || /^\d{7}$/u.test(locationKey)
+    ? null
+    : `${layerId}::${yearKey}::${locationKey}`;
+}
+
+// Quem passa pelos períodos um atrás do outro não dispara uma leitura do país
+// inteiro no Earth Engine por período: só o período em que parar.
+const TERRITORY_RANKING_REQUEST_DELAY_MS = 400;
+// Uma falha passageira (Earth Engine frio logo depois de um deploy) ganha mais
+// uma tentativa antes de virar a mensagem de erro.
+const TERRITORY_RANKING_RETRY_DELAY_MS = 2000;
+
+function wait(delayMs: number, signal: AbortSignal) {
+  return new Promise<void>((resolve) => {
+    const timer = window.setTimeout(resolve, delayMs);
+    signal.addEventListener("abort", () => {
+      window.clearTimeout(timer);
+      resolve();
+    });
+  });
 }
 
 function getMunicipalSeriesRequestKey(
@@ -137,6 +177,8 @@ export function AnalysisContext({
   const requestedAnalysisKeysRef = useRef<Set<string>>(new Set());
   const [seriesImageDataByRequestKey, setSeriesImageDataByRequestKey] =
     useState<Record<string, PanelLayerI["imageData"] | null>>({});
+  const [territoryRankingByRequestKey, setTerritoryRankingByRequestKey] =
+    useState<Record<string, TerritoryRankingData | null>>({});
 
   const yearOptions = useMemo(() => getAnalysisYearOptions(dataset), [dataset]);
 
@@ -382,6 +424,108 @@ export function AnalysisContext({
     return () => controller.abort();
   }, [dataset?.id, municipalSeriesRequestKey, seriesImageDataByRequestKey]);
 
+  const territoryRankingRequestKey =
+    dataset?.id && effectiveYear
+      ? getTerritoryRankingRequestKey(
+          dataset.id,
+          effectiveYear,
+          selectedLocationKey,
+        )
+      : null;
+
+  // A lista sai junto com o painel do recorte, num pedido próprio: ela fica
+  // abaixo do panorama e não atrasa o número principal.
+  useEffect(() => {
+    if (
+      !dataset?.id ||
+      !effectiveYear ||
+      !territoryRankingRequestKey ||
+      territoryRankingByRequestKey[territoryRankingRequestKey] !== undefined
+    ) {
+      return;
+    }
+
+    const controller = new AbortController();
+    const requestUrl = new URL(
+      `/api/municipal-analysis/${encodeURIComponent(dataset.id)}/ranking`,
+      window.location.origin,
+    );
+    requestUrl.searchParams.set("year", effectiveYear);
+    requestUrl.searchParams.set("locationKey", selectedLocationKey);
+
+    const fetchTerritoryRanking = async () => {
+      let ranking: TerritoryRankingData | null = null;
+
+      await wait(TERRITORY_RANKING_REQUEST_DELAY_MS, controller.signal);
+
+      for (let attempt = 1; attempt <= 2 && !ranking; attempt += 1) {
+        if (controller.signal.aborted) return;
+
+        try {
+          const response = await fetch(requestUrl.toString(), {
+            credentials: "same-origin",
+            signal: controller.signal,
+          });
+
+          if (!response.ok) {
+            throw new Error(
+              `Territory ranking request failed with status ${response.status}`,
+            );
+          }
+
+          ranking = (await response.json()) as TerritoryRankingData;
+        } catch (error) {
+          if (controller.signal.aborted) return;
+          console.warn("Falha ao carregar a lista de territórios.", error);
+          if (attempt === 1) {
+            await wait(TERRITORY_RANKING_RETRY_DELAY_MS, controller.signal);
+          }
+        }
+      }
+
+      if (controller.signal.aborted) return;
+
+      setTerritoryRankingByRequestKey((current) => ({
+        ...current,
+        [territoryRankingRequestKey]: ranking,
+      }));
+    };
+
+    void fetchTerritoryRanking();
+
+    return () => controller.abort();
+  }, [
+    dataset?.id,
+    effectiveYear,
+    selectedLocationKey,
+    territoryRankingByRequestKey,
+    territoryRankingRequestKey,
+  ]);
+
+  // Uma falha não fica guardada: ao sair do recorte ela é esquecida, e quem
+  // volta a ele (ou volta ao período) tem a lista buscada de novo, como a
+  // mensagem de erro promete.
+  useEffect(() => {
+    if (!territoryRankingRequestKey) return;
+
+    const requestKey = territoryRankingRequestKey;
+    return () =>
+      setTerritoryRankingByRequestKey((current) => {
+        if (current[requestKey] !== null) return current;
+        const next = { ...current };
+        delete next[requestKey];
+        return next;
+      });
+  }, [territoryRankingRequestKey]);
+
+  const territoryRanking = useMemo((): TerritoryRankingState | undefined => {
+    if (!territoryRankingRequestKey) return undefined;
+
+    const ranking = territoryRankingByRequestKey[territoryRankingRequestKey];
+    if (ranking === undefined) return { status: "loading" };
+    return ranking ? { status: "ready", ...ranking } : { status: "error" };
+  }, [territoryRankingByRequestKey, territoryRankingRequestKey]);
+
   const enrichedDataset = useMemo(() => {
     if (!dataset?.id) {
       return dataset;
@@ -556,9 +700,30 @@ export function AnalysisContext({
         effectiveYear,
         selectedLocationKey,
         tCaption,
+        territoryRanking,
       ),
-    [enrichedDataset, effectiveYear, selectedLocationKey, tCaption],
+    [
+      enrichedDataset,
+      effectiveYear,
+      selectedLocationKey,
+      tCaption,
+      territoryRanking,
+    ],
   );
+
+  // Um item da lista pode ser um estado (Brasil e região) ou um município
+  // (demais recortes); o município é escolhido como pela pesquisa.
+  const handleRankingItemSelect = (locationKey: string) => {
+    const municipalityStateKey = stateKeyByMunicipalityCode.get(locationKey);
+
+    if (municipalityStateKey) {
+      setSelectedState(municipalityStateKey);
+      setSelectedMunicipalityCode(locationKey);
+      return;
+    }
+
+    setSelectedState(locationKey);
+  };
 
   const unavailableLocationName = useMemo(() => {
     const explicitLocationName = getAnalysisLocationName(
@@ -660,7 +825,7 @@ export function AnalysisContext({
         activeDateLabel,
       }}
       onYearChange={setActiveYear}
-      onRankingItemSelect={setSelectedState}
+      onRankingItemSelect={handleRankingItemSelect}
       model={embeddedModel}
       years={temporalYears}
       classes={temporalClasses}

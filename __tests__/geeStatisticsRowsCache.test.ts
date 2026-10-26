@@ -10,6 +10,7 @@ import {
   getStatisticsRowsGeneration,
   GEE_STATISTICS_ROWS_CACHE_TTL_MS,
   invalidateStatisticsRows,
+  MUNICIPALITIES_BY_PERIOD_LIMIT,
 } from "@/repositories/platform/geeStatisticsRowsCache";
 
 /** Leitura falsa do Earth Engine que conta quantas vezes foi acionada. */
@@ -328,5 +329,33 @@ describe("descarte das linhas de uma tabela alterada", () => {
       routeCopy.getOrLoadStatisticsRows(key, reader.read, ["a"]),
     ).resolves.toEqual(ROWS);
     expect(reader.calls).toBe(0);
+  });
+});
+
+describe("teto das entradas grandes", () => {
+  beforeEach(() => {
+    clearGeeStatisticsRowsCache();
+  });
+
+  it("descarta a entrada grande menos usada sem tocar nas pequenas", async () => {
+    const limit = { ...MUNICIPALITIES_BY_PERIOD_LIMIT, maxEntries: 2 };
+    const small = new FakeStatisticsReader(ROWS);
+    const large = new FakeStatisticsReader(ROWS);
+
+    await getOrLoadStatisticsRows("pequena", small.read, ["a"]);
+    await getOrLoadStatisticsRows("grande-1", large.read, ["a"], limit);
+    await getOrLoadStatisticsRows("grande-2", large.read, ["a"], limit);
+    await getOrLoadStatisticsRows("grande-1", large.read, ["a"], limit);
+    await getOrLoadStatisticsRows("grande-3", large.read, ["a"], limit);
+
+    expect(large.calls).toBe(3);
+
+    await getOrLoadStatisticsRows("grande-1", large.read, ["a"], limit);
+    await getOrLoadStatisticsRows("pequena", small.read, ["a"]);
+    expect(large.calls).toBe(3);
+    expect(small.calls).toBe(1);
+
+    await getOrLoadStatisticsRows("grande-2", large.read, ["a"], limit);
+    expect(large.calls).toBe(4);
   });
 });

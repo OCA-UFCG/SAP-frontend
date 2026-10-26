@@ -45,6 +45,9 @@
 !/scripts/build-reference-territories.mjs
 # Gerador dos tiles dos territórios, anexados à release `tiles-2025`.
 !/scripts/build-territory-tiles.mjs
+# Gerador da lista município → bioma/Semiárido/ASD usada em "Territórios por
+# classificação": o artefato em src/data é commitado.
+!/scripts/build-municipality-territories.mjs
 # Configuração do SEDES na VM de monitoramento, aplicada pelo deploy.sh.
 !/scripts/monitoring/
 /scripts/monitoring/__pycache__/
