@@ -18,7 +18,12 @@ function fakeImage(label: string) {
     select: (band: unknown) => fakeImage(`${label}.select(${String(band)})`),
     projection: () => ({
       label: `${label}.projection`,
-      nominalScale: () => ({ lte: (limit: number) => `scale<=${limit}` }),
+      nominalScale: () => ({
+        lte: (limit: number) => `scale<=${limit}`,
+        gte: (limit: number) => ({
+          and: (other: string) => `scale>=${limit} && ${other}`,
+        }),
+      }),
     }),
     reproject: (args: { crs: unknown; scale: unknown }) => {
       spies.reproject(args);
@@ -141,7 +146,9 @@ describe("escala nativa no pipeline do /api/ee", () => {
       mapVisualization: DEGRADACAO_DA_TERRA,
     });
 
-    expect(spies.conditional).toHaveBeenCalledWith("scale<=1000");
+    // Abaixo de 250 m o `reproject` passa de 2^31 pixels no zoom mínimo, e o
+    // PRODES Acumulado, de 10 m, voltava 400 em todo tile.
+    expect(spies.conditional).toHaveBeenCalledWith("scale>=250 && scale<=1000");
   });
 
   it("não mexe em camadas que classificam um dado contínuo por faixas", async () => {
