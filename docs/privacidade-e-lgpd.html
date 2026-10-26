@@ -193,6 +193,17 @@
           </td>
         </tr>
         <tr>
+          <td>Natureza</td>
+          <td>
+            Avaliação técnica interna, feita pela equipe técnica do SEDES (LSD/UFCG). Não é certificação
+            nem auditoria independente.
+          </td>
+        </tr>
+        <tr>
+          <td>Revisão jurídica</td>
+          <td>Pendente</td>
+        </tr>
+        <tr>
           <td>Contato da equipe</td>
           <td>oca@lsd.ufcg.edu.br</td>
         </tr>
@@ -237,11 +248,13 @@
       <p>
         <strong>A plataforma coleta apenas o necessário para controlar quem acessa a área
         restrita:</strong> e-mail, senha (guardada somente como hash pelo provedor de autenticação) e
-        uma descrição livre de como a pessoa pretende usar a plataforma. Não há coleta de nome, CPF,
-        telefone, endereço ou qualquer dado sensível (art. 5º, II).
+        uma descrição livre de como a pessoa pretende usar a plataforma. O formulário não pede nome,
+        CPF, telefone, endereço nem dado sensível (art. 5º, II). Como a descrição é texto livre, a
+        pessoa pode escrever ali algum dado pessoal por conta própria (seção 11.3).
       </p>
       <p>
-        Todo dado pessoal guardado tem um prazo, ou uma finalidade de auditoria que justifica mantê-lo.
+        Os dados pessoais guardados têm prazo, ou uma finalidade de auditoria que justifica mantê-los.
+        A exceção é o pedido de acesso que aguarda a decisão da equipe, que não vence (seção 7).
         A eliminação é automática, feita pelo próprio servidor uma vez por dia. Os registros de uso
         da plataforma não identificam a pessoa. O Google Analytics só é carregado depois que a pessoa
         aceita. A própria pessoa pode excluir a conta, e quem ainda aguarda liberação pode desistir do
@@ -417,9 +430,10 @@
 
     <h2>6. Serviços de terceiros</h2>
     <p>
-      Os serviços abaixo recebem dados da plataforma ou do navegador do visitante. Nenhum deles recebe
-      a descrição de uso nem o histórico de navegação na plataforma, exceto o Google Analytics, e
-      este somente com consentimento.
+      Os serviços abaixo recebem dados da plataforma ou do navegador do visitante. A descrição de uso
+      chega a dois serviços do Google: ao Firestore, onde o pedido fica guardado, e ao SMTP, porque o
+      aviso de pedido novo enviado à equipe leva o e-mail e a descrição da pessoa. O Google Analytics,
+      quando aceito, recebe as páginas visitadas, mas não o e-mail nem a descrição de uso.
     </p>
     <table>
       <thead><tr>
@@ -504,7 +518,9 @@
       <tr>
         <td>Pedido confirmado aguardando decisão</td>
         <td>Não vence</td>
-        <td>Nada; a pessoa pode desistir a qualquer momento na própria página de espera</td>
+        <td>Nada. A pessoa ainda espera uma resposta, e apagar o pedido equivaleria a negá-lo sem
+          decisão. Ela pode desistir a qualquer momento na própria página de espera. Falta um prazo
+          para a equipe decidir (seção 11.3).</td>
       </tr>
       <tr>
         <td>Pedido aprovado ou acesso removido</td>
@@ -652,7 +668,18 @@
     </ol>
 
     <h2>11. Limitações conhecidas e pendências</h2>
-    <h3>11.1 Dependem do jurídico ou da coordenação</h3>
+    <h3>11.1 Ação prioritária</h3>
+    <div class="box">
+      <p>
+        <strong>Ambiente gamma desatualizado.</strong> O endereço gamma-sap.oca-portal.com continua
+        acessível e roda uma versão de 31/08/2026, anterior a todas as medidas deste documento. O
+        certificado dele venceu em 14/10/2026. Hoje esse ambiente não guarda dado algum, mas, se for
+        usado, volta a gravar o e-mail nos registros de uso, sem prazo de eliminação. Ele deve ser
+        desligado ou atualizado para a versão atual.
+      </p>
+    </div>
+
+    <h3>11.2 Dependem do jurídico ou da coordenação</h3>
     <table>
       <thead><tr>
         <th style="width: 30%">Item</th>
@@ -676,9 +703,20 @@
       </tr>
       <tr>
         <td>Transferência internacional (art. 33)</td>
-        <td><span class="status pend">Pendente.</span> A produção roda nos Estados Unidos (AWS), e a
-          autenticação do Google não garante permanência no Brasil. Avaliar a hipótese do art. 33
-          aplicável ou migrar a produção para uma região no Brasil.</td>
+        <td><span class="status pend">Pendente.</span> Fluxos para fora do Brasil identificados:
+          <ul style="margin: 1mm 0">
+            <li>a produção, na AWS dos Estados Unidos, recebe todo o tráfego, inclusive o e-mail, a
+              senha em trânsito, a descrição de uso e o IP;</li>
+            <li>a autenticação do Google guarda a conta e o hash da senha sem garantia de permanecer
+              no Brasil;</li>
+            <li>o Google Analytics (só com consentimento), a Cloudflare e a Esri recebem IP e dados
+              do navegador;</li>
+            <li>o OpenStreetMap recebe IP e a região do mapa visualizada.</li>
+          </ul>
+          Para cada fluxo é preciso indicar o mecanismo do art. 33 que se aplica, por exemplo as
+          cláusulas-padrão contratuais da Resolução CD/ANPD nº 19/2024, e conferir se os termos dos
+          provedores as contemplam. Levar a produção para uma região no Brasil elimina o maior desses
+          fluxos, mas não os demais.</td>
       </tr>
       <tr>
         <td>Prazo dos registros de acesso (Marco Civil, art. 15)</td>
@@ -698,13 +736,12 @@
       </tr>
     </table>
 
-    <h3>11.2 Técnicas, de baixo impacto</h3>
+    <h3>11.3 Técnicas, de baixo impacto</h3>
     <ul>
       <li>
-        <strong>Ambiente gamma desatualizado.</strong> O endereço gamma-sap.oca-portal.com ainda roda
-        uma versão de 31/08/2026, anterior a todas as medidas deste documento, com certificado vencido
-        desde 14/10/2026. Hoje não guarda dado algum, mas, se usado, voltaria a gravar o e-mail nos
-        registros de uso. Recomenda-se desligá-lo ou atualizá-lo.
+        <strong>Pedido sem prazo de decisão.</strong> O pedido confirmado que aguarda a equipe não
+        vence. Recomenda-se fixar um prazo de resposta, por exemplo 30 dias, e acompanhar os pedidos
+        que passarem dele. Em 26/10/2026 não havia nenhum pedido nessa situação.
       </li>
       <li>
         <strong>E-mail em mensagens de erro.</strong> Quando o envio de e-mail falha, o log da
@@ -727,50 +764,64 @@
     </ul>
 
     <h2>12. Verificação realizada</h2>
-    <p>Em 26/10/2026, sobre a versão v7.10 em produção:</p>
+    <p>
+      Verificações feitas pela equipe técnica em 26/10/2026, sobre a versão v7.10 em produção:
+    </p>
     <table>
       <thead><tr>
-        <th style="width: 45%">Verificação</th>
+        <th style="width: 27%">Verificação</th>
+        <th style="width: 37%">Método</th>
         <th>Resultado</th>
       </tr></thead>
       <tr>
         <td>Registros de uso com e-mail ou uid, nos três ambientes</td>
+        <td>Consulta de contagem no Firestore, por coleção, filtrando pelos campos de e-mail e uid</td>
         <td><span class="status ok">Nenhum</span> (produção 1.362, beta 4.215 e desenvolvimento 7.352
           eventos conferidos)</td>
       </tr>
       <tr>
         <td>Registros de uso vencidos (mais de 90 dias) na produção e no beta</td>
-        <td><span class="status ok">Nenhum.</span> A primeira passada da eliminação, logo após a
-          implantação, apagou 256 eventos na produção e 770 no beta.</td>
+        <td>Contagem pelo campo de vencimento, antes e depois da implantação</td>
+        <td><span class="status ok">Nenhum.</span> A primeira passada da eliminação apagou 256
+          eventos na produção e 770 no beta.</td>
       </tr>
       <tr>
         <td>Registros de uso sem data de vencimento</td>
+        <td>Contagem dos que têm o campo de vencimento, comparada ao total</td>
         <td><span class="status ok">Nenhum</span></td>
       </tr>
       <tr>
         <td>Coleções de teste com dados antigos</td>
+        <td>Listagem das coleções do banco</td>
         <td><span class="status ok">Apagadas</span></td>
       </tr>
       <tr>
         <td>Regras do Firestore publicadas</td>
+        <td>Leitura da versão publicada pela API do Firebase e comparação com
+          <code>firestore.rules</code></td>
         <td><span class="status ok">Iguais às do repositório:</span> todo acesso pelo navegador
           negado</td>
       </tr>
       <tr>
         <td>Criação de conta direto na API do Google</td>
+        <td>Leitura da configuração do Firebase Authentication</td>
         <td><span class="status ok">Desligada</span></td>
       </tr>
       <tr>
         <td>Pedidos de acesso guardados</td>
-        <td>3 (1 aguardando, 1 aprovado, 1 recusado), todos dentro do prazo</td>
+        <td>Contagem por situação e idade do pedido pendente</td>
+        <td>3: 1 com e-mail ainda não confirmado, há 9 dias (vence aos 30), 1 aprovado e 1 recusado.
+          Nenhum confirmado esperando a equipe.</td>
       </tr>
       <tr>
         <td>Saúde da produção após a implantação</td>
+        <td>Três consultas a <code>/api/health</code></td>
         <td><span class="status ok">Normal</span> em todas as dependências</td>
       </tr>
       <tr>
         <td>Testes automatizados de eliminação</td>
-        <td><span class="status ok">Aprovados</span> na integração contínua (PRs #492 e #494)</td>
+        <td>Integração contínua do GitHub</td>
+        <td><span class="status ok">Aprovados</span> (PRs #492 e #494)</td>
       </tr>
     </table>
     <p class="small">
@@ -779,23 +830,26 @@
       são apagados na próxima vez que esse ambiente subir com a versão v7.10.
     </p>
 
+    <div style="break-inside: avoid">
     <h2>13. Conclusão</h2>
     <p>
       O SEDES trata um conjunto pequeno de dados pessoais, limitado ao necessário para controlar o
       acesso à área restrita, e atende aos princípios da finalidade, da adequação e da necessidade
-      (art. 6º, I a III). Cada dado tem prazo de guarda ou justificativa de auditoria, e a eliminação é
-      automática. Os registros de uso não identificam as pessoas. O consentimento para o Analytics é
-      livre e revogável, e o titular exclui a própria conta sem depender da equipe. As medidas de
-      segurança da seção 9 estão em vigor.
+      (art. 6º, I a III). Os dados têm prazo de guarda ou justificativa de auditoria, com a exceção
+      registrada na seção 7, e a eliminação é automática. Os registros de uso não identificam as
+      pessoas. O consentimento para o Analytics é livre e revogável, e o titular exclui a própria
+      conta sem depender da equipe. As medidas de segurança da seção 9 estão em vigor.
     </p>
     <p>
-      Do ponto de vista técnico, a plataforma está adequada à LGPD na versão v7.10. Para a
-      conformidade plena, faltam os itens institucionais da seção 11.1, que dependem de decisão
-      jurídica e administrativa. A recomendação é tratá-los nesta ordem: definir controlador e
-      encarregado, publicar a política de privacidade e decidir sobre a hospedagem nos Estados Unidos.
+      Esta avaliação técnica interna da versão v7.10 encontrou os controles e os resultados descritos
+      neste relatório. Ela não substitui a análise jurídica. A conformidade integral depende de
+      desligar ou atualizar o ambiente gamma (seção 11.1) e de resolver as pendências da seção 11.2.
+      A ordem recomendada é esta: definir o controlador e o encarregado, publicar a política de
+      privacidade e decidir sobre as transferências internacionais.
     </p>
+    </div>
 
-    <h2 class="page-break">Anexo — onde cada medida está no código</h2>
+    <h2>Anexo — onde cada medida está no código</h2>
     <table>
       <thead><tr>
         <th style="width: 38%">Medida</th>
