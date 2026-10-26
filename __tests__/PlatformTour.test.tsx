@@ -135,6 +135,39 @@ describe("platform tour", () => {
     }
   });
 
+  // O balão vive fora do <main>: a tag <footer> dele virava um segundo rodapé
+  // da página, e o div do passo sem alvo ficava com ARIA que não pode ter.
+  it("keeps the popover out of the page landmarks and ARIA errors", () => {
+    render(<PlatformSidebar panelLayers={[]} />);
+    waitPastAutoStart();
+
+    const config = driverMock.mock.calls[0][0] as {
+      onPopoverRender: (dom: unknown, options: unknown) => void;
+      onHighlighted: (element: Element | undefined) => void;
+    };
+    const footer = document.createElement("footer");
+    config.onPopoverRender(
+      { footer, progress: document.createElement("span") },
+      { config: { steps: [] }, index: 0 },
+    );
+    expect(footer).toHaveAttribute("role", "none");
+
+    const dummy = document.createElement("div");
+    dummy.id = "driver-dummy-element";
+    dummy.setAttribute("aria-haspopup", "dialog");
+    dummy.setAttribute("aria-expanded", "true");
+    dummy.setAttribute("aria-controls", "driver-popover-content");
+    document.body.append(dummy);
+    try {
+      config.onHighlighted(undefined);
+      expect(dummy).not.toHaveAttribute("aria-haspopup");
+      expect(dummy).not.toHaveAttribute("aria-expanded");
+      expect(dummy).not.toHaveAttribute("aria-controls");
+    } finally {
+      dummy.remove();
+    }
+  });
+
   it("hides the replay button on the audit and catalog views", () => {
     render(<PlatformSidebar panelLayers={[]} viewMode="logs" />);
 

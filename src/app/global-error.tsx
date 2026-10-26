@@ -24,7 +24,7 @@ export default function GlobalError({
   }, [error]);
 
   return (
-    <html lang="pt">
+    <html lang="pt-BR">
       <body
         style={{
           margin: 0,
