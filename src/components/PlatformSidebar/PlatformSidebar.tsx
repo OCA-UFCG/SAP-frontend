@@ -138,7 +138,7 @@ export function PlatformSidebar({
   const [isLeavingUtilityView, startUtilityViewExit] = useTransition();
   const [utilityViewExitTarget, setUtilityViewExitTarget] =
     useState<PlatformSection | null>(null);
-  const defaultPanelOpenOffset = "548px";
+  const defaultPanelOpenOffset = "556px";
   // No celular o painel aberto ocupa a largura toda, por cima do mapa.
   const sidePanelWidthClass = isPanelOpen ? "w-[424px] max-md:w-screen" : "w-0";
 
@@ -147,7 +147,7 @@ export function PlatformSidebar({
   // coberto. Publicar a medida evita subir `isPanelOpen` ate o layout so para
   // isso; quem consome le `--platform-side-overlay-width`.
   useEffect(() => {
-    const overlayWidth = isPanelOpen ? defaultPanelOpenOffset : "124px";
+    const overlayWidth = isPanelOpen ? defaultPanelOpenOffset : "132px";
     document.documentElement.style.setProperty(
       "--platform-side-overlay-width",
       overlayWidth,
@@ -304,7 +304,7 @@ export function PlatformSidebar({
           <div
             data-stage="main"
             className="absolute inset-y-0 right-0 z-[11] bg-[#F6F7F6] transition-[left] duration-300 ease-in-out max-md:left-0!"
-            style={{ left: isPanelOpen ? defaultPanelOpenOffset : "124px" }}
+            style={{ left: isPanelOpen ? defaultPanelOpenOffset : "132px" }}
           >
             <LazyMunicipalReportPreview
               locationKey={reportRequest?.locationKey ?? ""}

@@ -57,9 +57,9 @@ const RING: Keyframe[] = [
 const MORPH_MS = 560;
 const MORPH_EASING = "cubic-bezier(0.65, 0, 0.35, 1)";
 
-// Em Priorização a moldura do mapa começa depois da trilha (124px) e do
+// Em Priorização a moldura do mapa começa depois da trilha (132px) e do
 // formulário (531px), com o respiro de 24px da área (PlatformMap).
-const ANALYSIS_FRAME_INSET = "inset(24px 24px 24px 679px round 12px)";
+const ANALYSIS_FRAME_INSET = "inset(24px 24px 24px 687px round 12px)";
 
 /** Entre Monitoramento e Priorização o mapa é o mesmo e só muda de moldura. */
 function isMapMorph(from: string, to: string) {
