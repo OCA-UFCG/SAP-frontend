@@ -6,7 +6,7 @@ import SocialChannels from "../ContactSection/SocialChannels";
 import { useTranslations } from "next-intl";
 import { AccessibilitySymbol } from "../AccessibilitySymbol/AccessibilitySymbol";
 import { SKIP_TARGETS } from "../SkipLinks/skipTargets";
-import { openCookiePreferences } from "@/lib/analytics-consent";
+import { CookiePreferencesButton } from "../CookieConsent/CookiePreferencesButton";
 
 // O mesmo ID que liga o aviso de cookies no layout: sem Analytics, não há o
 // que escolher.
@@ -58,13 +58,10 @@ export const Footer = ({ content }: { content: ISection[] }) => {
               {t("accessibility")}
             </Link>
             {HAS_ANALYTICS && (
-              <button
-                type="button"
-                onClick={openCookiePreferences}
+              <CookiePreferencesButton
                 className="cursor-pointer rounded text-sm font-bold leading-5 text-white transition-opacity hover:opacity-60 focus:outline-none focus-visible:ring-2 focus-visible:ring-white"
-              >
-                {t("cookies")}
-              </button>
+                label={t("cookies")}
+              />
             )}
           </div>
         </div>
