@@ -2,7 +2,7 @@
 
 import { useEffect, useId, useLayoutEffect, useRef, useState } from "react";
 import { useDialogFocus } from "@/hooks/useDialogFocus";
-import { handleListboxKeyDown } from "@/utils/listboxKeyboard";
+import { closeWhenFocusLeaves, handleListboxKeyDown } from "@/utils/listboxKeyboard";
 import { scrollSelectedOptionIntoView } from "@/utils/scrollSelectedOption";
 
 export interface PanelDropdownOption {
@@ -72,6 +72,7 @@ export function PanelDropdown({
   return (
     <div
       ref={containerRef}
+      onBlur={closeWhenFocusLeaves(() => setIsOpen(false))}
       className="flex min-w-0 flex-1 flex-col items-start gap-[6px]"
     >
       {label && (
@@ -127,6 +128,8 @@ export function PanelDropdown({
                   key={option.value}
                   type="button"
                   role="option"
+                  // Fora do Tab: as setas andam pela lista, e o Tab sai dela.
+                  tabIndex={-1}
                   aria-selected={selected}
                   data-autofocus={selected || undefined}
                   onClick={() => {

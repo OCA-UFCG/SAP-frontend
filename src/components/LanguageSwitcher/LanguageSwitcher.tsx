@@ -5,7 +5,7 @@ import { usePathname, useRouter } from "@/translations/routing";
 import { useTranslations, useLocale } from "next-intl";
 import { Icon } from "../Icon/Icon";
 import { useDialogFocus } from "@/hooks/useDialogFocus";
-import { handleListboxKeyDown } from "@/utils/listboxKeyboard";
+import { closeWhenFocusLeaves, handleListboxKeyDown } from "@/utils/listboxKeyboard";
 
 // A sigla é o que aparece no cabeçalho; o nome por extenso fica para a lista,
 // onde há espaço para quem não reconhece a sigla do próprio idioma. O menu do
@@ -55,7 +55,11 @@ export const LanguageSwitcher = () => {
     LANGUAGES.find((language) => language.code === locale) ?? LANGUAGES[0];
 
   return (
-    <div className="relative inline-block" ref={containerRef}>
+    <div
+      className="relative inline-block"
+      ref={containerRef}
+      onBlur={closeWhenFocusLeaves(() => setIsOpen(false))}
+    >
       <button
         type="button"
         onClick={() => setIsOpen((prev) => !prev)}
@@ -110,6 +114,8 @@ export const LanguageSwitcher = () => {
               type="button"
               // Sem `role="option"` a lista era anunciada vazia.
               role="option"
+              // Fora do Tab: as setas andam pela lista, e o Tab sai dela.
+              tabIndex={-1}
               // Cada nome é lido na pronúncia do próprio idioma.
               lang={lang.code}
               aria-selected={locale === lang.code}

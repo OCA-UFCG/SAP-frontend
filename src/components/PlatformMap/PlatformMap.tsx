@@ -161,6 +161,9 @@ export function PlatformMap({
     <div
       data-testid="platform-map-area"
       data-platform-map-area
+      // Na Comunicação o relatório cobre o mapa: sem `inert`, o Tab parava no
+      // mapa e nos controles dele, invisíveis por baixo.
+      inert={section === "communication"}
       className={isAnalysis ? ANALYSIS_AREA_CLASS : FULL_BLEED_AREA_CLASS}
       // A escala do mapa se apoia nesta medida para nascer na borda esquerda do
       // mapa *visivel*. Em Analise o mapa ja comeca depois do formulario; nas

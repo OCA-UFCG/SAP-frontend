@@ -180,6 +180,27 @@ export function PlatformLayout({
           data-mobile-view={mobileView}
           className={`group/shell relative flex w-full flex-col bg-neutral-50 ${PLATFORM_SHELL_MIN_HEIGHT_CLASS} max-md:min-h-[calc(100dvh-66px-4rem)]`}
         >
+          {/* A trilha e o painel vêm antes do mapa no código, na ordem em que
+              aparecem na tela: antes o Tab passava pelo mapa e pelos controles
+              dele antes de chegar às seções e às camadas. */}
+          <PlatformSidebar
+            key={sidebarStateKey}
+            panelLayers={sidebarPanelLayers}
+            showAuditLink={showAuditLink}
+            initialSection={initialSection}
+            detailLayerId={
+              props.viewMode === "logs" || props.viewMode === "catalog"
+                ? undefined
+                : props.detailLayerId
+            }
+            viewMode={viewMode}
+            reportRequest={
+              props.viewMode === "logs" || props.viewMode === "catalog"
+                ? undefined
+                : props.reportRequest
+            }
+            onActiveSectionChange={handleActiveSectionChange}
+          />
           {isLogsView ? (
             // Telemetria e catálogo são telas internas escritas só em
             // português: o `lang` evita que o leitor de tela as leia com a
@@ -205,35 +226,19 @@ export function PlatformLayout({
             <>
               {/* Monitoramento, Análise e Comunicação compartilham este mapa:
                   trocar de seção muda as propriedades dele, não a instância. */}
-              <PlatformMap
-                section={resolveMapSection(activeSection)}
-                showMonitoringControls={activeSection === "monitoring"}
-              />
+              {/* O formulário da Priorização fica à esquerda do mapa, então
+                  vem antes dele também para o Tab. */}
               {activeSection === "analysis" && (
                 <AmfeAnalysisFormColumn
                   onAnalyze={() => setMobileView("result")}
                 />
               )}
+              <PlatformMap
+                section={resolveMapSection(activeSection)}
+                showMonitoringControls={activeSection === "monitoring"}
+              />
             </>
           )}
-          <PlatformSidebar
-            key={sidebarStateKey}
-            panelLayers={sidebarPanelLayers}
-            showAuditLink={showAuditLink}
-            initialSection={initialSection}
-            detailLayerId={
-              props.viewMode === "logs" || props.viewMode === "catalog"
-                ? undefined
-                : props.detailLayerId
-            }
-            viewMode={viewMode}
-            reportRequest={
-              props.viewMode === "logs" || props.viewMode === "catalog"
-                ? undefined
-                : props.reportRequest
-            }
-            onActiveSectionChange={handleActiveSectionChange}
-          />
           {!isLogsView && !isCatalogView && (
             <MobileViewToggle
               section={activeSection}

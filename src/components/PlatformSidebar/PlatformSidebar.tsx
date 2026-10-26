@@ -261,6 +261,9 @@ export function PlatformSidebar({
           <div
             data-platform-side-panel
             data-panel-open={isPanelOpen}
+            // Recolhido, o painel só sai da tela: sem `inert`, o Tab seguia
+            // pelos controles dele, invisíveis à esquerda.
+            inert={!isPanelOpen}
             className={`
         relative h-full overflow-hidden
           transition-[width] duration-300 ease-in-out
@@ -296,10 +299,11 @@ export function PlatformSidebar({
             aria-hidden="true"
           />
           {/* No celular não há trilha à esquerda: o relatório começa na borda
-              e fica por baixo do painel até a pessoa pedir para vê-lo. */}
+              e fica por baixo do painel até a pessoa pedir para vê-lo. O z-[11]
+              o põe acima do mapa (z-10), que vem depois no código. */}
           <div
             data-stage="main"
-            className="absolute inset-y-0 right-0 z-10 bg-[#F6F7F6] transition-[left] duration-300 ease-in-out max-md:left-0!"
+            className="absolute inset-y-0 right-0 z-[11] bg-[#F6F7F6] transition-[left] duration-300 ease-in-out max-md:left-0!"
             style={{ left: isPanelOpen ? defaultPanelOpenOffset : "124px" }}
           >
             <LazyMunicipalReportPreview
