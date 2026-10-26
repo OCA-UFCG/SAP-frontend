@@ -469,6 +469,21 @@ export function applyMapVisualization(
 const FINE_ASSET_SCALE_LIMIT_METERS = 1000;
 
 /**
+ * Abaixo desta escala nativa o `reproject` não cabe no tile do zoom mais
+ * afastado: o Earth Engine teria de ler o dado na resolução original e recusa o
+ * tile. O PRODES Acumulado, de 10 m, voltava 400 em todo tile com "Number of
+ * pixels requested from Image.reproject exceeds the maximum allowed (2^31)", e
+ * o mapa ficava vazio.
+ *
+ * Medido no PRODES em z3, o zoom mínimo do mapa: forçando 150 m o tile ainda
+ * estoura a memória do Earth Engine, e a partir de 250 m todos saem. Os assets
+ * de ~500 m que motivaram a escala nativa continuam dentro da faixa. Abaixo
+ * dela a pirâmide volta a ser usada; no PRODES, inteiro com duas classes, 100%
+ * dos pixels saem numa cor da legenda mesmo assim.
+ */
+const MIN_NATIVE_SCALE_METERS = 250;
+
+/**
  * A projeção nativa da banda que vai ser desenhada, para servir de referência a
  * `renderAtNativeScale`.
  */
@@ -497,7 +512,9 @@ function renderAtNativeScale(image: any, nativeProjection: any) {
 
   return ee.Image(
     ee.Algorithms.If(
-      scale.lte(FINE_ASSET_SCALE_LIMIT_METERS),
+      scale
+        .gte(MIN_NATIVE_SCALE_METERS)
+        .and(scale.lte(FINE_ASSET_SCALE_LIMIT_METERS)),
       image.reproject({ crs: nativeProjection, scale }),
       image,
     ),
