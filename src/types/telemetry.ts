@@ -58,8 +58,12 @@ export interface PersistedTelemetryEvent extends TelemetryEventInput {
   occurredAt: string;
   receivedAt: string;
   receivedDay: string;
-  uid: string | null;
-  userEmail?: string | null;
+  /**
+   * Se quem gerou o evento estava logado. É só isso que o painel precisa saber
+   * sobre a pessoa: guardar o e-mail (como era antes) ligava cada busca e cada
+   * camada aberta a alguém identificável, sem nenhum uso que dependesse disso.
+   */
+  authenticated: boolean;
 }
 
 export interface TelemetryCountEntry {
@@ -296,14 +300,12 @@ export function buildPersistedTelemetryEvent(
     anonymousSessionId,
     occurredAt,
     receivedAt,
-    uid,
-    userEmail,
+    authenticated,
   }: {
     anonymousSessionId: string;
     occurredAt: string;
     receivedAt: string;
-    uid: string | null;
-    userEmail: string | null;
+    authenticated: boolean;
   },
 ): PersistedTelemetryEvent {
   return {
@@ -312,7 +314,6 @@ export function buildPersistedTelemetryEvent(
     occurredAt,
     receivedAt,
     receivedDay: receivedAt.slice(0, 10),
-    uid,
-    userEmail,
+    authenticated,
   };
 }

@@ -1,0 +1,26 @@
+{
+  "MyAccount": {
+    "title": "Minha conta",
+    "emailLabel": "E-mail",
+    "deleteTitle": "Excluir conta",
+    "deleteSummary": "Apaga seu login e os dados do seu cadastro. Não dá para desfazer.",
+    "openDelete": "Excluir minha conta",
+    "whatIsDeleted": "Ao excluir a conta, apagamos:",
+    "deletedLogin": "seu login e sua senha;",
+    "deletedSignup": "o e-mail e a descrição de uso que você enviou no cadastro.",
+    "usageNote": "Os registros de uso da plataforma não guardam quem você é, então não há nada seu neles para apagar.",
+    "irreversible": "Não dá para desfazer. Para voltar a usar a plataforma, será preciso se cadastrar de novo.",
+    "passwordLabel": "Digite sua senha para confirmar",
+    "submit": "Excluir minha conta",
+    "working": "Excluindo...",
+    "cancel": "Cancelar",
+    "wrongPassword": "Senha incorreta.",
+    "tooManyAttempts": "Muitas tentativas. Espere alguns minutos e tente de novo.",
+    "failed": "Não foi possível excluir a conta agora. Tente de novo mais tarde.",
+    "askTeam": "Esta conta foi criada pela equipe do OCA e pode ser usada por mais de uma pessoa, então ela não pode ser excluída por aqui. Para excluí-la, fale com a equipe.",
+    "contactTeam": "Falar com a equipe",
+    "doneTitle": "Conta excluída",
+    "doneBody": "Sua conta e os dados do seu cadastro foram apagados.",
+    "backHome": "Voltar ao início"
+  }
+}

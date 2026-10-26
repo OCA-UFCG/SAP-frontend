@@ -200,6 +200,21 @@ describe("POST /api/signup/confirm", () => {
     expect(approveAccessMock).not.toHaveBeenCalled();
   });
 
+  // Uma conta institucional cujo acesso a equipe removeu não pode ser liberada
+  // de novo pela regra de domínio só porque a pessoa voltou a entrar.
+  it("does not grant back an access the team removed", async () => {
+    readAccessRequestMock.mockResolvedValue(
+      pendingRequest({ tier: "allowed", status: "revoked" }),
+    );
+
+    const response = await confirm(
+      buildRequest({ email: "fulano@ufcg.edu.br" }),
+    );
+
+    await expect(response.json()).resolves.toEqual({ status: "revoked" });
+    expect(approveAccessMock).not.toHaveBeenCalled();
+  });
+
   // Conta existe, e-mail confirmado, e nenhum pedido: é o beco sem saída de
   // quem passou por uma falha no meio do cadastro. Em vez de 409 para sempre, a
   // confirmação abre o pedido que faltou — com o trilho recalculado aqui, nunca

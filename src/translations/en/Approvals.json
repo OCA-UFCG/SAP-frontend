@@ -15,6 +15,24 @@
     "failed": "Could not save the decision.",
     "loadFailed": "We could not load the requests. Tell the technical team: the Firestore index may be missing.",
     "conflict": "Someone else decided this request before you.",
-    "backToPlatform": "Back to the platform"
+    "backToPlatform": "Back to the platform",
+    "accountsTitle": "Who has access",
+    "accountsSubtitle": "Accounts that were granted access, through sign-up or before it existed. Removing access ends open sessions within 5 minutes and can be undone; deleting removes the account and its sign-up record.",
+    "accountsEmpty": "No accounts with access.",
+    "accountsLoadFailed": "Could not load the accounts. Let the technical team know.",
+    "originColumn": "Origin",
+    "statusColumn": "Status",
+    "originSignup": "Sign-up",
+    "originLegacy": "Older account",
+    "statusActive": "Has access",
+    "statusRevoked": "Access removed",
+    "since": "since {date}",
+    "revoke": "Remove access",
+    "restore": "Restore access",
+    "delete": "Delete account",
+    "confirmDelete": "Confirm deletion",
+    "cancel": "Cancel",
+    "deleted": "Account deleted",
+    "yourAccount": "Your account"
   }
 }

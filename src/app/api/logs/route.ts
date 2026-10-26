@@ -78,9 +78,10 @@ export async function POST(req: Request) {
       );
     }
 
+    // O uid continua servindo ao limite de envios acima, que vive só na
+    // memória do servidor. O que vai para o banco é apenas se havia sessão.
     const result = await ingestTelemetryEvents(request, {
-      uid: authenticatedUser?.uid ?? null,
-      userEmail: authenticatedUser?.email ?? null,
+      authenticated: isAuthenticated,
     });
 
     return NextResponse.json(result, {

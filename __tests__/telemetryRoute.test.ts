@@ -67,7 +67,7 @@ describe("/api/logs", () => {
     delete process.env.NEXT_PUBLIC_HOST_URL;
   });
 
-  it("accepts valid telemetry payloads and forwards the authenticated identity", async () => {
+  it("accepts valid telemetry payloads and forwards only that a session exists", async () => {
     mockedGetAuthenticatedUserSession.mockResolvedValueOnce({
       uid: "user-123",
       email: "oca@gmail.com",
@@ -100,8 +100,7 @@ describe("/api/logs", () => {
     expect(response.status).toBe(202);
     expect(mockedGetAuthenticatedUserSession).toHaveBeenCalledTimes(1);
     expect(mockedIngestTelemetryEvents).toHaveBeenCalledWith(payload, {
-      uid: "user-123",
-      userEmail: "oca@gmail.com",
+      authenticated: true,
     });
   });
 
@@ -190,8 +189,7 @@ describe("/api/logs", () => {
 
     expect(response.status).toBe(202);
     expect(mockedIngestTelemetryEvents).toHaveBeenCalledWith(payload, {
-      uid: null,
-      userEmail: null,
+      authenticated: false,
     });
   });
 
@@ -231,8 +229,7 @@ describe("/api/logs", () => {
 
     expect(response.status).toBe(202);
     expect(mockedIngestTelemetryEvents).toHaveBeenCalledWith(payload, {
-      uid: null,
-      userEmail: null,
+      authenticated: false,
     });
   });
 
@@ -271,8 +268,7 @@ describe("/api/logs", () => {
 
     expect(response.status).toBe(202);
     expect(mockedIngestTelemetryEvents).toHaveBeenCalledWith(payload, {
-      uid: null,
-      userEmail: null,
+      authenticated: false,
     });
   });
 
@@ -310,8 +306,7 @@ describe("/api/logs", () => {
 
     expect(response.status).toBe(202);
     expect(mockedIngestTelemetryEvents).toHaveBeenCalledWith(payload, {
-      uid: null,
-      userEmail: null,
+      authenticated: false,
     });
   });
 
@@ -350,8 +345,7 @@ describe("/api/logs", () => {
 
     expect(response.status).toBe(202);
     expect(mockedIngestTelemetryEvents).toHaveBeenCalledWith(payload, {
-      uid: null,
-      userEmail: null,
+      authenticated: false,
     });
   });
 

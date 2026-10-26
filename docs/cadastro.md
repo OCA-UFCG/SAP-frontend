@@ -192,5 +192,20 @@ desligado fora do seu computador: o link de confirmação é uma credencial.**
   É defeito de desenho, não de código, e o conserto muda a arquitetura. O
   "esqueci minha senha" dá à dona do endereço um jeito de retomar a conta e
   derrubar as sessões de quem a ocupou, mas só depois que ela percebe.
-- **Não existe caminho no produto para remover o acesso de alguém.** Só pelo
-  painel do Firebase.
+
+## Remover acesso e excluir conta
+
+- **Pela equipe**, na tela de Aprovações, seção "Quem tem acesso": remover o
+  acesso (reversível, derruba as sessões em até 5 minutos), devolver o acesso
+  removido, ou excluir a conta. A lista sai das contas do Firebase que têm a
+  marca `sap`, então inclui as contas antigas, que não têm pedido.
+- **Remover o acesso também grava `revoked` no pedido**, e cria o pedido se a
+  conta antiga não tinha um. Sem isso, o login de uma conta de domínio
+  autorizado abriria um pedido novo e a liberaria de novo sozinho.
+- **Pela própria pessoa**, em "Minha conta" no menu do usuário (`/minha-conta`),
+  na seção "Excluir conta", com a senha de novo. Vale só para contas do cadastro: contas antigas podem ser
+  divididas entre várias pessoas de outros órgãos, e para elas a página manda
+  falar com a equipe.
+- **Excluir apaga** a conta do Firebase e o pedido (e-mail e intenção de uso).
+  Os eventos de uso não guardam mais quem é a pessoa (`docs/telemetria.md`).
+  Os e-mails já enviados à caixa da equipe ficam fora do alcance do código.

@@ -7,6 +7,7 @@ import { useTranslations } from "next-intl";
 import { Icon } from "../Icon/Icon";
 import { LanguageSwitcher } from "../LanguageSwitcher/LanguageSwitcher";
 import { navigateWithFullReload } from "@/utils/fullPageNavigation";
+import { Link } from "@/translations/routing";
 import { useDialogFocus } from "@/hooks/useDialogFocus";
 
 export const UserAuth = () => {
@@ -110,6 +111,16 @@ export const UserAuth = () => {
                   {sessionValue}
                 </p>
               </div>
+
+              {/* Excluir a conta fica dentro de "Minha conta", e não solto no
+                  menu, onde ficava a um clique por engano. */}
+              <Link
+                href="/minha-conta"
+                onClick={() => setOpenPathname(null)}
+                className="block w-full px-4 py-2 text-sm text-stone-600 transition-colors hover:bg-stone-100"
+              >
+                {t("myAccount")}
+              </Link>
 
               <button
                 type="button"
