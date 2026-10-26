@@ -274,8 +274,8 @@ describe("analysis.mappers", () => {
     expect(model?.rankingGroups[3]?.items.map((item) => item.id)).toEqual([
       "mg",
       "ac",
-      "sp",
       "rj",
+      "sp",
     ]);
     expect(model?.rankingGroups[4]?.total).toBe(2);
     expect(model?.rankingGroups[4]?.items.map((item) => item.id)).toEqual([
@@ -512,6 +512,26 @@ describe("analysis.mappers", () => {
           { id: "3100104", label: "Abadia dos Dourados - MG" },
         ],
       });
+    });
+
+    it("breaks ties by name instead of IBGE code", () => {
+      const model = buildEmbeddedTerritorialAnalysisViewModel(
+        rankingLayer,
+        "2024",
+        "3_bioma-caatinga",
+        undefined,
+        {
+          status: "ready",
+          entity: "municipalities",
+          values: { "5200050": [100, 0], "3100104": [100, 0] },
+        },
+      );
+
+      // Pelo código o de MG viria antes; pelo nome, "Abadia de Goiás" vem antes.
+      expect(model?.rankingGroups[0]?.items.map((item) => item.id)).toEqual([
+        "5200050",
+        "3100104",
+      ]);
     });
 
     it("keeps the states title for a region", () => {

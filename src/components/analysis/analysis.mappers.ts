@@ -479,7 +479,13 @@ function buildCompactRankingGroups(
   const groups = data.classes.map((item, classIndex) => {
     const sortedEntries = (entriesByClass[classIndex] ?? [])
       .slice()
-      .sort((left, right) => right.numericValue - left.numericValue);
+      // Empate (muitos municípios com 100%) sai em ordem alfabética, e não
+      // pela ordem dos códigos, que agrupava um estado só no topo.
+      .sort(
+        (left, right) =>
+          right.numericValue - left.numericValue ||
+          left.label.localeCompare(right.label, "pt-BR"),
+      );
 
     const topEntries = sortedEntries.slice(0, MAX_RANKING_ITEMS);
 

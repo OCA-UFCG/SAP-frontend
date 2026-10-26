@@ -85,7 +85,10 @@
       "maior-que-90": "> 90 mm",
       "municipios": "Municípios",
       "municipios-por-classe-predominante": "Municípios por classe predominante",
-      "municipios-por-classificacao": "Municípios por classificação"
+      "municipios-por-classificacao": "Municípios por classificação",
+      "municipios-por-percentual-de-familias-cadunico-em-pobreza": "Municípios por percentual de famílias CadÚnico em pobreza",
+      "municipios-por-faixa-predominante-de-anomalia-de-precipitacao": "Municípios por faixa predominante de anomalia de precipitação",
+      "municipios-por-faixa-predominante": "Municípios por faixa predominante"
     }
   }
 }
