@@ -206,6 +206,28 @@ desligado fora do seu computador: o link de confirmação é uma credencial.**
   na seção "Excluir conta", com a senha de novo. Vale só para contas do cadastro: contas antigas podem ser
   divididas entre várias pessoas de outros órgãos, e para elas a página manda
   falar com a equipe.
+- **Quem ainda espera liberação** não tem sessão, então desiste na própria
+  página de espera ("Desistir do pedido"), com e-mail e senha. Vale só para
+  pedido pendente de conta que nunca teve acesso (`/api/account/withdraw`).
+- **Quem teve o acesso removido** e tenta entrar vê "Acesso removido" na
+  página de espera, e não "Cadastro em análise". Para excluir, fala com a
+  equipe: apagar e se cadastrar de novo devolveria o acesso no trilho
+  institucional.
 - **Excluir apaga** a conta do Firebase e o pedido (e-mail e intenção de uso).
   Os eventos de uso não guardam mais quem é a pessoa (`docs/telemetria.md`).
   Os e-mails já enviados à caixa da equipe ficam fora do alcance do código.
+
+## Prazos de guarda
+
+O servidor apaga sozinho, na subida e uma vez por dia
+(`src/lib/signup-retention.ts`), a conta do Firebase e o pedido de quem:
+
+- **não confirmou o e-mail em 30 dias** (pedido `pending`, conta sem
+  `emailVerified`). Pedido confirmado esperando a equipe não vence;
+- **foi recusado há mais de 6 meses** (pedido `rejected`, conta ainda
+  desabilitada). Até lá, a conta desabilitada impede um pedido novo.
+
+Cada ambiente cuida da própria coleção de pedidos. Conta sem pedido nessa
+coleção, ou com a marca `sap` (liberada ou removida), nunca é tocada: o projeto
+do Firebase é dividido com outros sistemas. Pedidos aprovados e remoções de
+acesso ficam, porque são a trilha de "quem liberou o fulano".

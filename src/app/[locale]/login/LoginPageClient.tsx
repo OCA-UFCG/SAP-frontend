@@ -4,7 +4,10 @@ import { useSearchParams } from "next/navigation";
 import { useRouter } from "@/translations/routing";
 import { useAuth } from "@/contexts/AuthContext";
 import Login, { type LoginFormValues } from "@/components/Login/Login";
-import { PENDING_APPROVAL_PATH } from "@/config/accessRoutes";
+import {
+  ACCESS_REVOKED_PARAM,
+  PENDING_APPROVAL_PATH,
+} from "@/config/accessRoutes";
 
 type LoginPageClientProps = {
   backgroundImageUrl?: string;
@@ -38,6 +41,13 @@ export function LoginPageClient({
       // levaria a pessoa para a versão em português da página de espera,
       // qualquer que fosse o idioma em que ela se cadastrou.
       router.replace(PENDING_APPROVAL_PATH);
+      return;
+    }
+
+    // Mesma página, com o texto de quem teve o acesso removido. A página não
+    // tem sessão para descobrir isso sozinha.
+    if (outcome === "revoked") {
+      router.replace(`${PENDING_APPROVAL_PATH}?${ACCESS_REVOKED_PARAM}=1`);
       return;
     }
 

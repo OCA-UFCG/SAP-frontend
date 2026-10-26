@@ -2,6 +2,8 @@ import { adminAuth } from "@/lib/firebase-admin";
 import {
   hasApprovedAccess,
   readAccessClaim,
+  readStoredAccess,
+  REVOKED_ACCESS,
   type AccessClaim,
 } from "@/lib/access-claims";
 import { isAccessGuardEnabled } from "@/lib/access-flag";
@@ -44,6 +46,11 @@ export type SessionCreation =
       uid: string;
       email: string | null;
       emailVerified: boolean;
+      /**
+       * A equipe tirou o acesso. Quem chega aqui não está esperando nada, e a
+       * página de espera precisa dizer isso em vez de "cadastro em análise".
+       */
+      revoked: boolean;
     };
 
 /**
@@ -69,6 +76,7 @@ export async function createFirebaseSessionCookie(
       uid: decodedToken.uid,
       email: normalizeSessionEmail(decodedToken.email),
       emailVerified: Boolean(decodedToken.email_verified),
+      revoked: readStoredAccess(decodedToken)?.access === REVOKED_ACCESS,
     };
   }
 
