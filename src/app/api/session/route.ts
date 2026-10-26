@@ -52,6 +52,13 @@ export async function POST(req: Request) {
     // Credenciais certas, acesso ainda não liberado. É um desfecho diferente de
     // "senha errada", e o cliente precisa distingui-los para levar a pessoa à
     // página de espera em vez de repetir o formulário de login.
+    if (creation.status === "unapproved" && creation.revoked) {
+      return NextResponse.json(
+        { error: "Acesso removido pela equipe.", code: "access_revoked" },
+        { status: 403 },
+      );
+    }
+
     if (creation.status === "unapproved") {
       return NextResponse.json(
         {

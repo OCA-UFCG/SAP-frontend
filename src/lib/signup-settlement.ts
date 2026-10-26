@@ -15,6 +15,7 @@ export type SignupSettlement =
   | "approved"
   | "pending"
   | "rejected"
+  | "revoked"
   | "unconfirmed";
 
 /**

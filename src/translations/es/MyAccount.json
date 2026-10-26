@@ -1,0 +1,26 @@
+{
+  "MyAccount": {
+    "title": "Mi cuenta",
+    "emailLabel": "Correo",
+    "deleteTitle": "Eliminar cuenta",
+    "deleteSummary": "Borra su usuario y los datos de su registro. No se puede deshacer.",
+    "openDelete": "Eliminar mi cuenta",
+    "whatIsDeleted": "Al eliminar la cuenta, borramos:",
+    "deletedLogin": "su usuario y su contraseña;",
+    "deletedSignup": "el correo y la descripción de uso que envió en el registro.",
+    "usageNote": "Los registros de uso de la plataforma no guardan quién es usted, así que no hay nada suyo en ellos para borrar.",
+    "irreversible": "No se puede deshacer. Para volver a usar la plataforma, tendrá que registrarse de nuevo.",
+    "passwordLabel": "Escriba su contraseña para confirmar",
+    "submit": "Eliminar mi cuenta",
+    "working": "Eliminando...",
+    "cancel": "Cancelar",
+    "wrongPassword": "Contraseña incorrecta.",
+    "tooManyAttempts": "Demasiados intentos. Espere unos minutos e intente de nuevo.",
+    "failed": "No se pudo eliminar la cuenta ahora. Intente de nuevo más tarde.",
+    "askTeam": "Esta cuenta fue creada por el equipo del OCA y puede ser usada por más de una persona, así que no se puede eliminar aquí. Para eliminarla, contacte al equipo.",
+    "contactTeam": "Contactar al equipo",
+    "doneTitle": "Cuenta eliminada",
+    "doneBody": "Su cuenta y los datos de su registro fueron borrados.",
+    "backHome": "Volver al inicio"
+  }
+}

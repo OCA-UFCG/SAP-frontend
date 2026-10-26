@@ -1,0 +1,53 @@
+# Coletas do SEDES no Prometheus da VM de monitoramento (oca-monitor).
+# Entra pelo scrape_config_files do prometheus.yml; o deploy.sh copia este
+# arquivo para /home/ubuntu/prometheus/sedes/.
+scrape_configs:
+  # O /api/metrics de cada ambiente: se ele não responde, up fica 0 (site fora
+  # do ar); se responde, traz o estado de cada dependência e o disco da VM.
+  # Um pedido por minuto, como fazia o vigia antigo: cada um vira uma ida ao
+  # Earth Engine, ao Contentful e ao Firebase.
+  - job_name: sedes
+    scheme: https
+    metrics_path: /api/metrics
+    scrape_interval: 1m
+    # O /api/health do beta já levou 13 s para responder.
+    scrape_timeout: 30s
+    authorization:
+      type: Bearer
+      credentials_file: /etc/prometheus/sedes/metrics-token
+    static_configs:
+      - targets: [sedes.oca-portal.com]
+        labels: { project: sedes, ambiente: produção }
+      - targets: [beta-sap.lsd.ufcg.edu.br]
+        labels: { project: sedes, ambiente: beta }
+    # Nomes que a equipe entende, usados no texto do e-mail.
+    metric_relabel_configs:
+      - { source_labels: [dependency], regex: gee, target_label: servico, replacement: Earth Engine }
+      - { source_labels: [dependency], regex: contentful, target_label: servico, replacement: Contentful }
+      - { source_labels: [dependency], regex: firebase, target_label: servico, replacement: Firebase }
+      - { source_labels: [dependency], regex: multicriteria, target_label: servico, replacement: o backend multicritério }
+      - { source_labels: [dependency], regex: smtp, target_label: servico, replacement: o envio de e-mail (SMTP) }
+      - { source_labels: [error], regex: timeout, target_label: falha, replacement: não respondeu a tempo }
+      - { source_labels: [error], regex: not configured, target_label: falha, replacement: está sem credencial configurada }
+      - { source_labels: [error], regex: failed, target_label: falha, replacement: deu erro }
+      - { source_labels: [error], regex: (HTTP .+), target_label: falha, replacement: respondeu $1 }
+
+  # A validade do certificado HTTPS, pelo blackbox que já roda na VM. O
+  # favicon é o arquivo mais leve do site; o que interessa é o certificado.
+  - job_name: sedes-certificado
+    metrics_path: /probe
+    scrape_interval: 5m
+    params:
+      module: [http_2xx]
+    static_configs:
+      - targets: [https://sedes.oca-portal.com/favicon.ico]
+        labels: { project: sedes, ambiente: produção }
+      - targets: [https://beta-sap.lsd.ufcg.edu.br/favicon.ico]
+        labels: { project: sedes, ambiente: beta }
+    relabel_configs:
+      - source_labels: [__address__]
+        target_label: __param_target
+      - source_labels: [__param_target]
+        target_label: instance
+      - target_label: __address__
+        replacement: blackbox-exporter:9115

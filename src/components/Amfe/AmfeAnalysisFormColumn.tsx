@@ -35,7 +35,7 @@ export function AmfeAnalysisFormColumn({
     <aside
       data-stage="form"
       data-testid="platform-amfe-form"
-      className="absolute inset-y-0 left-[124px] z-[6] w-[531px] overflow-y-auto overscroll-contain border-r border-gray-200 bg-[#F6F7F6] max-md:left-0 max-md:w-full max-md:border-r-0 max-md:pb-20 group-data-[mobile-view=result]/shell:max-md:hidden"
+      className="absolute inset-y-0 left-[132px] z-[6] w-[531px] overflow-y-auto overscroll-contain border-r border-gray-200 bg-[#F6F7F6] max-md:left-0 max-md:w-full max-md:border-r-0 max-md:pb-20 group-data-[mobile-view=result]/shell:max-md:hidden"
     >
       <LazyAnalyzeForm
         setFormPayload={(payload) => {

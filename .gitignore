@@ -29,6 +29,9 @@
 # Scripts usados pelo CI precisam ser versionados, apesar da regra acima.
 !/scripts/download-tiles.sh
 !/scripts/deploy-container.sh
+# Tira o e-mail dos eventos de uso antigos; é um passo do deploy da LGPD
+# (docs/telemetria.md), e o teste dele importa o arquivo.
+!/scripts/telemetry-remove-personal-data.mjs
 # Gerador do GeoJSON de visão geral da AMFE: o artefato em public/data é
 # commitado, então a receita para regerá-lo também precisa ser.
 !/scripts/build-cities-overview.mjs
@@ -45,10 +48,11 @@
 # Gerador da lista município → bioma/Semiárido/ASD usada em "Territórios por
 # classificação": o artefato em src/data é commitado.
 !/scripts/build-municipality-territories.mjs
-# Vigia que avisa o OCA por e-mail quando o SEDES cai, instalado nas VMs pelo
-# workflow watchdog.yaml.
-!/scripts/watchdog/
-/scripts/watchdog/__pycache__/
+# Configuração do SEDES na VM de monitoramento, aplicada pelo deploy.sh.
+!/scripts/monitoring/
+/scripts/monitoring/__pycache__/
+# Rotação dos logs do Docker, instalada nas VMs pelo workflow docker-logs.yaml.
+!/scripts/docker-logs/
 /scripts/gee/
 /tmp
 mise.toml

@@ -1,5 +1,4 @@
 import type { Metadata } from "next";
-import { GoogleAnalytics } from "@next/third-parties/google";
 import { Inter, Open_Sans } from "next/font/google";
 import { Header } from "@/components/Header/Header";
 import { Footer } from "@/components/Footer/Footer";
@@ -10,6 +9,7 @@ import { getMessages, getTranslations } from "next-intl/server";
 import { SkipLinks } from "@/components/SkipLinks/SkipLinks";
 import { SKIP_TARGETS } from "@/components/SkipLinks/skipTargets";
 import { VLibras } from "@/components/VLibras/VLibras";
+import { CookieConsent } from "@/components/CookieConsent/CookieConsent";
 import { siteTitleMetadata } from "@/lib/page-metadata";
 import { htmlLang } from "@/translations/htmlLang";
 import "../globals.css";
@@ -154,10 +154,10 @@ export default async function RootLayout({
             </main>
             <Footer content={navigation} />
           </AuthProvider>
+          {GA_ID && <CookieConsent gaId={GA_ID} />}
         </NextIntlClientProvider>
         <VLibras />
       </body>
-      {GA_ID && <GoogleAnalytics gaId={GA_ID} />}
     </html>
   );
 }

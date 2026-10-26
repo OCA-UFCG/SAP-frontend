@@ -38,9 +38,10 @@ export async function sendVerificationEmail(email: string, locale?: string) {
     // o Firebase também não exige que o nosso domínio esteja na lista de
     // domínios autorizados dele.
     //
-    // O endereço vai junto para a página poder oferecer o "reenviar" quando o
-    // código já venceu. Não é credencial: o servidor relê `emailVerified` no
-    // Firebase antes de liberar qualquer coisa.
+    // O endereço não vai no link. Na URL ele ficava no log do nginx junto com o
+    // IP, no histórico do navegador e, com os cookies aceitos, no Google
+    // Analytics, que registra a URL inteira da página. Quando o código já
+    // venceu, a página pede o e-mail para reenviar.
     code = extractVerificationCode(
       await adminAuth.generateEmailVerificationLink(email),
     );
@@ -49,7 +50,7 @@ export async function sendVerificationEmail(email: string, locale?: string) {
       throw new Error("O Firebase devolveu um link sem código de confirmação.");
     }
 
-    const query = new URLSearchParams({ code, email });
+    const query = new URLSearchParams({ code });
     const link = `${signupConfirmationUrl(locale)}?${query}`;
 
     const { delivered } = await sendMail({

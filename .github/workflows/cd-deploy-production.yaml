@@ -154,6 +154,8 @@ jobs:
           SMTP_PASSWORD: ${{ secrets.SMTP_PASSWORD }}
           SMTP_FROM: ${{ vars.SMTP_FROM }}
           OCA_NOTIFICATION_EMAIL: ${{ vars.OCA_NOTIFICATION_EMAIL }}
+          # A VM de monitoramento (oca-monitor) manda este token para ler /api/metrics.
+          METRICS_TOKEN: ${{ secrets.METRICS_TOKEN }}
           SIGNUP_ALLOWED_DOMAINS: ${{ vars.SIGNUP_ALLOWED_DOMAINS }}
           FIREBASE_ACCESS_REQUESTS_COLLECTION: ${{ vars.FIREBASE_ACCESS_REQUESTS_COLLECTION }}
           PLATFORM_ACCESS_GUARD_ENABLED: ${{ vars.PLATFORM_ACCESS_GUARD_ENABLED_PROD }}

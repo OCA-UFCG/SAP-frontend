@@ -52,7 +52,7 @@ describe("sendVerificationEmail", () => {
       "https://sap.example/en/cadastro/confirmacao",
     );
     expect(link.searchParams.get("code")).toBe("SEGREDO");
-    expect(link.searchParams.get("email")).toBe("fulano@ufcg.edu.br");
+    expect(link.searchParams.has("email")).toBe(false);
     expect(JSON.stringify(sendMailMock.mock.calls)).not.toContain(
       "firebaseapp",
     );

@@ -24,6 +24,26 @@ export function resolveProductionTelemetryCollectionName(
   return value?.trim() || null;
 }
 
+/**
+ * Por quanto tempo um evento de uso fica guardado. O painel de Auditoria só lê
+ * os 200 mais recentes, então nada na plataforma depende de eventos mais
+ * antigos que isso — e dado guardado sem prazo é dado guardado sem motivo.
+ */
+export const TELEMETRY_RETENTION_DAYS = 90;
+
+/**
+ * Campo que a política de TTL do Firestore lê para apagar o evento sozinha
+ * (ver `docs/telemetria.md`). Precisa ser um Timestamp: o Admin SDK converte o
+ * `Date` na gravação. Uma string ISO seria ignorada pela TTL em silêncio.
+ */
+export const TELEMETRY_EXPIRE_AT_FIELD = "expireAt";
+
+export function buildTelemetryExpireAt(receivedAt: string) {
+  return new Date(
+    Date.parse(receivedAt) + TELEMETRY_RETENTION_DAYS * 24 * 60 * 60 * 1000,
+  );
+}
+
 function stripUndefinedFields<T extends object>(value: T): DocumentData {
   return Object.fromEntries(
     Object.entries(value).filter(([, entryValue]) => entryValue !== undefined),
@@ -37,7 +57,10 @@ export async function saveTelemetryEvents(
   const collection = adminDb.collection(TELEMETRY_COLLECTION_NAME);
 
   events.forEach((event) => {
-    batch.set(collection.doc(), stripUndefinedFields(event));
+    batch.set(collection.doc(), {
+      ...stripUndefinedFields(event),
+      [TELEMETRY_EXPIRE_AT_FIELD]: buildTelemetryExpireAt(event.receivedAt),
+    });
   });
 
   await batch.commit();
@@ -53,5 +76,26 @@ export async function getRecentTelemetryEvents(
     .limit(limitCount)
     .get();
 
-  return snapshot.docs.map((doc) => doc.data() as PersistedTelemetryEvent);
+  return snapshot.docs.map((doc) => toDashboardEvent(doc.data()));
+}
+
+/**
+ * O que sai do banco para a tela. Tira o `expireAt` (um Timestamp, que não
+ * atravessa para o componente do cliente) e também o `uid` e o `userEmail`
+ * que os eventos antigos ainda carregam até o script de limpeza rodar — assim
+ * a Auditoria para de mostrar e-mails já no deploy, sem depender dele.
+ */
+function toDashboardEvent(data: DocumentData): PersistedTelemetryEvent {
+  const { uid, ...event } = data;
+
+  delete event[TELEMETRY_EXPIRE_AT_FIELD];
+  delete event.userEmail;
+
+  return {
+    ...event,
+    authenticated:
+      typeof event.authenticated === "boolean"
+        ? event.authenticated
+        : typeof uid === "string",
+  } as PersistedTelemetryEvent;
 }

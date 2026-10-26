@@ -23,6 +23,7 @@ function unapproved(overrides = {}) {
     uid: "user-123",
     email: "fulano@ufcg.edu.br",
     emailVerified: true,
+    revoked: false,
     ...overrides,
   };
 }
@@ -69,6 +70,24 @@ describe("/api/session", () => {
     const response = await postSession();
 
     expect(response.status).toBe(403);
+    expect(response.headers.get("set-cookie")).toBeNull();
+  });
+
+  // A página de espera diz "cadastro em análise", o que não é verdade para
+  // quem teve o acesso removido. O código próprio deixa o login escolher outro
+  // texto.
+  it("tells a person whose access was removed apart from one still waiting", async () => {
+    mockedCreateFirebaseSessionCookie.mockResolvedValueOnce(
+      unapproved({ revoked: true }),
+    );
+    settleSignupMock.mockResolvedValue("revoked");
+
+    const response = await postSession();
+
+    expect(response.status).toBe(403);
+    await expect(response.json()).resolves.toMatchObject({
+      code: "access_revoked",
+    });
     expect(response.headers.get("set-cookie")).toBeNull();
   });
 

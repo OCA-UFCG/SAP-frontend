@@ -168,7 +168,7 @@ describe("PlatformLayout", () => {
     expect(screen.queryByTestId("platform-map-probe")).not.toBeInTheDocument();
     expect(screen.getByTestId("telemetry-dashboard-probe")).toBeInTheDocument();
     expect(screen.getByTestId("platform-logs-shell")).not.toHaveClass(
-      "pl-[124px]",
+      "pl-[132px]",
     );
     expect(platformSidebarMock.mock.calls[0]?.[0]).toEqual(
       expect.objectContaining({
@@ -191,7 +191,7 @@ describe("PlatformLayout", () => {
     expect(screen.queryByTestId("platform-map-probe")).not.toBeInTheDocument();
     expect(screen.getByTestId("catalog-dashboard-probe")).toBeInTheDocument();
     expect(screen.getByTestId("platform-catalog-shell")).toHaveClass(
-      "pl-[124px]",
+      "pl-[132px]",
     );
     expect(platformSidebarMock.mock.calls[0]?.[0]).toEqual(
       expect.objectContaining({

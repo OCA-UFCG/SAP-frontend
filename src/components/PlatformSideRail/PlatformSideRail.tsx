@@ -204,12 +204,11 @@ function RailItemContent({
       </div>
 
       {/* Na barra de baixo do celular ficam no máximo quatro itens (o resto vai
-          para "Mais"), cada um com ~78 px num celular de 320 px. "Comunicação"
-          em 11 px mede ~74 px e passava por pouco do espaço sem o recuo do
-          botão, quebrando em "Comunicaçã/o": fica numa linha só, e abaixo de
-          ~350 px encolhe com a tela (10 px a 320 px) para não encostar em
-          "Priorização". */}
-      <div className="text-[0.75rem] leading-[14px] font-medium text-center break-words w-full max-md:text-[min(11px,3.125vw)] max-md:leading-[13px] max-md:whitespace-nowrap">
+          para "Mais"), cada um com ~70 px de rótulo num celular de 320 px e
+          ~80 px num de 360 px. "Monitoramento" em 11 px mede ~85 px: fica numa
+          linha só, e abaixo de ~400 px encolhe com a tela (~10 px a 360 px,
+          ~9 px a 320 px) para não encostar em "Comunicação". */}
+      <div className="text-[0.75rem] leading-[14px] font-medium text-center break-words w-full max-md:text-[min(11px,2.75vw)] max-md:leading-[13px] max-md:whitespace-nowrap">
         {label}
       </div>
     </>
@@ -427,9 +426,9 @@ export function PlatformSideRail({
       className={clsx(
         // `top-16.5` acompanha a altura real do cabeçalho; `max-h-full` impede
         // que a trilha ultrapasse a casca e invada o rodapé nas telas que rolam.
-        // No celular não cabe uma coluna de 124px ao lado do painel: a trilha
+        // No celular não cabe uma coluna de 132px ao lado do painel: a trilha
         // vira uma barra presa embaixo da tela, como as abas de um app.
-        `sticky top-16.5 relative max-h-full w-[124px] shrink-0 self-start ${PLATFORM_SHELL_HEIGHT_CLASS}`,
+        `sticky top-16.5 relative max-h-full w-[132px] shrink-0 self-start ${PLATFORM_SHELL_HEIGHT_CLASS}`,
         "max-md:fixed max-md:inset-x-0 max-md:bottom-0 max-md:top-auto max-md:z-40 max-md:h-16 max-md:max-h-none max-md:w-full",
         className,
       )}
@@ -445,7 +444,7 @@ export function PlatformSideRail({
         <div
           ref={listRef}
           className={clsx(
-            "relative w-[92px] min-h-0 flex-1 flex flex-col overflow-y-auto [scrollbar-width:thin]",
+            "relative w-[100px] min-h-0 flex-1 flex flex-col overflow-y-auto [scrollbar-width:thin]",
             compact ? "gap-2" : "gap-4",
             "max-md:w-auto max-md:min-w-0 max-md:flex-row max-md:gap-0 max-md:overflow-x-auto max-md:overflow-y-hidden",
           )}
@@ -576,7 +575,7 @@ export function PlatformSideRail({
             aria-label={tTour("replayLabel")}
             data-tour="platform-tour-replay"
             className={clsx(
-              "group mt-3 flex w-[92px] shrink-0 cursor-pointer flex-col items-center justify-center gap-[4px] rounded-lg px-[8px] py-[10px] text-[#292829] transition-colors duration-150 hover:bg-[#F8F7F8] max-md:mt-0 max-md:w-auto max-md:min-w-16 max-md:flex-1 max-md:py-0",
+              "group mt-3 flex w-[100px] shrink-0 cursor-pointer flex-col items-center justify-center gap-[4px] rounded-lg px-[8px] py-[10px] text-[#292829] transition-colors duration-150 hover:bg-[#F8F7F8] max-md:mt-0 max-md:w-auto max-md:min-w-16 max-md:flex-1 max-md:py-0",
               hasOverflow && "max-md:hidden",
             )}
           >

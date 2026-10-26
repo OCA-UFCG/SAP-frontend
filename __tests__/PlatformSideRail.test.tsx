@@ -186,7 +186,7 @@ describe("PlatformSideRail", () => {
     // borda). Os antigos 64px deixavam a trilha 2px fora de lugar.
     expect(rail).toHaveClass("top-16.5");
     expect(rail).toHaveClass("h-[calc(100vh-66px)]");
-    expect(rail).toHaveClass("w-[124px]");
+    expect(rail).toHaveClass("w-[132px]");
   });
 
   // Auditoria, catálogo e aprovações continuam sendo páginas separadas, e ir
@@ -223,7 +223,7 @@ describe("PlatformSideRail", () => {
     );
 
     expect(
-      screen.getByRole("button", { name: /Monitor$/i }),
+      screen.getByRole("button", { name: /Monitoramento$/i }),
     ).toHaveAttribute("aria-busy", "true");
     expect(
       screen.getByRole("button", { name: /Priorização/i }),
