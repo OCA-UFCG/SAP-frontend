@@ -32,16 +32,46 @@ export function resolveProductionTelemetryCollectionName(
 export const TELEMETRY_RETENTION_DAYS = 90;
 
 /**
- * Campo que a política de TTL do Firestore lê para apagar o evento sozinha
- * (ver `docs/telemetria.md`). Precisa ser um Timestamp: o Admin SDK converte o
- * `Date` na gravação. Uma string ISO seria ignorada pela TTL em silêncio.
+ * Quando o evento vence. `deleteExpiredTelemetryEvents` apaga os vencidos (ver
+ * `docs/telemetria.md`). É um Timestamp, que o Admin SDK converte do `Date` na
+ * gravação, para servir também à TTL do Firestore se o projeto for para o
+ * plano pago um dia.
  */
 export const TELEMETRY_EXPIRE_AT_FIELD = "expireAt";
+
+/** Um lote do Firestore aceita até 500 operações. */
+const DELETE_BATCH_SIZE = 400;
 
 export function buildTelemetryExpireAt(receivedAt: string) {
   return new Date(
     Date.parse(receivedAt) + TELEMETRY_RETENTION_DAYS * 24 * 60 * 60 * 1000,
   );
+}
+
+/**
+ * Apaga os eventos que passaram do prazo, em lotes, até não sobrar nenhum.
+ *
+ * Faz o papel da TTL do Firestore, que só existe no plano pago: o projeto está
+ * no gratuito. Cada ambiente apaga só a própria coleção. A consulta usa o
+ * índice simples de `expireAt`, que o Firestore cria sozinho.
+ */
+export async function deleteExpiredTelemetryEvents(now = new Date()) {
+  const collection = adminDb.collection(TELEMETRY_COLLECTION_NAME);
+  let deleted = 0;
+
+  for (;;) {
+    const snapshot = await collection
+      .where(TELEMETRY_EXPIRE_AT_FIELD, "<=", now)
+      .limit(DELETE_BATCH_SIZE)
+      .get();
+
+    if (snapshot.empty) return deleted;
+
+    const batch = adminDb.batch();
+    snapshot.docs.forEach((doc) => batch.delete(doc.ref));
+    await batch.commit();
+    deleted += snapshot.size;
+  }
 }
 
 function stripUndefinedFields<T extends object>(value: T): DocumentData {

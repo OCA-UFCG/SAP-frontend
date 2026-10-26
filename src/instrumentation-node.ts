@@ -4,7 +4,7 @@ import {
 } from "@/services/geeStatisticsWarmup";
 import { startReferenceLayerUrlRefresh } from "@/app/api/ee/referenceLayers";
 import { ensureEeCacheWarmupStarted } from "@/app/api/ee/services";
-import { startSignupRetentionSweep } from "@/lib/signup-retention";
+import { startRetentionSweep } from "@/lib/retention-sweep";
 
 /**
  * Aquece as colunas das tabelas do Earth Engine para que o primeiro relatório
@@ -18,10 +18,10 @@ import { startSignupRetentionSweep } from "@/lib/signup-retention";
  * andamento.
  */
 export function warmUpOnStartup() {
-  // Apaga os cadastros fora do prazo (ver `signup-retention`). Não depende do
-  // Earth Engine, então vem antes do retorno abaixo.
+  // Apaga cadastros parados e eventos de uso vencidos (ver `retention-sweep`).
+  // Não depende do Earth Engine, então vem antes do retorno abaixo.
   if (process.env.FIREBASE_PRIVATE_KEY || process.env.FIREBASE_PRIVATE_KEY_BASE64) {
-    startSignupRetentionSweep();
+    startRetentionSweep();
   }
 
   if (!process.env.GEE_PRIVATE_KEY) return;

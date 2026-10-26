@@ -22,9 +22,6 @@ export const UNCONFIRMED_SIGNUP_RETENTION_DAYS = 30;
  */
 export const REJECTED_SIGNUP_RETENTION_DAYS = 180;
 
-/** Uma passada por dia basta para prazos contados em dias. */
-const SWEEP_INTERVAL_MS = DAY_MS;
-
 export interface SignupPurgeResult {
   unconfirmed: number;
   rejected: number;
@@ -98,32 +95,4 @@ export async function purgeExpiredSignups(
   }
 
   return result;
-}
-
-async function runSweep() {
-  try {
-    const { unconfirmed, rejected } = await purgeExpiredSignups();
-
-    if (unconfirmed || rejected) {
-      console.info(
-        `[signup-retention] apagados ${unconfirmed} cadastro(s) não confirmado(s) e ${rejected} recusado(s) fora do prazo`,
-      );
-    }
-  } catch (error) {
-    console.error(
-      "[signup-retention] falha ao apagar cadastros fora do prazo:",
-      error instanceof Error ? error.message : error,
-    );
-  }
-}
-
-/**
- * Passa na subida do servidor e uma vez por dia depois disso. Cada ambiente
- * cuida só da própria coleção de pedidos.
- */
-export function startSignupRetentionSweep() {
-  void runSweep();
-  setInterval(() => {
-    void runSweep();
-  }, SWEEP_INTERVAL_MS).unref?.();
 }

@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 /**
  * Tira o e-mail e o uid dos eventos de uso que já estão gravados, e dá a cada
- * um a data em que a TTL do Firestore deve apagá-lo.
+ * um a data em que a limpeza diária do servidor deve apagá-lo.
  *
  * A partir desta mudança, `/api/logs` grava só se a pessoa estava logada e um
  * `expireAt` de 90 dias. Os eventos antigos ficaram com `uid` e `userEmail` e
@@ -14,9 +14,9 @@
  * Varre todas as coleções que começam com `telemetry-events` (local, beta,
  * gamma e produção dividem o mesmo projeto do Firebase).
  *
- * O script não apaga evento nenhum. Quem apaga é a política de TTL (ver
- * `docs/telemetria.md`): um evento com mais de 90 dias recebe um `expireAt` já
- * vencido e some na próxima passada dela, que costuma levar até 24 h.
+ * O script não apaga evento nenhum. Quem apaga é a limpeza diária do servidor
+ * (ver `docs/telemetria.md`): um evento com mais de 90 dias recebe um
+ * `expireAt` já vencido e some na próxima passada dela.
  *
  * É idempotente: um evento sem `uid`, sem `userEmail` e com `expireAt` é pulado.
  */
@@ -127,7 +127,7 @@ async function main() {
     if (apply && pending > 0) await batch.commit();
 
     console.log(
-      `\n${collection.id}: ${snapshot.size} evento(s) · ${toUpdate} ${apply ? "atualizado(s)" : "seriam atualizados"} · ${withEmail} com e-mail · ${alreadyExpired} com mais de ${RETENTION_DAYS} dias (a TTL apaga)`,
+      `\n${collection.id}: ${snapshot.size} evento(s) · ${toUpdate} ${apply ? "atualizado(s)" : "seriam atualizados"} · ${withEmail} com e-mail · ${alreadyExpired} com mais de ${RETENTION_DAYS} dias (a limpeza apaga)`,
     );
   }
 
