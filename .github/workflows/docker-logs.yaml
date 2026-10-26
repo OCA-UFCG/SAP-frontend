@@ -20,7 +20,13 @@ jobs:
         runner: [sap-beta-runner, sap-prod-runner]
     runs-on: [self-hosted, "${{ matrix.runner }}"]
     steps:
+      # Só a pasta do script, como o CD faz com o deploy-container.sh. Os dois
+      # usam a mesma pasta do runner, e um checkout completo depois do esparso
+      # do CD falha ao trocar de commit.
       - uses: actions/checkout@v5
+        with:
+          sparse-checkout: scripts/docker-logs/
+          sparse-checkout-cone-mode: false
 
       - name: Install the Docker log rotation
         run: sudo bash scripts/docker-logs/install.sh
