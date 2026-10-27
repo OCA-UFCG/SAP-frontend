@@ -17,6 +17,7 @@ export interface IInfoModalProps {
   imageData?: ImageDataConfig | null;
   open: boolean;
   onClose: () => void;
+  onLearnMore?: () => void;
 }
 
 function CloseIcon() {
@@ -51,6 +52,7 @@ export function InfoModal({
   imageData,
   open,
   onClose,
+  onLearnMore,
 }: IInfoModalProps) {
   const panelRef = useRef<HTMLDivElement>(null);
   const t = useTranslations("InfoModal");
@@ -167,6 +169,21 @@ export function InfoModal({
             </tbody>
           </table>
         </div>
+
+        {onLearnMore && (
+          <div className="shrink-0 border-t border-[#B4BA61]/40 px-10 py-4">
+            <button
+              type="button"
+              onClick={() => {
+                onClose();
+                onLearnMore();
+              }}
+              className="flex h-10 w-full items-center justify-center rounded-[6px] bg-[#989F43] font-open-sans text-[14px] font-normal leading-6 text-white transition-colors hover:bg-[#7F8636]"
+            >
+              {t("learnMore")}
+            </button>
+          </div>
+        )}
       </div>
     </div>,
     document.body

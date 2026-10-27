@@ -31,7 +31,7 @@
       },
       "mapSettings": {
         "title": "Map settings",
-        "description": "Switch the basemap between Satellite and Street. With a product on, you can also adjust its transparency."
+        "description": "Switch the basemap between Satellite and Street. With a product on, you can also adjust its opacity."
       },
       "territories": {
         "title": "Territories",
@@ -44,6 +44,46 @@
       "replayInMore": {
         "title": "All set",
         "description": "To see this walkthrough again, tap More and then Tour."
+      },
+      "analysis": {
+        "intro": {
+          "title": "Prioritization",
+          "description": "Combine indicators to find out which municipalities need attention first."
+        },
+        "criteria": {
+          "title": "Choose the indicators",
+          "description": "In Add or edit indicators, pick up to eight and give each one a weight. The bar shows how much each indicator weighs in the analysis, and the “i” explains what it measures."
+        },
+        "area": {
+          "title": "Set the analysis area",
+          "description": "Choose where to compare municipalities: the whole country, a region, a state, a biome, the Semiarid region or ASD and Surroundings."
+        },
+        "level": {
+          "title": "Ranking granularity",
+          "description": "Choose whether municipalities are compared all together or within each state, region or biome."
+        },
+        "submit": {
+          "title": "Analyze",
+          "description": "Click Analyze to see municipalities classified by priority level on the map. Then download the map, the spreadsheet or the report."
+        }
+      },
+      "communication": {
+        "intro": {
+          "title": "Communication",
+          "description": "Generate a ready-to-share report with maps, charts and notes about the territory you choose."
+        },
+        "area": {
+          "title": "Choose the territory",
+          "description": "Search for a municipality or choose a larger area: a state, a region, a biome, the Semiarid region or ASD and Surroundings."
+        },
+        "layers": {
+          "title": "Choose the products",
+          "description": "Check the monitoring products that go into the report. Those without data for the chosen territory are disabled."
+        },
+        "submit": {
+          "title": "Generate the report",
+          "description": "Click Generate report to see the preview alongside, where you can download the PDF."
+        }
       }
     }
   }

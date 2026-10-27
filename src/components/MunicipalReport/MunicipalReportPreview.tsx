@@ -221,8 +221,10 @@ const AnalysisSection = memo(function AnalysisSection({
     docsContent,
     locale,
   );
-  const valueLabels = getMunicipalReportValueLabels(analysis, (key, values) =>
-    t(key, values),
+  const valueLabels = getMunicipalReportValueLabels(
+    analysis,
+    (key, values) => t(key, values),
+    tHas,
   );
 
   return (

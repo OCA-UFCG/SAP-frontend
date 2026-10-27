@@ -197,12 +197,10 @@ describe("buildClassificationFillOpacity", () => {
     );
   });
 
-  it("fades the excluded municipalities proportionally so they stay behind the ranked ones", () => {
+  it("paints the municipalities without data as solid as the ranked ones", () => {
     const expression = buildClassificationFillOpacity(0.4);
 
-    // Excluídos valem 0.25 quando os classificados valem 0.85; a barra move os
-    // dois juntos, senão em 0% sobrariam manchas cinza sobre o mapa base.
-    expect(expression.at(-2)).toBeCloseTo(0.4 * (0.25 / 0.85));
+    expect(expression.at(-2)).toBe(0.4);
     expect(expression.at(-1)).toBe(0);
   });
 

@@ -31,7 +31,7 @@
       },
       "mapSettings": {
         "title": "Ajustes del mapa",
-        "description": "Cambia el mapa base entre Satélite y Calle. Con un producto activo, ajusta también la transparencia."
+        "description": "Cambia el mapa base entre Satélite y Calle. Con un producto activo, ajusta también la opacidad."
       },
       "territories": {
         "title": "Territorios",
@@ -44,6 +44,46 @@
       "replayInMore": {
         "title": "Todo listo",
         "description": "Para volver a ver este recorrido, toca Más y luego Tutorial."
+      },
+      "analysis": {
+        "intro": {
+          "title": "Priorización",
+          "description": "Combina indicadores para descubrir qué municipios necesitan atención primero."
+        },
+        "criteria": {
+          "title": "Elige los indicadores",
+          "description": "En Agregar o editar indicadores, elige hasta ocho y dale un peso a cada uno. La barra muestra cuánto pesa cada indicador en el análisis, y la “i” explica qué mide."
+        },
+        "area": {
+          "title": "Define el área de interés",
+          "description": "Elige dónde comparar los municipios: todo el país, una región, un estado, un bioma, el Semiárido o ASD y Entorno."
+        },
+        "level": {
+          "title": "Nivel de análisis",
+          "description": "Elige si los municipios se comparan todos juntos o dentro de cada estado, región o bioma."
+        },
+        "submit": {
+          "title": "Analiza",
+          "description": "Haz clic en Analizar para ver los municipios clasificados por nivel de prioridad en el mapa. Después, descarga el mapa, la planilla o el informe."
+        }
+      },
+      "communication": {
+        "intro": {
+          "title": "Comunicación",
+          "description": "Genera un informe listo para compartir, con mapas, gráficos y notas sobre el territorio que elijas."
+        },
+        "area": {
+          "title": "Elige el territorio",
+          "description": "Busca un municipio o elige un recorte mayor: un estado, una región, un bioma, el Semiárido o ASD y Entorno."
+        },
+        "layers": {
+          "title": "Elige los productos",
+          "description": "Marca los productos del monitoreo que entran en el informe. Los que no tienen datos para el territorio elegido quedan deshabilitados."
+        },
+        "submit": {
+          "title": "Genera el informe",
+          "description": "Haz clic en Generar informe para ver la vista previa al lado, desde donde descargas el PDF."
+        }
       }
     }
   }

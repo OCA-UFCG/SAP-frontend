@@ -36,6 +36,7 @@ import { PlatformSidebar } from "@/components/PlatformSidebar/PlatformSidebar";
 import { LayerAccordion } from "@/components/LayerAccordion/LayerAccordion";
 import {
   PLATFORM_TOUR_SEEN_KEY,
+  hasSeenPlatformTour,
   revealFirstLayerCard,
 } from "@/components/PlatformTour/usePlatformTour";
 
@@ -84,7 +85,13 @@ describe("platform tour", () => {
   // Quem chega por um link de relatório ou de detalhamento veio fazer outra
   // coisa: escurecer a tela por cima disso atrapalha.
   it.each([
-    ["a report link", { initialSection: "communication" as const }],
+    [
+      "a report link",
+      {
+        initialSection: "communication" as const,
+        reportRequest: { locationKey: "2507507", period: "2026", layerIds: [] },
+      },
+    ],
     ["an index detail link", { detailLayerId: "spi" }],
   ])("does not open by itself when arriving through %s", (_label, props) => {
     render(<PlatformSidebar panelLayers={[]} {...props} />);
@@ -93,8 +100,57 @@ describe("platform tour", () => {
     expect(driverMock).not.toHaveBeenCalled();
   });
 
-  it("replays from the rail button, back on the monitoring list", () => {
+  it.each([
+    [
+      "analysis" as const,
+      [
+        undefined,
+        '[data-tour="analysis-criteria"]',
+        '[data-tour="analysis-area"]',
+        '[data-tour="analysis-level"]',
+        '[data-tour="analysis-submit"]',
+        '[data-tour="platform-tour-replay"]',
+      ],
+    ],
+    [
+      "communication" as const,
+      [
+        undefined,
+        '[data-tour="report-area"]',
+        '[data-tour="report-layers"]',
+        '[data-tour="report-submit"]',
+        '[data-tour="platform-tour-replay"]',
+      ],
+    ],
+  ])("opens the %s tour by itself on the first visit", (section, elements) => {
     window.localStorage.setItem(PLATFORM_TOUR_SEEN_KEY, "1");
+
+    render(<PlatformSidebar panelLayers={[]} initialSection={section} />);
+    waitPastAutoStart();
+
+    expect(driverMock).toHaveBeenCalledTimes(1);
+    const steps = (driverMock.mock.calls[0][0] as { steps: { element?: string }[] }).steps;
+    expect(steps.map((step) => step.element)).toEqual(elements);
+    expect(hasSeenPlatformTour(section)).toBe(true);
+  });
+
+  it("opens the tour of a section entered later in the visit", () => {
+    window.localStorage.setItem(PLATFORM_TOUR_SEEN_KEY, "1");
+
+    render(<PlatformSidebar panelLayers={[]} />);
+    waitPastAutoStart();
+    expect(driverMock).not.toHaveBeenCalled();
+
+    fireEvent.click(screen.getByRole("button", { name: "Comunicação" }));
+    waitPastAutoStart();
+
+    expect(driverMock).toHaveBeenCalledTimes(1);
+    expect(hasSeenPlatformTour("communication")).toBe(true);
+  });
+
+  it("replays the tour of the current section from the rail button", () => {
+    window.localStorage.setItem(PLATFORM_TOUR_SEEN_KEY, "1");
+    window.localStorage.setItem("sedes.platformTour.communication.v1.seen", "1");
     const onActiveSectionChange = vi.fn();
 
     render(
@@ -108,11 +164,13 @@ describe("platform tour", () => {
     fireEvent.click(
       screen.getByRole("button", { name: "Ver o tutorial da plataforma" }),
     );
-    expect(onActiveSectionChange).toHaveBeenCalledWith("monitoring");
+    expect(onActiveSectionChange).toHaveBeenCalledWith("communication");
 
     waitPastAutoStart();
     expect(driverMock).toHaveBeenCalledTimes(1);
     expect(driveMock).toHaveBeenCalledTimes(1);
+    const steps = (driverMock.mock.calls[0][0] as { steps: { element?: string }[] }).steps;
+    expect(steps[1].element).toBe('[data-tour="report-area"]');
   });
 
   // No celular, quem tem itens de administração encontra o "Tutorial" dentro

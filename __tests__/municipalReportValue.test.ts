@@ -42,6 +42,20 @@ describe("municipal report value presentation", () => {
     ).toBe("1.234 de reais");
   });
 
+  it("does not ask for a missing unit translation in the labels", () => {
+    const analysis = { valueType: "absolute" as const, unit: "de reais" };
+    const requested: string[] = [];
+    const t = (key: string) => {
+      requested.push(key);
+      return `MunicipalReport.${key}`;
+    };
+    const tHas = (key: string) => !key.startsWith("classes.");
+
+    getMunicipalReportValueLabels(analysis, t, tHas);
+
+    expect(requested).not.toContain("classes.de-reais");
+  });
+
   it("translates the unit when the key exists", () => {
     const analysis = { valueType: "absolute" as const, unit: "registros" };
     const t = (key: string) => (key === "classes.registros" ? "records" : key);

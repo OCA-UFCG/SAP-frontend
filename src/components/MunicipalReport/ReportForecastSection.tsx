@@ -301,8 +301,11 @@ export const ReportForecastSection = memo(function ReportForecastSection({
       kind: kindOf(analysis).toLocaleLowerCase(locale),
       className: translateLabel(dominant.label),
       value: formatMunicipalReportValue(dominant.percentage, analysis, locale),
-      context: getMunicipalReportValueLabels(analysis, (key, v) => t(key, v))
-        .cardContext,
+      context: getMunicipalReportValueLabels(
+        analysis,
+        (key, v) => t(key, v),
+        (key) => t.has(key),
+      ).cardContext,
     };
     return [
       period && period !== referencePeriod

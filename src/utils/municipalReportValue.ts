@@ -87,6 +87,7 @@ export function formatMunicipalReportValueWithUnit(
 export function getMunicipalReportValueLabels(
   analysis: MunicipalReportValueSemantics,
   t?: (key: string, values?: Record<string, string>) => string,
+  tHas?: (key: string) => boolean,
 ) {
   if (analysis.valueType === "percentage") {
     return {
@@ -101,7 +102,7 @@ export function getMunicipalReportValueLabels(
     };
   }
 
-  const unit = translateUnit(analysis, t);
+  const unit = translateUnit(analysis, t, tHas);
   if (!t) {
     return {
       cardContext: unit ? `${unit} no município` : "valor total no município",

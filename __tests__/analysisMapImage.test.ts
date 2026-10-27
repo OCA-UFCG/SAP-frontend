@@ -1,5 +1,8 @@
 import { describe, expect, it, vi } from "vitest";
-import { CLASSIFICATION_COLORS } from "@/components/Map/classificationLayers";
+import {
+  CLASSIFICATION_COLORS,
+  NO_DATA_COLOR,
+} from "@/components/Map/classificationLayers";
 import {
   buildAnalysisImageOverlay,
   buildLegendEntries,
@@ -11,7 +14,7 @@ import {
 } from "@/components/Amfe/analysisMapImage";
 
 const LABELS = ["Muito baixa", "Baixa", "Média", "Alta", "Muito alta"];
-const ENTRIES = buildLegendEntries(LABELS);
+const ENTRIES = buildLegendEntries(LABELS, "Sem dados");
 const ATTRIBUTION = "© OpenStreetMap contributors";
 
 const overlayFor = (width: number, height: number, scale = 1) =>
@@ -64,9 +67,15 @@ describe("buildLegendEntries", () => {
       "Média",
       "Baixa",
       "Muito baixa",
+      "Sem dados",
     ]);
     expect(ENTRIES[0].color).toBe(CLASSIFICATION_COLORS[4]);
-    expect(ENTRIES.at(-1)?.color).toBe(CLASSIFICATION_COLORS[0]);
+    expect(ENTRIES.at(-2)?.color).toBe(CLASSIFICATION_COLORS[0]);
+  });
+
+  it("ends with a white class for municipalities without data", () => {
+    expect(ENTRIES.at(-1)).toEqual({ color: NO_DATA_COLOR, label: "Sem dados" });
+    expect(NO_DATA_COLOR).toBe("#FFFFFF");
   });
 });
 
@@ -155,6 +164,7 @@ describe("paintAnalysisImageOverlay", () => {
       "Média",
       "Baixa",
       "Muito baixa",
+      "Sem dados",
       ATTRIBUTION,
     ]);
   });
@@ -168,7 +178,10 @@ describe("paintAnalysisImageOverlay", () => {
       .map((entry) => entry.style)
       .filter((style) => style.startsWith("#"));
 
-    expect(swatchStyles).toEqual([...CLASSIFICATION_COLORS].reverse());
+    expect(swatchStyles).toEqual([
+      ...[...CLASSIFICATION_COLORS].reverse(),
+      NO_DATA_COLOR,
+    ]);
   });
 
   it("paints only the attribution when there is no legend", () => {

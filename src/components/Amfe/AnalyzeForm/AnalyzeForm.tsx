@@ -208,7 +208,7 @@ const AnalyzeForm = ({ setFormPayload }: AnalyzeFormProps) => {
             </p>
           </div>
 
-          <section className={sectionClass}>
+          <section className={sectionClass} data-tour="analysis-criteria">
             <div className={sectionHeaderClass}>
               <h2 className={sectionTitleClass} style={{ color: text }}>
                 <span className={sectionMarkerClass} />
@@ -235,7 +235,7 @@ const AnalyzeForm = ({ setFormPayload }: AnalyzeFormProps) => {
             </div>
           </section>
 
-          <section className={sectionClass}>
+          <section className={sectionClass} data-tour="analysis-area">
             <div className={sectionHeaderClass}>
               <h2 className={sectionTitleClass} style={{ color: text }}>
                 <span className={sectionMarkerClass} />
@@ -318,7 +318,7 @@ const AnalyzeForm = ({ setFormPayload }: AnalyzeFormProps) => {
             </div>
           </section>
 
-          <section className={sectionClass}>
+          <section className={sectionClass} data-tour="analysis-level">
             <div className={sectionHeaderClass}>
               <h2 className={sectionTitleClass} style={{ color: text }}>
                 <span className={sectionMarkerClass} />
@@ -491,6 +491,7 @@ const AnalyzeForm = ({ setFormPayload }: AnalyzeFormProps) => {
               nesse intervalo mandava a análise sem nenhum critério. */}
           <ButtonUi
             type="submit"
+            data-tour="analysis-submit"
             label={t("submitButton")}
             disabled={availableCriterias.length === 0}
             styles="flex h-10 w-full items-center justify-center gap-2 rounded-md border-0 bg-[#646B2D] font-open-sans text-sm leading-6 font-normal text-white hover:bg-[#4F5424] hover:text-white focus:text-white disabled:opacity-50 disabled:hover:bg-[#646B2D]"

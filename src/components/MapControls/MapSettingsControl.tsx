@@ -16,7 +16,7 @@ interface MapSettingsControlProps {
 }
 
 /**
- * Mapa base e Transparência atrás de um botão do tamanho dos controles de zoom.
+ * Mapa base e Opacidade atrás de um botão do tamanho dos controles de zoom.
  * Antes eles ficavam abertos no canto do mapa e comiam ~100px de altura o tempo
  * todo, mesmo para quem nunca os ajusta.
  *

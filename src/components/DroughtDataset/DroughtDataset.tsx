@@ -164,6 +164,7 @@ export function DroughtDataset({
         imageData={imageData}
         open={infoOpen}
         onClose={() => setInfoOpen(false)}
+        onLearnMore={disabled ? undefined : onDetails}
       />
     </>
   );

@@ -90,12 +90,10 @@ export const CLASSIFICATION_COLORS = [
   "#FF0000",
 ] as const;
 
-const EXCLUDED_COLOR = "#B0B0B0";
+export const NO_DATA_COLOR = "#FFFFFF";
 const CLASSIFIED_OPACITY = 0.85;
-const EXCLUDED_OPACITY = 0.25;
 const OUTLINE_COLOR = "#666666";
 const CLASSIFIED_OUTLINE_OPACITY = 0.45;
-const EXCLUDED_OUTLINE_OPACITY = 0.2;
 
 export interface MunicipalityClassification {
   /** Código IBGE de 7 dígitos → nível de prioridade (0–4). */
@@ -133,7 +131,7 @@ const buildClassificationCases = (
 
 export const CLASSIFICATION_FILL_COLOR = buildClassificationCases(
   (level) => CLASSIFICATION_COLORS[level],
-  EXCLUDED_COLOR,
+  NO_DATA_COLOR,
   "transparent",
 );
 
@@ -142,7 +140,7 @@ export const buildClassificationFillOpacity = (
 ) =>
   buildClassificationCases(
     () => classifiedOpacity,
-    classifiedOpacity * (EXCLUDED_OPACITY / CLASSIFIED_OPACITY),
+    classifiedOpacity,
     0,
   );
 
@@ -150,7 +148,7 @@ export const CLASSIFICATION_FILL_OPACITY = buildClassificationFillOpacity();
 
 export const CLASSIFICATION_OUTLINE_OPACITY = buildClassificationCases(
   () => CLASSIFIED_OUTLINE_OPACITY,
-  EXCLUDED_OUTLINE_OPACITY,
+  CLASSIFIED_OUTLINE_OPACITY,
   0,
 );
 

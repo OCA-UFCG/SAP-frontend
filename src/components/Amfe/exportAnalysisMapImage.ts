@@ -39,7 +39,7 @@ export interface AnalysisMapImageOptions {
   allowedStateUfs: Set<string> | null;
   bounds: LngLatBoundsLike | null;
   /**
-   * Opacidade escolhida na barra de transparência do mapa. A captura monta um
+   * Opacidade escolhida na barra de opacidade do mapa. A captura monta um
    * mapa próprio, fora da tela, então precisa receber o valor explicitamente —
    * senão a imagem baixada sai sempre no padrão, e não no que está na tela.
    */
@@ -175,7 +175,10 @@ export const buildAnalysisMapPng = async (
   const composed = composeAnalysisMapImage(canvas, image, {
     title: t("classification"),
     entries: options.classification
-      ? buildLegendEntries(PRIORITY_LABEL_KEYS.map((key) => t(key)))
+      ? buildLegendEntries(
+          PRIORITY_LABEL_KEYS.map((key) => t(key)),
+          t("noData"),
+        )
       : [],
     attribution: OSM_ATTRIBUTION,
     scale: CAPTURE_PIXEL_RATIO,

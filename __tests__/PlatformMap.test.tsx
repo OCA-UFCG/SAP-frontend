@@ -186,7 +186,7 @@ describe("PlatformMap", () => {
     });
   });
 
-  /** Mapa base e Transparência agora moram atrás do botão de ajustes do mapa. */
+  /** Mapa base e Opacidade agora moram atrás do botão de ajustes do mapa. */
   function openMapSettings() {
     fireEvent.click(screen.getByRole("button", { name: "Ajustes do mapa" }));
   }
@@ -201,7 +201,7 @@ describe("PlatformMap", () => {
     render(<PlatformMap section="monitoring" />);
     openMapSettings();
 
-    expect(screen.getByRole("slider", { name: "Transparência" })).toHaveValue(
+    expect(screen.getByRole("slider", { name: "Opacidade" })).toHaveValue(
       "0.85",
     );
   });
@@ -255,7 +255,7 @@ describe("PlatformMap", () => {
     );
     openMapSettings();
 
-    expect(screen.getByRole("slider", { name: "Transparência" })).toHaveValue(
+    expect(screen.getByRole("slider", { name: "Opacidade" })).toHaveValue(
       "0.85",
     );
     expect(
@@ -273,7 +273,7 @@ describe("PlatformMap", () => {
       screen.queryByRole("group", { name: "Mapa base" }),
     ).not.toBeInTheDocument();
     expect(
-      screen.queryByRole("slider", { name: "Transparência" }),
+      screen.queryByRole("slider", { name: "Opacidade" }),
     ).not.toBeInTheDocument();
     expect(
       screen.queryByRole("heading", { name: "Legenda do mapa" }),
