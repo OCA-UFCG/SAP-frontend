@@ -33,6 +33,7 @@ import {
   getOrLoadStatisticsRows,
   MUNICIPALITIES_BY_PERIOD_LIMIT,
 } from "@/repositories/platform/geeStatisticsRowsCache";
+import { readMunicipalStatisticsSnapshot } from "@/repositories/platform/municipalStatisticsSnapshot";
 import {
   readStatisticsSeries,
   setMergedCollectionsEvaluator,
@@ -948,7 +949,7 @@ function buildPeriodFilter(
 }
 
 /**
- * As linhas municipais de um período, numa ida só ao Earth Engine.
+ * As linhas municipais de um ou mais períodos, numa ida só ao Earth Engine.
  *
  * Vai por `reduceColumns`, e não pela coleção: o Brasil tem 5.573 linhas
  * municipais e o Earth Engine recusa devolver uma coleção com mais de 5.000. A
@@ -958,7 +959,7 @@ function buildPeriodFilter(
  */
 async function loadPeriodMunicipalityRows(
   source: ResolvedGeeStatisticsSource,
-  yearKey: string,
+  periodKeys: readonly string[],
   columns: string[],
 ): Promise<Record<string, unknown>[]> {
   const result = await evaluateGeeObject<{ list?: unknown[][] }>(
@@ -967,7 +968,13 @@ async function loadPeriodMunicipalityRows(
       .filter(
         ee.Filter.and(
           ee.Filter.eq(source.properties.level, "7_Municipio"),
-          buildPeriodFilter(source, yearKey),
+          periodKeys.length === 1
+            ? buildPeriodFilter(source, periodKeys[0])
+            : ee.Filter.or(
+                ...periodKeys.map((periodKey) =>
+                  buildPeriodFilter(source, periodKey),
+                ),
+              ),
         ),
       )
       .reduceColumns(ee.Reducer.toList(columns.length), columns),
@@ -975,7 +982,7 @@ async function loadPeriodMunicipalityRows(
 
   if (!Array.isArray(result?.list)) {
     throw new Error(
-      `Resposta inválida do asset estatístico GEE ${source.assetId} ao ler os municípios de ${yearKey}.`,
+      `Resposta inválida do asset estatístico GEE ${source.assetId} ao ler os municípios de ${periodKeys.join(", ")}.`,
     );
   }
 
@@ -985,14 +992,70 @@ async function loadPeriodMunicipalityRows(
 }
 
 /**
+ * A distribuição de cada município entre as linhas de um período. Um município
+ * com linha inválida fica de fora em vez de derrubar os outros.
+ */
+function toMunicipalityDistributions(
+  source: ResolvedGeeStatisticsSource,
+  schema: GeeStatisticsSchema,
+  yearKey: string,
+  rows: Record<string, unknown>[],
+): Record<string, number[]> {
+  const codeProperty = source.properties.municipalityCode;
+  const values: Record<string, number[]> = {};
+
+  for (const row of rows) {
+    const code = normalizeText(row[codeProperty]);
+    if (!MUNICIPALITY_KEY_PATTERN.test(code)) continue;
+
+    try {
+      const distribution = schema.percentageProperties.map((property) =>
+        toFiniteNumber(row[property], `${code}/${yearKey}/${property}`),
+      );
+      if (validatePercentageDistribution(source, code, yearKey, distribution)) {
+        values[code] = distribution;
+      }
+    } catch {
+      continue;
+    }
+  }
+
+  return values;
+}
+
+async function getMunicipalitiesSchema(
+  source: GeeFeatureCollectionStatisticsSource,
+  resolvedSource: ResolvedGeeStatisticsSource,
+  classCount: number,
+  periodKeys: readonly string[],
+): Promise<GeeStatisticsSchema> {
+  const schema = await getGeeStatisticsSchema(
+    resolvedSource,
+    "sourceRevision" in source && typeof source.sourceRevision === "string"
+      ? source.sourceRevision
+      : undefined,
+    resolveSeriesAssetIds(source, periodKeys, resolvedSource.assetId),
+  );
+
+  if (schema.percentageProperties.length !== classCount) {
+    throw new Error(
+      `Asset estatístico ${resolvedSource.assetId} possui ${schema.percentageProperties.length} classes, mas a camada possui ${classCount}.`,
+    );
+  }
+
+  return schema;
+}
+
+/**
  * A distribuição de cada município num período, para a lista "Territórios por
  * classificação" de um estado, bioma, Semiárido ou ASD.
  *
- * Lê o país inteiro e não só o recorte pedido: custa o mesmo (~2 s, medido no
- * ANA e no CDI) e fica no cache de linhas, então trocar de recorte no mesmo
- * período não volta ao Earth Engine. Um município com linha inválida fica fora
- * da lista em vez de derrubá-la — no painel do município o mesmo erro continua
- * aparecendo.
+ * Vem do arquivo do período gerado no deploy, quando há um da mesma tabela.
+ * Sem ele, lê o país inteiro no Earth Engine e não só o recorte pedido: custa
+ * o mesmo (~2 s, medido no ANA e no CDI) e fica no cache de linhas, então
+ * trocar de recorte no mesmo período não volta ao Earth Engine. Um município
+ * com linha inválida fica fora da lista em vez de derrubá-la — no painel do
+ * município o mesmo erro continua aparecendo.
  *
  * Uma tabela de valor único devolve um valor por município, lido por
  * `getMunicipalValueTableMunicipalitiesYearValues`.
@@ -1014,6 +1077,23 @@ export async function getGeeStatisticsMunicipalitiesYearValues(
     return null;
   }
 
+  if (!isGeeMunicipalValueTableSource(source)) {
+    const snapshot = await readMunicipalStatisticsSnapshot(
+      panelLayerId,
+      yearKey,
+      {
+        assetId: resolveGeeStatisticsSource(source, yearKey).assetId,
+        sourceRevision:
+          "sourceRevision" in source &&
+          typeof source.sourceRevision === "string"
+            ? source.sourceRevision
+            : null,
+        classCount,
+      },
+    );
+    if (snapshot) return snapshot;
+  }
+
   await initializeGee();
 
   if (isGeeMunicipalValueTableSource(source)) {
@@ -1021,58 +1101,86 @@ export async function getGeeStatisticsMunicipalitiesYearValues(
   }
 
   const resolvedSource = resolveGeeStatisticsSource(source, yearKey);
-  const schema = await getGeeStatisticsSchema(
+  const schema = await getMunicipalitiesSchema(
+    source,
     resolvedSource,
-    "sourceRevision" in source && typeof source.sourceRevision === "string"
-      ? source.sourceRevision
-      : undefined,
-    resolveSeriesAssetIds(source, periodKeys, resolvedSource.assetId),
+    classCount,
+    periodKeys,
   );
 
-  if (schema.percentageProperties.length !== classCount) {
-    throw new Error(
-      `Asset estatístico ${resolvedSource.assetId} possui ${schema.percentageProperties.length} classes, mas a camada possui ${classCount}.`,
-    );
-  }
-
-  const codeProperty = resolvedSource.properties.municipalityCode;
-  const columns = [codeProperty, ...schema.percentageProperties];
+  const columns = [
+    resolvedSource.properties.municipalityCode,
+    ...schema.percentageProperties,
+  ];
   const rows = await getOrLoadStatisticsRows(
     buildStatisticsRowsCacheKey(
       [resolvedSource.assetId],
       `7_municipio@${yearKey}`,
       columns,
     ),
-    () => loadPeriodMunicipalityRows(resolvedSource, yearKey, columns),
+    () => loadPeriodMunicipalityRows(resolvedSource, [yearKey], columns),
     [resolvedSource.assetId],
     MUNICIPALITIES_BY_PERIOD_LIMIT,
   );
 
-  const values: Record<string, number[]> = {};
-  for (const row of rows) {
-    const code = normalizeText(row[codeProperty]);
-    if (!MUNICIPALITY_KEY_PATTERN.test(code)) continue;
+  return toMunicipalityDistributions(resolvedSource, schema, yearKey, rows);
+}
 
-    try {
-      const distribution = schema.percentageProperties.map((property) =>
-        toFiniteNumber(row[property], `${code}/${yearKey}/${property}`),
-      );
-      if (
-        validatePercentageDistribution(
-          resolvedSource,
-          code,
-          yearKey,
-          distribution,
-        )
-      ) {
-        values[code] = distribution;
-      }
-    } catch {
-      continue;
-    }
-  }
+/**
+ * A distribuição de cada município em vários períodos de um mesmo asset, numa
+ * ida só ao Earth Engine. É o que o deploy grava nos arquivos que
+ * `getGeeStatisticsMunicipalitiesYearValues` lê primeiro.
+ *
+ * Ler período a período levava ~7 min para todos os índices: são 927 decêndios
+ * só no CDI. O CDI tem uma tabela por ano, e os 36 decêndios dela saem juntos
+ * em ~4,5 s (12 MB). Não passa pelo cache de linhas, que não é para respostas
+ * desse tamanho.
+ *
+ * @example
+ * await readGeeStatisticsMunicipalitiesAssetValues(source, 7, ["2010-01-01", "2010-01-11"], periodKeys);
+ * // Map { "2010-01-01" => { "2507507": [...] }, "2010-01-11" => { ... } }
+ */
+export async function readGeeStatisticsMunicipalitiesAssetValues(
+  source: GeeFeatureCollectionStatisticsSource,
+  classCount: number,
+  assetPeriodKeys: readonly string[],
+  periodKeys: readonly string[],
+): Promise<Map<string, Record<string, number[]>>> {
+  await initializeGee();
 
-  return values;
+  const resolvedSource = resolveGeeStatisticsSource(source, assetPeriodKeys[0]);
+  const schema = await getMunicipalitiesSchema(
+    source,
+    resolvedSource,
+    classCount,
+    periodKeys,
+  );
+  const periodProperty =
+    resolvedSource.periodGranularity === "year"
+      ? resolvedSource.properties.year
+      : resolvedSource.properties.date;
+  const rowsByPeriod = groupStatisticsRowsByPeriod(
+    resolvedSource,
+    await loadPeriodMunicipalityRows(resolvedSource, assetPeriodKeys, [
+      periodProperty,
+      resolvedSource.properties.municipalityCode,
+      ...schema.percentageProperties,
+    ]),
+  );
+
+  return new Map(
+    assetPeriodKeys.map((periodKey) => [
+      periodKey,
+      toMunicipalityDistributions(
+        resolvedSource,
+        schema,
+        periodKey,
+        (rowsByPeriod.get(periodKey) ?? []).filter((row) =>
+          matchesStatisticsPeriod(resolvedSource, row, periodKey),
+        ),
+      ),
+    ]),
+  );
 }
 
 /**
