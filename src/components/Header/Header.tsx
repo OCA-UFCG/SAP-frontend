@@ -22,7 +22,7 @@ export const Header = ({ content }: { content: ISection[] }) => {
               href="/"
               className="relative z-10"
             >
-              <SedesLogo className="h-12 max-sm:h-10 w-auto overflow-visible" />
+              <SedesLogo className="h-16 max-sm:h-13 w-auto overflow-visible" />
             </Link>
           </div>
           <span className="absolute top-[66px] left-[163px] max-sm:left-[131px] z-[45] w-[26px] h-[19px] origin-top transition-[scale] duration-300 ease-[cubic-bezier(0.34,1.56,0.64,1)] motion-safe:peer-has-[a:hover]/tab:scale-y-[1.37] pointer-events-none">
