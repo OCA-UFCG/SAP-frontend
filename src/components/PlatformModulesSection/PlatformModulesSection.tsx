@@ -49,8 +49,8 @@ export const PlatformModulesSection = ({
             const photo = text.image ?? module.image;
 
             return (
-              // O card inteiro sobe e cresce no hover; a foto aproxima e o
-              // ícone dá um giro curto, para puxar o olho para o botão.
+              // O card inteiro sobe e cresce no hover e a foto aproxima, para
+              // puxar o olho para o botão.
               <article
                 key={module.id}
                 style={revealOrder(index + 1)}
@@ -75,7 +75,7 @@ export const PlatformModulesSection = ({
 
                 <div className="flex flex-col gap-4 px-6 pt-4 pb-6 text-[#0F172A]">
                   <h3 className="flex items-center gap-4 font-open-sans text-2xl font-bold leading-[33px] text-[#292829]">
-                    <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-[#5B612A] p-1 text-[#F8F7F8] transition-[rotate,scale,background-color] duration-300 group-hover:bg-[#4F5424] motion-safe:group-hover:-rotate-6 motion-safe:group-hover:scale-110">
+                    <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-[#5B612A] p-1 text-[#F8F7F8]">
                       <ModuleIcon size={32} />
                     </span>
                     {text.name}
