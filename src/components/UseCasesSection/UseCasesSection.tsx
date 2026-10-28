@@ -102,7 +102,7 @@ const TestimonialCard = ({
       <div className="relative flex flex-1 flex-col gap-4">
         <QuoteIcon
           size={style.large ? 40 : 24}
-          className={`shrink-0 origin-bottom-left transition-[rotate,scale] duration-300 motion-safe:group-hover:-rotate-12 motion-safe:group-hover:scale-125 ${colors.quote} ${atBottom ? "mt-auto" : ""}`}
+          className={`shrink-0 ${colors.quote} ${atBottom ? "mt-auto" : ""}`}
         />
         <blockquote>{item.quote}</blockquote>
         <figcaption
