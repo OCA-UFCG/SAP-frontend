@@ -81,6 +81,7 @@ export function revealFirstLayerCard() {
 
 type Translate = ReturnType<typeof useTranslations<"PlatformTour">>;
 type TranslateRail = ReturnType<typeof useTranslations<"PlatformSideRail">>;
+type TranslateInfo = ReturnType<typeof useTranslations<"InfoModal">>;
 type HookOptions = Parameters<NonNullable<Config["onPopoverRender"]>>[1];
 
 /**
@@ -183,6 +184,63 @@ function renderSectionList(
 }
 
 /**
+ * Abaixo do texto do passo do "i", abre uma prévia do que o botão mostra, com
+ * os dados do primeiro item da lista. É uma cópia, e não o "i" de verdade: no
+ * Monitoramento ele abre um diálogo que prenderia o Tab longe do balão, e na
+ * Priorização a dica depende do mouse, que o tutorial bloqueia.
+ *
+ * Sem `tInfo`, o exemplo é o da dica dos indicadores: só nome e descrição.
+ */
+function renderInfoExample(
+  dom: PopoverDOM,
+  element: string,
+  tInfo?: TranslateInfo,
+) {
+  const button = document.querySelector<HTMLElement>(element);
+  const { tourTitle, tourDescription, tourPeriod, tourTimeScale } =
+    button?.dataset ?? {};
+  if (!tourTitle || !tourDescription) return;
+
+  const example = document.createElement("div");
+  example.className = "sedes-tour-info-example";
+
+  const title = document.createElement("strong");
+  title.textContent = tourTitle;
+  const description = document.createElement("p");
+  description.textContent = tourDescription;
+  example.append(title);
+  if (tInfo) {
+    const overview = document.createElement("span");
+    overview.className = "sedes-tour-info-label";
+    overview.textContent = tInfo("overview");
+    example.append(overview);
+  }
+  example.append(description);
+
+  const rows = (
+    tInfo
+      ? [
+          [tInfo("period"), tourPeriod],
+          [tInfo("timeScale"), tourTimeScale],
+        ]
+      : []
+  ).filter((row): row is [string, string] => Boolean(row[1]));
+  if (rows.length > 0) {
+    const details = document.createElement("dl");
+    for (const [label, value] of rows) {
+      const term = document.createElement("dt");
+      term.textContent = label;
+      const detail = document.createElement("dd");
+      detail.textContent = value;
+      details.append(term, detail);
+    }
+    example.append(details);
+  }
+
+  dom.description.after(example);
+}
+
+/**
  * No celular, para quem tem itens de administração, o botão "Tutorial" mora
  * dentro do "Mais" e fica escondido na barra. O último passo apontava para ele
  * e o balão abria no canto da tela, sem alvo.
@@ -199,6 +257,7 @@ function isReplayInsideMore() {
 function buildSteps(
   t: Translate,
   tRail: TranslateRail,
+  tInfo: TranslateInfo,
   section: PlatformTourSection,
   replayInMore: boolean,
 ): DriveStep[] {
@@ -210,6 +269,27 @@ function buildSteps(
   const formStep = (element: string, key: string): DriveStep => ({
     element: `[data-tour="${element}"]`,
     popover: { ...popover(key), side: "right", align: "start" },
+  });
+
+  const infoStep = (
+    element: string,
+    key: string,
+    withInfoTable: boolean,
+  ): DriveStep => ({
+    element: `[data-tour="${element}"]`,
+    popover: {
+      ...popover(key),
+      side: "right",
+      align: "start",
+      onPopoverRender: (dom, options) => {
+        renderPopover(dom, options);
+        renderInfoExample(
+          dom,
+          `[data-tour="${element}"]`,
+          withInfoTable ? tInfo : undefined,
+        );
+      },
+    },
   });
 
   const replayStep: DriveStep = replayInMore
@@ -226,6 +306,7 @@ function buildSteps(
     return [
       { popover: popover("analysis.intro") },
       formStep("analysis-criteria", "analysis.criteria"),
+      infoStep("criterion-info", "analysis.criterionInfo", false),
       formStep("analysis-area", "analysis.area"),
       formStep("analysis-level", "analysis.level"),
       formStep("analysis-submit", "analysis.submit"),
@@ -308,6 +389,7 @@ function buildSteps(
       element: '[data-tour="layer-card"]',
       popover: { ...popover("layerCard"), side: "right", align: "start" },
     },
+    infoStep("layer-info", "layerInfo", true),
     {
       element: '[data-tour="map-settings"]',
       popover: { ...popover("mapSettings"), side: "left", align: "start" },
@@ -342,6 +424,7 @@ export function usePlatformTour({
 }: UsePlatformTourOptions) {
   const t = useTranslations("PlatformTour");
   const tRail = useTranslations("PlatformSideRail");
+  const tInfo = useTranslations("InfoModal");
   const tourRef = useRef<Driver | null>(null);
   const timerRef = useRef<number | undefined>(undefined);
 
@@ -361,6 +444,7 @@ export function usePlatformTour({
         const steps = buildSteps(
           t,
           tRail,
+          tInfo,
           tourSection,
           isPhone && isReplayInsideMore(),
         ).filter(
@@ -401,7 +485,7 @@ export function usePlatformTour({
         tour.drive();
       }, delayMs);
     },
-    [t, tRail],
+    [t, tRail, tInfo],
   );
 
   const startTourRef = useRef(startTour);

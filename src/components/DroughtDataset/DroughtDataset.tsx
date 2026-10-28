@@ -8,6 +8,7 @@ import { useTranslations } from "next-intl";
 import { InfoModal } from "../InfoModal/InfoModal";
 import type { ImageDataConfig } from "@/utils/interfaces";
 import { slugifyTranslationKey } from "@/utils/translations";
+import { getImageDataYearKeys } from "@/utils/imageData";
 
 export interface IDroughtDataset {
   id: number;
@@ -49,6 +50,8 @@ export function DroughtDataset({
   const slug = slugifyTranslationKey(card.title);
 
   const displayTitle = tModules.has(`${slug}.title`) ? tModules(`${slug}.title`, { title: card.title }) : card.title;
+  const displayDescription = tModules.has(`${slug}.description`) ? tModules(`${slug}.description`, { description: card.description }) : card.description;
+  const years = getImageDataYearKeys(imageData);
 
   return (
     <>
@@ -146,6 +149,15 @@ export function DroughtDataset({
               onClick={() => setInfoOpen(true)}
               disabled={disabled}
               aria-label={t("moreInformation", { title: displayTitle })}
+              // O tutorial mostra, a partir deste botão, um exemplo do que ele
+              // abre; o diálogo de verdade prenderia o Tab longe do balão.
+              data-tour="layer-info"
+              data-tour-title={displayTitle}
+              data-tour-description={displayDescription}
+              data-tour-period={
+                years.length > 0 ? `${years[0]}–${years[years.length - 1]}` : undefined
+              }
+              data-tour-time-scale={card.timeScale}
               className={clsx(
                 "group/info box-border flex flex-row justify-center items-center p-2 w-10 h-10 bg-white border border-[#E4E5E2] rounded-[6px] shrink-0",
                 disabled ? "cursor-not-allowed opacity-60" : "cursor-pointer hover:bg-[#F5F6EE] transition-colors",

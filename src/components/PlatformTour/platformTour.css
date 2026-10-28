@@ -128,6 +128,79 @@
   line-height: 18px;
 }
 
+/* Passo do "i": a ficha do produto desdobra de cima para baixo logo depois
+   que o balão entra. O espaço já está reservado; só o recorte anima, para o
+   balão não mudar de altura depois que o driver.js o posicionou. */
+.driver-popover.sedes-tour .sedes-tour-info-example {
+  margin-top: 14px;
+  padding: 12px 14px;
+  border: 1px solid #e4e5e2;
+  border-left: 3px solid var(--sedes-tour-olive);
+  border-radius: 10px;
+  background-color: #fafaf5;
+  font-size: 0.8125rem;
+  line-height: 18px;
+  color: #4a4e26;
+  animation: sedes-tour-unfold 420ms var(--sedes-tour-ease) 280ms both;
+}
+
+@keyframes sedes-tour-unfold {
+  from {
+    opacity: 0;
+    clip-path: inset(0 0 100% 0 round 10px);
+  }
+  to {
+    opacity: 1;
+    clip-path: inset(0 0 0 0 round 10px);
+  }
+}
+
+.driver-popover.sedes-tour .sedes-tour-info-example strong {
+  display: block;
+  font-family: var(--font-inter), sans-serif;
+  font-size: 0.875rem;
+  font-weight: 600;
+  line-height: 20px;
+  color: var(--sedes-tour-olive-deep);
+}
+
+.driver-popover.sedes-tour .sedes-tour-info-label {
+  display: block;
+  margin-top: 8px;
+  font-weight: 600;
+  color: #292829;
+}
+
+/* A descrição inteira de alguns produtos passa de dez linhas: o exemplo mostra
+   o começo, e o "i" de verdade mostra o resto. */
+.driver-popover.sedes-tour .sedes-tour-info-example p {
+  display: -webkit-box;
+  margin: 2px 0 0;
+  overflow: hidden;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 4;
+}
+
+.driver-popover.sedes-tour .sedes-tour-info-example dl {
+  display: grid;
+  grid-template-columns: auto 1fr;
+  gap: 4px 12px;
+  margin: 10px 0 0;
+  padding-top: 10px;
+  border-top: 1px solid #e4e5e2;
+}
+
+.driver-popover.sedes-tour .sedes-tour-info-example dt {
+  font-weight: 600;
+  color: #292829;
+  /* "Escala\ntemporal" quebra de propósito na tabela do diálogo; aqui, não. */
+  white-space: normal;
+}
+
+.driver-popover.sedes-tour .sedes-tour-info-example dd {
+  margin: 0;
+}
+
 .driver-popover.sedes-tour .driver-popover-close-btn {
   top: 14px;
   right: 14px;
@@ -255,7 +328,8 @@
 
 @media (prefers-reduced-motion: reduce) {
   .driver-fade .driver-popover.sedes-tour,
-  .driver-popover.sedes-tour .sedes-tour-dot-current {
+  .driver-popover.sedes-tour .sedes-tour-dot-current,
+  .driver-popover.sedes-tour .sedes-tour-info-example {
     animation: none;
   }
 }

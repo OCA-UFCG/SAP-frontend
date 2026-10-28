@@ -27,7 +27,11 @@
       },
       "layerCard": {
         "title": "Cada tarjeta es un producto",
-        "description": "Usa el botón de encendido a la izquierda para mostrar el producto en el mapa; la leyenda aparece en la esquina inferior derecha. La “i” explica qué mide el producto, y Detalles abre gráficos, ranking y la búsqueda por estado o municipio."
+        "description": "Usa el botón de encendido a la izquierda para mostrar el producto en el mapa; la leyenda aparece en la esquina inferior derecha. Detalles abre gráficos, ranking y la búsqueda por estado o municipio."
+      },
+      "layerInfo": {
+        "title": "Qué mide el producto",
+        "description": "La “i” abre la ficha del producto: qué mide, el período cubierto y la escala temporal. Por ejemplo:"
       },
       "mapSettings": {
         "title": "Ajustes del mapa",
@@ -52,7 +56,11 @@
         },
         "criteria": {
           "title": "Elige los indicadores",
-          "description": "En Agregar o editar indicadores, elige hasta ocho y dale un peso a cada uno. La barra muestra cuánto pesa cada indicador en el análisis, y la “i” explica qué mide."
+          "description": "En Agregar o editar indicadores, elige hasta ocho y dale un peso a cada uno. La barra muestra cuánto pesa cada indicador en el análisis."
+        },
+        "criterionInfo": {
+          "title": "Qué mide el indicador",
+          "description": "Pasa el mouse sobre la “i” junto a un indicador (en el celular, tócala) para ver qué mide. Por ejemplo:"
         },
         "area": {
           "title": "Define el área de interés",

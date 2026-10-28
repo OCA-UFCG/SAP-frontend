@@ -27,7 +27,11 @@
       },
       "layerCard": {
         "title": "Each card is a product",
-        "description": "Use the on/off toggle on the left to show the product on the map; the legend appears in the bottom right corner. The “i” explains what the product measures, and Details opens charts, the ranking and the search by state or municipality."
+        "description": "Use the on/off toggle on the left to show the product on the map; the legend appears in the bottom right corner. Details opens charts, the ranking and the search by state or municipality."
+      },
+      "layerInfo": {
+        "title": "What the product measures",
+        "description": "The “i” opens the product's sheet: what it measures, the period covered and the time scale. For example:"
       },
       "mapSettings": {
         "title": "Map settings",
@@ -52,7 +56,11 @@
         },
         "criteria": {
           "title": "Choose the indicators",
-          "description": "In Add or edit indicators, pick up to eight and give each one a weight. The bar shows how much each indicator weighs in the analysis, and the “i” explains what it measures."
+          "description": "In Add or edit indicators, pick up to eight and give each one a weight. The bar shows how much each indicator weighs in the analysis."
+        },
+        "criterionInfo": {
+          "title": "What the indicator measures",
+          "description": "Hover over the “i” next to an indicator (on a phone, tap it) to see what it measures. For example:"
         },
         "area": {
           "title": "Set the analysis area",

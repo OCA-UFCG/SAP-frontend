@@ -69,6 +69,11 @@ export function InfoTooltip({
         aria-label={t("infoAriaLabel", { name })}
         aria-describedby={open ? tooltipId : undefined}
         title={t("infoTitle")}
+        // O tutorial mostra, a partir deste botão, um exemplo da dica: durante
+        // ele não dá para passar o mouse.
+        data-tour="criterion-info"
+        data-tour-title={name}
+        data-tour-description={description || t("defaultDescription", { name })}
         className="flex items-center justify-center p-1"
       >
         <Icon id="info" size={20} className="text-[#989D93]" aria-hidden />
