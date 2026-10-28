@@ -1,30 +1,29 @@
 import Image from "next/image";
-import { AboutSectionI } from "@/utils/interfaces";
+import { AboutSectionI, StatCardI } from "@/utils/interfaces";
 import { useTranslations } from "next-intl";
 import { documentToReactComponents } from "@contentful/rich-text-react-renderer";
 
-const INFO_ROW_KEYS = ["ted", "oca", "ufcgInsa", "dcdeMma"] as const;
-
-const INFO_ROW_LABELS: Record<(typeof INFO_ROW_KEYS)[number], string> = {
-  ted: "TED",
-  oca: "OCA",
-  ufcgInsa: "UFCG · INSA",
-  dcdeMma: "DCDE/MMA",
-};
-
 type Props = {
   id?: string;
-  content: AboutSectionI;
+  content: Pick<AboutSectionI, "title"> & {
+    text?: AboutSectionI["text"];
+    image?: { url: string };
+    /** Linhas verdes: sigla (`label`) e texto (`value`). */
+    rows?: StatCardI[];
+  };
   onClick?: () => void;
   className?: string;
 };
 
 export const AboutSection = ({ id, content, className = "" }: Props) => {
+  // Português vem do Contentful; inglês e espanhol, das traduções.
   const t = useTranslations("AboutSection");
-  const imageSrc = content.image.url;
+  const imageSrc = content.image?.url;
 
-  const title = t("title", { title: content.title });
-  const text = t.has("text") ? t("text") : documentToReactComponents(content.text.json);
+  const title = t.has("title") ? t("title") : content.title;
+  const text = t.has("text")
+    ? t("text")
+    : content.text && documentToReactComponents(content.text.json);
 
   return (
     <section
@@ -43,32 +42,34 @@ export const AboutSection = ({ id, content, className = "" }: Props) => {
 
         <div className="flex flex-col lg:flex-row items-start lg:items-stretch gap-6 w-full">
           <div className="flex w-full flex-1 flex-col justify-center gap-4">
-            {INFO_ROW_KEYS.map((key) => (
-              <div key={key} className="flex min-h-[56px] items-stretch">
+            {(content.rows ?? []).map((row, index) => (
+              <div key={`${row.label}-${index}`} className="flex min-h-[56px] items-stretch">
                 {/* Texto escuro: o branco do Figma no verde claro dá só 2,8:1. */}
                 <div className="flex w-1/3 shrink-0 items-center rounded-l-lg bg-[#989F43] px-5 py-2 sm:w-1/4">
                   <span className="text-base sm:text-xl font-semibold leading-6 text-[#21240F]">
-                    {INFO_ROW_LABELS[key]}
+                    {row.label}
                   </span>
                 </div>
                 <div className="flex flex-1 items-center rounded-r-lg bg-white px-5 py-2">
                   <span className="text-sm sm:text-base font-semibold leading-6 text-[#292829]">
-                    {t(`infoRows.${key}`)}
+                    {t.has(`infoRows.${index}`) ? t(`infoRows.${index}`) : row.value}
                   </span>
                 </div>
               </div>
             ))}
           </div>
 
-          <div className="relative mx-auto h-[240px] w-full shrink-0 overflow-hidden rounded-lg lg:mx-0 lg:h-[320px] lg:flex-1">
-            <Image
-              src={imageSrc}
-              alt={title}
-              fill
-              sizes="(max-width: 1024px) 100vw, 50vw"
-              className="object-cover"
-            />
-          </div>
+          {imageSrc && (
+            <div className="relative mx-auto h-[240px] w-full shrink-0 overflow-hidden rounded-lg lg:mx-0 lg:h-[320px] lg:flex-1">
+              <Image
+                src={imageSrc}
+                alt={title}
+                fill
+                sizes="(max-width: 1024px) 100vw, 50vw"
+                className="object-cover"
+              />
+            </div>
+          )}
         </div>
       </div>
     </section>

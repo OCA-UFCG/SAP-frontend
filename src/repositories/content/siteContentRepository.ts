@@ -2,12 +2,16 @@ import {
   CONTENTFUL_COLLECTION_LIMIT,
   getContent,
 } from "@/infrastructure/contentful/client";
+import type { Document } from "@contentful/rich-text-types";
 import {
   AboutSectionI,
   IMainBanner,
   PartnerI,
   SectionHeaderI,
+  StatCardI,
   TabsSectionI,
+  ThematicAxisI,
+  TimelineMilestoneI,
 } from "@/utils/interfaces";
 
 const GET_HOME_PAGE = `
@@ -86,10 +90,44 @@ const GET_HOME_PAGE = `
   }
 `;
 
-const GET_ABOUT_PAGE = `
-  query GetAboutPage($locale: String!) {
-    secaoSobreCollection(limit: ${CONTENTFUL_COLLECTION_LIMIT}, locale: $locale) {
-      items {
+// O tipo "Sobre e Glossário – Seção" reaproveita o id `planoAcaoBrasileiro`, um
+// tipo vazio da home antiga: o espaço do Contentful está no limite de tipos.
+// Pelo mesmo motivo, "Sobre – Eixo do PAB" usa o id `projects` e "Sobre –
+// Rótulo e valor", o `statCard`.
+const ABOUT_SECTION_FIELDS = `
+  identifier
+  title
+  text {
+    json
+  }
+  imagesCollection(limit: 3) {
+    items {
+      url
+      title
+    }
+  }
+  itemsCollection(limit: 12) {
+    items {
+      __typename
+      ... on StatCard {
+        label
+        value
+      }
+      ... on AboutMilestone {
+        date
+        title
+        description
+      }
+      ... on Projects {
+        title
+        description
+        actionsCount
+        executor
+        executorActionsCount
+        partners
+        isSedesAxis
+      }
+      ... on SecaoSobre {
         identifier
         title
         text {
@@ -102,22 +140,14 @@ const GET_ABOUT_PAGE = `
         includeInAboutSap
       }
     }
+  }
+`;
 
-    aboutCollection(limit: 1, locale: $locale) {
+const GET_ABOUT_PAGE = `
+  query GetAboutPage($locale: String!) {
+    planoAcaoBrasileiroCollection(limit: 12, locale: $locale) {
       items {
-        sys {
-          id
-        }
-        title
-        text {
-          json
-        }
-        image {
-          url
-          title
-          width
-          height
-        }
+        ${ABOUT_SECTION_FIELDS}
       }
     }
 
@@ -149,6 +179,20 @@ const GET_GLOSSARY_PAGE = `
         term
         definition
         tags
+      }
+    }
+  }
+`;
+
+// Em query separada: sem o cabeçalho, os termos continuam chegando.
+const GET_GLOSSARY_HEADER = `
+  query GetGlossaryHeader($locale: String!) {
+    planoAcaoBrasileiroCollection(limit: 1, locale: $locale, where: { identifier: "glossario" }) {
+      items {
+        title
+        text {
+          json
+        }
       }
     }
   }
@@ -195,10 +239,32 @@ interface HomeContentResponse {
   secaoSobreCollection: { items: Array<TabsSectionI | null> };
 }
 
+type AboutSectionItem =
+  | ({ __typename: "StatCard" } & StatCardI)
+  | ({ __typename: "AboutMilestone" } & TimelineMilestoneI)
+  | ({ __typename: "Projects" } & Omit<ThematicAxisI, "partners" | "isSedesAxis"> & {
+      partners?: string[] | null;
+      isSedesAxis?: boolean | null;
+    })
+  | ({ __typename: "SecaoSobre" } & TabsSectionI);
+
 interface AboutPageResponse {
-  secaoSobreCollection: { items: Array<TabsSectionI | null> };
-  aboutCollection: { items: Array<AboutSectionI | null> };
+  planoAcaoBrasileiroCollection: {
+    items: Array<{
+      identifier: AboutSectionId;
+      title: string;
+      text?: { json: Document } | null;
+      imagesCollection?: { items: Array<{ url?: string | null; title?: string | null } | null> } | null;
+      itemsCollection?: { items: Array<AboutSectionItem | null> } | null;
+    } | null>;
+  };
   partnersCollection: { items: Array<PartnerI | null> };
+}
+
+interface GlossaryHeaderResponse {
+  planoAcaoBrasileiroCollection: {
+    items: Array<{ title: string; text?: { json: Document } | null } | null>;
+  };
 }
 
 function isDefined<T>(value: T | null | undefined): value is T {
@@ -236,10 +302,37 @@ export interface HomePageContent {
   tabs: TabsSectionI[];
 }
 
-export interface AboutPageContent {
+/** Os blocos da página "Sobre Nós", de cima para baixo. */
+export type AboutSectionId =
+  | "topo"
+  | "pab"
+  | "grupo-de-trabalho"
+  | "eixos"
+  | "para-quem"
+  | "modulos"
+  | "equipe"
+  | "instituicoes";
+
+/** Uma entrada "Sobre – Seção" com os itens já separados pelo tipo. */
+export interface AboutPageSectionI {
+  title: string;
+  text?: { json: Document };
+  images: Array<{ url: string; title?: string }>;
+  /** Números do PAB ou linhas da equipe ("Sobre – Rótulo e valor"). */
+  pairs: StatCardI[];
+  milestones: TimelineMilestoneI[];
+  axes: ThematicAxisI[];
   tabs: TabsSectionI[];
-  team?: AboutSectionI;
+}
+
+export interface AboutPageContent {
+  sections: Partial<Record<AboutSectionId, AboutPageSectionI>>;
   partners: PartnerI[];
+}
+
+export interface GlossaryHeaderI {
+  title: string;
+  text?: { json: Document };
 }
 
 // Function to map the app locale to Contentful. This may be useful in the future. Currently, all content is mapped to 'en-US' in Contentful.
@@ -280,15 +373,73 @@ export async function getAboutPageContent(locale?: string): Promise<AboutPageCon
       locale: mapLocaleToContentful(locale),
     });
 
+    const sections: AboutPageContent["sections"] = {};
+    for (const section of data.planoAcaoBrasileiroCollection?.items ?? []) {
+      if (!section) continue;
+      const items = section.itemsCollection?.items?.filter(isDefined) ?? [];
+      sections[section.identifier] = {
+        title: section.title,
+        text: section.text ?? undefined,
+        images: (section.imagesCollection?.items ?? []).flatMap((image) =>
+          image?.url ? [{ url: image.url, title: image.title ?? undefined }] : [],
+        ),
+        pairs: items.flatMap((item) =>
+          item.__typename === "StatCard"
+            ? [{ label: item.label, value: item.value }]
+            : [],
+        ),
+        milestones: items.flatMap((item) =>
+          item.__typename === "AboutMilestone"
+            ? [{ date: item.date, title: item.title, description: item.description }]
+            : [],
+        ),
+        axes: items.flatMap((item) =>
+          item.__typename === "Projects"
+            ? [{
+                title: item.title,
+                description: item.description ?? undefined,
+                executor: item.executor,
+                executorActionsCount: item.executorActionsCount,
+                actionsCount: item.actionsCount,
+                partners: item.partners ?? [],
+                isSedesAxis: item.isSedesAxis ?? false,
+              }]
+            : [],
+        ),
+        tabs: items.flatMap((item) =>
+          item.__typename === "SecaoSobre"
+            ? [{
+                identifier: item.identifier,
+                title: item.title,
+                text: item.text,
+                image: item.image,
+                includeInAboutSap: item.includeInAboutSap,
+              }]
+            : [],
+        ),
+      };
+    }
+
     return {
-      tabs: orderTabs(
-        data.secaoSobreCollection?.items?.filter(isDefined) ?? [],
-      ),
-      team: data.aboutCollection?.items?.filter(isDefined)?.[0],
+      sections,
       partners: data.partnersCollection?.items?.filter(isDefined) ?? [],
     };
   } catch (error) {
     console.error("Erro ao buscar dados da página Sobre o SEDES:", error);
+    return null;
+  }
+}
+
+/** Título e frase do topo do glossário (entrada "glossario"). */
+export async function getGlossaryHeader(locale?: string): Promise<GlossaryHeaderI | null> {
+  try {
+    const data = await getContent<GlossaryHeaderResponse>(GET_GLOSSARY_HEADER, {
+      locale: mapLocaleToContentful(locale),
+    });
+    const header = data.planoAcaoBrasileiroCollection?.items?.find(isDefined);
+    return header ? { title: header.title, text: header.text ?? undefined } : null;
+  } catch (error) {
+    console.error("Erro ao buscar o topo do glossário no Contentful:", error);
     return null;
   }
 }

@@ -50,6 +50,9 @@ const GET_HOME_TEXTS = `
         image {
           url
         }
+        aboutImage {
+          url
+        }
       }
     }
 
@@ -158,6 +161,7 @@ interface HomeTextsResponse {
       fullText?: string | null;
       buttonText: string;
       image?: AssetUrl | null;
+      aboutImage?: AssetUrl | null;
     } | null>;
   };
   homeFeatureCollection: {
@@ -237,6 +241,7 @@ export async function getHomeTexts(): Promise<HomeTextsContent | null> {
           fullText: item.fullText ?? undefined,
           buttonText: item.buttonText,
           image: item.image?.url ?? undefined,
+          aboutImage: item.aboutImage?.url ?? undefined,
         })),
       features: (data.homeFeatureCollection?.items ?? [])
         .filter(isDefined)

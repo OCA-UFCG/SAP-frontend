@@ -12,6 +12,8 @@ import { useTranslations } from "next-intl";
 
 interface TabsSectionProps {
   contentData: TabsSectionI[];
+  /** Título da seção no Contentful; inglês e espanhol usam o das traduções. */
+  title?: string;
 }
 
 const DEFAULT_IMAGE_STYLE = {
@@ -29,7 +31,7 @@ const IMAGE_STYLE_BY_IDENTIFIER: Record<
   "gestao-publica": { x: "50%", y: "50%", scale: 1 },
 };
 
-const TabsSection = ({ contentData }: TabsSectionProps) => {
+const TabsSection = ({ contentData, title }: TabsSectionProps) => {
   const t = useTranslations("TabSection");
   const [activeTabIdentifier, setActiveTabIdentifier] = useState(
     contentData[0]?.identifier ?? "",
@@ -53,7 +55,10 @@ const TabsSection = ({ contentData }: TabsSectionProps) => {
     },
   };
 
-  const sectionTitle = t("title");
+  const sectionTitle = t.has("title") ? t("title") : title;
+  // O nome da aba é o título da entrada; inglês e espanhol têm tradução.
+  const tabLabel = (tab: TabsSectionI) =>
+    t.has(`tabs.${tab.identifier}`) ? t(`tabs.${tab.identifier}`) : tab.title;
 
   return (
     <section className="w-full bg-white flex flex-col items-center">
@@ -64,8 +69,6 @@ const TabsSection = ({ contentData }: TabsSectionProps) => {
 
         <div className="flex flex-row gap-[24px] overflow-x-auto w-full no-scrollbar">
           {contentData.map((tab) => {
-            const tabLabel = t(`tabs.${tab.identifier}`);
-
             return (
               // O texto escuro na aba verde dá 5,6:1; o branco do Figma, 2,8:1.
               <button
@@ -80,7 +83,7 @@ const TabsSection = ({ contentData }: TabsSectionProps) => {
                     : "bg-[#E4E5E2] text-[#292829] hover:bg-[#C8CAC5]"
                 }`}
               >
-                {tabLabel}
+                {tabLabel(tab)}
               </button>
             );
           })}
@@ -92,7 +95,7 @@ const TabsSection = ({ contentData }: TabsSectionProps) => {
           {currentTab.image?.url && (
             <Image
               src={currentTab.image.url}
-              alt={currentTab.image.title || t(`tabs.${currentTab.identifier}`, { label: currentTab.title })}
+              alt={currentTab.image.title || tabLabel(currentTab)}
               fill
               sizes="(max-width: 768px) 100vw, (max-width: 1024px) 80vw, 45vw"
               className="object-cover"
@@ -126,7 +129,7 @@ const TabsSection = ({ contentData }: TabsSectionProps) => {
             {/* Fica o verde claro: sobre o fundo preto ele dá 10:1, e o
                 #646B2D dos botões daria só 3,7. */}
             <h3 className="text-[#B4BA61] font-open-sans font-semibold text-[1.25rem] md:text-[1.5rem] leading-[32px] tracking-[-0.006em]">
-              {t(`tabs.${currentTab.identifier}`)}
+              {tabLabel(currentTab)}
             </h3>
 
             <div className="flex flex-col gap-[16px] md:gap-[24px] text-[#F8F7F8] font-open-sans font-normal text-[0.875rem] md:text-[1rem] leading-[1.5]">

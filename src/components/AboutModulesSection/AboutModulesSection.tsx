@@ -12,12 +12,12 @@ type Props = {
   modules: PlatformModuleI[];
   /** Os mesmos textos dos cards da home (Contentful, com as traduções de reserva). */
   texts: HomeTextsI["tools"];
-  /** Foto dos cards; o design usa a mesma paisagem nos três. */
-  image: string;
+  /** Título da seção no Contentful; inglês e espanhol usam o das traduções. */
+  title?: string;
 };
 
 /** "Conheça os Módulos": um card largo por módulo, com o texto completo no "Ver mais". */
-export const AboutModulesSection = ({ modules, texts, image }: Props) => {
+export const AboutModulesSection = ({ modules, texts, title }: Props) => {
   const t = useTranslations("AboutPage.modules");
   const [expanded, setExpanded] = useState<PlatformModuleI["id"] | null>(null);
 
@@ -25,7 +25,7 @@ export const AboutModulesSection = ({ modules, texts, image }: Props) => {
     <section className="w-full bg-white">
       <div className="mx-auto flex w-full max-w-[1440px] flex-col gap-6 px-4 py-12 md:px-10 lg:px-20">
         <h2 className="pb-2 font-open-sans text-[1.5rem] font-semibold leading-[28px] tracking-[-0.0075em] text-[#292829] md:text-[1.75rem] md:leading-[32px] lg:text-[1.875rem] lg:leading-[36px]">
-          {t("title")}
+          {t.has("title") ? t("title") : title}
         </h2>
 
         <div className="flex flex-col gap-4">
@@ -43,7 +43,8 @@ export const AboutModulesSection = ({ modules, texts, image }: Props) => {
               >
                 <div className="relative h-[180px] w-full shrink-0 md:h-auto md:min-h-[160px] md:w-[300px]">
                   <Image
-                    src={image}
+                    // "Foto na página Sobre" do módulo; sem ela, a do card da home.
+                    src={text.aboutImage ?? text.image ?? module.image}
                     alt=""
                     fill
                     sizes="(max-width: 768px) 100vw, 300px"

@@ -118,18 +118,12 @@ type Story = StoryObj<typeof meta>;
 export const Default: Story = {
   args: {
     content: {
-      sys: {
-        id: "1",
-      },
       title: "Sobre Nós",
       text: {
         json: mockLongText,
       },
       image: {
         url: "https://picsum.photos/630/320",
-        title: "About Image",
-        width: 630,
-        height: 320,
       },
     },
     onClick: () => console.log("Ver Mais clicked"),
@@ -140,18 +134,12 @@ export const Default: Story = {
 export const LongTitle: Story = {
   args: {
     content: {
-      sys: {
-        id: "2",
-      },
       title: "The People of the Kingdom and Their Amazing Stories",
       text: {
         json: mockShortText,
       },
       image: {
         url: "https://picsum.photos/630/320?random=1",
-        title: "About Image",
-        width: 630,
-        height: 320,
       },
     },
     onClick: () => alert("Teste do OnClick Raína Raína Testando"),
@@ -163,18 +151,12 @@ export const LongTitle: Story = {
 export const ShortTitle: Story = {
   args: {
     content: {
-      sys: {
-        id: "3",
-      },
       title: "Sobre",
       text: {
         json: mockLongText,
       },
       image: {
         url: "https://picsum.photos/630/320?random=2",
-        title: "About Image",
-        width: 630,
-        height: 320,
       },
     },
     onClick: () => alert("Teste do OnClick Raína Raína Testando"),
@@ -186,18 +168,12 @@ export const ShortTitle: Story = {
 export const ShortContent: Story = {
   args: {
     content: {
-      sys: {
-        id: "4",
-      },
       title: "Nossa Missão",
       text: {
         json: mockShortText,
       },
       image: {
         url: "https://picsum.photos/630/320?random=3",
-        title: "About Image",
-        width: 630,
-        height: 320,
       },
     },
     onClick: () => alert("Teste do OnClick Raína Raína Testando"),
@@ -209,18 +185,12 @@ export const ShortContent: Story = {
 export const FormattedText: Story = {
   args: {
     content: {
-      sys: {
-        id: "5",
-      },
       title: "Nossa História",
       text: {
         json: mockBoldText,
       },
       image: {
         url: "https://picsum.photos/630/320?random=4",
-        title: "About Image",
-        width: 630,
-        height: 320,
       },
     },
     onClick: () => alert("Teste do OnClick Raína Raína Testando"),
@@ -233,18 +203,12 @@ export const FormattedText: Story = {
 export const CustomClassName: Story = {
   args: {
     content: {
-      sys: {
-        id: "7",
-      },
       title: "Sobre a Empresa",
       text: {
         json: mockLongText,
       },
       image: {
         url: "https://picsum.photos/630/320?random=6",
-        title: "About Image",
-        width: 630,
-        height: 320,
       },
     },
     className: "shadow-lg",
@@ -259,18 +223,12 @@ export const CustomClassName: Story = {
 export const MultipleParargraphs: Story = {
   args: {
     content: {
-      sys: {
-        id: "10",
-      },
       title: "Nossa Jornada",
       text: {
         json: mockLongText,
       },
       image: {
         url: "https://picsum.photos/630/320?random=8",
-        title: "Journey",
-        width: 630,
-        height: 320,
       },
     },
     onClick: () => alert("Teste do OnClick Raína Raína Testando"),

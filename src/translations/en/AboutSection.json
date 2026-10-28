@@ -3,10 +3,10 @@
     "title": "Meet our Development Team",
     "text": "SEDES's development is technically coordinated by the Caatinga and Desertification Observatory (OCA), a joint initiative of the Federal University of Campina Grande (UFCG) and the National Semi-Arid Institute (INSA), under Decentralized Execution Agreement No. 07/2024 SNPCT/MMA/UFCG, signed with the Department for Combating Desertification and Mitigating the Effects of Drought (DCDE/MMA).",
     "infoRows": {
-      "ted": "No. 07/2024 SNPCT/MMA/UFCG",
-      "oca": "Technical execution",
-      "ufcgInsa": "Executing institutions",
-      "dcdeMma": "Institutional coordination"
+      "0": "No. 07/2024 SNPCT/MMA/UFCG",
+      "1": "Technical execution",
+      "2": "Executing institutions",
+      "3": "Institutional coordination"
     }
   }
 }
