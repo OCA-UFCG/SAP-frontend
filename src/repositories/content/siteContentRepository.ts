@@ -146,6 +146,7 @@ const GET_GLOSSARY_PAGE = `
         }
         term
         definition
+        tags
       }
     }
   }
@@ -214,6 +215,7 @@ interface GlossaryEntry {
   sys: { id: string };
   term: string;
   definition: string;
+  tags?: string[] | null;
 }
 
 interface GlossaryPageResponse {
@@ -226,6 +228,8 @@ export interface GlossaryTermI {
   id: string;
   term: string;
   definition: string;
+  /** Campo "Etiquetas" do Contentful; vira os selos do card. */
+  tags: string[];
 }
 
 export interface HomePageContent {
@@ -359,6 +363,7 @@ export async function getGlossaryTerms(locale?: string): Promise<GlossaryTermI[]
         id: item.sys.id,
         term: item.term,
         definition: item.definition,
+        tags: item.tags ?? [],
       })) ?? []
     );
   } catch (error) {
