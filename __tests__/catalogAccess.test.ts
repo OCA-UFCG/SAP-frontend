@@ -85,4 +85,26 @@ describe("index catalog access", () => {
       ),
     ).toBe(false);
   });
+
+  it("accepts the public domain behind the proxy, where request.url is localhost", () => {
+    // Em produção a NEXT_PUBLIC_HOST_URL fica vazia e o Next vê só o endereço
+    // interno; o domínio público chega pelo `host` que o nginx repassa.
+    const behindProxy = (origin: string) =>
+      new Request("http://localhost:3000/api/signup", {
+        method: "POST",
+        headers: {
+          host: "sedes.oca-portal.com",
+          "x-forwarded-proto": "https",
+          origin,
+          "sec-fetch-site": "same-origin",
+        },
+      });
+
+    expect(
+      hasTrustedMutationOrigin(behindProxy("https://sedes.oca-portal.com")),
+    ).toBe(true);
+    expect(
+      hasTrustedMutationOrigin(behindProxy("https://attacker.example")),
+    ).toBe(false);
+  });
 });
