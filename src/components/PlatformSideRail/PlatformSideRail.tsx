@@ -100,17 +100,9 @@ function usePendingApprovalsCount(enabled: boolean) {
 }
 
 /**
- * O gesto de cada ícone no hover e quando a seção é escolhida: o balão de
- * conversa balança e o alvo pulsa. Os demais pulsam; o olho pisca, em
- * `BlinkingEyeIcon`.
+ * O gesto de cada ícone quando a seção é escolhida: o balão de conversa
+ * balança e o alvo pulsa. Os demais pulsam; o olho pisca, em `BlinkingEyeIcon`.
  */
-const ICON_GESTURE: Record<string, string> = {
-  "chat-bubble": "motion-safe:group-hover:animate-[icon-wiggle_600ms_ease-in-out]",
-  target: "motion-safe:group-hover:animate-[icon-pulse_550ms_ease-in-out]",
-};
-const DEFAULT_ICON_GESTURE =
-  "motion-safe:group-hover:animate-[icon-pulse_550ms_ease-in-out]";
-
 const ICON_GESTURE_ON_SELECT: Record<string, string> = {
   "chat-bubble": "motion-safe:animate-[icon-wiggle_600ms_ease-in-out]",
   target: "motion-safe:animate-[icon-pulse_550ms_ease-in-out]",
@@ -124,12 +116,8 @@ const DEFAULT_ICON_GESTURE_ON_SELECT =
  * meio, como a pálpebra fechada, e depois o olho abre de novo.
  */
 function BlinkingEyeIcon({ blinkNow }: { blinkNow: boolean }) {
-  const close = blinkNow
-    ? "motion-safe:animate-[eye-close_500ms_ease-in-out]"
-    : "motion-safe:group-hover:animate-[eye-close_500ms_ease-in-out]";
-  const lid = blinkNow
-    ? "motion-safe:animate-[eye-lid_500ms_ease-in-out]"
-    : "motion-safe:group-hover:animate-[eye-lid_500ms_ease-in-out]";
+  const close = blinkNow && "motion-safe:animate-[eye-close_500ms_ease-in-out]";
+  const lid = blinkNow && "motion-safe:animate-[eye-lid_500ms_ease-in-out]";
 
   return (
     <svg width={24} height={24} viewBox="0 0 22 15" aria-hidden>
@@ -184,17 +172,16 @@ function RailItemContent({
         {isPending ? (
           <RailPendingSpinner />
         ) : icon === "eye" ? (
-          <span className="flex transition-[translate] duration-300 ease-out group-hover:-translate-y-0.5">
+          <span className="flex">
             <BlinkingEyeIcon blinkNow={isActive} />
           </span>
         ) : (
           <span
             className={clsx(
-              "flex transition-[translate] duration-300 ease-out group-hover:-translate-y-0.5",
-              isActive
-                ? (ICON_GESTURE_ON_SELECT[icon] ??
-                    DEFAULT_ICON_GESTURE_ON_SELECT)
-                : (ICON_GESTURE[icon] ?? DEFAULT_ICON_GESTURE),
+              "flex",
+              isActive &&
+                (ICON_GESTURE_ON_SELECT[icon] ??
+                  DEFAULT_ICON_GESTURE_ON_SELECT),
             )}
           >
             <Icon id={icon} size={24} />
@@ -579,7 +566,7 @@ export function PlatformSideRail({
               hasOverflow && "max-md:hidden",
             )}
           >
-            <span className="flex motion-safe:group-hover:animate-[icon-wiggle_600ms_ease-in-out]">
+            <span className="flex">
               <HelpIcon />
             </span>
             <span className="text-[0.75rem] leading-[14px] font-medium max-md:text-[0.6875rem] max-md:leading-[13px]">

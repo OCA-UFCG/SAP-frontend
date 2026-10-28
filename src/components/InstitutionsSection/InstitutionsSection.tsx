@@ -39,10 +39,10 @@ export const InstitutionsSection = ({ id, partners }: Props) => {
               <div
                 key={partner.sys.id}
                 style={revealOrder(index + 1)}
-                className="reveal-item group flex min-h-[190px] flex-col overflow-hidden rounded-lg bg-white transition-[translate,scale,box-shadow] duration-300 ease-out hover:shadow-[0_16px_32px_rgba(63,67,36,0.16)] motion-safe:hover:-translate-y-1.5 motion-safe:hover:scale-[1.04]"
+                className="reveal-item flex min-h-[190px] flex-col overflow-hidden rounded-lg bg-white"
               >
-                <div className="flex min-h-[50px] items-center justify-center bg-[#E4E5E2] px-4 py-2 transition-colors duration-300 group-hover:bg-[#4F5424]">
-                  <span className="text-center font-inter text-xs leading-[18px] text-[#292829] transition-colors duration-300 group-hover:text-[#F8F7F8]">
+                <div className="flex min-h-[50px] items-center justify-center bg-[#E4E5E2] px-4 py-2">
+                  <span className="text-center font-inter text-xs leading-[18px] text-[#292829]">
                     {description}
                   </span>
                 </div>
@@ -56,7 +56,7 @@ export const InstitutionsSection = ({ id, partners }: Props) => {
                     // o navegador pedia a largura do arquivo original vezes dois
                     // (até 3.840 px) para um desenho de 95 px de altura.
                     sizes="(max-width: 640px) 40vw, 240px"
-                    className="max-h-[95px] w-auto max-w-full object-contain transition-[scale] duration-500 ease-out motion-safe:group-hover:scale-110"
+                    className="max-h-[95px] w-auto max-w-full object-contain"
                   />
                 </div>
               </div>
