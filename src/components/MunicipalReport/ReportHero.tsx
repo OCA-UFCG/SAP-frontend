@@ -30,17 +30,9 @@ export function ReportHero({
       <div className="flex h-14 items-center gap-6 bg-[#E4E5E2] px-10 py-4">
         <div className="flex h-full min-w-0 flex-1 items-center gap-2">
           <Image
-            alt=""
-            aria-hidden
-            src="/sedes-mark-dark.svg"
-            width={17}
-            height={24}
-            className="h-full w-auto"
-          />
-          <Image
             alt="SEDES"
-            src="/sedes-wordmark-dark.svg"
-            width={45}
+            src="/sedes-logo-dark.svg"
+            width={71}
             height={24}
             className="h-full w-auto"
           />

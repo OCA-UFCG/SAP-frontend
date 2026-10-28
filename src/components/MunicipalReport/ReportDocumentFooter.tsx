@@ -16,17 +16,9 @@ export function ReportDocumentFooter({
     <footer className="report-document-footer flex items-center gap-6 border-t border-[#D3DCD5] pt-6">
       <span className="flex shrink-0 items-center gap-2">
         <Image
-          alt=""
-          aria-hidden
-          src="/sedes-mark-dark.svg"
-          width={17}
-          height={24}
-          className="h-6 w-auto"
-        />
-        <Image
           alt="SEDES"
-          src="/sedes-wordmark-dark.svg"
-          width={45}
+          src="/sedes-logo-dark.svg"
+          width={71}
           height={24}
           className="h-6 w-auto"
         />
