@@ -80,6 +80,27 @@ describe("municipalityLayers", () => {
     );
   });
 
+  // Regressão: sem o intervalo do `brazil-cities.mbtiles`, a fonte pedia tiles
+  // do zoom 3 no mapa do Nordeste e do 13 num município pequeno, e os dois
+  // voltavam 404.
+  it("declares the zoom range that the municipality tiles actually have", () => {
+    const map = {
+      addLayer: vi.fn(),
+      addSource: vi.fn(),
+      getLayer: vi.fn(() => undefined),
+      getSource: vi.fn(() => undefined),
+    };
+
+    ensureMunicipalityLayers(
+      map as unknown as Parameters<typeof ensureMunicipalityLayers>[0],
+    );
+
+    expect(map.addSource).toHaveBeenCalledWith(
+      MUNICIPALITY_SOURCE_ID,
+      expect.objectContaining({ minzoom: 5, maxzoom: 12 }),
+    );
+  });
+
   // Regressão: o véu escuro do hover/seleção se somava à cor do índice e fazia
   // o município parecer de outra faixa da legenda.
   it("never paints a fill over the hovered or selected municipality", () => {

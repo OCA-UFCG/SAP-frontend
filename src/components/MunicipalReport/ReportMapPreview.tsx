@@ -26,7 +26,13 @@ import {
   MAP_MUNICIPALITY_FOCUS_MAX_ZOOM,
   resolveSpatialFocusBounds,
 } from "@/components/Map/mapBounds";
+import { fetchCitiesOverview } from "@/components/Amfe/useCitiesOverview";
 import {
+  CLASSIFICATION_OVERVIEW_SOURCE_ID,
+  type MunicipalityOverviewGeoJson,
+} from "@/components/Map/classificationLayers";
+import {
+  applyIndexChoroplethStates,
   ensureIndexChoroplethLayers,
   INDEX_CHOROPLETH_STATE_KEY,
 } from "@/components/Map/indexChoroplethLayers";
@@ -156,29 +162,50 @@ export interface ReportMapChoropleth {
   classByCode: Record<string, number>;
 }
 
+let citiesOverviewRequest: Promise<MunicipalityOverviewGeoJson> | null = null;
+
+/** O GeoJSON de visão geral, baixado uma vez para todos os mapas do relatório. */
+function loadCitiesOverview() {
+  citiesOverviewRequest ??= fetchCitiesOverview().catch((error) => {
+    citiesOverviewRequest = null;
+    throw error;
+  });
+  return citiesOverviewRequest;
+}
+
 /**
  * Um índice de planilha não tem asset no Earth Engine: o mapa dele é a mesma
- * coropleta do Monitoramento. Sem o GeoJSON de visão geral, porque o relatório
- * enquadra o município num zoom em que os tiles da malha já existem.
+ * coropleta do Monitoramento.
+ *
+ * O município é enquadrado num zoom em que os tiles da malha existem, e por
+ * isso dispensa o GeoJSON de visão geral. Os outros recortes, não: o Nordeste
+ * sai no zoom 3, os biomas entre 2,6 e 4,7 e os estados grandes abaixo de 5,
+ * onde a malha em tiles não tem nada — sem a visão geral o mapa saía só com o
+ * contorno, sem nenhum município pintado.
  */
 function addChoroplethLayers(
   map: maplibregl.Map,
   { palette, classByCode }: ReportMapChoropleth,
+  overviewGeoJson: MunicipalityOverviewGeoJson | null,
 ) {
-  ensureIndexChoroplethLayers(map, palette, null, 0.85);
-  // Só a malha municipal em tiles: `applyIndexChoroplethStates` grava também na
-  // fonte de visão geral, que aqui não existe, e cada um dos 5.570 municípios
-  // virava um erro no console — o bastante para derrubar a aba com vários
-  // mapas no relatório.
-  for (const [code, classIndex] of Object.entries(classByCode)) {
-    map.setFeatureState(
-      {
-        source: MUNICIPALITY_SOURCE_ID,
-        sourceLayer: MUNICIPALITY_SOURCE_LAYER,
-        id: code,
-      },
-      { [INDEX_CHOROPLETH_STATE_KEY]: classIndex },
-    );
+  ensureIndexChoroplethLayers(map, palette, overviewGeoJson, 0.85);
+  if (overviewGeoJson) {
+    applyIndexChoroplethStates(map, classByCode);
+  } else {
+    // Só a malha municipal em tiles: `applyIndexChoroplethStates` grava também
+    // na fonte de visão geral, que aqui não existe, e cada um dos 5.570
+    // municípios virava um erro no console — o bastante para derrubar a aba com
+    // vários mapas no relatório.
+    for (const [code, classIndex] of Object.entries(classByCode)) {
+      map.setFeatureState(
+        {
+          source: MUNICIPALITY_SOURCE_ID,
+          sourceLayer: MUNICIPALITY_SOURCE_LAYER,
+          id: code,
+        },
+        { [INDEX_CHOROPLETH_STATE_KEY]: classIndex },
+      );
+    }
   }
   // A coropleta entra no topo e cobriria o contorno preto do município.
   map.moveLayer(MUNICIPALITY_BORDER_LAYER_ID);
@@ -351,7 +378,12 @@ function maskOtherMunicipalities(
 }
 
 function isCaptureReady(map: maplibregl.Map, sourceId: string) {
-  return map.isSourceLoaded(sourceId) && map.areTilesLoaded();
+  return (
+    map.isSourceLoaded(sourceId) &&
+    (!map.getSource(CLASSIFICATION_OVERVIEW_SOURCE_ID) ||
+      map.isSourceLoaded(CLASSIFICATION_OVERVIEW_SOURCE_ID)) &&
+    map.areTilesLoaded()
+  );
 }
 
 /**
@@ -615,13 +647,21 @@ export function ReportMapPreview({
         return;
       }
 
+      const overviewGeoJson =
+        choropleth && territory.level !== "municipality"
+          ? await loadCitiesOverview()
+          : null;
+      if (controller.signal.aborted) return;
+
       const finishTilesAndRender = startMunicipalReportStage();
       const capture = waitForMapCapture(
         acquired.map,
         controller.signal,
         Boolean(choropleth),
       );
-      if (choropleth) addChoroplethLayers(acquired.map, choropleth);
+      if (choropleth) {
+        addChoroplethLayers(acquired.map, choropleth, overviewGeoJson);
+      }
       else if (thumbnail) {
         addGeeRasterLayer(acquired.map, thumbnailSource(thumbnail));
       } else if (tileUrl) addGeeRasterLayer(acquired.map, tileSource(tileUrl));
