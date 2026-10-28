@@ -27,7 +27,11 @@
       },
       "layerCard": {
         "title": "Cada tarjeta es un producto",
-        "description": "Usa el botón de encendido a la izquierda para mostrar el producto en el mapa; la leyenda aparece en la esquina inferior derecha. La “i” explica qué mide el producto, y Detalles abre gráficos, ranking y la búsqueda por estado o municipio."
+        "description": "Usa el botón de encendido a la izquierda para mostrar el producto en el mapa; la leyenda aparece en la esquina inferior derecha. Detalles abre gráficos, ranking y la búsqueda por estado o municipio."
+      },
+      "layerInfo": {
+        "title": "Qué mide el producto",
+        "description": "La “i” abre la ficha del producto: qué mide, el período cubierto y la escala temporal. Por ejemplo:"
       },
       "mapSettings": {
         "title": "Ajustes del mapa",
