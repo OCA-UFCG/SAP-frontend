@@ -68,7 +68,7 @@ describe("platform tour", () => {
     expect(driverMock.mock.calls[0][0]).toMatchObject({ showProgress: true });
     expect(
       (driverMock.mock.calls[0][0] as { steps: unknown[] }).steps,
-    ).toHaveLength(7);
+    ).toHaveLength(8);
     expect(driveMock).toHaveBeenCalledTimes(1);
     expect(window.localStorage.getItem(PLATFORM_TOUR_SEEN_KEY)).toBe("1");
   });
@@ -106,6 +106,7 @@ describe("platform tour", () => {
       [
         undefined,
         '[data-tour="analysis-criteria"]',
+        '[data-tour="criterion-info"]',
         '[data-tour="analysis-area"]',
         '[data-tour="analysis-level"]',
         '[data-tour="analysis-submit"]',
@@ -224,6 +225,51 @@ describe("platform tour", () => {
     } finally {
       dummy.remove();
     }
+  });
+
+  // Durante o tutorial não dá para clicar no "i" nem passar o mouse nele: o
+  // balão do passo mostra um exemplo com os dados do primeiro item.
+  it("shows an example of what the first 'i' opens", () => {
+    render(<PlatformSidebar panelLayers={[]} />);
+    waitPastAutoStart();
+
+    const step = (
+      driverMock.mock.calls[0][0] as {
+        steps: {
+          element?: string;
+          popover: { onPopoverRender: (dom: unknown, options: unknown) => void };
+        }[];
+      }
+    ).steps.find((candidate) => candidate.element === '[data-tour="layer-info"]');
+    const button = document.createElement("button");
+    button.dataset.tour = "layer-info";
+    button.dataset.tourTitle = "Índice de Aridez";
+    button.dataset.tourDescription = "Razão entre precipitação e evapotranspiração.";
+    button.dataset.tourPeriod = "2000–2024";
+    document.body.append(button);
+    const popover = document.createElement("div");
+    const description = document.createElement("p");
+    popover.append(description);
+
+    try {
+      step?.popover.onPopoverRender(
+        {
+          footer: document.createElement("footer"),
+          progress: document.createElement("span"),
+          description,
+        },
+        { config: { steps: [] }, index: 0 },
+      );
+    } finally {
+      button.remove();
+    }
+
+    const example = popover.querySelector(".sedes-tour-info-example");
+    expect(example).toHaveTextContent("Índice de Aridez");
+    expect(example).toHaveTextContent("Razão entre precipitação e evapotranspiração.");
+    expect(example).toHaveTextContent("Período2000–2024");
+    // Produto sem escala temporal: a linha some em vez de sair vazia.
+    expect(example?.querySelectorAll("dt")).toHaveLength(1);
   });
 
   it("hides the replay button on the audit and catalog views", () => {
