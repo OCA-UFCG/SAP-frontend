@@ -56,7 +56,11 @@
         },
         "criteria": {
           "title": "Choose the indicators",
-          "description": "In Add or edit indicators, pick up to eight and give each one a weight. The bar shows how much each indicator weighs in the analysis, and the “i” explains what it measures."
+          "description": "In Add or edit indicators, pick up to eight and give each one a weight. The bar shows how much each indicator weighs in the analysis."
+        },
+        "criterionInfo": {
+          "title": "What the indicator measures",
+          "description": "Hover over the “i” next to an indicator (on a phone, tap it) to see what it measures. For example:"
         },
         "area": {
           "title": "Set the analysis area",

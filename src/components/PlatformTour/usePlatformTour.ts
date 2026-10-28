@@ -185,12 +185,18 @@ function renderSectionList(
 
 /**
  * Abaixo do texto do passo do "i", abre uma prévia do que o botão mostra, com
- * os dados do primeiro produto da listagem. É uma cópia, e não o diálogo de
- * verdade: aberto por cima do tutorial, ele prenderia o Tab e o balão ficaria
- * fora do alcance do teclado.
+ * os dados do primeiro item da lista. É uma cópia, e não o "i" de verdade: no
+ * Monitoramento ele abre um diálogo que prenderia o Tab longe do balão, e na
+ * Priorização a dica depende do mouse, que o tutorial bloqueia.
+ *
+ * Sem `tInfo`, o exemplo é o da dica dos indicadores: só nome e descrição.
  */
-function renderInfoExample(dom: PopoverDOM, tInfo: TranslateInfo) {
-  const button = document.querySelector<HTMLElement>('[data-tour="layer-info"]');
+function renderInfoExample(
+  dom: PopoverDOM,
+  element: string,
+  tInfo?: TranslateInfo,
+) {
+  const button = document.querySelector<HTMLElement>(element);
   const { tourTitle, tourDescription, tourPeriod, tourTimeScale } =
     button?.dataset ?? {};
   if (!tourTitle || !tourDescription) return;
@@ -200,17 +206,25 @@ function renderInfoExample(dom: PopoverDOM, tInfo: TranslateInfo) {
 
   const title = document.createElement("strong");
   title.textContent = tourTitle;
-  const overview = document.createElement("span");
-  overview.className = "sedes-tour-info-label";
-  overview.textContent = tInfo("overview");
   const description = document.createElement("p");
   description.textContent = tourDescription;
-  example.append(title, overview, description);
+  example.append(title);
+  if (tInfo) {
+    const overview = document.createElement("span");
+    overview.className = "sedes-tour-info-label";
+    overview.textContent = tInfo("overview");
+    example.append(overview);
+  }
+  example.append(description);
 
-  const rows = [
-    [tInfo("period"), tourPeriod],
-    [tInfo("timeScale"), tourTimeScale],
-  ].filter((row): row is [string, string] => Boolean(row[1]));
+  const rows = (
+    tInfo
+      ? [
+          [tInfo("period"), tourPeriod],
+          [tInfo("timeScale"), tourTimeScale],
+        ]
+      : []
+  ).filter((row): row is [string, string] => Boolean(row[1]));
   if (rows.length > 0) {
     const details = document.createElement("dl");
     for (const [label, value] of rows) {
@@ -257,6 +271,27 @@ function buildSteps(
     popover: { ...popover(key), side: "right", align: "start" },
   });
 
+  const infoStep = (
+    element: string,
+    key: string,
+    withInfoTable: boolean,
+  ): DriveStep => ({
+    element: `[data-tour="${element}"]`,
+    popover: {
+      ...popover(key),
+      side: "right",
+      align: "start",
+      onPopoverRender: (dom, options) => {
+        renderPopover(dom, options);
+        renderInfoExample(
+          dom,
+          `[data-tour="${element}"]`,
+          withInfoTable ? tInfo : undefined,
+        );
+      },
+    },
+  });
+
   const replayStep: DriveStep = replayInMore
     ? {
         element: '[data-tour="platform-more"]',
@@ -271,6 +306,7 @@ function buildSteps(
     return [
       { popover: popover("analysis.intro") },
       formStep("analysis-criteria", "analysis.criteria"),
+      infoStep("criterion-info", "analysis.criterionInfo", false),
       formStep("analysis-area", "analysis.area"),
       formStep("analysis-level", "analysis.level"),
       formStep("analysis-submit", "analysis.submit"),
@@ -353,18 +389,7 @@ function buildSteps(
       element: '[data-tour="layer-card"]',
       popover: { ...popover("layerCard"), side: "right", align: "start" },
     },
-    {
-      element: '[data-tour="layer-info"]',
-      popover: {
-        ...popover("layerInfo"),
-        side: "right",
-        align: "start",
-        onPopoverRender: (dom, options) => {
-          renderPopover(dom, options);
-          renderInfoExample(dom, tInfo);
-        },
-      },
-    },
+    infoStep("layer-info", "layerInfo", true),
     {
       element: '[data-tour="map-settings"]',
       popover: { ...popover("mapSettings"), side: "left", align: "start" },

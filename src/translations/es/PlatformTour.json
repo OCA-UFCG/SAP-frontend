@@ -56,7 +56,11 @@
         },
         "criteria": {
           "title": "Elige los indicadores",
-          "description": "En Agregar o editar indicadores, elige hasta ocho y dale un peso a cada uno. La barra muestra cuánto pesa cada indicador en el análisis, y la “i” explica qué mide."
+          "description": "En Agregar o editar indicadores, elige hasta ocho y dale un peso a cada uno. La barra muestra cuánto pesa cada indicador en el análisis."
+        },
+        "criterionInfo": {
+          "title": "Qué mide el indicador",
+          "description": "Pasa el mouse sobre la “i” junto a un indicador (en el celular, tócala) para ver qué mide. Por ejemplo:"
         },
         "area": {
           "title": "Define el área de interés",
