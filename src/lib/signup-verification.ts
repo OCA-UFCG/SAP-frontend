@@ -22,6 +22,18 @@ export function describeWithoutLink(error: unknown, code: string | null) {
 }
 
 /**
+ * `throttled` é o Firebase recusando um link novo para a mesma conta antes de
+ * cerca de um minuto. Separado de `failed` porque tem saída: esperar.
+ */
+export type VerificationEmailResult = "sent" | "throttled" | "failed";
+
+function isFirebaseThrottle(error: unknown) {
+  return (
+    error instanceof Error && error.message.includes("TOO_MANY_ATTEMPTS_TRY_LATER")
+  );
+}
+
+/**
  * Manda o e-mail de confirmação e diz, com honestidade, se ele saiu.
  *
  * Quando isto roda no cadastro, o pedido já está registrado. Derrubar o
@@ -29,7 +41,10 @@ export function describeWithoutLink(error: unknown, code: string | null) {
  * fez tudo certo — e existe o "reenviar e-mail" exatamente para esse caso. Por
  * isso a falha não é lançada; é devolvida, para quem chama decidir o que fazer.
  */
-export async function sendVerificationEmail(email: string, locale?: string) {
+export async function sendVerificationEmail(
+  email: string,
+  locale?: string,
+): Promise<VerificationEmailResult> {
   let code: string | null = null;
 
   try {
@@ -66,12 +81,12 @@ export async function sendVerificationEmail(email: string, locale?: string) {
       );
     }
 
-    return delivered;
+    return delivered ? "sent" : "failed";
   } catch (error) {
     console.error(
       "Falha ao enviar o e-mail de confirmação.",
       describeWithoutLink(error, code),
     );
-    return false;
+    return isFirebaseThrottle(error) ? "throttled" : "failed";
   }
 }

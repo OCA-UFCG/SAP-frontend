@@ -3,6 +3,7 @@
 import { useCallback, useState } from "react";
 import { useLocale, useTranslations } from "next-intl";
 import Signup, { type SignupSubmitValues } from "@/components/Signup/Signup";
+import { requestVerificationResend } from "@/lib/verification-resend";
 
 type SignupPageClientProps = {
   backgroundImageUrl?: string;
@@ -23,15 +24,7 @@ export function SignupPageClient({ backgroundImageUrl }: SignupPageClientProps) 
     async (captchaToken: string) => {
       if (!submittedEmail) return;
 
-      const response = await fetch("/api/signup/resend", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ email: submittedEmail, captchaToken }),
-      }).catch(() => undefined);
-
-      // Só a recusa do captcha é contada. O resto continua com a resposta
-      // genérica, para o reenviar não virar oráculo de quem tem conta.
-      return response?.status !== 400;
+      return requestVerificationResend(submittedEmail, captchaToken);
     },
     [submittedEmail],
   );

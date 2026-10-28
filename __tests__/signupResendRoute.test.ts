@@ -28,7 +28,9 @@ import { POST as resend } from "@/app/api/signup/resend/route";
 import {
   RESEND_RATE_LIMIT_MAX_REQUESTS,
   clearSignupRateLimits,
+  consumeVerificationEmailCooldown,
 } from "@/app/api/signup/rate-limit";
+import { VERIFICATION_EMAIL_COOLDOWN_SECONDS } from "@/config/verificationEmailCooldown";
 
 const ORIGIN = "https://sap.example";
 
@@ -144,5 +146,62 @@ describe("POST /api/signup/resend", () => {
 
     expect(response.status).toBe(400);
     expect(sendMailMock).not.toHaveBeenCalled();
+  });
+
+  // O Firebase recusa o link novo antes de um minuto, e antes a rota respondia
+  // "enviado" mesmo assim: a pessoa esperava um e-mail que nunca saía.
+  it("asks to wait instead of sending a second email to the same address", async () => {
+    await resend(buildRequest({ email: "fulano@ufcg.edu.br" }));
+    sendMailMock.mockClear();
+
+    const tooSoon = await resend(
+      buildRequest({ email: "Fulano@ufcg.edu.br " }),
+    );
+
+    expect(tooSoon.status).toBe(429);
+    expect(Number(tooSoon.headers.get("Retry-After"))).toBeGreaterThan(0);
+    expect(generateLinkMock).toHaveBeenCalledTimes(1);
+    expect(sendMailMock).not.toHaveBeenCalled();
+  });
+
+  // A espera é do endereço, não da conta: um desconhecido espera igual, e a
+  // resposta não diz quem tem cadastro.
+  it("asks an address with no account to wait just the same", async () => {
+    generateLinkMock.mockRejectedValue(
+      Object.assign(new Error("not found"), { code: "auth/user-not-found" }),
+    );
+    vi.spyOn(console, "error").mockImplementation(() => undefined);
+
+    await resend(buildRequest({ email: "ninguem@gmail.com" }));
+    const tooSoon = await resend(buildRequest({ email: "ninguem@gmail.com" }));
+
+    expect(tooSoon.status).toBe(429);
+  });
+
+  // O cadastro manda o primeiro e-mail; o reenvio logo depois cairia no limite
+  // do Firebase.
+  it("counts the email the signup just sent", async () => {
+    consumeVerificationEmailCooldown("fulano@ufcg.edu.br");
+
+    const tooSoon = await resend(buildRequest({ email: "fulano@ufcg.edu.br" }));
+
+    expect(tooSoon.status).toBe(429);
+    expect(generateLinkMock).not.toHaveBeenCalled();
+  });
+
+  it("asks to wait when Firebase refused the link anyway", async () => {
+    generateLinkMock.mockRejectedValue(
+      new Error('Raw server response: "TOO_MANY_ATTEMPTS_TRY_LATER"'),
+    );
+    vi.spyOn(console, "error").mockImplementation(() => undefined);
+
+    const response = await resend(
+      buildRequest({ email: "fulano@ufcg.edu.br" }),
+    );
+
+    expect(response.status).toBe(429);
+    expect(response.headers.get("Retry-After")).toBe(
+      String(VERIFICATION_EMAIL_COOLDOWN_SECONDS),
+    );
   });
 });

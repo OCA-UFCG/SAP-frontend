@@ -1,4 +1,5 @@
 import { createRateLimiter, getClientAddress } from "@/utils/rateLimitStore";
+import { VERIFICATION_EMAIL_COOLDOWN_SECONDS } from "@/config/verificationEmailCooldown";
 
 /**
  * Endereço de rede de quem fez a requisição, sem cair para o user-agent: o
@@ -60,6 +61,15 @@ const passwordResetCodeRequests = createRateLimiter({
 const withdrawRequests = createRateLimiter({ windowMs: RATE_LIMIT_WINDOW_MS });
 
 /**
+ * Por endereço, e não por rede: o Firebase recusa o segundo link para a mesma
+ * conta antes de um minuto, venha de onde vier. Vale igual para endereço
+ * cadastrado ou não, então a espera não diz quem tem conta.
+ */
+const verificationEmails = createRateLimiter({
+  windowMs: VERIFICATION_EMAIL_COOLDOWN_SECONDS * 1000,
+});
+
+/**
  * Chave de cliente de uma requisição não autenticada, pelo mesmo
  * `getClientAddress` que `api/logs/route.ts` usa.
  *
@@ -113,6 +123,11 @@ export function consumeWithdrawRateLimit(clientKey: string) {
   return withdrawRequests.consume(clientKey, WITHDRAW_RATE_LIMIT_MAX_REQUESTS);
 }
 
+/** Marca o envio do e-mail de confirmação para `email`, e recusa o próximo antes da espera. */
+export function consumeVerificationEmailCooldown(email: string) {
+  return verificationEmails.consume(email, 1);
+}
+
 export function clearSignupRateLimits() {
   signupRequests.clear();
   resendRequests.clear();
@@ -120,6 +135,7 @@ export function clearSignupRateLimits() {
   passwordResetRequests.clear();
   passwordResetCodeRequests.clear();
   withdrawRequests.clear();
+  verificationEmails.clear();
 }
 
 export { RATE_LIMIT_WINDOW_MS as SIGNUP_RATE_LIMIT_WINDOW_MS };

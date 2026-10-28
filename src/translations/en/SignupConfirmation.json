@@ -8,11 +8,13 @@
     "rejectedTitle": "Request not approved",
     "rejectedBody": "This access request was not approved.",
     "failedTitle": "We could not confirm your email",
-    "failedBody": "The link may have expired or already been used. If you have already confirmed your email, just sign in. If not, enter your email to get a new link.",
+    "failedBody": "The link may have expired, already been used, or been replaced by a newer email — only the link in the latest email works. If you have already confirmed your email, just sign in. If not, enter your email to get a new link.",
     "emailPlaceholder": "Email",
     "resend": "Resend confirmation email",
+    "resendIn": "Resend in {time}",
     "resending": "Sending...",
-    "resent": "If the address is registered, a new email was sent.",
+    "resent": "If the address is registered, a new email was sent. Use its link: the one in the previous email no longer works.",
+    "resendTooSoon": "We sent an email a moment ago. Please wait before asking for another.",
     "backHome": "Back to the home page"
   }
 }

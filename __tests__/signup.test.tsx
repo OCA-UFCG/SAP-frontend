@@ -246,7 +246,7 @@ describe("Signup", () => {
   // esperando um e-mail que nunca sai.
   it("says the resend was refused when the captcha did not pass", async () => {
     const user = userEvent.setup();
-    render(<Signup onResend={() => false} submitted />);
+    render(<Signup onResend={() => ({ status: "captcha" })} submitted />);
 
     await user.click(
       screen.getByRole("button", { name: "Reenviar email de confirmação" }),
@@ -259,6 +259,71 @@ describe("Signup", () => {
       screen.queryByText(
         "Se o endereço estiver cadastrado, um novo email foi enviado.",
       ),
+    ).not.toBeInTheDocument();
+  });
+
+  // O Firebase recusa um link novo antes de um minuto e cada link novo anula o
+  // anterior: o botão espera desde o envio que o cadastro acabou de fazer.
+  it("waits before offering to send the email again after signing up", async () => {
+    const user = userEvent.setup();
+    const { rerender } = render(<Signup onSubmit={() => undefined} />);
+
+    await user.type(
+      screen.getByPlaceholderText("Email (de preferência institucional)"),
+      "fulano@ufcg.edu.br",
+    );
+    await user.type(screen.getByPlaceholderText("Senha"), "uma-senha-forte");
+    await user.type(
+      screen.getByPlaceholderText("Confirmar senha"),
+      "uma-senha-forte",
+    );
+    await user.type(
+      screen.getByPlaceholderText(
+        "Como pretende usar a plataforma? Se tiver vínculo com alguma instituição, informe qual.",
+      ),
+      "Pesquisa sobre seca",
+    );
+    await user.click(screen.getByRole("button", { name: "Criar conta" }));
+    rerender(<Signup onSubmit={() => undefined} submitted />);
+
+    expect(
+      await screen.findByRole("button", { name: "Reenviar em 1:30" }),
+    ).toBeDisabled();
+  });
+
+  it("waits again after each resend", async () => {
+    const user = userEvent.setup();
+    render(<Signup onResend={() => ({ status: "sent" })} submitted />);
+
+    await user.click(
+      screen.getByRole("button", { name: "Reenviar email de confirmação" }),
+    );
+
+    expect(
+      await screen.findByRole("button", { name: "Reenviar em 1:30" }),
+    ).toBeDisabled();
+  });
+
+  // Outra aba ou um clique antes do contador: o servidor diz quanto falta, e a
+  // tela não pode dizer "enviado".
+  it("waits for as long as the server asks when it was too soon", async () => {
+    const user = userEvent.setup();
+    render(
+      <Signup onResend={() => ({ status: "wait", seconds: 42 })} submitted />,
+    );
+
+    await user.click(
+      screen.getByRole("button", { name: "Reenviar email de confirmação" }),
+    );
+
+    expect(
+      await screen.findByRole("button", { name: "Reenviar em 0:42" }),
+    ).toBeDisabled();
+    expect(
+      screen.getByText("Enviamos um email há pouco. Aguarde para pedir outro."),
+    ).toBeInTheDocument();
+    expect(
+      screen.queryByText(/um novo email foi enviado/),
     ).not.toBeInTheDocument();
   });
 });

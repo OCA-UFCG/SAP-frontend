@@ -8,6 +8,7 @@ import { MIN_PASSWORD_LENGTH } from "@/config/passwordRules";
 import { createAccessRequest, normalizeIntention } from "@/lib/access-requests";
 import {
   consumeSignupRateLimit,
+  consumeVerificationEmailCooldown,
   getSignupClientIp,
   getSignupClientKey,
 } from "@/app/api/signup/rate-limit";
@@ -177,7 +178,11 @@ export async function POST(request: Request) {
   // cadastro: existe o "reenviar" para isso. Mas ela não pode passar calada —
   // sem esta linha, uma configuração errada em produção significa que ninguém
   // nunca se cadastra e a equipe só descobre por reclamação.
-  if (!(await sendVerificationEmail(email, locale))) {
+  // Conta como o primeiro envio: o "reenviar" da tela seguinte espera a partir
+  // daqui.
+  consumeVerificationEmailCooldown(email);
+
+  if ((await sendVerificationEmail(email, locale)) !== "sent") {
     console.error(
       `Cadastro registrado sem e-mail de confirmação entregue (${email}). A pessoa precisa usar o "reenviar".`,
     );

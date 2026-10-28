@@ -21,10 +21,12 @@
     "hasAccount": "¿Ya tienes cuenta?",
     "signIn": "Entrar",
     "successTitle": "Confirma tu correo",
-    "successDescription": "Enviamos un enlace a la dirección indicada. Ábrelo para confirmar tu registro.",
+    "successDescription": "Enviamos un enlace a la dirección indicada. Ábrelo para confirmar tu registro. Puede tardar unos minutos en llegar; revisa también la carpeta de spam.",
     "genericError": "No fue posible completar el registro. Inténtalo de nuevo.",
     "resend": "Reenviar correo de confirmación",
+    "resendIn": "Reenviar en {time}",
     "resending": "Enviando...",
-    "resent": "Si la dirección está registrada, se envió un nuevo correo."
+    "resent": "Si la dirección está registrada, se envió un nuevo correo. Usa su enlace: el del correo anterior deja de valer.",
+    "resendTooSoon": "Enviamos un correo hace poco. Espera antes de pedir otro."
   }
 }
