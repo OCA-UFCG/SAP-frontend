@@ -94,7 +94,8 @@
     },
     "narrative": {
       "absoluteFallback": "{place}, o valor de {className} é {value}, conforme os dados de {title} para o período de {period}.",
-      "percentageFallback": "{place}, predomina a classe {className}, com {percentage}% da área analisada {coverageContext}, conforme os dados de {title} para o período de {period}."
+      "percentageFallback": "{place}, predomina a classe {className}, com {percentage}% da área analisada {coverageContext}, conforme os dados de {title} para o período de {period}.",
+      "distributionFallback": "{place}, conforme os dados de {title} para o período de {period}, {distribution}."
     },
     "coverageContexts": {
       "anaseca": "enquadrada nesse nível de severidade",
@@ -367,6 +368,21 @@
       "facets": {
         "acumulado": "Valor previsto"
       }
+    },
+    "distribution": {
+      "item": "{className} ({percentage}%)",
+      "wholeArea": "toda a área",
+      "areaShare": "{percentage}% da área",
+      "whole": "toda a área está na classe {className}",
+      "single": "a classe {className} ocupa {percentage}% da área",
+      "listed": "a área se divide entre {classes}",
+      "others": ", e as demais classes somam {percentage}%",
+      "worseOne": "{share} está na classe {className}, pior que {neutral}",
+      "worseMany": "{share} está em classes piores que {neutral}: {classes}",
+      "worseOthers": "; as demais classes piores somam {percentage}%",
+      "restOne": "; o restante ({percentage}%) está em {className}",
+      "restBoth": "; {neutralPercentage}% está em {neutral} e {betterPercentage}% em {better}",
+      "betterClasses": "classes melhores que {neutral}"
     }
   }
 }

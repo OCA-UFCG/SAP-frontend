@@ -265,6 +265,7 @@ const LAYER_SCOPED_TEMPLATE_KEYS = new Set([
   "indice",
   "classe",
   "percentual",
+  "distribuicao",
   "valor",
   "valor_com_unidade",
   "unidade",

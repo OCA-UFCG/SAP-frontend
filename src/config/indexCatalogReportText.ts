@@ -80,6 +80,13 @@ export const CATALOG_REPORT_VARIABLES: readonly CatalogReportVariable[] = [
     example: "83,4",
   },
   {
+    token: "[distribuicao]",
+    description:
+      "Como a área do território se divide entre as classes, com o percentual de cada uma. Quando o índice tem ordem de gravidade e classe normal, abre pelo total pior que a classe normal. Use no fim da frase.",
+    example:
+      "a área se divide entre Semiárido (53,95%), Subúmido Seco (22,65%), Úmido (21,92%) e Árido (1,48%)",
+  },
+  {
     token: "[periodo]",
     description: "Período analisado, como está publicado no índice.",
     example: "2024-09",
@@ -117,7 +124,7 @@ export const DEFAULT_CATALOG_REPORT_SECTIONS: readonly MunicipalReportDocsSectio
   [
     {
       title: "Situação atual",
-      text: "[no_territorio], [percentual]% do território está na classe [classe], conforme o [indice], no período de [periodo_extenso].",
+      text: "[no_territorio], conforme o [indice], no período de [periodo_extenso], [distribuicao].",
     },
     {
       title: "O que este índice mede",

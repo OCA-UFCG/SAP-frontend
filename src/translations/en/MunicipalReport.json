@@ -94,7 +94,8 @@
     },
     "narrative": {
       "absoluteFallback": "In {place}, the value of {className} is {value}, according to {title} data for the period of {period}.",
-      "percentageFallback": "In {place}, the {className} class predominates, with {percentage}% of the analyzed area {coverageContext}, according to {title} data for the period of {period}."
+      "percentageFallback": "In {place}, the {className} class predominates, with {percentage}% of the analyzed area {coverageContext}, according to {title} data for the period of {period}.",
+      "distributionFallback": "In {place}, according to {title} data for the period of {period}, {distribution}."
     },
     "coverageContexts": {
       "anaseca": "classified at this severity level",
@@ -371,6 +372,21 @@
         "precipitacao": "Precipitation",
         "temperatura": "Temperature"
       }
+    },
+    "distribution": {
+      "item": "{className} ({percentage}%)",
+      "wholeArea": "the whole area",
+      "areaShare": "{percentage}% of the area",
+      "whole": "the whole area is in the {className} class",
+      "single": "the {className} class covers {percentage}% of the area",
+      "listed": "the area is split among {classes}",
+      "others": ", and the other classes add up to {percentage}%",
+      "worseOne": "{share} is in the {className} class, worse than {neutral}",
+      "worseMany": "{share} is in classes worse than {neutral}: {classes}",
+      "worseOthers": "; the other worse classes add up to {percentage}%",
+      "restOne": "; the remaining {percentage}% is in {className}",
+      "restBoth": "; {neutralPercentage}% is in {neutral} and {betterPercentage}% in {better}",
+      "betterClasses": "classes better than {neutral}"
     }
   }
 }
