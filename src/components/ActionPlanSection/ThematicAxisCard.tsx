@@ -28,7 +28,12 @@ export const ThematicAxisCard = ({
     return (
       <div className="flex h-full flex-col gap-4 rounded-lg bg-[#59403A] p-6">
         <div className="flex flex-col items-start gap-2">
-          <Badge label={labels.sedesHere} variant="primary" />
+          <Badge
+            label={labels.sedesHere}
+            variant="primary"
+            // Texto escuro: o branco do Figma no verde claro dá só 2,8:1.
+            className="bg-[#989F43] text-[#21240F]"
+          />
           <h4 className="text-[1.375rem] font-bold leading-tight text-[#F8F7F8]">
             {title}
           </h4>

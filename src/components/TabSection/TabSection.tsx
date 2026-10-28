@@ -9,7 +9,6 @@ import {
 import { BLOCKS } from "@contentful/rich-text-types";
 import { TabsSectionI } from "@/utils/interfaces";
 import { useTranslations } from "next-intl";
-import { Badge } from "@/components/Badge/Badge";
 
 interface TabsSectionProps {
   contentData: TabsSectionI[];
@@ -25,14 +24,13 @@ const IMAGE_STYLE_BY_IDENTIFIER: Record<
   string,
   { x: string; y: string; scale: number }
 > = {
-  "sociedade-e-comunidades": { x: "50%", y: "15%", scale: 1 },
-  "tecnicos-e-pesquisadores": { x: "50%", y: "5%", scale: 1 },
-  "gestao-publica": { x: "0%", y: "50%", scale: 1 },
+  "sociedade-e-comunidades": { x: "50%", y: "60%", scale: 1 },
+  "tecnicos-e-pesquisadores": { x: "30%", y: "50%", scale: 1 },
+  "gestao-publica": { x: "50%", y: "50%", scale: 1 },
 };
 
 const TabsSection = ({ contentData }: TabsSectionProps) => {
   const t = useTranslations("TabSection");
-  const footerT = useTranslations("Footer");
   const [activeTabIdentifier, setActiveTabIdentifier] = useState(
     contentData[0]?.identifier ?? "",
   );
@@ -58,10 +56,9 @@ const TabsSection = ({ contentData }: TabsSectionProps) => {
   const sectionTitle = t("title");
 
   return (
-    <section className="w-full bg-[#F6F7F6] flex flex-col items-center">
+    <section className="w-full bg-white flex flex-col items-center">
       <div className="w-full max-w-[1440px] mx-auto px-6 pt-12 md:px-10 lg:px-[78px] flex flex-col items-start">
-        <Badge label={footerT("aboutMenu.usuarios")} className="mb-4" />
-        <h2 className="text-[1.5rem] md:text-[1.75rem] lg:text-[1.875rem] leading-[28px] md:leading-[32px] lg:leading-[36px] tracking-[-0.0075em] text-[#292829] font-semibold mb-6">
+        <h2 className="text-[1.5rem] md:text-[1.75rem] lg:text-[1.875rem] leading-[28px] md:leading-[32px] lg:leading-[36px] tracking-[-0.0075em] text-[#292829] font-open-sans font-semibold pb-2 mb-4">
           {sectionTitle}
         </h2>
 
@@ -70,6 +67,7 @@ const TabsSection = ({ contentData }: TabsSectionProps) => {
             const tabLabel = t(`tabs.${tab.identifier}`);
 
             return (
+              // O texto escuro na aba verde dá 5,6:1; o branco do Figma, 2,8:1.
               <button
                 key={tab.identifier}
                 onClick={() => setActiveTabIdentifier(tab.identifier)}
@@ -78,8 +76,8 @@ const TabsSection = ({ contentData }: TabsSectionProps) => {
                 aria-pressed={activeTabIdentifier === tab.identifier}
                 className={`px-4 md:px-8 py-3 md:w-[302px] md:shrink-0 rounded-t-[8px] font-open-sans font-medium text-[0.8125rem] md:text-[1rem] whitespace-nowrap transition-colors border-b-0 ${
                   activeTabIdentifier === tab.identifier
-                    ? "bg-[#646B2D] text-white"
-                    : "bg-[#E4E5E2] text-[#3F4324] hover:bg-[#C8CAC5]"
+                    ? "bg-[#989F43] text-[#21240F]"
+                    : "bg-[#E4E5E2] text-[#292829] hover:bg-[#C8CAC5]"
                 }`}
               >
                 {tabLabel}
@@ -89,13 +87,14 @@ const TabsSection = ({ contentData }: TabsSectionProps) => {
         </div>
       </div>
 
-      <div className="w-full min-h-[550px] relative border-[4px] border-[#646B2D] rounded-[8px] bg-black overflow-hidden flex flex-col md:justify-center">
-        <div className="relative w-full h-[250px] z-0 flex items-center justify-center md:absolute md:top-0 md:left-0 md:w-[80%] md:h-full lg:w-[40%]">
+      <div className="w-full min-h-[360px] relative border-t-[4px] border-[#989F43] bg-black overflow-hidden flex flex-col md:justify-center">
+        <div className="relative w-full h-[250px] z-0 flex items-center justify-center md:absolute md:top-0 md:left-0 md:w-[80%] md:h-full lg:w-[45%]">
           {currentTab.image?.url && (
             <Image
               src={currentTab.image.url}
               alt={currentTab.image.title || t(`tabs.${currentTab.identifier}`, { label: currentTab.title })}
               fill
+              sizes="(max-width: 768px) 100vw, (max-width: 1024px) 80vw, 45vw"
               className="object-cover"
               style={{
                 objectPosition: `${currentImageStyle.x} ${currentImageStyle.y}`,
@@ -118,15 +117,15 @@ const TabsSection = ({ contentData }: TabsSectionProps) => {
           className="absolute inset-0 z-10 hidden md:block"
           style={{
             background:
-              "linear-gradient(90deg, rgba(0, 0, 0, 0) 18.96%, #000000 41.39%)",
+              "linear-gradient(90deg, rgba(0, 0, 0, 0) 20%, #000000 44.5%)",
           }}
         />
 
         <div className="relative z-20 w-full max-w-[1440px] mx-auto px-6 md:px-10 lg:px-[78px] py-[32px] md:py-[48px] flex flex-col items-center text-center md:flex-row md:justify-end md:items-center md:text-left">
           <div className="w-full max-w-[90%] md:w-[60%] md:max-w-[795px] flex flex-col gap-[16px] md:gap-[24px]">
-            {/* Fica o verde claro: sobre o fundo preto ele dá 7,4:1, e o
+            {/* Fica o verde claro: sobre o fundo preto ele dá 10:1, e o
                 #646B2D dos botões daria só 3,7. */}
-            <h3 className="text-[#989F43] font-open-sans font-semibold text-[1.25rem] md:text-[1.5rem] leading-[32px] tracking-[-0.006em]">
+            <h3 className="text-[#B4BA61] font-open-sans font-semibold text-[1.25rem] md:text-[1.5rem] leading-[32px] tracking-[-0.006em]">
               {t(`tabs.${currentTab.identifier}`)}
             </h3>
 
