@@ -2,8 +2,10 @@ import { NextResponse } from "next/server";
 import { hasTrustedMutationOrigin } from "@/lib/catalog-access";
 import { rejectWhenSignupClosed } from "@/app/api/signup/availability";
 import { sendVerificationEmail } from "@/lib/signup-verification";
+import { VERIFICATION_EMAIL_COOLDOWN_SECONDS } from "@/config/verificationEmailCooldown";
 import {
   consumeResendRateLimit,
+  consumeVerificationEmailCooldown,
   getSignupClientIp,
   getSignupClientKey,
 } from "@/app/api/signup/rate-limit";
@@ -23,6 +25,11 @@ const NO_STORE = { "Cache-Control": "no-store" } as const;
  * A resposta é sempre a mesma — endereço cadastrado, desconhecido ou já
  * confirmado devolvem o mesmo corpo. Reenviar é justamente o tipo de porta que
  * vira oráculo de quem tem conta se responder coisas diferentes.
+ *
+ * A exceção é a espera entre dois envios para o mesmo endereço, que responde
+ * 429 com quanto falta. Ela vale para qualquer endereço, cadastrado ou não, e
+ * existe porque o Firebase recusa o link novo antes de um minuto: aceitar o
+ * pedido ali era responder "enviado" para um e-mail que nunca saía.
  */
 export async function POST(request: Request) {
   const closed = rejectWhenSignupClosed();
@@ -76,11 +83,33 @@ export async function POST(request: Request) {
   }
 
   if (typeof email === "string" && email.trim()) {
-    await sendVerificationEmail(email.trim().toLowerCase());
+    const normalizedEmail = email.trim().toLowerCase();
+    const cooldown = consumeVerificationEmailCooldown(normalizedEmail);
+
+    if (cooldown.limited) {
+      return tooSoon(cooldown.retryAfterSeconds);
+    }
+
+    // A espera daqui é maior que a do Firebase, então isto só acontece se ela
+    // perdeu a conta — o servidor reiniciou, por exemplo. Só conta com
+    // cadastro chega aqui, mas a resposta é a mesma da espera acima.
+    if ((await sendVerificationEmail(normalizedEmail)) === "throttled") {
+      return tooSoon(VERIFICATION_EMAIL_COOLDOWN_SECONDS);
+    }
   }
 
   return NextResponse.json(
     { status: "accepted" },
     { status: 202, headers: NO_STORE },
+  );
+}
+
+function tooSoon(retryAfterSeconds: number) {
+  return NextResponse.json(
+    { error: "Enviamos um email há pouco. Aguarde para pedir outro." },
+    {
+      status: 429,
+      headers: { ...NO_STORE, "Retry-After": String(retryAfterSeconds) },
+    },
   );
 }

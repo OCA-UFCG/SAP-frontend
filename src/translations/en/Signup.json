@@ -21,10 +21,12 @@
     "hasAccount": "Already have an account?",
     "signIn": "Sign in",
     "successTitle": "Confirm your email",
-    "successDescription": "We sent a link to the address you gave. Open it to confirm your registration.",
+    "successDescription": "We sent a link to the address you gave. Open it to confirm your registration. It may take a few minutes to arrive; check your spam folder too.",
     "genericError": "We could not complete the registration. Please try again.",
     "resend": "Resend confirmation email",
+    "resendIn": "Resend in {time}",
     "resending": "Sending...",
-    "resent": "If the address is registered, a new email was sent."
+    "resent": "If the address is registered, a new email was sent. Use its link: the one in the previous email no longer works.",
+    "resendTooSoon": "We sent an email a moment ago. Please wait before asking for another."
   }
 }

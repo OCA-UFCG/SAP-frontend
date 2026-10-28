@@ -6,6 +6,9 @@ import { useTranslations } from "next-intl";
 import Image from "next/image";
 import { Link } from "@/translations/routing";
 import { MIN_PASSWORD_LENGTH } from "@/config/passwordRules";
+import { VERIFICATION_EMAIL_COOLDOWN_SECONDS } from "@/config/verificationEmailCooldown";
+import { formatCountdown, useCountdown } from "@/hooks/useCountdown";
+import type { ResendOutcome } from "@/lib/verification-resend";
 import { Icon } from "../Icon/Icon";
 import { LoginField } from "../Login/LoginField";
 import { LoginPhotoPanel } from "../Login/LoginPhotoPanel";
@@ -32,12 +35,12 @@ type SignupProps = {
    * envio pode falhar, e sem esta porta a única saída de quem não recebeu é
    * abrir chamado com a equipe.
    *
-   * Devolve `false` quando o servidor recusou o captcha, para a tela não dizer
+   * Devolve a recusa do servidor — captcha ou espera —, para a tela não dizer
    * que enviou um e-mail que não saiu.
    */
   onResend?: (
     captchaToken: string,
-  ) => boolean | void | Promise<boolean | void>;
+  ) => ResendOutcome | void | Promise<ResendOutcome | void>;
   backgroundImageUrl?: string;
   error?: string;
   submitted?: boolean;
@@ -58,6 +61,10 @@ export const Signup = ({
   const [resending, setResending] = useState(false);
   const [resent, setResent] = useState(false);
   const [resendRefused, setResendRefused] = useState(false);
+  const [resendTooSoon, setResendTooSoon] = useState(false);
+  // O Firebase recusa um link novo antes de um minuto, e cada link novo anula o
+  // anterior. O botão espera o mesmo que o servidor, contando do último envio.
+  const [resendWait, startResendWait] = useCountdown();
   // O token só vale uma vez. Cada tentativa troca a `key` do widget, que então
   // resolve um token novo.
   const [captchaToken, setCaptchaToken] = useState<string | null>(null);
@@ -70,9 +77,16 @@ export const Signup = ({
 
     setResending(true);
     try {
-      const accepted = (await onResend?.(resendToken)) !== false;
-      setResendRefused(!accepted);
-      setResent(accepted);
+      const outcome = (await onResend?.(resendToken)) ?? { status: "sent" };
+      setResendRefused(outcome.status === "captcha");
+      setResendTooSoon(outcome.status === "wait");
+      setResent(outcome.status === "sent");
+
+      if (outcome.status === "sent") {
+        startResendWait(VERIFICATION_EMAIL_COOLDOWN_SECONDS);
+      } else if (outcome.status === "wait") {
+        startResendWait(outcome.seconds);
+      }
     } finally {
       setResending(false);
       setResendToken(null);
@@ -109,6 +123,9 @@ export const Signup = ({
       captchaToken,
     });
 
+    // O cadastro já mandou o primeiro e-mail. Se ele falhou, o formulário
+    // continua na tela e a espera não aparece.
+    startResendWait(VERIFICATION_EMAIL_COOLDOWN_SECONDS);
     setCaptchaToken(null);
     setCaptchaAttempt((attempt) => attempt + 1);
   });
@@ -151,14 +168,23 @@ export const Signup = ({
               <button
                 type="button"
                 onClick={() => void handleResend()}
-                disabled={resending || !resendToken}
+                disabled={resending || !resendToken || resendWait > 0}
                 className="font-open-sans flex h-[33px] w-full cursor-pointer items-center justify-center rounded-md border border-[#DBE0CC] px-3 py-1.5 text-[0.7281rem] leading-5 text-[#50554C] transition hover:bg-[#F3F5EE] focus:outline-none focus-visible:ring-2 focus-visible:ring-[#5B612A] disabled:cursor-not-allowed disabled:opacity-70"
               >
-                {resending ? t("resending") : t("resend")}
+                {resending
+                  ? t("resending")
+                  : resendWait > 0
+                    ? t("resendIn", { time: formatCountdown(resendWait) })
+                    : t("resend")}
               </button>
               {resent ? (
                 <p role="status" className="text-[0.75rem] leading-4 text-[#676264]">
                   {t("resent")}
+                </p>
+              ) : null}
+              {resendTooSoon ? (
+                <p role="status" className="text-[0.75rem] leading-4 text-[#676264]">
+                  {t("resendTooSoon")}
                 </p>
               ) : null}
               {resendRefused ? (

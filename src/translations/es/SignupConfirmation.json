@@ -8,11 +8,13 @@
     "rejectedTitle": "Solicitud no aprobada",
     "rejectedBody": "Esta solicitud de acceso no fue aprobada.",
     "failedTitle": "No fue posible confirmar el correo",
-    "failedBody": "El enlace puede haber expirado o ya haber sido usado. Si ya confirmaste tu correo, solo tienes que entrar. Si no, ingresa tu correo para recibir un nuevo enlace.",
+    "failedBody": "El enlace puede haber expirado, ya haber sido usado o haber sido reemplazado por un correo más reciente: solo vale el enlace del último correo. Si ya confirmaste tu correo, solo tienes que entrar. Si no, ingresa tu correo para recibir un nuevo enlace.",
     "emailPlaceholder": "Correo electrónico",
     "resend": "Reenviar correo de confirmación",
+    "resendIn": "Reenviar en {time}",
     "resending": "Enviando...",
-    "resent": "Si la dirección está registrada, se envió un nuevo correo.",
+    "resent": "Si la dirección está registrada, se envió un nuevo correo. Usa su enlace: el del correo anterior deja de valer.",
+    "resendTooSoon": "Enviamos un correo hace poco. Espera antes de pedir otro.",
     "backHome": "Volver a la página de inicio"
   }
 }

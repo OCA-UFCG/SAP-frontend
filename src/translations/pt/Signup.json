@@ -21,10 +21,12 @@
     "hasAccount": "Já tem conta?",
     "signIn": "Entrar",
     "successTitle": "Confirme seu email",
-    "successDescription": "Enviamos um link para o endereço informado. Abra o link para confirmar o cadastro.",
+    "successDescription": "Enviamos um link para o endereço informado. Abra o link para confirmar o cadastro. Pode levar alguns minutos para chegar; confira também a caixa de spam.",
     "genericError": "Não foi possível concluir o cadastro. Tente novamente.",
     "resend": "Reenviar email de confirmação",
+    "resendIn": "Reenviar em {time}",
     "resending": "Enviando...",
-    "resent": "Se o endereço estiver cadastrado, um novo email foi enviado."
+    "resent": "Se o endereço estiver cadastrado, um novo email foi enviado. Use o link dele: o do email anterior deixa de valer.",
+    "resendTooSoon": "Enviamos um email há pouco. Aguarde para pedir outro."
   }
 }

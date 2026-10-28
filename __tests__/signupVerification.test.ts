@@ -35,7 +35,7 @@ describe("sendVerificationEmail", () => {
   });
 
   it("reports success when the message actually went out", async () => {
-    await expect(sendVerificationEmail("fulano@ufcg.edu.br")).resolves.toBe(true);
+    await expect(sendVerificationEmail("fulano@ufcg.edu.br")).resolves.toBe("sent");
   });
 
   // Antes devolvia `true` mesmo sem credencial configurada, e quem chamava
@@ -84,7 +84,7 @@ describe("sendVerificationEmail", () => {
     vi.spyOn(console, "error").mockImplementation(() => undefined);
 
     await expect(sendVerificationEmail("fulano@ufcg.edu.br")).resolves.toBe(
-      false,
+      "failed",
     );
     expect(sendMailMock).not.toHaveBeenCalled();
   });
@@ -93,7 +93,7 @@ describe("sendVerificationEmail", () => {
     sendMailMock.mockResolvedValue({ delivered: false });
 
     await expect(sendVerificationEmail("fulano@ufcg.edu.br")).resolves.toBe(
-      false,
+      "failed",
     );
   });
 
@@ -102,8 +102,25 @@ describe("sendVerificationEmail", () => {
     vi.spyOn(console, "error").mockImplementation(() => undefined);
 
     await expect(sendVerificationEmail("fulano@ufcg.edu.br")).resolves.toBe(
-      false,
+      "failed",
     );
+  });
+
+  // O Firebase recusa um link novo para a mesma conta antes de cerca de um
+  // minuto. Separar o caso deixa o reenvio pedir para esperar em vez de dizer
+  // "enviado".
+  it("tells a Firebase throttle apart from other failures", async () => {
+    generateLinkMock.mockRejectedValue(
+      new Error(
+        'An internal error has occurred. Raw server response: "{"error":{"code":400,"message":"TOO_MANY_ATTEMPTS_TRY_LATER"}}"',
+      ),
+    );
+    vi.spyOn(console, "error").mockImplementation(() => undefined);
+
+    await expect(sendVerificationEmail("fulano@ufcg.edu.br")).resolves.toBe(
+      "throttled",
+    );
+    expect(sendMailMock).not.toHaveBeenCalled();
   });
 
   // O link é credencial: não pode aparecer em log, telemetria nem mensagem de

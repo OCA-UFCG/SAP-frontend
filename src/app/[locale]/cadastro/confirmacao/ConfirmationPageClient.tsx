@@ -9,6 +9,9 @@ import { LOGIN_PATH } from "@/config/accessRoutes";
 import { Captcha } from "@/components/Captcha/Captcha";
 import { LoginField } from "@/components/Login/LoginField";
 import PlatformLoading from "@/app/[locale]/platform/loading";
+import { VERIFICATION_EMAIL_COOLDOWN_SECONDS } from "@/config/verificationEmailCooldown";
+import { formatCountdown, useCountdown } from "@/hooks/useCountdown";
+import { requestVerificationResend } from "@/lib/verification-resend";
 
 type Outcome = "checking" | "approved" | "pending" | "rejected" | "failed";
 
@@ -35,6 +38,8 @@ export function ConfirmationPageClient() {
   const [resending, setResending] = useState(false);
   const [resent, setResent] = useState(false);
   const [resendRefused, setResendRefused] = useState(false);
+  const [resendTooSoon, setResendTooSoon] = useState(false);
+  const [resendWait, startResendWait] = useCountdown();
   // O token só vale uma vez: cada reenvio troca a `key` do widget.
   const [captchaToken, setCaptchaToken] = useState<string | null>(null);
   const [captchaAttempt, setCaptchaAttempt] = useState(0);
@@ -79,28 +84,26 @@ export function ConfirmationPageClient() {
     if (!captchaToken) return;
 
     setResending(true);
-    let refused = false;
 
     try {
-      const response = await fetch("/api/signup/resend", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ email, captchaToken }),
-      });
-      // Só a recusa do captcha é contada: dizer "enviado" deixaria a pessoa
-      // esperando um e-mail que não saiu.
-      refused = response.status === 400;
-    } catch {
-      // A resposta é sempre genérica de qualquer forma; falhar em silêncio aqui
-      // mostra a mesma mensagem que o sucesso, que é o comportamento desejado.
+      // Dizer "enviado" quando o servidor recusou deixaria a pessoa esperando
+      // um e-mail que não saiu.
+      const outcome = await requestVerificationResend(email, captchaToken);
+      setResendRefused(outcome.status === "captcha");
+      setResendTooSoon(outcome.status === "wait");
+      setResent(outcome.status === "sent");
+
+      if (outcome.status === "sent") {
+        startResendWait(VERIFICATION_EMAIL_COOLDOWN_SECONDS);
+      } else if (outcome.status === "wait") {
+        startResendWait(outcome.seconds);
+      }
     } finally {
       setResending(false);
-      setResendRefused(refused);
-      setResent(!refused);
       setCaptchaToken(null);
       setCaptchaAttempt((attempt) => attempt + 1);
     }
-  }, [email, captchaToken]);
+  }, [email, captchaToken, startResendWait]);
 
   if (outcome === "checking") {
     return (
@@ -158,14 +161,23 @@ export function ConfirmationPageClient() {
             <button
               type="button"
               onClick={handleResend}
-              disabled={resending || !email || !captchaToken}
+              disabled={resending || !email || !captchaToken || resendWait > 0}
               className={`${PRIMARY_BUTTON} cursor-pointer`}
             >
-              {resending ? t("resending") : t("resend")}
+              {resending
+                ? t("resending")
+                : resendWait > 0
+                  ? t("resendIn", { time: formatCountdown(resendWait) })
+                  : t("resend")}
             </button>
             {resent ? (
               <p role="status" className="text-[0.8125rem] leading-5 text-[#50554C]">
                 {t("resent")}
+              </p>
+            ) : null}
+            {resendTooSoon ? (
+              <p role="status" className="text-[0.8125rem] leading-5 text-[#50554C]">
+                {t("resendTooSoon")}
               </p>
             ) : null}
             {resendRefused ? (

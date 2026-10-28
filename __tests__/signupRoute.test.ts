@@ -50,6 +50,7 @@ import { POST as signup } from "@/app/api/signup/route";
 import {
   SIGNUP_RATE_LIMIT_MAX_REQUESTS,
   clearSignupRateLimits,
+  consumeVerificationEmailCooldown,
 } from "@/app/api/signup/rate-limit";
 
 const ORIGIN = "https://sap.example";
@@ -107,6 +108,22 @@ describe("POST /api/signup", () => {
 
     expect(response.status).toBe(404);
     expect(createUserMock).not.toHaveBeenCalled();
+  });
+
+  // O "reenviar" da tela seguinte espera a partir deste envio: o Firebase
+  // recusaria um link novo para a mesma conta logo em seguida.
+  it("starts the wait before the next confirmation email", async () => {
+    await signup(
+      buildRequest({
+        email: "Fulano@ufcg.edu.br",
+        password: VALID_PASSWORD,
+        intention: "Pesquisa sobre seca",
+      }),
+    );
+
+    expect(consumeVerificationEmailCooldown("fulano@ufcg.edu.br").limited).toBe(
+      true,
+    );
   });
 
   it("sends the verification email to the address that signed up", async () => {
