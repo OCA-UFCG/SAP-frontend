@@ -1,8 +1,12 @@
 {
   "Glossary": {
     "title": "Glossário",
-    "term": "Termo",
-    "definition": "Definição",
+    "subtitle": "Entenda os termos usados na Plataforma",
+    "searchPlaceholder": "Busque o termo aqui",
+    "letterFilter": "Filtrar por letra inicial",
+    "allLetters": "Todos",
+    "noResults": "Nenhum termo encontrado.",
+    "resultCount": "{count, plural, one {# termo encontrado} other {# termos encontrados}}",
     "empty": "Nenhum termo cadastrado ainda."
   }
 }

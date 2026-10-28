@@ -1,8 +1,12 @@
 {
   "Glossary": {
     "title": "Glossary",
-    "term": "Term",
-    "definition": "Definition",
+    "subtitle": "Understand the terms used in the Platform",
+    "searchPlaceholder": "Search for a term",
+    "letterFilter": "Filter by first letter",
+    "allLetters": "All",
+    "noResults": "No terms found.",
+    "resultCount": "{count, plural, one {# term found} other {# terms found}}",
     "empty": "No terms registered yet.",
     "entries": {
       "2g4SpG69RFS0IrjlLW1p1w": {
