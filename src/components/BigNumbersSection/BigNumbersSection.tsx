@@ -26,14 +26,9 @@ export const BigNumbersSection = ({ items }: Props) => {
             <div
               key={item.label}
               style={revealOrder(index)}
-              className="reveal-item group relative flex flex-col gap-2 px-4 py-6 lg:flex-1 lg:border-r lg:border-[#B4BA61] lg:last:border-r-0"
+              className="reveal-item relative flex flex-col gap-2 px-4 py-6 lg:flex-1 lg:border-r lg:border-[#B4BA61] lg:last:border-r-0"
             >
-              {/* Traço verde que cresce sob o número no hover. */}
-              <span
-                aria-hidden
-                className="absolute inset-x-4 bottom-3 h-0.5 origin-left scale-x-0 rounded-full bg-[#B4BA61] transition-[scale] duration-300 group-hover:scale-x-100"
-              />
-              <span className="origin-left font-open-sans text-[2rem] font-extrabold leading-[44px] text-[#5B612A] transition-[scale,color] duration-300 group-hover:text-[#4F5424] motion-safe:group-hover:scale-110">
+              <span className="font-open-sans text-[2rem] font-extrabold leading-[44px] text-[#5B612A]">
                 <CountUp value={item.value} />
               </span>
               <div className="flex flex-col font-open-sans">
