@@ -17,15 +17,15 @@ export const Header = ({ content }: { content: ISection[] }) => {
               A aba é uma etiqueta que vem de trás da barra, e o triângulo
               escuro é a dobra dela. No hover a etiqueta desce como se fosse
               puxada e a dobra estica junto até a nova ponta. */}
-          <div className="peer/tab absolute flex items-center justify-center top-0 left-0 z-50 h-20.5 bg-[#646B2D] w-50 max-sm:w-36 transition-[height,background-color] duration-300 ease-[cubic-bezier(0.34,1.56,0.64,1)] has-[a:hover]:bg-[#5B612A] motion-safe:has-[a:hover]:h-22">
+          <div className="peer/tab absolute flex items-center justify-center top-0 left-0 z-50 h-20.5 bg-[#646B2D] w-44 max-sm:w-36 transition-[height,background-color] duration-300 ease-[cubic-bezier(0.34,1.56,0.64,1)] has-[a:hover]:bg-[#5B612A] motion-safe:has-[a:hover]:h-22">
             <Link
               href="/"
               className="relative z-10"
             >
-              <SedesLogo className="h-16.5 max-sm:h-13 w-auto overflow-visible" />
+              <SedesLogo className="h-16 max-sm:h-13 w-auto overflow-visible" />
             </Link>
           </div>
-          <span className="absolute top-[66px] left-[187px] max-sm:left-[131px] z-[45] w-[26px] h-[19px] origin-top transition-[scale] duration-300 ease-[cubic-bezier(0.34,1.56,0.64,1)] motion-safe:peer-has-[a:hover]/tab:scale-y-[1.37] pointer-events-none">
+          <span className="absolute top-[66px] left-[163px] max-sm:left-[131px] z-[45] w-[26px] h-[19px] origin-top transition-[scale] duration-300 ease-[cubic-bezier(0.34,1.56,0.64,1)] motion-safe:peer-has-[a:hover]/tab:scale-y-[1.37] pointer-events-none">
             <Icon
               id="icon-triangle"
               className="block w-full h-full fill-[#21240F] rotate-180"
