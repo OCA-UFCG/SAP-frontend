@@ -139,6 +139,8 @@ export interface HomeToolTextI {
   name: string;
   /** Foto do Contentful; vazia, o card usa a foto do código. */
   image?: string;
+  /** Foto do card na página Sobre Nós; vazia, usa a da home. */
+  aboutImage?: string;
   shortText: string;
   /** Texto do "Ver mais"; vazio, o card não mostra o "Ver mais". */
   fullText?: string;

@@ -2,11 +2,17 @@
 
 import { useMemo, useState } from "react";
 import { useTranslations } from "next-intl";
+import { documentToReactComponents } from "@contentful/rich-text-react-renderer";
 import { Icon } from "../Icon/Icon";
-import { GlossaryTermI } from "@/repositories/content/siteContentRepository";
+import {
+  GlossaryHeaderI,
+  GlossaryTermI,
+} from "@/repositories/content/siteContentRepository";
 
 type Props = {
   terms: GlossaryTermI[];
+  /** Título e frase do topo vindos do Contentful; sem eles, os das traduções. */
+  header?: GlossaryHeaderI;
 };
 
 // Busca e letra inicial ignoram acento e caixa: "indice" acha "Índice de
@@ -19,7 +25,7 @@ const normalize = (text: string) =>
 
 const initialOf = (term: string) => normalize(term.trim()).charAt(0);
 
-export const GlossarySection = ({ terms }: Props) => {
+export const GlossarySection = ({ terms, header }: Props) => {
   const t = useTranslations("Glossary");
   const [query, setQuery] = useState("");
   const [letter, setLetter] = useState<string | null>(null);
@@ -71,11 +77,15 @@ export const GlossarySection = ({ terms }: Props) => {
         <div className="w-full max-w-[1440px] mx-auto px-6 sm:px-10 lg:px-[80px] pt-12 lg:pt-[80px] pb-12 flex flex-col lg:flex-row gap-6">
           <div className="lg:w-[465px] lg:shrink-0 flex flex-col gap-[10px]">
             <h1 className="font-bold text-[2rem] sm:text-[2.5rem] lg:text-[3rem] leading-[120%] text-[#292829]">
-              {t("title")}
+              {header?.title ?? t("title")}
             </h1>
-            <p className="text-[1rem] leading-[24px] text-[#292829]">
-              {t("subtitle")}
-            </p>
+            <div className="text-[1rem] leading-[24px] text-[#292829]">
+              {header?.text ? (
+                documentToReactComponents(header.text.json)
+              ) : (
+                <p>{t("subtitle")}</p>
+              )}
+            </div>
           </div>
 
           {terms.length > 0 && (

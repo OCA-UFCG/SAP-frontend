@@ -142,10 +142,10 @@ export function mergeHomeImages(
     ...base,
     tools: {
       ...base.tools,
-      items: base.tools.items.map((item) => ({
-        ...item,
-        image: cms.tools.find((tool) => tool.id === item.id)?.image,
-      })),
+      items: base.tools.items.map((item) => {
+        const tool = cms.tools.find((cmsTool) => cmsTool.id === item.id);
+        return { ...item, image: tool?.image, aboutImage: tool?.aboutImage };
+      }),
     },
     publicPolicy: {
       ...base.publicPolicy,

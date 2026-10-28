@@ -8,15 +8,22 @@ import { InstitutionsSection } from "@/components/InstitutionsSection/Institutio
 import { getAboutPageContent } from "@/repositories/content/siteContentRepository";
 import { getTranslations } from "next-intl/server";
 import { pageTitleMetadata } from "@/lib/page-metadata";
-import {
-  MOCK_ACTION_PLAN_CONTENT,
-  MOCK_PLATFORM_MODULES_CONTENT,
-  MOCK_WORKING_GROUP_CONTENT,
-} from "../homePage.mocks";
+import { routing } from "@/translations/routing-config";
+import { BLOCKS, Document } from "@contentful/rich-text-types";
+import { MOCK_PLATFORM_MODULES_CONTENT } from "../homePage.mocks";
 import { getHomeTextsForLocale } from "../homeTexts";
 
 export const generateMetadata = pageTitleMetadata("about");
 
+const EMPTY_TEXT: { json: Document } = {
+  json: { nodeType: BLOCKS.DOCUMENT, data: {}, content: [] },
+};
+
+/**
+ * Cada bloco vem de uma entrada "Sobre e Glossário – Seção" do Contentful; um
+ * bloco sem entrada não aparece. Em inglês e espanhol, os textos dos blocos
+ * continuam nas traduções e do Contentful vêm as fotos e os números.
+ */
 export default async function SobreOSedesPage({
   params,
 }: {
@@ -37,32 +44,60 @@ export default async function SobreOSedesPage({
     );
   }
 
-  // As fotos das abas são as do design; o texto continua vindo das traduções
-  // (ou do Contentful, quando faltar tradução).
-  const tabs = data.tabs.map((tab) => ({
-    ...tab,
-    image: { url: `/sobre/para-quem-${tab.identifier}.jpg` },
-  }));
+  const { sections } = data;
+  const isPortuguese = locale === routing.defaultLocale;
+  const { topo, pab, eixos, equipe, modulos, instituicoes } = sections;
+  const gt = sections["grupo-de-trabalho"];
+  const paraQuem = sections["para-quem"];
+  const actionPlan = {
+    title: pab?.title ?? "",
+    text: pab?.text ?? EMPTY_TEXT,
+    stats: pab?.pairs ?? [],
+    axesTitle: eixos?.title ?? "",
+    axes: eixos?.axes ?? [],
+  };
 
   return (
     <div className="flex min-h-screen flex-col">
       <div className="grow">
-        <AboutHero />
-        <ActionPlanSection content={MOCK_ACTION_PLAN_CONTENT} />
-        <WorkingGroupSection
-          content={MOCK_WORKING_GROUP_CONTENT}
-          image="/sobre/grupo-de-trabalho.jpg"
-          className="bg-[#F6F7F6]"
+        {topo && <AboutHero content={topo} />}
+        {pab && <ActionPlanSection content={actionPlan} />}
+        {gt && (
+          <WorkingGroupSection
+            content={{
+              title: gt.title,
+              text: gt.text ?? EMPTY_TEXT,
+              milestones: gt.milestones,
+            }}
+            image={gt.images[0]?.url}
+            className="bg-[#F6F7F6]"
+          />
+        )}
+        {eixos && <ThematicAxesSection content={actionPlan} />}
+        {paraQuem && (
+          <TabsSection contentData={paraQuem.tabs} title={paraQuem.title} />
+        )}
+        {modulos && (
+          <AboutModulesSection
+            modules={MOCK_PLATFORM_MODULES_CONTENT.modules}
+            texts={homeTexts.tools}
+            title={modulos.title}
+          />
+        )}
+        {equipe && (
+          <AboutSection
+            content={{
+              title: equipe.title,
+              text: equipe.text,
+              image: equipe.images[0],
+              rows: equipe.pairs,
+            }}
+          />
+        )}
+        <InstitutionsSection
+          partners={data.partners}
+          title={isPortuguese ? instituicoes?.title : undefined}
         />
-        <ThematicAxesSection content={MOCK_ACTION_PLAN_CONTENT} />
-        <TabsSection contentData={tabs} />
-        <AboutModulesSection
-          modules={MOCK_PLATFORM_MODULES_CONTENT.modules}
-          texts={homeTexts.tools}
-          image="/sobre/modulos-paisagem.jpg"
-        />
-        {data.team && <AboutSection content={data.team} />}
-        <InstitutionsSection partners={data.partners} />
       </div>
     </div>
   );

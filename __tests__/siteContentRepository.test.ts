@@ -100,42 +100,67 @@ describe("siteContentRepository", () => {
     ]);
   });
 
-  it("returns the audience tabs, the team and the partners for the about page, ignoring null entries", async () => {
+  it("groups the about page blocks by section and splits their items by type", async () => {
     mockedGetContent.mockResolvedValue({
-      secaoSobreCollection: {
+      planoAcaoBrasileiroCollection: {
         items: [
           null,
           {
-            identifier: "sobre-nos",
-            title: "Sobre nós",
+            identifier: "topo",
+            title: "Sobre Nós",
             text: { json: { content: [] } },
-            image: { url: "//images.ctfassets.net/hero.jpg", title: "Hero" },
-            includeInAboutSap: true,
+            imagesCollection: {
+              items: [{ url: "/a.jpg", title: "A" }, null, { url: "/c.jpg", title: null }],
+            },
+            itemsCollection: { items: [] },
           },
           {
-            identifier: "gestao-publica",
-            title: "Gestão original",
-            text: { json: { content: [] } },
-            image: { url: "/gestao.png", title: "Gestão" },
-            includeInAboutSap: false,
+            identifier: "pab",
+            title: "O PAB-Brasil",
+            text: null,
+            imagesCollection: { items: [] },
+            itemsCollection: {
+              items: [
+                { __typename: "StatCard", label: "Pessoas beneficiadas", value: "39 Milhões" },
+                null,
+              ],
+            },
           },
           {
-            identifier: "sociedade-e-comunidades",
-            title: "Sociedade original",
-            text: { json: { content: [] } },
-            image: { url: "/sociedade.png", title: "Sociedade" },
-            includeInAboutSap: false,
+            identifier: "eixos",
+            title: "Eixos",
+            imagesCollection: null,
+            itemsCollection: {
+              items: [
+                {
+                  __typename: "Projects",
+                  title: "Pesquisa",
+                  description: null,
+                  actionsCount: 38,
+                  executor: "MMA",
+                  executorActionsCount: 12,
+                  partners: null,
+                  isSedesAxis: true,
+                },
+              ],
+            },
           },
-        ],
-      },
-      aboutCollection: {
-        items: [
-          null,
           {
-            sys: { id: "team-1" },
-            title: "Equipe de Desenvolvimento",
-            text: { json: { content: [] } },
-            image: { url: "/equipe.jpg", title: "Equipe", width: 1, height: 1 },
+            identifier: "para-quem",
+            title: "Para quem é o SEDES?",
+            imagesCollection: { items: [] },
+            itemsCollection: {
+              items: [
+                {
+                  __typename: "SecaoSobre",
+                  identifier: "gestao-publica",
+                  title: "Gestão pública",
+                  text: { json: { content: [] } },
+                  image: { url: "/gestao.jpg", title: "Gestão" },
+                  includeInAboutSap: false,
+                },
+              ],
+            },
           },
         ],
       },
@@ -144,11 +169,29 @@ describe("siteContentRepository", () => {
 
     const about = await getAboutPageContent();
 
-    expect(about?.tabs.map((tab) => tab.identifier)).toEqual([
-      "sociedade-e-comunidades",
-      "gestao-publica",
+    expect(Object.keys(about?.sections ?? {})).toEqual(["topo", "pab", "eixos", "para-quem"]);
+    expect(about?.sections.topo?.images).toEqual([
+      { url: "/a.jpg", title: "A" },
+      { url: "/c.jpg", title: undefined },
     ]);
-    expect(about?.team?.title).toBe("Equipe de Desenvolvimento");
+    expect(about?.sections.pab?.text).toBeUndefined();
+    expect(about?.sections.pab?.pairs).toEqual([
+      { label: "Pessoas beneficiadas", value: "39 Milhões" },
+    ]);
+    expect(about?.sections.eixos?.axes[0]).toMatchObject({
+      partners: [],
+      isSedesAxis: true,
+      description: undefined,
+    });
+    expect(about?.sections["para-quem"]?.tabs).toEqual([
+      {
+        identifier: "gestao-publica",
+        title: "Gestão pública",
+        text: { json: { content: [] } },
+        image: { url: "/gestao.jpg", title: "Gestão" },
+        includeInAboutSap: false,
+      },
+    ]);
     expect(about?.partners).toEqual([]);
   });
 });

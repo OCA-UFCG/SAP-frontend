@@ -3,10 +3,10 @@
     "title": "Conozca nuestro Equipo de Desarrollo",
     "text": "El desarrollo del SEDES es coordinado técnicamente por el Observatorio de la Caatinga y la Desertificación (OCA), iniciativa conjunta de la Universidad Federal de Campina Grande (UFCG) y del Instituto Nacional del Semiárido (INSA), en el marco del Convenio de Ejecución Descentralizada n.º 07/2024 SNPCT/MMA/UFCG, firmado con el Departamento de Combate a la Desertificación y Mitigación de los Efectos de la Sequía (DCDE/MMA).",
     "infoRows": {
-      "ted": "n.º 07/2024 SNPCT/MMA/UFCG",
-      "oca": "Ejecución técnica",
-      "ufcgInsa": "Instituciones ejecutoras",
-      "dcdeMma": "Coordinación institucional"
+      "0": "n.º 07/2024 SNPCT/MMA/UFCG",
+      "1": "Ejecución técnica",
+      "2": "Instituciones ejecutoras",
+      "3": "Coordinación institucional"
     }
   }
 }

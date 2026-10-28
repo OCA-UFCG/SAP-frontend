@@ -1,5 +1,6 @@
 import { afterEach, describe, expect, it } from "vitest";
 import { cleanup, fireEvent, render, screen } from "@testing-library/react";
+import { BLOCKS } from "@contentful/rich-text-types";
 import { GlossarySection } from "@/components/GlossarySection/GlossarySection";
 
 const terms = [
@@ -28,6 +29,37 @@ const shownTerms = () =>
 
 describe("GlossarySection", () => {
   afterEach(cleanup);
+
+  it("usa o título e a frase do topo vindos do Contentful", () => {
+    render(
+      <GlossarySection
+        terms={terms}
+        header={{
+          title: "Termos do SEDES",
+          text: {
+            json: {
+              nodeType: BLOCKS.DOCUMENT,
+              data: {},
+              content: [
+                {
+                  nodeType: BLOCKS.PARAGRAPH,
+                  data: {},
+                  content: [
+                    { nodeType: "text", value: "Frase nova", marks: [], data: {} },
+                  ],
+                },
+              ],
+            },
+          },
+        }}
+      />,
+    );
+
+    expect(screen.getByRole("heading", { level: 1 }).textContent).toBe(
+      "Termos do SEDES",
+    );
+    expect(screen.getByText("Frase nova")).toBeTruthy();
+  });
 
   it("mostra um botão por letra inicial, com a letra sem acento", () => {
     render(<GlossarySection terms={terms} />);

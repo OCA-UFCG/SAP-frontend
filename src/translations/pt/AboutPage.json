@@ -1,12 +1,7 @@
 {
   "AboutPage": {
     "notFound": "Conteúdo não encontrado.",
-    "hero": {
-      "title": "Sobre Nós",
-      "text": "O SEDES materializa, em nível operacional, a previsão estabelecida pela <b>Lei nº 13.153/2015</b>, no âmbito da <b>Política Nacional de Combate à Desertificação e Mitigação dos Efeitos da Seca (PNCD)</b>, de estabelecimento de um sistema integrado de informações sobre essas temáticas. O Sistema também se insere no <b>Plano de Ação Brasileiro de Combate à Desertificação e Mitigação dos Efeitos da Seca (PAB-Brasil)</b>, lançado pelo <b>Ministério do Meio Ambiente e Mudança do Clima (MMA)</b>, constituindo uma ferramenta de apoio à produção, integração e utilização de informações para planejamento, acompanhamento e tomada de decisão."
-    },
     "modules": {
-      "title": "Conheça os Módulos",
       "seeMore": "Ver mais",
       "seeLess": "Ver menos"
     }
