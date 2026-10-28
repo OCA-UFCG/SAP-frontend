@@ -11,6 +11,7 @@ import {
   REPORT_TERRITORY_OUTLINE_LAYER_ID,
   REPORT_TERRITORY_OUTLINE_SOURCE_ID,
 } from "@/components/Map/mapDefinitions";
+import { CLASSIFICATION_OVERVIEW_SOURCE_ID } from "@/components/Map/classificationLayers";
 import { removeIndexChoroplethLayers } from "@/components/Map/indexChoroplethLayers";
 import {
   MUNICIPALITY_SOURCE_ID,
@@ -156,6 +157,11 @@ export function releaseReportMap(pooled: PooledReportMap) {
         source: MUNICIPALITY_SOURCE_ID,
         sourceLayer: MUNICIPALITY_SOURCE_LAYER,
       });
+      // A fonte de visão geral fica no mapa, porque são 2 MB para reprocessar;
+      // só as faixas pintadas saem.
+      if (map.getSource(CLASSIFICATION_OVERVIEW_SOURCE_ID)) {
+        map.removeFeatureState({ source: CLASSIFICATION_OVERVIEW_SOURCE_ID });
+      }
     } catch {
       // Um mapa que não aceita mais ser limpo é um mapa que não serve para a
       // próxima captura: cai no descarte abaixo em vez de derrubar a fila.

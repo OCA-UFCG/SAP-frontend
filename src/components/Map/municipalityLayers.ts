@@ -12,6 +12,14 @@ export const MUNICIPALITY_BORDER_MIN_ZOOM = 7;
 export const MUNICIPALITY_SELECTED_BORDER_MIN_ZOOM = 5;
 
 const MUNICIPALITY_TILES_PATH = "/api/tiles/{z}/{x}/{y}?tileset=cities";
+/**
+ * Os zooms que o `brazil-cities.mbtiles` tem. Sem declará-los a fonte pedia
+ * tiles fora do arquivo e recebia 404: abaixo do 5 não há o que mostrar (quem
+ * pinta ali é o GeoJSON de visão geral), e acima do 12 o MapLibre só amplia o
+ * tile do 12 se souber que ele é o último.
+ */
+const MUNICIPALITY_TILES_MIN_ZOOM = 5;
+const MUNICIPALITY_TILES_MAX_ZOOM = 12;
 
 const resolveMunicipalityTilesUrl = () => {
   if (typeof window === "undefined") return MUNICIPALITY_TILES_PATH;
@@ -42,6 +50,8 @@ const ensureMunicipalitySource = (map: maplibregl.Map) => {
     map.addSource(MUNICIPALITY_SOURCE_ID, {
       type: "vector",
       tiles: [resolveMunicipalityTilesUrl()],
+      minzoom: MUNICIPALITY_TILES_MIN_ZOOM,
+      maxzoom: MUNICIPALITY_TILES_MAX_ZOOM,
       promoteId: { [MUNICIPALITY_SOURCE_LAYER]: "CD_MUN" },
     });
   }

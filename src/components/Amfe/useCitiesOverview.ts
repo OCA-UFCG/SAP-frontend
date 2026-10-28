@@ -5,7 +5,7 @@ import type { MunicipalityOverviewGeoJson } from "@/components/Map/classificatio
 
 export const CITIES_OVERVIEW_URL = "/data/brazil-cities-overview.json";
 
-const fetchCitiesOverview = async () => {
+export const fetchCitiesOverview = async () => {
   const response = await fetch(CITIES_OVERVIEW_URL);
 
   if (!response.ok) {

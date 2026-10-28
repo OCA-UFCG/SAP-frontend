@@ -277,6 +277,77 @@ describe("ReportMapPreview", () => {
     );
   });
 
+  // Regressão: o relatório do Nordeste enquadra o mapa no zoom 3, abaixo do
+  // primeiro tile da malha municipal, e os índices de planilha saíam só com o
+  // contorno da região, sem nenhum município pintado.
+  it("pinta a coropleta pela visão geral num recorte abaixo do zoom da malha", async () => {
+    const overview = {
+      type: "FeatureCollection",
+      features: [
+        {
+          type: "Feature",
+          properties: { c: "2507507" },
+          geometry: { type: "Point", coordinates: [-34.9, -7.1] },
+        },
+      ],
+    };
+    const fetchMock = vi.fn(async () => ({
+      ok: true,
+      json: async () => overview,
+    }));
+    vi.stubGlobal("fetch", fetchMock);
+    const onCapture = vi.fn();
+
+    const { unmount } = render(
+      <ReportMapPreview
+        territory={resolveReportTerritory("2_regiao-nordeste")!}
+        layerId="pobreza_urbana"
+        period="2025"
+        choropleth={{
+          palette: ["#fee", "#f00"],
+          classByCode: { "2507507": 1 },
+        }}
+        onCapture={onCapture}
+      />,
+    );
+
+    await waitFor(() => expect(mapInstances).toHaveLength(1));
+    emit(0, "load");
+    await waitFor(() =>
+      expect(mapInstances[0].addSource).toHaveBeenCalledWith(
+        "amfe-cities-overview",
+        expect.objectContaining({ type: "geojson", data: overview }),
+      ),
+    );
+    expect(fetchMock).toHaveBeenCalledWith("/data/brazil-cities-overview.json");
+    expect(mapInstances[0].addLayer).toHaveBeenCalledWith(
+      expect.objectContaining({
+        id: "index-choropleth-overview-fills",
+        maxzoom: 5,
+      }),
+      undefined,
+    );
+    expect(mapInstances[0].setFeatureState).toHaveBeenCalledWith(
+      expect.objectContaining({ source: "amfe-cities-overview", id: "2507507" }),
+      { indexChoroplethClass: 1 },
+    );
+
+    emit(0, "idle");
+    await waitFor(() =>
+      expect(onCapture).toHaveBeenCalledWith(expect.any(String)),
+    );
+
+    // A fonte fica para o próximo mapa; só as faixas deste saem.
+    unmount();
+    expect(mapInstances[0].removeFeatureState).toHaveBeenCalledWith({
+      source: "amfe-cities-overview",
+    });
+    expect(mapInstances[0].removeSource).not.toHaveBeenCalledWith(
+      "amfe-cities-overview",
+    );
+    vi.unstubAllGlobals();
+  });
+
   it("does not initialize MapLibre when an image is already available", () => {
     render(
       <ReportMapPreview
