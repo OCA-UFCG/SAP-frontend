@@ -2,7 +2,6 @@ import {
   CONTENTFUL_COLLECTION_LIMIT,
   getContent,
 } from "@/infrastructure/contentful/client";
-import type { Document } from "@contentful/rich-text-types";
 import {
   AboutSectionI,
   IMainBanner,
@@ -10,7 +9,6 @@ import {
   SectionHeaderI,
   TabsSectionI,
 } from "@/utils/interfaces";
-import { normalizeContentfulImage } from "@/utils/functions";
 
 const GET_HOME_PAGE = `
   query GetHomePage($locale: String!) {
@@ -90,12 +88,26 @@ const GET_HOME_PAGE = `
 
 const GET_ABOUT_PAGE = `
   query GetAboutPage($locale: String!) {
-    secaoSobreCollection(limit: ${CONTENTFUL_COLLECTION_LIMIT}, locale: $locale, where: { includeInAboutSap: true }) {
+    secaoSobreCollection(limit: ${CONTENTFUL_COLLECTION_LIMIT}, locale: $locale) {
+      items {
+        identifier
+        title
+        text {
+          json
+        }
+        image {
+          url
+          title
+        }
+        includeInAboutSap
+      }
+    }
+
+    aboutCollection(limit: 1, locale: $locale) {
       items {
         sys {
           id
         }
-        identifier
         title
         text {
           json
@@ -106,16 +118,6 @@ const GET_ABOUT_PAGE = `
           width
           height
         }
-      }
-    }
-
-    cabealhoSeesCollection(limit: 1, locale: $locale) {
-      items {
-        sys {
-          id
-        }
-        title
-        description
       }
     }
 
@@ -167,8 +169,23 @@ const HOME_TAB_ORDER = [
   },
 ] as const;
 
-const ABOUT_HERO_IDENTIFIER = "sobre-nos";
-const ABOUT_SECTION_ORDER = ["sobre-seca", "sobre-desertificacao"] as const;
+/** As abas de "Para quem é o SEDES?", na ordem do design e com o título do código. */
+function orderTabs(items: TabsSectionI[]): TabsSectionI[] {
+  return HOME_TAB_ORDER.reduce<TabsSectionI[]>((acc, tabConfig) => {
+    const tab = items.find((item) => item.identifier === tabConfig.identifier);
+
+    if (!tab) {
+      return acc;
+    }
+
+    acc.push({
+      ...tab,
+      title: tabConfig.title,
+    });
+
+    return acc;
+  }, []);
+}
 
 interface HomeContentResponse {
   bannerCollection: { items: Array<IMainBanner | null> };
@@ -178,33 +195,10 @@ interface HomeContentResponse {
   secaoSobreCollection: { items: Array<TabsSectionI | null> };
 }
 
-interface ContentfulAboutSectionEntry {
-  sys: {
-    id: string;
-  };
-  identifier: string;
-  title: string;
-  text: {
-    json: Document;
-  };
-  image: {
-    url: string;
-    title?: string;
-    width?: number;
-    height?: number;
-  };
-}
-
 interface AboutPageResponse {
-  secaoSobreCollection: {
-    items: Array<ContentfulAboutSectionEntry | null>;
-  };
-  cabealhoSeesCollection: {
-    items: Array<SectionHeaderI | null>;
-  };
-  partnersCollection: {
-    items: Array<PartnerI | null>;
-  };
+  secaoSobreCollection: { items: Array<TabsSectionI | null> };
+  aboutCollection: { items: Array<AboutSectionI | null> };
+  partnersCollection: { items: Array<PartnerI | null> };
 }
 
 function isDefined<T>(value: T | null | undefined): value is T {
@@ -243,18 +237,8 @@ export interface HomePageContent {
 }
 
 export interface AboutPageContent {
-  hero?: {
-    title: string;
-    description: Document;
-    imageUrl: string;
-  };
-  aboutSections: Array<{
-    title: string;
-    text: Document;
-    imageUrl: string;
-    imageAlt: string;
-  }>;
-  partnersHeader: SectionHeaderI;
+  tabs: TabsSectionI[];
+  team?: AboutSectionI;
   partners: PartnerI[];
 }
 
@@ -282,22 +266,7 @@ export async function getHomePageContent(locale?: string): Promise<HomePageConte
       aboutSection: aboutItems[0],
       partnersHeader: headerItems[0],
       partners: partnerItems,
-      tabs: HOME_TAB_ORDER.reduce<TabsSectionI[]>((acc, tabConfig) => {
-        const tab = tabsItems.find(
-          (item) => item.identifier === tabConfig.identifier,
-        );
-
-        if (!tab) {
-          return acc;
-        }
-
-        acc.push({
-          ...tab,
-          title: tabConfig.title,
-        });
-
-        return acc;
-      }, []),
+      tabs: orderTabs(tabsItems),
     };
   } catch (error) {
     console.error("Erro ao buscar dados da home no Contentful:", error);
@@ -310,41 +279,13 @@ export async function getAboutPageContent(locale?: string): Promise<AboutPageCon
     const data = await getContent<AboutPageResponse>(GET_ABOUT_PAGE, {
       locale: mapLocaleToContentful(locale),
     });
-    const allSections =
-      data.secaoSobreCollection?.items?.filter(isDefined) ?? [];
-    const heroEntry = allSections.find(
-      (section) => section.identifier === ABOUT_HERO_IDENTIFIER,
-    );
-    const aboutEntries = ABOUT_SECTION_ORDER.map((identifier) =>
-      allSections.find((section) => section.identifier === identifier),
-    ).filter((section): section is NonNullable<typeof section> =>
-      Boolean(section),
-    );
-
-    const partnersHeader =
-      data.cabealhoSeesCollection?.items?.filter(isDefined)?.[0] ?? null;
-    const partners = data.partnersCollection?.items?.filter(isDefined) ?? [];
-
-    if (!partnersHeader) {
-      return null;
-    }
 
     return {
-      hero: heroEntry
-        ? {
-            title: heroEntry.title,
-            description: heroEntry.text.json,
-            imageUrl: normalizeContentfulImage(heroEntry.image.url),
-          }
-        : undefined,
-      aboutSections: aboutEntries.map((entry) => ({
-        title: entry.title,
-        text: entry.text.json,
-        imageUrl: normalizeContentfulImage(entry.image.url),
-        imageAlt: entry.image.title ?? entry.title,
-      })),
-      partnersHeader,
-      partners,
+      tabs: orderTabs(
+        data.secaoSobreCollection?.items?.filter(isDefined) ?? [],
+      ),
+      team: data.aboutCollection?.items?.filter(isDefined)?.[0],
+      partners: data.partnersCollection?.items?.filter(isDefined) ?? [],
     };
   } catch (error) {
     console.error("Erro ao buscar dados da página Sobre o SEDES:", error);

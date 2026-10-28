@@ -3,7 +3,6 @@
     "title": "{title}",
     "axesSection": {
       "title": "{title}",
-      "description": "{description}",
       "actionsLabel": "Ações",
       "executorLabel": "Executor",
       "partnersLabel": "Parceiros",

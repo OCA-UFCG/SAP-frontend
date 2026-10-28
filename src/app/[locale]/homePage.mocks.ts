@@ -7,7 +7,7 @@ import {
 import { BLOCKS } from "@contentful/rich-text-types";
 
 export const MOCK_ACTION_PLAN_CONTENT: ActionPlanSectionI = {
-  title: "O plano em que o SEDES está inserido",
+  title: "O PAB-Brasil",
   text: {
     json: {
       nodeType: BLOCKS.DOCUMENT,
@@ -30,15 +30,14 @@ export const MOCK_ACTION_PLAN_CONTENT: ActionPlanSectionI = {
     },
   },
   stats: [
-    { value: "39M", label: "Pessoas beneficiadas" },
+    { value: "39 Milhões", label: "Pessoas beneficiadas" },
     { value: "38", label: "Objetivos Estratégicos" },
     { value: "186", label: "Ações com indicadores" },
     { value: "05", label: "Eixos Temáticos" },
     { value: "18", label: "Ministérios envolvidos" },
-    { value: "1,6M+", label: "Municípios em ASD" },
+    { value: "1,6 mil+", label: "Municípios em ASD" },
   ],
-  axesTitle: "Eixos temáticos",
-  axesDescription: "Veja os 5 eixos que estruturam o plano e onde o SEDES atua.",
+  axesTitle: "5 eixos que estruturam o plano e onde o SEDES atua",
   axes: [
     {
       title: "Gestão sustentável e neutralidade da degradação da terra",
@@ -95,7 +94,7 @@ export const MOCK_WORKING_GROUP_CONTENT: WorkingGroupSectionI = {
             {
               nodeType: "text",
               value:
-                "Em 12 e 13 de maio de 2026, a Comissão Nacional de Combate à Desertificação (CNCD), por meio de sua Câmara Técnica de Implementação do PAB-Brasil, deliberou pela criação do GT-SEDES, em atenção ao Objetivo 3.4 do PAB. O objetivo do grupo foi construir, de forma colaborativa, a contribuição de cada instituição aos três módulos do SEDES e elaborar um Protocolo de Cooperação Técnica.",
+                "Em 12 e 13 de maio de 2026, a Comissão Nacional de Combate à Desertificação (CNCD), por meio de sua Câmara Técnica de Implementação do PAB-Brasil, deliberou pela criação do GT-SEDES, em atenção ao Objetivo 3.4 do PAB. O objetivo do grupo foi construir, de forma colaborativa, a contribuição de cada instituição ao SEDES e elaborar um Protocolo de Cooperação Técnica.",
               marks: [],
               data: {},
             },

@@ -88,7 +88,6 @@ export interface ActionPlanSectionI {
   };
   stats: StatCardI[];
   axesTitle: string;
-  axesDescription: string;
   axes: ThematicAxisI[];
 }
 

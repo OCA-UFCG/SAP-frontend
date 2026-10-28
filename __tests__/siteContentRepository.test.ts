@@ -100,40 +100,55 @@ describe("siteContentRepository", () => {
     ]);
   });
 
-  it("ignores null about sections from Contentful and still maps known sections", async () => {
+  it("returns the audience tabs, the team and the partners for the about page, ignoring null entries", async () => {
     mockedGetContent.mockResolvedValue({
       secaoSobreCollection: {
         items: [
           null,
           {
-            sys: { id: "hero-1" },
             identifier: "sobre-nos",
             title: "Sobre nós",
             text: { json: { content: [] } },
             image: { url: "//images.ctfassets.net/hero.jpg", title: "Hero" },
+            includeInAboutSap: true,
           },
           {
-            sys: { id: "seca-1" },
-            identifier: "sobre-seca",
-            title: "Sobre a seca",
+            identifier: "gestao-publica",
+            title: "Gestão original",
             text: { json: { content: [] } },
-            image: { url: "//images.ctfassets.net/seca.jpg", title: "Seca" },
+            image: { url: "/gestao.png", title: "Gestão" },
+            includeInAboutSap: false,
+          },
+          {
+            identifier: "sociedade-e-comunidades",
+            title: "Sociedade original",
+            text: { json: { content: [] } },
+            image: { url: "/sociedade.png", title: "Sociedade" },
+            includeInAboutSap: false,
           },
         ],
       },
-      cabealhoSeesCollection: {
+      aboutCollection: {
         items: [
-          { sys: { id: "header-1" }, title: "Parceiros", description: "Desc" },
+          null,
+          {
+            sys: { id: "team-1" },
+            title: "Equipe de Desenvolvimento",
+            text: { json: { content: [] } },
+            image: { url: "/equipe.jpg", title: "Equipe", width: 1, height: 1 },
+          },
         ],
       },
-      partnersCollection: { items: [] },
+      partnersCollection: { items: [null] },
     });
 
     const about = await getAboutPageContent();
 
-    expect(about?.hero?.title).toBe("Sobre nós");
-    expect(about?.aboutSections.map((section) => section.title)).toEqual([
-      "Sobre a seca",
+    expect(about?.tabs.map((tab) => tab.identifier)).toEqual([
+      "sociedade-e-comunidades",
+      "gestao-publica",
     ]);
+    expect(about?.team?.title).toBe("Equipe de Desenvolvimento");
+    expect(about?.partners).toEqual([]);
   });
 });

@@ -1,25 +1,14 @@
 {
   "AboutPage": {
     "notFound": "Content not found.",
-    "tabs": {
-      "about": "About drought and desertification",
-      "partners": "Partners"
+    "hero": {
+      "title": "About Us",
+      "text": "SEDES puts into practice the provision of <b>Law No. 13,153/2015</b>, under the <b>National Policy to Combat Desertification and Mitigate the Effects of Drought (PNCD)</b>, to establish an integrated information system on these topics. The System is also part of the <b>Brazilian Action Plan to Combat Desertification and Mitigate the Effects of Drought (PAB-Brazil)</b>, launched by the <b>Ministry of Environment and Climate Change (MMA)</b>, and serves as a tool to support the production, integration and use of information for planning, monitoring and decision-making."
     },
-    "content": {
-      "hero": {
-        "title": "About us",
-        "description": "The Strategic System on Desertification and Drought (SEDES) is the instrument that gives operational effect to the legal mandate to establish an integrated early warning information system for drought events and desertification processes. Under Law No. 13,153/2015, this duty is assigned to public authorities as part of the National Policy to Combat Desertification and Mitigate the Effects of Drought (PNCD). SEDES provides integrated, actionable information for planning, prioritizing, and responding to risks. The system advances the core objectives of the PNCD by turning observations and indicators into alerts and evidence for contingency, adaptation, livelihood protection, and resource allocation decisions."
-      },
-      "sections": {
-        "0": {
-          "title": "About drought",
-          "text": "Drought is understood as an abnormal condition of water scarcity that may involve precipitation, soil moisture, river flow, reservoir levels, or aquifers."
-        },
-        "1": {
-          "title": "About desertification",
-          "text": "Desertification is defined as land degradation in arid, semi-arid, and dry subhumid areas resulting from various factors and drivers, including climate variations and human activities."
-        }
-      }
+    "modules": {
+      "title": "Explore the Modules",
+      "seeMore": "See more",
+      "seeLess": "See less"
     }
   }
 }

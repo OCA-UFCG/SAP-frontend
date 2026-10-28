@@ -2,7 +2,6 @@ import Image from "next/image";
 import { AboutSectionI } from "@/utils/interfaces";
 import { useTranslations } from "next-intl";
 import { documentToReactComponents } from "@contentful/rich-text-react-renderer";
-import { Badge } from "@/components/Badge/Badge";
 
 const INFO_ROW_KEYS = ["ted", "oca", "ufcgInsa", "dcdeMma"] as const;
 
@@ -22,7 +21,6 @@ type Props = {
 
 export const AboutSection = ({ id, content, className = "" }: Props) => {
   const t = useTranslations("AboutSection");
-  const footerT = useTranslations("Footer");
   const imageSrc = content.image.url;
 
   const title = t("title", { title: content.title });
@@ -31,29 +29,29 @@ export const AboutSection = ({ id, content, className = "" }: Props) => {
   return (
     <section
       id={id}
-      className={`w-full scroll-mt-16.5 bg-white flex flex-col items-start ${className}`}
+      className={`w-full scroll-mt-16.5 bg-[#E4E5E2] flex flex-col items-start ${className}`}
     >
       <div className="w-full max-w-[1440px] mx-auto px-4 py-12 md:px-10 lg:px-[80px] flex flex-col gap-6">
         <div className="flex flex-col items-start gap-4">
-          <Badge label={footerT("aboutMenu.financiamento")} />
-          <h2 className="text-[1.5rem] md:text-[1.75rem] lg:text-[1.875rem] leading-[28px] md:leading-[32px] lg:leading-[36px] tracking-[-0.0075em] text-[#292829] font-semibold text-left">
+          <h2 className="text-[1.5rem] md:text-[1.75rem] lg:text-[1.875rem] leading-[28px] md:leading-[32px] lg:leading-[36px] tracking-[-0.0075em] font-open-sans text-[#292829] font-semibold text-left">
             {title}
           </h2>
-          <div className="text-[0.9375rem] md:text-[1rem] leading-[150%] text-[#292829] text-left">
+          <div className="font-inter text-[0.9375rem] md:text-[1rem] leading-[150%] text-[#292829] text-left">
             {text}
           </div>
         </div>
 
         <div className="flex flex-col lg:flex-row items-start lg:items-stretch gap-6 w-full">
-          <div className="flex w-full flex-1 flex-col justify-center gap-5">
+          <div className="flex w-full flex-1 flex-col justify-center gap-4">
             {INFO_ROW_KEYS.map((key) => (
-              <div key={key} className="flex min-h-[64px] items-stretch gap-px">
-                <div className="flex w-1/3 shrink-0 items-center rounded-l-lg bg-[#5B612A] px-5 py-2 sm:w-1/4">
-                  <span className="text-base sm:text-xl font-semibold leading-6 text-[#F8F7F8]">
+              <div key={key} className="flex min-h-[56px] items-stretch">
+                {/* Texto escuro: o branco do Figma no verde claro dá só 2,8:1. */}
+                <div className="flex w-1/3 shrink-0 items-center rounded-l-lg bg-[#989F43] px-5 py-2 sm:w-1/4">
+                  <span className="text-base sm:text-xl font-semibold leading-6 text-[#21240F]">
                     {INFO_ROW_LABELS[key]}
                   </span>
                 </div>
-                <div className="flex flex-1 items-center rounded-r-lg bg-[#E4E5E2] px-5 py-2">
+                <div className="flex flex-1 items-center rounded-r-lg bg-white px-5 py-2">
                   <span className="text-sm sm:text-base font-semibold leading-6 text-[#292829]">
                     {t(`infoRows.${key}`)}
                   </span>
