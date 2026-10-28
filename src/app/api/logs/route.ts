@@ -38,7 +38,7 @@ function isFirebaseAdminConfigurationError(error: unknown) {
 }
 
 export async function POST(req: Request) {
-  if (!hasTrustedMutationOrigin(req, { trustHostHeaders: true })) {
+  if (!hasTrustedMutationOrigin(req)) {
     return NextResponse.json(
       { error: "Untrusted logs origin." },
       { status: 403 },
