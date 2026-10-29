@@ -14,8 +14,8 @@ const PAGE_CONTENT_HEIGHT = `${297 - 2 * PAGE_MARGIN_MM.vertical}mm`;
 
 const PRINT_OVERRIDES = `
       <style>
-        @page{size:A4;margin:${PAGE_MARGIN_MM.vertical}mm ${PAGE_MARGIN_MM.horizontal}mm}
-        @page report-cover{margin:0}
+        @page{size:A4;margin:${PAGE_MARGIN_MM.vertical}mm ${PAGE_MARGIN_MM.horizontal}mm;@bottom-center{content:counter(page);font:10px "Open Sans",sans-serif;color:#6E696B}}
+        @page report-cover{margin:0;@bottom-center{content:none}}
         html,body{width:auto;margin:0;background:#fff}
         body{-webkit-print-color-adjust:exact;print-color-adjust:exact}
         .report-paper{box-sizing:border-box;width:auto!important;min-height:auto!important;margin:0!important;padding:0!important;overflow:visible;box-shadow:none!important}
@@ -25,6 +25,10 @@ const PRINT_OVERRIDES = `
         @media print{
           /* A capa sangra até a borda da folha, numa página só dela. */
           .report-cover{page:report-cover;break-after:page;page-break-after:always}
+          /* A apresentação fica sozinha na página seguinte; o sumário começa
+             na outra. */
+          .report-presentation{break-after:page;page-break-after:always}
+          .report-presentation p,.report-situation p,.report-narrative p,.report-notes p{text-align:justify}
           .report-chart-screen{display:none!important}
           .report-chart-print{display:block!important}
           .report-print-chart-svg{display:block;width:100%!important;height:auto!important;overflow:visible!important}
@@ -51,6 +55,9 @@ const PRINT_OVERRIDES = `
           .report-time-series,.report-spatial,.report-class-coverage{break-inside:auto;page-break-inside:auto}
           .report-time-series>.report-block,.report-spatial>.report-block,.report-class-coverage>.report-block{break-inside:auto;page-break-inside:auto}
           .report-map-frame,.report-chart-print{break-inside:avoid;page-break-inside:avoid}
+          /* O cartão do mapa já não tem título em cima: partido, ele deixava
+             no pé da página um retângulo cinza vazio, com o mapa na seguinte. */
+          .report-spatial>.report-block{break-inside:avoid;page-break-inside:avoid}
           .report-narrative{break-inside:auto;page-break-inside:auto}
           .report-notes{break-inside:auto;page-break-inside:auto;margin-top:8mm!important;padding-top:5mm!important}
           .report-document-footer{break-inside:avoid;page-break-inside:avoid}
@@ -192,7 +199,7 @@ export async function measureReportPages(paper: HTMLElement, locale: string) {
     paged.textContent = `
       html{width:auto!important;height:auto!important}
       body{box-sizing:content-box!important;width:${PAGE_CONTENT_WIDTH}!important;height:${PAGE_CONTENT_HEIGHT}!important;margin:0!important;padding:0!important;column-width:${PAGE_CONTENT_WIDTH};column-gap:0;column-fill:auto}
-      .report-summary{break-after:column}
+      .report-presentation,.report-summary{break-after:column}
       .report-paper .overflow-hidden{overflow:clip!important}`;
     doc.head.append(paged);
     // A diagramação é o que dispara o download das fontes usadas; só depois

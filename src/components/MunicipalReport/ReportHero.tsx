@@ -25,8 +25,10 @@ export function ReportHero({
   const locale = useLocale();
   const generatedAt = new Date(report.generatedAt).toLocaleDateString(locale);
 
+  // No PDF, a página de apresentação (`ReportPresentation`) ocupa o lugar do
+  // cabeçalho.
   return (
-    <header id="report-top" className="report-hero">
+    <header id="report-top" className="report-hero print:hidden">
       <div className="flex h-14 items-center gap-6 bg-[#E4E5E2] px-10 py-4">
         <div className="flex h-full min-w-0 flex-1 items-center gap-2">
           <Image

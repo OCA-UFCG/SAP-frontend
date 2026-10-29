@@ -5,6 +5,7 @@ import type {
 } from "@/contracts/municipalReport";
 import {
   buildReportDocumentSections,
+  splitReportAnalysisTitle,
   listForecastGroupPeriods,
   resolveForecastGroupPeriod,
 } from "@/utils/municipalReportForecast";
@@ -47,6 +48,29 @@ function analysis(
 }
 
 describe("buildReportDocumentSections", () => {
+  it("põe as fontes do mesmo índice lado a lado, na posição da primeira", () => {
+    const titled = (id: string, title: string) => ({
+      ...analysis(id),
+      title,
+    });
+    const sections = buildReportDocumentSections([
+      titled("era5", "Índice de Aridez - ERA5 Land"),
+      titled("cdi", "Índice Combinado de Seca - CDI"),
+      titled("dwgd", "Índice de Aridez - BR-DWGD"),
+    ]);
+
+    expect(
+      sections.map((section) =>
+        section.type === "analysis" ? section.analysis.id : section.type,
+      ),
+    ).toEqual(["era5", "dwgd", "cdi"]);
+    expect(splitReportAnalysisTitle("Índice de Aridez - BR-DWGD")).toEqual({
+      name: "Índice de Aridez",
+      variant: "BR-DWGD",
+    });
+    expect(splitReportAnalysisTitle("Monitor de secas | ANA")).toBeNull();
+  });
+
   it("junta os tipos da mesma fonte, variável e periodicidade numa seção, depois das análises comuns", () => {
     const sections = buildReportDocumentSections([
       analysis("prob", { kind: "Probabilidade" }),

@@ -205,15 +205,23 @@ function ForecastCoverage({
               key={snapshot.period}
               data-report-forecast-bar={snapshot.period}
               data-reference={isReference || undefined}
-              className={`flex items-center gap-2 ${isReference ? "" : "opacity-55"}`}
+              className="flex items-center gap-2"
             >
+              {/* O destaque não mexe na cor: uma barra mais clara parecia outra
+                  classe. Ficam a seta, o rótulo em negrito e o contorno. */}
               <span
-                className={`w-[58px] shrink-0 text-[0.6875rem] leading-4 tabular-nums text-[#292829] ${isReference ? "font-bold" : ""}`}
+                className={`flex w-[66px] shrink-0 items-center gap-1 text-[0.6875rem] leading-4 tabular-nums ${isReference ? "font-bold text-[#292829]" : "text-[#6E696B]"}`}
               >
+                <span
+                  aria-hidden="true"
+                  className={`w-2 text-[0.5rem] ${isReference ? "" : "invisible"}`}
+                >
+                  ▶
+                </span>
                 {formatShortPeriod(snapshot.period, locale)}
               </span>
               <span
-                className={`flex h-3.5 min-w-0 flex-1 overflow-hidden rounded-sm ${isReference ? "ring-1 ring-[#292829]/40" : ""}`}
+                className={`flex h-3.5 min-w-0 flex-1 overflow-hidden rounded-sm ${isReference ? "outline outline-2 outline-offset-1 outline-[#292829]" : ""}`}
                 role="img"
                 aria-label={snapshot.distribution
                   .filter((item) => item.percentage > 0)
@@ -378,11 +386,13 @@ export const ReportForecastSection = memo(function ReportForecastSection({
     t,
     tModules,
   );
+  // `print:` também: sem ele, o PDF podia sair com um mapa por linha, cada um
+  // na largura da folha.
   const columns =
     group.members.length >= 3
-      ? "md:grid-cols-3"
+      ? "md:grid-cols-3 print:grid-cols-3"
       : group.members.length === 2
-        ? "md:grid-cols-2"
+        ? "md:grid-cols-2 print:grid-cols-2"
         : "";
 
   return (
@@ -395,7 +405,7 @@ export const ReportForecastSection = memo(function ReportForecastSection({
         style={{ borderLeftColor: accent }}
       >
         <div className="min-w-0">
-          <h2 className="font-open-sans text-[1.125rem] font-bold leading-[1.5] tracking-[-0.216px] text-[#292829]">
+          <h2 className="font-open-sans text-[1.125rem] font-bold uppercase leading-[1.5] tracking-[-0.216px] text-[#292829]">
             {title}
           </h2>
           <p className="font-open-sans flex flex-wrap gap-1 text-xs leading-5 text-[#292829]">
