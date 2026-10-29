@@ -1,5 +1,5 @@
 import type { FeatureCollection, Geometry } from "geojson";
-import type maplibregl from "maplibre-gl";
+import type * as maplibregl from "maplibre-gl";
 import { describe, expect, it, vi } from "vitest";
 
 // Os quatro grupos saem dos tiles vetoriais. Aqui só as terras indígenas, para

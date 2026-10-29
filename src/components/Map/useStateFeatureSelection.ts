@@ -1,4 +1,4 @@
-import maplibregl from "maplibre-gl";
+import * as maplibregl from "maplibre-gl";
 import { useCallback, type MutableRefObject } from "react";
 import { STATES_SOURCE_ID, STATES_SOURCE_LAYER } from "./mapDefinitions";
 import { BRAZIL_TERRITORY_CODE } from "./stateSelection";

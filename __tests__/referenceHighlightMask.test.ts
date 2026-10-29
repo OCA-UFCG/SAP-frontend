@@ -1,8 +1,8 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import type maplibregl from "maplibre-gl";
+import type * as maplibregl from "maplibre-gl";
 
 const addProtocol = vi.hoisted(() => vi.fn());
-vi.mock("maplibre-gl", () => ({ default: { addProtocol } }));
+vi.mock("maplibre-gl", () => ({ addProtocol }));
 
 import { BRAZIL_RASTER_BOUNDS } from "@/components/Map/mapBounds";
 import {

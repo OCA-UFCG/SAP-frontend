@@ -1,5 +1,5 @@
 import { act, cleanup, render, waitFor } from "@testing-library/react";
-import type maplibregl from "maplibre-gl";
+import type * as maplibregl from "maplibre-gl";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 const { mapInstances, MapConstructorMock, prewarmMock } = vi.hoisted(() => ({
@@ -91,9 +91,9 @@ vi.mock("maplibre-gl", () => {
   }
 
   return {
-    default: { Map: MockMap, prewarm: prewarmMock },
     Map: MockMap,
     prewarm: prewarmMock,
+    setWorkerUrl: vi.fn(),
   };
 });
 
