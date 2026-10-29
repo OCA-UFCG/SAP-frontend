@@ -41,6 +41,13 @@ export const HEALTH_REPORT_TTL_MS = 30_000;
  * de novo já na verificação seguinte.
  */
 export const SMTP_OK_TTL_MS = 10 * 60_000;
+/**
+ * O Contentful também: cada verificação é uma chamada que conta na cota de
+ * 100 mil por mês do espaço. Conferido a cada minuto em beta e produção, o
+ * monitor sozinho gastava 2.880 por dia (~86 mil por mês) e levou outubro de
+ * 2026 a 82% da cota. A cada 15 min são ~190 por dia nos dois ambientes.
+ */
+export const CONTENTFUL_OK_TTL_MS = 15 * 60_000;
 
 class NotConfiguredError extends Error {}
 class TimeoutError extends Error {}
@@ -62,9 +69,11 @@ const CHECKS: Record<DependencyName, () => Promise<void>> = {
     await pingGee();
   },
   async contentful() {
+    if (contentfulOkUntil > Date.now()) return;
     await getContent<{ __typename: string }>("query { __typename }", undefined, {
       cache: "no-store",
     });
+    contentfulOkUntil = Date.now() + CONTENTFUL_OK_TTL_MS;
   },
   async firebase() {
     requireEnv("FIREBASE_CLIENT_EMAIL");
@@ -95,6 +104,7 @@ const CHECKS: Record<DependencyName, () => Promise<void>> = {
 };
 
 let smtpOkUntil = 0;
+let contentfulOkUntil = 0;
 let cachedReport: { report: HealthReport; expiresAt: number } | null = null;
 let pendingReport: Promise<HealthReport> | null = null;
 const lastOk = new Map<DependencyName, boolean>();
@@ -183,6 +193,7 @@ export function getHealthReport(): Promise<HealthReport> {
 /** Existe para o teste começar cada caso sem verificação guardada. */
 export function resetHealthChecks() {
   smtpOkUntil = 0;
+  contentfulOkUntil = 0;
   cachedReport = null;
   pendingReport = null;
   lastOk.clear();

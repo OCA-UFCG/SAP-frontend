@@ -3,9 +3,10 @@
 # arquivo para /home/ubuntu/prometheus/sedes/.
 scrape_configs:
   # O /api/metrics de cada ambiente: se ele não responde, up fica 0 (site fora
-  # do ar); se responde, traz o estado de cada dependência e o disco da VM.
-  # Um pedido por minuto, como fazia o vigia antigo: cada um vira uma ida ao
-  # Earth Engine, ao Contentful e ao Firebase.
+  # do ar); se responde, traz o estado de cada dependência, o disco, a memória
+  # e a CPU da VM e o uso da cota do Contentful. Um pedido por minuto, como
+  # fazia o vigia antigo: cada um vira uma ida ao Earth Engine e ao Firebase;
+  # ao Contentful só a cada 15 min, porque cada ida conta na cota mensal dele.
   - job_name: sedes
     scheme: https
     metrics_path: /api/metrics

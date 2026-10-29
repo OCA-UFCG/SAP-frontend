@@ -20,7 +20,7 @@ route:
     # O beta é de teste: avisa quando cai e quando volta, sem lembrete.
     - matchers: ['ambiente="beta"', 'alertname=~"SedesForaDoAr|SedesServicoComProblema"']
       repeat_interval: 8760h
-    - matchers: ['alertname=~"SedesDiscoQuaseCheio|SedesCertificadoVencendo"']
+    - matchers: ['alertname=~"SedesDiscoQuaseCheio|SedesCertificadoVencendo|SedesCotaContentful|SedesCotaContentfulProjecao"']
       repeat_interval: 24h
 
 # Com o site inteiro fora, a falha de cada serviço é consequência, não notícia.
