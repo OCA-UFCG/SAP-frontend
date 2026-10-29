@@ -1,4 +1,5 @@
-import maplibregl, { LngLatBoundsLike } from "maplibre-gl";
+import * as maplibregl from "maplibre-gl";
+import { LngLatBoundsLike } from "maplibre-gl";
 import { useCallback, type MutableRefObject } from "react";
 import {
   MAP_FOCUS_ANIMATION_DURATION,

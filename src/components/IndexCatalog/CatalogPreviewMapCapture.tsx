@@ -1,7 +1,8 @@
 "use client";
 
 import { useCallback, useEffect, useRef, useState } from "react";
-import maplibregl from "maplibre-gl";
+import * as maplibregl from "maplibre-gl";
+import "@/components/Map/maplibreWorker";
 import "maplibre-gl/dist/maplibre-gl.css";
 import {
   catalogApiRequest,

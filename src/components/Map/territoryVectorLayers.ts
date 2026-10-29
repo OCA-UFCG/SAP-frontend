@@ -1,4 +1,4 @@
-import maplibregl from "maplibre-gl";
+import * as maplibregl from "maplibre-gl";
 import type { Feature, Polygon } from "geojson";
 import territoryVectorTiles from "@/config/territoryVectorTiles.json";
 import {
@@ -114,8 +114,8 @@ const samePaint = (a: unknown, b: unknown) =>
 const setPaint = (
   map: maplibregl.Map,
   layerId: string,
-  property: string,
-  value: unknown,
+  property: Parameters<maplibregl.Map["setPaintProperty"]>[1],
+  value: Parameters<maplibregl.Map["setPaintProperty"]>[2],
 ) => {
   if (!samePaint(map.getPaintProperty(layerId, property), value)) {
     map.setPaintProperty(layerId, property, value);

@@ -1,4 +1,5 @@
-import maplibregl, { GeoJSONSource } from "maplibre-gl";
+import * as maplibregl from "maplibre-gl";
+import { GeoJSONSource } from "maplibre-gl";
 import { useCallback, type MutableRefObject } from "react";
 import type { FeatureCollection, Geometry } from "geojson";
 import {

@@ -1,7 +1,7 @@
 import { describe, expect, it, vi } from "vitest";
-import type maplibregl from "maplibre-gl";
+import type * as maplibregl from "maplibre-gl";
 
-vi.mock("maplibre-gl", () => ({ default: { addProtocol: vi.fn() } }));
+vi.mock("maplibre-gl", () => ({ addProtocol: vi.fn() }));
 
 // Os quatro grupos saem dos tiles vetoriais. Aqui só as terras indígenas, para
 // que os outros exercitem o caminho das imagens do Earth Engine, que continua

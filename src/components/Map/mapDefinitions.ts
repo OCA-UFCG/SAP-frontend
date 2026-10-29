@@ -1,4 +1,5 @@
-import maplibregl, { ExpressionSpecification } from "maplibre-gl";
+import * as maplibregl from "maplibre-gl";
+import { ExpressionSpecification } from "maplibre-gl";
 import type { FeatureCollection, Geometry } from "geojson";
 import { BRAZIL_RASTER_BOUNDS } from "./mapBounds";
 import {
