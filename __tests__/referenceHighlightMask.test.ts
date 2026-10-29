@@ -1,7 +1,17 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import type maplibregl from "maplibre-gl";
 
-const addProtocol = vi.hoisted(() => vi.fn());
+// O protocolo é registrado uma vez só, no primeiro teste. O Vitest limpa o
+// histórico de chamadas antes de cada teste, então o handler fica guardado aqui.
+const { addProtocol, registered } = vi.hoisted(() => {
+  const registered: { handler?: (...args: unknown[]) => unknown } = {};
+  const addProtocol = vi.fn(
+    (_name: string, handler: (...args: unknown[]) => unknown) => {
+      registered.handler = handler;
+    },
+  );
+  return { addProtocol, registered };
+});
 vi.mock("maplibre-gl", () => ({ default: { addProtocol } }));
 
 import { BRAZIL_RASTER_BOUNDS } from "@/components/Map/mapBounds";
@@ -91,7 +101,7 @@ const opaqueFill = () => {
 };
 
 function maskHandler() {
-  const handler = addProtocol.mock.calls.at(-1)?.[1];
+  const handler = registered.handler!;
   return (url: string) =>
     handler({ url }, new AbortController()) as Promise<{
       data: FakeBitmap;
