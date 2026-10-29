@@ -57,14 +57,16 @@ import { MunicipalReportStackedChart } from "./MunicipalReportStackedChart";
 import { MunicipalReportStackedPrintChart } from "./MunicipalReportStackedPrintChart";
 import { ReportBackToTop } from "./ReportBackToTop";
 import {
+  forecastGroupKinds,
   forecastGroupMethodologies,
+  forecastGroupSummaryTitle,
   forecastGroupTitle,
   ReportForecastSection,
 } from "./ReportForecastSection";
 import { ReportDocumentFooter } from "./ReportDocumentFooter";
 import { ReportHero } from "./ReportHero";
 import { ReportSectionHeading } from "./ReportSectionHeading";
-import { ReportSummary } from "./ReportSummary";
+import { ReportSummary, type ReportSummaryItem } from "./ReportSummary";
 import { ReportMapPreview, type ReportMapChoropleth } from "./ReportMapPreview";
 import { destroyReportMapPool } from "./reportMapPool";
 import { buildReportPrintHtml, measureReportPages } from "./reportPrint";
@@ -529,27 +531,44 @@ const ReportDocument = memo(function ReportDocument({
   ).flatMap((group) => group.analyses);
   // As previsões da mesma fonte, variável e periodicidade viram uma seção só.
   const sections = buildReportDocumentSections(selected);
-  const summaryItems = sections.map((section) =>
-    section.type === "analysis"
-      ? {
-          id: section.analysis.id,
-          alias: section.analysis.alias,
-          category: section.analysis.category,
-          title: translateAnalysisTitle(
-            section.analysis,
-            t,
-            tHas,
-            tModules,
-            tModulesHas,
-          ),
-        }
-      : {
-          id: section.group.alias,
-          alias: section.group.alias,
-          category: section.group.category,
-          title: forecastGroupTitle(section.group, t),
-        },
-  );
+  // As previsões de uma categoria saem juntas no fim dela e viram, no sumário,
+  // subtópicos de uma linha "Previsão climática" que leva à primeira.
+  const summaryItems: (ReportSummaryItem & { title: string })[] = [];
+  for (const section of sections) {
+    if (section.type === "analysis") {
+      summaryItems.push({
+        id: section.analysis.id,
+        alias: section.analysis.alias,
+        category: section.analysis.category,
+        title: translateAnalysisTitle(
+          section.analysis,
+          t,
+          tHas,
+          tModules,
+          tModulesHas,
+        ),
+      });
+      continue;
+    }
+
+    const entry = {
+      alias: section.group.alias,
+      title: forecastGroupSummaryTitle(section.group, t, locale),
+      detail: forecastGroupKinds(section.group, t).join(" · "),
+    };
+    const previous = summaryItems.at(-1);
+    if (previous?.entries && previous.category === section.group.category) {
+      previous.entries.push(entry);
+      continue;
+    }
+    summaryItems.push({
+      id: `forecasts-${section.group.alias}`,
+      alias: section.group.alias,
+      category: section.group.category,
+      title: t("forecast.summaryGroupTitle"),
+      entries: [entry],
+    });
+  }
   const forecastNotes = sections.flatMap((section) =>
     section.type === "forecast"
       ? [

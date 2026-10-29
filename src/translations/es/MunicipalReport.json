@@ -344,6 +344,8 @@
     "forecast": {
       "title": "Pronóstico: {variable} ({source})",
       "titleWithPeriodicity": "Pronóstico: {variable} {periodicity} ({source})",
+      "summaryGroupTitle": "Pronóstico climático",
+      "summaryEntryTitle": "{variable} {periodicity} | {source}",
       "referencePeriod": "período de referencia: {period}",
       "sourceLabel": "Fuente de los datos",
       "variableLabel": "Variable",

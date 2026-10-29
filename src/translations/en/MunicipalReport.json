@@ -344,6 +344,8 @@
     "forecast": {
       "title": "Forecast: {variable} ({source})",
       "titleWithPeriodicity": "Forecast: {periodicity} {variable} ({source})",
+      "summaryGroupTitle": "Climate forecast",
+      "summaryEntryTitle": "{periodicity} {variable} | {source}",
       "referencePeriod": "reference period: {period}",
       "sourceLabel": "Data source",
       "variableLabel": "Variable",
