@@ -72,6 +72,35 @@ export function resolveMunicipalReportSnapshot(
     : null;
 }
 
+/**
+ * O período que uma previsão descreve quando o relatório pede um ano: o mês
+ * (ou trimestre) publicado mais próximo de hoje. Os índices observados ficam
+ * com o último período do ano, mas numa previsão esse é o mais distante — em
+ * outubro, a rodada traz de novembro a fevereiro, e "2026" escolhia dezembro.
+ *
+ * @example
+ * resolveForecastReportPeriod(["2026-11", "2026-12"], "2026", new Date(2026, 9, 29));
+ * // "2026-11"
+ */
+export function resolveForecastReportPeriod(
+  periods: readonly string[],
+  requestedPeriod: string,
+  now = new Date(),
+): string {
+  if (!/^\d{4}$/u.test(requestedPeriod)) return requestedPeriod;
+
+  const inYear = periods
+    .filter((period) => period.startsWith(`${requestedPeriod}-`))
+    .sort((left, right) => left.localeCompare(right));
+  const currentMonth = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}`;
+
+  return (
+    inYear.find((period) => period >= currentMonth) ??
+    inYear.at(-1) ??
+    requestedPeriod
+  );
+}
+
 export function getMunicipalReportClasses(
   dataset: CompactTerritorialAnalysisDataset,
 ): MunicipalReportClass[] {

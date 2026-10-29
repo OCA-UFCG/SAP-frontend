@@ -69,7 +69,7 @@
       "legalReferenceLabel": "Referência legal",
       "legalReferenceValue": "Lei nº 13.153/2015 — Política Nacional de Combate à Desertificação e Mitigação dos Efeitos da Seca.",
       "automatedNotice": "Este relatório foi gerado automaticamente pelo Sistema Estratégico Sobre Desertificação (SEDES). Os valores apresentados são produzidos a partir dos dados disponíveis na plataforma.",
-      "footer": "SEDES — Relatório Analítico | Gerado em: {generatedAt} | MMA/DCDE · OCA · UFCG · INSA",
+      "footer": "SEDES — Relatório Analítico | Gerado em: {generatedAt}",
       "generatedLabel": "Relatório automático gerado: {date}",
       "summaryTitle": "Sumário",
       "backToTop": "Voltar ao topo",
@@ -81,7 +81,22 @@
       "timeSeriesTitle": "Série temporal por classe",
       "valueTimeSeriesTitle": "Série temporal",
       "timeSeriesAnalysisTitle": "Análise da série temporal",
-      "footerCredits": "MMA/DCDE · OCA · UFCG · INSA"
+      "presentationTitle": "Apresentação",
+      "presentationParagraphs": {
+        "p1": "Este relatório automático reúne informações climáticas, ambientais e socioeconômicas sobre a seca e as condições ambientais na área de interesse selecionada — {territory}. Os dados sistematizados nas páginas seguintes são produzidos e mantidos pelas distintas instituições que compõem o Sistema Estratégico sobre Desertificação e Seca (SEDES), sendo consolidados e disponibilizados de forma integrada por meio da plataforma.",
+        "p2": "Nesse sentido, o SEDES constitui o sistema integrado de informações sobre secas, perda da cobertura vegetal, degradação da terra e desertificação que operacionaliza o disposto no art. 5º, inciso III, da Lei nº 13.153/2015, no âmbito da Política Nacional de Combate à Desertificação e Mitigação dos Efeitos da Seca (PNCD).",
+        "p3": "A iniciativa é coordenada por um grupo de trabalho interinstitucional (GT do SEDES), que reúne órgãos de gestão pública, pesquisa e monitoramento ambiental — entre os quais o Ministério do Meio Ambiente (MMA/DCDE), a Agência Nacional de Águas e Saneamento Básico (ANA), o Instituto Nacional de Meteorologia (INMET), o Instituto Nacional de Pesquisas Espaciais (INPE/CPTEC), o Centro Nacional de Gerenciamento de Riscos e Desastres (CENAD), o Instituto Brasileiro de Geografia e Estatística (IBGE), a Embrapa Solos e o Observatório da Caatinga e Desertificação (OCA/UFCG/INSA).",
+        "p4": "A plataforma opera em diferentes escalas de agregação territorial — Brasil, Região, Bioma, Áreas Suscetíveis à Desertificação (ASD), ASD e entorno, Semiárido, Estado e Município —, o que permite contextualizar a situação observada na área de interesse em relação a referências regionais e nacionais. O presente relatório foi gerado na escala {scale}."
+      },
+      "presentationScales": {
+        "municipality": "municipal",
+        "state": "estadual",
+        "region": "regional",
+        "biome": "de bioma",
+        "asd": "de ASD e entorno",
+        "semiarid": "do Semiárido",
+        "national": "nacional"
+      }
     },
     "valueLabels": {
       "percentageCardContext": "da área analisada",
@@ -144,7 +159,7 @@
     "tableClass": "Classe",
     "spatialAndTimeSeries": "Distribuição espacial e série temporal",
     "spatialImage": "Imagem espacial: {period}",
-    "rasterDescription": "Mapa temático de {title} para {period}, recortado visualmente pelo contorno {boundary}.",
+    "rasterDescription": "Mapa temático de {title} para {period}, recortado pelo contorno {boundary}.",
     "timeSeriesAlt": "Série temporal — {title}",
     "timeSeriesUnavailable": "Série temporal indisponível para exportação.",
     "historicalAnalysisTitle": "Análise e Interpretação",

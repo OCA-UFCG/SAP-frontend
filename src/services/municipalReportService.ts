@@ -28,6 +28,7 @@ import {
   buildMunicipalReportSnapshot,
   buildMunicipalReportTimeSeries,
   getMunicipalReportClasses,
+  resolveForecastReportPeriod,
   resolveMunicipalReportSnapshot,
   stableMunicipalReportAlias,
   toMunicipalReportMapChoropleth,
@@ -536,7 +537,12 @@ export async function buildMunicipalReport(
         const { dataset, timeSeries: sourceTimeSeries } = temporalData;
         const sourceSnapshot = resolveMunicipalReportSnapshot(
           sourceTimeSeries,
-          requestedPeriod,
+          config.forecast
+            ? resolveForecastReportPeriod(
+                sourceTimeSeries.map(({ period }) => period),
+                requestedPeriod,
+              )
+            : requestedPeriod,
         );
         const spatialPeriods = config.baseImageData
           ? Object.keys(config.baseImageData.years)

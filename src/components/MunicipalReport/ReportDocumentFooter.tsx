@@ -3,13 +3,12 @@
 import Image from "next/image";
 import { useTranslations } from "next-intl";
 
-export function ReportDocumentFooter({
-  generatedAt,
-  text,
-}: {
-  generatedAt: string;
-  text?: string;
-}) {
+/**
+ * O rodapé do documento. O texto é fixo: o campo "Rodapé" do Google Docs
+ * engolia as linhas seguintes do modelo ("Campos dinâmicos disponíveis neste
+ * bloco...") e elas saíam impressas no fim do relatório.
+ */
+export function ReportDocumentFooter({ generatedAt }: { generatedAt: string }) {
   const t = useTranslations("MunicipalReport");
 
   return (
@@ -24,7 +23,7 @@ export function ReportDocumentFooter({
         />
       </span>
       <p className="text-sm leading-6 text-[#58655C]">
-        {text ?? `${t("generatedAt")}: ${generatedAt} | ${t("document.footerCredits")}`}
+        {t("document.footer", { generatedAt })}
       </p>
     </footer>
   );
