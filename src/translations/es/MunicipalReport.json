@@ -49,6 +49,9 @@
     "availablePeriods": "Períodos disponibles",
     "futurePlaceholder": "Espacio reservado para mapas, gráficos, textos automáticos y síntesis integrada.",
     "document": {
+      "coverEyebrow": "Informe automático",
+      "coverTitle": "Sistema Estratégico sobre Desertificación y Sequía - SEDES",
+      "coverPartners": "Instituciones asociadas",
       "systemIdentification": "SEDES — Sistema Estratégico Sobre Desertificação",
       "reportType": "Informe Analítico Automatizado",
       "institutions": "OCA / UFCG / INSA",
