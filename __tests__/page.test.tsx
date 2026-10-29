@@ -1,5 +1,5 @@
-import { render, screen } from "@testing-library/react";
-import { vi, test, expect } from "vitest";
+import { cleanup, render, screen } from "@testing-library/react";
+import { afterEach, vi, test, expect } from "vitest";
 import Home from "../src/app/[locale]/page";
 
 // Mock do next/image
@@ -33,6 +33,10 @@ vi.mock("@/infrastructure/contentful/client", () => ({
     },
   }),
 }));
+
+// Desmonta a home ao fim do teste; sem isso o React ainda tenta trabalhar
+// depois que o Vitest 5 já desmontou o jsdom ("window is not defined").
+afterEach(cleanup);
 
 test("Home", async () => {
   const HomeResolved = await Home({ params: Promise.resolve({ locale: "pt" }) });
