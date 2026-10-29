@@ -33,6 +33,7 @@ import {
   toMunicipalReportMapChoropleth,
   toMunicipalReportPresentation,
 } from "@/utils/municipalReport";
+import { describeClassDistribution } from "@/utils/reportClassDistribution";
 import { computeReportSeriesVariables } from "@/utils/reportSeriesVariables";
 import {
   resolveReportTerritory,
@@ -574,6 +575,7 @@ export async function buildMunicipalReport(
             : {}),
           ...(mapChoropleth ? { mapChoropleth } : {}),
           ...(config.forecast ? { forecast: config.forecast } : {}),
+          ...(config.reportSeverity ? { severity: config.reportSeverity } : {}),
         };
       } catch (error) {
         console.error(
@@ -602,6 +604,16 @@ export async function buildMunicipalReport(
     templateVariables[`classe_${analysis.alias}`] =
       analysis.snapshot?.dominantClass?.label ?? null;
     templateVariables[`percentual_${analysis.alias}`] = dominantValue;
+    // A distribuição sai em pt-BR porque o texto do catálogo é escrito em
+    // pt-BR; em inglês e espanhol a frase automática monta a mesma coisa.
+    templateVariables[`distribuicao_${analysis.alias}`] =
+      analysis.valueType === "percentage" && analysis.snapshot
+        ? describeClassDistribution(
+            analysis.snapshot.distribution,
+            layers[index]?.reportSeverity,
+            REPORT_TEMPLATE_LOCALE,
+          )
+        : null;
     templateVariables[`valor_${analysis.alias}`] = dominantValue;
     templateVariables[`unidade_${analysis.alias}`] = analysis.unit || null;
     templateVariables[`valor_com_unidade_${analysis.alias}`] =
