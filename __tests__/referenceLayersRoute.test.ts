@@ -59,8 +59,8 @@ beforeEach(() => {
   mockedGetAuthenticatedUserId.mockResolvedValue("user-123");
   clearEeRateLimit("user-123");
   for (const layerId of REFERENCE_LAYER_IDS) {
-    removeCacheUrl(`ref-overlay-v3:${layerId}:outline`);
-    removeCacheUrl(`ref-overlay-v3:${layerId}:fill`);
+    removeCacheUrl(`ref-overlay-v4:${layerId}:outline`);
+    removeCacheUrl(`ref-overlay-v4:${layerId}:fill`);
   }
 });
 
@@ -109,18 +109,18 @@ describe("POST /api/ee/reference-layers", () => {
       width: 4.5,
     });
     expect(outlineStyle).toEqual({
-      color: "6B3E1F",
+      color: "515432",
       fillColor: "00000000",
       width: 2.5,
     });
     expect(fillStyle).toEqual({
       color: "00000000",
-      fillColor: "8B572A",
+      fillColor: "6C7043",
       width: 0,
     });
   });
 
-  it("styles each territory with its own color, keeping assentamentos gray", async () => {
+  it("styles each territory with its own color", async () => {
     for (const layerId of REFERENCE_LAYER_IDS) {
       await POST(createMockRequest(layerId));
     }
@@ -128,7 +128,7 @@ describe("POST /api/ee/reference-layers", () => {
     const fillColors = styleFeatureCollection.mock.calls
       .map((call) => (call as unknown as [{ fillColor: string }])[0].fillColor)
       .filter((color) => color !== "00000000");
-    expect(fillColors).toEqual(["8E2437", "CCCCCC", "8B572A", "2E6B3F"]);
+    expect(fillColors).toEqual(["A88C3B", "437789", "6C7043", "973D2B"]);
   });
 
   it("paints each territory with the colors its checkbox shows", async () => {
