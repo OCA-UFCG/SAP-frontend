@@ -3,6 +3,7 @@ import type {
   MunicipalReportForecastFacets,
 } from "@/contracts/municipalReport";
 import { stableMunicipalReportAlias } from "@/utils/municipalReport";
+import { resolveReportCategoryKey } from "@/utils/municipalReportCategories";
 
 /**
  * As previsões climáticas são o mesmo produto repetido por tipo: a Anomalia, o
@@ -43,6 +44,21 @@ function compareKinds(left: string, right: string) {
   return kindRank(left) - kindRank(right) || left.localeCompare(right, "pt-BR");
 }
 
+const PERIODICITY_ORDER = ["monthly", "quarterly"];
+
+/** Variável, depois mensal antes de trimestral, depois fonte. */
+function compareForecastGroups(
+  left: ReportForecastGroup,
+  right: ReportForecastGroup,
+) {
+  return (
+    left.variable.localeCompare(right.variable, "pt-BR") ||
+    PERIODICITY_ORDER.indexOf(left.periodicity) -
+      PERIODICITY_ORDER.indexOf(right.periodicity) ||
+    left.source.localeCompare(right.source, "pt-BR")
+  );
+}
+
 function forecastGroupAlias(
   facets: Omit<MunicipalReportForecastFacets, "kind">,
 ) {
@@ -52,13 +68,16 @@ function forecastGroupAlias(
 }
 
 /**
- * As seções do documento, na ordem das análises: cada previsão entra no lugar
- * da primeira análise do seu grupo, e as outras se juntam a ela.
+ * As seções do documento, na ordem das análises, com as previsões juntas no fim
+ * da sua categoria — no sumário elas ficam sob uma linha só, "Previsão
+ * climática". Entre si, as previsões ficam por variável, periodicidade e fonte
+ * (Precipitação mensal CPTEC, INMET; Precipitação trimestral CPTEC, INMET;
+ * Temperatura...).
  *
  * @example
  * buildReportDocumentSections([anomaliaInmet, seca, acumuladoInmet]);
- * // [{ type: "forecast", group: { members: [anomaliaInmet, acumuladoInmet] } },
- * //  { type: "analysis", analysis: seca }]
+ * // [{ type: "analysis", analysis: seca },
+ * //  { type: "forecast", group: { members: [anomaliaInmet, acumuladoInmet] } }]
  */
 export function buildReportDocumentSections(
   analyses: readonly MunicipalReportAnalysis[],
@@ -108,7 +127,26 @@ export function buildReportDocumentSections(
     );
   }
 
-  return sections;
+  // As análises chegam agrupadas por categoria; cada categoria sai com as
+  // análises comuns primeiro e as previsões dela, em ordem, logo depois.
+  const byCategory = new Map<string, ReportDocumentSection[]>();
+  for (const section of sections) {
+    const key = resolveReportCategoryKey(
+      section.type === "analysis"
+        ? section.analysis.category
+        : section.group.category,
+    );
+    const current = byCategory.get(key);
+    if (current) current.push(section);
+    else byCategory.set(key, [section]);
+  }
+
+  return [...byCategory.values()].flatMap((category) => [
+    ...category.filter((section) => section.type === "analysis"),
+    ...category
+      .flatMap((section) => (section.type === "forecast" ? [section] : []))
+      .sort((left, right) => compareForecastGroups(left.group, right.group)),
+  ]);
 }
 
 /**

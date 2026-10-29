@@ -47,7 +47,7 @@ function analysis(
 }
 
 describe("buildReportDocumentSections", () => {
-  it("junta os tipos da mesma fonte, variável e periodicidade no lugar do primeiro", () => {
+  it("junta os tipos da mesma fonte, variável e periodicidade numa seção, depois das análises comuns", () => {
     const sections = buildReportDocumentSections([
       analysis("prob", { kind: "Probabilidade" }),
       analysis("seca"),
@@ -56,10 +56,10 @@ describe("buildReportDocumentSections", () => {
     ]);
 
     expect(sections.map((section) => section.type)).toEqual([
-      "forecast",
       "analysis",
+      "forecast",
     ]);
-    const [forecast] = sections;
+    const [, forecast] = sections;
     if (forecast.type !== "forecast") throw new Error("esperava previsão");
     // A ordem é a dos tipos, não a do formulário.
     expect(forecast.group.members.map(({ id }) => id)).toEqual([
@@ -90,12 +90,43 @@ describe("buildReportDocumentSections", () => {
     );
     expect(groups.map((group) => [group.alias, group.showPeriodicity])).toEqual(
       [
+        ["previsao_cptec_precipitacao_monthly", false],
         ["previsao_inmet_precipitacao_monthly", true],
         ["previsao_inmet_precipitacao_quarterly", true],
-        ["previsao_cptec_precipitacao_monthly", false],
         ["previsao_inmet_temperatura_monthly", false],
       ],
     );
+  });
+
+  it("ordena as previsões por variável, periodicidade e fonte, no fim da categoria", () => {
+    const sections = buildReportDocumentSections([
+      analysis("temp-tri-inmet", {
+        variable: "Temperatura",
+        periodicity: "quarterly",
+      }),
+      analysis("prec-tri-cptec", { source: "CPTEC", periodicity: "quarterly" }),
+      analysis("seca"),
+      analysis("prec-men-inmet", {}),
+      analysis("temp-men-cptec", { variable: "Temperatura", source: "CPTEC" }),
+      analysis("prec-men-cptec", { source: "CPTEC" }),
+      { ...analysis("pobreza"), category: "Dados Socioeconômicos" },
+    ]);
+
+    expect(
+      sections.map((section) =>
+        section.type === "analysis"
+          ? section.analysis.id
+          : section.group.members[0].id,
+      ),
+    ).toEqual([
+      "seca",
+      "prec-men-cptec",
+      "prec-men-inmet",
+      "prec-tri-cptec",
+      "temp-men-cptec",
+      "temp-tri-inmet",
+      "pobreza",
+    ]);
   });
 
   it("trata grafias diferentes do mesmo valor como o mesmo grupo", () => {

@@ -36,6 +36,14 @@ function handleAnchorClick(
   easeScrollTo(scrollable, Math.max(0, top));
 }
 
+/** As linhas de uma categoria, contando os subtópicos. */
+function countRows(group: ReportCategoryGroup<ReportSummaryItem>) {
+  return group.analyses.reduce(
+    (sum, item) => sum + 1 + (item.entries?.length ?? 0),
+    0,
+  );
+}
+
 /**
  * As duas colunas do sumário, sem partir uma categoria ao meio: a esquerda
  * recebe categorias até ter pelo menos metade das entradas, e o resto empilha à
@@ -46,7 +54,7 @@ function handleAnchorClick(
 function splitIntoColumns<T extends ReportSummaryItem>(
   groups: readonly ReportCategoryGroup<T>[],
 ) {
-  const total = groups.reduce((sum, group) => sum + group.analyses.length, 0);
+  const total = groups.reduce((sum, group) => sum + countRows(group), 0);
   let leftCount = 0;
   let leftGroups = 0;
 
@@ -54,21 +62,91 @@ function splitIntoColumns<T extends ReportSummaryItem>(
     leftGroups < groups.length &&
     (leftGroups === 0 || leftCount < total / 2)
   ) {
-    leftCount += groups[leftGroups].analyses.length;
+    leftCount += countRows(groups[leftGroups]);
     leftGroups += 1;
   }
 
   return [groups.slice(0, leftGroups), groups.slice(leftGroups)];
 }
 
+/** Um subtópico do sumário, com uma linha menor de detalhe embaixo. */
+export interface ReportSummaryEntry {
+  alias: string;
+  title: string;
+  detail?: string;
+}
+
 /**
- * Uma linha do sumário: uma análise, ou a seção que junta as previsões de uma
- * mesma fonte e variável.
+ * Uma linha do sumário: uma análise, ou "Previsão climática", que leva à
+ * primeira previsão e lista cada seção de previsão como subtópico.
  */
 export type ReportSummaryItem = Pick<
   MunicipalReportAnalysis,
   "id" | "alias" | "category"
->;
+> & { entries?: ReportSummaryEntry[] };
+
+function ReportSummaryLink({
+  anchorId,
+  title,
+  detail,
+  page,
+  nested = false,
+}: {
+  anchorId: string;
+  title: string;
+  detail?: string;
+  page?: number;
+  nested?: boolean;
+}) {
+  const t = useTranslations("MunicipalReport");
+  const textColor = nested ? "text-[#4A4748]" : "text-[#292829]";
+
+  return (
+    <a
+      href={`#${anchorId}`}
+      onClick={(event) => handleAnchorClick(event, anchorId)}
+      aria-label={t("document.goToSection", { title })}
+      className="-mx-2 flex items-end gap-3 rounded-lg px-2 py-1.5 transition hover:bg-[#F3F4EC] print:mx-0 print:px-0"
+    >
+      <span className="flex min-w-0 flex-col">
+        <span className={`font-inter text-[0.8125rem] leading-5 ${textColor}`}>
+          {title}
+        </span>
+        {detail && (
+          <span className="font-inter text-[0.6875rem] leading-4 text-[#8A8587]">
+            {detail}
+          </span>
+        )}
+      </span>
+      <span
+        aria-hidden="true"
+        className={`min-w-6 flex-1 border-b border-dotted border-[#C8CAC5] ${detail ? "mb-[21px]" : "mb-[5px]"}`}
+      />
+      {/* Na tela, o número da página do PDF não diz nada: uma seta indica que
+          a linha leva até a seção. O número só aparece na impressão — e na
+          medição, que emula as regras de impressão. */}
+      <span
+        className={`font-inter flex w-7 shrink-0 justify-end text-[0.8125rem] leading-5 tabular-nums text-[#6E696B] ${detail ? "mb-4" : ""}`}
+      >
+        <svg
+          aria-hidden="true"
+          viewBox="0 0 20 20"
+          className="size-4 self-center print:hidden"
+          fill="none"
+          stroke="currentColor"
+          strokeWidth="1.8"
+        >
+          <path
+            d="M4.5 10H15.5M11 5.5L15.5 10L11 14.5"
+            strokeLinecap="round"
+            strokeLinejoin="round"
+          />
+        </svg>
+        <span className="hidden print:inline">{page}</span>
+      </span>
+    </a>
+  );
+}
 
 export function ReportSummary<T extends ReportSummaryItem>({
   analyses,
@@ -112,47 +190,35 @@ export function ReportSummary<T extends ReportSummaryItem>({
 
                     return (
                       <li key={analysis.id} className="report-summary-entry">
-                        <a
-                          href={`#${anchorId}`}
-                          onClick={(event) =>
-                            handleAnchorClick(event, anchorId)
-                          }
-                          aria-label={t("document.goToSection", {
-                            title: entryTitle,
-                          })}
-                          className="-mx-2 flex items-end gap-3 rounded-lg px-2 py-1.5 transition hover:bg-[#F3F4EC] print:mx-0 print:px-0"
-                        >
-                          <span className="font-inter min-w-0 text-[0.8125rem] leading-5 text-[#292829]">
-                            {entryTitle}
-                          </span>
-                          <span
-                            aria-hidden="true"
-                            className="mb-[5px] min-w-6 flex-1 border-b border-dotted border-[#C8CAC5]"
-                          />
-                          {/* Na tela, o número da página do PDF não diz nada:
-                              uma seta indica que a linha leva até a seção. O
-                              número só aparece na impressão — e na medição,
-                              que emula as regras de impressão. */}
-                          <span className="font-inter flex w-7 shrink-0 justify-end text-[0.8125rem] leading-5 tabular-nums text-[#6E696B]">
-                            <svg
-                              aria-hidden="true"
-                              viewBox="0 0 20 20"
-                              className="size-4 self-center print:hidden"
-                              fill="none"
-                              stroke="currentColor"
-                              strokeWidth="1.8"
-                            >
-                              <path
-                                d="M4.5 10H15.5M11 5.5L15.5 10L11 14.5"
-                                strokeLinecap="round"
-                                strokeLinejoin="round"
-                              />
-                            </svg>
-                            <span className="hidden print:inline">
-                              {pages?.get(anchorId)}
-                            </span>
-                          </span>
-                        </a>
+                        <ReportSummaryLink
+                          anchorId={anchorId}
+                          title={entryTitle}
+                          page={pages?.get(anchorId)}
+                        />
+                        {analysis.entries && (
+                          <ul className="flex flex-col pl-4">
+                            {analysis.entries.map((entry) => {
+                              const entryAnchorId = reportAnalysisAnchorId(
+                                entry.alias,
+                              );
+
+                              return (
+                                <li
+                                  key={entry.alias}
+                                  className="report-summary-entry"
+                                >
+                                  <ReportSummaryLink
+                                    anchorId={entryAnchorId}
+                                    title={entry.title}
+                                    detail={entry.detail}
+                                    page={pages?.get(entryAnchorId)}
+                                    nested
+                                  />
+                                </li>
+                              );
+                            })}
+                          </ul>
+                        )}
                       </li>
                     );
                   })}

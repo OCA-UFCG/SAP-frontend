@@ -314,4 +314,55 @@ describe("ReportSummary — rolagem até a seção", () => {
     expect(pendingFrames).toHaveLength(0);
     expect(viewport.scrollTop).toBe(0);
   });
+
+  it('lista as previsões como subtópicos de "Previsão climática", com os tipos embaixo', () => {
+    const pages = new Map([
+      ["report-analysis-previsao_cptec", 12],
+      ["report-analysis-previsao_inmet", 14],
+    ]);
+    const { container } = render(
+      <ReportSummary
+        analyses={[
+          analysis("seca", "Monitor de seca | ANA", "Dados Climáticos"),
+          {
+            ...analysis(
+              "previsao_cptec",
+              "Previsão climática",
+              "Dados Climáticos",
+            ),
+            entries: [
+              {
+                alias: "previsao_cptec",
+                title: "Precipitação mensal | CPTEC",
+                detail: "Anomalia · Valor previsto · Probabilidade",
+              },
+              { alias: "previsao_inmet", title: "Precipitação mensal | INMET" },
+            ],
+          },
+        ]}
+        translateTitle={(item) => item.title}
+        pages={pages}
+      />,
+    );
+    const links = within(container).getAllByRole("link");
+
+    expect(links.map((link) => link.getAttribute("href"))).toEqual([
+      "#report-analysis-seca",
+      "#report-analysis-previsao_cptec",
+      "#report-analysis-previsao_cptec",
+      "#report-analysis-previsao_inmet",
+    ]);
+    expect(links.map((link) => link.lastElementChild?.textContent)).toEqual([
+      "",
+      "12",
+      "12",
+      "14",
+    ]);
+    expect(links[2].textContent).toContain(
+      "Anomalia · Valor previsto · Probabilidade",
+    );
+    expect(within(links[1].parentElement!).getAllByRole("list")).toHaveLength(
+      1,
+    );
+  });
 });

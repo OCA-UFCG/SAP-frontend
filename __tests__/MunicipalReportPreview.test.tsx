@@ -483,7 +483,11 @@ describe("MunicipalReportPreview", () => {
     });
 
     render(
-      <MunicipalReportPreview locationKey="5200050" period="2026-12" embedded />,
+      <MunicipalReportPreview
+        locationKey="5200050"
+        period="2026-12"
+        embedded
+      />,
     );
 
     expect(await screen.findByRole("article")).toBeInTheDocument();
@@ -492,18 +496,23 @@ describe("MunicipalReportPreview", () => {
       "report-analysis-previsao_inmet_precipitacao_monthly",
       "report-analysis-seca",
     ]);
-    // Uma linha no sumário e um título na seção, no lugar de três de cada.
+    // Um título na seção, no lugar de três; no sumário, um subtópico de
+    // "Previsão climática", com os tipos na ordem dos painéis.
     expect(screen.getAllByText("Previsão: Precipitação (INMET)")).toHaveLength(
-      2,
+      1,
     );
+    for (const name of [
+      /Ir para a seção de Previsão climática/,
+      /Ir para a seção de Precipitação mensal \| INMET/,
+    ]) {
+      expect(screen.getByRole("link", { name })).toHaveAttribute(
+        "href",
+        "#report-analysis-previsao_inmet_precipitacao_monthly",
+      );
+    }
     expect(
-      screen.getByRole("link", {
-        name: /Ir para a seção de Previsão: Precipitação \(INMET\)/,
-      }),
-    ).toHaveAttribute(
-      "href",
-      "#report-analysis-previsao_inmet_precipitacao_monthly",
-    );
+      screen.getByText("Anomalia · Valor previsto · Probabilidade"),
+    ).toBeInTheDocument();
 
     const group = sections[0] as HTMLElement;
     expect(group.textContent).toContain(
@@ -514,7 +523,9 @@ describe("MunicipalReportPreview", () => {
       6,
     );
     expect(
-      group.querySelectorAll('[data-report-forecast-bar="2026-12"][data-reference]'),
+      group.querySelectorAll(
+        '[data-report-forecast-bar="2026-12"][data-reference]',
+      ),
     ).toHaveLength(3);
     // A nota que os três tipos dividem aparece uma vez na seção e uma nas notas.
     expect(screen.getAllByText(/Modelo atmosférico do INMET\./)).toHaveLength(

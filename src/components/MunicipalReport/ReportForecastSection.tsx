@@ -78,9 +78,40 @@ export function forecastGroupTitle(group: ReportForecastGroup, t: Translate) {
   return group.showPeriodicity
     ? t("forecast.titleWithPeriodicity", {
         ...values,
-        periodicity: t(`forecast.periodicity.${group.periodicity}`).toLowerCase(),
+        periodicity: t(
+          `forecast.periodicity.${group.periodicity}`,
+        ).toLowerCase(),
       })
     : t("forecast.title", values);
+}
+
+/**
+ * A linha do grupo no sumário, sob "Previsão climática": sem o "Previsão:" do
+ * título e sempre com a periodicidade.
+ *
+ * @example
+ * forecastGroupSummaryTitle(group, t, "pt"); // "Precipitação mensal | INMET"
+ */
+export function forecastGroupSummaryTitle(
+  group: ReportForecastGroup,
+  t: Translate,
+  locale: string,
+) {
+  const title = t("forecast.summaryEntryTitle", {
+    variable: translateFacet(group.variable, t).toLocaleLowerCase(locale),
+    periodicity: t(
+      `forecast.periodicity.${group.periodicity}`,
+    ).toLocaleLowerCase(locale),
+    source: group.source,
+  });
+  return title.charAt(0).toLocaleUpperCase(locale) + title.slice(1);
+}
+
+/** Os tipos do grupo, na ordem dos painéis da seção ("Anomalia", ...). */
+export function forecastGroupKinds(group: ReportForecastGroup, t: Translate) {
+  return group.members.map((analysis) =>
+    translateFacet(analysis.forecast?.kind ?? analysis.title, t),
+  );
 }
 
 /**
@@ -221,7 +252,11 @@ function ForecastCoverage({
               <span>
                 {translateLabel(item.label)} —{" "}
                 <span className="tabular-nums">
-                  {formatMunicipalReportValue(item.percentage, analysis, locale)}
+                  {formatMunicipalReportValue(
+                    item.percentage,
+                    analysis,
+                    locale,
+                  )}
                 </span>
               </span>
             </li>
@@ -275,7 +310,8 @@ export const ReportForecastSection = memo(function ReportForecastSection({
     );
   const accent = getReportCategoryTokens(group.category).accent;
   const title = forecastGroupTitle(group, t);
-  const referencePeriod = resolveForecastGroupPeriod(group) ?? report.requestedPeriod;
+  const referencePeriod =
+    resolveForecastGroupPeriod(group) ?? report.requestedPeriod;
   const referenceLabel = formatReportPeriod(referencePeriod, locale);
   const seriesRange = compactPeriodRange(
     listForecastGroupPeriods(group).map((period) => ({
