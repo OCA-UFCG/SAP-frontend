@@ -768,7 +768,6 @@ export function MunicipalReportPreview({
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(hasRequiredParameters);
   const [exporting, setExporting] = useState(false);
-  const [zoom, setZoom] = useState(100);
   const reportDocumentRef = useRef<HTMLElement>(null);
   const navigationMeasuredRef = useRef(false);
   const previewMeasuredRef = useRef(false);
@@ -973,8 +972,8 @@ export function MunicipalReportPreview({
   }, [docsContent, docsResolved, loading, locale, report]);
 
   // `printReport` é redeclarado a cada render, e passá-lo direto ao
-  // `ReportDocument` quebraria o `memo` dele — o zoom voltaria a remontar os
-  // vinte mapas. Esta referência é estável e sempre chama a versão atual.
+  // `ReportDocument` quebraria o `memo` dele — cada render voltaria a remontar
+  // os vinte mapas. Esta referência é estável e sempre chama a versão atual.
   const printReportRef = useRef<() => void>(() => {});
   const handleDownload = useCallback(() => printReportRef.current(), []);
 
@@ -1148,63 +1147,6 @@ export function MunicipalReportPreview({
   if (embedded) {
     return (
       <div className="flex h-full min-w-0 flex-col bg-white">
-        <div className="shrink-0 border-b border-[#D9E0E3] bg-white px-4 py-4 sm:px-6">
-          <div className="flex w-full flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
-            <div className="min-w-0">
-              <p className="font-inter text-xs font-semibold uppercase tracking-[0.08em] text-[#536E7B]">
-                {t("preview")}
-              </p>
-            </div>
-            <div className="flex shrink-0 flex-wrap items-center gap-3">
-              <div className="flex shrink-0 items-center gap-2">
-                <button
-                  type="button"
-                  onClick={() => setZoom((value) => Math.max(50, value - 10))}
-                  disabled={!report || zoom <= 50}
-                  className="flex h-10 w-10 items-center justify-center rounded border border-[#D9E0E3] bg-white text-[#646B2D] transition hover:bg-[#F6F7F6] disabled:cursor-not-allowed disabled:opacity-40"
-                  aria-label={t("zoomOut")}
-                >
-                  <svg
-                    className="h-6 w-6"
-                    aria-hidden
-                    viewBox="0 0 24 24"
-                    fill="none"
-                    stroke="currentColor"
-                    strokeWidth="2"
-                  >
-                    <circle cx="11" cy="11" r="7" />
-                    <path d="M8 11h6M20 20l-3.5-3.5" />
-                  </svg>
-                </button>
-                <output
-                  className="flex h-10 w-[60px] items-center justify-center rounded-md border border-[#DCDBDC] bg-white px-2 font-inter text-sm text-[#6E696B]"
-                  aria-live="polite"
-                >
-                  {zoom}%
-                </output>
-                <button
-                  type="button"
-                  onClick={() => setZoom((value) => Math.min(150, value + 10))}
-                  disabled={!report || zoom >= 150}
-                  className="flex h-10 w-10 items-center justify-center rounded border border-[#D9E0E3] bg-white text-[#646B2D] transition hover:bg-[#F6F7F6] disabled:cursor-not-allowed disabled:opacity-40"
-                  aria-label={t("zoomIn")}
-                >
-                  <svg
-                    className="h-6 w-6"
-                    aria-hidden
-                    viewBox="0 0 24 24"
-                    fill="none"
-                    stroke="currentColor"
-                    strokeWidth="2"
-                  >
-                    <circle cx="11" cy="11" r="7" />
-                    <path d="M11 8v6M8 11h6M20 20l-3.5-3.5" />
-                  </svg>
-                </button>
-              </div>
-            </div>
-          </div>
-        </div>
         <div className="min-h-0 flex-1 overflow-auto bg-white">
           {!hasRequiredParameters && <EmptyReportPreview />}
           {loading && (
@@ -1231,10 +1173,7 @@ export function MunicipalReportPreview({
             </div>
           )}
           {report && !loading && (
-            <div
-              className="mx-auto origin-top-left will-change-transform"
-              style={{ width: "100%", transform: `scale(${zoom / 100})` }}
-            >
+            <div className="mx-auto w-full">
               <ReportDocument
                 report={report}
                 layerIds={layerIds}
