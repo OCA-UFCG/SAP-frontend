@@ -32,6 +32,7 @@ vi.mock("@/lib/mailer", () => ({
 
 import { GET } from "@/app/api/health/route";
 import {
+  CONTENTFUL_OK_TTL_MS,
   HEALTH_CHECK_TIMEOUT_MS,
   HEALTH_REPORT_TTL_MS,
   resetHealthChecks,
@@ -157,6 +158,38 @@ describe("GET /api/health", () => {
 
     expect(pingGeeMock).toHaveBeenCalledTimes(2);
     expect(verifyMailerMock).toHaveBeenCalledTimes(1);
+  });
+
+  it("calls Contentful only every 15 min while it answers, since each call counts in its monthly quota", async () => {
+    vi.useFakeTimers();
+
+    await GET();
+    await vi.advanceTimersByTimeAsync(HEALTH_REPORT_TTL_MS + 1);
+    await GET();
+    expect(pingGeeMock).toHaveBeenCalledTimes(2);
+    expect(getContentMock).toHaveBeenCalledTimes(1);
+
+    await vi.advanceTimersByTimeAsync(CONTENTFUL_OK_TTL_MS);
+    await GET();
+    expect(getContentMock).toHaveBeenCalledTimes(2);
+  });
+
+  it("checks Contentful again on the next round after it fails", async () => {
+    vi.useFakeTimers();
+    getContentMock.mockRejectedValueOnce(
+      Object.assign(new Error("boom"), { status: 503 }),
+    );
+
+    const first = await (await GET()).json();
+    await vi.advanceTimersByTimeAsync(HEALTH_REPORT_TTL_MS + 1);
+    const second = await (await GET()).json();
+
+    expect(first.dependencies.contentful).toMatchObject({
+      ok: false,
+      error: "HTTP 503",
+    });
+    expect(second.dependencies.contentful.ok).toBe(true);
+    expect(getContentMock).toHaveBeenCalledTimes(2);
   });
 
   it("logs a failure once, not on every check while it lasts", async () => {

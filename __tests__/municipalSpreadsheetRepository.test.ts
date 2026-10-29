@@ -98,6 +98,50 @@ describe("buildSpreadsheetYearPatch", () => {
 
     expect(patch.years["1999"].values).toEqual({});
   });
+
+  it("answers a municipality with only its own row", () => {
+    const patch = buildSpreadsheetYearPatch(snapshot, "2020", "2507507");
+
+    expect(patch).toEqual({
+      locations: { "2507507": "João Pessoa - PB" },
+      years: { "2020": { valuesScale: 1, values: { "2507507": [20] } } },
+    });
+  });
+
+  it("answers a territory missing from the snapshot with an empty patch", () => {
+    const patch = buildSpreadsheetYearPatch(snapshot, "2020", "2504009");
+
+    expect(patch).toEqual({
+      locations: {},
+      years: { "2020": { valuesScale: 1, values: {} } },
+    });
+  });
+
+  it("does not mistake an inherited object key for a territory", () => {
+    const patch = buildSpreadsheetYearPatch(snapshot, "2020", "constructor");
+
+    expect(patch.locations).toEqual({});
+    expect(patch.years["2020"].values).toEqual({});
+  });
+
+  // O instantâneo tem os ~5.570 municípios, e o painel pede um território por
+  // vez: varrer a lista inteira a cada pedido ocupava ~10% da thread do
+  // servidor sob carga. Só `br` precisa olhar todas as chaves (traz as UFs).
+  it("reads a single territory without walking every location", () => {
+    const locations = new Proxy(snapshot.locations, {
+      ownKeys() {
+        throw new Error("percorreu todos os territórios");
+      },
+    });
+
+    const patch = buildSpreadsheetYearPatch(
+      { ...snapshot, locations },
+      "2010",
+      "2507507",
+    );
+
+    expect(patch.years["2010"].values).toEqual({ "2507507": [10] });
+  });
 });
 
 describe("getSpreadsheetYearPatch", () => {
