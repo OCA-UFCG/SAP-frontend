@@ -129,8 +129,28 @@ export function ReportSummary<T extends ReportSummaryItem>({
                             aria-hidden="true"
                             className="mb-[5px] min-w-6 flex-1 border-b border-dotted border-[#C8CAC5]"
                           />
-                          <span className="font-inter w-7 shrink-0 text-right text-[0.8125rem] leading-5 tabular-nums text-[#6E696B]">
-                            {pages?.get(anchorId)}
+                          {/* Na tela, o número da página do PDF não diz nada:
+                              uma seta indica que a linha leva até a seção. O
+                              número só aparece na impressão — e na medição,
+                              que emula as regras de impressão. */}
+                          <span className="font-inter flex w-7 shrink-0 justify-end text-[0.8125rem] leading-5 tabular-nums text-[#6E696B]">
+                            <svg
+                              aria-hidden="true"
+                              viewBox="0 0 20 20"
+                              className="size-4 self-center print:hidden"
+                              fill="none"
+                              stroke="currentColor"
+                              strokeWidth="1.8"
+                            >
+                              <path
+                                d="M4.5 10H15.5M11 5.5L15.5 10L11 14.5"
+                                strokeLinecap="round"
+                                strokeLinejoin="round"
+                              />
+                            </svg>
+                            <span className="hidden print:inline">
+                              {pages?.get(anchorId)}
+                            </span>
                           </span>
                         </a>
                       </li>
