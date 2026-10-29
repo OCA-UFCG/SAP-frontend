@@ -40,13 +40,11 @@ interface ReferenceLayerColors {
   fill: string;
 }
 
-// Com todas as camadas em cinza, não dava para distinguir uma terra indígena de
-// uma UC quando elas se sobrepõem. Assentamentos mantêm o cinza original.
 const REFERENCE_LAYER_COLORS: Record<string, ReferenceLayerColors> = {
-  quilombolas: { outline: "6D1A36", fill: "8E2437" },
-  assentamentos: { outline: "888888", fill: "CCCCCC" },
-  terras_indigenas: { outline: "6B3E1F", fill: "8B572A" },
-  unidades_conservacao: { outline: "1B4D2B", fill: "2E6B3F" },
+  quilombolas: { outline: "7E692C", fill: "A88C3B" },
+  assentamentos: { outline: "325967", fill: "437789" },
+  terras_indigenas: { outline: "515432", fill: "6C7043" },
+  unidades_conservacao: { outline: "712E20", fill: "973D2B" },
 };
 
 const TRANSPARENT = "00000000";
@@ -76,8 +74,7 @@ const buildFillStyles = (
   { color: TRANSPARENT, fillColor: colors.fill, width: 0 },
 ];
 
-// v3: interior e contorno em URLs separadas; a chave v2 guardava a imagem única.
-const CACHE_KEY_PREFIX = "ref-overlay-v3";
+const CACHE_KEY_PREFIX = "ref-overlay-v4";
 
 type ReferenceLayerPart = "outline" | "fill";
 

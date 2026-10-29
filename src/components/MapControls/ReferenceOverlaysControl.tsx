@@ -1,16 +1,14 @@
 "use client";
 
-import type { CSSProperties } from "react";
+import { useId, type CSSProperties } from "react";
 import { useTranslations } from "next-intl";
+import { Icon } from "@/components/Icon/Icon";
 import {
   REFERENCE_LAYER_IDS,
   REFERENCE_LAYER_SWATCHES,
   type ReferenceLayerId,
 } from "@/components/MapLayerContext/mapLayerState";
-import {
-  MAP_CONTROL_LABEL_CLASS,
-  MapControlDisclosure,
-} from "./MapControlCard";
+import { MapControlDisclosure } from "./MapControlCard";
 import type { ReferenceTerritory } from "./referenceTerritories";
 import { SelectedTerritory, TerritorySearch } from "./TerritorySearch";
 
@@ -20,10 +18,8 @@ interface ReferenceOverlaysControlProps {
   highlightedOverlay: ReferenceLayerId | null;
   onToggleHighlight: (layerId: ReferenceLayerId) => void;
   onSelectTerritory: (territory: ReferenceTerritory) => void;
-  /** O último território escolhido na busca, até a pessoa desmarcar. */
   selectedTerritory?: ReferenceTerritory | null;
   onClearTerritory?: () => void;
-  /** O cartão foi aberto: a pessoa provavelmente vai mexer em territórios. */
   onOpen?: () => void;
 }
 
@@ -56,97 +52,103 @@ export function ReferenceOverlaysControl({
       }
     >
       {() => (
-        <div data-cascade className="flex flex-col gap-1.5">
-          <TerritorySearch
-            activeOverlays={activeOverlays}
-            onSelect={onSelectTerritory}
-          />
-          <span
-            aria-hidden="true"
-            className={`${MAP_CONTROL_LABEL_CLASS} self-end text-[#6B6B6B]`}
-          >
-            {t("highlightColumn")}
-          </span>
-          {REFERENCE_LAYER_IDS.map((layerId) => (
-            <div key={layerId} className="flex items-center gap-3">
-              <label className="flex min-w-0 flex-1 cursor-pointer items-center gap-3">
-                <input
-                  type="checkbox"
-                  checked={activeOverlays.has(layerId)}
-                  onChange={() => onToggle(layerId)}
-                  style={swatchStyle(layerId)}
-                  className="relative h-4 w-4 shrink-0 cursor-pointer appearance-none rounded-[3px] border-[1.5px] border-(--swatch-outline) bg-[color-mix(in_srgb,var(--swatch-fill)_22%,white)] transition-colors checked:bg-(--swatch-fill)
-                        focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-(--swatch-outline)
-                        after:absolute after:inset-0 after:flex after:items-center after:justify-center after:content-['']
-                        checked:after:content-['✓'] after:text-center after:text-[0.625rem] after:font-bold after:leading-none after:text-(--swatch-check)"
-                />
-                <span className={`${MAP_CONTROL_LABEL_CLASS} select-none`}>
-                  {t(layerId)}
-                </span>
-              </label>
-              <HighlightSwitch
+        <div data-cascade className="flex flex-col gap-3 pt-1">
+          <h3 className="font-open-sans text-sm leading-5 text-[#292829]">
+            {t("referenceLayersTitle")}
+          </h3>
+          <div className="flex flex-col gap-2">
+            <TerritorySearch
+              activeOverlays={activeOverlays}
+              onSelect={onSelectTerritory}
+            />
+            <p className="font-open-sans text-xs leading-[18px] text-[#292829]">
+              {t("territorySearchHint")}
+            </p>
+          </div>
+          <ul className="flex flex-col gap-4 pt-1">
+            {REFERENCE_LAYER_IDS.map((layerId) => (
+              <ReferenceLayerRow
+                key={layerId}
                 layerId={layerId}
-                checked={highlightedOverlay === layerId}
-                label={t("highlightTerritory", { name: t(layerId) })}
-                onToggle={onToggleHighlight}
+                visible={activeOverlays.has(layerId)}
+                highlighted={highlightedOverlay === layerId}
+                onToggle={onToggle}
+                onToggleHighlight={onToggleHighlight}
               />
-            </div>
-          ))}
+            ))}
+          </ul>
         </div>
       )}
     </MapControlDisclosure>
   );
 }
 
-// O checkbox é uma amostra do território: borda na cor do contorno e interior
-// na cor do preenchimento — claro quando desligado, cheio quando ligado.
-function swatchStyle(layerId: ReferenceLayerId): CSSProperties {
-  const swatch = REFERENCE_LAYER_SWATCHES[layerId];
-  return {
-    "--swatch-outline": swatch.outline,
-    "--swatch-fill": swatch.fill,
-    "--swatch-check": swatch.check,
-  } as CSSProperties;
-}
-
-/**
- * O liga/desliga do destaque: deixa só os territórios deste grupo acesos e
- * escurece o resto do mapa. É um `switch`, e não outro checkbox, para o leitor
- * de tela anunciar "ligado/desligado" e para não se confundir com o checkbox
- * que mostra o grupo.
- */
-function HighlightSwitch({
+function ReferenceLayerRow({
   layerId,
-  checked,
-  label,
+  visible,
+  highlighted,
   onToggle,
+  onToggleHighlight,
 }: {
   layerId: ReferenceLayerId;
-  checked: boolean;
-  label: string;
+  visible: boolean;
+  highlighted: boolean;
   onToggle: (layerId: ReferenceLayerId) => void;
+  onToggleHighlight: (layerId: ReferenceLayerId) => void;
 }) {
-  const swatch = REFERENCE_LAYER_SWATCHES[layerId];
+  const t = useTranslations("PlatformMap");
+  const labelId = useId();
+  const name = t(layerId);
+  const highlightLabel = t("highlightTerritory", { name });
 
   return (
-    <button
-      type="button"
-      role="switch"
-      aria-checked={checked}
-      aria-label={label}
-      title={label}
-      onClick={() => onToggle(layerId)}
-      style={{ "--swatch-outline": swatch.outline } as CSSProperties}
-      className={`relative h-4 w-7 shrink-0 cursor-pointer rounded-full transition-colors focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-(--swatch-outline) ${
-        checked ? "bg-(--swatch-outline)" : "bg-[#E4E5E2]"
-      }`}
+    <li
+      className="flex items-center gap-3"
+      style={
+        { "--swatch": REFERENCE_LAYER_SWATCHES[layerId].fill } as CSSProperties
+      }
     >
       <span
         aria-hidden="true"
-        className={`absolute left-0.5 top-0.5 h-3 w-3 rounded-full bg-white shadow-sm transition-transform duration-150 ${
-          checked ? "translate-x-3" : "translate-x-0"
-        }`}
+        className="size-3.5 shrink-0 rounded-full bg-(--swatch)"
       />
-    </button>
+      <span
+        id={labelId}
+        className="min-w-0 flex-1 font-open-sans text-xs font-semibold leading-[15px] text-[#292829]"
+      >
+        {name}
+      </span>
+      <button
+        type="button"
+        role="switch"
+        aria-checked={visible}
+        aria-labelledby={labelId}
+        onClick={() => onToggle(layerId)}
+        className={`relative h-[22px] w-[42px] shrink-0 cursor-pointer rounded-full transition-colors focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-(--swatch) ${
+          visible ? "bg-(--swatch)" : "bg-[#D4D5D1]"
+        }`}
+      >
+        <span
+          aria-hidden="true"
+          className={`absolute left-0.5 top-0.5 size-[18px] rounded-full bg-white shadow-sm transition-transform duration-150 ${
+            visible ? "translate-x-5" : "translate-x-0"
+          }`}
+        />
+      </button>
+      <button
+        type="button"
+        aria-pressed={highlighted}
+        aria-label={highlightLabel}
+        title={highlightLabel}
+        onClick={() => onToggleHighlight(layerId)}
+        className={`flex size-8 shrink-0 cursor-pointer items-center justify-center rounded-md border transition-colors focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-[#5B612A] ${
+          highlighted
+            ? "border-[#5B612A] bg-[#F1F2EC] text-[#5B612A]"
+            : "border-[#E4E4E4] bg-white text-[#8B8F52] hover:bg-[#F5F6EE]"
+        }`}
+      >
+        <Icon id="crosshair" size={16} />
+      </button>
+    </li>
   );
 }

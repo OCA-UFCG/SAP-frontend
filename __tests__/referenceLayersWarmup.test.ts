@@ -53,8 +53,8 @@ beforeEach(() => {
     async () => `https://ee/maps/${++next}/tiles/{z}/{x}/{y}`,
   );
   for (const layerId of Object.keys(REFERENCE_LAYER_ASSETS)) {
-    removeCacheUrl(`ref-overlay-v3:${layerId}:outline`);
-    removeCacheUrl(`ref-overlay-v3:${layerId}:fill`);
+    removeCacheUrl(`ref-overlay-v4:${layerId}:outline`);
+    removeCacheUrl(`ref-overlay-v4:${layerId}:fill`);
   }
 });
 
@@ -68,11 +68,11 @@ describe("endereços dos territórios prontos no servidor", () => {
 
     expect(getGeeMapUrl).toHaveBeenCalledTimes(LAYER_IDS.length * 2);
     for (const layerId of LAYER_IDS) {
-      expect(getCachedUrl(`ref-overlay-v3:${layerId}:outline`)).toBeDefined();
-      expect(getCachedUrl(`ref-overlay-v3:${layerId}:fill`)).toBeDefined();
+      expect(getCachedUrl(`ref-overlay-v4:${layerId}:outline`)).toBeDefined();
+      expect(getCachedUrl(`ref-overlay-v4:${layerId}:fill`)).toBeDefined();
     }
     expect(
-      getCachedUrl("ref-overlay-v3:terras_indigenas:fill"),
+      getCachedUrl("ref-overlay-v4:terras_indigenas:fill"),
     ).toBeUndefined();
   });
 
@@ -93,8 +93,8 @@ describe("endereços dos territórios prontos no servidor", () => {
     await refreshReferenceLayerUrls();
 
     const ready = LAYER_IDS.flatMap((layerId) => [
-      getCachedUrl(`ref-overlay-v3:${layerId}:fill`),
-      getCachedUrl(`ref-overlay-v3:${layerId}:outline`),
+      getCachedUrl(`ref-overlay-v4:${layerId}:fill`),
+      getCachedUrl(`ref-overlay-v4:${layerId}:outline`),
     ]).filter(Boolean);
     expect(ready).toHaveLength(LAYER_IDS.length * 2 - 1);
   });
@@ -105,10 +105,10 @@ describe("endereços dos territórios prontos no servidor", () => {
 
   it("a renovação troca o endereço guardado por um novo", async () => {
     await refreshReferenceLayerUrls();
-    const before = getCachedUrl("ref-overlay-v3:quilombolas:fill");
+    const before = getCachedUrl("ref-overlay-v4:quilombolas:fill");
 
     await refreshReferenceLayerUrls();
 
-    expect(getCachedUrl("ref-overlay-v3:quilombolas:fill")).not.toBe(before);
+    expect(getCachedUrl("ref-overlay-v4:quilombolas:fill")).not.toBe(before);
   });
 });
