@@ -62,6 +62,98 @@ groups:
             espaço são as imagens antigas do Docker (sudo docker system df) e
             os logs dos containers (sudo du -sh /var/lib/docker/containers/*).
 
+      # Memória da VM quase no fim: o kernel começa a matar processos, e o
+      # container do SEDES, o maior deles, costuma ser o escolhido.
+      - alert: SedesMemoriaBaixa
+        expr: sedes_memory_available_bytes / sedes_memory_total_bytes < 0.10
+        for: 5m
+        annotations:
+          titulo: memória da VM quase no fim
+          resolvido: memória da VM normalizada
+          descricao: >-
+            A VM do SEDES {{ $labels.ambiente }} está com só
+            {{ $value | humanizePercentage }} da memória disponível. Quem está
+            ocupando: sudo docker stats --no-stream. A memória do próprio
+            servidor do SEDES fica em sedes_process_resident_memory_bytes no
+            Prometheus (http://34.200.5.32:9090).
+
+      # CPU ocupada por muito tempo deixa o site lento para todo mundo. O tempo
+      # roubado pelo hipervisor entra como ocupado: na produção (AWS), é ele
+      # que cresce quando a instância fica sem créditos de CPU.
+      - alert: SedesCpuAlta
+        expr: >-
+          1 - rate(sedes_cpu_idle_seconds_total[5m])
+            / rate(sedes_cpu_seconds_total[5m]) > 0.9
+        for: 15m
+        annotations:
+          titulo: CPU da VM no limite
+          resolvido: CPU da VM normalizada
+          descricao: >-
+            A CPU da VM do SEDES {{ $labels.ambiente }} está
+            {{ $value | humanizePercentage }} ocupada há mais de 15 minutos.
+            Quem está usando: sudo docker stats --no-stream. Se o top mostrar
+            "st" alto, é falta de crédito de CPU da instância, não o SEDES.
+
+      # A cota de API do Contentful é de 100 mil chamadas por mês para a
+      # organização inteira: beta, produção, quem edita e scripts. Passando
+      # dela, o espaço fica bloqueado até o fim do mês e o site perde o
+      # conteúdo. Em outubro de 2026 o próprio monitor a levou a 82%. Os dois
+      # ambientes publicam o mesmo número, então o alerta é um só.
+      - alert: SedesCotaContentful
+        expr: >-
+          label_replace(
+            max by (project) (sum by (project, ambiente) (sedes_contentful_api_requests_month))
+              / on(project) max by (project) (sedes_contentful_api_requests_limit),
+            "ambiente", "beta e produção", "", ""
+          ) >= 0.7
+        for: 10m
+        annotations: &cota-texto
+          titulo: cota de API do Contentful passou de 70%
+          resolvido: cota de API do Contentful voltou ao normal
+          descricao: >-
+            A organização do Contentful já usou
+            {{ $value | humanizePercentage }} das chamadas de API do mês. Em
+            100%, o espaço fica bloqueado até o fim do mês e o site perde o
+            conteúdo. O que os servidores do SEDES pediram aparece em
+            increase(sedes_contentful_requests_total[1d]) no Prometheus
+            (http://34.200.5.32:9090); o resto vem de quem edita no Contentful,
+            do catálogo e de scripts. O uso por dia fica em Organization
+            settings → Usage, no Contentful.
+      - alert: SedesCotaContentfulNoFim
+        expr: >-
+          label_replace(
+            max by (project) (sum by (project, ambiente) (sedes_contentful_api_requests_month))
+              / on(project) max by (project) (sedes_contentful_api_requests_limit),
+            "ambiente", "beta e produção", "", ""
+          ) >= 0.9
+        for: 10m
+        labels:
+          severity: critical
+        annotations:
+          <<: *cota-texto
+          titulo: cota de API do Contentful passou de 90%
+      # Avisa antes de chegar perto: no ritmo dos últimos 7 dias, o mês fecha
+      # acima da cota.
+      - alert: SedesCotaContentfulProjecao
+        expr: >-
+          label_replace(
+            max by (project) (sedes_contentful_api_requests_month_projected)
+              > on(project) max by (project) (sedes_contentful_api_requests_limit),
+            "ambiente", "beta e produção", "", ""
+          )
+        for: 1h
+        annotations:
+          titulo: cota de API do Contentful vai estourar neste mês
+          resolvido: projeção da cota do Contentful voltou ao normal
+          descricao: >-
+            No ritmo dos últimos 7 dias, a organização do Contentful fecha o mês
+            com {{ $value | humanize }} chamadas de API, acima da cota de 100
+            mil. Em 100%, o espaço fica bloqueado até o fim do mês e o site
+            perde o conteúdo. O que os servidores do SEDES pediram aparece em
+            increase(sedes_contentful_requests_total[1d]) no Prometheus
+            (http://34.200.5.32:9090); o resto vem de quem edita no Contentful,
+            do catálogo e de scripts.
+
       # Em 18/10/2026 o certificado da produção venceu sem aviso e o site
       # ficou 38 h fora. 14 dias dão tempo de renovar à mão se o automático
       # falhar.

@@ -56,6 +56,7 @@ import { MunicipalReportNotes } from "./MunicipalReportNotes";
 import { MunicipalReportStackedChart } from "./MunicipalReportStackedChart";
 import { MunicipalReportStackedPrintChart } from "./MunicipalReportStackedPrintChart";
 import { ReportBackToTop } from "./ReportBackToTop";
+import { ReportCover } from "./ReportCover";
 import {
   forecastGroupKinds,
   forecastGroupMethodologies,
@@ -622,6 +623,7 @@ const ReportDocument = memo(function ReportDocument({
       ref={documentRef}
       className="report-paper report-paper-html min-h-full bg-white text-[#202020]"
     >
+      <ReportCover />
       <ReportHero
         report={report}
         period={formatReportPeriod(report.requestedPeriod, locale)}

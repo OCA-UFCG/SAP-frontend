@@ -3,6 +3,7 @@ import {
   warmGeeStatisticsSchemas,
 } from "@/services/geeStatisticsWarmup";
 import { startReferenceLayerUrlRefresh } from "@/app/api/ee/referenceLayers";
+import { startContentfulTrafficCount } from "@/infrastructure/contentful/traffic";
 import { ensureEeCacheWarmupStarted } from "@/app/api/ee/services";
 import { startRetentionSweep } from "@/lib/retention-sweep";
 
@@ -18,6 +19,10 @@ import { startRetentionSweep } from "@/lib/retention-sweep";
  * andamento.
  */
 export function warmUpOnStartup() {
+  // Conta as chamadas ao Contentful para o /api/metrics; precisa começar antes
+  // do primeiro pedido.
+  startContentfulTrafficCount();
+
   // Apaga cadastros parados e eventos de uso vencidos (ver `retention-sweep`).
   // Não depende do Earth Engine, então vem antes do retorno abaixo.
   if (process.env.FIREBASE_PRIVATE_KEY || process.env.FIREBASE_PRIVATE_KEY_BASE64) {

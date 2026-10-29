@@ -15,6 +15,7 @@ const PAGE_CONTENT_HEIGHT = `${297 - 2 * PAGE_MARGIN_MM.vertical}mm`;
 const PRINT_OVERRIDES = `
       <style>
         @page{size:A4;margin:${PAGE_MARGIN_MM.vertical}mm ${PAGE_MARGIN_MM.horizontal}mm}
+        @page report-cover{margin:0}
         html,body{width:auto;margin:0;background:#fff}
         body{-webkit-print-color-adjust:exact;print-color-adjust:exact}
         .report-paper{box-sizing:border-box;width:auto!important;min-height:auto!important;margin:0!important;padding:0!important;overflow:visible;box-shadow:none!important}
@@ -22,6 +23,8 @@ const PRINT_OVERRIDES = `
         .report-hero>div{padding-left:0!important;padding-right:0!important}
         .report-back-to-top{display:none!important}
         @media print{
+          /* A capa sangra até a borda da folha, numa página só dela. */
+          .report-cover{page:report-cover;break-after:page;page-break-after:always}
           .report-chart-screen{display:none!important}
           .report-chart-print{display:block!important}
           .report-print-chart-svg{display:block;width:100%!important;height:auto!important;overflow:visible!important}
@@ -155,6 +158,11 @@ export async function measureReportPages(paper: HTMLElement, locale: string) {
   for (const frame of measured.querySelectorAll(".report-map-frame")) {
     frame.replaceChildren();
   }
+  // A capa é uma folha inteira, sem as margens das outras, e não cabe numa
+  // coluna da área útil. Sai da medição e entra como uma página a mais.
+  const covers = measured.querySelectorAll(".report-cover");
+  const coverPages = covers.length;
+  for (const cover of covers) cover.remove();
 
   const frame = document.createElement("iframe");
   frame.setAttribute("aria-hidden", "true");
@@ -202,7 +210,10 @@ export async function measureReportPages(paper: HTMLElement, locale: string) {
         section.querySelector<HTMLElement>(".report-analysis-header") ??
         section;
       const left = anchor.getBoundingClientRect().left - origin.left;
-      pages.set(section.id, Math.floor((left + 1) / origin.width) + 1);
+      pages.set(
+        section.id,
+        coverPages + Math.floor((left + 1) / origin.width) + 1,
+      );
     }
 
     return pages;

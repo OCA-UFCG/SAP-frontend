@@ -99,6 +99,21 @@ describe("ReportSummary", () => {
     ]);
   });
 
+  it("mostra uma seta na tela e deixa o número só para a impressão", () => {
+    const { container } = renderSummary(
+      [analysis("seca", "Monitor de seca | ANA", "Dados Climáticos")],
+      new Map([["report-analysis-seca", 3]]),
+    );
+    const cell = within(container).getByRole("link").lastElementChild!;
+
+    expect(cell.querySelector("svg")?.getAttribute("class")).toContain(
+      "print:hidden",
+    );
+    expect(
+      cell.querySelector("span")?.getAttribute("class")?.split(" "),
+    ).toEqual(["hidden", "print:inline"]);
+  });
+
   it("deixa os climáticos à esquerda e empilha as outras categorias à direita", () => {
     const { container } = renderSummary([
       analysis("seca", "Monitor de seca | ANA", "Dados Climáticos"),
