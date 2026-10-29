@@ -99,7 +99,7 @@ export const LanguageSwitcher = () => {
       {isOpen && (
         <div
           ref={listRef}
-          // Mesmo padrão do menu de "Início" (NavDropdown): pendurado logo
+          // Pendurado logo
           // abaixo da linha verde da barra (o botão de 40 px fica a 13 px
           // dela) e alinhado à direita, para não sair da tela no canto.
           className="absolute right-0 top-full z-50 mt-[13px] flex w-60 origin-top flex-col overflow-hidden rounded-b-lg border border-t-0 border-[#E4E5E2] bg-white py-1.5 shadow-[0_16px_32px_rgba(33,36,15,0.14)] motion-safe:animate-[menu-in_200ms_ease-out]"
