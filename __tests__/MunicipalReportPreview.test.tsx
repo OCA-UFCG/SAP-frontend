@@ -207,6 +207,46 @@ describe("MunicipalReportPreview", () => {
     expect(screen.queryByText(/Unexpected token/)).not.toBeInTheDocument();
   });
 
+  // Regressão: o relatório anterior ficava na tela sob a mensagem de erro, como
+  // se fosse do território novo, e o "Baixar PDF" travava esperando os textos.
+  it("tira o relatório anterior da tela quando o pedido seguinte falha", async () => {
+    const { rerender } = render(
+      <MunicipalReportPreview
+        locationKey="5200050"
+        period="2026"
+        layerIds={["anaseca"]}
+        embedded
+      />,
+    );
+
+    expect(await screen.findByRole("article")).toBeInTheDocument();
+
+    global.fetch = vi.fn(
+      async () =>
+        new Response("<html><title>504 Gateway Time-out</title></html>", {
+          status: 504,
+          headers: { "Content-Type": "text/html" },
+        }),
+    );
+
+    rerender(
+      <MunicipalReportPreview
+        locationKey="2504009"
+        period="2026"
+        layerIds={["anaseca"]}
+        embedded
+      />,
+    );
+
+    expect(
+      await screen.findByText(
+        "O servidor não respondeu a tempo. Tente de novo em alguns instantes.",
+      ),
+    ).toBeInTheDocument();
+    expect(screen.queryByRole("article")).not.toBeInTheDocument();
+    expect(screen.queryByText(/Abadia de Goiás/)).not.toBeInTheDocument();
+  });
+
   it("renders the report with PDF download and zoom controls", async () => {
     const user = userEvent.setup();
 

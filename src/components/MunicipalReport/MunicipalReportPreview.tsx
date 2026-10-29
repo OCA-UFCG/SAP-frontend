@@ -1043,6 +1043,11 @@ export function MunicipalReportPreview({
       setDocsResolved(false);
       setLoading(true);
       setError(null);
+      // Sem isto, um pedido que falha deixava o relatório anterior na tela,
+      // embaixo do erro e como se fosse do território novo, com o "Baixar PDF"
+      // preso esperando textos que nunca seriam buscados.
+      setReport(null);
+      setDocsContent(null);
       try {
         const finishBaseReport = startMunicipalReportStage();
         const reportParams = new URLSearchParams({ period });
