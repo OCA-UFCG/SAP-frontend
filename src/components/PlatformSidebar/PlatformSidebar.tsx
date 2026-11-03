@@ -90,6 +90,49 @@ function buildPlatformHref(section: PlatformSidebarInitialSection) {
   return `/platform?section=${section}`;
 }
 
+// Os parâmetros que descrevem o relatório pedido.
+const REPORT_PARAMS = ["locationKey", "municipalityCode", "period", "layers"];
+
+/**
+ * Troca de seção pelo trilho é estado de cliente, então a URL não muda
+ * sozinha: quem voltava ao Monitoramento depois de gerar um relatório ficava
+ * com a lista de índices do relatório no endereço. Aqui a URL passa a
+ * descrever a seção aberta; o relatório só aparece nela na Comunicação, e
+ * volta quando a pessoa retorna para lá.
+ */
+function syncSectionUrl(
+  next: PlatformSection,
+  reportRequest: PlatformSidebarProps["reportRequest"],
+) {
+  const url = new URL(window.location.href);
+  const params = url.searchParams;
+
+  REPORT_PARAMS.forEach((name) => params.delete(name));
+  // `?layer=` abre um detalhamento ao chegar; depois disso já cumpriu o papel.
+  params.delete("layer");
+
+  if (next === "communication" || next === "analysis") {
+    params.set("section", next);
+  } else {
+    params.delete("section");
+  }
+
+  if (next === "communication" && reportRequest) {
+    params.set("locationKey", reportRequest.locationKey);
+    params.set("period", reportRequest.period);
+    if (reportRequest.layerIds.length) {
+      params.set("layers", reportRequest.layerIds.join(","));
+    }
+  }
+
+  const query = params.toString();
+  window.history.replaceState(
+    null,
+    "",
+    `${url.pathname}${query ? `?${query}` : ""}${url.hash}`,
+  );
+}
+
 interface PlatformSidebarProps {
   panelLayers: PanelLayerI[];
   showAuditLink?: boolean;
@@ -184,6 +227,8 @@ export function PlatformSidebar({
       startUtilityViewExit(() => router.push(href));
       return;
     }
+
+    syncSectionUrl(next, reportRequest);
 
     runSectionTransition(activeSection, next, () => {
       if (next === "analysis") {

@@ -89,6 +89,7 @@ describe("MunicipalReportContext", () => {
 
   afterEach(() => {
     cleanup();
+    window.history.replaceState(null, "", "/");
     global.fetch = originalFetch;
   });
 
@@ -198,12 +199,15 @@ describe("MunicipalReportContext", () => {
   });
 
   it("volta ao formulário com o território e os índices do relatório aberto", () => {
-    mockSearchParams = new URLSearchParams({
+    // Ao voltar pelo trilho, o relatório já está na barra de endereço, mas o
+    // `useSearchParams` ainda não o viu; por isso só a URL do navegador o tem.
+    const params = new URLSearchParams({
       locationKey: "5200050",
       period: "2026",
       layers: "seca",
       section: "communication",
     });
+    window.history.replaceState(null, "", `/pt/platform?${params.toString()}`);
 
     render(<MunicipalReportContext panelLayers={panelLayers} />);
 

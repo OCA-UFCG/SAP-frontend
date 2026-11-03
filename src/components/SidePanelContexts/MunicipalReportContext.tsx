@@ -90,8 +90,13 @@ export function MunicipalReportContext({ panelLayers = [] }: MunicipalReportCont
   // território vazio e todos os índices marcados de novo.
   const searchParams = useSearchParams();
   const [openReport] = useState(() => {
-    const territory = resolveReportTerritory(searchParams.get("locationKey") ?? "");
-    const layers = searchParams.get("layers")?.split(",").filter(Boolean) ?? [];
+    // Voltar à Comunicação pelo trilho devolve o relatório à URL com
+    // `history.replaceState`, e o `useSearchParams` só o vê um render depois
+    // de este painel montar. No navegador, a barra de endereço já está certa.
+    const params =
+      typeof window === "undefined" ? searchParams : new URLSearchParams(window.location.search);
+    const territory = resolveReportTerritory(params.get("locationKey") ?? "");
+    const layers = params.get("layers")?.split(",").filter(Boolean) ?? [];
     const municipality = territory?.municipalityCode
       ? citiesIndex.find((city) => city.code === territory.municipalityCode)
       : undefined;
