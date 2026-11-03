@@ -48,6 +48,8 @@
 # Gerador da lista município → bioma/Semiárido/ASD usada em "Territórios por
 # classificação": o artefato em src/data é commitado.
 !/scripts/build-municipality-territories.mjs
+# Gera no build da imagem as estatísticas dos municípios de cada índice.
+!/scripts/build-municipal-statistics.ts
 # Configuração do SEDES na VM de monitoramento, aplicada pelo deploy.sh.
 !/scripts/monitoring/
 /scripts/monitoring/__pycache__/
@@ -56,6 +58,8 @@
 /scripts/gee/
 /tmp
 mise.toml
+# Estatísticas dos municípios geradas no build da imagem.
+/data/municipal-statistics/
 
 # debug
 npm-debug.log*
