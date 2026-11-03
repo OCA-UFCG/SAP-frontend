@@ -131,6 +131,11 @@ export async function getIndexCatalogPresentationPreview(
         "timeScale",
         current.locale,
       ),
+      learnMoreUrl: getLocalizedEntryField<string>(
+        current.entry,
+        "learnMoreUrl",
+        current.locale,
+      ),
       tileApiPath: `/api/index-catalog/drafts/${entryId}/ee`,
       // `municipalAnalysisApiPath` fica de fora de propósito: sem ele o painel
       // de análise usa a rota de produção do índice, que é a única que sabe ler

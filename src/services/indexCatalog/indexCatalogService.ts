@@ -241,6 +241,11 @@ async function buildCatalogPreviewResponse(
       previewMap: previewMapUrl ? { url: previewMapUrl } : null,
       imageData,
       timeScale: config.validation.inferred.timeScale,
+      learnMoreUrl: getLocalizedEntryField<string>(
+        entry,
+        "learnMoreUrl",
+        locale,
+      ),
       statisticsSource: config.validatedStatisticsSource,
       tileApiPath: `/api/index-catalog/drafts/${entry.sys.id}/ee`,
       municipalAnalysisApiPath: `/api/index-catalog/drafts/${entry.sys.id}/municipal-analysis`,

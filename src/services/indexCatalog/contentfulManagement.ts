@@ -27,6 +27,22 @@ const CATALOG_PANEL_LAYER_FIELDS = [
   { id: "sourceGroup", name: "Mesmo índice, outras fontes" },
 ] as const;
 
+/**
+ * O endereço do botão "Saiba mais". É texto, e não `Object`, para o editor do
+ * Contentful mostrar um campo de link comum; o padrão recusa um `javascript:`
+ * digitado direto lá, que o catálogo já recusaria.
+ */
+const LEARN_MORE_URL_FIELD = {
+  id: "learnMoreUrl",
+  name: "Link do Saiba mais",
+  type: "Symbol",
+  localized: false,
+  required: false,
+  validations: [{ regexp: { pattern: "^https?://\\S+$", flags: "i" } }],
+  disabled: false,
+  omitted: false,
+};
+
 export interface ContentfulManagementConfig {
   spaceId: string;
   environment: string;
@@ -239,6 +255,7 @@ function toCatalogItem(
       "measurementUnit",
       locale,
     ),
+    learnMoreUrl: getLocalizedEntryField<string>(entry, "learnMoreUrl", locale),
     catalogManaged: Boolean(managedConfig),
     managedScope: managedConfig
       ? isPresentationManagedCatalogConfig(managedConfig)
@@ -455,9 +472,11 @@ export async function ensureIndexCatalogContentModel() {
   const timeScalesToAllow = missingTimeScales(
     contentType.fields.find((field) => field.id === "timeScale"),
   );
+  const needsLearnMoreUrl = !existing.has(LEARN_MORE_URL_FIELD.id);
 
   if (
     missing.length === 0 &&
+    !needsLearnMoreUrl &&
     !needsOptionalPreview &&
     !needsOptionalUnit &&
     timeScalesToAllow.length === 0
@@ -485,6 +504,7 @@ export async function ensureIndexCatalogContentModel() {
       omitted: false,
     });
   }
+  if (needsLearnMoreUrl) fields.push(LEARN_MORE_URL_FIELD);
 
   const updated = await contentfulManagementFetch<ContentfulContentType>(
     "/content_types/panelLayer",

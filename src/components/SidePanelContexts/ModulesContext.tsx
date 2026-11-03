@@ -66,6 +66,7 @@ function buildLayerDatasets(panelLayers: PanelLayerI[]): LayerDataset[] {
     category: layer.category,
     imageData: layer.imageData,
     timeScale: layer.timeScale,
+    learnMoreUrl: layer.learnMoreUrl,
   }));
 }
 

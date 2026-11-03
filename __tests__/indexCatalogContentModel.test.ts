@@ -11,6 +11,7 @@ const CATALOG_FIELDS = [
   "forecastFacets",
   "sourceGroup",
 ].map((id) => ({ id, type: "Object" }));
+const LEARN_MORE_URL_FIELD = { id: "learnMoreUrl", type: "Symbol" };
 
 function contentType(timeScaleValidations: unknown[]) {
   return {
@@ -19,6 +20,7 @@ function contentType(timeScaleValidations: unknown[]) {
     displayField: "id",
     fields: [
       ...CATALOG_FIELDS,
+      LEARN_MORE_URL_FIELD,
       {
         id: "timeScale",
         name: "Escala Temporal",
@@ -88,5 +90,48 @@ describe("ensureIndexCatalogContentModel — escala temporal", () => {
       changed: false,
     });
     expect(fetchMock).toHaveBeenCalledOnce();
+  });
+});
+
+describe("ensureIndexCatalogContentModel — link do Saiba mais", () => {
+  beforeEach(() => {
+    vi.stubEnv("CONTENTFUL_SPACE_ID", "space");
+    vi.stubEnv("CONTENTFUL_MANAGEMENT_TOKEN", "token");
+  });
+
+  afterEach(() => {
+    vi.unstubAllGlobals();
+    vi.unstubAllEnvs();
+  });
+
+  it("cria o campo de texto que só aceita http(s) quando ele falta", async () => {
+    const fetchMock = vi.fn(async (_url: string, init?: RequestInit) => {
+      const body =
+        init?.method === "GET"
+          ? { ...contentType([]), fields: [...CATALOG_FIELDS] }
+          : { sys: { id: "panelLayer", version: 47 } };
+      return new Response(JSON.stringify(body), { status: 200 });
+    });
+    vi.stubGlobal("fetch", fetchMock);
+
+    await expect(ensureIndexCatalogContentModel()).resolves.toEqual({
+      changed: true,
+    });
+
+    const put = fetchMock.mock.calls.find(
+      ([url, init]) =>
+        init?.method === "PUT" && url.endsWith("/content_types/panelLayer"),
+    );
+    const sent = JSON.parse(String(put?.[1]?.body));
+    const field = sent.fields.find(
+      (item: { id: string }) => item.id === "learnMoreUrl",
+    );
+    expect(field).toMatchObject({ type: "Symbol", required: false });
+    const pattern = new RegExp(
+      field.validations[0].regexp.pattern,
+      field.validations[0].regexp.flags,
+    );
+    expect(pattern.test("https://www.gov.br/ana")).toBe(true);
+    expect(pattern.test("javascript:alert(1)")).toBe(false);
   });
 });
