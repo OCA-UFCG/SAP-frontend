@@ -1,4 +1,5 @@
-import maplibregl, { LngLatBoundsLike } from "maplibre-gl";
+import * as maplibregl from "maplibre-gl";
+import { LngLatBoundsLike } from "maplibre-gl";
 import type { MutableRefObject } from "react";
 import type { FeatureCollection, Geometry } from "geojson";
 import { type MapMode } from "./mapDefinitions";

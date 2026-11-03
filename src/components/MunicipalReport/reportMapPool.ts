@@ -1,6 +1,7 @@
 "use client";
 
-import maplibregl from "maplibre-gl";
+import * as maplibregl from "maplibre-gl";
+import "@/components/Map/maplibreWorker";
 import {
   GEE_LAYER_ID,
   GEE_SOURCE_ID,

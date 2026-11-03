@@ -43,7 +43,7 @@ vi.mock("maplibre-gl", () => {
     }
   }
 
-  return { default: { Map: MockMap }, Map: MockMap };
+  return { Map: MockMap, setWorkerUrl: vi.fn() };
 });
 
 vi.mock("@/components/Map/captureMapCanvas", () => ({

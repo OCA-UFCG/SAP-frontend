@@ -1,6 +1,8 @@
 "use client";
 
-import maplibregl, {
+import * as maplibregl from "maplibre-gl";
+import "@/components/Map/maplibreWorker";
+import {
   LngLatBoundsLike,
   MapSourceDataEvent,
   MapGeoJSONFeature,

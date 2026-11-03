@@ -1,5 +1,6 @@
 import type { CDIVectorData } from "@/lib/geo";
-import maplibregl, { LngLatBoundsLike } from "maplibre-gl";
+import * as maplibregl from "maplibre-gl";
+import { LngLatBoundsLike } from "maplibre-gl";
 import { useCallback, useEffect, useId, useMemo, useRef, useState } from "react";
 import type { FeatureCollection, Geometry } from "geojson";
 import { BASE_STYLE, type MapMode } from "./mapDefinitions";

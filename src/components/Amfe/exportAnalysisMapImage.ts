@@ -1,6 +1,8 @@
 "use client";
 
-import maplibregl, { type LngLatBoundsLike } from "maplibre-gl";
+import * as maplibregl from "maplibre-gl";
+import "@/components/Map/maplibreWorker";
+import { type LngLatBoundsLike } from "maplibre-gl";
 import type { FeatureCollection, Geometry } from "geojson";
 import { captureMapCanvasPng } from "@/components/Map/captureMapCanvas";
 import {
