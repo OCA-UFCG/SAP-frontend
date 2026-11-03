@@ -25,17 +25,18 @@ export const REPORT_CATEGORY_ORDER: readonly ReportCategoryKey[] = [
  * sempre de `analysis.classes[].color`. Estas existem para o leitor associar
  * uma seção à coluna do índice de onde ele veio.
  *
- * Os valores vêm do frame `3605:9085` do Figma — as pílulas de `--a-200`,
- * `--ss-200` e `--d-200`, e os acentos das linhas de cada cabeçalho.
+ * As pílulas vêm do frame `3605:9085` do Figma (`--a-200`, `--ss-200` e
+ * `--d-200`). O acento é o mesmo verde do SEDES para todas as categorias, o
+ * das Notas: o azul, o marrom e o laranja do Figma fugiam das cores do SEDES.
  */
 export const REPORT_CATEGORY_TOKENS: Record<
   ReportCategoryKey,
   { pill: string; pillInk: string; accent: string }
 > = {
-  climate: { pill: "#C4EEF4", pillInk: "#292829", accent: "#76D6E4" },
-  environmental: { pill: "#D3C5B5", pillInk: "#292829", accent: "#96755C" },
-  socioeconomic: { pill: "#FECB89", pillInk: "#292829", accent: "#FC8F23" },
-  others: { pill: "#C8CAC5", pillInk: "#292829", accent: "#C8CAC5" },
+  climate: { pill: "#C4EEF4", pillInk: "#292829", accent: "#8B9440" },
+  environmental: { pill: "#D3C5B5", pillInk: "#292829", accent: "#8B9440" },
+  socioeconomic: { pill: "#FECB89", pillInk: "#292829", accent: "#8B9440" },
+  others: { pill: "#C8CAC5", pillInk: "#292829", accent: "#8B9440" },
 };
 
 /**
