@@ -83,7 +83,7 @@ describe("MapControlDisclosure", () => {
     );
   });
 
-  it("paints each territory checkbox with that territory's map color", () => {
+  it("paints each territory row with that territory's map color", () => {
     render(
       <ReferenceOverlaysControl
         activeOverlays={new Set()}
@@ -95,20 +95,44 @@ describe("MapControlDisclosure", () => {
     );
     fireEvent.click(screen.getByRole("button", { name: "Territórios" }));
 
-    const checkboxes = screen.getAllByRole("checkbox");
+    const rows = screen.getAllByRole("listitem");
     REFERENCE_LAYER_IDS.forEach((layerId, index) => {
-      const swatch = REFERENCE_LAYER_SWATCHES[layerId];
-      const style = checkboxes[index].style;
-      expect(style.getPropertyValue("--swatch-outline")).toBe(swatch.outline);
-      expect(style.getPropertyValue("--swatch-fill")).toBe(swatch.fill);
+      expect(rows[index].style.getPropertyValue("--swatch")).toBe(
+        REFERENCE_LAYER_SWATCHES[layerId].fill,
+      );
     });
   });
 });
 
-describe("destaque no cartão de Territórios", () => {
+describe("camadas no cartão de Territórios", () => {
   afterEach(cleanup);
 
-  it("tem um liga/desliga de destaque por grupo, anunciado como switch", () => {
+  it("liga cada camada por um switch com o nome dela", () => {
+    const onToggle = vi.fn();
+    render(
+      <ReferenceOverlaysControl
+        activeOverlays={new Set(["terras_indigenas"])}
+        onToggle={onToggle}
+        highlightedOverlay={null}
+        onToggleHighlight={() => {}}
+        onSelectTerritory={() => {}}
+      />,
+    );
+    fireEvent.click(screen.getByRole("button", { name: "Territórios" }));
+
+    expect(screen.getAllByRole("switch")).toHaveLength(4);
+    expect(
+      screen.getByRole("switch", { name: "Terras Indígenas" }),
+    ).toHaveAttribute("aria-checked", "true");
+    const settlements = screen.getByRole("switch", { name: "Assentamentos" });
+    expect(settlements).toHaveAttribute("aria-checked", "false");
+
+    fireEvent.click(settlements);
+
+    expect(onToggle).toHaveBeenCalledWith("assentamentos");
+  });
+
+  it("destaca cada camada por um botão de alternância", () => {
     const onToggleHighlight = vi.fn();
     render(
       <ReferenceOverlaysControl
@@ -121,14 +145,13 @@ describe("destaque no cartão de Territórios", () => {
     );
     fireEvent.click(screen.getByRole("button", { name: "Territórios" }));
 
-    expect(screen.getAllByRole("switch")).toHaveLength(4);
     expect(
-      screen.getByRole("switch", { name: "Destacar Terras Indígenas" }),
-    ).toHaveAttribute("aria-checked", "true");
-    const settlements = screen.getByRole("switch", {
+      screen.getByRole("button", { name: "Destacar Terras Indígenas" }),
+    ).toHaveAttribute("aria-pressed", "true");
+    const settlements = screen.getByRole("button", {
       name: "Destacar Assentamentos",
     });
-    expect(settlements).toHaveAttribute("aria-checked", "false");
+    expect(settlements).toHaveAttribute("aria-pressed", "false");
 
     fireEvent.click(settlements);
 
