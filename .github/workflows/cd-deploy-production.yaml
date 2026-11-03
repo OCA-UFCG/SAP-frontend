@@ -85,6 +85,9 @@ jobs:
           cache-from: type=registry,ref=${{ vars.DOCKER_IMAGE_PROD}}:buildcache
           cache-to: type=registry,ref=${{ vars.DOCKER_IMAGE_PROD}}:buildcache,mode=max
           platforms: linux/arm64
+          # Lida só pelo passo que grava as estatísticas dos municípios na imagem.
+          secrets: |
+            gee_private_key=${{ secrets.GEE_PRIVATE_KEY }}
           build-args: |
             NEXT_PUBLIC_CONTENTFUL_ACCESS_TOKEN=${{ secrets.NEXT_PUBLIC_CONTENTFUL_ACCESS_TOKEN }}
             NEXT_PUBLIC_CONTENTFUL_PREVIEW=${{ secrets.NEXT_PUBLIC_CONTENTFUL_PREVIEW }}

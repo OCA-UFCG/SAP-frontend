@@ -75,6 +75,14 @@ EXPOSE 3000
 # Build the Next.js project
 RUN npm run build
 
+# A distribuição de cada município por índice e período, lida do Earth Engine
+# agora, para a lista "Territórios por classificação" não ir até ele (ver
+# scripts/build-municipal-statistics.ts). A chave chega como secret do build e
+# não fica gravada na imagem. Fica depois do build porque muda em todo deploy,
+# como o próprio build.
+RUN --mount=type=secret,id=gee_private_key,env=GEE_PRIVATE_KEY \
+	npm run generate:municipal-statistics
+
 # Executa o binário do Next como PID 1, sem npm nem shell no meio. Com `npm start`
 # o SIGTERM do `docker stop` morria no npm e o next-server ficava órfão segurando
 # a porta: medido em >25s sem encerrar, contra 739ms chamando o binário direto.

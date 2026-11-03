@@ -48,7 +48,11 @@ import {
   MUNICIPAL_REPORT_STACKED_MAX_COLUMNS,
   selectStackedChartSnapshots,
 } from "@/utils/municipalReportStackedChart";
-import { buildReportDocumentSections } from "@/utils/municipalReportForecast";
+import {
+  buildReportDocumentSections,
+  reportAnalysisFamilyKey,
+  splitReportAnalysisTitle,
+} from "@/utils/municipalReportForecast";
 import { MunicipalReportClassBars } from "./MunicipalReportClassBars";
 import { MunicipalReportDynamicChart } from "./MunicipalReportDynamicChart";
 import { MunicipalReportLinePrintChart } from "./MunicipalReportLinePrintChart";
@@ -66,6 +70,7 @@ import {
 } from "./ReportForecastSection";
 import { ReportDocumentFooter } from "./ReportDocumentFooter";
 import { ReportHero } from "./ReportHero";
+import { ReportPresentation } from "./ReportPresentation";
 import { ReportSectionHeading } from "./ReportSectionHeading";
 import { ReportSummary, type ReportSummaryItem } from "./ReportSummary";
 import { ReportMapPreview, type ReportMapChoropleth } from "./ReportMapPreview";
@@ -240,7 +245,7 @@ const AnalysisSection = memo(function AnalysisSection({
         style={{ borderLeftColor: accent }}
       >
         <div className="min-w-0">
-          <h2 className="font-open-sans text-[1.125rem] font-bold leading-[1.5] tracking-[-0.216px] text-[#292829]">
+          <h2 className="font-open-sans text-[1.125rem] font-bold uppercase leading-[1.5] tracking-[-0.216px] text-[#292829]">
             {translatedTitle}
           </h2>
           <p className="font-open-sans flex flex-wrap gap-1 text-xs leading-5 text-[#292829]">
@@ -300,7 +305,7 @@ const AnalysisSection = memo(function AnalysisSection({
                     </span>
                   </div>
                   <div
-                    className="flex w-[150px] shrink-0 items-center justify-center px-3 text-center text-lg font-bold"
+                    className="flex w-[150px] shrink-0 items-center justify-center px-3 text-center text-[0.9375rem] font-bold leading-5"
                     style={{
                       backgroundColor: dominant.color || accent,
                       color: textColorForBackground(dominant.color || accent),
@@ -336,9 +341,6 @@ const AnalysisSection = memo(function AnalysisSection({
               {t("document.spatialDistributionTitle")}
             </ReportSectionHeading>
             <div className="report-block mt-4 flex flex-col gap-4 overflow-hidden rounded-lg border border-[#EFEFEF] bg-[#F6F7F6] p-4">
-              <p className="font-open-sans text-base font-bold text-[#292829]">
-                {t("spatialImage", { period: snapshotPeriodLabel })}
-              </p>
               <ReportMapPreview
                 territory={report.territory}
                 imageAlt={t("mapAlt", {
@@ -534,20 +536,51 @@ const ReportDocument = memo(function ReportDocument({
   const sections = buildReportDocumentSections(selected);
   // As previsões de uma categoria saem juntas no fim dela e viram, no sumário,
   // subtópicos de uma linha "Previsão climática" que leva à primeira.
-  const summaryItems: (ReportSummaryItem & { title: string })[] = [];
+  // Do mesmo jeito, as fontes de um mesmo índice ("Índice de Aridez - ERA5
+  // Land", "... - BR-DWGD") viram subtópicos de uma linha com o nome dele.
+  const familySizes = new Map<string, number>();
+  for (const section of sections) {
+    const key =
+      section.type === "analysis" && reportAnalysisFamilyKey(section.analysis);
+    if (key) familySizes.set(key, (familySizes.get(key) ?? 0) + 1);
+  }
+  const summaryItems: (ReportSummaryItem & {
+    title: string;
+    family?: string;
+  })[] = [];
   for (const section of sections) {
     if (section.type === "analysis") {
+      const title = translateAnalysisTitle(
+        section.analysis,
+        t,
+        tHas,
+        tModules,
+        tModulesHas,
+      );
+      const family = reportAnalysisFamilyKey(section.analysis);
+      const parts = splitReportAnalysisTitle(title);
+      if (family && parts && (familySizes.get(family) ?? 0) > 1) {
+        const entry = { alias: section.analysis.alias, title: parts.variant };
+        const previous = summaryItems.at(-1);
+        if (previous?.family === family && previous.entries) {
+          previous.entries.push(entry);
+          continue;
+        }
+        summaryItems.push({
+          id: `family-${family}`,
+          alias: section.analysis.alias,
+          category: section.analysis.category,
+          title: parts.name,
+          family,
+          entries: [entry],
+        });
+        continue;
+      }
       summaryItems.push({
         id: section.analysis.id,
         alias: section.analysis.alias,
         category: section.analysis.category,
-        title: translateAnalysisTitle(
-          section.analysis,
-          t,
-          tHas,
-          tModules,
-          tModulesHas,
-        ),
+        title,
       });
       continue;
     }
@@ -558,7 +591,11 @@ const ReportDocument = memo(function ReportDocument({
       detail: forecastGroupKinds(section.group, t).join(" · "),
     };
     const previous = summaryItems.at(-1);
-    if (previous?.entries && previous.category === section.group.category) {
+    if (
+      previous?.entries &&
+      !previous.family &&
+      previous.category === section.group.category
+    ) {
       previous.entries.push(entry);
       continue;
     }
@@ -636,6 +673,7 @@ const ReportDocument = memo(function ReportDocument({
       <ReportBackToTop />
 
       <div className="flex flex-col gap-6 px-10 py-6">
+        <ReportPresentation territory={report.territory} />
         <ReportSummary
           analyses={summaryItems}
           translateTitle={(item) => item.title}
@@ -714,10 +752,7 @@ const ReportDocument = memo(function ReportDocument({
           locale={locale}
         />
 
-        <ReportDocumentFooter
-          generatedAt={generatedAt}
-          text={getReportDocsText(docsContent, "Rodapé", locale) ?? undefined}
-        />
+        <ReportDocumentFooter generatedAt={generatedAt} />
       </div>
     </article>
   );
@@ -768,7 +803,6 @@ export function MunicipalReportPreview({
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(hasRequiredParameters);
   const [exporting, setExporting] = useState(false);
-  const [zoom, setZoom] = useState(100);
   const reportDocumentRef = useRef<HTMLElement>(null);
   const navigationMeasuredRef = useRef(false);
   const previewMeasuredRef = useRef(false);
@@ -973,8 +1007,8 @@ export function MunicipalReportPreview({
   }, [docsContent, docsResolved, loading, locale, report]);
 
   // `printReport` é redeclarado a cada render, e passá-lo direto ao
-  // `ReportDocument` quebraria o `memo` dele — o zoom voltaria a remontar os
-  // vinte mapas. Esta referência é estável e sempre chama a versão atual.
+  // `ReportDocument` quebraria o `memo` dele — cada render voltaria a remontar
+  // os vinte mapas. Esta referência é estável e sempre chama a versão atual.
   const printReportRef = useRef<() => void>(() => {});
   const handleDownload = useCallback(() => printReportRef.current(), []);
 
@@ -1043,6 +1077,11 @@ export function MunicipalReportPreview({
       setDocsResolved(false);
       setLoading(true);
       setError(null);
+      // Sem isto, um pedido que falha deixava o relatório anterior na tela,
+      // embaixo do erro e como se fosse do território novo, com o "Baixar PDF"
+      // preso esperando textos que nunca seriam buscados.
+      setReport(null);
+      setDocsContent(null);
       try {
         const finishBaseReport = startMunicipalReportStage();
         const reportParams = new URLSearchParams({ period });
@@ -1148,63 +1187,6 @@ export function MunicipalReportPreview({
   if (embedded) {
     return (
       <div className="flex h-full min-w-0 flex-col bg-white">
-        <div className="shrink-0 border-b border-[#D9E0E3] bg-white px-4 py-4 sm:px-6">
-          <div className="flex w-full flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
-            <div className="min-w-0">
-              <p className="font-inter text-xs font-semibold uppercase tracking-[0.08em] text-[#536E7B]">
-                {t("preview")}
-              </p>
-            </div>
-            <div className="flex shrink-0 flex-wrap items-center gap-3">
-              <div className="flex shrink-0 items-center gap-2">
-                <button
-                  type="button"
-                  onClick={() => setZoom((value) => Math.max(50, value - 10))}
-                  disabled={!report || zoom <= 50}
-                  className="flex h-10 w-10 items-center justify-center rounded border border-[#D9E0E3] bg-white text-[#646B2D] transition hover:bg-[#F6F7F6] disabled:cursor-not-allowed disabled:opacity-40"
-                  aria-label={t("zoomOut")}
-                >
-                  <svg
-                    className="h-6 w-6"
-                    aria-hidden
-                    viewBox="0 0 24 24"
-                    fill="none"
-                    stroke="currentColor"
-                    strokeWidth="2"
-                  >
-                    <circle cx="11" cy="11" r="7" />
-                    <path d="M8 11h6M20 20l-3.5-3.5" />
-                  </svg>
-                </button>
-                <output
-                  className="flex h-10 w-[60px] items-center justify-center rounded-md border border-[#DCDBDC] bg-white px-2 font-inter text-sm text-[#6E696B]"
-                  aria-live="polite"
-                >
-                  {zoom}%
-                </output>
-                <button
-                  type="button"
-                  onClick={() => setZoom((value) => Math.min(150, value + 10))}
-                  disabled={!report || zoom >= 150}
-                  className="flex h-10 w-10 items-center justify-center rounded border border-[#D9E0E3] bg-white text-[#646B2D] transition hover:bg-[#F6F7F6] disabled:cursor-not-allowed disabled:opacity-40"
-                  aria-label={t("zoomIn")}
-                >
-                  <svg
-                    className="h-6 w-6"
-                    aria-hidden
-                    viewBox="0 0 24 24"
-                    fill="none"
-                    stroke="currentColor"
-                    strokeWidth="2"
-                  >
-                    <circle cx="11" cy="11" r="7" />
-                    <path d="M11 8v6M8 11h6M20 20l-3.5-3.5" />
-                  </svg>
-                </button>
-              </div>
-            </div>
-          </div>
-        </div>
         <div className="min-h-0 flex-1 overflow-auto bg-white">
           {!hasRequiredParameters && <EmptyReportPreview />}
           {loading && (
@@ -1231,10 +1213,7 @@ export function MunicipalReportPreview({
             </div>
           )}
           {report && !loading && (
-            <div
-              className="mx-auto origin-top-left will-change-transform"
-              style={{ width: "100%", transform: `scale(${zoom / 100})` }}
-            >
+            <div className="mx-auto w-full">
               <ReportDocument
                 report={report}
                 layerIds={layerIds}

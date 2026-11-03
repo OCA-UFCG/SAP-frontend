@@ -68,6 +68,51 @@ function forecastGroupAlias(
 }
 
 /**
+ * O nome e a fonte de um índice publicado em mais de uma fonte, como
+ * "Índice de Aridez - ERA5 Land". `null` quando o título não tem essa forma.
+ *
+ * @example
+ * splitReportAnalysisTitle("Índice de Aridez - BR-DWGD");
+ * // { name: "Índice de Aridez", variant: "BR-DWGD" }
+ */
+export function splitReportAnalysisTitle(title: string) {
+  const match = /^(.+?)\s+-\s+(.+)$/u.exec(title);
+  return match ? { name: match[1].trim(), variant: match[2].trim() } : null;
+}
+
+/** A chave que junta as fontes do mesmo índice ("indice_de_aridez"). */
+export function reportAnalysisFamilyKey(analysis: MunicipalReportAnalysis) {
+  const parts = splitReportAnalysisTitle(analysis.title);
+  return parts ? stableMunicipalReportAlias(parts.name) : null;
+}
+
+/**
+ * As fontes do mesmo índice lado a lado, na posição da primeira: no sumário
+ * elas viram subtópicos de uma linha só, e os números de página precisam
+ * continuar crescendo.
+ */
+function keepFamiliesTogether<T extends { analysis: MunicipalReportAnalysis }>(
+  sections: readonly T[],
+) {
+  const ordered: T[] = [];
+  for (const section of sections) {
+    if (ordered.includes(section)) continue;
+    ordered.push(section);
+    const key = reportAnalysisFamilyKey(section.analysis);
+    if (!key) continue;
+    ordered.push(
+      ...sections.filter(
+        (other) =>
+          other !== section &&
+          !ordered.includes(other) &&
+          reportAnalysisFamilyKey(other.analysis) === key,
+      ),
+    );
+  }
+  return ordered;
+}
+
+/**
  * As seções do documento, na ordem das análises, com as previsões juntas no fim
  * da sua categoria — no sumário elas ficam sob uma linha só, "Previsão
  * climática". Entre si, as previsões ficam por variável, periodicidade e fonte
@@ -142,7 +187,11 @@ export function buildReportDocumentSections(
   }
 
   return [...byCategory.values()].flatMap((category) => [
-    ...category.filter((section) => section.type === "analysis"),
+    ...keepFamiliesTogether(
+      category.flatMap((section) =>
+        section.type === "analysis" ? [section] : [],
+      ),
+    ),
     ...category
       .flatMap((section) => (section.type === "forecast" ? [section] : []))
       .sort((left, right) => compareForecastGroups(left.group, right.group)),

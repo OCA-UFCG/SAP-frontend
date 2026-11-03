@@ -125,6 +125,38 @@ describe("MunicipalReportContext", () => {
     expect(params.get("layers")?.split(",")).toEqual(["seca", "futuro"]);
   });
 
+  it("seleciona e limpa os produtos disponíveis por dois botões", async () => {
+    const user = userEvent.setup();
+
+    render(<MunicipalReportContext panelLayers={panelLayers} />);
+
+    const municipalityInput = screen.getByRole("combobox", {
+      name: /município/iu,
+    });
+    await user.click(municipalityInput);
+    await user.type(municipalityInput, "Abadia");
+    await user.click(screen.getByRole("option", { name: "Abadia de Goiás - GO" }));
+
+    const selectAll = await screen.findByRole("button", { name: "Selecionar todos" });
+    const clearAll = screen.getByRole("button", { name: "Limpar seleção" });
+    expect(selectAll).toBeDisabled();
+    expect(clearAll).toBeEnabled();
+
+    await user.click(clearAll);
+
+    expect(screen.getByRole("checkbox", { name: "Monitor de Secas" })).not.toBeChecked();
+    expect(screen.getByRole("checkbox", { name: "Previsão: Índice futuro" })).not.toBeChecked();
+    expect(clearAll).toBeDisabled();
+    expect(selectAll).toBeEnabled();
+
+    await user.click(selectAll);
+
+    expect(screen.getByRole("checkbox", { name: "Monitor de Secas" })).toBeChecked();
+    expect(screen.getByRole("checkbox", { name: "Previsão: Índice futuro" })).toBeChecked();
+    expect(screen.getByRole("checkbox", { name: "Sem dados" })).not.toBeChecked();
+    expect(selectAll).toBeDisabled();
+  });
+
   it("agrupa a previsão num subacordeão no fim da categoria e gera as seções nessa ordem", async () => {
     const user = userEvent.setup();
     const [seca, futuro, semDados] = panelLayers;
