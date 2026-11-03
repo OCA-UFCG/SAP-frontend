@@ -22,6 +22,7 @@ const { mapInstances, MapConstructorMock, prewarmMock } = vi.hoisted(() => ({
     resize: ReturnType<typeof vi.fn>;
     setFeatureState: ReturnType<typeof vi.fn>;
     triggerRepaint: ReturnType<typeof vi.fn>;
+    redraw: ReturnType<typeof vi.fn>;
   }>,
   MapConstructorMock: vi.fn(),
   prewarmMock: vi.fn(),
@@ -79,6 +80,7 @@ vi.mock("maplibre-gl", () => {
     setFilter = vi.fn(() => this);
     moveLayer = vi.fn(() => this);
     triggerRepaint = vi.fn();
+    redraw = vi.fn(() => this);
     getCanvas = vi.fn(() => ({
       toDataURL: vi.fn(() => `data:image/png;base64,${"a".repeat(120)}`),
     }));
@@ -96,6 +98,31 @@ vi.mock("maplibre-gl", () => {
     prewarm: prewarmMock,
   };
 });
+
+const {
+  SCENE,
+  THUMBNAIL_IMAGE,
+  loadReportMapSceneMock,
+  loadReportMapThumbnailMock,
+  composeReportMapMock,
+} = vi.hoisted(() => ({
+  SCENE: {
+    base: {},
+    overlay: {},
+    thumbnailRect: { x: 0, y: 0, width: 1, height: 1 },
+  },
+  THUMBNAIL_IMAGE: {},
+  loadReportMapSceneMock: vi.fn(),
+  loadReportMapThumbnailMock: vi.fn(),
+  composeReportMapMock: vi.fn(),
+}));
+
+vi.mock("@/components/MunicipalReport/reportMapScene", () => ({
+  REPORT_RASTER_OPACITY: 0.85,
+  loadReportMapScene: loadReportMapSceneMock,
+  loadReportMapThumbnail: loadReportMapThumbnailMock,
+  composeReportMap: composeReportMapMock,
+}));
 
 vi.mock("@/components/Map/municipalityLayers", () => ({
   MUNICIPALITY_BORDER_LAYER_ID: "municipality-borders",
@@ -120,6 +147,7 @@ vi.mock("@/components/Map/mapBounds", async (importOriginal) => {
 });
 
 import { resolveReportTerritory } from "@/utils/reportTerritory";
+import { resolveReportMapView } from "@/components/MunicipalReport/reportMapView";
 import { ReportMapPreview } from "@/components/MunicipalReport/ReportMapPreview";
 import {
   countIdleReportMaps,
@@ -159,6 +187,11 @@ describe("ReportMapPreview", () => {
     mapInstances.length = 0;
     MapConstructorMock.mockClear();
     prewarmMock.mockClear();
+    loadReportMapSceneMock.mockReset().mockResolvedValue(SCENE);
+    loadReportMapThumbnailMock.mockReset().mockResolvedValue(THUMBNAIL_IMAGE);
+    composeReportMapMock
+      .mockReset()
+      .mockReturnValue("data:image/png;base64,composto");
   });
 
   afterEach(() => {
@@ -166,9 +199,9 @@ describe("ReportMapPreview", () => {
     destroyReportMapPool();
   });
 
-  // ~15 tiles por mapa somavam ~300 pedidos ao Earth Engine por relatório, e
-  // com 20 pessoas gerando relatórios o Google recusava quase metade.
-  it("desenha a camada como uma imagem só, presa aos cantos do recorte", async () => {
+  // Os ~35 mapas do Earth Engine de um município mostram o mesmo recorte: o
+  // fundo e as divisas saem de um cenário só, e cada mapa só cola a miniatura.
+  it("cola a miniatura sobre o cenário compartilhado, sem MapLibre próprio", async () => {
     const onCapture = vi.fn();
     const view = {
       frame: [-47.3, -16.2, -46.7, -15.8] as [number, number, number, number],
@@ -193,37 +226,110 @@ describe("ReportMapPreview", () => {
       />,
     );
 
-    await waitFor(() => expect(mapInstances).toHaveLength(1));
-    emit(0, "load");
     await waitFor(() =>
-      expect(mapInstances[0].addSource).toHaveBeenCalledWith("gee-tiles", {
-        type: "image",
-        url: "https://ee.example/thumb:getPixels",
-        coordinates: [
-          [-47.32, -15.79],
-          [-46.68, -15.79],
-          [-46.68, -16.21],
-          [-47.32, -16.21],
-        ],
+      expect(onCapture).toHaveBeenCalledWith("data:image/png;base64,composto"),
+    );
+    expect(mapInstances).toHaveLength(0);
+    // O cenário sai do território, pela mesma conta que pediu a miniatura.
+    const territoryView = resolveReportMapView(ABADIA_DE_GOIAS)!;
+    expect(loadReportMapSceneMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        key: "5200050|inteiro",
+        thumbnailBbox: territoryView.thumbnail.bbox,
       }),
     );
-    // A câmera vai para o recorte que a imagem cobre, por último.
-    await waitFor(() =>
-      expect(mapInstances[0].fitBounds).toHaveBeenLastCalledWith(
-        [
-          [-47.3, -16.2],
-          [-46.7, -15.8],
+    expect(loadReportMapThumbnailMock).toHaveBeenCalledWith(
+      "https://ee.example/thumb:getPixels",
+      expect.any(AbortSignal),
+    );
+    expect(composeReportMapMock).toHaveBeenCalledWith(SCENE, THUMBNAIL_IMAGE);
+
+    // O cenário enquadra o recorte que a miniatura cobre, por último.
+    const map = {
+      fitBounds: vi.fn(),
+      setFeatureState: vi.fn(),
+      addLayer: vi.fn(),
+    };
+    loadReportMapSceneMock.mock.calls[0][0].prepare(map);
+    const [west, south, east, north] = territoryView.frame;
+    expect(map.fitBounds).toHaveBeenLastCalledWith(
+      [
+        [west, south],
+        [east, north],
+      ],
+      { padding: 0, animate: false },
+    );
+    expect(map.addLayer).not.toHaveBeenCalled();
+  });
+
+  it("cobre os vizinhos no cenário do mapa recortado", async () => {
+    const view = {
+      frame: [-47.3, -16.2, -46.7, -15.8] as [number, number, number, number],
+      thumbnail: {
+        bbox: [-47.32, -16.21, -46.68, -15.79] as [
+          number,
+          number,
+          number,
+          number,
         ],
-        { padding: 0, animate: false },
-      ),
+        width: 1448,
+        height: 670,
+      },
+    };
+    render(
+      <ReportMapPreview
+        territory={ABADIA_DE_GOIAS}
+        layerId="anaseca"
+        period="2024-01"
+        thumbnail={{ url: "https://ee.example/thumb:getPixels", view }}
+        clipToTerritory
+        onCapture={vi.fn()}
+      />,
     );
 
-    emitRasterReady(0);
-    await waitFor(() =>
-      expect(onCapture).toHaveBeenCalledWith(
-        expect.stringMatching(/^data:image\/png;base64,/),
-      ),
+    await waitFor(() => expect(loadReportMapSceneMock).toHaveBeenCalled());
+    const request = loadReportMapSceneMock.mock.calls[0][0];
+    expect(request.key).toMatch(/^5200050\|\d+$/);
+    const map = {
+      fitBounds: vi.fn(),
+      setFeatureState: vi.fn(),
+      addLayer: vi.fn(),
+    };
+    request.prepare(map);
+    expect(map.addLayer).toHaveBeenCalledWith(
+      expect.objectContaining({ id: "report-territory-mask" }),
+      "municipality-borders",
     );
+  });
+
+  it("devolve a falha para a fila quando a miniatura não chega", async () => {
+    loadReportMapThumbnailMock.mockResolvedValueOnce(null);
+    const onCapture = vi.fn();
+    const view = {
+      frame: [-47.3, -16.2, -46.7, -15.8] as [number, number, number, number],
+      thumbnail: {
+        bbox: [-47.32, -16.21, -46.68, -15.79] as [
+          number,
+          number,
+          number,
+          number,
+        ],
+        width: 1448,
+        height: 670,
+      },
+    };
+    const { findByText } = render(
+      <ReportMapPreview
+        territory={ABADIA_DE_GOIAS}
+        layerId="anaseca"
+        period="2024-01"
+        thumbnail={{ url: "https://ee.example/thumb:getPixels", view }}
+        onCapture={onCapture}
+      />,
+    );
+
+    await waitFor(() => expect(onCapture).toHaveBeenCalledWith(null));
+    expect(await findByText("Mapa indisponível para exportação.")).toBeTruthy();
   });
 
   // Regressão: um índice de planilha não tem asset no Earth Engine, e o quadro
@@ -628,6 +734,9 @@ describe("ReportMapPreview", () => {
     await waitFor(() =>
       expect(mapInstances[0].resize).toHaveBeenCalledTimes(1),
     );
+    // A limpeza da devolução só vale depois de um desenho: sem ele, a faixa 0
+    // da coropleta seguinte era descartada pelo MapLibre.
+    expect(mapInstances[0].redraw).toHaveBeenCalledTimes(1);
     emitRasterReady(0);
 
     await waitFor(() => expect(secondCapture).toHaveBeenCalledTimes(1));

@@ -75,6 +75,7 @@ import { ReportSectionHeading } from "./ReportSectionHeading";
 import { ReportSummary, type ReportSummaryItem } from "./ReportSummary";
 import { ReportMapPreview, type ReportMapChoropleth } from "./ReportMapPreview";
 import { destroyReportMapPool } from "./reportMapPool";
+import { clearReportMapScenes } from "./reportMapScene";
 import { buildReportPrintHtml, measureReportPages } from "./reportPrint";
 import { resolveReportMapView, type ReportMapThumbnail } from "./reportMapView";
 import { useReportMapCaptureQueue } from "./useReportMapCaptureQueue";
@@ -874,6 +875,13 @@ export function MunicipalReportPreview({
       ),
     [mapChoropleths, mapTileUrls, requestedMapKeys],
   );
+  // Uma camada que veio como miniatura é colada sobre o fundo compartilhado,
+  // sem MapLibre próprio, e não precisa esperar vaga na fila.
+  const composedMapKeys = useMemo(
+    () =>
+      new Set(reportMapKeys.filter((key) => mapTileUrls.thumbnailFor(key))),
+    [mapTileUrls, reportMapKeys],
+  );
   const {
     activeMapKeys,
     handleMapCapture,
@@ -884,7 +892,7 @@ export function MunicipalReportPreview({
     resetMapCaptureQueue,
     retryAttemptFor,
     retryMapCapture,
-  } = useReportMapCaptureQueue(reportMapKeys);
+  } = useReportMapCaptureQueue(reportMapKeys, composedMapKeys);
   // Enquanto as URLs não voltam a fila está vazia, e uma fila vazia estaria
   // "pronta": sem esta guarda o botão de exportar liberava antes do primeiro
   // mapa existir.
@@ -912,9 +920,15 @@ export function MunicipalReportPreview({
     recordMunicipalReportNavigation();
   }, [hasRequiredParameters]);
 
-  // Cinco contextos WebGL guardados são baratos enquanto o relatório está
-  // aberto, e desperdício depois que ele sai da tela.
-  useEffect(() => destroyReportMapPool, []);
+  // Cinco contextos WebGL guardados e o fundo dos mapas são baratos enquanto o
+  // relatório está aberto, e desperdício depois que ele sai da tela.
+  useEffect(
+    () => () => {
+      destroyReportMapPool();
+      clearReportMapScenes();
+    },
+    [],
+  );
 
   useEffect(() => {
     if (!report || loading || previewMeasuredRef.current) return;

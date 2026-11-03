@@ -29,7 +29,8 @@ const REPORT_MAP_STYLE: maplibregl.StyleSpecification = {
   layers: [OSM_BASE_LAYER],
 };
 
-// Nunca há mais mapas em uso do que a concorrência da fila, então guardar essa
+// A fila usa no máximo essa quantidade de mapas ao mesmo tempo (o fundo dos
+// mapas de município soma um ou dois, só no começo), então guardar essa
 // quantidade cobre o relatório inteiro sem manter contexto WebGL sobrando.
 const MAX_IDLE_MAPS = REPORT_MAP_CAPTURE_CONCURRENCY;
 
@@ -109,6 +110,11 @@ export async function acquireReportMap(
   if (reused) {
     slot.appendChild(reused.container);
     reused.map.resize();
+    // A limpeza da devolução só vale no próximo desenho, e um mapa na estante
+    // não desenha. Sem este desenho, a coropleta seguinte gravava as faixas com
+    // a remoção ainda pendente, e o MapLibre descartava a faixa 0 (ele testa
+    // `!valor` ao reconciliar): os municípios da cor mais baixa saíam sem cor.
+    reused.map.redraw();
     return { ...reused, created: false };
   }
 

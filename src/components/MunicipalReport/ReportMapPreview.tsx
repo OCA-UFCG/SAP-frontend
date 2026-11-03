@@ -47,7 +47,16 @@ import {
   releaseReportMap,
   type PooledReportMap,
 } from "@/components/MunicipalReport/reportMapPool";
-import type { ReportMapThumbnail } from "@/components/MunicipalReport/reportMapView";
+import {
+  resolveReportMapView,
+  type ReportMapThumbnail,
+} from "@/components/MunicipalReport/reportMapView";
+import {
+  composeReportMap,
+  loadReportMapScene,
+  loadReportMapThumbnail,
+  REPORT_RASTER_OPACITY,
+} from "@/components/MunicipalReport/reportMapScene";
 
 /**
  * Quanto uma tentativa de captura pode levar, da obtenção do mapa até o PNG.
@@ -109,8 +118,7 @@ function isMissingPeriod(reason?: EeMapUrlFailure) {
 
 function addGeeRasterLayer(
   map: maplibregl.Map,
-  source:
-    maplibregl.RasterSourceSpecification | maplibregl.ImageSourceSpecification,
+  source: maplibregl.RasterSourceSpecification,
 ) {
   map.addSource(GEE_SOURCE_ID, source);
 
@@ -119,7 +127,10 @@ function addGeeRasterLayer(
       id: GEE_LAYER_ID,
       type: "raster",
       source: GEE_SOURCE_ID,
-      paint: { "raster-opacity": 0.85, "raster-resampling": "nearest" },
+      paint: {
+        "raster-opacity": REPORT_RASTER_OPACITY,
+        "raster-resampling": "nearest",
+      },
     },
     MUNICIPALITY_BORDER_LAYER_ID,
   );
@@ -131,27 +142,6 @@ function tileSource(tileUrl: string): maplibregl.RasterSourceSpecification {
     tiles: [tileUrl],
     tileSize: 256,
     bounds: BRAZIL_RASTER_BOUNDS,
-  };
-}
-
-/**
- * A camada inteira numa imagem só, presa aos quatro cantos do recorte. Troca os
- * ~15 tiles de cada mapa por um pedido ao Earth Engine.
- */
-function thumbnailSource({
-  url,
-  view,
-}: ReportMapThumbnail): maplibregl.ImageSourceSpecification {
-  const [west, south, east, north] = view.thumbnail.bbox;
-  return {
-    type: "image",
-    url,
-    coordinates: [
-      [west, north],
-      [east, north],
-      [east, south],
-      [west, south],
-    ],
   };
 }
 
@@ -377,6 +367,51 @@ function maskOtherMunicipalities(
   );
 }
 
+/**
+ * O cenário compartilhado dos mapas de um município (fundo e divisas), para o
+ * tamanho deste quadro. Depende só do território e do quadro, não da camada.
+ */
+function requestReportMapScene(
+  slot: HTMLElement,
+  territory: MunicipalReportTerritory,
+  clipToTerritory: boolean,
+) {
+  const view = resolveReportMapView(territory);
+  if (!view) return Promise.resolve(null);
+  const clipPadding = clipToTerritory ? clippedMapPadding(slot) : null;
+
+  return loadReportMapScene({
+    key: `${territory.locationKey}|${clipPadding ?? "inteiro"}`,
+    width: slot.clientWidth,
+    height: slot.clientHeight,
+    thumbnailBbox: view.thumbnail.bbox,
+    prepare: (map) => {
+      focusMunicipality(map, territory.locationKey, clipPadding ?? 36);
+      if (clipPadding !== null) {
+        maskOtherMunicipalities(map, territory.locationKey);
+        return;
+      }
+      // A miniatura cobre só o recorte calculado para o quadro: a câmera vai
+      // exatamente para ele, em qualquer tamanho de tela.
+      const [west, south, east, north] = view.frame;
+      map.fitBounds(
+        [
+          [west, south],
+          [east, north],
+        ],
+        { padding: 0, animate: false },
+      );
+    },
+  });
+}
+
+function clippedMapPadding(slot: HTMLElement) {
+  return Math.round(
+    Math.min(slot.clientWidth, slot.clientHeight) *
+      REPORT_CLIPPED_MAP_PADDING_RATIO,
+  );
+}
+
 function isCaptureReady(map: maplibregl.Map, sourceId: string) {
   return (
     map.isSourceLoaded(sourceId) &&
@@ -562,6 +597,20 @@ export function ReportMapPreview({
     return () => observer.disconnect();
   }, [onVisibilityChange]);
 
+  // O fundo e as divisas não dependem da camada: o quadro de um município já
+  // encomenda o cenário ao aparecer, enquanto as URLs dos mapas ainda vêm do
+  // servidor. Os outros quadros do relatório recebem a mesma encomenda.
+  const prefetchScene =
+    territory.level === "municipality" &&
+    !choropleth &&
+    !unavailableReason &&
+    !resolvedImageSrc;
+  useEffect(() => {
+    const frame = frameRef.current;
+    if (!prefetchScene || !frame?.clientWidth) return;
+    void requestReportMapScene(frame, territory, clipToTerritory);
+  }, [clipToTerritory, prefetchScene, territory]);
+
   useEffect(() => {
     const controller = new AbortController();
     let aborted = false;
@@ -603,6 +652,50 @@ export function ReportMapPreview({
       finishCapture(null, failure);
     };
 
+    /**
+     * A miniatura colada sobre o fundo e sob as divisas que todos os mapas do
+     * relatório compartilham, sem um MapLibre por camada.
+     */
+    async function captureComposedMap(
+      slot: HTMLElement,
+      { url }: ReportMapThumbnail,
+    ) {
+      const finishThumbnail = startMunicipalReportStage();
+      const thumbnailRequest = loadReportMapThumbnail(
+        url,
+        controller.signal,
+      ).then((image) => {
+        if (!controller.signal.aborted) {
+          finishThumbnail(`Mapa ${layerId}: miniatura do Earth Engine`, {
+            detalhes: image ? "Imagem baixada" : "Imagem não chegou",
+          });
+        }
+        return image;
+      });
+      const [scene, image] = await Promise.all([
+        requestReportMapScene(slot, territory, clipToTerritory),
+        thumbnailRequest,
+      ]);
+      if (controller.signal.aborted) return;
+      if (!scene) {
+        finishCapture(null, "Fundo e divisas do mapa não ficaram prontos");
+        return;
+      }
+      if (!image) {
+        finishCapture(null, "Miniatura do Earth Engine indisponível");
+        return;
+      }
+
+      const finishCompose = startMunicipalReportStage();
+      const dataUrl = composeReportMap(scene, image);
+      finishCompose(`Mapa ${layerId}: composição`, {
+        detalhes: dataUrl
+          ? "Miniatura colada entre o fundo e as divisas"
+          : "Falha em canvas.toDataURL(image/png)",
+      });
+      finishCapture(dataUrl);
+    }
+
     async function setupMapPreview() {
       captureCompletedRef.current = false;
       finishMap = startMunicipalReportStage();
@@ -626,6 +719,11 @@ export function ReportMapPreview({
           `Captura passou de ${REPORT_MAP_CAPTURE_TIMEOUT_MS / 1000} s sem terminar`,
         ),
       );
+
+      if (thumbnail) {
+        await captureComposedMap(slot, thumbnail);
+        return;
+      }
 
       const finishAcquire = startMunicipalReportStage();
       const acquired = await acquireReportMap(slot, controller.signal);
@@ -662,15 +760,8 @@ export function ReportMapPreview({
       if (choropleth) {
         addChoroplethLayers(acquired.map, choropleth, overviewGeoJson);
       }
-      else if (thumbnail) {
-        addGeeRasterLayer(acquired.map, thumbnailSource(thumbnail));
-      } else if (tileUrl) addGeeRasterLayer(acquired.map, tileSource(tileUrl));
-      const clipPadding = clipToTerritory
-        ? Math.round(
-            Math.min(slot.clientWidth, slot.clientHeight) *
-              REPORT_CLIPPED_MAP_PADDING_RATIO,
-          )
-        : null;
+      else if (tileUrl) addGeeRasterLayer(acquired.map, tileSource(tileUrl));
+      const clipPadding = clipToTerritory ? clippedMapPadding(slot) : null;
       await focusTerritory(
         acquired.map,
         territory,
@@ -678,19 +769,6 @@ export function ReportMapPreview({
         clipPadding,
       );
       if (controller.signal.aborted) return;
-      // A miniatura cobre só o recorte calculado para o quadro: a câmera vai
-      // exatamente para ele, em qualquer tamanho de tela. Recortado, o mapa
-      // fica com a folga própria: o que passa da miniatura está sob o véu.
-      if (thumbnail && clipPadding === null) {
-        const [west, south, east, north] = thumbnail.view.frame;
-        acquired.map.fitBounds(
-          [
-            [west, south],
-            [east, north],
-          ],
-          { padding: 0, animate: false },
-        );
-      }
       capture.markFocused();
       const ready = await capture.ready;
       if (controller.signal.aborted) return;
