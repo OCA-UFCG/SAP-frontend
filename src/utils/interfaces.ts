@@ -315,6 +315,8 @@ export interface PanelLayerI {
   forecastFacets?: PanelLayerForecastFacets | null;
   /** O grupo do mesmo índice com outras fontes de dados, quando existe. */
   sourceGroup?: PanelLayerSourceGroup | null;
+  /** Para onde o botão "Saiba mais" leva, quando o catálogo tem um link. */
+  learnMoreUrl?: string | null;
   tileApiPath?: string;
   municipalAnalysisApiPath?: string;
 }

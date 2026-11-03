@@ -163,6 +163,11 @@ interface IndexCatalogAuditData {
    * publicação. É a mesma razão pela qual `previewMap` mora aqui.
    */
   report?: PublishedPanelLayerReportConfig;
+  /**
+   * Para onde o botão "Saiba mais" do índice leva. Mora aqui pelo mesmo motivo
+   * de `report`: trocar um link não pode obrigar a validar os assets de novo.
+   */
+  learnMoreUrl?: string;
   auditLog?: Array<{
     action:
       | "create"
@@ -174,6 +179,7 @@ interface IndexCatalogAuditData {
       | "preview-map"
       | "map-asset"
       | "report-text"
+      | "learn-more-url"
       | "publish"
       | "unpublish";
     outcome: "success" | "failure";
@@ -318,6 +324,8 @@ export interface IndexCatalogItem {
    * apagaria no primeiro salvamento.
    */
   measurementUnit?: string;
+  /** O link do "Saiba mais" gravado no `panelLayer`, para o formulário reabrir com ele. */
+  learnMoreUrl?: string;
   status: "legacy" | IndexCatalogConfigV2["status"];
   catalogConfig?: IndexCatalogConfig;
 }
@@ -381,6 +389,7 @@ export interface IndexCatalogPreview {
     minScale?: number;
     maxScale?: number;
     timeScale?: string;
+    learnMoreUrl?: string;
     /** Ausente na prévia de um legado adotado: os valores não vêm do GEE. */
     statisticsSource?: PublishedGeeStatisticsSource;
     tileApiPath: string;

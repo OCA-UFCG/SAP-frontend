@@ -49,6 +49,7 @@ const GET_PANEL_LAYER = `
         reportConfig
         forecastFacets
         sourceGroup
+        learnMoreUrl
       }
     }
   }
@@ -74,6 +75,7 @@ const OPTIONAL_PANEL_LAYER_FIELDS = [
   "reportConfig",
   "forecastFacets",
   "sourceGroup",
+  "learnMoreUrl",
 ] as const;
 
 /**

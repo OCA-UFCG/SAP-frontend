@@ -511,6 +511,41 @@ export function parseIndexCatalogPresentationInput(
 }
 
 /**
+ * O link do "Saiba mais", ou `undefined` para campo vazio — que tira o botão
+ * do índice.
+ *
+ * Só aceita endereço completo, com `http://` ou `https://`: o botão abre o link
+ * numa aba nova, e um `www.site.org` sem protocolo seria lido pelo navegador
+ * como um caminho da própria plataforma. O limite é o do campo de texto curto
+ * do Contentful.
+ *
+ * @example
+ * parseLearnMoreUrl(" https://www.gov.br/ana "); // => "https://www.gov.br/ana"
+ * parseLearnMoreUrl(""); // => undefined
+ */
+export function parseLearnMoreUrl(value: unknown) {
+  const url = optionalString(value, "Link do Saiba mais", 256);
+  if (!url) return undefined;
+
+  let parsed: URL | null = null;
+  try {
+    parsed = new URL(url);
+  } catch {
+    parsed = null;
+  }
+  if (
+    !parsed ||
+    (parsed.protocol !== "http:" && parsed.protocol !== "https:") ||
+    /\s/u.test(url)
+  ) {
+    throw new Error(
+      "Link do Saiba mais inválido: use o endereço completo, começando com https:// — copie da barra do navegador.",
+    );
+  }
+  return url;
+}
+
+/**
  * A posição escrita no formulário, ou nada.
  *
  * Campo vazio não é posição zero: sem número o índice fica onde já está, e um

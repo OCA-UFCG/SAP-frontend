@@ -73,6 +73,18 @@ const SOURCE_GROUP_FIELD = {
   required: false,
 };
 
+// O link do botão "Saiba mais": texto que só aceita http(s), o mesmo campo
+// que `src/services/indexCatalog/contentfulManagement.ts` cria.
+const LEARN_MORE_URL_FIELD = {
+  id: "learnMoreUrl",
+  name: "Link do Saiba mais",
+  type: "Symbol",
+  required: false,
+};
+const LEARN_MORE_URL_VALIDATIONS = [
+  { regexp: { pattern: "^https?://\\S+$", flags: "i" } },
+];
+
 function normalizeField(field) {
   return {
     ...field,
@@ -310,6 +322,9 @@ export async function ensureIndexCatalogContentModel(config) {
   const hasSourceGroup = (contentType.fields ?? []).some(
     (field) => field.id === SOURCE_GROUP_FIELD.id,
   );
+  const hasLearnMoreUrl = (contentType.fields ?? []).some(
+    (field) => field.id === LEARN_MORE_URL_FIELD.id,
+  );
   const previewMapIsRequired = (contentType.fields ?? []).some(
     (field) => field.id === "previewMap" && field.required,
   );
@@ -320,6 +335,7 @@ export async function ensureIndexCatalogContentModel(config) {
     hasReportConfig &&
     hasForecastFacets &&
     hasSourceGroup &&
+    hasLearnMoreUrl &&
     !previewMapIsRequired
   ) {
     return { changed: false };
@@ -342,6 +358,12 @@ export async function ensureIndexCatalogContentModel(config) {
   }
   if (!hasSourceGroup) {
     fields.push(normalizeField(SOURCE_GROUP_FIELD));
+  }
+  if (!hasLearnMoreUrl) {
+    fields.push({
+      ...normalizeField(LEARN_MORE_URL_FIELD),
+      validations: LEARN_MORE_URL_VALIDATIONS,
+    });
   }
 
   const updated = await contentfulFetch(

@@ -17,7 +17,6 @@ export interface IInfoModalProps {
   imageData?: ImageDataConfig | null;
   open: boolean;
   onClose: () => void;
-  onLearnMore?: () => void;
 }
 
 function CloseIcon() {
@@ -52,7 +51,6 @@ export function InfoModal({
   imageData,
   open,
   onClose,
-  onLearnMore,
 }: IInfoModalProps) {
   const panelRef = useRef<HTMLDivElement>(null);
   const t = useTranslations("InfoModal");
@@ -79,6 +77,11 @@ export function InfoModal({
   }
 
   const years = getImageDataYearKeys(imageData);
+  // O catálogo só grava http(s), mas o campo também pode ser editado direto no
+  // Contentful, e um `javascript:` no href rodaria na plataforma.
+  const learnMoreUrl = /^https?:\/\//iu.test(card.learnMoreUrl ?? "")
+    ? card.learnMoreUrl
+    : undefined;
   const legend = getImageDataLegend(imageData);
 
   return createPortal(
@@ -170,18 +173,18 @@ export function InfoModal({
           </table>
         </div>
 
-        {onLearnMore && (
+        {learnMoreUrl && (
           <div className="shrink-0 border-t border-[#B4BA61]/40 px-10 py-4">
-            <button
-              type="button"
-              onClick={() => {
-                onClose();
-                onLearnMore();
-              }}
+            {/* Página de fora da plataforma: abre em outra aba para quem lê
+                não perder o mapa que estava montado. */}
+            <a
+              href={learnMoreUrl}
+              target="_blank"
+              rel="noopener noreferrer"
               className="flex h-10 w-full items-center justify-center rounded-[6px] bg-[#989F43] font-open-sans text-[14px] font-normal leading-6 text-white transition-colors hover:bg-[#7F8636]"
             >
               {t("learnMore")}
-            </button>
+            </a>
           </div>
         )}
       </div>

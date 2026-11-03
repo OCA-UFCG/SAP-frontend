@@ -7,6 +7,7 @@ import { LegacyAppearanceFields } from "@/components/IndexCatalog/LegacyAppearan
 import { LegacyMapAssetFields } from "@/components/IndexCatalog/LegacyMapAssetFields";
 import { CatalogReportPreview } from "@/components/IndexCatalog/CatalogReportPreview";
 import { IndexCatalogReportFields } from "@/components/IndexCatalog/IndexCatalogReportFields";
+import { LearnMoreUrlField } from "@/components/IndexCatalog/LearnMoreUrlField";
 import { PanelPositionField } from "@/components/IndexCatalog/PanelPositionField";
 import {
   catalogApiRequest,
@@ -112,6 +113,10 @@ export function LegacyIndexEditor({
       ? item.catalogConfig.report
       : undefined,
   );
+  const [learnMoreUrl, setLearnMoreUrl] = useState(item.learnMoreUrl ?? "");
+  const [storedLearnMoreUrl, setStoredLearnMoreUrl] = useState(
+    item.learnMoreUrl ?? "",
+  );
   const [preview, setPreview] =
     useState<IndexCatalogPresentationPreview | null>(null);
   // As classes do índice, para o formulário do relatório poder perguntar a
@@ -155,6 +160,24 @@ export function LegacyIndexEditor({
     return true;
   }
 
+  async function writeLearnMoreUrl() {
+    const url = learnMoreUrl.trim();
+    if (url === storedLearnMoreUrl) return false;
+
+    await catalogApiRequest(`${draftPath}/learn-more-url`, {
+      method: "POST",
+      headers: {
+        "Idempotency-Key": catalogIdempotencyKey(
+          "learn-more-url",
+          item.entryId,
+        ),
+      },
+      body: JSON.stringify({ learnMoreUrl: url }),
+    });
+    setStoredLearnMoreUrl(url);
+    return true;
+  }
+
   function save() {
     return run("save", async () => {
       await catalogApiRequest(`${entryPath}/presentation`, {
@@ -165,6 +188,7 @@ export function LegacyIndexEditor({
         }),
       });
       const wroteText = await writeReportText();
+      await writeLearnMoreUrl();
       setPreview(null);
       onChanged();
       return item.published
@@ -321,6 +345,24 @@ export function LegacyIndexEditor({
           entryId={item.entryId}
           category={form.category}
           inputClass={inputClass}
+        />
+        <LearnMoreUrlField
+          value={learnMoreUrl}
+          onChange={setLearnMoreUrl}
+          onSave={() =>
+            void run("learn-more-url", async () => {
+              const wrote = await writeLearnMoreUrl();
+              onChanged();
+              return !wrote
+                ? "O link na tela já é o que está gravado."
+                : item.published
+                  ? "Link salvo. Publique o índice para que ele apareça na plataforma."
+                  : "Link do Saiba mais salvo.";
+            })
+          }
+          disabled={Boolean(busy)}
+          inputClass={inputClass}
+          buttonClass={buttonClass}
         />
       </div>
 

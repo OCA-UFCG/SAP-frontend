@@ -28,6 +28,7 @@ import {
 import { IndexCatalogGuideModal } from "@/components/IndexCatalog/IndexCatalogGuideModal";
 import { IndexCatalogReportFields } from "@/components/IndexCatalog/IndexCatalogReportFields";
 import { MapAssetStrategyFields } from "@/components/IndexCatalog/MapAssetStrategyFields";
+import { LearnMoreUrlField } from "@/components/IndexCatalog/LearnMoreUrlField";
 import { PanelPositionField } from "@/components/IndexCatalog/PanelPositionField";
 import { ForecastFacetsFields } from "@/components/IndexCatalog/ForecastFacetsFields";
 import { SourceGroupFields } from "@/components/IndexCatalog/SourceGroupFields";
@@ -288,6 +289,7 @@ export function IndexCatalogScreen() {
   const [report, setReport] = useState<IndexCatalogReportDraft>(
     createDefaultReportDraft,
   );
+  const [learnMoreUrl, setLearnMoreUrl] = useState("");
   const [statisticsAssetMode, setStatisticsAssetMode] =
     useState<StatisticsAssetMode>("fixed");
   const [yearSampleAssetId, setYearSampleAssetId] = useState("");
@@ -328,6 +330,8 @@ export function IndexCatalogScreen() {
   const storedReportRef = useRef<PublishedPanelLayerReportConfig | undefined>(
     undefined,
   );
+  /** O link do "Saiba mais" já gravado, pelo mesmo motivo de `storedReportRef`. */
+  const storedLearnMoreUrlRef = useRef("");
   const validationRunRef = useRef(0);
   const validationCompletionTimerRef = useRef<number | null>(null);
 
@@ -417,6 +421,8 @@ export function IndexCatalogScreen() {
     setLegacyItem(null);
     setDraft(structuredClone(EMPTY_DRAFT));
     setReport(createDefaultReportDraft());
+    setLearnMoreUrl("");
+    storedLearnMoreUrlRef.current = "";
     setStatisticsAssetMode("fixed");
     setYearSampleAssetId("");
     setOpenedLatestPeriod(undefined);
@@ -466,6 +472,8 @@ export function IndexCatalogScreen() {
     // criados antes de existir texto de relatório no catálogo.
     setReport(toReportDraft(config.report));
     storedReportRef.current = config.report;
+    setLearnMoreUrl(item.learnMoreUrl ?? "");
+    storedLearnMoreUrlRef.current = item.learnMoreUrl ?? "";
     const openedGeeSource =
       config.statisticsSource.kind === "municipal-spreadsheet"
         ? null
@@ -857,6 +865,7 @@ export function IndexCatalogScreen() {
       // está na tela seja gravado. Sem isto o texto ficava só no navegador e a
       // prévia do relatório mostrava a frase automática.
       await writeReportText(result.entryId);
+      await writeLearnMoreUrl(result.entryId);
       if (!withinValidation) {
         setMessage("Rascunho salvo no sistema. Nada foi publicado.");
       }
@@ -925,6 +934,57 @@ export function IndexCatalogScreen() {
         reason instanceof Error
           ? reason.message
           : "Falha ao salvar os textos do relatório.",
+      );
+    } finally {
+      setBusy(null);
+    }
+  }
+
+  /**
+   * Grava o link do "Saiba mais" pela rota própria, que não zera a validação.
+   * Devolve `null` quando o link na tela já é o gravado.
+   */
+  async function writeLearnMoreUrl(currentEntryId: string) {
+    const url = learnMoreUrl.trim();
+    if (url === storedLearnMoreUrlRef.current) return null;
+    const result = await apiRequest<{ requiresRepublish: boolean }>(
+      `/api/index-catalog/drafts/${encodeURIComponent(currentEntryId)}/learn-more-url`,
+      {
+        method: "POST",
+        headers: {
+          "Idempotency-Key": idempotencyKey("learn-more-url", currentEntryId),
+        },
+        body: JSON.stringify({ learnMoreUrl: url }),
+      },
+    );
+    storedLearnMoreUrlRef.current = url;
+    return result;
+  }
+
+  async function saveLearnMoreUrl() {
+    const currentEntryId = entryIdRef.current;
+    if (!currentEntryId) {
+      setError("Salve o rascunho antes de gravar o link do Saiba mais.");
+      return;
+    }
+    setBusy("learn-more-url");
+    setError("");
+    setMessage("");
+    try {
+      const result = await writeLearnMoreUrl(currentEntryId);
+      setMessage(
+        !result
+          ? "O link na tela já é o que está gravado."
+          : result.requiresRepublish
+            ? "Link salvo. Publique o índice de novo para que ele apareça na plataforma."
+            : "Link do Saiba mais salvo.",
+      );
+      await loadItems();
+    } catch (reason) {
+      setError(
+        reason instanceof Error
+          ? reason.message
+          : "Falha ao salvar o link do Saiba mais.",
       );
     } finally {
       setBusy(null);
@@ -1311,6 +1371,14 @@ export function IndexCatalogScreen() {
                 }
               />
             </label>
+            <LearnMoreUrlField
+              value={learnMoreUrl}
+              onChange={setLearnMoreUrl}
+              onSave={() => void saveLearnMoreUrl()}
+              disabled={Boolean(busy) || !entryId}
+              inputClass={inputClass}
+              buttonClass={buttonClass}
+            />
           </div>
 
           <fieldset className="mt-7 rounded-lg border border-stone-200 p-4">

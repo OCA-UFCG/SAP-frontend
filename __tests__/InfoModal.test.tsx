@@ -1,4 +1,4 @@
-import { cleanup, fireEvent, render, screen } from "@testing-library/react";
+import { cleanup, render, screen } from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { InfoModal } from "@/components/InfoModal/InfoModal";
 
@@ -7,24 +7,38 @@ const card = { id: 1, title: "Monitor de Secas", description: "Seca." };
 afterEach(cleanup);
 
 describe("InfoModal", () => {
-  it("closes and opens the details from 'Saiba mais'", () => {
-    const onClose = vi.fn();
-    const onLearnMore = vi.fn();
-
+  it("opens the index's external page from 'Saiba mais' in a new tab", () => {
     render(
-      <InfoModal card={card} open onClose={onClose} onLearnMore={onLearnMore} />,
+      <InfoModal
+        card={{ ...card, learnMoreUrl: "https://monitordesecas.ana.gov.br/" }}
+        open
+        onClose={vi.fn()}
+      />,
     );
-    fireEvent.click(screen.getByRole("button", { name: "Saiba mais" }));
+    const link = screen.getByRole("link", { name: "Saiba mais" });
 
-    expect(onClose).toHaveBeenCalledOnce();
-    expect(onLearnMore).toHaveBeenCalledOnce();
+    expect(link).toHaveAttribute("href", "https://monitordesecas.ana.gov.br/");
+    expect(link).toHaveAttribute("target", "_blank");
+    expect(link).toHaveAttribute("rel", "noopener noreferrer");
   });
 
   it("has no 'Saiba mais' without somewhere to go", () => {
     render(<InfoModal card={card} open onClose={vi.fn()} />);
 
-    expect(
-      screen.queryByRole("button", { name: "Saiba mais" }),
-    ).not.toBeInTheDocument();
+    expect(screen.queryByText("Saiba mais")).not.toBeInTheDocument();
+  });
+
+  // O campo também pode ser editado direto no Contentful, sem passar pelo
+  // catálogo.
+  it("ignores a link that is not http(s)", () => {
+    render(
+      <InfoModal
+        card={{ ...card, learnMoreUrl: "javascript:alert(1)" }}
+        open
+        onClose={vi.fn()}
+      />,
+    );
+
+    expect(screen.queryByText("Saiba mais")).not.toBeInTheDocument();
   });
 });

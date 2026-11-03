@@ -559,7 +559,7 @@ export function MunicipalReportContext({ panelLayers = [] }: MunicipalReportCont
             região, quem usa leitor de tela não ouve que o relatório está vindo. */}
         <p role="status" className="sr-only">{isGenerating ? t("generatingReport") : ""}</p>
       </form>
-      {infoLayer && <InfoModal card={{ id: 0, title: infoLayer.name, description: infoLayer.description, image: infoLayer.previewMap?.url, fileRef: infoLayer.id, imageData: infoLayer.imageData, timeScale: infoLayer.timeScale }} imageData={infoLayer.imageData} open onClose={() => setInfoLayer(null)} />}
+      {infoLayer && <InfoModal card={{ id: 0, title: infoLayer.name, description: infoLayer.description, image: infoLayer.previewMap?.url, fileRef: infoLayer.id, imageData: infoLayer.imageData, timeScale: infoLayer.timeScale, learnMoreUrl: infoLayer.learnMoreUrl }} imageData={infoLayer.imageData} open onClose={() => setInfoLayer(null)} />}
     </section>
   );
 }

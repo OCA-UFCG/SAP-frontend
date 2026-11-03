@@ -18,6 +18,8 @@ export interface IDroughtDataset {
   fileRef?: string;
   imageData?: ImageDataConfig | null;
   timeScale?: string;
+  /** Para onde o "Saiba mais" do quadro de informações leva. */
+  learnMoreUrl?: string | null;
 }
 
 function InfoIcon() {
@@ -176,7 +178,6 @@ export function DroughtDataset({
         imageData={imageData}
         open={infoOpen}
         onClose={() => setInfoOpen(false)}
-        onLearnMore={disabled ? undefined : onDetails}
       />
     </>
   );
