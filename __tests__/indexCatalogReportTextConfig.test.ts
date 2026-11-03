@@ -26,6 +26,8 @@ const TEMPLATE_DATA = {
   indice_indice_de_aridez_catalogo: "Índice de Aridez",
   classe_indice_de_aridez_catalogo: "Semiárido",
   percentual_indice_de_aridez_catalogo: 83.42,
+  distribuicao_indice_de_aridez_catalogo:
+    "a área se divide entre Semiárido (83,42%) e Subúmido Seco (16,58%)",
   periodo_indice_de_aridez_catalogo: "2024-09",
   periodo_extenso_indice_de_aridez_catalogo: "setembro de 2024",
 };

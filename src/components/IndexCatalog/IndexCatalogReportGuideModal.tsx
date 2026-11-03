@@ -20,9 +20,9 @@ const SECTION_EXAMPLES: ReadonlyArray<{
   {
     title: "Situação atual",
     written:
-      "[no_territorio], [percentual]% do território está na classe [classe], conforme o [indice], no período de [periodo_extenso].",
+      "[no_territorio], conforme o [indice], no período de [periodo_extenso], [distribuicao].",
     rendered:
-      "No município de Campina Grande — PB, 83,4% do território está na classe Semiárido, conforme o Monitor de Secas da ANA, no período de setembro de 2024. (No relatório da Caatinga, a mesma frase abre com “No bioma Caatinga”.)",
+      "No município de Campina Grande — PB, conforme o Monitor de Secas da ANA, no período de setembro de 2024, 83,40% da área está em classes piores que Sem seca: Seca fraca (61,20%) e Seca moderada (22,20%); o restante (16,60%) está em Sem seca. (No relatório da Caatinga, a mesma frase abre com “No bioma Caatinga”.)",
   },
   {
     title: "Como interpretar os resultados",
