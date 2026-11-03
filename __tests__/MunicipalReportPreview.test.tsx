@@ -207,9 +207,7 @@ describe("MunicipalReportPreview", () => {
     expect(screen.queryByText(/Unexpected token/)).not.toBeInTheDocument();
   });
 
-  it("renders the report with PDF download and zoom controls", async () => {
-    const user = userEvent.setup();
-
+  it("renders the report with PDF download and no preview header", async () => {
     render(
       <MunicipalReportPreview
         locationKey="5200050"
@@ -236,11 +234,8 @@ describe("MunicipalReportPreview", () => {
     expect(
       screen.queryByRole("button", { name: "Formato PDF" }),
     ).not.toBeInTheDocument();
-    expect(screen.getByLabelText("Aumentar zoom")).toBeInTheDocument();
-    expect(screen.getByLabelText("Diminuir zoom")).toBeInTheDocument();
-    expect(
-      screen.getByText("100%", { selector: "output" }),
-    ).toBeInTheDocument();
+    expect(screen.queryByText("Visualizar relatório")).not.toBeInTheDocument();
+    expect(screen.queryByLabelText("Aumentar zoom")).not.toBeInTheDocument();
     expect(screen.queryByText("--")).not.toBeInTheDocument();
     // A legenda do gráfico empilhado não é interativa: esconder uma classe faria
     // as colunas deixarem de somar 100, ou renormalizar em silêncio.
@@ -259,18 +254,6 @@ describe("MunicipalReportPreview", () => {
       expect(screen.getByRole("button", { name: "Baixar PDF" })).toBeEnabled();
     });
 
-    const mapRenderCountBeforeZoom =
-      reportMapPreviewRenderSpy.mock.calls.length;
-    await user.click(screen.getByLabelText("Aumentar zoom"));
-    expect(screen.getByText("110%")).toBeInTheDocument();
-    expect(reportMapPreviewRenderSpy).toHaveBeenCalledTimes(
-      mapRenderCountBeforeZoom,
-    );
-
-    await user.click(screen.getByLabelText("Diminuir zoom"));
-    expect(
-      screen.getByText("100%", { selector: "output" }),
-    ).toBeInTheDocument();
     expect(
       vi
         .mocked(global.fetch)
