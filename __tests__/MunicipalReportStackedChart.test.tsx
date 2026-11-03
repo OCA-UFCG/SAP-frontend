@@ -182,12 +182,66 @@ describe("MunicipalReportStackedPrintChart", () => {
     expect(rotulosDePeriodo).toHaveLength(colunas.size);
   });
 
-  it("usa viewBox fixo, sem depender de medida do contêiner", () => {
+  it("usa viewBox calculado, sem depender de medida do contêiner", () => {
     const { container } = renderPrintChart();
 
-    expect(container.querySelector("svg")?.getAttribute("viewBox")).toBe(
-      "0 0 640 330",
+    expect(container.querySelector("svg")?.getAttribute("viewBox")).toMatch(
+      /^0 0 640 \d+(\.\d+)?$/,
     );
+  });
+
+  it("inclina as datas que não cabem embaixo da coluna", () => {
+    const series = Array.from({ length: 12 }, (_, index) =>
+      snapshot(`2026-0${6 + Math.floor(index / 3)}-${["01", "11", "21"][index % 3]}`, {
+        "sem-seca": 40,
+        "seca-fraca": 60,
+      }),
+    );
+    const { container } = renderPrintChart({
+      ...analysis,
+      timeSeries: series,
+    } as MunicipalReportAnalysis);
+
+    const datas = [...container.querySelectorAll("text")].filter((node) =>
+      /^\d{4}-\d{2}-\d{2}\*?$/.test(node.textContent ?? ""),
+    );
+    expect(datas.length).toBeGreaterThan(0);
+    for (const data of datas) {
+      expect(data.getAttribute("transform")).toMatch(/^rotate\(-45 /);
+    }
+  });
+
+  it("quebra a legenda em linhas sem um rótulo passar por cima do outro", () => {
+    const classes = [
+      "Sem seca",
+      "Estágio 1",
+      "Estágio 2",
+      "Estágio 3",
+      "Recuperação total",
+      "Recuperação parcial da umidade",
+      "Recuperação parcial da vegetação",
+    ].map((label, index) => ({ id: `c${index}`, label, color: "#cccccc" }));
+    const { container } = renderPrintChart({
+      ...analysis,
+      classes,
+    } as MunicipalReportAnalysis);
+
+    const itens = classes.map(({ label }) => {
+      const texto = [...container.querySelectorAll("text")].find(
+        (node) => node.textContent === label,
+      )!;
+      return {
+        x: Number(texto.getAttribute("x")),
+        y: Number(texto.getAttribute("y")),
+        fim: Number(texto.getAttribute("x")) + label.length * 5.4,
+      };
+    });
+    for (const [index, item] of itens.entries()) {
+      const proximo = itens[index + 1];
+      if (proximo?.y === item.y) expect(item.fim).toBeLessThan(proximo.x);
+      expect(item.fim).toBeLessThanOrEqual(640);
+    }
+    expect(new Set(itens.map(({ y }) => y)).size).toBeGreaterThan(1);
   });
 
   it("não renderiza nada quando a série está vazia", () => {

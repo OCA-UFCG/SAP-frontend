@@ -48,7 +48,11 @@ import {
   MUNICIPAL_REPORT_STACKED_MAX_COLUMNS,
   selectStackedChartSnapshots,
 } from "@/utils/municipalReportStackedChart";
-import { buildReportDocumentSections } from "@/utils/municipalReportForecast";
+import {
+  buildReportDocumentSections,
+  reportAnalysisFamilyKey,
+  splitReportAnalysisTitle,
+} from "@/utils/municipalReportForecast";
 import { MunicipalReportClassBars } from "./MunicipalReportClassBars";
 import { MunicipalReportDynamicChart } from "./MunicipalReportDynamicChart";
 import { MunicipalReportLinePrintChart } from "./MunicipalReportLinePrintChart";
@@ -66,6 +70,7 @@ import {
 } from "./ReportForecastSection";
 import { ReportDocumentFooter } from "./ReportDocumentFooter";
 import { ReportHero } from "./ReportHero";
+import { ReportPresentation } from "./ReportPresentation";
 import { ReportSectionHeading } from "./ReportSectionHeading";
 import { ReportSummary, type ReportSummaryItem } from "./ReportSummary";
 import { ReportMapPreview, type ReportMapChoropleth } from "./ReportMapPreview";
@@ -240,7 +245,7 @@ const AnalysisSection = memo(function AnalysisSection({
         style={{ borderLeftColor: accent }}
       >
         <div className="min-w-0">
-          <h2 className="font-open-sans text-[1.125rem] font-bold leading-[1.5] tracking-[-0.216px] text-[#292829]">
+          <h2 className="font-open-sans text-[1.125rem] font-bold uppercase leading-[1.5] tracking-[-0.216px] text-[#292829]">
             {translatedTitle}
           </h2>
           <p className="font-open-sans flex flex-wrap gap-1 text-xs leading-5 text-[#292829]">
@@ -300,7 +305,7 @@ const AnalysisSection = memo(function AnalysisSection({
                     </span>
                   </div>
                   <div
-                    className="flex w-[150px] shrink-0 items-center justify-center px-3 text-center text-lg font-bold"
+                    className="flex w-[150px] shrink-0 items-center justify-center px-3 text-center text-[0.9375rem] font-bold leading-5"
                     style={{
                       backgroundColor: dominant.color || accent,
                       color: textColorForBackground(dominant.color || accent),
@@ -336,9 +341,6 @@ const AnalysisSection = memo(function AnalysisSection({
               {t("document.spatialDistributionTitle")}
             </ReportSectionHeading>
             <div className="report-block mt-4 flex flex-col gap-4 overflow-hidden rounded-lg border border-[#EFEFEF] bg-[#F6F7F6] p-4">
-              <p className="font-open-sans text-base font-bold text-[#292829]">
-                {t("spatialImage", { period: snapshotPeriodLabel })}
-              </p>
               <ReportMapPreview
                 territory={report.territory}
                 imageAlt={t("mapAlt", {
@@ -534,20 +536,51 @@ const ReportDocument = memo(function ReportDocument({
   const sections = buildReportDocumentSections(selected);
   // As previsões de uma categoria saem juntas no fim dela e viram, no sumário,
   // subtópicos de uma linha "Previsão climática" que leva à primeira.
-  const summaryItems: (ReportSummaryItem & { title: string })[] = [];
+  // Do mesmo jeito, as fontes de um mesmo índice ("Índice de Aridez - ERA5
+  // Land", "... - BR-DWGD") viram subtópicos de uma linha com o nome dele.
+  const familySizes = new Map<string, number>();
+  for (const section of sections) {
+    const key =
+      section.type === "analysis" && reportAnalysisFamilyKey(section.analysis);
+    if (key) familySizes.set(key, (familySizes.get(key) ?? 0) + 1);
+  }
+  const summaryItems: (ReportSummaryItem & {
+    title: string;
+    family?: string;
+  })[] = [];
   for (const section of sections) {
     if (section.type === "analysis") {
+      const title = translateAnalysisTitle(
+        section.analysis,
+        t,
+        tHas,
+        tModules,
+        tModulesHas,
+      );
+      const family = reportAnalysisFamilyKey(section.analysis);
+      const parts = splitReportAnalysisTitle(title);
+      if (family && parts && (familySizes.get(family) ?? 0) > 1) {
+        const entry = { alias: section.analysis.alias, title: parts.variant };
+        const previous = summaryItems.at(-1);
+        if (previous?.family === family && previous.entries) {
+          previous.entries.push(entry);
+          continue;
+        }
+        summaryItems.push({
+          id: `family-${family}`,
+          alias: section.analysis.alias,
+          category: section.analysis.category,
+          title: parts.name,
+          family,
+          entries: [entry],
+        });
+        continue;
+      }
       summaryItems.push({
         id: section.analysis.id,
         alias: section.analysis.alias,
         category: section.analysis.category,
-        title: translateAnalysisTitle(
-          section.analysis,
-          t,
-          tHas,
-          tModules,
-          tModulesHas,
-        ),
+        title,
       });
       continue;
     }
@@ -558,7 +591,11 @@ const ReportDocument = memo(function ReportDocument({
       detail: forecastGroupKinds(section.group, t).join(" · "),
     };
     const previous = summaryItems.at(-1);
-    if (previous?.entries && previous.category === section.group.category) {
+    if (
+      previous?.entries &&
+      !previous.family &&
+      previous.category === section.group.category
+    ) {
       previous.entries.push(entry);
       continue;
     }
@@ -636,6 +673,7 @@ const ReportDocument = memo(function ReportDocument({
       <ReportBackToTop />
 
       <div className="flex flex-col gap-6 px-10 py-6">
+        <ReportPresentation territory={report.territory} />
         <ReportSummary
           analyses={summaryItems}
           translateTitle={(item) => item.title}
@@ -714,10 +752,7 @@ const ReportDocument = memo(function ReportDocument({
           locale={locale}
         />
 
-        <ReportDocumentFooter
-          generatedAt={generatedAt}
-          text={getReportDocsText(docsContent, "Rodapé", locale) ?? undefined}
-        />
+        <ReportDocumentFooter generatedAt={generatedAt} />
       </div>
     </article>
   );
