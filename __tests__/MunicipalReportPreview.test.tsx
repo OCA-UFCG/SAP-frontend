@@ -613,7 +613,7 @@ describe("MunicipalReportPreview", () => {
     // A apresentação (só no PDF) cita o território e a escala.
     const presentation = document.querySelector(".report-presentation");
     expect(presentation?.textContent).toContain(
-      "na área de interesse selecionada — Abadia de Goiás — GO.",
+      "na área de interesse selecionada: Abadia de Goiás — GO.",
     );
     expect(presentation?.textContent).toContain(
       "O presente relatório foi gerado na escala municipal.",
@@ -621,7 +621,7 @@ describe("MunicipalReportPreview", () => {
     expect(document.querySelector(".report-hero")).toHaveClass("print:hidden");
     expect(
       document.querySelector(".report-document-footer")?.textContent,
-    ).toBe("SEDES — Relatório Analítico | Gerado em: 15/07/2026");
+    ).toBe("SEDES | Relatório Analítico | Gerado em: 15/07/2026");
   });
 
   it("leva o pedido do relatório no link Ver produto, para a volta não perdê-lo", async () => {
