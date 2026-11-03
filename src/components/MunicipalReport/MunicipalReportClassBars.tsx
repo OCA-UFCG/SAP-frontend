@@ -5,6 +5,15 @@ import { formatMunicipalReportValue } from "@/utils/municipalReportValue";
 
 const ZERO_BAR_WIDTH = "2px";
 
+/**
+ * No PDF, uma lista de até `SHORT_LIST_ROWS` classes (~360px) não se parte
+ * entre páginas: o cartão inteiro passa para a página seguinte. Uma lista mais
+ * longa deixaria um vão grande demais no pé da página, então ela pode se
+ * partir, mas nunca com menos de `EDGE_ROWS` classes de um dos lados.
+ */
+const SHORT_LIST_ROWS = 10;
+const EDGE_ROWS = 4;
+
 export function MunicipalReportClassBars({
   analysis,
   locale,
@@ -22,55 +31,74 @@ export function MunicipalReportClassBars({
       ? 100
       : Math.max(1, ...distribution.map((item) => item.percentage));
 
+  const splittable = distribution.length > SHORT_LIST_ROWS;
+  const groups = splittable
+    ? [
+        distribution.slice(0, EDGE_ROWS),
+        distribution.slice(EDGE_ROWS, -EDGE_ROWS),
+        distribution.slice(-EDGE_ROWS),
+      ]
+    : [distribution];
+
   return (
-    <table className="report-class-bars font-open-sans w-full border-collapse border-spacing-0 text-xs text-[#292829]">
+    <table
+      data-print-split={splittable || undefined}
+      className="report-class-bars font-open-sans w-full border-collapse border-spacing-0 text-xs text-[#292829]"
+    >
       <caption className="sr-only">
         {analysis.title} —{" "}
         {analysis.snapshot?.label ?? analysis.requestedPeriod}
       </caption>
-      <tbody>
-        {distribution.map((item) => {
-          // A trilha abaixo já exclui o rótulo do valor, então a barra pode
-          // ocupar a largura cheia sem empurrar a porcentagem para fora.
-          const share = Math.max(0, (item.percentage / scaleMax) * 100);
+      {groups.map((group, index) => (
+        <tbody
+          key={group[0].id}
+          className={
+            splittable && index === 1 ? undefined : "report-class-bars-keep"
+          }
+        >
+          {group.map((item) => {
+            // A trilha abaixo já exclui o rótulo do valor, então a barra pode
+            // ocupar a largura cheia sem empurrar a porcentagem para fora.
+            const share = Math.max(0, (item.percentage / scaleMax) * 100);
 
-          return (
-            <tr key={item.id} className="report-class-bar-row align-middle">
-              {/* `min-w` além de `w`: a célula da barra ocupa o resto da
-                  largura, e sem o mínimo a tabela espremia o rótulo até a
-                  largura da palavra mais longa. */}
-              <th
-                scope="row"
-                className="w-[117px] min-w-[117px] py-1 pr-2 text-left align-middle font-normal leading-normal"
-              >
-                {translateLabel(item.label)}
-              </th>
-              <td className="py-1 align-middle">
-                <span className="flex items-center gap-3">
-                  <span className="flex min-w-0 flex-1">
-                    <span
-                      data-report-class-bar
-                      className="block h-6 shrink-0 border border-black/10"
-                      style={{
-                        width: `${Number(share.toFixed(4))}%`,
-                        minWidth: ZERO_BAR_WIDTH,
-                        backgroundColor: item.color,
-                      }}
-                    />
+            return (
+              <tr key={item.id} className="report-class-bar-row align-middle">
+                {/* `min-w` além de `w`: a célula da barra ocupa o resto da
+                    largura, e sem o mínimo a tabela espremia o rótulo até a
+                    largura da palavra mais longa. */}
+                <th
+                  scope="row"
+                  className="w-[117px] min-w-[117px] py-1 pr-2 text-left align-middle font-normal leading-normal"
+                >
+                  {translateLabel(item.label)}
+                </th>
+                <td className="py-1 align-middle">
+                  <span className="flex items-center gap-3">
+                    <span className="flex min-w-0 flex-1">
+                      <span
+                        data-report-class-bar
+                        className="block h-6 shrink-0 border border-black/10"
+                        style={{
+                          width: `${Number(share.toFixed(4))}%`,
+                          minWidth: ZERO_BAR_WIDTH,
+                          backgroundColor: item.color,
+                        }}
+                      />
+                    </span>
+                    <span className="shrink-0 whitespace-nowrap tabular-nums">
+                      {formatMunicipalReportValue(
+                        item.percentage,
+                        analysis,
+                        locale,
+                      )}
+                    </span>
                   </span>
-                  <span className="shrink-0 whitespace-nowrap tabular-nums">
-                    {formatMunicipalReportValue(
-                      item.percentage,
-                      analysis,
-                      locale,
-                    )}
-                  </span>
-                </span>
-              </td>
-            </tr>
-          );
-        })}
-      </tbody>
+                </td>
+              </tr>
+            );
+          })}
+        </tbody>
+      ))}
     </table>
   );
 }
