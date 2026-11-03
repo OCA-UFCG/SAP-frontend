@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import type { CompactTerritorialAnalysisDataset } from "@/utils/analysis";
-import { buildMunicipalReportSnapshot, buildMunicipalReportTimeSeries, resolveMunicipalReportSnapshot } from "@/utils/municipalReport";
+import { buildMunicipalReportSnapshot, buildMunicipalReportTimeSeries, resolveForecastReportPeriod, resolveMunicipalReportSnapshot } from "@/utils/municipalReport";
 
 const dataset: CompactTerritorialAnalysisDataset = {
   schemaVersion: 1, type: "territorial-compact", defaultYear: "2024",
@@ -38,5 +38,16 @@ describe("municipal report domain", () => {
     );
     expect(resolveMunicipalReportSnapshot(timeSeries, "2022")?.period).toBe("2023");
     expect(resolveMunicipalReportSnapshot(timeSeries, "2024-02")?.period).toBe("2024-01");
+  });
+
+  it("picks the forecast period closest to today when a year is requested", () => {
+    const now = new Date(2026, 9, 29);
+    const periods = ["2026-11", "2026-12", "2027-01", "2027-02"];
+    expect(resolveForecastReportPeriod(periods, "2026", now)).toBe("2026-11");
+    expect(resolveForecastReportPeriod(periods, "2027", now)).toBe("2027-01");
+    // Uma rodada antiga, toda no passado: fica o período mais recente dela.
+    expect(resolveForecastReportPeriod(["2026-03", "2026-04"], "2026", now)).toBe("2026-04");
+    // Um mês pedido explicitamente continua valendo.
+    expect(resolveForecastReportPeriod(periods, "2026-12", now)).toBe("2026-12");
   });
 });

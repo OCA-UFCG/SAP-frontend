@@ -16,25 +16,14 @@ export const REFERENCE_LAYER_IDS: readonly ReferenceLayerId[] = [
   "unidades_conservacao",
 ] as const;
 
-/**
- * As cores de cada território no mapa, repetidas aqui para que o checkbox de
- * Territórios mostre a mesma cor do território que ele liga. A fonte é o estilo
- * do Earth Engine em `src/app/api/ee/reference-layers/route.ts`: mudar uma cor
- * lá pede mudar aqui. `check` é a cor do ✓ sobre o interior — branco não se lê
- * sobre o cinza-claro dos assentamentos.
- */
 export const REFERENCE_LAYER_SWATCHES: Record<
   ReferenceLayerId,
-  { outline: string; fill: string; check: string }
+  { outline: string; fill: string }
 > = {
-  quilombolas: { outline: "#6D1A36", fill: "#8E2437", check: "#FFFFFF" },
-  assentamentos: { outline: "#888888", fill: "#CCCCCC", check: "#3F3F3F" },
-  terras_indigenas: { outline: "#6B3E1F", fill: "#8B572A", check: "#FFFFFF" },
-  unidades_conservacao: {
-    outline: "#1B4D2B",
-    fill: "#2E6B3F",
-    check: "#FFFFFF",
-  },
+  quilombolas: { outline: "#7E692C", fill: "#A88C3B" },
+  assentamentos: { outline: "#325967", fill: "#437789" },
+  terras_indigenas: { outline: "#515432", fill: "#6C7043" },
+  unidades_conservacao: { outline: "#712E20", fill: "#973D2B" },
 };
 
 export interface MapLayerState {

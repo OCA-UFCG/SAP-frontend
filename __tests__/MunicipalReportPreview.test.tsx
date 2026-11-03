@@ -247,9 +247,7 @@ describe("MunicipalReportPreview", () => {
     expect(screen.queryByText(/Abadia de Goiás/)).not.toBeInTheDocument();
   });
 
-  it("renders the report with PDF download and zoom controls", async () => {
-    const user = userEvent.setup();
-
+  it("renders the report with PDF download and no preview header", async () => {
     render(
       <MunicipalReportPreview
         locationKey="5200050"
@@ -276,11 +274,8 @@ describe("MunicipalReportPreview", () => {
     expect(
       screen.queryByRole("button", { name: "Formato PDF" }),
     ).not.toBeInTheDocument();
-    expect(screen.getByLabelText("Aumentar zoom")).toBeInTheDocument();
-    expect(screen.getByLabelText("Diminuir zoom")).toBeInTheDocument();
-    expect(
-      screen.getByText("100%", { selector: "output" }),
-    ).toBeInTheDocument();
+    expect(screen.queryByText("Visualizar relatório")).not.toBeInTheDocument();
+    expect(screen.queryByLabelText("Aumentar zoom")).not.toBeInTheDocument();
     expect(screen.queryByText("--")).not.toBeInTheDocument();
     // A legenda do gráfico empilhado não é interativa: esconder uma classe faria
     // as colunas deixarem de somar 100, ou renormalizar em silêncio.
@@ -299,18 +294,6 @@ describe("MunicipalReportPreview", () => {
       expect(screen.getByRole("button", { name: "Baixar PDF" })).toBeEnabled();
     });
 
-    const mapRenderCountBeforeZoom =
-      reportMapPreviewRenderSpy.mock.calls.length;
-    await user.click(screen.getByLabelText("Aumentar zoom"));
-    expect(screen.getByText("110%")).toBeInTheDocument();
-    expect(reportMapPreviewRenderSpy).toHaveBeenCalledTimes(
-      mapRenderCountBeforeZoom,
-    );
-
-    await user.click(screen.getByLabelText("Diminuir zoom"));
-    expect(
-      screen.getByText("100%", { selector: "output" }),
-    ).toBeInTheDocument();
     expect(
       vi
         .mocked(global.fetch)
@@ -580,6 +563,67 @@ describe("MunicipalReportPreview", () => {
     });
   });
 
+  it("junta as fontes do Índice de Aridez como subtópicos no sumário", async () => {
+    const aridez = (id: string, alias: string, source: string) => ({
+      ...report.analyses[0],
+      id,
+      alias,
+      title: `Índice de Aridez - ${source}`,
+      category: "Dados Climáticos",
+    });
+    const aridezReport: MunicipalReportData = {
+      ...report,
+      analyses: [
+        aridez("era5", "aridez_era5", "ERA5 Land"),
+        { ...report.analyses[0], category: "Dados Climáticos" },
+        aridez("dwgd", "aridez_dwgd", "BR-DWGD"),
+      ],
+    };
+    vi.mocked(global.fetch).mockImplementation(async (input) => {
+      const url = String(input);
+      if (url.includes("/docs?")) return Response.json({ content: {} });
+      if (url.includes("/api/ee/map-urls")) return Response.json({ maps: [] });
+      return Response.json(aridezReport);
+    });
+
+    render(
+      <MunicipalReportPreview locationKey="5200050" period="2026" embedded />,
+    );
+
+    expect(await screen.findByRole("article")).toBeInTheDocument();
+    expect(
+      [...document.querySelectorAll(".report-section")].map(
+        (section) => section.id,
+      ),
+    ).toEqual([
+      "report-analysis-aridez_era5",
+      "report-analysis-aridez_dwgd",
+      "report-analysis-seca",
+    ]);
+    expect(
+      screen.getByRole("link", { name: /Ir para a seção de Índice de Aridez$/ }),
+    ).toHaveAttribute("href", "#report-analysis-aridez_era5");
+    expect(
+      screen.getByRole("link", { name: /Ir para a seção de BR-DWGD$/ }),
+    ).toHaveAttribute("href", "#report-analysis-aridez_dwgd");
+    expect(
+      screen.getByRole("link", { name: /Ir para a seção de ERA5 Land$/ }),
+    ).toBeInTheDocument();
+
+    // A apresentação (só no PDF) cita o território e a escala.
+    const presentation = document.querySelector(".report-presentation");
+    expect(presentation?.textContent).toContain(
+      "na área de interesse selecionada — Abadia de Goiás — GO.",
+    );
+    expect(presentation?.textContent).toContain(
+      "O presente relatório foi gerado na escala municipal.",
+    );
+    expect(document.querySelector(".report-hero")).toHaveClass("print:hidden");
+    expect(
+      document.querySelector(".report-document-footer")?.textContent,
+    ).toBe("SEDES — Relatório Analítico | Gerado em: 15/07/2026");
+  });
+
   it("leva o pedido do relatório no link Ver produto, para a volta não perdê-lo", async () => {
     render(
       <MunicipalReportPreview
@@ -661,7 +705,7 @@ describe("MunicipalReportPreview", () => {
       "Monitor de Secas",
     );
     expect(popupDocument.documentElement.outerHTML).toContain(
-      "@page{size:A4;margin:12mm 14mm}",
+      "@page{size:A4;margin:12mm 14mm;@bottom-center{content:counter(page)",
     );
     expect(popupDocument.documentElement.outerHTML).toContain(
       "padding:0!important",
@@ -674,8 +718,8 @@ describe("MunicipalReportPreview", () => {
     expect(popupDocument.documentElement.outerHTML).toContain(
       'data-stack-segment="2026:normal"',
     );
-    expect(popupDocument.documentElement.outerHTML).toContain(
-      'viewBox="0 0 640 330"',
+    expect(popupDocument.documentElement.outerHTML).toMatch(
+      /viewBox="0 0 640 \d+"/,
     );
     expect(popupDocument.documentElement.outerHTML).toContain(">2026*<");
     expect(popupDocument.documentElement.outerHTML).toContain(
