@@ -544,21 +544,22 @@ html[data-section-transition="grow"]::view-transition-old(platform-stage) {
     page-break-inside: avoid;
   }
 
-  /* Os cartões de mapa, gráfico e barras de classe são altos demais para serem
-     indivisíveis: dois já ocupam a página A4 e o terceiro deixava um vão em
-     branco no pé dela. O que não pode ser cortado ao meio é a imagem e o SVG.
-     A mesma regra vale na janela de impressão, em MunicipalReportPreview. */
-  .report-time-series > .report-block,
-  .report-spatial > .report-block,
-  .report-class-coverage > .report-block {
-    break-inside: auto;
-    page-break-inside: auto;
-  }
-
+  /* O cartão de mapa, gráfico ou barras de classe não se parte; só uma lista
+     longa de classes se parte, no miolo. A mesma regra vale na janela de
+     impressão, em reportPrint.ts. */
   .report-map-frame,
-  .report-chart-print {
+  .report-chart-print,
+  .report-class-bars-keep {
     break-inside: avoid;
     page-break-inside: avoid;
+  }
+
+  .report-class-coverage
+    > .report-block:has(.report-class-bars[data-print-split]) {
+    break-inside: auto;
+    page-break-inside: auto;
+    box-decoration-break: clone;
+    -webkit-box-decoration-break: clone;
   }
 
   .report-heading {

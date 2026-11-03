@@ -613,15 +613,15 @@ describe("MunicipalReportPreview", () => {
     // A apresentação (só no PDF) cita o território e a escala.
     const presentation = document.querySelector(".report-presentation");
     expect(presentation?.textContent).toContain(
-      "na área de interesse selecionada — Abadia de Goiás — GO.",
+      "na área de interesse selecionada: Abadia de Goiás — GO.",
     );
     expect(presentation?.textContent).toContain(
       "O presente relatório foi gerado na escala municipal.",
     );
     expect(document.querySelector(".report-hero")).toHaveClass("print:hidden");
-    expect(
-      document.querySelector(".report-document-footer")?.textContent,
-    ).toBe("SEDES — Relatório Analítico | Gerado em: 15/07/2026");
+    expect(document.querySelector(".report-document-footer")?.textContent).toBe(
+      "SEDES | Relatório Analítico | Gerado em: 15/07/2026",
+    );
   });
 
   it("leva o pedido do relatório no link Ver produto, para a volta não perdê-lo", async () => {
@@ -731,14 +731,17 @@ describe("MunicipalReportPreview", () => {
     expect(popupDocument.documentElement.outerHTML).toContain(
       "object-fit:contain!important",
     );
-    // Regressão: os cartões de mapa, gráfico e barras eram indivisíveis, então
-    // o terceiro pulava de página e deixava meia folha em branco. Só a imagem e
-    // o SVG seguem indivisíveis.
+    // Regressão: a seção inteira era indivisível, então a terceira pulava de
+    // página e deixava meia folha em branco. A seção flui; o cartão, a imagem,
+    // o SVG e os grupos de classes, não. Só a lista longa de classes se parte.
     expect(popupDocument.documentElement.outerHTML).toContain(
       ".report-time-series,.report-spatial,.report-class-coverage{break-inside:auto;page-break-inside:auto}",
     );
     expect(popupDocument.documentElement.outerHTML).toContain(
-      ".report-map-frame,.report-chart-print{break-inside:avoid;page-break-inside:avoid}",
+      ".report-map-frame,.report-chart-print,.report-class-bars-keep{break-inside:avoid;page-break-inside:avoid}",
+    );
+    expect(popupDocument.documentElement.outerHTML).toContain(
+      ".report-class-coverage>.report-block:has(.report-class-bars[data-print-split]){break-inside:auto",
     );
     expect(popupDocument.title).toBe("Relatório-Abadia-de-Goiás-2026.pdf");
 

@@ -47,17 +47,15 @@ const PRINT_OVERRIDES = `
           .report-summary{break-after:page;page-break-after:always}
           .report-summary-entry{break-inside:avoid;page-break-inside:avoid}
           /* Mapa, gráfico e barras de classe medem 435, 506 e até 530px numa
-             página A4 de 1032px úteis: dois cabem, três nunca. Enquanto o cartão
-             inteiro era indivisível, o terceiro pulava de página e deixava um
-             vão de 300 a 500px no pé da anterior, seção após seção. O que de
-             fato não pode ser cortado ao meio é a imagem do mapa e o SVG do
-             gráfico; o cabeçalho, a legenda e a tabela de classes podem fluir. */
+             página A4 de 1032px úteis: dois cabem, três nunca. A seção flui
+             entre páginas, mas o cartão não: o mapa e o gráfico já não se
+             partiam, e o cartão partido deixava no pé da página um retângulo
+             cinza vazio, ou duas ou três classes sozinhas no topo da seguinte.
+             Só uma lista longa de classes (ver MunicipalReportClassBars) se
+             parte, e só no miolo; cada pedaço ganha borda e respiro próprios. */
           .report-time-series,.report-spatial,.report-class-coverage{break-inside:auto;page-break-inside:auto}
-          .report-time-series>.report-block,.report-spatial>.report-block,.report-class-coverage>.report-block{break-inside:auto;page-break-inside:auto}
-          .report-map-frame,.report-chart-print{break-inside:avoid;page-break-inside:avoid}
-          /* O cartão do mapa já não tem título em cima: partido, ele deixava
-             no pé da página um retângulo cinza vazio, com o mapa na seguinte. */
-          .report-spatial>.report-block{break-inside:avoid;page-break-inside:avoid}
+          .report-map-frame,.report-chart-print,.report-class-bars-keep{break-inside:avoid;page-break-inside:avoid}
+          .report-class-coverage>.report-block:has(.report-class-bars[data-print-split]){break-inside:auto;page-break-inside:auto;box-decoration-break:clone;-webkit-box-decoration-break:clone}
           .report-narrative{break-inside:auto;page-break-inside:auto}
           .report-notes{break-inside:auto;page-break-inside:auto;margin-top:8mm!important;padding-top:5mm!important}
           .report-document-footer{break-inside:avoid;page-break-inside:avoid}
