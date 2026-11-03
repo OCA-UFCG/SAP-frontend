@@ -258,7 +258,7 @@ function ForecastCoverage({
                 style={{ backgroundColor: item.color }}
               />
               <span>
-                {translateLabel(item.label)} —{" "}
+                {translateLabel(item.label)}:{" "}
                 <span className="tabular-nums">
                   {formatMunicipalReportValue(
                     item.percentage,
@@ -466,7 +466,7 @@ export const ReportForecastSection = memo(function ReportForecastSection({
 
           <div className="report-spatial report-forecast-maps mt-8">
             <ReportSectionHeading level={3} accent={accent}>
-              {t("document.spatialDistributionTitle")} — {referenceLabel}
+              {t("document.spatialDistributionTitle")} ({referenceLabel})
             </ReportSectionHeading>
             <div className={`mt-4 grid gap-4 ${columns}`}>
               {group.members.map((analysis) => {
@@ -478,7 +478,7 @@ export const ReportForecastSection = memo(function ReportForecastSection({
                     key={analysis.id}
                     className="report-block flex min-w-0 flex-col gap-3 overflow-hidden rounded-lg border border-[#EFEFEF] bg-[#F6F7F6] p-3"
                   >
-                    <div className="min-w-0">
+                    <div className="min-w-0 flex-1">
                       <p className="font-open-sans text-sm font-bold text-[#292829]">
                         {kindOf(analysis)}
                       </p>
