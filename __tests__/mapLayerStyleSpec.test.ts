@@ -1,6 +1,6 @@
 import { validateStyleMin } from "@maplibre/maplibre-gl-style-spec";
 import type { FeatureCollection, Geometry } from "geojson";
-import type maplibregl from "maplibre-gl";
+import type * as maplibregl from "maplibre-gl";
 import { describe, expect, it, vi } from "vitest";
 import {
   ensureMapLayers,

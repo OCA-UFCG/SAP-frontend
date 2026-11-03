@@ -1,4 +1,5 @@
-import maplibregl, {
+import * as maplibregl from "maplibre-gl";
+import {
   ExpressionSpecification,
   MapGeoJSONFeature,
 } from "maplibre-gl";

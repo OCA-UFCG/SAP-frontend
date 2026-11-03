@@ -1,6 +1,7 @@
 import bbox from "@turf/bbox";
 import { FeatureCollection, GeoJsonProperties, Geometry } from "geojson";
-import maplibregl, { LngLatBoundsLike, MapGeoJSONFeature } from "maplibre-gl";
+import * as maplibregl from "maplibre-gl";
+import { LngLatBoundsLike, MapGeoJSONFeature } from "maplibre-gl";
 import geometria from "../../data/geometria.json";
 import municipalityBoundsIndexData from "../../data/municipalityBounds.json";
 import type { CDIFeatureProperties, CDIVectorData } from "@/lib/geo";

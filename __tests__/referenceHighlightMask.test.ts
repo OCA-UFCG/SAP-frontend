@@ -1,5 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import type maplibregl from "maplibre-gl";
+import type * as maplibregl from "maplibre-gl";
 
 // O protocolo é registrado uma vez só, no primeiro teste. O Vitest limpa o
 // histórico de chamadas antes de cada teste, então o handler fica guardado aqui.
@@ -12,7 +12,7 @@ const { addProtocol, registered } = vi.hoisted(() => {
   );
   return { addProtocol, registered };
 });
-vi.mock("maplibre-gl", () => ({ default: { addProtocol } }));
+vi.mock("maplibre-gl", () => ({ addProtocol }));
 
 import { BRAZIL_RASTER_BOUNDS } from "@/components/Map/mapBounds";
 import {
