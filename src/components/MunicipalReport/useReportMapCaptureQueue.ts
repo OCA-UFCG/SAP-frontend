@@ -21,6 +21,11 @@ interface ReportMapCaptureQueue {
 interface ReportMapPriorityOptions {
   /** Mapas cujo quadro está na área visível da tela. */
   visibleKeys?: ReadonlySet<string>;
+  /**
+   * Mapas que não ocupam vaga: são montados a partir do fundo compartilhado do
+   * relatório, sem um MapLibre próprio, e entram todos de uma vez.
+   */
+  unlimitedKeys?: ReadonlySet<string>;
 }
 
 /**
@@ -46,25 +51,31 @@ export function selectActiveReportMapKeys(
   completedKeys: ReadonlySet<string>,
   serialRetryKey: string | null,
   concurrency = REPORT_MAP_CAPTURE_CONCURRENCY,
-  { visibleKeys }: ReportMapPriorityOptions = {},
+  { visibleKeys, unlimitedKeys }: ReportMapPriorityOptions = {},
 ) {
   if (serialRetryKey && !completedKeys.has(serialRetryKey)) {
     return [serialRetryKey];
   }
 
   const pending = mapKeys.filter((key) => !completedKeys.has(key));
+  const unlimited = pending.filter((key) => unlimitedKeys?.has(key));
+  const limited = pending.filter((key) => !unlimitedKeys?.has(key));
   if (!visibleKeys?.size) {
-    return pending.slice(0, concurrency);
+    return [...unlimited, ...limited.slice(0, concurrency)];
   }
 
   return [
-    ...pending.filter((key) => visibleKeys.has(key)),
-    ...pending.filter((key) => !visibleKeys.has(key)),
-  ].slice(0, concurrency);
+    ...unlimited,
+    ...[
+      ...limited.filter((key) => visibleKeys.has(key)),
+      ...limited.filter((key) => !visibleKeys.has(key)),
+    ].slice(0, concurrency),
+  ];
 }
 
 export function useReportMapCaptureQueue(
   mapKeys: readonly string[],
+  unlimitedKeys?: ReadonlySet<string>,
 ): ReportMapCaptureQueue {
   const [mapImages, setMapImages] = useState<Map<string, string | null>>(
     new Map(),
@@ -94,10 +105,10 @@ export function useReportMapCaptureQueue(
           completedKeys,
           serialRetryKey,
           REPORT_MAP_CAPTURE_CONCURRENCY,
-          { visibleKeys },
+          { visibleKeys, unlimitedKeys },
         ),
       ),
-    [completedKeys, mapKeys, serialRetryKey, visibleKeys],
+    [completedKeys, mapKeys, serialRetryKey, unlimitedKeys, visibleKeys],
   );
   const mapsReady = mapKeys.every((key) => completedKeys.has(key));
   const pendingMapCount = mapKeys.filter(

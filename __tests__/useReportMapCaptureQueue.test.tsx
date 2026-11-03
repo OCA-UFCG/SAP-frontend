@@ -17,6 +17,19 @@ describe("selectActiveReportMapKeys", () => {
     },
   );
 
+  // Os mapas colados sobre o fundo compartilhado não têm MapLibre próprio: os
+  // 35 de um município entram juntos, e as vagas ficam para as coropletas.
+  it("põe todos os mapas sem MapLibre de uma vez, além das vagas", () => {
+    const keys = ["map-0", "map-1", "map-2", "map-3", "map-4", "map-5"];
+
+    expect(
+      selectActiveReportMapKeys(keys, new Set(["map-1"]), null, 2, {
+        unlimitedKeys: new Set(["map-1", "map-3", "map-4"]),
+        visibleKeys: new Set(["map-5"]),
+      }),
+    ).toEqual(["map-3", "map-4", "map-5", "map-0"]);
+  });
+
   it("fills a free slot when maps complete out of order", () => {
     expect(
       selectActiveReportMapKeys(
