@@ -731,14 +731,17 @@ describe("MunicipalReportPreview", () => {
     expect(popupDocument.documentElement.outerHTML).toContain(
       "object-fit:contain!important",
     );
-    // Regressão: os cartões de mapa, gráfico e barras eram indivisíveis, então
-    // o terceiro pulava de página e deixava meia folha em branco. Só a imagem e
-    // o SVG seguem indivisíveis.
+    // Regressão: a seção inteira era indivisível, então a terceira pulava de
+    // página e deixava meia folha em branco. A seção flui; o cartão, a imagem,
+    // o SVG e os grupos de classes, não. Só a lista longa de classes se parte.
     expect(popupDocument.documentElement.outerHTML).toContain(
       ".report-time-series,.report-spatial,.report-class-coverage{break-inside:auto;page-break-inside:auto}",
     );
     expect(popupDocument.documentElement.outerHTML).toContain(
-      ".report-map-frame,.report-chart-print{break-inside:avoid;page-break-inside:avoid}",
+      ".report-map-frame,.report-chart-print,.report-class-bars-keep{break-inside:avoid;page-break-inside:avoid}",
+    );
+    expect(popupDocument.documentElement.outerHTML).toContain(
+      ".report-class-coverage>.report-block:has(.report-class-bars[data-print-split]){break-inside:auto",
     );
     expect(popupDocument.title).toBe("Relatório-Abadia-de-Goiás-2026.pdf");
 
