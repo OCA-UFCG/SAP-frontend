@@ -2,11 +2,11 @@
   "InfoModal": {
     "overview": "Visión General",
     "period": "Período",
-    "startDate": "Fecha de inicio",
-    "endDate": "Fecha de fin",
+    "periodRange": "De {start} a {end}",
     "timeScale": "Escala de tiempo",
     "legend": "Leyenda",
-    "learnMore": "Saber más",
+    "learnMore": "Visitar sitio externo",
+    "learnMoreHint": "Abre {host} en una nueva pestaña.",
     "ariaLabel": "Información sobre {title}",
     "close": "Cerrar"
   }
