@@ -7,7 +7,7 @@ const card = { id: 1, title: "Monitor de Secas", description: "Seca." };
 afterEach(cleanup);
 
 describe("InfoModal", () => {
-  it("opens the index's external page in a new tab and says where it goes", () => {
+  it("opens the index's original source in a new tab", () => {
     render(
       <InfoModal
         card={{ ...card, learnMoreUrl: "https://monitordesecas.ana.gov.br/" }}
@@ -15,14 +15,13 @@ describe("InfoModal", () => {
         onClose={vi.fn()}
       />,
     );
-    const link = screen.getByRole("link", { name: "Acessar site externo" });
+    const link = screen.getByRole("link", {
+      name: "Ver fonte original (abre em nova aba)",
+    });
 
     expect(link).toHaveAttribute("href", "https://monitordesecas.ana.gov.br/");
     expect(link).toHaveAttribute("target", "_blank");
     expect(link).toHaveAttribute("rel", "noopener noreferrer");
-    expect(link).toHaveAccessibleDescription(
-      "Abre monitordesecas.ana.gov.br em uma nova aba.",
-    );
   });
 
   it("has no external link without somewhere to go", () => {
