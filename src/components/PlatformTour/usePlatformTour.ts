@@ -341,13 +341,6 @@ function buildSteps(
           logo.height = 32;
           logo.className = "sedes-tour-logo";
           dom.title.before(logo);
-
-          const skipButton = document.createElement("button");
-          skipButton.type = "button";
-          skipButton.className = "driver-popover-footer-btn sedes-tour-skip-btn";
-          skipButton.textContent = t("skip");
-          skipButton.addEventListener("click", () => options.driver.destroy());
-          dom.footerButtons.prepend(skipButton);
         },
       },
     },
@@ -466,7 +459,7 @@ export function usePlatformTour({
           onPopoverRender: renderPopover,
           onHighlighted: clearDummyElementAria,
           // Um clique sem querer fora do balão não deve encerrar o tutorial;
-          // para sair há o "×", o Esc e o "Pular".
+          // para sair há o "×" e o Esc.
           overlayClickBehavior: "none",
           // Ligar uma camada no meio do tutorial dispararia o carregamento do
           // Earth Engine por trás do balão.

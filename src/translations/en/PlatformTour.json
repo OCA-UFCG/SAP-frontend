@@ -1,7 +1,6 @@
 {
   "PlatformTour": {
     "start": "Start",
-    "skip": "Skip",
     "next": "Next",
     "previous": "Back",
     "done": "Finish",
