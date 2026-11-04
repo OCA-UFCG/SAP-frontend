@@ -1,14 +1,34 @@
 import "server-only";
 
+import { REPORT_DEFAULT_PERIOD } from "@/config/municipalReport";
 import type { MunicipalReportData } from "@/contracts/municipalReport";
+import { getStatisticsRowsGeneration } from "@/repositories/platform/geeStatisticsRowsCache";
 import { getPanelLayers } from "@/repositories/platform/panelLayerRepository";
 import type { PanelLayerI } from "@/utils/interfaces";
 import {
   buildMunicipalReport,
   type MunicipalReportServiceDependencies,
 } from "@/services/municipalReportService";
+import {
+  getSpatialScopeLocationKey,
+  SPATIAL_VALUE_OPTIONS,
+  type SpatialArea,
+  type SpatialSelection,
+} from "@/utils/spatialScope";
+import { MUNICIPALITY_KEY_PATTERN } from "@/utils/statisticsLocationScope";
 
-const TTL_MS = 600_000;
+type ReportDependencies = Pick<MunicipalReportServiceDependencies, "analysisIds" | "onTiming">;
+
+const AGGREGATE_REPORT_KEYS = (
+  Object.keys(SPATIAL_VALUE_OPTIONS) as SpatialArea[]
+).flatMap((spatialArea) =>
+  SPATIAL_VALUE_OPTIONS[spatialArea].flatMap(
+    ({ value }) =>
+      getSpatialScopeLocationKey({ spatialArea, spatialValue: value } as SpatialSelection) ?? [],
+  ),
+);
+
+const TTL_MS = 1_200_000;
 // Um relatório municipal completo ocupa ~430 KiB (as 21 camadas com a série
 // inteira de cada uma), então o teto é o que se aceita gastar de heap: 100
 // entradas são ~43 MiB no pior caso. Dez entradas, o valor anterior, cabiam em
@@ -23,7 +43,10 @@ interface CacheEntry {
   pending?: Promise<MunicipalReportData>;
 }
 
-const cache = new Map<string, CacheEntry>();
+const shared = globalThis as typeof globalThis & {
+  __municipalReportCache?: Map<string, CacheEntry>;
+};
+const cache = (shared.__municipalReportCache ??= new Map<string, CacheEntry>());
 
 function getMaxReports() {
   const value = Number(process.env.MUNICIPAL_REPORT_CACHE_MAX_ENTRIES);
@@ -67,10 +90,50 @@ function resolveLayerDataVersion(layer: PanelLayerI): string {
   );
 }
 
+function selectAnalyses(
+  report: MunicipalReportData,
+  analysisIds: readonly string[] | undefined,
+): MunicipalReportData {
+  if (!analysisIds?.length) return report;
+  const order = new Map(analysisIds.map((id, index) => [id.trim().toLowerCase(), index]));
+  const rank = (analysis: MunicipalReportData["analyses"][number]) =>
+    order.get(analysis.id.toLowerCase()) ?? order.get(analysis.alias.toLowerCase());
+  const analyses = report.analyses
+    .filter((analysis) => rank(analysis) !== undefined)
+    .sort((left, right) => rank(left)! - rank(right)!);
+  return { ...report, analyses };
+}
+
 export async function buildCachedMunicipalReport(
   locationKey: string,
   requestedPeriod: string,
-  dependencies: Pick<MunicipalReportServiceDependencies, "analysisIds" | "onTiming"> = {},
+  dependencies: ReportDependencies = {},
+): Promise<MunicipalReportData> {
+  if (MUNICIPALITY_KEY_PATTERN.test(locationKey)) {
+    return loadCachedReport(locationKey, requestedPeriod, dependencies);
+  }
+  const { analysisIds, ...rest } = dependencies;
+  const report = await loadCachedReport(locationKey, requestedPeriod, rest);
+  return selectAnalyses(report, analysisIds);
+}
+
+export async function warmAggregateReports(): Promise<number> {
+  let warmed = 0;
+  for (const locationKey of AGGREGATE_REPORT_KEYS) {
+    try {
+      await buildCachedMunicipalReport(locationKey, REPORT_DEFAULT_PERIOD);
+      warmed += 1;
+    } catch (error) {
+      console.warn(`[municipalReport] falha ao aquecer o relatório de ${locationKey}.`, error);
+    }
+  }
+  return warmed;
+}
+
+async function loadCachedReport(
+  locationKey: string,
+  requestedPeriod: string,
+  dependencies: ReportDependencies,
 ): Promise<MunicipalReportData> {
   const panelLayers = await getPanelLayers();
   const selected = dependencies.analysisIds?.length
@@ -83,7 +146,13 @@ export async function buildCachedMunicipalReport(
   const requestedIds = [...(dependencies.analysisIds ?? [])]
     .map((id) => id.toLowerCase())
     .join(",");
-  const key = [locationKey, requestedPeriod, requestedIds, versions.join(",")].join("::");
+  const key = [
+    locationKey,
+    requestedPeriod,
+    requestedIds,
+    versions.join(","),
+    getStatisticsRowsGeneration(),
+  ].join("::");
   const now = Date.now();
   const current = cache.get(key);
 

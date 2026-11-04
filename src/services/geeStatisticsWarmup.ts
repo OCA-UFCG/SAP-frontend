@@ -8,7 +8,23 @@ import {
   getPanelLayers,
   getPanelLayerWithMunicipalAnalysisYear,
 } from "@/repositories/platform/panelLayerRepository";
+import { warmAggregateReports } from "@/services/municipalReportCache";
 import { isCompactImageData } from "@/utils/imageData";
+import {
+  getSpatialScopeLocationKey,
+  SPATIAL_VALUE_OPTIONS,
+  type SpatialSelection,
+} from "@/utils/spatialScope";
+
+const WARM_LOCATION_KEYS = (
+  ["national", "region", "biome", "asd", "semiarid"] as const
+).flatMap(
+  (spatialArea) =>
+    getSpatialScopeLocationKey({
+      spatialArea,
+      spatialValue: SPATIAL_VALUE_OPTIONS[spatialArea][0].value,
+    } as SpatialSelection) ?? [],
+);
 
 /**
  * De quanto em quanto tempo o servidor confere se alguma tabela mudou no Earth
@@ -49,8 +65,9 @@ export async function warmGeeStatisticsSchemas(): Promise<void> {
 }
 
 /**
- * Garante em cache o recorte Brasil de cada camada com estatística no Earth
- * Engine — é nele que o Detalhamento abre, e dele também saem os 27 estados.
+ * Garante em cache os recortes agregados de cada camada com estatística no
+ * Earth Engine: o Brasil (com os 27 estados), as regiões, os biomas, a ASD e o
+ * semiárido.
  *
  * Passa pelo mesmo caminho da rota do Detalhamento, então a entrada guardada é
  * exatamente a que a rota vai procurar; o que já está em cache volta na hora e
@@ -70,18 +87,20 @@ export async function warmGeeStatisticsNationalRows(): Promise<number> {
     const latestPeriod = Object.keys(layer.imageData.years).sort().at(-1);
     if (!latestPeriod) continue;
 
-    try {
-      await getPanelLayerWithMunicipalAnalysisYear(
-        layer.id,
-        latestPeriod,
-        "br",
-      );
-      warmed += 1;
-    } catch (error) {
-      console.warn(
-        `[geeStatistics] falha ao aquecer o recorte Brasil de ${layer.id}; ele será lido no primeiro pedido.`,
-        error,
-      );
+    for (const locationKey of WARM_LOCATION_KEYS) {
+      try {
+        await getPanelLayerWithMunicipalAnalysisYear(
+          layer.id,
+          latestPeriod,
+          locationKey,
+        );
+        warmed += 1;
+      } catch (error) {
+        console.warn(
+          `[geeStatistics] falha ao aquecer o recorte ${locationKey} de ${layer.id}; ele será lido no primeiro pedido.`,
+          error,
+        );
+      }
     }
   }
 
@@ -100,12 +119,13 @@ async function refreshGeeStatistics() {
 
   const startedAt = Date.now();
   const warmed = await warmGeeStatisticsNationalRows();
+  const reports = await warmAggregateReports();
   const elapsedMs = Date.now() - startedAt;
   // Só registra quando houve leitura de verdade: com tudo em cache, a volta
   // inteira leva poucos milissegundos.
   if (elapsedMs > 1000) {
     console.info(
-      `[geeStatistics] recorte Brasil de ${warmed} camada(s) aquecido em ${elapsedMs} ms`,
+      `[geeStatistics] ${warmed} recorte(s) agregado(s) e ${reports} relatório(s) aquecido(s) em ${elapsedMs} ms`,
     );
   }
 }
