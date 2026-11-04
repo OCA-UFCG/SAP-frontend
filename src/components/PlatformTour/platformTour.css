@@ -321,11 +321,6 @@
   background-color: var(--sedes-tour-olive-dark);
 }
 
-.driver-popover.sedes-tour .sedes-tour-skip-btn {
-  border-color: transparent;
-  color: #5b612a;
-}
-
 @media (prefers-reduced-motion: reduce) {
   .driver-fade .driver-popover.sedes-tour,
   .driver-popover.sedes-tour .sedes-tour-dot-current,
