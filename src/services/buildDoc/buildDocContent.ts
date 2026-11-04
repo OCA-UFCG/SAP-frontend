@@ -10,6 +10,7 @@ import type {
 } from "@/contracts/municipalReport";
 import { formatPercentage } from "@/utils/municipalReportValue";
 import { REPORT_SERIES_VARIABLE_KEYS } from "@/utils/reportSeriesVariables";
+import { DROUGHT_MONITOR_SITUATION_VARIABLE } from "@/utils/droughtMonitorSituation";
 
 const REPORT_LOCALE = "pt-BR";
 const TWO_DIGIT_PERCENTAGE_KEYS = new Set(["soma_percentual_deg_n3_n4_n5"]);
@@ -281,6 +282,7 @@ const LAYER_SCOPED_TEMPLATE_KEYS = new Set([
   // impede a tela do catálogo de oferecer um `[classe_anterior]` que o
   // relatório não produz.
   ...REPORT_SERIES_VARIABLE_KEYS,
+  DROUGHT_MONITOR_SITUATION_VARIABLE.key,
 ]);
 
 function getLayerScopedTemplateKey(theme: string, normalizedKey: string) {

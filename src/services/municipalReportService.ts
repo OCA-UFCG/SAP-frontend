@@ -36,6 +36,11 @@ import {
 } from "@/utils/municipalReport";
 import { computeReportSeriesVariables } from "@/utils/reportSeriesVariables";
 import {
+  buildDroughtMonitorSituation,
+  DROUGHT_MONITOR_PANEL_LAYER_ID,
+  DROUGHT_MONITOR_SITUATION_VARIABLE,
+} from "@/utils/droughtMonitorSituation";
+import {
   resolveReportTerritory,
   type ReportTerritory,
 } from "@/utils/reportTerritory";
@@ -630,6 +635,16 @@ export async function buildMunicipalReport(
       buildAnalysisSeriesVariables(analysis, layers[index]),
     )) {
       templateVariables[`${key}_${analysis.alias}`] = value;
+    }
+
+    if (analysis.id === DROUGHT_MONITOR_PANEL_LAYER_ID) {
+      templateVariables[
+        `${DROUGHT_MONITOR_SITUATION_VARIABLE.key}_${analysis.alias}`
+      ] = buildDroughtMonitorSituation(
+        territory.prepositionalLabel,
+        analysis.snapshot?.distribution ?? [],
+        layers[index]?.reportSeverity,
+      );
     }
   });
 

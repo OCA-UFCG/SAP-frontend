@@ -42,6 +42,10 @@ import {
 } from "@/utils/municipalReport";
 import { describeReportSeriesVariables } from "@/utils/reportSeriesVariables";
 import {
+  DROUGHT_MONITOR_PANEL_LAYER_ID,
+  DROUGHT_MONITOR_SITUATION_VARIABLE,
+} from "@/utils/droughtMonitorSituation";
+import {
   describeReportVariableProfile,
   resolveReportSeverity,
   type ReportSeveritySpec,
@@ -361,6 +365,14 @@ function describeCatalogVariables(
       token,
       description,
     })),
+    ...(config.panelLayerId === DROUGHT_MONITOR_PANEL_LAYER_ID
+      ? [
+          {
+            token: DROUGHT_MONITOR_SITUATION_VARIABLE.token,
+            description: DROUGHT_MONITOR_SITUATION_VARIABLE.description,
+          },
+        ]
+      : []),
   ];
   const resolved = populateDocContent(
     {
