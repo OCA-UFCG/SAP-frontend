@@ -148,6 +148,29 @@ describe("populateDocContent com variáveis por camada", () => {
     );
   });
 
+  it("resolve [situacao_seca] só na seção do Monitor de Secas", () => {
+    const sections = [
+      {
+        title: "Situação atual",
+        text: "[situacao_seca] Dados do [indice] de [periodo_extenso].",
+      },
+    ];
+    const content = populateDocContent(
+      { "monitor-de-seca-ana": sections, "indice-de-aridez": sections },
+      {
+        situacao_seca_monitor_de_seca_ana:
+          "No Brasil, 35,10% da área está sem seca e 64,90% em algum nível de seca.",
+        indice_monitor_de_seca_ana: "Monitor de secas | ANA",
+        periodo_extenso_monitor_de_seca_ana: "janeiro de 2026",
+      },
+    );
+
+    expect(content["monitor-de-seca-ana"][0].text).toBe(
+      "No Brasil, 35,10% da área está sem seca e 64,90% em algum nível de seca. Dados do Monitor de secas | ANA de janeiro de 2026.",
+    );
+    expect(content["indice-de-aridez"][0].text).toContain("[situacao_seca]");
+  });
+
   it("não mistura camadas: [classe] não pega o valor de outro índice", () => {
     const content = populateDocContent(
       { "indice-a": [{ title: "Situação atual", text: "Classe: [classe]." }] },
