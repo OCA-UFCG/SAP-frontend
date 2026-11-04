@@ -13,7 +13,7 @@ export const DROUGHT_MONITOR_SITUATION_VARIABLE = {
   key: "situacao_seca",
   token: "[situacao_seca]",
   description:
-    "Frase de abertura do Monitor de Secas, já com o território: quanto da área está sem seca e em seca, as classes mais graves presentes, a classe de seca predominante e o restante.",
+    "Frase de abertura do Monitor de Secas, já com o território: quanto da área está sem seca, as classes mais graves presentes, a classe de seca predominante e o restante.",
 } as const;
 
 /**
@@ -35,12 +35,12 @@ interface DroughtClass {
 }
 
 /**
- * "a, b e c". Quando os próprios itens têm vírgula ("Seca grave (D2), presente
- * em 10,00% da área"), o "e" ganha uma vírgula antes para não colar no item.
+ * "a, b e c". Com `serialComma`, o "e" ganha uma vírgula antes, para não colar
+ * em itens que já têm vírgula ("Seca grave (D2), presente em 10,00% da área").
  */
-function joinWithAnd(items: readonly string[]) {
+function joinWithAnd(items: readonly string[], serialComma = false) {
   if (items.length <= 1) return items[0] ?? "";
-  const glue = items.some((item) => item.includes(",")) ? ", e " : " e ";
+  const glue = serialComma ? ", e " : " e ";
   return `${items.slice(0, -1).join(", ")}${glue}${items.at(-1)}`;
 }
 
@@ -53,11 +53,13 @@ function capitalize(text: string) {
 }
 
 /**
- * O parágrafo de abertura do Monitor de Secas, na lógica combinada com a ANA:
- * em vez de citar só a classe que ocupa mais área — que num recorte grande é
- * quase sempre "Sem seca" —, o texto mostra quanto da área está em seca,
- * destaca as classes mais graves presentes mesmo quando são pequenas, aponta a
- * classe de seca predominante e fecha com o restante.
+ * O parágrafo de abertura do Monitor de Secas, na lógica que o Ulisses fez no
+ * Earth Engine com a ANA (`gerarCorpoTextoMonitorSecas`): em vez de citar só a
+ * classe que ocupa mais área, o texto diz quanto está sem seca, destaca as
+ * classes mais graves presentes mesmo quando são pequenas, aponta a classe de
+ * seca predominante e fecha com o restante. Muda só a forma dos números (duas
+ * casas, como a tabela do relatório) e o território, que já vem com a
+ * preposição certa.
  *
  * As classes de seca são numeradas pela posição na escala do catálogo (a
  * primeira depois de "Sem seca" é D0). Devolve `null` quando a escala não tem
@@ -66,7 +68,7 @@ function capitalize(text: string) {
  *
  * @example
  * buildDroughtMonitorSituation("No Brasil", distribution, severity);
- * // "No Brasil, 35,10% da área está sem seca e 64,90% em algum nível de seca. …"
+ * // "No Brasil, 35,10% da área está sem seca. Observam-se como piores classes …"
  */
 export function buildDroughtMonitorSituation(
   place: string,
@@ -92,96 +94,92 @@ export function buildDroughtMonitorSituation(
     }))
     .reverse();
   // O complemento de "Sem seca", e não a soma das classes de seca: a fonte às
-  // vezes soma 100,1%, e a abertura tem que fechar em 100% para quem confere.
+  // vezes soma 100,1%, e o resumo tem que fechar em 100% para quem confere.
   const inDrought = Math.max(0, 100 - noDrought);
   const present = droughtClasses.filter(
     (item) => item.percentage > MIN_PERCENTAGE,
   );
 
-  if (present.length === 0) {
+  if (noDrought >= 100 - MIN_PERCENTAGE) {
     return `${place}, toda a área está sem seca (${percent(noDrought)}), sem nenhuma classe de seca observada no período.`;
   }
 
-  if (noDrought <= MIN_PERCENTAGE && present.length === 1) {
-    return `${place}, toda a área está em ${present[0].name}.`;
-  }
-
   if (noDrought >= MOSTLY_NO_DROUGHT_PERCENTAGE) {
+    const opening = `${place}, ${percent(noDrought)} da área está sem seca.`;
+    if (present.length === 0) return opening;
     const rest =
       present.length === 1
         ? `correspondem à ${present[0].name}`
         : `distribuem-se entre ${joinWithAnd(
-            present.map((item) => `${item.name}, com ${percent(item.percentage)}`),
+            present.map((item) => `${item.name} (${percent(item.percentage)})`),
           )}`;
-    return `${place}, ${percent(noDrought)} da área está sem seca. Os ${percent(inDrought)} restantes ${rest}.`;
+    return `${opening} Os ${percent(inDrought)} restantes ${rest}.`;
   }
 
-  const sentences = [
-    noDrought > MIN_PERCENTAGE
-      ? `${place}, ${percent(noDrought)} da área está sem seca e ${percent(inDrought)} em algum nível de seca.`
-      : `${place}, toda a área está em algum nível de seca.`,
-  ];
+  const sentences: string[] = [];
   const mentioned = new Set<string>();
+  // A primeira frase leva o território; as seguintes começam com maiúscula.
+  const sentence = (fragment: string) =>
+    sentences.length === 0 ? `${place}, ${fragment}` : capitalize(fragment);
+
+  if (noDrought > MIN_PERCENTAGE) {
+    sentences.push(sentence(`${percent(noDrought)} da área está sem seca.`));
+  }
 
   // 1. As classes mais graves presentes, mesmo quando pequenas.
   const worstIds = new Set(
     droughtClasses.slice(0, WORST_CLASS_COUNT).map(({ id }) => id),
   );
   const worst = present.filter((item) => worstIds.has(item.id));
-
-  // 2. A classe de seca predominante. O empate compara o que o leitor vê, o
-  // percentual já arredondado, e não o número cru.
-  const top = Math.max(...present.map((item) => item.percentage));
-  const tied = present.filter(
-    (item) => percent(item.percentage) === percent(top),
-  );
-  const worstIsPredominant =
-    tied.length === 1 && worstIds.has(tied[0].id) && present.length > 1;
-
+  let worstSentence: string | null = null;
   if (worst.length === 1) {
     const [item] = worst;
-    sentences.push(
-      `Observa-se como pior classe a ${item.name}, presente em ${percent(item.percentage)} da área${worstIsPredominant ? ", sendo também a classe de seca predominante" : ""}.`,
-    );
+    worstSentence = `observa-se como pior classe a ${item.name}, presente em ${percent(item.percentage)} da área.`;
   } else if (worst.length > 1) {
     const items = worst.map(
-      (item) => `a ${item.name}, presente em ${percent(item.percentage)} da área`,
+      (item) =>
+        `a ${item.name}, presente em ${percent(item.percentage)} da área`,
     );
-    sentences.push(
-      `Observam-se como piores classes ${joinWithAnd(items)}.${worstIsPredominant ? ` A ${tied[0].name} é também a classe de seca predominante.` : ""}`,
-    );
+    worstSentence = `observam-se como piores classes ${joinWithAnd(items, true)}.`;
   }
   worst.forEach(({ id }) => mentioned.add(id));
 
-  const predominant = tied.filter((item) => !mentioned.has(item.id));
-  if (present.length === 1) {
-    // Uma classe só não "predomina" sobre ninguém.
-    if (predominant.length === 1) {
-      sentences.push(
-        `A seca presente é a ${predominant[0].name}, em ${percent(predominant[0].percentage)} da área.`,
-      );
-      mentioned.add(predominant[0].id);
-    }
-  } else if (predominant.length === 1 && tied.length === 1) {
-    sentences.push(
-      `A classe de seca predominante é a ${predominant[0].name}, presente em ${percent(predominant[0].percentage)} da área.`,
+  // 2. A classe de seca predominante. O empate compara o que o leitor vê, o
+  // percentual já arredondado, e não o número cru.
+  let predominantSentence: string | null = null;
+  if (present.length > 0) {
+    const top = Math.max(...present.map((item) => item.percentage));
+    const tied = present.filter(
+      (item) => percent(item.percentage) === percent(top),
     );
-    mentioned.add(predominant[0].id);
-  } else if (predominant.length > 0 && tied.length > 1) {
-    const alreadyCited = tied.find((item) => mentioned.has(item.id));
-    if (predominant.length === 1 && alreadyCited) {
-      sentences.push(
-        `A ${predominant[0].name} também corresponde a ${percent(predominant[0].percentage)} da área, o mesmo percentual da ${alreadyCited.name} citada acima.`,
-      );
-    } else {
-      sentences.push(
-        `${capitalize(joinWithAnd(predominant.map((item) => `a ${item.name}`)))} são as classes de seca predominantes, com ${percent(top)} da área cada.`,
-      );
+    const notYetCited = tied.filter((item) => !mentioned.has(item.id));
+
+    if (tied.length === 1) {
+      // Uma pior classe que também é a maior ganha só o complemento na frase
+      // dela; sozinha, não tem com quem competir e a frase dela basta.
+      if (worstSentence && notYetCited.length === 0 && present.length > 1) {
+        worstSentence = `${worstSentence.slice(0, -1)}, sendo também a classe predominante.`;
+      } else if (notYetCited.length === 1) {
+        predominantSentence = `a classe de seca predominante é a ${tied[0].name}, presente em ${percent(top)} da área.`;
+      }
+    } else if (notYetCited.length > 0) {
+      const alreadyCited = tied.find((item) => mentioned.has(item.id));
+      predominantSentence =
+        notYetCited.length === 1 && alreadyCited
+          ? `a ${notYetCited[0].name} também corresponde a ${percent(top)} da área, o mesmo percentual observado na ${alreadyCited.name} citada acima.`
+          : `${joinWithAnd(
+              notYetCited.map(
+                (item) => `a ${item.name} (${percent(item.percentage)})`,
+              ),
+            )} correspondem ao mesmo percentual da área cada.`;
     }
-    predominant.forEach(({ id }) => mentioned.add(id));
+    notYetCited.forEach(({ id }) => mentioned.add(id));
   }
 
-  // 3. O restante, já nomeado: sobram no máximo as duas classes mais leves.
+  if (worstSentence) sentences.push(sentence(worstSentence));
+  if (predominantSentence) sentences.push(sentence(predominantSentence));
+
+  // 3. O restante.
   const remaining = present.filter((item) => !mentioned.has(item.id));
   if (remaining.length === 1) {
     sentences.push(
@@ -189,9 +187,7 @@ export function buildDroughtMonitorSituation(
     );
   } else if (remaining.length > 1) {
     const sum = remaining.reduce((total, item) => total + item.percentage, 0);
-    sentences.push(
-      `As demais classes, ${joinWithAnd(remaining.map(({ name }) => name))}, somam ${percent(sum)} da área.`,
-    );
+    sentences.push(`As demais classes somam ${percent(sum)} da área.`);
   }
 
   return sentences.join(" ");
