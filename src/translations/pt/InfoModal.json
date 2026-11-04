@@ -5,8 +5,8 @@
     "periodRange": "De {start} a {end}",
     "timeScale": "Escala\ntemporal",
     "legend": "Legenda",
-    "learnMore": "Acessar site externo",
-    "learnMoreHint": "Abre {host} em uma nova aba.",
+    "learnMore": "Ver fonte original",
+    "newTab": "(abre em nova aba)",
     "ariaLabel": "Informações sobre {title}",
     "close": "Fechar"
   }

@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useId, useRef } from "react";
+import { useEffect, useRef } from "react";
 import { createPortal } from "react-dom";
 import { useTranslations } from "next-intl";
 import type { ImageDataConfig } from "@/utils/interfaces";
@@ -82,7 +82,6 @@ export function InfoModal({
   onClose,
 }: IInfoModalProps) {
   const panelRef = useRef<HTMLDivElement>(null);
-  const learnMoreHintId = useId();
   const t = useTranslations("InfoModal");
   const tModules = useTranslations("ModulesContext.Layers");
   const tCaption = useTranslations("PlatformMapCaption");
@@ -115,11 +114,6 @@ export function InfoModal({
       ? card.learnMoreUrl
       : undefined;
   const legend = getImageDataLegend(imageData);
-
-  // Quem clica precisa saber para onde vai antes de sair da plataforma.
-  const learnMoreHost = learnMoreUrl
-    ? new URL(learnMoreUrl).hostname.replace(/^www\./u, "")
-    : "";
 
   return createPortal(
     // O fundo só fecha pelo mouse; pelo teclado quem fecha é o Esc.
@@ -216,25 +210,20 @@ export function InfoModal({
         </div>
 
         {learnMoreUrl && (
-          <div className="flex shrink-0 flex-col gap-2 border-t border-[#E4E5E2] px-6 py-4">
+          <div className="shrink-0 border-t border-[#E4E5E2] px-6 py-4">
             {/* Página de fora da plataforma: abre em outra aba para quem lê
                 não perder o mapa que estava montado. */}
             <a
               href={learnMoreUrl}
               target="_blank"
               rel="noopener noreferrer"
-              aria-describedby={learnMoreHintId}
+              // O ícone avisa quem vê; quem usa leitor de tela ouve o aviso.
+              aria-label={`${t("learnMore")} ${t("newTab")}`}
               className="flex h-11 w-full items-center justify-center gap-2 rounded-[8px] bg-[#646B2D] px-4 font-open-sans text-base font-semibold leading-6 text-white transition-colors hover:bg-[#4F5424] focus:outline-none focus-visible:ring-2 focus-visible:ring-[#646B2D] focus-visible:ring-offset-2"
             >
               {t("learnMore")}
               <ExternalLinkIcon />
             </a>
-            <p
-              id={learnMoreHintId}
-              className="text-center font-open-sans text-xs leading-[18px] text-[#676264]"
-            >
-              {t("learnMoreHint", { host: learnMoreHost })}
-            </p>
           </div>
         )}
       </div>
