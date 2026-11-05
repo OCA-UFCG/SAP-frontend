@@ -11,7 +11,7 @@ describe("selectActiveReportMapKeys", () => {
     "limits %i queued maps to the configured concurrency",
     (count) => {
       const keys = Array.from({ length: count }, (_, index) => `map-${index}`);
-      expect(selectActiveReportMapKeys(keys, new Set(), null)).toEqual(
+      expect(selectActiveReportMapKeys(keys, new Set())).toEqual(
         keys.slice(0, REPORT_MAP_CAPTURE_CONCURRENCY),
       );
     },
@@ -23,7 +23,7 @@ describe("selectActiveReportMapKeys", () => {
     const keys = ["map-0", "map-1", "map-2", "map-3", "map-4", "map-5"];
 
     expect(
-      selectActiveReportMapKeys(keys, new Set(["map-1"]), null, 2, {
+      selectActiveReportMapKeys(keys, new Set(["map-1"]), 2, {
         unlimitedKeys: new Set(["map-1", "map-3", "map-4"]),
         visibleKeys: new Set(["map-5"]),
       }),
@@ -35,7 +35,6 @@ describe("selectActiveReportMapKeys", () => {
       selectActiveReportMapKeys(
         ["map-0", "map-1", "map-2", "map-3", "map-4", "map-5"],
         new Set(["map-1"]),
-        null,
       ),
     ).toEqual(["map-0", "map-2", "map-3", "map-4", "map-5"]);
   });
@@ -48,7 +47,7 @@ describe("selectActiveReportMapKeys", () => {
     const keys = ["map-0", "map-1", "map-2", "map-3", "map-4", "map-5"];
 
     expect(
-      selectActiveReportMapKeys(keys, new Set(), null, 3, {
+      selectActiveReportMapKeys(keys, new Set(), 3, {
         visibleKeys: new Set(["map-4", "map-5"]),
       }),
     ).toEqual(["map-4", "map-5", "map-0"]);
@@ -58,7 +57,7 @@ describe("selectActiveReportMapKeys", () => {
     const keys = ["map-0", "map-1", "map-2", "map-3"];
 
     expect(
-      selectActiveReportMapKeys(keys, new Set(), null, 4, {
+      selectActiveReportMapKeys(keys, new Set(), 4, {
         visibleKeys: new Set(["map-3", "map-1"]),
       }),
     ).toEqual(["map-1", "map-3", "map-0", "map-2"]);
@@ -68,7 +67,7 @@ describe("selectActiveReportMapKeys", () => {
     const keys = ["map-0", "map-1", "map-2"];
 
     expect(
-      selectActiveReportMapKeys(keys, new Set(["map-1"]), null, 2, {
+      selectActiveReportMapKeys(keys, new Set(["map-1"]), 2, {
         visibleKeys: new Set(["map-1", "map-2"]),
       }),
     ).toEqual(["map-2", "map-0"]);
@@ -78,25 +77,15 @@ describe("selectActiveReportMapKeys", () => {
     const keys = ["map-0", "map-1", "map-2", "map-3"];
 
     expect(
-      selectActiveReportMapKeys(keys, new Set(), null, 2, {
+      selectActiveReportMapKeys(keys, new Set(), 2, {
         visibleKeys: new Set(),
       }),
     ).toEqual(["map-0", "map-1"]);
   });
-
-  it("reduces concurrency to one while retrying a failed capture", () => {
-    expect(
-      selectActiveReportMapKeys(
-        ["map-0", "map-1", "map-2"],
-        new Set(),
-        "map-1",
-      ),
-    ).toEqual(["map-1"]);
-  });
 });
 
 describe("useReportMapCaptureQueue", () => {
-  it("retries a failed capture once in serial mode before completing it", () => {
+  it("tenta de novo uma vez um mapa que falhou antes de desistir dele", () => {
     const { result } = renderHook(() =>
       useReportMapCaptureQueue(["map-0", "map-1", "map-2"]),
     );
@@ -109,7 +98,11 @@ describe("useReportMapCaptureQueue", () => {
 
     act(() => result.current.handleMapCapture("map-1", null));
 
-    expect([...result.current.activeMapKeys]).toEqual(["map-1"]);
+    expect([...result.current.activeMapKeys]).toEqual([
+      "map-0",
+      "map-1",
+      "map-2",
+    ]);
     expect(result.current.retryAttemptFor("map-1")).toBe(1);
     expect(result.current.mapsReady).toBe(false);
 
@@ -117,6 +110,37 @@ describe("useReportMapCaptureQueue", () => {
 
     expect(result.current.mapImages.get("map-1")).toBeNull();
     expect([...result.current.activeMapKeys]).toEqual(["map-0", "map-2"]);
+  });
+
+  // Tirar a vaga de quem está em andamento desmonta o quadro, e o desmonte
+  // cancela o download: o trabalho quase pronto era jogado fora e refeito do
+  // zero depois da nova tentativa (até 30 s quando a falha era o prazo).
+  it("tenta de novo um mapa que falhou sem tirar a vaga dos que estão em andamento", () => {
+    const keys = ["map-0", "map-1", "map-2", "map-3", "map-4", "map-5"];
+    const { result } = renderHook(() => useReportMapCaptureQueue(keys));
+
+    act(() => result.current.handleMapCapture("map-1", null));
+
+    expect([...result.current.activeMapKeys]).toEqual(keys.slice(0, 5));
+    expect(result.current.retryAttemptFor("map-1")).toBe(1);
+    expect(result.current.mapImages.has("map-1")).toBe(false);
+  });
+
+  it("mantém as miniaturas montando enquanto um mapa é tentado de novo", () => {
+    const { result } = renderHook(() =>
+      useReportMapCaptureQueue(
+        ["thumb-0", "thumb-1", "map-0"],
+        new Set(["thumb-0", "thumb-1"]),
+      ),
+    );
+
+    act(() => result.current.handleMapCapture("map-0", null));
+
+    expect([...result.current.activeMapKeys]).toEqual([
+      "thumb-0",
+      "thumb-1",
+      "map-0",
+    ]);
   });
 
   it("devolve à fila, a pedido, um mapa que já tinha desistido", () => {
