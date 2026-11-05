@@ -4,7 +4,6 @@ import { FormEvent, useEffect, useMemo, useRef, useState, useTransition } from "
 import { useLocale, useTranslations } from "next-intl";
 import { useRouter, useSearchParams } from "next/navigation";
 import { ArrowForwardIcon } from "@/components/HomeIcons/HomeIcons";
-import { Icon } from "@/components/Icon/Icon";
 import { InfoModal } from "@/components/InfoModal/InfoModal";
 import { LayerAccordion } from "@/components/LayerAccordion/LayerAccordion";
 import { PanelDropdown } from "@/components/PanelDropdown/PanelDropdown";
@@ -526,9 +525,9 @@ export function MunicipalReportContext({ panelLayers = [] }: MunicipalReportCont
             <legend className="font-open-sans text-lg font-semibold leading-6">{t("selectModules")}</legend>
             <p className="font-inter text-xs font-medium leading-[18px] tracking-[-0.015em]">{t("selectModulesHint")}</p>
             {availabilityState === "ready" && availableLayers.length > 0 && (
-              <div className="grid grid-cols-2 gap-4 pt-2">
-                <button type="button" onClick={() => setSelectedLayers(new Set(availableLayers.map((layer) => layer.id)))} disabled={allAvailableSelected} className="flex h-10 items-center justify-center rounded-lg bg-[#727643] px-3 font-open-sans text-sm text-white transition-colors hover:bg-[#5B612A] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#5B612A] disabled:cursor-not-allowed disabled:opacity-50">{t("selectAll")}</button>
-                <button type="button" onClick={() => setSelectedLayers(new Set())} disabled={selectedLayers.size === 0} className="flex h-10 items-center justify-center gap-2 rounded-lg border border-[#C53A3B] px-3 font-open-sans text-sm text-[#C53A3B] transition-colors hover:bg-[#C53A3B]/5 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#C53A3B] disabled:cursor-not-allowed disabled:opacity-50"><Icon id="trash" size={18} className="shrink-0" />{t("clearAll")}</button>
+              <div className="flex items-center gap-4">
+                <button type="button" onClick={() => setSelectedLayers(new Set(availableLayers.map((layer) => layer.id)))} disabled={allAvailableSelected} className="text-xs font-semibold text-[#5B612A] hover:underline disabled:cursor-not-allowed disabled:text-[#6E696B] disabled:no-underline">{t("selectAll")}</button>
+                <button type="button" onClick={() => setSelectedLayers(new Set())} disabled={selectedLayers.size === 0} className="text-xs font-semibold text-[#5B612A] hover:underline disabled:cursor-not-allowed disabled:text-[#6E696B] disabled:no-underline">{t("clearAll")}</button>
               </div>
             )}
             <div className="flex min-h-[18px] items-center gap-2 font-inter text-xs leading-[18px] text-[#6E696B]" aria-live="polite">
