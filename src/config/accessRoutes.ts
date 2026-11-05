@@ -18,6 +18,8 @@ export const PENDING_APPROVAL_PATH = "/aguardando-liberacao";
  */
 export const ACCESS_REVOKED_PARAM = "removido";
 
+export const SESSION_COOKIE_NAME = "session";
+export const PLATFORM_PATH = "/platform";
 export const LOGIN_PATH = "/login";
 export const SIGNUP_PATH = "/cadastro";
 export const APPROVALS_PATH = "/platform/aprovacoes";
