@@ -165,7 +165,13 @@ jobs:
           EMAIL_LINKS_BASE_URL: ${{ vars.EMAIL_LINKS_BASE_URL_PROD }}
           # O aviso de pedido de acesso leva o OCA às Aprovações do beta.
           ADMIN_LINKS_BASE_URL: ${{ vars.NEXT_PUBLIC_HOST_URL_BETA }}
-        run: bash ./scripts/deploy-container.sh
+        # Dois containers da mesma imagem: o Node roda num núcleo só e a VM tem
+        # dois. O nginx reparte os pedidos entre eles, e como são trocados um de
+        # cada vez, o outro atende enquanto um sobe. O segundo publica a porta
+        # 3010 só para o health check do script.
+        run: |
+          bash ./scripts/deploy-container.sh
+          CONTAINER_NAME="${CONTAINER_NAME}-2" HOST_PORT=3010 bash ./scripts/deploy-container.sh
 
       - name: Prune unused Docker images
         run: sudo docker system prune -f

@@ -166,7 +166,13 @@ jobs:
           # Conteúdo do Contentful (home, rodapé, glossário) atualiza em 10 s no
           # beta, para conferir uma publicação sem esperar a 1 hora da produção.
           CONTENTFUL_REVALIDATE_SECONDS: "10"
-        run: bash ./scripts/deploy-container.sh
+        # Dois containers da mesma imagem: o Node roda num núcleo só e a VM tem
+        # dois. O nginx reparte os pedidos entre eles, e como são trocados um de
+        # cada vez, o outro atende enquanto um sobe. O segundo publica a porta
+        # 3010 só para o health check do script.
+        run: |
+          bash ./scripts/deploy-container.sh
+          CONTAINER_NAME="${CONTAINER_NAME}-2" HOST_PORT=3010 bash ./scripts/deploy-container.sh
 
       - name: Prune unused Docker images
         run: sudo docker system prune -f
