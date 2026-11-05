@@ -8,6 +8,7 @@ import { Icon } from "@/components/Icon/Icon";
 import { InfoModal } from "@/components/InfoModal/InfoModal";
 import { LayerAccordion } from "@/components/LayerAccordion/LayerAccordion";
 import { PanelDropdown } from "@/components/PanelDropdown/PanelDropdown";
+import { REPORT_DEFAULT_PERIOD } from "@/config/municipalReport";
 import citiesIndex from "@/data/citiesIndex.json";
 import municipalAvailabilityIndex from "@/data/municipalAvailabilityIndex.json";
 import type { MunicipalAvailabilityIndex } from "@/utils/municipalAvailability";
@@ -43,7 +44,6 @@ import { closeWhenFocusLeaves, handleComboboxInputKey, handleComboboxListKeyDown
 interface MunicipalReportContextProps { panelLayers?: PanelLayerI[] }
 
 const CATEGORY_ORDER = ["Dados Climáticos", "Dados Ambientais", "Dados Socioeconômicos"];
-const REPORT_DEFAULT_PERIOD = "2026";
 
 /**
  * O recorte do relatório. "municipality" não é uma área de interesse do painel

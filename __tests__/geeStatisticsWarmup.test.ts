@@ -11,6 +11,9 @@ vi.mock("@/repositories/platform/geeStatisticsRepository", () => ({
 vi.mock("@/repositories/platform/geeStatisticsAssetRevisions", () => ({
   checkStatisticsAssetRevisions: vi.fn(),
 }));
+vi.mock("@/services/municipalReportCache", () => ({
+  warmAggregateReports: vi.fn(),
+}));
 // O contrato completo do `imageData` tem teste próprio; aqui basta o formato.
 vi.mock("@/utils/imageData", () => ({
   isCompactImageData: (imageData: { type?: string } | null) =>
@@ -55,24 +58,31 @@ function layer(
 }
 
 const warmLayer = vi.mocked(getPanelLayerWithMunicipalAnalysisYear);
+const AGGREGATE_KEYS = [
+  "br",
+  "2_regiao-norte",
+  "3_bioma-amazonia",
+  "4_asd-asd-entorno",
+  "5_semiarido-semiarido-total",
+];
 
 beforeEach(() => {
   warmLayer.mockReset();
   warmLayer.mockResolvedValue(null);
 });
 
-describe("aquecimento do recorte Brasil", () => {
-  it("pede o Brasil de cada camada do Earth Engine pelo mesmo caminho da rota", async () => {
+describe("aquecimento dos recortes agregados", () => {
+  it("pede um recorte de cada nível agregado de cada camada pelo mesmo caminho da rota", async () => {
     vi.mocked(getPanelLayers).mockResolvedValue([
       layer("aridez", ["2023", "2024", "1980"], GEE_SOURCE),
       layer("ana", ["2026-08", "2024-01"], GEE_SOURCE),
     ]);
 
-    await expect(warmGeeStatisticsNationalRows()).resolves.toBe(2);
+    await expect(warmGeeStatisticsNationalRows()).resolves.toBe(10);
 
     expect(warmLayer.mock.calls).toEqual([
-      ["aridez", "2024", "br"],
-      ["ana", "2026-08", "br"],
+      ...AGGREGATE_KEYS.map((key) => ["aridez", "2024", key]),
+      ...AGGREGATE_KEYS.map((key) => ["ana", "2026-08", key]),
     ]);
   });
 
@@ -88,7 +98,7 @@ describe("aquecimento do recorte Brasil", () => {
     expect(warmLayer).not.toHaveBeenCalled();
   });
 
-  it("segue para as outras camadas quando uma falha", async () => {
+  it("segue para os outros recortes quando um falha", async () => {
     vi.mocked(getPanelLayers).mockResolvedValue([
       layer("quebrada", ["2024"], GEE_SOURCE),
       layer("ana", ["2026-08"], GEE_SOURCE),
@@ -96,8 +106,13 @@ describe("aquecimento do recorte Brasil", () => {
     warmLayer.mockRejectedValueOnce(new Error("Earth Engine indisponível"));
     const warn = vi.spyOn(console, "warn").mockImplementation(() => {});
 
-    await expect(warmGeeStatisticsNationalRows()).resolves.toBe(1);
-    expect(warmLayer).toHaveBeenLastCalledWith("ana", "2026-08", "br");
+    await expect(warmGeeStatisticsNationalRows()).resolves.toBe(9);
+    expect(warmLayer).toHaveBeenNthCalledWith(2, "quebrada", "2024", "2_regiao-norte");
+    expect(warmLayer).toHaveBeenLastCalledWith(
+      "ana",
+      "2026-08",
+      "5_semiarido-semiarido-total",
+    );
     warn.mockRestore();
   });
 });

@@ -27,6 +27,7 @@ vi.mock("@/services/municipalReportService", () => ({
 import {
   buildCachedMunicipalReport,
   clearMunicipalReportCache,
+  warmAggregateReports,
 } from "@/services/municipalReportCache";
 import { buildMunicipalReport } from "@/services/municipalReportService";
 
@@ -165,6 +166,72 @@ describe("municipal report cache", () => {
         "2024",
         expect.anything(),
       );
+    });
+  });
+
+  describe("recortes agregados", () => {
+    function analysis(id: string) {
+      return { id, alias: `alias_${id}`, status: "available" };
+    }
+
+    beforeEach(() => {
+      vi.mocked(buildMunicipalReport).mockImplementation(
+        async (locationKey: string, requestedPeriod: string) =>
+          ({
+            schemaVersion: 1,
+            generatedAt: "2026-01-01T00:00:00.000Z",
+            requestedPeriod,
+            territory: { locationKey },
+            analyses: [analysis("cdi"), analysis("seca"), analysis("aridez")],
+            templateVariables: {},
+          }) as never,
+      );
+    });
+
+    it("monta o relatório completo uma vez e serve qualquer seleção de camadas", async () => {
+      const all = await buildCachedMunicipalReport("br", "2026");
+      const some = await buildCachedMunicipalReport("br", "2026", {
+        analysisIds: ["aridez", "CDI"],
+      });
+
+      expect(buildMunicipalReport).toHaveBeenCalledTimes(1);
+      expect(buildMunicipalReport).toHaveBeenCalledWith(
+        "br",
+        "2026",
+        expect.not.objectContaining({ analysisIds: expect.anything() }),
+      );
+      expect(all.analyses.map(({ id }) => id)).toEqual(["cdi", "seca", "aridez"]);
+      expect(some.analyses.map(({ id }) => id)).toEqual(["aridez", "cdi"]);
+    });
+
+    it("aceita o alias da camada na seleção", async () => {
+      const report = await buildCachedMunicipalReport("pb", "2026", {
+        analysisIds: ["alias_seca"],
+      });
+
+      expect(report.analyses.map(({ id }) => id)).toEqual(["seca"]);
+    });
+
+    it("aquece o relatório completo dos 41 recortes agregados", async () => {
+      await expect(warmAggregateReports()).resolves.toBe(41);
+
+      const keys = vi.mocked(buildMunicipalReport).mock.calls.map(([key]) => key);
+      expect(keys).toHaveLength(41);
+      expect(keys).toEqual(
+        expect.arrayContaining([
+          "br",
+          "2_regiao-nordeste",
+          "pb",
+          "3_bioma-caatinga",
+          "4_asd-asd-entorno",
+          "5_semiarido-semiarido-total",
+        ]),
+      );
+      expect(keys.some((key) => /^\d{7}$/u.test(key))).toBe(false);
+
+      vi.mocked(buildMunicipalReport).mockClear();
+      await buildCachedMunicipalReport("br", "2026", { analysisIds: ["seca"] });
+      expect(buildMunicipalReport).not.toHaveBeenCalled();
     });
   });
 });

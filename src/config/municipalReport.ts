@@ -1,3 +1,5 @@
+export const REPORT_DEFAULT_PERIOD = "2026";
+
 export interface MunicipalReportLayerConfig {
   panelLayerId: string;
   alias: string;
