@@ -7,7 +7,7 @@ const card = { id: 1, title: "Monitor de Secas", description: "Seca." };
 afterEach(cleanup);
 
 describe("InfoModal", () => {
-  it("opens the index's original source in a new tab", () => {
+  it("opens the index's source in a new tab", () => {
     render(
       <InfoModal
         card={{ ...card, learnMoreUrl: "https://monitordesecas.ana.gov.br/" }}
@@ -16,7 +16,7 @@ describe("InfoModal", () => {
       />,
     );
     const link = screen.getByRole("link", {
-      name: "Ver fonte original (abre em nova aba)",
+      name: "Ver fonte (abre em nova aba)",
     });
 
     expect(link).toHaveAttribute("href", "https://monitordesecas.ana.gov.br/");
