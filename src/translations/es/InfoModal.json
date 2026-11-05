@@ -5,7 +5,7 @@
     "periodRange": "De {start} a {end}",
     "timeScale": "Escala de tiempo",
     "legend": "Leyenda",
-    "learnMore": "Ver fuente original",
+    "learnMore": "Ver fuente",
     "newTab": "(se abre en una nueva pestaña)",
     "ariaLabel": "Información sobre {title}",
     "close": "Cerrar"

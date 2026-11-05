@@ -5,7 +5,7 @@
     "periodRange": "From {start} to {end}",
     "timeScale": "Time\nscale",
     "legend": "Legend",
-    "learnMore": "View original source",
+    "learnMore": "View source",
     "newTab": "(opens in a new tab)",
     "ariaLabel": "Information about {title}",
     "close": "Close"
