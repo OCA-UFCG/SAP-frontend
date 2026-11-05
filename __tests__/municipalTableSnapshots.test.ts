@@ -106,6 +106,20 @@ describe("tabelas municipais em disco", () => {
     expect(readTable).not.toHaveBeenCalled();
   });
 
+  it("com a pasta vazia, como fica a imagem se o gerador do build falhar, grava todas", async () => {
+    await mkdir(snapshotDir);
+
+    expect(await refreshMissingMunicipalTables()).toEqual({
+      built: 2,
+      failed: 0,
+    });
+    expect(
+      (await listMunicipalTableSnapshots())
+        .map(({ assetId }) => assetId)
+        .sort(),
+    ).toEqual([T_2024, T_2025]);
+  });
+
   it("grava só a tabela que falta ou que não tem todas as colunas", async () => {
     await mkdir(snapshotDir);
     await writeMunicipalTableSnapshot(T_2024, layout, [], 1);

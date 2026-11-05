@@ -75,6 +75,13 @@ EXPOSE 3000
 # Build the Next.js project
 RUN npm run build
 
+# Os geradores de baixo não param o deploy quando falham: o site funciona sem os
+# arquivos, só mais devagar. A pasta das tabelas existe mesmo se o gerador cair
+# por inteiro (Earth Engine fora, chave sem acesso): sem ela, o servidor entende
+# que está fora da imagem e nunca grava as tabelas que faltam; com ela vazia,
+# grava todas logo na subida, uma de cada vez.
+RUN mkdir -p data/municipal-tables
+
 # A distribuição de cada município por índice e período, lida do Earth Engine
 # agora, para a lista "Territórios por classificação" não ir até ele (ver
 # scripts/build-municipal-statistics.ts), e as linhas municipais de cada tabela,
