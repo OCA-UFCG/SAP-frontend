@@ -1,4 +1,7 @@
-import { beforeEach, describe, expect, it, vi } from "vitest";
+import { mkdtemp, rm } from "node:fs/promises";
+import os from "node:os";
+import path from "node:path";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 vi.mock("server-only", () => ({}));
 
@@ -91,6 +94,7 @@ import {
   setRowsTemplateVerdictForTests,
 } from "@/repositories/platform/geeStatisticsRepository";
 import { clearGeeStatisticsRowsCache } from "@/repositories/platform/geeStatisticsRowsCache";
+import { writeMunicipalTableSnapshot } from "@/repositories/platform/municipalTableSnapshot";
 
 const ASSET_TEMPLATE = "projects/example/assets/aridez_{year}";
 const YEARS = Array.from({ length: 45 }, (_, index) => String(1980 + index));
@@ -620,5 +624,87 @@ describe("estados e níveis agregados dividem a mesma leitura", () => {
     );
 
     expect(rowReads()).toBeGreaterThan(readsForBrazil);
+  });
+});
+
+describe("série do município lida dos arquivos das tabelas", () => {
+  let snapshotDir: string;
+
+  beforeEach(async () => {
+    snapshotDir = await mkdtemp(path.join(os.tmpdir(), "sedes-series-disk-"));
+    vi.stubEnv("MUNICIPAL_TABLE_SNAPSHOT_DIR", snapshotDir);
+  });
+
+  afterEach(async () => {
+    vi.unstubAllEnvs();
+    await rm(snapshotDir, { recursive: true, force: true });
+  });
+
+  async function saveTables(years: readonly string[]) {
+    for (const year of years) {
+      const assetId = ASSET_TEMPLATE.replace("{year}", year);
+      const row = {
+        ...municipalRow(assetId),
+        perc_classe_1: 10,
+        perc_classe_2: 90,
+      };
+      await writeMunicipalTableSnapshot(
+        assetId,
+        {
+          columns: PROPERTY_NAMES,
+          levelProperty: "NIVEL_AGRUPAMENTO",
+          municipalityCodeProperty: "CD_MUN",
+        },
+        [
+          PROPERTY_NAMES.map(
+            (column) => row[column as keyof typeof row] ?? null,
+          ),
+        ],
+        Date.now(),
+      );
+    }
+  }
+
+  function rowReads() {
+    return mockedEvaluate.mock.calls.filter(
+      ([object]) => (object as FakeNode).kind !== "propertyNames",
+    ).length;
+  }
+
+  it("lê a série do município do disco, sem ler linhas no Earth Engine", async () => {
+    await saveTables(YEARS);
+
+    const result = await readPeriod("2020");
+
+    expect(rowReads()).toBe(0);
+    expect(result?.patch.years?.["2020"]?.values).toEqual({
+      "2507507": [10, 90],
+    });
+  });
+
+  it("com uma tabela da série sem arquivo, lê a série inteira do Earth Engine", async () => {
+    await saveTables(YEARS.filter((year) => year !== "2001"));
+
+    const result = await readPeriod("2020");
+
+    expect(rowReads()).toBe(3);
+    expect(result?.patch.years?.["2020"]?.values).toEqual({
+      "2507507": [40, 60],
+    });
+  });
+
+  it("o Brasil e os estados continuam vindo do Earth Engine", async () => {
+    await saveTables(YEARS);
+
+    await getGeeStatisticsYearPatch(
+      "indicearidez",
+      "2020",
+      "br",
+      2,
+      source,
+      YEARS,
+    );
+
+    expect(rowReads()).toBe(3);
   });
 });

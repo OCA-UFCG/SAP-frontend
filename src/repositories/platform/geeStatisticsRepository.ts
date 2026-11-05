@@ -37,6 +37,10 @@ import {
 } from "@/repositories/platform/geeStatisticsRowsCache";
 import { readMunicipalStatisticsSnapshot } from "@/repositories/platform/municipalStatisticsSnapshot";
 import {
+  readMunicipalTableRows,
+  type MunicipalTableLayout,
+} from "@/repositories/platform/municipalTableSnapshot";
+import {
   buildMergedRowsExpression,
   inlineCloudApiExpression,
   isAssetRowsRead,
@@ -352,6 +356,15 @@ function getStatisticsSeriesKey(
 }
 
 /**
+ * Os assets de cada série por lista de períodos, já calculados. O relatório
+ * pede um período de cada vez, e cada pedido calculava a série inteira de novo:
+ * no CDI são 927 decêndios x 927 nomes de tabela, ~400 ms de CPU por relatório
+ * — escondidos atrás da espera pelo Earth Engine até a série vir do disco.
+ */
+const seriesAssetIdsByPeriods = new Map<string, string[]>();
+const SERIES_ASSET_IDS_CACHE_MAX_ENTRIES = 200;
+
+/**
  * Os assets distintos que cobrem os períodos publicados, em ordem estável.
  *
  * Costuma ser bem menor que a lista de períodos: o template do Monitor de Secas
@@ -367,19 +380,31 @@ function resolveSeriesAssetIds(
   periodKeys: readonly string[],
   requestedAssetId: string,
 ): string[] {
-  const assetIds = new Set<string>([requestedAssetId]);
+  const cacheKey = `${source.periodGranularity}\n${getStatisticsSeriesKey(source)}\n${periodKeys.join(",")}`;
+  let periodAssetIds = seriesAssetIdsByPeriods.get(cacheKey);
 
-  for (const periodKey of periodKeys) {
-    try {
-      assetIds.add(resolveGeeStatisticsSource(source, periodKey).assetId);
-    } catch {
-      // Um período publicado incompatível com a granularidade da fonte é um
-      // problema daquele período: ele falha sozinho quando o painel o pede, e
-      // não pode derrubar a leitura de todos os outros.
+  if (!periodAssetIds) {
+    const assetIds = new Set<string>();
+    for (const periodKey of periodKeys) {
+      try {
+        assetIds.add(resolveGeeStatisticsSource(source, periodKey).assetId);
+      } catch {
+        // Um período publicado incompatível com a granularidade da fonte é um
+        // problema daquele período: ele falha sozinho quando o painel o pede, e
+        // não pode derrubar a leitura de todos os outros.
+      }
     }
+
+    periodAssetIds = [...assetIds];
+    if (seriesAssetIdsByPeriods.size >= SERIES_ASSET_IDS_CACHE_MAX_ENTRIES) {
+      seriesAssetIdsByPeriods.delete(
+        seriesAssetIdsByPeriods.keys().next().value!,
+      );
+    }
+    seriesAssetIdsByPeriods.set(cacheKey, periodAssetIds);
   }
 
-  return [...assetIds].sort();
+  return [...new Set([requestedAssetId, ...periodAssetIds])].sort();
 }
 
 function getAggregateLevel(locationKey: string): string | null {
@@ -773,10 +798,42 @@ async function loadCachedSeriesLocationRows(
   // entrada para a próxima leitura incluí-lo.
   return getOrLoadStatisticsRows(
     buildStatisticsRowsCacheKey(assetIds, scope, properties),
-    () =>
+    async () =>
+      (MUNICIPALITY_KEY_PATTERN.test(filterLocationKey)
+        ? await readMunicipalSeriesFromDisk(
+            assetIds,
+            properties,
+            filterLocationKey,
+          )
+        : null) ??
       loadSeriesLocationRows(source, assetIds, properties, filterLocationKey),
     assetIds,
   );
+}
+
+/**
+ * A série de um município lida dos arquivos das tabelas
+ * (`municipalTableSnapshot`), em vez do Earth Engine. Só vale se todas as
+ * tabelas da série têm arquivo com as colunas pedidas: ler o resto do Earth
+ * Engine custaria a mesma ida que ler tudo, então a falta de uma devolve `null`
+ * e a série inteira vai ao Earth Engine, como antes.
+ */
+async function readMunicipalSeriesFromDisk(
+  assetIds: readonly string[],
+  properties: readonly string[],
+  municipalityCode: string,
+): Promise<Record<string, unknown>[] | null> {
+  const rowsByAsset = await Promise.all(
+    assetIds.map((assetId) =>
+      readMunicipalTableRows(assetId, municipalityCode, properties),
+    ),
+  );
+
+  return rowsByAsset.every(
+    (rows): rows is Record<string, unknown>[] => rows !== null,
+  )
+    ? rowsByAsset.flat()
+    : null;
 }
 
 async function loadGeeStatisticsRows(
@@ -1274,6 +1331,107 @@ export async function readGeeStatisticsMunicipalitiesAssetValues(
       ),
     ]),
   );
+}
+
+/**
+ * As tabelas e as colunas que a série de uma camada lê para um município — as
+ * mesmas de `getGeeStatisticsYearPatch`. É o que o deploy grava em disco,
+ * tabela por tabela, para o relatório do município não ir ao Earth Engine.
+ *
+ * Devolve `null` para as fontes que não são tabelas de linhas por território.
+ *
+ * @example
+ * await describeGeeStatisticsMunicipalTables(source, ["2024", "2025"]);
+ * // { assetIds: ["projects/x/t_2024", "projects/x/t_2025"], layout: { columns: [...], ... } }
+ */
+export async function describeGeeStatisticsMunicipalTables(
+  source: PublishedGeeStatisticsSource | GeeStatisticsSource,
+  periodKeys: readonly string[],
+): Promise<{ assetIds: string[]; layout: MunicipalTableLayout } | null> {
+  const latestPeriodKey = periodKeys.at(-1);
+  if (
+    !latestPeriodKey ||
+    isMunicipalSpreadsheetSource(source) ||
+    isGeeMunicipalValueTableSource(source)
+  ) {
+    return null;
+  }
+
+  await initializeGee();
+
+  const resolvedSource = resolveGeeStatisticsSource(source, latestPeriodKey);
+  const assetIds = resolveSeriesAssetIds(
+    source,
+    periodKeys,
+    resolvedSource.assetId,
+  );
+  const schema = await getGeeStatisticsSchema(
+    resolvedSource,
+    "sourceRevision" in source && typeof source.sourceRevision === "string"
+      ? source.sourceRevision
+      : undefined,
+    assetIds,
+  );
+
+  return {
+    assetIds,
+    layout: {
+      columns: getGeeStatisticsRequestedProperties(resolvedSource, schema),
+      levelProperty: resolvedSource.properties.level,
+      municipalityCodeProperty: resolvedSource.properties.municipalityCode,
+    },
+  };
+}
+
+/**
+ * Todas as linhas municipais de uma tabela, numa ida só ao Earth Engine, como
+ * uma lista de células por linha na ordem de `layout.columns`.
+ *
+ * Vai por `reduceColumns` pelo mesmo motivo de `loadPeriodMunicipalityRows`
+ * (o Earth Engine recusa devolver mais de 5.000 linhas como coleção). O redutor
+ * descarta a linha que tem alguma célula vazia, e a leitura de um município
+ * pela coleção a devolveria: por isso a contagem vem junto, e uma tabela com
+ * linha descartada falha aqui em vez de virar um arquivo com município faltando.
+ *
+ * @example
+ * await readGeeStatisticsMunicipalTable("projects/x/t_2024", layout);
+ * // [["7_Municipio", "Sousa", "2516201", "PB", 2024, ...], ...]
+ */
+export async function readGeeStatisticsMunicipalTable(
+  assetId: string,
+  layout: MunicipalTableLayout,
+): Promise<unknown[][]> {
+  await initializeGee();
+
+  const municipalRows = ee
+    .FeatureCollection(assetId)
+    .filter(ee.Filter.eq(layout.levelProperty, "7_Municipio"));
+  const result = await evaluateGeeObject<{
+    rows?: { list?: unknown[][] };
+    count?: number;
+  }>(
+    ee.Dictionary({
+      rows: municipalRows.reduceColumns(
+        ee.Reducer.toList(layout.columns.length),
+        layout.columns,
+      ),
+      count: municipalRows.size(),
+    }),
+  );
+  const rows = result?.rows?.list;
+
+  if (!Array.isArray(rows)) {
+    throw new Error(
+      `Resposta inválida do asset estatístico GEE ${assetId} ao ler a tabela municipal.`,
+    );
+  }
+  if (rows.length !== result.count) {
+    throw new Error(
+      `A tabela ${assetId} tem ${result.count} linhas municipais, mas só ${rows.length} sem célula vazia nas colunas ${layout.columns.join(", ")}.`,
+    );
+  }
+
+  return rows;
 }
 
 /**

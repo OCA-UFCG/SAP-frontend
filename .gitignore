@@ -50,6 +50,8 @@
 !/scripts/build-municipality-territories.mjs
 # Gera no build da imagem as estatísticas dos municípios de cada índice.
 !/scripts/build-municipal-statistics.ts
+# Gera no build da imagem as linhas municipais das tabelas que o relatório lê.
+!/scripts/build-municipal-tables.ts
 # Configuração do SEDES na VM de monitoramento, aplicada pelo deploy.sh.
 !/scripts/monitoring/
 /scripts/monitoring/__pycache__/
@@ -60,6 +62,8 @@
 mise.toml
 # Estatísticas dos municípios geradas no build da imagem.
 /data/municipal-statistics/
+# Linhas municipais das tabelas estatísticas, geradas no build da imagem.
+/data/municipal-tables/
 
 # debug
 npm-debug.log*
