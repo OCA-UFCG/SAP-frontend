@@ -1,3 +1,6 @@
+import { mkdtemp, rm } from "node:fs/promises";
+import os from "node:os";
+import path from "node:path";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 vi.mock("server-only", () => ({}));
@@ -17,6 +20,10 @@ import {
   clearGeeStatisticsRowsCache,
   getOrLoadStatisticsRows,
 } from "@/repositories/platform/geeStatisticsRowsCache";
+import {
+  listMunicipalTableSnapshots,
+  writeMunicipalTableSnapshot,
+} from "@/repositories/platform/municipalTableSnapshot";
 
 const FOLDER = "projects/x/assets/Estatisticas";
 const ANA_2025 = `${FOLDER}/ANA_2025`;
@@ -46,7 +53,11 @@ function folderWith(times: Record<string, number>) {
   listFolder.mockResolvedValue(new Map(Object.entries(times)));
 }
 
-beforeEach(() => {
+let snapshotDir: string;
+
+beforeEach(async () => {
+  snapshotDir = await mkdtemp(path.join(os.tmpdir(), "sedes-revisions-"));
+  vi.stubEnv("MUNICIPAL_TABLE_SNAPSHOT_DIR", snapshotDir);
   vi.useFakeTimers();
   vi.setSystemTime(READ_AT);
   clearGeeStatisticsRowsCache();
@@ -57,9 +68,11 @@ beforeEach(() => {
   vi.spyOn(console, "info").mockImplementation(() => {});
 });
 
-afterEach(() => {
+afterEach(async () => {
   vi.useRealTimers();
   vi.restoreAllMocks();
+  vi.unstubAllEnvs();
+  await rm(snapshotDir, { recursive: true, force: true });
 });
 
 describe("checagem das tabelas alteradas no Earth Engine", () => {
@@ -77,7 +90,11 @@ describe("checagem das tabelas alteradas no Earth Engine", () => {
     await cache([ANA_2025, ANA_2026], ana);
     await cache([ARIDEZ], aridez);
 
-    expect(result).toEqual({ listedFolders: 1, invalidatedEntries: 1 });
+    expect(result).toEqual({
+      listedFolders: 1,
+      invalidatedEntries: 1,
+      removedMunicipalTables: 0,
+    });
     expect(ana).toHaveBeenCalledTimes(2);
     expect(aridez).toHaveBeenCalledTimes(1);
     expect(clearGeeStatisticsSchemaCache).toHaveBeenCalledOnce();
@@ -174,6 +191,7 @@ describe("checagem das tabelas alteradas no Earth Engine", () => {
     await expect(checkStatisticsAssetRevisions()).resolves.toEqual({
       listedFolders: 0,
       invalidatedEntries: 0,
+      removedMunicipalTables: 0,
     });
     await cache([ANA_2025], ana);
 
@@ -184,5 +202,67 @@ describe("checagem das tabelas alteradas no Earth Engine", () => {
     await checkStatisticsAssetRevisions();
 
     expect(listFolder).not.toHaveBeenCalled();
+  });
+
+  describe("arquivos das tabelas municipais", () => {
+    const layout = {
+      columns: ["NIVEL_AGRUPAMENTO", "CD_MUN", "ano"],
+      levelProperty: "NIVEL_AGRUPAMENTO",
+      municipalityCodeProperty: "CD_MUN",
+    };
+
+    async function saveTable(assetId: string, readAt: number) {
+      await writeMunicipalTableSnapshot(
+        assetId,
+        layout,
+        [["7_Municipio", "2507507", 2025]],
+        readAt,
+      );
+    }
+
+    /** O recorte de um município lido do arquivo, em memória desde agora. */
+    async function cacheMunicipality(assetIds: string[], read = reader()) {
+      await getOrLoadStatisticsRows(
+        buildStatisticsRowsCacheKey(assetIds, "2507507", ["ano"]),
+        read,
+        assetIds,
+      );
+      return read;
+    }
+
+    it("apaga o arquivo da tabela que mudou e o recorte lido dele, mesmo lido do disco depois da mudança", async () => {
+      await saveTable(ANA_2025, READ_AT - 30 * 24 * HOUR);
+      await saveTable(ARIDEZ, READ_AT - 30 * 24 * HOUR);
+      const municipality = await cacheMunicipality([ANA_2025]);
+      folderWith({
+        [ANA_2025]: READ_AT - HOUR,
+        [ARIDEZ]: READ_AT - 40 * 24 * HOUR,
+      });
+
+      const result = await checkStatisticsAssetRevisions();
+      await cacheMunicipality([ANA_2025], municipality);
+
+      expect(result.removedMunicipalTables).toBe(1);
+      expect(
+        (await listMunicipalTableSnapshots()).map(({ assetId }) => assetId),
+      ).toEqual([ARIDEZ]);
+      expect(municipality).toHaveBeenCalledTimes(2);
+      expect(clearGeeStatisticsSchemaCache).toHaveBeenCalled();
+    });
+
+    it("confere as tabelas dos arquivos mesmo com o cache em memória vazio", async () => {
+      await saveTable(ANA_2025, READ_AT - 30 * 24 * HOUR);
+      folderWith({ [ANA_2025]: READ_AT - 40 * 24 * HOUR });
+
+      const result = await checkStatisticsAssetRevisions();
+
+      expect(listFolder).toHaveBeenCalledWith(FOLDER);
+      expect(result).toEqual({
+        listedFolders: 1,
+        invalidatedEntries: 0,
+        removedMunicipalTables: 0,
+      });
+      expect(await listMunicipalTableSnapshots()).toHaveLength(1);
+    });
   });
 });

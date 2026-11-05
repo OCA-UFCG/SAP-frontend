@@ -10,3 +10,4 @@ coverage
 *.log
 .env*
 data/municipal-statistics
+data/municipal-tables

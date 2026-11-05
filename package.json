@@ -9,6 +9,7 @@
   "scripts": {
     "generate:municipal-availability": "node tools/drive-contentful-pipeline/generate-municipal-availability-index.mjs",
     "generate:municipal-statistics": "node --conditions=react-server --import tsx scripts/build-municipal-statistics.ts",
+    "generate:municipal-tables": "node --conditions=react-server --import tsx scripts/build-municipal-tables.ts",
     "dev": "next dev",
     "build": "npm run generate:municipal-availability && npm run build:app",
     "build:app": "next build --webpack",

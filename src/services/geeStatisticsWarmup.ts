@@ -8,6 +8,7 @@ import {
   getPanelLayers,
   getPanelLayerWithMunicipalAnalysisYear,
 } from "@/repositories/platform/panelLayerRepository";
+import { refreshMissingMunicipalTables } from "@/services/municipalTableSnapshots";
 import { isCompactImageData } from "@/utils/imageData";
 
 /**
@@ -106,6 +107,20 @@ async function refreshGeeStatistics() {
   if (elapsedMs > 1000) {
     console.info(
       `[geeStatistics] recorte Brasil de ${warmed} camada(s) aquecido em ${elapsedMs} ms`,
+    );
+  }
+
+  try {
+    const { built, failed } = await refreshMissingMunicipalTables();
+    if (built + failed > 0) {
+      console.info(
+        `[municipalTables] ${built} tabela(s) gravada(s) em disco, ${failed} com falha.`,
+      );
+    }
+  } catch (error) {
+    console.warn(
+      "[municipalTables] falha ao gravar as tabelas que faltam:",
+      error,
     );
   }
 }
