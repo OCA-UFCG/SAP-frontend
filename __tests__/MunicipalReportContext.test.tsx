@@ -126,7 +126,7 @@ describe("MunicipalReportContext", () => {
     expect(params.get("layers")?.split(",")).toEqual(["seca", "futuro"]);
   });
 
-  it("seleciona e limpa os produtos disponíveis por dois botões", async () => {
+  it("alterna o mesmo texto entre limpar a seleção e selecionar todos", async () => {
     const user = userEvent.setup();
 
     render(<MunicipalReportContext panelLayers={panelLayers} />);
@@ -138,24 +138,18 @@ describe("MunicipalReportContext", () => {
     await user.type(municipalityInput, "Abadia");
     await user.click(screen.getByRole("option", { name: "Abadia de Goiás - GO" }));
 
-    const selectAll = await screen.findByRole("button", { name: "Selecionar todos" });
-    const clearAll = screen.getByRole("button", { name: "Limpar seleção" });
-    expect(selectAll).toBeDisabled();
-    expect(clearAll).toBeEnabled();
-
-    await user.click(clearAll);
+    await user.click(await screen.findByRole("button", { name: "Limpar seleção" }));
 
     expect(screen.getByRole("checkbox", { name: "Monitor de Secas" })).not.toBeChecked();
     expect(screen.getByRole("checkbox", { name: "Previsão: Índice futuro" })).not.toBeChecked();
-    expect(clearAll).toBeDisabled();
-    expect(selectAll).toBeEnabled();
+    expect(screen.queryByRole("button", { name: "Limpar seleção" })).not.toBeInTheDocument();
 
-    await user.click(selectAll);
+    await user.click(screen.getByRole("button", { name: "Selecionar todos" }));
 
     expect(screen.getByRole("checkbox", { name: "Monitor de Secas" })).toBeChecked();
     expect(screen.getByRole("checkbox", { name: "Previsão: Índice futuro" })).toBeChecked();
     expect(screen.getByRole("checkbox", { name: "Sem dados" })).not.toBeChecked();
-    expect(selectAll).toBeDisabled();
+    expect(screen.getByRole("button", { name: "Limpar seleção" })).toBeInTheDocument();
   });
 
   it("agrupa a previsão num subacordeão no fim da categoria e gera as seções nessa ordem", async () => {
