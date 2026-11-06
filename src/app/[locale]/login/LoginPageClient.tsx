@@ -16,7 +16,11 @@ type LoginPageClientProps = {
 
 export function getPlatformRedirectPath(redirect: string | null) {
   if (!redirect) return "/platform";
-  if (redirect === "/platform" || redirect.startsWith("/platform/")) {
+  if (
+    redirect === "/platform" ||
+    redirect.startsWith("/platform/") ||
+    redirect.startsWith("/platform?")
+  ) {
     return redirect;
   }
 

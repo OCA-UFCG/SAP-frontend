@@ -12,7 +12,9 @@ import {
   rememberVerifiedSession,
 } from "@/lib/verified-session-cache";
 
-export const SESSION_COOKIE_NAME = "session";
+import { SESSION_COOKIE_NAME } from "@/config/accessRoutes";
+
+export { SESSION_COOKIE_NAME };
 export const SESSION_COOKIE_MAX_AGE_SECONDS = 60 * 60 * 24;
 export const SESSION_COOKIE_MAX_AGE_MS = SESSION_COOKIE_MAX_AGE_SECONDS * 1000;
 

@@ -9,6 +9,12 @@ describe("getPlatformRedirectPath", () => {
     );
   });
 
+  it("keeps the query of a platform link", () => {
+    expect(
+      getPlatformRedirectPath("/platform?section=communication&locationKey=2504009"),
+    ).toBe("/platform?section=communication&locationKey=2504009");
+  });
+
   it("falls back to the platform for empty or external redirects", () => {
     expect(getPlatformRedirectPath(null)).toBe("/platform");
     expect(getPlatformRedirectPath("/")).toBe("/platform");
