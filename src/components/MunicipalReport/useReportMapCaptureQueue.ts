@@ -43,20 +43,19 @@ interface ReportMapPriorityOptions {
  * seria guardar em estado quem já começou — informação que a seleção precisa ler
  * durante a renderização, o que o compilador do React não permite.
  *
+ * Um mapa que falhou e ainda pode tentar de novo continua pendente e disputa a
+ * vaga como os outros. Antes ele rodava sozinho: os demais perdiam a vaga, e
+ * o desmonte do quadro cancelava o download que estava quase pronto.
+ *
  * @example
- * selectActiveReportMapKeys(keys, completed, null, 5, { visibleKeys });
+ * selectActiveReportMapKeys(keys, completed, 5, { visibleKeys });
  */
 export function selectActiveReportMapKeys(
   mapKeys: readonly string[],
   completedKeys: ReadonlySet<string>,
-  serialRetryKey: string | null,
   concurrency = REPORT_MAP_CAPTURE_CONCURRENCY,
   { visibleKeys, unlimitedKeys }: ReportMapPriorityOptions = {},
 ) {
-  if (serialRetryKey && !completedKeys.has(serialRetryKey)) {
-    return [serialRetryKey];
-  }
-
   const pending = mapKeys.filter((key) => !completedKeys.has(key));
   const unlimited = pending.filter((key) => unlimitedKeys?.has(key));
   const limited = pending.filter((key) => !unlimitedKeys?.has(key));
@@ -84,7 +83,6 @@ export function useReportMapCaptureQueue(
     new Map(),
   );
   const retryAttemptsRef = useRef(retryAttempts);
-  const [serialRetryKey, setSerialRetryKey] = useState<string | null>(null);
   const [visibleKeys, setVisibleKeys] = useState<ReadonlySet<string>>(
     () => new Set(),
   );
@@ -93,7 +91,6 @@ export function useReportMapCaptureQueue(
     setMapImages(new Map());
     setRetryAttempts(nextRetryAttempts);
     retryAttemptsRef.current = nextRetryAttempts;
-    setSerialRetryKey(null);
   }, []);
 
   const completedKeys = useMemo(() => new Set(mapImages.keys()), [mapImages]);
@@ -103,12 +100,11 @@ export function useReportMapCaptureQueue(
         selectActiveReportMapKeys(
           mapKeys,
           completedKeys,
-          serialRetryKey,
           REPORT_MAP_CAPTURE_CONCURRENCY,
           { visibleKeys, unlimitedKeys },
         ),
       ),
-    [completedKeys, mapKeys, serialRetryKey, unlimitedKeys, visibleKeys],
+    [completedKeys, mapKeys, unlimitedKeys, visibleKeys],
   );
   const mapsReady = mapKeys.every((key) => completedKeys.has(key));
   const pendingMapCount = mapKeys.filter(
@@ -133,7 +129,6 @@ export function useReportMapCaptureQueue(
         nextRetryAttempts.set(key, attempts + 1);
         retryAttemptsRef.current = nextRetryAttempts;
         setRetryAttempts(nextRetryAttempts);
-        setSerialRetryKey(key);
         return;
       }
     }
@@ -144,12 +139,11 @@ export function useReportMapCaptureQueue(
       next.set(key, src);
       return next;
     });
-    setSerialRetryKey((current) => (current === key ? null : current));
   }, []);
 
   // A tentativa ganha número novo para o quadro esquecer a falha anterior e
   // montar o mapa de novo; como o orçamento automático já foi gasto, uma nova
-  // falha vai direto para "indisponível" em vez de prender a fila em série.
+  // falha vai direto para "indisponível" em vez de ganhar outra tentativa.
   const retryMapCapture = useCallback((key: string) => {
     const nextRetryAttempts = new Map(retryAttemptsRef.current);
     nextRetryAttempts.set(
