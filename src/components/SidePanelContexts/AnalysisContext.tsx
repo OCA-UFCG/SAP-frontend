@@ -9,6 +9,7 @@ import type { SearchSubmissionMetadata } from "@/components/SearchBar/types";
 import {
   getSpatialScopeLocationKey,
   getSpatialScopeLocationName,
+  SPATIAL_VALUE_OPTIONS,
 } from "@/utils/spatialScope";
 import {
   buildEmbeddedTerritorialAnalysisViewModel,
@@ -137,8 +138,10 @@ export function AnalysisContext({
   const t = useTranslations("AnalysisContext");
   const tCaption = useTranslations("PlatformMapCaption");
   const tModules = useTranslations("ModulesContext");
+  const tSpatial = useTranslations("AnalysisPanel");
   // Nomes de mês e números no formato do idioma da página ("1,5" x "1.5").
-  const numberLocale = htmlLang(useLocale());
+  const locale = useLocale();
+  const numberLocale = htmlLang(locale);
   const { activeLayerId } = useMapLayerActiveState();
   const {
     activateEeLayer,
@@ -703,7 +706,20 @@ export function AnalysisContext({
     });
   };
 
-  const embeddedModel = useMemo(
+  // Em inglês e espanhol, Brasil e os recortes agregados (regiões, biomas,
+  // Semiárido, ASD) têm nome traduzido; estados e municípios são nomes
+  // próprios. Em português fica o nome que o dado traz ("ASD + Entorno").
+  const localizeLocationName = (locationKey: string, name: string) => {
+    if (locale === "pt") return name;
+    if (locationKey === "br") return tSpatial("spatialValues.brasil");
+    if (locationKey !== spatialScopeLocationKey) return name;
+    const option = SPATIAL_VALUE_OPTIONS[spatialSelection.spatialArea].find(
+      (candidate) => candidate.value === spatialSelection.spatialValue,
+    );
+    return option ? tSpatial(option.labelKey) : name;
+  };
+
+  const serverEmbeddedModel = useMemo(
     () =>
       buildEmbeddedTerritorialAnalysisViewModel(
         enrichedDataset,
@@ -722,6 +738,16 @@ export function AnalysisContext({
       numberLocale,
     ],
   );
+  const embeddedModelName =
+    serverEmbeddedModel &&
+    localizeLocationName(selectedLocationKey, serverEmbeddedModel.name);
+  const embeddedModel = useMemo(
+    () =>
+      serverEmbeddedModel && embeddedModelName
+        ? { ...serverEmbeddedModel, name: embeddedModelName }
+        : serverEmbeddedModel,
+    [serverEmbeddedModel, embeddedModelName],
+  );
 
   // Um item da lista pode ser um estado (Brasil e região) ou um município
   // (demais recortes); o município é escolhido como pela pesquisa.
@@ -737,7 +763,7 @@ export function AnalysisContext({
     setSelectedState(locationKey);
   };
 
-  const unavailableLocationName = useMemo(() => {
+  const sourceLocationName = useMemo(() => {
     const explicitLocationName = getAnalysisLocationName(
       enrichedDataset,
       effectiveYear,
@@ -758,6 +784,10 @@ export function AnalysisContext({
     spatialScopeLocationKey,
     spatialSelection,
   ]);
+  const unavailableLocationName = localizeLocationName(
+    selectedLocationKey,
+    sourceLocationName,
+  );
 
   useEffect(() => {
     if (!enrichedDataset?.imageData || !effectiveYear) {
