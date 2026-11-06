@@ -15,6 +15,7 @@ import type {
   MunicipalReportAnalysis,
   MunicipalReportDocsContent,
 } from "@/contracts/municipalReport";
+import { DEFAULT_CATALOG_REPORT_METHODOLOGY } from "@/config/indexCatalogReportText";
 import { getReportDocsText } from "@/utils/municipalReportNarrative";
 import { slugifyTranslationKey } from "@/utils/translations";
 
@@ -97,6 +98,13 @@ export function translateAnalysisMethodology(
     tReportHas("indicators.defaultMethodology")
   ) {
     return tReport("indicators.defaultMethodology");
+  }
+  // O texto que o catálogo grava quando ninguém escreve a metodologia.
+  if (
+    presentationMethodology === DEFAULT_CATALOG_REPORT_METHODOLOGY &&
+    tReportHas("indicators.defaultCatalogMethodology")
+  ) {
+    return tReport("indicators.defaultCatalogMethodology");
   }
   return presentationMethodology;
 }

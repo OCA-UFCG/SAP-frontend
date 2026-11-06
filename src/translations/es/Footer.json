@@ -17,6 +17,10 @@
       "novidades": "Novedades",
       "politicaPublica": "Política pública",
       "instituicoes": "Instituciones"
+    },
+    "logos": {
+      "mma": "Ministerio del Medio Ambiente y Cambio Climático",
+      "oca": "Observatorio de la Caatinga y Desertificación"
     }
   }
 }

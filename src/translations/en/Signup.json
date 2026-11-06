@@ -27,6 +27,15 @@
     "resendIn": "Resend in {time}",
     "resending": "Sending...",
     "resent": "If the address is registered, a new email was sent. Use its link: the one in the previous email no longer works.",
-    "resendTooSoon": "We sent an email a moment ago. Please wait before asking for another."
+    "resendTooSoon": "We sent an email a moment ago. Please wait before asking for another.",
+    "errors": {
+      "untrustedOrigin": "Request origin not allowed.",
+      "tooManyRequests": "Too many attempts. Please try again in a moment.",
+      "invalidEmail": "Enter a valid email.",
+      "passwordTooShort": "The password needs at least 8 characters.",
+      "intentionRequired": "Describe how you plan to use the platform.",
+      "captchaFailed": "We could not confirm that you are not a robot. Please try again.",
+      "failed": "We could not complete the registration."
+    }
   }
 }

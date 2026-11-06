@@ -8,6 +8,13 @@
     "learnMore": "View source",
     "newTab": "(opens in a new tab)",
     "ariaLabel": "Information about {title}",
-    "close": "Close"
+    "close": "Close",
+    "timeScales": {
+      "anual": "Annual",
+      "decendial": "Ten-day",
+      "mensal": "Monthly",
+      "trimestral": "Quarterly",
+      "diaria": "Daily"
+    }
   }
 }

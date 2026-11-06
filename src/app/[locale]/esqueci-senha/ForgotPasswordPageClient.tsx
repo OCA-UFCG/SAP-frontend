@@ -38,10 +38,12 @@ export function ForgotPasswordPageClient({
         // resposta normal é a mesma com ou sem conta.
         if (!response.ok) {
           const body = (await response.json().catch(() => null)) as {
-            error?: string;
+            code?: string;
           } | null;
+          // O servidor manda um código; a mensagem sai no idioma da página.
+          const errorKey = `errors.${body?.code}`;
 
-          setError(body?.error || t("genericError"));
+          setError(body?.code && t.has(errorKey) ? t(errorKey) : t("genericError"));
           return;
         }
 

@@ -304,7 +304,8 @@
         "title": "Registros de Secas e Estiagens (2004-2025)",
         "methodology": "Compilação oficial de registros e decretos de situação de emergência ou calamidade por secas e estiagens do S2ID."
       },
-      "defaultMethodology": "Indicador territorial disponibilizado na plataforma SEDES."
+      "defaultMethodology": "Indicador territorial disponibilizado na plataforma SEDES.",
+      "defaultCatalogMethodology": "Índice territorial calculado a partir de dados do Google Earth Engine e publicado pelo catálogo de índices da plataforma SEDES."
     },
     "classes": {
       "condicoes-normais": "Condições normais",

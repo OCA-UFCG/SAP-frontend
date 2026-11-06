@@ -17,6 +17,10 @@
       "novidades": "What's new",
       "politicaPublica": "Public policy",
       "instituicoes": "Institutions"
+    },
+    "logos": {
+      "mma": "Ministry of the Environment and Climate Change",
+      "oca": "Caatinga and Desertification Observatory"
     }
   }
 }

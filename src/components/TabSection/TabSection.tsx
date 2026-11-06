@@ -95,7 +95,9 @@ const TabsSection = ({ contentData, title }: TabsSectionProps) => {
           {currentTab.image?.url && (
             <Image
               src={currentTab.image.url}
-              alt={currentTab.image.title || tabLabel(currentTab)}
+              // O título do arquivo no Contentful é nome de organização
+              // ("Sobre – Para quem – …"), não descrição, e não tem tradução.
+              alt={tabLabel(currentTab)}
               fill
               sizes="(max-width: 768px) 100vw, (max-width: 1024px) 80vw, 45vw"
               className="object-cover"

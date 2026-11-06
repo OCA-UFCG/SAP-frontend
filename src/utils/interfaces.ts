@@ -29,6 +29,8 @@ export interface StatusItemI {
 }
 
 export interface IMainBanner {
+  /** Liga o banner às traduções em inglês e espanhol (`MainBanner.slides`). */
+  sys?: { id: string };
   title: string;
   subtitle: string;
   linkText: string;

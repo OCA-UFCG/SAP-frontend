@@ -37,10 +37,17 @@ class AccessPendingError extends Error {
 
 export type SignInOutcome = "ok" | "pending" | "revoked" | "failed";
 
+/** Por que o login falhou; a tela de login traduz (`Login.errors.<código>`). */
+export type SignInError =
+  | "tooManyRequests"
+  | "sessionFailed"
+  | "invalidCredentials"
+  | "failed";
+
 export interface AuthContextType {
   user: User | null;
   loading: boolean;
-  error?: string;
+  error?: SignInError | "";
   signIn: (email: string, password: string) => Promise<SignInOutcome>;
   signOut: () => Promise<void>;
 }
@@ -57,7 +64,7 @@ export const AuthContext = createContext<AuthContextType | null>(null);
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<User | null>(null);
   const [loading, setLoading] = useState(true);
-  const [error, setError] = useState("");
+  const [error, setError] = useState<SignInError | "">("");
 
   useEffect(() => {
     const unsubscribe = onAuthStateChanged(auth, (firebaseUser) => {
@@ -115,17 +122,15 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       }
 
       const fbErr = err as { code?: string; message?: string };
-      const messages: Record<string, string> = {
-        "auth/too-many-requests":
-          "Muitas tentativas. Tente novamente mais tarde",
-      };
 
       setError(
         err instanceof SessionCreationError
-          ? "Login validado, mas não foi possível criar a sessão da plataforma."
+          ? "sessionFailed"
+          : fbErr.code === "auth/too-many-requests"
+          ? "tooManyRequests"
           : fbErr.code
-          ? messages[fbErr.code] || "Login ou senha inválidos"
-          : "Erro ao fazer login",
+          ? "invalidCredentials"
+          : "failed",
       );
       return "failed";
     }

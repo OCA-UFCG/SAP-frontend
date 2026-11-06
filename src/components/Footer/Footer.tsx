@@ -74,14 +74,14 @@ export const Footer = ({ content }: { content: ISection[] }) => {
             width="1004"
             height="325"
             src="/partners/mma-logo.png"
-            alt="Ministério do Meio Ambiente e Mudança do Clima"
+            alt={t("logos.mma")}
             className="h-10 w-auto brightness-0 invert"
           />
           <Image
             width="1485"
             height="755"
             src="/partners/oca.png"
-            alt="Observatório da Caatinga e Desertificação"
+            alt={t("logos.oca")}
             className="h-10 w-auto"
           />
           <SocialChannels channels={channels} size={32} />

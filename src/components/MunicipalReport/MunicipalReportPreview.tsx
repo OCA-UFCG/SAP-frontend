@@ -25,6 +25,7 @@ import {
   getReportDocsText,
 } from "@/utils/municipalReportNarrative";
 import { formatDekadPeriod } from "@/utils/dekadPeriod";
+import { localizeReportTerritory } from "@/utils/localizeReportTerritory";
 import {
   finishMunicipalReportMetrics,
   recordMunicipalReportNavigation,
@@ -174,6 +175,11 @@ const AnalysisSection = memo(function AnalysisSection({
     tHas,
     tModules,
     tModulesHas,
+  );
+  // Os gráficos usam o título no nome que o leitor de tela anuncia.
+  const chartAnalysis = useMemo(
+    () => ({ ...analysis, title: translatedTitle }),
+    [analysis, translatedTitle],
   );
   const translateLabel = (label: string) =>
     translateClassLabel(label, t, tHas, tCaption, tCaptionHas);
@@ -330,7 +336,7 @@ const AnalysisSection = memo(function AnalysisSection({
             </ReportSectionHeading>
             <div className="report-block mt-4 flex flex-col gap-2 overflow-hidden rounded-lg border border-[#EFEFEF] bg-[#F6F7F6] p-4">
               <MunicipalReportClassBars
-                analysis={analysis}
+                analysis={chartAnalysis}
                 locale={locale}
                 translateLabel={translateLabel}
               />
@@ -391,7 +397,7 @@ const AnalysisSection = memo(function AnalysisSection({
                 </p>
                 <div className="report-chart-screen">
                   <MunicipalReportStackedChart
-                    analysis={analysis}
+                    analysis={chartAnalysis}
                     locale={locale}
                     referencePeriod={referencePeriod}
                     translateLabel={translateLabel}
@@ -399,7 +405,7 @@ const AnalysisSection = memo(function AnalysisSection({
                 </div>
                 <div className="report-chart-print hidden">
                   <MunicipalReportStackedPrintChart
-                    analysis={analysis}
+                    analysis={chartAnalysis}
                     referencePeriod={referencePeriod}
                     translateLabel={translateLabel}
                   />
@@ -423,7 +429,7 @@ const AnalysisSection = memo(function AnalysisSection({
                     não desenha nada. */}
                 <div className="report-chart-screen h-[340px]">
                   <MunicipalReportDynamicChart
-                    analysis={analysis}
+                    analysis={chartAnalysis}
                     locale={locale}
                     referencePeriod={referencePeriod}
                     translateLabel={translateLabel}
@@ -431,7 +437,7 @@ const AnalysisSection = memo(function AnalysisSection({
                 </div>
                 <div className="report-chart-print hidden">
                   <MunicipalReportLinePrintChart
-                    analysis={analysis}
+                    analysis={chartAnalysis}
                     locale={locale}
                     referencePeriod={referencePeriod}
                     translateLabel={translateLabel}
@@ -482,7 +488,7 @@ const AnalysisSection = memo(function AnalysisSection({
 });
 
 const ReportDocument = memo(function ReportDocument({
-  report,
+  report: serverReport,
   layerIds = [],
   mapImages,
   activeMapKeys,
@@ -524,7 +530,16 @@ const ReportDocument = memo(function ReportDocument({
   const tModules = useTranslations("ModulesContext");
   const tHas = (key: string) => t.has(key);
   const tModulesHas = (key: string) => tModules.has(key);
+  const tPanel = useTranslations("AnalysisPanel");
   const locale = useLocale();
+  // Título, frases e legendas usam o nome do território no idioma da página.
+  const report = useMemo(
+    () => ({
+      ...serverReport,
+      territory: localizeReportTerritory(serverReport.territory, locale, tPanel, t),
+    }),
+    [serverReport, locale, tPanel, t],
+  );
   const generatedAt = new Date(report.generatedAt).toLocaleDateString(locale);
   // As seções seguem a ordem do sumário — por categoria, e dentro dela a ordem
   // do formulário —, para que os números de página do sumário só cresçam.
@@ -1113,7 +1128,9 @@ export function MunicipalReportPreview({
           response,
           detalhes: `${layerIdsKey ? layerIdsKey.split(",").length : "todas"} camada(s) solicitada(s)`,
         });
-        if (!response.ok) throw new Error(payload.error ?? loadErrorMessage);
+        // A rota responde em inglês, para os logs; a tela mostra o aviso no
+        // idioma da página.
+        if (!response.ok) throw new Error(loadErrorMessage);
         reportLoaded = true;
         setReport(payload as MunicipalReportData);
         setDocsContent(null);

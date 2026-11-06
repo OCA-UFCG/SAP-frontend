@@ -11,6 +11,7 @@ import {
   type ForecastMember,
 } from "@/utils/forecastGroup";
 import { handleRadioGroupKeyDown } from "@/utils/listboxKeyboard";
+import { slugifyTranslationKey } from "@/utils/translations";
 
 interface ForecastFiltersProps {
   members: readonly ForecastMember[];
@@ -33,12 +34,16 @@ export function ForecastFilters({
   const idPrefix = useId();
   const options = getForecastFilterOptions(members, current);
 
-  const optionLabel = (dimension: ForecastDimension, value: string) =>
-    dimension === "periodicity"
-      ? t(`periodicities.${value}`)
-      : dimension === "kind" && t.has(`kinds.${value}`)
-        ? t(`kinds.${value}`)
-        : value;
+  const optionLabel = (dimension: ForecastDimension, value: string) => {
+    if (dimension === "periodicity") return t(`periodicities.${value}`);
+    const key =
+      dimension === "kind"
+        ? `kinds.${value}`
+        : dimension === "variable"
+          ? `variables.${slugifyTranslationKey(value)}`
+          : null;
+    return key && t.has(key) ? t(key) : value;
+  };
 
   const handleSelect = (dimension: ForecastDimension, value: string) => {
     const next = resolveForecastSelection(members, {

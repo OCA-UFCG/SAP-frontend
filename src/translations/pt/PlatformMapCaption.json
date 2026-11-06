@@ -88,7 +88,9 @@
       "municipios-por-classificacao": "Municípios por classificação",
       "municipios-por-percentual-de-familias-cadunico-em-pobreza": "Municípios por percentual de famílias CadÚnico em pobreza",
       "municipios-por-faixa-predominante-de-anomalia-de-precipitacao": "Municípios por faixa predominante de anomalia de precipitação",
-      "municipios-por-faixa-predominante": "Municípios por faixa predominante"
+      "municipios-por-faixa-predominante": "Municípios por faixa predominante",
+      "estados-por-classificacao": "Estados por classificação",
+      "label-em-name-value": "{label} em {name}: {value}."
     }
   }
 }

@@ -77,7 +77,7 @@ describe("AuthProvider", () => {
 
     await waitFor(() => {
       expect(screen.getByRole("alert")).toHaveTextContent(
-        "Login ou senha inválidos",
+        "invalidCredentials",
       );
     });
 
@@ -125,7 +125,7 @@ describe("AuthProvider", () => {
     });
     expect(screen.getByTestId("auth-state")).toHaveTextContent("anonymous");
     expect(screen.getByRole("alert")).toHaveTextContent(
-      "Login validado, mas não foi possível criar a sessão da plataforma.",
+      "sessionFailed",
     );
   });
 
@@ -168,7 +168,7 @@ describe("AuthProvider", () => {
     expect(signOutMock).toHaveBeenCalledWith(auth);
     expect(screen.getByTestId("auth-state")).toHaveTextContent("anonymous");
     expect(screen.getByRole("alert")).not.toHaveTextContent(
-      "Login validado, mas não foi possível criar a sessão da plataforma.",
+      "sessionFailed",
     );
   });
 

@@ -89,12 +89,13 @@ interface AnalysisYearSelectProps {
 
 function formatAnalysisValue(
   value: number,
+  locale: string,
   valueType?: "percentage" | "absolute",
   valueUnit?: string,
 ) {
   return valueType === "absolute"
-    ? `${formatAbsoluteNumber(value, "pt-BR")} ${valueUnit ?? ""}`.trim()
-    : `${formatPercentageNumber(value, "pt-BR")}%`;
+    ? `${formatAbsoluteNumber(value, locale)} ${valueUnit ?? ""}`.trim()
+    : `${formatPercentageNumber(value, locale)}%`;
 }
 
 function formatAnalysisYearLabel(
@@ -319,9 +320,10 @@ function DistributionSection({
   title?: string;
 }) {
   const t = useTranslations("AnalysisPanel");
+  const locale = useLocale();
   const absolute = valueType === "absolute";
   const formatValue = (value: number) =>
-    formatAnalysisValue(value, valueType, valueUnit);
+    formatAnalysisValue(value, locale, valueType, valueUnit);
   return (
     <div className="flex flex-col gap-2">
       <h2 className="text-[0.875rem] font-semibold leading-6 text-[#292829]">
@@ -346,7 +348,7 @@ function DistributionSection({
                   {/* Uma casa só, com vírgula como a legenda logo abaixo: a
                       fatia mais estreita que ganha rótulo tem 10% da barra. */}
                   {item.value > 10 &&
-                    `${item.value.toLocaleString("pt-BR", { maximumFractionDigits: 1 })}%`}
+                    `${item.value.toLocaleString(locale, { maximumFractionDigits: 1 })}%`}
                 </div>
               ))}
           </div>
@@ -644,7 +646,7 @@ export function AnalysisPanel({
     (areaShare === undefined
       ? model.highlight.text
       : `${model.highlight.text} (${t("dominantShare", {
-          value: formatAnalysisValue(areaShare),
+          value: formatAnalysisValue(areaShare, locale),
         })})`);
 
   return (

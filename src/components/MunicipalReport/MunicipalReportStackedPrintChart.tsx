@@ -77,7 +77,7 @@ export function MunicipalReportStackedPrintChart({
       viewBox={`0 0 ${WIDTH} ${chartHeight}`}
       preserveAspectRatio="xMidYMid meet"
       role="img"
-      aria-label={`${analysis.title}: ${data.firstPeriod} a ${data.lastPeriod}`}
+      aria-label={`${analysis.title}: ${data.firstPeriod} – ${data.lastPeriod}`}
     >
       {Y_TICKS.map((tick) => {
         const y = PLOT_BOTTOM - (tick / 100) * PLOT_HEIGHT;

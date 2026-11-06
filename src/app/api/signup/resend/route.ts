@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { hasTrustedMutationOrigin } from "@/lib/catalog-access";
 import { rejectWhenSignupClosed } from "@/app/api/signup/availability";
+import { resolveEmailLocale } from "@/lib/email-locale";
 import { sendVerificationEmail } from "@/lib/signup-verification";
 import { VERIFICATION_EMAIL_COOLDOWN_SECONDS } from "@/config/verificationEmailCooldown";
 import {
@@ -59,10 +60,12 @@ export async function POST(request: Request) {
 
   let email: unknown;
   let captchaToken: string | undefined;
+  let locale: unknown;
   try {
-    ({ email, captchaToken } = (await request.json()) as {
+    ({ email, captchaToken, locale } = (await request.json()) as {
       email?: unknown;
       captchaToken?: string;
+      locale?: unknown;
     });
   } catch {
     email = null;
@@ -93,7 +96,12 @@ export async function POST(request: Request) {
     // A espera daqui é maior que a do Firebase, então isto só acontece se ela
     // perdeu a conta — o servidor reiniciou, por exemplo. Só conta com
     // cadastro chega aqui, mas a resposta é a mesma da espera acima.
-    if ((await sendVerificationEmail(normalizedEmail)) === "throttled") {
+    if (
+      (await sendVerificationEmail(
+        normalizedEmail,
+        resolveEmailLocale(locale),
+      )) === "throttled"
+    ) {
       return tooSoon(VERIFICATION_EMAIL_COOLDOWN_SECONDS);
     }
   }

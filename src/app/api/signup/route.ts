@@ -28,8 +28,12 @@ const NO_STORE = { "Cache-Control": "no-store" } as const;
  */
 const ACCEPTED_BODY = { status: "accepted" } as const;
 
-function badRequest(error: string) {
-  return NextResponse.json({ error }, { status: 400, headers: NO_STORE });
+/**
+ * `code` é o que a tela traduz (`Signup.errors.<code>`); `error` continua em
+ * português para quem lê a resposta crua.
+ */
+function badRequest(error: string, code: string) {
+  return NextResponse.json({ error, code }, { status: 400, headers: NO_STORE });
 }
 
 function accepted() {
@@ -38,7 +42,7 @@ function accepted() {
 
 function serverError() {
   return NextResponse.json(
-    { error: "Não foi possível concluir o cadastro." },
+    { error: "Não foi possível concluir o cadastro.", code: "failed" },
     { status: 500, headers: NO_STORE },
   );
 }
@@ -57,7 +61,7 @@ export async function POST(request: Request) {
 
   if (!hasTrustedMutationOrigin(request)) {
     return NextResponse.json(
-      { error: "Origem da requisição não autorizada." },
+      { error: "Origem da requisição não autorizada.", code: "untrustedOrigin" },
       { status: 403, headers: NO_STORE },
     );
   }
@@ -66,7 +70,10 @@ export async function POST(request: Request) {
 
   if (rateLimit.limited) {
     return NextResponse.json(
-      { error: "Muitas tentativas. Tente novamente em instantes." },
+      {
+        error: "Muitas tentativas. Tente novamente em instantes.",
+        code: "tooManyRequests",
+      },
       {
         status: 429,
         headers: {
@@ -87,7 +94,7 @@ export async function POST(request: Request) {
   try {
     body = (await request.json()) as typeof body;
   } catch {
-    return badRequest("O corpo da requisição deve ser JSON válido.");
+    return badRequest("O corpo da requisição deve ser JSON válido.", "failed");
   }
 
   const email =
@@ -96,12 +103,13 @@ export async function POST(request: Request) {
   const locale = resolveEmailLocale(body.locale);
 
   if (!isWellFormedEmail(email)) {
-    return badRequest("Informe um e-mail válido.");
+    return badRequest("Informe um e-mail válido.", "invalidEmail");
   }
 
   if (password.length < MIN_PASSWORD_LENGTH) {
     return badRequest(
       `A senha precisa de pelo menos ${MIN_PASSWORD_LENGTH} caracteres.`,
+      "passwordTooShort",
     );
   }
 
@@ -115,7 +123,10 @@ export async function POST(request: Request) {
   // autorizado: ela é parte da trilha de auditoria, não só um insumo da decisão
   // manual.
   if (!intention) {
-    return badRequest("Descreva como pretende usar a plataforma.");
+    return badRequest(
+      "Descreva como pretende usar a plataforma.",
+      "intentionRequired",
+    );
   }
 
   // Depois das validações que não dependem de ninguém: o token só vale uma vez,
@@ -130,7 +141,7 @@ export async function POST(request: Request) {
       remoteIp: getSignupClientIp(request),
     }))
   ) {
-    return badRequest(CAPTCHA_FAILED_MESSAGE);
+    return badRequest(CAPTCHA_FAILED_MESSAGE, "captchaFailed");
   }
 
   let user: { uid: string };

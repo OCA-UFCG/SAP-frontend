@@ -3,6 +3,7 @@
     "unavailableTitle": "Análisis no disponible para {location}",
     "loadingTitle": "Cargando análisis de {location}",
     "unavailableDescriptionLoading": "Los datos de este producto están llegando. Esto puede tardar unos segundos.",
-    "unavailableDescription": "Los datos de análisis para {location} aún no están disponibles para este producto."
+    "unavailableDescription": "Los datos de análisis para {location} aún no están disponibles para este producto.",
+    "defaultPeriod": "Predeterminado"
   }
 }

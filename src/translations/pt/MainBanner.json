@@ -1,9 +1,5 @@
 {
   "MainBanner": {
-    "imageAlt": "{imageAlt}",
-    "title": "{title}",
-    "subtitle": "{subtitle}",
-    "linkText": "{linkText}",
     "previous": "Banner anterior",
     "next": "Próximo banner",
     "pause": "Pausar banners",

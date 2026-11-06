@@ -1,7 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { useTranslations } from "next-intl";
+import { useLocale, useTranslations } from "next-intl";
 import { AnalysisPanel } from "@/components/analysis/AnalysisPanel";
 import { ForecastFilters } from "@/components/analysis/ForecastFilters";
 import { SourceGroupFilter } from "@/components/analysis/SourceGroupFilter";
@@ -9,6 +9,7 @@ import type { SearchSubmissionMetadata } from "@/components/SearchBar/types";
 import {
   getSpatialScopeLocationKey,
   getSpatialScopeLocationName,
+  SPATIAL_VALUE_OPTIONS,
 } from "@/utils/spatialScope";
 import {
   buildEmbeddedTerritorialAnalysisViewModel,
@@ -25,6 +26,8 @@ import {
 } from "@/components/MapLayerContext/MapLayerContext";
 import { resolveStateKeyFromSearch } from "@/lib/geo";
 import { trackUiEvent } from "@/services/telemetry/client";
+import { htmlLang } from "@/translations/htmlLang";
+import { slugifyTranslationKey } from "@/utils/translations";
 import municipalAvailabilityIndex from "@/data/municipalAvailabilityIndex.json";
 import {
   hasMunicipalLayerPeriod,
@@ -135,6 +138,10 @@ export function AnalysisContext({
   const t = useTranslations("AnalysisContext");
   const tCaption = useTranslations("PlatformMapCaption");
   const tModules = useTranslations("ModulesContext");
+  const tSpatial = useTranslations("AnalysisPanel");
+  // Nomes de mês e números no formato do idioma da página ("1,5" x "1.5").
+  const locale = useLocale();
+  const numberLocale = htmlLang(locale);
   const { activeLayerId } = useMapLayerActiveState();
   const {
     activateEeLayer,
@@ -180,7 +187,13 @@ export function AnalysisContext({
   const [territoryRankingByRequestKey, setTerritoryRankingByRequestKey] =
     useState<Record<string, TerritoryRankingData | null>>({});
 
-  const yearOptions = useMemo(() => getAnalysisYearOptions(dataset), [dataset]);
+  // A string, e não o `t`, nas dependências: o `t` pode mudar de identidade a
+  // cada render, e a lista nova de períodos dispararia os pedidos de novo.
+  const defaultPeriodLabel = t("defaultPeriod");
+  const yearOptions = useMemo(
+    () => getAnalysisYearOptions(dataset, numberLocale, defaultPeriodLabel),
+    [dataset, numberLocale, defaultPeriodLabel],
+  );
 
   const effectiveYear = useMemo(
     () => getEffectiveAnalysisYear(dataset, activeYear),
@@ -693,7 +706,20 @@ export function AnalysisContext({
     });
   };
 
-  const embeddedModel = useMemo(
+  // Em inglês e espanhol, Brasil e os recortes agregados (regiões, biomas,
+  // Semiárido, ASD) têm nome traduzido; estados e municípios são nomes
+  // próprios. Em português fica o nome que o dado traz ("ASD + Entorno").
+  const localizeLocationName = (locationKey: string, name: string) => {
+    if (locale === "pt") return name;
+    if (locationKey === "br") return tSpatial("spatialValues.brasil");
+    if (locationKey !== spatialScopeLocationKey) return name;
+    const option = SPATIAL_VALUE_OPTIONS[spatialSelection.spatialArea].find(
+      (candidate) => candidate.value === spatialSelection.spatialValue,
+    );
+    return option ? tSpatial(option.labelKey) : name;
+  };
+
+  const serverEmbeddedModel = useMemo(
     () =>
       buildEmbeddedTerritorialAnalysisViewModel(
         enrichedDataset,
@@ -701,6 +727,7 @@ export function AnalysisContext({
         selectedLocationKey,
         tCaption,
         territoryRanking,
+        numberLocale,
       ),
     [
       enrichedDataset,
@@ -708,7 +735,18 @@ export function AnalysisContext({
       selectedLocationKey,
       tCaption,
       territoryRanking,
+      numberLocale,
     ],
+  );
+  const embeddedModelName =
+    serverEmbeddedModel &&
+    localizeLocationName(selectedLocationKey, serverEmbeddedModel.name);
+  const embeddedModel = useMemo(
+    () =>
+      serverEmbeddedModel && embeddedModelName
+        ? { ...serverEmbeddedModel, name: embeddedModelName }
+        : serverEmbeddedModel,
+    [serverEmbeddedModel, embeddedModelName],
   );
 
   // Um item da lista pode ser um estado (Brasil e região) ou um município
@@ -725,7 +763,7 @@ export function AnalysisContext({
     setSelectedState(locationKey);
   };
 
-  const unavailableLocationName = useMemo(() => {
+  const sourceLocationName = useMemo(() => {
     const explicitLocationName = getAnalysisLocationName(
       enrichedDataset,
       effectiveYear,
@@ -746,6 +784,10 @@ export function AnalysisContext({
     spatialScopeLocationKey,
     spatialSelection,
   ]);
+  const unavailableLocationName = localizeLocationName(
+    selectedLocationKey,
+    sourceLocationName,
+  );
 
   useEffect(() => {
     if (!enrichedDataset?.imageData || !effectiveYear) {
@@ -790,12 +832,18 @@ export function AnalysisContext({
     analysisImageDataByRequestKey[municipalAnalysisRequestKey] === undefined,
   );
 
+  // Os índices de sempre têm nome traduzido; os novos do catálogo, ainda não.
+  const translateLayerName = (name?: string) => {
+    const key = `Layers.${slugifyTranslationKey(name ?? "")}.title`;
+    return name && tModules.has(key) ? tModules(key) : name;
+  };
+
   return (
     <AnalysisPanel
       moduleName={
         forecastMember
           ? tModules("forecastGroup.title")
-          : (sourceGroupMembers?.[0].group ?? dataset?.name)
+          : (sourceGroupMembers?.[0].group ?? translateLayerName(dataset?.name))
       }
       layerFilters={
         forecastMember ? (

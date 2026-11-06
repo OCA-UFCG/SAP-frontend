@@ -69,6 +69,55 @@ describe("analysis.mappers", () => {
     );
   });
 
+  it("formats the numbers in the language of the page", () => {
+    const layer = buildLayer({
+      schemaVersion: 1,
+      type: "territorial-compact",
+      defaultYear: "2024",
+      classes: [
+        { id: "pobreza-rural", label: "Pobreza rural", color: "#7f0000" },
+      ],
+      locations: { br: "Brasil", pe: "Pernambuco" },
+      templates: {
+        state: "{name}: {value}%.",
+        highlight: "Pobreza rural",
+      },
+      years: {
+        "2024": {
+          imageId: "pob-rural",
+          valuesScale: 1,
+          values: { br: [20.5], pe: [35.25] },
+        },
+      },
+    });
+
+    const pt = buildEmbeddedTerritorialAnalysisViewModel(layer, "2024", "pe");
+    const en = buildEmbeddedTerritorialAnalysisViewModel(
+      layer,
+      "2024",
+      "pe",
+      undefined,
+      undefined,
+      "en",
+    );
+
+    expect(pt?.highlight?.text).toContain("35,");
+    expect(en?.highlight?.text).toContain("35.");
+  });
+
+  it("names the single period of a layer in the language of the page", () => {
+    // Camada antiga, sem ano: o período único é a chave `general`.
+    const layer = {
+      ...buildLayer({} as CompactTerritorialAnalysisDataset),
+      imageData: { general: { imageId: "a", default: true } },
+    } as PanelLayerI;
+
+    expect(getAnalysisYearOptions(layer)[0]?.label).toBe("Padrão");
+    expect(getAnalysisYearOptions(layer, "en", "Default")[0]?.label).toBe(
+      "Default",
+    );
+  });
+
   it("puts the location sentence of a single-indicator layer in the highlight", () => {
     const layer = buildLayer({
       schemaVersion: 1,
@@ -434,6 +483,9 @@ describe("analysis.mappers", () => {
 
     expect(getAnalysisYearOptions(seasonalLayer)).toEqual([
       { value: "2026-09", label: "Setembro - Outubro - Novembro - 2026" },
+    ]);
+    expect(getAnalysisYearOptions(seasonalLayer, "en")).toEqual([
+      { value: "2026-09", label: "September - October - November - 2026" },
     ]);
     // Sem a coluna do trimestre o período continua sendo um mês comum.
     expect(getAnalysisYearOptions(layer)).toEqual([

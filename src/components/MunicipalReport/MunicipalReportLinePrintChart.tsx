@@ -82,7 +82,7 @@ export function MunicipalReportLinePrintChart({
         viewBox={`0 0 ${WIDTH} ${HEIGHT}`}
         preserveAspectRatio="xMidYMid meet"
         role="img"
-        aria-label={`${analysis.title}: ${chartData.categories[0]?.label} a ${chartData.categories.at(-1)?.label}`}
+        aria-label={`${analysis.title}: ${chartData.categories[0]?.label} – ${chartData.categories.at(-1)?.label}`}
       >
         {yTicks.map((value) => {
           const y = yForValue(value);

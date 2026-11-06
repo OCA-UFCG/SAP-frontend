@@ -156,7 +156,7 @@
     "tableClass": "Clase",
     "spatialAndTimeSeries": "Distribución espacial y serie temporal",
     "spatialImage": "Imagen espacial: {period}",
-    "rasterDescription": "Mapa temático de {title} para {period}, recortado por el contorno {scope} de {territory}.",
+    "rasterDescription": "Mapa temático de {title} para {period}, recortado por el contorno de {territory}.",
     "timeSeriesAlt": "Serie temporal — {title}",
     "timeSeriesUnavailable": "Serie temporal no disponible para exportación.",
     "historicalAnalysisTitle": "Análisis de la serie histórica",
@@ -304,7 +304,8 @@
         "title": "Registros de Sequías y Estiajes (2004-2025)",
         "methodology": "Compilación oficial de registros y decretos de situación de emergencia o calamidad por sequías y estiajes del S2ID."
       },
-      "defaultMethodology": "Indicador territorial disponible en la plataforma SEDES."
+      "defaultMethodology": "Indicador territorial disponible en la plataforma SEDES.",
+      "defaultCatalogMethodology": "Índice territorial calculado a partir de datos de Google Earth Engine y publicado en el catálogo de índices de la plataforma SEDES."
     },
     "classes": {
       "condicoes-normais": "Condiciones normales",
