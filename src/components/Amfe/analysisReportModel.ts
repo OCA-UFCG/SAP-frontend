@@ -1,4 +1,5 @@
 import { CLASSIFICATION_COLORS } from "@/components/Map/classificationLayers";
+import { statesObj } from "@/utils/constants";
 import type {
   AnalysisCoverage,
   AnalysisLevel,
@@ -92,6 +93,7 @@ export interface ReportCriterion {
 export interface ReportThreshold {
   label: string;
   value: number;
+  description: string;
 }
 
 /**
@@ -114,19 +116,36 @@ const buildReportThresholds = (
   payload: AnalyzePayload,
   t: ReportTranslator,
 ): ReportThreshold[] => [
-  { label: t("indiferenca"), value: payload.thresholds.indifference },
-  { label: t("preferencia"), value: payload.thresholds.preference },
-  { label: t("veto"), value: payload.thresholds.veto },
+  {
+    label: t("indiferenca"),
+    value: payload.thresholds.indifference,
+    description: t("reportIndifferenceDescription"),
+  },
+  {
+    label: t("preferencia"),
+    value: payload.thresholds.preference,
+    description: t("reportPreferenceDescription"),
+  },
+  {
+    label: t("veto"),
+    value: payload.thresholds.veto,
+    description: t("reportVetoDescription"),
+  },
 ];
 
+/**
+ * O nome do cenário e a nota que explica o que ele faz com um município na
+ * fronteira entre duas classes. No ELECTRE TRI-B do backend, o pessimista põe
+ * esse município na classe de pior desempenho, que aqui é a de maior
+ * prioridade.
+ */
 const buildReportScenario = (
   payload: AnalyzePayload,
   t: ReportTranslator,
-): string =>
-  payload.typeScenario === "optimistic" ? t("otimista") : t("pessimista");
-
-/** Acima disto, a lista aponta a planilha em vez de continuar. */
-export const REPORT_LIST_LIMIT = 30;
+): ReportScenario =>
+  payload.typeScenario === "optimistic"
+    ? { label: t("otimista"), note: t("reportScenarioOptimisticNote") }
+    : { label: t("pessimista"), note: t("reportScenarioPessimisticNote") };
 
 const PRIORITY_LABEL_KEYS = [
   "priorityVeryLow",
@@ -136,8 +155,6 @@ const PRIORITY_LABEL_KEYS = [
   "priorityVeryHigh",
 ] as const;
 
-const TOP_PRIORITY_LEVEL = PRIORITY_LABEL_KEYS.length - 1;
-
 export interface DistributionClass {
   level: number;
   label: string;
@@ -146,24 +163,21 @@ export interface DistributionClass {
   share: number;
 }
 
-export interface ReportCity {
-  name: string;
-  uf: string;
+/** Os municípios de uma classe, para a lista por prioridade. */
+export interface ReportClassList {
+  level: number;
+  label: string;
+  color: string;
+  cities: string[];
 }
 
-export interface ReportExcludedCity {
-  name: string;
-}
-
-export interface CappedList<T> {
-  shown: T[];
-  remaining: number;
-  total: number;
+export interface ReportScenario {
+  label: string;
+  note: string;
 }
 
 export interface ReportScope {
-  area: string;
-  value: string;
+  place: string;
   level: string;
 }
 
@@ -171,33 +185,19 @@ export interface AnalysisReportModel {
   generatedAt: Date;
   criteria: ReportCriterion[];
   thresholds: ReportThreshold[];
-  scenario: string;
+  classCount: number;
+  classRange: string;
+  scenario: ReportScenario;
   modelVersion: string;
   scope: ReportScope;
   coverage: { analyzed: number; total: number; excluded: number } | null;
+  /** Da classe de maior prioridade para a de menor, como no relatório. */
   distribution: DistributionClass[];
-  topPriority: CappedList<ReportCity>;
-  excluded: CappedList<ReportExcludedCity>;
+  classLists: ReportClassList[];
+  excluded: string[];
 }
 
-const cap = <T>(items: T[]): CappedList<T> => ({
-  shown: items.slice(0, REPORT_LIST_LIMIT),
-  remaining: Math.max(0, items.length - REPORT_LIST_LIMIT),
-  total: items.length,
-});
-
-const byName = (a: { name: string }, b: { name: string }) =>
-  a.name.localeCompare(b.name, "pt-BR");
-
-/** `interestArea.type` cobre também semiárido e ASD; `ranking.level` não. */
-const INTEREST_AREA_SCOPE_KEYS: Record<interestArea, string> = {
-  national: "scopeNational",
-  state: "scopeState",
-  region: "scopeRegion",
-  biome: "scopeBiome",
-  semiarid: "scopeSemiarid",
-  asd: "scopeAsd",
-};
+const byName = (a: string, b: string) => a.localeCompare(b, "pt-BR");
 
 const ANALYSIS_LEVEL_SCOPE_KEYS: Record<AnalysisLevel, string> = {
   national: "scopeNational",
@@ -206,13 +206,38 @@ const ANALYSIS_LEVEL_SCOPE_KEYS: Record<AnalysisLevel, string> = {
   biome: "scopeBiome",
 };
 
-/** Área de interesse e nível do ranking, traduzidos por extenso para o cabeçalho. */
+/**
+ * O lugar analisado como uma pessoa o escreveria: "Paraíba, PB" para um
+ * estado, o próprio nome para região e bioma. Semiárido e ASD chegam com
+ * valor fixo (`semiarid`, `asd`), então o nome vem da tradução.
+ */
+const buildPlace = (
+  area: { type: interestArea; value: string },
+  t: ReportTranslator,
+): string => {
+  switch (area.type) {
+    case "national":
+      return t("reportPlaceNational");
+    case "state": {
+      const name =
+        statesObj[area.value.toLowerCase() as keyof typeof statesObj];
+      return name ? `${name}, ${area.value}` : area.value;
+    }
+    case "semiarid":
+      return t("scopeSemiarid");
+    case "asd":
+      return t("scopeAsd");
+    default:
+      return area.value;
+  }
+};
+
+/** Lugar analisado e nível do ranking, por extenso para o cabeçalho. */
 const buildScope = (
   payload: AnalyzePayload,
   t: ReportTranslator,
 ): ReportScope => ({
-  area: t(INTEREST_AREA_SCOPE_KEYS[payload.interestArea.type]),
-  value: payload.interestArea.value,
+  place: buildPlace(payload.interestArea, t),
   level: t(ANALYSIS_LEVEL_SCOPE_KEYS[payload.ranking.level]),
 });
 
@@ -235,24 +260,45 @@ const buildDistribution = (
 
   const total = counts.reduce((sum, count) => sum + count, 0);
 
-  return counts.map((count, level) => ({
+  return counts
+    .map((count, level) => ({
+      level,
+      label: t(PRIORITY_LABEL_KEYS[level]),
+      color: CLASSIFICATION_COLORS[level],
+      count,
+      share: total === 0 ? 0 : (count / total) * 100,
+    }))
+    .reverse();
+};
+
+/**
+ * Todos os municípios de cada classe, sem corte. A sigla do estado só
+ * aparece quando o ranking mistura estados: "Santa Luzia" existe na PB, em MG
+ * e na BA, mas numa análise da Paraíba ela seria só ruído.
+ */
+const buildClassLists = (
+  cities: Cities,
+  distribution: DistributionClass[],
+): ReportClassList[] => {
+  const all = Object.values(cities);
+  const showUf = new Set(all.map((city) => city.UF)).size > 1;
+  const nameOf = (city: (typeof all)[number]) =>
+    showUf && city.UF ? `${city.name} – ${city.UF}` : city.name;
+
+  return distribution.map(({ level, label, color }) => ({
     level,
-    label: t(PRIORITY_LABEL_KEYS[level]),
-    color: CLASSIFICATION_COLORS[level],
-    count,
-    share: total === 0 ? 0 : (count / total) * 100,
+    label,
+    color,
+    cities: all
+      .filter((city) => city.classification === level)
+      .map(nameOf)
+      .sort(byName),
   }));
 };
 
-const buildTopPriority = (cities: Cities): ReportCity[] =>
-  Object.values(cities)
-    .filter((city) => city.classification === TOP_PRIORITY_LEVEL)
-    .map((city) => ({ name: city.name, uf: city.UF ?? "" }))
-    .sort(byName);
-
-const buildExcluded = (excludedCities: ExcludedCities): ReportExcludedCity[] =>
+const buildExcluded = (excludedCities: ExcludedCities): string[] =>
   Object.values(excludedCities)
-    .map((city) => ({ name: city.name ?? "" }))
+    .map((city) => city.name ?? "")
     .sort(byName);
 
 /**
@@ -271,21 +317,31 @@ export const buildAnalysisReportModel = (
   t: ReportTranslator,
   criteriaLabels: Record<string, string>,
   generatedAt: Date = new Date(),
-): AnalysisReportModel => ({
-  generatedAt,
-  criteria: buildReportCriteria(payload, criteriaLabels, t),
-  thresholds: buildReportThresholds(payload, t),
-  scenario: buildReportScenario(payload, t),
-  modelVersion: payload.model.version,
-  scope: buildScope(payload, t),
-  coverage: coverage
-    ? {
-        analyzed: coverage.count,
-        total: coverage.totalCount,
-        excluded: coverage.excludedCount,
-      }
-    : null,
-  distribution: buildDistribution(cities, t),
-  topPriority: cap(buildTopPriority(cities)),
-  excluded: cap(buildExcluded(excludedCities)),
-});
+): AnalysisReportModel => {
+  const distribution = buildDistribution(cities, t);
+
+  return {
+    generatedAt,
+    criteria: buildReportCriteria(payload, criteriaLabels, t),
+    thresholds: buildReportThresholds(payload, t),
+    classCount: PRIORITY_LABEL_KEYS.length,
+    classRange: t("reportClassRange", {
+      count: PRIORITY_LABEL_KEYS.length,
+      lowest: t(PRIORITY_LABEL_KEYS[0]),
+      highest: t(PRIORITY_LABEL_KEYS[PRIORITY_LABEL_KEYS.length - 1]),
+    }),
+    scenario: buildReportScenario(payload, t),
+    modelVersion: payload.model.version,
+    scope: buildScope(payload, t),
+    coverage: coverage
+      ? {
+          analyzed: coverage.count,
+          total: coverage.totalCount,
+          excluded: coverage.excludedCount,
+        }
+      : null,
+    distribution,
+    classLists: buildClassLists(cities, distribution),
+    excluded: buildExcluded(excludedCities),
+  };
+};

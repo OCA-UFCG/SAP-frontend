@@ -1,7 +1,6 @@
 import { htmlLang } from "@/translations/htmlLang";
 import type {
   AnalysisReportModel,
-  CappedList,
   ReportTranslator,
 } from "./analysisReportModel";
 
@@ -26,47 +25,76 @@ const DOCUMENT_CSS = `
     -webkit-print-color-adjust: exact;
     print-color-adjust: exact;
   }
-  h1 { margin: 0 0 4px; font-size: 20px; }
+  h1 { margin: 0 0 2px; font-size: 26px; }
+  header { border-bottom: 1px solid #d9d9d9; padding-bottom: 10px; }
   h2 {
     margin: 18px 0 6px;
+    padding-top: 8px;
+    border-top: 3px solid #2E6B4F;
     font-size: 13px;
     text-transform: uppercase;
-    letter-spacing: 0.04em;
-    border-bottom: 2px solid #646B2D;
-    padding-bottom: 4px;
+    break-after: avoid;
   }
-  h3 { margin: 10px 0 4px; font-size: 11px; font-weight: 600; }
-  .meta { color: #6b6b6b; margin: 0 0 12px; }
-  table { width: 100%; border-collapse: collapse; }
-  table.thresholds { width: 60mm; }
-  th, td { text-align: left; padding: 3px 6px 3px 0; vertical-align: top; }
-  thead th { border-bottom: 1px solid #d9d9d9; font-weight: 600; }
+  .meta { color: #6b6b6b; margin: 0; }
+  .meta.scope { font-size: 13px; }
+  p { margin: 0 0 8px; text-align: justify; }
+  table { width: 100%; border-collapse: collapse; margin-top: 8px; }
+  th, td {
+    text-align: left;
+    padding: 6px 10px;
+    vertical-align: top;
+    border: 1px solid #d9d9d9;
+  }
+  thead th { background: #E8F0EA; font-weight: 600; }
   tbody th { font-weight: 400; }
+  tbody tr:nth-child(even) { background: #F4F4F4; }
+  td.classCell { color: #000; }
   .sr-only { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
-  .numeric { text-align: right; }
-  .paramLine { margin: 4px 0; }
+  sup { line-height: 0; }
+  .footnote { margin: 2px 0 0; color: #6b6b6b; font-size: 9px; }
+  .scenario { margin: 10px 0 0; }
   .map { width: 100%; height: auto; border: 1px solid #d9d9d9; }
-  .swatch {
-    display: inline-block;
-    width: 10px;
-    height: 10px;
-    margin-right: 6px;
-    border: 1px solid rgba(0, 0, 0, 0.25);
-    vertical-align: middle;
+  .mapSection { break-inside: avoid; }
+  .classList { margin-top: 14px; }
+  .classList h3 {
+    margin: 0;
+    padding: 8px 10px;
+    color: #000;
+    font-size: 12px;
+    text-transform: uppercase;
+    break-after: avoid;
   }
-  .columns { column-count: 3; column-gap: 16px; margin: 0; padding: 0; list-style: none; }
-  .columns li { break-inside: avoid; }
-  .note { color: #6b6b6b; margin: 6px 0 0; }
-  footer { margin-top: 18px; color: #6b6b6b; font-size: 10px; }
-  section { break-inside: avoid; }
+  .classList ul {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    margin: 0;
+    padding: 0;
+    list-style: none;
+  }
+  .classList li {
+    padding: 4px 10px;
+    border-bottom: 1px solid #d9d9d9;
+    break-inside: avoid;
+  }
+  .classList li:nth-child(6n + 4),
+  .classList li:nth-child(6n + 5),
+  .classList li:nth-child(6n + 6) { background: #F4F4F4; }
+  .classList .empty { padding: 4px 10px; color: #6b6b6b; }
+  footer {
+    margin-top: 18px;
+    padding-top: 8px;
+    border-top: 1px solid #d9d9d9;
+    color: #6b6b6b;
+    font-size: 10px;
+    text-align: center;
+    break-before: avoid;
+  }
 `;
 
-const renderCapNote = <T>(list: CappedList<T>, t: ReportTranslator): string =>
-  list.remaining === 0
-    ? ""
-    : `<p class="note">${escapeHtml(
-        t("reportAndMore", { count: list.remaining }),
-      )} ${escapeHtml(t("reportSeeWorkbook"))}</p>`;
+const renderCityList = (cities: string[], emptyText: string): string =>
+  cities.length === 0
+    ? `<p class="empty">${escapeHtml(emptyText)}</p>`
+    : `<ul>${cities.map((city) => `<li>${escapeHtml(city)}</li>`).join("")}</ul>`;
 
 /**
  * O documento inteiro como string. Nada de Tailwind: a janela de impressão não
@@ -98,7 +126,7 @@ export const renderAnalysisReportHtml = (
     .map(
       (criterion) => `<tr>
         <th scope="row">${escapeHtml(criterion.label)}</th>
-        <td class="numeric">${decimal.format(criterion.weight)}</td>
+        <td>${decimal.format(criterion.weight)}</td>
         <td>${escapeHtml(criterion.direction)}</td>
       </tr>`,
     )
@@ -108,7 +136,8 @@ export const renderAnalysisReportHtml = (
     .map(
       (threshold) => `<tr>
         <th scope="row">${escapeHtml(threshold.label)}</th>
-        <td class="numeric">${decimal.format(threshold.value)}</td>
+        <td>${decimal.format(threshold.value)}</td>
+        <td>${escapeHtml(threshold.description)}</td>
       </tr>`,
     )
     .join("");
@@ -116,35 +145,32 @@ export const renderAnalysisReportHtml = (
   const distribution = model.distribution
     .map(
       (item) => `<tr>
-        <th scope="row"><span class="swatch" aria-hidden="true" style="background:${escapeHtml(
-          item.color,
-        )}"></span>${escapeHtml(item.label)}</th>
-        <td class="numeric">${number.format(item.count)}</td>
-        <td class="numeric">${share.format(item.share)}%</td>
+        <td class="classCell" style="background:${escapeHtml(item.color)}">${escapeHtml(item.label)}</td>
+        <td>${number.format(item.count)}</td>
+        <td>${share.format(item.share)}%</td>
       </tr>`,
     )
     .join("");
 
-  const topPriority = model.topPriority.shown
+  const classLists = model.classLists
     .map(
-      (city) =>
-        `<li>${escapeHtml(city.name)}${
-          city.uf ? ` &ndash; ${escapeHtml(city.uf)}` : ""
-        }</li>`,
+      (item) => `<section class="classList">
+        <h3 style="background:${escapeHtml(item.color)}">${escapeHtml(
+          t("reportClassList", { label: item.label }),
+        )} (${number.format(item.cities.length)})</h3>
+        ${renderCityList(item.cities, t("reportClassListEmpty"))}
+      </section>`,
     )
     .join("");
 
-  const excluded = model.excluded.shown
-    .map((city) => `<li>${escapeHtml(city.name)}</li>`)
-    .join("");
+  const scope = t("reportScope", {
+    place: model.scope.place,
+    level: model.scope.level,
+  });
 
   // O alt diz o recorte, e não só "Resultado no mapa": as cores de cada
   // município estão na tabela de distribuição logo abaixo.
-  const mapAlt = `${t("reportMap")}. ${t("reportScope", {
-    area: model.scope.area,
-    value: model.scope.value,
-    level: model.scope.level,
-  })}`;
+  const mapAlt = `${t("reportMap")}. ${scope}`;
 
   const coverage = model.coverage
     ? `<p>${escapeHtml(
@@ -156,6 +182,11 @@ export const renderAnalysisReportHtml = (
       )}</p>`
     : "";
 
+  const excluded =
+    model.excluded.length === 0
+      ? `<p>${escapeHtml(t("reportNoExcluded"))}</p>`
+      : `<section class="classList">${renderCityList(model.excluded, "")}</section>`;
+
   return `<!doctype html>
 <html lang="${escapeHtml(htmlLang(locale))}">
 <head>
@@ -164,47 +195,55 @@ export const renderAnalysisReportHtml = (
   <style>${DOCUMENT_CSS}</style>
 </head>
 <body>
-  <h1>${escapeHtml(t("reportTitle"))}</h1>
-  <p class="meta">${escapeHtml(
-    t("reportScope", {
-      area: model.scope.area,
-      value: model.scope.value,
-      level: model.scope.level,
-    }),
-  )}</p>
-  <p class="meta">${escapeHtml(
-    t("reportGeneratedAt", { date: date.format(model.generatedAt) }),
-  )}</p>
+  <header>
+    <h1>${escapeHtml(t("reportTitle"))}</h1>
+    <p class="meta scope">${escapeHtml(scope)}</p>
+    <p class="meta">${escapeHtml(
+      t("reportGeneratedAt", { date: date.format(model.generatedAt) }),
+    )} · ${escapeHtml(t("modelo"))} ${escapeHtml(
+      t("reportModelVersion", { version: model.modelVersion }),
+    )}</p>
+  </header>
 
   <section>
-    <h2>${escapeHtml(t("reportParameters"))}</h2>
+    <h2>${escapeHtml(t("reportMethodTitle"))}</h2>
+    <p>${escapeHtml(t("reportMethodIntro"))}</p>
 
     <table>
       <caption class="sr-only">${escapeHtml(t("criterios"))}</caption>
       <thead><tr>
         <th scope="col">${escapeHtml(t("reportCriterionColumn"))}</th>
-        <th scope="col" class="numeric">${escapeHtml(t("reportWeightColumn"))}</th>
-        <th scope="col">${escapeHtml(t("reportDirectionColumn"))}</th>
+        <th scope="col">${escapeHtml(t("reportWeightColumn"))}</th>
+        <th scope="col">${escapeHtml(t("reportDirectionColumn"))} <sup>*</sup></th>
       </tr></thead>
       <tbody>${criteria}</tbody>
     </table>
+    <p class="footnote"><sup>*</sup> ${escapeHtml(t("reportDirectionNote"))}</p>
 
-    <table class="thresholds">
+    <table>
       <caption class="sr-only">${escapeHtml(t("limiares"))}</caption>
       <thead><tr>
         <th scope="col">${escapeHtml(t("reportThresholdColumn"))}</th>
-        <th scope="col" class="numeric">${escapeHtml(t("reportValueColumn"))}</th>
+        <th scope="col">${escapeHtml(t("reportValueColumn"))}</th>
+        <th scope="col">${escapeHtml(t("reportDescriptionColumn"))}</th>
       </tr></thead>
-      <tbody>${thresholds}</tbody>
+      <tbody>
+        ${thresholds}
+        <tr>
+          <th scope="row">${escapeHtml(t("reportClassCount"))}</th>
+          <td>${number.format(model.classCount)}</td>
+          <td>${escapeHtml(model.classRange)}</td>
+        </tr>
+      </tbody>
     </table>
 
-    <p class="paramLine">${escapeHtml(t("cenario"))}: ${escapeHtml(model.scenario)}</p>
-    <p class="paramLine">${escapeHtml(t("modelo"))}: ${escapeHtml(
-      t("reportModelVersion", { version: model.modelVersion }),
-    )}</p>
+    <p class="scenario">${escapeHtml(t("cenario"))}: <strong>${escapeHtml(
+      model.scenario.label,
+    )}</strong> <sup>**</sup></p>
+    <p class="footnote"><sup>**</sup> ${escapeHtml(model.scenario.note)}</p>
   </section>
 
-  <section>
+  <section class="mapSection">
     <h2>${escapeHtml(t("reportMap"))}</h2>
     <img class="map" src="${escapeHtml(mapPng)}" alt="${escapeHtml(mapAlt)}">
   </section>
@@ -216,30 +255,25 @@ export const renderAnalysisReportHtml = (
       <caption class="sr-only">${escapeHtml(t("reportDistribution"))}</caption>
       <thead><tr>
         <th scope="col">${escapeHtml(t("reportClassColumn"))}</th>
-        <th scope="col" class="numeric">${escapeHtml(t("reportCountColumn"))}</th>
-        <th scope="col" class="numeric">${escapeHtml(t("reportShareColumn"))}</th>
+        <th scope="col">${escapeHtml(t("reportCountColumn"))}</th>
+        <th scope="col">${escapeHtml(t("reportShareColumn"))}</th>
       </tr></thead>
       <tbody>${distribution}</tbody>
     </table>
   </section>
 
-  <section>
-    <h2>${escapeHtml(t("reportTopPriority"))} (${number.format(
-      model.topPriority.total,
-    )})</h2>
-    <ul class="columns">${topPriority}</ul>
-    ${renderCapNote(model.topPriority, t)}
-  </section>
+  ${classLists}
 
   <section>
     <h2>${escapeHtml(t("reportExcluded"))} (${number.format(
-      model.excluded.total,
+      model.excluded.length,
     )})</h2>
-    <ul class="columns">${excluded}</ul>
-    ${renderCapNote(model.excluded, t)}
+    ${excluded}
   </section>
 
-  <footer>${escapeHtml(t("reportAttribution"))}</footer>
+  <footer>${escapeHtml(
+    t("reportAttribution", { year: model.generatedAt.getFullYear() }),
+  )}</footer>
 </body>
 </html>`;
 };
