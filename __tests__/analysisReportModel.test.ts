@@ -1,6 +1,5 @@
 import { describe, expect, it } from "vitest";
 import {
-  REPORT_LIST_LIMIT,
   buildAnalysisParameters,
   buildAnalysisReportModel,
 } from "@/components/Amfe/analysisReportModel";
@@ -97,33 +96,44 @@ describe("buildAnalysisReportModel", () => {
     });
 
     expect(distribution).toHaveLength(5);
-    expect(distribution.map((c) => c.count)).toEqual([1, 0, 0, 0, 3]);
-    expect(distribution[4].share).toBeCloseTo(75);
+    expect(distribution.map((c) => c.count)).toEqual([3, 0, 0, 0, 1]);
+    expect(distribution[0].share).toBeCloseTo(75);
     expect(distribution.reduce((sum, c) => sum + c.share, 0)).toBeCloseTo(100);
   });
 
-  it("dá a cada classe a cor que o mapa usa", () => {
+  it("dá a cada classe a cor que o mapa usa, da maior prioridade para a menor", () => {
     const { distribution } = model(citiesAtLevel(4, 1));
 
-    expect(distribution[0].color).toBe("#0094FF");
-    expect(distribution[4].color).toBe("#FF0000");
-    expect(distribution[4].label).toBe("priorityVeryHigh");
+    expect(distribution[0].color).toBe("#FF0000");
+    expect(distribution[0].label).toBe("priorityVeryHigh");
+    expect(distribution[4].color).toBe("#0094FF");
   });
 
-  it("lista a prioridade muito alta e conta o que sobrou do corte", () => {
-    const { topPriority } = model(citiesAtLevel(4, REPORT_LIST_LIMIT + 12));
+  it("lista todos os municípios de cada classe, sem corte", () => {
+    const { classLists } = model({
+      ...citiesAtLevel(4, 42),
+      ...citiesAtLevel(1, 2),
+    });
 
-    expect(topPriority.total).toBe(REPORT_LIST_LIMIT + 12);
-    expect(topPriority.shown).toHaveLength(REPORT_LIST_LIMIT);
-    expect(topPriority.remaining).toBe(12);
-    expect(topPriority.shown[0]).toMatchObject({ uf: "PB" });
+    expect(classLists.map((c) => c.level)).toEqual([4, 3, 2, 1, 0]);
+    expect(classLists[0].cities).toHaveLength(42);
+    expect(classLists[3].cities).toEqual(["Cidade 1-0", "Cidade 1-1"]);
+    expect(classLists[4].cities).toEqual([]);
   });
 
-  it("não corta uma lista que cabe inteira", () => {
-    const { topPriority } = model(citiesAtLevel(4, 3));
+  it("põe a sigla do estado só quando o ranking mistura estados", () => {
+    const { classLists } = model({
+      "1": { name: "Santa Luzia", UF: "PB", classification: 4 },
+      "2": { name: "Santa Luzia", UF: "MG", classification: 4 },
+    });
 
-    expect(topPriority.shown).toHaveLength(3);
-    expect(topPriority.remaining).toBe(0);
+    expect(classLists[0].cities).toEqual([
+      "Santa Luzia – MG",
+      "Santa Luzia – PB",
+    ]);
+    expect(model(citiesAtLevel(4, 1)).classLists[0].cities).toEqual([
+      "Cidade 4-0",
+    ]);
   });
 
   it("guarda os excluídos apenas pelo nome", () => {
@@ -131,14 +141,36 @@ describe("buildAnalysisReportModel", () => {
       "2504108": { name: "Cajazeiras", missing_fields: ["ips", "ivcm"] },
     });
 
-    expect(excluded.total).toBe(1);
-    expect(excluded.shown[0]).toEqual({ name: "Cajazeiras" });
+    expect(excluded).toEqual(["Cajazeiras"]);
   });
 
-  it("traduz a área de interesse e o nível do ranking por extenso", () => {
+  it("escreve o estado por extenso com a sigla, como no cabeçalho do relatório", () => {
     const { scope } = model(citiesAtLevel(4, 1));
 
-    expect(scope).toEqual({ area: "scopeState", value: "PB", level: "scopeState" });
+    expect(scope).toEqual({ place: "Paraíba, PB", level: "scopeState" });
+  });
+
+  it("nomeia o lugar das demais áreas de interesse", () => {
+    const placeOf = (interestArea: AnalyzePayload["interestArea"]) =>
+      buildAnalysisReportModel(
+        {},
+        null,
+        {},
+        { ...payload, interestArea },
+        t,
+        CRITERIA_LABELS,
+        GENERATED_AT,
+      ).scope.place;
+
+    expect(placeOf({ type: "national", value: "brasil" })).toBe(
+      "reportPlaceNational",
+    );
+    expect(placeOf({ type: "region", value: "Nordeste" })).toBe("Nordeste");
+    expect(placeOf({ type: "biome", value: "Caatinga" })).toBe("Caatinga");
+    expect(placeOf({ type: "semiarid", value: "semiarid" })).toBe(
+      "scopeSemiarid",
+    );
+    expect(placeOf({ type: "asd", value: "asd" })).toBe("scopeAsd");
   });
 
   it("não quebra quando o excluído chega sem nome", () => {
@@ -146,7 +178,7 @@ describe("buildAnalysisReportModel", () => {
       "2504108": {} as unknown as ExcludedCities[string],
     });
 
-    expect(excluded.shown[0]).toEqual({ name: "" });
+    expect(excluded).toEqual([""]);
   });
 
   it("traduz a cobertura vinda do backend", () => {
@@ -173,13 +205,13 @@ describe("buildAnalysisReportModel", () => {
   });
 
   it("ignora uma classificação fora da escala em vez de quebrar", () => {
-    const { distribution, topPriority } = model({
+    const { distribution, classLists } = model({
       "2504108": { name: "Fantasma", UF: "PB", classification: 9 },
       ...citiesAtLevel(4, 2),
     });
 
     expect(distribution.reduce((sum, c) => sum + c.count, 0)).toBe(2);
-    expect(topPriority.total).toBe(2);
+    expect(classLists.flatMap((c) => c.cities)).toHaveLength(2);
   });
 
   it("usa o rótulo legível do catálogo para cada critério", () => {
@@ -200,15 +232,29 @@ describe("buildAnalysisReportModel", () => {
     expect(criteria[1].label).toBe("ivcm");
   });
 
-  it("lista os três limiares e o cenário e o modelo à parte", () => {
-    const { thresholds, scenario, modelVersion } = model(citiesAtLevel(4, 1));
+  it("lista os três limiares com descrição e o cenário e o modelo à parte", () => {
+    const { thresholds, classCount, scenario, modelVersion } = model(
+      citiesAtLevel(4, 1),
+    );
 
     expect(thresholds).toEqual([
-      { label: "indiferenca", value: 0.02 },
-      { label: "preferencia", value: 0.1 },
-      { label: "veto", value: 0.5 },
+      {
+        label: "indiferenca",
+        value: 0.02,
+        description: "reportIndifferenceDescription",
+      },
+      {
+        label: "preferencia",
+        value: 0.1,
+        description: "reportPreferenceDescription",
+      },
+      { label: "veto", value: 0.5, description: "reportVetoDescription" },
     ]);
-    expect(scenario).toBe("otimista");
+    expect(classCount).toBe(5);
+    expect(scenario).toEqual({
+      label: "otimista",
+      note: "reportScenarioOptimisticNote",
+    });
     expect(modelVersion).toBe("1.0");
   });
 
@@ -223,7 +269,10 @@ describe("buildAnalysisReportModel", () => {
       GENERATED_AT,
     );
 
-    expect(scenario).toBe("pessimista");
+    expect(scenario).toEqual({
+      label: "pessimista",
+      note: "reportScenarioPessimisticNote",
+    });
   });
 
   it("não expõe mais ranqueamento e área de interesse como parâmetros", () => {
