@@ -108,7 +108,10 @@ describe("ForgotPasswordPageClient", () => {
   it("shows the server's refusal, such as the rate limit", async () => {
     fetchMock.mockResolvedValue(
       Response.json(
-        { error: "Muitas tentativas. Tente novamente em instantes." },
+        {
+          error: "Muitas tentativas. Tente novamente em instantes.",
+          code: "tooManyRequests",
+        },
         { status: 429 },
       ),
     );

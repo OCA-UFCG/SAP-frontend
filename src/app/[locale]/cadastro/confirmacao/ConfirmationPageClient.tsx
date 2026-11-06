@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useState } from "react";
 import { useSearchParams } from "next/navigation";
-import { useTranslations } from "next-intl";
+import { useLocale, useTranslations } from "next-intl";
 import { useForm, useWatch } from "react-hook-form";
 import { Link } from "@/translations/routing";
 import { LOGIN_PATH } from "@/config/accessRoutes";
@@ -23,6 +23,7 @@ const TEXT_LINK =
 
 export function ConfirmationPageClient() {
   const t = useTranslations("SignupConfirmation");
+  const locale = useLocale();
   const tCaptcha = useTranslations("Captcha");
   const searchParams = useSearchParams();
   // Só os links enviados antes de o endereço sair da URL ainda trazem o
@@ -88,7 +89,11 @@ export function ConfirmationPageClient() {
     try {
       // Dizer "enviado" quando o servidor recusou deixaria a pessoa esperando
       // um e-mail que não saiu.
-      const outcome = await requestVerificationResend(email, captchaToken);
+      const outcome = await requestVerificationResend(
+        email,
+        captchaToken,
+        locale,
+      );
       setResendRefused(outcome.status === "captcha");
       setResendTooSoon(outcome.status === "wait");
       setResent(outcome.status === "sent");
@@ -103,7 +108,7 @@ export function ConfirmationPageClient() {
       setCaptchaToken(null);
       setCaptchaAttempt((attempt) => attempt + 1);
     }
-  }, [email, captchaToken, startResendWait]);
+  }, [email, captchaToken, locale, startResendWait]);
 
   if (outcome === "checking") {
     return (

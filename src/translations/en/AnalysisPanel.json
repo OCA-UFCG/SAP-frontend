@@ -24,9 +24,15 @@
         "quarterly": "Quarterly"
       },
       "kinds": {
-        "Acumulado": "Forecast value"
+        "Acumulado": "Forecast value",
+        "Anomalia": "Anomaly",
+        "Probabilidade": "Probability"
       },
-      "unavailable": "{label}: no forecast for the combination chosen above"
+      "unavailable": "{label}: no forecast for the combination chosen above",
+      "variables": {
+        "precipitacao": "Precipitation",
+        "temperatura": "Temperature"
+      }
     },
     "sourceGroupFilter": {
       "label": "Data source"

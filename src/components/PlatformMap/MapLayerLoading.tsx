@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { useTranslations } from "next-intl";
+import { slugifyTranslationKey } from "@/utils/translations";
 
 /** Quanto o aviso fica na tela depois que a camada chega. */
 const DONE_MS = 1100;
@@ -48,6 +49,12 @@ export function MapLayerLoading({
   failed,
 }: MapLayerLoadingProps) {
   const t = useTranslations("PlatformMap");
+  const tLayers = useTranslations("ModulesContext.Layers");
+  // Os índices de sempre têm nome traduzido; os novos do catálogo, ainda não.
+  const layerTitle = (name = "") => {
+    const key = `${slugifyTranslationKey(name)}.title`;
+    return name && tLayers.has(key) ? tLayers(key) : name;
+  };
   const [state, setState] = useState<LoadingState>({
     phase: isLoading ? "waiting" : "idle",
     dimMap,
@@ -173,13 +180,13 @@ export function MapLayerLoading({
         <span className="truncate">
           {isDone ? (
             <>
-              <b className="font-semibold">{state.layerName}</b>{" "}
+              <b className="font-semibold">{layerTitle(state.layerName)}</b>{" "}
               {t("layerReady")}
             </>
           ) : state.dimMap && state.layerName ? (
             <>
               {t("loadingLayer")}{" "}
-              <b className="font-semibold">{state.layerName}</b>
+              <b className="font-semibold">{layerTitle(state.layerName)}</b>
             </>
           ) : (
             t("loadingMapLayer")

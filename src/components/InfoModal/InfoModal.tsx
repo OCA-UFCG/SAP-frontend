@@ -169,7 +169,11 @@ export function InfoModal({
             </DetailItem>
 
             <DetailItem label={t("timeScale")}>
-              {card.timeScale ?? "-"}
+              {card.timeScale
+                ? t.has(`timeScales.${slugifyTranslationKey(card.timeScale)}`)
+                  ? t(`timeScales.${slugifyTranslationKey(card.timeScale)}`)
+                  : card.timeScale
+                : "-"}
             </DetailItem>
           </dl>
 

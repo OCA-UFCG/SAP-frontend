@@ -12,6 +12,12 @@
     "submit": "Entrar",
     "noAccount": "¿No tienes cuenta?",
     "signUp": "Crear cuenta",
-    "forgotPassword": "Olvidé mi contraseña"
+    "forgotPassword": "Olvidé mi contraseña",
+    "errors": {
+      "tooManyRequests": "Demasiados intentos. Inténtalo de nuevo más tarde",
+      "sessionFailed": "Inicio de sesión validado, pero no fue posible crear la sesión de la plataforma.",
+      "invalidCredentials": "Usuario o contraseña no válidos",
+      "failed": "Error al iniciar sesión"
+    }
   }
 }

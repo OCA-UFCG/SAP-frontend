@@ -19,6 +19,9 @@ const GET_HOME_PAGE = `
     # Pelo campo "Ordem"; banners sem ordem vêm depois, do mais antigo ao mais novo.
     bannerCollection(limit: 5, locale: $locale, order: [order_ASC, sys_firstPublishedAt_ASC]) {
       items {
+        sys {
+          id
+        }
         title
         subtitle
         linkText

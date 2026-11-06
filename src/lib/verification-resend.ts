@@ -15,11 +15,13 @@ export type ResendOutcome =
 export async function requestVerificationResend(
   email: string,
   captchaToken: string,
+  /** O idioma da página: o e-mail novo sai nele. */
+  locale: string,
 ): Promise<ResendOutcome> {
   const response = await fetch("/api/signup/resend", {
     method: "POST",
     headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ email, captchaToken }),
+    body: JSON.stringify({ email, captchaToken, locale }),
   }).catch(() => undefined);
 
   if (response?.status === 400) return { status: "captcha" };

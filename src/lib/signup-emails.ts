@@ -1,3 +1,4 @@
+import { htmlLang } from "@/translations/htmlLang";
 import { escapeHtml, type MailMessage } from "@/lib/mailer";
 import ptMessages from "@/translations/pt/SignupEmails.json";
 import enMessages from "@/translations/en/SignupEmails.json";
@@ -25,6 +26,11 @@ function messagesFor(locale: string | undefined) {
   return MESSAGES[(locale ?? "pt") as EmailLocale] ?? MESSAGES.pt;
 }
 
+/** O `lang` do HTML, no mesmo idioma em que o texto saiu. */
+function emailLang(locale: string | undefined) {
+  return htmlLang(locale && locale in MESSAGES ? locale : "pt");
+}
+
 /**
  * Os recados que saem da plataforma.
  *
@@ -45,9 +51,9 @@ const MUTED = "#50554C";
 const ACCENT = "#5B612A";
 const BORDER = "#DBE0CC";
 
-function layout(title: string, body: string, footer: string) {
+function layout(title: string, body: string, footer: string, lang: string) {
   return [
-    `<div style="margin:0;padding:24px;background:#F3F5EE;font-family:Helvetica,Arial,sans-serif;color:${INK};">`,
+    `<div lang="${lang}" style="margin:0;padding:24px;background:#F3F5EE;font-family:Helvetica,Arial,sans-serif;color:${INK};">`,
     `<div style="max-width:520px;margin:0 auto;padding:28px;background:#FFFFFF;border:1px solid ${BORDER};border-radius:6px;">`,
     `<h1 style="margin:0 0 16px;font-size:20px;line-height:1.3;color:${INK};">${title}</h1>`,
     body,
@@ -86,6 +92,7 @@ export function buildVerificationEmail({
       paragraph(m.verificationBody) +
         callToAction(m.verificationAction, link, m.fallback),
       m.footer,
+      emailLang(locale),
     ),
     text: [
       m.verificationTitle,
@@ -128,6 +135,7 @@ export function buildNewRequestEmail({
           MESSAGES.pt.fallback,
         ),
       MESSAGES.pt.footer,
+      "pt-BR",
     ),
     text: [
       "Novo pedido de acesso",
@@ -164,6 +172,7 @@ export function buildAccessDecisionEmail({
         paragraph(m.decisionApprovedBody) +
           callToAction(m.decisionApprovedAction, loginUrl, m.fallback),
         m.footer,
+        emailLang(locale),
       ),
       text: [
         m.decisionApprovedTitle,
@@ -185,6 +194,7 @@ export function buildAccessDecisionEmail({
       m.decisionRejectedTitle,
       paragraph(m.decisionRejectedBody) + paragraph(m.decisionRejectedFollowUp),
       m.footer,
+      emailLang(locale),
     ),
     text: [
       m.decisionRejectedTitle,
@@ -219,6 +229,7 @@ export function buildPasswordResetEmail({
         callToAction(m.passwordResetAction, link, m.fallback) +
         `<p style="margin:22px 0 0;font-size:13px;line-height:1.55;color:${MUTED};">${m.passwordResetIgnore}</p>`,
       m.footer,
+      emailLang(locale),
     ),
     text: [
       m.passwordResetTitle,

@@ -62,6 +62,12 @@ export function MainBanner({ banners, previews = [] }: MainBannerProps) {
   }, [active, paused, stopped, hasSlides, banners.length]);
 
   if (!banners.length) return null;
+  // Em inglês e espanhol, cada banner tem o seu texto, ligado pelo id da
+  // entrada; sem tradução, aparece o texto do Contentful.
+  const text = (data: IMainBanner, field: "title" | "subtitle" | "linkText") => {
+    const key = `slides.${data.sys?.id}.${field}`;
+    return data.sys && t.has(key) ? t(key) : data[field];
+  };
   const goTo = (index: number) =>
     setActive((index + banners.length) % banners.length);
   // Só a foto da vez baixa de início; a seguinte começa quando ela chega. Antes
@@ -99,7 +105,7 @@ export function MainBanner({ banners, previews = [] }: MainBannerProps) {
               src={data.image.url}
               loader={contentfulImageLoader}
               sizes="100vw"
-              alt={t("imageAlt", { imageAlt: data.title || "" })}
+              alt={text(data, "title") || ""}
               fill
               preload={index === 0}
               onLoad={() =>
@@ -148,7 +154,7 @@ export function MainBanner({ banners, previews = [] }: MainBannerProps) {
                     index === active && "reveal-item",
                   )}
                 >
-                  {t("title", { title: data.title })}
+                  {text(data, "title")}
                 </h1>
                 <p
                   className={cn(
@@ -157,7 +163,7 @@ export function MainBanner({ banners, previews = [] }: MainBannerProps) {
                   )}
                   style={revealOrder(1)}
                 >
-                  {t("subtitle", { subtitle: data.subtitle })}
+                  {text(data, "subtitle")}
                 </p>
               </div>
 
@@ -173,7 +179,7 @@ export function MainBanner({ banners, previews = [] }: MainBannerProps) {
                   index === active && "reveal-item",
                 )}
               >
-                {t("linkText", { linkText: data.linkText })}
+                {text(data, "linkText")}
               </Link>
             </div>
           ))}

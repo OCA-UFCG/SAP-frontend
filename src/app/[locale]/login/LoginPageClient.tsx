@@ -1,6 +1,7 @@
 "use client";
 
 import { useSearchParams } from "next/navigation";
+import { useTranslations } from "next-intl";
 import { useRouter } from "@/translations/routing";
 import { useAuth } from "@/contexts/AuthContext";
 import Login, { type LoginFormValues } from "@/components/Login/Login";
@@ -32,6 +33,7 @@ export function LoginPageClient({
   signupOffered,
 }: LoginPageClientProps) {
   const { signIn, loading, error } = useAuth();
+  const t = useTranslations("Login");
   const router = useRouter();
   const searchParams = useSearchParams();
 
@@ -69,7 +71,7 @@ export function LoginPageClient({
     <Login
       backgroundImageUrl={backgroundImageUrl}
       signupOffered={signupOffered}
-      error={error}
+      error={error ? t(`errors.${error}`) : ""}
       onSubmit={handleSubmit}
     />
   );

@@ -83,6 +83,19 @@ describe("POST /api/signup/resend", () => {
     );
   });
 
+  it("sends the new email in the language of the page", async () => {
+    const enMessages = (await import("@/translations/en/SignupEmails.json"))
+      .default.SignupEmails;
+
+    await resend(
+      buildRequest({ email: "fulano@ufcg.edu.br", locale: "en" }),
+    );
+
+    expect(sendMailMock).toHaveBeenCalledWith(
+      expect.objectContaining({ subject: enMessages.verificationSubject }),
+    );
+  });
+
   // Reenviar é uma porta aberta para descobrir quem tem conta. A resposta é a
   // mesma para um endereço cadastrado, um desconhecido e um já confirmado.
   it("answers the same for an address that has no account", async () => {

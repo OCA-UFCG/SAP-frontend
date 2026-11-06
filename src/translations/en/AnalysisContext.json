@@ -3,6 +3,7 @@
     "unavailableTitle": "Analysis unavailable for {location}",
     "loadingTitle": "Loading analysis for {location}",
     "unavailableDescriptionLoading": "The data for this product is on its way. This may take a few seconds.",
-    "unavailableDescription": "Analysis data for {location} is not yet available for this product."
+    "unavailableDescription": "Analysis data for {location} is not yet available for this product.",
+    "defaultPeriod": "Default"
   }
 }

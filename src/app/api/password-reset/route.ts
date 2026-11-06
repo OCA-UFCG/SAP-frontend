@@ -24,7 +24,7 @@ const NO_STORE = { "Cache-Control": "no-store" } as const;
 export async function POST(request: Request) {
   if (!hasTrustedMutationOrigin(request)) {
     return NextResponse.json(
-      { error: "Origem da requisição não autorizada." },
+      { error: "Origem da requisição não autorizada.", code: "untrustedOrigin" },
       { status: 403, headers: NO_STORE },
     );
   }
@@ -35,7 +35,10 @@ export async function POST(request: Request) {
 
   if (rateLimit.limited) {
     return NextResponse.json(
-      { error: "Muitas tentativas. Tente novamente em instantes." },
+      {
+        error: "Muitas tentativas. Tente novamente em instantes.",
+        code: "tooManyRequests",
+      },
       {
         status: 429,
         headers: {

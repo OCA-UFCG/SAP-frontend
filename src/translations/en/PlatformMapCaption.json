@@ -92,7 +92,9 @@
       "municipios-por-classificacao": "Municipalities by classification",
       "municipios-por-percentual-de-familias-cadunico-em-pobreza": "Municipalities by percentage of families in CadÚnico in poverty",
       "municipios-por-faixa-predominante-de-anomalia-de-precipitacao": "Municipalities by predominant precipitation anomaly range",
-      "municipios-por-faixa-predominante": "Municipalities by predominant range"
+      "municipios-por-faixa-predominante": "Municipalities by predominant range",
+      "estados-por-classificacao": "States by classification",
+      "label-em-name-value": "{label} in {name}: {value}."
     }
   }
 }

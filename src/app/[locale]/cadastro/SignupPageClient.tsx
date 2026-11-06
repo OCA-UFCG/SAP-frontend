@@ -24,9 +24,9 @@ export function SignupPageClient({ backgroundImageUrl }: SignupPageClientProps) 
     async (captchaToken: string) => {
       if (!submittedEmail) return;
 
-      return requestVerificationResend(submittedEmail, captchaToken);
+      return requestVerificationResend(submittedEmail, captchaToken, locale);
     },
-    [submittedEmail],
+    [submittedEmail, locale],
   );
 
   const handleSubmit = useCallback(
@@ -42,10 +42,12 @@ export function SignupPageClient({ backgroundImageUrl }: SignupPageClientProps) 
 
         if (!response.ok) {
           const body = (await response.json().catch(() => null)) as {
-            error?: string;
+            code?: string;
           } | null;
+          // O servidor manda um código; a mensagem sai no idioma da página.
+          const errorKey = `errors.${body?.code}`;
 
-          setError(body?.error || t("genericError"));
+          setError(body?.code && t.has(errorKey) ? t(errorKey) : t("genericError"));
           return;
         }
 

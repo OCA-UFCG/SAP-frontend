@@ -411,6 +411,7 @@ describe("POST /api/signup", () => {
       expect(response.status).toBe(400);
       await expect(response.json()).resolves.toEqual({
         error: "Não foi possível confirmar que você não é um robô. Tente novamente.",
+        code: "captchaFailed",
       });
       expect(createUserMock).not.toHaveBeenCalled();
       expect(createAccessRequestMock).not.toHaveBeenCalled();

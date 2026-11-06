@@ -12,6 +12,12 @@
     "submit": "Continue",
     "noAccount": "No account yet?",
     "signUp": "Create account",
-    "forgotPassword": "Forgot my password"
+    "forgotPassword": "Forgot my password",
+    "errors": {
+      "tooManyRequests": "Too many attempts. Please try again later",
+      "sessionFailed": "Sign-in validated, but the platform session could not be created.",
+      "invalidCredentials": "Invalid login or password",
+      "failed": "Error signing in"
+    }
   }
 }

@@ -27,6 +27,15 @@
     "resendIn": "Reenviar em {time}",
     "resending": "Enviando...",
     "resent": "Se o endereço estiver cadastrado, um novo email foi enviado. Use o link dele: o do email anterior deixa de valer.",
-    "resendTooSoon": "Enviamos um email há pouco. Aguarde para pedir outro."
+    "resendTooSoon": "Enviamos um email há pouco. Aguarde para pedir outro.",
+    "errors": {
+      "untrustedOrigin": "Origem da requisição não autorizada.",
+      "tooManyRequests": "Muitas tentativas. Tente novamente em instantes.",
+      "invalidEmail": "Informe um e-mail válido.",
+      "passwordTooShort": "A senha precisa de pelo menos 8 caracteres.",
+      "intentionRequired": "Descreva como pretende usar a plataforma.",
+      "captchaFailed": "Não foi possível confirmar que você não é um robô. Tente novamente.",
+      "failed": "Não foi possível concluir o cadastro."
+    }
   }
 }

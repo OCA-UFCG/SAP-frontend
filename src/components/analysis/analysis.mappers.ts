@@ -31,12 +31,17 @@ import {
   resolveImageYearEntry,
 } from "@/utils/imageData";
 
-function getImageDataYearLabel(key: string, dataset?: PanelLayerI): string {
+function getImageDataYearLabel(
+  key: string,
+  dataset: PanelLayerI | undefined,
+  locale: string,
+  defaultLabel: string,
+): string {
   const entry = resolveImageYearEntry(dataset?.imageData, key);
   // Numa camada sazonal o mês da chave é o início de um trimestre, e o rótulo
   // precisa dizer os três meses.
   const seasonalLabel = hasSeasonalPeriods(dataset)
-    ? formatSeasonalPeriodLabel(key)
+    ? formatSeasonalPeriodLabel(key, locale)
     : null;
 
   if (seasonalLabel) {
@@ -47,7 +52,7 @@ function getImageDataYearLabel(key: string, dataset?: PanelLayerI): string {
     return entry.year.trim();
   }
 
-  return key === "general" ? "Padrão" : key;
+  return key === "general" ? defaultLabel : key;
 }
 
 const DEFAULT_HIGHLIGHT_TEMPLATE = "Região maioritariamente {label}";
@@ -149,17 +154,19 @@ function formatTemplate(
 function formatCompactValue(
   data: CompactTerritorialAnalysisDataset,
   value: number,
+  locale: string,
 ): string {
   return data.valueConfig?.type === "absolute"
-    ? formatAbsoluteNumber(value, "pt-BR")
-    : formatPercentageNumber(value, "pt-BR");
+    ? formatAbsoluteNumber(value, locale)
+    : formatPercentageNumber(value, locale);
 }
 
 function formatCompactValueWithUnit(
   data: CompactTerritorialAnalysisDataset,
   value: number,
+  locale: string,
 ): string {
-  const formatted = formatCompactValue(data, value);
+  const formatted = formatCompactValue(data, value, locale);
   const unit =
     data.valueConfig?.unit ??
     (data.valueConfig?.type === "absolute" ? "" : "%");
@@ -293,7 +300,8 @@ function buildCompactHighlight(
   dominant: AnalysisDistributionItem | null,
   name: string,
   locationKey: string,
-  tCaption?: TranslateFunction,
+  tCaption: TranslateFunction | undefined,
+  locale: string,
 ): AnalysisHighlight | null {
   if (!dominant) {
     return null;
@@ -314,8 +322,8 @@ function buildCompactHighlight(
       name,
       label: translatedLabel,
       value: summaryTemplate
-        ? formatCompactValue(data, dominant.value)
-        : formatCompactValueWithUnit(data, dominant.value),
+        ? formatCompactValue(data, dominant.value, locale)
+        : formatCompactValueWithUnit(data, dominant.value, locale),
     };
 
     return {
@@ -424,8 +432,9 @@ function buildCompactRankingGroups(
   rankingEntries: Array<[string, (number | null)[]]>,
   scale: number,
   rawTotalLabel: string,
-  tCaption?: TranslateFunction,
-  severityOrder?: readonly string[],
+  tCaption: TranslateFunction | undefined,
+  severityOrder: readonly string[] | undefined,
+  locale: string,
 ): AnalysisRankingGroup[] {
   const isAbsolute = data.valueConfig?.type === "absolute";
   const dominantCounts = new Map<string, number>();
@@ -492,8 +501,8 @@ function buildCompactRankingGroups(
     const allItems = sortedEntries.map(({ numericValue, ...entry }) => ({
       ...entry,
       trailingLabel: isAbsolute
-        ? `${formatAbsoluteNumber(numericValue, "pt-BR")} ${data.valueConfig?.unit ?? ""}`.trim()
-        : `${formatPercentageNumber(numericValue, "pt-BR")}%`,
+        ? `${formatAbsoluteNumber(numericValue, locale)} ${data.valueConfig?.unit ?? ""}`.trim()
+        : `${formatPercentageNumber(numericValue, locale)}%`,
     }));
 
     return {
@@ -505,8 +514,8 @@ function buildCompactRankingGroups(
       items: topEntries.map(({ numericValue, ...entry }) => ({
         ...entry,
         trailingLabel: isAbsolute
-          ? `${formatAbsoluteNumber(numericValue, "pt-BR")} ${data.valueConfig?.unit ?? ""}`.trim()
-          : `${formatPercentageNumber(numericValue, "pt-BR")}%`,
+          ? `${formatAbsoluteNumber(numericValue, locale)} ${data.valueConfig?.unit ?? ""}`.trim()
+          : `${formatPercentageNumber(numericValue, locale)}%`,
       })),
       allItems,
     };
@@ -550,9 +559,10 @@ function buildCompactTerritorialAnalysisViewModel(
   data: CompactTerritorialAnalysisDataset,
   yearKey: string,
   locationKey: string,
-  tCaption?: TranslateFunction,
-  severityOrder?: readonly string[],
-  territoryRanking?: TerritoryRankingState,
+  tCaption: TranslateFunction | undefined,
+  severityOrder: readonly string[] | undefined,
+  territoryRanking: TerritoryRankingState | undefined,
+  locale: string,
 ): TerritorialAnalysisViewModel | null {
   if (!data.years[yearKey]?.values[locationKey]) {
     return null;
@@ -573,6 +583,7 @@ function buildCompactTerritorialAnalysisViewModel(
     name,
     resolvedLocationKey,
     tCaption,
+    locale,
   );
   const rankingSource = resolveRankingSource(
     data,
@@ -602,6 +613,7 @@ function buildCompactTerritorialAnalysisViewModel(
               : MUNICIPAL_RANKING_TOTAL_LABEL,
             tCaption,
             severityOrder,
+            locale,
           )
         : [],
     rankingStatus: rankingSource.status,
@@ -611,14 +623,20 @@ function buildCompactTerritorialAnalysisViewModel(
   };
 }
 
+/**
+ * @param locale idioma dos nomes de mês nas camadas sazonais.
+ * @param defaultLabel rótulo do período único (`general`) de uma camada.
+ */
 export function getAnalysisYearOptions(
   dataset?: PanelLayerI,
+  locale = "pt-BR",
+  defaultLabel = "Padrão",
 ): AnalysisYearOption[] {
   const ordered = getImageDataYearKeys(dataset?.imageData);
 
   return ordered.map((value) => ({
     value,
-    label: getImageDataYearLabel(value, dataset),
+    label: getImageDataYearLabel(value, dataset, locale, defaultLabel),
   }));
 }
 
@@ -653,6 +671,8 @@ export function buildEmbeddedTerritorialAnalysisViewModel(
   locationKey: string,
   tCaption?: TranslateFunction,
   territoryRanking?: TerritoryRankingState,
+  /** Idioma dos números do destaque e das listas. */
+  locale = "pt-BR",
 ): TerritorialAnalysisViewModel | null {
   const compactAnalysis = getCompactAnalysisDataset(dataset, effectiveYear);
 
@@ -667,6 +687,7 @@ export function buildEmbeddedTerritorialAnalysisViewModel(
     tCaption,
     dataset?.reportConfig?.severity?.order,
     territoryRanking,
+    locale,
   );
 }
 

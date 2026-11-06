@@ -24,9 +24,15 @@
         "quarterly": "Trimestral"
       },
       "kinds": {
-        "Acumulado": "Valor previsto"
+        "Acumulado": "Valor previsto",
+        "Anomalia": "Anomalía",
+        "Probabilidade": "Probabilidad"
       },
-      "unavailable": "{label}: sin pronóstico para la combinación elegida arriba"
+      "unavailable": "{label}: sin pronóstico para la combinación elegida arriba",
+      "variables": {
+        "precipitacao": "Precipitación",
+        "temperatura": "Temperatura"
+      }
     },
     "sourceGroupFilter": {
       "label": "Fuente de datos"

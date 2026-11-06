@@ -1,7 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { useTranslations } from "next-intl";
+import { useLocale, useTranslations } from "next-intl";
 import { AnalysisPanel } from "@/components/analysis/AnalysisPanel";
 import { ForecastFilters } from "@/components/analysis/ForecastFilters";
 import { SourceGroupFilter } from "@/components/analysis/SourceGroupFilter";
@@ -25,6 +25,8 @@ import {
 } from "@/components/MapLayerContext/MapLayerContext";
 import { resolveStateKeyFromSearch } from "@/lib/geo";
 import { trackUiEvent } from "@/services/telemetry/client";
+import { htmlLang } from "@/translations/htmlLang";
+import { slugifyTranslationKey } from "@/utils/translations";
 import municipalAvailabilityIndex from "@/data/municipalAvailabilityIndex.json";
 import {
   hasMunicipalLayerPeriod,
@@ -135,6 +137,8 @@ export function AnalysisContext({
   const t = useTranslations("AnalysisContext");
   const tCaption = useTranslations("PlatformMapCaption");
   const tModules = useTranslations("ModulesContext");
+  // Nomes de mês e números no formato do idioma da página ("1,5" x "1.5").
+  const numberLocale = htmlLang(useLocale());
   const { activeLayerId } = useMapLayerActiveState();
   const {
     activateEeLayer,
@@ -180,7 +184,13 @@ export function AnalysisContext({
   const [territoryRankingByRequestKey, setTerritoryRankingByRequestKey] =
     useState<Record<string, TerritoryRankingData | null>>({});
 
-  const yearOptions = useMemo(() => getAnalysisYearOptions(dataset), [dataset]);
+  // A string, e não o `t`, nas dependências: o `t` pode mudar de identidade a
+  // cada render, e a lista nova de períodos dispararia os pedidos de novo.
+  const defaultPeriodLabel = t("defaultPeriod");
+  const yearOptions = useMemo(
+    () => getAnalysisYearOptions(dataset, numberLocale, defaultPeriodLabel),
+    [dataset, numberLocale, defaultPeriodLabel],
+  );
 
   const effectiveYear = useMemo(
     () => getEffectiveAnalysisYear(dataset, activeYear),
@@ -701,6 +711,7 @@ export function AnalysisContext({
         selectedLocationKey,
         tCaption,
         territoryRanking,
+        numberLocale,
       ),
     [
       enrichedDataset,
@@ -708,6 +719,7 @@ export function AnalysisContext({
       selectedLocationKey,
       tCaption,
       territoryRanking,
+      numberLocale,
     ],
   );
 
@@ -790,12 +802,18 @@ export function AnalysisContext({
     analysisImageDataByRequestKey[municipalAnalysisRequestKey] === undefined,
   );
 
+  // Os índices de sempre têm nome traduzido; os novos do catálogo, ainda não.
+  const translateLayerName = (name?: string) => {
+    const key = `Layers.${slugifyTranslationKey(name ?? "")}.title`;
+    return name && tModules.has(key) ? tModules(key) : name;
+  };
+
   return (
     <AnalysisPanel
       moduleName={
         forecastMember
           ? tModules("forecastGroup.title")
-          : (sourceGroupMembers?.[0].group ?? dataset?.name)
+          : (sourceGroupMembers?.[0].group ?? translateLayerName(dataset?.name))
       }
       layerFilters={
         forecastMember ? (
