@@ -8,9 +8,16 @@ vi.mock("next-intl/middleware", () => ({
 
 import middleware from "@/middleware";
 
-function request(path: string, cookie?: string) {
+function request(
+  path: string,
+  cookie?: string,
+  fetchMode: string | null = "navigate",
+) {
   return new NextRequest(`https://sap.test${path}`, {
-    headers: cookie ? { cookie } : {},
+    headers: {
+      ...(cookie ? { cookie } : {}),
+      ...(fetchMode ? { "sec-fetch-mode": fetchMode } : {}),
+    },
   });
 }
 
@@ -41,6 +48,19 @@ describe("middleware", () => {
 
     expect(response.headers.get("location")).toBeNull();
   });
+
+  // O prefetch feito na tela de login, antes da senha, fica guardado no
+  // roteador: se ele recebesse o 307, a pessoa voltaria ao login depois de entrar.
+  it.each(["cors", "same-origin", null])(
+    "leaves router requests (sec-fetch-mode %s) to the platform layout",
+    (fetchMode) => {
+      const response = middleware(
+        request("/pt/platform", undefined, fetchMode),
+      );
+
+      expect(response.headers.get("location")).toBeNull();
+    },
+  );
 
   it("does not send other pages to the login", () => {
     const response = middleware(request("/pt/glossario"));
