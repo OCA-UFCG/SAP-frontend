@@ -21,21 +21,7 @@ export const WorkingGroupSection = ({
   const t = useTranslations("WorkingGroupSection");
 
   const title = t("title", { title: content.title });
-  const text = t.has("text")
-    ? t("text")
-    : documentToReactComponents(content.text.json);
-
-  const milestoneCopy = (index: number, milestone: (typeof content.milestones)[number]) => ({
-    date: t.has(`milestones.${index}.date`)
-      ? t(`milestones.${index}.date`)
-      : milestone.date,
-    title: t.has(`milestones.${index}.title`)
-      ? t(`milestones.${index}.title`)
-      : milestone.title,
-    description: t.has(`milestones.${index}.description`)
-      ? t(`milestones.${index}.description`)
-      : milestone.description,
-  });
+  const text = documentToReactComponents(content.text.json);
 
   return (
     <section
@@ -92,25 +78,23 @@ export const WorkingGroupSection = ({
                       key={`date-${milestone.title}-${index}`}
                       className="flex-1 font-open-sans text-sm font-semibold leading-[19px] text-[#5B612A]"
                     >
-                      {milestoneCopy(index, milestone).date}
+                      {milestone.date}
                     </span>
                   ))}
                 </div>
 
                 <div className="flex gap-6">
                   {content.milestones.map((milestone, index) => {
-                    const copy = milestoneCopy(index, milestone);
-
                     return (
                       <div
                         key={`card-${milestone.title}-${index}`}
                         className="flex min-w-0 flex-1 flex-col gap-2 rounded-b-lg border-t-[3px] border-[#989F43] bg-white p-5 font-open-sans text-[#292829]"
                       >
                         <p className="text-base font-semibold leading-[22px]">
-                          {copy.title}
+                          {milestone.title}
                         </p>
                         <p className="text-sm leading-[19px]">
-                          {copy.description}
+                          {milestone.description}
                         </p>
                       </div>
                     );
@@ -121,7 +105,6 @@ export const WorkingGroupSection = ({
               {/* Mobile: linha do tempo na vertical */}
               <div className="flex flex-col md:hidden">
                 {content.milestones.map((milestone, index) => {
-                  const copy = milestoneCopy(index, milestone);
                   const isLast = index === content.milestones.length - 1;
 
                   return (
@@ -138,14 +121,14 @@ export const WorkingGroupSection = ({
 
                       <div className={cn("flex-1 text-left", !isLast && "pb-6")}>
                         <span className="font-open-sans text-sm font-semibold leading-[19px] text-[#5B612A]">
-                          {copy.date}
+                          {milestone.date}
                         </span>
                         <div className="mt-2 flex flex-col gap-2 rounded-b-lg border-t-[3px] border-[#989F43] bg-white p-5 font-open-sans text-[#292829]">
                           <p className="text-base font-semibold leading-[22px]">
-                            {copy.title}
+                            {milestone.title}
                           </p>
                           <p className="text-sm leading-[19px]">
-                            {copy.description}
+                            {milestone.description}
                           </p>
                         </div>
                       </div>

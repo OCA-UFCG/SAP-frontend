@@ -4,33 +4,6 @@
     "next": "Next banner",
     "pause": "Pause banners",
     "resume": "Resume banners",
-    "goToSlide": "Go to banner {slide}",
-    "slides": {
-      "7l0tbCEwVVU17QzR229FCa": {
-        "title": "Strategic System on Desertification and Drought - SEDES",
-        "subtitle": "SEDES is the integrated information system provided for in the National Policy to Combat Desertification and Mitigate the Effects of Drought (PNCD).",
-        "linkText": "Learn about the initiative"
-      },
-      "6TpVADKoArTXo1btSgTwn9": {
-        "title": "Integrated information for all of Brazil",
-        "subtitle": "SEDES brings together on a single platform official data on climate, drought, vegetation, soil, land use and social conditions, organized by area of interest: municipality, state, region, Semi-arid, ASD and biome.",
-        "linkText": "Explore the data"
-      },
-      "2K434hoykntzRK0JkcsfLD": {
-        "title": "Information about your territory at the decision table",
-        "subtitle": "Type the name of the area you are interested in and generate custom reports with strategic data for your meetings, projects or municipal plans.",
-        "linkText": "Generate your report"
-      },
-      "3OIAS5qAx89hpGXs94Mnzq": {
-        "title": "Decide which territories need priority attention",
-        "subtitle": "Combine indicators and set the weight of each one to identify priority municipalities through a transparent methodology.",
-        "linkText": "Prioritize municipalities"
-      },
-      "TQDYSHzTk0U7wHk4xYiMK": {
-        "title": "Start with the place where you live",
-        "subtitle": "Type the name of your municipality, see how drought, vegetation and social conditions are doing, and leave with a ready-to-use report in a few minutes.",
-        "linkText": "Find your municipality"
-      }
-    }
+    "goToSlide": "Go to banner {slide}"
   }
 }

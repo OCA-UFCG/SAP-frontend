@@ -8,6 +8,7 @@ import { LegacyMapAssetFields } from "@/components/IndexCatalog/LegacyMapAssetFi
 import { CatalogReportPreview } from "@/components/IndexCatalog/CatalogReportPreview";
 import { IndexCatalogReportFields } from "@/components/IndexCatalog/IndexCatalogReportFields";
 import { LearnMoreUrlField } from "@/components/IndexCatalog/LearnMoreUrlField";
+import { IndexTranslationsField } from "@/components/IndexCatalog/IndexTranslationsField";
 import { PanelPositionField } from "@/components/IndexCatalog/PanelPositionField";
 import {
   catalogApiRequest,
@@ -18,6 +19,7 @@ import {
   isPresentationManagedCatalogConfig,
   type IndexCatalogItem,
   type IndexCatalogPresentationPreview,
+  type IndexCatalogTranslations,
   type IndexCategory,
 } from "@/types/indexCatalog";
 import {
@@ -117,6 +119,12 @@ export function LegacyIndexEditor({
   const [storedLearnMoreUrl, setStoredLearnMoreUrl] = useState(
     item.learnMoreUrl ?? "",
   );
+  const [translations, setTranslations] = useState<IndexCatalogTranslations>(
+    item.translations ?? {},
+  );
+  const [storedTranslations, setStoredTranslations] = useState(() =>
+    JSON.stringify(item.translations ?? {}),
+  );
   const [preview, setPreview] =
     useState<IndexCatalogPresentationPreview | null>(null);
   // As classes do índice, para o formulário do relatório poder perguntar a
@@ -178,6 +186,21 @@ export function LegacyIndexEditor({
     return true;
   }
 
+  async function writeTranslations() {
+    const serialized = JSON.stringify(translations);
+    if (serialized === storedTranslations) return false;
+
+    await catalogApiRequest(`${draftPath}/translations`, {
+      method: "POST",
+      headers: {
+        "Idempotency-Key": catalogIdempotencyKey("translations", item.entryId),
+      },
+      body: JSON.stringify({ translations }),
+    });
+    setStoredTranslations(serialized);
+    return true;
+  }
+
   function save() {
     return run("save", async () => {
       await catalogApiRequest(`${entryPath}/presentation`, {
@@ -189,6 +212,7 @@ export function LegacyIndexEditor({
       });
       const wroteText = await writeReportText();
       await writeLearnMoreUrl();
+      await writeTranslations();
       setPreview(null);
       onChanged();
       return item.published
@@ -358,6 +382,25 @@ export function LegacyIndexEditor({
                 : item.published
                   ? "Link salvo. Publique o índice para que ele apareça na plataforma."
                   : "Link do Saiba mais salvo.";
+            })
+          }
+          disabled={Boolean(busy)}
+          inputClass={inputClass}
+          buttonClass={buttonClass}
+        />
+        <IndexTranslationsField
+          value={translations}
+          labels={item.classLabels ?? []}
+          onChange={setTranslations}
+          onSave={() =>
+            void run("translations", async () => {
+              const wrote = await writeTranslations();
+              onChanged();
+              return !wrote
+                ? "As traduções na tela já são as gravadas."
+                : item.published
+                  ? "Traduções salvas. Publique o índice para que elas apareçam na plataforma."
+                  : "Traduções salvas.";
             })
           }
           disabled={Boolean(busy)}

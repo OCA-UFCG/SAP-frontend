@@ -15,8 +15,6 @@ type Props = {
 /** "Instituições que constroem o SEDES": logos dos parceiros do Contentful. */
 export const InstitutionsSection = ({ id, partners, title }: Props) => {
   const t = useTranslations("InstitutionsSection");
-  // Nome e papel de cada parceiro já têm tradução na seção antiga.
-  const partnersT = useTranslations("PartnersSection");
 
   if (!partners.length) return null;
 
@@ -29,13 +27,7 @@ export const InstitutionsSection = ({ id, partners, title }: Props) => {
 
         <div className="grid grid-cols-2 gap-x-6 gap-y-9 sm:grid-cols-3 lg:grid-cols-5">
           {partners.map((partner, index) => {
-            const key = `partners.${partner.sys.id}`;
-            const name = partnersT.has(`${key}.name`)
-              ? partnersT(`${key}.name`)
-              : partner.name;
-            const description = partnersT.has(`${key}.description`)
-              ? partnersT(`${key}.description`)
-              : partner.description;
+            const { name, description } = partner;
 
             return (
               <div

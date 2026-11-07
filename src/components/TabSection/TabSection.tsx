@@ -8,7 +8,6 @@ import {
 } from "@contentful/rich-text-react-renderer";
 import { BLOCKS } from "@contentful/rich-text-types";
 import { TabsSectionI } from "@/utils/interfaces";
-import { useTranslations } from "next-intl";
 
 interface TabsSectionProps {
   contentData: TabsSectionI[];
@@ -32,7 +31,6 @@ const IMAGE_STYLE_BY_IDENTIFIER: Record<
 };
 
 const TabsSection = ({ contentData, title }: TabsSectionProps) => {
-  const t = useTranslations("TabSection");
   const [activeTabIdentifier, setActiveTabIdentifier] = useState(
     contentData[0]?.identifier ?? "",
   );
@@ -55,16 +53,11 @@ const TabsSection = ({ contentData, title }: TabsSectionProps) => {
     },
   };
 
-  const sectionTitle = t.has("title") ? t("title") : title;
-  // O nome da aba é o título da entrada; inglês e espanhol têm tradução.
-  const tabLabel = (tab: TabsSectionI) =>
-    t.has(`tabs.${tab.identifier}`) ? t(`tabs.${tab.identifier}`) : tab.title;
-
   return (
     <section className="w-full bg-white flex flex-col items-center">
       <div className="w-full max-w-[1440px] mx-auto px-6 pt-12 md:px-10 lg:px-[78px] flex flex-col items-start">
         <h2 className="text-[1.5rem] md:text-[1.75rem] lg:text-[1.875rem] leading-[28px] md:leading-[32px] lg:leading-[36px] tracking-[-0.0075em] text-[#292829] font-open-sans font-semibold pb-2 mb-4">
-          {sectionTitle}
+          {title}
         </h2>
 
         <div className="flex flex-row gap-[24px] overflow-x-auto w-full no-scrollbar">
@@ -83,7 +76,7 @@ const TabsSection = ({ contentData, title }: TabsSectionProps) => {
                     : "bg-[#E4E5E2] text-[#292829] hover:bg-[#C8CAC5]"
                 }`}
               >
-                {tabLabel(tab)}
+                {tab.title}
               </button>
             );
           })}
@@ -97,7 +90,7 @@ const TabsSection = ({ contentData, title }: TabsSectionProps) => {
               src={currentTab.image.url}
               // O título do arquivo no Contentful é nome de organização
               // ("Sobre – Para quem – …"), não descrição, e não tem tradução.
-              alt={tabLabel(currentTab)}
+              alt={currentTab.title}
               fill
               sizes="(max-width: 768px) 100vw, (max-width: 1024px) 80vw, 45vw"
               className="object-cover"
@@ -131,15 +124,11 @@ const TabsSection = ({ contentData, title }: TabsSectionProps) => {
             {/* Fica o verde claro: sobre o fundo preto ele dá 10:1, e o
                 #646B2D dos botões daria só 3,7. */}
             <h3 className="text-[#B4BA61] font-open-sans font-semibold text-[1.25rem] md:text-[1.5rem] leading-[32px] tracking-[-0.006em]">
-              {tabLabel(currentTab)}
+              {currentTab.title}
             </h3>
 
             <div className="flex flex-col gap-[16px] md:gap-[24px] text-[#F8F7F8] font-open-sans font-normal text-[0.875rem] md:text-[1rem] leading-[1.5]">
-              {t.has(`texts.${currentTab.identifier}`) ? (
-                t(`texts.${currentTab.identifier}`)
-              ) : (
-                documentToReactComponents(currentTab.text?.json, richTextOptions)
-              )}
+              {documentToReactComponents(currentTab.text?.json, richTextOptions)}
             </div>
           </div>
         </div>

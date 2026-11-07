@@ -8,6 +8,7 @@ vi.mock("@/infrastructure/contentful/client", () => ({
 import { getContent } from "@/infrastructure/contentful/client";
 import {
   getAboutPageContent,
+  getGlossaryTerms,
   getHomePageContent,
 } from "@/repositories/content/siteContentRepository";
 
@@ -193,5 +194,105 @@ describe("siteContentRepository", () => {
       },
     ]);
     expect(about?.partners).toEqual([]);
+  });
+  it("uses the English and Spanish fields of each entry, falling back to Portuguese", async () => {
+    mockedGetContent.mockResolvedValue({
+      planoAcaoBrasileiroCollection: {
+        items: [
+          {
+            identifier: "pab",
+            title: "O PAB-Brasil",
+            titleEn: "PAB-Brazil",
+            titleEs: "",
+            text: { json: { content: [{ nodeType: "paragraph" }] } },
+            textEn: { json: { content: [{ nodeType: "paragraph", data: { lang: "en" } }] } },
+            textEs: { json: { content: [] } },
+            imagesCollection: { items: [] },
+            itemsCollection: {
+              items: [
+                {
+                  __typename: "StatCard",
+                  label: "Pessoas beneficiadas",
+                  value: "39 Milhões",
+                  labelEn: "People benefited",
+                  valueEn: "39 million",
+                  labelEs: "Personas beneficiadas",
+                  valueEs: null,
+                },
+              ],
+            },
+          },
+        ],
+      },
+      partnersCollection: {
+        items: [
+          {
+            sys: { id: "p1" },
+            name: "Defesa Civil Nacional",
+            nameEn: "National Civil Defense",
+            description: "Riscos e Alertas",
+            descriptionEs: "Riesgos y alertas",
+            image: { url: "/dc.png" },
+          },
+        ],
+      },
+    });
+
+    const english = await getAboutPageContent("en");
+    expect(english?.sections.pab?.title).toBe("PAB-Brazil");
+    expect(english?.sections.pab?.text?.json).toEqual({
+      content: [{ nodeType: "paragraph", data: { lang: "en" } }],
+    });
+    expect(english?.sections.pab?.pairs).toEqual([
+      { label: "People benefited", value: "39 million" },
+    ]);
+    expect(english?.partners[0]).toMatchObject({
+      name: "National Civil Defense",
+      description: "Riscos e Alertas",
+    });
+    expect(english?.partners[0]).not.toHaveProperty("nameEn");
+
+    const spanish = await getAboutPageContent("es");
+    // Tradução em branco (ou texto rico sem parágrafo) fica com o português.
+    expect(spanish?.sections.pab?.title).toBe("O PAB-Brasil");
+    expect(spanish?.sections.pab?.text?.json).toEqual({
+      content: [{ nodeType: "paragraph" }],
+    });
+    expect(spanish?.sections.pab?.pairs).toEqual([
+      { label: "Personas beneficiadas", value: "39 Milhões" },
+    ]);
+    expect(spanish?.partners[0].description).toBe("Riesgos y alertas");
+
+    const portuguese = await getAboutPageContent("pt");
+    expect(portuguese?.sections.pab?.title).toBe("O PAB-Brasil");
+    expect(portuguese?.partners[0].name).toBe("Defesa Civil Nacional");
+  });
+
+  it("returns glossary terms in the page language", async () => {
+    mockedGetContent.mockResolvedValue({
+      glossaryCollection: {
+        items: [
+          {
+            sys: { id: "g1" },
+            term: "Seca",
+            termEn: "Drought",
+            termEs: "Sequía",
+            definition: "Período de escassez de água.",
+            definitionEn: "A period of water scarcity.",
+            definitionEs: null,
+            tags: null,
+          },
+        ],
+      },
+    });
+
+    await expect(getGlossaryTerms("es")).resolves.toEqual([
+      {
+        id: "g1",
+        term: "Sequía",
+        definition: "Período de escassez de água.",
+        tags: [],
+      },
+    ]);
   });
 });

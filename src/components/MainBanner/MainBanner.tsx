@@ -62,12 +62,6 @@ export function MainBanner({ banners, previews = [] }: MainBannerProps) {
   }, [active, paused, stopped, hasSlides, banners.length]);
 
   if (!banners.length) return null;
-  // Em inglês e espanhol, cada banner tem o seu texto, ligado pelo id da
-  // entrada; sem tradução, aparece o texto do Contentful.
-  const text = (data: IMainBanner, field: "title" | "subtitle" | "linkText") => {
-    const key = `slides.${data.sys?.id}.${field}`;
-    return data.sys && t.has(key) ? t(key) : data[field];
-  };
   const goTo = (index: number) =>
     setActive((index + banners.length) % banners.length);
   // Só a foto da vez baixa de início; a seguinte começa quando ela chega. Antes
@@ -105,7 +99,7 @@ export function MainBanner({ banners, previews = [] }: MainBannerProps) {
               src={data.image.url}
               loader={contentfulImageLoader}
               sizes="100vw"
-              alt={text(data, "title") || ""}
+              alt={data.title || ""}
               fill
               preload={index === 0}
               onLoad={() =>
@@ -154,7 +148,7 @@ export function MainBanner({ banners, previews = [] }: MainBannerProps) {
                     index === active && "reveal-item",
                   )}
                 >
-                  {text(data, "title")}
+                  {data.title}
                 </h1>
                 <p
                   className={cn(
@@ -163,7 +157,7 @@ export function MainBanner({ banners, previews = [] }: MainBannerProps) {
                   )}
                   style={revealOrder(1)}
                 >
-                  {text(data, "subtitle")}
+                  {data.subtitle}
                 </p>
               </div>
 
@@ -179,7 +173,7 @@ export function MainBanner({ banners, previews = [] }: MainBannerProps) {
                   index === active && "reveal-item",
                 )}
               >
-                {text(data, "linkText")}
+                {data.linkText}
               </Link>
             </div>
           ))}

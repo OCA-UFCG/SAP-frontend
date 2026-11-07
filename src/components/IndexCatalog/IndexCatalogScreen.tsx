@@ -29,6 +29,7 @@ import { IndexCatalogGuideModal } from "@/components/IndexCatalog/IndexCatalogGu
 import { IndexCatalogReportFields } from "@/components/IndexCatalog/IndexCatalogReportFields";
 import { MapAssetStrategyFields } from "@/components/IndexCatalog/MapAssetStrategyFields";
 import { LearnMoreUrlField } from "@/components/IndexCatalog/LearnMoreUrlField";
+import { IndexTranslationsField } from "@/components/IndexCatalog/IndexTranslationsField";
 import { PanelPositionField } from "@/components/IndexCatalog/PanelPositionField";
 import { ForecastFacetsFields } from "@/components/IndexCatalog/ForecastFacetsFields";
 import { SourceGroupFields } from "@/components/IndexCatalog/SourceGroupFields";
@@ -60,6 +61,7 @@ import {
   type IndexCatalogItem,
   type IndexCatalogLifecycleImpact,
   type IndexCatalogPreview,
+  type IndexCatalogTranslations,
   type MunicipalValueIndicator,
   type PublishedNewDataScan,
 } from "@/types/indexCatalog";
@@ -119,6 +121,23 @@ const EMPTY_VALUE_INDICATOR: MunicipalValueIndicator = {
   measurementUnit: "%",
   valueType: "percentage",
 };
+
+/**
+ * Os rótulos que a tela de traduções lista: as classes do formulário, o nome
+ * do valor e o que já está publicado, sem repetir.
+ */
+function translatableLabels(
+  classes: ClassMapping[],
+  valueIndicator: MunicipalValueIndicator | undefined,
+  published: string[] = [],
+) {
+  const labels = [
+    ...classes.map((entry) => entry.label),
+    valueIndicator?.label ?? "",
+    ...published,
+  ].map((label) => label.trim());
+  return [...new Set(labels.filter(Boolean))];
+}
 
 const EMPTY_DRAFT: IndexCatalogDraftInput = {
   name: "",
@@ -290,6 +309,9 @@ export function IndexCatalogScreen() {
     createDefaultReportDraft,
   );
   const [learnMoreUrl, setLearnMoreUrl] = useState("");
+  const [translations, setTranslations] = useState<IndexCatalogTranslations>(
+    {},
+  );
   const [statisticsAssetMode, setStatisticsAssetMode] =
     useState<StatisticsAssetMode>("fixed");
   const [yearSampleAssetId, setYearSampleAssetId] = useState("");
@@ -332,6 +354,8 @@ export function IndexCatalogScreen() {
   );
   /** O link do "Saiba mais" já gravado, pelo mesmo motivo de `storedReportRef`. */
   const storedLearnMoreUrlRef = useRef("");
+  /** As traduções já gravadas, pelo mesmo motivo. */
+  const storedTranslationsRef = useRef("{}");
   const validationRunRef = useRef(0);
   const validationCompletionTimerRef = useRef<number | null>(null);
 
@@ -423,6 +447,8 @@ export function IndexCatalogScreen() {
     setReport(createDefaultReportDraft());
     setLearnMoreUrl("");
     storedLearnMoreUrlRef.current = "";
+    setTranslations({});
+    storedTranslationsRef.current = "{}";
     setStatisticsAssetMode("fixed");
     setYearSampleAssetId("");
     setOpenedLatestPeriod(undefined);
@@ -474,6 +500,8 @@ export function IndexCatalogScreen() {
     storedReportRef.current = config.report;
     setLearnMoreUrl(item.learnMoreUrl ?? "");
     storedLearnMoreUrlRef.current = item.learnMoreUrl ?? "";
+    setTranslations(item.translations ?? {});
+    storedTranslationsRef.current = JSON.stringify(item.translations ?? {});
     const openedGeeSource =
       config.statisticsSource.kind === "municipal-spreadsheet"
         ? null
@@ -866,6 +894,7 @@ export function IndexCatalogScreen() {
       // prévia do relatório mostrava a frase automática.
       await writeReportText(result.entryId);
       await writeLearnMoreUrl(result.entryId);
+      await writeTranslations(result.entryId);
       if (!withinValidation) {
         setMessage("Rascunho salvo no sistema. Nada foi publicado.");
       }
@@ -959,6 +988,57 @@ export function IndexCatalogScreen() {
     );
     storedLearnMoreUrlRef.current = url;
     return result;
+  }
+
+  /**
+   * Grava o inglês e o espanhol pela rota própria, que não zera a validação.
+   * Devolve `null` quando o que está na tela já é o gravado.
+   */
+  async function writeTranslations(currentEntryId: string) {
+    const serialized = JSON.stringify(translations);
+    if (serialized === storedTranslationsRef.current) return null;
+    const result = await apiRequest<{ requiresRepublish: boolean }>(
+      `/api/index-catalog/drafts/${encodeURIComponent(currentEntryId)}/translations`,
+      {
+        method: "POST",
+        headers: {
+          "Idempotency-Key": idempotencyKey("translations", currentEntryId),
+        },
+        body: JSON.stringify({ translations }),
+      },
+    );
+    storedTranslationsRef.current = serialized;
+    return result;
+  }
+
+  async function saveTranslations() {
+    const currentEntryId = entryIdRef.current;
+    if (!currentEntryId) {
+      setError("Salve o rascunho antes de gravar as traduções.");
+      return;
+    }
+    setBusy("translations");
+    setError("");
+    setMessage("");
+    try {
+      const result = await writeTranslations(currentEntryId);
+      setMessage(
+        !result
+          ? "As traduções na tela já são as gravadas."
+          : result.requiresRepublish
+            ? "Traduções salvas. Publique o índice de novo para que elas apareçam na plataforma."
+            : "Traduções salvas.",
+      );
+      await loadItems();
+    } catch (reason) {
+      setError(
+        reason instanceof Error
+          ? reason.message
+          : "Falha ao salvar as traduções.",
+      );
+    } finally {
+      setBusy(null);
+    }
   }
 
   async function saveLearnMoreUrl() {
@@ -1375,6 +1455,19 @@ export function IndexCatalogScreen() {
               value={learnMoreUrl}
               onChange={setLearnMoreUrl}
               onSave={() => void saveLearnMoreUrl()}
+              disabled={Boolean(busy) || !entryId}
+              inputClass={inputClass}
+              buttonClass={buttonClass}
+            />
+            <IndexTranslationsField
+              value={translations}
+              labels={translatableLabels(
+                draft.classes,
+                draft.valueIndicator,
+                editingItem?.classLabels,
+              )}
+              onChange={setTranslations}
+              onSave={() => void saveTranslations()}
               disabled={Boolean(busy) || !entryId}
               inputClass={inputClass}
               buttonClass={buttonClass}

@@ -4,6 +4,11 @@ import {
 } from "@/infrastructure/contentful/client";
 import type { Document } from "@contentful/rich-text-types";
 import {
+  localizeFields,
+  translatedFieldNames,
+  translatedRichTextFieldNames,
+} from "@/repositories/content/localizedFields";
+import {
   AboutSectionI,
   IMainBanner,
   PartnerI,
@@ -14,17 +19,38 @@ import {
   TimelineMilestoneI,
 } from "@/utils/interfaces";
 
+const BANNER_TEXT_FIELDS = ["title", "subtitle", "linkText"] as const;
+const PARTNER_TEXT_FIELDS = ["name", "description"] as const;
+const SECTION_TEXT_FIELDS = ["title", "text"] as const;
+const STAT_CARD_TEXT_FIELDS = ["label", "value"] as const;
+const MILESTONE_TEXT_FIELDS = ["date", "title", "description"] as const;
+const AXIS_TEXT_FIELDS = ["title", "description"] as const;
+const GLOSSARY_TEXT_FIELDS = ["term", "definition"] as const;
+
+const PARTNER_FIELDS = `
+  sys {
+    id
+  }
+  name
+  description
+  ${translatedFieldNames(PARTNER_TEXT_FIELDS)}
+  image {
+    url
+    title
+    width
+    height
+  }
+`;
+
 const GET_HOME_PAGE = `
   query GetHomePage($locale: String!) {
     # Pelo campo "Ordem"; banners sem ordem vêm depois, do mais antigo ao mais novo.
     bannerCollection(limit: 5, locale: $locale, order: [order_ASC, sys_firstPublishedAt_ASC]) {
       items {
-        sys {
-          id
-        }
         title
         subtitle
         linkText
+        ${translatedFieldNames(BANNER_TEXT_FIELDS)}
         link
         image {
           url
@@ -77,17 +103,7 @@ const GET_HOME_PAGE = `
 
     partnersCollection(limit: ${CONTENTFUL_COLLECTION_LIMIT}, locale: $locale, order: order_ASC) {
       items {
-        sys {
-          id
-        }
-        name
-        description
-        image {
-          url
-          title
-          width
-          height
-        }
+        ${PARTNER_FIELDS}
       }
     }
   }
@@ -103,6 +119,8 @@ const ABOUT_SECTION_FIELDS = `
   text {
     json
   }
+  ${translatedFieldNames(["title"])}
+  ${translatedRichTextFieldNames("text")}
   imagesCollection(limit: 3) {
     items {
       url
@@ -115,15 +133,18 @@ const ABOUT_SECTION_FIELDS = `
       ... on StatCard {
         label
         value
+        ${translatedFieldNames(STAT_CARD_TEXT_FIELDS)}
       }
       ... on AboutMilestone {
         date
         title
         description
+        ${translatedFieldNames(MILESTONE_TEXT_FIELDS)}
       }
       ... on Projects {
         title
         description
+        ${translatedFieldNames(AXIS_TEXT_FIELDS)}
         actionsCount
         executor
         executorActionsCount
@@ -136,6 +157,8 @@ const ABOUT_SECTION_FIELDS = `
         text {
           json
         }
+        ${translatedFieldNames(["title"])}
+        ${translatedRichTextFieldNames("text")}
         image {
           url
           title
@@ -156,17 +179,7 @@ const GET_ABOUT_PAGE = `
 
     partnersCollection(limit: ${CONTENTFUL_COLLECTION_LIMIT}, locale: $locale, order: order_ASC) {
       items {
-        sys {
-          id
-        }
-        name
-        description
-        image {
-          url
-          title
-          width
-          height
-        }
+        ${PARTNER_FIELDS}
       }
     }
   }
@@ -181,6 +194,7 @@ const GET_GLOSSARY_PAGE = `
         }
         term
         definition
+        ${translatedFieldNames(GLOSSARY_TEXT_FIELDS)}
         tags
       }
     }
@@ -196,6 +210,8 @@ const GET_GLOSSARY_HEADER = `
         text {
           json
         }
+        ${translatedFieldNames(["title"])}
+        ${translatedRichTextFieldNames("text")}
       }
     }
   }
@@ -338,6 +354,33 @@ export interface GlossaryHeaderI {
   text?: { json: Document };
 }
 
+function localizePartners(
+  collection: { items: Array<PartnerI | null> } | undefined,
+  locale?: string,
+): PartnerI[] {
+  return (collection?.items?.filter(isDefined) ?? []).map((partner) =>
+    localizeFields(partner, PARTNER_TEXT_FIELDS, locale),
+  );
+}
+
+const ABOUT_ITEM_TEXT_FIELDS: Record<
+  AboutSectionItem["__typename"],
+  readonly string[]
+> = {
+  StatCard: STAT_CARD_TEXT_FIELDS,
+  AboutMilestone: MILESTONE_TEXT_FIELDS,
+  Projects: AXIS_TEXT_FIELDS,
+  SecaoSobre: SECTION_TEXT_FIELDS,
+};
+
+/** Cada item de uma seção do "Sobre" no idioma da página. */
+function localizeAboutItem(
+  item: AboutSectionItem,
+  locale?: string,
+): AboutSectionItem {
+  return localizeFields(item, ABOUT_ITEM_TEXT_FIELDS[item.__typename], locale);
+}
+
 // Function to map the app locale to Contentful. This may be useful in the future. Currently, all content is mapped to 'en-US' in Contentful.
 function mapLocaleToContentful(locale?: string): string {
   return "en-US";
@@ -348,12 +391,13 @@ export async function getHomePageContent(locale?: string): Promise<HomePageConte
     const data = await getContent<HomeContentResponse>(GET_HOME_PAGE, {
       locale: mapLocaleToContentful(locale),
     });
-    const bannerItems = data.bannerCollection?.items?.filter(isDefined) ?? [];
+    const bannerItems = (
+      data.bannerCollection?.items?.filter(isDefined) ?? []
+    ).map((banner) => localizeFields(banner, BANNER_TEXT_FIELDS, locale));
     const aboutItems = data.aboutCollection?.items?.filter(isDefined) ?? [];
     const headerItems =
       data.cabealhoSeesCollection?.items?.filter(isDefined) ?? [];
-    const partnerItems =
-      data.partnersCollection?.items?.filter(isDefined) ?? [];
+    const partnerItems = localizePartners(data.partnersCollection, locale);
     const tabsItems = data.secaoSobreCollection?.items?.filter(isDefined) ?? [];
 
     return {
@@ -377,9 +421,12 @@ export async function getAboutPageContent(locale?: string): Promise<AboutPageCon
     });
 
     const sections: AboutPageContent["sections"] = {};
-    for (const section of data.planoAcaoBrasileiroCollection?.items ?? []) {
-      if (!section) continue;
-      const items = section.itemsCollection?.items?.filter(isDefined) ?? [];
+    for (const entry of data.planoAcaoBrasileiroCollection?.items ?? []) {
+      if (!entry) continue;
+      const section = localizeFields(entry, SECTION_TEXT_FIELDS, locale);
+      const items = (
+        section.itemsCollection?.items?.filter(isDefined) ?? []
+      ).map((item) => localizeAboutItem(item, locale));
       sections[section.identifier] = {
         title: section.title,
         text: section.text ?? undefined,
@@ -425,7 +472,7 @@ export async function getAboutPageContent(locale?: string): Promise<AboutPageCon
 
     return {
       sections,
-      partners: data.partnersCollection?.items?.filter(isDefined) ?? [],
+      partners: localizePartners(data.partnersCollection, locale),
     };
   } catch (error) {
     console.error("Erro ao buscar dados da página Sobre o SEDES:", error);
@@ -439,7 +486,8 @@ export async function getGlossaryHeader(locale?: string): Promise<GlossaryHeader
     const data = await getContent<GlossaryHeaderResponse>(GET_GLOSSARY_HEADER, {
       locale: mapLocaleToContentful(locale),
     });
-    const header = data.planoAcaoBrasileiroCollection?.items?.find(isDefined);
+    const entry = data.planoAcaoBrasileiroCollection?.items?.find(isDefined);
+    const header = entry && localizeFields(entry, SECTION_TEXT_FIELDS, locale);
     return header ? { title: header.title, text: header.text ?? undefined } : null;
   } catch (error) {
     console.error("Erro ao buscar o topo do glossário no Contentful:", error);
@@ -454,12 +502,15 @@ export async function getGlossaryTerms(locale?: string): Promise<GlossaryTermI[]
     });
 
     return (
-      data.glossaryCollection?.items?.filter(isDefined).map((item) => ({
-        id: item.sys.id,
-        term: item.term,
-        definition: item.definition,
-        tags: item.tags ?? [],
-      })) ?? []
+      data.glossaryCollection?.items?.filter(isDefined).map((entry) => {
+        const item = localizeFields(entry, GLOSSARY_TEXT_FIELDS, locale);
+        return {
+          id: item.sys.id,
+          term: item.term,
+          definition: item.definition,
+          tags: item.tags ?? [],
+        };
+      }) ?? []
     );
   } catch (error) {
     console.error("Erro ao buscar termos do glossário no Contentful:", error);

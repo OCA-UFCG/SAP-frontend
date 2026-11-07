@@ -1,6 +1,5 @@
 import Image from "next/image";
 import { AboutSectionI, StatCardI } from "@/utils/interfaces";
-import { useTranslations } from "next-intl";
 import { documentToReactComponents } from "@contentful/rich-text-react-renderer";
 
 type Props = {
@@ -16,14 +15,10 @@ type Props = {
 };
 
 export const AboutSection = ({ id, content, className = "" }: Props) => {
-  // Português vem do Contentful; inglês e espanhol, das traduções.
-  const t = useTranslations("AboutSection");
   const imageSrc = content.image?.url;
 
-  const title = t.has("title") ? t("title") : content.title;
-  const text = t.has("text")
-    ? t("text")
-    : content.text && documentToReactComponents(content.text.json);
+  const title = content.title;
+  const text = content.text && documentToReactComponents(content.text.json);
 
   return (
     <section
@@ -52,7 +47,7 @@ export const AboutSection = ({ id, content, className = "" }: Props) => {
                 </div>
                 <div className="flex flex-1 items-center rounded-r-lg bg-white px-5 py-2">
                   <span className="text-sm sm:text-base font-semibold leading-6 text-[#292829]">
-                    {t.has(`infoRows.${index}`) ? t(`infoRows.${index}`) : row.value}
+                    {row.value}
                   </span>
                 </div>
               </div>

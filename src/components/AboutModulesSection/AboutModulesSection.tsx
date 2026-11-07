@@ -12,7 +12,7 @@ type Props = {
   modules: PlatformModuleI[];
   /** Os mesmos textos dos cards da home (Contentful, com as traduções de reserva). */
   texts: HomeTextsI["tools"];
-  /** Título da seção no Contentful; inglês e espanhol usam o das traduções. */
+  /** Título da seção no Contentful, no idioma da página. */
   title?: string;
 };
 
@@ -25,7 +25,7 @@ export const AboutModulesSection = ({ modules, texts, title }: Props) => {
     <section className="w-full bg-white">
       <div className="mx-auto flex w-full max-w-[1440px] flex-col gap-6 px-4 py-12 md:px-10 lg:px-20">
         <h2 className="pb-2 font-open-sans text-[1.5rem] font-semibold leading-[28px] tracking-[-0.0075em] text-[#292829] md:text-[1.75rem] md:leading-[32px] lg:text-[1.875rem] lg:leading-[36px]">
-          {t.has("title") ? t("title") : title}
+          {title}
         </h2>
 
         <div className="flex flex-col gap-4">

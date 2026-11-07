@@ -2,6 +2,7 @@ import { getRequestConfig } from "next-intl/server";
 import { routing } from "./routing-config";
 import fs from "fs";
 import path from "path";
+import { getPanelLayerMessages, mergeMessages } from "./panelLayerMessages";
 
 export default getRequestConfig(async ({ requestLocale }) => {
   let locale = await requestLocale;
@@ -10,7 +11,7 @@ export default getRequestConfig(async ({ requestLocale }) => {
     locale = routing.defaultLocale;
   }
 
-  const messages: Record<string, unknown> = {};
+  let messages: Record<string, unknown> = {};
   try {
     const localeDir = path.join(process.cwd(), "src/translations", locale);
     const files = fs.readdirSync(localeDir).filter(file => file.endsWith('.json'));
@@ -23,6 +24,12 @@ export default getRequestConfig(async ({ requestLocale }) => {
     }
   } catch (err) {
     console.error(`Failed to load messages for locale ${locale}`, err);
+  }
+
+  // Inglês e espanhol dos índices vêm do Contentful, por cima dos arquivos.
+  const panelLayerMessages = await getPanelLayerMessages(locale);
+  if (panelLayerMessages) {
+    messages = mergeMessages(messages, { ...panelLayerMessages });
   }
 
   return {
