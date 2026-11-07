@@ -180,6 +180,7 @@ interface IndexCatalogAuditData {
       | "map-asset"
       | "report-text"
       | "learn-more-url"
+      | "translations"
       | "publish"
       | "unpublish";
     outcome: "success" | "failure";
@@ -300,6 +301,19 @@ export function isManagedCatalogConfig(
   return config?.schemaVersion === 2;
 }
 
+/** Nome, descrição e rótulos das classes de um índice em outro idioma. */
+export interface IndexCatalogTranslation {
+  name?: string;
+  description?: string;
+  /** Rótulo em português → rótulo no idioma. */
+  classLabels?: Record<string, string>;
+}
+
+/** Inglês e espanhol de um índice; o que ficar vazio aparece em português. */
+export type IndexCatalogTranslations = Partial<
+  Record<"en" | "es", IndexCatalogTranslation>
+>;
+
 export interface IndexCatalogItem {
   entryId: string;
   panelLayerId: string;
@@ -326,6 +340,10 @@ export interface IndexCatalogItem {
   measurementUnit?: string;
   /** O link do "Saiba mais" gravado no `panelLayer`, para o formulário reabrir com ele. */
   learnMoreUrl?: string;
+  /** Inglês e espanhol gravados no `panelLayer`, para o formulário reabrir com eles. */
+  translations?: IndexCatalogTranslations;
+  /** Rótulos das classes publicadas, em português: o que há para traduzir. */
+  classLabels?: string[];
   status: "legacy" | IndexCatalogConfigV2["status"];
   catalogConfig?: IndexCatalogConfig;
 }

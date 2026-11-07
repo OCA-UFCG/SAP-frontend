@@ -16,6 +16,8 @@ import {
   type IndexCatalogDraftInput,
   type IndexCatalogItem,
   type IndexCatalogPresentationInput,
+  type IndexCatalogTranslation,
+  type IndexCatalogTranslations,
   type IndexCategory,
   type MunicipalValueIndicator,
 } from "@/types/indexCatalog";
@@ -523,6 +525,68 @@ export function parseIndexCatalogPresentationInput(
  * parseLearnMoreUrl(" https://www.gov.br/ana "); // => "https://www.gov.br/ana"
  * parseLearnMoreUrl(""); // => undefined
  */
+const TRANSLATION_LANGUAGES = { en: "inglês", es: "espanhol" } as const;
+
+/**
+ * Lê o inglês e o espanhol que o formulário do catálogo manda. Texto em branco
+ * some, para o índice voltar a mostrar o português.
+ *
+ * @example
+ * parseIndexTranslations({ en: { name: " Drought ", classLabels: { Seca: "" } } });
+ * // → { en: { name: "Drought" } }
+ */
+export function parseIndexTranslations(
+  value: unknown,
+): IndexCatalogTranslations {
+  if (value == null) return {};
+  if (typeof value !== "object" || Array.isArray(value)) {
+    throw new Error("Traduções inválidas.");
+  }
+
+  const result: IndexCatalogTranslations = {};
+  for (const [locale, language] of Object.entries(TRANSLATION_LANGUAGES)) {
+    const raw = (value as Record<string, unknown>)[locale];
+    if (raw == null) continue;
+    if (typeof raw !== "object" || Array.isArray(raw)) {
+      throw new Error(`Tradução para o ${language} inválida.`);
+    }
+    const input = raw as Record<string, unknown>;
+    const name = optionalString(input.name, `Nome em ${language}`, 255);
+    const description = optionalString(
+      input.description,
+      `Descrição em ${language}`,
+      5_000,
+    );
+    const classLabels: Record<string, string> = {};
+    if (input.classLabels != null) {
+      if (
+        typeof input.classLabels !== "object" ||
+        Array.isArray(input.classLabels)
+      ) {
+        throw new Error(`Rótulos em ${language} inválidos.`);
+      }
+      for (const [label, translated] of Object.entries(input.classLabels)) {
+        const text = optionalString(
+          translated,
+          `Rótulo “${label}” em ${language}`,
+          255,
+        );
+        if (label.trim() && text) classLabels[label] = text;
+      }
+    }
+
+    const translation: IndexCatalogTranslation = {
+      ...(name ? { name } : {}),
+      ...(description ? { description } : {}),
+      ...(Object.keys(classLabels).length ? { classLabels } : {}),
+    };
+    if (Object.keys(translation).length) {
+      result[locale as keyof IndexCatalogTranslations] = translation;
+    }
+  }
+  return result;
+}
+
 export function parseLearnMoreUrl(value: unknown) {
   const url = optionalString(value, "Link do Saiba mais", 256);
   if (!url) return undefined;

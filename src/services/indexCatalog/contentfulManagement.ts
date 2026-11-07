@@ -3,6 +3,7 @@ import "server-only";
 import type {
   IndexCatalogConfig,
   IndexCatalogItem,
+  IndexCatalogTranslations,
 } from "@/types/indexCatalog";
 import {
   isManagedCatalogConfig,
@@ -42,6 +43,24 @@ const LEARN_MORE_URL_FIELD = {
   disabled: false,
   omitted: false,
 };
+
+/**
+ * Inglês e espanhol do índice. São campos comuns, e não um `Object`, para quem
+ * abre a entry no Contentful achar o texto sem ler JSON; só os rótulos das
+ * classes, que são uma lista, ficam num `Object` por idioma.
+ */
+export const TRANSLATION_PANEL_LAYER_FIELDS = [
+  { id: "nameEn", name: "Nome da visualização (inglês)", type: "Symbol" },
+  { id: "nameEs", name: "Nome da visualização (espanhol)", type: "Symbol" },
+  { id: "descriptionEn", name: "descrição (inglês)", type: "Text" },
+  { id: "descriptionEs", name: "descrição (espanhol)", type: "Text" },
+  { id: "classLabelsEn", name: "Rótulos das classes (inglês)", type: "Object" },
+  {
+    id: "classLabelsEs",
+    name: "Rótulos das classes (espanhol)",
+    type: "Object",
+  },
+] as const;
 
 export interface ContentfulManagementConfig {
   spaceId: string;
@@ -201,6 +220,49 @@ function toReconciledCatalogConfig(
   };
 }
 
+function readTranslations(
+  entry: ContentfulManagementEntry,
+  locale: string,
+): IndexCatalogTranslations {
+  const translations: IndexCatalogTranslations = {};
+  for (const [language, suffix] of [
+    ["en", "En"],
+    ["es", "Es"],
+  ] as const) {
+    const translation = {
+      name: getLocalizedEntryField<string>(entry, `name${suffix}`, locale),
+      description: getLocalizedEntryField<string>(
+        entry,
+        `description${suffix}`,
+        locale,
+      ),
+      classLabels: getLocalizedEntryField<Record<string, string>>(
+        entry,
+        `classLabels${suffix}`,
+        locale,
+      ),
+    };
+    translations[language] = Object.fromEntries(
+      Object.entries(translation).filter(([, value]) => value != null),
+    );
+  }
+  return translations;
+}
+
+/** Os rótulos de classe que a plataforma mostra hoje para o índice. */
+function readClassLabels(
+  entry: ContentfulManagementEntry,
+  locale: string,
+): string[] {
+  const imageData = getLocalizedEntryField<{
+    classes?: Array<{ label?: unknown } | null>;
+  }>(entry, "imageData", locale);
+  const labels = (imageData?.classes ?? []).flatMap((item) =>
+    typeof item?.label === "string" && item.label.trim() ? [item.label] : [],
+  );
+  return [...new Set(labels)];
+}
+
 function toCatalogItem(
   entry: ContentfulManagementEntry,
   locale: string,
@@ -256,6 +318,8 @@ function toCatalogItem(
       locale,
     ),
     learnMoreUrl: getLocalizedEntryField<string>(entry, "learnMoreUrl", locale),
+    translations: readTranslations(entry, locale),
+    classLabels: readClassLabels(entry, locale),
     catalogManaged: Boolean(managedConfig),
     managedScope: managedConfig
       ? isPresentationManagedCatalogConfig(managedConfig)
@@ -473,10 +537,14 @@ export async function ensureIndexCatalogContentModel() {
     contentType.fields.find((field) => field.id === "timeScale"),
   );
   const needsLearnMoreUrl = !existing.has(LEARN_MORE_URL_FIELD.id);
+  const missingTranslations = TRANSLATION_PANEL_LAYER_FIELDS.filter(
+    (field) => !existing.has(field.id),
+  );
 
   if (
     missing.length === 0 &&
     !needsLearnMoreUrl &&
+    missingTranslations.length === 0 &&
     !needsOptionalPreview &&
     !needsOptionalUnit &&
     timeScalesToAllow.length === 0
@@ -505,6 +573,16 @@ export async function ensureIndexCatalogContentModel() {
     });
   }
   if (needsLearnMoreUrl) fields.push(LEARN_MORE_URL_FIELD);
+  for (const field of missingTranslations) {
+    fields.push({
+      ...field,
+      localized: false,
+      required: false,
+      validations: [],
+      disabled: false,
+      omitted: false,
+    });
+  }
 
   const updated = await contentfulManagementFetch<ContentfulContentType>(
     "/content_types/panelLayer",

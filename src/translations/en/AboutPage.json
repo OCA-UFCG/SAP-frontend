@@ -1,12 +1,7 @@
 {
   "AboutPage": {
     "notFound": "Content not found.",
-    "hero": {
-      "title": "About Us",
-      "text": "SEDES puts into practice the provision of <b>Law No. 13,153/2015</b>, under the <b>National Policy to Combat Desertification and Mitigate the Effects of Drought (PNCD)</b>, to establish an integrated information system on these topics. The System is also part of the <b>Brazilian Action Plan to Combat Desertification and Mitigate the Effects of Drought (PAB-Brazil)</b>, launched by the <b>Ministry of Environment and Climate Change (MMA)</b>, and serves as a tool to support the production, integration and use of information for planning, monitoring and decision-making."
-    },
     "modules": {
-      "title": "Explore the Modules",
       "seeMore": "See more",
       "seeLess": "See less"
     }

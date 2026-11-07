@@ -8,7 +8,6 @@ import { InstitutionsSection } from "@/components/InstitutionsSection/Institutio
 import { getAboutPageContent } from "@/repositories/content/siteContentRepository";
 import { getTranslations } from "next-intl/server";
 import { pageTitleMetadata } from "@/lib/page-metadata";
-import { routing } from "@/translations/routing-config";
 import { BLOCKS, Document } from "@contentful/rich-text-types";
 import { MOCK_PLATFORM_MODULES_CONTENT } from "../homePage.mocks";
 import { getHomeTextsForLocale } from "../homeTexts";
@@ -21,8 +20,8 @@ const EMPTY_TEXT: { json: Document } = {
 
 /**
  * Cada bloco vem de uma entrada "Sobre e Glossário – Seção" do Contentful; um
- * bloco sem entrada não aparece. Em inglês e espanhol, os textos dos blocos
- * continuam nas traduções e do Contentful vêm as fotos e os números.
+ * bloco sem entrada não aparece. Inglês e espanhol vêm dos campos de cada
+ * idioma na própria entrada.
  */
 export default async function SobreOSedesPage({
   params,
@@ -45,7 +44,6 @@ export default async function SobreOSedesPage({
   }
 
   const { sections } = data;
-  const isPortuguese = locale === routing.defaultLocale;
   const { topo, pab, eixos, equipe, modulos, instituicoes } = sections;
   const gt = sections["grupo-de-trabalho"];
   const paraQuem = sections["para-quem"];
@@ -96,7 +94,7 @@ export default async function SobreOSedesPage({
         )}
         <InstitutionsSection
           partners={data.partners}
-          title={isPortuguese ? instituicoes?.title : undefined}
+          title={instituicoes?.title}
         />
       </div>
     </div>

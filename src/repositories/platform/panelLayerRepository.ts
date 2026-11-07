@@ -18,6 +18,7 @@ import { tryParsePublishedGeeStatisticsSource } from "@/contracts/geeStatistics"
 import { tryParsePublishedPanelLayerReportConfig } from "@/contracts/panelLayerReport";
 import { tryParsePanelLayerForecastFacets } from "@/contracts/panelLayerForecast";
 import { tryParsePanelLayerSourceGroup } from "@/contracts/panelLayerSourceGroup";
+import { PANEL_LAYERS_CACHE_TAG } from "@/repositories/platform/panelLayerCacheTag";
 
 // O Contentful devolve no máximo 100 itens quando a query não pede `limit`, e
 // os que passarem disso somem sem erro nenhum. `CONTENTFUL_COLLECTION_LIMIT` é o
@@ -55,15 +56,7 @@ const GET_PANEL_LAYER = `
   }
 `;
 
-/**
- * Tag do Data Cache do Next para as queries de `panelLayer`.
- * `clearPanelLayersCache` só limpa a memoização deste processo; a resposta do
- * Contentful continua no Data Cache por até `revalidate` segundos e é
- * compartilhada por todas as rotas. Uma entrada criada por `/api/ee` não é
- * invalidada por `revalidatePath("/[locale]/platform")`, então sem a tag um
- * índice recém-publicado podia ficar até uma hora fora da lista que o mapa usa.
- */
-export const PANEL_LAYERS_CACHE_TAG = "panel-layers";
+export { PANEL_LAYERS_CACHE_TAG };
 
 const PANEL_LAYERS_FETCH_OPTIONS = {
   next: { revalidate: 3600, tags: [PANEL_LAYERS_CACHE_TAG] },

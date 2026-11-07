@@ -12,8 +12,19 @@ const CATALOG_FIELDS = [
   "sourceGroup",
 ].map((id) => ({ id, type: "Object" }));
 const LEARN_MORE_URL_FIELD = { id: "learnMoreUrl", type: "Symbol" };
+const TRANSLATION_FIELDS = [
+  { id: "nameEn", type: "Symbol" },
+  { id: "nameEs", type: "Symbol" },
+  { id: "descriptionEn", type: "Text" },
+  { id: "descriptionEs", type: "Text" },
+  { id: "classLabelsEn", type: "Object" },
+  { id: "classLabelsEs", type: "Object" },
+];
 
-function contentType(timeScaleValidations: unknown[]) {
+function contentType(
+  timeScaleValidations: unknown[],
+  translationFields = TRANSLATION_FIELDS,
+) {
   return {
     sys: { id: "panelLayer", version: 46 },
     name: "Panel Layer",
@@ -21,6 +32,7 @@ function contentType(timeScaleValidations: unknown[]) {
     fields: [
       ...CATALOG_FIELDS,
       LEARN_MORE_URL_FIELD,
+      ...translationFields,
       {
         id: "timeScale",
         name: "Escala Temporal",
@@ -31,11 +43,14 @@ function contentType(timeScaleValidations: unknown[]) {
   };
 }
 
-function mockContentful(timeScaleValidations: unknown[]) {
+function mockContentful(
+  timeScaleValidations: unknown[],
+  translationFields = TRANSLATION_FIELDS,
+) {
   const fetchMock = vi.fn(async (_url: string, init?: RequestInit) => {
     const body =
       init?.method === "GET"
-        ? contentType(timeScaleValidations)
+        ? contentType(timeScaleValidations, translationFields)
         : { sys: { id: "panelLayer", version: 47 } };
     return new Response(JSON.stringify(body), { status: 200 });
   });
@@ -133,5 +148,32 @@ describe("ensureIndexCatalogContentModel — link do Saiba mais", () => {
     );
     expect(pattern.test("https://www.gov.br/ana")).toBe(true);
     expect(pattern.test("javascript:alert(1)")).toBe(false);
+  });
+  it("cria os campos de inglês e espanhol que faltarem", async () => {
+    const fetchMock = mockContentful(
+      [{ in: ["Anual", "Mensal", "Decendial"] }],
+      [],
+    );
+
+    await expect(ensureIndexCatalogContentModel()).resolves.toEqual({
+      changed: true,
+    });
+
+    const put = fetchMock.mock.calls.find(
+      ([url, init]) =>
+        init?.method === "PUT" && url.endsWith("/content_types/panelLayer"),
+    );
+    const sent = JSON.parse(String(put?.[1]?.body));
+    expect(
+      sent.fields
+        .filter((field: { id: string }) =>
+          TRANSLATION_FIELDS.some(({ id }) => id === field.id),
+        )
+        .map(({ id, type, required }: Record<string, unknown>) => ({
+          id,
+          type,
+          required,
+        })),
+    ).toEqual(TRANSLATION_FIELDS.map((field) => ({ ...field, required: false })));
   });
 });

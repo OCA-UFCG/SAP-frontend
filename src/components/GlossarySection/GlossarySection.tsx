@@ -30,33 +30,16 @@ export const GlossarySection = ({ terms, header }: Props) => {
   const [query, setQuery] = useState("");
   const [letter, setLetter] = useState<string | null>(null);
 
-  const translatedTerms = useMemo(
-    () =>
-      terms.map((term) => {
-        const translationKey = `entries.${term.id}`;
-        return {
-          ...term,
-          term: t.has(`${translationKey}.term`)
-            ? t(`${translationKey}.term`)
-            : term.term,
-          definition: t.has(`${translationKey}.definition`)
-            ? t(`${translationKey}.definition`)
-            : term.definition,
-        };
-      }),
-    [terms, t],
-  );
-
   const letters = useMemo(
     () =>
-      [...new Set(translatedTerms.map((term) => initialOf(term.term)))]
+      [...new Set(terms.map((term) => initialOf(term.term)))]
         .filter(Boolean)
         .sort((a, b) => a.localeCompare(b, "pt-BR")),
-    [translatedTerms],
+    [terms],
   );
 
   const normalizedQuery = normalize(query.trim());
-  const visibleTerms = translatedTerms.filter(
+  const visibleTerms = terms.filter(
     (term) =>
       (!letter || initialOf(term.term) === letter) &&
       (!normalizedQuery ||

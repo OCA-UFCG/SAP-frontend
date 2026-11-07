@@ -1,12 +1,7 @@
 {
   "AboutPage": {
     "notFound": "Contenido no encontrado.",
-    "hero": {
-      "title": "Sobre Nosotros",
-      "text": "El SEDES materializa, en el nivel operativo, lo previsto en la <b>Ley n.º 13.153/2015</b>, en el marco de la <b>Política Nacional de Combate a la Desertificación y Mitigación de los Efectos de la Sequía (PNCD)</b>, de establecer un sistema integrado de información sobre estas temáticas. El Sistema también se inserta en el <b>Plan de Acción Brasileño de Combate a la Desertificación y Mitigación de los Efectos de la Sequía (PAB-Brasil)</b>, lanzado por el <b>Ministerio de Medio Ambiente y Cambio Climático (MMA)</b>, y constituye una herramienta de apoyo a la producción, integración y uso de información para la planificación, el seguimiento y la toma de decisiones."
-    },
     "modules": {
-      "title": "Conozca los Módulos",
       "seeMore": "Ver más",
       "seeLess": "Ver menos"
     }

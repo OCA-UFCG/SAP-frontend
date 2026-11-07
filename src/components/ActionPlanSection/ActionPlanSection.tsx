@@ -48,14 +48,7 @@ export const ActionPlanSection = ({
   const t = useTranslations("ActionPlanSection");
 
   const title = t("title", { title: content.title });
-  const text = t.has("text")
-    ? t("text")
-    : documentToReactComponents(content.text.json);
-
-  const statValue = (index: number, fallback: string) =>
-    t.has(`stats.${index}.value`) ? t(`stats.${index}.value`) : fallback;
-  const statLabel = (index: number, fallback: string) =>
-    t.has(`stats.${index}.label`) ? t(`stats.${index}.label`) : fallback;
+  const text = documentToReactComponents(content.text.json);
 
   return (
     <section
@@ -90,10 +83,10 @@ export const ActionPlanSection = ({
                 <div className="flex flex-col gap-1 px-2 py-4 font-open-sans lg:flex-1">
                   {StatIcon && <StatIcon />}
                   <span className="text-[2rem] font-extrabold leading-[44px] text-[#777E32]">
-                    {statValue(index, stat.value)}
+                    {stat.value}
                   </span>
                   <span className="text-base leading-[22px] text-[#3F4324]">
-                    {statLabel(index, stat.label)}
+                    {stat.label}
                   </span>
                 </div>
               </Fragment>
@@ -128,19 +121,6 @@ export const ThematicAxesSection = ({
     .map((axis, index) => ({ axis, index }))
     .filter(({ axis }) => !axis.isSedesAxis);
 
-  const axisTitle = (index: number, fallback: string) =>
-    t.has(`axesSection.axes.${index}.title`)
-      ? t(`axesSection.axes.${index}.title`)
-      : fallback;
-  const axisDescription = (index: number, fallback?: string) =>
-    t.has(`axesSection.axes.${index}.description`)
-      ? t(`axesSection.axes.${index}.description`)
-      : fallback;
-  const axisExecutor = (index: number, fallback: string) =>
-    t.has(`axesSection.axes.${index}.executor`)
-      ? t(`axesSection.axes.${index}.executor`)
-      : fallback;
-
   return (
     <section
       id={id}
@@ -158,18 +138,9 @@ export const ThematicAxesSection = ({
           {sedesAxisIndex >= 0 && (
             <ThematicAxisCard
               axis={content.axes[sedesAxisIndex]}
-              title={axisTitle(
-                sedesAxisIndex,
-                content.axes[sedesAxisIndex].title,
-              )}
-              description={axisDescription(
-                sedesAxisIndex,
-                content.axes[sedesAxisIndex].description,
-              )}
-              executor={axisExecutor(
-                sedesAxisIndex,
-                content.axes[sedesAxisIndex].executor,
-              )}
+              title={content.axes[sedesAxisIndex].title}
+              description={content.axes[sedesAxisIndex].description}
+              executor={content.axes[sedesAxisIndex].executor}
               labels={axisLabels}
             />
           )}
@@ -179,9 +150,9 @@ export const ThematicAxesSection = ({
               <ThematicAxisCard
                 key={`${axis.title}-${index}`}
                 axis={axis}
-                title={axisTitle(index, axis.title)}
-                description={axisDescription(index, axis.description)}
-                executor={axisExecutor(index, axis.executor)}
+                title={axis.title}
+                description={axis.description}
+                executor={axis.executor}
                 labels={axisLabels}
               />
             ))}
