@@ -174,4 +174,17 @@ describe("GET /api/metrics", () => {
     expect(body).toContain('sedes_dependency_up{dependency="smtp"} 1');
     expect(body).not.toContain("sedes_disk_used_ratio");
   });
+
+  it("reports emails and signup answers by result, starting at zero", async () => {
+    const body = await (await GET(request("Bearer segredo"))).text();
+
+    for (const result of ["sent", "failed", "not_configured"]) {
+      expect(body).toMatch(new RegExp(`sedes_mail_total\\{result="${result}"\\} \\d+`));
+    }
+    for (const status of [201, 400, 403, 429, 500]) {
+      expect(body).toMatch(
+        new RegExp(`sedes_signup_responses_total\\{status="${status}"\\} \\d+`),
+      );
+    }
+  });
 });

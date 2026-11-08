@@ -13,7 +13,13 @@ vi.mock("nodemailer", () => ({
   createTransport: createTransportMock,
 }));
 
-import { escapeHtml, isMailerConfigured, resetMailer, sendMail } from "@/lib/mailer";
+import {
+  escapeHtml,
+  getMailCounts,
+  isMailerConfigured,
+  resetMailer,
+  sendMail,
+} from "@/lib/mailer";
 
 describe("mailer", () => {
   beforeEach(() => {
@@ -149,5 +155,23 @@ describe("mailer", () => {
       "&lt;script&gt;alert(&quot;x&quot;)&lt;/script&gt;",
     );
     expect(escapeHtml("a & b")).toBe("a &amp; b");
+  });
+
+  it("counts each email by result for the monitor", async () => {
+    const message = { to: "fulano@ufcg.edu.br", subject: "Oi", html: "<p>Oi</p>", text: "Oi" };
+    const before = { ...getMailCounts() };
+    vi.spyOn(console, "info").mockImplementation(() => {});
+
+    await sendMail(message);
+    configure();
+    await sendMail(message);
+    sendMailMock.mockRejectedValueOnce(new Error("535 BadCredentials"));
+    await expect(sendMail(message)).rejects.toThrow("535");
+
+    expect(getMailCounts()).toEqual({
+      not_configured: before.not_configured + 1,
+      sent: before.sent + 1,
+      failed: before.failed + 1,
+    });
   });
 });

@@ -14,6 +14,7 @@ import {
 } from "@/app/api/signup/rate-limit";
 import { sendVerificationEmail } from "@/lib/signup-verification";
 import { CAPTCHA_FAILED_MESSAGE, verifyCaptcha } from "@/lib/captcha";
+import { countSignupResponse } from "@/app/api/signup/outcomes";
 
 export const runtime = "nodejs";
 
@@ -56,6 +57,17 @@ function isEmailAlreadyTaken(error: unknown) {
 }
 
 export async function POST(request: Request) {
+  try {
+    const response = await handleSignup(request);
+    countSignupResponse(response.status);
+    return response;
+  } catch (error) {
+    countSignupResponse(500);
+    throw error;
+  }
+}
+
+async function handleSignup(request: Request) {
   const closed = rejectWhenSignupClosed();
   if (closed) return closed;
 
