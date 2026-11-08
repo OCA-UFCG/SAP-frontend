@@ -93,7 +93,7 @@ describe("index catalog access", () => {
       new Request("http://localhost:3000/api/signup", {
         method: "POST",
         headers: {
-          host: "sedes.oca-portal.com",
+          host: "sedes.oca.ufcg.edu.br",
           "x-forwarded-proto": "https",
           origin,
           "sec-fetch-site": "same-origin",
@@ -101,7 +101,7 @@ describe("index catalog access", () => {
       });
 
     expect(
-      hasTrustedMutationOrigin(behindProxy("https://sedes.oca-portal.com")),
+      hasTrustedMutationOrigin(behindProxy("https://sedes.oca.ufcg.edu.br")),
     ).toBe(true);
     expect(
       hasTrustedMutationOrigin(behindProxy("https://attacker.example")),
