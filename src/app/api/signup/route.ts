@@ -13,6 +13,7 @@ import {
   getSignupClientKey,
 } from "@/app/api/signup/rate-limit";
 import { sendVerificationEmail } from "@/lib/signup-verification";
+import { notifyExistingAccount } from "@/lib/existing-account-notice";
 import { CAPTCHA_FAILED_MESSAGE, verifyCaptcha } from "@/lib/captcha";
 
 export const runtime = "nodejs";
@@ -156,6 +157,14 @@ export async function POST(request: Request) {
     });
   } catch (error) {
     if (isEmailAlreadyTaken(error)) {
+      // A resposta continua a mesma de um cadastro novo, mas a caixa do
+      // endereço recebe o que fazer. Antes nada saía, e quem já tinha conta de
+      // outra plataforma do OCA ficava esperando um e-mail que nunca chegava.
+      // A espera por endereço vale aqui também: sem ela, repetir o cadastro
+      // viraria um jeito de encher a caixa de alguém.
+      if (!consumeVerificationEmailCooldown(email).limited) {
+        await notifyExistingAccount(email, locale);
+      }
       return accepted();
     }
 

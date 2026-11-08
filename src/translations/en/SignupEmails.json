@@ -17,6 +17,12 @@
     "passwordResetBody": "We received a request to change the password of your SEDES account. Use the button below to choose a new password. The link is valid for one hour and can only be used once.",
     "passwordResetAction": "Choose a new password",
     "passwordResetIgnore": "If you did not ask for this, ignore this email: your password stays the same.",
+    "existingAccountSubject": "You already have a SEDES account",
+    "existingAccountTitle": "This email already has an account",
+    "existingAccountBody": "We received a SEDES (Strategic System on Desertification and Drought) sign-up with this address, but it already has an account — sometimes created on another OCA platform that shares the same login. There is no need to sign up again: sign in with that account's email and password.",
+    "existingAccountAction": "Sign in to SEDES",
+    "existingAccountForgot": "Don't remember the password? Choose a new one at:",
+    "existingAccountIgnore": "If you did not try to sign up, ignore this email: nothing changed in your account.",
     "fallback": "If the button does not work, copy this address into your browser:",
     "footer": "SEDES — Strategic System on Desertification and Drought"
   }

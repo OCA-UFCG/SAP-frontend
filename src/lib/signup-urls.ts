@@ -1,5 +1,6 @@
 import {
   APPROVALS_PATH,
+  FORGOT_PASSWORD_PATH,
   LOGIN_PATH,
   PASSWORD_RESET_PATH,
   PENDING_APPROVAL_PATH,
@@ -37,6 +38,17 @@ export const signupConfirmationUrl = (locale?: string) =>
   );
 export const passwordResetUrl = (locale?: string) =>
   absoluteUrl(locale ? `/${locale}${PASSWORD_RESET_PATH}` : PASSWORD_RESET_PATH);
+export const forgotPasswordUrl = (locale?: string) =>
+  absoluteUrl(
+    locale ? `/${locale}${FORGOT_PASSWORD_PATH}` : FORGOT_PASSWORD_PATH,
+  );
+/**
+ * O login no domínio de quem tentou se cadastrar, para o aviso de "você já tem
+ * conta". O `loginUrl` abaixo serve a outro caso: o aviso de decisão sai do
+ * beta e precisa apontar para a produção.
+ */
+export const signupLoginUrl = (locale?: string) =>
+  absoluteUrl(locale ? `/${locale}${LOGIN_PATH}` : LOGIN_PATH);
 /**
  * A tela de Aprovações só existe no beta. A produção define
  * `ADMIN_LINKS_BASE_URL` com o endereço do beta, para o aviso de pedido novo
