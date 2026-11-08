@@ -167,3 +167,22 @@ groups:
             O certificado HTTPS de {{ $labels.instance }} vence em
             {{ $value | humanizeDuration }}. A renovação da produção é o
             sedes-oca-cert-renew.timer; a do beta, o certbot.timer.
+
+      # Certificado vencido, domínio que deixou de apontar para cá, nginx sem
+      # o bloco do domínio: a sonda falha e o SedesCertificadoVencendo some,
+      # porque sem resposta não há validade para medir. O SedesForaDoAr só
+      # olha o /api/metrics do domínio oficial.
+      - alert: SedesEnderecoFora
+        expr: probe_success{job="sedes-certificado"} == 0
+        for: 5m
+        labels:
+          severity: critical
+        annotations:
+          titulo: endereço do site não abre
+          resolvido: endereço do site voltou a abrir
+          descricao: >-
+            {{ $labels.instance }} não abriu com HTTPS válido nos últimos
+            5 min. As causas comuns são o certificado vencido (renovação da
+            produção: sedes-oca-cert-renew.timer e certbot.timer), o DNS do
+            domínio apontando para outro lugar ou o nginx sem o bloco desse
+            domínio.

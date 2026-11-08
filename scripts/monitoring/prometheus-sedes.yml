@@ -35,13 +35,21 @@ scrape_configs:
 
   # A validade do certificado HTTPS, pelo blackbox que já roda na VM. O
   # favicon é o arquivo mais leve do site; o que interessa é o certificado.
+  # Cada endereço público tem certificado próprio e renovação própria, então
+  # todos entram: em 18/10/2026 o do domínio oficial venceu e o site ficou
+  # 38 h fora, e os outros quatro da produção nem eram vigiados.
   - job_name: sedes-certificado
     metrics_path: /probe
     scrape_interval: 5m
     params:
       module: [http_2xx]
     static_configs:
-      - targets: [https://sedes.oca-portal.com/favicon.ico]
+      - targets:
+          - https://sedes.oca-portal.com/favicon.ico
+          - https://sedes.oca.ufcg.edu.br/favicon.ico
+          - https://sedes.lsd.ufcg.edu.br/favicon.ico
+          - https://sap.oca-portal.com/favicon.ico
+          - https://sap.lsd.ufcg.edu.br/favicon.ico
         labels: { project: sedes, ambiente: produção }
       - targets: [https://beta-sap.lsd.ufcg.edu.br/favicon.ico]
         labels: { project: sedes, ambiente: beta }

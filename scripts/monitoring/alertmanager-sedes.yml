@@ -26,7 +26,7 @@ route:
 # Com o site inteiro fora, a falha de cada serviço é consequência, não notícia.
 inhibit_rules:
   - source_matchers: ['alertname="SedesForaDoAr"']
-    target_matchers: ['alertname="SedesServicoComProblema"']
+    target_matchers: ['alertname=~"SedesServicoComProblema|SedesEnderecoFora"']
     equal: [ambiente]
 
 receivers:

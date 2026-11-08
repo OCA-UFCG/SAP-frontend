@@ -1,0 +1,72 @@
+name: Vigia da VM de monitoramento
+
+# O Prometheus e o Alertmanager da oca-monitor avisam quando o SEDES tem
+# problema, mas ninguém avisava quando eles mesmos paravam: com a VM fora do
+# ar, ou com o disco cheio (em 01/11/2026 o Prometheus ficou sem conseguir
+# gravar), todo alerta fica em silêncio e o silêncio parece "tudo bem".
+# Daqui, de fora da VM, uma conferência por hora.
+on:
+  schedule:
+    - cron: "17 * * * *"
+  workflow_dispatch:
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Conferir o Prometheus e o Alertmanager
+        env:
+          PROMETHEUS: http://34.200.5.32:9090
+          ALERTMANAGER: http://34.200.5.32:9093
+        run: |
+          problem() { echo "::error::$1"; echo "- $1" >> problems.txt; }
+          query() {
+            curl -fsS -m 20 "$PROMETHEUS/api/v1/query" --data-urlencode "query=$1" |
+              jq -r '.data.result[0].value[1] // empty' || true
+          }
+
+          curl -fsS -m 20 -o /dev/null "$PROMETHEUS/-/healthy" ||
+            problem "O Prometheus não respondeu ($PROMETHEUS)."
+          curl -fsS -m 20 -o /dev/null "$ALERTMANAGER/-/healthy" ||
+            problem "O Alertmanager não respondeu ($ALERTMANAGER)."
+
+          # Prometheus de pé, mas sem coletar o SEDES, não alertaria nada.
+          age=$(query 'time() - max(timestamp(up{job="sedes"}))')
+          if [ -z "$age" ] || [ "${age%.*}" -gt 600 ]; then
+            problem "O Prometheus não coleta o SEDES há mais de 10 min."
+          fi
+
+          # É o sintoma do disco cheio: o Prometheus responde, mas perde o que coleta.
+          failed=$(query 'increase(prometheus_tsdb_wal_writes_failed_total[1h])')
+          if [ -n "$failed" ] && [ "${failed%.*}" -gt 0 ]; then
+            problem "O Prometheus não conseguiu gravar na última hora (disco cheio?)."
+          fi
+
+          [ ! -f problems.txt ] && echo "Monitor OK." && exit 0
+          echo "PROBLEMS<<EOF" >> "$GITHUB_ENV"
+          cat problems.txt >> "$GITHUB_ENV"
+          echo "EOF" >> "$GITHUB_ENV"
+          exit 1
+
+      - name: Avisar a equipe por e-mail
+        if: failure()
+        env:
+          SMTP_USER: ${{ vars.SMTP_USER }}
+          SMTP_PASSWORD: ${{ secrets.SMTP_PASSWORD }}
+          SMTP_FROM: ${{ vars.SMTP_FROM }}
+          MAIL_TO: ${{ vars.OCA_NOTIFICATION_EMAIL }}
+          RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+        run: |
+          subject=$(printf '[SEDES] O monitoramento parou: alertas não estão saindo' | base64 -w0)
+          {
+            printf 'From: %s\r\n' "${SMTP_FROM:-$SMTP_USER}"
+            printf 'To: %s\r\n' "$MAIL_TO"
+            printf 'Subject: =?UTF-8?B?%s?=\r\n' "$subject"
+            printf 'Content-Type: text/plain; charset=UTF-8\r\n\r\n'
+            printf 'A VM de monitoramento (oca-monitor, 34.200.5.32) tem problema, e\r\n'
+            printf 'enquanto isso nenhum alerta do SEDES sai:\r\n\r\n%s\r\n\r\n' "${PROBLEMS:-falha ao conferir; veja o log}"
+            printf 'Acesso: ssh -i ~/.ssh/id_ed25519 ubuntu@34.200.5.32\r\n%s\r\n' "$RUN_URL"
+          } > mail.txt
+          curl -sS --ssl-reqd --url smtps://smtp.gmail.com:465 \
+            --user "$SMTP_USER:$SMTP_PASSWORD" \
+            --mail-from "$SMTP_USER" --mail-rcpt "$MAIL_TO" --upload-file mail.txt
