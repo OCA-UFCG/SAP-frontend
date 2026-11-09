@@ -71,6 +71,26 @@ describe("UserAuth", () => {
     ).not.toBeInTheDocument();
   });
 
+  it("hides Entrar when the platform is open and nobody needs an account", () => {
+    mockAuthValue();
+
+    render(<UserAuth loginOffered={false} />);
+
+    expect(
+      screen.queryByRole("button", { name: /entrar/i }),
+    ).not.toBeInTheDocument();
+  });
+
+  it("keeps the user menu for someone already logged in on the open platform", () => {
+    mockAuthValue({ user: { email: "equipe@lsd.ufcg.edu.br" } as never });
+
+    render(<UserAuth loginOffered={false} />);
+
+    expect(
+      screen.getByRole("button", { name: /menu do usuário/i }),
+    ).toBeInTheDocument();
+  });
+
   it("redirects to login when the disconnected user clicks Entrar", () => {
     mockAuthValue();
 

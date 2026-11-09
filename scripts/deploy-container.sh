@@ -83,6 +83,7 @@ REQUIRED_ENV_VARS=(
   SIGNUP_ALLOWED_DOMAINS
   FIREBASE_ACCESS_REQUESTS_COLLECTION
   # Vazia, a plataforma abre para qualquer conta do Firebase, sem aprovação.
+  # `false` (preenchida) abre a plataforma para todos, sem login.
   PLATFORM_ACCESS_GUARD_ENABLED
 )
 

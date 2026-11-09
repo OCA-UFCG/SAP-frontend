@@ -19,6 +19,13 @@ export const PENDING_APPROVAL_PATH = "/aguardando-liberacao";
 export const ACCESS_REVOKED_PARAM = "removido";
 
 export const SESSION_COOKIE_NAME = "session";
+
+/**
+ * Identifica o navegador de quem entra na plataforma aberta, sem login. Só
+ * separa os limites de uso por pessoa: sem ele, uma sala inteira atrás do
+ * mesmo endereço de rede dividiria a mesma cota. Não autoriza nada.
+ */
+export const VISITOR_COOKIE_NAME = "sedes_visitor";
 export const PLATFORM_PATH = "/platform";
 export const LOGIN_PATH = "/login";
 export const SIGNUP_PATH = "/cadastro";

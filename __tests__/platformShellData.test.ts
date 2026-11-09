@@ -1,4 +1,4 @@
-import { beforeEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import type { LogsViewerAccess } from "@/lib/logs-access";
 
 /** Sessões conhecidas pelo teste, no lugar do Firebase. */
@@ -43,6 +43,11 @@ describe("loadPlatformShellData", () => {
     redirectMock.mockClear();
     access.current = new FakeLogsAccessResolver();
     repository.current = new FakePanelLayerRepository();
+    vi.stubEnv("PLATFORM_ACCESS_GUARD_ENABLED", "true");
+  });
+
+  afterEach(() => {
+    vi.unstubAllEnvs();
   });
 
   it("redirects anonymous visitors without reading the layers", async () => {
@@ -68,6 +73,25 @@ describe("loadPlatformShellData", () => {
   });
 
   it("shows the audit entry to allowlisted viewers", async () => {
+    access.current!.accessByCookie.set("cookie-auditoria", "allowed");
+
+    const shellData = await loadPlatformShellData("cookie-auditoria");
+
+    expect(shellData.showAuditLink).toBe(true);
+  });
+
+  it("hands the layers to anyone, without the audit entry, when the platform is open", async () => {
+    vi.stubEnv("PLATFORM_ACCESS_GUARD_ENABLED", "false");
+
+    await expect(loadPlatformShellData(null)).resolves.toEqual({
+      panelLayers: [{ id: "CDI_Test", name: "CDI" }],
+      showAuditLink: false,
+    });
+    expect(redirectMock).not.toHaveBeenCalled();
+  });
+
+  it("still shows the audit entry to a logged-in allowlisted viewer when the platform is open", async () => {
+    vi.stubEnv("PLATFORM_ACCESS_GUARD_ENABLED", "false");
     access.current!.accessByCookie.set("cookie-auditoria", "allowed");
 
     const shellData = await loadPlatformShellData("cookie-auditoria");

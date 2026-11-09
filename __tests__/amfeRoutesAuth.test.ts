@@ -1,13 +1,13 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import type { NextRequest } from "next/server";
 
-const { getAuthenticatedUserIdMock, proxyMock } = vi.hoisted(() => ({
-  getAuthenticatedUserIdMock: vi.fn(),
+const { getPlatformRequesterKeyMock, proxyMock } = vi.hoisted(() => ({
+  getPlatformRequesterKeyMock: vi.fn(),
   proxyMock: vi.fn(),
 }));
 
 vi.mock("@/lib/server-session", () => ({
-  getAuthenticatedUserId: getAuthenticatedUserIdMock,
+  getPlatformRequesterKey: getPlatformRequesterKeyMock,
 }));
 
 vi.mock("@/app/api/amfe/backendProxy", async (importOriginal) => {
@@ -32,7 +32,7 @@ const buildRequest = (body = "{}") =>
 
 beforeEach(() => {
   clearAmfeAnalyzeRateLimit();
-  getAuthenticatedUserIdMock.mockReset();
+  getPlatformRequesterKeyMock.mockReset();
   proxyMock.mockReset().mockResolvedValue(new Response("{}", { status: 200 }));
 });
 
@@ -42,7 +42,7 @@ afterEach(() => {
 
 describe("AMFE proxy routes", () => {
   it("refuses an anonymous analysis instead of driving work on the backend", async () => {
-    getAuthenticatedUserIdMock.mockResolvedValue(null);
+    getPlatformRequesterKeyMock.mockResolvedValue(null);
 
     const response = await analyze(buildRequest('{"criteria":[]}'));
 
@@ -51,7 +51,7 @@ describe("AMFE proxy routes", () => {
   });
 
   it("refuses an anonymous criteria listing", async () => {
-    getAuthenticatedUserIdMock.mockResolvedValue(null);
+    getPlatformRequesterKeyMock.mockResolvedValue(null);
 
     const response = await criterias(buildRequest());
 
@@ -60,7 +60,7 @@ describe("AMFE proxy routes", () => {
   });
 
   it("forwards the analysis for an authenticated session", async () => {
-    getAuthenticatedUserIdMock.mockResolvedValue("uid-123");
+    getPlatformRequesterKeyMock.mockResolvedValue("uid-123");
 
     const response = await analyze(buildRequest('{"criteria":[]}'));
 
@@ -72,7 +72,7 @@ describe("AMFE proxy routes", () => {
   });
 
   it("forwards the criteria listing for an authenticated session", async () => {
-    getAuthenticatedUserIdMock.mockResolvedValue("uid-123");
+    getPlatformRequesterKeyMock.mockResolvedValue("uid-123");
 
     const response = await criterias(buildRequest());
 
@@ -84,7 +84,7 @@ describe("AMFE proxy routes", () => {
   });
 
   it("stops a logged-in user from looping the analysis past the per-minute cap", async () => {
-    getAuthenticatedUserIdMock.mockResolvedValue("uid-123");
+    getPlatformRequesterKeyMock.mockResolvedValue("uid-123");
 
     for (
       let attempt = 0;
@@ -108,7 +108,7 @@ describe("AMFE proxy routes", () => {
   });
 
   it("keys the analysis cap by user, so one heavy caller cannot block another", async () => {
-    getAuthenticatedUserIdMock.mockResolvedValue("uid-heavy");
+    getPlatformRequesterKeyMock.mockResolvedValue("uid-heavy");
     for (
       let attempt = 0;
       attempt <= AMFE_ANALYZE_RATE_LIMIT_MAX_REQUESTS;
@@ -117,14 +117,14 @@ describe("AMFE proxy routes", () => {
       await analyze(buildRequest('{"criteria":[]}'));
     }
 
-    getAuthenticatedUserIdMock.mockResolvedValue("uid-other");
+    getPlatformRequesterKeyMock.mockResolvedValue("uid-other");
     const response = await analyze(buildRequest('{"criteria":[]}'));
 
     expect(response.status).toBe(200);
   });
 
   it("does not cap the criteria listing, which is a cheap read", async () => {
-    getAuthenticatedUserIdMock.mockResolvedValue("uid-123");
+    getPlatformRequesterKeyMock.mockResolvedValue("uid-123");
 
     for (
       let attempt = 0;

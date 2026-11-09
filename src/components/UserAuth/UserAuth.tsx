@@ -10,7 +10,15 @@ import { navigateWithFullReload } from "@/utils/fullPageNavigation";
 import { Link } from "@/translations/routing";
 import { useDialogFocus } from "@/hooks/useDialogFocus";
 
-export const UserAuth = () => {
+/**
+ * `loginOffered={false}` esconde o "Entrar" de quem não está logado, na
+ * plataforma aberta. Quem já entrou continua vendo o próprio menu.
+ */
+export const UserAuth = ({
+  loginOffered = true,
+}: {
+  loginOffered?: boolean;
+}) => {
   const t = useTranslations("UserAuth");
   const { user, loading, signOut } = useAuth();
   const [openPathname, setOpenPathname] = useState<string | null>(null);
@@ -68,13 +76,15 @@ export const UserAuth = () => {
       </div>
 
       {!user ? (
-        <button
-          type="button"
-          onClick={handleLogin}
-          className="flex h-10 cursor-pointer items-center rounded-md px-4 max-sm:px-3 py-2 font-medium text-neutral-800 transition-[background-color,color,box-shadow,scale] duration-300 hover:bg-[#646B2D] hover:text-[#F8F7F8] hover:shadow-[0_6px_16px_rgba(152,159,67,0.35)] focus:outline-none focus:ring-2 focus:ring-[#5B612A] active:scale-[0.97]"
-        >
-          {t("login")}
-        </button>
+        loginOffered && (
+          <button
+            type="button"
+            onClick={handleLogin}
+            className="flex h-10 cursor-pointer items-center rounded-md px-4 max-sm:px-3 py-2 font-medium text-neutral-800 transition-[background-color,color,box-shadow,scale] duration-300 hover:bg-[#646B2D] hover:text-[#F8F7F8] hover:shadow-[0_6px_16px_rgba(152,159,67,0.35)] focus:outline-none focus:ring-2 focus:ring-[#5B612A] active:scale-[0.97]"
+          >
+            {t("login")}
+          </button>
+        )
       ) : (
         <div className="relative" ref={menuRef}>
           <button

@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { getAuthenticatedUserId } from "@/lib/server-session";
+import { getPlatformRequesterKey } from "@/lib/server-session";
 
 const resolveBackendBaseUrl = () => {
   const apiBaseUrl = process.env.API_BASE_URL?.replace(/\/+$/, "");
@@ -31,9 +31,9 @@ export type AmfeRequestUser =
 export const resolveAmfeRequestUser = async (
   request: Request,
 ): Promise<AmfeRequestUser> => {
-  const authenticatedUserId = await getAuthenticatedUserId(request);
+  const requesterKey = await getPlatformRequesterKey(request);
 
-  if (authenticatedUserId) return { userId: authenticatedUserId };
+  if (requesterKey) return { userId: requesterKey };
 
   return {
     denied: NextResponse.json(

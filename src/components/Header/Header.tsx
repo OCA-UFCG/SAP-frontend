@@ -6,8 +6,12 @@ import { Icon } from '../Icon/Icon';
 import { UserAuth } from '../UserAuth/UserAuth';
 import { HeaderFrame } from './HeaderFrame';
 import { SedesLogo } from './SedesLogo';
+import { isPlatformOpen } from '@/lib/access-flag';
 
 export const Header = ({ content }: { content: ISection[] }) => {
+  // Na plataforma aberta o botão "Entrar" sai: ninguém precisa de conta.
+  const loginOffered = !isPlatformOpen();
+
   return (
     <HeaderFrame>
       <div className="w-full max-w-360 mx-auto px-4 md:px-10 lg:px-19.5 group-data-[platform]/header:max-w-none">
@@ -37,11 +41,11 @@ export const Header = ({ content }: { content: ISection[] }) => {
               content={content}
             ></NavItems>
             <span aria-hidden="true" className="h-8 w-px bg-[#C9C6C0]" />
-            <UserAuth />
+            <UserAuth loginOffered={loginOffered} />
           </div>
 
           <div className="flex items-center gap-4 max-sm:gap-2 xl:hidden">
-            <UserAuth />
+            <UserAuth loginOffered={loginOffered} />
             <MenuModal content={content}></MenuModal>
           </div>
         </div>

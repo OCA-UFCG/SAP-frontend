@@ -8,7 +8,7 @@ import {
 import { ensureEeCacheWarmupStarted } from "@/app/api/ee/services";
 import { consumeEeRateLimit } from "./rate-limit";
 import { getPanelLayers } from "@/repositories/platform/panelLayerRepository";
-import { getAuthenticatedUserId } from "@/lib/server-session";
+import { getPlatformRequesterKey } from "@/lib/server-session";
 import { createServerTiming } from "@/utils/serverTiming";
 import { resolveSpatialSelection } from "@/utils/spatialScope";
 
@@ -25,9 +25,9 @@ function describeUnavailable(
 export async function POST(req: NextRequest) {
   const timing = createServerTiming();
   const finishAuth = timing.start();
-  const authenticatedUserId = await getAuthenticatedUserId(req);
+  const requesterKey = await getPlatformRequesterKey(req);
   finishAuth("auth", "Autenticação");
-  if (!authenticatedUserId) {
+  if (!requesterKey) {
     return NextResponse.json(
       { error: "Unauthorized access." },
       { status: 401 },
@@ -92,7 +92,7 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    const rateLimit = consumeEeRateLimit(authenticatedUserId);
+    const rateLimit = consumeEeRateLimit(requesterKey);
     if (rateLimit.limited) {
       return NextResponse.json(
         { error: "Too many Earth Engine requests. Try again later." },

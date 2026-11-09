@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import type { NextRequest } from "next/server";
 import { consumeEeRateLimit } from "@/app/api/ee/rate-limit";
-import { getAuthenticatedUserId } from "@/lib/server-session";
+import { getPlatformRequesterKey } from "@/lib/server-session";
 import { ensureEeCacheWarmupStarted } from "@/app/api/ee/services";
 import {
   REFERENCE_LAYER_ASSETS,
@@ -9,8 +9,8 @@ import {
 } from "@/app/api/ee/referenceLayers";
 
 export async function POST(req: NextRequest) {
-  const authenticatedUserId = await getAuthenticatedUserId(req);
-  if (!authenticatedUserId) {
+  const requesterKey = await getPlatformRequesterKey(req);
+  if (!requesterKey) {
     return NextResponse.json(
       { error: "Unauthorized access." },
       { status: 401 },
@@ -19,7 +19,7 @@ export async function POST(req: NextRequest) {
 
   ensureEeCacheWarmupStarted();
 
-  const rateLimit = consumeEeRateLimit(authenticatedUserId);
+  const rateLimit = consumeEeRateLimit(requesterKey);
   if (rateLimit.limited) {
     return NextResponse.json(
       { error: "Too many Earth Engine requests. Try again later." },

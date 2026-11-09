@@ -1,5 +1,6 @@
 import { redirect } from "next/navigation";
 import { resolveLogsViewerAccess } from "@/lib/logs-access";
+import { isPlatformOpen } from "@/lib/access-flag";
 import { getPanelLayers } from "@/repositories/platform/panelLayerRepository";
 
 /**
@@ -14,9 +15,21 @@ import { getPanelLayers } from "@/repositories/platform/panelLayerRepository";
  * a página de rodar, e as camadas iam no corpo do 307 para quem não estava
  * logado — um `curl` em `/pt/platform` lia os 447 KB de `panelLayers`.
  *
+ * Na plataforma aberta ninguém é mandado para o login: quem não entrou vê a
+ * plataforma sem as entradas de auditoria e catálogo.
+ *
  * const { panelLayers, showAuditLink } = await loadPlatformShellData(cookie);
  */
 export async function loadPlatformShellData(sessionCookie: string | null) {
+  if (isPlatformOpen()) {
+    const [panelLayers, logsViewerAccess] = await Promise.all([
+      getPanelLayers(),
+      resolveLogsViewerAccess(sessionCookie),
+    ]);
+
+    return { panelLayers, showAuditLink: logsViewerAccess === "allowed" };
+  }
+
   if (!sessionCookie) {
     redirect("/login");
   }
