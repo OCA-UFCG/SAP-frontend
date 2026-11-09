@@ -1,5 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { verifyCaptcha } from "@/lib/captcha";
+import { verifyCaptcha, verifyCaptchaSecret } from "@/lib/captcha";
 
 const SECRET = "segredo-de-producao";
 
@@ -179,5 +179,43 @@ describe("verifyCaptcha", () => {
       ).resolves.toBe(false);
       expect(console.error).toHaveBeenCalled();
     });
+  });
+});
+
+describe("verifyCaptchaSecret", () => {
+  beforeEach(() => {
+    vi.stubEnv("TURNSTILE_SECRET_KEY", SECRET);
+  });
+
+  afterEach(() => {
+    vi.unstubAllEnvs();
+    vi.restoreAllMocks();
+  });
+
+  it("accepts the secret when Cloudflare only refuses the made-up token", async () => {
+    siteverifyAnswers({ success: false, "error-codes": ["invalid-input-response"] });
+
+    await expect(verifyCaptchaSecret()).resolves.toBeUndefined();
+  });
+
+  it("fails when Cloudflare refuses the secret itself", async () => {
+    siteverifyAnswers({ success: false, "error-codes": ["invalid-input-secret"] });
+
+    await expect(verifyCaptchaSecret()).rejects.toThrow("invalid-input-secret");
+  });
+
+  it("fails without asking Cloudflare when the secret is empty", async () => {
+    vi.stubEnv("TURNSTILE_SECRET_KEY", "");
+    const fetchMock = vi.spyOn(globalThis, "fetch");
+
+    await expect(verifyCaptchaSecret()).rejects.toThrow("não configurada");
+    expect(fetchMock).not.toHaveBeenCalled();
+  });
+
+  it("fails in production when the secret is Cloudflare's testing key", async () => {
+    vi.stubEnv("NODE_ENV", "production");
+    siteverifyAnswers({ success: true, metadata: { result_with_testing_key: true } });
+
+    await expect(verifyCaptchaSecret()).rejects.toThrow("chave de teste");
   });
 });

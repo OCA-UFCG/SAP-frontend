@@ -61,3 +61,40 @@ export async function applyVerificationCode(code: string) {
     return null;
   }
 }
+
+/**
+ * Confere a chave web do Firebase, para o `/api/health`.
+ *
+ * É a única credencial do Firebase que o health check não exercitava: o
+ * servidor usa a de administrador para quase tudo, mas confirmar o endereço,
+ * trocar a senha e apagar a conta passam por esta. Errada, essas telas dizem
+ * "código inválido" para todo mundo. Com um código inventado, o Firebase
+ * responde `INVALID_OOB_CODE` quando a chave é boa e `API_KEY_INVALID` quando
+ * não é.
+ *
+ * Lança quando a chave não serve.
+ */
+export async function verifyFirebaseWebApiKey() {
+  const apiKey = process.env.NEXT_PUBLIC_FIREBASE_API_KEY;
+  if (!apiKey) throw new Error("NEXT_PUBLIC_FIREBASE_API_KEY não configurada");
+
+  const response = await fetch(
+    `${IDENTITY_TOOLKIT_URL}?key=${encodeURIComponent(apiKey)}`,
+    {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ oobCode: "health-check" }),
+      signal: AbortSignal.timeout(10_000),
+      cache: "no-store",
+    },
+  );
+  const body = (await response.json().catch(() => null)) as {
+    error?: { message?: string };
+  } | null;
+
+  if (body?.error?.message !== "INVALID_OOB_CODE") {
+    throw new Error(
+      `O Firebase recusou a chave web: HTTP ${response.status} ${body?.error?.message ?? ""}`.trim(),
+    );
+  }
+}

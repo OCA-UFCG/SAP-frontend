@@ -122,3 +122,38 @@ export async function verifyCaptcha(
 
   return true;
 }
+
+/**
+ * Confere a chave sem precisar de um visitante, para o `/api/health`.
+ *
+ * Com um token inventado, a Cloudflare responde `invalid-input-response` quando
+ * a chave é boa e `invalid-input-secret` quando não é, sem gastar nada. Antes
+ * disso, uma chave vazia ou errada só aparecia como "Não foi possível
+ * confirmar que você não é um robô" para quem tentava se cadastrar: em 11/2026
+ * foram três dias recusando todo mundo com o health check verde.
+ *
+ * Lança quando a chave não serve.
+ */
+export async function verifyCaptchaSecret() {
+  const secret = process.env.TURNSTILE_SECRET_KEY;
+  if (!secret) throw new Error("TURNSTILE_SECRET_KEY não configurada");
+
+  const response = await fetch(SITEVERIFY_URL, {
+    method: "POST",
+    body: new URLSearchParams({ secret, response: "health-check" }),
+    signal: AbortSignal.timeout(SITEVERIFY_TIMEOUT_MS),
+    cache: "no-store",
+  });
+  const result = (await response.json()) as SiteverifyResponse;
+  const codes = result["error-codes"] ?? [];
+
+  if (codes.some((code) => CONFIG_ERROR_CODES.has(code))) {
+    throw new Error(`A Cloudflare recusou a TURNSTILE_SECRET_KEY (${codes.join(", ")})`);
+  }
+  if (
+    result.metadata?.result_with_testing_key &&
+    process.env.NODE_ENV === "production"
+  ) {
+    throw new Error("TURNSTILE_SECRET_KEY é a chave de teste da Cloudflare");
+  }
+}

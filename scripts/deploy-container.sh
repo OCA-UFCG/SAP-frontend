@@ -59,6 +59,32 @@ FORWARDED_ENV_VARS=(
   CONTENTFUL_REVALIDATE_SECONDS
 )
 
+# Subconjunto que nenhum ambiente pode mandar vazio. Um secret regravado em
+# branco chega ao container como `VAR=` e o deploy seguia em frente: em 11/2026
+# o TURNSTILE_SECRET_KEY vazio passou por três deploys e recusou todo cadastro
+# por três dias, com o health check verde. Ficam de fora as que algum ambiente
+# deixa vazias de propósito (LOGS_ALLOWED_EMAILS e NEXT_PUBLIC_HOST_URL na
+# produção, METRICS_TOKEN no gamma, as de link).
+REQUIRED_ENV_VARS=(
+  GEE_PRIVATE_KEY
+  FIREBASE_PROJECT_ID
+  FIREBASE_CLIENT_EMAIL
+  FIREBASE_PRIVATE_KEY_BASE64
+  TURNSTILE_SECRET_KEY
+  FIREBASE_TELEMETRY_COLLECTION
+  CONTENTFUL_MANAGEMENT_TOKEN
+  DOCS_DEFAULT
+  API_BASE_URL
+  SMTP_USER
+  SMTP_PASSWORD
+  SMTP_FROM
+  OCA_NOTIFICATION_EMAIL
+  SIGNUP_ALLOWED_DOMAINS
+  FIREBASE_ACCESS_REQUESTS_COLLECTION
+  # Vazia, a plataforma abre para qualquer conta do Firebase, sem aprovação.
+  PLATFORM_ACCESS_GUARD_ENABLED
+)
+
 # Os runners self-hosted exigem sudo para falar com o daemon; um ambiente onde o
 # usuário está no grupo docker, não. Manter isso injetável é o que torna o script
 # testável de ponta a ponta sem afrouxar nada no deploy real.
@@ -83,6 +109,22 @@ docker_run_forwarding_env() {
   fi
 
   "$DOCKER_SUDO" --preserve-env="$preserve_list" docker run "$@"
+}
+
+require_env_vars() {
+  local missing=()
+  local variable_name value
+  for variable_name in "${REQUIRED_ENV_VARS[@]}"; do
+    value="${!variable_name:-}"
+    if [[ -z "${value//[[:space:]]/}" ]]; then
+      missing+=("$variable_name")
+    fi
+  done
+
+  if ((${#missing[@]} > 0)); then
+    echo "::error::Variáveis obrigatórias vazias: ${missing[*]}. Confira os secrets e variables do repositório; nada foi trocado." >&2
+    exit 1
+  fi
 }
 
 health_url() {
@@ -151,6 +193,10 @@ wait_until_healthy() {
 # em memória. Pagar aqui evita que o primeiro usuário real pague. Só cobre rotas
 # sem login: o aquecimento do Earth Engine exige sessão e continua acontecendo no
 # primeiro acesso autenticado.
+#
+# A home é obrigatória: o health check só prova que as dependências respondem,
+# não que as páginas renderizam. Já houve versão em que toda página dava 500 com
+# o /api/health verde. Os tiles seguem opcionais.
 warm_up() {
   local paths=(
     "/api/tiles/0/0/0?tileset=states"
@@ -162,6 +208,9 @@ warm_up() {
   for path in "${paths[@]}"; do
     if curl -fsSL -o /dev/null --max-time 30 "http://localhost:${HOST_PORT}${path}"; then
       echo "Aquecido: $path"
+    elif [[ "$path" == "/" ]]; then
+      echo "A home não respondeu: http://localhost:${HOST_PORT}/" >&2
+      return 1
     else
       echo "Aquecimento falhou e foi ignorado: $path"
     fi
@@ -169,7 +218,7 @@ warm_up() {
 }
 
 roll_back_to_previous() {
-  echo "::error::A nova imagem não respondeu ao health check; restaurando a versão anterior."
+  echo "::error::${1:-A nova imagem não respondeu ao health check}; restaurando a versão anterior."
   docker_as_root logs --tail 100 "$CONTAINER_NAME" 2>&1 || true
   docker_as_root rm -f "$CONTAINER_NAME" >/dev/null 2>&1 || true
 
@@ -222,6 +271,9 @@ main() {
     exit 1
   fi
 
+  # Antes de encostar em qualquer container: o que está no ar continua no ar.
+  require_env_vars
+
   ensure_network
   retire_current_container
   # O antigo já está parado: se o próprio `docker run` falhar, também precisa
@@ -230,7 +282,9 @@ main() {
     roll_back_to_previous
   fi
 
-  warm_up
+  if ! warm_up; then
+    roll_back_to_previous "A nova imagem passou no health check, mas a home não abriu"
+  fi
 
   if container_exists "$PREVIOUS_CONTAINER"; then
     docker_as_root rm -f "$PREVIOUS_CONTAINER"

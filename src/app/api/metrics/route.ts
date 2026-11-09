@@ -12,6 +12,8 @@ import {
   getContentfulUsage,
   type ContentfulUsage,
 } from "@/infrastructure/contentful/usage";
+import { getSignupResponseCounts } from "@/app/api/signup/outcomes";
+import { getMailCounts, type MailResult } from "@/lib/mailer";
 
 /**
  * As métricas do SEDES no formato que o Prometheus lê, para a VM de
@@ -21,7 +23,8 @@ import {
  * disco, a memória e a CPU da VM: o container enxerga o disco do host pela
  * camada do Docker e lê o `/proc` do host, e disco cheio ou memória esgotada
  * derrubam os containers. Traz também o uso da cota de API do Contentful no
- * mês e quantas chamadas este servidor fez a ele. Só responde a quem manda o
+ * mês e quantas chamadas este servidor fez a ele, e quantos e-mails e cadastros
+ * deram certo ou errado. Só responde a quem manda o
  * `METRICS_TOKEN`; sem ele configurado, a rota não existe.
  */
 export async function GET(request: Request) {
@@ -46,6 +49,8 @@ export async function GET(request: Request) {
     cpu,
     usage,
     traffic: getContentfulTraffic(),
+    mail: getMailCounts(),
+    signups: getSignupResponseCounts(),
   });
   return new Response(body, {
     headers: {
@@ -148,6 +153,8 @@ interface MetricsInput {
   cpu: CpuTime | null;
   usage: ContentfulUsage | null;
   traffic: ReadonlyMap<string, ContentfulTraffic>;
+  mail: Readonly<Record<MailResult, number>>;
+  signups: ReadonlyMap<number, number>;
 }
 
 function formatMetrics({
@@ -157,6 +164,8 @@ function formatMetrics({
   cpu,
   usage,
   traffic,
+  mail,
+  signups,
 }: MetricsInput) {
   const dependencies = Object.entries(report.dependencies);
   const lines = [
@@ -246,6 +255,20 @@ function formatMetrics({
     ...apis.map(
       ([api, count]) =>
         `sedes_contentful_response_bytes_total{api="${api}"} ${count.bytes}`,
+    ),
+  );
+
+  lines.push(
+    "# HELP sedes_mail_total E-mails que este servidor tentou mandar, por resultado.",
+    "# TYPE sedes_mail_total counter",
+    ...Object.entries(mail).map(
+      ([result, count]) => `sedes_mail_total{result="${result}"} ${count}`,
+    ),
+    "# HELP sedes_signup_responses_total Respostas do cadastro deste servidor, por status HTTP.",
+    "# TYPE sedes_signup_responses_total counter",
+    ...[...signups.entries()].map(
+      ([status, count]) =>
+        `sedes_signup_responses_total{status="${status}"} ${count}`,
     ),
   );
 
