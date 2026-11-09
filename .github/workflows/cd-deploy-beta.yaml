@@ -184,6 +184,7 @@ jobs:
           # A VM de monitoramento (oca-monitor) manda este token para ler /api/metrics.
           METRICS_TOKEN: ${{ secrets.METRICS_TOKEN }}
           SIGNUP_ALLOWED_DOMAINS: ${{ vars.SIGNUP_ALLOWED_DOMAINS }}
+          SIGNUP_AUTO_APPROVE_ALL_DOMAINS: ${{ vars.SIGNUP_AUTO_APPROVE_ALL_DOMAINS }}
           FIREBASE_ACCESS_REQUESTS_COLLECTION: ${{ vars.FIREBASE_ACCESS_REQUESTS_COLLECTION }}
           PLATFORM_ACCESS_GUARD_ENABLED: ${{ vars.PLATFORM_ACCESS_GUARD_ENABLED_BETA }}
           # O aviso de acesso aprovado leva a pessoa para a produção.

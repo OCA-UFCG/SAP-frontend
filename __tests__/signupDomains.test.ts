@@ -61,6 +61,50 @@ describe("signup domains", () => {
     expect(resolveSignupTier("fulano@gmail.com")).toBe("common");
   });
 
+  it("allows any domain when SIGNUP_AUTO_APPROVE_ALL_DOMAINS is true", () => {
+    vi.stubEnv("SIGNUP_ALLOWED_DOMAINS", "ufcg.edu.br");
+    vi.stubEnv("SIGNUP_AUTO_APPROVE_ALL_DOMAINS", "true");
+
+    expect(isAllowedSignupDomain("fulano@gmail.com")).toBe(true);
+    expect(resolveSignupTier("fulano@gmail.com")).toBe("allowed");
+    expect(resolveSignupTier("fulano@ufcg.edu.br")).toBe("allowed");
+  });
+
+  it("allows any domain even when the list is empty, if the switch is on", () => {
+    vi.stubEnv("SIGNUP_ALLOWED_DOMAINS", "");
+    vi.stubEnv("SIGNUP_AUTO_APPROVE_ALL_DOMAINS", "true");
+
+    expect(isAllowedSignupDomain("fulano@gmail.com")).toBe(true);
+  });
+
+  it("still refuses a malformed address when the switch is on", () => {
+    vi.stubEnv("SIGNUP_AUTO_APPROVE_ALL_DOMAINS", "true");
+
+    expect(isAllowedSignupDomain("fulano@")).toBe(false);
+    expect(isAllowedSignupDomain("ufcg.edu.br")).toBe(false);
+    expect(isAllowedSignupDomain(null)).toBe(false);
+  });
+
+  it("keeps using the list when the switch is anything other than true", () => {
+    vi.stubEnv("SIGNUP_ALLOWED_DOMAINS", "ufcg.edu.br");
+
+    for (const value of ["", "false", "1", "TRUE", "yes"]) {
+      vi.stubEnv("SIGNUP_AUTO_APPROVE_ALL_DOMAINS", value);
+
+      expect(resolveSignupTier("fulano@gmail.com")).toBe("common");
+      expect(resolveSignupTier("fulano@ufcg.edu.br")).toBe("allowed");
+    }
+  });
+
+  it("goes back to the list as soon as the switch is turned off", () => {
+    vi.stubEnv("SIGNUP_ALLOWED_DOMAINS", "ufcg.edu.br");
+    vi.stubEnv("SIGNUP_AUTO_APPROVE_ALL_DOMAINS", "true");
+    expect(resolveSignupTier("fulano@gmail.com")).toBe("allowed");
+
+    vi.stubEnv("SIGNUP_AUTO_APPROVE_ALL_DOMAINS", "");
+    expect(resolveSignupTier("fulano@gmail.com")).toBe("common");
+  });
+
   // A lista é lida a cada chamada, como em logs-access: tirar um domínio do
   // ambiente precisa valer no request seguinte, sem esperar cache nenhum.
   it("stops allowing a domain as soon as the env stops naming it", () => {

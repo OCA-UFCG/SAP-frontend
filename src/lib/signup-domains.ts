@@ -28,6 +28,16 @@ export function parseAllowedSignupDomains(
 }
 
 /**
+ * Interruptor que libera qualquer domínio, sem mexer na lista. Só `"true"`
+ * liga: vazia ou com outro valor, vale a lista de `SIGNUP_ALLOWED_DOMAINS`.
+ * Lido a cada chamada, pelo mesmo motivo da lista: desligar vale no request
+ * seguinte.
+ */
+export function isEveryDomainAutoApproved() {
+  return process.env.SIGNUP_AUTO_APPROVE_ALL_DOMAINS === "true";
+}
+
+/**
  * Domínio de um e-mail, ou `null` quando o texto não é um endereço único e bem
  * formado. Um `@` a mais, nenhum `@`, ou parte vazia devolvem `null` — sempre
  * pelo caminho que nega, nunca pelo que libera.
@@ -56,6 +66,12 @@ function extractEmailDomain(email?: string | null) {
 export function isAllowedSignupDomain(email?: string | null) {
   const allowedDomains = parseAllowedSignupDomains();
   const domain = extractEmailDomain(email);
+
+  // Com o interruptor ligado, qualquer endereço bem formado entra. O malformado
+  // continua negado.
+  if (domain && isEveryDomainAutoApproved()) {
+    return true;
+  }
 
   if (!domain || allowedDomains.size === 0) {
     return false;
