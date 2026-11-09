@@ -10,6 +10,7 @@ import {
   type PopoverDOM,
 } from "driver.js";
 import { isPhoneViewport } from "@/components/PlatformMap/platformMapView";
+import { afterPlatformIntro } from "@/components/PlatformIntro/platformIntroState";
 import "driver.js/dist/driver.css";
 import "./platformTour.css";
 
@@ -489,8 +490,15 @@ export function usePlatformTour({
   useEffect(() => {
     if (!autoStart || hasSeenPlatformTour(section)) return;
 
-    startTourRef.current(section, AUTO_START_DELAY_MS);
-    return () => window.clearTimeout(timerRef.current);
+    // Quem chega pela primeira vez vê a abertura antes: o tutorial espera ela
+    // sair da frente para escurecer a tela.
+    const stopWaiting = afterPlatformIntro(() =>
+      startTourRef.current(section, AUTO_START_DELAY_MS),
+    );
+    return () => {
+      stopWaiting();
+      window.clearTimeout(timerRef.current);
+    };
   }, [autoStart, section]);
 
   useEffect(

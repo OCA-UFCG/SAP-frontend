@@ -1,4 +1,10 @@
-import type { ReactElement, ReactNode } from "react";
+import {
+  Children,
+  Suspense,
+  isValidElement,
+  type ReactElement,
+  type ReactNode,
+} from "react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 const { cookiesMock, redirectMock, resolvePlatformAccessMock } = vi.hoisted(
@@ -17,6 +23,16 @@ vi.mock("@/lib/platform-access", () => ({
 
 import PlatformLayout from "@/app/[locale]/platform/layout";
 
+/** O layout devolve a abertura e o `Suspense` lado a lado; o teste olha o `Suspense`. */
+function findSuspense(layoutOutput: ReactElement) {
+  return Children.toArray(
+    (layoutOutput.props as { children: ReactNode }).children,
+  ).find(
+    (child): child is ReactElement =>
+      isValidElement(child) && child.type === Suspense,
+  )!;
+}
+
 /**
  * O layout devolve o `Suspense` na hora e deixa a checagem de acesso para o
  * portão lá dentro; o teste renderiza o portão para chegar nela.
@@ -25,8 +41,9 @@ async function renderPlatform(locale: string) {
   const layoutOutput = (await PlatformLayout({
     children: "conteudo",
     params: Promise.resolve({ locale }),
-  })) as ReactElement<{ children: ReactElement }>;
-  const gate = layoutOutput.props.children;
+  })) as ReactElement;
+  const gate = (findSuspense(layoutOutput).props as { children: ReactElement })
+    .children;
   const renderGate = gate.type as (props: unknown) => Promise<ReactNode>;
 
   return renderGate(gate.props);

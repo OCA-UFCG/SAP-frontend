@@ -1,4 +1,10 @@
-import { isValidElement, type ReactElement, type ReactNode } from "react";
+import {
+  Children,
+  Suspense,
+  isValidElement,
+  type ReactElement,
+  type ReactNode,
+} from "react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 type PlatformAccess = "approved" | "unapproved" | "unauthenticated";
@@ -51,8 +57,19 @@ interface SessionGateProps {
 
 const params = Promise.resolve({ locale: "pt" });
 
+/** O layout devolve a abertura e o `Suspense` lado a lado; o teste olha o `Suspense`. */
+function findSuspense(layoutOutput: ReactElement) {
+  return Children.toArray(
+    (layoutOutput.props as { children: ReactNode }).children,
+  ).find(
+    (child): child is ReactElement =>
+      isValidElement(child) && child.type === Suspense,
+  )!;
+}
+
 function readSessionGate(layoutOutput: ReactElement) {
-  const gate = (layoutOutput.props as { children: ReactElement }).children;
+  const gate = (findSuspense(layoutOutput).props as { children: ReactElement })
+    .children;
   const renderGate = gate.type as (
     props: SessionGateProps,
   ) => Promise<ReactElement>;
@@ -81,7 +98,9 @@ describe("platform session layout", () => {
       params,
     });
 
-    const fallback = (layoutOutput.props as { fallback: ReactNode }).fallback;
+    const fallback = (
+      findSuspense(layoutOutput).props as { fallback: ReactNode }
+    ).fallback;
     expect(isValidElement(fallback) && fallback.type).toBe(PlatformLoading);
     expect(verifier.current!.calls).toEqual([]);
   });
