@@ -64,7 +64,7 @@ describe("renderAnalysisReportHtml", () => {
       "1": { name: "Areia", UF: "PB", classification: 4 },
     });
 
-    expect(html).toContain("reportScope:scopeState|PB|scopeState");
+    expect(html).toContain("reportScope:Paraíba, PB|scopeState");
   });
 
   it("lista o excluído só pelo nome e escapa o nome", () => {
@@ -111,26 +111,43 @@ describe("renderAnalysisReportHtml", () => {
     expect(html).not.toContain("reportCoverage");
   });
 
-  it("aponta a planilha quando a lista foi cortada", () => {
+  it("lista os municípios de todas as classes, sem corte", () => {
     const cities: Cities = Object.fromEntries(
       Array.from({ length: 42 }, (_, index) => [
         `${index}`,
-        { name: `Cidade ${index}`, UF: "PB", classification: 4 },
+        { name: `Cidade ${index}`, UF: "PB", classification: index % 5 },
       ]),
     );
 
     const html = render(cities);
 
-    expect(html).toContain("reportAndMore:12");
-    expect(html).toContain("reportSeeWorkbook");
+    expect((html.match(/<li>Cidade /g) ?? []).length).toBe(42);
+    expect((html.match(/reportClassList:/g) ?? []).length).toBe(5);
   });
 
-  it("não aponta a planilha quando a lista coube inteira", () => {
+  it("diz que a classe está vazia em vez de deixar a faixa sem nada", () => {
     const html = render({
       "1": { name: "Areia", UF: "PB", classification: 4 },
     });
 
-    expect(html).not.toContain("reportAndMore");
+    expect(html).toContain("reportClassListEmpty");
+  });
+
+  it("diz que ninguém foi excluído quando a lista de excluídos vem vazia", () => {
+    const html = render({
+      "1": { name: "Areia", UF: "PB", classification: 4 },
+    });
+
+    expect(html).toContain("reportNoExcluded");
+  });
+
+  it("explica o cenário adotado e o sentido de benefício e custo", () => {
+    const html = render({
+      "1": { name: "Areia", UF: "PB", classification: 4 },
+    });
+
+    expect(html).toContain("reportScenarioPessimisticNote");
+    expect(html).toContain("reportDirectionNote");
   });
 
   it("desenha os critérios com o rótulo do catálogo e o nome cru como reserva", () => {
