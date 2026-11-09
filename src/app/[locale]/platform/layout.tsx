@@ -56,7 +56,7 @@ export default async function PlatformLayout({
 
   // Fica no layout, e não na página, para cobrir também a tela de carregamento.
   // Por cima de tudo, a abertura não muda o resto da árvore.
-  const intro = cookieStore.has(PLATFORM_INTRO_COOKIE) ? null : (
+  const intro = cookieStore.get(PLATFORM_INTRO_COOKIE) ? null : (
     <PlatformIntro />
   );
 
