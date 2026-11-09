@@ -28,6 +28,8 @@ scrape_configs:
       - { source_labels: [dependency], regex: firebase, target_label: servico, replacement: Firebase }
       - { source_labels: [dependency], regex: multicriteria, target_label: servico, replacement: o backend multicritério }
       - { source_labels: [dependency], regex: smtp, target_label: servico, replacement: o envio de e-mail (SMTP) }
+      - { source_labels: [dependency], regex: captcha, target_label: servico, replacement: o captcha do cadastro (chave do Turnstile) }
+      - { source_labels: [dependency], regex: firebase_web, target_label: servico, replacement: a chave web do Firebase (confirmação de e-mail e troca de senha) }
       - { source_labels: [error], regex: timeout, target_label: falha, replacement: não respondeu a tempo }
       - { source_labels: [error], regex: not configured, target_label: falha, replacement: está sem credencial configurada }
       - { source_labels: [error], regex: failed, target_label: falha, replacement: deu erro }

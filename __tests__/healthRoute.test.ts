@@ -1,12 +1,20 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
-const { pingGeeMock, getContentMock, firestoreGetMock, verifyMailerMock } =
-  vi.hoisted(() => ({
-    pingGeeMock: vi.fn(),
-    getContentMock: vi.fn(),
-    firestoreGetMock: vi.fn(),
-    verifyMailerMock: vi.fn(),
-  }));
+const {
+  pingGeeMock,
+  getContentMock,
+  firestoreGetMock,
+  verifyMailerMock,
+  verifyCaptchaSecretMock,
+  verifyFirebaseWebApiKeyMock,
+} = vi.hoisted(() => ({
+  pingGeeMock: vi.fn(),
+  getContentMock: vi.fn(),
+  firestoreGetMock: vi.fn(),
+  verifyMailerMock: vi.fn(),
+  verifyCaptchaSecretMock: vi.fn(),
+  verifyFirebaseWebApiKeyMock: vi.fn(),
+}));
 
 vi.mock("server-only", () => ({}));
 
@@ -30,11 +38,20 @@ vi.mock("@/lib/mailer", () => ({
   verifyMailer: verifyMailerMock,
 }));
 
+vi.mock("@/lib/captcha", () => ({
+  verifyCaptchaSecret: verifyCaptchaSecretMock,
+}));
+
+vi.mock("@/lib/email-verification-code", () => ({
+  verifyFirebaseWebApiKey: verifyFirebaseWebApiKeyMock,
+}));
+
 import { GET } from "@/app/api/health/route";
 import {
   CONTENTFUL_OK_TTL_MS,
   HEALTH_CHECK_TIMEOUT_MS,
   HEALTH_REPORT_TTL_MS,
+  KEY_OK_TTL_MS,
   resetHealthChecks,
 } from "@/app/api/health/checks";
 
@@ -47,10 +64,14 @@ beforeEach(() => {
   vi.stubEnv("API_BASE_URL", "http://backend:8000/");
   vi.stubEnv("SMTP_USER", "oca@example.com");
   vi.stubEnv("SMTP_PASSWORD", "senha");
+  vi.stubEnv("TURNSTILE_SECRET_KEY", "segredo");
+  vi.stubEnv("NEXT_PUBLIC_FIREBASE_API_KEY", "chave-publica");
   pingGeeMock.mockReset().mockResolvedValue(undefined);
   getContentMock.mockReset().mockResolvedValue({ __typename: "Query" });
   firestoreGetMock.mockReset().mockResolvedValue({ exists: false });
   verifyMailerMock.mockReset().mockResolvedValue(true);
+  verifyCaptchaSecretMock.mockReset().mockResolvedValue(undefined);
+  verifyFirebaseWebApiKeyMock.mockReset().mockResolvedValue(undefined);
   fetchMock.mockReset().mockResolvedValue(new Response("[]", { status: 200 }));
   vi.stubGlobal("fetch", fetchMock);
   vi.spyOn(console, "error").mockImplementation(() => {});
@@ -73,8 +94,10 @@ describe("GET /api/health", () => {
     expect(response.headers.get("cache-control")).toBe("no-store");
     expect(body.status).toBe("ok");
     expect(Object.keys(body.dependencies).sort()).toEqual([
+      "captcha",
       "contentful",
       "firebase",
+      "firebase_web",
       "gee",
       "multicriteria",
       "smtp",
@@ -201,5 +224,47 @@ describe("GET /api/health", () => {
     await GET();
 
     expect(console.error).toHaveBeenCalledTimes(1);
+  });
+
+  it("fails when the captcha secret is empty, as in the November 2026 outage", async () => {
+    vi.stubEnv("TURNSTILE_SECRET_KEY", "");
+
+    const response = await GET();
+    const body = await response.json();
+
+    expect(response.status).toBe(503);
+    expect(body.dependencies.captcha).toMatchObject({
+      ok: false,
+      error: "not configured",
+    });
+    expect(verifyCaptchaSecretMock).not.toHaveBeenCalled();
+  });
+
+  it("fails when Cloudflare or Firebase refuse our keys", async () => {
+    verifyCaptchaSecretMock.mockRejectedValue(new Error("invalid-input-secret"));
+    verifyFirebaseWebApiKeyMock.mockRejectedValue(new Error("API_KEY_INVALID"));
+
+    const body = await (await GET()).json();
+
+    expect(body.dependencies.captcha).toMatchObject({ ok: false, error: "failed" });
+    expect(body.dependencies.firebase_web).toMatchObject({
+      ok: false,
+      error: "failed",
+    });
+  });
+
+  it("checks the captcha and Firebase web keys only every 10 min while they work", async () => {
+    vi.useFakeTimers();
+
+    await GET();
+    await vi.advanceTimersByTimeAsync(HEALTH_REPORT_TTL_MS + 1);
+    await GET();
+    expect(verifyCaptchaSecretMock).toHaveBeenCalledTimes(1);
+    expect(verifyFirebaseWebApiKeyMock).toHaveBeenCalledTimes(1);
+
+    await vi.advanceTimersByTimeAsync(KEY_OK_TTL_MS);
+    await GET();
+    expect(verifyCaptchaSecretMock).toHaveBeenCalledTimes(2);
+    expect(verifyFirebaseWebApiKeyMock).toHaveBeenCalledTimes(2);
   });
 });

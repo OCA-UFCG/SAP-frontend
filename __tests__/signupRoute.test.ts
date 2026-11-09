@@ -50,6 +50,7 @@ vi.mock("@/lib/captcha", async (importOriginal) => {
 });
 
 import { POST as signup } from "@/app/api/signup/route";
+import { getSignupResponseCounts } from "@/app/api/signup/outcomes";
 import {
   SIGNUP_RATE_LIMIT_MAX_REQUESTS,
   clearSignupRateLimits,
@@ -526,5 +527,18 @@ describe("POST /api/signup", () => {
 
       expect(verifyCaptchaMock).not.toHaveBeenCalled();
     });
+  });
+
+  it("counts each answer by status for the monitor", async () => {
+    const before = getSignupResponseCounts().get(403) ?? 0;
+
+    await signup(
+      buildRequest(
+        { email: "fulano@ufcg.edu.br", password: VALID_PASSWORD },
+        { origin: "https://atacante.example", "sec-fetch-site": "cross-site" },
+      ),
+    );
+
+    expect(getSignupResponseCounts().get(403)).toBe(before + 1);
   });
 });

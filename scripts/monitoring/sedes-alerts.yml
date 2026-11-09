@@ -44,6 +44,42 @@ groups:
             O erro completo fica no log do container (docker logs), nas linhas
             com [health].
 
+      # Quem chama o envio de e-mail engole a falha de propósito: o cadastro
+      # responde "enviado" para não virar oráculo, e a pessoa nunca recebe o
+      # link. Sem isto, a falha só ficava no log do container. Um envio
+      # falho já avisa; o aviso some 30 min depois do último.
+      - alert: SedesEmailFalhando
+        expr: increase(sedes_mail_total{result=~"failed|not_configured"}[30m]) > 0
+        labels:
+          severity: critical
+        annotations:
+          titulo: e-mails não estão saindo
+          resolvido: e-mails voltaram a sair
+          descricao: >-
+            O SEDES {{ $labels.ambiente }} não conseguiu mandar e-mail na
+            última meia hora (resultado {{ $labels.result }}): confirmação de
+            cadastro, troca de senha ou aviso de pedido de acesso. O erro
+            completo fica no log do container (docker logs), nas linhas com
+            [mailer] ou "Falha ao enviar".
+
+      # Em 10/2026 todo cadastro da produção voltava 403 de origem, e só o
+      # log do nginx sabia. 403 e 500 são o cadastro recusando quem fez tudo
+      # certo; os 400 (e-mail mal escrito, captcha não resolvido) são do
+      # visitante e ficam de fora.
+      - alert: SedesCadastroComErro
+        expr: increase(sedes_signup_responses_total{status=~"403|500"}[1h]) > 0
+        labels:
+          severity: critical
+        annotations:
+          titulo: cadastro recusando pedidos
+          resolvido: cadastro sem erros na última hora
+          descricao: >-
+            O cadastro do SEDES {{ $labels.ambiente }} respondeu
+            {{ $labels.status }} na última hora. 403 é a origem do pedido
+            recusada (domínio novo fora da lista de origens confiáveis); 500
+            é falha ao criar a conta ou o pedido de acesso. O erro completo
+            fica no log do container (docker logs).
+
       # Disco cheio para os containers e derruba o site. Avisa a partir de
       # 85% e só considera resolvido abaixo de 80%, para um disco oscilando
       # em volta do limite não virar um e-mail por minuto.

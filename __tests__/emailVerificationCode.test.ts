@@ -2,6 +2,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import {
   applyVerificationCode,
   extractVerificationCode,
+  verifyFirebaseWebApiKey,
 } from "@/lib/email-verification-code";
 
 describe("extractVerificationCode", () => {
@@ -67,5 +68,46 @@ describe("applyVerificationCode", () => {
 
     await expect(applyVerificationCode("SEGREDO")).resolves.toBeNull();
     expect(error.mock.calls.flat().join(" ")).not.toContain("SEGREDO");
+  });
+});
+
+describe("verifyFirebaseWebApiKey", () => {
+  const fetchMock = vi.fn();
+  const firebaseError = (message: string) =>
+    new Response(JSON.stringify({ error: { code: 400, message } }), {
+      status: 400,
+    });
+
+  beforeEach(() => {
+    fetchMock.mockReset();
+    vi.stubGlobal("fetch", fetchMock);
+    vi.stubEnv("NEXT_PUBLIC_FIREBASE_API_KEY", "chave-publica");
+  });
+
+  afterEach(() => {
+    vi.unstubAllGlobals();
+    vi.unstubAllEnvs();
+  });
+
+  it("accepts the key when Firebase only refuses the made-up code", async () => {
+    fetchMock.mockResolvedValue(firebaseError("INVALID_OOB_CODE"));
+
+    await expect(verifyFirebaseWebApiKey()).resolves.toBeUndefined();
+    expect(String(fetchMock.mock.calls[0][0])).toContain("key=chave-publica");
+  });
+
+  it("fails when Firebase refuses the key", async () => {
+    fetchMock.mockResolvedValue(
+      firebaseError("API key not valid. Please pass a valid API key."),
+    );
+
+    await expect(verifyFirebaseWebApiKey()).rejects.toThrow("API key not valid");
+  });
+
+  it("fails without asking Firebase when the key is empty", async () => {
+    vi.stubEnv("NEXT_PUBLIC_FIREBASE_API_KEY", "");
+
+    await expect(verifyFirebaseWebApiKey()).rejects.toThrow("não configurada");
+    expect(fetchMock).not.toHaveBeenCalled();
   });
 });

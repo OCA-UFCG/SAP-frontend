@@ -2,6 +2,8 @@ import "server-only";
 
 import { getContent } from "@/infrastructure/contentful/client";
 import { pingGee } from "@/infrastructure/earth-engine/client";
+import { verifyCaptchaSecret } from "@/lib/captcha";
+import { verifyFirebaseWebApiKey } from "@/lib/email-verification-code";
 import { adminDb } from "@/lib/firebase-admin";
 import { isMailerConfigured, verifyMailer } from "@/lib/mailer";
 
@@ -10,7 +12,9 @@ export type DependencyName =
   | "contentful"
   | "firebase"
   | "multicriteria"
-  | "smtp";
+  | "smtp"
+  | "captcha"
+  | "firebase_web";
 
 export interface DependencyStatus {
   ok: boolean;
@@ -31,7 +35,7 @@ export const HEALTH_CHECK_TIMEOUT_MS = 8_000;
  * Por quanto tempo uma verificação vale para os pedidos seguintes.
  *
  * A rota é pública: sem isso, cada pedido a ela viraria uma ida a cada uma das
- * cinco dependências, e alguém chamando em laço gastaria a cota delas.
+ * dependências, e alguém chamando em laço gastaria a cota delas.
  */
 export const HEALTH_REPORT_TTL_MS = 30_000;
 /**
@@ -48,6 +52,12 @@ export const SMTP_OK_TTL_MS = 10 * 60_000;
  * 2026 a 82% da cota. A cada 15 min são ~190 por dia nos dois ambientes.
  */
 export const CONTENTFUL_OK_TTL_MS = 15 * 60_000;
+/**
+ * A chave do captcha e a chave web do Firebase só mudam com um deploy novo, e
+ * cada conferência é uma ida à Cloudflare ou ao Google. Como no SMTP, só o
+ * sucesso é guardado.
+ */
+export const KEY_OK_TTL_MS = 10 * 60_000;
 
 class NotConfiguredError extends Error {}
 class TimeoutError extends Error {}
@@ -101,10 +111,28 @@ const CHECKS: Record<DependencyName, () => Promise<void>> = {
     await verifyMailer();
     smtpOkUntil = Date.now() + SMTP_OK_TTL_MS;
   },
+  async captcha() {
+    requireEnv("TURNSTILE_SECRET_KEY");
+    if (captchaOkUntil > Date.now()) return;
+    await verifyCaptchaSecret();
+    captchaOkUntil = Date.now() + KEY_OK_TTL_MS;
+  },
+  async firebase_web() {
+    // Lida pelo nome literal: o Next grava as NEXT_PUBLIC_* no build, e elas
+    // não existem no ambiente do container para o requireEnv enxergar.
+    if (!process.env.NEXT_PUBLIC_FIREBASE_API_KEY) {
+      throw new NotConfiguredError("Falta NEXT_PUBLIC_FIREBASE_API_KEY");
+    }
+    if (firebaseWebOkUntil > Date.now()) return;
+    await verifyFirebaseWebApiKey();
+    firebaseWebOkUntil = Date.now() + KEY_OK_TTL_MS;
+  },
 };
 
 let smtpOkUntil = 0;
 let contentfulOkUntil = 0;
+let captchaOkUntil = 0;
+let firebaseWebOkUntil = 0;
 let cachedReport: { report: HealthReport; expiresAt: number } | null = null;
 let pendingReport: Promise<HealthReport> | null = null;
 const lastOk = new Map<DependencyName, boolean>();
@@ -194,6 +222,8 @@ export function getHealthReport(): Promise<HealthReport> {
 export function resetHealthChecks() {
   smtpOkUntil = 0;
   contentfulOkUntil = 0;
+  captchaOkUntil = 0;
+  firebaseWebOkUntil = 0;
   cachedReport = null;
   pendingReport = null;
   lastOk.clear();

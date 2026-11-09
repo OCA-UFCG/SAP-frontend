@@ -26,6 +26,25 @@ export interface MailMessage {
 
 let transporter: Transporter | null = null;
 
+export type MailResult = "sent" | "failed" | "not_configured";
+
+/**
+ * Quantos e-mails o servidor tentou mandar, por resultado, para o
+ * `/api/metrics`. Quem chama o `sendMail` muitas vezes engole a falha de
+ * propósito (o cadastro responde "enviado" mesmo assim, para não virar
+ * oráculo), então sem esta conta um envio quebrado só aparecia no log.
+ *
+ * No `globalThis` pelo mesmo motivo do contador do Contentful: o Next empacota
+ * cada rota à parte, e quem conta e quem publica precisam ver o mesmo número.
+ */
+const mailCounts = ((
+  globalThis as { __sedesMailCounts?: Record<MailResult, number> }
+).__sedesMailCounts ??= { sent: 0, failed: 0, not_configured: 0 });
+
+export function getMailCounts(): Readonly<Record<MailResult, number>> {
+  return mailCounts;
+}
+
 export function isMailerConfigured() {
   return Boolean(process.env.SMTP_USER && process.env.SMTP_PASSWORD);
 }
@@ -96,16 +115,23 @@ export async function sendMail({ to, subject, html, text }: MailMessage) {
       console.info(`[mailer] corpo:\n${text}`);
     }
 
+    mailCounts.not_configured += 1;
     return { delivered: false } as const;
   }
 
-  await getTransporter().sendMail({
-    from: process.env.SMTP_FROM || process.env.SMTP_USER,
-    to,
-    subject,
-    html,
-    text,
-  });
+  try {
+    await getTransporter().sendMail({
+      from: process.env.SMTP_FROM || process.env.SMTP_USER,
+      to,
+      subject,
+      html,
+      text,
+    });
+  } catch (error) {
+    mailCounts.failed += 1;
+    throw error;
+  }
 
+  mailCounts.sent += 1;
   return { delivered: true } as const;
 }
