@@ -10,6 +10,10 @@ import {
   type PopoverDOM,
 } from "driver.js";
 import { isPhoneViewport } from "@/components/PlatformMap/platformMapView";
+import {
+  isCookieNoticeOpen,
+  subscribeCookieNotice,
+} from "@/lib/analytics-consent";
 import "driver.js/dist/driver.css";
 import "./platformTour.css";
 
@@ -420,13 +424,24 @@ export function usePlatformTour({
   const tInfo = useTranslations("InfoModal");
   const tourRef = useRef<Driver | null>(null);
   const timerRef = useRef<number | undefined>(undefined);
+  /** A seção cujo tutorial está esperando o aviso de cookies sair da tela. */
+  const waitingForCookieNoticeRef = useRef<PlatformTourSection | null>(null);
 
   const startTour = useCallback(
     (tourSection: PlatformTourSection, delayMs: number) => {
       window.clearTimeout(timerRef.current);
       tourRef.current?.destroy();
+      waitingForCookieNoticeRef.current = null;
 
       timerRef.current = window.setTimeout(() => {
+        // O escurecimento e o balão do tutorial ficam por cima de tudo e
+        // cobririam o aviso de cookies. Um de cada vez: o tutorial abre logo
+        // depois da escolha, e só então conta como visto.
+        if (isCookieNoticeOpen()) {
+          waitingForCookieNoticeRef.current = tourSection;
+          return;
+        }
+
         // Marca ao abrir, não ao concluir: quem recarrega no meio do tutorial
         // não é surpreendido por ele de novo, e o botão continua lá.
         markPlatformTourSeen(tourSection);
@@ -490,8 +505,21 @@ export function usePlatformTour({
     if (!autoStart || hasSeenPlatformTour(section)) return;
 
     startTourRef.current(section, AUTO_START_DELAY_MS);
-    return () => window.clearTimeout(timerRef.current);
+    return () => {
+      window.clearTimeout(timerRef.current);
+      waitingForCookieNoticeRef.current = null;
+    };
   }, [autoStart, section]);
+
+  useEffect(
+    () =>
+      subscribeCookieNotice(() => {
+        const waiting = waitingForCookieNoticeRef.current;
+        if (!waiting || isCookieNoticeOpen()) return;
+        startTourRef.current(waiting, AUTO_START_DELAY_MS);
+      }),
+    [],
+  );
 
   useEffect(
     () => () => {

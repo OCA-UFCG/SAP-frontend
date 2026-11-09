@@ -32,7 +32,11 @@ vi.mock("@/components/MunicipalReport/MunicipalReportPreview", () => ({
   MunicipalReportPreview: () => <div data-testid="municipal-report-probe" />,
 }));
 
+vi.mock("@next/third-parties/google", () => ({ GoogleAnalytics: () => null }));
+
 import { PlatformSidebar } from "@/components/PlatformSidebar/PlatformSidebar";
+import { CookieConsent } from "@/components/CookieConsent/CookieConsent";
+import { ANALYTICS_CONSENT_KEY } from "@/lib/analytics-consent";
 import { LayerAccordion } from "@/components/LayerAccordion/LayerAccordion";
 import {
   PLATFORM_TOUR_SEEN_KEY,
@@ -71,6 +75,70 @@ describe("platform tour", () => {
     ).toHaveLength(8);
     expect(driveMock).toHaveBeenCalledTimes(1);
     expect(window.localStorage.getItem(PLATFORM_TOUR_SEEN_KEY)).toBe("1");
+  });
+
+  // O tutorial fica por cima de tudo e cobria o aviso de cookies, que aparece
+  // na mesma primeira visita.
+  describe("with the cookie notice on screen", () => {
+    it("waits for the cookie choice before opening by itself", () => {
+      render(
+        <>
+          <CookieConsent gaId="G-TEST" />
+          <PlatformSidebar panelLayers={[]} />
+        </>,
+      );
+      waitPastAutoStart();
+      waitPastAutoStart();
+
+      expect(screen.getByRole("region", { name: "Cookies" })).toBeVisible();
+      expect(driverMock).not.toHaveBeenCalled();
+      // Não abriu, então não conta como visto.
+      expect(window.localStorage.getItem(PLATFORM_TOUR_SEEN_KEY)).toBeNull();
+
+      fireEvent.click(screen.getByRole("button", { name: "Recusar" }));
+      expect(
+        screen.queryByRole("region", { name: "Cookies" }),
+      ).not.toBeInTheDocument();
+      waitPastAutoStart();
+
+      expect(driverMock).toHaveBeenCalledTimes(1);
+      expect(driveMock).toHaveBeenCalledTimes(1);
+      expect(window.localStorage.getItem(PLATFORM_TOUR_SEEN_KEY)).toBe("1");
+    });
+
+    it("also holds the tutorial button until the choice is made", () => {
+      window.localStorage.setItem(PLATFORM_TOUR_SEEN_KEY, "1");
+      render(
+        <>
+          <CookieConsent gaId="G-TEST" />
+          <PlatformSidebar panelLayers={[]} />
+        </>,
+      );
+
+      fireEvent.click(screen.getByRole("button", { name: "Ver o tutorial da plataforma" }));
+      waitPastAutoStart();
+      expect(driverMock).not.toHaveBeenCalled();
+
+      fireEvent.click(screen.getByRole("button", { name: "Aceitar" }));
+      waitPastAutoStart();
+      expect(driverMock).toHaveBeenCalledTimes(1);
+    });
+
+    it("opens as usual when the choice was made on an earlier visit", () => {
+      window.localStorage.setItem(ANALYTICS_CONSENT_KEY, "denied");
+      render(
+        <>
+          <CookieConsent gaId="G-TEST" />
+          <PlatformSidebar panelLayers={[]} />
+        </>,
+      );
+      waitPastAutoStart();
+
+      expect(
+        screen.queryByRole("region", { name: "Cookies" }),
+      ).not.toBeInTheDocument();
+      expect(driverMock).toHaveBeenCalledTimes(1);
+    });
   });
 
   it("does not open by itself again once seen", () => {
