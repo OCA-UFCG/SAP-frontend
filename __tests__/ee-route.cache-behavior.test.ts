@@ -7,7 +7,7 @@ vi.mock("@/app/api/ee/services", () => ({
 }));
 
 vi.mock("@/lib/server-session", () => ({
-  getAuthenticatedUserId: vi.fn().mockResolvedValue("user-123"),
+  getPlatformRequesterKey: vi.fn().mockResolvedValue("user-123"),
   requireAuthenticatedRequest: vi.fn().mockResolvedValue(null),
 }));
 
@@ -24,11 +24,11 @@ import {
 import { getEarthEngineUrl } from "@/app/api/ee/services";
 import { buildCacheKey, removeCacheUrl } from "@/app/api/ee/cache";
 import { getPanelLayers } from "@/repositories/platform/panelLayerRepository";
-import { getAuthenticatedUserId } from "@/lib/server-session";
+import { getPlatformRequesterKey } from "@/lib/server-session";
 
 const mockedGetEarthEngineUrl = vi.mocked(getEarthEngineUrl);
 const mockedGetPanelLayers = vi.mocked(getPanelLayers);
-const mockedGetAuthenticatedUserId = vi.mocked(getAuthenticatedUserId);
+const mockedGetAuthenticatedUserId = vi.mocked(getPlatformRequesterKey);
 const nationalSelection = {
   spatialArea: "national",
   spatialValue: "brasil",

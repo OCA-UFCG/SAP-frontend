@@ -7,7 +7,7 @@ vi.mock("@/app/api/ee/services", () => ({
 }));
 
 vi.mock("@/lib/server-session", () => ({
-  getAuthenticatedUserId: vi.fn().mockResolvedValue("user-123"),
+  getPlatformRequesterKey: vi.fn().mockResolvedValue("user-123"),
 }));
 
 vi.mock("@/repositories/platform/panelLayerRepository", () => ({
@@ -25,13 +25,13 @@ import {
 } from "@/app/api/ee/rate-limit";
 import { EE_MAP_URLS_DEADLINE_MS } from "@/contracts/eeMapUrls";
 import { getEarthEngineUrl } from "@/app/api/ee/services";
-import { getAuthenticatedUserId } from "@/lib/server-session";
+import { getPlatformRequesterKey } from "@/lib/server-session";
 import { getPanelLayers } from "@/repositories/platform/panelLayerRepository";
 import type { EeMapUrlEntry } from "@/contracts/eeMapUrls";
 
 const mockedGetEarthEngineUrl = vi.mocked(getEarthEngineUrl);
 const mockedGetPanelLayers = vi.mocked(getPanelLayers);
-const mockedGetAuthenticatedUserId = vi.mocked(getAuthenticatedUserId);
+const mockedGetAuthenticatedUserId = vi.mocked(getPlatformRequesterKey);
 
 const YEARS = ["2024-12", "2023-12", "2022-12"] as const;
 

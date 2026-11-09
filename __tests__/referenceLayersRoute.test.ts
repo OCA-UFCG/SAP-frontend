@@ -7,7 +7,7 @@ vi.mock("@/app/api/ee/services", () => ({
 }));
 
 vi.mock("@/lib/server-session", () => ({
-  getAuthenticatedUserId: vi.fn().mockResolvedValue("user-123"),
+  getPlatformRequesterKey: vi.fn().mockResolvedValue("user-123"),
 }));
 
 const getGeeMapUrl = vi.hoisted(() => vi.fn());
@@ -32,10 +32,10 @@ vi.mock("@google/earthengine", () => ({
 import { POST } from "@/app/api/ee/reference-layers/route";
 import { removeCacheUrl } from "@/app/api/ee/cache";
 import { clearEeRateLimit } from "@/app/api/ee/rate-limit";
-import { getAuthenticatedUserId } from "@/lib/server-session";
+import { getPlatformRequesterKey } from "@/lib/server-session";
 import { REFERENCE_LAYER_SWATCHES } from "@/components/MapLayerContext/mapLayerState";
 
-const mockedGetAuthenticatedUserId = vi.mocked(getAuthenticatedUserId);
+const mockedGetAuthenticatedUserId = vi.mocked(getPlatformRequesterKey);
 
 const REFERENCE_LAYER_IDS = [
   "quilombolas",

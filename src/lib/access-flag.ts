@@ -18,6 +18,22 @@ export function isAccessGuardEnabled() {
 }
 
 /**
+ * Plataforma aberta: com a flag em `false`, quem clica em "Plataforma" entra
+ * direto, sem login nem cadastro. Serve para apresentações, em que ninguém
+ * deve perder tempo criando conta.
+ *
+ * Só o `false` explícito abre. Sem a variável, o comportamento continua o de
+ * antes (login sem conferir a liberação): esquecer a variável não pode deixar a
+ * plataforma pública.
+ *
+ * Auditoria, catálogo e aprovações continuam pedindo login de quem está na
+ * `LOGS_ALLOWED_EMAILS`; a equipe entra digitando `/login`.
+ */
+export function isPlatformOpen() {
+  return process.env.PLATFORM_ACCESS_GUARD_ENABLED === "false";
+}
+
+/**
  * O cadastro só é oferecido quando o bloqueio está ligado.
  *
  * Com o bloqueio desligado, a sessão nasce sem conferir o claim nem o e-mail

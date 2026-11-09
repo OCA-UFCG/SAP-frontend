@@ -3,6 +3,7 @@ import { redirect } from "@/translations/routing";
 import { cookies } from "next/headers";
 import { SESSION_COOKIE_NAME } from "@/lib/server-session";
 import { resolvePlatformAccess } from "@/lib/platform-access";
+import { isPlatformOpen } from "@/lib/access-flag";
 import { LOGIN_PATH, PENDING_APPROVAL_PATH } from "@/config/accessRoutes";
 import PlatformLoading from "./loading";
 
@@ -49,6 +50,13 @@ export default async function PlatformLayout({
   params: Promise<{ locale: string }>;
 }) {
   const { locale } = await params;
+
+  // Plataforma aberta: sem conferência de sessão. As telas só da equipe
+  // (auditoria, catálogo, aprovações) conferem o login por conta própria.
+  if (isPlatformOpen()) {
+    return children;
+  }
+
   const sessionCookie = (await cookies()).get(SESSION_COOKIE_NAME)?.value;
 
   // Sem cookie não há o que verificar: redireciona antes de começar a enviar a

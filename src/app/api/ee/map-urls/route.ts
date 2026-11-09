@@ -8,7 +8,7 @@ import {
 import { ensureEeCacheWarmupStarted } from "@/app/api/ee/services";
 import { consumeEeRateLimit, consumeEeThumbnailRateLimit } from "../rate-limit";
 import { getPanelLayers } from "@/repositories/platform/panelLayerRepository";
-import { getAuthenticatedUserId } from "@/lib/server-session";
+import { getPlatformRequesterKey } from "@/lib/server-session";
 import { createServerTiming } from "@/utils/serverTiming";
 import { DEFAULT_SPATIAL_SELECTION } from "@/utils/spatialScope";
 import {
@@ -38,9 +38,9 @@ import {
 export async function POST(req: NextRequest) {
   const timing = createServerTiming();
   const finishAuth = timing.start();
-  const authenticatedUserId = await getAuthenticatedUserId(req);
+  const requesterKey = await getPlatformRequesterKey(req);
   finishAuth("auth", "Autenticação");
-  if (!authenticatedUserId) {
+  if (!requesterKey) {
     return NextResponse.json(
       { error: "Unauthorized access." },
       { status: 401 },
@@ -75,7 +75,7 @@ export async function POST(req: NextRequest) {
     );
     const rateLimit = (
       parsed.thumbnail ? consumeEeThumbnailRateLimit : consumeEeRateLimit
-    )(authenticatedUserId, misses.length);
+    )(requesterKey, misses.length);
     const allowedMisses = new Set(
       misses.slice(0, rateLimit.granted).map(({ item }) => item),
     );

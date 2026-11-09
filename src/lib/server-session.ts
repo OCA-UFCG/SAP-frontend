@@ -6,13 +6,17 @@ import {
   REVOKED_ACCESS,
   type AccessClaim,
 } from "@/lib/access-claims";
-import { isAccessGuardEnabled } from "@/lib/access-flag";
+import { isAccessGuardEnabled, isPlatformOpen } from "@/lib/access-flag";
 import {
   getVerifiedSession,
   rememberVerifiedSession,
 } from "@/lib/verified-session-cache";
+import { getClientAddress } from "@/utils/rateLimitStore";
 
-import { SESSION_COOKIE_NAME } from "@/config/accessRoutes";
+import {
+  SESSION_COOKIE_NAME,
+  VISITOR_COOKIE_NAME,
+} from "@/config/accessRoutes";
 
 export { SESSION_COOKIE_NAME };
 export const SESSION_COOKIE_MAX_AGE_SECONDS = 60 * 60 * 24;
@@ -172,6 +176,36 @@ export function getSessionCookieFromRequest(request: Request) {
   return getCookieValue(request.headers.get("cookie"), SESSION_COOKIE_NAME);
 }
 
+const VISITOR_ID_PATTERN = /^[0-9a-f-]{36}$/;
+
+/**
+ * Chave de quem fez a requisição, para os limites de uso das rotas de mapa e
+ * de análise. `null` quando a pessoa não pode usar a plataforma.
+ *
+ * Com login, é o usuário. Na plataforma aberta, sem login, é o navegador
+ * (cookie que o middleware grava) ou, sem ele, o endereço de rede. O cookie
+ * existe porque numa apresentação a sala inteira sai pelo mesmo endereço, e
+ * uma cota só para todos barraria a análise da quinta pessoa em diante.
+ *
+ * const requesterKey = await getPlatformRequesterKey(request);
+ * if (!requesterKey) return 401;
+ */
+export async function getPlatformRequesterKey(request: Request) {
+  const userId = await getAuthenticatedUserId(request);
+  if (userId) return userId;
+  if (!isPlatformOpen()) return null;
+
+  const visitorId = getCookieValue(
+    request.headers.get("cookie"),
+    VISITOR_COOKIE_NAME,
+  );
+  if (visitorId && VISITOR_ID_PATTERN.test(visitorId)) {
+    return `visitor:${visitorId}`;
+  }
+
+  return `ip:${getClientAddress(request) ?? "unknown"}`;
+}
+
 /**
  * Porteiro das rotas de dados.
  *
@@ -179,8 +213,12 @@ export function getSessionCookieFromRequest(request: Request) {
  * das páginas só protege HTML: um cookie emitido antes de o bloqueio ser
  * ligado continua válido, é barrado nas telas, e antes disto continuava
  * servindo para chamar as rotas de dados direto.
+ *
+ * Na plataforma aberta deixa todo mundo passar, com ou sem login.
  */
 export async function requireAuthenticatedRequest(request: Request) {
+  if (isPlatformOpen()) return null;
+
   const session = await getAuthenticatedUserSession(request);
 
   if (!session) {

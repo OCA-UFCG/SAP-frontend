@@ -61,7 +61,7 @@ código ao Firebase por trás.
 
 **Esta ordem não pode ser invertida.**
 
-1. **Subir com `PLATFORM_ACCESS_GUARD_ENABLED` desligada.** Nada muda: a
+1. **Subir sem `PLATFORM_ACCESS_GUARD_ENABLED`.** Nada muda: a
    plataforma se comporta como antes, e o link de cadastro **não aparece** no
    login.
 2. **Rodar o backfill.** `node scripts/backfill-access-claims.mjs` (simulação) e
@@ -81,6 +81,31 @@ e-mail confirmado, então qualquer porta de cadastro aberta nesse estado deixari
 a plataforma **mais aberta do que era antes de o cadastro existir**. Esconder só o
 link não basta: a página e a rota continuariam funcionando para quem digitasse o
 endereço.
+
+## Plataforma aberta, para apresentações
+
+Com `PLATFORM_ACCESS_GUARD_ENABLED=false`, quem clica em "Plataforma" entra
+direto, sem login nem cadastro:
+
+- o middleware e o layout da plataforma deixam de mandar para o login;
+- as rotas de dados (mapas, análise municipal, relatório, multicritério)
+  respondem sem sessão;
+- o "Entrar" sai do cabeçalho, e o cadastro fica fechado (404), como em
+  qualquer valor diferente de `true`.
+
+Continuam pedindo login de quem está na `LOGS_ALLOWED_EMAILS`: auditoria,
+catálogo e aprovações. A equipe entra digitando `/login`.
+
+Os limites de uso por minuto, que com login contam por conta, passam a contar
+por navegador (cookie `sedes_visitor`) e, sem ele, por endereço de rede. Por
+navegador, e não só por endereço, porque numa apresentação a sala inteira sai
+pelo mesmo endereço. O preço é que um programa que invente um cookie novo a cada
+chamada escapa do limite por pessoa — a fila do Earth Engine continua segurando
+o servidor, mas a plataforma aberta é para durar a apresentação, não para ficar.
+
+Só o `false` explícito abre. Sem a variável, vale o modo antigo da ordem de
+implantação (login sem conferir a liberação). Para fechar de novo: voltar para
+`true` e fazer um novo deploy.
 
 ## Captcha
 
@@ -172,19 +197,19 @@ desligado fora do seu computador: o link de confirmação é uma credencial.**
 
 ## Variáveis de ambiente
 
-| Variável                                  | Para quê                                                                                                                               |
-| ----------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------- |
-| `SIGNUP_ALLOWED_DOMAINS`                  | Domínios que entram sem aprovação manual. Vazia nega todos. **Nunca com prefixo `NEXT_PUBLIC_`** — a lista iria para o navegador.      |
-| `SIGNUP_AUTO_APPROVE_ALL_DOMAINS`         | `true` libera qualquer domínio sem aprovação manual, ignorando a lista acima. Outro valor ou vazia: vale a lista.                      |
-| `PLATFORM_ACCESS_GUARD_ENABLED`           | O interruptor da ordem de implantação acima.                                                                                           |
-| `OCA_NOTIFICATION_EMAIL`                  | Caixa **da equipe** que recebe os pedidos. Não deve ser o e-mail de uma pessoa.                                                        |
-| `FIREBASE_ACCESS_REQUESTS_COLLECTION`     | Separa a coleção de desenvolvimento da de produção.                                                                                    |
-| `SMTP_USER`, `SMTP_PASSWORD`, `SMTP_FROM` | A conta de envio.                                                                                                                      |
-| `EMAIL_LINKS_BASE_URL`                    | Domínio dos links dentro dos e-mails. Só a produção precisa, porque atende por vários domínios; os outros usam `NEXT_PUBLIC_HOST_URL`. |
-| `SIGNUP_SEND_REJECTION_EMAIL`             | Se quem é recusado recebe aviso. Desligado até a equipe decidir.                                                                       |
-| `MAIL_LOG_BODY`                           | Só desenvolvimento. Imprime o corpo dos e-mails no terminal.                                                                           |
-| `NEXT_PUBLIC_TURNSTILE_SITE_KEY`          | Chave pública do widget do captcha. Entra no build (é `NEXT_PUBLIC_`).                                                                 |
-| `TURNSTILE_SECRET_KEY`                    | Chave secreta do captcha. **Nunca com prefixo `NEXT_PUBLIC_`**: é ela que decide. Sem ela, todo cadastro e reenvio é recusado.         |
+| Variável                                  | Para quê                                                                                                                                |
+| ----------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------- |
+| `SIGNUP_ALLOWED_DOMAINS`                  | Domínios que entram sem aprovação manual. Vazia nega todos. **Nunca com prefixo `NEXT_PUBLIC_`** — a lista iria para o navegador.       |
+| `SIGNUP_AUTO_APPROVE_ALL_DOMAINS`         | `true` libera qualquer domínio sem aprovação manual, ignorando a lista acima. Outro valor ou vazia: vale a lista.                       |
+| `PLATFORM_ACCESS_GUARD_ENABLED`           | `true`: login, cadastro e aprovação. `false`: plataforma aberta, sem login (ver acima). Sem a variável: o modo da ordem de implantação. |
+| `OCA_NOTIFICATION_EMAIL`                  | Caixa **da equipe** que recebe os pedidos. Não deve ser o e-mail de uma pessoa.                                                         |
+| `FIREBASE_ACCESS_REQUESTS_COLLECTION`     | Separa a coleção de desenvolvimento da de produção.                                                                                     |
+| `SMTP_USER`, `SMTP_PASSWORD`, `SMTP_FROM` | A conta de envio.                                                                                                                       |
+| `EMAIL_LINKS_BASE_URL`                    | Domínio dos links dentro dos e-mails. Só a produção precisa, porque atende por vários domínios; os outros usam `NEXT_PUBLIC_HOST_URL`.  |
+| `SIGNUP_SEND_REJECTION_EMAIL`             | Se quem é recusado recebe aviso. Desligado até a equipe decidir.                                                                        |
+| `MAIL_LOG_BODY`                           | Só desenvolvimento. Imprime o corpo dos e-mails no terminal.                                                                            |
+| `NEXT_PUBLIC_TURNSTILE_SITE_KEY`          | Chave pública do widget do captcha. Entra no build (é `NEXT_PUBLIC_`).                                                                  |
+| `TURNSTILE_SECRET_KEY`                    | Chave secreta do captcha. **Nunca com prefixo `NEXT_PUBLIC_`**: é ela que decide. Sem ela, todo cadastro e reenvio é recusado.          |
 
 ## Decisões em aberto
 
