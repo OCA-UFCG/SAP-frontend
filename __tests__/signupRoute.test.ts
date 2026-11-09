@@ -2,6 +2,7 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 
 const {
   createUserMock,
+  getUserByEmailMock,
   setCustomUserClaimsMock,
   createAccessRequestMock,
   deleteUserMock,
@@ -10,6 +11,7 @@ const {
   verifyCaptchaMock,
 } = vi.hoisted(() => ({
   createUserMock: vi.fn(),
+  getUserByEmailMock: vi.fn(),
   setCustomUserClaimsMock: vi.fn(),
   createAccessRequestMock: vi.fn(),
   deleteUserMock: vi.fn(),
@@ -21,6 +23,7 @@ const {
 vi.mock("@/lib/firebase-admin", () => ({
   adminAuth: {
     createUser: createUserMock,
+    getUserByEmail: getUserByEmailMock,
     deleteUser: deleteUserMock,
     setCustomUserClaims: setCustomUserClaimsMock,
     generateEmailVerificationLink: generateEmailVerificationLinkMock,
@@ -78,6 +81,11 @@ describe("POST /api/signup", () => {
   beforeEach(() => {
     clearSignupRateLimits();
     createUserMock.mockReset().mockResolvedValue({ uid: "user-123" });
+    getUserByEmailMock.mockReset().mockResolvedValue({
+      uid: "existing-1",
+      emailVerified: true,
+      disabled: false,
+    });
     setCustomUserClaimsMock.mockReset().mockResolvedValue(undefined);
     createAccessRequestMock.mockReset().mockResolvedValue(undefined);
     deleteUserMock.mockReset().mockResolvedValue(undefined);
@@ -275,6 +283,87 @@ describe("POST /api/signup", () => {
 
     expect(repeated.status).toBe(fresh.status);
     await expect(repeated.json()).resolves.toEqual(freshBody);
+  });
+
+  // Regressão: quem já tinha conta (muitas vezes de outra plataforma do OCA,
+  // que divide o Firebase) via "confira seu e-mail" e nada chegava.
+  describe("when the email already has an account", () => {
+    beforeEach(() => {
+      createUserMock.mockRejectedValue(
+        firebaseError("auth/email-already-exists"),
+      );
+    });
+
+    function signupExisting(email = "existente@gmail.com") {
+      return signup(
+        buildRequest({
+          email,
+          password: VALID_PASSWORD,
+          intention: "Pesquisa sobre seca",
+          locale: "en",
+        }),
+      );
+    }
+
+    it("tells a confirmed account to sign in, in the signup language", async () => {
+      const response = await signupExisting("Existente@gmail.com");
+
+      expect(response.status).toBe(201);
+      expect(sendMailMock).toHaveBeenCalledTimes(1);
+      const message = sendMailMock.mock.calls[0][0];
+      expect(message.to).toBe("existente@gmail.com");
+      expect(message.subject).toBe("You already have a SEDES account");
+      expect(message.text).toContain(`${ORIGIN}/en/login`);
+      expect(message.text).toContain(`${ORIGIN}/en/esqueci-senha`);
+      expect(generateEmailVerificationLinkMock).not.toHaveBeenCalled();
+    });
+
+    it("sends the confirmation again to an account that never confirmed", async () => {
+      getUserByEmailMock.mockResolvedValue({
+        uid: "existing-1",
+        emailVerified: false,
+        disabled: false,
+      });
+
+      await signupExisting();
+
+      expect(generateEmailVerificationLinkMock).toHaveBeenCalledWith(
+        "existente@gmail.com",
+      );
+      expect(sendMailMock).toHaveBeenCalledTimes(1);
+      expect(sendMailMock.mock.calls[0][0].text).toContain(
+        "/en/cadastro/confirmacao?code=abc",
+      );
+    });
+
+    it("sends nothing to a disabled account", async () => {
+      getUserByEmailMock.mockResolvedValue({
+        uid: "existing-1",
+        emailVerified: true,
+        disabled: true,
+      });
+
+      const response = await signupExisting();
+
+      expect(response.status).toBe(201);
+      expect(sendMailMock).not.toHaveBeenCalled();
+    });
+
+    it("does not fill the inbox when the signup is repeated", async () => {
+      await signupExisting();
+      await signupExisting();
+
+      expect(sendMailMock).toHaveBeenCalledTimes(1);
+    });
+
+    it("still answers the same when the notice fails", async () => {
+      sendMailMock.mockRejectedValue(new Error("smtp caiu"));
+
+      const response = await signupExisting();
+
+      expect(response.status).toBe(201);
+      await expect(response.json()).resolves.toEqual({ status: "accepted" });
+    });
   });
 
   it("refuses a malformed email", async () => {

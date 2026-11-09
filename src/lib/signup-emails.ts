@@ -244,3 +244,48 @@ export function buildPasswordResetEmail({
     ].join("\n"),
   };
 }
+
+/**
+ * Para quem tentou se cadastrar com um endereço que já tem conta confirmada. O
+ * Firebase é dividido com outras plataformas do OCA, então é comum a pessoa
+ * já ter conta sem saber. Sem este aviso, o cadastro dizia "confira seu
+ * e-mail" e nada chegava.
+ */
+export function buildExistingAccountEmail({
+  loginUrl,
+  forgotPasswordUrl,
+  locale,
+}: {
+  loginUrl: string;
+  forgotPasswordUrl: string;
+  locale?: string;
+}): Omit<MailMessage, "to"> {
+  const m = messagesFor(locale);
+
+  return {
+    subject: m.existingAccountSubject,
+    html: layout(
+      m.existingAccountTitle,
+      paragraph(m.existingAccountBody) +
+        callToAction(m.existingAccountAction, loginUrl, m.fallback) +
+        `<p style="margin:22px 0 0;font-size:13px;line-height:1.55;color:${MUTED};">${m.existingAccountForgot}<br><a href="${forgotPasswordUrl}" style="color:${ACCENT};word-break:break-all;">${forgotPasswordUrl}</a></p>` +
+        `<p style="margin:14px 0 0;font-size:13px;line-height:1.55;color:${MUTED};">${m.existingAccountIgnore}</p>`,
+      m.footer,
+      emailLang(locale),
+    ),
+    text: [
+      m.existingAccountTitle,
+      "",
+      m.existingAccountBody,
+      "",
+      loginUrl,
+      "",
+      m.existingAccountForgot,
+      forgotPasswordUrl,
+      "",
+      m.existingAccountIgnore,
+      "",
+      m.footer,
+    ].join("\n"),
+  };
+}

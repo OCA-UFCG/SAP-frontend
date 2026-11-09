@@ -17,6 +17,12 @@
     "passwordResetBody": "Recibimos una solicitud para cambiar la contraseña de tu cuenta en el SEDES. Usa el botón de abajo para elegir una nueva contraseña. El enlace vale por una hora y solo se puede usar una vez.",
     "passwordResetAction": "Elegir nueva contraseña",
     "passwordResetIgnore": "Si no pediste el cambio, ignora este correo: tu contraseña sigue siendo la misma.",
+    "existingAccountSubject": "Ya tienes una cuenta en SEDES",
+    "existingAccountTitle": "Este correo ya tiene una cuenta",
+    "existingAccountBody": "Recibimos un registro en SEDES (Sistema Estratégico sobre Desertificación y Sequía) con esta dirección, pero ya tiene una cuenta — a veces creada en otra plataforma del OCA que usa el mismo inicio de sesión. No es necesario registrarse de nuevo: inicia sesión con el correo y la contraseña de esa cuenta.",
+    "existingAccountAction": "Entrar en SEDES",
+    "existingAccountForgot": "¿No recuerdas la contraseña? Elige una nueva en:",
+    "existingAccountIgnore": "Si no fuiste tú quien intentó registrarse, ignora este correo: nada cambió en tu cuenta.",
     "fallback": "Si el botón no funciona, copia esta dirección en tu navegador:",
     "footer": "SEDES — Sistema Estratégico sobre Desertificación y Sequía"
   }

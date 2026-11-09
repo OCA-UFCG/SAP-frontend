@@ -17,7 +17,7 @@ scrape_configs:
       type: Bearer
       credentials_file: /etc/prometheus/sedes/metrics-token
     static_configs:
-      - targets: [sedes.oca-portal.com]
+      - targets: [sedes.oca.ufcg.edu.br]
         labels: { project: sedes, ambiente: produção }
       - targets: [beta-sap.lsd.ufcg.edu.br]
         labels: { project: sedes, ambiente: beta }
@@ -41,6 +41,10 @@ scrape_configs:
     params:
       module: [http_2xx]
     static_configs:
+      - targets: [https://sedes.oca.ufcg.edu.br/favicon.ico]
+        labels: { project: sedes, ambiente: produção }
+      # Endereço antigo da produção: continua no ar com certificado próprio,
+      # e foi ele que venceu em 18/10/2026.
       - targets: [https://sedes.oca-portal.com/favicon.ico]
         labels: { project: sedes, ambiente: produção }
       - targets: [https://beta-sap.lsd.ufcg.edu.br/favicon.ico]

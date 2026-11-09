@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 
 import {
   buildAccessDecisionEmail,
+  buildExistingAccountEmail,
   buildNewRequestEmail,
   buildPasswordResetEmail,
   buildVerificationEmail,
@@ -165,6 +166,38 @@ describe("signup emails", () => {
       expect(email.html).not.toContain("<img");
       expect(email.html).not.toContain("<style");
       expect(email.text).not.toContain("<");
+    });
+  });
+
+  describe("você já tem conta", () => {
+    const LOGIN = "https://sap.example/pt/login";
+    const FORGOT = "https://sap.example/pt/esqueci-senha";
+    const email = buildExistingAccountEmail({
+      loginUrl: LOGIN,
+      forgotPasswordUrl: FORGOT,
+      locale: "pt",
+    });
+
+    it("leads to the login, and to a new password for who forgot it", () => {
+      expect(email.html).toContain(`href="${LOGIN}"`);
+      expect(email.html).toContain(`href="${FORGOT}"`);
+      expect(email.text).toContain(LOGIN);
+      expect(email.text).toContain(FORGOT);
+    });
+
+    it("has a plain text version without markup or images", () => {
+      expect(email.text).not.toContain("<");
+      expect(email.html).not.toContain("<img");
+    });
+
+    it("is written in the language of the signup", () => {
+      expect(
+        buildExistingAccountEmail({
+          loginUrl: LOGIN,
+          forgotPasswordUrl: FORGOT,
+          locale: "es",
+        }).subject,
+      ).toBe("Ya tienes una cuenta en SEDES");
     });
   });
 });
