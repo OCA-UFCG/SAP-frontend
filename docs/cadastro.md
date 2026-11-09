@@ -2,7 +2,8 @@
 
 Quem tem e-mail de domínio autorizado entra sozinho assim que confirma o
 endereço. Todo mundo mais descreve a intenção de uso e espera a decisão de um
-operador.
+operador. Com `SIGNUP_AUTO_APPROVE_ALL_DOMAINS=true`, todo domínio conta como
+autorizado e ninguém passa pela aprovação.
 
 Este documento existe porque a funcionalidade **depende de passos manuais fora
 do código**. Um deles é a única defesa contra criação de conta pelo navegador, e
@@ -174,6 +175,7 @@ desligado fora do seu computador: o link de confirmação é uma credencial.**
 | Variável                                  | Para quê                                                                                                                               |
 | ----------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------- |
 | `SIGNUP_ALLOWED_DOMAINS`                  | Domínios que entram sem aprovação manual. Vazia nega todos. **Nunca com prefixo `NEXT_PUBLIC_`** — a lista iria para o navegador.      |
+| `SIGNUP_AUTO_APPROVE_ALL_DOMAINS`         | `true` libera qualquer domínio sem aprovação manual, ignorando a lista acima. Outro valor ou vazia: vale a lista.                      |
 | `PLATFORM_ACCESS_GUARD_ENABLED`           | O interruptor da ordem de implantação acima.                                                                                           |
 | `OCA_NOTIFICATION_EMAIL`                  | Caixa **da equipe** que recebe os pedidos. Não deve ser o e-mail de uma pessoa.                                                        |
 | `FIREBASE_ACCESS_REQUESTS_COLLECTION`     | Separa a coleção de desenvolvimento da de produção.                                                                                    |
