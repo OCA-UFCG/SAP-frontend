@@ -1,9 +1,20 @@
 "use client";
 
-import { useCallback, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { useLocale, useTranslations } from "next-intl";
 import Signup, { type SignupSubmitValues } from "@/components/Signup/Signup";
 import { requestVerificationResend } from "@/lib/verification-resend";
+import { useAuth } from "@/contexts/AuthContext";
+import { useRouter } from "@/translations/routing";
+import {
+  ACCESS_REVOKED_PARAM,
+  PENDING_APPROVAL_PATH,
+  PLATFORM_PATH,
+} from "@/config/accessRoutes";
+import {
+  announceSignupEntered,
+  watchSignupConfirmation,
+} from "@/lib/signup-auto-entry";
 
 type SignupPageClientProps = {
   backgroundImageUrl?: string;
@@ -19,6 +30,39 @@ export function SignupPageClient({ backgroundImageUrl }: SignupPageClientProps) 
   // Guardado só para o reenvio: o formulário já foi trocado pelo aviso quando o
   // botão aparece, então o valor não está mais em nenhum campo.
   const [submittedEmail, setSubmittedEmail] = useState("");
+  // Só na memória desta aba, para entrar sozinha quando o e-mail for
+  // confirmado. É esquecida quando a espera acaba.
+  const credentials = useRef<{ email: string; password: string } | null>(null);
+  const { signIn } = useAuth();
+  const router = useRouter();
+
+  useEffect(() => {
+    if (!submitted || !credentials.current) return;
+
+    const { email, password } = credentials.current;
+
+    return watchSignupConfirmation({
+      email,
+      password,
+      onExpire: () => {
+        credentials.current = null;
+      },
+      onConfirmed: async () => {
+        credentials.current = null;
+        const outcome = await signIn(email, password);
+
+        if (outcome === "ok") {
+          announceSignupEntered();
+          router.replace(PLATFORM_PATH);
+          router.refresh();
+        } else if (outcome === "pending") {
+          router.replace(PENDING_APPROVAL_PATH);
+        } else if (outcome === "revoked") {
+          router.replace(`${PENDING_APPROVAL_PATH}?${ACCESS_REVOKED_PARAM}=1`);
+        }
+      },
+    });
+  }, [submitted, signIn, router]);
 
   const handleResend = useCallback(
     async (captchaToken: string) => {
@@ -51,6 +95,10 @@ export function SignupPageClient({ backgroundImageUrl }: SignupPageClientProps) 
           return;
         }
 
+        credentials.current = {
+          email: values.email,
+          password: values.password,
+        };
         setSubmittedEmail(values.email);
         setSubmitted(true);
       } catch {
