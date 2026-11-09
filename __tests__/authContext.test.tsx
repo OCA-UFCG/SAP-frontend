@@ -172,6 +172,88 @@ describe("AuthProvider", () => {
     );
   });
 
+  // Quem confirmou o e-mail fora da nossa página tem o cadastro fechado no
+  // login. O token usado foi emitido antes da liberação, então o servidor pede
+  // outro, e o login entra de novo uma vez, sem a pessoa digitar nada.
+  it("signs in again once when the login itself just granted access", async () => {
+    const firstUser = { getIdToken: vi.fn().mockResolvedValue("old-token") };
+    const secondUser = { getIdToken: vi.fn().mockResolvedValue("fresh-token") };
+    signInWithEmailAndPasswordMock
+      .mockResolvedValueOnce({ user: firstUser } as unknown as Awaited<
+        ReturnType<typeof signInWithEmailAndPassword>
+      >)
+      .mockResolvedValueOnce({ user: secondUser } as unknown as Awaited<
+        ReturnType<typeof signInWithEmailAndPassword>
+      >);
+    vi.mocked(fetch).mockResolvedValueOnce(
+      new Response(JSON.stringify({ code: "access_granted" }), { status: 409 }),
+    );
+    vi.mocked(fetch).mockResolvedValueOnce(
+      new Response(JSON.stringify({ success: true }), { status: 200 }),
+    );
+
+    render(
+      <AuthProvider>
+        <AuthProbe />
+      </AuthProvider>,
+    );
+
+    await waitFor(() => expect(screen.getByText("Entrar")).toBeInTheDocument());
+    fireEvent.click(screen.getByText("Entrar"));
+
+    await waitFor(() => {
+      expect(screen.getByTestId("outcome")).toHaveTextContent("ok");
+    });
+
+    expect(signInWithEmailAndPasswordMock).toHaveBeenCalledTimes(2);
+    expect(fetch).toHaveBeenNthCalledWith(
+      2,
+      "/api/session",
+      expect.objectContaining({
+        body: JSON.stringify({ token: "fresh-token" }),
+      }),
+    );
+    expect(signOutMock).not.toHaveBeenCalled();
+    expect(screen.getByTestId("auth-state")).toHaveTextContent("authenticated");
+  });
+
+  it("does not loop when the fresh login is refused too", async () => {
+    const getIdToken = vi.fn().mockResolvedValue("firebase-id-token");
+    signInWithEmailAndPasswordMock.mockResolvedValue({
+      user: { getIdToken },
+    } as Awaited<ReturnType<typeof signInWithEmailAndPassword>>);
+    vi.mocked(fetch)
+      .mockResolvedValueOnce(
+        new Response(JSON.stringify({ code: "access_granted" }), {
+          status: 409,
+        }),
+      )
+      .mockResolvedValueOnce(
+        new Response(JSON.stringify({ code: "access_granted" }), {
+          status: 409,
+        }),
+      )
+      .mockResolvedValueOnce(
+        new Response(JSON.stringify({ success: true }), { status: 200 }),
+      );
+
+    render(
+      <AuthProvider>
+        <AuthProbe />
+      </AuthProvider>,
+    );
+
+    await waitFor(() => expect(screen.getByText("Entrar")).toBeInTheDocument());
+    fireEvent.click(screen.getByText("Entrar"));
+
+    await waitFor(() => {
+      expect(screen.getByTestId("outcome")).toHaveTextContent("failed");
+    });
+
+    expect(signInWithEmailAndPasswordMock).toHaveBeenCalledTimes(2);
+    expect(screen.getByRole("alert")).toHaveTextContent("sessionFailed");
+  });
+
   it("reports a removed access apart from a pending approval", async () => {
     const getIdToken = vi.fn().mockResolvedValue("firebase-id-token");
     signInWithEmailAndPasswordMock.mockResolvedValue({

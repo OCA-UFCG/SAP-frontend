@@ -61,6 +61,31 @@ export interface AuthContextType {
  */
 export const AuthContext = createContext<AuthContextType | null>(null);
 
+/**
+ * Troca o token do Firebase pelo cookie de sessão. Devolve `null` quando o
+ * cookie foi criado, ou o código da recusa (`""` quando a resposta não trouxe
+ * um).
+ */
+async function openSession(user: User): Promise<string | null> {
+  const token = await user.getIdToken();
+
+  const sessionResponse = await fetch("/api/session", {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify({ token }),
+  });
+
+  if (sessionResponse.ok) return null;
+
+  const body = (await sessionResponse.json().catch(() => null)) as {
+    code?: string;
+  } | null;
+
+  return body?.code ?? "";
+}
+
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<User | null>(null);
   const [loading, setLoading] = useState(true);
@@ -79,27 +104,24 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     let authenticatedUser: User | null = null;
 
     try {
-      const { user } = await signInWithEmailAndPassword(auth, email, password);
+      let { user } = await signInWithEmailAndPassword(auth, email, password);
       authenticatedUser = user;
 
-      const token = await user.getIdToken();
+      let sessionError = await openSession(user);
 
-      const sessionResponse = await fetch("/api/session", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({ token }),
-      });
+      // Este login acabou de liberar o cadastro (quem confirmou o e-mail fora da
+      // nossa página). O token usado é de antes da liberação, então entra de
+      // novo, uma vez, para pegar um que já tem a marca de acesso.
+      if (sessionError === "access_granted") {
+        ({ user } = await signInWithEmailAndPassword(auth, email, password));
+        authenticatedUser = user;
+        sessionError = await openSession(user);
+      }
 
-      if (!sessionResponse.ok) {
-        const body = (await sessionResponse.json().catch(() => null)) as {
-          code?: string;
-        } | null;
-
-        throw body?.code === "access_pending"
+      if (sessionError !== null) {
+        throw sessionError === "access_pending"
           ? new AccessPendingError()
-          : body?.code === "access_revoked"
+          : sessionError === "access_revoked"
           ? new AccessPendingError(true)
           : new SessionCreationError();
       }
