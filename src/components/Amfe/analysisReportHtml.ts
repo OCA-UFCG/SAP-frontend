@@ -28,8 +28,8 @@ const DOCUMENT_CSS = `
   h1 { margin: 0 0 2px; font-size: 26px; }
   header { border-bottom: 1px solid #d9d9d9; padding-bottom: 10px; }
   h2 {
-    margin: 18px 0 6px;
-    padding-top: 8px;
+    margin: 14px 0 6px;
+    padding-top: 6px;
     border-top: 3px solid #2E6B4F;
     font-size: 13px;
     text-transform: uppercase;
@@ -38,10 +38,10 @@ const DOCUMENT_CSS = `
   .meta { color: #6b6b6b; margin: 0; }
   .meta.scope { font-size: 13px; }
   p { margin: 0 0 8px; text-align: justify; }
-  table { width: 100%; border-collapse: collapse; margin-top: 8px; }
+  table { width: 100%; border-collapse: collapse; margin-top: 6px; }
   th, td {
     text-align: left;
-    padding: 6px 10px;
+    padding: 3px 8px;
     vertical-align: top;
     border: 1px solid #d9d9d9;
   }
@@ -52,13 +52,20 @@ const DOCUMENT_CSS = `
   .sr-only { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
   sup { line-height: 0; }
   .footnote { margin: 2px 0 0; color: #6b6b6b; font-size: 9px; }
-  .scenario { margin: 10px 0 0; }
-  .map { width: 100%; height: auto; border: 1px solid #d9d9d9; }
+  .scenario { margin: 8px 0 0; }
+  .map {
+    display: block;
+    width: auto;
+    max-width: 100%;
+    max-height: 112mm;
+    margin: 0 auto;
+    border: 1px solid #d9d9d9;
+  }
   .mapSection { break-inside: avoid; }
-  .classList { margin-top: 14px; }
+  .classList { margin-top: 10px; }
   .classList h3 {
     margin: 0;
-    padding: 8px 10px;
+    padding: 4px 8px;
     color: #000;
     font-size: 12px;
     text-transform: uppercase;
@@ -72,14 +79,14 @@ const DOCUMENT_CSS = `
     list-style: none;
   }
   .classList li {
-    padding: 4px 10px;
+    padding: 2px 8px;
     border-bottom: 1px solid #d9d9d9;
     break-inside: avoid;
   }
   .classList li:nth-child(6n + 4),
   .classList li:nth-child(6n + 5),
   .classList li:nth-child(6n + 6) { background: #F4F4F4; }
-  .classList .empty { padding: 4px 10px; color: #6b6b6b; }
+  .classList .empty { padding: 2px 8px; color: #6b6b6b; }
   footer {
     margin-top: 18px;
     padding-top: 8px;
