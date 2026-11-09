@@ -9,6 +9,7 @@ import {
   onCookiePreferencesRequested,
   readAnalyticsConsent,
   saveAnalyticsConsent,
+  setCookieNoticeOpen,
   subscribeAnalyticsConsent,
 } from "@/lib/analytics-consent";
 
@@ -53,6 +54,12 @@ export function CookieConsent({ gaId }: { gaId: string }) {
   };
 
   const showNotice = consent === null || (consent !== undefined && reopened);
+
+  // O tutorial da plataforma espera o aviso sair da tela antes de abrir.
+  useEffect(() => {
+    setCookieNoticeOpen(showNotice);
+    return () => setCookieNoticeOpen(false);
+  }, [showNotice]);
 
   return (
     <>

@@ -54,6 +54,28 @@ export function onCookiePreferencesRequested(open: () => void) {
   return () => window.removeEventListener(REOPEN_EVENT, open);
 }
 
+// Se o aviso está na tela agora. Vale o que o componente do aviso diz, e não a
+// escolha salva: sem Analytics configurado o aviso nem existe, e o link do
+// rodapé o reabre mesmo depois da escolha.
+const NOTICE_EVENT = "sedes:cookie-notice-change";
+let cookieNoticeOpen = false;
+
+export function setCookieNoticeOpen(open: boolean) {
+  if (cookieNoticeOpen === open) return;
+  cookieNoticeOpen = open;
+  window.dispatchEvent(new Event(NOTICE_EVENT));
+}
+
+export function isCookieNoticeOpen() {
+  return cookieNoticeOpen;
+}
+
+/** Avisa quando o aviso de cookies aparece ou some. */
+export function subscribeCookieNotice(onChange: () => void) {
+  window.addEventListener(NOTICE_EVENT, onChange);
+  return () => window.removeEventListener(NOTICE_EVENT, onChange);
+}
+
 /**
  * Apaga os cookies `_ga*`. O Analytics os grava no domínio mais alto que
  * aceitar (`.oca-portal.com`, e não `sap.oca-portal.com`), então tenta cada
