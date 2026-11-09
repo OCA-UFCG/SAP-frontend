@@ -64,7 +64,7 @@
     "reportPlaceNational": "Brazil",
     "reportMethodTitle": "Criteria, weights and settings: ELECTRE TRI-B",
     "reportMethodIntro": "The ELECTRE TRI-B method sorts alternatives (municipalities) into predefined categories by comparing them with reference profiles (thresholds). The parameters below control how sensitive the model is to differences between criterion values.",
-    "reportDirectionNote": "Benefit: increasing orientation; the higher the value, the better the municipality is doing, lowering the priority for intervention. Cost: decreasing orientation; the higher the value, the worse the situation, raising the priority for intervention.",
+    "reportDirectionNote": "Benefit: the higher the value, the better the municipality is doing, lowering the priority for intervention. Cost: the higher the value, the worse the situation, raising the priority for intervention.",
     "reportDescriptionColumn": "Description",
     "reportIndifferenceDescription": "Difference below which two values are considered equal",
     "reportPreferenceDescription": "Difference from which a criterion is strictly preferred",

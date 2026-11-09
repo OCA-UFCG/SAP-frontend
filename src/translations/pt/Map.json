@@ -64,7 +64,7 @@
     "reportPlaceNational": "Brasil",
     "reportMethodTitle": "Critérios, pesos e configurações: ELECTRE TRI-B",
     "reportMethodIntro": "O método ELECTRE TRI-B classifica alternativas (municípios) em categorias predefinidas por meio de comparações com perfis de referência (limiares). Os parâmetros abaixo controlam a sensibilidade do modelo às diferenças entre os valores dos critérios.",
-    "reportDirectionNote": "Benefício: orientação crescente; quanto maior o valor, melhor a situação do município, reduzindo a prioridade de intervenção. Custo: orientação decrescente; quanto maior o valor, pior a situação, aumentando a prioridade de intervenção.",
+    "reportDirectionNote": "Benefício: quanto maior o valor, melhor a situação do município, reduzindo a prioridade de intervenção. Custo: quanto maior o valor, pior a situação, aumentando a prioridade de intervenção.",
     "reportDescriptionColumn": "Descrição",
     "reportIndifferenceDescription": "Diferença abaixo da qual dois valores são considerados iguais",
     "reportPreferenceDescription": "Diferença a partir da qual um critério é estritamente preferido",
