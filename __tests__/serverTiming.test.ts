@@ -89,7 +89,9 @@ describe("createServerTiming", () => {
 describe("createServerTiming com muitas medições", () => {
   // Regressão: "Selecionar todos" na Comunicação pede 39 camadas; num município
   // fora do cache, cada uma virava uma medição e o cabeçalho passava de 4,5 KB.
-  // O nginx da frente só aceita 4 KB de cabeçalhos e respondia 502.
+  // O nginx da frente só aceita 4 KB de cabeçalhos e respondia 502. Na
+  // produção o mesmo buffer leva o endereço pedido (chave do cache do nginx),
+  // então sobra bem menos que 4 KB para os cabeçalhos.
   it("cabe no buffer do nginx mesmo com 39 camadas", () => {
     const timing = createServerTiming();
     for (let i = 0; i < 39; i++) {
@@ -101,7 +103,7 @@ describe("createServerTiming com muitas medições", () => {
     }
     const header = timing.header();
 
-    expect(header.length).toBeLessThanOrEqual(2048);
+    expect(header.length).toBeLessThanOrEqual(512);
     expect(header).toContain("total;dur=");
     expect(header).toMatch(/omitted;dur=0\.0;desc="\d+ medicoes omitidas/u);
     // As mais lentas ficam: são elas que explicam a demora.

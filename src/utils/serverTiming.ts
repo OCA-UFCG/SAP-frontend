@@ -47,8 +47,16 @@ function toHeaderSafeDescription(description: string) {
  * camada do Relatório Automático vira uma medição de ~120 bytes: com "Selecionar
  * todos" (39 camadas) num município ainda fora do cache, o cabeçalho passava de
  * 4,5 KB e o relatório já montado virava "Unexpected token '<'" na tela.
+ *
+ * Os 2 KB de antes não bastaram na produção, onde o nginx guarda respostas em
+ * cache: aí o mesmo buffer leva também a chave do cache, que contém o endereço
+ * pedido, e o endereço cresce com a lista de camadas (~1,7 KB com as ~80 de
+ * "Selecionar todos"). Foram 7 relatórios com 502 entre 04 e 06/11/2026. Com
+ * 512 bytes, um nginx igual ao da produção aceita endereços de até ~2,4 KB; com
+ * 2 KB, nem 1,1 KB. O que sai são medições de diagnóstico: o `total` e as mais
+ * lentas continuam.
  */
-const MAX_HEADER_LENGTH = 2048;
+const MAX_HEADER_LENGTH = 512;
 
 function formatMetric({ name, durationMs, description }: ServerTimingMetric) {
   const safeName = name.replace(/[^a-zA-Z0-9_-]/gu, "_");
