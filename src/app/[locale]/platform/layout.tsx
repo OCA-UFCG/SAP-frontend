@@ -6,6 +6,8 @@ import { resolvePlatformAccess } from "@/lib/platform-access";
 import { isPlatformOpen } from "@/lib/access-flag";
 import { LOGIN_PATH, PENDING_APPROVAL_PATH } from "@/config/accessRoutes";
 import PlatformLoading from "./loading";
+import { PlatformIntro } from "@/components/PlatformIntro/PlatformIntro";
+import { PLATFORM_INTRO_COOKIE } from "@/components/PlatformIntro/platformIntroState";
 
 /**
  * Confere a sessão antes de entregar qualquer página da plataforma. Fica atrás
@@ -50,14 +52,26 @@ export default async function PlatformLayout({
   params: Promise<{ locale: string }>;
 }) {
   const { locale } = await params;
+  const cookieStore = await cookies();
+
+  // Fica no layout, e não na página, para cobrir também a tela de carregamento.
+  // Por cima de tudo, a abertura não muda o resto da árvore.
+  const intro = cookieStore.has(PLATFORM_INTRO_COOKIE) ? null : (
+    <PlatformIntro />
+  );
 
   // Plataforma aberta: sem conferência de sessão. As telas só da equipe
   // (auditoria, catálogo, aprovações) conferem o login por conta própria.
   if (isPlatformOpen()) {
-    return children;
+    return (
+      <>
+        {intro}
+        {children}
+      </>
+    );
   }
 
-  const sessionCookie = (await cookies()).get(SESSION_COOKIE_NAME)?.value;
+  const sessionCookie = cookieStore.get(SESSION_COOKIE_NAME)?.value;
 
   // Sem cookie não há o que verificar: redireciona antes de começar a enviar a
   // tela de carregamento, mantendo o redirecionamento HTTP para quem não entrou.
@@ -66,10 +80,13 @@ export default async function PlatformLayout({
   }
 
   return (
-    <Suspense fallback={<PlatformLoading />}>
-      <PlatformSessionGate sessionCookie={sessionCookie} locale={locale}>
-        {children}
-      </PlatformSessionGate>
-    </Suspense>
+    <>
+      {intro}
+      <Suspense fallback={<PlatformLoading />}>
+        <PlatformSessionGate sessionCookie={sessionCookie} locale={locale}>
+          {children}
+        </PlatformSessionGate>
+      </Suspense>
+    </>
   );
 }
