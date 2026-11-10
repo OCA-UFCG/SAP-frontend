@@ -21,34 +21,35 @@ type CardStyle = {
   quote: string;
   /** Cor do texto. */
   text: string;
-  /** Card grande: aspas maiores e texto no pé do card. */
+  /** Card grande: com foto, aspas maiores e degradê mais suave. */
   large?: boolean;
 };
 
 // Com foto, qualquer card fica com texto claro sobre um degradê escuro.
 const PHOTO_COLORS = { quote: "text-[#CCCF87]", text: "text-[#F8F7F8]" };
 
-// Mosaico do design da home (Figma), na ordem dos depoimentos: no alto, o card
-// grande (com foto no design), dois cards empilhados e um card alto; embaixo,
-// dois cards largos.
+// Cores do design da home (Figma), na ordem dos depoimentos. No alto, uma grade
+// 2×2: o mosaico do Figma (coluna estreita com dois cards empilhados ao lado de
+// cards de duas linhas) só fecha com frases curtas; com depoimentos de um
+// parágrafo, ele esticava os cards e deixava blocos vazios.
 const TOP_CARDS: CardStyle[] = [
   {
-    card: "min-h-[360px] bg-[#3F4324] md:col-span-2 lg:col-span-1 lg:row-span-2",
+    card: "bg-[#3F4324]",
     ...PHOTO_COLORS,
     large: true,
   },
   {
-    card: "bg-[#F8F7F8] lg:col-start-2 lg:row-start-1",
+    card: "bg-[#F8F7F8]",
     quote: "text-[#646B2D]",
     text: "text-[#292829]",
   },
   {
-    card: "bg-[#5B612A] lg:col-start-2 lg:row-start-2",
+    card: "bg-[#5B612A]",
     quote: "text-[#F0F0D7]",
     text: "text-[#F8F7F8]",
   },
   {
-    card: "bg-[#B4BA61] md:col-span-2 lg:col-span-1 lg:col-start-3 lg:row-span-2 lg:row-start-1",
+    card: "bg-[#B4BA61]",
     quote: "text-[#3F4324]",
     text: "text-[#292829]",
   },
@@ -75,7 +76,7 @@ const TestimonialCard = ({
 }) => {
   const colors = item.image ? PHOTO_COLORS : style;
   // Sobre a foto o texto vai para o pé do card, onde o degradê é mais escuro.
-  const atBottom = style.large || !!item.image;
+  const atBottom = !!item.image;
 
   return (
     <figure
@@ -101,7 +102,7 @@ const TestimonialCard = ({
 
       <div className="relative flex flex-1 flex-col gap-4">
         <QuoteIcon
-          size={style.large ? 40 : 24}
+          size={style.large && item.image ? 40 : 24}
           className={`shrink-0 ${colors.quote} ${atBottom ? "mt-auto" : ""}`}
         />
         <blockquote>{item.quote}</blockquote>
@@ -136,7 +137,7 @@ export const UseCasesSection = ({ id, title, items, previews = {} }: Props) => {
         </h2>
 
         <div className="flex flex-col gap-6 lg:gap-9">
-          <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-[625fr_279.5fr_327.5fr] lg:grid-rows-[minmax(248px,auto)_minmax(248px,auto)]">
+          <div className="grid gap-6 md:grid-cols-2 md:auto-rows-[minmax(248px,auto)]">
             {top.map((item, index) => (
               <TestimonialCard
                 key={`${item.author}-${item.quote}`}
