@@ -3,28 +3,24 @@
     "title": "Lo que dicen sobre el SEDES",
     "items": {
       "1": {
-        "quote": "Antes, reunir datos de clima, suelo y vegetación de un municipio llevaba días. Con el SEDES, el informe sale en segundos, listo para la reunión.",
-        "author": "Técnico de secretaría municipal de medio ambiente"
+        "quote": "El SEDES reúne datos climáticos, ambientales y socioeconómicos relevantes para el diagnóstico de la sequía, de la degradación del territorio y de sus causas y efectos. El sistema es inteligente, intuitivo, responsivo y tiene un diseño y funcionalidades muy buenos.",
+        "author": "Gustavo M. Vasques",
+        "authorDetail": "Investigador de Embrapa Solos y autor del mapa de carbono orgánico del suelo de Brasil disponible en el SEDES"
       },
       "2": {
-        "quote": "El mapa de sequía junto con la cobertura de la tierra ayuda a orientar a los agricultores de la región.",
-        "author": "Extensionista rural"
+        "quote": "Al integrar datos y diagnósticos sobre producción, clima y vulnerabilidades, además de posibilitar un monitoreo continuo, el SEDES se consolida como un instrumento estratégico para respaldar políticas públicas que fortalecen la resiliencia de las familias del Semiárido.",
+        "author": "Reginaldo Alves",
+        "authorDetail": "Secretario Técnico de la Cámara de Agricultura Familiar del Consórcio Nordeste"
       },
       "3": {
-        "quote": "Como gestora, necesito justificar prioridades con datos. La priorización por municipio da base técnica al plan de convivencia con la sequía.",
-        "author": "Gestora pública estatal"
+        "quote": "Me impresionó la cantidad y la diversidad de información, la confiabilidad de las fuentes y la facilidad para generar informes. Esta información servirá no solo para el análisis de sequías y desertificación, sino también para respaldar otras políticas públicas del país.",
+        "author": "Carlos Galvão",
+        "authorDetail": "Profesor de Recursos Hídricos de la Universidad Federal de Campina Grande"
       },
       "4": {
-        "quote": "En clase, los alumnos buscan su propio municipio, lo comparan con los vecinos y entienden por qué el tema importa para donde viven.",
-        "author": "Profesora de geografía"
-      },
-      "5": {
-        "quote": "El análisis multicriterio deja claro por qué algunas áreas entran como prioridad.",
-        "author": "Investigador"
-      },
-      "6": {
-        "quote": "El informe se volvió un anexo estándar de nuestros proyectos de captación de recursos.",
-        "author": "Coordinación de asociación de agricultores"
+        "quote": "El SEDES es una plataforma innovadora y muy importante para gestores, investigadores y la sociedad en general, ya que permite visualizar indicadores pertinentes y actualizados, que pueden observarse por separado o de forma combinada, según el análisis que el usuario desee. Es una excelente contribución para la formulación de estrategias de lucha contra la desertificación, restauración y acciones de sostenibilidad.",
+        "author": "Maíra Braga",
+        "authorDetail": "SEMAS-PE"
       }
     }
   }

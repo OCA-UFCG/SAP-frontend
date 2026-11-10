@@ -3,28 +3,24 @@
     "title": "What people say about SEDES",
     "items": {
       "1": {
-        "quote": "Gathering climate, soil and vegetation data for a municipality used to take days. With SEDES, the report comes out in seconds, ready for the meeting.",
-        "author": "Municipal environment department technician"
+        "quote": "SEDES brings together climate, environmental and socioeconomic data relevant to diagnosing drought, land degradation and their causes and effects. The system is smart, intuitive and responsive, with a really nice layout and features.",
+        "author": "Gustavo M. Vasques",
+        "authorDetail": "Researcher at Embrapa Solos and author of the Brazilian soil organic carbon map available on SEDES"
       },
       "2": {
-        "quote": "The drought map together with land cover helps guide farmers in the region.",
-        "author": "Rural extension agent"
+        "quote": "By integrating data and diagnoses on production, climate and vulnerabilities, and by enabling continuous monitoring, SEDES establishes itself as a strategic instrument to support public policies that strengthen the resilience of families in the Brazilian Semi-arid region.",
+        "author": "Reginaldo Alves",
+        "authorDetail": "Technical Secretary of the Family Farming Chamber of Consórcio Nordeste"
       },
       "3": {
-        "quote": "As a manager, I need to justify priorities with data. Prioritization by municipality gives technical grounding to the drought resilience plan.",
-        "author": "State public manager"
+        "quote": "I was impressed by the amount and diversity of information, the reliability of the sources and how easy it is to generate reports. This information will serve not only for analyzing drought and desertification, but also to support other public policies in the country.",
+        "author": "Carlos Galvão",
+        "authorDetail": "Professor of Water Resources at the Federal University of Campina Grande"
       },
       "4": {
-        "quote": "In class, students look up their own municipality, compare it with neighbors and understand why the topic matters where they live.",
-        "author": "Geography teacher"
-      },
-      "5": {
-        "quote": "Multi-criteria analysis makes it clear why some areas are prioritized.",
-        "author": "Researcher"
-      },
-      "6": {
-        "quote": "The report has become a standard attachment to our fundraising projects.",
-        "author": "Farmers' association coordination"
+        "quote": "SEDES is an innovative and extremely important platform for managers, researchers and society in general, as it provides visualization of relevant, up-to-date indicators that can be viewed individually or in combination, according to the analysis the user wants. It is an excellent contribution to formulating strategies to combat desertification, for restoration and for sustainability actions.",
+        "author": "Maíra Braga",
+        "authorDetail": "SEMAS-PE"
       }
     }
   }

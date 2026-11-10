@@ -21,7 +21,7 @@ const HIGHLIGHT_KEYS = [
 // A ordem das ferramentas é sempre esta, também quando o texto vem do Contentful.
 const TOOL_IDS = ["monitoring", "communication", "analysis"] as const;
 
-const TESTIMONIAL_KEYS = ["1", "2", "3", "4", "5", "6"] as const;
+const TESTIMONIAL_KEYS = ["1", "2", "3", "4"] as const;
 
 /** Os textos da home vindos dos arquivos de tradução do idioma da página. */
 async function getTranslatedHomeTexts(): Promise<HomeTextsI> {
@@ -68,6 +68,7 @@ async function getTranslatedHomeTexts(): Promise<HomeTextsI> {
       items: TESTIMONIAL_KEYS.map((key) => ({
         quote: testimonialsT(`items.${key}.quote`),
         author: testimonialsT(`items.${key}.author`),
+        authorDetail: testimonialsT(`items.${key}.authorDetail`),
       })),
     },
   };

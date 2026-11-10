@@ -205,6 +205,6 @@ describe("getHomeTextsForLocale", () => {
     const texts = await getHomeTextsForLocale("pt");
 
     expect(texts.publicPolicy.text).toBe("PublicPolicySection.text");
-    expect(texts.testimonials.items).toHaveLength(6);
+    expect(texts.testimonials.items).toHaveLength(4);
   });
 });

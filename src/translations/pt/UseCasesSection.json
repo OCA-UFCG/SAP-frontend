@@ -3,28 +3,24 @@
     "title": "O que dizem sobre o SEDES",
     "items": {
       "1": {
-        "quote": "Antes, reunir dados de clima, solo e vegetação de um município levava dias. Com o SEDES, o relatório sai em segundos, pronto para a reunião.",
-        "author": "Técnico de secretaria municipal de meio ambiente"
+        "quote": "O SEDES agrega dados climáticos, ambientais e socioeconômicos relevantes para o diagnóstico da seca, da degradação do território e das suas causas e efeitos. O sistema é inteligente, intuitivo, responsivo e tem um layout e funcionalidades bem bacanas.",
+        "author": "Gustavo M. Vasques",
+        "authorDetail": "Pesquisador da Embrapa Solos e autor do mapa de carbono orgânico do solo do Brasil disponível no SEDES"
       },
       "2": {
-        "quote": "O mapa de seca junto com a cobertura da terra ajuda a orientar os agricultores da região.",
-        "author": "Extensionista rural"
+        "quote": "Ao integrar dados e diagnósticos sobre produção, clima e vulnerabilidades, além de possibilitar monitoramento contínuo, o SEDES se consolida como um instrumento estratégico para subsidiar políticas públicas que fortalecem a resiliência das famílias do Semiárido.",
+        "author": "Reginaldo Alves",
+        "authorDetail": "Secretário Técnico da Câmara da Agricultura Familiar do Consórcio Nordeste"
       },
       "3": {
-        "quote": "Como gestora, preciso justificar prioridades com dados. A priorização por município dá base técnica ao plano de convivência com a seca.",
-        "author": "Gestora pública estadual"
+        "quote": "Impressionou-me a quantidade e a diversidade de informações, a confiabilidade das fontes e a facilidade de geração de relatórios. Essas informações servirão não apenas para o propósito de análises de secas e desertificação, mas para subsidiar outras políticas públicas do país.",
+        "author": "Carlos Galvão",
+        "authorDetail": "Professor de Recursos Hídricos da Universidade Federal de Campina Grande"
       },
       "4": {
-        "quote": "Nas aulas, os alunos procuram o próprio município, comparam com os vizinhos e entendem por que o tema importa para onde vivem.",
-        "author": "Professora de geografia"
-      },
-      "5": {
-        "quote": "A análise multicritério deixa transparente por que algumas áreas entram como prioridade.",
-        "author": "Pesquisador"
-      },
-      "6": {
-        "quote": "O relatório virou anexo padrão dos nossos projetos para captação de recursos.",
-        "author": "Coordenação de associação de agricultores"
+        "quote": "O SEDES é uma plataforma inovadora e super importante para gestores, pesquisadores e sociedade em geral, por proporcionar a visualização de indicadores pertinentes e atualizados, que podem ser observados especificamente ou de forma combinada, de acordo com a análise que o usuário deseje. É uma excelente contribuição para a formulação de estratégias de combate à desertificação, restauração e ações de sustentabilidade.",
+        "author": "Maíra Braga",
+        "authorDetail": "SEMAS-PE"
       }
     }
   }
