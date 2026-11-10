@@ -1,0 +1,334 @@
+<!doctype html>
+<!--
+  Fonte do docs/declaracao-de-acessibilidade.pdf. Ao mudar o texto, gere o PDF
+  de novo (na raiz do repositório):
+
+  node -e "const{chromium}=require('playwright');(async()=>{const b=await chromium.launch();const p=await b.newPage();await p.goto('file://'+require('path').resolve('docs/declaracao-de-acessibilidade.html'));await p.pdf({path:'docs/declaracao-de-acessibilidade.pdf',format:'A4',printBackground:true,tagged:true,displayHeaderFooter:true,headerTemplate:'<span></span>',footerTemplate:'<div style=\'font:8px sans-serif;color:#777;width:100%;padding:0 18mm;display:flex;justify-content:space-between\'><span>SEDES · Declaração de acessibilidade</span><span>Página <span class=pageNumber></span> de <span class=totalPages></span></span></div>',margin:{top:'18mm',bottom:'20mm',left:'18mm',right:'18mm'}});await b.close()})()"
+
+  A página pública /acessibilidade (src/translations/*/Accessibility.json)
+  fala com quem usa o portal; este documento fala com quem recebe o produto.
+  Os dois precisam dizer a mesma coisa: ao mudar um, confira o outro.
+-->
+<html lang="pt-BR">
+  <head>
+    <meta charset="utf-8" />
+    <title>SEDES — Declaração de acessibilidade</title>
+    <style>
+      :root {
+        --ink: #23261c;
+        --muted: #5d6157;
+        --accent: #4f5622;
+        --rule: #c9cbbf;
+        --tint: #f3f4ee;
+      }
+      @page {
+        size: A4;
+      }
+      * {
+        box-sizing: border-box;
+      }
+      body {
+        margin: 0;
+        background: #fff;
+        color: var(--ink);
+        font-family: "Charter", "Bitstream Charter", "Liberation Serif", Georgia, serif;
+        font-size: 10.5pt;
+        line-height: 1.5;
+      }
+      h1,
+      h2,
+      h3,
+      .meta,
+      table,
+      .kicker {
+        font-family: "Lato", "Liberation Sans", Arial, sans-serif;
+      }
+      h1 {
+        font-size: 22pt;
+        line-height: 1.2;
+        margin: 0 0 4mm;
+        color: var(--accent);
+      }
+      h2 {
+        font-size: 13pt;
+        color: var(--accent);
+        margin: 8mm 0 3mm;
+        padding-bottom: 1.5mm;
+        border-bottom: 1px solid var(--rule);
+        break-after: avoid;
+      }
+      p {
+        margin: 0 0 2.5mm;
+        text-align: justify;
+        hyphens: auto;
+      }
+      ul {
+        margin: 0 0 3mm;
+        padding-left: 6mm;
+      }
+      li {
+        margin-bottom: 1.2mm;
+      }
+      table {
+        width: 100%;
+        border-collapse: collapse;
+        font-size: 8.8pt;
+        line-height: 1.4;
+        margin: 2mm 0 4mm;
+      }
+      th,
+      td {
+        border: 1px solid var(--rule);
+        padding: 1.6mm 2mm;
+        vertical-align: top;
+        text-align: left;
+      }
+      th {
+        background: var(--tint);
+        font-weight: 700;
+      }
+      tr {
+        break-inside: avoid;
+      }
+      .cover {
+        border-top: 3mm solid var(--accent);
+        padding-top: 8mm;
+        margin-bottom: 4mm;
+      }
+      .kicker {
+        text-transform: uppercase;
+        letter-spacing: 0.08em;
+        font-size: 8.5pt;
+        color: var(--muted);
+        margin-bottom: 2mm;
+      }
+      .meta th {
+        width: 40mm;
+      }
+      .box {
+        border: 1px solid var(--rule);
+        border-left: 1.2mm solid var(--accent);
+        background: var(--tint);
+        padding: 3mm 4mm;
+        margin: 3mm 0 4mm;
+        break-inside: avoid;
+      }
+      .box p:last-child {
+        margin-bottom: 0;
+      }
+      .small {
+        font-size: 8.8pt;
+        color: var(--muted);
+      }
+    </style>
+  </head>
+  <body>
+    <header class="cover">
+      <div class="kicker">Declaração de acessibilidade</div>
+      <h1>SEDES — Declaração de Acessibilidade</h1>
+      <p>
+        Declara o compromisso do SEDES com a acessibilidade, o nível de conformidade alcançado, os
+        recursos oferecidos, as limitações conhecidas e o canal para relatar barreiras.
+      </p>
+      <table class="meta">
+        <tr>
+          <th scope="row">Sistema</th>
+          <td>SEDES — plataforma de monitoramento de seca e desertificação (https://sedes.oca.ufcg.edu.br)</td>
+        </tr>
+        <tr>
+          <th scope="row">Instituições</th>
+          <td>
+            Ministério do Meio Ambiente e Mudança do Clima · Universidade Federal de Campina Grande ·
+            Observatório da Caatinga e Desertificação (OCA)
+          </td>
+        </tr>
+        <tr>
+          <th scope="row">Versão avaliada</th>
+          <td>v7.25, em produção desde 10/11/2026</td>
+        </tr>
+        <tr>
+          <th scope="row">Data da declaração</th>
+          <td>10 de novembro de 2026</td>
+        </tr>
+        <tr>
+          <th scope="row">Referências</th>
+          <td>
+            Lei nº 13.146/2015 (Lei Brasileira de Inclusão), art. 63 · WCAG 2.1, nível AA · eMAG 3.1
+          </td>
+        </tr>
+        <tr>
+          <th scope="row">Situação</th>
+          <td><strong>Parcialmente conforme</strong> com a WCAG 2.1, nível AA (seção 2)</td>
+        </tr>
+        <tr>
+          <th scope="row">Natureza</th>
+          <td>
+            Autodeclaração baseada em avaliação técnica interna da equipe do SEDES (LSD/UFCG). Não é
+            certificação nem auditoria independente.
+          </td>
+        </tr>
+        <tr>
+          <th scope="row">Contato</th>
+          <td>oca@lsd.ufcg.edu.br</td>
+        </tr>
+      </table>
+    </header>
+
+    <h2>1. Compromisso</h2>
+    <p>
+      O SEDES é um portal público e deve poder ser usado por todas as pessoas, com ou sem
+      deficiência. Em cumprimento ao art. 63 da Lei Brasileira de Inclusão, o portal adota como
+      referência as Diretrizes de Acessibilidade para Conteúdo Web (WCAG 2.1, nível AA) e o Modelo de
+      Acessibilidade em Governo Eletrônico (eMAG 3.1). Cada página exibe o símbolo de acessibilidade
+      no rodapé, com link para a página
+      <strong>sedes.oca.ufcg.edu.br/acessibilidade</strong>, disponível em português, inglês e
+      espanhol.
+    </p>
+
+    <h2>2. Situação de conformidade</h2>
+    <div class="box">
+      <p>
+        <strong>O SEDES está parcialmente conforme com a WCAG 2.1, nível AA.</strong> A navegação, os
+        formulários, os gráficos e as páginas institucionais atendem aos critérios avaliados. As
+        exceções estão listadas na seção 4. A principal é inerente ao produto: os mapas de satélite
+        são, por natureza, visuais.
+      </p>
+    </div>
+
+    <h2>3. Recursos oferecidos</h2>
+    <table>
+      <thead>
+        <tr>
+          <th scope="col" style="width: 26%">Necessidade</th>
+          <th scope="col">O que o SEDES oferece</th>
+        </tr>
+      </thead>
+      <tr>
+        <td>Pessoas surdas</td>
+        <td>Tradução automática para Libras pelo VLibras, do Governo Federal, em todas as páginas.</td>
+      </tr>
+      <tr>
+        <td>Navegação só pelo teclado</td>
+        <td>
+          As telas do portal podem ser usadas só pelo teclado, com foco sempre visível. Barra de atalhos do
+          eMAG no topo de cada página: conteúdo [1], menu [2], busca [3] e rodapé [4]. Listas e
+          menus respondem às setas, e Esc fecha menus e janelas, devolvendo o foco ao ponto de
+          origem.
+        </td>
+      </tr>
+      <tr>
+        <td>Leitores de tela</td>
+        <td>
+          Idioma da página declarado, título próprio em cada página, estrutura de títulos e regiões
+          marcada, campos de formulário com rótulo e erros associados ao campo. Avisos de
+          carregamento, conclusão e erro são lidos ao aparecer.
+        </td>
+      </tr>
+      <tr>
+        <td>Gráficos e mapas</td>
+        <td>
+          Cada gráfico traz um resumo em texto e um botão “Ver dados em tabela” com os mesmos
+          valores. O mapa informa ao leitor de tela o índice e o local exibidos, e os valores de cada
+          local estão em texto no painel de Detalhamento. Nos relatórios em PDF, cada mapa tem
+          descrição própria (índice, território e período) e as tabelas têm cabeçalhos marcados.
+        </td>
+      </tr>
+      <tr>
+        <td>Baixa visão</td>
+        <td>
+          Cores de interface com contraste mínimo de 4,5:1. Textos em unidades relativas, que
+          acompanham o tamanho de fonte escolhido no navegador. Ampliação até 200% sem perda de
+          conteúdo.
+        </td>
+      </tr>
+      <tr>
+        <td>Sensibilidade a movimento</td>
+        <td>Animações e rolagem suave são desligadas quando o sistema operacional pede menos movimento.</td>
+      </tr>
+    </table>
+
+    <h2>4. Limitações conhecidas</h2>
+    <table>
+      <thead>
+        <tr>
+          <th scope="col" style="width: 26%">Onde</th>
+          <th scope="col">Limitação e alternativa</th>
+        </tr>
+      </thead>
+      <tr>
+        <td>Mapas de satélite</td>
+        <td>
+          A leitura de padrões espaciais (por exemplo, onde a seca avança) depende da imagem.
+          <em>Alternativa:</em> os valores de cada estado e município estão disponíveis em texto e
+          tabela no Detalhamento, nos gráficos e no relatório municipal.
+        </td>
+      </tr>
+      <tr>
+        <td>Relatório municipal</td>
+        <td>
+          Os subtítulos em cinza do sumário e os percentuais escritos em branco sobre a cor de
+          algumas classes ficam abaixo do contraste mínimo de 4,5:1. No sumário, o nome lido pelo
+          leitor de tela de cada link não inclui o subtítulo visível, o que pode atrapalhar quem
+          navega por comando de voz.
+        </td>
+      </tr>
+      <tr>
+        <td>Relatórios em PDF</td>
+        <td>
+          Podem não ter a mesma estrutura de leitura da versão na tela. <em>Alternativa:</em> o
+          mesmo relatório pode ser consultado no próprio portal.
+        </td>
+      </tr>
+      <tr>
+        <td>Conteúdo editorial</td>
+        <td>
+          Notícias e páginas institucionais são publicadas pela equipe editorial. Uma imagem
+          publicada sem descrição fica sem texto alternativo.
+        </td>
+      </tr>
+      <tr>
+        <td>Libras</td>
+        <td>
+          A tradução do VLibras é automática e pode não captar termos técnicos com precisão. O
+          portal não tem conteúdo em vídeo com intérprete humano.
+        </td>
+      </tr>
+    </table>
+
+    <h2>5. Como a acessibilidade foi avaliada</h2>
+    <ul>
+      <li>
+        <strong>Avaliação automática em produção</strong> (Lighthouse/axe, em 10/11/2026): página
+        inicial 96, plataforma 100, página de acessibilidade 100 (no celular) e relatório municipal
+        97, numa escala de 0 a 100. As falhas encontradas estão na seção 4.
+      </li>
+      <li>
+        <strong>Verificação contínua no desenvolvimento:</strong> o código é barrado se violar as
+        regras de acessibilidade do linter (<em>eslint-plugin-jsx-a11y</em>), e cada componente
+        da biblioteca visual passa pelo axe a cada alteração. Testes automatizados cobrem os
+        atalhos, a descrição dos mapas, os resumos dos gráficos e a página pública de acessibilidade.
+      </li>
+      <li>
+        <strong>Revisão manual</strong> da navegação por teclado e da ordem de foco nas telas
+        principais.
+      </li>
+    </ul>
+    <p class="small">
+      Ainda não foram feitos testes com pessoas com deficiência nem auditoria independente.
+    </p>
+
+    <h2>6. Como relatar uma barreira</h2>
+    <p>
+      Quem encontrar uma barreira de acessibilidade pode escrever para
+      <strong>oca@lsd.ufcg.edu.br</strong>, informando a página, o que tentou fazer e, se usar, a
+      tecnologia assistiva (leitor de tela, ampliador, navegação por voz). A equipe responde e
+      corrige o que estiver ao seu alcance.
+    </p>
+
+    <h2>7. Revisão desta declaração</h2>
+    <p>
+      Esta declaração é revista sempre que uma versão do SEDES mudar os recursos ou as limitações
+      aqui descritos, e mantém o mesmo conteúdo da página pública de acessibilidade.
+    </p>
+  </body>
+</html>
