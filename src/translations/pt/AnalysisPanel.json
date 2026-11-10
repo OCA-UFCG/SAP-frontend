@@ -101,6 +101,16 @@
     "rankingsUnavailable": "Não foi possível carregar a lista de territórios agora. Tente de novo em instantes.",
     "rankingsEmpty": "Nenhum território deste recorte tem valor nesta data.",
     "temporalVision": "Visão temporal",
+    "temporalAxisPercent": "% da área",
+    "temporalRangeGroup": "Período exibido",
+    "temporalRange": {
+      "lastYear": "12 meses",
+      "fiveYears": "5 anos",
+      "all": "Tudo",
+      "lastPeriods": "Últimos {count}"
+    },
+    "temporalBelowOnePercent": "Abaixo de 1% em {period}: {classes}.",
+    "temporalUnlabeledClasses": "Sem rótulo em {period}: {classes}.",
     "affectedArea": "Área afetada",
     "territorialActions": "Ações territoriais",
     "comparisonWithLast": "Comparativo com os últimos",

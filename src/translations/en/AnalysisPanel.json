@@ -101,6 +101,16 @@
     "rankingsUnavailable": "The list of territories could not be loaded right now. Please try again shortly.",
     "rankingsEmpty": "No territory in this area has a value on this date.",
     "temporalVision": "Temporal vision",
+    "temporalAxisPercent": "% of area",
+    "temporalRangeGroup": "Period shown",
+    "temporalRange": {
+      "lastYear": "12 months",
+      "fiveYears": "5 years",
+      "all": "All",
+      "lastPeriods": "Last {count}"
+    },
+    "temporalBelowOnePercent": "Below 1% in {period}: {classes}.",
+    "temporalUnlabeledClasses": "Not labeled in {period}: {classes}.",
     "affectedArea": "Affected area",
     "territorialActions": "Territorial actions",
     "comparisonWithLast": "Comparison with the last",
