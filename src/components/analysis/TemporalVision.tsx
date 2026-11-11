@@ -24,21 +24,20 @@ import {
   useChartSummaryText,
 } from "@/components/ChartDataTable/ChartDataTable";
 import type { ChartTableSeries } from "@/utils/chartAccessibility";
+import { buildTemporalTableRows, toClassLabelSlug } from "./temporalVisionData";
 import {
-  buildTemporalTableRows,
-  toClassLabelSlug,
-} from "./temporalVisionData";
-import {
+  DEKADS_PER_YEAR,
   fitLabel,
+  initialWindowSize,
+  minWindowSize,
   niceAxisMax,
   pickAxisTicks,
   shortenLabel,
   spreadLabelPositions,
   strokeOnWhite,
-  temporalRangeOptions,
-  type TemporalRangeKey,
-  visibleRange,
+  type TemporalWindow,
 } from "./temporalVisionChart";
+import { TemporalOverview } from "./TemporalOverview";
 
 export { buildSeriesData, buildTemporalTableRows } from "./temporalVisionData";
 
@@ -106,7 +105,12 @@ export function TemporalVision({
   const descriptionId = useId();
   const wrapperRef = useRef<HTMLDivElement | null>(null);
   const [width, setWidth] = useState(DEFAULT_WIDTH);
-  const [rangeKey, setRangeKey] = useState<TemporalRangeKey>("recent");
+  // A janela escolhida no mini-mapa vale para a série em que foi escolhida:
+  // trocar de índice ou de território volta para os períodos mais recentes.
+  const [chosenWindow, setChosenWindow] = useState<{
+    periods: string[];
+    range: TemporalWindow;
+  } | null>(null);
   const [hoverIndex, setHoverIndex] = useState<number | null>(null);
   const measureRef = useRef<SVGTextElement | null>(null);
   const [fittedNames, setFittedNames] = useState<string[] | null>(null);
@@ -174,14 +178,19 @@ export function TemporalVision({
     [classes, tableRows, tableSeries],
   );
 
-  const rangeOptions = useMemo(
-    () => temporalRangeOptions(periods.length, isDekadSeries),
-    [periods.length, isDekadSeries],
+  const windowSize = initialWindowSize(periods.length, isDekadSeries);
+  const lastIndex = Math.max(0, periods.length - 1);
+  const [start, end]: TemporalWindow =
+    chosenWindow?.periods === periods
+      ? chosenWindow.range
+      : [windowSize ? periods.length - windowSize : 0, lastIndex];
+  const changeWindow = useCallback(
+    (range: TemporalWindow) => {
+      setChosenWindow({ periods, range });
+      setHoverIndex(null);
+    },
+    [periods],
   );
-  const [start, end] = visibleRange(periods.length, rangeOptions, rangeKey);
-  const activeRangeKey =
-    rangeOptions?.find((option) => option.key === rangeKey)?.key ??
-    rangeOptions?.[0]?.key;
 
   const numberFormat = useMemo(
     () =>
@@ -204,18 +213,24 @@ export function TemporalVision({
       isDekadSeries ? (formatDekadPeriod(period, locale) ?? period) : period,
     [isDekadSeries, locale],
   );
-  const formatMonth = useCallback(
-    (year: number, month: number) => {
-      const name = new Intl.DateTimeFormat(locale, {
-        month: "short",
-        timeZone: "UTC",
-      })
+  const monthName = useCallback(
+    (year: number, month: number) =>
+      new Intl.DateTimeFormat(locale, { month: "short", timeZone: "UTC" })
         .format(new Date(Date.UTC(year, month - 1, 1)))
-        .replace(".", "");
-      return `${name}/${String(year).slice(2)}`;
-    },
+        .replace(".", ""),
     [locale],
   );
+  const formatMonth = useCallback(
+    (year: number, month: number) =>
+      `${monthName(year, month)}/${String(year).slice(2)}`,
+    [monthName],
+  );
+  // No mini-mapa, o trecho de um índice decendial aparece como "out 2025".
+  const formatWindowEdge = (period: string) => {
+    if (!isDekadSeries) return period;
+    const [year, month] = period.split("-").map(Number);
+    return `${monthName(year, month)} ${year}`;
+  };
 
   const yMax = useMemo(() => {
     if (valueType === "percentage") return 100;
@@ -296,6 +311,20 @@ export function TemporalVision({
       pickAxisTicks(periods, start, end, isDekadSeries, plotWidth, formatMonth),
     [periods, start, end, isDekadSeries, plotWidth, formatMonth],
   );
+  const overviewTicks = useMemo(
+    () =>
+      windowSize
+        ? pickAxisTicks(
+            periods,
+            0,
+            lastIndex,
+            isDekadSeries,
+            width - 12,
+            formatMonth,
+          )
+        : [],
+    [windowSize, periods, lastIndex, isDekadSeries, width, formatMonth],
+  );
 
   if (!years || !classes || periods.length === 0) {
     return null;
@@ -369,8 +398,16 @@ export function TemporalVision({
     setHoverIndex(Math.max(start, Math.min(end, activeIndex + direction)));
   };
 
+  const windowText = t("temporalWindowRange", {
+    start: formatWindowEdge(periods[start]),
+    end: formatWindowEdge(periods[end]),
+  });
+
   const crosshairX = x(activeIndex);
-  const periodLabelX = Math.max(left + 40, Math.min(plotRight - 40, crosshairX));
+  const periodLabelX = Math.max(
+    left + 40,
+    Math.min(plotRight - 40, crosshairX),
+  );
   const labelX = plotRight + LABEL_OFFSET;
 
   return (
@@ -382,40 +419,12 @@ export function TemporalVision({
       </div>
 
       <div className="flex flex-col gap-2 rounded-lg border border-[#EFEFEF] bg-white p-3 shadow-sm">
-        <div className="flex min-h-7 flex-wrap items-center justify-between gap-2">
+        <div className="flex min-h-7 items-center">
           <span className="text-[0.6875rem] text-[#6F6F6F]">
             {valueType === "percentage"
               ? t("temporalAxisPercent")
               : (valueUnit ?? "")}
           </span>
-          {rangeOptions ? (
-            <div
-              role="group"
-              aria-label={t("temporalRangeGroup")}
-              className="inline-flex gap-[2px] rounded-md border border-[#DCDBDC] bg-white p-[2px]"
-            >
-              {rangeOptions.map((option) => (
-                <button
-                  key={option.key}
-                  type="button"
-                  aria-pressed={option.key === activeRangeKey}
-                  onClick={() => {
-                    setRangeKey(option.key);
-                    setHoverIndex(null);
-                  }}
-                  className="cursor-pointer rounded px-2 py-1.5 text-[0.75rem] font-semibold leading-none text-neutral-600 aria-pressed:bg-[#5B612A] aria-pressed:text-white"
-                >
-                  {option.key === "recent"
-                    ? isDekadSeries
-                      ? t("temporalRange.lastYear")
-                      : t("temporalRange.lastPeriods", { count: option.size })
-                    : option.key === "fiveYears"
-                      ? t("temporalRange.fiveYears")
-                      : t("temporalRange.all")}
-                </button>
-              ))}
-            </div>
-          ) : null}
         </div>
 
         <div ref={wrapperRef} className="w-full">
@@ -423,7 +432,7 @@ export function TemporalVision({
             viewBox={`0 0 ${width} ${CHART_HEIGHT}`}
             width={width}
             height={CHART_HEIGHT}
-            className="block h-auto w-full touch-pan-y select-none outline-offset-2 focus-visible:outline-2 focus-visible:outline-[#5B612A]"
+            className="block h-auto w-full touch-pan-y select-none outline-none outline-offset-2 focus-visible:outline-2 focus-visible:outline-solid focus-visible:outline-[#5B612A]"
             role="img"
             tabIndex={0}
             aria-label={tA11y("temporalVisionLabel")}
@@ -572,6 +581,32 @@ export function TemporalVision({
           <p className="text-[0.75rem] leading-4 text-[#6F6F6F]">
             {unlabeledText}
           </p>
+        ) : null}
+
+        {windowSize ? (
+          <div className="mt-2 flex flex-col gap-1">
+            <div className="flex flex-wrap items-baseline justify-between gap-x-2 text-[0.75rem]">
+              <span className="font-bold tabular-nums text-[#3F4420]">
+                {windowText}
+              </span>
+              <span className="text-[0.6875rem] text-[#6F6F6F]">
+                {t("temporalWindowHint")}
+              </span>
+            </div>
+            <TemporalOverview
+              width={width}
+              periodCount={periods.length}
+              series={series}
+              valueType={valueType}
+              ticks={overviewTicks}
+              visible={[start, end]}
+              minSize={minWindowSize(periods.length, isDekadSeries)}
+              keyStep={isDekadSeries ? DEKADS_PER_YEAR / 12 : 1}
+              label={t("temporalWindowLabel")}
+              valueText={windowText}
+              onChange={changeWindow}
+            />
+          </div>
         ) : null}
       </div>
       <ChartDescription id={descriptionId} text={description} />

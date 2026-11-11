@@ -1,6 +1,7 @@
 /**
- * As contas do desenho da Visão temporal: quais períodos aparecem, onde ficam
- * as marcas do eixo, onde cada rótulo da ponta assenta e que cor o traço usa.
+ * As contas do desenho da Visão temporal: quais períodos aparecem, como a
+ * janela do mini-mapa anda, onde ficam as marcas do eixo, onde cada rótulo da
+ * ponta assenta e que cor o traço usa.
  * Ficam fora do componente para serem testadas sem montar o gráfico.
  */
 
@@ -8,55 +9,111 @@ export const MAX_VISIBLE_PERIODS = 8;
 // Uma série decendial abre no último ano: 8 decêndios seriam pouco mais de dois
 // meses diante dos 926 do CDI.
 export const DEKADS_PER_YEAR = 36;
-const DEKADS_IN_FIVE_YEARS = DEKADS_PER_YEAR * 5;
+// Puxando as bordas, a janela não fica menor que 4 meses de decêndios.
+const MIN_DEKAD_WINDOW = 12;
 
-export type TemporalRangeKey = "recent" | "fiveYears" | "all";
+/**
+ * Quantos períodos o gráfico mostra ao abrir. Uma série que cabe inteira não
+ * tem mini-mapa: devolve `null`.
+ *
+ * @example
+ * initialWindowSize(927, true); // 36 (o último ano do CDI)
+ * initialWindowSize(22, false); // 8
+ * initialWindowSize(6, false); // null
+ */
+export function initialWindowSize(periodCount: number, isDekadSeries: boolean) {
+  const size = isDekadSeries ? DEKADS_PER_YEAR : MAX_VISIBLE_PERIODS;
+  return periodCount > size ? size : null;
+}
 
-export interface TemporalRangeOption {
-  key: TemporalRangeKey;
-  size: number;
+/** O menor trecho que a janela aceita ao puxar as bordas. */
+export function minWindowSize(periodCount: number, isDekadSeries: boolean) {
+  return Math.min(periodCount, isDekadSeries ? MIN_DEKAD_WINDOW : 2);
+}
+
+export type TemporalWindow = [start: number, end: number];
+export type WindowDragMode = "move" | "start" | "end";
+
+/**
+ * A janela depois de um arraste no mini-mapa. `boundary` é a divisa entre
+ * períodos sob o ponteiro (de 0 a `periodCount`); no modo "move", `grab` é a
+ * distância entre essa divisa e o começo da janela no início do arraste.
+ *
+ * @example
+ * dragWindow([891, 926], "move", 500, 18, 927, 12); // [482, 517]
+ * dragWindow([891, 926], "start", 800, 0, 927, 12); // [800, 926]
+ */
+export function dragWindow(
+  [start, end]: TemporalWindow,
+  mode: WindowDragMode,
+  boundary: number,
+  grab: number,
+  periodCount: number,
+  minSize: number,
+): TemporalWindow {
+  if (mode === "start") {
+    return [clamp(boundary, 0, end - minSize + 1), end];
+  }
+  if (mode === "end") {
+    return [start, clamp(boundary - 1, start + minSize - 1, periodCount - 1)];
+  }
+  return shiftWindow([start, end], boundary - grab - start, periodCount);
+}
+
+/** Anda com a janela sem mudar o tamanho, sem sair da série. */
+export function shiftWindow(
+  [start, end]: TemporalWindow,
+  delta: number,
+  periodCount: number,
+): TemporalWindow {
+  const size = end - start + 1;
+  const next = clamp(start + delta, 0, periodCount - size);
+  return [next, next + size - 1];
+}
+
+function clamp(value: number, min: number, max: number) {
+  return Math.max(min, Math.min(max, value));
+}
+
+export interface OverviewRun {
+  start: number;
+  end: number;
+  classIndex: number;
 }
 
 /**
- * Os botões de período que substituem a barra de rolagem. Uma série curta não
- * tem botão nenhum: ela já cabe inteira.
+ * A faixa do mini-mapa: cada período ganha a cor da classe com mais área, e
+ * períodos seguidos da mesma classe viram um bloco só (o CDI tem 927
+ * decêndios, mas poucas dezenas de blocos).
  *
  * @example
- * temporalRangeOptions(927, true);
- * // [{ key: "recent", size: 36 }, { key: "fiveYears", size: 180 }, { key: "all", size: 927 }]
- * temporalRangeOptions(6, false); // null
+ * dominantRuns([[90, 90, 10], [10, 10, 90]], 3);
+ * // [{ start: 0, end: 1, classIndex: 0 }, { start: 2, end: 2, classIndex: 1 }]
  */
-export function temporalRangeOptions(
+export function dominantRuns(
+  values: Array<Array<number | null>>,
   periodCount: number,
-  isDekadSeries: boolean,
-): TemporalRangeOption[] | null {
-  if (isDekadSeries) {
-    if (periodCount <= DEKADS_PER_YEAR) return null;
-    return [
-      { key: "recent", size: DEKADS_PER_YEAR },
-      ...(periodCount > DEKADS_IN_FIVE_YEARS
-        ? [{ key: "fiveYears" as const, size: DEKADS_IN_FIVE_YEARS }]
-        : []),
-      { key: "all", size: periodCount },
-    ];
+): OverviewRun[] {
+  const runs: OverviewRun[] = [];
+  for (let index = 0; index < periodCount; index += 1) {
+    let best = -1;
+    let bestValue = 0;
+    values.forEach((series, classIndex) => {
+      const value = series[index];
+      if (typeof value === "number" && value > bestValue) {
+        best = classIndex;
+        bestValue = value;
+      }
+    });
+    const last = runs[runs.length - 1];
+    if (best < 0) continue;
+    if (last && last.classIndex === best && last.end === index - 1) {
+      last.end = index;
+    } else {
+      runs.push({ start: index, end: index, classIndex: best });
+    }
   }
-  if (periodCount <= MAX_VISIBLE_PERIODS) return null;
-  return [
-    { key: "recent", size: MAX_VISIBLE_PERIODS },
-    { key: "all", size: periodCount },
-  ];
-}
-
-/** O primeiro e o último índice visíveis: sempre os períodos mais recentes. */
-export function visibleRange(
-  periodCount: number,
-  options: TemporalRangeOption[] | null,
-  key: TemporalRangeKey,
-): [number, number] {
-  const last = Math.max(0, periodCount - 1);
-  if (!options) return [0, last];
-  const option = options.find((item) => item.key === key) ?? options[0];
-  return [Math.max(0, periodCount - option.size), last];
+  return runs;
 }
 
 /**
@@ -164,6 +221,22 @@ export function strokeOnWhite(color: string) {
       )
       .join("")
   );
+}
+
+const NEAR_WHITE_FILL = "#EBECE6";
+
+/**
+ * A cor de um bloco do mini-mapa. Uma classe quase branca vira um cinza bem
+ * claro, para o bloco não sumir no fundo branco.
+ *
+ * @example
+ * overviewFill("#FFFFFF"); // "#EBECE6"
+ * overviewFill("#FF0000"); // "#FF0000"
+ */
+export function overviewFill(color: string) {
+  const rgb = parseHex(color);
+  if (!rgb) return color;
+  return relativeLuminance(rgb) > 0.9 ? NEAR_WHITE_FILL : color;
 }
 
 export interface AxisTick {

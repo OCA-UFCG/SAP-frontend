@@ -1,57 +1,89 @@
 import { describe, expect, it } from "vitest";
 import {
+  dominantRuns,
+  dragWindow,
   fitLabel,
+  initialWindowSize,
   niceAxisMax,
+  overviewFill,
   pickAxisTicks,
+  shiftWindow,
   shortenLabel,
   spreadLabelPositions,
   strokeOnWhite,
-  temporalRangeOptions,
-  visibleRange,
 } from "@/components/analysis/temporalVisionChart";
 
-describe("temporalRangeOptions", () => {
-  it("não mostra botão quando a série anual já cabe inteira", () => {
-    expect(temporalRangeOptions(2, false)).toBeNull();
-    expect(temporalRangeOptions(8, false)).toBeNull();
+describe("initialWindowSize", () => {
+  it("não mostra mini-mapa quando a série já cabe inteira", () => {
+    expect(initialWindowSize(2, false)).toBeNull();
+    expect(initialWindowSize(8, false)).toBeNull();
+    expect(initialWindowSize(36, true)).toBeNull();
   });
 
-  it("oferece os últimos 8 ou tudo numa série anual longa", () => {
-    expect(temporalRangeOptions(22, false)).toEqual([
-      { key: "recent", size: 8 },
-      { key: "all", size: 22 },
-    ]);
-  });
-
-  it("oferece 12 meses, 5 anos e tudo nos 927 decêndios do CDI", () => {
-    expect(temporalRangeOptions(927, true)).toEqual([
-      { key: "recent", size: 36 },
-      { key: "fiveYears", size: 180 },
-      { key: "all", size: 927 },
-    ]);
-  });
-
-  it("não oferece 5 anos quando a série decendial é mais curta que isso", () => {
-    expect(temporalRangeOptions(100, true)?.map((option) => option.key)).toEqual(
-      ["recent", "all"],
-    );
+  it("abre nos últimos 8 anos ou no último ano de decêndios", () => {
+    expect(initialWindowSize(22, false)).toBe(8);
+    expect(initialWindowSize(927, true)).toBe(36);
   });
 });
 
-describe("visibleRange", () => {
-  it("mostra sempre os períodos mais recentes", () => {
-    const options = temporalRangeOptions(927, true);
-    expect(visibleRange(927, options, "recent")).toEqual([891, 926]);
-    expect(visibleRange(927, options, "all")).toEqual([0, 926]);
+describe("dragWindow", () => {
+  it("anda com a janela inteira sem mudar o tamanho", () => {
+    expect(dragWindow([891, 926], "move", 500, 18, 927, 12)).toEqual([
+      482, 517,
+    ]);
   });
 
-  it("volta à primeira opção quando a escolhida não existe nesta série", () => {
-    const options = temporalRangeOptions(22, false);
-    expect(visibleRange(22, options, "fiveYears")).toEqual([14, 21]);
+  it("não deixa a janela sair da série", () => {
+    expect(dragWindow([891, 926], "move", 5, 18, 927, 12)).toEqual([0, 35]);
+    expect(dragWindow([0, 35], "move", 2000, 0, 927, 12)).toEqual([891, 926]);
   });
 
-  it("mostra a série inteira quando não há botões", () => {
-    expect(visibleRange(2, null, "recent")).toEqual([0, 1]);
+  it("puxar a borda da esquerda mostra mais tempo para trás", () => {
+    expect(dragWindow([891, 926], "start", 800, 0, 927, 12)).toEqual([
+      800, 926,
+    ]);
+  });
+
+  it("puxar a borda da direita para dentro encolhe até o mínimo", () => {
+    expect(dragWindow([891, 926], "end", 892, 0, 927, 12)).toEqual([891, 902]);
+  });
+});
+
+describe("shiftWindow", () => {
+  it("para no começo e no fim da série", () => {
+    expect(shiftWindow([10, 19], -50, 100)).toEqual([0, 9]);
+    expect(shiftWindow([10, 19], 500, 100)).toEqual([90, 99]);
+  });
+});
+
+describe("dominantRuns", () => {
+  it("junta períodos seguidos com a mesma classe maior", () => {
+    expect(
+      dominantRuns(
+        [
+          [90, 90, 10],
+          [10, 10, 90],
+        ],
+        3,
+      ),
+    ).toEqual([
+      { start: 0, end: 1, classIndex: 0 },
+      { start: 2, end: 2, classIndex: 1 },
+    ]);
+  });
+
+  it("deixa em branco o período sem dado", () => {
+    expect(dominantRuns([[50, null, 50]], 3)).toEqual([
+      { start: 0, end: 0, classIndex: 0 },
+      { start: 2, end: 2, classIndex: 0 },
+    ]);
+  });
+});
+
+describe("overviewFill", () => {
+  it("troca o branco do Sem seca por um cinza claro", () => {
+    expect(overviewFill("#FFFFFF")).toBe("#EBECE6");
+    expect(overviewFill("#FF0000")).toBe("#FF0000");
   });
 });
 

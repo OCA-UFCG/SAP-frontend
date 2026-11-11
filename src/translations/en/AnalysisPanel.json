@@ -102,13 +102,9 @@
     "rankingsEmpty": "No territory in this area has a value on this date.",
     "temporalVision": "Temporal vision",
     "temporalAxisPercent": "% of area",
-    "temporalRangeGroup": "Period shown",
-    "temporalRange": {
-      "lastYear": "12 months",
-      "fiveYears": "5 years",
-      "all": "All",
-      "lastPeriods": "Last {count}"
-    },
+    "temporalWindowLabel": "Period shown in the chart",
+    "temporalWindowHint": "Drag the window or pull its edges",
+    "temporalWindowRange": "{start} – {end}",
     "temporalBelowOnePercent": "Below 1% in {period}: {classes}.",
     "temporalUnlabeledClasses": "Not labeled in {period}: {classes}.",
     "affectedArea": "Affected area",
