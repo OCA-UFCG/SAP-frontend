@@ -1244,3 +1244,41 @@ svg {
   width: 15px;
   height: 15px;
 }
+
+/* Página de entrar (sem login no SEDES ou sem acesso ao assistente). */
+.acesso {
+  max-width: 30rem;
+  margin: 12vh auto 0;
+  padding: 0 16px;
+  overflow: auto;
+}
+/* O logo é branco, como na aba verde do topo. */
+.acesso img {
+  display: block;
+  background: var(--verde);
+  padding: 14px 20px;
+  border-radius: 8px;
+  box-sizing: content-box;
+}
+.acesso h1 {
+  font-size: 1.4rem;
+  color: var(--verde-noite);
+  margin: 1.5rem 0 0.75rem;
+}
+.acesso .botao {
+  display: inline-block;
+  background: var(--verde);
+  color: #fff;
+  padding: 0.55rem 1.1rem;
+  border-radius: 6px;
+  text-decoration: none;
+  font-weight: 600;
+}
+.acesso .botao:hover {
+  background: var(--verde-escuro);
+}
+
+/* Com um modelo só, o servidor esconde o seletor. */
+.modelo[hidden] {
+  display: none;
+}

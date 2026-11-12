@@ -1,5 +1,5 @@
-import { marked } from "/marked.js";
-import { desenharGrafico } from "/grafico.js";
+import { marked } from "./marked.js";
+import { desenharGrafico } from "./grafico.js";
 
 // O texto vem do modelo: HTML cru dentro do markdown aparece como texto.
 marked.use({
@@ -137,7 +137,7 @@ function renderizarMarkdown(destino, texto) {
 /** Cria a mensagem do bot e devolve funções para ir preenchendo. */
 function criarResposta() {
   const li = criar("li", "msg-bot");
-  const avatar = criar("div", "avatar", '<img src="/logo.svg" alt="" />');
+  const avatar = criar("div", "avatar", '<img src="logo.svg" alt="" />');
   const coluna = criar("div", "coluna");
   const passos = criar("details", "passos");
   passos.hidden = true;
@@ -314,7 +314,7 @@ function rodape(r, ms, avaliacao) {
   marcar();
 
   const salvar = () =>
-    fetch("/api/avaliacao", {
+    fetch("api/avaliacao", {
       method: "POST",
       headers: { "content-type": "application/json" },
       body: JSON.stringify({ conversa, turno: r.turno, nota, comentario }),
@@ -411,7 +411,7 @@ async function perguntar(texto) {
   setOcupado(true);
   let terminou = false;
   try {
-    const resp = await fetch("/api/mensagem", {
+    const resp = await fetch("api/mensagem", {
       method: "POST",
       headers: { "content-type": "application/json" },
       body: JSON.stringify({
@@ -420,6 +420,11 @@ async function perguntar(texto) {
         texto,
       }),
     });
+    // A sessão do SEDES caiu: o servidor mostra a página de entrar.
+    if (resp.status === 401) {
+      location.reload();
+      return;
+    }
     if (!resp.ok) {
       const corpo = await resp.json().catch(() => ({}));
       throw new Error(corpo.erro ?? `erro ${resp.status}`);
@@ -473,7 +478,7 @@ async function perguntar(texto) {
 
 async function parar() {
   if (!estado.conversa) return;
-  await fetch("/api/parar", {
+  await fetch("api/parar", {
     method: "POST",
     headers: { "content-type": "application/json" },
     body: JSON.stringify({ conversa: estado.conversa }),
@@ -497,7 +502,7 @@ function novaConversa() {
 
 async function abrirConversa(id) {
   if (estado.ocupado) return;
-  const resp = await fetch(`/api/conversas/${id}`);
+  const resp = await fetch(`api/conversas/${id}`);
   if (!resp.ok) return novaConversa();
   const c = await resp.json();
   estado.conversa = c.id;
@@ -533,8 +538,8 @@ function marcarAtual() {
 }
 
 async function carregarHistorico() {
-  const lista = await fetch("/api/conversas")
-    .then((r) => r.json())
+  const lista = await fetch("api/conversas")
+    .then((r) => (r.ok ? r.json() : []))
     .catch(() => []);
   el.historicoVazio.hidden = lista.length > 0;
   el.lista.replaceChildren();
@@ -639,9 +644,19 @@ document.addEventListener("keydown", (e) => {
 // ---------------------------------------------------------------------------
 // início
 
-fetch("/api/info")
+fetch("api/info")
   .then((r) => r.json())
   .then((info) => {
+    // Só os modelos que o servidor oferece; o primeiro é o padrão.
+    if (Array.isArray(info.modelos) && info.modelos.length) {
+      for (const b of el.modelo.querySelectorAll("button"))
+        b.hidden = !info.modelos.includes(b.dataset.modelo);
+      el.modelo.hidden = info.modelos.length < 2;
+      if (!estado.conversa) {
+        estado.modelo = info.modelos[0];
+        travarModelo();
+      }
+    }
     if (info.tabelaoGeradoEm) {
       const data = info.tabelaoGeradoEm
         .slice(0, 10)

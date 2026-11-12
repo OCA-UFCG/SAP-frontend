@@ -1,21 +1,28 @@
 /**
- * Página de chat local do bot do SEDES (npm run chat → http://localhost:3210).
+ * Página de chat do bot do SEDES (npm run chat → http://localhost:3210).
  *
- * O navegador não fala com o modelo direto: este servidor abre um `claude` por
- * conversa, com as mesmas opções do conversar.sh (lidas do comum.sh, para não
- * haver duas versões), e repassa a resposta para a página enquanto ela é
- * escrita. Assim a conversa segue na assinatura de quem roda, com as mesmas
- * ferramentas e o mesmo prompt.
+ * O navegador não fala com o modelo direto: este servidor recebe a pergunta,
+ * passa para um motor e repassa a resposta para a página enquanto ela é
+ * escrita. Há dois motores, com as mesmas ferramentas e o mesmo prompt:
+ *   api     a API da Anthropic, com ANTHROPIC_API_KEY (motor-api.ts). É o do beta.
+ *   claude  o `claude` da linha de comando, na assinatura de quem roda
+ *           (motor-claude.ts). Bom para testar no computador, sem chave.
  *
  * Cada pergunta é gravada em conversas/<data>_<id>.jsonl (fora do git): a
  * pergunta, a resposta, cada ferramenta com entrada e saída, o tempo, os
- * tokens e a avaliação 👍/👎 com comentário.
+ * tokens, o custo e a avaliação 👍/👎 com comentário. Com login, a conversa
+ * guarda o e-mail de quem perguntou, e cada pessoa vê só as próprias.
  *
  * Variáveis de ambiente:
- *   SEDES_CHAT_PORTA  porta da página (padrão 3210)
- *   SEDES_BASE_URL    site usado pela ferramenta de relatório (padrão http://localhost:3000)
+ *   SEDES_CHAT_PORTA      porta da página (padrão 3210)
+ *   SEDES_CHAT_HOST       endereço em que escuta (padrão 127.0.0.1)
+ *   SEDES_CHAT_ORIGEM     endereço público da página, ex.: https://beta-sap.lsd.ufcg.edu.br
+ *   SEDES_CHAT_MOTOR      api | claude (padrão: api se houver ANTHROPIC_API_KEY)
+ *   SEDES_CHAT_MODELOS    modelos oferecidos, o primeiro é o padrão (padrão haiku,sonnet)
+ *   SEDES_CHAT_CONVERSAS  pasta das conversas (padrão conversas/)
+ *   SEDES_BASE_URL        site usado pela ferramenta de relatório (padrão http://localhost:3000)
+ *   e as de acesso.ts (login), limites.ts (limites), motor-api.ts e ferramentas.ts.
  */
-import { spawn, execFileSync, type ChildProcess } from "node:child_process";
 import { randomUUID } from "node:crypto";
 import {
   appendFileSync,
@@ -26,109 +33,89 @@ import {
 } from "node:fs";
 import http from "node:http";
 import path from "node:path";
-import { DatabaseSync } from "node:sqlite";
-import { createInterface } from "node:readline";
 import { fileURLToPath } from "node:url";
+import { GERADO_EM, TABELAO } from "../ferramentas.ts";
+import { criarAcesso, type Acesso } from "./acesso.ts";
+import { criarLimites } from "./limites.ts";
+import { criarMotorApi } from "./motor-api.ts";
+import { criarMotorClaude } from "./motor-claude.ts";
+import {
+  SAIDA_MAX,
+  Turno,
+  type Evento,
+  type FimDoTurno,
+  type Motor,
+} from "./turno.ts";
 
 const AQUI = path.dirname(fileURLToPath(import.meta.url));
 const PACOTE = path.resolve(AQUI, "../..");
 const RAIZ = path.resolve(PACOTE, "../..");
 const PAGINA = path.join(AQUI, "pagina");
-const CONVERSAS = path.join(PACOTE, "conversas");
+const CONVERSAS = path.resolve(
+  process.env.SEDES_CHAT_CONVERSAS ?? path.join(PACOTE, "conversas"),
+);
 const PORTA = Number(process.env.SEDES_CHAT_PORTA ?? 3210);
-const ORIGEM = `http://localhost:${PORTA}`;
-const OCIOSA_MS = 20 * 60_000;
-const SAIDA_MAX = 6_000;
+const HOST = process.env.SEDES_CHAT_HOST ?? "127.0.0.1";
+const LOCAL = HOST === "127.0.0.1" || HOST === "localhost" || HOST === "::1";
 // Pergunta maior que isto não é pergunta sobre dados; também limita o gasto.
 const PERGUNTA_MAX = 2_000;
+// Conversa longa reenvia todo o histórico a cada pergunta: fica cara e lenta.
+const TURNOS_MAX = 30;
+
+const ORIGENS = new Set([
+  `http://localhost:${PORTA}`,
+  `http://127.0.0.1:${PORTA}`,
+  ...(process.env.SEDES_CHAT_ORIGEM ?? "")
+    .split(",")
+    .map((o) => o.trim().replace(/\/$/, ""))
+    .filter(Boolean),
+]);
 
 mkdirSync(CONVERSAS, { recursive: true });
 
-// ---------------------------------------------------------------------------
-// Opções do claude: as mesmas do conversar.sh, tiradas do comum.sh.
-
-type Opcoes = {
-  sessao: string;
-  modelos: Record<string, string>;
-  args: string[];
-};
-
-function lerOpcoes(): Opcoes {
-  const saida = execFileSync(
-    "bash",
-    [
-      "-c",
-      'source "$1" >&2; printf "%s\\0" "$SESSAO" "$(modelo_id sonnet)" "$(modelo_id haiku)" "${OPCOES_CLAUDE[@]}"',
-      "_",
-      path.join(PACOTE, "comum.sh"),
-    ],
-    { encoding: "utf8", stdio: ["ignore", "pipe", "inherit"] },
+const acesso = criarAcesso();
+if (!LOCAL && !acesso.comLogin) {
+  console.error(
+    `A página escutaria em ${HOST} sem login. Defina SEDES_CHAT_EMAILS (quem pode usar) ou use SEDES_CHAT_HOST=127.0.0.1.`,
   );
-  const [sessao, sonnet, haiku, ...args] = saida.split("\0").slice(0, -1);
-  return { sessao, modelos: { sonnet, haiku }, args };
+  process.exit(1);
 }
 
-let opcoes = lerOpcoes();
-let opcoesDoDia = new Date().toDateString();
-function opcoesAtuais() {
-  // O prompt leva a data de hoje; relê se o servidor atravessou a meia-noite.
-  if (new Date().toDateString() !== opcoesDoDia) {
-    opcoes = lerOpcoes();
-    opcoesDoDia = new Date().toDateString();
-  }
-  return opcoes;
+const nomeDoMotor =
+  process.env.SEDES_CHAT_MOTOR ??
+  (process.env.ANTHROPIC_API_KEY ? "api" : "claude");
+const motor: Motor =
+  nomeDoMotor === "api" ? criarMotorApi() : criarMotorClaude();
+const MODELOS = (process.env.SEDES_CHAT_MODELOS ?? "haiku,sonnet")
+  .split(",")
+  .map((m) => m.trim())
+  .filter((m) => motor.modelos[m]);
+if (!MODELOS.length) {
+  console.error(
+    "SEDES_CHAT_MODELOS não tem nenhum modelo conhecido (haiku, sonnet).",
+  );
+  process.exit(1);
 }
 
-const tabelaoGeradoEm = (() => {
-  try {
-    const db = new DatabaseSync(path.join(PACOTE, "data/sedes.sqlite"), {
-      readOnly: true,
-    });
-    const r = db
-      .prepare("SELECT valor FROM metadados WHERE chave = 'gerado_em'")
-      .get() as { valor: string } | undefined;
-    db.close();
-    return r?.valor ?? null;
-  } catch {
-    return null;
-  }
-})();
+// O teto de gasto vale para a chave da API; no motor "claude" a conversa
+// corre na assinatura de quem roda, e o custo que ele informa é só estimativa.
+const limites = criarLimites(CONVERSAS, {
+  ...process.env,
+  SEDES_CHAT_TETO_DIARIO_USD:
+    process.env.SEDES_CHAT_TETO_DIARIO_USD ??
+    (motor.nome === "api" ? "2" : "0"),
+});
 
 // ---------------------------------------------------------------------------
 // Conversas
-
-type Evento = Record<string, unknown> & { tipo: string };
-
-type Ferramenta = {
-  id: string;
-  nome: string;
-  entrada: unknown;
-  saida?: string;
-  erro?: boolean;
-  inicio: number;
-  ms?: number;
-};
-
-type Turno = {
-  numero: number;
-  pergunta: string;
-  resposta: string;
-  ferramentas: Ferramenta[];
-  inicio: number;
-  enviar: (e: Evento) => void;
-  fechar: () => void;
-  separar: boolean;
-};
 
 type Conversa = {
   id: string;
   modelo: string;
   arquivo: string;
-  sessionId?: string;
-  proc?: ChildProcess;
+  email?: string;
   turno?: Turno;
   turnos: number;
-  ociosa?: NodeJS.Timeout;
 };
 
 const conversas = new Map<string, Conversa>();
@@ -138,6 +125,7 @@ type RegistroInicio = {
   tipo: "inicio";
   id: string;
   modelo: string;
+  email?: string;
   em: string;
 };
 type RegistroTurno = {
@@ -146,7 +134,7 @@ type RegistroTurno = {
   session_id?: string;
   pergunta: string;
   resposta: string;
-  ferramentas?: Array<Omit<Ferramenta, "inicio">>;
+  ferramentas?: Array<Record<string, unknown> & { saida?: string }>;
   ms?: number;
   interrompida?: boolean;
   erro?: string | null;
@@ -164,32 +152,6 @@ const inicioDe = (regs: Registro[]) =>
   regs.find((r): r is RegistroInicio => r.tipo === "inicio");
 const turnosDe = (regs: Registro[]) =>
   regs.filter((r): r is RegistroTurno => r.tipo === "turno");
-
-/** Linha do stream-json do claude: só os campos que este servidor usa. */
-type Bloco = {
-  type: string;
-  id?: string;
-  name?: string;
-  input?: unknown;
-  tool_use_id?: string;
-  content?: string | Array<{ text?: string }>;
-  is_error?: boolean;
-};
-type MensagemClaude = {
-  type: string;
-  session_id?: string;
-  event?: {
-    type: string;
-    content_block?: { type: string; name?: string };
-    delta?: { type: string; text?: string };
-  };
-  message?: { content?: string | Bloco[] };
-  duration_ms?: number;
-  total_cost_usd?: number;
-  usage?: unknown;
-  is_error?: boolean;
-  result?: string;
-};
 
 function gravar(c: Conversa, registro: Record<string, unknown>) {
   appendFileSync(
@@ -217,27 +179,31 @@ function arquivoDaConversa(id: string) {
   return nome ? path.join(CONVERSAS, nome) : null;
 }
 
-/** Conversa em memória, ou reaberta do arquivo (para continuar com --resume). */
-function obterConversa(id: string): Conversa | null {
+/** Com login, cada pessoa só vê e continua as próprias conversas. */
+const dono = (email: string | undefined, donoDaConversa: string | undefined) =>
+  !acesso.comLogin || (email !== undefined && email === donoDaConversa);
+
+/** Conversa em memória, ou reaberta do arquivo. */
+function obterConversa(id: string, email: string | undefined): Conversa | null {
   const viva = conversas.get(id);
-  if (viva) return viva;
+  if (viva) return dono(email, viva.email) ? viva : null;
   const arquivo = arquivoDaConversa(id);
   if (!arquivo) return null;
   const regs = lerRegistros(arquivo);
   const inicio = inicioDe(regs);
-  const turnos = turnosDe(regs);
+  if (!dono(email, inicio?.email)) return null;
   const c: Conversa = {
     id,
-    modelo: inicio?.modelo ?? "sonnet",
+    modelo: inicio?.modelo ?? MODELOS[0],
     arquivo,
-    sessionId: turnos.findLast((t) => t.session_id)?.session_id,
-    turnos: turnos.length,
+    email: inicio?.email,
+    turnos: turnosDe(regs).length,
   };
   conversas.set(id, c);
   return c;
 }
 
-function novaConversa(modelo: string): Conversa {
+function novaConversa(modelo: string, email: string | undefined): Conversa {
   const id = randomUUID().slice(0, 8);
   const carimbo = new Date()
     .toLocaleString("sv-SE", { timeZone: "America/Fortaleza" })
@@ -247,195 +213,53 @@ function novaConversa(modelo: string): Conversa {
     id,
     modelo,
     arquivo: path.join(CONVERSAS, `${carimbo}_${id}.jsonl`),
+    email,
     turnos: 0,
   };
   conversas.set(id, c);
-  gravar(c, { tipo: "inicio", id, modelo, modelo_id: opcoes.modelos[modelo] });
+  gravar(c, {
+    tipo: "inicio",
+    id,
+    modelo,
+    modelo_id: motor.modelos[modelo],
+    motor: motor.nome,
+    ...(email ? { email } : {}),
+  });
   return c;
 }
 
-// Processos encerrados por nós (botão Parar ou conversa ociosa): a saída deles
-// não é erro. O claude sai com código 143, então o sinal não serve para saber.
-const encerrados = new WeakSet<ChildProcess>();
-
-function encerrarProcesso(c: Conversa) {
-  clearTimeout(c.ociosa);
-  if (c.proc) encerrados.add(c.proc);
-  c.proc?.kill("SIGTERM");
-  c.proc = undefined;
-}
-
-function iniciarProcesso(c: Conversa) {
-  const o = opcoesAtuais();
-  const args = [
-    "-p",
-    "--input-format",
-    "stream-json",
-    "--output-format",
-    "stream-json",
-    "--verbose",
-    "--include-partial-messages",
-    "--model",
-    o.modelos[c.modelo] ?? c.modelo,
-    ...o.args,
-    ...(c.sessionId ? ["--resume", c.sessionId] : []),
-  ];
-  const proc = spawn("claude", args, {
-    cwd: o.sessao,
-    stdio: ["pipe", "pipe", "pipe"],
-    env: {
-      ...process.env,
-      SEDES_BASE_URL: process.env.SEDES_BASE_URL ?? "http://localhost:3000",
-    },
-  });
-  c.proc = proc;
-  let erros = "";
-  proc.stderr!.on("data", (d) => {
-    erros = (erros + d).slice(-2000);
-  });
-  createInterface({ input: proc.stdout! }).on("line", (linha) => {
-    let msg: MensagemClaude;
-    try {
-      msg = JSON.parse(linha);
-    } catch {
-      return;
-    }
-    tratarMensagem(c, msg);
-  });
-  proc.on("exit", (codigo, sinal) => {
-    if (c.proc === proc) c.proc = undefined;
-    if (c.turno) {
-      const motivo = encerrados.has(proc)
-        ? null
-        : `O processo do claude parou (código ${codigo ?? sinal}). ${erros.trim().slice(-400)}`;
-      terminarTurno(c, { interrompida: true, erro: motivo });
-    }
-  });
-}
-
-function tratarMensagem(c: Conversa, msg: MensagemClaude) {
-  if (msg.session_id) c.sessionId = msg.session_id;
-  const t = c.turno;
-  if (!t) return;
-
-  if (msg.type === "stream_event") {
-    const ev = msg.event;
-    if (ev?.type === "content_block_start") {
-      const tipo = ev.content_block?.type;
-      if (tipo === "text" && t.resposta) t.separar = true;
-      if (tipo === "thinking") t.enviar({ tipo: "pensando" });
-      if (tipo === "tool_use")
-        t.enviar({ tipo: "preparando", nome: ev.content_block?.name });
-    }
-    if (ev?.type === "content_block_delta" && ev.delta?.type === "text_delta") {
-      let pedaco = ev.delta.text ?? "";
-      if (t.separar) {
-        pedaco = "\n\n" + pedaco;
-        t.separar = false;
-      }
-      t.resposta += pedaco;
-      t.enviar({ tipo: "texto", t: pedaco });
-    }
-    return;
-  }
-
-  if (msg.type === "assistant") {
-    const blocos = Array.isArray(msg.message?.content)
-      ? msg.message.content
-      : [];
-    for (const b of blocos) {
-      if (b.type !== "tool_use" || !b.id) continue;
-      const f: Ferramenta = {
-        id: b.id,
-        nome: String(b.name).replace(/^mcp__sedes__/, ""),
-        entrada: b.input,
-        inicio: Date.now(),
-      };
-      t.ferramentas.push(f);
-      t.enviar({
-        tipo: "ferramenta",
-        id: f.id,
-        nome: f.nome,
-        entrada: f.entrada,
-      });
-    }
-    return;
-  }
-
-  if (msg.type === "user") {
-    const blocos = Array.isArray(msg.message?.content)
-      ? msg.message.content
-      : [];
-    for (const b of blocos) {
-      if (b.type !== "tool_result") continue;
-      const f = t.ferramentas.find((x) => x.id === b.tool_use_id);
-      if (!f) continue;
-      const texto = Array.isArray(b.content)
-        ? b.content.map((x) => x.text ?? "").join("\n")
-        : String(b.content ?? "");
-      f.saida = texto;
-      f.erro = Boolean(b.is_error);
-      f.ms = Date.now() - f.inicio;
-      t.enviar({
-        tipo: "saida",
-        id: f.id,
-        texto: texto.slice(0, SAIDA_MAX),
-        cortada: texto.length > SAIDA_MAX,
-        erro: f.erro,
-        ms: f.ms,
-      });
-    }
-    return;
-  }
-
-  if (msg.type === "result") {
-    terminarTurno(c, {
-      ms: msg.duration_ms,
-      custo_usd: msg.total_cost_usd,
-      uso: msg.usage,
-      erro: msg.is_error ? String(msg.result ?? "erro") : null,
-    });
-  }
-}
-
-function terminarTurno(
+function registrarFim(
   c: Conversa,
-  extra: {
-    ms?: number;
-    custo_usd?: number;
-    uso?: unknown;
-    erro?: string | null;
-    interrompida?: boolean;
-  },
+  t: Turno,
+  fim: FimDoTurno,
+  enviar: (e: Evento) => void,
+  fechar: () => void,
 ) {
-  const t = c.turno;
-  if (!t) return;
-  c.turno = undefined;
-  const ms = extra.ms ?? Date.now() - t.inicio;
+  if (c.turno === t) c.turno = undefined;
+  const ms = fim.ms ?? Date.now() - t.inicio;
   gravar(c, {
     tipo: "turno",
     turno: t.numero,
     modelo: c.modelo,
-    session_id: c.sessionId,
+    session_id: fim.session_id,
     pergunta: t.pergunta,
     resposta: t.resposta,
     ferramentas: t.ferramentas.map((f) => ({ ...f, inicio: undefined })),
     ms,
-    custo_usd: extra.custo_usd,
-    uso: extra.uso,
-    interrompida: extra.interrompida ?? false,
-    erro: extra.erro ?? null,
+    custo_usd: fim.custo_usd,
+    uso: fim.uso,
+    interrompida: fim.interrompida ?? false,
+    erro: fim.erro ?? null,
   });
-  t.enviar({
+  limites.contarGasto(fim.custo_usd);
+  enviar({
     tipo: "fim",
     turno: t.numero,
     ms,
-    interrompida: extra.interrompida ?? false,
-    erro: extra.erro ?? null,
+    interrompida: fim.interrompida ?? false,
+    erro: fim.erro ?? null,
   });
-  t.fechar();
-  clearTimeout(c.ociosa);
-  c.ociosa = setTimeout(() => encerrarProcesso(c), OCIOSA_MS);
+  fechar();
 }
 
 // ---------------------------------------------------------------------------
@@ -448,6 +272,7 @@ const TIPOS: Record<string, string> = {
   ".svg": "image/svg+xml",
 };
 
+// Os endereços são relativos na página: no beta ela fica em /chat/.
 const ESTATICOS: Record<string, string> = {
   "/": path.join(PAGINA, "index.html"),
   "/estilo.css": path.join(PAGINA, "estilo.css"),
@@ -463,6 +288,20 @@ function json(res: http.ServerResponse, status: number, corpo: unknown) {
   res.end(JSON.stringify(corpo));
 }
 
+function paginaDeAcesso(res: http.ServerResponse, a: Acesso) {
+  const corpo =
+    a.situacao === "sem-permissao"
+      ? `<p>A conta <strong>${a.email.replace(/[<>&"]/g, "")}</strong> ainda não tem acesso ao assistente de dados, que está em teste com a equipe.</p><p>Peça acesso a quem cuida do SEDES.</p>`
+      : `<p>O assistente de dados está em teste com a equipe. Para usar, entre no SEDES com a sua conta e depois volte a este endereço.</p><p><a class="botao" href="/pt/login">Entrar no SEDES</a></p>`;
+  res.writeHead(a.situacao === "sem-permissao" ? 403 : 401, {
+    "content-type": "text/html; charset=utf-8",
+    "cache-control": "no-store",
+  });
+  res.end(
+    `<!doctype html><html lang="pt-BR"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><title>Assistente de dados do SEDES</title><link rel="icon" href="favicon.svg"><link rel="stylesheet" href="estilo.css"></head><body><main class="acesso"><img src="logo.svg" alt="SEDES" width="136" height="46"><h1>Assistente de dados</h1>${corpo}</main></body></html>`,
+  );
+}
+
 async function lerCorpo(
   req: http.IncomingMessage,
 ): Promise<Record<string, unknown>> {
@@ -474,29 +313,6 @@ async function lerCorpo(
   return s ? JSON.parse(s) : {};
 }
 
-function listarConversas() {
-  return readdirSync(CONVERSAS)
-    .filter((f) => f.endsWith(".jsonl"))
-    .sort()
-    .reverse()
-    .map((f) => {
-      const regs = lerRegistros(path.join(CONVERSAS, f));
-      const inicio = inicioDe(regs);
-      const turnos = turnosDe(regs);
-      const notas = notasPorTurno(regs);
-      return {
-        id: inicio?.id ?? f.replace(/^.*_|\.jsonl$/g, ""),
-        modelo: inicio?.modelo,
-        em: inicio?.em,
-        titulo: turnos[0]?.pergunta?.slice(0, 120) ?? "",
-        turnos: turnos.length,
-        bons: [...notas.values()].filter((n) => n.nota === "bom").length,
-        ruins: [...notas.values()].filter((n) => n.nota === "ruim").length,
-      };
-    })
-    .filter((c) => c.turnos > 0);
-}
-
 function notasPorTurno(regs: Registro[]) {
   const notas = new Map<number, { nota: string | null; comentario: string }>();
   for (const r of regs)
@@ -505,11 +321,44 @@ function notasPorTurno(regs: Registro[]) {
   return notas;
 }
 
+function listarConversas(email: string | undefined) {
+  return readdirSync(CONVERSAS)
+    .filter((f) => f.endsWith(".jsonl"))
+    .sort()
+    .reverse()
+    .flatMap((f) => {
+      const regs = lerRegistros(path.join(CONVERSAS, f));
+      const inicio = inicioDe(regs);
+      if (!dono(email, inicio?.email)) return [];
+      const turnos = turnosDe(regs);
+      if (!turnos.length) return [];
+      const notas = notasPorTurno(regs);
+      return [
+        {
+          id: inicio?.id ?? f.replace(/^.*_|\.jsonl$/g, ""),
+          modelo: inicio?.modelo,
+          em: inicio?.em,
+          titulo: turnos[0]?.pergunta?.slice(0, 120) ?? "",
+          turnos: turnos.length,
+          bons: [...notas.values()].filter((n) => n.nota === "bom").length,
+          ruins: [...notas.values()].filter((n) => n.nota === "ruim").length,
+        },
+      ];
+    });
+}
+
 const servidor = http.createServer(async (req, res) => {
   try {
-    const url = new URL(req.url ?? "/", ORIGEM);
+    const url = new URL(req.url ?? "/", "http://chat");
 
-    if (req.method === "GET" && ESTATICOS[url.pathname]) {
+    // Para o deploy saber que subiu; não precisa de login.
+    if (req.method === "GET" && url.pathname === "/api/saude") {
+      json(res, 200, { ok: true, motor: motor.nome, tabelao: GERADO_EM });
+      return;
+    }
+
+    const livres = ["/estilo.css", "/logo.svg", "/favicon.svg"];
+    if (req.method === "GET" && livres.includes(url.pathname)) {
       const arquivo = ESTATICOS[url.pathname];
       res.writeHead(200, {
         "content-type": TIPOS[path.extname(arquivo)] ?? TIPOS[".html"],
@@ -521,33 +370,59 @@ const servidor = http.createServer(async (req, res) => {
 
     if (req.method === "POST") {
       // Só a própria página pode pedir: outro site aberto no navegador não
-      // consegue gastar a assinatura mandando perguntas para cá.
+      // consegue gastar perguntas mandando pedidos para cá.
       const origem = req.headers.origin;
-      if (
-        origem &&
-        origem !== ORIGEM &&
-        origem !== `http://127.0.0.1:${PORTA}`
-      ) {
+      if (origem && !ORIGENS.has(origem)) {
         json(res, 403, { erro: "origem não permitida" });
         return;
       }
     }
 
+    const a = await acesso.verificar(req.headers.cookie);
+    if (a.situacao !== "liberado") {
+      if (url.pathname.startsWith("/api/"))
+        json(res, a.situacao === "sem-login" ? 401 : 403, {
+          erro:
+            a.situacao === "sem-login"
+              ? "entre no SEDES para usar o assistente"
+              : "esta conta não tem acesso ao assistente",
+        });
+      else paginaDeAcesso(res, a);
+      return;
+    }
+    const email = a.email;
+
+    if (req.method === "GET" && ESTATICOS[url.pathname]) {
+      const arquivo = ESTATICOS[url.pathname];
+      res.writeHead(200, {
+        "content-type": TIPOS[path.extname(arquivo)] ?? TIPOS[".html"],
+        "cache-control": "no-cache",
+      });
+      res.end(readFileSync(arquivo));
+      return;
+    }
+
     if (req.method === "GET" && url.pathname === "/api/info") {
-      json(res, 200, { tabelaoGeradoEm, modelos: opcoes.modelos });
+      json(res, 200, {
+        tabelaoGeradoEm: GERADO_EM,
+        motor: motor.nome,
+        modelos: MODELOS,
+        usuario: email ?? null,
+      });
       return;
     }
 
     if (req.method === "GET" && url.pathname === "/api/conversas") {
-      json(res, 200, listarConversas());
+      json(res, 200, listarConversas(email));
       return;
     }
 
     const m = url.pathname.match(/^\/api\/conversas\/([a-z0-9-]+)$/);
     if (req.method === "GET" && m) {
       const arquivo = arquivoDaConversa(m[1]);
-      if (!arquivo) return json(res, 404, { erro: "conversa não encontrada" });
-      const regs = lerRegistros(arquivo);
+      const regs = arquivo ? lerRegistros(arquivo) : [];
+      if (!arquivo || !dono(email, inicioDe(regs)?.email))
+        return json(res, 404, { erro: "conversa não encontrada" });
       const notas = notasPorTurno(regs);
       json(res, 200, {
         id: m[1],
@@ -577,55 +452,62 @@ const servidor = http.createServer(async (req, res) => {
         return json(res, 400, {
           erro: `a pergunta passou de ${PERGUNTA_MAX} caracteres; resuma e tente de novo`,
         });
-      const modelo = corpo.modelo === "haiku" ? "haiku" : "sonnet";
+      const recusa = limites.recusa(email);
+      if (recusa) return json(res, 429, { erro: recusa });
+      const modelo = MODELOS.includes(String(corpo.modelo))
+        ? String(corpo.modelo)
+        : MODELOS[0];
       const c = corpo.conversa
-        ? obterConversa(String(corpo.conversa))
-        : novaConversa(modelo);
+        ? obterConversa(String(corpo.conversa), email)
+        : novaConversa(modelo, email);
       if (!c) return json(res, 404, { erro: "conversa não encontrada" });
       if (c.turno)
         return json(res, 409, { erro: "a conversa ainda está respondendo" });
+      if (c.turnos >= TURNOS_MAX)
+        return json(res, 400, {
+          erro: `esta conversa chegou a ${TURNOS_MAX} perguntas; comece uma nova`,
+        });
 
       res.writeHead(200, {
         "content-type": "application/x-ndjson; charset=utf-8",
         "cache-control": "no-cache",
+        // Sem isto o nginx guarda a resposta e ela chega de uma vez no fim.
+        "x-accel-buffering": "no",
       });
       const enviar = (e: Evento) => {
         if (!res.writableEnded) res.write(JSON.stringify(e) + "\n");
       };
       c.turnos += 1;
-      c.turno = {
-        numero: c.turnos,
-        pergunta: texto,
-        resposta: "",
-        ferramentas: [],
-        inicio: Date.now(),
-        enviar,
-        fechar: () => res.end(),
-        separar: false,
-      };
-      enviar({ tipo: "conversa", id: c.id, modelo: c.modelo, turno: c.turnos });
-      clearTimeout(c.ociosa);
-      if (!c.proc) iniciarProcesso(c);
-      c.proc!.stdin!.write(
-        JSON.stringify({
-          type: "user",
-          message: { role: "user", content: texto },
-        }) + "\n",
+      limites.contarPergunta(email);
+      const turno = new Turno(c.turnos, texto, enviar, (t, fim) =>
+        registrarFim(c, t, fim, enviar, () => res.end()),
       );
+      c.turno = turno;
+      enviar({ tipo: "conversa", id: c.id, modelo: c.modelo, turno: c.turnos });
+      motor.responder({
+        conversa: c.id,
+        modelo: c.modelo,
+        turno,
+        contexto: { email, cookieSessao: a.cookieSessao },
+        anteriores: () => {
+          const regs = existsSync(c.arquivo) ? lerRegistros(c.arquivo) : [];
+          return turnosDe(regs).filter((r) => r.turno < turno.numero);
+        },
+      });
       return;
     }
 
     if (req.method === "POST" && url.pathname === "/api/parar") {
       const corpo = await lerCorpo(req);
-      const c = conversas.get(String(corpo.conversa));
-      if (c?.turno) encerrarProcesso(c);
+      const c = obterConversa(String(corpo.conversa), email);
+      if (c?.turno) motor.parar(c.id);
       json(res, 200, { ok: true });
       return;
     }
 
     if (req.method === "POST" && url.pathname === "/api/avaliacao") {
       const corpo = await lerCorpo(req);
-      const c = obterConversa(String(corpo.conversa));
+      const c = obterConversa(String(corpo.conversa), email);
       if (!c) return json(res, 404, { erro: "conversa não encontrada" });
       const nota =
         corpo.nota === "bom" || corpo.nota === "ruim" ? corpo.nota : null;
@@ -641,20 +523,32 @@ const servidor = http.createServer(async (req, res) => {
 
     json(res, 404, { erro: "não encontrado" });
   } catch (e) {
-    if (!res.headersSent) json(res, 500, { erro: String(e) });
+    console.error(e);
+    if (!res.headersSent) json(res, 500, { erro: "erro no servidor do chat" });
     else res.end();
   }
 });
 
 for (const sinal of ["SIGINT", "SIGTERM"] as const)
   process.on(sinal, () => {
-    for (const c of conversas.values()) encerrarProcesso(c);
+    motor.encerrar();
     process.exit(0);
   });
 
-servidor.listen(PORTA, "127.0.0.1", () => {
-  console.log(`Chat do SEDES em ${ORIGEM}`);
+servidor.listen(PORTA, HOST, () => {
+  const endereco = LOCAL ? `http://localhost:${PORTA}` : `${HOST}:${PORTA}`;
+  console.log(
+    `Chat do SEDES em ${endereco} (motor ${motor.nome}, modelos ${MODELOS.join(", ")})`,
+  );
+  console.log(
+    acesso.comLogin
+      ? "Com login do SEDES (SEDES_CHAT_EMAILS)."
+      : "Sem login: só para este computador.",
+  );
+  console.log(`Tabelão: ${TABELAO}`);
   console.log(`Conversas gravadas em ${CONVERSAS}`);
-  if (!existsSync(path.join(PACOTE, "data/sedes.sqlite")))
-    console.log("Aviso: falta o tabelão (npm run tabelao).");
+  const { porPessoa, tetoUsd } = limites;
+  console.log(
+    `Limites por dia: ${porPessoa || "sem limite de"} perguntas por pessoa, teto de US$ ${tetoUsd || "—"}.`,
+  );
 });

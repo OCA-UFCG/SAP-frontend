@@ -1,0 +1,11 @@
+# A imagem é montada da raiz do repositório, mas só leva isto.
+*
+!public/logo-sedes.svg
+!public/favicon.svg
+!tools/sedes-chatbot/package.json
+!tools/sedes-chatbot/package-lock.json
+!tools/sedes-chatbot/prompt.md
+!tools/sedes-chatbot/conhecimento
+!tools/sedes-chatbot/src
+tools/sedes-chatbot/src/gee
+tools/sedes-chatbot/src/testes

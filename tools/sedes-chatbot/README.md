@@ -1,13 +1,16 @@
 # Protótipo de chatbot do SEDES
 
-Um chatbot que responde, em português, perguntas sobre os dados do SEDES. É um
-**protótipo local**: roda na máquina de quem demonstra, dentro do Claude Code,
-sem chave de API: pela página de chat local (`npm run chat`) ou pelo terminal.
+Um chatbot que responde, em português, perguntas sobre os dados do SEDES. Roda
+de dois jeitos, com as mesmas ferramentas e o mesmo prompt:
 
-O "bot" é o Claude com um servidor MCP que dá a ele sete ferramentas, todas
-só de leitura. As ferramentas nativas do Claude Code (Bash, leitura de
-arquivos, web) ficam desligadas, então ele só sabe o que as ferramentas
-devolvem.
+- **No computador**, sem chave de API: a página de chat (`npm run chat`) ou o
+  terminal (`./conversar.sh`) usam o Claude Code de quem roda.
+- **No beta, para a equipe** (`/chat/` no beta, com login do SEDES): a mesma
+  página fala direto com a API da Anthropic. Veja "No beta", abaixo.
+
+O "bot" é o Claude com sete ferramentas, todas só de leitura
+(`src/ferramentas.ts`). Ele não tem Bash, leitura de arquivos nem web, então
+só sabe o que as ferramentas devolvem.
 
 | Ferramenta             | O que faz                                                                                                                                                                     |
 | ---------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
@@ -51,12 +54,19 @@ o resto sai do tabelão. Outro endereço para o site:
 
 ## A página de chat
 
-`src/chat/servidor-chat.ts` serve a página e, para cada conversa, abre um
-`claude -p` em modo stream-json com as **mesmas opções do `conversar.sh`** (lidas
-do `comum.sh`). Por isso usa a assinatura de quem roda, sem chave de API, e
-segue o mesmo prompt e as mesmas ferramentas. O processo de uma conversa fecha
-depois de 20 min parada; a próxima pergunta reabre com `--resume`, e as
-conversas antigas, abertas pela lista ao lado, podem ser continuadas.
+`src/chat/servidor-chat.ts` serve a página e passa cada pergunta a um de dois
+motores (`SEDES_CHAT_MOTOR`):
+
+| Motor    | Como responde                                                                                                                                                                                                 | Quando                                                |
+| -------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ----------------------------------------------------- |
+| `claude` | Abre um `claude -p` em stream-json por conversa, com as opções do `conversar.sh` (lidas do `comum.sh`), na assinatura de quem roda. Cada conversa ocupa ~380 MB por até 20 min. (`motor-claude.ts`)           | Padrão sem `ANTHROPIC_API_KEY`: testar no computador. |
+| `api`    | Chama a API da Anthropic e roda as ferramentas no mesmo processo (~90 MB no total). No máximo 8 idas ao modelo por pergunta; na última ele não pode mais consultar e responde com o que tem. (`motor-api.ts`) | Padrão com `ANTHROPIC_API_KEY`: o beta.               |
+
+O motor `api` lê o mesmo `prompt.md`, usa cache de prompt (prompt e
+ferramentas são iguais em toda pergunta do dia) e calcula o custo de cada
+resposta pelos tokens. No Sonnet, liga o fallback da API para recusas por
+engano. Conversa que não está na memória (o servidor reiniciou) continua só com
+o texto das perguntas e respostas anteriores.
 
 Na página: o modelo (Sonnet ou Haiku, fixo durante a conversa), a resposta
 enquanto é escrita, os passos que o bot fez (com o SQL e o resultado de cada
@@ -67,13 +77,56 @@ linha por evento:
 
 | `tipo`      | Campos                                                                                                                   |
 | ----------- | ------------------------------------------------------------------------------------------------------------------------ |
-| `inicio`    | `id`, `modelo`, `modelo_id`                                                                                              |
+| `inicio`    | `id`, `modelo`, `modelo_id`, `motor`, `email` (com login)                                                                |
 | `turno`     | `pergunta`, `resposta`, `ferramentas` (nome, entrada, saída, erro, ms), `ms`, `uso`, `custo_usd`, `interrompida`, `erro` |
 | `avaliacao` | `turno`, `nota` (`bom`, `ruim` ou `null`), `comentario`; vale a última de cada turno                                     |
 
-O servidor só escuta em `127.0.0.1` e recusa pedidos vindos de outra origem,
-para que outro site aberto no navegador não mande perguntas para ele. Perguntas
-com mais de 2.000 caracteres são recusadas.
+Proteções:
+
+- **Login** (`acesso.ts`): sem `SEDES_CHAT_EMAILS`, o servidor só escuta em
+  `127.0.0.1` e não pede login (e se recusa a subir em outro endereço). Com a
+  lista, exige o cookie de sessão do SEDES (a página fica no mesmo domínio do
+  site), confere com o Firebase como o site faz e só deixa entrar quem está na
+  lista (e-mails ou `@dominio`). Cada pessoa vê só as próprias conversas.
+- **Limites por dia** (`limites.ts`): 40 perguntas por pessoa e teto de
+  US$ 2 para o chat todo (`SEDES_CHAT_PERGUNTAS_POR_DIA`,
+  `SEDES_CHAT_TETO_DIARIO_USD`). Recomeçam do que está gravado, então
+  reiniciar não zera o dia. Valem além do limite mensal da chave no Console.
+- Recusa pedidos de outra origem (`SEDES_CHAT_ORIGEM` diz a do beta), perguntas
+  com mais de 2.000 caracteres e conversas com mais de 30 perguntas.
+- A ferramenta de relatório repassa ao site o cookie de quem perguntou: no
+  beta, com a plataforma fechada, ela continua funcionando.
+
+`npm run testar` roda os testes do motor `api` e do servidor contra uma API de
+mentira (sem chave, sem gasto): consulta real ao tabelão, ferramentas em
+paralelo, limite de idas ao modelo, botão Parar, erro da API, gravação e teto.
+
+## No beta
+
+O chat fica em `https://beta-sap.lsd.ufcg.edu.br/chat/`, num container próprio
+(`sedes-chat-beta`) na rede do Docker do beta, ao lado do site. A imagem é
+montada na própria VM (`Dockerfile`); o tabelão e as conversas ficam em
+`/home/ubuntu/sedes-chatbot/` na VM, fora da imagem.
+
+Para subir pela primeira vez:
+
+1. **Chave**: criar o secret `SEDES_CHAT_ANTHROPIC_API_KEY` no repositório.
+2. **Quem pode usar**: criar a variável `SEDES_CHAT_EMAILS`
+   (ex.: `fulano@lsd.ufcg.edu.br,@oca.ufcg.edu.br`). Opcionais:
+   `SEDES_CHAT_MODELOS` (padrão `haiku`; `haiku,sonnet` mostra a escolha),
+   `SEDES_CHAT_PERGUNTAS_POR_DIA`, `SEDES_CHAT_TETO_DIARIO_USD`.
+3. **Tabelão**: `deploy/publicar-tabelao.sh` comprime (~570 MB) e anexa à
+   release `tiles-2025`. Nunca numa release ou tag nova: toda tag publica a
+   main em produção.
+4. **nginx**: acrescentar ao `sap.conf` do beta o trecho de
+   `deploy/nginx-chat.conf` e recarregar o nginx.
+5. **Publicar**: empurrar este branch para `chatbot-beta`
+   (`git push origin HEAD:chatbot-beta`). O workflow `cd-chatbot-beta.yaml`
+   roda no runner do beta: baixa o tabelão se o anexo mudou, monta a imagem e
+   troca o container, voltando ao anterior se o novo não responder.
+
+Para atualizar os dados: `npm run tabelao`, `npm run conferir`,
+`deploy/publicar-tabelao.sh` e rodar o workflow de novo.
 
 ## Conhecimento sobre o SEDES
 
@@ -112,6 +165,16 @@ PERGUNTAS="C01 H01" ./avaliar.sh haiku   # teste rápido
 Cada execução é um `claude -p` isolado; o resultado vai para
 `resultados/<modelo>.md` (resposta, ferramentas chamadas e tempo). A
 comparação comentada está em `resultados/avaliacao.md`.
+
+O beta usa o motor `api`, então a avaliação que vale para ele é a do mesmo
+motor (gasta a chave: ~US$ 0,17 as 48 no Haiku, ~US$ 2,60 no Sonnet):
+
+```bash
+PERGUNTAS="C01 H01" npm run avaliar-api   # teste rápido, Haiku
+npm run avaliar-api -- sonnet             # todas, Sonnet
+```
+
+O resultado vai para `resultados/<modelo>-api.md`, no mesmo formato.
 
 ## O tabelão
 

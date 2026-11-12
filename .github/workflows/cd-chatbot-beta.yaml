@@ -1,0 +1,51 @@
+name: CD chat do SEDES (beta)
+
+# Sobe a página de chat (tools/sedes-chatbot) no beta, em /chat/. Não roda com
+# a main: só quando alguém empurra para o branch chatbot-beta, ou pede pelo
+# botão "Run workflow" (que exige este arquivo na main).
+#
+# Precisa no repositório:
+#   secret   SEDES_CHAT_ANTHROPIC_API_KEY  chave da API da Anthropic
+#   variável SEDES_CHAT_EMAILS             quem pode usar (e-mails e "@dominio")
+#   opcionais: SEDES_CHAT_MODELOS (padrão haiku), SEDES_CHAT_PERGUNTAS_POR_DIA
+#              (padrão 40), SEDES_CHAT_TETO_DIARIO_USD (padrão 2)
+# e o anexo sedes-chatbot-tabelao.sqlite.gz na release tiles-2025
+# (tools/sedes-chatbot/deploy/publicar-tabelao.sh).
+on:
+  push:
+    branches: ["chatbot-beta"]
+  workflow_dispatch:
+
+concurrency:
+  group: sedes-chat-beta
+  cancel-in-progress: false
+
+jobs:
+  publicar:
+    runs-on: [self-hosted, sap-beta-runner]
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          sparse-checkout: |
+            tools/sedes-chatbot
+            public/logo-sedes.svg
+            public/favicon.svg
+          sparse-checkout-cone-mode: false
+
+      - name: Publicar o chat
+        env:
+          GH_TOKEN: ${{ github.token }}
+          REPOSITORIO: ${{ github.repository }}
+          REDE: ${{ vars.NETWORK_NAME }}
+          ANTHROPIC_API_KEY: ${{ secrets.SEDES_CHAT_ANTHROPIC_API_KEY }}
+          SEDES_CHAT_EMAILS: ${{ vars.SEDES_CHAT_EMAILS }}
+          FIREBASE_PROJECT_ID: ${{ secrets.FIREBASE_PROJECT_ID }}
+          SEDES_CHAT_ORIGEM: ${{ vars.NEXT_PUBLIC_HOST_URL_BETA }}
+          # A ferramenta de relatório chama o site do beta pela rede do Docker.
+          SEDES_BASE_URL: http://${{ vars.CONTAINER_NAME_BETA }}:${{ vars.CONTAINER_PORT }}
+          SEDES_CHAT_MODELOS: ${{ vars.SEDES_CHAT_MODELOS || 'haiku' }}
+          SEDES_CHAT_PERGUNTAS_POR_DIA: ${{ vars.SEDES_CHAT_PERGUNTAS_POR_DIA || '40' }}
+          SEDES_CHAT_TETO_DIARIO_USD: ${{ vars.SEDES_CHAT_TETO_DIARIO_USD || '2' }}
+        run: bash tools/sedes-chatbot/deploy/publicar-no-beta.sh
