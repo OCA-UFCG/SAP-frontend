@@ -2,7 +2,7 @@
 
 Um chatbot que responde, em português, perguntas sobre os dados do SEDES. É um
 **protótipo local**: roda na máquina de quem demonstra, dentro do Claude Code,
-sem chave de API e sem interface própria.
+sem chave de API: pela página de chat local (`npm run chat`) ou pelo terminal.
 
 O "bot" é o Claude com um servidor MCP que dá a ele cinco ferramentas, todas
 só de leitura. As ferramentas nativas do Claude Code (Bash, leitura de
@@ -34,13 +34,43 @@ npm run tabelao
 cd /home/marcelo/SAP-frontend
 PLATFORM_ACCESS_GUARD_ENABLED=false npm run dev
 
-# 3. O chat
+# 3. O chat, no navegador: http://localhost:3210
 cd tools/sedes-chatbot
+npm run chat
+
+#    ou no terminal
 ./conversar.sh          # Sonnet 5.5
 ./conversar.sh haiku    # Haiku 5.5
 ```
 
-Outro endereço para o site: `SEDES_BASE_URL=https://... ./conversar.sh`.
+O site (passo 2) só é preciso para perguntas sobre "o que o site mostra agora";
+o resto sai do tabelão. Outro endereço para o site:
+`SEDES_BASE_URL=https://... npm run chat`. Outra porta: `SEDES_CHAT_PORTA=...`.
+
+## A página de chat
+
+`src/chat/servidor-chat.ts` serve a página e, para cada conversa, abre um
+`claude -p` em modo stream-json com as **mesmas opções do `conversar.sh`** (lidas
+do `comum.sh`). Por isso usa a assinatura de quem roda, sem chave de API, e
+segue o mesmo prompt e as mesmas ferramentas. O processo de uma conversa fecha
+depois de 20 min parada; a próxima pergunta reabre com `--resume`, e as
+conversas antigas, abertas pela lista ao lado, podem ser continuadas.
+
+Na página: o modelo (Sonnet ou Haiku, fixo durante a conversa), a resposta
+enquanto é escrita, os passos que o bot fez (com o SQL e o resultado de cada
+ferramenta), o botão de parar e 👍/👎 com comentário em cada resposta.
+
+Cada conversa fica gravada em `conversas/<data>_<id>.jsonl` (fora do git), uma
+linha por evento:
+
+| `tipo`      | Campos                                                                                                                   |
+| ----------- | ------------------------------------------------------------------------------------------------------------------------ |
+| `inicio`    | `id`, `modelo`, `modelo_id`                                                                                              |
+| `turno`     | `pergunta`, `resposta`, `ferramentas` (nome, entrada, saída, erro, ms), `ms`, `uso`, `custo_usd`, `interrompida`, `erro` |
+| `avaliacao` | `turno`, `nota` (`bom`, `ruim` ou `null`), `comentario`; vale a última de cada turno                                     |
+
+O servidor só escuta em `127.0.0.1` e recusa pedidos vindos de outra origem,
+para que outro site aberto no navegador não mande perguntas para ele.
 
 ## Avaliação
 

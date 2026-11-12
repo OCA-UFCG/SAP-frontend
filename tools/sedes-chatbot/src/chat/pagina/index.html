@@ -1,0 +1,167 @@
+<!doctype html>
+<html lang="pt-BR">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>SEDES · Assistente de dados</title>
+    <link rel="icon" href="/favicon.svg" type="image/svg+xml" />
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      rel="stylesheet"
+      href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&family=Open+Sans:wght@400;500;600;700&display=swap"
+    />
+    <link rel="stylesheet" href="/estilo.css" />
+  </head>
+  <body>
+    <header class="topo">
+      <div class="aba">
+        <a href="/" id="logo" aria-label="SEDES: começar uma conversa nova">
+          <img src="/logo.svg" alt="SEDES" width="136" height="46" />
+        </a>
+      </div>
+      <span class="dobra" aria-hidden="true"></span>
+
+      <div class="topo-titulo">
+        <span class="topo-nome">Assistente de dados</span>
+        <span class="selo">protótipo</span>
+      </div>
+
+      <div class="topo-acoes">
+        <div class="modelo" role="radiogroup" aria-label="Modelo" id="modelo">
+          <button
+            type="button"
+            role="radio"
+            data-modelo="sonnet"
+            aria-checked="true"
+          >
+            Sonnet
+          </button>
+          <button
+            type="button"
+            role="radio"
+            data-modelo="haiku"
+            aria-checked="false"
+          >
+            Haiku
+          </button>
+        </div>
+        <button type="button" class="botao botao-primario" id="nova">
+          <svg viewBox="0 0 20 20" aria-hidden="true">
+            <path d="M10 4v12M4 10h12" />
+          </svg>
+          <span>Nova conversa</span>
+        </button>
+        <button
+          type="button"
+          class="botao botao-icone"
+          id="abrir-historico"
+          aria-label="Conversas anteriores"
+          aria-controls="historico"
+          aria-expanded="false"
+        >
+          <svg viewBox="0 0 20 20" aria-hidden="true">
+            <path d="M3 5h14M3 10h14M3 15h14" />
+          </svg>
+        </button>
+      </div>
+    </header>
+
+    <div class="corpo">
+      <aside class="historico" id="historico" aria-label="Conversas anteriores">
+        <h2>Conversas</h2>
+        <p class="historico-vazio" id="historico-vazio">
+          As conversas ficam gravadas aqui, com as suas avaliações.
+        </p>
+        <ol id="lista-conversas"></ol>
+      </aside>
+      <div class="veu" id="veu" hidden></div>
+
+      <main class="chat">
+        <div class="rolagem" id="rolagem">
+          <section class="boas-vindas" id="boas-vindas">
+            <p class="sobretitulo">
+              Sistema Estratégico sobre Desertificação e Seca
+            </p>
+            <h1>O que você quer saber?</h1>
+            <p class="lead">
+              Seca, clima, previsões, uso do solo e indicadores sociais de
+              qualquer município, estado, bioma ou do Semiárido. Cada número vem
+              com o índice, o período e a data em que o dado foi atualizado no
+              SEDES.
+            </p>
+            <ul class="sugestoes" id="sugestoes">
+              <li>
+                <button type="button">
+                  <span>Seca agora</span>Como está a seca em Campina Grande (PB)
+                  agora?
+                </button>
+              </li>
+              <li>
+                <button type="button">
+                  <span>Ranking</span>Quais os 5 municípios da Paraíba com maior
+                  pobreza em 2025?
+                </button>
+              </li>
+              <li>
+                <button type="button">
+                  <span>Série histórica</span>Como evoluiu a pobreza em Campina
+                  Grande de 2012 a 2025?
+                </button>
+              </li>
+              <li>
+                <button type="button">
+                  <span>Recortes</span>Como estava a seca no bioma Caatinga em
+                  abril de 2026?
+                </button>
+              </li>
+              <li>
+                <button type="button">
+                  <span>Comparação</span>Compare a seca em Itabuna (BA) no
+                  início de maio de 2001 e de 2026.
+                </button>
+              </li>
+              <li>
+                <button type="button">
+                  <span>Catálogo</span>Que previsões climáticas o SEDES tem?
+                </button>
+              </li>
+            </ul>
+          </section>
+          <ol class="mensagens" id="mensagens" aria-live="polite"></ol>
+        </div>
+
+        <form class="compositor" id="compositor">
+          <div class="caixa">
+            <label for="entrada" class="so-leitor">Sua pergunta</label>
+            <textarea
+              id="entrada"
+              rows="1"
+              placeholder="Pergunte sobre um município, estado, bioma ou índice…"
+              autocomplete="off"
+            ></textarea>
+            <button
+              type="submit"
+              class="enviar"
+              id="enviar"
+              aria-label="Enviar"
+            >
+              <svg class="icone-enviar" viewBox="0 0 20 20" aria-hidden="true">
+                <path d="M10 16V4M5 9l5-5 5 5" />
+              </svg>
+              <svg class="icone-parar" viewBox="0 0 20 20" aria-hidden="true">
+                <rect x="5" y="5" width="10" height="10" rx="1.5" />
+              </svg>
+            </button>
+          </div>
+          <p class="nota" id="nota">
+            Os números vêm do tabelão do SEDES, uma cópia das tabelas do site.
+            Confira os importantes na plataforma.
+          </p>
+        </form>
+      </main>
+    </div>
+
+    <script type="module" src="/app.js"></script>
+  </body>
+</html>
