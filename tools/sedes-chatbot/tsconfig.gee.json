@@ -1,0 +1,17 @@
+{
+  "//": "Os arquivos de src/gee importam código do site (@/...): são conferidos com a configuração da raiz.",
+  "extends": "../../tsconfig.json",
+  "compilerOptions": {
+    "target": "ES2024",
+    "allowImportingTsExtensions": true,
+    "incremental": false,
+    "typeRoots": ["../../node_modules/@types"],
+    "types": ["node"]
+  },
+  "include": [
+    "src/gee/**/*.ts",
+    "../../src/types/*.d.ts",
+    "../../node_modules/next/types/global.d.ts"
+  ],
+  "exclude": []
+}

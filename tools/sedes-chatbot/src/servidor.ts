@@ -15,6 +15,7 @@ import { existsSync } from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { z } from "zod";
+import { OBSERVACOES } from "./observacoes.ts";
 import { resumirRelatorio } from "./relatorio.ts";
 import { semAcento } from "./texto.ts";
 
@@ -35,14 +36,13 @@ if (!existsSync(TABELAO)) {
   process.exit(1);
 }
 const db = new DatabaseSync(TABELAO, { readOnly: true });
-const DATA_DOS_DADOS = (
-  db
-    .prepare("SELECT valor FROM metadados WHERE chave = 'data_dos_dados'")
-    .get() as {
+const GERADO_EM = (
+  db.prepare("SELECT valor FROM metadados WHERE chave = 'gerado_em'").get() as {
     valor: string;
   }
 ).valor.slice(0, 10);
-const RODAPE = `\n(Fonte: tabelão do SEDES, dados de ${DATA_DOS_DADOS.split("-").reverse().join("/")}.)`;
+const dataBr = (iso: string) => iso.split("-").reverse().join("/");
+const RODAPE = `\n(Fonte: tabelão do SEDES, gerado em ${dataBr(GERADO_EM)} das mesmas tabelas do site; a data de cada índice está em listar_indices.)`;
 
 function texto(t: string) {
   return { content: [{ type: "text" as const, text: t }] };
@@ -51,7 +51,8 @@ function texto(t: string) {
 function tabela(colunas: string[], linhas: Array<Record<string, unknown>>) {
   const cel = (v: unknown) => {
     if (v === null || v === undefined) return "";
-    if (typeof v === "number") return String(Math.round(v * 100) / 100);
+    // 3 casas: com 2, 44,947 virava 44,95 e o modelo arredondava de novo para 45,0.
+    if (typeof v === "number") return String(Math.round(v * 1000) / 1000);
     return String(v).replace(/\s+/g, " ").slice(0, 300);
   };
   return [
@@ -131,39 +132,86 @@ server.registerTool(
   {
     title: "Catálogo de índices do SEDES",
     description:
-      "Lista os índices do tabelão do SEDES: id, nome, categoria, escala temporal, primeiro e último período, o que o valor significa, unidade, observações de qualidade e as classes de cada um. Chame antes de escrever SQL, para saber o id do índice e a ordem das classes. Também informa a data dos dados.",
+      "Lista os índices do tabelão do SEDES (os mesmos do relatório do site), sem a descrição longa (para ela, use detalhar_indice): id, nome, categoria, escala temporal, primeiro e último período, data de atualização, o que o valor significa, unidade, como estados e recortes são calculados, ressalvas e as classes de cada um. Chame antes de escrever SQL, para saber o id do índice e a ordem das classes.",
     inputSchema: {},
   },
   async () => {
     const indices = db
       .prepare(
-        "SELECT id, nome, categoria, escala_temporal, primeiro_periodo, ultimo_periodo, qtd_periodos, tipo_valor, significado_valor, unidade, id_no_relatorio, observacao FROM indices ORDER BY categoria, nome",
+        "SELECT id, nome, categoria, escala_temporal, primeiro_periodo, ultimo_periodo, qtd_periodos, tipo_valor, significado_valor, unidade, agregacao, previsao, atualizado_em, observacao FROM indices ORDER BY categoria, previsao, nome",
       )
-      .all() as Array<Record<string, string | number>>;
+      .all() as Array<Record<string, string | number | null>>;
     const classes = db.prepare(
       "SELECT ordem, rotulo FROM classes WHERE indice = ? ORDER BY ordem",
     );
     const partes = [
-      `Data dos dados do tabelão: ${DATA_DOS_DADOS} (snapshot antigo; pode haver dados mais novos no site).`,
+      `Tabelão gerado em ${dataBr(GERADO_EM)}, copiando as mesmas tabelas que o relatório do site usa. "Atualizado em" é quando a fonte do índice foi publicada pela última vez.`,
       "",
     ];
     for (const i of indices) {
       const cls = (
-        classes.all(i.id) as Array<{ ordem: number; rotulo: string }>
+        classes.all(i.id as string) as Array<{ ordem: number; rotulo: string }>
       )
         .map((c) => `${c.ordem}=${c.rotulo}`)
         .join(", ");
       partes.push(
-        `## ${i.nome} (id: ${i.id})`,
-        `Categoria: ${i.categoria}. Escala: ${i.escala_temporal}. Períodos: ${i.primeiro_periodo} a ${i.ultimo_periodo} (${i.qtd_periodos}).`,
-        `Valor: ${i.significado_valor} Unidade: ${i.unidade}. Tipo: ${i.tipo_valor}.`,
-        `Classes (coluna classe): ${cls}`,
-        `Observação: ${i.observacao}`,
-        `Id no relatório do site: ${i.id_no_relatorio ?? "não existe"}`,
+        `## ${i.nome} (id: ${i.id})${i.previsao ? " [PREVISÃO]" : ""}`,
+        `Categoria: ${i.categoria}. Escala: ${i.escala_temporal}. Períodos: ${i.primeiro_periodo} a ${i.ultimo_periodo} (${i.qtd_periodos}). Atualizado em: ${i.atualizado_em ? dataBr(String(i.atualizado_em)) : "?"}.`,
+        `Valor: ${i.significado_valor} Tipo: ${i.tipo_valor}.`,
+        `Recortes: ${i.agregacao}`,
+        ...(i.tipo_valor === "distribuicao"
+          ? [`Classes (coluna classe): ${cls}`]
+          : []),
+        ...(OBSERVACOES[String(i.id)]
+          ? [`Observação: ${OBSERVACOES[String(i.id)]}`]
+          : []),
         "",
       );
     }
     return texto(partes.join("\n"));
+  },
+);
+
+server.registerTool(
+  "detalhar_indice",
+  {
+    title: "Detalhes de um índice",
+    description:
+      'Devolve a descrição completa de um índice como está no catálogo do site (o que mede, metodologia, fonte), mais classes, períodos, data de atualização e ressalvas. Use em perguntas conceituais ("o que é o CDI?", "como é calculado?") antes de dizer que o catálogo não explica algo.',
+    inputSchema: {
+      id: z.string().describe("Id do índice, como aparece em listar_indices"),
+    },
+  },
+  async ({ id }) => {
+    const i = db
+      .prepare(
+        "SELECT id, nome, descricao, categoria, escala_temporal, primeiro_periodo, ultimo_periodo, qtd_periodos, significado_valor, agregacao, previsao, atualizado_em FROM indices WHERE id = ?",
+      )
+      .get(id) as Record<string, string | number | null> | undefined;
+    if (!i)
+      return texto(
+        `Não existe índice com id "${id}". Use listar_indices para ver os ids.`,
+      );
+    const cls = (
+      db
+        .prepare(
+          "SELECT ordem, rotulo FROM classes WHERE indice = ? ORDER BY ordem",
+        )
+        .all(id) as Array<{ ordem: number; rotulo: string }>
+    )
+      .map((c) => `${c.ordem}=${c.rotulo}`)
+      .join(", ");
+    return texto(
+      [
+        `## ${i.nome} (id: ${i.id})${i.previsao ? " [PREVISÃO]" : ""}`,
+        `Descrição no catálogo do site: ${i.descricao || "(vazia)"}`,
+        `Categoria: ${i.categoria}. Escala: ${i.escala_temporal}. Períodos: ${i.primeiro_periodo} a ${i.ultimo_periodo} (${i.qtd_periodos}). Atualizado em: ${i.atualizado_em ? dataBr(String(i.atualizado_em)) : "?"}.`,
+        `Valor: ${i.significado_valor}`,
+        `Recortes: ${i.agregacao}`,
+        `Classes: ${cls}`,
+        ...(OBSERVACOES[id] ? [`Observação: ${OBSERVACOES[id]}`] : []),
+      ].join("\n"),
+    );
   },
 );
 
@@ -223,32 +271,38 @@ server.registerTool(
 );
 
 const ESQUEMA = `Banco SQLite só leitura (o tabelão do SEDES). Tabelas:
-- indices(id, nome, descricao, categoria, escala_temporal, primeiro_periodo, ultimo_periodo, qtd_periodos, tipo_valor, significado_valor, unidade, id_no_relatorio, observacao)
+- indices(id, nome, descricao, categoria, escala_temporal, primeiro_periodo, ultimo_periodo, qtd_periodos, tipo_valor, significado_valor, unidade, fonte, agregacao, previsao, atualizado_em, observacao)
 - classes(indice, ordem, rotulo)  -- ordem começa em 1
+- periodos(indice, periodo, rotulo)  -- rotulo legível (ex.: trimestre da previsão)
 - territorios(codigo, nome, nome_sem_acento, tipo, uf, regiao, bioma, semiarido, asd_entorno)
     tipo: 'municipio' | 'estado' | 'pais' | 'regiao' | 'bioma' | 'semiarido' | 'asd' | 'lagoa'
-    codigo: IBGE de 7 dígitos (município), sigla minúscula ('pb') para estado, 'br', '2_regiao-nordeste', '3_bioma-caatinga', '5_semiarido-semiarido-total', '4_asd-asd-entorno'
+    codigo: IBGE de 7 dígitos (município), sigla minúscula ('pb') para estado, 'br', '2_regiao-nordeste', '3_bioma-caatinga', '5_semiarido-semiarido-total', '4_asd-asd-entorno', '4_asd-apenas-asd'
     uf: sigla MAIÚSCULA ('PB'). bioma: bioma predominante do município. semiarido / asd_entorno: 1 ou 0 (só municípios)
 - valores(indice, periodo, ano, mes, territorio, classe, valor)  -- formato longo: uma linha por classe
-    periodo: 'AAAA' (anual) ou 'AAAA-MM' (mensal). valor já está na unidade final (% da área, % de famílias ou contagem; veja listar_indices).
+    periodo: 'AAAA' (anual), 'AAAA-MM' (mensal) ou 'AAAA-MM-DD' (decendial: dias 01, 11 e 21; só o CDI).
+    valor já está na unidade final (% da área, % de famílias, contagem, reais...; veja listar_indices). Valores com casas a mais: arredonde ao responder.
+    Índices de valor único têm só classe = 1.
     Linha ausente = sem dado para aquele território e período.
 - valores_com_nomes: visão de valores com nome_territorio, tipo_territorio, uf e rotulo_classe.
-- metadados(chave, valor)  -- 'data_dos_dados'
+- metadados(chave, valor)  -- 'gerado_em'
 
 Desempenho: a chave é (indice, periodo, territorio, classe) e há índice em (territorio, indice, periodo). Sempre filtre por indice e, em rankings, por periodo exato ou faixa (periodo BETWEEN '2025-01' AND '2025-12'); filtrar só por ano varre a tabela inteira.
 A tabela valores mistura municípios, estados e recortes: para contar ou ranquear municípios, junte com territorios e filtre t.tipo = 'municipio'.
-Estados e Brasil têm valor próprio em valores para todos os índices; use-o em vez de somar municípios.
-Região, bioma, Semiárido e ASD só têm valor próprio para 'anaseca' e 'prev_anomalia_precipitacao'. Para os demais índices nesses recortes, prefira relatorio_territorio; se calcular a média dos municípios, diga que é média simples, sem pesar pela área.
+Brasil, estados, regiões, biomas, Semiárido e ASD têm valor próprio em valores para todos os índices; use-o em vez de somar ou tirar média dos municípios.
 
 Exemplos:
 1) Distribuição de um município num mês:
-   SELECT rotulo_classe, valor FROM valores_com_nomes WHERE indice='anaseca' AND periodo='2026-04' AND territorio='2504009' ORDER BY classe;
+   SELECT rotulo_classe, valor FROM valores_com_nomes WHERE indice='monitor-de-seca-ana' AND periodo='2026-09' AND territorio='2504009' ORDER BY classe;
 2) Ranking: municípios do Semiárido com maior % de área em seca grave ou pior no Monitor de Secas:
    SELECT t.nome, t.uf, SUM(v.valor) AS pct FROM valores v JOIN territorios t ON t.codigo=v.territorio
-   WHERE v.indice='anaseca' AND v.periodo='2026-04' AND v.classe >= 4 AND t.tipo='municipio' AND t.semiarido=1
+   WHERE v.indice='monitor-de-seca-ana' AND v.periodo='2026-09' AND v.classe >= 4 AND t.tipo='municipio' AND t.semiarido=1
    GROUP BY t.codigo ORDER BY pct DESC LIMIT 10;
 3) Série histórica de pobreza de um município:
-   SELECT periodo, valor FROM valores WHERE indice='pob_total' AND territorio='2504009' ORDER BY periodo;`;
+   SELECT periodo, valor FROM valores WHERE indice='percentual-de-pobreza-total-cadunico' AND territorio='2504009' ORDER BY periodo;
+4) Contar municípios (toda contagem, média ou soma de municípios precisa do JOIN com t.tipo='municipio'; sem ele entram estados, Brasil e recortes):
+   SELECT COUNT(*) FROM (SELECT v.territorio FROM valores v JOIN territorios t ON t.codigo=v.territorio
+   WHERE v.indice='indice-de-degradacao-da-terra' AND v.periodo='2021' AND v.classe IN (1,2,3) AND t.tipo='municipio'
+   GROUP BY v.territorio HAVING SUM(v.valor) > 50);`;
 
 server.registerTool(
   "consultar_sql",
@@ -279,7 +333,7 @@ server.registerTool(
   "relatorio_territorio",
   {
     title: "Relatório atual do site para um território",
-    description: `Chama o relatório da plataforma SEDES (${BASE_URL}), que calcula na hora pelo Earth Engine o dado mais atual de ~40 índices (incluindo previsões, PIB, IDH, analfabetismo, PRODES, solos), mais do que o tabelão tem. É lento (5 a 15 s por chamada) e usa a fila do Earth Engine: use só como complemento, quando o tabelão não tiver o índice ou o período pedido, ou quando o usuário quiser o dado mais recente. Devolve um resumo por índice: período efetivo e classes com área. Com o parâmetro indice, mostra também os últimos 12 períodos daquele índice.`,
+    description: `Chama o relatório da plataforma SEDES (${BASE_URL}), que lê as mesmas tabelas do tabelão, mas na versão publicada agora. É lento (1 a 15 s por chamada) e pode usar a fila do Earth Engine: use só quando o usuário pedir o que o site mostra agora, ou quando o tabelão não tiver um período que deveria existir (publicado depois de o tabelão ser gerado). Devolve um resumo por índice: período efetivo e classes com área. Com o parâmetro indice, mostra também os últimos 12 períodos daquele índice.`,
     inputSchema: {
       chave: z
         .string()

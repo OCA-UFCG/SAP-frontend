@@ -1,67 +1,49 @@
-# Avaliação do protótipo: Haiku 5.5 × Sonnet 5.5
+# Avaliação: Haiku 5.5 × Sonnet 5.5 com o tabelão do Earth Engine (fase 3)
 
-Rodado em 12/11/2026 com `./avaliar.sh`, 35 perguntas de `perguntas.md`, cada
-uma numa sessão `claude -p` isolada, só com as 4 ferramentas do SEDES. Cada
-resposta foi comparada com a resposta esperada e, quando trazia um número que
-não estava na resposta esperada, conferida no tabelão.
-
-- **Certa:** todos os números e a conclusão batem, com a fonte e a data dos dados.
-- **Parcial:** a resposta principal está certa, mas há um detalhe errado.
-- **Errada:** número inventado, conclusão errada ou resposta faltando.
+12/11/2026. 36 perguntas de `perguntas.md` (as 35 da fase 2, atualizadas para o
+tabelão novo, mais a T05, tirada de uma conversa real). Cada pergunta é um
+`claude -p` isolado, com as 5 ferramentas do SEDES e mais nada. Respostas
+completas em `claude-haiku-5-5.md` e `claude-sonnet-5-5.md`. A fase 2 está em
+`fase2/`.
 
 ## Resultado por categoria
 
-| Categoria           | Perguntas | Haiku, rodada 1 | Sonnet, rodada 1 | Haiku, rodada 2 | Sonnet, rodada 2 |
-| ------------------- | --------- | --------------- | ---------------- | --------------- | ---------------- |
-| Conceitual          | 4         | 4               | 4                | 4               | 4                |
-| Valor pontual       | 6         | 5 + 1 parcial   | 6                | 6               | 6                |
-| Ranking             | 5         | 5               | 5                | 5               | 5                |
-| Tendência           | 4         | 4               | 4                | 4               | 4                |
-| Cruzamento          | 3         | 3               | 2 + 1 parcial    | 3               | 3                |
-| Recorte agregado    | 4         | 3 + 1 parcial   | 4                | 4               | 4                |
-| Homônimo            | 3         | 3               | 3                | 3               | 3                |
-| Período inexistente | 3         | 3               | 3                | 3               | 3                |
-| Fora do escopo      | 3         | 3               | 3                | 3               | 3                |
-| **Total certas**    | **35**    | **33**          | **34**           | **35**          | **35**           |
+Primeira rodada → depois das correções (que estão no código):
 
-Nenhuma resposta errada nas duas rodadas. A rodada 2 repetiu só as perguntas
-afetadas pelas correções (P01, A01, X02, T02, A03); as demais são da rodada 1.
+| Categoria           | Perguntas | Haiku                    | Sonnet                   |
+| ------------------- | --------- | ------------------------ | ------------------------ |
+| Conceitual          | 4         | 3 + 1 parcial → 4        | 3 + 1 parcial → 4        |
+| Valor pontual       | 6         | 6                        | 6                        |
+| Ranking             | 5         | 5                        | 5                        |
+| Tendência           | 5         | 4 + 1 parcial → 5        | 4 + 1 parcial → 5        |
+| Cruzamento          | 3         | 2 + 1 parcial → 3        | 3                        |
+| Recorte agregado    | 4         | 4                        | 4                        |
+| Homônimo            | 3         | 3                        | 3                        |
+| Período inexistente | 3         | 3                        | 3                        |
+| Fora do escopo      | 3         | 3                        | 3                        |
+| **Total**           | **36**    | **33 + 3 parciais → 36** | **34 + 2 parciais → 36** |
 
-Tempo por pergunta (rodada 1): Haiku média 7,8 s (mediana 6,9 s, máximo
-18,4 s); Sonnet média 7,6 s (mediana 7,3 s, máximo 12,3 s). Os dois fazem ~2,4
-chamadas de ferramenta por pergunta e usaram o relatório do site em 5 e 6
-perguntas, todas em que o tabelão não tinha o dado (PIB, Semiárido, ano
-faltando, recorte de região, fora do escopo).
+Nenhum número inventado. Tempo médio 7,9 s por pergunta nos dois (máximo
+13,5 s). Nenhuma chamada ao relatório do site: o tabelão respondeu tudo,
+inclusive PIB, recortes e previsões, que na fase 2 exigiam o site.
 
-## Erros da rodada 1 e causa
+## As parciais e o que foi corrigido
 
-| Pergunta | Modelo | O que aconteceu                                                                                                        | Causa provável                                                                                                         | Correção                                                                                   |
-| -------- | ------ | ---------------------------------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------ |
-| P01      | Haiku  | Número certo, mas escreveu "conferi esse valor com o relatório atual do site, e ele bate" sem ter chamado o relatório. | Descrição confusa: a observação do índice dizia "Conferido: bate com o site", e o modelo tomou a conferência como sua. | Observação reescrita ("na conferência da equipe, 12/11/2026") e regra no prompt.           |
-| A01      | Haiku  | Números de abril certos; comentário extra dizia que a seca extrema "caiu para zero em fevereiro" (foi 9,3%).           | Leitura errada do resultado, num comentário que ninguém pediu.                                                         | Prompt: responder o que foi perguntado e só oferecer o resto.                              |
-| X02      | Sonnet | Ranking certo; contou 2.272 municípios em vez de 2.268.                                                                | SQL errado: a contagem não filtrou `tipo = 'municipio'` e somou 4 estados.                                             | Esquema da ferramenta: `valores` mistura municípios, estados e recortes; filtre pelo tipo. |
+| Pergunta                   | Modelo  | O que houve                                  | Causa                                                                | Correção                                                           |
+| -------------------------- | ------- | -------------------------------------------- | -------------------------------------------------------------------- | ------------------------------------------------------------------ |
+| C01 (o que é o CDI)        | os dois | Disseram que o catálogo não explica o método | `listar_indices` não mostra a descrição longa                        | Ferramenta nova `detalhar_indice`                                  |
+| T05 (Itabuna)              | os dois | 45,0% onde o certo é 44,9%                   | A ferramenta mostrava 2 casas (44,95) e o modelo arredondava de novo | Saída com 3 casas                                                  |
+| X02 (degradação × pobreza) | Haiku   | Contou 2.275 municípios (certo: 2.268)       | A contagem somou 7 recortes junto                                    | Exemplo de contagem com `t.tipo = 'municipio'` na descrição da SQL |
 
-## O que sobrou
+O mesmo arredondamento duplo afetava a fase 2: o gabarito da X02 dizia 81,0%
+para Campo Grande–AL, e o valor é 80,9% (como no site). Corrigido.
 
-- O Haiku ainda acrescenta detalhes não pedidos (em A03 trouxe Nordeste,
-  Pernambuco e Paraíba). Os números conferem, mas deixam a resposta mais
-  longa e abrem espaço para erro de leitura. O Sonnet segue melhor a regra.
-- Nenhum dos dois buscou o dado mais recente do site sem que fosse pedido
-  (em I02 os dois ofereceram, em vez de buscar). Isso é coerente com o prompt,
-  que manda usar o tabelão primeiro.
-- Os dois avisam quando o índice foi recalculado no site (S2iD, CDI, cobertura)
-  porque a observação está no catálogo. Mas nenhum mostrou o número atual do
-  site em P03, em que o site diz 1 registro e o tabelão diz 2.
+## O que melhorou com o tabelão novo
 
-## Leitura
-
-Com as ferramentas certas, os dois modelos acertam as 35 perguntas, e as
-falhas da rodada 1 vieram de descrições e do prompt, não do modelo. O Haiku é
-tão rápido quanto o Sonnet aqui (o tempo é dominado pelas idas e vindas de
-ferramentas) e um pouco mais propenso a comentar além do pedido. Para a
-demonstração, o Sonnet é a escolha mais segura; o Haiku é suficiente se o
-custo pesar na fase 4.
-
-Esta lista é pequena e foi escrita junto com as ferramentas, então mede bem o
-que foi pensado e mal o que não foi. A próxima rodada deve usar perguntas
-escritas pela equipe.
+- A conversa real que virou a T05 (seca em Itabuna em 7/5/2001 e 7/5/2026)
+  falhava na fase 2: o bot comparava o CDI de 2001 com o Monitor de Secas de 2026. Agora os dois modelos usam o CDI nos dois anos, explicam que o dia 7
+  cai no decêndio de 1º de maio e citam o Monitor como complemento.
+- Recortes (Nordeste, Semiárido) têm valor próprio para todos os índices: A02
+  e A04 deixaram de depender do site ou de média improvisada.
+- R04 (S2iD na Caatinga): os dois perceberam o empate de 760 municípios com
+  1 registro e repetiram a ressalva da planilha, em vez de inventar um ranking.
