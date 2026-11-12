@@ -1,4 +1,5 @@
 import { marked } from "/marked.js";
+import { desenharGrafico } from "/grafico.js";
 
 // O texto vem do modelo: HTML cru dentro do markdown aparece como texto.
 marked.use({
@@ -48,7 +49,18 @@ const PASSOS = {
   },
   consultar_sql: {
     fazendo: "Consultando o tabelão…",
-    feito: () => "Consultou o tabelão",
+    feito: (e) =>
+      e.grafico
+        ? "Consultou o tabelão e montou o gráfico"
+        : "Consultou o tabelão",
+  },
+  link_no_sedes: {
+    fazendo: "Preparando o link para o site…",
+    feito: () => "Preparou o link para o site",
+  },
+  sobre_o_sedes: {
+    fazendo: "Lendo os textos do site…",
+    feito: () => "Leu os textos do site e o glossário",
   },
   relatorio_territorio: {
     fazendo: "Abrindo o relatório do site…",
@@ -61,6 +73,8 @@ const ICONES = {
   seta: '<svg viewBox="0 0 20 20" aria-hidden="true"><path d="M8 5l5 5-5 5"/></svg>',
   bom: '<svg viewBox="0 0 20 20" aria-hidden="true"><path d="M6 9v8H3V9h3zm0 0l3.5-6c1.2 0 2 1 1.7 2.2L10.6 8H15a2 2 0 0 1 2 2.3l-.9 5A2 2 0 0 1 14.1 17H6"/></svg>',
   ruim: '<svg viewBox="0 0 20 20" aria-hidden="true"><path d="M14 11V3h3v8h-3zm0 0l-3.5 6c-1.2 0-2-1-1.7-2.2L9.4 12H5a2 2 0 0 1-2-2.3l.9-5A2 2 0 0 1 5.9 3H14"/></svg>',
+  externo:
+    '<svg viewBox="0 0 20 20" aria-hidden="true"><path d="M11 4h5v5M16 4l-7 7M14 12v3a1 1 0 0 1-1 1H5a1 1 0 0 1-1-1V7a1 1 0 0 1 1-1h3"/></svg>',
   copiar:
     '<svg viewBox="0 0 20 20" aria-hidden="true"><rect x="7" y="7" width="10" height="10" rx="2"/><path d="M13 7V5a2 2 0 0 0-2-2H5a2 2 0 0 0-2 2v6a2 2 0 0 0 2 2h2"/></svg>',
 };
@@ -135,8 +149,10 @@ function criarResposta() {
     "aguardando",
     '<span class="pontos" aria-hidden="true"><i></i><i></i><i></i></span><span>Pensando…</span>',
   );
+  const areaGrafico = criar("div", "graficos");
   const texto = criar("div", "resposta");
-  coluna.append(passos, aguardando, texto);
+  const links = criar("div", "links-sedes");
+  coluna.append(passos, areaGrafico, aguardando, texto, links);
   li.append(avatar, coluna);
   el.mensagens.append(li);
 
@@ -172,15 +188,24 @@ function criarResposta() {
       }
       listaPassos.append(item);
       passos.hidden = false;
-      r.passos.set(id, item);
+      r.passos.set(id, { item, nome, entrada });
       if (!concluido) {
         r.atualizarResumo(def?.fazendo ?? "Consultando…");
         r.setStatus(def?.fazendo ?? "Consultando…");
       } else r.atualizarResumo();
     },
     concluirPasso({ id, texto: saida, cortada, erro, ms }) {
-      const item = r.passos.get(id);
-      if (!item) return;
+      const passo = r.passos.get(id);
+      if (!passo) return;
+      const { item, nome, entrada } = passo;
+      if (
+        !erro &&
+        nome === "consultar_sql" &&
+        entrada?.grafico &&
+        desenharGrafico(areaGrafico, entrada.grafico, saida)
+      )
+        descer();
+      if (!erro && nome === "link_no_sedes") r.adicionarLink(saida);
       item.classList.remove("rodando");
       if (erro) item.classList.add("erro");
       if (ms != null) item.querySelector(".tempo").textContent = segundos(ms);
@@ -196,6 +221,24 @@ function criarResposta() {
       }
       r.atualizarResumo();
       r.setStatus("Escrevendo…");
+    },
+    adicionarLink(saida) {
+      const url = String(saida ?? "")
+        .split("\n")[0]
+        .trim();
+      if (!/^https?:\/\//.test(url)) return;
+      if ([...links.querySelectorAll("a")].some((a) => a.href === url)) return;
+      const n = links.children.length;
+      const a = criar(
+        "a",
+        "ver-no-sedes",
+        `<span>Ver no SEDES${n ? ` (${n + 1})` : ""}</span>${ICONES.externo}`,
+      );
+      a.href = url;
+      a.target = "_blank";
+      a.rel = "noopener";
+      a.title = "Abre o mesmo dado na plataforma SEDES";
+      links.append(a);
     },
     escrever(pedaco) {
       aguardando.remove();

@@ -39,6 +39,8 @@ const PORTA = Number(process.env.SEDES_CHAT_PORTA ?? 3210);
 const ORIGEM = `http://localhost:${PORTA}`;
 const OCIOSA_MS = 20 * 60_000;
 const SAIDA_MAX = 6_000;
+// Pergunta maior que isto não é pergunta sobre dados; também limita o gasto.
+const PERGUNTA_MAX = 2_000;
 
 mkdirSync(CONVERSAS, { recursive: true });
 
@@ -450,6 +452,7 @@ const ESTATICOS: Record<string, string> = {
   "/": path.join(PAGINA, "index.html"),
   "/estilo.css": path.join(PAGINA, "estilo.css"),
   "/app.js": path.join(PAGINA, "app.js"),
+  "/grafico.js": path.join(PAGINA, "grafico.js"),
   "/marked.js": path.join(PACOTE, "node_modules/marked/lib/marked.esm.js"),
   "/logo.svg": path.join(RAIZ, "public/logo-sedes.svg"),
   "/favicon.svg": path.join(RAIZ, "public/favicon.svg"),
@@ -570,6 +573,10 @@ const servidor = http.createServer(async (req, res) => {
       const corpo = await lerCorpo(req);
       const texto = String(corpo.texto ?? "").trim();
       if (!texto) return json(res, 400, { erro: "pergunta vazia" });
+      if (texto.length > PERGUNTA_MAX)
+        return json(res, 400, {
+          erro: `a pergunta passou de ${PERGUNTA_MAX} caracteres; resuma e tente de novo`,
+        });
       const modelo = corpo.modelo === "haiku" ? "haiku" : "sonnet";
       const c = corpo.conversa
         ? obterConversa(String(corpo.conversa))

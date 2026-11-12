@@ -1,7 +1,7 @@
 {
   "name": "sedes-chatbot",
   "private": true,
-  "version": "0.3.0",
+  "version": "0.4.0",
   "description": "Protótipo de chatbot do SEDES: servidor MCP só de leitura usado pelo Claude Code.",
   "type": "module",
   "engines": {
@@ -12,7 +12,8 @@
     "tabelao": "cd ../.. && node --conditions=react-server --import tsx tools/sedes-chatbot/src/gee/montar-tabelao.ts",
     "conferir": "tsx src/gee/conferir-com-relatorio.ts",
     "servidor": "tsx src/servidor.ts",
-    "consultas": "tsx src/rodar-consultas.ts"
+    "consultas": "tsx src/rodar-consultas.ts",
+    "guia": "tsx src/conhecimento/gerar-guia.ts"
   },
   "dependencies": {
     "@modelcontextprotocol/sdk": "1.32.2",

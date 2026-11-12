@@ -1044,3 +1044,203 @@ svg {
     scroll-behavior: auto !important;
   }
 }
+
+/* ---------- gráfico e link para o site ---------- */
+
+.graficos:empty,
+.links-sedes:empty {
+  display: none;
+}
+
+.grafico {
+  margin: 0 0 12px;
+  padding: 12px 14px 8px;
+  border: 1px solid var(--borda);
+  border-radius: 10px;
+  background: var(--fundo);
+}
+
+.grafico figcaption {
+  font-family: Inter, sans-serif;
+  font-size: 13.5px;
+  font-weight: 600;
+  color: var(--texto);
+  margin-bottom: 8px;
+}
+
+.grafico figcaption span {
+  font-weight: 400;
+  color: var(--texto-suave);
+}
+
+.grafico-area {
+  position: relative;
+}
+
+/* O traço dos ícones (regra "svg" lá em cima) não vale no gráfico: cada
+   marca diz o seu. */
+.grafico-area svg {
+  display: block;
+  overflow: visible;
+  stroke: none;
+  stroke-width: 1;
+}
+
+.grafico-dica[hidden] {
+  display: none;
+}
+
+.grafico .grade {
+  stroke: #eceee9;
+  stroke-width: 1;
+}
+
+.grafico .base {
+  stroke: #c9c6c0;
+  stroke-width: 1;
+}
+
+.grafico .cruz {
+  stroke: #c9c6c0;
+  stroke-width: 1;
+}
+
+.grafico .eixo {
+  font-family: Inter, sans-serif;
+  font-size: 11px;
+  fill: var(--texto-fraco);
+  font-variant-numeric: tabular-nums;
+}
+
+.grafico .valor-fim {
+  font-family: Inter, sans-serif;
+  font-size: 12px;
+  font-weight: 600;
+  fill: var(--texto);
+}
+
+.grafico-dica {
+  position: absolute;
+  transform: translate(-50%, calc(-100% - 12px));
+  pointer-events: none;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding: 4px 8px;
+  border-radius: 6px;
+  background: var(--verde-noite);
+  color: #fff;
+  font-family: Inter, sans-serif;
+  font-size: 12px;
+  line-height: 1.35;
+  white-space: nowrap;
+}
+
+.grafico-dica span {
+  opacity: 0.8;
+}
+
+.ranking {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  grid-template-columns: minmax(90px, max-content) minmax(0, 1fr);
+  column-gap: 12px;
+  row-gap: 6px;
+}
+
+.ranking li {
+  display: contents;
+}
+
+.ranking-nome {
+  font-size: 13px;
+  line-height: 20px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  max-width: 220px;
+}
+
+.ranking-trilho {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+}
+
+.ranking-barra {
+  height: 16px;
+  flex: none;
+  border-radius: 0 4px 4px 0;
+}
+
+.ranking li:hover .ranking-barra {
+  filter: brightness(0.88);
+}
+
+.ranking-valor {
+  font-family: Inter, sans-serif;
+  font-size: 12.5px;
+  font-weight: 600;
+  white-space: nowrap;
+  font-variant-numeric: tabular-nums;
+}
+
+.grafico-dados {
+  margin-top: 6px;
+}
+
+.grafico-dados summary {
+  font-size: 12.5px;
+  color: var(--verde);
+  cursor: pointer;
+  width: fit-content;
+}
+
+.grafico-dados table {
+  margin-top: 6px;
+  border-collapse: collapse;
+  font-size: 13px;
+}
+
+.grafico-dados td {
+  padding: 2px 16px 2px 0;
+  border-bottom: 1px solid var(--borda);
+  font-variant-numeric: tabular-nums;
+}
+
+.links-sedes {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-top: 12px;
+}
+
+.ver-no-sedes {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 12px;
+  border: 1px solid var(--verde);
+  border-radius: 999px;
+  color: var(--verde);
+  font-family: Inter, sans-serif;
+  font-size: 13px;
+  font-weight: 500;
+  text-decoration: none;
+  transition:
+    background-color 150ms,
+    color 150ms;
+}
+
+.ver-no-sedes:hover {
+  background: var(--verde);
+  color: #fff;
+}
+
+.ver-no-sedes svg {
+  width: 15px;
+  height: 15px;
+}

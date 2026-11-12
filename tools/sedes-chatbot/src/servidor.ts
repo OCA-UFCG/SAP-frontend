@@ -6,12 +6,13 @@
  * Variáveis de ambiente:
  *   SEDES_BASE_URL   base do site para o relatório (padrão http://localhost:3000)
  *   SEDES_TABELAO    caminho do tabelão (padrão data/sedes.sqlite)
+ *   SEDES_SITE_URL   site dos links "Ver no SEDES" (padrão https://sedes.oca.ufcg.edu.br)
  */
 import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { StdioServerTransport } from "@modelcontextprotocol/sdk/server/stdio.js";
 import { fork, type ChildProcess } from "node:child_process";
 import { DatabaseSync } from "node:sqlite";
-import { existsSync } from "node:fs";
+import { existsSync, readFileSync } from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { z } from "zod";
@@ -25,7 +26,12 @@ const TABELAO =
 const BASE_URL = (
   process.env.SEDES_BASE_URL ?? "http://localhost:3000"
 ).replace(/\/$/, "");
+const SITE_URL = (
+  process.env.SEDES_SITE_URL ?? "https://sedes.oca.ufcg.edu.br"
+).replace(/\/$/, "");
+const CONHECIMENTO = path.resolve(AQUI, "../conhecimento");
 const LIMITE_LINHAS = 200;
+const LIMITE_GRAFICO = 60;
 const PRAZO_SQL_MS = 10_000;
 const PRAZO_RELATORIO_MS = 90_000;
 
@@ -293,12 +299,14 @@ Brasil, estados, regiões, biomas, Semiárido e ASD têm valor próprio em valor
 Exemplos:
 1) Distribuição de um município num mês:
    SELECT rotulo_classe, valor FROM valores_com_nomes WHERE indice='monitor-de-seca-ana' AND periodo='2026-09' AND territorio='2504009' ORDER BY classe;
-2) Ranking: municípios do Semiárido com maior % de área em seca grave ou pior no Monitor de Secas:
-   SELECT t.nome, t.uf, SUM(v.valor) AS pct FROM valores v JOIN territorios t ON t.codigo=v.territorio
+2) Ranking com gráfico: municípios do Semiárido com maior % de área em seca grave ou pior no Monitor de Secas
+   (grafico = {tipo:'ranking', titulo:'Seca grave ou pior no Semiárido, setembro de 2026', unidade:'% da área'}):
+   SELECT t.nome || '–' || t.uf AS rotulo, SUM(v.valor) AS valor FROM valores v JOIN territorios t ON t.codigo=v.territorio
    WHERE v.indice='monitor-de-seca-ana' AND v.periodo='2026-09' AND v.classe >= 4 AND t.tipo='municipio' AND t.semiarido=1
-   GROUP BY t.codigo ORDER BY pct DESC LIMIT 10;
-3) Série histórica de pobreza de um município:
-   SELECT periodo, valor FROM valores WHERE indice='percentual-de-pobreza-total-cadunico' AND territorio='2504009' ORDER BY periodo;
+   GROUP BY t.codigo ORDER BY valor DESC LIMIT 10;
+3) Série histórica com gráfico: pobreza de um município
+   (grafico = {tipo:'serie', titulo:'Pobreza total em Campina Grande–PB', unidade:'% das famílias do CadÚnico'}):
+   SELECT periodo AS rotulo, valor FROM valores WHERE indice='percentual-de-pobreza-total-cadunico' AND territorio='2504009' ORDER BY periodo;
 4) Contar municípios (toda contagem, média ou soma de municípios precisa do JOIN com t.tipo='municipio'; sem ele entram estados, Brasil e recortes):
    SELECT COUNT(*) FROM (SELECT v.territorio FROM valores v JOIN territorios t ON t.codigo=v.territorio
    WHERE v.indice='indice-de-degradacao-da-terra' AND v.periodo='2021' AND v.classe IN (1,2,3) AND t.tipo='municipio'
@@ -308,16 +316,49 @@ server.registerTool(
   "consultar_sql",
   {
     title: "Consultar o tabelão com SQL",
-    description: `Roda uma consulta SELECT/WITH (SQLite) no tabelão do SEDES e devolve até ${LIMITE_LINHAS} linhas. Tempo máximo ${PRAZO_SQL_MS / 1000} s. Erros voltam como texto: corrija a consulta e tente de novo.\n\n${ESQUEMA}`,
+    description: `Roda uma consulta SELECT/WITH (SQLite) no tabelão do SEDES e devolve até ${LIMITE_LINHAS} linhas. Gráfico: quando a consulta for a de uma série histórica (3 períodos ou mais) ou de um ranking (4 itens ou mais), passe também grafico; a página desenha o gráfico com o resultado. Com grafico, a consulta devolve só as colunas rotulo (período ou nome) e valor (número), na ordem do gráfico (série do mais antigo ao mais recente, ranking do maior ao menor), até ${LIMITE_GRAFICO} linhas. Tempo máximo ${PRAZO_SQL_MS / 1000} s. Erros voltam como texto: corrija a consulta e tente de novo.\n\n${ESQUEMA}`,
     inputSchema: {
       sql: z.string().min(6).describe("Uma consulta SELECT ou WITH"),
+      grafico: z
+        .object({
+          tipo: z.enum(["serie", "ranking"]),
+          titulo: z
+            .string()
+            .max(140)
+            .describe(
+              "Curto: o que é o valor, o território e o período. Em índices com classes, diga quais classes somou.",
+            ),
+          unidade: z
+            .string()
+            .max(30)
+            .optional()
+            .describe("Ex.: '% da área', '% das famílias do CadÚnico', 'R$'"),
+        })
+        .optional()
+        .describe(
+          "Só para séries históricas e rankings: a página desenha o gráfico",
+        ),
     },
   },
-  async ({ sql }) => {
+  async ({ sql, grafico }) => {
     const invalido = validarSql(sql);
     if (invalido) return texto(`Erro: ${invalido}`);
     const r = await executarSql(sql);
     if (!r.ok) return texto(`Erro: ${r.erro}`);
+    if (grafico && r.linhas.length) {
+      if (!r.colunas.includes("rotulo") || !r.colunas.includes("valor"))
+        return texto(
+          `Erro: com grafico, a consulta tem de devolver as colunas rotulo e valor (use AS); devolveu ${r.colunas.join(", ")}.`,
+        );
+      if (r.linhas.length > LIMITE_GRAFICO)
+        return texto(
+          `Erro: ${r.linhas.length} linhas; o gráfico aceita até ${LIMITE_GRAFICO}. Filtre os períodos ou use LIMIT.`,
+        );
+      if (r.linhas.some((l) => typeof l.valor !== "number"))
+        return texto(
+          "Erro: com grafico, a coluna valor tem de ser numérica em todas as linhas.",
+        );
+    }
     if (!r.linhas.length)
       return texto(
         `Nenhuma linha. (Linha ausente = sem dado para aquele filtro.)${RODAPE}`,
@@ -325,7 +366,77 @@ server.registerTool(
     const aviso = r.truncado
       ? `\n(Mostrando só as primeiras ${LIMITE_LINHAS} linhas; refine a consulta.)`
       : "";
-    return texto(`${tabela(r.colunas, r.linhas)}${aviso}${RODAPE}`);
+    const colunas = grafico ? ["rotulo", "valor"] : r.colunas;
+    return texto(`${tabela(colunas, r.linhas)}${aviso}${RODAPE}`);
+  },
+);
+
+server.registerTool(
+  "link_no_sedes",
+  {
+    title: "Link para conferir no site",
+    description:
+      'Monta o link da plataforma SEDES que mostra o dado da resposta. Com território, abre o relatório daquele território com os índices pedidos (valor, mapa e série); sem território, abre o índice no mapa do Brasil. Chame sempre que a resposta trouxer valores de índices, de preferência junto com a consulta. Não escreva o link no texto: a página do chat mostra um botão "Ver no SEDES".',
+    inputSchema: {
+      indices: z
+        .array(z.string())
+        .min(1)
+        .max(5)
+        .describe("Ids dos índices usados na resposta, como em listar_indices"),
+      territorio: z
+        .string()
+        .optional()
+        .describe(
+          "Código do território da resposta (IBGE, UF minúscula, 'br' ou recorte). Num ranking dentro de um estado ou recorte, passe o estado ou recorte. Omita só quando a resposta for sobre o Brasil todo.",
+        ),
+    },
+  },
+  async ({ indices, territorio }) => {
+    const existe = db.prepare("SELECT 1 FROM indices WHERE id = ?");
+    const faltam = indices.filter((id) => !existe.get(id));
+    if (faltam.length)
+      return texto(
+        `Erro: índice(s) não existem: ${faltam.join(", ")}. Veja os ids em listar_indices.`,
+      );
+    if (
+      territorio &&
+      !db.prepare("SELECT 1 FROM territorios WHERE codigo = ?").get(territorio)
+    )
+      return texto(
+        `Erro: território "${territorio}" não existe. Use buscar_territorio.`,
+      );
+    const params = territorio
+      ? new URLSearchParams({
+          section: "communication",
+          locationKey: territorio,
+          period: String(new Date().getFullYear()),
+          layers: indices.join(","),
+        })
+      : new URLSearchParams({ section: "monitoring", layer: indices[0] });
+    return texto(
+      `${SITE_URL}/pt/platform?${params}\n(A página do chat mostra este link como botão; não o repita no texto. O relatório do site mostra os períodos mais recentes de cada índice.)`,
+    );
+  },
+);
+
+server.registerTool(
+  "sobre_o_sedes",
+  {
+    title: "O que é o SEDES: textos do site e glossário",
+    description:
+      "Devolve os textos do site do SEDES (página inicial, Sobre e Glossário) e um complemento com termos que aparecem nos dados (decêndio, CadÚnico, recortes, classes, previsões). Use para perguntas sobre o que é o SEDES, quem faz, para que serve, como usar a plataforma, e sobre conceitos e termos (desertificação, seca, aridez, ASD, Semiárido...). Não traz valores de índices.",
+    inputSchema: {},
+  },
+  async () => {
+    const partes = ["site.md", "complemento.md"]
+      .map((f) => path.join(CONHECIMENTO, f))
+      .filter((f) => existsSync(f))
+      .map((f) => readFileSync(f, "utf8").replace(/^<!--[\s\S]*?-->\n*/, ""));
+    if (!partes.length)
+      return texto(
+        "Os textos do site ainda não foram baixados (npm run guia).",
+      );
+    return texto(partes.join("\n\n---\n\n"));
   },
 );
 

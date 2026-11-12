@@ -76,7 +76,10 @@ function lerExecucao(arquivo: string): Execucao {
           const nome = String(b.name).replace(/^mcp__sedes__/, "");
           const arg =
             nome === "consultar_sql"
-              ? String(b.input?.sql).replace(/\s+/g, " ").trim()
+              ? String(b.input?.sql).replace(/\s+/g, " ").trim() +
+                (b.input?.grafico
+                  ? ` [gráfico: ${JSON.stringify(b.input.grafico)}]`
+                  : "")
               : JSON.stringify(b.input);
           ex.ferramentas.push(`${nome}: ${arg}`);
         }

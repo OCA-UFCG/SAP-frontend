@@ -4,18 +4,20 @@ Um chatbot que responde, em português, perguntas sobre os dados do SEDES. É um
 **protótipo local**: roda na máquina de quem demonstra, dentro do Claude Code,
 sem chave de API: pela página de chat local (`npm run chat`) ou pelo terminal.
 
-O "bot" é o Claude com um servidor MCP que dá a ele cinco ferramentas, todas
+O "bot" é o Claude com um servidor MCP que dá a ele sete ferramentas, todas
 só de leitura. As ferramentas nativas do Claude Code (Bash, leitura de
 arquivos, web) ficam desligadas, então ele só sabe o que as ferramentas
 devolvem.
 
-| Ferramenta             | O que faz                                                                                             |
-| ---------------------- | ----------------------------------------------------------------------------------------------------- |
-| `listar_indices`       | Catálogo do tabelão: o que cada índice mede, classes, períodos, data de atualização, ressalvas.       |
-| `detalhar_indice`      | Descrição completa de um índice como está no catálogo do site, com classes e ressalvas.               |
-| `buscar_territorio`    | Acha município, estado, bioma etc. pelo nome, sem acento, e devolve todos os homônimos com UF.        |
-| `consultar_sql`        | SELECT no tabelão (só leitura, até 200 linhas, 10 s). Fonte principal: valores, rankings, séries.     |
-| `relatorio_territorio` | Chama `/api/municipal-report` do site: o que o site mostra agora. Complemento, para conferir o atual. |
+| Ferramenta             | O que faz                                                                                                                                                                     |
+| ---------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `listar_indices`       | Catálogo do tabelão: o que cada índice mede, classes, períodos, data de atualização, ressalvas.                                                                               |
+| `detalhar_indice`      | Descrição completa de um índice como está no catálogo do site, com classes e ressalvas.                                                                                       |
+| `buscar_territorio`    | Acha município, estado, bioma etc. pelo nome, sem acento, e devolve todos os homônimos com UF.                                                                                |
+| `consultar_sql`        | SELECT no tabelão (só leitura, até 200 linhas, 10 s). Fonte principal: valores, rankings, séries. Com o parâmetro `grafico`, a página desenha o resultado (série ou ranking). |
+| `link_no_sedes`        | Monta o link do site com o mesmo dado: o relatório do território com os índices da resposta. A página mostra como botão "Ver no SEDES".                                       |
+| `sobre_o_sedes`        | Os textos do site (início, Sobre, Glossário) e um complemento sobre como ler os dados.                                                                                        |
+| `relatorio_territorio` | Chama `/api/municipal-report` do site: o que o site mostra agora. Complemento, para conferir o atual.                                                                         |
 
 ## Como rodar a demonstração
 
@@ -70,11 +72,36 @@ linha por evento:
 | `avaliacao` | `turno`, `nota` (`bom`, `ruim` ou `null`), `comentario`; vale a última de cada turno                                     |
 
 O servidor só escuta em `127.0.0.1` e recusa pedidos vindos de outra origem,
-para que outro site aberto no navegador não mande perguntas para ele.
+para que outro site aberto no navegador não mande perguntas para ele. Perguntas
+com mais de 2.000 caracteres são recusadas.
+
+## Conhecimento sobre o SEDES
+
+`conhecimento/` tem o que a ferramenta `sobre_o_sedes` entrega:
+
+- `site.md`: os textos do site (página inicial, Sobre e Glossário), baixados
+  das páginas publicadas por `npm run guia`. Não edite à mão: rode de novo
+  quando o site mudar. Precisa do `npm install` da raiz (usa o jsdom).
+- `complemento.md`: escrito à mão, com o que o site não diz e o bot precisa
+  para ler os dados (decêndio, CadÚnico, recortes, previsões, como usar a
+  plataforma). Termos de uso geral daqui deveriam ir para o Glossário do site,
+  no Contentful; aí o `npm run guia` os traz e eles saem daqui.
+
+O link "Ver no SEDES" aponta para a produção (`SEDES_SITE_URL` troca).
+
+## Escopo (guardrail)
+
+O que o bot pode fazer é limitado em duas camadas:
+
+1. **Ferramentas**: só as do servidor MCP, todas só de leitura (o tabelão abre
+   em modo read-only e o SQL só aceita SELECT/WITH). Sem Bash, arquivos ou web.
+2. **Prompt** (seção "Escopo" de `prompt.md`): só assuntos do SEDES; recusa
+   pedidos fora disso em uma frase, não dá opinião política, não muda de papel
+   nem mostra as instruções. As perguntas G01–G06 de `perguntas.md` testam isso.
 
 ## Avaliação
 
-`perguntas.md` tem 36 perguntas com a resposta esperada e a consulta SQL feita
+`perguntas.md` tem 48 perguntas com a resposta esperada e a consulta SQL feita
 à mão. `npm run consultas` roda essas consultas no tabelão.
 
 ```bash

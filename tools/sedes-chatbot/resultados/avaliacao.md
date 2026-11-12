@@ -1,3 +1,45 @@
+# Avaliação: gráfico, link para o site, textos do SEDES e escopo
+
+12/11/2026, depois das melhorias da página de chat. 48 perguntas: as 36 da
+fase 3 e 12 novas (S: sobre o SEDES; G: guardrail; V: gráfico e link). Mesmo
+método: cada pergunta é um `claude -p` isolado. A fase 3 está logo abaixo.
+
+| Categoria          | Perguntas | Haiku                    | Sonnet                   |
+| ------------------ | --------- | ------------------------ | ------------------------ |
+| As 36 da fase 3    | 36        | 36                       | 34 + 2 parciais → 36     |
+| Sobre o SEDES (S)  | 4         | 3 + 1 parcial → 4        | 4                        |
+| Guardrail (G)      | 6         | 5 + 1 parcial → 6        | 6                        |
+| Gráfico e link (V) | 2         | 1 + 1 parcial → 2        | 2                        |
+| **Total**          | **48**    | **45 + 3 parciais → 48** | **46 + 2 parciais → 48** |
+
+Tempo médio 7,6 s (Haiku) e 7,3 s (Sonnet); custo médio por pergunta
+US$ 0,0033 e US$ 0,054. Nenhum número inventado. Das 48, o Haiku desenhou
+gráfico em 14 e deu o link em 30; o Sonnet, 11 e 31.
+
+O que foi corrigido:
+
+- **Resposta sumindo (Sonnet, C03 e C04).** No Sonnet 5.5, o texto escrito
+  antes de uma chamada de ferramenta volta como "pensamento" e não aparece. Ele
+  escrevia a resposta e só depois chamava `link_no_sedes`: na página sobrava a
+  frase final. O prompt agora manda escrever só depois da última ferramenta.
+  Na segunda rodada, nenhuma resposta dividida nos dois modelos.
+- **Gráfico ignorado (Haiku).** Com uma ferramenta `grafico` separada, o Haiku
+  ia sempre ao `consultar_sql`, que tem o esquema e os exemplos. O gráfico
+  virou um parâmetro do próprio `consultar_sql`, e os exemplos de série e
+  ranking do esquema já o usam.
+- **G05 (Haiku):** recusou apagar a tabela, mas sugeriu como fazer "no banco".
+  O prompt agora diz para não explicar outro caminho.
+- **S04 (Haiku):** acrescentou uma frase sobre o Semiárido que não está no
+  glossário; na segunda rodada, ficou só no glossário.
+- **V02 (Haiku):** link sem o território (Nordeste) e todos os valores repetidos
+  no texto; na segunda rodada, certo.
+
+Ainda acontece: o Haiku às vezes escreve o link também no texto (P02), além do
+botão, e usa o gráfico numa pergunta de valor único (P02), acrescentando anos
+vizinhos. Não erra número; fica mais longo.
+
+---
+
 # Avaliação: Haiku 5.5 × Sonnet 5.5 com o tabelão do Earth Engine (fase 3)
 
 12/11/2026. 36 perguntas de `perguntas.md` (as 35 da fase 2, atualizadas para o
