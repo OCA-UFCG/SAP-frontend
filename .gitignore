@@ -108,3 +108,9 @@ data/runtime/
 
 # Worktrees e estado local de agentes
 /.claude/
+
+# Protótipo do chatbot (tools/sedes-chatbot): o tabelão é gerado por
+# `npm run tabelao`, e as saídas brutas da avaliação ficam só na máquina.
+/tools/sedes-chatbot/data/
+/tools/sedes-chatbot/node_modules/
+/tools/sedes-chatbot/resultados/brutos/

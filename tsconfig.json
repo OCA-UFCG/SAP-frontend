@@ -31,5 +31,5 @@
     "**/*.mts",
     "src/components/ButtonUI"
   ],
-  "exclude": ["node_modules", "__tests__"]
+  "exclude": ["node_modules", "__tests__", "tools/sedes-chatbot"]
 }
