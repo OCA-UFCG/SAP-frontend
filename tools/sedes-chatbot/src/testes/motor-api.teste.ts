@@ -12,7 +12,7 @@ import { after, before, test } from "node:test";
 process.env.SEDES_CHAT_RODADAS = "3";
 const { criarMotorApi } = await import("../chat/motor-api.ts");
 const { Turno } = await import("../chat/turno.ts");
-const { encerrarFerramentas } = await import("../ferramentas.ts");
+const { encerrarFerramentas, FERRAMENTAS } = await import("../ferramentas.ts");
 
 type Bloco =
   | { tipo: "texto"; texto: string }
@@ -206,7 +206,7 @@ test("consulta o tabelão, devolve as duas ferramentas juntas e escreve a respos
     ultima.content.map((b) => b.type),
     ["tool_result", "tool_result"],
   );
-  assert.equal(segundo.tools.length, 7);
+  assert.equal(segundo.tools.length, FERRAMENTAS.length);
   assert.ok(segundo.system[0].cache_control);
   assert.ok(segundo.cache_control);
 });

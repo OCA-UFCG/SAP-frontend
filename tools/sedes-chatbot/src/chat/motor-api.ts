@@ -16,6 +16,7 @@ import { createHash } from "node:crypto";
 import { z } from "zod";
 import { FERRAMENTAS } from "../ferramentas.ts";
 import { promptDoSistema } from "../prompt-sistema.ts";
+import { criteriosDaPriorizacao } from "../priorizacao.ts";
 import type { Motor, Pedido } from "./turno.ts";
 
 type Mensagem = Anthropic.Beta.BetaMessageParam;
@@ -68,6 +69,9 @@ const TOOLS: Anthropic.Beta.BetaTool[] = FERRAMENTAS.map((f) => {
 function sistema(): Anthropic.Beta.BetaTextBlockParam[] {
   // O mesmo prompt do motor claude. Muda só uma vez por dia (a data), então o
   // cache do prompt e das ferramentas vale para todas as conversas do dia.
+  // A lista de critérios da Priorização é a da última leitura; esta chamada só
+  // renova a leitura (a cada 10 min) para as próximas conversas.
+  criteriosDaPriorizacao().catch(() => {});
   return [
     {
       type: "text",
@@ -118,6 +122,8 @@ type Estado = {
 export function criarMotorApi(opcoes: { cliente?: Anthropic } = {}): Motor {
   let cliente = opcoes.cliente;
   const conversas = new Map<string, Estado>();
+  // Para a primeira conversa já ter a lista de critérios no prompt.
+  criteriosDaPriorizacao().catch(() => {});
 
   function estadoDa(pedido: Pedido): Estado {
     let e = conversas.get(pedido.conversa);

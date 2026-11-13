@@ -1,4 +1,47 @@
-# Avaliação difícil e catálogo no prompt
+# Priorização no chat
+
+12/11/2026, fim da noite. O chat passou a rodar a Priorização (aba do site,
+análise multicritério ELECTRE TRI-B) pela ferramenta `priorizar_municipios`,
+que chama o mesmo backend do site (`SAP-analise-multicriterial`). Entraram 11
+perguntas (N01–N11), com as respostas calculadas no backend.
+
+| Rodada                                    | Notas (certo · parcial · errado) | Mediana | Idas ao modelo | Custo (API) |
+| ----------------------------------------- | -------------------------------- | ------- | -------------- | ----------- |
+| 11 de Priorização, 1ª versão (`prio-v1`)  | 8 · 2 · 1                        | 10,8 s  | 2,0            | US$ 0,04    |
+| 11 de Priorização, final (`prio-v2`)      | 10 · 1 · 0                       | 8,3 s   | 1,8            | US$ 0,04    |
+| 11 de Priorização, Sonnet (`prio-sonnet`) | 9 · 2 · 0                        | 10,8 s  | 2,0            | US$ 0,58    |
+| 32 difíceis, sem Priorização (`ab-base`)  | 25 · 6 · 1                       | 11,3 s  | 3,3            | US$ 0,09    |
+| 32 difíceis, com Priorização (`ab-prio`)  | 26 · 5 · 1                       | 11,2 s  | 3,3            | US$ 0,12    |
+
+As duas últimas rodaram ao mesmo tempo (com outra avaliação em paralelo, por
+isso os tempos mais altos): a seção nova do prompt não piorou as outras
+perguntas; o custo sobe porque o prompt cresceu ~6 mil caracteres.
+
+O que a 1ª versão errou e mudou:
+
+- Escreveu "12.406 km²" para 12,406 km² (mil vezes maior). A ferramenta agora
+  arredonda pela grandeza (12,4; 0,242), sem 3 casas depois da vírgula acima de 1.
+- Escolheu sozinha comparar o Nordeste todo junto. O prompt manda ficar no
+  padrão do site (cada estado) e oferecer a outra comparação.
+- Gastou uma ida ao modelo para achar o código de Assunção. A ferramenta aceita
+  o nome do município ("Assunção-PB") e avisa quando há homônimos.
+- Não citou nenhum dos 280 nomes de uma lista longa. O prompt pede 10 e o total.
+
+Achados para a equipe (planilha da Priorização e backend), não corrigidos:
+
+- "Pobreza Rural" (coluna `pobreza_rural_2021`) diz "em 2025" na descrição e
+  não tem unidade; o bot chama de "%".
+- "Anomalia de Precipitação" (coluna `anomalia_out_2026`) diz "dezembro de
+  2026" na descrição.
+- "População Indígena" e as três de cisternas são contagens absolutas marcadas
+  como benefício: município grande fica com prioridade menor só por ser grande.
+- 13 municípios da Paraíba, entre eles João Pessoa e Cabedelo, não têm o
+  "Índice de Seca" e ficam de fora da análise padrão.
+- O servidor MCP do próprio backend (`app/mcp/server.py`) diz que as classes
+  vão de 1 (pior) a 5 (melhor). O backend devolve 0 a 4, e 4 é a pior
+  situação (muito alta prioridade), como no mapa do site.
+
+# Antes: avaliação difícil e catálogo no prompt
 
 12/11/2026, à noite. As 48 perguntas davam 48/48 nos dois modelos e já não
 mostravam nada. Entraram 32 perguntas tiradas do uso real da página (conversa

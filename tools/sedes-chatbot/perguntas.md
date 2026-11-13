@@ -22,6 +22,13 @@ erro, D dado que o SEDES não tem, Q comparação. A linha "Números:" lista
 números que têm de aparecer na última resposta; o resto é conferido pelo juiz
 de `npm run avaliar`.
 
+As perguntas N usam a Priorização (análise multicritério), que lê a planilha da
+Priorização pelo backend SAP-analise-multicriterial, não o tabelão; ele precisa
+estar rodando (veja o README). As respostas esperadas foram calculadas no
+backend em 12/11/2026 com os limiares e o cenário padrão do site. A planilha
+muda quando a equipe a edita: se um número não bater, rode a mesma análise na
+aba Priorização do site e confira antes de culpar o bot.
+
 ### C01 — conceitual
 
 **Pergunta:** O que é o CDI?
@@ -800,3 +807,77 @@ SELECT SUM(s>0), SUM(s>50), COUNT(*) FROM (SELECT v.territorio, SUM(CASE WHEN v.
 **Pergunta:** Como eu faço para baixar um relatório em PDF de um município?
 
 **Resposta esperada:** No módulo Comunicação: escolhe o recorte e o território, marca os produtos, clica em "Gerar relatório" e baixa o PDF.
+
+### N01 — priorização
+
+**Pergunta:** Quais municípios da Paraíba deveriam ser priorizados para ações contra a seca e a desertificação?
+
+**Resposta esperada:** Usa a Priorização com os critérios padrão do site (Índice de Aridez, Índice de Seca, Área Degradada e Pobreza Rural, pesos iguais), Paraíba, cenário pessimista, e diz essa configuração. 210 municípios classificados; 13 ficaram de fora por falta de dado (entre eles João Pessoa). 23 com prioridade muito alta (ex.: Assunção, Juazeirinho, Salgadinho, Tenório, Serra Branca, São Vicente do Seridó, Junco do Seridó...). Não ordena municípios dentro do nível.
+
+**Números:** 23
+
+### N02 — priorização
+
+**Pergunta:** Faz uma priorização do Semiárido combinando pobreza rural e seca registrada, com a pobreza pesando o dobro. Quero uma lista única do Semiárido todo, não separada por estado.
+
+**Resposta esperada:** Critérios Pobreza Rural (67%) e Seca Registrada (33%), Semiárido, todos comparados juntos. 1.477 municípios classificados, nenhum de fora. Prioridade muito alta: 280; alta: 831; média: 138; baixa: 135; muito baixa: 93. Cita alguns dos 280 e diz que são 280, sem listar todos nem ordenar.
+
+**Números:** 280
+
+### N03 — priorização
+
+**Pergunta:** Por que Assunção, na Paraíba, aparece com prioridade muito alta na priorização?
+
+**Resposta esperada:** Com os critérios padrão do site, comparando dentro da Paraíba: Assunção está em situação pior que 97,6% dos municípios da PB no Índice de Aridez (0,242), 98,6% no Índice de Seca (29,6%), 82,9% na Pobreza Rural e 58,6% na Área Degradada. Diz que o nível é relativo aos municípios da Paraíba e aos critérios escolhidos, e não atribui causa a um critério só.
+
+### N04 — priorização
+
+**Pergunta:** Qual o nível de prioridade de Campina Grande?
+
+**Resposta esperada:** Campina Grande–PB, com os critérios padrão do site comparando dentro da Paraíba: prioridade média. Diz a configuração usada (e que mudando os critérios o nível muda).
+
+### N05 — priorização
+
+**Pergunta:** E João Pessoa, qual a prioridade dela na priorização padrão?
+
+**Resposta esperada:** João Pessoa fica de fora da Priorização padrão por não ter valor no Índice de Seca na planilha da Priorização. Não inventa um nível.
+
+### N06 — priorização
+
+**Pergunta:** Dá para fazer a priorização usando desmatamento como critério?
+
+**Resposta esperada:** Não: a Priorização não tem um critério de desmatamento. Mostra os critérios mais próximos que existem (ex.: Área Degradada) e oferece rodar com eles. Não roda uma análise fingindo que é desmatamento.
+
+### N07 — priorização
+
+**Pergunta:** Quais municípios do Ceará têm prioridade muito alta na priorização padrão?
+
+**Depois:** E se a pobreza rural pesar mais que os outros critérios?
+
+**Resposta esperada:** Roda de novo no Ceará com Pobreza Rural com peso maior que os outros (ex.: 3 contra 1, que dá 31 municípios de prioridade muito alta; com outro peso o número muda) e diz o peso que usou. Na primeira resposta, padrão: 27 de 184 com prioridade muito alta. Diz que a lista mudou (ex.: entram Acaraú, Itapipoca, Trairi; saem Banabuiú, Iguatu) só se tiver os dois resultados.
+
+### N08 — priorização
+
+**Pergunta:** Na priorização padrão da Bahia, quantos municípios ficam de fora e por quê?
+
+**Resposta esperada:** 1 de 417: Madre de Deus, sem valor no Índice de Aridez e na Área Degradada na planilha da Priorização. Os outros 416 são classificados.
+
+**Números:** 416
+
+### N09 — priorização
+
+**Pergunta:** Qual a diferença entre o cenário otimista e o pessimista na priorização?
+
+**Resposta esperada:** Com os textos do site: os dois só divergem quando um município está na fronteira entre dois níveis; o pessimista (padrão do site) põe o município no nível de maior prioridade, o otimista no de menor. Pode mostrar o efeito na Paraíba com os critérios padrão (muito alta: 23 no pessimista, 4 no otimista), se rodar as duas.
+
+### N10 — priorização
+
+**Pergunta:** Quero priorizar municípios do Nordeste com pouco esgotamento sanitário e muita gente não alfabetizada.
+
+**Resposta esperada:** Critérios Domicílios com esgotamento sanitário (benefício) e Pessoas não alfabetizadas (custo), pesos iguais, região Nordeste. Diz como comparou: com o padrão do site (cada estado separado) dá 445 de 1.794 com prioridade muito alta; comparando o Nordeste todo junto, 366. Diz que a comparação muda o resultado ou pergunta qual a pessoa quer.
+
+### N11 — priorização
+
+**Pergunta:** O que quer dizer um município estar com prioridade muito alta?
+
+**Resposta esperada:** É o nível mais alto dos 5 da Priorização: o município está em situação pior que a maioria dos municípios do mesmo grupo de comparação nos critérios escolhidos, com os pesos dados. É relativo (ao grupo e aos critérios), não um valor absoluto; mudando critérios, pesos ou área, muda. Não precisa rodar uma análise.

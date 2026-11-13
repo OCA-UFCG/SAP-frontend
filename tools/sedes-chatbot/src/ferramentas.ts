@@ -17,6 +17,7 @@ import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { z } from "zod";
 import { OBSERVACOES } from "./observacoes.ts";
+import { priorizarMunicipios } from "./priorizacao.ts";
 import { resumirRelatorio } from "./relatorio.ts";
 import { semAcento } from "./texto.ts";
 
@@ -601,4 +602,5 @@ export const FERRAMENTAS: Ferramenta[] = [
   linkNoSedes,
   sobreOSedes,
   relatorioTerritorio,
+  priorizarMunicipios,
 ];

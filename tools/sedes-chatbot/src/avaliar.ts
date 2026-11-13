@@ -38,6 +38,8 @@ import {
   type Pergunta,
 } from "./avaliacao.ts";
 import { Turno, type FimDoTurno, type Motor } from "./chat/turno.ts";
+import { priorizacao } from "./prompt-sistema.ts";
+import { criteriosDaPriorizacao } from "./priorizacao.ts";
 import {
   catalogoResumido,
   encerrarFerramentas,
@@ -223,6 +225,9 @@ async function emParalelo<T>(
 
 // --- juiz ---------------------------------------------------------------------
 
+// O juiz vê a mesma lista de critérios da Priorização que o assistente.
+await criteriosDaPriorizacao().catch(() => {});
+
 const JUIZ_SISTEMA = `Você confere respostas do assistente de dados do SEDES, uma plataforma brasileira sobre seca e desertificação. O assistente responde a pessoas que não são especialistas, usando ferramentas que consultam uma cópia das tabelas do site (o "tabelão").
 
 O que o assistente deve fazer:
@@ -243,7 +248,7 @@ A resposta esperada foi escrita à mão e pode ter detalhes a mais; não exija p
 
 No motivo, em até 3 frases, diga o que está errado ou faltando (ou "ok"). Seja específico: cite o número ou trecho.
 
-O assistente também tem no prompt o catálogo de índices e os textos do site abaixo. O que vem deles conta como consultado.
+O assistente também tem no prompt o catálogo de índices, os textos do site e a seção da Priorização abaixo. O que vem deles conta como consultado.
 
 ## Catálogo de índices
 
@@ -251,7 +256,9 @@ ${catalogoResumido()}
 
 ## Textos do site e complemento
 
-${textosDoSite()}`;
+${textosDoSite()}
+
+${priorizacao()}`;
 
 const ESQUEMA_JUIZ = JSON.stringify({
   type: "object",

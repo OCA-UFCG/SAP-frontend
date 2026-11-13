@@ -45,6 +45,8 @@ jobs:
           SEDES_CHAT_ORIGEM: ${{ vars.NEXT_PUBLIC_HOST_URL_BETA }}
           # A ferramenta de relatório chama o site do beta pela rede do Docker.
           SEDES_BASE_URL: http://${{ vars.CONTAINER_NAME_BETA }}:${{ vars.CONTAINER_PORT }}
+          # A Priorização: o mesmo backend multicritério que o site do beta usa.
+          SEDES_MULTICRITERIO_URL: ${{ vars.API_BASE_URL_BETA }}
           SEDES_CHAT_MODELOS: ${{ vars.SEDES_CHAT_MODELOS || 'haiku' }}
           SEDES_CHAT_PERGUNTAS_POR_DIA: ${{ vars.SEDES_CHAT_PERGUNTAS_POR_DIA || '40' }}
           SEDES_CHAT_TETO_DIARIO_USD: ${{ vars.SEDES_CHAT_TETO_DIARIO_USD || '2' }}

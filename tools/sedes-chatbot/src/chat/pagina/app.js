@@ -67,6 +67,11 @@ const PASSOS = {
     feito: (e) =>
       `Abriu o relatório do site (${e.chave ?? ""}${e.periodo ? `, ${e.periodo}` : ""})`,
   },
+  priorizar_municipios: {
+    fazendo: "Rodando a Priorização…",
+    feito: (e) =>
+      `Rodou a Priorização${e.criterios?.length ? ` com ${e.criterios.length} ${e.criterios.length > 1 ? "critérios" : "critério"}` : " com os critérios padrão"}`,
+  },
 };
 
 const ICONES = {
@@ -91,6 +96,22 @@ function esc(s) {
 
 function segundos(ms) {
   return `${(ms / 1000).toLocaleString("pt-BR", { maximumFractionDigits: 1 })} s`;
+}
+
+/** O gráfico da Priorização: municípios por nível, da tabela "rotulo | valor" da saída. */
+function graficoDaPriorizacao(saida) {
+  const area = /^- Área: ([^.]+)\./m.exec(saida ?? "")?.[1];
+  return {
+    tipo: "ranking",
+    titulo: `Municípios por nível de prioridade${area ? ` (${area})` : ""}`,
+    unidade: "municípios",
+  };
+}
+
+function tabelaDaPriorizacao(saida) {
+  const texto = String(saida ?? "");
+  const i = texto.indexOf("rotulo | valor\n");
+  return i < 0 ? "" : texto.slice(i);
 }
 
 function criar(tag, classe, html) {
@@ -206,6 +227,23 @@ function criarResposta() {
       )
         descer();
       if (!erro && nome === "link_no_sedes") r.adicionarLink(saida);
+      if (!erro && nome === "priorizar_municipios") {
+        if (
+          desenharGrafico(
+            areaGrafico,
+            graficoDaPriorizacao(saida),
+            tabelaDaPriorizacao(saida),
+          )
+        )
+          descer();
+        const url = /^Priorização no site: (\S+)/m.exec(saida ?? "")?.[1];
+        if (url)
+          r.adicionarLink(
+            url,
+            "Abrir a Priorização",
+            "Abre a aba Priorização da plataforma SEDES",
+          );
+      }
       item.classList.remove("rodando");
       if (erro) item.classList.add("erro");
       if (ms != null) item.querySelector(".tempo").textContent = segundos(ms);
@@ -222,22 +260,21 @@ function criarResposta() {
       r.atualizarResumo();
       r.setStatus("Escrevendo…");
     },
-    adicionarLink(saida) {
+    adicionarLink(saida, rotulo, dica) {
       const url = String(saida ?? "")
         .split("\n")[0]
         .trim();
       if (!/^https?:\/\//.test(url)) return;
       if ([...links.querySelectorAll("a")].some((a) => a.href === url)) return;
-      const n = links.children.length;
-      const a = criar(
-        "a",
-        "ver-no-sedes",
-        `<span>Ver no SEDES${n ? ` (${n + 1})` : ""}</span>${ICONES.externo}`,
-      );
+      const n = links.querySelectorAll("a:not([data-proprio])").length;
+      const a = criar("a", "ver-no-sedes", `<span></span>${ICONES.externo}`);
+      a.querySelector("span").textContent =
+        rotulo ?? `Ver no SEDES${n ? ` (${n + 1})` : ""}`;
+      if (rotulo) a.dataset.proprio = "";
       a.href = url;
       a.target = "_blank";
       a.rel = "noopener";
-      a.title = "Abre o mesmo dado na plataforma SEDES";
+      a.title = dica ?? "Abre o mesmo dado na plataforma SEDES";
       links.append(a);
     },
     escrever(pedaco) {
@@ -663,7 +700,7 @@ fetch("api/info")
         .split("-")
         .reverse()
         .join("/");
-      el.nota.textContent = `Os números vêm do tabelão do SEDES, copiado das tabelas do site em ${data}. Confira os importantes na plataforma.`;
+      el.nota.textContent = `Os números vêm do tabelão do SEDES, copiado das tabelas do site em ${data}, e da Priorização. Confira os importantes na plataforma.`;
     }
   })
   .catch(() => {});

@@ -6,6 +6,7 @@
 
 PACOTE="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 export SEDES_BASE_URL="${SEDES_BASE_URL:-http://localhost:3000}"
+export SEDES_MULTICRITERIO_URL="${SEDES_MULTICRITERIO_URL:-http://127.0.0.1:8000}"
 
 if [ ! -f "$PACOTE/data/sedes.sqlite" ]; then
   echo "Falta o tabelão. Rode antes: (cd $PACOTE && npm install && npm run tabelao)" >&2
@@ -18,6 +19,9 @@ fi
 if ! curl -s -o /dev/null --max-time 5 "$SEDES_BASE_URL/api/health"; then
   echo "Aviso: o site não respondeu em $SEDES_BASE_URL; a ferramenta de relatório vai falhar." >&2
 fi
+if ! curl -s -o /dev/null --max-time 5 "$SEDES_MULTICRITERIO_URL/api/v1/criterias"; then
+  echo "Aviso: a Priorização (backend SAP-analise-multicriterial) não respondeu em $SEDES_MULTICRITERIO_URL; a ferramenta priorizar_municipios vai falhar e o prompt sai sem a lista de critérios. Veja o README." >&2
+fi
 
 # Diretório fora do repositório: o claude não acha CLAUDE.md, memória nem .claude/ do projeto.
 # SEDES_SESSAO separa a avaliação (ou outra cópia do pacote) da página que já está aberta.
@@ -29,13 +33,17 @@ cat > "$SESSAO/mcp.json" <<JSON
     "sedes": {
       "command": "$PACOTE/node_modules/.bin/tsx",
       "args": ["$PACOTE/src/servidor.ts"],
-      "env": { "SEDES_BASE_URL": "$SEDES_BASE_URL", "NODE_NO_WARNINGS": "1" }
+      "env": {
+        "SEDES_BASE_URL": "$SEDES_BASE_URL",
+        "SEDES_MULTICRITERIO_URL": "$SEDES_MULTICRITERIO_URL",
+        "NODE_NO_WARNINGS": "1"
+      }
     }
   }
 }
 JSON
 
-# prompt.md + catálogo de índices + data de hoje (src/prompt-sistema.ts, o mesmo do motor api).
+# prompt.md + catálogo de índices + textos + Priorização + data de hoje (src/prompt-sistema.ts, o mesmo do motor api).
 if ! NODE_NO_WARNINGS=1 "$PACOTE/node_modules/.bin/tsx" "$PACOTE/src/prompt-sistema.ts" > "$SESSAO/prompt.md"; then
   echo "Não consegui montar o prompt do sistema (src/prompt-sistema.ts)." >&2
   exit 1

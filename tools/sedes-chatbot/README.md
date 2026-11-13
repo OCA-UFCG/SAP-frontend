@@ -52,6 +52,25 @@ O site (passo 2) só é preciso para perguntas sobre "o que o site mostra agora"
 o resto sai do tabelão. Outro endereço para o site:
 `SEDES_BASE_URL=https://... npm run chat`. Outra porta: `SEDES_CHAT_PORTA=...`.
 
+Para a Priorização, suba também o backend `SAP-analise-multicriterial` em
+`127.0.0.1:8000` (o mesmo que a aba Priorização do site local usa). Na partida
+ele baixa a planilha e regrava `data/dataset.xlsx` e `data/novo_dataset.csv.gz`,
+que são versionados naquele repositório; as variáveis abaixo apontam para uma
+cópia e deixam o repositório limpo:
+
+```bash
+C=~/.cache/sedes-priorizacao; mkdir -p $C
+cd ~/SAP-analise-multicriterial
+cp data/dataset.xlsx data/novo_dataset.csv.gz data/dataset-manifest.json $C/
+DATASET_PATH=$C/novo_dataset.csv.gz DATASET_XLSX_PATH=$C/dataset.xlsx \
+  DATASET_MANIFEST_PATH=$C/dataset-manifest.json DATASET_SYNC_INTERVAL_SECONDS=0 \
+  .venv/bin/uvicorn main:app --host 127.0.0.1 --port 8000
+```
+
+Ele leva ~1 min para responder (baixa a planilha). Sem ele, o chat funciona,
+mas a ferramenta de Priorização responde que está fora do ar. Outro endereço:
+`SEDES_MULTICRITERIO_URL`.
+
 ## A página de chat
 
 `src/chat/servidor-chat.ts` serve a página e passa cada pergunta a um de dois
@@ -127,7 +146,11 @@ Para subir pela primeira vez:
    main em produção.
 4. **nginx**: acrescentar ao `sap.conf` do beta o trecho de
    `deploy/nginx-chat.conf` e recarregar o nginx.
-5. **Publicar**: empurrar este branch para `chatbot-beta`
+5. **Priorização**: o chat chama o backend multicritério pelo mesmo endereço
+   que o site do beta usa (variável `API_BASE_URL_BETA`); não precisa de nada
+   novo, mas confira depois do primeiro deploy se a pergunta "quais municípios
+   da Paraíba priorizar?" responde.
+6. **Publicar**: empurrar este branch para `chatbot-beta`
    (`git push origin HEAD:chatbot-beta`). O workflow `cd-chatbot-beta.yaml`
    roda no runner do beta: baixa o tabelão se o anexo mudou, monta a imagem e
    troca o container, voltando ao anterior se o novo não responder.
@@ -135,9 +158,32 @@ Para subir pela primeira vez:
 Para atualizar os dados: `npm run tabelao`, `npm run conferir`,
 `deploy/publicar-tabelao.sh` e rodar o workflow de novo.
 
+## Priorização (análise multicritério)
+
+A ferramenta `priorizar_municipios` (`src/priorizacao.ts`) roda a mesma conta
+da aba Priorização do site: chama `POST /api/v1/analyze` do backend
+`SAP-analise-multicriterial` (ELECTRE TRI-B) e resume a resposta, sem
+recalcular nada. Os dados são os da planilha da Priorização, não os do tabelão.
+
+- Critérios, pesos, área, comparação ("cada estado" é o padrão do site, como
+  no formulário), cenário e limiares têm os mesmos padrões do site.
+- A saída traz a configuração, os municípios de fora por falta de dado, a
+  distribuição por nível (a página desenha o gráfico), a lista de um nível e,
+  para municípios pedidos pelo nome, a posição em cada critério ("situação
+  pior que X% do grupo"), que é o que o bot usa para explicar um nível.
+- A classe do backend vai de 0 a 4 e é lida como no mapa do site: 0 = muito
+  baixa, 4 = muito alta prioridade (pior situação). As instruções do servidor
+  MCP do próprio backend (`app/mcp/server.py`) dizem o contrário ("1 pior a 5
+  melhor"); conferido com Assunção–PB, que tem a pior aridez e fica em 4.
+- O prompt do sistema leva `conhecimento/priorizacao.md` (como a conta é feita
+  e os textos do formulário) e a lista de critérios lida do backend.
+- O botão "Abrir a Priorização" abre a aba no site, mas sem a configuração: o
+  site ainda não aceita critérios pelo endereço.
+
 ## Conhecimento sobre o SEDES
 
-`conhecimento/` tem o que a ferramenta `sobre_o_sedes` entrega:
+`conhecimento/` tem os textos que o bot recebe (os dois primeiros também pela
+ferramenta `sobre_o_sedes`):
 
 - `site.md`: os textos do site (página inicial, Sobre e Glossário), baixados
   das páginas publicadas por `npm run guia`. Não edite à mão: rode de novo
@@ -146,6 +192,8 @@ Para atualizar os dados: `npm run tabelao`, `npm run conferir`,
   para ler os dados (decêndio, CadÚnico, recortes, previsões, como usar a
   plataforma). Termos de uso geral daqui deveriam ir para o Glossário do site,
   no Contentful; aí o `npm run guia` os traz e eles saem daqui.
+- `priorizacao.md`: escrito à mão, como a Priorização funciona. Material novo
+  da equipe sobre como interpretar critérios e níveis entra aqui.
 
 O link "Ver no SEDES" aponta para a produção (`SEDES_SITE_URL` troca).
 
@@ -161,7 +209,7 @@ O que o bot pode fazer é limitado em duas camadas:
 
 ## Avaliação
 
-`perguntas.md` tem 80 perguntas com a resposta esperada; a maioria tem também
+`perguntas.md` tem 91 perguntas com a resposta esperada; a maioria tem também
 a consulta SQL feita à mão (`npm run consultas` roda essas consultas no
 tabelão). As de M em diante vieram do uso real da página: conversas com
 continuação (linhas `Depois:`), perguntas abertas, sentido das classes,
