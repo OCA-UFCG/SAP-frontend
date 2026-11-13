@@ -62,8 +62,15 @@ motores (`SEDES_CHAT_MOTOR`):
 | `claude` | Abre um `claude -p` em stream-json por conversa, com as opções do `conversar.sh` (lidas do `comum.sh`), na assinatura de quem roda. Cada conversa ocupa ~380 MB por até 20 min. (`motor-claude.ts`)           | Padrão sem `ANTHROPIC_API_KEY`: testar no computador. |
 | `api`    | Chama a API da Anthropic e roda as ferramentas no mesmo processo (~90 MB no total). No máximo 8 idas ao modelo por pergunta; na última ele não pode mais consultar e responde com o que tem. (`motor-api.ts`) | Padrão com `ANTHROPIC_API_KEY`: o beta.               |
 
-O motor `api` lê o mesmo `prompt.md`, usa cache de prompt (prompt e
-ferramentas são iguais em toda pergunta do dia) e calcula o custo de cada
+Os dois motores usam o mesmo prompt do sistema (`src/prompt-sistema.ts`):
+`prompt.md`, o catálogo de índices resumido (o de `listar_indices` em ~15 mil
+caracteres) e a data de hoje. Com o catálogo no prompt, o modelo não precisa
+chamar `listar_indices` antes de consultar: na avaliação de 12/11/2026 (32
+perguntas, Haiku), a resposta caiu de 8,0 s para 6,5 s em média e de 4,3 para
+3,4 idas ao modelo, com a mesma qualidade.
+
+O motor `api` usa cache de prompt (prompt e ferramentas são iguais em toda
+pergunta do dia) e calcula o custo de cada
 resposta pelos tokens. No Sonnet, liga o fallback da API para recusas por
 engano. Conversa que não está na memória (o servidor reiniciou) continua só com
 o texto das perguntas e respostas anteriores.
@@ -154,27 +161,36 @@ O que o bot pode fazer é limitado em duas camadas:
 
 ## Avaliação
 
-`perguntas.md` tem 48 perguntas com a resposta esperada e a consulta SQL feita
-à mão. `npm run consultas` roda essas consultas no tabelão.
+`perguntas.md` tem 80 perguntas com a resposta esperada; a maioria tem também
+a consulta SQL feita à mão (`npm run consultas` roda essas consultas no
+tabelão). As de M em diante vieram do uso real da página: conversas com
+continuação (linhas `Depois:`), perguntas abertas, sentido das classes,
+escrita informal, dado que não existe e comparações.
 
 ```bash
-PERGUNTAS="C01 H01" ./avaliar.sh haiku   # teste rápido
-./avaliar.sh                              # todas, Haiku e Sonnet
+npm run avaliar -- --so M01,E02 --rotulo teste   # teste rápido
+npm run avaliar -- --categoria M,E,K,L,D,Q        # só as difíceis
+npm run avaliar                                   # todas, Haiku
+npm run avaliar -- --modelo sonnet
+npm run avaliar -- --comparar antes depois        # compara duas rodadas
 ```
 
-Cada execução é um `claude -p` isolado; o resultado vai para
-`resultados/<modelo>.md` (resposta, ferramentas chamadas e tempo). A
-comparação comentada está em `resultados/avaliacao.md`.
+Cada pergunta roda pelo mesmo motor da página (`--motor claude`, o padrão, na
+assinatura de quem roda; ou `--motor api`, com a chave), 3 de cada vez. Para
+cada resposta ficam gravados o tempo, as idas ao modelo, as ferramentas e os
+tokens. Os números da linha `Números:` têm de aparecer na última resposta, e
+um juiz (Sonnet, pelo `claude`) dá uma nota (certo, parcial ou errado) com o
+motivo. O resumo vai para `resultados/rodadas/<rotulo>.md`; os dados de cada
+pergunta, para `resultados/brutos/<rotulo>/` (fora do git).
 
-O beta usa o motor `api`, então a avaliação que vale para ele é a do mesmo
-motor (gasta a chave: ~US$ 0,17 as 48 no Haiku, ~US$ 2,60 no Sonnet):
+Custo de uma rodada das 32 difíceis no Haiku, em preço de API: uns US$ 0,10
+de respostas mais o juiz. O juiz também erra e varia de uma rodada para outra:
+leia o motivo antes de mudar o prompt por causa de uma nota.
 
-```bash
-PERGUNTAS="C01 H01" npm run avaliar-api   # teste rápido, Haiku
-npm run avaliar-api -- sonnet             # todas, Sonnet
-```
-
-O resultado vai para `resultados/<modelo>-api.md`, no mesmo formato.
+Para comparar mudanças que não estão no código, use variáveis de ambiente:
+`SEDES_CATALOGO_NO_PROMPT=0` tira o catálogo do prompt e `SEDES_CHAT_ESFORCO`
+muda o esforço do modelo. Para rodar duas avaliações ao mesmo tempo, dê a cada
+uma a sua pasta de sessão (`SEDES_SESSAO=~/.cache/outra-pasta`).
 
 ## O tabelão
 

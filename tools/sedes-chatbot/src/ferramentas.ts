@@ -224,6 +224,69 @@ const listarIndices: Ferramenta = {
   },
 };
 
+const AGREGACAO_CURTA: Array<[RegExp, string]> = [
+  [/valor próprio/, "cada recorte tem valor próprio"],
+  [/MÉDIA SIMPLES/, "estados e recortes = média simples dos municípios"],
+  [/SOMA/, "estados e recortes = soma dos municípios"],
+];
+
+/**
+ * O catálogo de listar_indices em forma curta, para ir no prompt do sistema:
+ * com ele o modelo não precisa chamar listar_indices antes de cada consulta.
+ * Só muda quando o tabelão é gerado de novo, então fica no cache do prompt.
+ */
+export function catalogoResumido() {
+  const indices = db
+    .prepare(
+      "SELECT id, nome, categoria, escala_temporal, primeiro_periodo, ultimo_periodo, qtd_periodos, tipo_valor, significado_valor, agregacao, previsao, atualizado_em FROM indices ORDER BY previsao, categoria, nome",
+    )
+    .all() as Array<Record<string, string | number | null>>;
+  const classes = db.prepare(
+    "SELECT ordem, rotulo FROM classes WHERE indice = ? ORDER BY ordem",
+  );
+  const periodos = db.prepare(
+    "SELECT periodo FROM periodos WHERE indice = ? ORDER BY periodo",
+  );
+  const linhas = [
+    `Tabelão gerado em ${dataBr(GERADO_EM)}. Cada linha: id — nome. Escala, períodos, data de atualização no site, o que o valor é, como estados e recortes são calculados, classes (coluna classe). "% da área" = porcentagem da área do território em cada classe; as classes somam 100%.`,
+  ];
+  let grupo = "";
+  for (const i of indices) {
+    const g = i.previsao ? "Previsões (não são medições)" : String(i.categoria);
+    if (g !== grupo) linhas.push("", `### ${g}`);
+    grupo = g;
+    const n = Number(i.qtd_periodos);
+    // Com poucos períodos, "2010 a 2023" esconde que só há 2010, 2020 e 2023.
+    const per =
+      n <= 8
+        ? (periodos.all(i.id as string) as Array<{ periodo: string }>)
+            .map((p) => p.periodo)
+            .join(", ")
+        : `${i.primeiro_periodo} a ${i.ultimo_periodo} (${n})`;
+    const valor =
+      i.tipo_valor === "distribuicao"
+        ? "% da área"
+        : String(i.significado_valor).replace(
+            / Um valor só por território e período \(classe = 1\)\./,
+            " (valor único, classe = 1)",
+          );
+    const agregacao =
+      AGREGACAO_CURTA.find(([re]) => re.test(String(i.agregacao)))?.[1] ??
+      String(i.agregacao);
+    const cls =
+      i.tipo_valor === "distribuicao"
+        ? ` Classes: ${(classes.all(i.id as string) as Array<{ ordem: number; rotulo: string }>).map((c) => `${c.ordem}=${c.rotulo}`).join(", ")}.`
+        : "";
+    const obs = OBSERVACOES[String(i.id)]
+      ? ` Observação: ${OBSERVACOES[String(i.id)]}`
+      : "";
+    linhas.push(
+      `- ${i.id} — ${i.nome}. ${i.escala_temporal}, ${per}; atualizado ${i.atualizado_em ? dataBr(String(i.atualizado_em)) : "?"}. ${valor}; ${agregacao}.${cls}${obs}`,
+    );
+  }
+  return linhas.join("\n");
+}
+
 const detalharIndice: Ferramenta = {
   nome: "detalhar_indice",
   titulo: "Detalhes de um índice",
@@ -322,6 +385,7 @@ const ESQUEMA = `Banco SQLite só leitura (o tabelão do SEDES). Tabelas:
     periodo: 'AAAA' (anual), 'AAAA-MM' (mensal) ou 'AAAA-MM-DD' (decendial: dias 01, 11 e 21; só o CDI).
     valor já está na unidade final (% da área, % de famílias, contagem, reais...; veja listar_indices). Valores com casas a mais: arredonde ao responder.
     Índices de valor único têm só classe = 1.
+    Ao falar de uma classe, use o rótulo (rotulo_classe em valores_com_nomes), nunca o número: no Índice de Degradação da Terra a classe 1 é o "Nível 5" e a classe 5 é o "Nível 1".
     Linha ausente = sem dado para aquele território e período.
 - valores_com_nomes: visão de valores com nome_territorio, tipo_territorio, uf e rotulo_classe.
 - metadados(chave, valor)  -- 'gerado_em'
@@ -344,7 +408,13 @@ Exemplos:
 4) Contar municípios (toda contagem, média ou soma de municípios precisa do JOIN com t.tipo='municipio'; sem ele entram estados, Brasil e recortes):
    SELECT COUNT(*) FROM (SELECT v.territorio FROM valores v JOIN territorios t ON t.codigo=v.territorio
    WHERE v.indice='indice-de-degradacao-da-terra' AND v.periodo='2021' AND v.classe IN (1,2,3) AND t.tipo='municipio'
-   GROUP BY v.territorio HAVING SUM(v.valor) > 50);`;
+   GROUP BY v.territorio HAVING SUM(v.valor) > 50);
+5) Dois índices lado a lado, mês a mês, numa consulta só (para comparar padrões; o CDI é decendial: use o decêndio do dia 21 de cada mês):
+   SELECT m.periodo, m.seca AS monitor_moderada_ou_pior, c.seca AS cdi_estagios_1_a_3 FROM
+   (SELECT periodo, SUM(CASE WHEN classe>=3 THEN valor ELSE 0 END) AS seca FROM valores WHERE indice='monitor-de-seca-ana' AND territorio='2504009' GROUP BY periodo) m
+   LEFT JOIN (SELECT substr(periodo,1,7) AS mes, SUM(CASE WHEN classe BETWEEN 2 AND 4 THEN valor ELSE 0 END) AS seca FROM valores
+   WHERE indice='indice-combinado-de-seca-cdi' AND territorio='2504009' AND periodo >= '2024-01-01' AND substr(periodo,9,2)='21' GROUP BY periodo) c
+   ON c.mes=m.periodo ORDER BY m.periodo;`;
 
 type Grafico = { tipo: "serie" | "ranking"; titulo: string; unidade?: string };
 
@@ -443,6 +513,15 @@ const linkNoSedes: Ferramenta = {
   },
 };
 
+/** Os textos do site (site.md) e o complemento, sem os comentários do topo. */
+export function textosDoSite() {
+  return ["site.md", "complemento.md"]
+    .map((f) => path.join(CONHECIMENTO, f))
+    .filter((f) => existsSync(f))
+    .map((f) => readFileSync(f, "utf8").replace(/^<!--[\s\S]*?-->\n*/, ""))
+    .join("\n\n---\n\n");
+}
+
 const sobreOSedes: Ferramenta = {
   nome: "sobre_o_sedes",
   titulo: "O que é o SEDES: textos do site e glossário",
@@ -450,13 +529,10 @@ const sobreOSedes: Ferramenta = {
     "Devolve os textos do site do SEDES (página inicial, Sobre e Glossário) e um complemento com termos que aparecem nos dados (decêndio, CadÚnico, recortes, classes, previsões). Use para perguntas sobre o que é o SEDES, quem faz, para que serve, como usar a plataforma, e sobre conceitos e termos (desertificação, seca, aridez, ASD, Semiárido...). Não traz valores de índices.",
   entrada: {},
   async executar() {
-    const partes = ["site.md", "complemento.md"]
-      .map((f) => path.join(CONHECIMENTO, f))
-      .filter((f) => existsSync(f))
-      .map((f) => readFileSync(f, "utf8").replace(/^<!--[\s\S]*?-->\n*/, ""));
-    if (!partes.length)
-      return "Os textos do site ainda não foram baixados (npm run guia).";
-    return partes.join("\n\n---\n\n");
+    return (
+      textosDoSite() ||
+      "Os textos do site ainda não foram baixados (npm run guia)."
+    );
   },
 };
 

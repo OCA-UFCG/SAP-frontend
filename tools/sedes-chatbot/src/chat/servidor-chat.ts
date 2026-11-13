@@ -96,6 +96,8 @@ if (!MODELOS.length) {
   );
   process.exit(1);
 }
+// O motor "claude" já deixa aberto um processo do modelo padrão.
+motor.aquecer?.(MODELOS[0]);
 
 // O teto de gasto vale para a chave da API; no motor "claude" a conversa
 // corre na assinatura de quem roda, e o custo que ele informa é só estimativa.

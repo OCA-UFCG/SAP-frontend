@@ -1,4 +1,77 @@
-# Avaliação: gráfico, link para o site, textos do SEDES e escopo
+# Avaliação difícil e catálogo no prompt
+
+12/11/2026, à noite. As 48 perguntas davam 48/48 nos dois modelos e já não
+mostravam nada. Entraram 32 perguntas tiradas do uso real da página (conversa
+com continuação, pergunta aberta, sentido das classes, escrita informal, dado
+que não existe, comparação) e um avaliador novo, `npm run avaliar`, que roda
+pelo mesmo motor da página e dá nota com um juiz (Sonnet). As rodadas citadas
+estão em `resultados/rodadas/`.
+
+## O que mudou
+
+- **Prompt do sistema** (`src/prompt-sistema.ts`, igual nos dois motores):
+  `prompt.md` + o catálogo de índices resumido + os textos do site + a data. O
+  modelo deixou de chamar `listar_indices` (71% das perguntas → 2%) e
+  `sobre_o_sedes`. No catálogo, índice com poucos períodos lista os que
+  existem (PIB: 2010, 2020, 2023), em vez de "2010 a 2023".
+- **Regras novas no prompt**: não acrescentar meses, índices ou comparações
+  que ninguém pediu (era onde o Haiku errava); frase sobre tendência só com
+  números lidos de uma ferramenta; série descrita quando a pergunta é de
+  evolução; pergunta aberta resolvida com uma comparação simples e poucas
+  consultas; como explicar uma classe que o catálogo não define.
+- **Esquema do SQL**: exemplo de dois índices lado a lado, mês a mês, numa
+  consulta só; aviso de que no Índice de Degradação a classe 1 é o "Nível 5"
+  (o Haiku chamou a classe 2 de "Nível 2").
+- **Motor `claude`**: deixa um processo aberto à espera da próxima conversa
+  (primeira pergunta 2,0 s → 1,1 s) e aceita `SEDES_CHAT_ESFORCO`.
+
+## Resultados (Haiku)
+
+| Rodada                            | Notas (certo · parcial · errado) | Mediana | Idas ao modelo | Custo (API) |
+| --------------------------------- | -------------------------------- | ------- | -------------- | ----------- |
+| 32 difíceis, antes (`base-haiku`) | 23 · 8 · 1                       | 6,7 s   | 4,2            | US$ 0,19    |
+| 32 difíceis, depois (`v7-padrao`) | 26 · 6 · 0                       | 6,5 s   | 3,4            | US$ 0,09    |
+| 48 antigas, antes (`antigo2-…`)   | 43 · 5 · 0                       | 7,5 s   | 3,8            | US$ 0,16    |
+| 48 antigas, depois (`v6-…`)       | 43 · 3 · 2                       | 5,9 s   | 2,7            | US$ 0,08    |
+| 32 difíceis, Sonnet (`v5-sonnet`) | 28 · 4 · 0                       | 6,3 s   | 2,9            | US$ 1,35    |
+
+O tempo só se compara entre rodadas feitas ao mesmo tempo: a API varia de um
+horário para outro (às 21:58, três respostas de 3 idas levaram 32 a 44 s). Nas
+comparações lado a lado, o catálogo no prompt baixou a média de 8,0 s para
+6,5 s nas difíceis, e a mediana das antigas caiu de 7,5 s para 5,9 s. No beta
+(motor `api`) não há os ~1 a 2 s de abrir o `claude`.
+
+O esforço do modelo não compensou: `low` ganhou 0,8 s e deixou faltar mais
+números; `high` perdeu 1,9 s para uma nota a mais. Fica o padrão.
+
+O Sonnet acerta mais nas difíceis no mesmo tempo, mas custa 15 vezes mais na
+API (~US$ 0,04 por pergunta; o teto de US$ 2 por dia dá ~50 perguntas).
+
+O juiz também erra e varia: refazer as notas das mesmas respostas mudou 2 a 3
+notas. Ele só vale com a leitura do motivo.
+
+## O que ainda acontece (Haiku)
+
+- Descuido ao comentar números que ele mesmo leu ("o único aumento da série",
+  "as classes de recuperação somaram entre 4% e 17%").
+- Num resumo de um lugar, às vezes traz índices demais.
+- Na terceira pergunta de uma conversa, às vezes deixa de repetir de quando é
+  o dado.
+
+## Buracos no catálogo e no site (avisar a equipe; não corrigido aqui)
+
+- CDI: o catálogo não define os Estágios 1 a 3 nem as três classes de
+  recuperação. O bot explica pela cascata da descrição e diz que é leitura dela.
+- Índice de Degradação da Terra: não diz se o Nível 5 ou o Nível 1 é o mais
+  degradado. O bot diz que o catálogo não define.
+- As 8 previsões por probabilidade têm descrição de ~47 caracteres.
+- Classe 5 de `previsao-anomalia-temperatura-trimestral-cptec`: "cima do
+  normal" (falta o "A").
+- Nome do índice "Mortalidade Infatil".
+- A seção "Conheça nossa Equipe de Desenvolvimento" do site não traz nomes no
+  texto que o `npm run guia` baixa; o bot responde com as instituições.
+
+# Antes: gráfico, link para o site, textos do SEDES e escopo
 
 12/11/2026, depois das melhorias da página de chat. 48 perguntas: as 36 da
 fase 3 e 12 novas (S: sobre o SEDES; G: guardrail; V: gráfico e link). Mesmo

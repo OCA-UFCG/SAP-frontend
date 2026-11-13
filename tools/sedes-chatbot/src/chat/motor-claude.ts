@@ -60,6 +60,7 @@ type MensagemClaude = {
   };
   message?: { content?: string | Bloco[] };
   duration_ms?: number;
+  num_turns?: number;
   total_cost_usd?: number;
   usage?: unknown;
   is_error?: boolean;
@@ -74,7 +75,14 @@ type Processo = {
   ociosa?: NodeJS.Timeout;
 };
 
-export function criarMotorClaude(): Motor {
+/**
+ * argsExtras: opções a mais para o claude (a avaliação usa --no-session-persistence).
+ * reserva: deixa um processo aberto à espera da próxima conversa nova.
+ */
+export function criarMotorClaude({
+  argsExtras = [],
+  reserva = true,
+}: { argsExtras?: string[]; reserva?: boolean } = {}): Motor {
   let opcoes = lerOpcoes();
   let opcoesDoDia = new Date().toDateString();
   function opcoesAtuais() {
@@ -96,6 +104,31 @@ export function criarMotorClaude(): Motor {
     if (p.proc) encerrados.add(p.proc);
     p.proc?.kill("SIGTERM");
     p.proc = undefined;
+  }
+
+  // Abrir o claude e o servidor MCP leva ~1 s a mais na primeira pergunta
+  // (medido em 12/11/2026: 2,0 s sem reserva, 1,1 s com). Fica um processo de
+  // cada modelo já usado (e do padrão, desde o início) aberto à espera da
+  // próxima conversa nova. Custa a memória de um processo a mais (~380 MB)
+  // enquanto ele espera, por até 20 minutos; depois disso, ele fecha e a
+  // conversa nova seguinte volta a esperar a abertura.
+  const reservas = new Map<string, Processo>();
+  function reservar(modelo: string) {
+    if (!reserva || reservas.has(modelo)) return;
+    const r: Processo = { modelo };
+    iniciarProcesso(r);
+    r.ociosa = setTimeout(() => {
+      encerrarProcesso(r);
+      reservas.delete(modelo);
+    }, OCIOSA_MS);
+    reservas.set(modelo, r);
+  }
+  function pegarReserva(modelo: string) {
+    const r = reservas.get(modelo);
+    if (!r) return undefined;
+    reservas.delete(modelo);
+    clearTimeout(r.ociosa);
+    return r;
   }
 
   function terminar(p: Processo, fim: Parameters<Turno["terminar"]>[0]) {
@@ -120,6 +153,7 @@ export function criarMotorClaude(): Motor {
       "--model",
       o.modelos[p.modelo] ?? p.modelo,
       ...o.args,
+      ...argsExtras,
       ...(p.sessionId ? ["--resume", p.sessionId] : []),
     ];
     const proc = spawn("claude", args, {
@@ -200,7 +234,7 @@ export function criarMotorClaude(): Motor {
       terminar(p, {
         ms: msg.duration_ms,
         custo_usd: msg.total_cost_usd,
-        uso: msg.usage,
+        uso: { ...(msg.usage as object), rodadas: msg.num_turns },
         erro: msg.is_error ? String(msg.result ?? "erro") : null,
       });
     }
@@ -212,12 +246,16 @@ export function criarMotorClaude(): Motor {
     responder(pedido: Pedido) {
       let p = processos.get(pedido.conversa);
       if (!p) {
-        p = {
+        const sessionId = pedido
+          .anteriores()
+          .findLast((t) => t.session_id)?.session_id;
+        // Conversa retomada (--resume) não usa a reserva, que é uma sessão nova.
+        p = (!sessionId && pegarReserva(pedido.modelo)) || {
           modelo: pedido.modelo,
-          sessionId: pedido.anteriores().findLast((t) => t.session_id)
-            ?.session_id,
+          sessionId,
         };
         processos.set(pedido.conversa, p);
+        reservar(pedido.modelo);
       }
       p.turno = pedido.turno;
       clearTimeout(p.ociosa);
@@ -233,8 +271,15 @@ export function criarMotorClaude(): Motor {
       const p = processos.get(conversa);
       if (p?.turno) encerrarProcesso(p);
     },
+    aquecer: reservar,
+    esquecer(conversa) {
+      const p = processos.get(conversa);
+      if (p) encerrarProcesso(p);
+      processos.delete(conversa);
+    },
     encerrar() {
-      for (const p of processos.values()) encerrarProcesso(p);
+      for (const p of [...processos.values(), ...reservas.values()])
+        encerrarProcesso(p);
     },
   };
 }

@@ -124,5 +124,9 @@ export type Motor = {
   responder(pedido: Pedido): void;
   /** Botão Parar: interrompe a resposta em andamento daquela conversa. */
   parar(conversa: string): void;
+  /** Opcional: prepara o modelo para a próxima conversa (motor "claude"). */
+  aquecer?(modelo: string): void;
+  /** Fecha a conversa e libera o que ela ocupa (usado pela avaliação). */
+  esquecer(conversa: string): void;
   encerrar(): void;
 };

@@ -1,4 +1,4 @@
-# Parte comum de conversar.sh e avaliar.sh. Não rode direto: é carregado com "source".
+# Parte comum de conversar.sh e da página de chat (motor "claude"). Não rode direto: é carregado com "source".
 #
 # Monta a configuração do servidor MCP e as opções do claude que deixam o modelo
 # só com as ferramentas do SEDES: sem Bash, sem leitura de arquivos, sem web,
@@ -20,7 +20,8 @@ if ! curl -s -o /dev/null --max-time 5 "$SEDES_BASE_URL/api/health"; then
 fi
 
 # Diretório fora do repositório: o claude não acha CLAUDE.md, memória nem .claude/ do projeto.
-SESSAO="${XDG_CACHE_HOME:-$HOME/.cache}/sedes-chatbot"
+# SEDES_SESSAO separa a avaliação (ou outra cópia do pacote) da página que já está aberta.
+SESSAO="${SEDES_SESSAO:-${XDG_CACHE_HOME:-$HOME/.cache}/sedes-chatbot}"
 mkdir -p "$SESSAO"
 cat > "$SESSAO/mcp.json" <<JSON
 {
@@ -34,7 +35,11 @@ cat > "$SESSAO/mcp.json" <<JSON
 }
 JSON
 
-HOJE="$(LC_ALL=pt_BR.UTF-8 date '+%d/%m/%Y' 2>/dev/null || date '+%d/%m/%Y')"
+# prompt.md + catálogo de índices + data de hoje (src/prompt-sistema.ts, o mesmo do motor api).
+if ! NODE_NO_WARNINGS=1 "$PACOTE/node_modules/.bin/tsx" "$PACOTE/src/prompt-sistema.ts" > "$SESSAO/prompt.md"; then
+  echo "Não consegui montar o prompt do sistema (src/prompt-sistema.ts)." >&2
+  exit 1
+fi
 OPCOES_CLAUDE=(
   --mcp-config "$SESSAO/mcp.json"
   --strict-mcp-config
@@ -42,9 +47,12 @@ OPCOES_CLAUDE=(
   --allowedTools "mcp__sedes"
   --setting-sources ""
   --disable-slash-commands
-  --system-prompt-file "$PACOTE/prompt.md"
-  --append-system-prompt "Data de hoje: $HOJE."
+  --system-prompt-file "$SESSAO/prompt.md"
 )
+# Mesmo ajuste do motor api: low | medium | high (sem a variável, o padrão do modelo).
+if [ -n "${SEDES_CHAT_ESFORCO:-}" ]; then
+  OPCOES_CLAUDE+=(--effort "$SEDES_CHAT_ESFORCO")
+fi
 
 # Os apelidos do claude podem apontar para versões antigas (em 12/11/2026,
 # "haiku" ia para o Haiku 4.5 e "sonnet" para o Sonnet 5), então fixamos os ids.

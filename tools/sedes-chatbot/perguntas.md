@@ -15,6 +15,13 @@ X cruzamento, A recorte agregado, H homônimo, I período inexistente, F fora do
 escopo, S sobre o SEDES (textos do site), G guardrail (pedidos fora do papel do
 bot), V gráfico e link para o site.
 
+As perguntas de M em diante (12/11/2026) vieram do uso real da página e são mais
+difíceis: M conversa com continuação (as linhas "Depois:" seguem a mesma
+conversa), E exploratória, K sentido das classes, L escrita informal ou com
+erro, D dado que o SEDES não tem, Q comparação. A linha "Números:" lista
+números que têm de aparecer na última resposta; o resto é conferido pelo juiz
+de `npm run avaliar`.
+
 ### C01 — conceitual
 
 **Pergunta:** O que é o CDI?
@@ -531,3 +538,265 @@ SELECT periodo, valor FROM valores WHERE indice='produto-interno-bruto' AND terr
 ```sql
 SELECT t.nome, ROUND(SUM(v.valor),1) AS pct FROM valores v JOIN territorios t ON t.codigo=v.territorio WHERE v.indice='monitor-de-seca-ana' AND v.periodo='2026-09' AND v.classe >= 4 AND t.tipo='estado' AND t.uf IN ('MA','PI','CE','RN','PB','PE','AL','SE','BA') GROUP BY t.codigo ORDER BY pct DESC;
 ```
+
+### M01 — continuação
+
+**Pergunta:** Como está a seca em Campina Grande (PB) agora?
+
+**Depois:** E em Patos?
+
+**Resposta esperada:** Patos–PB (único Patos do Brasil), Monitor de Secas de setembro de 2026 (o último mês disponível): 82,5% da área em seca grave e 17,5% em seca moderada. Entende que "E em Patos?" pede o mesmo dado da pergunta anterior.
+
+**Números:** 82,5 · 17,5
+
+```sql
+SELECT rotulo_classe, valor FROM valores_com_nomes WHERE indice='monitor-de-seca-ana' AND periodo='2026-09' AND territorio='2510808' AND valor>0;
+```
+
+### M02 — continuação
+
+**Pergunta:** Qual o percentual de pobreza total em Juazeiro do Norte em 2025?
+
+**Depois:** E como era em 2015?
+
+**Depois:** Melhorou ou piorou de lá pra cá?
+
+**Resposta esperada:** Ficou praticamente igual: 42,8% em 2015 e 42,2% em 2025 das famílias do CadÚnico em situação de pobreza (Juazeiro do Norte–CE), uma queda de 0,6 ponto. Não exagera a mudança.
+
+**Números:** 42,8 · 42,2
+
+```sql
+SELECT periodo, valor FROM valores WHERE indice='percentual-de-pobreza-total-cadunico' AND territorio='2307304' AND periodo IN ('2015','2025');
+```
+
+### M03 — continuação
+
+**Pergunta:** Quais os 5 municípios da Paraíba com mais área em seca grave ou pior em setembro de 2026?
+
+**Depois:** E no Ceará?
+
+**Resposta esperada:** Na Paraíba, 50 municípios empatam com 100% da área em seca grave ou pior; o bot deve dizer que há empate em vez de apresentar 5 como "os piores". No Ceará, só Penaforte tem área em seca grave ou pior (23,2%); todos os outros estão com 0%. Não monta um ranking de municípios com 0%.
+
+**Números:** 23,2
+
+```sql
+SELECT t.nome, SUM(v.valor) s FROM valores v JOIN territorios t ON t.codigo=v.territorio WHERE v.indice='monitor-de-seca-ana' AND v.periodo='2026-09' AND v.classe>=4 AND t.tipo='municipio' AND t.uf='CE' GROUP BY t.codigo ORDER BY s DESC LIMIT 3;
+```
+
+### M04 — continuação
+
+**Pergunta:** O que é o CDI?
+
+**Depois:** E o que quer dizer o Estágio 3?
+
+**Resposta esperada:** Explica com o que o catálogo diz: o CDI vê a seca como cascata (falta de chuva → falta de umidade no solo → estresse na vegetação) e o Estágio 3 é o mais avançado dos três estágios de seca, quando a seca já chega à vegetação. Deixa claro que essa é a leitura da descrição, porque o catálogo não define cada estágio. Não inventa critérios numéricos nem limiares.
+
+### M05 — continuação
+
+**Pergunta:** Quantos municípios do Semiárido estavam em seca extrema ou excepcional em setembro de 2026?
+
+**Depois:** E em seca grave?
+
+**Resposta esperada:** Nenhum município do Semiárido tinha área em seca extrema ou excepcional. Em seca grave: 415 dos 1.477 municípios do Semiárido tinham alguma área nessa classe (344 com mais da metade da área). Diz o critério usado para contar (qualquer área ou mais da metade).
+
+**Números:** 415
+
+```sql
+SELECT SUM(s>0), SUM(s>50), COUNT(*) FROM (SELECT v.territorio, SUM(CASE WHEN v.classe>=4 THEN v.valor ELSE 0 END) s FROM valores v JOIN territorios t ON t.codigo=v.territorio WHERE v.indice='monitor-de-seca-ana' AND v.periodo='2026-09' AND t.tipo='municipio' AND t.semiarido=1 GROUP BY v.territorio);
+```
+
+### M06 — continuação
+
+**Pergunta:** Como está a seca em Santa Luzia?
+
+**Depois:** A da Paraíba
+
+**Resposta esperada:** Na primeira pergunta, pergunta a UF listando as Santa Luzia (MA, PB, BA, MG). Depois: Santa Luzia–PB, Monitor de Secas de setembro de 2026: 59,1% da área em seca grave e 40,9% em seca moderada.
+
+**Números:** 59,1 · 40,9
+
+### M07 — continuação
+
+**Pergunta:** Qual é o IDH de Sousa?
+
+**Depois:** E o de João Pessoa?
+
+**Depois:** Qual dos dois é maior?
+
+**Resposta esperada:** João Pessoa (0,76 em 2010) tem IDH maior que Sousa–PB (0,67 em 2010). Diz que o dado mais recente do IDH no SEDES é de 2010.
+
+**Números:** 0,76 · 0,67
+
+### M08 — continuação
+
+**Pergunta:** Como estava a seca no Nordeste em setembro de 2026?
+
+**Depois:** E um ano antes?
+
+**Resposta esperada:** Setembro de 2025 no Nordeste (região, Monitor de Secas): 41,3% em seca grave, 17,7% em seca extrema, 22,3% em seca moderada, 11,6% em seca fraca e 7,0% sem seca. Pode comparar com setembro de 2026 (seca grave 29,1%, extrema 0%).
+
+**Números:** 41,3 · 17,7
+
+### E01 — exploratória
+
+**Pergunta:** Tem algum outro dado no SEDES que segue o mesmo padrão da seca em Campina Grande?
+
+**Resposta esperada:** Compara a série do Monitor de Secas de Campina Grande com outros índices que têm série no mesmo período (o CDI é o candidato natural) e diz com honestidade o que encontrou e como comparou. Não afirma correlação ou causa que não calculou; deixa claro quando a comparação é visual ou mês a mês. Responde em tempo razoável (sem dezenas de consultas).
+
+### E02 — exploratória
+
+**Pergunta:** A pobreza rural tem relação com a seca nos municípios do Semiárido?
+
+**Resposta esperada:** Não afirma causa. Se cruzar os dados, diz o que cruzou (ex.: pobreza rural de 2025 e área em seca no Monitor), o período de cada um e que é uma associação, não prova de causa. Não inventa coeficientes que não calculou.
+
+### E03 — exploratória
+
+**Pergunta:** Quais estados do Nordeste pioraram mais na seca entre setembro de 2025 e setembro de 2026?
+
+**Resposta esperada:** Diz o critério (ex.: área em seca moderada ou pior, ou grave ou pior, no Monitor de Secas). Com moderada ou pior: Alagoas (1,9% → 52,1%) e Sergipe (0% → 29,4%) foram os que mais pioraram; Maranhão, Ceará e Piauí melhoraram muito. Com grave ou pior: Alagoas (0 → 23,3%), Pernambuco (58,3% → 77,3%) e Sergipe (0 → 13,3%).
+
+### E04 — exploratória
+
+**Pergunta:** Qual município do Brasil tem a maior taxa de analfabetismo?
+
+**Resposta esperada:** Alto Alegre–RR, 36,8% em 2022 (o dado mais recente). Pode citar os seguintes (Floresta do Piauí 34,7%, Aroeiras do Itaim 34,6%).
+
+**Números:** 36,8
+
+### E05 — exploratória
+
+**Pergunta:** O desmatamento na Caatinga aumentou desde 2000?
+
+**Resposta esperada:** Sim. Pelo PRODES (INPE), a área de desmatamento acumulado na Caatinga passou de 28,8% em 2000 para 43,5% em 2024 (38,7% em 2010). Explica que é % da área do bioma com desmatamento acumulado.
+
+**Números:** 28,8 · 43,5
+
+### E06 — exploratória
+
+**Pergunta:** Me dá um resumo da situação de Juazeiro na Bahia.
+
+**Resposta esperada:** Um resumo curto com poucos índices escolhidos, cada um com período: Monitor de Secas de setembro de 2026 (100% da área em seca grave), pobreza total do CadÚnico de 2025 (58,4% das famílias) e aridez (2024: 63,9% Semiárido, 36,1% Árido) ou outros. Não despeja todos os índices.
+
+**Números:** 100 · 58,4
+
+### K01 — sentido das classes
+
+**Pergunta:** O que quer dizer "Recuperação parcial da vegetação" no CDI?
+
+**Resposta esperada:** Explica com o que o catálogo e o complemento dizem: é uma das classes de recuperação do CDI, depois de um período de seca, em que a vegetação ainda não voltou ao normal. Não inventa critérios técnicos que nenhuma ferramenta trouxe; se o catálogo não detalha, diz isso.
+
+### K02 — sentido das classes
+
+**Pergunta:** No Índice de Degradação da Terra, o Nível 5 é melhor ou pior que o Nível 1?
+
+**Resposta esperada:** Responde só com o que o catálogo diz. O catálogo lista Nível 5, 4, 3, 2, 1 e Conservado e diz que o índice mede a intensidade da degradação, mas não diz explicitamente qual nível é o mais grave: o bot deve dizer isso em vez de afirmar com certeza.
+
+### K03 — sentido das classes
+
+**Pergunta:** A previsão para Patos diz "40% a 65% (acima da Normal)". O que isso significa?
+
+**Resposta esperada:** É uma previsão de probabilidade: a chance estimada de a chuva (ou temperatura) ficar acima do normal está entre 40% e 65%. É previsão, não medição. Não precisa consultar valores.
+
+### K04 — sentido das classes
+
+**Pergunta:** Campina Grande está com 0% de área sem seca. Isso quer dizer que não choveu nada lá?
+
+**Resposta esperada:** Não. O Monitor de Secas classifica a área por intensidade de seca; 0% sem seca quer dizer que toda a área está em alguma classe de seca (setembro de 2026: 95,6% moderada e 4,4% grave), não que não choveu. O SEDES não tem a chuva medida.
+
+### L01 — informal
+
+**Pergunta:** como ta a seca em campina grande agr
+
+**Resposta esperada:** Campina Grande–PB, Monitor de Secas de setembro de 2026 (último disponível): 95,6% da área em seca moderada e 4,4% em seca grave.
+
+**Números:** 95,6 · 4,4
+
+### L02 — informal
+
+**Pergunta:** qual cidade da pb ta pior de seca
+
+**Resposta esperada:** Diz o critério (Monitor de Secas, setembro de 2026) e que vários municípios empatam: 50 municípios da Paraíba têm 100% da área em seca grave. Não aponta um só como "o pior".
+
+### L03 — informal
+
+**Pergunta:** pobresa em sousa pb 2024
+
+**Resposta esperada:** Sousa–PB, 2024: 59,7% das famílias do CadÚnico em situação de pobreza (total). Pode citar urbano 59,0% e rural 63,5%.
+
+**Números:** 59,7
+
+### L04 — informal
+
+**Pergunta:** joao pessoa ta em seca?
+
+**Resposta esperada:** Não: no Monitor de Secas de setembro de 2026, 100% da área de João Pessoa–PB está sem seca.
+
+**Números:** 100
+
+### D01 — dado que não existe
+
+**Pergunta:** Como estava a seca em Campina Grande em outubro de 2026?
+
+**Resposta esperada:** O SEDES ainda não tem outubro de 2026 no Monitor de Secas (o último é setembro de 2026); oferece setembro. Pode citar o CDI, cujo último decêndio é 21/09/2026. Não estima outubro.
+
+### D02 — dado que não existe
+
+**Pergunta:** Qual o IDH de Campina Grande em 2020?
+
+**Resposta esperada:** O SEDES só tem IDH de 2000 e 2010; não há 2020. Oferece 2010 (0,72).
+
+**Números:** 0,72
+
+### D03 — dado que não existe
+
+**Pergunta:** Vai chover acima do normal em Patos em março de 2027?
+
+**Resposta esperada:** As previsões de chuva do SEDES vão só até fevereiro de 2027 (CPTEC) ou janeiro de 2027 (INMET); não há previsão para março. Pode oferecer os meses disponíveis, lembrando que é previsão.
+
+### D04 — dado que não existe
+
+**Pergunta:** Qual a população de Campina Grande?
+
+**Resposta esperada:** O SEDES não tem população. Diz isso e não usa conhecimento próprio para dar um número. Pode oferecer dados que o SEDES tem.
+
+### Q01 — comparação
+
+**Pergunta:** Compare a pobreza total de Campina Grande e João Pessoa entre 2012 e 2025.
+
+**Resposta esperada:** Campina Grande: 79,1% (2012) → 36,9% (2025). João Pessoa: 83,2% → 52,3%. As duas caíram; Campina Grande caiu mais e hoje está abaixo. Percentual das famílias do CadÚnico em situação de pobreza.
+
+**Números:** 79,1 · 36,9 · 83,2 · 52,3
+
+### Q02 — comparação
+
+**Pergunta:** A seca está pior no Semiárido ou no Brasil como um todo?
+
+**Resposta esperada:** Pior no Semiárido. Monitor de Secas de setembro de 2026: Semiárido com 33,8% da área em seca grave e só 1,2% sem seca; Brasil com 9,2% em seca grave e 25,1% sem seca.
+
+**Números:** 33,8 · 9,2
+
+### Q03 — comparação
+
+**Pergunta:** Qual bioma tem mais área em seca hoje?
+
+**Resposta esperada:** A Caatinga: no Monitor de Secas de setembro de 2026 (último disponível), 98,0% da área da Caatinga em alguma classe de seca e 46,5% em seca grave. Depois vêm Amazônia (84,8%) e Cerrado (70,1%).
+
+**Números:** 46,5
+
+### Q04 — comparação
+
+**Pergunta:** As previsões de chuva para Patos nos próximos meses concordam entre si?
+
+**Resposta esperada:** Não totalmente: para novembro de 2026 a janeiro de 2027, o CPTEC prevê anomalia levemente acima do normal (0 a 30 mm/mês) e o INMET levemente abaixo (-30 a 0 mm/mês). Diz que são previsões de fontes diferentes.
+
+### S10 — sobre o SEDES
+
+**Pergunta:** Quem são os integrantes do SEDES?
+
+**Resposta esperada:** Com os textos do site: o SEDES é coordenado institucionalmente pelo MMA (DCDE), executado pela UFCG e pelo INSA, com coordenação técnica do OCA, e tem parceiros como ANA, INMET e IBGE. Os nomes das pessoas da equipe não estão nos textos que o bot tem; diz isso e não inventa nomes.
+
+### S11 — sobre o SEDES
+
+**Pergunta:** Como eu faço para baixar um relatório em PDF de um município?
+
+**Resposta esperada:** No módulo Comunicação: escolhe o recorte e o território, marca os produtos, clica em "Gerar relatório" e baixa o PDF.

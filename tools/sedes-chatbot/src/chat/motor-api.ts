@@ -13,19 +13,12 @@
  */
 import Anthropic from "@anthropic-ai/sdk";
 import { createHash } from "node:crypto";
-import { readFileSync } from "node:fs";
-import path from "node:path";
-import { fileURLToPath } from "node:url";
 import { z } from "zod";
 import { FERRAMENTAS } from "../ferramentas.ts";
+import { promptDoSistema } from "../prompt-sistema.ts";
 import type { Motor, Pedido } from "./turno.ts";
 
 type Mensagem = Anthropic.Beta.BetaMessageParam;
-
-const PACOTE = path.resolve(
-  path.dirname(fileURLToPath(import.meta.url)),
-  "../..",
-);
 
 export const MODELOS: Record<string, string> = {
   haiku: "claude-haiku-5-5",
@@ -73,16 +66,12 @@ const TOOLS: Anthropic.Beta.BetaTool[] = FERRAMENTAS.map((f) => {
 });
 
 function sistema(): Anthropic.Beta.BetaTextBlockParam[] {
-  const hoje = new Date().toLocaleDateString("pt-BR", {
-    timeZone: "America/Fortaleza",
-  });
-  // O mesmo prompt do conversar.sh. Muda só uma vez por dia (a data), então o
+  // O mesmo prompt do motor claude. Muda só uma vez por dia (a data), então o
   // cache do prompt e das ferramentas vale para todas as conversas do dia.
-  const prompt = readFileSync(path.join(PACOTE, "prompt.md"), "utf8");
   return [
     {
       type: "text",
-      text: `${prompt.trim()}\n\nData de hoje: ${hoje}.`,
+      text: promptDoSistema(),
       cache_control: { type: "ephemeral" },
     },
   ];
@@ -320,6 +309,10 @@ export function criarMotorApi(opcoes: { cliente?: Anthropic } = {}): Motor {
     },
     parar(conversa) {
       conversas.get(conversa)?.controle?.abort();
+    },
+    esquecer(conversa) {
+      conversas.get(conversa)?.controle?.abort();
+      conversas.delete(conversa);
     },
     encerrar() {
       for (const e of conversas.values()) e.controle?.abort();

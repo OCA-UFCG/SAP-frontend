@@ -1,7 +1,7 @@
 {
   "name": "sedes-chatbot",
   "private": true,
-  "version": "0.5.0",
+  "version": "0.6.0",
   "description": "Protótipo de chatbot do SEDES: ferramentas só de leitura sobre o tabelão, página de chat e servidor MCP.",
   "type": "module",
   "engines": {
@@ -14,7 +14,7 @@
     "servidor": "tsx src/servidor.ts",
     "consultas": "tsx src/rodar-consultas.ts",
     "guia": "tsx src/conhecimento/gerar-guia.ts",
-    "avaliar-api": "tsx src/avaliar-api.ts",
+    "avaliar": "tsx src/avaliar.ts",
     "testar": "node --import tsx --test src/testes/*.teste.ts"
   },
   "dependencies": {
