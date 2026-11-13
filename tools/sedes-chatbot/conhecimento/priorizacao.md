@@ -13,7 +13,12 @@ A Priorização é uma aba da plataforma SEDES. A pessoa escolhe indicadores (os
 
 ## De onde vêm os dados
 
-Os critérios e os valores dos municípios vêm de uma planilha que a equipe do SEDES mantém, relida a cada 30 minutos. Não são os índices do tabelão: um critério com nome parecido com um índice (ex.: "Seca Registrada" e o Monitor de Secas) pode ter outro período ou outra conta. Use a descrição do critério para dizer de quando é o dado.
+Os critérios e os valores dos municípios vêm de uma planilha que a equipe do SEDES mantém, relida a cada 30 minutos. Não são os índices do tabelão: um critério com nome parecido com um índice pode ter outro período ou outra conta. Use a descrição do critério para dizer de quando é o dado.
+
+Os dois critérios de seca são diferentes, pela descrição da planilha:
+
+- Índice de Seca (um dos 4 padrões do site): percentual médio do indicador SPE. Não é o Monitor de Secas.
+- Seca Registrada (não é padrão): % de seca grave, extrema ou excepcional no Monitor de Secas da ANA em 6 meses (os meses estão na descrição do critério). É o único critério que vem do Monitor de Secas; o tabelão tem o Monitor mês a mês, até um período que pode ser mais recente.
 
 ## Opções da análise (textos do site)
 

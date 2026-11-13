@@ -881,3 +881,85 @@ SELECT SUM(s>0), SUM(s>50), COUNT(*) FROM (SELECT v.territorio, SUM(CASE WHEN v.
 **Pergunta:** O que quer dizer um município estar com prioridade muito alta?
 
 **Resposta esperada:** É o nível mais alto dos 5 da Priorização: o município está em situação pior que a maioria dos municípios do mesmo grupo de comparação nos critérios escolhidos, com os pesos dados. É relativo (ao grupo e aos critérios), não um valor absoluto; mudando critérios, pesos ou área, muda. Não precisa rodar uma análise.
+
+As perguntas W cruzam a Priorização com o tabelão (Monitor de Secas de
+setembro de 2026, pobreza do CadÚnico de 2025). Respostas calculadas em
+13/11/2026 com a Priorização padrão do site de cada estado. A resposta tem de
+dizer que os dois números vêm de fontes diferentes (a planilha da Priorização e
+o índice do SEDES) e de quando é cada um.
+
+### W01 — priorização e monitoramento
+
+**Pergunta:** Dos municípios da Paraíba com prioridade muito alta na Priorização, quantos estão em seca grave ou pior no Monitor de Secas?
+
+**Resposta esperada:** Priorização padrão da Paraíba: 23 municípios de prioridade muito alta. No Monitor de Secas de setembro de 2026, 13 deles têm área em seca grave ou pior: 11 com 100% da área (Assunção, Camalaú, Caraúbas, Congo, Coxixola, Junco do Seridó, Parari, Riacho de Santo Antônio, Salgadinho, Santo André, Serra Branca), Tenório (76,9%) e Juazeirinho (75,7%). Os outros 10 não têm seca grave. Diz que a Priorização usa a planilha dela e o Monitor vem do tabelão.
+
+**Números:** 13
+
+### W02 — priorização e monitoramento
+
+**Pergunta:** Assunção-PB está em que nível de prioridade? E como está a seca lá no Monitor de Secas este ano?
+
+**Resposta esperada:** Prioridade muito alta na Priorização padrão da Paraíba. No Monitor de Secas de 2026: seca extrema em 100% da área em janeiro e fevereiro, seca grave em março, seca moderada em 100% de abril a agosto, e seca grave de novo em 100% em setembro (o último mês disponível).
+
+### W03 — priorização e monitoramento
+
+**Pergunta:** Em Pernambuco, os municípios com prioridade mais alta na Priorização são também os que estão mais em seca no Monitor de Secas?
+
+**Resposta esperada:** Sim, há associação. Média da % da área em seca grave ou pior em setembro de 2026, por nível da Priorização padrão: 91,8% (muito alta, 34 municípios), 76,8% (alta), 37,9% (média), 2,2% (baixa), 0% (muito baixa). Outra medida equivalente (ex.: quantos de cada nível têm seca grave: 33 de 34, 46 de 53, 22 de 44, 3 de 45, 0 de 6) também vale. Diz que é associação, não causa, e de preferência lembra que a Priorização padrão já tem um critério de seca (Índice de Seca).
+
+### W04 — priorização e monitoramento
+
+**Pergunta:** Quais municípios do Rio Grande do Norte estão com seca grave ou pior no Monitor de Secas, e qual a prioridade deles?
+
+**Resposta esperada:** Só um: Equador, com 33,7% da área em seca grave ou pior em setembro de 2026, e prioridade muito alta na Priorização padrão do Rio Grande do Norte.
+
+**Números:** 33,7
+
+### W05 — priorização e monitoramento
+
+**Pergunta:** Quais municípios a Bahia deveria priorizar?
+
+**Depois:** E desses, quantos estão em seca grave ou pior no Monitor de Secas agora?
+
+**Resposta esperada:** Primeira resposta: Priorização padrão da Bahia, 84 municípios de prioridade muito alta (416 classificados). Segunda: dos 84, 54 têm área em seca grave ou pior no Monitor de Secas de setembro de 2026 (42 deles com 100% da área); os outros 30 não têm. Diz que é setembro de 2026, o último mês do Monitor.
+
+**Números:** 54
+
+### W06 — priorização e monitoramento
+
+**Pergunta:** Os municípios de prioridade muito alta na Paraíba têm mais pobreza no CadÚnico do que os outros?
+
+**Resposta esperada:** Quase a mesma: média de 59,7% das famílias do CadÚnico em pobreza (2025) nos 23 de prioridade muito alta, contra 57,7% nos outros 187 classificados (o estado tem 57,9%). Diz que é média simples dos municípios e que a Priorização usa outro dado (Pobreza Rural, da planilha da Priorização), não este índice do SEDES.
+
+**Números:** 59,7 · 57,7
+
+### W07 — priorização e monitoramento
+
+**Pergunta:** Os municípios do Ceará com prioridade muito alta estão em seca agora?
+
+**Resposta esperada:** Sim, mas quase toda seca fraca: no Monitor de Secas de setembro de 2026, os 27 de prioridade muito alta da Priorização padrão do Ceará têm, em média, 97,4% da área em seca fraca ou pior; só 6 têm alguma área em seca moderada ou pior (Penaforte e Salitre com 100%) e só Penaforte tem seca grave (23,2%). Não diz que estão em seca forte.
+
+### W08 — priorização e monitoramento
+
+**Pergunta:** Quantos municípios da Paraíba estão com 100% da área em seca grave ou pior no Monitor de Secas, e em que nível de prioridade eles ficam?
+
+**Resposta esperada:** 50 municípios em setembro de 2026. Na Priorização padrão da Paraíba: 11 de prioridade muito alta, 29 alta e 10 média. Não precisa listar os 50. Também vale contar quem arredonda para 100% (Alcantil 99,5% e Catingueira 99,6%): 52, com 31 de prioridade alta, desde que diga o corte usado.
+
+**Números:** 11
+
+### W09 — priorização e monitoramento
+
+**Pergunta:** No Nordeste, os municípios de prioridade muito alta estão mais em seca grave do que os outros, segundo o Monitor de Secas?
+
+**Resposta esperada:** Sim. Priorização padrão do Nordeste (cada estado comparado separadamente): 298 municípios de prioridade muito alta (1.773 classificados, 21 de fora). No Monitor de Secas de setembro de 2026, eles têm em média 43,3% da área em seca grave ou pior, contra 14,5% nos outros 1.475 (média simples dos municípios); 144 dos 298 têm alguma área em seca grave ou pior. Usa os 298, não uma parte da lista. Diz que é associação e que as fontes são diferentes.
+
+**Números:** 298
+
+### W10 — priorização e monitoramento
+
+**Pergunta:** Na priorização padrão do Nordeste, como a seca do Monitor de Secas muda de um nível de prioridade para outro?
+
+**Resposta esperada:** Média da % da área em seca grave ou pior em setembro de 2026, por nível (cada estado comparado separadamente): muito alta 43,3% (298 municípios), alta 27,6% (536), média 11,4% (549), baixa 1,1% (311), muito baixa 0% (79). Cai de um nível para o outro. Diz que é associação, não causa, e que a Priorização padrão já tem um critério de seca (o Índice de Seca), então parte da associação é esperada.
+
+**Números:** 43,3 · 27,6 · 11,4

@@ -1,7 +1,7 @@
 {
   "name": "sedes-chatbot",
   "private": true,
-  "version": "0.7.0",
+  "version": "0.8.0",
   "description": "Protótipo de chatbot do SEDES: ferramentas só de leitura sobre o tabelão, página de chat e servidor MCP.",
   "type": "module",
   "engines": {

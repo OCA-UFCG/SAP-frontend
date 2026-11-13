@@ -1,3 +1,56 @@
+# Priorização cruzada com o Monitoramento
+
+13/11/2026. Teste de perguntas que juntam a Priorização com índices do tabelão
+(Monitor de Secas, pobreza do CadÚnico): 10 perguntas novas (W01–W10), com as
+respostas calculadas no backend e no tabelão. Haiku, motor claude, juiz Sonnet.
+
+| Rodada                                           | Notas (certo · parcial · errado) | Mediana       | Idas ao modelo |
+| ------------------------------------------------ | -------------------------------- | ------------- | -------------- |
+| W01–W08 antes da mudança (`cruz-v0`)             | 6 · 2 · 0                        | 17,0 s        | 4,1            |
+| W09–W10 (Nordeste) antes da mudança (`cruz-v0b`) | 0 · 1 · 1                        | 42,5 / 11,1 s | 14 / 2         |
+| W01–W10 com a tabela priorizacao (`cruz-v1`)     | 6 · 3 · 1                        | 11,4 s        | 4,5            |
+| W01–W10 + N01–N11, versão final (`cruz-v2`)      | 18 · 3 · 0 (W: 10 · 0 · 0)       | 8,0 s         | 2,9            |
+
+O que se viu antes da mudança:
+
+- Num estado, o bot já cruzava: rodava a Priorização e copiava os nomes dos
+  municípios de prioridade muito alta numa consulta SQL. Funciona porque os
+  nomes da planilha batem com os do tabelão (conferido em 9 estados).
+- No Nordeste não: a lista de um nível para em 150 nomes. Na W09 o bot rodou a
+  Priorização estado por estado (9 vezes) e montou uma consulta com 298 nomes:
+  14 idas ao modelo, 42 s. Na W10 recusou ("o Monitor não é critério da
+  Priorização, então não dá para dizer"), quando a pergunta só pedia a
+  comparação.
+- Confundia os dois critérios de seca: dizia que a Priorização padrão usa a
+  Seca Registrada (do Monitor de Secas), quando usa o Índice de Seca (SPE). A
+  causa era um exemplo do nosso `conhecimento/priorizacao.md`.
+- Abria a resposta com o número errado ("11 dos 23" com seca grave, quando 13
+  têm alguma área e 11 têm a área toda) e respondia "sim, em seca" sem dizer que
+  era quase toda seca fraca.
+
+O que mudou:
+
+- `consultar_sql` aceita `priorizacao: "<id>"` (o id vem na saída de
+  `priorizar_municipios`) e ganha a tabela
+  `priorizacao(codigo, nome, uf, nivel, nivel_ordem, grupo)` para juntar por
+  código IBGE. Uma consulta resolve qualquer área, inclusive o Brasil.
+- Prompt: seção "Priorização junto com índices do tabelão" (uma Priorização e
+  uma consulta; por nível ou "esse nível contra os outros"; média simples dita;
+  quantos têm alguma área e quantos a área toda; fontes e períodos; associação,
+  não causa) e a regra de dizer a intensidade em "está em seca?".
+- `conhecimento/priorizacao.md`: diz qual critério de seca é qual.
+- Em `perguntas.md`, a W08 passou a aceitar 52 (quem arredonda para 100%, como
+  Alcantil 99,5% e Catingueira 99,6%) se o bot disser o corte.
+
+Os 3 parciais da `cruz-v2` são de Priorização sozinha (N01, N03, N04), em
+redação ("o principal fator", "pior que quase todos"); a N04 já era parcial na
+`prio-v2`. A regra ganhou "nem que é o principal"; rodando de novo
+(`cruz-v3-n`), a N04 saiu certa e a N03 seguiu parcial por outra frase.
+
+Para a equipe: pela descrição da planilha, o Índice de Seca é o "indicador SPE"
+e a Seca Registrada vem do Monitor de Secas (fevereiro a julho de 2026). Vale
+confirmar o que é o SPE para o bot explicar melhor.
+
 # Priorização no chat
 
 12/11/2026, fim da noite. O chat passou a rodar a Priorização (aba do site,

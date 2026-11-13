@@ -179,6 +179,14 @@ recalcular nada. Os dados são os da planilha da Priorização, não os do tabel
   e os textos do formulário) e a lista de critérios lida do backend.
 - O botão "Abrir a Priorização" abre a aba no site, mas sem a configuração: o
   site ainda não aceita critérios pelo endereço.
+- Cruzar com o tabelão: cada análise fica guardada no processo com um id
+  (as 50 últimas) e a saída diz esse id. `consultar_sql` com
+  `priorizacao: "<id>"` ganha a tabela
+  `priorizacao(codigo, nome, uf, nivel, nivel_ordem, grupo)`, posta na frente
+  da consulta como uma CTE, para juntar os níveis com `valores` pelo código
+  IBGE. Antes disso o modelo copiava os nomes na consulta, o que só funcionava
+  até 150 municípios por nível (no Nordeste, rodou a Priorização estado por
+  estado: 14 idas ao modelo, 42 s).
 
 ## Conhecimento sobre o SEDES
 
@@ -209,7 +217,7 @@ O que o bot pode fazer é limitado em duas camadas:
 
 ## Avaliação
 
-`perguntas.md` tem 91 perguntas com a resposta esperada; a maioria tem também
+`perguntas.md` tem 101 perguntas com a resposta esperada; a maioria tem também
 a consulta SQL feita à mão (`npm run consultas` roda essas consultas no
 tabelão). As de M em diante vieram do uso real da página: conversas com
 continuação (linhas `Depois:`), perguntas abertas, sentido das classes,

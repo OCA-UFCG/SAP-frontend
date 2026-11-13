@@ -67,6 +67,62 @@ export function criteriosEmCache() {
   return criterios;
 }
 
+// --- resultados guardados para o consultar_sql ---------------------------------
+//
+// Cada análise fica guardada com um id curto, para o consultar_sql cruzá-la com
+// os índices do tabelão por código IBGE (tabela priorizacao), sem o modelo
+// copiar listas de nomes. Um id por análise, e não "a última", porque no motor
+// api o mesmo processo atende várias conversas ao mesmo tempo.
+
+/** codigo, nome, uf, nivel, nivel_ordem (5 = muito alta), grupo */
+type LinhaGuardada = [
+  string,
+  string,
+  string,
+  string | null,
+  number | null,
+  string | null,
+];
+const GUARDADAS = new Map<string, LinhaGuardada[]>();
+const GUARDADAS_MAX = 50;
+
+function guardar(linhas: LinhaGuardada[]) {
+  let id: string;
+  do id = `p${Math.random().toString(36).slice(2, 6)}`;
+  while (GUARDADAS.has(id));
+  GUARDADAS.set(id, linhas);
+  if (GUARDADAS.size > GUARDADAS_MAX)
+    GUARDADAS.delete(GUARDADAS.keys().next().value!);
+  return id;
+}
+
+export const COLUNAS_DA_TABELA =
+  "priorizacao(codigo, nome, uf, nivel, nivel_ordem, grupo)";
+
+/**
+ * Põe na frente da consulta a tabela priorizacao com o resultado guardado (uma
+ * CTE lida de um JSON). A consulta já foi validada antes (só SELECT/WITH).
+ */
+export function comPriorizacao(
+  sql: string,
+  id: string,
+): { sql: string } | { erro: string } {
+  const linhas = GUARDADAS.get(id.trim());
+  if (!linhas)
+    return {
+      erro: `a Priorização "${id}" não está guardada (ficam as ${GUARDADAS_MAX} últimas análises). Rode priorizar_municipios de novo e use o id novo.`,
+    };
+  const json = JSON.stringify(linhas).replace(/'/g, "''");
+  const cte = `${COLUNAS_DA_TABELA} AS (SELECT value->>0, value->>1, value->>2, value->>3, value->>4, value->>5 FROM json_each('${json}'))`;
+  const corpo = sql.replace(/^(\s|--[^\n]*\n|\/\*[\s\S]*?\*\/)*/, "");
+  const comWith = corpo.match(/^with(\s+recursive)?\s/i);
+  return {
+    sql: comWith
+      ? `WITH${comWith[1] ? " RECURSIVE" : ""} ${cte}, ${corpo.slice(comWith[0].length)}`
+      : `WITH ${cte} ${corpo}`,
+  };
+}
+
 /** Os critérios em uma linha cada, para o prompt do sistema. */
 export function criteriosResumidos(lista: Criterio[]) {
   return lista
@@ -402,6 +458,28 @@ export async function priorizar(p: Pedido): Promise<string> {
   ];
 
   const excluidos = Object.values(r.excluded ?? {});
+  const id = guardar([
+    ...Object.entries(r.result).map(([c, m]): LinhaGuardada => [
+      c,
+      m.name,
+      m.UF,
+      NIVEIS[m.classification] ?? null,
+      m.classification + 1,
+      grupoDe(m),
+    ]),
+    ...Object.entries(r.excluded ?? {}).map(([c, e]): LinhaGuardada => [
+      c,
+      e.name ?? c,
+      UF_DO_CODIGO[c.slice(0, 2)] ?? "",
+      null,
+      null,
+      null,
+    ]),
+  ]);
+  partes.push(
+    `Para cruzar com índices do tabelão: chame consultar_sql com priorizacao: "${id}". A consulta ganha a tabela ${COLUNAS_DA_TABELA} com os ${r.count + excluidos.length} municípios desta análise: nivel 'Muito alta', 'Alta', 'Média', 'Baixa' ou 'Muito baixa' (nivel_ordem 5 a 1), ou NULL para os que ficaram de fora; grupo é o grupo de comparação. Junte por codigo (= valores.territorio).`,
+    "",
+  );
   partes.push(
     `Municípios classificados: ${r.count} de ${r.total_count}.` +
       (excluidos.length

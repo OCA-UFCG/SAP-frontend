@@ -1,6 +1,7 @@
 import assert from "node:assert/strict";
 import { afterEach, test } from "node:test";
-import { priorizar } from "../priorizacao.ts";
+import { DatabaseSync } from "node:sqlite";
+import { comPriorizacao, priorizar } from "../priorizacao.ts";
 
 // Backend da Priorização de mentira: 3 critérios e 4 municípios da PB.
 const CRITERIOS = [
@@ -171,4 +172,52 @@ test("erros voltam como texto que o modelo entende", async () => {
   );
   backend(() => new Response("Criterias sum exceed 1.0", { status: 400 }));
   assert.match(await priorizar({}), /recusou o pedido \(HTTP 400\)/);
+});
+
+test("o resultado fica guardado para o consultar_sql cruzar por código", async () => {
+  backend(() =>
+    Response.json({
+      ...RESULTADO,
+      result: {
+        ...RESULTADO.result,
+        "2510303": mun("Olho d'Água", 3, 0.5, 50),
+      },
+    }),
+  );
+  const saida = await priorizar({ area: { tipo: "estado", valor: "PB" } });
+  const id = saida.match(/consultar_sql com priorizacao: "(p\w+)"/)?.[1];
+  assert.ok(id, "a saída diz o id");
+
+  const db = new DatabaseSync(":memory:");
+  db.exec(
+    "CREATE TABLE valores(territorio TEXT, valor REAL); INSERT INTO valores VALUES ('2501351', 100), ('2500106', 50), ('2504009', 0)",
+  );
+  const rodar = (sql: string) => {
+    const r = comPriorizacao(sql, id);
+    assert.ok(!("erro" in r));
+    return db.prepare(r.sql).all();
+  };
+  assert.deepEqual(
+    rodar(
+      "SELECT p.nivel, p.nivel_ordem, AVG(v.valor) AS media FROM priorizacao p JOIN valores v ON v.territorio = p.codigo GROUP BY p.nivel ORDER BY p.nivel_ordem DESC",
+    ).map((l) => ({ ...l })),
+    [
+      { nivel: "Muito alta", nivel_ordem: 5, media: 75 },
+      { nivel: "Média", nivel_ordem: 3, media: 0 },
+    ],
+  );
+  // Consulta que já começa com WITH (e comentário), apóstrofo e os de fora.
+  assert.deepEqual(
+    rodar(
+      "-- comentário\nWITH x AS (SELECT 1) SELECT nome, uf, nivel FROM priorizacao, x WHERE nome LIKE '%''%' OR nivel IS NULL ORDER BY nome",
+    ).map((l) => ({ ...l })),
+    [
+      { nome: "João Pessoa", uf: "PB", nivel: null },
+      { nome: "Olho d'Água", uf: "PB", nivel: "Alta" },
+    ],
+  );
+  assert.match(
+    JSON.stringify(comPriorizacao("SELECT 1", "pnada")),
+    /não está guardada/,
+  );
 });

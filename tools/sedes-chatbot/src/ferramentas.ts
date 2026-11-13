@@ -17,7 +17,11 @@ import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { z } from "zod";
 import { OBSERVACOES } from "./observacoes.ts";
-import { priorizarMunicipios } from "./priorizacao.ts";
+import {
+  COLUNAS_DA_TABELA,
+  comPriorizacao,
+  priorizarMunicipios,
+} from "./priorizacao.ts";
 import { resumirRelatorio } from "./relatorio.ts";
 import { semAcento } from "./texto.ts";
 
@@ -444,12 +448,36 @@ const consultarSql: Ferramenta = {
       .describe(
         "Só para séries históricas e rankings: a página desenha o gráfico",
       ),
+    priorizacao: z
+      .string()
+      .max(20)
+      .optional()
+      .describe(
+        `Id de uma análise de priorizar_municipios desta conversa (ex.: "pk3x9"): a consulta ganha a tabela ${COLUNAS_DA_TABELA}, para cruzar os níveis de prioridade com índices do tabelão`,
+      ),
   },
-  async executar({ sql, grafico }: { sql: string; grafico?: Grafico }) {
+  async executar({
+    sql,
+    grafico,
+    priorizacao,
+  }: {
+    sql: string;
+    grafico?: Grafico;
+    priorizacao?: string;
+  }) {
     const invalido = validarSql(sql);
     if (invalido) return `Erro: ${invalido}`;
-    const r = await executarSql(sql);
-    if (!r.ok) return `Erro: ${r.erro}`;
+    let final = sql;
+    if (priorizacao) {
+      const p = comPriorizacao(sql, priorizacao);
+      if ("erro" in p) return `Erro: ${p.erro}`;
+      final = p.sql;
+    }
+    const r = await executarSql(final);
+    if (!r.ok)
+      return /no such table: priorizacao/i.test(r.erro)
+        ? "Erro: a tabela priorizacao só existe com o parâmetro priorizacao de consultar_sql (o id que priorizar_municipios devolve)."
+        : `Erro: ${r.erro}`;
     if (grafico && r.linhas.length) {
       if (!r.colunas.includes("rotulo") || !r.colunas.includes("valor"))
         return `Erro: com grafico, a consulta tem de devolver as colunas rotulo e valor (use AS); devolveu ${r.colunas.join(", ")}.`;
