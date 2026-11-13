@@ -963,3 +963,240 @@ o índice do SEDES) e de quando é cada um.
 **Resposta esperada:** Média da % da área em seca grave ou pior em setembro de 2026, por nível (cada estado comparado separadamente): muito alta 43,3% (298 municípios), alta 27,6% (536), média 11,4% (549), baixa 1,1% (311), muito baixa 0% (79). Cai de um nível para o outro. Diz que é associação, não causa, e que a Priorização padrão já tem um critério de seca (o Índice de Seca), então parte da associação é esperada.
 
 **Números:** 43,3 · 27,6 · 11,4
+
+As perguntas B usam as previsões do CPTEC e do INMET (emitidas em outubro de
+2026), sozinhas ou cruzadas com o Monitor de Secas e a Priorização. Respostas
+calculadas em 13/11/2026. As duas fontes discordam com frequência: a resposta
+tem de dizer qual fonte e qual índice usou e, quando a outra discorda, dizer
+isso em vez de escolher uma em silêncio. Previsão é chance ou estimativa, não
+certeza. Nos índices trimestrais, o período é o mês em que o trimestre começa
+(2026-12 = dezembro a fevereiro). "Previsão abaixo do normal" num município =
+mais da metade da área nas classes abaixo do normal.
+
+### B01 — previsão e monitoramento
+
+**Pergunta:** Os municípios da Paraíba que estão em seca grave ou pior vão ter chuva abaixo do normal em dezembro?
+
+**Resposta esperada:** 80 municípios da Paraíba têm alguma área em seca grave ou pior no Monitor de Secas de setembro de 2026. Para dezembro de 2026 as previsões discordam: no INMET, quase todos têm previsão abaixo do normal (anomalia: 79 dos 80; probabilidade: 77), no CPTEC quase nenhum (anomalia: 0; probabilidade: 9), que puxa para levemente acima. Os desvios previstos são pequenos (classes "levemente", até 30 mm no mês). Diz que é previsão e que as fontes discordam; não responde só "sim" ou só "não".
+
+**Números:** 80
+
+```sql
+WITH seca AS (SELECT v.territorio FROM valores v JOIN territorios t ON t.codigo=v.territorio WHERE v.indice='monitor-de-seca-ana' AND v.periodo='2026-09' AND v.classe>=4 AND v.valor>0 AND t.tipo='municipio' AND t.uf='PB' GROUP BY 1),
+prev AS (SELECT indice, territorio, sum(CASE WHEN classe<=3 THEN valor ELSE 0 END) abaixo FROM valores WHERE periodo='2026-12' AND indice IN ('previsao-anomalia-precipitacao-cptec-inpe','previsao-anomalia-precipitacao-mensal-inmet','previsao-precipitacao-mensal-probabilidade-cptec','previsao-precipitacao-mensal-probabilidade-inmet') GROUP BY 1,2)
+SELECT p.indice, count(*) n, sum(p.abaixo>50) abaixo FROM seca s JOIN prev p USING(territorio) GROUP BY 1;
+```
+
+### B02 — previsão e priorização
+
+**Pergunta:** Dos municípios de prioridade muito alta no Ceará, quantos têm previsão de chuva abaixo do normal para o trimestre de dezembro a fevereiro?
+
+**Resposta esperada:** Priorização padrão do Ceará: 27 de prioridade muito alta. Só o CPTEC tem o trimestre dezembro–fevereiro (período 2026-12 dos índices trimestrais). Quase nenhum tem previsão abaixo do normal: pela probabilidade, só Banabuiú (57,9% da área abaixo); pela anomalia, Moraújo e Senador Sá (100% levemente abaixo). Os outros puxam para levemente acima (o estado: 66% da área com chance de 0% a 40% acima do normal). Diz que é previsão e que a prioridade vem da planilha da Priorização.
+
+**Números:** 27
+
+### B03 — previsão
+
+**Pergunta:** Vai chover em Petrolina em dezembro?
+
+**Resposta esperada:** Não dá para dizer se vai chover num dia; o SEDES tem previsões mensais. Para dezembro de 2026, CPTEC e INMET preveem de 10 a 100 mm no mês em toda a área de Petrolina–PE. Quanto ao normal, os dois ficam perto dele e discordam no lado: o CPTEC prevê levemente acima (0 a 30 mm) e o INMET levemente abaixo (-30 a 0 mm). A probabilidade é opcional aqui (CPTEC: chance de 0% a 40% acima do normal; INMET: 92,5% da área com chance de 0% a 40% abaixo). Diz que é previsão.
+
+**Números:** 10 · 100
+
+### B04 — previsão
+
+**Pergunta:** A previsão é de mais calor que o normal no Nordeste em dezembro?
+
+**Resposta esperada:** Sim, nas duas fontes, mas com intensidade diferente. INMET (anomalia de temperatura mensal, dezembro de 2026): 74% da área do Nordeste de 1° a 3° acima do normal e 26% de 0° a 1° acima. CPTEC (probabilidade mensal, dezembro de 2026): 78,4% da área com mais de 40% de chance de ficar acima do normal (48,3% com 40% a 65%; 30,1% com mais de 65%). Não usa a probabilidade de temperatura do INMET sem avisar que ela repete os números da chuva. Diz que é previsão.
+
+**Números:** 74
+
+### B05 — previsão
+
+**Pergunta:** Qual a chance de fazer mais calor que o normal em Mossoró em dezembro?
+
+**Resposta esperada:** CPTEC (probabilidade de temperatura mensal, dezembro de 2026): 100% da área de Mossoró–RN com mais de 65% de chance de ficar acima do normal. O INMET prevê de 0° a 1° acima do normal (anomalia). A probabilidade de temperatura do INMET não serve: no cadastro do site ela lê a tabela da chuva e repete os mesmos números (31,9% e 68,1% abaixo do normal); se citá-la, avisa isso.
+
+**Números:** 65
+
+### B06 — previsão e monitoramento
+
+**Pergunta:** No Semiárido, em quantos municípios com seca grave ou pior as previsões do CPTEC e do INMET concordam que dezembro vai ter chuva abaixo do normal?
+
+**Resposta esperada:** 415 municípios do Semiárido têm alguma área em seca grave ou pior no Monitor de Secas de setembro de 2026. As fontes quase nunca concordam em chuva abaixo do normal para dezembro: pela anomalia, 15 (INMET 410, CPTEC 16; 9 em Alagoas, 5 em Sergipe e 1 na Bahia); pela probabilidade, 34 (INMET 396, CPTEC 34). Diz qual índice usou e o critério (mais da metade da área abaixo).
+
+**Números:** 415
+
+### B07 — previsão
+
+**Pergunta:** O que diz a previsão trimestral de chuva do INMET para o Semiárido?
+
+**Resposta esperada:** O INMET tem um trimestre: novembro de 2026 a janeiro de 2027 (período 2026-11). Prevê chuva abaixo do normal em quase todo o Semiárido: anomalia de -300 a -100 mm em 59,4% da área e de -100 a 0 mm em 40,2%; na probabilidade, 58,2% da área tem mais de 65% de chance de ficar abaixo do normal e 36,6% de 40% a 65%. Diz que é previsão e nomeia os três meses.
+
+**Números:** 59,4 · 58,2
+
+### B08 — previsão e monitoramento
+
+**Pergunta:** A seca na Paraíba vai melhorar nos próximos meses?
+
+**Resposta esperada:** Não dá para afirmar. Hoje (Monitor de Secas de setembro de 2026) a Paraíba tem 80,8% da área em seca moderada ou pior (37,9% grave). As previsões de chuva discordam: o INMET prevê dezembro levemente abaixo do normal em 76,4% da área (anomalia), o CPTEC prevê levemente acima em quase toda a área (99,9%). Diz que é previsão e que as fontes discordam; não promete melhora nem piora.
+
+**Números:** 80,8
+
+As perguntas J continuam uma conversa sobre a Priorização: mudar peso,
+tirar critério, mudar a comparação, explicar um nível, cruzar o resultado.
+Respostas calculadas no backend em 13/11/2026. Ao mudar a configuração, a
+resposta compara com a anterior (quantos de prioridade muito alta antes e
+depois) e diz que a prioridade depende dessas escolhas.
+
+### J01 — continuação da priorização
+
+**Pergunta:** Rode a priorização padrão da Paraíba.
+
+**Depois:** E se a pobreza rural pesar o dobro dos outros critérios?
+
+**Resposta esperada:** Refaz com Pobreza Rural peso 2 e os outros três peso 1 (40% e 20% cada). Muito alta passa de 23 para 32. Saem 5 (Baraúna, Cubati, Curral de Cima, Junco do Seridó, Serra Branca) e entram 14 (entre eles Cacimbas, Santa Inês, Piancó, Teixeira, Rio Tinto). Não precisa listar todos. Diz que a prioridade depende dos pesos.
+
+**Números:** 23 · 32
+
+### J02 — continuação da priorização
+
+**Pergunta:** Qual o nível de prioridade de Assunção (PB) na priorização padrão?
+
+**Depois:** Por que ela ficou nesse nível?
+
+**Resposta esperada:** Muito alta, comparada com os 210 municípios da Paraíba. Está entre os piores do estado em Índice de Aridez (0,242, pior que 97,6%) e Índice de Seca (29,6%, pior que 98,6%), e também alto em Pobreza Rural (81,3%, pior que 82,9%); em Área Degradada fica no meio (12,4 km², pior que 58,6%). Explica pelos valores de cada critério, sem dizer que um deles é "o principal" ou "o que mais pesa", e lembra que o nível muda com outros critérios, pesos ou comparação.
+
+**Números:** 97,6 · 98,6
+
+### J03 — continuação da priorização
+
+**Pergunta:** Faça a priorização padrão do Ceará.
+
+**Depois:** E se o Ceará fosse comparado com o Nordeste inteiro, em vez de só com os municípios do próprio estado?
+
+**Resposta esperada:** Padrão (cada estado comparado separadamente): 27 de prioridade muito alta no Ceará. Comparando todos os municípios do Nordeste juntos, só 6 do Ceará ficam em muito alta (Campos Sales, Jaguaretama, Monsenhor Tabosa, Novo Oriente, Penaforte, Salitre), porque outros estados, como a Paraíba (56) e a Bahia (85), têm municípios em situação pior nesses critérios. Diz que a comparação muda o resultado.
+
+**Números:** 27 · 6
+
+### J04 — continuação da priorização
+
+**Pergunta:** Quais municípios do Rio Grande do Norte têm prioridade muito alta?
+
+**Depois:** Tire o critério de área degradada e refaça.
+
+**Resposta esperada:** Padrão: 27 de prioridade muito alta dos 165 classificados (ex.: Acari, Currais Novos, Equador, Jardim do Seridó). Sem Área Degradada (Índice de Aridez, Índice de Seca e Pobreza Rural, pesos iguais): 35. Saem 9 (entre eles Bom Jesus, Brejinho, Vera Cruz) e entram 17 (entre eles Caicó, Parelhas, Macau). Diz que a prioridade depende dos critérios escolhidos.
+
+**Números:** 27 · 35
+
+### J05 — continuação da priorização
+
+**Pergunta:** Priorize a Paraíba usando só pobreza rural e seca registrada.
+
+**Depois:** Quantos desses de prioridade muito alta estão em seca grave ou pior no Monitor de Secas agora?
+
+**Resposta esperada:** Com Pobreza Rural e Seca Registrada (pesos iguais): 50 de prioridade muito alta. No Monitor de Secas de setembro de 2026, 27 deles têm alguma área em seca grave ou pior e 17 têm a área toda. Diz que a Seca Registrada vem do próprio Monitor de Secas (fevereiro a julho de 2026), então parte da associação é esperada.
+
+**Números:** 50 · 27
+
+As perguntas U são em inglês ou espanhol, como o site, que tem as três
+línguas. A resposta vem na língua da pergunta, com os mesmos números das
+perguntas em português.
+
+### U01 — outra língua
+
+**Pergunta:** How is the drought in Campina Grande right now?
+
+**Resposta esperada:** In English. Campina Grande–PB, Drought Monitor (Monitor de Secas, ANA), September 2026, the latest month: 95.6% of the area in moderate drought and 4.4% in severe drought. Decimal point or comma are both fine.
+
+### U02 — outra língua
+
+**Pergunta:** ¿Cuáles son los 5 municipios de Paraíba con mayor pobreza en 2025?
+
+**Resposta esperada:** En español. Porcentaje de pobreza total del CadÚnico, 2025: Juarez Távora 74,2%, Curral de Cima 73,9%, Santa Inês 73,2%, Cacimbas 73,1%, Pedro Régis 72,8%. Explica que es el porcentaje de familias inscritas en el CadÚnico en situación de pobreza.
+
+**Números:** 74,2 · 72,8
+
+### U03 — outra língua
+
+**Pergunta:** Which municipalities in Ceará have very high priority for intervention?
+
+**Resposta esperada:** In English. Default Prioritization (Priorização) for Ceará, each state compared separately: 27 municipalities with very high priority (e.g., Penaforte, Salitre, Campos Sales). Says the level comes from the Prioritization spreadsheet and depends on criteria and weights.
+
+**Números:** 27
+
+### U04 — outra língua
+
+**Pergunta:** ¿Va a llover más de lo normal en Fortaleza en diciembre?
+
+**Resposta esperada:** En español. Depende de la fuente: el CPTEC prevé lluvia levemente por encima de lo normal en el 84,2% del área (0 a 30 mm), el INMET levemente por debajo en el 100% (y 40% a 65% de probabilidad de quedar por debajo de lo normal). Las dos prevén de 10 a 100 mm en el mes. Dice que es una previsión.
+
+**Números:** 84,2
+
+As perguntas Y pedem um panorama, como a equipe pergunta na prática ("me diga
+coisas importantes de..."). Não há um único jeito certo: a resposta escolhe
+poucos dados que importam, junta módulos (Monitoramento, Priorização,
+Previsão) quando a pergunta pede, diz a fonte e o período de cada um e não
+inventa recomendação fora dos dados. Y01 veio de uma conversa real
+(12/11/2026), em que o bot respondeu que não tinha a Priorização.
+
+### Y01 — panorama
+
+**Pergunta:** Diga me coisas importantes da bahia utilizando a ferramenta de análise multicriterial (prioridade)
+
+**Resposta esperada:** Roda a Priorização padrão da Bahia: 416 municípios classificados (1 de fora), 84 de prioridade muito alta, 120 alta, 104 média, 77 baixa e 31 muito baixa, com os critérios e a comparação usados. Cita alguns de prioridade muito alta. Pode cruzar com o Monitor de Secas (setembro de 2026: 54 dos 84 têm alguma área em seca grave ou pior). Não diz que não tem a ferramenta.
+
+**Números:** 84
+
+### Y02 — panorama
+
+**Pergunta:** Me dá um panorama da seca no Nordeste: como está agora, onde é mais prioritário e o que a previsão indica para dezembro.
+
+**Resposta esperada:** Agora (Monitor de Secas, setembro de 2026): 29,1% da área do Nordeste em seca grave, 26,8% moderada, 41,2% fraca, 2,9% sem seca, sem seca extrema ou excepcional. Priorização padrão do Nordeste (cada estado comparado separadamente): 298 de prioridade muito alta; "onde" pode ser respondido pelos estados com mais deles (Bahia 84, Piauí 39, Pernambuco 34) ou cruzando com a seca (43,3% da área em seca grave ou pior em média nos 298, contra 14,5% nos outros); qualquer dos dois vale. Previsão para dezembro: as fontes discordam (INMET: 91,6% da área levemente abaixo ou abaixo do normal; CPTEC: só 6,9%). Diz a fonte e o período de cada parte.
+
+**Números:** 29,1 · 298
+
+### Y03 — panorama
+
+**Pergunta:** Sou secretário de agricultura de Patos, na Paraíba. O que eu deveria saber sobre o meu município no SEDES?
+
+**Resposta esperada:** Escolhe poucos dados e diz fonte e período de cada um. Seca: Monitor de Secas de setembro de 2026, 82,5% da área em seca grave e 17,5% moderada. Priorização padrão da Paraíba: prioridade alta (aridez pior que 73,8% do estado, Índice de Seca pior que 80,5%; pobreza rural pior que só 19,5%). Pode trazer também: pobreza total do CadÚnico 51,7% (2025), clima semiárido em toda a área (aridez ERA5-Land, 2024), 1 registro de seca no S2iD por ano de 2023 a 2025, e a previsão de dezembro (CPTEC levemente acima, INMET levemente abaixo do normal). Não dá conselho de política agrícola que não venha dos dados.
+
+**Números:** 82,5
+
+### Y04 — panorama
+
+**Pergunta:** Quais estados do Nordeste estão em pior situação de seca agora, e o que a previsão de chuva indica para eles?
+
+**Resposta esperada:** Monitor de Secas, setembro de 2026, % da área em seca grave ou pior: Pernambuco 77,3%, Bahia 48,9%, Paraíba 37,9%, Piauí 27,1%, Alagoas 23,3%; Ceará e Maranhão 0%. Previsão para dezembro: o INMET prevê chuva abaixo do normal (quase toda levemente) na maior parte de todos esses estados (ex.: Pernambuco 92,7% da área, Bahia 95,8%), o CPTEC quase nada abaixo (Pernambuco 0%, Bahia 3,4%). Diz que as fontes discordam.
+
+**Números:** 77,3
+
+As perguntas O pedem relação entre dois índices. O bot calcula a correlação
+de Pearson numa consulta só (SQLite tem sqrt), diz o que entrou (classes,
+períodos, quantos municípios ou meses), dá o valor e a leitura (fraca,
+moderada, forte) e diz que é associação, não causa. Respostas calculadas em
+13/11/2026; o número exato muda com as classes escolhidas, então vale o
+método dito e a ordem de grandeza.
+
+### O01 — correlação
+
+**Pergunta:** Em Campina Grande, a seca do Monitor de Secas e o CDI andam juntos? Calcule a correlação mês a mês.
+
+**Resposta esperada:** Junta os 33 meses de janeiro de 2024 a setembro de 2026 (o Monitor é mensal; o CDI, decendial, vira média do mês ou um decêndio por mês, e diz qual). Com % da área em seca moderada ou pior no Monitor e % em Estágios 1 a 3 no CDI (média do mês), r ≈ 0,5; com outras classes, de 0,3 a 0,5. Leitura: associação moderada ou fraca, não andam juntos o tempo todo (o Monitor fica em seca por mais tempo). Diz o método e que é associação.
+
+**Números:** 33
+
+### O02 — correlação
+
+**Pergunta:** No Semiárido, os municípios com mais pobreza são os que têm mais área em seca grave?
+
+**Resposta esperada:** Correlação entre a pobreza total do CadÚnico (2025) e a % da área em seca grave ou pior no Monitor de Secas (setembro de 2026), nos 1.477 municípios do Semiárido com os dois dados: r ≈ 0,24, uma associação positiva fraca. Não diz que a pobreza causa a seca nem o contrário; lembra que os períodos são diferentes.
+
+**Números:** 0,24
+
+### O03 — correlação
+
+**Pergunta:** A aridez tem relação com a pobreza nos municípios do Nordeste?
+
+**Resposta esperada:** Quase nenhuma, e levemente negativa: entre a % da área árida ou semiárida (Índice de Aridez de 2024; ERA5-Land ou BR-DWGD) e a pobreza total do CadÚnico de 2025, nos cerca de 1.790 municípios do Nordeste, r ≈ -0,15 (ERA5-Land -0,15; BR-DWGD -0,16; com a pobreza rural, -0,22). Diz que municípios mais áridos não são, em geral, mais pobres por esse dado, e que é associação.

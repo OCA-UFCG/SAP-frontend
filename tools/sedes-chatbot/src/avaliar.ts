@@ -16,6 +16,8 @@
  *   npm run avaliar -- --motor api --sem-juiz
  *   npm run avaliar -- --juizar antes             # só refaz as notas de uma rodada
  *   npm run avaliar -- --comparar antes depois    # compara duas rodadas
+ *   npm run avaliar -- --arquivo conversas/candidatas.md --sem-juiz
+ *                                         # outro arquivo no formato do perguntas.md
  *
  * Grava resultados/brutos/<rotulo>/<id>.json (fora do git) e o resumo em
  * resultados/rodadas/<rotulo>.md.
@@ -58,11 +60,13 @@ const { values: opc, positionals } = parseArgs({
     juiz: { type: "string", default: "claude-sonnet-5-5" },
     juizar: { type: "string" },
     comparar: { type: "boolean", default: false },
+    arquivo: { type: "string" },
   },
   allowPositionals: true,
 });
 
 const BRUTOS = path.join(PACOTE, "resultados/brutos");
+const ARQUIVO = opc.arquivo ? path.resolve(opc.arquivo) : undefined;
 const RODADAS = path.join(PACOTE, "resultados/rodadas");
 
 // --- o que se grava de cada pergunta -----------------------------------------
@@ -231,7 +235,7 @@ await criteriosDaPriorizacao().catch(() => {});
 const JUIZ_SISTEMA = `Você confere respostas do assistente de dados do SEDES, uma plataforma brasileira sobre seca e desertificação. O assistente responde a pessoas que não são especialistas, usando ferramentas que consultam uma cópia das tabelas do site (o "tabelão").
 
 O que o assistente deve fazer:
-- Responder o que foi perguntado, em português simples, indo ao ponto.
+- Responder o que foi perguntado, na língua da pergunta, em linguagem simples, indo ao ponto.
 - Tirar todo número das ferramentas chamadas na conversa; nunca inventar, estimar nem usar conhecimento próprio para dados.
 - Dizer junto dos números o índice, o período e o território, e de quando é o dado.
 - Dizer claramente quando o SEDES não tem o dado, sem estimar.
@@ -369,7 +373,7 @@ const entradaTotal = (t: Tokens) =>
 function lerRodada(rotulo: string): Resultado[] {
   const dir = path.join(BRUTOS, rotulo);
   if (!existsSync(dir)) throw new Error(`Rodada não encontrada: ${dir}`);
-  const ordem = new Map(lerPerguntas().map((p, i) => [p.id, i]));
+  const ordem = new Map(lerPerguntas(ARQUIVO).map((p, i) => [p.id, i]));
   return readdirSync(dir)
     .filter((f) => f.endsWith(".json"))
     .map(
@@ -539,7 +543,7 @@ async function principal() {
 
   const so = opc.so?.split(",");
   const categorias = opc.categoria?.split(",");
-  const perguntas = lerPerguntas().filter(
+  const perguntas = lerPerguntas(ARQUIVO).filter(
     (p) =>
       (!so || so.includes(p.id)) &&
       (!categorias || categorias.some((c) => p.id.startsWith(c))),

@@ -217,11 +217,15 @@ O que o bot pode fazer é limitado em duas camadas:
 
 ## Avaliação
 
-`perguntas.md` tem 101 perguntas com a resposta esperada; a maioria tem também
+`perguntas.md` tem 125 perguntas com a resposta esperada; a maioria tem também
 a consulta SQL feita à mão (`npm run consultas` roda essas consultas no
 tabelão). As de M em diante vieram do uso real da página: conversas com
 continuação (linhas `Depois:`), perguntas abertas, sentido das classes,
-escrita informal, dado que não existe e comparações.
+escrita informal, dado que não existe e comparações. Depois vêm as que juntam
+módulos: Priorização (N), Priorização com o tabelão (W), previsões (B),
+continuação de uma Priorização (J), inglês e espanhol (U), panorama (Y) e
+correlação entre índices (O). `exemplos-de-perguntas.md` resume os tipos de
+pergunta para quem vai usar o chat.
 
 ```bash
 npm run avaliar -- --so M01,E02 --rotulo teste   # teste rápido
@@ -230,6 +234,16 @@ npm run avaliar                                   # todas, Haiku
 npm run avaliar -- --modelo sonnet
 npm run avaliar -- --comparar antes depois        # compara duas rodadas
 ```
+
+As conversas gravadas pela página viram perguntas candidatas com
+`npm run candidatas` (ou `-- --pasta <cópia das conversas do beta>`). Ele grava
+`conversas/candidatas.md`, fora do git: cada pergunta nova, com a resposta que
+o bot deu, o 👎 e o comentário, e sinais para olhar (erro de ferramenta,
+recusa como "não tenho ferramenta", mais de 30 s, mais de 6 ferramentas),
+nessa ordem. Pula as que já estão no `perguntas.md`. Para ver como o bot de
+hoje responde a elas: `npm run avaliar -- --arquivo conversas/candidatas.md
+--sem-juiz`. As boas viram pergunta no `perguntas.md` depois de escrever a
+resposta esperada, conferida no tabelão.
 
 Cada pergunta roda pelo mesmo motor da página (`--motor claude`, o padrão, na
 assinatura de quem roda; ou `--motor api`, com a chave), 3 de cada vez. Para

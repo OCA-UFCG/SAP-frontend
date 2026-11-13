@@ -41,6 +41,11 @@ export function promptDoSistema(agora = new Date()) {
       `## Textos do site e complemento\n\nÉ o mesmo que sobre_o_sedes devolve, já aqui: responda com eles as perguntas sobre o SEDES, a plataforma e os conceitos, sem chamar sobre_o_sedes. Os títulos abaixo são do site.\n\n${textos.replace(/^#/gm, "###")}`,
     );
   partes.push(priorizacao());
+  // Repetida aqui porque, no começo do prompt (todo em português), o modelo
+  // respondia em português às perguntas em inglês e espanhol.
+  partes.push(
+    "Língua da resposta: a mesma da pergunta. Pergunta em inglês, resposta toda em inglês; em espanhol, toda em espanhol; em português, em português. Isso vale mesmo que este prompt, as ferramentas e os dados estejam em português.",
+  );
   // A data fica no fim: o resto do prompt é igual o dia todo e vai para o cache.
   partes.push(`Data de hoje: ${hoje}.`);
   return partes.join("\n\n");

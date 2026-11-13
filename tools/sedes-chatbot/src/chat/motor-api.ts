@@ -18,6 +18,7 @@ import { FERRAMENTAS } from "../ferramentas.ts";
 import { promptDoSistema } from "../prompt-sistema.ts";
 import { criteriosDaPriorizacao } from "../priorizacao.ts";
 import type { Motor, Pedido } from "./turno.ts";
+import { paraOModelo } from "./lingua.ts";
 
 type Mensagem = Anthropic.Beta.BetaMessageParam;
 
@@ -148,7 +149,7 @@ export function criarMotorApi(opcoes: { cliente?: Anthropic } = {}): Motor {
     const estado = estadoDa(pedido);
     const antes = estado.mensagens.length;
     const mensagens = estado.mensagens;
-    mensagens.push({ role: "user", content: turno.pergunta });
+    mensagens.push({ role: "user", content: paraOModelo(turno.pergunta) });
     const controle = new AbortController();
     estado.controle = controle;
     const uso: Uso = {

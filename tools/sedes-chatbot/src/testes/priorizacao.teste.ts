@@ -221,3 +221,32 @@ test("o resultado fica guardado para o consultar_sql cruzar por código", async 
     /não está guardada/,
   );
 });
+
+test("comparar_com diz quem entrou e saiu da prioridade muito alta", async () => {
+  backend(() => Response.json(RESULTADO));
+  const antes = await priorizar({ area: { tipo: "estado", valor: "PB" } });
+  const id = antes.match(/priorizacao: "(p\w+)"/)![1];
+  // Assunção cai para alta, Serraria sobe para muito alta.
+  backend(() =>
+    Response.json({
+      ...RESULTADO,
+      result: {
+        ...RESULTADO.result,
+        "2501351": mun("Assunção", 3, 0.2, 80),
+        "2515906": mun("Serraria", 4, 0.7, 70),
+      },
+    }),
+  );
+  const depois = await priorizar({
+    area: { tipo: "estado", valor: "PB" },
+    criterios: [{ nome: "pobreza_rural_2021", peso: 1 }],
+    comparar_com: id,
+  });
+  assert.match(depois, /só os 4 municípios classificados nas duas/);
+  assert.match(depois, /muito alta: 2 antes, 2 agora/);
+  assert.match(depois, /Entraram em muito alta \(1\): Serraria\./);
+  assert.match(depois, /Saíram de muito alta \(1\): Assunção\./);
+  assert.match(depois, /1 subiram, 1 desceram, 2 ficaram no mesmo/);
+  const sem = await priorizar({ comparar_com: "pnada" });
+  assert.match(sem, /"pnada" não está guardada/);
+});

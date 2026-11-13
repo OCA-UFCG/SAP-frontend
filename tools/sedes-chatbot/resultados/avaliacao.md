@@ -1,3 +1,90 @@
+# Previsões, continuação, outras línguas, panorama e correlação
+
+13/11/2026, tarde. 24 perguntas novas, com as respostas calculadas no tabelão
+e no backend da Priorização: previsões cruzadas com o Monitor de Secas e a
+Priorização (B01–B08), continuação de uma Priorização (J01–J05), inglês e
+espanhol (U01–U04), panorama (Y01–Y04, a Y01 de uma conversa real) e
+correlação entre índices (O01–O03). Haiku, motor claude, juiz Sonnet.
+
+| Rodada                                                      | Notas (certo · parcial · errado) | Mediana |
+| ----------------------------------------------------------- | -------------------------------- | ------- |
+| B antes da mudança (`prev-v0`)                              | 4 · 3 · 1                        | 11,2 s  |
+| B depois (`prev-v1` a `prev-v4`, última de cada)            | 8 · 0 · 0                        | 11,0 s  |
+| J, U, Y, O antes da mudança (`avanc-v0`)                    | 5 · 11 · 0                       | 7,4 s   |
+| J, U, Y, O depois (`avanc-v1` a `avanc-v5`, última de cada) | 13 · 3 · 0                       | 7 a 9 s |
+
+O que se viu antes da mudança:
+
+- Previsões. "Abaixo do normal" virava só as classes chamadas "Abaixo" e
+  "Muito abaixo", deixando de fora "Levemente abaixo": na B01 o bot respondeu
+  "nenhum" quando o INMET prevê abaixo do normal para 79 dos 80 municípios. O
+  período dos índices trimestrais (o mês em que o trimestre começa) aparecia
+  como "novembro de 2026", sem os três meses. E usava só um tipo de previsão
+  (a anomalia), sem a probabilidade e o acumulado.
+- Classe trocada. Numa consulta sem o rótulo da classe, o bot traduziu o
+  número de cabeça e pegou a vizinha ("100 a 200 mm" para a classe "10 a 100
+  mm").
+- Outras línguas. As 4 perguntas em inglês ou espanhol foram respondidas em
+  português.
+- Continuação da Priorização. Ao mudar peso, critério ou comparação, o bot
+  comparava as listas de cabeça e errava quem entrou e saiu (19 em comum em vez
+  de 18) ou dizia que não conseguia nomear.
+- Panorama de um município sem a Priorização; correlação respondida com "sim"
+  para uma relação fraca, sem calcular a força.
+
+O que mudou:
+
+- `consultar_sql` põe a coluna `rotulo_classe` ao lado de `classe` quando a
+  consulta não traz o rótulo (o índice vem de uma coluna da consulta ou do único
+  id no SQL).
+- O catálogo no prompt mostra os índices trimestrais como "trimestral" e cada
+  período com os meses ("2026-11 (nov/2026 a jan/2027)"), como o site.
+- `priorizar_municipios` aceita `comparar_com` (o id da análise anterior) e diz
+  quantos de prioridade muito alta antes e agora, quem entrou, quem saiu e
+  quantos subiram ou desceram. Quando a análise usa um critério do Monitor de
+  Secas (Seca Registrada), a saída avisa que cruzar com o Monitor é a mesma
+  fonte.
+- A pergunta em inglês ou espanhol vai ao modelo com um lembrete da língua
+  (`src/chat/lingua.ts`); só a regra no prompt não bastou (1 de 4).
+- Prompt: seção "Previsões" (tipo de previsão por pergunta, as três classes de
+  cada lado, dizer quando as fontes discordam, não prometer melhora); regra de
+  correlação (Pearson numa consulta, força dita na primeira frase); panorama com
+  um dado de cada módulo; comparar com a análise anterior; língua da pergunta.
+- `conhecimento/complemento.md`: trimestre, acumulado, as classes de anomalia e
+  que CPTEC e INMET discordam.
+- `npm run candidatas` transforma as conversas gravadas em perguntas
+  candidatas; `npm run avaliar -- --arquivo` roda outro arquivo no formato do
+  `perguntas.md`.
+
+O que ficou parcial: a J04 dá os números certos (27 → 35, 17 entraram, 9
+saíram), mas lista só 10 dos 35, como manda a regra para listas grandes. A J05 diz que a Seca Registrada vem do Monitor e que é de
+outro período, mas não diz com todas as letras que parte da associação é
+esperada (3 tentativas). A Y02 varia entre rodadas na parte "onde é mais
+prioritário". A B02 recebeu "certo", mas o juiz notou que a resposta ainda
+usou só a anomalia, sem a probabilidade.
+
+Para a equipe (catálogo):
+
+- "Previsão: Temperatura Mensal Probabilidade | INMET" tem exatamente os mesmos
+  números da previsão de chuva por probabilidade do INMET: as 101.034 linhas
+  são iguais. O cadastro aponta para a tabela da chuva (já anotado em
+  `src/observacoes.ts`; o bot avisa).
+- As classes dos índices de chuva trimestral acumulada (CPTEC e INMET) dizem
+  "mm/mês" (ex.: "400 a 900 mm/mês"), mas são do trimestre.
+- O id `previsao-precipitacao-mensal-acumulado-cptec` é o da previsão
+  trimestral do CPTEC; a mensal é `...-cptec-2`.
+- Uma classe da anomalia de temperatura trimestral do CPTEC está escrita
+  "cima do normal (1° a 3°)", sem o "A".
+
+Rodada completa depois das mudanças (`v8-todas`, 125 perguntas, 142 turnos):
+102 certo · 23 parcial · 0 errado, mediana de 6,3 s por turno, 3,1 idas ao
+modelo, US$ 0,34 de respostas em preço de API. As parciais são quase todas de
+redação. Depois dela, uma frase sobre o sinal da probabilidade ("-65% a -40%"
+não é chance negativa) entrou em `conhecimento/complemento.md`; rodando a U04
+de novo (`avanc-v6`), a probabilidade saiu certa, mas a resposta voltou ao
+português: em espanhol, perguntas de previsão às vezes ainda saem em
+português.
+
 # Priorização cruzada com o Monitoramento
 
 13/11/2026. Teste de perguntas que juntam a Priorização com índices do tabelão

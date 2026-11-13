@@ -123,6 +123,48 @@ export function comPriorizacao(
   };
 }
 
+/**
+ * O que mudou de uma análise guardada para outra: quem entrou e saiu da
+ * prioridade muito alta e quantos subiram ou desceram de nível. Só conta os
+ * municípios classificados nas duas (a área pode ser diferente, ex.: o Ceará
+ * sozinho e o Nordeste todo). O modelo errava essa conta comparando listas.
+ */
+export function compararPriorizacoes(antes: string, agora: string): string {
+  const a = GUARDADAS.get(antes.trim());
+  const b = GUARDADAS.get(agora.trim());
+  if (!a || !b)
+    return `Comparação: a análise "${antes}" não está guardada; rode a anterior de novo se precisar comparar.`;
+  const nivelAntes = new Map(
+    a.filter((l) => l[4] !== null).map((l) => [l[0], l[4]!]),
+  );
+  const comuns = b.filter((l) => l[4] !== null && nivelAntes.has(l[0]));
+  const variasUfs = new Set(comuns.map((l) => l[2])).size > 1;
+  const nome = (l: LinhaGuardada) => (variasUfs ? `${l[1]}–${l[2]}` : l[1]);
+  const lista = (ls: LinhaGuardada[]) =>
+    ls
+      .map(nome)
+      .sort((x, y) => x.localeCompare(y, "pt-BR"))
+      .join(", ") || "nenhum";
+  const ma = 5;
+  const entraram = comuns.filter(
+    (l) => l[4] === ma && nivelAntes.get(l[0]) !== ma,
+  );
+  const sairam = comuns.filter(
+    (l) => l[4] !== ma && nivelAntes.get(l[0]) === ma,
+  );
+  const subiram = comuns.filter((l) => l[4]! > nivelAntes.get(l[0])!).length;
+  const desceram = comuns.filter((l) => l[4]! < nivelAntes.get(l[0])!).length;
+  const antesMa = comuns.filter((l) => nivelAntes.get(l[0]) === ma).length;
+  const agoraMa = comuns.filter((l) => l[4] === ma).length;
+  return [
+    `Comparação com a análise "${antes}" (só os ${comuns.length} municípios classificados nas duas):`,
+    `- Prioridade muito alta: ${antesMa} antes, ${agoraMa} agora.`,
+    `- Entraram em muito alta (${entraram.length}): ${lista(entraram)}.`,
+    `- Saíram de muito alta (${sairam.length}): ${lista(sairam)}.`,
+    `- Mudaram de nível: ${subiram} subiram, ${desceram} desceram, ${comuns.length - subiram - desceram} ficaram no mesmo.`,
+  ].join("\n");
+}
+
 /** Os critérios em uma linha cada, para o prompt do sistema. */
 export function criteriosResumidos(lista: Criterio[]) {
   return lista
@@ -354,6 +396,7 @@ type Pedido = {
   limiares?: { indiferenca?: number; preferencia?: number; veto?: number };
   municipios?: string[];
   listar?: string[];
+  comparar_com?: string;
 };
 
 export async function priorizar(p: Pedido): Promise<string> {
@@ -478,6 +521,14 @@ export async function priorizar(p: Pedido): Promise<string> {
   ]);
   partes.push(
     `Para cruzar com índices do tabelão: chame consultar_sql com priorizacao: "${id}". A consulta ganha a tabela ${COLUNAS_DA_TABELA} com os ${r.count + excluidos.length} municípios desta análise: nivel 'Muito alta', 'Alta', 'Média', 'Baixa' ou 'Muito baixa' (nivel_ordem 5 a 1), ou NULL para os que ficaram de fora; grupo é o grupo de comparação. Junte por codigo (= valores.territorio).`,
+    // Sem este aviso aqui, o modelo cruzava com o Monitor de Secas sem dizer
+    // que a Seca Registrada vem dele (a regra do prompt não bastou).
+    ...escolhidos
+      .filter((e) => /monitor de secas/i.test(e.criterio.description ?? ""))
+      .map(
+        (e) =>
+          `Atenção: o critério ${e.criterio.label} vem do Monitor de Secas da ANA (${e.criterio.description}). Se cruzar esta análise com o Monitor de Secas do tabelão, diga na resposta que é a mesma fonte em outro período, então parte da associação é esperada.`,
+      ),
     "",
   );
   partes.push(
@@ -495,6 +546,7 @@ export async function priorizar(p: Pedido): Promise<string> {
   for (let n = NIVEIS.length - 1; n >= 0; n--)
     partes.push(`${NIVEIS[n]} | ${total[n]}`);
   partes.push("");
+  if (p.comparar_com) partes.push(compararPriorizacoes(p.comparar_com, id), "");
 
   if (grupos.size > 1 && grupos.size <= 30) {
     partes.push(
@@ -656,6 +708,13 @@ export const priorizarMunicipios: Ferramenta = {
       .optional()
       .describe(
         "Níveis cujos municípios listar por nome. Padrão: só 'Muito alta' (nenhum, quando municipios é passado)",
+      ),
+    comparar_com: z
+      .string()
+      .max(20)
+      .optional()
+      .describe(
+        'Id de uma análise anterior desta conversa (o que veio em priorizacao: "..."). Quando a pessoa muda critérios, pesos, área ou comparação, passe o id da anterior: a saída diz quem entrou e saiu da prioridade muito alta e quantos mudaram de nível',
       ),
   },
   executar: (args: Pedido) => priorizar(args),

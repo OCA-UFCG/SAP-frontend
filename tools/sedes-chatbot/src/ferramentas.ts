@@ -235,6 +235,21 @@ const AGREGACAO_CURTA: Array<[RegExp, string]> = [
   [/SOMA/, "estados e recortes = soma dos municípios"],
 ];
 
+const MESES = "jan fev mar abr mai jun jul ago set out nov dez".split(" ");
+
+/**
+ * O trimestre que começa no mês do período, como o site mostra nas previsões
+ * sazonais (src/utils/seasonalPeriod.ts): "2026-11" → "nov/2026 a jan/2027".
+ */
+export function trimestreDe(periodo: string) {
+  const m = /^(\d{4})-(\d{2})$/.exec(periodo);
+  if (!m) return periodo;
+  const ano = Number(m[1]);
+  const mes = Number(m[2]) - 1;
+  const fim = mes + 2;
+  return `${MESES[mes]}/${ano} a ${MESES[fim % 12]}/${ano + Math.floor(fim / 12)}`;
+}
+
 /**
  * O catálogo de listar_indices em forma curta, para ir no prompt do sistema:
  * com ele o modelo não precisa chamar listar_indices antes de cada consulta.
@@ -261,11 +276,18 @@ export function catalogoResumido() {
     if (g !== grupo) linhas.push("", `### ${g}`);
     grupo = g;
     const n = Number(i.qtd_periodos);
+    // Nas previsões trimestrais o período é o mês em que o trimestre começa.
+    const trimestral =
+      Boolean(i.previsao) && /trimestral/i.test(String(i.nome));
     // Com poucos períodos, "2010 a 2023" esconde que só há 2010, 2020 e 2023.
     const per =
       n <= 8
         ? (periodos.all(i.id as string) as Array<{ periodo: string }>)
-            .map((p) => p.periodo)
+            .map((p) =>
+              trimestral
+                ? `${p.periodo} (${trimestreDe(p.periodo)})`
+                : p.periodo,
+            )
             .join(", ")
         : `${i.primeiro_periodo} a ${i.ultimo_periodo} (${n})`;
     const valor =
@@ -286,7 +308,7 @@ export function catalogoResumido() {
       ? ` Observação: ${OBSERVACOES[String(i.id)]}`
       : "";
     linhas.push(
-      `- ${i.id} — ${i.nome}. ${i.escala_temporal}, ${per}; atualizado ${i.atualizado_em ? dataBr(String(i.atualizado_em)) : "?"}. ${valor}; ${agregacao}.${cls}${obs}`,
+      `- ${i.id} — ${i.nome}. ${trimestral ? "trimestral" : i.escala_temporal}, ${per}; atualizado ${i.atualizado_em ? dataBr(String(i.atualizado_em)) : "?"}. ${valor}; ${agregacao}.${cls}${obs}`,
     );
   }
   return linhas.join("\n");
@@ -423,6 +445,61 @@ Exemplos:
 
 type Grafico = { tipo: "serie" | "ranking"; titulo: string; unidade?: string };
 
+let rotulosDasClasses: Map<string, string> | undefined;
+
+/**
+ * Quando a consulta devolve a coluna classe sem o rótulo, põe o rótulo ao
+ * lado. Sem ele o modelo traduz o número de cabeça pelo catálogo e às vezes
+ * pega a classe vizinha (ex.: disse "100 a 200 mm" para a classe 2, que é
+ * "10 a 100 mm"). O índice vem de uma coluna da consulta com ids de índices
+ * ou, se não houver, do único id de índice escrito no SQL.
+ */
+export function comRotuloDaClasse(
+  sql: string,
+  colunas: string[],
+  linhas: Array<Record<string, unknown>>,
+): { colunas: string[]; linhas: Array<Record<string, unknown>> } {
+  if (!colunas.includes("classe") || colunas.some((c) => /rotulo/i.test(c)))
+    return { colunas, linhas };
+  rotulosDasClasses ??= new Map(
+    (
+      db.prepare("SELECT indice, ordem, rotulo FROM classes").all() as Array<{
+        indice: string;
+        ordem: number;
+        rotulo: string;
+      }>
+    ).map((c) => [`${c.indice}|${c.ordem}`, c.rotulo]),
+  );
+  const ids = new Set(
+    [...rotulosDasClasses.keys()].map((k) => k.slice(0, k.lastIndexOf("|"))),
+  );
+  const colunaDoIndice = colunas.find((c) =>
+    linhas.every((l) => ids.has(String(l[c]))),
+  );
+  const noSql = [...new Set(sql.match(/'[^']+'/g) ?? [])]
+    .map((t) => t.slice(1, -1))
+    .filter((t) => ids.has(t));
+  const indiceDe = colunaDoIndice
+    ? (l: Record<string, unknown>) => String(l[colunaDoIndice])
+    : noSql.length === 1
+      ? () => noSql[0]
+      : undefined;
+  if (!indiceDe) return { colunas, linhas };
+  const i = colunas.indexOf("classe");
+  return {
+    colunas: [
+      ...colunas.slice(0, i + 1),
+      "rotulo_classe",
+      ...colunas.slice(i + 1),
+    ],
+    linhas: linhas.map((l) => ({
+      ...l,
+      rotulo_classe:
+        rotulosDasClasses!.get(`${indiceDe(l)}|${String(l.classe)}`) ?? "",
+    })),
+  };
+}
+
 const consultarSql: Ferramenta = {
   nome: "consultar_sql",
   titulo: "Consultar o tabelão com SQL",
@@ -491,8 +568,10 @@ const consultarSql: Ferramenta = {
     const aviso = r.truncado
       ? `\n(Mostrando só as primeiras ${LIMITE_LINHAS} linhas; refine a consulta.)`
       : "";
-    const colunas = grafico ? ["rotulo", "valor"] : r.colunas;
-    return `${tabela(colunas, r.linhas)}${aviso}${RODAPE}`;
+    if (grafico)
+      return `${tabela(["rotulo", "valor"], r.linhas)}${aviso}${RODAPE}`;
+    const t = comRotuloDaClasse(sql, r.colunas, r.linhas);
+    return `${tabela(t.colunas, t.linhas)}${aviso}${RODAPE}`;
   },
 };
 

@@ -35,8 +35,11 @@ Estados e recortes têm valor próprio. Em alguns índices esse valor é calcula
 ## Previsões
 
 - As previsões vêm do CPTEC/INPE e do INMET, para chuva e temperatura, por mês e por trimestre.
-- **Anomalia**: quanto se espera que fique acima ou abaixo do normal para a época. Na chuva, em mm por mês (ex.: "Abaixo do normal (-90 a -30 mm/mês)").
-- **Probabilidade**: a chance de ficar abaixo ou acima do normal. Cada classe diz o lado e a faixa de chance (ex.: "40% a 65% (acima da Normal)").
+- **Trimestre**: nas previsões trimestrais, o período é o mês em que o trimestre começa. Ex.: o período 2026-11 é o trimestre de novembro de 2026 a janeiro de 2027.
+- **Acumulado** (ou média, na temperatura): quanto se espera de chuva no período, em faixas (ex.: "10 a 100 mm/mês").
+- **Anomalia**: quanto se espera que fique acima ou abaixo do normal para a época. Na chuva, em mm (ex.: "Abaixo do normal (-90 a -30 mm/mês)"). As classes abaixo do normal são três: levemente abaixo, abaixo e muito abaixo; o mesmo vale acima.
+- **Probabilidade**: a chance de ficar abaixo ou acima do normal. Cada classe diz o lado e a faixa de chance (ex.: "40% a 65% (acima da Normal)" = de 40% a 65% de chance de ficar acima do normal). O sinal de menos só indica o lado: "-65% a -40% (abaixo da Normal)" = de 40% a 65% de chance de ficar abaixo do normal. Não existe chance negativa.
+- O CPTEC e o INMET usam modelos diferentes e às vezes discordam.
 - Previsão não é medição: é uma estimativa para os próximos meses, que pode não se confirmar.
 
 ## CadÚnico

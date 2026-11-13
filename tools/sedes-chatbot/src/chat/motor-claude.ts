@@ -12,6 +12,7 @@ import { createInterface } from "node:readline";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import type { Motor, Pedido, Turno } from "./turno.ts";
+import { paraOModelo } from "./lingua.ts";
 
 const PACOTE = path.resolve(
   path.dirname(fileURLToPath(import.meta.url)),
@@ -263,7 +264,10 @@ export function criarMotorClaude({
       p.proc!.stdin!.write(
         JSON.stringify({
           type: "user",
-          message: { role: "user", content: pedido.turno.pergunta },
+          message: {
+            role: "user",
+            content: paraOModelo(pedido.turno.pergunta),
+          },
         }) + "\n",
       );
     },

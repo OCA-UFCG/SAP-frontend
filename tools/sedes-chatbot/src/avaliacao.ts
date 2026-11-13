@@ -27,8 +27,14 @@ export interface Pergunta {
   numeros: string[];
 }
 
-export function lerPerguntas(): Pergunta[] {
-  const md = readFileSync(path.join(PACOTE, "perguntas.md"), "utf8");
+/** Lê perguntas.md ou outro arquivo no mesmo formato (ex.: o de candidatas). */
+export function lerPerguntas(
+  arquivo = path.join(PACOTE, "perguntas.md"),
+): Pergunta[] {
+  return perguntasDoMarkdown(readFileSync(arquivo, "utf8"));
+}
+
+export function perguntasDoMarkdown(md: string): Pergunta[] {
   return md
     .split(/^### /m)
     .slice(1)
