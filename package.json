@@ -58,7 +58,7 @@
     "firebase": "^12.13.0",
     "firebase-admin": "^13.10.0",
     "maplibre-gl": "^6.16.0",
-    "next": "^16.4.3",
+    "next": "^16.4.6",
     "next-intl": "^4.14.7",
     "nodemailer": "^10.1.4",
     "react": "19.2.3",
