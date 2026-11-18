@@ -1,0 +1,697 @@
+DIÁRIO DO PROCESSO — MELHORIA DO CHATBOT DO SEDES
+==================================================
+
+Para que serve este arquivo: registrar, em ordem, o que foi feito, por que foi
+feito e o que cada passo mostrou. Serve de referência para explicar o trabalho
+depois. Cada entrada tem data, o que se fez, o resultado e a decisão tomada.
+
+
+16/11/2026 — Ponto de partida
+-----------------------------
+
+Situação encontrada
+- Branch: feat/chatbot-haiku-dados-mapa.
+- Havia 19 arquivos modificados e 9 novos sem commit (mapa na página,
+  acabamento das respostas, conferência dos números, Priorização).
+- A última avaliação completa (rodada "v9-todas", de 13/11) não vale como
+  medida: das 149 perguntas, 110 terminaram com erro de limite de uso da
+  assinatura ("You've hit your 5-hour limit"). Só 38 receberam nota do juiz
+  (34 certo, 4 parcial, 0 errado).
+- Ou seja: as mudanças mais recentes nunca foram medidas por inteiro.
+
+Pista que já existia
+- Na rodada pequena "z-v2" (6 perguntas), as 2 respostas "parcial" tinham o
+  mesmo tipo de falha: o modelo tira uma conclusão que os números não
+  sustentam (ex.: "a queda foi sobretudo nos anos 2020") ou apresenta como
+  dado do SEDES algo que o SEDES não define (ex.: "acima do normal").
+
+Plano combinado
+1. Rodar a avaliação completa das 149 perguntas (Haiku responde, Sonnet julga).
+2. Analisar as falhas e agrupar por causa: prompt, ferramenta, dado ou
+   gabarito/juiz errado.
+3. Corrigir as causas de maior impacto e rodar de novo só as perguntas
+   afetadas, comparando antes e depois.
+4. Revisar o código sem commit atrás de bugs e commitar em partes.
+5. Se sobrar cota: ler as conversas reais e criar perguntas novas para os
+   tipos de pergunta que a avaliação ainda não cobre.
+
+Por que nessa ordem
+- A avaliação usa a mesma cota de uso que o trabalho de análise. Rodando
+  primeiro, ela não morre no meio como aconteceu na v9.
+- Sem medir antes, não dá para saber o que vale a pena corrigir nem provar
+  que a correção funcionou.
+
+Passo 1 — avaliação completa (rodada "v10-todas")
+- Subi o backend da Priorização em 127.0.0.1:8000 (com cópia dos dados em
+  ~/.cache/sedes-priorizacao, para não alterar o repositório dele). Sem ele,
+  as perguntas de Priorização responderiam "fora do ar".
+- Na primeira tentativa a avaliação avisou que o site local (localhost:3000)
+  não estava no ar, e a ferramenta de relatório iria falhar. Não havia memória
+  livre para subir o site local (1,6 GB disponíveis), então parei a rodada
+  logo no início e apontei o relatório para a produção, que responde sem
+  login (testado: HTTP 200 em 3,2 s). São só leituras.
+- Comando: SEDES_BASE_URL=https://sedes.oca.ufcg.edu.br npm run avaliar -- --rotulo v10-todas
+- Resultado (arquivo resultados/rodadas/v10-todas.md): as 149 perguntas
+  rodaram, sem nenhum erro de limite de uso.
+    110 certo · 37 parcial · 2 errado  (74% certo)
+    tempo por resposta: média 9,5 s, mediana 8,1 s, 90% até 16,9 s
+    custo equivalente em preço de API: US$ 0,42 a rodada inteira
+- Esta é a primeira medida completa e válida do estado atual do chatbot.
+
+
+16/11/2026 — Passo 2: por que as 39 respostas não tiraram "certo"
+-----------------------------------------------------------------
+
+Li o parecer do juiz em cada uma das 39 (37 parciais + 2 erradas) e agrupei
+pela causa, não pela categoria da pergunta. Em quase todas os NÚMEROS estavam
+certos; o problema estava na frase em volta do número.
+
+Grupo 1 — Frase que os números não sustentam (cerca de 14 perguntas)
+  O modelo tinha os dados certos e escreveu uma conclusão errada ou forte
+  demais. Exemplos:
+  - T01, Q01: "só subiu em 2022", quando a série também subiu em 2020 e 2024.
+  - B08: "as duas fontes concordam", quando o CPTEC previa chuva levemente
+    acima do normal e o INMET levemente abaixo. (nota "errado")
+  - Z14: "bem acima do normal", sendo que o SEDES não define um "normal".
+  - M06, Z04, Z19, E01, O02, M02, J02, D01, B01, Z08: variações do mesmo tipo.
+
+Grupo 2 — Id de índice escrito errado (B04, nota "errado")
+  O modelo escreveu o id de um índice com o nome trocado. A consulta não deu
+  erro: só voltou vazia. O modelo concluiu "o INMET não traz esse dado", o que
+  é falso.
+
+Grupo 3 — Previsões lidas pela metade (B01, B02, B03, B07, Y02)
+  Usou só uma das duas fontes ou só um dos tipos de previsão; escreveu
+  "chance de -40% a 0%" (chance negativa não existe: o sinal de menos nas
+  classes só indica o lado "abaixo do normal").
+
+Grupo 4 — Priorização: lista cortada e ressalvas faltando (U03, J01, J04,
+  N10, J05, W10, Z22, N06, J03)
+  - Quando eram 27, 32 ou 35 municípios, listava só 10 e mandava ver "o
+    resto" numa lista que a pessoa não enxerga no chat. A regra do prompt
+    cortava em 25.
+  - Faltava dizer que o resultado depende dos critérios e pesos escolhidos.
+
+Grupo 5 — Faltou um contexto que o gabarito pede (T04, A04, S01, M07, R02,
+  Z02, Z09, E06, M04, W06)
+  Resposta correta, mas sem um complemento (ex.: "2010 é o dado mais recente
+  do IDH"). Algumas são exigência dura demais do gabarito.
+
+Grupo 6 — Erro do juiz, não do chatbot (W02, B07)
+  - W02: o juiz marcou como invertida a frase "98,6% dos municípios estão em
+    situação melhor", que quer dizer o mesmo que "pior que 98,6%".
+  - B07: o próprio parecer conclui que o essencial está correto.
+
+Decisão: atacar primeiro os grupos 1 a 4, e de preferência NO CÓDIGO, não no
+prompt. Motivo: avisos escritos no prompt o modelo pequeno (Haiku) costuma
+ignorar; um aviso que chega junto com o resultado da ferramenta, ele segue.
+
+
+16/11/2026 — Passo 3: correções
+-------------------------------
+
+No código (src/ferramentas.ts) — o código passa a garantir, sem depender do
+modelo:
+  a) Id de índice que não existe: a consulta agora devolve um aviso dizendo
+     que aquele id não existe e quais são os ids parecidos do catálogo, e
+     manda refazer em vez de dizer que o SEDES não tem o dado. (Grupo 2)
+  b) Previsões: quando a consulta traz previsão de anomalia ou de
+     probabilidade, a saída ganha um resumo já calculado com a % da área
+     "abaixo do normal" e "acima do normal" de cada fonte e período. Se CPTEC
+     e INMET apontam para lados diferentes, vai um aviso explícito de que as
+     fontes discordam. (Grupos 1 e 3)
+  c) Probabilidade: aviso de que o sinal de menos só indica o lado e que não
+     existe chance negativa. (Grupo 3)
+  d) Séries: o resumo calculado agora diz EM QUAIS períodos houve alta ou
+     queda quando são poucos (ex.: "3 altas (em 2020, 2022, 2024)"), em vez
+     de só a contagem. (Grupo 1)
+
+No prompt (prompt.md) — três frases:
+  e) "É normal para a época?": o SEDES não define um "normal"; responder "em
+     X dos N anos houve...", não "acima do normal".
+  f) Priorização: listar todos os municípios de prioridade muito alta quando
+     forem até 40 (antes, 25) e não mandar ver "o resto" numa lista que a
+     pessoa não vê.
+  g) Ao refazer uma Priorização, dizer que o resultado depende dos critérios,
+     dos pesos e da comparação.
+
+Conferência: os 29 testes automáticos do pacote continuam passando; testei as
+notas novas com as consultas reais que tinham falhado (B04 e B08).
+
+Resultado nas 14 perguntas afetadas (rodada "v11-alvo"):
+  antes (v10):  0 certo · 12 parcial · 2 errado
+  depois (v11): 10 certo · 4 parcial · 0 errado
+  As duas "errado" (B04 e B08) viraram "certo".
+  Seguem parciais: N10, B01, B02, J04 — os números estão certos; falta um
+  complemento que o gabarito pede (ex.: rodar também a comparação com o
+  Nordeste junto; consultar também a probabilidade).
+
+Passo seguinte: rodada completa "v11-todas", para confirmar que as correções
+não pioraram nenhuma pergunta que antes estava certa.
+- Resultado (arquivo resultados/rodadas/v11-todas.md):
+    v10: 110 certo · 37 parcial · 2 errado
+    v11: 113 certo · 34 parcial · 2 errado
+    tempo médio por resposta: 9,5 s → 8,9 s; custo igual (US$ 0,44)
+
+
+16/11/2026 — Achado: a nota muda sozinha de uma rodada para outra
+-----------------------------------------------------------------
+
+O total subiu só 3, mas por baixo houve muita troca. Comparando pergunta a
+pergunta entre a v10 e a v11:
+    91 certas nas duas rodadas
+    22 passaram a certo (entre elas as corrigidas: B04, B08, Y02, T01, U03,
+       J01, Z14)
+    19 que estavam certas pioraram — e as correções não tocam nelas
+    17 falharam nas duas
+
+As 19 que pioraram são perguntas que o código e o prompt novos não afetam
+(ex.: C01 sobre o que é o CDI, U02 respondida em português em vez de
+espanhol, A03 sobre seca no Brasil). O modelo que responde (Haiku) não dá a
+mesma resposta duas vezes, e o juiz é rigoroso com qualquer frase a mais.
+
+O que isso quer dizer:
+- Uma rodada só não mede mudanças pequenas. Uma diferença de 3 a 5 perguntas
+  no total está dentro do ruído.
+- As correções deste dia são reais: foram conferidas pergunta a pergunta, em
+  duas rodadas seguidas (v11-alvo e v11-todas), e não só pelo total.
+- O retrato mais fiel do chatbot hoje: cerca de 91 perguntas (61%) ele acerta
+  sempre, cerca de 41 (28%) ele acerta às vezes, e 17 (11%) ele erra sempre.
+
+O erro que mais se repete, nas instáveis e nas novas falhas, é o mesmo do
+Grupo 1: os números vêm certos da ferramenta e o modelo acrescenta uma frase
+que eles não sustentam. Exemplos da v11: "quase toda essa área estava em seca
+fraca" (era 26,4% fraca e 14,4% moderada); "26 dos 184 municípios" (eram 23);
+"o mês mais fraco foi janeiro" (era o pior).
+
+As 17 que falham nas duas rodadas (as mais seguras para atacar a seguir):
+    B01 B02 B03 E01 J02 J03 J04 J05 M02 M04 N10 O02 Q01 S01 W06 Z02 Z04
+
+Próximos passos possíveis (ainda não feitos):
+1. Medir com repetição: rodar cada pergunta 3 vezes e contar em quantas
+   acerta. Sem isso, não dá para provar ganhos pequenos.
+2. Atacar a frase sem apoio com um segundo passo de conferência: depois da
+   resposta, checar cada afirmação contra as saídas das ferramentas (hoje o
+   código já confere os números; faltam as frases). Custa alguns segundos a
+   mais por resposta.
+3. Revisar e commitar o código que está sem commit.
+
+
+16/11/2026 — Passo 4: revisão das frases (segunda conferência)
+--------------------------------------------------------------
+
+O que é
+- Depois que o modelo escreve a resposta, a página manda para ele mesmo um
+  pedido automático: reler a resposta frase por frase contra os resultados
+  das ferramentas, procurando 5 tipos de erro:
+    1. resumo que a tabela não confirma ("quase toda", "a maioria", "só",
+       contagens como "26 municípios");
+    2. direção ou ordem trocada (maior/menor, subiu/caiu, pior/melhor);
+    3. número certo com período, território, índice ou classe errados;
+    4. afirmação que não está em nenhum resultado nem nos textos do SEDES;
+    5. resposta que foge da pergunta (outro período, outra língua).
+- Se o modelo não acha erro, responde só "OK" e fica a resposta original.
+  Se acha, escreve a resposta corrigida e a página troca.
+- A pessoa já vê a resposta enquanto a revisão acontece (aparece "Conferindo
+  a resposta…"); o texto só muda se houver correção.
+- Proteções: a revisão só roda em resposta que usou ferramenta; se a versão
+  corrigida trouxer um número que não está nos resultados, ela é descartada
+  e fica a original; dá para desligar com SEDES_CHAT_REVISAR=0.
+
+Onde está: src/chat/acabamento.ts (o pedido e a decisão) e src/chat/turno.ts
+(segurar o texto novo fora da tela até decidir).
+
+Por que o próprio modelo, e não um segundo modelo: o pedido vai na mesma
+conversa, que já tem todos os resultados das ferramentas guardados em cache.
+Fica barato e não precisa de outra chamada montada do zero.
+
+Testes
+- 6 testes novos (35 no total, todos passando): as 3 notas das ferramentas e
+  3 casos da revisão (OK mantém; correção troca; correção com número sem
+  fonte é descartada).
+- Um dos testes achou um bug antes de ir para a medição: quando a revisão
+  corrigia a resposta, a página não recebia o texto novo. Corrigido.
+
+Primeiro sinal (rodada "r1-alvo", 25 perguntas: 19 que falharam na v11 + 6
+de controle):
+    sem revisão (v11):  6 certo · 18 parcial · 1 errado
+    com revisão:       18 certo ·  7 parcial · 0 errado
+  - A revisão trocou a resposta em 13 das 25 (52%).
+  - Custo: tempo total médio de 8,9 s para 14,7 s (mas a resposta já está
+    na tela antes da revisão) e cerca de 40% mais tokens.
+  - Cuidado: parte dessa melhora pode ser só o ruído de rodada para rodada.
+    Por isso o passo seguinte.
+
+Medição com repetição (em andamento)
+- Três rodadas completas das 149 perguntas, em sequência:
+    rev-on-1  (revisão ligada)
+    rev-off-2 (revisão desligada; soma com a v11-todas como controle)
+    rev-on-2  (revisão ligada)
+- Assim cada condição tem 2 rodadas e dá para separar ganho real de ruído.
+- Imprevisto: a sessão de trabalho caiu no meio (por volta das 22h35). A
+  rodada rev-on-1 já tinha terminado; a rev-off-2 parou com 106 das 149
+  perguntas gravadas; o backend da Priorização saiu do ar. Subi o backend de
+  novo e retomei a rev-off-2 de onde parou (opção --retomar, que refaz só o
+  que faltou), seguida da rev-on-2.
+- Resultado parcial — rev-on-1 (revisão ligada, 149 perguntas):
+    124 certo · 23 parcial · 2 errado   (sem revisão: 110 na v10, 113 na v11)
+    a revisão rodou em 141 respostas e trocou 62 delas (44%)
+    tempo total médio: 8,9 s → 12,1 s; custo da rodada: US$ 0,44 → US$ 0,61
+- rev-off-2 (revisão desligada) terminou: 119 certo · 27 parcial · 3 errado.
+- rev-on-2 (revisão ligada) bateu no limite de uso de 5 horas da assinatura:
+  90 das 149 perguntas terminaram com erro "You've hit your 5-hour limit"
+  (reset às 23h40). As 59 que rodaram deram 46 certo · 6 parcial · 0 errado.
+  Às 23h41, com o limite já renovado, retomei a rodada com --retomar.
+- Lição: quatro rodadas completas mais o trabalho de análise numa mesma
+  janela de 5 horas estouram o limite. Planejar no máximo 3 rodadas completas
+  por janela.
+- Resultado final: ver a entrada "Fechamento da medição" mais abaixo.
+
+
+16/11/2026 (23h45) — Ciclo 2, passos 1 e 2: o que ainda falha COM a revisão
+---------------------------------------------------------------------------
+
+Li os pareceres do juiz nas 25 perguntas que não tiraram "certo" na rodada
+rev-on-1 (revisão ligada).
+
+A revisão trocou a resposta em 61 perguntas: 49 ficaram certas e 12 parciais.
+Nas 88 em que não trocou: 75 certas, 11 parciais, 2 erradas. Ou seja, a
+revisão não está estragando respostas de forma visível.
+
+Causas das 25 falhas:
+Grupo A — Explicar o nível de um município na Priorização (7 perguntas:
+  N03, N04, J01, J02, N10, N11, W09)
+  A ferramenta devolve "situação pior que (% do grupo)" e o modelo lê errado:
+  - leu "pior que 43%" como "43% estão em situação pior" (o contrário);
+  - chamou 58,6% (perto do meio) de "entre os piores";
+  - disse que um critério "puxou" o nível, o que é atribuir causa.
+Grupo B — Previsão só com um dos tipos (4 perguntas: B01, B02, B04, B07)
+  Consultou só a anomalia e não a probabilidade (que pode apontar para outro
+  lado), ou não disse que o desvio previsto é pequeno ("levemente abaixo").
+Grupo C — Falta um complemento que o gabarito pede (10 perguntas: A04, M07,
+  R02, Z19, P01, K01, E06, Z03, S01, U02). Respostas corretas e incompletas.
+Grupo D — Erro de leitura de verdade (4 perguntas: D01, Z21, Q03, O02).
+
+Ciclo 2, passo 3: correções (no código)
+  a) Priorização (src/priorizacao.ts): a tabela do município ganhou a coluna
+     "leitura", já em palavras e com faixas fixas: "entre os piores do grupo"
+     (pior que 80% ou mais), "pior que a maioria", "perto do meio do grupo",
+     "melhor que a maioria", "entre os melhores do grupo". Vai junto uma
+     frase explicando como ler o percentual e pedindo para não dizer que um
+     critério "puxou" ou "pesou mais". No prompt, a frase que mandava dizer
+     "pesou para cima ou para baixo" foi trocada por "copie a leitura".
+  b) Previsões (src/ferramentas.ts): o resumo calculado agora avisa quando a
+     maior parte da área está em classes "levemente" (desvio pequeno); e,
+     quando a consulta traz só a anomalia, vai uma nota mandando trazer
+     também a probabilidade antes de responder "acima ou abaixo do normal".
+  Testes: 36 passando (1 novo, da leitura da posição).
+
+Atenção para a medição: estas duas correções foram feitas enquanto a rodada
+rev-on-2 ainda estava sendo retomada. As perguntas de Priorização e de
+previsão respondidas depois das 23h55 nessa rodada podem ter usado o código
+novo. Na comparação "com revisão x sem revisão", isso mistura um pouco as
+duas coisas nessas categorias; o certo teria sido esperar a rodada acabar.
+
+
+17/11/2026 (00h20) — Fechamento da medição: a revisão das frases vale a pena?
+-----------------------------------------------------------------------------
+
+As quatro rodadas completas terminaram, todas sem erro de limite (a rev-on-2
+foi retomada depois do reset das 23h40).
+
+                          certo  parcial  errado   tempo médio   custo/rodada
+  sem revisão  v11-todas    113      34       2       8,9 s        US$ 0,44
+  sem revisão  rev-off-2    119      27       3       9,3 s        US$ 0,43
+  com revisão  rev-on-1     124      23       2      12,1 s        US$ 0,61
+  com revisão  rev-on-2     121      26       2      12,0 s        US$ 0,60
+
+Somando as duas rodadas de cada condição (298 respostas em cada):
+  sem revisão: 232 certas (78%)
+  com revisão: 245 certas (82%)
+
+Pergunta a pergunta (149 perguntas, 2 tentativas em cada condição):
+                    acerta sempre   acerta às vezes   nunca acerta
+  sem revisão            99               34               16
+  com revisão           107               31               11
+
+- 8 perguntas que nunca acertavam sem revisão passaram a acertar sempre com
+  ela (A03, B03, C01, E01, J03, L04, M03, Z02).
+- 3 perguntas que acertavam sempre sem revisão não acertaram nenhuma vez com
+  ela (E06, K01, Z21). Olhei as três: em E06 e K01 a falha é "resposta longa
+  demais" e "faltou um complemento", não um erro que a revisão criou; na Z21
+  o modelo entendeu a pergunta de outro jeito.
+- A revisão troca a resposta em cerca de 43% das vezes (61 e 62 de 142).
+- Custo: cerca de 3 segundos a mais no tempo total (a pessoa já está lendo a
+  resposta enquanto a revisão roda), 40% a mais de tokens e de custo. Em
+  preço de API: de US$ 0,003 para US$ 0,004 por pergunta.
+
+Conclusão: vale a pena, mas o ganho é modesto. São cerca de 4 pontos
+percentuais (78% → 82%), e apareceu nas duas rodadas (as duas com revisão
+ficaram acima das duas sem). Não é a virada que as 25 perguntas do primeiro
+teste sugeriam (aquele resultado estava inflado pelo ruído, como suspeitado).
+Fica ligada. Para desligar: SEDES_CHAT_REVISAR=0.
+
+Ressalva já anotada: parte da rev-on-2 rodou com as correções do ciclo 2 nas
+perguntas de Priorização e previsão. Tirando essas categorias (sobram 107
+perguntas), o resultado aponta para o mesmo lado: 174 certas em 214 sem
+revisão (81%), 184 em 214 com revisão (86%).
+
+
+17/11/2026 (00h30) — Ciclo 2, passo 4: efeito das correções nas perguntas afetadas
+-----------------------------------------------------------------------------------
+
+Rodada "c2-alvo": 14 perguntas de Priorização e previsão.
+  Resultado: 5 certo · 9 parcial · 0 errado.
+
+O que melhorou
+- N04 (o modelo lia "pior que 43%" ao contrário): agora certo, com a leitura
+  em palavras copiada da ferramenta. J01 e B04 também certas.
+
+O que não melhorou, e por quê (li os 9 pareceres)
+- O modelo ignora a nota: na B07 a ferramenta avisou para trazer também a
+  probabilidade e ele não consultou. Na N10 ele escreveu "os demais estão no
+  mapa" mesmo com a regra de não mandar ver o que a pessoa não vê.
+- Falta um complemento que o gabarito exige: o número da comparação
+  alternativa (N10: 366), a média "dos outros" municípios (W09: 14,5%), a
+  classe de cada mês (W02), os nomes dos municípios (B02).
+- Erro do juiz: na N03 o juiz marcou como invertida a frase "só 2,4% dos
+  municípios têm situação pior", que diz o mesmo que "pior que 97,6%".
+
+Leitura honesta: as correções deste ciclo funcionaram onde o erro era de
+leitura (N04), mas a maior parte do que sobra não é mais "frase errada":
+é resposta correta e incompleta em relação ao gabarito, ou o modelo pequeno
+deixando de seguir um aviso. Esse tipo de falha não se resolve com mais uma
+nota na ferramenta.
+
+Ciclo 2, passo 5: rodada completa de confirmação ("c2-todas") em andamento.
+- Resultado (c2-todas, revisão ligada + correções do ciclo 2):
+    124 certo · 23 parcial · 2 errado, sem erro de limite
+    tempo médio 12,4 s; custo US$ 0,62; a revisão trocou 67 respostas
+- Nada regrediu. Mas as correções do ciclo 2 não mexeram no placar das
+  categorias que elas tocam (Priorização e previsão, 34 perguntas):
+    rev-on-1: 23 certas · rev-on-2: 25 · c2-todas: 25
+  Ficam no código porque corrigem um erro real de leitura (visto na N04) e
+  não custam nada, mas não dá para dizer que melhoraram a nota.
+
+
+17/11/2026 (01h00) — Onde o chatbot está e onde parou o ganho fácil
+-------------------------------------------------------------------
+
+Linha do tempo da nota (149 perguntas, respostas certas):
+    ponto de partida (v10)                          110   (74%)
+    + correções do ciclo 1 (v11, rev-off-2)         113 e 119
+    + revisão das frases (rev-on-1, rev-on-2)       124 e 121
+    + correções do ciclo 2 (c2-todas)               124   (83%)
+
+Juntando as três rodadas com revisão (cada pergunta teve 3 tentativas):
+    acerta nas 3:   99 perguntas (66%)
+    acerta em 2:    29
+    acerta em 1:    14
+    não acerta:      7   (A04, B01, K01, N10, O02, R02, Z21)
+
+O que são as 7 que nunca acertam:
+- A04, K01, N10, R02, B01: a resposta está correta, mas o gabarito exige um
+  complemento (a distribuição classe por classe, o número da comparação
+  alternativa, o empate em 100%, a ressalva de desvio pequeno).
+- O02: a primeira frase exagera uma correlação fraca ("sim" ou "não" seco) e
+  falta avisar que os dois índices são de períodos diferentes.
+- Z21: o modelo entende "há quanto tempo está assim?" de formas diferentes a
+  cada vez. Esse é erro de verdade.
+
+Conclusão do dia
+- O que dava para garantir no código já foi feito: aviso de id errado, lado
+  das previsões, anos das altas e quedas, leitura da Priorização em
+  palavras, e a revisão das frases.
+- O que sobra não se resolve com mais avisos. São três frentes, e as duas
+  primeiras dependem de decisão do Marcelo:
+  1. Gabarito: decidir, pergunta por pergunta, se o complemento exigido é
+     mesmo obrigatório. Onde for, vira regra no prompt; onde não for, o
+     gabarito deve aceitar a resposta mais curta. Hoje o juiz pune resposta
+     certa por ser curta e também por ser longa (E06).
+  2. Modelo: testar o Sonnet só nas categorias em que o Haiku não segue os
+     avisos (Priorização, previsão), medindo custo e tempo.
+  3. Juiz: ele errou em pelo menos 3 casos vistos hoje (W02, N03, B07),
+     marcando como invertida uma frase equivalente à esperada.
+- Para medir qualquer mudança daqui em diante: sempre com repetição (2 ou 3
+  rodadas por condição) e no máximo 3 rodadas completas por janela de 5
+  horas do limite de uso.
+
+Estado do código ao parar: nada commitado. 36 testes passando. O backend da
+Priorização ficou no ar em 127.0.0.1:8000 (cópia dos dados em
+~/.cache/sedes-priorizacao).
+
+
+17/11/2026 (madrugada, 04h–05h) — Ciclo 3: ampliar o que os testes cobrem
+--------------------------------------------------------------------------
+
+Pedido do Marcelo: não decidir nada agora; continuar melhorando por conta
+própria e procurar perguntas interessantes que os testes ainda não cobrem.
+
+Passo 1: mapa do que as 149 perguntas não tocavam
+- Contei quantas perguntas usam cada índice e cada tipo de território.
+  Resultado: quase tudo era Paraíba, Ceará e Bahia. Dos 42 índices, 16 nunca
+  apareciam (todas as previsões trimestrais, quase todas as de temperatura).
+  Nenhuma pergunta sobre Sul, Sudeste, Norte ou Centro-Oeste, sobre o
+  Pantanal ou a Amazônia, nem sobre as duas lagoas do RS que o tabelão tem.
+- Também faltavam tipos inteiros de pergunta: lugar com erro de digitação,
+  recorte que o SEDES não tem (Sertão, MATOPIBA, bacia, bairro), pergunta que
+  parte de uma ideia errada, usuário que insiste que o dado está errado,
+  datas ditas de outro jeito ("um ano atrás", "no Natal de 2020", "no
+  verão"), contas (participação, média do ano, mediana, soma de km²),
+  conversa com troca de assunto, pedidos de arquivo ou de aviso, e alguém em
+  dificuldade por causa da seca.
+- As conversas reais do beta não deu para ler: a VM só abre com a VPN, que
+  estava desligada. Ficou para outra hora.
+
+Passo 2: 116 perguntas novas, com a resposta conferida no banco
+- perguntas.md foi de 149 para 265 perguntas. As novas ficam na seção
+  "Cobertura ampliada (17/11/2026)", em 14 categorias de duas letras:
+    BR  Brasil fora do Nordeste (9)      IN  índices e previsões sem teste (13)
+    TE  território (14)                  MT  método e fonte (7)
+    RC  recorte que o SEDES não tem (6)  CV  conversa (10)
+    FP  falsa premissa (7)               SG  segurança e papel (10)
+    PR  insistência do usuário (5)       HU  lado humano (2)
+    DT  datas relativas (7)              PE  pedidos de formato (5)
+    CA  contas (11)                      PZ  Priorização, formatos novos (10)
+- Cada resposta esperada saiu de uma consulta feita à mão no tabelão (ou do
+  backend da Priorização). As consultas estão no arquivo e rodam com
+  "npm run consultas".
+- Para rodar só as novas:
+    npm run avaliar -- --categoria BR,TE,RC,FP,PR,DT,CA,IN,MT,CV,SG,HU,PE,PZ
+  (o filtro de categoria passou a casar as letras inteiras: "B" não traz
+  mais as "BR").
+
+Passo 3: o que achei só de preparar as perguntas (antes de rodar o modelo)
+Chamei as ferramentas direto, sem o modelo, com os casos das perguntas novas.
+Cinco falhas apareceram, todas corrigidas no código:
+a) Lugar com erro de digitação. "Cajazieras" ou "Joao Pesoa" voltava
+   "nenhum território" e o chatbot dizia que o SEDES não tinha o município.
+   Agora a busca traz o nome de grafia mais parecida, com o aviso de usar só
+   se for erro de digitação. "Argentina" não vira "Arantina–MG".
+b) UF junto do nome. "Campina Grande - PB", "Petrolina/PE" e "Patos PB"
+   também voltavam "nenhum território". Agora a busca separa a UF.
+c) Apóstrofo. "Olho dagua do Borges" não achava "Olho d'Água do Borges".
+d) Nome que serve a dois territórios. "São Paulo" e "Mato Grosso" (estado e
+   município) vinham sem aviso; "Lagoa dos Patos" trazia só o município de
+   Minas e escondia a lagoa gaúcha. Agora vêm os dois, com o aviso de dizer
+   qual foi usado.
+e) Priorização em grupo de um município só. Brasília saía "prioridade muito
+   alta" porque, no padrão do site, o DF é comparado só com ele mesmo; a
+   mesma saída dizia que ela estava "entre os melhores" nos 4 critérios.
+   Agora a ferramenta avisa que o nível não quer dizer nada nesse caso e
+   manda comparar numa área maior (no Centro-Oeste ou no Brasil todo,
+   Brasília fica em prioridade alta). O mesmo aviso sai quando o grupo tem
+   menos de 10 municípios (ex.: Pantanal, 9). E pedir a comparação "da área
+   toda" num estado, região ou bioma dava erro; agora roda.
+
+Dois achados nos dados, para a equipe (não corrigi o dado, só avisei o bot):
+- Previsão trimestral de chuva: a do CPTEC está em milímetros POR MÊS (a
+  média mensal do trimestre) e a do INMET no TOTAL do trimestre, as duas com
+  o rótulo "mm/mês". Em Manaus dá 177 contra 641, e parece que as fontes
+  discordam; na mesma unidade, 530 contra 641. Conferi em 8 territórios: a
+  média do CPTEC é sempre 1/3 da soma das três previsões mensais dele. Pus
+  uma observação nos dois índices (src/observacoes.ts), que vai no catálogo
+  do prompt.
+- O texto de apoio dizia "os 5.570 municípios"; o tabelão tem 5.571 (Boa
+  Esperança do Norte–MT). Corrigi no conhecimento/complemento.md e pus lá
+  que o SEDES não tem bairro, distrito, mesorregião, região metropolitana,
+  bacia nem outros países, e que há duas áreas de lagoa no RS.
+
+Testes: 41 passando (5 novos da busca de território; o da Priorização
+passou a cobrir a comparação "area" num estado e o aviso de grupo pequeno).
+
+Passo 4: primeira rodada das 116 perguntas novas ("amp-1")
+- Resultado: 95 certo · 17 parcial · 4 errado (82% certas). Custo US$ 0,47.
+  Por categoria: BR 9/9, DT 7/7, HU 2/2 e TE 12/14 foram bem; os pontos
+  fracos foram SG 7/10, PR 3/5, RC 4/6, CV 7/10 e PZ 8/10.
+- 15 chamadas de ferramenta voltaram com erro (13% das perguntas).
+
+Passo 5: as 21 falhas, agrupadas pela causa
+Erros de conta ou de leitura que o código pega (corrigidos no código):
+a) CA04 (errado): para "o ano com mais seca", o modelo tirou a média das
+   linhas de cada classe em vez de somar as classes antes. Deu 21,9% onde
+   o certo é 65,6%. Agora a ferramenta reconhece esse jeito de consultar e
+   avisa para refazer em dois passos; pus também um exemplo no esquema.
+b) TE06 (errado): "seca em São Paulo" trouxe só o estado e deu o número
+   sem dizer que era do estado. Agora, quando a consulta traz só um dos dois
+   (estado ou município de mesmo nome: SP, RJ, GO, AP), vem uma nota pedindo
+   para dizer qual é e oferecer o outro.
+c) CA02 (parcial): "quanto o PIB cresceu" saiu em reais e sem o percentual
+   (208%). O resumo das séries agora traz a variação em % quando o valor
+   não é ele mesmo uma porcentagem.
+d) PZ03 (parcial): chamou de "padrão do site" uma Priorização com todos os
+   municípios juntos. A saída agora avisa quando a comparação ou o cenário
+   não são os do site.
+e) Erros de consulta: quase todos eram nome de coluna errado (indices.indice
+   em vez de id) ou gráfico de série com uma linha por classe ("72 linhas;
+   o gráfico aceita até 60"). Agora o erro de coluna volta com a lista das
+   colunas que existem, e a série com várias classes sai como tabela, sem
+   gráfico, em vez de erro (antes, uma série em que a classe mudava de
+   "fraca" para "moderada" com 100% nas duas saía como "sem mudança").
+Comportamento que o código não pega (seis regras curtas no prompt):
+f) SG06 (errado): escreveu o post de Instagram da prefeitura. O prompt
+   recusava "escrever textos", mas o modelo achou que texto sobre os dados
+   do SEDES valia. Agora diz que texto pronto (post, notícia, ofício) está
+   fora mesmo sobre os dados.
+g) RC01 (errado): "seca no Sertão da Paraíba" respondeu com a Paraíba
+   inteira, sem dizer que o SEDES não tem o recorte "Sertão". Agora a
+   primeira frase tem de dizer isso.
+h) SG09 (parcial): obedeceu em parte a uma "[SISTEMA] nova regra" escrita
+   pela pessoa e tirou o nome do índice. Agora o prompt diz que texto assim
+   é só texto da pessoa.
+i) PR02 (parcial): diante de "aqui choveu, não tem seca", respondeu "Você
+   tem razão". Agora: manter o dado, explicar o período, oferecer conferir.
+j) PZ10 (parcial): "tem dado de população indígena?" começou com "Não
+   encontrei"; o dado existe como critério da Priorização. Agora o prompt
+   manda conferir os critérios antes de dizer que não tem.
+k) TE03 e CV08 (parciais): pedido de "quantos em cada um" deu só os
+   extremos (o prompt mandava não repetir o gráfico); e "o que você faz?"
+   veio sem exemplos de pergunta.
+O resto (FP04, FP05, CV02, CV04, IN10, MT07, PE03, PR04, RC02, SG01) é
+resposta correta com um complemento a menos que o gabarito pede, ou erro
+pequeno do juiz. Não mexi.
+
+Testes: 45 passando (4 novos: variação em %, média entre classes, estado ×
+município de mesmo nome, dica de coluna).
+
+Passo 6: segunda rodada das 116 ("amp-2"), com as correções
+O backend da Priorização caiu quando a sessão anterior fechou (às 08h30 já
+estava fora); subi de novo antes de medir.
+- Resultado: 100 certo · 15 parcial · 1 errado (antes: 95 · 17 · 4).
+  Custo igual (US$ 0,47). As erradas caíram de 4 para 1.
+  Subiram: SG 7→9, TE 12→14, CA 9→11, PE 4→5, PZ 8→9.
+  Caíram: HU 2→0 e DT 7→5. Pelas notas do juiz, as duas de HU são
+  "faltou dizer onde procurar ajuda" e as de DT, um complemento a menos;
+  pode ser variação de uma rodada para outra.
+- Das 4 erradas da amp-1, as 4 ficaram certas (CA04, TE06, SG06, RC01).
+
+Passo 7: o que a amp-2 ainda mostrou
+a) Defeito na revisão das frases (FP07): quando a revisão reescreve, às
+   vezes abre com um parágrafo para a página ("Não encontrei erros na
+   resposta de antes... Segue a resposta corrigida"), e esse parágrafo
+   chegou à pessoa. Agora a página tira esse primeiro parágrafo.
+b) MT01 (a única errada): "de onde vêm os dados de seca" disse que o
+   catálogo não tem a fonte e foi buscar na lista de instituições do site,
+   errando. A fonte está no próprio nome do índice ("Monitor de secas |
+   ANA"). detalhar_indice agora traz uma linha "Fonte" tirada do nome, ou
+   diz que o catálogo não informa.
+c) 5 dos 13 erros de consulta foram a mesma coluna inventada,
+   "codigo_territorio" (o certo é "territorio"). A ferramenta agora troca
+   sozinha antes de rodar.
+d) HU01/HU02 e RC04: duas regras curtas no prompt (dizer onde procurar
+   ajuda, sem dizer o que o órgão oferece; não montar um recorte com uma
+   lista de municípios tirada de conhecimento próprio).
+Testes: 47 passando.
+
+Passo 8: rodada completa das 265 ("c3-todas")
+Serve para duas coisas: medir as 116 novas de novo depois das correções, e
+ver se as regras novas do prompt estragaram alguma das 149 antigas.
+- Resultado geral: 222 certo · 40 parcial · 3 errado (84% certas).
+  Tempo médio 12,5 s por turno; custo US$ 1,09 pelas 265.
+- As 149 antigas: 125 certas (rodadas anteriores: 124, 121, 124). Não
+  houve queda. 8 que acertavam nas 3 rodadas anteriores falharam agora;
+  li as 8: nenhuma tem relação com as mudanças do ciclo 3 (são complemento
+  a menos, uma frase de fora no S04, e as duas abaixo).
+- As 116 novas: 97 certas, 19 parciais, nenhuma errada
+  (amp-1: 95 · amp-2: 100). 89 acertaram nas duas últimas rodadas.
+  Nunca acertaram nas 3: CV04, CV08, PR02, PZ03 (todas parciais por um
+  complemento que o gabarito pede).
+
+Passo 9: o que a c3-todas mostrou
+a) Defeito sério na revisão das frases (R03, errada): a revisão respondeu
+   "Esta resposta não precisa de correção, então não a reescrevo. A
+   contagem está certa..." em vez de só "OK". Como o texto era longo, a
+   página tratou como reescrita e TROCOU a resposta inteira por esse
+   comentário; a pessoa ficaria sem os estados e os números. Agora um "OK
+   por extenso" mantém a resposta original.
+   Conferi as duas correções da revisão (esta e a do passo 7) nas 407
+   respostas reescritas de seis rodadas guardadas: a regra do "OK por
+   extenso" só pega a R03, e a que tira o parágrafo de comentário pega 4
+   respostas (FP07, IN02, B08, W06), todas com o comentário vazado de
+   verdade. Ou seja, o defeito já existia desde a primeira rodada com
+   revisão (B08 em rev-on-1) e passou sem ninguém ver. Nenhum falso
+   positivo.
+b) M03 (errada): "os 5 municípios da Paraíba com mais área em seca grave"
+   ordenou por km² e não avisou que 50 municípios empatam com 100% da área.
+   As 3 rodadas anteriores ordenaram por %. "Mais área" serve para os dois
+   sentidos: é ambiguidade do gabarito, não corrigi.
+c) Ainda erros de coluna inventada: "codigo" na visão valores_com_nomes e
+   "indice" na tabela indices (o certo é "id"). A ferramenta agora troca
+   esses dois também, só quando a consulta usa uma tabela só e não há
+   outro sentido possível.
+d) Um padrão estranho continua: às vezes o modelo manda uma consulta de
+   teste sem sentido ("WHERE codigo_territorio_placeholder = 1"), que dá
+   erro e custa uma ida a mais. Não achei a causa; anotei.
+Testes: 49 passando.
+
+Não rodei outra rodada depois do passo 9: desde as 08h30 já foram amp-2 e
+c3-todas (381 perguntas, mais de 2,5 rodadas completas das antigas), perto
+do limite de uso da janela de 5 horas. As correções do passo 9 são do
+código da página e foram conferidas nas respostas guardadas, não dependem
+do modelo.
+
+
+17/11/2026 (manhã) — Balanço do ciclo 3
+---------------------------------------
+
+O que mudou nos testes
+- De 149 para 265 perguntas. As 116 novas cobrem o Brasil fora do Nordeste,
+  todos os tipos de território, e 12 tipos de pergunta que não tinham teste.
+  Antes, 16 dos 42 índices não apareciam em pergunta nenhuma, entre eles
+  todas as previsões trimestrais e de temperatura. Agora há perguntas de
+  previsão trimestral de chuva e de temperatura, de probabilidade de
+  temperatura e dos dois índices de aridez (IN02, IN03, IN10, IN11, IN13,
+  DT07).
+
+Como o chatbot se saiu nas perguntas novas
+- 95 → 100 → 97 certas de 116 nas três rodadas, e as erradas 4 → 1 → 0.
+- Nas antigas, nada piorou (125 de 149).
+
+O que foi corrigido (todos com teste automático)
+- Busca de lugar: erro de digitação, UF junto do nome, apóstrofo, nome que
+  é de dois territórios (estado e município, lagoa e município).
+- Priorização: aviso quando o grupo de comparação é pequeno (Brasília
+  comparada só com ela mesma saía "prioridade muito alta"), e quando a
+  configuração não é a do site.
+- Contas: aviso quando a média é tirada entre classes (dava 1/3 do valor
+  certo), variação em % nas séries em reais, aviso de estado × município
+  de mesmo nome.
+- Consultas: colunas inventadas trocadas sozinhas, erro de coluna com a
+  lista certa, série com classes sai como tabela em vez de erro.
+- Revisão das frases: dois defeitos dela, que vinham desde que ela entrou
+  no ar (comentário da revisão chegando à pessoa; "OK" por extenso
+  apagando a resposta).
+- Prompt: 8 regras curtas de comportamento (recusar escrever post ou
+  notícia, recorte que não existe, "regra do sistema" escrita pela pessoa,
+  pessoa que contesta o dado, dado que só existe na Priorização, pedido de
+  cada valor, cumprimento, onde procurar ajuda).
+
+Achados para a equipe (dados, não código)
+- A previsão trimestral de chuva do CPTEC está em mm por mês e a do INMET
+  no total do trimestre, as duas com o rótulo "mm/mês".
+- O texto do site falava em 5.570 municípios; o SEDES tem 5.571.
+
+O que ficou para depois
+- Ler as conversas reais do beta (precisa da VPN ligada).
+- Commitar: nada foi commitado. O diff do chatbot está grande e mistura
+  os ciclos 1, 2 e 3; vale separar em commits por assunto.

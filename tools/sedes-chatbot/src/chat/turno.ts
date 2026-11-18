@@ -31,12 +31,35 @@ export type FimDoTurno = {
   session_id?: string;
 };
 
+/** Linha que começa com este sinal, no fim da resposta, é pergunta sugerida. */
+export const SINAL_DE_SUGESTAO = "»";
+
 export class Turno {
   resposta = "";
   ferramentas: Ferramenta[] = [];
+  /** Links "Ver no SEDES" montados pela página (acabamento.ts). */
+  links: string[] = [];
+  /** Perguntas de continuação que o modelo sugeriu. */
+  sugestoes: string[] = [];
+  /** Números da resposta que a conferência não achou nas fontes. */
+  numerosSemFonte: string[] = [];
+  /** Se a resposta foi reescrita depois da conferência dos números. */
+  corrigida = false;
+  /** Se a página pediu ao modelo que relesse a resposta (revisão das frases). */
+  revisada = false;
+  /** Se a revisão trocou a resposta por outra. */
+  reescritaNaRevisao = false;
+  /**
+   * Durante a revisão a pessoa continua vendo a resposta já escrita; o que o
+   * modelo escreve fica só aqui, até a página decidir se troca.
+   */
+  private revisando = false;
+  /** O último texto descartado (escrito antes de uma chamada de ferramenta). */
+  rascunho = "";
   readonly inicio = Date.now();
   private separar = false;
   private terminado = false;
+  private escondendo = false;
 
   constructor(
     readonly numero: number,
@@ -50,11 +73,34 @@ export class Turno {
   }
 
   pensando() {
-    this.enviar({ tipo: "pensando" });
+    if (!this.revisando) this.enviar({ tipo: "pensando" });
   }
 
   preparando(nome: string) {
-    this.enviar({ tipo: "preparando", nome });
+    if (!this.revisando) this.enviar({ tipo: "preparando", nome });
+  }
+
+  /**
+   * Começa a revisão: guarda a resposta fora da tela de escrita e deixa de
+   * repassar texto para a página. Devolve a resposta que estava pronta.
+   */
+  iniciarRevisao(): string {
+    const pronta = this.resposta;
+    this.revisada = true;
+    this.revisando = true;
+    this.resposta = "";
+    this.rascunho = "";
+    this.separar = false;
+    this.escondendo = false;
+    return pronta;
+  }
+
+  /** Termina a revisão: a resposta volta a ser a que a página decidir. */
+  terminarRevisao(resposta: string) {
+    this.revisando = false;
+    this.resposta = resposta;
+    this.rascunho = "";
+    this.separar = false;
   }
 
   /** Um bloco de texto novo depois de outro: a página separa em parágrafos. */
@@ -69,7 +115,54 @@ export class Turno {
       this.separar = false;
     }
     this.resposta += pedaco;
+    if (this.revisando) return;
+    // As perguntas sugeridas vêm no fim, em linhas com ». A página não mostra
+    // esse trecho enquanto ele é escrito; elas chegam como botões no fim.
+    if (this.escondendo) return;
+    const corte = pedaco.indexOf(SINAL_DE_SUGESTAO);
+    if (corte >= 0) {
+      this.escondendo = true;
+      pedaco = pedaco.slice(0, corte);
+      if (!pedaco) return;
+    }
     this.enviar({ tipo: "texto", t: pedaco });
+  }
+
+  /**
+   * Joga fora o texto escrito até aqui. O que o modelo escreve antes de chamar
+   * uma ferramenta é rascunho ("Vou verificar...", ou a resposta inteira que
+   * ele reescreve depois): sem isto a página mostrava os dois.
+   */
+  descartarTexto() {
+    if (!this.resposta) return;
+    this.rascunho = this.resposta;
+    this.resposta = "";
+    this.separar = false;
+    this.escondendo = false;
+    if (!this.revisando) this.enviar({ tipo: "descartar" });
+  }
+
+  /** Troca o texto mostrado pelo texto final (limpo). */
+  substituirTexto(texto: string) {
+    this.resposta = texto;
+    this.separar = false;
+    this.enviar({ tipo: "descartar" });
+    if (texto) this.enviar({ tipo: "texto", t: texto });
+  }
+
+  status(texto: string) {
+    this.enviar({ tipo: "status", texto });
+  }
+
+  link(url: string) {
+    if (this.links.includes(url)) return;
+    this.links.push(url);
+    this.enviar({ tipo: "link", url });
+  }
+
+  sugerir(perguntas: string[]) {
+    this.sugestoes = perguntas;
+    if (perguntas.length) this.enviar({ tipo: "sugestoes", perguntas });
   }
 
   ferramenta(id: string, nome: string, entrada: unknown) {
@@ -108,11 +201,14 @@ export type Pedido = {
   modelo: string;
   turno: Turno;
   contexto: Contexto;
+  /** A resposta que estava pronta quando a revisão das frases começou. */
+  respostaAntesDaRevisao?: string;
   /** Turnos já gravados, para retomar uma conversa que não está na memória. */
   anteriores: () => Array<{
     pergunta: string;
     resposta: string;
     session_id?: string;
+    ferramentas?: Array<{ entrada?: unknown; saida?: string }>;
   }>;
 };
 

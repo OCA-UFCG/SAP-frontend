@@ -19,6 +19,7 @@ import { promptDoSistema } from "../prompt-sistema.ts";
 import { criteriosDaPriorizacao } from "../priorizacao.ts";
 import type { Motor, Pedido } from "./turno.ts";
 import { paraOModelo } from "./lingua.ts";
+import { acabar } from "./acabamento.ts";
 
 type Mensagem = Anthropic.Beta.BetaMessageParam;
 
@@ -206,8 +207,11 @@ export function criarMotorApi(opcoes: { cliente?: Anthropic } = {}): Motor {
             const tipo = ev.content_block.type;
             if (tipo === "thinking" || tipo === "redacted_thinking")
               turno.pensando();
-            else if (tipo === "tool_use")
+            else if (tipo === "tool_use") {
+              // Texto escrito antes de uma ferramenta é rascunho, não resposta.
+              turno.descartarTexto();
               turno.preparando(ev.content_block.name);
+            }
             else if (tipo === "text") turno.novoBlocoDeTexto();
           } else if (
             ev.type === "content_block_delta" &&
@@ -233,7 +237,14 @@ export function criarMotorApi(opcoes: { cliente?: Anthropic } = {}): Motor {
         // Guarda a resposta inteira (raciocínio incluído): o modelo precisa
         // dela sem mudanças na próxima rodada.
         mensagens.push({ role: "assistant", content: msg.content });
-        if (!usos.length) break;
+        if (!usos.length) {
+          // Conferência dos números: se algum não veio das ferramentas, o
+          // modelo reescreve uma vez.
+          const correcao = msg.stop_reason === "end_turn" ? acabar(pedido) : null;
+          if (!correcao) break;
+          mensagens.push({ role: "user", content: correcao });
+          continue;
+        }
         if (msg.stop_reason === "max_tokens") {
           erro = "A resposta passou do tamanho máximo antes de terminar.";
           break;

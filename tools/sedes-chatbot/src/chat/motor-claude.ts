@@ -13,6 +13,7 @@ import path from "node:path";
 import { fileURLToPath } from "node:url";
 import type { Motor, Pedido, Turno } from "./turno.ts";
 import { paraOModelo } from "./lingua.ts";
+import { acabar } from "./acabamento.ts";
 
 const PACOTE = path.resolve(
   path.dirname(fileURLToPath(import.meta.url)),
@@ -73,8 +74,19 @@ type Processo = {
   sessionId?: string;
   proc?: ChildProcess;
   turno?: Turno;
+  pedido?: Pedido;
+  /** Uso da resposta que a conferência mandou reescrever (soma com a nova). */
+  usoAnterior?: Record<string, number>;
   ociosa?: NodeJS.Timeout;
 };
+
+/** Soma os contadores de duas respostas do claude no mesmo turno. */
+function somarUso(a: Record<string, number> | undefined, b: unknown) {
+  const out: Record<string, number> = { ...a };
+  for (const [k, v] of Object.entries((b ?? {}) as Record<string, unknown>))
+    if (typeof v === "number") out[k] = (out[k] ?? 0) + v;
+  return out;
+}
 
 /**
  * argsExtras: opções a mais para o claude (a avaliação usa --no-session-persistence).
@@ -136,6 +148,8 @@ export function criarMotorClaude({
     const t = p.turno;
     if (!t) return;
     p.turno = undefined;
+    p.pedido = undefined;
+    p.usoAnterior = undefined;
     t.terminar({ ...fim, session_id: p.sessionId });
     clearTimeout(p.ociosa);
     p.ociosa = setTimeout(() => encerrarProcesso(p), OCIOSA_MS);
@@ -201,7 +215,11 @@ export function criarMotorClaude({
         const tipo = ev.content_block?.type;
         if (tipo === "text") t.novoBlocoDeTexto();
         if (tipo === "thinking") t.pensando();
-        if (tipo === "tool_use") t.preparando(ev.content_block?.name ?? "");
+        if (tipo === "tool_use") {
+          // Texto escrito antes de uma ferramenta é rascunho, não resposta.
+          t.descartarTexto();
+          t.preparando(ev.content_block?.name ?? "");
+        }
       }
       if (ev?.type === "content_block_delta" && ev.delta?.type === "text_delta")
         t.texto(ev.delta.text ?? "");
@@ -232,10 +250,27 @@ export function criarMotorClaude({
       return;
     }
     if (msg.type === "result") {
+      const uso = somarUso(p.usoAnterior, {
+        ...(msg.usage as object),
+        rodadas: msg.num_turns,
+      });
+      // Conferência dos números: se algum não veio das ferramentas, o modelo
+      // reescreve uma vez, na mesma sessão.
+      const correcao = !msg.is_error && p.pedido ? acabar(p.pedido) : null;
+      if (correcao && p.proc?.stdin?.writable) {
+        p.usoAnterior = uso;
+        p.proc.stdin.write(
+          JSON.stringify({
+            type: "user",
+            message: { role: "user", content: correcao },
+          }) + "\n",
+        );
+        return;
+      }
       terminar(p, {
-        ms: msg.duration_ms,
+        ms: Date.now() - t.inicio,
         custo_usd: msg.total_cost_usd,
-        uso: { ...(msg.usage as object), rodadas: msg.num_turns },
+        uso,
         erro: msg.is_error ? String(msg.result ?? "erro") : null,
       });
     }
@@ -259,6 +294,7 @@ export function criarMotorClaude({
         reservar(pedido.modelo);
       }
       p.turno = pedido.turno;
+      p.pedido = pedido;
       clearTimeout(p.ociosa);
       if (!p.proc) iniciarProcesso(p);
       p.proc!.stdin!.write(

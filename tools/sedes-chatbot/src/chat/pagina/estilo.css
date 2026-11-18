@@ -94,6 +94,8 @@ svg {
   left: 24px;
   width: 176px;
   height: 82px;
+  /* Acima da dobra: só a ponta dela aparece, à direita da aba, como no site. */
+  z-index: 2;
   display: grid;
   place-items: center;
   background: var(--verde);
@@ -115,7 +117,7 @@ svg {
 
 .aba img {
   display: block;
-  height: 46px;
+  height: 64px;
   width: auto;
 }
 
@@ -125,9 +127,16 @@ svg {
   left: calc(24px + 163px);
   width: 26px;
   height: 19px;
+  z-index: 1;
   background: var(--verde-noite);
   clip-path: polygon(0 0, 100% 0, 50% 85%);
   pointer-events: none;
+  transform-origin: top;
+  transition: scale 300ms cubic-bezier(0.34, 1.56, 0.64, 1);
+}
+
+.aba:has(a:hover) + .dobra {
+  scale: 1 1.37;
 }
 
 .topo-titulo {
@@ -333,9 +342,9 @@ svg {
 /* ---------- boas-vindas ---------- */
 
 .boas-vindas {
-  max-width: var(--largura);
+  max-width: 62rem;
   margin: 0 auto;
-  padding-top: 4vh;
+  padding-top: 2vh;
 }
 
 .boas-vindas[hidden] {
@@ -374,6 +383,7 @@ svg {
   display: grid;
   grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
   gap: 10px;
+  padding-bottom: 8px;
 }
 
 .sugestoes button {
@@ -399,6 +409,18 @@ svg {
   border-color: var(--oliva);
   background: #fbfbf3;
   transform: translateY(-1px);
+}
+
+.sugestoes p {
+  margin: 0;
+}
+
+.sugestoes small {
+  display: block;
+  margin-top: 8px;
+  font-size: 12px;
+  line-height: 1.4;
+  color: var(--texto-fraco);
 }
 
 .sugestoes span {
@@ -987,22 +1009,21 @@ svg {
 
 @media (max-width: 720px) {
   .topo {
-    padding-left: calc(140px + 24px);
+    padding-left: calc(144px + 24px);
     gap: 8px;
   }
 
   .aba {
     left: 12px;
-    width: 140px;
-    height: 74px;
+    width: 144px;
   }
 
   .aba img {
-    height: 38px;
+    height: 52px;
   }
 
   .dobra {
-    left: calc(12px + 127px);
+    left: calc(12px + 131px);
   }
 
   .topo-titulo {
@@ -1243,6 +1264,98 @@ svg {
 .ver-no-sedes svg {
   width: 15px;
   height: 15px;
+}
+
+/* ---------- perguntas sugeridas depois da resposta ---------- */
+
+.proximas:empty {
+  display: none;
+}
+
+.proximas {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 6px;
+  margin-top: 14px;
+}
+
+.proxima {
+  text-align: left;
+  background: var(--fundo);
+  border: 1px solid var(--borda);
+  border-radius: 10px;
+  padding: 7px 12px;
+  font-size: 13.5px;
+  line-height: 1.4;
+  color: var(--verde-escuro);
+  transition:
+    border-color 150ms,
+    background-color 150ms;
+}
+
+.proxima::before {
+  content: "↳ ";
+  color: var(--oliva);
+}
+
+.proxima:hover {
+  border-color: var(--oliva);
+  background: #fbfbf3;
+}
+
+/* ---------- mapa ---------- */
+
+.mapa-area {
+  position: relative;
+  min-height: 60px;
+  font-size: 13px;
+  color: var(--texto-fraco);
+}
+
+.mapa-area svg {
+  display: block;
+}
+
+.mapa-forma {
+  stroke: #fff;
+  stroke-width: 0.6;
+  stroke-linejoin: round;
+}
+
+.mapa-forma:hover {
+  stroke: var(--verde-noite);
+  stroke-width: 1.4;
+}
+
+.mapa-legenda {
+  list-style: none;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px 14px;
+  margin: 10px 0 4px;
+  padding: 0;
+  font-family: Inter, sans-serif;
+  font-size: 12px;
+  color: var(--texto-suave);
+}
+
+.mapa-legenda li {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.mapa-legenda i {
+  width: 12px;
+  height: 12px;
+  border-radius: 3px;
+  border: 1px solid rgb(0 0 0 / 0.12);
+}
+
+.mapa-legenda small {
+  font-size: 11px;
+  color: var(--texto-fraco);
 }
 
 /* Página de entrar (sem login no SEDES ou sem acesso ao assistente). */

@@ -84,8 +84,11 @@ test("língua da pergunta: só as em inglês ou espanhol ganham lembrete", () =>
   const erradas = lerPerguntas()
     .flatMap((p) => p.perguntas.map((q) => [p.id, q] as const))
     .filter(([id, q]) => {
+      // CV10 troca de língua no meio da conversa: só a 2ª pergunta é em inglês.
       const esperada =
-        { U01: "en", U03: "en", U02: "es", U04: "es" }[id] ?? "pt";
+        id === "CV10" && /English/.test(q)
+          ? "en"
+          : ({ U01: "en", U03: "en", U02: "es", U04: "es" }[id] ?? "pt");
       return linguaDa(q) !== esperada;
     });
   assert.deepEqual(erradas, []);

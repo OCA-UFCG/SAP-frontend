@@ -1,6 +1,6 @@
 # A imagem é montada da raiz do repositório, mas só leva isto.
 *
-!public/logo-sedes.svg
+!public/data/brazil-cities-overview.json
 !public/favicon.svg
 !tools/sedes-chatbot/package.json
 !tools/sedes-chatbot/package-lock.json

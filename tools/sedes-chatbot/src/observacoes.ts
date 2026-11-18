@@ -15,6 +15,12 @@ export const OBSERVACOES: Record<string, string> = {
   "registros-de-secas-e-estiagens-do-s2id":
     "Na planilha publicada hoje, quase todo município tem 0 ou 1 por ano (em julho de 2026 havia contagens de até 7), e a série vai de 1991, embora a descrição do catálogo diga 2004 a 2025. Repita o número como o site mostra, chamando de 'registros', sem afirmar se 1 quer dizer um registro ou 'houve registro'. Estados, Brasil e recortes são a soma dos municípios.",
   "produto-interno-bruto": "Valor em reais (não em milhares).",
+  // Conferido em 17/11/2026: em 8 territórios, a média deste índice é 1/3 da
+  // soma das três previsões mensais do CPTEC; a do INMET tem o tamanho da soma.
+  "previsao-precipitacao-mensal-acumulado-cptec":
+    "É o acumulado TRIMESTRAL do CPTEC, mas os valores (classes e tabela medias) estão em mm POR MÊS, a média mensal do trimestre: para o total do trimestre, multiplique por 3 na consulta. O trimestral do INMET está no total do trimestre. Não compare os dois sem pôr na mesma unidade, e diga a unidade de cada um.",
+  "previsao-precipitacao-trimestral-acumulado-inmet":
+    "Os valores (classes e tabela medias) são o TOTAL do trimestre em mm, embora o rótulo das classes diga 'mm/mês'. O trimestral do CPTEC (previsao-precipitacao-mensal-acumulado-cptec) está em mm por mês. Não compare os dois sem pôr na mesma unidade, e diga a unidade de cada um.",
   "indice-de-desenvolvimento-humano":
     "Valor entre 0 e 1. O relatório do site arredonda para 1 casa (0,7); o tabelão guarda o valor completo.",
 };

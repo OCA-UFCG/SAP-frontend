@@ -17,12 +17,16 @@ podem sair daqui. O que é de um índice só fica no catálogo de índices. -->
 
 O SEDES tem dados para seis níveis territoriais e para o Brasil:
 
-- município (os 5.570 do país);
+- município (os 5.571 do país);
 - estado;
 - região (Norte, Nordeste, Centro-Oeste, Sudeste, Sul);
 - bioma (Amazônia, Caatinga, Cerrado, Mata Atlântica, Pampa, Pantanal);
 - Semiárido (o recorte oficial da Sudene);
 - ASD (Áreas Suscetíveis à Desertificação), em duas versões: "Apenas ASD" e "ASD + Entorno".
+
+Há também duas áreas de lagoa no Rio Grande do Sul que não são municípios: as Áreas Operacionais "Lagoa Mirim" e "Lagoa dos Patos".
+
+Não há bairros, distritos, mesorregiões (ex.: "Sertão"), regiões metropolitanas, bacias hidrográficas nem outros países. Quando pedirem um desses, diga que o SEDES não tem esse recorte e ofereça o município, o estado ou o recorte mais próximo; se der um número, diga de qual território ele é.
 
 Estados e recortes têm valor próprio. Em alguns índices esse valor é calculado sobre a área do recorte; em outros, é a soma ou a média dos municípios. O catálogo diz qual.
 
@@ -41,6 +45,12 @@ Estados e recortes têm valor próprio. Em alguns índices esse valor é calcula
 - **Probabilidade**: a chance de ficar abaixo ou acima do normal. Cada classe diz o lado e a faixa de chance (ex.: "40% a 65% (acima da Normal)" = de 40% a 65% de chance de ficar acima do normal). O sinal de menos só indica o lado: "-65% a -40% (abaixo da Normal)" = de 40% a 65% de chance de ficar abaixo do normal. Não existe chance negativa.
 - O CPTEC e o INMET usam modelos diferentes e às vezes discordam.
 - Previsão não é medição: é uma estimativa para os próximos meses, que pode não se confirmar.
+
+## Área em km² e valores médios
+
+- O site mostra a porcentagem da área de um território em cada classe. O assistente também tem a área de cada território (a mesma que o cálculo das porcentagens usa) e converte: 37,9% da Paraíba são cerca de 21,4 mil km². É uma conta sobre a área do mapa do SEDES, não uma medição em campo.
+- Para as previsões de chuva e de temperatura, os índices de aridez, a Produção Primária Bruta e o carbono do solo, o assistente tem também o valor médio dentro do território (e o menor e o maior), na unidade das classes: milímetros, graus Celsius, índice de aridez, kg de carbono por m², g/kg. O site mostra só as faixas. A média de um município resume o município inteiro: dentro dele os valores variam, e o mínimo e o máximo dizem quanto.
+- No índice de aridez, quanto menor o valor, mais árido; os intervalos de cada classe estão no glossário (Índice de Aridez).
 
 ## CadÚnico
 

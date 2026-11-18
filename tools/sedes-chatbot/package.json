@@ -10,6 +10,7 @@
   "scripts": {
     "chat": "tsx src/chat/servidor-chat.ts",
     "tabelao": "cd ../.. && node --conditions=react-server --import tsx tools/sedes-chatbot/src/gee/montar-tabelao.ts",
+    "complementos": "cd ../.. && node --conditions=react-server --import tsx tools/sedes-chatbot/src/gee/complementos.ts",
     "conferir": "tsx src/gee/conferir-com-relatorio.ts",
     "servidor": "tsx src/servidor.ts",
     "consultas": "tsx src/rodar-consultas.ts",

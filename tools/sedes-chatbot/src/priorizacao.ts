@@ -397,14 +397,68 @@ type Pedido = {
   municipios?: string[];
   listar?: string[];
   comparar_com?: string;
+  robustez?: boolean;
 };
 
-export async function priorizar(p: Pedido): Promise<string> {
+function mediana(vs: number[]) {
+  const o = vs.filter((v) => Number.isFinite(v)).sort((a, b) => a - b);
+  if (!o.length) return NaN;
+  const m = o.length >> 1;
+  return o.length % 2 ? o[m] : (o[m - 1] + o[m]) / 2;
+}
+
+/** O resultado de uma análise já pedida, para a página desenhar o mapa. */
+export async function niveisDaPriorizacao(
+  p: Pedido,
+): Promise<
+  Array<{ codigo: string; nome: string; valor: number | null }> | string
+> {
+  const a = await analisar(p);
+  if (typeof a === "string") return a;
+  // Os que ficaram de fora por falta de dado entram sem valor (cinza no mapa).
+  return a.linhas.map(([codigo, nome, uf, , ordem]) => ({
+    codigo,
+    nome: `${nome}–${uf}`,
+    valor: ordem,
+  }));
+}
+
+/** As linhas da tabela priorizacao de uma análise, para refazer um cruzamento. */
+export async function linhasDaPriorizacao(p: Pedido) {
+  const a = await analisar(p);
+  return typeof a === "string" ? a : a.linhas;
+}
+
+/** Como comPriorizacao, mas com as linhas dadas (a página refaz a análise). */
+export function comLinhasDaPriorizacao(sql: string, linhas: unknown[][]) {
+  const json = JSON.stringify(linhas).replace(/'/g, "''");
+  const cte = `${COLUNAS_DA_TABELA} AS (SELECT value->>0, value->>1, value->>2, value->>3, value->>4, value->>5 FROM json_each('${json}'))`;
+  const corpo = sql.replace(/^(\s|--[^\n]*\n|\/\*[\s\S]*?\*\/)*/, "");
+  const comWith = corpo.match(/^with(\s+recursive)?\s/i);
+  return comWith
+    ? `WITH${comWith[1] ? " RECURSIVE" : ""} ${cte}, ${corpo.slice(comWith[0].length)}`
+    : `WITH ${cte} ${corpo}`;
+}
+
+type Analise = Awaited<ReturnType<typeof analisarSemErro>>;
+
+async function analisar(p: Pedido): Promise<Analise | string> {
+  try {
+    return await analisarSemErro(p);
+  } catch (error) {
+    return (error as Error).message;
+  }
+}
+
+/** Valida o pedido, chama o backend e devolve o resultado com o que foi usado. */
+async function analisarSemErro(p: Pedido) {
   let lista: Criterio[];
   try {
     lista = await criteriosDaPriorizacao();
   } catch (error) {
-    return `Erro: a Priorização está fora do ar (${(error as Error).message}). Diga a quem perguntou que não foi possível rodar a análise agora.`;
+    throw new Error(
+      `Erro: a Priorização está fora do ar (${(error as Error).message}). Diga a quem perguntou que não foi possível rodar a análise agora.`,
+    );
   }
   const porNome = new Map(lista.map((c) => [c.name, c]));
   const acharCriterio = (nome: string) =>
@@ -417,91 +471,92 @@ export async function priorizar(p: Pedido): Promise<string> {
     : padroes(lista).map((c) => ({ nome: c.name, peso: 1 }));
   const desconhecidos = pedidos.filter((c) => !acharCriterio(c.nome));
   if (desconhecidos.length)
-    return `Erro: critério(s) que a Priorização não tem: ${desconhecidos.map((c) => c.nome).join(", ")}. Critérios disponíveis:\n${criteriosResumidos(lista)}`;
+    throw new Error(
+      `Erro: critério(s) que a Priorização não tem: ${desconhecidos.map((c) => c.nome).join(", ")}. Critérios disponíveis:\n${criteriosResumidos(lista)}`,
+    );
   const escolhidos = pedidos.map((c) => ({
     criterio: acharCriterio(c.nome)!,
     peso: c.peso,
   }));
   const nomes = escolhidos.map((e) => e.criterio.name);
   if (new Set(nomes).size !== nomes.length)
-    return "Erro: o mesmo critério apareceu duas vezes.";
+    throw new Error("Erro: o mesmo critério apareceu duas vezes.");
   const soma = escolhidos.reduce((s, e) => s + e.peso, 0);
-  if (!(soma > 0)) return "Erro: a soma dos pesos tem de ser maior que zero.";
+  if (!(soma > 0))
+    throw new Error("Erro: a soma dos pesos tem de ser maior que zero.");
   // O backend recusa soma acima de 1; arredondar para baixo garante isso.
-  const pesos = escolhidos.map((e) => Math.floor((e.peso / soma) * 1e4) / 1e4);
+  const normalizar = (ps: number[]) => {
+    const total = ps.reduce((x, y) => x + y, 0);
+    return ps.map((x) => Math.floor((x / total) * 1e4) / 1e4);
+  };
+  const pesos = normalizar(escolhidos.map((e) => e.peso));
 
   const tipoArea = p.area?.tipo ?? "brasil";
   const area = resolverArea(tipoArea, p.area?.valor);
-  if ("erro" in area) return `Erro: ${area.erro}`;
-  const comparacao = p.comparar_dentro_de ?? "estado";
+  if ("erro" in area) throw new Error(`Erro: ${area.erro}`);
+  // "area" quer dizer "todos da área juntos": num estado, numa região ou num
+  // bioma isso é comparar por estado, região ou bioma, e o backend só aceita
+  // esses nomes. Sem isto a chamada voltava com erro e custava uma ida a mais.
+  const comparacao: Comparacao =
+    p.comparar_dentro_de === "area" &&
+    (tipoArea === "estado" || tipoArea === "regiao" || tipoArea === "bioma")
+      ? tipoArea
+      : (p.comparar_dentro_de ?? "estado");
   if (!COMPARACOES_POR_AREA[tipoArea].includes(comparacao))
-    return `Erro: com a área ${tipoArea}, comparar_dentro_de pode ser ${COMPARACOES_POR_AREA[tipoArea].join(", ")}.`;
+    throw new Error(
+      `Erro: com a área ${tipoArea}, comparar_dentro_de pode ser ${COMPARACOES_POR_AREA[tipoArea].join(", ")}.`,
+    );
   const cenario = p.cenario ?? "pessimista";
   const limiares = { ...LIMIARES_PADRAO, ...p.limiares };
 
-  const corpo = {
-    criteria: escolhidos.map((e, i) => ({
-      name: e.criterio.name,
-      value: pesos[i],
-      is_benefit: e.criterio.is_benefit,
-    })),
-    thresholds: {
-      indifference: limiares.indiferenca,
-      preference: limiares.preferencia,
-      veto: limiares.veto,
-    },
-    typeScenario: cenario === "otimista" ? "optimistic" : "pessimistic",
-    model: { version: "1.0" },
-    interestArea: { type: AREA_DO_BACKEND[tipoArea], value: area.valor },
-    ranking: { level: NIVEL_DO_BACKEND[comparacao] },
-  };
-
-  let r: Resultado;
-  try {
-    const resp = await fetch(`${BASE}/api/v1/analyze`, {
-      method: "POST",
-      headers: { "content-type": "application/json" },
-      body: JSON.stringify(corpo),
-      signal: AbortSignal.timeout(PRAZO_MS),
-    });
+  /** Uma ida ao backend, com estes pesos e este cenário. */
+  const rodar = async (
+    pesosDaVez: number[],
+    cenarioDaVez: "pessimista" | "otimista",
+  ): Promise<Resultado> => {
+    const corpo = {
+      criteria: escolhidos.map((e, i) => ({
+        name: e.criterio.name,
+        value: pesosDaVez[i],
+        is_benefit: e.criterio.is_benefit,
+      })),
+      thresholds: {
+        indifference: limiares.indiferenca,
+        preference: limiares.preferencia,
+        veto: limiares.veto,
+      },
+      typeScenario: cenarioDaVez === "otimista" ? "optimistic" : "pessimistic",
+      model: { version: "1.0" },
+      interestArea: { type: AREA_DO_BACKEND[tipoArea], value: area.valor },
+      ranking: { level: NIVEL_DO_BACKEND[comparacao] },
+    };
+    let resp: Response;
+    try {
+      resp = await fetch(`${BASE}/api/v1/analyze`, {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify(corpo),
+        signal: AbortSignal.timeout(PRAZO_MS),
+      });
+    } catch (error) {
+      throw new Error(
+        `Erro: a Priorização não respondeu (${(error as Error).message}). Diga a quem perguntou que não foi possível rodar a análise agora.`,
+      );
+    }
     if (!resp.ok) {
       const texto = await resp.text();
-      return `Erro: a Priorização recusou o pedido (HTTP ${resp.status}): ${texto.slice(0, 300)}`;
+      throw new Error(
+        `Erro: a Priorização recusou o pedido (HTTP ${resp.status}): ${texto.slice(0, 300)}`,
+      );
     }
-    r = (await resp.json()) as Resultado;
-  } catch (error) {
-    return `Erro: a Priorização não respondeu (${(error as Error).message}). Diga a quem perguntou que não foi possível rodar a análise agora.`;
-  }
+    return (await resp.json()) as Resultado;
+  };
+  const r = await rodar(pesos, cenario);
 
-  const municipios: Municipio[] = Object.values(r.result);
   const colunaGrupo = COLUNA_DO_GRUPO[comparacao];
   const grupoDe = (m: Municipio) =>
     colunaGrupo ? String(m[colunaGrupo] ?? "?") : area.nome;
-  const grupos = new Map<string, typeof municipios>();
-  for (const m of municipios) {
-    const g = grupoDe(m);
-    grupos.set(g, [...(grupos.get(g) ?? []), m]);
-  }
-  const variasUfs = new Set(municipios.map((m) => m.UF)).size > 1;
-  const nomeDe = (m: { name: string; UF: string }) =>
-    variasUfs ? `${m.name}–${m.UF}` : m.name;
-
-  const partes: string[] = [
-    "Priorização do SEDES (análise multicritério ELECTRE TRI-B): a mesma conta da aba Priorização do site, com os dados da planilha da Priorização (não os do tabelão).",
-    "",
-    "Configuração usada:",
-    `- Critérios e pesos: ${escolhidos.map((e, i) => `${e.criterio.label} ${pct(pesos[i])} (${e.criterio.is_benefit ? "benefício" : "custo"})`).join("; ")}.`,
-    `- Área: ${area.nome}. Comparação: ${NOME_COMPARACAO[comparacao]}${comparacao === "area" ? "" : " (cada grupo tem as próprias faixas; um nível só vale dentro do grupo)"}.`,
-    `- Cenário ${cenario}. Limiares: indiferença ${num(limiares.indiferenca)}, preferência ${num(limiares.preferencia)}, veto ${num(limiares.veto)}${p.limiares ? "" : " (os padrões do site)"}.`,
-    "",
-    // No começo: a página só recebe os primeiros 6 mil caracteres da saída.
-    `Priorização no site: ${SITE_URL}/pt/platform?section=analysis`,
-    "(A página do chat mostra um botão com este link. Ele abre a aba Priorização sem esta configuração: se a pessoa quiser repetir no site, diga os critérios, pesos e opções usados.)",
-    "",
-  ];
-
-  const excluidos = Object.values(r.excluded ?? {});
-  const id = guardar([
+  const linhas: LinhaGuardada[] = [
     ...Object.entries(r.result).map(([c, m]): LinhaGuardada => [
       c,
       m.name,
@@ -518,7 +573,69 @@ export async function priorizar(p: Pedido): Promise<string> {
       null,
       null,
     ]),
-  ]);
+  ];
+  return {
+    r,
+    rodar,
+    normalizar,
+    lista,
+    porNome,
+    escolhidos,
+    pesos,
+    tipoArea,
+    area,
+    comparacao,
+    cenario,
+    limiares,
+    colunaGrupo,
+    grupoDe,
+    linhas,
+  };
+}
+
+export async function priorizar(p: Pedido): Promise<string> {
+  const a = await analisar(p);
+  if (typeof a === "string") return a;
+  const {
+    r,
+    porNome,
+    escolhidos,
+    pesos,
+    area,
+    tipoArea,
+    comparacao,
+    cenario,
+    limiares,
+    colunaGrupo,
+    grupoDe,
+  } = a;
+
+  const municipios: Municipio[] = Object.values(r.result);
+  const grupos = new Map<string, typeof municipios>();
+  for (const m of municipios) {
+    const g = grupoDe(m);
+    grupos.set(g, [...(grupos.get(g) ?? []), m]);
+  }
+  const variasUfs = new Set(municipios.map((m) => m.UF)).size > 1;
+  const nomeDe = (m: { name: string; UF: string }) =>
+    variasUfs ? `${m.name}–${m.UF}` : m.name;
+
+  const partes: string[] = [
+    "Priorização do SEDES (análise multicritério ELECTRE TRI-B): a mesma conta da aba Priorização do site, com os dados da planilha da Priorização (não os do tabelão).",
+    "",
+    "Configuração usada:",
+    `- Critérios e pesos: ${escolhidos.map((e, i) => `${e.criterio.label} ${pct(pesos[i])} (${e.criterio.is_benefit ? "benefício" : "custo"})`).join("; ")}.`,
+    `- Área: ${area.nome}. Comparação: ${NOME_COMPARACAO[comparacao]}${comparacao === "area" ? "" : " (cada grupo tem as próprias faixas; um nível só vale dentro do grupo)"}.${comparacao !== "estado" && tipoArea !== "estado" ? " Esta comparação NÃO é o padrão do site (que compara cada estado separadamente): não chame esta análise de padrão sem dizer isso." : ""}`,
+    `- Cenário ${cenario}${cenario === "otimista" ? " (o padrão do site é o pessimista)" : ""}. Limiares: indiferença ${num(limiares.indiferenca)}, preferência ${num(limiares.preferencia)}, veto ${num(limiares.veto)}${p.limiares ? "" : " (os padrões do site)"}.`,
+    "",
+    // No começo: a página só recebe os primeiros 6 mil caracteres da saída.
+    `Priorização no site: ${SITE_URL}/pt/platform?section=analysis`,
+    "(A página do chat mostra um botão com este link. Ele abre a aba Priorização sem esta configuração: se a pessoa quiser repetir no site, diga os critérios, pesos e opções usados.)",
+    "",
+  ];
+
+  const excluidos = Object.values(r.excluded ?? {});
+  const id = guardar(a.linhas);
   partes.push(
     `Para cruzar com índices do tabelão: chame consultar_sql com priorizacao: "${id}". A consulta ganha a tabela ${COLUNAS_DA_TABELA} com os ${r.count + excluidos.length} municípios desta análise: nivel 'Muito alta', 'Alta', 'Média', 'Baixa' ou 'Muito baixa' (nivel_ordem 5 a 1), ou NULL para os que ficaram de fora; grupo é o grupo de comparação. Junte por codigo (= valores.territorio).`,
     // Sem este aviso aqui, o modelo cruzava com o Monitor de Secas sem dizer
@@ -548,6 +665,22 @@ export async function priorizar(p: Pedido): Promise<string> {
   partes.push("");
   if (p.comparar_com) partes.push(compararPriorizacoes(p.comparar_com, id), "");
 
+  // O nível é relativo ao grupo. Num grupo de 1 município (o Distrito Federal)
+  // ele sai "muito alta" comparado só com ele mesmo; com poucos, diz pouco.
+  const pequenos = [...grupos.entries()].filter(([, ms]) => ms.length < 10);
+  // Só quando a área toda é de grupos pequenos; num Brasil por estado, o DF
+  // sozinho não merece aviso na resposta sobre os outros 26.
+  if (pequenos.length === grupos.size) {
+    const comUm = pequenos.some(([, ms]) => ms.length === 1);
+    partes.push(
+      `ATENÇÃO: grupo de comparação muito pequeno (${pequenos
+        .sort(([a], [b]) => a.localeCompare(b))
+        .map(([g, ms]) => `${g}: ${ms.length} ${ms.length === 1 ? "município" : "municípios"}`)
+        .join("; ")}). O nível é relativo ao grupo${comUm ? ": um município sozinho é comparado só com ele mesmo e o nível dele não quer dizer nada" : ", e com tão poucos municípios ele diz pouco"}. Avise isso na resposta e, para um resultado que faça sentido, rode de novo numa área maior (a região ou o Brasil) com comparar_dentro_de "area".`,
+      "",
+    );
+  }
+
   if (grupos.size > 1 && grupos.size <= 30) {
     partes.push(
       `Por grupo (muito alta / alta / média / baixa / muito baixa):`,
@@ -556,6 +689,90 @@ export async function priorizar(p: Pedido): Promise<string> {
         .map(([g, ms]) => `${g}: ${contar(ms).reverse().join(" / ")}`),
       "",
     );
+  }
+
+  // O que diferencia os níveis: a mediana de cada critério em cada nível.
+  // Sem isto o modelo só tinha a posição de um município e não sabia dizer o
+  // que os de prioridade muito alta têm em comum.
+  if (escolhidos.length <= 8 && municipios.length >= 10) {
+    const valores = (ms: Municipio[], nome: string) =>
+      ms.map((m) => Number(m[nome])).filter((v) => Number.isFinite(v));
+    partes.push(
+      `Perfil dos níveis (mediana de cada critério entre os municípios do nível${grupos.size > 1 ? "; os grupos de comparação estão somados" : ""}):`,
+      `nível | municípios | ${escolhidos.map((e) => `${e.criterio.label}${e.criterio.unit ? ` (${e.criterio.unit})` : ""}`).join(" | ")}`,
+    );
+    for (let n = NIVEIS.length - 1; n >= 0; n--) {
+      const ms = municipios.filter((m) => m.classification === n);
+      if (!ms.length) continue;
+      partes.push(
+        `${NIVEIS[n]} | ${ms.length} | ${escolhidos.map((e) => num(mediana(valores(ms, e.criterio.name)))).join(" | ")}`,
+      );
+    }
+    const muitoAlta = municipios.filter((m) => m.classification === 4);
+    const resto = municipios.filter((m) => m.classification !== 4);
+    if (muitoAlta.length >= 3 && resto.length >= 3) {
+      const separacao = escolhidos
+        .map((e) => {
+          const todos = valores(municipios, e.criterio.name);
+          const amplitude = Math.max(...todos) - Math.min(...todos);
+          const d =
+            mediana(valores(muitoAlta, e.criterio.name)) -
+            mediana(valores(resto, e.criterio.name));
+          return { rotulo: e.criterio.label, d: amplitude ? d / amplitude : 0 };
+        })
+        .sort((x, y) => Math.abs(y.d) - Math.abs(x.d));
+      partes.push(
+        `Onde a prioridade muito alta mais se afasta dos outros níveis (diferença entre as medianas, em % da amplitude do critério na área): ${separacao.map((x) => `${x.rotulo} ${x.d > 0 ? "+" : "−"}${num(Math.abs(x.d) * 100, 0)}%`).join("; ")}. É descrição dos grupos, não o peso do critério na conta.`,
+      );
+    }
+    partes.push("");
+  }
+
+  // Robustez: o resultado depende dos pesos ou do cenário?
+  if (p.robustez) {
+    const outro = cenario === "pessimista" ? "otimista" : "pessimista";
+    const variacoes: Array<{ rotulo: string; pesos: number[]; cenario: typeof cenario }> = [
+      ...escolhidos.map((e, i) => ({
+        rotulo: `${e.criterio.label} com o dobro do peso`,
+        pesos: a.normalizar(escolhidos.map((x, k) => (k === i ? x.peso * 2 : x.peso))),
+        cenario,
+      })),
+      { rotulo: `cenário ${outro}`, pesos, cenario: outro },
+    ];
+    try {
+      const outras = await Promise.all(
+        variacoes.map((v) => a.rodar(v.pesos, v.cenario)),
+      );
+      const todas = [r, ...outras];
+      const total = todas.length;
+      const vezes = new Map<string, number>();
+      for (const x of todas)
+        for (const [c, m] of Object.entries(x.result))
+          if (m.classification === 4) vezes.set(c, (vezes.get(c) ?? 0) + 1);
+      const nomeDoCodigo = (c: string) => {
+        const m = r.result[c] ?? outras.find((x) => x.result[c])?.result[c];
+        return m ? nomeDe(m) : c;
+      };
+      const sempre = [...vezes].filter(([, n]) => n === total).map(([c]) => c);
+      const parte = [...vezes]
+        .filter(([, n]) => n < total)
+        .sort((x, y) => y[1] - x[1]);
+      const ordenar = (ns: string[]) =>
+        ns.sort((x, y) => x.localeCompare(y, "pt-BR"));
+      partes.push(
+        `Robustez: ${total} variações da mesma análise (a pedida, cada critério com o dobro do peso, e o ${`cenário ${outro}`}).`,
+        `- Prioridade muito alta em TODAS as ${total} (${sempre.length} municípios): ${ordenar(sempre.map(nomeDoCodigo)).slice(0, 80).join(", ") || "nenhum"}${sempre.length > 80 ? ` (e mais ${sempre.length - 80})` : ""}.`,
+        `- Muito alta só em parte delas (${parte.length} municípios)${parte.length ? `: ${parte.slice(0, 40).map(([c, n]) => `${nomeDoCodigo(c)} (${n} de ${total})`).join(", ")}${parte.length > 40 ? ` (e mais ${parte.length - 40})` : ""}` : ""}.`,
+        `- Municípios em muito alta por variação: análise pedida ${total_ma(r)}; ${variacoes.map((v, i) => `${v.rotulo} ${total_ma(outras[i])}`).join("; ")}.`,
+        "Quem está em todas não depende dos pesos nem do cenário testados; quem aparece só em parte está na fronteira.",
+        "",
+      );
+    } catch (error) {
+      partes.push(
+        `Robustez: não foi possível rodar as variações (${(error as Error).message}).`,
+        "",
+      );
+    }
   }
 
   // Listas por nível. Dentro de um nível o ELECTRE TRI-B não ordena.
@@ -569,7 +786,7 @@ export async function priorizar(p: Pedido): Promise<string> {
       .map(nomeDe)
       .sort((a, b) => a.localeCompare(b, "pt-BR"));
     partes.push(
-      `Prioridade ${NIVEIS[n].toLowerCase()} (${nomes.length} municípios, em ordem alfabética; dentro de um nível não há ordem):`,
+      `Prioridade ${NIVEIS[n].toLowerCase()} (${nomes.length} ${nomes.length === 1 ? "município" : "municípios, em ordem alfabética"}; dentro de um nível não há ordem):`,
       nomes.slice(0, LISTA_MAX).join(", ") || "(nenhum)",
       ...(nomes.length > LISTA_MAX
         ? [
@@ -604,19 +821,42 @@ export async function priorizar(p: Pedido): Promise<string> {
     }
     const grupo = grupos.get(grupoDe(m)) ?? [];
     partes.push(
-      `${nomeDe(m)} (${codigo}): prioridade ${NIVEIS[m.classification]?.toLowerCase() ?? m.classification}, comparado com ${grupo.length} municípios (${colunaGrupo ? grupoDe(m) : area.nome}).`,
-      "critério | valor | situação pior que (% do grupo)",
+      `${nomeDe(m)} (${codigo}): prioridade ${NIVEIS[m.classification]?.toLowerCase() ?? m.classification}, comparado com ${grupo.length} ${grupo.length === 1 ? "município" : "municípios"} (${colunaGrupo ? grupoDe(m) : area.nome}).${
+        grupo.length === 1
+          ? ' ATENÇÃO: ele é o único município do grupo, comparado só com ele mesmo: esse nível não quer dizer nada. Avise isso e rode de novo numa área maior (a região ou o Brasil) com comparar_dentro_de "area".'
+          : grupo.length < 10
+            ? " ATENÇÃO: grupo muito pequeno; o nível diz pouco. Avise isso."
+            : ""
+      }`,
+      "critério | valor | situação pior que (% do grupo) | leitura",
       ...escolhidos.map(({ criterio: c }) => {
         const v = m[c.name] as number;
         const outros = grupo.map((o) => o[c.name] as number);
-        return `${c.label}${c.unit ? ` (${c.unit})` : ""} | ${num(v)} | ${pct(piorQue(v, outros, c.is_benefit))}`;
+        const pior = piorQue(v, outros, c.is_benefit);
+        return `${c.label}${c.unit ? ` (${c.unit})` : ""} | ${num(v)} | ${pct(pior)} | ${leituraDaPosicao(pior * 100)}`;
       }),
+      'Como ler: "pior que 90%" quer dizer que 90% dos municípios do grupo estão em situação melhor que a dele nesse critério. Copie a leitura de cada critério, com o percentual. Não diga que um critério "puxou", "causou" ou "pesou mais" no nível: os pesos são os da configuração.',
       "",
     );
   }
 
   return partes.join("\n");
 }
+
+/**
+ * A posição do município num critério, em palavras. O modelo lia "pior que
+ * 43%" como "43% estão piores" e chamava 58,6% de "entre os piores".
+ */
+export function leituraDaPosicao(piorQuePct: number): string {
+  if (piorQuePct >= 80) return "entre os piores do grupo";
+  if (piorQuePct >= 60) return "pior que a maioria";
+  if (piorQuePct > 40) return "perto do meio do grupo";
+  if (piorQuePct > 20) return "melhor que a maioria";
+  return "entre os melhores do grupo";
+}
+
+const total_ma = (r: Resultado) =>
+  Object.values(r.result).filter((m) => m.classification === 4).length;
 
 /** Como o formulário do site: os critérios marcados como padrão, até 4. */
 function padroes(lista: Criterio[]) {
@@ -640,7 +880,7 @@ export const priorizarMunicipios: Ferramenta = {
   nome: "priorizar_municipios",
   titulo: "Priorização (análise multicritério)",
   descricao:
-    "Roda a Priorização do SEDES (aba Priorização do site, método ELECTRE TRI-B): combina critérios com pesos e classifica os municípios de uma área em 5 níveis de prioridade de intervenção (muito alta, alta, média, baixa, muito baixa). Use quando pedirem para priorizar, combinar critérios ou indicadores, ou saber quais municípios precisam mais de ação. Os critérios (lista no prompt) vêm da planilha da Priorização, não do tabelão. Devolve a configuração usada, quantos ficaram de fora por falta de dado, a distribuição por nível (a página desenha o gráfico), a lista dos municípios de prioridade muito alta e, para os municípios pedidos, o nível e a posição em cada critério. Leva menos de 1 s. Sem criterios, usa os padrões do site com pesos iguais.",
+    "Roda a Priorização do SEDES (aba Priorização do site, método ELECTRE TRI-B): combina critérios com pesos e classifica os municípios de uma área em 5 níveis de prioridade de intervenção (muito alta, alta, média, baixa, muito baixa). Use quando pedirem para priorizar, combinar critérios ou indicadores, ou saber quais municípios precisam mais de ação. Os critérios (lista no prompt) vêm da planilha da Priorização, não do tabelão. Devolve a configuração usada, quantos ficaram de fora por falta de dado, a distribuição por nível (a página desenha o gráfico e o mapa dos níveis), o perfil dos níveis (a mediana de cada critério em cada nível: o que diferencia a prioridade muito alta), a lista dos municípios de prioridade muito alta e, para os municípios pedidos, o nível e a posição em cada critério. Com robustez, testa se o resultado muda com os pesos e o cenário. Leva menos de 1 s. Sem criterios, usa os padrões do site com pesos iguais.",
   entrada: {
     criterios: z
       .array(
@@ -715,6 +955,12 @@ export const priorizarMunicipios: Ferramenta = {
       .optional()
       .describe(
         'Id de uma análise anterior desta conversa (o que veio em priorizacao: "..."). Quando a pessoa muda critérios, pesos, área ou comparação, passe o id da anterior: a saída diz quem entrou e saiu da prioridade muito alta e quantos mudaram de nível',
+      ),
+    robustez: z
+      .boolean()
+      .optional()
+      .describe(
+        'Passe true quando perguntarem se o resultado é firme, se depende dos pesos ou do cenário, ou "quais são prioridade em qualquer combinação": roda de novo com cada critério pesando o dobro e com o outro cenário, e diz quais municípios ficam em prioridade muito alta em todas as variações',
       ),
   },
   executar: (args: Pedido) => priorizar(args),

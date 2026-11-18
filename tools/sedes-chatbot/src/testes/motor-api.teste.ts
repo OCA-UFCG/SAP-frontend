@@ -10,6 +10,9 @@ import type { AddressInfo } from "node:net";
 import { after, before, test } from "node:test";
 
 process.env.SEDES_CHAT_RODADAS = "3";
+// A revisão das frases é uma ida a mais ao modelo; ela tem teste próprio em
+// acabamento.teste.ts.
+process.env.SEDES_CHAT_REVISAR = "0";
 const { criarMotorApi } = await import("../chat/motor-api.ts");
 const { Turno } = await import("../chat/turno.ts");
 const { encerrarFerramentas, FERRAMENTAS } = await import("../ferramentas.ts");
@@ -161,18 +164,26 @@ test("consulta o tabelão, devolve as duas ferramentas juntas e escreve a respos
           id: "tu_1",
           nome: "consultar_sql",
           entrada: {
-            sql: "SELECT nome AS rotulo, 1.5 AS valor FROM territorios WHERE codigo='2504009'",
+            sql: "SELECT nome AS rotulo, 1.5 AS valor FROM territorios WHERE codigo='2504009' AND 'monitor-de-seca-ana' <> ''",
           },
         },
         {
           tipo: "ferramenta",
           id: "tu_2",
-          nome: "link_no_sedes",
-          entrada: { indices: ["monitor-de-seca-ana"], territorio: "2504009" },
+          nome: "buscar_territorio",
+          entrada: { nome: "Campina Grande", uf: "PB" },
         },
       ],
     },
-    { blocos: [{ tipo: "texto", texto: "Campina Grande tem 1,5." }] },
+    {
+      blocos: [
+        {
+          tipo: "texto",
+          texto:
+            "Campina Grande tem 1,5.\n\n» E em Patos, na Paraíba?\n» Como isso mudou desde 2024?",
+        },
+      ],
+    },
   ];
   const motor = criarMotorApi({ cliente });
   const { eventos, fim, resposta } = await perguntar(
@@ -190,10 +201,21 @@ test("consulta o tabelão, devolve as duas ferramentas juntas e escreve a respos
   const saidaDe = (id: string) =>
     String(saidas.find((e) => e.id === id)?.texto);
   assert.match(saidaDe("tu_1"), /Campina Grande/);
-  assert.match(saidaDe("tu_2"), /locationKey=2504009/);
+  assert.match(saidaDe("tu_2"), /2504009/);
+  // O link do site é montado pela página, a partir da consulta.
+  const link = eventos.find((e) => e.tipo === "link");
+  assert.match(String(link?.url), /locationKey=2504009.*monitor-de-seca-ana/);
+  // As perguntas sugeridas saem do texto e chegam como botões.
+  assert.deepEqual(eventos.find((e) => e.tipo === "sugestoes")?.perguntas, [
+    "E em Patos, na Paraíba?",
+    "Como isso mudou desde 2024?",
+  ]);
+  assert.ok(
+    !eventos.some((e) => e.tipo === "texto" && String(e.t).includes("»")),
+  );
 
   // O segundo pedido leva os dois resultados numa mensagem só, e o prompt,
-  // as sete ferramentas e o cache vão em todo pedido.
+  // as ferramentas e o cache vão em todo pedido.
   const segundo = pedidos[1] as {
     messages: Array<{ role: string; content: Array<{ type: string }> }>;
     tools: unknown[];

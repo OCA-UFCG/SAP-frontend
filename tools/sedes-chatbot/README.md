@@ -12,15 +12,14 @@ O "bot" é o Claude com sete ferramentas, todas só de leitura
 (`src/ferramentas.ts`). Ele não tem Bash, leitura de arquivos nem web, então
 só sabe o que as ferramentas devolvem.
 
-| Ferramenta             | O que faz                                                                                                                                                                     |
-| ---------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `listar_indices`       | Catálogo do tabelão: o que cada índice mede, classes, períodos, data de atualização, ressalvas.                                                                               |
-| `detalhar_indice`      | Descrição completa de um índice como está no catálogo do site, com classes e ressalvas.                                                                                       |
-| `buscar_territorio`    | Acha município, estado, bioma etc. pelo nome, sem acento, e devolve todos os homônimos com UF.                                                                                |
-| `consultar_sql`        | SELECT no tabelão (só leitura, até 200 linhas, 10 s). Fonte principal: valores, rankings, séries. Com o parâmetro `grafico`, a página desenha o resultado (série ou ranking). |
-| `link_no_sedes`        | Monta o link do site com o mesmo dado: o relatório do território com os índices da resposta. A página mostra como botão "Ver no SEDES".                                       |
-| `sobre_o_sedes`        | Os textos do site (início, Sobre, Glossário) e um complemento sobre como ler os dados.                                                                                        |
-| `relatorio_territorio` | Chama `/api/municipal-report` do site: o que o site mostra agora. Complemento, para conferir o atual.                                                                         |
+| Ferramenta             | O que faz                                                                                                                                                                                                                                                                      |
+| ---------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| `listar_indices`       | Catálogo do tabelão: o que cada índice mede, classes, períodos, data de atualização, ressalvas.                                                                                                                                                                                |
+| `detalhar_indice`      | Descrição completa de um índice como está no catálogo do site, com classes e ressalvas.                                                                                                                                                                                        |
+| `buscar_territorio`    | Acha município, estado, bioma etc. pelo nome, sem acento, e devolve todos os homônimos com UF.                                                                                                                                                                                 |
+| `consultar_sql`        | SELECT no tabelão (só leitura, até 200 linhas, 10 s). Fonte principal: valores, rankings, séries. Com o parâmetro `grafico`, a página desenha o resultado (série, ranking ou mapa de municípios), e a saída traz um resumo calculado (maior, menor, início e fim, sequências). |
+| `sobre_o_sedes`        | Os textos do site (início, Sobre, Glossário) e um complemento sobre como ler os dados.                                                                                                                                                                                         |
+| `relatorio_territorio` | Chama `/api/municipal-report` do site: o que o site mostra agora. Complemento, para conferir o atual.                                                                                                                                                                          |
 
 ## Como rodar a demonstração
 
@@ -70,6 +69,33 @@ DATASET_PATH=$C/novo_dataset.csv.gz DATASET_XLSX_PATH=$C/dataset.xlsx \
 Ele leva ~1 min para responder (baixa a planilha). Sem ele, o chat funciona,
 mas a ferramenta de Priorização responde que está fora do ar. Outro endereço:
 `SEDES_MULTICRITERIO_URL`.
+
+## O que o código garante, sem depender do modelo
+
+O Haiku custa 15 vezes menos que o Sonnet e errava em coisas pequenas e
+repetidas. Elas saíram do prompt e foram para o código, e valem para os dois
+modelos (`src/chat/acabamento.ts`, `src/conferir-numeros.ts`,
+`src/ferramentas.ts`):
+
+- **Rascunho.** O texto escrito antes de uma chamada de ferramenta ("Vou
+  verificar...", ou a resposta inteira que o modelo reescreve depois) é jogado
+  fora. Antes a página mostrava os dois.
+- **Link "Ver no SEDES".** Não é mais uma ferramenta: a página monta o link
+  pelos índices e pelo território que aparecem nas consultas da resposta
+  (`linkDasConsultas`). Uma chamada a menos por resposta.
+- **Resumo calculado.** A saída de uma série ou de um ranking traz o maior, o
+  menor, o início e o fim, as altas e quedas e as sequências de períodos acima
+  de zero. O modelo copia em vez de achar de olho.
+- **Conferência dos números.** Cada número da resposta tem de estar numa
+  saída de ferramenta da conversa (arredondado como foi escrito), no prompt, ou
+  ser conta simples entre números conferidos. Se algum não está, a página
+  devolve a resposta ao modelo uma vez, com a lista. `SEDES_CHAT_CONFERIR=0`
+  desliga. Medido nas rodadas gravadas: acusa 2 de 239 respostas reais e pega
+  77% de números trocados de propósito.
+- **Ressalvas na saída da ferramenta.** PRODES acumulado, recorte ASD,
+  consulta com LIMIT: o aviso vai junto do resultado, onde o Haiku lê.
+- **Perguntas sugeridas.** O modelo termina com até 2 linhas que começam com
+  `»`; a página tira do texto e mostra como botões.
 
 ## A página de chat
 
@@ -217,19 +243,26 @@ O que o bot pode fazer é limitado em duas camadas:
 
 ## Avaliação
 
-`perguntas.md` tem 125 perguntas com a resposta esperada; a maioria tem também
+`perguntas.md` tem 265 perguntas com a resposta esperada; a maioria tem também
 a consulta SQL feita à mão (`npm run consultas` roda essas consultas no
 tabelão). As de M em diante vieram do uso real da página: conversas com
 continuação (linhas `Depois:`), perguntas abertas, sentido das classes,
 escrita informal, dado que não existe e comparações. Depois vêm as que juntam
 módulos: Priorização (N), Priorização com o tabelão (W), previsões (B),
 continuação de uma Priorização (J), inglês e espanhol (U), panorama (Y) e
-correlação entre índices (O). `exemplos-de-perguntas.md` resume os tipos de
+correlação entre índices (O), e as Z, de formatos e dados novos. As 116 da
+"Cobertura ampliada" (17/11/2026) têm categorias de duas letras: Brasil fora do
+Nordeste (BR), território (TE), recorte que o SEDES não tem (RC), falsa
+premissa (FP), insistência do usuário (PR), datas relativas (DT), contas (CA),
+índices e previsões sem teste (IN), método e fonte (MT), conversa (CV),
+segurança e papel (SG), lado humano (HU), pedidos de formato (PE) e formatos
+novos da Priorização (PZ). `exemplos-de-perguntas.md` resume os tipos de
 pergunta para quem vai usar o chat.
 
 ```bash
 npm run avaliar -- --so M01,E02 --rotulo teste   # teste rápido
 npm run avaliar -- --categoria M,E,K,L,D,Q        # só as difíceis
+npm run avaliar -- --categoria BR,TE,RC           # pelas letras inteiras: B não traz BR
 npm run avaliar                                   # todas, Haiku
 npm run avaliar -- --modelo sonnet
 npm run avaliar -- --comparar antes depois        # compara duas rodadas
@@ -262,7 +295,23 @@ Para comparar mudanças que não estão no código, use variáveis de ambiente:
 muda o esforço do modelo. Para rodar duas avaliações ao mesmo tempo, dê a cada
 uma a sua pasta de sessão (`SEDES_SESSAO=~/.cache/outra-pasta`).
 
+### Para gastar menos ao avaliar
+
+- Depois de uma mudança, rode só as categorias que ela toca
+  (`--categoria Z,B`); a rodada completa fica para o fim.
+- Rodada que parou no meio (limite de uso, queda): `--rotulo <a mesma>
+--retomar` refaz só o que faltou ou deu erro.
+- Pergunta que termina em erro do motor não vai ao juiz.
+
 ## O tabelão
+
+Depois de `npm run tabelao`, rode `npm run complementos` (~1 min,
+`src/gee/complementos.ts`). Ele acrescenta ao tabelão o que as tabelas do
+Earth Engine trazem e o site descarta: a área de cada território em km²
+(`territorios.area_km2`) e a média, a mediana, o mínimo e o máximo dos índices
+que têm essas colunas (tabela `medias`: previsões em mm e °C, aridez, PPB,
+carbono do solo). É com eles que o chat responde "quantos km²" e "quantos
+milímetros". Não muda nenhum valor que já estava lá.
 
 `npm run tabelao` (`src/gee/montar-tabelao.ts`) monta `data/sedes.sqlite`
 direto das fontes que o relatório do site usa:

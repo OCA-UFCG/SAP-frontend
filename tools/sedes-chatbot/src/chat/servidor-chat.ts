@@ -34,7 +34,13 @@ import {
 import http from "node:http";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
-import { GERADO_EM, TABELAO } from "../ferramentas.ts";
+import { dadosDoMapa, GERADO_EM, TABELAO } from "../ferramentas.ts";
+import {
+  comLinhasDaPriorizacao,
+  linhasDaPriorizacao,
+  niveisDaPriorizacao,
+  NIVEIS,
+} from "../priorizacao.ts";
 import { criarAcesso, type Acesso } from "./acesso.ts";
 import { criarLimites } from "./limites.ts";
 import { criarMotorApi } from "./motor-api.ts";
@@ -137,6 +143,8 @@ type RegistroTurno = {
   pergunta: string;
   resposta: string;
   ferramentas?: Array<Record<string, unknown> & { saida?: string }>;
+  links?: string[];
+  sugestoes?: string[];
   ms?: number;
   interrompida?: boolean;
   erro?: string | null;
@@ -247,6 +255,12 @@ function registrarFim(
     pergunta: t.pergunta,
     resposta: t.resposta,
     ferramentas: t.ferramentas.map((f) => ({ ...f, inicio: undefined })),
+    links: t.links,
+    sugestoes: t.sugestoes,
+    corrigida: t.corrigida || undefined,
+    revisada: t.revisada || undefined,
+    reescrita_na_revisao: t.reescritaNaRevisao || undefined,
+    numeros_sem_fonte: t.numerosSemFonte.length ? t.numerosSemFonte : undefined,
     ms,
     custo_usd: fim.custo_usd,
     uso: fim.uso,
@@ -265,6 +279,102 @@ function registrarFim(
 }
 
 // ---------------------------------------------------------------------------
+// Mapa
+//
+// A página pede aqui os valores de todos os municípios de um mapa. O servidor
+// só refaz uma consulta (ou uma Priorização) que o modelo já fez naquela
+// conversa: quem pede passa a conversa, o turno e o passo, nunca o SQL.
+
+type Anel = Array<[number, number]>;
+let malha: Map<string, Anel[]> | undefined;
+
+/** Contornos simplificados dos municípios (os mesmos da visão geral do site). */
+function malhaDosMunicipios() {
+  if (malha) return malha;
+  const geo = JSON.parse(
+    readFileSync(
+      path.join(RAIZ, "public/data/brazil-cities-overview.json"),
+      "utf8",
+    ),
+  ) as {
+    features: Array<{
+      properties: { c: string };
+      geometry: { type: string; coordinates: unknown };
+    }>;
+  };
+  malha = new Map(
+    geo.features.map((f) => [
+      f.properties.c,
+      (f.geometry.type === "Polygon"
+        ? [f.geometry.coordinates as Anel[]]
+        : (f.geometry.coordinates as Anel[][])
+      ).map((poligono) => poligono[0]),
+    ]),
+  );
+  return malha;
+}
+
+type Passo = { nome?: string; entrada?: unknown; saida?: string; erro?: boolean };
+
+function passosDaConversa(c: Conversa): Array<{ turno: number; id: string } & Passo> {
+  const gravados = existsSync(c.arquivo)
+    ? turnosDe(lerRegistros(c.arquivo)).flatMap((r) =>
+        (r.ferramentas ?? []).map((f) => ({
+          ...(f as Passo),
+          turno: r.turno,
+          id: String(f.id),
+        })),
+      )
+    : [];
+  const vivos = (c.turno?.ferramentas ?? []).map((f) => ({
+    ...f,
+    turno: c.turno!.numero,
+  }));
+  return [...gravados, ...vivos];
+}
+
+async function mapaDoPasso(c: Conversa, turno: number, id: string) {
+  const passos = passosDaConversa(c);
+  const passo = passos.find((x) => x.turno === turno && x.id === id);
+  if (!passo || passo.erro) return { erro: "mapa não encontrado" };
+  let itens:
+    | Array<{ codigo: string; nome: string; valor: number | null }>
+    | string;
+  let categorias: string[] | undefined;
+  if (passo.nome === "priorizar_municipios") {
+    itens = await niveisDaPriorizacao((passo.entrada ?? {}) as never);
+    categorias = NIVEIS;
+  } else if (passo.nome === "consultar_sql") {
+    const e = (passo.entrada ?? {}) as { sql?: string; priorizacao?: string };
+    let sql = String(e.sql ?? "");
+    if (e.priorizacao) {
+      // A tabela priorizacao vive no processo que rodou a análise: refaz a
+      // mesma análise (o passo cuja saída traz aquele id) para ter as linhas.
+      const origem = passos.findLast(
+        (x) =>
+          x.nome === "priorizar_municipios" &&
+          String(x.saida ?? "").includes(`priorizacao: "${e.priorizacao}"`),
+      );
+      const linhas = origem
+        ? await linhasDaPriorizacao((origem.entrada ?? {}) as never)
+        : "a Priorização deste mapa não está mais na conversa";
+      if (typeof linhas === "string") return { erro: linhas };
+      sql = comLinhasDaPriorizacao(sql, linhas);
+    }
+    itens = await dadosDoMapa(sql);
+  } else return { erro: "este passo não tem mapa" };
+  if (typeof itens === "string") return { erro: itens };
+  const formas = malhaDosMunicipios();
+  return {
+    categorias,
+    itens: itens.flatMap((i) => {
+      const aneis = formas.get(i.codigo);
+      return aneis ? [{ ...i, aneis }] : [];
+    }),
+  };
+}
+
+// ---------------------------------------------------------------------------
 // HTTP
 
 const TIPOS: Record<string, string> = {
@@ -280,8 +390,9 @@ const ESTATICOS: Record<string, string> = {
   "/estilo.css": path.join(PAGINA, "estilo.css"),
   "/app.js": path.join(PAGINA, "app.js"),
   "/grafico.js": path.join(PAGINA, "grafico.js"),
+  "/mapa.js": path.join(PAGINA, "mapa.js"),
   "/marked.js": path.join(PACOTE, "node_modules/marked/lib/marked.esm.js"),
-  "/logo.svg": path.join(RAIZ, "public/logo-sedes.svg"),
+  "/logo.svg": path.join(PAGINA, "logo.svg"),
   "/favicon.svg": path.join(RAIZ, "public/favicon.svg"),
 };
 
@@ -300,7 +411,7 @@ function paginaDeAcesso(res: http.ServerResponse, a: Acesso) {
     "cache-control": "no-store",
   });
   res.end(
-    `<!doctype html><html lang="pt-BR"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><title>Assistente de dados do SEDES</title><link rel="icon" href="favicon.svg"><link rel="stylesheet" href="estilo.css"></head><body><main class="acesso"><img src="logo.svg" alt="SEDES" width="136" height="46"><h1>Assistente de dados</h1>${corpo}</main></body></html>`,
+    `<!doctype html><html lang="pt-BR"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><title>Assistente de dados do SEDES</title><link rel="icon" href="favicon.svg"><link rel="stylesheet" href="estilo.css"></head><body><main class="acesso"><img src="logo.svg" alt="SEDES" width="102" height="46"><h1>Assistente de dados</h1>${corpo}</main></body></html>`,
   );
 }
 
@@ -437,12 +548,26 @@ const servidor = http.createServer(async (req, res) => {
             ...f,
             saida: f.saida?.slice(0, SAIDA_MAX),
           })),
+          links: r.links ?? [],
+          sugestoes: r.sugestoes ?? [],
           ms: r.ms,
           interrompida: r.interrompida,
           erro: r.erro,
           avaliacao: notas.get(r.turno) ?? null,
         })),
       });
+      return;
+    }
+
+    if (req.method === "GET" && url.pathname === "/api/mapa") {
+      const c = obterConversa(String(url.searchParams.get("conversa")), email);
+      if (!c) return json(res, 404, { erro: "conversa não encontrada" });
+      const mapa = await mapaDoPasso(
+        c,
+        Number(url.searchParams.get("turno")),
+        String(url.searchParams.get("passo")),
+      );
+      json(res, "erro" in mapa ? 404 : 200, mapa);
       return;
     }
 

@@ -1,5 +1,6 @@
 import { marked } from "./marked.js";
 import { desenharGrafico } from "./grafico.js";
+import { desenharMapa } from "./mapa.js";
 
 // O texto vem do modelo: HTML cru dentro do markdown aparece como texto.
 marked.use({
@@ -50,9 +51,11 @@ const PASSOS = {
   consultar_sql: {
     fazendo: "Consultando o tabelão…",
     feito: (e) =>
-      e.grafico
-        ? "Consultou o tabelão e montou o gráfico"
-        : "Consultou o tabelão",
+      e.grafico?.tipo === "mapa"
+        ? "Consultou o tabelão e montou o mapa"
+        : e.grafico
+          ? "Consultou o tabelão e montou o gráfico"
+          : "Consultou o tabelão",
   },
   link_no_sedes: {
     fazendo: "Preparando o link para o site…",
@@ -173,7 +176,8 @@ function criarResposta() {
   const areaGrafico = criar("div", "graficos");
   const texto = criar("div", "resposta");
   const links = criar("div", "links-sedes");
-  coluna.append(passos, areaGrafico, aguardando, texto, links);
+  const proximas = criar("div", "proximas");
+  coluna.append(passos, areaGrafico, aguardando, texto, links, proximas);
   li.append(avatar, coluna);
   el.mensagens.append(li);
 
@@ -219,23 +223,25 @@ function criarResposta() {
       const passo = r.passos.get(id);
       if (!passo) return;
       const { item, nome, entrada } = passo;
-      if (
-        !erro &&
-        nome === "consultar_sql" &&
-        entrada?.grafico &&
-        desenharGrafico(areaGrafico, entrada.grafico, saida)
-      )
-        descer();
+      const comErro = erro || /^Erro:/.test(saida ?? "");
+      const ref = { conversa: estado.conversa, turno: r.turno, passo: id };
+      if (!comErro && nome === "consultar_sql" && entrada?.grafico) {
+        if (entrada.grafico.tipo === "mapa")
+          desenharMapa(areaGrafico, entrada.grafico, ref).then(
+            (ok) => ok && descer(),
+          );
+        else if (desenharGrafico(areaGrafico, entrada.grafico, saida)) descer();
+      }
       if (!erro && nome === "link_no_sedes") r.adicionarLink(saida);
-      if (!erro && nome === "priorizar_municipios") {
-        if (
-          desenharGrafico(
-            areaGrafico,
-            graficoDaPriorizacao(saida),
-            tabelaDaPriorizacao(saida),
-          )
-        )
+      if (!comErro && nome === "priorizar_municipios") {
+        const g = graficoDaPriorizacao(saida);
+        if (desenharGrafico(areaGrafico, g, tabelaDaPriorizacao(saida)))
           descer();
+        desenharMapa(
+          areaGrafico,
+          { titulo: g.titulo.replace("Municípios por nível", "Mapa dos níveis") },
+          ref,
+        ).then((ok) => ok && descer());
         const url = /^Priorização no site: (\S+)/m.exec(saida ?? "")?.[1];
         if (url)
           r.adicionarLink(
@@ -276,6 +282,23 @@ function criarResposta() {
       a.rel = "noopener";
       a.title = dica ?? "Abre o mesmo dado na plataforma SEDES";
       links.append(a);
+    },
+    /** Joga fora o texto mostrado (era rascunho) e volta a esperar. */
+    descartar() {
+      r.markdown = "";
+      texto.replaceChildren();
+      texto.classList.remove("cursor");
+      if (!aguardando.isConnected) texto.before(aguardando);
+    },
+    sugerir(perguntas) {
+      proximas.replaceChildren();
+      for (const p of perguntas ?? []) {
+        const b = criar("button", "proxima");
+        b.type = "button";
+        b.textContent = p;
+        b.onclick = () => perguntar(p);
+        proximas.append(b);
+      }
     },
     escrever(pedaco) {
       aguardando.remove();
@@ -442,6 +465,9 @@ function travarModelo() {
 async function perguntar(texto) {
   if (estado.ocupado || !texto.trim()) return;
   el.boasVindas.hidden = true;
+  // As perguntas sugeridas valem para a última resposta só.
+  for (const n of el.mensagens.querySelectorAll(".proximas"))
+    n.replaceChildren();
   adicionarPergunta(texto);
   const r = criarResposta();
   descer(true);
@@ -496,6 +522,10 @@ async function perguntar(texto) {
         else if (ev.tipo === "ferramenta") r.adicionarPasso(ev, false);
         else if (ev.tipo === "saida") r.concluirPasso(ev);
         else if (ev.tipo === "texto") r.escrever(ev.t);
+        else if (ev.tipo === "descartar") r.descartar();
+        else if (ev.tipo === "status") r.setStatus(ev.texto);
+        else if (ev.tipo === "link") r.adicionarLink(ev.url);
+        else if (ev.tipo === "sugestoes") r.sugerir(ev.perguntas);
         else if (ev.tipo === "fim") {
           terminou = true;
           r.terminar(ev);
@@ -555,6 +585,8 @@ async function abrirConversa(id) {
       r.adicionarPasso(f, true);
       r.concluirPasso({ id: f.id, texto: f.saida, erro: f.erro, ms: f.ms });
     }
+    for (const url of t.links ?? []) r.adicionarLink(url);
+    if (t === c.turnos.at(-1)) r.sugerir(t.sugestoes);
     r.markdown = t.resposta ?? "";
     r.terminar({
       ms: t.ms,
@@ -665,7 +697,9 @@ for (const b of el.modelo.querySelectorAll("button"))
   });
 
 for (const b of $("sugestoes").querySelectorAll("button"))
-  b.addEventListener("click", () => perguntar(b.lastChild.textContent.trim()));
+  b.addEventListener("click", () =>
+    perguntar(b.querySelector("p").textContent.replace(/\s+/g, " ").trim()),
+  );
 
 el.nova.addEventListener("click", novaConversa);
 el.logo.addEventListener("click", (e) => {

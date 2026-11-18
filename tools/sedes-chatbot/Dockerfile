@@ -1,5 +1,5 @@
 # Página de chat do SEDES no beta (motor "api", com login do SEDES).
-# Monte da raiz do repositório, que tem o logo e o ícone do site:
+# Monte da raiz do repositório, que tem o ícone do site e os contornos dos municípios:
 #   docker build -f tools/sedes-chatbot/Dockerfile -t sedes-chat:beta .
 # O tabelão (5 GB) e as conversas ficam fora da imagem, em pastas da VM:
 #   -v <pasta>/dados:/dados:ro  -v <pasta>/conversas:/conversas
@@ -10,7 +10,9 @@ WORKDIR /app/tools/sedes-chatbot
 COPY tools/sedes-chatbot/package.json tools/sedes-chatbot/package-lock.json ./
 RUN npm ci --omit=dev && npm cache clean --force
 
-COPY public/logo-sedes.svg public/favicon.svg /app/public/
+COPY public/favicon.svg /app/public/
+# Contornos simplificados dos municípios, para o mapa das respostas.
+COPY public/data/brazil-cities-overview.json /app/public/data/
 COPY tools/sedes-chatbot/prompt.md ./
 COPY tools/sedes-chatbot/conhecimento ./conhecimento
 COPY tools/sedes-chatbot/src ./src

@@ -1,7 +1,11 @@
 import assert from "node:assert/strict";
 import { afterEach, test } from "node:test";
 import { DatabaseSync } from "node:sqlite";
-import { comPriorizacao, priorizar } from "../priorizacao.ts";
+import {
+  comPriorizacao,
+  leituraDaPosicao,
+  priorizar,
+} from "../priorizacao.ts";
 
 // Backend da Priorização de mentira: 3 critérios e 4 municípios da PB.
 const CRITERIOS = [
@@ -162,10 +166,18 @@ test("erros voltam como texto que o modelo entende", async () => {
   assert.match(
     await priorizar({
       area: { tipo: "estado", valor: "PB" },
-      comparar_dentro_de: "area",
+      comparar_dentro_de: "regiao",
     }),
     /com a área estado, comparar_dentro_de pode ser estado/,
   );
+  // "area" num estado é o próprio estado: roda, em vez de devolver erro.
+  const juntos = await priorizar({
+    area: { tipo: "estado", valor: "PB" },
+    comparar_dentro_de: "area",
+  });
+  assert.match(juntos, /Comparação: cada estado separadamente/);
+  // Com 4 municípios no grupo, a saída avisa que o nível diz pouco.
+  assert.match(juntos, /grupo de comparação muito pequeno \(PB: 4 municípios\)/);
   assert.match(
     await priorizar({ area: { tipo: "bioma", valor: "Floresta" } }),
     /Bioma "Floresta" inválido/,
@@ -249,4 +261,11 @@ test("comparar_com diz quem entrou e saiu da prioridade muito alta", async () =>
   assert.match(depois, /1 subiram, 1 desceram, 2 ficaram no mesmo/);
   const sem = await priorizar({ comparar_com: "pnada" });
   assert.match(sem, /"pnada" não está guardada/);
+});
+
+test("a posição num critério vem em palavras, sem depender da leitura do modelo", () => {
+  assert.equal(leituraDaPosicao(98.6), "entre os piores do grupo");
+  assert.equal(leituraDaPosicao(58.6), "perto do meio do grupo");
+  assert.equal(leituraDaPosicao(43), "perto do meio do grupo");
+  assert.equal(leituraDaPosicao(8.6), "entre os melhores do grupo");
 });

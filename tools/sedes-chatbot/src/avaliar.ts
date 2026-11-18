@@ -16,6 +16,7 @@
  *   npm run avaliar -- --motor api --sem-juiz
  *   npm run avaliar -- --juizar antes             # só refaz as notas de uma rodada
  *   npm run avaliar -- --comparar antes depois    # compara duas rodadas
+ *   npm run avaliar -- --rotulo v9 --retomar      # só o que faltou ou deu erro na rodada v9
  *   npm run avaliar -- --arquivo conversas/candidatas.md --sem-juiz
  *                                         # outro arquivo no formato do perguntas.md
  *
@@ -61,6 +62,7 @@ const { values: opc, positionals } = parseArgs({
     juizar: { type: "string" },
     comparar: { type: "boolean", default: false },
     arquivo: { type: "string" },
+    retomar: { type: "boolean", default: false },
   },
   allowPositionals: true,
 });
@@ -88,6 +90,16 @@ type TurnoGravado = {
     erro?: boolean;
     ms?: number;
   }>;
+  /** Links "Ver no SEDES" que a página montou. */
+  links?: string[];
+  sugestoes?: string[];
+  /** A conferência dos números mandou reescrever a resposta. */
+  corrigida?: boolean;
+  /** A revisão das frases foi pedida; e se ela trocou a resposta. */
+  revisada?: boolean;
+  reescrita_na_revisao?: boolean;
+  /** Números que continuaram sem fonte depois da correção. */
+  numeros_sem_fonte?: string[];
   ms: number;
   rodadas: number | null;
   tokens: Tokens;
@@ -190,6 +202,12 @@ async function rodarPergunta(motor: Motor, p: Pergunta): Promise<Resultado> {
           erro: f.erro,
           ms: f.ms,
         })),
+        links: turno.links,
+        sugestoes: turno.sugestoes,
+        corrigida: turno.corrigida,
+        revisada: turno.revisada,
+        reescrita_na_revisao: turno.reescritaNaRevisao,
+        numeros_sem_fonte: turno.numerosSemFonte,
         ms: Date.now() - turno.inicio,
         rodadas,
         tokens,
@@ -242,6 +260,8 @@ O que o assistente deve fazer:
 - Perguntar a UF quando o município tem homônimos e a pessoa não disse.
 - Recusar pedidos fora do tema do SEDES e não dar opinião política.
 - Numa conversa com várias perguntas, entender as perguntas seguintes no contexto das anteriores.
+
+O link para o site ("Ver no SEDES") não é escrito pelo assistente: a página monta um botão a partir das consultas, e ele aparece abaixo da resposta quando existe. Séries, rankings e mapas são desenhados pela página quando a consulta vem com grafico; num mapa, o assistente recebe só o resumo e os extremos, e a pessoa vê todos os municípios. As perguntas sugeridas no fim não fazem parte da resposta e não são mostradas aqui.
 
 Notas:
 - "certo": responde corretamente o essencial da resposta esperada, com números que batem com as ferramentas e sem afirmações falsas.
@@ -299,6 +319,11 @@ function textoParaOJuiz(r: Resultado) {
       t.resposta || `(sem resposta${t.erro ? `: ${t.erro}` : ""})`,
       "",
     );
+    if (t.links?.length)
+      partes.push(
+        `Botão "Ver no SEDES" que a página mostrou junto da resposta: ${t.links.join(" ; ")}`,
+        "",
+      );
   });
   partes.push(
     "## Resposta esperada (para a última pergunta)",
@@ -412,6 +437,19 @@ function metricas(rs: Resultado[]) {
     tokens_entrada: media(turnos.map((t) => entradaTotal(t.tokens))),
     tokens_saida: media(turnos.map((t) => t.tokens.saida)),
     custo: turnos.reduce((a, t) => a + (t.custo_usd ?? 0), 0),
+    corrigidas: turnos.filter((t) => t.corrigida).length,
+    revisadas: turnos.filter((t) => t.revisada).length,
+    reescritasNaRevisao: turnos.filter((t) => t.reescrita_na_revisao).length,
+    sem_fonte: turnos.filter((t) => t.numeros_sem_fonte?.length).length,
+    com_sugestoes: turnos.filter((t) => t.sugestoes?.length).length,
+    com_link: turnos.filter((t) => t.links?.length).length,
+    chamadas_com_erro: turnos.reduce(
+      (a, t) =>
+        a +
+        t.ferramentas.filter((f) => f.erro || /^Erro/.test(f.saida ?? ""))
+          .length,
+      0,
+    ),
   };
 }
 
@@ -428,6 +466,11 @@ function linhaMetricas(m: ReturnType<typeof metricas>) {
     `| Tokens de entrada por turno (com cache) | ${mil(m.tokens_entrada)} |`,
     `| Tokens de saída por turno | ${Math.round(m.tokens_saida)} |`,
     `| Custo somado (preço de API) | US$ ${m.custo.toFixed(2)} |`,
+    `| Chamadas de ferramenta que voltaram com erro | ${m.chamadas_com_erro} |`,
+    `| Respostas reescritas pela conferência dos números | ${m.corrigidas} |`,
+    `| Respostas que passaram pela revisão das frases · trocadas por ela | ${m.revisadas} · ${m.reescritasNaRevisao} |`,
+    `| Respostas que ficaram com número sem fonte | ${m.sem_fonte} |`,
+    `| Turnos com link para o site · com perguntas sugeridas | ${m.com_link} · ${m.com_sugestoes} |`,
   ];
 }
 
@@ -546,7 +589,8 @@ async function principal() {
   const perguntas = lerPerguntas(ARQUIVO).filter(
     (p) =>
       (!so || so.includes(p.id)) &&
-      (!categorias || categorias.some((c) => p.id.startsWith(c))),
+      // Pelas letras do id inteiras: "B" não traz as "BR".
+      (!categorias || categorias.includes(p.id.replace(/\d+$/, ""))),
   );
   if (!perguntas.length) throw new Error("Nenhuma pergunta selecionada.");
   const rotulo =
@@ -561,7 +605,28 @@ async function principal() {
   let feitas = 0;
   try {
     await emParalelo(perguntas, Number(opc.paralelo), async (p) => {
+      // --retomar: a pergunta que já tem resposta e nota nesta rodada não é
+      // refeita. Serve quando a rodada parou no meio (limite de uso, queda).
+      const gravado = path.join(dir, `${p.id}.json`);
+      if (opc.retomar && existsSync(gravado)) {
+        const antes = JSON.parse(readFileSync(gravado, "utf8")) as Resultado;
+        const completa =
+          antes.turnos.length === p.perguntas.length &&
+          antes.turnos.every((t) => !t.erro && t.resposta) &&
+          (opc["sem-juiz"] || antes.juiz);
+        if (completa) {
+          feitas += 1;
+          return;
+        }
+      }
       const r = await rodarPergunta(motor, p);
+      // Sem resposta (erro do motor), não há o que julgar: não gasta o juiz.
+      if (r.turnos.some((t) => t.erro)) {
+        writeFileSync(gravado, JSON.stringify(r, null, 1));
+        feitas += 1;
+        console.error(`[${feitas}/${perguntas.length}] ${p.id} ERRO: ${r.turnos.find((t) => t.erro)?.erro?.slice(0, 80)}`);
+        return;
+      }
       if (!opc["sem-juiz"]) r.juiz = await julgar(r);
       writeFileSync(path.join(dir, `${p.id}.json`), JSON.stringify(r, null, 1));
       feitas += 1;
