@@ -38,18 +38,6 @@ describe("selectActiveBoundaryFeatures", () => {
     ]);
   });
 
-  it("keeps ASD and its surroundings together, as one recorte", () => {
-    const active = selectActiveBoundaryFeatures(
-      collection("ASD", "Entorno"),
-      "ASD",
-    );
-
-    expect(active?.features.map((feature) => feature.properties.name)).toEqual([
-      "ASD",
-      "Entorno",
-    ]);
-  });
-
   it("returns null when nothing matches, so the caller can fall back", () => {
     expect(
       selectActiveBoundaryFeatures(collection("Amazônia"), "Pampa"),

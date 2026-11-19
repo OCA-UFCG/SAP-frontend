@@ -12,10 +12,12 @@ describe("spatial boundary repository", () => {
     expect(index.get("region")?.size).toBe(5);
     expect(index.get("biome")?.size).toBe(6);
     expect(index.get("semiarid")?.size).toBe(1);
-    expect(index.get("asd")?.size).toBe(2);
+    expect(index.get("asd")?.size).toBe(1);
   });
 
-  it("combines ASD and its surroundings for the advertised selection", () => {
+  it("draws ASD and its surroundings as a single boundary", () => {
+    // Duas features faziam o mapa contornar cada uma, e a divisa entre a ASD e
+    // o Entorno aparecia como linha no meio do recorte.
     const features = getSpatialBoundaryFeatures({
       spatialArea: "asd",
       spatialValue: "ASD",
@@ -23,8 +25,21 @@ describe("spatial boundary repository", () => {
 
     expect(features.map((feature) => feature.properties.name)).toEqual([
       "ASD",
-      "Entorno",
     ]);
+  });
+
+  it("keeps the ASD boundary free of slivers between ASD and Entorno", () => {
+    // As camadas originais não se encostavam perfeitamente: a união deixava
+    // frestas de ~200 m, que o mapa desenhava como risquinhos dentro do recorte.
+    const [asd] = getSpatialBoundaryFeatures({
+      spatialArea: "asd",
+      spatialValue: "ASD",
+    });
+
+    expect(asd.geometry.type).toBe("MultiPolygon");
+    const polygons =
+      asd.geometry.type === "MultiPolygon" ? asd.geometry.coordinates : [];
+    expect(polygons.every((rings) => rings.length === 1)).toBe(true);
   });
 
   it("returns every biome of the area, not just the selected one", () => {
