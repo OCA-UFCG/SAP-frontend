@@ -10,6 +10,7 @@ import {
 } from "@/components/MapLayerContext/MapLayerContext";
 import { SpatialScopeSelect } from "@/components/SpatialScopeSelect/SpatialScopeSelect";
 import { DroughtDataset } from "@/components/DroughtDataset/DroughtDataset";
+import { MunicipalLayerSummary } from "@/components/MunicipalLayerSummary/MunicipalLayerSummary";
 import type { IDroughtDataset } from "@/components/DroughtDataset/DroughtDataset";
 import { LayerAccordion } from "@/components/LayerAccordion/LayerAccordion";
 import type { PlatformSection } from "@/components/PlatformSideRail/PlatformSideRail";
@@ -203,7 +204,15 @@ export function ModulesContext({
     setSelectedState,
     setSelectedMunicipalityCode,
   } = useMapLayerActions();
-  const { spatialSelection } = useMapLayerViewState();
+  const { spatialSelection, selectedMunicipalityCode, activeYear } =
+    useMapLayerViewState();
+  // A cidade escolhida na Área "Município" (ou pela busca do Detalhamento, ou
+  // pelo clique no mapa) sobre o Brasil inteiro. Dentro de outro recorte ela
+  // continua no mapa, mas a Área segue mostrando aquele recorte.
+  const municipalityCode =
+    spatialSelection.spatialArea === "national"
+      ? (selectedMunicipalityCode ?? null)
+      : null;
   const listState = useMonitoringListState();
   const scrollContainerRef = useRef<HTMLDivElement | null>(null);
 
@@ -487,7 +496,23 @@ export function ModulesContext({
     [setSpatialSelection, setSelectedState, setSelectedMunicipalityCode],
   );
 
-  const renderDatasetCard = (dataset: LayerDataset) => {
+  const municipalityScope = useMemo(
+    () => ({
+      code: municipalityCode,
+      onSelect: (code: string, stateKey: string) => {
+        setSelectedState(stateKey);
+        setSelectedMunicipalityCode(code);
+      },
+      onClear: () => {
+        setSelectedMunicipalityCode(null);
+        setSelectedState("br");
+      },
+    }),
+    [municipalityCode, setSelectedMunicipalityCode, setSelectedState],
+  );
+
+  /** `categoryOpen`: só os cartões à vista buscam a situação da cidade. */
+  const renderDatasetCard = (dataset: LayerDataset, categoryOpen: boolean) => {
     const fileRef = dataset.fileRef ?? "";
     const vectorData = fileRef ? DATASET_REGISTRY[fileRef] : undefined;
     const hasEEData = Boolean(fileRef && layerById.get(fileRef)?.imageData);
@@ -499,7 +524,7 @@ export function ModulesContext({
         ? activeEEData?.id === fileRef
         : false;
 
-    return (
+    const card = (
       <LayerDatasetCard
         key={fileRef || dataset.id}
         dataset={dataset}
@@ -508,6 +533,23 @@ export function ModulesContext({
         onToggleLayer={handleToggle}
         onOpenDetails={handleDetails}
       />
+    );
+    const layer = fileRef ? layerById.get(fileRef) : undefined;
+
+    if (!municipalityCode || !hasEEData || !layer) return card;
+
+    return (
+      <div key={fileRef} className="flex flex-col">
+        {card}
+        <MunicipalLayerSummary
+          layer={layer}
+          municipalityCode={municipalityCode}
+          activeYear={isActive ? activeYear : ""}
+          expanded={isActive}
+          enabled={categoryOpen}
+          onOpenDetails={() => handleDetails(fileRef)}
+        />
+      </div>
     );
   };
 
@@ -530,6 +572,7 @@ export function ModulesContext({
           <SpatialScopeSelect
             spatialSelection={spatialSelection}
             onSpatialSelectionChange={handleSpatialSelectionChange}
+            municipality={municipalityScope}
           />
         </PanelSection>
 
@@ -546,6 +589,10 @@ export function ModulesContext({
                 outros: "others",
               };
 
+              // Sem quem guarde o aberto/fechado, o acordeão decide sozinho e
+              // os cartões buscam assim que montam.
+              const groupOpen = listState?.isCategoryOpen(group.key) ?? true;
+
               return (
                 <LayerAccordion
                   key={group.key}
@@ -559,7 +606,9 @@ export function ModulesContext({
                       : group.title
                   }
                 >
-                  {group.items.map(renderDatasetCard)}
+                  {group.items.map((dataset) =>
+                    renderDatasetCard(dataset, groupOpen),
+                  )}
                   {group.subgroups.map((subgroup) => {
                     const subgroupKey = `${group.key}/${subgroup.key}`;
                     return (
@@ -571,7 +620,13 @@ export function ModulesContext({
                         }
                         title={t(`subgroups.${subgroup.key}`)}
                       >
-                        {subgroup.items.map(renderDatasetCard)}
+                        {subgroup.items.map((dataset) =>
+                          renderDatasetCard(
+                            dataset,
+                            groupOpen &&
+                              (listState?.isCategoryOpen(subgroupKey) ?? true),
+                          ),
+                        )}
                       </LayerAccordion>
                     );
                   })}

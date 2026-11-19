@@ -47,7 +47,8 @@
       "state": "Estado",
       "biome": "Bioma",
       "semiarid": "Semiárido",
-      "asd": "ASD e Entorno"
+      "asd": "ASD e Entorno",
+      "municipality": "Município"
     },
     "spatialValues": {
       "brasil": "Brasil",
@@ -123,6 +124,11 @@
       "11": "novembro",
       "12": "dezembro"
     },
-    "of": "de"
+    "of": "de",
+    "municipalitySearch": {
+      "placeholder": "Digite o município",
+      "clear": "Limpar município",
+      "noResults": "Nenhum município encontrado."
+    }
   }
 }
