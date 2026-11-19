@@ -75,10 +75,10 @@ describe("SearchBarPlatform", () => {
     await user.type(input, "rio");
 
     expect(
-      screen.getByRole("option", { name: "rio de janeiro" }),
+      screen.getByRole("option", { name: /^rio de janeiro,\s*Estado$/ }),
     ).toBeVisible();
     expect(
-      screen.queryByRole("option", { name: "sao paulo" }),
+      screen.queryByRole("option", { name: /^sao paulo/ }),
     ).not.toBeInTheDocument();
   });
 
@@ -89,7 +89,9 @@ describe("SearchBarPlatform", () => {
     const input = screen.getByRole("combobox");
 
     await user.type(input, "rio");
-    await user.click(screen.getByRole("option", { name: "rio de janeiro" }));
+    await user.click(
+      screen.getByRole("option", { name: /^rio de janeiro,\s*Estado$/ }),
+    );
 
     expect(onSearch).toHaveBeenCalledWith(
       "rio de janeiro",
@@ -109,7 +111,9 @@ describe("SearchBarPlatform", () => {
 
     await user.type(screen.getByRole("combobox"), "camp");
     await user.click(
-      screen.getByRole("option", { name: "Campina Grande - PB" }),
+      screen.getByRole("option", {
+        name: /^Campina Grande - PB,\s*Município$/,
+      }),
     );
     selectLocation("2504009");
 
@@ -121,7 +125,9 @@ describe("SearchBarPlatform", () => {
     const { selectLocation } = renderComponent("br");
 
     await user.type(screen.getByRole("combobox"), "rio");
-    await user.click(screen.getByRole("option", { name: "rio de janeiro" }));
+    await user.click(
+      screen.getByRole("option", { name: /^rio de janeiro,\s*Estado$/ }),
+    );
     selectLocation("rj");
     expect(screen.getByRole("combobox")).toHaveValue("rio de janeiro");
 
