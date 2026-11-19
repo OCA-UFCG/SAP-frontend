@@ -199,18 +199,18 @@ export function resolveSpatialSelection(
 /**
  * Nomes das features de contorno que desenham a seleção ativa.
  *
- * A ASD é a única área desenhada por mais de uma feature: "ASD" e "Entorno"
- * formam um recorte só. Esta função é a fonte única dessa regra — a rota de
- * contorno, o filtro da camada e o enquadramento da câmera precisam concordar
- * sobre o que conta como "a seleção ativa", senão o mapa desenha um recorte e
- * a câmera enquadra outro.
+ * Cada recorte é uma feature só. A ASD já foi duas ("ASD" e "Entorno"), e o
+ * mapa contornava cada uma: a divisa entre elas aparecia como linha no meio do
+ * recorte. Hoje `asdBoundary.json` traz as duas unidas numa feature "ASD".
+ * A rota de contorno, o filtro da camada e o enquadramento da câmera passam por
+ * aqui para concordarem sobre o que conta como "a seleção ativa".
  *
- * @example getActiveBoundaryNames("ASD") // ["ASD", "Entorno"]
+ * @example getActiveBoundaryNames("ASD") // ["ASD"]
  */
 export function getActiveBoundaryNames(
   spatialValue: string,
 ): readonly string[] {
-  return spatialValue === "ASD" ? ["ASD", "Entorno"] : [spatialValue];
+  return [spatialValue];
 }
 
 export function getDefaultSpatialValue(spatialArea: SpatialArea) {

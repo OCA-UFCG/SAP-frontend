@@ -40,7 +40,7 @@ const BOUNDARY_CONFIG: Record<
   },
   asd: {
     fileName: "asdBoundary.json",
-    expectedNames: ["ASD", "Entorno"],
+    expectedNames: ["ASD"],
   },
   state: {
     fileName: "geometria.json",
