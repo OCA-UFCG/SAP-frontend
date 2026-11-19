@@ -88,6 +88,17 @@ export function filterStateOnlyOptions(value: string) {
 
 export const filterStateOptions = filterSearchOptions;
 
+export type SearchOptionLevel = "country" | "state" | "municipality";
+
+// Os rótulos de município sempre trazem a UF ("Sousa - PB"), então não se
+// confundem com o nome de um estado.
+export function getSearchOptionLevel(label: string): SearchOptionLevel {
+  const normalizedLabel = normalize(label);
+  if (normalizedLabel === brazilNormalized) return "country";
+  if (statesNormalized.has(normalizedLabel)) return "state";
+  return "municipality";
+}
+
 export function validateSearch(value: string) {
   const normalizedValue = normalize(value.trim());
 

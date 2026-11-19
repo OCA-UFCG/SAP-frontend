@@ -17,8 +17,10 @@ import type {
 import type { SearchSelectionMethod } from "@/types/telemetry";
 import {
   filterStateOptions,
+  getSearchOptionLevel,
   validateSearch,
 } from "@/components/SearchBar/searchBarUtils";
+import { SpatialLevelTag } from "@/components/SpatialLevelTag/SpatialLevelTag";
 import { resolveStateKeyFromSearch } from "@/lib/geo";
 import { statesObj } from "@/utils/constants";
 
@@ -253,9 +255,10 @@ const SearchBarPlatform = ({
                   // teclado do celular fecha no toque e reabre logo depois.
                   onMouseDown={(event) => event.preventDefault()}
                   onClick={() => handleOptionSelect(option, "option-click")}
-                  className="flex w-full rounded-lg px-3 py-2 text-left text-sm text-[#292829] transition hover:bg-[#F6F7F6]"
+                  className="flex w-full items-center gap-2 rounded-lg px-3 py-2 text-left text-sm text-[#292829] transition hover:bg-[#F6F7F6]"
                 >
-                  {option}
+                  <span className="min-w-0">{option}</span>
+                  <SpatialLevelTag level={getSearchOptionLevel(option)} />
                 </button>
               ))
             ) : (
