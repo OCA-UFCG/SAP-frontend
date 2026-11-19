@@ -79,6 +79,13 @@
         "title": "Rural Poverty",
         "description": "Municipal-level rural poverty percentage, with annual data from 2012 to 2025."
       }
+    },
+    "municipalSummary": {
+      "loading": "Loading the municipality situation",
+      "unavailable": "No data from this product for the municipality.",
+      "predominant": "Mostly <b>{label}</b> ({value})",
+      "single": "In the municipality: <b>{value}</b>",
+      "openDetails": "See charts and history in Details"
     }
   }
 }

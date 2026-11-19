@@ -79,6 +79,13 @@
         "title": "Pobreza rural",
         "description": "Porcentaje de pobreza rural agregado por municipio, con datos anuales de 2012 a 2025."
       }
+    },
+    "municipalSummary": {
+      "loading": "Cargando la situación del municipio",
+      "unavailable": "Sin datos de este producto para el municipio.",
+      "predominant": "Predomina <b>{label}</b> ({value})",
+      "single": "En el municipio: <b>{value}</b>",
+      "openDetails": "Ver gráficos e historial en Detalle"
     }
   }
 }
