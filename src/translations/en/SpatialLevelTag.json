@@ -1,7 +1,11 @@
 {
   "SpatialLevelTag": {
     "country": "Country",
+    "region": "Region",
     "state": "State",
+    "biome": "Biome",
+    "semiarid": "Semi-arid",
+    "asd": "ASD",
     "municipality": "Municipality"
   }
 }

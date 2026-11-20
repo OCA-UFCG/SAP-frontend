@@ -8,6 +8,7 @@ vi.mock("@/services/telemetry/client", () => ({
 
 import SearchBarPlatform from "@/components/SidePanelContexts/SearchBarPlatform";
 import { trackUiEvent } from "@/services/telemetry/client";
+import { getSpatialScopeLocationKey } from "@/utils/spatialScope";
 
 vi.mock("@/utils/functions", () => ({
   normalize: (value: string) => value.toLowerCase().replace(/\s+/g, ""),
@@ -133,6 +134,94 @@ describe("SearchBarPlatform", () => {
 
     selectLocation("sp");
     expect(screen.getByRole("combobox")).toHaveValue("");
+  });
+
+  it("lists biomes with their tag", async () => {
+    const user = userEvent.setup();
+    renderComponent();
+
+    await user.type(screen.getByRole("combobox"), "caa");
+
+    expect(
+      screen.getByRole("option", { name: /^Caatinga,\s*Bioma$/ }),
+    ).toBeVisible();
+  });
+
+  it("lists regions with their tag", async () => {
+    const user = userEvent.setup();
+    renderComponent();
+
+    await user.type(screen.getByRole("combobox"), "nordeste");
+
+    expect(
+      screen.getByRole("option", { name: /^Nordeste,\s*Região$/ }),
+    ).toBeVisible();
+  });
+
+  it("lists the semi-arid region and ASD with their tags", async () => {
+    const user = userEvent.setup();
+    renderComponent();
+    const input = screen.getByRole("combobox");
+
+    await user.type(input, "semi");
+    expect(
+      screen.getByRole("option", { name: /^Semiárido,\s*Semiárido$/ }),
+    ).toBeVisible();
+
+    await user.clear(input);
+    await user.type(input, "asd");
+    expect(
+      screen.getByRole("option", { name: /^ASD e Entorno,\s*ASD$/ }),
+    ).toBeVisible();
+  });
+
+  it("chooses ASD with Enter when its prefix is typed", async () => {
+    const user = userEvent.setup();
+    const { onSearch } = renderComponent();
+
+    await user.type(screen.getByRole("combobox"), "asd");
+    await user.keyboard("{Enter}");
+
+    expect(onSearch).toHaveBeenCalledWith(
+      "ASD e Entorno",
+      expect.objectContaining({ selectionMethod: "enter" }),
+    );
+  });
+
+  it("lists Brazil, states, the other scopes, then municipalities when nothing is typed", async () => {
+    const user = userEvent.setup();
+    renderComponent();
+
+    await user.click(screen.getByRole("button", { name: /^mostrar/i }));
+
+    const names = screen
+      .getAllByRole("option")
+      .map((option) => option.textContent ?? "");
+    const tagOrder = ["País", "Estado", "Região", "Bioma", "Semiárido", "ASD"]
+      .concat("Município")
+      .map((tag) => names.findIndex((name) => name.endsWith(tag)));
+
+    expect(names[0]).toMatch(/^Brasil/);
+    expect(tagOrder.every((index) => index >= 0)).toBe(true);
+    expect(tagOrder).toEqual([...tagOrder].sort((a, b) => a - b));
+  });
+
+  it("keeps a spatial scope name when the panel confirms it", async () => {
+    const user = userEvent.setup();
+    const { selectLocation } = renderComponent("br");
+
+    await user.type(screen.getByRole("combobox"), "caa");
+    await user.click(
+      screen.getByRole("option", { name: /^Caatinga,\s*Bioma$/ }),
+    );
+    selectLocation(
+      getSpatialScopeLocationKey({
+        spatialArea: "biome",
+        spatialValue: "Caatinga",
+      }) ?? "",
+    );
+
+    expect(screen.getByRole("combobox")).toHaveValue("Caatinga");
   });
 
   it("selects the first suggestion when Enter is pressed", async () => {

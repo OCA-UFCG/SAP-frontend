@@ -17,9 +17,11 @@ import type {
 import type { SearchSelectionMethod } from "@/types/telemetry";
 import {
   filterStateOptions,
+  findSpatialScopeSearchOption,
   getSearchOptionLevel,
   validateSearch,
 } from "@/components/SearchBar/searchBarUtils";
+import { getSpatialScopeLocationKey } from "@/utils/spatialScope";
 import { SpatialLevelTag } from "@/components/SpatialLevelTag/SpatialLevelTag";
 import { resolveStateKeyFromSearch } from "@/lib/geo";
 import { statesObj } from "@/utils/constants";
@@ -30,8 +32,11 @@ interface SearchBarProps {
   selectedLocationKey?: string;
 }
 
-// A mesma chave que o Detalhamento usa: código do município ou UF.
+// A mesma chave que o Detalhamento usa: código do município, UF ou a chave do
+// recorte (região, bioma, Semiárido, ASD).
 function getLocationKey(value: string) {
+  const spatialScope = findSpatialScopeSearchOption(value);
+  if (spatialScope) return getSpatialScopeLocationKey(spatialScope);
   const result = resolveStateKeyFromSearch(value, statesObj);
   return result.type === "city" ? result.city.code : result.key;
 }
