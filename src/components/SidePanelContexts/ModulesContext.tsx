@@ -27,7 +27,6 @@ import {
   getForecastMembers,
   resolveForecastSelection,
 } from "@/utils/forecastGroup";
-import { DEFAULT_FORECAST_SELECTION } from "@/config/forecastGroup";
 import { groupBySource } from "@/utils/sourceGroup";
 import { useMonitoringListState } from "./monitoringListState";
 import cdiData from "../../data/CDI_Janeiro_2024_Vetores.json";
@@ -262,16 +261,14 @@ export function ModulesContext({
   );
 
   // O cartão das previsões liga a previsão que já está no mapa ou, sem
-  // nenhuma, a padrão; o detalhamento abre nela e os filtros trocam a partir
-  // dali.
+  // nenhuma, a primeira opção de cada filtro; o detalhamento abre nela e os
+  // filtros trocam a partir dali.
   const forecastCardLayer = useMemo(() => {
     const activeMember = forecastMembers.find(
       (member) => member.layer.id === activeEEData?.id,
     );
-    return (
-      activeMember ??
-      resolveForecastSelection(forecastMembers, DEFAULT_FORECAST_SELECTION)
-    )?.layer;
+    return (activeMember ?? resolveForecastSelection(forecastMembers, {}))
+      ?.layer;
   }, [forecastMembers, activeEEData?.id]);
 
   // O mesmo índice com outras fontes vira um cartão só, com o nome do grupo,

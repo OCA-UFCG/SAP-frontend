@@ -3,7 +3,6 @@ import {
   parseForecastFacetsInput,
   tryParsePanelLayerForecastFacets,
 } from "@/contracts/panelLayerForecast";
-import { DEFAULT_FORECAST_SELECTION } from "@/config/forecastGroup";
 import {
   getForecastEmissionDate,
   getForecastFilterOptions,
@@ -74,10 +73,11 @@ describe("getForecastMembers", () => {
 });
 
 describe("resolveForecastSelection", () => {
-  it("a escolha padrão liga INMET · Precipitação · Mensal · Anomalia", () => {
-    expect(
-      resolveForecastSelection(members, DEFAULT_FORECAST_SELECTION)?.layer.id,
-    ).toBe("inmet-p-mensal");
+  it("sem escolha, liga a primeira opção de cada filtro", () => {
+    // CPTEC não tem Acumulado, então o primeiro tipo que existe é Anomalia.
+    expect(resolveForecastSelection(members, {})?.layer.id).toBe(
+      "cptec-p-mensal",
+    );
   });
 
   it("trocar a periodicidade mantém fonte, variável e tipo", () => {
@@ -110,9 +110,7 @@ describe("resolveForecastSelection", () => {
   });
 
   it("sem previsões, não escolhe nada", () => {
-    expect(
-      resolveForecastSelection([], DEFAULT_FORECAST_SELECTION),
-    ).toBeNull();
+    expect(resolveForecastSelection([], {})).toBeNull();
   });
 });
 

@@ -553,8 +553,8 @@ duas fontes.
 
 Uma opção sem camada para o que está escolhido nos filtros de cima aparece
 apagada; quando a escolha atual deixa de existir, vale a primeira opção
-disponível (`resolveForecastSelection` em `src/utils/forecastGroup.ts`). O
-cartão liga a previsão definida em `src/config/forecastGroup.ts`.
+disponível (`resolveForecastSelection` em `src/utils/forecastGroup.ts`). Sem
+previsão no mapa, o cartão liga a primeira opção de cada filtro.
 
 ### Mesmo índice, outras fontes
 
