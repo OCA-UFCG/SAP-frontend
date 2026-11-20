@@ -390,6 +390,77 @@ describe("AnalysisContext", () => {
     );
   });
 
+  describe("search puts the chosen place on the map like the monitoring scope", () => {
+    const search = (value: string) => {
+      render(
+        <AnalysisContext
+          activeSection="analysis-detail"
+          panelLayers={[buildPanelLayer({ br: [45, 55] })]}
+        />,
+      );
+      const props = analysisPanelMock.mock.calls.at(-1)?.[0] as {
+        onSearch: (
+          value: string,
+          metadata: { selectionMethod: "option-click"; visibleOptionCount: 1 },
+        ) => void;
+      };
+      props.onSearch(value, {
+        selectionMethod: "option-click",
+        visibleOptionCount: 1,
+      });
+      return useMapLayerActionsMock.mock.results.at(-1)?.value as {
+        setSelectedState: ReturnType<typeof vi.fn>;
+        setSelectedMunicipalityCode: ReturnType<typeof vi.fn>;
+        setSpatialSelection: ReturnType<typeof vi.fn>;
+      };
+    };
+
+    it("shows a searched biome as the map scope", () => {
+      const actions = search("Caatinga");
+
+      expect(actions.setSpatialSelection).toHaveBeenCalledWith({
+        spatialArea: "biome",
+        spatialValue: "Caatinga",
+      });
+      expect(actions.setSelectedState).toHaveBeenCalledWith("br");
+      expect(actions.setSelectedMunicipalityCode).toHaveBeenCalledWith(null);
+    });
+
+    it("replaces the scope with a searched state", () => {
+      const actions = search("Paraíba");
+
+      expect(actions.setSpatialSelection).toHaveBeenCalledWith({
+        spatialArea: "state",
+        spatialValue: "Paraíba",
+      });
+      expect(actions.setSelectedState).toHaveBeenCalledWith("br");
+      expect(actions.setSelectedMunicipalityCode).toHaveBeenCalledWith(null);
+    });
+
+    it("returns the map to Brazil when Brasil is searched", () => {
+      const actions = search("Brasil");
+
+      expect(actions.setSpatialSelection).toHaveBeenCalledWith({
+        spatialArea: "national",
+        spatialValue: "brasil",
+      });
+      expect(actions.setSelectedState).toHaveBeenCalledWith("br");
+    });
+
+    it("shows a searched municipality over the whole of Brazil", () => {
+      const actions = search(municipality.label);
+
+      expect(actions.setSpatialSelection).toHaveBeenCalledWith({
+        spatialArea: "national",
+        spatialValue: "brasil",
+      });
+      expect(actions.setSelectedState).toHaveBeenCalledWith(municipality.uf);
+      expect(actions.setSelectedMunicipalityCode).toHaveBeenCalledWith(
+        municipality.code,
+      );
+    });
+  });
+
   it("tracks municipality searches as not found when the active layer has no municipal data", () => {
     render(
       <AnalysisContext

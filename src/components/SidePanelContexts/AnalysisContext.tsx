@@ -6,10 +6,14 @@ import { AnalysisPanel } from "@/components/analysis/AnalysisPanel";
 import { ForecastFilters } from "@/components/analysis/ForecastFilters";
 import { SourceGroupFilter } from "@/components/analysis/SourceGroupFilter";
 import type { SearchSubmissionMetadata } from "@/components/SearchBar/types";
+import { findSpatialScopeSearchOption } from "@/components/SearchBar/searchBarUtils";
 import {
+  DEFAULT_SPATIAL_SELECTION,
   getSpatialScopeLocationKey,
   getSpatialScopeLocationName,
+  resolveSpatialSelection,
   SPATIAL_VALUE_OPTIONS,
+  type SpatialSelection,
 } from "@/utils/spatialScope";
 import {
   buildEmbeddedTerritorialAnalysisViewModel,
@@ -24,7 +28,7 @@ import {
   useMapLayerActiveState,
   useMapLayerViewState,
 } from "@/components/MapLayerContext/MapLayerContext";
-import { resolveStateKeyFromSearch } from "@/lib/geo";
+import { resolveStateKeyFromSearch, type StateSearchResult } from "@/lib/geo";
 import { trackUiEvent } from "@/services/telemetry/client";
 import { htmlLang } from "@/translations/htmlLang";
 import { slugifyTranslationKey } from "@/utils/translations";
@@ -123,6 +127,24 @@ function getMunicipalSeriesRequestKey(
   return `${layerId}::${datasetVersion}::${municipalityCode}`;
 }
 
+/**
+ * O recorte do mapa para o local escolhido na busca: região, bioma, Semiárido
+ * e ASD são o próprio recorte, o estado vira o recorte "Estado", e Brasil e
+ * município ficam no nacional.
+ */
+function getSearchMapScope(
+  value: string,
+  result: StateSearchResult,
+): SpatialSelection {
+  const spatialScope = findSpatialScopeSearchOption(value);
+  if (spatialScope) return spatialScope;
+  if (result.type !== "uf") return DEFAULT_SPATIAL_SELECTION;
+
+  const stateName = (statesObj as Record<string, string>)[result.key];
+  const stateScope = resolveSpatialSelection("state", stateName);
+  return stateScope.ok ? stateScope.selection : DEFAULT_SPATIAL_SELECTION;
+}
+
 export interface AnalysisContextProps {
   activeSection: PlatformSection;
   panelLayers?: PanelLayerI[];
@@ -149,6 +171,7 @@ export function AnalysisContext({
     setSelectedMunicipalityCode,
     setActiveLegend,
     setActiveYear,
+    setSpatialSelection,
   } = useMapLayerActions();
   const {
     selectedState,
@@ -660,13 +683,12 @@ export function AnalysisContext({
       result.type === "city" ? result.city.code : null;
     const selectedLocationKey = nextMunicipalityCode ?? result.key;
 
-    setSelectedState(result.key);
-
-    if (nextMunicipalityCode) {
-      setSelectedMunicipalityCode(nextMunicipalityCode);
-    } else {
-      setSelectedMunicipalityCode(null);
-    }
+    // O mapa mostra o que foi escolhido, como o Área/Recorte do Monitoramento:
+    // o recorte escolhido substitui o anterior, e o estado e o município
+    // escolhidos antes saem. O município é visto sobre o Brasil inteiro.
+    setSpatialSelection(getSearchMapScope(value, result));
+    setSelectedState(result.type === "city" ? result.key : "br");
+    setSelectedMunicipalityCode(nextMunicipalityCode);
 
     const baseSearchEvent = {
       surface: "analysis-panel" as const,

@@ -1,16 +1,22 @@
 import { useTranslations } from "next-intl";
 import type { SearchOptionLevel } from "@/components/SearchBar/searchBarUtils";
 
-// Cores da proposta da nova home. A do município é um tom abaixo da proposta
-// (#777e32) para o texto branco passar de 4,5:1.
+// País, estado e município: cores da proposta da nova home. A do município é
+// um tom abaixo da proposta (#777e32) para o texto branco passar de 4,5:1.
+// Os demais recortes vêm das amostras de Territórios do mapa; o verde do bioma
+// é um tom abaixo do #588157 da legenda, que ficava em 4,48:1.
 const LEVEL_COLORS: Record<SearchOptionLevel, string> = {
   country: "#432b05",
+  region: "#325967",
   state: "#5f662f",
+  biome: "#4c7150",
+  semiarid: "#7E692C",
+  asd: "#973D2B",
   municipality: "#757b31",
 };
 
 /**
- * Etiqueta com o tipo de recorte (País, Estado, Município) de um local. A
+ * Etiqueta com o tipo de recorte (País, Região, Estado, Bioma...) de um local. A
  * vírgula escondida separa o tipo do nome no leitor de tela: sem ela, ele lê
  * "Sousa - PBMunicípio".
  */
