@@ -27,7 +27,7 @@ export async function POST(req: Request) {
       );
     }
 
-    let creation = await createFirebaseSessionCookie(token);
+    const creation = await createFirebaseSessionCookie(token);
 
     // Segunda chance antes de recusar: quem confirma o endereço e fecha a aba
     // nunca volta à nossa página de confirmação, então o cadastro nunca é
@@ -44,8 +44,16 @@ export async function POST(req: Request) {
         emailVerified: true,
       });
 
+      // O token em mãos não serve mais: foi emitido antes da liberação, então
+      // não tem a marca de acesso, e a liberação revoga os tokens anteriores.
+      // Antes, a rota tentava de novo com ele e respondia "aguardando" — a
+      // pessoa só entrava no segundo login. Agora o cliente entra de novo e
+      // volta com um token novo.
       if (settlement === "approved") {
-        creation = await createFirebaseSessionCookie(token);
+        return NextResponse.json(
+          { error: "Acesso liberado agora; entre de novo.", code: "access_granted" },
+          { status: 409 },
+        );
       }
     }
 

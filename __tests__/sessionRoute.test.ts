@@ -95,13 +95,13 @@ describe("/api/session", () => {
   // cadastro nunca é fechado — e no trilho institucional o acesso automático
   // simplesmente não acontece. O login é a segunda chance: antes de recusar,
   // tenta fechar o cadastro pendente.
-  it("settles a signup that never came back from the email, then lets the person in", async () => {
-    mockedCreateFirebaseSessionCookie
-      .mockResolvedValueOnce(unapproved())
-      .mockResolvedValueOnce({
-        status: "created",
-        sessionCookie: "firebase-session-cookie",
-      });
+  //
+  // O token que chegou é de antes da liberação: não tem a marca de acesso, e a
+  // liberação revoga os tokens anteriores. Tentar de novo com ele dava 403 e
+  // mandava a pessoa para a página de espera; só o segundo login entrava. A
+  // rota pede ao cliente que entre de novo.
+  it("settles a signup that never came back from the email, then asks for a fresh login", async () => {
+    mockedCreateFirebaseSessionCookie.mockResolvedValue(unapproved());
     settleSignupMock.mockResolvedValue("approved");
 
     const response = await postSession();
@@ -111,10 +111,10 @@ describe("/api/session", () => {
       email: "fulano@ufcg.edu.br",
       emailVerified: true,
     });
-    expect(response.status).toBe(200);
-    expect(response.headers.get("set-cookie")).toContain(
-      "session=firebase-session-cookie",
-    );
+    expect(mockedCreateFirebaseSessionCookie).toHaveBeenCalledTimes(1);
+    expect(response.status).toBe(409);
+    expect(await response.json()).toMatchObject({ code: "access_granted" });
+    expect(response.headers.get("set-cookie")).toBeNull();
   });
 
   it("still refuses when settling leaves the person waiting for the team", async () => {

@@ -4,14 +4,18 @@ import { useCallback, useEffect, useState } from "react";
 import { useSearchParams } from "next/navigation";
 import { useLocale, useTranslations } from "next-intl";
 import { useForm, useWatch } from "react-hook-form";
-import { Link } from "@/translations/routing";
-import { LOGIN_PATH } from "@/config/accessRoutes";
+import { Link, useRouter } from "@/translations/routing";
+import { LOGIN_PATH, PLATFORM_PATH } from "@/config/accessRoutes";
 import { Captcha } from "@/components/Captcha/Captcha";
 import { LoginField } from "@/components/Login/LoginField";
 import PlatformLoading from "@/app/[locale]/platform/loading";
 import { VERIFICATION_EMAIL_COOLDOWN_SECONDS } from "@/config/verificationEmailCooldown";
 import { formatCountdown, useCountdown } from "@/hooks/useCountdown";
 import { requestVerificationResend } from "@/lib/verification-resend";
+import {
+  announceSignupConfirmed,
+  onSignupEntered,
+} from "@/lib/signup-auto-entry";
 
 type Outcome = "checking" | "approved" | "pending" | "rejected" | "failed";
 
@@ -81,6 +85,22 @@ export function ConfirmationPageClient() {
     };
   }, [linkEmail, code]);
 
+  const router = useRouter();
+
+  // A aba do cadastro, se ainda estiver aberta neste navegador, tem a senha e
+  // entra sozinha quando ouve o aviso. Esta aba segue junto quando ela entrar.
+  useEffect(() => {
+    if (outcome !== "approved") return;
+
+    const stopListening = onSignupEntered(() => {
+      router.replace(PLATFORM_PATH);
+      router.refresh();
+    });
+    announceSignupConfirmed();
+
+    return stopListening;
+  }, [outcome, router]);
+
   const handleResend = useCallback(async () => {
     if (!captchaToken) return;
 
@@ -136,8 +156,9 @@ export function ConfirmationPageClient() {
           <p className="text-[0.9375rem] leading-6 text-[#676264]">{copy.body}</p>
         ) : null}
 
+        {/* A plataforma manda para o login quem ainda não tem sessão. */}
         {outcome === "approved" ? (
-          <Link href={LOGIN_PATH} className={PRIMARY_BUTTON}>
+          <Link href={PLATFORM_PATH} className={PRIMARY_BUTTON}>
             {t("enter")}
           </Link>
         ) : null}
