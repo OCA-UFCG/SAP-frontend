@@ -9,6 +9,7 @@ import {
   VISITOR_COOKIE_NAME,
 } from "./config/accessRoutes";
 import { isPlatformOpen } from "./lib/access-flag";
+import { officialSiteUrl } from "./lib/official-site-url";
 
 const handleI18nRouting = createMiddleware(routing);
 const VISITOR_COOKIE_MAX_AGE_SECONDS = 60 * 60 * 24 * 30;
@@ -30,7 +31,27 @@ function isTeamScreen(platformPath: string, view: string | null) {
   );
 }
 
+/**
+ * A produção responde pelos cinco endereços do SEDES. O cabeçalho `Link` com
+ * rel="canonical" diz ao buscador, página a página, qual é o endereço oficial,
+ * para ele parar de tratar cada domínio como um site à parte. Vai junto do
+ * `Link` de idiomas que o next-intl já põe, sem substituí-lo.
+ */
 export default function middleware(request: NextRequest) {
+  const response = routeRequest(request);
+  const official = officialSiteUrl();
+
+  if (official && !response.headers.has("location")) {
+    response.headers.append(
+      "Link",
+      `<${official}${request.nextUrl.pathname}>; rel="canonical"`,
+    );
+  }
+
+  return response;
+}
+
+function routeRequest(request: NextRequest) {
   const { pathname, search, searchParams } = request.nextUrl;
   const locale = platformLocale(pathname);
   const platformOpen = isPlatformOpen();

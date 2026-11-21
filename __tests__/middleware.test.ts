@@ -133,3 +133,60 @@ describe("middleware with the platform open", () => {
     expect(response.cookies.get("sedes_visitor")).toBeUndefined();
   });
 });
+
+describe("middleware canonical address", () => {
+  afterEach(() => {
+    vi.unstubAllEnvs();
+  });
+
+  it("points every page to the official address, whatever domain it came from", () => {
+    vi.stubEnv("EMAIL_LINKS_BASE_URL", "https://sedes.oca.ufcg.edu.br/");
+
+    const response = middleware(request("/pt/sobre-o-sedes?x=1"));
+
+    expect(response.headers.get("link")).toBe(
+      '<https://sedes.oca.ufcg.edu.br/pt/sobre-o-sedes>; rel="canonical"',
+    );
+  });
+
+  it("uses the production address on the beta", () => {
+    vi.stubEnv("EMAIL_LINKS_BASE_URL", "https://beta-sap.lsd.ufcg.edu.br");
+    vi.stubEnv("PUBLIC_LINKS_BASE_URL", "https://sedes.oca.ufcg.edu.br");
+
+    const response = middleware(request("/en/glossary"));
+
+    expect(response.headers.get("link")).toBe(
+      '<https://sedes.oca.ufcg.edu.br/en/glossary>; rel="canonical"',
+    );
+  });
+
+  it("keeps the language links next-intl already sends", () => {
+    vi.stubEnv("EMAIL_LINKS_BASE_URL", "https://sedes.oca.ufcg.edu.br");
+    const languages = '<https://x/pt>; rel="alternate"; hreflang="pt"';
+    const response = NextResponse.next();
+    response.headers.set("Link", languages);
+    vi.spyOn(NextResponse, "next").mockReturnValueOnce(response);
+
+    const link = middleware(request("/pt")).headers.get("link");
+
+    expect(link).toContain(languages);
+    expect(link).toContain('<https://sedes.oca.ufcg.edu.br/pt>; rel="canonical"');
+  });
+
+  it("leaves redirects alone", () => {
+    vi.stubEnv("EMAIL_LINKS_BASE_URL", "https://sedes.oca.ufcg.edu.br");
+    vi.stubEnv("PLATFORM_ACCESS_GUARD_ENABLED", "true");
+
+    const response = middleware(request("/pt/platform"));
+
+    expect(response.status).toBe(307);
+    expect(response.headers.get("link")).toBeNull();
+  });
+
+  it("announces nothing without an official address", () => {
+    vi.stubEnv("EMAIL_LINKS_BASE_URL", "");
+    vi.stubEnv("PUBLIC_LINKS_BASE_URL", "");
+
+    expect(middleware(request("/pt")).headers.get("link")).toBeNull();
+  });
+});
