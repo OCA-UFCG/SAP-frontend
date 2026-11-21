@@ -133,4 +133,59 @@ describe("municipal report narrative", () => {
       ),
     ).toContain("o valor de Registros de secas e estiagens é 7 registros");
   });
+
+  // Em inglês e espanhol o texto do catálogo não vale, e é esta frase que
+  // aparece: ela precisa dizer quanto da área está em seca, não só a maior classe.
+  it("opens the automatic situation with the class distribution", () => {
+    const item = (id: string, label: string, percentage: number) => ({
+      id,
+      label,
+      color: "#000000",
+      percentage,
+    });
+    const distribution = [
+      item("classe-0", "Sem seca", 35.1),
+      item("classe-1", "Seca fraca", 31.9),
+      item("classe-2", "Seca moderada", 18.4),
+      item("classe-3", "Seca grave", 10),
+      item("classe-4", "Seca extrema", 4.6),
+    ];
+    const drought: MunicipalReportAnalysis = {
+      ...analysis("monitor-de-secas"),
+      effectivePeriod: "2026-01",
+      severity: {
+        order: ["classe-0", "classe-1", "classe-2", "classe-3", "classe-4"],
+        neutralClassId: "classe-0",
+      },
+      snapshot: {
+        period: "2026-01",
+        label: "2026-01",
+        distribution,
+        dominantClass: distribution[0],
+      },
+    };
+
+    expect(
+      buildSituationNarrative(
+        drought,
+        null,
+        {
+          schemaVersion: 1,
+          generatedAt: "2026-10-28T00:00:00.000Z",
+          requestedPeriod: "2026-01",
+          territory: resolveReportTerritory("br")!,
+          analyses: [drought],
+          templateVariables: {},
+        },
+        {
+          sectionColor: "#176b39",
+          coverageContext: "classificada nessa categoria",
+          methodology: "Fonte ANA.",
+        },
+        "pt-BR",
+      ),
+    ).toBe(
+      "No Brasil, conforme os dados de Monitor de Secas para o período de janeiro de 2026, 64,90% da área está em classes piores que Sem seca: Seca fraca (31,90%), Seca moderada (18,40%), Seca grave (10,00%) e Seca extrema (4,60%); o restante (35,10%) está em Sem seca.",
+    );
+  });
 });

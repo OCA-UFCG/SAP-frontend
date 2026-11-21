@@ -7,6 +7,7 @@ import {
 import { type MunicipalReportPresentationConfig } from "@/config/municipalReport";
 import { formatDekadPeriod } from "@/utils/dekadPeriod";
 import { formatMunicipalReportValueWithUnit, formatPercentage } from "@/utils/municipalReportValue";
+import { describeClassDistribution } from "@/utils/reportClassDistribution";
 
 export function formatReportPeriod(period: string, locale: string) {
   const dekad = formatDekadPeriod(period, locale);
@@ -142,6 +143,30 @@ export function buildSituationNarrative(
       });
     }
     return `${place}, o valor de ${className} é ${value}, conforme os dados de ${translatedTitle} para o período de ${formatReportPeriod(analysis.effectivePeriod, locale)}.`;
+  }
+
+  // A distribuição vence a frase da predominante: é a mesma que o catálogo
+  // oferece em `[distribuicao]`, e só falta quando o período veio zerado.
+  const distribution = analysis.snapshot
+    ? describeClassDistribution(
+        analysis.snapshot.distribution,
+        analysis.severity,
+        locale,
+        t,
+        translateClass,
+      )
+    : null;
+  if (distribution) {
+    const period = formatReportPeriod(analysis.effectivePeriod, locale);
+    if (t) {
+      return t("narrative.distributionFallback", {
+        place,
+        title: translatedTitle,
+        period,
+        distribution,
+      });
+    }
+    return `${place}, conforme os dados de ${translatedTitle} para o período de ${period}, ${distribution}.`;
   }
 
   let coverageContext = config.coverageContext;

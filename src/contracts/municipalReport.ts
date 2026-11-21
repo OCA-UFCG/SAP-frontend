@@ -52,6 +52,12 @@ export interface MunicipalReportAnalysis {
    * painel por tipo. Campo aditivo e opcional, ausente fora das previsões.
    */
   forecast?: MunicipalReportForecastFacets;
+  /**
+   * A ordem de gravidade das classes, da melhor para a pior, quando alguém a
+   * declarou. É o que deixa a frase de abertura em inglês e espanhol dizer
+   * quanto da área está pior que a classe normal. Campo aditivo e opcional.
+   */
+  severity?: { order: readonly string[]; neutralClassId?: string };
 }
 
 export interface MunicipalReportForecastFacets {
