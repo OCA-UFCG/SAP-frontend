@@ -25,7 +25,12 @@ export const OSM_SOURCE_ID = "osm-base";
 export const OSM_LAYER_ID = "osm-layer";
 export const STATES_SOURCE_ID = "brazil-states";
 export const STATES_SOURCE_LAYER = "brazilstates";
-export const STATES_TILES_MAX_ZOOM = 6;
+/**
+ * O mesmo zoom máximo dos municípios: o contorno do estado é a união deles
+ * (`scripts/build-state-tiles.mjs`), e de perto as duas bordas precisam
+ * coincidir.
+ */
+export const STATES_TILES_MAX_ZOOM = 12;
 export const CDI_SOURCE_ID = "cdi-data";
 export const GEE_SOURCE_ID = "gee-tiles";
 export const SATELLITE_SOURCE_ID = "satellite-base";

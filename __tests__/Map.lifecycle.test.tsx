@@ -295,7 +295,7 @@ describe("Map lifecycle", () => {
       "brazil-states",
       expect.objectContaining({
         tiles: [expect.stringContaining("/api/tiles/{z}/{x}/{y}")],
-        maxzoom: 6,
+        maxzoom: 12,
       }),
     );
     expect(firstInstance.addSource).toHaveBeenCalledWith(
